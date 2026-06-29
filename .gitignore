@@ -1,0 +1,12 @@
+.grok/
+.cache/
+.npm/
+.bun/
+.local/
+.var/
+node_modules/
+audit-shots/
+Downloads/
+Pictures/
+Desktop/
+*.log
