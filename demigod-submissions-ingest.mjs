@@ -29,6 +29,8 @@ const result = ingestSubmission(body);
   if (gate.status !== 0) { console.error("HONESTY FAIL"); process.exit(1); }
   const gate = require("child_process").spawnSync("node", ["demigod-verify-board-honesty.mjs"], {encoding:"utf8"});
   if (gate.status !== 0) { console.error("HONESTY FAIL"); process.exit(1); }
+  const gate = require("child_process").spawnSync("node", ["demigod-verify-board-honesty.mjs"], {encoding:"utf8"});
+  if (gate.status !== 0) { console.error("HONESTY FAIL"); process.exit(1); }
   // Fable gate: honesty before publish
 const gate = require('child_process').spawnSync('node', ['demigod-verify-board-honesty.mjs'], {encoding:'utf8'});
   if (gate.status !== 0) { console.log('HONESTY FAIL, skip publish'); process.exit(1); }

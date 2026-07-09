@@ -1,12 +1,39 @@
+# Agent / tool caches
 .grok/
 .cache/
 .npm/
 .bun/
 .local/
 .var/
+.codex/
+.cursor/
+.claude/
+.config/orca/codex-runtime-home/
+.nvm/
 node_modules/
-audit-shots/
+
+# Desktop folders
 Downloads/
 Pictures/
 Desktop/
+Documents/
+
+# Audit & session artifacts (archived via ~/agent-dev.sh archive)
+DEMIGOD-*
+HEAVY-*
+CURSOR-*
+DESK.json
+DEMIGOD-MOBILE-BRIEF.txt
+.demigod-ready
+audit-shots/
+archive/
+
+# Logs & temp
 *.log
+/tmp/
+
+# OS / editor
+.bash_history
+.viminfo
+*.swp
+.DS_Store
