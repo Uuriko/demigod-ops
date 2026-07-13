@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# dg-site-metrics — trydemigod.com + Demigod startup health score (0–100)
+# Higher = better. Run before/after site/GTM loops.
+# Uses temp files for greps (echo|grep flaked on large HTML).
+set -euo pipefail
+OUT="${1:-/tmp/site-metrics-latest.json}"
+ROOT="${HOME}"
+cd "$ROOT"
+
+SCORE=0
+declare -a NOTES=()
+pass() { SCORE=$((SCORE+$1)); NOTES+=("PASS +$1 $2: $3"); }
+fail() { NOTES+=("FAIL  $1: $2"); }
+
+HTML_FILE=/tmp/dg-site-metrics-live.html
+HEAD_FILE=/tmp/dg-site-metrics-head.html
+FOOT_FILE=/tmp/dg-site-metrics-foot.js
+
+# --- Live HTML ---
+TS=$(date +%s)
+curl -sL --max-time 25 "https://www.trydemigod.com/?m=${TS}" -o "$HTML_FILE" || true
+BYTES=$(wc -c <"$HTML_FILE" 2>/dev/null | tr -d ' ' || echo 0)
+# head only (up to first </head>)
+python3 - "$HTML_FILE" "$HEAD_FILE" <<'PY'
+import sys
+html=open(sys.argv[1],'rb').read().decode('utf-8','replace')
+i=html.lower().find('</head>')
+open(sys.argv[2],'w').write(html[:i] if i>=0 else html[:8000])
+PY
+
+if [[ "${BYTES:-0}" -lt 5000 ]]; then
+  fail 0 live_fetch "HTML too small ($BYTES)"
+else
+  pass 5 live_fetch "bytes=$BYTES"
+fi
+
+# Head health (file greps — no echo of huge strings)
+if grep -q 'unhide-v5-safe' "$HEAD_FILE" 2>/dev/null; then pass 15 head_v5 "unhide-v5-safe present"
+else fail head_v5 "missing unhide-v5-safe"; fi
+
+MO=$(grep -c MutationObserver "$HEAD_FILE" 2>/dev/null || true)
+if [[ "${MO:-0}" -eq 0 ]]; then pass 10 head_no_mo "no MutationObserver in head"
+else fail head_no_mo "MutationObserver count=$MO"; fi
+
+if grep -q 'dg-base-tokens' "$HEAD_FILE" 2>/dev/null; then pass 5 head_tokens "dg-base-tokens present"
+else fail head_tokens "missing design tokens"; fi
+
+# Foot CDN
+if grep -qE 'files\.catbox\.moe/[a-z0-9]+\.js' "$HTML_FILE" 2>/dev/null; then
+  FOOT_JS=$(grep -oE 'https://files.catbox.moe/[a-z0-9]+\.js' "$HTML_FILE" | head -1)
+  curl -sL --max-time 25 "$FOOT_JS" -o "$FOOT_FILE" || true
+  if grep -qE "dg-foot-v1[5-9]|__dgFootVer='1[5-9][0-9]'" "$FOOT_FILE" 2>/dev/null; then
+    FVER=$(grep -oE "__dgFootVer='[0-9]+'" "$FOOT_FILE" | head -1)
+    pass 15 foot_ver "CDN foot OK $FVER ($FOOT_JS)"
+  else
+    fail foot_ver "CDN foot not v150+ (file $(wc -c <"$FOOT_FILE" 2>/dev/null || echo 0)b)"
+  fi
+  if grep -q '90day-outcome' "$FOOT_FILE" 2>/dev/null; then pass 5 foot_90d "90day-outcome in foot"
+  else fail foot_90d "missing 90day-outcome"; fi
+else
+  fail foot_ver "no catbox foot loader on live"
+  fail foot_90d "no foot"
+fi
+
+# Policy leaks in static HTML
+LOREM=$(grep -ci lorem "$HTML_FILE" 2>/dev/null || true)
+H24=$(grep -ciE 'within[[:space:]]*24[[:space:]]*hours?|get back to you within 24' "$HTML_FILE" 2>/dev/null || true)
+H48=$(grep -ciE '48[[:space:]]*h(ours?)?' "$HTML_FILE" 2>/dev/null || true)
+if [[ "${LOREM:-0}" -eq 0 ]]; then pass 5 no_lorem "no lorem in HTML source"
+else fail no_lorem "lorem count=$LOREM (source; runtime may hide)"; fi
+if [[ "${H24:-0}" -eq 0 && "${H48:-0}" -eq 0 ]]; then pass 10 no_sla_copy "no 24h/48h SLA copy in source"
+else fail no_sla_copy "24h=$H24 48h=$H48 in source"; fi
+
+# Forms present (file grep — avoids echo|grep flake on large HTML)
+if grep -qE 'startup-hire|name="startup"' "$HTML_FILE" 2>/dev/null; then pass 5 forms_startup "startup form present"
+else fail forms_startup "no startup form"; fi
+if grep -qE 'engineer-join|jobseeker-modal|seeker-email' "$HTML_FILE" 2>/dev/null; then pass 5 forms_eng "engineer form present"
+else fail forms_eng "no engineer form"; fi
+
+# Gates on disk
+if node demigod-verify-source.mjs >/tmp/dg-src-m.json 2>&1; then
+  pass 10 source_gate "verify:source PASS"
+else
+  fail source_gate "verify:source FAIL"
+fi
+if node demigod-verify-board-honesty.mjs >/tmp/dg-board-m.txt 2>&1; then
+  pass 10 board_gate "board honesty OK"
+else
+  fail board_gate "board honesty FAIL"
+fi
+
+# Live verify (HTTP)
+if node demigod-verify-live.mjs >/tmp/dg-live-m.json 2>&1; then
+  pass 10 live_gate "verify:live PASS"
+else
+  if grep -q '"pass":false' /tmp/dg-live-m.json 2>/dev/null || grep -q 'pass.:false' /tmp/dg-live-m.json 2>/dev/null; then
+    fail live_gate "verify:live FAIL (see DEMIGOD-VERIFY-LIVE.json)"
+  else
+    fail live_gate "verify:live FAIL"
+  fi
+fi
+
+# Startup phase signals (honest board)
+REAL=$(node -e 'const b=require("./DEMIGOD-BOARD.json");console.log(b.signal?.realRoles??0)' 2>/dev/null || echo 0)
+ROLES=$(node -e 'const b=require("./DEMIGOD-BOARD.json");console.log((b.roles||[]).length)' 2>/dev/null || echo 0)
+if [[ "$REAL" == "0" && "$ROLES" -le 3 ]]; then
+  pass 5 board_honest_shape "roles=$ROLES realRoles=0"
+else
+  fail board_honest_shape "roles=$ROLES real=$REAL (want real=0, roles<=3)"
+fi
+
+FAILS=0; for _n in "${NOTES[@]}"; do [[ "$_n" == FAIL* ]] && FAILS=$((FAILS+1)); done
+python3 - "$OUT" "$SCORE" "$BYTES" "$LOREM" "$H24" "$FAILS" <<'PY'
+import json,sys,datetime
+out,score,bytes_,lorem,h24,fails=sys.argv[1:7]
+score=int(score); fails=int(fails)
+if fails and score>=100: score=max(0, 100 - fails*5)
+payload={
+  "at": datetime.datetime.now().isoformat(timespec="seconds"),
+  "score": min(score, 100),
+  "max": 100,
+  "pct": min(score, 100),
+  "fails": fails,
+  "live_bytes": int(bytes_),
+  "lorem": int(lorem),
+  "h24": int(h24),
+}
+open(out,"w").write(json.dumps(payload,indent=2)+"\n")
+print(json.dumps(payload,indent=2))
+PY
+
+SCORE_RAW=$SCORE
+if [ "$SCORE" -gt 100 ]; then SCORE=100; fi
+ADJ=$SCORE; [[ "${FAILS:-0}" -gt 0 && "$SCORE" -ge 100 ]] && ADJ=$((100 - FAILS*5)); echo "=== dg-site-metrics score ${ADJ}/100 (raw=${SCORE} fails=${FAILS}) ==="
+printf '%s\n' "${NOTES[@]}"
+echo "json → $OUT"
+printf '%s\n' "${NOTES[@]}" > "${OUT%.json}.notes.txt"
+if [[ "${FAILS:-0}" -gt 0 ]]; then exit 1; fi
+exit 0

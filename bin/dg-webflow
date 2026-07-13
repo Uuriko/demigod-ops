@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Agent-first Webflow workbench — orientation, freeze, tabs, playbooks, gated runs
+#
+#   bin/dg-webflow status
+#   bin/dg-webflow doctor
+#   bin/dg-webflow tabs
+#   bin/dg-webflow truth
+#   bin/dg-webflow open custom-code
+#   bin/dg-webflow playbook prep-footer-paste
+#   bin/dg-webflow run paste-footer --dry-run
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec node "$ROOT/demigod-webflow.mjs" "$@"

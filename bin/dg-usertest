@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# dg-usertest — unified Demigod user-test harness
+set -euo pipefail
+cd /home/potter
+exec node demigod-user-test.mjs "$@"

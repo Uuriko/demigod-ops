@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# dg-cockpit — agent "what next" (honest hash chain + freeze)
+set -euo pipefail
+cd /home/potter
+[ -f "$HOME/.config/demigod/source-openai.sh" ] && . "$HOME/.config/demigod/source-openai.sh" || true
+exec node demigod-agent-cockpit.mjs "$@"

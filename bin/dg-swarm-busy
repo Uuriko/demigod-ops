@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# dg-swarm-busy — keep agents productive without foot thrash
+set -euo pipefail
+cd /home/potter
+mkdir -p /tmp/dg-multi /tmp/dg-busy
+TS=$(date +%s)
+echo "$(date -Iseconds) swarm-busy start" | tee -a /tmp/dg-busy/swarm-watch.log
+
+npm run demigod:verify:source >/tmp/dg-busy/verify-source.out 2>&1 || true
+node demigod-verify-board-honesty.mjs >/tmp/dg-busy/board.out 2>&1 || true
+node demigod-verify-loop-state.mjs >/tmp/dg-busy/loop.out 2>&1 || true
+node demigod-gtm-status.mjs >/tmp/dg-busy/gtm.out 2>&1 || true
+curl -sS --max-time 20 'https://www.trydemigod.com/' | grep -oE 'files\.catbox\.moe/[a-z0-9]+\.js|Last Published[^<]{0,60}' | head -5 >/tmp/dg-busy/live-markers.txt || true
+{
+  echo "at=$(date -Iseconds)"
+  tail -1 /tmp/dg-busy/verify-source.out 2>/dev/null
+  tail -1 /tmp/dg-busy/board.out 2>/dev/null
+  tail -1 /tmp/dg-busy/loop.out 2>/dev/null
+  cat /tmp/dg-busy/live-markers.txt 2>/dev/null
+} | tee /tmp/demigod-gate-latest.txt
+
+n=$(pgrep -cf 'claude --print|codex exec' || true)
+echo "active_workers=$n" | tee -a /tmp/dg-busy/swarm-watch.log
+FOOT=$(grep -o "dg-foot-v[0-9]*-core" demigod-foot-core.js | head -1 || echo '?')
+LIVE=$(head -1 /tmp/dg-busy/live-markers.txt || echo '?')
+
+if [ "${n:-0}" -lt 2 ]; then
+  echo "spawning fill-in workers (docs/GTM/research)"
+  printf '%s\n' "Demigod (Webflow talent matching). Phase GTM+pre-services. Foot ${FOOT}. Live: ${LIVE}. One paragraph next productive non-code action. Max 120 words + cmds."     | timeout 150 claude --print --model sonnet --add-dir /home/potter > "/tmp/dg-multi/sonnet-fill-${TS}.txt" 2>&1 &
+  printf '%s\n' "Demigod. Foot ${FOOT}. One next action for demand OR honesty. Max 80 words + exact cmds for Grok."     | timeout 150 claude --print --model fable --add-dir /home/potter > "/tmp/dg-multi/fable-fill-${TS}.txt" 2>&1 &
+  printf '%s\n' "Demigod: skim demigod-foot-core.js for remaining P0 bugs (max 3). Do not edit. Foot ${FOOT}."     | timeout 120 codex exec > "/tmp/dg-multi/codex-fill-${TS}.txt" 2>&1 &
+fi
+
+if [ $((TS % 3)) -eq 0 ]; then
+  printf '%s\n' "Demigod strategy. 5-line differentiation vs Wellfound, Dover, Underdog, agency 15-25%, Paraform. Demand first. Max 150 words."     | timeout 120 claude --print --model opus --add-dir /home/potter > "/tmp/dg-multi/opus-diff-${TS}.txt" 2>&1 &
+fi
+
+pgrep -af 'claude --print|codex exec' | grep -v pgrep | head -12 || true
+echo "swarm-busy done" | tee -a /tmp/dg-busy/swarm-watch.log

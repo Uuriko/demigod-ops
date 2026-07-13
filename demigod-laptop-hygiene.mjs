@@ -1,0 +1,184 @@
+#!/usr/bin/env node
+/**
+ * demigod-laptop-hygiene — tabs + light process/load check for a snappy laptop
+ *
+ *   node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung]
+ *
+ * Safe defaults: report only. --prune closes excess CDP tabs. --kill-hung
+ * only kills long-running claude --print / stuck demigod playtests (not Chrome CDP).
+ */
+import { spawnSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { BUSY, ensureBusy, atomicWrite } from './demigod-agent-tools-lib.mjs';
+
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const asJson = args.includes('--json');
+const doPrune = args.includes('--prune');
+const killHung = args.includes('--kill-hung');
+
+function sh(cmd) {
+  return spawnSync('bash', ['-lc', cmd], { encoding: 'utf8', timeout: 20000 });
+}
+
+function loadMem() {
+  const up = sh('uptime').stdout || '';
+  const loadM = up.match(/load average:\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)/);
+  const free = sh("free -b | awk '/^Mem:/{print $2,$7}'").stdout.trim().split(/\s+/);
+  const total = Number(free[0]) || 0;
+  const avail = Number(free[1]) || 0;
+  return {
+    load1: loadM ? Number(loadM[1]) : null,
+    load5: loadM ? Number(loadM[2]) : null,
+    load15: loadM ? Number(loadM[3]) : null,
+    memTotalGb: total ? +(total / 1e9).toFixed(1) : null,
+    memAvailGb: avail ? +(avail / 1e9).toFixed(1) : null,
+    memAvailPct: total ? Math.round((avail / total) * 100) : null,
+  };
+}
+
+function listHung() {
+  // etime can be [[dd-]hh:]mm:ss
+  const r = sh("ps -eo pid=,etime=,cmd= | grep -E 'claude --print|demigod-(wiz-cdp|form-e2e|ux-flow|full-audit|mobile-audit)' | grep -v grep || true");
+  const lines = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const hung = [];
+  for (const line of lines) {
+    const m = line.trim().match(/^(\d+)\s+(\S+)\s+(.*)$/);
+    if (!m) continue;
+    const pid = Number(m[1]);
+    const etime = m[2];
+    const cmd = m[3];
+    // convert rough minutes
+    let mins = 0;
+    const parts = etime.split(/[-:]/).map(Number);
+    if (parts.length === 2) mins = parts[0];
+    else if (parts.length === 3) mins = parts[0] * 60 + parts[1];
+    else if (parts.length === 4) mins = parts[0] * 24 * 60 + parts[1] * 60 + parts[2];
+    if (mins >= 25) hung.push({ pid, etime, mins, cmd: cmd.slice(0, 120) });
+  }
+  return hung;
+}
+
+async function tabCount() {
+  try {
+    const r = await fetch('http://127.0.0.1:9223/json/list', { signal: AbortSignal.timeout(3000) });
+    const j = await r.json();
+    const pages = (Array.isArray(j) ? j : []).filter((t) => t.type === 'page');
+    const by = {};
+    for (const p of pages) {
+      const u = p.url || '';
+      let k = 'other';
+      if (/9878/.test(u)) k = 'ops-dash';
+      else if (/trydemigod/.test(u)) k = 'live';
+      else if (/design\.webflow/.test(u)) k = 'designer';
+      else if (/custom-code/.test(u)) k = 'custom-code';
+      else if (/webflow\.com/.test(u)) k = 'webflow';
+      by[k] = (by[k] || 0) + 1;
+    }
+    return { ok: true, pages: pages.length, by };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
+async function main() {
+  ensureBusy();
+  const report = {
+    at: new Date().toISOString(),
+    load: loadMem(),
+    tabs: await tabCount(),
+    hung: listHung(),
+    actions: [],
+    tips: [],
+  };
+
+  const { load, tabs, hung } = report;
+  if (load.load1 != null && load.load1 > 4) {
+    report.tips.push(`Load high (${load.load1}) — prune tabs, skip parallel claude/swarm`);
+  }
+  if (load.memAvailPct != null && load.memAvailPct < 15) {
+    report.tips.push(`Low free mem (${load.memAvailPct}%) — close Chrome tabs / restart dash`);
+  }
+  if (tabs.ok && tabs.pages > 10) {
+    report.tips.push(`CDP pages ${tabs.pages} > 10 — run with --prune`);
+  }
+  if (tabs.ok && (tabs.by['ops-dash'] || 0) > 2) {
+    report.tips.push(`Ops dash tabs ${tabs.by['ops-dash']} — keep one :9878`);
+  }
+  if (hung.length) {
+    report.tips.push(`${hung.length} hung agent process(es) ≥25m — --kill-hung if stuck`);
+  }
+
+  if (doPrune) {
+    const p = spawnSync('node', [path.join(ROOT, 'demigod-cdp-tab-prune.mjs')], {
+      encoding: 'utf8',
+      timeout: 30000,
+      cwd: ROOT,
+    });
+    let detail = null;
+    try {
+      detail = JSON.parse(p.stdout || '{}');
+    } catch {
+      detail = { raw: (p.stdout || '').slice(0, 300) };
+    }
+    report.actions.push({ action: 'tab-prune', ok: p.status === 0, detail });
+    report.tabs = await tabCount();
+  }
+
+  if (killHung && hung.length) {
+    for (const h of hung) {
+      try {
+        process.kill(h.pid, 'SIGTERM');
+        report.actions.push({ action: 'kill-hung', pid: h.pid, ok: true, cmd: h.cmd });
+      } catch (e) {
+        report.actions.push({ action: 'kill-hung', pid: h.pid, ok: false, err: String(e.message || e) });
+      }
+    }
+  }
+
+  // Ensure one ops dash if CDP up and prune left zero
+  if (doPrune && report.tabs.ok && !(report.tabs.by['ops-dash'] > 0)) {
+    try {
+      await fetch(
+        `http://127.0.0.1:9223/json/new?${encodeURIComponent('http://127.0.0.1:9878/')}`,
+        { method: 'PUT', signal: AbortSignal.timeout(5000) },
+      );
+      report.actions.push({ action: 'reopen-ops-dash', ok: true });
+      report.tabs = await tabCount();
+    } catch (e) {
+      report.actions.push({ action: 'reopen-ops-dash', ok: false, err: String(e.message || e) });
+    }
+  }
+
+  report.healthy =
+    (load.load1 == null || load.load1 < 6) &&
+    (load.memAvailPct == null || load.memAvailPct > 10) &&
+    (!tabs.ok || tabs.pages <= 12) &&
+    hung.length === 0;
+
+  atomicWrite(path.join(BUSY, 'laptop-hygiene.json'), JSON.stringify(report, null, 2) + '\n');
+
+  if (asJson) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(
+      `laptop-hygiene ${report.healthy ? 'OK' : 'ATTN'} · load ${load.load1}/${load.load5} · mem free ${load.memAvailGb}G (${load.memAvailPct}%) · tabs ${tabs.pages ?? '?'} · hung ${hung.length}`,
+    );
+    if (tabs.ok) console.log(`  tabs by: ${JSON.stringify(tabs.by)}`);
+    for (const t of report.tips) console.log(`  · ${t}`);
+    for (const a of report.actions) {
+      console.log(`  action ${a.action}: ${a.ok ? 'ok' : 'fail'} ${a.pid || ''} ${a.detail?.closed != null ? 'closed=' + a.detail.closed : ''}`);
+    }
+    if (!doPrune && tabs.ok && tabs.pages > 8) {
+      console.log('  hint: node demigod-laptop-hygiene.mjs --prune');
+    }
+  }
+  process.exit(report.healthy ? 0 : 1);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(2);
+});

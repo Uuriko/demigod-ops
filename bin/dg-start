@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# dg-start — session bootstrap for agents (Grok/Claude/Codex)
+# Refreshes dashboard brief, prints AGENT-BRIEF + ship status + foot lock.
+set -euo pipefail
+# load OpenAI API key for Codex/agents if present
+[ -f "$HOME/.config/demigod/source-openai.sh" ] && . "$HOME/.config/demigod/source-openai.sh"
+cd /home/potter
+mkdir -p /tmp/dg-busy
+
+echo "════════════════════════════════════════════════════"
+echo " Demigod session start  $(date -Iseconds)"
+echo "════════════════════════════════════════════════════"
+
+# 1) dashboard up (best-effort)
+if ! curl -sS --max-time 1 http://127.0.0.1:9878/health >/dev/null 2>&1; then
+  nohup node demigod-agent-dashboard.mjs --port 9878 >>/tmp/dg-busy/dashboard.log 2>&1 &
+  echo $! >/tmp/dg-busy/dashboard.pid
+  sleep 0.8
+fi
+
+# 2) refresh brief via API (writes /tmp/dg-busy/AGENT-BRIEF.md)
+if curl -sS --max-time 30 http://127.0.0.1:9878/api/agent-brief >/tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null; then
+  echo "brief     refreshed via dashboard"
+else
+  echo "brief     dashboard slow — partial offline brief"
+  {
+    echo "# Demigod AGENT-BRIEF (offline fallback)"
+    echo "at: $(date -Iseconds)"
+    echo "foot: $(grep -o "__dgFootVer='[0-9]*'" demigod-foot-core.js 2>/dev/null || echo '?')"
+    echo "cdn: $(node -e "try{console.log(require('./DEMIGOD-FOOT-CDN.json').cdnUrl)}catch(e){console.log('?')}" 2>/dev/null)"
+    echo "Run: bin/dg-dash && curl -sS http://127.0.0.1:9878/api/agent-brief"
+  } >/tmp/dg-busy/AGENT-BRIEF.md
+fi
+
+# 3) truth (single facts blob)
+echo
+echo "── truth ──"
+node demigod-truth.mjs --md 2>/dev/null || echo "(truth failed)"
+
+# 4) ship status
+echo
+echo "── ship-status ──"
+node demigod-ship-status.mjs 2>/dev/null || echo "(ship-status failed)"
+
+# 5) preflight suite
+echo
+echo "── preflight ──"
+node demigod-preflight.mjs 2>/dev/null || true
+
+# 6) plan inbox
+echo
+echo "── plan-inbox ──"
+node demigod-plan-inbox.mjs --useful 2>/dev/null || true
+
+# 7) freeze snapshot (session churn baseline)
+echo
+echo "── freeze snapshot ──"
+node demigod-freeze.mjs snapshot --tag session 2>/dev/null || true
+
+echo "── foot-lock ──"
+node demigod-foot-lock.mjs status 2>/dev/null || echo "(lock status failed)"
+
+# 5) print brief (primary payload for agents)
+echo
+echo "── AGENT-BRIEF ──"
+cat /tmp/dg-busy/AGENT-BRIEF.md
+echo
+# 6) claim-verify ship+copy (Sonnet settlement)
+echo
+echo "── claim-verify ──"
+node demigod-claim-verify.mjs --ship --copy-policy --board 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);console.log(j.summary||j.pass); (j.checks||[]).filter(c=>!c.ok).forEach(c=>console.log(' FAIL',c.name,c.detail));}catch(e){console.log(d.slice(0,400))}})" || true
+
+# 7) open plans
+echo
+echo "── plan-ledger open ──"
+node demigod-plan-ledger.mjs open 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);console.log('open',j.count);(j.plans||[]).slice(0,5).forEach(p=>console.log('-',p.status,p.title));}catch(e){console.log(d.slice(0,300))}})" || true
+
+# 8) submit watch + ops (startup signal)
+echo
+echo "── watch-submits ──"
+node demigod-watch-submits.mjs 2>/dev/null || true
+
+echo
+echo "── copy-policy (disk) ──"
+node demigod-copy-policy.mjs --disk-only 2>/dev/null || true
+
+echo
+echo "── ops-reconcile ──"
+node demigod-ops-reconcile.mjs 2>/dev/null || true
+
+# 9) handoff refresh (for next agent)
+node demigod-handoff.mjs --note "dg-start" >/dev/null 2>&1 || true
+
+echo "════════════════════════════════════════════════════"
+echo " paths: /tmp/dg-busy/AGENT-BRIEF.md  /tmp/dg-busy/truth.json  /tmp/dg-busy/HANDOFF.md"
+echo "        /tmp/dg-busy/SUBMIT-ALERT.md  /tmp/dg-busy/outbox/"
+echo " dash:  http://127.0.0.1:9878/   brief API: /api/agent-brief"
+echo " lock:  node demigod-foot-lock.mjs claim|release|check"
+echo " ship:  node demigod-ship-status.mjs [--strict]"
+echo " truth: node demigod-truth.mjs --md"
+echo " apply: node demigod-apply.mjs check|apply <plan.json>"
+echo " submits: node demigod-watch-submits.mjs [--mark]"
+echo " copy:  node demigod-copy-policy.mjs [--live]"
+echo " conv:  node demigod-conversion-playtest.mjs"
+echo "════════════════════════════════════════════════════"

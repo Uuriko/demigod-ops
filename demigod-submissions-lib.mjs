@@ -2,9 +2,12 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = '/home/potter';
 export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
+export const BOARD_LOCK = path.join(ROOT, 'DEMIGOD-BOARD.json.lock');
+export const BOARD_AUDIT = path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
 export const INBOX_PATH = path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json');
 
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
@@ -202,10 +205,162 @@ export function saveInbox(inbox) {
   fs.writeFileSync(INBOX_PATH, JSON.stringify(inbox, null, 2));
 }
 
-export function saveBoard(board) {
-  const filtered = filterBoard(board);
+export function saveBoard(board, opts = {}) {
+  return withFileLock(
+    BOARD_LOCK,
+    () => persistBoardCore(board, opts),
+    { timeoutMs: 20000, staleMs: 120000 },
+  );
+}
+
+/**
+ * Mutate board under a single lock: mutator(board) → board
+ * Prefer this for multi-step mutations.
+ */
+export function writeBoard(mutator, opts = {}) {
+  return withFileLock(
+    BOARD_LOCK,
+    () => {
+      const board = loadBoard();
+      const next = typeof mutator === 'function' ? mutator(JSON.parse(JSON.stringify(board))) : mutator;
+      return persistBoardCore(next || board, opts);
+    },
+    { timeoutMs: 20000, staleMs: 120000 },
+  );
+}
+
+function shaStable(obj) {
+  return crypto.createHash('sha256').update(JSON.stringify(obj)).digest('hex').slice(0, 16);
+}
+
+function appendBoardAudit(entry) {
+  try {
+    fs.appendFileSync(BOARD_AUDIT, JSON.stringify(entry) + '\n');
+  } catch {
+    /* */
+  }
+}
+
+/**
+ * Real roles/receipts require explicit env signal — caller boolean alone is not enough.
+ * DEMIGOD_ALLOW_REAL_ROLES=1 and/or DEMIGOD_ALLOW_REAL_RECEIPTS=1
+ * Board payload flags (filtered.allowRealRoles) are ignored for the gate (audit-only if set).
+ */
+function realRolesEnvOk() {
+  return process.env.DEMIGOD_ALLOW_REAL_ROLES === '1' || process.env.DEMIGOD_ALLOW_REAL_ROLES === 'true';
+}
+function realReceiptsEnvOk() {
+  return (
+    process.env.DEMIGOD_ALLOW_REAL_RECEIPTS === '1' ||
+    process.env.DEMIGOD_ALLOW_REAL_RECEIPTS === 'true' ||
+    realRolesEnvOk()
+  );
+}
+
+/** Core persist — call only while holding BOARD_LOCK (via saveBoard/writeBoard). */
+function persistBoardCore(board, opts = {}) {
+  const actor = opts.actor || process.env.USER || process.env.DEMIGOD_ACTOR || 'agent';
+  const reason = opts.reason || 'unspecified';
+  let before = null;
+  try {
+    before = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
+  } catch {
+    before = null;
+  }
+  const beforeHash = before ? shaStable(before) : null;
+  const filtered = filterBoard(board || {});
+  // Never trust board-payload honesty bypass flags
+  delete filtered.allowRealRoles;
+  delete filtered.allowRealReceipts;
   filtered.at = new Date().toISOString();
-  fs.writeFileSync(BOARD_PATH, JSON.stringify(filtered, null, 2));
+  const roles = filtered.roles || [];
+  const realRoles = roles.filter((r) => r && r.sample === false);
+  const realReceipts = (filtered.receipts || []).filter(
+    (r) => r && r.sample === false && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || ''),
+  );
+  if (roles.length > 3 && !opts.allowOverCap) {
+    filtered.roles = roles.slice(0, 3);
+  }
+  const allowReal =
+    (opts.allowRealRoles === true || opts.real === true) && realRolesEnvOk();
+  const allowReceipts =
+    (opts.allowRealReceipts === true || opts.real === true) && realReceiptsEnvOk();
+  if (realRoles.length > 0 && !allowReal) {
+    const err = new Error(
+      `board_write_refused: realRoles=${realRoles.length} need DEMIGOD_ALLOW_REAL_ROLES=1 + opts.allowRealRoles (reason=${reason})`,
+    );
+    err.code = 'REAL_ROLES_REFUSED';
+    throw err;
+  }
+  if (realReceipts.length > 0 && !allowReceipts) {
+    const err = new Error(
+      `board_write_refused: realReceipts=${realReceipts.length} need DEMIGOD_ALLOW_REAL_RECEIPTS=1 (or ROLES) + opts`,
+    );
+    err.code = 'REAL_RECEIPTS_REFUSED';
+    throw err;
+  }
+  atomicWrite(BOARD_PATH, JSON.stringify(filtered, null, 2) + '\n');
+  appendBoardAudit({
+    at: filtered.at,
+    actor,
+    reason,
+    beforeHash,
+    afterHash: shaStable(filtered),
+    roles: (filtered.roles || []).length,
+    realRoles: realRoles.length,
+    receipts: (filtered.receipts || []).length,
+    allowRealEnv: realRolesEnvOk(),
+    allowRealOpts: !!opts.allowRealRoles || !!opts.real,
+  });
+  return filtered;
+}
+
+/**
+ * Mint public board entry only from reviewed submission (sample by default).
+ */
+export function mintBoardEntry(submission, opts = {}) {
+  const status = String(submission?.status || '');
+  // force only honored when env DEMIGOD_MINT_FORCE=1 (CLI/ops — never trust HTTP-only flags)
+  const forceOk =
+    opts.force === true &&
+    (process.env.DEMIGOD_MINT_FORCE === '1' || process.env.DEMIGOD_MINT_FORCE === 'true');
+  if (!['reviewed', 'featured', 'approved'].includes(status) && !forceOk) {
+    const err = new Error(
+      `mint_refused: submission status=${status} (need reviewed` +
+        (opts.force ? '; force needs DEMIGOD_MINT_FORCE=1' : '') +
+        ')',
+    );
+    err.code = 'NOT_REVIEWED';
+    throw err;
+  }
+  // real featured cards need env + opts
+  const wantReal = opts.real === true && realRolesEnvOk();
+  return writeBoard(
+    (board) => {
+      const form = String(submission.form || '');
+      const data = submission.raw || {};
+      let featured = null;
+      if (/startup/.test(form)) {
+        featured = anonymizeRole(data);
+        featured.sample = wantReal ? false : true;
+        if (!wantReal) featured.outcome = featured.outcome || 'Sample · human review';
+        board.roles = [featured, ...(board.roles || [])].slice(0, 3);
+      } else if (/engineer|jobseeker|candidate/.test(form)) {
+        featured = anonymizeCandidate(data);
+        featured.sample = wantReal ? false : true;
+        board.candidates = [featured, ...(board.candidates || [])].slice(0, 3);
+      } else {
+        return board;
+      }
+      return board;
+    },
+    {
+      reason: opts.reason || `mint:${submission.id}`,
+      actor: opts.actor,
+      allowRealRoles: !!opts.real,
+      allowRealReceipts: !!opts.real,
+    },
+  );
 }
 
 /** Ingest raw webhook/form body; returns { inbox, board, record, featured } */
@@ -241,7 +396,7 @@ export function ingestSubmission(body = {}, opts = {}) {
       record.status = 'featured';
       record.featuredId = featured.id;
       saveInbox(inbox);
-      saveBoard(board);
+      saveBoard(board, { reason: `feature-on-ingest:${record?.id || 'unknown'}`, actor: 'ingest' });
     }
   }
 

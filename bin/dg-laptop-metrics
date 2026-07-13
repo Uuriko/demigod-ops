@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# dg-laptop-metrics — measurable laptop/agent hygiene score (0–100)
+# Higher = better for Demigod agent work. Use before/after loops.
+set -euo pipefail
+
+OUT="${1:-/tmp/laptop-metrics-latest.json}"
+SCORE=0
+MAX=100
+declare -a NOTES=()
+declare -A M=()
+
+pass() { local pts="$1" key="$2" msg="$3"; SCORE=$((SCORE + pts)); M["$key"]=1; NOTES+=("PASS +$pts $key: $msg"); }
+fail() { local key="$1" msg="$2"; M["$key"]=0; NOTES+=("FAIL  $key: $msg"); }
+info() { NOTES+=("INFO  $1"); }
+
+# --- permissions allowlist (Fable P0) ---
+SETTINGS="${HOME}/.claude/settings.json"
+if [[ -f "$SETTINGS" ]]; then
+  if grep -q 'curl.*9223\|Write(/home/potter\|demigod:\*' "$SETTINGS" 2>/dev/null \
+    && grep -q 'demigod' "$SETTINGS"; then
+    # richer if curl + write present
+    if grep -q '9223' "$SETTINGS" && grep -q 'Write' "$SETTINGS"; then
+      pass 20 permissions "rich allowlist (demigod + CDP curl + Write)"
+    else
+      pass 10 permissions "partial allowlist present"
+      fail permissions_rich "missing curl 9223 and/or Write paths"
+    fi
+  else
+    fail permissions "settings.json too thin for Fable demigod cycles"
+  fi
+else
+  fail permissions "no ~/.claude/settings.json"
+fi
+
+# --- no drop_caches *commands* (ignore comments saying "NO drop_caches") ---
+DROP=0
+for f in "${HOME}/bin/dg-linux-config" "${HOME}/bin/speed-optimize"; do
+  [[ -f "$f" ]] || continue
+  if grep -E '^[^#]*drop_caches|^[^#]*echo 3\s*\|' "$f" 2>/dev/null | grep -vq 'NO drop_caches\|no drop_caches'; then
+    # real command lines only
+    if grep -nE '^[^#]*(/proc/sys/vm/drop_caches|tee /proc/sys/vm/drop_caches)' "$f" >/dev/null 2>&1; then
+      DROP=1
+      fail drop_caches "command still in $f"
+    fi
+  fi
+done
+[[ $DROP -eq 0 ]] && pass 15 drop_caches "no drop_caches commands in speed scripts"
+
+# --- no autopilot *autostart* (tmux new ... dg-autopilot) ---
+AUTO=0
+for f in "${HOME}/bin/dg-linux-config"; do
+  [[ -f "$f" ]] || continue
+  if grep -nE '^[^#]*(tmux new.*dg-autopilot|dg-autopilot)' "$f" 2>/dev/null | grep -vq 'no autopilot'; then
+    if grep -nE '^[^#]*tmux.*dg-autopilot' "$f" >/dev/null 2>&1; then
+      AUTO=1
+      fail autopilot "autostart still in $f"
+    fi
+  fi
+done
+[[ $AUTO -eq 0 ]] && pass 15 autopilot "no autopilot autostart in dg-linux-config"
+
+# --- screen lock not disabled by scripts ---
+LOCKBAD=0
+for f in "${HOME}/bin/speed-optimize" "${HOME}/.grok/worktrees/potter/demigod/bin/speed-optimize"; do
+  [[ -f "$f" ]] || continue
+  if grep -q 'lock-enabled false' "$f" 2>/dev/null; then
+    LOCKBAD=1
+    fail screen_lock "speed-optimize disables lock: $f"
+  fi
+done
+[[ $LOCKBAD -eq 0 ]] && pass 10 screen_lock "scripts do not disable screen lock"
+
+# --- inotify ---
+WATCHES=$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo 0)
+INST=$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 0)
+M[inotify_watches]=$WATCHES
+M[inotify_instances]=$INST
+if [[ "$WATCHES" -ge 524288 ]]; then
+  pass 15 inotify "watches=$WATCHES instances=$INST"
+elif [[ "$WATCHES" -ge 131072 ]]; then
+  pass 8 inotify "watches=$WATCHES (better, not yet 524288)"
+else
+  fail inotify "watches=$WATCHES (want >=524288)"
+fi
+
+# --- CDP tabs ---
+TABS=-1
+if curl -sf --max-time 2 "http://127.0.0.1:9223/json/version" >/dev/null 2>&1; then
+  TABS=$(curl -s --max-time 3 "http://127.0.0.1:9223/json/list" 2>/dev/null \
+    | python3 -c 'import sys,json; print(len([t for t in json.load(sys.stdin) if t.get("type")=="page"]))' 2>/dev/null || echo -1)
+  M[cdp_tabs]=$TABS
+  if [[ "$TABS" -ge 0 && "$TABS" -le 8 ]]; then
+    pass 10 tabs "CDP pages=$TABS (<=8)"
+  elif [[ "$TABS" -gt 8 ]]; then
+    fail tabs "CDP pages=$TABS (want <=8)"
+  else
+    fail tabs "could not count tabs"
+  fi
+else
+  M[cdp_tabs]=-1
+  info "CDP down — tabs metric skipped (neutral)"
+  # half credit so CDP-off doesn't tank score unfairly
+  pass 5 tabs "CDP off (neutral +5)"
+fi
+
+# --- automation-linux wish list archived ---
+if [[ -f "${HOME}/demigod-automation-linux.md" ]]; then
+  fail archive_wish "demigod-automation-linux.md still in home root (archive it)"
+elif [[ -f "${HOME}/docs/archive/demigod-automation-linux.md" ]] || [[ -f "${HOME}/archive/demigod-automation-linux.md" ]]; then
+  pass 5 archive_wish "automation-linux wish list archived"
+else
+  pass 5 archive_wish "no root wish-list file"
+fi
+
+# --- bash sources demigod aliases ---
+if grep -q 'config/demigod/aliases' "${HOME}/.bashrc" 2>/dev/null; then
+  pass 5 aliases_bashrc "bashrc sources demigod aliases"
+else
+  fail aliases_bashrc "bashrc does not source ~/.config/demigod/aliases.*"
+fi
+
+# --- tabs cleanup keep-list hardened ---
+CLEAN="${HOME}/cdp-close-tabs.mjs"
+if [[ -f "$CLEAN" ]] && grep -q 'KEEP\|keepList\|designer\|custom-code' "$CLEAN" 2>/dev/null; then
+  pass 5 tabs_cleanup "cdp-close-tabs has keep-list logic"
+else
+  fail tabs_cleanup "cdp-close-tabs missing Demigod keep-list"
+fi
+
+# clamp
+[[ $SCORE -gt $MAX ]] && SCORE=$MAX
+PCT=$(( SCORE * 100 / MAX ))
+
+# JSON out
+python3 - "$OUT" "$SCORE" "$MAX" "$WATCHES" "$INST" "$TABS" <<'PY'
+import json, sys, os, datetime
+out, score, mx, watches, inst, tabs = sys.argv[1:7]
+# notes from env not passed — rebuild minimal
+payload = {
+  "at": datetime.datetime.now().isoformat(timespec="seconds"),
+  "score": int(score),
+  "max": int(mx),
+  "pct": round(100 * int(score) / int(mx), 1),
+  "inotify_watches": int(watches),
+  "inotify_instances": int(inst),
+  "cdp_tabs": int(tabs),
+  "host": os.uname().nodename,
+}
+# append notes from stdin lines if any
+print(json.dumps(payload, indent=2))
+open(out, "w").write(json.dumps(payload, indent=2) + "\n")
+PY
+
+# human report (notes)
+echo "=== dg-laptop-metrics score ${SCORE}/${MAX} (${PCT}%) ==="
+printf '%s\n' "${NOTES[@]}"
+echo "json → $OUT"
+exit 0

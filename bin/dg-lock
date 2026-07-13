@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# dg-lock <cmd...> — serialize foot-core writers (flock + durable claim + token)
+# Usage:
+#   dg-lock node something.mjs
+#   DG_LOCK_OWNER=grok dg-lock npm run demigod:verify:source
+set -euo pipefail
+cd /home/potter
+LOCKFILE=/tmp/demigod-foot-core.lock
+export DG_LOCK_OWNER="${DG_LOCK_OWNER:-${USER:-agent}}"
+export DG_LOCK_TTL="${DG_LOCK_TTL:-1800}"
+
+CLAIM_OUT=$(node demigod-foot-lock.mjs claim --owner "$DG_LOCK_OWNER" --ttl "$DG_LOCK_TTL" --why "dg-lock: $*" 2>&1) || {
+  if [ -n "${DG_LOCK_TOKEN:-}" ]; then
+    CLAIM_OUT=$(node demigod-foot-lock.mjs claim --owner "$DG_LOCK_OWNER" --ttl "$DG_LOCK_TTL" --token "$DG_LOCK_TOKEN" --why "dg-lock: $*" 2>&1) || {
+      echo "dg-lock: foot locked" >&2
+      node demigod-foot-lock.mjs status >&2 || true
+      exit 1
+    }
+  else
+    echo "dg-lock: foot locked" >&2
+    echo "$CLAIM_OUT" >&2
+    node demigod-foot-lock.mjs status >&2 || true
+    exit 1
+  fi
+}
+
+DG_LOCK_TOKEN=$(printf '%s' "$CLAIM_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);process.stdout.write(j.claimed?.token||'')}catch(e){}})" 2>/dev/null || true)
+export DG_LOCK_TOKEN
+
+cleanup() {
+  if [ -n "${DG_LOCK_TOKEN:-}" ]; then
+    node demigod-foot-lock.mjs release --owner "$DG_LOCK_OWNER" --token "$DG_LOCK_TOKEN" 2>/dev/null || \
+      node demigod-foot-lock.mjs release --force 2>/dev/null || true
+  else
+    node demigod-foot-lock.mjs release --force 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# Do NOT exec — trap must survive to release lease token
+flock -w 30 "$LOCKFILE" "$@"
+exit $?

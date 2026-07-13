@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Demigod code review + bugfix (v2)
+#
+#   bin/dg-review                      # git modified + hot tools
+#   bin/dg-review --bug --gates        # stricter + targeted verifies
+#   bin/dg-review --files a.mjs b.mjs
+#   bin/dg-review --fix --dry-run      # tier-A safe fixes preview
+#   bin/dg-review --llm                # optional claude semantic pass
+#   bin/dg-review --full               # no out-of-diff demotion
+#   bin/dg-review --catalog            # list rules
+#   bin/dg-review --untracked          # all untracked demigod-*.mjs
+#   node demigod-review-selftest.mjs
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec node "$ROOT/demigod-review.mjs" "$@"

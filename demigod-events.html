@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demigod Events · Human-led match pipeline · SF</title>
+  <meta name="description" content="Demigod Events: the human-led match pipeline and SF Match Circle interest. No AI blast. 10% on hire only. SMS and Stripe pending." />
+  <meta name="theme-color" content="#0A0A0A" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://cdn.prod.website-files.com/img/favicon.ico" />
+  <meta property="og:title" content="Demigod Events · SF human-matched talent" />
+  <meta property="og:description" content="See how human-led match events work — and register interest for SF Match Circle." />
+  <meta property="og:image" content="https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg" />
+  <meta property="og:url" content="https://www.trydemigod.com/events" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    :root {
+      --g: #C9A84C;
+      --gl: #E8D5A3;
+      --cr: #F5F0E6;
+      --dk: #0A0A0A;
+      --mu: #A8A29E;
+      --dim: #8A8478;
+      --card: rgba(14, 14, 18, 0.94);
+      --line: rgba(201, 168, 76, 0.22);
+      --glow: rgba(201, 168, 76, 0.18);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Manrope, system-ui, sans-serif;
+      background: var(--dk);
+      color: var(--cr);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    a { color: var(--g); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--g);
+      outline-offset: 2px;
+    }
+    .skip {
+      position: absolute; left: -9999px;
+    }
+    .skip:focus {
+      left: 12px; top: 12px; z-index: 100;
+      background: var(--g); color: var(--dk);
+      padding: 8px 12px; border-radius: 6px; font-weight: 600;
+    }
+    /* nav */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+      padding: 0.85rem 1.25rem;
+      background: rgba(10, 10, 10, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: Cinzel, serif; color: var(--g); font-weight: 600;
+      letter-spacing: 0.04em; text-decoration: none;
+    }
+    .nav-brand:hover { text-decoration: none; }
+    .nav-mark {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid var(--g);
+      display: grid; place-items: center;
+      font-family: Cinzel, serif; font-size: 0.95rem;
+    }
+    .nav-links { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; font-size: 0.9rem; }
+    .nav-links a { color: var(--mu); text-decoration: none; }
+    .nav-links a:hover { color: var(--g); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: 0.55rem 1.1rem;
+      border-radius: 8px; font-weight: 700; font-size: 0.92rem;
+      border: 1px solid transparent; cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s;
+      font-family: Manrope, sans-serif;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-gold {
+      background: var(--g); color: var(--dk); border-color: var(--g);
+      box-shadow: 0 4px 20px var(--glow);
+    }
+    .btn-ghost {
+      background: transparent; color: var(--gl);
+      border-color: rgba(201, 168, 76, 0.45);
+    }
+    .btn-ghost:hover { background: rgba(201, 168, 76, 0.08); text-decoration: none; }
+    .btn-gold:hover { text-decoration: none; }
+
+    /* hero */
+    .hero {
+      position: relative;
+      min-height: 72vh;
+      display: flex; align-items: center;
+      padding: 3.5rem 1.25rem 3rem;
+      background:
+        linear-gradient(105deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 48%, rgba(0,0,0,0.35) 100%),
+        url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg') center/cover no-repeat;
+    }
+    .hero-inner { max-width: 40rem; position: relative; z-index: 1; }
+    .eyebrow {
+      color: var(--g); font-size: 0.72rem; letter-spacing: 0.14em;
+      text-transform: uppercase; margin: 0 0 0.75rem; font-weight: 700;
+    }
+    h1 {
+      font-family: Cinzel, serif;
+      font-size: clamp(1.85rem, 5vw, 2.75rem);
+      line-height: 1.08; letter-spacing: -0.02em;
+      margin: 0 0 1rem; color: var(--cr);
+      text-shadow: 0 2px 24px rgba(0,0,0,0.45);
+    }
+    h1 em { font-style: normal; color: var(--g); }
+    .hero-lead {
+      color: var(--mu); font-size: 1.05rem; max-width: 36ch;
+      margin: 0 0 1.5rem;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .honesty-pill {
+      display: inline-flex; gap: 0.5rem; flex-wrap: wrap;
+      font-size: 0.8rem; color: var(--dim);
+    }
+    .honesty-pill span {
+      border: 1px dashed rgba(201,168,76,0.35);
+      border-radius: 999px; padding: 0.25rem 0.65rem;
+    }
+
+    /* layout */
+    main { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem 4rem; }
+    section { padding: 3rem 0 1rem; scroll-margin-top: 4.5rem; }
+    h2 {
+      font-family: Cinzel, serif; color: var(--g);
+      font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 0 0 0.5rem;
+    }
+    .section-lead { color: var(--mu); max-width: 48ch; margin: 0 0 1.75rem; }
+
+    /* pipeline */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.75rem;
+      counter-reset: step;
+    }
+    .pipe-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 0.85rem;
+      background: var(--card);
+      min-height: 150px;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .pipe-card:hover { border-color: rgba(201,168,76,0.45); transform: translateY(-1px); }
+    .pipe-n {
+      display: block; color: var(--g); font-size: 0.7rem;
+      letter-spacing: 0.12em; font-weight: 700; margin-bottom: 0.35rem;
+    }
+    .pipe-label {
+      font-family: Cinzel, serif; color: var(--cr);
+      font-size: 0.95rem; margin: 0 0 0.4rem;
+    }
+    .pipe-meta { font-size: 0.78rem; color: var(--mu); margin: 0; line-height: 1.4; }
+    .pipe-who { color: var(--gl); font-weight: 600; }
+
+    /* two col */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 720px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr 1fr; }
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1.25rem 1.2rem;
+      background: var(--card);
+    }
+    .card h3 {
+      font-family: Cinzel, serif; color: var(--g);
+      font-size: 1.05rem; margin: 0 0 0.5rem;
+    }
+    .card p { margin: 0 0 0.75rem; color: var(--mu); font-size: 0.92rem; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--g); border: 1px solid rgba(201,168,76,0.35);
+      border-radius: 4px; padding: 0.15rem 0.45rem; margin-bottom: 0.5rem;
+    }
+    .tag-pending { color: var(--dim); border-color: rgba(168,162,158,0.35); }
+    .meta { font-size: 0.82rem; color: var(--dim); margin: 0.25rem 0; }
+
+    /* sample roles */
+    .role-row {
+      display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(201,168,76,0.12);
+    }
+    .role-row:last-child { border-bottom: 0; }
+    .sample-badge {
+      font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--dk); background: var(--g); padding: 0.15rem 0.4rem;
+      border-radius: 3px; font-weight: 700;
+    }
+
+    /* form */
+    .interest-form label {
+      display: block; color: var(--mu); font-size: 0.85rem; margin: 0.65rem 0 0.3rem;
+    }
+    .interest-form input,
+    .interest-form select,
+    .interest-form textarea {
+      width: 100%;
+      min-height: 44px;
+      background: #111;
+      border: 1px solid rgba(201,168,76,0.28);
+      border-radius: 8px;
+      color: var(--cr);
+      padding: 0.55rem 0.75rem;
+      font-family: Manrope, sans-serif;
+      font-size: 16px;
+    }
+    .interest-form textarea { min-height: 96px; resize: vertical; }
+    .form-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+    .form-note { font-size: 0.8rem; color: var(--dim); margin-top: 0.75rem; }
+
+    /* timeline legend */
+    .split {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;
+    }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
+    .split .card h4 {
+      margin: 0 0 0.5rem; font-size: 0.85rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--g);
+    }
+    .split ul { margin: 0; padding-left: 1.1rem; color: var(--mu); font-size: 0.9rem; }
+    .split li { margin: 0.3rem 0; }
+
+    footer.page-foot {
+      border-top: 1px solid var(--line);
+      text-align: center;
+      padding: 2rem 1.25rem 2.5rem;
+      color: var(--mu); font-size: 0.9rem;
+    }
+    footer.page-foot .legal { display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap; margin: 0.75rem 0; }
+    #live-status {
+      font-size: 0.8rem; color: var(--dim);
+      border: 1px solid rgba(201,168,76,0.15);
+      border-radius: 8px; padding: 0.65rem 0.85rem;
+      margin-top: 1.5rem;
+    }
+    #live-status strong { color: var(--g); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <a class="nav-brand" href="https://www.trydemigod.com/">
+      <span class="nav-mark" aria-hidden="true">D</span>
+      Demigod · Events
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#upcoming">Upcoming</a>
+      <a href="#samples">Samples</a>
+      <a href="#interest">Interest</a>
+      <a href="https://www.trydemigod.com/?wiz=startup">Hire talent</a>
+      <a class="btn btn-gold" href="https://www.trydemigod.com/?wiz=engineer">Join network</a>
+    </nav>
+  </header>
+
+  <section class="hero" aria-label="Hero">
+    <div class="hero-inner">
+      <p class="eyebrow">SF Bay · Human-led match events · Mutual yes</p>
+      <h1>Every intro is an <em>event</em> — not a blast</h1>
+      <p class="hero-lead">
+        Demigod Events is the public home for our human-in-the-loop match pipeline
+        and small-room SF Match Circle interest. Systems help draft; judgment decides.
+        We only intro after mutual yes — fit over firm-driven spam.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-gold" href="#interest">Register interest</a>
+        <a class="btn btn-ghost" href="#pipeline">See the pipeline</a>
+      </div>
+      <div class="honesty-pill" aria-label="Honesty notes">
+        <span>No fake attendees</span>
+        <span>SMS pending</span>
+        <span>Stripe pending</span>
+        <span>No 24h SLA</span>
+      </div>
+    </div>
+  </section>
+
+  <main id="main">
+    <section id="pipeline" aria-labelledby="pipeline-h">
+      <h2 id="pipeline-h">Match event pipeline</h2>
+      <p class="section-lead">
+        From DEMIGOD-EVENTS-FLOW: states a real intro can pass through.
+        Human gates at review, match, intro, and invoice. Automation never auto-sends.
+      </p>
+      <div class="pipeline" id="pipeline-grid" role="list"></div>
+      <div class="split">
+        <div class="card">
+          <h4>Automation</h4>
+          <ul>
+            <li>Lead parse / score / surface</li>
+            <li>Match suggestions (90d + skills + stage)</li>
+            <li>Intro draft templates</li>
+            <li>Pilot log + board publish (after honesty gate)</li>
+            <li>Invoice stub when Stripe is live</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Human always</h4>
+          <ul>
+            <li>Review every brief &amp; profile</li>
+            <li>Approve matches (mutual yes)</li>
+            <li>Send intros — never auto-blast</li>
+            <li>White-glove pilot delivery</li>
+            <li>Confirm hire + invoice via hello@</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="upcoming" aria-labelledby="upcoming-h">
+      <h2 id="upcoming-h">Upcoming &amp; interest</h2>
+      <p class="section-lead">
+        Not a Luma wall of fake social proof. Status is honest — interest-only until we schedule a real room.
+      </p>
+      <div class="grid-2" id="upcoming-grid"></div>
+    </section>
+
+    <section id="samples" aria-labelledby="samples-h">
+      <h2 id="samples-h">Example roles (labeled samples)</h2>
+      <p class="section-lead">
+        From the public board — sample briefs only while first placements ship. Not live open reqs unless labeled real.
+      </p>
+      <div class="card" id="samples-list"></div>
+    </section>
+
+    <section id="interest" aria-labelledby="interest-h">
+      <h2 id="interest-h">Register interest</h2>
+      <p class="section-lead">
+        Tell us how you want to show up. Opens your email client to hello@trydemigod.com — no fake form backend, SMS pending.
+      </p>
+      <div class="card">
+        <form class="interest-form" id="interest-form">
+          <label for="role">I am a…</label>
+          <select id="role" name="role" required>
+            <option value="founder">Founder / hiring</option>
+            <option value="talent">Engineer / talent</option>
+            <option value="partner">Partner / connector</option>
+            <option value="other">Other</option>
+          </select>
+
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required placeholder="First name" />
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com" />
+
+          <label for="event">Interest</label>
+          <select id="event" name="event">
+            <option value="match-circle">SF Match Circle (pilot)</option>
+            <option value="office-hours">Founder office hours</option>
+            <option value="pipeline">Just the match pipeline / hire</option>
+            <option value="talent">Join talent network</option>
+          </select>
+
+          <label for="note">One line (optional)</label>
+          <textarea id="note" name="note" placeholder="Role you're hiring / stack / why SF startups"></textarea>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-gold">Email interest →</button>
+            <a class="btn btn-ghost" href="https://www.trydemigod.com/?wiz=startup">Skip to hire brief</a>
+          </div>
+          <p class="form-note">
+            No spam list. No auto-SMS. Payments (Stripe) still pending — if you hire through Demigod, 10% of first-year comp only on hire.
+          </p>
+        </form>
+      </div>
+      <p id="live-status" role="status" aria-live="polite">Loading events data…</p>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-h">
+      <h2 id="faq-h">FAQ</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Is this a job fair?</h3>
+          <p>No. Small, human-curated intros. We decline bad matches to protect both sides.</p>
+        </div>
+        <div class="card">
+          <h3>Are the pipeline “events” real-time?</h3>
+          <p>The state machine is real ops design. Public cards here are educational — live match data stays private until mutual yes.</p>
+        </div>
+        <div class="card">
+          <h3>What does 10% mean?</h3>
+          <p>10% of first-year salary when a hire starts — typical contingency is 15–25%. No subscription. Stripe wiring still pending — confirmations by email from hello@.</p>
+        </div>
+        <div class="card">
+          <h3>Why mutual yes?</h3>
+          <p>Firm-driven outreach alone can hire faster but raise quit risk when people never chose the role (Wharton / SMJ research). We only intro after both sides agree — and we start from the 90-day outcome.</p>
+        </div>
+        <div class="card">
+          <h3>How is this “talent engineering”?</h3>
+          <p>a16z’s framing: talent engineers build systems so exceptional people find each other — with judgment, not spam. Demigod is the human matchmaking layer: systems support the intro; a human still earns every conversation.</p>
+        </div>
+        <div class="card">
+          <h3>How fast do you reply?</h3>
+          <p>No SLA clock on this page or the live site. A human will follow up after review.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-foot">
+    <p>Human-matched SF startup talent · 10% only on hire · Candidates free</p>
+    <div class="legal">
+      <a href="https://www.trydemigod.com/">Home</a>
+      <a href="mailto:hello@trydemigod.com">hello@trydemigod.com</a>
+      <a href="https://www.trydemigod.com/?wiz=startup">Hire</a>
+      <a href="https://www.trydemigod.com/?wiz=engineer">Talent</a>
+    </div>
+    <p style="color:var(--dim);font-size:0.8rem;margin-top:0.5rem">
+      © 2026 Demigod · Events webapp v1 · Building in public
+    </p>
+  </footer>
+
+  <script>
+  (function () {
+    var DATA_URL = 'demigod-events-data.json';
+    var fallback = null; // filled if fetch fails — inline mirror of key fields
+
+    function el(tag, cls, text) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+
+    function renderPipeline(steps) {
+      var grid = document.getElementById('pipeline-grid');
+      grid.innerHTML = '';
+      steps.forEach(function (s, i) {
+        var card = el('article', 'pipe-card');
+        card.setAttribute('role', 'listitem');
+        card.appendChild(el('span', 'pipe-n', 'STEP ' + (i + 1)));
+        card.appendChild(el('h3', 'pipe-label', s.label));
+        var p = el('p', 'pipe-meta');
+        p.innerHTML = '<span class="pipe-who">' + escapeHtml(s.who) + '</span><br>' +
+          escapeHtml(s.how) + '<br><em>Auto:</em> ' + escapeHtml(s.auto) +
+          '<br><em>Human:</em> ' + escapeHtml(s.human);
+        card.appendChild(p);
+        grid.appendChild(card);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderUpcoming(items) {
+      var grid = document.getElementById('upcoming-grid');
+      grid.innerHTML = '';
+      items.forEach(function (ev) {
+        var card = el('article', 'card');
+        var tag = el('span', 'tag' + (ev.status === 'interest-only' ? ' tag-pending' : ''), ev.status || ev.type);
+        card.appendChild(tag);
+        card.appendChild(el('h3', null, ev.title));
+        card.appendChild(el('p', 'meta', ev.when));
+        card.appendChild(el('p', 'meta', ev.where));
+        card.appendChild(el('p', null, ev.blurb));
+        var a = el('a', 'btn btn-ghost');
+        a.href = '#interest';
+        a.textContent = ev.cta || 'Interest';
+        card.appendChild(a);
+        grid.appendChild(card);
+      });
+    }
+
+    function renderSamples(roles) {
+      var box = document.getElementById('samples-list');
+      box.innerHTML = '';
+      roles.forEach(function (r) {
+        var row = el('div', 'role-row');
+        var left = el('div');
+        var title = el('div');
+        title.style.fontWeight = '600';
+        title.textContent = r.title;
+        left.appendChild(title);
+        left.appendChild(el('div', 'meta', r.stage + (r.note ? ' · ' + r.note : '')));
+        row.appendChild(left);
+        if (r.sample) row.appendChild(el('span', 'sample-badge', 'SAMPLE'));
+        box.appendChild(row);
+      });
+    }
+
+    function bindForm() {
+      document.getElementById('interest-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var role = document.getElementById('role').value;
+        var name = document.getElementById('name').value.trim();
+        var email = document.getElementById('email').value.trim();
+        var event = document.getElementById('event').value;
+        var note = document.getElementById('note').value.trim();
+        var subject = encodeURIComponent('Demigod Events interest — ' + event);
+        var body = encodeURIComponent(
+          'Name: ' + name + '\n' +
+          'Email: ' + email + '\n' +
+          'I am: ' + role + '\n' +
+          'Interest: ' + event + '\n' +
+          'Note: ' + (note || '(none)') + '\n\n' +
+          'Source: demigod-events.html\n'
+        );
+        window.location.href = 'mailto:hello@trydemigod.com?subject=' + subject + '&body=' + body;
+      });
+    }
+
+    function statusLine(data, source) {
+      var s = document.getElementById('live-status');
+      s.innerHTML = '<strong>Data:</strong> ' + escapeHtml(source) +
+        ' · pipeline steps ' + (data.pipeline && data.pipeline.length) +
+        ' · upcoming ' + (data.upcoming && data.upcoming.length) +
+        ' · samples labeled only · SMS/Stripe pending · no SLA';
+    }
+
+    function apply(data, source) {
+      renderPipeline(data.pipeline || []);
+      renderUpcoming(data.upcoming || []);
+      renderSamples(data.sampleRoles || []);
+      statusLine(data, source);
+    }
+
+    bindForm();
+
+    // Inline fallback if JSON not served (file:// or CDN without sibling file)
+    fallback = {
+      pipeline: [
+        { label: 'Submitted', who: 'Founder or candidate', how: '2-min WIZ', auto: 'Ingest', human: 'Review' },
+        { label: 'Reviewed', who: 'Demigod human', how: '90-day outcome', auto: 'Score', human: 'Approve' },
+        { label: 'Matched', who: 'Both sides', how: 'Mutual fit', auto: 'Suggest', human: 'Decide' },
+        { label: 'Introduced', who: 'Warm email', how: 'No blast', auto: 'Draft', human: 'Send' },
+        { label: 'Piloted', who: 'White-glove', how: 'Real intros', auto: 'Log', human: 'Deliver' },
+        { label: 'Receipted', who: 'Hire confirmed', how: 'Real only', auto: 'Mint', human: 'Confirm' },
+        { label: 'Invoiced', who: '10% on hire', how: 'Pending Stripe', auto: 'Stub', human: 'hello@' }
+      ],
+      upcoming: [
+        {
+          title: 'Demigod Match Circle — SF (pilot)',
+          when: 'Date TBD',
+          where: 'SF Bay · hybrid',
+          status: 'interest-only',
+          blurb: 'Small-room founder + talent intros. Interest only — no fake RSVP counts.',
+          cta: 'Register interest'
+        },
+        {
+          title: 'Founder office hours',
+          when: 'Rolling',
+          where: 'Meet or SF coffee',
+          status: 'open',
+          blurb: '15–20 min to scope a role + 90-day outcome.',
+          cta: 'Email hello@'
+        }
+      ],
+      sampleRoles: [
+        { title: 'Founding Engineer', stage: 'Seed · AI', sample: true, note: 'Labeled sample' },
+        { title: 'Head of Growth', stage: 'Seed · AI', sample: true, note: 'Labeled sample' }
+      ]
+    };
+
+    fetch(DATA_URL, { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); })
+      .then(function (data) { apply(data, DATA_URL); })
+      .catch(function () { apply(fallback, 'inline fallback'); });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Safe Pop!_OS / laptop helpers for Demigod (Fable 2026-07-09).
+# NO drop_caches, NO autopilot autostart, NO 24/7 publish watchers.
+set -euo pipefail
+
+cmd="${1:-help}"
+
+case "$cmd" in
+  perf|performance|fast)
+    if command -v system76-power >/dev/null 2>&1; then
+      system76-power profile performance 2>/dev/null \
+        && echo "system76-power → performance" \
+        || echo "Could not set performance (try: sudo system76-power profile performance)"
+    else
+      echo "system76-power not found"
+      exit 1
+    fi
+    ;;
+  balanced|cool|battery)
+    if command -v system76-power >/dev/null 2>&1; then
+      system76-power profile balanced 2>/dev/null \
+        && echo "system76-power → balanced" \
+        || echo "Could not set balanced"
+    else
+      exit 1
+    fi
+    ;;
+  status)
+    system76-power profile 2>/dev/null || true
+    echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo '?')"
+    echo "inotify_watches=$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo '?')"
+    ;;
+  help|*)
+    cat <<EOF
+dg-linux-config — safe laptop helpers (no drop_caches / no autopilot)
+
+  dg-linux-config perf       # AC work session: performance profile
+  dg-linux-config balanced   # idle / battery
+  dg-linux-config status
+
+Metrics: bin/dg-laptop-metrics
+Session: ~/agent-dev.sh ready
+EOF
+    ;;
+esac

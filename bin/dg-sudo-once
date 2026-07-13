@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# One human sudo for laptop P0 leftovers (inotify + journal). Fable 2026-07-09.
+set -euo pipefail
+echo "Writing /etc/sysctl.d/99-demigod-inotify.conf ..."
+echo 'fs.inotify.max_user_watches=524288
+fs.inotify.max_user_instances=1024' | sudo tee /etc/sysctl.d/99-demigod-inotify.conf
+sudo sysctl --system
+echo "Vacuum journal to 200M..."
+sudo journalctl --vacuum-size=200M
+echo "Done. Verify:"
+cat /proc/sys/fs/inotify/max_user_watches
+cat /proc/sys/fs/inotify/max_user_instances
+~/bin/dg-laptop-metrics /tmp/laptop-metrics-after-sudo.json

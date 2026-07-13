@@ -1,0 +1,274 @@
+:root{--g:#C9A84C;--gl:#E8D5A3;--yl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--dim:#8A8478;--card:rgba(14,14,18,.92)}body{background:var(--dk)!important;color:var(--cr)!important;font-family:Manrope,sans-serif}a.w-webflow-badge,.w-webflow-badge{display:none!important}.title-accent-gold{color:var(--g)!important}.title-accent-cream{color:var(--cr)!important}.title-accent-red,.title-accent-blue{color:var(--gl)!important}.hero-section h1:not(:has(.title-accent-gold)),.header h1:not(:has(.title-accent-gold)){visibility:hidden;min-height:2.8em;animation:dg-hero-fallback 2.5s forwards}@keyframes dg-hero-fallback{0%,99%{visibility:hidden}to{visibility:visible}}.hero-section h1:has(.title-accent-gold),.header h1:has(.title-accent-gold){visibility:visible}.hero-section h1,.header h1{font-family:Cinzel,serif!important;letter-spacing:-.02em;line-height:1.05;text-shadow:0 1px 24px rgba(0,0,0,.45);overflow-wrap:break-word;word-break:break-word;font-weight:600!important}.hero-section p,.header p,.subheading,.hero-description{color:var(--mu)!important;font-size:1.0625rem!important;max-width:36ch;line-height:1.55!important;text-shadow:none}.eyebrow,.eyebrow_block,.badge,[class*="badge"]{color:var(--g)!important}.badge-dot{background:var(--g)!important;box-shadow:0 0 10px rgba(201,168,76,.55)}.badge-text{letter-spacing:.14em!important;font-size:.7rem!important}nav,.w-nav,.nav_container{background:rgba(10,10,10,.97)!important;backdrop-filter:blur(10px);border-bottom:1px solid rgba(201,168,76,.12)!important}.nav_logo-icon,.logo-link svg{color:var(--g)!important}.button.on-inverse,nav .button.on-inverse{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-talent,.button.on-inverse,.premium-btn,.button.w-button{transition:transform .18s cubic-bezier(0.2,0.8,0.2,1),box-shadow .18s cubic-bezier(0.2,0.8,0.2,1),border-color .18s,background .18s}.premium-btn.is-talent:hover,.button.on-inverse:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(201,168,76,.2)}/* elegant micro-animations per top-tier inspiration (Linear/Stripe feel) */ .dg-step{transition:transform .2s cubic-bezier(0.2,0.8,0.2,1),border-color .2s,background .2s}.dg-step:hover{transform:translateY(-1px);border-color:rgba(201,168,76,.45)}#startup-modal,#jobseeker-modal{transition:opacity .2s ease,transform .2s cubic-bezier(0.2,0.8,0.2,1)}#startup-modal.dg-wiz-active,#jobseeker-modal.dg-wiz-active{animation:dg-modal-enter .2s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-modal-enter{from{opacity:0;transform:scale(.98) translateY(8px)}to{opacity:1;transform:none}} .dg-cand,.dg-row{transition:transform .15s ease,box-shadow .15s ease}.dg-cand:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.2)}#demigod-trust-block .dg-step{opacity:0;transform:translateY(6px);animation:dg-stagger-in .4s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-stagger-in{to{opacity:1;transform:none}}#demigod-trust-block .dg-step:nth-child(2){animation-delay:.06s}#demigod-trust-block .dg-step:nth-child(3){animation-delay:.12s} @media (prefers-reduced-motion: reduce){.dg-step,#startup-modal,#jobseeker-modal{transition:none!important;animation:none!important;transform:none!important}}.premium-btn.is-talent{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-job{background:transparent!important;color:var(--gl)!important;border:1px solid rgba(201,168,76,.5)!important;font-weight:600!important}.premium-btn.is-job:hover{border-color:rgba(201,168,76,.7)!important;background:rgba(201,168,76,.06)!important}.statue-frame,.statue-svg,.statue-wrapper,.statue-coordinates,.hero-content-right{display:none!important}.hero-content-left,.hero-section>.container{max-width:640px;padding-left:1.25rem;padding-right:1.25rem}.hero-section,.header{position:relative;overflow:hidden;min-height:88vh;display:flex;align-items:center;background-image:linear-gradient(105deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.25) 100%),url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg')!important;background-size:cover!important;background-position:65% center!important}.hero-section>*,.header>*{position:relative;z-index:1}.grid-col-line{background:rgba(201,168,76,.05)!important}.section.is-secondary{background:#05050A!important}#pantheon,#trust-bullets,section:has(.heading_primary){display:none!important}section:has(h2):has([class*="pantheon"]),section:has([class*="get-in-touch"]),section:has([class*="contact-us"]){display:none!important}[class*="methodology"],[class*="curated-insight"],[class*="mega-footer"]{display:none!important}section h2{font-family:Cinzel,serif!important;color:var(--g)!important;letter-spacing:.06em;text-transform:uppercase;text-align:center}section h3{font-family:Cinzel,serif!important;color:var(--cr)!important}#demigod-pricing>div>div:last-child>div{display:grid!important;grid-template-columns:1fr!important;gap:1rem;max-width:480px;margin:0 auto}
+#demigod-pricing>div>div:last-child>div>div:nth-child(n+2){display:none!important}
+#demigod-pricing h3:has(+ *):not(:first-of-type){display:none!important}
+#startup-modal .modal-success-message,#jobseeker-modal .modal-success-message,#form-success-startup,#form-success-engineer{display:none!important}
+#startup-modal [name=hiring-model],#startup-modal #hiring-model,#startup-modal .w-radio:has([name=hiring-model]),#startup-modal label:has(+[name=team-size]),#startup-modal label:has(+[name=urgency]),#startup-modal .w-select:has([name=team-size]),#startup-modal .w-select:has([name=urgency]){display:none!important}#demigod-pricing>div>div:last-child>div>div{border:1px solid rgba(201,168,76,.28)!important;border-radius:14px;padding:1.5rem;background:var(--card)!important}#demigod-pricing h3{color:var(--g)!important}#dg-pricing-note{color:var(--gl)!important;font-family:Cinzel,serif!important;font-size:1.35rem!important;margin:.35rem 0 .75rem!important;text-align:center}footer,.footer{border-top:1px solid rgba(201,168,76,.18)!important;background:var(--dk)!important;padding:2rem 1.25rem 1.5rem!important;text-align:center!important}footer .container::before{content:none!important}footer .grid_6-col ul,footer .footer_icon-group,footer .footer_bottom .button-group,footer .container>nav{display:none!important}footer .footer_bottom .text-color_secondary{font-size:.875rem!important;line-height:1.4!important;color:var(--mu)!important}footer .footer_bottom .text-color_secondary~.text-color_secondary{display:none!important}#dg-footer-legal{display:flex!important;gap:1.25rem;margin:.75rem auto .5rem;justify-content:center;flex-wrap:wrap}#dg-footer-legal a{color:var(--g)!important;font-size:.85rem;text-decoration:none!important;opacity:.9}#dg-footer-legal a:hover{opacity:1;text-decoration:underline!important}#demigod-footer-tag{color:var(--mu)!important;font-size:.9rem;margin:.5rem auto 1rem;max-width:42rem;line-height:1.5}#footer-email{display:block!important;color:var(--g)!important;font-size:.95rem;margin:.75rem auto;text-decoration:none!important}#startup-modal,#jobseeker-modal,#partner-modal{background:rgba(6,6,6,.94)!important;backdrop-filter:blur(10px)!important}
+#partner-modal>div{border:1px solid rgba(201,168,76,.35)!important;border-radius:16px!important}
+#partner-modal .w-form,#partner-modal form.w-form{display:block!important;visibility:visible!important}#startup-modal>div,#jobseeker-modal>div{border:1px solid rgba(201,168,76,.35)!important;border-radius:16px!important;min-height:520px}#startup-modal.dg-wiz-active,#jobseeker-modal.dg-wiz-active{background:rgba(4,4,4,.97)!important}#startup-modal.dg-wiz-active .w-form,#jobseeker-modal.dg-wiz-active .w-form{max-height:none!important;overflow:visible!important;padding:0!important}#startup-modal.dg-wiz-active [class*=close],#jobseeker-modal.dg-wiz-active [class*=close]{z-index:10002;opacity:.85}#jobseeker-modal>div{border-color:rgba(201,168,76,.35)!important}#tally-startup-embed,#tally-engineer-embed,iframe[data-tally-embed]{display:none!important;height:0!important;overflow:hidden!important}#startup-modal .w-form,#jobseeker-modal .w-form,#startup-modal form.w-form,#jobseeker-modal form.w-form{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}#startup-modal .w-form-done,#jobseeker-modal .w-form-done{display:none!important}
+#startup-modal .w-form-done:not([style*="display: none"]):not([style=""]),#jobseeker-modal .w-form-done:not([style*="display: none"]):not([style=""]){display:block!important;padding:1.25rem;border:1px solid rgba(201,168,76,.35);border-radius:12px;color:var(--cr);background:rgba(12,12,14,.92)}
+/* Fail messages now visible with helpful styling (see .w-form-fail rule below) */
+#startup-modal .w-input,#startup-modal .w-select,#startup-modal textarea,#jobseeker-modal .w-input,#jobseeker-modal .w-select,#jobseeker-modal textarea{background:rgba(14,14,18,.92)!important;border:1px solid rgba(201,168,76,.28)!important;color:var(--cr)!important;border-radius:8px}#startup-modal .w-button,#jobseeker-modal .w-button{background:var(--g)!important;color:var(--dk)!important;font-weight:700!important;border-radius:8px;width:100%!important;margin-top:.5rem}
+#startup-modal .w-input,#jobseeker-modal .w-input,#startup-modal textarea,#jobseeker-modal textarea{margin-bottom:.65rem}
+#startup-modal form,#jobseeker-modal form{display:flex!important;flex-direction:column!important;gap:0!important}
+#startup-modal form:not(.dg-wiz-on) .dg-field-wrap,#jobseeker-modal form:not(.dg-wiz-on) .dg-field-wrap,#startup-modal form:not(.dg-wiz-on)>.w-input,#jobseeker-modal form:not(.dg-wiz-on)>.w-input{display:block!important;position:relative!important;width:100%!important;margin:0 0 .75rem!important;clear:both!important}
+#startup-modal form.dg-wiz-on .form-field-group:not(.dg-wiz-show),#jobseeker-modal form.dg-wiz-on .form-field-group:not(.dg-wiz-show){display:none!important}
+#startup-modal form.dg-wiz-on .form-field-group.dg-wiz-show,#jobseeker-modal form.dg-wiz-on .form-field-group.dg-wiz-show{display:flex!important;flex-direction:column!important;width:100%!important}
+nav.w-nav,.w-nav{display:none!important}
+#startup-modal textarea[name=stack-needs],#jobseeker-modal textarea[name=experience]{min-height:88px!important;resize:vertical!important;display:block!important;width:100%!important;box-sizing:border-box!important}
+#startup-modal #dg-salary-wrap input[name=salary-range],#startup-modal [name=salary-range]{display:block!important;width:100%!important;box-sizing:border-box!important;margin:0!important}
+#startup-modal #dg-salary-wrap .w-form-label{display:block!important;margin-bottom:.35rem!important}
+#demigod-trust-block,#demigod-pricing,footer,.section.is-secondary,body>section:not(.hero-section):not(.header){background:var(--dk)!important;position:relative;z-index:2}
+.hero-section,.header{z-index:1;isolation:isolate}
+.hero-section .hero-badge,.hero-section .badge-text,.header .hero-badge{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+#dg-fee-note,#dg-privacy{margin:.5rem 0 1rem!important;line-height:1.45!important}#startup-modal .w-form-label,#jobseeker-modal .w-form-label{color:var(--mu)!important}[class*="curated-insight"],[class*="mega-footer"],[id*="methodology"],[id*="faq-block"],section:has([class*="methodology"]),section:has([class*="faq"]){display:none!important}#startup-modal [name=team-size],#startup-modal #team-size,#startup-modal [name=urgency],#startup-modal #urgency,#jobseeker-modal [name=availability],#jobseeker-modal #availability{display:none!important}#startup-modal label:has(+select[name=team-size]),#startup-modal label:has(+select[name=urgency]),#jobseeker-modal label:has(+select[name=availability]),#startup-modal .w-select:has([name=team-size]),#startup-modal .w-select:has([name=urgency]),#jobseeker-modal .w-select:has([name=availability]){display:none!important}#demigod-trust-block{max-width:960px;margin:0 auto;padding:3rem 1.25rem 2rem;color:var(--cr)}#demigod-trust-block h2{font-family:Cinzel,serif!important;color:var(--g)!important;font-size:1.2rem!important;margin:0 0 .35rem;text-align:left!important}#demigod-trust-block .dg-kicker{color:var(--mu);font-size:.9rem;margin:0 0 1.25rem}#demigod-trust-block .dg-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}#demigod-trust-block .dg-step{border:1px solid rgba(201,168,76,.22);border-radius:12px;padding:1rem;background:var(--card)}#demigod-trust-block .dg-step-n{display:block;color:var(--g)!important;font-size:.72rem;letter-spacing:.1em;margin-bottom:.35rem;font-weight:700}
+#demigod-trust-block .dg-step{color:var(--cr)!important}#demigod-trust-block .dg-candidates{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem}#demigod-trust-block .dg-cand{border:1px solid rgba(201,168,76,.22);border-radius:12px;padding:1rem;background:var(--card)}#demigod-trust-block .dg-cand p{color:var(--cr);font-size:.9rem;margin:0 0 .5rem;line-height:1.45}#demigod-trust-block .dg-tags{display:flex;flex-wrap:wrap;gap:.35rem}#demigod-trust-block .dg-tag{font-size:.7rem;color:var(--mu);border:1px solid rgba(201,168,76,.2);border-radius:999px;padding:.15rem .5rem}#dg-submit-trust{text-align:left!important}@media(max-width:767px){#demigod-trust-block .dg-candidates{grid-template-columns:1fr}}#dg-privacy{color:var(--mu)!important}#dg-engineer-check{display:flex!important;align-items:flex-start!important;gap:.5rem;margin:.5rem 0 .75rem;width:100%!important;max-width:100%!important}#dg-engineer-check .w-form-label{margin:0!important;font-size:.9rem!important;white-space:normal!important;overflow:visible!important;text-overflow:unset!important;max-width:none!important;width:auto!important;line-height:1.35!important;flex:1}#dg-engineer-check input{margin:.15rem 0 0;flex-shrink:0}#jobseeker-modal .w-checkbox{max-width:100%!important}#dg-resume-wrap{margin:.5rem 0 .85rem!important}#dg-resume-wrap .w-file-upload-input,#dg-resume-wrap input[type=file]{display:block!important;width:100%!important;padding:.55rem .65rem!important;box-sizing:border-box!important;cursor:pointer!important;color:var(--mu)!important;font-size:.85rem!important}#dg-resume-wrap .dg-resume-hint{color:var(--mu)!important;font-size:.75rem!important;margin:.35rem 0 0!important;line-height:1.35!important}#startup-modal .modal-container>div,#jobseeker-modal .modal-container>div,#startup-modal .w-form,#jobseeker-modal .w-form,#startup-modal form,#jobseeker-modal form{display:block!important;visibility:visible!important}
+#tally-startup-embed,#tally-engineer-embed{display:none!important;height:0!important;overflow:hidden!important}@media(max-width:767px){#demigod-trust-block .dg-steps{grid-template-columns:1fr}}.nav_dropdown-menu,.nav_menu-list-item:has(.nav_dropdown-menu),.w-dropdown,.w-dropdown-toggle,.w-dropdown-list{display:none!important}nav a[href="#"]:not([data-demigod-modal]),footer a[href="#"]:not([href^="mailto"]),footer nav:not(:has(a[href^="mailto"])){display:none!important}footer .footer_icon-group,footer .button-group a[href="#"]{display:none!important}@media(max-width:767px){body{padding-bottom:calc(3.75rem + env(safe-area-inset-bottom,0px))!important}.hero-section,.header{min-height:72vh;background-position:70% center!important}#demigod-pricing>div>div:last-child>div{grid-template-columns:1fr!important}#startup-modal .w-form,#jobseeker-modal .w-form{max-height:70vh;overflow-y:auto;padding:.5rem}.hero-section h1,.header h1{font-size:clamp(1.5rem,7.5vw,2.5rem)!important;line-height:1.1!important;padding-right:1rem}.hero-section p,.header p,.subheading{font-size:.95rem!important;max-width:30ch}.premium-btn{width:100%!important;max-width:320px}.badge-text{font-size:.58rem!important}
+  /* Mobile improvements per Fable design review: larger touch targets for filters (44px+), readable small fonts */
+  .dg-stage-btn, .dg-skill-chip { padding: .4rem .6rem !important; font-size: .8rem !important; min-height: 44px; }
+  .dg-filter-bar, .dg-sms-cta, .dg-fee-note, .dg-ledger-meta, .dg-ledger-outcome { font-size: .85rem !important; }
+  .dg-real-proof, .dg-proof, .dg-proof-count { font-size: .9rem !important; font-weight: 600; }
+/* Subtle Phase 0 animation per Fable design review (reduced-motion friendly, for proof/ledger to support GTM trust) */
+@media (prefers-reduced-motion: no-preference) {
+  .dg-real-proof { transition: transform 0.2s ease, opacity 0.2s ease; }
+  .dg-real-proof:hover { transform: translateY(-1px); }
+  .dg-ledger-row { transition: transform 0.15s ease, border-color 0.15s ease; }
+  .dg-ledger-row:hover { transform: translateY(-2px); }
+}
+}
+/* reduced-motion guard per Fable design review - Phase 0 a11y */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}.dg-char-count{display:block;color:var(--dim)!important;font-size:.72rem;margin:.2rem 0 .35rem;text-align:right}.w-form-fail,.w-form-error{color:var(--gl)!important;background:rgba(201,168,76,.08)!important;border:1px solid rgba(201,168,76,.32)!important;border-radius:10px!important}#demigod-partners-teaser{border-top:1px solid rgba(201,168,76,.14);border-bottom:1px solid rgba(201,168,76,.14);padding:3.25rem 1.25rem!important;text-align:center}#demigod-partners-teaser .dg-pt-kicker{color:var(--g)!important;font-size:.72rem!important;letter-spacing:.14em!important;text-transform:uppercase;margin:0 0 .5rem}#demigod-partners-teaser h2{font-family:Cinzel,serif!important;color:var(--g)!important;font-size:clamp(1.25rem,3vw,1.65rem)!important;margin:0 0 .65rem!important}#demigod-partners-teaser .dg-pt-intro{color:var(--mu)!important;max-width:42ch;margin:0 auto 1.25rem!important;line-height:1.55}#demigod-partners-teaser .dg-pt-actions{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}#demigod-trust-block,#demigod-pricing{scroll-margin-top:4.5rem}.dg-sample-match{margin-top:.75rem!important;background:transparent!important;color:#C9A84C!important;border:1px solid rgba(201,168,76,.45)!important}
+/* Fable v150 wizard chrome (Stripe-grade one-Q): progress, Cinzel q, nav, review */
+.dg-wiz-bar{height:3px;background:rgba(201,168,76,.2);border-radius:999px;margin-bottom:.35rem}
+.dg-wiz-bar i{display:block;height:100%;background:#C9A84C;transition:width .2s ease}
+.dg-wiz-q{font-family:Cinzel,serif;color:#C9A84C;font-size:1.1rem;margin:.1rem 0 .15rem}
+.dg-wiz-hint{color:#A8A29E;font-size:.78rem;margin:0 0 .4rem}
+.dg-wiz-nav{display:flex;gap:.5rem;margin-top:.4rem}
+.dg-wiz-nav button{background:transparent;color:#C9A84C;border:1px solid rgba(201,168,76,.35);border-radius:6px;padding:.35rem .6rem;font-size:.85rem}
+.dg-wiz-review{border:1px solid rgba(201,168,76,.25);border-radius:8px;padding:.5rem;margin:.3rem 0;background:rgba(14,14,18,.6);font-size:.85rem}
+.dg-wiz-review div{margin:.15rem 0}
+.dg-wiz-review span{color:#A8A29E}
+.dg-wiz-in{animation:dg-wiz-in .18s ease forwards}@keyframes dg-wiz-in{from{opacity:0;transform:translateY(3px)}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dg-wiz-in{animation:none}}
+/* Fable plan: restrained motion for trust/ledger (Linear/Stripe .45s fade+rise, reduced-motion safe) */
+.dg-anim{opacity:1!important;transform:translateY(0)!important;transition:opacity .45s ease, transform .45s ease}
+#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand{opacity:0;transform:translateY(6px)}
+/* Fable plan polish: more elegant WIZ (Stripe/Linear calm) */
+#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:3px;background:rgba(201,168,76,.2);border-radius:2px;overflow:hidden}
+#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{display:block;height:100%;background:#C9A84C;transition:width .25s ease}
+#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:Cinzel,serif!important;color:#C9A84C!important;margin:.25rem 0 .1rem;font-size:1.05rem}
+#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{color:#A8A29E!important;font-size:.8rem;margin:0 0 .5rem}
+#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{display:flex;gap:.5rem;margin-top:.5rem}
+#startup-modal .dg-wiz-nav .dg-wiz-back,#jobseeker-modal .dg-wiz-nav .dg-wiz-back{background:transparent!important;color:#A8A29E!important;border:1px solid rgba(201,168,76,.3)!important}
+.dg-wiz-show{animation:dg-wiz-in .2s ease forwards}@keyframes dg-wiz-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.dg-wiz-show{animation:none}}
+/* Fable plan complete WIZ chrome for perfect one-at-a-time experience */
+.dg-wiz-head{margin:0 0 1.1rem}
+.dg-wiz-bar{height:3px;background:rgba(201,168,76,.15);border-radius:2px;overflow:hidden;margin:0 0 .9rem}
+.dg-wiz-bar i{display:block;height:100%;width:0;background:var(--g);transition:width .35s cubic-bezier(.2,.8,.2,1)}
+.dg-wiz-count{color:var(--dim);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;margin:0 0 .35rem}
+.dg-wiz-q{font-family:Cinzel,serif;color:var(--cr);font-size:1.35rem;margin:0 0 .4rem}
+.dg-wiz-hint{color:var(--mu);font-size:.9rem;margin:0 0 1rem;line-height:1.5}
+.dg-wiz-nav{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-top:1.1rem}
+.dg-wiz-back{background:transparent;border:none;color:var(--dim);font-size:.85rem;cursor:pointer;padding:.5rem .25rem}
+.dg-wiz-back:hover{color:var(--cr)}
+.dg-wiz-next,.dg-wiz-start{background:var(--g)!important;color:var(--dk)!important;font-weight:700;border:none;border-radius:8px;padding:.65rem 1.5rem;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s}
+.dg-wiz-next:hover,.dg-wiz-start:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(201,168,76,.2)}
+.dg-wiz-review{border:1px solid rgba(201,168,76,.2);border-radius:10px;padding:.9rem;margin:.75rem 0}
+.dg-wiz-review div{display:flex;justify-content:space-between;gap:1rem;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.85rem}
+.dg-wiz-review span{color:var(--dim)}
+.dg-wiz-review em{color:var(--cr);font-style:normal;text-align:right;overflow:hidden;text-overflow:ellipsis}
+
+/* THOROUGH GOLD/YELLOW HEAVY REDESIGN - Fable led, older style preferred */
+/* Stronger gold/yellow theme: dominant golds, yellow highlights, elegant luxury */
+:root { --g: #C9A84C; --gl: #F4D03F; --yl: #F4D03F; --cr: #F5F0E6; --dk: #0A0A0A; --mu: #A8A29E; --dim: #8A8478; --card: rgba(14,14,18,.92); }
+body { background: var(--dk) !important; color: var(--cr) !important; }
+.hero-section h1, .header h1 { color: var(--g) !important; text-shadow: 0 2px 12px rgba(201,168,76,.3); }
+.title-accent-gold { color: var(--g) !important; font-weight: 700; }
+.title-accent-cream { color: var(--gl) !important; }
+.badge, .badge-text, .eyebrow { color: var(--g) !important; letter-spacing: .12em; }
+.button.on-inverse, .premium-btn { background: var(--g) !important; color: var(--dk) !important; border-color: var(--gl) !important; }
+.premium-btn:hover, .button.on-inverse:hover { background: var(--gl) !important; transform: translateY(-2px); box-shadow: 0 6px 25px rgba(244,208,63,.5); }
+#dg-pricing-note, .dg-wiz-q, .dg-wiz-head { color: var(--g) !important; }
+.dg-step, .dg-cand, .dg-row { border-color: rgba(201,168,76,.3) !important; background: var(--card); }
+
+/* Perfect Typeform WIZ - one Q at time, elegant, clickable, mobile/desktop */
+#startup-modal .w-form, #jobseeker-modal .w-form { font-family: Manrope, sans-serif; }
+.dg-wiz-head { margin-bottom: 1.5rem; }
+.dg-wiz-bar { height: 4px; background: rgba(201,168,76,.15); border-radius: 2px; }
+.dg-wiz-bar i { background: linear-gradient(to right, var(--g), var(--gl)); box-shadow: 0 0 8px var(--g); }
+.dg-wiz-count { color: var(--dim); font-size: .7rem; text-transform: uppercase; letter-spacing: .15em; }
+.dg-wiz-q { font-family: Cinzel, serif; color: var(--g); font-size: 1.6rem; line-height: 1.2; margin: .2rem 0 .3rem; font-weight: 600; }
+.dg-wiz-hint { color: var(--mu); font-size: .95rem; line-height: 1.4; }
+.dg-wiz-nav { margin-top: 1.2rem; }
+.dg-wiz-back { color: var(--dim); font-size: .9rem; padding: .4rem .6rem; border: 1px solid rgba(201,168,76,.3); border-radius: 6px; background: transparent; cursor: pointer; }
+.dg-wiz-back:hover { color: var(--cr); border-color: var(--g); }
+.dg-wiz-next, .dg-wiz-start { background: var(--g) !important; color: var(--dk) !important; font-weight: 700; padding: .7rem 1.8rem; border-radius: 8px; font-size: .95rem; cursor: pointer; box-shadow: 0 2px 10px rgba(201,168,76,.3); }
+.dg-wiz-next:hover, .dg-wiz-start:hover { background: var(--gl) !important; transform: translateY(-1px); box-shadow: 0 4px 15px rgba(201,168,76,.5); }
+.dg-wiz-review { background: var(--card); border: 1px solid rgba(201,168,76,.25); border-radius: 10px; padding: 1rem; }
+.dg-wiz-review div { border-bottom: 1px solid rgba(201,168,76,.1); padding: .4rem 0; font-size: .9rem; }
+.dg-wiz-review span { color: var(--dim); }
+.dg-wiz-review em { color: var(--cr); font-weight: 500; }
+
+/* Inputs elegant gold focus, mobile friendly */
+#startup-modal .w-input, #jobseeker-modal .w-input, #startup-modal .w-select, #jobseeker-modal .w-select, #startup-modal textarea, #jobseeker-modal textarea {
+  border: 1px solid rgba(201,168,76,.25) !important;
+  background: rgba(10,10,10,.95) !important;
+  color: var(--cr) !important;
+  border-radius: 6px;
+  padding: .6rem .8rem;
+  font-size: .95rem;
+}
+#startup-modal .w-input:focus, #jobseeker-modal .w-input:focus, #startup-modal .w-select:focus, #jobseeker-modal .w-select:focus, #startup-modal textarea:focus, #jobseeker-modal textarea:focus {
+  border-color: var(--g) !important;
+  box-shadow: 0 0 0 3px rgba(201,168,76,.15) !important;
+  outline: none;
+}
+.dg-wiz-show .w-form-label { color: var(--mu); font-size: .85rem; margin-bottom: .2rem; }
+
+/* Animations new subtle gold theme */
+@keyframes dg-gold-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.dg-step, .dg-row, .dg-cand, .dg-wiz-show { animation: dg-gold-rise .4s ease forwards; }
+.premium-btn, .dg-wiz-next, .dg-wiz-start { transition: all .2s cubic-bezier(0.2,0.8,0.2,1); }
+.premium-btn:hover { box-shadow: 0 6px 25px rgba(201,168,76,.35); }
+
+/* Mobile + desktop perfect */
+@media (max-width: 767px) {
+  .dg-wiz-q { font-size: 1.3rem; }
+  .dg-wiz-next, .dg-wiz-start { width: 100% !important; padding: .8rem; }
+  .dg-wiz-nav { flex-direction: column !important; gap: .5rem; }
+  .premium-btn { min-height: 48px; }
+  .dg-step, .dg-cand { padding: .8rem; }
+}
+@media (min-width: 768px) {
+  .dg-wiz-q { font-size: 1.7rem; }
+}
+
+/* Fix dups, polish */
+.badge-text:not(.hero-badge .badge-text) { display: none !important; }
+#demigod-trust-block .dg-cand p { line-height: 1.4; }
+footer .text-color_secondary ~ .text-color_secondary { display: none; }
+
+/* Pricing clean, gold heavy */
+#demigod-pricing h3, .dg-pricing-note { color: var(--g) !important; font-size: 1.5rem; }
+#demigod-pricing .w-button { background: var(--g) !important; }
+
+/* ========== EXTREMELY THOROUGH GOLD/YELLOW REDESIGN + PERFECT TYPEFORM WIZ + ALL BUTTONS + MOBILE/DESKTOP + NEW ANIMS ========== */
+/* Stronger dominant gold/yellow (older style user loves) on deep dark luxury base */
+:root { --g:#C9A84C; --gl:#E8D5A3; --yl:#E8D5A3; --cr:#F5F0E6; --dk:#0A0A0A; --mu:#A8A29E; --dim:#8A8478; --card:rgba(14,14,18,.94); }
+body { background:var(--dk)!important; color:var(--cr)!important; }
+.hero-section, .header { background:#0A0A0A !important; }
+.hero-section h1, .header h1, .hero-section .title-accent-gold { color:var(--g)!important; text-shadow:0 2px 16px rgba(201,168,76,.35); font-family:Cinzel,serif!important; }
+.title-accent-gold { color:var(--g)!important; }
+.badge, .badge-text, .eyebrow, .hero-badge { color:var(--g)!important; }
+.badge-dot { background:var(--g)!important; box-shadow:0 0 14px rgba(201,168,76,.6); }
+
+/* Buttons: always great looking, clickable, gold primary with yellow hover lift */
+.premium-btn, .button.on-inverse, .w-button, #dg-nav-hire, .dg-wiz-next, .dg-wiz-start {
+  background:var(--g)!important; color:var(--dk)!important; border:1px solid var(--gl)!important;
+  font-weight:700!important; border-radius:8px!important; cursor:pointer!important; transition:transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s, background .16s;
+}
+.premium-btn:hover, .button.on-inverse:hover, .w-button:hover, #dg-nav-hire:hover, .dg-wiz-next:hover, .dg-wiz-start:hover {
+  background:var(--gl)!important; transform:translateY(-2px); box-shadow:0 8px 28px rgba(244,208,63,.45);
+}
+.premium-btn:active, .dg-wiz-next:active { transform:translateY(0); }
+
+/* Gold inputs focus, elegant */
+#startup-modal .w-input, #jobseeker-modal .w-input, #startup-modal .w-select, #jobseeker-modal .w-select, #startup-modal textarea, #jobseeker-modal textarea,
+.dg-field-wrap input, .dg-field-wrap select, .dg-field-wrap textarea {
+  background:rgba(10,10,10,.96)!important; border:1px solid rgba(201,168,76,.28)!important; color:var(--cr)!important; border-radius:8px!important;
+}
+#startup-modal .w-input:focus, #jobseeker-modal .w-input:focus, #startup-modal .w-select:focus, #jobseeker-modal .w-select:focus, #startup-modal textarea:focus,
+.dg-field-wrap input:focus, .dg-field-wrap select:focus, .dg-field-wrap textarea:focus {
+  border-color:var(--g)!important; box-shadow:0 0 0 4px rgba(201,168,76,.12)!important; outline:none!important;
+}
+
+/* Modal chrome full gold takeover */
+#startup-modal, #jobseeker-modal { background:rgba(6,6,6,.96)!important; }
+#startup-modal > div, #jobseeker-modal > div { border:1px solid rgba(201,168,76,.38)!important; border-radius:16px!important; }
+#startup-modal.dg-wiz-active, #jobseeker-modal.dg-wiz-active { background:rgba(4,4,4,.98)!important; }
+#startup-modal .w-form, #jobseeker-modal .w-form { max-height:none!important; overflow:visible!important; }
+
+/* PERFECT Typeform WIZ - one Q, beautiful gold, clickable everywhere, review, mobile/desktop */
+.dg-wiz-on { position:relative; }
+.dg-wiz-on .dg-field-wrap:not(.dg-wiz-show),
+.dg-wiz-on .w-input:not(.dg-wiz-show),
+.dg-wiz-on .w-select:not(.dg-wiz-show),
+.dg-wiz-on .w-file-upload:not(.dg-wiz-show) { display:none !important; }
+.dg-wiz-head { margin-bottom:1.1rem; }
+.dg-wiz-count { color:var(--dim); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; }
+.dg-wiz-bar { height:4px; background:rgba(201,168,76,.14); border-radius:999px; margin:.35rem 0 .9rem; overflow:hidden; }
+.dg-wiz-bar i { display:block; height:100%; background:linear-gradient(90deg,var(--g),var(--gl)); box-shadow:0 0 10px var(--g); transition:width .28s cubic-bezier(.2,.85,.2,1); }
+.dg-wiz-q { font-family:Cinzel,serif; color:var(--g); font-size:1.55rem; line-height:1.15; margin:.1rem 0 .35rem; font-weight:600; }
+.dg-wiz-hint { color:var(--mu); font-size:.9rem; line-height:1.45; }
+.dg-wiz-nav { display:flex; gap:.6rem; margin-top:1.15rem; align-items:center; }
+.dg-wiz-back { background:transparent; border:1px solid rgba(201,168,76,.32); color:var(--dim); padding:.5rem .85rem; border-radius:6px; font-size:.9rem; cursor:pointer; }
+.dg-wiz-back:hover { color:var(--cr); border-color:var(--g); }
+.dg-wiz-next, .dg-wiz-start { padding:.65rem 1.85rem; font-size:.95rem; min-height:44px; }
+.dg-wiz-review { border:1px solid rgba(201,168,76,.22); border-radius:10px; background:var(--card); padding:.85rem; margin:.6rem 0; font-size:.88rem; }
+.dg-wiz-review div { display:flex; justify-content:space-between; gap:.8rem; padding:.28rem 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.dg-wiz-review span { color:var(--dim); }
+.dg-wiz-review em { color:var(--cr); font-style:normal; text-align:right; }
+.dg-wiz-show { animation:dg-wiz-in .22s ease forwards; }
+@keyframes dg-wiz-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+/* New subtle gold animations + stagger for trust/ledger/process */
+@keyframes dg-gold-glow { 0%,100% { box-shadow:0 0 0 0 rgba(201,168,76,.0); } 50% { box-shadow:0 0 0 6px rgba(201,168,76,.08); } }
+.dg-step, .dg-cand, .dg-row { transition: transform .2s ease, border-color .2s, box-shadow .2s; }
+.dg-step:hover, .dg-cand:hover, .dg-row:hover { transform:translateY(-2px); border-color:rgba(201,168,76,.45); box-shadow:0 6px 20px rgba(0,0,0,.3); }
+.dg-anim { animation: dg-gold-rise .45s ease forwards; }
+@keyframes dg-gold-rise { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+.premium-btn, .dg-wiz-next, .dg-wiz-start { animation: dg-gold-glow 3.2s ease infinite; }
+@media (prefers-reduced-motion: reduce) { .dg-anim, .dg-wiz-show, .premium-btn, .dg-wiz-next { animation:none !important; transition:none !important; } }
+
+/* Trust / process / ledger gold polish */
+#demigod-trust-block h2 { color:var(--g)!important; font-family:Cinzel,serif!important; }
+#demigod-trust-block .dg-step { border-color:rgba(201,168,76,.28); background:var(--card); }
+#demigod-trust-block .dg-step strong { color:var(--g); }
+.dg-ledger .dg-row { border-color:rgba(201,168,76,.2); }
+.dg-ledger .dg-row:hover { border-color:var(--g); }
+
+/* Mobile bar, bottom CTAs, 44px+ targets everywhere */
+#dg-bar a { min-height:44px; display:flex; align-items:center; justify-content:center; }
+@media (max-width:767px) {
+  .dg-wiz-q { font-size:1.32rem; }
+  .dg-wiz-next, .dg-wiz-start, .dg-wiz-back { min-height:48px; width:100%; }
+  .dg-wiz-nav { flex-direction:column; }
+  .premium-btn, .button { min-height:48px; }
+  #demigod-trust-block .dg-steps { grid-template-columns:1fr; }
+  .hero-section h1, .header h1 { font-size:clamp(1.55rem,7.8vw,2.35rem)!important; }
+}
+
+/* Desktop larger Q for presence */
+@media (min-width:768px) {
+  .dg-wiz-q { font-size:1.72rem; }
+}
+
+/* All links/CTAs have pointer + visible states, no dead */
+a, button, .w-button, [data-demigod-modal], .dg-wiz-next, .dg-wiz-back { cursor:pointer !important; }
+a:hover, button:hover { opacity:.95; }
+
+/* Followup in thanks gold border */
+.dg-followup { border-color:rgba(201,168,76,.35)!important; }
+
+/* Sample match + other gold accents */
+.dg-sample-match { border-color:rgba(201,168,76,.5)!important; color:#C9A84C!important; }
+
+/* Footer + misc gold */
+#footer-email, #dg-footer-legal a { color:var(--g)!important; }
+
+/* Generated gold assets note: drop assets/demigod-gold-hero.jpg as hero bg override if desired via additional rule or Designer */
+/* .hero-section { background-image: url(assets/demigod-gold-hero.jpg) !important; background-size:cover; background-position:center; } */
+
+/* Process block (no inline styles) */
+#demigod-trust-block .dg-process { margin-top:2rem; border-top:1px solid rgba(201,168,76,.15); padding-top:1.5rem; }
+#demigod-trust-block .dg-process h3 { font-family:Cinzel,serif; color:var(--g); font-size:1rem; margin:0 0 .5rem; }
+#demigod-trust-block .dg-process-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.75rem; font-size:.85rem; color:var(--mu); }
+
+/* End of thorough gold + WIZ overhaul */

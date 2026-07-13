@@ -1,3 +1,5 @@
+# === Home-as-repo safety: ignore almost everything, allowlist Demigod ===
+
 # Agent / tool caches
 .grok/
 .cache/
@@ -8,18 +10,38 @@
 .codex/
 .cursor/
 .claude/
-.config/orca/codex-runtime-home/
+.config/
 .nvm/
+.agents/
+.commandcode/
+.copilot/
+.eliza/
 node_modules/
+
+# Shell / OS personal
+.bash*
+.profile
+.viminfo
+.DS_Store
+*.swp
+.ssh/
+.gnupg/
 
 # Desktop folders
 Downloads/
 Pictures/
 Desktop/
 Documents/
+Music/
+Videos/
+Templates/
+Public/
+snap/
+orca/
 
-# Audit & session artifacts (archived via ~/agent-dev.sh archive)
+# Runtime / secrets / local SoR (never push)
 DEMIGOD-*
+!DEMIGOD-REVIEW-BASELINE.json
 HEAVY-*
 CURSOR-*
 DESK.json
@@ -27,13 +49,25 @@ DEMIGOD-MOBILE-BRIEF.txt
 .demigod-ready
 audit-shots/
 archive/
+*.lock
+*.env
+*secret*
+openai*
+**/openai.env
+**/*api_key*
 
 # Logs & temp
 *.log
 /tmp/
+tmp/
+.dg-fixture/
 
-# OS / editor
-.bash_history
-.viminfo
-*.swp
-.DS_Store
+# Large / generated
+screenshots/
+*.mp4
+*.webm
+playwright-report/
+test-results/
+
+# Optional: keep package-lock if present
+# package-lock.json is fine to track

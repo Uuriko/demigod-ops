@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Auto-publish watcher - no extra deps needed
+cd /home/potter
+LAST_HEAD=$(stat -c %Y demigod-head-minimal.html 2>/dev/null || echo 0)
+LAST_FOOT=$(stat -c %Y demigod-foot-core.js 2>/dev/null || echo 0)
+echo "Watching canonicals for changes (poll mode). Ctrl-C to stop."
+while true; do
+  sleep 20
+  CUR_HEAD=$(stat -c %Y demigod-head-minimal.html 2>/dev/null || echo 0)
+  CUR_FOOT=$(stat -c %Y demigod-foot-core.js 2>/dev/null || echo 0)
+  if [ "$CUR_HEAD" != "$LAST_HEAD" ] || [ "$CUR_FOOT" != "$LAST_FOOT" ]; then
+    echo "[$(date)] Change detected, auto-publishing..."
+    ~/bin/dg-auto-publish || echo "Publish attempt done (check logs)"
+    LAST_HEAD=$CUR_HEAD
+    LAST_FOOT=$CUR_FOOT
+  fi
+done

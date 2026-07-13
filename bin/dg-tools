@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# dg-tools — list Demigod keep-path tools (registry)
+set -euo pipefail
+cd /home/potter
+if [[ "${1:-}" == "--json" ]]; then
+  exec node demigod-tools-registry.mjs --json
+fi
+if [[ "${1:-}" == "dash" ]]; then
+  curl -sS "http://127.0.0.1:${DEMIGOD_DASH_PORT:-9878}/api/tools" | head -c 20000
+  echo
+  exit 0
+fi
+exec node demigod-tools-registry.mjs --md "$@"

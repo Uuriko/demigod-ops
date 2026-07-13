@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# One-command autonomous Webflow publish for Demigod.
+# Uses current canonical files + robust automation.
+set -euo pipefail
+cd /home/potter
+
+echo "=== Demigod Auto Publish ==="
+echo "Ensuring automation Chrome + CDP..."
+~/launch-chrome-automation.sh >/dev/null 2>&1 || true
+sleep 3
+
+echo "Running publish automation script..."
+node demigod-webflow-publish-auto.mjs "$@"
+
+echo "Done. Check output and live site."

@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# dg — Demigod Control Plane CLI (cohesive front door)
+#
+# Prefer this over inventing one-off paths:
+#   bin/dg home | status | next
+#   bin/dg webflow|review|matches|hygiene|doctor|smoke|…
+#   bin/dg                # fzf palette over npm demigod:* (legacy)
+set -euo pipefail
+cd /home/potter
+export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
+
+# No args or known control verbs → control plane
+if [[ $# -eq 0 ]]; then
+  # Interactive palette if fzf exists and tty; else home
+  if [[ -t 0 ]] && command -v fzf >/dev/null 2>&1; then
+    items=$( {
+      echo 'home::node demigod-control.mjs home'
+      echo 'status::node demigod-control.mjs status --json'
+      echo 'next::node demigod-control.mjs next'
+      echo 'webflow-doctor::node demigod-webflow.mjs doctor'
+      echo 'hygiene-prune::node demigod-laptop-hygiene.mjs --prune'
+      echo 'review::node demigod-review.mjs'
+      echo 'matches::node demigod-match-review.mjs --json'
+      echo 'dash::bin/dg-dash'
+      echo 'start::bin/dg-start'
+      npm run 2>/dev/null | grep -oE 'demigod:[a-z0-9:-]+' \
+        | grep -vE ':(cycle|receipt:mint|sms:sim|ghost:push)$' \
+        | sed 's/^/npm run /' \
+        | head -80
+    } | sort -u )
+    choice=$(echo "$items" | fzf --prompt='demigod> ' --height=50% --reverse --tiebreak=index || true)
+    [ -z "${choice:-}" ] && exit 0
+    if [[ "$choice" == *::* ]]; then
+      eval "${choice#*::}"
+    else
+      eval "$choice"
+    fi
+    exit $?
+  fi
+  exec node demigod-control.mjs home
+fi
+
+# Known subcommands → control plane / modules
+case "$1" in
+  home|status|next|plane|modules|help|--help|-h)
+    exec node demigod-control.mjs "$@"
+    ;;
+  webflow|wf|matches|match|pairs|inbox|review|hygiene|doctor|smoke|truth|freeze|cockpit|usertest|dash)
+    exec node demigod-control.mjs "$@"
+    ;;
+  start)
+    exec bin/dg-start
+    ;;
+  *)
+    # Fallback: if looks like demigod:script
+    if [[ "$1" == demigod:* ]]; then
+      exec npm run "$1" -- "${@:2}"
+    fi
+    # Unknown verb → control help + try as webflow subcommand hint
+    echo "Unknown: $1 — try: bin/dg home | webflow | review | matches | hygiene" >&2
+    exec node demigod-control.mjs help
+    ;;
+esac

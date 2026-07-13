@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# dg-smoke — live CDP body/h1/foot/WIZ one-shot
+set -euo pipefail
+cd /home/potter
+exec node demigod-agent-smoke.mjs "$@"

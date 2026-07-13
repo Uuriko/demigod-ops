@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# dg-dash — Demigod multi-agent dashboard (local, agent-first)
+set -euo pipefail
+cd /home/potter
+PORT="${DEMIGOD_DASH_PORT:-9878}"
+
+if [[ "${1:-}" == "stop" ]]; then
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+  fi
+  pids=$(ss -ltnp 2>/dev/null | grep ":${PORT}" | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+  for p in $pids; do kill -TERM "$p" 2>/dev/null || true; done
+  echo "stopped dash on :${PORT}"
+  exit 0
+fi
+
+if [[ "${1:-}" == "status" ]]; then
+  curl -sS --max-time 3 "http://127.0.0.1:${PORT}/api/health" && echo " up :${PORT}" || echo "down :${PORT}"
+  exit 0
+fi
+
+if [[ "${1:-}" == "brief" ]]; then
+  curl -sS --max-time 25 "http://127.0.0.1:${PORT}/api/agent-brief" || cat /tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null
+  exit 0
+fi
+
+if curl -sS --max-time 1 "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+  echo "already running"
+  echo "  UI     http://127.0.0.1:${PORT}/"
+  echo "  brief  http://127.0.0.1:${PORT}/api/agent-brief"
+  echo "  file   /tmp/dg-busy/AGENT-BRIEF.md"
+  if command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+  exit 0
+fi
+
+mkdir -p /tmp/dg-busy
+nohup node demigod-agent-dashboard.mjs --port "$PORT" >>/tmp/dg-busy/dashboard.log 2>&1 &
+echo $! >/tmp/dg-busy/dashboard.pid
+sleep 0.6
+if curl -sS --max-time 2 "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+  echo "dashboard → http://127.0.0.1:${PORT}/"
+  echo "brief     → http://127.0.0.1:${PORT}/api/agent-brief"
+  echo "actions   → http://127.0.0.1:${PORT}/api/actions"
+  echo "file      → /tmp/dg-busy/AGENT-BRIEF.md"
+  if command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+else
+  echo "failed to start — see /tmp/dg-busy/dashboard.log" >&2
+  tail -20 /tmp/dg-busy/dashboard.log >&2 || true
+  exit 1
+fi

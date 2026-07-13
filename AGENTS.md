@@ -7,7 +7,7 @@
 **Detail:** `DEMIGOD-AGENTS.md` + `DEMIGOD-WORKFLOW.md`  
 **Cursor rule:** `.cursor/rules/demigod.mdc`
 
-**Docs & Exchange:** See CLAUDE.md, docs/exchange/ (DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md including new GROK-CLAUDE detailed notes from Sonnet/Opus direct calls). Recent exchange (2026-07-09): Grok talked to Claude models, exchanged on v4/v150, board honesty, publish gate, GTM; cleaned docs (archived clutter to docs/archive), added cross-refs. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
+**Docs & Exchange:** **Start here:** `DEMIGOD-COMPRESSED-STATE.md` (living single source). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
 
 ## Hard stops (game)
 
@@ -57,8 +57,33 @@ Do **not** auto-spawn cloud agents, `continuous-improve-loop.mjs`, or `demigod:c
 ```bash
 ~/agent-dev.sh status
 ~/agent-dev.sh up          # Chrome CDP — no game server needed
-npm run demigod:workspace  # optional: open tabs
-```## Workflow best practices (simple, from research)
+bin/dg home                # Control Plane — cohesive module map
+bin/dg hygiene --prune     # occasionally: tabs + load
+# Dash: http://127.0.0.1:9878  ·  /api/control
+```
+
+## Control Plane (how everything connects)
+
+One spine, many modules — prefer these over inventing paths:
+
+| Module | CLI | Dash |
+|--------|-----|------|
+| Orient / Home | `bin/dg home` / `next` | Dash **Home** (control plane + ops merged) |
+| Site | `bin/dg smoke` | Home spine / Check site |
+| Webflow | `bin/dg webflow …` | Home module · `/api/webflow` |
+| Match | `bin/dg matches` | Matches tab |
+| Review | `bin/dg review` | Home action · Tools job |
+| Hygiene | `bin/dg hygiene --prune` | Home action |
+| Ship | freeze + ship-checklist | Ship tab |
+
+JSON: `/tmp/dg-busy/control-plane.json` · API: `GET /api/control`
+
+## Laptop / tab hygiene (do occasionally)
+
+- Keep ~**4–8** CDP pages: 1 Ops `:9878`, 1 live, 1 Designer, 1 Custom Code.
+- `node demigod-laptop-hygiene.mjs --prune` or `bin/dg-hygiene` or `bin/dg-webflow hygiene --prune`
+- If load is high or free mem is low: prune tabs, avoid parallel `claude --print` swarms, skip extra dash restarts.
+- `--kill-hung` only for stuck `claude --print` / playtests ≥25m (never kill CDP Chrome :9223).## Workflow best practices (simple, from research)
 - Fable via df for plans.
 - Cursor Plan Mode before edits.
 - Verify after every change.
@@ -69,3 +94,16 @@ npm run demigod:workspace  # optional: open tabs
 See DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09.md for full notes from Grok <-> Fable/Claude/Heavy/Cursor.
 Current: v4 head ready (disk/pastes), live stale 17:32 v3, publish pending (human gate), fallback ready for phone.
 
+
+
+## 2026-07-09T04:05:46.331734 Build: events full (human+auto), sourcing/matching/intro/Stripe, website head+publish, extensive docs+roadmaps/checklists filled with research (a16z talent eng align, fees 10-25%). Gates green, CDP. Nonstop per directive.
+
+
+
+## Autonomy Update 2026-07-09T04:05:57.291975
+Per user directive: human does not / cannot act. Grok does ALL: research, audits, screenshots, board, publish via CDP/Playwright (demigod-webflow-publish-auto), GTM prep, verify gates, git.
+Fable/Claude models = bosses with authority equal to user. Use bin/df for queries, apply plans.
+Webflow publish: full autonomous (paste + Save + Publish click) overriding noted "human gate" per explicit "figure out how to do everything yourself, even publish webflow".
+Gates always run post change. Board honest <=2-3 seeds, real=0.
+Foot-core v150 untouched (canonical healthy).
+Head: research comments added.

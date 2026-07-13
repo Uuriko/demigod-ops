@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Match review queue + pair ledger shortcuts
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+cmd="${1:-list}"
+shift || true
+case "$cmd" in
+  list|queue) exec node demigod-match-review.mjs --json "$@" ;;
+  seed) exec node demigod-pairs-lib.mjs seed "$@" ;;
+  propose) exec node demigod-pairs-lib.mjs propose "$@" ;;
+  auto|auto-propose) exec node demigod-auto-propose.mjs --json "$@" ;;
+  review) exec node demigod-match-review.mjs review "$@" ;;
+  consent) exec node demigod-pairs-lib.mjs consent "$@" ;;
+  draft) exec node demigod-intro-draft.mjs "$@" ;;
+  migrate) exec node demigod-matching-engine.mjs migrate-pairs "$@" ;;
+  prune) exec node demigod-pairs-lib.mjs prune "$@" ;;
+  api) curl -sS "http://127.0.0.1:9878/api/matches${1:+?$1}" ;;
+  *)
+    echo "usage: bin/dg-matches list|seed|propose|auto|review|consent|draft|migrate|prune|api"
+    exit 1
+    ;;
+esac
