@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# dg-orca — Demigod ↔ Orca mobile/desktop bridge
+#
+# Phone (Orca app) + laptop agents (Grok/Claude/Codex) share this machine.
+# Always use orca-ide on Linux (never /usr/bin/orca = GNOME screen reader).
+set -euo pipefail
+export PATH="/usr/bin:${HOME}/.local/bin:/usr/local/bin:/bin:${PATH}"
+ROOT="${DEMIGOD_ROOT:-/home/potter}"
+cd "$ROOT"
+CLI="orca-ide"
+LAN="$(hostname -I 2>/dev/null | awk '{print $1}')"
+PAIR_TXT="${ROOT}/orca-pair-code.txt"
+PAIR_HTML="${ROOT}/orca-pair-code.html"
+KEEP_PID="${ROOT}/.keep-awake.pid"
+HUB_WT="path:${ROOT}"
+SWARM_WT="path:${ROOT}/orca/workspaces/potter/demigod-swarm"
+POTTER_HUB="path:${ROOT}/orca/workspaces/potter/potter-hub"
+
+usage() {
+  cat <<EOF
+dg-orca — Orca + Demigod remote ops
+
+  status          Orca runtime + keep-awake + LAN + pair files
+  up              Keep-awake + start desktop Orca + refresh pair + wire hubs
+  down            Stop keep-awake only (does not quit Orca)
+  pair            Refresh pairing URL/HTML for phone (print + files)
+  pair-http       Serve pair page on :8767 for phone browser
+  open            Focus Orca window
+  hub             Label demigod-ops + potter-hub worktrees for phone
+  ps              worktree ps
+  spawn <agent> [prompt…]
+                  agent: grok|claude|codex|cursor
+                  default worktree: demigod-swarm (or HUB if missing)
+  swarm [prompt]  Launch grok + claude + codex review terminals
+  send <agent|handle> <text>
+  read [handle]   Tail active/terminal output
+  site            Open trydemigod + control plane (:9878) in Orca browser
+  doctor          Health checks for phone + agent workflows
+
+Phone (one-time / re-pair):
+  1. bin/dg-orca up
+  2. bin/dg-orca pair   → copy orca://… URL
+  3. Phone Orca app → Pair → Paste pairing code
+     (same Wi‑Fi as ${LAN:-this-laptop}; or Tailscale)
+
+Hubs:
+  demigod-ops     ${ROOT}  (canonical + github.com/Uuriko/demigod-ops)
+  potter-hub      mobile spawn target
+  demigod-swarm   review / feature branch worktree
+EOF
+}
+
+running() {
+  "$CLI" status --json 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);sys.exit(0 if d.get('result',{}).get('runtime',{}).get('reachable') else 1)" 2>/dev/null
+}
+
+ensure_awake() {
+  if [[ -f "$KEEP_PID" ]] && kill -0 "$(cat "$KEEP_PID")" 2>/dev/null; then
+    return 0
+  fi
+  nohup systemd-inhibit \
+    --what=idle:sleep:shutdown:handle-lid-switch \
+    --who="demigod-orca-session" \
+    --why="Orca remote + agent swarm; do not sleep" \
+    --mode=block \
+    sleep infinity >>"${ROOT}/keep-awake.log" 2>&1 &
+  echo $! >"$KEEP_PID"
+  # GNOME: never suspend while we work
+  gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
+  gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing' 2>/dev/null || true
+  gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+  gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
+  xset s off 2>/dev/null || true
+  xset -dpms 2>/dev/null || true
+  echo "keep-awake pid $(cat "$KEEP_PID")"
+}
+
+start_orca() {
+  if running; then
+    echo "Orca already reachable."
+    return 0
+  fi
+  # Clear stale locks only if no orca-ide process
+  if ! pgrep -x orca-ide >/dev/null 2>&1; then
+    rm -f "${HOME}/.config/orca/SingletonLock" \
+          "${HOME}/.config/orca/SingletonSocket" \
+          "${HOME}/.config/orca/SingletonCookie" \
+          "${HOME}/.config/orca/orca-runtime.json" 2>/dev/null || true
+  fi
+  nohup "${ROOT}/orca-ide.sh" >/tmp/orca-launch.log 2>&1 &
+  for _ in $(seq 1 45); do
+    running && break
+    sleep 1
+  done
+  running || { echo "Orca failed — see /tmp/orca-launch.log" >&2; exit 1; }
+}
+
+refresh_pair() {
+  node "${ROOT}/demigod-orca-bridge.mjs" pair --write
+}
+
+cmd_status() {
+  ensure_awake
+  echo "LAN: ${LAN:-unknown}"
+  echo "keep-awake: $( [[ -f $KEEP_PID ]] && kill -0 $(cat $KEEP_PID) 2>/dev/null && echo ok pid=$(cat $KEEP_PID) || echo off )"
+  echo "CLI: $(command -v $CLI)"
+  if running; then
+    "$CLI" status --json | python3 -m json.tool 2>/dev/null | head -30
+    echo "--- pair ---"
+    [[ -f "$PAIR_TXT" ]] && head -1 "$PAIR_TXT" || echo "(no pair file — run: bin/dg-orca pair)"
+    echo "pair page: http://${LAN}:8767/orca-pair.html  (if pair-http running)"
+  else
+    echo "Orca not reachable. Run: bin/dg-orca up"
+  fi
+  node "${ROOT}/demigod-orca-bridge.mjs" doctor 2>/dev/null || true
+}
+
+cmd_up() {
+  ensure_awake
+  start_orca
+  refresh_pair
+  cmd_hub
+  # best-effort pair http
+  if ! ss -tln 2>/dev/null | grep -q ':8767'; then
+    nohup python3 -c "
+import http.server, socketserver, os, shutil
+os.chdir('/tmp')
+shutil.copy('${PAIR_HTML}', '/tmp/orca-pair.html')
+socketserver.TCPServer.allow_reuse_address = True
+httpd = socketserver.TCPServer(('0.0.0.0', 8767), http.server.SimpleHTTPRequestHandler)
+httpd.serve_forever()
+" >/tmp/orca-pair-http.log 2>&1 &
+  fi
+  cmd_status
+  echo ""
+  echo "Phone: Orca app → Pair → paste the orca:// URL above"
+  echo "Or open on phone Wi‑Fi: http://${LAN}:8767/orca-pair.html"
+}
+
+cmd_hub() {
+  running || { echo "Orca not up"; exit 1; }
+  "$CLI" worktree set --worktree "$HUB_WT" \
+    --display-name demigod-ops \
+    --comment "PRIMARY phone hub · demigod-ops · Grok/Claude/Codex" \
+    --workspace-status in-progress --json >/dev/null
+  if [[ -d "${ROOT}/orca/workspaces/potter/potter-hub" ]]; then
+    "$CLI" worktree set --worktree "$POTTER_HUB" \
+      --display-name potter-hub \
+      --comment "Spawn agents here for canonical edits" \
+      --workspace-status in-progress --json >/dev/null || true
+  fi
+  if [[ -d "${ROOT}/orca/workspaces/potter/demigod-swarm" ]]; then
+    "$CLI" worktree set --worktree "$SWARM_WT" \
+      --display-name demigod-swarm \
+      --comment "Swarm review + site features branch" \
+      --workspace-status in-progress --json >/dev/null || true
+  fi
+  echo "Hubs labeled."
+  "$CLI" worktree ps --json | python3 -c "
+import sys,json
+for w in json.load(sys.stdin).get('result',{}).get('worktrees',[]):
+  if 'potter' in (w.get('repo') or '') or 'demigod' in (w.get('displayName') or '') or 'hub' in (w.get('displayName') or ''):
+    print(f\"  {w.get('displayName'):20} {w.get('comment','')[:60]}\")
+"
+}
+
+pick_wt() {
+  if [[ -d "${ROOT}/orca/workspaces/potter/demigod-swarm" ]]; then
+    echo "$SWARM_WT"
+  else
+    echo "$HUB_WT"
+  fi
+}
+
+agent_cmd() {
+  case "$1" in
+    grok) echo "grok --permission-mode bypassPermissions" ;;
+    claude) echo "claude" ;;
+    codex) echo "codex" ;;
+    cursor) echo "cursor-agent --yolo" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+cmd_spawn() {
+  local agent="${1:-grok}"
+  shift || true
+  local prompt="${*:-}"
+  local wt
+  wt="$(pick_wt)"
+  running || start_orca
+  local cmd
+  cmd="$(agent_cmd "$agent")"
+  echo "Spawning $agent in $wt"
+  local out
+  out=$("$CLI" terminal create --worktree "$wt" --command "$cmd" --title "dg-$agent" --json 2>&1) || true
+  echo "$out" | head -40
+  local handle
+  handle=$(printf '%s' "$out" | python3 -c "import sys,json
+try:
+ d=json.load(sys.stdin); r=d.get('result',d) or {}
+ t=r.get('terminal') or r
+ print(t.get('handle') or r.get('handle') or r.get('terminalHandle') or '')
+except: print('')" 2>/dev/null || true)
+  if [[ -n "$prompt" && -n "$handle" ]]; then
+    sleep 2
+    "$CLI" terminal send --terminal "$handle" --text "$prompt" --enter --json 2>&1 | head -10
+  elif [[ -n "$prompt" ]]; then
+    # fallback: send to newest terminal in wt
+    sleep 2
+    "$CLI" terminal send --worktree "$wt" --text "$prompt" --enter --json 2>&1 | head -10 || true
+  fi
+}
+
+cmd_swarm() {
+  local prompt="${*:-Demigod thorough review: audit control plane, matching, review tools, webflow helpers, foot-core/head honesty, WIZ UX. List P0 bugs + concrete site design improvements. Write findings to /tmp/dg-swarm-\$AGENT.md}"
+  running || start_orca
+  cmd_hub
+  for a in grok claude codex; do
+    if command -v "$a" >/dev/null 2>&1 || [[ "$a" == grok ]] || [[ "$a" == claude ]] || [[ "$a" == codex ]]; then
+      local p
+      p=$(echo "$prompt" | sed "s/\$AGENT/$a/g")
+      cmd_spawn "$a" "$p" || true
+      sleep 1
+    fi
+  done
+  echo "Swarm launched. Check: bin/dg-orca ps && orca-ide terminal list --json"
+}
+
+cmd_doctor() {
+  node "${ROOT}/demigod-orca-bridge.mjs" doctor
+  ensure_awake
+  running && echo "orca: ok" || echo "orca: DOWN"
+  ss -tln 2>/dev/null | grep -q ':6768' && echo "ws:6768 listening" || echo "ws:6768 missing"
+  ss -tln 2>/dev/null | grep -q ':9878' && echo "dash:9878 up" || echo "dash:9878 down"
+  [[ -f "$PAIR_TXT" ]] && echo "pair file: ok" || echo "pair file: missing"
+}
+
+cmd_site() {
+  running || start_orca
+  "$CLI" tab create --worktree "$HUB_WT" --url "https://www.trydemigod.com" --json 2>/dev/null || true
+  "$CLI" tab create --worktree "$HUB_WT" --url "http://127.0.0.1:9878" --json 2>/dev/null || true
+  echo "Opened live site + control plane in Orca browser"
+}
+
+case "${1:-}" in
+  status) cmd_status ;;
+  up) cmd_up ;;
+  down)
+    if [[ -f "$KEEP_PID" ]]; then kill "$(cat "$KEEP_PID")" 2>/dev/null || true; rm -f "$KEEP_PID"; echo "keep-awake stopped"; else echo "keep-awake not running"; fi
+    ;;
+  pair) ensure_awake; running || start_orca; refresh_pair; cat "$PAIR_TXT"; echo; echo "Also: http://${LAN}:8767/orca-pair.html" ;;
+  pair-http)
+    refresh_pair
+    exec python3 -c "
+import http.server, socketserver, os, shutil
+os.chdir('/tmp')
+shutil.copy('${PAIR_HTML}', '/tmp/orca-pair.html')
+socketserver.TCPServer.allow_reuse_address = True
+print('http://${LAN}:8767/orca-pair.html', flush=True)
+httpd = socketserver.TCPServer(('0.0.0.0', 8767), http.server.SimpleHTTPRequestHandler)
+httpd.serve_forever()
+"
+    ;;
+  open) "$CLI" open --json 2>&1 | head -20 ;;
+  hub) cmd_hub ;;
+  ps) "$CLI" worktree ps --json | python3 -m json.tool 2>/dev/null | head -120 ;;
+  spawn) shift; cmd_spawn "$@" ;;
+  swarm) shift; cmd_swarm "$@" ;;
+  send)
+    shift
+    handle="${1:?handle}"; shift
+    "$CLI" terminal send --terminal "$handle" --text "$*" --enter --json
+    ;;
+  read)
+    shift
+    if [[ -n "${1:-}" ]]; then "$CLI" terminal read --terminal "$1" --json; else "$CLI" terminal read --json; fi
+    ;;
+  site) cmd_site ;;
+  doctor) cmd_doctor ;;
+  -h|--help|help|"") usage ;;
+  *) echo "Unknown: $1" >&2; usage; exit 1 ;;
+esac

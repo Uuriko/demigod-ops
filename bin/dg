@@ -48,6 +48,10 @@ case "$1" in
   webflow|wf|matches|match|pairs|inbox|review|hygiene|doctor|smoke|truth|freeze|cockpit|usertest|dash)
     exec node demigod-control.mjs "$@"
     ;;
+  orca)
+    shift
+    exec bin/dg-orca "$@"
+    ;;
   start)
     exec bin/dg-start
     ;;

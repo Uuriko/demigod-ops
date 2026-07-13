@@ -130,6 +130,21 @@ export const MODULES = {
       { id: 'hand', label: 'Handoff', tab: 'handoff' },
     ],
   },
+  orca: {
+    title: 'Orca',
+    why: 'Phone + laptop remote seat (pair, hubs, agent spawn)',
+    emoji: '◎',
+    accent: '#a78bfa',
+    key: 'o',
+    cli: 'bin/dg-orca status',
+    dashTab: 'plane',
+    jobs: [],
+    actions: [
+      { id: 'orca-up', label: 'Up', cmd: 'bin/dg-orca up' },
+      { id: 'orca-pair', label: 'Pair URL', cmd: 'bin/dg-orca pair' },
+      { id: 'orca-swarm', label: 'Swarm', cmd: 'bin/dg-orca swarm' },
+    ],
+  },
 };
 
 const DISPATCH = {
@@ -291,6 +306,30 @@ export async function buildControlPlane() {
       footLock: lockHeld ? footLock?.owner || 'held' : 'free',
     },
   });
+  // Orca remote seat (phone ↔ laptop)
+  let orcaReach = null;
+  try {
+    const st = sh('orca-ide status --json 2>/dev/null', 5000);
+    if (st.status === 0 && st.stdout) {
+      const d = JSON.parse(st.stdout);
+      orcaReach = Boolean(d?.result?.runtime?.reachable);
+    }
+  } catch { /* ignore */ }
+  const keepPid = path.join(ROOT, '.keep-awake.pid');
+  let awake = false;
+  try {
+    const pid = Number(fs.readFileSync(keepPid, 'utf8').trim());
+    process.kill(pid, 0);
+    awake = true;
+  } catch { awake = false; }
+  modules.orca = enrich('orca', {
+    ok: orcaReach && awake,
+    detail: orcaReach
+      ? `runtime ok · keep-awake ${awake ? 'on' : 'OFF'} · pair: bin/dg-orca pair`
+      : 'Orca down — bin/dg-orca up',
+    next: orcaReach ? 'bin/dg-orca pair' : 'bin/dg-orca up',
+    metrics: { reachable: orcaReach, keepAwake: awake },
+  });
   modules.swarm = enrich('swarm', {
     ok: null,
     detail: `${(dashStatus?.handoffs || []).length} handoffs · plans via plan-inbox`,
@@ -388,7 +427,7 @@ export async function buildControlPlane() {
     next,
     spine: spine.sort((a, b) => a.pri - b.pri),
     modules,
-    moduleOrder: ['site', 'webflow', 'match', 'review', 'hygiene', 'ship', 'swarm'],
+    moduleOrder: ['site', 'webflow', 'match', 'review', 'hygiene', 'ship', 'swarm', 'orca'],
     moduleDefs: MODULES,
     entrypoints: {
       cli: 'bin/dg',
@@ -469,6 +508,14 @@ async function main() {
     // special: hygiene --prune default when no args?
     const nodeArgs = [...base, ...args.slice(1)];
     const r = spawnSync('node', nodeArgs, { cwd: ROOT, stdio: 'inherit' });
+    process.exit(r.status ?? 1);
+  }
+
+  if (cmd === 'orca') {
+    const r = spawnSync('bash', ['bin/dg-orca', ...args.slice(1)], {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
     process.exit(r.status ?? 1);
   }
 

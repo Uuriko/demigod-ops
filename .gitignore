@@ -71,3 +71,9 @@ test-results/
 
 # Optional: keep package-lock if present
 # package-lock.json is fine to track
+
+# Orca live pairing (device tokens)
+orca-pair-code.txt
+orca-pair-code.html
+.keep-awake.pid
+keep-awake.log
