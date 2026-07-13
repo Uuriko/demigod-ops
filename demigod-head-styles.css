@@ -257,6 +257,22 @@ a:hover, button:hover { opacity:.95; }
 /* Followup in thanks gold border */
 .dg-followup { border-color:rgba(201,168,76,.35)!important; }
 
+/* Design polish: keyboard focus + WIZ primary CTA presence (freeze-safe CSS) */
+:focus-visible {
+  outline: 2px solid var(--g) !important;
+  outline-offset: 3px !important;
+}
+.dg-wiz-next, .dg-wiz-start, a.dg-h, .premium-btn.primary, [data-demigod-modal="startup"] {
+  box-shadow: 0 0 0 1px rgba(201,168,76,.25), 0 8px 28px rgba(0,0,0,.35);
+}
+.dg-wiz-q { letter-spacing: -0.01em; }
+/* 90-day outcome field emphasis (high-signal matching) */
+#startup-modal [name="90day-outcome"], #startup-modal textarea[name*="90day"],
+#jobseeker-modal [name="90day-outcome"], #jobseeker-modal textarea[name*="90day"] {
+  border-color: rgba(201,168,76,.55) !important;
+  min-height: 96px !important;
+}
+
 /* Sample match + other gold accents */
 .dg-sample-match { border-color:rgba(201,168,76,.5)!important; color:#C9A84C!important; }
 
