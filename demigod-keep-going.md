@@ -1056,7 +1056,7 @@ Next if needed: full end-to-end submit test, more acquisition tools, GTM.
 - Cycle: website freeze fix + product map5 2026-07-13 (v187)
 - Active loop: SHIP website stability + product pages UX
 - Phase: GTM + pre-services honesty
-- foot_ver_disk: v195
+- foot_ver_disk: v196
 - dm_freeze: OFF
 - last_checkpoint: (none)
 - Last gate: source-verify PASS; board honesty OK; live CDN v187 freeze fix (sx8bw3.js)

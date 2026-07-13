@@ -71,11 +71,44 @@ async function main() {
     'bin/dg-inbox',
     'bin/dg-review',
     'bin/dg-webflow',
+    'bin/dg-orca',
   ]) {
     checks.push(check(bin, fs.existsSync(path.join(ROOT, bin)), ''));
   }
   checks.push(check('review tool', fs.existsSync(path.join(ROOT, 'demigod-review.mjs')), ''));
   checks.push(check('webflow workbench', fs.existsSync(path.join(ROOT, 'demigod-webflow.mjs')), ''));
+  checks.push(check('orca bridge', fs.existsSync(path.join(ROOT, 'demigod-orca-bridge.mjs')), ''));
+  checks.push(check('full-check', fs.existsSync(path.join(ROOT, 'demigod-full-check.mjs')), ''));
+
+  // Keep-awake + Orca runtime (phone remote seat)
+  try {
+    const pidPath = path.join(ROOT, '.keep-awake.pid');
+    if (fs.existsSync(pidPath)) {
+      const pid = Number(fs.readFileSync(pidPath, 'utf8').trim());
+      try {
+        process.kill(pid, 0);
+        checks.push(check('keep-awake', true, `pid ${pid}`));
+      } catch {
+        checks.push(check('keep-awake', false, 'pid dead — bin/dg-orca up'));
+      }
+    } else {
+      checks.push(check('keep-awake', false, 'no pidfile — bin/dg-orca up'));
+    }
+  } catch (e) {
+    checks.push(check('keep-awake', false, e.message));
+  }
+  try {
+    const st = spawnSync('orca-ide', ['status', '--json'], { encoding: 'utf8', timeout: 6000 });
+    if (st.status === 0 && st.stdout) {
+      const d = JSON.parse(st.stdout);
+      const ok = Boolean(d?.result?.runtime?.reachable);
+      checks.push(check('orca-ide', ok, d?.result?.runtime?.state || 'unknown'));
+    } else {
+      checks.push(check('orca-ide', false, (st.stderr || st.stdout || 'not reachable').slice(0, 120)));
+    }
+  } catch (e) {
+    checks.push(check('orca-ide', false, e.message));
+  }
 
   // Matching / board ops files
   checks.push(check('pairs lib', fs.existsSync(path.join(ROOT, 'demigod-pairs-lib.mjs')), ''));

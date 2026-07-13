@@ -17,12 +17,18 @@ const BUSY = '/tmp/dg-busy';
 /** @type {Tool[]} */
 export const TOOLS = [
   // Session start
-  { id: 'control', name: 'Control plane', group: 'session', cmd: 'bin/dg home', purpose: 'Cohesive map: site/webflow/match/review/hygiene/ship', out: '/tmp/dg-busy/control-plane.json', hot: true },
+  { id: 'control', name: 'Control plane', group: 'session', cmd: 'bin/dg home', purpose: 'Cohesive map: site/webflow/match/review/hygiene/ship/orca', out: '/tmp/dg-busy/control-plane.json', hot: true },
+  { id: 'full-check', name: 'Full check', group: 'session', cmd: 'bin/dg full-check', purpose: 'Doctor + orca + gates + smoke (one spine)', out: '/tmp/dg-busy/full-check.json', hot: true },
   { id: 'cockpit', name: 'Cockpit', group: 'session', cmd: 'bin/dg-cockpit', purpose: 'Single honest NEXT + hash chain', out: '/tmp/dg-busy/cockpit.json', hot: true },
   { id: 'smoke', name: 'Agent smoke', group: 'session', cmd: 'bin/dg-smoke', purpose: 'CDP body/h1/foot/WIZ proof', out: '/tmp/dg-busy/agent-smoke.json', hot: true },
   { id: 'usertest', name: 'User-test harness', group: 'session', cmd: 'bin/dg-usertest', purpose: 'Unified site+dash+tools+forms UX suite', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
   { id: 'usertest-quick', name: 'User-test quick', group: 'session', cmd: 'bin/dg-usertest --quick', purpose: 'Faster UX suite without full selftest', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
-  { id: 'doctor', name: 'Doctor', group: 'session', cmd: 'node demigod-doctor.mjs', purpose: 'Env health: CDP, dash, keys, bins', out: '/tmp/dg-busy/doctor.json', hot: true },
+  { id: 'doctor', name: 'Doctor', group: 'session', cmd: 'node demigod-doctor.mjs', purpose: 'Env health: CDP, dash, keys, bins, orca', out: '/tmp/dg-busy/doctor.json', hot: true },
+  { id: 'orca-up', name: 'Orca up', group: 'orca', cmd: 'bin/dg-orca up', purpose: 'Keep-awake + desktop Orca + pair + hubs', hot: true },
+  { id: 'orca-status', name: 'Orca status', group: 'orca', cmd: 'bin/dg-orca status', purpose: 'Runtime + keep-awake + pair doctor', out: '/tmp/orca-pair-meta.json', hot: true },
+  { id: 'orca-pair', name: 'Orca pair URL', group: 'orca', cmd: 'bin/dg-orca pair', purpose: 'Phone pairing orca:// URL + HTML', out: '/home/potter/orca-pair-code.txt', hot: true },
+  { id: 'orca-swarm', name: 'Orca swarm', group: 'orca', cmd: 'bin/dg-orca swarm', purpose: 'Spawn grok+claude+codex in demigod-swarm worktree' },
+  { id: 'orca-site', name: 'Orca site tabs', group: 'orca', cmd: 'bin/dg-orca site', purpose: 'Open live site + control plane in Orca browser' },
   { id: 'webflow', name: 'Webflow workbench', group: 'session', cmd: 'bin/dg-webflow status', purpose: 'Freeze/tabs/truth/playbooks for Designer+Custom Code', out: '/tmp/dg-busy/webflow-status.json', hot: true },
   { id: 'webflow-doctor', name: 'Webflow doctor', group: 'session', cmd: 'bin/dg-webflow doctor', purpose: 'CDP + Designer + custom-code + freeze readiness', out: '/tmp/dg-busy/webflow-doctor.json', hot: true },
   { id: 'hygiene', name: 'Laptop hygiene', group: 'session', cmd: 'node demigod-laptop-hygiene.mjs --prune', purpose: 'Prune CDP tabs + load/mem check', out: '/tmp/dg-busy/laptop-hygiene.json', hot: true },

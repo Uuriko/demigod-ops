@@ -8,6 +8,9 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+
+assertNotFrozen('foot-cdn-publish');
 
 const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');

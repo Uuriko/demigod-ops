@@ -1924,6 +1924,61 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
+    if (url.pathname === '/api/orca') {
+      try {
+        const { spawnSync } = await import('child_process');
+        const st = spawnSync('bash', ['-lc', 'node demigod-orca-bridge.mjs doctor'], {
+          cwd: ROOT,
+          encoding: 'utf8',
+          timeout: 12000,
+        });
+        let doctor = null;
+        try {
+          doctor = JSON.parse(st.stdout || '{}');
+        } catch {
+          doctor = { raw: (st.stdout || '').slice(0, 500), stderr: (st.stderr || '').slice(0, 300) };
+        }
+        let runtime = null;
+        const ost = spawnSync('orca-ide', ['status', '--json'], { encoding: 'utf8', timeout: 6000 });
+        try {
+          runtime = JSON.parse(ost.stdout || '{}')?.result || null;
+        } catch {
+          runtime = null;
+        }
+        let keepAwake = false;
+        try {
+          const pid = Number(fs.readFileSync(path.join(ROOT, '.keep-awake.pid'), 'utf8').trim());
+          process.kill(pid, 0);
+          keepAwake = true;
+        } catch {
+          keepAwake = false;
+        }
+        res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(
+          JSON.stringify(
+            {
+              at: new Date().toISOString(),
+              keepAwake,
+              runtime,
+              doctor,
+              cmds: {
+                up: 'bin/dg-orca up',
+                pair: 'bin/dg-orca pair',
+                status: 'bin/dg-orca status',
+                swarm: 'bin/dg-orca swarm',
+              },
+              pairPage: doctor?.lan ? `http://${doctor.lan}:8767/orca-pair.html` : null,
+            },
+            null,
+            2,
+          ),
+        );
+      } catch (e) {
+        res.writeHead(500, { ...noStore, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(e.message || e) }));
+      }
+      return;
+    }
     if (url.pathname === '/api/control' || url.pathname === '/api/control-plane') {
       try {
         const { buildControlPlane } = await import('./demigod-control.mjs');

@@ -52,6 +52,14 @@ case "$1" in
     shift
     exec bin/dg-orca "$@"
     ;;
+  full-check|fullcheck|check-all)
+    shift
+    exec node demigod-full-check.mjs "$@"
+    ;;
+  tools|registry)
+    shift
+    exec node demigod-tools-registry.mjs "$@"
+    ;;
   start)
     exec bin/dg-start
     ;;

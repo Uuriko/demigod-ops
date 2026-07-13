@@ -1,5 +1,5 @@
-/*dg-foot-v195-core*/
-window.dgFootVersion = 'v195'; console.log('[demigod] foot v195-core loaded');
+/*dg-foot-v196-core*/
+window.dgFootVersion = 'v196'; console.log('[demigod] foot v196-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (JS loader) — never raw catbox .html (text/plain MIME) */
@@ -208,19 +208,39 @@ document.addEventListener('keydown', function(e){
 function forceMobileDesktopWIZ() {
   try {
     enhanceWIZ();
-    // If a modal is open, re-force the current form fields + chrome
+    // Re-apply chrome only — do NOT unhide every field (kills one-question WIZ).
     const openModal = document.querySelector && document.querySelector('#startup-modal[style*="flex"], #jobseeker-modal[style*="flex"]');
     if (openModal) {
       const f = openModal.querySelector && openModal.querySelector('form');
       if (f) {
         f.style.setProperty('display','block','important');
         f.style.visibility = 'visible';
-        qa('input,select,textarea,.form-field-group,.dg-field-wrap,.dg-wiz-head,.dg-wiz-nav,.dg-wiz-q,.dg-wiz-hint', openModal).forEach(function(c){
+        // Head/nav/progress only
+        qa('.dg-wiz-head,.dg-wiz-nav,.dg-wiz-q,.dg-wiz-hint,.dg-wiz-bar,.dg-wiz-review', openModal).forEach(function(c){
           if (c && c.style) {
-            c.style.setProperty('display','block','important');
+            c.style.setProperty('display','','important');
             c.style.setProperty('visibility','visible','important');
           }
         });
+        // If stepper tracks a current key, only that field (plus 90day on that step)
+        var key = f.dataset && f.dataset.dgWizKey;
+        if (key && key !== 'welcome' && key !== '__thanks__') {
+          qa('.dg-field-wrap,input,select,textarea', openModal).forEach(function(c){
+            if (!c || !c.style) return;
+            var n = (c.getAttribute && (c.getAttribute('name') || c.id)) || '';
+            var wrap = c.classList && c.classList.contains('dg-field-wrap') ? c : (c.closest && c.closest('.dg-field-wrap'));
+            var wn = wrap && wrap.querySelector ? (wrap.querySelector('[name]') || {}).name : '';
+            var match = n === key || wn === key || (key === '__submit__' && c.classList && c.classList.contains('dg-wiz-review'));
+            if (match) {
+              c.style.setProperty('display','','important');
+              c.style.setProperty('visibility','visible','important');
+              if (wrap && wrap.style) {
+                wrap.style.setProperty('display','','important');
+                wrap.style.setProperty('visibility','visible','important');
+              }
+            }
+          });
+        }
       }
     }
   } catch(e){}
@@ -859,7 +879,7 @@ var busy=false,tmr=null,OBS=null,LAST_FOCUS=null,TRAP_H=null;
 function focusables(root){if(!root)return[];return qa('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',root).filter(function(el){try{var s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&!el.disabled}catch(e){return true}})}
 function attachTrap(m){detachTrap(false);LAST_FOCUS=document.activeElement;TRAP_H=function(e){if(e.key!=='Tab'||!OPEN)return;var modal=q(OPEN);if(!modal)return;var list=focusables(modal);if(!list.length){e.preventDefault();return}var first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();try{last.focus()}catch(_){}}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();try{first.focus()}catch(_){}}else if(!modal.contains(document.activeElement)){e.preventDefault();try{first.focus()}catch(_){}}};document.addEventListener('keydown',TRAP_H,true)}
 function detachTrap(restore){if(TRAP_H){document.removeEventListener('keydown',TRAP_H,true);TRAP_H=null}if(restore!==false&&LAST_FOCUS&&LAST_FOCUS.focus){try{LAST_FOCUS.focus()}catch(e){}}LAST_FOCUS=null}
-function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent='#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{font-size:16px!important;min-height:44px;line-height:1.35}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{min-height:44px!important;padding:12px 16px!important;touch-action:manipulation}#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{position:sticky;top:0;z-index:5;background:rgba(10,10,10,.96);padding:.5rem 0 .35rem;backdrop-filter:blur(6px)}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:4px;background:rgba(201,168,76,.15);border-radius:2px;overflow:hidden;margin:.35rem 0 .5rem}#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{display:block;height:100%;background:linear-gradient(90deg,#C9A84C,#e8c96a);transition:width .25s ease}#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-size:1.15rem;font-weight:600;color:#F5F0E6;margin:.35rem 0}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.85rem;color:#A8A29E;margin:0 0 .5rem;line-height:1.4}@media(max-width:767px){#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column!important;gap:8px!important;display:flex!important}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important}#startup-modal,#jobseeker-modal{padding-bottom:env(safe-area-inset-bottom,0)}#dg-bar a{min-height:44px;display:flex;align-items:center;justify-content:center}}@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}}';document.head.appendChild(s)}
+function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent='#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{font-size:16px!important;min-height:44px;line-height:1.35}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{min-height:44px!important;padding:12px 16px!important;touch-action:manipulation}#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{position:sticky;top:0;z-index:5;background:rgba(10,10,10,.96);padding:.5rem 0 .35rem;backdrop-filter:blur(6px)}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:4px;background:rgba(201,168,76,.15);border-radius:2px;overflow:hidden;margin:.35rem 0 .5rem}#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{display:block;height:100%;background:linear-gradient(90deg,#C9A84C,#e8c96a);transition:width .25s ease}#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-size:1.15rem;font-weight:600;color:#F5F0E6;margin:.35rem 0}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.85rem;color:#A8A29E;margin:0 0 .5rem;line-height:1.4}@media(max-width:767px){#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column!important;gap:8px!important;display:flex!important}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important}#startup-modal,#jobseeker-modal{padding-bottom:env(safe-area-inset-bottom,0)}#dg-bar a{min-height:44px;display:flex;align-items:center;justify-content:center}}@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}}#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{border:1px solid rgba(201,168,76,.28);border-radius:12px;padding:.75rem .9rem;margin:.5rem 0 .75rem;background:rgba(14,14,18,.92);max-height:40vh;overflow:auto}#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{color:#C9A84C;font-size:.85rem;margin:0 0 .5rem;letter-spacing:.04em;text-transform:uppercase}#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt{color:#A8A29E;font-size:.72rem;margin-top:.4rem}#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd{color:#F5F0E6;font-size:.9rem;margin:0 0 .15rem;line-height:1.4}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{box-shadow:0 0 0 1px rgba(201,168,76,.3),0 6px 20px rgba(0,0,0,.35)}';document.head.appendChild(s)}
 
 function fileUploadHonest(){qa('#startup-modal input[type=file],#jobseeker-modal input[type=file],form input[type=file]').forEach(function(fi){if(fi.dataset.dgFileHonest)return;fi.dataset.dgFileHonest='1';var wrap=fi.closest('.dg-field-wrap,.w-file-upload,div')||fi.parentElement;var hint=document.createElement('p');hint.className='dg-file-honest';hint.style.cssText='color:#A8A29E;font-size:.8rem;margin:.35rem 0';hint.textContent='Tip: paste a Drive/Dropbox link if upload is flaky, or email the file to hello@trydemigod.com.';var link=document.createElement('input');link.type='url';link.className='w-input';link.name=(fi.name||'file')+'-url';link.placeholder='https://… link to file (optional)';if(wrap){wrap.appendChild(hint);wrap.appendChild(link);}var form=fi.closest('form');if(form&&!form.dataset.dgFileVal){form.dataset.dgFileVal='1';form.addEventListener('submit',function(){try{var files=[].slice.call(form.querySelectorAll('input[type=file]'));var urls=[].slice.call(form.querySelectorAll('input[type=url][name$="-url"]'));var hasFile=files.some(function(x){return x.files&&x.files.length});var hasUrl=urls.some(function(x){return (x.value||'').trim().length>8});if(!hasFile&&!hasUrl){/* optional files — allow submit; surface tip only */}else if(!hasFile&&hasUrl){/* ok */} }catch(e){}});}});}
 function run(){if(busy)return;busy=true;if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();contactStrip();copy();forms();fileUploadHonest();price();cta();nav();(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — humans reviewing fit'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.7rem;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5/i.test(h.textContent||''))h.textContent='Meet curated matches';if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}})})();trust();faqBlock();proofStrip();ensureHowLink();mob();foot();rmOrphanForms();successCta();if(!OPEN)hide();fetchBoard();dedupeAll();scrubTimeClaims();scrubStaticLabels();qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
@@ -1057,7 +1077,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J))DIRTY=true},true);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&OPEN){var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800)}});
 OBS=null;/* v190: no full-document MutationObserver — was freezing main thread (run↔mutate thrash). Timed boots cover late Webflow. */
-window.__dgFootVer='195';console.log('Demigod v195');
+window.__dgFootVer='196';console.log('Demigod v196');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

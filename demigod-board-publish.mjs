@@ -6,6 +6,9 @@ import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { BOARD_PATH, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
 import { defaultBoardExtras } from './demigod-board-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+
+assertNotFrozen('board-publish');
 
 const OUT = path.join(ROOT, 'DEMIGOD-BOARD-CDN.json');
 const SRC = path.join(ROOT, 'demigod-board.json');

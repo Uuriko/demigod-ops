@@ -288,3 +288,46 @@ a:hover, button:hover { opacity:.95; }
 #demigod-trust-block .dg-process-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.75rem; font-size:.85rem; color:var(--mu); }
 
 /* End of thorough gold + WIZ overhaul */
+/* dg-design-polish-2026-07 — hierarchy, trust, CTA breathing room */
+.hero-section, .header { padding-bottom: clamp(1.5rem, 4vw, 3rem) !important; }
+.hero-section p, .header p { max-width: 36rem; line-height: 1.55 !important; color: var(--cr) !important; opacity: 0.92; }
+#demigod-trust-block { margin-top: 2rem; margin-bottom: 2rem; }
+#demigod-trust-block .dg-step {
+  transition: border-color .2s ease, transform .2s ease;
+}
+#demigod-trust-block .dg-step:hover {
+  border-color: rgba(201,168,76,.55);
+  transform: translateY(-1px);
+}
+/* FAQ readability */
+#dg-faq details {
+  border: 1px solid rgba(201,168,76,.18);
+  border-radius: 10px;
+  padding: .65rem .9rem;
+  margin: .45rem 0;
+  background: var(--card);
+}
+#dg-faq summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--cr) !important;
+  list-style: none;
+}
+#dg-faq summary::-webkit-details-marker { display: none; }
+#dg-faq details[open] summary { color: var(--g) !important; }
+/* Primary gold CTAs slightly more weight on hover */
+.premium-btn, a.button.w-button, .dg-wiz-next, .dg-wiz-start {
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease !important;
+}
+.premium-btn:hover, a.button.w-button:hover, .dg-wiz-next:hover, .dg-wiz-start:hover {
+  transform: translateY(-1px);
+  opacity: 1 !important;
+}
+/* Reduce form field clutter spacing in wizards */
+#startup-modal .w-form, #jobseeker-modal .w-form { gap: .35rem; }
+/* Desktop nav CTAs more obvious */
+@media (min-width:768px) {
+  nav a[data-demigod-modal], .nav a[data-demigod-modal] {
+    font-weight: 600 !important;
+  }
+}
