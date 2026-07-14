@@ -1,0 +1,21 @@
+# How to launch the nonstop tools OS build
+
+## Option A — Grok (recommended orchestrator)
+Paste the full contents of:
+  prompts/demigod/MASTER-TOOLS-OS-BUILD-PROMPT.md
+
+Optional first line for later sessions:
+  RESUME Demigod TOOLS OS build. Read /tmp/dg-busy/TOOLS-OS-HANDOFF.md
+
+## Option B — Codex worker (review/selftest focused)
+  codex exec --full-auto -C /home/potter "$(head -5 prompts/demigod/MASTER-TOOLS-OS-BUILD-PROMPT.md)
+  You are Codex adversarial reviewer/implementer for TOOLS OS.
+  Read MASTER-TOOLS-OS-BUILD-PROMPT.md §5–7. Implement missing selftests and block soft greens.
+  Nonstop until demigod-tools-os-selftest.mjs passes or write blockers to /tmp/dg-busy/codex-next.md."
+
+## Option C — Fable planner
+  claude -p --model sonnet "You are Fable. $(cat prompts/demigod/MASTER-TOOLS-OS-BUILD-PROMPT.md | sed -n '1,80p')
+  PLAN ONLY per §6. Write /tmp/dg-busy/fable-next.md. Nonstop re-plan whenever Grok finishes a slice."
+
+## Ground truth before launch
+  bin/dg truth
