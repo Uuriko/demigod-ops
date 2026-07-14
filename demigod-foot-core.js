@@ -924,6 +924,8 @@ function scrubTimeClaims(){
   var bad = /(?:respond|reply|answer|get back)\s+within|within\s*\d+\s*(hours?|hrs?|h|days?)|24\s*h(?:ours?)?|48\s*h(?:ours?)?|same day|quickly|fast response|match(?:es|ing)?\s+within\s+\d+/i;
   var rep = 'hello@trydemigod.com will follow up';
   var fullLeaf = /humans?\s+match\s+within|within\s*48\s*h|within\s*24\s*h|3-?5\s+matches?\s+in\s+\d+/i;
+  // Static Webflow pricing FOUC: bare "guarantee" without pending honesty
+  var bareGuarantee = /90-?\s*day\s+replacement\s+guarantee|(?<!pending.{0,40})\breplacement guarantee\b/i;
   // Webflow native success boxes — full rewrite (source still has 24h until Designer edit)
   qa('.w-form-done, .w-form-done div, .w-form-done p').forEach(function(el){
     var txt = el.textContent || '';
@@ -941,6 +943,10 @@ function scrubTimeClaims(){
     if (/hello@trydemigod\.com will follow up/i.test(txt)) return;
     if (fullLeaf.test(txt) && txt.length < 120) {
       el.textContent = 'Human review — ' + rep;
+      return;
+    }
+    if (bareGuarantee.test(txt) && !/pending|once payments|when live/i.test(txt) && txt.length < 160) {
+      el.textContent = '10% on hire · 90-day replacement once payments are live';
       return;
     }
     if (bad.test(txt)) {

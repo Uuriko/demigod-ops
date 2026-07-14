@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Approve inbox submission → anonymized featured board card + CDN publish. */
+/** Approve inbox submission → anonymized featured board card (+ CDN if freeze OFF). */
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import {
@@ -10,6 +10,7 @@ import {
   anonymizeRole,
   anonymizeCandidate,
 } from './demigod-submissions-lib.mjs';
+import { isFrozen } from './demigod-agent-tools-lib.mjs';
 
 function usage() {
   console.log('Usage: node demigod-submissions-approve.mjs <sub-id|--latest|--list>');
@@ -50,10 +51,14 @@ let featured = null;
 
 if (/startup/.test(form)) {
   featured = anonymizeRole(item.raw || {});
-  board.roles = [featured, ...(board.roles || [])].slice(0, 6);
+  featured.sample = true; // honesty: approve is not a delivered real proof
+  featured.note = featured.note || 'Sample — human featured from inbox (not a paid placement receipt).';
+  board.roles = [featured, ...(board.roles || [])].slice(0, 3);
 } else if (/engineer|jobseeker|candidate/.test(form)) {
   featured = anonymizeCandidate(item.raw || {});
-  board.candidates = [featured, ...(board.candidates || [])].slice(0, 4);
+  featured.sample = true;
+  featured.note = featured.note || 'Sample — human featured from inbox.';
+  board.candidates = [featured, ...(board.candidates || [])].slice(0, 3);
 } else {
   console.error(JSON.stringify({ ok: false, error: 'unknown form', form }));
   process.exit(1);
@@ -65,11 +70,43 @@ item.reviewedAt = new Date().toISOString();
 saveInbox(inbox);
 saveBoard(board, { reason: `approve:${subId}`, actor: process.env.USER || 'approve' });
 
-const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
-console.log(JSON.stringify({
-  ok: pub.status === 0,
-  subId,
-  featured,
-  board: { roles: board.roles.length, candidates: board.candidates.length },
-  publish: pub.stdout?.trim() || pub.stderr,
-}));
+const freeze = isFrozen();
+let publish = { skipped: true, reason: null };
+if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
+  publish = {
+    skipped: true,
+    reason: 'publish_frozen',
+    why: freeze.why,
+    hint: 'board saved locally; CDN publish when freeze OFF or DEMIGOD_FORCE_PUBLISH=1',
+  };
+} else {
+  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
+  publish = {
+    skipped: false,
+    ok: pub.status === 0,
+    out: (pub.stdout || pub.stderr || '').trim().slice(0, 500),
+  };
+}
+
+// honesty gate after local board write
+const honesty = spawnSync('node', ['demigod-verify-board-honesty.mjs'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+});
+
+console.log(
+  JSON.stringify(
+    {
+      ok: honesty.status === 0,
+      subId,
+      featured,
+      sample: true,
+      board: { roles: board.roles?.length, candidates: board.candidates?.length },
+      publish,
+      honesty: honesty.status === 0 ? 'OK' : (honesty.stderr || honesty.stdout || '').slice(0, 300),
+    },
+    null,
+    2,
+  ),
+);
+if (honesty.status !== 0) process.exit(1);

@@ -1,2 +1,13 @@
 #!/usr/bin/env bash
+# LEGACY pilot shortlist (DEMIGOD-PILOTS) — not the pair ledger.
+# Canonical matching: bin/dg matches  → DEMIGOD-PAIRS / demigod-match-review.mjs
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'EOF'
+bin/dg-match — pilot shortlist CLI (legacy SoR: DEMIGOD-PILOTS)
+
+Prefer:  bin/dg matches   (pair ledger DEMIGOD-PAIRS — control plane Match module)
+
+EOF
+fi
+echo "[dg-match] note: pilot shortlist — for pair queue use bin/dg matches" >&2
 exec node /home/potter/demigod-match.mjs "$@"

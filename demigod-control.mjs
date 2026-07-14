@@ -193,7 +193,8 @@ async function fetchJson(url, ms = 8000) {
 export async function buildControlPlane() {
   ensureBusy();
   const freeze = safeJsonFile(path.join(BUSY, 'publish-freeze.json')) || {};
-  const envFreeze = process.env.DEMIGOD_PUBLISH_FREEZE === '1';
+  const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();
+  const envFreeze = ['1', 'true', 'yes', 'on'].includes(envRaw);
   const frozen = envFreeze || Boolean(freeze.on);
 
   // Prefer busy cache to avoid recursive dash status when called FROM dash
@@ -258,6 +259,11 @@ export async function buildControlPlane() {
     metrics: { pages: wf?.tabs?.pages, cdp: wf?.cdp?.ok },
   });
   const matchSum = matchesBusy?.summary || dashStatus?.matches?.summary || null;
+  const realProposed =
+    matchSum?.realProposed ??
+    (matchSum?.byState?.proposed != null && matchSum?.sampleCount != null
+      ? Math.max(0, (matchSum.byState.proposed || 0) - (matchSum.sampleCount || 0))
+      : matchSum?.byState?.proposed);
   modules.match = enrich('match', {
     ok: true,
     summary: matchSum,
@@ -265,12 +271,14 @@ export async function buildControlPlane() {
       ? { new: dashStatus.inbox.newCount, total: dashStatus.inbox.total }
       : null,
     detail: matchSum
-      ? `pairs ${matchSum.total} · proposed ${matchSum.byState?.proposed ?? 0}`
+      ? `pairs ${matchSum.total} · realProposed ${realProposed ?? 0} · samples ${matchSum.sampleCount ?? '?'}`
       : 'run bin/dg matches',
     next: 'bin/dg matches',
     metrics: {
       pairs: matchSum?.total,
-      proposed: matchSum?.byState?.proposed,
+      proposed: realProposed ?? 0,
+      realProposed: realProposed ?? 0,
+      sampleCount: matchSum?.sampleCount ?? 0,
       inboxNew: dashStatus?.inbox?.newCount,
     },
   });
@@ -375,11 +383,12 @@ export async function buildControlPlane() {
     module: 'site',
     job: next.id === 'smoke' ? 'smoke' : null,
   });
-  if ((modules.match.metrics?.proposed || 0) > 0) {
+  const rp = modules.match.metrics?.realProposed ?? modules.match.metrics?.proposed ?? 0;
+  if (rp > 0) {
     spine.push({
       pri: 4,
       id: 'pairs',
-      title: `Review ${modules.match.metrics.proposed} proposed pairs`,
+      title: `Review ${rp} real proposed pairs`,
       cmd: 'bin/dg matches',
       module: 'match',
       job: 'match-review',

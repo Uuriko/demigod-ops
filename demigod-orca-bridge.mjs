@@ -77,7 +77,10 @@ function buildPairingUrl({ lan, port = 6768 } = {}) {
 
 function writePairFiles(info) {
   const lan = lanIp();
-  fs.writeFileSync(PAIR_TXT, info.url + '\n');
+  fs.writeFileSync(PAIR_TXT, info.url + '\n', { mode: 0o600 });
+  try {
+    fs.chmodSync(PAIR_TXT, 0o600);
+  } catch { /* ignore */ }
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Orca Pair · Demigod</title>
 <style>
 body{font:17px system-ui,sans-serif;margin:0;padding:24px;max-width:720px;background:#0b0b0f;color:#f2f2f2}
@@ -105,11 +108,14 @@ code{background:#222;padding:2px 6px;border-radius:4px;color:#ccc}
 </p>
 <script>const t=document.getElementById('t');t.focus();t.select();</script>
 </body></html>`;
-  fs.writeFileSync(PAIR_HTML, html);
+  fs.writeFileSync(PAIR_HTML, html, { mode: 0o600 });
   try {
-    fs.writeFileSync('/tmp/orca-pair.html', html);
-    fs.writeFileSync('/tmp/orca-pair-url.txt', info.url + '\n');
-    fs.writeFileSync('/tmp/orca-pair-meta.json', JSON.stringify(info, null, 2));
+    fs.chmodSync(PAIR_HTML, 0o600);
+  } catch { /* ignore */ }
+  try {
+    fs.writeFileSync('/tmp/orca-pair.html', html, { mode: 0o600 });
+    fs.writeFileSync('/tmp/orca-pair-url.txt', info.url + '\n', { mode: 0o600 });
+    fs.writeFileSync('/tmp/orca-pair-meta.json', JSON.stringify(info, null, 2), { mode: 0o600 });
   } catch { /* ignore */ }
   return { pairTxt: PAIR_TXT, pairHtml: PAIR_HTML, lan };
 }

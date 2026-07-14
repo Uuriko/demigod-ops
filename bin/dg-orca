@@ -122,12 +122,13 @@ cmd_up() {
   cmd_hub
   # best-effort pair http
   if ! ss -tln 2>/dev/null | grep -q ':8767'; then
+    # Bind localhost only — pairing URL embeds deviceToken; phone uses orca:// on LAN:6768
     nohup python3 -c "
 import http.server, socketserver, os, shutil
 os.chdir('/tmp')
 shutil.copy('${PAIR_HTML}', '/tmp/orca-pair.html')
 socketserver.TCPServer.allow_reuse_address = True
-httpd = socketserver.TCPServer(('0.0.0.0', 8767), http.server.SimpleHTTPRequestHandler)
+httpd = socketserver.TCPServer(('127.0.0.1', 8767), http.server.SimpleHTTPRequestHandler)
 httpd.serve_forever()
 " >/tmp/orca-pair-http.log 2>&1 &
   fi
@@ -252,13 +253,17 @@ case "${1:-}" in
   pair) ensure_awake; running || start_orca; refresh_pair; cat "$PAIR_TXT"; echo; echo "Also: http://${LAN}:8767/orca-pair.html" ;;
   pair-http)
     refresh_pair
+    chmod 600 "$PAIR_TXT" "$PAIR_HTML" 2>/dev/null || true
+    # Default: localhost only. Use PAIR_BIND=0.0.0.0 only if you accept LAN token exposure.
+    BIND="${PAIR_BIND:-127.0.0.1}"
     exec python3 -c "
 import http.server, socketserver, os, shutil
 os.chdir('/tmp')
 shutil.copy('${PAIR_HTML}', '/tmp/orca-pair.html')
 socketserver.TCPServer.allow_reuse_address = True
-print('http://${LAN}:8767/orca-pair.html', flush=True)
-httpd = socketserver.TCPServer(('0.0.0.0', 8767), http.server.SimpleHTTPRequestHandler)
+bind='${BIND}'
+print(f'http://{bind}:8767/orca-pair.html (bind={bind})', flush=True)
+httpd = socketserver.TCPServer((bind, 8767), http.server.SimpleHTTPRequestHandler)
 httpd.serve_forever()
 "
     ;;

@@ -155,11 +155,15 @@ export function positionals(args, flagNames = []) {
 
 /** Publish freeze — single choke point for agents/dashboard/jobs */
 export function isFrozen(busy = BUSY) {
-  const j = readJson(path.join(busy, 'publish-freeze.json'));
-  if (!j) return { on: false, why: null, at: null, by: null, path: path.join(busy, 'publish-freeze.json') };
+  const j = readJson(path.join(busy, 'publish-freeze.json')) || {};
+  const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();
+  const envOn = ['1', 'true', 'yes', 'on'].includes(envRaw);
+  const fileOn = Boolean(j.on);
   return {
-    on: Boolean(j.on),
-    why: j.why || null,
+    on: envOn || fileOn,
+    env: envOn,
+    file: fileOn,
+    why: j.why || (envOn ? 'DEMIGOD_PUBLISH_FREEZE env' : null),
     at: j.at || null,
     by: j.by || null,
     path: path.join(busy, 'publish-freeze.json'),

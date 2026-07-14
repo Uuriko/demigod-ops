@@ -41,9 +41,10 @@ function savePairs(store) {
   return store;
 }
 
-export function listPairs({ state = null, limit = 50 } = {}) {
+export function listPairs({ state = null, limit = 50, includeSample = false } = {}) {
   const store = loadPairs();
   let rows = Object.values(store.pairs || {});
+  if (!includeSample) rows = rows.filter((p) => p.sample !== true);
   if (state) rows = rows.filter((p) => p.state === state);
   rows.sort((a, b) => String(b.updatedAt || b.at).localeCompare(String(a.updatedAt || a.at)));
   return rows.slice(0, limit);
@@ -157,7 +158,7 @@ export function prunePairs({ selftest = true, sample = false, dryRun = false } =
 }
 
 /** Seed demo pairs from board sample roles + synthetic cand ids (freeze-safe fixtures) */
-export function seedFixturePairs() {
+function seedFixturePairs() {
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
     const now = new Date().toISOString();
@@ -197,7 +198,13 @@ if (isMain) {
   };
   try {
     if (cmd === 'list') {
-      console.log(JSON.stringify({ at: new Date().toISOString(), pairs: listPairs() }, null, 2));
+      console.log(
+        JSON.stringify(
+          { at: new Date().toISOString(), pairs: listPairs({ includeSample: rest.includes('--include-sample') }) },
+          null,
+          2,
+        ),
+      );
     } else if (cmd === 'seed') {
       console.log(JSON.stringify(seedFixturePairs(), null, 2));
     } else if (cmd === 'propose') {

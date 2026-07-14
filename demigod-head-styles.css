@@ -13,7 +13,9 @@
 #startup-modal form:not(.dg-wiz-on) .dg-field-wrap,#jobseeker-modal form:not(.dg-wiz-on) .dg-field-wrap,#startup-modal form:not(.dg-wiz-on)>.w-input,#jobseeker-modal form:not(.dg-wiz-on)>.w-input{display:block!important;position:relative!important;width:100%!important;margin:0 0 .75rem!important;clear:both!important}
 #startup-modal form.dg-wiz-on .form-field-group:not(.dg-wiz-show),#jobseeker-modal form.dg-wiz-on .form-field-group:not(.dg-wiz-show){display:none!important}
 #startup-modal form.dg-wiz-on .form-field-group.dg-wiz-show,#jobseeker-modal form.dg-wiz-on .form-field-group.dg-wiz-show{display:flex!important;flex-direction:column!important;width:100%!important}
-nav.w-nav,.w-nav{display:none!important}
+/* Keep top nav visible; only kill Webflow dropdown/mega noise */
+nav.w-nav,.w-nav{display:flex!important;visibility:visible!important}
+.nav_dropdown-menu,.w-dropdown,.w-dropdown-list{display:none!important}
 #startup-modal textarea[name=stack-needs],#jobseeker-modal textarea[name=experience]{min-height:88px!important;resize:vertical!important;display:block!important;width:100%!important;box-sizing:border-box!important}
 #startup-modal #dg-salary-wrap input[name=salary-range],#startup-modal [name=salary-range]{display:block!important;width:100%!important;box-sizing:border-box!important;margin:0!important}
 #startup-modal #dg-salary-wrap .w-form-label{display:block!important;margin-bottom:.35rem!important}
