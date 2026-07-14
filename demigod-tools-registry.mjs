@@ -110,22 +110,27 @@ export function toolAge(outPath) {
   }
 }
 
-export function buildRegistry({ group = null } = {}) {
+export function buildRegistry({ group = null, hideAliases = false, hotOnly = false } = {}) {
   const at = new Date().toISOString();
   let tools = TOOLS.slice();
   if (group) tools = tools.filter((t) => t.group === group);
+  if (hideAliases) tools = tools.filter((t) => !t.alias);
+  if (hotOnly) tools = tools.filter((t) => t.hot);
   const enriched = tools.map((t) => ({
     ...t,
     evidence: toolAge(t.out),
   }));
-  const groups = [...new Set(TOOLS.map((t) => t.group))];
+  const groups = [...new Set(enriched.map((t) => t.group))];
   return {
     at,
     count: enriched.length,
     groups,
     tools: enriched,
-    sessionStart: ['bin/dg-cockpit', 'bin/dg-smoke', 'curl -sS http://127.0.0.1:9878/api/agent-brief'],
-    note: 'Prefer cockpit NEXT. Mutate tools only when freeze OFF.',
+    hideAliases,
+    hotOnly,
+    aliasesHidden: hideAliases ? TOOLS.filter((t) => t.alias).length : 0,
+    sessionStart: ['bin/dg unify', 'bin/dg next-canon', 'curl -sS http://127.0.0.1:9878/api/unify'],
+    note: 'Prefer bin/dg unify + next-canon. Mutate tools only when freeze OFF. Aliases hidden when hideAliases=true.',
   };
 }
 

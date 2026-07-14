@@ -500,6 +500,18 @@ body.density-compact .metric .val{font-size:.95rem}
 .presence-pill.current{border-color:rgba(79,214,138,.4);color:var(--ok)}
 #palette[role=dialog],#helpOverlay .box,#confirmOverlay .box{outline:none}
 #palette.open .box:focus-within{box-shadow:0 0 0 2px rgba(201,168,76,.35)}
+/* Light theme tokens (export-ready) */
+body.theme-light{
+  --bg:#f4f0e6;--bg2:#ebe4d4;--panel:rgba(255,252,245,.92);--panel-solid:#fffaf0;
+  --panel2:rgba(255,250,240,.96);--line:rgba(138,112,40,.25);--line-strong:rgba(138,112,40,.45);
+  --line2:rgba(0,0,0,.08);--text:#1a1610;--muted:#6a645c;--muted2:#8a8478;
+  --gold:#9a7a28;--gold2:#6b5420;--gold-dim:rgba(154,122,40,.12);
+  --shadow:0 12px 36px rgba(40,30,10,.12),0 0 0 1px rgba(154,122,40,.08);
+}
+body.theme-light .command{background:linear-gradient(135deg,rgba(154,122,40,.1),#fffaf0 50%)}
+body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
+.mod-card[data-mod]{cursor:pointer}
+.mod-card[data-mod]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body class="agent">
@@ -520,6 +532,10 @@ body.density-compact .metric .val{font-size:.95rem}
       <div class="mode-toggle" title="Spacing density" role="group" aria-label="Density">
         <button type="button" id="densityComfy" class="active" aria-pressed="true">Comfy</button>
         <button type="button" id="densityCompact" aria-pressed="false">Dense</button>
+      </div>
+      <div class="mode-toggle agent-only" title="Theme tokens" role="group" aria-label="Theme">
+        <button type="button" id="themeDark" class="active" aria-pressed="true">Dark</button>
+        <button type="button" id="themeLight" aria-pressed="false">Light</button>
       </div>
       <div id="hdrStats"></div>
       <div class="hdr-actions">
@@ -654,7 +670,12 @@ body.density-compact .metric .val{font-size:.95rem}
     <div class="card wide">
       <h2><span>Tools registry</span><span class="meta" id="toolsMeta">—</span></h2>
       <div class="meta" style="margin-bottom:.45rem">One catalog · safe jobs anytime · mutate needs freeze OFF · <code>bin/dg unify</code></div>
-      <input id="toolsSearch" type="search" placeholder="Filter tools…" style="margin-bottom:.65rem;max-width:28rem" autocomplete="off"/>
+      <div style="display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:.65rem">
+        <input id="toolsSearch" type="search" placeholder="Filter tools…" style="max-width:20rem;margin:0" autocomplete="off"/>
+        <label class="meta" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" id="toolsHideAlias" checked/> hide aliases</label>
+        <label class="meta" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" id="toolsHotOnly"/> hot only</label>
+        <button type="button" id="btnToolsRefresh" class="ghost">Refresh ages</button>
+      </div>
       <div id="toolsRoot"><div class="skel block"></div></div>
     </div>
   </div>
@@ -758,6 +779,26 @@ function applyDensity(d){
     $('densityCompact').setAttribute('aria-pressed', dense?'true':'false');
   }
 }
+function applyTheme(t){
+  const light = t==='light';
+  document.body.classList.toggle('theme-light', light);
+  localStorage.setItem('dg-dash-theme', light?'light':'dark');
+  if ($('themeDark')) {
+    $('themeDark').classList.toggle('active', !light);
+    $('themeDark').setAttribute('aria-pressed', !light?'true':'false');
+  }
+  if ($('themeLight')) {
+    $('themeLight').classList.toggle('active', light);
+    $('themeLight').setAttribute('aria-pressed', light?'true':'false');
+  }
+}
+function persistTab(name){
+  try{ localStorage.setItem('dg-dash-tab', name); }catch(_){}
+}
+function loadPollPref(){
+  const n = Number(localStorage.getItem('dg-dash-poll-ms'));
+  if (Number.isFinite(n) && n >= 8000 && n <= 120000) pollMs = n;
+}
 function setTab(name){
   // plane merged into home
   if(name==='plane') name='overview';
@@ -770,6 +811,7 @@ function setTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if (name==='tools' && !toolsCache) loadTools();
   if (name==='system') renderSystem(lastData || {});
+  persistTab(name);
   try { history.replaceState(null,'','#'+name+(mode==='agent'?'&agent':'')); } catch(_){}
 }
 
@@ -936,18 +978,25 @@ function renderHandoffs(d){
 
 const RUNNABLE_JOBS = new Set([
   'smoke','cockpit','truth','preflight','plan-inbox','tab-prune','tools-registry','board-honesty',
-  'demand','next-canon','unify','ship-status','ship-prepare','ledger','evidence','full-check',
-  'tools-os-selftest','wiz-ownership','doctor','review','review-bug','hygiene','control','verify-source',
-  'usertest','inbox','match-review','webflow','webflow-doctor','ship-checklist'
+  'demand','next-canon','unify','ship-status','ship-facts','ship-prepare','lock-who','ledger','evidence',
+  'evidence-producers','full-check','tools-os-selftest','wiz-ownership','doctor','review','review-bug',
+  'hygiene','control','verify-source','usertest','inbox','match-review','webflow','webflow-doctor',
+  'ship-checklist','auto-propose'
 ]);
+function toolsQuery(){
+  const hideAlias = !$('toolsHideAlias') || $('toolsHideAlias').checked;
+  const hotOnly = $('toolsHotOnly') && $('toolsHotOnly').checked;
+  return 'hideAliases='+(hideAlias?'1':'0')+'&hotOnly='+(hotOnly?'1':'0');
+}
 function renderTools(reg){
   toolsCache = reg;
-  $('toolsMeta').textContent = (reg.count||0)+' tools';
+  const aliasN = reg.aliasesHidden||0;
+  $('toolsMeta').textContent = (reg.count||0)+' tools'+(aliasN?' · '+aliasN+' aliases hidden':'');
   const q = (($('toolsSearch')&&$('toolsSearch').value)||'').toLowerCase().trim();
   const groups = reg.groups || [];
   const all = reg.tools || [];
   $('toolsRoot').innerHTML = groups.map(g=>{
-    const items=all.filter(t=>t.group===g && (!q || (t.name+t.id+t.purpose+t.cmd).toLowerCase().includes(q)));
+    const items=all.filter(t=>t.group===g && (!q || (t.name+t.id+t.purpose+t.cmd+(t.alias||'')).toLowerCase().includes(q)));
     if(!items.length) return '';
     return '<div style="margin-bottom:1rem"><h3 style="margin:.2rem 0 .5rem;font-size:.85rem;color:var(--gold)">'+esc(g)+'</h3><div class="tool-grid">'+
       items.map(t=>{
@@ -955,7 +1004,7 @@ function renderTools(reg){
         const missing=t.evidence&&t.evidence.missing;
         const isMut=!!t.mutate;
         const canRun = RUNNABLE_JOBS.has(t.id) || isMut || t.hot;
-        return '<div class="tool-card" data-tool-id="'+esc(t.id)+'"><h3>'+esc(t.name)+(t.hot?' <span class="pill on">hot</span>':'')+(isMut?' <span class="pill warn">mutate</span>':' <span class="pill ok">safe</span>')+'</h3>'+
+        return '<div class="tool-card" data-tool-id="'+esc(t.id)+'"><h3>'+esc(t.name)+(t.hot?' <span class="pill on">hot</span>':'')+(t.alias?' <span class="pill">alias→'+esc(t.alias)+'</span>':'')+(isMut?' <span class="pill warn">mutate</span>':' <span class="pill ok">safe</span>')+'</h3>'+
           '<div class="meta">'+esc(t.purpose)+'</div><code class="cmd">'+esc(t.cmd)+'</code>'+
           '<div class="meta" style="margin-top:.3rem">'+(missing?'no output':'age <span class="age '+ageClass(ageSec)+'">'+esc(age(ageSec))+'</span>')+'</div>'+
           (canRun
@@ -1024,8 +1073,13 @@ async function renderSystem(d){
         jobs.slice(0,12).map(j=>'<tr><td>'+esc(j.id)+'</td><td class="'+(j.ok===false?'bad':j.ok?'ok':'')+'">'+esc(j.status)+'</td><td class="meta">'+esc(j.ms!=null?j.ms:'—')+'</td></tr>').join('')+
         '</tbody></table>':'<div class="meta">No jobs yet</div>')+
     '</div>',
-    '<div class="card wide"><h2>Tool graph</h2><div class="graph-edges">'+
-      (edges.length?edges.map(e=>esc(e.from)+' → '+esc(e.to)).join('<br>'):'truth → next → unify → dash')+
+    '<div class="card wide"><h2>Tool graph <span class="meta">module → job → evidence</span></h2>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem">'+(
+        (graph&&graph.nodes||[{id:'truth'},{id:'next'},{id:'unify'},{id:'dash'}]).map(n=>
+          '<span class="presence-pill">'+esc(n.id)+(n.kind?' · '+esc(n.kind):'')+'</span>').join('')
+      )+'</div>'+
+      '<div class="graph-edges">'+
+      (edges.length?edges.map(e=>'→ '+esc(e.from)+' ── '+esc(e.to)).join('<br>'):'truth → next → unify → dash')+
     '</div></div>',
     '<div class="card wide"><h2>Hot tools</h2><div class="tool-grid">'+
       (hot.length?hot.map(t=>'<div class="tool-card"><h3>'+esc(t.name||t.id)+'</h3><code class="cmd">'+esc(t.cmd)+'</code>'+
@@ -1197,7 +1251,7 @@ function renderOverview(d){
     const acts=(m.actions||[]).map(a=>
       '<button type="button" data-job="'+(a.job?esc(a.job):'')+'" data-tab-go="'+(a.tab?esc(a.tab):'')+'">'+esc(a.label||a.id)+'</button>'
     ).join('');
-    return '<div class="mod-card" style="--mod-accent:'+accent+'" data-module="'+esc(id)+'">'+
+    return '<div class="mod-card" data-mod="'+esc(id)+'" tabindex="0" style="--mod-accent:'+accent+'" data-module="'+esc(id)+'">'+
       '<div class="mod-head"><div><span class="mod-emoji">'+(m.emoji||'·')+'</span> <h3>'+esc(m.title||id)+'</h3>'+
       '<div class="mod-why">'+esc(m.why||'')+(m.key?' · <kbd>g '+esc(m.key)+'</kbd>':'')+'</div></div>'+
       '<span class="pill '+ok+'">'+(m.ok===true?'ok':m.ok===false?'issue':'—')+'</span></div>'+
@@ -1310,6 +1364,16 @@ function renderOverview(d){
   });
   root.querySelectorAll('[data-tab-go]').forEach(btn=>{
     btn.onclick=()=>{ const t=btn.getAttribute('data-tab-go'); if(t) setTab(t); };
+  });
+  root.querySelectorAll('[data-mod]').forEach(card=>{
+    const go=()=>{ const id=card.getAttribute('data-mod');
+      const map={site:'overview',webflow:'overview',match:'matches',review:'gates',hygiene:'system',ship:'roadmap',swarm:'swarm',orca:'system'};
+      setTab(map[id]||'overview');
+      if(id==='review') runJob('review');
+      if(id==='hygiene') runJob('hygiene');
+      if(id==='webflow') runJob('webflow-doctor');
+    };
+    card.onclick=go; card.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } };
   });
   root.querySelectorAll('[data-home-job]').forEach(btn=>{
     btn.onclick=()=>runJob(btn.getAttribute('data-home-job'));
@@ -1557,11 +1621,14 @@ async function load(force){
 
 async function loadTools(){
   try{
-    const r=await fetch('/api/tools?t='+Date.now());
+    const r=await fetch('/api/tools?'+toolsQuery()+'&t='+Date.now());
     renderTools(await r.json());
     if ($('toolsSearch') && !$('toolsSearch')._bound) {
       $('toolsSearch')._bound = true;
       $('toolsSearch').addEventListener('input', ()=>{ if (toolsCache) renderTools(toolsCache); });
+      if ($('toolsHideAlias')) $('toolsHideAlias').addEventListener('change', ()=>loadTools());
+      if ($('toolsHotOnly')) $('toolsHotOnly').addEventListener('change', ()=>loadTools());
+      if ($('btnToolsRefresh')) $('btnToolsRefresh').onclick=()=>loadTools();
     }
   }catch(e){ $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
 }
@@ -1688,8 +1755,37 @@ const PALETTE=[
   {t:'Smoke site', run:()=>runJob('smoke')},
 ];
 let paletteIdx=0;
-function openPalette(){ $('palette').classList.add('open'); $('paletteInput').value=''; paintPalette(''); $('paletteInput').focus(); }
-function closePalette(){ $('palette').classList.remove('open'); }
+let _palettePrevFocus = null;
+function trapFocus(container){
+  if(!container) return ()=>{};
+  const sel='button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])';
+  const nodes=()=>[...container.querySelectorAll(sel)].filter(el=>!el.disabled && el.offsetParent!==null);
+  function onKey(e){
+    if(e.key!=='Tab') return;
+    const list=nodes(); if(!list.length) return;
+    const first=list[0], last=list[list.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }
+  container.addEventListener('keydown', onKey);
+  return ()=>container.removeEventListener('keydown', onKey);
+}
+let _releasePaletteTrap = null;
+function openPalette(){
+  _palettePrevFocus=document.activeElement;
+  $('palette').classList.add('open');
+  $('palette').setAttribute('aria-modal','true');
+  $('paletteInput').value=''; paintPalette('');
+  $('paletteInput').focus();
+  const box=$('palette').querySelector('.box');
+  _releasePaletteTrap=trapFocus(box||$('palette'));
+}
+function closePalette(){
+  $('palette').classList.remove('open');
+  $('palette').removeAttribute('aria-modal');
+  if(_releasePaletteTrap){ _releasePaletteTrap(); _releasePaletteTrap=null; }
+  if(_palettePrevFocus && _palettePrevFocus.focus) try{ _palettePrevFocus.focus(); }catch(_){}
+}
 function paintPalette(q){
   const qq=(q||'').toLowerCase();
   const items=PALETTE.filter(i=>!qq||i.t.toLowerCase().includes(qq)||(i.d||'').toLowerCase().includes(qq));
@@ -1710,6 +1806,8 @@ if($('modeSimple')) $('modeSimple').onclick=()=>applyMode('simple');
 if($('modeAgent')) $('modeAgent').onclick=()=>applyMode('agent');
 if($('densityComfy')) $('densityComfy').onclick=()=>applyDensity('comfy');
 if($('densityCompact')) $('densityCompact').onclick=()=>applyDensity('compact');
+if($('themeDark')) $('themeDark').onclick=()=>applyTheme('dark');
+if($('themeLight')) $('themeLight').onclick=()=>applyTheme('light');
 $('btnHandoffHuman').onclick=()=>postHandoff('human');
 $('btnHandoffAgent').onclick=()=>postHandoff('agent');
 if($('btnHelp')) $('btnHelp').onclick=()=>$('helpOverlay').classList.add('open');
@@ -1744,6 +1842,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='r'||e.key==='R'){ if(!goChord){ load(true); e.preventDefault(); } }
   if(e.key==='?'||(e.key==='h'&&!goChord)){ $('helpOverlay').classList.toggle('open'); e.preventDefault(); }
   if((e.key==='m'||e.key==='M')&&!goChord){ applyMode(mode==='simple'?'agent':'simple'); e.preventDefault(); }
+  if((e.key==='l'||e.key==='L')&&!goChord){ applyTheme(document.body.classList.contains('theme-light')?'dark':'light'); e.preventDefault(); }
   if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){ openPalette(); e.preventDefault(); }
   if(e.key==='Escape'){ $('helpOverlay').classList.remove('open'); $('confirmOverlay').classList.remove('open'); closePalette(); goChord=false; }
   if(e.key==='1') setTab('overview');
@@ -1777,7 +1876,10 @@ const hash=(location.hash||'').replace(/^#/,'');
 if(hash.includes('agent')) applyMode('agent');
 else applyMode(mode);
 applyDensity(localStorage.getItem('dg-dash-density')||'comfy');
-const tab=hash.split('&')[0];
+applyTheme(localStorage.getItem('dg-dash-theme')||'dark');
+loadPollPref();
+const savedTab=localStorage.getItem('dg-dash-tab');
+const tab=hash.split('&')[0] || savedTab || '';
 if(tab==='plane') setTab('overview');
 else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','system','swarm','brief','gates'].includes(tab)) setTab(tab);
 // deep-link ?tab=&job=
@@ -1785,8 +1887,14 @@ try{
   const sp=new URLSearchParams(location.search);
   if(sp.get('tab')) setTab(sp.get('tab'));
   if(sp.get('job')) setTimeout(()=>runJob(sp.get('job')), 800);
+  if(sp.get('poll')){
+    const n=Number(sp.get('poll'));
+    if(Number.isFinite(n)&&n>=8&&n<=120){ pollMs=n*1000; localStorage.setItem('dg-dash-poll-ms', String(pollMs)); }
+  }
 }catch(_){}
 load(false);
+// auto-refresh tool ages when Tools tab open
+setInterval(()=>{ if(activeTab==='tools' && !document.hidden) loadTools(); }, 60000);
 function schedulePoll(){
   const ms = document.hidden ? Math.max(pollMs, 60000) : pollMs;
   window.__dgPoll = setTimeout(async()=>{

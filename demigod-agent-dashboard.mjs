@@ -649,13 +649,16 @@ function buildAgentBrief(data) {
   const pf = data.preflight || safeJson(path.join(BUSY, 'preflight-latest.json'));
   const inbox = data.inbox || safeJson(path.join(BUSY, 'plan-inbox-latest.json'));
   const unify = safeJson(path.join(BUSY, 'unify.json'));
+  const unifyOnly =
+    process.env.DEMIGOD_BRIEF_UNIFY_ONLY === '1' ||
+    process.env.DEMIGOD_BRIEF_UNIFY_ONLY === 'true';
   const lines = [];
   lines.push(`# Demigod AGENT-BRIEF`);
   lines.push(`at: ${data.at}`);
   lines.push(`phase: ${data.phase}`);
   lines.push(`decision: ${data.decision}`);
   lines.push('');
-  // Unify slice first (one story for agents)
+  // Unify = single story (optionally exclusive)
   lines.push('## Unify (single story — prefer /api/unify)');
   if (unify?.next) {
     lines.push(`- NEXT: **${unify.next.title}**`);
@@ -667,11 +670,33 @@ function buildAgentBrief(data) {
       );
     }
     if (unify.truth?.summary) lines.push(`- truth: ${unify.truth.summary}`);
+    if (unify.ship) lines.push(`- ship stage: ${unify.ship.stage} shipped=${unify.ship.shipped}`);
+    if (unify.lock) lines.push(`- foot lock: ${unify.lock.held ? unify.lock.owner : 'free'}`);
     lines.push(`- curl: \`${unify.links?.unify || 'http://127.0.0.1:9878/api/unify'}\``);
+    lines.push(`- cli: \`bin/dg unify\``);
+    if (unify.cli?.spine?.length) {
+      lines.push('- spine:');
+      for (const c of unify.cli.spine) lines.push(`  - \`${c}\``);
+    }
+    if (unify.rules?.length) {
+      lines.push('- rules: ' + unify.rules.join(' · '));
+    }
   } else {
     lines.push('- (run bin/dg unify to refresh unify.json)');
   }
   lines.push('');
+  if (unifyOnly) {
+    lines.push('## FREEZE');
+    lines.push(
+      data.freeze?.on
+        ? `- ON — ${data.freeze.why || 'publish frozen'} (no CDN/Webflow mutate)`
+        : '- OFF — mutate only with lock + intent',
+    );
+    lines.push('');
+    lines.push('_Brief mode: DEMIGOD_BRIEF_UNIFY_ONLY — full snapshot omitted._');
+    lines.push('');
+    return lines.join('\n') + '\n';
+  }
   // FREEZE FIRST — Fable/agents must see this before any green gate
   lines.push('## FREEZE (read first)');
   if (data.freeze?.on) {
@@ -1163,9 +1188,17 @@ const JOBS = {
   'next-canon': { cmd: 'node', args: ['demigod-next.mjs', '--json'], timeout: 10000, safe: true },
   unify: { cmd: 'node', args: ['demigod-unify.mjs', '--json'], timeout: 20000, safe: true },
   'ship-status': { cmd: 'node', args: ['demigod-ship-status.mjs', '--json'], timeout: 45000, safe: true },
+  'ship-facts': { cmd: 'node', args: ['demigod-ship.mjs', 'status', '--facts'], timeout: 60000, safe: true },
   'ship-prepare': { cmd: 'node', args: ['demigod-ship.mjs', 'prepare'], timeout: 180000, safe: true },
+  'lock-who': { cmd: 'node', args: ['demigod-foot-lock.mjs', 'who'], timeout: 10000, safe: true },
   ledger: { cmd: 'node', args: ['demigod-version-ledger.mjs', 'delta'], timeout: 10000, safe: true },
   evidence: { cmd: 'node', args: ['demigod-evidence.mjs', 'fresh', 'truth'], timeout: 10000, safe: true },
+  'evidence-producers': {
+    cmd: 'node',
+    args: ['demigod-evidence.mjs', 'producers', 'truth,review,demand,smoke'],
+    timeout: 15000,
+    safe: true,
+  },
   'full-check': { cmd: 'node', args: ['demigod-full-check.mjs', '--json', '--skip-smoke'], timeout: 300000, safe: true },
   'tools-os-selftest': { cmd: 'node', args: ['demigod-tools-os-selftest.mjs'], timeout: 300000, safe: true },
   'wiz-ownership': { cmd: 'node', args: ['demigod-wiz-ownership-selftest.mjs'], timeout: 30000, safe: true },
@@ -2212,12 +2245,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/api/jobs-history' || url.pathname === '/api/jobs/history') {
-      const data = await getStatus({});
+      // Fast path — never full collectStatus
       jsonSend(res, 200, {
         at: new Date().toISOString(),
-        running: data.jobQueue?.running || null,
-        recent: data.jobQueue?.recent || [],
-        meta: data.jobsMeta || null,
+        running: jobState.running || null,
+        recent: buildJobQueue().recent || [],
+        meta: listJobsMeta(),
       });
       return;
     }
@@ -2594,26 +2627,29 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/agent-brief' || url.pathname === '/api/brief') {
       const data = await getStatus({ force: url.searchParams.get('force') === '1' });
       const format = url.searchParams.get('format') || 'md';
+      const wantUnifyOnly = url.searchParams.get('unify') === '1' || url.searchParams.get('unifyOnly') === '1';
+      if (wantUnifyOnly) {
+        process.env.DEMIGOD_BRIEF_UNIFY_ONLY = '1';
+      }
+      const md = wantUnifyOnly ? buildAgentBrief(data) : data.agentBriefMarkdown || buildAgentBrief(data);
+      if (wantUnifyOnly) delete process.env.DEMIGOD_BRIEF_UNIFY_ONLY;
       if (format === 'json') {
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(
-          JSON.stringify(
-            {
-              at: data.at,
-              next: data.next,
-              glance: data.glance,
-              sessionStory: data.sessionStory,
-              actions: data.actions,
-              staleGates: data.staleGates,
-              markdown: data.agentBriefMarkdown,
-            },
-            null,
-            2,
-          ),
+          JSON.stringify({
+            at: data.at,
+            next: data.next,
+            glance: data.glance,
+            sessionStory: data.sessionStory,
+            actions: wantUnifyOnly ? [] : data.actions,
+            staleGates: data.staleGates,
+            unifyOnly: wantUnifyOnly,
+            markdown: md,
+          }),
         );
       } else {
         res.writeHead(200, { ...noStore, 'Content-Type': 'text/markdown; charset=utf-8' });
-        res.end(data.agentBriefMarkdown);
+        res.end(md);
       }
       return;
     }
@@ -2695,14 +2731,17 @@ const server = http.createServer(async (req, res) => {
       try {
         const { buildRegistry, toMarkdown } = await import('./demigod-tools-registry.mjs');
         const group = url.searchParams.get('group') || null;
-        const reg = buildRegistry({ group });
+        const hideAliases =
+          url.searchParams.get('hideAliases') === '1' || url.searchParams.get('hideAliases') === 'true';
+        const hotOnly = url.searchParams.get('hotOnly') === '1' || url.searchParams.get('hotOnly') === 'true';
+        const reg = buildRegistry({ group, hideAliases, hotOnly });
         const format = url.searchParams.get('format') || 'json';
         if (format === 'md') {
           res.writeHead(200, { ...noStore, 'Content-Type': 'text/markdown; charset=utf-8' });
           res.end(toMarkdown(reg));
         } else {
           res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify(reg, null, 2));
+          res.end(JSON.stringify(reg));
         }
       } catch (e) {
         res.writeHead(500, { ...noStore, 'Content-Type': 'application/json' });

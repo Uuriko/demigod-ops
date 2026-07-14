@@ -73,3 +73,23 @@ Jobs:   POST /api/jobs?run=<id>
 | next identity selftest | DONE |
 | P2 i18n / orca remote / continuous E2E | deferred (out of scope) |
 
+
+## Finish pass 2026-07-14 (gaps closed)
+
+| Gap | Status |
+|-----|--------|
+| Dirty *-pass.mjs freeze asserts | DONE `98d63ed` |
+| auto-propose real-only scores | DONE |
+| match deprecation notice | DONE |
+| jobs/history full getStatus | FIXED cache-only |
+| ship-facts + lock-who jobs | DONE |
+| hide aliases / hot only Tools | DONE |
+| brief unify-only `?unify=1` | DONE |
+| a11y palette focus trap | DONE |
+| theme light/dark tokens | DONE |
+| tab + poll prefs localStorage | DONE |
+| tool age auto-refresh 60s | DONE |
+| module deep-nav click | DONE |
+| graph nodes+edges UI | DONE |
+| Split dashboard.mjs | still deferred (size) |
+| continuous E2E / i18n / orca remote | deferred |
