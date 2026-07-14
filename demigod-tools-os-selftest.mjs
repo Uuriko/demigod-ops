@@ -66,6 +66,14 @@ const lock = spawnSync(process.execPath, [path.join(ROOT, 'demigod-foot-lock.mjs
 // free lock should fail
 ok(lock.status !== 0, 'lock require fails when free');
 
+const shipSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-ship-selftest.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 180000,
+});
+ok(shipSt.status === 0, 'ship-selftest');
+if (shipSt.status !== 0) console.error(shipSt.stdout + shipSt.stderr);
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);

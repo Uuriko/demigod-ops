@@ -18,6 +18,7 @@ import { execSync, execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { refuseIfStale } from './demigod-evidence.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -864,6 +865,18 @@ async function collectStatus() {
     preflight: preflightCache,
     inbox: inboxCache,
     truth: truthCache,
+    truthEvidence: (() => {
+      const te = refuseIfStale('truth');
+      return {
+        green: Boolean(te.green),
+        pass: Boolean(te.pass),
+        fresh: Boolean(te.fresh),
+        reason: te.reason || 'no-evidence',
+        runId: te.runId || null,
+        summary: te.summary || null,
+        endedAt: te.endedAt || null,
+      };
+    })(),
     evidence,
     tools: toolsSummary,
     drops: { multi, busy, research },

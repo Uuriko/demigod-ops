@@ -27,11 +27,13 @@
 bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence seal)
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
-bin/dg mime | full-check | home | ship-prep | tools
+bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
+bin/dg mime | full-check | home | tools
 bin/dg-usertest --quick   # when WIZ/UX
 ```
 Before editing foot-core: `bin/dg lock claim --owner "$USER" --why "…"` then `export DG_LOCK_TOKEN=…`  
-Or fail hard: `bin/dg lock require`
+Or fail hard: `bin/dg lock require`  
+Ship mutators (`cdn`/`paste`/`run`) need freeze OFF + lock.
 
 
 ## Hard stops

@@ -22,6 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { refuseIfStale } from './demigod-evidence.mjs';
 import { BUSY, ensureBusy, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -408,11 +409,40 @@ export async function buildControlPlane() {
   if (frozen) health = Math.min(health, 85); // frozen is fine, not a failure
   health = Math.max(0, health);
 
+  // Fresh truth evidence (unforgeable green) — single helper
+  const te = refuseIfStale('truth');
+  const truthEvidence = {
+    green: Boolean(te.green),
+    reason: te.reason || 'unknown',
+    summary: te.summary || null,
+    runId: te.runId || null,
+    endedAt: te.endedAt || null,
+  };
+  // If no fresh green, prepend orient on truth
+  if (!truthEvidence.green) {
+    spine.unshift({
+      pri: 0,
+      id: 'truth',
+      title: 'Refresh truth evidence (not green/fresh)',
+      cmd: 'bin/dg truth',
+      module: 'site',
+    });
+  } else if (frozen) {
+    spine.unshift({
+      pri: 0,
+      id: 'freeze-hold',
+      title: 'No ship — freeze holds (green + frozen is OK)',
+      cmd: 'bin/dg ship status',
+      module: 'ship',
+    });
+  }
+
   const plane = {
     schema: 'demigod.control-plane/2',
     at: new Date().toISOString(),
     version: 2,
     name: 'Demigod Control Plane',
+    truthEvidence,
     frozen,
     freezeWhy: freeze.why || null,
     freezeAt: freeze.at || null,

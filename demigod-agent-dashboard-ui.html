@@ -93,7 +93,7 @@ header{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:.75rem 1
 #jobStrip .job.run{border-color:rgba(126,182,232,.4);color:var(--info)}
 #jobStrip .job.ok{border-color:rgba(94,207,138,.35);color:var(--ok)}
 #jobStrip .job.bad{border-color:rgba(240,113,113,.4);color:var(--bad)}
-#glance{display:grid;gap:.65rem;grid-template-columns:repeat(3,1fr);padding:.9rem 1.25rem 0;max-width:1280px;margin:0 auto}
+#glance{display:grid;gap:.65rem;grid-template-columns:repeat(4,1fr);padding:.9rem 1.25rem 0;max-width:1280px;margin:0 auto}
 @media(max-width:800px){#glance{grid-template-columns:1fr}header{padding:.7rem .9rem}#nextBar{top:56px;padding:.7rem .9rem}}
 .glance-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:.85rem 1rem;box-shadow:var(--shadow);backdrop-filter:blur(10px);transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .glance-card:hover{border-color:rgba(201,168,76,.35)}
@@ -206,10 +206,12 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:.76rem;color:var(--mute
   <span class="session-pill ro" id="sessionModePill">read-only</span>
 </div>
 <div id="glance">
+  <div class="glance-card" id="gLightCard"><div class="lbl">Light</div><div class="val" id="gLight">…</div></div>
   <div class="glance-card"><div class="lbl">Site</div><div class="val" id="gSite">…</div></div>
   <div class="glance-card"><div class="lbl">Changes</div><div class="val" id="gFreeze">…</div></div>
   <div class="glance-card"><div class="lbl">Whose turn</div><div class="val" id="gNext">…</div></div>
 </div>
+<p id="whyGreen" style="max-width:1280px;margin:.35rem auto 0;padding:0 1.25rem;font-size:.8rem;color:var(--muted,#a8a29e)"></p>
 <div class="story" id="sessionStory">…</div>
 <div class="story" id="deltaLine" style="margin-top:.15rem"></div>
 <nav class="nav" role="tablist">
@@ -403,6 +405,18 @@ function renderJobStrip(d){
 function renderGlance(d){
   const g = d.glance || {};
   const n = d.next || {};
+  const te = d.truthEvidence || {};
+  const light = te.green ? 'GREEN' : (d.live?.ok ? 'AMBER' : 'RED');
+  const lightCls = te.green ? 'ok' : (d.live?.ok ? 'warn' : 'bad');
+  if ($('gLight')) {
+    $('gLight').textContent = light + (te.reason ? ' · '+te.reason : '');
+    $('gLight').parentElement.className = 'glance-card '+lightCls;
+  }
+  if ($('whyGreen')) {
+    $('whyGreen').textContent = te.green
+      ? ('Why green: truth evidence '+ (te.runId||'') +' fresh pass — '+ (te.summary||''))
+      : ('Why not green: '+ (te.reason||'no fresh truth evidence') +' · run bin/dg truth');
+  }
   $('gSite').textContent = g.siteOk ? ('OK · '+(d.live?.foot||'up')) : ('Down · '+(d.live?.error||'?'));
   $('gFreeze').textContent = g.freezeOn
     ? ('Locked — '+(d.freeze?.why||'freeze ON').slice(0,80))

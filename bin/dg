@@ -122,6 +122,10 @@ console.log(JSON.stringify(j,null,2));
     shift
     exec node demigod-ship-help.mjs "$@"
     ;;
+  ship)
+    shift
+    exec node demigod-ship.mjs "$@"
+    ;;
   tools|registry)
     shift
     exec node demigod-tools-registry.mjs "$@"

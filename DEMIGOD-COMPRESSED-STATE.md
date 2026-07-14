@@ -1,5 +1,14 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-14 · P1 OPS SURFACE (ship + dash light)
+
+- **`bin/dg ship`** status|prepare|cdn|paste|verify|run — mutators freeze+lock gated
+- **Dash:** Light card + whyGreen from `refuseIfStale('truth')`
+- **Control:** truthEvidence on plane; spine prepends truth or freeze-hold
+- **Registry:** ship canonical; ship-prep/checklist/help aliases
+- **Selftest:** demigod-ship-selftest + tools-os includes it
+- **Still freeze ON** live v198 · disk v199 · demand-first
+
 ## 2026-07-14 · ROUND-4 · history + tools + annotations
 
 - **LIVE** foot **v198** `ksbrmy.js` + CSS `vjxyrf.css` · **DISK** foot **v199** (section banners + header)
