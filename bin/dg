@@ -69,18 +69,14 @@ case "$1" in
     ;;
   done|handoff)
     shift
+    # Structured: bin/dg handoff --from x --done "…" --next "…" --blocked "…"
+    # Legacy: bin/dg handoff "note text"
+    if [[ "${1:-}" == --* ]] || [[ "${1:-}" == "" ]]; then
+      exec node demigod-handoff.mjs "$@"
+    fi
     note="${1:-}"; shift || true
     next="${1:-}"
-    node -e "
-const fs=require('fs');
-const b='/tmp/dg-busy';
-fs.mkdirSync(b,{recursive:true});
-const j={at:new Date().toISOString(),from:process.env.USER||'agent',note:process.argv[1],next:process.argv[2]};
-fs.writeFileSync(b+'/handoff-latest.json',JSON.stringify(j,null,2)+'\n');
-fs.appendFileSync(b+'/handoff.jsonl',JSON.stringify(j)+'\n');
-console.log(JSON.stringify(j,null,2));
-" "$note" "$next"
-    exit 0
+    exec node demigod-handoff.mjs --from "${USER:-agent}" --done "$note" --next "$next"
     ;;
 
   live|live-doctor)
@@ -137,6 +133,10 @@ console.log(JSON.stringify(j,null,2));
   evidence)
     shift
     exec node demigod-evidence.mjs "$@"
+    ;;
+  lock-who|who-lock)
+    shift
+    exec node demigod-foot-lock.mjs who "$@"
     ;;
   ledger|truth-delta)
     shift

@@ -478,6 +478,28 @@ pre{
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   body::after{opacity:.04}
 }
+/* Density + mobile */
+body.density-compact{--shell:min(1280px,calc(100% - 1rem))}
+body.density-compact .card{padding:.7rem .85rem}
+body.density-compact .command{padding:.75rem .9rem}
+body.density-compact .metric{padding:.55rem .65rem}
+body.density-compact .metric .val{font-size:.95rem}
+@media(max-width:640px){
+  .hdr-inner{padding:.5rem 0}
+  .brand h1{font-size:1.05rem}
+  .hdr-actions .agent-link{display:none}
+  .command{gap:.65rem}
+  .command .cmd{font-size:.68rem}
+  main{padding:.75rem 0 2.5rem}
+  .nav button{padding:.5rem .55rem;font-size:.78rem}
+  #palette .box,#helpOverlay .box,#confirmOverlay .box{width:100%;max-width:100%;border-radius:12px 12px 0 0;margin-top:auto}
+  #palette,#helpOverlay,#confirmOverlay{align-items:flex-end;padding:0}
+}
+.graph-edges{font-family:var(--mono);font-size:.72rem;color:var(--muted);line-height:1.6}
+.presence-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;border:1px solid var(--line);font-size:.72rem;margin:.15rem}
+.presence-pill.current{border-color:rgba(79,214,138,.4);color:var(--ok)}
+#palette[role=dialog],#helpOverlay .box,#confirmOverlay .box{outline:none}
+#palette.open .box:focus-within{box-shadow:0 0 0 2px rgba(201,168,76,.35)}
 </style>
 </head>
 <body class="agent">
@@ -491,9 +513,13 @@ pre{
       </div>
     </div>
     <div class="hdr-right">
-      <div class="mode-toggle" title="Focus = calmer · Full = all agent surfaces">
-        <button type="button" id="modeSimple">Focus</button>
-        <button type="button" id="modeAgent" class="active">Full</button>
+      <div class="mode-toggle" title="Focus = calmer · Full = all agent surfaces" role="group" aria-label="UI mode">
+        <button type="button" id="modeSimple" aria-pressed="false">Focus</button>
+        <button type="button" id="modeAgent" class="active" aria-pressed="true">Full</button>
+      </div>
+      <div class="mode-toggle" title="Spacing density" role="group" aria-label="Density">
+        <button type="button" id="densityComfy" class="active" aria-pressed="true">Comfy</button>
+        <button type="button" id="densityCompact" aria-pressed="false">Dense</button>
       </div>
       <div id="hdrStats"></div>
       <div class="hdr-actions">
@@ -596,11 +622,15 @@ pre{
       <h2>Handoff wall</h2>
       <p class="meta">Structured notes so the next session starts oriented.</p>
       <div class="handoff-form">
-        <textarea id="handoffText" placeholder="Done / next / blocked — freeze state, files touched…"></textarea>
+        <input id="handoffDone" type="text" placeholder="done: what finished" autocomplete="off"/>
+        <input id="handoffNext" type="text" placeholder="next: what to do" autocomplete="off"/>
+        <input id="handoffBlocked" type="text" placeholder="blocked: (optional)" autocomplete="off"/>
+        <textarea id="handoffText" placeholder="Freeform note (optional if done/next set)"></textarea>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap">
           <button type="button" class="primary" id="btnHandoffHuman">Post as human</button>
           <button type="button" id="btnHandoffAgent">Post as agent</button>
         </div>
+        <div class="meta">CLI: <code>bin/dg handoff --from agent --done "…" --next "…"</code> · notes &gt;4h not “current”</div>
       </div>
       <div class="handoff-list" id="handoffList"></div>
     </div>
@@ -646,11 +676,11 @@ pre{
 
 <div id="toasts" aria-live="polite"></div>
 <div id="helpOverlay"><div class="box">
-  <h2 style="margin:0 0 .6rem;color:var(--gold);font-family:var(--serif);font-weight:400;font-size:1.25rem">Keyboard</h2>
-  <div class="meta"><kbd>r</kbd> refresh · <kbd>/</kbd> palette · <kbd>?</kbd> help · <kbd>m</kbd> Focus / Full</div>
-  <div class="meta" style="margin-top:.45rem"><kbd>g</kbd> then: <kbd>s</kbd> home · <kbd>i</kbd> inbox · <kbd>m</kbd> matches · <kbd>p</kbd> ship · <kbd>a</kbd> swarm</div>
-  <div class="meta" style="margin-top:.45rem"><kbd>1</kbd>–<kbd>4</kbd> jump tabs · Green only from fresh truth evidence</div>
-  <div class="meta" style="margin-top:.55rem">Agent APIs: <code>/api/next</code> · <code>/api/truth</code> · <code>/api/tools</code> · <code>/api/control</code></div>
+  <h2 style="margin:0 0 .6rem;color:var(--gold);font-family:var(--serif);font-weight:400;font-size:1.25rem" id="helpTitle">Keyboard map</h2>
+  <div class="meta"><kbd>r</kbd> refresh · <kbd>/</kbd> or <kbd>⌘K</kbd> palette · <kbd>?</kbd> help · <kbd>m</kbd> Focus/Full · <kbd>d</kbd> density</div>
+  <div class="meta" style="margin-top:.45rem"><kbd>g</kbd> then: <kbd>s</kbd> home · <kbd>i</kbd> inbox · <kbd>m</kbd> matches · <kbd>t</kbd> tools · <kbd>y</kbd> system · <kbd>p</kbd> ship · <kbd>a</kbd> swarm</div>
+  <div class="meta" style="margin-top:.45rem"><kbd>1</kbd> Home · <kbd>2</kbd> Inbox · <kbd>3</kbd> Matches · <kbd>4</kbd> Handoff · <kbd>5</kbd> Tools · <kbd>6</kbd> System · <kbd>Esc</kbd> close</div>
+  <div class="meta" style="margin-top:.55rem">Green = fresh truth evidence only · Agent: <code>/api/unify</code> · <code>bin/dg unify</code></div>
   <div style="margin-top:.9rem"><button type="button" class="primary" id="btnHelpClose">Close</button></div>
 </div></div>
 <div id="confirmOverlay"><div class="box">
@@ -705,9 +735,28 @@ function applyMode(m){
   localStorage.setItem('dg-dash-mode', m);
   document.body.classList.toggle('simple', m==='simple');
   document.body.classList.toggle('agent', m==='agent');
-  $('modeSimple').classList.toggle('active', m==='simple');
-  $('modeAgent').classList.toggle('active', m==='agent');
+  if ($('modeSimple')) {
+    $('modeSimple').classList.toggle('active', m==='simple');
+    $('modeSimple').setAttribute('aria-pressed', m==='simple'?'true':'false');
+  }
+  if ($('modeAgent')) {
+    $('modeAgent').classList.toggle('active', m==='agent');
+    $('modeAgent').setAttribute('aria-pressed', m==='agent'?'true':'false');
+  }
   if (m==='simple' && ['swarm','gates','brief'].includes(activeTab)) setTab('overview');
+}
+function applyDensity(d){
+  const dense = d==='compact';
+  document.body.classList.toggle('density-compact', dense);
+  localStorage.setItem('dg-dash-density', dense?'compact':'comfy');
+  if ($('densityComfy')) {
+    $('densityComfy').classList.toggle('active', !dense);
+    $('densityComfy').setAttribute('aria-pressed', !dense?'true':'false');
+  }
+  if ($('densityCompact')) {
+    $('densityCompact').classList.toggle('active', dense);
+    $('densityCompact').setAttribute('aria-pressed', dense?'true':'false');
+  }
 }
 function setTab(name){
   // plane merged into home
@@ -925,57 +974,77 @@ function renderTools(reg){
 async function renderSystem(d){
   const root=$('systemRoot');
   if(!root) return;
-  let unify=null, ledger=null, evidence=null;
-  try{
-    const r=await fetch('/api/unify');
-    if(r.ok) unify=await r.json();
-  }catch(_){}
-  try{
-    const r=await fetch('/api/ledger?n=12');
-    if(r.ok) ledger=await r.json();
-  }catch(_){}
-  try{
-    const r=await fetch('/api/evidence');
-    if(r.ok) evidence=await r.json();
-  }catch(_){}
+  let unify=null, ledger=null, evidence=null, presence=null, graph=null, jobsHist=null;
+  const pulls=await Promise.allSettled([
+    fetch('/api/unify').then(r=>r.ok?r.json():null),
+    fetch('/api/ledger?n=12').then(r=>r.ok?r.json():null),
+    fetch('/api/evidence').then(r=>r.ok?r.json():null),
+    fetch('/api/presence').then(r=>r.ok?r.json():null),
+    fetch('/api/graph').then(r=>r.ok?r.json():null),
+    fetch('/api/jobs/history').then(r=>r.ok?r.json():null),
+  ]);
+  unify=pulls[0].status==='fulfilled'?pulls[0].value:null;
+  ledger=pulls[1].status==='fulfilled'?pulls[1].value:null;
+  evidence=pulls[2].status==='fulfilled'?pulls[2].value:null;
+  presence=pulls[3].status==='fulfilled'?pulls[3].value:null;
+  graph=pulls[4].status==='fulfilled'?pulls[4].value:null;
+  jobsHist=pulls[5].status==='fulfilled'?pulls[5].value:null;
   const hot=(unify&&unify.toolsHot)||[];
   const led=(ledger&&ledger.rows)||(unify&&unify.ledger)||[];
   const evItems=(evidence&&evidence.items)||[];
+  const agents=(presence&&presence.agents)||[];
+  const edges=(graph&&graph.edges)||[];
+  const jobs=(jobsHist&&jobsHist.recent)||[];
   root.innerHTML=[
     '<div class="card hero wide">',
     '<h2><span>Unify</span><span class="meta">one product snapshot</span></h2>',
     '<div class="meta">'+(unify?esc(unify.next&&unify.next.title||'—'):'fetch /api/unify…')+'</div>',
     unify?'<code class="cmd">'+esc(unify.next&&unify.next.cmd||'')+'</code>':'',
     '<div style="margin-top:.55rem;display:flex;flex-wrap:wrap;gap:.35rem">',
-    '<button type="button" class="primary" id="btnUnify">Refresh unify</button>',
-    '<button type="button" id="btnCopyUnify">Copy unify JSON</button>',
+    '<button type="button" class="primary" id="btnUnify">Refresh</button>',
+    '<button type="button" id="btnCopyUnify">Copy JSON</button>',
     '<button type="button" data-run-job="truth">Truth</button>',
     '<button type="button" data-run-job="demand">Demand</button>',
-    '<button type="button" data-run-job="ship-status">Ship status</button>',
+    '<button type="button" data-run-job="ship-status">Ship</button>',
     '<button type="button" data-run-job="next-canon">NEXT</button>',
-    '<button type="button" data-run-job="ledger">Ledger delta</button>',
+    '<button type="button" data-run-job="ledger">Ledger</button>',
     '<button type="button" data-run-job="tools-os-selftest">Selftest</button>',
     '</div>',
-    '<div class="meta" style="margin-top:.45rem">CLI: <code>bin/dg unify</code> · API: <code>/api/unify</code></div>',
+    '<div class="meta" style="margin-top:.45rem"><code>bin/dg unify</code> · <code>/api/unify</code></div>',
     '</div>',
+    '<div class="card wide"><h2>Presence <span class="meta">handoffs &lt;4h · lock who</span></h2>'+
+      (agents.length?agents.map(a=>'<span class="presence-pill current">'+esc(a.from)+' · '+esc(age(a.ageSec))+' · '+esc((a.text||'').slice(0,40))+'</span>').join(''):
+        '<div class="meta">No recent agents — post a handoff</div>')+
+      (presence&&presence.lock&&presence.lock.owner?'<div class="meta" style="margin-top:.4rem">foot lock: <strong>'+esc(presence.lock.owner)+'</strong> pid='+esc(String(presence.lock.pid||'?'))+' age='+esc(String(presence.lock.ageSec??'?'))+'s</div>':
+        '<div class="meta" style="margin-top:.4rem">foot lock: free · <code>bin/dg lock-who</code></div>')+
+    '</div>',
+    '<div class="card wide"><h2>Job history</h2>'+
+      (jobsHist&&jobsHist.running?'<div class="meta">running: '+esc(jobsHist.running)+'</div>':'')+
+      (jobs.length?'<table><thead><tr><th>Job</th><th>Status</th><th>ms</th></tr></thead><tbody>'+
+        jobs.slice(0,12).map(j=>'<tr><td>'+esc(j.id)+'</td><td class="'+(j.ok===false?'bad':j.ok?'ok':'')+'">'+esc(j.status)+'</td><td class="meta">'+esc(j.ms!=null?j.ms:'—')+'</td></tr>').join('')+
+        '</tbody></table>':'<div class="meta">No jobs yet</div>')+
+    '</div>',
+    '<div class="card wide"><h2>Tool graph</h2><div class="graph-edges">'+
+      (edges.length?edges.map(e=>esc(e.from)+' → '+esc(e.to)).join('<br>'):'truth → next → unify → dash')+
+    '</div></div>',
     '<div class="card wide"><h2>Hot tools</h2><div class="tool-grid">'+
       (hot.length?hot.map(t=>'<div class="tool-card"><h3>'+esc(t.name||t.id)+'</h3><code class="cmd">'+esc(t.cmd)+'</code>'+
         (RUNNABLE_JOBS.has(t.id)?'<button type="button" data-run-job="'+esc(t.id)+'" style="margin-top:.35rem">Run</button>':'')+
         '</div>').join(''):'<div class="meta">—</div>')+
     '</div></div>',
-    '<div class="card wide"><h2>Version ledger (tail)</h2>'+
+    '<div class="card wide"><h2>Version ledger</h2>'+
       (led.length?'<table><thead><tr><th>At</th><th>Disk</th><th>Live</th><th>Freeze</th><th>Pass</th></tr></thead><tbody>'+
         led.slice().reverse().map(r=>'<tr><td class="meta">'+esc((r.at||'').slice(0,19))+'</td><td>v'+esc(r.diskVer)+'</td><td>v'+esc(r.liveVer)+'</td><td>'+(r.freeze?'ON':'OFF')+'</td><td class="'+(r.pass?'ok':'bad')+'">'+(r.pass?'pass':'fail')+'</td></tr>').join('')+
-        '</tbody></table>':'<div class="meta">No ledger rows — run bin/dg truth</div>')+
+        '</tbody></table>':'<div class="meta">No ledger — run bin/dg truth</div>')+
     '</div>',
     '<div class="card wide"><h2>Evidence seals</h2>'+
-      (evItems.length?'<table><thead><tr><th>File</th><th>Age</th></tr></thead><tbody>'+
-        evItems.map(e=>'<tr><td class="meta">'+esc(e.file)+'</td><td>'+esc(age(e.mtimeMs?Math.round((Date.now()-e.mtimeMs)/1000):null))+'</td></tr>').join('')+
+      (evItems.length?'<table><thead><tr><th>File</th><th>Producer</th><th>Age</th></tr></thead><tbody>'+
+        evItems.map(e=>'<tr><td class="meta">'+esc(e.file)+'</td><td>'+esc(e.producer||'—')+'</td><td>'+esc(age(e.ageSec!=null?e.ageSec:(e.mtimeMs?Math.round((Date.now()-e.mtimeMs)/1000):null)))+'</td></tr>').join('')+
         '</tbody></table>':'<div class="meta">No evidence yet</div>')+
       (evidence&&evidence.truth?'<div class="meta" style="margin-top:.4rem">truth green='+!!evidence.truth.green+' · '+esc(evidence.truth.reason||'')+'</div>':'')+
     '</div>',
-    '<div class="card wide agent-only"><h2>Agent APIs</h2><div class="api-strip" style="margin:0">'+
-      ['unify','next','truth','status?slim=1','tools','control','ledger','evidence','agent-brief'].map(p=>
+    '<div class="card wide"><h2>Agent APIs</h2><div class="api-strip" style="margin:0">'+
+      ['unify','next','truth','status?slim=1','tools','control','ledger','evidence','presence','graph','jobs/history','agent-brief'].map(p=>
         '<a class="api-pill" href="/api/'+p+'" target="_blank" rel="noopener">/api/'+p+'</a>').join('')+
     '</div></div>',
   ].join('');
@@ -1553,13 +1622,19 @@ async function runSmoke(){
 }
 
 async function postHandoff(from){
-  const text=$('handoffText').value.trim();
-  if(!text){ toast('Write a note first','bad'); return; }
+  const text=($('handoffText')&&$('handoffText').value||'').trim();
+  const done=($('handoffDone')&&$('handoffDone').value||'').trim();
+  const next=($('handoffNext')&&$('handoffNext').value||'').trim();
+  const blocked=($('handoffBlocked')&&$('handoffBlocked').value||'').trim();
+  if(!text && !done && !next && !blocked){ toast('Set done/next or freeform note','bad'); return; }
   try{
-    const r=await fetch('/api/handoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,text})});
+    const r=await fetch('/api/handoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,text,done:done||null,next:next||null,blocked:blocked||null})});
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||'fail');
-    $('handoffText').value='';
+    if($('handoffText')) $('handoffText').value='';
+    if($('handoffDone')) $('handoffDone').value='';
+    if($('handoffNext')) $('handoffNext').value='';
+    if($('handoffBlocked')) $('handoffBlocked').value='';
     toast('Handoff posted','ok');
     await load(true);
   }catch(e){ toast('Handoff failed: '+e.message,'bad'); }
@@ -1631,8 +1706,10 @@ if($('btnCopy2')) $('btnCopy2').onclick=()=>copyText(lastBrief);
 $('btnPalette').onclick=()=>openPalette();
 $('btnDoThis').onclick=()=>copyText($('nextCmd').textContent||'');
 $('btnCopyNextTitle').onclick=()=>copyText($('nextTitle').textContent||'');
-$('modeSimple').onclick=()=>applyMode('simple');
-$('modeAgent').onclick=()=>applyMode('agent');
+if($('modeSimple')) $('modeSimple').onclick=()=>applyMode('simple');
+if($('modeAgent')) $('modeAgent').onclick=()=>applyMode('agent');
+if($('densityComfy')) $('densityComfy').onclick=()=>applyDensity('comfy');
+if($('densityCompact')) $('densityCompact').onclick=()=>applyDensity('compact');
 $('btnHandoffHuman').onclick=()=>postHandoff('human');
 $('btnHandoffAgent').onclick=()=>postHandoff('agent');
 if($('btnHelp')) $('btnHelp').onclick=()=>$('helpOverlay').classList.add('open');
@@ -1673,11 +1750,17 @@ document.addEventListener('keydown',e=>{
   if(e.key==='2') setTab('inbox');
   if(e.key==='3') setTab('matches');
   if(e.key==='4') setTab('handoff');
+  if(e.key==='5') setTab('tools');
+  if(e.key==='6') setTab('system');
+  if((e.key==='d'||e.key==='D')&&!goChord){
+    applyDensity(document.body.classList.contains('density-compact')?'comfy':'compact');
+    e.preventDefault();
+  }
   // g + letter → module / room
-  if(e.key==='g'||e.key==='G'){ goChord=true; toast('Go: s home · i inbox · m matches · r review · h hygiene · w webflow · p ship · a swarm','ok'); e.preventDefault(); return; }
+  if(e.key==='g'||e.key==='G'){ goChord=true; toast('Go: s home · i inbox · m matches · t tools · y system · p ship · a swarm','ok'); e.preventDefault(); return; }
   if(goChord){
     goChord=false;
-    const map={s:'overview',w:'overview',m:'matches',r:'overview',h:'overview',p:'roadmap',a:'swarm',i:'inbox'};
+    const map={s:'overview',w:'overview',m:'matches',r:'overview',h:'overview',p:'roadmap',a:'swarm',i:'inbox',t:'tools',y:'system'};
     const t=map[e.key.toLowerCase()];
     if(t){
       setTab(t);
@@ -1693,10 +1776,17 @@ document.addEventListener('keydown',e=>{
 const hash=(location.hash||'').replace(/^#/,'');
 if(hash.includes('agent')) applyMode('agent');
 else applyMode(mode);
+applyDensity(localStorage.getItem('dg-dash-density')||'comfy');
 const tab=hash.split('&')[0];
 if(tab==='plane') setTab('overview');
 else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','system','swarm','brief','gates'].includes(tab)) setTab(tab);
-load(true);
+// deep-link ?tab=&job=
+try{
+  const sp=new URLSearchParams(location.search);
+  if(sp.get('tab')) setTab(sp.get('tab'));
+  if(sp.get('job')) setTimeout(()=>runJob(sp.get('job')), 800);
+}catch(_){}
+load(false);
 function schedulePoll(){
   const ms = document.hidden ? Math.max(pollMs, 60000) : pollMs;
   window.__dgPoll = setTimeout(async()=>{
@@ -1708,7 +1798,7 @@ schedulePoll();
 document.addEventListener('visibilitychange', ()=>{
   if (!document.hidden) load(false);
 });
-// SSE: light refresh only (never force) — coalesce bursts
+// SSE: delta merges light fields; full event → coalesce slim reload
 let sseTimer = null;
 try{
   if(typeof EventSource!=='undefined'){
@@ -1717,6 +1807,27 @@ try{
       if (document.hidden) return;
       clearTimeout(sseTimer);
       sseTimer = setTimeout(()=>load(false), 400);
+    });
+    es.addEventListener('delta',(ev)=>{
+      if (document.hidden || !lastData) return;
+      try{
+        const delta=JSON.parse(ev.data||'{}');
+        if(delta.next){
+          lastData.next={...(lastData.next||{}),...delta.next};
+          renderNextBar(lastData);
+          renderGlance(lastData);
+        }
+        if(delta.freeze){
+          lastData.freeze=delta.freeze;
+          renderHdr(lastData);
+        }
+        if(delta.jobRunning!==undefined){
+          lastData.jobQueue=lastData.jobQueue||{};
+          lastData.jobQueue.running=delta.jobRunning;
+          renderJobStrip(lastData);
+        }
+        if(delta.pulseKey) lastPulseKey=delta.pulseKey;
+      }catch(_){}
     });
     window.__dgEs=es;
   }

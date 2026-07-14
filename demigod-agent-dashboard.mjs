@@ -648,11 +648,29 @@ function buildAgentBrief(data) {
   const top = a.filter((x) => x.pri <= 2).slice(0, 8);
   const pf = data.preflight || safeJson(path.join(BUSY, 'preflight-latest.json'));
   const inbox = data.inbox || safeJson(path.join(BUSY, 'plan-inbox-latest.json'));
+  const unify = safeJson(path.join(BUSY, 'unify.json'));
   const lines = [];
   lines.push(`# Demigod AGENT-BRIEF`);
   lines.push(`at: ${data.at}`);
   lines.push(`phase: ${data.phase}`);
   lines.push(`decision: ${data.decision}`);
+  lines.push('');
+  // Unify slice first (one story for agents)
+  lines.push('## Unify (single story — prefer /api/unify)');
+  if (unify?.next) {
+    lines.push(`- NEXT: **${unify.next.title}**`);
+    lines.push(`- cmd: \`${unify.next.cmd}\``);
+    lines.push(`- id=${unify.next.id} green=${unify.truthEvidence?.green} freeze=${unify.freeze?.on ? 'ON' : 'OFF'}`);
+    if (unify.demand) {
+      lines.push(
+        `- demand: pending=${unify.demand.pending} sent=${unify.demand.sentConfirmed} pilots=${unify.demand.pilotsFilled}`,
+      );
+    }
+    if (unify.truth?.summary) lines.push(`- truth: ${unify.truth.summary}`);
+    lines.push(`- curl: \`${unify.links?.unify || 'http://127.0.0.1:9878/api/unify'}\``);
+  } else {
+    lines.push('- (run bin/dg unify to refresh unify.json)');
+  }
   lines.push('');
   // FREEZE FIRST — Fable/agents must see this before any green gate
   lines.push('## FREEZE (read first)');
@@ -1197,13 +1215,25 @@ function pushEvent(type, message, meta = null) {
   if (eventRing.length > 80) eventRing.length = 80;
 }
 
-function appendHandoff({ from = 'agent', text = '', meta = null } = {}) {
+function appendHandoff({ from = 'agent', text = '', meta = null, done = null, next = null, blocked = null } = {}) {
+  const structured = [done, next, blocked].some((x) => x != null && String(x).length);
+  const composed =
+    text ||
+    [done != null ? `done: ${done}` : null, next != null ? `next: ${next}` : null, blocked != null ? `blocked: ${blocked}` : null]
+      .filter(Boolean)
+      .join(' · ');
   const note = {
     id: `h${Date.now().toString(36)}${(++jobSeq).toString(36)}`,
     at: new Date().toISOString(),
     from: String(from).slice(0, 32),
-    text: String(text).slice(0, 2000),
-    meta: meta || undefined,
+    text: String(composed).slice(0, 2000),
+    meta: {
+      ...(meta || {}),
+      done: done || null,
+      next: next || null,
+      blocked: blocked || null,
+      structured: structured || Boolean(meta?.structured),
+    },
   };
   // Atomic-ish: write tmp then rename (avoid partial clobber)
   try {
@@ -2064,10 +2094,12 @@ const server = http.createServer(async (req, res) => {
           'X-Accel-Buffering': 'no',
         });
         res.write(`event: hello\ndata: ${JSON.stringify({ at: new Date().toISOString(), n: eventRing.length })}\n\n`);
-        // snapshot first
         res.write(`event: snapshot\ndata: ${JSON.stringify({ events: eventRing.slice(0, 20) })}\n\n`);
         let lastId = eventRing[0]?.id || null;
-        const tick = setInterval(() => {
+        let lastPulse = statusCache.data?.pulseKey || null;
+        let lastJob = jobState.running || null;
+        let lastFreeze = statusCache.data?.freeze?.on;
+        const tick = setInterval(async () => {
           try {
             if (res.writableEnded) {
               clearInterval(tick);
@@ -2075,7 +2107,6 @@ const server = http.createServer(async (req, res) => {
             }
             const head = eventRing[0];
             if (head && head.id !== lastId) {
-              // push new events since lastId (newest first → reverse for chrono)
               const batch = [];
               for (const e of eventRing) {
                 if (e.id === lastId) break;
@@ -2085,18 +2116,109 @@ const server = http.createServer(async (req, res) => {
               for (const e of batch.reverse()) {
                 res.write(`event: event\ndata: ${JSON.stringify(e)}\n\n`);
               }
+            }
+            // Lightweight status delta (no force collect — cache only)
+            const d = statusCache.data;
+            if (d) {
+              const delta = {};
+              if (d.pulseKey !== lastPulse) {
+                delta.pulseKey = d.pulseKey;
+                delta.next = d.next ? { id: d.next.id, title: d.next.title, cmd: d.next.cmd } : null;
+                lastPulse = d.pulseKey;
+              }
+              if (d.freeze?.on !== lastFreeze) {
+                delta.freeze = d.freeze;
+                lastFreeze = d.freeze?.on;
+              }
+              const jr = jobState.running || null;
+              if (jr !== lastJob) {
+                delta.jobRunning = jr;
+                lastJob = jr;
+              }
+              if (Object.keys(delta).length) {
+                delta.at = new Date().toISOString();
+                res.write(`event: delta\ndata: ${JSON.stringify(delta)}\n\n`);
+              } else {
+                res.write(`: ping ${Date.now()}\n\n`);
+              }
             } else {
               res.write(`: ping ${Date.now()}\n\n`);
             }
           } catch {
             clearInterval(tick);
           }
-        }, 1500);
+        }, 2000);
         req.on('close', () => clearInterval(tick));
         return;
       }
       res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ at: new Date().toISOString(), events: eventRing.slice(0, 40) }, null, 2));
+      res.end(JSON.stringify({ at: new Date().toISOString(), events: eventRing.slice(0, 40) }));
+      return;
+    }
+    if (url.pathname === '/api/presence') {
+      // Multi-agent presence from recent handoffs + foot lock who
+      const notes = readHandoffs(20);
+      const maxAge = 4 * 3600;
+      const now = Date.now();
+      const agents = {};
+      for (const n of notes) {
+        const age = n.at ? Math.round((now - Date.parse(n.at)) / 1000) : null;
+        if (age == null || age > maxAge) continue;
+        const a = n.from || 'agent';
+        if (!agents[a] || age < agents[a].ageSec) {
+          agents[a] = { from: a, at: n.at, ageSec: age, text: String(n.text || '').slice(0, 120), current: true };
+        }
+      }
+      let lockWho = null;
+      try {
+        const { getLockWho } = await import('./demigod-foot-lock.mjs');
+        lockWho = getLockWho();
+      } catch {
+        /* */
+      }
+      jsonSend(res, 200, {
+        at: new Date().toISOString(),
+        agents: Object.values(agents),
+        lock: lockWho?.who || null,
+        freezeOn: Boolean(statusCache.data?.freeze?.on),
+        nextId: statusCache.data?.next?.id || null,
+      });
+      return;
+    }
+    if (url.pathname === '/api/graph') {
+      // Module → job → evidence edges for System tab
+      const nodes = [
+        { id: 'truth', kind: 'tool' },
+        { id: 'next', kind: 'tool' },
+        { id: 'demand', kind: 'tool' },
+        { id: 'ship', kind: 'tool' },
+        { id: 'review', kind: 'tool' },
+        { id: 'evidence-truth', kind: 'evidence' },
+        { id: 'ledger', kind: 'artifact' },
+        { id: 'unify', kind: 'tool' },
+        { id: 'dash', kind: 'ui' },
+      ];
+      const edges = [
+        { from: 'truth', to: 'evidence-truth' },
+        { from: 'truth', to: 'ledger' },
+        { from: 'truth', to: 'next' },
+        { from: 'demand', to: 'next' },
+        { from: 'next', to: 'unify' },
+        { from: 'ship', to: 'unify' },
+        { from: 'unify', to: 'dash' },
+        { from: 'review', to: 'evidence-truth' },
+      ];
+      jsonSend(res, 200, { at: new Date().toISOString(), nodes, edges });
+      return;
+    }
+    if (url.pathname === '/api/jobs-history' || url.pathname === '/api/jobs/history') {
+      const data = await getStatus({});
+      jsonSend(res, 200, {
+        at: new Date().toISOString(),
+        running: data.jobQueue?.running || null,
+        recent: data.jobQueue?.recent || [],
+        meta: data.jobsMeta || null,
+      });
       return;
     }
     if (url.pathname === '/api/ship-checklist') {
@@ -2444,19 +2566,25 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         const text = body.text || body.note || body.message || '';
-        if (!String(text).trim()) {
+        const done = body.done ?? null;
+        const next = body.next ?? null;
+        const blocked = body.blocked ?? null;
+        if (!String(text).trim() && done == null && next == null && blocked == null) {
           res.writeHead(400, { ...noStore, 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'text required' }));
+          res.end(JSON.stringify({ error: 'text or done/next/blocked required' }));
           return;
         }
         const note = appendHandoff({
           from: body.from || 'human',
           text,
           meta: body.meta || null,
+          done,
+          next,
+          blocked,
         });
         statusCache = { at: 0, data: null };
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ ok: true, note, notes: readHandoffs(12) }, null, 2));
+        res.end(JSON.stringify({ ok: true, note, notes: readHandoffs(12) }));
         return;
       }
       res.writeHead(405, { 'Content-Type': 'text/plain' });

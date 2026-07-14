@@ -154,15 +154,24 @@ export function refuseIfStale(producer, { maxAgeSec = null } = {}) {
   };
 }
 
-export function listEvidence({ limit = 20 } = {}) {
+export function listEvidence({ limit = 20, producers = null } = {}) {
   try {
+    const want = producers
+      ? new Set(
+          (Array.isArray(producers) ? producers : String(producers).split(','))
+            .map((p) => p.trim())
+            .filter(Boolean),
+        )
+      : null;
     const files = fs
       .readdirSync(EVIDENCE_DIR)
       .filter((f) => f.endsWith('.json') && !f.startsWith('latest-'))
       .map((f) => {
         const st = fs.statSync(path.join(EVIDENCE_DIR, f));
-        return { file: f, mtimeMs: st.mtimeMs };
+        const producer = f.split('-')[0] || 'unknown';
+        return { file: f, mtimeMs: st.mtimeMs, producer, ageSec: Math.round((Date.now() - st.mtimeMs) / 1000) };
       })
+      .filter((x) => !want || want.has(x.producer) || [...want].some((p) => x.file.startsWith(p + '-')))
       .sort((a, b) => b.mtimeMs - a.mtimeMs)
       .slice(0, limit);
     return files;
@@ -171,13 +180,29 @@ export function listEvidence({ limit = 20 } = {}) {
   }
 }
 
+/** Latest seal per producer name */
+export function listProducers(names = ['truth', 'review', 'demand', 'smoke', 'selftest', 'ship-prepare', 'ship-run']) {
+  return names.map((p) => {
+    const st = refuseIfStale(p);
+    return { producer: p, ...st };
+  });
+}
+
 // CLI
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
   const cmd = process.argv[2] || 'list';
-  if (cmd === 'list') {
-    console.log(JSON.stringify({ dir: EVIDENCE_DIR, items: listEvidence() }, null, 2));
+  if (cmd === 'list' || cmd === 'ls') {
+    const pIdx = process.argv.indexOf('--producers');
+    const producers = pIdx >= 0 ? process.argv[pIdx + 1] : null;
+    const limIdx = process.argv.indexOf('--limit');
+    const limit = limIdx >= 0 ? Number(process.argv[limIdx + 1]) || 20 : 20;
+    console.log(JSON.stringify({ dir: EVIDENCE_DIR, items: listEvidence({ limit, producers }) }));
+  } else if (cmd === 'producers' || cmd === 'ls-producers') {
+    const names = (process.argv[3] || 'truth,review,demand,smoke,selftest').split(',');
+    console.log(JSON.stringify({ producers: listProducers(names) }, null, 2));
+    process.exit(listProducers(names).some((p) => p.green) ? 0 : 1);
   } else if (cmd === 'show') {
     const id = process.argv[3];
     console.log(JSON.stringify(loadEvidence(id), null, 2));
@@ -186,7 +211,7 @@ if (isMain) {
     console.log(JSON.stringify(refuseIfStale(producer), null, 2));
     process.exit(refuseIfStale(producer).green ? 0 : 1);
   } else {
-    console.error('usage: list | show <runId> | fresh [producer]');
+    console.error('usage: list|ls [--producers a,b] | producers [a,b,c] | show <runId> | fresh [producer]');
     process.exit(2);
   }
 }

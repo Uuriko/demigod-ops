@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * Session handoff card — write at end of Grok/agent session for the next agent.
+ * Session handoff — structured wall + full card
  *
- * Usage:
- *   node demigod-handoff.mjs                  # write card from truth + recent state
- *   node demigod-handoff.mjs --note "…"       # append agent note
- *   node demigod-handoff.mjs --print          # stdout only
- *   node demigod-handoff.mjs --json
+ *   node demigod-handoff.mjs --from grok --done "…" --next "…" --blocked "…"
+ *   node demigod-handoff.mjs --note "…"
+ *   node demigod-handoff.mjs --json | --print
+ *   node demigod-handoff.mjs --list
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,11 +16,35 @@ const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.
 const BUSY = '/tmp/dg-busy';
 const OUT_MD = path.join(BUSY, 'HANDOFF.md');
 const OUT_JSON = path.join(BUSY, 'HANDOFF.json');
+const WALL = path.join(BUSY, 'dashboard-handoff.json');
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const printOnly = args.includes('--print');
-const noteIdx = args.indexOf('--note');
-const note = noteIdx >= 0 ? args.slice(noteIdx + 1).join(' ').replace(/^["']|["']$/g, '') : '';
+const listOnly = args.includes('--list');
+
+function opt(name) {
+  const i = args.indexOf(name);
+  if (i < 0) return null;
+  const v = args[i + 1];
+  if (!v || v.startsWith('--')) return '';
+  return v;
+}
+function optRest(name) {
+  const i = args.indexOf(name);
+  if (i < 0) return null;
+  const parts = [];
+  for (let j = i + 1; j < args.length; j++) {
+    if (args[j].startsWith('--')) break;
+    parts.push(args[j]);
+  }
+  return parts.join(' ').replace(/^["']|["']$/g, '');
+}
+
+const from = opt('--from') || process.env.DG_LOCK_OWNER || process.env.USER || 'agent';
+const done = optRest('--done');
+const next = optRest('--next');
+const blocked = optRest('--blocked');
+const note = optRest('--note') || '';
 
 function readJson(file) {
   try {
@@ -40,25 +63,103 @@ function run(scriptArgs, timeout = 45000) {
   });
 }
 
-// refresh truth (best-effort)
-run(['demigod-truth.mjs', '--json'], 60000);
+function appendWall(entry) {
+  fs.mkdirSync(BUSY, { recursive: true });
+  let notes = [];
+  try {
+    notes = (readJson(WALL) || {}).notes || [];
+  } catch {
+    notes = [];
+  }
+  notes.unshift(entry);
+  notes = notes.slice(0, 50);
+  const body = JSON.stringify({ at: entry.at, notes }, null, 2) + '\n';
+  const tmp = WALL + `.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, body);
+  fs.renameSync(tmp, WALL);
+  return notes;
+}
+
+// Structured quick note (no truth spawn)
+if (done != null || next != null || blocked != null || (note && !listOnly)) {
+  const text = [
+    done != null ? `done: ${done}` : null,
+    next != null ? `next: ${next}` : null,
+    blocked != null ? `blocked: ${blocked}` : null,
+    note || null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const entry = {
+    id: `h${Date.now().toString(36)}`,
+    at: new Date().toISOString(),
+    from: String(from).slice(0, 32),
+    text: text.slice(0, 2000),
+    meta: {
+      done: done || null,
+      next: next || null,
+      blocked: blocked || null,
+      structured: true,
+    },
+  };
+  if (!printOnly) appendWall(entry);
+  // also light HANDOFF.json update
+  const light = {
+    at: entry.at,
+    agent: entry.from,
+    structured: true,
+    done: done || null,
+    next: next || null,
+    blocked: blocked || null,
+    note: note || text,
+  };
+  if (!printOnly) {
+    fs.writeFileSync(OUT_JSON, JSON.stringify(light, null, 2) + '\n');
+    fs.writeFileSync(
+      OUT_MD,
+      `# Handoff ${entry.at}\nfrom: ${entry.from}\n${text}\n`,
+    );
+  }
+  if (asJson) console.log(JSON.stringify(entry, null, 2));
+  else console.log(`${entry.from}: ${text}`);
+  process.exit(0);
+}
+
+if (listOnly) {
+  const notes = (readJson(WALL) || {}).notes || [];
+  const maxAge = 4 * 3600;
+  const now = Date.now();
+  const annotated = notes.map((n) => {
+    const ageSec = n.at ? Math.round((now - Date.parse(n.at)) / 1000) : null;
+    return {
+      ...n,
+      ageSec,
+      current: ageSec != null && ageSec <= maxAge,
+      staleCurrent: ageSec != null && ageSec > maxAge,
+    };
+  });
+  if (asJson) console.log(JSON.stringify({ notes: annotated, maxAgeSecCurrent: maxAge }, null, 2));
+  else {
+    for (const n of annotated.slice(0, 15)) {
+      console.log(
+        `${n.current ? '●' : '○'} ${n.ageSec}s [${n.from}] ${String(n.text || '').slice(0, 100)}`,
+      );
+    }
+  }
+  process.exit(0);
+}
+
+// Full card (best-effort truth — skip if --fast)
+if (!args.includes('--fast')) {
+  run(['demigod-truth.mjs', '--json'], 60000);
+}
 const truth = readJson(path.join(BUSY, 'truth.json')) || {};
 const preflight = readJson(path.join(BUSY, 'preflight-latest.json'));
 const ship = readJson(path.join(BUSY, 'ship-status.json'));
 const inbox = readJson(path.join(BUSY, 'plan-inbox-latest.json'));
 const selftest = readJson(path.join(BUSY, 'tools-selftest.json'));
-const freeze = (() => {
-  try {
-    const r = run(['demigod-freeze.mjs', 'status', '--tag', 'session']);
-    const out = r.stdout || '';
-    const i = out.indexOf('{');
-    return i >= 0 ? JSON.parse(out.slice(i)) : null;
-  } catch {
-    return null;
-  }
-})();
+const unify = readJson(path.join(BUSY, 'unify.json'));
 
-// recent multi drops (top 5)
 let multiTop = [];
 try {
   multiTop = fs
@@ -77,22 +178,22 @@ try {
 
 const card = {
   at: new Date().toISOString(),
-  agent: process.env.DG_LOCK_OWNER || process.env.USER || 'grok',
+  agent: from,
   note: note || null,
   truth: {
-    fullyShipped: truth.match?.fullyShipped ?? null,
+    fullyShipped: truth.match?.fullyShipped ?? truth.fullyShipped ?? null,
     footVer: truth.foot?.ver ?? null,
     sha12: truth.foot?.sha12 ?? null,
-    liveCdn: truth.live?.cdnId ?? null,
+    liveCdn: truth.live?.cdnId ?? truth.live?.footUrl ?? null,
     boardHonesty: truth.board?.honestyOk ?? null,
     lock: truth.lock ?? null,
   },
+  nextCanon: unify?.next || null,
   preflightPass: preflight?.pass ?? null,
   shipStage: ship?.stage ?? null,
   selftestPass: selftest?.pass ?? null,
   inboxUnread: inbox?.unreadCount ?? null,
   openPlans: (inbox?.openPlans || []).map((p) => ({ status: p.status, title: p.title })),
-  freeze,
   multiTop,
   doNot: [
     'Do not thrash foot-core when fullyShipped',
@@ -101,11 +202,10 @@ const card = {
     'No 48h/SLA/founder-name on live site',
   ],
   nextCmds: [
-    'bin/dg-start',
-    'node demigod-truth.mjs --md',
-    'node demigod-preflight.mjs',
-    'node demigod-plan-inbox.mjs --useful',
-    'node demigod-freeze.mjs check --tag session',
+    'bin/dg unify',
+    'bin/dg truth',
+    'bin/dg next-canon',
+    'bin/dg demand status',
   ],
 };
 
@@ -117,28 +217,12 @@ const md = [
   '## Truth snapshot',
   `- fullyShipped: ${card.truth.fullyShipped}`,
   `- foot: v${card.truth.footVer} sha=${card.truth.sha12}… live=${card.truth.liveCdn}`,
-  `- board honesty: ${card.truth.boardHonesty}`,
-  `- lock: ${card.truth.lock?.held ? 'HELD ' + card.truth.lock.owner : 'free'}`,
-  `- preflight: ${card.preflightPass}  ship: ${card.shipStage}  selftest: ${card.selftestPass}`,
-  `- inbox unread: ${card.inboxUnread}  open plans: ${card.openPlans.length}`,
+  `- next: ${card.nextCanon?.title || '—'}`,
   '',
-  '## Open plans',
-  ...(card.openPlans.length
-    ? card.openPlans.map((p) => `- [${p.status}] ${p.title}`)
-    : ['- (none)']),
-  '',
-  '## Recent multi drops',
-  ...multiTop.map((f) => `- ${f.ageSec}s ${f.name}`),
-  '',
-  '## Do not',
-  ...card.doNot.map((d) => `- ${d}`),
-  '',
-  '## Next agent cmds',
+  '## Next cmds',
   '```bash',
   ...card.nextCmds,
   '```',
-  '',
-  'files: /tmp/dg-busy/HANDOFF.md  /tmp/dg-busy/truth.json  /tmp/dg-busy/AGENT-BRIEF.md',
 ]
   .filter((l) => l !== null)
   .join('\n');
@@ -151,7 +235,4 @@ if (!printOnly) {
 
 if (asJson) console.log(JSON.stringify(card, null, 2));
 else console.log(md);
-
-if (!printOnly) {
-  console.error(`wrote ${OUT_MD}`);
-}
+if (!printOnly) console.error(`wrote ${OUT_MD}`);

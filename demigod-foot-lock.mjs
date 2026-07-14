@@ -215,7 +215,7 @@ function statusJson() {
     footVer: footVer(),
     currentSha: sha256File(FOOT),
   };
-  if (!lock) return { ...base, locked: false };
+  if (!lock) return { ...base, locked: false, free: true, who: null };
   const alive = lock.pid
     ? (() => {
         try {
@@ -227,6 +227,10 @@ function statusJson() {
       })()
     : null;
   const shaNow = sha256File(FOOT);
+  const ageSec = lock.at ? Math.round((Date.now() - Date.parse(lock.at)) / 1000) : null;
+  const ttlLeftSec = lock.expiresAt
+    ? Math.max(0, Math.round((Date.parse(lock.expiresAt) - Date.now()) / 1000))
+    : null;
   // Redact full token in status output (full only in claim response + token.env)
   const safeLock = lock
     ? {
@@ -238,12 +242,27 @@ function statusJson() {
   return {
     ...base,
     locked: true,
+    free: false,
     expired: isExpired(lock),
     ownerAlive: alive,
     // informational only — dead pid does NOT free
     baseShaMatch: lock.baseSha ? lock.baseSha === shaNow : null,
     lock: safeLock,
+    who: {
+      owner: lock.owner || null,
+      pid: lock.pid ?? null,
+      host: lock.host || null,
+      why: lock.why || null,
+      ageSec,
+      ttlLeftSec,
+      alive,
+      agent: lock.owner || null,
+    },
   };
+}
+
+export function getLockWho() {
+  return statusJson();
 }
 
 function claimBody() {
@@ -500,8 +519,22 @@ const isMain =
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 
 if (isMain) {
-  if (cmd === 'status') {
-    console.log(JSON.stringify(statusJson(), null, 2));
+  if (cmd === 'status' || cmd === 'who') {
+    const st = statusJson();
+    if (cmd === 'who' || process.argv.includes('--who')) {
+      const w = st.who || { free: true, owner: null };
+      if (process.argv.includes('--json') || cmd === 'status') {
+        console.log(JSON.stringify(cmd === 'who' ? { free: !st.locked, ...st.who, locked: st.locked } : st, null, 2));
+      } else {
+        if (!st.locked) console.log('lock: free');
+        else
+          console.log(
+            `lock: ${w.owner || '?'} pid=${w.pid ?? '?'} age=${w.ageSec ?? '?'}s ttlLeft=${w.ttlLeftSec ?? '?'}s alive=${w.alive} why=${w.why || '—'}`,
+          );
+      }
+    } else {
+      console.log(JSON.stringify(st, null, 2));
+    }
   } else if (cmd === 'claim') {
     withMetaLockSync(claimBody);
   } else if (cmd === 'release') {
@@ -513,7 +546,7 @@ if (isMain) {
   } else if (cmd === 'wrap') {
     wrap();
   } else {
-    console.error('usage: status | claim | release | check | require | wrap -- cmd...');
+    console.error('usage: status|who | claim | release | check | require | wrap -- cmd...');
     process.exit(2);
   }
 }

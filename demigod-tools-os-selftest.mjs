@@ -120,6 +120,33 @@ const uniSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-unify-selfte
 ok(uniSt.status === 0, 'unify-selftest');
 if (uniSt.status !== 0) console.error(uniSt.stdout + uniSt.stderr);
 
+// P1 CLI surface checks
+const who = spawnSync(process.execPath, [path.join(ROOT, 'demigod-foot-lock.mjs'), 'who'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 10000,
+});
+ok(who.status === 0, 'lock who');
+const facts = spawnSync(process.execPath, [path.join(ROOT, 'demigod-ship.mjs'), 'status', '--facts'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 60000,
+});
+ok(facts.status === 0, 'ship --facts');
+ok(!/demand-ops|Human DM/i.test(facts.stdout), 'facts has no agent NEXT prose');
+const evP = spawnSync(process.execPath, [path.join(ROOT, 'demigod-evidence.mjs'), 'producers', 'truth,review'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 15000,
+});
+ok(evP.status === 0 || evP.status === 1, 'evidence producers runs');
+const ho = spawnSync(
+  process.execPath,
+  [path.join(ROOT, 'demigod-handoff.mjs'), '--from', 'selftest', '--done', 'p1', '--next', 'verify', '--fast'],
+  { cwd: ROOT, encoding: 'utf8', timeout: 15000 },
+);
+ok(ho.status === 0, 'handoff structured');
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);

@@ -52,3 +52,24 @@ Agent:  curl /api/unify  |  bin/dg unify
 CLI:    truth → next-canon → demand → ship status → review
 Jobs:   POST /api/jobs?run=<id>
 ```
+
+## Implementation status 2026-07-14 (resume)
+
+| Item | Status |
+|------|--------|
+| P0 unify product | DONE |
+| lock-who | DONE `bin/dg lock-who` |
+| evidence producers | DONE `bin/dg evidence producers` |
+| ship --facts | DONE |
+| handoff structured | DONE CLI + POST + UI fields |
+| brief from unify | DONE |
+| SSE delta | DONE event:delta |
+| /api/presence graph jobs/history | DONE |
+| System tab presence/jobs/graph | DONE |
+| density + mobile CSS | DONE |
+| keyboard map v2 | DONE |
+| registry aliases | DONE |
+| deep-link ?tab=&job= | DONE |
+| next identity selftest | DONE |
+| P2 i18n / orca remote / continuous E2E | deferred (out of scope) |
+

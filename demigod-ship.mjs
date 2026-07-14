@@ -21,6 +21,7 @@ const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.
 const BUSY = '/tmp/dg-busy';
 const cmd = process.argv[2] || 'help';
 const asJson = process.argv.includes('--json');
+const factsOnly = process.argv.includes('--facts');
 
 function run(label, argv, { timeout = 180000, allowFail = false, keepFull = false } = {}) {
   const t0 = Date.now();
@@ -73,6 +74,7 @@ freeze: ${f.frozen ? 'ON — ' + (f.why || '') : 'OFF (mutations allowed)'}
 Subcommands:
   help       this text
   status     ship-status + truth summary (read-only)
+  status --facts   disk/live/stage/freeze only (no agent NEXT)
   prepare    verify-source, honesty, foot-smoke, review summary (no CDN)
   cdn        upload foot CDN (needs freeze OFF + lock)
   paste      CM6 footer paste (needs freeze OFF + lock)
@@ -168,6 +170,26 @@ function status() {
   fs.mkdirSync(BUSY, { recursive: true });
   fs.writeFileSync(path.join(BUSY, 'ship-latest.json'), JSON.stringify(report, null, 2) + '\n');
   fs.writeFileSync(path.join(BUSY, 'ship-os.json'), JSON.stringify(report, null, 2) + '\n');
+  if (factsOnly) {
+    const facts = {
+      at: report.at,
+      freeze: report.freeze,
+      diskVer: report.truth?.diskVer || ship?.disk?.ver || null,
+      liveVer: report.truth?.liveVer || ship?.live?.footVer || null,
+      stage: report.shipStage,
+      shipped: Boolean(report.truth?.fullyShipped || ship?.shipped),
+      driftExpected: report.truth?.driftExpected ?? null,
+      facts: ship?.facts || null,
+      // intentionally no agent NEXT — use bin/dg next-canon
+    };
+    if (asJson) console.log(JSON.stringify(facts));
+    else {
+      console.log(`# ship facts freeze=${facts.freeze.on ? 'ON' : 'OFF'}`);
+      console.log(`  disk v${facts.diskVer} live v${facts.liveVer} stage=${facts.stage}`);
+      console.log(`  shipped=${facts.shipped} driftExpected=${facts.driftExpected}`);
+    }
+    return 0;
+  }
   if (asJson) console.log(JSON.stringify(report, null, 2));
   else {
     console.log(`# ship status freeze=${report.freeze.on ? 'ON' : 'OFF'}`);
