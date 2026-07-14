@@ -11,6 +11,15 @@
 - **Next software (disk):** WIZ ownership tests · smoke disk/live soft assert · version ledger
 
 ---
+## 2026-07-14 · AGENT METHOD CRITIQUE
+
+- **Verdict:** process “hats” OK for humans/checklists; **bad as agent authority**
+- **Replace with:** PLAN→EXECUTE→REVIEW + contracts · topology 1/2/3
+- **Doc:** `docs/process/AGENT-COLLABORATION-METHOD.md`
+- Swarm: Fable+Codex method notes in `docs/exchange/DEMIGOD-*-AGENT-METHOD.md`
+
+---
+
 ## 2026-07-14 · FULL TEAM PROCESS OS
 
 - **Master index:** `docs/process/README.md` (RACI, cadences, checklist catalog, anti-process)

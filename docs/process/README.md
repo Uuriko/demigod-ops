@@ -1,6 +1,11 @@
 # Demigod Full-Team Operating System
 
-**For:** 1 founder + multi-agent swarm wearing full-startup hats  
+**For:** 1 founder + multi-agent swarm (process hats for humans; stage contracts for agents)  
+
+> **Method note (2026-07-14):** Hats/RACI are for *process filing and human authority*.  
+> Agents use **PLAN / EXECUTE / REVIEW + contracts**, not job titles as power.  
+> See **`AGENT-COLLABORATION-METHOD.md`**.
+
 **SSOT state:** `DEMIGOD-COMPRESSED-STATE.md`  
 **Product:** SF human-matched talent · 10% on hire · mutual yes · 90-day outcome · pre-services honesty  
 

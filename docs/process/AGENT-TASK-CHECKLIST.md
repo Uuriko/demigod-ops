@@ -24,3 +24,14 @@
 - [ ] Plan inbox if multi-agent: `node demigod-plan-inbox.mjs`
 
 **Related:** `DEMIGOD-AGENTS.md` · collab protocol (history) · ROUND4
+
+## Topology (pick before spawn)
+
+| Agents | When |
+|--------|------|
+| **1** | Default: bounded, reversible |
+| **2** | Ambiguous **or** mutate risk → plan+exec or exec+review |
+| **3** | High-impact / flaky → PLAN → EXECUTE → REVIEW |
+
+- Never parallel writers on foot-core  
+- Method detail: `docs/process/AGENT-COLLABORATION-METHOD.md`
