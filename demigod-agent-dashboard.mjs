@@ -945,6 +945,7 @@ function loadHtml() {
 }
 
 /** Safe allowlist for jobs — safe = human-clickable anytime; mutate = freeze-gated */
+/* ==== SECTION: JOBS allowlist (mutate jobs freeze-gated) ==== */
 const JOBS = {
   smoke: { cmd: 'node', args: ['demigod-agent-smoke.mjs'], timeout: 90000, safe: true },
   cockpit: { cmd: 'node', args: ['demigod-agent-cockpit.mjs', '--json'], timeout: 30000, safe: true },
@@ -1691,6 +1692,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://127.0.0.1:${PORT}`);
   const noStore = { 'Cache-Control': 'no-store' };
   try {
+    /* ==== SECTION: HTTP API routes (agent-first JSON) ==== */
     if (url.pathname === '/api/status' || url.pathname === '/api/status.json') {
       const force = url.searchParams.get('force') === '1';
       const data = await getStatus({ force });

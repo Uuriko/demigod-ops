@@ -239,3 +239,12 @@ Treat publishing as a state machine, not a hopeful click sequence.
 10. Run live smoke, WIZ probes, console/network audit, screenshots, and the freeze-aware ship checklist. Save a truthful receipt. If any check fails, do not certify or patch live invisibly; fix canonical source and repeat.
 
 Do not modify the live site before the complete P0 slice is locally verified. Do not automatically broaden into outreach, payments, SMS, backend services, a React rewrite, or a new hosting stack. Keep implementation changes reviewable, preserve the Webflow/native-form delivery model, and finish with a concise change inventory, exact files changed, verification results, screenshot paths, disk/CDN/live versions and hashes, known residual risks, and the next smallest justified action.
+
+---
+## Round-4 session open
+Role note: Codex — review/spec + WIZ correctness; no ship while freeze ON; open with bin/dg live header
+```
+bin/dg live && bin/dg tools | head
+# LIVE= DISK= FREEZE= GATES=
+```
+See: docs/exchange/DEMIGOD-PROMPT-ROUND4-DISCUSSION.md

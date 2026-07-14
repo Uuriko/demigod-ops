@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Demigod tools registry — agent-discoverable catalog of keep-path tools.\n * Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md · CLI: bin/dg tools
- * CLI: node demigod-tools-registry.mjs [--json] [--md] [--group gates]
- * Used by dashboard /api/tools
+ * TOOL DISCOVERY SoR — metadata only (no execution).
+ * Every executable declares owner group, output path, mutation/freeze behavior, hot-path.
+ * Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
+ * CLI: node demigod-tools-registry.mjs [--json] [--md] [--group gates] · bin/dg tools
+ * Dashboard: /api/tools
  */
 import fs from 'fs';
 import path from 'path';
@@ -23,6 +25,8 @@ export const TOOLS = [
   { id: 'smoke', name: 'Agent smoke', group: 'session', cmd: 'bin/dg-smoke', purpose: 'CDP body/h1/foot/WIZ proof', out: '/tmp/dg-busy/agent-smoke.json', hot: true },
   { id: 'usertest', name: 'User-test harness', group: 'session', cmd: 'bin/dg-usertest', purpose: 'Unified site+dash+tools+forms UX suite', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
   { id: 'usertest-quick', name: 'User-test quick', group: 'session', cmd: 'bin/dg-usertest --quick', purpose: 'Faster UX suite without full selftest', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
+  { id: 'live-doctor', name: 'Live doctor', group: 'session', cmd: 'bin/dg live', purpose: 'Disk vs live foot/CSS/freeze/honesty', out: '/tmp/dg-busy/live-doctor.json', hot: true },
+  { id: 'route-mime', name: 'Route MIME', group: 'gates', cmd: 'bin/dg mime', purpose: 'Product URLs must be text/html not catbox plain', out: '/tmp/dg-busy/route-mime.json', hot: true },
   { id: 'doctor', name: 'Doctor', group: 'session', cmd: 'node demigod-doctor.mjs', purpose: 'Env health: CDP, dash, keys, bins, orca', out: '/tmp/dg-busy/doctor.json', hot: true },
   { id: 'orca-up', name: 'Orca up', group: 'orca', cmd: 'bin/dg-orca up', purpose: 'Keep-awake + desktop Orca + pair + hubs', hot: true },
   { id: 'orca-status', name: 'Orca status', group: 'orca', cmd: 'bin/dg-orca status', purpose: 'Runtime + keep-awake + pair doctor', out: '/tmp/orca-pair-meta.json', hot: true },

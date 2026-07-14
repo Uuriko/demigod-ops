@@ -151,3 +151,12 @@ At the end, produce:
 Work autonomously through the plan, but STOP and surface immediately if: a freeze blocks ship, the foot file mutates under you (concurrent writer), a build fails to parse, or an honesty gate fails. Prefer honest "blocked/pending" over any fabricated success. Verify everything. Ship nothing unproven.
 
 _(Note: `/tmp/dg-swarm/improve/claude-prompt.md` could not be written — both the Write tool and `mkdir` under `/tmp` were blocked by sandbox permissions, which only allow `/home/potter`. Full prompt printed above per the stdout fallback.)_
+
+---
+## Round-4 session open
+Role note: Claude/Fable — plan/audit first; if read-only say so on line 1; open with bin/dg live header
+```
+bin/dg live && bin/dg tools | head
+# LIVE= DISK= FREEZE= GATES=
+```
+See: docs/exchange/DEMIGOD-PROMPT-ROUND4-DISCUSSION.md

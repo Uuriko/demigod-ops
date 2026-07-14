@@ -81,3 +81,41 @@ Current drift: **disk foot v199** · **live v198** · freeze may be ON.
 
 ### Then
 - full-check · ship-prep · ship v199 when freeze lifted
+
+---
+
+## Round-4 addendum (2026-07-14 · Fable+Codex+Grok)
+
+### Mandatory session open
+```
+bin/dg live          # only sanctioned drift oracle
+# State: LIVE=… DISK=… FREEZE=… GATES=…
+```
+Do **not** invent curl/grep freshness checks. Prefer JSON at `/tmp/dg-busy/live-doctor.json`.
+
+### Composition
+```
+bin/dg full-check            # freeze-safe; driftExpected ok when freeze ON
+bin/dg full-check --release  # disk must equal live (ship gate)
+bin/dg mime                  # /?p= text/html only
+```
+
+### Annotation
+- File header + section banners + JSDoc exports only
+- **No** line-by-line comment spam
+- Before extending a hot file, add/improve its header
+
+### One-shots
+- No new `demigod-*-pass.mjs` without archive plan
+- Classification: `docs/exchange/DEMIGOD-ONE-SHOT-PASS-CLASSIFICATION.md`
+
+### Role contract
+- Grok executes mutates when freeze OFF and authorized
+- Fable/Claude plan (if read-only, say so in **first** line)
+- Codex review/spec; provenance is not byte authorship
+- Single foot-core writer at a time
+
+### Done when
+- Registry lists live-doctor + route-mime hot
+- full-check green under freeze (driftExpected allowed)
+- Docs: ROUND4 discussion + swarm history files present

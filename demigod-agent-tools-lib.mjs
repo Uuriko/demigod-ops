@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Shared helpers for Demigod agent tooling (settlement suite).
+ * demigod-agent-tools-lib — shared primitives for ops tools (settlement suite).
+ * Exports: BUSY, isFrozen, atomicWrite, withFileLock, footVerFromJs, claimMutateLock, …
+ * Used by: live-doctor, dashboard, freeze, pairs, ship scripts.
  * Keep small — no side effects on import.
  */
 import fs from 'fs';
@@ -154,6 +156,10 @@ export function positionals(args, flagNames = []) {
 
 
 /** Publish freeze — single choke point for agents/dashboard/jobs */
+/**
+ * Read publish freeze (file + env). Side-effect free.
+ * @returns {{ on: boolean, why?: string, env: boolean, file: boolean }}
+ */
 export function isFrozen(busy = BUSY) {
   const j = readJson(path.join(busy, 'publish-freeze.json')) || {};
   const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();

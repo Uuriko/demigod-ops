@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-\n/**
+/**
  * demigod-control — cohesive Control Plane over all Demigod ops modules
  *
  * One mental model:
@@ -16,23 +16,6 @@
  *   bin/dg home
  *   bin/dg next
  *   bin/dg <module> [args…]
- *   node demigod-control.mjs modules
- */
-/**
- * demigod-control — cohesive Control Plane over all Demigod ops modules
- *
- * One mental model:
- *   Site (live/disk) · Webflow · Match · Review · Hygiene · Ship
- * One CLI spine:
- *   bin/dg status|home|next|webflow|matches|review|hygiene|dash|…
- * One JSON:
- *   /tmp/dg-busy/control-plane.json  (+ dash /api/control)
- *
- * Usage:
- *   bin/dg status|--json
- *   bin/dg home                 # human map
- *   bin/dg next                 # single NEXT + module tips
- *   bin/dg <module> [args…]     # dispatch to module CLI
  *   node demigod-control.mjs modules
  */
 import fs from 'fs';

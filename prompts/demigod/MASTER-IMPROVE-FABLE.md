@@ -234,3 +234,12 @@ Do not add features that create honesty liabilities (fake testimonials, live-ser
 **Stop condition:** all P0 + P1 green on two consecutive clean verify runs, live-confirmed by real fetch, WIZ playtest pass, screenshots clean. Then resume GTM (warm SF founder DMs, pilot logging). Minimal further site changes.
 
 **Remember:** verify green + honest + parse-safe + live-confirmed, or it did not ship.
+
+---
+## Round-4 session open
+Role note: Fable boss — strategy/plan; single writer rule for foot-core; open with bin/dg live header
+```
+bin/dg live && bin/dg tools | head
+# LIVE= DISK= FREEZE= GATES=
+```
+See: docs/exchange/DEMIGOD-PROMPT-ROUND4-DISCUSSION.md

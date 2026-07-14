@@ -66,3 +66,18 @@ Total lines: 1113
 ## Commenting policy
 
 Section banners above clusters (COPY, WIZ, board, scrub, run). Not every line.
+
+## Round-4 section banners (v199 disk)
+
+| Banner | Protects |
+|--------|----------|
+| WIZ BUILD & OWNERSHIP | wizBuild chrome once / reopen idempotent |
+| WIZ STEP STATE | showStep one-question |
+| FORM RESULT CONTRACT | waitPost / never fake success |
+| ONE-QUESTION OWNERSHIP | forceMobileDesktopWIZ resize |
+| BOARD LEDGER | fetchBoard sample honesty |
+| IDEMPOTENT BOOT | run() dedupe |
+| HONESTY BACKSTOP | scrubTimeClaims |
+| DEEP LINK | /?wiz= |
+
+Policy: banners at boundaries — not line spam. See ROUND4 discussion.

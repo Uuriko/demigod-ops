@@ -196,3 +196,16 @@ See also: `prompts/demigod/MASTER-WEBSITE-IMPROVEMENT-PROMPT.md` + new ops tools
 ---
 
 *End of atlas. Update when major ships land.*
+
+---
+
+## 12. Round-4 update (2026-07-14)
+
+- Swarm: Fable + Codex history synths in `DEMIGOD-FABLE-HISTORY-ROUND4.md` / `DEMIGOD-CODEX-HISTORY-ROUND4.md`
+- Discussion: `DEMIGOD-PROMPT-ROUND4-DISCUSSION.md`
+- Tools: `demigod-live-doctor.mjs` (intentional freeze drift = pass+warning), `demigod-route-mime.mjs`, full-check composition
+- CLI: `bin/dg live` · `bin/dg mime` · `bin/dg full-check [--release]`
+- Annotation: foot-core section banners + file header; registry/full-check/live-doctor headers
+- Policy locked: headers/banners/JSDoc — not line spam
+- Live still v198; disk v199; freeze ON until intentional ship
+

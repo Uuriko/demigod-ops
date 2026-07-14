@@ -8,11 +8,13 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const BUSY = '/tmp/dg-busy';
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 
 async function getTab() {
   const tabs = await (await fetch(`${CDP}/json/list`)).json();
@@ -186,6 +188,21 @@ async function main() {
     out.error = String(e.message || e);
     out.pass = false;
     out.corePass = false;
+  }
+
+  // Soft disk/live foot report (does not fail core alone — use live-doctor --require-match for hard)
+  try {
+    const diskJs = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+    const diskFootVer = (diskJs.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
+    out.diskFootVer = diskFootVer;
+    out.liveFootVer = out.summary?.foot || out.home?.foot || null;
+    const liveN = String(out.liveFootVer || '').replace(/^v/i, '');
+    out.footVersionMatch = diskFootVer != null && liveN && diskFootVer === liveN;
+    if (!out.footVersionMatch) {
+      out.footVersionNote = `disk v${diskFootVer} vs live ${out.liveFootVer} — expected if freeze ON; hard gate: bin/dg live --require-match`;
+    }
+  } catch (e) {
+    out.diskFootVer = null;
   }
 
   fs.mkdirSync(BUSY, { recursive: true });

@@ -803,3 +803,36 @@ This addendum is mandatory for any agent executing the master website prompt aft
 ### Tools to use while implementing
 - `bin/dg full-check`, `bin/dg ship-prep`, `bin/dg matches`, `node demigod-wiz-cdp-playtest.mjs --local`, `node demigod-user-test.mjs --quick`
 - Atlas: `docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md`
+
+---
+
+## Round-4 addendum (2026-07-14 · history-informed)
+
+### Derive versions — never hardcode
+At start: run `bin/dg live` and record `LIVE / DISK / FREEZE / GATES`.  
+If freeze ON and disk ahead of live → **expected**, not a P0 bug. Only disk-unhealthy-on-its-own is P0.
+
+### Gate tiers
+- **FAST_AFTER_EDIT (disk):** `npm run demigod:verify:source` · `node demigod-foot-smoke.mjs` · board-honesty  
+- **RELEASE_GATE (ship):** `bin/dg full-check --release` · `bin/dg-usertest --quick` · live-doctor `--require-match`
+
+### Tool hooks (required by name)
+Website work must call / respect:
+- `bin/dg live` · `bin/dg mime` · `bin/dg full-check` · `bin/dg ship-prep` · `bin/dg-usertest --quick`
+
+### Freeze precedence
+Current freeze file + explicit task authorization wins over any prompt that says “publish now.”
+
+### Scope while freeze ON
+Documentation, annotation, disk-only correctness, tests.  
+**Not:** redesign thrash, OAuth, new pages ship, concurrent foot writers.
+
+### Annotation on foot-core
+Respect existing `/* === … === */` banners. Extend with banners, not line spam.  
+Function map: `docs/exchange/DEMIGOD-FOOT-CORE-FUNCTION-MAP.md`
+
+### History pointers
+- Atlas: `docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md`
+- Round-4 debate: `docs/exchange/DEMIGOD-PROMPT-ROUND4-DISCUSSION.md`
+- Fable synth: `docs/exchange/DEMIGOD-FABLE-HISTORY-ROUND4.md`
+- Codex synth: `docs/exchange/DEMIGOD-CODEX-HISTORY-ROUND4.md`

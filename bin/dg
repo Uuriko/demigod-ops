@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 # dg — Demigod Control Plane CLI (cohesive front door)
 #
-# Prefer this over inventing one-off paths:
-#   bin/dg home | status | next
-#   bin/dg webflow|review|matches|hygiene|doctor|smoke|…
-#   bin/dg                # fzf palette over npm demigod:* (legacy)
+# Prefer this over inventing one-off paths.
+# Subcommands:
+#   home | status | next | plane | modules | help
+#   webflow | matches | review | hygiene | doctor | smoke | truth | freeze
+#   cockpit | usertest | dash | orca | start | tools
+#   full-check [--release] | live | mime | ship-prep
+#   demigod:*  → npm run
+# Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
+# Registry: node demigod-tools-registry.mjs --md
+#
 set -euo pipefail
 cd /home/potter
 export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
@@ -55,6 +61,14 @@ case "$1" in
   full-check|fullcheck|check-all)
     shift
     exec node demigod-full-check.mjs "$@"
+    ;;
+  live|live-doctor)
+    shift
+    exec node demigod-live-doctor.mjs "$@"
+    ;;
+  mime|route-mime)
+    shift
+    exec node demigod-route-mime.mjs "$@"
     ;;
   ship-prep|prep-ship)
     shift
