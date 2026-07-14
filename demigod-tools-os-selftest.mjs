@@ -112,6 +112,14 @@ const idSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-next-identity
 ok(idSt.status === 0, 'next-identity-selftest');
 if (idSt.status !== 0) console.error(idSt.stdout + idSt.stderr);
 
+const uniSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-unify-selftest.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 60000,
+});
+ok(uniSt.status === 0, 'unify-selftest');
+if (uniSt.status !== 0) console.error(uniSt.stdout + uniSt.stderr);
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);

@@ -47,6 +47,7 @@ export const TOOLS = [
   { id: 'ship', name: 'Ship orchestrator', group: 'ship', cmd: 'bin/dg ship status|prepare|cdn|paste|verify|run', purpose: 'Single ship path; mutators need freeze OFF + foot lock', out: '/tmp/dg-busy/ship-os.json', hot: true },
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots (never auto-send)', out: '/tmp/dg-busy/demand-status.json', hot: true },
   { id: 'next-canon', name: 'Canonical NEXT', group: 'session', cmd: 'bin/dg next-canon', purpose: 'Single NEXT from truth evidence + freeze + demand', out: '/tmp/dg-busy/next.json', hot: true },
+  { id: 'unify', name: 'Unify snapshot', group: 'session', cmd: 'bin/dg unify', purpose: 'ONE agent/human orientation: next+truth+demand+tools+evidence', out: '/tmp/dg-busy/unify.json', hot: true },
   { id: 'version-ledger', name: 'Version ledger', group: 'gates', cmd: 'node demigod-version-ledger.mjs tail', purpose: 'Append-only disk/live/cdn history (written by truth)', out: 'DEMIGOD-VERSION-LEDGER.jsonl' },
   { id: 'truth-delta', name: 'Truth delta', group: 'gates', cmd: 'bin/dg ledger delta', purpose: 'What changed since last truth ledger line', out: '/tmp/dg-busy/version-ledger-tail.json', hot: true },
   { id: 'next-assert', name: 'NEXT identity assert', group: 'session', cmd: 'bin/dg next-canon --assert-same', purpose: 'Fail if control/cockpit/ship NEXT drift from buildNext', out: '/tmp/dg-busy/next.json', hot: true },

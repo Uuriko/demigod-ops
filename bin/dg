@@ -149,6 +149,10 @@ console.log(JSON.stringify(j,null,2));
     shift
     exec node demigod-tools-registry.mjs "$@"
     ;;
+  unify|cohesion|orient)
+    shift
+    exec node demigod-unify.mjs "$@"
+    ;;
   start)
     exec bin/dg-start
     ;;

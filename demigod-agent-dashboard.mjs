@@ -1143,6 +1143,13 @@ const JOBS = {
   'ship-checklist': { cmd: 'node', args: ['demigod-ship-checklist.mjs', '--json'], timeout: 15000, safe: true },
   demand: { cmd: 'node', args: ['demigod-demand.mjs', 'status', '--json'], timeout: 20000, safe: true },
   'next-canon': { cmd: 'node', args: ['demigod-next.mjs', '--json'], timeout: 10000, safe: true },
+  unify: { cmd: 'node', args: ['demigod-unify.mjs', '--json'], timeout: 20000, safe: true },
+  'ship-status': { cmd: 'node', args: ['demigod-ship-status.mjs', '--json'], timeout: 45000, safe: true },
+  'ship-prepare': { cmd: 'node', args: ['demigod-ship.mjs', 'prepare'], timeout: 180000, safe: true },
+  ledger: { cmd: 'node', args: ['demigod-version-ledger.mjs', 'delta'], timeout: 10000, safe: true },
+  evidence: { cmd: 'node', args: ['demigod-evidence.mjs', 'fresh', 'truth'], timeout: 10000, safe: true },
+  'full-check': { cmd: 'node', args: ['demigod-full-check.mjs', '--json', '--skip-smoke'], timeout: 300000, safe: true },
+  'tools-os-selftest': { cmd: 'node', args: ['demigod-tools-os-selftest.mjs'], timeout: 300000, safe: true },
   'wiz-ownership': { cmd: 'node', args: ['demigod-wiz-ownership-selftest.mjs'], timeout: 30000, safe: true },
   inbox: { cmd: 'node', args: ['demigod-submissions-inbox.mjs', '--json'], timeout: 15000, safe: true },
   'match-review': { cmd: 'node', args: ['demigod-match-review.mjs', '--json'], timeout: 15000, safe: true },
@@ -1982,10 +1989,45 @@ const server = http.createServer(async (req, res) => {
           note: 'green only if truth evidence pass+fresh',
         };
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(body, null, 2));
+        res.end(JSON.stringify(body));
       } catch (e) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(e.message || e) }));
+      }
+      return;
+    }
+    if (url.pathname === '/api/unify') {
+      try {
+        const { buildUnify } = await import('./demigod-unify.mjs');
+        const pretty = url.searchParams.get('pretty') === '1';
+        const u = await buildUnify();
+        jsonSend(res, 200, u, { pretty });
+      } catch (e) {
+        jsonSend(res, 500, { error: String(e.message || e) });
+      }
+      return;
+    }
+    if (url.pathname === '/api/ledger') {
+      try {
+        const { tail } = await import('./demigod-version-ledger.mjs');
+        const n = Number(url.searchParams.get('n')) || 20;
+        jsonSend(res, 200, { at: new Date().toISOString(), rows: tail(n) });
+      } catch (e) {
+        jsonSend(res, 500, { error: String(e.message || e) });
+      }
+      return;
+    }
+    if (url.pathname === '/api/evidence' || url.pathname === '/api/evidence/list') {
+      try {
+        const { listEvidence, refuseIfStale } = await import('./demigod-evidence.mjs');
+        jsonSend(res, 200, {
+          at: new Date().toISOString(),
+          items: listEvidence({ limit: 30 }),
+          truth: refuseIfStale('truth'),
+          review: refuseIfStale('review'),
+        });
+      } catch (e) {
+        jsonSend(res, 500, { error: String(e.message || e) });
       }
       return;
     }

@@ -582,6 +582,7 @@ pre{
   <button type="button" data-tab="matches">Matches</button>
   <button type="button" data-tab="tools">Tools</button>
   <button type="button" data-tab="roadmap">Ship</button>
+  <button type="button" data-tab="system">System</button>
   <button type="button" data-tab="handoff">Handoff</button>
   <button type="button" data-tab="swarm" data-agent-only>Swarm</button>
   <button type="button" data-tab="brief" data-agent-only>Brief</button>
@@ -622,8 +623,14 @@ pre{
   <div id="panel-tools" class="panel">
     <div class="card wide">
       <h2><span>Tools registry</span><span class="meta" id="toolsMeta">—</span></h2>
-      <div class="meta" style="margin-bottom:.55rem">Hot path tools · safe jobs anytime · mutate needs freeze OFF</div>
+      <div class="meta" style="margin-bottom:.45rem">One catalog · safe jobs anytime · mutate needs freeze OFF · <code>bin/dg unify</code></div>
+      <input id="toolsSearch" type="search" placeholder="Filter tools…" style="margin-bottom:.65rem;max-width:28rem" autocomplete="off"/>
       <div id="toolsRoot"><div class="skel block"></div></div>
+    </div>
+  </div>
+  <div id="panel-system" class="panel">
+    <div class="grid" id="systemRoot">
+      <div class="card wide"><h2>System</h2><div class="meta">Loading…</div></div>
     </div>
   </div>
   <div id="panel-swarm" class="panel"><div class="grid" id="swarmRoot"><div class="card wide"><div class="skel block"></div></div></div></div>
@@ -713,6 +720,7 @@ function setTab(name){
   });
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if (name==='tools' && !toolsCache) loadTools();
+  if (name==='system') renderSystem(lastData || {});
   try { history.replaceState(null,'','#'+name+(mode==='agent'?'&agent':'')); } catch(_){}
 }
 
@@ -877,27 +885,104 @@ function renderHandoffs(d){
     : '<div class="meta">No handoffs yet — post the first note.</div>';
 }
 
+const RUNNABLE_JOBS = new Set([
+  'smoke','cockpit','truth','preflight','plan-inbox','tab-prune','tools-registry','board-honesty',
+  'demand','next-canon','unify','ship-status','ship-prepare','ledger','evidence','full-check',
+  'tools-os-selftest','wiz-ownership','doctor','review','review-bug','hygiene','control','verify-source',
+  'usertest','inbox','match-review','webflow','webflow-doctor','ship-checklist'
+]);
 function renderTools(reg){
   toolsCache = reg;
   $('toolsMeta').textContent = (reg.count||0)+' tools';
+  const q = (($('toolsSearch')&&$('toolsSearch').value)||'').toLowerCase().trim();
   const groups = reg.groups || [];
+  const all = reg.tools || [];
   $('toolsRoot').innerHTML = groups.map(g=>{
-    const items=(reg.tools||[]).filter(t=>t.group===g);
+    const items=all.filter(t=>t.group===g && (!q || (t.name+t.id+t.purpose+t.cmd).toLowerCase().includes(q)));
+    if(!items.length) return '';
     return '<div style="margin-bottom:1rem"><h3 style="margin:.2rem 0 .5rem;font-size:.85rem;color:var(--gold)">'+esc(g)+'</h3><div class="tool-grid">'+
       items.map(t=>{
         const ageSec=t.evidence&&t.evidence.ageSec;
         const missing=t.evidence&&t.evidence.missing;
         const isMut=!!t.mutate;
-        return '<div class="tool-card"><h3>'+esc(t.name)+(isMut?' <span class="pill warn">mutate</span>':' <span class="pill ok">safe</span>')+'</h3>'+
+        const canRun = RUNNABLE_JOBS.has(t.id) || isMut || t.hot;
+        return '<div class="tool-card" data-tool-id="'+esc(t.id)+'"><h3>'+esc(t.name)+(t.hot?' <span class="pill on">hot</span>':'')+(isMut?' <span class="pill warn">mutate</span>':' <span class="pill ok">safe</span>')+'</h3>'+
           '<div class="meta">'+esc(t.purpose)+'</div><code class="cmd">'+esc(t.cmd)+'</code>'+
           '<div class="meta" style="margin-top:.3rem">'+(missing?'no output':'age <span class="age '+ageClass(ageSec)+'">'+esc(age(ageSec))+'</span>')+'</div>'+
-          (['smoke','cockpit','truth','preflight','plan-inbox','tab-prune','tools-registry','board-honesty'].includes(t.id) || isMut
+          (canRun
             ? '<button type="button" data-run="'+esc(t.id)+'" data-mutate="'+(isMut?'1':'0')+'" style="margin-top:.4rem">'+(isMut?'Run mutate…':'Run')+'</button>'
-            : '')+'</div>';
+            : '<button type="button" data-copy-cmd="'+esc(t.cmd)+'" style="margin-top:.4rem">Copy cmd</button>')+'</div>';
       }).join('')+'</div></div>';
-  }).join('');
+  }).join('') || '<div class="meta">No tools match filter.</div>';
   $('toolsRoot').querySelectorAll('[data-run]').forEach(btn=>{
     btn.onclick=()=>runJob(btn.getAttribute('data-run'), {mutate: btn.getAttribute('data-mutate')==='1', btn});
+  });
+  $('toolsRoot').querySelectorAll('[data-copy-cmd]').forEach(btn=>{
+    btn.onclick=()=>copyText(btn.getAttribute('data-copy-cmd'));
+  });
+}
+
+async function renderSystem(d){
+  const root=$('systemRoot');
+  if(!root) return;
+  let unify=null, ledger=null, evidence=null;
+  try{
+    const r=await fetch('/api/unify');
+    if(r.ok) unify=await r.json();
+  }catch(_){}
+  try{
+    const r=await fetch('/api/ledger?n=12');
+    if(r.ok) ledger=await r.json();
+  }catch(_){}
+  try{
+    const r=await fetch('/api/evidence');
+    if(r.ok) evidence=await r.json();
+  }catch(_){}
+  const hot=(unify&&unify.toolsHot)||[];
+  const led=(ledger&&ledger.rows)||(unify&&unify.ledger)||[];
+  const evItems=(evidence&&evidence.items)||[];
+  root.innerHTML=[
+    '<div class="card hero wide">',
+    '<h2><span>Unify</span><span class="meta">one product snapshot</span></h2>',
+    '<div class="meta">'+(unify?esc(unify.next&&unify.next.title||'—'):'fetch /api/unify…')+'</div>',
+    unify?'<code class="cmd">'+esc(unify.next&&unify.next.cmd||'')+'</code>':'',
+    '<div style="margin-top:.55rem;display:flex;flex-wrap:wrap;gap:.35rem">',
+    '<button type="button" class="primary" id="btnUnify">Refresh unify</button>',
+    '<button type="button" id="btnCopyUnify">Copy unify JSON</button>',
+    '<button type="button" data-run-job="truth">Truth</button>',
+    '<button type="button" data-run-job="demand">Demand</button>',
+    '<button type="button" data-run-job="ship-status">Ship status</button>',
+    '<button type="button" data-run-job="next-canon">NEXT</button>',
+    '<button type="button" data-run-job="ledger">Ledger delta</button>',
+    '<button type="button" data-run-job="tools-os-selftest">Selftest</button>',
+    '</div>',
+    '<div class="meta" style="margin-top:.45rem">CLI: <code>bin/dg unify</code> · API: <code>/api/unify</code></div>',
+    '</div>',
+    '<div class="card wide"><h2>Hot tools</h2><div class="tool-grid">'+
+      (hot.length?hot.map(t=>'<div class="tool-card"><h3>'+esc(t.name||t.id)+'</h3><code class="cmd">'+esc(t.cmd)+'</code>'+
+        (RUNNABLE_JOBS.has(t.id)?'<button type="button" data-run-job="'+esc(t.id)+'" style="margin-top:.35rem">Run</button>':'')+
+        '</div>').join(''):'<div class="meta">—</div>')+
+    '</div></div>',
+    '<div class="card wide"><h2>Version ledger (tail)</h2>'+
+      (led.length?'<table><thead><tr><th>At</th><th>Disk</th><th>Live</th><th>Freeze</th><th>Pass</th></tr></thead><tbody>'+
+        led.slice().reverse().map(r=>'<tr><td class="meta">'+esc((r.at||'').slice(0,19))+'</td><td>v'+esc(r.diskVer)+'</td><td>v'+esc(r.liveVer)+'</td><td>'+(r.freeze?'ON':'OFF')+'</td><td class="'+(r.pass?'ok':'bad')+'">'+(r.pass?'pass':'fail')+'</td></tr>').join('')+
+        '</tbody></table>':'<div class="meta">No ledger rows — run bin/dg truth</div>')+
+    '</div>',
+    '<div class="card wide"><h2>Evidence seals</h2>'+
+      (evItems.length?'<table><thead><tr><th>File</th><th>Age</th></tr></thead><tbody>'+
+        evItems.map(e=>'<tr><td class="meta">'+esc(e.file)+'</td><td>'+esc(age(e.mtimeMs?Math.round((Date.now()-e.mtimeMs)/1000):null))+'</td></tr>').join('')+
+        '</tbody></table>':'<div class="meta">No evidence yet</div>')+
+      (evidence&&evidence.truth?'<div class="meta" style="margin-top:.4rem">truth green='+!!evidence.truth.green+' · '+esc(evidence.truth.reason||'')+'</div>':'')+
+    '</div>',
+    '<div class="card wide agent-only"><h2>Agent APIs</h2><div class="api-strip" style="margin:0">'+
+      ['unify','next','truth','status?slim=1','tools','control','ledger','evidence','agent-brief'].map(p=>
+        '<a class="api-pill" href="/api/'+p+'" target="_blank" rel="noopener">/api/'+p+'</a>').join('')+
+    '</div></div>',
+  ].join('');
+  const bu=$('btnUnify'); if(bu) bu.onclick=()=>renderSystem(d);
+  const bc=$('btnCopyUnify'); if(bc) bc.onclick=async()=>{ try{ const r=await fetch('/api/unify'); copyText(await r.text()); }catch(e){toast(e.message,'bad');} };
+  root.querySelectorAll('[data-run-job]').forEach(btn=>{
+    btn.onclick=()=>runJob(btn.getAttribute('data-run-job'));
   });
 }
 
@@ -920,7 +1005,10 @@ function renderSwarm(d){
 
 function renderGates(d){
   const ev=d.evidence||{};
+  const te=d.truthEvidence||{};
   $('gatesRoot').innerHTML = [
+    '<div class="card hero wide"><h2>Truth light</h2><div class="val '+(te.green?'ok':'warn')+'">'+(te.green?'GREEN':'NOT GREEN')+' · '+esc(te.reason||'')+'</div>'+
+      '<div class="meta">'+esc(te.summary||'')+'</div><code class="cmd">bin/dg truth · bin/dg evidence fresh truth</code></div>',
     '<div class="card wide"><h2>Evidence ages</h2><table><thead><tr><th>Artifact</th><th>Age</th><th>Mtime</th></tr></thead><tbody>'+
     Object.entries(ev).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td class="age '+ageClass(v&&v.ageSec)+'">'+(v&&v.missing?'missing':esc(age(v&&v.ageSec)))+'</td><td class="meta">'+esc(v&&v.mtime||'—')+'</td></tr>').join('')+
     '</tbody></table></div>',
@@ -1003,6 +1091,20 @@ function renderOverview(d){
   const p0=actions.filter(a=>a.pri===0);
   const drift=d.foot&&d.foot.liveMatchNote&&/DRIFT|≠|unpublished/i.test(d.foot.liveMatchNote);
   const chainNode=(label,ok)=>'<span class="node '+(ok===true?'ok':ok===false?'bad':'')+'">'+esc(label)+'</span>';
+  const dem=d.demand||{};
+  const te=d.truthEvidence||{};
+  const systemStrip =
+    '<div class="card wide" data-testid="system-strip">'+
+    '<h2><span>Control spine</span><span class="meta">human + agent</span></h2>'+
+    '<div class="meta">green='+(te.green?'yes':'no')+' · demand pending '+(dem.pending??'?')+' · SENT '+(dem.sentConfirmed??'?')+' · pilots '+(dem.pilotsFilled??'?')+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">'+
+    [['truth','Truth'],['demand','Demand'],['next-canon','NEXT'],['unify','Unify'],['ship-status','Ship'],['ledger','Ledger'],['evidence','Evidence']].map(([id,lab])=>
+      '<button type="button" data-home-job="'+id+'">'+lab+'</button>').join('')+
+    '<button type="button" data-tab-go="system">System tab</button>'+
+    '<button type="button" data-tab-go="tools">Tools</button>'+
+    '</div>'+
+    '<div class="meta" style="margin-top:.45rem">Agent: <code>curl -sS http://127.0.0.1:9878/api/unify</code> · <code>bin/dg unify</code></div>'+
+    '</div>';
 
   // freeze banner (global chrome)
   const fb=document.getElementById('freezeBanner');
@@ -1093,6 +1195,8 @@ function renderOverview(d){
     '<div class="session-pill '+(frozen?'ro':'rw')+'" style="margin-top:.4rem">'+esc(c.sessionMode||(frozen?'read-only':'read-write'))+'</div>',
     '</div></div>',
 
+    systemStrip,
+
     '<div class="card wide">',
     '<h2>Do this next <span class="meta">spine</span></h2>',
     '<div class="spine">'+spineHtml+'</div>',
@@ -1109,8 +1213,8 @@ function renderOverview(d){
       '<div class="card wide agent-only">'+
       '<h2>Agent contracts</h2>'+
       '<div class="row"><span class="k">CLI</span><span class="v"><span class="cmd" style="display:inline">bin/dg home</span></span></div>'+
-      '<div class="row"><span class="k">API</span><span class="v"><a href="/api/control" target="_blank">/api/control</a> · <a href="/api/status" target="_blank">/api/status</a></span></div>'+
-      '<div class="row"><span class="k">Brief</span><span class="v"><a href="/api/agent-brief" target="_blank">/api/agent-brief</a></span></div>'+
+      '<div class="row"><span class="k">API</span><span class="v"><a href="/api/unify" target="_blank">/api/unify</a> · <a href="/api/control" target="_blank">/api/control</a> · <a href="/api/status?slim=1" target="_blank">/api/status</a></span></div>'+
+      '<div class="row"><span class="k">Brief</span><span class="v"><a href="/api/agent-brief" target="_blank">/api/agent-brief</a> · <a href="/api/ledger" target="_blank">/api/ledger</a></span></div>'+
       (p0.length?'<div class="meta" style="margin-top:.5rem">P0 actions: '+p0.length+' (see Diagnostics tools)</div>':'')+
       '</div>'
     ) : (
@@ -1137,6 +1241,9 @@ function renderOverview(d){
   });
   root.querySelectorAll('[data-tab-go]').forEach(btn=>{
     btn.onclick=()=>{ const t=btn.getAttribute('data-tab-go'); if(t) setTab(t); };
+  });
+  root.querySelectorAll('[data-home-job]').forEach(btn=>{
+    btn.onclick=()=>runJob(btn.getAttribute('data-home-job'));
   });
   root.querySelectorAll('[data-copy-cli]').forEach(btn=>{
     btn.onclick=()=>copyText(btn.getAttribute('data-copy-cli')||'');
@@ -1336,6 +1443,7 @@ function render(d, { light = false } = {}){
   renderShipRoadmap(d);
   renderSwarm(d);
   renderGates(d);
+  if (activeTab === 'system') renderSystem(d);
 }
 
 async function load(force){
@@ -1382,6 +1490,10 @@ async function loadTools(){
   try{
     const r=await fetch('/api/tools?t='+Date.now());
     renderTools(await r.json());
+    if ($('toolsSearch') && !$('toolsSearch')._bound) {
+      $('toolsSearch')._bound = true;
+      $('toolsSearch').addEventListener('input', ()=>{ if (toolsCache) renderTools(toolsCache); });
+    }
   }catch(e){ $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
 }
 
@@ -1477,9 +1589,22 @@ const PALETTE=[
   {t:'Tab Handoff', run:()=>setTab('handoff')},
   {t:'Tab Tools', run:()=>{applyMode('agent'); setTab('tools'); loadTools();}},
   {t:'Tab Brief', run:()=>setTab('brief')},
-  {t:'Run truth', run:()=>runJob('truth')},
+  {t:'Run truth', d:'bin/dg truth', run:()=>runJob('truth')},
+  {t:'Run demand', d:'bin/dg demand status', run:()=>runJob('demand')},
+  {t:'Run NEXT canon', d:'bin/dg next-canon', run:()=>runJob('next-canon')},
+  {t:'Run unify', d:'bin/dg unify', run:()=>runJob('unify')},
+  {t:'Ship status', d:'bin/dg ship status', run:()=>runJob('ship-status')},
+  {t:'Ship prepare', d:'gates only', run:()=>runJob('ship-prepare')},
+  {t:'Ledger delta', d:'bin/dg ledger delta', run:()=>runJob('ledger')},
+  {t:'Evidence fresh truth', run:()=>runJob('evidence')},
+  {t:'Full check (no smoke)', run:()=>runJob('full-check')},
+  {t:'Tools OS selftest', run:()=>runJob('tools-os-selftest')},
+  {t:'Open System tab', run:()=>setTab('system')},
+  {t:'Open Tools tab', run:()=>setTab('tools')},
+  {t:'Copy unify URL', run:()=>copyText('http://127.0.0.1:9878/api/unify')},
   {t:'Run preflight', run:()=>runJob('preflight')},
   {t:'Prune tabs', run:()=>runJob('tab-prune')},
+  {t:'WIZ ownership', run:()=>runJob('wiz-ownership')},
 ];
 let paletteIdx=0;
 function openPalette(){ $('palette').classList.add('open'); $('paletteInput').value=''; paintPalette(''); $('paletteInput').focus(); }
@@ -1564,7 +1689,7 @@ if(hash.includes('agent')) applyMode('agent');
 else applyMode(mode);
 const tab=hash.split('&')[0];
 if(tab==='plane') setTab('overview');
-else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','swarm','brief','gates'].includes(tab)) setTab(tab);
+else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','system','swarm','brief','gates'].includes(tab)) setTab(tab);
 load(true);
 function schedulePoll(){
   const ms = document.hidden ? Math.max(pollMs, 60000) : pollMs;
