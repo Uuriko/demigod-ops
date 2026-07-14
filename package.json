@@ -252,6 +252,8 @@
     "demigod:webflow:tabs": "node demigod-webflow.mjs tabs",
     "demigod:hygiene": "node demigod-laptop-hygiene.mjs --prune",
     "demigod:truth": "node demigod-truth.mjs",
+    "demigod:truth:strict": "node demigod-truth.mjs --strict",
+    "demigod:foot:lock:require": "node demigod-foot-lock.mjs require",
     "demigod:freeze": "node demigod-freeze.mjs",
     "demigod:handoff": "node demigod-handoff.mjs",
     "demigod:apply": "node demigod-apply.mjs",

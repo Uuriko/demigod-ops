@@ -37,6 +37,7 @@ function run(label, cmd, timeout = 120000, envExtra = {}) {
   let childJson = null;
   // Prefer known artifact paths over parsing stdout
   const artifactMap = {
+    'truth': path.join(BUSY, 'truth.json'),
     'live-doctor': path.join(BUSY, 'live-doctor.json'),
     'route-mime': path.join(BUSY, 'route-mime.json'),
     doctor: path.join(BUSY, 'doctor.json'),
@@ -97,7 +98,7 @@ function main() {
 
   if (!offline) {
     // Artifact identity (intentional freeze drift: warning only unless --release)
-    steps.push(run('live-doctor', `node demigod-live-doctor.mjs ${liveFlags}`, 60000, liveEnv));
+    steps.push(run('truth', `node demigod-truth.mjs ${liveFlags}`, 90000, liveEnv));
     // User-facing product routes must be text/html
     steps.push(run('route-mime', 'node demigod-route-mime.mjs --json', 90000));
   }
@@ -108,7 +109,7 @@ function main() {
   steps.push(run('control-plane', 'node demigod-control.mjs status --json', 30000));
 
   const failed = steps.filter((s) => !s.ok).map((s) => s.label);
-  const liveChild = steps.find((s) => s.label === 'live-doctor')?.child;
+  const liveChild = steps.find((s) => s.label === 'truth' || s.label === 'live-doctor')?.child;
   const report = {
     at: new Date().toISOString(),
     schemaVersion: 1,

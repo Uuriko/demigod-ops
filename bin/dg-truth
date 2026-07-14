@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec node /home/potter/demigod-truth.mjs "$@"
+exec node "$(cd "$(dirname "$0")/.." && pwd)/demigod-truth.mjs" "$@"

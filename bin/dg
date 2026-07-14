@@ -6,7 +6,7 @@
 #   home | status | next | plane | modules | help
 #   webflow | matches | review | hygiene | doctor | smoke | truth | freeze
 #   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] [--with-review] | live | mime | ship-prep
+#   full-check [--release] [--with-review] | truth | live | lock | mime | ship-prep
 #   review-bug | review-fix | review-self
 #   demigod:*  → npm run
 # Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
@@ -52,7 +52,7 @@ case "$1" in
   home|status|next|plane|modules|help|--help|-h)
     exec node demigod-control.mjs "$@"
     ;;
-  webflow|wf|matches|match|pairs|inbox|review|hygiene|doctor|smoke|truth|freeze|cockpit|usertest|dash)
+  webflow|wf|matches|match|pairs|inbox|review|hygiene|doctor|smoke|freeze|cockpit|usertest|dash)
     exec node demigod-control.mjs "$@"
     ;;
   orca)
@@ -65,7 +65,15 @@ case "$1" in
     ;;
   live|live-doctor)
     shift
-    exec node demigod-live-doctor.mjs "$@"
+    exec node demigod-truth.mjs "$@"
+    ;;
+  truth)
+    shift
+    exec node demigod-truth.mjs "$@"
+    ;;
+  lock|foot-lock)
+    shift
+    exec node demigod-foot-lock.mjs "$@"
     ;;
   mime|route-mime)
     shift

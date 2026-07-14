@@ -16,12 +16,14 @@
  *   node demigod-foot-lock.mjs release [--owner grok] [--token …] [--force]
  *   node demigod-foot-lock.mjs check [--owner me] [--token …]
  *   node demigod-foot-lock.mjs wrap -- cmd [args...]
+ *   node demigod-foot-lock.mjs require   # hard fail if no valid lease
+ *   import { assertCanWriteFoot } from './demigod-foot-lock.mjs'
  */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import {
   BUSY,
   sha256File,
@@ -431,17 +433,87 @@ function wrap() {
   process.exit(r.status ?? 1);
 }
 
-if (cmd === 'status') {
-  console.log(JSON.stringify(statusJson(), null, 2));
-} else if (cmd === 'claim') {
-  withMetaLockSync(claimBody);
-} else if (cmd === 'release') {
-  withMetaLockSync(releaseBody);
-} else if (cmd === 'check') {
-  checkBody();
-} else if (cmd === 'wrap') {
-  wrap();
-} else {
-  console.error('usage: status | claim | release | check | wrap -- cmd...');
-  process.exit(2);
+/**
+ * Hard mutex for foot-core edits. Exit process if not free or not held by this agent.
+ * Escape: DG_FOOT_LOCK_SKIP=1 (tests only).
+ * @param {{ label?: string, soft?: boolean }} [opts]
+ * @returns {{ ok: boolean, lock?: any, free?: boolean }}
+ */
+export function assertCanWriteFoot(opts = {}) {
+  const label = opts.label || 'foot-edit';
+  if (process.env.DG_FOOT_LOCK_SKIP === '1') {
+    return { ok: true, skipped: true, free: true };
+  }
+  const raw = readLock({ clearExpired: true });
+  const token = process.env.DG_LOCK_TOKEN || null;
+  const owner = process.env.DG_LOCK_OWNER || process.env.USER || 'agent';
+  if (!raw) {
+    const msg = {
+      ok: false,
+      error: 'foot_lock_required',
+      label,
+      hint: 'bin/dg lock claim --owner "$USER" --why "edit foot"  then export DG_LOCK_TOKEN=…',
+    };
+    if (opts.soft) return msg;
+    console.error(JSON.stringify(msg, null, 2));
+    process.exit(1);
+  }
+  if (isExpired(raw)) {
+    clearLockFiles();
+    const msg = {
+      ok: false,
+      error: 'foot_lock_expired',
+      label,
+      hint: 'claim a new lock',
+    };
+    if (opts.soft) return msg;
+    console.error(JSON.stringify(msg, null, 2));
+    process.exit(1);
+  }
+  // Must own via token (preferred) or legacy same-owner without token
+  const tokenOk = raw.token && token && token === raw.token;
+  const legacyOk = !raw.token && raw.owner === owner;
+  if (!tokenOk && !legacyOk) {
+    const msg = {
+      ok: false,
+      error: 'foot_locked_by_other',
+      label,
+      owner: raw.owner,
+      expiresAt: raw.expiresAt,
+      hint: 'wait, or release --force if abandoned',
+    };
+    if (opts.soft) return msg;
+    console.error(JSON.stringify(msg, null, 2));
+    process.exit(1);
+  }
+  return { ok: true, free: false, owner: raw.owner, expiresAt: raw.expiresAt };
+}
+
+function requireBody() {
+  const r = assertCanWriteFoot({ label: 'require' });
+  console.log(JSON.stringify({ ...r, status: statusJson() }, null, 2));
+  process.exit(r.ok ? 0 : 1);
+}
+
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isMain) {
+  if (cmd === 'status') {
+    console.log(JSON.stringify(statusJson(), null, 2));
+  } else if (cmd === 'claim') {
+    withMetaLockSync(claimBody);
+  } else if (cmd === 'release') {
+    withMetaLockSync(releaseBody);
+  } else if (cmd === 'check') {
+    checkBody();
+  } else if (cmd === 'require') {
+    requireBody();
+  } else if (cmd === 'wrap') {
+    wrap();
+  } else {
+    console.error('usage: status | claim | release | check | require | wrap -- cmd...');
+    process.exit(2);
+  }
 }

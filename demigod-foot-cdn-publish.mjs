@@ -10,8 +10,10 @@ import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
 
 assertNotFrozen('foot-cdn-publish');
+assertCanWriteFoot({ label: 'foot-cdn-publish' });
 
 const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
