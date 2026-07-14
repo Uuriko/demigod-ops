@@ -11,6 +11,17 @@
 - **Next software (disk):** WIZ ownership tests · smoke disk/live soft assert · version ledger
 
 ---
+## 2026-07-14 · FULL TEAM PROCESS OS
+
+- **Master index:** `docs/process/README.md` (RACI, cadences, checklist catalog, anti-process)
+- **Swarm inputs:** `docs/exchange/DEMIGOD-FABLE-TEAM-PROCESS.md` · `DEMIGOD-CODEX-TEAM-PROCESS.md`
+- **Executable checklists:** OPS/DEM/INT/CAN/MAT/INTRO/PIL/HIR/BRD/WEB/INC/AGT under `docs/process/`
+- **Ops records dirs:** `demigod-ops/{demand,intake,intros,finance,outcomes,incidents,releases}/`
+- **Missing-before:** mutual-yes/consent/invoice/incident DoR · weekly rhythm · doc sprawl plan
+- **Still true:** freeze ON · live v198 · disk v199 · human DMs + freeze A
+
+---
+
 
 ## 2026-07-14 · EXEC PASS · disk v199 / live v198
 

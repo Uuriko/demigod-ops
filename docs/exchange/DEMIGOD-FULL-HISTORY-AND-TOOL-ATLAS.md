@@ -209,3 +209,11 @@ See also: `prompts/demigod/MASTER-WEBSITE-IMPROVEMENT-PROMPT.md` + new ops tools
 - Policy locked: headers/banners/JSDoc — not line spam
 - Live still v198; disk v199; freeze ON until intentional ship
 
+---
+
+## 13. Full-team process OS (2026-07-14)
+
+Human + swarm operating system (RACI, cadences, executable checklists):  
+**`docs/process/README.md`**
+
+Swarm design notes: `DEMIGOD-FABLE-TEAM-PROCESS.md` · `DEMIGOD-CODEX-TEAM-PROCESS.md`
