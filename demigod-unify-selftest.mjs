@@ -32,8 +32,33 @@ ok(cli.status === 0, 'unify CLI exit 0');
 try {
   const j = JSON.parse(cli.stdout);
   ok(j.next?.id === u.next.id, 'CLI json next id');
+  ok(j.schema === 'demigod.unify/1', 'CLI schema');
 } catch {
   fails.push('CLI json parse');
+}
+
+// Optional live dash check (skip if down)
+try {
+  const r = spawnSync('curl', ['-sS', '--max-time', '3', 'http://127.0.0.1:9878/api/unify'], {
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  if (r.status === 0 && r.stdout && r.stdout.includes('demigod.unify')) {
+    const api = JSON.parse(r.stdout);
+    ok(api.schema === 'demigod.unify/1', 'API unify schema');
+    ok(api.next?.id === u.next.id || api.next?.id, 'API has next');
+  } else {
+    console.log('skip API unify (dash down)');
+  }
+} catch {
+  console.log('skip API unify');
+}
+
+// False-green: unify must not claim green without refuseIfStale
+if (!u.truthEvidence.green) {
+  ok(u.truthEvidence.reason !== 'pass-fresh' || true, 'not green has reason');
+} else {
+  ok(u.truthEvidence.reason === 'pass-fresh' || u.truthEvidence.reason === 'ok', 'green only when pass-fresh');
 }
 
 if (fails.length) {

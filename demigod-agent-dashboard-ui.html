@@ -1603,8 +1603,14 @@ const PALETTE=[
   {t:'Open Tools tab', run:()=>setTab('tools')},
   {t:'Copy unify URL', run:()=>copyText('http://127.0.0.1:9878/api/unify')},
   {t:'Run preflight', run:()=>runJob('preflight')},
-  {t:'Prune tabs', run:()=>runJob('tab-prune')},
+  {t:'Prune tabs', d:'hygiene', run:()=>runJob('tab-prune')},
+  {t:'Hygiene prune', run:()=>runJob('hygiene')},
+  {t:'Review', run:()=>runJob('review')},
+  {t:'Review bug', run:()=>runJob('review-bug')},
+  {t:'Doctor', run:()=>runJob('doctor')},
+  {t:'Webflow doctor', run:()=>runJob('webflow-doctor')},
   {t:'WIZ ownership', run:()=>runJob('wiz-ownership')},
+  {t:'Smoke site', run:()=>runJob('smoke')},
 ];
 let paletteIdx=0;
 function openPalette(){ $('palette').classList.add('open'); $('paletteInput').value=''; paintPalette(''); $('paletteInput').focus(); }
