@@ -5,6 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
@@ -16,8 +17,14 @@ const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
 const LOADER = path.join(ROOT, 'demigod-footer-loader.html');
 const OUT = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
-const MIRROR = path.join(ROOT, 'eat-the-sounds', 'demigod-foot-core.js');
 const ALLOW_LITTER = process.env.DEMIGOD_ALLOW_LITTER === '1';
+const sourceJs = fs.readFileSync(SRC, 'utf8');
+const sourceVer = (sourceJs.match(/__dgFootVer='(\d+)'/) || [])[1];
+
+if (!sourceVer) {
+  console.error('source has no __dgFootVer');
+  process.exit(1);
+}
 
 const check = spawnSync('node', ['--check', SRC], { encoding: 'utf8' });
 if (check.status !== 0) {
@@ -25,28 +32,34 @@ if (check.status !== 0) {
   process.exit(1);
 }
 
-if (fs.existsSync(path.dirname(MIRROR))) {
-  try { fs.copyFileSync(SRC, MIRROR); } catch { /* optional mirror */ }
-}
-
 function curlUpload(url, extra = []) {
   const r = spawnSync(
     'curl',
-    ['-sS', '--max-time', '120', '-F', 'reqtype=fileupload', ...extra, '-F', `fileToUpload=@${SRC}`],
+    [
+      '-sS', '--fail-with-body', '--max-time', '120',
+      '-F', 'reqtype=fileupload', ...extra,
+      '-F', `fileToUpload=@${SRC};type=application/javascript`,
+      url,
+    ],
     { encoding: 'utf8' },
   );
-  return (r.stdout || '').trim();
+  return {
+    body: (r.stdout || '').trim(),
+    error: r.status === 0 ? '' : (r.stderr || `curl exited ${r.status}`).trim(),
+  };
 }
 
 async function fetchOk(cdnUrl) {
   try {
     const liveJs = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
+    const remoteVer = (liveJs.match(/__dgFootVer='(\d+)'/) || [])[1];
     const ok =
-      liveJs.length > 50000 &&
+      liveJs.length > 40000 &&
       /dg-foot-v\d+-core/.test(liveJs) &&
       liveJs.includes('function hero') &&
-      (liveJs.includes('#dg-bar') || liveJs.includes('__dgFootVer'));
-    return { ok, liveJs };
+      (liveJs.includes('#dg-bar') || liveJs.includes('__dgFootVer')) &&
+      remoteVer === sourceVer;
+    return { ok, liveJs, remoteVer };
   } catch (e) {
     return { ok: false, liveJs: '', err: String(e.message || e) };
   }
@@ -54,9 +67,10 @@ async function fetchOk(cdnUrl) {
 
 async function uploadPermanent() {
   for (let i = 1; i <= 4; i++) {
-    const cdnUrl = curlUpload('https://catbox.moe/user/api.php');
+    const upload = curlUpload('https://catbox.moe/user/api.php');
+    const cdnUrl = upload.body;
     if (!/^https:\/\/files\.catbox\.moe\/.+\.js$/.test(cdnUrl)) {
-      console.error(`catbox try ${i}: bad response`, cdnUrl.slice(0, 120));
+      console.error(`catbox try ${i}: bad response`, (upload.error || cdnUrl).slice(0, 240));
       await new Promise((r) => setTimeout(r, 1500 * i));
       continue;
     }
@@ -71,11 +85,12 @@ async function uploadPermanent() {
 }
 
 async function uploadLitter() {
-  const cdnUrl = curlUpload('https://litterbox.catbox.moe/resources/internals/api.php', [
+  const upload = curlUpload('https://litterbox.catbox.moe/resources/internals/api.php', [
     '-F', 'time=72h',
   ]);
+  const cdnUrl = upload.body;
   if (!/^https:\/\/litter\.catbox\.moe\/.+\.js$/.test(cdnUrl)) {
-    console.error('litterbox failed:', cdnUrl.slice(0, 120));
+    console.error('litterbox failed:', (upload.error || cdnUrl).slice(0, 240));
     return null;
   }
   await new Promise((r) => setTimeout(r, 2000));
@@ -112,9 +127,12 @@ fs.writeFileSync(FOOT, loader);
 fs.writeFileSync(LOADER, loader);
 fs.writeFileSync(OUT, JSON.stringify({
   at: new Date().toISOString(),
+  version: ver,
   cdnUrl,
   ok,
   temporary: !!temporary,
+  bytes: Buffer.byteLength(liveJs),
+  sha256: crypto.createHash('sha256').update(liveJs).digest('hex'),
   liveLen: liveJs.length,
   loaderLen: loader.length,
   webhookUrl: webhookUrl || null,

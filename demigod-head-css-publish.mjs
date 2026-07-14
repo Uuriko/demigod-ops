@@ -6,11 +6,11 @@ import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
-assertNotFrozen('head-css-publish');
-
 const SRC = path.join(ROOT, 'demigod-head-styles.css');
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
 const OUT = path.join(ROOT, 'DEMIGOD-HEAD-CDN.json');
+
+assertNotFrozen('head-css-publish');
 
 const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${SRC}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });
 const cdnUrl = (up.stdout || '').trim();

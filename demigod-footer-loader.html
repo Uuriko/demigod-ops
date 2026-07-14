@@ -1,38 +1,7 @@
-<!-- demigod-foot-cdn-loader v27 · foot v184 · path pills + how-link -->
+<!-- demigod-foot-cdn-loader v26 + events + foot v196 -->
 <script>(function(){var p=location.pathname;
 if(/^\/legal\/?$/i.test(p)&&!/#privacy|#terms/.test(location.hash))location.replace('/#legal');
 else if(/^\/partnerships?\/?$/i.test(p)&&location.hash!=='#partnerships')location.replace('/#partnerships');
 else if(/^\/events\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
 })();</script>
-<script src="https://files.catbox.moe/my3j21.js"></script>
-
-<script>
-/*dg-v177-honesty-patch — soft 90d guarantee until payments+placement (Claude 2026-07-10)*/
-(function(){
-  function soft(t){
-    if(!t)return t;
-    return String(t).replace(/90-day replacement guarantee\.?/gi,
-      '90-day replacement once payments are live and a hire is placed.');
-  }
-  function walk(root){
-    if(!root||!document.createTreeWalker)return;
-    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),n;
-    while((n=w.nextNode())){
-      var v=n.nodeValue;
-      if(!v||v.length>600||!/90-day replacement guarantee/i.test(v))continue;
-      n.nodeValue=soft(v);
-    }
-  }
-  function run(){
-    try{
-      walk(document.body);
-      var fee=document.getElementById('dg-fee-note');
-      if(fee) fee.textContent=soft(fee.textContent||'');
-    }catch(e){}
-  }
-  if(document.readyState==='loading')
-    document.addEventListener('DOMContentLoaded',function(){setTimeout(run,500);setTimeout(run,1800);setTimeout(run,4000);});
-  else { setTimeout(run,500); setTimeout(run,1800); setTimeout(run,4000); }
-  try{ new MutationObserver(function(){run();}).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
-})();
-</script>
+<script src="https://files.catbox.moe/bw18d5.js"></script>

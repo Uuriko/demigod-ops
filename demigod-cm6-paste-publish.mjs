@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -123,21 +124,7 @@ function setHead(text){
 
 async function main() {
   // Honor publish freeze (unless --no-publish paste-only prep)
-  if (!NO_PUBLISH) {
-    const { status } = await import('./demigod-publish-freeze.mjs');
-    const s = status();
-    if (s.frozen && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
-      console.error(
-        JSON.stringify({
-          ok: false,
-          error: 'publish_frozen',
-          why: s.why,
-          hint: 'node demigod-publish-freeze.mjs off  or use --no-publish for paste-only',
-        }),
-      );
-      process.exit(1);
-    }
-  }
+  if (!NO_PUBLISH) assertNotFrozen('cm6-paste-publish');
 
   const tabs = await cdpTabs();
   const page = tabs.find(
