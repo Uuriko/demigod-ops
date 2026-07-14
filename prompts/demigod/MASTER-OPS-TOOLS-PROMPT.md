@@ -65,3 +65,19 @@ curl -sS localhost:9878/api/orca | head
 
 ### Handoff
 List new tools, registry entries, control plane deltas, selftest results, residual risks.
+
+---
+
+## ROUND-3 EXEC CHECKLIST (2026-07-14)
+
+Current drift: **disk foot v199** · **live v198** · freeze may be ON.
+
+### Build now (P0)
+1. `demigod-live-doctor.mjs` + `bin/dg live` — JSON: disk ver, live ver, match?, css URLs, freeze, board honesty
+2. `demigod-route-mime.mjs` — check product URLs MIME; exit 1 on text/plain
+3. Fix `demigod-agent-smoke.mjs` to fail if live foot != expected disk when `DEMIGOD_REQUIRE_LIVE_MATCH=1`
+4. Register both in tools-registry + control plane next tips
+5. Expand tools-selftest if present
+
+### Then
+- full-check · ship-prep · ship v199 when freeze lifted

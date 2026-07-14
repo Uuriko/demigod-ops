@@ -785,3 +785,21 @@ After reading `docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md` and `prompt
 6. Do not invent parallel foot files; do not scatter COPY into dashboard.
 
 This addendum is mandatory for any agent executing the master website prompt after 2026-07-14 history pass.
+
+
+---
+
+## ROUND-3 EXEC CHECKLIST (2026-07-14)
+
+**Disk:** foot v199 · **Live:** v198 until ship · freeze often ON after green ships.
+
+### Implement now (P0 website)
+1. Harden WIZ: prove one active `.dg-field-wrap` after resize (unit in playtest)
+2. Product loader: if fetch MIME is not text/html, show in-page how/pricing from foot COPY, never dump plain text
+3. Sample badges on board cards always
+4. Align agent-smoke with live version
+5. Ship path: unfreeze → CDN foot+head → CM6 paste → verify live __dgFootVer
+
+### Tools to use while implementing
+- `bin/dg full-check`, `bin/dg ship-prep`, `bin/dg matches`, `node demigod-wiz-cdp-playtest.mjs --local`, `node demigod-user-test.mjs --quick`
+- Atlas: `docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md`
