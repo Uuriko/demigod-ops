@@ -333,3 +333,171 @@ a:hover, button:hover { opacity:.95; }
     font-weight: 600 !important;
   }
 }
+
+/* dg-design-cool-197 — Linear/Mercury restraint + Demigod gold */
+:root{
+  --g:#D4AF37;
+  --gl:#F0E6C8;
+  --cr:#F7F4EE;
+  --dk:#050508;
+  --card:rgba(12,12,16,.88);
+  --line:rgba(212,175,55,.22);
+  --glow:0 0 40px rgba(212,175,55,.12);
+}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(212,175,55,.08), transparent 55%),
+    radial-gradient(900px 500px at 10% 20%, rgba(80,60,20,.15), transparent 50%),
+    var(--dk) !important;
+}
+/* Hero: cinematic, less clutter */
+.hero-section,.header{
+  min-height:92vh !important;
+  background-image:
+    linear-gradient(115deg,rgba(5,5,8,.82) 0%,rgba(5,5,8,.55) 42%,rgba(5,5,8,.28) 100%),
+    url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg') !important;
+  background-size:cover !important;
+  background-position:68% center !important;
+}
+.hero-section h1,.header h1{
+  font-size:clamp(2.4rem,6.5vw,4.25rem)!important;
+  line-height:1.02!important;
+  letter-spacing:-.03em!important;
+  max-width:14ch;
+}
+.hero-section p,.header p,.subheading{
+  font-size:1.125rem!important;
+  max-width:38ch!important;
+  color:rgba(247,244,238,.78)!important;
+  line-height:1.6!important;
+}
+/* Premium CTAs — Mercury calm + gold charge */
+.premium-btn.is-talent,.button.on-inverse,nav .button.on-inverse{
+  background:linear-gradient(180deg,#E4C45A 0%,#C9A84C 100%)!important;
+  color:#0A0A0A!important;
+  border:none!important;
+  border-radius:999px!important;
+  padding:.85rem 1.5rem!important;
+  font-weight:700!important;
+  letter-spacing:.02em!important;
+  box-shadow:0 8px 32px rgba(212,175,55,.28), inset 0 1px 0 rgba(255,255,255,.25)!important;
+}
+.premium-btn.is-job{
+  border-radius:999px!important;
+  border:1px solid rgba(212,175,55,.45)!important;
+  color:var(--gl)!important;
+  background:rgba(255,255,255,.03)!important;
+  backdrop-filter:blur(8px);
+  padding:.85rem 1.5rem!important;
+}
+.premium-btn.is-talent:hover,.button.on-inverse:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 40px rgba(212,175,55,.38)!important;
+}
+/* Nav glass */
+nav.w-nav,.w-nav,.nav_container,#dg-top-nav{
+  background:rgba(5,5,8,.72)!important;
+  backdrop-filter:saturate(140%) blur(16px)!important;
+  border-bottom:1px solid var(--line)!important;
+}
+/* Trust / cards */
+#demigod-trust-block .dg-step,.dg-cand,#dg-faq details{
+  border:1px solid var(--line)!important;
+  background:var(--card)!important;
+  border-radius:14px!important;
+  box-shadow:var(--glow);
+}
+#demigod-trust-block h2,section h2{
+  letter-spacing:.12em!important;
+  font-size:clamp(.85rem,1.5vw,1rem)!important;
+}
+/* WIZ modal — product-feeling */
+#startup-modal,#jobseeker-modal,#partner-modal{
+  background:rgba(5,5,8,.55)!important;
+  backdrop-filter:blur(10px)!important;
+}
+#startup-modal .w-form,#jobseeker-modal .w-form,#partner-modal .w-form,
+#startup-modal > div,#jobseeker-modal > div{
+  border:1px solid var(--line)!important;
+  border-radius:18px!important;
+  background:rgba(10,10,14,.94)!important;
+  box-shadow:0 24px 80px rgba(0,0,0,.55), var(--glow)!important;
+}
+.dg-wiz-q{
+  font-size:clamp(1.25rem,2.5vw,1.75rem)!important;
+  letter-spacing:-.02em!important;
+  color:var(--cr)!important;
+}
+.dg-wiz-next,.dg-wiz-start{
+  border-radius:999px!important;
+  background:linear-gradient(180deg,#E4C45A,#C9A84C)!important;
+  color:#0A0A0A!important;
+  font-weight:700!important;
+  border:none!important;
+  min-height:48px!important;
+}
+.dg-wiz-back{
+  border-radius:999px!important;
+  border:1px solid rgba(212,175,55,.35)!important;
+  color:var(--gl)!important;
+  background:transparent!important;
+}
+.dg-wiz-bar i{
+  background:linear-gradient(90deg,#D4AF37,#F0E6C8)!important;
+}
+#startup-modal input,#startup-modal select,#startup-modal textarea,
+#jobseeker-modal input,#jobseeker-modal select,#jobseeker-modal textarea{
+  border-radius:10px!important;
+  border:1px solid rgba(212,175,55,.2)!important;
+  background:rgba(0,0,0,.35)!important;
+  color:var(--cr)!important;
+}
+#startup-modal input:focus,#startup-modal textarea:focus,
+#jobseeker-modal input:focus,#jobseeker-modal textarea:focus{
+  border-color:rgba(212,175,55,.65)!important;
+  box-shadow:0 0 0 3px rgba(212,175,55,.15)!important;
+  outline:none!important;
+}
+/* Mobile bar pill */
+#dg-bar{
+  background:rgba(5,5,8,.92)!important;
+  border-top:1px solid var(--line)!important;
+  backdrop-filter:blur(14px)!important;
+  gap:.6rem!important;
+}
+#dg-bar a{border-radius:999px!important}
+/* Pricing single card glow */
+#demigod-pricing > div{
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--glow);
+}
+/* Badge pill */
+.badge,.eyebrow,.badge-text{
+  letter-spacing:.16em!important;
+  color:var(--g)!important;
+}
+/* Soft selection */
+::selection{background:rgba(212,175,55,.35);color:#fff}
+
+/* v197 peer-review fixes: hierarchy, complete partner states, reduced motion */
+#demigod-trust-block h2{font-size:clamp(.85rem,1.5vw,1rem)!important}
+section h2:not(#demigod-trust-block h2){
+  font-size:clamp(1.65rem,3.5vw,2.75rem)!important;
+  letter-spacing:.04em!important;
+}
+#partner-modal input,#partner-modal select,#partner-modal textarea{
+  border-radius:10px!important;
+  border:1px solid rgba(212,175,55,.2)!important;
+  background:rgba(0,0,0,.35)!important;
+  color:var(--cr)!important;
+}
+#startup-modal select:focus,#jobseeker-modal select:focus,
+#partner-modal input:focus,#partner-modal select:focus,#partner-modal textarea:focus{
+  border-color:rgba(212,175,55,.65)!important;
+  box-shadow:0 0 0 3px rgba(212,175,55,.15)!important;
+  outline:none!important;
+}
+@media (prefers-reduced-motion:reduce){
+  .dg-wiz-start,.premium-btn,.button.on-inverse{animation:none!important;transition:none!important}
+}
