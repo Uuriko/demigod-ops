@@ -6,9 +6,10 @@
 <meta name="theme-color" content="#0A0A0A"/>
 <meta name="description" content="Demigod control plane — truth, NEXT, tools, ship, demand"/>
 <title>Demigod · Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<!-- Fonts: system stack first (0 network). Optional Google non-blocking. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/></noscript>
 <style>
 :root{
   --bg:#060605;
@@ -37,9 +38,9 @@
   --radius:16px;
   --radius-sm:10px;
   --shadow:0 20px 50px rgba(0,0,0,.45),0 0 0 1px rgba(201,168,76,.05);
-  --font:"DM Sans",ui-sans-serif,system-ui,sans-serif;
-  --serif:"Instrument Serif",Georgia,serif;
-  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font:"DM Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.22,1,.36,1);
   --dur:200ms;
   --shell:min(1180px, calc(100% - 2rem));
@@ -61,10 +62,11 @@ body::before{
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
   opacity:.55;
 }
-body::after{
+/* Ambient image deferred — pure CSS gradient is free; image optional via .has-ambient */
+body.has-ambient::after{
   content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
   background:url("/assets/dashboard/control-plane-ambient.jpg") center/cover no-repeat;
-  opacity:.07;mix-blend-mode:screen;
+  opacity:.06;mix-blend-mode:screen;will-change:opacity;
 }
 body>*{position:relative;z-index:1}
 a{color:var(--gold);text-decoration:none;transition:color var(--dur) var(--ease)}
@@ -673,7 +675,8 @@ let loadInflight = null;
 let loadGen = 0;
 let failStreak = 0;
 let activeTab = 'overview';
-let pollMs = 12000;
+let pollMs = 20000;
+let lastPulseKey = '';
 
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function cls(ok){ return ok===true?'ok':ok===false?'bad':'warn'; }
@@ -1310,14 +1313,22 @@ function renderShipRoadmap(d){
   if(b2) b2.onclick=()=>runJob('doctor');
 }
 
-function render(d){
+function render(d, { light = false } = {}){
   lastData = d;
-  lastBrief = d.agentBriefMarkdown || '';
-  if ($('briefPre')) $('briefPre').textContent = lastBrief || '(empty)';
+  if (!d.slim && d.agentBriefMarkdown) lastBrief = d.agentBriefMarkdown;
+  if ($('briefPre') && lastBrief) $('briefPre').textContent = lastBrief || '(empty)';
+  // Always cheap chrome
   renderHdr(d);
   renderNextBar(d);
   renderJobStrip(d);
   renderGlance(d);
+  $('stamp').textContent =
+    'Updated '+new Date(d.at).toLocaleString()+
+    (d.timing&&d.timing.collectMs!=null?' · '+d.timing.collectMs+'ms':'')+
+    (d.cached?' · cached':'')+
+    (d.slim?' · slim':'')+
+    ' · '+(mode==='simple'?'Focus':'Full');
+  if (light) return; // pulse unchanged — skip heavy panels
   renderOverview(d);
   renderHandoffs(d);
   renderInbox(d);
@@ -1325,11 +1336,6 @@ function render(d){
   renderShipRoadmap(d);
   renderSwarm(d);
   renderGates(d);
-  $('stamp').textContent =
-    'Updated '+new Date(d.at).toLocaleString()+
-    (d.timing&&d.timing.collectMs!=null?' · '+d.timing.collectMs+'ms':'')+
-    (d.cached?' · cached':'')+
-    ' · '+(mode==='simple'?'Simple':'Diagnostics');
 }
 
 async function load(force){
@@ -1339,16 +1345,27 @@ async function load(force){
   const timer = setTimeout(()=>ctrl.abort(), 20000);
   loadInflight = (async()=>{
     try{
-      const r = await fetch('/api/status?t='+Date.now()+(force?'&force=1':''), {signal:ctrl.signal});
+      // Poll uses slim+no force (fast cache). Refresh button uses force full.
+      const qs = force
+        ? 'force=1&t='+Date.now()
+        : 'slim=1&t='+Date.now();
+      const r = await fetch('/api/status?'+qs, {signal:ctrl.signal});
       if(!r.ok) throw new Error('HTTP '+r.status);
       const d = await r.json();
       if(gen!==loadGen) return;
-      try { render(d); failStreak=0; pollMs=12000; }
+      try {
+        const pk = d.pulseKey || '';
+        const light = !force && pk && pk === lastPulseKey && lastData;
+        lastPulseKey = pk || lastPulseKey;
+        render(d, { light: !!light });
+        failStreak=0;
+        pollMs = document.hidden ? 60000 : 20000;
+      }
       catch(re){ console.error(re); toast('Render: '+re.message,'bad'); }
     }catch(e){
       if(gen!==loadGen) return;
       failStreak++;
-      pollMs = Math.min(60000, 12000 * Math.pow(1.5, failStreak));
+      pollMs = Math.min(90000, 20000 * Math.pow(1.5, failStreak));
       const msg = e.name==='AbortError'?'timed out':(e.message||String(e));
       if(!lastData) $('overviewRoot').innerHTML = '<div class="card alert wide"><h2>Load failed</h2><div class="bad">'+esc(msg)+'</div></div>';
       else toast('Refresh failed (kept last view): '+msg, 'bad');
@@ -1550,18 +1567,31 @@ if(tab==='plane') setTab('overview');
 else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','swarm','brief','gates'].includes(tab)) setTab(tab);
 load(true);
 function schedulePoll(){
-  window.__dgPoll = setTimeout(async()=>{ await load(false); schedulePoll(); }, pollMs);
+  const ms = document.hidden ? Math.max(pollMs, 60000) : pollMs;
+  window.__dgPoll = setTimeout(async()=>{
+    if (!document.hidden) await load(false);
+    schedulePoll();
+  }, ms);
 }
 schedulePoll();
-// Soft live: SSE events force a light refresh (no full cold collect if warm cache)
+document.addEventListener('visibilitychange', ()=>{
+  if (!document.hidden) load(false);
+});
+// SSE: light refresh only (never force) — coalesce bursts
+let sseTimer = null;
 try{
   if(typeof EventSource!=='undefined'){
     const es=new EventSource('/api/events?sse=1');
-    es.addEventListener('event',()=>{ load(false); });
-    es.addEventListener('hello',()=>{ /* connected */ });
+    es.addEventListener('event',()=>{
+      if (document.hidden) return;
+      clearTimeout(sseTimer);
+      sseTimer = setTimeout(()=>load(false), 400);
+    });
     window.__dgEs=es;
   }
 }catch(_){}
+// Optional ambient after first paint (non-blocking)
+requestAnimationFrame(()=>{ setTimeout(()=>document.body.classList.add('has-ambient'), 800); });
 })();
 
 </script>

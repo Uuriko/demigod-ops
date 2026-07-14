@@ -186,7 +186,14 @@ function footLock() {
   return { locked: true, path: lockPath, content: raw.slice(0, 500) };
 }
 
-async function liveProbe() {
+const LIVE_PROBE_TTL_MS = Number(process.env.DEMIGOD_LIVE_PROBE_TTL_MS) || 15000;
+let liveProbeCache = { at: 0, data: null };
+
+async function liveProbe({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && liveProbeCache.data && now - liveProbeCache.at < LIVE_PROBE_TTL_MS) {
+    return { ...liveProbeCache.data, cached: true, cacheAgeMs: now - liveProbeCache.at };
+  }
   const started = Date.now();
   try {
     const r = await fetch(`${LIVE}/?cb=${Date.now()}`, {
@@ -201,7 +208,7 @@ async function liveProbe() {
       null;
     const pub = (html.match(/Last Published:[^<]{0,70}/) || [])[0] || null;
     const foot = (html.match(/foot v\d+/) || [])[0] || null;
-    return {
+    const data = {
       ok: r.ok,
       status: r.status,
       ms: Date.now() - started,
@@ -213,15 +220,120 @@ async function liveProbe() {
       hasStartupModal: /startup-modal/.test(html),
       hasPathPills: /dg-path-pills|I'm hiring|I.?m hiring/.test(html) || /path-pills/.test(html),
     };
+    liveProbeCache = { at: Date.now(), data };
+    return data;
   } catch (e) {
     return { ok: false, error: String(e.message || e), ms: Date.now() - started };
   }
 }
 
 /** In-memory status cache + singleflight — stops auto-refresh stampede + double work */
-const STATUS_TTL_MS = 2500;
+const STATUS_TTL_MS = Number(process.env.DEMIGOD_STATUS_TTL_MS) || 10000;
 let statusCache = { at: 0, data: null };
 let statusInflight = null;
+/** Control plane is expensive (~1s) — reuse within TTL */
+const CONTROL_TTL_MS = Number(process.env.DEMIGOD_CONTROL_TTL_MS) || 8000;
+let controlCache = { at: 0, data: null };
+/** Match queue rebuild can be skipped when fresh */
+const MATCH_TTL_MS = Number(process.env.DEMIGOD_MATCH_TTL_MS) || 60000;
+let matchCache = { at: 0, data: null };
+/** HTML UI shell cache by mtime */
+let uiHtmlCache = { mtimeMs: 0, html: '' };
+/** Background demand refresh — never block collectStatus */
+let demandRefreshInflight = false;
+
+function jsonSend(res, code, obj, { pretty = false, headers = {} } = {}) {
+  const body = pretty ? JSON.stringify(obj, null, 2) : JSON.stringify(obj);
+  res.writeHead(code, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-store',
+    ...headers,
+  });
+  res.end(body);
+}
+
+function slimStatus(data) {
+  /** Minimal payload for UI poll — cuts ~65KB pretty → ~few KB */
+  return {
+    at: data.at,
+    version: data.version,
+    cached: data.cached,
+    cacheAgeMs: data.cacheAgeMs,
+    timing: data.timing,
+    pulseKey: data.pulseKey,
+    next: data.next,
+    glance: data.glance,
+    sessionStory: data.sessionStory,
+    truthEvidence: data.truthEvidence,
+    demand: data.demand,
+    freeze: data.freeze,
+    live: data.live
+      ? {
+          ok: data.live.ok,
+          foot: data.live.foot,
+          cdnId: data.live.cdnId,
+          error: data.live.error,
+          ms: data.live.ms,
+        }
+      : null,
+    jobQueue: data.jobQueue
+      ? {
+          running: data.jobQueue.running,
+          recent: (data.jobQueue.recent || []).slice(0, 6),
+          last: data.jobQueue.last,
+        }
+      : null,
+    staleGates: data.staleGates,
+    freshness: data.freshness,
+    gates: data.gates
+      ? {
+          verifySourcePass: data.gates.verifySourcePass,
+          verifySourceFresh: data.gates.verifySourceFresh,
+          verifySourceTrust: data.gates.verifySourceTrust,
+        }
+      : null,
+    truth: data.truth
+      ? {
+          foot: data.truth.foot ? { ver: data.truth.foot.ver } : null,
+          live: data.truth.live ? { footVer: data.truth.live.footVer } : null,
+          summaryLine: data.truth.summaryLine,
+          pass: data.truth.pass,
+        }
+      : null,
+    control: data.control
+      ? {
+          health: data.control.health,
+          healthLabel: data.control.healthLabel,
+          frozen: data.control.frozen,
+          sessionMode: data.control.sessionMode,
+          spine: (data.control.spine || []).slice(0, 6),
+          modules: data.control.modules,
+          moduleOrder: data.control.moduleOrder,
+        }
+      : null,
+    handoffs: (data.handoffs || []).slice(0, 8),
+    inbox: data.inbox
+      ? { total: data.inbox.total, newCount: data.inbox.newCount, rows: (data.inbox.rows || []).slice(0, 8) }
+      : null,
+    matches: data.matches
+      ? { summary: data.matches.summary, pairs: (data.matches.pairs || []).slice(0, 12) }
+      : null,
+    shipChecklist: data.shipChecklist
+      ? { ready: data.shipChecklist.ready, frozen: data.shipChecklist.frozen, stage: data.shipChecklist.stage }
+      : null,
+    board: data.board,
+    smoke: data.smoke ? { pass: data.smoke.pass, at: data.smoke.at } : null,
+    cdp: data.cdp ? { up: data.cdp.up, pages: data.cdp.pages } : null,
+    foot: data.foot
+      ? {
+          disk: data.foot.disk ? { ver: data.foot.disk.ver, sha12: data.foot.disk.sha12 } : null,
+          liveMatchNote: data.foot.liveMatchNote,
+        }
+      : null,
+    slim: true,
+  };
+}
 
 async function cdpProbe() {
   try {
@@ -936,31 +1048,28 @@ async function collectStatus() {
 
   try {
     fs.mkdirSync(BUSY, { recursive: true });
-    fs.writeFileSync(STATUS_JSON, JSON.stringify(data, null, 2));
+    // Compact JSON on disk — faster write, smaller I/O
+    fs.writeFileSync(STATUS_JSON, JSON.stringify(data));
     fs.writeFileSync(BRIEF_MD, data.agentBriefMarkdown);
     fs.writeFileSync(
       BRIEF_JSON,
-      JSON.stringify(
-        {
-          at: data.at,
-          version: data.version,
-          next: data.next,
-          glance: data.glance,
-          sessionStory: data.sessionStory,
-          actions: data.actions,
-          live: data.live,
-          foot: data.foot,
-          gates: data.gates,
-          cdp: data.cdp,
-          board: data.board,
-          freeze: data.freeze,
-          staleGates: data.staleGates,
-          workerCounts: data.workerCounts,
-          activity2h: data.activity2h,
-        },
-        null,
-        2,
-      ),
+      JSON.stringify({
+        at: data.at,
+        version: data.version,
+        next: data.next,
+        glance: data.glance,
+        sessionStory: data.sessionStory,
+        actions: data.actions,
+        live: data.live,
+        foot: data.foot,
+        gates: data.gates,
+        cdp: data.cdp,
+        board: data.board,
+        freeze: data.freeze,
+        staleGates: data.staleGates,
+        workerCounts: data.workerCounts,
+        activity2h: data.activity2h,
+      }),
     );
   } catch {
     /* ignore */
@@ -991,7 +1100,11 @@ async function getStatus({ force = false } = {}) {
 const UI_HTML_PATH = path.join(ROOT, 'demigod-agent-dashboard-ui.html');
 function loadHtml() {
   try {
-    return fs.readFileSync(UI_HTML_PATH, 'utf8');
+    const st = fs.statSync(UI_HTML_PATH);
+    if (uiHtmlCache.html && uiHtmlCache.mtimeMs === st.mtimeMs) return uiHtmlCache.html;
+    const html = fs.readFileSync(UI_HTML_PATH, 'utf8');
+    uiHtmlCache = { mtimeMs: st.mtimeMs, html };
+    return html;
   } catch (e) {
     const msg = String(e.message || e)
       .replace(/&/g, '&amp;')
@@ -1328,7 +1441,10 @@ function buildJobQueue() {
 }
 
 function ensureDemandFresh(maxAgeSec = 900) {
-  /** Refresh demand-status.json if missing or older than maxAgeSec (default 15m). */
+  /**
+   * Never block the status hot path with execSync.
+   * If stale/missing: spawn background refresh and return current cache (if any).
+   */
   const p = path.join(BUSY, 'demand-status.json');
   let ageSec = null;
   try {
@@ -1337,19 +1453,29 @@ function ensureDemandFresh(maxAgeSec = 900) {
     ageSec = null;
   }
   if (ageSec != null && ageSec <= maxAgeSec) {
-    return { refreshed: false, ageSec };
+    return { refreshed: false, ageSec, background: false };
   }
-  try {
-    execSync(`${process.execPath} demigod-demand.mjs status --json`, {
-      cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 25000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { refreshed: true, ageSec: 0 };
-  } catch (e) {
-    return { refreshed: false, ageSec, error: String(e.message || e).slice(0, 120) };
+  if (!demandRefreshInflight) {
+    demandRefreshInflight = true;
+    import('child_process')
+      .then(({ spawn }) => {
+        const child = spawn(process.execPath, ['demigod-demand.mjs', 'status', '--json'], {
+          cwd: ROOT,
+          stdio: 'ignore',
+          detached: true,
+        });
+        child.unref();
+        const done = () => {
+          demandRefreshInflight = false;
+        };
+        child.on('exit', done);
+        child.on('error', done);
+      })
+      .catch(() => {
+        demandRefreshInflight = false;
+      });
   }
+  return { refreshed: false, ageSec, background: true, scheduled: true };
 }
 
 async function enrichStatus(data) {
@@ -1496,22 +1622,29 @@ async function enrichStatus(data) {
   } catch (e) {
     data.inbox = { total: 0, newCount: 0, rows: [], error: String(e.message || e) };
   }
-  // Match review queue (pair ledger — not public board). In-process build; no stale busy cache.
+  // Match review queue — cache 60s (build can be heavy)
   try {
-    const { buildQueue } = await import('./demigod-match-review.mjs');
-    const msnap = buildQueue({ limit: 40 });
-    try {
-      fs.mkdirSync(BUSY, { recursive: true });
-      fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(msnap, null, 2) + '\n');
-    } catch {
-      /* cache write best-effort */
+    const now = Date.now();
+    if (matchCache.data && now - matchCache.at < MATCH_TTL_MS) {
+      data.matches = matchCache.data;
+      data.matchesCached = true;
+    } else {
+      const { buildQueue } = await import('./demigod-match-review.mjs');
+      const msnap = buildQueue({ limit: 40 });
+      try {
+        fs.mkdirSync(BUSY, { recursive: true });
+        fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(msnap) + '\n');
+      } catch {
+        /* */
+      }
+      data.matches = {
+        at: msnap.at,
+        summary: msnap.summary || {},
+        pairs: (msnap.pairs || []).slice(0, 40),
+        actions: msnap.actions || {},
+      };
+      matchCache = { at: now, data: data.matches };
     }
-    data.matches = {
-      at: msnap.at,
-      summary: msnap.summary || {},
-      pairs: (msnap.pairs || []).slice(0, 40),
-      actions: msnap.actions || {},
-    };
   } catch (e) {
     data.matches = { summary: { total: 0 }, pairs: [], error: String(e.message || e) };
   }
@@ -1545,37 +1678,45 @@ async function enrichStatus(data) {
     ],
     doc: 'docs/exchange/DEMIGOD-BACKLOG-HUGE.md',
   };
-  // Control plane — always freshen (uses cached dashboard-status, no recursion)
+  // Control plane — TTL cache (was ~1.3s every collect)
   try {
-    const { buildControlPlane } = await import('./demigod-control.mjs');
-    // Write status first so plane can read it
-    try {
-      fs.writeFileSync(STATUS_JSON, JSON.stringify({ ...data, control: undefined }, null, 2));
-    } catch {
-      /* */
+    const now = Date.now();
+    if (controlCache.data && now - controlCache.at < CONTROL_TTL_MS) {
+      data.control = controlCache.data;
+      data.controlCached = true;
+    } else {
+      const { buildControlPlane } = await import('./demigod-control.mjs');
+      try {
+        fs.writeFileSync(STATUS_JSON, JSON.stringify({ ...data, control: undefined }));
+      } catch {
+        /* */
+      }
+      const plane = await buildControlPlane();
+      data.control = {
+        at: plane.at,
+        schema: plane.schema,
+        version: plane.version,
+        frozen: plane.frozen,
+        freezeWhy: plane.freezeWhy,
+        freezeAt: plane.freezeAt,
+        freezeBy: plane.freezeBy,
+        sessionMode: plane.sessionMode,
+        health: plane.health,
+        healthLabel: plane.healthLabel,
+        board: plane.board,
+        lock: plane.lock,
+        assets: plane.assets,
+        modules: plane.modules,
+        moduleOrder: plane.moduleOrder,
+        spine: (plane.spine || []).slice(0, 8),
+        map: plane.map,
+        kbd: plane.kbd,
+        entrypoints: plane.entrypoints,
+        nextCanon: plane.nextCanon || plane.next || null,
+        truthEvidence: plane.truthEvidence || null,
+      };
+      controlCache = { at: now, data: data.control };
     }
-    const plane = await buildControlPlane();
-    data.control = {
-      at: plane.at,
-      schema: plane.schema,
-      version: plane.version,
-      frozen: plane.frozen,
-      freezeWhy: plane.freezeWhy,
-      freezeAt: plane.freezeAt,
-      freezeBy: plane.freezeBy,
-      sessionMode: plane.sessionMode,
-      health: plane.health,
-      healthLabel: plane.healthLabel,
-      board: plane.board,
-      lock: plane.lock,
-      assets: plane.assets,
-      modules: plane.modules,
-      moduleOrder: plane.moduleOrder,
-      spine: (plane.spine || []).slice(0, 8),
-      map: plane.map,
-      kbd: plane.kbd,
-      entrypoints: plane.entrypoints,
-    };
   } catch (e) {
     const cp = safeJson(path.join(BUSY, 'control-plane.json'));
     data.control = cp
@@ -1850,15 +1991,22 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/status' || url.pathname === '/api/status.json') {
       const force = url.searchParams.get('force') === '1';
+      const pretty = url.searchParams.get('pretty') === '1';
+      const slim = url.searchParams.get('slim') === '1';
       const data = await getStatus({ force });
-      res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify(data, null, 2));
+      const payload = slim ? slimStatus(data) : data;
+      jsonSend(res, 200, payload, { pretty });
       return;
     }
     if (url.pathname === '/api/next') {
+      const pretty = url.searchParams.get('pretty') === '1';
       const data = await getStatus({});
-      res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ at: data.at, next: data.next, glance: data.glance, sessionStory: data.sessionStory }, null, 2));
+      jsonSend(
+        res,
+        200,
+        { at: data.at, next: data.next, glance: data.glance, sessionStory: data.sessionStory },
+        { pretty },
+      );
       return;
     }
     if (url.pathname === '/api/events') {
@@ -2142,14 +2290,26 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/control' || url.pathname === '/api/control-plane') {
       try {
+        const force = url.searchParams.get('force') === '1' || url.searchParams.get('refresh') === '1';
+        const pretty = url.searchParams.get('pretty') === '1';
+        const now = Date.now();
+        if (!force && controlCache.data && now - controlCache.at < CONTROL_TTL_MS) {
+          jsonSend(res, 200, { ...controlCache.data, cached: true, cacheAgeMs: now - controlCache.at }, { pretty });
+          return;
+        }
+        // Prefer control slice from fresh status (avoids double build when status just ran)
+        const st = await getStatus({ force: false });
+        if (st.control && !force) {
+          jsonSend(res, 200, { ...st.control, fromStatus: true }, { pretty });
+          return;
+        }
         const { buildControlPlane } = await import('./demigod-control.mjs');
         const plane = await buildControlPlane();
-        res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(plane, null, 2));
+        controlCache = { at: Date.now(), data: plane };
+        jsonSend(res, 200, plane, { pretty });
       } catch (e) {
         const cached = safeJson(path.join(BUSY, 'control-plane.json'));
-        res.writeHead(cached ? 200 : 500, { ...noStore, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(cached || { error: String(e.message || e) }, null, 2));
+        jsonSend(res, cached ? 200 : 500, cached || { error: String(e.message || e) });
       }
       return;
     }
@@ -2502,6 +2662,8 @@ const server = http.createServer(async (req, res) => {
           ok: true,
           uptimeSec: Math.round(process.uptime()),
           cacheAgeMs: statusCache.data ? Date.now() - statusCache.at : null,
+          statusTtlMs: STATUS_TTL_MS,
+          controlTtlMs: CONTROL_TTL_MS,
           inflight: Boolean(statusInflight),
         }),
       );
