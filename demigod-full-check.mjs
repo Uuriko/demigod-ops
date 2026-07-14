@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * demigod-full-check — one spine: doctor → orca → gates → smoke → control plane
+ * demigod-full-check — one spine (Atlas: DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md): doctor → orca → gates → smoke → control plane
  * Freeze-safe (no ship/mutate).
  *
  *   node demigod-full-check.mjs [--json] [--skip-smoke]

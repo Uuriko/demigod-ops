@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Demigod tools registry — agent-discoverable catalog of keep-path tools.
+ * Demigod tools registry — agent-discoverable catalog of keep-path tools.\n * Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md · CLI: bin/dg tools
  * CLI: node demigod-tools-registry.mjs [--json] [--md] [--group gates]
  * Used by dashboard /api/tools
  */

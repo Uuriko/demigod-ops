@@ -1,4 +1,23 @@
 #!/usr/bin/env node
+\n/**
+ * demigod-control — cohesive Control Plane over all Demigod ops modules
+ *
+ * One mental model:
+ *   Site (live/disk) · Webflow · Match · Review · Hygiene · Ship · Swarm · Orca
+ * One CLI spine:
+ *   bin/dg status|home|next|webflow|matches|review|hygiene|orca|full-check|ship-prep|…
+ * One JSON:
+ *   /tmp/dg-busy/control-plane.json  (+ dash /api/control)
+ *
+ * Related: demigod-agent-dashboard.mjs (:9878), demigod-tools-registry.mjs,
+ *   docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
+ * Usage:
+ *   bin/dg status|--json
+ *   bin/dg home
+ *   bin/dg next
+ *   bin/dg <module> [args…]
+ *   node demigod-control.mjs modules
+ */
 /**
  * demigod-control — cohesive Control Plane over all Demigod ops modules
  *
