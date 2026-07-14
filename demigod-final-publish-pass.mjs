@@ -6,6 +6,7 @@ import puppeteer from 'puppeteer-core';
 import { CDP_URL } from './cdp-config.mjs';
 import { ROOT, wlog, sleep, prepareWebflowDesigner, WEBFLOW_DESIGNER_URL } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-FINAL-PUBLISH.json');
 
@@ -95,6 +96,7 @@ async function patchCanvas(page) {
 }
 
 async function reliablePublish(page) {
+  assertNotFrozen('final-publish-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

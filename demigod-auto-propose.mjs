@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Auto-propose pairs from board roles × candidates (no board mint, freeze-safe).
- * Higher default min score; skips pure sample×sample noise unless --allow-sample.
+ * Scores only real role/candidate pairs by default.
  *
- *   node demigod-auto-propose.mjs [--limit 5] [--min-score 72] [--allow-sample] [--json]
+ *   node demigod-auto-propose.mjs [--limit 5] [--min-score 0.72] [--allow-sample] [--json]
  */
 import { loadBoard } from './demigod-submissions-lib.mjs';
 import { proposePair, listPairs, loadPairs } from './demigod-pairs-lib.mjs';
@@ -14,16 +14,13 @@ const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const allowSample = args.includes('--allow-sample');
 const limit = Number(args.includes('--limit') ? args[args.indexOf('--limit') + 1] : 5) || 5;
-// scores from matching engine are 0–100
 const minScore =
-  Number(args.includes('--min-score') ? args[args.indexOf('--min-score') + 1] : 72) || 72;
+  Number(args.includes('--min-score') ? args[args.indexOf('--min-score') + 1] : 0.72);
 
 const board = loadBoard();
 let roles = board.roles || [];
 if (!allowSample) {
-  // Prefer non-sample roles; if none, still allow sample roles but mark pairs sample
-  const realRoles = roles.filter((r) => r && r.sample === false);
-  if (realRoles.length) roles = realRoles;
+  roles = roles.filter((r) => r && r.sample !== true);
 }
 roles = roles.slice(0, 5);
 
@@ -39,30 +36,33 @@ for (const role of roles) {
   let n = 0;
   for (const m of res.matches || []) {
     if (n >= limit) break;
-    if ((m.score || 0) < minScore) {
-      skipped.push({ role: role.id, cand: m.id, score: m.score, why: 'below_min' });
+    if (!allowSample && (m.sample === true || m.candidate?.sample === true || m.candidate?.raw?.sample === true)) {
+      skipped.push({ role: role.id, cand: m.id, why: 'sample_pair' });
+      continue;
+    }
+    const normalizedScore = Math.min(1, Math.max(0, (Number(m.score) || 0) / 100));
+    if (normalizedScore < minScore) {
+      skipped.push({ role: role.id, cand: m.id, score: normalizedScore, why: 'below_min' });
       continue;
     }
     try {
       const pair = proposePair({
         roleId: role.id || role.title,
         candId: m.id,
-        score: Math.min(1, (m.score || 0) / 100),
+        score: normalizedScore,
         reasons: [
           `auto-propose score=${m.score}`,
           role.title || '',
           role.sample ? 'role-sample' : '',
         ].filter(Boolean),
         actor: 'auto-propose',
-        sample: !!role.sample || !!m.sample,
       });
       proposed.push({
         pairId: pair.pairId,
         roleId: pair.roleId,
         candId: pair.candId,
-        score: m.score,
+        score: normalizedScore,
         state: pair.state,
-        sample: !!pair.sample,
       });
       n++;
     } catch (e) {
@@ -86,7 +86,7 @@ const out = {
   proposed,
   skipped: skipped.slice(0, 40),
   ledgerTotal: all.length,
-  summary: {
+  stats: {
     sampleCount,
     realCount: all.length - sampleCount,
     realProposed,
@@ -108,7 +108,7 @@ else {
   );
   for (const p of proposed) {
     console.log(
-      `  ${p.pairId} · ${p.roleId}↔${p.candId} · score=${p.score}${p.sample ? ' · SAMPLE' : ''}`,
+      `  ${p.pairId} · ${p.roleId}↔${p.candId} · score=${p.score}`,
     );
   }
 }

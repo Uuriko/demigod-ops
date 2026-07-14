@@ -11,6 +11,7 @@ import {
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-DRIFT-FIX.json');
 
@@ -227,6 +228,7 @@ async function patchPageSeo(page) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('drift-fix-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

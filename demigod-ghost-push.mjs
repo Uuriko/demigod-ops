@@ -6,10 +6,12 @@ import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { loadBoard } from './demigod-submissions-lib.mjs';
 import { ghostRoles, computeSignal } from './demigod-board-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-GHOST-ROLES.json');
 
 async function uploadJson(payload) {
+  assertNotFrozen('ghost-push');
   const tmp = path.join(ROOT, '.ghost-roles-upload.json');
   fs.writeFileSync(tmp, JSON.stringify(payload));
   const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${tmp}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });

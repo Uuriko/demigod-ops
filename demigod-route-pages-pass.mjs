@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, prepareWebflowDesigner, WEBFLOW_DESIGNER_URL } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-ROUTE-PAGES-PASS.json');
 const PAGES = [
@@ -94,6 +95,7 @@ async function createPage(page, { name, slug }) {
 }
 
 async function publishSite(page) {
+  assertNotFrozen('route-pages-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

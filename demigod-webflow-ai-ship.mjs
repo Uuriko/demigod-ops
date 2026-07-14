@@ -15,6 +15,7 @@ import {
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-WEBFLOW-AI-SHIP.json');
 
@@ -92,6 +93,7 @@ async function submitAi(page, prompt) {
 }
 
 async function reliablePublish(page) {
+  assertNotFrozen('webflow-ai-ship');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

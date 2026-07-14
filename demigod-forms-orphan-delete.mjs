@@ -11,6 +11,7 @@ import {
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-FORMS-ORPHAN-DELETE.json');
 const SITE = 'talentlink-sf';
@@ -133,6 +134,7 @@ async function deleteDashboardOrphans(page) {
 }
 
 async function publish(page) {
+  assertNotFrozen('forms-orphan-delete');
   await page.goto(WEBFLOW_DESIGNER_URL, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {});
   await sleep(2000);
   await page.keyboard.down('Control');

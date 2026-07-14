@@ -15,6 +15,7 @@ import {
 import { connectBrowser } from './collab-lib.mjs';
 import { closeExtraTabs } from './cdp-close-tabs.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-NAV-FORMS.json');
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-COPY-SPEC.json'), 'utf8'));
@@ -188,6 +189,7 @@ async function patchCanvas(page) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('nav-forms-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

@@ -13,6 +13,7 @@ import {
   waitWebflowTurnComplete,
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-CMS-LEGAL-PASS.json');
 
@@ -42,6 +43,7 @@ const AI_PROMPT = `DEMIGOD — create Legal page + Insights CMS. PUBLISH when do
 List every change made.`;
 
 async function reliablePublish(page) {
+  assertNotFrozen('cms-legal-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, prepareWebflowDesigner, WEBFLOW_DESIGNER_URL } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-PARTNERSHIPS-RENAME-PASS.json');
 const SLUG = 'partnerships';
@@ -48,6 +49,7 @@ async function setPageMeta(page, { name, slug }) {
 }
 
 async function publish(page) {
+  assertNotFrozen('partnerships-rename-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

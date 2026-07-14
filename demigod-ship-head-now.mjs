@@ -7,11 +7,14 @@ import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer-core';
 import { CDP_URL } from './cdp-config.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const ROOT = '/home/potter';
 const HEAD = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
 const FOOT = fs.readFileSync(path.join(ROOT, 'demigod-footer-lite.html'), 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+assertNotFrozen('ship-head-now');
 
 async function readEditor(page, idx) {
   return page.evaluate((i) => {

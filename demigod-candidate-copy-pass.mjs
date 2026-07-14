@@ -14,6 +14,7 @@ import {
 } from './demigod-turn-lib.mjs';
 import { connectBrowser } from './collab-lib.mjs';
 import { closeExtraTabs } from './cdp-close-tabs.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-CANDIDATE-COPY-PASS.json');
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-COPY-SPEC.json'), 'utf8'));
@@ -106,6 +107,7 @@ async function patchCanvas(page) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('candidate-copy-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

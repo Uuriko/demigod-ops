@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, wlog, prepareWebflowDesigner, WEBFLOW_DESIGNER_URL } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-LEGAL-PAGE-PASS.json');
 
@@ -70,6 +71,7 @@ async function createLegalPage(page) {
 }
 
 async function publishSite(page) {
+  assertNotFrozen('legal-page-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

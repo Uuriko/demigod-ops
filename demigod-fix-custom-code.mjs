@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, wlog } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-FIX-CUSTOM-CODE.json');
 const HEAD = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
@@ -49,6 +50,7 @@ function liveLeakCheck(html) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('fix-custom-code');
   await page.evaluate(() => {
     [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Save' && !b.disabled)?.click();
   });

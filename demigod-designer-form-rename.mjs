@@ -5,6 +5,7 @@ import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, wlog, prepareWebflowDesigner, WEBFLOW_DESIGNER_URL } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-DESIGNER-FORM-RENAME.json');
 
@@ -80,6 +81,7 @@ async function setFormName(page, name) {
 }
 
 async function publish(page) {
+  assertNotFrozen('designer-form-rename');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

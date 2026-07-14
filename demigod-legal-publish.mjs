@@ -3,10 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, prepareWebflowDesigner } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-LEGAL-PUBLISH.json');
 
 async function main() {
+  assertNotFrozen('legal-publish');
   const browser = await connectBrowser();
   const { page } = await prepareWebflowDesigner(browser);
   await page.click('[data-automation-id="left-sidebar-pages-button"]');

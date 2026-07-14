@@ -6,6 +6,7 @@ import { spawnSync } from 'child_process';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, prepareWebflowDesigner, sleep, wlog, captureDemigodScreenshots } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-NAV-MASTER.json');
 const NAV_CTA = 'FIND TALENT';
@@ -93,6 +94,7 @@ async function exitMaster(page) {
 }
 
 async function publish(page) {
+  assertNotFrozen('nav-master-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

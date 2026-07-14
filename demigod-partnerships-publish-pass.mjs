@@ -4,10 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
 import { ROOT, sleep, prepareWebflowDesigner } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-PARTNERSHIPS-PUBLISH-PASS.json');
 
 async function publish(page) {
+  assertNotFrozen('partnerships-publish-pass');
   await page.bringToFront();
   await sleep(1000);
   await page.keyboard.down('Control');

@@ -11,6 +11,7 @@ import {
   captureDemigodScreenshots,
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-CANVAS-SIMPLIFY.json');
 
@@ -56,6 +57,7 @@ async function patchCanvas(page) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('canvas-simplify');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

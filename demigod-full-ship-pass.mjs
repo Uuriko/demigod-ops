@@ -16,6 +16,7 @@ import {
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml, scanLiveHtml, evaluatePageScan, LIVE_ORIGIN } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-FULL-SHIP.json');
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-COPY-SPEC.json'), 'utf8'));
@@ -66,6 +67,7 @@ PART 7 — PRICING: single 10% on hire card only. Delete subscription/SYNDICATE 
 Publish production + staging. List every change.`;
 
 async function savePublish(page) {
+  assertNotFrozen('full-ship-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

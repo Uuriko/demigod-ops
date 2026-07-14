@@ -16,6 +16,7 @@ import {
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-MASTER-ONLY.json');
 const NAV_CTA = 'FIND TALENT';
@@ -175,6 +176,7 @@ async function patchAllIframes(page, kind) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('master-only-pass');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');

@@ -18,6 +18,9 @@ import { spawnSync } from 'child_process';
 import { BUSY, ensureBusy, atomicWrite, opt, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { proposePair } from './demigod-pairs-lib.mjs';
 
+console.error('[DEPRECATED] demigod-match.mjs writes the legacy pilot shortlist. Prefer: bin/dg matches');
+console.error('[dual-write] add writes DEMIGOD-PILOTS.json and mirrors a proposed pair to DEMIGOD-PAIRS.json.');
+
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const STORE = path.join(ROOT, 'DEMIGOD-PILOTS.json');
 const STORE_LOCK = path.join(ROOT, 'DEMIGOD-PILOTS.json.lock');

@@ -14,6 +14,7 @@ import {
 } from './demigod-turn-lib.mjs';
 import { connectBrowser } from './collab-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-HERO-CANVAS-CLEANUP.json');
 const DESIGNER = 'https://talentlink-sf.design.webflow.com/?pageId=6a34c484dcedc18a174081b8';
@@ -104,6 +105,7 @@ async function patchCanvas(page) {
 }
 
 async function savePublish(page) {
+  assertNotFrozen('hero-canvas-cleanup');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');
