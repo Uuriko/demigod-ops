@@ -122,23 +122,21 @@ function setHead(text){
 `;
 
 async function main() {
-  // Honor publish freeze (unless dry paste with --no-publish still allowed for prep)
-  try {
-    const fj = JSON.parse(fs.readFileSync('/tmp/dg-busy/publish-freeze.json', 'utf8'));
-    const envFreeze =
-      process.env.DEMIGOD_PUBLISH_FREEZE === '1' || process.env.DEMIGOD_PUBLISH_FREEZE === 'true';
-    if ((fj?.on || envFreeze) && !NO_PUBLISH) {
+  // Honor publish freeze (unless --no-publish paste-only prep)
+  if (!NO_PUBLISH) {
+    const { status } = await import('./demigod-publish-freeze.mjs');
+    const s = status();
+    if (s.frozen && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
       console.error(
         JSON.stringify({
           ok: false,
           error: 'publish_frozen',
+          why: s.why,
           hint: 'node demigod-publish-freeze.mjs off  or use --no-publish for paste-only',
         }),
       );
       process.exit(1);
     }
-  } catch {
-    /* no freeze file */
   }
 
   const tabs = await cdpTabs();

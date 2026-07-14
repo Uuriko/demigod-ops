@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-/** Approve inbox submission → anonymized featured board card (+ CDN if freeze OFF). */
+/**
+ * Approve inbox submission → mintBoardEntry (sample by default) + optional CDN.
+ * Routes through mintBoardEntry so sample/review gates stay honest.
+ */
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import {
   loadInbox,
   saveInbox,
+  mintBoardEntry,
   loadBoard,
-  saveBoard,
-  anonymizeRole,
-  anonymizeCandidate,
 } from './demigod-submissions-lib.mjs';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
 
@@ -20,9 +21,18 @@ function usage() {
 function pickId(arg) {
   const inbox = loadInbox();
   if (arg === '--list') {
-    console.log(JSON.stringify(inbox.items.slice(0, 20).map((i) => ({
-      id: i.id, at: i.at, form: i.form, status: i.status,
-    })), null, 2));
+    console.log(
+      JSON.stringify(
+        inbox.items.slice(0, 20).map((i) => ({
+          id: i.id,
+          at: i.at,
+          form: i.form,
+          status: i.status,
+        })),
+        null,
+        2,
+      ),
+    );
     process.exit(0);
   }
   if (arg === '--latest') return inbox.items[0]?.id;
@@ -45,30 +55,46 @@ if (!item) {
   process.exit(1);
 }
 
-const board = loadBoard();
 const form = (item.form || '').toLowerCase();
-let featured = null;
-
-if (/startup/.test(form)) {
-  featured = anonymizeRole(item.raw || {});
-  featured.sample = true; // honesty: approve is not a delivered real proof
-  featured.note = featured.note || 'Sample — human featured from inbox (not a paid placement receipt).';
-  board.roles = [featured, ...(board.roles || [])].slice(0, 3);
-} else if (/engineer|jobseeker|candidate/.test(form)) {
-  featured = anonymizeCandidate(item.raw || {});
-  featured.sample = true;
-  featured.note = featured.note || 'Sample — human featured from inbox.';
-  board.candidates = [featured, ...(board.candidates || [])].slice(0, 3);
-} else {
+if (!/startup|engineer|jobseeker|candidate/.test(form)) {
   console.error(JSON.stringify({ ok: false, error: 'unknown form', form }));
   process.exit(1);
 }
 
-item.status = 'featured';
-item.featuredId = featured.id;
+// Gate: mint requires reviewed|featured|approved
+item.status = 'reviewed';
 item.reviewedAt = new Date().toISOString();
 saveInbox(inbox);
-saveBoard(board, { reason: `approve:${subId}`, actor: process.env.USER || 'approve' });
+
+const wantReal =
+  process.env.DEMIGOD_FORCE_REAL === '1' || process.env.DEMIGOD_FORCE_REAL === 'true';
+
+let board;
+try {
+  board = mintBoardEntry(item, {
+    actor: process.env.USER || 'approve',
+    reason: `approve:${subId}`,
+    real: wantReal,
+  });
+} catch (e) {
+  console.error(JSON.stringify({ ok: false, error: String(e.message || e), code: e.code }));
+  process.exit(1);
+}
+
+// Resolve featured id from board head entry
+const featured =
+  /startup/.test(form)
+    ? (board.roles || [])[0]
+    : (board.candidates || [])[0];
+
+const inbox2 = loadInbox();
+const item2 = inbox2.items.find((i) => i.id === subId);
+if (item2) {
+  item2.status = 'featured';
+  item2.featuredId = featured?.id || null;
+  item2.featuredAt = new Date().toISOString();
+  saveInbox(inbox2);
+}
 
 const freeze = isFrozen();
 let publish = { skipped: true, reason: null };
@@ -77,7 +103,7 @@ if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
     skipped: true,
     reason: 'publish_frozen',
     why: freeze.why,
-    hint: 'board saved locally; CDN publish when freeze OFF or DEMIGOD_FORCE_PUBLISH=1',
+    hint: 'board minted locally; CDN when freeze OFF or DEMIGOD_FORCE_PUBLISH=1',
   };
 } else {
   const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
@@ -88,20 +114,24 @@ if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
   };
 }
 
-// honesty gate after local board write
 const honesty = spawnSync('node', ['demigod-verify-board-honesty.mjs'], {
   cwd: ROOT,
   encoding: 'utf8',
 });
 
+const boardNow = loadBoard();
 console.log(
   JSON.stringify(
     {
       ok: honesty.status === 0,
       subId,
+      via: 'mintBoardEntry',
       featured,
-      sample: true,
-      board: { roles: board.roles?.length, candidates: board.candidates?.length },
+      sample: featured?.sample !== false,
+      board: {
+        roles: boardNow.roles?.length,
+        candidates: boardNow.candidates?.length,
+      },
       publish,
       honesty: honesty.status === 0 ? 'OK' : (honesty.stderr || honesty.stdout || '').slice(0, 300),
     },

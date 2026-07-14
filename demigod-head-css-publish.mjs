@@ -4,6 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+
+assertNotFrozen('head-css-publish');
 
 const SRC = path.join(ROOT, 'demigod-head-styles.css');
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');

@@ -167,8 +167,9 @@ if (cmd === 'add') {
       roleId: String(pid),
       candId: c.id,
       score: Math.min(1, Math.max(0, (Number(c.score) || 3) / 5)),
-      reasons: [c.why].filter(Boolean),
+      reasons: [c.why, 'pilot-shortlist dual-write'].filter(Boolean),
       actor: 'dg-match',
+      sample: true, // pilot shortlist is pre-services / not public proof
     });
   } catch (e) {
     pair = { error: String(e.message || e) };

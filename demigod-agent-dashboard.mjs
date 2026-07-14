@@ -1400,7 +1400,11 @@ async function enrichStatus(data) {
       { id: 'events', title: 'Events ring /api/events', done: true },
       { id: 'sse', title: 'True SSE live push', done: true },
       { id: 'auto-propose', title: 'Auto-propose pairs from inbox', done: true },
-      { id: 'collapse-legacy-matches', title: 'Delete legacy DEMIGOD-MATCHES path', done: false },
+      {
+        id: 'collapse-legacy-matches',
+        title: 'Pairs SoR (dg matches); pilot shortlist dual-writes',
+        done: Boolean(data.matches?.summary?.realProposed != null),
+      },
     ],
     doc: 'docs/exchange/DEMIGOD-BACKLOG-HUGE.md',
   };

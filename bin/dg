@@ -56,6 +56,10 @@ case "$1" in
     shift
     exec node demigod-full-check.mjs "$@"
     ;;
+  ship-prep|prep-ship)
+    shift
+    exec node demigod-ship-prep.mjs "$@"
+    ;;
   tools|registry)
     shift
     exec node demigod-tools-registry.mjs "$@"

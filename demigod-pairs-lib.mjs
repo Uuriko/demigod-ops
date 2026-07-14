@@ -55,7 +55,14 @@ export function getPair(id) {
   return store.pairs?.[id] || null;
 }
 
-export function proposePair({ roleId, candId, score = null, reasons = [], actor = 'agent' } = {}) {
+export function proposePair({
+  roleId,
+  candId,
+  score = null,
+  reasons = [],
+  actor = 'agent',
+  sample = false,
+} = {}) {
   if (!roleId || !candId) throw new Error('roleId and candId required');
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
@@ -70,9 +77,11 @@ export function proposePair({ roleId, candId, score = null, reasons = [], actor 
       score: null,
       reasons: [],
       mutual: { founder: false, candidate: false },
+      sample: !!sample,
       history: [],
       at: now,
     };
+    if (sample) pair.sample = true;
     pair.score = score != null ? Number(score) : pair.score;
     if (reasons?.length) pair.reasons = reasons;
     pair.updatedAt = now;
