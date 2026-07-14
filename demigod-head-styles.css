@@ -480,6 +480,22 @@ nav.w-nav,.w-nav,.nav_container,#dg-top-nav{
 /* Soft selection */
 ::selection{background:rgba(212,175,55,.35);color:#fff}
 
+/* dg-design-review-v197 — quiet motion, readable forms, scannable review */
+.premium-btn,.dg-wiz-next,.dg-wiz-start{animation:none!important}
+#dg-hero-trust{max-width:38ch!important;line-height:1.45!important;color:rgba(247,244,238,.66)!important}
+#startup-modal>div,#jobseeker-modal>div{width:min(42rem,calc(100vw - 2rem))!important}
+#startup-modal input::placeholder,#startup-modal textarea::placeholder,
+#jobseeker-modal input::placeholder,#jobseeker-modal textarea::placeholder{color:rgba(247,244,238,.48)!important;opacity:1}
+.dg-wiz-review{padding:1rem!important;max-height:min(42vh,22rem)!important}
+.dg-wiz-review div{align-items:flex-start}
+@media(max-width:767px){
+  .hero-section,.header{min-height:78svh!important}
+  .hero-section h1,.header h1{font-size:clamp(2rem,10vw,3rem)!important;max-width:11ch}
+  .hero-section p,.header p,.subheading{font-size:1rem!important;max-width:32ch!important}
+  .dg-wiz-review div{display:block!important}
+  .dg-wiz-review em{display:block;text-align:left!important;margin-top:.15rem}
+}
+
 /* v197 peer-review fixes: hierarchy, complete partner states, reduced motion */
 #demigod-trust-block h2{font-size:clamp(.85rem,1.5vw,1rem)!important}
 section h2:not(#demigod-trust-block h2){
@@ -501,3 +517,28 @@ section h2:not(#demigod-trust-block h2){
 @media (prefers-reduced-motion:reduce){
   .dg-wiz-start,.premium-btn,.button.on-inverse{animation:none!important;transition:none!important}
 }
+@media (max-width:767px){
+  .hero-section,.header{min-height:72vh!important}
+}
+
+/* v198 design lead A — cool-black depth, sans display hierarchy, restrained product chrome */
+:root{--dg-cool:#08090b;--dg-steel:#94a3b8;--dg-gold:#d8b85d}
+body{background-color:var(--dg-cool)!important;background-image:radial-gradient(circle at 12% 0,rgba(216,184,93,.10),transparent 32rem),radial-gradient(circle at 90% 32%,rgba(71,94,120,.10),transparent 30rem)!important}
+.hero-section h1,.header h1{font-family:Manrope,ui-sans-serif,system-ui,sans-serif!important;font-weight:650!important;letter-spacing:-.055em!important;line-height:.96!important;text-wrap:balance}
+.brand-mark,.nav_logo-text,.footer_logo-text{font-family:Cinzel,Georgia,serif!important;letter-spacing:.04em}
+.hero-section,.header{position:relative;isolation:isolate}
+.hero-section:before,.header:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:64px 64px;mask-image:linear-gradient(to bottom,#000,transparent 76%)}
+#demigod-trust-block .dg-step,.dg-cand,.dg-row{background:linear-gradient(145deg,rgba(24,24,22,.88),rgba(10,12,15,.92))!important;border-color:rgba(232,213,163,.14)!important;box-shadow:inset 0 1px rgba(255,255,255,.025)}
+#demigod-trust-block{max-width:72rem!important}
+@media(min-width:768px){#demigod-trust-block .dg-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1px!important;background:rgba(232,213,163,.12);padding:1px;border-radius:14px;overflow:hidden}}
+
+/* brand assets v198 */
+.hero-section,.header{
+  background-image:
+    linear-gradient(115deg,rgba(5,5,8,.84) 0%,rgba(5,5,8,.52) 42%,rgba(5,5,8,.28) 100%),
+    url('https://files.catbox.moe/126k4p.jpg') !important;
+  background-size: cover !important;
+  background-position: 70% center !important;
+}
+#dg-path-pills a{ letter-spacing:.01em; }
+.badge-text,.eyebrow{ letter-spacing:.16em !important; }

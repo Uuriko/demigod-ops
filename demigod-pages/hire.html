@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hire · Demigod</title>
+<meta name="description" content="Human-curated SF seed matching. Share a brief with a 90-day outcome. Mutual yes before intro. 10% of first-year cash salary only if you hire."/>
+<link rel="canonical" href="https://www.trydemigod.com/hire"/>
+<meta property="og:title" content="Hire · Demigod"/>
+<meta property="og:description" content="Human-curated SF seed matching. Share a brief with a 90-day outcome. Mutual yes before intro. 10% of first-year cash salary only if you hire."/>
+<meta property="og:url" content="https://www.trydemigod.com/hire"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Demigod"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<meta name="robots" content="index,follow"/>
+<style>
+/* Demigod product shell v3 — Linear restraint + gold signal */
+:root {
+  --bg: #050508;
+  --fg: #f7f4ee;
+  --muted: #a8a29e;
+  --line: rgba(212,175,55,.2);
+  --soft: rgba(14,14,18,.92);
+  --gold: #d4af37;
+  --gold-dim: rgba(212,175,55,.5);
+  --gl: #f0e6c8;
+  --focus: #fafaf9;
+  --glow: 0 0 40px rgba(212,175,55,.12);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background:
+    radial-gradient(900px 480px at 85% -5%, rgba(212,175,55,.07), transparent 55%),
+    var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--gold); }
+a:focus-visible, .cta:focus-visible, .cta-secondary:focus-visible, .nav a:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 3px;
+}
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 99;
+  background: var(--gold); color: #0a0a0a; padding: .5rem .85rem; font-weight: 700;
+}
+.skip:focus { left: .75rem; top: .75rem; }
+.wrap { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1.25rem 5rem; }
+.brand {
+  display: flex; align-items: center; gap: .6rem;
+  font-weight: 700; letter-spacing: -.01em; margin-bottom: 1rem;
+  color: var(--fg); text-decoration: none;
+}
+.brand-mark {
+  width: 1.75rem; height: 1.75rem; border-radius: 999px;
+  border: 1.5px solid var(--gold-dim);
+  background: url(https://files.catbox.moe/9t02l6.png) center/cover no-repeat,
+    radial-gradient(circle at 30% 30%, rgba(212,175,55,.25), transparent 70%);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: transparent; font-size: 0;
+  box-shadow: var(--glow);
+}
+.nav {
+  display: flex; flex-wrap: wrap; gap: .5rem .85rem;
+  font-size: .8rem; margin-bottom: 2rem;
+  padding: .65rem 0; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(5,5,8,.88); backdrop-filter: blur(14px) saturate(140%);
+}
+.nav a { color: var(--muted); text-decoration: none; min-height: 36px; display: inline-flex; align-items: center; }
+.nav a:hover { color: var(--fg); }
+.nav a[aria-current="page"] { color: var(--gold); font-weight: 600; }
+.kicker {
+  color: var(--gold); font-size: .72rem; letter-spacing: .14em;
+  text-transform: uppercase; margin: 0 0 .75rem; font-weight: 600;
+}
+h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.85rem, 4.5vw, 2.6rem); font-weight: 600;
+  letter-spacing: -.03em; margin: 0 0 1rem; line-height: 1.12;
+  max-width: 16ch;
+}
+.lead { font-size: 1.08rem; color: var(--muted); margin: 0 0 1.75rem; max-width: 38ch; line-height: 1.6; }
+h2 { font-size: 1.05rem; margin: 2.1rem 0 .6rem; font-weight: 600; letter-spacing: -.01em; }
+ul { padding-left: 1.15rem; margin: .35rem 0 1rem; color: var(--muted); }
+li { margin: .35rem 0; }
+.card {
+  background: var(--soft); border: 1px solid var(--line);
+  border-radius: 16px; padding: 1.1rem 1.2rem; margin: 1.1rem 0;
+  box-shadow: var(--glow);
+}
+.card strong { color: var(--fg); }
+.card.gold-edge { border-color: var(--gold-dim); }
+.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+.steps li {
+  counter-increment: step; position: relative;
+  margin: 0 0 .85rem; padding: 1.1rem 1.15rem 1.1rem 3.4rem;
+  background: var(--soft); border: 1px solid var(--line); border-radius: 16px; color: var(--muted);
+  transition: border-color .2s, transform .2s;
+}
+.steps li:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.steps li::before {
+  content: counter(step);
+  position: absolute; left: 1.05rem; top: 1.1rem;
+  width: 1.45rem; height: 1.45rem; border-radius: 999px;
+  border: 1px solid var(--gold-dim); color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700;
+  background: rgba(212,175,55,.08);
+}
+.steps li strong { color: var(--fg); display: block; margin-bottom: .25rem; font-size: 1rem; }
+.grid2 { display: grid; gap: .85rem; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+.cta-row { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.5rem; align-items: center; }
+.cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .85rem 1.35rem; min-height: 48px;
+  background: linear-gradient(180deg, #e4c45a, #c9a84c); color: #0a0a0a;
+  border-radius: 999px; text-decoration: none; font-weight: 700; font-size: .95rem;
+  box-shadow: 0 8px 28px rgba(212,175,55,.28), inset 0 1px 0 rgba(255,255,255,.2);
+  border: none;
+}
+.cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.cta-secondary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .8rem 1.2rem; min-height: 48px;
+  border: 1px solid var(--gold-dim); border-radius: 999px; color: var(--gl);
+  text-decoration: none; font-size: .9rem; background: rgba(255,255,255,.03);
+  backdrop-filter: blur(6px);
+}
+.cta-secondary:hover { color: var(--fg); border-color: var(--gold); }
+.note { font-size: .85rem; color: var(--muted); margin-top: 1.6rem; line-height: 1.55; }
+.footer {
+  margin-top: 3.25rem; padding-top: 1.35rem; border-top: 1px solid var(--line);
+  font-size: .8rem; color: var(--muted);
+}
+.footer a { color: var(--muted); text-decoration: none; }
+.footer a:hover { color: var(--gold); }
+.badge {
+  display: inline-block; font-size: .7rem; border: 1px solid var(--gold-dim);
+  border-radius: 999px; padding: .28rem .7rem; color: var(--gold); margin-bottom: 1rem;
+  letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+}
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1rem 0; border: 1px solid var(--line); border-radius: 14px; }
+.table { width: 100%; border-collapse: collapse; font-size: .9rem; margin: 0; min-width: 32rem; }
+.table th, .table td {
+  text-align: left; padding: .65rem .55rem; border-bottom: 1px solid var(--line);
+  color: var(--muted); vertical-align: top;
+}
+.table th { color: var(--fg); font-weight: 600; background: rgba(212,175,55,.04); }
+.table td.yes, .table th:last-child, .table td:last-child { color: var(--gold); font-weight: 600; }
+.faq details {
+  border: 1px solid var(--line); border-radius: 12px; padding: .85rem 1.05rem;
+  margin: .55rem 0; background: var(--soft);
+}
+.faq summary { cursor: pointer; font-weight: 600; color: var(--fg); list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq details[open] summary { color: var(--gold); }
+.faq p { color: var(--muted); margin: .5rem 0 0; line-height: 1.55; }
+.hero-band {
+  margin: 0 0 1.75rem; border-radius: 18px; overflow: hidden;
+  border: 1px solid var(--line); min-height: 140px;
+  background:
+    linear-gradient(105deg, rgba(5,5,8,.88), rgba(5,5,8,.45)),
+    url(https://files.catbox.moe/126k4p.jpg) center/cover no-repeat;
+  box-shadow: var(--glow);
+}
+.sticky-cta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: none; gap: .55rem; padding: .7rem .9rem;
+  padding-bottom: calc(.7rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(5,5,8,.94); border-top: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+.sticky-cta a {
+  flex: 1; text-align: center; text-decoration: none; font-weight: 700;
+  min-height: 48px; display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: .9rem;
+}
+.sticky-cta .sc-primary {
+  background: linear-gradient(180deg, #e4c45a, #c9a84c); color: #0a0a0a;
+  box-shadow: 0 6px 20px rgba(212,175,55,.25);
+}
+.sticky-cta .sc-secondary { border: 1px solid var(--gold-dim); color: var(--gold); }
+@media (max-width: 640px) {
+  .sticky-cta { display: flex; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .cta-row { flex-direction: column; align-items: stretch; }
+  .cta, .cta-secondary { text-align: center; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .steps li:hover { transform: none; }
+}
+::selection { background: rgba(212,175,55,.35); color: #fff; }
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<main id="main" class="wrap">
+  <a class="brand" href="https://www.trydemigod.com/"><span class="brand-mark" aria-hidden="true">D</span> Demigod</a>
+  <nav class="nav" aria-label="Product">
+    <a href="https://www.trydemigod.com/">Home</a>
+    <a href="https://www.trydemigod.com/hire" aria-current="page">Hire</a>
+    <a href="https://www.trydemigod.com/talent">Talent</a>
+    <a href="https://www.trydemigod.com/how">How</a>
+    <a href="https://www.trydemigod.com/pricing">Pricing</a>
+    <a href="https://www.trydemigod.com/compare">Compare</a>
+    <a href="https://www.trydemigod.com/pilot">Pilot</a>
+    <a href="https://www.trydemigod.com/proof">Proof</a>
+    <a href="https://www.trydemigod.com/faq">FAQ</a>
+  </nav>
+<p class="badge">Human-matched · SF seed · Mutual yes</p>
+<p class="kicker">For founders</p>
+<h1>Hire for the 90-day outcome — not a job post.</h1>
+<p class="lead">Demigod is human-curated matching for SF seed companies. You share a brief. A human proposes only when fit is real. Both sides say yes before any intro. You pay 10% only if you hire.</p>
+<div class="card gold-edge"><strong>Not a job board.</strong> No apply-click spam, no ATS self-serve pipeline, no multi-recruiter blast of the same role.</div>
+<h2>What you do</h2>
+<ul>
+  <li>Open a ~2 minute brief (role + stack + <strong>measurable 90-day outcome</strong>).</li>
+  <li>A human reviews — may ask clarifying questions, not a bot score.</li>
+  <li>You see a <strong>small shortlist</strong> with a written why — only if fit is defensible.</li>
+  <li>Mutual yes → intro. Fee is <strong>10% of first-year cash salary</strong> only when the hire starts.</li>
+</ul>
+<div class="grid2">
+  <div class="card"><strong>You get</strong><ul>
+    <li>Outcome-first matching</li>
+    <li>Consent before share</li>
+    <li>Human match thesis</li>
+  </ul></div>
+  <div class="card"><strong>We won’t</strong><ul>
+    <li>Promise clocks or volume</li>
+    <li>Invent board placements</li>
+    <li>Share without consent</li>
+  </ul></div>
+</div>
+<div class="card">Typical agencies charge <strong>15–25%</strong>. Demigod is <strong>10% on hire</strong>. Candidates join free. A 90-day replacement applies only after payments are live and a hire is placed.</div>
+<div class="cta-row">
+  <a class="cta" href="https://www.trydemigod.com/?wiz=startup">Start founder brief →</a>
+  <a class="cta-secondary" href="https://www.trydemigod.com/pricing">See pricing</a>
+</div>
+<p class="note">No turnaround clocks or service-level promises. Payments and SMS are <strong>pending</strong> — hello@trydemigod.com will follow up by email.</p>
+<footer class="footer">
+  <a href="https://www.trydemigod.com/">trydemigod.com</a> ·
+  <a href="mailto:hello@trydemigod.com">hello@trydemigod.com</a> ·
+  10% on hire only · candidates free
+</footer>
+</main>
+<div class="sticky-cta" role="navigation" aria-label="Quick actions">
+  <a class="sc-primary" href="https://www.trydemigod.com/?wiz=startup">Start brief →</a>
+  <a class="sc-secondary" href="https://www.trydemigod.com/?wiz=engineer">Find a job</a>
+</div>
+</body>
+</html>
