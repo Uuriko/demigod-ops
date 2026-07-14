@@ -1,5 +1,13 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-14 · P2 DEMAND OPS + NEXT + LEDGER
+
+- **`bin/dg demand`** status/queue/log/templates — honest SENT-CONFIRMED + 0 pilots
+- **`bin/dg next-canon`** / demigod-next.mjs — freeze+green → demand human
+- **Version ledger** DEMIGOD-VERSION-LEDGER.jsonl append on every truth
+- Control plane next uses buildNext (same as next-canon)
+- Still freeze ON · live v198 · disk v199 · human DMs
+
 ## 2026-07-14 · P1 OPS SURFACE (ship + dash light)
 
 - **`bin/dg ship`** status|prepare|cdn|paste|verify|run — mutators freeze+lock gated

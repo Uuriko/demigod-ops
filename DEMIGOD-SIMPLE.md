@@ -28,6 +28,8 @@ bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence 
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
+bin/dg demand status|queue|log|templates          # GTM (never auto-send)
+bin/dg next-canon                                 # single NEXT builder
 bin/dg mime | full-check | home | tools
 bin/dg-usertest --quick   # when WIZ/UX
 ```

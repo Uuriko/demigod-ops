@@ -126,6 +126,14 @@ console.log(JSON.stringify(j,null,2));
     shift
     exec node demigod-ship.mjs "$@"
     ;;
+  demand|gtm)
+    shift
+    exec node demigod-demand.mjs "$@"
+    ;;
+  next-canon|canon-next)
+    shift
+    exec node demigod-next.mjs "$@"
+    ;;
   tools|registry)
     shift
     exec node demigod-tools-registry.mjs "$@"

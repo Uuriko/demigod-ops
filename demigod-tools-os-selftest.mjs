@@ -74,6 +74,14 @@ const shipSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-ship-selfte
 ok(shipSt.status === 0, 'ship-selftest');
 if (shipSt.status !== 0) console.error(shipSt.stdout + shipSt.stderr);
 
+const demSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-demand-selftest.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 180000,
+});
+ok(demSt.status === 0, 'demand-selftest');
+if (demSt.status !== 0) console.error(demSt.stdout + demSt.stderr);
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);

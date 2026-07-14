@@ -18,6 +18,7 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
 import { beginRun, sealRun, addArtifact } from './demigod-evidence.mjs';
+import { appendFromTruth } from './demigod-version-ledger.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -326,6 +327,11 @@ async function main() {
   // rewrite truth.json with evidence pointer
   fs.writeFileSync(path.join(BUSY, 'truth.json'), JSON.stringify(facts, null, 2) + '\n');
   fs.writeFileSync(path.join(BUSY, 'live-doctor.json'), JSON.stringify(facts, null, 2) + '\n');
+  try {
+    facts.ledgerLine = appendFromTruth(facts);
+  } catch (e) {
+    facts.ledgerError = String(e.message || e);
+  }
 
   if (asJson) {
     console.log(JSON.stringify(facts, null, 2));
