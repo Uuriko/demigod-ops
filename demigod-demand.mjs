@@ -13,6 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { beginRun, sealRun } from './demigod-evidence.mjs';
+import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -329,13 +330,13 @@ function cmdStatus() {
   const run = beginRun('demand', { scope: [] });
   const s = buildStatus();
   fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'demand-status.json'), JSON.stringify(s, null, 2) + '\n');
+  writeJsonAuto(path.join(BUSY, 'demand-status.json'), s);
   sealRun(run, {
     pass: true,
     summary: `demand pending=${s.queue.pending} sent=${s.dms.sentConfirmed} pilots=${s.pilots.realFilled}`,
     ttlSec: 1800,
   });
-  if (asJson) console.log(JSON.stringify(s, null, 2));
+  if (asJson) console.log(process.env.DEMIGOD_JSON_PRETTY === '1' ? JSON.stringify(s, null, 2) : JSON.stringify(s));
   else printStatus(s);
   return 0;
 }

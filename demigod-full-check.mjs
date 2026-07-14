@@ -19,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { isFreshFile, writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -37,7 +38,7 @@ function run(label, cmd, timeout = 120000, envExtra = {}) {
   let childJson = null;
   // Prefer known artifact paths over parsing stdout
   const artifactMap = {
-    'truth': path.join(BUSY, 'truth.json'),
+    truth: path.join(BUSY, 'truth.json'),
     'live-doctor': path.join(BUSY, 'live-doctor.json'),
     'route-mime': path.join(BUSY, 'route-mime.json'),
     doctor: path.join(BUSY, 'doctor.json'),
@@ -66,10 +67,42 @@ function run(label, cmd, timeout = 120000, envExtra = {}) {
           issues: childJson.issues || childJson.failed,
           driftExpected: childJson.driftExpected,
           liveVer: childJson.live?.footVer || childJson.summary?.foot,
-          diskVer: childJson.disk?.foot?.ver,
+          diskVer: childJson.disk?.foot?.ver || childJson.foot?.ver,
         }
       : null,
   };
+}
+
+/** Reuse artifact if young — avoid re-running network probes */
+function runOrReuse(label, cmd, timeout, envExtra, artifactPath, maxAgeSec) {
+  if (artifactPath && isFreshFile(artifactPath, maxAgeSec) && !process.argv.includes('--no-cache')) {
+    let childJson = null;
+    try {
+      childJson = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+    } catch {
+      /* */
+    }
+    return {
+      label,
+      cmd: cmd + ' # reused cache',
+      ok: childJson?.pass !== false && childJson?.ok !== false,
+      status: 0,
+      ms: 0,
+      stdout: '',
+      stderr: '',
+      reused: true,
+      child: childJson
+        ? {
+            pass: childJson.pass,
+            issues: childJson.issues || childJson.failed,
+            driftExpected: childJson.driftExpected,
+            liveVer: childJson.live?.footVer,
+            diskVer: childJson.foot?.ver,
+          }
+        : null,
+    };
+  }
+  return run(label, cmd, timeout, envExtra);
 }
 
 function main() {
@@ -85,6 +118,7 @@ function main() {
   const liveFlags = release ? '--json --require-match' : '--json';
 
   const steps = [];
+  // Local gates always run (cheap, disk)
   steps.push(run('doctor', 'node demigod-doctor.mjs --json', 30000));
   steps.push(run('orca-doctor', 'node demigod-orca-bridge.mjs doctor', 15000));
   steps.push(run('verify-source', 'npm run demigod:verify:source', 60000));
@@ -93,20 +127,66 @@ function main() {
   steps.push(run('foot-smoke', 'node demigod-foot-smoke.mjs', 15000));
   if (withReview) {
     steps.push(run('code-review', 'node demigod-review.mjs --format summary --fail-on high', 120000));
+  } else {
+    // Skip second full review by default (was duplicated with withReview path)
+    steps.push(
+      runOrReuse(
+        'review',
+        'node demigod-review.mjs --format summary --fail-on never',
+        60000,
+        {},
+        path.join(BUSY, 'review-latest.json'),
+        120,
+      ),
+    );
   }
-  steps.push(run('review', 'node demigod-review.mjs 2>/dev/null | tail -5', 90000));
 
   if (!offline) {
-    // Artifact identity (intentional freeze drift: warning only unless --release)
-    steps.push(run('truth', `node demigod-truth.mjs ${liveFlags}`, 90000, liveEnv));
-    // User-facing product routes must be text/html
-    steps.push(run('route-mime', 'node demigod-route-mime.mjs --json', 90000));
+    // Reuse truth ≤20s (shared live cache)
+    steps.push(
+      runOrReuse(
+        'truth',
+        `node demigod-truth.mjs ${liveFlags}`,
+        90000,
+        liveEnv,
+        path.join(BUSY, 'truth.json'),
+        release ? 0 : 20,
+      ),
+    );
+    steps.push(
+      runOrReuse(
+        'route-mime',
+        'node demigod-route-mime.mjs --json',
+        90000,
+        {},
+        path.join(BUSY, 'route-mime.json'),
+        60,
+      ),
+    );
   }
 
   if (!skipSmoke && !offline) {
-    steps.push(run('agent-smoke', 'node demigod-agent-smoke.mjs', 120000));
+    steps.push(
+      runOrReuse(
+        'agent-smoke',
+        'node demigod-agent-smoke.mjs',
+        120000,
+        {},
+        path.join(BUSY, 'agent-smoke.json'),
+        90,
+      ),
+    );
   }
-  steps.push(run('control-plane', 'node demigod-control.mjs status --json', 30000));
+  steps.push(
+    runOrReuse(
+      'control-plane',
+      'node demigod-control.mjs status --json',
+      30000,
+      {},
+      path.join(BUSY, 'control-plane.json'),
+      15,
+    ),
+  );
 
   const failed = steps.filter((s) => !s.ok).map((s) => s.label);
   const liveChild = steps.find((s) => s.label === 'truth' || s.label === 'live-doctor')?.child;
@@ -134,10 +214,10 @@ function main() {
       routeMime: path.join(BUSY, 'route-mime.json'),
     },
   };
-  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
+  writeJsonAuto(OUT, report);
 
   if (asJson) {
-    console.log(JSON.stringify({ ...report, details: undefined }, null, 2));
+    console.log(JSON.stringify({ ...report, details: undefined }));
   } else {
     console.log(
       `# full-check ${report.pass ? 'PASS' : 'FAIL'} · ${report.at}` +

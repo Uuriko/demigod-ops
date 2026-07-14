@@ -25,6 +25,7 @@ import { fileURLToPath } from 'url';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
 import { BUSY, ensureBusy, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
+import { isFreshFile, writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
@@ -201,23 +202,34 @@ export async function buildControlPlane() {
   const envFreeze = ['1', 'true', 'yes', 'on'].includes(envRaw);
   const frozen = envFreeze || Boolean(freeze.on);
 
-  // Prefer busy cache to avoid recursive dash status when called FROM dash
+  // Prefer busy cache — only hit dash if stale (>30s)
   let dashStatus = safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
-  if (!dashStatus?.at || Date.now() - Date.parse(dashStatus.at) > 120000) {
-    dashStatus = (await fetchJson(`${DASH}/api/status`)) || dashStatus;
+  const dashAge = dashStatus?.at ? Date.now() - Date.parse(dashStatus.at) : Infinity;
+  if (!dashStatus?.at || dashAge > 30000) {
+    // Prefer slim status for speed
+    dashStatus =
+      (await fetchJson(`${DASH}/api/status?slim=1`)) ||
+      (await fetchJson(`${DASH}/api/status`)) ||
+      dashStatus;
   }
   const [webflow, review, hygiene, matchesBusy] = await Promise.all([
-    Promise.resolve(safeJsonFile(path.join(BUSY, 'webflow-status.json')) || fetchJson(`${DASH}/api/webflow`)),
+    Promise.resolve(
+      safeJsonFile(path.join(BUSY, 'webflow-status.json')) ||
+        (dashAge < 60000 ? null : fetchJson(`${DASH}/api/webflow`)),
+    ),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'review-latest.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'laptop-hygiene.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'match-review-latest.json'))),
   ]);
 
-  // refresh thin modules if missing (best-effort, short)
+  // Webflow status: only spawn if missing/stale (>90s) — was 25s block every home
   let wf = webflow;
-  if (!wf?.at) {
-    sh('node demigod-webflow.mjs status --json >/tmp/dg-busy/webflow-status.json 2>/dev/null', 25000);
-    wf = safeJsonFile(path.join(BUSY, 'webflow-status.json'));
+  const wfPath = path.join(BUSY, 'webflow-status.json');
+  if (!wf?.at || !isFreshFile(wfPath, 90)) {
+    if (!isFreshFile(wfPath, 90)) {
+      sh('node demigod-webflow.mjs status --json >/tmp/dg-busy/webflow-status.json 2>/dev/null', 12000);
+    }
+    wf = safeJsonFile(wfPath);
   }
 
   const boardH = safeJsonFile(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
@@ -318,15 +330,22 @@ export async function buildControlPlane() {
       footLock: lockHeld ? footLock?.owner || 'held' : 'free',
     },
   });
-  // Orca remote seat (phone ↔ laptop)
+  // Orca remote seat — prefer cache file; skip 5s orca-ide spawn when fresh
   let orcaReach = null;
   try {
-    const st = sh('orca-ide status --json 2>/dev/null', 5000);
-    if (st.status === 0 && st.stdout) {
-      const d = JSON.parse(st.stdout);
-      orcaReach = Boolean(d?.result?.runtime?.reachable);
+    const orcaMeta = safeJsonFile('/tmp/orca-pair-meta.json') || safeJsonFile(path.join(BUSY, 'orca-status.json'));
+    if (orcaMeta && (orcaMeta.reachable != null || orcaMeta.result?.runtime?.reachable != null)) {
+      orcaReach = Boolean(orcaMeta.reachable ?? orcaMeta.result?.runtime?.reachable);
+    } else {
+      const st = sh('orca-ide status --json 2>/dev/null', 2500);
+      if (st.status === 0 && st.stdout) {
+        const d = JSON.parse(st.stdout);
+        orcaReach = Boolean(d?.result?.runtime?.reachable);
+      }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   const keepPid = path.join(ROOT, '.keep-awake.pid');
   let awake = false;
   try {
@@ -500,7 +519,7 @@ export async function buildControlPlane() {
     },
   };
 
-  atomicWrite(OUT, JSON.stringify(plane, null, 2) + '\n');
+  atomicWrite(OUT, JSON.stringify(plane) + '\n');
   return plane;
 }
 

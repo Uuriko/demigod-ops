@@ -93,23 +93,45 @@ Typical:
 }
 
 function status() {
-  const tStep = run('truth', ['demigod-truth.mjs', '--json'], { allowFail: true, keepFull: true });
-  const sStep = run('ship-status', ['demigod-ship-status.mjs', '--json'], {
-    allowFail: true,
-    keepFull: true,
-  });
-  // Prefer on-disk truth.json (full) over truncated spawn output
+  // Reuse fresh on-disk artifacts (15–20s) — skip double network probes
   let truth = null;
-  try {
-    truth = JSON.parse(fs.readFileSync(path.join(BUSY, 'truth.json'), 'utf8'));
-  } catch {
-    truth = parseJsonBlob(tStep.full || tStep.out);
-  }
   let ship = null;
   try {
-    ship = JSON.parse(fs.readFileSync(path.join(BUSY, 'ship-status.json'), 'utf8'));
+    const p = path.join(BUSY, 'truth.json');
+    const age = (Date.now() - fs.statSync(p).mtimeMs) / 1000;
+    if (age <= 15) truth = JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch {
-    ship = parseJsonBlob(sStep.full || sStep.out);
+    /* */
+  }
+  try {
+    const p = path.join(BUSY, 'ship-status.json');
+    const age = (Date.now() - fs.statSync(p).mtimeMs) / 1000;
+    if (age <= 20) ship = JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    /* */
+  }
+  const tStep = truth
+    ? { label: 'truth', ok: true, rawOk: true, status: 0, ms: 0 }
+    : run('truth', ['demigod-truth.mjs', '--json'], { allowFail: true, keepFull: true });
+  const sStep = ship
+    ? { label: 'ship-status', ok: true, rawOk: true, status: 0, ms: 0 }
+    : run('ship-status', ['demigod-ship-status.mjs', '--json'], {
+        allowFail: true,
+        keepFull: true,
+      });
+  if (!truth) {
+    try {
+      truth = JSON.parse(fs.readFileSync(path.join(BUSY, 'truth.json'), 'utf8'));
+    } catch {
+      truth = parseJsonBlob(tStep.full || tStep.out);
+    }
+  }
+  if (!ship) {
+    try {
+      ship = JSON.parse(fs.readFileSync(path.join(BUSY, 'ship-status.json'), 'utf8'));
+    } catch {
+      ship = parseJsonBlob(sStep.full || sStep.out);
+    }
   }
   const freeze = freezeStatus();
   const summary =

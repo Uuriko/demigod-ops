@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const FOOT = path.join(ROOT, 'demigod-foot-core.js');
@@ -104,28 +105,30 @@ async function main() {
       : `disk≠manifest (upload CDN + update DEMIGOD-FOOT-CDN.json)`,
   });
 
-  // stage: live probe
+  // stage: live probe (shared 15s cache with truth)
   let live = { ok: false };
   try {
-    const r = await fetch(`${LIVE}/?cb=${Date.now()}`, {
+    const html = await cachedFetchText(LIVE + '/', {
       headers: { 'User-Agent': 'dg-ship-status' },
-      signal: AbortSignal.timeout(15000),
+      timeoutMs: 15000,
+      bust: process.argv.includes('--no-cache'),
     });
-    const html = await r.text();
+    const text = html.text || '';
     const liveCdn =
-      (html.match(/src=["']https:\/\/files\.catbox\.moe\/([a-z0-9]+\.js)["']/) || [])[1] ||
-      (html.match(/files\.catbox\.moe\/([a-z0-9]+\.js)/) || [])[1] ||
+      (text.match(/src=["']https:\/\/files\.catbox\.moe\/([a-z0-9]+\.js)["']/) || [])[1] ||
+      (text.match(/files\.catbox\.moe\/([a-z0-9]+\.js)/) || [])[1] ||
       null;
     const liveId = liveCdn?.split('/').pop() || null;
-    const liveFoot = (html.match(/foot v(\d+)/) || [])[1] || null;
-    const pub = (html.match(/Last Published:[^<]{0,60}/) || [])[0] || null;
+    const liveFoot = (text.match(/foot v(\d+)/) || [])[1] || null;
+    const pub = (text.match(/Last Published:[^<]{0,60}/) || [])[0] || null;
     live = {
-      ok: r.ok,
-      status: r.status,
+      ok: html.ok,
+      status: html.status,
       cdn: liveCdn,
       cdnId: liveId,
       footVer: liveFoot,
       pub,
+      cached: html.cached || false,
     };
   } catch (e) {
     live = { ok: false, error: String(e.message || e) };
@@ -159,19 +162,21 @@ async function main() {
   let cdnBody = { ok: false, matchDisk: false, sha12: null, err: null };
   if (man.cdnUrl) {
     try {
-      const cr = await fetch(`${man.cdnUrl}?v=${Date.now()}`, {
+      const cr = await cachedFetchText(man.cdnUrl, {
         headers: { 'User-Agent': 'dg-ship-status-cdn' },
-        signal: AbortSignal.timeout(20000),
+        timeoutMs: 20000,
+        ttlMs: 20000,
+        bust: process.argv.includes('--no-cache'),
       });
-      const buf = Buffer.from(await cr.arrayBuffer());
-      const csha = crypto.createHash('sha256').update(buf).digest('hex');
+      const csha = cr.sha256;
       cdnBody = {
         ok: cr.ok,
         matchDisk: Boolean(diskSha && csha === diskSha),
         matchManifest: Boolean(man.sha256 && csha === man.sha256),
-        sha12: csha.slice(0, 12),
+        sha12: csha ? csha.slice(0, 12) : null,
         sha256: csha,
         err: null,
+        cached: cr.cached || false,
       };
     } catch (e) {
       cdnBody = { ok: false, matchDisk: false, sha12: null, err: String(e.message || e) };
@@ -250,14 +255,13 @@ async function main() {
   };
 
   try {
-    fs.mkdirSync(BUSY, { recursive: true });
-    fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
+    writeJsonAuto(OUT, report);
   } catch {
     /* */
   }
 
   if (asJson) {
-    console.log(JSON.stringify(report, null, 2));
+    console.log(process.env.DEMIGOD_JSON_PRETTY === '1' ? JSON.stringify(report, null, 2) : JSON.stringify(report));
   } else {
     console.log(`ship-status  ${allOk ? 'SHIPPED ✓' : 'INCOMPLETE'}`);
     console.log(`stage        ${report.stage}`);

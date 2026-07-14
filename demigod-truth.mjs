@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
 import { beginRun, sealRun, addArtifact } from './demigod-evidence.mjs';
 import { appendFromTruth } from './demigod-version-ledger.mjs';
+import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -66,19 +67,13 @@ function runNode(argv, timeout = 25000) {
 }
 
 async function fetchText(url) {
-  const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`, {
+  const force = process.env.DEMIGOD_TRUTH_NO_CACHE === '1' || process.argv.includes('--no-cache');
+  return cachedFetchText(url, {
+    ttlMs: Number(process.env.DEMIGOD_LIVE_CACHE_TTL_MS) || 15000,
     headers: { 'User-Agent': 'demigod-truth' },
-    signal: AbortSignal.timeout(22000),
+    timeoutMs: 22000,
+    bust: force,
   });
-  const buf = Buffer.from(await r.arrayBuffer());
-  return {
-    ok: r.ok,
-    status: r.status,
-    contentType: r.headers.get('content-type') || '',
-    text: buf.toString('utf8'),
-    bytes: buf.length,
-    sha256: sha256Buf(buf),
-  };
 }
 
 async function main() {
@@ -116,22 +111,35 @@ async function main() {
   const boardRun = runNode(['demigod-verify-board-honesty.mjs']);
   const boardOk = boardRun.status === 0;
 
-  // Lock via CLI (handles expiry)
+  // Lock — read busy file first (no spawn); CLI only if missing
   let lock = { held: false, owner: null, expiresAt: null, free: true };
   {
-    const st = runNode(['demigod-foot-lock.mjs', 'status'], 10000);
-    try {
-      const j = JSON.parse(st.out.slice(st.out.indexOf('{')));
+    const lj = readJson(path.join(BUSY, 'foot-lock.json'));
+    if (lj?.owner || lj?.expiresAt) {
+      const exp = lj.expiresAt && Date.parse(lj.expiresAt) < Date.now();
       lock = {
-        held: Boolean(j?.locked),
-        free: !j?.locked,
-        owner: j?.lock?.owner || null,
-        expiresAt: j?.lock?.expiresAt || null,
-        baseShaMatch: j?.baseShaMatch ?? null,
-        footVer: j?.footVer || null,
+        held: !exp && Boolean(lj.owner),
+        free: exp || !lj.owner,
+        owner: exp ? null : lj.owner || null,
+        expiresAt: lj.expiresAt || null,
+        baseShaMatch: null,
+        footVer: lj.footVer || null,
       };
-    } catch {
-      /* */
+    } else {
+      const st = runNode(['demigod-foot-lock.mjs', 'status'], 8000);
+      try {
+        const j = JSON.parse(st.out.slice(st.out.indexOf('{')));
+        lock = {
+          held: Boolean(j?.locked),
+          free: !j?.locked,
+          owner: j?.lock?.owner || null,
+          expiresAt: j?.lock?.expiresAt || null,
+          baseShaMatch: j?.baseShaMatch ?? null,
+          footVer: j?.footVer || null,
+        };
+      } catch {
+        /* */
+      }
     }
   }
 
@@ -302,9 +310,8 @@ async function main() {
   facts.summaryLine = `TRUTH ${pass ? 'PASS' : 'FAIL'} disk=v${diskVer} live=v${liveVer || '?'} freeze=${freeze.on ? 'ON' : 'OFF'} lock=${lock.held ? lock.owner : 'free'} board=${boardOk ? 'ok' : 'FAIL'} shipped=${fullyShipped}${driftExpected ? ' driftExpected' : ''}`;
 
   fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'truth.json'), JSON.stringify(facts, null, 2) + '\n');
-  // Alias for live-doctor consumers
-  fs.writeFileSync(path.join(BUSY, 'live-doctor.json'), JSON.stringify(facts, null, 2) + '\n');
+  writeJsonAuto(path.join(BUSY, 'truth.json'), facts);
+  writeJsonAuto(path.join(BUSY, 'live-doctor.json'), facts);
 
   const md = [
     `# Demigod TRUTH ${facts.at}`,
@@ -324,9 +331,8 @@ async function main() {
   );
   facts.evidenceRunId = facts.evidence.runId;
   facts.evidenceFresh = true;
-  // rewrite truth.json with evidence pointer
-  fs.writeFileSync(path.join(BUSY, 'truth.json'), JSON.stringify(facts, null, 2) + '\n');
-  fs.writeFileSync(path.join(BUSY, 'live-doctor.json'), JSON.stringify(facts, null, 2) + '\n');
+  writeJsonAuto(path.join(BUSY, 'truth.json'), facts);
+  writeJsonAuto(path.join(BUSY, 'live-doctor.json'), facts);
   try {
     facts.ledgerLine = appendFromTruth(facts);
   } catch (e) {
@@ -334,7 +340,8 @@ async function main() {
   }
 
   if (asJson) {
-    console.log(JSON.stringify(facts, null, 2));
+    const pretty = process.env.DEMIGOD_JSON_PRETTY === '1';
+    console.log(pretty ? JSON.stringify(facts, null, 2) : JSON.stringify(facts));
   } else if (!quiet) {
     console.log(`# truth ${pass ? 'PASS' : 'FAIL'} · disk v${diskVer} · live v${liveVer}`);
     for (const o of ok) console.log(`  ✓ ${o}`);

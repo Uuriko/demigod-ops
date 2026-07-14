@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { buildNext } from './demigod-next.mjs';
+import { cachedFetchText, writeJsonAuto, isFreshFile } from './demigod-perf-cache.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -110,22 +111,39 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   } else if (!skipLive) {
     try {
       const t0 = Date.now();
-      const r = await fetch(`${LIVE}/?cb=${Date.now()}`, {
-        headers: { 'User-Agent': 'dg-cockpit' },
-        signal: AbortSignal.timeout(8000),
-      });
-      const html = await r.text();
-      const cdnId = footScriptId(html);
-      const foot = (html.match(/foot v(\d+)/) || [])[1] || null;
-      live = {
-        ok: r.ok,
-        status: r.status,
-        ms: Date.now() - t0,
-        cdnId,
-        footVer: foot,
-        hasHiring: /I.?m hiring/i.test(html),
-        hasFindJob: /Find a job/i.test(html),
-      };
+      // Prefer fresh truth.json (no network)
+      if (isFreshFile(path.join(BUSY, 'truth.json'), 20)) {
+        const tr = readJson(path.join(BUSY, 'truth.json'));
+        if (tr?.live) {
+          live = {
+            ok: Boolean(tr.live.htmlOk ?? tr.pass),
+            status: tr.live.htmlStatus || 200,
+            ms: Date.now() - t0,
+            cdnId: (tr.live.footUrl || '').match(/\/([a-z0-9]+\.js)/)?.[1] || null,
+            footVer: tr.live.footVer || null,
+            fromTruth: true,
+          };
+        }
+      }
+      if (!live.ok && live.footVer == null) {
+        const html = await cachedFetchText(LIVE + '/', {
+          headers: { 'User-Agent': 'dg-cockpit' },
+          timeoutMs: 8000,
+        });
+        const text = html.text || '';
+        const cdnId = footScriptId(text);
+        const foot = (text.match(/foot v(\d+)/) || [])[1] || null;
+        live = {
+          ok: html.ok,
+          status: html.status,
+          ms: Date.now() - t0,
+          cdnId,
+          footVer: foot,
+          hasHiring: /I.?m hiring/i.test(text),
+          hasFindJob: /Find a job/i.test(text),
+          cached: html.cached || false,
+        };
+      }
     } catch (e) {
       live = { ok: false, error: String(e.message || e) };
     }
@@ -347,7 +365,7 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   // persist
   try {
     fs.mkdirSync(BUSY, { recursive: true });
-    fs.writeFileSync(path.join(BUSY, 'cockpit.json'), JSON.stringify(cockpit, null, 2));
+    writeJsonAuto(path.join(BUSY, 'cockpit.json'), cockpit);
     fs.writeFileSync(path.join(BUSY, 'cockpit.md'), toMarkdown(cockpit));
   } catch {
     /* */
