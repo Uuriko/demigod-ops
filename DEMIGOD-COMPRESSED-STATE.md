@@ -11,6 +11,15 @@
 - **Next software (disk):** WIZ ownership tests · smoke disk/live soft assert · version ledger
 
 ---
+## 2026-07-14 · TRUTH + FOOT LOCK LIVE
+
+- **Oracle:** `bin/dg truth` → PASS (driftExpected: disk v199 / live v198)
+- **Freeze ON:** sales surface v198 — demand-first; disk v199 staged
+- **Foot lock:** free; `bin/dg lock require` hard-fails until claim
+- **Ship:** only when intentional unfreeze + CDN body match
+
+---
+
 ## 2026-07-14 · ELEGANT REFINE
 
 - **Too complex?** Yes — we over-built process essays. **Fix:** one card `DEMIGOD-SIMPLE.md` + one ops page `docs/process/OPS.md`.

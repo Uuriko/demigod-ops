@@ -24,7 +24,8 @@
 ## Tools worth knowing
 
 ```
-bin/dg truth              # THE oracle: disk/live/freeze/lock/board
+bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence seal)
+node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg mime | full-check | home | ship-prep | tools
 bin/dg-usertest --quick   # when WIZ/UX
