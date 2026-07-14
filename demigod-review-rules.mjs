@@ -2,7 +2,7 @@
 /**
  * demigod-review-rules — pluggable rule catalog
  * Each rule: { id, sev, tier, run(ctx) => Finding[] }
- * ctx: { rel, src, root, isJs, isFoot, isMeta, bugMode }
+ * ctx: { rel, src, root, isJs, isFoot, isMeta, bugMode, includeMeta }
  */
 import fs from 'fs';
 import path from 'path';
@@ -593,11 +593,86 @@ export const RULES = [
       ];
     },
   },
+
+  {
+    id: 'gate-status-or-pass',
+    sev: 'high',
+    tier: 'B',
+    run({ rel, src, isJs }) {
+      if (!isJs) return [];
+      // Anti-pattern: treat stdout PASS as success when status may be non-zero
+      if (!/status\s*===?\s*0/.test(src) && !/r\.status|exitCode|\.status\b/.test(src)) return [];
+      if (!/\|\|\s*\/[^/\n]*(?:OK|PASS)/.test(src) && !/status\s*===\s*0\s*\|\|/.test(src)) return [];
+      const hits = findAll(src, /status\s*===\s*0\s*\|\||\|\|\s*\/[^/\n]*(OK|PASS)/g);
+      return hits.map((h) =>
+        finding({
+          rule: 'gate-status-or-pass',
+          sev: 'high',
+          file: rel,
+          line: lineNo(src, h.index),
+          title: 'Gate success via OK/PASS string OR status',
+          detail: 'Prefer exit status === 0 only; string match can false-pass failed gates',
+          fix: 'Use status === 0 only (see demigod-review-gates runGates)',
+          tier: 'B',
+        }),
+      );
+    },
+  },
+  {
+    id: 'side-effect-on-import',
+    sev: 'medium',
+    tier: 'B',
+    run({ rel, src, isJs, isMeta }) {
+      if (!isJs || isMeta) return [];
+      const hasExport = /\bexport\s+(async\s+)?function|\bexport\s+\{|\bexport\s+const|\bexport\s+default/.test(src);
+      if (!hasExport) return [];
+      // top-level process.exit or main() call without isMain / import.meta.url guard nearby
+      const exitHits = findAll(src, /\bprocess\.exit\s*\(/g);
+      const out = [];
+      for (const h of exitHits) {
+        const before = src.slice(Math.max(0, h.index - 200), h.index);
+        if (/import\.meta\.url|isMain|require\.main|process\.argv\[1\]/.test(before + src.slice(h.index, h.index + 80))) continue;
+        // if process.exit is inside a function, skip (heuristic: look back for function)
+        const lineStart = src.lastIndexOf('\n', h.index) + 1;
+        const indent = src.slice(lineStart, h.index).match(/^\s*/)[0].length;
+        if (indent >= 2) continue; // likely inside block
+        out.push(
+          finding({
+            rule: 'side-effect-on-import',
+            sev: 'medium',
+            file: rel,
+            line: lineNo(src, h.index),
+            title: 'process.exit may run on import',
+            detail: 'Module both exports and may exit at top level without isMain guard',
+            fix: 'Guard: if (import.meta.url === pathToFileURL(process.argv[1]).href) main()',
+            tier: 'B',
+          }),
+        );
+      }
+      return out;
+    },
+  },
+  {
+    id: 'json-stdout-pollution',
+    sev: 'low',
+    tier: 'B',
+    run({ rel, src, isJs }) {
+      if (!isJs) return [];
+      if (!/--json|asJson|flags\.json/.test(src)) return [];
+      // console.log before JSON when json mode — soft heuristic
+      if (!/if\s*\(\s*(flags\.)?json/.test(src) && !/asJson/.test(src)) return [];
+      return [];
+    },
+  },
 ];
 
-export function runAllRules(ctx) {
+export function runAllRules(ctx, { onlyRules = null, excludeRules = null } = {}) {
   const findings = [];
+  const only = onlyRules?.length ? new Set(onlyRules) : null;
+  const excl = excludeRules?.length ? new Set(excludeRules) : null;
   for (const rule of RULES) {
+    if (only && !only.has(rule.id)) continue;
+    if (excl && excl.has(rule.id)) continue;
     try {
       const part = rule.run(ctx) || [];
       for (const f of part) {

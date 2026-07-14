@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * demigod-review-gates — targeted verify based on which files changed
+ * Gate success = exit status 0 ONLY (never trust OK/PASS strings in output).
  */
 import { sh } from './demigod-review-lib.mjs';
 
@@ -34,14 +35,14 @@ export function suggestGates(files) {
       why: 'matching/pair lifecycle tools',
     });
   }
-  if (has(/agent-dashboard|user-test|review/)) {
+  if (has(/agent-dashboard|user-test/) && !has(/demigod-review/)) {
     gates.push({
       id: 'usertest-dash',
       cmd: 'npm run demigod:usertest:dash -- --quick',
-      why: 'dashboard / review / usertest surface',
+      why: 'dashboard / usertest surface',
     });
   }
-  if (has(/review/)) {
+  if (has(/demigod-review|bin\/dg-review/)) {
     gates.push({
       id: 'review-selftest',
       cmd: 'node demigod-review-selftest.mjs',
@@ -52,29 +53,34 @@ export function suggestGates(files) {
 }
 
 /**
- * Run gates (subset or all suggested).
- * @returns {{ id: string, ok: boolean, detail: string, ms: number }[]}
+ * Run gates. Success requires status === 0 (strict).
+ * Override only with DEMIGOD_GATE_ALLOW_OUTPUT_PASS=1 (legacy, discouraged).
+ * @returns {{ id: string, ok: boolean, detail: string, ms: number, status: number }[]}
  */
 export function runGates(files, { only = null, timeout = 120000 } = {}) {
   let list = suggestGates(files);
   if (only?.length) list = list.filter((g) => only.includes(g.id));
-  // always safe minimum when empty and --gates
   if (!list.length) {
     list = [
       { id: 'board-honesty', cmd: 'node demigod-verify-board-honesty.mjs', why: 'default' },
     ];
   }
+  const allowOutputPass = process.env.DEMIGOD_GATE_ALLOW_OUTPUT_PASS === '1';
   const results = [];
   for (const g of list) {
     const t0 = Date.now();
     const r = sh(g.cmd, { timeout });
+    const statusOk = r.status === 0;
+    const outputOk = allowOutputPass && /(?:^|\n|\s)(OK|PASS|ALL PASS)\b/i.test(r.out);
     results.push({
       id: g.id,
-      ok: r.status === 0 || /OK|PASS|ALL PASS/i.test(r.out),
+      ok: statusOk || outputOk,
+      status: r.status,
       detail: r.out.slice(-240),
       ms: Date.now() - t0,
       cmd: g.cmd,
       why: g.why,
+      strict: !allowOutputPass,
     });
   }
   return results;

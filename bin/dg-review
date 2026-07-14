@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
-# Demigod code review + bugfix (v2)
+# Demigod code review + bugfix (v2.1)
 #
-#   bin/dg-review                      # git modified + hot tools
-#   bin/dg-review --bug --gates        # stricter + targeted verifies
+#   bin/dg-review
+#   bin/dg-review --bug --gates
 #   bin/dg-review --files a.mjs b.mjs
-#   bin/dg-review --fix --dry-run      # tier-A safe fixes preview
-#   bin/dg-review --llm                # optional claude semantic pass
-#   bin/dg-review --full               # no out-of-diff demotion
-#   bin/dg-review --catalog            # list rules
-#   bin/dg-review --untracked          # all untracked demigod-*.mjs
+#   bin/dg-review --fix --dry-run
+#   bin/dg-review --fix --rescan
+#   bin/dg-review --fix --allow-foot
+#   bin/dg-review --llm
+#   bin/dg-review --full
+#   bin/dg-review --catalog
+#   bin/dg-review --only-rule eval-use,syntax
+#   bin/dg-review --exclude-rule todo-marker
+#   bin/dg-review --exclude '*.md'
+#   bin/dg-review --fail-on medium
+#   bin/dg-review --max 40
+#   bin/dg-review --include-meta
+#   bin/dg-review --untracked
 #   node demigod-review-selftest.mjs
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

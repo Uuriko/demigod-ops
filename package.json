@@ -243,6 +243,8 @@
     "demigod:review": "node demigod-review.mjs",
     "demigod:review:json": "node demigod-review.mjs --json",
     "demigod:review:bug": "node demigod-review.mjs --bug --gates",
+    "demigod:review:fix": "node demigod-review.mjs --fix --dry-run",
+    "demigod:review:fix:apply": "node demigod-review.mjs --fix --rescan",
     "demigod:review:selftest": "node demigod-review-selftest.mjs",
     "demigod:review:llm": "node demigod-review.mjs --llm --bug",
     "demigod:webflow": "node demigod-webflow.mjs status",

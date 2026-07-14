@@ -233,7 +233,11 @@ export function syntaxCheck(rel) {
   };
 }
 
-export function scoreSummary(findings) {
+/**
+ * @param {any[]} findings
+ * @param {{ failOn?: string }} [opts]
+ */
+export function scoreSummary(findings, opts = {}) {
   const bySev = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   let active = 0;
   for (const f of findings) {
@@ -241,13 +245,59 @@ export function scoreSummary(findings) {
     active++;
     bySev[f.sev] = (bySev[f.sev] || 0) + 1;
   }
+  const failOn = opts.failOn || 'high';
+  let fail = false;
+  if (failOn === 'never') fail = false;
+  else if (failOn === 'any') fail = active > 0;
+  else if (failOn === 'critical') fail = bySev.critical > 0;
+  else if (failOn === 'high') fail = bySev.critical > 0 || bySev.high > 0;
+  else if (failOn === 'medium') fail = bySev.critical + bySev.high + bySev.medium > 0;
+  else if (failOn === 'low') fail = bySev.critical + bySev.high + bySev.medium + bySev.low > 0;
+  else fail = bySev.critical > 0 || bySev.high > 0;
   return {
     bySev,
     count: active,
     suppressed: findings.filter((f) => f.suppressed).length,
-    fail: bySev.critical > 0 || bySev.high > 0,
+    fail,
+    failOn,
   };
 }
+
+/** Keep highest-severity findings up to max; demote rest as suppressed */
+export function limitFindings(findings, max) {
+  if (!max || max <= 0) return findings;
+  const order = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+  const active = findings.filter((f) => !f.suppressed);
+  const suppressed = findings.filter((f) => f.suppressed);
+  active.sort((a, b) => (order[a.sev] ?? 9) - (order[b.sev] ?? 9));
+  const kept = active.slice(0, max);
+  const dropped = active.slice(max).map((f) => ({
+    ...f,
+    suppressed: true,
+    detail: (f.detail || '') + ' [max-findings]',
+  }));
+  return [...kept, ...dropped, ...suppressed];
+}
+
+/** Simple exclude: substring or trailing glob * */
+export function matchExclude(rel, patterns) {
+  if (!patterns?.length) return false;
+  const n = rel.replace(/\\/g, '/');
+  for (let p of patterns) {
+    if (!p) continue;
+    p = p.replace(/\\/g, '/');
+    if (p.endsWith('/*')) {
+      const pref = p.slice(0, -1);
+      if (n.startsWith(pref) || n.includes('/' + pref)) return true;
+    }
+    if (p.startsWith('*.')) {
+      if (n.endsWith(p.slice(1))) return true;
+    }
+    if (n === p || n.endsWith('/' + p) || n.includes(p)) return true;
+  }
+  return false;
+}
+
 
 export function markDiffAwareness(findings, hunks) {
   if (!hunks || hunks.size === 0) {
@@ -408,7 +458,7 @@ export function toSarif(report) {
     version: '2.1.0',
     runs: [
       {
-        tool: { driver: { name: 'demigod-review', version: '2.0.0', informationUri: 'https://www.trydemigod.com' } },
+        tool: { driver: { name: 'demigod-review', version: '2.1.0', informationUri: 'https://www.trydemigod.com' } },
         results,
       },
     ],
