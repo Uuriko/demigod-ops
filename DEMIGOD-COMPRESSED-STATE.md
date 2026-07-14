@@ -11,6 +11,14 @@
 - **Next software (disk):** WIZ ownership tests · smoke disk/live soft assert · version ledger
 
 ---
+## 2026-07-14 · ELEGANT REFINE
+
+- **Too complex?** Yes — we over-built process essays. **Fix:** one card `DEMIGOD-SIMPLE.md` + one ops page `docs/process/OPS.md`.
+- Agents: open SIMPLE first; exchange/ = history; don’t re-read 58 docs per session.
+- Method still true: stages PLAN/EXECUTE/REVIEW; human authorizes blast radius; 1 agent default.
+
+---
+
 ## 2026-07-14 · AGENT METHOD CRITIQUE
 
 - **Verdict:** process “hats” OK for humans/checklists; **bad as agent authority**

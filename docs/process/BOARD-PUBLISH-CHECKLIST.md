@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (BOARD-PUBLISH-CHECKLIST.md).
+
 # BRD-01 — Board publish
 
 **Owner:** Board steward · **When:** any board JSON mutation intended for public CDN

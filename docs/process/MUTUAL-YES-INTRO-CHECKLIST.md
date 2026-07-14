@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (MUTUAL-YES-INTRO-CHECKLIST.md).
+
 # INT-03 — Mutual yes → intro
 
 **Owner:** Account lead · **When:** immediately before intro email

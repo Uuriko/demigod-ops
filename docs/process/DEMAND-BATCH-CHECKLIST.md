@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (DEMAND-BATCH-CHECKLIST.md).
+
 # DEM-01 — Demand / outreach batch
 
 **Owner:** Human (sends) · agents draft only · **When:** before each DM/email batch

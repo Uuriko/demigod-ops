@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (INTAKE-ACCEPTANCE-CHECKLIST.md).
+
 # INT-01 — Intake / brief acceptance
 
 **Owner:** Talent lead · **When:** form submit, email brief, or warm reply before sourcing

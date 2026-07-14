@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (INCIDENT-DATA-RESPONSE.md).
+
 # INC-01 — Incident & data response
 
 **Owner:** Finder → escalate to human · **When:** site wrong, form broken, dishonest claim risk, bad intro, PII/key leak, freeze thrash

@@ -1,5 +1,7 @@
 # Demigod — Agent Rules (Webflow / trydemigod.com)
 
+**Prefer:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) for day-to-day. This file is the expanded ruleset.
+
 **Workspace:** `/home/potter`  
 **Project:** SF startup talent-matching marketing site (talentlink-sf / trydemigod.com).  
 **Not in scope:** Eat the Sounds game — see `AGENTS.md` hard stops.

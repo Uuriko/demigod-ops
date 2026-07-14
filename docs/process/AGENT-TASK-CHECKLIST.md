@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (AGENT-TASK-CHECKLIST.md).
+
 # AGT-01 — Agent task contract
 
 **Owner:** Task agent + reviewer · **When:** any nontrivial multi-file or foot-core work

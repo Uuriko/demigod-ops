@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (CANDIDATE-CONSENT-CHECKLIST.md).
+
 # CAN-01 — Candidate consent & disclosure
 
 **Owner:** Talent ops · **When:** before sharing a profile with any founder

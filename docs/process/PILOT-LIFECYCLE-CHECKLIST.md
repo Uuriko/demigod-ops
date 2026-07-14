@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (PILOT-LIFECYCLE-CHECKLIST.md).
+
 # PIL-01 — Pilot lifecycle
 
 **Owner:** CS / founder · **When:** real search open → close  

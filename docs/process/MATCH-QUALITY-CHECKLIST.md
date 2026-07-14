@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (MATCH-QUALITY-CHECKLIST.md).
+
 # MAT-01 — Match quality
 
 **Owner:** Matcher · **When:** before pitching either side · **Tools:** `bin/dg matches` · `DEMIGOD-PAIRS`

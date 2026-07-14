@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (HIRE-INVOICE-OUTCOME-CHECKLIST.md).
+
 # HIR-01 — Hire, invoice, 90-day outcome
 
 **Owner:** Finance hat (human) · **When:** offer accepted / start date known

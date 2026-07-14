@@ -1,3 +1,7 @@
+# Demigod — Agent entry
+
+**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) · state: `DEMIGOD-COMPRESSED-STATE.md` · detail: `DEMIGOD-AGENTS.md`
+
 # Demigod — Agent Rules (default project)
 
 **Active projects:** trydemigod.com (Webflow) + Demigod startup ops.  

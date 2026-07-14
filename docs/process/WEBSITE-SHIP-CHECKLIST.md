@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (WEBSITE-SHIP-CHECKLIST.md).
+
 # WEB-01 — Website ship
 
 **Owner:** Release · **When:** intentional release only (not thrash)  

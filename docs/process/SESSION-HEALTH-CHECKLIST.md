@@ -1,3 +1,5 @@
+> Prefer **OPS.md** for daily use. This file is optional detail (SESSION-HEALTH-CHECKLIST.md).
+
 # OPS-01 — Session health
 
 **Owner:** Operator (any agent or human) · **When:** start (and end) of work day / heavy session
