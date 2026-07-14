@@ -134,6 +134,17 @@ console.log(JSON.stringify(j,null,2));
     shift
     exec node demigod-next.mjs "$@"
     ;;
+  evidence)
+    shift
+    exec node demigod-evidence.mjs "$@"
+    ;;
+  ledger|truth-delta)
+    shift
+    if [[ "${1:-}" == "" || "${1:-}" == "--json" ]]; then
+      exec node demigod-version-ledger.mjs delta
+    fi
+    exec node demigod-version-ledger.mjs "$@"
+    ;;
   tools|registry)
     shift
     exec node demigod-tools-registry.mjs "$@"

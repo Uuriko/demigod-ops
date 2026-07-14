@@ -74,10 +74,31 @@ if (isMain) {
   if (cmd === 'tail' || cmd === 'show') {
     const rows = tail(n);
     console.log(JSON.stringify({ path: LEDGER, n: rows.length, rows }, null, 2));
+  } else if (cmd === 'delta' || cmd === 'diff') {
+    const rows = tail(Math.max(n, 2));
+    const last = rows[rows.length - 1] || null;
+    const prev = rows.length >= 2 ? rows[rows.length - 2] : null;
+    const fields = ['diskVer', 'liveVer', 'manifestVer', 'diskSha12', 'liveSha12', 'freeze', 'pass', 'fullyShipped'];
+    const changed = {};
+    if (prev && last) {
+      for (const f of fields) {
+        if (prev[f] !== last[f]) changed[f] = { from: prev[f], to: last[f] };
+      }
+    }
+    const out = {
+      path: LEDGER,
+      prevAt: prev?.at || null,
+      lastAt: last?.at || null,
+      changed,
+      last,
+      same: Object.keys(changed).length === 0,
+    };
+    console.log(JSON.stringify(out, null, 2));
+    process.exit(0);
   } else if (cmd === 'path') {
     console.log(LEDGER);
   } else {
-    console.error('usage: tail|show [--n 20] | path');
+    console.error('usage: tail|show|delta [--n 20] | path');
     process.exit(2);
   }
 }

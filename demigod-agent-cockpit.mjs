@@ -12,6 +12,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { buildNext } from './demigod-next.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -215,8 +216,10 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
     }
   }
 
-  // Derive ONE next action — never false green
+  // ONE next: demigod-next is canonical (control + dash + ship agree).
+  // Only override for live-down / board / verify hard fails that next builder may miss.
   let next = null;
+  let nextSource = 'demigod-next';
   if (!live.ok) {
     next = {
       pri: 0,
@@ -224,27 +227,9 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       title: 'Live site unreachable',
       cmd: 'curl -sS -I https://www.trydemigod.com/',
       mutate: false,
+      freezeBlocks: false,
     };
-  } else if (!liveEqDiskVer || !liveEqManId || !diskMatchesManifest) {
-    next = {
-      pri: freezeOn ? 2 : 1,
-      id: 'ship-drift',
-      title: freezeOn
-        ? `Disk v${diskVer} ≠ live v${live.footVer || '?'} (freeze ON — wait for unfreeze)`
-        : `Ship disk v${diskVer} to live (cdn ${manId || footerSrc || '?'})`,
-      cmd: freezeOn
-        ? 'node demigod-publish-freeze.mjs status'
-        : 'node demigod-foot-cdn-publish.mjs && node demigod-cm6-paste-publish.mjs --footer-only',
-      mutate: !freezeOn,
-    };
-  } else if (verify?.pass === false || verifyFresh === false) {
-    next = {
-      pri: 1,
-      id: 'verify-source',
-      title: verifyFresh === false ? 'Re-run verify:source (stale vs foot mtime)' : 'verify:source FAIL',
-      cmd: 'npm run demigod:verify:source && node demigod-foot-smoke.mjs',
-      mutate: false,
-    };
+    nextSource = 'cockpit-live-down';
   } else if (board.pass === false) {
     next = {
       pri: 1,
@@ -252,23 +237,44 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       title: 'Board honesty fail',
       cmd: 'node demigod-verify-board-honesty.mjs',
       mutate: false,
+      freezeBlocks: false,
     };
-  } else if (!cdp.up) {
+    nextSource = 'cockpit-board';
+  } else if (verify?.pass === false) {
     next = {
-      pri: 2,
-      id: 'cdp-up',
-      title: 'CDP down — start Chrome for live tests',
-      cmd: '~/agent-dev.sh up',
+      pri: 1,
+      id: 'verify-source',
+      title: 'verify:source FAIL',
+      cmd: 'npm run demigod:verify:source && node demigod-foot-smoke.mjs',
       mutate: false,
+      freezeBlocks: false,
     };
+    nextSource = 'cockpit-verify';
   } else {
-    next = {
-      pri: 3,
-      id: 'smoke',
-      title: 'Site hash chain green — run agent smoke / GTM',
-      cmd: 'node demigod-agent-smoke.mjs && cat /tmp/dg-busy/agent-smoke.json',
-      mutate: false,
-    };
+    try {
+      const canon = buildNext({ truth, demand: readJson(path.join(BUSY, 'demand-status.json')) });
+      next = {
+        pri: canon.pri ?? 1,
+        id: canon.id,
+        title: canon.title,
+        cmd: canon.cmd,
+        mutate: !!canon.mutate,
+        freezeBlocks: !!canon.freezeBlocks,
+        reason: canon.reason,
+        versions: canon.versions,
+        truthEvidence: canon.truthEvidence,
+      };
+    } catch {
+      next = {
+        pri: 0,
+        id: 'truth',
+        title: 'Refresh truth (next builder failed)',
+        cmd: 'bin/dg truth',
+        mutate: false,
+        freezeBlocks: false,
+      };
+      nextSource = 'cockpit-fallback';
+    }
   }
 
   const cockpit = {
@@ -321,13 +327,15 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       : null,
     shipped,
     next,
+    nextSource,
     agentStart: [
+      'bin/dg truth',
+      'bin/dg next-canon',
       'node demigod-agent-cockpit.mjs --md',
-      'cat /tmp/dg-busy/AGENT-BRIEF.md',
-      'node demigod-agent-smoke.mjs',
       next.cmd,
     ],
     rules: [
+      'NEXT comes from demigod-next (or live-down/board/verify override)',
       'Never treat verify:source alone as deployed truth',
       'Never ship while freeze.on',
       'Mutating cmds only when freeze off + lock free',
@@ -402,5 +410,7 @@ if (isMain) {
   } else {
     console.log(toMarkdown(c));
   }
-  process.exit(c.shipped || c.next.pri >= 3 ? 0 : c.next.pri <= 1 ? 2 : 0);
+  // 0 = idle/shipped/low urgency; 2 = attention (non-mutate still ok for agents)
+  const code = c.shipped || c.next.pri >= 3 ? 0 : c.next.pri <= 1 ? 2 : 0;
+  process.exit(code);
 }

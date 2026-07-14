@@ -214,12 +214,32 @@ async function main() {
               ? `curl -I ${LIVE}/`
               : 'all green — no ship needed';
 
+  // Stage next (hash chain) is NOT the agent NEXT — attach canonical buildNext separately
+  let nextCanon = null;
+  try {
+    const { buildNext } = await import('./demigod-next.mjs');
+    nextCanon = buildNext();
+  } catch {
+    nextCanon = null;
+  }
+
   const report = {
     at: new Date().toISOString(),
     shipped: allOk,
     stage: allOk ? 'cdn_body_matches_disk' : next?.id || 'unknown',
     nextAction: next ? next.detail : 'fully shipped',
     nextCmd,
+    /** Agent-facing NEXT (demigod-next). Prefer this over nextCmd for "what do I do". */
+    nextCanon: nextCanon
+      ? { id: nextCanon.id, title: nextCanon.title, cmd: nextCanon.cmd, reason: nextCanon.reason }
+      : null,
+    facts: {
+      diskVer: disk.ver,
+      liveVer: live.footVer || null,
+      manVer: man.version || null,
+      diskMatchesManifest: manShaOk,
+      freezeOn: Boolean(readJson(path.join(BUSY, 'publish-freeze.json'))?.on),
+    },
     disk: { ver: disk.ver, core: disk.core, sha256: diskSha },
     manifest: { version: man.version || null, cdnUrl: man.cdnUrl || null, sha256: man.sha256 || null },
     footerLiteCdn: footerCdn,

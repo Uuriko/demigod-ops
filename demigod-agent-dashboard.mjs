@@ -1327,8 +1327,54 @@ function buildJobQueue() {
   };
 }
 
+function ensureDemandFresh(maxAgeSec = 900) {
+  /** Refresh demand-status.json if missing or older than maxAgeSec (default 15m). */
+  const p = path.join(BUSY, 'demand-status.json');
+  let ageSec = null;
+  try {
+    ageSec = Math.round((Date.now() - fs.statSync(p).mtimeMs) / 1000);
+  } catch {
+    ageSec = null;
+  }
+  if (ageSec != null && ageSec <= maxAgeSec) {
+    return { refreshed: false, ageSec };
+  }
+  try {
+    execSync(`${process.execPath} demigod-demand.mjs status --json`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 25000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { refreshed: true, ageSec: 0 };
+  } catch (e) {
+    return { refreshed: false, ageSec, error: String(e.message || e).slice(0, 120) };
+  }
+}
+
 async function enrichStatus(data) {
   data.version = 5;
+  // Keep demand snapshot warm for glance (agent-only; never auto-sends)
+  try {
+    data.demandRefresh = ensureDemandFresh(900);
+    if (data.demandRefresh?.refreshed || !data.demand) {
+      try {
+        const j = JSON.parse(fs.readFileSync(path.join(BUSY, 'demand-status.json'), 'utf8'));
+        data.demand = {
+          at: j.at,
+          pending: j.queue?.pending ?? null,
+          sentConfirmed: j.dms?.sentConfirmed ?? null,
+          pilotsFilled: j.pilots?.realFilled ?? null,
+          next: j.next || null,
+          top3: j.queue?.top3 || [],
+        };
+      } catch {
+        /* */
+      }
+    }
+  } catch {
+    /* */
+  }
   // Freshness: verify vs foot-core (false PASS prevention)
   try {
     // dynamic import-free: use sync helpers inlined via fs already available

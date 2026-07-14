@@ -73,14 +73,13 @@ export function buildNext({ truth = null, demand = null } = {}) {
   if (freeze.frozen) {
     const pending = demandStatus?.queue?.pending;
     const top = demandStatus?.queue?.top3?.[0];
-    const dmHint = top
-      ? `Human DM: ${top.name} ${top.handle}`
-      : pending != null
-        ? `Demand: ${pending} pending DMs`
-        : 'Run bin/dg demand status';
+    const dmHint =
+      pending != null
+        ? `demand queue pending=${pending}` + (top ? ` head=${top.name}` : '')
+        : 'run bin/dg demand status (refresh queue snapshot)';
     return {
       ...base,
-      id: 'demand-human',
+      id: 'demand-ops',
       title: `No ship — freeze holds · ${dmHint}`,
       cmd: 'bin/dg demand status',
       pri: 0,
@@ -116,9 +115,43 @@ export function buildNext({ truth = null, demand = null } = {}) {
   };
 }
 
+function assertSameSurfaces() {
+  /** Compare buildNext vs control nextCanon fields + next.json if present. */
+  const n = buildNext();
+  const plane = readJson(path.join(BUSY, 'control-plane.json'));
+  const cock = readJson(path.join(BUSY, 'cockpit.json'));
+  const ship = readJson(path.join(BUSY, 'ship-latest.json'));
+  const mismatches = [];
+  const check = (label, id, cmd) => {
+    if (id == null && cmd == null) return;
+    if (id && id !== n.id) mismatches.push({ label, field: 'id', expected: n.id, got: id });
+    if (cmd && cmd !== n.cmd) mismatches.push({ label, field: 'cmd', expected: n.cmd, got: cmd });
+  };
+  if (plane?.nextCanon) check('control.nextCanon', plane.nextCanon.id, plane.nextCanon.cmd);
+  else if (plane?.next) check('control.next', plane.next.id, plane.next.cmd);
+  if (cock?.next && !['live-down', 'board-honesty', 'verify-source'].includes(cock.next.id)) {
+    check('cockpit.next', cock.next.id, cock.next.cmd);
+  }
+  if (ship?.next && typeof ship.next === 'object') check('ship.next', ship.next.id, ship.next.cmd);
+  const out = {
+    ok: mismatches.length === 0,
+    id: n.id,
+    cmd: n.cmd,
+    freeze: n.freeze,
+    versions: n.versions,
+    mismatches,
+  };
+  return out;
+}
+
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  if (process.argv.includes('--assert-same')) {
+    const a = assertSameSurfaces();
+    console.log(JSON.stringify(a, null, 2));
+    process.exit(a.ok ? 0 : 1);
+  }
   const n = buildNext();
   fs.mkdirSync(BUSY, { recursive: true });
   fs.writeFileSync(path.join(BUSY, 'next.json'), JSON.stringify(n, null, 2) + '\n');

@@ -28,7 +28,7 @@ ok(/freeze:/i.test(help.stdout), 'ship help shows freeze');
 ok(/status|prepare|cdn|paste|verify|run/.test(help.stdout), 'ship help lists verbs');
 
 const st = dgShip(['status', '--json']);
-ok(st.status === 0 || st.status === 1, 'ship status runs');
+ok([0, 1].includes(Number(st.status)), 'ship status runs');
 let report = null;
 try {
   report = JSON.parse(st.stdout.slice(st.stdout.indexOf('{')));

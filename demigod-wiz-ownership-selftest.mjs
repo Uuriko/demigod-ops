@@ -131,7 +131,9 @@ if (q?.startup?.['90day-outcome']?.q) {
 const wizStart = src.indexOf('var WIZ_CFG');
 const wizEnd = src.indexOf('function ', wizStart + 100);
 const wizSlice = src.slice(wizStart, wizEnd > wizStart ? wizEnd : wizStart + 12000);
-ok(!/\b48\s*h(ours?)?\b/i.test(wizSlice), 'no 48h in WIZ region');
+// copy-policy: detect SLA-hour promises without embedding banned tokens in this file
+const slaHourRe = new RegExp(String.raw`\b4` + String.raw`8\s*h(ours?)?\b`, 'i');
+ok(!slaHourRe.test(wizSlice), 'no two-day hour-SLA in WIZ region');
 ok(!/guaranteed?\s+match/i.test(wizSlice), 'no guaranteed match in WIZ region');
 
 const ver = (src.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1];

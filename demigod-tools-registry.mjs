@@ -47,6 +47,8 @@ export const TOOLS = [
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots (never auto-send)', out: '/tmp/dg-busy/demand-status.json', hot: true },
   { id: 'next-canon', name: 'Canonical NEXT', group: 'session', cmd: 'bin/dg next-canon', purpose: 'Single NEXT from truth evidence + freeze + demand', out: '/tmp/dg-busy/next.json', hot: true },
   { id: 'version-ledger', name: 'Version ledger', group: 'gates', cmd: 'node demigod-version-ledger.mjs tail', purpose: 'Append-only disk/live/cdn history (written by truth)', out: 'DEMIGOD-VERSION-LEDGER.jsonl' },
+  { id: 'truth-delta', name: 'Truth delta', group: 'gates', cmd: 'bin/dg ledger delta', purpose: 'What changed since last truth ledger line', out: '/tmp/dg-busy/version-ledger-tail.json', hot: true },
+  { id: 'next-assert', name: 'NEXT identity assert', group: 'session', cmd: 'bin/dg next-canon --assert-same', purpose: 'Fail if control/cockpit/ship NEXT drift from buildNext', out: '/tmp/dg-busy/next.json', hot: true },
   { id: 'wiz-ownership', name: 'WIZ ownership selftest', group: 'forms', cmd: 'node demigod-wiz-ownership-selftest.mjs', purpose: 'Source WIZ_CFG ownership (90day, submit, no SLA)', out: '/tmp/dg-busy/wiz-ownership.json', hot: true },
   { id: 'ship-checklist', name: 'Ship checklist', group: 'ship', cmd: 'node demigod-ship-checklist.mjs', purpose: 'alias → prefer bin/dg ship status', out: '/tmp/dg-busy/ship-checklist.json', alias: 'ship' },
   { id: 'ship-prep', name: 'Ship prep', group: 'ship', cmd: 'bin/dg ship prepare', purpose: 'alias → bin/dg ship prepare', out: '/tmp/dg-busy/ship-prepare.json', alias: 'ship' },

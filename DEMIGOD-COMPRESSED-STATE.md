@@ -1,3 +1,12 @@
+## 2026-07-14 · P4 + TOOLS BRAINSTORM + REVIEW
+
+- Cockpit NEXT = demigod-next (override only live-down/board/verify)
+- Dash demand refresh ≤15m; next-canon --assert-same; ledger delta
+- ship-status: facts + nextCanon (stage next ≠ agent NEXT)
+- Fable/Codex tools want merged: /tmp/dg-busy/swarm-tools-brainstorm/MERGED-TOOLS-WANT.md
+- Code review tools stack: REVIEW OK high=0 (info: dash size)
+- tools-os-selftest ALL PASS
+
 # Demigod — Compressed State (living)
 
 ## 2026-07-14 · P3 AGENT SURFACE (no human tasks)

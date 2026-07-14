@@ -11,10 +11,10 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { BUSY, ensureBusy, atomicWrite, readJson, opt } from './demigod-agent-tools-lib.mjs';
 
 const FILE = path.join(BUSY, 'publish-freeze.json');
-import { fileURLToPath } from 'url';
 
 export function status() {
   const j = readJson(FILE);

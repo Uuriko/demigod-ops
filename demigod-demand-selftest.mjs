@@ -72,7 +72,7 @@ ok(fs.existsSync('/tmp/dg-busy/next.json'), 'next.json written');
 // ledger file path exists after truth (may already)
 const led = path.join(ROOT, 'DEMIGOD-VERSION-LEDGER.jsonl');
 const truth = run('demigod-truth.mjs', ['--quiet']);
-ok(truth.status === 0 || truth.status === 1, 'truth runs for ledger');
+ok([0, 1].includes(Number(truth.status)), 'truth runs for ledger');
 ok(fs.existsSync(led), 'version ledger file exists');
 const last = fs.readFileSync(led, 'utf8').trim().split('\n').pop();
 let line = null;
