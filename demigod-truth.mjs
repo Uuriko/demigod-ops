@@ -17,6 +17,7 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
+import { beginRun, sealRun, addArtifact } from './demigod-evidence.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -81,6 +82,9 @@ async function fetchText(url) {
 
 async function main() {
   const footPath = path.join(ROOT, 'demigod-foot-core.js');
+  const run = beginRun('truth', {
+    scope: [footPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
+  });
   const headCssPath = path.join(ROOT, 'demigod-head-styles.css');
   const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
   const footerPath = path.join(ROOT, 'demigod-footer-lite.html');
@@ -311,6 +315,17 @@ async function main() {
     `JSON: ${path.join(BUSY, 'truth.json')}`,
   ].join('\n');
   fs.writeFileSync(path.join(BUSY, 'truth.md'), md + '\n');
+
+  facts.evidence = sealRun(
+    addArtifact(run, 'truth.json', path.join(BUSY, 'truth.json')),
+    { pass, exit: pass ? 0 : 1, summary: facts.summaryLine, ttlSec: 3600 },
+    { freeze: facts.freeze, lock: facts.lock },
+  );
+  facts.evidenceRunId = facts.evidence.runId;
+  facts.evidenceFresh = true;
+  // rewrite truth.json with evidence pointer
+  fs.writeFileSync(path.join(BUSY, 'truth.json'), JSON.stringify(facts, null, 2) + '\n');
+  fs.writeFileSync(path.join(BUSY, 'live-doctor.json'), JSON.stringify(facts, null, 2) + '\n');
 
   if (asJson) {
     console.log(JSON.stringify(facts, null, 2));

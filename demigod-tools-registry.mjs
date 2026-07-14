@@ -25,6 +25,7 @@ export const TOOLS = [
   { id: 'smoke', name: 'Agent smoke', group: 'session', cmd: 'bin/dg-smoke', purpose: 'CDP body/h1/foot/WIZ proof', out: '/tmp/dg-busy/agent-smoke.json', hot: true },
   { id: 'usertest', name: 'User-test harness', group: 'session', cmd: 'bin/dg-usertest', purpose: 'Unified site+dash+tools+forms UX suite', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
   { id: 'usertest-quick', name: 'User-test quick', group: 'session', cmd: 'bin/dg-usertest --quick', purpose: 'Faster UX suite without full selftest', out: '/tmp/dg-busy/user-test-latest.json', hot: true },
+  { id: 'evidence', name: 'Evidence latest', group: 'session', cmd: 'node demigod-evidence.mjs fresh truth', purpose: 'Refuse stale truth/review green', out: '/tmp/dg-busy/evidence/latest-truth.json', hot: true },
   { id: 'truth', name: 'Truth oracle', group: 'session', cmd: 'bin/dg truth', purpose: 'Single disk/live/freeze/lock/board truth (SHA)', out: '/tmp/dg-busy/truth.json', hot: true },
   { id: 'live-doctor', name: 'Live doctor (alias)', group: 'session', cmd: 'bin/dg live', purpose: 'Alias of truth', out: '/tmp/dg-busy/truth.json', hot: true },
   { id: 'foot-lock', name: 'Foot lock', group: 'session', cmd: 'bin/dg lock status', purpose: 'Hard mutex for demigod-foot-core.js', out: '/tmp/dg-busy/foot-lock.json', hot: true },

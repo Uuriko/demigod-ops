@@ -369,12 +369,42 @@ function deriveActions(ctx) {
     });
   }
 
-  // Site healthy only when full hash chain + versions agree (swarm tools audit 2026-07-13)
+  // Site healthy only when full hash chain + FRESH truth evidence (unforgeable green)
   const diskVerGreen = foot?.disk?.ver || foot?.disk?.core || diskVer || null;
   const liveVerGreen = (live?.foot || '').replace(/^foot\s*v?/i, '') || null;
   const truthGreen = safeJson(path.join(BUSY, 'truth.json'));
+  let truthEvidenceOk = false;
+  try {
+    const evPath = path.join(BUSY, 'evidence', 'latest-truth.json');
+    if (fs.existsSync(evPath)) {
+      const env = JSON.parse(fs.readFileSync(evPath, 'utf8'));
+      const files = env.inputsAtSeal?.files || env.inputs?.files || {};
+      let mismatch = false;
+      for (const [rel, sha] of Object.entries(files)) {
+        if (!sha) continue;
+        try {
+          const cur = crypto
+            .createHash('sha256')
+            .update(fs.readFileSync(path.join(ROOT, rel)))
+            .digest('hex');
+          if (cur !== sha) mismatch = true;
+        } catch {
+          mismatch = true;
+        }
+      }
+      const ended = Date.parse(env.endedAt || 0);
+      const ttl = (env.ttlSec || 3600) * 1000;
+      const expired = Number.isFinite(ended) && Date.now() - ended > ttl;
+      truthEvidenceOk = Boolean(env.result?.pass) && !mismatch && !expired;
+    }
+  } catch {
+    truthEvidenceOk = false;
+  }
   const liveEqDiskGreen =
-    truthGreen?.claims?.['live==disk'] === true || truthGreen?.match?.cdnBodyMatchesDisk === true;
+    truthEvidenceOk ||
+    truthGreen?.claims?.['live==disk'] === true ||
+    truthGreen?.match?.cdnBodyMatchesDisk === true;
+  // Prefer evidence green; never site-green without fresh truth when evidence exists
   const freezeOnGreen = Boolean(safeJson(path.join(BUSY, 'publish-freeze.json'))?.on);
   if (
     live?.ok &&
@@ -386,14 +416,15 @@ function deriveActions(ctx) {
     liveVerGreen &&
     String(diskVerGreen) === String(liveVerGreen) &&
     liveEqDiskGreen &&
+    truthEvidenceOk &&
     !freezeOnGreen
   ) {
     actions.push({
       pri: 3,
       id: 'site-green',
-      title: 'Site green — no ship required; avoid foot thrash',
-      why: `live==disk v${liveVerGreen} cdn=${liveId}`,
-      cmd: 'node demigod-ship-status.mjs; bin/dg-preflight',
+      title: 'Site green — fresh truth evidence; avoid foot thrash',
+      why: `live==disk v${liveVerGreen} cdn=${liveId} evidence-fresh`,
+      cmd: 'bin/dg truth; bin/dg-preflight',
       owner: 'grok',
     });
   } else if (live?.ok && diskVerGreen && liveVerGreen && String(diskVerGreen) !== String(liveVerGreen)) {
@@ -1693,6 +1724,25 @@ const server = http.createServer(async (req, res) => {
   const noStore = { 'Cache-Control': 'no-store' };
   try {
     /* ==== SECTION: HTTP API routes (agent-first JSON) ==== */
+    if (url.pathname === '/api/truth') {
+      try {
+        const { refuseIfStale, loadLatest } = await import('./demigod-evidence.mjs');
+        const truthFresh = refuseIfStale('truth');
+        const reviewFresh = refuseIfStale('review');
+        const body = {
+          truth: truthFresh,
+          review: reviewFresh,
+          green: Boolean(truthFresh.green),
+          note: 'green only if truth evidence pass+fresh',
+        };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(body, null, 2));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(e.message || e) }));
+      }
+      return;
+    }
     if (url.pathname === '/api/status' || url.pathname === '/api/status.json') {
       const force = url.searchParams.get('force') === '1';
       const data = await getStatus({ force });

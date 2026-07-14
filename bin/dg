@@ -63,6 +63,26 @@ case "$1" in
     shift
     exec node demigod-full-check.mjs "$@"
     ;;
+  check)
+    shift
+    exec node demigod-check.mjs "$@"
+    ;;
+  done|handoff)
+    shift
+    note="${1:-}"; shift || true
+    next="${1:-}"
+    node -e "
+const fs=require('fs');
+const b='/tmp/dg-busy';
+fs.mkdirSync(b,{recursive:true});
+const j={at:new Date().toISOString(),from:process.env.USER||'agent',note:process.argv[1],next:process.argv[2]};
+fs.writeFileSync(b+'/handoff-latest.json',JSON.stringify(j,null,2)+'\n');
+fs.appendFileSync(b+'/handoff.jsonl',JSON.stringify(j)+'\n');
+console.log(JSON.stringify(j,null,2));
+" "$note" "$next"
+    exit 0
+    ;;
+
   live|live-doctor)
     shift
     exec node demigod-truth.mjs "$@"

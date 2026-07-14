@@ -17,6 +17,9 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { writeReceipt } from './demigod-publish-receipt.mjs';
+import { assertNotFrozen, status as freezeStatus } from './demigod-publish-freeze.mjs';
+import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
+assertCanWriteFoot({ label: 'publish-foot' });
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const FOOT = path.join(ROOT, 'demigod-foot-core.js');
@@ -122,31 +125,8 @@ async function main() {
     console.error(`[publish-foot] ${m}`);
   };
 
-  // Global freeze switch (site green / human veto)
-  {
-    let fileFreeze = false;
-    try {
-      const fj = JSON.parse(fs.readFileSync('/tmp/dg-busy/publish-freeze.json', 'utf8'));
-      fileFreeze = Boolean(fj?.on);
-    } catch {
-      /* */
-    }
-    const envFreeze =
-      process.env.DEMIGOD_PUBLISH_FREEZE === '1' || process.env.DEMIGOD_PUBLISH_FREEZE === 'true';
-    if ((envFreeze || fileFreeze) && !DRY) {
-      console.error(
-        JSON.stringify({
-          ok: false,
-          error: 'publish_frozen',
-          env: envFreeze,
-          file: fileFreeze,
-          hint: 'node demigod-publish-freeze.mjs off  OR  unset DEMIGOD_PUBLISH_FREEZE',
-        }),
-      );
-      process.exit(1);
-    }
-    if (envFreeze || fileFreeze) step('FREEZE on — dry-run only allowed');
-  }
+  if (!DRY) assertNotFrozen('publish-foot');
+  if (DRY && freezeStatus().frozen) step('FREEZE on — dry-run only allowed');
 
   let lockedByUs = false;
   let lockToken = process.env.DG_LOCK_TOKEN || null;

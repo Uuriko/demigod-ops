@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -125,6 +126,7 @@ function setHead(text){
 async function main() {
   // Honor publish freeze (unless --no-publish paste-only prep)
   if (!NO_PUBLISH) assertNotFrozen('cm6-paste-publish');
+  assertCanWriteFoot({ label: 'cm6-paste-publish' });
 
   const tabs = await cdpTabs();
   const page = tabs.find(

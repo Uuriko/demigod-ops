@@ -197,7 +197,7 @@ for (const f of [
 const ver = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--version'], {
   encoding: 'utf8',
 });
-ok(/2\.2/.test(ver.stdout), 'version 2.2');
+ok(/2\.3/.test(ver.stdout), 'version 2.3');
 
 // format summary
 const sum = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--format', 'summary', '--no-git', '--full', '--files', relGood, '--fail-on', 'never'], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
