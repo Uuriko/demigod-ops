@@ -119,10 +119,8 @@ export function getGitDiff(base = null) {
   if (base) {
     return sh(`git diff ${shellQuote(base)} 2>/dev/null`, { timeout: 30000 }).stdout;
   }
-  // staged + unstaged against HEAD (or empty tree)
-  const unstaged = sh('git diff HEAD 2>/dev/null', { timeout: 30000 }).stdout;
-  const staged = sh('git diff --cached 2>/dev/null', { timeout: 30000 }).stdout;
-  return [staged, unstaged].filter(Boolean).join('\n');
+  // Single pass: working tree + index vs HEAD (includes staged; no double-count)
+  return sh('git diff HEAD 2>/dev/null', { timeout: 30000 }).stdout;
 }
 
 export function listScopeFiles(opts = {}) {
@@ -137,8 +135,21 @@ export function listScopeFiles(opts = {}) {
 
   if (files?.length) {
     for (const f of files) {
-      const rel = path.relative(ROOT, path.resolve(ROOT, f));
-      set.add(rel);
+      const abs = path.resolve(ROOT, f);
+      const rootAbs = path.resolve(ROOT);
+      if (abs !== rootAbs && !abs.startsWith(rootAbs + path.sep)) {
+        // path escape — skip (main may report if needed)
+        continue;
+      }
+      const rel = path.relative(ROOT, abs);
+      if (rel.startsWith('..')) continue;
+      if (!shouldReview(rel) && !fs.existsSync(path.join(ROOT, rel))) {
+        // allow missing tracked files for missing-file findings
+        if (!rel || rel.includes('..')) continue;
+      }
+      if (shouldReview(rel) || !fs.existsSync(path.join(ROOT, rel))) {
+        set.add(rel);
+      }
     }
     return [...set];
   }

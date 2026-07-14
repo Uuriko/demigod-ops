@@ -30,3 +30,12 @@ bin/dg-review --fix --rescan
 bin/dg-review --only-rule eval-use,syntax --files x.mjs
 node demigod-review-selftest.mjs
 ```
+
+## Security follow-up (same day)
+
+7. **LLM command injection** — prompt no longer spliced into `bash -lc`; `claude` argv only  
+8. **Tier-A fix rollback** — if syntax fails after write, restore previous bytes  
+9. **`--files` path escape** — reject paths outside ROOT  
+10. **Pipeline order** — fix → (re)scan → LLM → single finalize/fingerprint/diff mark  
+11. **Selftest fixtures** under `tmp/review-fixtures/` (inside ROOT)
+

@@ -12,7 +12,8 @@ import { runGates, suggestGates } from './demigod-review-gates.mjs';
 import { scoreSummary, limitFindings, matchExclude } from './demigod-review-lib.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const FIX = path.join(BUSY, 'review-fixtures');
+// Fixtures must live under ROOT — --files rejects path escapes
+const FIX = path.join(ROOT, 'tmp', 'review-fixtures');
 const fails = [];
 function ok(c, m) {
   if (!c) fails.push(m);

@@ -192,20 +192,22 @@ async function main() {
 
   let findings = collectFindings(scope, ruleOpts);
 
-  // Diff awareness
-  let hunks = new Map();
-  if (!flags.noGit && !flags.files?.length) {
-    try {
-      const diff = getGitDiff(flags.base);
-      hunks = parseDiffHunks(diff);
-    } catch {
-      hunks = new Map();
+  // Tier A fixes BEFORE final scoring (optional re-scan)
+  let autoApplied = [];
+  if (flags.fix) {
+    autoApplied = applySafeFixes(scope, {
+      dryRun: flags.dryRun,
+      allowFoot: flags.allowFoot,
+      readRel,
+    });
+    if ((flags.rescan || !flags.dryRun) && !flags.dryRun && autoApplied.some((a) => a.fixes?.length && !a.syntaxBroken && !a.rolledBack)) {
+      findings = collectFindings(scope, ruleOpts);
+    } else if (flags.rescan && flags.dryRun) {
+      // dry-run cannot re-scan disk; note in report only
     }
   }
-  findings = markDiffAwareness(findings, hunks);
-  findings = applyDiffFilter(findings, { full: flags.full, bug: flags.bug });
 
-  // Optional LLM
+  // Optional LLM (after static; then normalize once)
   if (flags.llm) {
     try {
       const { runLlmPass } = await import('./demigod-review-llm.mjs');
@@ -223,25 +225,20 @@ async function main() {
     }
   }
 
-  // Tier A fixes
-  let autoApplied = [];
-  if (flags.fix) {
-    autoApplied = applySafeFixes(scope, {
-      dryRun: flags.dryRun,
-      allowFoot: flags.allowFoot,
-      readRel,
-    });
-    // Re-scan after successful (non-dry) fixes
-    if (flags.rescan && !flags.dryRun && autoApplied.some((a) => a.fixes?.length && !a.syntaxBroken)) {
-      const reFindings = collectFindings(scope, ruleOpts);
-      // keep non-file findings from first pass? replace file-based
-      const other = findings.filter((f) => !f.file || !scope.includes(f.file));
-      findings = markDiffAwareness([...other, ...reFindings], hunks);
-      findings = applyDiffFilter(findings, { full: flags.full, bug: flags.bug });
+  // Diff awareness + filter (all producers)
+  let hunks = new Map();
+  if (!flags.noGit && !flags.files?.length) {
+    try {
+      const diff = getGitDiff(flags.base);
+      hunks = parseDiffHunks(diff);
+    } catch {
+      hunks = new Map();
     }
   }
+  findings = markDiffAwareness(findings, hunks);
+  findings = applyDiffFilter(findings, { full: flags.full, bug: flags.bug });
 
-  findings = finalizeFindings(findings, baseline);
+    findings = finalizeFindings(findings, baseline);
   if (flags.max > 0) findings = limitFindings(findings, flags.max);
 
   // Gates

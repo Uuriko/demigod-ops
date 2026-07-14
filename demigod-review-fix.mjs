@@ -89,15 +89,30 @@ export function applySafeFixes(files, { dryRun = false, allowFoot = false, readR
     if (dryRun) {
       applied.push({ file: rel, dryRun: true, fixes });
     } else {
-      atomicWrite(path.join(ROOT, rel), next);
+      const abs = path.join(ROOT, rel);
+      const prev = src;
+      atomicWrite(abs, next);
       const syn = syntaxCheck(rel);
-      applied.push({
-        file: rel,
-        dryRun: false,
-        fixes,
-        syntaxBroken: Boolean(syn),
-        syntaxDetail: syn?.detail,
-      });
+      if (syn) {
+        // Rollback — never leave tier-A "safe" fix in a broken state
+        atomicWrite(abs, prev);
+        applied.push({
+          file: rel,
+          dryRun: false,
+          fixes,
+          syntaxBroken: true,
+          rolledBack: true,
+          syntaxDetail: syn?.detail,
+        });
+      } else {
+        applied.push({
+          file: rel,
+          dryRun: false,
+          fixes,
+          syntaxBroken: false,
+          rolledBack: false,
+        });
+      }
     }
   }
   return applied;
