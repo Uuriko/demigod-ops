@@ -60,6 +60,47 @@ export function fingerprint(f) {
   return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16);
 }
 
+
+/** Load optional DEMIGOD-REVIEW.json (project root) */
+export function loadReviewConfig() {
+  const candidates = [
+    path.join(ROOT, 'DEMIGOD-REVIEW.json'),
+    path.join(ROOT, '.demigod-review.json'),
+  ];
+  for (const c of candidates) {
+    try {
+      if (!fs.existsSync(c)) continue;
+      return { path: c, ...(JSON.parse(fs.readFileSync(c, 'utf8')) || {}) };
+    } catch {
+      /* */
+    }
+  }
+  return null;
+}
+
+/** Dedupe by fingerprint; keep highest severity */
+export function dedupeFindings(findings) {
+  const order = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+  const map = new Map();
+  for (const f of findings) {
+    const fp = f.fingerprint || fingerprint(f);
+    const prev = map.get(fp);
+    if (!prev) {
+      map.set(fp, { ...f, fingerprint: fp });
+      continue;
+    }
+    const a = order[f.sev] ?? 9;
+    const b = order[prev.sev] ?? 9;
+    if (a < b) map.set(fp, { ...f, fingerprint: fp });
+  }
+  return [...map.values()];
+}
+
+export function summaryLine(report) {
+  const s = report.summary || {};
+  return `REVIEW ${s.fail ? 'FAIL' : 'OK'} files=${report.files?.length ?? 0} findings=${s.count ?? 0} crit=${s.bySev?.critical ?? 0} high=${s.bySev?.high ?? 0} failOn=${s.failOn || 'high'}`;
+}
+
 export function loadBaseline() {
   try {
     return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));

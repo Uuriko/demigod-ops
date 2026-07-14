@@ -6,7 +6,8 @@
 #   home | status | next | plane | modules | help
 #   webflow | matches | review | hygiene | doctor | smoke | truth | freeze
 #   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] | live | mime | ship-prep
+#   full-check [--release] [--with-review] | live | mime | ship-prep
+#   review-bug | review-fix | review-self
 #   demigod:*  → npm run
 # Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
 # Registry: node demigod-tools-registry.mjs --md
@@ -69,6 +70,21 @@ case "$1" in
   mime|route-mime)
     shift
     exec node demigod-route-mime.mjs "$@"
+    ;;
+  review-bug)
+    shift
+    exec node demigod-review.mjs --bug --gates "$@"
+    ;;
+  review-fix)
+    shift
+    exec node demigod-review.mjs --fix --dry-run "$@"
+    ;;
+  review-self|review-meta)
+    shift
+    exec node demigod-review.mjs --include-meta --bug --full --stats \
+      --files demigod-review.mjs demigod-review-lib.mjs demigod-review-rules.mjs \
+      demigod-review-fix.mjs demigod-review-gates.mjs demigod-review-llm.mjs \
+      demigod-review-selftest.mjs bin/dg-review "$@"
     ;;
   ship-prep|prep-ship)
     shift

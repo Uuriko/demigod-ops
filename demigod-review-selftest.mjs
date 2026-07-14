@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { ensureBusy, BUSY } from './demigod-agent-tools-lib.mjs';
 import { computeSafeFixes } from './demigod-review-fix.mjs';
 import { runGates, suggestGates } from './demigod-review-gates.mjs';
-import { scoreSummary, limitFindings, matchExclude } from './demigod-review-lib.mjs';
+import { scoreSummary, limitFindings, matchExclude, dedupeFindings, loadReviewConfig, summaryLine } from './demigod-review-lib.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // Fixtures must live under ROOT — --files rejects path escapes
@@ -89,7 +89,7 @@ function runReview(extraArgs) {
 
 const { r, report } = runReview(['--files', relBad, relGood]);
 ok(report && report.findings, 'report parsed');
-ok(report?.version === '2.1.0' || report?.version === 2, 'version present');
+ok(String(report?.version || '').startsWith('2.'), 'version present');
 const findings = report?.findings || [];
 const rules = new Set(findings.filter((f) => !f.suppressed).map((f) => f.rule));
 
@@ -197,7 +197,22 @@ for (const f of [
 const ver = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--version'], {
   encoding: 'utf8',
 });
-ok(/2\.1/.test(ver.stdout), 'version 2.1');
+ok(/2\.2/.test(ver.stdout), 'version 2.2');
+
+// format summary
+const sum = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--format', 'summary', '--no-git', '--full', '--files', relGood, '--fail-on', 'never'], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
+ok(sum.status === 0 && /REVIEW OK/.test(sum.stdout), 'format summary');
+
+// unknown flag
+const unk = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--not-a-real-flag'], { cwd: ROOT, encoding: 'utf8', timeout: 10000 });
+ok(unk.status === 2, 'unknown flag exits 2');
+
+const ded = dedupeFindings([
+  { rule: 'x', sev: 'low', file: 'a', title: 't', fingerprint: 'abc' },
+  { rule: 'x', sev: 'high', file: 'a', title: 't', fingerprint: 'abc' },
+]);
+ok(ded.length === 1 && ded[0].sev === 'high', 'dedupe keeps highest sev');
+ok(loadReviewConfig() === null || typeof loadReviewConfig() === 'object', 'loadReviewConfig');
 
 if (fails.length) {
   console.error('FAIL', fails);

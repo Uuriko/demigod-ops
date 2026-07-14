@@ -50,6 +50,15 @@ export function computeSafeFixes(rel, src) {
     }
   }
 
+  // Double semicolons (JS only)
+  if (/\.(mjs|js|cjs)$/.test(rel) && /;;+/.test(next)) {
+    const fixed = next.replace(/;;+/g, ';');
+    if (fixed !== next) {
+      fixes.push('double-semicolon');
+      next = fixed;
+    }
+  }
+
   if (next.length && !next.endsWith('\n')) {
     fixes.push('trailing-newline');
     next = next + '\n';

@@ -32,6 +32,25 @@ function findAll(src, re) {
   return out;
 }
 
+/** Rough: true if index is inside ', ", or ` string (best-effort, not a full parser) */
+function inQuotedString(src, index) {
+  const before = src.slice(0, index);
+  // count unescaped quotes of each type on same line only
+  const lineStart = before.lastIndexOf('\n') + 1;
+  const line = src.slice(lineStart, index);
+  let sq = 0, dq = 0, bq = 0;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    const esc = i > 0 && line[i - 1] === '\\';
+    if (esc) continue;
+    if (c === "'") sq++;
+    else if (c === '"') dq++;
+    else if (c === '`') bq++;
+  }
+  return sq % 2 === 1 || dq % 2 === 1 || bq % 2 === 1;
+}
+
+
 export const RULES = [
   {
     id: 'game-hard-stop',
@@ -163,6 +182,7 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs, isMeta }) {
       if (!isJs || isMeta) return [];
+      if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
       const out = [];
       for (const m of findAll(src, /saveBoard\s*\(\s*[^,)]+\s*\)/g)) {
         if (!src.slice(m.index, m.index + 100).includes('{')) {
@@ -242,8 +262,15 @@ export const RULES = [
     tier: 'C',
     run({ rel, src, isJs, isMeta, bugMode }) {
       if (!isJs || isMeta) return [];
+      if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
       const out = [];
       for (const m of findAll(src, /\beval\s*\(|new Function\s*\(/g)) {
+        const lineStart = src.lastIndexOf('\n', m.index) + 1;
+        const lineEnd = src.indexOf('\n', m.index);
+        const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+        // Skip detector source / fixtures / quoted samples
+        if (/findAll\s*\(|rule:\s*['"]eval-use|findAll\(src, \/\\beval/i.test(line)) continue;
+        if (inQuotedString(src, m.index)) continue;
         const low = rel.includes('user-test') && /new Function/.test(m.match);
         out.push(
           finding({
@@ -600,22 +627,32 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs }) {
       if (!isJs) return [];
+      if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
       // Anti-pattern: treat stdout PASS as success when status may be non-zero
       if (!/status\s*===?\s*0/.test(src) && !/r\.status|exitCode|\.status\b/.test(src)) return [];
       if (!/\|\|\s*\/[^/\n]*(?:OK|PASS)/.test(src) && !/status\s*===\s*0\s*\|\|/.test(src)) return [];
       const hits = findAll(src, /status\s*===\s*0\s*\|\||\|\|\s*\/[^/\n]*(OK|PASS)/g);
-      return hits.map((h) =>
-        finding({
-          rule: 'gate-status-or-pass',
-          sev: 'high',
-          file: rel,
-          line: lineNo(src, h.index),
-          title: 'Gate success via OK/PASS string OR status',
-          detail: 'Prefer exit status === 0 only; string match can false-pass failed gates',
-          fix: 'Use status === 0 only (see demigod-review-gates runGates)',
-          tier: 'B',
-        }),
-      );
+      return hits
+        .filter((h) => {
+          const lineStart = src.lastIndexOf('\n', h.index) + 1;
+          const lineEnd = src.indexOf('\n', h.index);
+          const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+          if (/fixture|gate-status-or-pass|Prefer exit status|DEMIGOD_GATE_ALLOW/.test(line)) return false;
+          if (inQuotedString(src, h.index) && /fixture|test/i.test(rel)) return false;
+          return true;
+        })
+        .map((h) =>
+          finding({
+            rule: 'gate-status-or-pass',
+            sev: 'high',
+            file: rel,
+            line: lineNo(src, h.index),
+            title: 'Gate success via OK/PASS string OR status',
+            detail: 'Prefer exit status === 0 only; string match can false-pass failed gates',
+            fix: 'Use status === 0 only (see demigod-review-gates runGates)',
+            tier: 'B',
+          }),
+        );
     },
   },
   {
@@ -662,6 +699,94 @@ export const RULES = [
       // console.log before JSON when json mode — soft heuristic
       if (!/if\s*\(\s*(flags\.)?json/.test(src) && !/asJson/.test(src)) return [];
       return [];
+    },
+  },
+
+  {
+    id: 'no-double-semicolons',
+    sev: 'low',
+    tier: 'A',
+    run({ rel, src, isJs }) {
+      if (!isJs) return [];
+      const hits = findAll(src, /;;+/g);
+      return hits
+        .filter((h) => {
+          const lineStart = src.lastIndexOf('\n', h.index) + 1;
+          const lineEnd = src.indexOf('\n', h.index);
+          const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+          // skip regex literals / detectors
+          if (/\/;;|;;\+|replace\(.*;;|findAll.*;;/.test(line)) return false;
+          if (inQuotedString(src, h.index)) return false;
+          return true;
+        })
+        .slice(0, 5)
+        .map((h) =>
+          finding({
+            rule: 'no-double-semicolons',
+            sev: 'low',
+            file: rel,
+            line: lineNo(src, h.index),
+            title: 'Double semicolon',
+            detail: 'Likely typo ;;',
+            fix: 'Remove extra semicolon',
+            tier: 'A',
+          }),
+        );
+    },
+  },
+  {
+    id: 'spawn-shell-lc',
+    sev: 'medium',
+    tier: 'B',
+    run({ rel, src, isJs, isMeta, bugMode }) {
+      if (!isJs) return [];
+      // bash -lc with template interpolation risk
+      if (!/bash['"`],\s*\[\s*['"`]-lc['"`]/.test(src) && !/spawnSync\(\s*['"`]bash['"`]/.test(src)) return [];
+      const hits = findAll(src, /\$\{|`[^`]*\$\(/g);
+      if (!hits.length && !/bash.*-lc/.test(src)) return [];
+      // only flag when -lc and ${ in same 200 chars
+      const out = [];
+      const lc = findAll(src, /-lc/g);
+      for (const h of lc) {
+        const win = src.slice(h.index, h.index + 180);
+        if (/NEVER splice|No bash -lc|spawn-shell-lc|command injection/i.test(win)) continue;
+        if (/\$\{/.test(win) || /\$\(/.test(win)) {
+          out.push(
+            finding({
+              rule: 'spawn-shell-lc',
+              sev: bugMode ? 'high' : 'medium',
+              file: rel,
+              line: lineNo(src, h.index),
+              title: 'bash -lc with possible interpolation',
+              detail: 'Prefer argv arrays; avoid embedding untrusted content in -lc strings',
+              fix: 'spawnSync(cmd, argv, {shell:false}) or fixed script path',
+              tier: 'B',
+            }),
+          );
+        }
+      }
+      return out.slice(0, 8);
+    },
+  },
+  {
+    id: 'console-log-debug',
+    sev: 'info',
+    tier: 'C',
+    run({ rel, src, isJs, isMeta }) {
+      if (!isJs || isMeta) return [];
+      if (!/console\.log\s*\(\s*['"`]DEBUG|console\.log\s*\(\s*['"`]TODO/.test(src)) return [];
+      const hits = findAll(src, /console\.log\s*\(\s*['"`](DEBUG|TODO)/g);
+      return hits.slice(0, 5).map((h) =>
+        finding({
+          rule: 'console-log-debug',
+          sev: 'info',
+          file: rel,
+          line: lineNo(src, h.index),
+          title: 'Debug console.log left in',
+          detail: h.match,
+          tier: 'C',
+        }),
+      );
     },
   },
 ];

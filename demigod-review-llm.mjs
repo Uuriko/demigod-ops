@@ -14,8 +14,9 @@ import { ROOT, BUSY } from './demigod-review-lib.mjs';
 import { ensureBusy } from './demigod-agent-tools-lib.mjs';
 
 function hasClaude() {
-  const r = spawnSync('bash', ['-lc', 'command -v claude'], { encoding: 'utf8' });
-  return r.status === 0 && r.stdout.trim();
+  // No bash -lc; status-only (no OK/PASS string false positives)
+  const r = spawnSync('claude', ['--version'], { encoding: 'utf8', timeout: 8000 });
+  return r.status === 0;
 }
 
 /**

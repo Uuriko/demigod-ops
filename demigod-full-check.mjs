@@ -12,7 +12,7 @@
  *   --release        DEMIGOD_REQUIRE_LIVE_MATCH=1 (disk must equal live)
  *   --offline        skip network steps (live-doctor, route-mime, smoke)
  *
- *   node demigod-full-check.mjs [--json] [--skip-smoke] [--release]
+ *   node demigod-full-check.mjs [--json] [--skip-smoke] [--release] [--with-review]
  *   bin/dg full-check
  */
 import fs from 'fs';
@@ -75,6 +75,7 @@ function main() {
   const args = process.argv.slice(2);
   const asJson = args.includes('--json');
   const skipSmoke = args.includes('--skip-smoke') || args.includes('--skip-browser');
+  const withReview = args.includes('--with-review') || args.includes('--review');
   const offline = args.includes('--offline');
   const release = args.includes('--release') || process.env.DEMIGOD_REQUIRE_LIVE_MATCH === '1';
   fs.mkdirSync(BUSY, { recursive: true });
@@ -89,6 +90,9 @@ function main() {
   steps.push(run('board-honesty', 'node demigod-verify-board-honesty.mjs', 20000));
   steps.push(run('loop-state', 'node demigod-verify-loop-state.mjs', 10000));
   steps.push(run('foot-smoke', 'node demigod-foot-smoke.mjs', 15000));
+  if (withReview) {
+    steps.push(run('code-review', 'node demigod-review.mjs --format summary --fail-on high', 120000));
+  }
   steps.push(run('review', 'node demigod-review.mjs 2>/dev/null | tail -5', 90000));
 
   if (!offline) {
