@@ -82,6 +82,29 @@ const demSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-demand-selft
 ok(demSt.status === 0, 'demand-selftest');
 if (demSt.status !== 0) console.error(demSt.stdout + demSt.stderr);
 
+const wizSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-wiz-ownership-selftest.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 30000,
+});
+ok(wizSt.status === 0, 'wiz-ownership-selftest');
+if (wizSt.status !== 0) console.error(wizSt.stdout + wizSt.stderr);
+
+// next identity: control/next-canon share id when freeze green
+const nextA = spawnSync(process.execPath, [path.join(ROOT, 'demigod-next.mjs'), '--json'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 15000,
+});
+ok(nextA.status === 0, 'next-canon runs');
+try {
+  const n = JSON.parse(nextA.stdout.slice(nextA.stdout.indexOf('{')));
+  ok(n.source !== 'broken' && n.id, 'next has id');
+  ok(typeof n.truthEvidence?.green === 'boolean', 'next truthEvidence');
+} catch {
+  fails.push('next json parse');
+}
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);

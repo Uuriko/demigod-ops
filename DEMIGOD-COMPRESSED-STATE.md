@@ -1,5 +1,14 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-14 · P3 AGENT SURFACE (no human tasks)
+
+- Dash `/api/next` + glance use **demigod-next** (canonical)
+- Demand line on dash from demand-status.json
+- Jobs: demand · next-canon · wiz-ownership
+- **wiz-ownership-selftest** source gate (90day required, no SLA)
+- agent-smoke soft driftExpected under freeze (WARN, not core fail)
+- tools-os-selftest green
+
 ## 2026-07-14 · P2 DEMAND OPS + NEXT + LEDGER
 
 - **`bin/dg demand`** status/queue/log/templates — honest SENT-CONFIRMED + 0 pilots

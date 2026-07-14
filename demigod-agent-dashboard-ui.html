@@ -212,6 +212,7 @@ pre{white-space:pre-wrap;word-break:break-word;font-size:.76rem;color:var(--mute
   <div class="glance-card"><div class="lbl">Whose turn</div><div class="val" id="gNext">…</div></div>
 </div>
 <p id="whyGreen" style="max-width:1280px;margin:.35rem auto 0;padding:0 1.25rem;font-size:.8rem;color:var(--muted,#a8a29e)"></p>
+<p id="demandLine" style="max-width:1280px;margin:.2rem auto 0;padding:0 1.25rem;font-size:.8rem;color:var(--muted,#a8a29e)"></p>
 <div class="story" id="sessionStory">…</div>
 <div class="story" id="deltaLine" style="margin-top:.15rem"></div>
 <nav class="nav" role="tablist">
@@ -417,11 +418,23 @@ function renderGlance(d){
       ? ('Why green: truth evidence '+ (te.runId||'') +' fresh pass — '+ (te.summary||''))
       : ('Why not green: '+ (te.reason||'no fresh truth evidence') +' · run bin/dg truth');
   }
+  if ($('demandLine')) {
+    const dem = d.demand;
+    if (dem) {
+      const tops = (dem.top3||[]).map(t=>t.name).filter(Boolean).slice(0,3).join(' · ');
+      $('demandLine').textContent = 'Demand: pending '+ (dem.pending??'?') +' · SENT-CONFIRMED '+ (dem.sentConfirmed??'?') +' · pilots '+ (dem.pilotsFilled??'?') + (tops? ' · top '+tops : '') + ' · bin/dg demand status';
+    } else {
+      $('demandLine').textContent = 'Demand: no status yet · run job demand or bin/dg demand status';
+    }
+  }
   $('gSite').textContent = g.siteOk ? ('OK · '+(d.live?.foot||'up')) : ('Down · '+(d.live?.error||'?'));
   $('gFreeze').textContent = g.freezeOn
     ? ('Locked — '+(d.freeze?.why||'freeze ON').slice(0,80))
     : 'Unlocked — ship possible';
-  const turn = n.mutate || (n.pri!=null && n.pri<=1) ? 'You (if you want this done)' : (g.freezeOn && d.live?.ok ? 'Nobody — all clear' : 'Agent can work');
+  // Agent-oriented turn label (no human-task nag)
+  const turn = n.title
+    ? ((n.cmd||'').slice(0,48) || n.id)
+    : (g.freezeOn ? 'freeze-safe work' : 'agent can work');
   $('gNext').textContent = turn;
   $('gSite').parentElement.className = 'glance-card '+(g.siteOk?'ok':'bad');
   $('gFreeze').parentElement.className = 'glance-card '+(g.freezeOn?'warn':'ok');

@@ -19,6 +19,7 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { refuseIfStale } from './demigod-evidence.mjs';
+import { buildNext } from './demigod-next.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -877,6 +878,23 @@ async function collectStatus() {
         endedAt: te.endedAt || null,
       };
     })(),
+    demand: (() => {
+      try {
+        const p = path.join(BUSY, 'demand-status.json');
+        if (!fs.existsSync(p)) return null;
+        const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+        return {
+          at: j.at,
+          pending: j.queue?.pending ?? null,
+          sentConfirmed: j.dms?.sentConfirmed ?? null,
+          pilotsFilled: j.pilots?.realFilled ?? null,
+          next: j.next || null,
+          top3: j.queue?.top3 || [],
+        };
+      } catch {
+        return null;
+      }
+    })(),
     evidence,
     tools: toolsSummary,
     drops: { multi, busy, research },
@@ -1010,6 +1028,9 @@ const JOBS = {
   hygiene: { cmd: 'node', args: ['demigod-laptop-hygiene.mjs', '--prune', '--json'], timeout: 45000, safe: true },
   control: { cmd: 'node', args: ['demigod-control.mjs', 'status', '--json'], timeout: 45000, safe: true },
   'ship-checklist': { cmd: 'node', args: ['demigod-ship-checklist.mjs', '--json'], timeout: 15000, safe: true },
+  demand: { cmd: 'node', args: ['demigod-demand.mjs', 'status', '--json'], timeout: 20000, safe: true },
+  'next-canon': { cmd: 'node', args: ['demigod-next.mjs', '--json'], timeout: 10000, safe: true },
+  'wiz-ownership': { cmd: 'node', args: ['demigod-wiz-ownership-selftest.mjs'], timeout: 30000, safe: true },
   inbox: { cmd: 'node', args: ['demigod-submissions-inbox.mjs', '--json'], timeout: 15000, safe: true },
   'match-review': { cmd: 'node', args: ['demigod-match-review.mjs', '--json'], timeout: 15000, safe: true },
   'auto-propose': { cmd: 'node', args: ['demigod-auto-propose.mjs', '--json'], timeout: 30000, safe: true },
@@ -1086,10 +1107,35 @@ function appendHandoff({ from = 'agent', text = '', meta = null } = {}) {
   return note;
 }
 
-/** Stable NEXT contract — every agent parses this the same way */
+/** Stable NEXT — canonical demigod-next (not cockpit re-derive) */
 function nextContract(data) {
-  const n = data?.cockpit?.next || null;
   const freezeOn = Boolean(data?.freeze?.on);
+  let canon = null;
+  try {
+    canon = buildNext({
+      truth: data?.truth || null,
+      demand: data?.demand || null,
+    });
+  } catch {
+    canon = null;
+  }
+  if (canon) {
+    return {
+      id: canon.id || null,
+      pri: canon.pri ?? null,
+      title: canon.title || null,
+      cmd: canon.cmd || null,
+      mutate: !!canon.mutate,
+      freezeBlocks: freezeOn || !!canon.freezeBlocks,
+      shipped: Boolean(data?.cockpit?.shipped || canon.fullyShipped),
+      source: 'demigod-next',
+      reason: canon.reason || null,
+      versions: canon.versions || null,
+      truthEvidence: canon.truthEvidence || null,
+    };
+  }
+  // Fallback only if builder throws
+  const n = data?.cockpit?.next || null;
   if (!n) {
     return {
       id: null,
@@ -1110,7 +1156,7 @@ function nextContract(data) {
     mutate: !!n.mutate,
     freezeBlocks: freezeOn && !!n.mutate,
     shipped: Boolean(data?.cockpit?.shipped),
-    source: 'cockpit',
+    source: 'cockpit-fallback',
   };
 }
 
@@ -1343,13 +1389,13 @@ async function enrichStatus(data) {
   }
 
   data.next = nextContract(data);
-  // Suppress mutate NEXT language while frozen (still show freeze-aware title)
+  // Canonical next already freeze-aware; still stamp freezeBlocks on any mutate
   if (data.freeze?.on && data.next?.mutate) {
     data.next = {
       ...data.next,
       freezeBlocks: true,
       title: data.next.title || 'Blocked by freeze',
-      note: 'freeze ON — do not run mutate cmd',
+      note: 'freeze ON — mutate blocked',
     };
   }
   data.staleGates = buildStaleGates(data.evidence || {});

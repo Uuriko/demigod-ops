@@ -190,7 +190,7 @@ async function main() {
     out.corePass = false;
   }
 
-  // Soft disk/live foot report (does not fail core alone — use live-doctor --require-match for hard)
+  // Soft disk/live foot report — under freeze, mismatch is WARN not FAIL
   try {
     const diskJs = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
     const diskFootVer = (diskJs.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
@@ -198,8 +198,26 @@ async function main() {
     out.liveFootVer = out.summary?.foot || out.home?.foot || null;
     const liveN = String(out.liveFootVer || '').replace(/^v/i, '');
     out.footVersionMatch = diskFootVer != null && liveN && diskFootVer === liveN;
+    let freezeOn = false;
+    try {
+      const fz = JSON.parse(fs.readFileSync(path.join(BUSY, 'publish-freeze.json'), 'utf8'));
+      freezeOn = Boolean(fz?.on);
+    } catch {
+      freezeOn = process.env.DEMIGOD_PUBLISH_FREEZE === '1';
+    }
+    out.freezeOn = freezeOn;
+    out.driftExpected = freezeOn && !out.footVersionMatch;
     if (!out.footVersionMatch) {
-      out.footVersionNote = `disk v${diskFootVer} vs live ${out.liveFootVer} — expected if freeze ON; hard gate: bin/dg live --require-match`;
+      out.footVersionNote = out.driftExpected
+        ? `WARN soft: disk v${diskFootVer} ≠ live ${out.liveFootVer} (freeze ON — driftExpected; not core fail)`
+        : `disk v${diskFootVer} vs live ${out.liveFootVer} — hard gate: bin/dg truth --require-match`;
+      out.footVersionSeverity = out.driftExpected ? 'warn' : 'info';
+    } else {
+      out.footVersionSeverity = 'ok';
+    }
+    // Never flip corePass false solely due to freeze drift
+    if (out.driftExpected && out.corePass) {
+      out.softDrift = true;
     }
   } catch (e) {
     out.diskFootVer = null;
@@ -210,9 +228,12 @@ async function main() {
   const md = [
     `# Agent smoke ${out.at}`,
     `pass: ${out.pass} core: ${out.corePass} wiz: ${out.wizPass} cta: ${out.ctaOk}`,
+    out.driftExpected ? `softDrift: disk v${out.diskFootVer} live ${out.liveFootVer} (freeze ON)` : '',
     out.summary ? JSON.stringify(out.summary) : '',
     out.error ? `error: ${out.error}` : '',
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
   fs.writeFileSync(path.join(BUSY, 'agent-smoke.md'), md + '\n');
   console.log(JSON.stringify(out, null, 2));
   process.exit(out.corePass ? 0 : 1);
