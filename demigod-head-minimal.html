@@ -21,8 +21,13 @@ html.w-mod-js:not(.w-mod-ix3) .premium-btn{
 /*unhide-v5-safe*/
 </style>
 <style id="dg-unhide-main">
+/* Shell only — never unhide intentional opacity:0 (WIZ steps, trust anim, modals) */
 html.w-mod-js:not(.w-mod-ix3) body{visibility:visible!important;opacity:1!important}
-[style*="visibility: hidden"],[style*="opacity: 0"],[style*="opacity:0"]{
+html.w-mod-js:not(.w-mod-ix3) .hero-section,
+html.w-mod-js:not(.w-mod-ix3) .hero-container,
+html.w-mod-js:not(.w-mod-ix3) .header,
+html.w-mod-js:not(.w-mod-ix3) main,
+html.w-mod-js:not(.w-mod-ix3) h1{
   visibility:visible!important;opacity:1!important
 }
 </style>
@@ -58,8 +63,8 @@ try{(function(){
   var n=0;
   var iv=setInterval(function(){
     f();
-    if(++n>=20)clearInterval(iv);
-  },100);
+    if(++n>=3)clearInterval(iv);
+  },120);
   document.addEventListener('DOMContentLoaded',f,{once:true});
   window.addEventListener('load',function(){f();clearInterval(iv);},{once:true});
 })();}catch(e){}
