@@ -3,11 +3,11 @@
 ## 2026-07-15 · WEBSITE v207 LIVE · STARTUP-ONLY PHASE
 
 - **Phase:** Website + startup only — **no Twitter / no auto-DM**
-- **LIVE foot:** **v207** `jrm4vt.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
+- **LIVE foot:** **v207** `jar78p.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
 - **Home:** decision screen (~350 chars) · dual CTAs **I'm hiring** / **Find a job** · mobile bar
 - **Pages:** short `/?p=` overlays (how, pricing, faq, hire, talent, contact, legal, partners, compare, pilot)
 - **Footer-lite v27:** clean path redirects → `/?p=` · `/events` → catbox
-- **Git tip:** `8f6f838` (v205 committed) · **disk** has v206–v207 uncommitted deltas
+- **Git tip:** `7d37db9` (v207 site+docs) · live CDN `jar78p.js`
 - **Gates:** verify:source + foot-smoke green at v207 ship
 - **Freeze:** OFF (re-freeze when quiet) · foot lock may need force-release if abandoned
 - **Full writeup:** `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md`
