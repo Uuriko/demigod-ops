@@ -139,3 +139,12 @@ Live-tested CDP: home, `?p=how`, `?p=pricing`, `?p=faq`.
 5. Later: Designer delete dead sections · WIZ shorter welcome · real PNG apple-touch  
 
 *If this file disagrees with live curl of foot CDN version, trust live.*
+
+## Update: v208 live (same day)
+
+- CDN: `https://files.catbox.moe/ixb392.js`
+- Shorter WIZ welcome/thanks copy
+- Mini-pages: **About**, **Status** (+ footer links)
+- Focus-visible gold rings; soft Tab trap on mini-pages
+- Pilot log: website-first / no auto-DM phase note
+- Commit: `9d12301` · freeze ON

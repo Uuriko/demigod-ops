@@ -30,9 +30,9 @@
 - [x] Compare vs boards/agencies (`/?p=compare`) — 3-column simple
 - [x] Pilot program (`/?p=pilot`) — white-glove 1-pager
 - [ ] Events index (already catbox) polish
-- [ ] About (1 paragraph founder-mission, no name spam if policy)
+- [x] About (1 paragraph, no founder names)
 - [ ] Press kit (logo + one-liner)
-- [ ] Status / services pending page
+- [x] Status / services pending page
 - [ ] 404 friendly page
 
 ## C. Routing & SEO
@@ -50,11 +50,11 @@
 - [x] One-question stepper (existing)
 - [x] 90-day outcome required for startups
 - [x] Review step before submit
-- [ ] Shorter welcome copy
+- [x] Shorter welcome copy
 - [ ] Progress % clarity
 - [ ] Save & resume toast (1 line)
 - [ ] Better error states (inline, not alert)
-- [ ] Success screen with next steps (3 bullets max)
+- [x] Success screen with next steps (3 bullets max)
 - [ ] OAuth LinkedIn prefill (pending honest)
 - [ ] Google for startups (pending honest)
 - [ ] File resume upload honesty message
@@ -75,7 +75,7 @@
 - [ ] Shared button component tokens in head CSS only
 - [ ] Spacing scale (8px grid)
 - [ ] Type scale clamp for H1/body
-- [ ] Focus-visible gold ring sitewide
+- [x] Focus-visible gold ring sitewide
 - [ ] Reduced motion policy documented
 
 ## G. Performance
@@ -91,7 +91,7 @@
 ## H. Accessibility
 - [x] Skip link
 - [x] Modal aria labels on CTAs
-- [ ] Trap focus polish in WIZ
+- [x] Soft focus trap on mini-pages (WIZ trap still soft)
 - [ ] Escape closes mini-pages
 - [ ] Color contrast audit (gold on black)
 - [ ] Touch targets ≥44px everywhere
@@ -164,3 +164,6 @@
 
 ---
 **Last reconciled:** 2026-07-15 with live v207 + `DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md`.
+
+
+**v208 shipped live** `ixb392.js` — shorter WIZ, About/Status, focus rings, page focus trap.
