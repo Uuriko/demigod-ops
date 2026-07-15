@@ -25,12 +25,18 @@ const OUTREACH = path.join(ROOT, 'demigod-outreach');
 const OPS = path.join(ROOT, 'demigod-ops');
 
 function parseArgs(argv) {
-  const o = { names: [], dry: false, timeoutMs: 90000 };
+  const o = {
+    names: [],
+    dry: false,
+    timeoutMs: 90000,
+    pin: process.env.DEMIGOD_X_PIN || process.env.X_PIN || '',
+  };
   for (const a of argv) {
     if (a.startsWith('--name=')) o.names.push(a.slice(7));
     else if (a.startsWith('--names=')) o.names.push(...a.slice(8).split(',').map((s) => s.trim()).filter(Boolean));
     else if (a === '--dry') o.dry = true;
     else if (a.startsWith('--timeout=')) o.timeoutMs = Number(a.slice(10)) || 90000;
+    else if (a.startsWith('--pin=')) o.pin = a.slice(6);
   }
   return o;
 }
@@ -100,17 +106,114 @@ function markSent(name) {
   );
 }
 
-async function ensureLoggedIn(page) {
+/** Enter X chat PIN if on recovery page. PIN from DEMIGOD_X_PIN or --pin= (never log the value). */
+async function tryUnlockPin(page, pin) {
+  if (!pin) return { ok: false, reason: 'no_pin' };
+  const url = page.url();
+  if (!/pin\/recovery|passcode|pin/i.test(url) && !(await page.locator('input[type="password"], input[inputmode="numeric"]').count().catch(() => 0))) {
+    // may still be a modal
+    const hasPinUi = (await page.locator('text=/Enter your PIN|PIN|passcode/i').count().catch(() => 0)) > 0;
+    if (!hasPinUi) return { ok: false, reason: 'no_pin_ui', url };
+  }
+
+  const inputs = [
+    'input[type="password"]',
+    'input[inputmode="numeric"]',
+    'input[name*="pin" i]',
+    'input[autocomplete="one-time-code"]',
+    'input[type="tel"]',
+    'input[type="text"]',
+  ];
+  let filled = false;
+  for (const sel of inputs) {
+    const loc = page.locator(sel).first();
+    if ((await loc.count().catch(() => 0)) === 0) continue;
+    if (!(await loc.isVisible().catch(() => false))) continue;
+    try {
+      await loc.click({ timeout: 3000 });
+      await loc.fill('');
+      await loc.type(String(pin), { delay: 40 });
+      filled = true;
+      break;
+    } catch {
+      /* try next */
+    }
+  }
+  if (!filled) {
+    // digit boxes
+    const boxes = page.locator('input[maxlength="1"]');
+    const n = await boxes.count().catch(() => 0);
+    if (n >= 4) {
+      const digits = String(pin).slice(0, n);
+      for (let i = 0; i < digits.length; i++) {
+        await boxes.nth(i).fill(digits[i]);
+      }
+      filled = true;
+    }
+  }
+  if (!filled) return { ok: false, reason: 'pin_input_not_found', url: page.url() };
+
+  // submit
+  const submits = [
+    'button:has-text("Confirm")',
+    'button:has-text("Continue")',
+    'button:has-text("Next")',
+    'button:has-text("Unlock")',
+    'button:has-text("Submit")',
+    'button[type="submit"]',
+    '[data-testid="ocfEnterTextNextButton"]',
+  ];
+  let clicked = false;
+  for (const sel of submits) {
+    const loc = page.locator(sel).first();
+    if ((await loc.count().catch(() => 0)) > 0 && (await loc.isVisible().catch(() => false))) {
+      try {
+        await loc.click({ timeout: 4000 });
+        clicked = true;
+        break;
+      } catch {
+        /* */
+      }
+    }
+  }
+  if (!clicked) await page.keyboard.press('Enter');
+  await page.waitForTimeout(3500);
+  const after = page.url();
+  if (/pin\/recovery|challenge/i.test(after)) {
+    return { ok: false, reason: 'pin_still_locked', url: after };
+  }
+  return { ok: true, url: after };
+}
+
+async function ensureLoggedIn(page, pin) {
   await page.goto('https://x.com/home', { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(2500);
-  const url = page.url();
+  let url = page.url();
   if (/login|signup|onboarding|i\/flow\/login/i.test(url)) {
     return { ok: false, reason: 'not_logged_in', url };
   }
   if (/pin\/recovery|account\/access|challenge/i.test(url)) {
-    return { ok: false, reason: 'x_pin_or_challenge', url, hint: 'Unlock X PIN / complete challenge in CDP Chrome' };
+    const u = await tryUnlockPin(page, pin);
+    if (!u.ok) {
+      return {
+        ok: false,
+        reason: u.reason || 'x_pin_or_challenge',
+        url: u.url || url,
+        hint: 'Set DEMIGOD_X_PIN or --pin= and re-run if unlock failed',
+      };
+    }
+    url = page.url();
   }
-  return { ok: true, url };
+  // open chat once to clear pin gate early
+  await page.goto('https://x.com/i/chat', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+  if (/pin\/recovery/i.test(page.url())) {
+    const u = await tryUnlockPin(page, pin);
+    if (!u.ok) {
+      return { ok: false, reason: u.reason || 'x_pin_or_challenge', url: page.url() };
+    }
+  }
+  return { ok: true, url: page.url() };
 }
 
 async function findComposer(page) {
@@ -151,14 +254,18 @@ async function sendOne(page, { name, handle, body }) {
     return { ok: false, name, handle, error: 'not_logged_in', url: url0 };
   }
   if (/pin\/recovery|account\/access|challenge/i.test(url0)) {
-    return {
-      ok: false,
-      name,
-      handle,
-      error: 'x_pin_or_challenge',
-      url: url0,
-      hint: 'Complete X PIN/recovery in the CDP Chrome window, then re-run',
-    };
+    const pin = process.env.DEMIGOD_X_PIN || process.env.X_PIN || '';
+    const u = await tryUnlockPin(page, pin);
+    if (!u.ok) {
+      return {
+        ok: false,
+        name,
+        handle,
+        error: u.reason || 'x_pin_or_challenge',
+        url: u.url || url0,
+        hint: 'Complete X PIN in CDP Chrome or pass DEMIGOD_X_PIN',
+      };
+    }
   }
 
   const msgSelectors = [
@@ -191,14 +298,19 @@ async function sendOne(page, { name, handle, body }) {
 
   // pin/challenge after click
   if (/pin\/recovery|account\/access|challenge/i.test(page.url())) {
-    return {
-      ok: false,
-      name,
-      handle,
-      error: 'x_pin_or_challenge',
-      url: page.url(),
-      hint: 'Unlock X in CDP Chrome (PIN), then re-run bin/dg demand send',
-    };
+    const pin = process.env.DEMIGOD_X_PIN || process.env.X_PIN || '';
+    const u = await tryUnlockPin(page, pin);
+    if (!u.ok) {
+      return {
+        ok: false,
+        name,
+        handle,
+        error: u.reason || 'x_pin_or_challenge',
+        url: page.url(),
+        hint: 'Unlock X PIN (DEMIGOD_X_PIN) then re-run',
+      };
+    }
+    await page.waitForTimeout(2000);
   }
 
   let editor = await findComposer(page);
@@ -316,10 +428,13 @@ async function main() {
   const context = browser.contexts()[0] || (await browser.newContext());
   const page = await context.newPage();
 
-  const login = await ensureLoggedIn(page);
+  report.pinProvided = Boolean(args.pin);
+  const login = await ensureLoggedIn(page, args.pin);
   if (!login.ok) {
-    report.results.push({ ok: false, error: login.reason, url: login.url });
-    report.error = 'X not logged in on CDP browser — open x.com, sign in, re-run';
+    report.results.push({ ok: false, error: login.reason, url: login.url, hint: login.hint });
+    report.error = login.reason === 'not_logged_in'
+      ? 'X not logged in on CDP browser — open x.com, sign in, re-run'
+      : `X lock: ${login.reason}`;
     fs.mkdirSync(BUSY, { recursive: true });
     fs.writeFileSync(path.join(BUSY, 'dm-auto-send.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
