@@ -21,7 +21,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
-import { buildUnify } from './demigod-unify.mjs';
+import { buildUnify, buildRoleLamps } from './demigod-unify.mjs';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { writeJsonAuto, isFreshFile } from './demigod-perf-cache.mjs';
 
@@ -151,12 +151,35 @@ async function main() {
   const exp = lock?.expiresAt && Date.parse(lock.expiresAt) < Date.now();
   const lockHeld = Boolean(lock?.owner && !exp);
 
+  const demandSnap = readJson(path.join(BUSY, 'demand-status.json'));
+  const shipSnap = readJson(path.join(BUSY, 'ship-status.json')) || readJson(path.join(BUSY, 'ship-latest.json'));
+  const truthSnap = readJson(path.join(BUSY, 'truth.json'));
+  const reviewEv = (() => {
+    try {
+      return refuseIfStale('review');
+    } catch {
+      return { green: false, reason: 'no-review' };
+    }
+  })();
+  const lamps =
+    unify.lamps ||
+    buildRoleLamps({
+      truthEv: te,
+      reviewEv,
+      freeze: { on: freeze.frozen },
+      demand: demandSnap,
+      ship: shipSnap,
+      truth: truthSnap,
+    });
+
   const card = {
     schema: 'demigod.orient/1',
     at: new Date().toISOString(),
     role,
+    // green = truth seal only — NOT business / ship / demand outcome
     green: Boolean(te.green),
     greenReason: te.reason,
+    greenMeans: 'truth-seal-pass-fresh-only',
     evidenceRunId: te.runId || null,
     freeze: { on: freeze.frozen, why: freeze.why },
     lock: { held: lockHeld, owner: lockHeld ? lock.owner : null },
@@ -172,6 +195,7 @@ async function main() {
           pilotsFilled: unify.demand.pilotsFilled,
         }
       : null,
+    lamps,
     versions: unify.next?.versions || same.next?.versions || null,
     assertSame: {
       ok: assertOk,
@@ -189,11 +213,15 @@ async function main() {
   if (role === 'match') {
     card.roleHint = 'bin/dg matches · curl -sS :9878/api/matches';
   } else if (role === 'ship') {
-    card.roleHint = 'bin/dg ship status --facts · freeze must be OFF to mutate';
+    card.roleHint = lamps.ship.green
+      ? 'bin/dg ship status --facts'
+      : 'ship lamp OFF under freeze — bin/dg ship status --facts only';
   } else if (role === 'review') {
-    card.roleHint = 'bin/dg-review --files <touched> --bug --fail-on high';
+    card.roleHint = 'bin/dg-review --since HEAD~1 --fail-on high (--contract if multi-file)';
   } else if (role === 'demand') {
-    card.roleHint = 'bin/dg demand status · human DMs only';
+    card.roleHint = lamps.demand.outcomeOk
+      ? 'bin/dg demand status · await replies / white-glove'
+      : 'bin/dg demand draft --name=T0 · human send · mark-sent --i-sent-it';
   }
 
   // Exit codes: 2 dual-NEXT beats soft 1
@@ -211,7 +239,7 @@ async function main() {
   } else {
     console.log(`# orient ${exit === 0 ? 'OK' : exit === 2 ? 'DUAL-NEXT' : 'ATTENTION'} · ${card.at.slice(0, 19)}`);
     console.log(
-      `1 green=${card.green ? 'yes' : 'NO'} (${card.greenReason}) runId=${card.evidenceRunId || '—'}`,
+      `1 green=${card.green ? 'yes' : 'NO'} (${card.greenReason}=truth-seal-only) runId=${card.evidenceRunId || '—'}`,
     );
     console.log(
       `2 freeze=${card.freeze.on ? 'ON' : 'OFF'}${card.freeze.why ? ' — ' + String(card.freeze.why).slice(0, 50) : ''} · lock=${card.lock.held ? card.lock.owner : 'free'}`,
@@ -220,6 +248,9 @@ async function main() {
     console.log(`4 cmd: ${card.next.cmd}`);
     console.log(
       `5 demand pending=${card.demand?.pending ?? '?'} sent=${card.demand?.sentConfirmed ?? '?'} pilots=${card.demand?.pilotsFilled ?? '?'} · assertSame=${card.assertSame.ok ? 'ok' : 'FAIL'}`,
+    );
+    console.log(
+      `6 lamps truth=${lamps.truth.green ? 'on' : 'off'} demand.q=${lamps.demand.queueOk ? 'ok' : 'no'}/out=${lamps.demand.outcomeOk ? 'ok' : 'no'} ship=${lamps.ship.green ? 'on' : 'off'}(${lamps.ship.reason}) review=${lamps.review.green ? 'on' : 'off'}`,
     );
     if (card.roleHint) console.log(`+ role(${role}): ${card.roleHint}`);
     if (!assertOk && card.assertSame.mismatches?.length) {

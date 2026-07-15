@@ -26,6 +26,73 @@ function readJson(p) {
   }
 }
 
+/**
+ * Role-scoped lamps — never one green for all roles.
+ * demand.outcomeOk only if real SENT/pilots; ship.green false under freeze.
+ */
+export function buildRoleLamps({
+  truthEv = null,
+  reviewEv = null,
+  freeze = null,
+  demand = null,
+  ship = null,
+  truth = null,
+} = {}) {
+  const freezeOn = Boolean(freeze?.on ?? freeze?.frozen);
+  const sent = Number(demand?.dms?.sentConfirmed ?? demand?.sentConfirmed ?? 0) || 0;
+  const realFilled = Number(demand?.pilots?.realFilled ?? demand?.pilotsFilled ?? 0) || 0;
+  const pending = demand?.queue?.pending ?? demand?.pending;
+  const honesty = demand?.honesty || {};
+  const queueOk = Boolean(
+    demand &&
+      honesty.agentNeverAutoSends !== false &&
+      honesty.inventsPilots !== true &&
+      typeof pending === 'number',
+  );
+  // Outcome is human progress only — never true at 0 SENT + 0 pilots
+  const outcomeOk = sent >= 1 || realFilled >= 1;
+
+  const shipGreen = !freezeOn && Boolean(truth?.fullyShipped || ship?.shipped);
+
+  return {
+    schema: 'demigod.role-lamps/1',
+    truth: {
+      green: Boolean(truthEv?.green),
+      reason: truthEv?.reason || 'no-evidence',
+      runId: truthEv?.runId || null,
+    },
+    demand: {
+      queueOk,
+      outcomeOk,
+      // single green never means GTM done — only queue readiness + honesty
+      green: queueOk,
+      label: outcomeOk ? 'outcome' : queueOk ? 'queue-ready' : 'demand-broken',
+      sentConfirmed: sent,
+      pilotsFilled: realFilled,
+      reason: outcomeOk
+        ? 'human-outcome'
+        : queueOk
+          ? 'queue-ready-no-outcome'
+          : 'queue-or-honesty-missing',
+    },
+    ship: {
+      green: shipGreen,
+      ready: !freezeOn,
+      reason: freezeOn ? 'freeze-on' : shipGreen ? 'shipped' : 'not-shipped',
+    },
+    review: {
+      green: Boolean(reviewEv?.green),
+      reason: reviewEv?.reason || 'no-review-seal',
+      runId: reviewEv?.runId || null,
+    },
+    plan: {
+      green: false,
+      reason: 'plan-never-unlocks-mutate',
+    },
+    note: 'orient.green = truth seal only; demand.outcomeOk for GTM; ship.green false under freeze',
+  };
+}
+
 export async function buildUnify({ includeTools = true } = {}) {
   const freeze = freezeStatus();
   const truthEv = refuseIfStale('truth');
@@ -106,6 +173,7 @@ export async function buildUnify({ includeTools = true } = {}) {
           pilotsFilled: demand.pilots?.realFilled,
           top3: demand.queue?.top3 || [],
           next: demand.next,
+          honesty: demand.honesty || null,
         }
       : null,
     ship: ship
@@ -116,6 +184,14 @@ export async function buildUnify({ includeTools = true } = {}) {
           facts: ship.facts || null,
         }
       : null,
+    lamps: buildRoleLamps({
+      truthEv,
+      reviewEv,
+      freeze: { on: freeze.frozen },
+      demand,
+      ship,
+      truth,
+    }),
     lock: {
       held: Boolean(lock?.owner && !exp),
       owner: exp ? null : lock?.owner || null,
@@ -135,15 +211,23 @@ export async function buildUnify({ includeTools = true } = {}) {
       brief: `${DASH}/api/agent-brief`,
     },
     cli: {
-      spine: ['bin/dg truth', 'bin/dg next-canon', 'bin/dg demand status', 'bin/dg ship status', 'bin/dg unify'],
+      spine: [
+        'bin/dg orient',
+        'bin/dg truth',
+        'bin/dg next-canon',
+        'bin/dg demand status',
+        'bin/dg ship status',
+        'bin/dg unify',
+      ],
       assertSame: 'bin/dg next-canon --assert-same',
       selftest: 'node demigod-tools-os-selftest.mjs && node demigod-unify-selftest.mjs',
     },
     rules: [
-      'Green only from refuseIfStale(truth) pass+fresh',
+      'orient.green = truth seal only (pass-fresh), not business green',
+      'lamps.demand.outcomeOk only if SENT/pilots real; queueOk ≠ outcome',
+      'lamps.ship.green false under freeze',
       'Single NEXT from demigod-next (no dual NEXT)',
-      'Freeze ON blocks ship mutators',
-      'Never invent pilots or SENT-CONFIRMED',
+      'Never invent pilots or SENT-CONFIRMED; never auto-DM',
     ],
   };
 
@@ -162,7 +246,12 @@ export function toMarkdown(u) {
     '## NEXT',
     `- **${u.next.title}**`,
     `- \`${u.next.cmd}\``,
-    `- id=${u.next.id} freeze=${u.freeze.on ? 'ON' : 'OFF'} green=${u.truthEvidence.green}`,
+    `- id=${u.next.id} freeze=${u.freeze.on ? 'ON' : 'OFF'} green=${u.truthEvidence.green} (truth seal only)`,
+    '',
+    '## Lamps',
+    u.lamps
+      ? `- truth=${u.lamps.truth.green ? 'on' : 'off'} demand.queueOk=${u.lamps.demand.queueOk} demand.outcomeOk=${u.lamps.demand.outcomeOk} ship=${u.lamps.ship.green ? 'on' : 'off'}(${u.lamps.ship.reason}) review=${u.lamps.review.green ? 'on' : 'off'}`
+      : '- (no lamps)',
     '',
     '## Truth',
     `- ${u.truth?.summary || u.truthEvidence.summary || '—'}`,

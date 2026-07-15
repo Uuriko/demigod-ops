@@ -5,16 +5,20 @@
  * Checks: body display, h1 rect, foot version, dual CTAs, WIZ open field count, reopen head count.
  * Writes /tmp/dg-busy/agent-smoke.json + .md
  * Exit 0 only if core pass (body+h1+foot present); wiz quality is reported separately.
+ *
+ * Soft under freeze: disk≠live → WARN / softDrift / driftExpected — never flips corePass alone.
  */
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import WebSocket from 'ws';
+import { classifyFootDrift } from './demigod-smoke-policy.mjs';
 
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const BUSY = '/tmp/dg-busy';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+export { classifyFootDrift } from './demigod-smoke-policy.mjs';
 
 async function getTab() {
   const tabs = await (await fetch(`${CDP}/json/list`)).json();
@@ -196,8 +200,6 @@ async function main() {
     const diskFootVer = (diskJs.match(/__dgFootVer='(\d+)'/) || [])[1] || null;
     out.diskFootVer = diskFootVer;
     out.liveFootVer = out.summary?.foot || out.home?.foot || null;
-    const liveN = String(out.liveFootVer || '').replace(/^v/i, '');
-    out.footVersionMatch = diskFootVer != null && liveN && diskFootVer === liveN;
     let freezeOn = false;
     try {
       const fz = JSON.parse(fs.readFileSync(path.join(BUSY, 'publish-freeze.json'), 'utf8'));
@@ -206,18 +208,19 @@ async function main() {
       freezeOn = process.env.DEMIGOD_PUBLISH_FREEZE === '1';
     }
     out.freezeOn = freezeOn;
-    out.driftExpected = freezeOn && !out.footVersionMatch;
-    if (!out.footVersionMatch) {
-      out.footVersionNote = out.driftExpected
-        ? `WARN soft: disk v${diskFootVer} ≠ live ${out.liveFootVer} (freeze ON — driftExpected; not core fail)`
-        : `disk v${diskFootVer} vs live ${out.liveFootVer} — hard gate: bin/dg truth --require-match`;
-      out.footVersionSeverity = out.driftExpected ? 'warn' : 'info';
-    } else {
-      out.footVersionSeverity = 'ok';
-    }
-    // Never flip corePass false solely due to freeze drift
-    if (out.driftExpected && out.corePass) {
-      out.softDrift = true;
+    const drift = classifyFootDrift({
+      freezeOn,
+      diskVer: diskFootVer,
+      liveVer: out.liveFootVer,
+    });
+    out.footVersionMatch = drift.footVersionMatch;
+    out.driftExpected = drift.driftExpected;
+    out.softDrift = Boolean(drift.softDrift && out.corePass);
+    out.footVersionSeverity = drift.footVersionSeverity;
+    out.footVersionNote = drift.note;
+    // Never flip corePass / pass false solely due to freeze drift
+    if (out.softDrift) {
+      out.passReason = 'core-ok-soft-drift-under-freeze';
     }
   } catch (e) {
     out.diskFootVer = null;
@@ -239,7 +242,11 @@ async function main() {
   process.exit(out.corePass ? 0 : 1);
 }
 
-main().catch((e) => {
-  console.error(JSON.stringify({ pass: false, error: String(e.message || e) }));
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isMain) {
+  main().catch((e) => {
+    console.error(JSON.stringify({ pass: false, error: String(e.message || e) }));
+    process.exit(1);
+  });
+}

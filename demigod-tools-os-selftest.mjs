@@ -169,6 +169,14 @@ try {
   ok(typeof oc.green === 'boolean', 'orient green bool');
   ok(oc.next && oc.next.id, 'orient has NEXT id');
   ok(oc.assertSame && typeof oc.assertSame.ok === 'boolean', 'orient assertSame');
+  ok(oc.lamps && oc.lamps.schema === 'demigod.role-lamps/1', 'orient lamps');
+  ok(oc.greenMeans === 'truth-seal-pass-fresh-only', 'orient greenMeans documented');
+  if (oc.freeze?.on) {
+    ok(oc.lamps.ship.green === false, 'orient ship lamp off under freeze');
+  }
+  if ((oc.demand?.sentConfirmed ?? 0) === 0) {
+    ok(oc.lamps.demand.outcomeOk === false, 'orient outcomeOk false at 0 SENT');
+  }
   // false-green ban: exit 0 only if green + assertSame
   if (orientSt.status === 0) {
     ok(oc.green === true && oc.assertSame.ok === true, 'orient exit0 requires green+assertSame');
