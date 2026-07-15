@@ -2,11 +2,13 @@
 /**
  * demigod-demand — GTM / demand ops surface (read-first, never auto-sends)
  *
- *   bin/dg demand status|queue|log|templates|help
+ *   bin/dg demand status|queue|log|templates|draft|help
+ *   bin/dg demand draft --name=T0 [--json]
  *   bin/dg demand log --note "…"     # append human note only (not a pilot claim)
  *
  * Honesty: never invents pilots, never claims DMs sent without SENT-CONFIRMED.
- * Human owns real DMs. Agents orient + prepare only.
+ * Only SENT-CONFIRMED (attested) counts; SENT-UNATTESTED does not.
+ * Human owns real DMs. Agents orient + prepare only. Auto-DM banned.
  */
 import fs from 'fs';
 import path from 'path';
@@ -66,13 +68,35 @@ function parseSendLog(text) {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith('#') && !l.startsWith('//'));
-  const confirmed = lines.filter((l) => /SENT-CONFIRMED/i.test(l));
+  // Only SENT-CONFIRMED counts as sent (not SENT-UNATTESTED)
+  const confirmed = lines.filter((l) => /\bSENT-CONFIRMED\b/i.test(l) && !/SENT-UNATTESTED/i.test(l));
+  const unattested = lines.filter((l) => /SENT-UNATTESTED/i.test(l));
   const handles = new Set();
   for (const l of confirmed) {
     const m = l.match(/@[\w_]+/);
     if (m) handles.add(m[0].toLowerCase());
   }
-  return { lines: confirmed, count: confirmed.length, handles, path: path.join(OUTREACH, 'dm-send-log.txt') };
+  const logPath = process.env.DEMIGOD_DM_LOG || path.join(OUTREACH, 'dm-send-log.txt');
+  return {
+    lines: confirmed,
+    count: confirmed.length,
+    unattestedCount: unattested.length,
+    unattestedLines: unattested.slice(-5),
+    handles,
+    path: logPath,
+  };
+}
+
+function sendLogPath() {
+  return process.env.DEMIGOD_DM_LOG || path.join(OUTREACH, 'dm-send-log.txt');
+}
+
+function pilotLogPath() {
+  return process.env.DEMIGOD_PILOT_LOG || path.join(OPS, 'PILOT-LOG.md');
+}
+
+function queuePath() {
+  return process.env.DEMIGOD_QUEUE_MD || path.join(OPS, 'SEND-QUEUE-PRIORITIZED.md');
 }
 
 /** Parse only the Active pipeline table (not Warm inbound — those are not pilots). */
@@ -151,9 +175,9 @@ function listTemplates() {
 function buildStatus() {
   const freeze = freezeStatus();
   const truth = readJson(path.join(BUSY, 'truth.json'));
-  const queueMd = read(path.join(OPS, 'SEND-QUEUE-PRIORITIZED.md'));
-  const pilotMd = read(path.join(OPS, 'PILOT-LOG.md'));
-  const sendLog = parseSendLog(read(path.join(OUTREACH, 'dm-send-log.txt')));
+  const queueMd = read(queuePath());
+  const pilotMd = read(pilotLogPath());
+  const sendLog = parseSendLog(read(sendLogPath()));
   const queue = parseQueue(queueMd);
   const pilots = parsePilotTable(pilotMd);
   const warmInbound = parseWarmInbound(pilotMd);
@@ -175,10 +199,15 @@ function buildStatus() {
   }
 
   const nextHuman = top3.length
-    ? `Human DM next: ${top3.map((t) => `${t.name} ${t.handle}`).join(' → ')} then mark-sent`
+    ? `Human DM next: ${top3.map((t) => `${t.name} ${t.handle}`).join(' → ')} then mark-sent --i-sent-it`
     : sendLog.count
       ? 'Queue handles all marked SENT-CONFIRMED — refresh queue or await replies'
       : 'No queue rows parsed — check demigod-ops/SEND-QUEUE-PRIORITIZED.md';
+
+  // Progress: only attested SENT; queue names never invented from ghost log handles
+  const ghostHandles = [...sendLog.handles].filter(
+    (h) => !queue.some((q) => (q.handle || '').toLowerCase() === h),
+  );
 
   return {
     schema: 'demigod.demand/1',
@@ -186,7 +215,8 @@ function buildStatus() {
     honesty: {
       agentNeverAutoSends: true,
       inventsPilots: false,
-      claims: 'Only SENT-CONFIRMED counts as sent; empty pilot table rows are not pilots',
+      claims: 'Only SENT-CONFIRMED (attested) counts as sent; empty pilot table rows are not pilots; warm inbound ≠ pilot',
+      markSentRequiresAttestation: true,
     },
     freeze: { on: freeze.frozen, why: freeze.why },
     truth: truth
@@ -203,11 +233,14 @@ function buildStatus() {
       sentConfirmedInQueue: sentFromQueue.length,
       top3,
       pendingNames: pending.map((p) => p.name),
+      ghostHandlesOutsideQueue: ghostHandles,
     },
     dms: {
       sentConfirmed: sendLog.count,
+      sentUnattested: sendLog.unattestedCount || 0,
       logPath: sendLog.path,
       recent: sendLog.lines.slice(-5),
+      recentUnattested: sendLog.unattestedLines || [],
     },
     pilots: {
       tableRows: pilots.length,
@@ -224,9 +257,10 @@ function buildStatus() {
     templates: listTemplates(),
     next: nextHuman,
     cmds: {
-      markSent: 'node demigod-dm-mark-sent.mjs --name=NAME',
+      draft: 'bin/dg demand draft --name=NAME',
+      markSent: 'node demigod-dm-mark-sent.mjs --name=NAME --i-sent-it',
       pilotReport: 'node demigod-pilot-logger.mjs --report',
-      pack: 'demigod-outreach/SEND-PACK-2026-07-09.md',
+      pack: 'demigod-outreach/SEND-PACK-TOP3.md',
       queueFile: 'demigod-ops/SEND-QUEUE-PRIORITIZED.md',
     },
   };
@@ -251,9 +285,9 @@ function printStatus(s) {
 function cmdQueue() {
   const s = buildStatus();
   const freeze = s.freeze;
-  const queueMd = read(path.join(OPS, 'SEND-QUEUE-PRIORITIZED.md'));
+  const queueMd = read(queuePath());
   const queue = parseQueue(queueMd);
-  const sendLog = parseSendLog(read(path.join(OUTREACH, 'dm-send-log.txt')));
+  const sendLog = parseSendLog(read(sendLogPath()));
   const rows = queue.map((q) => ({
     ...q,
     sentConfirmed: sendLog.handles.has((q.handle || '').toLowerCase()),
@@ -267,6 +301,85 @@ function cmdQueue() {
     for (const r of rows) {
       console.log(`  ${r.sentConfirmed ? '✓' : '○'} [${r.prio}] ${r.name} ${r.handle} — ${r.company}`);
     }
+  }
+  return 0;
+}
+
+/** Human copy-paste pack — never sends. */
+function cmdDraft() {
+  const nameIdx = args.findIndex((a) => a === '--name' || a.startsWith('--name='));
+  let name = '';
+  if (nameIdx >= 0) {
+    const a = args[nameIdx];
+    name = a.startsWith('--name=') ? a.slice(7) : args[nameIdx + 1] || '';
+  }
+  // also allow: demand draft T0
+  if (!name) {
+    const pos = args.filter((a) => !a.startsWith('-') && a !== 'draft');
+    name = pos[0] || '';
+  }
+  if (!name) {
+    console.error('usage: bin/dg demand draft --name=T0  (never sends)');
+    return 2;
+  }
+  const s = buildStatus();
+  const queueMd = read(queuePath());
+  const queue = parseQueue(queueMd);
+  const row =
+    queue.find((q) => q.name.toLowerCase() === name.toLowerCase()) ||
+    queue.find((q) => (q.handle || '').toLowerCase().includes(name.toLowerCase().replace(/^@/, '')));
+  if (!row) {
+    console.error(JSON.stringify({ error: 'name_not_in_queue', name, pending: s.queue.pendingNames }));
+    return 1;
+  }
+  const slug = row.name.toLowerCase().replace(/\W+/g, '');
+  const readyDir = path.join(OUTREACH, 'ready-emails');
+  let readyFile = '';
+  let body = '';
+  try {
+    const candidates = fs.readdirSync(readyDir).filter((f) => f.endsWith('.txt') && f.includes(slug));
+    if (candidates[0]) {
+      readyFile = path.join(readyDir, candidates[0]);
+      body = read(readyFile, 8000);
+    }
+  } catch {
+    /* */
+  }
+  // fallback: extract from SEND-PACK-TOP3
+  if (!body) {
+    const pack = read(path.join(OUTREACH, 'SEND-PACK-TOP3.md'), 50000);
+    const re = new RegExp(`##\\s*${row.name}[\\s\\S]*?\`\`\`([\\s\\S]*?)\`\`\``, 'i');
+    const m = pack.match(re);
+    if (m) body = m[1].trim();
+  }
+  const openUrl = (row.open.match(/https?:\/\/[^\s\])]+/) || [])[0] || '';
+  const out = {
+    schema: 'demigod.demand.draft/1',
+    at: new Date().toISOString(),
+    neverSends: true,
+    name: row.name,
+    handle: row.handle,
+    company: row.company,
+    open: openUrl || row.open,
+    afterSend: `node demigod-dm-mark-sent.mjs --name=${row.name} --i-sent-it`,
+    readyFile: readyFile || null,
+    body: body || null,
+    note: body
+      ? 'Copy body → send yourself → mark-sent --i-sent-it. Agents never auto-DM.'
+      : 'No ready body found — open SEND-PACK-TOP3.md',
+  };
+  fs.mkdirSync(BUSY, { recursive: true });
+  writeJsonAuto(path.join(BUSY, 'demand-draft.json'), out);
+  if (asJson) {
+    console.log(JSON.stringify(out, null, process.env.DEMIGOD_JSON_PRETTY === '1' ? 2 : 0));
+  } else {
+    console.log(`# demand draft · ${out.name} ${out.handle} · NEVER SENDS`);
+    console.log(`open:  ${out.open}`);
+    console.log(`after: ${out.afterSend}`);
+    if (out.readyFile) console.log(`file:  ${out.readyFile}`);
+    console.log('--- body ---');
+    console.log(out.body || '(empty)');
+    console.log('--- end ---');
   }
   return 0;
 }
@@ -346,10 +459,11 @@ function help() {
 
   bin/dg demand status      # queue + SENT-CONFIRMED + pilots (honest)
   bin/dg demand queue       # full queue with sent flags
+  bin/dg demand draft --name=T0   # copy-paste pack (never sends)
   bin/dg demand log         # tails; --note "…" appends human note only
   bin/dg demand templates   # reply/white-glove paths + reply head
 
-Human only: real DMs, mark-sent, pilot logger with real founders.
+Human only: real DMs, mark-sent --i-sent-it, pilot logger with real founders.
 `);
 }
 
@@ -357,12 +471,13 @@ const map = {
   help,
   status: cmdStatus,
   queue: cmdQueue,
+  draft: cmdDraft,
   log: cmdLog,
   templates: cmdTemplates,
 };
 
 if (!map[cmd]) {
-  console.error('usage: bin/dg demand status|queue|log|templates|help');
+  console.error('usage: bin/dg demand status|queue|draft|log|templates|help');
   process.exit(2);
 }
 process.exit(map[cmd]() ?? 0);

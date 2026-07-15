@@ -47,6 +47,7 @@ export const TOOLS = [
   { id: 'review-selftest', name: 'Review selftest', group: 'gates', cmd: 'node demigod-review-selftest.mjs', purpose: 'Fixture proof of review engine' },
   { id: 'ship', name: 'Ship orchestrator', group: 'ship', cmd: 'bin/dg ship status|prepare|cdn|paste|verify|run', purpose: 'Single ship path; mutators need freeze OFF + foot lock', out: '/tmp/dg-busy/ship-os.json', hot: true },
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots (never auto-send)', out: '/tmp/dg-busy/demand-status.json', hot: true },
+  { id: 'demand-draft', name: 'Demand DM draft', group: 'session', cmd: 'bin/dg demand draft --name=T0', purpose: 'Copy-paste pack for human send (never auto-DM)', out: '/tmp/dg-busy/demand-draft.json', hot: true },
   { id: 'next-canon', name: 'Canonical NEXT', group: 'session', cmd: 'bin/dg next-canon', purpose: 'Single NEXT from truth evidence + freeze + demand', out: '/tmp/dg-busy/next.json', hot: true },
   { id: 'unify', name: 'Unify snapshot', group: 'session', cmd: 'bin/dg unify', purpose: 'Deep snapshot (orient is the short path)', out: '/tmp/dg-busy/unify.json', hot: true },
   { id: 'poison-green', name: 'Poison false-green selftest', group: 'gates', cmd: 'node demigod-poison-green-selftest.mjs', purpose: 'Tamper latest-truth → green must flip off → restore', out: '/tmp/dg-busy/evidence/', hot: true },

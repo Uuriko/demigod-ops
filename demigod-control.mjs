@@ -461,6 +461,26 @@ export async function buildControlPlane() {
     reason: nextCanon.reason,
   };
 
+  // Demand starvation: never label "solid" with 0 SENT under freeze (Codex N-E1)
+  const demandSnap = safeJsonFile(path.join(BUSY, 'demand-status.json')) || {};
+  const sentConfirmed = Number(demandSnap?.dms?.sentConfirmed ?? 0) || 0;
+  const fullyShipped = Boolean(
+    nextCanon?.versions &&
+      nextCanon.versions.disk &&
+      nextCanon.versions.live &&
+      String(nextCanon.versions.disk) === String(nextCanon.versions.live) &&
+      !frozen,
+  );
+  const demandStarved =
+    frozen && sentConfirmed === 0 && (nextCanon?.id || '').includes('demand');
+  let healthLabel = health >= 80 ? 'solid' : health >= 50 ? 'watch' : 'attention';
+  if (demandStarved) {
+    health = Math.min(health, 55);
+    healthLabel = 'demand-starved';
+  } else if (frozen && !fullyShipped && healthLabel === 'solid') {
+    healthLabel = 'watch'; // freeze-hold: tools ok, not product-green
+  }
+
   const plane = {
     schema: 'demigod.control-plane/2',
     at: new Date().toISOString(),
@@ -474,7 +494,9 @@ export async function buildControlPlane() {
     freezeBy: freeze.by || null,
     sessionMode: frozen ? 'read-only' : 'read-write',
     health,
-    healthLabel: health >= 80 ? 'solid' : health >= 50 ? 'watch' : 'attention',
+    healthLabel,
+    demandStarved: Boolean(demandStarved),
+    dms: { sentConfirmed },
     board: {
       roles: dashStatus?.board?.roles ?? null,
       realRoles: dashStatus?.board?.signal?.realRoles ?? null,

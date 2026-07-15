@@ -392,16 +392,22 @@ function deriveActions(ctx) {
     });
   }
 
+  const freezeOnEarly = Boolean(safeJson(path.join(BUSY, 'publish-freeze.json'))?.on);
   const manId = foot?.manifest?.cdnUrl?.match(/\/([a-z0-9]+\.js)/)?.[1];
   const liveId = live?.cdnId;
   if (manId && liveId && manId !== liveId) {
+    // Under freeze: expected lag is NOT a ship P0 (Codex N-D4 dual-P0 ban)
     actions.push({
-      pri: 0,
-      id: 'cdn-drift',
-      title: 'Live CDN ≠ manifest — publish or confirm intentional lag',
-      why: `live=${liveId} manifest=${manId}`,
-      cmd: 'node demigod-cm6-paste-publish.mjs --footer-only',
-      owner: 'grok',
+      pri: freezeOnEarly ? 3 : 0,
+      id: freezeOnEarly ? 'cdn-drift-expected' : 'cdn-drift',
+      title: freezeOnEarly
+        ? `CDN lag under freeze (expected): live=${liveId} ≠ manifest=${manId}`
+        : 'Live CDN ≠ manifest — publish or confirm intentional lag',
+      why: freezeOnEarly
+        ? 'freeze ON — demand-first; not a second P0'
+        : `live=${liveId} manifest=${manId}`,
+      cmd: freezeOnEarly ? 'bin/dg demand status' : 'node demigod-cm6-paste-publish.mjs --footer-only',
+      owner: freezeOnEarly ? 'human' : 'grok',
     });
   }
 
@@ -409,12 +415,18 @@ function deriveActions(ctx) {
   const liveFoot = live?.foot?.replace(/foot v/, '') || null;
   if (diskVer && liveFoot && diskVer !== liveFoot) {
     actions.push({
-      pri: 0,
-      id: 'ver-drift',
-      title: `Disk foot v${diskVer} vs live ${live?.foot}`,
-      why: 'Hash/version drift — do not claim ship until CDN matches',
-      cmd: 'node --check demigod-foot-core.js && npm run demigod:foot:cdn # or manual catbox + cm6',
-      owner: 'grok',
+      pri: freezeOnEarly ? 3 : 0,
+      id: freezeOnEarly ? 'ver-drift-expected' : 'ver-drift',
+      title: freezeOnEarly
+        ? `Expected drift under freeze: disk v${diskVer} vs live v${liveFoot}`
+        : `Disk foot v${diskVer} vs live ${live?.foot}`,
+      why: freezeOnEarly
+        ? 'freeze ON — intentional until human unfreeze; not a ship P0'
+        : 'Hash/version drift — do not claim ship until CDN matches',
+      cmd: freezeOnEarly
+        ? 'bin/dg demand status'
+        : 'node --check demigod-foot-core.js && npm run demigod:foot:cdn # or manual catbox + cm6',
+      owner: freezeOnEarly ? 'human' : 'grok',
     });
   }
 
@@ -645,7 +657,16 @@ function deriveActions(ctx) {
 
 function buildAgentBrief(data) {
   const a = data.actions || [];
-  const top = a.filter((x) => x.pri <= 2).slice(0, 8);
+  let top = a.filter((x) => x.pri <= 2).slice(0, 8);
+  // Under freeze + demand-ops: exactly one P0 (demand); drift is expected note not peer P0
+  if (data.freeze?.on) {
+    const p0 = top.filter((x) => x.pri === 0);
+    if (p0.length > 1) {
+      const prefer =
+        p0.find((x) => /demand|cockpit-demand/i.test(String(x.id) + x.title + x.cmd)) || p0[0];
+      top = [prefer, ...top.filter((x) => x.pri !== 0 || x.id === prefer.id)].slice(0, 8);
+    }
+  }
   const pf = data.preflight || safeJson(path.join(BUSY, 'preflight-latest.json'));
   const inbox = data.inbox || safeJson(path.join(BUSY, 'plan-inbox-latest.json'));
   const unify = safeJson(path.join(BUSY, 'unify.json'));
@@ -1773,6 +1794,8 @@ async function enrichStatus(data) {
         sessionMode: plane.sessionMode,
         health: plane.health,
         healthLabel: plane.healthLabel,
+        demandStarved: plane.demandStarved || false,
+        dms: plane.dms || null,
         board: plane.board,
         lock: plane.lock,
         assets: plane.assets,

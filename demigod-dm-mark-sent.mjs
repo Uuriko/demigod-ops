@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-/** Append SENT-CONFIRMED to dm-send-log.txt after a real human DM send.
- * Also updates DM-BATCH-TRACKER.md Sent date when name matches a table row.
+/** Append SENT-CONFIRMED after a real human DM send.
+ * Requires --i-sent-it (attestation). Agents must not invent SENT.
  *
- * Usage: node demigod-dm-mark-sent.mjs --handle=@marty_kausas --company=Pylon [--channel=x]
- *        node demigod-dm-mark-sent.mjs --from-file=dm-2026-07-09-marty.txt
- *        node demigod-dm-mark-sent.mjs --name=Marty
- *        node demigod-dm-mark-sent.mjs --name=T0 --channel=linkedin
+ * Usage: node demigod-dm-mark-sent.mjs --name=T0 --i-sent-it [--channel=x]
+ *        node demigod-dm-mark-sent.mjs --handle=@x --company=Co --i-sent-it
  */
 import fs from 'fs';
 import path from 'path';
@@ -21,13 +19,23 @@ const readyDir = path.join(outreach, 'ready-emails');
 const trackerPath = path.join(outreach, 'DM-BATCH-TRACKER.md');
 
 function parseArgs(argv) {
-  const o = { handle: '', company: '', channel: 'x', fromFile: '', name: '' };
+  const o = {
+    handle: '',
+    company: '',
+    channel: 'x',
+    fromFile: '',
+    name: '',
+    iSentIt: false,
+    unattested: false,
+  };
   for (const a of argv) {
     if (a.startsWith('--handle=')) o.handle = a.slice(9);
     else if (a.startsWith('--company=')) o.company = a.slice(10);
     else if (a.startsWith('--channel=')) o.channel = a.slice(10);
     else if (a.startsWith('--from-file=')) o.fromFile = a.slice(12);
     else if (a.startsWith('--name=')) o.name = a.slice(7);
+    else if (a === '--i-sent-it' || a === '--i-sent-it=true') o.iSentIt = true;
+    else if (a === '--unattested' || a === '--unattested=true') o.unattested = true;
   }
   return o;
 }
@@ -151,11 +159,28 @@ if (args.fromFile || args.name) {
 }
 
 if (!args.handle || !args.company) {
-  console.error('Usage: node demigod-dm-mark-sent.mjs --handle=@x --company=Co [--channel=x]');
-  console.error('   or: node demigod-dm-mark-sent.mjs --name=Marty');
+  console.error('Usage: node demigod-dm-mark-sent.mjs --name=T0 --i-sent-it [--channel=x]');
+  console.error('   or: node demigod-dm-mark-sent.mjs --handle=@x --company=Co --i-sent-it');
+  console.error('Requires --i-sent-it after a real human send. Auto-DM / invent banned.');
   process.exit(1);
 }
 if (!args.handle.startsWith('@')) args.handle = '@' + args.handle;
+
+// Attestation tooth: refuse silent invent (Codex N-D3)
+if (!args.iSentIt && !args.unattested) {
+  console.error(
+    JSON.stringify(
+      {
+        error: 'mark_sent_requires_attestation',
+        hint: 'After YOU send the DM: node demigod-dm-mark-sent.mjs --name=NAME --i-sent-it',
+        ban: 'Agents must not mint SENT-CONFIRMED without human attestation',
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(2);
+}
 
 // Canonical display names for tracker
 const NAME_MAP = {
@@ -174,10 +199,12 @@ if (resolvedName) {
 }
 
 const day = new Date().toISOString().slice(0, 10);
-const line = `SENT-CONFIRMED | ${day} | ${args.handle} | ${args.company} | ${args.channel}`;
+const kind = args.iSentIt && !args.unattested ? 'SENT-CONFIRMED' : 'SENT-UNATTESTED';
+const attested = kind === 'SENT-CONFIRMED' ? 1 : 0;
+const line = `${kind} | ${day} | ${args.handle} | ${args.company} | ${args.channel} | attested=${attested}`;
 const existing = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-if (alreadyConfirmed(existing, args.handle)) {
-  console.log('Already logged:', args.handle);
+if (alreadyConfirmed(existing, args.handle) && kind === 'SENT-CONFIRMED') {
+  console.log('Already logged SENT-CONFIRMED:', args.handle);
   const tr = updateTracker(resolvedName, args.handle, day, args.channel);
   if (tr.ok) console.log('Tracker refreshed:', tr.path);
   process.exit(0);
@@ -185,6 +212,9 @@ if (alreadyConfirmed(existing, args.handle)) {
 fs.appendFileSync(logPath, `\n${line}\n`);
 console.log('Appended:', line);
 console.log('Log:', logPath);
+if (!attested) {
+  console.log('NOTE: SENT-UNATTESTED does not count toward demand sentConfirmed progress');
+}
 
 const tr = updateTracker(resolvedName, args.handle, day, args.channel);
 if (tr.ok) console.log('Tracker updated:', tr.path);
