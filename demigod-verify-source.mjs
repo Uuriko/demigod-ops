@@ -83,7 +83,7 @@ if (cdnFoot) {
     check('core:90day-required-inject', /name="90day-outcome"[^>]*required|90day-outcome.*required/.test(coreJs));
     check('core:trust-fallback', /appendChild\(el\)|insertBefore\(el,f\)/.test(coreJs));
     check('core:board-cdn-current', /BOARD_CDN=.*catbox|catbox\.moe/.test(coreJs) || coreJs.includes('sne1xv') || coreJs.includes('ni22zy') || coreJs.includes('bok9ax') || coreJs.includes('s83w5c') || coreJs.includes('06nhog')); // broadened for live CDN updates (board publish sets var)
-    check('core:version-150plus', /__dgFootVer='1[5-9][0-9]'/.test(coreJs));
+    check('core:version-150plus', /__dgFootVer='(?:1[5-9][0-9]|[2-9][0-9]{2,})'/.test(coreJs));
   }
   // boot smoke (closes verify blind spot for cdnFoot case)
   // Robust: capture stdout only, strip noise, retry once on empty/malformed JSON (Codex 2026-07-12)
