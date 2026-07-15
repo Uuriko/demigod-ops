@@ -1,4 +1,4 @@
-/*dg-foot-v209-core*/
+/*dg-foot-v211-core*/
 /**
  * demigod-foot-core.js — ONLY site behavior SoR (Webflow foot CDN).
  * Sections: COPY · WIZ_CFG · WIZ_Q · WIZ runtime · board · forms/CTA · boot · honesty
@@ -7,7 +7,7 @@
  * NEVER: MutationObserver writing styles on every attr (v187 freeze); raw catbox .html nav
  * v200 dual-CTA · v201 FOUC/WIZ keyboard · v202 WIZ one-question ownership + honesty + mobile de-dupe
  */
-window.dgFootVersion = 'v209'; console.log('[demigod] foot v209-core loaded');
+window.dgFootVersion = 'v211'; console.log('[demigod] foot v211-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -54,7 +54,7 @@ var ENGINEER_OK='Profile received. hello@trydemigod.com will follow up if fit. P
 var PARTNER_OK=COPY.partnerOk;
 var WIZ_THANKS={startup:{head:'Brief received',lead:'A human will review it. Mutual yes only.',steps:['We read your brief + 90-day outcome','We propose only strong fits','Both sides say yes before intro'],done:'How it works'},engineer:{head:'Profile saved',lead:'Private until a human sees a real fit.',steps:['Stored securely — never blasted','Human proposes match if fit','hello@trydemigod.com may follow up'],done:'How it works'},partner:{head:'Got it',lead:'We review partner fit before any code.',steps:['Human review','Email with next steps if fit','Warm intros only'],done:'Back'}};
 /* ==== SECTION: WIZ_CFG (stepper paths) ==== */
-var WIZ_CFG={startup:{steps:[['welcome'],['contact-email'],['company-name'],['company-stage'],['role-title'],['stack-needs'],['90day-outcome'],['salary-range'],['timeline'],['team-size'],['why-this-role'],['role-jd'],['__submit__'],['__thanks__']],welcome:{t:"I'm hiring",b:'~2 min. One question at a time. A human reads every brief.',btn:'Start brief →'},thanks:STARTUP_OK,total:11,optional:['phone','salary-range','why-this-role','role-jd','timeline','team-size']},engineer:{steps:[['welcome'],['full-name'],['seeker-email'],['linkedin-url'],['skills-stack'],['experience'],['sf-bay'],['availability'],['salary-expectation'],['why-startups'],['links'],['phone'],['resume'],['__submit__'],['__thanks__']],welcome:{t:'Find a job',b:'~2 min. One profile. Private until mutual yes.',btn:'Create profile →'},thanks:ENGINEER_OK,total:13,optional:['phone','links','resume','salary-expectation','why-startups','availability']},partner:{steps:[['welcome'],['partner-type'],['partner-name'],['partner-email'],['partner-phone'],['partner-org'],['referral-plan'],['partner-linkedin'],['partner-notes'],['__submit__'],['__thanks__']],welcome:{t:'Partner',b:'Refer talent. Earn when a hire succeeds.',btn:'Apply →'},thanks:PARTNER_OK,total:9,optional:['partner-phone','partner-linkedin','partner-notes']}};
+var WIZ_CFG={startup:{steps:[['welcome'],['contact-email'],['company-name'],['company-stage'],['role-title'],['stack-needs'],['90day-outcome'],['__submit__'],['__thanks__']],welcome:{t:"I'm hiring",b:'~90 sec. Role + 90-day outcome. A human reads every brief.',btn:'Start brief →'},thanks:STARTUP_OK,total:7,optional:['phone','salary-range','why-this-role','role-jd','timeline','team-size']},engineer:{steps:[['welcome'],['full-name'],['seeker-email'],['linkedin-url'],['skills-stack'],['experience'],['sf-bay'],['__submit__'],['__thanks__']],welcome:{t:'Find a job',b:'~90 sec. One profile. Private until mutual yes.',btn:'Create profile →'},thanks:ENGINEER_OK,total:7,optional:['phone','links','resume','salary-expectation','why-startups','availability']},partner:{steps:[['welcome'],['partner-type'],['partner-name'],['partner-email'],['partner-phone'],['partner-org'],['referral-plan'],['partner-linkedin'],['partner-notes'],['__submit__'],['__thanks__']],welcome:{t:'Partner',b:'Refer talent. Earn when a hire succeeds.',btn:'Apply →'},thanks:PARTNER_OK,total:9,optional:['partner-phone','partner-linkedin','partner-notes']}};
 /* ==== SECTION: WIZ_Q (questions + hints) ==== */
 var WIZ_Q={startup:{'contact-email':{q:'Work email?',h:'For match proposals only — never a list, never spam.'},'company-name':{q:'Company name?',h:'Context for culture and stage fit.'},'company-stage':{q:'What stage is the company?',h:'Pre-seed / Seed / Series A+ — we match only to real startup operating realities.'},'role-title':{q:'What role are you hiring for?',h:'Founding PM, first Engineer, Head of Growth — specific titles get the best 3-5 curated fits.'},'stack-needs':{q:'Key skills or outcomes needed?',h:'Top must-haves and success metrics. This is what we screen candidates against.'},
 '90day-outcome':{q:'#1 outcome this hire must deliver in 90 days?',h:'Be specific and measurable — this is the anchor for every match we propose.'},'salary-range':{q:'Target comp range (cash + equity note)?',h:'Realistic range = candidates we propose will actually say yes. Critical for quality.'},'timeline':{q:'When do you need the hire?',h:'ASAP / This quarter / Exploratory — matches candidate availability.'},'team-size':{q:'Team size / reporting line?',h:'Helps us match seniority and collaboration style.'},'why-this-role':{q:'Why hire this role now?',h:'New bet, backfill, scaling team — the "why" drives who we suggest first.'},'role-jd':{q:'Job description, brief or link? (optional)',h:'PDF/Word up to 10MB. Humans read every detail you share.'},'phone':{q:'Phone (optional)',h:'SMS pending — email from hello@trydemigod.com always works.'},'__submit__':{q:'Submit your brief?',h:'A human reviews it personally. Matches only when fit is strong.'}},engineer:{'full-name':{q:'Your full name?',h:'Used only for the intro email to the right startup.'},'seeker-email':{q:'Best email?',h:'Match updates and proposals only — from hello@.'},'linkedin-url':{q:'LinkedIn profile?',h:'Primary signal. Full profile URL lets a human assess real background fast.'},'skills-stack':{q:'Core skills & stack?',h:'React, Figma, GTM, product — what you actually do best.'},'experience':{q:'Key things you have shipped?',h:'2-3 concrete highlights or impact bullets. Wins > titles.'},'sf-bay':{q:'Open to SF Bay Area startups?',h:'Our focus. Remote fine if the startup is Bay Area.'},'availability':{q:'When are you available?',h:'Now / 2–4 weeks / Passive — matches role timeline.'},'salary-expectation':{q:'Comp expectation (optional)?',h:'Helps us only propose roles that will excite you.'},'why-startups':{q:'Why SF startups (optional)?',h:'Context for strong human matches.'},'links':{q:'Portfolio, GitHub, site? (optional)',h:'Links help humans see the work.'},'phone':{q:'Phone (optional)?',h:'Pending SMS. We can text when a fit appears.'},'resume':{q:'Resume (PDF/Word, optional now)',h:'Max 10MB. Private until a human proposes a specific match — add later if easier.'},'__submit__':{q:'Join the network?',h:'A human reviews your profile. Outreach only on real fits — no blasts.'}}};
@@ -80,7 +80,7 @@ function candidatesHtml(list){if(!list||!list.length)return'';return list.map(fu
 function renderBoard(){var blk=q('#demigod-trust-block');if(!blk||!BOARD)return;var lg=blk.querySelector('.dg-ledger');if(lg&&BOARD.roles&&BOARD.roles.length)lg.innerHTML=ledgerHtml(BOARD.roles);var cand=blk.querySelector('.dg-candidates');if(!cand){var h2=document.createElement('h2');h2.textContent='Featured candidates';var k=document.createElement('p');k.className='dg-kicker';k.textContent='Anonymized profiles — humans match, no spam.';k.id='dg-cand-kicker';cand=document.createElement('div');cand.className='dg-candidates';blk.appendChild(h2);blk.appendChild(k);blk.appendChild(cand)}if(BOARD.candidates&&BOARD.candidates.length)cand.innerHTML=candidatesHtml(BOARD.candidates);pipelineNote();addMotion()}function pipelineNote(){if(!BOARD)return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#demigod-trust-block');if(!host)return;var rc=(BOARD.roles||[]).length,cc=(BOARD.candidates||[]).length;if(!rc&&!cc)return;var txt='Right now: '+rc+' example role brief'+(rc===1?'':'s')+' and '+cc+' candidate profile'+(cc===1?'':'s')+' on the public ledger — real placements only after delivered intros.';var n=q('#dg-pipeline-note');if(!n){n=document.createElement('p');n.id='dg-pipeline-note';n.style.cssText='max-width:42rem;margin:.5rem auto 0;padding:0 1rem;color:#A8A29E;font-size:.8rem;text-align:center';host.parentNode?host.parentNode.insertBefore(n,host.nextSibling):host.appendChild(n)}n.textContent=txt}function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div').forEach(function(el){try{el.style.opacity='1';el.style.transform='none';el.classList.add('dg-anim')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;try{var obs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-anim');obs.unobserve(e.target)}})},{threshold:.15});qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand').forEach(function(el){obs.observe(el)})}catch(e){}}
 
 /* Thorough WIZ Typeform polish: keyboard, clicks, progress, mobile safe */
-function enhanceWIZ() {
+function enhanceWIZ() { try{ if(OPEN){ var mm=q(OPEN); if(mm) wizResumeToast(mm);} }catch(e){}
   qa('.dg-wiz-next, .dg-wiz-back, .dg-wiz-start').forEach(function(btn) {
     if (btn.dataset.enhanced) return;
     btn.dataset.enhanced = '1';
@@ -162,10 +162,10 @@ function forceWizVisible(form, modal) {
 function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] img,header img').forEach(function(im){if(im.dataset.dgPerf)return;im.dataset.dgPerf='1';im.setAttribute('fetchpriority','high');im.setAttribute('decoding','async');im.loading='eager';if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','Demigod — human-matched SF startup talent, San Francisco Bay Area');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function skipLink(){if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to content';a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus()}catch(err){}});document.body&&document.body.prepend(a)}
-function faqBlock(){/* v209: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
+function faqBlock(){/* v210: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
 function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(localStorage.getItem('dgWizSave_startup')||localStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" placeholder="you@email.com" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email hello@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){box.remove();DIRTY=false};box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:hello@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()})}catch(e){}}
-function proofStrip(){/* v209: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
-function contactStrip(){/* v209: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
+function proofStrip(){/* v210: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
+function contactStrip(){/* v210: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #C9A84C;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
 function forceMainVisible() {
   try {
@@ -348,7 +348,8 @@ function wizBuild(form, kind) {
   var resumeStep=0; try { var saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (saved && saved.answers){ if (saved.t && (Date.now()-saved.t)>7*24*3600*1000){ try{localStorage.removeItem(SAVE_KEY)}catch(e){} saved=null; } else { answers = saved.answers; if (typeof saved.step==='number') resumeStep=saved.step; } } } catch(e){}
   var head = document.createElement('div');
   head.className = 'dg-wiz-head';
-  head.innerHTML = '<div class="dg-wiz-count" aria-live="polite"><span class="dg-cur">1</span> of ' + (cfg.total || steps.length) + '</div><div class="dg-wiz-bar"><i style="width:0%"></i></div><div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div><div class="dg-wiz-live" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>';
+  var __dgWizTotal = steps.filter(function(s){return (s[0]||'')!=='__thanks__' && (s[0]||'')!=='__submit__';}).length || Math.max(1, steps.length-2);
+  head.innerHTML = '<div class="dg-wiz-count" aria-live="polite"><span class="dg-cur">1</span> of ' + __dgWizTotal + '</div><div class="dg-wiz-bar"><i style="width:0%"></i></div><div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div><div class="dg-wiz-live" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>';
   var qEl = head.querySelector('.dg-wiz-q');
   var hEl = head.querySelector('.dg-wiz-hint');
   var bar = head.querySelector('.dg-wiz-bar i');
@@ -443,7 +444,8 @@ function wizBuild(form, kind) {
       });
       if (typeof forceWizVisible === 'function') forceWizVisible(form, modal);
     }
-    curEl.textContent = (current + 1);
+    var __tot = steps.filter(function(s){return (s[0]||'')!=='__thanks__' && (s[0]||'')!=='__submit__';}).length || Math.max(1, steps.length-2);
+    curEl.textContent = String(Math.min(current + 1, __tot));
     try{ var totEl=curEl.parentElement; if(totEl&&!totEl.getAttribute('data-dg-prog')){ totEl.setAttribute('data-dg-prog','1'); totEl.setAttribute('aria-live','polite'); } }catch(e){}
     // re-map fields every showStep in case of late injection or Webflow DOM changes
     var fieldMap = {};
@@ -512,8 +514,8 @@ function wizBuild(form, kind) {
       });
     }
     // progress (single calc)
-    var denom = Math.max(1, (steps.length - 2));
-    var pct = Math.round( ((key === 'welcome' ? 0 : current) / denom) * 100 );
+    var denom = Math.max(1, steps.filter(function(s){return (s[0]||'')!=='__thanks__' && (s[0]||'')!=='__submit__';}).length || (steps.length - 2));
+    var pct = Math.min(100, Math.round( ((key === 'welcome' || key === '__thanks__' || key === '__submit__' ? (key==='welcome'?0:denom) : current) / denom) * 100 ));
     if (bar) bar.style.width = pct + '%';
     qEl.textContent = ''; hEl.textContent = '';
     backBtn.style.display = (current > 0 && key !== 'welcome') ? '' : 'none';
@@ -675,16 +677,16 @@ function wizBuild(form, kind) {
         else empty = !String(el.value || '').trim();
         // require answer for any non-optional step (covers company-name without required attr)
         if (empty) {
-        el.style.borderColor = '#F4D03F'; el.setAttribute('aria-invalid', 'true'); el.focus && el.focus();
+        el.style.borderColor = '#F87171'; el.setAttribute('aria-invalid', 'true'); el.focus && el.focus();
         var errEl = form.querySelector('.dg-wiz-req-err');
         if (!errEl) {
           errEl = document.createElement('p');
           errEl.className = 'dg-wiz-req-err';
           errEl.setAttribute('role', 'alert');
-          errEl.style.cssText = 'color:#F4D03F;font-size:.85rem;margin:.4rem 0 0';
+          errEl.style.cssText = 'color:#F87171;font-size:.85rem;margin:.4rem 0 0';
           el.insertAdjacentElement('afterend', errEl);
         }
-        errEl.textContent = 'Please answer this before continuing.';
+        errEl.textContent = 'Please answer this one — then continue.';
         el.setAttribute('aria-describedby', errEl.id || (errEl.id = 'dg-wiz-req-err-' + key));
         el.addEventListener('input', function clearErr(){ el.style.borderColor = ''; el.removeAttribute('aria-invalid'); if(errEl) errEl.textContent = ''; el.removeEventListener('input', clearErr); }, { once: true });
         el.addEventListener('change', function clearErr2(){ el.style.borderColor = ''; el.removeAttribute('aria-invalid'); if(errEl) errEl.textContent = ''; }, { once: true });
@@ -695,7 +697,7 @@ function wizBuild(form, kind) {
       if (el && (key === 'contact-email' || key === 'seeker-email' || key === 'partner-email') && el.value && el.offsetParent !== null) {
         var okMail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(el.value).trim());
         if (!okMail) {
-          el.style.borderColor = '#F4D03F'; el.setAttribute('aria-invalid', 'true'); el.focus && el.focus();
+          el.style.borderColor = '#F87171'; el.setAttribute('aria-invalid', 'true'); el.focus && el.focus();
           var eErr = form.querySelector('.dg-wiz-req-err');
           if (!eErr) { eErr = document.createElement('p'); eErr.className = 'dg-wiz-req-err'; eErr.setAttribute('role','alert'); eErr.style.cssText = 'color:#F4D03F;font-size:.85rem;margin:.4rem 0 0'; el.insertAdjacentElement('afterend', eErr); }
           eErr.textContent = 'Enter a valid email so we can reach you.';
@@ -969,7 +971,7 @@ function nav(){
   top.innerHTML='<a class="dg-logo" href="/">Demigod</a><div class="dg-nav-ctas"><a id="dg-nav-hire" class="dg-cta dg-cta-hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">'+COPY.navCta+'</a><a id="dg-nav-talent" class="dg-cta dg-cta-talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">'+COPY.navCtaTalent+'</a></div>';
   document.body.prepend(top);
 }
-function trust(){/* v209: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → mutual yes → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
+function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → mutual yes → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="Find a job — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
 function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<a href="/?p=how" data-dg-page="how" style="color:#C9A84C;margin-right:.75rem">How</a><a href="/?p=pricing" data-dg-page="pricing" style="color:#C9A84C;margin-right:.75rem">Pricing</a><a href="/?p=faq" data-dg-page="faq" style="color:#C9A84C;margin-right:.75rem">FAQ</a><a href="/?p=compare" data-dg-page="compare" style="color:#C9A84C;margin-right:.75rem">Compare</a><a href="/?p=legal" data-dg-page="legal" style="color:#A8A29E;margin-right:.75rem">Legal</a><a href="/?p=about" data-dg-page="about" style="color:#A8A29E;margin-right:.75rem">About</a><a href="/?p=status" data-dg-page="status" style="color:#A8A29E;margin-right:.75rem">Status</a><a href="mailto:hello@trydemigod.com" style="color:#C9A84C">hello@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:hello@trydemigod.com';a.textContent='hello@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
@@ -983,7 +985,19 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 function fileUploadHonest(){qa('#startup-modal input[type=file],#jobseeker-modal input[type=file],form input[type=file]').forEach(function(fi){if(fi.dataset.dgFileHonest)return;fi.dataset.dgFileHonest='1';var wrap=fi.closest('.dg-field-wrap,.w-file-upload,div')||fi.parentElement;var hint=document.createElement('p');hint.className='dg-file-honest';hint.style.cssText='color:#A8A29E;font-size:.8rem;margin:.35rem 0';hint.textContent='Tip: paste a Drive/Dropbox link if upload is flaky, or email the file to hello@trydemigod.com.';var link=document.createElement('input');link.type='url';link.className='w-input';link.name=(fi.name||'file')+'-url';link.placeholder='https://… link to file (optional)';if(wrap){wrap.appendChild(hint);wrap.appendChild(link);}var form=fi.closest('form');if(form&&!form.dataset.dgFileVal){form.dataset.dgFileVal='1';form.addEventListener('submit',function(){try{var files=[].slice.call(form.querySelectorAll('input[type=file]'));var urls=[].slice.call(form.querySelectorAll('input[type=url][name$="-url"]'));var hasFile=files.some(function(x){return x.files&&x.files.length});var hasUrl=urls.some(function(x){return (x.value||'').trim().length>8});if(!hasFile&&!hasUrl){/* optional files — allow submit; surface tip only */}else if(!hasFile&&hasUrl){/* ok */} }catch(e){}});}});}
 
 /* === BRAND ASSETS — hero bg + path-pill chrome (dedupe by #dg-brand-assets) === */
-function cta(){
+function cta(){/*dg-cta-prefetch*/
+  try{
+    if(!window.__dgCtaPref){
+      window.__dgCtaPref=1;
+      document.addEventListener('pointerenter',function(e){
+        var a=e.target&&e.target.closest&&e.target.closest('[data-dg-cta],.hero-actions a');
+        if(!a)return;
+        // warm modal shells
+        try{ q('#startup-modal'); q('#jobseeker-modal'); }catch(err){}
+      },true);
+    }
+  }catch(e){}
+
   function wireCta(a, kind){
     if (!a || a.closest('#startup-modal,#jobseeker-modal')) return;
     var hire = kind === 'startup';
@@ -1050,7 +1064,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 /* ==== SECTION: boot run() — single entry after DOM ready ==== */
 /* === IDEMPOTENT BOOT ORCHESTRATOR — safe to rerun; injections must dedupe by stable owner id === */
 function ensureA11yCss(){if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();copy();forms();fileUploadHonest();cta();nav();try{wireLogoHome()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.7rem;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5/i.test(h.textContent||''))h.textContent='Meet curated matches';if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();rmOrphanForms();successCta();if(!OPEN)hide();/* v209: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();copy();forms();fileUploadHonest();cta();nav();try{wireLogoHome()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.7rem;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5/i.test(h.textContent||''))h.textContent='Meet curated matches';if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -1357,6 +1371,12 @@ var DG_PAGES = {
       '<li><strong>Fee:</strong> 10% on hire — confirmed by email for now</li>' +
       '</ul><p class="dg-p-lead">Questions: <a href="mailto:hello@trydemigod.com">hello@trydemigod.com</a></p>',
   },
+  notfound: {
+    title: 'Page not found',
+    doc: 'Not found · Demigod',
+    desc: 'That page does not exist.',
+    html: '<p class="dg-p-lead">No page here. Head home or open a brief.</p>',
+  }
 };
 function pageCss() {
   if (q('#dg-page-css')) return;
@@ -1397,8 +1417,8 @@ function closePage() {
   if (document.body) document.body.style.overflow = '';
   try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){}
   try {
-    if (history.state && history.state.dgPage) {
-      var u = new URL(location.href);
+    var u = new URL(location.href);
+    if (u.searchParams.has('p') || u.searchParams.has('page') || (history.state && history.state.dgPage)) {
       u.searchParams.delete('p');
       u.searchParams.delete('page');
       history.replaceState({}, '', u.pathname + (u.search || '') + (u.hash || ''));
@@ -1502,32 +1522,37 @@ function openPage(id, push) {
 }
 function routePages() {
   try {
+    var map = {
+      '/how': 'how',
+      '/pricing': 'pricing',
+      '/faq': 'faq',
+      '/hire': 'hire',
+      '/talent': 'talent',
+      '/contact': 'contact',
+      '/legal': 'legal',
+      '/partners': 'partners',
+      '/partnerships': 'partners',
+      '/compare': 'compare',
+      '/pilot': 'pilot',
+      '/network': 'talent',
+      '/about': 'about',
+      '/status': 'status',
+    };
     var p = new URLSearchParams(location.search);
     var id = (p.get('p') || p.get('page') || '').toLowerCase();
-    if (!id) {
-      var path = (location.pathname || '/').replace(/\/+$/, '').toLowerCase() || '/';
-      var map = {
-        '/how': 'how',
-        '/pricing': 'pricing',
-        '/faq': 'faq',
-        '/hire': 'hire',
-        '/talent': 'talent',
-        '/contact': 'contact',
-        '/legal': 'legal',
-        '/partners': 'partners',
-        '/partnerships': 'partners',
-        '/compare': 'compare',
-        '/pilot': 'pilot',
-        '/about': 'about',
-        '/status': 'status',
-        '/network': 'talent',
-      };
-      id = map[path] || '';
-    }
+    var path = (location.pathname || '/').replace(/\/+$/, '') || '/';
+    if (!id) id = map[path] || '';
     if (id === 'network') id = 'talent';
     if (id && DG_PAGES[id]) {
       openPage(id, false);
       return true;
+    }
+    // soft 404 only for unknown non-root paths that are not site chrome
+    if (path && path !== '/' && !/^\/(index\.html)?$/i.test(path) && !map[path]) {
+      if (!/^\/(designer|cdn-cgi|api)/i.test(path)) {
+        openPage('notfound', false);
+        return true;
+      }
     }
   } catch (e) {}
   return false;
@@ -1560,6 +1585,25 @@ function deepLink(){
 function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit brief';a.textContent='Submit brief'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit profile';b.textContent='Submit profile'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='e.g. Launch v1 checkout and sign two paying pilot customers';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What must this hire accomplish in their first 90 days? *'}}
 function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@type':'Organization',name:'Demigod',url:'https://www.trydemigod.com',email:'hello@trydemigod.com',description:'Human-matched SF startup talent. 10% on hire.',areaServed:'San Francisco Bay Area'});document.head.appendChild(ld)}
 
+
+function wizResumeToast(modal){
+  try{
+    if(!modal||q('#dg-wiz-resume',modal))return;
+    var id=modal.id||'';
+    var key=id.indexOf('startup')>=0?'dgWizSave_startup':(id.indexOf('jobseeker')>=0||id.indexOf('engineer')>=0?'dgWizSave_engineer':null);
+    if(!key)return;
+    var s=JSON.parse(localStorage.getItem(key)||'null');
+    if(!s||!s.answers||Object.keys(s.answers).length<1)return;
+    var t=document.createElement('p');
+    t.id='dg-wiz-resume';
+    t.setAttribute('role','status');
+    t.style.cssText='margin:0 0 .65rem;padding:.5rem .7rem;border-radius:10px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:#E8D5A3;font-size:.85rem;line-height:1.35';
+    t.textContent='Draft restored — continue where you left off.';
+    var head=modal.querySelector('.dg-wiz-head')||modal.querySelector('h2')||modal.firstElementChild;
+    if(head&&head.parentNode)head.parentNode.insertBefore(t, head.nextSibling);
+    else modal.prepend(t);
+  }catch(e){}
+}
 function wireLogoHome(){
   qa('a.w-nav-brand,a.nav_logo-link,.nav_logo-link,a.dg-logo,.logo-link').forEach(function(a){
     if(!a||a.dataset.dgLogo==='1')return;
@@ -1583,11 +1627,11 @@ var h=(el.getAttribute('href')||'').trim(),k=el.getAttribute('data-demigod-modal
 if(k==='startup'||h===S||h==='#startup-modal'){e.preventDefault();show(S)}
 else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(J)}
 },true);
-document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J))DIRTY=true},true);
+document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){DIRTY=true;/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err');if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid')}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800)}});
 OBS=null;/* v190: no full-document MutationObserver — was freezing main thread (run↔mutate thrash). Timed boots cover late Webflow. */
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='209';console.log('Demigod v209');
+window.__dgFootVer='211';console.log('Demigod v211');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

@@ -243,9 +243,22 @@ function requireMutate(label) {
   assertCanWriteFoot({ label });
 }
 
+function writeReceipt(phase, ok, note) {
+  try {
+    run(
+      'ship-receipt',
+      ['demigod-ship-receipt.mjs', 'write', '--phase', phase, '--ok', ok ? '1' : '0', '--note', note || phase],
+      { allowFail: true, timeout: 15000 },
+    );
+  } catch {
+    /* non-fatal */
+  }
+}
+
 function cdn() {
   requireMutate('ship-cdn');
   const r = run('foot-cdn', ['demigod-foot-cdn-publish.mjs'], { timeout: 300000 });
+  writeReceipt('cdn', r.ok, r.ok ? 'cdn ok' : 'cdn failed');
   if (asJson) console.log(JSON.stringify(r, null, 2));
   else console.log(r.ok ? '✓ CDN publish' : '✗ CDN publish\n' + r.out);
   return r.ok ? 0 : 1;
@@ -254,6 +267,7 @@ function cdn() {
 function paste() {
   requireMutate('ship-paste');
   const r = run('cm6-paste', ['demigod-cm6-paste-publish.mjs', '--footer-only'], { timeout: 300000 });
+  writeReceipt('paste', r.ok, r.ok ? 'paste ok' : 'paste failed');
   if (asJson) console.log(JSON.stringify(r, null, 2));
   else console.log(r.ok ? '✓ CM6 paste' : '✗ CM6 paste\n' + r.out);
   return r.ok ? 0 : 1;
@@ -261,9 +275,13 @@ function paste() {
 
 function verify() {
   const r = run('truth-match', ['demigod-truth.mjs', '--require-match'], { allowFail: true });
-  if (asJson) console.log(JSON.stringify(r, null, 2));
+  // also live-attest when available
+  const a = run('live-attest', ['demigod-live-attest.mjs', '--json'], { allowFail: true, timeout: 60000 });
+  writeReceipt('verify', r.ok && a.ok, r.ok ? 'verify+attest' : 'verify failed');
+  if (asJson) console.log(JSON.stringify({ truth: r, attest: a }, null, 2));
   else {
     console.log(r.ok ? '✓ truth --require-match' : '✗ truth --require-match (disk≠live)');
+    console.log(a.ok ? '✓ live-attest' : '✗ live-attest');
     if (!r.ok) console.log(r.out.slice(-500));
   }
   return r.ok ? 0 : 1;

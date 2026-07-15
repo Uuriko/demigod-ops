@@ -74,7 +74,7 @@ export const TOOLS = [
   { id: 'start', name: 'Session start', group: 'session', cmd: 'bin/dg-start', purpose: 'Env + chrome + workspace hygiene' },
   { id: 'truth-md', name: 'Truth markdown', group: 'session', cmd: 'bin/dg truth', purpose: 'alias', out: '/tmp/dg-busy/truth.md' },
   { id: 'preflight', name: 'Preflight', group: 'session', cmd: 'node demigod-preflight.mjs', purpose: 'Before foot edits', out: '/tmp/dg-busy/preflight-latest.json' },
-  { id: 'handoff', name: 'Handoff', group: 'session', cmd: 'node demigod-handoff.mjs --note "…"', purpose: 'Session handoff note' },
+  { id: 'handoff-legacy', name: 'Handoff', group: 'session', cmd: 'node demigod-handoff.mjs --note "…"', purpose: 'Session handoff note' },
 
   // Gates
   { id: 'verify-source', name: 'Verify source', group: 'gates', cmd: 'npm run demigod:verify:source', purpose: 'Foot/head/footer source gate', out: 'DEMIGOD-VERIFY-SOURCE.json' },
@@ -85,6 +85,9 @@ export const TOOLS = [
   // Ship (mutate — respect freeze)
   { id: 'freeze-status', name: 'Freeze status', group: 'ship', cmd: 'node demigod-publish-freeze.mjs status', purpose: 'Publish freeze on/off', out: '/tmp/dg-busy/publish-freeze.json' },
   { id: 'ship-status', name: 'Ship status', group: 'ship', cmd: 'node demigod-ship-status.mjs', purpose: 'CDN/ship snapshot', out: '/tmp/dg-busy/ship-status.json' },
+  { id: 'live-attest', name: 'Live release attest', group: 'ship', cmd: 'bin/dg live-attest', purpose: 'Prove live foot CDN body matches disk version (markers+len)', out: '/tmp/dg-busy/live-attest.json', hot: true },
+  { id: 'ship-receipt', name: 'Ship receipt', group: 'ship', cmd: 'bin/dg ship-receipt latest', purpose: 'Immutable ship attempt receipt (write|list|latest)', out: '/tmp/dg-busy/ship-receipt-latest.json', hot: true },
+  { id: 'cdn-gist-fallback', name: 'CDN publish (gist fallback)', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'alias of foot-cdn — catbox then gist', mutate: true, alias: 'foot-cdn', hot: false },
   { id: 'foot-cdn', name: 'Foot CDN publish', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'Upload foot to catbox + manifest', mutate: true },
   { id: 'cm6-paste', name: 'CM6 paste publish', group: 'ship', cmd: 'node demigod-cm6-paste-publish.mjs --footer-only', purpose: 'Paste footer into Webflow custom code', mutate: true },
   { id: 'tab-prune', name: 'CDP tab prune', group: 'ship', cmd: 'node demigod-cdp-tab-prune.mjs', purpose: 'Close excess Chrome tabs' },

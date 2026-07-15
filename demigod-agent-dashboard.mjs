@@ -14,7 +14,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { execSync, execFile } from 'child_process';
+import { execSync, execFile, spawnSync } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -2137,6 +2137,28 @@ const server = http.createServer(async (req, res) => {
       );
       return;
     }
+    if (url.pathname === '/api/orient') {
+      const pretty = url.searchParams.get('pretty') === '1';
+      const noRefresh = url.searchParams.get('refresh') === '0';
+      const args = ['demigod-orient.mjs', '--json'];
+      if (noRefresh) args.push('--no-refresh');
+      const r = spawnSync(process.execPath, args, {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 120000,
+        env: process.env,
+      });
+      let body = null;
+      try {
+        body = JSON.parse((r.stdout || '').trim().split('\n').filter(Boolean).pop() || '{}');
+      } catch {
+        body = { ok: false, exit: r.status ?? 1, raw: (r.stdout || r.stderr || '').slice(0, 2000) };
+      }
+      body.cli = 'bin/dg orient --json';
+      body.httpAt = new Date().toISOString();
+      jsonSend(res, r.status === 0 ? 200 : 503, body, { pretty });
+      return;
+    }
     if (url.pathname === '/api/events') {
       // SSE stream when Accept: text/event-stream or ?sse=1
       const wantSse =
@@ -2235,7 +2257,7 @@ const server = http.createServer(async (req, res) => {
       jsonSend(res, 200, {
         at: new Date().toISOString(),
         agents: Object.values(agents),
-        lock: lockWho?.who || null,
+        lock: lockWho || null,
         freezeOn: Boolean(statusCache.data?.freeze?.on),
         nextId: statusCache.data?.next?.id || null,
       });

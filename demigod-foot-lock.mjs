@@ -262,6 +262,20 @@ function statusJson() {
 }
 
 export function getLockWho() {
+  const st = statusJson();
+  if (!st || !st.locked || !st.lock) return null;
+  return st.who || {
+    owner: st.lock.owner,
+    pid: st.lock.pid,
+    host: st.lock.host,
+    why: st.lock.why,
+    ageSec: st.who?.ageSec,
+    ttlLeftSec: st.who?.ttlLeftSec,
+    alive: st.ownerAlive,
+    agent: st.lock.owner,
+  };
+}
+export function getLockStatus() {
   return statusJson();
 }
 

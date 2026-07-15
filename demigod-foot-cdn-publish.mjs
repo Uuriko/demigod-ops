@@ -102,13 +102,74 @@ async function uploadLitter() {
   return { cdnUrl, liveJs, host: 'litterbox.catbox.moe', temporary: true };
 }
 
+/** GitHub gist raw URL when catbox returns empty/0-byte (2026-07-15 outage). */
+async function uploadGist() {
+  if (process.env.DEMIGOD_ALLOW_GIST === '0') return null;
+  const gh = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
+  if (gh.status !== 0) {
+    console.error('gist fallback: gh not authenticated');
+    return null;
+  }
+  const tmp = path.join('/tmp', `demigod-foot-v${sourceVer}-${Date.now()}.js`);
+  fs.writeFileSync(tmp, sourceJs);
+  const create = spawnSync(
+    'gh',
+    ['gist', 'create', tmp, '--public=false', '-d', `Demigod foot-core v${sourceVer} CDN fallback`],
+    { encoding: 'utf8', timeout: 120000 },
+  );
+  try {
+    fs.unlinkSync(tmp);
+  } catch {
+    /* ignore */
+  }
+  const out = `${create.stdout || ''}\n${create.stderr || ''}`;
+  const gistUrl = (out.match(/https:\/\/gist\.github\.com\/[^/\s]+\/[a-f0-9]+/) || [])[0];
+  if (!gistUrl) {
+    console.error('gist fallback: create failed', out.slice(0, 300));
+    return null;
+  }
+  const id = gistUrl.split('/').pop();
+  const api = spawnSync('gh', ['api', `gists/${id}`, '--jq', '.files | to_entries[0].value.raw_url'], {
+    encoding: 'utf8',
+    timeout: 60000,
+  });
+  const cdnUrl = (api.stdout || '').trim();
+  if (!/^https:\/\/gist\.githubusercontent\.com\//.test(cdnUrl)) {
+    console.error('gist fallback: no raw_url', (api.stderr || api.stdout || '').slice(0, 240));
+    return null;
+  }
+  await new Promise((r) => setTimeout(r, 1500));
+  // fetchOk expects catbox patterns loosely — re-check with same rules
+  try {
+    const liveJs = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
+    const remoteVer = (liveJs.match(/__dgFootVer='(\d+)'/) || [])[1];
+    const ok =
+      liveJs.length > 40000 &&
+      /dg-foot-v\d+-core/.test(liveJs) &&
+      liveJs.includes('function hero') &&
+      remoteVer === sourceVer;
+    console.error(`gist: ${cdnUrl} len=${liveJs.length} ok=${ok}`);
+    if (!ok) return null;
+    return { cdnUrl, liveJs, host: 'gist.githubusercontent.com', temporary: false };
+  } catch (e) {
+    console.error('gist fetch failed', e.message || e);
+    return null;
+  }
+}
+
 const permanent = await uploadPermanent();
 let result = permanent;
 if (!result && ALLOW_LITTER) {
   result = await uploadLitter();
 }
 if (!result) {
-  console.error('upload failed: permanent catbox empty/0-byte; set DEMIGOD_ALLOW_LITTER=1 for 72h litterbox fallback');
+  console.error('catbox/litter failed — trying GitHub gist fallback…');
+  result = await uploadGist();
+}
+if (!result) {
+  console.error(
+    'upload failed: catbox empty/0-byte; litter failed; gist failed. Do NOT write dead URL. Fix host or: DEMIGOD_ALLOW_LITTER=1 / gh auth login',
+  );
   // Do NOT overwrite footer with a dead URL
   process.exit(1);
 }

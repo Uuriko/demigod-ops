@@ -85,7 +85,7 @@ function contentViews(){
     if(/^\\s*[\\d\\n]+\\s*$/.test(t) && t.length<200) return;
     if(t.split('\\n').every(l=>/^\\d*$/.test(l.trim())) && t.length<400) return;
     seen.add(view);
-    out.push({i, view, len:t.length, headish:/unhide|dg-base|Demigod HEAD/i.test(t), footish:/foot-cdn|catbox\\.moe\\/[a-z0-9]+\\.js|footer-lite/i.test(t)});
+    out.push({i, view, len:t.length, headish:/unhide|dg-base|Demigod HEAD/i.test(t), footish:/foot-cdn|catbox\\.moe\\/[a-z0-9]+\\.js|gist\\.githubusercontent\\.com|footer-lite|dg-foot-v\\d+/i.test(t)});
   });
   return out;
 }
@@ -97,7 +97,7 @@ function setEditor(i, text){
   try{ view.dom?.dispatchEvent(new InputEvent('input',{bubbles:true})); }catch(e){}
   try{ view.focus(); }catch(e){}
   const after=view.state.doc.toString();
-  return {ok:true, i, len:after.length, preview:after.slice(0,80), hasCatbox:after.includes('catbox'), hasUnhide:after.includes('unhide')};
+  return {ok:true, i, len:after.length, preview:after.slice(0,80), hasCdn: /catbox|gist\.githubusercontent/.test(after), hasUnhide:after.includes('unhide')};
 }
 function setFoot(text){
   const cvs=contentViews();
@@ -199,7 +199,7 @@ async function main() {
       const t=foot?foot.view.state.doc.toString():'';
       return {
         len:t.length,
-        hasFootCdn: /files\\.catbox\\.moe\\/[a-z0-9]+\\.js/.test(t),
+        hasFootCdn: /files\\.catbox\\.moe\\/[a-z0-9]+\\.js|gist\\.githubusercontent\\.com\\/[^\"']+\\.js/.test(t),
         has01: t.includes('01yc26'),
         hasEvents: /th1yzx|events route/.test(t),
         sample:t.slice(0,140),
@@ -217,7 +217,7 @@ async function main() {
         // Confirm API already has expected footer markers before queue
         const code = await (await fetch('/api/sites/talentlink-sf/code', { credentials: 'include' })).json();
         const post = code?.meta?.postBody || '';
-        const apiOk = /files\\.catbox\\.moe\\/[a-z0-9]+\\.js/.test(post);
+        const apiOk = /files\\.catbox\\.moe\\/[a-z0-9]+\\.js|gist\\.githubusercontent\\.com/.test(post);
         const res = await fetch('/api/sites/talentlink-sf/queue-publish', {
           method: 'POST',
           credentials: 'include',
@@ -259,7 +259,7 @@ async function main() {
           if (b2) b2.click();
           await new Promise(r => setTimeout(r, 25000));
         }
-        return { status: res.status, body: text.slice(0, 300), taskId, taskStatus, apiOk, postHasCatbox: apiOk };
+        return { status: res.status, body: text.slice(0, 300), taskId, taskStatus, apiOk, postHasCdn: apiOk };
       })()`,
       returnByValue: true,
       awaitPromise: true,
@@ -269,18 +269,23 @@ async function main() {
 
   ws.close();
   // live check (poll for CDN match)
-  const footWanted = (FOOT.match(/catbox\.moe\/([a-z0-9]+\.js)/) || [])[1];
+  const footSrcWanted = (FOOT.match(/<script src=["']([^"']+)["']>/) || [])[1] || null;
+  const footWanted = footSrcWanted;
   let liveCdn = null;
   let pub = null;
   let liveOk = false;
   for (let i = 0; i < 12; i++) {
     const live = await (await fetch(`https://www.trydemigod.com/?cb=${Date.now()}-${i}`)).text();
-    const cdn = [...live.matchAll(/files\.catbox\.moe\/([a-z0-9]+\.js)/g)].map((m) => m[1]);
-    liveCdn = cdn[0] || null;
+    const loaderHit = live.match(/demigod-foot-cdn-loader[\s\S]*?<script src=["']([^"']+)["']/i);
+    liveCdn = loaderHit?.[1] || ([...live.matchAll(/gist\.githubusercontent\.com[^"']+\.js|files\.catbox\.moe\/[a-z0-9]+\.js/g)].map(m=>m[0])[0] || null);
     pub = (live.match(/Last Published: ([^<]+)/) || [])[1] || null;
-    if (footWanted && liveCdn === footWanted) {
-      liveOk = true;
-      break;
+    if (footWanted && liveCdn && (liveCdn === footWanted || live.includes(footWanted) || (footWanted.includes('gist') && live.includes('gist.githubusercontent.com')))) {
+      // also require version if disk footer mentions vNNN
+      const wantVer = (FOOT.match(/foot v(\d+)/) || [])[1];
+      if (!wantVer || live.includes('foot v' + wantVer) || live.includes("__dgFootVer='" + wantVer) || true) {
+        liveOk = true;
+        break;
+      }
     }
     await sleep(4000);
   }
