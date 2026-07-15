@@ -21,9 +21,20 @@ If you are hiring, submit a brief at https://www.trydemigod.com/?wiz=startup. A 
 hello@trydemigod.com`;
 
 function parseArgs(argv) {
-  const out = { dry: true, limit: 50, csv: CSV, template: TEMPLATE, markSent: null, prune: false, logPrepared: false, help: false };
+  const out = {
+    dry: true,
+    limit: 50,
+    csv: CSV,
+    template: TEMPLATE,
+    markSent: null,
+    prune: false,
+    logPrepared: false,
+    help: false,
+    sendAttempt: false,
+  };
   for (const a of argv) {
-    if (a === '--send') out.dry = false;
+    // --send is BANNED forever (auto-DM). Detect early; main hard-fails.
+    if (a === '--send' || a === '--send=true' || a.startsWith('--send=')) out.sendAttempt = true;
     else if (a === '--dry') out.dry = true;
     else if (a === '--prune') out.prune = true;
     else if (a === '--log-prepared') out.logPrepared = true;
@@ -95,7 +106,7 @@ function main() {
     console.log(`Usage: node demigod-founder-dm-blast.mjs [options]
 Options:
   --dry (default)   Generate ready files only (safe)
-  --send            (disabled for safety)
+  --send            BANNED forever (auto-DM) — exits 2
   --limit=N         Max rows
   --csv=PATH        Custom CSV (must have name,company,trigger[,why,email,handle])
   --template=PATH   Custom template with {{name}} {{company}} {{trigger}} {{why}}
@@ -144,9 +155,22 @@ Examples:
     return;
   }
 
-  if (!args.dry) {
-    console.error('Auto-send disabled. Use --dry (default). Copy from ready-emails/ manually.');
-    process.exit(1);
+  // Auto-DM banned forever (Codex K1 / N-D1)
+  if (args.sendAttempt || !args.dry) {
+    console.error(
+      JSON.stringify(
+        {
+          error: 'auto_dm_banned',
+          forever: true,
+          flag: '--send',
+          hint: 'Use --dry (default) to write ready-emails/* then human sends; mark with demigod-dm-mark-sent.mjs --i-sent-it',
+          alt: 'bin/dg demand draft --name=T0',
+        },
+        null,
+        2,
+      ),
+    );
+    process.exit(2);
   }
 
   const template = fs.existsSync(args.template)

@@ -64,7 +64,8 @@ const KNOWN = new Set([
   '--allow-foot', '--rescan', '--fix-rescan', '--include-meta', '--diff',
   '--files', '--fail-on', '--max', '--only-rule', '--exclude-rule', '--exclude',
   '--gate-ids', '--version', '-V', '--help', '-h', '--format', '--stats',
-  '--print-fix-prompt', '--config', '--no-config', '--changed', '--no-save-baseline', '--contract', '--baseline-diff', '--watch',
+  '--print-fix-prompt', '--config', '--no-config', '--changed', '--no-save-baseline',
+  '--contract', '--no-contract', '--since', '--baseline-diff', '--watch',
 ]);
 
 function flag(name) {
@@ -159,7 +160,10 @@ Options:
   --bug --full --gates --gate-ids id1,id2
   --fix --dry-run --rescan --allow-foot
   --llm --include-meta --no-git --untracked
-  --diff <base> --files <paths...> --changed (git scope; default)
+  --diff <base> --since [ref]   # default since=HEAD~1 when no --files (agent thrash↓)
+  --files <paths...> --changed (git scope)
+  --contract path.json          # required when scope >1 files (PASS blocked without)
+  --no-contract                 # escape multi-file contract requirement
   --fail-on critical|high|medium|low|any|never
   --max N --only-rule a,b --exclude-rule a,b --exclude glob
   --format json|md|summary|sarif   (stdout; files always written)
@@ -190,6 +194,13 @@ const cli = {
   rescan: flag('--rescan') || flag('--fix-rescan'),
   includeMeta: flag('--include-meta'),
   base: flag('--diff') ? opt('--diff') : null,
+  since: (() => {
+    if (!flag('--since')) return null;
+    const i = args.indexOf('--since');
+    const v = args[i + 1];
+    if (!v || v.startsWith('--')) return 'HEAD~1';
+    return v;
+  })(),
   files: listAfter('--files'),
   failOn: flag('--fail-on') ? opt('--fail-on') : null,
   max: flag('--max') ? Number(opt('--max')) : null,
@@ -207,6 +218,7 @@ const cli = {
   watch: flag('--watch'),
   baselineDiff: flag('--baseline-diff'),
   contract: flag('--contract') ? opt('--contract') : null,
+  noContract: flag('--no-contract'),
   noSaveBaseline: flag('--no-save-baseline'),
 };
 
@@ -259,7 +271,11 @@ const flags = {
   allowFoot: cli.allowFoot,
   rescan: cli.rescan,
   includeMeta: cli.includeMeta,
-  base: cli.base,
+  // Default agent scope: --since HEAD~1 when no explicit --files / --full / --no-git
+  base:
+    cli.base ||
+    cli.since ||
+    (!cli.files?.length && !cli.full && !cli.noGit ? 'HEAD~1' : null),
   files: cli.files,
   failOn: cli.failOn || cfg?.failOn || 'high',
   max: cli.max != null ? cli.max : cfg?.max || 0,
@@ -277,7 +293,9 @@ const flags = {
   watch: cli.watch,
   baselineDiff: Boolean(cli.baselineDiff),
   contractPath: cli.contract,
+  noContract: cli.noContract || Boolean(cfg?.noContract),
   noSaveBaseline: cli.noSaveBaseline,
+  sinceDefault: Boolean(!cli.base && !cli.since && !cli.files?.length && !cli.full && !cli.noGit),
 };
 
 // dedupe excludeRules
@@ -371,8 +389,41 @@ async function main() {
   const baseline = loadBaseline();
   const ruleOpts = { onlyRules: flags.onlyRules, excludeRules: flags.excludeRules };
 
-  // Change contract (optional)
+  // Multi-file contract required for PASS (Codex N-C1) — escape: --no-contract
   let contractResult = null;
+  if (scope.length > 1 && !flags.contractPath && !flags.noContract) {
+    contractResult = {
+      ok: false,
+      issues: [
+        `multi-file scope (${scope.length}) requires --contract path.json (or --no-contract)`,
+        'touch: ' + scope.slice(0, 12).join(', ') + (scope.length > 12 ? '…' : ''),
+      ],
+    };
+    const report = {
+      version: '2.3.0',
+      at: new Date().toISOString(),
+      summary: { fail: true, count: contractResult.issues.length, bySev: { critical: 1 }, failOn: flags.failOn },
+      contract: contractResult,
+      scopeMode: { base: flags.base, sinceDefault: flags.sinceDefault, files: flags.files?.length || 0 },
+      findings: contractResult.issues.map((msg) => ({
+        rule: 'contract-required',
+        sev: 'critical',
+        title: 'Multi-file review requires contract',
+        detail: msg,
+        tier: 'C',
+      })),
+      files: scope,
+    };
+    writeReports(report);
+    if (flags.json || flags.format === 'json') console.log(JSON.stringify(report, null, 2));
+    else {
+      console.log('demigod-review CONTRACT REQUIRED (multi-file)');
+      for (const i of contractResult.issues) console.log('  ✗', i);
+      console.log('  hint: write /tmp/dg-busy/contracts/<id>.json then --contract that path');
+    }
+    process.exit(1);
+  }
+  // Change contract (optional path — validated when present)
   if (flags.contractPath) {
     try {
       const c = loadContract(flags.contractPath);

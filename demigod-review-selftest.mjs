@@ -66,9 +66,10 @@ const relWs = path.relative(ROOT, wsPath);
 const relGate = path.relative(ROOT, gateBadPath);
 
 function runReview(extraArgs) {
+  // --no-contract: fixture multi-file inventory is not a mutate contract gate
   const r = spawnSync(
     'node',
-    [path.join(ROOT, 'demigod-review.mjs'), '--json', '--no-git', '--full', ...extraArgs],
+    [path.join(ROOT, 'demigod-review.mjs'), '--json', '--no-git', '--full', '--no-contract', ...extraArgs],
     { cwd: ROOT, encoding: 'utf8', timeout: 60000 },
   );
   let report = null;
@@ -206,6 +207,66 @@ ok(sum.status === 0 && /REVIEW OK/.test(sum.stdout), 'format summary');
 // unknown flag
 const unk = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--not-a-real-flag'], { cwd: ROOT, encoding: 'utf8', timeout: 10000 });
 ok(unk.status === 2, 'unknown flag exits 2');
+
+// Multi-file without contract must FAIL (Codex N-C1)
+const multiNo = spawnSync(
+  'node',
+  [
+    path.join(ROOT, 'demigod-review.mjs'),
+    '--json',
+    '--no-git',
+    '--files',
+    relBad,
+    relGood,
+    '--fail-on',
+    'never',
+  ],
+  { cwd: ROOT, encoding: 'utf8', timeout: 30000 },
+);
+ok(multiNo.status === 1, 'multi-file without contract exits 1');
+ok(/contract-required|CONTRACT REQUIRED|requires --contract/i.test(multiNo.stdout + multiNo.stderr), 'multi-file names contract');
+
+// Multi-file with valid contract may proceed (not fail on contract-required)
+const cPath = path.join(FIX, 'contract-ok.json');
+fs.writeFileSync(
+  cPath,
+  JSON.stringify({ goal: 'fixture multi', touch: [relBad, relGood], requireFootLock: false }, null, 2),
+);
+const multiYes = spawnSync(
+  'node',
+  [
+    path.join(ROOT, 'demigod-review.mjs'),
+    '--json',
+    '--no-git',
+    '--full',
+    '--files',
+    relBad,
+    relGood,
+    '--contract',
+    cPath,
+    '--fail-on',
+    'never',
+  ],
+  { cwd: ROOT, encoding: 'utf8', timeout: 60000 },
+);
+ok(multiYes.status === 0, 'multi-file with contract + fail-on never exits 0');
+ok(!/contract-required/i.test(multiYes.stdout), 'contract-required not fired when contract present');
+
+// --since accepted (default path uses HEAD~1 when no --files)
+const sinceHelp = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--help'], {
+  encoding: 'utf8',
+  timeout: 10000,
+});
+ok(/--since/i.test(sinceHelp.stdout), 'help documents --since');
+
+// founder-dm-blast --send hard-ban forever
+const blastSend = spawnSync('node', [path.join(ROOT, 'demigod-founder-dm-blast.mjs'), '--send', '--limit=1'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 15000,
+});
+ok(blastSend.status === 2, 'blast --send exits 2');
+ok(/auto_dm_banned/i.test(blastSend.stderr + blastSend.stdout), 'blast --send auto_dm_banned');
 
 const ded = dedupeFindings([
   { rule: 'x', sev: 'low', file: 'a', title: 't', fingerprint: 'abc' },

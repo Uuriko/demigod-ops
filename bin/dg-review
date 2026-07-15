@@ -14,6 +14,9 @@
 #   bin/dg-review --exclude-rule todo-marker
 #   bin/dg-review --exclude '*.md'
 #   bin/dg-review --fail-on medium
+#   bin/dg-review --since HEAD~1          # default when no --files
+#   bin/dg-review --files a.mjs b.mjs --contract /tmp/dg-busy/contracts/x.json
+#   bin/dg-review --no-contract           # multi-file escape
 #   bin/dg-review --max 40
 #   bin/dg-review --include-meta
 #   bin/dg-review --untracked
