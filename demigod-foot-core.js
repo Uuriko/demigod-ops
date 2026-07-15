@@ -1,13 +1,13 @@
-/*dg-foot-v200-core*/
+/*dg-foot-v201-core*/
 /**
  * demigod-foot-core.js — ONLY site behavior SoR (Webflow foot CDN).
  * Sections: COPY · WIZ_CFG · WIZ_Q · WIZ runtime · board · forms/CTA · boot · honesty
  * Map: docs/exchange/DEMIGOD-FOOT-CORE-FUNCTION-MAP.md
  * Ship: freeze off → foot-cdn-publish → cm6-paste → live-doctor --require-match
  * NEVER: MutationObserver writing styles on every attr (v187 freeze); raw catbox .html nav
- * v200: dual-path CTAs (I'm hiring vs Find a job) never both company-side; copy honesty scrub
+ * v200: dual-path CTAs · v201: FOUC unhide safe, WIZ keyboard, guarantee scrub, visual polish
  */
-window.dgFootVersion = 'v200'; console.log('[demigod] foot v200-core loaded');
+window.dgFootVersion = 'v201'; console.log('[demigod] foot v201-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -77,7 +77,7 @@ function lbl(el,t){if(!el)return;(el.querySelector('.btn-label,.button_label')||
 function rmF(f,n){if(!f)return;qa('[name="'+n+'"],#'+n,f).forEach(function(i){var w=i.closest('.w-input,.w-select,.w-radio,.w-checkbox,fieldset')||i.parentElement||i;w.remove()});qa('label',f).forEach(function(l){if(new RegExp(n.replace(/-/g,'[- ]'),'i').test(l.textContent||''))l.remove()})}function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
 function ledgerHtml(rows){var R=rows||COPY.ledgerRows;return R.map(function(r){var t=Array.isArray(r)?r:[r.title,r.stageType||r[1],r.status||r.comp||r[2]];var label=r.sample?'Sample':(t[2]||'');return'<div class="dg-row"><span>'+esc(t[0])+'</span><em>'+esc(t[1])+(label?' · '+esc(label):'')+'</em></div>'}).join('')}
 function candidatesHtml(list){if(!list||!list.length)return'';return list.map(function(c){var tags=(c.tags||[]).slice(0,4).map(function(t){return'<span class="dg-tag">'+esc(t)+'</span>'}).join('');var sample=c.sample?'<span class="dg-tag dg-sample">Sample</span> ':'';return'<div class="dg-cand">'+sample+'<p>'+esc(c.summary||c.blurb||'')+'</p><div class="dg-tags">'+tags+'</div></div>'}).join('')}
-function renderBoard(){var blk=q('#demigod-trust-block');if(!blk||!BOARD)return;var lg=blk.querySelector('.dg-ledger');if(lg&&BOARD.roles&&BOARD.roles.length)lg.innerHTML=ledgerHtml(BOARD.roles);var cand=blk.querySelector('.dg-candidates');if(!cand){var h2=document.createElement('h2');h2.textContent='Featured candidates';var k=document.createElement('p');k.className='dg-kicker';k.textContent='Anonymized profiles — humans match, no spam.';k.id='dg-cand-kicker';cand=document.createElement('div');cand.className='dg-candidates';blk.appendChild(h2);blk.appendChild(k);blk.appendChild(cand)}if(BOARD.candidates&&BOARD.candidates.length)cand.innerHTML=candidatesHtml(BOARD.candidates);pipelineNote();addMotion()}function pipelineNote(){if(!BOARD)return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#demigod-trust-block');if(!host)return;var rc=(BOARD.roles||[]).length,cc=(BOARD.candidates||[]).length;if(!rc&&!cc)return;var txt='Right now: '+rc+' example role brief'+(rc===1?'':'s')+' and '+cc+' candidate profile'+(cc===1?'':'s')+' on the public ledger — real placements only after delivered intros.';var n=q('#dg-pipeline-note');if(!n){n=document.createElement('p');n.id='dg-pipeline-note';n.style.cssText='max-width:42rem;margin:.5rem auto 0;padding:0 1rem;color:#A8A29E;font-size:.8rem;text-align:center';host.parentNode?host.parentNode.insertBefore(n,host.nextSibling):host.appendChild(n)}n.textContent=txt}function addMotion(){if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;try{var obs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-anim');obs.unobserve(e.target)}})},{threshold:.15});qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand').forEach(function(el){obs.observe(el)})}catch(e){}}
+function renderBoard(){var blk=q('#demigod-trust-block');if(!blk||!BOARD)return;var lg=blk.querySelector('.dg-ledger');if(lg&&BOARD.roles&&BOARD.roles.length)lg.innerHTML=ledgerHtml(BOARD.roles);var cand=blk.querySelector('.dg-candidates');if(!cand){var h2=document.createElement('h2');h2.textContent='Featured candidates';var k=document.createElement('p');k.className='dg-kicker';k.textContent='Anonymized profiles — humans match, no spam.';k.id='dg-cand-kicker';cand=document.createElement('div');cand.className='dg-candidates';blk.appendChild(h2);blk.appendChild(k);blk.appendChild(cand)}if(BOARD.candidates&&BOARD.candidates.length)cand.innerHTML=candidatesHtml(BOARD.candidates);pipelineNote();addMotion()}function pipelineNote(){if(!BOARD)return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#demigod-trust-block');if(!host)return;var rc=(BOARD.roles||[]).length,cc=(BOARD.candidates||[]).length;if(!rc&&!cc)return;var txt='Right now: '+rc+' example role brief'+(rc===1?'':'s')+' and '+cc+' candidate profile'+(cc===1?'':'s')+' on the public ledger — real placements only after delivered intros.';var n=q('#dg-pipeline-note');if(!n){n=document.createElement('p');n.id='dg-pipeline-note';n.style.cssText='max-width:42rem;margin:.5rem auto 0;padding:0 1rem;color:#A8A29E;font-size:.8rem;text-align:center';host.parentNode?host.parentNode.insertBefore(n,host.nextSibling):host.appendChild(n)}n.textContent=txt}function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div').forEach(function(el){try{el.style.opacity='1';el.style.transform='none';el.classList.add('dg-anim')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;try{var obs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-anim');obs.unobserve(e.target)}})},{threshold:.15});qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand').forEach(function(el){obs.observe(el)})}catch(e){}}
 
 /* Thorough WIZ Typeform polish: keyboard, clicks, progress, mobile safe */
 function enhanceWIZ() {
@@ -161,64 +161,74 @@ function forceMainVisible() {
   try {
     var de = document.documentElement;
     var bd = document.body;
+    // Only unhide page shell — never force display:block on flex/grid or open modals
+    function safeShow(el, allowDisplay) {
+      if (!el || el.closest('#startup-modal,#jobseeker-modal,.modal-overlay,[data-dg-wiz-step],.w-form-done,.w-form-fail')) return;
+      if (el.getAttribute('aria-hidden') === 'true' && el.matches && el.matches('[role=dialog],.modal-overlay')) return;
+      el.style.setProperty('visibility', 'visible', 'important');
+      el.style.setProperty('opacity', '1', 'important');
+      if (allowDisplay) {
+        var cs = getComputedStyle(el);
+        if (cs.display === 'none') {
+          // restore common layout modes instead of nuking flex
+          var want = el.matches('html,body') ? 'block' :
+            el.matches('.hero-actions,#dg-path-pills,#dg-bar,.w-layout-grid,.pricing-grid,.roles-grid,.steps-grid') ? 'flex' :
+            'block';
+          el.style.setProperty('display', want, 'important');
+        }
+      }
+    }
     if (de) {
       de.classList.add('w-mod-ix3');
-      de.style.setProperty('display', 'block', 'important');
       de.style.setProperty('visibility', 'visible', 'important');
       de.style.setProperty('opacity', '1', 'important');
     }
     if (bd) {
-      bd.style.setProperty('display', 'block', 'important');
       bd.style.setProperty('visibility', 'visible', 'important');
       bd.style.setProperty('opacity', '1', 'important');
-      /* CRITICAL: never allow body display:none (hideCard bug used to blank the whole site) */
-      if((bd.getAttribute('style')||'').indexOf('display: none')>=0 || getComputedStyle(bd).display==='none'){
-        bd.style.setProperty('display','block','important');
-      }
+      if (getComputedStyle(bd).display === 'none') bd.style.setProperty('display', 'block', 'important');
     }
-    // broad + targeted (stronger for ix/gsap inline overrides)
-    qa('html,body,.hero-section,.hero-container,.hero-content-left,.hero-content-right,.header,.nav_container,main,section,.trust-section,.pricing-grid,.roles-grid,.steps-grid,.w-layout-grid,.step-card,.role-card,.pricing-card,.premium-btn,[class*="hero"],[class*="container"],[class*="content"],[class*="step"],[class*="role"],[class*="pricing"],[class*="trust"],[class*="section"],[class*="block"]').forEach(function(el){
-      if (!el) return;
-      el.style.setProperty('visibility', 'visible', 'important');
-      el.style.setProperty('opacity', '1', 'important');
-      var cs = getComputedStyle(el);
-      if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity||'1') < 0.3) {
-        el.style.setProperty('display', 'block', 'important');
-      }
-      // deeper ancestor walk
-      var p = el.parentElement; var guard=0;
-      while (p && p !== bd && guard++ < 12) {
-        try { p.style.setProperty('visibility','visible','important'); p.style.setProperty('opacity','1','important'); } catch(e){}
-        p = p.parentElement;
+    qa('.hero-section,.hero-container,.hero-content-left,.hero-content-right,.header,.nav_container,main,section.trust-section,section:not(.modal-overlay),.pricing-grid,.roles-grid,.steps-grid,.step-card,.role-card,.pricing-card,.premium-btn').forEach(function(el){
+      safeShow(el, true);
+    });
+    // Webflow ix: only unhide page chrome, not aria-hidden dialogs
+    qa('.hero-section h1,.header h1,h1.hero-heading,.premium-btn').forEach(function(h){
+      if (h && !h.closest('#startup-modal,#jobseeker-modal')) {
+        h.style.setProperty('visibility', 'visible', 'important');
+        h.style.setProperty('opacity', '1', 'important');
       }
     });
-    // kill common inline hides (incl gsap/webflow ix)
-    qa('[style*="visibility: hidden"],[style*="visibility:hidden"],[style*="opacity: 0"],[style*="opacity:0"],[aria-hidden="true"],[style*="transform"]').forEach(function(el){
-      if (el && !el.closest('#startup-modal,#jobseeker-modal')) {
-        el.style.setProperty('visibility','visible','important');
-        el.style.setProperty('opacity','1','important');
-        if (getComputedStyle(el).display==='none') el.style.setProperty('display','block','important');
-      }
-    });
-    // hero h1 etc
-    qa('.hero-section h1,.header h1,.hero-section,.header, h1, h2, .premium-btn').forEach(function(h){
-      if (h) { h.style.setProperty('visibility','visible','important'); h.style.setProperty('opacity','1','important'); }
-    });
-    // short raf burst to beat post-load ix/gsap sets (complements head early script)
-    var bc=0; (function braf(){ if(bc++<8){ try{ forceMainVisible._raf = true; qa('.hero-section,.hero-container,main,section,h1,.premium-btn').forEach(function(el){if(el){el.style.setProperty('visibility','visible','important');el.style.setProperty('opacity','1','important');}}); }catch(_){} requestAnimationFrame(braf); } })();
+    // Short RAF burst for hero only (not whole page)
+    var bc = 0;
+    (function braf() {
+      if (bc++ >= 4) return;
+      try {
+        qa('.hero-section,.hero-container,main,h1.hero-heading,.hero-section h1,.premium-btn').forEach(function(el) {
+          if (el && !el.closest('#startup-modal,#jobseeker-modal')) {
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+          }
+        });
+      } catch (_) {}
+      requestAnimationFrame(braf);
+    })();
   } catch (e) {}
 }
 setTimeout(enhanceWIZ, 500);
 document.addEventListener('click', function(e) {
   if (e.target.closest('.dg-wiz-next, .dg-wiz-back')) setTimeout(enhanceWIZ, 100);
 });
-// Global WIZ keyboard: Enter advances current next, robust
+// Global WIZ keyboard: Enter advances (never from TEXTAREA — allow newlines)
 document.addEventListener('keydown', function(e){
-  if (e.key !== 'Enter') return;
+  if (e.key !== 'Enter' || e.shiftKey) return;
   const modal = document.querySelector('#startup-modal, #jobseeker-modal');
-  if (!modal || modal.style.display === 'none') return;
+  if (!modal || modal.style.display === 'none' || modal.getAttribute('aria-hidden') === 'true') return;
+  const act = document.activeElement;
+  if (!act) return;
+  if (act.tagName === 'TEXTAREA' || act.isContentEditable) return;
+  if (act.tagName !== 'INPUT' && act.tagName !== 'SELECT' && !act.closest('.dg-wiz-nav')) return;
   const next = modal.querySelector('.dg-wiz-next') || Array.from(modal.querySelectorAll('button')).find(b=>/next|continue|submit/i.test((b.textContent||'')));
-  if (next && document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.closest('.dg-wiz'))) {
+  if (next) {
     e.preventDefault();
     next.click();
   }
@@ -753,22 +763,24 @@ function wizBuild(form, kind) {
   backBtn.onclick = function(ev){ ev&&ev.preventDefault(); if (current > 0) showStep(current - 1); };
   // keyboard advance on visible inputs + arrows for nav (Typeform polish)
   form.addEventListener('keydown', function(e) {
+    var act = document.activeElement;
+    var inText = act && (act.tagName === 'TEXTAREA' || act.isContentEditable);
     if (e.key === 'Enter' && !e.shiftKey) {
-      var act = document.activeElement;
-      if (act && (act.tagName === 'INPUT' || act.tagName === 'SELECT') && !act.closest('textarea')) {
+      if (act && (act.tagName === 'INPUT' || act.tagName === 'SELECT') && !inText) {
         e.preventDefault(); nextBtn.click();
       }
     }
     if (e.key === 'Escape') {
-      if (current > 0) { e.preventDefault(); backBtn.click(); } else { /* let global esc close modal */ }
+      if (current > 0) { e.preventDefault(); backBtn.click(); }
     }
+    // Arrows only when not typing in fields (avoid caret theft)
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      var act = document.activeElement;
-      if (!act || !act.closest('textarea')) { e.preventDefault(); nextBtn.click(); }
+      if (act && (act.tagName === 'INPUT' || act.tagName === 'TEXTAREA' || act.tagName === 'SELECT' || act.isContentEditable)) return;
+      e.preventDefault(); nextBtn.click();
     }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      var act = document.activeElement;
-      if (!act || !act.closest('textarea')) { e.preventDefault(); if (current > 0) backBtn.click(); }
+      if (act && (act.tagName === 'INPUT' || act.tagName === 'TEXTAREA' || act.tagName === 'SELECT' || act.isContentEditable)) return;
+      e.preventDefault(); if (current > 0) backBtn.click();
     }
   }, true);
   // start — honor saved resumeStep (v191: do not clobber with unconditional showStep(0))
@@ -987,7 +999,7 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 function fileUploadHonest(){qa('#startup-modal input[type=file],#jobseeker-modal input[type=file],form input[type=file]').forEach(function(fi){if(fi.dataset.dgFileHonest)return;fi.dataset.dgFileHonest='1';var wrap=fi.closest('.dg-field-wrap,.w-file-upload,div')||fi.parentElement;var hint=document.createElement('p');hint.className='dg-file-honest';hint.style.cssText='color:#A8A29E;font-size:.8rem;margin:.35rem 0';hint.textContent='Tip: paste a Drive/Dropbox link if upload is flaky, or email the file to hello@trydemigod.com.';var link=document.createElement('input');link.type='url';link.className='w-input';link.name=(fi.name||'file')+'-url';link.placeholder='https://… link to file (optional)';if(wrap){wrap.appendChild(hint);wrap.appendChild(link);}var form=fi.closest('form');if(form&&!form.dataset.dgFileVal){form.dataset.dgFileVal='1';form.addEventListener('submit',function(){try{var files=[].slice.call(form.querySelectorAll('input[type=file]'));var urls=[].slice.call(form.querySelectorAll('input[type=url][name$="-url"]'));var hasFile=files.some(function(x){return x.files&&x.files.length});var hasUrl=urls.some(function(x){return (x.value||'').trim().length>8});if(!hasFile&&!hasUrl){/* optional files — allow submit; surface tip only */}else if(!hasFile&&hasUrl){/* ok */} }catch(e){}});}});}
 
 /* === BRAND ASSETS — hero bg + path-pill chrome (dedupe by #dg-brand-assets) === */
-function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElement('style');s.id='dg-brand-assets';s.textContent='.hero-section,.header{background-image:linear-gradient(115deg,rgba(5,5,8,.88) 0%,rgba(5,5,8,.58) 48%,rgba(5,5,8,.36) 100%),url(https://files.catbox.moe/126k4p.jpg)!important;background-size:cover!important;background-position:70% center!important}.hero-section h1,.header h1{text-shadow:0 2px 24px rgba(0,0,0,.55);letter-spacing:-.02em}.hero-actions{display:flex!important;flex-wrap:wrap;gap:.75rem!important;align-items:center}.hero-actions a.premium-btn,.hero-actions a.button{min-height:48px!important;padding:.7rem 1.25rem!important;border-radius:10px!important;font-weight:700!important}.hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:#C9A84C!important;color:#0A0A0A!important;border:none!important}.hero-actions a[data-dg-cta=talent],.hero-actions a.is-job{background:transparent!important;color:#C9A84C!important;border:1px solid rgba(201,168,76,.7)!important}#dg-path-pills{display:flex;flex-wrap:wrap;gap:.65rem;margin:1rem 0 0}#dg-path-pills a{border-radius:999px!important;min-height:48px;padding:.75rem 1.25rem!important;font-weight:700!important;display:inline-flex;align-items:center;justify-content:center}#dg-proof-strip{max-width:42rem;margin:1.5rem auto;padding:1rem 1.15rem;border:1px solid rgba(212,175,55,.22);border-radius:16px;background:rgba(12,12,16,.88);box-shadow:0 0 40px rgba(212,175,55,.08)}#dg-proof-strip h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#D4AF37;margin:0 0 .5rem}#dg-proof-strip p{color:#A8A29E;margin:0;line-height:1.5;font-size:.92rem}.dg-sample-tag{letter-spacing:.04em;text-transform:uppercase}@media(max-width:767px){.hero-actions{width:100%}.hero-actions a{flex:1 1 auto;justify-content:center;text-align:center}}';document.head.appendChild(s)}
+function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElement('style');s.id='dg-brand-assets';s.textContent='.hero-section,.header{background-image:linear-gradient(115deg,rgba(5,5,8,.88) 0%,rgba(5,5,8,.58) 48%,rgba(5,5,8,.36) 100%),url(https://files.catbox.moe/126k4p.jpg)!important;background-size:cover!important;background-position:70% center!important}.hero-section h1,.header h1{text-shadow:0 2px 24px rgba(0,0,0,.55);letter-spacing:-.02em}.hero-actions{display:flex!important;flex-wrap:wrap;gap:.75rem!important;align-items:center}.hero-actions a.premium-btn,.hero-actions a.button{min-height:48px!important;padding:.7rem 1.25rem!important;border-radius:10px!important;font-weight:700!important}.hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:#C9A84C!important;color:#0A0A0A!important;border:none!important}.hero-actions a[data-dg-cta=talent],.hero-actions a.is-job{background:transparent!important;color:#C9A84C!important;border:1px solid rgba(201,168,76,.7)!important}#dg-path-pills{display:flex;flex-wrap:wrap;gap:.65rem;margin:1rem 0 0}#dg-path-pills a{border-radius:999px!important;min-height:48px;padding:.75rem 1.25rem!important;font-weight:700!important;display:inline-flex;align-items:center;justify-content:center}#dg-proof-strip{max-width:42rem;margin:1.5rem auto;padding:1rem 1.15rem;border:1px solid rgba(212,175,55,.22);border-radius:16px;background:rgba(12,12,16,.88);box-shadow:0 0 40px rgba(212,175,55,.08)}#dg-proof-strip h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#D4AF37;margin:0 0 .5rem}#dg-proof-strip p{color:#A8A29E;margin:0;line-height:1.5;font-size:.92rem}.dg-sample-tag{letter-spacing:.04em;text-transform:uppercase}@media(max-width:767px){.hero-actions{width:100%}.hero-actions a{flex:1 1 auto;justify-content:center;text-align:center}}#demigod-trust-block{max-width:52rem;margin:2.5rem auto;padding:0 1.25rem}#demigod-trust-block h2{color:#F5F0E6;font-size:clamp(1.35rem,3vw,1.75rem);margin:1.5rem 0 .5rem}#demigod-trust-block .dg-step{opacity:1;padding:.65rem 0;border-bottom:1px solid rgba(201,168,76,.12);color:#E7E5E4;line-height:1.5}#demigod-trust-block .dg-process-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin:1rem 0}#demigod-trust-block .dg-process-grid>div{border:1px solid rgba(201,168,76,.22);border-radius:12px;padding:.85rem;background:rgba(12,12,16,.9);color:#F5F0E6;font-size:.9rem}#startup-modal input:focus,#startup-modal select:focus,#startup-modal textarea:focus,#jobseeker-modal input:focus,#jobseeker-modal select:focus,#jobseeker-modal textarea:focus{outline:2px solid #C9A84C;outline-offset:2px;border-color:#C9A84C!important}';document.head.appendChild(s)}
 
 /* ==== SECTION: boot run() — single entry after DOM ready ==== */
 /* === IDEMPOTENT BOOT ORCHESTRATOR — safe to rerun; injections must dedupe by stable owner id === */
@@ -1056,8 +1068,8 @@ function scrubTimeClaims(){
       el.textContent = 'Human review — ' + rep;
       return;
     }
-    if (bareGuarantee.test(txt) && !/pending|once payments|when live/i.test(txt) && txt.length < 160) {
-      el.textContent = '10% on hire · 90-day replacement once payments are live';
+    if (bareGuarantee.test(txt) && txt.length < 200) {
+      el.textContent = '10% on hire · 90-day outcome focus (no SLA promise)';
       return;
     }
     if (bad.test(txt)) {
@@ -1196,7 +1208,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J))DIRTY=true},true);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&OPEN){var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800)}});
 OBS=null;/* v190: no full-document MutationObserver — was freezing main thread (run↔mutate thrash). Timed boots cover late Webflow. */
-window.__dgFootVer='200';console.log('Demigod v200');
+window.__dgFootVer='201';console.log('Demigod v201');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
