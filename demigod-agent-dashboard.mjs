@@ -2731,9 +2731,17 @@ const server = http.createServer(async (req, res) => {
       try {
         const { buildRegistry, toMarkdown } = await import('./demigod-tools-registry.mjs');
         const group = url.searchParams.get('group') || null;
-        const hideAliases =
-          url.searchParams.get('hideAliases') === '1' || url.searchParams.get('hideAliases') === 'true';
-        const hotOnly = url.searchParams.get('hotOnly') === '1' || url.searchParams.get('hotOnly') === 'true';
+        // Default agent-friendly: hide aliases + hot only.
+        // Full catalog: ?all=1 or hideAliases=0&hotOnly=0
+        const allTools =
+          url.searchParams.get('all') === '1' || url.searchParams.get('all') === 'true';
+        const hideAliases = allTools
+          ? false
+          : url.searchParams.get('hideAliases') !== '0' &&
+            url.searchParams.get('hideAliases') !== 'false';
+        const hotOnly = allTools
+          ? false
+          : url.searchParams.get('hotOnly') !== '0' && url.searchParams.get('hotOnly') !== 'false';
         const reg = buildRegistry({ group, hideAliases, hotOnly });
         const format = url.searchParams.get('format') || 'json';
         if (format === 'md') {

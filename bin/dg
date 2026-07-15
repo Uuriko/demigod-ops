@@ -3,12 +3,12 @@
 #
 # Prefer this over inventing one-off paths.
 # Subcommands:
-#   home | status | next | plane | modules | help
-#   webflow | matches | review | hygiene | doctor | smoke | truth | freeze
+#   orient | unify | truth | next-canon | demand | ship | home | …
+#   webflow | matches | review | hygiene | doctor | smoke | freeze
 #   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] [--with-review] | truth | live | lock | mime | ship-prep
-#   review-bug | review-fix | review-self
+#   full-check [--release] | live | lock | mime | evidence | ledger
 #   demigod:*  → npm run
+# Agents: start with `bin/dg orient`
 # Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
 # Registry: node demigod-tools-registry.mjs --md
 #
@@ -149,9 +149,13 @@ case "$1" in
     shift
     exec node demigod-tools-registry.mjs "$@"
     ;;
-  unify|cohesion|orient)
+  unify|cohesion)
     shift
     exec node demigod-unify.mjs "$@"
+    ;;
+  orient|session-start)
+    shift
+    exec node demigod-orient.mjs "$@"
     ;;
   start)
     exec bin/dg-start
@@ -162,7 +166,7 @@ case "$1" in
       exec npm run "$1" -- "${@:2}"
     fi
     # Unknown verb → control help + try as webflow subcommand hint
-    echo "Unknown: $1 — try: bin/dg home | webflow | review | matches | hygiene" >&2
+    echo "Unknown: $1 — try: bin/dg orient | unify | truth | home | tools" >&2
     exec node demigod-control.mjs help
     ;;
 esac

@@ -18,7 +18,8 @@ const BUSY = '/tmp/dg-busy';
 
 /** @type {Tool[]} */
 export const TOOLS = [
-  // Session start
+  // Session start — agents: `bin/dg orient` first
+  { id: 'orient', name: 'Orient (session start)', group: 'session', cmd: 'bin/dg orient', purpose: 'Truth refresh + demand soft + unify + assert-same → 5-line card', out: '/tmp/dg-busy/orient.json', hot: true },
   { id: 'control', name: 'Control plane', group: 'session', cmd: 'bin/dg home', purpose: 'Cohesive map: site/webflow/match/review/hygiene/ship/orca', out: '/tmp/dg-busy/control-plane.json', hot: true },
   { id: 'full-check', name: 'Full check', group: 'session', cmd: 'bin/dg full-check', purpose: 'Doctor + orca + gates + smoke (one spine)', out: '/tmp/dg-busy/full-check.json', hot: true },
   { id: 'cockpit', name: 'Cockpit', group: 'session', cmd: 'bin/dg-cockpit', purpose: 'Single honest NEXT + hash chain', out: '/tmp/dg-busy/cockpit.json', hot: true },
@@ -47,7 +48,8 @@ export const TOOLS = [
   { id: 'ship', name: 'Ship orchestrator', group: 'ship', cmd: 'bin/dg ship status|prepare|cdn|paste|verify|run', purpose: 'Single ship path; mutators need freeze OFF + foot lock', out: '/tmp/dg-busy/ship-os.json', hot: true },
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots (never auto-send)', out: '/tmp/dg-busy/demand-status.json', hot: true },
   { id: 'next-canon', name: 'Canonical NEXT', group: 'session', cmd: 'bin/dg next-canon', purpose: 'Single NEXT from truth evidence + freeze + demand', out: '/tmp/dg-busy/next.json', hot: true },
-  { id: 'unify', name: 'Unify snapshot', group: 'session', cmd: 'bin/dg unify', purpose: 'ONE agent/human orientation: next+truth+demand+tools+evidence', out: '/tmp/dg-busy/unify.json', hot: true },
+  { id: 'unify', name: 'Unify snapshot', group: 'session', cmd: 'bin/dg unify', purpose: 'Deep snapshot (orient is the short path)', out: '/tmp/dg-busy/unify.json', hot: true },
+  { id: 'poison-green', name: 'Poison false-green selftest', group: 'gates', cmd: 'node demigod-poison-green-selftest.mjs', purpose: 'Tamper latest-truth → green must flip off → restore', out: '/tmp/dg-busy/evidence/', hot: true },
   { id: 'version-ledger', name: 'Version ledger', group: 'gates', cmd: 'node demigod-version-ledger.mjs tail', purpose: 'Append-only disk/live/cdn history (written by truth)', out: 'DEMIGOD-VERSION-LEDGER.jsonl' },
   { id: 'truth-delta', name: 'Truth delta', group: 'gates', cmd: 'bin/dg ledger delta', purpose: 'What changed since last truth ledger line', out: '/tmp/dg-busy/version-ledger-tail.json', hot: true },
   { id: 'next-assert', name: 'NEXT identity assert', group: 'session', cmd: 'bin/dg next-canon --assert-same', purpose: 'Fail if control/cockpit/ship NEXT drift from buildNext', out: '/tmp/dg-busy/next.json', hot: true },
@@ -130,7 +132,7 @@ export function buildRegistry({ group = null, hideAliases = false, hotOnly = fal
     hotOnly,
     aliasesHidden: hideAliases ? TOOLS.filter((t) => t.alias).length : 0,
     sessionStart: ['bin/dg unify', 'bin/dg next-canon', 'curl -sS http://127.0.0.1:9878/api/unify'],
-    note: 'Prefer bin/dg unify + next-canon. Mutate tools only when freeze OFF. Aliases hidden when hideAliases=true.',
+    note: 'Prefer bin/dg orient (then unify/next-canon). API /api/tools defaults hideAliases+hotOnly; ?all=1 for full catalog. Mutate only when freeze OFF.',
   };
 }
 

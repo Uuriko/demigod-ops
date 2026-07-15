@@ -5,7 +5,7 @@
 
 ## Every session (4 steps)
 
-1. `bin/dg truth` → note `LIVE / DISK / FREEZE / LOCK`
+1. `bin/dg orient` → 5-line card (green / freeze / NEXT / demand / assertSame)
 2. One goal. One writer if touching `demigod-foot-core.js`
 3. Do the smallest change. Verify: `npm run demigod:verify:source` (+ honesty if board)
 4. Stop. Human owns: freeze, Publish, real DMs, fees
@@ -24,15 +24,17 @@
 ## Tools worth knowing
 
 ```
+bin/dg orient             # session start: truth+demand+NEXT card (agents: do this first)
 bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence seal)
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
 bin/dg demand status|queue|log|templates          # GTM (never auto-send)
-bin/dg unify                                    # ONE snapshot human+agent
+bin/dg unify                                    # deep snapshot (orient is short path)
 bin/dg next-canon                                 # single NEXT builder
 bin/dg mime | full-check | home | tools
 bin/dg-usertest --quick   # when WIZ/UX
+# /api/tools defaults hideAliases+hotOnly; ?all=1 for full catalog
 ```
 Before editing foot-core: `bin/dg lock claim --owner "$USER" --why "…"` then `export DG_LOCK_TOKEN=…`  
 Or fail hard: `bin/dg lock require`  

@@ -147,6 +147,39 @@ const ho = spawnSync(
 );
 ok(ho.status === 0, 'handoff structured');
 
+// Boring ROI: poison false-green (required — no skip)
+const poisonSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-poison-green-selftest.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 60000,
+});
+ok(poisonSt.status === 0, 'poison-green-selftest');
+if (poisonSt.status !== 0) console.error(poisonSt.stdout + poisonSt.stderr);
+
+// Boring ROI: orient one-shot (0 oriented · 1 soft · 2 dual-NEXT · 3 hard)
+const orientSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-orient.mjs'), '--json', '--no-refresh'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  timeout: 60000,
+});
+ok([0, 1, 2].includes(Number(orientSt.status)), 'orient runs (0/1/2)');
+try {
+  const oc = JSON.parse(orientSt.stdout.slice(orientSt.stdout.indexOf('{')));
+  ok(oc.schema === 'demigod.orient/1', 'orient schema');
+  ok(typeof oc.green === 'boolean', 'orient green bool');
+  ok(oc.next && oc.next.id, 'orient has NEXT id');
+  ok(oc.assertSame && typeof oc.assertSame.ok === 'boolean', 'orient assertSame');
+  // false-green ban: exit 0 only if green + assertSame
+  if (orientSt.status === 0) {
+    ok(oc.green === true && oc.assertSame.ok === true, 'orient exit0 requires green+assertSame');
+  }
+  if (orientSt.status === 2) {
+    ok(oc.assertSame.ok === false, 'orient exit2 is dual-NEXT');
+  }
+} catch {
+  fails.push('orient json parse');
+}
+
 if (fails.length) {
   console.error('FAIL', fails);
   process.exit(1);
