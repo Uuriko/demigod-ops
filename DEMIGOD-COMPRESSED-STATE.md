@@ -1,5 +1,13 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-15 · WEBSITE v209 LIVE (post net-outage reconfirm)
+
+- **LIVE foot:** **v209** `yeepfv.js` — WIZ progress "N of total", logo→home, a11y focus rings, mobile footer density
+- Built on v208; re-shipped after internet restore when paste failed mid-flight
+- Freeze ON
+
+---
+
 ## 2026-07-15 · WEBSITE v208 LIVE
 
 - **LIVE foot:** **v208** `ixb392.js` (shorter WIZ welcome/thanks, About+Status pages, focus rings, page focus trap)
