@@ -465,7 +465,7 @@ nav.w-nav,.w-nav,.nav_container,#dg-top-nav{
   backdrop-filter:blur(14px)!important;
   gap:.6rem!important;
 }
-#dg-bar a{border-radius:999px!important}
+#dg-bar a{border-radius:12px!important}
 /* Pricing single card glow */
 #demigod-pricing > div{
   border:1px solid var(--line);
@@ -542,3 +542,10 @@ body{background-color:var(--dg-cool)!important;background-image:radial-gradient(
 }
 #dg-path-pills a{ letter-spacing:.01em; }
 .badge-text,.eyebrow{ letter-spacing:.16em !important; }
+
+/* v204 home-minimal FOUC: hide below-fold essay walls until foot loads */
+#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-path-pills,#dg-hero-trust,#insights-section,.insights-section{display:none!important}
+main > section:not(.hero-section):not(.header){display:none!important}
+body > section:not(.hero-section):not(.header):not([id*=modal]):not(#startup-modal):not(#jobseeker-modal){display:none!important}
+.hero-actions a.premium-btn,.hero-actions a.button{border-radius:12px!important;min-height:48px!important}
+#dg-bar a{border-radius:12px!important}
