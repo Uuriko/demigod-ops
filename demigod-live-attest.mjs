@@ -66,7 +66,7 @@ async function main() {
     check('html-http', htmlRes.status === 200, `status=${htmlRes.status}`);
     const scriptSrcs = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]);
     const loaderHit = html.match(/demigod-foot-cdn-loader[\s\S]*?<script src=["']([^"']+)["']/i);
-    const allow = (u) => /gist\.githubusercontent\.com|files\.catbox\.moe\/.+\.js|litter\.catbox\.moe\/.+\.js/i.test(u || '');
+    const allow = (u) => /gist\.githubusercontent\.com|files\.catbox\.moe\/.+\.js|litter\.catbox\.moe\/.+\.js|cdn\.jsdelivr\.net\/.+\.js|cdn\.statically\.io\/.+\.js/i.test(u || '');
     const footSrc = scriptSrcs.find(allow) || null;
     const cdnUrl = (loaderHit?.[1] && allow(loaderHit[1]) ? loaderHit[1] : null) || footSrc;
     report.cdnUrl = cdnUrl;
@@ -79,6 +79,10 @@ async function main() {
     }
 
     const jsRes = await fetch(`${cdnUrl}${cdnUrl.includes('?') ? '&' : '?'}v=${Date.now()}`);
+    const ctype = (jsRes.headers.get('content-type') || '').toLowerCase();
+    const nosniff = (jsRes.headers.get('x-content-type-options') || '').toLowerCase().includes('nosniff');
+    report.contentType = ctype;
+    report.nosniff = nosniff;
     const js = await jsRes.text();
     report.liveLen = js.length;
     report.liveHttp = jsRes.status;
@@ -88,6 +92,20 @@ async function main() {
     report.liveSha256 = liveSha;
 
     check('js-http', jsRes.status === 200, `status=${jsRes.status}`);
+    // Browsers refuse script with text/plain + nosniff (gist.githubusercontent raw)
+    const mimeOk =
+      !nosniff ||
+      ctype.includes('javascript') ||
+      ctype.includes('ecmascript') ||
+      ctype.includes('application/octet-stream');
+    const hostBad = /gist\.githubusercontent\.com/i.test(cdnUrl) && nosniff && ctype.includes('text/plain');
+    check(
+      'js-mime-browser-safe',
+      mimeOk && !hostBad,
+      hostBad
+        ? 'gist raw is text/plain+nosniff — browsers will NOT execute; use jsDelivr/statically/catbox'
+        : `ctype=${ctype || '?'} nosniff=${nosniff}`,
+    );
     check('js-size', js.length > 40000, `len=${js.length}`);
     check('js-marker', /dg-foot-v\d+-core/.test(js) && js.includes('function hero'), 'core markers');
     check('ver-match', liveVer && wantVer && liveVer === wantVer, `live=${liveVer} disk=${wantVer}`);

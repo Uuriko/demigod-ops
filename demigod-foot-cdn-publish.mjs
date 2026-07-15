@@ -102,7 +102,89 @@ async function uploadLitter() {
   return { cdnUrl, liveJs, host: 'litterbox.catbox.moe', temporary: true };
 }
 
-/** GitHub gist raw URL when catbox returns empty/0-byte (2026-07-15 outage). */
+/** Prefer jsDelivr (application/javascript). Gist raw is text/plain+nosniff → browsers refuse. */
+async function uploadJsdelivr() {
+  if (process.env.DEMIGOD_ALLOW_JSDELIVR === '0') return null;
+  const repo = process.env.DEMIGOD_CDN_REPO || 'Uuriko/demigod-site-cdn';
+  const gh = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
+  if (gh.status !== 0) {
+    console.error('jsdelivr fallback: gh not authenticated');
+    return null;
+  }
+  const work = path.join('/tmp', `demigod-cdn-pub-${Date.now()}`);
+  try {
+    fs.mkdirSync(work, { recursive: true });
+    const clone = spawnSync('gh', ['repo', 'clone', repo, work, '--', '--depth=1'], {
+      encoding: 'utf8',
+      timeout: 120000,
+    });
+    if (clone.status !== 0) {
+      // create if missing
+      const init = spawnSync('bash', ['-lc', `mkdir -p ${work} && cd ${work} && git init && git branch -M main`], {
+        encoding: 'utf8',
+      });
+      spawnSync('gh', ['repo', 'create', repo, '--public', '--source', work, '--remote', 'origin', '--push'], {
+        encoding: 'utf8',
+        timeout: 120000,
+      });
+    }
+    const verName = `foot-v${sourceVer}.js`;
+    fs.writeFileSync(path.join(work, verName), sourceJs);
+    fs.writeFileSync(path.join(work, 'foot-latest.js'), sourceJs);
+    const git = (args) =>
+      spawnSync('git', args, { cwd: work, encoding: 'utf8', timeout: 60000 });
+    git(['config', 'user.email', 'demigod-cdn@local']);
+    git(['config', 'user.name', 'demigod-cdn']);
+    git(['add', verName, 'foot-latest.js']);
+    const st = git(['status', '--porcelain']);
+    if ((st.stdout || '').trim()) {
+      git(['commit', '-m', `foot v${sourceVer}`]);
+      const push = spawnSync('git', ['push', 'origin', 'HEAD:main'], {
+        cwd: work,
+        encoding: 'utf8',
+        timeout: 120000,
+      });
+      if (push.status !== 0) {
+        console.error('jsdelivr push failed', (push.stderr || push.stdout || '').slice(0, 300));
+        return null;
+      }
+    }
+    // pin by commit for cache correctness
+    const rev = git(['rev-parse', 'HEAD']);
+    const sha = (rev.stdout || '').trim().slice(0, 12) || 'main';
+    const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${sha}/foot-latest.js`;
+    // purge / wait for jsdelivr
+    await new Promise((r) => setTimeout(r, 3000));
+    for (let i = 0; i < 6; i++) {
+      try {
+        const liveJs = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
+        const remoteVer = (liveJs.match(/__dgFootVer='(\d+)'/) || [])[1];
+        const ok =
+          liveJs.length > 40000 &&
+          /dg-foot-v\d+-core/.test(liveJs) &&
+          liveJs.includes('function hero') &&
+          remoteVer === sourceVer;
+        console.error(`jsdelivr try ${i + 1}: ${cdnUrl} len=${liveJs.length} ok=${ok}`);
+        if (ok) return { cdnUrl, liveJs, host: 'cdn.jsdelivr.net', temporary: false };
+      } catch (e) {
+        console.error('jsdelivr fetch', e.message || e);
+      }
+      await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
+    }
+    return null;
+  } catch (e) {
+    console.error('jsdelivr fallback error', e.message || e);
+    return null;
+  } finally {
+    try {
+      fs.rmSync(work, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Gist raw — last resort only (often blocked by nosniff text/plain in browsers). */
 async function uploadGist() {
   if (process.env.DEMIGOD_ALLOW_GIST === '0') return null;
   const gh = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
@@ -133,13 +215,18 @@ async function uploadGist() {
     encoding: 'utf8',
     timeout: 60000,
   });
-  const cdnUrl = (api.stdout || '').trim();
-  if (!/^https:\/\/gist\.githubusercontent\.com\//.test(cdnUrl)) {
+  const rawUrl = (api.stdout || '').trim();
+  if (!/^https:\/\/gist\.githubusercontent\.com\//.test(rawUrl)) {
     console.error('gist fallback: no raw_url', (api.stderr || api.stdout || '').slice(0, 240));
     return null;
   }
+  // Prefer statically.io wrapper for correct application/javascript MIME
+  const parts = rawUrl.match(/gist\.githubusercontent\.com\/([^/]+)\/([a-f0-9]+)\/raw\/[^/]+\/(.+)$/);
+  let cdnUrl = rawUrl;
+  if (parts) {
+    cdnUrl = `https://cdn.statically.io/gist/${parts[1]}/${parts[2]}/raw/${parts[3]}`;
+  }
   await new Promise((r) => setTimeout(r, 1500));
-  // fetchOk expects catbox patterns loosely — re-check with same rules
   try {
     const liveJs = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
     const remoteVer = (liveJs.match(/__dgFootVer='(\d+)'/) || [])[1];
@@ -148,9 +235,9 @@ async function uploadGist() {
       /dg-foot-v\d+-core/.test(liveJs) &&
       liveJs.includes('function hero') &&
       remoteVer === sourceVer;
-    console.error(`gist: ${cdnUrl} len=${liveJs.length} ok=${ok}`);
+    console.error(`gist/static: ${cdnUrl} len=${liveJs.length} ok=${ok}`);
     if (!ok) return null;
-    return { cdnUrl, liveJs, host: 'gist.githubusercontent.com', temporary: false };
+    return { cdnUrl, liveJs, host: cdnUrl.includes('statically') ? 'cdn.statically.io' : 'gist.githubusercontent.com', temporary: false };
   } catch (e) {
     console.error('gist fetch failed', e.message || e);
     return null;
@@ -163,12 +250,16 @@ if (!result && ALLOW_LITTER) {
   result = await uploadLitter();
 }
 if (!result) {
-  console.error('catbox/litter failed — trying GitHub gist fallback…');
+  console.error('catbox/litter failed — trying jsDelivr (demigod-site-cdn)…');
+  result = await uploadJsdelivr();
+}
+if (!result) {
+  console.error('jsdelivr failed — trying gist/statically (last resort)…');
   result = await uploadGist();
 }
 if (!result) {
   console.error(
-    'upload failed: catbox empty/0-byte; litter failed; gist failed. Do NOT write dead URL. Fix host or: DEMIGOD_ALLOW_LITTER=1 / gh auth login',
+    'upload failed: catbox/litter/jsdelivr/gist all failed. Do NOT write dead URL.',
   );
   // Do NOT overwrite footer with a dead URL
   process.exit(1);

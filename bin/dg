@@ -6,7 +6,7 @@
 #   orient | unify | truth | next-canon | demand | ship | home | …
 #   webflow | matches | review | hygiene | doctor | smoke | freeze
 #   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] | live | live-attest | lock | mime | evidence | ledger | ship-receipt
+#   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | ledger | ship-receipt
 #   demigod:*  → npm run
 # Agents: start with `bin/dg orient`
 # Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
@@ -141,6 +141,10 @@ case "$1" in
   live-attest|attest-live|attest)
     shift
     exec node demigod-live-attest.mjs "$@"
+    ;;
+  audit-100|audit100|full-audit)
+    shift
+    exec node demigod-audit-100.mjs "$@"
     ;;
   ship-receipt|receipt)
     shift

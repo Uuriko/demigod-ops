@@ -85,6 +85,7 @@ export const TOOLS = [
   // Ship (mutate — respect freeze)
   { id: 'freeze-status', name: 'Freeze status', group: 'ship', cmd: 'node demigod-publish-freeze.mjs status', purpose: 'Publish freeze on/off', out: '/tmp/dg-busy/publish-freeze.json' },
   { id: 'ship-status', name: 'Ship status', group: 'ship', cmd: 'node demigod-ship-status.mjs', purpose: 'CDN/ship snapshot', out: '/tmp/dg-busy/ship-status.json' },
+  { id: 'audit-100', name: 'Audit 100 layers', group: 'gates', cmd: 'bin/dg audit-100', purpose: 'Multi-layer instrumented audit (honest residual list)', out: '/tmp/dg-busy/audit-100-latest.json', hot: true },
   { id: 'live-attest', name: 'Live release attest', group: 'ship', cmd: 'bin/dg live-attest', purpose: 'Prove live foot CDN body matches disk version (markers+len)', out: '/tmp/dg-busy/live-attest.json', hot: true },
   { id: 'ship-receipt', name: 'Ship receipt', group: 'ship', cmd: 'bin/dg ship-receipt latest', purpose: 'Immutable ship attempt receipt (write|list|latest)', out: '/tmp/dg-busy/ship-receipt-latest.json', hot: true },
   { id: 'cdn-gist-fallback', name: 'CDN publish (gist fallback)', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'alias of foot-cdn — catbox then gist', mutate: true, alias: 'foot-cdn', hot: false },

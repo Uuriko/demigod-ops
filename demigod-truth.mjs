@@ -23,6 +23,13 @@ import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
+
+/** Foot CDN script src — catbox, litterbox, gist, jsDelivr, statically */
+const FOOT_SCRIPT_SRC_RE =
+  /src=["'](https?:\/\/(?:files\.catbox\.moe|litter\.catbox\.moe|gist\.githubusercontent\.com|cdn\.jsdelivr\.net|cdn\.statically\.io)[^"']+\.js(?:\?[^"']*)?)["']/i;
+const FOOT_SCRIPT_URL_RE =
+  /https?:\/\/(?:files\.catbox\.moe|litter\.catbox\.moe|gist\.githubusercontent\.com|cdn\.jsdelivr\.net|cdn\.statically\.io)[^\s"'<>]+\.js/i;
+
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
@@ -102,7 +109,9 @@ async function main() {
   const freeze = isFrozen();
 
   const footerCdn =
-    (footer.match(/src=["'](https:\/\/files\.catbox\.moe\/[a-z0-9]+\.js)["']/) || [])[1] || null;
+    (footer.match(FOOT_SCRIPT_SRC_RE) || [])[1] ||
+    (footer.match(FOOT_SCRIPT_URL_RE) || [])[0] ||
+    null;
   const headCssDiskUrl =
     (headMin.match(/https:\/\/files\.catbox\.moe\/[a-z0-9]+\.css/) || [])[0] || null;
 
@@ -151,7 +160,8 @@ async function main() {
     liveHtml = { ok: false, status: 0, text: '', err: String(e.message || e), sha256: null, bytes: 0 };
   }
   const liveFootUrl =
-    (liveHtml.text.match(/src=["'](https:\/\/files\.catbox\.moe\/[a-z0-9]+\.js)["']/) || [])[1] ||
+    (liveHtml.text.match(FOOT_SCRIPT_SRC_RE) || [])[1] ||
+    (liveHtml.text.match(FOOT_SCRIPT_URL_RE) || [])[0] ||
     null;
   const liveCssUrl =
     (liveHtml.text.match(/https:\/\/files\.catbox\.moe\/[a-z0-9]+\.css/) || [])[0] || null;
@@ -172,7 +182,10 @@ async function main() {
   const manId = (man.cdnUrl || '').match(/\/([a-z0-9]+\.js)/)?.[1] || null;
   const liveId = liveFootUrl?.match(/\/([a-z0-9]+\.js)/)?.[1] || null;
   const diskMatchesManifest = Boolean(diskSha && man.sha256 && diskSha === man.sha256);
-  const liveMatchesManifest = Boolean(manId && liveId && manId === liveId);
+  const liveMatchesManifest = Boolean(
+    (man.cdnUrl && liveFootUrl && (man.cdnUrl === liveFootUrl || liveFootUrl.includes(manId || '___') || (man.cdnUrl && liveFootUrl && man.cdnUrl.split('/').pop() === liveFootUrl.split('/').pop())))
+    || (manId && liveId && manId === liveId)
+  );
   const diskEqualsLiveVer = Boolean(diskVer && liveVer && diskVer === liveVer);
   const liveBodyMatchesDisk = Boolean(diskSha && liveJsSha && diskSha === liveJsSha);
 
