@@ -1,7 +1,15 @@
-<!-- demigod-foot-cdn-loader v26 + events + foot v205 -->
+<!-- demigod-foot-cdn-loader v27 + events + foot v207 -->
 <script>(function(){var p=location.pathname;
-if(/^\/legal\/?$/i.test(p)&&!/#privacy|#terms/.test(location.hash))location.replace('/#legal');
-else if(/^\/partnerships?\/?$/i.test(p)&&location.hash!=='#partnerships')location.replace('/#partnerships');
+if(/^\/legal\/?$/i.test(p)&&!/[?&]p=/.test(location.search))location.replace('/?p=legal');
+else if(/^\/partnerships?\/?$/i.test(p))location.replace('/?p=partners');
+else if(/^\/how\/?$/i.test(p))location.replace('/?p=how');
+else if(/^\/pricing\/?$/i.test(p))location.replace('/?p=pricing');
+else if(/^\/faq\/?$/i.test(p))location.replace('/?p=faq');
+else if(/^\/hire\/?$/i.test(p))location.replace('/?p=hire');
+else if(/^\/talent\/?$/i.test(p)||/^\/network\/?$/i.test(p))location.replace('/?p=talent');
+else if(/^\/contact\/?$/i.test(p))location.replace('/?p=contact');
+else if(/^\/compare\/?$/i.test(p))location.replace('/?p=compare');
+else if(/^\/pilot\/?$/i.test(p))location.replace('/?p=pilot');
 else if(/^\/events\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
 })();</script>
-<script src="https://files.catbox.moe/eoinq3.js"></script>
+<script src="https://files.catbox.moe/jar78p.js"></script>

@@ -2,6 +2,7 @@
 
 **Product:** SF human-matched talent · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
 **Site:** foot-core only for JS · Webflow + CDN · freeze when green  
+**Phase (2026-07-15):** Website + startup only — no Twitter/auto-DM · live foot **v207**  
 
 ## Every session (4 steps)
 
@@ -29,7 +30,7 @@ bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence 
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
-bin/dg demand status|queue|draft|send|log|templates  # GTM (auto-send via CDP X when logged in)
+bin/dg demand status|queue|draft|log|templates  # GTM drafts only; auto-DM STOPPED unless DEMIGOD_ALLOW_AUTO_DM=1
 bin/dg unify                                    # deep snapshot (orient is short path)
 bin/dg next-canon                                 # single NEXT builder
 bin/dg mime | full-check | home | tools
@@ -53,6 +54,8 @@ Ship mutators (`cdn`/`paste`/`run`) need freeze OFF + lock.
 | Need | Open |
 |------|------|
 | Live truth | `DEMIGOD-COMPRESSED-STATE.md` |
+| Website session 2026-07-15 | `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md` |
+| Website backlog | `docs/process/WEBSITE-BACKLOG-MEGA.md` |
 | Rules detail | `DEMIGOD-AGENTS.md` |
 | Business stage checklists | `docs/process/OPS.md` (one file) |
 | History / debates | `docs/exchange/` (archive — don’t re-read by default) |

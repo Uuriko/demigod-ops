@@ -164,3 +164,7 @@ This is a durable standing instruction. Re-verify after every edit. Use `npm run
 - Keep changes minimal and verifiable.
 
 See AI-HYBRID-COLLABORATION-PLAYBOOK.md for full hybrid workflows with Grok Build, Fable, and Heavy.
+
+## Website status (2026-07-15)
+
+See `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md`. Live foot **v207**. Phase: website+startup only; no auto-DM.

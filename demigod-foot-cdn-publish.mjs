@@ -117,14 +117,22 @@ const { cdnUrl, liveJs, host, temporary } = result;
 const ok = true;
 
 const redirect = `<script>(function(){var p=location.pathname;
-if(/^\\/legal\\/?$/i.test(p)&&!/#privacy|#terms/.test(location.hash))location.replace('/#legal');
-else if(/^\\/partnerships?\\/?$/i.test(p)&&location.hash!=='#partnerships')location.replace('/#partnerships');
+if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))location.replace('/?p=legal');
+else if(/^\\/partnerships?\\/?$/i.test(p))location.replace('/?p=partners');
+else if(/^\\/how\\/?$/i.test(p))location.replace('/?p=how');
+else if(/^\\/pricing\\/?$/i.test(p))location.replace('/?p=pricing');
+else if(/^\\/faq\\/?$/i.test(p))location.replace('/?p=faq');
+else if(/^\\/hire\\/?$/i.test(p))location.replace('/?p=hire');
+else if(/^\\/talent\\/?$/i.test(p)||/^\\/network\\/?$/i.test(p))location.replace('/?p=talent');
+else if(/^\\/contact\\/?$/i.test(p))location.replace('/?p=contact');
+else if(/^\\/compare\\/?$/i.test(p))location.replace('/?p=compare');
+else if(/^\\/pilot\\/?$/i.test(p))location.replace('/?p=pilot');
 else if(/^\\/events\\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
 })();</script>`;
 const webhookUrl = resolveWebhookPublicUrl();
 const webhookScript = webhookUrl ? `<script>window.__dgWebhookUrl=${JSON.stringify(webhookUrl)};</script>\n` : '';
 const ver = (liveJs.match(/__dgFootVer='(\d+)'/) || [])[1] || '?';
-const loader = `<!-- demigod-foot-cdn-loader v26 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${webhookScript}<script src="${cdnUrl}"></script>\n`;
+const loader = `<!-- demigod-foot-cdn-loader v27 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${webhookScript}<script src="${cdnUrl}"></script>\n`;
 fs.writeFileSync(FOOT, loader);
 fs.writeFileSync(LOADER, loader);
 fs.writeFileSync(OUT, JSON.stringify({

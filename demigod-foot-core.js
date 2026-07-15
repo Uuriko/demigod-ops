@@ -1,4 +1,4 @@
-/*dg-foot-v205-core*/
+/*dg-foot-v207-core*/
 /**
  * demigod-foot-core.js — ONLY site behavior SoR (Webflow foot CDN).
  * Sections: COPY · WIZ_CFG · WIZ_Q · WIZ runtime · board · forms/CTA · boot · honesty
@@ -7,7 +7,7 @@
  * NEVER: MutationObserver writing styles on every attr (v187 freeze); raw catbox .html nav
  * v200 dual-CTA · v201 FOUC/WIZ keyboard · v202 WIZ one-question ownership + honesty + mobile de-dupe
  */
-window.dgFootVersion = 'v205'; console.log('[demigod] foot v205-core loaded');
+window.dgFootVersion = 'v207'; console.log('[demigod] foot v207-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -162,10 +162,10 @@ function forceWizVisible(form, modal) {
 function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] img,header img').forEach(function(im){if(im.dataset.dgPerf)return;im.dataset.dgPerf='1';im.setAttribute('fetchpriority','high');im.setAttribute('decoding','async');im.loading='eager';if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','Demigod — human-matched SF startup talent, San Francisco Bay Area');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function skipLink(){if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to content';a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus()}catch(err){}});document.body&&document.body.prepend(a)}
-function faqBlock(){/* v205: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
+function faqBlock(){/* v207: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
 function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(localStorage.getItem('dgWizSave_startup')||localStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" placeholder="you@email.com" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email hello@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){box.remove();DIRTY=false};box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:hello@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()})}catch(e){}}
-function proofStrip(){/* v205: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
-function contactStrip(){/* v205: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
+function proofStrip(){/* v207: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
+function contactStrip(){/* v207: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #C9A84C;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
 function forceMainVisible() {
   try {
@@ -968,9 +968,9 @@ function nav(){
   top.innerHTML='<a class="dg-logo" href="/">Demigod</a><div class="dg-nav-ctas"><a id="dg-nav-hire" class="dg-cta dg-cta-hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">'+COPY.navCta+'</a><a id="dg-nav-talent" class="dg-cta dg-cta-talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">'+COPY.navCtaTalent+'</a></div>';
   document.body.prepend(top);
 }
-function trust(){/* v205: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → mutual yes → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
+function trust(){/* v207: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → mutual yes → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="Find a job — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
-function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<a href="/events" style="color:#C9A84C;margin-right:1rem">Events</a><a href="/#legal" style="color:#A8A29E;margin-right:1rem">Privacy / Terms</a><a href="mailto:hello@trydemigod.com" style="color:#C9A84C">hello@trydemigod.com</a>';f.appendChild(lg)}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:hello@trydemigod.com';a.textContent='hello@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
+function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<a href="/?p=how" data-dg-page="how" style="color:#C9A84C;margin-right:.75rem">How</a><a href="/?p=pricing" data-dg-page="pricing" style="color:#C9A84C;margin-right:.75rem">Pricing</a><a href="/?p=faq" data-dg-page="faq" style="color:#C9A84C;margin-right:.75rem">FAQ</a><a href="/?p=compare" data-dg-page="compare" style="color:#C9A84C;margin-right:.75rem">Compare</a><a href="/?p=legal" data-dg-page="legal" style="color:#A8A29E;margin-right:.75rem">Legal</a><a href="mailto:hello@trydemigod.com" style="color:#C9A84C">hello@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:hello@trydemigod.com';a.textContent='hello@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
 function hide(f){try{detachTrap(true)}catch(e){}[S,J].forEach(function(id){if(!f&&OPEN===id)return;var m=q(id);if(m){m.style.display='none';m.setAttribute('aria-hidden','true')}}); if(document.body){ var prev = document.body.dataset.prevOverflow || ''; var sy = parseInt(document.body.dataset.prevScrollY || '0', 10); document.body.style.overflow = prev; document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; delete document.body.dataset.prevOverflow; delete document.body.dataset.prevScrollY; try { window.scrollTo(0, sy); } catch(e){} } if(document.documentElement) document.documentElement.style.overflow=''; try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){} }
 var busy=false,tmr=null,OBS=null,LAST_FOCUS=null,TRAP_H=null;
@@ -1048,7 +1048,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 
 /* ==== SECTION: boot run() — single entry after DOM ready ==== */
 /* === IDEMPOTENT BOOT ORCHESTRATOR — safe to rerun; injections must dedupe by stable owner id === */
-function run(){if(busy)return;busy=true;try{brandAssets()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();copy();forms();fileUploadHonest();cta();nav();(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.7rem;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5/i.test(h.textContent||''))h.textContent='Meet curated matches';if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();rmOrphanForms();successCta();if(!OPEN)hide();/* v205: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();copy();forms();fileUploadHonest();cta();nav();(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.7rem;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5/i.test(h.textContent||''))h.textContent='Meet curated matches';if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();rmOrphanForms();successCta();if(!OPEN)hide();/* v207: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -1240,9 +1240,293 @@ function sched(){if(tmr)clearTimeout(tmr);tmr=setTimeout(function(){tmr=null;run
 
 function ensureHowLink(){if(q('#dg-how-it-works'))return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#dg-contact-strip')||q('footer,.footer');if(!host)return;var a=document.createElement('p');a.id='dg-how-it-works';a.style.cssText='text-align:center;margin:1rem auto;padding:0 1rem';a.innerHTML='<a href="'+HOW_IT_WORKS+'" style="color:#C9A84C;font-weight:600;min-height:44px;display:inline-flex;align-items:center">How matching works →</a>';if(host.parentNode)host.parentNode.insertBefore(a,host.nextSibling);else host.appendChild(a)}
 /* === DEEP LINK — /?wiz=startup|engineer (+ hash aliases); product /?p= is same-origin shell route === */
-function deepLink(){if(window.__dgDeepLinked)return;try{var p=new URLSearchParams(location.search);var w=(p.get('wiz')||p.get('hire')||p.get('modal')||'').toLowerCase();var h=(location.hash||'').replace(/^#/,'').toLowerCase();if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;if(!w)return;var open=function(){if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}if(/^(engineer|talent|join|jobseeker|candidate|profile)$/.test(w)){window.__dgDeepLinked=1;show(J);return true}return false};if(!open()){/* unknown param — leave unmarked so later boots can retry aliases */}else{/* opened */}if(!window.__dgDeepLinked){setTimeout(function(){try{open()}catch(e){}},600);setTimeout(function(){try{open()}catch(e){}},1800)}}catch(e){}}
+/* === SIMPLE PAGES (?p=) — short secondary screens; home stays a decision screen === */
+var DG_PAGES = {
+  how: {
+    title: 'How it works',
+    doc: 'How it works · Demigod',
+    desc: 'Four steps. Human match. Mutual yes. 10% on hire.',
+    html:
+      '<ol class="dg-p-list">' +
+      '<li><strong>Brief or profile</strong> — startups: role + 90-day outcome. Talent: one profile.</li>' +
+      '<li><strong>Human review</strong> — a person reads both sides. No blasts.</li>' +
+      '<li><strong>Small proposal</strong> — only when fit is real.</li>' +
+      '<li><strong>Mutual yes → intro</strong> — both sides opt in. Fee only if you hire.</li>' +
+      '</ol>',
+  },
+  pricing: {
+    title: 'Pricing',
+    doc: 'Pricing · Demigod',
+    desc: '10% of first-year salary on hire. No upfront fee. Candidates free.',
+    html:
+      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year cash salary only when a hire starts.</p>' +
+      '<ul class="dg-p-list">' +
+      '<li>No subscription. No charge to submit a brief.</li>' +
+      '<li>Candidates join free.</li>' +
+      '<li>Payments/SMS still pending — confirmations by email from hello@trydemigod.com.</li>' +
+      '</ul>',
+  },
+  faq: {
+    title: 'FAQ',
+    doc: 'FAQ · Demigod',
+    desc: 'Short answers about Demigod matching.',
+    html:
+      '<details class="dg-p-det"><summary>What happens after I submit?</summary><p>A human reads it. If fit looks real, we propose only with mutual yes. hello@trydemigod.com follows up — no SLA clock.</p></details>' +
+      '<details class="dg-p-det"><summary>Is this a job board?</summary><p>No. Humans curate; no spam lists.</p></details>' +
+      '<details class="dg-p-det"><summary>How much does it cost?</summary><p>10% on hire for startups. Free for talent. Typical agencies run higher.</p></details>' +
+      '<details class="dg-p-det"><summary>Is my profile private?</summary><p>Yes until a mutual-yes intro.</p></details>' +
+      '<details class="dg-p-det"><summary>Are payments live?</summary><p>Not yet. Confirmations by email. SMS pending.</p></details>',
+  },
+  hire: {
+    title: "I'm hiring",
+    doc: 'Hire · Demigod',
+    desc: 'Human-matched SF talent. 10% on hire.',
+    html:
+      '<p class="dg-p-lead">Tell us the role and the 90-day outcome. We propose only strong fits.</p>' +
+      '<ul class="dg-p-list"><li>~2 min brief</li><li>Human review, not a bot</li><li>Pay only when you hire</li></ul>',
+  },
+  talent: {
+    title: 'Find a job',
+    doc: 'Talent · Demigod',
+    desc: 'One profile. Private until mutual yes. Free.',
+    html:
+      '<p class="dg-p-lead">One profile for SF startups. Private until a human sees a real fit — then you still say yes.</p>' +
+      '<ul class="dg-p-list"><li>Free for candidates</li><li>No board spam</li><li>Mutual yes before intro</li></ul>',
+  },
+  contact: {
+    title: 'Contact',
+    doc: 'Contact · Demigod',
+    desc: 'hello@trydemigod.com',
+    html:
+      '<p class="dg-p-lead">Email <a href="mailto:hello@trydemigod.com">hello@trydemigod.com</a>. A human replies. SMS/payments pending.</p>',
+  },
+  legal: {
+    title: 'Privacy & Terms',
+    doc: 'Legal · Demigod',
+    desc: 'Plain-language privacy and terms.',
+    html:
+      '<h3 class="dg-p-h3">Privacy</h3><p>We use your brief or profile to match. No selling lists. Profiles shared only after mutual yes. Contact us to update or delete data: hello@trydemigod.com.</p>' +
+      '<h3 class="dg-p-h3">Terms</h3><p>Demigod introduces parties; employment decisions are yours. Placement fee is 10% of first-year cash salary when a hire starts (unless written otherwise). Payments tooling is pending — commercial confirmations by email. SF Bay Area focus. No SLA promises on response time.</p>',
+  },
+  partners: {
+    title: 'Partners',
+    doc: 'Partners · Demigod',
+    desc: 'Refer talent. Earn on successful hire.',
+    html:
+      '<p class="dg-p-lead">Refer outstanding candidates to SF startups. Earn <strong>20%</strong> of the placement fee on successful hires.</p>' +
+      '<p>Email <a href="mailto:hello@trydemigod.com">hello@trydemigod.com</a> with “Partner” in the subject.</p>',
+  },
+  compare: {
+    title: 'Compare',
+    doc: 'Compare · Demigod',
+    desc: 'Boards vs agencies vs Demigod — short.',
+    html:
+      '<div class="dg-p-grid">' +
+      '<div><strong>Job boards</strong><p>Volume. You sort noise.</p></div>' +
+      '<div><strong>Agencies</strong><p>Often 15–25%. Lists.</p></div>' +
+      '<div class="dg-p-hi"><strong>Demigod</strong><p>10% on hire. Human. Mutual yes.</p></div>' +
+      '</div>',
+  },
+  pilot: {
+    title: 'Pilot',
+    doc: 'Pilot · Demigod',
+    desc: 'White-glove pilot for SF founders.',
+    html:
+      '<p class="dg-p-lead">Early partners get white-glove matching while we wire payments/SMS.</p>' +
+      '<ul class="dg-p-list"><li>One role focus</li><li>Human-owned intro</li><li>Honest “pending” on tooling</li></ul>' +
+      '<p>Email hello@trydemigod.com with “Pilot”.</p>',
+  },
+};
+function pageCss() {
+  if (q('#dg-page-css')) return;
+  var s = document.createElement('style');
+  s.id = 'dg-page-css';
+  s.textContent =
+    '#dg-page{position:fixed;inset:0;z-index:10050;background:rgba(6,6,6,.92);backdrop-filter:blur(10px);overflow:auto;padding:1rem;animation:dg-page-in .25s ease both}' +
+    '#dg-page .dg-page-card{max-width:34rem;margin:2rem auto;background:#121212;border:1px solid rgba(201,168,76,.28);border-radius:16px;padding:1.35rem 1.35rem 1.5rem;color:#F5F0E6;box-shadow:0 20px 60px rgba(0,0,0,.45)}' +
+    '#dg-page .dg-page-top{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem}' +
+    '#dg-page h1{font-family:Cinzel,Georgia,serif;font-size:1.45rem;color:#C9A84C;margin:0;letter-spacing:.02em}' +
+    '#dg-page .dg-page-x{min-width:44px;min-height:44px;border:1px solid rgba(201,168,76,.4);background:transparent;color:#E8D5A3;border-radius:10px;cursor:pointer;font-size:1.1rem}' +
+    '#dg-page .dg-p-lead{color:#A8A29E;line-height:1.5;margin:.25rem 0 1rem}' +
+    '#dg-page .dg-p-list{margin:.5rem 0 1rem;padding-left:1.15rem;color:#E7E5E4;line-height:1.55}' +
+    '#dg-page .dg-p-list li{margin:.4rem 0}' +
+    '#dg-page .dg-p-list strong{color:#C9A84C}' +
+    '#dg-page .dg-p-det{border-top:1px solid rgba(201,168,76,.15);padding:.55rem 0}' +
+    '#dg-page .dg-p-det summary{cursor:pointer;color:#E8D5A3;font-weight:600;min-height:44px;display:flex;align-items:center}' +
+    '#dg-page .dg-p-det p{color:#A8A29E;margin:.35rem 0 .25rem;line-height:1.45}' +
+    '#dg-page .dg-p-h3{color:#C9A84C;font-size:1rem;margin:1rem 0 .35rem}' +
+    '#dg-page .dg-p-grid{display:grid;grid-template-columns:1fr;gap:.65rem}' +
+    '#dg-page .dg-p-grid>div{border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:.85rem;background:rgba(10,10,10,.5)}' +
+    '#dg-page .dg-p-grid p{color:#A8A29E;margin:.35rem 0 0;font-size:.9rem}' +
+    '#dg-page .dg-p-hi{border-color:rgba(201,168,76,.55)!important;background:rgba(201,168,76,.08)!important}' +
+    '#dg-page .dg-page-ctas{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.15rem}' +
+    '#dg-page .dg-page-ctas a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;font-weight:700;text-decoration:none!important}' +
+    '#dg-page .dg-page-ctas a.hire{background:#C9A84C;color:#0A0A0A}' +
+    '#dg-page .dg-page-ctas a.talent{border:1.5px solid rgba(201,168,76,.9);color:#E8D5A3}' +
+    '#dg-page .dg-page-ctas a.back{color:#A8A29E;border:1px solid rgba(168,162,158,.35);font-weight:600}' +
+    '#dg-page a{color:#C9A84C}' +
+    '@keyframes dg-page-in{from{opacity:0}to{opacity:1}}' +
+    '@media(prefers-reduced-motion:reduce){#dg-page{animation:none}}' +
+    '@media(min-width:640px){#dg-page .dg-p-grid{grid-template-columns:1fr 1fr 1fr}}';
+  document.head.appendChild(s);
+}
+function closePage() {
+  var el = q('#dg-page');
+  if (el) el.remove();
+  if (document.body) document.body.style.overflow = '';
+  try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){}
+  try {
+    if (history.state && history.state.dgPage) {
+      var u = new URL(location.href);
+      u.searchParams.delete('p');
+      u.searchParams.delete('page');
+      history.replaceState({}, '', u.pathname + (u.search || '') + (u.hash || ''));
+    }
+  } catch (e) {}
+  try {
+    document.title = window.__dgPagePrevTitle || 'Demigod • Human-Matched SF Startup Talent';
+    window.__dgPagePrevTitle=null;
+  } catch (e) {}
+  try {
+    var md2=document.querySelector('meta[name=description]');
+    if(md2 && window.__dgPagePrevDesc!=null){ md2.setAttribute('content', window.__dgPagePrevDesc); window.__dgPagePrevDesc=null; }
+  } catch (e) {}
+}
+function pageCtas(id) {
+  var hire =
+    '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">I\'m hiring</a>';
+  var talent =
+    '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Find a job</a>';
+  var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
+  if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
+  if (id === 'talent') return '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Create profile</a>' + hire + back;
+  if (id === 'contact' || id === 'legal' || id === 'partners') return hire + talent + back;
+  return hire + talent + back;
+}
+function openPage(id, push) {
+  var meta = DG_PAGES[id];
+  if (!meta) return false;
+  pageCss();
+  var old = q('#dg-page');
+  if (old) old.remove();
+  var root = document.createElement('div');
+  root.id = 'dg-page';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', meta.title);
+  root.innerHTML =
+    '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
+    meta.title +
+    '</h1><button type="button" class="dg-page-x" aria-label="Close">✕</button></div>' +
+    meta.html +
+    '<div class="dg-page-ctas">' +
+    pageCtas(id) +
+    '</div></div>';
+  document.body.appendChild(root);
+  document.body.style.overflow = 'hidden';
+  try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}
+  try {
+    if(!window.__dgPagePrevTitle) window.__dgPagePrevTitle=document.title;
+    document.title = meta.doc;
+  } catch (e) {}
+  try {
+    var md = document.querySelector('meta[name=description]');
+    if (md && meta.desc) {
+      if(!window.__dgPagePrevDesc) window.__dgPagePrevDesc=md.getAttribute('content')||'';
+      md.setAttribute('content', meta.desc);
+    }
+  } catch (e) {}
+  root.querySelector('.dg-page-x').addEventListener('click', function () {
+    closePage();
+  });
+  var bk = root.querySelector('#dg-page-back');
+  if (bk)
+    bk.addEventListener('click', function (e) {
+      e.preventDefault();
+      closePage();
+    });
+  root.addEventListener('click', function (e) {
+    if (e.target === root) closePage();
+  });
+  qa('[data-demigod-modal]', root).forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var k = a.getAttribute('data-demigod-modal');
+      closePage();
+      if (k === 'startup') show(S);
+      else if (k === 'jobseeker') show(J);
+    });
+  });
+  if (push !== false) {
+    try {
+      var u = new URL(location.href);
+      u.searchParams.set('p', id);
+      history.pushState({ dgPage: id }, '', u.pathname + u.search);
+    } catch (e) {}
+  }
+  try {
+    root.querySelector('.dg-page-x').focus();
+  } catch (e) {}
+  return true;
+}
+function routePages() {
+  try {
+    var p = new URLSearchParams(location.search);
+    var id = (p.get('p') || p.get('page') || '').toLowerCase();
+    if (!id) {
+      var path = (location.pathname || '/').replace(/\/+$/, '').toLowerCase() || '/';
+      var map = {
+        '/how': 'how',
+        '/pricing': 'pricing',
+        '/faq': 'faq',
+        '/hire': 'hire',
+        '/talent': 'talent',
+        '/contact': 'contact',
+        '/legal': 'legal',
+        '/partners': 'partners',
+        '/partnerships': 'partners',
+        '/compare': 'compare',
+        '/pilot': 'pilot',
+        '/network': 'talent',
+      };
+      id = map[path] || '';
+    }
+    if (id === 'network') id = 'talent';
+    if (id && DG_PAGES[id]) {
+      openPage(id, false);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function deepLink(){
+  try{ if(routePages()) { window.__dgDeepLinked=1; return; } }catch(e){}
+  if(window.__dgDeepLinked)return;
+  try{
+    var p=new URLSearchParams(location.search);
+    var w=(p.get('wiz')||p.get('hire')||p.get('modal')||'').toLowerCase();
+    var h=(location.hash||'').replace(/^#/,'').toLowerCase();
+    if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
+    if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
+    if(h==='partnerships'||h==='partners'){ openPage('partners',false); window.__dgDeepLinked=1; return; }
+    if(!w)return;
+    var open=function(){
+      if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
+      if(/^(engineer|talent|join|jobseeker|candidate|profile)$/.test(w)){window.__dgDeepLinked=1;show(J);return true}
+      return false
+    };
+    if(!open()){/* retry later */}
+    if(!window.__dgDeepLinked){
+      setTimeout(function(){try{open()}catch(e){}},600);
+      setTimeout(function(){try{open()}catch(e){}},1800);
+    }
+  }catch(e){}
+}
+
 function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit brief';a.textContent='Submit brief'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit profile';b.textContent='Submit profile'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='e.g. Launch v1 checkout and sign two paying pilot customers';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What must this hire accomplish in their first 90 days? *'}}
-function boot(){if(!document.body)return;forceMainVisible();run();finalButtonLabels();deepLink()}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
+function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@type':'Organization',name:'Demigod',url:'https://www.trydemigod.com',email:'hello@trydemigod.com',description:'Human-matched SF startup talent. 10% on hire.',areaServed:'San Francisco Bay Area'});document.head.appendChild(ld)}
+function boot(){if(!document.body)return;forceMainVisible();run();finalButtonLabels();deepLink();try{if(window.requestIdleCallback)requestIdleCallback(function(){try{orgJsonLd()}catch(e){}});else setTimeout(function(){try{orgJsonLd()}catch(e){}},1200)}catch(e){}}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
 // Extra delayed dedupes to catch late-rendered Webflow elements / repeated sections
 /* v190: delayed dedupe/scrub removed — run() already calls both */
 document.addEventListener('click',function(e){var c=e.target.closest('[class*=close],.modal_close,.w-modal-close');if(c&&c.closest(S+','+J)){e.preventDefault();var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800);return}
@@ -1255,9 +1539,10 @@ if(k==='startup'||h===S||h==='#startup-modal'){e.preventDefault();show(S)}
 else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(J)}
 },true);
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J))DIRTY=true},true);
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&OPEN){var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800)}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800)}});
 OBS=null;/* v190: no full-document MutationObserver — was freezing main thread (run↔mutate thrash). Timed boots cover late Webflow. */
-window.__dgFootVer='205';console.log('Demigod v205');
+typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
+window.__dgFootVer='207';console.log('Demigod v207');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

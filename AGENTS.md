@@ -1,6 +1,7 @@
 # Demigod — Agent entry
 
-**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) · state: `DEMIGOD-COMPRESSED-STATE.md` · detail: `DEMIGOD-AGENTS.md`
+**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) · state: `DEMIGOD-COMPRESSED-STATE.md` · detail: `DEMIGOD-AGENTS.md`  
+**Website 2026-07-15:** live foot **v207** · [session status](docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md) · website+startup only (no auto-DM)
 
 # Demigod — Agent Rules (default project)
 

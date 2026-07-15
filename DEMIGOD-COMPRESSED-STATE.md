@@ -1,3 +1,21 @@
+# Demigod — Compressed State (living)
+
+## 2026-07-15 · WEBSITE v207 LIVE · STARTUP-ONLY PHASE
+
+- **Phase:** Website + startup only — **no Twitter / no auto-DM**
+- **LIVE foot:** **v207** `jrm4vt.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
+- **Home:** decision screen (~350 chars) · dual CTAs **I'm hiring** / **Find a job** · mobile bar
+- **Pages:** short `/?p=` overlays (how, pricing, faq, hire, talent, contact, legal, partners, compare, pilot)
+- **Footer-lite v27:** clean path redirects → `/?p=` · `/events` → catbox
+- **Git tip:** `8f6f838` (v205 committed) · **disk** has v206–v207 uncommitted deltas
+- **Gates:** verify:source + foot-smoke green at v207 ship
+- **Freeze:** OFF (re-freeze when quiet) · foot lock may need force-release if abandoned
+- **Full writeup:** `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md`
+- **Backlog:** `docs/process/WEBSITE-BACKLOG-MEGA.md` · review: `docs/process/WEBSITE-REVIEW-2026-07-15-V207.md`
+- **GTM:** auto-DM hard-stopped (`DEMIGOD_ALLOW_AUTO_DM=1` emergency only)
+
+---
+
 ## 2026-07-14 · P4 + TOOLS BRAINSTORM + REVIEW
 
 - Cockpit NEXT = demigod-next (override only live-down/board/verify)
@@ -7,7 +25,6 @@
 - Code review tools stack: REVIEW OK high=0 (info: dash size)
 - tools-os-selftest ALL PASS
 
-# Demigod — Compressed State (living)
 
 ## 2026-07-14 · P3 AGENT SURFACE (no human tasks)
 
