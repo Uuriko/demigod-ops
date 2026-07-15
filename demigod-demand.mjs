@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 /**
- * demigod-demand — GTM / demand ops surface (read-first, never auto-sends)
+ * demigod-demand — GTM / demand ops surface
  *
- *   bin/dg demand status|queue|log|templates|draft|help
+ *   bin/dg demand status|queue|log|templates|draft|send|help
  *   bin/dg demand draft --name=T0 [--json]
- *   bin/dg demand log --note "…"     # append human note only (not a pilot claim)
+ *   bin/dg demand send --names=T0,Hellyeah,Weave   # CDP X auto-DM (logged-in)
+ *   bin/dg demand log --note "…"
  *
- * Honesty: never invents pilots, never claims DMs sent without SENT-CONFIRMED.
- * Only SENT-CONFIRMED (attested) counts; SENT-UNATTESTED does not.
- * Human owns real DMs. Agents orient + prepare only. Auto-DM banned.
+ * Honesty: never invents pilots; only SENT-CONFIRMED counts as sent.
+ * Auto-DM allowed (user 2026-07-15). Never invent SENT without send result.
  */
 import fs from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { beginRun, sealRun } from './demigod-evidence.mjs';
@@ -172,6 +173,34 @@ function listTemplates() {
   }));
 }
 
+function cmdSend() {
+  const nameIdx = args.findIndex((a) => a === '--name' || a.startsWith('--name='));
+  const namesIdx = args.findIndex((a) => a === '--names' || a.startsWith('--names='));
+  const sendArgs = [];
+  if (nameIdx >= 0) {
+    const a = args[nameIdx];
+    const n = a.startsWith('--name=') ? a.slice(7) : args[nameIdx + 1];
+    if (n) sendArgs.push(`--name=${n}`);
+  }
+  if (namesIdx >= 0) {
+    const a = args[namesIdx];
+    const n = a.startsWith('--names=') ? a.slice(8) : args[namesIdx + 1];
+    if (n) sendArgs.push(`--names=${n}`);
+  }
+  // positional: demand send T0 Hellyeah
+  const pos = args.filter((a) => !a.startsWith('-') && a !== 'send');
+  for (const p of pos) sendArgs.push(`--name=${p}`);
+  if (!sendArgs.length) sendArgs.push('--names=T0,Hellyeah,Weave');
+  if (args.includes('--dry')) sendArgs.push('--dry');
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-dm-auto-send.mjs'), ...sendArgs], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 600000,
+    stdio: 'inherit',
+  });
+  return r.status ?? 1;
+}
+
 function buildStatus() {
   const freeze = freezeStatus();
   const truth = readJson(path.join(BUSY, 'truth.json'));
@@ -213,10 +242,12 @@ function buildStatus() {
     schema: 'demigod.demand/1',
     at: new Date().toISOString(),
     honesty: {
-      agentNeverAutoSends: true,
+      agentNeverAutoSends: false,
+      autoDmAllowed: true,
       inventsPilots: false,
-      claims: 'Only SENT-CONFIRMED (attested) counts as sent; empty pilot table rows are not pilots; warm inbound ≠ pilot',
+      claims: 'Only SENT-CONFIRMED counts as sent; empty pilot rows ≠ pilots; warm inbound ≠ pilot; auto-DM via demand send when X logged in on CDP',
       markSentRequiresAttestation: true,
+      sendCmd: 'bin/dg demand send --names=T0,Hellyeah,Weave',
     },
     freeze: { on: freeze.frozen, why: freeze.why },
     truth: truth
@@ -258,6 +289,7 @@ function buildStatus() {
     next: nextHuman,
     cmds: {
       draft: 'bin/dg demand draft --name=NAME',
+      send: 'bin/dg demand send --name=NAME',
       markSent: 'node demigod-dm-mark-sent.mjs --name=NAME --i-sent-it',
       pilotReport: 'node demigod-pilot-logger.mjs --report',
       pack: 'demigod-outreach/SEND-PACK-TOP3.md',
@@ -455,15 +487,17 @@ function cmdStatus() {
 }
 
 function help() {
-  console.log(`# demigod-demand — GTM ops (never auto-sends)
+  console.log(`# demigod-demand — GTM ops (auto-DM allowed when X logged in on CDP)
 
   bin/dg demand status      # queue + SENT-CONFIRMED + pilots (honest)
   bin/dg demand queue       # full queue with sent flags
-  bin/dg demand draft --name=T0   # copy-paste pack (never sends)
+  bin/dg demand draft --name=T0   # copy-paste pack
+  bin/dg demand send --names=T0,Hellyeah,Weave  # auto-send via CDP X
   bin/dg demand log         # tails; --note "…" appends human note only
   bin/dg demand templates   # reply/white-glove paths + reply head
 
-Human only: real DMs, mark-sent --i-sent-it, pilot logger with real founders.
+Mark: node demigod-dm-mark-sent.mjs --name=NAME --i-sent-it
+Pilot: node demigod-pilot-logger.mjs --founder=… --no-publish
 `);
 }
 
@@ -472,12 +506,13 @@ const map = {
   status: cmdStatus,
   queue: cmdQueue,
   draft: cmdDraft,
+  send: cmdSend,
   log: cmdLog,
   templates: cmdTemplates,
 };
 
 if (!map[cmd]) {
-  console.error('usage: bin/dg demand status|queue|draft|log|templates|help');
+  console.error('usage: bin/dg demand status|queue|draft|send|log|templates|help');
   process.exit(2);
 }
 process.exit(map[cmd]() ?? 0);

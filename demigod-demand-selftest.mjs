@@ -31,8 +31,8 @@ try {
 } catch {
   /* */
 }
-ok(demand?.honesty?.agentNeverAutoSends === true, 'never auto-sends flag');
 ok(demand?.honesty?.inventsPilots === false, 'no invent pilots');
+ok(demand?.honesty?.autoDmAllowed === true || demand?.honesty?.agentNeverAutoSends === false, 'auto-DM allowed');
 ok(demand?.honesty?.markSentRequiresAttestation === true, 'mark-sent attestation flag');
 ok(typeof demand?.dms?.sentConfirmed === 'number', 'sentConfirmed is number');
 ok(typeof demand?.queue?.pending === 'number', 'pending is number');

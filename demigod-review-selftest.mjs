@@ -259,14 +259,14 @@ const sinceHelp = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--h
 });
 ok(/--since/i.test(sinceHelp.stdout), 'help documents --since');
 
-// founder-dm-blast --send hard-ban forever
-const blastSend = spawnSync('node', [path.join(ROOT, 'demigod-founder-dm-blast.mjs'), '--send', '--limit=1'], {
+// auto-send path exists (may fail if X not logged in — not a ban)
+const blastHelp = spawnSync('node', [path.join(ROOT, 'demigod-founder-dm-blast.mjs'), '--help'], {
   cwd: ROOT,
   encoding: 'utf8',
-  timeout: 15000,
+  timeout: 10000,
 });
-ok(blastSend.status === 2, 'blast --send exits 2');
-ok(/auto_dm_banned/i.test(blastSend.stderr + blastSend.stdout), 'blast --send auto_dm_banned');
+ok(/--send/i.test(blastHelp.stdout) && !/BANNED forever/i.test(blastHelp.stdout), 'blast --send allowed in help');
+ok(fs.existsSync(path.join(ROOT, 'demigod-dm-auto-send.mjs')), 'dm-auto-send module exists');
 
 const ded = dedupeFindings([
   { rule: 'x', sev: 'low', file: 'a', title: 't', fingerprint: 'abc' },

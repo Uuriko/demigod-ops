@@ -29,7 +29,7 @@ bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence 
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
-bin/dg demand status|queue|draft|log|templates    # GTM (never auto-send; draft only)
+bin/dg demand status|queue|draft|send|log|templates  # GTM (auto-send via CDP X when logged in)
 bin/dg unify                                    # deep snapshot (orient is short path)
 bin/dg next-canon                                 # single NEXT builder
 bin/dg mime | full-check | home | tools

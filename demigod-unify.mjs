@@ -45,7 +45,6 @@ export function buildRoleLamps({
   const honesty = demand?.honesty || {};
   const queueOk = Boolean(
     demand &&
-      honesty.agentNeverAutoSends !== false &&
       honesty.inventsPilots !== true &&
       typeof pending === 'number',
   );
@@ -227,7 +226,8 @@ export async function buildUnify({ includeTools = true } = {}) {
       'lamps.demand.outcomeOk only if SENT/pilots real; queueOk ≠ outcome',
       'lamps.ship.green false under freeze',
       'Single NEXT from demigod-next (no dual NEXT)',
-      'Never invent pilots or SENT-CONFIRMED; never auto-DM',
+      'Never invent pilots or SENT without a real send result',
+      'Auto-DM allowed: bin/dg demand send (CDP X must be logged in)',
     ],
   };
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/** Generate personalized founder outreach (DM + email). Dry-run only — never auto-sends. */
+/** Generate personalized founder outreach (DM + email).
+ * --dry (default): write ready-emails only.
+ * --send: routes to demigod-dm-auto-send (CDP X) for named/limit batch — requires logged-in X.
+ * Auto-DM allowed per user (2026-07-15).
+ */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -30,12 +34,13 @@ function parseArgs(argv) {
     prune: false,
     logPrepared: false,
     help: false,
-    sendAttempt: false,
+    send: false,
   };
   for (const a of argv) {
-    // --send is BANNED forever (auto-DM). Detect early; main hard-fails.
-    if (a === '--send' || a === '--send=true' || a.startsWith('--send=')) out.sendAttempt = true;
-    else if (a === '--dry') out.dry = true;
+    if (a === '--send' || a === '--send=true' || a.startsWith('--send=')) {
+      out.send = true;
+      out.dry = false;
+    } else if (a === '--dry') out.dry = true;
     else if (a === '--prune') out.prune = true;
     else if (a === '--log-prepared') out.logPrepared = true;
     else if (a === '--help' || a === '-h') out.help = true;
@@ -106,7 +111,7 @@ function main() {
     console.log(`Usage: node demigod-founder-dm-blast.mjs [options]
 Options:
   --dry (default)   Generate ready files only (safe)
-  --send            BANNED forever (auto-DM) — exits 2
+  --send            Auto-send via CDP X (requires logged-in session on :9223)
   --limit=N         Max rows
   --csv=PATH        Custom CSV (must have name,company,trigger[,why,email,handle])
   --template=PATH   Custom template with {{name}} {{company}} {{trigger}} {{why}}
@@ -117,12 +122,24 @@ Options:
 
 Examples:
   node ... --dry --limit=5
+  node ... --send --limit=3
+  bin/dg demand send --names=T0,Hellyeah,Weave
   node ... --log-prepared
   node ... --mark-sent=Marty
 `);
     return;
   }
   ensureSamples();
+
+  // Auto-send path (user-authorized) — real CDP X DMs
+  if (args.send) {
+    const r = spawnSync(
+      process.execPath,
+      [path.join(ROOT, 'demigod-dm-auto-send.mjs'), `--timeout=120000`],
+      { cwd: ROOT, encoding: 'utf8', timeout: 600000, stdio: 'inherit' },
+    );
+    process.exit(r.status ?? 1);
+  }
 
   if (args.markSent) {
     const log = loadLog();
@@ -153,24 +170,6 @@ Examples:
       console.log('Pruned ready-emails to latest batch', latest.batchId);
     }
     return;
-  }
-
-  // Auto-DM banned forever (Codex K1 / N-D1)
-  if (args.sendAttempt || !args.dry) {
-    console.error(
-      JSON.stringify(
-        {
-          error: 'auto_dm_banned',
-          forever: true,
-          flag: '--send',
-          hint: 'Use --dry (default) to write ready-emails/* then human sends; mark with demigod-dm-mark-sent.mjs --i-sent-it',
-          alt: 'bin/dg demand draft --name=T0',
-        },
-        null,
-        2,
-      ),
-    );
-    process.exit(2);
   }
 
   const template = fs.existsSync(args.template)
