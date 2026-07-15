@@ -1,9 +1,17 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-15 · WEBSITE v208 LIVE
+
+- **LIVE foot:** **v208** `ixb392.js` (shorter WIZ welcome/thanks, About+Status pages, focus rings, page focus trap)
+- Prior v207 still documented below; pilot log website-first (no auto-DM)
+- Freeze after this ship
+
+---
+
 ## 2026-07-15 · WEBSITE v207 LIVE · STARTUP-ONLY PHASE
 
 - **Phase:** Website + startup only — **no Twitter / no auto-DM**
-- **LIVE foot:** **v207** `jar78p.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
+- **LIVE foot (superseded by v208):** was v207 `jar78p.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
 - **Home:** decision screen (~350 chars) · dual CTAs **I'm hiring** / **Find a job** · mobile bar
 - **Pages:** short `/?p=` overlays (how, pricing, faq, hire, talent, contact, legal, partners, compare, pilot)
 - **Footer-lite v27:** clean path redirects → `/?p=` · `/events` → catbox

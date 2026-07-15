@@ -127,6 +127,8 @@ else if(/^\\/talent\\/?$/i.test(p)||/^\\/network\\/?$/i.test(p))location.replace
 else if(/^\\/contact\\/?$/i.test(p))location.replace('/?p=contact');
 else if(/^\\/compare\\/?$/i.test(p))location.replace('/?p=compare');
 else if(/^\\/pilot\\/?$/i.test(p))location.replace('/?p=pilot');
+else if(/^\\/about\\/?$/i.test(p))location.replace('/?p=about');
+else if(/^\\/status\\/?$/i.test(p))location.replace('/?p=status');
 else if(/^\\/events\\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
 })();</script>`;
 const webhookUrl = resolveWebhookPublicUrl();

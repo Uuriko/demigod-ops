@@ -2,7 +2,7 @@
 
 **Product:** SF human-matched talent · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
 **Site:** foot-core only for JS · Webflow + CDN · freeze when green  
-**Phase (2026-07-15):** Website + startup only — no Twitter/auto-DM · live foot **v207**  
+**Phase (2026-07-15):** Website + startup only — no Twitter/auto-DM · live foot **v208**  
 
 ## Every session (4 steps)
 
