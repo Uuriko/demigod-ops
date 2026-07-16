@@ -198,8 +198,12 @@ function withMetaLockSync(fn) {
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
-  process.stdout.write(r.stdout || '');
-  process.stderr.write(r.stderr || '');
+  // This command exits immediately after the flock child returns. Synchronous
+  // writes keep the claim receipt (including the one-time token handoff) from
+  // being dropped when stdout/stderr are pipes, as they are in bin/dg and
+  // agent runners.
+  if (r.stdout) fs.writeSync(process.stdout.fd, r.stdout);
+  if (r.stderr) fs.writeSync(process.stderr.fd, r.stderr);
   process.exit(r.status ?? 1);
 }
 
@@ -216,7 +220,10 @@ function statusJson() {
     currentSha: sha256File(FOOT),
   };
   if (!lock) return { ...base, locked: false, free: true, who: null };
-  const alive = lock.pid
+  // `claim` is a short-lived CLI command: its PID is provenance, not a
+  // long-running owner process. Only wrapper leases have a durable process
+  // whose exit is meaningful liveness evidence.
+  const alive = lock.pid && lock.pidScope === 'lease-owner'
     ? (() => {
         try {
           process.kill(lock.pid, 0);
@@ -336,6 +343,7 @@ function claimBody() {
   const rec = {
     owner,
     pid: process.pid,
+    pidScope: 'claim-command',
     at: new Date().toISOString(),
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
     baseSha: sha256File(FOOT),
@@ -447,6 +455,7 @@ function wrap() {
   const rec = {
     owner,
     pid: process.pid,
+    pidScope: 'lease-owner',
     at: new Date().toISOString(),
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
     baseSha: sha256File(FOOT),

@@ -248,3 +248,7 @@ bin/dg live && bin/dg tools | head
 # LIVE= DISK= FREEZE= GATES=
 ```
 See: docs/exchange/DEMIGOD-PROMPT-ROUND4-DISCUSSION.md
+
+
+## Ponytail (required)
+Use Ponytail on all code: YAGNI → reuse → stdlib → native → min. Keep safety. Plugin ponytail@ponytail / docs/PONYTAIL-AGENTS.md.

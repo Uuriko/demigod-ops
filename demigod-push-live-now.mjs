@@ -18,7 +18,9 @@ async function push() {
     for (let i=0; i<HEAD.length; i+=850) { await cc.keyboard.type(HEAD.slice(i,i+850)); await cc.waitForTimeout(22); }
     await cc.waitForTimeout(300);
     const back = await cc.evaluate(() => (document.querySelector('.cm-content')||{}).textContent || '');
-    console.log('HEAD readback keys:', /unhide-v4/.test(back), /90day-outcome/.test(back), /Talent Engineer/.test(back));
+    const headOk = /unhide-v5/.test(back) && /dg-unhide-critical/.test(back) && !/foot-latest\.js/.test(back);
+    console.log('HEAD readback keys:', { headOk, unhideV5: /unhide-v5/.test(back), critical: /dg-unhide-critical/.test(back) });
+    if (!headOk) throw new Error('HEAD readback missing unhide-v5/critical or contains footer loader; aborting before Save');
   }
   await cc.evaluate(() => [...document.querySelectorAll('button')].forEach(el => /save/i.test(el.textContent||''.toLowerCase()) && el.click()));
   await cc.waitForTimeout(1200);

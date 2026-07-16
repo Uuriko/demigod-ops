@@ -8,11 +8,11 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { buildNext } from './demigod-next.mjs';
 import { refuseIfStale, listEvidence } from './demigod-evidence.mjs';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { tail as ledgerTail } from './demigod-version-ledger.mjs';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
+import { refreshNextCanon } from './demigod-control.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -100,7 +100,8 @@ export async function buildUnify({ includeTools = true } = {}) {
   const demand = readJson(path.join(BUSY, 'demand-status.json'));
   const ship = readJson(path.join(BUSY, 'ship-status.json')) || readJson(path.join(BUSY, 'ship-latest.json'));
   const lock = readJson(path.join(BUSY, 'foot-lock.json'));
-  const next = buildNext({ truth, demand });
+  // Refresh control-plane nextCanon + next.json so assert-same stays green
+  const next = await refreshNextCanon();
 
   let tools = [];
   if (includeTools) {

@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-/** Shared Demigod live-site assertions — used by playtest, verify, and idle-lib. */
+/**
+ * demigod-live-lib — shared live HTML probes + banned-script patterns
+ *
+ *   import { LIVE_ORIGIN, scanLiveHtml, markerPresent, BAD_MCP_SCRIPT_PATTERNS } from './demigod-live-lib.mjs'
+ *
+ * Used by: verify-source, playtests, smoke. Never invents board/pilot truth.
+ */
 export const LIVE_ORIGIN = 'https://www.trydemigod.com';
 
 /** MCP Bridge scripts that rewrite CTAs — must never appear on live HTML. */
@@ -17,7 +23,7 @@ export const HEAD_MARKERS = [
   'hide-webflow-badge',
   'Demigod forms',
   'openModal',
-  'hello@trydemigod.com',
+  'potter@trydemigod.com',
   'og:title',
   'demigod-polish',
 ];
@@ -30,7 +36,10 @@ export function markerPresent(html, marker) {
     return html.includes('hide-webflow-badge')
       || (/rel="stylesheet"/.test(html) && /\.w-webflow-badge[^}]*display:\s*none/i.test(html));
   }
-  if (marker === 'hello@trydemigod.com') return html.includes('hello@trydemigod.com');
+  // Contact email: potter@ is active; hello@ still accepted on stale live until republish
+  if (marker === 'potter@trydemigod.com' || marker === 'hello@trydemigod.com') {
+    return html.includes('potter@trydemigod.com') || html.includes('hello@trydemigod.com');
+  }
   if (marker === 'og:title') return html.includes('og:title');
   if (marker === 'Demigod forms') {
     return TALLY_HEAD_MARKERS.some((k) => html.includes(k))
@@ -124,8 +133,18 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
   if (/SYNDICATE SUBSCRIPTION/i.test(html)) {
     staticDrift.push({ severity: 'medium', issue: 'SYNDICATE SUBSCRIPTION in static HTML' });
   }
-  if (/48\s*h(?:ours?)?|within\s*(?:48|24)|3-5[^<]{0,48}48|Meet Your \d/i.test(html)) {
+  // User-visible canvas only — strip scripts/styles so scrubber regex sources don't false-positive
+  const visibleHtml = String(html)
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ');
+  if (/48\s*h(?:ours?)?|within\s*(?:48|24)\s*h/i.test(visibleHtml)) {
     staticDrift.push({ severity: 'medium', issue: 'Speed promise (48h) in static HTML' });
+  }
+  if (/Meet Your\s*3[\s–-]5|receive\s+3[\s–-]5\s+highly/i.test(visibleHtml)) {
+    staticDrift.push({ severity: 'medium', issue: 'Volume promise (3-5 candidates) in static HTML' });
+  }
+  if (/hello@(?:try)?demigod\.com/i.test(visibleHtml)) {
+    staticDrift.push({ severity: 'medium', issue: 'hello@ contact in static HTML (runtime scrubs to potter@)' });
   }
   if (/John\s+Doe/i.test(html)) {
     staticDrift.push({ severity: 'medium', issue: 'John Doe in static HTML' });

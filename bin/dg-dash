@@ -3,6 +3,22 @@
 set -euo pipefail
 cd /home/potter
 PORT="${DEMIGOD_DASH_PORT:-9878}"
+COORD_CACHE=/tmp/dg-busy/coord-api-last.json
+# nvm node is not on systemd PATH by default
+export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+NODE_BIN="$(command -v node || true)"
+if [[ -z "$NODE_BIN" ]]; then
+  echo "node not found on PATH" >&2
+  exit 1
+fi
+
+host_receipt_fresh() {
+  find /tmp/dg-busy/dashboard-server.heartbeat -mmin -2 -print -quit 2>/dev/null | grep -q .
+}
+
+coord_file_fallback() {
+  "$NODE_BIN" -e 'const fs=require("fs"),d="/tmp/dg-busy/coord/",read=n=>{try{return JSON.parse(fs.readFileSync(d+n))}catch{return null}},q=read("quality-backlog.json"),items=(q?.items||[]).filter(x=>x?.status==="open"&&["P0","P1"].includes(x?.sev));process.stdout.write(JSON.stringify({ok:true,degraded:true,source:"coord-files",at:new Date().toISOString(),board:read("board.json"),quality:q&&{at:q.at,openP0P1:items.length,items},claims:read("claims.json"),claude:read("claude-last.json"),codex:read("codex-last.json"),grok:read("grok-last.json")}))'
+}
 
 if [[ "${1:-}" == "stop" ]]; then
   if command -v fuser >/dev/null 2>&1; then
@@ -10,41 +26,84 @@ if [[ "${1:-}" == "stop" ]]; then
   fi
   pids=$(ss -ltnp 2>/dev/null | grep ":${PORT}" | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
   for p in $pids; do kill -TERM "$p" 2>/dev/null || true; done
+  rm -f /tmp/dg-busy/dashboard.pid
   echo "stopped dash on :${PORT}"
   exit 0
 fi
 
 if [[ "${1:-}" == "status" ]]; then
-  curl -sS --max-time 3 "http://127.0.0.1:${PORT}/api/health" && echo " up :${PORT}" || echo "down :${PORT}"
-  exit 0
+  if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:${PORT}/healthz" 2>/dev/null; then
+    echo " up :${PORT}"
+  elif grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
+    echo "unobservable :${PORT} · fresh host receipt; namespace blocks local probe"
+  else
+    echo "down :${PORT} · recovery: bin/dg-dash"
+    tail -1 /tmp/dg-busy/dashboard-start.log 2>/dev/null || true
+    exit 1
+  fi
+  exit
 fi
 
 if [[ "${1:-}" == "brief" ]]; then
-  curl -sS --max-time 25 "http://127.0.0.1:${PORT}/api/agent-brief" || cat /tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null
+  curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/agent-brief" || cat /tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null
   exit 0
 fi
 
-if curl -sS --max-time 1 "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+if [[ "${1:-}" == "coord" ]]; then
+  coord_tmp="${COORD_CACHE}.$$"
+  curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/coord" >"$coord_tmp" 2>/dev/null && mv "$coord_tmp" "$COORD_CACHE" && cat "$COORD_CACHE" || {
+    rm -f "$coord_tmp"
+    if grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
+      "$NODE_BIN" -e 'const fs=require("fs"),p=process.argv[1],j=JSON.parse(fs.readFileSync(p)),age=Date.now()-Date.parse(j.at);if(!Number.isFinite(age)||age < -5000||age>120000)process.exit(1);process.stdout.write(JSON.stringify({...j,cached:true,degraded:true,cacheAgeMs:Math.max(0,age)}))' "$COORD_CACHE" 2>/dev/null && exit 0
+      coord_file_fallback
+      exit
+    fi
+    coord_file_fallback
+  }
+  exit
+fi
+
+if curl --noproxy '*' -fsS --max-time 1 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
   echo "already running"
   echo "  UI     http://127.0.0.1:${PORT}/"
   echo "  brief  http://127.0.0.1:${PORT}/api/agent-brief"
   echo "  file   /tmp/dg-busy/AGENT-BRIEF.md"
-  if command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+  if [[ -z "${DEMIGOD_DASH_NO_OPEN:-}" ]] && command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+  exit 0
+fi
+if grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
+  echo "already running · unobservable here; fresh host receipt"
   exit 0
 fi
 
 mkdir -p /tmp/dg-busy
-nohup node demigod-agent-dashboard.mjs --port "$PORT" >>/tmp/dg-busy/dashboard.log 2>&1 &
-echo $! >/tmp/dg-busy/dashboard.pid
-sleep 0.6
-if curl -sS --max-time 2 "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+# Prefer systemd unit when available
+if systemctl --user is-enabled demigod-dash.service >/dev/null 2>&1; then
+  if systemctl --user restart demigod-dash.service 2>/dev/null; then
+    if curl --noproxy '*' -fsS --retry 20 --retry-all-errors --retry-delay 1 --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+      echo "dashboard → http://127.0.0.1:${PORT}/ (systemd)"
+      exit 0
+    fi
+    echo "systemd dashboard failed health check" >&2
+    exit 1
+  fi
+fi
+START_LOG=/tmp/dg-busy/dashboard-start.log
+nohup "$NODE_BIN" demigod-agent-dashboard.mjs --port "$PORT" >"$START_LOG" 2>&1 &
+dash_pid=$!
+echo "$dash_pid" >/tmp/dg-busy/dashboard.pid
+if curl --noproxy '*' -fsS --retry 5 --retry-all-errors --retry-delay 1 --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
   echo "dashboard → http://127.0.0.1:${PORT}/"
   echo "brief     → http://127.0.0.1:${PORT}/api/agent-brief"
   echo "actions   → http://127.0.0.1:${PORT}/api/actions"
   echo "file      → /tmp/dg-busy/AGENT-BRIEF.md"
-  if command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+  if [[ -z "${DEMIGOD_DASH_NO_OPEN:-}" ]] && command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
 else
-  echo "failed to start — see /tmp/dg-busy/dashboard.log" >&2
-  tail -20 /tmp/dg-busy/dashboard.log >&2 || true
+  sleep .1
+  kill "$dash_pid" 2>/dev/null || true
+  wait "$dash_pid" 2>/dev/null || true
+  rm -f /tmp/dg-busy/dashboard.pid
+  echo "failed to start — see $START_LOG" >&2
+  tail -20 "$START_LOG" >&2 || true
   exit 1
 fi

@@ -154,7 +154,7 @@ export function buildShipChecklist() {
     nextCmd: freezeOn
       ? 'node demigod-publish-freeze.mjs status  # freeze ON — do not ship'
       : ready
-        ? 'node demigod-foot-cdn-publish.mjs && node demigod-cm6-paste-publish.mjs --footer-only'
+        ? 'node demigod-foot-cdn-publish.mjs && node demigod-cm6-paste-publish.mjs'
         : 'fix blockers then re-run: node demigod-ship-checklist.mjs',
   };
 }

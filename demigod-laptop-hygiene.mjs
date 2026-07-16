@@ -2,7 +2,7 @@
 /**
  * demigod-laptop-hygiene — tabs + light process/load check for a snappy laptop
  *
- *   node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung]
+ *   node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung] [--optimize]
  *
  * Safe defaults: report only. --prune closes excess CDP tabs. --kill-hung
  * only kills long-running claude --print / stuck demigod playtests (not Chrome CDP).
@@ -16,8 +16,11 @@ import { BUSY, ensureBusy, atomicWrite } from './demigod-agent-tools-lib.mjs';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
-const doPrune = args.includes('--prune');
-const killHung = args.includes('--kill-hung');
+const optimize = args.includes('--optimize');
+const doPrune = args.includes('--prune') || optimize;
+const killHung = args.includes('--kill-hung') || optimize;
+const MAX_LOG_BYTES = 2 * 1024 * 1024;
+const KEEP_LOG_BYTES = 512 * 1024;
 
 function sh(cmd) {
   return spawnSync('bash', ['-lc', cmd], { encoding: 'utf8', timeout: 20000 });
@@ -83,16 +86,55 @@ async function tabCount() {
   }
 }
 
+function pausedState() {
+  const paused = path.join(BUSY, 'watchdog.PAUSED');
+  const stops = fs.existsSync(BUSY)
+    ? fs.readdirSync(BUSY).filter((name) => name.endsWith('.STOP')).sort()
+    : [];
+  return { watchdogPaused: fs.existsSync(paused), stops };
+}
+
+function trimBusyLogs() {
+  const trimmed = [];
+  if (!fs.existsSync(BUSY)) return trimmed;
+  for (const name of fs.readdirSync(BUSY)) {
+    if (!/\.(?:log|txt|jsonl)$/i.test(name)) continue;
+    const file = path.join(BUSY, name);
+    let stat;
+    try { stat = fs.statSync(file); } catch { continue; }
+    if (!stat.isFile() || stat.size <= MAX_LOG_BYTES) continue;
+    const fd = fs.openSync(file, 'r');
+    const kept = Buffer.alloc(Math.min(KEEP_LOG_BYTES, stat.size));
+    fs.readSync(fd, kept, 0, kept.length, stat.size - kept.length);
+    fs.closeSync(fd);
+    const newline = kept.indexOf(10);
+    const tail = newline >= 0 ? kept.subarray(newline + 1) : kept;
+    atomicWrite(file, tail);
+    trimmed.push({ file: name, beforeBytes: stat.size, afterBytes: tail.length });
+  }
+  return trimmed;
+}
+
 async function main() {
   ensureBusy();
+  const before = { load: loadMem(), tabs: await tabCount(), paused: pausedState() };
   const report = {
     at: new Date().toISOString(),
-    load: loadMem(),
-    tabs: await tabCount(),
+    mode: optimize ? 'optimize' : 'report',
+    before,
+    load: before.load,
+    tabs: before.tabs,
     hung: listHung(),
     actions: [],
     tips: [],
   };
+
+  if (optimize && before.paused.watchdogPaused) {
+    report.actions.push({
+      action: 'paused-guard', ok: true,
+      detail: 'watchdog.PAUSED present; swarm/never-stop restart refused',
+    });
+  }
 
   const { load, tabs, hung } = report;
   if (load.load1 != null && load.load1 > 4) {
@@ -138,6 +180,11 @@ async function main() {
     }
   }
 
+  if (optimize) {
+    const trimmed = trimBusyLogs();
+    report.actions.push({ action: 'trim-busy-logs', ok: true, trimmed });
+  }
+
   // Ensure one ops dash if CDP up and prune left zero
   if (doPrune && report.tabs.ok && !(report.tabs.by['ops-dash'] > 0)) {
     try {
@@ -152,13 +199,33 @@ async function main() {
     }
   }
 
+  report.after = { load: loadMem(), tabs: await tabCount(), paused: pausedState() };
+  report.load = report.after.load;
+  report.tabs = report.after.tabs;
+  const remainingHung = listHung();
+  report.hungAfter = remainingHung;
   report.healthy =
-    (load.load1 == null || load.load1 < 6) &&
-    (load.memAvailPct == null || load.memAvailPct > 10) &&
-    (!tabs.ok || tabs.pages <= 12) &&
-    hung.length === 0;
+    (report.load.load1 == null || report.load.load1 < 6) &&
+    (report.load.memAvailPct == null || report.load.memAvailPct > 10) &&
+    (!report.tabs.ok || report.tabs.pages <= 12) &&
+    remainingHung.length === 0;
 
   atomicWrite(path.join(BUSY, 'laptop-hygiene.json'), JSON.stringify(report, null, 2) + '\n');
+  if (optimize) {
+    atomicWrite(path.join(BUSY, 'laptop-optimize-receipt.json'), JSON.stringify(report, null, 2) + '\n');
+    const summary = [
+      '# Demigod laptop optimization', '',
+      `- At: ${report.at}`,
+      `- Load (1m): ${before.load.load1} → ${report.after.load.load1}`,
+      `- Available memory: ${before.load.memAvailGb} GB (${before.load.memAvailPct}%) → ${report.after.load.memAvailGb} GB (${report.after.load.memAvailPct}%)`,
+      `- CDP pages: ${before.tabs.pages ?? '?'} → ${report.after.tabs.pages ?? '?'}`,
+      `- Hung processes terminated: ${report.actions.filter((a) => a.action === 'kill-hung' && a.ok).length}`,
+      `- Oversized logs trimmed: ${report.actions.find((a) => a.action === 'trim-busy-logs')?.trimmed.length || 0}`,
+      `- Watchdog paused preserved: ${report.after.paused.watchdogPaused}; STOP markers: ${report.after.paused.stops.join(', ') || 'none'}`,
+      '',
+    ].join('\n');
+    atomicWrite(path.join(BUSY, 'laptop-optimize-summary.md'), summary);
+  }
 
   if (asJson) {
     console.log(JSON.stringify(report, null, 2));

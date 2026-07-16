@@ -1,7 +1,17 @@
 # Demigod — Agent entry
 
-**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) · state: `DEMIGOD-COMPRESSED-STATE.md` · detail: `DEMIGOD-AGENTS.md`  
-**Website 2026-07-15:** live foot **v207** · [session status](docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md) · website+startup only (no auto-DM)
+**Start here:** [`AGENT-SIMPLE.md`](AGENT-SIMPLE.md) (same file as `DEMIGOD-SIMPLE.md`) · state: `AGENT-STATE.md` · rules: `AGENT-RULES.md` · workflow: `AGENT-WORKFLOW.md`  
+**Ponytail required (all agents):** lean code — see § Ponytail below + `docs/PONYTAIL-AGENTS.md`.
+
+**Website 2026-07-16:** disk/man **v531** · live **v522** (Webflow re-auth for CM6) · head CSS **8s6x5e** · [state](AGENT-STATE.md) · website+startup only (no auto-DM)
+
+**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** consult Claude with `ask-claude "…"`, consult Grok with `grok-ask "…"` (prompt as args or stdin; prints reply, exits). Async/background work via the Claude inbox. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
+
+## User communication (standing — 2026-07-15)
+
+- **Do not tell the user what they should do** (DMs, calls, Publish clicks, “your turn”, checklists for the human, “recommended next for you”).
+- **Do agent work** and report what *you* did / blocked on. No advice on human actions unless the user **explicitly asks** for advice on what they should do.
+- Same for “you can still…” / “you need to…” / “human next:” framing — omit unless asked.
 
 # Demigod — Agent Rules (default project)
 
@@ -12,7 +22,7 @@
 **Detail:** `DEMIGOD-AGENTS.md` + `DEMIGOD-WORKFLOW.md`  
 **Cursor rule:** `.cursor/rules/demigod.mdc`
 
-**Docs & Exchange:** **Start here:** `DEMIGOD-COMPRESSED-STATE.md` (living single source). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
+**Docs & Exchange:** **Start here:** `AGENT-STATE.md` / `DEMIGOD-COMPRESSED-STATE.md` (same inode). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
 
 ## Hard stops (game)
 
@@ -31,7 +41,7 @@ Game sources remain on disk; they are **archived from agent work**, not deleted.
 | Live site | https://www.trydemigod.com |
 | Designer | https://talentlink-sf.design.webflow.com/ |
 | Custom code dashboard | Webflow → talentlink-sf → Custom Code |
-| Foot JS truth | `demigod-foot-core.js` (v150; 90day-outcome + explicit review step in WIZ) |
+| Foot JS truth | `demigod-foot-core.js` (disk/man **v531**; live **v522** — ship only with `bin/dg-lock`) |
 | Head CSS truth | `demigod-head-styles.css` / `demigod-head-minimal.html` |
 | Footer loader | `demigod-footer-lite.html` |
 | Verify gate | `npm run demigod:verify:source` (or :all / targeted); also board-honesty + loop-state |
@@ -110,5 +120,43 @@ Per user directive: human does not / cannot act. Grok does ALL: research, audits
 Fable/Claude models = bosses with authority equal to user. Use bin/df for queries, apply plans.
 Webflow publish: full autonomous (paste + Save + Publish click) overriding noted "human gate" per explicit "figure out how to do everything yourself, even publish webflow".
 Gates always run post change. Board honest <=2-3 seeds, real=0.
-Foot-core v150 untouched (canonical healthy).
+Foot-core: disk **v507** is SoR (2026-07-09 note said v150 — historical only).
 Head: research comments added.
+
+## Ponytail — REQUIRED for ALL agents (Grok, Claude, Fable, Codex, Cursor, Heavy)
+
+**Standing order:** Every coding agent on this machine **must** follow Ponytail (lazy senior) when writing or editing code.
+
+- **Plugin/skill:** installed for Claude Code + Codex (`ponytail@ponytail` v4.8.4, enabled)
+- **Cursor rule (always):** `~/.cursor/rules/ponytail.mdc` (also project `.cursor/rules/`)
+- **Ruleset:** `docs/PONYTAIL-AGENTS.md` · setup: `docs/PONYTAIL-SETUP.md` · upstream: https://github.com/DietrichGebert/ponytail
+- **Default mode:** `full` (`~/.config/ponytail/config.json`)
+
+**Before writing code, stop at the first rung that holds:**
+1. Does this need to exist? (YAGNI) → skip
+2. Already in this codebase? → reuse
+3. Stdlib? → use it
+4. Native platform feature? → use it
+5. Installed dependency? → use it
+6. One line? → one line
+7. Only then: minimum that works
+
+**Never cut:** trust-boundary validation, data-loss handling, security, accessibility, problem understanding.  
+**Prefer:** shortest working diff, fewer files, no unsolicited abstractions/deps.  
+**Commands (where supported):** `/ponytail`, `/ponytail-review`, `/ponytail-audit`, levels `lite|full|ultra|off`.
+
+## Tool dogfood (standing)
+
+Every agent **must** dogfood tools when using CLI/dash jobs:
+
+- Wrap: `node demigod-tool-dogfood.mjs wrap --tool=NAME -- <cmd…>`
+- Log judgment: `node demigod-tool-dogfood.mjs log --tool=NAME --ok=1 --useful=1 --why="…"`
+- Review: `node demigod-tool-dogfood.mjs status` or dash `/api/dogfood`
+- Improve tools that fail often or score not-useful; demote unused hot tools.
+
+Priority board: `node demigod-priority-board.mjs` · dash top cards · `/api/priority`.
+Maps: dash **Map** tab · `/api/maps`.
+
+## Agent file access (anti-block)
+
+Do **not** put agent-owned sources only under `.local/` or `.config/` (often tool-blocked). Prefer `bin/`, `demigod-*.mjs`, `DEMIGOD-*.md`, `systemd-user/`. Broad `DEMIGOD-*` gitignore is **forbidden** — tools fail on it.

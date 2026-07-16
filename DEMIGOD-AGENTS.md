@@ -23,6 +23,17 @@
 | **Webflow AI** | Component masters only; never sole source of custom JS truth |
 
 
+## Ponytail — REQUIRED (all agents)
+
+**Grok, Claude, Fable, Codex, Cursor, Heavy, swarm workers:** use Ponytail on every code edit.
+
+- Plugin: Claude + Codex `ponytail@ponytail` (enabled). Cursor: `~/.cursor/rules/ponytail.mdc` (alwaysApply via demigod).
+- Full rules: `docs/PONYTAIL-AGENTS.md` · https://github.com/DietrichGebert/ponytail
+- Ladder before write: YAGNI → reuse → stdlib → native → dep → one line → minimum. Keep safety/a11y/validation.
+- Prefer smallest diff; no unsolicited frameworks. Review large diffs with `/ponytail-review` when available.
+
+
+
 ## Agent collaboration method (not org-chart cosplay)
 
 **Do not** treat agents as CEO/CFO/boss with authority. Use stages:

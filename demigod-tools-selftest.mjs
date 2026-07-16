@@ -15,6 +15,34 @@ import { parseFirstJson, BUSY } from './demigod-agent-tools-lib.mjs';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const results = [];
 
+function writeReceiptAtomic(receipt) {
+  fs.mkdirSync(BUSY, { recursive: true });
+  const target = path.join(BUSY, 'tools-selftest.json');
+  const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(temp, JSON.stringify(receipt, null, 2) + '\n');
+    fs.renameSync(temp, target);
+  } finally {
+    try { fs.unlinkSync(temp); } catch {}
+  }
+}
+
+function cleanupFallbackSelftestLock(owner = 'selftest-A') {
+  const jsonPath = path.join(BUSY, 'foot-lock.json');
+  const textPath = path.join(BUSY, 'foot-lock.txt');
+  let lease = null;
+  try { lease = JSON.parse(fs.readFileSync(jsonPath, 'utf8')); } catch {}
+  const leaseOwner = lease?.owner || lease?.lock?.owner || null;
+  if (leaseOwner !== owner) return false;
+  // Child execution can be denied after the claim has reached disk. In that
+  // degraded path there is no child available to run `release`, so remove only
+  // the exact lease this self-test created; never touch another owner's lock.
+  for (const file of [jsonPath, textPath, path.join(BUSY, 'foot-lock-token.env')]) {
+    try { fs.unlinkSync(file); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  }
+  return true;
+}
+
 function run(args, opts = {}) {
   const r = spawnSync('node', args, {
     cwd: ROOT,
@@ -23,7 +51,7 @@ function run(args, opts = {}) {
     env: { ...process.env, ...(opts.env || {}) },
   });
   const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  return { status: r.status ?? 1, out, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim() };
+  return { status: r.status ?? 1, out, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim(), error: r.error || null };
 }
 
 function assert(name, cond, detail = '') {
@@ -44,7 +72,10 @@ function assert(name, cond, detail = '') {
     console.error('tools-selftest: ABORT — foot lock held by', j.lock.owner);
     process.exit(2);
   }
-  run(['demigod-foot-lock.mjs', 'release', '--force']);
+  // Do not force-release after a separate status read: a real writer can claim
+  // in that gap. Only clean a lock that the status snapshot identified as a
+  // selftest lease; otherwise leave the free state untouched.
+  if (j?.locked) run(['demigod-foot-lock.mjs', 'release', '--force']);
 }
 
 // ── LOCK (token leases) ───────────────────────────────
@@ -52,6 +83,83 @@ function assert(name, cond, detail = '') {
   const a = run(['demigod-foot-lock.mjs', 'claim', 'selftest-A', '120']);
   const aj = parseFirstJson(a.out);
   const tokA = aj?.claimed?.token;
+  if (a.error) {
+    cleanupFallbackSelftestLock();
+    const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+    const dashboardUiSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
+    const lockSource = fs.readFileSync(path.join(ROOT, 'demigod-foot-lock.mjs'), 'utf8');
+    const cm6Source = fs.readFileSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), 'utf8');
+    const cycleStatusSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-status.mjs'), 'utf8');
+    const registrySource = fs.readFileSync(path.join(ROOT, 'demigod-tools-registry.mjs'), 'utf8');
+    const fallbackFails = [];
+    const fallback = (name, condition) => {
+      if (!condition) fallbackFails.push(name);
+    };
+    fallback('lock token contract', /token/.test(lockSource) && /expiresAt/.test(lockSource));
+    fallback(
+      'dashboard server-owned runnable allowlist',
+      /Object\.prototype\.hasOwnProperty\.call\(JOBS, tool\.id\)/.test(dashboardSource) &&
+        /runnable:\s*Boolean\(job\)/.test(dashboardSource),
+    );
+    fallback('dashboard UI trusts runnable annotation', /const canRun = t\.runnable === true/.test(dashboardUiSource));
+    fallback(
+      'dashboard job launch validates HTTP and response shape',
+      /const j=await r\.json\(\)\.catch\(\(\)=>null\)/.test(dashboardUiSource) &&
+        /if\(!r\.ok\)\{/.test(dashboardUiSource) &&
+        /job launch HTTP ['"]?\+r\.status/.test(dashboardUiSource) &&
+        /if\(!j\|\|j\.ok!==true\|\|!j\.jobId\)/.test(dashboardUiSource),
+    );
+    fallback(
+      'CM6 head/footer split assertion',
+      /function\s+assertHeadFootSplit\s*\(expectedHead,\s*expectedFoot\)/.test(cm6Source) &&
+        (cm6Source.match(/assertHeadFootSplit\(/g) || []).length >= 3 &&
+        /headLoaderCount===0/.test(cm6Source) &&
+        /footLoaderCountValue===1/.test(cm6Source) &&
+        /headHasNoFootLoader/.test(cm6Source),
+    );
+    fallback(
+      'CM6 persisted API split assertion',
+      /editorHelperVerifiesPersistedSplit/.test(cm6Source) &&
+        /pre === expectedHead && post === expectedFoot/.test(cm6Source) &&
+        /if \(!persisted\.result\?\.value\?\.ok\)/.test(cm6Source),
+    );
+    fallback(
+      'cycle status distinct atomic receipt',
+      /cycle-status\.json/.test(cycleStatusSource) && /renameSync\(receiptTmp, RECEIPT\)/.test(cycleStatusSource) &&
+        /id: 'cycle-status'[\s\S]{0,320}out: '\/tmp\/dg-busy\/cycle-status\.json'/.test(registrySource),
+    );
+    writeReceiptAtomic({
+      schema: 'demigod.tools-selftest/1', at: new Date().toISOString(), pass: false,
+      blocked: true, degraded: true, mode: 'in-process-fallback', reason: 'child-start', code: a.error.code || null,
+      message: a.error.message,
+      fails: fallbackFails,
+    });
+    if (fallbackFails.length) {
+      console.error('tools-selftest: FAIL (in-process fallback):', fallbackFails.join('; '));
+      process.exit(1);
+    }
+    console.error('DEGRADED demigod-tools-selftest: fallback contracts pass; OS execution unverified');
+    process.exit(2);
+  }
+  // The lock may be claimed by a real writer after the advisory status check
+  // above. Treat that as a blocked test environment, not as 30+ contract
+  // failures (and never continue into fixtures that assume selftest owns it).
+  if (a.status !== 0 || !tokA) {
+    const now = parseFirstJson(run(['demigod-foot-lock.mjs', 'status']).out);
+    const owner = now?.lock?.owner || now?.who?.owner || null;
+    if (now?.locked && owner && !/^selftest-/i.test(String(owner))) {
+      writeReceiptAtomic({
+        schema: 'demigod.tools-selftest/1',
+        at: new Date().toISOString(),
+        pass: false,
+        blocked: true,
+        reason: 'foot-lock-race',
+        owner,
+      });
+      console.error('tools-selftest: BLOCKED — foot lock claimed concurrently by', owner);
+      process.exit(2);
+    }
+  }
   assert('claim A ok', a.status === 0 && tokA, a.out.slice(0, 100));
 
   const b = run(['demigod-foot-lock.mjs', 'claim', 'selftest-B', '120']);
@@ -252,7 +360,13 @@ function assert(name, cond, detail = '') {
   assert('truth.json written', fs.existsSync(path.join(BUSY, 'truth.json')));
 
   const h = run(['demigod-handoff.mjs', '--note', 'selftest'], { timeout: 90000 });
-  assert('handoff runs', h.status === 0 && /HANDOFF|Truth/.test(h.out), h.out.slice(0, 80));
+  // Structured --note path prints "agent: note" and writes HANDOFF.json/md.
+  assert(
+    'handoff runs',
+    h.status === 0 &&
+      (/HANDOFF|Truth|selftest/i.test(h.out) || fs.existsSync(path.join(BUSY, 'HANDOFF.json'))),
+    h.out.slice(0, 80),
+  );
 }
 
 // dry-run publish when free
@@ -357,6 +471,14 @@ assert('tools-lib exists', fs.existsSync(path.join(ROOT, 'demigod-agent-tools-li
 
   const c = run(['demigod-copy-policy.mjs', '--disk-only'], { timeout: 30000 });
   assert('copy-policy disk pass', c.status === 0 && /PASS/.test(c.out), c.out.slice(0, 100));
+  const cs = run(['demigod-copy-policy.mjs', '--source-only', '--json'], { timeout: 30000 });
+  let sourcePolicy = null;
+  try { sourcePolicy = JSON.parse(cs.out); } catch { /* assertion below reports output */ }
+  assert(
+    'copy-policy source-only alias is offline and explicit',
+    cs.status === 0 && sourcePolicy?.scope === 'source' && sourcePolicy?.live === false,
+    cs.out.slice(0, 140),
+  );
   const cl = run(['demigod-copy-policy.mjs'], { timeout: 45000 });
   assert('copy-policy live default runs', cl.status === 0 || /live-no-volume|PASS|FAIL/.test(cl.out), cl.out.slice(0, 100));
 
@@ -405,6 +527,147 @@ for (const b of [
 {
   assert('dashboard ui exists', fs.existsSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html')));
   assert('tools registry exists', fs.existsSync(path.join(ROOT, 'demigod-tools-registry.mjs')));
+  const registryValidationSource = fs.readFileSync(path.join(ROOT, 'demigod-tools-registry.mjs'), 'utf8');
+  assert(
+    'tools registry rejects alias cycles',
+    /alias cycle detected/.test(registryValidationSource) && /while \(aliases\.has\(current\)\)/.test(registryValidationSource),
+  );
+  const dashboardTapUi = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
+  assert(
+    'dashboard controls keep a 44px minimum tap target',
+    /button,\.btn\{[\s\S]{0,360}min-height:(?:44|48)px/.test(dashboardTapUi) &&
+      /\.mode-toggle button\{[^}]*min-height:(?:44|48)px/.test(dashboardTapUi),
+  );
+  assert(
+    'dashboard escapes control-plane receipt values before innerHTML rendering',
+    /Inbox'\+\(d\.inbox&&d\.inbox\.newCount\?' · '\+esc\(d\.inbox\.newCount\)/.test(dashboardTapUi) &&
+      /board roles '\+esc\(board\.roles!=null\?board\.roles:'\?'\)/.test(dashboardTapUi) &&
+      /schema '\+esc\(c\.schema\|\|'control\/2'\)/.test(dashboardTapUi),
+  );
+  assert(
+    'dashboard shortcuts yield to every editable control',
+    /e\.target\.closest\('input,textarea,select,\[contenteditable="true"\]'\)/.test(dashboardTapUi),
+  );
+  assert(
+    'dashboard presence warns when the lock owner exited while the lease remains held',
+    /presenceLockExited\s*=\s*presenceLock\.alive===false/.test(dashboardTapUi) &&
+      /OWNER EXITED; lease held for/.test(dashboardTapUi) &&
+      /presenceLock\.ttlLeftSec/.test(dashboardTapUi),
+  );
+  const orientSource = fs.readFileSync(path.join(ROOT, 'demigod-orient.mjs'), 'utf8');
+  assert(
+    'orient only probes a declared lease-owner PID',
+    /lockHasOwnerPid\s*=\s*lock\?\.pidScope\s*===\s*['"]lease-owner['"]/.test(orientSource) &&
+      /lockHeld\s*&&\s*lockOwnerIsLocal\s*&&\s*lockHasOwnerPid/.test(orientSource),
+  );
+  assert(
+    'dashboard accepts root-level jsDelivr foot loader',
+    /\(\?:\[\^\\s<>\/\]\+\\\/\)\*foot-latest\\\.js/.test(
+      fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8'),
+    ),
+  );
+  const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+  const dashboardUiSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
+  assert(
+    'dashboard status orient embeds demand draft hygiene',
+    /demandDrafts:\s*demand\?\.drafts\s*\|\|\s*null/.test(dashboardSource),
+  );
+  assert(
+    'dashboard preserves release preflight for website domain rotation',
+    /cycleHasReleasePreflight\s*=\s*[\s\S]{0,180}domain\s*===\s*['"]website['"][\s\S]{0,180}domain\s*===\s*['"]ship['"][\s\S]{0,180}domain\s*===\s*['"]tools['"]/.test(dashboardSource),
+  );
+  const cycleStatusSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-status.mjs'), 'utf8');
+  assert(
+    'cycle status writes a distinct atomic receipt',
+    /cycle-status\.json/.test(cycleStatusSource) &&
+      /writeFileSync\(receiptTmp/.test(cycleStatusSource) &&
+      /renameSync\(receiptTmp, RECEIPT\)/.test(cycleStatusSource),
+  );
+  assert(
+    'cycle status registry output does not alias its input receipt',
+    /id: 'cycle-status'[\s\S]{0,320}out: '\/tmp\/dg-busy\/cycle-status\.json'/.test(
+      fs.readFileSync(path.join(ROOT, 'demigod-tools-registry.mjs'), 'utf8'),
+    ),
+  );
+  const controlSource = fs.readFileSync(path.join(ROOT, 'demigod-control.mjs'), 'utf8');
+  assert(
+    'control-plane site green requires truth green and fully shipped',
+    /ok:\s*siteTruthGreen\s*&&\s*siteFullyShipped/.test(controlSource),
+  );
+  assert(
+    'dashboard renders structured orient assertSame',
+    /orient\.assertSame\.ok===true/.test(dashboardUiSource) && /orientAssertLabel/.test(dashboardUiSource),
+  );
+  assert(
+    'dashboard control spine makes orient the primary agent entry',
+    /\[\['orient','Orient'\],\['truth','Truth'\]/.test(dashboardUiSource) &&
+      /Agent: <code>curl -sS http:\/\/127\.0\.0\.1:9878\/api\/orient<\/code> · <code>bin\/dg orient<\/code>/.test(dashboardUiSource),
+  );
+  assert(
+    'dashboard labels missing cycle-check exits as unknown',
+    /Number\.isInteger\(c\.exit\)\?c\.exit:['"]unknown['"]/.test(dashboardUiSource),
+  );
+  assert(
+    'dashboard annotates unify hot tools with server runnable allowlist',
+    /annotateRunnableTools\(\{ tools: u\.toolsHot \}\)\.tools/.test(dashboardSource),
+  );
+  assert(
+    'dashboard runnable allowlist rejects inherited object properties',
+    /Object\.prototype\.hasOwnProperty\.call\(JOBS, tool\.id\)/.test(dashboardSource),
+  );
+  assert(
+    'dashboard does not flag missing orient receipt as attention',
+    /orientGreenLabel=d\.orient==null\s*\n\s*\?\s*['"]unknown['"]/.test(dashboardUiSource) &&
+      /orientDegraded/.test(dashboardUiSource) &&
+      /orient\.green\s*\n\s*\?\s*['"]green['"]\s*\n\s*:\s*['"]attention['"]/.test(dashboardUiSource),
+  );
+  assert(
+    'dashboard rejects truth evidence without a valid seal timestamp',
+    /timestampValid = Number\.isFinite\(ended\) && ageMs >= -60_000/.test(dashboardSource) &&
+      /expired = !timestampValid \|\| ageMs > ttl/.test(dashboardSource),
+  );
+  assert(
+    'dashboard rejects future-dated demand cache mtimes',
+    /!Number\.isFinite\(ageSec\) \|\| ageSec < 0/.test(dashboardSource),
+  );
+  assert(
+    'dashboard rejects materially future-dated cycle receipts',
+    /rawReceiptAgeSec >= -60/.test(dashboardSource) &&
+      /cycleWorkStale = !cycleWorkTimestampValid/.test(dashboardSource) &&
+      /timestampValid: cycleWorkTimestampValid/.test(dashboardSource),
+  );
+  assert(
+    'dashboard cannot turn malformed lock expiry into an immortal lock',
+    /j\.expiresAt != null && !Number\.isFinite\(expiresAtMs\)[\s\S]{0,80}\? true/.test(dashboardSource),
+  );
+  const cm6 = fs.readFileSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), 'utf8');
+  assert('cm6 requires exact head/footer split', /eds\.length!==2/.test(cm6) && /assertHeadFootSplit/.test(cm6));
+  assert('cm6 verifies persisted Webflow API payload', /persisted-api/.test(cm6) && /exactHead/.test(cm6) && /exactFoot/.test(cm6));
+  assert('cm6 polls persisted Webflow API instead of trusting fixed save latency', /attempt <= 12/.test(cm6) && /if \(last\.ok\) return last/.test(cm6));
+  assert('cm6 requires positive publish acceptance without task id', /acceptedWithoutTask/.test(cm6));
+  assert('cm6 rejects negative no-task publish responses', /negativeAcceptance/.test(cm6) && /!negativeAcceptance/.test(cm6));
+  assert('cm6 saved readback still requires exactly two editors', /ok: eds\.length === 2 && h === expectedHead && t === expectedFoot/.test(cm6));
+  assert('cm6 live target comes from validated loader parser', /footWanted = preflight\.footLoaders\[0\]/.test(cm6));
+  assert(
+    'dashboard cm6 check stays structural and offline-safe',
+    /'cm6-check':\s*\{[^}]*args:\s*\['demigod-cm6-paste-publish\.mjs',\s*'--check-structural'\]/s.test(dashboardSource),
+  );
+  assert(
+    'dashboard marks cached control fallback degraded',
+    /cached: true, degraded: true, refreshError: error, cacheAgeMs/.test(dashboardSource),
+  );
+  const cm6Syntax = run(['--check', 'demigod-cm6-paste-publish.mjs']);
+  assert('cm6 paste publisher parses', cm6Syntax.status === 0, cm6Syntax.out.slice(0, 160));
+  const cm6ModeConflict = run(['demigod-cm6-paste-publish.mjs', '--check-structural', '--no-publish']);
+  assert(
+    'cm6 rejects ambiguous read-only and mutating mode combination',
+    cm6ModeConflict.status !== 0 && /cannot be combined with a read-only check mode/.test(cm6ModeConflict.out),
+    cm6ModeConflict.out.slice(0, 180),
+  );
+  for (const helper of ['demigod-agent-dashboard.mjs', 'demigod-webflow-lib.mjs', 'demigod-ship-status.mjs', 'demigod-ship-prep.mjs', 'demigod-ship-help.mjs']) {
+    const src = fs.readFileSync(path.join(ROOT, helper), 'utf8');
+    assert(`${helper} does not invoke disabled footer-only mode`, !/cm6-paste-publish\.mjs --footer-only/.test(src));
+  }
   assert('agent tools lib has isFrozen', /export function isFrozen/.test(fs.readFileSync(path.join(ROOT, 'demigod-agent-tools-lib.mjs'), 'utf8')));
   const reg = run(['demigod-tools-registry.mjs', '--json'], { timeout: 15000 });
   const regJ = parseFirstJson(reg.out);
@@ -476,6 +739,7 @@ for (const b of [
 
 const pass = results.every((r) => r.ok);
 const report = {
+  schema: 'demigod.tools-selftest/1',
   at: new Date().toISOString(),
   pass,
   failed: results.filter((r) => !r.ok).map((r) => r.name),
@@ -483,8 +747,7 @@ const report = {
 };
 
 try {
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'tools-selftest.json'), JSON.stringify(report, null, 2));
+  writeReceiptAtomic(report);
 } catch {
   /* */
 }

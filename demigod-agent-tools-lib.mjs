@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
- * demigod-agent-tools-lib — shared primitives for ops tools (settlement suite).
- * Exports: BUSY, isFrozen, atomicWrite, withFileLock, footVerFromJs, claimMutateLock, …
- * Used by: live-doctor, dashboard, freeze, pairs, ship scripts.
- * Keep small — no side effects on import.
+ * demigod-agent-tools-lib — shared ops primitives (no side effects on import)
+ *
+ * Exports: BUSY, ensureBusy, atomicWrite, readJson, isFrozen, withFileLock,
+ * footVerFromJs, claimMutateLock, opt, …
+ * Used by: freeze, ship, webflow, pairs, live-doctor, dashboard helpers.
+ * Keep small — product truth lives in truth/evidence, not here.
  */
 import fs from 'fs';
 import path from 'path';
@@ -42,12 +44,22 @@ export function readText(file, max = 500_000) {
   }
 }
 
-/** Atomic write: tmp + rename */
+/** Atomic write: temp file in same dir then rename (crash-safe for busy JSON). */
 export function atomicWrite(file, body) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
-  fs.writeFileSync(tmp, body);
-  fs.renameSync(tmp, file);
+  try {
+    fs.writeFileSync(tmp, body);
+    fs.renameSync(tmp, file);
+  } finally {
+    // A failed write/rename must not leave a receipt-shaped temp file behind.
+    // Ignore cleanup errors so the original filesystem error remains visible.
+    try {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    } catch {
+      /* preserve the original failure */
+    }
+  }
 }
 
 /** Extract first complete top-level JSON object from mixed stdout */
@@ -101,9 +113,17 @@ export function runNode(root, args, opts = {}) {
     env: { ...process.env, ...(opts.env || {}) },
   });
   const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  return { status: r.status, out, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim() };
+  return {
+    status: r.status,
+    out,
+    stdout: (r.stdout || '').trim(),
+    stderr: (r.stderr || '').trim(),
+    error: r.error || null,
+    signal: r.signal || null,
+  };
 }
 
+/** Ensure /tmp/dg-busy exists (agent evidence + control surfaces). */
 export function ensureBusy() {
   fs.mkdirSync(BUSY, { recursive: true });
 }
@@ -157,7 +177,8 @@ export function positionals(args, flagNames = []) {
 
 /** Publish freeze — single choke point for agents/dashboard/jobs */
 /**
- * Read publish freeze (file + env). Side-effect free.
+ * Publish freeze on? File publish-freeze.json and/or DEMIGOD_PUBLISH_FREEZE env.
+ * Mutators (CDN/Webflow) must respect this.
  * @returns {{ on: boolean, why?: string, env: boolean, file: boolean }}
  */
 export function isFrozen(busy = BUSY) {
@@ -239,15 +260,25 @@ export function ageLabel(sec) {
   return `${Math.round(sec / 86400)}d ago`;
 }
 
-/** Mutate job lock — stamp writer, prevent concurrent mutates across processes */
+/** Claim short-lived mutate lock under busy (dashboard jobs / ship). Returns token or null. */
 export function claimMutateLock(owner = 'dashboard', busy = BUSY) {
   ensureBusy();
   const lockPath = path.join(busy, 'mutate-job-lock.json');
   const now = Date.now();
   try {
     const cur = readJson(lockPath);
-    if (cur?.expiresAt && Date.parse(cur.expiresAt) > now && cur.owner !== owner) {
-      return { ok: false, lock: cur, path: lockPath };
+    if (cur && cur.owner !== owner) {
+      const expiresAtMs = Date.parse(cur.expiresAt || '');
+      // A malformed lease is not proof that the other owner released it.
+      // Fail closed so a damaged lock cannot authorize overlapping mutations.
+      if (!Number.isFinite(expiresAtMs) || expiresAtMs > now) {
+        return {
+          ok: false,
+          lock: cur,
+          path: lockPath,
+          reason: Number.isFinite(expiresAtMs) ? 'held' : 'malformed_lease',
+        };
+      }
     }
   } catch {
     /* */

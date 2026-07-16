@@ -51,6 +51,35 @@ function footMeta(js) {
   };
 }
 
+function canonicalFootLoaderUrl(html) {
+  const tags = [...String(html || '').matchAll(/<script\b[^>]*>/gi)].map((match) => match[0]);
+  const tag = tags.find((value) => /\bid=["']demigod-foot-cdn-loader["']/i.test(value))
+    || tags.find((value) => /\bsrc=["']https?:\/\/[^"']*\/foot-latest\.js(?:[?#][^"']*)?["']/i.test(value));
+  return (tag?.match(/\bsrc=["'](https?:\/\/[^"'\s<>]+)["']/i) || [])[1] || null;
+}
+
+function assetId(rawUrl) {
+  try {
+    return new URL(rawUrl).pathname.split('/').filter(Boolean).pop() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Strip query/hash; HTTPS only — same contract as demigod-truth canonicalAssetUrl. */
+function canonicalAssetUrl(raw) {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:') return null;
+    url.search = '';
+    url.hash = '';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const stages = [];
   const diskJs = fs.existsSync(FOOT) ? fs.readFileSync(FOOT, 'utf8') : '';
@@ -58,12 +87,9 @@ async function main() {
   const disk = footMeta(diskJs);
   const man = readJson(MANIFEST) || {};
   const footer = fs.existsSync(FOOTER) ? fs.readFileSync(FOOTER, 'utf8') : '';
-  // Prefer foot <script src=…> — product map strings list other catbox .js first
-  const footerCdn =
-    (footer.match(/src=["']https:\/\/files\.catbox\.moe\/[a-z0-9]+\.js["']/) || [])[0]?.replace(/^src=["']|["']$/g, '') ||
-    (footer.match(/files\.catbox\.moe\/[a-z0-9]+\.js/) || [])[0] ||
-    null;
-  const manId = (man.cdnUrl || '').match(/\/([a-z0-9]+\.js)/)?.[1] || null;
+  // Pin the identified/canonical foot loader; unrelated product-map scripts must not win.
+  const footerCdn = canonicalFootLoaderUrl(footer);
+  const manId = assetId(man.cdnUrl);
 
   // stage: disk
   const diskOk = Boolean(disk.ver && diskSha);
@@ -95,14 +121,27 @@ async function main() {
     detail: footerCdn ? `footer→${footerCdn}` : 'no catbox in footer-lite',
   });
 
-  // stage: manifest matches disk sha
+  // stage: manifest carries the complete attested disk identity. SHA equality
+  // alone is insufficient: stale/malformed metadata must not advance shipping
+  // to CM6 even when it happens to reference the same bytes.
+  const diskBytes = Buffer.byteLength(diskJs);
+  const normalizedManifestVersion = String(man.version || '').replace(/^v/i, '');
+  const normalizedManifestFootVer = String(man.footVer || '').replace(/^v/i, '');
   const manShaOk = Boolean(man.sha256 && diskSha && man.sha256 === diskSha);
+  const manBytesOk = Number.isSafeInteger(man.bytes) && man.bytes === diskBytes;
+  const manVersionOk = Boolean(disk.ver && normalizedManifestVersion === disk.ver);
+  const manMarkersAgree = Boolean(
+    normalizedManifestVersion && normalizedManifestVersion === normalizedManifestFootVer,
+  );
+  const manifestMatchesDisk = Boolean(
+    man.ok === true && manShaOk && manBytesOk && manVersionOk && manMarkersAgree,
+  );
   stages.push({
     id: 'manifest_matches_disk',
-    ok: manShaOk,
-    detail: manShaOk
-      ? `manifest ${man.version} == disk sha`
-      : `disk≠manifest (upload CDN + update DEMIGOD-FOOT-CDN.json)`,
+    ok: manifestMatchesDisk,
+    detail: manifestMatchesDisk
+      ? `attested manifest v${normalizedManifestVersion} == disk identity`
+      : `disk≠manifest identity (upload CDN + update DEMIGOD-FOOT-CDN.json)`,
   });
 
   // stage: live probe (shared 15s cache with truth)
@@ -114,11 +153,8 @@ async function main() {
       bust: process.argv.includes('--no-cache'),
     });
     const text = html.text || '';
-    const liveCdn =
-      (text.match(/src=["']https:\/\/files\.catbox\.moe\/([a-z0-9]+\.js)["']/) || [])[1] ||
-      (text.match(/files\.catbox\.moe\/([a-z0-9]+\.js)/) || [])[1] ||
-      null;
-    const liveId = liveCdn?.split('/').pop() || null;
+    const liveCdn = canonicalFootLoaderUrl(text);
+    const liveId = assetId(liveCdn);
     const liveFoot = (text.match(/foot v(\d+)/) || [])[1] || null;
     const pub = (text.match(/Last Published:[^<]{0,60}/) || [])[0] || null;
     live = {
@@ -140,13 +176,20 @@ async function main() {
     detail: live.ok ? `HTTP ${live.status}` : live.error || 'unreachable',
   });
 
-  const liveMatchesMan = Boolean(live.cdnId && manId && live.cdnId === manId);
+  // Full CDN URL (not basename foot-latest.js alone) — basename-only matched every jsDelivr pin.
+  const liveCdnCanon = canonicalAssetUrl(live.cdn);
+  const manCdnCanon = canonicalAssetUrl(man.cdnUrl);
+  const liveMatchesMan = Boolean(liveCdnCanon && manCdnCanon && liveCdnCanon === manCdnCanon);
+  const cdnPin = (u) => {
+    const m = String(u || '').match(/@([0-9a-f]{7,40})\//i);
+    return m ? m[1].slice(0, 12) : assetId(u) || '?';
+  };
   stages.push({
     id: 'live_matches_manifest',
     ok: liveMatchesMan,
     detail: liveMatchesMan
-      ? `live ${live.cdnId} == manifest`
-      : `live=${live.cdnId || '?'} man=${manId || '?'} — paste-publish footer`,
+      ? `live CDN == manifest @${cdnPin(manCdnCanon)}`
+      : `live≠man CDN — paste-publish footer (live@${cdnPin(liveCdnCanon)} man@${cdnPin(manCdnCanon)})`,
   });
 
   const liveMatchesDiskVer = Boolean(live.footVer && disk.ver && live.footVer === disk.ver);
@@ -205,19 +248,22 @@ async function main() {
   const allOk = stages.every((s) => s.ok);
   const next = stages.find((s) => !s.ok);
 
+  // Include liveMatchesDiskVer — without it nextCmd can say "all green" while stage=live_matches_disk_ver (disk≫live).
   const nextCmd = !syntaxOk
     ? 'node --check demigod-foot-core.js'
-    : !manShaOk
-      ? 'curl catbox upload + update DEMIGOD-FOOT-CDN.json + demigod-footer-lite.html'
+    : !manifestMatchesDisk
+      ? 'bin/dg ship cdn  # guarded upload + atomic manifest/footer update'
       : !footerPoints
         ? 'update demigod-footer-lite.html script src to CDN'
         : !liveMatchesMan
-          ? 'node demigod-cm6-paste-publish.mjs --footer-only  # needs CDP'
-          : !cdnBody.matchDisk
-            ? 'CDN body sha≠disk — re-upload catbox + update manifest'
-            : !live.ok
-              ? `curl -I ${LIVE}/`
-              : 'all green — no ship needed';
+          ? 'node demigod-cm6-paste-publish.mjs  # repairs + verifies head/footer; needs CDP'
+          : !liveMatchesDiskVer
+            ? 'node demigod-cm6-paste-publish.mjs  # live foot ver lags disk; paste footer after CDN'
+            : !cdnBody.matchDisk
+              ? 'bin/dg ship cdn  # CDN body drift: guarded re-upload + atomic manifest/footer update'
+              : !live.ok
+                ? `curl -I ${LIVE}/`
+                : 'all green — no ship needed';
 
   // Stage next (hash chain) is NOT the agent NEXT — attach canonical buildNext separately
   let nextCanon = null;
@@ -242,11 +288,26 @@ async function main() {
       diskVer: disk.ver,
       liveVer: live.footVer || null,
       manVer: man.version || null,
-      diskMatchesManifest: manShaOk,
+      liveCdnId: cdnPin(liveCdnCanon),
+      manCdnId: cdnPin(manCdnCanon),
+      diskMatchesManifest: manifestMatchesDisk,
       freezeOn: Boolean(readJson(path.join(BUSY, 'publish-freeze.json'))?.on),
     },
     disk: { ver: disk.ver, core: disk.core, sha256: diskSha },
-    manifest: { version: man.version || null, cdnUrl: man.cdnUrl || null, sha256: man.sha256 || null },
+    manifest: {
+      version: man.version || null,
+      footVer: man.footVer || null,
+      cdnUrl: man.cdnUrl || null,
+      sha256: man.sha256 || null,
+      bytes: Number.isSafeInteger(man.bytes) ? man.bytes : null,
+      attested: man.ok === true,
+      identityChecks: {
+        sha: manShaOk,
+        bytes: manBytesOk,
+        version: manVersionOk,
+        markersAgree: manMarkersAgree,
+      },
+    },
     footerLiteCdn: footerCdn,
     live,
     cdnBody,

@@ -39,6 +39,8 @@ function isE2eItem(item) {
   }
 
   if (raw.company === 'Test Co' || /^test@/i.test(email)) return 'e2e_test_keyword';
+  // RFC 2606 reserved TLDs can never belong to a real submitter (sms-sim uses @pending.example).
+  if (/@[^@]*\.(example|test|invalid|localhost)$/i.test(email)) return 'reserved_tld_fixture';
 
   return null;
 }

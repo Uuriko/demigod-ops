@@ -41,7 +41,7 @@ Website-first: **no auto-DM / Twitter blast**. Pilots come from inbound site (WI
 ## Warm inbound (not a pilot yet)
 | Who | Channel | Status | Next | Date |
 |-----|---------|--------|------|------|
-| Douglas Green (Alpha High / 1517) | email + Calendly | **call Tue 2026-07-14 13:30 PT** Meet | prep: `demigod-ops/DOUGLAS-GREEN-PREP-2026-07-14.md` · prep email **SENT** 2026-07-09 from potter@trydemigod.com (thread 1517) | 2026-07-09 |
+| Douglas Green (Alpha High / 1517) | email + Calendly | **call window passed** · **needs human outcome note** | prep pack ready · prep email already sent · log call outcome when known; warm ≠ pilot until brief | 2026-07-16 |
 | Webflow forms Acme/Alex | form | **test noise only** | ignore | 2026-06-30..07-04 |
 | hello@trydemigod.com | inbox | 0 threads (14d) | forms land on personal Gmail | 2026-07-09 |
 

@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-/** Log a real pilot → board JSON + CDN publish + receipt mint + signal card. */
+/**
+ * demigod-pilot-logger — log a REAL pilot after white-glove delivery
+ *
+ *   node demigod-pilot-logger.mjs --founder=… --brief=… [--outcome=…] [--no-publish]
+ *
+ * Runs board-honesty first. Default no fake receipts. Prefer --no-publish until
+ * board CDN should update. Warm inbound ≠ pilot — use bin/dg pilot warm first.
+ */
 import { execSync } from 'child_process';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);

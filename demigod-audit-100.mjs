@@ -49,20 +49,6 @@ function run(label, argv, { timeout = 120000, soft = false } = {}) {
   };
 }
 
-function sh(label, cmd, { timeout = 60000, soft = false } = {}) {
-  const t0 = Date.now();
-  const r = spawnSync('bash', ['-lc', cmd], { cwd: ROOT, encoding: 'utf8', timeout, env: process.env });
-  const out = `${r.stdout || ''}${r.stderr || ''}`;
-  return {
-    label,
-    ok: r.status === 0,
-    soft,
-    status: r.status,
-    ms: Date.now() - t0,
-    tail: out.trim().split('\n').slice(-8).join('\n'),
-  };
-}
-
 const layers = [];
 
 // L1
@@ -74,9 +60,9 @@ layers.push(run('L1-wiz-ownership', ['demigod-wiz-ownership-selftest.mjs'], { ti
 // L2
 if (!quick) layers.push(run('L2-tools-os-selftest', ['demigod-tools-os-selftest.mjs'], { timeout: 180000 }));
 layers.push(
-  sh(
+  run(
     'L2-registry-unique',
-    `node -e "import('./demigod-tools-registry.mjs').then(m=>{const t=m.TOOLS||m.tools||m.default||[]; const ids=(Array.isArray(t)?t:t.tools||[]).map(x=>x.id); if(!ids.length){console.log('no tools export'); process.exit(0)}; const s=new Set(ids); if(s.size!==ids.length){console.error('dups'); process.exit(1)}; console.log('unique', ids.length)})"`,
+    ['-e', "import('./demigod-tools-registry.mjs').then(m=>{const t=m.TOOLS||m.tools||m.default||[]; const ids=(Array.isArray(t)?t:t.tools||[]).map(x=>x.id); if(!ids.length){console.log('no tools export'); process.exit(0)}; const s=new Set(ids); if(s.size!==ids.length){console.error('dups'); process.exit(1)}; console.log('unique', ids.length)})"],
     { soft: true },
   ),
 );
@@ -93,28 +79,69 @@ layers.push(run('L4-lock-status', ['demigod-foot-lock.mjs', 'status'], { timeout
 layers.push(run('L5-board-honesty', ['demigod-verify-board-honesty.mjs'], { timeout: 30000 }));
 if (!quick) layers.push(run('L5-loop-state', ['demigod-verify-loop-state.mjs'], { timeout: 30000, soft: true }));
 
-// L6 dash
-layers.push(
-  sh('L6-dash-up', `curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:9878/ | grep -q 200`, {
+// L6 dash — argv curl only (no bash pipe / -lc)
+{
+  const t0 = Date.now();
+  const r = spawnSync(
+    'curl',
+    ['-sS', '-o', '/dev/null', '-w', '%{http_code}', '--max-time', '5', 'http://127.0.0.1:9878/'],
+    { encoding: 'utf8', timeout: 8000 },
+  );
+  const code = String(r.stdout || '').trim();
+  const ok = r.status === 0 && code === '200';
+  layers.push({
+    label: 'L6-dash-up',
+    ok,
     soft: true,
-  }),
-);
-layers.push(
-  sh(
-    'L6-api-orient',
-    `curl -sS --max-time 30 'http://127.0.0.1:9878/api/orient?refresh=0' | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d); if(!j.schema&&!j.next) process.exit(1); console.log(j.schema||'orient', j.next?.id||j.next);})"`,
-    { soft: true },
-  ),
-);
+    status: ok ? 0 : 1,
+    ms: Date.now() - t0,
+    tail: code || (r.stderr || '').trim().slice(-80),
+  });
+}
+{
+  const t0 = Date.now();
+  const r = spawnSync('curl', ['-sS', '--max-time', '30', 'http://127.0.0.1:9878/api/orient?refresh=0'], {
+    encoding: 'utf8',
+    timeout: 35000,
+  });
+  let ok = false;
+  let tail = '';
+  try {
+    const j = JSON.parse(r.stdout || '{}');
+    ok = !!(j.schema || j.next);
+    tail = `${j.schema || 'orient'} ${j.next?.id || j.next || ''}`.trim();
+  } catch (e) {
+    tail = String(e?.message || e).slice(0, 120);
+  }
+  layers.push({
+    label: 'L6-api-orient',
+    ok: r.status === 0 && ok,
+    soft: true,
+    status: r.status === 0 && ok ? 0 : 1,
+    ms: Date.now() - t0,
+    tail,
+  });
+}
 
-// L7 git signals
-layers.push(
-  sh(
-    'L7-git-dirty-site',
-    `git -C "${ROOT}" status --porcelain demigod-foot-core.js demigod-footer-lite.html demigod-head-minimal.html | wc -l | awk '{exit $1>0?1:0}'`,
-    { soft: true },
-  ),
-);
+// L7 git signals — cwd=ROOT (was broken: $DEMIGOD_ROOT often unset in bash -c)
+{
+  const t0 = Date.now();
+  const r = spawnSync(
+    'git',
+    ['status', '--porcelain', '--', 'demigod-foot-core.js', 'demigod-footer-lite.html', 'demigod-head-minimal.html'],
+    { cwd: ROOT, encoding: 'utf8', timeout: 15000 },
+  );
+  const dirty = (r.stdout || '').trim().length > 0;
+  const ok = r.status === 0 && !dirty;
+  layers.push({
+    label: 'L7-git-dirty-site',
+    ok,
+    soft: true,
+    status: ok ? 0 : 1,
+    ms: Date.now() - t0,
+    tail: dirty ? (r.stdout || '').trim().split('\n').slice(0, 5).join('\n') : r.status === 0 ? 'clean' : (r.stderr || '').trim().slice(-80),
+  });
+}
 
 const hard = layers.filter((l) => !l.soft);
 const soft = layers.filter((l) => l.soft);

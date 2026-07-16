@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * demigod-review-rules — pluggable rule catalog
+ * demigod-review-rules — pluggable rule catalog for demigod-review
+ *
  * Each rule: { id, sev, tier, run(ctx) => Finding[] }
  * ctx: { rel, src, root, isJs, isFoot, isMeta, bugMode, includeMeta }
+ * Foot-specific rules guard WIZ thrash, SLA copy, dual writers.
  */
 import fs from 'fs';
 import path from 'path';
@@ -629,9 +631,10 @@ export const RULES = [
       if (!isJs) return [];
       if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
       // Anti-pattern: treat stdout PASS as success when status may be non-zero
+      // Word-bound OK|PASS — avoids false hit on nav regex /LOOKING/ (contains "OK")
       if (!/status\s*===?\s*0/.test(src) && !/r\.status|exitCode|\.status\b/.test(src)) return [];
-      if (!/\|\|\s*\/[^/\n]*(?:OK|PASS)/.test(src) && !/status\s*===\s*0\s*\|\|/.test(src)) return [];
-      const hits = findAll(src, /status\s*===\s*0\s*\|\||\|\|\s*\/[^/\n]*(OK|PASS)/g);
+      if (!/\|\|\s*\/[^/\n]*\b(?:OK|PASS)\b/.test(src) && !/status\s*===\s*0\s*\|\|/.test(src)) return [];
+      const hits = findAll(src, /status\s*===\s*0\s*\|\||\|\|\s*\/[^/\n]*\b(OK|PASS)\b/g);
       return hits
         .filter((h) => {
           const lineStart = src.lastIndexOf('\n', h.index) + 1;
@@ -740,30 +743,28 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs, isMeta, bugMode }) {
       if (!isJs) return [];
-      // bash -lc with template interpolation risk
-      if (!/bash['"`],\s*\[\s*['"`]-lc['"`]/.test(src) && !/spawnSync\(\s*['"`]bash['"`]/.test(src)) return [];
-      const hits = findAll(src, /\$\{|`[^`]*\$\(/g);
-      if (!hits.length && !/bash.*-lc/.test(src)) return [];
-      // only flag when -lc and ${ in same 200 chars
+      // Real bash -lc only (argv or shell token). Bare /-lc/ matched comments ("spawn-shell-lc",
+      // "no bash -lc") and produced quality-loop false P1 highs (Q3 c213/c214 on clean files).
       const out = [];
-      const lc = findAll(src, /-lc/g);
-      for (const h of lc) {
-        const win = src.slice(h.index, h.index + 180);
+      const argvLc = findAll(src, /['"`]bash['"`]\s*,\s*\[\s*['"`]-lc['"`]/g);
+      const tokenLc = findAll(src, /\bbash\s+-lc\b/g);
+      for (const h of [...argvLc, ...tokenLc]) {
+        const win = src.slice(Math.max(0, h.index - 40), h.index + 200);
         if (/NEVER splice|No bash -lc|spawn-shell-lc|command injection/i.test(win)) continue;
-        if (/\$\{/.test(win) || /\$\(/.test(win)) {
-          out.push(
-            finding({
-              rule: 'spawn-shell-lc',
-              sev: bugMode ? 'high' : 'medium',
-              file: rel,
-              line: lineNo(src, h.index),
-              title: 'bash -lc with possible interpolation',
-              detail: 'Prefer argv arrays; avoid embedding untrusted content in -lc strings',
-              fix: 'spawnSync(cmd, argv, {shell:false}) or fixed script path',
-              tier: 'B',
-            }),
-          );
-        }
+        // only when template/`$(` interpolation sits near the -lc invocation
+        if (!/\$\{/.test(win) && !/\$\(/.test(win)) continue;
+        out.push(
+          finding({
+            rule: 'spawn-shell-lc',
+            sev: bugMode ? 'high' : 'medium',
+            file: rel,
+            line: lineNo(src, h.index),
+            title: 'bash -lc with possible interpolation',
+            detail: 'Prefer argv arrays; avoid embedding untrusted content in -lc strings',
+            fix: 'spawnSync(cmd, argv, {shell:false}) or fixed script path',
+            tier: 'B',
+          }),
+        );
       }
       return out.slice(0, 8);
     },

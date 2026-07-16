@@ -26,9 +26,8 @@ const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
 
 const args = new Set(process.argv.slice(2));
-const suiteArg = process.argv.includes('--suite')
-  ? process.argv[process.argv.indexOf('--suite') + 1]
-  : 'all';
+const suiteArg = process.argv.find((arg) => arg.startsWith('--suite='))?.slice(8) ||
+  (process.argv.includes('--suite') ? process.argv[process.argv.indexOf('--suite') + 1] : 'all');
 const QUICK = args.has('--quick');
 const STRICT = args.has('--strict');
 const JSON_ONLY = args.has('--json');
@@ -164,7 +163,13 @@ async function suiteSite() {
   check('site', 'home HTTP 200', home.ok && home.status === 200, `status=${home.status} ${home.ms}ms`, 'critical');
   check('site', 'home TTFB < 4s', home.ms < 4000, `${home.ms}ms`, 'medium');
   check('site', 'foot version in HTML', /foot v\d+|__dgFootVer|dgFootVersion/.test(home.text), '', 'high');
-  check('site', 'catbox foot script', /files\.catbox\.moe\/[a-z0-9]+\.js/.test(home.text), '', 'high');
+  check(
+    'site',
+    'CDN foot script',
+    /files\.catbox\.moe\/[a-z0-9]+\.js/.test(home.text) || /cdn\.jsdelivr\.net\/gh\/[^"]+\.js/.test(home.text),
+    '',
+    'high',
+  );
   check(
     'site',
     'no banned SLA/48h in raw HTML',
@@ -327,7 +332,7 @@ async function suiteSite() {
 }
 
 async function suiteDash() {
-  const health = await httpGet(`${DASH}/api/health`, 3000);
+  const health = await httpGet(`${DASH}/healthz`, 3000);
   check('dash', 'health up', health.ok, health.text.slice(0, 80), 'critical');
   if (!health.ok) return;
 
@@ -487,11 +492,13 @@ async function suiteDash() {
     check('dash', 'SSE events hello', false, String(e.message || e), 'medium');
   }
   // Client JS parse
-  const script = (ui.text.match(/<script>([\s\S]*)<\/script>/) || [])[1];
-  if (script) {
+  const scripts = [...ui.text.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1])
+    .filter((script) => script.trim());
+  if (scripts.length) {
     try {
       // eslint-disable-next-line no-new-func
-      new Function(script);
+      scripts.forEach((script) => new Function(script));
       check('dash', 'UI client JS parses', true, '', 'critical');
     } catch (e) {
       check('dash', 'UI client JS parses', false, e.message, 'critical');

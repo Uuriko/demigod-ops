@@ -148,3 +148,12 @@ Live-tested CDP: home, `?p=how`, `?p=pricing`, `?p=faq`.
 - Focus-visible gold rings; soft Tab trap on mini-pages
 - Pilot log: website-first / no auto-DM phase note
 - Commit: `9d12301` · freeze ON
+
+## Update: cycle 324 implementation audit (2026-07-15)
+
+- Canonical website source is foot v423; foot smoke and WIZ ownership selftest pass.
+- Head/foot CM6 separation, unhide-v5, single-loader, release-identity, demand/inbound honesty, dashboard/control, canonical NEXT, and truth/lock contracts pass their relevant selftests.
+- Auto-DM remains disabled; no pilot or send evidence was synthesized.
+- Release is intentionally blocked before CM6: staged manifest v213 does not match core v423 (SHA and byte count also differ).
+- Guarded CDN staging attempted all configured transports and preserved canonical artifacts after none were available (`release-transport-unavailable`; GitHub CLI unauthenticated, external DNS unavailable, CDP offline).
+- Truth remains fail-closed until an attested CDN asset matches the canonical v423 source; no publish mutation was attempted from the stale manifest.

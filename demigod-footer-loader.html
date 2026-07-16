@@ -1,12 +1,21 @@
-<!-- demigod-foot-cdn-loader v27 + events + foot v211 -->
+<!-- demigod-foot-cdn-loader v28 + events + foot v572 -->
 <script>(function(){var p=location.pathname;
 if(/^\/legal\/?$/i.test(p)&&!/[?&]p=/.test(location.search))location.replace('/?p=legal');
+else if(/^\/(?:blog|notes)\/([a-z0-9-]+)\/?$/i.test(p))location.replace('/?p=blog#note-'+p.match(/^\/(?:blog|notes)\/([a-z0-9-]+)\/?$/i)[1]);
+else if(/^\/(blog|notes)\/?$/i.test(p))location.replace('/?p=blog');
+else if(/^\/method\/?$/i.test(p))location.replace('/?p=method');
 else if(/^\/partnerships?\/?$/i.test(p))location.replace('/?p=partners');
 else if(/^\/how\/?$/i.test(p))location.replace('/?p=how');
 else if(/^\/pricing\/?$/i.test(p))location.replace('/?p=pricing');
 else if(/^\/faq\/?$/i.test(p))location.replace('/?p=faq');
+else if(/^\/founders\/?$/i.test(p))location.replace('/?p=founders');
+else if(/^\/candidates\/?$/i.test(p))location.replace('/?p=candidates');
+else if(/^\/fees\/?$/i.test(p))location.replace('/?p=pricing');
+else if(/^\/security\/?$/i.test(p))location.replace('/?p=legal');
+else if(/^\/sample\/?$/i.test(p))location.replace('/?p=sample');
+else if(/^\/network\/?$/i.test(p))location.replace('/?p=talent');
 else if(/^\/hire\/?$/i.test(p))location.replace('/?p=hire');
-else if(/^\/talent\/?$/i.test(p)||/^\/network\/?$/i.test(p))location.replace('/?p=talent');
+else if(/^\/talent\/?$/i.test(p))location.replace('/?p=talent');
 else if(/^\/contact\/?$/i.test(p))location.replace('/?p=contact');
 else if(/^\/compare\/?$/i.test(p))location.replace('/?p=compare');
 else if(/^\/pilot\/?$/i.test(p))location.replace('/?p=pilot');
@@ -14,4 +23,4 @@ else if(/^\/about\/?$/i.test(p))location.replace('/?p=about');
 else if(/^\/status\/?$/i.test(p))location.replace('/?p=status');
 else if(/^\/events\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
 })();</script>
-<script src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@4cf747e2964c/foot-latest.js"></script>
+<script id="demigod-foot-cdn-loader" src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@11622275daa2/foot-latest.js"></script>

@@ -77,6 +77,13 @@ const q = extractAssign('WIZ_Q');
 
 ok(/var\s+WIZ_CFG\s*=/.test(src), 'WIZ_CFG present');
 ok(/var\s+WIZ_Q\s*=/.test(src), 'WIZ_Q present');
+ok(/role=["']progressbar["']/.test(src), 'WIZ progressbar semantics');
+ok(/setAttribute\(["']aria-valuenow["']/.test(src), 'WIZ progressbar state sync');
+ok(/eErr\.id\s*=\s*eErr\.id\s*\|\|/.test(src) &&
+  /el\.setAttribute\(["']aria-describedby["']\s*,\s*eErr\.id\)/.test(src),
+  'WIZ email validation describes its alert');
+ok(/getAttribute\(["']aria-describedby["']\).*removeAttribute\(["']aria-describedby["']\)/.test(src),
+  'WIZ cleared validation removes its owned description');
 
 // Startup ownership
 ok(/startup\s*:\s*\{[^}]*steps\s*:\s*\[[^\]]*'90day-outcome'/s.test(src) || src.includes("['90day-outcome']"), 'startup step 90day-outcome');

@@ -1,7 +1,14 @@
 #!/usr/bin/env node
-// Board honesty gate — pre-services phase: fails on any fabricated proof.
-// Always writes DEMIGOD-BOARD-HONESTY.json so control plane / dash can read pass/fail.
-import { readFileSync, writeFileSync, lstatSync, existsSync } from 'fs';
+/**
+ * demigod-verify-board-honesty — gate: no fabricated roles/receipts on board
+ *
+ *   node demigod-verify-board-honesty.mjs
+ *
+ * Pre-services: ≤3 seed sample roles; realRoles/real receipts must stay 0 until
+ * a human-delivered intro. Always writes DEMIGOD-BOARD-HONESTY.json for control/dash.
+ * Exit ≠0 on fail. Reads DEMIGOD-BOARD.json (or demigod-board.json alias).
+ */
+import { readFileSync, writeFileSync, renameSync, lstatSync, existsSync } from 'fs';
 import path from 'path';
 
 const ROOT = process.env.DEMIGOD_ROOT || process.cwd();
@@ -44,7 +51,11 @@ const report = {
   realReceipts: s.realReceipts ?? 0,
 };
 try {
-  writeFileSync(outPath, JSON.stringify(report, null, 2) + '\n');
+  // Atomic write (temp+rename): coord + autopilot run this gate concurrently; a direct write
+  // can be read torn → transient false signal. Same fix as verify-source.mjs.
+  const tmp = `${outPath}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(report, null, 2) + '\n');
+  renameSync(tmp, outPath);
 } catch (e) {
   console.error('warn: could not write honesty json', e.message || e);
 }

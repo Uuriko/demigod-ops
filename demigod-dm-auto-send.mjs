@@ -2,16 +2,13 @@
 /**
  * demigod-dm-auto-send — agent-authorized X DM send via CDP (Playwright)
  *
- * Policy: user authorized auto-DM (2026-07-15). Requires Chrome CDP with
- * an X session already logged in at http://127.0.0.1:9223.
+ * STOPPED: auto-DM disabled by user request (2026-07-15).
+ * Refuse real sends unless DEMIGOD_ALLOW_AUTO_DM=1 (emergency only).
+ * Default: dry/prep only. Human sends DMs; mark-sent after.
  *
- *   node demigod-dm-auto-send.mjs --name=T0
- *   node demigod-dm-auto-send.mjs --names=T0,Hellyeah,Weave
- *   bin/dg demand send --name=T0
- *
- * On success: appends SENT-CONFIRMED via mark-sent --i-sent-it --channel=x --agent-auto
- * Never invents success if login/message UI missing.
+ *   node demigod-dm-auto-send.mjs --name=T0 --dry
  */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -377,6 +374,10 @@ async function sendOne(page, { name, handle, body }) {
 }
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const allow =
+    process.env.DEMIGOD_ALLOW_AUTO_DM === '1' ||
+    process.env.DEMIGOD_ALLOW_AUTO_DM === 'true';
+
   let names = args.names;
   const queue = parseQueue();
   if (!names.length) {
@@ -395,11 +396,31 @@ async function main() {
   const report = {
     schema: 'demigod.dm-auto-send/1',
     at: new Date().toISOString(),
-    policy: 'auto-dm-allowed',
+    policy: allow ? 'auto-dm-opt-in' : 'auto-dm-stopped',
     cdp: CDP,
     dry: args.dry,
     results: [],
   };
+
+  // Hard stop unless dry or explicit env opt-in
+  if (!args.dry && !allow) {
+    report.error = 'auto_dm_stopped';
+    report.hint =
+      'User stopped auto-DM. Use bin/dg demand draft --name=… then send yourself. Opt-in only: DEMIGOD_ALLOW_AUTO_DM=1';
+    for (const t of targets) {
+      report.results.push({
+        ok: false,
+        name: t.name,
+        handle: t.handle,
+        error: 'auto_dm_stopped',
+        dry: false,
+      });
+    }
+    fs.mkdirSync(BUSY, { recursive: true });
+    fs.writeFileSync(path.join(BUSY, 'dm-auto-send.json'), JSON.stringify(report, null, 2));
+    console.error(JSON.stringify(report, null, 2));
+    process.exit(2);
+  }
 
   if (args.dry) {
     for (const t of targets) {

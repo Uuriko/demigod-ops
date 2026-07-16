@@ -45,16 +45,20 @@ console.log('90d-outcome:', outcome);
 console.log('Signal:', score, hasMetric ? '(strong metric)' : '');
 
 if (score >= 70) {
-  console.log('\nHIGH SIGNAL — route to human review + pilot.');
+  console.log('\nHIGH SIGNAL — route to human review + white-glove (not auto-mint board).');
   const pilotCmd = `node demigod-pilot-logger.mjs --founder="${email}" --brief="${brief}" --outcome="${outcome}" --intros=0 --no-publish --no-receipt --no-signal`;
-  console.log('Suggested:', pilotCmd);
+  console.log('Suggested after real delivery:', pilotCmd);
+  console.log('Warm log: bin/dg pilot warm --who="' + email + '" --channel=wiz');
+  console.log('Checklist: bin/dg pilot white-glove');
   if (doLog || args.logpilot) {
-    console.log('Auto-logging high signal pilot (dry: no publish)...');
+    console.log('Logging high-signal (dry: no publish, no fake receipt)...');
     const res = spawnSync('node', ['demigod-pilot-logger.mjs', `--founder=${email}`, `--brief=${brief}`, `--outcome=${outcome}`, '--intros=0', '--no-publish', '--no-receipt', '--no-signal'], { encoding: 'utf8' });
     console.log(res.stdout || res.stderr || 'logged (check board/pilots)');
   }
 } else {
   console.log('\nNEEDS MORE — follow up for better 90d specifics (pre-services: email).');
+  console.log('Still log warm: bin/dg pilot warm --who="' + email + '" --channel=wiz --status=needs-90d');
 }
 
-console.log('\nPre-services note: real flow will come from webhook + WIZ data + this triage.');
+console.log('\nPath: WIZ → bin/dg pilot from-wiz → warm/PILOT-LOG → white-glove → pilot-logger after delivery.');
+console.log('Pre-services: webhook+WIZ later; until then human email + this triage.');

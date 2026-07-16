@@ -1,15 +1,24 @@
 # Demigod — Simple (the only card)
 
-**Product:** SF human-matched talent · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
+**Product:** SF tech-matched talent, humans in the loop · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
 **Site:** foot-core only for JS · Webflow + CDN · freeze when green  
-**Phase (2026-07-15):** Website + startup only — no Twitter/auto-DM · live foot **v209**  
+**Phase (2026-07-16):** Website + startup only — no Twitter/auto-DM · disk/man/live foot **v572** (CDN@11622275daa2 · fullyShipped)
+
+## User communication (standing)
+
+- **Never assign the user work** or list “what you should do next” (DMs, calls, Publish, fees).
+- Report agent results only. **Human-action advice only if the user asks** (“what should I do?”).
+
+## Ponytail (all agents)
+
+**Required:** write code like a lazy senior (YAGNI → reuse → stdlib → native → min). Rules: `docs/PONYTAIL-AGENTS.md`, plugin `ponytail@ponytail`. Keep safety checks.
 
 ## Every session (4 steps)
 
 1. `bin/dg orient` → 5-line card (green / freeze / NEXT / demand / assertSame)
 2. One goal. One writer if touching `demigod-foot-core.js`
 3. Do the smallest change. Verify: `npm run demigod:verify:source` (+ honesty if board)
-4. Stop. Human owns: freeze, Publish, real DMs, fees
+4. Stop. (Freeze / Publish / real DMs / fees are human-owned when *they* choose — agents don’t prompt them.)
 
 ## Who does what (no org chart)
 

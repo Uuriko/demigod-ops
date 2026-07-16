@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * demigod-webflow-lib — shared Webflow/CDP helpers for agents
+ * demigod-webflow-lib — shared Webflow Designer / Custom Code CDP helpers
+ *
+ * Used by: demigod-webflow.mjs, cm6-paste, ship scripts. Prefer freeze-aware callers.
+ * CDP default: http://127.0.0.1:9223
  */
 import fs from 'fs';
 import path from 'path';
@@ -29,14 +32,22 @@ export const CANONICAL = {
   footManifest: 'DEMIGOD-FOOT-CDN.json',
 };
 
-/** Classify a browser tab URL into a Demigod role */
-export function classifyTab(url = '') {
+/** Classify a browser tab URL (+ optional title) into a Demigod role */
+export function classifyTab(url = '', title = '') {
   const u = String(url);
+  const tit = String(title || '');
   if (!u || u === 'about:blank') return 'blank';
   if (/127\.0\.0\.1:9878|localhost:9878/.test(u)) return 'ops-dash';
   if (/trydemigod\.com/.test(u)) return 'live';
   if (/design\.webflow\.com/.test(u)) return 'designer';
-  if (/custom-code|custom_code/.test(u)) return 'custom-code';
+  // Login wall often keeps "custom-code" in the r= query — must not count as paste-ready
+  if (/webflow\.com\/login/i.test(u)) return 'webflow-login';
+  // 404 custom-code (wrong account / no session) is not paste-ready
+  if (/custom-code|custom_code/.test(u) && !/webflow\.com\/login/i.test(u)) {
+    // empty title = still loading or denied shell — not paste-ready
+    if (!tit.trim() || /^404\b|Access to this page has been denied|not the page you were looking/i.test(tit)) return 'webflow-login';
+    return 'custom-code';
+  }
   if (/webflow\.com\/.*\/forms|webflow\.com\/forms/.test(u)) return 'forms';
   if (/webflow\.com\/dashboard/.test(u)) return 'wf-dashboard';
   if (/webflow\.com/.test(u)) return 'webflow-other';
@@ -60,7 +71,7 @@ export async function cdpUp() {
       webSocketDebuggerUrl: v.webSocketDebuggerUrl,
     };
   } catch (e) {
-    return { ok: false, error: String(e.message || e) };
+    return { ok: false, error: [e.message || e, e.cause?.code].filter(Boolean).join(' · ') };
   }
 }
 
@@ -73,7 +84,7 @@ export async function listPages() {
       type: t.type,
       title: (t.title || '').slice(0, 80),
       url: t.url || '',
-      role: classifyTab(t.url || ''),
+      role: classifyTab(t.url || '', t.title || ''),
       webSocketDebuggerUrl: t.webSocketDebuggerUrl,
     }));
   } catch {
@@ -82,16 +93,15 @@ export async function listPages() {
 }
 
 export function freezeStatus() {
-  const j = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
-  const envOn = process.env.DEMIGOD_PUBLISH_FREEZE === '1' || process.env.DEMIGOD_PUBLISH_FREEZE === 'true';
-  const fileOn = Boolean(j.on);
+  // Publish freeze disabled entirely for now — never block paste/publish on freeze.
   return {
-    frozen: envOn || fileOn,
-    env: envOn,
-    file: fileOn,
-    why: j.why || null,
-    at: j.at || null,
-    by: j.by || null,
+    frozen: false,
+    disabled: true,
+    env: false,
+    file: false,
+    why: 'freeze disabled (entirely off for now)',
+    at: null,
+    by: null,
   };
 }
 
@@ -106,12 +116,15 @@ export function diskTruth() {
     ? fs.readFileSync(path.join(ROOT, CANONICAL.footerLite), 'utf8')
     : '';
   const footLoaderVer = (footer.match(/demigod-foot-cdn-loader v(\d+)/) || [])[1] || null;
+  const footerShipReady =
+    /blog\|notes/.test(footer) && /#note-/.test(footer) && /\/method/.test(footer) && /\\\/sample/.test(footer) && /p=sample/.test(footer);
   const man = readJson(path.join(ROOT, CANONICAL.footManifest)) || {};
   const sha = foot ? crypto.createHash('sha256').update(foot).digest('hex') : null;
   return {
     footVer: ver ? `v${ver}` : null,
     footSha256: sha,
     footerLoaderVer: footLoaderVer ? `v${footLoaderVer}` : null,
+    footerShipReady,
     manifest: {
       version: man.version || man.footVer || null,
       cdnUrl: man.cdnUrl || man.url || null,
@@ -146,6 +159,10 @@ export async function liveTruth() {
       (html.match(/foot v(\d+)/i) || [])[1] ||
       (html.match(/__dgFootVer['"]?\s*[:=]\s*['"]?(\d+)/) || [])[1] ||
       null;
+    const metaCounts = {
+      description: (html.match(/<meta\s+[^>]*name=["']description["'][^>]*>/gi) || []).length,
+      ogTitle: (html.match(/<meta\s+[^>]*property=["']og:title["'][^>]*>/gi) || []).length,
+    };
     return {
       ok: r.ok,
       status: r.status,
@@ -153,19 +170,20 @@ export async function liveTruth() {
       footerLoaderVer: loader ? `v${loader}` : null,
       footVerHint: footVer ? `v${footVer}` : null,
       hasFooterLoader: /demigod-foot-cdn-loader|catbox\.moe\/[a-z0-9]+\.js/i.test(html),
+      metaCounts,
       bytes: html.length,
     };
   } catch (e) {
-    return { ok: false, error: String(e.message || e) };
+    return { ok: false, error: [e.message || e, e.cause?.code].filter(Boolean).join(' · ') };
   }
 }
 
 export const TOOL_MAP = {
   'paste-footer': {
-    cmd: 'node demigod-cm6-paste-publish.mjs --footer-only',
+    cmd: 'node demigod-cm6-paste-publish.mjs',
     mutate: true,
     needs: ['cdp', 'custom-code-tab'],
-    purpose: 'Paste footer-lite into Webflow Custom Code (CM6 dispatch)',
+    purpose: 'Repair and verify the canonical head + footer pair (CM6 dispatch)',
   },
   'paste-head-footer': {
     cmd: 'node demigod-cm6-paste-publish.mjs',
@@ -217,7 +235,7 @@ export const PLAYBOOKS = {
     ],
   },
   'prep-footer-paste': {
-    title: 'Prepare footer custom-code paste (respect freeze)',
+    title: 'Prepare canonical head + footer paste',
     mutate: true,
     steps: [
       'bin/dg-webflow doctor',
@@ -225,17 +243,28 @@ export const PLAYBOOKS = {
       'bin/dg-webflow open custom-code   # if missing',
       'bin/dg-webflow paste-check',
       'bin/dg-webflow run paste-footer --dry-run',
-      '# freeze OFF + approved: bin/dg-webflow run paste-footer',
+      '# Foot lock required for mutation: bin/dg lock claim --owner "$USER" --why webflow-ship',
+      'bin/dg-webflow run paste-footer',
     ],
   },
   'ship-foot-cdn-only': {
     title: 'CDN foot upload only (no Webflow UI)',
     mutate: true,
     steps: [
-      'bin/dg-webflow freeze',
       'npm run demigod:verify:source',
       'bin/dg-webflow run foot-cdn',
       'bin/dg-webflow truth',
+    ],
+  },
+  'ship-all': {
+    title: 'Canonical verify → CDN → Custom Code → live proof',
+    mutate: true,
+    steps: [
+      'bin/dg ship prepare',
+      'bin/dg lock claim --owner "$USER" --why webflow-ship   # export the printed DG_LOCK_TOKEN',
+      'bin/dg ship run   # prepare → foot-cdn → CM6 head+footer paste → truth verify',
+      'bin/dg truth --require-match',
+      'node demigod-agent-smoke.mjs',
     ],
   },
   'post-publish-confirm': {
@@ -257,13 +286,17 @@ export const PLAYBOOKS = {
 export function agentTips(status) {
   const tips = [];
   if (!status.cdp?.ok) {
-    tips.push('CDP down — ~/agent-dev.sh up (Chrome :9223, Webflow-logged profile).');
+    tips.push(/EPERM/.test(status.cdp?.error || '')
+      ? 'CDP unobservable — this namespace blocks the local probe.'
+      : 'CDP down — ~/agent-dev.sh up (Chrome :9223, Webflow-logged profile).');
   }
-  if (status.freeze?.frozen) {
-    tips.push('Publish FREEZE ON — no paste/publish. Safe: status, truth, smoke, tab-prune.');
-  }
+  tips.push(status.freeze?.frozen
+    ? `Publish freeze is enabled${status.freeze.why ? ` — ${status.freeze.why}` : ''}; read-only checks only.`
+    : 'Publish freeze is disabled; foot CDN/paste mutations still require the foot lock.');
   const roles = status.tabs?.byRole || {};
-  if (!(roles['custom-code'] > 0) && status.cdp?.ok) {
+  if ((roles['webflow-login'] || 0) > 0 && status.cdp?.ok) {
+    tips.push('Webflow login/404 wall — re-auth site-owner account (not empty Google workspace), then open custom-code');
+  } else if (!(roles['custom-code'] > 0) && status.cdp?.ok) {
     tips.push('No Custom Code tab — bin/dg-webflow open custom-code');
   }
   if (!(roles.designer > 0) && status.cdp?.ok) {
@@ -288,6 +321,24 @@ export function agentTips(status) {
   tips.push('CM6: use demigod-cm6-paste-publish.mjs (cmTile.view.dispatch), never keyboard.type megabytes');
   tips.push('Site talentlink-sf · live trydemigod.com · Designer talentlink-sf.design.webflow.com');
   return tips;
+}
+
+/** Route a plain-language site change to the existing canonical toolchain. */
+export function classifyChange(intent = '') {
+  const text = String(intent).trim();
+  const rules = [
+    { type: 'cms', test: /\b(cms|collection|blog post|note post)\b/i, files: ['demigod-blog-posts.json'], commands: ['node demigod-webflow-blog-cms-setup.mjs', '# Dry-run only until Webflow API/Designer credentials are available'] },
+    { type: 'assets', test: /\b(asset|image|photo|hero image|upload)\b/i, files: ['assets/', 'demigod-assets/'], commands: ['node demigod-blog-assets-gen.mjs', 'bin/dg-webflow open designer'] },
+    { type: 'page-settings-seo', test: /\b(page settings|page title|meta description|open graph title)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Page Settings → SEO/Open Graph; then: bin/dg-webflow playbook post-publish-confirm'] },
+    { type: 'head-meta', test: /\b(meta|seo|favicon|open graph|og image|title tag|canonical|structured data|schema)\b/i, files: ['demigod-head-minimal.html'], commands: ['node demigod-favicon-ship.mjs   # only for favicon changes', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
+    { type: 'head-css', test: /\b(css|style|font|color|spacing|responsive|mobile|animation)\b/i, files: ['demigod-head-styles.css', 'demigod-head-minimal.html'], commands: ['node demigod-head-css-publish.mjs', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
+    { type: 'custom-code-head', test: /\b(head|header) (code|custom code)\b/i, files: ['demigod-head-minimal.html'], commands: ['npm run demigod:verify:source', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
+    { type: 'custom-code-footer', test: /\b(footer|loader) (code|custom code)\b/i, files: ['demigod-footer-lite.html'], commands: ['npm run demigod:verify:source', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
+    { type: 'designer-layout', test: /\b(designer|layout|section|component|grid|webflow page)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },
+    { type: 'foot-js', test: /\b(js|javascript|behavior|form|wizard|modal|nav|interaction|copy|cta|button|page overlay)\b/i, files: ['demigod-foot-core.js'], commands: ['bin/dg lock claim --owner "$USER" --why "<intent>"', 'npm run demigod:verify:source', 'bin/dg-webflow playbook ship-all'] },
+  ];
+  const hit = rules.find((rule) => rule.test.test(text)) || { type: 'unknown', files: [], commands: ['bin/dg-webflow doctor'], note: 'No canonical route matched; inspect before mutating.' };
+  return { intent: text, type: hit.type, files: hit.files, commands: hit.commands, note: hit.note || (hit.type === 'cms' ? 'CMS integration is dry-run only.' : null) };
 }
 
 export async function buildStatus() {
@@ -372,7 +423,7 @@ export async function pasteCheck() {
   return {
     ok: true,
     tab: { id: cc.id, url: cc.url, title: cc.title },
-    hint: 'Custom Code tab found. Paste with: node demigod-cm6-paste-publish.mjs --footer-only',
+    hint: 'Custom Code tab found. Paste with: node demigod-cm6-paste-publish.mjs',
     cm6Script: 'demigod-cm6-paste-publish.mjs uses .cm-content cmTile.view.dispatch',
   };
 }

@@ -1,3 +1,6 @@
+/* demigod-pages/_shell.css — CANONICAL product page shell (used by demigod-pages/*.html)
+ * Cool-black editorial + gold signal. Loaded by product HTML, not Webflow canvas.
+ */
 /* Demigod product shell v4 — cool-black product editorial */
 :root {
   --bg: #050508;

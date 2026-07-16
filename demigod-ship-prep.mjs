@@ -63,7 +63,7 @@ const report = {
         'node demigod-publish-freeze.mjs off',
         'node demigod-foot-cdn-publish.mjs',
         'node demigod-head-css-publish.mjs',
-        'node demigod-cm6-paste-publish.mjs --footer-only  # or full custom-code',
+        'node demigod-cm6-paste-publish.mjs  # canonical head + footer pair',
         'Human or demigod-webflow-publish-auto: Publish',
       ]
     : [

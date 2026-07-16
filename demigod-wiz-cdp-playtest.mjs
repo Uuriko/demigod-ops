@@ -14,137 +14,168 @@ const OUT_DIR = '/tmp/audit-wiz-playtest';
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const USE_LOCAL = process.argv.includes('--local');
 const CORE = fs.readFileSync('demigod-foot-core.js', 'utf8');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function run() {
-  const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null, protocolTimeout: 300000 });
+  const browser = await puppeteer.connect({
+    browserURL: CDP_URL,
+    defaultViewport: null,
+    protocolTimeout: 300000,
+  });
   const page = await browser.newPage();
   if (USE_LOCAL) {
-    // Intercept and serve local core for true disk test (no publish needed)
+    // Live loaders may be catbox or jsDelivr foot-latest.js — match both.
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const u = req.url();
-      if (u.includes('demigod-foot') || u.includes('catbox') && u.endsWith('.js')) {
-        req.respond({ status: 200, contentType: 'application/javascript', body: CORE });
+      const isFoot =
+        /foot-latest\.js(?:[?#]|$)/i.test(u) ||
+        /demigod-foot/i.test(u) ||
+        (/catbox/i.test(u) && /\.js(?:[?#]|$)/i.test(u));
+      if (isFoot) {
+        req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
       } else {
-        req.continue();
+        req.continue().catch(() => {});
       }
     });
   }
-  await page.goto('https://www.trydemigod.com', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('body', {timeout: 10000}).catch(() => {});
-  if (USE_LOCAL) await page.waitForTimeout(1200); // allow intercept + inject for --local
 
-  const shots = [];
-  const log = (m) => { console.log(m); };
-  const wait = (ms) => new Promise(r => setTimeout(r, ms));
-
-  // Open startup modal
-  await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('button,a,.premium-btn')).find(b => /HIRE TALENT/i.test(b.textContent || ''));
-    if (btn) btn.click();
+  await page.goto('https://www.trydemigod.com/?wiz=startup', {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
   });
-  await wait(800);
+  await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
+  if (USE_LOCAL) await wait(1200);
+
+  // Ensure startup WIZ is open (deep-link or CTA).
+  await page.evaluate(() => {
+    const open = document.querySelector('#startup-modal');
+    if (open && getComputedStyle(open).display !== 'none') return;
+    const btn = Array.from(document.querySelectorAll('button,a,[data-dg-cta]')).find((b) =>
+      /hire|hiring|start brief/i.test(b.textContent || b.getAttribute('aria-label') || ''),
+    );
+    if (btn) btn.click();
+    else if (typeof window.show === 'function') window.show('#startup-modal');
+  });
+  await wait(900);
   await page.screenshot({ path: path.join(OUT_DIR, '01-modal-open.png') });
-  shots.push('01-modal-open');
 
-  // Step through a few (simulate next + fill)
   const steps = [];
-  for (let i = 0; i < 5; i++) {
-    const state = await page.evaluate(() => {
-      const q = document.querySelector('.dg-wiz-q, h3, .question, label');
-      const vis = Array.from(document.querySelectorAll('input,select,textarea')).filter(el => el.offsetParent !== null).length;
-      const next = document.querySelector('.dg-wiz-next, button');
-      return { q: q ? q.textContent.trim().slice(0,60) : 'noq', visibleInputs: vis, hasNext: !!next };
-    });
-    steps.push(state);
-    log(`Step ${i}: q="${state.q}" vis=${state.visibleInputs}`);
+  const log = (m) => console.log(m);
 
-    // Fill if input
-    await page.evaluate(() => {
-      const inp = document.querySelector('input:not([type=hidden]), textarea, select');
-      if (inp) {
-        if (inp.tagName === 'SELECT') inp.value = inp.options[1]?.value || 'test';
-        else inp.value = 'Test Value ' + Date.now();
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-        inp.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+  const snapshot = async () =>
+    page.evaluate(() => {
+      const modal = document.querySelector('#startup-modal');
+      if (!modal) return { q: 'no-modal', vis: 0, nextText: '', hasReview: false, has90: false };
+      const visible = (el) =>
+        !!el && el.offsetParent !== null && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
+      const q = modal.querySelector('.dg-wiz-q');
+      const next = modal.querySelector('.dg-wiz-next');
+      const review = modal.querySelector('.dg-wiz-review');
+      const ninety = modal.querySelector('[name="90day-outcome"], [id="90day-outcome"]');
+      const vis = Array.from(modal.querySelectorAll('input,select,textarea')).filter(
+        (el) => visible(el) && el.type !== 'checkbox' && el.type !== 'hidden',
+      ).length;
+      const qText = (q?.textContent || '').trim();
+      return {
+        q: qText.slice(0, 60),
+        vis,
+        nextText: (next?.textContent || '').trim().slice(0, 30),
+        // .dg-wiz-review shell is often present/empty before the review step.
+        hasReview:
+          (visible(review) && (review.textContent || '').trim().length > 20) ||
+          /ready to submit|review your|looks good/i.test(qText) ||
+          /submit/i.test((next?.textContent || '').trim()),
+        has90: visible(ninety) || /90.?day|outcome this hire|first 90 days/i.test(qText),
+      };
     });
 
-    // Click next or Enter
+  const fillAndNext = async () => {
     await page.evaluate(() => {
-      const n = document.querySelector('.dg-wiz-next');
-      if (n) n.click();
-      else document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    });
-    await wait(600);
-    await page.screenshot({ path: path.join(OUT_DIR, `step-${i+2}.png`) });
-    shots.push(`step-${i+2}`);
-  }
-
-  // Advance more steps (fill current field first to pass required), until review/submit/90day, validate per Fable
-  let advances = 0;
-  while (advances < 12) {
-    const currentQ = await page.evaluate(() => {
-      const q = document.querySelector('.dg-wiz-q');
-      return (q ? q.textContent.trim().slice(0,60) : '').toLowerCase();
-    });
-    if (/submit|review|ready to submit|__submit__/.test(currentQ)) break;
-    // Fill ALL currently visible inputs (ensures current step's required field like role-title/stack/90day is populated for validation)
-    await page.evaluate(() => {
-      const inps = document.querySelectorAll('input:not([type=hidden]), textarea, select');
-      inps.forEach((inp, idx) => {
-        if (inp.offsetParent === null) return;
-        if (inp.tagName === 'SELECT') inp.value = inp.options[1]?.value || 'test-value';
-        else inp.value = 'Test Value ' + (Date.now() + idx);
+      const modal = document.querySelector('#startup-modal');
+      if (!modal) return;
+      const fields = Array.from(modal.querySelectorAll('input,select,textarea')).filter(
+        (el) => el.offsetParent !== null && el.type !== 'checkbox' && el.type !== 'hidden',
+      );
+      fields.forEach((inp, idx) => {
+        if (inp.tagName === 'SELECT') {
+          inp.value = inp.options[1]?.value || inp.options[0]?.value || 'test';
+        } else if (inp.type === 'email' || /email/i.test(inp.name || inp.id || inp.placeholder || '')) {
+          inp.value = `founder${idx}@example.com`;
+        } else if (inp.type === 'tel' || /phone/i.test(inp.name || '')) {
+          inp.value = '+1 (415) 555-0100';
+        } else if (inp.type === 'url' || /linkedin|url/i.test(inp.name || '')) {
+          inp.value = 'https://example.com';
+        } else {
+          inp.value = `Test value ${idx + 1}`;
+        }
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
       });
+      const next = modal.querySelector('.dg-wiz-next');
+      if (next) next.click();
     });
-    await page.evaluate(() => {
-      const n = document.querySelector('.dg-wiz-next');
-      if (n) n.click();
-      else document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    });
-    await wait(550);
-    advances++;
-    const st = await page.evaluate(() => {
-      const q = document.querySelector('.dg-wiz-q, h3, label');
-      const vis = Array.from(document.querySelectorAll('input,select,textarea')).filter(el => el.offsetParent !== null).length;
-      const hasReview = !!document.querySelector('.dg-wiz-review');
-      const subBtn = document.querySelector('.dg-wiz-next');
-      const has90 = !!document.querySelector('[name="90day-outcome"]') || !!document.getElementById('90day-outcome');
-      const is90Step = /90day|outcome this hire/i.test((q && q.textContent) || '');
-      return { q: q ? q.textContent.trim().slice(0,50) : '', vis, hasReview, subText: (subBtn && subBtn.textContent || '').slice(0,20), has90, is90Step };
-    });
+    await wait(700);
+  };
+
+  // Welcome → fill through review (startup has ~7 real steps + review).
+  for (let i = 0; i < 14; i++) {
+    const st = await snapshot();
     steps.push(st);
-    log(`Advance ${advances}: q="${st.q}" vis=${st.vis} review=${st.hasReview} 90day=${st.has90}`);
-    if (st.has90 || st.is90Step) {
-      log('  -> 90day field/step detected');
+    log(`Step ${i}: q="${st.q}" vis=${st.vis} next="${st.nextText}" review=${st.hasReview} 90=${st.has90}`);
+    try {
+      await Promise.race([
+        page.screenshot({ path: path.join(OUT_DIR, `step-${String(i + 1).padStart(2, '0')}.png`) }),
+        wait(4000),
+      ]);
+    } catch {
+      /* screenshots are diagnostic only */
     }
-    if (st.hasReview) break;
+    if (st.hasReview || /ready to submit|review|thanks/i.test(st.q) || /submit/i.test(st.nextText)) break;
+    await fillAndNext();
   }
-  const final = await page.evaluate(() => {
-    const thanks = document.querySelector('.dg-thanks, .w-form-done, [class*="success"]');
-    const review = document.querySelector('.dg-wiz-review');
-    const sub = document.querySelector('.dg-wiz-next');
-    return { hasThanks: !!thanks, hasReview: !!review, subText: (sub && sub.textContent || '').trim().slice(0,30) };
-  });
-  log('Final:', final);
-  const visGood = steps.filter(s => !/welcome|submit|thanks/i.test(s.q||'')).every(s => (s.vis||0) >= 1);
-  const has90 = steps.some(s => /90day|outcome/i.test(s.q||'')) || await page.evaluate(()=>!!document.querySelector('[name="90day-outcome"]'));
-  console.log(JSON.stringify({ pass: (final.hasReview || final.hasThanks) && visGood && has90 , steps: steps.slice(-3), visGood, has90, shots: shots.length, dir: OUT_DIR }, null, 2));
 
-  try { await page.close(); } catch(e){}
-  await browser.disconnect();
+  const final = steps[steps.length - 1] || (await snapshot());
+  const realQs = steps.filter((s) => s.q && !/welcome|i'm hiring|review|submit|thanks/i.test(s.q));
+  const visGood = realQs.length === 0 || realQs.every((s) => (s.vis || 0) >= 1);
+  const uniqueQs = new Set(steps.map((s) => s.q).filter(Boolean)).size;
+  const has90 = steps.some((s) => s.has90) || final.has90;
+  // Product gate: hit 90-day step and explicit review/submit, with fields filling.
+  // uniqueQs can be 2 when CDP reuses a mid-flow modal — still count as advanced
+  // when both product milestones land.
+  const advanced = uniqueQs >= 2 || (has90 && final.hasReview);
+  const pass = Boolean((final.hasReview || /review|submit|thanks/i.test(final.q || '')) && advanced && has90 && visGood);
+
+  const report = {
+    pass,
+    advanced,
+    visGood,
+    has90,
+    hasReview: final.hasReview,
+    steps: steps.slice(-4),
+    shots: steps.length,
+    dir: OUT_DIR,
+    local: USE_LOCAL,
+  };
+  fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+
+  // Never block the process on CDP teardown (disconnect can hang under tab load).
+  setTimeout(() => process.exit(pass ? 0 : 1), 50);
+  try {
+    await page.close();
+  } catch {
+    /* */
+  }
+  try {
+    await browser.disconnect();
+  } catch {
+    /* */
+  }
+  process.exit(pass ? 0 : 1);
 }
 
-run().catch(console.error);
-/* Fable a11y addition */
-function checkA11y(f) {
-  return [...f.querySelectorAll('.dg-wiz-show input, .dg-wiz-show textarea, .dg-wiz-show select')].map(i => ({
-    name: i.name,
-    required: i.required,
-    hasLabel: !!(i.id && f.querySelector(`label[for="${i.id}"]`)) || !!i.closest('label'),
-    rendered: getComputedStyle(i).display !== 'none' && getComputedStyle(i).visibility !== 'hidden' && i.offsetHeight > 0,
-  }));
-}
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

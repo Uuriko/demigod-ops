@@ -1,5 +1,151 @@
 # Demigod — Compressed State (living)
 
+## 2026-07-16 · REDESIGN LOOP CYCLE 1 · v571 Operator Calm LIVE
+
+- **Shipped:** foot **v571** disk=live TRUTH PASS · Operator Calm paper/cobalt theme (not dark gold)
+- **Live proof:** `body` bg `rgb(247,244,239)` · title `Demigod · SF startup talent matching` · foot 571
+- **Lab:** design-lab V1/V2/V7 scored · V1 promote 90.5 · V2 challenger 89.5
+- **Docs:** `docs/exchange/WEBSITE-REDESIGN-MASTER-PROMPT.md` · research · debate log · Codex experiment protocol
+- **MCP:** homepage SEO updated (drop Human-Matched) · site publish queued
+- **Tools:** design-lab capture headless · df review dogfood-fail (hold-green inject) · website fable template `prompts/demigod/website.txt`
+- **Cycle 2 next:** Codex A–F lab HTML · H1/copy rewrite to Operator Calm signal set · dual-path equal panels
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · WEBFLOW AGENT CONNECT DEEPENED
+
+- **MCP:** Grok + Claude Code + Cursor + **Codex** all point at `https://mcp.webflow.com/mcp`
+- **OAuth:** Grok credentials live · Data API MCP green (`list_sites` → Demigod)
+- **Designer Bridge:** smokes green (`get_current_mode` = design · homepage · breakpoints)
+- **Agent instructions on site:** `rules/demigod-agent.md` + skill `demigod-ship/SKILL.md`
+- **Local mirror:** `docs/WEBFLOW-AGENT-INSTRUCTIONS.md` · playbook §3.2 updated
+- **CLI:** `bin/dg-webflow connect` · `connect bridge` · `node demigod-webflow-token.mjs`
+- **Site token (REST):** optional · `~/.config/demigod/webflow.env` (example: `webflow.env.example`) — MCP OAuth ≠ REST token
+- **Webhooks:** 0 registered · local receiver on `:9877` · needs `DEMIGOD_WEBHOOK_PUBLIC_URL` for Webflow POSTs
+- **Spine:** Data MCP · Designer MCP+Bridge · CDP ship · foot CDN · chrome-devtools eyes
+- **No auto-DM** · no game
+
+---
+## 2026-07-16 · SEALED v563 + HEAD 8s6x5e
+
+- **Foot sealed:** disk = live = man **v563** · CDN @765978dbaae1 · TRUTH PASS · lock free · fullyShipped
+- **Head live:** CSS **8s6x5e** · FOUC honesty · path-redirects · CM6 head+footer paste this ship
+- **Ship:** `bin/dg-publish` (CDN + cm6 paste + site_publish) · hard truth live==disk body sha
+- **Gates:** verify:source PASS · board honesty OK · quality open P0/P1=0
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · DISK/MAN v523 · LIVE v522 · HEAD 8s6x5e
+
+- **Foot:** disk/man **v523** · live **v522** — TRUTH FAIL version drift · chat-ship holds lock
+- **Head live:** CSS **8s6x5e** · FOUC honesty · skip · path-redirects · pricing FOUC may be mid-paste
+- **Gates:** verify:source PASS · loop markers v523 · quality open P0/P1=0
+- **No auto-DM** · no game · no thrash race with chat-ship
+
+---
+
+## 2026-07-16 · SEALED v521 + HEAD 8s6x5e
+
+- **Foot sealed:** disk = live = man **v521** · TRUTH PASS · lock free
+- **Head live:** CSS **8s6x5e** · FOUC honesty · path-redirects
+- **Gates:** verify:source PASS · quality open P0/P1=0
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · SEALED v519 + HEAD 8s6x5e
+
+- **Foot sealed:** disk = live = man **v519** (step-desc volume scrub) · CDN @0b66356ee8a9 · TRUTH PASS · lock free
+- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · step-title/desc volume
+- **Gates:** verify:source PASS · quality open P0/P1=0 · diskReady.ok
+- **Residual:** Designer static canvas may still show volume phrases for JS-less (punchlist out-of-band)
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · SEALED v518 + HEAD 8s6x5e
+
+- **Foot sealed:** disk = live = man **v518** (human-review no fixed candidate-count) · CDN @3cb62839cad6 · TRUTH PASS
+- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · honesty INTROS
+- **Gates:** verify:source PASS · quality open P0/P1=0 · diskReady.ok
+- **Residual:** Designer static pricing overclaims for JS-less (punchlist P1 out-of-band)
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · SEALED v516 + HEAD 8s6x5e + modal honesty
+
+- **Foot sealed:** disk = live = man **v516** (modal title/subtitle/intro honesty) · CDN @c3f7cecb8e34 · TRUTH PASS
+- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · modal-intro honesty
+- **Gates:** verify:source PASS · quality open P0/P1=0
+- **Tick99:** mid-write version-marker flake then settle; CDN publish + concurrent chat ship sealed live
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · DISK/MAN v514 · LIVE v513 · HEAD 8s6x5e
+
+- **Foot:** disk/man **v514** (head /p/* /apply redirects) · live **v513** — TRUTH FAIL version drift · chat-ship holding lock
+- **Head live:** CSS **8s6x5e** · secure_url · twitter dims · path-redirects pricing/legal/talent
+- **Gates:** verify:source PASS · board honesty OK · loop markers v514 · quality open P0/P1=0
+- **No auto-DM** · no game · no thrash race with chat-ship
+
+---
+
+## 2026-07-16 · DISK v513 · LIVE/MAN v512 · HEAD twitter dims + 8s6x5e
+
+- **Foot:** disk **v513** · live/man **v512** — TRUTH FAIL version drift (concurrent mid-tick) · intentional ship when free
+- **Head live:** CSS **8s6x5e** · twitter:image:width/height **1280x720** (tick86 CM6 paste)
+- **Path redirects:** pricing/legal/talent live
+- **Gates:** verify:source PASS · quality open P0/P1=0
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · SEALED v511 + HEAD 8s6x5e
+
+- **Foot sealed:** disk = live = man **v511** (contact-scrub attrs) · TRUTH PASS · freeze OFF
+- **Head CSS live:** `https://files.catbox.moe/8s6x5e.css` · modal-hide-closed · path-redirects
+- **Path redirects:** fees→pricing · security→legal · network→talent (survived CDN ship — publisher template fixed tick82)
+- **Gates:** verify:source PASS · board honesty OK · loop v511 · quality open P0/P1=0
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · DISK v509 (WIZ spacing) · LIVE/MAN v508 · HEAD 8s6x5e
+
+- **Foot:** disk **v509** (WIZ '1 of 7' spacing) · live/man **v508** — TRUTH FAIL version drift · intentional ship when ready (`bin/dg-lock` + CDN + CM6)
+- **Head CSS live:** `https://files.catbox.moe/8s6x5e.css` (tick75 CM6; still current on live HTML)
+- **Blog:** 5 notes live · quality open P0/P1=0 · foot lock free
+- **Gates:** verify:source PASS · board honesty OK · loop-state markers agree v509 · /healthz + /api/coord ok
+- **No auto-DM** · no game · no thrash until intentional ship
+
+---
+
+## 2026-07-16 · SWARM FULL + CLAIMS + WEBFLOW PATH
+## 2026-07-16 · SWARM FULL + CLAIMS + WEBFLOW PATH
+
+- **Codex swarm ON** · timer `demigod-codex-swarm.timer` · full review → `/tmp/dg-busy/swarm/` (latest + WORKFLOW-WEBFLOW.md)
+- **Claims atomic:** `bin/dg-agent-coord claim|release-hold|claims` (coord-role owners); foot still `bin/dg-lock`
+- **Idle spawn gated** by `role_has_work` (once forces); worker prompts shortened to digest+swarm
+- **Drift:** disk foot **v509** · man/CDN/live **v508** · head CSS **8s6x5e** live; lock free
+- **Dash light:** coord cache 12s · receipt CSS · poll 45s · workLog panel
+- **No auto-DM** · no game
+
+---
+
+## 2026-07-16 · MULTI-AGENT COORD + SITE disk v508
+
+- **DISK foot v509** · LIVE/MAN **v508** · head CSS **8s6x5e** · dashboard :9878 · CDP :9223
+- **Coord:** `bin/dg-agent-coord` · board `/tmp/dg-busy/coord/` · dash `GET /api/coord` (ship.facts + loopState + blog + head.metaReady/cssFresh + footerLite + footNotes + diskReady blockers)
+- **Website disk:** Notes 5 cards (id=note-{slug}, Full-note, hash focus + hashchange + reduced-motion); mini-pages `/?p=`; footer-lite fees→pricing security→legal network→talent sample→sample + nested blog/notes/method; head unhide hero-shell + graceful hero-only
+- **State docs:** AGENT-STATE.md ≡ DEMIGOD-COMPRESSED-STATE.md (hardlink)
+- **Ship:** intentional only with `bin/dg-lock` + `bin/dg ship`; freeze OFF · quality open P0/P1=0
+- **No auto-DM** · no game
+
+---
 ## 2026-07-15 · WEBSITE v209 LIVE (post net-outage reconfirm)
 
 - **LIVE foot:** **v209** `yeepfv.js` — WIZ progress "N of total", logo→home, a11y focus rings, mobile footer density

@@ -3,7 +3,7 @@
 #
 # Prefer this over inventing one-off paths.
 # Subcommands:
-#   orient | unify | truth | next-canon | demand | ship | home | …
+#   orient | unify | truth | next-canon | cycle-status | demand | pilot | ship | home | …
 #   webflow | matches | review | hygiene | doctor | smoke | freeze
 #   cockpit | usertest | dash | orca | start | tools
 #   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | ledger | ship-receipt
@@ -26,9 +26,17 @@ if [[ $# -eq 0 ]]; then
       echo 'next::node demigod-control.mjs next'
       echo 'webflow-doctor::node demigod-webflow.mjs doctor'
       echo 'hygiene-prune::node demigod-laptop-hygiene.mjs --prune'
+      echo 'ponytail::node demigod-ponytail.mjs status'
       echo 'review::node demigod-review.mjs'
       echo 'matches::node demigod-match-review.mjs --json'
       echo 'dash::bin/dg-dash'
+      echo 'linux-status::bin/dg-linux-config status'
+      echo 'tmux-cockpit::dg-tmux-cockpit'
+      echo 'truth::node demigod-truth.mjs'
+      echo 'workspace-cheat::dg-workspace cheat'
+      echo 'workspace-webflow::dg-workspace webflow'
+      echo 'workspace-ops::dg-workspace ops'
+      echo 'busy-rotate::dg-busy-rotate'
       echo 'start::bin/dg-start'
       npm run 2>/dev/null | grep -oE 'demigod:[a-z0-9:-]+' \
         | grep -vE ':(cycle|receipt:mint|sms:sim|ghost:push)$' \
@@ -52,8 +60,36 @@ case "$1" in
   home|status|next|plane|modules|help|--help|-h)
     exec node demigod-control.mjs "$@"
     ;;
-  webflow|wf|matches|match|pairs|inbox|review|hygiene|doctor|smoke|freeze|cockpit|usertest|dash)
+  webflow|wf|matches|match|pairs|inbox|review|hygiene|ponytail|doctor|smoke|freeze|cockpit|usertest|dash)
     exec node demigod-control.mjs "$@"
+    ;;
+  linux|laptop|sysctl|power)
+    shift
+    exec bin/dg-linux-config "${@:-status}"
+    ;;
+  tmux|tmux-cockpit)
+    shift
+    exec dg-tmux-cockpit "${@:-attach}"
+    ;;
+  agent-run)
+    shift
+    exec dg-agent-run "$@"
+    ;;
+  notify)
+    shift
+    exec dg-notify "$@"
+    ;;
+  workspace|ws|cosmic)
+    shift
+    exec dg-workspace "${@:-cheat}"
+    ;;
+  busy-rotate)
+    shift
+    exec dg-busy-rotate "$@"
+    ;;
+  coord|agent-coord)
+    shift
+    exec bin/dg-agent-coord "${@:-status}"
     ;;
   orca)
     shift
@@ -126,9 +162,17 @@ case "$1" in
     shift
     exec node demigod-demand.mjs "$@"
     ;;
+  pilot|inbound)
+    shift
+    exec node demigod-pilot-inbound.mjs "$@"
+    ;;
   next-canon|canon-next)
     shift
     exec node demigod-next.mjs "$@"
+    ;;
+  cycle-status|cycle)
+    shift
+    exec node demigod-cycle-status.mjs "$@"
     ;;
   evidence)
     shift
@@ -178,7 +222,7 @@ case "$1" in
       exec npm run "$1" -- "${@:2}"
     fi
     # Unknown verb → control help + try as webflow subcommand hint
-    echo "Unknown: $1 — try: bin/dg orient | unify | truth | home | tools" >&2
+    echo "Unknown: $1 — try: bin/dg orient | cycle-status | demand | pilot | truth | home | tools" >&2
     exec node demigod-control.mjs help
     ;;
 esac

@@ -1,45 +1,184 @@
 #!/usr/bin/env bash
-# Safe Pop!_OS / laptop helpers for Demigod (Fable 2026-07-09).
-# NO drop_caches, NO autopilot autostart, NO 24/7 publish watchers.
+# Safe Pop!_OS / laptop helpers for Demigod.
+# NO drop_caches, NO 24/7 publish watchers, NO game.
 set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PATH="${HOME}/.local/bin:${ROOT}/bin:${PATH}"
 
 cmd="${1:-help}"
 
+set_performance() {
+  if ! command -v system76-power >/dev/null 2>&1; then
+    echo "system76-power not found"
+    return 1
+  fi
+  if system76-power profile performance 2>/dev/null; then
+    echo "system76-power → performance"
+  else
+    echo "Could not set performance" >&2
+    return 1
+  fi
+}
+
+snappy() {
+  set_performance || true
+  watches_file=/proc/sys/fs/inotify/max_user_watches
+  current="$(cat "$watches_file" 2>/dev/null || echo 0)"
+  target=524288
+  if [ "$current" -lt "$target" ]; then
+    if [ -w "$watches_file" ]; then
+      printf '%s\n' "$target" >"$watches_file"
+      echo "inotify max_user_watches → $target"
+    else
+      echo "inotify max_user_watches=$current (need dg-sysctl-apply / sudo)"
+    fi
+  else
+    echo "inotify max_user_watches=$current (ok)"
+  fi
+  echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo '?')"
+}
+
+setup_all() {
+  echo "=== dg-linux-config setup-all ==="
+  chmod +x \
+    "$HOME/.local/bin/power-ac-auto-profile" \
+    "$HOME/.local/bin/dg-agent-run" \
+    "$HOME/.local/bin/dg-memguard" \
+    "$HOME/.local/bin/dg-tmux-cockpit" \
+    "$HOME/.local/bin/dg-sysctl-apply" \
+    "$ROOT/bin/dg-linux-config" 2>/dev/null || true
+
+  # Fix broken demigod-cockpit symlink → agent cockpit
+  if [[ -L "$HOME/.local/bin/demigod-cockpit" ]] || [[ ! -e "$HOME/.local/bin/demigod-cockpit" ]]; then
+    ln -sfn "$ROOT/bin/dg-cockpit" "$HOME/.local/bin/demigod-cockpit"
+    echo "fixed demigod-cockpit → bin/dg-cockpit"
+  fi
+
+  "$HOME/.local/bin/dg-sysctl-apply" || true
+
+  systemctl --user daemon-reload
+  systemctl --user enable --now power-ac-auto.service 2>/dev/null || true
+  systemctl --user enable --now demigod-dash.service 2>/dev/null || true
+  systemctl --user enable demigod-session-ready.service 2>/dev/null || true
+  # CDP needs a display imported into the user manager; leave disabled otherwise.
+  manager_env="$(systemctl --user show-environment 2>/dev/null || true)"
+  if grep -qE '^(DISPLAY|WAYLAND_DISPLAY)=' <<<"$manager_env"; then
+    systemctl --user enable --now demigod-cdp.service 2>/dev/null || true
+  else
+    systemctl --user disable demigod-cdp.service 2>/dev/null || true
+    echo "CDP installed but disabled: user systemd has no DISPLAY/WAYLAND_DISPLAY"
+  fi
+
+  # Start session-ready oneshot
+  systemctl --user start demigod-session-ready.service 2>/dev/null || true
+
+  # Busy dir
+  mkdir -p /tmp/dg-busy
+  # Prefer RAM scratch overlay for ephemeral receipts if /dev/shm large
+  if [[ -d /dev/shm ]] && ! mountpoint -q /tmp/dg-busy 2>/dev/null; then
+    mkdir -p /dev/shm/dg-busy
+    # soft: don't force bind (survives better if we just use symlink for new tools)
+    if [[ ! -e /tmp/dg-busy/.ram ]]; then
+      echo "hint: heavy temps can use /dev/shm/dg-busy ($(df -h /dev/shm | tail -1))"
+    fi
+  fi
+
+  echo "=== status ==="
+  status_all
+  echo
+  echo "tmux: dg-tmux-cockpit"
+  echo "agents: dg-agent-run codex|claude ..."
+  echo "apt optional: sudo apt install -y fzf ripgrep fd-find bat"
+}
+
+status_all() {
+  echo "--- power ---"
+  system76-power profile 2>/dev/null | head -4 || true
+  echo "AC=$(cat /sys/class/power_supply/AC/online 2>/dev/null || echo '?')"
+  echo "--- sysctl ---"
+  sysctl vm.swappiness vm.dirty_ratio vm.dirty_background_ratio fs.inotify.max_user_watches 2>/dev/null || true
+  echo "--- services ---"
+  for u in power-ac-auto demigod-dash demigod-session-ready demigod-cdp; do
+    st="$(systemctl --user is-active "$u.service" 2>/dev/null || true)"
+    en="$(systemctl --user is-enabled "$u.service" 2>/dev/null || true)"
+    st="${st:-missing}"
+    en="${en:-n/a}"
+    echo "  $u: $st (enabled=$en)"
+  done
+  echo "--- ports ---"
+  curl -sS --max-time 2 -o /dev/null -w "dash:%{http_code}\n" http://127.0.0.1:9878/api/health 2>/dev/null || echo "dash:down"
+  curl -sS --max-time 2 -o /dev/null -w "cdp:%{http_code}\n" http://127.0.0.1:9223/json/version 2>/dev/null || echo "cdp:down"
+  echo "--- tmux ---"
+  dg-tmux-cockpit status 2>/dev/null || echo "session dg: down"
+  echo "--- mem ---"
+  free -h | head -2
+}
+
 case "$cmd" in
   perf|performance|fast)
-    if command -v system76-power >/dev/null 2>&1; then
-      system76-power profile performance 2>/dev/null \
-        && echo "system76-power → performance" \
-        || echo "Could not set performance (try: sudo system76-power profile performance)"
-    else
-      echo "system76-power not found"
-      exit 1
+    set_performance
+    ;;
+  snappy)
+    snappy
+    ;;
+  optimize)
+    hygiene_rc=0
+    "$ROOT/bin/dg-hygiene" --optimize || hygiene_rc=$?
+    snappy
+    if [ "$hygiene_rc" -ne 0 ]; then
+      echo "Hygiene completed with health status $hygiene_rc; receipt was still written"
     fi
     ;;
-  balanced|cool|battery)
-    if command -v system76-power >/dev/null 2>&1; then
-      system76-power profile balanced 2>/dev/null \
-        && echo "system76-power → balanced" \
-        || echo "Could not set balanced"
-    else
-      exit 1
-    fi
+  balanced|cool)
+    system76-power profile balanced 2>/dev/null && echo "→ balanced"
+    ;;
+  battery)
+    system76-power profile battery 2>/dev/null && echo "→ battery"
+    ;;
+  setup-all|setup|install)
+    setup_all
     ;;
   status)
-    system76-power profile 2>/dev/null || true
-    echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo '?')"
-    echo "inotify_watches=$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo '?')"
+    status_all
     ;;
-  help|*)
-    cat <<EOF
-dg-linux-config — safe laptop helpers (no drop_caches / no autopilot)
+  ac-hook-test)
+    echo "Simulating unplug hooks (does not unplug AC)..."
+    power-ac-auto-profile --unplug-hooks-only
+    echo "done — see ~/.local/state/power-ac-auto.log"
+    ;;
+  sysctl)
+    dg-sysctl-apply
+    ;;
+  cockpit|tmux)
+    exec dg-tmux-cockpit "${2:-attach}"
+    ;;
+  help|-h|--help)
+    cat <<'EOF'
+dg-linux-config — Pop!_OS laptop power for Demigod agents
 
-  dg-linux-config perf       # AC work session: performance profile
-  dg-linux-config balanced   # idle / battery
-  dg-linux-config status
+  dg-linux-config setup-all   # sysctl + systemd units + enable (MAIN)
+  dg-linux-config status      # power, sysctl, services, ports
+  dg-linux-config sysctl      # apply swappiness/dirty/inotify
+  dg-linux-config perf        # performance profile (AC bursts)
+  dg-linux-config balanced
+  dg-linux-config battery
+  dg-linux-config snappy      # perf + inotify
+  dg-linux-config optimize    # hygiene --optimize + snappy
+  dg-linux-config ac-hook-test
+  dg-linux-config cockpit     # tmux dg session
+  dg-workspace cheat|layout    # COSMIC Super+1..4 map
+  dg-busy-rotate               # prune /tmp/dg-busy logs
 
-Metrics: bin/dg-laptop-metrics
-Session: ~/agent-dev.sh ready
+Also:
+  power-ac-auto-profile --status
+  dg-agent-run codex exec ...
+  dg-tmux-cockpit
+  ~/agent-dev.sh ready
 EOF
+    ;;
+  *)
+    echo "Unknown command: $cmd" >&2
+    exit 2
     ;;
 esac

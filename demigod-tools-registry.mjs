@@ -39,8 +39,10 @@ export const TOOLS = [
   { id: 'orca-swarm', name: 'Orca swarm', group: 'orca', cmd: 'bin/dg-orca swarm', purpose: 'Spawn grok+claude+codex in demigod-swarm worktree' },
   { id: 'orca-site', name: 'Orca site tabs', group: 'orca', cmd: 'bin/dg-orca site', purpose: 'Open live site + control plane in Orca browser' },
   { id: 'webflow', name: 'Webflow workbench', group: 'session', cmd: 'bin/dg-webflow status', purpose: 'Freeze/tabs/truth/playbooks for Designer+Custom Code', out: '/tmp/dg-busy/webflow-status.json', hot: true },
-  { id: 'webflow-doctor', name: 'Webflow doctor', group: 'session', cmd: 'bin/dg-webflow doctor', purpose: 'CDP + Designer + custom-code + freeze readiness', out: '/tmp/dg-busy/webflow-doctor.json', hot: true },
+  { id: 'webflow-doctor', name: 'Webflow doctor', group: 'session', cmd: 'bin/dg-webflow doctor', purpose: 'CDP + live + Designer/custom-code readiness', out: '/tmp/dg-busy/webflow-doctor.json', hot: true },
   { id: 'hygiene', name: 'Laptop hygiene', group: 'session', cmd: 'node demigod-laptop-hygiene.mjs --prune', purpose: 'Prune CDP tabs + load/mem check', out: '/tmp/dg-busy/laptop-hygiene.json', hot: true },
+  { id: 'ponytail', name: 'Ponytail status', group: 'session', cmd: 'node demigod-ponytail.mjs status --json', purpose: 'Lazy-senior agent skill: Claude/Codex plugins + cursor rules + AGENTS wiring', out: '/tmp/dg-busy/ponytail-status.json', hot: true },
+  { id: 'ponytail-check', name: 'Ponytail check', group: 'gates', cmd: 'node demigod-ponytail.mjs check --json', purpose: 'Fail closed if Ponytail not wired for agents', out: '/tmp/dg-busy/ponytail-status.json', hot: true },
   { id: 'review', name: 'Code review v2.3', group: 'session', cmd: 'bin/dg-review', purpose: 'Default --since HEAD~1; multi-file needs --contract; fail-on high', out: '/tmp/dg-busy/review-latest.json', hot: true },
   { id: 'review-since', name: 'Review since HEAD~1', group: 'session', cmd: 'bin/dg-review --since HEAD~1 --fail-on high', purpose: 'Agent thrash↓ delta review', out: '/tmp/dg-busy/review-latest.json', hot: true },
   { id: 'review-bug', name: 'Bug-hunt review', group: 'gates', cmd: 'bin/dg-review --bug --gates --no-contract', purpose: 'Stricter + targeted gates', out: '/tmp/dg-busy/review-latest.json' },
@@ -48,17 +50,33 @@ export const TOOLS = [
   { id: 'review-selftest', name: 'Review selftest', group: 'gates', cmd: 'node demigod-review-selftest.mjs', purpose: 'Fixture proof + multi-file contract + blast --send ban', hot: true },
   { id: 'ship', name: 'Ship orchestrator', group: 'ship', cmd: 'bin/dg ship status|prepare|cdn|paste|verify|run', purpose: 'Single ship path; mutators need freeze OFF + foot lock', out: '/tmp/dg-busy/ship-os.json', hot: true },
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots', out: '/tmp/dg-busy/demand-status.json', hot: true },
-  { id: 'demand-draft', name: 'Demand DM draft', group: 'session', cmd: 'bin/dg demand draft --name=T0', purpose: 'Copy-paste pack / prep before auto-send', out: '/tmp/dg-busy/demand-draft.json', hot: true },
-  { id: 'demand-send', name: 'Demand auto-send X', group: 'session', cmd: 'bin/dg demand send --names=T0,Hellyeah,Weave', purpose: 'CDP X auto-DM (requires logged-in X on :9223)', out: '/tmp/dg-busy/dm-auto-send.json', hot: true },
+  { id: 'demand-draft', name: 'Demand draft pack', group: 'session', cmd: 'bin/dg demand draft --name=T0', purpose: 'Copy-paste DM pack — never sends (drafts-only policy)', out: '/tmp/dg-busy/demand-draft.json', hot: true },
+  { id: 'demand-send', name: 'Demand send (refused)', group: 'session', cmd: 'bin/dg demand send --name=T0', purpose: 'Auto-DM STOPPED — always exits 2; drafts only', out: '/tmp/dg-busy/dm-auto-send.json', hot: false },
+  { id: 'pilot', name: 'Pilot inbound', group: 'session', cmd: 'bin/dg pilot status', purpose: 'WIZ/warm inbound → PILOT-LOG / white-glove (warm ≠ pilot)', out: '/tmp/dg-busy/pilot-inbound.json', hot: true },
   { id: 'next-canon', name: 'Canonical NEXT', group: 'session', cmd: 'bin/dg next-canon', purpose: 'Single NEXT from truth evidence + freeze + demand', out: '/tmp/dg-busy/next.json', hot: true },
+  { id: 'cycle-status', name: 'Cycle status', group: 'session', cmd: 'bin/dg cycle-status', purpose: 'Read-only cycle + demand hygiene + canonical NEXT status; --attest fails closed', out: '/tmp/dg-busy/cycle-status.json', hot: true },
+  { id: 'cycle-work', name: 'Cycle work (one unit)', group: 'session', cmd: 'node demigod-cycle-work.mjs --domain=auto --owner=dashboard', purpose: 'One single-flight work unit (respects lock)', out: '/tmp/dg-busy/cycle-work-latest.json', hot: true },
+  { id: 'never-stop-status', name: 'Never-stop status', group: 'session', cmd: 'node demigod-never-stop-loop.mjs status', purpose: 'Background backlog loop status', hot: true },
+  { id: 'never-stop-stop', name: 'Stop never-stop', group: 'session', cmd: 'node demigod-never-stop-loop.mjs stop', purpose: 'Stop the background backlog loop', hot: true },
+  { id: 'swarm-status', name: 'Swarm status', group: 'swarm', cmd: 'node demigod-swarm-busy.mjs status', purpose: 'Agent swarm supervisor status (paused by default)', hot: true },
+  { id: 'swarm-stop', name: 'Stop swarm', group: 'swarm', cmd: 'node demigod-swarm-busy.mjs stop', purpose: 'Stop the agent swarm supervisor', hot: true },
+  { id: 'harness-selftest', name: 'Harness selftest', group: 'gates', cmd: 'node demigod-harness-selftest.mjs', purpose: 'Workloop harness contract selftest', hot: true },
+  { id: 'priority', name: 'Priority board', group: 'session', cmd: 'node demigod-priority-board.mjs --json', purpose: 'Dynamic top-of-dash priorities', out: '/tmp/dg-busy/priority-board.json', hot: true },
+  { id: 'dogfood', name: 'Tool dogfood', group: 'session', cmd: 'node demigod-tool-dogfood.mjs status --json', purpose: 'Tool usage usefulness telemetry', out: '/tmp/dg-busy/tool-dogfood-status.json', hot: true },
+  { id: 'favicon-ship', name: 'Favicon ship', group: 'site', cmd: 'node demigod-favicon-ship.mjs', purpose: 'Write demigod favicon links into head-minimal', out: null, hot: false },
+  { id: 'blog-assets', name: 'Blog assets wire', group: 'site', cmd: 'node demigod-blog-assets-gen.mjs', purpose: 'Wire blog hero CDN URLs from upload receipt', out: null, hot: false },
+  { id: 'full-pass-status', name: 'Full-pass loop status', group: 'session', cmd: 'node demigod-full-pass-loop.mjs status', purpose: 'Durable multi-track loop (dash/webflow/frontend)', out: '/tmp/dg-busy/full-pass-state.json', hot: true },
   { id: 'unify', name: 'Unify snapshot', group: 'session', cmd: 'bin/dg unify', purpose: 'Deep snapshot (orient is the short path)', out: '/tmp/dg-busy/unify.json', hot: true },
   { id: 'poison-green', name: 'Poison false-green selftest', group: 'gates', cmd: 'node demigod-poison-green-selftest.mjs', purpose: 'Tamper latest-truth → green must flip off → restore', out: '/tmp/dg-busy/evidence/', hot: true },
   { id: 'version-ledger', name: 'Version ledger', group: 'gates', cmd: 'node demigod-version-ledger.mjs tail', purpose: 'Append-only disk/live/cdn history (written by truth)', out: 'DEMIGOD-VERSION-LEDGER.jsonl' },
+  { id: 'ledger', name: 'Ledger delta', group: 'gates', cmd: 'node demigod-version-ledger.mjs delta', purpose: 'Dashboard-runnable version delta', out: '/tmp/dg-busy/version-ledger-tail.json', hot: true },
   { id: 'truth-delta', name: 'Truth delta', group: 'gates', cmd: 'bin/dg ledger delta', purpose: 'What changed since last truth ledger line', out: '/tmp/dg-busy/version-ledger-tail.json', hot: true },
+  { id: 'evidence-producers', name: 'Evidence producers', group: 'gates', cmd: 'node demigod-evidence.mjs producers truth,review,demand,smoke', purpose: 'Check required evidence producers', out: '/tmp/dg-busy/evidence/', hot: true },
+  { id: 'tools-os-selftest', name: 'Tools OS selftest', group: 'gates', cmd: 'node demigod-tools-os-selftest.mjs', purpose: 'Dashboard, registry, and job wiring selftest', hot: true },
   { id: 'next-assert', name: 'NEXT identity assert', group: 'session', cmd: 'bin/dg next-canon --assert-same', purpose: 'Fail if control/cockpit/ship NEXT drift from buildNext', out: '/tmp/dg-busy/next.json', hot: true },
   { id: 'wiz-ownership', name: 'WIZ ownership selftest', group: 'forms', cmd: 'node demigod-wiz-ownership-selftest.mjs', purpose: 'Source WIZ_CFG ownership (90day, submit, no SLA)', out: '/tmp/dg-busy/wiz-ownership.json', hot: true },
   { id: 'ship-checklist', name: 'Ship checklist', group: 'ship', cmd: 'bin/dg ship status', purpose: 'alias → bin/dg ship status', out: '/tmp/dg-busy/ship-checklist.json', alias: 'ship', hot: false },
-  { id: 'ship-prep', name: 'Ship prep', group: 'ship', cmd: 'bin/dg ship prepare', purpose: 'alias → bin/dg ship prepare', out: '/tmp/dg-busy/ship-prepare.json', alias: 'ship', hot: false },
+  { id: 'ship-prepare', name: 'Ship prepare', group: 'ship', cmd: 'bin/dg ship prepare', purpose: 'Run ship gates without publishing', out: '/tmp/dg-busy/ship-prepare.json', hot: true },
   { id: 'ship-help', name: 'Ship help', group: 'ship', cmd: 'bin/dg ship help', purpose: 'alias → bin/dg ship help', alias: 'ship', hot: false },
   { id: 'ship-facts', name: 'Ship facts only', group: 'ship', cmd: 'bin/dg ship status --facts', purpose: 'disk/live/stage/freeze only — no agent NEXT', out: '/tmp/dg-busy/ship-latest.json', hot: true },
   { id: 'lock-who', name: 'Lock who', group: 'session', cmd: 'bin/dg lock-who', purpose: 'Who holds foot-core lock (pid/age/why)', out: '/tmp/dg-busy/foot-lock.json', hot: true },
@@ -89,8 +107,9 @@ export const TOOLS = [
   { id: 'live-attest', name: 'Live release attest', group: 'ship', cmd: 'bin/dg live-attest', purpose: 'Prove live foot CDN body matches disk version (markers+len)', out: '/tmp/dg-busy/live-attest.json', hot: true },
   { id: 'ship-receipt', name: 'Ship receipt', group: 'ship', cmd: 'bin/dg ship-receipt latest', purpose: 'Immutable ship attempt receipt (write|list|latest)', out: '/tmp/dg-busy/ship-receipt-latest.json', hot: true },
   { id: 'cdn-gist-fallback', name: 'CDN publish (gist fallback)', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'alias of foot-cdn — catbox then gist', mutate: true, alias: 'foot-cdn', hot: false },
-  { id: 'foot-cdn', name: 'Foot CDN publish', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'Upload foot to catbox + manifest', mutate: true },
-  { id: 'cm6-paste', name: 'CM6 paste publish', group: 'ship', cmd: 'node demigod-cm6-paste-publish.mjs --footer-only', purpose: 'Paste footer into Webflow custom code', mutate: true },
+  { id: 'foot-cdn', name: 'Foot CDN publish', group: 'ship', cmd: 'node demigod-foot-cdn-publish.mjs', purpose: 'Publish a commit-pinned jsDelivr foot asset + manifest', mutate: true },
+  { id: 'cm6-check', name: 'CM6 structural check', group: 'ship', cmd: 'node demigod-cm6-paste-publish.mjs --check-structural', purpose: 'Validate head/footer editor separation without requiring a released CDN manifest', mutate: false },
+  { id: 'cm6-paste', name: 'CM6 paste publish', group: 'ship', cmd: 'node demigod-cm6-paste-publish.mjs', purpose: 'Paste canonical head + footer with split assertions, then publish', mutate: true },
   { id: 'tab-prune', name: 'CDP tab prune', group: 'ship', cmd: 'node demigod-cdp-tab-prune.mjs', purpose: 'Close excess Chrome tabs' },
 
   // Inbox / multi-agent
@@ -102,6 +121,43 @@ export const TOOLS = [
   { id: 'wiz-playtest', name: 'WIZ CDP playtest', group: 'forms', cmd: 'node demigod-wiz-cdp-playtest.mjs --local', purpose: 'Local WIZ stepper playtest' },
   { id: 'submit-fixture', name: 'Submit fixture', group: 'forms', cmd: 'bin/dg-submit-fixture', purpose: 'Webflow form submit mock harness' },
 ];
+
+export function validateTools(tools = TOOLS) {
+  const errors = [];
+  const ids = new Set();
+  const aliases = new Map();
+  for (const [index, tool] of tools.entries()) {
+    const label = tool?.id || `index ${index}`;
+    if (!tool || typeof tool !== 'object') {
+      errors.push(`index ${index}: tool must be an object`);
+      continue;
+    }
+    for (const key of ['id', 'name', 'group', 'cmd', 'purpose']) {
+      if (typeof tool[key] !== 'string' || !tool[key].trim()) errors.push(`${label}: missing ${key}`);
+    }
+    if (ids.has(tool.id)) errors.push(`${label}: duplicate id`);
+    else ids.add(tool.id);
+  }
+  for (const tool of tools) {
+    if (!tool?.alias) continue;
+    if (tool.alias === tool.id) errors.push(`${tool.id}: alias cannot target itself`);
+    else if (!ids.has(tool.alias)) errors.push(`${tool.id}: alias target ${tool.alias} is missing`);
+    else aliases.set(tool.id, tool.alias);
+  }
+  for (const start of aliases.keys()) {
+    const seen = new Set();
+    let current = start;
+    while (aliases.has(current)) {
+      if (seen.has(current)) {
+        errors.push(`${start}: alias cycle detected`);
+        break;
+      }
+      seen.add(current);
+      current = aliases.get(current);
+    }
+  }
+  return { ok: errors.length === 0, count: tools.length, errors };
+}
 
 export function toolAge(outPath) {
   if (!outPath) return null;
@@ -121,6 +177,8 @@ export function toolAge(outPath) {
 
 export function buildRegistry({ group = null, hideAliases = false, hotOnly = false } = {}) {
   const at = new Date().toISOString();
+  const validation = validateTools();
+  if (!validation.ok) throw new Error(`invalid tools registry: ${validation.errors.join('; ')}`);
   let tools = TOOLS.slice();
   if (group) tools = tools.filter((t) => t.group === group);
   if (hideAliases) tools = tools.filter((t) => !t.alias);
@@ -138,7 +196,8 @@ export function buildRegistry({ group = null, hideAliases = false, hotOnly = fal
     hideAliases,
     hotOnly,
     aliasesHidden: hideAliases ? TOOLS.filter((t) => t.alias).length : 0,
-    sessionStart: ['bin/dg unify', 'bin/dg next-canon', 'curl -sS http://127.0.0.1:9878/api/unify'],
+    validation,
+    sessionStart: ['bin/dg orient', 'curl -sS http://127.0.0.1:9878/api/orient'],
     note: 'Prefer bin/dg orient (then unify/next-canon). API /api/tools defaults hideAliases+hotOnly; ?all=1 for full catalog. Mutate only when freeze OFF.',
   };
 }

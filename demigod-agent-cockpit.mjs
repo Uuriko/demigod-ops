@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Demigod Agent Cockpit — single source of "what should I do next"
+ * demigod-agent-cockpit — single agent NEXT card (no false green)
  *
- * CLI:  node demigod-agent-cockpit.mjs [--json] [--md]
- * HTTP: mounted by demigod-agent-dashboard as /api/cockpit
+ *   node demigod-agent-cockpit.mjs [--json] [--md]
+ *   HTTP: demigod-agent-dashboard /api/cockpit
  *
- * Designed for Grok/Codex/Fable session starts: one object, no false greens.
+ * Prefer demigod-next.buildNext for canonical id/cmd; cockpit may override only for
+ * live-down / board-honesty / verify-source failures. Writes /tmp/dg-busy/cockpit.json.
  */
 import fs from 'fs';
 import path from 'path';

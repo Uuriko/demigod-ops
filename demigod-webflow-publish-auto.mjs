@@ -32,6 +32,8 @@ import { CDP_URL } from './cdp-config.mjs';
 const ROOT = '/home/potter';
 const HEAD = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
 const FOOTER_LITE = fs.readFileSync(path.join(ROOT, 'demigod-footer-lite.html'), 'utf8');
+const FOOT_CORE = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+const EXPECTED_FOOT_VERSION = (FOOT_CORE.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || null;
 // For v150 we often use the CDN loader. Prefer the small working one if present.
 let FOOTER = FOOTER_LITE;
 try {
@@ -200,25 +202,35 @@ async function verifyLive() {
   try { html = await fetch(url, { cache: 'no-store' }).then(r => r.text()); }
   catch (e) { console.log('Live fetch failed:', e.message); return false; }
 
-  const hasV4 = /unhide-v4|dg-unhide-critical|dg-early-unhide/i.test(html);
+  const hasCanonicalHead = /unhide-v5/i.test(html) && /dg-unhide-critical/i.test(html);
   const noLorem = !/lorem ipsum/i.test(html);
 
-  // FOOT is in catbox JS — fetch loader then inner for 90d + ver (Fable fix)
-  const loader = html.match(/src="(https:\/\/files\.catbox\.moe\/[^"]+\.js)"/);
-  let footOk = false, detail = 'no catbox loader';
-  if (loader) {
+  // Require exactly one approved foot loader. Permanent releases use
+  // foot-latest.js; hashed Catbox/Gist assets remain supported fallbacks.
+  const loaderPattern = /<script\b[^>]*\bsrc=["'](https:\/\/(?:cdn\.jsdelivr\.net\/gh\/[^"']+\/foot-latest\.js(?:[?#][^"']*)?|cdn\.statically\.io\/gh\/[^"']+\/foot-latest\.js(?:[?#][^"']*)?|(?:files|litter)\.catbox\.moe\/[a-z0-9]+\.js(?:[?#][^"']*)?|gist\.githubusercontent\.com\/[^"']+\.js(?:[?#][^"']*)?))["'][^>]*>/gi;
+  const loaders = [...html.matchAll(loaderPattern)].map((match) => match[1]);
+  let footOk = false, detail = `foot loaders=${loaders.length}`;
+  if (loaders.length === 1) {
     try {
-      let js = await fetch(loader[1], { cache: 'no-store' }).then(r => r.text());
+      let response = await fetch(loaders[0], { cache: 'no-store', redirect: 'follow' });
+      const mime = response.headers.get('content-type') || '';
+      if (!/(?:javascript|ecmascript)/i.test(mime)) throw new Error(`non-JavaScript MIME ${mime || 'missing'}`);
+      let js = await response.text();
       const inner = js.length < 4000 && js.match(/https:\/\/files\.catbox\.moe\/[^"']+\.js/);
-      if (inner) js = await fetch(inner[0], { cache: 'no-store' }).then(r => r.text());
+      if (inner) {
+        response = await fetch(inner[0], { cache: 'no-store', redirect: 'follow' });
+        const innerMime = response.headers.get('content-type') || '';
+        if (!/(?:javascript|ecmascript)/i.test(innerMime)) throw new Error(`inner non-JavaScript MIME ${innerMime || 'missing'}`);
+        js = await response.text();
+      }
       const has90d = /90day-outcome/.test(js);
       const ver = (js.match(/__dgFootVer='(\d+)'/) || [])[1];
-      footOk = has90d && !!ver;
-      detail = `foot ver=${ver} 90d=${has90d} bytes=${js.length}`;
+      footOk = has90d && Boolean(ver) && ver === EXPECTED_FOOT_VERSION;
+      detail = `foot loaders=1 ver=${ver} expected=${EXPECTED_FOOT_VERSION} 90d=${has90d} bytes=${js.length}`;
     } catch (e) { detail = 'CDN fetch failed: ' + e.message; }
   }
-  console.log(`Live: headV4=${hasV4} noLorem=${noLorem} | ${detail}`);
-  return hasV4 && noLorem && footOk;
+  console.log(`Live: headV5=${hasCanonicalHead} noLorem=${noLorem} | ${detail}`);
+  return hasCanonicalHead && noLorem && footOk;
 }
 
 async function screenshot(page, name) {

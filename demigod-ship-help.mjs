@@ -12,7 +12,7 @@ freeze: ${f.frozen ? 'ON — ' + (f.why || '') : 'OFF'}
 4. bin/dg-review --bug --gates --format summary
 5. ONLY if freeze OFF:
    node demigod-foot-cdn-publish.mjs
-   node demigod-cm6-paste-publish.mjs --footer-only   # or full CM6
+   node demigod-cm6-paste-publish.mjs                 # canonical head + footer pair
    # Human: Webflow Publish if needed
 6. bin/dg truth --require-match
 7. bin/dg lock release --token "$DG_LOCK_TOKEN"

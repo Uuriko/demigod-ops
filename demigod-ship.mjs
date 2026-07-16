@@ -81,6 +81,9 @@ Subcommands:
   verify     bin/dg truth --require-match
   run        prepare → cdn → paste → verify (full; freeze OFF + lock)
 
+Power: cdn/paste/run briefly switch system76-power → performance, then restore.
+  Skip with DG_SHIP_NO_PERF=1 · restore override DG_SHIP_RESTORE_PROFILE=balanced
+
 Typical:
   bin/dg ship status
   bin/dg ship prepare
@@ -255,22 +258,76 @@ function writeReceipt(phase, ok, note) {
   }
 }
 
+/** Boost system76-power to performance for mutate bursts; restore after. */
+function withShipPerf(fn) {
+  if (process.env.DG_SHIP_NO_PERF === '1') return fn();
+  const prevPath = path.join(BUSY, 'ship-power-prev.json');
+  let prev = 'balanced';
+  try {
+    const out = spawnSync('system76-power', ['profile'], { encoding: 'utf8', timeout: 8000 });
+    const m = String(out.stdout || '').match(/Power Profile:\s*(\w+)/i);
+    if (m) prev = m[1].toLowerCase();
+  } catch {
+    /* */
+  }
+  try {
+    fs.mkdirSync(BUSY, { recursive: true });
+    fs.writeFileSync(prevPath, JSON.stringify({ at: new Date().toISOString(), prev }, null, 2) + '\n');
+  } catch {
+    /* */
+  }
+  if (prev !== 'performance') {
+    const b = spawnSync('system76-power', ['profile', 'performance'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    if (!asJson) {
+      console.log(
+        b.status === 0 || /Power Profile/i.test(String(b.stdout || b.stderr || ''))
+          ? '⚡ ship: performance profile (was ' + prev + ')'
+          : '⚡ ship: could not set performance (continuing)',
+      );
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    const restore = process.env.DG_SHIP_RESTORE_PROFILE || prev || 'balanced';
+    if (restore !== 'performance') {
+      spawnSync('system76-power', ['profile', restore], { encoding: 'utf8', timeout: 15000 });
+      if (!asJson) console.log('⚡ ship: restored power → ' + restore);
+    }
+    try {
+      spawnSync('dg-notify', ['Ship power', 'restored ' + restore], {
+        encoding: 'utf8',
+        timeout: 5000,
+      });
+    } catch {
+      /* */
+    }
+  }
+}
+
 function cdn() {
   requireMutate('ship-cdn');
-  const r = run('foot-cdn', ['demigod-foot-cdn-publish.mjs'], { timeout: 300000 });
-  writeReceipt('cdn', r.ok, r.ok ? 'cdn ok' : 'cdn failed');
-  if (asJson) console.log(JSON.stringify(r, null, 2));
-  else console.log(r.ok ? '✓ CDN publish' : '✗ CDN publish\n' + r.out);
-  return r.ok ? 0 : 1;
+  return withShipPerf(() => {
+    const r = run('foot-cdn', ['demigod-foot-cdn-publish.mjs'], { timeout: 300000 });
+    writeReceipt('cdn', r.ok, r.ok ? 'cdn ok' : 'cdn failed');
+    if (asJson) console.log(JSON.stringify(r, null, 2));
+    else console.log(r.ok ? '✓ CDN publish' : '✗ CDN publish\n' + r.out);
+    return r.ok ? 0 : 1;
+  });
 }
 
 function paste() {
   requireMutate('ship-paste');
-  const r = run('cm6-paste', ['demigod-cm6-paste-publish.mjs', '--footer-only'], { timeout: 300000 });
-  writeReceipt('paste', r.ok, r.ok ? 'paste ok' : 'paste failed');
-  if (asJson) console.log(JSON.stringify(r, null, 2));
-  else console.log(r.ok ? '✓ CM6 paste' : '✗ CM6 paste\n' + r.out);
-  return r.ok ? 0 : 1;
+  return withShipPerf(() => {
+    const r = run('cm6-paste', ['demigod-cm6-paste-publish.mjs'], { timeout: 300000 });
+    writeReceipt('paste', r.ok, r.ok ? 'paste ok' : 'paste failed');
+    if (asJson) console.log(JSON.stringify(r, null, 2));
+    else console.log(r.ok ? '✓ CM6 paste' : '✗ CM6 paste\n' + r.out);
+    return r.ok ? 0 : 1;
+  });
 }
 
 function verify() {
@@ -290,33 +347,52 @@ function verify() {
 function runAll() {
   requireMutate('ship-run');
   const ev = beginRun('ship-run', { scope: [path.join(ROOT, 'demigod-foot-core.js')] });
-  const results = [];
-  let code = prepare();
-  results.push({ step: 'prepare', code });
-  if (code !== 0) {
-    sealRun(ev, { pass: false, summary: 'prepare failed' });
-    return code;
-  }
-  code = cdn();
-  results.push({ step: 'cdn', code });
-  if (code !== 0) {
-    sealRun(ev, { pass: false, summary: 'cdn failed' });
-    return code;
-  }
-  code = paste();
-  results.push({ step: 'paste', code });
-  if (code !== 0) {
-    sealRun(ev, { pass: false, summary: 'paste failed' });
-    return code;
-  }
-  code = verify();
-  results.push({ step: 'verify', code });
-  sealRun(ev, { pass: code === 0, summary: code === 0 ? 'ship-run ok' : 'verify failed' });
-  fs.writeFileSync(
-    path.join(BUSY, 'ship-run.json'),
-    JSON.stringify({ at: new Date().toISOString(), results }, null, 2) + '\n',
-  );
-  return code;
+  // Single perf boost for full run (cdn/paste already wrap; avoid double toggle by disabling nested)
+  process.env.DG_SHIP_NO_PERF = process.env.DG_SHIP_NO_PERF || '';
+  const nested = process.env.DG_SHIP_NO_PERF;
+  return withShipPerf(() => {
+    process.env.DG_SHIP_NO_PERF = '1'; // nested cdn/paste skip re-boost
+    try {
+      const results = [];
+      let code = prepare();
+      results.push({ step: 'prepare', code });
+      if (code !== 0) {
+        sealRun(ev, { pass: false, summary: 'prepare failed' });
+        return code;
+      }
+      code = cdn();
+      results.push({ step: 'cdn', code });
+      if (code !== 0) {
+        sealRun(ev, { pass: false, summary: 'cdn failed' });
+        return code;
+      }
+      code = paste();
+      results.push({ step: 'paste', code });
+      if (code !== 0) {
+        sealRun(ev, { pass: false, summary: 'paste failed' });
+        return code;
+      }
+      code = verify();
+      results.push({ step: 'verify', code });
+      sealRun(ev, { pass: code === 0, summary: code === 0 ? 'ship-run ok' : 'verify failed' });
+      fs.writeFileSync(
+        path.join(BUSY, 'ship-run.json'),
+        JSON.stringify({ at: new Date().toISOString(), results }, null, 2) + '\n',
+      );
+      try {
+        spawnSync(
+          'dg-notify',
+          [code === 0 ? 'Ship OK' : 'Ship FAIL', code === 0 ? 'run complete' : 'see ship-run.json'],
+          { timeout: 5000 },
+        );
+      } catch {
+        /* */
+      }
+      return code;
+    } finally {
+      process.env.DG_SHIP_NO_PERF = nested;
+    }
+  });
 }
 
 const map = {

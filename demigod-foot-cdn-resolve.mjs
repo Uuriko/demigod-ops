@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { connectBrowser, sleep } from './collab-lib.mjs';
 import { ROOT } from './demigod-turn-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const STAGED = path.join(ROOT, 'demigod-foot-v19.js');
@@ -149,8 +150,9 @@ async function main() {
 
   const loader = `<!-- demigod-foot-cdn-loader v19 -->\n<script defer src="${cdnUrl || 'PENDING'}"></script>\n`;
   if (verify.ok && cdnUrl) {
-    fs.writeFileSync(LOADER, loader);
-    fs.writeFileSync(FOOT, loader);
+    // temp+rename so concurrent verify:source never reads torn footer mid-write
+    atomicWrite(LOADER, loader);
+    atomicWrite(FOOT, loader);
   }
 
   const result = {
@@ -168,7 +170,7 @@ async function main() {
       apiHits: upload.apiHits.slice(0, 8),
     },
   };
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+  atomicWrite(OUT, JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 
   await browser.disconnect();

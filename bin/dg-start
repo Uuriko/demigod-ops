@@ -11,18 +11,18 @@ echo "════════════════════════�
 echo " Demigod session start  $(date -Iseconds)"
 echo "════════════════════════════════════════════════════"
 
-# 1) dashboard up (best-effort)
-if ! curl -sS --max-time 1 http://127.0.0.1:9878/health >/dev/null 2>&1; then
-  nohup node demigod-agent-dashboard.mjs --port 9878 >>/tmp/dg-busy/dashboard.log 2>&1 &
-  echo $! >/tmp/dg-busy/dashboard.pid
-  sleep 0.8
-fi
+# 1) dashboard up (best-effort) through the canonical recovery path
+curl --noproxy '*' -fsS --max-time 1 http://127.0.0.1:9878/healthz >/dev/null 2>&1 || DEMIGOD_DASH_NO_OPEN=1 bin/dg-dash >/dev/null 2>&1 || true
 
 # 2) refresh brief via API (writes /tmp/dg-busy/AGENT-BRIEF.md)
 if curl -sS --max-time 30 http://127.0.0.1:9878/api/agent-brief >/tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null; then
   echo "brief     refreshed via dashboard"
 else
-  echo "brief     dashboard slow — partial offline brief"
+  if bin/dg-dash status 2>&1 | grep -q '^unobservable '; then
+    echo "brief     dashboard host-running · namespace-unobservable — partial offline brief"
+  else
+    echo "brief     dashboard unavailable — partial offline brief"
+  fi
   {
     echo "# Demigod AGENT-BRIEF (offline fallback)"
     echo "at: $(date -Iseconds)"

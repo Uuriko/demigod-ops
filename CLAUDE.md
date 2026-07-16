@@ -1,10 +1,14 @@
-**Start:** `DEMIGOD-SIMPLE.md` (simple card). Living state: `DEMIGOD-COMPRESSED-STATE.md`.
+**Start:** `AGENT-SIMPLE.md (≡ DEMIGOD-SIMPLE.md)` (simple card). Living state: `AGENT-STATE.md (≡ DEMIGOD-COMPRESSED-STATE.md)`.
 
 # Demigod Project Rules for Claude / Fable (root CLAUDE.md)
 
 This file is auto-loaded by bare `claude` runs for project context.
 
+**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** consult Grok with `grok-ask "…"`, consult Claude with `ask-claude "…"` (prompt as args or stdin; prints reply, exits); async work via the Claude inbox. Full protocol: `AGENT-COMMS.md`.
+
 ## Key Rules (from DEMIGOD-AGENTS.md)
+- **Ponytail (REQUIRED):** All Claude/Fable coding follows Ponytail — lazy senior, YAGNI ladder, min code, keep safety. Plugin `ponytail@ponytail` enabled; rules `docs/PONYTAIL-AGENTS.md` + `~/.cursor/rules/ponytail.mdc`. Prefer `/ponytail-review` on large diffs.
+- **User communication:** Never assign the user work or “what you should do next”. Report agent results only. Human-action advice **only if they ask**.
 - **One canonical file**: Edit only `demigod-foot-core.js` for site JS (or supporting demigod-*.mjs when not touching site).
 - **Verify gate**: ALWAYS `npm run demigod:verify:source` (or targeted / :all) + board-honesty + loop-state after edits.
 - **Publish**: Human clicks Publish in Webflow. Agent prepares (CDN, custom-code via CDP, diffs).
@@ -24,7 +28,7 @@ Current WIZ: Typeform stepper (startup + engineer) with 90day-outcome (required,
 ## Prompting for Demigod
 Start prompts with: "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty. [task]"
 
-**Living state (start here):** `DEMIGOD-COMPRESSED-STATE.md`  
+**Living state (start here):** `AGENT-STATE.md (≡ DEMIGOD-COMPRESSED-STATE.md)`  
 See full playbook: AI-HYBRID-COLLABORATION-PLAYBOOK.md  
 See templates: prompts/demigod/ (use via bin/df)  
 Publish/load postmortem: `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`
@@ -48,7 +52,7 @@ Full details in docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09.md and docs
 
 This session (Grok): talked directly to other Claude models (sonnet, default/opus via `claude --print --model ... --add-dir`) + prior Fable via bin/df/scripts. Exchanged detailed notes on:
 - v4 head unhide (layers: critical styles + early script RAF/MO/interval/listeners/noscript + graceful; fixed prior SyntaxError in unhide).
-- foot v150 WIZ (90day-outcome required + explicit review/__submit__ step; stepper for startup/engineer; pending copy).
+- foot WIZ (90day-outcome required + explicit review/__submit__ step; stepper for startup/engineer; pending copy) — disk SoR now **v507** (v150 was 2026-07-09 milestone).
 - Board honesty currently FAIL (roles>3=5, needs trim before GTM).
 - Workflow: human Publish gate, prepare pastes + /tmp/READY, multi-confirm (curl, styles, wiz-playtest), fallback static.
 - Agent roles: Fable (plans via df), Claude (audits), Grok (verify/hygiene/tools/pastes), Cursor (edits in plan mode), Heavy (GTM).
@@ -74,5 +78,5 @@ Per user directive: human does not / cannot act. Grok does ALL: research, audits
 Fable/Claude models = bosses with authority equal to user. Use bin/df for queries, apply plans.
 Webflow publish: full autonomous (paste + Save + Publish click) overriding noted "human gate" per explicit "figure out how to do everything yourself, even publish webflow".
 Gates always run post change. Board honest <=2-3 seeds, real=0.
-Foot-core v150 untouched (canonical healthy).
+Foot-core: disk **v507** is SoR (2026-07-09 note said v150 — historical only).
 Head: research comments added.

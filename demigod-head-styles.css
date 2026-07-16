@@ -1,4 +1,22 @@
-:root{--g:#C9A84C;--gl:#E8D5A3;--yl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--dim:#8A8478;--card:rgba(14,14,18,.92)}body{background:var(--dk)!important;color:var(--cr)!important;font-family:Manrope,sans-serif}a.w-webflow-badge,.w-webflow-badge{display:none!important}.title-accent-gold{color:var(--g)!important}.title-accent-cream{color:var(--cr)!important}.title-accent-red,.title-accent-blue{color:var(--gl)!important}.hero-section h1:not(:has(.title-accent-gold)),.header h1:not(:has(.title-accent-gold)){visibility:hidden;min-height:2.8em;animation:dg-hero-fallback 1.2s forwards}@keyframes dg-hero-fallback{0%,80%{visibility:hidden}to{visibility:visible}}.hero-section h1:has(.title-accent-gold),.header h1:has(.title-accent-gold){visibility:visible}.hero-section h1,.header h1{font-family:Cinzel,serif!important;letter-spacing:-.02em;line-height:1.05;text-shadow:0 1px 24px rgba(0,0,0,.45);overflow-wrap:break-word;word-break:break-word;font-weight:600!important}.hero-section p,.header p,.subheading,.hero-description{color:var(--mu)!important;font-size:1.0625rem!important;max-width:36ch;line-height:1.55!important;text-shadow:none}.eyebrow,.eyebrow_block,.badge,[class*="badge"]{color:var(--g)!important}.badge-dot{background:var(--g)!important;box-shadow:0 0 10px rgba(201,168,76,.55)}.badge-text{letter-spacing:.14em!important;font-size:.7rem!important}nav,.w-nav,.nav_container{background:rgba(10,10,10,.97)!important;backdrop-filter:blur(10px);border-bottom:1px solid rgba(201,168,76,.12)!important}.nav_logo-icon,.logo-link svg{color:var(--g)!important}.button.on-inverse,nav .button.on-inverse{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-talent,.button.on-inverse,.premium-btn,.button.w-button{transition:transform .18s cubic-bezier(0.2,0.8,0.2,1),box-shadow .18s cubic-bezier(0.2,0.8,0.2,1),border-color .18s,background .18s}.premium-btn.is-talent:hover,.button.on-inverse:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(201,168,76,.2)}/* elegant micro-animations per top-tier inspiration (Linear/Stripe feel) */ .dg-step{transition:transform .2s cubic-bezier(0.2,0.8,0.2,1),border-color .2s,background .2s}.dg-step:hover{transform:translateY(-1px);border-color:rgba(201,168,76,.45)}#startup-modal,#jobseeker-modal{transition:opacity .2s ease,transform .2s cubic-bezier(0.2,0.8,0.2,1)}#startup-modal.dg-wiz-active,#jobseeker-modal.dg-wiz-active{animation:dg-modal-enter .2s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-modal-enter{from{opacity:0;transform:scale(.98) translateY(8px)}to{opacity:1;transform:none}} .dg-cand,.dg-row{transition:transform .15s ease,box-shadow .15s ease}.dg-cand:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.2)}#demigod-trust-block .dg-step{opacity:0;transform:translateY(6px);animation:dg-stagger-in .4s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-stagger-in{to{opacity:1;transform:none}}#demigod-trust-block .dg-step:nth-child(2){animation-delay:.06s}#demigod-trust-block .dg-step:nth-child(3){animation-delay:.12s} @media (prefers-reduced-motion: reduce){.dg-step,#startup-modal,#jobseeker-modal{transition:none!important;animation:none!important;transform:none!important}}.premium-btn.is-talent{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-job{background:transparent!important;color:var(--gl)!important;border:1px solid rgba(201,168,76,.5)!important;font-weight:600!important}.premium-btn.is-job:hover{border-color:rgba(201,168,76,.7)!important;background:rgba(201,168,76,.06)!important}.statue-frame,.statue-svg,.statue-wrapper,.statue-coordinates,.hero-content-right{display:none!important}.hero-content-left,.hero-section>.container{max-width:640px;padding-left:1.25rem;padding-right:1.25rem}.hero-section,.header{position:relative;overflow:hidden;min-height:88vh;display:flex;align-items:center;background-image:linear-gradient(105deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.25) 100%),url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg')!important;background-size:cover!important;background-position:65% center!important}.hero-section>*,.header>*{position:relative;z-index:1}.grid-col-line{background:rgba(201,168,76,.05)!important}.section.is-secondary{background:#05050A!important}#pantheon,#trust-bullets,section:has(.heading_primary){display:none!important}section:has(h2):has([class*="pantheon"]),section:has([class*="get-in-touch"]),section:has([class*="contact-us"]){display:none!important}[class*="methodology"],[class*="curated-insight"],[class*="mega-footer"]{display:none!important}section h2{font-family:Cinzel,serif!important;color:var(--g)!important;letter-spacing:.06em;text-transform:uppercase;text-align:center}section h3{font-family:Cinzel,serif!important;color:var(--cr)!important}#demigod-pricing>div>div:last-child>div{display:grid!important;grid-template-columns:1fr!important;gap:1rem;max-width:480px;margin:0 auto}
+/* demigod-head-styles.css — CANONICAL head CSS (CDN linked from demigod-head-minimal.html)
+ * Brand tokens, hero, WIZ chrome, modals, mobile bar, FOUC guards.
+ * Layers accumulate with foot versions (v150+ … v204+ annotations in selectors).
+ * Ship: demigod-head-css-publish.mjs → patch link in head-minimal → cm6 head paste.
+ * NEVER: MutationObserver style thrash (see foot v187 postmortem).
+ */
+/* v421 readiness guard: keep Webflow's legacy CTA labels out of first paint.
+ * This duplicates the inline critical rule so the canonical stylesheet is
+ * safe when embedded or audited independently. */
+body:not(.dg-ready):not([data-dg-ready="1"]) .hero-actions,
+body:not(.dg-ready):not([data-dg-ready="1"]) .nav_right a,
+body:not(.dg-ready):not([data-dg-ready="1"]) .nav_right button{visibility:hidden!important;opacity:0!important}
+/* v449 head-only honesty guard: fallback cannot attest nested canvas copy. */
+body.dg-head-fallback .process-section,body.dg-head-fallback .pricing-section,
+body.dg-head-fallback [class*="process-section"],body.dg-head-fallback [class*="pricing-section"]{display:none!important}
+@media (prefers-reduced-motion:reduce){body.dg-ready .hero-actions,body[data-dg-ready="1"] .hero-actions,body.dg-ready .nav_right a,body.dg-ready .nav_right button,body[data-dg-ready="1"] .nav_right a,body[data-dg-ready="1"] .nav_right button{transition:none!important}}
+/* v259 product-page decision preview: stable layout before foot pageCss is injected. */
+.dg-decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;margin-block:1rem;padding:0;list-style:none}.dg-decision-grid>li{min-width:0;border-radius:12px}.dg-decision-grid strong,.dg-decision-grid small{overflow-wrap:anywhere}@media(max-width:639px){.dg-decision-grid{grid-template-columns:1fr}}
+:root{--g:#C9A84C;--gl:#E8D5A3;--yl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--dim:#8A8478;--card:rgba(14,14,18,.92)}body{background:var(--dk)!important;color:var(--cr)!important;font-family:Manrope,sans-serif}a.w-webflow-badge,.w-webflow-badge{display:none!important}.title-accent-gold{color:var(--g)!important}.title-accent-cream{color:var(--cr)!important}.title-accent-red,.title-accent-blue{color:var(--gl)!important}.hero-section h1:not(:has(.title-accent-gold)),.header h1:not(:has(.title-accent-gold)){visibility:hidden;min-height:2.8em;animation:dg-hero-fallback 1.2s forwards}@keyframes dg-hero-fallback{0%,80%{visibility:hidden}to{visibility:visible}}.hero-section h1:has(.title-accent-gold),.header h1:has(.title-accent-gold){visibility:visible}.hero-section h1,.header h1{font-family:Cinzel,serif!important;letter-spacing:-.02em;line-height:1.05;text-shadow:0 1px 24px rgba(0,0,0,.45);overflow-wrap:break-word;word-break:break-word;font-weight:600!important}.hero-section p,.header p,.subheading,.hero-description{color:var(--mu)!important;font-size:1.0625rem!important;max-width:36ch;line-height:1.55!important;text-shadow:none}.eyebrow,.eyebrow_block,.badge,[class*="badge"]{color:var(--g)!important}.badge-dot{background:var(--g)!important;box-shadow:0 0 10px rgba(201,168,76,.55)}.badge-text{letter-spacing:.14em!important;font-size:.7rem!important}nav,.w-nav,.nav_container{background:rgba(10,10,10,.97)!important;backdrop-filter:blur(10px);border-bottom:1px solid rgba(201,168,76,.12)!important}.nav_logo-icon,.logo-link svg{color:var(--g)!important}.button.on-inverse,nav .button.on-inverse{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-talent,.button.on-inverse,.premium-btn,.button.w-button{transition:transform .18s cubic-bezier(0.2,0.8,0.2,1),box-shadow .18s cubic-bezier(0.2,0.8,0.2,1),border-color .18s,background .18s}.premium-btn.is-talent:hover,.button.on-inverse:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(201,168,76,.2)}/* elegant micro-animations per top-tier inspiration (Linear/Stripe feel) */ .dg-step{transition:transform .2s cubic-bezier(0.2,0.8,0.2,1),border-color .2s,background .2s}.dg-step:hover{transform:translateY(-1px);border-color:rgba(201,168,76,.45)}#startup-modal,#jobseeker-modal{transition:opacity .2s ease,transform .2s cubic-bezier(0.2,0.8,0.2,1)}#startup-modal.dg-wiz-active,#jobseeker-modal.dg-wiz-active{animation:dg-modal-enter .2s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-modal-enter{from{opacity:0;transform:scale(.98) translateY(8px)}to{opacity:1;transform:none}} .dg-cand,.dg-row{transition:transform .15s ease,box-shadow .15s ease}.dg-cand:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.2)}#demigod-trust-block .dg-step{opacity:0;transform:translateY(6px);animation:dg-stagger-in .4s cubic-bezier(0.2,0.8,0.2,1) forwards}@keyframes dg-stagger-in{to{opacity:1;transform:none}}#demigod-trust-block .dg-step:nth-child(2){animation-delay:.06s}#demigod-trust-block .dg-step:nth-child(3){animation-delay:.12s} @media (prefers-reduced-motion: reduce){.dg-step,#startup-modal,#jobseeker-modal{transition:none!important;animation:none!important;transform:none!important}}.premium-btn.is-talent{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important}.premium-btn.is-job{background:transparent!important;color:var(--gl)!important;border:1px solid rgba(201,168,76,.5)!important;font-weight:600!important}.premium-btn.is-job:hover{border-color:rgba(201,168,76,.7)!important;background:rgba(201,168,76,.06)!important}.statue-frame,.statue-svg,.statue-wrapper,.statue-coordinates,.hero-content-right{display:none!important}.hero-content-left,.hero-section>.container{max-width:640px;padding-left:1.25rem;padding-right:1.25rem}.hero-section,.header{position:relative;overflow:hidden;min-height:88vh;display:flex;align-items:center;background-image:linear-gradient(105deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.25) 100%),url('https://files.catbox.moe/126k4p.jpg')!important;background-size:cover!important;background-position:65% center!important}.hero-section>*,.header>*{position:relative;z-index:1}.grid-col-line{background:rgba(201,168,76,.05)!important}.section.is-secondary{background:#05050A!important}#pantheon,#trust-bullets,section:has(.heading_primary){display:none!important}section:has(h2):has([class*="pantheon"]),section:has([class*="get-in-touch"]),section:has([class*="contact-us"]){display:none!important}[class*="methodology"],[class*="curated-insight"],[class*="mega-footer"]{display:none!important}section h2{font-family:Cinzel,serif!important;color:var(--g)!important;letter-spacing:.06em;text-transform:uppercase;text-align:center}section h3{font-family:Cinzel,serif!important;color:var(--cr)!important}#demigod-pricing>div>div:last-child>div{display:grid!important;grid-template-columns:1fr!important;gap:1rem;max-width:480px;margin:0 auto}
 #demigod-pricing>div>div:last-child>div>div:nth-child(n+2){display:none!important}
 #demigod-pricing h3:has(+ *):not(:first-of-type){display:none!important}
 #startup-modal .modal-success-message,#jobseeker-modal .modal-success-message,#form-success-startup,#form-success-engineer{display:none!important}
@@ -89,7 +107,7 @@ nav.w-nav,.w-nav{display:flex!important;visibility:visible!important}
 
 /* THOROUGH GOLD/YELLOW HEAVY REDESIGN - Fable led, older style preferred */
 /* Stronger gold/yellow theme: dominant golds, yellow highlights, elegant luxury */
-:root { --g: #C9A84C; --gl: #F4D03F; --yl: #F4D03F; --cr: #F5F0E6; --dk: #0A0A0A; --mu: #A8A29E; --dim: #8A8478; --card: rgba(14,14,18,.92); }
+:root { --g: #C9A84C; --gl: #E8D5A3; --yl: #E8D5A3; --cr: #F5F0E6; --dk: #0A0A0A; --mu: #A8A29E; --dim: #8A8478; --card: rgba(14,14,18,.92); }
 body { background: var(--dk) !important; color: var(--cr) !important; }
 .hero-section h1, .header h1 { color: var(--g) !important; text-shadow: 0 2px 12px rgba(201,168,76,.3); }
 .title-accent-gold { color: var(--g) !important; font-weight: 700; }
@@ -173,11 +191,14 @@ body { background:var(--dk)!important; color:var(--cr)!important; }
 
 /* Buttons: always great looking, clickable, gold primary with yellow hover lift */
 .premium-btn, .button.on-inverse, .w-button, #dg-nav-hire, .dg-wiz-next, .dg-wiz-start {
-  background:var(--g)!important; color:var(--dk)!important; border:1px solid var(--gl)!important;
-  font-weight:700!important; border-radius:8px!important; cursor:pointer!important; transition:transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s, background .16s;
+  background:var(--g)!important; color:var(--dk)!important; border:1px solid rgba(201,168,76,.85)!important;
+  font-weight:600!important; border-radius:10px!important; cursor:pointer!important;
+  min-height:48px!important; padding:.55rem 1.15rem!important; font-size:.875rem!important;
+  letter-spacing:.01em; transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s, filter .18s, background .18s;
+  box-shadow:0 4px 18px rgba(201,168,76,.12);
 }
 .premium-btn:hover, .button.on-inverse:hover, .w-button:hover, #dg-nav-hire:hover, .dg-wiz-next:hover, .dg-wiz-start:hover {
-  background:var(--gl)!important; transform:translateY(-2px); box-shadow:0 8px 28px rgba(244,208,63,.45);
+  background:var(--gl)!important; transform:translateY(-1px); box-shadow:0 8px 22px rgba(201,168,76,.22); filter:brightness(1.03);
 }
 .premium-btn:active, .dg-wiz-next:active { transform:translateY(0); }
 
@@ -212,7 +233,7 @@ body { background:var(--dk)!important; color:var(--cr)!important; }
 .dg-wiz-nav { display:flex; gap:.6rem; margin-top:1.15rem; align-items:center; }
 .dg-wiz-back { background:transparent; border:1px solid rgba(201,168,76,.32); color:var(--dim); padding:.5rem .85rem; border-radius:6px; font-size:.9rem; cursor:pointer; }
 .dg-wiz-back:hover { color:var(--cr); border-color:var(--g); }
-.dg-wiz-next, .dg-wiz-start { padding:.65rem 1.85rem; font-size:.95rem; min-height:44px; }
+.dg-wiz-next, .dg-wiz-start { padding:.55rem 1.25rem; font-size:.875rem; min-height:48px; font-weight:600; }
 .dg-wiz-review { border:1px solid rgba(201,168,76,.22); border-radius:10px; background:var(--card); padding:.85rem; margin:.6rem 0; font-size:.88rem; }
 .dg-wiz-review div { display:flex; justify-content:space-between; gap:.8rem; padding:.28rem 0; border-bottom:1px solid rgba(255,255,255,.05); }
 .dg-wiz-review span { color:var(--dim); }
@@ -226,7 +247,7 @@ body { background:var(--dk)!important; color:var(--cr)!important; }
 .dg-step:hover, .dg-cand:hover, .dg-row:hover { transform:translateY(-2px); border-color:rgba(201,168,76,.45); box-shadow:0 6px 20px rgba(0,0,0,.3); }
 .dg-anim { animation: dg-gold-rise .45s ease forwards; }
 @keyframes dg-gold-rise { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
-.premium-btn, .dg-wiz-next, .dg-wiz-start { animation: dg-gold-glow 3.2s ease infinite; }
+/* v316: no infinite CTA glow — calmer */ .premium-btn, .dg-wiz-next, .dg-wiz-start { animation:none; }
 @media (prefers-reduced-motion: reduce) { .dg-anim, .dg-wiz-show, .premium-btn, .dg-wiz-next { animation:none !important; transition:none !important; } }
 
 /* Trust / process / ledger gold polish */
@@ -350,12 +371,12 @@ body{
     radial-gradient(900px 500px at 10% 20%, rgba(80,60,20,.15), transparent 50%),
     var(--dk) !important;
 }
-/* Hero: cinematic, less clutter */
+/* Hero: cinematic, less clutter — brand hero = catbox 126k4p (matches og:image + foot brandAssets) */
 .hero-section,.header{
   min-height:92vh !important;
   background-image:
     linear-gradient(115deg,rgba(5,5,8,.82) 0%,rgba(5,5,8,.55) 42%,rgba(5,5,8,.28) 100%),
-    url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg') !important;
+    url('https://files.catbox.moe/126k4p.jpg') !important;
   background-size:cover !important;
   background-position:68% center !important;
 }
@@ -544,8 +565,841 @@ body{background-color:var(--dg-cool)!important;background-image:radial-gradient(
 .badge-text,.eyebrow{ letter-spacing:.16em !important; }
 
 /* v204 home-minimal FOUC: hide below-fold essay walls until foot loads */
-#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-path-pills,#dg-hero-trust,#insights-section,.insights-section{display:none!important}
+#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-hero-trust,#insights-section,.insights-section{display:none!important}
 main > section:not(.hero-section):not(.header){display:none!important}
 body > section:not(.hero-section):not(.header):not([id*=modal]):not(#startup-modal):not(#jobseeker-modal){display:none!important}
 .hero-actions a.premium-btn,.hero-actions a.button{border-radius:12px!important;min-height:48px!important}
+/* Never reveal an unclassified canvas CTA. foot-core adds data-dg-cta only
+   after it has replaced legacy HIRE/FIND/JOIN labels with the canonical pair. */
+body.dg-ready .hero-actions a:not([data-dg-cta]),
+body[data-dg-ready="1"] .hero-actions a:not([data-dg-cta]),
+body.dg-ready .nav_right a:not([data-dg-cta]):not(#dg-nav-hire):not(#dg-nav-talent),
+body[data-dg-ready="1"] .nav_right a:not([data-dg-cta]):not(#dg-nav-hire):not(#dg-nav-talent),
+body.dg-ready .nav_right button:not([data-dg-cta]),
+body[data-dg-ready="1"] .nav_right button:not([data-dg-cta]){visibility:hidden!important;opacity:0!important}
+/* Conceal stale Webflow promise surfaces until foot-core (or the bounded head
+   fallback) has scrubbed them; prevents guarantee/volume copy first-paint. */
+/* cycle 292: either readiness marker is authoritative. Keep risky legacy
+   canvas copy hidden only while both markers are absent. */
+body:not(.dg-ready):not([data-dg-ready="1"]) .process-section,
+body:not(.dg-ready):not([data-dg-ready="1"]) .pricing-section,
+body:not(.dg-ready):not([data-dg-ready="1"]) [class*="process-section"],
+body:not(.dg-ready):not([data-dg-ready="1"]) [class*="pricing-section"]{visibility:hidden!important}
 #dg-bar a{border-radius:12px!important}
+/* ==== v212 head chrome: hero chips/pills + WIZ polish (pairs with foot brandAssets) ==== */
+#dg-hero-chips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.15rem 0 1rem}
+#dg-hero-chips .dg-chip{display:inline-flex;align-items:center;padding:.28rem .65rem;border-radius:999px;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#E8D5A3;border:1px solid rgba(201,168,76,.35);background:rgba(10,10,10,.4)}
+#dg-path-pills{display:flex;flex-wrap:wrap;gap:.25rem .45rem;margin:.35rem 0 0}
+#dg-path-pills a{display:inline-flex;align-items:center;min-height:48px;padding:0 .45rem;color:#A8A29E!important;font-size:.88rem!important;font-weight:600!important;text-decoration:none!important}
+#dg-path-pills a:hover{color:#C9A84C!important}
+#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border-bottom:1px solid rgba(201,168,76,.18);padding-bottom:.5rem;margin-bottom:.75rem}
+#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#A8A29E}
+#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:4px;margin:.5rem 0 .8rem;overflow:hidden;border-radius:999px;background:rgba(168,162,158,.18)}
+#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{display:block;height:100%;border-radius:inherit;background:#C9A84C;box-shadow:0 0 14px rgba(201,168,76,.28);transition:width .2s ease}
+#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-size:1.15rem;line-height:1.35;color:#F5F0E6;margin:.35rem 0 .5rem}
+#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{color:#A8A29E;font-size:.9rem;line-height:1.45;margin:0 0 .75rem}
+#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{min-height:48px;border-radius:12px;font-weight:700}
+#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back{min-height:48px;color:#A8A29E}
+#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-start,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-start{min-height:48px}
+#startup-modal [aria-invalid="true"],#jobseeker-modal [aria-invalid="true"]{border-color:#F87171!important;box-shadow:0 0 0 1px rgba(248,113,113,.3)}
+#dg-path-pills a:focus-visible{outline:2px solid #C9A84C;outline-offset:4px;border-radius:4px;color:#E8D5A3!important}
+@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{transition:none}#dg-hero-chips,#dg-path-pills{animation:none!important;transition:none!important}}
+@media(max-width:767px){
+  #dg-path-pills{justify-content:center}
+  #dg-hero-chips{justify-content:center}
+}
+
+/* v213+ public design contract — keep the final cascade aligned with foot brandAssets. */
+:root{
+  --g:#C9A84C;
+  --gl:#E8D5A3;
+  --cr:#F5F0E6;
+  --dk:#0A0A0A;
+  --mu:#A8A29E;
+  --card:rgba(14,14,18,.92);
+  --dg-radius-control:12px;
+  --dg-radius-card:16px;
+  --dg-radius-chip:999px;
+  --dg-motion-fast:150ms ease;
+  --dg-motion-ui:200ms ease;
+}
+
+/* cycle 84: make WIZ progress read as one calm, high-contrast status unit. */
+#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,
+#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{
+  box-sizing:border-box;
+  padding:.85rem .9rem .95rem!important;
+  margin:0 0 1rem!important;
+  border:1px solid rgba(201,168,76,.22)!important;
+  border-radius:var(--dg-radius-control)!important;
+  background:linear-gradient(180deg,rgba(201,168,76,.07),rgba(201,168,76,.025))!important;
+  box-shadow:inset 0 1px 0 rgba(245,240,230,.035)!important;
+}
+#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{
+  display:inline-flex!important;
+  align-items:center;
+  min-height:24px;
+  margin:0 0 .55rem!important;
+  padding:.15rem .5rem!important;
+  border:1px solid rgba(201,168,76,.24);
+  border-radius:var(--dg-radius-chip);
+  background:rgba(10,10,10,.4);
+  color:var(--gl)!important;
+  font-size:.72rem!important;
+  font-weight:700!important;
+  line-height:1.2;
+  letter-spacing:.08em!important;
+  font-variant-numeric:tabular-nums;
+}
+#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{
+  height:6px!important;
+  margin:0 0 .85rem!important;
+  border:1px solid rgba(201,168,76,.14)!important;
+  border-radius:var(--dg-radius-chip)!important;
+  background:rgba(168,162,158,.16)!important;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.4)!important;
+}
+#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{
+  background:linear-gradient(90deg,var(--g),var(--gl))!important;
+  box-shadow:0 0 10px rgba(201,168,76,.28)!important;
+  transition:width var(--dg-motion-ui)!important;
+}
+@media(max-width:767px){
+  #startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,
+  #startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{padding:.75rem!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{transition:none!important}
+}
+
+/* cycle 92: preserve WIZ progress in Windows/high-contrast forced-colors mode. */
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,
+  #startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{
+    border:1px solid CanvasText!important;
+    forced-color-adjust:auto;
+  }
+  #startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{
+    border:1px solid CanvasText!important;
+    background:Canvas!important;
+  }
+  #startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{
+    background:Highlight!important;
+    box-shadow:none!important;
+  }
+  #startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{
+    border:1px solid CanvasText!important;
+    background:Canvas!important;
+    color:CanvasText!important;
+  }
+  #startup-modal [aria-invalid="true"],#jobseeker-modal [aria-invalid="true"]{
+    border:2px solid Mark!important;
+    box-shadow:none!important;
+  }
+}
+
+/* cycle 128: product-page decisions stay operable and visibly grouped in
+   Windows high-contrast mode before and after foot pageCss is injected. */
+@media(forced-colors:active){
+  #dg-page{background:Canvas!important;forced-color-adjust:auto}
+  #dg-page .dg-page-card,#dg-page .dg-decision-grid>li,
+  #dg-page .dg-p-grid>div,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{
+    border:1px solid CanvasText!important;
+    background:Canvas!important;
+    color:CanvasText!important;
+    box-shadow:none!important;
+  }
+  #dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,
+  #dg-page summary:focus-visible{outline:2px solid Highlight!important;outline-offset:3px!important}
+}
+
+/* cycle 96: keep decision-screen paths and actions distinguishable in forced colors. */
+@media(forced-colors:active){
+  #dg-hero-chips .dg-chip,#dg-path-pills a,
+  .hero-actions a[data-dg-cta],#dg-bar a,#dg-nav-hire,#dg-nav-talent{
+    border:1px solid ButtonText!important;
+    color:ButtonText!important;
+    background:ButtonFace!important;
+    forced-color-adjust:auto;
+  }
+  #dg-path-pills a:focus-visible,
+  .hero-actions a[data-dg-cta]:focus-visible,#dg-bar a:focus-visible,
+  #dg-nav-hire:focus-visible,#dg-nav-talent:focus-visible{
+    outline:2px solid Highlight!important;
+    outline-offset:3px!important;
+  }
+}
+
+/* cycle 79628: give WIZ progress a precise moving endpoint, not an ambient glow. */
+#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{
+  position:relative!important;
+  min-width:6px;
+}
+#startup-modal .dg-wiz-bar>i::after,#jobseeker-modal .dg-wiz-bar>i::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  right:1px;
+  width:4px;
+  height:4px;
+  border-radius:50%;
+  background:var(--cr);
+  box-shadow:0 0 0 2px rgba(10,10,10,.28);
+  transform:translateY(-50%);
+}
+#startup-modal .dg-wiz-bar[aria-valuenow="0"]>i,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="0"]>i{
+  min-width:0;
+}
+#startup-modal .dg-wiz-bar[aria-valuenow="0"]>i::after,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="0"]>i::after,
+#startup-modal .dg-wiz-bar[aria-valuenow="100"]>i::after,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="100"]>i::after{
+  display:none;
+}
+#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{
+  color:var(--g)!important;
+  font-size:.84rem;
+  line-height:1;
+}
+
+/* cycle 141: make the current WIZ step the visual anchor while keeping “N of M” compact. */
+#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{
+  gap:.38rem;
+  padding:.2rem .6rem .2rem .24rem!important;
+}
+#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{
+  display:inline-grid;
+  place-items:center;
+  min-width:1.65rem;
+  min-height:1.65rem;
+  border-radius:50%;
+  background:var(--g);
+  color:var(--dk)!important;
+  font-size:.78rem;
+  font-weight:800;
+  box-shadow:0 0 0 1px rgba(232,213,163,.32);
+}
+#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{
+  height:7px!important;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{
+    background:Highlight;
+    color:HighlightText!important;
+    box-shadow:none;
+  }
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-bar>i::after,#jobseeker-modal .dg-wiz-bar>i::after{
+    background:HighlightText;
+    box-shadow:none;
+  }
+}
+
+
+/* v316 scroll reveals + blog cards (Webflow inspo: Anrok / Linear restraint) */
+.dg-reveal,.dg-blog-card,.dg-decision-grid li{opacity:0;transform:translateY(16px);transition:opacity .55s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1)}
+.dg-reveal-in,.dg-reveal.dg-reveal-in{opacity:1!important;transform:none!important}
+.dg-blog-card{display:block;margin:0 0 1rem;padding:1.05rem 1.1rem;border:1px solid rgba(201,168,76,.2);border-radius:14px;background:rgba(14,14,18,.75);backdrop-filter:blur(8px)}
+.dg-blog-meta{margin:0 0 .3rem;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--g);font-weight:700}
+#dg-page .dg-p-det{border:1px solid rgba(201,168,76,.16);border-radius:12px;padding:.1rem .85rem;margin:0 0 .5rem;background:rgba(8,8,10,.55)}
+#dg-page .dg-p-det summary{cursor:pointer;padding:.6rem 0;font-weight:600;color:var(--gl)}
+#dg-page .dg-p-det[open] summary{color:var(--g)}
+#dg-page .dg-p-det p{color:var(--mu);line-height:1.55;margin:0 0 .7rem}
+.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button{min-height:48px!important;padding:.55rem 1.15rem!important;font-size:.875rem!important;border-radius:10px!important;font-weight:600!important}
+#dg-bar a{min-height:48px!important;font-size:.85rem!important;border-radius:10px!important;font-weight:600!important}
+@media (prefers-reduced-motion: reduce){
+  .dg-reveal,.dg-blog-card,.dg-decision-grid li{opacity:1;transform:none;transition:none}
+}
+
+
+/* v316-ui-final — sleek compact CTAs (Linear/Anrok restraint; override big pill rules) */
+.premium-btn.is-talent,.button.on-inverse,nav .button.on-inverse,
+.premium-btn.is-job,.premium-btn,.button.w-button,a.button.w-button{
+  min-height:48px!important;
+  padding:.5rem 1.05rem!important;
+  font-size:.875rem!important;
+  border-radius:10px!important;
+  letter-spacing:.01em!important;
+  box-shadow:0 2px 12px rgba(0,0,0,.25)!important;
+}
+.premium-btn.is-talent,.button.on-inverse,nav .button.on-inverse{
+  background:linear-gradient(180deg,#D4B456 0%,#C9A84C 100%)!important;
+  box-shadow:0 4px 18px rgba(201,168,76,.22), inset 0 1px 0 rgba(255,255,255,.18)!important;
+}
+.premium-btn.is-talent:hover,.button.on-inverse:hover{
+  transform:translateY(-1px)!important;
+  box-shadow:0 8px 24px rgba(201,168,76,.28)!important;
+}
+.hero-actions{gap:.65rem!important}
+.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button{
+  min-height:48px!important;padding:.5rem 1.1rem!important;font-size:.875rem!important;border-radius:10px!important;
+}
+#dg-bar a{min-height:48px!important;padding:.4rem .9rem!important;font-size:.82rem!important;border-radius:9px!important}
+.dg-wiz-next,.dg-wiz-start{min-height:48px!important;padding:.55rem 1.2rem!important;font-size:.875rem!important;border-radius:10px!important}
+@media(max-width:767px){
+  .premium-btn,.button.on-inverse,.hero-actions a{min-height:48px!important;max-width:100%!important}
+}
+/* soft gold glow on scroll-in */
+.dg-reveal-in{transition:opacity .6s cubic-bezier(.2,.8,.2,1),transform .6s cubic-bezier(.2,.8,.2,1),box-shadow .6s!important}
+#demigod-trust-block .dg-step.dg-reveal-in,#demigod-trust-block .dg-cand.dg-reveal-in{
+  box-shadow:0 8px 32px rgba(0,0,0,.2);
+}
+/* subtle section fade for long scroll */
+.section,.w-section,#demigod-pricing,#demigod-partners-teaser{scroll-margin-top:5rem}
+
+/* v321: final cascade guard — compact visuals must retain 48px pointer targets. */
+.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,
+#dg-bar a,#dg-nav-hire,#dg-nav-talent,a[data-dg-cta],
+.dg-wiz-next,.dg-wiz-start,.dg-wiz-back,
+#dg-page .dg-page-x,#dg-page .dg-page-ctas a{
+  min-height:48px!important;
+}
+
+/* cycle 176: FAQ/product-page disclosure rows are controls too. Keep their
+   full row keyboard/pointer target at the same 48px floor as CTA controls. */
+#dg-page details>summary{
+  box-sizing:border-box!important;
+  min-height:48px!important;
+  display:flex!important;
+  align-items:center!important;
+  cursor:pointer;
+}
+
+/* cycle 188: disclosure rows need a visible keyboard focus state, not only a
+   pointer-sized hit area. Mirrors the runtime focus contract in foot v338. */
+#dg-page details>summary:focus-visible{
+  outline:2px solid var(--g,#C9A84C)!important;
+  outline-offset:3px!important;
+}
+
+/* cycle 192: keep the visual N / total counter compact while announcing
+   the relationship as "N of total" to assistive technology. */
+.dg-wiz-of{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+
+/* cycle 35136: keep the progress label and numeric status as two stable
+   anchors, so longer totals never make the WIZ header jitter between steps. */
+#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  width:100%;
+  box-sizing:border-box;
+}
+#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#startup-modal .dg-wiz-fraction,#jobseeker-modal .dg-wiz-fraction{
+  display:inline-flex!important;
+  align-items:center;
+  justify-self:end;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label,
+  #startup-modal .dg-wiz-fraction,#jobseeker-modal .dg-wiz-fraction{
+    color:CanvasText!important;
+  }
+}
+
+/* cycle 200 / foot v346: invalid WIZ answers retain a visible state after
+   inline focus is cleared, and the alert relationship remains perceivable. */
+#startup-modal [aria-invalid="true"],#jobseeker-modal [aria-invalid="true"]{
+  border-color:#F87171!important;
+  box-shadow:0 0 0 3px rgba(248,113,113,.16)!important;
+}
+#startup-modal .dg-wiz-req-err,#jobseeker-modal .dg-wiz-req-err{
+  color:#F87171!important;
+  min-height:1.25em;
+  line-height:1.45;
+}
+@media(forced-colors:active){
+  #startup-modal [aria-invalid="true"],#jobseeker-modal [aria-invalid="true"]{
+    outline:2px solid Mark!important;
+    outline-offset:2px!important;
+  }
+}
+
+/* cycle 181: a 0% WIZ must look empty. The moving endpoint treatment above
+   keeps a minimum width for active steps, so explicitly remove it at zero. */
+#startup-modal .dg-wiz-bar>i[style*="width: 0%"],
+#jobseeker-modal .dg-wiz-bar>i[style*="width: 0%"],
+#startup-modal .dg-wiz-bar>i[style*="width:0%"],
+#jobseeker-modal .dg-wiz-bar>i[style*="width:0%"]{
+  min-width:0!important;
+}
+#startup-modal .dg-wiz-bar>i[style*="width: 0%"]::after,
+#jobseeker-modal .dg-wiz-bar>i[style*="width: 0%"]::after,
+#startup-modal .dg-wiz-bar>i[style*="width:0%"]::after,
+#jobseeker-modal .dg-wiz-bar>i[style*="width:0%"]::after{
+  display:none;
+}
+
+/* cycle 216: product-page controls keep the same accessible target floor as
+   the home decision CTAs, including when runtime page CSS arrives late. */
+#dg-page .dg-page-ctas a,
+#dg-page .dg-page-back,
+#dg-page .dg-page-x{
+  box-sizing:border-box;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:48px;
+  min-height:48px;
+}
+
+/* cycle 220: product-page controls must expose keyboard focus before the
+   runtime page stylesheet arrives. This covers deep links opened on first
+   paint and keeps the close/back actions visible in forced-colors mode. */
+#dg-page .dg-page-ctas a:focus-visible,
+#dg-page .dg-page-back:focus-visible,
+#dg-page .dg-page-x:focus-visible{
+  outline:2px solid var(--g,#C9A84C)!important;
+  outline-offset:3px!important;
+}
+@media(forced-colors:active){
+  #dg-page .dg-page-ctas a:focus-visible,
+  #dg-page .dg-page-back:focus-visible,
+  #dg-page .dg-page-x:focus-visible,
+  #dg-page details>summary:focus-visible{
+    color:LinkText!important;
+    border-color:ButtonText!important;
+    outline:2px solid Highlight!important;
+    forced-color-adjust:auto;
+  }
+}
+
+/* cycle 244: disclosure rows are primary product-page controls too. Give the
+   entire summary row a one-thumb target and keep its state change quiet when
+   the visitor requests reduced motion. */
+#dg-page details>summary{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  min-height:48px;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+#dg-page details>summary:focus-visible{
+  outline:2px solid var(--g,#C9A84C)!important;
+  outline-offset:3px!important;
+}
+@media(prefers-reduced-motion:reduce){
+  #dg-page,
+  #dg-page .dg-page-card,
+  #dg-page details,
+  #dg-page details>summary,
+  #dg-page details>summary::after{
+    animation:none!important;
+    scroll-behavior:auto!important;
+    transition:none!important;
+  }
+}
+
+/* cycle 20496: make WIZ progress endpoints deterministic from the semantic
+   progressbar state. This avoids a glowing dot at 0% and gives completion a
+   quiet cream finish even before the runtime style bundle is injected. */
+#startup-modal .dg-wiz-bar[aria-valuenow="0"]>i,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="0"]>i{
+  min-width:0!important;
+  box-shadow:none!important;
+}
+#startup-modal .dg-wiz-bar[aria-valuenow="0"]>i::after,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="0"]>i::after{
+  display:none!important;
+}
+#startup-modal .dg-wiz-bar[aria-valuenow="100"]>i,
+#jobseeker-modal .dg-wiz-bar[aria-valuenow="100"]>i{
+  background:linear-gradient(90deg,var(--g,#C9A84C),var(--cr,#F5F0E6))!important;
+  box-shadow:0 0 14px rgba(232,213,163,.34)!important;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-bar[aria-valuenow="100"]>i,
+  #jobseeker-modal .dg-wiz-bar[aria-valuenow="100"]>i{
+    background:Highlight!important;
+    box-shadow:none!important;
+  }
+}
+
+/* cycle 239: make the completed WIZ progress unit resolve into a calm state,
+   so review/confirmation reads as reached rather than merely another step. */
+#startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-count,
+#jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-count{
+  border-color:rgba(232,213,163,.46)!important;
+  background:linear-gradient(90deg,rgba(201,168,76,.13),rgba(232,213,163,.055))!important;
+  box-shadow:inset 0 1px 0 rgba(245,240,230,.07),0 0 0 1px rgba(201,168,76,.05)!important;
+}
+#startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-fraction,
+#jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-fraction{
+  color:var(--cr,#F5F0E6)!important;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-count,
+  #jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-count{
+    border-color:Highlight!important;
+    background:Canvas!important;
+    box-shadow:none!important;
+  }
+}
+
+/* cycle 260 / foot v404: separate current, divider, and total so the compact
+   progress fraction scans as a hierarchy instead of one undifferentiated run. */
+#startup-modal .dg-wiz-sep,#jobseeker-modal .dg-wiz-sep{
+  color:#6F6A62!important;
+  font-weight:500!important;
+}
+#startup-modal .dg-wiz-total,#jobseeker-modal .dg-wiz-total{
+  color:var(--cr,#F5F0E6)!important;
+  font-weight:700!important;
+  font-variant-numeric:tabular-nums!important;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-sep,#jobseeker-modal .dg-wiz-sep,
+  #startup-modal .dg-wiz-total,#jobseeker-modal .dg-wiz-total{
+    color:CanvasText!important;
+  }
+}
+
+/* cycle 281: keep the WIZ progress status legible on narrow phones. The label
+   may contract, but the numeric fraction remains a stable, non-wrapping unit. */
+#startup-modal .dg-wiz-progress-label,
+#jobseeker-modal .dg-wiz-progress-label{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+#startup-modal .dg-wiz-fraction,
+#jobseeker-modal .dg-wiz-fraction{
+  flex:0 0 auto!important;
+  white-space:nowrap!important;
+}
+@media(max-width:360px){
+  #startup-modal .dg-wiz-count,
+  #jobseeker-modal .dg-wiz-count{
+    gap:.4rem!important;
+    padding-left:.55rem!important;
+  }
+  #startup-modal .dg-wiz-fraction,
+  #jobseeker-modal .dg-wiz-fraction{
+    min-width:4.5rem!important;
+    padding-inline:.4rem!important;
+  }
+}
+
+/* cycle 328: honor increased-contrast preferences outside Windows forced-colors.
+   Keep the semantic progress unit quiet, but remove the low-contrast divider and
+   track treatment that can otherwise make the current/total state ambiguous. */
+@media(prefers-contrast:more){
+  #startup-modal .dg-wiz-count,
+  #jobseeker-modal .dg-wiz-count{
+    color:var(--cr,#F5F0E6)!important;
+    border-color:var(--gl,#E8D5A3)!important;
+  }
+  #startup-modal .dg-wiz-sep,
+  #jobseeker-modal .dg-wiz-sep{
+    color:var(--cr,#F5F0E6)!important;
+  }
+  #startup-modal .dg-wiz-bar,
+  #jobseeker-modal .dg-wiz-bar{
+    background:rgba(245,240,230,.32)!important;
+    outline:1px solid rgba(232,213,163,.72)!important;
+    outline-offset:1px!important;
+  }
+}
+
+/* cycle 392: make one-question WIZ validation readable without falling back to
+   Webflow's generic red treatment. Invalid controls retain the brand focus
+   ring, expose a persistent field boundary, and keep error copy legible in
+   forced-colors/high-contrast modes. */
+#startup-modal :is(input,select,textarea)[aria-invalid="true"],
+#jobseeker-modal :is(input,select,textarea)[aria-invalid="true"],
+#startup-modal .dg-wiz-show :is(input,select,textarea):user-invalid,
+#jobseeker-modal .dg-wiz-show :is(input,select,textarea):user-invalid{
+  border-color:var(--gl,#E8D5A3)!important;
+  box-shadow:0 0 0 3px rgba(201,168,76,.18)!important;
+}
+#startup-modal :is(input,select,textarea)[aria-invalid="true"]:focus-visible,
+#jobseeker-modal :is(input,select,textarea)[aria-invalid="true"]:focus-visible,
+#startup-modal .dg-wiz-show :is(input,select,textarea):user-invalid:focus-visible,
+#jobseeker-modal .dg-wiz-show :is(input,select,textarea):user-invalid:focus-visible{
+  outline:2px solid var(--gl,#E8D5A3)!important;
+  outline-offset:3px!important;
+}
+#startup-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]),
+#jobseeker-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]){
+  color:var(--cr,#F5F0E6)!important;
+  background:rgba(201,168,76,.09)!important;
+  border:1px solid rgba(232,213,163,.56)!important;
+  border-radius:12px!important;
+  padding:.7rem .8rem!important;
+  line-height:1.45!important;
+}
+@media(prefers-contrast:more){
+  #startup-modal :is(input,select,textarea)[aria-invalid="true"],
+  #jobseeker-modal :is(input,select,textarea)[aria-invalid="true"],
+  #startup-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]),
+  #jobseeker-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]){
+    border-width:2px!important;
+    border-color:var(--gl,#E8D5A3)!important;
+    box-shadow:none!important;
+  }
+}
+@media(forced-colors:active){
+  #startup-modal :is(input,select,textarea)[aria-invalid="true"],
+  #jobseeker-modal :is(input,select,textarea)[aria-invalid="true"],
+  #startup-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]),
+  #jobseeker-modal :is(.dg-wiz-error,.w-form-fail,.w-form-error,[role="alert"]){
+    color:CanvasText!important;
+    background:Canvas!important;
+    border:2px solid Highlight!important;
+    box-shadow:none!important;
+    forced-color-adjust:auto;
+  }
+}
+
+/* cycle 38784: let the progress chrome resolve into an explicit completion
+   state. The DOM label remains "Progress" for stable live-region semantics;
+   the visual label changes only when the semantic progressbar reaches 100%. */
+#startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label,
+#jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label{
+  font-size:0!important;
+  overflow:visible!important;
+}
+#startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label::after,
+#jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label::after{
+  content:"Complete";
+  color:var(--cr,#F5F0E6);
+  font-size:.67rem;
+  font-weight:800;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label::after,
+  #jobseeker-modal .dg-wiz-head:has(.dg-wiz-bar[aria-valuenow="100"]) .dg-wiz-progress-label::after{
+    color:CanvasText!important;
+  }
+}
+
+/* cycle 51064: keep WIZ progress crisp when the visitor asks interfaces to
+   reduce transparency. The status remains visually grouped without relying on
+   translucent gold washes, backdrop blending, or progress glow. */
+@media(prefers-reduced-transparency:reduce){
+  #startup-modal .dg-wiz-head,
+  #jobseeker-modal .dg-wiz-head{
+    background:var(--dk,#0A0A0A)!important;
+    backdrop-filter:none!important;
+  }
+  #startup-modal .dg-wiz-count,
+  #jobseeker-modal .dg-wiz-count{
+    background:#141414!important;
+    border-color:rgba(232,213,163,.55)!important;
+    box-shadow:none!important;
+  }
+  #startup-modal .dg-wiz-bar,
+  #jobseeker-modal .dg-wiz-bar{
+    background:#3F3B34!important;
+    box-shadow:none!important;
+  }
+  #startup-modal .dg-wiz-bar>i,
+  #jobseeker-modal .dg-wiz-bar>i{
+    background:var(--g,#C9A84C)!important;
+    box-shadow:none!important;
+  }
+}
+
+/* cycle 372: keep the two primary decision paths and trust chips distinct when
+   increased contrast is requested. These controls exist before foot boot, so
+   the head stylesheet must provide the stronger boundary itself. */
+@media(prefers-contrast:more){
+  #dg-hero-chips .dg-chip,
+  .hero-actions a[data-dg-cta],
+  #dg-nav-hire,
+  #dg-nav-talent,
+  #dg-bar a{
+    border:2px solid var(--gl,#E8D5A3)!important;
+    box-shadow:none!important;
+  }
+  #dg-hero-chips .dg-chip{
+    color:var(--cr,#F5F0E6)!important;
+    background:var(--dk,#0A0A0A)!important;
+  }
+  .hero-actions a[data-dg-cta]:focus-visible,
+  #dg-nav-hire:focus-visible,
+  #dg-nav-talent:focus-visible,
+  #dg-bar a:focus-visible{
+    outline:3px solid var(--gl,#E8D5A3)!important;
+    outline-offset:3px!important;
+  }
+}
+
+/* cycle 332: do not leave desktop hover elevation stuck after a tap. Touch
+   surfaces get immediate pressed feedback while retaining the 48px target
+   floor; keyboard focus remains governed by the focus-visible rules above. */
+@media(hover:none),(pointer:coarse){
+  .premium-btn.is-talent:hover,
+  .button.on-inverse:hover,
+  .dg-step:hover,
+  .dg-cand:hover{
+    transform:none!important;
+    box-shadow:none!important;
+  }
+  .premium-btn:active,
+  .button.w-button:active,
+  #dg-page .dg-page-ctas a:active,
+  #dg-page .dg-page-back:active,
+  #dg-page .dg-page-x:active,
+  #dg-path-pills a:active{
+    transform:scale(.98)!important;
+  }
+}
+@media(hover:none) and (prefers-reduced-motion:reduce),
+       (pointer:coarse) and (prefers-reduced-motion:reduce){
+  .premium-btn:active,
+  .button.w-button:active,
+  #dg-page .dg-page-ctas a:active,
+  #dg-page .dg-page-back:active,
+  #dg-page .dg-page-x:active,
+  #dg-path-pills a:active{
+    transform:none!important;
+  }
+}
+
+/* cycle 352: carry the increased-contrast contract through the decision and
+   product-page controls, not only the WIZ progress chrome. These selectors are
+   intentionally head-owned so keyboard/touch affordances survive slow foot
+   loading without exposing the legacy Webflow CTA labels. */
+@media(prefers-contrast:more){
+  #dg-path-pills a,
+  #dg-page .dg-page-ctas a,
+  #dg-page .dg-page-back,
+  #dg-page .dg-page-x,
+  #dg-page details>summary{
+    color:var(--cr,#F5F0E6)!important;
+    border-color:var(--gl,#E8D5A3)!important;
+    box-shadow:none!important;
+  }
+  #dg-path-pills a:focus-visible,
+  #dg-page .dg-page-ctas a:focus-visible,
+  #dg-page .dg-page-back:focus-visible,
+  #dg-page .dg-page-x:focus-visible,
+  #dg-page details>summary:focus-visible{
+    outline-color:var(--gl,#E8D5A3)!important;
+    outline-width:3px!important;
+  }
+}
+
+/* cycle 330: preserve the active WIZ question on short laptop and landscape
+   viewports. Compact only the progress chrome's whitespace; the status,
+   numeric hierarchy, and 48px form controls remain unchanged. */
+@media(max-height:640px) and (min-width:480px){
+  #startup-modal .dg-wiz-head,
+  #jobseeker-modal .dg-wiz-head,
+  #startup-modal .dg-wiz-chrome,
+  #jobseeker-modal .dg-wiz-chrome{
+    padding:.55rem .7rem .6rem!important;
+    margin-bottom:.65rem!important;
+  }
+  #startup-modal .dg-wiz-count,
+  #jobseeker-modal .dg-wiz-count{
+    min-height:32px!important;
+    margin-bottom:.4rem!important;
+  }
+  #startup-modal .dg-wiz-bar,
+  #jobseeker-modal .dg-wiz-bar{
+    margin-bottom:.55rem!important;
+  }
+}
+
+/* cycle 396: keep the decision screen operable at 200% text zoom and with
+   longer localized labels. Controls may grow vertically, but copy must wrap
+   inside the viewport instead of clipping or forcing horizontal scrolling. */
+.hero-actions,
+#dg-page .dg-page-ctas{
+  flex-wrap:wrap!important;
+}
+.hero-actions a,
+#dg-nav-hire,
+#dg-nav-talent,
+#dg-bar a,
+#dg-path-pills a,
+#dg-page .dg-page-ctas a,
+#dg-page .dg-page-back,
+#dg-page .dg-page-x{
+  max-width:100%;
+  min-width:0;
+  height:auto!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+  text-align:center;
+}
+@media(max-width:480px){
+  .hero-actions a,
+  #dg-page .dg-page-ctas a{
+    flex:1 1 100%!important;
+    width:100%!important;
+  }
+  #dg-path-pills a{
+    flex:1 1 auto;
+    justify-content:center;
+  }
+}
+
+/* cycle 332: make the WIZ bar's current position readable without asking the
+   numeric fraction to do all the work. The marker only appears mid-flow, so
+   empty and complete states retain their existing, unambiguous treatment. */
+#startup-modal .dg-wiz-bar,
+#jobseeker-modal .dg-wiz-bar{
+  position:relative;
+}
+#startup-modal .dg-wiz-bar>i,
+#jobseeker-modal .dg-wiz-bar>i{
+  position:relative;
+}
+#startup-modal .dg-wiz-bar:not([aria-valuenow="0"]):not([aria-valuenow="100"])>i::after,
+#jobseeker-modal .dg-wiz-bar:not([aria-valuenow="0"]):not([aria-valuenow="100"])>i::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  right:0;
+  width:10px;
+  height:10px;
+  border:2px solid var(--dk,#0A0A0A);
+  border-radius:50%;
+  background:var(--gl,#E8D5A3);
+  box-shadow:0 0 0 2px rgba(232,213,163,.28),0 0 10px rgba(201,168,76,.45);
+  transform:translate(50%,-50%);
+  box-sizing:border-box;
+}
+@media(prefers-reduced-transparency:reduce),
+       (prefers-reduced-motion:reduce){
+  #startup-modal .dg-wiz-bar>i::after,
+  #jobseeker-modal .dg-wiz-bar>i::after{
+    box-shadow:none;
+  }
+}
+@media(forced-colors:active){
+  #startup-modal .dg-wiz-bar>i::after,
+  #jobseeker-modal .dg-wiz-bar>i::after{
+    border-color:Canvas!important;
+    background:Highlight!important;
+    box-shadow:none!important;
+    forced-color-adjust:auto;
+  }
+}

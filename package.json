@@ -228,6 +228,7 @@
     "demigod:dash:bg": "bin/dg-dash",
     "demigod:start": "bin/dg-start",
     "demigod:ship:status": "node demigod-ship-status.mjs",
+    "demigod:cm6:selftest": "node demigod-cm6-paste-publish.mjs --selftest",
     "demigod:foot:lock": "node demigod-foot-lock.mjs",
     "demigod:foot:lock:status": "node demigod-foot-lock.mjs status",
     "demigod:publish:foot": "node demigod-publish-foot.mjs",

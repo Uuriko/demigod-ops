@@ -5,6 +5,7 @@
  * Usage:
  *   node demigod-copy-policy.mjs              # disk + live
  *   node demigod-copy-policy.mjs --disk-only  # disk only
+ *   node demigod-copy-policy.mjs --source-only # alias: canonical source only
  *   node demigod-copy-policy.mjs --live       # same as default
  *   node demigod-copy-policy.mjs --json
  */
@@ -24,12 +25,14 @@ const FOOT = path.join(ROOT, 'demigod-foot-core.js');
 const DENY = path.join(ROOT, 'demigod-copy-denylist.txt');
 const LIVE = process.env.DEMIGOD_LIVE || LIVE_DEFAULT;
 const args = process.argv.slice(2);
-const diskOnly = flag(args, '--disk-only');
+const diskOnly = flag(args, '--disk-only') || flag(args, '--source-only');
 const wantLive = !diskOnly; // live by default
+const scope = wantLive ? 'source+live' : 'source';
 const asJson = flag(args, '--json');
 
 const SPEED = /48\s*h|within\s*\d+\s*h|\bSLA\b|fastest reply|guaranteed?\s+match|instant\s+match/i;
-const VOLUME = /startups?\s+receive\s+3-5|3-5\s+highly aligned|pre-vetted candidates ready to interview/i;
+const VOLUME = /(?:startups?\s+receive\s+)?(?:3\s*(?:[\s/\u2013\u2014-]|to)\s*5|three\s+to\s+five)\s+(?:(?:highly\s+aligned|hand[\s-]?picked|best[\s-]?fit|vetted|top|qualified|strong|curated)\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)|(?:shortlist|slate|set|batch|group)\s+of\s+(?:candidates?|matches?|introductions?|profiles?)\s*(?:of\s+)?(?:3\s*(?:[\u2013\u2014-]|to)\s*5|three\s+to\s+five)|pre-vetted candidates ready to interview/i;
+const REPLACEMENT = /(?:90\s*[\u2013\u2014-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement|(?:replace\s+(?:them|the\s+hire|the\s+candidate)|find\s+(?:you\s+)?another)\s+(?:for\s+free|at\s+no\s+(?:extra\s+)?cost)/i;
 const LOREM = /lorem ipsum|ipsum dolor sit amet/i;
 
 function loadDenylist() {
@@ -71,6 +74,11 @@ function add(name, ok, detail) {
     add('COPY-block-present', copy.length > 50, `len=${copy.length}`);
     add('COPY-no-speed', !SPEED.test(copy), SPEED.test(copy) ? 'speed/SLA language in COPY' : 'clean');
     add('COPY-no-volume', !VOLUME.test(copy), VOLUME.test(copy) ? 'volume claim in COPY' : 'clean');
+    add(
+      'COPY-no-replacement-promise',
+      !REPLACEMENT.test(copy),
+      REPLACEMENT.test(copy) ? 'replacement promise in COPY' : 'clean',
+    );
     const nameHit = copy.match(nameRe);
     add(
       'COPY-no-founder-names',
@@ -80,8 +88,8 @@ function add(name, ok, detail) {
     add('has-scrubTimeClaims', /function scrubTimeClaims/.test(js), 'scrubTimeClaims');
     add('has-scrubStaticLabels', /function scrubStaticLabels/.test(js), 'scrubStaticLabels');
     const pendingOk =
-      /pending/i.test(js) || /hello@trydemigod\.com/.test(copy) || /hello@trydemigod\.com/.test(js);
-    add('pending-or-hello-present', pendingOk, 'expect pending services or hello@ contact');
+      /pending/i.test(js) || /potter@trydemigod\.com/.test(copy) || /potter@trydemigod\.com/.test(js);
+    add('pending-or-hello-present', pendingOk, 'expect pending services or potter@ contact');
   }
 }
 
@@ -109,6 +117,26 @@ if (wantLive) {
     } else {
       add('live-no-volume', !volLive, volLive ? 'volume language on live' : 'clean');
     }
+    // Static Webflow HTML may still contain FOUC "90-day replacement guarantee";
+    // runtime head/foot scrub rewrites it. Soft-fail when scrub is present (same pattern as volume).
+    const hasRuntimeScrub =
+      /replacement\s+(?:guarantee|promise)/i.test(html) &&
+      (/90-day outcome focus/i.test(html) || /scrub.*replacement|replacement.*scrub/i.test(html) || /dg-unhide|dg-foot|__dgFootVer|foot v\d+/i.test(html));
+    const repLive = REPLACEMENT.test(html);
+    if (repLive && hasRuntimeScrub) {
+      checks.push({
+        name: 'live-no-replacement-promise',
+        ok: true,
+        soft: true,
+        detail: 'WARN static replacement promise on live — runtime scrub present (not failing)',
+      });
+    } else {
+      add(
+        'live-no-replacement-promise',
+        !repLive,
+        repLive ? 'replacement promise on live' : 'clean',
+      );
+    }
     add('live-no-lorem', !LOREM.test(html), LOREM.test(html) ? 'lorem on live' : 'clean');
     const liveName = html.match(nameRe);
     if (denylist.some((n) => n.length >= 4)) {
@@ -130,6 +158,7 @@ const report = {
   at: new Date().toISOString(),
   pass,
   live: wantLive,
+  scope,
   denylistCount: denylist.length,
   checks,
   summary: pass ? 'PASS — copy policy clean' : 'FAIL — copy policy leak',
@@ -141,7 +170,7 @@ atomicWrite(path.join(BUSY, 'copy-policy-latest.json'), JSON.stringify(report, n
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
 } else {
-  console.log(`copy-policy  ${pass ? 'PASS ✓' : 'FAIL ✗'}${wantLive ? ' (+live)' : ' (disk-only)'}`);
+  console.log(`copy-policy  ${pass ? 'PASS ✓' : 'FAIL ✗'} · scope=${scope}`);
   for (const c of checks) {
     console.log(`  ${c.ok ? '✓' : '✗'} ${c.name.padEnd(28)} ${c.detail}`);
   }

@@ -1,22 +1,30 @@
-# === Home-as-repo safety: ignore almost everything, allowlist Demigod ===
+# === Home-as-repo safety ===
+# IMPORTANT: Agent tools (Grok/Cursor) often treat gitignore matches as hard blocks
+# and do NOT honor `!` re-include exceptions. Do NOT use broad globs like DEMIGOD-*
+# or ignore entire trees that agents must read/edit.
 
-# Agent / tool caches
+# Agent / tool caches (ok to hard-ignore)
 .grok/
 .cache/
 .npm/
 .bun/
-.local/
 .var/
 .codex/
 .cursor/
 .claude/
-.config/
 .nvm/
 .agents/
 .commandcode/
 .copilot/
 .eliza/
 node_modules/
+
+# Personal local state — but NOT agent CLIs (those live in ~/bin, not only .local)
+.local/
+# If something must live under .local/bin for PATH, also keep a copy in bin/
+
+# Most of .config is personal; agent units are installed FROM repo path systemd-user/
+.config/
 
 # Shell / OS personal
 .bash*
@@ -39,13 +47,10 @@ Public/
 snap/
 orca/
 
-# Runtime / secrets / local SoR (never push)
-DEMIGOD-*
-!DEMIGOD-REVIEW-BASELINE.json
+# Secrets / local only (narrow — do not use DEMIGOD-* blanket)
 HEAVY-*
 CURSOR-*
 DESK.json
-DEMIGOD-MOBILE-BRIEF.txt
 .demigod-ready
 audit-shots/
 archive/
@@ -55,6 +60,7 @@ archive/
 openai*
 **/openai.env
 **/*api_key*
+DEMIGOD-MOBILE-BRIEF.txt
 
 # Logs & temp
 *.log
@@ -69,11 +75,12 @@ screenshots/
 playwright-report/
 test-results/
 
-# Optional: keep package-lock if present
-# package-lock.json is fine to track
-
-# Orca live pairing (device tokens)
+# Orca pairing tokens
 orca-pair-code.txt
 orca-pair-code.html
 .keep-awake.pid
 keep-awake.log
+
+# 375MB binaries — never commit
+orca-linux.AppImage
+orca-linux.AppImage.bak.*

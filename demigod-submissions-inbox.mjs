@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-/** Unified inbox view — startup, engineer, partner submissions in one triage report. */
+/**
+ * demigod-submissions-inbox — unified startup/engineer/partner triage view
+ *
+ *   bin/dg-inbox | node demigod-submissions-inbox.mjs [--json] [--status all]
+ *
+ * Writes DEMIGOD-INBOX-REPORT.json + /tmp/dg-busy/submissions-inbox-latest.json.
+ * Read-only by default; does not mint board cards (use submissions-approve).
+ */
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';

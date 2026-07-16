@@ -16,9 +16,12 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
+import { footVerFromJs, readText } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
+const DEMAND_STATUS_TTL_MS = 15 * 60 * 1000;
+const DEMAND_STATUS_FUTURE_TOLERANCE_MS = 60 * 1000;
 
 function readJson(p) {
   try {
@@ -36,9 +39,13 @@ export function buildNext({ truth = null, demand = null } = {}) {
   const te = refuseIfStale('truth');
   const truthFacts = truth || readJson(path.join(BUSY, 'truth.json'));
   const demandStatus = demand || readJson(path.join(BUSY, 'demand-status.json'));
+  const diskVersion = footVerFromJs(readText(path.join(ROOT, 'demigod-foot-core.js'), 2_000_000));
 
   const versions = {
-    disk: truthFacts?.foot?.ver ?? null,
+    // Truth receipts are deliberately cached, but a field named "disk" must
+    // describe the file now. Otherwise NEXT can conceal an in-progress foot
+    // change until truth is refreshed (for example, reporting v243 on v244).
+    disk: diskVersion ?? truthFacts?.foot?.ver ?? null,
     live: truthFacts?.live?.footVer ?? null,
     manifest: truthFacts?.manifest?.version ?? null,
   };
@@ -73,9 +80,72 @@ export function buildNext({ truth = null, demand = null } = {}) {
   if (freeze.frozen) {
     const pending = demandStatus?.queue?.pending;
     const top = demandStatus?.queue?.top3?.[0];
+    const draftHygiene = demandStatus?.drafts?.hygiene?.ok ?? demandStatus?.drafts?.allHygieneOk ?? null;
+    const draftFlagged = Number(demandStatus?.drafts?.hygiene?.flagged ?? demandStatus?.drafts?.needFix?.length ?? 0);
+    const warmFreshness = demandStatus?.warmInbound?.freshness || null;
+    const warmOverdue = Number(warmFreshness?.overdueActionCount ?? 0);
+    const warmDueToday = Number(warmFreshness?.dueTodayActionCount ?? 0);
+    const demandStatusAtMs = Date.parse(demandStatus?.at || '');
+    const demandStatusRawAgeMs = Number.isFinite(demandStatusAtMs)
+      ? Date.now() - demandStatusAtMs
+      : null;
+    const demandStatusFutureDated =
+      demandStatusRawAgeMs != null && demandStatusRawAgeMs < -DEMAND_STATUS_FUTURE_TOLERANCE_MS;
+    const demandStatusAgeMs = demandStatusRawAgeMs != null
+      ? Math.max(0, demandStatusRawAgeMs)
+      : null;
+    const demandStatusFresh =
+      demandStatusAgeMs != null &&
+      !demandStatusFutureDated &&
+      demandStatusAgeMs <= DEMAND_STATUS_TTL_MS;
+    const demandSignal = {
+      pending: pending ?? null,
+      head: top?.name || null,
+      // Hygiene is operational evidence only while its status snapshot is
+      // fresh. Preserve the recorded value separately for diagnostics, but do
+      // not let a cached "clean" result masquerade as current demand truth.
+      draftHygieneOk: demandStatusFresh && typeof draftHygiene === 'boolean' ? draftHygiene : null,
+      recordedDraftHygieneOk: typeof draftHygiene === 'boolean' ? draftHygiene : null,
+      draftFlagged: Number.isFinite(draftFlagged) ? draftFlagged : null,
+      warmInbound: {
+        // Warm inbound is attributable demand, but never a pilot. Expose only
+        // action-health telemetry from the fresh demand snapshot so control
+        // and dashboard surfaces can preserve demand's priority ordering.
+        count: demandStatusFresh ? Number(demandStatus?.warmInbound?.count ?? 0) : null,
+        overdueActionCount: demandStatusFresh && Number.isFinite(warmOverdue) ? warmOverdue : null,
+        dueTodayActionCount: demandStatusFresh && Number.isFinite(warmDueToday) ? warmDueToday : null,
+        overdueActionWho: demandStatusFresh && Array.isArray(warmFreshness?.overdueActionWho)
+          ? warmFreshness.overdueActionWho
+          : [],
+        dueTodayActionWho: demandStatusFresh && Array.isArray(warmFreshness?.dueTodayActionWho)
+          ? warmFreshness.dueTodayActionWho
+          : [],
+        isPilot: false,
+      },
+      statusAt: demandStatus?.at || null,
+      statusAgeMs: demandStatusAgeMs,
+      statusFutureDated: demandStatusFutureDated,
+      statusFresh: demandStatusFresh,
+      statusTtlMs: DEMAND_STATUS_TTL_MS,
+      statusFutureToleranceMs: DEMAND_STATUS_FUTURE_TOLERANCE_MS,
+    };
+    const hygieneHint = demandSignal.draftHygieneOk === false
+      ? ` · draft hygiene flagged=${demandSignal.draftFlagged ?? '?'}`
+      : demandSignal.draftHygieneOk === true
+        ? ' · draft hygiene=clean'
+        : ' · draft hygiene=unknown';
+    const inboundHint = demandSignal.warmInbound.overdueActionCount > 0
+      ? `warm inbound overdue=${demandSignal.warmInbound.overdueActionCount} (not pilots)`
+      : demandSignal.warmInbound.dueTodayActionCount > 0
+        ? `warm inbound due today=${demandSignal.warmInbound.dueTodayActionCount} (not pilots)`
+        : null;
     const dmHint =
-      pending != null
-        ? `demand queue pending=${pending}` + (top ? ` head=${top.name}` : '')
+      !demandStatusFresh
+        ? 'demand snapshot stale/unknown — refresh status'
+        : inboundHint
+          ? inboundHint
+        : pending != null
+        ? `demand queue pending=${pending}` + (top ? ` head=${top.name}` : '') + hygieneHint
         : 'run bin/dg demand status (refresh queue snapshot)';
     return {
       ...base,
@@ -84,9 +154,12 @@ export function buildNext({ truth = null, demand = null } = {}) {
       cmd: 'bin/dg demand status',
       pri: 0,
       mutate: false,
-      freezeBlocks: true,
+      // Freeze holds publish/mutation only. Demand status is read-only and is
+      // intentionally the canonical path while frozen.
+      freezeBlocks: false,
       reason: 'freeze-on-demand-first',
       demandNext: demandStatus?.next || null,
+      demandSignal,
     };
   }
 
@@ -94,8 +167,8 @@ export function buildNext({ truth = null, demand = null } = {}) {
     return {
       ...base,
       id: 'hold-green',
-      title: 'Shipped + green — re-freeze + demand',
-      cmd: 'node demigod-publish-freeze.mjs on --why post-ship',
+      title: 'Shipped + green — demand ops (freeze disabled)',
+      cmd: 'bin/dg demand status',
       pri: 1,
       mutate: false,
       freezeBlocks: false,
@@ -106,7 +179,7 @@ export function buildNext({ truth = null, demand = null } = {}) {
   return {
     ...base,
     id: 'ship-prepare',
-    title: 'Freeze OFF — prepare ship (disk≠live)',
+    title: 'Prepare ship (disk≠live)',
     cmd: 'bin/dg ship prepare',
     pri: 1,
     mutate: false,
@@ -116,23 +189,30 @@ export function buildNext({ truth = null, demand = null } = {}) {
 }
 
 function assertSameSurfaces() {
-  /** Compare buildNext vs control nextCanon fields + next.json if present. */
+  /** Compare buildNext vs control nextCanon + next.json + cockpit (non-override). */
   const n = buildNext();
   const plane = readJson(path.join(BUSY, 'control-plane.json'));
   const cock = readJson(path.join(BUSY, 'cockpit.json'));
   const ship = readJson(path.join(BUSY, 'ship-latest.json'));
+  const nextFile = readJson(path.join(BUSY, 'next.json'));
   const mismatches = [];
   const check = (label, id, cmd) => {
     if (id == null && cmd == null) return;
     if (id && id !== n.id) mismatches.push({ label, field: 'id', expected: n.id, got: id });
     if (cmd && cmd !== n.cmd) mismatches.push({ label, field: 'cmd', expected: n.cmd, got: cmd });
   };
+  if (nextFile) check('next.json', nextFile.id, nextFile.cmd);
   if (plane?.nextCanon) check('control.nextCanon', plane.nextCanon.id, plane.nextCanon.cmd);
   else if (plane?.next) check('control.next', plane.next.id, plane.next.cmd);
   if (cock?.next && !['live-down', 'board-honesty', 'verify-source'].includes(cock.next.id)) {
     check('cockpit.next', cock.next.id, cock.next.cmd);
   }
-  if (ship?.next && typeof ship.next === 'object') check('ship.next', ship.next.id, ship.next.cmd);
+  if (ship?.next && typeof ship.next === 'object' && ship.next.id && !ship.next.stage) {
+    // ship-latest may carry stage-chain "next" (hash), not agent NEXT — only check when id looks canonical
+    if (typeof ship.next.id === 'string' && !/^[0-9a-f]{8,}$/i.test(ship.next.id)) {
+      check('ship.next', ship.next.id, ship.next.cmd);
+    }
+  }
   const out = {
     ok: mismatches.length === 0,
     id: n.id,

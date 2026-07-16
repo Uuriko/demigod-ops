@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * demigod-review-lib — core: scope, diff hunks, baseline, report, scoring
+ * demigod-review-lib — review engine core: scope, diff hunks, baseline, report, scoring
+ *
+ * Used by: demigod-review.mjs + review-gates/fix. Pairs with demigod-review-rules.mjs.
+ * Writes under /tmp/dg-busy/ when sealing reports.
  */
 import fs from 'fs';
 import path from 'path';

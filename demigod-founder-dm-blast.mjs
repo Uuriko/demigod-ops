@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /** Generate personalized founder outreach (DM + email).
  * --dry (default): write ready-emails only.
- * --send: routes to demigod-dm-auto-send (CDP X) for named/limit batch — requires logged-in X.
- * Auto-DM allowed per user (2026-07-15).
+ * --send: refused unless DEMIGOD_ALLOW_AUTO_DM=1 (user stopped auto-DM 2026-07-15).
  */
 import fs from 'fs';
 import path from 'path';
@@ -131,8 +130,16 @@ Examples:
   }
   ensureSamples();
 
-  // Auto-send path (user-authorized) — real CDP X DMs
   if (args.send) {
+    if (process.env.DEMIGOD_ALLOW_AUTO_DM !== '1' && process.env.DEMIGOD_ALLOW_AUTO_DM !== 'true') {
+      console.error(
+        JSON.stringify({
+          error: 'auto_dm_stopped',
+          hint: 'Auto-DM disabled. Use --dry for ready-emails only.',
+        }),
+      );
+      process.exit(2);
+    }
     const r = spawnSync(
       process.execPath,
       [path.join(ROOT, 'demigod-dm-auto-send.mjs'), `--timeout=120000`],

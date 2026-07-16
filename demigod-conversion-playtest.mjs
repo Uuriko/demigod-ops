@@ -48,8 +48,12 @@ async function liveLayer() {
     const html = await r.text();
     add('live-http', r.ok, `HTTP ${r.status} ${Date.now() - t0}ms`);
 
-    const cdn = (html.match(/files\.catbox\.moe\/([a-z0-9]+\.js)/) || [])[1];
-    add('live-cdn-script', Boolean(cdn), cdn || 'missing catbox foot');
+    // Foot may be catbox, jsDelivr gh CDN, or other host — accept known loaders
+    const cdn =
+      (html.match(/files\.catbox\.moe\/([a-z0-9]+\.js)/) || [])[1] ||
+      (html.match(/cdn\.jsdelivr\.net\/gh\/[^"'>\s]+\/foot[^"'>\s]*\.js/) || [])[0] ||
+      (html.match(/demigod-foot-cdn-loader|foot-latest\.js/) || [])[0];
+    add('live-cdn-script', Boolean(cdn), cdn || 'missing foot CDN script');
 
     const foot = (html.match(/foot v(\d+)/) || [])[1];
     add('live-foot-ver', Boolean(foot), foot ? `v${foot}` : 'no foot ver marker');
@@ -87,8 +91,8 @@ async function liveLayer() {
     // hello contact
     add(
       'hello-contact',
-      /hello@trydemigod\.com/i.test(html),
-      /hello@trydemigod\.com/i.test(html) ? 'hello@ present' : 'missing hello@',
+      /potter@trydemigod\.com/i.test(html),
+      /potter@trydemigod\.com/i.test(html) ? 'potter@ present' : 'missing potter@ contact',
     );
 
     return { cdn, foot };

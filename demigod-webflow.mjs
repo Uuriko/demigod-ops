@@ -18,8 +18,9 @@
  *   bin/dg-webflow tools
  *   bin/dg-webflow brief          # markdown for agents
  *   bin/dg-webflow hygiene [--prune]  # tabs + load (laptop snappy)
+ *   bin/dg-webflow connect [status|bridge|all]  # MCP/Bridge/token/webhook spine
  *
- * Out: /tmp/dg-busy/webflow-status.json
+ * Out: /tmp/dg-busy/webflow-status.json · connect → webflow-connect.json
  */
 import fs from 'fs';
 import path from 'path';
@@ -31,6 +32,7 @@ import {
   listPages,
   openUrl,
   pasteCheck,
+  classifyChange,
   runNode,
   PLAYBOOKS,
   TOOL_MAP,
@@ -70,7 +72,7 @@ function humanStatus(s) {
   lines.push(`## CDP: ${s.cdp.ok ? 'UP' : 'DOWN'} ${s.cdp.browser || s.cdp.error || ''}`);
   lines.push(`## Tabs: ${s.tabs.pages} pages · ${JSON.stringify(s.tabs.byRole)}`);
   lines.push(
-    `## Disk foot: ${s.disk.footVer || '?'} · loader ${s.disk.footerLoaderVer || '?'} · manMatch=${s.disk.diskMatchesManifest}`,
+    `## Disk foot: ${s.disk.footVer || '?'} · loader ${s.disk.footerLoaderVer || '?'} · footerReady=${s.disk.footerShipReady} · manMatch=${s.disk.diskMatchesManifest}`,
   );
   lines.push(
     `## Live: ${s.live.ok ? 'OK' : 'FAIL'} · hint ${s.live.footVerHint || '?'} · loader ${s.live.footerLoaderVer || '?'} · ${s.live.footCdn || ''}`,
@@ -87,7 +89,7 @@ function humanStatus(s) {
   lines.push(`- cdp: ${s.urls.cdp}`);
   lines.push('');
   lines.push('## Next');
-  if (!s.cdp.ok) lines.push('- Fix CDP first');
+  if (!s.cdp.ok) lines.push(s.cdp.error?.includes('EPERM') ? '- CDP unobservable in this namespace' : '- Fix CDP first');
   else if (s.freeze.frozen) lines.push('- Freeze ON — only read-only playbooks');
   else if (!s.ready.paste) lines.push('- Open custom-code tab, then paste-check');
   else lines.push('- bin/dg-webflow playbook prep-footer-paste');
@@ -102,18 +104,31 @@ async function doctor() {
   check('freeze readable', true, s.freeze.frozen ? `ON ${s.freeze.why || ''}` : 'OFF');
   check('disk foot-core', s.disk.files.footCore, s.disk.footVer);
   check('disk footer-lite', s.disk.files.footerLite, s.disk.footerLoaderVer);
+  check('disk footer redirects', s.disk.footerShipReady, 'blog/notes deep links + method');
   check('disk head-minimal', s.disk.files.headMinimal, s.disk.bytes.headMinimal);
   check('live fetch', s.live.ok, s.live.footCdn || s.live.error);
+  check(
+    'live SEO meta unique',
+    s.live.metaCounts?.description === 1 && s.live.metaCounts?.ogTitle === 1,
+    `description=${s.live.metaCounts?.description ?? '?'} og:title=${s.live.metaCounts?.ogTitle ?? '?'}`,
+  );
   check('designer tab', (s.tabs.byRole.designer || 0) > 0, s.tabs.byRole.designer || 0);
-  check('custom-code tab', (s.tabs.byRole['custom-code'] || 0) > 0, s.tabs.byRole['custom-code'] || 0);
+  const ccN = s.tabs.byRole['custom-code'] || 0;
+  const loginN = s.tabs.byRole['webflow-login'] || 0;
+  check(
+    'custom-code tab',
+    ccN > 0 && loginN === 0,
+    loginN > 0 && ccN === 0
+      ? `login wall (${loginN}) — re-auth CDP Chrome, then open custom-code`
+      : ccN,
+  );
   check('live tab', (s.tabs.byRole.live || 0) > 0, s.tabs.byRole.live || 0);
   check('tab budget ≤12', s.tabs.pages <= 12, s.tabs.pages);
   check('cm6 paste script', fs.existsSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs')));
   check('tab-prune script', fs.existsSync(path.join(ROOT, 'demigod-cdp-tab-prune.mjs')));
   check('foot-cdn script', fs.existsSync(path.join(ROOT, 'demigod-foot-cdn-publish.mjs')));
-  const pass = checks.every((c) => c.ok || ['designer tab', 'custom-code tab', 'live tab'].includes(c.name));
   // designer/custom-code/live missing is warn not hard fail for doctor
-  const hard = checks.filter((c) => !c.ok && !['designer tab', 'custom-code tab', 'live tab'].includes(c.name));
+  const hard = checks.filter((c) => !c.ok && !['designer tab', 'custom-code tab', 'live tab', 'live SEO meta unique'].includes(c.name));
   const out = {
     at: new Date().toISOString(),
     pass: hard.length === 0,
@@ -121,7 +136,11 @@ async function doctor() {
     tips: s.tips,
     freeze: s.freeze,
   };
-  atomicWrite(path.join(BUSY, 'webflow-doctor.json'), JSON.stringify(out, null, 2) + '\n');
+  // A sandboxed agent cannot observe host CDP; don't replace the host receipt with synthetic failures.
+  if (!s.cdp.error?.includes('EPERM')) {
+    atomicWrite(path.join(BUSY, 'webflow-doctor.json'), JSON.stringify(out, null, 2) + '\n');
+    atomicWrite(OUT, JSON.stringify({ ...s, doctor: out }, null, 2) + '\n');
+  }
   return out;
 }
 
@@ -149,6 +168,14 @@ async function main() {
       }
     }
     process.exit(d.pass ? 0 : 1);
+  }
+
+  if (cmd === 'connect') {
+    const sub = args[1] && !args[1].startsWith('--') ? args[1] : 'status';
+    const r = runNode(['demigod-webflow-connect.mjs', sub, ...(asJson ? ['--json'] : [])]);
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    process.exit(r.status ?? 1);
   }
 
   if (cmd === 'tabs') {
@@ -217,6 +244,25 @@ async function main() {
     const r = await pasteCheck();
     print(r);
     process.exit(r.ok ? 0 : 1);
+  }
+
+  if (cmd === 'change') {
+    const intent = args.slice(1).filter((arg) => !arg.startsWith('--')).join(' ').trim();
+    if (!intent) {
+      console.error('usage: bin/dg-webflow change "describe the site change"');
+      process.exit(1);
+    }
+    const route = classifyChange(intent);
+    if (asJson) print(route);
+    else {
+      console.log(`# Webflow change → ${route.type}`);
+      console.log(`intent: ${route.intent}`);
+      console.log(`files: ${route.files.length ? route.files.join(', ') : 'Webflow Designer/API'}`);
+      console.log('next:');
+      for (const command of route.commands) console.log(`  ${command}`);
+      if (route.note) console.log(`note: ${route.note}`);
+    }
+    process.exit(0);
   }
 
   if (cmd === 'tools') {
@@ -338,7 +384,7 @@ async function main() {
     lines.push(humanStatus(s));
     lines.push('## Do / Do not');
     lines.push('- DO start with bin/dg-webflow doctor + tabs');
-    lines.push('- DO respect freeze (mutate blocked without --force)');
+    lines.push(`- Publish freeze is ${s.freeze.frozen ? 'ON; DO NOT mutate' : 'OFF; DO claim the foot lock before CDN/paste mutations'}`);
     lines.push('- DO use demigod-cm6-paste-publish for Custom Code');
     lines.push('- DO NOT keyboard.type large pastes into CM6');
     lines.push('- DO NOT open 10+ Designer tabs — prune first');
@@ -356,9 +402,10 @@ async function main() {
   }
 
   console.error(`usage:
-  bin/dg-webflow status|doctor|tabs|truth|freeze|tools|brief
+  bin/dg-webflow status|doctor|connect|tabs|truth|freeze|tools|brief
   bin/dg-webflow open designer|custom-code|live|dashboard
   bin/dg-webflow paste-check
+  bin/dg-webflow change "describe the site change"
   bin/dg-webflow playbook [list|name]
   bin/dg-webflow run <tool> [--dry-run] [--force]
 `);

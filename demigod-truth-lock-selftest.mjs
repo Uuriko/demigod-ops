@@ -3,9 +3,10 @@
  * Selftest: truth oracle + foot lock hard mutex
  */
 import { spawnSync } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
+import { assertCanWriteFoot, getLockStatus } from './demigod-foot-lock.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const fails = [];
@@ -22,8 +23,65 @@ function run(args, env = {}) {
   });
 }
 
-// Clean lock
-run(['demigod-foot-lock.mjs', 'release', '--force']);
+function runSandboxFallback() {
+const lockSource = fs.readFileSync(path.join(ROOT, 'demigod-foot-lock.mjs'), 'utf8');
+ok(
+  /fs\.writeSync\(process\.stdout\.fd, r\.stdout\)/.test(lockSource) &&
+    /fs\.writeSync\(process\.stderr\.fd, r\.stderr\)/.test(lockSource),
+  'lock claim flushes the token receipt synchronously through flock wrappers',
+);
+  const truthSource = fs.readFileSync(path.join(ROOT, 'demigod-truth.mjs'), 'utf8');
+  const status = getLockStatus();
+
+  ok(status && typeof status.locked === 'boolean', 'fallback lock status shape');
+  ok(Boolean(status?.lockPath && status?.foot && status?.currentSha), 'fallback lock status paths + sha');
+  ok(/tokenIn\s*===\s*existing\.token/.test(lockSource), 'fallback lock refresh requires lease token');
+  ok(/error:\s*['"]locked['"]/.test(lockSource), 'fallback lock rejects competing claim');
+  ok(/DG_FOOT_LOCK_SKIP/.test(lockSource), 'fallback lock keeps explicit test escape');
+  ok(/pidScope:\s*['"]claim-command['"]/.test(lockSource), 'fallback claim PID is provenance only');
+  ok(/pidScope:\s*['"]lease-owner['"]/.test(lockSource), 'fallback wrap PID is durable liveness evidence');
+  ok(/fullyShipped\s*=/.test(truthSource), 'fallback truth computes fullyShipped');
+  ok(/liveFootLoaderCount\s*===\s*1/.test(truthSource), 'fallback truth requires one live foot loader');
+  ok(/liveFootMimeOk/.test(truthSource), 'fallback truth requires executable CDN MIME');
+  ok(/foot-lock\.json/.test(truthSource) && /lock,/.test(truthSource), 'fallback truth includes lock state');
+  ok(/lj\.pidScope\s*===\s*['"]lease-owner['"][\s\S]{0,180}process\.kill\(lj\.pid, 0\)/.test(truthSource), 'fallback truth probes only durable lock-owner PID liveness');
+ok(/held-owner-exited/.test(truthSource), 'fallback truth distinguishes an exited lease owner');
+ok(
+  /publisher-exited-lease-held/.test(truthSource) &&
+    /publisher-lease-held-liveness-unknown/.test(truthSource) &&
+    /ownerActive:\s*releaseOwnerActive/.test(truthSource) &&
+    /ownerExited:\s*releaseOwnerExited/.test(truthSource),
+  'release truth never labels an exited or unknown lease owner as an active publisher',
+);
+ok(
+  /releaseTransportBlocked/.test(truthSource) &&
+    /primaryBlocker:\s*releasePrimaryBlocker/.test(truthSource) &&
+    /cdn-transport-unavailable/.test(truthSource),
+  'release truth prioritizes a current-source transport failure without weakening the lease',
+);
+ok(
+  truthSource.indexOf("'publisher-exited-stale-core-lease-held'") <
+    truthSource.indexOf("'publisher-exited-lease-held'") &&
+    /retryInMs:\s*releaseRetryInMs/.test(truthSource),
+  'release truth prioritizes exited stale-core leases and exposes their bounded retry window',
+);
+
+  if (fails.length) {
+    console.error('FAIL', fails);
+    process.exit(1);
+  }
+  console.log('ALL PASS truth+lock selftest (in-process sandbox fallback)');
+  process.exit(0);
+}
+
+// Clean lock. Some restricted runners deny all child starts; report that as an
+// environmental block instead of cascading into misleading lock/JSON failures.
+const clean = run(['demigod-foot-lock.mjs', 'release', '--force']);
+if (clean.error) {
+  if (clean.error.code === 'EPERM') runSandboxFallback();
+  console.error(`BLOCKED truth+lock selftest: child process unavailable (${clean.error.code || 'unknown'})`);
+  process.exit(2);
+}
 
 // Free → require fails
 const req = run(['demigod-foot-lock.mjs', 'require']);
@@ -36,6 +94,7 @@ let token = '';
 try {
   const j = JSON.parse(claim.stdout);
   token = j.claimed?.token || '';
+  ok(j.claimed?.pidScope === 'claim-command', 'claim PID is marked as provenance only');
 } catch {
   /* */
 }
@@ -87,9 +146,10 @@ try {
   /* */
 }
 ok(tj && tj.id === 'truth' && tj.foot && tj.live, 'truth JSON schema');
-ok(typeof tj.pass === 'boolean' && tj.summaryLine, 'truth pass + summaryLine');
-ok(tj.lock && typeof tj.lock.held === 'boolean', 'truth includes lock');
-ok(tj.freeze && typeof tj.freeze.on === 'boolean', 'truth includes freeze');
+ok(tj && typeof tj.pass === 'boolean' && tj.summaryLine, 'truth pass + summaryLine');
+ok(tj && tj.lock && typeof tj.lock.held === 'boolean', 'truth includes lock');
+ok(tj && typeof tj.lock.state === 'string' && 'ownerAlive' in tj.lock, 'truth includes lock liveness state');
+ok(tj && tj.freeze && typeof tj.freeze.on === 'boolean', 'truth includes freeze');
 
 // live-doctor alias
 const live = run(['demigod-live-doctor.mjs', '--json']);

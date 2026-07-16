@@ -16,7 +16,9 @@
  *   3 hard refuse — missing spine / corrupt evidence / bad ROOT
  */
 import { spawnSync } from 'child_process';
+import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { refuseIfStale } from './demigod-evidence.mjs';
@@ -48,6 +50,139 @@ function readJson(p) {
   } catch {
     return null;
   }
+}
+
+function processAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // EPERM means the process exists but belongs to another user.
+    return err?.code === 'EPERM' ? true : false;
+  }
+}
+
+function sha256File(file) {
+  try {
+    return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+function sourceReceipt(file) {
+  try {
+    const stat = fs.statSync(file);
+    return {
+      schema: 'demigod.source-receipt/1',
+      capturedAt: new Date().toISOString(),
+      path: file,
+      bytes: stat.size,
+      sha256: sha256File(file),
+    };
+  } catch {
+    return {
+      schema: 'demigod.source-receipt/1',
+      capturedAt: new Date().toISOString(),
+      path: file,
+      bytes: null,
+      sha256: null,
+    };
+  }
+}
+
+function demandHygieneSnapshot(demandSnap) {
+  const source = demandSnap?.drafts?.hygiene;
+  const allHygieneOk = demandSnap?.drafts?.allHygieneOk;
+  const ok = typeof source?.ok === 'boolean'
+    ? source.ok
+    : (typeof allHygieneOk === 'boolean' ? allHygieneOk : null);
+  const top3 = Array.isArray(demandSnap?.drafts?.top3) ? demandSnap.drafts.top3 : [];
+  const statusPath = source?.statusPath || demandSnap?.statusPath || path.join(BUSY, 'demand-status.json');
+  const sourceAt = source?.at || demandSnap?.at || null;
+  const sourceAtMs = sourceAt ? Date.parse(sourceAt) : NaN;
+  const timestampInvalid = sourceAt !== null && !Number.isFinite(sourceAtMs);
+  let fileAtMs = NaN;
+  try {
+    fileAtMs = fs.statSync(statusPath).mtimeMs;
+  } catch {
+    /* Missing evidence is stale, not silently current. */
+  }
+  // File mtime is a compatibility fallback only when the producer omitted its
+  // timestamp. An explicit malformed timestamp is corrupt evidence and must
+  // fail closed instead of borrowing freshness from a recently touched file.
+  const evidenceAtMs = sourceAt === null
+    ? fileAtMs
+    : (Number.isFinite(sourceAtMs) ? sourceAtMs : NaN);
+  const rawAgeSec = Number.isFinite(evidenceAtMs)
+    ? Math.floor((Date.now() - evidenceAtMs) / 1000)
+    : null;
+  // Permit small filesystem/clock jitter, but never turn a forged or corrupt
+  // future timestamp into fresh evidence by clamping it to zero.
+  const clockSkewed = rawAgeSec !== null && rawAgeSec < -60;
+  const ageSec = rawAgeSec !== null && !clockSkewed
+    ? Math.max(0, rawAgeSec)
+    : null;
+  const stale = timestampInvalid || clockSkewed || ageSec === null || ageSec > 900;
+  // Publish the same structured, byte-bound evidence receipt used by the
+  // dashboard. This lets file-only orient consumers verify provenance without
+  // reconstructing a weaker path + hash contract from separate fields.
+  const receipt = sourceReceipt(statusPath);
+  return {
+    statusPath,
+    jsonPointer: source?.jsonPointer || '/drafts/hygiene',
+    // Bind the verdict to the exact materialized status bytes. A file-only
+    // consumer can now distinguish a current hygiene result from a copied or
+    // subsequently rewritten demand-status path without trusting mtime alone.
+    sourceReceipt: receipt,
+    // Compatibility alias for existing compact-card and API consumers.
+    sourceSha256: receipt.sha256,
+    source: typeof source?.ok === 'boolean'
+      ? (source.source || 'drafts.hygiene')
+      : (typeof allHygieneOk === 'boolean' ? 'drafts.allHygieneOk' : 'unknown'),
+    at: Number.isFinite(evidenceAtMs) ? new Date(evidenceAtMs).toISOString() : null,
+    ageSec,
+    stale,
+    timestampInvalid,
+    clockSkewed,
+    checked: source?.checked ?? top3.length,
+    clean: source?.clean ?? top3.filter((draft) => draft?.hygieneOk === true).length,
+    flagged: source?.flagged ?? top3.filter((draft) => draft?.hygieneOk === false).length,
+    ok,
+    // Consumers should not have to reconstruct the freshness policy. This is
+    // intentionally stricter than `ok`: a clean but stale receipt is not ready.
+    // `statusPath` is part of the public orient contract. Do not call the
+    // verdict ready when only an in-memory/copied timestamp survives but the
+    // advertised evidence bytes cannot be read and identified.
+    ready: ok === true && stale === false && receipt.sha256 !== null && receipt.bytes !== null,
+  };
+}
+
+function formatDemandHygiene(hygiene) {
+  if (!hygiene) return 'unknown(STALE)';
+  const age = Number.isFinite(hygiene.ageSec) ? `,age=${hygiene.ageSec}s` : ',age=?';
+  const source = hygiene.source && hygiene.source !== 'unknown' ? `,source=${hygiene.source}` : '';
+  // Keep the five-line card compact while making its hygiene evidence directly
+  // discoverable to file-only agents (the dashboard exposes the same locator).
+  const receipt = hygiene.statusPath
+    ? `,receipt=${path.basename(hygiene.statusPath)}${hygiene.jsonPointer || '/drafts/hygiene'}`
+    : ',receipt=missing';
+  const identity = typeof hygiene.sourceSha256 === 'string'
+    ? `,sha=${hygiene.sourceSha256.slice(0, 8)}`
+    : ',sha=missing';
+  if (typeof hygiene.ok !== 'boolean') {
+    return hygiene.stale ? `unknown(STALE${age}${source}${receipt}${identity})` : `unknown(${age.slice(1)}${source}${receipt}${identity})`;
+  }
+  const verdict = hygiene.ok ? 'ok' : 'FIX';
+  const checked = Number.isInteger(hygiene.checked) ? hygiene.checked : null;
+  const clean = Number.isInteger(hygiene.clean) ? hygiene.clean : null;
+  const flagged = Number.isInteger(hygiene.flagged) ? hygiene.flagged : null;
+  const freshness = hygiene.stale ? ',STALE' : '';
+  const readiness = `,ready=${hygiene.ready === true ? 'yes' : 'NO'}`;
+  return checked === null || clean === null || flagged === null
+    ? `${verdict}(${age.slice(1)}${source}${receipt}${identity}${freshness}${readiness})`
+    : `${verdict}(clean=${clean}/${checked},flagged=${flagged}${age}${source}${receipt}${identity}${freshness}${readiness})`;
 }
 
 function hardRefuse(reason) {
@@ -82,7 +217,14 @@ function assertSameInProcess() {
   if (cock?.next && !['live-down', 'board-honesty', 'verify-source'].includes(cock.next.id)) {
     check('cockpit.next', cock.next.id, cock.next.cmd);
   }
-  if (ship?.next && typeof ship.next === 'object') check('ship.next', ship.next.id, ship.next.cmd);
+  if (ship?.next && typeof ship.next === 'object' && ship.next.id && !ship.next.stage) {
+    // ship-latest may describe the release stage chain (often with a hash-like
+    // id), not the agent's canonical NEXT. Match demigod-next --assert-same so
+    // orient cannot invent a dual-NEXT failure from release metadata.
+    if (typeof ship.next.id === 'string' && !/^[0-9a-f]{8,}$/i.test(ship.next.id)) {
+      check('ship.next', ship.next.id, ship.next.cmd);
+    }
+  }
   const nj = readJson(path.join(BUSY, 'next.json'));
   if (nj?.id) check('next.json', nj.id, nj.cmd);
   return { ok: mismatches.length === 0, next: n, mismatches };
@@ -110,7 +252,7 @@ async function main() {
 
   if (!te.green && !noRefresh) {
     const r = runNode([path.join(ROOT, 'demigod-truth.mjs'), '--quiet'], 90000);
-    steps.push({ step: 'truth-refresh', ok: r.status === 0 || r.status === 1, status: r.status });
+    steps.push({ step: 'truth-refresh', ok: r.status === 0, status: r.status });
     try {
       te = refuseIfStale('truth');
     } catch (e) {
@@ -150,8 +292,20 @@ async function main() {
   const lock = readJson(path.join(BUSY, 'foot-lock.json'));
   const exp = lock?.expiresAt && Date.parse(lock.expiresAt) < Date.now();
   const lockHeld = Boolean(lock?.owner && !exp);
+  // PIDs are host-local. A remote lease cannot be proved dead by probing the
+  // same numeric PID on this machine, so preserve liveness as unknown.
+  const lockOwnerIsLocal = !lock?.host || lock.host === os.hostname();
+  // `claim` records the short-lived claim command PID for diagnostics; it is
+  // not the process that owns the lease. Only an explicit lease-owner PID can
+  // support a liveness verdict. Otherwise preserve unknown until expiry.
+  const lockHasOwnerPid = lock?.pidScope === 'lease-owner';
+  const lockOwnerAlive = lockHeld && lockOwnerIsLocal && lockHasOwnerPid
+    ? processAlive(lock?.pid)
+    : null;
+  const lockCompromised = Boolean(lockHeld && lockOwnerAlive === false);
 
   const demandSnap = readJson(path.join(BUSY, 'demand-status.json'));
+  const demandHygiene = demandSnap ? demandHygieneSnapshot(demandSnap) : null;
   const shipSnap = readJson(path.join(BUSY, 'ship-status.json')) || readJson(path.join(BUSY, 'ship-latest.json'));
   const truthSnap = readJson(path.join(BUSY, 'truth.json'));
   const reviewEv = (() => {
@@ -182,17 +336,39 @@ async function main() {
     greenMeans: 'truth-seal-pass-fresh-only',
     evidenceRunId: te.runId || null,
     freeze: { on: freeze.frozen, why: freeze.why },
-    lock: { held: lockHeld, owner: lockHeld ? lock.owner : null },
+    lock: {
+      held: lockHeld,
+      owner: lockHeld ? lock.owner : null,
+      ownerIsLocal: lockHeld ? lockOwnerIsLocal : null,
+      ownerAlive: lockOwnerAlive,
+      compromised: lockCompromised,
+      ttlLeftSec: lockHeld && lock?.expiresAt
+        ? Math.max(0, Math.ceil((Date.parse(lock.expiresAt) - Date.now()) / 1000))
+        : null,
+    },
     next: {
       id: unify.next?.id || same.next?.id,
       title: unify.next?.title || same.next?.title,
       cmd: unify.next?.cmd || same.next?.cmd,
     },
-    demand: unify.demand
+    demand: unify.demand || demandSnap
       ? {
-          pending: unify.demand.pending,
-          sentConfirmed: unify.demand.sentConfirmed,
-          pilotsFilled: unify.demand.pilotsFilled,
+          pending: unify.demand?.pending ?? demandSnap?.queue?.pending ?? null,
+          sentConfirmed: unify.demand?.sentConfirmed ?? demandSnap?.dms?.sentConfirmed ?? null,
+          pilotsFilled: unify.demand?.pilotsFilled ?? demandSnap?.pilots?.realFilled ?? null,
+          // Warm replies are actionable demand but never pilot evidence. Keep
+          // urgency and parser quarantine visible beside the real-pilot count.
+          warmInbound: {
+            count: demandSnap?.warmInbound?.count ?? null,
+            overdue: demandSnap?.warmInbound?.freshness?.overdueActionCount ?? null,
+            overdueOldestDays: demandSnap?.warmInbound?.freshness?.overdueActionOldestDays ?? null,
+            quarantined: demandSnap?.warmInbound?.quarantinedRows ?? null,
+          },
+          drafts: {
+            // Keep CLI/orient.json evidence self-describing. The dashboard API
+            // must not be required to discover where this hygiene verdict came from.
+            hygiene: demandHygiene,
+          },
         }
       : null,
     lamps,
@@ -221,7 +397,7 @@ async function main() {
   } else if (role === 'demand') {
     card.roleHint = lamps.demand.outcomeOk
       ? 'bin/dg demand status · await replies / white-glove'
-      : 'bin/dg demand draft --name=T0 · human send · mark-sent --i-sent-it';
+      : 'bin/dg demand status · drafts only · outbound remains stopped';
   }
 
   // Exit codes: 2 dual-NEXT beats soft 1
@@ -239,19 +415,19 @@ async function main() {
   } else {
     console.log(`# orient ${exit === 0 ? 'OK' : exit === 2 ? 'DUAL-NEXT' : 'ATTENTION'} · ${card.at.slice(0, 19)}`);
     console.log(
-      `1 green=${card.green ? 'yes' : 'NO'} (${card.greenReason}=truth-seal-only) runId=${card.evidenceRunId || '—'}`,
+      `1 green=${card.green ? 'yes' : 'NO'} (reason=${card.greenReason}; policy=truth-seal-only) runId=${card.evidenceRunId || '—'}`,
     );
     console.log(
-      `2 freeze=${card.freeze.on ? 'ON' : 'OFF'}${card.freeze.why ? ' — ' + String(card.freeze.why).slice(0, 50) : ''} · lock=${card.lock.held ? card.lock.owner : 'free'}`,
+      `2 freeze=${card.freeze.on ? 'ON' : 'OFF'}${card.freeze.why ? ' — ' + String(card.freeze.why).slice(0, 50) : ''} · lock=${card.lock.held ? card.lock.owner + (card.lock.compromised ? ' [OWNER EXITED; lease held]' : '') : 'free'}`,
     );
     console.log(`3 NEXT ${card.next.id}: ${card.next.title}`);
     console.log(`4 cmd: ${card.next.cmd}`);
     console.log(
-      `5 demand pending=${card.demand?.pending ?? '?'} sent=${card.demand?.sentConfirmed ?? '?'} pilots=${card.demand?.pilotsFilled ?? '?'} · assertSame=${card.assertSame.ok ? 'ok' : 'FAIL'}`,
+      `5 demand pending=${card.demand?.pending ?? '?'} sent=${card.demand?.sentConfirmed ?? '?'} pilots=${card.demand?.pilotsFilled ?? '?'} warm=${card.demand?.warmInbound?.count ?? '?'}(overdue=${card.demand?.warmInbound?.overdue ?? '?'}${Number.isInteger(card.demand?.warmInbound?.overdueOldestDays) ? `/${card.demand.warmInbound.overdueOldestDays}d` : ''},quarantined=${card.demand?.warmInbound?.quarantined ?? '?'}) drafts.hygiene=${formatDemandHygiene(card.demand?.drafts?.hygiene)} · assertSame=${card.assertSame.ok ? 'ok' : 'FAIL'}`,
     );
-    console.log(
-      `6 lamps truth=${lamps.truth.green ? 'on' : 'off'} demand.q=${lamps.demand.queueOk ? 'ok' : 'no'}/out=${lamps.demand.outcomeOk ? 'ok' : 'no'} ship=${lamps.ship.green ? 'on' : 'off'}(${lamps.ship.reason}) review=${lamps.review.green ? 'on' : 'off'}`,
-    );
+    // Keep the CLI contract to exactly five numbered lines. Role lamps remain
+    // available in orient.json / --json without competing with the canonical
+    // green, freeze, NEXT, command, and demand+assertSame scan path.
     if (card.roleHint) console.log(`+ role(${role}): ${card.roleHint}`);
     if (!assertOk && card.assertSame.mismatches?.length) {
       console.error('! dual-NEXT:', JSON.stringify(card.assertSame.mismatches));

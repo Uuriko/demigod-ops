@@ -19,6 +19,7 @@
  *   node demigod-control.mjs modules
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -30,6 +31,82 @@ import { isFreshFile, writeJsonAuto } from './demigod-perf-cache.mjs';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
 const OUT = path.join(BUSY, 'control-plane.json');
+const NEXT_JSON = path.join(BUSY, 'next.json');
+const COCKPIT_JSON = path.join(BUSY, 'cockpit.json');
+
+/** Project full buildNext() → plane.next / cockpit.next shape */
+export function projectNext(nextCanon) {
+  return {
+    id: nextCanon.id,
+    title: nextCanon.title,
+    cmd: nextCanon.cmd,
+    pri: nextCanon.pri,
+    mutate: nextCanon.mutate,
+    freezeBlocks: nextCanon.freezeBlocks,
+    reason: nextCanon.reason,
+    demandSignal: nextCanon.demandSignal || null,
+  };
+}
+
+/**
+ * Persist canonical NEXT to next.json + patch control-plane + cockpit when present.
+ * Call after freeze flips or whenever surfaces must agree with buildNext().
+ */
+export function writeNextSnapshot(nextCanon) {
+  ensureBusy();
+  atomicWrite(NEXT_JSON, JSON.stringify(nextCanon, null, 2) + '\n');
+
+  // Freeze module is disabled — always unfrozen (imports stay for API stability).
+  const freeze = { on: false, why: 'freeze disabled', at: null, by: null };
+  const frozen = false;
+  const nextOut = projectNext(nextCanon);
+
+  const plane = safeJsonFile(OUT);
+  if (plane && typeof plane === 'object') {
+    plane.nextCanon = nextCanon;
+    plane.next = nextOut;
+    plane.at = new Date().toISOString();
+    plane.frozen = frozen;
+    plane.freezeWhy = freeze.why || null;
+    plane.freezeAt = freeze.at || null;
+    plane.freezeBy = freeze.by || null;
+    plane.sessionMode = frozen ? 'read-only' : 'read-write';
+    atomicWrite(OUT, JSON.stringify(plane) + '\n');
+  }
+
+  const cock = safeJsonFile(COCKPIT_JSON);
+  if (cock && typeof cock === 'object' && cock.next) {
+    // Only patch when cockpit was using canonical next (not live-down/board/verify override)
+    const override = ['live-down', 'board-honesty', 'verify-source'].includes(cock.next?.id);
+    if (!override) {
+      cock.next = {
+        ...nextOut,
+        versions: nextCanon.versions,
+        truthEvidence: nextCanon.truthEvidence,
+      };
+      cock.nextSource = 'refreshNextCanon';
+      cock.freeze = { on: frozen, why: freeze.why || null, at: freeze.at || null };
+      cock.at = new Date().toISOString();
+      atomicWrite(COCKPIT_JSON, JSON.stringify(cock, null, 2) + '\n');
+    }
+  }
+
+  return nextCanon;
+}
+
+/**
+ * Rebuild NEXT and refresh persisted surfaces.
+ * If control-plane.json is missing, builds full plane (do not fabricate a plane).
+ */
+export async function refreshNextCanon() {
+  ensureBusy();
+  if (!fs.existsSync(OUT)) {
+    const plane = await buildControlPlane();
+    return plane.nextCanon || buildNext();
+  }
+  const nextCanon = buildNext();
+  return writeNextSnapshot(nextCanon);
+}
 
 /** Module map — the cohesion layer (UI + CLI + API) */
 export const MODULES = {
@@ -106,6 +183,39 @@ export const MODULES = {
     jobs: ['hygiene', 'tab-prune'],
     actions: [{ id: 'hyg', label: 'Prune now', job: 'hygiene' }],
   },
+  ponytail: {
+    title: 'Ponytail',
+    why: 'Lazy-senior coding for all agents (YAGNI / min code)',
+    emoji: '✦',
+    accent: '#c4b5fd',
+    key: 'y',
+    cli: 'bin/dg ponytail',
+    dashTab: 'tools',
+    api: `${DASH}/api/ponytail`,
+    jobs: ['ponytail', 'ponytail-check'],
+    actions: [
+      { id: 'pt-status', label: 'Status', job: 'ponytail' },
+      { id: 'pt-check', label: 'Check', job: 'ponytail-check' },
+    ],
+  },
+  workloop: {
+    title: 'Work loop',
+    why: 'Cycle-work · never-stop · swarm status (safe; no auto thrash)',
+    emoji: '⟳',
+    accent: '#7dd3fc',
+    key: 'l',
+    cli: 'bin/dg cycle-status',
+    dashTab: 'system',
+    jobs: ['cycle-status', 'cycle-work', 'never-stop-status', 'swarm-status', 'harness-selftest', 'dogfood', 'priority'],
+    actions: [
+      { id: 'cstat', label: 'Cycle status', job: 'cycle-status' },
+      { id: 'cwork', label: 'One cycle', job: 'cycle-work' },
+      { id: 'ns', label: 'Never-stop status', job: 'never-stop-status' },
+      { id: 'sw', label: 'Swarm status', job: 'swarm-status' },
+      { id: 'stop-ns', label: 'Stop never-stop', job: 'never-stop-stop' },
+      { id: 'stop-sw', label: 'Stop swarm', job: 'swarm-stop' },
+    ],
+  },
   ship: {
     title: 'Ship',
     why: 'When (not) to mutate CDN/Webflow',
@@ -161,6 +271,8 @@ const DISPATCH = {
   inbox: ['demigod-submissions-inbox.mjs', '--json'],
   review: ['demigod-review.mjs'],
   hygiene: ['demigod-laptop-hygiene.mjs'],
+  workloop: ['demigod-cycle-status.mjs'],
+  ponytail: ['demigod-ponytail.mjs'],
   doctor: ['demigod-doctor.mjs'],
   smoke: ['demigod-agent-smoke.mjs'],
   truth: ['demigod-truth.mjs', '--md'],
@@ -195,12 +307,17 @@ async function fetchJson(url, ms = 8000) {
   }
 }
 
+/**
+ * Build full control-plane snapshot → /tmp/dg-busy/control-plane.json
+ * Includes modules, spine, freeze, nextCanon (via buildNext + writeNextSnapshot).
+ * Call refreshNextCanon() after freeze flips when a full rebuild is not needed.
+ */
 export async function buildControlPlane() {
   ensureBusy();
-  const freeze = safeJsonFile(path.join(BUSY, 'publish-freeze.json')) || {};
-  const envRaw = String(process.env.DEMIGOD_PUBLISH_FREEZE || '').toLowerCase();
-  const envFreeze = ['1', 'true', 'yes', 'on'].includes(envRaw);
-  const frozen = envFreeze || Boolean(freeze.on);
+  /* ==== SECTION: freeze + dash status (cached) ==== */
+  // Publish freeze disabled entirely for now.
+  const freeze = { on: false, why: 'freeze disabled', at: null, by: null };
+  const frozen = false;
 
   // Prefer busy cache — only hit dash if stale (>30s)
   let dashStatus = safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
@@ -212,7 +329,7 @@ export async function buildControlPlane() {
       (await fetchJson(`${DASH}/api/status`)) ||
       dashStatus;
   }
-  const [webflow, review, hygiene, matchesBusy] = await Promise.all([
+  const [webflow, review, hygiene, matchesBusy, ponytail] = await Promise.all([
     Promise.resolve(
       safeJsonFile(path.join(BUSY, 'webflow-status.json')) ||
         (dashAge < 60000 ? null : fetchJson(`${DASH}/api/webflow`)),
@@ -220,6 +337,7 @@ export async function buildControlPlane() {
     Promise.resolve(safeJsonFile(path.join(BUSY, 'review-latest.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'laptop-hygiene.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'match-review-latest.json'))),
+    Promise.resolve(safeJsonFile(path.join(BUSY, 'ponytail-status.json'))),
   ]);
 
   // Webflow status: only spawn if missing/stale (>90s) — was 25s block every home
@@ -231,10 +349,32 @@ export async function buildControlPlane() {
     }
     wf = safeJsonFile(wfPath);
   }
+  const wfDoctorRaw = safeJsonFile(path.join(BUSY, 'webflow-doctor.json')) || wf?.doctor || null;
+  const wfDoctorAgeMs = wfDoctorRaw?.at ? Date.now() - Date.parse(wfDoctorRaw.at) : Infinity;
+  const wfDoctor = wfDoctorRaw
+    ? { ...wfDoctorRaw, ageMs: wfDoctorAgeMs, fresh: Number.isFinite(wfDoctorAgeMs) && wfDoctorAgeMs <= 120000 }
+    : null;
 
   const boardH = safeJsonFile(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
   const footLock = safeJsonFile(path.join(BUSY, 'foot-lock.json'));
-  const lockHeld = Boolean(footLock?.expiresAt && Date.parse(footLock.expiresAt) > Date.now());
+  const lockExpiryMs = Date.parse(footLock?.expiresAt || '');
+  const lockHeld = Number.isFinite(lockExpiryMs) && lockExpiryMs > Date.now();
+  const footSha = dashStatus?.foot?.disk?.sha256 || null;
+  const lockChangedSinceClaim = Boolean(lockHeld && footLock?.baseSha && footSha && footLock.baseSha !== footSha);
+  const lockOwnerIsLocal = !footLock?.host || footLock.host === os.hostname();
+  const lockHasOwnerPid = footLock?.pidScope === 'lease-owner';
+  let lockOwnerAlive = null;
+  // A PID only has meaning on the host that issued the lease. Probing a remote
+  // owner's PID locally can collide with an unrelated process and fabricate
+  // lock health; leave ownerAlive unknown for remote locks.
+  if (lockHeld && lockOwnerIsLocal && lockHasOwnerPid && Number.isInteger(Number(footLock?.pid)) && Number(footLock.pid) > 0) {
+    try {
+      process.kill(Number(footLock.pid), 0);
+      lockOwnerAlive = true;
+    } catch (error) {
+      lockOwnerAlive = error?.code === 'EPERM';
+    }
+  }
 
   function enrich(id, state) {
     const def = MODULES[id] || {};
@@ -254,17 +394,23 @@ export async function buildControlPlane() {
   }
 
   const modules = {};
+  const siteTruthGreen = dashStatus?.truthEvidence?.green === true;
+  const siteFullyShipped = dashStatus?.truth?.fullyShipped === true;
   modules.site = enrich('site', {
-    ok: Boolean(dashStatus?.live?.ok ?? dashStatus?.smoke?.pass),
+    // Reachability/smoke are useful metrics, but cannot make the Site module
+    // green while canonical truth says disk and live are not fully shipped.
+    ok: siteTruthGreen && siteFullyShipped,
     detail: dashStatus?.glance?.site || dashStatus?.live?.foot || '—',
-    next: 'bin/dg smoke',
+    next: siteFullyShipped ? 'bin/dg smoke' : 'bin/dg truth',
     metrics: {
       foot: dashStatus?.live?.foot || null,
       smoke: dashStatus?.smoke?.pass ?? null,
+      truthGreen: siteTruthGreen,
+      fullyShipped: siteFullyShipped,
     },
   });
   modules.webflow = enrich('webflow', {
-    ok: Boolean(wf?.cdp?.ok),
+    ok: Boolean(wf?.cdp?.ok) && wfDoctor?.pass === true && wfDoctor.fresh,
     freeze: frozen,
     ready: wf?.ready || null,
     tabs: wf?.tabs?.byRole || null,
@@ -272,7 +418,8 @@ export async function buildControlPlane() {
       ? `freeze ON · tabs ${wf?.tabs?.pages ?? '?'}`
       : `paste=${wf?.ready?.paste} · tabs ${wf?.tabs?.pages ?? '?'}`,
     next: 'bin/dg webflow doctor',
-    metrics: { pages: wf?.tabs?.pages, cdp: wf?.cdp?.ok },
+    doctor: wfDoctor,
+    metrics: { pages: wf?.tabs?.pages, cdp: wf?.cdp?.ok, doctorPass: wfDoctor?.pass ?? null, doctorFresh: wfDoctor?.fresh ?? false },
   });
   const matchSum = matchesBusy?.summary || dashStatus?.matches?.summary || null;
   const realProposed =
@@ -316,6 +463,37 @@ export async function buildControlPlane() {
       : 'run hygiene',
     next: 'bin/dg hygiene --prune',
     metrics: { load: hygiene?.load?.load1, tabs: hygiene?.tabs?.pages },
+  });
+  modules.ponytail = enrich('ponytail', {
+    ok: ponytail?.ok ?? null,
+    detail: ponytail
+      ? `mode=${ponytail.defaultMode || '?'} · score ${ponytail.score ?? '?'}/${ponytail.scoreMax ?? 9}` +
+        (ponytail.missing?.length ? ` · missing ${ponytail.missing.join(',')}` : ' · agents wired')
+      : 'run bin/dg ponytail',
+    next: ponytail?.ok ? 'agents use Ponytail full mode' : 'bin/dg ponytail check',
+    metrics: {
+      mode: ponytail?.defaultMode || null,
+      score: ponytail?.score ?? null,
+      claude: ponytail?.surfaces?.claudePlugin?.enabled ?? null,
+      codex: ponytail?.surfaces?.codexPlugin?.enabled ?? null,
+      missing: ponytail?.missing || [],
+    },
+  });
+  const cycle = safeJsonFile(path.join(BUSY, 'cycle-work-latest.json'));
+  const nsStop = fs.existsSync(path.join(BUSY, 'never-stop.STOP'));
+  const swStop = fs.existsSync(path.join(BUSY, 'swarm-busy.STOP'));
+  modules.workloop = enrich('workloop', {
+    ok: cycle?.ok === true && cycle?.attested === true,
+    detail: cycle
+      ? `cycle ${cycle.domain || '?'} · verdict=${cycle.verdict || cycle.verification || '?'} · ns=${nsStop ? 'stopped' : 'run?'} · swarm=${swStop ? 'stopped' : 'run?'}`
+      : `no cycle receipt · ns=${nsStop ? 'stopped' : '?'} swarm=${swStop ? 'stopped' : '?'}`,
+    next: 'bin/dg cycle-status',
+    metrics: {
+      domain: cycle?.domain || null,
+      ok: cycle?.ok ?? null,
+      neverStopStopped: nsStop,
+      swarmStopped: swStop,
+    },
   });
   modules.ship = enrich('ship', {
     ok: !frozen,
@@ -451,15 +629,8 @@ export async function buildControlPlane() {
         : 'site',
   });
   // Prefer canonical next over dash-derived for plane.next
-  const nextOut = {
-    id: nextCanon.id,
-    title: nextCanon.title,
-    cmd: nextCanon.cmd,
-    pri: nextCanon.pri,
-    mutate: nextCanon.mutate,
-    freezeBlocks: nextCanon.freezeBlocks,
-    reason: nextCanon.reason,
-  };
+  const nextOut = projectNext(nextCanon);
+  const orderedSpine = spine.filter((item, index) => spine.findIndex((other) => other.cmd === item.cmd) === index).sort((a, b) => a.pri - b.pri);
 
   // Demand starvation: never label "solid" with 0 SENT under freeze (Codex N-E1)
   const demandSnap = safeJsonFile(path.join(BUSY, 'demand-status.json')) || {};
@@ -474,7 +645,13 @@ export async function buildControlPlane() {
   const demandStarved =
     frozen && sentConfirmed === 0 && (nextCanon?.id || '').includes('demand');
   let healthLabel = health >= 80 ? 'solid' : health >= 50 ? 'watch' : 'attention';
-  if (demandStarved) {
+  // Product health fails closed on the truth seal. Process/module reachability
+  // can still score well while evidence is missing or stale, but that state is
+  // never "solid" and must be distinguishable from ordinary demand starvation.
+  if (!truthEvidence.green) {
+    health = Math.min(health, 49);
+    healthLabel = 'truth-stale';
+  } else if (demandStarved) {
     health = Math.min(health, 55);
     healthLabel = 'demand-starved';
   } else if (frozen && !fullyShipped && healthLabel === 'solid') {
@@ -505,6 +682,13 @@ export async function buildControlPlane() {
     lock: {
       foot: lockHeld,
       owner: lockHeld ? footLock?.owner || null : null,
+      ownerAlive: lockHeld ? lockOwnerAlive : null,
+      ownerIsLocal: lockHeld ? lockOwnerIsLocal : null,
+      pidScope: lockHeld ? footLock?.pidScope || null : null,
+      reservation: Boolean(lockHeld && footLock?.pidScope === 'claim-command'),
+      changedSinceClaim: lockChangedSinceClaim,
+      compromised: Boolean(lockHeld && (lockOwnerAlive === false || lockChangedSinceClaim)),
+      ttlLeftSec: lockHeld ? Math.max(0, Math.ceil((lockExpiryMs - Date.now()) / 1000)) : 0,
     },
     assets: {
       ambient: '/assets/dashboard/control-plane-ambient.jpg',
@@ -513,9 +697,9 @@ export async function buildControlPlane() {
     },
     dash: DASH,
     next: nextOut,
-    spine: spine.sort((a, b) => a.pri - b.pri),
+    spine: orderedSpine,
     modules,
-    moduleOrder: ['site', 'webflow', 'match', 'review', 'hygiene', 'ship', 'swarm', 'orca'],
+    moduleOrder: ['site', 'webflow', 'match', 'review', 'hygiene', 'ponytail', 'workloop', 'ship', 'swarm', 'orca'],
     moduleDefs: MODULES,
     entrypoints: {
       cli: 'bin/dg',
@@ -528,13 +712,14 @@ export async function buildControlPlane() {
     map: [
       '1. bin/dg home OR dash #overview (same home)',
       '2. bin/dg hygiene --prune',
-      '3. bin/dg webflow doctor',
-      '4. Dash rooms: Inbox · Matches · Ship',
-      '5. bin/dg review when shipping code',
-      '6. Ship only freeze OFF + checklist',
+      '3. bin/dg ponytail (lazy-senior agents)',
+      '4. bin/dg webflow doctor',
+      '5. Dash rooms: Inbox · Matches · Ship',
+      '6. bin/dg review when shipping code',
+      '7. Ship only freeze OFF + checklist',
     ],
     kbd: {
-      g: 'go module (then s/w/m/r/h/p/a)',
+      g: 'go module (then s/w/m/r/h/y/p/a)',
       '/': 'command palette',
       r: 'refresh',
       '?': 'help',
@@ -542,6 +727,8 @@ export async function buildControlPlane() {
   };
 
   atomicWrite(OUT, JSON.stringify(plane) + '\n');
+  // Keep next.json + cockpit next aligned with this write
+  writeNextSnapshot(nextCanon);
   return plane;
 }
 

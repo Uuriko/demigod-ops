@@ -1,4 +1,11 @@
-/** Anonymize Webflow form payloads → public board entries. No PII on featured cards. */
+#!/usr/bin/env node
+/**
+ * demigod-submissions-lib — shared inbox/board helpers (no PII on public cards)
+ *
+ * Exports: loadInbox, saveInbox, loadBoard, mintBoardEntry, extractEmail, publicStatus, …
+ * Paths: DEMIGOD-SUBMISSIONS-INBOX.json, DEMIGOD-BOARD.json, audit jsonl.
+ * Used by: submissions-inbox/approve/ingest, auto-propose, matching. Keep sample-by-default honesty.
+ */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -8,7 +15,11 @@ const ROOT = '/home/potter';
 export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
 export const BOARD_LOCK = path.join(ROOT, 'DEMIGOD-BOARD.json.lock');
 export const BOARD_AUDIT = path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
-export const INBOX_PATH = path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json');
+// Tests must never write the production inbox SoR: *.test.mjs polluted it with 115 fixture rows
+// that read as real demand. Redirect them to tmp unless DEMIGOD_INBOX_PATH says otherwise.
+const IS_TEST = !!process.env.NODE_TEST_CONTEXT || /\.test\.mjs$/.test(process.argv[1] || '');
+export const INBOX_PATH = process.env.DEMIGOD_INBOX_PATH
+  || (IS_TEST ? '/tmp/dg-busy/test-submissions-inbox.json' : path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'));
 
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
 const VERTICAL_RE = /\b(b2b\s*saas?|consumer|fintech|healthtech|devtools|ai|marketplace|hardware)\b/i;

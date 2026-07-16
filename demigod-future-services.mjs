@@ -36,7 +36,16 @@ export const FUTURE_SERVICES = {
     account: null,
     atlas: false,
     feePercent: 10,
-    notes: '10% on first-year comp only on successful hire. Manual invoicing now. Stripe Atlas for future company ops if scaling.'
+    notes:
+      '10% on first-year cash only on successful hire. Manual hello@ invoicing now. Enable when keys land: Checkout/Invoice + webhook → match state paid. Talent never charged.',
+    /** Flip when keys work; wire demigod-ops-os invoice stage. */
+    enableChecklist: [
+      'STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in env (never commit)',
+      'createInvoiceForHire({ pilotId, matchId, amountCents, founderEmail })',
+      'webhook invoice.paid / checkout.session.completed → MATCH_STATES paid + ledger JSONL',
+      'UI: replace pending copy only when enabled=true',
+      'talent path: no Customer charges ever',
+    ],
   },
   microsoftForStartups: {
     enabled: false,

@@ -61,8 +61,14 @@ async function fillUrl(page, url) {
 }
 
 async function tryApiWebhooks(webhookUrl) {
-  const token = process.env.WEBFLOW_API_TOKEN || process.env.WEBFLOW_ACCESS_TOKEN;
-  if (!token) return { ok: false, reason: 'no WEBFLOW_API_TOKEN' };
+  let token = process.env.WEBFLOW_API_TOKEN || process.env.WEBFLOW_ACCESS_TOKEN || process.env.WEBFLOW_SITE_TOKEN;
+  if (!token) {
+    try {
+      const { resolveWebflowApiToken } = await import('./demigod-webflow-token.mjs');
+      token = resolveWebflowApiToken().token;
+    } catch (_) { /* ignore */ }
+  }
+  if (!token) return { ok: false, reason: 'no WEBFLOW_API_TOKEN (set env or ~/.config/demigod/webflow.env)' };
 
   const results = [];
   for (const form of FORMS) {

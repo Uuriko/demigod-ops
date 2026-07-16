@@ -26,6 +26,7 @@ if (ship || wizard) {
 
   const steps = [
     ['demigod-verify-board-honesty.mjs'] ,
+    ['demigod-verify-loop-state.mjs'],
     ['demigod-live-lib.test.mjs'],
     ['demigod-board-lib.test.mjs'],
     ['demigod-verify-source.mjs'],

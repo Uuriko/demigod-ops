@@ -19,7 +19,6 @@ import { fileURLToPath } from 'url';
 import { writeReceipt } from './demigod-publish-receipt.mjs';
 import { assertNotFrozen, status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
-assertCanWriteFoot({ label: 'publish-foot' });
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const FOOT = path.join(ROOT, 'demigod-foot-core.js');
@@ -31,6 +30,8 @@ const args = new Set(process.argv.slice(2));
 const DRY = args.has('--dry-run');
 const NO_UPLOAD = args.has('--no-upload');
 const NO_PUBLISH = args.has('--no-publish');
+// Dry-run is preflight-only; do not require a held foot lock just to inspect.
+if (!DRY) assertCanWriteFoot({ label: 'publish-foot' });
 
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -297,7 +298,9 @@ async function main() {
 
     // 5) cm6 paste publish
     step('cm6 paste' + (NO_PUBLISH ? ' (no-publish)' : ' + publish'));
-    const cm6Args = ['demigod-cm6-paste-publish.mjs', '--footer-only'];
+    // Always repair and assert the canonical head/footer pair. Footer-only can
+    // preserve a stale second loader in Head, recreating the v212 corruption.
+    const cm6Args = ['demigod-cm6-paste-publish.mjs'];
     if (NO_PUBLISH) cm6Args.push('--no-publish');
     runNode(cm6Args, { inherit: true, timeout: 180000 });
 

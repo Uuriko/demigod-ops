@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-// Trust regression: ## loop-state claims in keep-going.md must match disk.
+/**
+ * demigod-verify-loop-state — gate: keep-going.md ## loop-state matches disk
+ *
+ *   node demigod-verify-loop-state.mjs
+ *
+ * Prevents agents claiming a foot version / green state that disk does not have.
+ * Compares loop-state block fields (foot_ver_disk, etc.) to demigod-foot-core.js.
+ */
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
 const kg = readFileSync('/home/potter/demigod-keep-going.md', 'utf8');
