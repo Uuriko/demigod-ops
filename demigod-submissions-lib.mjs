@@ -12,14 +12,22 @@ import crypto from 'crypto';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = '/home/potter';
-export const BOARD_PATH = path.join(ROOT, 'DEMIGOD-BOARD.json');
-export const BOARD_LOCK = path.join(ROOT, 'DEMIGOD-BOARD.json.lock');
-export const BOARD_AUDIT = path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
-// Tests must never write the production inbox SoR: *.test.mjs polluted it with 115 fixture rows
-// that read as real demand. Redirect them to tmp unless DEMIGOD_INBOX_PATH says otherwise.
+
+// Tests must never write production SoRs. *.test.mjs polluted the inbox with 115 fixture rows that
+// read as real demand, and the board (which feeds the live site) was corrupted twice the same way.
+// node --test sets NODE_TEST_CONTEXT; the argv check covers direct `node foo.test.mjs` runs.
 const IS_TEST = !!process.env.NODE_TEST_CONTEXT || /\.test\.mjs$/.test(process.argv[1] || '');
+const TEST_DIR = '/tmp/dg-busy';
+
+export const BOARD_PATH = IS_TEST
+  ? path.join(TEST_DIR, 'test-board.json')
+  : path.join(ROOT, 'DEMIGOD-BOARD.json');
+export const BOARD_LOCK = BOARD_PATH + '.lock';
+export const BOARD_AUDIT = IS_TEST
+  ? path.join(TEST_DIR, 'test-board-audit.jsonl')
+  : path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
 export const INBOX_PATH = process.env.DEMIGOD_INBOX_PATH
-  || (IS_TEST ? '/tmp/dg-busy/test-submissions-inbox.json' : path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'));
+  || (IS_TEST ? path.join(TEST_DIR, 'test-submissions-inbox.json') : path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'));
 
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
 const VERTICAL_RE = /\b(b2b\s*saas?|consumer|fintech|healthtech|devtools|ai|marketplace|hardware)\b/i;
