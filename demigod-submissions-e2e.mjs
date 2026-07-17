@@ -30,7 +30,14 @@ async function main() {
       siteId: '6a34c484dcedc18a17408187',
       data: {
         'company-stage': 'seed',
-        'contact-email': 'founder@test.com',
+        // RFC 2606 reserved TLD. This fixture POSTs to the LIVE webhook, so it lands in the real
+        // submissions SoR. `test.com` is a REGISTRABLE domain, excluded only by an exact-match line
+        // in demigod-submissions-triage.mjs:30 -- edit this address and the fixture silently becomes
+        // a "real" lead. A `.test` address can never belong to a real submitter, so the general
+        // reserved_tld_fixture rule catches it by construction, as sms-sim's @pending.example
+        // already does (83 inbox rows). Sim data laundering into the real SoR is this repo's most
+        // repeated failure; make it structural, not a list someone has to remember to update.
+        'contact-email': 'founder@e2e.test',
         'role-title': 'Founding Engineer',
         'stack-needs': 'Seed B2B SaaS, React, Node',
         'salary-range': '$190-230k',
@@ -48,7 +55,10 @@ async function main() {
       data: {
         'partner-type': 'refer-startups',
         'partner-name': 'Jordan Lee',
-        'partner-email': 'partner@acme.vc',
+        // RFC 2606 reserved TLD -- see the contact-email note above. `.vc` is a real ccTLD
+        // (Saint Vincent), so partner@acme.vc reads as a genuine referral to everything except one
+        // hardcoded triage line.
+        'partner-email': 'partner@acme.invalid',
         'partner-org': 'Seed VC Partners',
         'referral-plan': 'Portfolio warm intros and candidate referrals',
         'partner-linkedin': 'https://linkedin.com/in/jordanlee',
