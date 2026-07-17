@@ -171,6 +171,19 @@ export function flag(args, name) {
 export function opt(args, name, def = null) {
   const i = args.indexOf(name);
   if (i >= 0 && args[i + 1] && !String(args[i + 1]).startsWith('--')) return args[i + 1];
+  // Also accept the GNU `--name=value` form. Without it, `=` is not an error -- indexOf misses,
+  // positionals() then drops the token because it starts with `--`, and the caller silently falls
+  // back to its default. That is how `dg lock claim --owner=coord-claude` recorded owner=potter
+  // (process.env.USER) with no warning: it mislabelled who holds the foot lock, which is the exact
+  // field other agents and the dashboard read to decide whether to wait. Silent + wrong, in a
+  // coordination primitive. 19 tools share this helper; none used `=` before, so nothing changes
+  // for existing callers -- this only stops the next person who types what every other CLI accepts.
+  const pre = `${name}=`;
+  const hit = args.find((a) => String(a).startsWith(pre));
+  if (hit) {
+    const v = String(hit).slice(pre.length);
+    if (v) return v; // `--name=` with no value is "not provided", same as today
+  }
   return def;
 }
 
