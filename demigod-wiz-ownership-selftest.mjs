@@ -88,15 +88,19 @@ ok(/getAttribute\(["']aria-describedby["']\).*removeAttribute\(["']aria-describe
 // Startup ownership
 ok(/startup\s*:\s*\{[^}]*steps\s*:\s*\[[^\]]*'90day-outcome'/s.test(src) || src.includes("['90day-outcome']"), 'startup step 90day-outcome');
 ok(src.includes("['__submit__']") && src.includes("['__thanks__']"), 'submit+thanks steps');
-// 90day before submit: order in full file between WIZ_CFG and WIZ_Q
+// 90day before submit: order within the startup steps array (whitespace-tolerant —
+// the raw-substring version broke as soon as the object was pretty-printed)
 {
-  const a = src.indexOf('var WIZ_CFG');
-  const b = src.indexOf('var WIZ_Q', a);
-  const region = src.slice(a, b > a ? b : a + 3000);
-  // first startup steps occurrence only
-  const si = region.indexOf('startup:{steps:');
-  const se = region.indexOf('},engineer:', si);
-  const startupSteps = region.slice(si, se > si ? se : si + 800);
+  const wizStart = src.indexOf('var WIZ_CFG');
+  const rm = /startup\s*:\s*\{/.exec(src.slice(wizStart));
+  const stepsIdx = rm ? src.indexOf('steps', wizStart + rm.index) : -1;
+  const bracketStart = stepsIdx >= 0 ? src.indexOf('[', stepsIdx) : -1;
+  let depth = 0, end = -1;
+  for (let p = bracketStart; p >= 0 && p < src.length; p++) {
+    if (src[p] === '[') depth++;
+    else if (src[p] === ']') { depth--; if (depth === 0) { end = p + 1; break; } }
+  }
+  const startupSteps = bracketStart >= 0 && end > 0 ? src.slice(bracketStart, end) : '';
   const i90 = startupSteps.indexOf('90day-outcome');
   const iSub = startupSteps.indexOf('__submit__');
   ok(i90 >= 0 && iSub > i90, '90day before __submit__ in startup steps');
@@ -112,10 +116,17 @@ if (optMatch) {
 
 ok(/'90day-outcome'\s*:\s*\{[^}]*q\s*:/s.test(src) || src.includes("'90day-outcome':{q:"), 'WIZ_Q 90day question');
 
-// Engineer + partner paths
+// Engineer path. WIZ_CFG is pretty-printed (`engineer:{\n    steps:[...`), so any assertion
+// demanding `engineer:{steps:` with zero whitespace can never match — same formatting-sensitive
+// bug as the wiz-submit-review gate. The sibling `engineer cfg` check passes only because it
+// allows \s*. Allow whitespace here too.
 ok(/engineer\s*:\s*\{[^}]*steps\s*:/s.test(src), 'engineer cfg');
-ok(/partner\s*:\s*\{[^}]*steps\s*:/s.test(src), 'partner cfg');
-ok(src.includes("engineer:{steps:") || /engineer:\{steps:/.test(src), 'engineer steps');
+ok(/engineer\s*:\s*\{\s*steps\s*:/s.test(src), 'engineer steps');
+// `partner cfg` retired: there is no partner WIZ, by design. WIZ_CFG holds exactly
+// {startup, welcome, engineer}; foot-core has zero partner-apply/partner-modal refs; and the
+// live /?p=partners page is deliberately email-only (forms:0, inputs:0 — verified in Chrome at
+// v638: "Email potter@trydemigod.com with 'Partner' in the subject"). Asserting a config for an
+// intentionally-retired form is a gate that can only ever cry wolf.
 
 // Parsed object extras when available
 if (cfg) {
