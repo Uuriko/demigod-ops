@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Upload demigod-head-styles.css to catbox; patch link in demigod-head-minimal.html */
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -10,8 +11,14 @@ import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 const SRC = path.join(ROOT, 'demigod-head-styles.css');
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
 const OUT = path.join(ROOT, 'DEMIGOD-HEAD-CDN.json');
+// Dashboard /api/coord reads this shape (not DEMIGOD-HEAD-CDN.json).
+const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const RECEIPT = path.join(BUSY, 'head-css-cdn.json');
 
 assertNotFrozen('head-css-publish');
+
+const diskBuf = fs.readFileSync(SRC);
+const diskMd5 = crypto.createHash('md5').update(diskBuf).digest('hex');
 
 const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${SRC}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });
 const cdnUrl = (up.stdout || '').trim();
@@ -21,7 +28,12 @@ if (!/^https:\/\/files\.catbox\.moe\/.+\.css$/.test(cdnUrl)) {
 }
 
 const liveCss = await (await fetch(`${cdnUrl}?v=${Date.now()}`)).text();
-const ok = liveCss.includes(':root{--g:') && liveCss.includes('#demigod-trust-block');
+const liveBuf = Buffer.from(liveCss);
+const liveMd5 = crypto.createHash('md5').update(liveBuf).digest('hex');
+const ok =
+  liveCss.includes(':root{--g:') &&
+  liveCss.includes('#demigod-trust-block') &&
+  liveMd5 === diskMd5;
 
 let head = fs.readFileSync(HEAD, 'utf8');
 // Match stylesheet links that may carry onerror/media attrs (not only exact <link rel=stylesheet href="…">)
@@ -41,6 +53,26 @@ if (!head.includes(cdnUrl)) {
   process.exit(2);
 }
 // temp+rename: concurrent verify:source must never read torn head mid-ship
+const at = new Date().toISOString();
 atomicWrite(HEAD, head);
-atomicWrite(OUT, JSON.stringify({ at: new Date().toISOString(), cdnUrl, ok, headLen: head.length, cssLen: liveCss.length }, null, 2));
-console.log(JSON.stringify({ ok, cdnUrl, headLen: head.length, cssLen: liveCss.length }));
+// Legacy shape (ship logs / humans)
+atomicWrite(OUT, JSON.stringify({ at, cdnUrl, ok, headLen: head.length, cssLen: liveCss.length }, null, 2));
+// Coord dogfood receipt — path+shape dashboard actually reads
+atomicWrite(
+  RECEIPT,
+  JSON.stringify(
+    {
+      at,
+      match: ok,
+      href: cdnUrl,
+      diskMd5,
+      liveMd5,
+      diskBytes: diskBuf.length,
+      liveBytes: liveBuf.length,
+      note: 'demigod-head-css-publish',
+    },
+    null,
+    2,
+  ),
+);
+console.log(JSON.stringify({ ok, cdnUrl, headLen: head.length, cssLen: liveCss.length, diskMd5, receipt: RECEIPT }));
