@@ -5,7 +5,8 @@
  *   node demigod-verify-board-honesty.mjs
  *
  * Pre-services: ≤3 seed sample roles; realRoles/real receipts must stay 0 until
- * a human-delivered intro. Always writes DEMIGOD-BOARD-HONESTY.json for control/dash.
+ * a human-delivered intro. Best-effort writes DEMIGOD-BOARD-HONESTY.json for control/dash
+ * (non-fatal if read-only sandbox — VERDICT + exit code are the product).
  * Exit ≠0 on fail. Reads DEMIGOD-BOARD.json (or demigod-board.json alias).
  */
 import { readFileSync, writeFileSync, renameSync, lstatSync, existsSync } from 'fs';
@@ -32,6 +33,21 @@ if (s.realRoles > 0 || s.realReceipts > 0)
   errs.push(
     `signal claims real proof (${s.realRoles}/${s.realReceipts}) — stays 0 until a human-delivered receipt exists`,
   );
+// The signal is a STORED claim; the roles are the evidence. Nothing made them agree, so a role with
+// sample:false (or no sample field) and an ordinary title passed every check above while
+// computeSignal() counts it as realRoles:1 — proven in a sandbox: gate PASS, computeSignal 1,
+// stored 0. The board could contradict itself and stay green. Only sim-derived titles were ever
+// required to carry sample:true, so any fake that does not say "sim"/"from sms" walked through.
+// Assert the invariant instead: non-sample roles ARE the real roles, so the count must match.
+// Deliberately no import of computeSignal — board-lib pulls in submissions-lib, and coupling a
+// lean gate to that chain to guard a surface foot-core no longer renders (fetchBoard: 0 calls
+// since v205) is not worth it. This stays correct when real roles legitimately arrive: then
+// realRoles should EQUAL the non-sample count rather than being 0.
+const nonSample = (b.roles || []).filter((r) => r.sample !== true).length;
+if (nonSample !== (s.realRoles || 0))
+  errs.push(
+    `board self-contradicts: ${nonSample} non-sample role(s) but signal.realRoles=${s.realRoles || 0}`,
+  );
 for (const r of b.receipts || [])
   if (r.status === 'delivered' && !/sample/i.test(r.note || ''))
     errs.push(`receipt #${r.number}: "delivered" without sample label`);
@@ -57,7 +73,8 @@ try {
   writeFileSync(tmp, JSON.stringify(report, null, 2) + '\n');
   renameSync(tmp, outPath);
 } catch (e) {
-  console.error('warn: could not write honesty json', e.message || e);
+  // Codex (and others) run read-only by design — JSON is convenience, not the gate product.
+  console.error('warn: could not write honesty json (read-only ok):', e.message || e);
 }
 
 if (errs.length) {
