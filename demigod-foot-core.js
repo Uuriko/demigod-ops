@@ -1,5 +1,9 @@
-/*dg-foot-v639-core*/
+/*dg-foot-v662-core*/
 /**
+ * v648 a11y: focus now enters the WIZ dialog on open. show()'s focus query matched the
+ *   first input in DOM order (contact-email, on a later step, HIDDEN on welcome) and
+ *   .focus() on a non-visible element is a silent no-op — focus stayed on BODY, so
+ *   screen-reader users never heard the dialog. Now filters for visibility.
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
  * v565 Claude P0: leaner footer tiers, hide path-pills mobile, honest empty-roles line, forceMainVisible skip data-dg-hidden
@@ -15,6 +19,7 @@
  * v531 footer mailto hover underline (redesign contact)
  * v530 #dg-legal-links flex-wrap + gap for redesign footer
  * v529 prefers-reduced-motion: no CTA hover transform
+ * v660 restore scroll-margin-top on skip-link targets (dropped by dark-theme redesign; sticky .nav_container obscured #main after skip/anchor)
  * v528 scroll-margin for skip-link targets under sticky chrome
  * v527 path-pills touch target + focus-visible (redesign a11y)
  * v526 forceMainVisible: steps/roles/pricing grids use display:grid (not flex)
@@ -298,7 +303,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v639'; console.log('[demigod] foot v639-core loaded');
+window.dgFootVersion = 'v662'; console.log('[demigod] foot v662-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -328,9 +333,9 @@ pricingBilling:'Email from potter@trydemigod.com. Card/SMS payments pending.',
 footerTag:'Demigod tech · humans in the loop · 10% on hire',
 trustKicker:'How it works',
 trustSteps:['You send a brief or profile','Demigod tech ranks · humans review','Both approve → intro'],
-ledgerKicker:'',
-ledgerTitle:'',
-ledgerRows:[],
+
+
+
 privacyNote:'Profiles shared only when both sides approve.',
 followUpTitle:'Optional details',
 followUpHint:'Optional — we may follow up by email.',
@@ -341,7 +346,7 @@ pathHow:'How it works',
 pathPricing:'Pricing',
 pathFaq:'FAQ',
 pathCompare:'Compare',
-pathBlog:'Notes',
+pathBlog:'Blog',
 pathMethod:'Method',
 pathFounders:'For founders',
 pathCandidates:'For talent'
@@ -412,18 +417,164 @@ function dgLocalOk(u){
     return !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/)/.test(u);
   } catch (e) { return true; }
 }
+/* v642: public Events Bot API for live /?p=events.
+   Discovery: window.DG_EVENTS_BOT_API → public config JSON (CDN) → tunnel candidates → localhost.
+   Probes race in parallel so a dead loca.lt subdomain never blocks a live one.
+   localtunnel browser interstitial needs Bypass-Tunnel-Reminder. */
+var __dgEvBotExtraBases = [];
+var __dgEvBotCfgAt = 0;
+function dgEventsBotNormBase(u) {
+  u = String(u || '')
+    .trim()
+    .replace(/\/+$/, '');
+  if (!u) return '';
+  return u.replace(
+    /\/(offer|offers|chat|lifecycle|health|event|idea|feedback|money|agent)(\/.*)?$/i,
+    '',
+  );
+}
+function dgEventsBotBases() {
+  var raw = '';
+  try {
+    raw = dgEventsBotNormBase((typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '');
+  } catch (e0) {}
+  var list = [raw]
+    .concat(__dgEvBotExtraBases || [])
+    .concat([
+      'https://demigod-events-bot.loca.lt/api/events-bot',
+      'http://127.0.0.1:3460/api/events-bot',
+      'http://localhost:3460/api/events-bot',
+    ]);
+  var out = [];
+  var seen = {};
+  for (var i = 0; i < list.length; i++) {
+    var u = dgEventsBotNormBase(list[i]);
+    if (!u || seen[u]) continue;
+    try {
+      if (typeof dgLocalOk === 'function' && !dgLocalOk(u)) continue;
+    } catch (e1) {}
+    seen[u] = 1;
+    out.push(u);
+  }
+  return out;
+}
+function dgEventsBotFetch(url, opts) {
+  opts = opts || {};
+  var h = {};
+  var oh = opts.headers || {};
+  try {
+    if (typeof Headers !== 'undefined' && oh instanceof Headers) {
+      oh.forEach(function (v, k) {
+        h[k] = v;
+      });
+    } else {
+      for (var k in oh) {
+        if (Object.prototype.hasOwnProperty.call(oh, k)) h[k] = oh[k];
+      }
+    }
+  } catch (e2) {}
+  h['Bypass-Tunnel-Reminder'] = '1';
+  return fetch(
+    url,
+    Object.assign({}, opts, {
+      mode: opts.mode || 'cors',
+      headers: h,
+    }),
+  );
+}
+/** Load rotating tunnel apiBase from published config (no foot reship when tunnel URL changes). */
+function dgEventsBotLoadConfig() {
+  if (Date.now() - __dgEvBotCfgAt < 60000 && __dgEvBotExtraBases.length) {
+    return Promise.resolve(__dgEvBotExtraBases);
+  }
+  var bust = Math.floor(Date.now() / 60000);
+  var urls = [
+    'https://raw.githubusercontent.com/Uuriko/demigod-site-cdn/main/events-api-latest.json?t=' + bust,
+    'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@main/events-api-latest.json?t=' + bust,
+  ];
+  function loadOne(cfgUrl) {
+    return fetch(cfgUrl, { mode: 'cors', cache: 'no-store', signal: AbortSignal.timeout(3500) }).then(
+      function (r) {
+        if (!r.ok) throw new Error('cfg ' + r.status);
+        return r.json();
+      },
+    );
+  }
+  return loadOne(urls[0])
+    .catch(function () {
+      return loadOne(urls[1]);
+    })
+    .then(function (j) {
+      __dgEvBotCfgAt = Date.now();
+      var b = dgEventsBotNormBase((j && (j.apiBase || j.tunnelUrl)) || '');
+      if (b && b.indexOf('/api/events-bot') < 0 && /^https?:\/\//.test(b)) b = b + '/api/events-bot';
+      if (b) {
+        __dgEvBotExtraBases = [b];
+        try {
+          if (!window.DG_EVENTS_BOT_API) window.DG_EVENTS_BOT_API = b;
+        } catch (e3) {}
+      }
+      return __dgEvBotExtraBases;
+    })
+    .catch(function () {
+      return __dgEvBotExtraBases;
+    });
+}
+/** Race health across all bases; first OK wins. Cache so calendar/offers/chat share one probe. */
+var __dgEvBotLive = null;
+var __dgEvBotLiveAt = 0;
+function dgEventsBotPickBase(timeoutMs) {
+  timeoutMs = timeoutMs || 6000;
+  if (__dgEvBotLive && __dgEvBotLive.base && Date.now() - __dgEvBotLiveAt < 45000) {
+    return Promise.resolve(__dgEvBotLive);
+  }
+  return dgEventsBotLoadConfig().then(function () {
+    var bases = dgEventsBotBases();
+    if (!bases.length) return { base: '', j: {} };
+    return new Promise(function (resolve) {
+      var left = bases.length;
+      var done = false;
+      bases.forEach(function (base) {
+        dgEventsBotFetch(base + '/health', { method: 'GET', signal: AbortSignal.timeout(timeoutMs) })
+          .then(function (r) {
+            if (!r.ok) throw new Error('bad');
+            /* localtunnel interstitial is HTML 511 — never treat as healthy JSON */
+            var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+            if (ct && ct.indexOf('json') < 0) throw new Error('not-json');
+            return r.json().then(function (j) {
+              if (!j || !j.ok) throw new Error('bad-body');
+              return { base: base, j: j || {} };
+            });
+          })
+          .then(function (hit) {
+            if (done) return;
+            done = true;
+            if (hit && hit.base) {
+              __dgEvBotLive = hit;
+              __dgEvBotLiveAt = Date.now();
+            }
+            resolve(hit);
+          })
+          .catch(function () {
+            left -= 1;
+            if (!done && left <= 0) resolve({ base: '', j: {} });
+          });
+      });
+    });
+  });
+}
 function q(s){return document.querySelector(s)}
 function qa(s,r){return[...(r||document).querySelectorAll(s)]}
 
-var BOARD_CDN='https://files.catbox.moe/orqkmx.json'; /* Fable v150: use latest honest published board */
-var BOARD=null,BOARD_AT=0; /*dup q/qa removed - single def earlier*/
+ /* Fable v150: use latest honest published board */
+ /*dup q/qa removed - single def earlier*/
 function dgIsPageShell(el){if(!el||!el.tagName)return true;var t=el.tagName.toLowerCase();if(t==='body'||t==='html'||t==='main')return true;if(el.id==='startup-modal'||el.id==='jobseeker-modal'||el.id==='dg-bar'||el.id==='dg-path-pills')return true;try{if(el.matches&&el.matches('.hero-section,.hero-container,.hero-actions,.nav_container,header,footer,.footer,nav.w-nav,.w-nav'))return true;}catch(e){}return false;}
 function dgHide(el){if(!el||dgIsPageShell(el))return;try{el.style.setProperty('display','none','important');}catch(e){}}
-function lbl(el,t){if(!el)return;(el.querySelector('.btn-label,.button_label')||el).textContent=t}
+
 function rmF(f,n){if(!f)return;qa('[name="'+n+'"],#'+n,f).forEach(function(i){var w=i.closest('.w-input,.w-select,.w-radio,.w-checkbox,fieldset')||i.parentElement||i;w.remove()});qa('label',f).forEach(function(l){if(new RegExp(n.replace(/-/g,'[- ]'),'i').test(l.textContent||''))l.remove()})}function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
-function ledgerHtml(rows){var R=rows||COPY.ledgerRows;return R.map(function(r){var t=Array.isArray(r)?r:[r.title,r.stageType||r[1],r.status||r.comp||r[2]];var label=r.sample?'Sample':(t[2]||'');return'<div class="dg-row"><span>'+esc(t[0])+'</span><em>'+esc(t[1])+(label?' · '+esc(label):'')+'</em></div>'}).join('')}
-function candidatesHtml(list){if(!list||!list.length)return'';return list.map(function(c){var tags=(c.tags||[]).slice(0,4).map(function(t){return'<span class="dg-tag">'+esc(t)+'</span>'}).join('');var sample=c.sample?'<span class="dg-tag dg-sample">Sample</span> ':'';return'<div class="dg-cand">'+sample+'<p>'+esc(c.summary||c.blurb||'')+'</p><div class="dg-tags">'+tags+'</div></div>'}).join('')}
-function renderBoard(){var blk=q('#demigod-trust-block');if(!blk||!BOARD)return;var lg=blk.querySelector('.dg-ledger');if(lg&&BOARD.roles&&BOARD.roles.length)lg.innerHTML=ledgerHtml(BOARD.roles);var cand=blk.querySelector('.dg-candidates');if(!cand){var h2=document.createElement('h2');h2.textContent='Featured candidates';var k=document.createElement('p');k.className='dg-kicker';k.textContent='Anonymized profiles — humans match, no spam.';k.id='dg-cand-kicker';cand=document.createElement('div');cand.className='dg-candidates';blk.appendChild(h2);blk.appendChild(k);blk.appendChild(cand)}if(BOARD.candidates&&BOARD.candidates.length)cand.innerHTML=candidatesHtml(BOARD.candidates);pipelineNote();addMotion()}function pipelineNote(){if(!BOARD)return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#demigod-trust-block');if(!host)return;var rc=(BOARD.roles||[]).length,cc=(BOARD.candidates||[]).length;if(!rc&&!cc)return;var txt='Right now: '+rc+' example role brief'+(rc===1?'':'s')+' and '+cc+' candidate profile'+(cc===1?'':'s')+' on the public ledger — real placements only after delivered intros.';var n=q('#dg-pipeline-note');if(!n){n=document.createElement('p');n.id='dg-pipeline-note';n.style.cssText='max-width:42rem;margin:.5rem auto 0;padding:0 1rem;color:#A8A29E;font-size:.8rem;text-align:center';host.parentNode?host.parentNode.insertBefore(n,host.nextSibling):host.appendChild(n)}n.textContent=txt}function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div,.dg-blog-card,.dg-reveal,.dg-decision-grid li,.dg-p-det,.dg-p-grid > div').forEach(function(el){try{el.classList.add('dg-reveal')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){qa('.dg-reveal').forEach(function(el){el.classList.add('dg-reveal-in')});return}try{if(!window.__dgRevealObs){window.__dgRevealObs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-reveal-in');window.__dgRevealObs.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'})}qa('.dg-reveal,.dg-blog-card,.dg-decision-grid li').forEach(function(el){window.__dgRevealObs.observe(el)})}catch(e){}}
+
+
+function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div,.dg-blog-card,.dg-reveal,.dg-decision-grid li,.dg-p-det,.dg-p-grid > div').forEach(function(el){try{el.classList.add('dg-reveal')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){qa('.dg-reveal').forEach(function(el){el.classList.add('dg-reveal-in')});return}try{if(!window.__dgRevealObs){window.__dgRevealObs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-reveal-in');window.__dgRevealObs.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'})}qa('.dg-reveal,.dg-blog-card,.dg-decision-grid li').forEach(function(el){window.__dgRevealObs.observe(el)})}catch(e){}}
 
 // Consolidated force helper to simplify duplicate !important code across wizBuild/showStep/show
 function forceWizVisible(form, modal) {
@@ -485,10 +636,10 @@ function forceWizVisible(form, modal) {
 function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] img,header img').forEach(function(im){if(im.dataset.dgPerf)return;im.dataset.dgPerf='1';im.setAttribute('fetchpriority','high');im.setAttribute('decoding','async');im.loading='eager';if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','Demigod — SF startup talent matching, San Francisco Bay Area');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function skipLink(){try{var early=q('#dg-skip-early');if(early)early.remove()}catch(e){}if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to main content';a.setAttribute('aria-label','Skip to main content');a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#dg-page')||q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus({preventScroll:true});var beh=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth';if(t.scrollIntoView)t.scrollIntoView({block:'start',behavior:beh})}catch(err){try{t.focus()}catch(e2){}}});document.body&&document.body.prepend(a)}
-function faqBlock(){/* v210: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
+
 function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(sessionStorage.getItem('dgWizSave_startup')||sessionStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:linear-gradient(165deg,#083222,#03140d);border:1px solid rgba(166,255,203,.28);border-radius:8px;max-width:22rem;padding:1.1rem 1.2rem;color:#f3f0e7"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#a6ffcb;color:#03140d;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
-function proofStrip(){/* v210: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
-function contactStrip(){/* v210: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
+
+
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #a6ffcb;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
 function forceMainVisible() {
   // v565: never unhide sections intentionally collapsed by hero()
@@ -710,7 +861,8 @@ function wizBuild(form, kind) {
   var SAVE_KEY = 'dgWizSave_' + kind;
   var answers = {};
   // v597: no draft-save UI / no 7-day localStorage (less is more; privacy)
-  window.__dgWizStore = false;
+  /* v646: __dgWizStore removed — it was assigned false here and compared !==true in
+     wizResumeToast, so the toast could never fire. The draft lives in sessionStorage (see collect). */
   try {
     localStorage.removeItem('dgWizStoreConsent');
     localStorage.removeItem(SAVE_KEY);
@@ -725,6 +877,7 @@ function wizBuild(form, kind) {
     if (draft && draft.answers) {
       answers = draft.answers;
       resumeStep = Math.max(0, Math.min(draft.step | 0, (cfg.steps || []).length - 1));
+      if (resumeStep > 0) form.dataset.dgWizResumed = '1';
     }
   } catch (e) {}
   var head = document.createElement('div');
@@ -1291,7 +1444,7 @@ function wizBuild(form, kind) {
 }
 
 /* ==== SECTION: BOARD (CDN ledger — sample-labeled; never invent realRoles) ==== */
-function fetchBoard(){if(!BOARD_CDN)return;if(BOARD&&Date.now()-BOARD_AT<60000){renderBoard();return}var bucket=Math.floor(Date.now()/60000);fetch(BOARD_CDN+'?v='+bucket).then(function(r){return r.json()}).then(function(d){BOARD=d;BOARD_AT=Date.now();try{if(!BOARD.realRoles){(BOARD.roles||[]).forEach(function(r){if(r&&r.sample!==false)r.sample=true});(BOARD.candidates||[]).forEach(function(c){if(c&&c.sample!==false)c.sample=true})}else{(BOARD.roles||[]).forEach(function(r){if(r&&r.sample==null)r.sample=false});}}catch(e){}renderBoard();try{qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)})}catch(e){}}).catch(function(){})}
+
 function submitTrust(f,msg){if(!f||f.querySelector('#dg-submit-trust'))return;var p=document.createElement('p');p.id='dg-submit-trust';p.style.cssText='color:#9ca3af;font-size:.8rem;margin:.5rem 0 .25rem;line-height:1.4';p.textContent=msg||'Reviewed with humans in the loop. No spam lists.';var b=f.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(p,b)}
 function charCount(el,max){if(!el||el.dataset.dgCc)return;var wrap=el.closest('.dg-field-wrap,.w-input')||el.parentElement;var c=document.createElement('span');c.className='dg-char-count';c.style.cssText='display:block;color:#6b7280;font-size:.72rem;margin:.2rem 0 .35rem;text-align:right';var upd=function(){var n=(el.value||'').length;c.textContent=n+' / '+max};el.dataset.dgCc='1';el.addEventListener('input',upd);upd();if(wrap)wrap.appendChild(c);else el.insertAdjacentElement('afterend',c)}
 function successCta(){qa(S+' .w-form-done,'+J+' .w-form-done').forEach(function(done){if(done.querySelector('.dg-sample-match'))return;if(done.offsetParent===null&&getComputedStyle(done).display==='none')return;var a=document.createElement('button');a.type='button';a.className='dg-sample-match w-button';a.textContent='View sample matches';/* v598: no follow-up mini-form on thanks (less is more) */a.style.cssText='margin-top:.75rem;background:transparent!important;color:#c9a84c!important;border:1px solid rgba(201,168,76,.45)!important';a.addEventListener('click',function(){var blk=q('#demigod-trust-block');if(blk)blk.scrollIntoView({behavior:'smooth',block:'start'});else window.scrollTo(0,document.body.scrollHeight*.55)});done.appendChild(a);var kind=done.closest(J)?'engineer':'startup';var t=WIZ_THANKS[kind];if(t&&!done.querySelector('.dg-thanks')){done.insertAdjacentHTML('afterbegin','<div class="dg-thanks"><h3>'+t.head+'</h3><p>'+t.lead+'</p>'+t.steps.map(function(s){return'<p class="dg-thanks-step">• '+s+'</p>'}).join('')+'</div>')}})}
@@ -1419,16 +1572,7 @@ function hero(){
     else host.appendChild(pills);
   }
 }
-function wireNavHire(a){
-  if(!a) return;
-  a.id=a.id||'dg-nav-hire';
-  a.setAttribute('data-demigod-modal','startup');
-  a.setAttribute('data-dg-cta','hire');
-  a.setAttribute('href','/?wiz=startup');
-  a.setAttribute('aria-label',"I'm hiring — open startup brief");
-  var span=a.querySelector('.button_label,.btn-label');
-  if(span) span.textContent=COPY.navCta; else a.textContent=COPY.navCta;
-}
+
 function wireNavTalent(a){
   if(!a) return;
   a.id=a.id||'dg-nav-talent';
@@ -1440,15 +1584,7 @@ function wireNavTalent(a){
   var span=a.querySelector('.button_label,.btn-label');
   if(span) span.textContent=COPY.navCtaTalent; else a.textContent=COPY.navCtaTalent;
 }
-function ensureNavTalent(parent){
-  if(q('#dg-nav-talent')||!parent) return;
-  var t=document.createElement('a');
-  t.id='dg-nav-talent';
-  t.className='button w-button';
-  t.style.cssText='margin-left:.5rem;border:1px solid rgba(255,255,255,.22);background:transparent;color:#E8E4DC;border-radius:999px';
-  wireNavTalent(t);
-  parent.appendChild(t);
-}
+
 /* ==== SECTION: nav — logo only; dual path lives in hero (no top "I'm hiring") ==== */
 function nav(){
   var real=q('nav.w-nav,.w-nav');
@@ -1467,7 +1603,7 @@ function nav(){
 }
 function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="I\'m looking — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
-function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a><a href="/?p=mud" data-dg-page="mud">MUD</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
+function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=blog" data-dg-page="blog">Blog</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a><a href="/?p=mud" data-dg-page="mud">MUD</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function footerDecisionLinks(){/* v564: keep footer lean — no extra decision links */}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
 function hide(f){try{detachTrap(true)}catch(e){}[S,J].forEach(function(id){if(!f&&OPEN===id)return;var m=q(id);if(m){m.style.setProperty('display','none','important');m.style.setProperty('visibility','hidden','important');m.setAttribute('aria-hidden','true');try{m.inert=true}catch(e){m.setAttribute('inert','')}}}); if(document.body){ var prev = document.body.dataset.prevOverflow || ''; var sy = parseInt(document.body.dataset.prevScrollY || '0', 10); document.body.style.overflow = prev; document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; delete document.body.dataset.prevOverflow; delete document.body.dataset.prevScrollY; try { window.scrollTo(0, sy); } catch(e){} } if(document.documentElement) document.documentElement.style.overflow=''; try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){} }
@@ -1687,6 +1823,7 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"display:none!important"
 +"}"
 /* review */
++"#startup-modal .dg-wiz-review:empty,#jobseeker-modal .dg-wiz-review:empty{display:none}"
 +"#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{"
 +"border:1px solid rgba(166,255,203,.22)!important;border-radius:6px;padding:.9rem 1rem;"
 +"margin:.35rem 0 .75rem;background:rgba(2,12,8,.55)!important;max-height:36vh;overflow:auto"
@@ -2026,6 +2163,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"@keyframes dgBorderGlow{0%,100%{box-shadow:0 0 0 0 rgba(166,255,203,0)}50%{box-shadow:0 0 24px 0 rgba(16,198,116,.25)}}"
 +".nav_container,.nav_left,.nav_right{background:transparent!important}"
 +".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(12px);background:rgba(3,20,13,.88)!important;border-bottom:1px solid var(--dg-rule)!important}"
++"#main,main,h1.hero-title,.hero-section,.hero-section h1,#dg-page{scroll-margin-top:5.5rem!important}"
 /* v632 Fable: DEMIGOD mono wordmark — balanced to 28px mark, flex gap */
 +"a.nav_logo,.nav_logo,a.w-nav-brand,.w-nav-brand,a.logo-link,.logo-link{display:inline-flex!important;align-items:center!important;gap:.625rem!important;text-decoration:none!important}"
 +".nav_logo .paragraph_large,[data-brand-name],.dg-brand-name{font-family:var(--dg-mono)!important;color:var(--dg-paper)!important;font-size:.9rem!important;font-weight:600!important;letter-spacing:.18em!important;text-transform:uppercase!important;line-height:1!important;margin:0 -.18em 0 0!important;white-space:nowrap!important}"
@@ -2137,7 +2275,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 
 function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
 function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=document.createElement('style');fc.id='dg-forced-colors';fc.textContent='@media(forced-colors:active){#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border:1px solid CanvasText!important;forced-color-adjust:auto}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{border:1px solid CanvasText!important;background:Canvas!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:Highlight!important;box-shadow:none!important}}';document.head.appendChild(fc)}
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();try{injectBlogHome()}catch(eBlogH){}mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -2251,26 +2389,39 @@ function scrubContactEmail(){
   try{
     var bad=/hello@(?:try)?demigod\.com/ig;
     var good='potter@trydemigod.com';
+    function scrubStr(s){
+      if(!s||!bad.test(s)){ bad.lastIndex=0; return s; }
+      bad.lastIndex=0;
+      return String(s).replace(bad,good);
+    }
     var root=document.body||document.documentElement;
     var tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
     var n,list=[];
     while(n=tw.nextNode()){ if(bad.test(n.nodeValue||'')){ bad.lastIndex=0; list.push(n);} }
-    list.forEach(function(tn){ tn.nodeValue=(tn.nodeValue||'').replace(bad,good); });
-    qa('a[href*="mailto:"],a[href*="hello@"]').forEach(function(a){
-      var h=(a.getAttribute('href')||'');
-      if(bad.test(h)){ bad.lastIndex=0; a.setAttribute('href',h.replace(bad,good)); }
-      if(bad.test(a.textContent||'')){ bad.lastIndex=0; a.textContent=(a.textContent||'').replace(bad,good); }
+    list.forEach(function(tn){ tn.nodeValue=scrubStr(tn.nodeValue||''); });
+    qa('a[href*="mailto:"],a[href*="hello@"],form[action*="mailto:"]').forEach(function(a){
+      var h=(a.getAttribute('href')||a.getAttribute('action')||'');
+      var nh=scrubStr(h);
+      if(nh!==h){
+        if(a.hasAttribute('href')) a.setAttribute('href',nh);
+        if(a.hasAttribute('action')) a.setAttribute('action',nh);
+      }
+      if(a.textContent) a.textContent=scrubStr(a.textContent);
     });
-    qa('meta[content],[title],[aria-label],[data-props-link],[data-link]').forEach(function(m){
-      ['content','title','aria-label','data-props-link','data-link','href'].forEach(function(attr){
-        var c=m.getAttribute(attr); if(!c||!bad.test(c)){ bad.lastIndex=0; return; }
-        bad.lastIndex=0; m.setAttribute(attr,c.replace(bad,good));
+    /* meta description + Designer data-props leftovers */
+    qa('meta[content],[title],[aria-label],[data-props-link],[data-link],[data-props],[data-props-form],[data-props-button]').forEach(function(m){
+      ['content','title','aria-label','data-props-link','data-link','href','action','data-props','data-props-form','data-props-button'].forEach(function(attr){
+        var c=m.getAttribute(attr); if(c==null) return;
+        var nc=scrubStr(c);
+        if(nc!==c) m.setAttribute(attr,nc);
       });
     });
     qa('script[type="application/ld+json"]').forEach(function(s){
       var c=s.textContent||'';
-      if(bad.test(c)){ bad.lastIndex=0; s.textContent=c.replace(bad,good); }
+      var nc=scrubStr(c);
+      if(nc!==c) s.textContent=nc;
     });
+    if(document.title) document.title=scrubStr(document.title);
   }catch(e){}
 }
 
@@ -2803,7 +2954,7 @@ function scrubStaticLabels(){
   });
 }
 
-function show(id){if(!q(id))run();var m=q(id);if(!m)return;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Join talent network');}}catch(e){}if(document.body){ if(!document.body.dataset.prevOverflow){ document.body.dataset.prevOverflow = document.body.style.overflow || getComputedStyle(document.body).overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){ document.documentElement.style.overflow='hidden'; } setTimeout(function(){var fi=m.querySelector('input:not([type=hidden]),select,textarea');if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
+function show(id){if(!q(id))run();var m=q(id);if(!m)return;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Join talent network');}}catch(e){}if(document.body){ if(!document.body.dataset.prevOverflow){ document.body.dataset.prevOverflow = document.body.style.overflow || getComputedStyle(document.body).overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){ document.documentElement.style.overflow='hidden'; } setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
 // Keep fallback accessible names on the same two paths as every visible CTA.
 if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? "I'm hiring — startup brief" : "I'm looking — talent profile");
 // extra force for form and title scrub to fix blank and bad title on live
@@ -2867,12 +3018,14 @@ try {
   try { attachTrap(m); } catch(e){}
 } catch(e){}
 }
-function sched(){if(tmr)clearTimeout(tmr);tmr=setTimeout(function(){tmr=null;run()},120)}
 
-function ensureHowLink(){if(q('#dg-how-it-works'))return;var host=q('#dg-proof-strip')||q('#dg-faq')||q('#dg-contact-strip')||q('footer,.footer');if(!host)return;var a=document.createElement('p');a.id='dg-how-it-works';a.style.cssText='text-align:center;margin:1rem auto;padding:0 1rem';a.innerHTML='<a href="'+HOW_IT_WORKS+'" style="color:#C9A84C;font-weight:600;min-height:44px;display:inline-flex;align-items:center">How matching works →</a>';if(host.parentNode)host.parentNode.insertBefore(a,host.nextSibling);else host.appendChild(a)}
+
+
 /* === DEEP LINK — /?wiz=startup|engineer (+ hash aliases); product /?p= is same-origin shell route === */
 /* === SIMPLE PAGES (?p=) — short secondary screens; home stays a decision screen === */
 /* ==== SECTION: product pages (DG_PAGES + openPage / routePages /?p=) ==== */
+/* Blog SoR embed from demigod-blog-posts.json */
+var DG_BLOG_POSTS=[{"slug":"first-year-cash-not-equity-fog","category":"Pricing","title":"Put the cash number in the note","summary":"Demigod charges 10% of first-year cash when a hire starts, while talent pays nothing. Equity belongs in the conversation, but it cannot replace a usable cash range.","body":"Suppose an offer has a $150,000 base, a possible $15,000 first-year cash bonus, and an option grant described as 0.5%. The match note should not compress that into “competitive total compensation.” It should show which cash is guaranteed, which cash depends on a stated condition, and what the equity number actually refers to.\n\nDemigod's hire fee is 10% of first-year cash when the hire starts. Talent pays nothing. The option grant is not part of that fee, and there is no retainer for looking at a private profile. Card and invoice tooling are still pending, so the current commercial path is an email arrangement through potter@trydemigod.com.\n\nThe arithmetic is the easy part. The hard part is getting an honest cash number onto the page before a name moves.\n\nA founder may be waiting on a financing close, building a compensation band for the first time, or leaving room for a genuinely unusual candidate. Those are real conditions. Write the range anyway, with the condition beside it: “$140,000–$160,000 base; upper end requires prior ownership of this migration,” or “cash floor may change if the round does not close.” A candidate can reason about that. “Meaningful equity” gives them nothing to use for rent, family planning, or the opportunity cost of leaving a stable role.\n\nEquity deserves detail too. State the number of options or percentage, the fully diluted denominator if known, vesting schedule, cliff, exercise window, and whether the company has supplied a current strike price. If one of those is unknown, label it unknown. We won't turn an option grant into a guessed dollar value. Private-company shares can become valuable, remain illiquid for years, or end up worth zero, and a polished “total comp” estimate hides that range behind a single confident-looking number.\n\nThis creates an obvious cost for equity-heavy companies. Some candidates will pass before hearing the larger story. Demigod also earns less on a hire whose cash is modest and whose equity later becomes unusually valuable, because the fee remains tied to first-year cash. That alignment is intentional: the matching fee should not become a lottery ticket that rewards pushing a candidate toward the largest speculative grant.\n\nVariable cash needs a separate line. A guaranteed signing bonus belongs in first-year cash. A performance bonus should name its target and conditions rather than appearing as certain money. Commission-heavy roles require the founder and reviewer to distinguish base, draw, quota, target payout, and any cap; otherwise “first-year cash” looks precise while resting on assumptions nobody has agreed to. The final fee basis gets settled in the email arrangement, not invented inside the match note.\n\nThere are uncomfortable edge cases. A pre-seed role might be almost entirely equity. A founder salary may be deferred. A contractor may convert after a trial period. The present pricing rule does not magically make those structures comparable, and a role with almost no cash may need a bespoke decision or may simply be a poor fit for this model. That remains an open pricing problem.\n\nBefore either side approves, put the guaranteed cash, conditional cash, and equity terms on separate lines. If a figure is unsettled, say who decides it and when. The note can carry uncertainty; it cannot ask the other person to pretend uncertainty is a number.","image":"https://files.catbox.moe/eg561c.jpg","imageAlt":"Gold coin standing edge-on inside a gold gauge dial, on near-black","publishedAt":"2026-07-17"},{"slug":"match-note-anti-patterns","category":"Ops","title":"Five ways a match note fails","summary":"A weak match note usually fails in one of five visible places. Repair those before asking either side to approve an introduction.","body":"Open a match note and cover the candidate's name. Could a founder make a reasoned yes or pass from what remains? Now cover the company name and ask the same question from the talent side. If either answer depends on guessing, the note needs another pass.\n\nHere are the failures we keep looking for.\n\n**1. A tool list standing in for the job.** “React, systems, ownership” describes a search query, not the work. Replace it with the result expected by day 90: migrate the billing path without interrupting invoices, take the prototype to a monitored production service, or cut a manual support queue. Then attach proof that bears on that result. A repository, a launched feature, or a former teammate who can confirm scope gives a reviewer something to inspect.\n\n**2. Personality labels with no observed behavior.** “High agency” could mean the person found a missing requirement before launch. It could also mean they ignored a decision and shipped around the team. Write what happened. The same rule applies to “low ego,” “founder mindset,” and “great communicator.” These phrases become useful only after the note names a situation, an action, and who can verify it.\n\n**3. A constraint saved for the call.** City, visa, working hours, cash band, start timing, and on-site expectations belong in the note before contact details move. The awkward version is still better than the late version. If a role needs four days a week in San Francisco and a candidate can do two, neither person benefits from discovering that under the flattering pressure of a live conversation.\n\n**4. No admitted gap.** Every review has an edge it cannot see. Perhaps the candidate's strongest work is under NDA. Perhaps the company has not decided whether the first quarter is mostly hiring or mostly coding. Record the uncertainty in ordinary language: “We could not verify production ownership at this traffic level,” or “The founder has not settled the on-call expectation.” We won't turn an unknown into a positive adjective. Sometimes the gap triggers a pass; sometimes it becomes the first question after both sides approve.\n\n**5. Identity doing the persuasive work.** If the note becomes convincing only after a famous employer, school, investor, or founder name appears, the underlying case is thin. Demigod keeps profiles private while the reviewer compares the role's first-quarter result, relevant proof, binding constraints, and one unresolved point. Names and contact details follow a private yes from each side.\n\nThere is a tradeoff in doing this properly. Writing the concrete version takes longer than pasting a résumé summary, and a clear constraint may end a possible match before a charming call can rescue it. That is acceptable. Early disagreement costs a few minutes; late disagreement costs attention from two people who were told the basics had already been checked.\n\nOne edge case deserves care: a career switcher may have excellent adjacent proof without the exact title or production setting. The answer is not to inflate the evidence. State what transfers, state what remains untested, and let the reviewer decide whether the role can absorb that uncertainty. A seed-stage team hiring its only infrastructure engineer may pass; a team with two senior operators may reasonably accept the same gap.\n\nBefore requesting an intro, read the note once as the founder and once as the candidate. Mark any sentence that requires private context not written on the page. Add the missing fact or remove the claim, then send the revised note to potter@trydemigod.com for review.","image":"https://files.catbox.moe/zhxopd.jpg","imageAlt":"Human review over volume — shortlist not flood","publishedAt":"2026-07-17"},{"slug":"no-public-talent-feed","category":"Privacy","title":"Why candidate profiles stay private","summary":"A public candidate catalog makes unsolicited outreach the default. Demigod shares role evidence first and reveals contact details only after the founder and talent each approve.","body":"A public talent page answers the wrong first question. It invites a founder to ask, “Who can I contact?” before anyone has established what the role requires or whether the person wants to hear about it.\n\nThe familiar version looks convenient: headshots, titles, employer logos, skill tags, maybe a green availability dot. A visitor filters the grid, opens six profiles, and sends six variations of the same note. The candidate cannot tell whether the sender studied their work or selected a label. Even careful founders are nudged toward browsing people as inventory because that is what the interface makes easy.\n\nDemigod keeps that page from existing. The first object in review is the role: the result expected in the first quarter, evidence that would support the match, compensation and location limits, and any unresolved question. A reviewer then checks candidate work without handing over a directory. The founder receives enough substance to approve or pass on the possible match, while the candidate receives the relevant role facts and makes a separate private choice.\n\nOnly two approvals release an introduction.\n\nThis design costs something. Founders cannot roam through a network to see who looks interesting, and talent cannot use a public listing as free distribution. A match can wait while the evidence is checked. There will also be cases where privacy removes context that would help a founder decide, such as a recognizable company, a public talk, or a mutual acquaintance; the reviewer must decide whether that fact is necessary evidence or merely an identity shortcut.\n\nThe boundary is not perfect anonymity. Some work is inherently identifying. A niche open-source repository may have one maintainer, and a detailed description of a tiny company’s launch can reveal the person before contact details move. When that risk is material, the note has to become less specific or wait for the candidate’s permission. We won't promise privacy that the underlying facts cannot provide.\n\nWhat the product refuses is casual access, not useful proof. A founder can still learn that the person owned a migration of comparable scope, shipped a relevant feature, worked within the stated operating constraints, and has one unresolved gap around team size. Those facts help decide whether a conversation makes sense. A surname and an email address do not improve that judgment at the review stage; they make premature outreach possible.\n\nTalent gets an actual choice too. Free for talent means there is no payment required to be considered, but “free” would be a thin promise if joining also meant appearing in an open catalog. A private profile can be reviewed for a specific role and declined without announcing availability to employers, scrapers, or anyone curious enough to browse.\n\nCommercial terms do not purchase access to the profiles. If a hire starts, the fee is 10% of first-year cash, paid on the hiring side; talent pays nothing. There is no retainer for a list, and no equity cut. Card and invoice tooling remain pending, so current arrangements happen through potter@trydemigod.com rather than a checkout flow.\n\nMutual approval can still fail after identities move. A call may expose a working-style mismatch, the role may change, or one side may reconsider. The private review is not a guarantee of a hire or even a second conversation. Its narrower job is to prevent a predictable class of unwanted first contact and give both people the same chance to decline before inboxes become involved.\n\nFor a specific role, send the outcome, SF expectations, cash band, and proof bar to potter@trydemigod.com. No candidate list is sent in return; the next artifact is a reviewed match note if the evidence supports one.","image":"https://files.catbox.moe/i4j3y0.jpg","imageAlt":"Compact private match-note packet","publishedAt":"2026-07-17"},{"slug":"sf-events-calendar","category":"Product","title":"Two SF events can belong on the same date","summary":"The SF Events Bot calendar can hold overlapping in-person nights and practical offers from hosts, venues, sponsors, and volunteers. Nothing gets auto-booked or auto-sent.","body":"Thursday in San Francisco does not arrive one event at a time. A small AI demo might start in SoMa at six while a founder dinner is already planned in Hayes Valley at seven, and neither should disappear merely because both occupy the same square on a monthly calendar.\n\nThat is why the events page allows more than one listing on a date. The calendar is a record of distinct nights, not a reservation system that treats a day as taken. Open /?p=events and each entry keeps its own time, place, host context, and request. Someone looking for a venue should not be confused with someone who already has a room and needs a volunteer at the door.\n\nThe workflow is intentionally manual at the consequential points. A host can describe an SF-only, in-person event. A sponsor, venue operator, or volunteer can offer help. Those details can be collected and reviewed, but the software does not book a room, send invitations, DM attendees, or turn an offer into an agreement. Autonomy remains in draft. SMS and calendar synchronization are pending too.\n\nThere is an obvious cost. Manual review makes coordination slower, especially when a host changes the address on the afternoon of the event or two listings use nearly identical names. Yet automatic action would create a worse class of mistake: an unapproved sponsor appearing on a listing, a volunteer assuming they have a shift, or guests receiving a message the host never saw. The calendar may show an idea before every operating detail is settled, so the entry needs to say what is confirmed and what is merely requested.\n\nA useful listing is specific. “Founder gathering, Thursday” leaves the reader guessing. A better entry says the neighborhood, start time, in-person format, who the room is for, whether the venue is confirmed, and the exact kind of help needed. If the event is a dinner with eight seats, say that. If capacity is unknown, leave it unknown instead of inventing scarcity.\n\nMultiple-event days create edge cases that a tidy product screenshot misses. One event can move from Mission Bay to Dogpatch without affecting the other. A venue offer may fit the later gathering but not the earlier demo. A person might volunteer for both and discover the travel time makes that impossible. Separate entries keep those decisions separate, although a human still has to notice the conflict.\n\nThe calendar is also not permission to turn a social night into undisclosed recruiting outreach. Hosts can run events that have nothing to do with Demigod hiring. If matching is part of the format, it should be named plainly; if it is not, attendee information should not quietly become a prospect list. We won't auto-message people because they appeared near an event record.\n\nKeeping the scope to San Francisco is another deliberate constraint. In-person context is the point, and pretending to support remote or national programming would add listings that the current operation cannot responsibly coordinate. This excludes worthwhile nights elsewhere. It also means an Oakland event, however close geographically, does not become “SF” for convenience.\n\nThe page will still have rough edges. A listing can go stale. A host may stop replying. Weather, permits, or a venue problem can invalidate a plan after it has been reviewed. The honest response is to update the entry or remove it, not imply that the calendar guarantees the night.\n\nFor current listings and their stated status, use /?p=events. It remains an SF calendar with human follow-up, not an automatic booking service.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone with a gold lattice and connector nodes","publishedAt":"2026-07-17"},{"slug":"sf-night-is-not-a-pipeline-hack","category":"Market","title":"An SF night is not a stealth pipeline","summary":"Demigod's calendar is for genuine in-person San Francisco events. Hosts can collect practical offers, but attendance is not permission for recruiting outreach.","body":"The easiest way to ruin a small event is to change its purpose after people arrive.\n\nA dinner listed as a founder meal should remain a founder meal. A demo night should not become a disguised candidate screen. And a guest who offered to help find a venue did not also volunteer for a recruiting sequence. Those boundaries sound basic until the attendee list lands in a spreadsheet and every row begins to look useful.\n\nDemigod's Events Bot is deliberately narrow. It covers in-person San Francisco nights. A host can discuss an idea, park a date, list it on /?p=events, and collect sponsor, venue, or volunteer offers connected to that event. Multiple nights may share a calendar date. Draft autonomy means exactly that: the system can prepare material, while follow-up remains human. There is no auto-DM, no automatic booking, and SMS and calendar sync are still pending.\n\nThe important workflow step happens before listing. Write one sentence that says what the night is for and another that says what help is welcome. “Eight infrastructure founders comparing incident reviews; seeking a quiet table near SoMa” is useful. “Exclusive gathering for innovators” tells a guest almost nothing and gives the host permission to reinterpret the night later. A real frame also makes it easier to reject a sponsor whose pitch would take over the room.\n\nHosts face a genuine tradeoff. A clean event can consume planning time and produce no match introduction at all. Treating every attendee as a lead might create more follow-up opportunities in the short run, but it also makes the invitation untrustworthy; people cannot relax into a useful conversation when the host is quietly grading them for a different transaction. We won't import attendance into cold recruiting outreach.\n\nRecruiting can still be present when it is named. If the event is a hiring office hour, say so on the listing. If a founder mentions an open role during dinner and another person asks to learn more, that consent applies to that conversation, not to the entire guest list. The matching path can begin separately with a private role note, review, and approval from both sides before contact details move.\n\nSponsors need the same boundary. An offer to cover food does not purchase attendee emails, a captive product demo, or the right to add guests without the host agreeing. Venue partners may need a headcount and arrival window; they do not need candidate profiles. Volunteers get the information required for their task. Access follows the work, and nothing in the current events flow promises a CRM export.\n\nWeather, capacity, and duplicate dates create less dramatic failures. Two events on Tuesday are allowed, so the calendar should distinguish neighborhood, time, capacity, and audience rather than silently treating one as a conflict. If a venue falls through, the host updates the listing or pauses it; the system does not relocate or notify everyone by itself. Because calendar sync and SMS are pending, the human follow-up matters here, especially when a late change could send someone across San Francisco to the wrong door.\n\nThis scope excludes remote events and nights outside San Francisco for now. It also leaves a hard product question unresolved: how much coordination can be automated without making a host sound like a bot or turning a guest's narrow offer into broad consent? Drafting is safe enough. Sending and booking require more care than the current tooling claims to provide.\n\nThe public calendar is at /?p=events. Each listing should tell a guest what will happen, where it happens, and what the host is asking from the room. If those three facts are not settled, the event can remain a draft.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone with a gold lattice and connector nodes","publishedAt":"2026-07-17"},{"slug":"what-talent-sees","category":"Product","title":"What talent sees before approving","summary":"A company story is not enough for informed approval. Talent should see the first-quarter result, evidence bar, binding constraints, and the reviewer's unresolved question.","body":"Talent approval happens before Demigod releases contact details, so the material shown at that point has to support a real decision. A logo, founder biography, and request to “hop on a quick call” do not meet that bar.\n\nStart with the work. The note names the result the company expects during the first 90 days, in terms a person can challenge. “Own backend” is too loose. “Move the billing worker off the founder's laptop, add monitoring, and document recovery before the next customer cohort” gives the candidate a job to evaluate. They can ask whether the deadline is plausible, whether the system already has tests, and whether ownership includes being on call.\n\nNext comes the proof bar. This is not a demand that candidates perform free project work. It is the evidence the reviewer thinks bears on the role: a production migration they can explain, commits connected to a shipped service, a design document, or a former teammate who can confirm scope. Talent should see that bar early enough to say, “My relevant work is under NDA,” or, “I have done the failure recovery but not at this traffic level.” The note records that distinction instead of smoothing it away.\n\nThen list the constraints that can end the match. Cash range. San Francisco presence. Visa support. Working hours. Start timing. On-call load. If the company has not decided one of them, “not decided” is the honest entry, along with when it will be settled. We don't ask someone to approve a role while hiding a condition that would predictably make them pass.\n\nThe reviewer also includes one unresolved concern. It might be limited evidence of managing engineers, an unclear appetite for customer support, or a gap between the candidate's cash floor and the company's present band. Showing that concern can feel less persuasive than sending a spotless pitch, but it gives talent a chance to correct a factual error or decline without entering a sales call. The tradeoff is fewer speculative conversations and more passes before introductions.\n\nCompany context still matters. A candidate needs to know the product, stage, funding facts the company is willing to substantiate, who they report to, and why this role exists now. The rule is simply that narrative cannot carry a missing job definition. A vivid mission does not answer whether the first month will be architecture work, customer support, or recruiting a team.\n\nThere is a privacy edge case here. Occasionally one detail would reveal the company or candidate even if the name is removed: a singular acquisition, a famous launch, a one-person technical team in a narrow market. The reviewer should generalize only the identifying detail, tell the recipient that it was generalized, and preserve the part needed for the decision. If removing identity also removes the substance, the review pauses until the owner approves a safer description.\n\nTalent never pays Demigod. If a match proceeds, the company fee is 10% of first-year cash when the hire starts. That fact belongs near the process explanation because a candidate should not wonder whether approving the introduction creates a bill or gives Demigod a claim on their equity.\n\nRead the note as if the founder will never join a call to fill in its blanks. Can you describe the actual first-quarter work, the evidence being evaluated, the conditions that bind, and the open concern? If not, ask for the missing item in writing before approving. A private yes should mean the written role is worth discussing, not that the recipient surrendered the right to basic facts.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Two-sided private approval path","publishedAt":"2026-07-17"},{"slug":"when-not-to-intro","category":"Product","title":"When a match should stop","summary":"An introduction should wait when the role, evidence, or hard constraints cannot support two informed approvals. A recorded pass is part of the review, not a failed attempt to create activity.","body":"Sometimes the right next step is nothing.\n\nA founder has a pressing role. A candidate looks adjacent on paper. Both are willing to “take a quick call,” which can feel like enough reason to connect them. It is not enough when the underlying note still lacks the cash range, the location requirement, or any work showing that the candidate can own the result the role needs.\n\nThe review stops there. The reviewer writes what is missing and records a pass or holds the note for more evidence. Names and contact details stay private. No introduction email is drafted simply to keep the search moving.\n\nSuppose an SF company needs someone to move a prototype into production during the first quarter. The candidate has built prototypes and can explain the model work, but nothing yet shows production ownership, incident response, or collaboration with the team that will operate it. That does not make the candidate weak. It makes one part of this match unverified, and the founder has to decide whether the role can absorb that uncertainty before talent is asked to spend time on it.\n\nLocation can end the review more cleanly. If the work requires regular in-person time in San Francisco and the candidate is only considering remote roles, charm will not repair the constraint. The same is true when the stated cash floor sits above the founder’s range or when visa needs cannot be supported. A conversation might reveal flexibility, but nobody should be sent into it on the assumption that a hard fact will dissolve.\n\nThere is a tradeoff in making passes explicit. A narrow review produces fewer meetings, and it can miss a person whose best evidence is under NDA, buried in an unfamiliar project, or hard to verify without revealing their identity. We don't claim that every stopped match was impossible. The claim is smaller: based on the facts available now, there is not yet enough for two informed approvals.\n\nThat wording matters because a pass can change. The founder may revise an unrealistic scope. The candidate may provide a former teammate who can confirm ownership. A role described as “founding engineer” may become a precise infrastructure job once the team names the failure they need fixed. Reopening the note after a material fact changes is reasonable; recycling the same vague request through another round of names is not.\n\nUrgency deserves special care. A runway deadline or launch date can be real, but it does not prove a candidate fits, and Demigod does not attach a made-up hiring clock or promise a certain number of people by Friday. Under pressure, the review should become more concrete: which result cannot slip, which constraint is truly fixed, and which missing proof is acceptable to test in a call? If those questions remain unanswered, an intro adds motion without resolving the decision.\n\nTalent can pass privately as well. They may dislike the cash band, the in-office schedule, the risk in the first-quarter goal, or simply the role itself. Mutual approval means that refusal does not need a sales rebuttal. The founder receives no private profile to browse, and the candidate's contact information does not move.\n\nThe hardest case is a near match where everyone suspects the call might work. Judgment lives there. The reviewer can state the exact gap, let each side consider it, and proceed only if each independently accepts the uncertainty. What cannot happen is quietly deleting the gap so the introduction feels easier.\n\nIf a note is stalled, add the missing role fact or the checkable piece of work. If neither exists, leave the pass in place until something material changes.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Private approval path — both sides opt in or stop","publishedAt":"2026-07-17"},{"slug":"90-day-outcomes","category":"Product","title":"Why 90-day outcomes beat keyword JDs","summary":"Name what must be true after one quarter, then review proof against it. A tool list can come later.","body":"A founder opens a blank job description and starts typing nouns: React, TypeScript, Postgres, AWS. By the bottom of the page, the role asks for twelve tools, six personality traits, and an unspecified amount of “ownership.” The actual problem might be much simpler: customers cannot finish onboarding without an engineer in the room.\n\nWrite that problem down first. Then write the condition you want to see after 90 days. For example: a new customer can connect its data, invite a teammate, and reach the first useful report without founder support. That sentence gives a reviewer something to inspect. It also gives a candidate room to challenge the premise before anybody spends an hour on a call.\n\nThe next step is proof. The reviewer looks for work that resembles the result, not merely a word that resembles the stack. A candidate may have rebuilt an activation path, instrumented where users quit, or owned the awkward migration that made self-serve possible. The database brand matters if the job truly turns on it. Often it does not.\n\nThis changes the first exchange. Before identities move, the private note can carry the quarter-one result, the candidate’s relevant work, location and cash constraints, and one thing nobody has verified yet. Founder and talent can each give a private yes or pass on those facts. Contact details follow only after both approve.\n\nThere is a cost. Writing a useful outcome takes more thought than copying last year’s senior-engineer template, and a founder may discover that two people disagree about what the hire is supposed to accomplish. That disagreement is worth finding early. If one founder expects a reliability overhaul while another expects a new enterprise dashboard, no keyword filter can repair the role.\n\nWe don’t turn every responsibility into a fake quarterly promise. Some work is continuous: keeping incidents rare, coaching a small team, answering the ugly customer escalation. In those cases, name observable conditions instead. Which incidents should this person own? What decision can the team make without the founder by week twelve? What recurring failure should become less common, and what evidence would show it?\n\nEdge cases remain. A zero-to-one research role may not have a clean shipping milestone. A security hire cannot promise that nothing bad will happen. A candidate under NDA may be unable to show the closest project. The note should record those limits plainly and use the best checkable substitute, such as a redacted design walk-through, a reference who can confirm scope, or a smaller public artifact. An unknown stays unknown; it does not become a flattering adjective.\n\nTools still belong in the discussion when they create a real boundary. If the only engineer on call must debug a Go service on Monday, prior Go depth is not decorative. If the team can tolerate a learning curve, treating syntax as the main gate discards people who have already solved the harder version of the problem elsewhere.\n\nTry the edit on one open role. Delete the first screen of requirements, write one result that a customer or teammate could notice after 90 days, then attach two forms of proof that would make you believe someone can reach it. If the sentence remains disputed, the role needs another founder conversation before it needs candidates.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone, linked by gold connector paths","publishedAt":"2026-07-16"},{"slug":"both-approve","category":"Privacy","title":"Both sides approve before intros","summary":"Founder and talent review the same private facts before contact details move. Either side can stop the introduction without being exposed.","body":"The second approval is the inconvenient one. A founder has read the note and wants to meet; the tempting move is to reveal the candidate and send a calendar link. Demigod waits for the candidate’s answer too.\n\nHere is the sequence. A reviewer prepares a private note with the role’s first-quarter result, proof connected to that result, hard constraints, and an evidence gap. The founder reviews it without receiving a candidate directory. The candidate gets the role facts needed to judge the conversation, not a vague request to “hear about an opportunity.” Each side answers yes or pass in private. Only two yeses release contact details for an introduction.\n\nThat extra gate protects different things on each side. Talent can decline because the cash range, SF expectation, visa situation, hours, or work itself does not fit. The founder can decline because the demonstrated work misses the result the team needs. Neither answer becomes a public badge, and neither person has to invent interest to be polite.\n\nIt also removes a familiar ambiguity. “Open to chat” might mean curious, actively interviewing, afraid to say no, or simply willing to take almost any introduction from a trusted friend. A private approval tied to written facts asks a narrower question: given what is known and what remains unproven, is this particular conversation worth exposing both identities?\n\nWe won’t publish a browsable talent catalog. Catalogs make it easy to detach a person’s name and employer from the conditions under which they were willing to talk, then circulate that stale snapshot through inboxes they never chose. The less dramatic refusal is operational: contact fields stay out of the first packet.\n\nThe tradeoff shows up before the intro. Someone has to write the note, ask both parties, and wait for two independent answers; a link anyone can open requires less coordination. Mutual approval can also kill a conversation that might have become useful after ten minutes of chemistry. We accept that loss because the alternative spends privacy and attention on speculation, and neither resource is restored by a cheerful follow-up email.\n\nThere are messy cases. A candidate may approve based on a cash band, then learn the role has an on-call load the note omitted. A founder may say yes while still treating remote work as negotiable, although the candidate marked it as fixed. Approval is not consent to changed terms. When a material constraint changes, the note needs an update and the affected side gets another choice before the introduction proceeds.\n\nA pass is kept small. It does not require an essay, and Demigod does not turn it into a score that follows someone. Sometimes the answer is “not now,” especially when a candidate is finishing a launch or a founder has not settled the role. That is still a stop, not permission to drip reminders.\n\nFor a current match, read the note as if the names were permanently hidden. Check whether the outcome, proof, cash, location, hours, visa facts, and unresolved gap are enough for an honest decision. Missing material goes back into the note. When both answers are yes on the same version, the introduction can carry context instead of surprise.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Private match approval path illustration — both sides opt in","publishedAt":"2026-07-16"},{"slug":"human-review-over-volume","category":"Market","title":"Human review before an intro","summary":"Candidate counts are easy to inflate and hard to use. Demigod reviews evidence against the role’s first-quarter job before asking either side to meet.","body":"A shortlist of twelve can be less useful than one careful pass. The number says nothing about whether anyone read the role, checked the work, or noticed that the cash band cannot support the person being considered.\n\nDemigod starts with a person reading the role. That sounds ordinary because it is. The reviewer turns the founder’s request into a concrete first-quarter result: ship the billing migration without breaking renewals, get the first production model behind an API, or take a prototype through a customer-ready release. Then the candidate’s work is checked against that result. A title may help locate the right project, but it does not finish the review.\n\nThe useful part is often a small, awkward detail. A candidate shipped a similar migration but never owned the rollback plan. Their repository shows the core system work, while the operating piece is still unproven. That gap belongs in the note. It gives the founder a reason to pass, ask a precise question, or approve the next step without pretending the record is complete.\n\nNo fixed candidate total is promised. A quota would pressure the reviewer to pad a thin set, and the founder would receive more profiles without gaining another plausible hire. The tradeoff is real: human review takes attention before an intro exists, and sometimes the result of that attention is an empty shortlist. An empty shortlist is frustrating when a role is urgent. It is still accurate.\n\nConsider the opposite path. A broad application form collects resumes from anyone matching “founding engineer,” software ranks familiar employers and keywords, and five names move forward because five names make the dashboard look alive. One person needs remote work although the role is in SF. Another is outside the cash range. Two have adjacent titles but no checkable ownership of the requested outcome. Those are not subtle misses; they are facts that could have been read before anyone received a calendar link.\n\nHuman review has limits too. Private company work may be impossible to inspect. A reference may confirm scope but not quality. Career switchers can have excellent side projects with no evidence yet that they operated inside a team. We record those boundaries rather than turning uncertainty into confidence. Sometimes the open question is safe to carry into a conversation. Sometimes it blocks the match.\n\nThe process also protects talent. Contact details remain private while the reviewer assembles the outcome, relevant proof, location and compensation constraints, and the unresolved question. The founder sees enough to make a private yes or pass. Talent gets the role facts before deciding as well. Only mutual approval opens the introduction.\n\nThis is deliberately less scalable than sending every plausible keyword hit downstream. It also leaves judgment calls in human hands, where inconsistency can happen. Notes need rereading. A reviewer can overweight familiar proof. The answer is not to hide that judgment behind a score; it is to make the evidence and the missing piece visible enough that either side can disagree.\n\nFor a role under review, send the first-quarter result, SF expectations, cash range, and the strongest evidence you would accept to potter@trydemigod.com. The review may end in a pass, and that remains a legitimate result.","image":"https://files.catbox.moe/zhxopd.jpg","imageAlt":"Human review shortlist over volume flood — brand visual","publishedAt":"2026-07-16"},{"slug":"private-match-notes","category":"Product","title":"What belongs in a private match note","summary":"A useful note contains enough evidence and constraints for a private decision. It also says what the reviewer still cannot verify.","body":"Read this note and try to decide: “Strong founding engineer. High agency. Great communicator. Interested in AI.”\n\nThere is nothing to decide. The praise may be sincere, but the note withholds the job, the work, the constraints, and every source of uncertainty. Adding a LinkedIn link would make it more identifiable, not more useful.\n\nA private match note needs five parts. First, name the result expected during the person’s first quarter. Second, attach proof that bears on that result: shipped work, a specific operating example, a reference who can confirm scope, or another checkable artifact. Third, record the conditions that can end the match, including SF location expectations, cash band, visa, hours, and on-call load where relevant. Fourth, state one consequential gap in the evidence. Fifth, collect a private yes or pass from the reviewer before the note goes to the other side.\n\nThe evidence gap is where weak notes often become sales copy. Suppose a candidate has led a migration at a larger company, while the open role requires choosing the first architecture with two engineers and little support. The overlap is real. So is the missing proof. Write both facts. The reviewer may still approve, but nobody should discover during an interview that “zero to one” was inferred from a job title.\n\nConstraints need the same treatment. “SF preferred” is useless if the role requires four office days; “competitive cash” gives talent no basis for a pass; “flexible hours” can conceal a standing evening call with Europe. Put the actual condition in the note. A person can accept it, reject it, or ask for clarification without exposing contact details.\n\nWe won’t make the note persuasive by hiding the hardest fact. Its purpose is to support a decision, which sometimes means the match ends on the page. The tradeoff is fewer speculative conversations and more work before an introduction: someone must ask the uncomfortable compensation question, separate observed work from inference, and admit when an important claim has no checkable source.\n\nLength is not the goal. A compact note can work when the role is narrow and the proof is direct. A longer note can still fail after six paragraphs of biography. As a practical edit, label each sentence in the draft as outcome, proof, constraint, gap, or decision. Background that fits none of those labels needs a reason to stay.\n\nSome cases resist compression. NDA-bound work may only permit a redacted explanation. A career switcher may have strong side-project evidence but no teammate who can confirm production scope. A stealth company may be unable to reveal a customer name before mutual approval. Record the boundary and identify what can be checked now; do not fill the blank with confidence.\n\nThe note also needs version discipline. If the founder changes the cash band, the candidate changes location availability, or a reference contradicts the claimed scope, the earlier approval no longer covers the same facts. Update the note and ask the affected side again. A screenshot of an old yes is not permission to proceed on a different offer.\n\nBefore requesting an introduction, remove the names and read the note once more. If a stranger could identify the expected result, inspect the proof, see the deal-breakers, and point to the remaining uncertainty, the packet is ready for private review. If not, revise the missing field rather than adding enthusiasm.","image":"https://files.catbox.moe/i4j3y0.jpg","imageAlt":"Compact private match-note packet sketch","publishedAt":"2026-07-16"},{"slug":"ten-percent","category":"Pricing","title":"10% on hire, free for talent","summary":"Demigod charges the company 10% of first-year cash when a hire starts. Talent pays nothing, and equity is outside the fee.","body":"Start with the invoice nobody should have to decode. If a hire’s first-year cash is $180,000, the Demigod fee is $18,000. An option grant does not enter that calculation. Talent owes $0.\n\n“First-year cash” includes the cash compensation agreed for the first year. It does not mean a guessed future value for options, a fundraising headline, or a spreadsheet number assigned to common stock. If an offer has a base salary and a guaranteed cash bonus, those terms need to be written clearly enough for both sides to identify what is actually guaranteed. A discretionary bonus is not quietly promoted into guaranteed money for fee purposes.\n\nThe fee becomes due only when the hire starts. There is no retainer for access and no subscription to browse profiles. Card tooling is still pending, so the commercial arrangement is handled by email at potter@trydemigod.com rather than presented as an automated checkout that already exists.\n\nWhy leave equity alone? Early-company option grants are hard to compare even when everyone is acting honestly. Strike price, preferred-price headlines, dilution, exercise windows, liquidation preferences, and the chance that the shares never become liquid all affect the lived value. Charging against a confident fictional number would make the bill look precise while moving the uncertainty onto the founder and candidate.\n\nWe don’t take a slice of the candidate’s compensation. The company is buying matching work; the person considering the job is not buying access to employment. That also means a candidate should never have to trade part of a signing bonus or future paycheck for an introduction through Demigod.\n\nCash-only pricing has a real downside for us. A company offering $90,000 plus a large grant produces a smaller fee than one offering $180,000 and modest equity, even if the first company becomes extraordinarily valuable. Accepted. The rule is easy to audit at the moment of hire and does not reward Demigod for talking up speculative equity.\n\nEdge cases deserve an email before the offer closes. A commission-heavy sales role may have a modest base and a variable plan that depends on performance. A founder role may pay almost no salary. A guaranteed first-year draw is different from an uncapped target that nobody can promise. Contract-to-hire arrangements also need their terms stated rather than squeezed into a permanent-hire example. The current pricing statement does not solve every unusual compensation design.\n\nThere is another practical wrinkle: the cash figure can change between the initial match note and the signed offer. The note should show the honest band before identities move, because talent needs it to decide whether a conversation makes sense. The fee calculation, however, uses the agreed first-year cash when the person starts, not an earlier aspirational ceiling.\n\nAn early departure is another term that belongs in the written commercial agreement, not in a blog-post promise. This page does not invent a replacement guarantee or refund policy that has not been agreed.\n\nFor a standard hire, the arithmetic should fit in one line: agreed first-year cash multiplied by 10%. Keep the equity column separate and keep talent’s side at zero. If a compensation term makes that line ambiguous, send the actual terms to potter@trydemigod.com; the edge case should be resolved in writing before anyone pretends the invoice is obvious.","image":"https://files.catbox.moe/eg561c.jpg","imageAlt":"Gold coin standing edge-on inside a gold gauge dial, on near-black","publishedAt":"2026-07-16"}];
 var DG_PAGES = {
   how: {
     title: 'How it works',
@@ -3049,17 +3202,18 @@ var DG_PAGES = {
       '</ul><p class="dg-p-lead">Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></p>',
   },
   blog: {
-    title: 'Notes',
-    doc: 'Notes · Demigod',
-    desc: 'Short product notes: 90-day outcomes, mutual approval, and simple pricing.',
+    title: 'Blog',
+    doc: 'Blog · Demigod',
+    desc: 'Short product notes: 90-day outcomes, mutual approval, simple pricing, SF events.',
     html:
-      '<div class="dg-blog-grid">' +
-      '<article class="dg-blog-card" id="note-90-day-outcomes"><img src="https://files.catbox.moe/urbco5.jpg" alt="Gold-on-dark abstract mark for 90-day outcome matching note" loading="lazy" decoding="async" width="1200" height="675"><small>Product</small><h3>Why 90-day outcomes beat keyword JDs</h3><p>Match on a measurable first-quarter result, not a stack laundry list.</p><details class="dg-blog-more"><summary>Full note · Why 90-day outcomes beat keyword JDs</summary><p>Keyword filters flood both sides with false matches. One measurable 90-day outcome creates a shared decision frame before identities move: what ships, what proof counts, and what would make either side pass. Stack laundry lists can wait until both sides have already opted into a real conversation.</p></details></article>' +
-      '<article class="dg-blog-card" id="note-both-approve"><img src="https://files.catbox.moe/wewe5r.jpg" alt="Private match approval path illustration — both sides opt in" loading="lazy" decoding="async" width="1200" height="675"><small>Privacy</small><h3>Both sides approve before intros</h3><p>Evidence first. Contact details only after founder and talent both opt in.</p><details class="dg-blog-more"><summary>Full note · Both sides approve before intros</summary><p>Profiles stay private. Evidence packets move first: outcome, proof, constraints, and one open gap. Contact details move only when founder and talent both approve — no public talent feed, no cold blasts. That is slower than a public board and faster at real decisions — trust over volume. Follow-ups use potter@trydemigod.com — not a public talent feed.</p></details></article>' +
-      '<article class="dg-blog-card" id="note-ten-percent"><img src="https://files.catbox.moe/eg561c.jpg" alt="Simple 10% hire fee diagram on dark gold brand field" loading="lazy" decoding="async" width="1200" height="675"><small>Pricing</small><h3>10% on hire, free for talent</h3><p>10% of first-year cash on hire. Free for talent. No retainers.</p><details class="dg-blog-more"><summary>Full note · 10% on hire, free for talent</summary><p>Agencies often sit at 15–25% plus retainers. Demigod charges 10% of first-year cash only when a hire starts. Talent never pays. No subscription to browse people; commercial follow-up is email (potter@trydemigod.com) while card tooling stays pending.</p></details></article>' +
-      '<article class="dg-blog-card" id="note-private-match-notes"><img src="https://files.catbox.moe/i4j3y0.jpg" alt="Compact private match-note packet sketch" loading="lazy" decoding="async" width="1200" height="675"><small>Product</small><h3>What belongs in a private match note</h3><p>The smallest useful packet: proof, constraints, one evidence gap, and a private yes or pass.</p><details class="dg-blog-more"><summary>Full note · What belongs in a private match note</summary><p>A private match note is the smallest packet that lets both sides decide without exposing identities. Keep it tight: (1) one measurable 90-day outcome, (2) proof the candidate can ship that outcome, (3) hard constraints (location, comp band, visa, hours), (4) one explicit evidence gap, and (5) a private yes/pass from the reviewer. Skip stack laundry lists and culture fluff. If the note cannot support a clear yes or pass, it is not ready to move.</p></details></article>' +
-      '<article class="dg-blog-card" id="note-human-review-over-volume"><img src="https://files.catbox.moe/zhxopd.jpg" alt="Human review shortlist over volume flood — brand visual" loading="lazy" decoding="async" width="1200" height="675"><small>Market</small><h3>Human review over application volume</h3><p>No fixed candidate-count promise — evidence-backed intros only.</p><details class="dg-blog-more"><summary>Full note · Human review over application volume</summary><p>No fixed candidate-count promise. Public application floods hide signal. A human-reviewed shortlist, grounded in a 90-day outcome and real proof, can save both sides weeks. Volume is not the product — mutual yes is.</p></details></article>' +
-      '</div>',
+      '<div class="dg-blog-hero">' +
+      '<p class="dg-ev-pill" role="note">Product notes · no spam</p>' +
+      '<p class="dg-p-lead">Short writing on how Demigod matches — evidence first, both sides approve, honest pricing.</p>' +
+      '<p class="dg-p-note">Deep-link any post: <code>/?p=blog#note-{slug}</code>. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
+      '</div>' +
+      '<div class="dg-blog-filters" id="dg-blog-filters" role="group" aria-label="Blog categories"></div>' +
+      '<div class="dg-blog-grid" id="dg-blog-grid" aria-live="polite"></div>' +
+      '<p class="dg-blog-empty" id="dg-blog-empty" hidden>No posts in this category yet.</p>',
   },
   method: {
     title: 'Method',
@@ -3106,17 +3260,46 @@ var DG_PAGES = {
   events: {
     title: 'Events Bot',
     doc: 'Events Bot · Demigod',
-    desc: 'Full-cycle SF Demigod nights — ideate, resource, plan, run, follow-up. Gold Demigod UI. Humans host and send.',
+    desc: 'Full-cycle SF events — fun nights and sponsorable formats. Ideate, resource, plan, run, follow-up. Humans host and send.',
     html:
       '<div class="dg-ev-hero" aria-hidden="true"></div>' +
-      '<p class="dg-p-lead">Events Bot runs the <strong>San Francisco night</strong> from first idea through debrief — format, partners, guests, run-of-show, follow-ups. You stay host.</p>' +
+      '<p class="dg-p-lead"><strong>Events Bot</strong> runs any <strong>San Francisco</strong> night from first idea through debrief — dinners, showcases, parties, salons, and more. Not limited to Demigod-branded events. You stay host.</p>' +
       '<p class="dg-ev-pill" role="note">San Francisco only · in-person</p>' +
-      '<p class="dg-p-note">Drafts only · mutual yes before intros · no ticket marketplace. SMS / calendar / Stripe still <strong>pending</strong>.</p>' +
+      '<p class="dg-p-note">When the bot invents ideas, it prefers <strong>sponsorable</strong> formats (clear audience + fundable needs). Drafts only · no auto-blast. On-page <strong>calendar</strong> is live (multi-event days OK). SMS / Stripe still <strong>pending</strong>.</p>' +
       '<div class="dg-ev-cta-band" role="navigation" aria-label="Events Bot shortcuts">' +
       '<a class="dg-ev-cta-pri" href="#dg-events-chat" id="dg-ec-focus">Talk to Events Bot</a>' +
+      '<a class="dg-ev-cta-sec" href="#dg-ev-cal">Calendar</a>' +
       '<a class="dg-ev-cta-sec" href="#dg-ev-offers">Offer help</a>' +
       '<a class="dg-ev-cta-sec" href="#dg-ev-extra">Ideas &amp; feedback</a>' +
       '</div>' +
+      '<h3 class="dg-p-h3" id="dg-ev-cal-h">SF calendar</h3>' +
+      '<p class="dg-p-note">Multiple events can share the same day. Click a date to list or add another night.</p>' +
+      '<div id="dg-ev-cal" class="dg-ev-cal" aria-label="Events calendar">' +
+      '<div class="dg-ev-cal-nav">' +
+      '<button type="button" class="dg-ev-cal-navbtn" id="dg-ev-cal-prev" aria-label="Previous month">‹</button>' +
+      '<h4 class="dg-ev-cal-month" id="dg-ev-cal-month"></h4>' +
+      '<button type="button" class="dg-ev-cal-navbtn" id="dg-ev-cal-next" aria-label="Next month">›</button>' +
+      '</div>' +
+      '<div class="dg-ev-cal-dow" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>' +
+      '<div class="dg-ev-cal-grid" id="dg-ev-cal-grid" role="group" aria-labelledby="dg-ev-cal-month"></div>' +
+      '<div class="dg-ev-cal-daypanel" id="dg-ev-cal-daypanel">' +
+      '<p class="dg-ev-cal-daylabel" id="dg-ev-cal-daylabel">Select a day</p>' +
+      '<ul class="dg-ev-cal-list" id="dg-ev-cal-list"></ul>' +
+      '<form class="dg-ev-form dg-ev-cal-add" id="dg-ev-cal-form">' +
+      '<input type="hidden" id="dg-ev-cal-date" name="date" />' +
+      '<label class="dg-ev-lab" for="dg-ev-cal-title">Add event on this day</label>' +
+      '<input class="dg-ev-in" id="dg-ev-cal-title" name="title" required maxlength="120" placeholder="e.g. SoMa dinner · rooftop party" />' +
+      '<div class="dg-ev-cal-row">' +
+      '<div><label class="dg-ev-lab" for="dg-ev-cal-time">Time</label>' +
+      '<input class="dg-ev-in" id="dg-ev-cal-time" name="time" maxlength="40" placeholder="7:00 PM" /></div>' +
+      '<div><label class="dg-ev-lab" for="dg-ev-cal-seats">Seats</label>' +
+      '<input class="dg-ev-in" id="dg-ev-cal-seats" name="seats" type="number" min="1" max="500" inputmode="numeric" placeholder="optional" /></div>' +
+      '</div>' +
+      '<label class="dg-ev-lab" for="dg-ev-cal-venue">Venue / area (SF)</label>' +
+      '<input class="dg-ev-in" id="dg-ev-cal-venue" name="venue" maxlength="120" placeholder="SoMa · Mission · loft" />' +
+      '<button type="submit" class="dg-ev-submit" id="dg-ev-cal-submit">Add to calendar</button>' +
+      '<p class="dg-ev-msg" id="dg-ev-cal-msg" role="status" aria-live="polite"></p>' +
+      '</form></div></div>' +
       '<h3 class="dg-p-h3">The cycle</h3>' +
       '<ol class="dg-decision-grid dg-ev-cycle" aria-label="Events Bot lifecycle">' +
       '<li><span>01</span><strong>Ideate</strong><small>Outcome · size · SF windows</small></li>' +
@@ -3135,15 +3318,15 @@ var DG_PAGES = {
       '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-ec-form" id="dg-ec-form">' +
       '<label class="sr-only" for="dg-ec-input">Message</label>' +
-      '<textarea id="dg-ec-input" class="dg-ec-input" rows="2" maxlength="2000" placeholder="e.g. 8 seats, Thu/Fri, founders + eng, outcome: 3 second meetings" required></textarea>' +
+      '<textarea id="dg-ec-input" class="dg-ec-input" rows="2" maxlength="2000" placeholder="e.g. 40-person SoMa party, need free venue + drink sponsor" required></textarea>' +
       '<button type="submit" class="dg-ec-send" id="dg-ec-send">Send</button>' +
       '</form></div>' +
       '<h3 class="dg-p-h3" id="dg-ev-offers-h">Offer to the night</h3>' +
       '<p class="dg-p-note">Bring a venue, sponsor a table, or volunteer. We follow up — no auto-booking.</p>' +
-      '<div class="dg-ev-tabs" role="tablist" aria-label="Offer type">' +
-      '<button type="button" class="dg-ev-tab is-on" data-ev-tab="sponsor" role="tab" aria-selected="true">Sponsor</button>' +
-      '<button type="button" class="dg-ev-tab" data-ev-tab="venue" role="tab" aria-selected="false">Venue</button>' +
-      '<button type="button" class="dg-ev-tab" data-ev-tab="volunteer" role="tab" aria-selected="false">Volunteer</button>' +
+      '<div class="dg-ev-tabs" role="group" aria-label="Offer type">' +
+      '<button type="button" class="dg-ev-tab is-on" data-ev-tab="sponsor" aria-pressed="true">Sponsor</button>' +
+      '<button type="button" class="dg-ev-tab" data-ev-tab="venue" aria-pressed="false">Venue</button>' +
+      '<button type="button" class="dg-ev-tab" data-ev-tab="volunteer" aria-pressed="false">Volunteer</button>' +
       '</div>' +
       '<div id="dg-ev-offers" class="dg-ev-offers">' +
       '<form class="dg-ev-form" id="dg-ev-form" data-ev-kind="sponsor">' +
@@ -3168,7 +3351,7 @@ var DG_PAGES = {
       '<details class="dg-p-det"><summary>Suggest an idea</summary>' +
       '<form class="dg-ev-form dg-ev-mini" id="dg-ev-idea-form">' +
       '<label class="dg-ev-lab" for="dg-ev-idea-seed">Theme or leave blank to invent an SF night</label>' +
-      '<input class="dg-ev-in" id="dg-ev-idea-seed" maxlength="200" placeholder="e.g. founder + eng lightning demos" />' +
+      '<input class="dg-ev-in" id="dg-ev-idea-seed" maxlength="200" placeholder="e.g. rooftop summer party · jazz loft · dinner club" />' +
       '<button type="submit" class="dg-ev-submit" id="dg-ev-idea-go">Share idea</button>' +
       '<p class="dg-ev-msg" id="dg-ev-idea-msg" role="status"></p></form></details>' +
       '<details class="dg-p-det"><summary>Give feedback</summary>' +
@@ -3240,19 +3423,39 @@ function pageCss() {
     '#dg-page .dg-p-grid>div{border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:.85rem;background:rgba(10,10,10,.5)}' +
     '#dg-page .dg-p-grid p{color:#A8A29E;margin:.35rem 0 0;font-size:.9rem}' +
     '#dg-page .dg-p-hi{border-color:rgba(201,168,76,.55)!important;background:rgba(201,168,76,.08)!important}' +
-    '#dg-page .dg-blog-grid{display:grid;gap:.8rem}' +
-    '#dg-page .dg-blog-card{overflow:hidden;border:1px solid rgba(201,168,76,.2);border-radius:12px;background:rgba(10,10,10,.5)}' +
+    '#dg-page .dg-blog-hero{margin:0 0 1.1rem}' +
+    '#dg-page .dg-blog-filters{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem}' +
+    '#dg-page .dg-blog-chip{min-height:44px;padding:.4rem .85rem;border-radius:999px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font:650 .82rem Manrope,system-ui,sans-serif;cursor:pointer}' +
+    '#dg-page .dg-blog-chip-n{opacity:.75;font-weight:600;margin-left:.2rem}' +
+    '#dg-page .dg-blog-chip.is-on{background:rgba(201,168,76,.18);border-color:#C9A84C;color:#C9A84C}' +
+    '#dg-page .dg-blog-body p{margin:.35rem 0;color:#A8A29E;line-height:1.55}' +
+    '#dg-page .dg-blog-grid{display:grid;gap:1rem;grid-template-columns:1fr}' +
+    '@media(min-width:720px){#dg-page .dg-blog-grid{grid-template-columns:1fr 1fr}}' +
+    '#dg-page .dg-blog-card{overflow:hidden;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92);display:flex;flex-direction:column}' +
     '#dg-page .dg-blog-card img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}' +
-    '#dg-page .dg-blog-card small,#dg-page .dg-blog-card h3,#dg-page .dg-blog-card p{display:block;margin:.65rem .85rem}' +
-    '#dg-page .dg-blog-card small{color:#C9A84C;text-transform:uppercase;letter-spacing:.08em}' +
-    '#dg-page .dg-blog-card h3{color:#E8D5A3;font-size:1rem}' +
-    '#dg-page .dg-blog-card p{color:#A8A29E;line-height:1.45}' +
-    '#dg-page .dg-blog-more{margin:.15rem .85rem .85rem;border-top:1px solid rgba(201,168,76,.12);padding-top:.35rem}' +
+    '#dg-page .dg-blog-card .dg-blog-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;margin:.7rem .9rem 0}' +
+    '#dg-page .dg-blog-card small{color:#C9A84C;text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;font-weight:700}' +
+    '#dg-page .dg-blog-card time{color:#A8A29E;font-size:.78rem}' +
+    '#dg-page .dg-blog-card h3{color:#E8D5A3;font-size:1.05rem;margin:.4rem .9rem;line-height:1.3;font-family:Cinzel,Georgia,serif}' +
+    '#dg-page .dg-blog-card>p{color:#A8A29E;line-height:1.5;margin:.25rem .9rem .5rem}' +
+    '#dg-page .dg-blog-more{margin:auto .9rem .9rem;border-top:1px solid rgba(201,168,76,.14);padding-top:.4rem}' +
     '#dg-page .dg-blog-more summary{cursor:pointer;color:#E8D5A3;font-weight:600;min-height:44px;display:flex;align-items:center;list-style:none}' +
     '#dg-page .dg-blog-more summary::-webkit-details-marker{display:none}' +
     '#dg-page .dg-blog-more summary:before{content:"\\25B8 ";color:#C9A84C}' +
     '#dg-page .dg-blog-more[open] summary:before{content:"\\25BE "}' +
-    '#dg-page .dg-blog-more p{margin:.35rem 0 .15rem}' +
+    '#dg-page .dg-blog-more p{margin:.35rem 0 .15rem;color:#A8A29E;line-height:1.5}' +
+    '#dg-page .dg-blog-empty{color:#A8A29E;font-size:.9rem}' +
+    '#dg-blog-home{margin:2rem auto;max-width:52rem;padding:0 1rem 1.5rem}' +
+    '#dg-blog-home .dg-blog-home-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:.5rem;margin:0 0 .85rem}' +
+    '#dg-blog-home h2{margin:0;font-family:Cinzel,Georgia,serif;font-size:1.25rem;color:#E8D5A3}' +
+    '#dg-blog-home .dg-blog-home-all{color:#C9A84C;font-weight:650;text-decoration:none;min-height:44px;display:inline-flex;align-items:center}' +
+    '#dg-blog-home .dg-blog-home-grid{display:grid;gap:.75rem;grid-template-columns:1fr}' +
+    '@media(min-width:640px){#dg-blog-home .dg-blog-home-grid{grid-template-columns:1fr 1fr 1fr}}' +
+    '#dg-blog-home .dg-blog-home-card{border:1px solid rgba(201,168,76,.2);border-radius:12px;overflow:hidden;background:rgba(14,14,18,.9);text-decoration:none;color:inherit;display:block;transition:border-color .15s}' +
+    '#dg-blog-home .dg-blog-home-card:hover{border-color:rgba(201,168,76,.55)}' +
+    '#dg-blog-home .dg-blog-home-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}' +
+    '#dg-blog-home .dg-blog-home-card strong{display:block;margin:.55rem .7rem .25rem;color:#E8D5A3;font-size:.92rem;line-height:1.3}' +
+    '#dg-blog-home .dg-blog-home-card span{display:block;margin:0 .7rem .7rem;color:#A8A29E;font-size:.8rem;line-height:1.4}' +
     '#dg-page .dg-page-ctas{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.15rem}' +
     '#dg-page .dg-page-ctas a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;font-weight:700;text-decoration:none!important}' +
     '#dg-page .dg-page-ctas a.hire{background:#C9A84C;color:#0A0A0A}' +
@@ -3287,45 +3490,325 @@ function pageCss() {
     '#dg-page .dg-mud-send{min-height:48px;min-width:4.5rem;padding:0 .75rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
     '#dg-page .dg-mud-hint{margin:.55rem 0 0;font-size:.75rem;color:#9aab9f}' +
     '#dg-page .dg-mud-hint code{color:#a6ffcb}' +
-    /* Events Bot chat (frege-night) */
-    '#dg-page .dg-events-chat{margin:1.1rem 0 0;border:1px solid rgba(166,255,203,.28);border-radius:6px;background:rgba(3,20,13,.55);overflow:hidden}' +
-    '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid rgba(166,255,203,.18);font-family:ui-monospace,Menlo,Consolas,monospace}' +
-    '#dg-page .dg-ec-title{color:#a6ffcb;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}' +
-    '#dg-page .dg-ec-status{color:#bdc9bf;font-size:.68rem}' +
-    '#dg-page .dg-ec-note{margin:0;padding:.45rem .75rem;font-size:.78rem;color:#bdc9bf;line-height:1.4;border-bottom:1px solid rgba(166,255,203,.1)}' +
-    '#dg-page .dg-ec-log{max-height:min(42vh,280px);overflow:auto;padding:.65rem .75rem;display:flex;flex-direction:column;gap:.55rem}' +
-    '#dg-page .dg-ec-msg{max-width:95%;padding:.55rem .7rem;border-radius:4px;font-size:.88rem;line-height:1.45;white-space:pre-wrap}' +
-    '#dg-page .dg-ec-msg.bot{align-self:flex-start;background:rgba(8,160,93,.12);border:1px solid rgba(166,255,203,.22);color:#f3f0e7}' +
-    '#dg-page .dg-ec-msg.user{align-self:flex-end;background:rgba(166,255,203,.08);border:1px solid rgba(166,255,203,.28);color:#a6ffcb}' +
-    '#dg-page .dg-ec-form{display:grid;grid-template-columns:1fr auto;gap:.45rem;padding:.65rem .75rem;border-top:1px solid rgba(166,255,203,.18)}' +
-    '#dg-page .dg-ec-input{width:100%;min-height:48px;resize:vertical;background:#03140d;border:1px solid rgba(166,255,203,.28);border-radius:4px;color:#f3f0e7;padding:.55rem .65rem;font-size:16px;font-family:system-ui,sans-serif}' +
-    '#dg-page .dg-ec-input:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
-    '#dg-page .dg-ec-send{min-height:48px;min-width:5.5rem;padding:0 .9rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
-    '#dg-page .dg-ec-send:disabled{opacity:.5;cursor:wait}' +
-    /* Events Bot offers + cycle */
+    /* Events Bot — homepage gold Demigod system (not MUD phosphor) */
+    '#dg-page.dg-page-events .dg-page-card{max-width:min(42rem,96vw)}' +
+    '#dg-page .dg-ev-hero{height:7.5rem;margin:-.35rem 0 1rem;border-radius:14px;border:1px solid rgba(201,168,76,.22);' +
+    'background:linear-gradient(105deg,rgba(10,10,10,.88) 0%,rgba(10,10,10,.55) 48%,rgba(201,168,76,.12) 100%),' +
+    'radial-gradient(ellipse 80% 60% at 70% 40%,rgba(201,168,76,.14),transparent 60%),#0a0a0a;' +
+    'box-shadow:inset 0 1px 0 rgba(201,168,76,.08)}' +
+    '#dg-page .dg-ev-pill{display:inline-flex;align-items:center;margin:0 0 .85rem;padding:.28rem .7rem;border-radius:999px;' +
+    'border:1px solid rgba(201,168,76,.35);color:#C9A84C;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}' +
+    '#dg-page .dg-ev-cta-band{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}' +
+    '#dg-page .dg-ev-cta-pri{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;' +
+    'background:#C9A84C;color:#0A0A0A!important;font-weight:700;text-decoration:none!important}' +
+    '#dg-page .dg-ev-cta-sec{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1rem;border-radius:12px;' +
+    'border:1.5px solid rgba(201,168,76,.55);color:#E8D5A3!important;font-weight:650;text-decoration:none!important;background:transparent}' +
+    '#dg-page .dg-ev-cta-pri:hover,#dg-page .dg-ev-cta-sec:hover{transform:translateY(-1px)}' +
+    '#dg-page .dg-events-chat{margin:0 0 1.35rem;border:1px solid rgba(201,168,76,.28);border-radius:14px;background:#121212;overflow:hidden;' +
+    'box-shadow:0 12px 40px rgba(0,0,0,.35)}' +
+    '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.7rem .9rem;' +
+    'border-bottom:1px solid rgba(201,168,76,.18);background:rgba(201,168,76,.04)}' +
+    '#dg-page .dg-ec-title{color:#C9A84C;font-family:Cinzel,Georgia,serif;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;font-weight:600}' +
+    '#dg-page .dg-ec-status{color:#A8A29E;font-size:.72rem}' +
+    '#dg-page .dg-ec-note{margin:0;padding:.55rem .9rem;font-size:.84rem;color:#A8A29E;line-height:1.45;border-bottom:1px solid rgba(201,168,76,.1)}' +
+    '#dg-page .dg-ec-log{max-height:min(42vh,300px);overflow:auto;padding:.75rem .9rem;display:flex;flex-direction:column;gap:.55rem}' +
+    '#dg-page .dg-ec-msg{max-width:92%;padding:.6rem .75rem;border-radius:12px;font-size:.9rem;line-height:1.5;white-space:pre-wrap;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ec-msg.bot{align-self:flex-start;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.22);color:#F5F0E6}' +
+    '#dg-page .dg-ec-msg.user{align-self:flex-end;background:rgba(201,168,76,.14);border:1px solid rgba(201,168,76,.32);color:#E8D5A3}' +
+    '#dg-page .dg-ec-form{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid rgba(201,168,76,.18)}' +
+    '#dg-page .dg-ec-input{width:100%;min-height:48px;resize:vertical;background:#0a0a0a;border:1px solid rgba(201,168,76,.3);border-radius:12px;' +
+    'color:#F5F0E6;padding:.6rem .75rem;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ec-input:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}' +
+    '#dg-page .dg-ec-send{min-height:48px;min-width:5.5rem;padding:0 1rem;border-radius:12px;border:1px solid #C9A84C;' +
+    'background:#C9A84C;color:#0A0A0A;font-family:Manrope,system-ui,sans-serif;font-weight:700;cursor:pointer}' +
+    '#dg-page .dg-ec-send:hover{box-shadow:0 8px 24px rgba(201,168,76,.22)}' +
+    '#dg-page .dg-ec-send:disabled{opacity:.55;cursor:wait}' +
     '#dg-page .dg-ev-cycle{grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))!important}' +
     '#dg-page .dg-ev-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:.65rem 0 .5rem}' +
-    '#dg-page .dg-ev-tab{min-height:44px;padding:.45rem .85rem;border-radius:10px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font-weight:650;cursor:pointer}' +
-    '#dg-page .dg-ev-tab.is-on{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.7);color:#C9A84C}' +
-    '#dg-page .dg-ev-offers{margin:.35rem 0 0;padding:.85rem;border:1px solid rgba(201,168,76,.22);border-radius:12px;background:rgba(10,10,10,.45)}' +
+    '#dg-page .dg-ev-tab{min-height:44px;padding:.45rem .9rem;border-radius:12px;border:1px solid rgba(201,168,76,.35);background:transparent;' +
+    'color:#E8D5A3;font-weight:650;cursor:pointer;font-family:Manrope,system-ui,sans-serif;transition:border-color .18s,background .18s}' +
+    '#dg-page .dg-ev-tab.is-on{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.75);color:#C9A84C}' +
+    '#dg-page .dg-ev-offers{margin:.35rem 0 0;padding:1rem;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92)}' +
     '#dg-page .dg-ev-form{display:grid;gap:.35rem}' +
-    '#dg-page .dg-ev-lab{font-size:.78rem;color:#A8A29E;margin-top:.25rem}' +
-    '#dg-page .dg-ev-in{width:100%;min-height:44px;padding:.55rem .65rem;border-radius:8px;border:1px solid rgba(201,168,76,.28);background:#0a0a0a;color:#F5F0E6;font-size:16px}' +
+    '#dg-page .dg-ev-lab{font-size:.78rem;color:#A8A29E;margin-top:.3rem}' +
+    '#dg-page .dg-ev-in{width:100%;min-height:48px;padding:.6rem .75rem;border-radius:12px;border:1px solid rgba(201,168,76,.28);' +
+    'background:#0a0a0a;color:#F5F0E6;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +
     '#dg-page .dg-ev-ta{min-height:5.5rem;resize:vertical}' +
-    '#dg-page .dg-ev-in:focus-visible{outline:2px solid #C9A84C;outline-offset:2px}' +
-    '#dg-page .dg-ev-submit{min-height:48px;margin-top:.55rem;border-radius:10px;border:1px solid rgba(201,168,76,.55);background:rgba(201,168,76,.2);color:#C9A84C;font-weight:700;cursor:pointer}' +
+    '#dg-page .dg-ev-in:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}' +
+    '#dg-page .dg-ev-submit{min-height:48px;margin-top:.6rem;border-radius:12px;border:1px solid #C9A84C;background:#C9A84C;' +
+    'color:#0A0A0A;font-weight:700;cursor:pointer;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ev-submit-ghost{background:transparent;color:#C9A84C}' +
     '#dg-page .dg-ev-submit:disabled{opacity:.55;cursor:wait}' +
-    '#dg-page .dg-ev-msg{min-height:1.2rem;font-size:.82rem;color:#A8A29E;margin:.35rem 0 0}' +
-    '#dg-page .dg-ev-msg.ok{color:#a6ffcb}' +
+    '#dg-page .dg-ev-msg{min-height:1.2rem;font-size:.84rem;color:#A8A29E;margin:.4rem 0 0}' +
+    '#dg-page .dg-ev-msg.ok{color:#E8D5A3}' +
     '#dg-page .dg-ev-msg.err{color:#ffb4a2}' +
-    '#dg-page .dg-ev-counts{font-size:.8rem;color:#A8A29E;margin:.45rem 0 0}' +
-    '#dg-page .dg-ev-extra{display:grid;gap:.85rem;margin:1rem 0}' +
-    '#dg-page .dg-ev-mini{padding:.85rem;border:1px solid rgba(201,168,76,.18);border-radius:12px;background:rgba(10,10,10,.35)}' +
-    '#dg-page .dg-ev-status{margin:.35rem 0 1rem;padding:.55rem .75rem;border-radius:10px;border:1px solid rgba(201,168,76,.22);background:rgba(201,168,76,.06);color:#A8A29E;font-size:.86rem;line-height:1.45}' +
-    '#dg-page .dg-ev-cycle>li.is-current{border-color:rgba(201,168,76,.65)!important;background:rgba(201,168,76,.12)!important}' +
+    '#dg-page .dg-ev-counts{font-size:.8rem;color:#A8A29E;margin:.5rem 0 1rem}' +
+    '#dg-page .dg-ev-extra{display:grid;gap:0;margin:1.1rem 0 1.25rem}' +
+    '#dg-page .dg-ev-mini{padding:.35rem 0 .65rem}' +
+    '#dg-page .dg-ev-status{margin:.35rem 0 1.15rem;padding:.7rem .9rem;border-radius:12px;border:1px solid rgba(201,168,76,.22);' +
+    'background:rgba(201,168,76,.06);color:#A8A29E;font-size:.88rem;line-height:1.45}' +
+    '#dg-page .dg-ev-cycle>li.is-current{border-color:rgba(201,168,76,.7)!important;background:rgba(201,168,76,.12)!important}' +
     '#dg-page .dg-ev-cycle>li.is-current strong{color:#C9A84C}' +
+    '#dg-page .dg-ev-cal{margin:0 0 1.35rem;padding:1rem;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92)}' +
+    '#dg-page .dg-ev-cal-nav{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:0 0 .65rem}' +
+    '#dg-page .dg-ev-cal-month{margin:0;font-family:Cinzel,Georgia,serif;font-size:1.05rem;color:#E8D5A3;font-weight:600}' +
+    '#dg-page .dg-ev-cal-navbtn{min-width:44px;min-height:44px;border-radius:12px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#C9A84C;font-size:1.35rem;cursor:pointer}' +
+    '#dg-page .dg-ev-cal-navbtn:hover{background:rgba(201,168,76,.12)}' +
+    '#dg-page .dg-ev-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:0 0 .35rem;text-align:center;font-size:.72rem;color:#A8A29E;font-weight:650}' +
+    '#dg-page .dg-ev-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}' +
+    '#dg-page .dg-ev-cal-cell{min-height:3.1rem;padding:.25rem .2rem;border-radius:10px;border:1px solid rgba(201,168,76,.12);background:#0a0a0a;color:#F5F0E6;font-size:.82rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ev-cal-cell:hover{border-color:rgba(201,168,76,.45)}' +
+    '#dg-page .dg-ev-cal-cell.is-out{opacity:.35;cursor:default}' +
+    '#dg-page .dg-ev-cal-cell.is-today{border-color:rgba(201,168,76,.55);box-shadow:inset 0 0 0 1px rgba(201,168,76,.25)}' +
+    '#dg-page .dg-ev-cal-cell.is-sel{background:rgba(201,168,76,.16);border-color:#C9A84C;color:#E8D5A3}' +
+    '#dg-page .dg-ev-cal-cell:focus-visible{outline:2px solid #C9A84C;outline-offset:2px}' +
+    '#dg-page .dg-ev-cal-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;min-height:8px}' +
+    '#dg-page .dg-ev-cal-dot{width:5px;height:5px;border-radius:50%;background:#C9A84C}' +
+    '#dg-page .dg-ev-cal-n{font-size:.65rem;color:#C9A84C;font-weight:700;line-height:1}' +
+    '#dg-page .dg-ev-cal-daypanel{margin-top:.85rem;padding-top:.75rem;border-top:1px solid rgba(201,168,76,.18)}' +
+    '#dg-page .dg-ev-cal-daylabel{margin:0 0 .45rem;color:#E8D5A3;font-weight:650;font-size:.92rem}' +
+    '#dg-page .dg-ev-cal-list{list-style:none;margin:0 0 .75rem;padding:0;display:grid;gap:.4rem}' +
+    '#dg-page .dg-ev-cal-list li{padding:.55rem .7rem;border-radius:10px;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.06);color:#F5F0E6;font-size:.88rem;line-height:1.35}' +
+    '#dg-page .dg-ev-cal-list li strong{color:#C9A84C;font-weight:650}' +
+    '#dg-page .dg-ev-cal-list li em{color:#A8A29E;font-style:normal;font-size:.8rem}' +
+    '#dg-page .dg-ev-cal-empty{color:#A8A29E;font-size:.86rem;margin:0 0 .65rem}' +
+    '#dg-page .dg-ev-cal-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}' +
+    '#dg-page .dg-ev-cal-add{margin-top:.25rem}' +
+    '@media(max-width:520px){#dg-page .dg-ev-cal-row{grid-template-columns:1fr}#dg-page .dg-ev-cal-cell{min-height:2.6rem;font-size:.75rem}}' +
+    '@media(prefers-reduced-motion:reduce){#dg-page .dg-ev-cta-pri,#dg-page .dg-ev-cta-sec,#dg-page .dg-ev-tab{transition:none;transform:none!important}}' +
     '#dg-page .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}';
   document.head.appendChild(s);
+}
+/* Events Bot calendar — multi-event same day OK */
+function eventsBotCalendarMount(root) {
+  var box = root && root.querySelector('#dg-ev-cal');
+  if (!box || box.dataset.dgEvCal === '1') return;
+  box.dataset.dgEvCal = '1';
+  var grid = box.querySelector('#dg-ev-cal-grid');
+  var monthEl = box.querySelector('#dg-ev-cal-month');
+  var listEl = box.querySelector('#dg-ev-cal-list');
+  var dayLabel = box.querySelector('#dg-ev-cal-daylabel');
+  var form = box.querySelector('#dg-ev-cal-form');
+  var dateIn = box.querySelector('#dg-ev-cal-date');
+  var msg = box.querySelector('#dg-ev-cal-msg');
+  var prev = box.querySelector('#dg-ev-cal-prev');
+  var next = box.querySelector('#dg-ev-cal-next');
+  var now = new Date();
+  var viewY = now.getFullYear();
+  var viewM = now.getMonth(); // 0-based
+  var selected = '';
+  var byDate = {};
+  var apiBase = '';
+
+  function ymd(y, m0, d) {
+    return y + '-' + String(m0 + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+  function setMsg(t, cls) {
+    if (!msg) return;
+    msg.textContent = t || '';
+    msg.className = 'dg-ev-msg' + (cls ? ' ' + cls : '');
+  }
+  function monthName(y, m0) {
+    try {
+      return new Date(y, m0, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+    } catch (e) {
+      return y + '-' + (m0 + 1);
+    }
+  }
+  function renderDayList(date) {
+    selected = date || selected;
+    if (dateIn) dateIn.value = selected || '';
+    if (dayLabel) {
+      dayLabel.textContent = selected
+        ? 'Events on ' + selected + ' (multiple OK)'
+        : 'Select a day';
+    }
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    var items = (selected && byDate[selected]) || [];
+    if (!selected) {
+      listEl.innerHTML = '<li class="dg-ev-cal-empty" style="border:0;background:transparent;padding:0">Pick a date on the grid.</li>';
+      return;
+    }
+    if (!items.length) {
+      listEl.innerHTML =
+        '<li class="dg-ev-cal-empty" style="border:0;background:transparent;padding:0">No events yet this day — add one below.</li>';
+      return;
+    }
+    items.forEach(function (ev) {
+      var li = document.createElement('li');
+      var meta = [ev.time, ev.venue, ev.stage, ev.seats ? ev.seats + ' seats' : '']
+        .filter(Boolean)
+        .join(' · ');
+      li.innerHTML =
+        '<strong>' +
+        esc(ev.title || 'Untitled') +
+        '</strong>' +
+        (meta ? '<br><em>' + esc(meta) + '</em>' : '');
+      listEl.appendChild(li);
+    });
+  }
+  function renderGrid() {
+    if (monthEl) monthEl.textContent = monthName(viewY, viewM);
+    if (!grid) return;
+    grid.innerHTML = '';
+    var first = new Date(viewY, viewM, 1);
+    var startPad = first.getDay();
+    var daysIn = new Date(viewY, viewM + 1, 0).getDate();
+    var today = ymd(now.getFullYear(), now.getMonth(), now.getDate());
+    var total = startPad + daysIn;
+    var cells = Math.ceil(total / 7) * 7;
+    for (var i = 0; i < cells; i++) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dg-ev-cal-cell';
+      var dayNum = i - startPad + 1;
+      if (dayNum < 1 || dayNum > daysIn) {
+        btn.classList.add('is-out');
+        btn.disabled = true;
+        btn.innerHTML = '<span></span>';
+        grid.appendChild(btn);
+        continue;
+      }
+      var key = ymd(viewY, viewM, dayNum);
+      var n = (byDate[key] || []).length;
+      btn.dataset.date = key;
+      btn.setAttribute('aria-label', key + (n ? ', ' + n + ' event' + (n === 1 ? '' : 's') : ''));
+      if (key === today) btn.classList.add('is-today');
+      if (key === selected) btn.classList.add('is-sel');
+      var dots = '';
+      if (n > 0) {
+        var show = Math.min(n, 4);
+        dots = '<span class="dg-ev-cal-dots" aria-hidden="true">';
+        for (var d = 0; d < show; d++) dots += '<span class="dg-ev-cal-dot"></span>';
+        dots += '</span>';
+        if (n > 4) dots += '<span class="dg-ev-cal-n">+' + (n - 4) + '</span>';
+        else if (n > 1) dots += '<span class="dg-ev-cal-n">' + n + '</span>';
+      } else {
+        dots = '<span class="dg-ev-cal-dots"></span>';
+      }
+      btn.innerHTML = '<span>' + dayNum + '</span>' + dots;
+      btn.addEventListener('click', function (ev) {
+        var dt = ev.currentTarget.dataset.date;
+        selected = dt;
+        renderGrid();
+        renderDayList(dt);
+      });
+      grid.appendChild(btn);
+    }
+  }
+  async function load() {
+    try {
+      var pick = await dgEventsBotPickBase(4000);
+      if (!pick || !pick.base) throw new Error('offline');
+      apiBase = pick.base;
+      var r = await dgEventsBotFetch(
+        apiBase + '/calendar?year=' + viewY + '&month=' + (viewM + 1),
+        { method: 'GET', signal: AbortSignal.timeout(5000) },
+      );
+      if (!r.ok) throw new Error('cal');
+      var j = await r.json();
+      byDate = (j && j.byDate) || {};
+      // also index flat events if byDate missing
+      if (j && j.events && !Object.keys(byDate).length) {
+        byDate = {};
+        j.events.forEach(function (e) {
+          if (!e || !e.date) return;
+          if (!byDate[e.date]) byDate[e.date] = [];
+          byDate[e.date].push(e);
+        });
+      }
+    } catch (e) {
+      byDate = byDate || {};
+    }
+    if (!selected) selected = ymd(now.getFullYear(), now.getMonth(), now.getDate());
+    /* Prefer a day in this month that has events so multi-day is visible without hunting */
+    if (!(byDate[selected] || []).length) {
+      var keys = Object.keys(byDate || {}).filter(function (k) {
+        return k.indexOf(viewY + '-' + String(viewM + 1).padStart(2, '0') + '-') === 0;
+      });
+      if (keys.length) {
+        keys.sort();
+        selected = keys[0];
+      }
+    }
+    renderGrid();
+    renderDayList(selected);
+  }
+  if (prev)
+    prev.addEventListener('click', function () {
+      viewM -= 1;
+      if (viewM < 0) {
+        viewM = 11;
+        viewY -= 1;
+      }
+      load();
+    });
+  if (next)
+    next.addEventListener('click', function () {
+      viewM += 1;
+      if (viewM > 11) {
+        viewM = 0;
+        viewY += 1;
+      }
+      load();
+    });
+  if (form) {
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var date = (dateIn && dateIn.value) || selected;
+      var title = ((box.querySelector('#dg-ev-cal-title') || {}).value || '').trim();
+      if (!date) {
+        setMsg('Pick a day first.', 'err');
+        return;
+      }
+      if (!title) {
+        setMsg('Title required.', 'err');
+        return;
+      }
+      var payload = {
+        date: date,
+        title: title,
+        time: ((box.querySelector('#dg-ev-cal-time') || {}).value || '').trim(),
+        seats: ((box.querySelector('#dg-ev-cal-seats') || {}).value || '').trim(),
+        venue: ((box.querySelector('#dg-ev-cal-venue') || {}).value || '').trim(),
+        city: 'San Francisco',
+        source: 'web-calendar',
+      };
+      var submit = box.querySelector('#dg-ev-cal-submit');
+      if (submit) submit.disabled = true;
+      setMsg('Saving…');
+      try {
+        if (!apiBase) {
+          var pick2 = await dgEventsBotPickBase(4000);
+          apiBase = (pick2 && pick2.base) || '';
+        }
+        if (!apiBase) throw new Error('offline');
+        var r = await dgEventsBotFetch(apiBase + '/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(10000),
+        });
+        var j = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok || !j.ok) {
+          setMsg(j.message || j.error || 'Could not save', 'err');
+        } else {
+          setMsg(j.message || 'Added — same day can hold more.', 'ok');
+          var t = box.querySelector('#dg-ev-cal-title');
+          if (t) t.value = '';
+          await load();
+          renderDayList(date);
+        }
+      } catch (err) {
+        setMsg('API offline — try again when Events Bot is up.', 'err');
+      }
+      if (submit) submit.disabled = false;
+    });
+  }
+  load();
 }
 /* Events Bot — live cycle status from GET /lifecycle */
 function eventsBotCycleMount(root) {
@@ -3333,15 +3816,6 @@ function eventsBotCycleMount(root) {
   var cycle = root && root.querySelector('.dg-ev-cycle');
   if (!status || status.dataset.dgEvCycle === '1') return;
   status.dataset.dgEvCycle = '1';
-  var endpoints = [
-    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
-    'http://127.0.0.1:3460/api/events-bot/lifecycle',
-    'http://localhost:3460/api/events-bot/lifecycle',
-  ]
-    .filter(Boolean)
-    .map(function (u) {
-      return u.replace(/\/chat\/?$/, '/lifecycle').replace(/\/offer\/?$/, '/lifecycle');
-    });
 
   function stageLabel(id) {
     var map = {
@@ -3357,46 +3831,45 @@ function eventsBotCycleMount(root) {
   }
 
   async function load() {
-    for (var i = 0; i < endpoints.length; i++) {
-      var ep = endpoints[i];
-      try {
-        if (typeof dgLocalOk === 'function' && !dgLocalOk(ep)) continue;
-      } catch (e0) {}
-      try {
-        var r = await fetch(ep, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(2000) });
-        if (!r.ok) continue;
-        var j = await r.json();
-        if (!j || !j.ok) continue;
-        var ae = j.activeEvent || {};
-        var st = ae.stage || 'ideate';
-        var oc = j.offerCounts || {};
-        var title = ae.title ? '“' + ae.title + '” · ' : '';
-        var offers =
-          (oc.sponsor | 0) + ' sponsor · ' + (oc.venue | 0) + ' venue · ' + (oc.volunteer | 0) + ' volunteer';
-        if (ae.id || ae.title) {
-          status.textContent =
-            'In flight: ' + title + 'stage ' + stageLabel(st) + '. Offers on file: ' + offers + '.';
-        } else {
-          status.textContent =
-            'No named event in flight — chat below to ideate one. Stage default: ' +
-            stageLabel(st) +
-            '. Offers on file: ' +
-            offers +
-            '.';
-        }
-        if (cycle) {
-          var items = cycle.querySelectorAll('li');
-          var order = ['ideate', 'resource', 'plan', 'rsvp', 'run', 'followup', 'debrief'];
-          var idx = order.indexOf(st);
-          items.forEach(function (li, n) {
-            li.classList.toggle('is-current', n === idx);
-          });
-        }
-        return;
-      } catch (e) {}
-    }
+    try {
+      var pick = await dgEventsBotPickBase(4000);
+      if (!pick || !pick.base) throw new Error('no base');
+      var r = await dgEventsBotFetch(pick.base + '/lifecycle', {
+        method: 'GET',
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!r.ok) throw new Error('lifecycle');
+      var j = await r.json();
+      if (!j || !j.ok) throw new Error('bad lifecycle');
+      var ae = j.activeEvent || {};
+      var st = ae.stage || 'ideate';
+      var oc = j.offerCounts || {};
+      var title = ae.title ? '“' + ae.title + '” · ' : '';
+      var offers =
+        (oc.sponsor | 0) + ' sponsor · ' + (oc.venue | 0) + ' venue · ' + (oc.volunteer | 0) + ' volunteer';
+      if (ae.id || ae.title) {
+        status.textContent =
+          'In flight: ' + title + 'stage ' + stageLabel(st) + '. Offers on file: ' + offers + '.';
+      } else {
+        status.textContent =
+          'No named event in flight — chat below to ideate one. Stage default: ' +
+          stageLabel(st) +
+          '. Offers on file: ' +
+          offers +
+          '.';
+      }
+      if (cycle) {
+        var items = cycle.querySelectorAll('li');
+        var order = ['ideate', 'resource', 'plan', 'rsvp', 'run', 'followup', 'debrief'];
+        var idx = order.indexOf(st);
+        items.forEach(function (li, n) {
+          li.classList.toggle('is-current', n === idx);
+        });
+      }
+      return;
+    } catch (e) {}
     status.textContent =
-      'Cycle API offline — stages above are the playbook. Chat still works as offline guide; offers fall back to email.';
+      'No live status yet — use the stages as the playbook. Chat still drafts; offers can fall back to email.';
   }
   load();
 }
@@ -3412,19 +3885,6 @@ function eventsBotOffersMount(root) {
   var offerLab = form.querySelector('#dg-ev-offer-lab');
   var capLab = form.querySelector('#dg-ev-cap-lab');
   var counts = root.querySelector('#dg-ev-counts');
-  var endpoints = [
-    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
-    'http://127.0.0.1:3460/api/events-bot/offer',
-    'http://localhost:3460/api/events-bot/offer',
-  ]
-    .filter(Boolean)
-    .filter(function (u) {
-      try {
-        return typeof dgLocalOk !== 'function' || dgLocalOk(u);
-      } catch (e) {
-        return true;
-      }
-    });
   var offerUrl = '';
 
   var labels = {
@@ -3451,7 +3911,7 @@ function eventsBotOffersMount(root) {
     root.querySelectorAll('.dg-ev-tab').forEach(function (btn) {
       var on = btn.getAttribute('data-ev-tab') === k;
       btn.classList.toggle('is-on', on);
-      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   }
   root.querySelectorAll('.dg-ev-tab').forEach(function (btn) {
@@ -3461,36 +3921,33 @@ function eventsBotOffersMount(root) {
   });
 
   async function probe() {
-    for (var i = 0; i < endpoints.length; i++) {
-      var ep = endpoints[i];
-      var health = ep.replace(/\/offer\/?$/, '/health').replace(/\/offers\/?$/, '/health');
-      if (health === ep) health = 'http://127.0.0.1:3460/api/events-bot/health';
+    try {
+      var pick = await dgEventsBotPickBase(4000);
+      if (!pick || !pick.base) throw new Error('offline');
+      offerUrl = pick.base + '/offer';
       try {
-        var r = await fetch(health, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(1800) });
-        if (r.ok) {
-          offerUrl = ep.indexOf('/offer') >= 0 ? ep : 'http://127.0.0.1:3460/api/events-bot/offer';
-          try {
-            var c = await fetch(offerUrl.replace(/\/offer\/?$/, '/offers'), {
-              mode: 'cors',
-              signal: AbortSignal.timeout(2000),
-            }).then(function (x) {
-              return x.json();
-            });
-            if (c && c.counts && counts) {
-              counts.textContent =
-                'Offers on file: ' +
-                (c.counts.sponsor | 0) +
-                ' sponsor · ' +
-                (c.counts.venue | 0) +
-                ' venue · ' +
-                (c.counts.volunteer | 0) +
-                ' volunteer (contacts private)';
-            }
-          } catch (e2) {}
-          return;
+        var c = await dgEventsBotFetch(pick.base + '/offers', {
+          signal: AbortSignal.timeout(4000),
+        }).then(function (x) {
+          return x.json();
+        });
+        if (c && c.counts && counts) {
+          counts.textContent =
+            'Offers on file: ' +
+            (c.counts.sponsor | 0) +
+            ' sponsor · ' +
+            (c.counts.venue | 0) +
+            ' venue · ' +
+            (c.counts.volunteer | 0) +
+            ' volunteer (counts only)';
+        } else if (counts) {
+          counts.textContent = 'Offer API online';
         }
-      } catch (e) {}
-    }
+      } catch (e2) {
+        if (counts) counts.textContent = 'Offer API online';
+      }
+      return;
+    } catch (e) {}
     offerUrl = '';
     if (counts) counts.textContent = 'Offer API offline — submit will open email to potter@';
   }
@@ -3533,12 +3990,11 @@ function eventsBotOffersMount(root) {
     setMsg('Submitting…');
     if (offerUrl) {
       try {
-        var r = await fetch(offerUrl, {
+        var r = await dgEventsBotFetch(offerUrl, {
           method: 'POST',
-          mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(12000),
         });
         var j = await r.json().catch(function () {
           return {};
@@ -3557,35 +4013,35 @@ function eventsBotOffersMount(root) {
       }
     }
     mailtoFallback(payload);
-    setMsg('Email draft opened if your mail client allows it.', 'ok');
+    setMsg('Offer was not saved on the server — attempted to open your mail app with a draft.', 'err');
     if (submit) submit.disabled = false;
   });
 
   setKind('sponsor');
   probe();
+  /* tunnel can lag cold-start — re-probe without waiting for reload */
+  setTimeout(probe, 2500);
+  setTimeout(probe, 8000);
 }
 /* Ideas, feedback, money, autonomy tick */
 function eventsBotExtraMount(root) {
   var base = '';
-  var endpoints = [
-    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
-    'http://127.0.0.1:3460/api/events-bot/chat',
-    'http://localhost:3460/api/events-bot/chat',
-  ].filter(Boolean);
-  function apiRoot() {
+  async function ensureBase() {
     if (base) return base;
-    for (var i = 0; i < endpoints.length; i++) {
-      var ep = endpoints[i].replace(/\/chat\/?$/, '');
-      base = ep;
-      return base;
+    try {
+      var pick = await dgEventsBotPickBase(4000);
+      base = (pick && pick.base) || '';
+    } catch (e0) {
+      base = '';
     }
-    return 'http://127.0.0.1:3460/api/events-bot';
+    return base;
   }
   async function post(path, body) {
-    var url = apiRoot() + path;
-    var r = await fetch(url, {
+    var root = await ensureBase();
+    if (!root) return { ok: false, error: 'no local API' };
+    var url = root + path;
+    var r = await dgEventsBotFetch(url, {
       method: 'POST',
-      mode: 'cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {}),
       signal: AbortSignal.timeout(90000),
@@ -3600,15 +4056,22 @@ function eventsBotExtraMount(root) {
     ideaForm.addEventListener('submit', async function (e) {
       e.preventDefault();
       var msg = root.querySelector('#dg-ev-idea-msg');
-      var seed = (root.querySelector('#dg-ev-idea-seed') || {}).value || '';
-      if (msg) msg.textContent = 'Thinking…';
+      var seed = String((root.querySelector('#dg-ev-idea-seed') || {}).value || '').trim();
+      if (msg) msg.textContent = 'Saving idea…';
       try {
-        var j = await post('/idea', { generate: true, seed: seed });
+        /* generate:true is ops-only — public web submits a host suggestion (no agent tools) */
+        var j = await post('/idea', {
+          title: seed || 'SF night idea',
+          outcome: seed || 'Host suggestion from events page',
+          source: 'web',
+        });
         if (msg)
           msg.textContent = j.summary
             ? String(j.summary).slice(0, 400)
             : j.ok
-              ? 'Ideas saved / generated.'
+              ? j.idea
+                ? 'Idea recorded: ' + String(j.idea.title || seed || 'SF night').slice(0, 80)
+                : 'Idea recorded.'
               : j.error || 'Failed';
         msg && msg.classList.add(j.ok !== false ? 'ok' : 'err');
       } catch (err) {
@@ -3682,12 +4145,17 @@ function eventsBotExtraMount(root) {
           maxSteps: 5,
         });
         if (msg) {
-          msg.textContent = (j.summary || JSON.stringify(j).slice(0, 350)).slice(0, 500);
-          msg.className = 'dg-ev-msg ' + (j.ok ? 'ok' : 'err');
+          if (j && (j.error || '').toString().indexOf('ops secret') >= 0) {
+            msg.textContent = 'Ops-only — set DEMIGOD_EVENTS_OPS_SECRET (or OPS_OPEN=1 locally). Not public.';
+            msg.className = 'dg-ev-msg err';
+          } else {
+            msg.textContent = (j.summary || j.error || JSON.stringify(j).slice(0, 350)).slice(0, 500);
+            msg.className = 'dg-ev-msg ' + (j.ok ? 'ok' : 'err');
+          }
         }
       } catch (err) {
         if (msg) {
-          msg.textContent = 'Tick failed — is :3460 up?';
+          msg.textContent = 'Tick failed — Events Bot API offline or ops blocked.';
           msg.className = 'dg-ev-msg err';
         }
       }
@@ -3706,11 +4174,6 @@ function eventsBotChatMount(root) {
   var send = box.querySelector('#dg-ec-send');
   var status = box.querySelector('#dg-ec-status');
   var history = [];
-  var endpoints = [
-    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
-    'http://127.0.0.1:3460/api/events-bot/chat',
-    'http://localhost:3460/api/events-bot/chat',
-  ].filter(Boolean).filter(dgLocalOk);
   var apiBase = '';
 
   function addMsg(role, text) {
@@ -3727,33 +4190,26 @@ function eventsBotChatMount(root) {
   function offline(msg) {
     var last = (msg || '').toLowerCase();
     if (/date|when|calendar/.test(last))
-      return 'Calendar sync is pending. Share 2–3 date windows and seat count — I will draft a host brief. For live AI, run the Events Bot API locally (see DEMIGOD-EVENTS-BOT.md). Or email potter@trydemigod.com.';
+      return 'Use the SF calendar above to park nights (multiple events per day are fine). Share seats + outcome here and I will draft a host brief — or email potter@trydemigod.com.';
     if (/guest|invite|who/.test(last))
       return 'I only draft guest lists; you approve every name. Tell me seats, mix (founders/eng), and constraints.';
     if (/agenda|run/.test(last))
       return 'Tight dinner skeleton: arrive → host frame → structured intros → free conversation → close + mutual-interest notes. Duration?';
-    return 'I run the full cycle: Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief → next. You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, outcome: 3 second meetings" — or use Sponsor / Venue / Volunteer forms above.';
+    return 'I run the full cycle: Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief → next. You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, outcome: 3 second meetings" — or use the calendar / offer forms above.';
   }
 
   async function probe() {
-    for (var i = 0; i < endpoints.length; i++) {
-      var ep = endpoints[i];
-      var health = ep.replace(/\/chat\/?$/, '/health').replace(/events-bot\/chat/, 'events-bot/health');
-      if (health === ep) health = 'http://127.0.0.1:3460/api/events-bot/health';
-      try {
-        var r = await fetch(health, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(1800) });
-        if (r.ok) {
-          apiBase = ep.indexOf('/chat') >= 0 ? ep : 'http://127.0.0.1:3460/api/events-bot/chat';
-          var j = await r.json().catch(function () {
-            return {};
-          });
-          setStatus(j.openai ? 'AI live' : 'API · offline model');
-          return;
-        }
-      } catch (e) {}
-    }
+    try {
+      var pick = await dgEventsBotPickBase(4000);
+      if (pick && pick.base) {
+        apiBase = pick.base + '/chat';
+        var j = pick.j || {};
+        setStatus(j.openai ? 'Ready' : 'Draft mode');
+        return;
+      }
+    } catch (e) {}
     apiBase = '';
-    setStatus('offline guide');
+    setStatus('Draft mode');
   }
 
   async function ask(text) {
@@ -3765,9 +4221,8 @@ function eventsBotChatMount(root) {
     var mock = true;
     if (apiBase) {
       try {
-        var r = await fetch(apiBase, {
+        var r = await dgEventsBotFetch(apiBase, {
           method: 'POST',
-          mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: history }),
           signal: AbortSignal.timeout(45000),
@@ -3785,7 +4240,7 @@ function eventsBotChatMount(root) {
     history.push({ role: 'assistant', content: reply });
     if (history.length > 24) history = history.slice(-24);
     addMsg('bot', reply);
-    setStatus(mock ? (apiBase ? 'API · draft mode' : 'offline guide') : 'AI live');
+    setStatus(mock ? 'Draft mode' : 'Ready');
     send.disabled = false;
     try {
       input.focus();
@@ -3808,9 +4263,11 @@ function eventsBotChatMount(root) {
 
   addMsg(
     'bot',
-    'I run Demigod nights end-to-end: ideate → sponsors/venues/volunteers → plan → RSVP → run → follow-up → next cycle. You approve and send. What are we throwing?',
+    'I run SF nights end-to-end — fun events welcome, not only Demigod-branded. When I invent ideas I lean sponsorable. You approve and send. What are we throwing?',
   );
   probe();
+  setTimeout(probe, 2500);
+  setTimeout(probe, 8000);
 }
 
 function mudMount(root) {
@@ -3929,6 +4386,7 @@ function openPage(id, push) {
   root.setAttribute('role', 'main');
   root.setAttribute('aria-label', meta.title);
   if (id === 'mud') root.classList.add('dg-page-mud');
+  if (id === 'events') root.classList.add('dg-page-events');
   root.innerHTML =
     '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
     meta.title +
@@ -3944,7 +4402,7 @@ function openPage(id, push) {
      Verified: force-hiding sticks; no MutationObserver re-shows them. */
   document.body.classList.add('dg-page-on');
   try {
-    var KEEP = /^(dg-page|dg-bar|dg-skip|startup-modal|jobseeker-modal)$/;
+    var KEEP = /^(first-year-cash-not-equity-fog|match-note-anti-patterns|no-public-talent-feed|sf-events-calendar|sf-night-is-not-a-pipeline-hack|what-talent-sees|when-not-to-intro|90-day-outcomes|both-approve|human-review-over-volume|private-match-notes|ten-percent)$/;
     /* openPage can run twice (deepLink on boot, then a nav click). Without this guard the second
        pass captures the ALREADY-HIDDEN display:none as the "prior" value, and closePage then
        faithfully restores none — leaving the homepage blank. Capture once per open. */
@@ -4041,12 +4499,21 @@ function openPage(id, push) {
     } catch (e) {}
   }
   try {
-    root.querySelector('.dg-page-x').focus();
+    // Focus the page title, not the ✕ — focusing Close means Enter dismisses the page.
+    var dgH = root.querySelector('h1,h2');
+    if (dgH) { dgH.setAttribute('tabindex', '-1'); dgH.focus({ preventScroll: true }); }
+    else root.querySelector('.dg-page-x').focus();
   } catch (e) {}
-  // Deep-link Notes cards: /?p=blog#note-{slug} (or #slug) → open Full note + scroll
-  if (id === 'blog') focusBlogNoteFromHash(root);
+  // Deep-link Notes cards: render from DG_BLOG_POSTS + deep-link Full note
+  if (id === 'blog') {
+    try {
+      blogPageMount(root);
+    } catch (eBlog) {}
+    focusBlogNoteFromHash(root);
+  }
   if (id === 'events') {
     try {
+      eventsBotCalendarMount(root);
       eventsBotCycleMount(root);
       eventsBotOffersMount(root);
       eventsBotExtraMount(root);
@@ -4091,6 +4558,190 @@ function openPage(id, push) {
     else if(!ev.shiftKey&&document.activeElement===last){ev.preventDefault();first.focus();}
   });
   return true;
+}
+/** Published posts newest-first (SoR may already be sorted by bin/dg-blog sync). */
+function blogPostsSorted() {
+  var posts = Array.isArray(DG_BLOG_POSTS) ? DG_BLOG_POSTS.slice() : [];
+  posts.sort(function (a, b) {
+    var da = String((a && a.publishedAt) || '');
+    var db = String((b && b.publishedAt) || '');
+    if (da !== db) return db < da ? -1 : db > da ? 1 : 0;
+    return String((a && a.slug) || '').localeCompare(String((b && b.slug) || ''));
+  });
+  return posts;
+}
+function blogBodyHtml(body) {
+  var raw = String(body || '').trim();
+  if (!raw) return '';
+  return raw
+    .split(/\n\n+/)
+    .map(function (para) {
+      return '<p>' + esc(para.replace(/\n/g, ' ').trim()) + '</p>';
+    })
+    .filter(function (p) {
+      return p !== '<p></p>';
+    })
+    .join('');
+}
+/** Build one blog article card HTML (shared home + full page). */
+function blogCardHtml(p, opts) {
+  opts = opts || {};
+  var slug = esc(p.slug || '');
+  var cat = esc(p.category || 'Note');
+  var title = esc(p.title || '');
+  var sum = esc(p.summary || '');
+  var bodyHtml = blogBodyHtml(p.body || '');
+  var img = esc(p.image || '');
+  var alt = esc(p.imageAlt || p.title || 'Blog post');
+  var date = esc(p.publishedAt || '');
+  if (opts.teaser) {
+    return (
+      '<a class="dg-blog-home-card" href="/?p=blog#note-' +
+      slug +
+      '" data-dg-page="blog" data-dg-note="' +
+      slug +
+      '">' +
+      (img ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" decoding="async" width="1200" height="675">' : '') +
+      '<strong>' +
+      title +
+      '</strong><span>' +
+      sum +
+      '</span></a>'
+    );
+  }
+  return (
+    '<article class="dg-blog-card" id="note-' +
+    slug +
+    '" data-blog-cat="' +
+    cat +
+    '">' +
+    (img
+      ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" decoding="async" width="1200" height="675">'
+      : '') +
+    '<div class="dg-blog-meta"><small>' +
+    cat +
+    '</small>' +
+    (date ? '<time datetime="' + date + '">' + date + '</time>' : '') +
+    '</div>' +
+    '<h3>' +
+    title +
+    '</h3><p>' +
+    sum +
+    '</p>' +
+    '<details class="dg-blog-more"><summary>Full note · ' +
+    title +
+    '</summary><div class="dg-blog-body">' +
+    bodyHtml +
+    '</div></details></article>'
+  );
+}
+/** Full /?p=blog page: category chips + grid from DG_BLOG_POSTS. */
+function blogPageMount(root) {
+  var grid = root && root.querySelector('#dg-blog-grid');
+  var filters = root && root.querySelector('#dg-blog-filters');
+  var empty = root && root.querySelector('#dg-blog-empty');
+  if (!grid || grid.dataset.dgBlog === '1') return;
+  grid.dataset.dgBlog = '1';
+  var posts = blogPostsSorted();
+  var cats = ['All'];
+  var catCount = { All: posts.length };
+  posts.forEach(function (p) {
+    var c = p.category || 'Note';
+    if (cats.indexOf(c) < 0) cats.push(c);
+    catCount[c] = (catCount[c] || 0) + 1;
+  });
+  var active = 'All';
+  function render() {
+    var list = posts.filter(function (p) {
+      return active === 'All' || (p.category || 'Note') === active;
+    });
+    grid.innerHTML = list
+      .map(function (p) {
+        return blogCardHtml(p);
+      })
+      .join('');
+    if (empty) empty.hidden = list.length > 0;
+    if (filters) {
+      filters.querySelectorAll('.dg-blog-chip').forEach(function (btn) {
+        var on = btn.getAttribute('data-cat') === active;
+        btn.classList.toggle('is-on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+    try {
+      addMotion();
+    } catch (e0) {}
+  }
+  if (filters) {
+    filters.innerHTML = cats
+      .map(function (c) {
+        var n = catCount[c] || 0;
+        return (
+          '<button type="button" class="dg-blog-chip' +
+          (c === 'All' ? ' is-on' : '') +
+          '" data-cat="' +
+          esc(c) +
+          '" aria-pressed="' +
+          (c === 'All' ? 'true' : 'false') +
+          '">' +
+          esc(c) +
+          ' <span class="dg-blog-chip-n">' +
+          n +
+          '</span></button>'
+        );
+      })
+      .join('');
+    filters.querySelectorAll('.dg-blog-chip').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        active = btn.getAttribute('data-cat') || 'All';
+        render();
+      });
+    });
+  }
+  render();
+}
+/** Homepage teaser: 3 latest posts above footer. */
+function injectBlogHome() {
+  if (q('#dg-blog-home')) return;
+  var posts = blogPostsSorted();
+  if (!posts.length) return;
+  // #dg-blog-home styles live in pageCss(); on home no ?p= page opens, so nothing injected them
+  // and the teaser rendered unstyled (grid->block, head->block, link inline 22px). Idempotent.
+  try { pageCss(); } catch (e) {}
+  var f = q('footer,.footer');
+  if (!f || !f.parentNode) return;
+  var sec = document.createElement('section');
+  sec.id = 'dg-blog-home';
+  sec.setAttribute('aria-label', 'Blog');
+  var top = posts.slice(0, 3);
+  sec.innerHTML =
+    '<div class="dg-blog-home-head">' +
+    '<h2>From the blog</h2>' +
+    '<a class="dg-blog-home-all" href="/?p=blog" data-dg-page="blog">All posts →</a>' +
+    '</div>' +
+    '<div class="dg-blog-home-grid">' +
+    top
+      .map(function (p) {
+        return blogCardHtml(p, { teaser: true });
+      })
+      .join('') +
+    '</div>';
+  f.parentNode.insertBefore(sec, f);
+  sec.querySelectorAll('a[data-dg-page="blog"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var note = a.getAttribute('data-dg-note');
+      if (note) {
+        try {
+          history.replaceState(null, '', '/?p=blog#note-' + note);
+        } catch (err) {}
+      }
+      openPage('blog', true);
+    });
+  });
+  try {
+    addMotion();
+  } catch (e1) {}
 }
 /** Deep-link Notes: open Full note + title + scroll for #note-{slug} (or bare slug). */
 function focusBlogNoteFromHash(root) {
@@ -4193,7 +4844,7 @@ function deepLink(){
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('partners',false); window.__dgDeepLinked=1; return; }
-    if(/^note-/.test(h)||/^(90-day-outcomes|both-approve|ten-percent|private-match-notes|human-review-over-volume)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
+    if(/^note-/.test(h)||/^(first-year-cash-not-equity-fog|match-note-anti-patterns|no-public-talent-feed|sf-events-calendar|sf-night-is-not-a-pipeline-hack|what-talent-sees|when-not-to-intro|90-day-outcomes|both-approve|human-review-over-volume|private-match-notes|ten-percent)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
     if(!w)return;
     var open=function(){
       if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
@@ -4214,13 +4865,13 @@ function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement
 
 function wizResumeToast(modal){
   try{
-    if(window.__dgWizStore!==true)return;
-    if(!modal||q('#dg-wiz-resume',modal))return;
-    var id=modal.id||'';
-    var key=id.indexOf('startup')>=0?'dgWizSave_startup':(id.indexOf('jobseeker')>=0||id.indexOf('engineer')>=0?'dgWizSave_engineer':null);
-    if(!key)return;
-    var s=JSON.parse(localStorage.getItem(key)||'null');
-    if(!s||!s.answers||Object.keys(s.answers).length<1)return;
+    /* v646: fire only when wizBuild actually resumed a sessionStorage draft. The old guard read
+       window.__dgWizStore (hardcoded false) and localStorage (wizBuild clears it), so v604's
+       same-session resume silently jumped the user mid-form with no explanation. */
+    if(!modal||modal.querySelector('#dg-wiz-resume'))return;
+    var rf=modal.querySelector('form');
+    if(!rf||rf.dataset.dgWizResumed!=='1')return;
+    delete rf.dataset.dgWizResumed;
     var t=document.createElement('p');
     t.id='dg-wiz-resume';
     t.setAttribute('role','status');
@@ -4541,21 +5192,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     return 'p' + Math.random().toString(36).slice(2, 10);
   }
 
-  function normalizeChar(ch) {
-    if (!ch || typeof ch !== 'object') return ch;
-    ch.inv = ch.inv || [];
-    ch.eq = ch.eq || {};
-    ch.position = ch.position || 'standing';
-    ch.title = ch.title || '';
-    ch.ignore = ch.ignore || [];
-    ch.afk = !!ch.afk;
-    ch.follow = ch.follow || '';
-    ch.group = ch.group || [];
-    ch.lastTell = ch.lastTell || '';
-    ch.xp = ch.xp || 0;
-    ch.brief = !!ch.brief;
-    return ch;
-  }
+  
   function loadChar() {
     try {
       var j = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem('dgMudChar_v1') || 'null');
@@ -6072,7 +6709,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-window.__dgFootVer='639';console.log('Demigod v637');
+window.__dgFootVer='662';console.log('Demigod v662');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
