@@ -693,7 +693,7 @@ check('head:og:title', head.includes('og:title'));
         /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
       )) {
         const body = String(m[1] || '').trim();
-        if (/"@type"\s*:\s*"Blog"/.test(body) && /BlogPosting/.test(body)) {
+        if (/"@type"\s*:\s*"Blog"/.test(body) && (/"blogPost"\s*:/.test(body) || /BlogPosting/.test(body))) {
           blogBlock = body;
           break;
         }
@@ -702,8 +702,9 @@ check('head:og:title', head.includes('og:title'));
       const dateN = (blogBlock.match(/"datePublished"\s*:\s*"[^"]+"/g) || []).length;
       const modN = (blogBlock.match(/"dateModified"\s*:\s*"[^"]+"/g) || []).length;
       // Exact count: BlogPosting[] must equal published SoR (no draft leaks in LD).
+      // Empty catalog: Blog shell with zero BlogPosting is honest.
       blogLdDatesOk =
-        pubN > 0 && postN === pubN && dateN === postN && modN === postN;
+        postN === pubN && dateN === postN && modN === postN && !!blogBlock;
       blogLdDetail = blogLdDatesOk
         ? null
         : `posts=${postN} dates=${dateN} modified=${modN} publishedSoR=${pubN}`;
@@ -738,7 +739,7 @@ check('head:og:title', head.includes('og:title'));
           }
         }
         if (ldPosts.length !== pubN) miss.push(`count=${ldPosts.length}!=${pubN}`);
-        blogLdSorOk = pubN > 0 && miss.length === 0 && ldPosts.length === pubN;
+        blogLdSorOk = miss.length === 0 && ldPosts.length === pubN && !!ld;
         blogLdSorDetail = blogLdSorOk ? null : miss.slice(0, 6).join(',') || 'empty';
         // Blog publisher must match Organization name+url + square brand logo (knowledge-graph honesty).
         const publisher =
@@ -793,7 +794,7 @@ check('head:og:title', head.includes('og:title'));
           }
         }
         blogLdAuthorOk =
-          pubN > 0 && ldPosts.length >= pubN && badAuthors.length === 0;
+          ldPosts.length === pubN && badAuthors.length === 0;
         blogLdAuthorDetail = blogLdAuthorOk
           ? null
           : badAuthors.length
@@ -809,7 +810,7 @@ check('head:og:title', head.includes('og:title'));
             badLang.push(slug ? slug[1] : 'post');
           }
         }
-        blogLdLangOk = pubN > 0 && ldPosts.length >= pubN && badLang.length === 0;
+        blogLdLangOk = ldPosts.length === pubN && badLang.length === 0;
         blogLdLangDetail = blogLdLangOk
           ? null
           : `badLang=${badLang.slice(0, 4).join(',')}`;
@@ -836,7 +837,7 @@ check('head:og:title', head.includes('og:title'));
             mepMiss.push(slug || 'unknown');
           }
         }
-        blogLdMepOk = pubN > 0 && mepMiss.length === 0 && ldPosts.length === pubN;
+        blogLdMepOk = mepMiss.length === 0 && ldPosts.length === pubN;
         blogLdMepDetail = blogLdMepOk ? null : mepMiss.slice(0, 6).join(',') || 'empty';
       } catch (e2) {
         blogLdSorOk = false;
@@ -1297,6 +1298,21 @@ check('head:cdn-stylesheet', cdnHeadCss || head.includes('<style'));
   check('head:inline-scripts-parse', headScriptsOk, badDetail);
 }
 
+// Parse foot-core itself (vm.Script = compile-only, like `node --check`; browser globals never run).
+// The head got a parse gate after a SyntaxError'd unhide script shipped; foot-core -- the file agents
+// edit most, ~40 bumps/day -- had none. Every other core: check greps SUBSTRINGS of coreJs, so a
+// SyntaxError that leaves those substrings intact passes them all: the exact v150 failure, "grep gates
+// green on a file that does not parse". The ship path catches it (ship-status disk_syntax), but the
+// mandated post-edit set (verify:source + board-honesty + loop-state) did NOT -- an agent editing
+// foot-core saw three green gates on a broken file until the ship failed. Verified before adding:
+// vm.Script parses the real foot-core, throws on broken syntax, no top-level import/export to false-fail.
+if (cdnFoot && coreJs) {
+  let coreParses = true;
+  let coreDetail = '';
+  try { new vm.Script(coreJs); } catch (e) { coreParses = false; coreDetail = 'foot-core SyntaxError: ' + String(e.message).slice(0, 120); }
+  check('core:parses', coreParses, coreDetail);
+}
+
 if (cdnFoot) {
   // Attribute order is not semantically significant. The canonical loader
   // carries an id before src so ship tooling can recognize hashed fallbacks.
@@ -1536,7 +1552,7 @@ if (cdnFoot) {
         }
       }
       const moreCount = (coreJs.match(/class="dg-blog-more"/g) || []).length;
-      if (published.length === 0) missing.push('no-published');
+      // Empty published catalog is allowed (wipe / pre-content); dynamic SoR must still exist.
       if (!dynamicSor) {
         if (moreCount < published.length) missing.push(`details=${moreCount}<${published.length}`);
         const labeled = (coreJs.match(/<summary>Full note · /g) || []).length;
