@@ -107,7 +107,7 @@ function updateFooterLite(cdnUrl, ver) {
 <script>(function(){var p=location.pathname;
 if(/^\\/legal\\/?$/i.test(p)&&!/#privacy|#terms/.test(location.hash))location.replace('/#legal');
 else if(/^\\/partnerships?\\/?$/i.test(p)&&location.hash!=='#partnerships')location.replace('/#partnerships');
-else if(/^\\/events\\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
+else if(/^\\/events\\/?$/i.test(p))location.replace('/?p=events');
 })();</script>
 <script src="${cdnUrl}"></script>
 ${soft}`;

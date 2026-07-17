@@ -900,7 +900,7 @@ else if(/^\\/compare\\/?$/i.test(p))location.replace('/?p=compare');
 else if(/^\\/pilot\\/?$/i.test(p))location.replace('/?p=pilot');
 else if(/^\\/about\\/?$/i.test(p))location.replace('/?p=about');
 else if(/^\\/status\\/?$/i.test(p))location.replace('/?p=status');
-else if(/^\\/events\\/?$/i.test(p))location.replace('https://files.catbox.moe/m22wy3.html');
+else if(/^\\/events\\/?$/i.test(p))location.replace('/?p=events');
 })();</script>`;
 const webhookUrl = resolveWebhookPublicUrl();
 const webhookScript = webhookUrl ? `<script>window.__dgWebhookUrl=${JSON.stringify(webhookUrl)};</script>\n` : '';

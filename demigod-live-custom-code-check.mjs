@@ -105,7 +105,7 @@ async function main() {
     live: { footerCdn: liveCdn, loader: liveLoader, lastPublished: pub?.slice?.(0, 60) || pub },
     api,
     events: {
-      hosted: 'https://files.catbox.moe/m22wy3.html',
+      hosted: 'https://www.trydemigod.com/?p=events',
       local: 'http://127.0.0.1:3460/events',
     },
     fix: match
