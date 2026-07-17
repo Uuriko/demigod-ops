@@ -28,6 +28,11 @@ export const BOARD_AUDIT = IS_TEST
   : path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
 export const INBOX_PATH = process.env.DEMIGOD_INBOX_PATH
   || (IS_TEST ? path.join(TEST_DIR, 'test-submissions-inbox.json') : path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'));
+// Mirror BOARD_LOCK: the leads inbox needs the same read-modify-write serialization the board has.
+// atomicWrite stops a torn READ but not a LOST UPDATE -- two concurrent ingests both loadInbox() the
+// same snapshot, both prepend, the second saveInbox() clobbers the first, and a real submission
+// vanishes. ingestSubmission is the live webhook path, so simultaneous form posts hit exactly this.
+export const INBOX_LOCK = INBOX_PATH + '.lock';
 
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
 const VERTICAL_RE = /\b(b2b\s*saas?|consumer|fintech|healthtech|devtools|ai|marketplace|hardware)\b/i;
@@ -390,21 +395,35 @@ export function mintBoardEntry(submission, opts = {}) {
 export function ingestSubmission(body = {}, opts = {}) {
   const formName = (body.name || body.formName || body['form-name'] || '').toLowerCase();
   const data = body.data || body.fields || body;
-  const inbox = loadInbox();
   const board = loadBoard();
   const autoFeature = opts.autoFeature === true || process.env.DEMIGOD_AUTO_FEATURE === '1';
-  const gate = shouldAutoReject(data, formName, inbox);
 
-  const record = {
-    id: slugId('sub'),
-    at: new Date().toISOString(),
-    form: formName,
-    raw: { ...data },
-    status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : 'new',
-    rejectReasons: gate.reject ? gate.reasons : undefined,
-  };
-  inbox.items = [record, ...(inbox.items || [])].slice(0, 200);
-  saveInbox(inbox);
+  // Serialize the whole inbox read-modify-write, not just the write. atomicWrite already stops a
+  // torn read; this stops a LOST UPDATE -- two concurrent ingests both loadInbox() the same snapshot,
+  // both prepend, the second saveInbox() clobbers the first, dropping a real submission. The board
+  // does exactly this via writeBoard()/withFileLock(BOARD_LOCK); the inbox was the asymmetry. The
+  // dup-check (shouldAutoReject reads the inbox) belongs inside the lock too, or two identical posts
+  // race the dedupe. record is captured out here for the featuring step below.
+  let inbox;
+  let record;
+  withFileLock(
+    INBOX_LOCK,
+    () => {
+      inbox = loadInbox();
+      const gate = shouldAutoReject(data, formName, inbox);
+      record = {
+        id: slugId('sub'),
+        at: new Date().toISOString(),
+        form: formName,
+        raw: { ...data },
+        status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : 'new',
+        rejectReasons: gate.reject ? gate.reasons : undefined,
+      };
+      inbox.items = [record, ...(inbox.items || [])].slice(0, 200);
+      saveInbox(inbox);
+    },
+    { timeoutMs: 20000, staleMs: 120000 },
+  );
 
   let featured = null;
   if (autoFeature) {
