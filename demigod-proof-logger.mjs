@@ -29,6 +29,17 @@ function loadLog() {
   try {
     return JSON.parse(fs.readFileSync(PROOF_LOG, 'utf8'));
   } catch {
+    // Preserve a corrupt-but-present proof ledger before the next save overwrites it with this empty
+    // default -- otherwise a single corrupt read silently wipes EVERY logged proof. Proofs are a
+    // current-phase deliverable, each one a real delivery/testimonial; total silent loss is
+    // unacceptable. Missing file (ENOENT) is a normal fresh start; a parse error on existing bytes is
+    // not. Same guard as loadInbox (665d0da). (Lower-priority follow-ups noted for this file: the plain
+    // writeFileSync at the save site, and the ~100/6 entry caps -- one-shot CLI, so low urgency.)
+    try {
+      if (fs.existsSync(PROOF_LOG)) fs.copyFileSync(PROOF_LOG, `${PROOF_LOG}.corrupt.${Date.now()}`);
+    } catch {
+      /* best-effort preservation; never block the fresh start */
+    }
     return { entries: [] };
   }
 }
