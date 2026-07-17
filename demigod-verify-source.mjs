@@ -6,7 +6,8 @@
  *   node demigod-verify-source.mjs
  *
  * Checks: foot-core parse/boot markers, head-minimal, footer-lite CDN shape,
- * no banned MCP rewrite scripts, WIZ ownership markers. Writes DEMIGOD-VERIFY-SOURCE.json.
+ * no banned MCP rewrite scripts, WIZ ownership markers. Best-effort writes
+ * DEMIGOD-VERIFY-SOURCE.json (non-fatal if read-only sandbox — VERDICT + exit code are the product).
  * Not live truth — pair with bin/dg truth / live-attest for deploy equality.
  */
 import fs from 'fs';
@@ -43,7 +44,12 @@ const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined
 // exactly the failure mode: unmeasured means unbounded. Fail loudly BEFORE the paste, not after.
 {
   const CAP = 50000;
-  const n = head.length;
+  // BYTES, not head.length. `.length` counts UTF-16 code units, and the head carries 31 non-ASCII
+  // chars (14 em-dashes, 12 en-dashes, 3 bullets, a middot, a curly apostrophe) = 61 extra UTF-8
+  // bytes today. Whether Webflow's cap counts characters or bytes is NOT established, so take the
+  // stricter reading: if it caps bytes this is correct; if it caps chars this only fails ~61 bytes
+  // early out of 50,000 (0.12%). Cheap insurance against a limit whose breach is SILENT.
+  const n = Buffer.byteLength(head, 'utf8');
   check(
     'head:size-under-cap',
     n <= CAP,
@@ -1671,10 +1677,15 @@ for (const f of requiredScripts) {
 
 const pass = checks.every((c) => c.ok);
 const out = { at: new Date().toISOString(), architecture: 'head-minimal-css + foot-core-cdn', checks, pass };
-// Atomic write: the coord runs its own verify:source gate concurrently with autopilot/dashboard,
-// so a direct writeFileSync can be read/re-read torn → transient false FAIL. temp+rename is atomic.
-const OUT_TMP = `${OUT}.${process.pid}.tmp`;
-fs.writeFileSync(OUT_TMP, JSON.stringify(out, null, 2));
-fs.renameSync(OUT_TMP, OUT);
+// Atomic write: coord + autopilot run this gate concurrently; direct write can be read torn.
+// Write is best-effort: Codex (and other agents) run in read-only sandbox on purpose — EROFS
+// must not abort before VERDICT + exit code. JSON is a convenience for dash/coord, not the product.
+try {
+  const OUT_TMP = `${OUT}.${process.pid}.tmp`;
+  fs.writeFileSync(OUT_TMP, JSON.stringify(out, null, 2));
+  fs.renameSync(OUT_TMP, OUT);
+} catch (e) {
+  console.error('warn: could not write verify-source json (read-only ok):', e.message || e);
+}
 console.log(JSON.stringify({ pass, failed: checks.filter((c) => !c.ok).map((c) => c.name), out: OUT }));
 process.exit(pass ? 0 : 1);

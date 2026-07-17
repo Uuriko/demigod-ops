@@ -49,6 +49,11 @@ fi
 # demigod-events-bot: same class of bug via demigod-events-online.mjs startApp() detached+unref
 # (NRestarts 1740+, MainPID=0, orphan PPID 1 on :3460). Only add to watch AFTER spawner prefers
 # the unit — a permanently red signal is worth less than no signal.
+# CONSTRAINT: only Type=simple (long-running) units belong here. A Type=oneshot unit RESTS at
+# `inactive` between timer firings -- that is its healthy state -- so adding one makes this print
+# down= for a service that is fine, forever. demigod-quality-loop / -agent-coord-watchdog /
+# -codex-swarm are exactly that shape (oneshot + active timer); I misread all three as "dead" once.
+# Check `systemctl --user show -p Type --value <unit>` before adding. All 7 below are Type=simple.
 SVCS=(demigod-agent-coord claude-yolo demigod-dash demigod-events-bot swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
 down=()
 for s in "${SVCS[@]}"; do
