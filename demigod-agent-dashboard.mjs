@@ -3472,20 +3472,20 @@ function startJob(toolId, { allowMutate = false } = {}) {
       }
       fs.mkdirSync(BUSY, { recursive: true });
       mutateLockToken = crypto.randomUUID();
-      fs.writeFileSync(
-        lockPath,
-        JSON.stringify(
-          {
-            owner: `dash:${toolId}`,
-            pid: process.pid,
-            at: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-            token: mutateLockToken,
-          },
-          null,
-          2,
-        ) + '\n',
-      );
+      // writeJsonAtomic (:77 in this file) instead of a bare writeFileSync. The mutate lock was the
+      // one file here written non-atomically -- writeFileSync truncates then writes, so a concurrent
+      // reader can land on the 0-byte window. Acquire reads it via safeJson, which returns null on any
+      // parse error, and then tests `if (cur && ...)` -- so an empty read means "no lock held" and TWO
+      // mutating jobs run at once. That is the opposite of the acquire path's stated policy ("Fail
+      // closed for corrupt/legacy leases"), and it defeats the lock exactly when it is under load.
+      // The helper was written for this race; its own comment describes it.
+      writeJsonAtomic(lockPath, {
+        owner: `dash:${toolId}`,
+        pid: process.pid,
+        at: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        token: mutateLockToken,
+      });
     } catch (e) {
       return { ok: false, error: 'mutate lock failed: ' + String(e.message || e) };
     }
@@ -4999,20 +4999,22 @@ const server = http.createServer(async (req, res) => {
         } catch (e) {
           footNotes = { ok: false, shipReady: false, error: String(e.message || e).slice(0, 120) };
         }
-        // Foot version markers (banner / __dgFootVer / dgFootVersion) — thrash leaves splits mid-edit
+        // Foot version markers — thrash leaves splits mid-edit
         let footMarkers = { ok: false, agree: false };
         try {
           const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
           const banner = (core.match(/dg-foot-v(\d+)-core/) || [])[1] || null;
           const internal = (core.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
           const publicV = (core.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
-          const agree = !!(banner && internal && publicV && banner === internal && internal === publicV);
+          const booted = (core.match(/foot v(\d+)-core loaded/) || [])[1] || null;
+          const agree = !!(banner && internal && publicV && booted && new Set([banner, internal, publicV, booted]).size === 1);
           footMarkers = {
             ok: true,
             agree,
             banner: banner ? `v${banner}` : null,
             internal: internal ? `v${internal}` : null,
             public: publicV ? `v${publicV}` : null,
+            booted: booted ? `v${booted}` : null,
           };
         } catch (e) {
           footMarkers = { ok: false, agree: false, error: String(e.message || e).slice(0, 80) };
@@ -5060,7 +5062,7 @@ const server = http.createServer(async (req, res) => {
             diskReadyNote = 'head.css lag AND foot not sealed — ship foot then CSS';
           }
         } else if (diskReadyBlockers.includes('foot.markers')) {
-          diskReadyNote = 'foot version markers disagree (banner/internal/public) — finish foot bump under lock';
+          diskReadyNote = 'foot version markers disagree (banner/internal/public/booted) — finish foot bump under lock';
         }
         const diskReady = {
           ok: diskReadyBlockers.length === 0,
@@ -5075,7 +5077,7 @@ const server = http.createServer(async (req, res) => {
           codex: 'tools',
           grok: 'gates',
           rules:
-            'claude=foot/head/blog via dg-lock; codex=dash/tools only (no foot-core); grok=verify+coord+light head/blog',
+            'claude=foot/head/blog via dg-lock; codex=dash/tools only (no foot-core); grok=verify+coord (website SoR only by explicit board assignment)',
         };
         let claims = safeJson(path.join(coordDir, 'claims.json'));
         // Drop stale holds independently; legacy strings fall back to claims.at.
@@ -5472,7 +5474,7 @@ const server = http.createServer(async (req, res) => {
                   changedSinceClaim: lk?.changedSinceClaim ?? null,
                 };
               } catch (e) {
-                return { locked: false, free: true, error: String(e.message || e).slice(0, 80) };
+                return { locked: null, free: false, error: String(e.message || e).slice(0, 80) };
               }
             })(),
             webflow: webflow
@@ -5965,7 +5967,7 @@ server.on('error', (error) => {
     host: '127.0.0.1',
     port: PORT,
   }));
-  process.exitCode = 1;
+  process.exitCode = error?.code === 'EADDRINUSE' ? 98 : 1;
 });
 
 server.listen(PORT, '127.0.0.1', () => {
