@@ -1,4 +1,4 @@
-/*dg-foot-v624-core*/
+/*dg-foot-v631-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v624'; console.log('[demigod] foot v624-core loaded');
+window.dgFootVersion = 'v631'; console.log('[demigod] foot v631-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -1963,15 +1963,15 @@ function ensureMotion(){
   }
 }
 
-/* v623: Converge symbol (Fable) — dual solid wedges + match core; re-apply when data-v changes */
+/* v631: Mutual Signal restored — original green orb */
 function ensureLogo(){
   try{
-    var mark='<svg class="dg-mark" data-v="623" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="#03140d"/><path d="M4 7 L11 16 L4 25 Z" fill="#a6ffcb"/><path d="M28 7 L21 16 L28 25 Z" fill="#10c674"/><circle cx="16" cy="16" r="3" fill="#a6ffcb"/></svg>';
+    var mark='<svg class="dg-mark" data-v="631" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="#03140d"/><circle cx="16" cy="16" r="11" fill="none" stroke="#a6ffcb" stroke-width="1.25" opacity="0.55"/><path d="M10.5 16a5.5 5.5 0 0 1 5.5-5.5" fill="none" stroke="#a6ffcb" stroke-width="2.25" stroke-linecap="round"/><path d="M21.5 16a5.5 5.5 0 0 1-5.5 5.5" fill="none" stroke="#10c674" stroke-width="2.25" stroke-linecap="round"/><circle cx="16" cy="16" r="2.35" fill="#a6ffcb"/></svg>';
     qa('a.nav_logo,.nav_logo,a.w-nav-brand,a.logo-link,.logo-link,.w-nav-brand').forEach(function(a){
       if(!a)return;
       a.setAttribute('aria-label','Demigod home');
-      if(a.querySelector('svg.dg-mark[data-v="623"]')){a.dataset.dgMark='623';return;}
-      a.dataset.dgMark='623';
+      if(a.querySelector('svg.dg-mark[data-v="631"]')){a.dataset.dgMark='631';return;}
+      a.dataset.dgMark='631';
       var icon=a.querySelector('.nav_logo-icon');
       if(icon){
         icon.innerHTML=mark;
@@ -1988,11 +1988,15 @@ function ensureLogo(){
       var name=a.querySelector('[data-brand-name],.paragraph_large');
       if(name){name.textContent='Demigod';name.setAttribute('data-brand-name','true');}
     });
-    if(document.documentElement.dataset.dgFav!=='623'){
-      document.documentElement.dataset.dgFav='623';
+    if(document.documentElement.dataset.dgFav!=='631'){
+      document.documentElement.dataset.dgFav='631';
       try{
-        var href='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Cpath%20d%3D%22M4%207%20L11%2016%20L4%2025%20Z%22%20fill%3D%22%23a6ffcb%22/%3E%3Cpath%20d%3D%22M28%207%20L21%2016%20L28%2025%20Z%22%20fill%3D%22%2310c674%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%223%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E';
-        qa('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.parentNode&&l.parentNode.removeChild(l);});
+        var href='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2211%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%221.25%22%20opacity%3D%220.55%22/%3E%3Cpath%20d%3D%22M10.5%2016a5.5%205.5%200%200%201%205.5-5.5%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M21.5%2016a5.5%205.5%200%200%201-5.5%205.5%22%20fill%3D%22none%22%20stroke%3D%22%2310c674%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%222.35%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E';
+        /* v631: also strip apple-touch-icon. Webflow injects its factory webclip.png as one, and
+           the head keeps regaining catbox .jpg favicons (alnuu9 -> op4166 -> 5hnii5 within minutes)
+           — a 1024px JPEG is the wrong format for a favicon and catbox is the host family whose
+           immutable caching burned us before. Runtime wins over whatever the head currently holds. */
+        qa('link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(l){l.parentNode&&l.parentNode.removeChild(l);});
         var link=document.createElement('link');link.rel='icon';link.type='image/svg+xml';link.href=href;document.head.appendChild(link);
         var apple=document.createElement('link');apple.rel='apple-touch-icon';apple.href=href;document.head.appendChild(apple);
       }catch(eFav){}
@@ -4995,7 +4999,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   };
 });
 
-window.__dgFootVer='624';console.log('Demigod v623');
+window.__dgFootVer='631';console.log('Demigod v631');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
