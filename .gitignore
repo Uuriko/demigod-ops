@@ -118,3 +118,6 @@ grok-tail.txt
 .firecrawl-key
 .config/firecrawl/
 
+
+# Agent status scratch with a personal email (ORCA pair status).
+ORCA-PAIR-EMAIL-STATUS.txt
