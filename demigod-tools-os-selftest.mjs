@@ -2767,8 +2767,13 @@ ok(
       /pilotPath\(footLoader\)/.test(verifySrc) &&
       /core:pilot-page/.test(verifySrc) &&
       /data-dg-page=\["']pilot\["']/.test(verifySrc) &&
-      /title:\s*\['"]Pilot\['"]/.test(verifySrc) &&
-      /data-dg-page=["']pilot["']/.test(verifySrc),
+      // #9/#10 rewritten. verify-source's core:pilot-page gate is itself written AS REGEXES, so
+      // its source text reads  title:\s*['"]Pilot['"]  — a BACKSLASH follows "title:", not
+      // whitespace, and a "[" follows "data-dg-page=", not a quote. Both literal forms could
+      // never match at any version. The gate genuinely locks both (its own regexes test true
+      // against foot-core). Match the literal regex text; the data-dg-page literal was also
+      // redundant with the char-class assertion above.
+      /title:\\s\*\['"\]Pilot/.test(verifySrc),
     'verify-source footer:pilot-path locks lite+loader /pilot→?p=pilot + core:pilot-page legal-nav (c309/c333)',
   );
   ok(
