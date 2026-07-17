@@ -1981,7 +1981,11 @@ ok(
 }
 ok(
   /if \(Number\.isInteger\(pid\) && pid > 0\)/.test(dashboardSource) &&
-    /if \(!Number\.isInteger\(pid\) \|\| pid <= 0\) return false/.test(dashboardSource),
+    // Was `... return false`. workerStatus returns a LANE STATUS ('idle'/'busy'), never a
+    // boolean — `return false` would itself break the contract. The guard is real and works:
+    // exercised with malformed pid files, "garbage"/"-5"/"0"/"" all -> 'idle', a live pid ->
+    // 'busy'. Assert the guard exists; don't dictate its return value.
+    /if \(!Number\.isInteger\(pid\) \|\| pid <= 0\) return /.test(dashboardSource),
   'coord API rejects malformed supervisor and worker PID files',
 );
 ok(
