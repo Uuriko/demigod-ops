@@ -1,4 +1,4 @@
-/*dg-foot-v607-core*/
+/*dg-foot-v624-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v607'; console.log('[demigod] foot v607-core loaded');
+window.dgFootVersion = 'v624'; console.log('[demigod] foot v624-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -401,6 +401,17 @@ var WIZ_Q={
     '__submit__':{q:'Ready?',h:'Submit when it looks right. Private until you approve a match.'}
   }
 };
+/* v624: only probe a localhost API when the page is ITSELF served from localhost. On production
+   the events-bot (:3460) and MUD (:3461) probes fired at every VISITOR'S OWN machine — 16 and 12
+   console errors per view, mixed-content (http from https), and a pattern Chrome's Private
+   Network Access is progressively blocking. Both features already fall back to offline/solo, so
+   dropping the probe costs prod nothing; dev on localhost is unchanged. */
+function dgLocalOk(u){
+  try {
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return true;
+    return !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/)/.test(u);
+  } catch (e) { return true; }
+}
 function q(s){return document.querySelector(s)}
 function qa(s,r){return[...(r||document).querySelectorAll(s)]}
 
@@ -417,15 +428,31 @@ function renderBoard(){var blk=q('#demigod-trust-block');if(!blk||!BOARD)return;
 // Consolidated force helper to simplify duplicate !important code across wizBuild/showStep/show
 function forceWizVisible(form, modal) {
   /* v195: shell + chrome only — never force all fields (kills one-question contract) */
+  /* v617: never force CLOSED hire/talent modals open (was blanking homepage with dual overlays) */
   if (form) {
     form.classList.remove('w-form-loading');
     form.style.setProperty('display', 'block', 'important');
     form.style.setProperty('visibility', 'visible', 'important');
-    var p = form; while (p && p !== document.body) { try { p.style.setProperty('display','block','important'); p.style.visibility='visible'; }catch(e){} p=p.parentElement; }
+    var p = form;
+    while (p && p !== document.body) {
+      try {
+        if (p.matches && p.matches('#startup-modal,#jobseeker-modal,.modal-overlay')) {
+          /* skip forcing closed modal shells */
+          var isOpen = OPEN && (p === q(OPEN) || ('#' + (p.id || '') === OPEN));
+          if (!isOpen) { p = p.parentElement; continue; }
+        }
+        p.style.setProperty('display', p.matches && p.matches('#startup-modal,#jobseeker-modal') ? 'flex' : 'block', 'important');
+        p.style.visibility = 'visible';
+      } catch (e) {}
+      p = p.parentElement;
+    }
   }
   if (modal) {
-    modal.style.setProperty('display', 'flex', 'important');
-    modal.style.setProperty('visibility', 'visible', 'important');
+    var open = OPEN && (modal === q(OPEN) || ('#' + (modal.id || '') === OPEN));
+    if (open) {
+      modal.style.setProperty('display', 'flex', 'important');
+      modal.style.setProperty('visibility', 'visible', 'important');
+    }
   }
   var root = modal || form;
   if (!root) return;
@@ -459,7 +486,7 @@ function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] i
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function skipLink(){try{var early=q('#dg-skip-early');if(early)early.remove()}catch(e){}if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to main content';a.setAttribute('aria-label','Skip to main content');a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#dg-page')||q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus({preventScroll:true});var beh=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth';if(t.scrollIntoView)t.scrollIntoView({block:'start',behavior:beh})}catch(err){try{t.focus()}catch(e2){}}});document.body&&document.body.prepend(a)}
 function faqBlock(){/* v210: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
-function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(sessionStorage.getItem('dgWizSave_startup')||sessionStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
+function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(sessionStorage.getItem('dgWizSave_startup')||sessionStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:linear-gradient(165deg,#083222,#03140d);border:1px solid rgba(166,255,203,.28);border-radius:8px;max-width:22rem;padding:1.1rem 1.2rem;color:#f3f0e7"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#a6ffcb;color:#03140d;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
 function proofStrip(){/* v210: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
 function contactStrip(){/* v210: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #a6ffcb;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
@@ -706,7 +733,7 @@ function wizBuild(form, kind) {
   var progressLabel = kind === 'startup' ? 'Hiring brief progress' : kind === 'engineer' ? 'Talent profile progress' : 'Application progress';
   head.innerHTML =
     '<div class="dg-wiz-progress">' +
-    '<div class="dg-wiz-count" aria-live="polite"><span class="dg-wiz-progress-label">Step </span><span class="dg-wiz-fraction"><span class="dg-cur">01 / ' + String(__dgWizTotal).padStart(2,'0') + '</span></span></div>' +
+    '<div class="dg-wiz-count" aria-live="polite"><span class="dg-cur">01 / ' + String(__dgWizTotal).padStart(2,'0') + '</span></div>' +
     '<div class="dg-wiz-bar" role="progressbar" aria-label="' + progressLabel + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i style="width:0%"></i></div>' +
     '</div>' +
     '<div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div>' +
@@ -864,6 +891,17 @@ function wizBuild(form, kind) {
       if (c && c.style) { c.style.setProperty('display', 'block', 'important'); c.classList.add('dg-wiz-show'); }
       var i = c && c.querySelector ? c.querySelector('input,select,textarea') : c;
       if (i && i.style) i.style.setProperty('display', 'block', 'important');
+      // hide native Webflow labels (WIZ question owns the text)
+      try {
+        qa('label.w-form-label, label[for], .w-form-label', c).forEach(function(lab){
+          if (lab.querySelector && lab.querySelector('input[type=checkbox],input[type=radio]')) return;
+          if (lab.tagName==='LABEL' && /checkbox|radio/i.test(lab.className||'')) return;
+          lab.style.setProperty('display','none','important');
+        });
+        if (i && i.id) {
+          qa('label[for="'+i.id+'"]', form).forEach(function(lab){ lab.style.setProperty('display','none','important'); });
+        }
+      } catch(eLab){}
     });
     // Force ONLY the current step key. Was ['contact-email','full-name', key] — a vis=0 band-aid
     // that force-showed those two on EVERY step, leaking them into later steps (user-confirmed bug).
@@ -1429,16 +1467,16 @@ function nav(){
 }
 function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="I\'m looking — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
-function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
+function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a><a href="/?p=mud" data-dg-page="mud">MUD</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function footerDecisionLinks(){/* v564: keep footer lean — no extra decision links */}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
-function hide(f){try{detachTrap(true)}catch(e){}[S,J].forEach(function(id){if(!f&&OPEN===id)return;var m=q(id);if(m){m.style.display='none';m.setAttribute('aria-hidden','true');try{m.inert=true}catch(e){m.setAttribute('inert','')}}}); if(document.body){ var prev = document.body.dataset.prevOverflow || ''; var sy = parseInt(document.body.dataset.prevScrollY || '0', 10); document.body.style.overflow = prev; document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; delete document.body.dataset.prevOverflow; delete document.body.dataset.prevScrollY; try { window.scrollTo(0, sy); } catch(e){} } if(document.documentElement) document.documentElement.style.overflow=''; try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){} }
+function hide(f){try{detachTrap(true)}catch(e){}[S,J].forEach(function(id){if(!f&&OPEN===id)return;var m=q(id);if(m){m.style.setProperty('display','none','important');m.style.setProperty('visibility','hidden','important');m.setAttribute('aria-hidden','true');try{m.inert=true}catch(e){m.setAttribute('inert','')}}}); if(document.body){ var prev = document.body.dataset.prevOverflow || ''; var sy = parseInt(document.body.dataset.prevScrollY || '0', 10); document.body.style.overflow = prev; document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; delete document.body.dataset.prevOverflow; delete document.body.dataset.prevScrollY; try { window.scrollTo(0, sy); } catch(e){} } if(document.documentElement) document.documentElement.style.overflow=''; try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){} }
 var busy=false,tmr=null,OBS=null,LAST_FOCUS=null,TRAP_H=null;
 function focusables(root){if(!root)return[];return qa('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',root).filter(function(el){try{var s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&!el.disabled}catch(e){return true}})}
 function attachTrap(m){detachTrap(false);LAST_FOCUS=document.activeElement;TRAP_H=function(e){if(e.key!=='Tab'||!OPEN)return;var modal=q(OPEN);if(!modal)return;var list=focusables(modal);if(!list.length){e.preventDefault();return}var first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();try{last.focus()}catch(_){}}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();try{first.focus()}catch(_){}}else if(!modal.contains(document.activeElement)){e.preventDefault();try{first.focus()}catch(_){}}};document.addEventListener('keydown',TRAP_H,true)}
 function detachTrap(restore){if(TRAP_H){document.removeEventListener('keydown',TRAP_H,true);TRAP_H=null}if(restore!==false&&LAST_FOCUS&&LAST_FOCUS.focus){try{LAST_FOCUS.focus()}catch(e){}}LAST_FOCUS=null}
 function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent=
-/* v607 frege-typeform WIZ — calm night card, serif Q, quiet progress, no gold */
+/* v617 frege-typeform WIZ (closed modals stay closed) — single card, kill Webflow gold shell, quiet progress */
 "#startup-modal,#jobseeker-modal{"
 +"--wiz-void:#020c08;--wiz-night:#03140d;--wiz-deep:#06271a;--wiz-field:#041a10;"
 +"--wiz-line:rgba(166,255,203,.22);--wiz-line-strong:rgba(166,255,203,.48);"
@@ -1450,71 +1488,112 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"}"
 +"#startup-modal,#jobseeker-modal{"
 +"background:rgba(2,12,8,.92)!important;backdrop-filter:blur(16px) saturate(1.08);"
-+"display:flex!important;align-items:center;justify-content:center;"
++"align-items:center;justify-content:center;"
 +"padding:max(.75rem,env(safe-area-inset-top)) max(.75rem,env(safe-area-inset-right)) max(.75rem,env(safe-area-inset-bottom)) max(.75rem,env(safe-area-inset-left))!important"
 +"}"
-+"#startup-modal .modal-content,#jobseeker-modal .modal-content{"
-+"position:relative;width:100%;max-width:26rem!important;margin:0 auto!important;"
-+"background:linear-gradient(165deg,#083222 0%,#03140d 55%,#020f0a 100%)!important;"
-+"border:1px solid var(--wiz-line)!important;border-radius:var(--wiz-radius)!important;"
-+"color:var(--wiz-paper)!important;"
-+"box-shadow:0 32px 80px rgba(0,0,0,.55),0 0 0 1px rgba(166,255,203,.05) inset!important;"
-+"padding:var(--wiz-pad)!important;box-sizing:border-box"
++"#startup-modal[aria-hidden=true],#jobseeker-modal[aria-hidden=true]{"
++"display:none!important;visibility:hidden!important;pointer-events:none!important"
 +"}"
-+"#startup-modal form,#jobseeker-modal form,#startup-modal .w-form,#jobseeker-modal .w-form{"
++"#startup-modal[aria-hidden=false],#jobseeker-modal[aria-hidden=false]{"
++"display:flex!important;visibility:visible!important;pointer-events:auto!important"
++"}"
+/* Webflow outer shell → transparent; form is THE card */
++"#startup-modal .modal-container,#jobseeker-modal .modal-container{"
 +"background:transparent!important;border:0!important;box-shadow:none!important;"
-+"padding:0!important;margin:0!important;max-width:none!important;width:100%!important;color:var(--wiz-paper)!important"
++"padding:0!important;margin:0 auto!important;max-width:26rem!important;width:min(26rem,calc(100vw - 1.5rem))!important;"
++"border-radius:0!important"
++"}"
++"#startup-modal .modal-container > div:not(.w-form):not(.modal-close-btn),"
++"#jobseeker-modal .modal-container > div:not(.w-form):not(.modal-close-btn){"
++"background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important"
++"}"
+/* hide Webflow title/subtitle/intro — WIZ owns copy */
++"#startup-modal .modal-title,#jobseeker-modal .modal-title,"
++"#startup-modal .modal-subtitle,#jobseeker-modal .modal-subtitle,"
++"#startup-modal .modal-intro,#jobseeker-modal .modal-intro,"
++"#startup-modal h2.modal-title,#jobseeker-modal h2.modal-title{"
++"display:none!important"
++"}"
+/* outer w-form shell transparent */
++"#startup-modal div.w-form,#jobseeker-modal div.w-form,"
++"#startup-modal .w-form:not(form),#jobseeker-modal .w-form:not(form){"
++"background:transparent!important;border:0!important;box-shadow:none!important;"
++"padding:0!important;margin:0!important;max-width:none!important;width:100%!important"
++"}"
+/* THE card = form (or .modal-content if present) */
++"#startup-modal .modal-content,#jobseeker-modal .modal-content,"
++"#startup-modal form.dg-wiz-on,#jobseeker-modal form.dg-wiz-on,"
++"#startup-modal form.w-form,#jobseeker-modal form.w-form,"
++"#startup-modal form,#jobseeker-modal form{"
++"position:relative;width:100%!important;max-width:26rem!important;margin:0 auto!important;"
++"background:linear-gradient(165deg,#083222 0%,#03140d 55%,#020f0a 100%)!important;"
++"border:1px solid rgba(166,255,203,.22)!important;border-radius:8px!important;"
++"color:#f3f0e7!important;"
++"box-shadow:0 32px 80px rgba(0,0,0,.55),0 0 0 1px rgba(166,255,203,.05) inset!important;"
++"padding:clamp(1.35rem,4.2vw,2rem)!important;box-sizing:border-box"
++"}"
++"#startup-modal .modal-content form,#jobseeker-modal .modal-content form,"
++"#startup-modal .modal-content .w-form,#jobseeker-modal .modal-content .w-form{"
++"background:transparent!important;border:0!important;box-shadow:none!important;"
++"padding:0!important;margin:0!important;max-width:none!important;width:100%!important;"
++"color:inherit!important"
 +"}"
 +"#startup-modal .modal-close-btn,#jobseeker-modal .modal-close-btn{"
-+"position:absolute;top:.65rem;right:.65rem;z-index:8;"
++"position:absolute;top:.55rem;right:.55rem;z-index:8;"
 +"min-width:44px;min-height:44px;border-radius:6px;"
-+"border:1px solid var(--wiz-line)!important;background:transparent!important;"
-+"color:var(--wiz-mute)!important;font-size:1.1rem;cursor:pointer;"
++"border:1px solid rgba(166,255,203,.22)!important;background:transparent!important;"
++"color:#9aab9f!important;font-size:1.1rem;cursor:pointer;"
 +"transition:color .15s ease,border-color .15s ease"
 +"}"
 +"#startup-modal .modal-close-btn:hover,#jobseeker-modal .modal-close-btn:hover{"
-+"color:var(--wiz-phosphor)!important;border-color:var(--wiz-line-strong)!important"
++"color:#a6ffcb!important;border-color:rgba(166,255,203,.48)!important"
 +"}"
 +"#startup-modal .dg-wiz-save,#jobseeker-modal .dg-wiz-save,"
 +"#startup-modal .dg-wiz-save-opt,#jobseeker-modal .dg-wiz-save-opt{display:none!important}"
-/* head / progress */
+/* head — no gold card nest */
 +"#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{"
-+"position:relative;z-index:5;background:transparent;padding:0 0 .15rem;border:0;backdrop-filter:none"
++"position:static!important;z-index:5;background:transparent!important;"
++"padding:0!important;margin:0!important;border:0!important;border-radius:0!important;"
++"box-shadow:none!important;backdrop-filter:none!important;outline:none!important"
 +"}"
 +"#startup-modal .dg-wiz-head.is-welcome .dg-wiz-progress,"
 +"#jobseeker-modal .dg-wiz-head.is-welcome .dg-wiz-progress,"
 +"#startup-modal .dg-wiz-head.is-thanks .dg-wiz-progress,"
 +"#jobseeker-modal .dg-wiz-head.is-thanks .dg-wiz-progress{display:none!important}"
-+"#startup-modal .dg-wiz-progress,#jobseeker-modal .dg-wiz-progress{margin:0 0 .15rem}"
++"#startup-modal .dg-wiz-progress,#jobseeker-modal .dg-wiz-progress{margin:0 0 .15rem;padding:0;border:0;background:transparent}"
 +"#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{"
-+"display:inline-flex;align-items:center;gap:.35rem;padding:0;border:0;background:transparent;"
-+"min-height:auto;border-radius:0;"
-+"color:var(--wiz-mute);font-family:var(--wiz-mono);font-size:.7rem;font-weight:500;"
-+"letter-spacing:.14em;text-transform:uppercase"
++"display:inline-flex!important;align-items:center;gap:.35rem;"
++"padding:0!important;border:0!important;background:transparent!important;"
++"min-height:auto!important;border-radius:0!important;box-shadow:none!important;"
++"color:#9aab9f!important;font-family:var(--wiz-mono)!important;font-size:.72rem!important;font-weight:500!important;"
++"letter-spacing:.08em!important;text-transform:none!important"
 +"}"
 +"#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{"
-+"color:var(--wiz-phosphor);letter-spacing:.08em;text-transform:none;font-variant-numeric:tabular-nums;font-size:.75rem"
++"color:#a6ffcb!important;letter-spacing:.06em;text-transform:none;font-variant-numeric:tabular-nums;font-size:.75rem"
 +"}"
-+"#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{display:none}"
++"#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{display:none!important}"
 +"#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{"
-+"height:2px;background:rgba(166,255,203,.1);border:0;border-radius:1px;overflow:hidden;margin:.55rem 0 0"
++"height:2px!important;min-height:2px!important;max-height:2px!important;"
++"background:rgba(166,255,203,.1)!important;border:0!important;border-radius:1px!important;"
++"overflow:hidden!important;margin:.55rem 0 0!important;padding:0!important;box-shadow:none!important"
 +"}"
 +"#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{"
-+"display:block;height:100%;border-radius:inherit;"
-+"background:linear-gradient(90deg,#08a05d,#a6ffcb);"
-+"box-shadow:0 0 10px rgba(16,198,116,.35);"
++"display:block!important;height:100%!important;border-radius:inherit;"
++"background:linear-gradient(90deg,#08a05d,#a6ffcb)!important;"
++"box-shadow:0 0 8px rgba(16,198,116,.3)!important;"
 +"transition:width .32s cubic-bezier(.2,.7,.2,1)"
 +"}"
 /* question + hint */
 +"#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{"
 +"font-family:var(--wiz-serif)!important;"
-+"font-size:clamp(1.4rem,4.4vw,1.8rem)!important;font-weight:400!important;"
-+"color:var(--wiz-paper)!important;margin:1.15rem 0 .4rem!important;"
-+"line-height:1.18;letter-spacing:-.025em"
++"font-size:clamp(1.45rem,4.5vw,1.85rem)!important;font-weight:400!important;"
++"color:#f3f0e7!important;margin:1.2rem 0 .45rem!important;"
++"line-height:1.18;letter-spacing:-.025em;border:0!important;background:transparent!important;padding:0!important"
 +"}"
 +"#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{"
 +"font-family:var(--wiz-sans)!important;font-size:.9rem!important;"
-+"color:var(--wiz-mute)!important;margin:0 0 1.2rem!important;line-height:1.45;max-width:34ch"
++"color:#9aab9f!important;margin:0 0 1.25rem!important;line-height:1.45;max-width:36ch;"
++"border:0!important;background:transparent!important;padding:0!important"
 +"}"
 /* hide native labels when WIZ question owns the copy */
 +"#startup-modal form.dg-wiz-on .dg-wiz-show > .w-form-label,"
@@ -1526,28 +1605,27 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;"
 +"overflow:hidden!important;clip:rect(0,0,0,0)!important;border:0!important"
 +"}"
-/* keep checkbox labels readable */
 +"#startup-modal form.dg-wiz-on label.w-checkbox,"
 +"#jobseeker-modal form.dg-wiz-on label.w-checkbox{position:relative!important;width:auto!important;height:auto!important;"
 +"clip:auto!important;margin:0!important;overflow:visible!important;display:flex!important;align-items:center;gap:.55rem;"
-+"color:var(--wiz-paper);font-size:.95rem;min-height:48px}"
-/* inputs */
++"color:#f3f0e7;font-size:.95rem;min-height:48px}"
+/* inputs — literal colors beat Webflow vars */
 +"#startup-modal input:not([type=checkbox]):not([type=radio]):not([type=file]),"
 +"#startup-modal select,#startup-modal textarea,"
 +"#jobseeker-modal input:not([type=checkbox]):not([type=radio]):not([type=file]),"
 +"#jobseeker-modal select,#jobseeker-modal textarea{"
 +"width:100%!important;box-sizing:border-box;"
-+"font-size:16px!important;min-height:52px;line-height:1.4;"
++"font-size:16px!important;min-height:52px!important;line-height:1.4;"
 +"font-family:var(--wiz-sans)!important;"
-+"background:var(--wiz-field)!important;border:1px solid var(--wiz-line)!important;"
-+"color:var(--wiz-paper)!important;border-radius:6px!important;"
++"background:#041a10!important;border:1px solid rgba(166,255,203,.22)!important;"
++"color:#f3f0e7!important;border-radius:6px!important;"
 +"padding:.8rem .95rem!important;"
 +"transition:border-color .18s ease,box-shadow .22s ease!important"
 +"}"
-+"#startup-modal textarea,#jobseeker-modal textarea{min-height:104px;resize:vertical}"
++"#startup-modal textarea,#jobseeker-modal textarea{min-height:104px!important;resize:vertical}"
 +"#startup-modal input:focus-visible,#startup-modal select:focus-visible,#startup-modal textarea:focus-visible,"
 +"#jobseeker-modal input:focus-visible,#jobseeker-modal select:focus-visible,#jobseeker-modal textarea:focus-visible{"
-+"outline:none!important;border-color:var(--wiz-phosphor)!important;"
++"outline:none!important;border-color:#a6ffcb!important;"
 +"box-shadow:0 0 0 3px rgba(16,198,116,.16)!important"
 +"}"
 +"#startup-modal input::placeholder,#startup-modal textarea::placeholder,"
@@ -1557,16 +1635,17 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"#startup-modal input[type=checkbox],#startup-modal input[type=radio],"
 +"#jobseeker-modal input[type=checkbox],#jobseeker-modal input[type=radio]{accent-color:#10c674;width:1.1rem;height:1.1rem}"
 +"#startup-modal input[type=file],#jobseeker-modal input[type=file]{"
-+"color:var(--wiz-mute)!important;font-size:.85rem;padding:.5rem 0!important;border:0!important;background:transparent!important;min-height:auto"
++"color:#9aab9f!important;font-size:.85rem;padding:.5rem 0!important;border:0!important;background:transparent!important;min-height:auto"
 +"}"
 +"#startup-modal .dg-file-honest,#jobseeker-modal .dg-file-honest,"
-+"#startup-modal .dg-resume-hint,#jobseeker-modal .dg-resume-hint{color:var(--wiz-mute)!important;font-size:.8rem!important}"
-+"#startup-modal .dg-wiz-err,#jobseeker-modal .dg-wiz-err{"
-+"color:var(--wiz-danger);font-size:.84rem;margin:.4rem 0 .55rem;font-family:var(--wiz-sans);line-height:1.35"
++"#startup-modal .dg-resume-hint,#jobseeker-modal .dg-resume-hint{color:#9aab9f!important;font-size:.8rem!important}"
++"#startup-modal .dg-wiz-err,#jobseeker-modal .dg-wiz-err,"
++"#startup-modal .dg-wiz-req-err,#jobseeker-modal .dg-wiz-req-err{"
++"color:#ffb4a2!important;font-size:.84rem;margin:.4rem 0 .55rem;font-family:var(--wiz-sans);line-height:1.35"
 +"}"
 /* nav */
 +"#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{"
-+"display:flex!important;gap:.6rem;margin-top:1.45rem;align-items:stretch"
++"display:flex!important;gap:.6rem;margin-top:1.5rem;align-items:stretch;border:0!important;background:transparent!important;padding:0!important"
 +"}"
 +"#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,"
 +"#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{"
@@ -1576,53 +1655,68 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"transition:transform .18s ease,box-shadow .22s ease,border-color .18s ease,background .18s ease!important"
 +"}"
 +"#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{"
-+"flex:1;background:rgba(8,160,93,.42)!important;color:var(--wiz-phosphor)!important;"
-+"border:1px solid var(--wiz-line-strong)!important"
++"flex:1;background:rgba(8,160,93,.42)!important;color:#a6ffcb!important;"
++"border:1px solid rgba(166,255,203,.48)!important"
 +"}"
 +"#startup-modal .dg-wiz-next:hover,#jobseeker-modal .dg-wiz-next:hover{"
 +"transform:translateY(-1px);box-shadow:0 12px 32px rgba(16,198,116,.22)!important;"
-+"border-color:var(--wiz-phosphor)!important"
++"border-color:#a6ffcb!important"
 +"}"
-+"#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back{"
-+"flex:0 0 auto;min-width:5.5rem;background:transparent!important;color:var(--wiz-paper)!important;"
-+"border:1px solid var(--wiz-line)!important"
++"#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back,"
++"#startup-modal button.dg-wiz-back,#jobseeker-modal button.dg-wiz-back{"
++"flex:0 0 auto;min-width:5.5rem;background:transparent!important;color:#f3f0e7!important;"
++"border:1px solid rgba(166,255,203,.22)!important;border-color:rgba(166,255,203,.22)!important;"
++"outline-color:#a6ffcb!important"
 +"}"
-+"#startup-modal .dg-wiz-back:hover,#jobseeker-modal .dg-wiz-back:hover{border-color:var(--wiz-line-strong)!important}"
++"#startup-modal .dg-wiz-back:hover,#jobseeker-modal .dg-wiz-back:hover{"
++"border-color:rgba(166,255,203,.48)!important"
++"}"
++"#startup-modal .dg-wiz-next:focus,#startup-modal .dg-wiz-back:focus,"
++"#jobseeker-modal .dg-wiz-next:focus,#jobseeker-modal .dg-wiz-back:focus,"
 +"#startup-modal .dg-wiz-next:focus-visible,#startup-modal .dg-wiz-back:focus-visible,"
 +"#jobseeker-modal .dg-wiz-next:focus-visible,#jobseeker-modal .dg-wiz-back:focus-visible{"
-+"outline:2px solid var(--wiz-phosphor)!important;outline-offset:3px!important"
++"outline:2px solid #a6ffcb!important;outline-offset:3px!important"
++"}"
+/* trust notes only on review */
++"#startup-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) #dg-fee-note,"
++"#jobseeker-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) #dg-fee-note,"
++"#startup-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) #dg-submit-trust,"
++"#jobseeker-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) #dg-submit-trust,"
++"#startup-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) .dg-submit-trust,"
++"#jobseeker-modal form.dg-wiz-on:not([data-dg-wiz-key='__submit__']):not([data-dg-wiz-key='__thanks__']) .dg-submit-trust{"
++"display:none!important"
 +"}"
 /* review */
 +"#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{"
-+"border:1px solid var(--wiz-line);border-radius:6px;padding:.9rem 1rem;"
-+"margin:.35rem 0 .75rem;background:rgba(2,12,8,.55);max-height:36vh;overflow:auto"
++"border:1px solid rgba(166,255,203,.22)!important;border-radius:6px;padding:.9rem 1rem;"
++"margin:.35rem 0 .75rem;background:rgba(2,12,8,.55)!important;max-height:36vh;overflow:auto"
 +"}"
 +"#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{"
-+"color:var(--wiz-phosphor);font-size:.68rem;margin:0 0 .55rem;letter-spacing:.14em;"
++"color:#a6ffcb!important;font-size:.68rem;margin:0 0 .55rem;letter-spacing:.14em;"
 +"text-transform:uppercase;font-family:var(--wiz-mono);font-weight:600"
 +"}"
 +"#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt,"
 +"#startup-modal .dg-wiz-review span,#jobseeker-modal .dg-wiz-review span{"
-+"display:block;color:var(--wiz-mute);font-size:.68rem;margin-top:.55rem;font-family:var(--wiz-mono);letter-spacing:.04em"
++"display:block;color:#9aab9f!important;font-size:.68rem;margin-top:.55rem;font-family:var(--wiz-mono);letter-spacing:.04em"
 +"}"
 +"#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd,"
 +"#startup-modal .dg-wiz-review em,#jobseeker-modal .dg-wiz-review em{"
-+"display:block;font-style:normal;color:var(--wiz-paper);font-size:.95rem;margin:0 0 .1rem;line-height:1.4;font-family:var(--wiz-sans)"
++"display:block;font-style:normal;color:#f3f0e7!important;font-size:.95rem;margin:0 0 .1rem;line-height:1.4;font-family:var(--wiz-sans)"
 +"}"
 +"#startup-modal .dg-wiz-review-signal,#jobseeker-modal .dg-wiz-review-signal{"
-+"border-left:2px solid var(--wiz-signal);padding-left:.55rem;margin-left:0"
++"border-left:2px solid #10c674!important;padding-left:.55rem;margin-left:0"
 +"}"
 /* thanks */
 +"#startup-modal .dg-thanks h3,#jobseeker-modal .dg-thanks h3{"
-+"font-family:var(--wiz-serif);font-size:1.45rem;font-weight:400;color:var(--wiz-paper);margin:.2rem 0 .5rem"
++"font-family:var(--wiz-serif);font-size:1.45rem;font-weight:400;color:#f3f0e7;margin:.2rem 0 .5rem"
 +"}"
-+"#startup-modal .dg-thanks p,#jobseeker-modal .dg-thanks p{color:var(--wiz-mute);line-height:1.45}"
-+"#startup-modal .dg-thanks-step,#jobseeker-modal .dg-thanks-step{color:var(--wiz-paper);font-size:.9rem}"
++"#startup-modal .dg-thanks p,#jobseeker-modal .dg-thanks p{color:#9aab9f;line-height:1.45}"
++"#startup-modal .dg-thanks-step,#jobseeker-modal .dg-thanks-step{color:#f3f0e7;font-size:.9rem}"
 +"#startup-modal .dg-sample-match,#jobseeker-modal .dg-sample-match{display:none!important}"
 +"#startup-modal .dg-followup,#jobseeker-modal .dg-followup{display:none!important}"
 +"#startup-modal #dg-fee-note,#jobseeker-modal #dg-fee-note,"
 +"#startup-modal .dg-submit-trust,#jobseeker-modal .dg-submit-trust{"
-+"color:var(--wiz-mute)!important;font-size:.8rem!important;line-height:1.4;margin:.75rem 0 0!important"
++"color:#9aab9f!important;font-size:.8rem!important;line-height:1.4;margin:.75rem 0 0!important"
 +"}"
 /* motion */
 +"#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show,"
@@ -1809,12 +1903,13 @@ function injectNightHero(){
     '<div class="dg-grain"></div>'+
     '<div class="dg-stars"></div>'+
     '<div class="dg-art-panel">'+
-      '<img class="dg-art-img" src="'+DG_ART.hero+'" alt="" width="1280" height="720" decoding="async" fetchpriority="high"/>'+
-      '<div class="dg-art-caption">SIGNAL / ONE FIT · MANY PRESENTATIONS</div>'+
+      '<img class="dg-art-img" src="'+DG_ART.hero+'" alt="Demigod — SF night district signal art" width="1280" height="720" decoding="async" fetchpriority="high"/>'+
+      '<div class="dg-art-caption">SF BAY · ONE FIT · MUTUAL YES</div>'+
     '</div>';
   // put stage inside hero as first decorative layer
   if(hero.firstChild) hero.insertBefore(stage, hero.firstChild);
   else hero.appendChild(stage);
+  try{qa('#dg-cap-strip').forEach(function(el){el.remove();});}catch(e){}
   // eyebrow inject
   if(!q('#dg-eyebrow')){
     var left=q('.hero-content-left')||q('.hero-container')||q('.hero-section');
@@ -1828,22 +1923,7 @@ function injectNightHero(){
       else left.prepend(eye);
     }
   }
-  // capability strip under trust line
-  if(!q('#dg-cap-strip')){
-    var host=q('.hero-actions')||q('.hero-content-left')||q('.hero-section');
-    if(host){
-      var cap=document.createElement('div');
-      cap.id='dg-cap-strip';
-      cap.className='dg-cap-strip dg-reveal';
-      cap.innerHTML=
-        '<div><span class="k">Interface</span><span class="v">WIZ · dual path</span></div>'+
-        '<div><span class="k">Control</span><span class="v">Tech rank · human review</span></div>'+
-        '<div><span class="k">Intro</span><span class="v">Mutual only</span></div>';
-      var chips=q('#dg-hero-chips');
-      if(chips&&chips.parentNode) chips.parentNode.insertBefore(cap, chips.nextSibling);
-      else host.appendChild(cap);
-    }
-  }
+  // dg-cap-strip removed (v619) — Interface/Control/Intro section deleted
   // aperture art near process section
   var trust=q('.trust-section,section:has(.steps-grid)');
   if(trust&&!q('#dg-aperture')){
@@ -1867,7 +1947,7 @@ function ensureMotion(){
         if(en.isIntersecting){en.target.classList.add('dg-in');io.unobserve(en.target);}
       });
     },{threshold:0.08,rootMargin:'0px 0px -4% 0px'});
-    qa('.dg-reveal,.step-card,.pricing-card,.hero-actions .dg-cta-wrap,#dg-eyebrow,#dg-cap-strip,#dg-aperture,h1.hero-title,.hero-section h1').forEach(function(el){
+    qa('.dg-reveal,.step-card,.pricing-card,.hero-actions .dg-cta-wrap,#dg-eyebrow,#dg-aperture,h1.hero-title,.hero-section h1').forEach(function(el){
       el.classList.add('dg-reveal');
       io.observe(el);
     });
@@ -1883,8 +1963,44 @@ function ensureMotion(){
   }
 }
 
+/* v623: Converge symbol (Fable) — dual solid wedges + match core; re-apply when data-v changes */
+function ensureLogo(){
+  try{
+    var mark='<svg class="dg-mark" data-v="623" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="#03140d"/><path d="M4 7 L11 16 L4 25 Z" fill="#a6ffcb"/><path d="M28 7 L21 16 L28 25 Z" fill="#10c674"/><circle cx="16" cy="16" r="3" fill="#a6ffcb"/></svg>';
+    qa('a.nav_logo,.nav_logo,a.w-nav-brand,a.logo-link,.logo-link,.w-nav-brand').forEach(function(a){
+      if(!a)return;
+      a.setAttribute('aria-label','Demigod home');
+      if(a.querySelector('svg.dg-mark[data-v="623"]')){a.dataset.dgMark='623';return;}
+      a.dataset.dgMark='623';
+      var icon=a.querySelector('.nav_logo-icon');
+      if(icon){
+        icon.innerHTML=mark;
+        icon.style.cssText='width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0';
+      }else{
+        var wrap=a.querySelector('svg');
+        if(wrap){
+          if(wrap.parentElement&&wrap.parentElement!==a)wrap.parentElement.innerHTML=mark;
+          else wrap.outerHTML=mark;
+        }else{
+          a.insertAdjacentHTML('afterbegin','<span class="nav_logo-icon" style="width:28px;height:28px;display:inline-flex">'+mark+'</span>');
+        }
+      }
+      var name=a.querySelector('[data-brand-name],.paragraph_large');
+      if(name){name.textContent='Demigod';name.setAttribute('data-brand-name','true');}
+    });
+    if(document.documentElement.dataset.dgFav!=='623'){
+      document.documentElement.dataset.dgFav='623';
+      try{
+        var href='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Cpath%20d%3D%22M4%207%20L11%2016%20L4%2025%20Z%22%20fill%3D%22%23a6ffcb%22/%3E%3Cpath%20d%3D%22M28%207%20L21%2016%20L28%2025%20Z%22%20fill%3D%22%2310c674%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%223%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E';
+        qa('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.parentNode&&l.parentNode.removeChild(l);});
+        var link=document.createElement('link');link.rel='icon';link.type='image/svg+xml';link.href=href;document.head.appendChild(link);
+        var apple=document.createElement('link');apple.rel='apple-touch-icon';apple.href=href;document.head.appendChild(apple);
+      }catch(eFav){}
+    }
+  }catch(e){}
+}
 function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElement('style');s.id='dg-brand-assets';s.textContent=
-/* v593 Frege-night — Fable polish: serif/sans hierarchy, CSS grain, section air */
+/* v618 Frege-night — large translucent art stage + left scrim; dual-path CTAs primary */
 ":root{--dg-night:#03140d;--dg-deep:#06271a;--dg-field:#075f3a;--dg-green:#08a05d;--dg-signal:#10c674;--dg-phosphor:#a6ffcb;--dg-paper:#f3f0e7;--dg-paper-mute:#bdc9bf;--dg-ink:#071d13;--dg-rule:rgba(166,255,203,.28);--dg-rule-paper:rgba(3,20,13,.2);--dg-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--dg-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;--dg-serif:Georgia,'Iowan Old Style','Times New Roman',serif}"
 +"html,body{background:var(--dg-night)!important;color:var(--dg-paper)!important;font-family:var(--dg-sans)!important}"
 /* static CSS grain — no remote litter fuse, no infinite composite thrash (Fable #3) */
@@ -1899,23 +2015,40 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".nav_container,.nav_left,.nav_right{background:transparent!important}"
 +".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(12px);background:rgba(3,20,13,.88)!important;border-bottom:1px solid var(--dg-rule)!important}"
 +".nav_logo .paragraph_large,[data-brand-name]{color:var(--dg-paper)!important;font-weight:700!important;letter-spacing:.14em!important;text-transform:uppercase!important;font-size:.78rem!important}"
-+".nav_logo-icon{color:var(--dg-phosphor)!important;animation:dgPulse 3.2s ease-in-out infinite}"
++".nav_logo-icon{color:var(--dg-phosphor)!important;animation:none!important}"+".nav_logo-icon .dg-mark,.nav_logo-icon svg{display:block!important;width:28px!important;height:28px!important}"
 +"#dg-nav-hire,#dg-nav-talent,#dg-top-nav .dg-nav-ctas,header a.button,header a.premium-btn,nav.w-nav a.button,nav.w-nav a.premium-btn,.nav_right a.button,.nav_right a.w-button,.nav_container a.button.on-inverse{display:none!important}"
 +"#dg-bar a.button,#dg-bar a{display:flex!important}"
 /* hero night stage */
-+".hero-section,.header{position:relative!important;overflow:hidden!important;background:radial-gradient(120% 90% at 80% 20%,rgba(8,160,93,.22),transparent 55%),linear-gradient(180deg,#06271a 0%,#03140d 70%)!important;background-image:none!important;min-height:min(790px,calc(100svh - 56px))!important;display:flex!important;align-items:stretch!important;padding:clamp(2.5rem,7vh,5rem) 1.25rem 3rem!important;border-bottom:1px solid var(--dg-rule)!important}"
-+"#dg-night-stage{position:absolute;inset:0;z-index:0;pointer-events:none}"
-+"#dg-night-stage .dg-grain{position:absolute;inset:0;opacity:.28;background-image:radial-gradient(rgba(166,255,203,.18) .7px,transparent .7px);background-size:4px 4px;mix-blend-mode:soft-light;animation:dgGrain 18s steps(6) infinite}"
-+"#dg-night-stage .dg-stars{position:absolute;inset:-20%;background:radial-gradient(1px 1px at 20% 30%,var(--dg-phosphor),transparent),radial-gradient(1px 1px at 70% 20%,rgba(166,255,203,.7),transparent),radial-gradient(1.5px 1.5px at 40% 70%,rgba(16,198,116,.8),transparent),radial-gradient(1px 1px at 85% 60%,var(--dg-phosphor),transparent);opacity:.45;animation:dgStar 80s linear infinite}"
-+"#dg-night-stage .dg-art-panel{position:absolute;right:clamp(0px,4vw,48px);top:50%;transform:translateY(-50%);width:min(48vw,560px);aspect-ratio:4/3;border:1px solid var(--dg-rule);overflow:hidden;animation:dgFloat 7s ease-in-out infinite,dgBorderGlow 4.5s ease-in-out infinite}"
-+"#dg-night-stage .dg-art-img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85) contrast(1.05);opacity:.92}"
-+"#dg-night-stage .dg-art-caption{position:absolute;left:0;right:0;bottom:0;padding:.45rem .7rem;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dg-phosphor);background:linear-gradient(transparent,rgba(3,20,13,.92));font-family:var(--dg-mono)}"
-+"@media(max-width:900px){#dg-night-stage .dg-art-panel{position:absolute;inset:auto 0 0 0;width:100%;height:42%;top:auto;transform:none;opacity:.35;animation:none;border:0;border-top:1px solid var(--dg-rule)}#dg-night-stage .dg-art-caption{display:none}}"
++".hero-section,.header{position:relative!important;overflow:hidden!important;background:radial-gradient(120% 90% at 80% 20%,rgba(8,160,93,.22),transparent 55%),linear-gradient(180deg,#06271a 0%,#03140d 70%)!important;background-image:none!important;min-height:min(880px,calc(100svh - 52px))!important;display:flex!important;align-items:stretch!important;padding:clamp(2.5rem,7vh,5rem) 1.25rem 3rem!important;border-bottom:1px solid var(--dg-rule)!important}"
++"#dg-night-stage{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}"
++"#dg-night-stage .dg-grain{position:absolute;inset:0;opacity:.22;background-image:radial-gradient(rgba(166,255,203,.16) .7px,transparent .7px);background-size:4px 4px;mix-blend-mode:soft-light;animation:dgGrain 22s steps(6) infinite}"
++"#dg-night-stage .dg-stars{position:absolute;inset:-20%;background:radial-gradient(1px 1px at 20% 30%,var(--dg-phosphor),transparent),radial-gradient(1px 1px at 70% 20%,rgba(166,255,203,.65),transparent),radial-gradient(1.5px 1.5px at 40% 70%,rgba(16,198,116,.75),transparent),radial-gradient(1px 1px at 85% 60%,var(--dg-phosphor),transparent);opacity:.38;animation:dgStar 90s linear infinite}"
+/* LARGE translucent art stage — full hero height, right ~64vw (was ~560px card) */
++"#dg-night-stage .dg-art-panel{position:absolute;right:0;top:0;bottom:0;width:min(64vw,960px);height:100%;border:0;overflow:hidden;"
++"-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 28%,#000 100%);"
++"mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.35) 12%,#000 28%,#000 100%);"
++"animation:none}"
++"#dg-night-stage .dg-art-img{width:100%;height:100%;object-fit:cover;object-position:62% center;display:block;"
++"opacity:.46;filter:saturate(.72) contrast(1.08) brightness(.8);mix-blend-mode:soft-light}"
++"#dg-night-stage .dg-art-caption{position:absolute;right:0;left:auto;bottom:0;max-width:min(28rem,70%);"
++"padding:.5rem .85rem;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;text-align:right;"
++"color:rgba(166,255,203,.72);background:linear-gradient(90deg,transparent,rgba(3,20,13,.75));font-family:var(--dg-mono)}"
+/* left scrim so type always reads over large art */
++".hero-section::after,.header::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;"
++"background:linear-gradient(90deg,#03140d 0%,rgba(3,20,13,.96) 28%,rgba(3,20,13,.72) 46%,rgba(3,20,13,.32) 64%,rgba(3,20,13,.08) 82%,transparent 100%)}"
++"@media(max-width:900px){"
++"#dg-night-stage .dg-art-panel{inset:auto 0 0 0;width:100%;height:48%;top:auto;right:0;"
++"-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 28%,#000 100%);"
++"mask-image:linear-gradient(180deg,transparent 0%,#000 28%,#000 100%)}"
++"#dg-night-stage .dg-art-img{opacity:.32;mix-blend-mode:normal;object-position:center 30%}"
++"#dg-night-stage .dg-art-caption{display:none}"
++".hero-section::after,.header::after{background:linear-gradient(180deg,rgba(3,20,13,.92) 0%,rgba(3,20,13,.78) 42%,rgba(3,20,13,.45) 70%,rgba(3,20,13,.55) 100%)}"
++"}"
 +".hero-grid-background,.grid-col-line,.hero-content-right,.statue-frame,.statue-svg,.statue-wrapper{display:none!important}"
-+".hero-container,.hero-content-left{position:relative;z-index:2;max-width:min(42rem,52vw)!important;margin:0!important;width:100%!important}"
-+"@media(max-width:900px){.hero-container,.hero-content-left{max-width:100%!important}}"
++".hero-container,.hero-content-left{position:relative;z-index:2;max-width:min(40rem,46vw)!important;margin:0!important;width:100%!important;padding-right:1rem!important}"
++"@media(max-width:900px){.hero-container,.hero-content-left{max-width:100%!important;padding-right:0!important}}"
 +".dg-eyebrow,#dg-eyebrow{font-family:var(--dg-mono)!important;font-size:.72rem!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--dg-signal)!important;margin:0 0 1.1rem!important;opacity:.9}"
-+".hero-section h1,.header h1,.hero-title{position:relative;z-index:2;text-shadow:none!important;letter-spacing:-.035em!important;max-width:14ch!important;font-family:var(--dg-serif)!important;font-size:clamp(2.8rem,7.2vw,4.6rem)!important;font-weight:430!important;line-height:.98!important;margin:.2rem 0 1rem!important;color:var(--dg-paper)!important;text-transform:none!important}"
++".hero-section h1,.header h1,.hero-title{position:relative;z-index:2;text-shadow:0 2px 28px rgba(3,20,13,.55)!important;letter-spacing:-.035em!important;max-width:14ch!important;font-family:var(--dg-serif)!important;font-size:clamp(2.8rem,7.2vw,4.6rem)!important;font-weight:430!important;line-height:.98!important;margin:.2rem 0 1rem!important;color:var(--dg-paper)!important;text-transform:none!important}"
 +".hero-section h1 em,.hero-title em,.dg-em{font-style:italic!important;color:rgba(243,240,231,.88)!important;font-weight:400!important}"
 +".title-accent-gold,.title-accent-cream,.title-accent-red,.title-accent-blue,.hero-section h1 span{color:var(--dg-paper)!important;background:none!important;-webkit-text-fill-color:var(--dg-paper)!important}"
 +".hero-section p,.header p,.subheading,.hero-description{position:relative;z-index:2;max-width:42ch!important;font-size:1.05rem!important;line-height:1.6!important;color:var(--dg-paper-mute)!important;margin:0 0 1.15rem!important;font-family:var(--dg-sans)!important}"
@@ -1946,10 +2079,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"#dg-path-pills{position:relative;z-index:2;display:flex!important;flex-wrap:wrap!important;gap:.35rem 1.15rem!important;margin:1.25rem 0 0!important;padding:1rem 0 0!important;border-top:1px solid var(--dg-rule)!important;background:transparent!important}"
 +"#dg-path-pills a{color:var(--dg-paper-mute)!important;font-size:.82rem!important;letter-spacing:.06em!important;text-transform:lowercase!important;text-decoration:none!important;background:transparent!important;border:0!important;min-height:40px!important;display:inline-flex!important;align-items:center!important;transition:color .2s ease!important}"
 +"#dg-path-pills a:hover{color:var(--dg-phosphor)!important}"
-+"#dg-cap-strip{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;max-width:34rem;margin:1.25rem 0 0;padding-top:1rem;border-top:1px solid var(--dg-rule)}"
-+"#dg-cap-strip .k{display:block;font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dg-signal);margin-bottom:.2rem}"
-+"#dg-cap-strip .v{font-size:.8rem;color:var(--dg-paper-mute)}"
-+"@media(max-width:600px){#dg-cap-strip{grid-template-columns:1fr}}"
++"#dg-cap-strip{display:none!important}"
 /* below fold night institutional */
 +"#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-hero-trust,#insights-section,.insights-section{display:none!important}"
 +"section.trust-section,section:has(.steps-grid),section:has(.pricing-grid),body>section:not(.modal-overlay):not(#startup-modal):not(#jobseeker-modal),.w-section{display:block!important;visibility:visible!important;opacity:1!important;background:var(--dg-night)!important;background-image:none!important;color:var(--dg-paper)!important;padding:clamp(4.5rem,10vh,7rem) 1.25rem!important;border-top:1px solid var(--dg-rule)!important}"
@@ -1991,7 +2121,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 
 function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
 function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=document.createElement('style');fc.id='dg-forced-colors';fc.textContent='@media(forced-colors:active){#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border:1px solid CanvasText!important;forced-color-adjust:auto}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{border:1px solid CanvasText!important;background:Canvas!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:Highlight!important;box-shadow:none!important}}';document.head.appendChild(fc)}
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -2893,7 +3023,7 @@ var DG_PAGES = {
     desc: 'What is live vs pending — WIZ and email live; SMS/card tooling pending.',
     html:
       '<ul class="dg-p-list">' +
-      '<li><strong>Live:</strong> dual CTAs, one-question WIZ, 90-day outcome, tech matching with humans in the loop, product pages, Events Bot page, email follow-up</li>' +
+      '<li><strong>Live:</strong> dual CTAs, one-question WIZ, 90-day outcome, tech matching with humans in the loop, product pages, Events Bot, Night District MUD (/?p=mud), email follow-up</li>' +
       '<li><strong>Runtime:</strong> foot v__DG_FOOT_VER__ on this page load</li>' +
       '<li><strong>Site:</strong> decision home, dual paths, chips, product pages, /events → Events Bot</li>' +
       '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe), Events Bot automation (RSVP/SMS/calendar) — commercial path is email until live</li>' +
@@ -2929,6 +3059,22 @@ var DG_PAGES = {
       '<li><span>05</span><strong>Intro</strong><small>Warm intro by email; 10% only if a hire starts</small></li>' +
       '</ol>' +
       '<p class="dg-p-note">Payments and SMS tooling are pending — we confirm commercially by email for now.</p>',
+  },
+
+  mud: {
+    title: 'SF Night District',
+    doc: 'SF Night District MUD · Demigod',
+    desc: 'Social SF text multiplayer for site visitors — talk, walk SoMa, pray to Vesper the Immortal. Skippable tutorial.',
+    html:
+      '<p class="dg-p-lead">A <strong>full-page</strong> social text MUD set in <strong>San Francisco</strong>. Primary goal: meet other visitors. Lightweight exploration + <strong>Vesper the Immortal</strong> (DM) if you get stuck — type <code>pray</code>. Short tutorial — type <code>skip</code> anytime.</p>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>Talk</strong> — say · emote · chat · tell · who · intro</li>' +
+      '<li><strong>Walk</strong> — n s e w · map · look (SoMa / Market / Embarcadero / Mission)</li>' +
+      '<li><strong>Vesper</strong> — immortal DM: <code>pray</code> · <code>pray for a quest</code></li>' +
+      '<li><strong>Create</strong> — name + founder / engineer / wanderer</li>' +
+      '</ul>' +
+      '<div id="dg-mud" class="dg-mud-host" aria-label="SF Night District MUD terminal"></div>' +
+      '<p class="dg-p-note">Solo works offline. Multiplayer + live Vesper AI: <code>node demigod-mud-app.mjs</code> on :3461 (OPENAI_API_KEY optional). SF startup names = flavor only.</p>',
   },
 
   sample: {
@@ -3046,6 +3192,28 @@ function pageCss() {
     '@media(forced-colors:active){#dg-page{background:Canvas!important;forced-color-adjust:auto}#dg-page .dg-page-card,#dg-page .dg-decision-grid>li,#dg-page .dg-p-grid>div,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;box-shadow:none!important}#dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,#dg-page summary:focus-visible{outline:2px solid Highlight!important}}' +
     '@media(max-width:639px){#dg-page .dg-decision-grid{grid-template-columns:1fr}}' +
     '@media(min-width:640px){#dg-page .dg-p-grid{grid-template-columns:1fr 1fr 1fr}}' +
+    /* Night District MUD */
+    '#dg-page.dg-page-mud .dg-page-card{max-width:min(40rem,96vw)}' +
+    '#dg-page .dg-mud-host{margin:1rem 0 0}' +
+    '#dg-page .dg-mud{border:1px solid rgba(166,255,203,.28);border-radius:6px;background:rgba(2,12,8,.72);overflow:hidden}' +
+    '#dg-page .dg-mud-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid rgba(166,255,203,.18);font-family:ui-monospace,Menlo,Consolas,monospace}' +
+    '#dg-page .dg-mud-title{color:#a6ffcb;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}' +
+    '#dg-page .dg-mud-status{color:#9aab9f;font-size:.68rem}' +
+    '#dg-page .dg-mud-log{height:min(52vh,420px);overflow:auto;padding:.7rem .85rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.84rem;line-height:1.45;color:#f3f0e7}' +
+    '#dg-page .dg-mud-line{margin:0 0 .35rem;white-space:pre-wrap;word-break:break-word}' +
+    '#dg-page .dg-mud-cmd{color:#9aab9f}' +
+    '#dg-page .dg-mud-sys{color:#9aab9f;font-style:italic}' +
+    '#dg-page .dg-mud-room{color:#a6ffcb;font-weight:600;margin-top:.45rem}' +
+    '#dg-page .dg-mud-meta{color:#bdc9bf}' +
+    '#dg-page .dg-mud-say{color:#e8f5ee}' +
+    '#dg-page .dg-mud-err{color:#ffb4a2}' +
+    '#dg-page .dg-mud-form{display:grid;grid-template-columns:auto 1fr auto;gap:.4rem;align-items:center;padding:.55rem .65rem;border-top:1px solid rgba(166,255,203,.18)}' +
+    '#dg-page .dg-mud-prompt{color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700}' +
+    '#dg-page .dg-mud-input{width:100%;min-height:48px;background:#03140d;border:1px solid rgba(166,255,203,.28);border-radius:4px;color:#f3f0e7;padding:.55rem .65rem;font-size:16px;font-family:ui-monospace,Menlo,Consolas,monospace}' +
+    '#dg-page .dg-mud-input:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+    '#dg-page .dg-mud-send{min-height:48px;min-width:4.5rem;padding:0 .75rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
+    '#dg-page .dg-mud-hint{margin:.55rem 0 0;font-size:.75rem;color:#9aab9f}' +
+    '#dg-page .dg-mud-hint code{color:#a6ffcb}' +
     /* Events Bot chat (frege-night) */
     '#dg-page .dg-events-chat{margin:1.1rem 0 0;border:1px solid rgba(166,255,203,.28);border-radius:6px;background:rgba(3,20,13,.55);overflow:hidden}' +
     '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid rgba(166,255,203,.18);font-family:ui-monospace,Menlo,Consolas,monospace}' +
@@ -3079,7 +3247,7 @@ function eventsBotChatMount(root) {
     (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
     'http://127.0.0.1:3460/api/events-bot/chat',
     'http://localhost:3460/api/events-bot/chat',
-  ].filter(Boolean);
+  ].filter(Boolean).filter(dgLocalOk);
   var apiBase = '';
 
   function addMsg(role, text) {
@@ -3181,6 +3349,23 @@ function eventsBotChatMount(root) {
   );
   probe();
 }
+
+function mudMount(root) {
+  try {
+    var host = root && (root.querySelector('#dg-mud') || root.querySelector('.dg-mud-host'));
+    if (!host) return;
+    if (host.dataset.dgMudMounted === '1') return;
+    host.dataset.dgMudMounted = '1';
+    if (window.DemigodMud && typeof window.DemigodMud.mount === 'function') {
+      window.DemigodMud.mount(host);
+      return;
+    }
+    host.innerHTML = '<p class="dg-p-lead">MUD client failed to load. Refresh, or open <code>/?p=mud</code> again.</p>';
+  } catch (e) {
+    try { console.warn('mudMount', e); } catch (e2) {}
+  }
+}
+
 /* v606: [el, prevInlineDisplay, prevPriority] for the body children openPage() hid inline.
    Shared by openPage/closePage; must outlive both calls. */
 var dgPageHidden = [];
@@ -3256,6 +3441,13 @@ function pageCtas(id) {
       back
     );
   }
+  if (id === 'mud') {
+    return (
+      '<a class="hire" href="#dg-mud" id="dg-mud-focus">Enter the district</a>' +
+      '<a class="talent" href="/?p=events" data-dg-page="events">Events Bot</a>' +
+      back
+    );
+  }
   if (id === 'contact' || id === 'legal' || id === 'partners') return hire + talent + back;
   return hire + talent + back;
 }
@@ -3273,6 +3465,7 @@ function openPage(id, push) {
      + the page <h1> is the honest semantic. Home nav stays reachable. */
   root.setAttribute('role', 'main');
   root.setAttribute('aria-label', meta.title);
+  if (id === 'mud') root.classList.add('dg-page-mud');
   root.innerHTML =
     '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
     meta.title +
@@ -3398,6 +3591,22 @@ function openPage(id, push) {
         });
     } catch (e) {}
   }
+  if (id === 'mud') {
+    try {
+      mudMount(root);
+      var mf = root.querySelector('#dg-mud-focus');
+      if (mf)
+        mf.addEventListener('click', function (e) {
+          e.preventDefault();
+          var host = root.querySelector('#dg-mud');
+          if (host) host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          try {
+            var inp2 = root.querySelector('#dg-mud-input');
+            if (inp2) inp2.focus();
+          } catch (err2) {}
+        });
+    } catch (eMud) {}
+  }
 
   // soft focus trap
   root.addEventListener('keydown', function(ev){
@@ -3475,6 +3684,9 @@ function routePages() {
       '/events': 'events',
       '/events-bot': 'events',
       '/event-bot': 'events',
+      '/mud': 'mud',
+      '/night-district': 'mud',
+      '/night': 'mud',
     };
     var p = new URLSearchParams(location.search);
     var id = (p.get('p') || p.get('page') || '').toLowerCase();
@@ -3559,7 +3771,7 @@ function wireLogoHome(){
 }
 function ensureReducedMotionHeroCss(){if(q('#dg-reduced-motion-hero'))return;var s=document.createElement('style');s.id='dg-reduced-motion-hero';s.textContent='@media(prefers-reduced-motion:reduce){.hero-section h1,.hero-section p,.header h1,.header p,.hero-actions,#dg-hero-chips,#dg-path-pills{animation:none!important;transition:none!important}}';document.head.appendChild(s)}
 function ensureTapTargetCss(){if(q('#dg-tap-targets'))return;var s=document.createElement('style');s.id='dg-tap-targets';s.textContent='.hero-actions a[data-dg-cta],#dg-nav-hire,#dg-nav-talent,#dg-bar a{min-height:48px!important}';document.head.appendChild(s)}
-function boot(){if(!document.body)return;forceMainVisible();run();ensureReducedMotionHeroCss();ensureTapTargetCss();finalButtonLabels();try{wireLogoHome()}catch(e){}try{scrubBadStaticClaims();scrubContactEmail()}catch(e){}deepLink();try{document.body.classList.add('dg-ready');document.body.setAttribute('data-dg-ready','1')}catch(e){}try{if(window.requestIdleCallback)requestIdleCallback(function(){try{orgJsonLd()}catch(e){}});else setTimeout(function(){try{orgJsonLd()}catch(e){}},1200)}catch(e){}}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
+function boot(){if(!document.body)return;forceMainVisible();run();ensureReducedMotionHeroCss();ensureTapTargetCss();finalButtonLabels();try{wireLogoHome();ensureLogo()}catch(e){}try{scrubBadStaticClaims();scrubContactEmail()}catch(e){}deepLink();try{document.body.classList.add('dg-ready');document.body.setAttribute('data-dg-ready','1')}catch(e){}try{if(window.requestIdleCallback)requestIdleCallback(function(){try{orgJsonLd()}catch(e){}});else setTimeout(function(){try{orgJsonLd()}catch(e){}},1200)}catch(e){}}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
 // Extra delayed dedupes to catch late-rendered Webflow elements / repeated sections
 /* v190: delayed dedupe/scrub removed — run() already calls both */
 document.addEventListener('click',function(e){var c=e.target.closest('[class*=close],.modal_close,.w-modal-close');if(c&&c.closest(S+','+J)){e.preventDefault();var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800);return}
@@ -3577,7 +3789,1213 @@ OBS=null;/* v190: no full-document MutationObserver — was freezing main thread
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
-window.__dgFootVer='607';console.log('Demigod v607');
+
+/* ==== SECTION: Night District MUD client (demigod-mud-client.js embedded) ==== */
+/**
+ * demigod-mud-client.js — SF Night District MUD (social-first, lightweight)
+ * Offline solo + NPCs + Vesper immortal. Optional multi :3461.
+ *
+ * Browser: window.DemigodMud.mount(rootEl)
+ * Node: node demigod-mud-client.js --selftest
+ */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (typeof root !== 'undefined') root.DemigodMud = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  var STORE = 'dgMudChar_v2';
+  var DIRS = {
+    n: 'north', s: 'south', e: 'east', w: 'west', u: 'up', d: 'down',
+    north: 'north', south: 'south', east: 'east', west: 'west', up: 'up', down: 'down',
+  };
+
+  /* —— SF map (social hubs first) —— */
+  var ROOMS = {
+    plaza: {
+      name: 'Market Street Crossing',
+      desc: 'Fog on Market. F-line clang. Phosphor plaque: DECISION > VOLUME. Stickers: old Twitter bird, fresh Stripe atlas pin. Best place to bump into other visitors.',
+      exits: { north: 'lobby', east: 'alley', west: 'cafe', south: 'dock' },
+      items: ['leaflet'],
+    },
+    lobby: {
+      name: 'Demigod Matching Lobby (SoMa)',
+      desc: 'Second-floor loft south of Market. Sealed envelopes — no open job board. Bay map pins: SoMa, Mission, Dogpatch, Oakland.',
+      exits: { south: 'plaza', east: 'review', up: 'roof', west: 'office' },
+      items: ['notebook'],
+    },
+    review: {
+      name: 'Mutual-Approve Booths',
+      desc: 'Six quiet booths. Evidence packets only. A Notion printout: "90-day outcome — no keyword soup."',
+      exits: { west: 'lobby', north: 'archive' },
+      items: ['stamp'],
+    },
+    archive: {
+      name: 'Outcome Archive',
+      desc: 'Shelves of SF first-quarter ships. A spine: "Airbnb host trust · history only — not a partnership."',
+      exits: { south: 'review' },
+      items: ['tome'],
+    },
+    cafe: {
+      name: 'Ritual Coffee Nook',
+      desc: 'Cold brew, laptop stickers (Linear, Figma), battered YC backpack. Chalkboard: open tables — humans only, no auto-DM. Great for conversation.',
+      exits: { east: 'plaza', north: 'garden', west: 'mission' },
+      items: ['mug'],
+    },
+    garden: {
+      name: 'South Park Pocket',
+      desc: 'Tiny green oval off 2nd & Bryant. Startup ghosts on the benches. Fog from the Embarcadero.',
+      exits: { south: 'cafe', east: 'lobby' },
+      items: ['keycard'],
+    },
+    alley: {
+      name: 'Folsom Alley',
+      desc: 'Brick, loading docks, server fans. Graffiti: SHIP IT. Faded Uber Eats stencil. Side door hums like a Twilio edge box.',
+      exits: { west: 'plaza', north: 'lab', south: 'market' },
+      items: ['coin'],
+    },
+    lab: {
+      name: 'Stack Lab (Dogpatch edge)',
+      desc: 'Whiteboards: latency, Postgres, "what would Stripe do at p99?" Dropbox sticker sheet. Quiet enough to think — or pair.',
+      exits: { south: 'alley' },
+      items: ['cable'],
+    },
+    market: {
+      name: 'Ferry Building Night Market',
+      desc: 'String lights, SAMPLE role stalls (honest labels). Seed vs Series A comps near the oyster cart. Social gravity is high here.',
+      exits: { north: 'alley', west: 'dock' },
+      items: ['badge'],
+    },
+    dock: {
+      name: 'Embarcadero Pier',
+      desc: 'Salt air, Bay Bridge lights. Ferry horn. Salesforce Park glows inland. Perfect for a long say or a quiet emote.',
+      exits: { north: 'plaza', east: 'market' },
+      items: ['shell'],
+    },
+    roof: {
+      name: 'SoMa Roof Deck',
+      desc: 'Wind off the bay. Neon and cranes. Sutro Tower a faint trident. Immortal Vesper is often "nearby" in spirit.',
+      exits: { down: 'lobby' },
+      items: ['lantern'],
+    },
+    mission: {
+      name: 'Valencia Sidewalk',
+      desc: 'Mission warmth even at night. Murals, taqueria steam, a Field Notes shop window. West-of-cafe stroll.',
+      exits: { east: 'cafe', north: 'bar' },
+      items: ['clipper'],
+    },
+    bar: {
+      name: 'Founder Dive (16th edge)',
+      desc: 'Dark wood, no pitch decks allowed after 9. Someone debates pricing honesty over a pint. Social room.',
+      exits: { south: 'mission' },
+      items: ['coaster'],
+    },
+    office: {
+      name: 'Shared Desk Loft',
+      desc: 'Standing desks, standing jokes. A whiteboard lists "talk to a human" as the sprint goal. West of the matching lobby.',
+      exits: { east: 'lobby', down: 'transit' },
+      items: ['badge_lanyard'],
+    },
+    transit: {
+      name: 'Muni Underground Glimpse',
+      desc: 'Brake squeal, clipper taps, a map of the lines. Doors open south toward Market Street when you are ready.',
+      exits: { south: 'plaza', up: 'office' },
+      items: [],
+    },
+  };
+
+  var ITEMS = {
+    leaflet: { name: 'a phosphor SF leaflet', look: 'create · walk · talk · pray if stuck · skip tutorial anytime. SF startups = flavor only.' },
+    notebook: { name: 'a Field Notes pad', look: 'Valencia purchase. For score and 90-day scribbles.' },
+    stamp: { name: 'a mutual-approve stamp', look: 'BOTH SIDES. Not cold LinkedIn spam.' },
+    tome: { name: 'a Bay Area outcome tome', look: 'Metrics from SF ships. No fake Demigod placements.' },
+    mug: { name: 'a Ritual coffee mug', look: 'Still warm. Someone wanted Stripe-quality craft.' },
+    keycard: { name: 'a South Park fob', look: '2ND & BRYANT. Decorative.' },
+    coin: { name: 'a sample Muni token', look: 'SAMPLE. Not Clipper. Quest bait for the pier.' },
+    cable: { name: 'a Cat6 run', look: 'For the lab rack — not your HDMI crisis.' },
+    badge: { name: 'a pilot badge', look: 'White-glove SF pilot. Email: potter@trydemigod.com.' },
+    shell: { name: 'an Embarcadero shell', look: 'Bay Bridge light on the ridge.' },
+    lantern: { name: 'a roof lantern', look: 'Soft green over SoMa.' },
+    quest_note: { name: 'a quest slip from Vesper', look: 'Immortal handwriting: optional, skippable, fun.' },
+    coffee: { name: 'a warm coffee', look: 'Vesper conjured. Flavor only.' },
+    clipper: { name: 'a sample Clipper card', look: 'Stamped DEMO. Will not open gates.' },
+    coaster: { name: 'a dive-bar coaster', look: 'No pitch decks after 9.' },
+    badge_lanyard: { name: 'a blank lanyard', look: 'Write your own title. Or do not.' },
+  };
+
+  var NPCS = [
+    {
+      id: 'hermes', name: 'Hermes', room: 'lobby', immortal: false,
+      look: 'SoMa coordinator, phosphor pin, BART card in a notebook.',
+      lines: [
+        'Evidence first. Names later — still San Francisco.',
+        'Type HELP if new. SAY hello if you see another visitor.',
+        'Vesper is the Immortal — if stuck: pray  (or pray <message>)',
+      ],
+    },
+    {
+      id: 'ada', name: 'Ada', room: 'lab', immortal: false,
+      look: 'Engineer on p99. Stickers: Cloudflare, GitHub, Postgres.',
+      lines: [
+        'Ship something measurable in 90 days.',
+        'Outcome beats stack fashion.',
+      ],
+    },
+    {
+      id: 'rio', name: 'Rio', room: 'cafe', immortal: false,
+      look: 'Founder + Ritual cold brew. YC backpack under the chair.',
+      lines: [
+        'One hire who owns the outcome — not a ten-name shortlist.',
+        'Say HI — I will point you back to Market Street.',
+      ],
+    },
+    {
+      id: 'kai', name: 'Kai', room: 'dock', immortal: false,
+      look: 'PM watching ferry lights. Salesforce tower inland.',
+      lines: [
+        'Comps get real fast in SF. Founders know it.',
+        'I want builders who have seen a Series A kitchen.',
+      ],
+    },
+    {
+      id: 'sam', name: 'Sam', room: 'bar', immortal: false,
+      look: 'Operator nursing a pint. No deck in sight.',
+      lines: [
+        'Best intros still happen face to face — or in a quiet SAY.',
+        'Vesper hangs around when the multiplayer relay is lonely.',
+      ],
+    },
+    {
+      id: 'vesper', name: 'Vesper', room: 'roof', immortal: true,
+      look: 'An Immortal presence — dungeon master, not a mortal PC. Calm frege phosphor. Type: pray  (or pray <message>)',
+      lines: [
+        'I am Vesper the Immortal. Ask for a quest, a hint, or company — just pray.',
+        'This district is for talking. Game bits are optional.',
+      ],
+    },
+  ];
+
+  var CLASSES = {
+    founder: { title: 'Founder', hp: 12, skills: 2 },
+    engineer: { title: 'Engineer', hp: 12, skills: 2 },
+    wanderer: { title: 'Wanderer', hp: 10, skills: 3 },
+  };
+
+  var TUTORIAL = [
+    'Tutorial 1/4 — type LOOK (or SKIP to dismiss forever).',
+    'Tutorial 2/4 — move: N S E W (try E). Or SKIP.',
+    'Tutorial 3/4 — talk: SAY hello (others hear you when multi is on). Or SKIP.',
+    'Tutorial 4/4 — stuck? PRAY  or  PRAY for a quest. Done — have fun.',
+  ];
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function clampName(n) {
+    return String(n || '').trim().replace(/[^\w \-'.]/g, '').slice(0, 24);
+  }
+  function uid() {
+    return 'p' + Math.random().toString(36).slice(2, 10);
+  }
+  function loadChar() {
+    try {
+      var j = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem('dgMudChar_v1') || 'null');
+      if (j && j.name && j.room && ROOMS[j.room]) return j;
+    } catch (e) {}
+    return null;
+  }
+  function saveChar(ch) {
+    try { localStorage.setItem(STORE, JSON.stringify(ch)); } catch (e) {}
+  }
+  function clearChar() {
+    try {
+      localStorage.removeItem(STORE);
+      localStorage.removeItem('dgMudChar_v1');
+    } catch (e) {}
+  }
+
+  function Engine(opts) {
+    opts = opts || {};
+    this.mode = 'create';
+    this.char = null;
+    this.roomItems = {};
+    this.remoteHere = [];
+    this.remoteWho = [];
+    this.out = typeof opts.out === 'function' ? opts.out : function () {};
+    this.onStatus = typeof opts.onStatus === 'function' ? opts.onStatus : function () {};
+    this.apiBase = opts.apiBase || '';
+    this.session = null;
+    this._since = 0;
+    this._immortalHist = [];
+    this._create = { name: '', klass: 'wanderer' };
+    Object.keys(ROOMS).forEach(function (id) {
+      this.roomItems[id] = (ROOMS[id].items || []).slice();
+    }, this);
+  }
+
+  Engine.prototype.boot = function () {
+    var ch = loadChar();
+    this.print('— San Francisco · Night District —', 'sys');
+    this.print('Social text multiplayer for site visitors — walk, talk, meet. Lightweight game layer. HELP · SKIP tutorial · PRAY if stuck.', 'sys');
+    if (ch) {
+      this.char = ch;
+      if (!this.char.inv) this.char.inv = [];
+      this.mode = 'play';
+      this.print('Welcome back, ' + ch.name + ' the ' + ((CLASSES[ch.klass] || {}).title || ch.klass) + '.', 'sys');
+      this.cmd('look');
+      this.tryJoinMulti();
+    } else {
+      this.mode = 'create';
+      this.print('Create: what is your name? (2–24 chars)', 'sys');
+    }
+    this.probeApi();
+  };
+
+  Engine.prototype.print = function (text, kind) {
+    this.out(String(text), kind || 'out');
+  };
+
+  Engine.prototype.probeApi = function () {
+    var self = this;
+    var bases = [
+      this.apiBase,
+      (typeof window !== 'undefined' && window.DG_MUD_API) || '',
+      'http://127.0.0.1:3461/api/mud',
+      'http://localhost:3461/api/mud',
+    ].filter(Boolean).filter(dgLocalOk);
+    var i = 0;
+    function next() {
+      if (i >= bases.length) {
+        self.onStatus('solo · offline');
+        return;
+      }
+      var b = bases[i++].replace(/\/$/, '');
+      fetch(b + '/health', { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(1500) })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (j) {
+          self.apiBase = b;
+          self.onStatus(j && j.players != null ? ('multi · ' + j.players + ' online') : 'multi · live');
+          if (self.char && self.mode === 'play') self.tryJoinMulti();
+        })
+        .catch(next);
+    }
+    try { next(); } catch (e) { self.onStatus('solo · offline'); }
+  };
+
+  Engine.prototype.here = function () {
+    return ROOMS[this.char && this.char.room] || ROOMS.plaza;
+  };
+
+  Engine.prototype.peopleHere = function () {
+    var room = this.char.room;
+    var list = NPCS.filter(function (n) { return n.room === room; }).map(function (n) {
+      return n.immortal ? n.name + ' (Immortal)' : n.name;
+    });
+    (this.remoteHere || []).forEach(function (n) {
+      if (list.indexOf(n) < 0 && n !== (this.char && this.char.name)) list.push(n);
+    }, this);
+    if (this.char) list.push('you (' + this.char.name + ')');
+    // Vesper always "reachable"
+    if (list.indexOf('Vesper (Immortal)') < 0 && list.indexOf('Vesper') < 0) {
+      list.push('Vesper (Immortal · type pray …)');
+    }
+    return list;
+  };
+
+  Engine.prototype.lookRoom = function (verbose) {
+    var r = this.here();
+    var id = this.char.room;
+    var brief = !!(this.char && this.char.brief);
+    this.print(r.name, 'room');
+    if (!brief || verbose === 'force') this.print(r.desc, 'out');
+    var exits = Object.keys(r.exits || {});
+    this.print('Exits: ' + (exits.length ? exits.join(', ') : 'none'), 'meta');
+    var items = (this.roomItems[id] || []).map(function (i) {
+      return (ITEMS[i] && ITEMS[i].name) || i;
+    });
+    if (items.length) this.print('You see: ' + items.join(', ') + '.', 'meta');
+    this.print('Here: ' + this.peopleHere().join(', ') + '.', 'meta');
+    if (verbose === true && !brief) this.print('(HELP · EXITS · HOME · SAY · PRAY · SKIP)', 'sys');
+  };
+
+  Engine.prototype.tutorialTick = function (event) {
+    if (!this.char || this.char.tutorialDone) return;
+    var step = this.char.tutorialStep | 0;
+    if (event === 'start' && step === 0) {
+      this.print(TUTORIAL[0], 'sys');
+      return;
+    }
+    if (event === 'look' && step === 0) {
+      this.char.tutorialStep = 1;
+      saveChar(this.char);
+      this.print(TUTORIAL[1], 'sys');
+      return;
+    }
+    if (event === 'move' && step <= 1) {
+      this.char.tutorialStep = 2;
+      saveChar(this.char);
+      this.print(TUTORIAL[2], 'sys');
+      return;
+    }
+    if (event === 'say' && step <= 2) {
+      this.char.tutorialStep = 3;
+      saveChar(this.char);
+      this.print(TUTORIAL[3], 'sys');
+      this.char.tutorialDone = true;
+      saveChar(this.char);
+      return;
+    }
+    if (event === 'pray' && step <= 3) {
+      this.char.tutorialDone = true;
+      this.char.tutorialStep = 4;
+      saveChar(this.char);
+      this.print('Tutorial complete. Explore or talk.', 'sys');
+    }
+  };
+
+  Engine.prototype.skipTutorial = function () {
+    if (!this.char) return;
+    this.char.tutorialDone = true;
+    this.char.tutorialStep = 99;
+    saveChar(this.char);
+    this.print('Tutorial skipped. HELP · MAP · SAY · PRAY anytime.', 'sys');
+  };
+
+  Engine.prototype.handleCreate = function (line) {
+    var t = (line || '').trim();
+    if (!t) return;
+    if (/^skip$/i.test(t)) {
+      this.print('Pick a name first, then you can SKIP the tutorial.', 'err');
+      return;
+    }
+    if (!this._create.name) {
+      var n = clampName(t);
+      if (n.length < 2) {
+        this.print('Name too short. Try again.', 'err');
+        return;
+      }
+      this._create.name = n;
+      this.print('Path: founder · engineer · wanderer', 'sys');
+      return;
+    }
+    var k = t.toLowerCase();
+    if (!CLASSES[k]) {
+      this.print('Pick founder, engineer, or wanderer.', 'err');
+      return;
+    }
+    var c = CLASSES[k];
+    this.char = {
+      id: uid(),
+      name: this._create.name,
+      klass: k,
+      room: 'plaza',
+      inv: [],
+      hp: c.hp,
+      maxHp: c.hp,
+      skills: c.skills,
+      xp: 0,
+      quest: null,
+      tutorialDone: false,
+      tutorialStep: 0,
+      brief: false,
+      desc: '',
+      createdAt: Date.now(),
+    };
+    saveChar(this.char);
+    this.mode = 'play';
+    this.print('Created ' + this.char.name + ' the ' + c.title + ' on Market Street, San Francisco.', 'sys');
+    this.cmd('look');
+    this.tutorialTick('start');
+    this.tryJoinMulti();
+  };
+
+  Engine.prototype.tryJoinMulti = function () {
+    var self = this;
+    if (!this.apiBase || !this.char || this.session) return;
+    fetch(this.apiBase + '/join', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: this.char.name,
+        klass: this.char.klass,
+        room: this.char.room,
+        id: this.char.id,
+      }),
+      signal: AbortSignal.timeout(4000),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (x.ok && x.j && x.j.token) {
+          self.session = x.j.token;
+          if (x.j.who) self.remoteWho = x.j.who;
+          self.onStatus('multi · joined');
+          self.pollMulti();
+        } else if (x.j && x.j.error) {
+          self.print('(multi) ' + x.j.error + ' — still fine solo.', 'sys');
+        }
+      })
+      .catch(function () {});
+  };
+
+  Engine.prototype.syncRoom = function () {
+    if (!this.apiBase || !this.session || !this.char) return;
+    var self = this;
+    fetch(this.apiBase + '/state', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: this.session, room: this.char.room }),
+      signal: AbortSignal.timeout(3000),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.here) self.remoteHere = j.here;
+        if (j && j.who) self.remoteWho = j.who;
+      })
+      .catch(function () {});
+  };
+
+  Engine.prototype.pollMulti = function () {
+    var self = this;
+    if (!this.apiBase || !this.session) return;
+    fetch(this.apiBase + '/poll?token=' + encodeURIComponent(this.session) + '&since=' + (this._since || 0), {
+      mode: 'cors',
+      signal: AbortSignal.timeout(8000),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.events) {
+          j.events.forEach(function (ev) {
+            if (ev.t > (self._since || 0)) self._since = ev.t;
+            if (ev.text) self.print(ev.text, ev.kind === 'system' ? 'sys' : 'say');
+          });
+        }
+        if (j && j.here) self.remoteHere = j.here;
+        if (j && j.who) self.remoteWho = j.who;
+        if (j && j.players != null) self.onStatus('multi · ' + j.players + ' online');
+      })
+      .catch(function () {})
+      .finally(function () {
+        if (self.session) setTimeout(function () { self.pollMulti(); }, 2000);
+      });
+  };
+
+  Engine.prototype.pushMulti = function (kind, text, extra) {
+    if (!this.apiBase || !this.session) return;
+    fetch(this.apiBase + '/event', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ token: this.session, kind: kind, text: text, room: this.char.room }, extra || {})),
+      signal: AbortSignal.timeout(3000),
+    }).catch(function () {});
+  };
+
+  Engine.prototype.applyCodexActions = function (actions) {
+    var self = this;
+    (actions || []).forEach(function (a) {
+      if (!a || !a.type) return;
+      switch (a.type) {
+        case 'say':
+          self.print(a.text || 'Vesper says something.', 'say');
+          break;
+        case 'emote':
+          self.print('Vesper ' + (a.text || 'gestures.'), 'say');
+          break;
+        case 'give': {
+          var id = a.item;
+          if (ITEMS[id] && self.char.inv.indexOf(id) < 0) {
+            self.char.inv.push(id);
+            saveChar(self.char);
+            self.print('Vesper gives you ' + ITEMS[id].name + '.', 'sys');
+          }
+          break;
+        }
+        case 'quest':
+          self.char.quest = { id: a.id || 'q', text: a.text || 'Explore.' };
+          saveChar(self.char);
+          self.print('Quest: ' + self.char.quest.text, 'sys');
+          break;
+        case 'move':
+          if (a.room && ROOMS[a.room]) {
+            self.char.room = a.room;
+            saveChar(self.char);
+            self.print('Vesper relocates you…', 'sys');
+            self.lookRoom(false);
+            self.syncRoom();
+          }
+          break;
+        case 'announce':
+          self.print('[district] ' + (a.text || ''), 'sys');
+          break;
+        case 'hint':
+          self.print('Hint: ' + (a.text || ''), 'meta');
+          break;
+        default:
+          break;
+      }
+    });
+  };
+
+  Engine.prototype.askCodex = function (msg) {
+    var self = this;
+    // bare pray opens a greeting; pray <msg> continues
+    if (msg == null) msg = '';
+    msg = String(msg).trim();
+    if (!msg) msg = 'who are you';
+    this.print('You pray to Vesper, the Immortal…', 'sys');
+    this.tutorialTick('pray');
+
+    var ctx = {
+      name: this.char.name,
+      klass: this.char.klass,
+      room: this.char.room,
+      inv: this.char.inv,
+      quest: this.char.quest,
+    };
+
+    // offline immortal always available
+    function offline() {
+      // dynamic import not available in browser embed — inline minimal offline
+      var m = msg.toLowerCase();
+      var reply = '';
+      var actions = [];
+      if (/who are you|what are you|immortal/.test(m)) {
+        reply = 'I am Vesper — Immortal (wizard/DM) of this district. Not a mortal player. Pray again with a question, quest, or hint request.';
+        actions = [{ type: 'emote', text: 'flickers like a cursor' }];
+      } else if (/stuck|lost|hint|where|exit/.test(m)) {
+        var r = self.here();
+        reply = 'You are in ' + r.name + '. Exits: ' + Object.keys(r.exits || {}).join(', ') + '. Try MAP or LOOK.';
+        actions = [{ type: 'hint', text: Object.keys(r.exits || {}).join(', ') }];
+      } else if (/quest|task|something to do/.test(m)) {
+        reply = 'Optional quest: take a sample Muni token from Folsom Alley to Embarcadero Pier, then SAY "token for the bay". Or just meet someone with SAY hello.';
+        actions = [
+          { type: 'quest', id: 'muni_to_pier', text: 'Muni token → Embarcadero Pier · say: token for the bay' },
+          { type: 'give', item: 'quest_note' },
+        ];
+      } else if (/hello|hi |hey/.test(m)) {
+        reply = 'Hello, ' + self.char.name + '. Talk with SAY / EMOTE / CHAT. Pray again if you get stuck.';
+      } else if (/coffee|ritual/.test(m)) {
+        reply = 'Coffee, then.';
+        actions = [{ type: 'give', item: 'coffee' }];
+      } else {
+        reply = 'I hear you. Try: pray for a quest · pray for a hint · or ask about a room. Multiplayer: SAY when the status says multi.';
+      }
+      self.print('Vesper (Immortal): ' + reply, 'say');
+      self.applyCodexActions(actions);
+      self._immortalHist.push({ role: 'user', content: msg });
+      self._immortalHist.push({ role: 'assistant', content: reply });
+    }
+
+    if (!this.apiBase) {
+      offline();
+      return;
+    }
+
+    fetch(this.apiBase + '/codex', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: this.session || '',
+        message: msg,
+        context: ctx,
+        history: this._immortalHist.slice(-8),
+      }),
+      signal: AbortSignal.timeout(45000),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.reply) {
+          self.print('Vesper (Immortal): ' + j.reply, 'say');
+          self.applyCodexActions(j.actions || []);
+          self._immortalHist.push({ role: 'user', content: msg });
+          self._immortalHist.push({ role: 'assistant', content: j.reply });
+          if (self._immortalHist.length > 16) self._immortalHist = self._immortalHist.slice(-16);
+        } else offline();
+      })
+      .catch(function () { offline(); });
+  };
+
+  Engine.prototype.cmd = function (raw) {
+    var line = String(raw || '').replace(/^\s+|\s+$/g, '');
+    if (!line) return;
+    if (this.mode === 'create') return this.handleCreate(line);
+
+    // classic shortcuts: "hello  and  :waves
+    if (line.charAt(0) === '"' || line.charAt(0) === "'") {
+      return this.cmd('say ' + line.slice(1).replace(/^\s+/, ''));
+    }
+    if (line.charAt(0) === ':') {
+      return this.cmd('emote ' + line.slice(1).replace(/^\s+/, ''));
+    }
+
+    // pray to Vesper (Immortal / DM)
+    var prayM = line.match(/^(?:pray|prayer|immortal)\s+(?:to\s+)?(?:vesper\s+)?([\s\S]+)$/i);
+    if (prayM) return this.askCodex(prayM[1]);
+    if (/^(pray|prayer)$/i.test(line)) return this.askCodex('');
+    // soft legacy: codex -> same immortal
+    var legacyM = line.match(/^(?:codex|ask\s+codex)\s+([\s\S]+)$/i);
+    if (legacyM) return this.askCodex(legacyM[1]);
+    if (/^codex$/i.test(line)) return this.askCodex('');
+
+    if (/^(skip|skip tutorial|tutorial skip)$/i.test(line)) return this.skipTutorial();
+
+    var m = line.match(/^(\S+)(?:\s+([\s\S]+))?$/);
+    var verb = (m[1] || '').toLowerCase();
+    var arg = (m[2] || '').trim();
+    var ch = this.char;
+
+    if (DIRS[verb] && !arg) return this.move(DIRS[verb]);
+    if (verb === 'go' || verb === 'move' || verb === 'walk') {
+      var d = DIRS[arg.toLowerCase()];
+      if (!d) { this.print('Go where? N/S/E/W/U/D.', 'err'); return; }
+      return this.move(d);
+    }
+
+    switch (verb) {
+      case 'l':
+      case 'look':
+      case 'ls':
+        if (!arg || arg === 'here' || arg === 'room') {
+          this.lookRoom('force');
+          this.tutorialTick('look');
+          return;
+        }
+        return this.examine(arg);
+      case 'x':
+      case 'ex':
+      case 'examine':
+      case 'read':
+        return this.examine(arg || 'here');
+      case 'i':
+      case 'inv':
+      case 'inventory':
+        if (!ch.inv.length) this.print('You are carrying nothing.', 'meta');
+        else this.print('You carry: ' + ch.inv.map(function (id) { return (ITEMS[id] && ITEMS[id].name) || id; }).join(', ') + '.', 'meta');
+        return;
+      case 'get':
+      case 'take':
+      case 'grab':
+        return this.getItem(arg);
+      case 'drop':
+        return this.dropItem(arg);
+      case 'say':
+      case "'":
+      case 'talk':
+        if (!arg) { this.print('Say what?', 'err'); return; }
+        // quest check
+        if (/token for the bay/i.test(arg) && ch.room === 'dock' && ch.inv.indexOf('coin') >= 0) {
+          this.print('You say, "' + arg + '"', 'say');
+          this.print('The bay seems to approve. Vesper whispers: quest complete — optional XP for talking to the city.', 'sys');
+          ch.xp = (ch.xp || 0) + 5;
+          if (ch.quest && ch.quest.id === 'muni_to_pier') ch.quest = null;
+          saveChar(ch);
+        } else {
+          this.print('You say, "' + arg + '"', 'say');
+        }
+        this.npcHear(arg);
+        this.pushMulti('say', ch.name + ' says, "' + arg + '"', { room: ch.room });
+        this.tutorialTick('say');
+        return;
+      case 'emote':
+      case 'me':
+      case 'pose':
+        if (!arg) { this.print('Emote what?', 'err'); return; }
+        this.print(ch.name + ' ' + arg, 'say');
+        this.pushMulti('emote', ch.name + ' ' + arg, { room: ch.room });
+        return;
+      case 'wave':
+        this.print(ch.name + ' waves' + (arg ? ' at ' + arg : '') + '.', 'say');
+        this.pushMulti('emote', ch.name + ' waves' + (arg ? ' at ' + arg : '') + '.', { room: ch.room });
+        return;
+      case 'introduce':
+      case 'intro':
+        this.print('You introduce yourself: "' + ch.name + ' the ' + ((CLASSES[ch.klass] || {}).title || ch.klass) + '."', 'say');
+        this.pushMulti('say', ch.name + ' introduces themself (' + ((CLASSES[ch.klass] || {}).title || ch.klass) + ').', { room: ch.room });
+        return;
+      case 'chat':
+      case 'ooc':
+      case 'gossip':
+        if (!arg) { this.print('Chat what? (district-wide)', 'err'); return; }
+        this.print('[chat] ' + ch.name + ': ' + arg, 'say');
+        this.pushMulti('chat', '[chat] ' + ch.name + ': ' + arg, { room: '*' });
+        return;
+      case 'tell':
+      case 'whisper':
+      case 'to': {
+        var parts = arg.match(/^(\S+)\s+([\s\S]+)$/);
+        if (!parts) { this.print('Usage: tell <name> <message>', 'err'); return; }
+        var target = parts[1];
+        var msg = parts[2];
+        if (/^(codex|vesper)$/i.test(target)) return this.askCodex(msg);
+        var npc = NPCS.find(function (n) { return n.name.toLowerCase() === target.toLowerCase() && n.room === ch.room; });
+        if (npc) {
+          this.print('You whisper to ' + npc.name + ', "' + msg + '"', 'say');
+          this.print(npc.name + ' nods.', 'say');
+        } else {
+          this.print('You lean toward ' + target + '…', 'say');
+          this.pushMulti('tell', ch.name + ' tells you, "' + msg + '"', { to: target, room: ch.room });
+        }
+        return;
+      }
+      case 'who':
+      case 'players': {
+        var lines = (this.remoteWho && this.remoteWho.length)
+          ? this.remoteWho.map(function (p) { return p.name + ' (' + (p.klass || '?') + ') @ ' + (p.room || '?'); })
+          : ['(solo — start multi with node demigod-mud-app.mjs, or just talk to NPCs / pray to Vesper)'];
+        this.print('Online: ' + lines.join(' · '), 'meta');
+        this.print('Here: ' + this.peopleHere().join(', '), 'meta');
+        return;
+      }
+      case 'exits':
+      case 'exit':
+      case 'doors': {
+        var rEx = this.here();
+        var ex = Object.keys(rEx.exits || {});
+        this.print('Obvious exits: ' + (ex.length ? ex.join(', ') : 'none') + '.', 'meta');
+        return;
+      }
+      case 'home':
+      case 'recall':
+      case 'return':
+        if (ch.room === 'plaza') {
+          this.print('You are already at Market Street Crossing (home).', 'sys');
+          return;
+        }
+        this.print('You head home to Market Street…', 'sys');
+        ch.room = 'plaza';
+        saveChar(ch);
+        this.lookRoom(false);
+        this.syncRoom();
+        return;
+      case 'brief':
+        ch.brief = true;
+        saveChar(ch);
+        this.print('Brief mode ON — short room names/exits only. Type VERBOSE for full descs.', 'sys');
+        return;
+      case 'verbose':
+      case 'full':
+        ch.brief = false;
+        saveChar(ch);
+        this.print('Verbose mode ON — full room descriptions.', 'sys');
+        return;
+      case 'save':
+        saveChar(ch);
+        this.print('Character saved (also auto-saves). Name: ' + ch.name + ' · room: ' + ch.room + '.', 'sys');
+        return;
+      case 'time':
+      case 'date':
+      case 'clock': {
+        var hr = new Date().getHours();
+        var phase = hr < 5 ? 'deep night' : hr < 11 ? 'morning fog' : hr < 17 ? 'afternoon gray' : hr < 21 ? 'evening neon' : 'night district';
+        this.print('San Francisco · local ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + phase + '.', 'meta');
+        return;
+      }
+      case 'desc':
+      case 'description':
+      case 'setdesc':
+        if (!arg) {
+          this.print(ch.desc ? ('Your desc: ' + ch.desc) : 'No custom desc. Usage: desc <what others see when they look at you>', 'meta');
+          return;
+        }
+        ch.desc = arg.slice(0, 160);
+        saveChar(ch);
+        this.print('Description set. Others can LOOK ' + ch.name + '.', 'sys');
+        return;
+      case 'give': {
+        // give <item> to <name>  OR  give <name> <item>
+        var gm = arg.match(/^(.+?)\s+to\s+(\S+)$/i) || arg.match(/^(\S+)\s+(.+)$/);
+        if (!gm) { this.print('Usage: give <item> to <name>', 'err'); return; }
+        var gItem = gm[1].trim();
+        var gName = gm[2].trim();
+        if (/^to$/i.test(gItem)) { this.print('Usage: give <item> to <name>', 'err'); return; }
+        // if pattern was give name item
+        if (!arg.match(/\s+to\s+/i) && gm) {
+          // prefer item-first if inv matches first token
+          var try1 = this.findItem(gItem, true);
+          if (!try1 || (this.char.inv || []).indexOf(try1) < 0) {
+            // swap: give Bob coin
+            var swap = gItem; gItem = gName; gName = swap;
+          }
+        }
+        var gid = null;
+        var inv = ch.inv || [];
+        var qg = gItem.toLowerCase();
+        for (var gi = 0; gi < inv.length; gi++) {
+          var git = ITEMS[inv[gi]];
+          if (inv[gi] === qg || (git && git.name.toLowerCase().indexOf(qg) >= 0)) { gid = inv[gi]; break; }
+        }
+        if (!gid) { this.print("You aren't carrying that.", 'err'); return; }
+        if (/^(codex|vesper)$/i.test(gName)) {
+          ch.inv = inv.filter(function (x) { return x !== gid; });
+          saveChar(ch);
+          this.print('You offer ' + ((ITEMS[gid] && ITEMS[gid].name) || gid) + ' to Vesper. The Immortal accepts with a nod.', 'sys');
+          return;
+        }
+        var gnpc = NPCS.find(function (n) { return n.name.toLowerCase() === gName.toLowerCase() && n.room === ch.room; });
+        if (gnpc) {
+          ch.inv = inv.filter(function (x) { return x !== gid; });
+          saveChar(ch);
+          this.print('You give ' + ((ITEMS[gid] && ITEMS[gid].name) || gid) + ' to ' + gnpc.name + '.', 'sys');
+          this.print(gnpc.name + ' says, "Thanks."', 'say');
+          return;
+        }
+        // multiplayer: announce give (recipient gets flavor; items stay local-simple)
+        this.print('You offer ' + ((ITEMS[gid] && ITEMS[gid].name) || gid) + ' to ' + gName + ' (they must be nearby in multi).', 'sys');
+        this.pushMulti('emote', ch.name + ' offers ' + ((ITEMS[gid] && ITEMS[gid].name) || gid) + ' to ' + gName + '.', { room: ch.room });
+        return;
+      }
+      case 'news':
+      case 'motd':
+        this.print('News: SF Night District is a social MUD for trydemigod.com visitors. Talk first. Vesper is Immortal (pray). Multi: node demigod-mud-app.mjs', 'sys');
+        return;
+      case 'bug':
+      case 'typo':
+      case 'idea':
+        this.print('Thanks — email potter@trydemigod.com with subject MUD. (No in-game ticket system.)', 'sys');
+        return;
+      case 'sit':
+        this.print(ch.name + ' sits down' + (arg ? ' on ' + arg : '') + '.', 'say');
+        this.pushMulti('emote', ch.name + ' sits down' + (arg ? ' on ' + arg : '') + '.', { room: ch.room });
+        return;
+      case 'stand':
+        this.print(ch.name + ' stands up.', 'say');
+        this.pushMulti('emote', ch.name + ' stands up.', { room: ch.room });
+        return;
+      case 'map':
+        this.print(
+          'SF Night District (sketch):\n' +
+          '  [roof]\n' +
+          '    |\n' +
+          ' [office]—[lobby]—[review]—[archive]\n' +
+          '    |        |\n' +
+          ' [transit] [garden]—[cafe]—[plaza]—[alley]—[lab]\n' +
+          '              |        |        |\n' +
+          '           [mission] [dock]—[market]\n' +
+          '              |\n' +
+          '            [bar]\n' +
+          'You: ' + ch.room,
+          'meta'
+        );
+        return;
+      case 'quest':
+      case 'journal':
+        if (ch.quest && ch.quest.text) this.print('Quest: ' + ch.quest.text, 'meta');
+        else this.print('No active quest. Try: pray for a quest', 'meta');
+        return;
+      case 'score':
+      case 'stats':
+      case 'status':
+        this.print(
+          ch.name + ' the ' + ((CLASSES[ch.klass] || {}).title || ch.klass) +
+          ' · HP ' + ch.hp + '/' + ch.maxHp +
+          ' · xp ' + (ch.xp || 0) +
+          ' · room ' + ch.room +
+          (ch.quest ? ' · quest on' : ''),
+          'meta'
+        );
+        return;
+      case 'help':
+      case '?':
+      case 'commands':
+      case 'tutorial':
+        this.print(
+          'Fundamentals (classic MUD):\n' +
+          '  look (l) · exits · n/s/e/w/u/d · home\n' +
+          '  inv (i) · get · drop · give <item> to <name> · examine (x)\n' +
+          '  say / "text · emote / :pose · tell · chat · who\n' +
+          '  score · save · brief/verbose · time · help · quit\n' +
+          'Social+: wave · intro · sit/stand · map · news\n' +
+          'Immortal: pray  ·  pray <message>  ·  tutorial: skip\n' +
+          'Goal: meet people. Keep it simple.',
+          'sys'
+        );
+        return;
+      case 'quit':
+      case 'exit':
+      case 'logout':
+        try { this.pushMulti('system', ch.name + ' steps into the fog.', { room: ch.room }); } catch (e) {}
+        saveChar(ch);
+        this.session = null;
+        this.remoteHere = [];
+        this.remoteWho = [];
+        this.onStatus('offline · saved');
+        this.print('You step into the SF fog. Character saved. Come back anytime.', 'sys');
+        return;
+      case 'restart':
+      case 'new':
+      case 'delete':
+        clearChar();
+        this.char = null;
+        this.session = null;
+        this.mode = 'create';
+        this._create = { name: '', klass: 'wanderer' };
+        this.print('Character cleared. Name?', 'sys');
+        return;
+      case 'hi':
+      case 'hello':
+        this.cmd('say hello');
+        return;
+      default:
+        this.print("Unknown. Type HELP — or PRAY if stuck.", 'err');
+    }
+  };
+
+  Engine.prototype.move = function (dir) {
+    var r = this.here();
+    var next = r.exits && r.exits[dir];
+    if (!next || !ROOMS[next]) {
+      this.print("You can't go that way.", 'err');
+      return;
+    }
+    this.char.room = next;
+    this.char.xp = (this.char.xp || 0) + 1;
+    saveChar(this.char);
+    this.print('You go ' + dir + '.', 'sys');
+    this.lookRoom(this.char.brief ? false : false);
+    this.syncRoom();
+    this.tutorialTick('move');
+  };
+
+  Engine.prototype.examine = function (arg) {
+    var a = (arg || '').toLowerCase();
+    if (!a || a === 'here' || a === 'room') return this.lookRoom(true);
+    if (/^(codex|vesper)$/.test(a)) {
+      var imm = NPCS.find(function (n) { return n.id === 'vesper' || n.immortal; });
+      this.print(imm ? imm.look : 'Vesper the Immortal. Type: pray', 'out');
+      return;
+    }
+    var id = this.findItem(a, true);
+    if (id && ITEMS[id]) {
+      this.print(ITEMS[id].look || ITEMS[id].name, 'out');
+      return;
+    }
+    var npc = NPCS.find(function (n) {
+      return n.room === this.char.room && n.name.toLowerCase() === a;
+    }, this);
+    if (npc) {
+      this.print(npc.look, 'out');
+      return;
+    }
+    if (a === 'self' || a === 'me') {
+      var me = this.char;
+      this.print((me && me.desc) || (me.name + ' the ' + ((CLASSES[me.klass] || {}).title || me.klass) + '.'), 'out');
+      this.cmd('score');
+      return;
+    }
+    if (this.char && a === String(this.char.name || '').toLowerCase()) {
+      this.print(this.char.desc || (this.char.name + ' the ' + ((CLASSES[this.char.klass] || {}).title || this.char.klass) + '.'), 'out');
+      return;
+    }
+    if ((this.remoteHere || []).some(function (n) { return String(n).toLowerCase() === a; })) {
+      this.print('You see ' + a + ' — another visitor in the district.', 'out');
+      return;
+    }
+    this.print("You don't see that here.", 'err');
+  };
+
+  Engine.prototype.findItem = function (q, includeInv) {
+    q = (q || '').toLowerCase();
+    var pool = (this.roomItems[this.char.room] || []).slice();
+    if (includeInv) pool = pool.concat(this.char.inv || []);
+    for (var i = 0; i < pool.length; i++) {
+      var id = pool[i];
+      var it = ITEMS[id];
+      if (!it) continue;
+      if (id === q || it.name.toLowerCase().indexOf(q) >= 0) return id;
+    }
+    return null;
+  };
+
+  Engine.prototype.getItem = function (arg) {
+    if (!arg) { this.print('Get what?', 'err'); return; }
+    var id = this.findItem(arg, false);
+    if (!id) { this.print("You don't see that here.", 'err'); return; }
+    var room = this.char.room;
+    this.roomItems[room] = (this.roomItems[room] || []).filter(function (x) { return x !== id; });
+    this.char.inv.push(id);
+    this.char.xp = (this.char.xp || 0) + 1;
+    saveChar(this.char);
+    this.print('You take ' + ((ITEMS[id] && ITEMS[id].name) || id) + '.', 'sys');
+  };
+
+  Engine.prototype.dropItem = function (arg) {
+    if (!arg) { this.print('Drop what?', 'err'); return; }
+    var q = arg.toLowerCase();
+    var inv = this.char.inv || [];
+    var id = null;
+    for (var i = 0; i < inv.length; i++) {
+      var it = ITEMS[inv[i]];
+      if (inv[i] === q || (it && it.name.toLowerCase().indexOf(q) >= 0)) { id = inv[i]; break; }
+    }
+    if (!id) { this.print("You aren't carrying that.", 'err'); return; }
+    this.char.inv = inv.filter(function (x) { return x !== id; });
+    this.roomItems[this.char.room] = this.roomItems[this.char.room] || [];
+    this.roomItems[this.char.room].push(id);
+    saveChar(this.char);
+    this.print('You drop ' + ((ITEMS[id] && ITEMS[id].name) || id) + '.', 'sys');
+  };
+
+  Engine.prototype.npcHear = function () {
+    var room = this.char.room;
+    var here = NPCS.filter(function (n) { return n.room === room && !n.immortal; });
+    if (!here.length) return;
+    if (Math.random() > 0.55) return;
+    var n = here[Math.floor(Math.random() * here.length)];
+    var line = n.lines[Math.floor(Math.random() * n.lines.length)];
+    this.print(n.name + ' says, "' + line + '"', 'say');
+  };
+
+  function mount(root, opts) {
+    opts = opts || {};
+    if (!root) return null;
+    var box = root.querySelector('#dg-mud') || root;
+    if (box.dataset.dgMud === '1') return box.__mudEngine || null;
+    box.dataset.dgMud = '1';
+
+    box.innerHTML =
+      '<div class="dg-mud" id="dg-mud-shell">' +
+      '<div class="dg-mud-head"><span class="dg-mud-title">SF Night District</span>' +
+      '<span class="dg-mud-status" id="dg-mud-status">solo</span></div>' +
+      '<div class="dg-mud-log" id="dg-mud-log" role="log" aria-live="polite"></div>' +
+      '<form class="dg-mud-form" id="dg-mud-form" autocomplete="off">' +
+      '<label class="sr-only" for="dg-mud-input">Command</label>' +
+      '<span class="dg-mud-prompt" aria-hidden="true">&gt;</span>' +
+      '<input id="dg-mud-input" class="dg-mud-input" type="text" maxlength="240" ' +
+      'placeholder="say hi · map · pray · help · skip" enterkeyhint="send" />' +
+      '<button type="submit" class="dg-mud-send">Enter</button>' +
+      '</form>' +
+      '<p class="dg-mud-hint">SF social MUD · talk first · <code>pray</code> (Vesper, Immortal) · <code>skip</code> tutorial · multi on :3461</p>' +
+      '</div>';
+
+    var log = box.querySelector('#dg-mud-log');
+    var form = box.querySelector('#dg-mud-form');
+    var input = box.querySelector('#dg-mud-input');
+    var status = box.querySelector('#dg-mud-status');
+    var hist = [];
+    var histIdx = -1;
+
+    function addLine(text, kind) {
+      var d = document.createElement('div');
+      d.className = 'dg-mud-line dg-mud-' + (kind || 'out');
+      d.innerHTML = esc(text).replace(/\n/g, '<br>');
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+      while (log.children.length > 450) log.removeChild(log.firstChild);
+    }
+
+    var engine = new Engine({
+      out: addLine,
+      onStatus: function (t) { if (status) status.textContent = t; },
+      apiBase: opts.apiBase || '',
+    });
+    box.__mudEngine = engine;
+    engine.boot();
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var t = (input.value || '').trim();
+      if (!t) return;
+      hist.push(t);
+      if (hist.length > 80) hist.shift();
+      histIdx = hist.length;
+      addLine('> ' + t, 'cmd');
+      input.value = '';
+      engine.cmd(t);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!hist.length) return;
+        histIdx = Math.max(0, histIdx - 1);
+        input.value = hist[histIdx] || '';
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        histIdx = Math.min(hist.length, histIdx + 1);
+        input.value = hist[histIdx] || '';
+      }
+    });
+    try { input.focus(); } catch (e) {}
+    return engine;
+  }
+
+  function selftest() {
+    var lines = [];
+    var eng = new Engine({
+      out: function (t, k) { lines.push([k, t]); },
+      onStatus: function () {},
+    });
+    if (typeof localStorage === 'undefined') {
+      var mem = {};
+      globalThis.localStorage = {
+        getItem: function (k) { return mem[k] || null; },
+        setItem: function (k, v) { mem[k] = String(v); },
+        removeItem: function (k) { delete mem[k]; },
+      };
+    }
+    try { localStorage.removeItem(STORE); localStorage.removeItem('dgMudChar_v1'); } catch (e) {}
+    eng.boot();
+    eng.cmd('TestRunner');
+    eng.cmd('engineer');
+    eng.cmd('skip');
+    eng.cmd('look');
+    eng.cmd('e');
+    eng.cmd('get coin');
+    eng.cmd('say hello');
+    eng.cmd('pray who are you');
+    eng.cmd('map');
+    eng.cmd('exits');
+    eng.cmd('home');
+    eng.cmd('brief');
+    eng.cmd('verbose');
+    eng.cmd('save');
+    eng.cmd('time');
+    eng.cmd('desc a tired founder in a black hoodie');
+    eng.cmd('help');
+    var ok =
+      eng.char &&
+      eng.char.name === 'TestRunner' &&
+      eng.char.tutorialDone === true &&
+      eng.char.inv.indexOf('coin') >= 0 &&
+      eng.char.room === 'plaza' &&
+      eng.char.desc &&
+      lines.some(function (l) { return /Immortal|Vesper/i.test(l[1]); }) &&
+      lines.some(function (l) { return /Obvious exits|Fundamentals/i.test(l[1]); }) &&
+      lines.some(function (l) { return /Character saved|Brief mode/i.test(l[1]); });
+    if (!ok) {
+      console.error('MUD selftest FAIL', eng.char, lines.slice(-12));
+      process.exitCode = 1;
+      return false;
+    }
+    console.log(JSON.stringify({
+      ok: true,
+      room: eng.char.room,
+      inv: eng.char.inv,
+      tutorialDone: eng.char.tutorialDone,
+      lines: lines.length,
+    }));
+    return true;
+  }
+
+  if (typeof process !== 'undefined' && process.argv && process.argv.indexOf('--selftest') >= 0) {
+    selftest();
+  }
+
+  return {
+    mount: mount,
+    Engine: Engine,
+    ROOMS: ROOMS,
+    ITEMS: ITEMS,
+    NPCS: NPCS,
+    selftest: selftest,
+  };
+});
+
+window.__dgFootVer='624';console.log('Demigod v623');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
