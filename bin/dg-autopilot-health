@@ -9,6 +9,24 @@ live=$(curl -s -o /dev/null -w '%{http_code}' --max-time 12 https://www.trydemig
 # gates: retry once on fail — the coord rewrites footer-lite.html mid-ship, so a single verify:source
 # can catch it torn (transient). Only a SUSTAINED fail (2×) is real.
 gates=PASS; node demigod-verify-source.mjs >/dev/null 2>&1 || { sleep 3; node demigod-verify-source.mjs >/dev/null 2>&1 || gates=FAIL; }
+# A FAIL only means something if the files verify:source READS are quiescent. The retry above waits
+# 3s, which catches a sub-second write tear -- but an AGENT editing the head takes MINUTES. Measured
+# 2026-07-17: a head edit ran 05:01:49->05:05:47 and during it 6 head:* gates failed on THREE
+# consecutive runs spanning 4 min, then went green on their own once the agent finished. So
+# "failed twice, 3s apart" does NOT mean sustained, and the 3s window is ~80x too short to tell an
+# edit-in-progress from a real regression. Cost: a full cycle chasing 6 phantom failures.
+# Quiescence is the honest test -- if a guarded file is still moving, no verdict about it is final.
+# NB: `find` here is bfs, not GNU findutils -- it rejects EVERY -newermt form. With stderr
+# discarded that reads as "no files changed", i.e. this check would silently never fire. stat+date
+# is portable and actually testable.
+if [ "$gates" = FAIL ]; then
+  now=$(date +%s); churn=""
+  for f in demigod-head-minimal.html demigod-foot-core.js demigod-footer-lite.html demigod-head-styles.css; do
+    m=$(stat -c %Y "$f" 2>/dev/null) || continue
+    [ $((now - m)) -lt 120 ] && { churn="$f"; break; }
+  done
+  [ -n "$churn" ] && gates=CHURN  # someone is mid-edit; re-judge next run, don't cry wolf
+fi
 # Name the dead service instead of counting to a threshold. The old form counted actives and
 # flagged only `svc -lt 3`, to "tolerate ONE transient blip (a drainer mid-restart)" -- but that
 # tolerance is indiscriminate: claude-yolo died 2026-07-16T23:48 and this printed svc=3/4 verdict=OK
@@ -19,7 +37,10 @@ gates=PASS; node demigod-verify-source.mjs >/dev/null 2>&1 || { sleep 3; node de
 # orphaned `node demigod-agent-dashboard.mjs` (PPID 1) held :9878. The dashboard answered 200 the
 # whole time, so nothing looked wrong -- but systemd could never reclaim the port, and the process
 # actually serving it was supervised by no one.
-SVCS=(demigod-agent-coord claude-yolo demigod-dash swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
+# demigod-events-bot: same class of bug via demigod-events-online.mjs startApp() detached+unref
+# (NRestarts 1740+, MainPID=0, orphan PPID 1 on :3460). Only add to watch AFTER spawner prefers
+# the unit — a permanently red signal is worth less than no signal.
+SVCS=(demigod-agent-coord claude-yolo demigod-dash demigod-events-bot swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
 down=()
 for s in "${SVCS[@]}"; do
   st=$(systemctl --user is-active "$s" 2>/dev/null || true)
@@ -42,6 +63,7 @@ else process.stdout.write("churn-lag v"+d+"/"+l);                      // coord 
 }catch(e){process.stdout.write("?")}' 2>/dev/null)
 drift=$(printf '%s' "$truth" | grep -c STUCK)
 # svc: ANY service not active/activating is a problem, and the message says which one.
-verdict=OK; { [ "$live" != 200 ] || [ "$gates" != PASS ] || [ ${#down[@]} -gt 0 ] || [ "$drift" != 0 ]; } && verdict=CHECK
+# gates=CHURN is NOT a fault (mid-edit, verdict deferred) -- test for FAIL, not for "not PASS".
+verdict=OK; { [ "$live" != 200 ] || [ "$gates" = FAIL ] || [ ${#down[@]} -gt 0 ] || [ "$drift" != 0 ]; } && verdict=CHECK
 echo "[$verdict] live=$live gates=$gates svc=$svc/$svc_total${down[*]+ down=${down[*]}} autopilot=$auto truth=$truth"
 [ "$verdict" = OK ] && exit 0 || exit 1

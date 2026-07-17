@@ -143,15 +143,40 @@ function demandStatusSnapshot(j) {
   const hygieneOk = typeof sourceHygiene?.ok === 'boolean'
     ? sourceHygiene.ok
     : (typeof allHygieneOk === 'boolean' ? allHygieneOk : null);
+  // Receipt quarantine is policy refusal, not "nobody was contacted". Surface
+  // counts + queue-head overlap so glance UIs cannot render 0 SENT as absence.
+  const malformedReceipts = Number(j.dms?.malformedReceipts) || 0;
+  const malformedReceiptReasons =
+    j.dms?.malformedReceiptReasons && typeof j.dms.malformedReceiptReasons === 'object'
+      ? j.dms.malformedReceiptReasons
+      : {};
+  const malformedHandles = new Set();
+  for (const line of Array.isArray(j.dms?.malformedReceiptLines) ? j.dms.malformedReceiptLines : []) {
+    const m = String(line || '').match(/@([A-Za-z0-9_]{1,30})/);
+    if (m) malformedHandles.add(`@${m[1].toLowerCase()}`);
+  }
+  const queueTop3 = Array.isArray(j.queue?.top3) ? j.queue.top3 : [];
+  // Prefer full pending handles from demand-status (root truth). Fall back to
+  // top3 only for older receipts that never exposed pendingHandles — that
+  // path understates overlap and must not be the happy path.
+  const queuePendingHandles = Array.isArray(j.queue?.pendingHandles)
+    ? j.queue.pendingHandles.map((h) => String(h || '').toLowerCase()).filter(Boolean)
+    : queueTop3.map((t) => String(t?.handle || '').toLowerCase()).filter(Boolean);
+  const quarantineQueueOverlap = queuePendingHandles.filter(
+    (h) => h && malformedHandles.has(h),
+  );
   return {
     at: j.at || null,
     statusPath: j.statusPath || path.join(BUSY, 'demand-status.json'),
     sourceReceipt,
     pending: j.queue?.pending ?? null,
     sentConfirmed: j.dms?.sentConfirmed ?? null,
+    malformedReceipts,
+    malformedReceiptReasons,
+    quarantineQueueOverlap,
     pilotsFilled: j.pilots?.realFilled ?? null,
     next: j.next || null,
-    top3: j.queue?.top3 || [],
+    top3: queueTop3,
     drafts: {
       top3,
       needFix,
@@ -1081,8 +1106,22 @@ function buildAgentBrief(data) {
     lines.push(`- cmd: \`${spine.next.cmd}\``);
     lines.push(`- id=${spine.next.id} green=${spine.green ?? spine.truthEvidence?.green} freeze=${spine.freeze?.on ? 'ON' : 'OFF'}`);
     if (spine.demand) {
+      const mal = Number(spine.demand.malformedReceipts) || 0;
+      const overlap = Array.isArray(spine.demand.quarantineQueueOverlap)
+        ? spine.demand.quarantineQueueOverlap.length
+        : 0;
+      const pendingN = spine.demand.pending;
+      const overlapLabel =
+        overlap && pendingN != null
+          ? `queue-overlap=${overlap}/${pendingN}`
+          : overlap
+            ? `queue-overlap=${overlap}`
+            : '';
       lines.push(
-        `- demand: pending=${spine.demand.pending} sent=${spine.demand.sentConfirmed} pilots=${spine.demand.pilotsFilled}`,
+        `- demand: pending=${spine.demand.pending} sent=${spine.demand.sentConfirmed} pilots=${spine.demand.pilotsFilled}` +
+          (mal
+            ? ` · quarantine=${mal}${overlapLabel ? ` · ${overlapLabel}` : ''} (SENT may under-report)`
+            : ''),
       );
       const draftHygiene = spine.demand?.drafts?.hygiene || spine.demandDraftsHygiene || null;
       const draftHygieneState = draftHygiene?.stale === true
@@ -1715,7 +1754,7 @@ const JOBS = {
   'swarm-status': { cmd: 'node', args: ['demigod-swarm-busy.mjs', 'status'], timeout: 15000, safe: true },
   // Periodic Codex review/assist swarm (not cycle-work busy): bin/dg-codex-swarm
   'codex-swarm-status': { cmd: 'bin/dg-codex-swarm', args: ['status'], timeout: 15000, safe: true },
-  'codex-swarm-once': { cmd: 'bin/dg-codex-swarm', args: ['once'], timeout: 240000, safe: true },
+  'codex-swarm-once': { cmd: 'bin/dg-codex-swarm', args: ['once'], timeout: 360000, safe: true },
   'codex-swarm-hint': { cmd: 'bin/dg-codex-swarm', args: ['apply-hint'], timeout: 10000, safe: true },
   'workflow-map-update': { cmd: 'bin/dg-workflow-map', args: ['update'], timeout: 30000, safe: true },
   'workflow-map-review': { cmd: 'bin/dg-workflow-map', args: ['review'], timeout: 20000, safe: true },
@@ -4546,7 +4585,9 @@ const server = http.createServer(async (req, res) => {
       try {
         const pretty = url.searchParams.get('pretty') === '1';
         const forceCoord =
-          url.searchParams.get('force') === '1' || url.searchParams.get('liveCss') === '1';
+          url.searchParams.get('force') === '1' ||
+          url.searchParams.get('fresh') === '1' ||
+          url.searchParams.get('liveCss') === '1';
         const wantLiveCss =
           url.searchParams.get('liveCss') === '1' || process.env.DEMIGOD_COORD_LIVE_CSS === '1';
         const nowCoord = Date.now();
@@ -4565,7 +4606,7 @@ const server = http.createServer(async (req, res) => {
           if (!rec) return rec;
           if (!rec.at) return { ...rec, ageSec: null, clockSkewed: false, stale: true };
           const ageSec = Math.round((Date.now() - Date.parse(rec.at)) / 1000);
-          const clockSkewed = Number.isFinite(ageSec) && ageSec < -60;
+          const clockSkewed = Number.isFinite(ageSec) && ageSec < -15 * 60;
           return {
             ...rec,
             ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
@@ -4825,6 +4866,9 @@ const server = http.createServer(async (req, res) => {
         }
         // Head + footer-lite + foot Notes disk readiness (ship prep without shelling out)
         let head = { ok: false, shipReady: false };
+        // Carries this request's disk md5 + head cssUrl out to the headCss card below, which is in a
+        // sibling block and cannot see them. Stays null if the try throws -> card falls back to age.
+        let headCssProof = null;
         try {
           const h = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
           const hasCanonical = /rel=["']canonical["']/.test(h);
@@ -4838,36 +4882,64 @@ const server = http.createServer(async (req, res) => {
           const cssUrl = (h.match(/<link[^>]+href=["'](https:\/\/files\.catbox\.moe\/[^"']+\.css)["']/i) || [])[1] || null;
           const diskCss = fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'));
           const diskCssSha = crypto.createHash('sha256').update(diskCss).digest('hex');
+          const diskCssMd5 = crypto.createHash('md5').update(diskCss).digest('hex');
+          headCssProof = { diskCssMd5, cssUrl };
           let cssFresh = false;
           let cssFreshSource = null;
-          // Receipt first (no network) — live catbox fetch only when ?liveCss=1 or DEMIGOD_COORD_LIVE_CSS=1
+          // Receipt first (no network). Content-proof (diskMd5 + href) does not expire —
+          // 30m TTL only when md5 is absent (legacy/partial receipts).
+          // Missing receipt ≠ stale: live-fetch when ?liveCss=1 / env, or once to self-heal.
           {
-            const rec = safeJson(path.join(BUSY, 'head-css-cdn.json'));
+            const recPath = path.join(BUSY, 'head-css-cdn.json');
+            const rec = safeJson(recPath);
             const ageMs = rec?.at ? Date.now() - Date.parse(rec.at) : Infinity;
-            const recFresh =
-              rec?.match === true &&
-              Number.isFinite(ageMs) &&
-              ageMs >= -60000 &&
-              ageMs <= 30 * 60 * 1000 &&
-              (!rec.href || !cssUrl || rec.href === cssUrl) &&
-              (!rec.diskMd5 ||
-                rec.diskMd5 === crypto.createHash('md5').update(diskCss).digest('hex'));
-            if (recFresh) {
+            const hrefOk = !rec?.href || !cssUrl || rec.href === cssUrl;
+            const md5Ok = !rec?.diskMd5 || rec.diskMd5 === diskCssMd5;
+            const contentProof = !!(rec?.diskMd5 && rec.diskMd5 === diskCssMd5 && hrefOk);
+            const ageOk =
+              Number.isFinite(ageMs) && ageMs >= -60000 && ageMs <= 30 * 60 * 1000;
+            if (rec?.match === true && hrefOk && md5Ok && (contentProof || ageOk)) {
               cssFresh = true;
               cssFreshSource = 'head-css-cdn.json';
-            } else if (rec && rec.match === false && Number.isFinite(ageMs) && ageMs <= 30 * 60 * 1000) {
+            } else if (
+              rec &&
+              rec.match === false &&
+              Number.isFinite(ageMs) &&
+              ageMs <= 30 * 60 * 1000
+            ) {
               cssFresh = false;
               cssFreshSource = 'head-css-cdn.json';
             }
           }
-          if (!cssFresh && wantLiveCss && cssUrl) {
+          // Live prove when forced, or when no usable receipt (self-heal permanent false blocker)
+          const needLiveCss =
+            !cssFresh &&
+            cssUrl &&
+            (wantLiveCss || cssFreshSource !== 'head-css-cdn.json');
+          if (needLiveCss) {
             try {
               const liveCss = Buffer.from(
                 await (await fetch(cssUrl, { signal: AbortSignal.timeout(2500) })).arrayBuffer(),
               );
+              const liveMd5 = crypto.createHash('md5').update(liveCss).digest('hex');
               cssFresh =
                 crypto.createHash('sha256').update(liveCss).digest('hex') === diskCssSha;
               if (cssFresh) cssFreshSource = 'live-fetch';
+              // Persist receipt so later /api/coord stays offline-green (publisher path is SoR writer)
+              try {
+                writeJsonAtomic(path.join(BUSY, 'head-css-cdn.json'), {
+                  at: new Date().toISOString(),
+                  match: cssFresh === true,
+                  href: cssUrl,
+                  diskMd5: diskCssMd5,
+                  liveMd5,
+                  diskBytes: diskCss.length,
+                  liveBytes: liveCss.length,
+                  note: cssFresh ? 'coord-live-self-heal' : 'coord-live-mismatch',
+                });
+              } catch {
+                /* receipt write best-effort */
+              }
             } catch {
               /* catbox flaky — keep receipt result */
             }
@@ -4940,7 +5012,7 @@ const server = http.createServer(async (req, res) => {
         } catch (e) {
           footerLite = { ok: false, error: String(e.message || e).slice(0, 120) };
         }
-        // Foot Notes cards vs blog SoR (static HTML ship path; dogfood without shell)
+        // Foot Notes vs blog SoR (dynamic DG_BLOG_POSTS template OR legacy static cards)
         let footNotes = { ok: false, shipReady: false };
         try {
           const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
@@ -4948,6 +5020,12 @@ const server = http.createServer(async (req, res) => {
           const posts = (Array.isArray(blogJson?.posts) ? blogJson.posts : []).filter(
             (p) => p && p.published !== false,
           );
+          // Same dynamicSoR markers as demigod-verify-source core:blog-sor-in-sync
+          const dynamicSor =
+            /var\s+DG_BLOG_POSTS\s*=/.test(core) &&
+            /id="note-'\s*\+/.test(core) &&
+            /class="dg-blog-more"/.test(core) &&
+            /<summary>Full note · /.test(core);
           let matched = 0;
           let anchors = 0;
           const gaps = [];
@@ -4956,18 +5034,33 @@ const server = http.createServer(async (req, res) => {
             const okTitle = !!(p.title && core.includes(p.title));
             const okSummary = !!(p.summary && core.includes(p.summary));
             const okAlt = !p.imageAlt || core.includes(p.imageAlt);
-            const okBody = !p.body || core.includes(String(p.body).slice(0, 48));
-            const okAnchor = !!(slug && core.includes(`id="note-${slug}"`));
+            const bodySlice = p.body ? String(p.body).slice(0, 48) : '';
+            const bodyEsc = bodySlice ? JSON.stringify(bodySlice).slice(1, -1) : '';
+            const okBody =
+              !p.body || core.includes(bodySlice) || (bodyEsc && core.includes(bodyEsc));
+            // Static id= OR dynamic embed slug (runtime builds id="note-"+slug)
+            const okAnchor = !!(
+              slug &&
+              (core.includes(`id="note-${slug}"`) ||
+                (dynamicSor && core.includes(`"slug":"${slug}"`)))
+            );
             if (okAnchor) anchors += 1;
             if (okTitle && okSummary && okAlt && okBody && okAnchor) matched += 1;
             else gaps.push(slug || '?');
           }
           const moreCount = (core.match(/class="dg-blog-more"/g) || []).length;
-          const hasDetails = moreCount >= posts.length && posts.length > 0;
-          const hasDeepLink = core.includes('Deep-link Notes cards');
-          const hasReducedMotionScroll = /prefers-reduced-motion: reduce/.test(core) && /scrollIntoView/.test(core);
+          const hasDetails = dynamicSor
+            ? true
+            : moreCount >= posts.length && posts.length > 0;
+          // Deep-link path is focusBlogNoteFromHash + hashchange (comment string is not a gate)
+          const hasDeepLink =
+            core.includes('focusBlogNoteFromHash') || core.includes('Deep-link Notes cards');
+          const hasReducedMotionScroll =
+            /prefers-reduced-motion:\s*reduce/.test(core) && /scrollIntoView/.test(core);
           const labeledSummaries = (core.match(/<summary>Full note · /g) || []).length;
-          const hasLabeledSummaries = labeledSummaries >= posts.length && posts.length > 0;
+          const hasLabeledSummaries = dynamicSor
+            ? true
+            : labeledSummaries >= posts.length && posts.length > 0;
           const hasNoteTitle = core.includes(' · Notes · Demigod');
           const hasNoteHashChange =
             /hashchange/.test(core) && core.includes('focusBlogNoteFromHash');
@@ -4977,6 +5070,7 @@ const server = http.createServer(async (req, res) => {
             matched,
             anchors,
             moreCount,
+            dynamicSor: dynamicSor === true,
             hasDetails,
             hasDeepLink,
             hasReducedMotionScroll,
@@ -5438,9 +5532,23 @@ const server = http.createServer(async (req, res) => {
               const ageSec = Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null;
               const clockSkewed = Number.isFinite(ageSec) && ageSec < -60;
               const stale = !Number.isFinite(ageSec) || clockSkewed || ageSec > 3600;
+              // Content-proof does not expire -- same rule the ship path uses above. Age alone made
+              // this card PERMANENTLY ok:false: the live re-probe that would advance the receipt's
+              // `at` is gated on !cssFresh, and cssFresh is true precisely BECAUSE content-proof
+              // holds, so the timestamp can never refresh. The card then contradicted the ship path
+              // on the same receipt -- byte-identical CSS (md5 ==, 81890 B) reported not-ok for
+              // hours. Proof requires the head still point at the receipt's href, so a re-upload to
+              // a new CDN URL correctly falls back to age.
+              const contentProof = !!(
+                rec.diskMd5 &&
+                headCssProof &&
+                rec.diskMd5 === headCssProof.diskCssMd5 &&
+                (!rec.href || !headCssProof.cssUrl || rec.href === headCssProof.cssUrl)
+              );
               return {
-                ok: rec.match === true && !stale && !clockSkewed,
+                ok: rec.match === true && !clockSkewed && (contentProof || !stale),
                 match: rec.match === true,
+                contentProof,
                 href: rec.href || null,
                 diskMd5: rec.diskMd5 || null,
                 liveMd5: rec.liveMd5 || null,
