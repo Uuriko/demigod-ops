@@ -2,17 +2,24 @@
 /**
  * demigod-wiz-cdp-playtest.mjs
  * WIZ flow audit using CDP. Supports --local (intercepts foot script, injects disk demigod-foot-core.js for testing changes pre-publish).
- * Checks: steps advance, visibleInputs >=1 per real Q, 90day present, review at submit, reach thanks.
- * Run: node demigod-wiz-cdp-playtest.mjs [--local]
+ * Checks: steps advance, visibleInputs >=1 per real Q, 90day present (startup only), review at submit.
+ * Run: node demigod-wiz-cdp-playtest.mjs [--local] [--engineer]
+ *
+ * Stops AT the review step — it never submits, so it creates no lead. Keep it that way:
+ * a gate that submits would mint real fake leads in the prod SoR if it ever misfired.
  */
 import puppeteer from 'puppeteer-core';
 import { CDP_URL } from './cdp-config.mjs';
 import fs from 'fs';
 import path from 'path';
 
-const OUT_DIR = '/tmp/audit-wiz-playtest';
-fs.mkdirSync(OUT_DIR, { recursive: true });
 const USE_LOCAL = process.argv.includes('--local');
+// Engineer/talent is half the marketplace and had no coverage at all.
+const FLOW = process.argv.includes('--engineer') ? 'engineer' : 'startup';
+const MODAL = FLOW === 'engineer' ? '#jobseeker-modal' : '#startup-modal';
+const CTA = FLOW === 'engineer' ? 'looking|join|profile|talent' : 'hire|hiring|start brief';
+const OUT_DIR = `/tmp/audit-wiz-playtest${FLOW === 'engineer' ? '-engineer' : ''}`;
+fs.mkdirSync(OUT_DIR, { recursive: true });
 const CORE = fs.readFileSync('demigod-foot-core.js', 'utf8');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,23 +47,28 @@ async function run() {
     });
   }
 
-  await page.goto('https://www.trydemigod.com/?wiz=startup', {
+  await page.goto(`https://www.trydemigod.com/?wiz=${FLOW}`, {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
   await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
   if (USE_LOCAL) await wait(1200);
 
-  // Ensure startup WIZ is open (deep-link or CTA).
-  await page.evaluate(() => {
-    const open = document.querySelector('#startup-modal');
-    if (open && getComputedStyle(open).display !== 'none') return;
-    const btn = Array.from(document.querySelectorAll('button,a,[data-dg-cta]')).find((b) =>
-      /hire|hiring|start brief/i.test(b.textContent || b.getAttribute('aria-label') || ''),
-    );
-    if (btn) btn.click();
-    else if (typeof window.show === 'function') window.show('#startup-modal');
-  });
+  // Ensure the WIZ is open (deep-link or CTA).
+  await page.evaluate(
+    (modal, cta) => {
+      const open = document.querySelector(modal);
+      if (open && getComputedStyle(open).display !== 'none') return;
+      const re = new RegExp(cta, 'i');
+      const btn = Array.from(document.querySelectorAll('button,a,[data-dg-cta]')).find((b) =>
+        re.test(b.textContent || b.getAttribute('aria-label') || ''),
+      );
+      if (btn) btn.click();
+      else if (typeof window.show === 'function') window.show(modal);
+    },
+    MODAL,
+    CTA,
+  );
   await wait(900);
   await page.screenshot({ path: path.join(OUT_DIR, '01-modal-open.png') });
 
@@ -64,9 +76,9 @@ async function run() {
   const log = (m) => console.log(m);
 
   const snapshot = async () =>
-    page.evaluate(() => {
-      const modal = document.querySelector('#startup-modal');
-      if (!modal) return { q: 'no-modal', vis: 0, nextText: '', hasReview: false, has90: false };
+    page.evaluate((modalSel) => {
+      const modal = document.querySelector(modalSel);
+      if (!modal) return { q: 'no-modal', vis: 0, nextText: '', hasReview: false, has90: false, key: '' };
       const visible = (el) =>
         !!el && el.offsetParent !== null && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
       const q = modal.querySelector('.dg-wiz-q');
@@ -79,6 +91,9 @@ async function run() {
       const qText = (q?.textContent || '').trim();
       return {
         q: qText.slice(0, 60),
+        // foot-core's own step key (form.dataset.dgWizKey) — authoritative.
+        // Beats guessing "is this a real question?" from copy, which broke twice.
+        key: (modal.querySelector('form')?.dataset?.dgWizKey || '').trim(),
         vis,
         nextText: (next?.textContent || '').trim().slice(0, 30),
         // .dg-wiz-review shell is often present/empty before the review step.
@@ -88,11 +103,11 @@ async function run() {
           /submit/i.test((next?.textContent || '').trim()),
         has90: visible(ninety) || /90.?day|outcome this hire|first 90 days/i.test(qText),
       };
-    });
+    }, MODAL);
 
   const fillAndNext = async () => {
-    await page.evaluate(() => {
-      const modal = document.querySelector('#startup-modal');
+    await page.evaluate((modalSel) => {
+      const modal = document.querySelector(modalSel);
       if (!modal) return;
       const fields = Array.from(modal.querySelectorAll('input,select,textarea')).filter(
         (el) => el.offsetParent !== null && el.type !== 'checkbox' && el.type !== 'hidden',
@@ -114,7 +129,7 @@ async function run() {
       });
       const next = modal.querySelector('.dg-wiz-next');
       if (next) next.click();
-    });
+    }, MODAL);
     await wait(700);
   };
 
@@ -136,15 +151,38 @@ async function run() {
   }
 
   const final = steps[steps.length - 1] || (await snapshot());
-  const realQs = steps.filter((s) => s.q && !/welcome|i'm hiring|review|submit|thanks/i.test(s.q));
-  const visGood = realQs.length === 0 || realQs.every((s) => (s.vis || 0) >= 1);
+  // Intro/review steps legitimately have no inputs. Prefer foot-core's own step key;
+  // deciding this from copy false-failed twice ("Look good?" review, "I'm looking" intro).
+  const NON_Q = ['welcome', '__submit__', '__thanks__'];
+  const realQs = steps.filter((s) =>
+    s.key
+      ? !NON_Q.includes(s.key)
+      : s.q && !s.hasReview && !/welcome|i'm (hiring|looking)|review|submit|thanks/i.test(s.q),
+  );
+  // `realQs.length === 0 ||` made this VACUOUSLY TRUE -- and it was redundant anyway, since
+  // [].every() already returns true. A run that reached ZERO real questions tested nothing about
+  // field visibility, yet reported visGood. Combined with need90 applying only to the startup flow,
+  // that was a false green on the money path's ONLY automated gate: a WIZ that walked just
+  // welcome -> __submit__ (both in NON_Q, so realQs = 0) PASSED on the engineer flow, and on
+  // startup too if has90 landed on the review step. Verified by lifting this predicate verbatim.
+  // Require at least one real question -- with none, the gate has not tested its own subject.
+  // Checked against REAL runs first so this does not trade a false green for a false red:
+  // startup walks 3 real Qs, engineer 3, all vis=1; both still pass.
+  const visGood = realQs.length > 0 && realQs.every((s) => (s.vis || 0) >= 1);
   const uniqueQs = new Set(steps.map((s) => s.q).filter(Boolean)).size;
   const has90 = steps.some((s) => s.has90) || final.has90;
   // Product gate: hit 90-day step and explicit review/submit, with fields filling.
   // uniqueQs can be 2 when CDP reuses a mid-flow modal — still count as advanced
   // when both product milestones land.
   const advanced = uniqueQs >= 2 || (has90 && final.hasReview);
-  const pass = Boolean((final.hasReview || /review|submit|thanks/i.test(final.q || '')) && advanced && has90 && visGood);
+  // 90day-outcome is a startup-brief step; the engineer flow has no equivalent.
+  const need90 = FLOW === 'startup';
+  const pass = Boolean(
+    (final.hasReview || /review|submit|thanks/i.test(final.q || '')) &&
+      advanced &&
+      (need90 ? has90 : true) &&
+      visGood,
+  );
 
   const report = {
     pass,
@@ -155,6 +193,7 @@ async function run() {
     steps: steps.slice(-4),
     shots: steps.length,
     dir: OUT_DIR,
+    flow: FLOW,
     local: USE_LOCAL,
   };
   fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
