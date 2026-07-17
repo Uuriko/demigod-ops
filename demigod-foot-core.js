@@ -1,4 +1,4 @@
-/*dg-foot-v631-core*/
+/*dg-foot-v635-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v631'; console.log('[demigod] foot v631-core loaded');
+window.dgFootVersion = 'v635'; console.log('[demigod] foot v635-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -1963,39 +1963,47 @@ function ensureMotion(){
   }
 }
 
-/* v631: Mutual Signal restored — original green orb */
+/* v632: Mutual Signal orb + Fable wordmark (DEMIGOD mono next to mark) */
 function ensureLogo(){
   try{
-    var mark='<svg class="dg-mark" data-v="631" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="#03140d"/><circle cx="16" cy="16" r="11" fill="none" stroke="#a6ffcb" stroke-width="1.25" opacity="0.55"/><path d="M10.5 16a5.5 5.5 0 0 1 5.5-5.5" fill="none" stroke="#a6ffcb" stroke-width="2.25" stroke-linecap="round"/><path d="M21.5 16a5.5 5.5 0 0 1-5.5 5.5" fill="none" stroke="#10c674" stroke-width="2.25" stroke-linecap="round"/><circle cx="16" cy="16" r="2.35" fill="#a6ffcb"/></svg>';
+    var mark='<svg class="dg-mark" data-v="632" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="#03140d"/><circle cx="16" cy="16" r="11" fill="none" stroke="#a6ffcb" stroke-width="1.25" opacity="0.55"/><path d="M10.5 16a5.5 5.5 0 0 1 5.5-5.5" fill="none" stroke="#a6ffcb" stroke-width="2.25" stroke-linecap="round"/><path d="M21.5 16a5.5 5.5 0 0 1-5.5 5.5" fill="none" stroke="#10c674" stroke-width="2.25" stroke-linecap="round"/><circle cx="16" cy="16" r="2.35" fill="#a6ffcb"/></svg>';
     qa('a.nav_logo,.nav_logo,a.w-nav-brand,a.logo-link,.logo-link,.w-nav-brand').forEach(function(a){
       if(!a)return;
       a.setAttribute('aria-label','Demigod home');
-      if(a.querySelector('svg.dg-mark[data-v="631"]')){a.dataset.dgMark='631';return;}
-      a.dataset.dgMark='631';
-      var icon=a.querySelector('.nav_logo-icon');
-      if(icon){
-        icon.innerHTML=mark;
-        icon.style.cssText='width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0';
-      }else{
-        var wrap=a.querySelector('svg');
-        if(wrap){
-          if(wrap.parentElement&&wrap.parentElement!==a)wrap.parentElement.innerHTML=mark;
-          else wrap.outerHTML=mark;
+      /* mark once; wordmark always (early-return was leaving empty DEMIGOD) */
+      if(!a.querySelector('svg.dg-mark[data-v="632"]')){
+        a.dataset.dgMark='632';
+        var icon=a.querySelector('.nav_logo-icon');
+        if(icon){
+          icon.innerHTML=mark;
+          icon.style.cssText='width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0';
         }else{
-          a.insertAdjacentHTML('afterbegin','<span class="nav_logo-icon" style="width:28px;height:28px;display:inline-flex">'+mark+'</span>');
+          var wrap=a.querySelector('svg');
+          if(wrap){
+            if(wrap.parentElement&&wrap.parentElement!==a)wrap.parentElement.innerHTML=mark;
+            else wrap.outerHTML=mark;
+          }else{
+            a.insertAdjacentHTML('afterbegin','<span class="nav_logo-icon" style="width:28px;height:28px;display:inline-flex">'+mark+'</span>');
+          }
+        }
+      }else{a.dataset.dgMark='632';}
+      var name=a.querySelector('[data-brand-name]');
+      if(!name){
+        name=a.querySelector('.paragraph_large');
+        if(!name){
+          name=document.createElement('span');
+          name.setAttribute('data-brand-name','true');
+          a.appendChild(name);
         }
       }
-      var name=a.querySelector('[data-brand-name],.paragraph_large');
-      if(name){name.textContent='Demigod';name.setAttribute('data-brand-name','true');}
+      name.setAttribute('data-brand-name','true');
+      name.textContent='Demigod';
+      name.classList.add('dg-brand-name');
     });
-    if(document.documentElement.dataset.dgFav!=='631'){
-      document.documentElement.dataset.dgFav='631';
+    if(document.documentElement.dataset.dgFav!=='632'){
+      document.documentElement.dataset.dgFav='632';
       try{
         var href='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2211%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%221.25%22%20opacity%3D%220.55%22/%3E%3Cpath%20d%3D%22M10.5%2016a5.5%205.5%200%200%201%205.5-5.5%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M21.5%2016a5.5%205.5%200%200%201-5.5%205.5%22%20fill%3D%22none%22%20stroke%3D%22%2310c674%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%222.35%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E';
-        /* v631: also strip apple-touch-icon. Webflow injects its factory webclip.png as one, and
-           the head keeps regaining catbox .jpg favicons (alnuu9 -> op4166 -> 5hnii5 within minutes)
-           — a 1024px JPEG is the wrong format for a favicon and catbox is the host family whose
-           immutable caching burned us before. Runtime wins over whatever the head currently holds. */
         qa('link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(function(l){l.parentNode&&l.parentNode.removeChild(l);});
         var link=document.createElement('link');link.rel='icon';link.type='image/svg+xml';link.href=href;document.head.appendChild(link);
         var apple=document.createElement('link');apple.rel='apple-touch-icon';apple.href=href;document.head.appendChild(apple);
@@ -2018,8 +2026,12 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"@keyframes dgBorderGlow{0%,100%{box-shadow:0 0 0 0 rgba(166,255,203,0)}50%{box-shadow:0 0 24px 0 rgba(16,198,116,.25)}}"
 +".nav_container,.nav_left,.nav_right{background:transparent!important}"
 +".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(12px);background:rgba(3,20,13,.88)!important;border-bottom:1px solid var(--dg-rule)!important}"
-+".nav_logo .paragraph_large,[data-brand-name]{color:var(--dg-paper)!important;font-weight:700!important;letter-spacing:.14em!important;text-transform:uppercase!important;font-size:.78rem!important}"
-+".nav_logo-icon{color:var(--dg-phosphor)!important;animation:none!important}"+".nav_logo-icon .dg-mark,.nav_logo-icon svg{display:block!important;width:28px!important;height:28px!important}"
+/* v632 Fable: DEMIGOD mono wordmark — balanced to 28px mark, flex gap */
++"a.nav_logo,.nav_logo,a.w-nav-brand,.w-nav-brand,a.logo-link,.logo-link{display:inline-flex!important;align-items:center!important;gap:.625rem!important;text-decoration:none!important}"
++".nav_logo .paragraph_large,[data-brand-name],.dg-brand-name{font-family:var(--dg-mono)!important;color:var(--dg-paper)!important;font-size:.9rem!important;font-weight:600!important;letter-spacing:.18em!important;text-transform:uppercase!important;line-height:1!important;margin:0 -.18em 0 0!important;white-space:nowrap!important}"
++"a.nav_logo:hover [data-brand-name],a.nav_logo:hover .dg-brand-name,.w-nav-brand:hover [data-brand-name]{color:var(--dg-phosphor)!important}"
++".nav_logo-icon{color:var(--dg-phosphor)!important;animation:none!important;flex-shrink:0!important}"+".nav_logo-icon .dg-mark,.nav_logo-icon svg{display:block!important;width:28px!important;height:28px!important}"
++"@media (max-width:360px){.nav_logo .paragraph_large,[data-brand-name],.dg-brand-name{font-size:.8rem!important;letter-spacing:.14em!important}}"
 +"#dg-nav-hire,#dg-nav-talent,#dg-top-nav .dg-nav-ctas,header a.button,header a.premium-btn,nav.w-nav a.button,nav.w-nav a.premium-btn,.nav_right a.button,.nav_right a.w-button,.nav_container a.button.on-inverse{display:none!important}"
 +"#dg-bar a.button,#dg-bar a{display:flex!important}"
 /* hero night stage */
@@ -3812,15 +3824,19 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   var STORE = 'dgMudChar_v2';
   var DIRS = {
     n: 'north', s: 'south', e: 'east', w: 'west', u: 'up', d: 'down',
+    ne: 'northeast', nw: 'northwest', se: 'southeast', sw: 'southwest',
     north: 'north', south: 'south', east: 'east', west: 'west', up: 'up', down: 'down',
+    northeast: 'northeast', northwest: 'northwest', southeast: 'southeast', southwest: 'southwest',
   };
+  var DIR_SHORT = { north:'n', south:'s', east:'e', west:'w', up:'u', down:'d',
+    northeast:'ne', northwest:'nw', southeast:'se', southwest:'sw' };
 
   /* —— SF map (social hubs first) —— */
   var ROOMS = {
     plaza: {
       name: 'Market Street Crossing',
       desc: 'Fog on Market. F-line clang. Phosphor plaque: DECISION > VOLUME. Stickers: old Twitter bird, fresh Stripe atlas pin. Best place to bump into other visitors.',
-      exits: { north: 'lobby', east: 'alley', west: 'cafe', south: 'dock' },
+      exits: { north: 'lobby', east: 'alley', west: 'cafe', south: 'dock', northeast: 'garden', southeast: 'market' },
       items: ['leaflet'],
     },
     lobby: {
@@ -3856,7 +3872,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     alley: {
       name: 'Folsom Alley',
       desc: 'Brick, loading docks, server fans. Graffiti: SHIP IT. Faded Uber Eats stencil. Side door hums like a Twilio edge box.',
-      exits: { west: 'plaza', north: 'lab', south: 'market' },
+      exits: { west: 'plaza', north: 'lab', south: 'market', northwest: 'plaza', southwest: 'dock' },
       items: ['coin'],
     },
     lab: {
@@ -3868,7 +3884,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     market: {
       name: 'Ferry Building Night Market',
       desc: 'String lights, SAMPLE role stalls (honest labels). Seed vs Series A comps near the oyster cart. Social gravity is high here.',
-      exits: { north: 'alley', west: 'dock' },
+      exits: { north: 'alley', west: 'dock', south: 'shop_stall' },
       items: ['badge'],
     },
     dock: {
@@ -3893,7 +3909,18 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       name: 'Founder Dive (16th edge)',
       desc: 'Dark wood, no pitch decks allowed after 9. Someone debates pricing honesty over a pint. Social room.',
       exits: { south: 'mission' },
-      items: ['coaster'],
+      items: ['coaster', 'snack'],
+    },
+    shop_stall: {
+      name: 'Night Market Stall',
+      desc: 'A SAMPLE stall at the Ferry Building. Honest labels. Type LIST · BUY · VALUE.',
+      exits: { north: 'market' },
+      items: ['badge'],
+      shop: [
+        { id: 'mug', cost: 0, name: 'a Ritual coffee mug (sample)' },
+        { id: 'leaflet', cost: 0, name: 'a phosphor SF leaflet' },
+        { id: 'coaster', cost: 0, name: 'a dive-bar coaster' },
+      ],
     },
     office: {
       name: 'Shared Desk Loft',
@@ -3911,21 +3938,22 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
 
   var ITEMS = {
     leaflet: { name: 'a phosphor SF leaflet', look: 'create · walk · talk · pray if stuck · skip tutorial anytime. SF startups = flavor only.' },
-    notebook: { name: 'a Field Notes pad', look: 'Valencia purchase. For score and 90-day scribbles.' },
+    notebook: { name: 'a Field Notes pad', look: 'Valencia purchase. For score and 90-day scribbles.', container: true, capacity: 3, holds: [] },
     stamp: { name: 'a mutual-approve stamp', look: 'BOTH SIDES. Not cold LinkedIn spam.' },
     tome: { name: 'a Bay Area outcome tome', look: 'Metrics from SF ships. No fake Demigod placements.' },
-    mug: { name: 'a Ritual coffee mug', look: 'Still warm. Someone wanted Stripe-quality craft.' },
+    mug: { name: 'a Ritual coffee mug', look: 'Still warm. Someone wanted Stripe-quality craft.', container: true, capacity: 2, holds: [] },
     keycard: { name: 'a South Park fob', look: '2ND & BRYANT. Decorative.' },
     coin: { name: 'a sample Muni token', look: 'SAMPLE. Not Clipper. Quest bait for the pier.' },
     cable: { name: 'a Cat6 run', look: 'For the lab rack — not your HDMI crisis.' },
-    badge: { name: 'a pilot badge', look: 'White-glove SF pilot. Email: potter@trydemigod.com.' },
+    badge: { name: 'a pilot badge', look: 'White-glove SF pilot. Email: potter@trydemigod.com.', wear: 'badge' },
     shell: { name: 'an Embarcadero shell', look: 'Bay Bridge light on the ridge.' },
     lantern: { name: 'a roof lantern', look: 'Soft green over SoMa.' },
     quest_note: { name: 'a quest slip from Vesper', look: 'Immortal handwriting: optional, skippable, fun.' },
-    coffee: { name: 'a warm coffee', look: 'Vesper conjured. Flavor only.' },
+    coffee: { name: 'a warm coffee', look: 'Vesper conjured. Flavor only.', drink: true },
     clipper: { name: 'a sample Clipper card', look: 'Stamped DEMO. Will not open gates.' },
     coaster: { name: 'a dive-bar coaster', look: 'No pitch decks after 9.' },
-    badge_lanyard: { name: 'a blank lanyard', look: 'Write your own title. Or do not.' },
+    snack: { name: 'a Mission pastry', look: 'Sweet. Eat for flavor.', food: true },
+    badge_lanyard: { name: 'a blank lanyard', look: 'Write your own title. Or do not.', wear: 'neck' },
   };
 
   var NPCS = [
@@ -3986,6 +4014,58 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     wanderer: { title: 'Wanderer', hp: 10, skills: 3 },
   };
 
+
+  /* SMAUG-style socials (social-first; no combat) — Fable/Codex stock list */
+  var SOCIALS = {
+    smile: { self: 'You smile.', room: '$N smiles.' },
+    grin: { self: 'You grin broadly.', room: '$N grins broadly.' },
+    laugh: { self: 'You laugh.', room: '$N laughs.' },
+    giggle: { self: 'You giggle.', room: '$N giggles.' },
+    nod: { self: 'You nod.', room: '$N nods.', vict: 'You nod at $T.', roomv: '$N nods at $T.', selfv: '$N nods at you.' },
+    bow: { self: 'You bow gracefully.', room: '$N bows.', vict: 'You bow to $T.', roomv: '$N bows to $T.', selfv: '$N bows to you.' },
+    wave: { self: 'You wave.', room: '$N waves.', vict: 'You wave at $T.', roomv: '$N waves at $T.', selfv: '$N waves at you.' },
+    shrug: { self: 'You shrug.', room: '$N shrugs.' },
+    wink: { self: 'You wink.', room: '$N winks.', vict: 'You wink at $T.', roomv: '$N winks at $T.', selfv: '$N winks at you.' },
+    hug: { self: 'You hug yourself.', room: '$N hugs themself.', vict: 'You hug $T.', roomv: '$N hugs $T.', selfv: '$N hugs you.' },
+    dance: { self: 'You dance a little.', room: '$N dances.' },
+    sigh: { self: 'You sigh.', room: '$N sighs.' },
+    cheer: { self: 'You cheer!', room: '$N cheers!' },
+    clap: { self: 'You clap.', room: '$N claps.' },
+    point: { self: 'You point at nothing in particular.', room: '$N points.', vict: 'You point at $T.', roomv: '$N points at $T.', selfv: '$N points at you.' },
+    ponder: { self: 'You ponder the fog.', room: '$N ponders.' },
+    salute: { self: 'You salute.', room: '$N salutes.', vict: 'You salute $T.', roomv: '$N salutes $T.', selfv: '$N salutes you.' },
+    yawn: { self: 'You yawn.', room: '$N yawns.' },
+    highfive: { self: 'You high-five the air.', room: '$N high-fives the air.', vict: 'You high-five $T.', roomv: '$N high-fives $T.', selfv: '$N high-fives you.' },
+    glare: { self: 'You glare into the fog.', room: '$N glares.', vict: 'You glare at $T.', roomv: '$N glares at $T.', selfv: '$N glares at you.' },
+    cry: { self: 'You sniffle.', room: '$N sniffs.' },
+    frown: { self: 'You frown.', room: '$N frowns.' },
+    blush: { self: 'You blush.', room: '$N blushes.' },
+    thank: { self: 'You thank the district.', room: '$N thanks the district.', vict: 'You thank $T.', roomv: '$N thanks $T.', selfv: '$N thanks you.' },
+    curtsey: { self: 'You curtsey.', room: '$N curtseys.' },
+    growl: { self: 'You growl softly.', room: '$N growls.' },
+    stare: { self: 'You stare into the middle distance.', room: '$N stares.', vict: 'You stare at $T.', roomv: '$N stares at $T.', selfv: '$N stares at you.' },
+    poke: { self: 'You poke the air.', room: '$N pokes the air.', vict: 'You poke $T.', roomv: '$N pokes $T.', selfv: '$N pokes you.' },
+    facepalm: { self: 'You facepalm.', room: '$N facepalms.' },
+    think: { self: 'You look thoughtful.', room: '$N looks thoughtful.' },
+    cough: { self: 'You cough.', room: '$N coughs.' },
+    snicker: { self: 'You snicker.', room: '$N snickers.' },
+    whistle: { self: 'You whistle.', room: '$N whistles.' },
+    jump: { self: 'You jump!', room: '$N jumps.' },
+    stretch: { self: 'You stretch.', room: '$N stretches.' },
+  };
+
+  var HELP_TOPICS = {
+    movement: 'Movement: n s e w u d · ne nw se sw · go <dir> · enter · leave · exits · home/recall · map · scan · glance',
+    communication: 'Talk: say / "text · emote / :pose · tell/whisper · reply (r) · chat/gossip/ooc · shout/yell · intro · afk',
+    socials: 'Socials: smile grin laugh giggle nod bow wave shrug wink hug dance sigh cheer clap point ponder salute yawn highfive glare cry frown blush thank curtsey growl stare poke facepalm think cough snicker whistle jump stretch · socials',
+    items: 'Items: inv/i · get/take · drop · put · give · examine/x · wear · remove · equipment/eq · junk/sac · open · close',
+    info: 'Info: look/l · score/stats · who · where · whois/finger · time · weather · news/motd · title · desc · quest · channels · config · color · consider · affects · skills',
+    shop: 'Shop (Ferry Building): list · buy · sell · value · (stand near market)',
+    position: 'Position: stand · sit · rest · sleep · wake',
+    settings: 'Settings: brief · verbose · save · password (n/a) · quit · restart · ignore · follow · group · gtell',
+    immortal: 'Immortal: pray · pray <msg> · skip tutorial',
+  };
+
   var TUTORIAL = [
     'Tutorial 1/4 — type LOOK (or SKIP to dismiss forever).',
     'Tutorial 2/4 — move: N S E W (try E). Or SKIP.',
@@ -4002,6 +4082,22 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   }
   function uid() {
     return 'p' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function normalizeChar(ch) {
+    if (!ch || typeof ch !== 'object') return ch;
+    ch.inv = ch.inv || [];
+    ch.eq = ch.eq || {};
+    ch.position = ch.position || 'standing';
+    ch.title = ch.title || '';
+    ch.ignore = ch.ignore || [];
+    ch.afk = !!ch.afk;
+    ch.follow = ch.follow || '';
+    ch.group = ch.group || [];
+    ch.lastTell = ch.lastTell || '';
+    ch.xp = ch.xp || 0;
+    ch.brief = !!ch.brief;
+    return ch;
   }
   function loadChar() {
     try {
@@ -4033,6 +4129,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     this.session = null;
     this._since = 0;
     this._immortalHist = [];
+    this._huhStreak = 0;
     this._create = { name: '', klass: 'wanderer' };
     Object.keys(ROOMS).forEach(function (id) {
       this.roomItems[id] = (ROOMS[id].items || []).slice();
@@ -4429,6 +4526,11 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     if (!line) return;
     if (this.mode === 'create') return this.handleCreate(line);
 
+    if (this.char && this.char.position === 'sleeping' && !/^(wake|quit|logout|help|\?|score|stats|status|save)$/i.test(line.split(/\s/)[0])) {
+      this.print('You dream of fog and mutual yes… (WAKE to rise.)', 'sys');
+      return;
+    }
+
     // classic shortcuts: "hello  and  :waves
     if (line.charAt(0) === '"' || line.charAt(0) === "'") {
       return this.cmd('say ' + line.slice(1).replace(/^\s+/, ''));
@@ -4439,26 +4541,46 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
 
     // pray to Vesper (Immortal / DM)
     var prayM = line.match(/^(?:pray|prayer|immortal)\s+(?:to\s+)?(?:vesper\s+)?([\s\S]+)$/i);
-    if (prayM) return this.askCodex(prayM[1]);
-    if (/^(pray|prayer)$/i.test(line)) return this.askCodex('');
+    if (prayM) { this._cmdOk(); return this.askCodex(prayM[1]); }
+    if (/^(pray|prayer)$/i.test(line)) { this._cmdOk(); return this.askCodex(''); }
     // soft legacy: codex -> same immortal
     var legacyM = line.match(/^(?:codex|ask\s+codex)\s+([\s\S]+)$/i);
-    if (legacyM) return this.askCodex(legacyM[1]);
-    if (/^codex$/i.test(line)) return this.askCodex('');
+    if (legacyM) { this._cmdOk(); return this.askCodex(legacyM[1]); }
+    if (/^codex$/i.test(line)) { this._cmdOk(); return this.askCodex(''); }
 
-    if (/^(skip|skip tutorial|tutorial skip)$/i.test(line)) return this.skipTutorial();
+    if (/^(skip|skip tutorial|tutorial skip)$/i.test(line)) { this._cmdOk(); return this.skipTutorial(); }
 
     var m = line.match(/^(\S+)(?:\s+([\s\S]+))?$/);
     var verb = (m[1] || '').toLowerCase();
     var arg = (m[2] || '').trim();
     var ch = this.char;
 
-    if (DIRS[verb] && !arg) return this.move(DIRS[verb]);
+    if (DIRS[verb] && !arg) { this._cmdOk(); return this.move(DIRS[verb]); }
     if (verb === 'go' || verb === 'move' || verb === 'walk') {
       var d = DIRS[arg.toLowerCase()];
-      if (!d) { this.print('Go where? N/S/E/W/U/D.', 'err'); return; }
+      if (!d) { this.print('Go where? N/S/E/W/U/D/NE/NW/SE/SW.', 'err'); return; }
+      this._cmdOk();
       return this.move(d);
     }
+
+    var known = {
+      l:1,look:1,ls:1,glance:1,scan:1,x:1,ex:1,examine:1,read:1,i:1,inv:1,inventory:1,
+      get:1,take:1,grab:1,drop:1,put:1,wear:1,remove:1,eq:1,equipment:1,junk:1,sac:1,sacrifice:1,
+      open:1,close:1,enter:1,leave:1,climb:1,drink:1,eat:1,fill:1,empty:1,
+      say:1,"'":1,talk:1,emote:1,me:1,pose:1,wave:1,introduce:1,intro:1,chat:1,ooc:1,gossip:1,
+      tell:1,whisper:1,to:1,reply:1,r:1,shout:1,yell:1,gtell:1,gt:1,
+      who:1,players:1,where:1,whois:1,finger:1,exits:1,doors:1,home:1,recall:1,return:1,
+      brief:1,verbose:1,full:1,save:1,time:1,date:1,clock:1,weather:1,desc:1,description:1,setdesc:1,
+      title:1,afk:1,ignore:1,follow:1,group:1,ungroup:1,consider:1,affects:1,affected:1,skills:1,spells:1,
+      give:1,news:1,motd:1,bug:1,typo:1,idea:1,sit:1,stand:1,rest:1,sleep:1,wake:1,map:1,quest:1,journal:1,
+      score:1,stats:1,status:1,channels:1,config:1,color:1,colour:1,auto:1,
+      list:1,buy:1,sell:1,value:1,kill:1,flee:1,flee:1,wimpy:1,
+      help:1,'?':1,commands:1,socials:1,tutorial:1,quit:1,logout:1,
+      restart:1,new:1,delete:1,hi:1,hello:1,password:1,practice:1,train:1,auction:1,music:1,ask:1,answer:1
+    };
+    Object.keys(SOCIALS).forEach(function (s) { known[s] = 1; });
+    // note: exit is also in known (exits family); quit uses exit too — both intentional
+    if (known[verb]) this._cmdOk();
 
     switch (verb) {
       case 'l':
@@ -4556,7 +4678,6 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         return;
       }
       case 'exits':
-      case 'exit':
       case 'doors': {
         var rEx = this.here();
         var ex = Object.keys(rEx.exits || {});
@@ -4663,10 +4784,14 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         this.print('Thanks — email potter@trydemigod.com with subject MUD. (No in-game ticket system.)', 'sys');
         return;
       case 'sit':
+        ch.position = 'sitting';
+        saveChar(ch);
         this.print(ch.name + ' sits down' + (arg ? ' on ' + arg : '') + '.', 'say');
         this.pushMulti('emote', ch.name + ' sits down' + (arg ? ' on ' + arg : '') + '.', { room: ch.room });
         return;
       case 'stand':
+        ch.position = 'standing';
+        saveChar(ch);
         this.print(ch.name + ' stands up.', 'say');
         this.pushMulti('emote', ch.name + ' stands up.', { room: ch.room });
         return;
@@ -4695,10 +4820,12 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       case 'stats':
       case 'status':
         this.print(
-          ch.name + ' the ' + ((CLASSES[ch.klass] || {}).title || ch.klass) +
+          ch.name + (ch.title ? ' ' + ch.title : '') + ' the ' + ((CLASSES[ch.klass] || {}).title || ch.klass) +
           ' · HP ' + ch.hp + '/' + ch.maxHp +
           ' · xp ' + (ch.xp || 0) +
+          ' · ' + (ch.position || 'standing') +
           ' · room ' + ch.room +
+          (ch.afk ? ' · AFK' : '') +
           (ch.quest ? ' · quest on' : ''),
           'meta'
         );
@@ -4707,17 +4834,31 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       case '?':
       case 'commands':
       case 'tutorial':
-        this.print(
-          'Fundamentals (classic MUD):\n' +
-          '  look (l) · exits · n/s/e/w/u/d · home\n' +
-          '  inv (i) · get · drop · give <item> to <name> · examine (x)\n' +
-          '  say / "text · emote / :pose · tell · chat · who\n' +
-          '  score · save · brief/verbose · time · help · quit\n' +
-          'Social+: wave · intro · sit/stand · map · news\n' +
-          'Immortal: pray  ·  pray <message>  ·  tutorial: skip\n' +
-          'Goal: meet people. Keep it simple.',
-          'sys'
-        );
+        if (!arg || arg === 'commands' || arg === 'list') {
+          this.print(
+            'SMAUG-style commands (social SF MUD):\n' +
+            '  help movement|communication|socials|items|info|shop|position|settings|immortal\n' +
+            '  help <verb> · commands · socials\n' +
+            '  LOOK · EXITS · N/S/E/W/U/D/NE/NW/SE/SW · HOME · MAP · SCAN\n' +
+            '  INV · GET · DROP · PUT · GIVE · WEAR · REMOVE · EQ · OPEN · CLOSE\n' +
+            '  SAY · EMOTE · TELL · REPLY · CHAT · SHOUT · WHO · WHERE · WHOIS\n' +
+            '  SIT/STAND/REST/SLEEP/WAKE · SCORE · SAVE · BRIEF · TIME · WEATHER\n' +
+            '  LIST/BUY (market stall) · PRAY · SKIP · QUIT',
+            'sys'
+          );
+          return;
+        }
+        var topic = arg.toLowerCase();
+        if (HELP_TOPICS[topic]) { this.print(HELP_TOPICS[topic], 'sys'); return; }
+        if (SOCIALS[topic]) {
+          this.print(topic + ' — social. Usage: ' + topic + '  or  ' + topic + ' <name>', 'sys');
+          return;
+        }
+        if (known[topic] || DIRS[topic]) {
+          this.print(topic + ' — try it. Type HELP for groups, or HELP socials.', 'sys');
+          return;
+        }
+        this.print('No help on "' + arg + '". Try HELP or HELP socials.', 'err');
         return;
       case 'quit':
       case 'exit':
@@ -4740,13 +4881,446 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         this._create = { name: '', klass: 'wanderer' };
         this.print('Character cleared. Name?', 'sys');
         return;
+
+      case 'glance':
+        this.lookRoom(false);
+        return;
+      case 'scan': {
+        var rS = this.here();
+        var exS = Object.keys(rS.exits || {});
+        var linesS = exS.map(function (d) {
+          var nid = rS.exits[d];
+          var nr = ROOMS[nid];
+          return (DIR_SHORT[d] || d) + ' — ' + ((nr && nr.name) || nid);
+        });
+        this.print(linesS.length ? ('You scan:\\n  ' + linesS.join('\\n  ')) : 'Nothing nearby.', 'meta');
+        return;
+      }
+      case 'weather':
+        this.print('San Francisco fog hangs low. Neon reflects on wet asphalt. (Flavor weather.)', 'meta');
+        return;
+      case 'channels':
+        this.print('Channels: say (room) · chat/gossip/ooc (district) · shout/yell · tell/whisper · reply · pray (immortal).', 'meta');
+        return;
+      case 'config':
+      case 'color':
+      case 'colour':
+      case 'auto':
+        this.print('Config is mostly automatic here. BRIEF/VERBOSE toggles room length. COLOR is always on in browser.', 'sys');
+        return;
+      case 'password':
+      case 'practice':
+      case 'train':
+      case 'auction':
+      case 'music':
+        this.print('Not used in this social district. Try SAY, CHAT, or PRAY.', 'sys');
+        return;
+      case 'title':
+        if (!arg) {
+          this.print(ch.title ? ('Title: ' + ch.title) : 'No title. Usage: title <text>', 'meta');
+          return;
+        }
+        ch.title = arg.slice(0, 48);
+        saveChar(ch);
+        this.print('Title set: ' + ch.name + ' ' + ch.title, 'sys');
+        return;
+      case 'afk':
+        ch.afk = !ch.afk;
+        saveChar(ch);
+        this.print(ch.afk ? 'You are now AFK.' : 'You are back.', 'sys');
+        this.pushMulti('emote', ch.name + (ch.afk ? ' is AFK.' : ' returns from AFK.'), { room: ch.room });
+        return;
+      case 'ignore':
+        if (!arg) {
+          this.print(ch.ignore && ch.ignore.length ? ('Ignoring: ' + ch.ignore.join(', ')) : 'Ignore who? Usage: ignore <name>', 'meta');
+          return;
+        }
+        var ign = arg.toLowerCase();
+        ch.ignore = ch.ignore || [];
+        if (ch.ignore.indexOf(ign) >= 0) {
+          ch.ignore = ch.ignore.filter(function (x) { return x !== ign; });
+          this.print('No longer ignoring ' + arg + '.', 'sys');
+        } else {
+          ch.ignore.push(ign);
+          this.print('Ignoring ' + arg + ' (local filter for multi tells/chat).', 'sys');
+        }
+        saveChar(ch);
+        return;
+      case 'follow':
+        if (!arg) {
+          this.print(ch.follow ? ('Following: ' + ch.follow) : 'Follow who? Usage: follow <name> | follow self', 'meta');
+          return;
+        }
+        if (/^(self|me|none|stop)$/i.test(arg)) {
+          ch.follow = '';
+          saveChar(ch);
+          this.print('You stop following.', 'sys');
+          return;
+        }
+        ch.follow = arg;
+        saveChar(ch);
+        this.print('You start following ' + arg + ' (social flag — multi may show it).', 'sys');
+        this.pushMulti('emote', ch.name + ' starts following ' + arg + '.', { room: ch.room });
+        return;
+      case 'group':
+        if (!arg) {
+          this.print(ch.group && ch.group.length ? ('Group: ' + ch.group.join(', ')) : 'Empty group. Usage: group <name>', 'meta');
+          return;
+        }
+        ch.group = ch.group || [];
+        if (ch.group.indexOf(arg) < 0) ch.group.push(arg);
+        saveChar(ch);
+        this.print('Group now: ' + ch.group.join(', '), 'sys');
+        return;
+      case 'ungroup':
+        ch.group = [];
+        saveChar(ch);
+        this.print('Group cleared.', 'sys');
+        return;
+      case 'gtell':
+      case 'gt':
+        if (!arg) { this.print('Gtell what?', 'err'); return; }
+        this.print('[group] ' + ch.name + ': ' + arg, 'say');
+        this.pushMulti('chat', '[group] ' + ch.name + ': ' + arg, { room: '*' });
+        return;
+      case 'reply':
+      case 'r':
+        if (!ch.lastTell) { this.print('No one has told you anything yet.', 'err'); return; }
+        if (!arg) { this.print('Reply what? (last tell from ' + ch.lastTell + ')', 'err'); return; }
+        return this.cmd('tell ' + ch.lastTell + ' ' + arg);
+      case 'shout':
+      case 'yell':
+        if (!arg) { this.print('Shout what?', 'err'); return; }
+        this.print('You shout, "' + arg + '"', 'say');
+        this.pushMulti('chat', ch.name + ' shouts, "' + arg + '"', { room: '*' });
+        return;
+      case 'where': {
+        var hereW = this.peopleHere();
+        this.print('You are at ' + (this.here().name || ch.room) + ' (' + ch.room + ').', 'meta');
+        this.print('Here: ' + hereW.join(', '), 'meta');
+        if (this.remoteWho && this.remoteWho.length) {
+          this.print('District: ' + this.remoteWho.map(function (p) {
+            return p.name + '@' + (p.room || '?');
+          }).join(' · '), 'meta');
+        }
+        return;
+      }
+      case 'whois':
+      case 'finger': {
+        if (!arg) { this.print('Whois whom?', 'err'); return; }
+        if (/^(self|me)$/i.test(arg) || arg.toLowerCase() === String(ch.name).toLowerCase()) {
+          this.print(ch.name + (ch.title ? ' ' + ch.title : '') + ' · ' + ((CLASSES[ch.klass] || {}).title || ch.klass) +
+            (ch.desc ? '\\n' + ch.desc : '') + (ch.afk ? '\\n(AFK)' : ''), 'meta');
+          return;
+        }
+        var fn = NPCS.find(function (n) { return n.name.toLowerCase() === arg.toLowerCase(); });
+        if (fn) {
+          this.print(fn.name + (fn.immortal ? ' (Immortal)' : '') + '\\n' + (fn.look || ''), 'meta');
+          return;
+        }
+        this.print(arg + ' — visitor or offline. Try WHO.', 'meta');
+        return;
+      }
+      case 'consider':
+        if (!arg) { this.print('Consider whom?', 'err'); return; }
+        this.print('You size up ' + arg + '. In this district, talk beats combat. (No PK.)', 'meta');
+        return;
+      case 'affects':
+      case 'affected':
+        this.print('You are affected by: fog · curiosity' + (ch.afk ? ' · afk' : '') + '.', 'meta');
+        return;
+      case 'skills':
+      case 'spells':
+        this.print('Skills here are social: talk, listen, mutual yes. No combat skills in this district.', 'meta');
+        return;
+      case 'rest':
+        ch.position = 'resting';
+        saveChar(ch);
+        this.print(ch.name + ' rests.', 'say');
+        this.pushMulti('emote', ch.name + ' rests.', { room: ch.room });
+        return;
+      case 'sleep':
+        ch.position = 'sleeping';
+        saveChar(ch);
+        this.print('You drift into SF fog-dreams. Type WAKE.', 'sys');
+        this.pushMulti('emote', ch.name + ' falls asleep.', { room: ch.room });
+        return;
+      case 'wake':
+        if (ch.position === 'standing') { this.print('You are already awake.', 'sys'); return; }
+        ch.position = 'standing';
+        saveChar(ch);
+        this.print('You wake up.', 'sys');
+        this.pushMulti('emote', ch.name + ' wakes up.', { room: ch.room });
+        return;
+      case 'put': {
+        // put <item> in <container> OR put <item> <container>
+        var pm = arg.match(/^(.+?)\s+(?:in|into|on)\s+(.+)$/i) || arg.match(/^(\S+)\s+(.+)$/);
+        if (!pm) { this.print('Usage: put <item> in <container>', 'err'); return; }
+        var pItem = pm[1].trim(), pCont = pm[2].trim();
+        var pid = null, cid = null;
+        var invP = ch.inv || [];
+        for (var pi = 0; pi < invP.length; pi++) {
+          var pit = ITEMS[invP[pi]];
+          if (invP[pi] === pItem.toLowerCase() || (pit && pit.name.toLowerCase().indexOf(pItem.toLowerCase()) >= 0)) {
+            if (!pid) pid = invP[pi];
+          }
+          if (invP[pi] === pCont.toLowerCase() || (pit && pit.name.toLowerCase().indexOf(pCont.toLowerCase()) >= 0)) {
+            if (pit && pit.container) cid = invP[pi];
+          }
+        }
+        // container may be on ground
+        if (!cid) {
+          var cGround = this.findItem(pCont, false);
+          if (cGround && ITEMS[cGround] && ITEMS[cGround].container) cid = cGround;
+        }
+        if (!pid) { this.print("You aren't carrying that item.", 'err'); return; }
+        if (!cid) { this.print("That isn't a container you can use.", 'err'); return; }
+        if (pid === cid) { this.print("You can't put something inside itself.", 'err'); return; }
+        var cont = ITEMS[cid];
+        cont.holds = cont.holds || [];
+        if (cont.holds.length >= (cont.capacity || 2)) { this.print('It is full.', 'err'); return; }
+        ch.inv = invP.filter(function (x) { return x !== pid; });
+        cont.holds.push(pid);
+        saveChar(ch);
+        this.print('You put ' + ((ITEMS[pid] && ITEMS[pid].name) || pid) + ' in ' + (cont.name || cid) + '.', 'sys');
+        return;
+      }
+      case 'wear': {
+        if (!arg) { this.print('Wear what?', 'err'); return; }
+        var wid = null;
+        var winv = ch.inv || [];
+        for (var wi = 0; wi < winv.length; wi++) {
+          var wit = ITEMS[winv[wi]];
+          if (winv[wi] === arg.toLowerCase() || (wit && wit.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0)) {
+            if (wit && wit.wear) { wid = winv[wi]; break; }
+            if (!wid) wid = winv[wi];
+          }
+        }
+        if (!wid) { this.print("You aren't carrying that.", 'err'); return; }
+        var wslot = (ITEMS[wid] && ITEMS[wid].wear) || 'held';
+        ch.eq = ch.eq || {};
+        if (ch.eq[wslot]) {
+          ch.inv.push(ch.eq[wslot]);
+        }
+        ch.inv = (ch.inv || []).filter(function (x) { return x !== wid; });
+        ch.eq[wslot] = wid;
+        saveChar(ch);
+        this.print('You wear ' + ((ITEMS[wid] && ITEMS[wid].name) || wid) + ' (' + wslot + ').', 'sys');
+        return;
+      }
+      case 'remove': {
+        if (!arg) { this.print('Remove what?', 'err'); return; }
+        ch.eq = ch.eq || {};
+        var rslot = null, rid = null;
+        Object.keys(ch.eq).forEach(function (s) {
+          var eid = ch.eq[s];
+          var eit = ITEMS[eid];
+          if (s === arg.toLowerCase() || eid === arg.toLowerCase() || (eit && eit.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0)) {
+            rslot = s; rid = eid;
+          }
+        });
+        if (!rid) { this.print("You aren't wearing that.", 'err'); return; }
+        delete ch.eq[rslot];
+        ch.inv = ch.inv || [];
+        ch.inv.push(rid);
+        saveChar(ch);
+        this.print('You remove ' + ((ITEMS[rid] && ITEMS[rid].name) || rid) + '.', 'sys');
+        return;
+      }
+      case 'eq':
+      case 'equipment': {
+        ch.eq = ch.eq || {};
+        var slots = Object.keys(ch.eq);
+        if (!slots.length) { this.print('You are wearing nothing special.', 'meta'); return; }
+        this.print('You are wearing:\\n' + slots.map(function (s) {
+          return '  ' + s + ': ' + ((ITEMS[ch.eq[s]] && ITEMS[ch.eq[s]].name) || ch.eq[s]);
+        }).join('\\n'), 'meta');
+        return;
+      }
+      case 'junk':
+      case 'sac':
+      case 'sacrifice': {
+        if (!arg) { this.print('Junk what?', 'err'); return; }
+        var jid = null;
+        var jinv = ch.inv || [];
+        for (var ji = 0; ji < jinv.length; ji++) {
+          var jit = ITEMS[jinv[ji]];
+          if (jinv[ji] === arg.toLowerCase() || (jit && jit.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0)) {
+            jid = jinv[ji]; break;
+          }
+        }
+        if (!jid) { this.print("You aren't carrying that.", 'err'); return; }
+        ch.inv = jinv.filter(function (x) { return x !== jid; });
+        ch.xp = (ch.xp || 0) + 1;
+        saveChar(ch);
+        this.print('You junk ' + ((ITEMS[jid] && ITEMS[jid].name) || jid) + '. The fog accepts it. (+1 xp)', 'sys');
+        return;
+      }
+      case 'open':
+      case 'close':
+        this.print('You ' + verb + ' ' + (arg || 'something') + '. (Atmosphere — no locked doors in this district.)', 'sys');
+        return;
+      case 'enter':
+        if (DIRS[arg && arg.toLowerCase()]) return this.move(DIRS[arg.toLowerCase()]);
+        // try enter room by keyword
+        if (arg && /stall|shop|market/i.test(arg) && ROOMS.shop_stall) {
+          ch.room = 'shop_stall';
+          saveChar(ch);
+          this.lookRoom(false);
+          this.syncRoom();
+          return;
+        }
+        this.print('Enter where? Try a direction or ENTER STALL at the market.', 'err');
+        return;
+      case 'leave':
+        if (ch.room === 'shop_stall') {
+          ch.room = 'market';
+          saveChar(ch);
+          this.print('You leave the stall.', 'sys');
+          this.lookRoom(false);
+          this.syncRoom();
+          return;
+        }
+        this.print('You leave the way you came — try EXITS.', 'sys');
+        return;
+      case 'climb':
+        if (arg && /up|roof/i.test(arg)) return this.move('up');
+        if (arg && /down/i.test(arg)) return this.move('down');
+        this.print('Climb where? CLIMB UP or CLIMB DOWN if available.', 'err');
+        return;
+      case 'drink': {
+        if (!arg) { this.print('Drink what?', 'err'); return; }
+        var did = null;
+        (ch.inv || []).forEach(function (id) {
+          var it = ITEMS[id];
+          if (id === arg.toLowerCase() || (it && it.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0)) {
+            if (it && it.drink) did = id;
+          }
+        });
+        if (!did) { this.print("You don't have a drink like that.", 'err'); return; }
+        ch.inv = (ch.inv || []).filter(function (x) { return x !== did; });
+        saveChar(ch);
+        this.print('You drink ' + ((ITEMS[did] && ITEMS[did].name) || did) + '. Refreshing.', 'sys');
+        return;
+      }
+      case 'eat': {
+        if (!arg) { this.print('Eat what?', 'err'); return; }
+        var eid2 = null;
+        (ch.inv || []).forEach(function (id) {
+          var it = ITEMS[id];
+          if (id === arg.toLowerCase() || (it && it.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0)) {
+            if (it && it.food) eid2 = id;
+          }
+        });
+        if (!eid2) { this.print("You don't have food like that.", 'err'); return; }
+        ch.inv = (ch.inv || []).filter(function (x) { return x !== eid2; });
+        saveChar(ch);
+        this.print('You eat ' + ((ITEMS[eid2] && ITEMS[eid2].name) || eid2) + '.', 'sys');
+        return;
+      }
+      case 'fill':
+      case 'empty':
+        this.print(verb === 'fill' ? 'You fill what you can. (Flavor.)' : 'You empty it carefully. (Flavor.)', 'sys');
+        return;
+      case 'list': {
+        var shopR = this.here();
+        if (!shopR.shop) {
+          this.print('No shop here. Try the Night Market Stall (south of Ferry Building market).', 'err');
+          return;
+        }
+        this.print('For sale:\\n' + shopR.shop.map(function (s, i) {
+          return '  ' + (i + 1) + '. ' + s.name + ' — ' + (s.cost ? (s.cost + ' xp') : 'free sample');
+        }).join('\\n'), 'meta');
+        return;
+      }
+      case 'buy': {
+        var shopB = this.here();
+        if (!shopB.shop) { this.print('Nothing to buy here.', 'err'); return; }
+        if (!arg) { this.print('Buy what? LIST first.', 'err'); return; }
+        var buyItem = null;
+        var num = parseInt(arg, 10);
+        if (!isNaN(num) && shopB.shop[num - 1]) buyItem = shopB.shop[num - 1];
+        else {
+          buyItem = shopB.shop.find(function (s) {
+            return s.id === arg.toLowerCase() || (s.name && s.name.toLowerCase().indexOf(arg.toLowerCase()) >= 0);
+          });
+        }
+        if (!buyItem) { this.print("They don't sell that.", 'err'); return; }
+        if ((ch.xp || 0) < (buyItem.cost || 0)) { this.print('Not enough xp (this stall is mostly free samples).', 'err'); return; }
+        ch.xp = (ch.xp || 0) - (buyItem.cost || 0);
+        ch.inv = ch.inv || [];
+        ch.inv.push(buyItem.id);
+        saveChar(ch);
+        this.print('You buy ' + buyItem.name + '.', 'sys');
+        return;
+      }
+      case 'sell':
+      case 'value':
+        this.print(verb === 'sell' ? 'The stall only gives samples — no buyback.' : 'Value: priceless social capital (or free sample).', 'sys');
+        return;
+      case 'kill':
+      case 'flee':
+      case 'wimpy':
+        this.print('No combat in this district. Talk instead — SAY, EMOTE, or PRAY.', 'sys');
+        return;
+      case 'socials':
+        this.print('Socials: ' + Object.keys(SOCIALS).sort().join(' '), 'sys');
+        return;
+      case 'ask':
+      case 'answer':
+        if (!arg) { this.print(verb + ' what? (or PRAY to Vesper)', 'err'); return; }
+        return this.cmd('say ' + arg);
+
       case 'hi':
       case 'hello':
         this.cmd('say hello');
         return;
       default:
-        this.print("Unknown. Type HELP — or PRAY if stuck.", 'err');
+        if (SOCIALS[verb]) {
+          this._cmdOk();
+          return this.doSocial(verb, arg);
+        }
+        this._huhStreak = (this._huhStreak || 0) + 1;
+        this.print('Huh?', 'err');
+        if (this._huhStreak >= 3) {
+          this._huhStreak = 0;
+          this.print('Stuck? Try HELP for commands, LOOK to see the room, or PRAY to talk to Vesper.', 'sys');
+        } else if (this._huhStreak === 2) {
+          this.print('(Type HELP for a command list.)', 'sys');
+        }
+        return;
     }
+  };
+
+  Engine.prototype._cmdOk = function () {
+    this._huhStreak = 0;
+  };
+
+  Engine.prototype.doSocial = function (verb, arg) {
+    var s = SOCIALS[verb];
+    if (!s) return;
+    var ch = this.char;
+    var name = ch.name;
+    function sub(tpl, vict) {
+      return String(tpl || '')
+        .replace(/\$N/g, name)
+        .replace(/\$T/g, vict || 'someone')
+        .replace(/\$n/g, name)
+        .replace(/\$t/g, vict || 'someone');
+    }
+    if (!arg) {
+      this.print(sub(s.self), 'say');
+      this.pushMulti('emote', sub(s.room), { room: ch.room });
+      return;
+    }
+    var target = arg.split(/\s+/)[0];
+    if (/^(self|me)$/i.test(target)) {
+      this.print(sub(s.self), 'say');
+      this.pushMulti('emote', sub(s.room), { room: ch.room });
+      return;
+    }
+    this.print(sub(s.vict || s.self, target), 'say');
+    this.pushMulti('emote', sub(s.roomv || s.room, target), { room: ch.room });
   };
 
   Engine.prototype.move = function (dir) {
@@ -4776,6 +5350,12 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     var id = this.findItem(a, true);
     if (id && ITEMS[id]) {
       this.print(ITEMS[id].look || ITEMS[id].name, 'out');
+      if (ITEMS[id].container) {
+        var holds = ITEMS[id].holds || [];
+        this.print(holds.length
+          ? ('Contains: ' + holds.map(function (h) { return (ITEMS[h] && ITEMS[h].name) || h; }).join(', '))
+          : 'It is empty.', 'meta');
+      }
       return;
     }
     var npc = NPCS.find(function (n) {
@@ -4817,6 +5397,38 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
 
   Engine.prototype.getItem = function (arg) {
     if (!arg) { this.print('Get what?', 'err'); return; }
+    // get <item> from <container>
+    var fm = arg.match(/^(.+?)\s+from\s+(.+)$/i);
+    if (fm) {
+      var gItem = fm[1].trim(), gCont = fm[2].trim();
+      var cid = null;
+      var inv = this.char.inv || [];
+      for (var i = 0; i < inv.length; i++) {
+        var it = ITEMS[inv[i]];
+        if (inv[i] === gCont.toLowerCase() || (it && it.name.toLowerCase().indexOf(gCont.toLowerCase()) >= 0)) {
+          if (it && it.container) { cid = inv[i]; break; }
+        }
+      }
+      if (!cid) {
+        var cg = this.findItem(gCont, false);
+        if (cg && ITEMS[cg] && ITEMS[cg].container) cid = cg;
+      }
+      if (!cid || !ITEMS[cid]) { this.print("You don't have that container.", 'err'); return; }
+      var holds = ITEMS[cid].holds || [];
+      var found = null;
+      for (var j = 0; j < holds.length; j++) {
+        var hit = ITEMS[holds[j]];
+        if (holds[j] === gItem.toLowerCase() || (hit && hit.name.toLowerCase().indexOf(gItem.toLowerCase()) >= 0)) {
+          found = holds[j]; break;
+        }
+      }
+      if (!found) { this.print("You don't see that in there.", 'err'); return; }
+      ITEMS[cid].holds = holds.filter(function (x) { return x !== found; });
+      this.char.inv.push(found);
+      saveChar(this.char);
+      this.print('You get ' + ((ITEMS[found] && ITEMS[found].name) || found) + ' from ' + (ITEMS[cid].name || cid) + '.', 'sys');
+      return;
+    }
     var id = this.findItem(arg, false);
     if (!id) { this.print("You don't see that here.", 'err'); return; }
     var room = this.char.room;
@@ -4960,6 +5572,9 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     eng.cmd('time');
     eng.cmd('desc a tired founder in a black hoodie');
     eng.cmd('help');
+    eng.cmd('xyzzy');
+    eng.cmd('nope');
+    eng.cmd('asdf');
     var ok =
       eng.char &&
       eng.char.name === 'TestRunner' &&
@@ -4969,7 +5584,9 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       eng.char.desc &&
       lines.some(function (l) { return /Immortal|Vesper/i.test(l[1]); }) &&
       lines.some(function (l) { return /Obvious exits|Fundamentals/i.test(l[1]); }) &&
-      lines.some(function (l) { return /Character saved|Brief mode/i.test(l[1]); });
+      lines.some(function (l) { return /Character saved|Brief mode/i.test(l[1]); }) &&
+      lines.some(function (l) { return l[1] === 'Huh?'; }) &&
+      lines.some(function (l) { return /Stuck\? Try HELP|command list/i.test(l[1]); });
     if (!ok) {
       console.error('MUD selftest FAIL', eng.char, lines.slice(-12));
       process.exitCode = 1;
@@ -4998,8 +5615,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-
-window.__dgFootVer='631';console.log('Demigod v631');
+window.__dgFootVer='635';console.log('Demigod v634');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
