@@ -402,7 +402,23 @@ async function suiteDash() {
   const ui = await httpGet(`${DASH}/`, 5000);
   check('dash', 'UI HTML 200', ui.ok, '', 'critical');
   check('dash', 'UI has v5 badge or Ops', /v5|Ops|Dashboard/.test(ui.text), '', 'medium');
-  check('dash', 'UI Simple mode default', /class="simple"|body class="simple"/.test(ui.text), '', 'medium');
+  // Was: /class="simple"/ -- "UI Simple mode default". Correct when written (dcc2c65 shipped this
+  // check AND `prefGet('dg-dash-mode') || 'simple'` together), but d1958b4 "Dashboard v7: editorial
+  // command-center UI for humans + agents" deliberately moved the default to 'agent' and left the
+  // check behind. It has demanded a reversed design decision ever since -- a permanent P1 that
+  // cannot pass, which is worth less than no check at all.
+  // Assert the RULE, not the old sentence: the served <body> must declare a known mode AND match the
+  // JS fallback. Both live in this same HTML, and if they diverge the first paint flashes the wrong
+  // mode until applyMode() runs -- a real regression this can actually catch.
+  const bodyMode = (ui.text.match(/<body[^>]*class="(agent|simple)"/) || [])[1] || '';
+  const jsDefault = (ui.text.match(/prefGet\('dg-dash-mode'\)\s*\|\|\s*'(agent|simple)'/) || [])[1] || '';
+  check(
+    'dash',
+    'UI default mode: served body class matches JS fallback',
+    !!bodyMode && bodyMode === jsDefault,
+    `body=${bodyMode || 'none'} js=${jsDefault || 'none'}`,
+    'medium',
+  );
   check('dash', 'UI has Inbox tab', /data-tab="inbox"|panel-inbox|id="inboxRoot"/.test(ui.text), '', 'high');
   check('dash', 'UI has Matches tab', /data-tab="matches"|panel-matches|id="matchesRoot"/.test(ui.text), '', 'high');
   check(
