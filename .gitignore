@@ -105,6 +105,13 @@ demigod-outreach/ready-emails/
 demigod-outreach/blast-log.json
 DEMIGOD-PROOF-LOG.json
 DEMIGOD-PROOF-LOG.json.corrupt.*
+# Board corruption backups (old .bak/.corrupt snapshots hold real founder handles/emails) and grok
+# conversation scratch (contains a personal email). Cruft/scratch, never meant to be committed.
+DEMIGOD-BOARD.corrupt*
+DEMIGOD-BOARD.CORRUPT*
+grok-input.txt
+grok-snapshot.txt
+grok-tail.txt
 
 # Firecrawl secrets
 .env.firecrawl
