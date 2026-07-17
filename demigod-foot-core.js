@@ -1,4 +1,4 @@
-/*dg-foot-v635-core*/
+/*dg-foot-v636-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v635'; console.log('[demigod] foot v635-core loaded');
+window.dgFootVersion = 'v636'; console.log('[demigod] foot v636-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -3515,6 +3515,13 @@ function openPage(id, push) {
     });
   } catch (e) {}
   try { window.scrollTo(0, 0); } catch (e) {}
+  /* v636: mini-page content is injected HERE, long after addMotion() ran at boot. CSS hides
+     `.dg-reveal, .dg-blog-card, .dg-decision-grid li {opacity:0}` until IntersectionObserver adds
+     .dg-in — but nothing ever observed these nodes, so /?p=events' whole 5-step Method list
+     (01 Capture … 05 Follow-up) sat at opacity:0 permanently. Inverted a11y too: reduced-motion
+     users saw it (the .dg-reduce override forces opacity:1); everyone else saw nothing.
+     addMotion is idempotent and reuses window.__dgRevealObs, so re-running is safe. */
+  try { addMotion(); } catch (e) {}
   try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}
   try {
     if(!window.__dgPagePrevTitle) window.__dgPagePrevTitle=document.title;
@@ -5615,7 +5622,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-window.__dgFootVer='635';console.log('Demigod v634');
+window.__dgFootVer='636';console.log('Demigod v634');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
