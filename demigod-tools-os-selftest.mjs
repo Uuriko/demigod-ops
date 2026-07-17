@@ -1378,7 +1378,7 @@ ok(
 ok(
   /const cdpDown = \(webflowDoctor\.checks \|\| \[\]\)\.some/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')) &&
     /receipt timestamp is in the future/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')) &&
-    /next\.title && !cards\.some\(\(card\) => next\.cmd && card\.cmd === next\.cmd\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')),
+    /next\.title && [\s\S]{0,80}!cards\.some\(\(card\) => next\.cmd && card\.cmd === next\.cmd\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')),
   'priority board collapses derivative CDP tab failures, explains clock skew, and deduplicates canonical commands',
 );
 
@@ -1876,7 +1876,10 @@ ok(
   'dashboard Home workLog panel auto-refreshes from /api/coord workLog',
 );
 ok(
-  /workLog:/.test(dashboardSource) &&
+  // ES6 shorthand: the response is built as { ..., workLog, ... } (verified: "items: openP0P1, },
+  // workLog,"), never `workLog:`. The old /workLog:/ could not match at any version, and the
+  // feature demonstrably works — live /api/coord returns workLog.schema "demigod.work-log/1".
+  /\bworkLog\s*[,:}]/.test(dashboardSource) &&
     /schema: ['"]demigod\.work-log\/1['"]/.test(dashboardSource),
   'coord API exposes workLog demigod.work-log/1 multi-agent summary',
 );
