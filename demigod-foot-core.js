@@ -1,4 +1,4 @@
-/*dg-foot-v636-core*/
+/*dg-foot-v638-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v636'; console.log('[demigod] foot v636-core loaded');
+window.dgFootVersion = 'v638'; console.log('[demigod] foot v638-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -3090,7 +3090,9 @@ var DG_PAGES = {
       '<li><strong>Create</strong> — name + founder / engineer / wanderer</li>' +
       '</ul>' +
       '<div id="dg-mud" class="dg-mud-host" aria-label="SF Night District MUD terminal"></div>' +
-      '<p class="dg-p-note">Solo works offline. Multiplayer + live Vesper AI: <code>node demigod-mud-app.mjs</code> on :3461 (OPENAI_API_KEY optional). SF startup names = flavor only.</p>',
+      /* v638: same leak class as the events :3460 note — a filename, a port and an env var are
+   setup instructions for me, not product copy for a visitor. Solo play is the real experience. */
+'<p class="dg-p-note">Play solo in the browser. SF startup names are flavor only.</p>',
   },
 
   sample: {
@@ -3104,43 +3106,62 @@ var DG_PAGES = {
   events: {
     title: 'Events Bot',
     doc: 'Events Bot · Demigod',
-    desc: 'Demigod Events Bot handles event legwork — guest lists, RSVPs, agendas, reminders, and post-event intros. Humans keep host control. SMS/calendar tooling pending.',
+    desc: 'Demigod Events Bot runs the full event cycle — ideate, resource, plan, RSVP, run, follow-up, debrief — plus sponsor, venue, and volunteer offers. Humans keep host control. SMS/calendar/Stripe pending.',
     html:
-      '<p class="dg-p-lead"><strong>Events Bot</strong> is the legwork layer for Demigod dinners and Match Circle nights: guest lists, RSVPs, agendas, reminders, and post-event follow-ups — so the host stays host, not ops.</p>' +
-      '<p class="dg-p-note">Not an auto-DM blaster. Not a public ticket marketplace. Human-approved guest lists and intros only.</p>' +
-      '<h3 class="dg-p-h3">What the bot owns (legwork)</h3>' +
-      '<ol class="dg-decision-grid" aria-label="Events Bot legwork">' +
-      '<li><span>01</span><strong>Capture</strong><small>Host goal, date windows, guest constraints, room size</small></li>' +
-      '<li><span>02</span><strong>Assemble</strong><small>Draft guest slate from signals + prior opt-ins (human edits)</small></li>' +
-      '<li><span>03</span><strong>Coordinate</strong><small>Invites, RSVPs, waitlist, seat math, dietary notes</small></li>' +
-      '<li><span>04</span><strong>Run-of-show</strong><small>Agenda, talking prompts, name cards, day-of checklist</small></li>' +
-      '<li><span>05</span><strong>Follow-up</strong><small>Thank-yous, mutual-interest notes, warm intros when both opt in</small></li>' +
+      '<p class="dg-p-lead"><strong>Events Bot</strong> organizes a Demigod night from first idea through debrief and into the next cycle: format, partners, guests, run-of-show, follow-ups — host stays host.</p>' +
+      '<p class="dg-p-note">Drafts only · no auto-DM · no public ticket blast · mutual yes before intros. SMS / calendar / Stripe still <strong>pending</strong>.</p>' +
+      '<h3 class="dg-p-h3">Full cycle</h3>' +
+      '<ol class="dg-decision-grid dg-ev-cycle" aria-label="Events Bot lifecycle">' +
+      '<li><span>01</span><strong>Ideate</strong><small>Type of night · one-sentence outcome · size</small></li>' +
+      '<li><span>02</span><strong>Resource</strong><small>Sponsors · venues · volunteers (offers below)</small></li>' +
+      '<li><span>03</span><strong>Plan</strong><small>Guest slate draft · invites · agenda</small></li>' +
+      '<li><span>04</span><strong>RSVP</strong><small>Tally · waitlist · reminder drafts</small></li>' +
+      '<li><span>05</span><strong>Run</strong><small>Day-of checklist · prompts · host frame</small></li>' +
+      '<li><span>06</span><strong>Follow-up</strong><small>Thanks · mutual interest · intro drafts</small></li>' +
+      '<li><span>07</span><strong>Debrief → next</strong><small>What worked · recycle partners · next date</small></li>' +
       '</ol>' +
+      '<p class="dg-ev-status" id="dg-ev-status" role="status" aria-live="polite">Cycle status: connecting…</p>' +
+      '<h3 class="dg-p-h3">Offer to the night</h3>' +
+      '<p class="dg-p-note">Sponsors, venues, and volunteers: tell Events Bot what you can bring. potter@ follows up — no auto-booking.</p>' +
+      '<div class="dg-ev-tabs" role="tablist" aria-label="Offer type">' +
+      '<button type="button" class="dg-ev-tab is-on" data-ev-tab="sponsor" role="tab" aria-selected="true">Sponsor</button>' +
+      '<button type="button" class="dg-ev-tab" data-ev-tab="venue" role="tab" aria-selected="false">Venue</button>' +
+      '<button type="button" class="dg-ev-tab" data-ev-tab="volunteer" role="tab" aria-selected="false">Volunteer</button>' +
+      '</div>' +
+      '<div id="dg-ev-offers" class="dg-ev-offers">' +
+      '<form class="dg-ev-form" id="dg-ev-form" data-ev-kind="sponsor">' +
+      '<input type="hidden" name="kind" id="dg-ev-kind" value="sponsor" />' +
+      '<label class="dg-ev-lab" for="dg-ev-name">Name</label>' +
+      '<input class="dg-ev-in" id="dg-ev-name" name="name" required maxlength="80" autocomplete="name" />' +
+      '<label class="dg-ev-lab" for="dg-ev-email">Email</label>' +
+      '<input class="dg-ev-in" id="dg-ev-email" name="email" type="email" required maxlength="120" autocomplete="email" />' +
+      '<label class="dg-ev-lab" for="dg-ev-org" id="dg-ev-org-lab">Org / brand</label>' +
+      '<input class="dg-ev-in" id="dg-ev-org" name="org" maxlength="120" />' +
+      '<label class="dg-ev-lab" for="dg-ev-city">City</label>' +
+      '<input class="dg-ev-in" id="dg-ev-city" name="city" maxlength="60" value="SF" />' +
+      '<label class="dg-ev-lab" for="dg-ev-capacity" id="dg-ev-cap-lab">Capacity (venues)</label>' +
+      '<input class="dg-ev-in" id="dg-ev-capacity" name="capacity" type="number" min="1" max="500" inputmode="numeric" placeholder="optional" />' +
+      '<label class="dg-ev-lab" for="dg-ev-offer" id="dg-ev-offer-lab">What you can offer</label>' +
+      '<textarea class="dg-ev-in dg-ev-ta" id="dg-ev-offer" name="offer" required maxlength="800" rows="3" placeholder="e.g. dinner sponsorship · 12-seat loft SOMA · photo + check-in help"></textarea>' +
+      '<button type="submit" class="dg-ev-submit" id="dg-ev-submit">Submit offer</button>' +
+      '<p class="dg-ev-msg" id="dg-ev-msg" role="status" aria-live="polite"></p>' +
+      '</form></div>' +
+      '<p class="dg-ev-counts" id="dg-ev-counts" aria-live="polite"></p>' +
       '<h3 class="dg-p-h3">What stays human</h3>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Final guest list</strong> — bot drafts; host approves who is in the room.</li>' +
-      '<li><strong>Tone of the night</strong> — vibe, topics, who sits where for chemistry.</li>' +
-      '<li><strong>Intros after</strong> — still mutual yes before names and emails move (same as matching).</li>' +
-      '<li><strong>No SLA clock</strong> — potter@trydemigod.com follows up; no 48h promise.</li>' +
+      '<li><strong>Final guest list &amp; partners</strong> — bot drafts; host approves.</li>' +
+      '<li><strong>Tone of the night</strong> — vibe, seating chemistry.</li>' +
+      '<li><strong>Intros after</strong> — mutual yes before names move (same as hiring).</li>' +
+      '<li><strong>Sending</strong> — invites and reminders are never auto-blasted.</li>' +
       '</ul>' +
-      '<h3 class="dg-p-h3">Live vs pending</h3>' +
-      '<ul class="dg-p-list">' +
-      '<li><strong>Live now:</strong> this product page, interest capture by email, human-run pilot dinners when we host them.</li>' +
-      '<li><strong>Building:</strong> structured event brief → guest draft → RSVP tracker → run-of-show pack.</li>' +
-      '<li><strong>Pending:</strong> SMS reminders (Twilio), calendar auto-sync, card deposits (Stripe) — we say so until live.</li>' +
-      '</ul>' +
-      '<h3 class="dg-p-h3">Who it is for</h3>' +
-      '<div class="dg-p-grid">' +
-      '<div><strong>Founder hosts</strong><p>Want a tight SF dinner without becoming full-time ops.</p></div>' +
-      '<div><strong>Operators</strong><p>Match Circle / community nights with a clean mutual-interest trail.</p></div>' +
-      '<div class="dg-p-hi"><strong>Demigod</strong><p>Same privacy bar as hiring: evidence first, both sides opt in.</p></div>' +
-      '</div>' +
-      '<details class="dg-p-det"><summary>How do I start?</summary><p>Chat below, or email <a href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">potter@trydemigod.com</a> with preferred dates, guest count, and one sentence on the night’s outcome.</p></details>' +
-      '<details class="dg-p-det"><summary>Is this the same as Demigod hiring?</summary><p>Related privacy model, different surface. Hiring is role + 90-day outcome. Events Bot is room + guest chemistry + post-event intros. Placement fee still only applies if a hire starts later — 10% of first-year cash.</p></details>' +
-      '<details class="dg-p-det"><summary>Will the bot spam my guests?</summary><p>No auto-DM blasts. Invites and reminders go only to people on a host-approved list. Guests can pass or leave anytime.</p></details>' +
+      '<details class="dg-p-det"><summary>How do I start a night?</summary><p>Chat below with seats, date windows, and one outcome sentence — or email <a href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">potter@trydemigod.com</a>. Sponsors / venues / volunteers use the forms above.</p></details>' +
+      '<details class="dg-p-det"><summary>Pending tooling</summary><p>SMS (Twilio), calendar auto-sync, Stripe deposits — marked pending until live. Email path always works.</p></details>' +
       '<div id="dg-events-chat" class="dg-events-chat" aria-label="Events Bot chat">' +
       '<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status">connecting…</span></div>' +
-      '<p class="dg-ec-note">Drafts only — you approve guests and send messages. No auto-DM. AI when the chat API is up; otherwise offline guide.</p>' +
+      /* v638: dropped "AI when :3460 is up; else offline guide." A founder reading a port number
+   learns only that this is a dev toy. The assistant is unreachable in production by design
+   (it needs a local server no visitor has), so advertising its absence is worse than silence. */
+'<p class="dg-ec-note">Tell us your night — we draft the slate; you send every invite.</p>' +
       '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-ec-form" id="dg-ec-form">' +
       '<label class="sr-only" for="dg-ec-input">Message</label>' +
@@ -3245,8 +3266,265 @@ function pageCss() {
     '#dg-page .dg-ec-input:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
     '#dg-page .dg-ec-send{min-height:48px;min-width:5.5rem;padding:0 .9rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
     '#dg-page .dg-ec-send:disabled{opacity:.5;cursor:wait}' +
+    /* Events Bot offers + cycle */
+    '#dg-page .dg-ev-cycle{grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))!important}' +
+    '#dg-page .dg-ev-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:.65rem 0 .5rem}' +
+    '#dg-page .dg-ev-tab{min-height:44px;padding:.45rem .85rem;border-radius:10px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font-weight:650;cursor:pointer}' +
+    '#dg-page .dg-ev-tab.is-on{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.7);color:#C9A84C}' +
+    '#dg-page .dg-ev-offers{margin:.35rem 0 0;padding:.85rem;border:1px solid rgba(201,168,76,.22);border-radius:12px;background:rgba(10,10,10,.45)}' +
+    '#dg-page .dg-ev-form{display:grid;gap:.35rem}' +
+    '#dg-page .dg-ev-lab{font-size:.78rem;color:#A8A29E;margin-top:.25rem}' +
+    '#dg-page .dg-ev-in{width:100%;min-height:44px;padding:.55rem .65rem;border-radius:8px;border:1px solid rgba(201,168,76,.28);background:#0a0a0a;color:#F5F0E6;font-size:16px}' +
+    '#dg-page .dg-ev-ta{min-height:5.5rem;resize:vertical}' +
+    '#dg-page .dg-ev-in:focus-visible{outline:2px solid #C9A84C;outline-offset:2px}' +
+    '#dg-page .dg-ev-submit{min-height:48px;margin-top:.55rem;border-radius:10px;border:1px solid rgba(201,168,76,.55);background:rgba(201,168,76,.2);color:#C9A84C;font-weight:700;cursor:pointer}' +
+    '#dg-page .dg-ev-submit:disabled{opacity:.55;cursor:wait}' +
+    '#dg-page .dg-ev-msg{min-height:1.2rem;font-size:.82rem;color:#A8A29E;margin:.35rem 0 0}' +
+    '#dg-page .dg-ev-msg.ok{color:#a6ffcb}' +
+    '#dg-page .dg-ev-msg.err{color:#ffb4a2}' +
+    '#dg-page .dg-ev-counts{font-size:.8rem;color:#A8A29E;margin:.45rem 0 0}' +
+    '#dg-page .dg-ev-status{margin:.35rem 0 1rem;padding:.55rem .75rem;border-radius:10px;border:1px solid rgba(201,168,76,.22);background:rgba(201,168,76,.06);color:#A8A29E;font-size:.86rem;line-height:1.45}' +
+    '#dg-page .dg-ev-cycle>li.is-current{border-color:rgba(201,168,76,.65)!important;background:rgba(201,168,76,.12)!important}' +
+    '#dg-page .dg-ev-cycle>li.is-current strong{color:#C9A84C}' +
     '#dg-page .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}';
   document.head.appendChild(s);
+}
+/* Events Bot — live cycle status from GET /lifecycle */
+function eventsBotCycleMount(root) {
+  var status = root && root.querySelector('#dg-ev-status');
+  var cycle = root && root.querySelector('.dg-ev-cycle');
+  if (!status || status.dataset.dgEvCycle === '1') return;
+  status.dataset.dgEvCycle = '1';
+  var endpoints = [
+    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
+    'http://127.0.0.1:3460/api/events-bot/lifecycle',
+    'http://localhost:3460/api/events-bot/lifecycle',
+  ]
+    .filter(Boolean)
+    .map(function (u) {
+      return u.replace(/\/chat\/?$/, '/lifecycle').replace(/\/offer\/?$/, '/lifecycle');
+    });
+
+  function stageLabel(id) {
+    var map = {
+      ideate: 'Ideate',
+      resource: 'Resource',
+      plan: 'Plan',
+      rsvp: 'RSVP',
+      run: 'Run',
+      followup: 'Follow-up',
+      debrief: 'Debrief → next',
+    };
+    return map[id] || id || 'Ideate';
+  }
+
+  async function load() {
+    for (var i = 0; i < endpoints.length; i++) {
+      var ep = endpoints[i];
+      try {
+        if (typeof dgLocalOk === 'function' && !dgLocalOk(ep)) continue;
+      } catch (e0) {}
+      try {
+        var r = await fetch(ep, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(2000) });
+        if (!r.ok) continue;
+        var j = await r.json();
+        if (!j || !j.ok) continue;
+        var ae = j.activeEvent || {};
+        var st = ae.stage || 'ideate';
+        var oc = j.offerCounts || {};
+        var title = ae.title ? '“' + ae.title + '” · ' : '';
+        var offers =
+          (oc.sponsor | 0) + ' sponsor · ' + (oc.venue | 0) + ' venue · ' + (oc.volunteer | 0) + ' volunteer';
+        if (ae.id || ae.title) {
+          status.textContent =
+            'In flight: ' + title + 'stage ' + stageLabel(st) + '. Offers on file: ' + offers + '.';
+        } else {
+          status.textContent =
+            'No named event in flight — chat below to ideate one. Stage default: ' +
+            stageLabel(st) +
+            '. Offers on file: ' +
+            offers +
+            '.';
+        }
+        if (cycle) {
+          var items = cycle.querySelectorAll('li');
+          var order = ['ideate', 'resource', 'plan', 'rsvp', 'run', 'followup', 'debrief'];
+          var idx = order.indexOf(st);
+          items.forEach(function (li, n) {
+            li.classList.toggle('is-current', n === idx);
+          });
+        }
+        return;
+      } catch (e) {}
+    }
+    status.textContent =
+      'Cycle API offline — stages above are the playbook. Chat still works as offline guide; offers fall back to email.';
+  }
+  load();
+}
+/* Events Bot offers — sponsor / venue / volunteer (API + mailto fallback) */
+function eventsBotOffersMount(root) {
+  var form = root && root.querySelector('#dg-ev-form');
+  if (!form || form.dataset.dgEv === '1') return;
+  form.dataset.dgEv = '1';
+  var kindIn = form.querySelector('#dg-ev-kind');
+  var msg = form.querySelector('#dg-ev-msg');
+  var submit = form.querySelector('#dg-ev-submit');
+  var orgLab = form.querySelector('#dg-ev-org-lab');
+  var offerLab = form.querySelector('#dg-ev-offer-lab');
+  var capLab = form.querySelector('#dg-ev-cap-lab');
+  var counts = root.querySelector('#dg-ev-counts');
+  var endpoints = [
+    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
+    'http://127.0.0.1:3460/api/events-bot/offer',
+    'http://localhost:3460/api/events-bot/offer',
+  ]
+    .filter(Boolean)
+    .filter(function (u) {
+      try {
+        return typeof dgLocalOk !== 'function' || dgLocalOk(u);
+      } catch (e) {
+        return true;
+      }
+    });
+  var offerUrl = '';
+
+  var labels = {
+    sponsor: { org: 'Org / brand', offer: 'What you can sponsor', cap: false },
+    venue: { org: 'Venue name', offer: 'Space details (area, amenities, windows)', cap: true },
+    volunteer: { org: 'Org (optional)', offer: 'How you can help (check-in, photo, setup…)', cap: false },
+  };
+
+  function setMsg(t, cls) {
+    if (!msg) return;
+    msg.textContent = t || '';
+    msg.className = 'dg-ev-msg' + (cls ? ' ' + cls : '');
+  }
+  function setKind(k) {
+    k = k === 'venue' || k === 'volunteer' ? k : 'sponsor';
+    if (kindIn) kindIn.value = k;
+    form.setAttribute('data-ev-kind', k);
+    var L = labels[k];
+    if (orgLab) orgLab.textContent = L.org;
+    if (offerLab) offerLab.textContent = L.offer;
+    if (capLab) capLab.style.display = L.cap ? '' : 'none';
+    var cap = form.querySelector('#dg-ev-capacity');
+    if (cap) cap.style.display = L.cap ? '' : 'none';
+    root.querySelectorAll('.dg-ev-tab').forEach(function (btn) {
+      var on = btn.getAttribute('data-ev-tab') === k;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+  root.querySelectorAll('.dg-ev-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setKind(btn.getAttribute('data-ev-tab'));
+    });
+  });
+
+  async function probe() {
+    for (var i = 0; i < endpoints.length; i++) {
+      var ep = endpoints[i];
+      var health = ep.replace(/\/offer\/?$/, '/health').replace(/\/offers\/?$/, '/health');
+      if (health === ep) health = 'http://127.0.0.1:3460/api/events-bot/health';
+      try {
+        var r = await fetch(health, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(1800) });
+        if (r.ok) {
+          offerUrl = ep.indexOf('/offer') >= 0 ? ep : 'http://127.0.0.1:3460/api/events-bot/offer';
+          try {
+            var c = await fetch(offerUrl.replace(/\/offer\/?$/, '/offers'), {
+              mode: 'cors',
+              signal: AbortSignal.timeout(2000),
+            }).then(function (x) {
+              return x.json();
+            });
+            if (c && c.counts && counts) {
+              counts.textContent =
+                'Offers on file: ' +
+                (c.counts.sponsor | 0) +
+                ' sponsor · ' +
+                (c.counts.venue | 0) +
+                ' venue · ' +
+                (c.counts.volunteer | 0) +
+                ' volunteer (contacts private)';
+            }
+          } catch (e2) {}
+          return;
+        }
+      } catch (e) {}
+    }
+    offerUrl = '';
+    if (counts) counts.textContent = 'Offer API offline — submit will open email to potter@';
+  }
+
+  function mailtoFallback(payload) {
+    var sub = encodeURIComponent('Events Bot offer: ' + payload.kind);
+    var body = encodeURIComponent(
+      [
+        'Kind: ' + payload.kind,
+        'Name: ' + payload.name,
+        'Email: ' + payload.email,
+        'Org: ' + (payload.org || ''),
+        'City: ' + (payload.city || ''),
+        'Capacity: ' + (payload.capacity || ''),
+        'Offer: ' + (payload.offer || ''),
+      ].join('\n'),
+    );
+    window.location.href = 'mailto:potter@trydemigod.com?subject=' + sub + '&body=' + body;
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var payload = {
+      kind: (kindIn && kindIn.value) || 'sponsor',
+      name: (form.querySelector('#dg-ev-name') || {}).value || '',
+      email: (form.querySelector('#dg-ev-email') || {}).value || '',
+      org: (form.querySelector('#dg-ev-org') || {}).value || '',
+      city: (form.querySelector('#dg-ev-city') || {}).value || '',
+      capacity: (form.querySelector('#dg-ev-capacity') || {}).value || '',
+      offer: (form.querySelector('#dg-ev-offer') || {}).value || '',
+    };
+    payload.name = String(payload.name).trim();
+    payload.email = String(payload.email).trim();
+    payload.offer = String(payload.offer).trim();
+    if (!payload.name || !payload.email || !payload.offer) {
+      setMsg('Name, email, and offer are required.', 'err');
+      return;
+    }
+    if (submit) submit.disabled = true;
+    setMsg('Submitting…');
+    if (offerUrl) {
+      try {
+        var r = await fetch(offerUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(8000),
+        });
+        var j = await r.json().catch(function () {
+          return {};
+        });
+        if (r.ok && j.ok) {
+          setMsg(j.message || 'Offer recorded. potter@ will follow up.', 'ok');
+          form.reset();
+          setKind(payload.kind);
+          probe();
+          if (submit) submit.disabled = false;
+          return;
+        }
+        setMsg(j.error || 'Could not save — trying email…', 'err');
+      } catch (err) {
+        setMsg('API unreachable — opening email…', 'err');
+      }
+    }
+    mailtoFallback(payload);
+    setMsg('Email draft opened if your mail client allows it.', 'ok');
+    if (submit) submit.disabled = false;
+  });
+
+  setKind('sponsor');
+  probe();
 }
 /* Events Bot conversational chat — API (local Codex-class OpenAI) + offline fallback */
 function eventsBotChatMount(root) {
@@ -3285,7 +3563,7 @@ function eventsBotChatMount(root) {
       return 'I only draft guest lists; you approve every name. Tell me seats, mix (founders/eng), and constraints.';
     if (/agenda|run/.test(last))
       return 'Tight dinner skeleton: arrive → host frame → structured intros → free conversation → close + mutual-interest notes. Duration?';
-    return 'Hi — I draft event legwork (guests, invites, agenda, follow-ups). You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, want 3 second meetings." Live model needs the chat API on :3460.';
+    return 'I run the full cycle: Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief → next. You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, outcome: 3 second meetings" — or use Sponsor / Venue / Volunteer forms above.';
   }
 
   async function probe() {
@@ -3361,7 +3639,7 @@ function eventsBotChatMount(root) {
 
   addMsg(
     'bot',
-    'I help plan Demigod dinners — briefs, guest drafts, agendas, follow-ups. You approve and send. What are you hosting?',
+    'I run Demigod nights end-to-end: ideate → sponsors/venues/volunteers → plan → RSVP → run → follow-up → next cycle. You approve and send. What are we throwing?',
   );
   probe();
 }
@@ -3600,6 +3878,8 @@ function openPage(id, push) {
   if (id === 'blog') focusBlogNoteFromHash(root);
   if (id === 'events') {
     try {
+      eventsBotCycleMount(root);
+      eventsBotOffersMount(root);
       eventsBotChatMount(root);
       var foc = root.querySelector('#dg-ec-focus');
       if (foc)
@@ -5492,7 +5772,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       'placeholder="say hi · map · pray · help · skip" enterkeyhint="send" />' +
       '<button type="submit" class="dg-mud-send">Enter</button>' +
       '</form>' +
-      '<p class="dg-mud-hint">SF social MUD · talk first · <code>pray</code> (Vesper, Immortal) · <code>skip</code> tutorial · multi on :3461</p>' +
+      '<p class="dg-mud-hint">SF social MUD · talk first · <code>pray</code> (Vesper, Immortal) · <code>skip</code> tutorial</p>' +
       '</div>';
 
     var log = box.querySelector('#dg-mud-log');
@@ -5622,7 +5902,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-window.__dgFootVer='636';console.log('Demigod v634');
+window.__dgFootVer='638';console.log('Demigod v637');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
