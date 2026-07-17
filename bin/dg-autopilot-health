@@ -15,7 +15,11 @@ gates=PASS; node demigod-verify-source.mjs >/dev/null 2>&1 || { sleep 3; node de
 # for the 2h it stayed dead. A blip and a corpse looked identical.
 # systemd already distinguishes them: a unit mid-restart reports `activating`, a dead one reports
 # `inactive`/`failed`. So tolerate `activating` explicitly and treat anything else as down.
-SVCS=(demigod-agent-coord claude-yolo swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
+# demigod-dash included: it was NOT watched, and sat failed 8h (exit 98/EADDRINUSE) while an
+# orphaned `node demigod-agent-dashboard.mjs` (PPID 1) held :9878. The dashboard answered 200 the
+# whole time, so nothing looked wrong -- but systemd could never reclaim the port, and the process
+# actually serving it was supervised by no one.
+SVCS=(demigod-agent-coord claude-yolo demigod-dash swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
 down=()
 for s in "${SVCS[@]}"; do
   st=$(systemctl --user is-active "$s" 2>/dev/null || true)
