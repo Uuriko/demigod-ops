@@ -240,6 +240,47 @@ async function suiteSite() {
         'high',
       );
 
+      // CLICK a page link and assert the viewport SURVIVES. 2026-07-17: blog-sync rewrote openPage's
+      // body-hide KEEP allowlist with blog slugs, so openPage hid its OWN #dg-page and clicking
+      // "All posts →" blanked the entire viewport. Every gate stayed green: loading /?p=blog by URL
+      // self-healed via the double-boot, and DOM assertions (querySelector/textContent) all pass on a
+      // display:none subtree. Only a CLICK plus a computed-style/innerText read exposes it.
+      const pageNav = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const a = [...document.querySelectorAll('a')].find((x) => /all posts|method|pricing/i.test(x.textContent || ''));
+          if (!a) return { found: false };
+          a.click();
+          return { found: true, label: (a.textContent || '').trim().slice(0, 30) };
+        })()`,
+        returnByValue: true,
+      });
+      if (pageNav?.result?.value?.found) {
+        await new Promise((r) => setTimeout(r, 1400));
+        const pg = await send('Runtime.evaluate', {
+          expression: `(() => {
+            const el = document.querySelector('#dg-page');
+            const cs = el ? getComputedStyle(el) : null;
+            return {
+              exists: !!el,
+              display: cs ? cs.display : null,
+              h: el ? Math.round(el.getBoundingClientRect().height) : 0,
+              bodyText: (document.body.innerText || '').length,
+            };
+          })()`,
+          returnByValue: true,
+        });
+        const v = (pg && pg.result && pg.result.value) || {};
+        check(
+          'site',
+          'page view survives a CLICK (not just a URL load)',
+          Boolean(v.exists && v.display !== 'none' && v.h > 50 && v.bodyText > 200),
+          `${pageNav.result.value.label}: display=${v.display} h=${v.h} bodyText=${v.bodyText}`,
+          'critical',
+        );
+        await send('Runtime.evaluate', { expression: `history.back(); 'ok'`, returnByValue: true });
+        await new Promise((r) => setTimeout(r, 900));
+      }
+
       // Open WIZ startup — contract matches demigod-agent-smoke.mjs
       await send('Runtime.evaluate', {
         expression: `document.querySelector('a.premium-btn.is-talent,[data-demigod-modal=startup]')?.click(); 'ok'`,
