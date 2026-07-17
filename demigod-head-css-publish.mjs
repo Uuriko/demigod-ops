@@ -35,6 +35,38 @@ const ok =
   liveCss.includes('#demigod-trust-block') &&
   liveMd5 === diskMd5;
 
+// Fail closed BEFORE touching the head. `ok` used to be computed here and then only printed --
+// it gated nothing, the head was patched unconditionally below, and the process exited 0. So a
+// readback that came back empty/truncated/404 still repointed the live stylesheet at that URL and
+// reported success. It really happened: DEMIGOD-HEAD-CDN.json recorded
+// {"ok":false,"cssLen":0,"cdnUrl":".../0lk5hh.css"} -- catbox served nothing back and the head was
+// patched to it anyway. An unstyled live site is the blast radius, and exit 0 meant no caller could
+// notice. A stylesheet we cannot read back intact is not one to point the head at; the orphaned
+// catbox upload is harmless.
+if (!ok) {
+  const at = new Date().toISOString();
+  const detail = {
+    at,
+    match: false,
+    href: cdnUrl,
+    diskMd5,
+    liveMd5,
+    diskBytes: diskBuf.length,
+    liveBytes: liveBuf.length,
+    headPatched: false,
+    note: 'demigod-head-css-publish: live CSS failed readback — head NOT patched',
+  };
+  // Still leave both receipts so the dashboard/coord see a real failure rather than silence.
+  try {
+    atomicWrite(RECEIPT, JSON.stringify(detail, null, 2));
+    atomicWrite(OUT, JSON.stringify({ at, cdnUrl, ok, cssLen: liveCss.length, headPatched: false }, null, 2));
+  } catch {
+    /* receipts are a convenience; the exit code is the product */
+  }
+  console.error(JSON.stringify(detail));
+  process.exit(1);
+}
+
 let head = fs.readFileSync(HEAD, 'utf8');
 // Match stylesheet links that may carry onerror/media attrs (not only exact <link rel=stylesheet href="…">)
 const re = /(<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'])https?:\/\/files\.catbox\.moe\/[a-z0-9]+\.css(["'])/i;
