@@ -430,7 +430,22 @@ export function ingestSubmission(body = {}, opts = {}) {
         status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : 'new',
         rejectReasons: gate.reject ? gate.reasons : undefined,
       };
-      inbox.items = [record, ...(inbox.items || [])].slice(0, 200);
+      // Cap the working inbox at 200 -- but ARCHIVE what falls off the end instead of dropping it.
+      // The old `.slice(0, 200)` silently evicted the oldest lead on the 201st submission: a founder
+      // who submitted early just vanished from the record. Same "never silently lose a lead" principle
+      // as the lock (a5c881f) and the corrupt-preserve guard (665d0da). Append-only JSONL archive; the
+      // working file stays bounded and every lead is recoverable. Runs inside the INBOX_LOCK, so the
+      // archive append is serialized too.
+      const combined = [record, ...(inbox.items || [])];
+      if (combined.length > 200) {
+        const evicted = combined.slice(200);
+        try {
+          fs.appendFileSync(INBOX_PATH + '.archive.jsonl', evicted.map((x) => JSON.stringify(x)).join('\n') + '\n');
+        } catch {
+          /* best-effort: never let archiving block the ingest of a new lead */
+        }
+      }
+      inbox.items = combined.slice(0, 200);
       saveInbox(inbox);
     },
     { timeoutMs: 20000, staleMs: 120000 },
