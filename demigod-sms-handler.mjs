@@ -24,7 +24,11 @@ import { sendSmsStub, getServiceStatus, isServiceEnabled } from './demigod-futur
 const PENDING_NUMBER = '+1 (415) 555-DEMO'; // placeholder, swap on Twilio setup
 const WEBHOOK_PENDING = 'https://demigod-trydemigod.loca.lt/sms'; // stub
 
-export function handleSms({ from, body, to = PENDING_NUMBER }) {
+// persist defaults true (production webhook path unchanged). The CLI smoke test passes false so that
+// `node demigod-sms-handler.mjs` does not write the REAL submissions SoR: today 83 of the inbox's 115
+// rows are sms test-run residue. Contained (all triaged, new=0) but it grows the prod file on every
+// dogfood run — the sim-launders-into-SoR pattern. persist=false still exercises all parsing/matching.
+export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
   // Simple state for multi-turn conversation (pre-services stub)
   const stateFile = path.join(ROOT, 'demigod-sms-state.json');
   let state = {};
@@ -122,7 +126,7 @@ export function handleSms({ from, body, to = PENDING_NUMBER }) {
     };
     inbox.items.unshift(candidate);
   }
-  saveInbox(inbox);
+  if (persist) saveInbox(inbox); // false from the CLI smoke test so it never writes the real leads SoR
 
   // Role suggestion (no auto opt-in on first message; explicit only)
   let bestRoleTitle = 'Product Manager';
@@ -202,7 +206,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const from = (args.find(a => a.startsWith('--from=')) || '').split('=')[1] || '+14155551234';
   const body = (args.find(a => a.startsWith('--body=')) || '').split('=')[1] || 'Hi, John PM skills product GTM SF';
-  const result = handleSms({ from, body });
+  const result = handleSms({ from, body, persist: args.includes('--commit') });
   console.dir(result, { depth: 2 });
 }
 
