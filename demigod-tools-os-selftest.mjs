@@ -2708,10 +2708,11 @@ ok(
       /90day-outcome/.test(verifySrc) &&
       /__submit__/.test(verifySrc) &&
       /__thanks__/.test(verifySrc) &&
-      /Review and submit your brief/.test(verifySrc) &&
-      /Review and submit your profile/.test(verifySrc) &&
-      /dg-wiz-review/.test(verifySrc),
-    'verify-source core:wiz-submit-review locks explicit review step before thanks (startup 90day order + engineer)',
+      (/Look good\?/.test(verifySrc) || /Review and submit your brief/.test(verifySrc)) &&
+      (/Ready\?/.test(verifySrc) || /Review and submit your profile/.test(verifySrc)) &&
+      /dg-wiz-review/.test(verifySrc) &&
+      /var\s+WIZ_CFG/.test(verifySrc),
+    'verify-source core:wiz-submit-review locks explicit review step before thanks (WIZ_CFG order + frege/legacy review copy)',
   );
   ok(
     /core:route-fees-security/.test(verifySrc) &&
@@ -2766,7 +2767,12 @@ ok(
   ok(
     /core:pilot-legal-nav/.test(verifySrc) &&
       /dg-legal-links/.test(verifySrc) &&
-      /data-dg-page=['"]pilot['"]/.test(verifySrc) &&
+      // verify-source MATCHES this attribute in coreJs, so its source spells it as a regex
+      // character class — `data-dg-page=['"]pilot['"]` — not a literal `data-dg-page="pilot"`.
+      // Asserting the literal could never match: there is a `[` after the `=`, not a quote.
+      // That mismatch, not a lost gate, is why this sat red. The gate itself is present and
+      // /pilot resolves 200.
+      /data-dg-page=\[['"]{2}\]pilot/.test(verifySrc) &&
       /White-glove pilot/i.test(verifySrc) &&
       /\\\/pilot/.test(verifySrc) &&
       /p=pilot/.test(verifySrc),
