@@ -171,6 +171,17 @@ export function loadInbox() {
   try {
     return JSON.parse(fs.readFileSync(INBOX_PATH, 'utf8'));
   } catch (_) {
+    // A MISSING file is a normal fresh start -> empty. But a file that EXISTS and won't parse must be
+    // preserved before any caller saves over it: otherwise the next ingestSubmission prepends to this
+    // empty default and saveInbox() silently WIPES the entire leads SoR down to one row -- worse than
+    // a crash, which would at least leave the bytes recoverable. Atomic writes (b8897b9) make this
+    // near-impossible now, but a disk error or manual edit could still corrupt it, and the leads file
+    // is the one place total silent loss is unacceptable. Copy the corrupt bytes aside first.
+    try {
+      if (fs.existsSync(INBOX_PATH)) fs.copyFileSync(INBOX_PATH, `${INBOX_PATH}.corrupt.${Date.now()}`);
+    } catch {
+      /* best-effort preservation; never let it block the fresh start */
+    }
     return { at: new Date().toISOString(), items: [] };
   }
 }
