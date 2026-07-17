@@ -2214,7 +2214,13 @@ ok(
     /env DG_COORD_DIR="\$DIR" DG_ROOT="\$ROOT" python3/.test(coordSrc) &&
       /DIR = Path\(os\.environ\["DG_COORD_DIR"\]\)/.test(coordSrc) &&
       /ROOT = Path\(os\.environ\["DG_ROOT"\]\)/.test(coordSrc) &&
-      /f"4\. Update \{DIR \/ 'claims\.json'\}/.test(coordSrc) &&
+      // Was /f"4\. Update \{DIR \/ 'claims.json'\}/ — that digest step was rewritten to
+      // "4. Stay in lane. Claims only serialize hot files: ...", so it asserted wording, not
+      // behavior. Assert the actual property: DIR (not a hardcoded path) drives claims.json.
+      /DIR \/ "claims\.json"/.test(coordSrc) &&
+      // And no hardcoded /tmp/dg-busy inside the digest builder — a custom-root digest used to
+      // tell agents to read the DEFAULT root (swarm/workflow-map/anti-bloat all hardcoded).
+      !/Path\("\/tmp\/dg-busy/.test(coordSrc) &&
       !/\*\*Full digest \(auto-refreshed\):\*\* `\/tmp\/dg-busy\/coord\/digest\.md`/.test(coordSrc),
     'coord digest honors configured busy and workspace roots',
   );
