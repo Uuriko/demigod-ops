@@ -33,7 +33,14 @@ export function handleSms({ from, body, to = PENDING_NUMBER }) {
 
   const combinedBody = [prev.body || '', body].filter(Boolean).join(' | ').slice(0,500);
   const raw = {
-    'full-name': (body.match(/^[A-Za-z ]+/) || [prev.name || 'SMS User'])[0].trim(),
+    // A first message is usually a greeting or a request, not a name. The old `body.match(/^[A-Za-z ]+/)`
+    // captured leading words indiscriminately, so "Hey looking for design roles" became full-name="Hey
+    // looking for design roles" and "Hi, I'm a PM" became "Hi". Since handleSms calls saveInbox() below,
+    // that fake-looking name lands in the REAL submissions SoR the moment Twilio is wired to this stub --
+    // the sim-launders-into-SoR pattern that caused the corruption era. Names come ONLY from the explicit
+    // "my name is X" / "name: X" path (~line 55, which overrides this); default to an honest placeholder.
+    // A truthful "SMS User" until they state their name beats a greeting masquerading as one.
+    'full-name': prev.name || 'SMS User',
     'seeker-email': `sms-${from.replace(/\D/g,'')}@pending.example`,
     'phone': from,
     'skills-stack': combinedBody.replace(/join|profile|hi|hey|match me|text me|update|add/i, '').trim() || prev.skills || 'from SMS conversation',
