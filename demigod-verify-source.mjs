@@ -1321,6 +1321,24 @@ if (cdnFoot) {
   // attribute-order-independent; the id itself is load-bearing for cm6 paste-publish.
   check('footer:cdn-loader', /<script\b(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])(?=[^>]*\bsrc=["']https?:\/\/[^"']+["'])[^>]*><\/script>/i.test(foot));
   check('footer:cdn-url', foot.includes('catbox.moe') || foot.includes('cdn.jsdelivr.net') || foot.includes('website-files.com'));
+  // Parse footer-lite's own inline scripts (vm.Script, compile-only). This file IS the footer custom
+  // code pasted into Webflow -- a THIRD executable surface after the head and foot-core, both of which
+  // are now parse-gated. Its inline redirect map (/events -> ?p=events etc.) is generated, so a
+  // generator bug producing invalid JS would break the footer paste with the same "SyntaxError'd
+  // script ships, page misbehaves" signature the head gate was added for. footer:boot-smoke despite
+  // its name smokes foot-core, not this. `foot` holds footer-lite. src-only loader tags are skipped.
+  {
+    const fScripts = [...foot.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi)];
+    let footScriptsOk = true;
+    let fBad = '';
+    for (const m of fScripts) {
+      if (/type\s*=\s*["']application\/(ld\+json|json)["']/i.test(m[1] || '')) continue;
+      const s = m[2] || '';
+      if (!s.trim()) continue;
+      try { new vm.Script(s); } catch (e) { footScriptsOk = false; fBad = 'footer-lite SyntaxError: ' + String(e.message).slice(0, 110); break; }
+    }
+    check('footer:inline-scripts-parse', footScriptsOk, fBad);
+  }
   // Nested path redirects + note deep-links (v28). Thrash often drops to v27 without these.
   // c201: /fees→?p=pricing + /security→?p=legal (canonical mini-pages; works even if live foot lags id aliases).
   // c247: /network→?p=talent (same pattern — bare network id is only an alias; no DG_PAGES.network).
