@@ -1594,10 +1594,24 @@ ok(
   /pricing-card \.pricing-amount/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
   'foot pricing-amount contrast for redesign',
 );
-ok(
-  /#dg-legal-links a:focus-visible/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
-  'foot legal-links focus-visible',
-);
+// Was /#dg-legal-links a:focus-visible/ — a FALSE failure. That exact selector was correctly
+// deleted: ensureA11yCss ships a broader `a:focus-visible{outline:2px solid ...}` rule which covers
+// every link, legal links included, so the specific one was redundant. The gate pinned the selector
+// TEXT, not the behaviour, so a redesign that improved the CSS turned the gate red and it stayed red.
+// Verified in a real browser (CDP, disk foot-core injected) rather than by reading: focusing
+// `#dg-legal-links a` ("How") resolves to outlineWidth 2px, outlineStyle solid,
+// outlineColor rgb(201,168,76), and matches(':focus-visible') === true.
+// Accept either shape: the legal-links-specific rule OR the global one that provably covers it.
+{
+  const footSrc = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+  // Must match an actual focus RULE (selector list -> a block that sets an outline), not a bare
+  // mention, so a comment or a stray string can never satisfy it.
+  ok(
+    /#dg-legal-links a:focus-visible/.test(footSrc) ||
+      /a:focus-visible[^{]{0,200}\{[^}]{0,200}outline:\s*\d/.test(footSrc),
+    'foot legal-links focus-visible (specific rule or the global a:focus-visible rule covering it)',
+  );
+}
 ok(
   /export function classifyTab\(url = '', title = ''\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-webflow-lib.mjs'), 'utf8')) &&
     /not the page you were looking/.test(fs.readFileSync(path.join(ROOT, 'demigod-webflow-lib.mjs'), 'utf8')),
@@ -2900,6 +2914,10 @@ ok(
     'coord API exposes compact footLock dogfood',
   );
   ok(
+    /return \{ locked: null, free: false, error: String\(e\.message \|\| e\)\.slice\(0, 80\) \}/.test(dashboardSource),
+    'coord API foot-lock inspection failure fails closed',
+  );
+  ok(
     /liveVerSource/.test(dashboardSource) &&
       /diskMatchesLive/.test(dashboardSource) &&
       /manVerSource/.test(dashboardSource),
@@ -2918,8 +2936,9 @@ ok(
   );
   ok(
     /footMarkers/.test(dashboardSource) &&
-      /foot\.markers/.test(dashboardSource),
-    'coord exposes footMarkers + diskReady foot.markers when banner/internal/public disagree',
+      /foot\.markers/.test(dashboardSource) &&
+      /booted: booted/.test(dashboardSource),
+    'coord exposes footMarkers + diskReady foot.markers when any of four markers disagree',
   );
   ok(
     /ship-prepare\.json/.test(dashboardSource) &&
