@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# One-line health verdict for the Demigod autopilot/swarm. Cheap, no model needed.
+#   dg-autopilot-health
+set -uo pipefail
+HOME="${HOME:-/home/potter}"
+cd /home/potter
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH:-}"
+live=$(curl -s -o /dev/null -w '%{http_code}' --max-time 12 https://www.trydemigod.com 2>/dev/null || echo ERR)
+# gates: retry once on fail — the coord rewrites footer-lite.html mid-ship, so a single verify:source
+# can catch it torn (transient). Only a SUSTAINED fail (2×) is real.
+gates=PASS; node demigod-verify-source.mjs >/dev/null 2>&1 || { sleep 3; node demigod-verify-source.mjs >/dev/null 2>&1 || gates=FAIL; }
+# Name the dead service instead of counting to a threshold. The old form counted actives and
+# flagged only `svc -lt 3`, to "tolerate ONE transient blip (a drainer mid-restart)" -- but that
+# tolerance is indiscriminate: claude-yolo died 2026-07-16T23:48 and this printed svc=3/4 verdict=OK
+# for the 2h it stayed dead. A blip and a corpse looked identical.
+# systemd already distinguishes them: a unit mid-restart reports `activating`, a dead one reports
+# `inactive`/`failed`. So tolerate `activating` explicitly and treat anything else as down.
+SVCS=(demigod-agent-coord claude-yolo swarm-drainer@grok swarm-drainer@codex swarm-drainer@claude)
+down=()
+for s in "${SVCS[@]}"; do
+  st=$(systemctl --user is-active "$s" 2>/dev/null || true)
+  case "$st" in
+    active | activating | reloading) ;;
+    *) down+=("$s=${st:-unknown}") ;;
+  esac
+done
+svc=$(( ${#SVCS[@]} - ${#down[@]} ))
+svc_total=${#SVCS[@]}
+auto=$([ -f /tmp/dg-busy/claude-autopilot.ON ] && [ ! -f /tmp/dg-busy/swarm.STOP ] && echo armed || echo off)
+# truth: only a REAL drift is disk vs a NUMERIC live version lagging >2 (1-2 = normal continuous ship;
+# live=null = transient probe fail, not a fault). Never flag on a null/unknown live.
+truth=$(node -e 'try{const t=require("/tmp/dg-busy/truth.json");const d=+t.foot?.ver,l=+t.live?.footVer;
+const liveOk=Number.isFinite(l)&&l>100;  // real versions are 150+; null/0 = live probe did not resolve
+if(t.fullyShipped)process.stdout.write("shipped v"+d);
+else if(!liveOk)process.stdout.write("live-probe-pending v"+d);       // NOT a fault — probe unresolved
+else if(d-l>15)process.stdout.write("STUCK disk v"+d+" live v"+l);    // live genuinely not catching up
+else process.stdout.write("churn-lag v"+d+"/"+l);                      // coord bumps disk faster than it ships — perpetual, normal
+}catch(e){process.stdout.write("?")}' 2>/dev/null)
+drift=$(printf '%s' "$truth" | grep -c STUCK)
+# svc: ANY service not active/activating is a problem, and the message says which one.
+verdict=OK; { [ "$live" != 200 ] || [ "$gates" != PASS ] || [ ${#down[@]} -gt 0 ] || [ "$drift" != 0 ]; } && verdict=CHECK
+echo "[$verdict] live=$live gates=$gates svc=$svc/$svc_total${down[*]+ down=${down[*]}} autopilot=$auto truth=$truth"
+[ "$verdict" = OK ] && exit 0 || exit 1

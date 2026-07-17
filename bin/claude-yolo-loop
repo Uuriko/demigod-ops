@@ -35,6 +35,22 @@ fi
 rm -f "$STOP"
 echo $$ >"$PIDF"
 cycle=0
+# Exit 42 == "deliberately stopped"; the unit's RestartPreventExitStatus=42 keeps it down.
+# Any OTHER exit (crash, OOM, or a stray SIGTERM from a hygiene/cleanup script) is a fault and
+# systemd restarts it. This is why the loop died at cycle 4 on 2026-07-16 and stayed dead 2h:
+# the unit used Restart=on-failure, and SIGTERM looks like a CLEAN exit to systemd, so a kill
+# nobody asked for was indistinguishable from `claude-yolo-loop stop`. The STOP file — not the
+# signal — is the only honest record of intent, so decide on that.
+STOP_RC=42
+on_term() {
+  if [[ -f "$STOP" ]]; then
+    log "TERM with STOP present -> deliberate stop (exit $STOP_RC, stays down)"
+    rm -f "$PIDF"; exit "$STOP_RC"
+  fi
+  log "TERM without STOP -> unrequested kill; exiting 1 so systemd restarts"
+  rm -f "$PIDF"; exit 1
+}
+trap on_term TERM INT
 SLEEP_SEC="${CLAUDE_YOLO_SLEEP_SEC:-60}"
 MODEL="${CLAUDE_YOLO_MODEL:-sonnet}"
 # 999 at 60s/cycle = the "nonstop" loop silently dies after ~17h and never returns.
@@ -118,3 +134,7 @@ done
 log "STOPPED cycles=$cycle"
 rm -f "$PIDF"
 printf '{"at":"%s","cycle":%s,"status":"stopped"}\n' "$(date -Iseconds)" "$cycle" >"$STATE"
+# STOP file present => the operator asked for this; exit 42 so systemd leaves it down.
+# Falling out of the loop for any other reason (e.g. MAX) is not a request to stay dead.
+if [[ -f "$STOP" ]]; then exit "$STOP_RC"; fi
+exit 0

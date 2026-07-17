@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Control the Claude interactive-session autopilot (Stop-hook self-continue).
+#   dg-autopilot on <session-id> | off | status | reset
+# on  = arm (this session keeps working the safe backlog, never stops)
+# off = disarm (session stops at the end of the current turn)
+BUSY=/tmp/dg-busy
+case "${1:-status}" in
+  # `on` MUST bind a session id. The Stop hook only continues the id in claude-autopilot.session;
+  # with none bound its scope check (`[ -n "$want" ] && [ "$got" = "$want" ] || exit 0`) exits 0 and
+  # the session stops anyway. This used to only READ that file for the echo, never write it, so
+  # `dg-autopilot on` printed "autopilot ON — session " (blank) and armed nothing. Fail loudly now.
+  on)    sid="${2:-}"
+         [ -n "$sid" ] && printf '%s' "$sid" > "$BUSY/claude-autopilot.session"
+         if [ ! -s "$BUSY/claude-autopilot.session" ]; then
+           echo "refusing to arm: no session bound." >&2
+           echo "usage: dg-autopilot on <session-id>   (find it in the transcript filename:" >&2
+           echo "       ls -t ~/.claude/projects/-home-potter/*.jsonl | head -1)" >&2
+           exit 2
+         fi
+         touch "$BUSY/claude-autopilot.ON"; rm -f "$BUSY/swarm.STOP"; echo 0 > "$BUSY/claude-autopilot.count"
+         echo "autopilot ON — session $(cat "$BUSY/claude-autopilot.session")";;
+  off)   rm -f "$BUSY/claude-autopilot.ON"; echo "autopilot OFF — stops after the current turn";;
+  reset) echo 0 > "$BUSY/claude-autopilot.count"; echo "cycle counter reset to 0";;
+  status)
+    on=$([ -f "$BUSY/claude-autopilot.ON" ] && echo ON || echo OFF)
+    halt=$([ -f "$BUSY/swarm.STOP" ] && echo " (swarm.STOP present → halted)")
+    echo "autopilot: ${on}${halt}  cycles=$(cat "$BUSY/claude-autopilot.count" 2>/dev/null || echo 0)/500  bound=$(cat "$BUSY/claude-autopilot.session" 2>/dev/null)";;
+  *)     echo "usage: dg-autopilot on|off|status|reset"; exit 2;;
+esac
