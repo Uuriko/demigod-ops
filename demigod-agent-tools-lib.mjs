@@ -50,6 +50,16 @@ export function atomicWrite(file, body) {
   const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
   try {
     fs.writeFileSync(tmp, body);
+    // rename(2) REPLACES the inode, so the survivor's mode is the tmp file's (umask), not the
+    // original's. Without this, an atomic rewrite silently widens 600 -> 664 and strips +x from
+    // 775 -> 664. That is reachable: demigod-review-fix.mjs:103 atomicWrites arbitrary repo paths
+    // (path.join(ROOT, rel)) and the repo root holds 775 .mjs entrypoints, which would stop being
+    // executable. statSync throws for a NEW file -- there the umask default is exactly right.
+    try {
+      fs.chmodSync(tmp, fs.statSync(file).mode & 0o777);
+    } catch {
+      /* new file: keep the umask default */
+    }
     fs.renameSync(tmp, file);
   } finally {
     // A failed write/rename must not leave a receipt-shaped temp file behind.
