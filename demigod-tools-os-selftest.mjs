@@ -2117,7 +2117,14 @@ ok(
       /touch "\$HEARTBEAT"/.test(coordSrc) &&
       /alive "\$PIDF" \|\| heartbeat_fresh/.test(coordSrc) &&
       /find "\$HEARTBEAT" -mmin -2/.test(coordSrc) &&
-      /claude=\$\(alive "\$CLAUDE_PIDF" && echo busy \|\| \{ worker_active "\$CLAUDE_PIDF" && echo pid-unobservable \|\| echo idle; \}\)/.test(coordSrc) &&
+      // worker_active now takes a per-worker grace: worker_active "$CLAUDE_PIDF"
+      // "$((COORD_CLAUDE_TIMEOUT+15))" — pairing with the dashboard workerGraceMs this same
+      // assertion checks. The old zero-arg form could not match at any version. Allow the
+      // optional arg; still requires the busy/pid-unobservable/idle triad. VERIFIED by
+      // exercising the real coord with a live supervisor pid + fresh heartbeat (so the
+      // pidfile reaper stands down): dead pid + fresh mtime -> claude=pid-unobservable;
+      // dead pid + stale mtime -> claude=idle; live pid -> claude=busy.
+      /claude=\$\(alive "\$CLAUDE_PIDF" && echo busy \|\| \{ worker_active "\$CLAUDE_PIDF"( "[^"]*")? && echo pid-unobservable \|\| echo idle; \}\)/.test(coordSrc) &&
       /heartbeatFresh = heartbeatAgeSec !== null && heartbeatAgeSec < 120/.test(dashboardSource) &&
       /supervisor: \{ alive: pidAlive, pidUnobservable, heartbeatFresh, heartbeatAgeSec/.test(dashboardSource) &&
       /pidUnobservable = !pidAlive && heartbeatFresh/.test(dashboardSource) &&
