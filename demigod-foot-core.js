@@ -1,4 +1,4 @@
-/*dg-foot-v604-core*/
+/*dg-foot-v607-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v604'; console.log('[demigod] foot v604-core loaded');
+window.dgFootVersion = 'v607'; console.log('[demigod] foot v607-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -462,7 +462,7 @@ function faqBlock(){/* v210: homepage FAQ removed for clarity */ var el=q('#dg-f
 function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(sessionStorage.getItem('dgWizSave_startup')||sessionStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
 function proofStrip(){/* v210: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
 function contactStrip(){/* v210: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
-function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #C9A84C;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
+function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #a6ffcb;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
 function forceMainVisible() {
   // v565: never unhide sections intentionally collapsed by hero()
   var _dgSkipHidden=function(el){return !!(el&&(el.getAttribute&&el.getAttribute('data-dg-hidden')||el.closest&&el.closest('[data-dg-hidden]')));};
@@ -705,8 +705,10 @@ function wizBuild(form, kind) {
   var __dgWizTotal = steps.filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length || Math.max(1, steps.length-3);
   var progressLabel = kind === 'startup' ? 'Hiring brief progress' : kind === 'engineer' ? 'Talent profile progress' : 'Application progress';
   head.innerHTML =
-    '<div class="dg-wiz-count" aria-live="polite"><span class="dg-wiz-progress-label">Step </span><span class="dg-wiz-fraction"><span class="dg-cur">1 of ' + __dgWizTotal + '</span></span></div>' +
+    '<div class="dg-wiz-progress">' +
+    '<div class="dg-wiz-count" aria-live="polite"><span class="dg-wiz-progress-label">Step </span><span class="dg-wiz-fraction"><span class="dg-cur">01 / ' + String(__dgWizTotal).padStart(2,'0') + '</span></span></div>' +
     '<div class="dg-wiz-bar" role="progressbar" aria-label="' + progressLabel + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i style="width:0%"></i></div>' +
+    '</div>' +
     '<div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div>' +
     '<div class="dg-wiz-live" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>';
   var qEl = head.querySelector('.dg-wiz-q');
@@ -816,7 +818,15 @@ function wizBuild(form, kind) {
       if (typeof forceWizVisible === 'function') forceWizVisible(form, modal);
     }
     var __tot = steps.filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length || Math.max(1, steps.length-3);
-    var __qn = steps.slice(0, current + 1).filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length; curEl.textContent = String(Math.max(1, Math.min(__qn || 1, __tot))) + ' of ' + __tot;
+    var __qn = steps.slice(0, current + 1).filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length;
+    if (key === 'welcome') __qn = 0;
+    if (key === '__submit__' || key === '__thanks__') __qn = __tot;
+    curEl.textContent = String(Math.max(__qn, key === 'welcome' ? 0 : 1)).padStart(2, '0') + ' / ' + String(__tot).padStart(2, '0');
+    try {
+      head.classList.toggle('is-welcome', key === 'welcome');
+      head.classList.toggle('is-thanks', key === '__thanks__');
+      head.classList.toggle('is-review', key === '__submit__');
+    } catch (eHead) {}
     try{ var totEl=curEl.parentElement; if(totEl&&!totEl.getAttribute('data-dg-prog')){ totEl.setAttribute('data-dg-prog','1'); totEl.setAttribute('aria-live','polite'); } }catch(e){}
     // re-map fields every showStep in case of late injection or Webflow DOM changes
     var fieldMap = {};
@@ -844,9 +854,11 @@ function wizBuild(form, kind) {
     // show current key's containers + any matching the step key
     var toShow = [];
     if (key && fieldMap[key]) toShow.push(fieldMap[key]);
-    qa('.dg-field-wrap, .form-field-group, label, input, select, textarea', form).forEach(function(el){
-      var n = (el.name || el.id || (el.textContent||'').toLowerCase()).replace(/[^a-z0-9-]/g,'');
-      if (key && n.indexOf(key) > -1) toShow.push(el.closest('.form-field-group, .dg-field-wrap') || el);
+    qa('input, select, textarea', form).forEach(function(el){
+      // exact name/id only — substring-matching label TEXT leaked any field whose label merely
+      // mentioned the step key (skills-stack label "Skills & experience *" leaked onto 'experience')
+      var n = (el.name || el.id || '').toLowerCase();
+      if (key && n === key) toShow.push(el.closest('.form-field-group, .dg-field-wrap') || el);
     });
     toShow.forEach(function(c){
       if (c && c.style) { c.style.setProperty('display', 'block', 'important'); c.classList.add('dg-wiz-show'); }
@@ -874,7 +886,7 @@ function wizBuild(form, kind) {
         el.style.removeProperty('display'); el.style.setProperty('display','block','important'); el.style.visibility='visible';
         var cc = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement;
         if (cc) { cc.style.removeProperty('display'); cc.style.setProperty('display','block','important'); cc.style.visibility='visible'; cc.classList.add('dg-wiz-show'); }
-        var lab = el.previousElementSibling; if (lab && lab.tagName === 'LABEL') { lab.style.display='block'; lab.style.visibility='visible'; }
+        /* native label hidden by CSS when WIZ question owns the copy */
       }
     }
         if (key === '__submit__' || key.includes('review')) {
@@ -912,7 +924,7 @@ function wizBuild(form, kind) {
       var sq = (qmap.__submit__ || {});
       qEl.textContent = sq.q || 'Ready to submit?';
       hEl.textContent = sq.h || 'A human reviews personally.';
-      nextBtn.textContent = (kind === 'startup' ? 'Submit brief' : (kind === 'engineer' ? 'Submit profile' : 'Submit'));
+      nextBtn.textContent = 'Submit';
       // review
       var rev = form.querySelector('.dg-wiz-review');
       if (!rev) { rev = document.createElement('div'); rev.className = 'dg-wiz-review'; form.insertBefore(rev, nav); }
@@ -925,7 +937,7 @@ function wizBuild(form, kind) {
       keys.forEach(function(k) {
         var qd = qmap[k]; if (!qd) return; // skip turnstile/internal fields
         var lab = (qd.q || k).replace(/\s*\(optional[^)]*\)/i, '').replace(/[?？]+\s*$/, '');
-        var extra = (k === '90day-outcome') ? ' style="font-weight:600;border-left:3px solid #C9A84C;padding-left:.5rem"' : '';
+        var extra = (k === '90day-outcome') ? ' style="font-weight:600;border-left:2px solid #10c674;padding-left:.5rem"' : '';
         // <select> stores the option value ('series-a'); show the label the user actually picked ('Series A').
         // Display-only: answers[k] stays canonical so localStorage restore (i.value = answers[nm]) still matches.
         var shownVal = answers[k];
@@ -1257,7 +1269,7 @@ qa('h3,.w-form-title,[class*=title]',st).forEach(function(h){if(/STARTUP HIRING 
 if(!st.querySelector('[name=timeline]')){var tw=document.createElement('div');tw.className='dg-field-wrap';tw.innerHTML='<label class="w-form-label" for="timeline">Timeline?</label><select class="w-select" id="timeline" name="timeline"><option value="">Select</option><option value="asap">ASAP (2-4 wks)</option><option value="quarter">This quarter</option><option value="exploratory">Exploratory</option></select>';var sk=st.querySelector('[name=stack-needs]');var skg=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg&&skg.parentElement&&skg!==st){skg.insertAdjacentElement('afterend',tw);}else{(sk&&sk.parentElement||st).appendChild(tw);}}
 if(!st.querySelector('[name=team-size]')){var tm=document.createElement('div');tm.className='dg-field-wrap';tm.innerHTML='<label class="w-form-label" for="team-size">Team size / reports to?</label><input class="w-input" type="text" id="team-size" name="team-size" placeholder="e.g. 5-person eng team, reports to CTO">';(st.querySelector('[name=stack-needs]')||st).parentElement.appendChild(tm);}var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.closest('.w-input')||sk.parentElement);if(!st.querySelector('[name=company-stage]')){var ce=st.querySelector('[name=contact-email]'),cew=ce&&(ce.closest('.w-input')||ce.parentElement);var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="company-stage">Company stage *</label><select class="w-select" id="company-stage" name="company-stage" required><option value="">Select stage</option><option value="pre-seed">Pre-seed</option><option value="seed">Seed</option><option value="series-a">Series A</option><option value="series-b">Series B+</option></select>';var ceg3=ce&&(ce.closest('.form-field-group')||cew);if(ceg3&&ceg3.parentElement&&ceg3!==st)ceg3.parentElement.insertBefore(sw,ceg3.nextSibling);else if(cew&&cew.parentElement)cew.parentElement.insertBefore(sw,cew.nextSibling);else{var rt=st.querySelector('[name=role-title]'),rw=rt&&(rt.closest('.w-input')||rt.parentElement);if(rw&&rw.parentElement)rw.parentElement.insertBefore(sw,rw)}} 
 // inject 90day-outcome creative field for high-signal matching data (Fable recommended)
-if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="e.g. Ship v1 checkout; 2 paying pilot customers this quarter"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}if(!st.querySelector('[name=salary-range]')){var w=document.createElement('div');w.id='dg-salary-wrap';w.className='dg-field-wrap';w.innerHTML='<label class="w-form-label" for="salary-range">Comp range (optional)</label><input class="w-input" type="text" id="salary-range" name="salary-range" placeholder="e.g. $180-220k + equity">';if(sa&&sa.parentElement)sa.parentElement.insertBefore(w,sa.nextSibling);else st.querySelector('[type=submit],.w-button')?.parentElement?.insertBefore(w,st.querySelector('[type=submit],.w-button'))}else{ph(st.querySelector('[name=salary-range]'),'e.g. $180-220k + equity');qa('label',st).forEach(function(l){if(/salary|comp range/i.test(l.textContent||''))l.textContent='Comp range (optional)'})}if(!st.querySelector('[name=why-this-role]')){var ww=document.createElement('div');ww.id='dg-why-wrap';ww.className='dg-field-wrap';ww.innerHTML='<label class="w-form-label" for="why-this-role">Why this role (optional)</label><textarea class="w-input" id="why-this-role" name="why-this-role" rows="2" placeholder="e.g. First PM hire; need someone who has shipped 0→1"></textarea>';var sal=st.querySelector('[name=salary-range]'),salw=sal&&(sal.closest('.dg-field-wrap,.w-input')||sal.parentElement);if(salw&&salw.parentElement)salw.parentElement.insertBefore(ww,salw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(ww,sa.nextSibling)}if(!st.querySelector('[name=role-jd]')){var jw=document.createElement('div');jw.id='dg-jd-wrap';jw.className='dg-field-wrap w-file-upload';jw.innerHTML='<label class="w-form-label" for="role-jd">Job description (optional)</label><input class="w-file-upload-input w-input" type="file" id="role-jd" name="role-jd" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var why=st.querySelector('[name=why-this-role]'),whyw=why&&(why.closest('.dg-field-wrap,.w-input')||why.parentElement);if(whyw&&whyw.parentElement)whyw.parentElement.insertBefore(jw,whyw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(jw,sa.nextSibling)}st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name=why-this-role]'),300);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}rmF(en,'github-url');rmF(en,'portfolio-url');rmF(en,'is-engineer');var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skillss*&s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *';if(/^LinkedIn/i.test((l.textContent||'').trim()))l.textContent='LinkedIn URL *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});var liIn=en.querySelector('[name=linkedin-url]');if(liIn){liIn.type='url';liIn.required=true;liIn.setAttribute('autocomplete','url');ph(liIn,'https://linkedin.com/in/you')}en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('[name=resume],[name=Resume]');if(!resIn){var rw=document.createElement('div');rw.id='dg-resume-wrap';rw.className='dg-field-wrap w-file-upload';rw.innerHTML='<label class="w-form-label" for="resume">Resume (optional now)</label><input class="w-input" type="file" id="resume" name="resume" style="display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var insBefore=en.querySelector('[name=skills-stack]');var insW=insBefore&&(insBefore.closest('.w-input')||insBefore.parentElement);if(insW&&insW.parentElement)insW.parentElement.insertBefore(rw,insW);else{var subR=en.querySelector('[type=submit],.w-button');subR?.parentElement?.insertBefore(rw,subR)}resIn=rw.querySelector('[name=resume]')}else{var resW=resIn.closest('.dg-field-wrap,.w-file-upload,.w-input')||resIn.parentElement;if(resW&&!resW.id)resW.id='dg-resume-wrap';resIn.classList.remove('w-file-upload-input');resIn.classList.add('w-input');resIn.style.cssText='display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0';/*resume opt per WIZ*/;if(!resIn.id)resIn.id='resume';if(!resIn.name)resIn.name='resume';if(!resIn.accept)resIn.setAttribute('accept','.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')}qa('label',en).forEach(function(l){if(/resume|résumé|cv/i.test((l.textContent||'').trim())&&!l.querySelector('[type=file]'))l.textContent='Resume (optional now)'});if(resIn&&!en.dataset.dgResumeVal){en.dataset.dgResumeVal='1';resIn.addEventListener('change',function(){var f=resIn.files&&resIn.files[0];if(f&&f.size>10485760)resIn.setCustomValidity('Max file size 10MB');else resIn.setCustomValidity('')})}ph(en.querySelector('[name=skills-stack]'),'e.g. Product strategy, Figma, growth marketing');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);charCount(en.querySelector('[name=experience]'),600);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR')}if(!en.querySelector('[name=links]')){var liWrap=liIn&&(liIn.closest('.w-input')||liIn.parentElement);var lw=document.createElement('div');lw.id='dg-links-wrap';lw.className='dg-field-wrap';lw.innerHTML='<label class="w-form-label" for="links">Links (optional)</label><input class="w-input" type="text" id="links" name="links" placeholder="GitHub, portfolio, or other links">';if(liWrap&&liWrap.parentElement)liWrap.parentElement.insertBefore(lw,liWrap.nextSibling);else{var sub=en.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(lw,sub)}}var sf=en.querySelector('[name=sf-bay]');
+if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="e.g. Ship v1 checkout; 2 paying pilot customers this quarter"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}if(!st.querySelector('[name=salary-range]')){var w=document.createElement('div');w.id='dg-salary-wrap';w.className='dg-field-wrap';w.innerHTML='<label class="w-form-label" for="salary-range">Comp range (optional)</label><input class="w-input" type="text" id="salary-range" name="salary-range" placeholder="e.g. $180-220k + equity">';if(sa&&sa.parentElement)sa.parentElement.insertBefore(w,sa.nextSibling);else st.querySelector('[type=submit],.w-button')?.parentElement?.insertBefore(w,st.querySelector('[type=submit],.w-button'))}else{ph(st.querySelector('[name=salary-range]'),'e.g. $180-220k + equity');qa('label',st).forEach(function(l){if(/salary|comp range/i.test(l.textContent||''))l.textContent='Comp range (optional)'})}if(!st.querySelector('[name=why-this-role]')){var ww=document.createElement('div');ww.id='dg-why-wrap';ww.className='dg-field-wrap';ww.innerHTML='<label class="w-form-label" for="why-this-role">Why this role (optional)</label><textarea class="w-input" id="why-this-role" name="why-this-role" rows="2" placeholder="e.g. First PM hire; need someone who has shipped 0→1"></textarea>';var sal=st.querySelector('[name=salary-range]'),salw=sal&&(sal.closest('.dg-field-wrap,.w-input')||sal.parentElement);if(salw&&salw.parentElement)salw.parentElement.insertBefore(ww,salw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(ww,sa.nextSibling)}if(!st.querySelector('[name=role-jd]')){var jw=document.createElement('div');jw.id='dg-jd-wrap';jw.className='dg-field-wrap w-file-upload';jw.innerHTML='<label class="w-form-label" for="role-jd">Job description (optional)</label><input class="w-file-upload-input w-input" type="file" id="role-jd" name="role-jd" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var why=st.querySelector('[name=why-this-role]'),whyw=why&&(why.closest('.dg-field-wrap,.w-input')||why.parentElement);if(whyw&&whyw.parentElement)whyw.parentElement.insertBefore(jw,whyw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(jw,sa.nextSibling)}st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name=why-this-role]'),300);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}rmF(en,'github-url');rmF(en,'portfolio-url');rmF(en,'is-engineer');var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skills\s*&\s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *';if(/^LinkedIn/i.test((l.textContent||'').trim()))l.textContent='LinkedIn URL *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});var liIn=en.querySelector('[name=linkedin-url]');if(liIn){liIn.type='url';liIn.required=true;liIn.setAttribute('autocomplete','url');ph(liIn,'https://linkedin.com/in/you')}en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('[name=resume],[name=Resume]');if(!resIn){var rw=document.createElement('div');rw.id='dg-resume-wrap';rw.className='dg-field-wrap w-file-upload';rw.innerHTML='<label class="w-form-label" for="resume">Resume (optional now)</label><input class="w-input" type="file" id="resume" name="resume" style="display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var insBefore=en.querySelector('[name=skills-stack]');var insW=insBefore&&(insBefore.closest('.w-input')||insBefore.parentElement);if(insW&&insW.parentElement)insW.parentElement.insertBefore(rw,insW);else{var subR=en.querySelector('[type=submit],.w-button');subR?.parentElement?.insertBefore(rw,subR)}resIn=rw.querySelector('[name=resume]')}else{var resW=resIn.closest('.dg-field-wrap,.w-file-upload,.w-input')||resIn.parentElement;if(resW&&!resW.id)resW.id='dg-resume-wrap';resIn.classList.remove('w-file-upload-input');resIn.classList.add('w-input');resIn.style.cssText='display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0';/*resume opt per WIZ*/;if(!resIn.id)resIn.id='resume';if(!resIn.name)resIn.name='resume';if(!resIn.accept)resIn.setAttribute('accept','.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')}qa('label',en).forEach(function(l){if(/resume|résumé|cv/i.test((l.textContent||'').trim())&&!l.querySelector('[type=file]'))l.textContent='Resume (optional now)'});if(resIn&&!en.dataset.dgResumeVal){en.dataset.dgResumeVal='1';resIn.addEventListener('change',function(){var f=resIn.files&&resIn.files[0];if(f&&f.size>10485760)resIn.setCustomValidity('Max file size 10MB');else resIn.setCustomValidity('')})}ph(en.querySelector('[name=skills-stack]'),'e.g. Product strategy, Figma, growth marketing');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);charCount(en.querySelector('[name=experience]'),600);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR')}if(!en.querySelector('[name=links]')){var liWrap=liIn&&(liIn.closest('.w-input')||liIn.parentElement);var lw=document.createElement('div');lw.id='dg-links-wrap';lw.className='dg-field-wrap';lw.innerHTML='<label class="w-form-label" for="links">Links (optional)</label><input class="w-input" type="text" id="links" name="links" placeholder="GitHub, portfolio, or other links">';if(liWrap&&liWrap.parentElement)liWrap.parentElement.insertBefore(lw,liWrap.nextSibling);else{var sub=en.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(lw,sub)}}var sf=en.querySelector('[name=sf-bay]');
 if(sf&&sf.type==='checkbox'){var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var par=sf.closest('label,.w-checkbox,.dg-field-wrap')||sf.parentElement;if(par&&par.parentNode)par.parentNode.replaceChild(sw,par);else sf.replaceWith(sw);sf=sw.querySelector('[name=sf-bay]');}
 if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('div');c.className='dg-field-wrap';c.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
 else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;if(sfel.tagName==='SELECT'){/* ok */}}}
@@ -1426,42 +1438,213 @@ function focusables(root){if(!root)return[];return qa('a[href],button:not([disab
 function attachTrap(m){detachTrap(false);LAST_FOCUS=document.activeElement;TRAP_H=function(e){if(e.key!=='Tab'||!OPEN)return;var modal=q(OPEN);if(!modal)return;var list=focusables(modal);if(!list.length){e.preventDefault();return}var first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();try{last.focus()}catch(_){}}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();try{first.focus()}catch(_){}}else if(!modal.contains(document.activeElement)){e.preventDefault();try{first.focus()}catch(_){}}};document.addEventListener('keydown',TRAP_H,true)}
 function detachTrap(restore){if(TRAP_H){document.removeEventListener('keydown',TRAP_H,true);TRAP_H=null}if(restore!==false&&LAST_FOCUS&&LAST_FOCUS.focus){try{LAST_FOCUS.focus()}catch(e){}}LAST_FOCUS=null}
 function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent=
-/* v597 frege-night WIZ — phosphor, serif Q, clean motion, no draft-save chrome */
-"#startup-modal,#jobseeker-modal{--wiz-night:#03140d;--wiz-deep:#06271a;--wiz-field:#075f3a;--wiz-phosphor:#a6ffcb;--wiz-paper:#f3f0e7;--wiz-mute:#bdc9bf;--wiz-rule:rgba(166,255,203,.28);--wiz-serif:Georgia,'Iowan Old Style','Times New Roman',serif;--wiz-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--wiz-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}"
-+"#startup-modal,#jobseeker-modal{background:rgba(3,20,13,.9)!important;backdrop-filter:blur(12px);align-items:center;justify-content:center}"
-+"#startup-modal .modal-content,#jobseeker-modal .modal-content,#startup-modal .w-form,#jobseeker-modal .w-form,#startup-modal form,#jobseeker-modal form{background:var(--wiz-deep)!important;border:1px solid var(--wiz-rule)!important;border-radius:6px!important;color:var(--wiz-paper)!important;box-shadow:0 24px 64px rgba(0,0,0,.45)!important;max-width:min(34rem,calc(100vw - 1.5rem))!important}"
-+"#startup-modal .modal-close-btn,#jobseeker-modal .modal-close-btn{color:var(--wiz-phosphor)!important;border-color:var(--wiz-rule)!important;background:transparent!important;border-radius:4px!important}"
-+"#startup-modal .dg-wiz-save,#jobseeker-modal .dg-wiz-save,#startup-modal .dg-wiz-save-opt,#jobseeker-modal .dg-wiz-save-opt{display:none!important}"
-+"#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{font-size:16px!important;min-height:48px;line-height:1.4;font-family:var(--wiz-sans)!important;background:var(--wiz-night)!important;border:1px solid var(--wiz-rule)!important;color:var(--wiz-paper)!important;border-radius:4px!important;padding:.7rem .85rem!important;transition:border-color .2s ease,box-shadow .25s ease!important}"
-+"#startup-modal input:focus-visible,#startup-modal select:focus-visible,#startup-modal textarea:focus-visible,#jobseeker-modal input:focus-visible,#jobseeker-modal select:focus-visible,#jobseeker-modal textarea:focus-visible{outline:2px solid var(--wiz-phosphor)!important;outline-offset:2px!important;border-color:var(--wiz-phosphor)!important;box-shadow:0 0 0 3px rgba(16,198,116,.15)!important}"
-+"#startup-modal input::placeholder,#startup-modal textarea::placeholder,#jobseeker-modal input::placeholder,#jobseeker-modal textarea::placeholder{color:rgba(189,201,191,.45)!important}"
-+"#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{position:sticky;top:0;z-index:5;background:rgba(6,39,26,.96);padding:.65rem 0 .4rem;backdrop-filter:blur(8px);border-bottom:1px solid transparent}"
-+"#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{display:inline-flex;align-items:center;gap:.4rem;min-height:28px;padding:.15rem .55rem;border:1px solid var(--wiz-rule);border-radius:4px;background:rgba(8,160,93,.12);color:var(--wiz-phosphor);font-size:.68rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase;font-family:var(--wiz-mono)}"
-+"#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{font-variant-numeric:tabular-nums;color:var(--wiz-paper);letter-spacing:.04em;text-transform:none;font-size:.78rem}"
-+"#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{opacity:.75}"
-+"#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:3px;background:rgba(166,255,203,.1);border:0;border-radius:2px;overflow:hidden;margin:.75rem 0 .9rem}"
-+"#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#08a05d,#a6ffcb);box-shadow:0 0 12px rgba(16,198,116,.35);transition:width .35s cubic-bezier(.2,.7,.2,1)}"
-+"#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--wiz-serif)!important;font-size:clamp(1.2rem,3.2vw,1.45rem)!important;font-weight:430!important;color:var(--wiz-paper)!important;margin:.45rem 0 .35rem!important;line-height:1.25;letter-spacing:-.02em}"
-+"#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-family:var(--wiz-sans)!important;font-size:.88rem!important;color:var(--wiz-mute)!important;margin:0 0 .75rem!important;line-height:1.45}"
-+"#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{display:flex!important;gap:.65rem;margin-top:1.1rem;align-items:stretch}"
-+"#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{min-height:48px!important;padding:12px 18px!important;touch-action:manipulation;border-radius:4px!important;font-family:var(--wiz-mono)!important;font-weight:650!important;font-size:.88rem!important;letter-spacing:.04em;cursor:pointer;transition:transform .2s ease,box-shadow .25s ease,border-color .2s ease,background .2s ease!important}"
-+"#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{background:rgba(8,160,93,.4)!important;color:var(--wiz-phosphor)!important;border:1px solid rgba(166,255,203,.45)!important;box-shadow:0 0 0 0 rgba(166,255,203,0)}"
-+"#startup-modal .dg-wiz-next:hover,#jobseeker-modal .dg-wiz-next:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(16,198,116,.2)!important;border-color:var(--wiz-phosphor)!important}"
-+"#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back{background:transparent!important;color:var(--wiz-paper)!important;border:1px solid var(--wiz-rule)!important}"
-+"#startup-modal .dg-wiz-back:hover,#jobseeker-modal .dg-wiz-back:hover{border-color:var(--wiz-phosphor)!important}"
-+"#startup-modal .dg-wiz-next:focus-visible,#startup-modal .dg-wiz-back:focus-visible,#jobseeker-modal .dg-wiz-next:focus-visible,#jobseeker-modal .dg-wiz-back:focus-visible{outline:2px solid var(--wiz-phosphor)!important;outline-offset:3px!important}"
-+"#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{border:1px solid var(--wiz-rule);border-radius:4px;padding:.85rem 1rem;margin:.55rem 0 .8rem;background:rgba(3,20,13,.65);max-height:40vh;overflow:auto}"
-+"#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{color:var(--wiz-phosphor);font-size:.72rem;margin:0 0 .5rem;letter-spacing:.12em;text-transform:uppercase;font-family:var(--wiz-mono)}"
-+"#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt{color:var(--wiz-mute);font-size:.72rem;margin-top:.45rem;font-family:var(--wiz-mono)}"
-+"#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd{color:var(--wiz-paper);font-size:.92rem;margin:0 0 .12rem;line-height:1.4}"
-+"#startup-modal input[type=checkbox],#startup-modal input[type=radio],#jobseeker-modal input[type=checkbox],#jobseeker-modal input[type=radio]{accent-color:#10c674}"
-+"#startup-modal .dg-file-honest,#jobseeker-modal .dg-file-honest{color:var(--wiz-mute)!important;font-size:.8rem!important}"
-+"#startup-modal .dg-wiz-err,#jobseeker-modal .dg-wiz-err{color:#ffb4a2;font-size:.82rem;margin:.35rem 0 .5rem;font-family:var(--wiz-sans)}"
-+"#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show{animation:dgWizIn .28s cubic-bezier(.2,.7,.2,1) both}"
-+"#startup-modal .dg-wiz-q.dg-wiz-tick,#jobseeker-modal .dg-wiz-q.dg-wiz-tick,#startup-modal .dg-wiz-hint.dg-wiz-tick,#jobseeker-modal .dg-wiz-hint.dg-wiz-tick{animation:dgWizIn .3s cubic-bezier(.2,.7,.2,1) both}"
-+"@keyframes dgWizIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}"
-+"@media(max-width:767px){#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column!important}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important}#startup-modal,#jobseeker-modal{padding-bottom:env(safe-area-inset-bottom,0)}}"
-+"@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show,#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q,#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint,#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{animation:none!important;transition:none!important;transform:none!important}}"
+/* v607 frege-typeform WIZ — calm night card, serif Q, quiet progress, no gold */
+"#startup-modal,#jobseeker-modal{"
++"--wiz-void:#020c08;--wiz-night:#03140d;--wiz-deep:#06271a;--wiz-field:#041a10;"
++"--wiz-line:rgba(166,255,203,.22);--wiz-line-strong:rgba(166,255,203,.48);"
++"--wiz-phosphor:#a6ffcb;--wiz-signal:#10c674;--wiz-paper:#f3f0e7;--wiz-mute:#9aab9f;--wiz-danger:#ffb4a2;"
++"--wiz-serif:Georgia,'Iowan Old Style','Times New Roman',serif;"
++"--wiz-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
++"--wiz-sans:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
++"--wiz-radius:8px;--wiz-pad:clamp(1.35rem,4.2vw,2rem)"
++"}"
++"#startup-modal,#jobseeker-modal{"
++"background:rgba(2,12,8,.92)!important;backdrop-filter:blur(16px) saturate(1.08);"
++"display:flex!important;align-items:center;justify-content:center;"
++"padding:max(.75rem,env(safe-area-inset-top)) max(.75rem,env(safe-area-inset-right)) max(.75rem,env(safe-area-inset-bottom)) max(.75rem,env(safe-area-inset-left))!important"
++"}"
++"#startup-modal .modal-content,#jobseeker-modal .modal-content{"
++"position:relative;width:100%;max-width:26rem!important;margin:0 auto!important;"
++"background:linear-gradient(165deg,#083222 0%,#03140d 55%,#020f0a 100%)!important;"
++"border:1px solid var(--wiz-line)!important;border-radius:var(--wiz-radius)!important;"
++"color:var(--wiz-paper)!important;"
++"box-shadow:0 32px 80px rgba(0,0,0,.55),0 0 0 1px rgba(166,255,203,.05) inset!important;"
++"padding:var(--wiz-pad)!important;box-sizing:border-box"
++"}"
++"#startup-modal form,#jobseeker-modal form,#startup-modal .w-form,#jobseeker-modal .w-form{"
++"background:transparent!important;border:0!important;box-shadow:none!important;"
++"padding:0!important;margin:0!important;max-width:none!important;width:100%!important;color:var(--wiz-paper)!important"
++"}"
++"#startup-modal .modal-close-btn,#jobseeker-modal .modal-close-btn{"
++"position:absolute;top:.65rem;right:.65rem;z-index:8;"
++"min-width:44px;min-height:44px;border-radius:6px;"
++"border:1px solid var(--wiz-line)!important;background:transparent!important;"
++"color:var(--wiz-mute)!important;font-size:1.1rem;cursor:pointer;"
++"transition:color .15s ease,border-color .15s ease"
++"}"
++"#startup-modal .modal-close-btn:hover,#jobseeker-modal .modal-close-btn:hover{"
++"color:var(--wiz-phosphor)!important;border-color:var(--wiz-line-strong)!important"
++"}"
++"#startup-modal .dg-wiz-save,#jobseeker-modal .dg-wiz-save,"
++"#startup-modal .dg-wiz-save-opt,#jobseeker-modal .dg-wiz-save-opt{display:none!important}"
+/* head / progress */
++"#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{"
++"position:relative;z-index:5;background:transparent;padding:0 0 .15rem;border:0;backdrop-filter:none"
++"}"
++"#startup-modal .dg-wiz-head.is-welcome .dg-wiz-progress,"
++"#jobseeker-modal .dg-wiz-head.is-welcome .dg-wiz-progress,"
++"#startup-modal .dg-wiz-head.is-thanks .dg-wiz-progress,"
++"#jobseeker-modal .dg-wiz-head.is-thanks .dg-wiz-progress{display:none!important}"
++"#startup-modal .dg-wiz-progress,#jobseeker-modal .dg-wiz-progress{margin:0 0 .15rem}"
++"#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{"
++"display:inline-flex;align-items:center;gap:.35rem;padding:0;border:0;background:transparent;"
++"min-height:auto;border-radius:0;"
++"color:var(--wiz-mute);font-family:var(--wiz-mono);font-size:.7rem;font-weight:500;"
++"letter-spacing:.14em;text-transform:uppercase"
++"}"
++"#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{"
++"color:var(--wiz-phosphor);letter-spacing:.08em;text-transform:none;font-variant-numeric:tabular-nums;font-size:.75rem"
++"}"
++"#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{display:none}"
++"#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{"
++"height:2px;background:rgba(166,255,203,.1);border:0;border-radius:1px;overflow:hidden;margin:.55rem 0 0"
++"}"
++"#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{"
++"display:block;height:100%;border-radius:inherit;"
++"background:linear-gradient(90deg,#08a05d,#a6ffcb);"
++"box-shadow:0 0 10px rgba(16,198,116,.35);"
++"transition:width .32s cubic-bezier(.2,.7,.2,1)"
++"}"
+/* question + hint */
++"#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{"
++"font-family:var(--wiz-serif)!important;"
++"font-size:clamp(1.4rem,4.4vw,1.8rem)!important;font-weight:400!important;"
++"color:var(--wiz-paper)!important;margin:1.15rem 0 .4rem!important;"
++"line-height:1.18;letter-spacing:-.025em"
++"}"
++"#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{"
++"font-family:var(--wiz-sans)!important;font-size:.9rem!important;"
++"color:var(--wiz-mute)!important;margin:0 0 1.2rem!important;line-height:1.45;max-width:34ch"
++"}"
+/* hide native labels when WIZ question owns the copy */
++"#startup-modal form.dg-wiz-on .dg-wiz-show > .w-form-label,"
++"#jobseeker-modal form.dg-wiz-on .dg-wiz-show > .w-form-label,"
++"#startup-modal form.dg-wiz-on .dg-field-wrap.dg-wiz-show > label.w-form-label,"
++"#jobseeker-modal form.dg-wiz-on .dg-field-wrap.dg-wiz-show > label.w-form-label,"
++"#startup-modal form.dg-wiz-on .form-field-group.dg-wiz-show > label,"
++"#jobseeker-modal form.dg-wiz-on .form-field-group.dg-wiz-show > label{"
++"position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;"
++"overflow:hidden!important;clip:rect(0,0,0,0)!important;border:0!important"
++"}"
+/* keep checkbox labels readable */
++"#startup-modal form.dg-wiz-on label.w-checkbox,"
++"#jobseeker-modal form.dg-wiz-on label.w-checkbox{position:relative!important;width:auto!important;height:auto!important;"
++"clip:auto!important;margin:0!important;overflow:visible!important;display:flex!important;align-items:center;gap:.55rem;"
++"color:var(--wiz-paper);font-size:.95rem;min-height:48px}"
+/* inputs */
++"#startup-modal input:not([type=checkbox]):not([type=radio]):not([type=file]),"
++"#startup-modal select,#startup-modal textarea,"
++"#jobseeker-modal input:not([type=checkbox]):not([type=radio]):not([type=file]),"
++"#jobseeker-modal select,#jobseeker-modal textarea{"
++"width:100%!important;box-sizing:border-box;"
++"font-size:16px!important;min-height:52px;line-height:1.4;"
++"font-family:var(--wiz-sans)!important;"
++"background:var(--wiz-field)!important;border:1px solid var(--wiz-line)!important;"
++"color:var(--wiz-paper)!important;border-radius:6px!important;"
++"padding:.8rem .95rem!important;"
++"transition:border-color .18s ease,box-shadow .22s ease!important"
++"}"
++"#startup-modal textarea,#jobseeker-modal textarea{min-height:104px;resize:vertical}"
++"#startup-modal input:focus-visible,#startup-modal select:focus-visible,#startup-modal textarea:focus-visible,"
++"#jobseeker-modal input:focus-visible,#jobseeker-modal select:focus-visible,#jobseeker-modal textarea:focus-visible{"
++"outline:none!important;border-color:var(--wiz-phosphor)!important;"
++"box-shadow:0 0 0 3px rgba(16,198,116,.16)!important"
++"}"
++"#startup-modal input::placeholder,#startup-modal textarea::placeholder,"
++"#jobseeker-modal input::placeholder,#jobseeker-modal textarea::placeholder{"
++"color:rgba(154,171,159,.5)!important"
++"}"
++"#startup-modal input[type=checkbox],#startup-modal input[type=radio],"
++"#jobseeker-modal input[type=checkbox],#jobseeker-modal input[type=radio]{accent-color:#10c674;width:1.1rem;height:1.1rem}"
++"#startup-modal input[type=file],#jobseeker-modal input[type=file]{"
++"color:var(--wiz-mute)!important;font-size:.85rem;padding:.5rem 0!important;border:0!important;background:transparent!important;min-height:auto"
++"}"
++"#startup-modal .dg-file-honest,#jobseeker-modal .dg-file-honest,"
++"#startup-modal .dg-resume-hint,#jobseeker-modal .dg-resume-hint{color:var(--wiz-mute)!important;font-size:.8rem!important}"
++"#startup-modal .dg-wiz-err,#jobseeker-modal .dg-wiz-err{"
++"color:var(--wiz-danger);font-size:.84rem;margin:.4rem 0 .55rem;font-family:var(--wiz-sans);line-height:1.35"
++"}"
+/* nav */
++"#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{"
++"display:flex!important;gap:.6rem;margin-top:1.45rem;align-items:stretch"
++"}"
++"#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,"
++"#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{"
++"min-height:52px!important;padding:12px 18px!important;touch-action:manipulation;"
++"border-radius:6px!important;font-family:var(--wiz-mono)!important;font-weight:600!important;"
++"font-size:.84rem!important;letter-spacing:.06em;cursor:pointer;"
++"transition:transform .18s ease,box-shadow .22s ease,border-color .18s ease,background .18s ease!important"
++"}"
++"#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{"
++"flex:1;background:rgba(8,160,93,.42)!important;color:var(--wiz-phosphor)!important;"
++"border:1px solid var(--wiz-line-strong)!important"
++"}"
++"#startup-modal .dg-wiz-next:hover,#jobseeker-modal .dg-wiz-next:hover{"
++"transform:translateY(-1px);box-shadow:0 12px 32px rgba(16,198,116,.22)!important;"
++"border-color:var(--wiz-phosphor)!important"
++"}"
++"#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back{"
++"flex:0 0 auto;min-width:5.5rem;background:transparent!important;color:var(--wiz-paper)!important;"
++"border:1px solid var(--wiz-line)!important"
++"}"
++"#startup-modal .dg-wiz-back:hover,#jobseeker-modal .dg-wiz-back:hover{border-color:var(--wiz-line-strong)!important}"
++"#startup-modal .dg-wiz-next:focus-visible,#startup-modal .dg-wiz-back:focus-visible,"
++"#jobseeker-modal .dg-wiz-next:focus-visible,#jobseeker-modal .dg-wiz-back:focus-visible{"
++"outline:2px solid var(--wiz-phosphor)!important;outline-offset:3px!important"
++"}"
+/* review */
++"#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{"
++"border:1px solid var(--wiz-line);border-radius:6px;padding:.9rem 1rem;"
++"margin:.35rem 0 .75rem;background:rgba(2,12,8,.55);max-height:36vh;overflow:auto"
++"}"
++"#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{"
++"color:var(--wiz-phosphor);font-size:.68rem;margin:0 0 .55rem;letter-spacing:.14em;"
++"text-transform:uppercase;font-family:var(--wiz-mono);font-weight:600"
++"}"
++"#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt,"
++"#startup-modal .dg-wiz-review span,#jobseeker-modal .dg-wiz-review span{"
++"display:block;color:var(--wiz-mute);font-size:.68rem;margin-top:.55rem;font-family:var(--wiz-mono);letter-spacing:.04em"
++"}"
++"#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd,"
++"#startup-modal .dg-wiz-review em,#jobseeker-modal .dg-wiz-review em{"
++"display:block;font-style:normal;color:var(--wiz-paper);font-size:.95rem;margin:0 0 .1rem;line-height:1.4;font-family:var(--wiz-sans)"
++"}"
++"#startup-modal .dg-wiz-review-signal,#jobseeker-modal .dg-wiz-review-signal{"
++"border-left:2px solid var(--wiz-signal);padding-left:.55rem;margin-left:0"
++"}"
+/* thanks */
++"#startup-modal .dg-thanks h3,#jobseeker-modal .dg-thanks h3{"
++"font-family:var(--wiz-serif);font-size:1.45rem;font-weight:400;color:var(--wiz-paper);margin:.2rem 0 .5rem"
++"}"
++"#startup-modal .dg-thanks p,#jobseeker-modal .dg-thanks p{color:var(--wiz-mute);line-height:1.45}"
++"#startup-modal .dg-thanks-step,#jobseeker-modal .dg-thanks-step{color:var(--wiz-paper);font-size:.9rem}"
++"#startup-modal .dg-sample-match,#jobseeker-modal .dg-sample-match{display:none!important}"
++"#startup-modal .dg-followup,#jobseeker-modal .dg-followup{display:none!important}"
++"#startup-modal #dg-fee-note,#jobseeker-modal #dg-fee-note,"
++"#startup-modal .dg-submit-trust,#jobseeker-modal .dg-submit-trust{"
++"color:var(--wiz-mute)!important;font-size:.8rem!important;line-height:1.4;margin:.75rem 0 0!important"
++"}"
+/* motion */
++"#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show,"
++"#startup-modal .dg-wiz-q.dg-wiz-tick,#jobseeker-modal .dg-wiz-q.dg-wiz-tick,"
++"#startup-modal .dg-wiz-hint.dg-wiz-tick,#jobseeker-modal .dg-wiz-hint.dg-wiz-tick{"
++"animation:dgWizIn .26s cubic-bezier(.2,.7,.2,1) both"
++"}"
++"@keyframes dgWizIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}"
++"@media(max-width:767px){"
++"#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column-reverse!important}"
++"#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,"
++"#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important;min-width:0!important}"
++"}"
++"@media(prefers-reduced-motion:reduce){"
++"#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}"
++"#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show,"
++"#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q,"
++"#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint,"
++"#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{"
++"animation:none!important;transition:none!important;transform:none!important"
++"}"
++"}"
 ;document.head.appendChild(s)}
 
 function fileUploadHonest(){qa('#startup-modal input[type=file],#jobseeker-modal input[type=file],form input[type=file]').forEach(function(fi){if(fi.dataset.dgFileHonest)return;fi.dataset.dgFileHonest='1';var wrap=fi.closest('.dg-field-wrap,.w-file-upload,div')||fi.parentElement;var hint=document.createElement('p');hint.className='dg-file-honest';hint.style.cssText='color:#A8A29E;font-size:.8rem;margin:.35rem 0';hint.textContent='Tip: paste a Drive/Dropbox link if upload is flaky, or email the file to potter@trydemigod.com.';var link=document.createElement('input');link.type='url';link.className='w-input';link.name=(fi.name||'file')+'-url';link.placeholder='https://… link to file (optional)';if(wrap){wrap.appendChild(hint);wrap.appendChild(link);}var form=fi.closest('form');if(form&&!form.dataset.dgFileVal){form.dataset.dgFileVal='1';form.addEventListener('submit',function(){try{var files=[].slice.call(form.querySelectorAll('input[type=file]'));var urls=[].slice.call(form.querySelectorAll('input[type=url][name$="-url"]'));var hasFile=files.some(function(x){return x.files&&x.files.length});var hasUrl=urls.some(function(x){return (x.value||'').trim().length>8});if(!hasFile&&!hasUrl){/* optional files — allow submit; surface tip only */}else if(!hasFile&&hasUrl){/* ok */} }catch(e){}});}});}
@@ -2816,7 +2999,7 @@ function pageCss() {
   var s = document.createElement('style');
   s.id = 'dg-page-css';
   s.textContent =
-    '#dg-page{position:fixed;inset:0;z-index:10050;background:rgba(6,6,6,.92);backdrop-filter:blur(10px);overflow:auto;padding:1rem;animation:dg-page-in .25s ease both}' +
+    '#dg-page{position:relative;z-index:10050;background:#060606;min-height:100vh;overflow:visible;padding:1rem;animation:dg-page-in .25s ease both}' +
     '#dg-page .dg-page-card{max-width:34rem;margin:2rem auto;background:#121212;border:1px solid rgba(201,168,76,.28);border-radius:16px;padding:1.35rem 1.35rem 1.5rem;color:#F5F0E6;box-shadow:0 20px 60px rgba(0,0,0,.45)}' +
     '#dg-page .dg-page-top{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem}' +
     '#dg-page h1{font-family:Cinzel,Georgia,serif;font-size:1.45rem;color:#C9A84C;margin:0;letter-spacing:.02em}' +
@@ -2998,10 +3181,27 @@ function eventsBotChatMount(root) {
   );
   probe();
 }
+/* v606: [el, prevInlineDisplay, prevPriority] for the body children openPage() hid inline.
+   Shared by openPage/closePage; must outlive both calls. */
+var dgPageHidden = [];
 function closePage() {
   var el = q('#dg-page');
   if (el) el.remove();
-  if (document.body) document.body.style.overflow = '';
+  /* v606: restore the sections we hid inline, or the homepage stays blank forever. Restore the
+     exact prior inline value+priority (they were display:block!important from the unhide system,
+     not empty). Belt-and-braces: if anything went wrong, any leftover display:none is cleared. */
+  try {
+    (dgPageHidden || []).forEach(function (rec) {
+      var el = rec[0]; if (!el) return;
+      if (rec[1]) el.style.setProperty('display', rec[1], rec[2] || '');
+      else el.style.removeProperty('display');
+      /* Only clear OUR marker — hero() legitimately sets data-dg-hidden on sections it collapses
+         (v565), and stripping those would un-collapse the homepage. */
+      if (el.getAttribute('data-dg-hidden') === 'dg-page') el.removeAttribute('data-dg-hidden');
+    });
+  } catch (e) {}
+  dgPageHidden = [];
+  if (document.body) { document.body.classList.remove('dg-page-on'); document.body.style.overflow = ''; }
   try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){}
   try {
     var u = new URL(location.href);
@@ -3068,8 +3268,10 @@ function openPage(id, push) {
   if (old) old.remove();
   var root = document.createElement('div');
   root.id = 'dg-page';
-  root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-modal', 'true');
+  /* v606: a real in-flow page, not a dialog. aria-modal="true" told screen readers the rest of
+     the document was inert — a lie for a page with its own URL (/events, /?p=events). role=main
+     + the page <h1> is the honest semantic. Home nav stays reachable. */
+  root.setAttribute('role', 'main');
   root.setAttribute('aria-label', meta.title);
   root.innerHTML =
     '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
@@ -3080,7 +3282,30 @@ function openPage(id, push) {
     pageCtas(id) +
     '</div></div>';
   document.body.appendChild(root);
-  document.body.style.overflow = 'hidden';
+  /* v606: no scroll lock — a page scrolls with the document. Hide the Webflow homepage sections
+     INLINE rather than covering them with a fixed overlay: they carry inline display:*!important
+     (the unhide system), which beats any stylesheet rule — a CSS-only hide silently does nothing.
+     Verified: force-hiding sticks; no MutationObserver re-shows them. */
+  document.body.classList.add('dg-page-on');
+  try {
+    var KEEP = /^(dg-page|dg-bar|dg-skip|startup-modal|jobseeker-modal)$/;
+    /* openPage can run twice (deepLink on boot, then a nav click). Without this guard the second
+       pass captures the ALREADY-HIDDEN display:none as the "prior" value, and closePage then
+       faithfully restores none — leaving the homepage blank. Capture once per open. */
+    if (!dgPageHidden.length)
+    [].slice.call(document.body.children).forEach(function (el) {
+      var t = el.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'LINK' || t === 'NOSCRIPT') return;
+      if (el.id && KEEP.test(el.id)) return;
+      dgPageHidden.push([el, el.style.display, el.style.getPropertyPriority('display')]);
+      el.style.setProperty('display', 'none', 'important');
+      /* data-dg-hidden is the unhide system's own opt-out (_dgSkipHidden / forceMainVisible).
+         Without it, forceMainVisible re-shows these sections right after boot and the page
+         renders on top of a visible homepage. Reusing the author's hook, not inventing one. */
+      el.setAttribute('data-dg-hidden', 'dg-page');
+    });
+  } catch (e) {}
+  try { window.scrollTo(0, 0); } catch (e) {}
   try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}
   try {
     if(!window.__dgPagePrevTitle) window.__dgPagePrevTitle=document.title;
@@ -3352,7 +3577,7 @@ OBS=null;/* v190: no full-document MutationObserver — was freezing main thread
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
-window.__dgFootVer='604';console.log('Demigod v603');
+window.__dgFootVer='607';console.log('Demigod v607');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
