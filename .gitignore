@@ -67,6 +67,9 @@ DEMIGOD-MOBILE-BRIEF.txt
 /tmp/
 tmp/
 .dg-fixture/
+# Ad-hoc CDP verification/probe scripts (kept in repo root for ./cdp-config.mjs imports,
+# but they are disposable scratch — never commit them).
+.dg-*.mjs
 
 # Large / generated
 screenshots/
@@ -94,6 +97,14 @@ DEMIGOD-EVENTS.json.tmp
 DEMIGOD-SUBMISSIONS-INBOX.json
 DEMIGOD-SUBMISSIONS-INBOX.json.archive.jsonl
 DEMIGOD-SUBMISSIONS-INBOX.json.corrupt.*
+# More founder/candidate PII, same rule (untracked today -> ignore now, no scrub). The outreach dir
+# holds real contact data + the actual DM drafts + send history; the proof log holds delivery
+# testimonials. template-dm.md (no PII) is left trackable on purpose.
+demigod-outreach/founders.csv
+demigod-outreach/ready-emails/
+demigod-outreach/blast-log.json
+DEMIGOD-PROOF-LOG.json
+DEMIGOD-PROOF-LOG.json.corrupt.*
 
 # Firecrawl secrets
 .env.firecrawl
