@@ -1113,7 +1113,14 @@ function draftHygiene(row) {
   // Ready-email files carry three known metadata headers. Strip only those
   // headers: removing every Markdown heading let sendable `# {{name}}` or
   // `# guaranteed matches` lines evade the same honesty checks as body copy.
-  const readyMetadata = /^\s*#\s*(?:channel|company|log send)\s*:/i;
+  // So this stays a WHITELIST of known metadata keys, never a blanket /^#/ strip.
+  // Added name|generated: the draft writer emits `# name:` and `# generated:` (3 drafts each)
+  // but the whitelist still only knew channel|company|log send, so those two headers stayed in
+  // `body` and tripped orphan_fragment (`# name: T0` = 3 words, 10 chars, no terminal
+  // punctuation). That is the whole of "draft hygiene 3 flagged" on the dashboard — a false
+  // positive on the exact drafts queued for the three highest-priority warm leads, which makes
+  // three good drafts look broken and buries any real flag in noise.
+  const readyMetadata = /^\s*#\s*(?:channel|company|log send|name|generated)\s*:/i;
   const body = raw
     .split('\n')
     .filter((l) => !readyMetadata.test(l) && !/^\s*\/\//.test(l))
@@ -1216,7 +1223,10 @@ function draftHygiene(row) {
     if (/^https?:\/\//i.test(l)) continue;
     if (/^(hi |hey |hello )/i.test(l)) continue;
     if (/^(real intros|see current|quick research|i'm building|reply with)/i.test(l)) continue;
-    if (/^(best|cheers|thanks|potter|trydemigod)/i.test(l)) continue;
+    // Optional leading dash: the drafts sign "— Potter" (em-dash U+2014), not "Potter", so a
+    // bare ^potter never matched and the signature was flagged as an unmerged fragment
+    // ("— Potter" = 2 words, 8 chars, no terminal punctuation). Allow -, – or — before the word.
+    if (/^[—–-]?\s*(best|cheers|thanks|potter|trydemigod)/i.test(l)) continue;
     if (/^\(.*\)$/.test(l)) continue; // (trydemigod.com)
     const words = l.split(/\s+/).length;
     if (words <= 5 && l.length < 40 && !/[.!?]$/.test(l) && !/@/.test(l) && !/,$/.test(l)) {
