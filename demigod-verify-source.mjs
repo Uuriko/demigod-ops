@@ -36,6 +36,22 @@ const combined = `${head}\n${headCss}\n${foot}`;
 const coreJs = cdnFoot ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
 const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined;
 
+// Webflow's head custom-code field caps at 50,000 chars and fails SILENTLY: the API returns 200, the
+// UI says "saved", and a readback can even look like it verified -- while the server keeps the OLD
+// head, so every later ship no-ops invisibly. That cost 83min once and nothing has ever gated it.
+// The head went 48,933 -> 53,668 within one session on 2026-07-17 with every check green, which is
+// exactly the failure mode: unmeasured means unbounded. Fail loudly BEFORE the paste, not after.
+{
+  const CAP = 50000;
+  const n = head.length;
+  check(
+    'head:size-under-cap',
+    n <= CAP,
+    n > CAP
+      ? `${n}/${CAP} — OVER BY ${n - CAP}; a Webflow head paste will silently keep the OLD head`
+      : `${n}/${CAP} (${CAP - n} left)`,
+  );
+}
 check('head:hide-webflow-badge', head.includes('hide-webflow-badge') || (cdnHeadCss && headCss.includes('w-webflow-badge')));
 check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !head.includes('hello@trydemigod.com') && !head.includes('hello@demigod.com'));
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
@@ -1520,7 +1536,11 @@ if (cdnFoot) {
         const labeled = (coreJs.match(/<summary>Full note · /g) || []).length;
         if (labeled < published.length) missing.push(`labeledSummary=${labeled}<${published.length}`);
       }
-      if (!coreJs.includes('Deep-link Notes cards')) missing.push('no-deeplink');
+      // Dropped the 'no-deeplink' sub-check: it asserted coreJs.includes('Deep-link Notes cards'),
+      // and that string exists in foot-core ONLY as a `//` comment (line ~4505). Deleting the comment
+      // failed the gate while the feature worked; deleting the FEATURE and keeping the comment passed
+      // it. 'note-hashchange' below already guards the real deep-link path (focusBlogNoteFromHash +
+      // a hashchange listener), so the comment assert guarded nothing that code doesn't.
       // Deep-link ship path: title rewrite + hashchange re-focus + reduced-motion scroll (v475–v478)
       if (!coreJs.includes(' · Notes · Demigod')) missing.push('deep-title');
       if (!/hashchange/.test(coreJs) || !coreJs.includes('focusBlogNoteFromHash')) missing.push('note-hashchange');
