@@ -1,4 +1,4 @@
-/*dg-foot-v662-core*/
+/*dg-foot-v665-core*/
 /**
  * v648 a11y: focus now enters the WIZ dialog on open. show()'s focus query matched the
  *   first input in DOM order (contact-email, on a later step, HIDDEN on welcome) and
@@ -303,7 +303,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v662'; console.log('[demigod] foot v662-core loaded');
+window.dgFootVersion = 'v665'; console.log('[demigod] foot v665-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -523,12 +523,18 @@ function dgEventsBotLoadConfig() {
 /** Race health across all bases; first OK wins. Cache so calendar/offers/chat share one probe. */
 var __dgEvBotLive = null;
 var __dgEvBotLiveAt = 0;
+// In-flight probe shared by concurrent callers: the residual storm was 24 probes all fired
+// within ~1s, before any result existed to cache. One round, shared.
+var __dgEvBotPending = null;
 function dgEventsBotPickBase(timeoutMs) {
   timeoutMs = timeoutMs || 6000;
-  if (__dgEvBotLive && __dgEvBotLive.base && Date.now() - __dgEvBotLiveAt < 45000) {
+  // Serve a cached MISS as well as a cached hit: without this every caller re-probed a dead
+  // bot, so one page load fired ~64 requests at a 503 tunnel. TTL unchanged (45s).
+  if (__dgEvBotLive && Date.now() - __dgEvBotLiveAt < 45000) {
     return Promise.resolve(__dgEvBotLive);
   }
-  return dgEventsBotLoadConfig().then(function () {
+  if (__dgEvBotPending) return __dgEvBotPending;
+  __dgEvBotPending = dgEventsBotLoadConfig().then(function () {
     var bases = dgEventsBotBases();
     if (!bases.length) return { base: '', j: {} };
     return new Promise(function (resolve) {
@@ -553,15 +559,23 @@ function dgEventsBotPickBase(timeoutMs) {
               __dgEvBotLive = hit;
               __dgEvBotLiveAt = Date.now();
             }
+            __dgEvBotPending = null;
             resolve(hit);
           })
           .catch(function () {
             left -= 1;
-            if (!done && left <= 0) resolve({ base: '', j: {} });
+            if (!done && left <= 0) {
+              done = true;
+              __dgEvBotLive = { base: '', j: {} };
+              __dgEvBotLiveAt = Date.now();
+              __dgEvBotPending = null;
+              resolve(__dgEvBotLive);
+            }
           });
       });
     });
   });
+  return __dgEvBotPending;
 }
 function q(s){return document.querySelector(s)}
 function qa(s,r){return[...(r||document).querySelectorAll(s)]}
@@ -3313,7 +3327,10 @@ var DG_PAGES = {
       '<p class="dg-ev-status" id="dg-ev-status" role="status" aria-live="polite">Checking night status…</p>' +
       /* Chat primary — homepage gold, not terminal green */
       '<div id="dg-events-chat" class="dg-events-chat" aria-label="Events Bot chat">' +
-      '<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status">Ready</span></div>' +
+      // aria-live: this span is rewritten at :4202 (status.textContent = t) as the bot connects/replies,
+// so without it a screen-reader user never learns the state changed (WCAG 4.1.3 Status Messages, AA).
+// polite matches the 9 other aria-live uses in this file.
+'<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status" aria-live="polite">Ready</span></div>' +
       '<p class="dg-ec-note">Tell us your night — we draft the slate; you send every invite.</p>' +
       '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-ec-form" id="dg-ec-form">' +
@@ -4785,6 +4802,7 @@ function routePages() {
   try {
     var map = {
       '/how': 'how',
+      '/how-it-works': 'how',
       '/pricing': 'pricing',
       '/faq': 'faq',
       '/blog': 'blog',
@@ -4796,6 +4814,7 @@ function routePages() {
       '/legal': 'legal',
       '/partners': 'partners',
       '/partnerships': 'partners',
+      '/partnership': 'partners',
       '/compare': 'compare',
       '/pilot': 'pilot',
       '/network': 'talent',
@@ -6570,7 +6589,8 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     box.innerHTML =
       '<div class="dg-mud" id="dg-mud-shell">' +
       '<div class="dg-mud-head"><span class="dg-mud-title">SF Night District</span>' +
-      '<span class="dg-mud-status" id="dg-mud-status">solo</span></div>' +
+      // aria-live: rewritten by the onStatus callback at :6619 (solo -> connected -> offline).
+'<span class="dg-mud-status" id="dg-mud-status" aria-live="polite">solo</span></div>' +
       '<div class="dg-mud-log" id="dg-mud-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-mud-form" id="dg-mud-form" autocomplete="off">' +
       '<label class="sr-only" for="dg-mud-input">Command</label>' +
@@ -6709,7 +6729,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-window.__dgFootVer='662';console.log('Demigod v662');
+window.__dgFootVer='665';console.log('Demigod v663');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
