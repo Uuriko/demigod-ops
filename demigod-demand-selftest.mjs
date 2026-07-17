@@ -859,7 +859,7 @@ ok(un && un.dms.sentUnattested >= 1, 'UNATTESTED tracked separately');
 
 // The log is append-only: attestation may arrive after an unattested attempt.
 // Once confirmed, that handle belongs to exactly one evidence bucket.
-const promotedDate = new Date().toISOString().slice(0, 10);
+const promotedDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 fs.writeFileSync(
   canaryLog,
   [
@@ -883,7 +883,7 @@ ok(promoted?.dms?.sentUnattested === 0, 'promoted handle leaves unattested telem
 // Unattested telemetry is not confirmed evidence, but it must still be
 // canonical: keyword-shaped notes, future/malformed rows, and duplicates do
 // not represent distinct observed send attempts.
-const todayUnattested = new Date().toISOString().slice(0, 10);
+const todayUnattested = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 fs.writeFileSync(
   canaryLog,
   [
@@ -913,7 +913,13 @@ ok(canonicalUnattested?.dms?.sentUnattested === 1, 'only one unique canonical un
 // Keyword-shaped notes, malformed/future receipts, missing/false attestation, and duplicate
 // sync rows must never inflate confirmed demand.
 const receiptCanary = path.join(canaryDir, 'dm-receipt-canary.txt');
-const todayReceipt = new Date().toISOString().slice(0, 10);
+// Pacific, not UTC. The code under test gates date-only evidence on
+// operatingDateKey() (America/Los_Angeles) and quarantines FUTURE-dated rows —
+// correctly, since a pilot cannot have been delivered tomorrow. A UTC fixture
+// date reads as tomorrow from 17:00 PDT until midnight, so these canaries were
+// red ~7h every evening and green every morning. That flakiness is why 4
+// selftests sat red and ignored while the loops ran them every 90s.
+const todayReceipt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 fs.writeFileSync(
   receiptCanary,
   [
@@ -1615,7 +1621,7 @@ ok(wrongSchema?.warmInbound?.count === 1, 'wrong-schema repair counts only attri
 // Archive/notes headings that merely start with "Warm inbound" are not the
 // canonical live section and must not become current demand evidence.
 const archiveHeadingPilot = path.join(canaryDir, 'PILOT-LOG-warm-archive.md');
-const today = new Date().toISOString().slice(0, 10);
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 fs.writeFileSync(
   archiveHeadingPilot,
   `# Pilot log\n\n## Warm inbound archive\n| Who | Channel | Status | Next | Date |\n|-----|---------|--------|------|------|\n| Archived Signal | email | new | review | ${today} |\n`,
@@ -1687,8 +1693,8 @@ const invalidDatePilot = path.join(canaryDir, 'PILOT-LOG-invalid-dates.md');
 fs.writeFileSync(
   invalidDatePilot,
   '# Pilot log\n\n## Active pipeline\n| ID | Founder | Role | 90-day outcome | Status | Next | Date |\n|---|---|---|---|---|---|---|\n| pilot-date | Date Co | Engineer | Ship v1 | active | review | 2026-02-30 |\n| pilot-future | Future Co | Engineer | Ship v2 | active | review | 2999-01-01 |\n\n## Warm inbound\n| Who | Channel | Status | Next | Date |\n|-----|---------|--------|------|------|\n| Missing Date | email | new | review | — |\n| Impossible Date | wiz | new | review | 2026-02-30 |\n| Future Date | email | new | review | 2999-01-01 |\n' +
-    `| Missing Status | email | — | review | ${new Date().toISOString().slice(0, 10)} |\n` +
-    `| Missing Next | email | new | TBD | ${new Date().toISOString().slice(0, 10)} |\n`,
+    `| Missing Status | email | — | review | ${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date())} |\n` +
+    `| Missing Next | email | new | TBD | ${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date())} |\n`,
 );
 const invalidInboundStatus = run('demigod-pilot-inbound.mjs', ['status', '--json'], {
   DEMIGOD_PILOT_LOG: invalidDatePilot,
