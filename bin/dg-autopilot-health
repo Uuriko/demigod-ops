@@ -6,9 +6,18 @@ HOME="${HOME:-/home/potter}"
 cd /home/potter
 export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH:-}"
 live=$(curl -s -o /dev/null -w '%{http_code}' --max-time 12 https://www.trydemigod.com 2>/dev/null || echo ERR)
-# gates: retry once on fail — the coord rewrites footer-lite.html mid-ship, so a single verify:source
-# can catch it torn (transient). Only a SUSTAINED fail (2×) is real.
-gates=PASS; node demigod-verify-source.mjs >/dev/null 2>&1 || { sleep 3; node demigod-verify-source.mjs >/dev/null 2>&1 || gates=FAIL; }
+# gates: the coord rewrites footer-lite.html mid-ship, so a single verify:source can catch a
+# transient. Retry once -- but a retry that goes green is NOT the same as never having failed.
+# This used to report plain PASS when run 1 failed and run 2 passed, erasing the flap entirely.
+# demigod-favicon-ship.mjs:60 named that exact sin: "dg-autopilot-health papers over the whole
+# category by retrying verify:source once and calling a transient fail clean." It was right.
+# So a disagreement between the two runs is its own state (CHURN), not clean and not a fault.
+# Keep it DISTINCT from FAIL: a real break sits still and fails both runs, and stays FAIL below.
+gates=PASS
+if ! node demigod-verify-source.mjs >/dev/null 2>&1; then
+  sleep 3
+  if node demigod-verify-source.mjs >/dev/null 2>&1; then gates=CHURN; else gates=FAIL; fi
+fi
 # A FAIL only means something if the files verify:source READS are quiescent. The retry above waits
 # 3s, which catches a sub-second write tear -- but an AGENT editing the head takes MINUTES. Measured
 # 2026-07-17: a head edit ran 05:01:49->05:05:47 and during it 6 head:* gates failed on THREE
