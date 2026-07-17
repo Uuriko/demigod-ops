@@ -162,7 +162,21 @@ const dg = spawnSync('bash', ['bin/dg', 'truth', '--json'], {
   timeout: 60000,
 });
 ok(dg.status === 0 || dg.status === 1, 'bin/dg truth');
-ok(/"id": "truth"/.test(dg.stdout), 'bin/dg truth JSON');
+// Was /"id": "truth"/ — a space after the colon, i.e. pretty-printed. `bin/dg truth --json`
+// emits COMPACT JSON ({"schemaVersion":1,"id":"truth",...}), so the assertion could never match
+// and said nothing about correctness either way. Parse it instead: that survives either
+// formatting and actually proves the payload is the truth report.
+ok(
+  (() => {
+    try {
+      const j = JSON.parse(String(dg.stdout).slice(String(dg.stdout).indexOf('{')));
+      return j.id === 'truth';
+    } catch {
+      return false;
+    }
+  })(),
+  'bin/dg truth JSON',
+);
 
 if (fails.length) {
   console.error('FAIL', fails);
