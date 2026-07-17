@@ -2183,7 +2183,13 @@ ok(
     'coord stale-claim expiry and worker release share claims.lock',
   );
   ok(
-    /note = " \[stale\]" if age < -60 or age > 3600 else ""/.test(coordSrc) &&
+    // The code now distinguishes clock skew from staleness:
+      //   note = " [clock-skewed]" if age < -60 else " [stale]" if age > 3600 else ""
+      // The old assertion demanded  " [stale]" if age < -60 or age > 3600  — i.e. it required
+      // labelling a FUTURE-dated receipt "stale", which is simply wrong. Verified by running
+      // the real expression: age=-3600 -> [clock-skewed] (old form said [stale]); age=7200 ->
+      // [stale]. Assert BOTH labels — stricter than what it replaces.
+      /note = " \[clock-skewed\]" if age < -60 else " \[stale\]" if age > 3600 else ""/.test(coordSrc) &&
       /note \+= " \[staleSuccessAvoided\]"/.test(coordSrc),
     'coord digest labels stale receipts without hiding stale-success evidence',
   );
