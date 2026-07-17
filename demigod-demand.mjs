@@ -1128,7 +1128,16 @@ function draftHygiene(row) {
     .trim();
   const name = String(row.name || '').trim();
   const company = String(row.company || '').trim();
-  const firstLine = body.split('\n').find((l) => l.trim()) || '';
+  // draftHygiene already receives handle (see call site) — it just was not used until greet_handle.
+  const handleLc = String(row.handle || '').trim().replace(/^@/, '').toLowerCase();
+  // Skip `#` comment lines when locating the GREETING. `body` deliberately keeps every non-metadata
+  // `#` line so honesty checks still see a sendable `# guaranteed matches` — but that meant the
+  // draft's own "# NEVER auto-send — copy into X/DM manually" instruction became firstLine, never
+  // matched /^hi\s+/, and silently skipped the ENTIRE greet block: greet_company, greet_queue_name,
+  // greet_handle and recipient_mismatch (sev:error — the check that catches a DM addressed to the
+  // wrong person) were all dead on every draft carrying that header. Locate the greeting on the
+  // first real line; keep `body` intact for the honesty scans.
+  const firstLine = body.split('\n').find((l) => l.trim() && !/^\s*#/.test(l)) || '';
   const looksLikePersonName = (value) => /^[A-Z][a-z]{1,12}$/.test(String(value || '').trim());
 
   // A draft is copy-pasted as-is, so unresolved merge fields are a hard
@@ -1196,6 +1205,18 @@ function draftHygiene(row) {
       /* intentional generic */
     } else if (company && greeterLc === company.toLowerCase()) {
       flags.push({ id: 'greet_company', sev: 'warn', msg: `Opens "Hi ${greeter}" (company) — prefer a person name` });
+    } else if (handleLc && greeterLc === handleLc) {
+      // Greeting someone by their raw X handle ("Hi lancectk,") reads as mail-merge — and these
+      // drafts say "not a board blast" two lines later, so it undercuts the exact claim being made.
+      // Fell through every existing branch: a handle is not the company, and looksLikePersonName()
+      // is false for queue labels like "T0", so recipient_mismatch never fired either. The 07-09
+      // drafts greeted by first name (Hi Camilo / Aryan / Marty); the 07-17 ones regressed to
+      // handles for all three highest-priority warm leads.
+      flags.push({
+        id: 'greet_handle',
+        sev: 'warn',
+        msg: `Opens "Hi ${greeter}" (raw X handle) — use a first name; a handle reads as mail-merge`,
+      });
     } else if (looksLikePersonName(name) && looksLikePersonName(greeter) && greeterLc !== name.toLowerCase()) {
       // Exact-recipient filename lookup prevents Ann -> joann.txt, but cannot
       // detect copy/paste residue inside Ann's correctly named file.
