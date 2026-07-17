@@ -6067,7 +6067,14 @@ const server = http.createServer(async (req, res) => {
 server.on('error', (error) => {
   // Keep daemon/startup failures machine-readable and avoid Node's noisy
   // unhandled "error" event crash (for example EADDRINUSE or sandbox EPERM).
+  // `at` is not decoration here: this is the single most-repeated line in the whole system. When an
+  // orphan held :9878, systemd (RestartSec=5) retried ~7h and wrote 5110 copies of this line --
+  // 98.5% of dashboard.log -- and with no timestamp ANYWHERE in that file the storm could not be
+  // dated at all; it had to be inferred from 5110*5s matching an unrelated note. Every other
+  // receipt here carries `at` (19 in this file alone). Exit 98 + the unit's
+  // RestartPreventExitStatus=98 stops the retry storm recurring; this makes the next one legible.
   console.error(JSON.stringify({
+    at: new Date().toISOString(),
     ok: false,
     error: 'dashboard_listen_failed',
     code: error?.code || null,
