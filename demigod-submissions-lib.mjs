@@ -221,7 +221,11 @@ export function publicStatus(record = {}) {
 
 export function saveInbox(inbox) {
   inbox.at = new Date().toISOString();
-  fs.writeFileSync(INBOX_PATH, JSON.stringify(inbox, null, 2));
+  // atomicWrite, not writeFileSync: this is the leads SoR and a plain write truncates-then-writes,
+  // so a concurrent reader (triage, the dashboard, another agent) can catch it torn -- measured
+  // 58.6% torn reads on a 340KB file. This same file already atomicWrites BOARD_PATH at :321 with
+  // the helper imported at :12; the inbox was simply missed.
+  atomicWrite(INBOX_PATH, JSON.stringify(inbox, null, 2));
 }
 
 export function saveBoard(board, opts = {}) {
