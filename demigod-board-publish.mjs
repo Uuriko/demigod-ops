@@ -1,5 +1,14 @@
 #!/usr/bin/env node
-/** Publish DEMIGOD-BOARD.json to catbox CDN for foot-core fetch. */
+/**
+ * Publish DEMIGOD-BOARD.json to catbox CDN.
+ *
+ * NOTE (2026-07-17): nothing consumes this today. v205 dropped the fetchBoard() call from foot-core's
+ * run(), so the site stopped rendering the ledger; the dead board code (fetchBoard/renderBoard/
+ * BOARD_CDN/…) has since been deleted outright. Its outputs — DEMIGOD-BOARD-PUBLIC.json and
+ * DEMIGOD-BOARD-CDN.json — are written here and read by no one. Kept because it still works and is
+ * the path back if a public ledger is ever re-wired; DEMIGOD-BOARD.json itself remains the real SoR
+ * for roles/receipts/pilots and is still guarded by demigod-verify-board-honesty.mjs.
+ */
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -65,11 +74,10 @@ if (publicBoard.roles) publicBoard.roles = publicBoard.roles.slice(0,2);
   board.cdnUrl = url;
   saveBoard(board, { reason: 'board-publish-cdn', actor: 'board-publish' });
 
-  const footPath = path.join(ROOT, 'demigod-foot-core.js');
-  let foot = fs.readFileSync(footPath, 'utf8');
-  foot = foot.replace(/var BOARD_CDN='[^']*';/, `var BOARD_CDN='${url}';`);
-  fs.writeFileSync(footPath, foot);
-  fs.copyFileSync(footPath, path.join(ROOT, 'eat-the-sounds', 'demigod-foot-core.js'));
+  // No foot-core write here. This used to rewrite BOARD_CDN in demigod-foot-core.js (and copy it
+  // into the archived eat-the-sounds/), unlocked and non-atomically — the concurrent-writer clobber
+  // that caused the false-v149 saga. It was also pointless: nothing calls fetchBoard() since v205
+  // (see run()), so BOARD stays null and BOARD_CDN is read by no one. board.cdnUrl above is the SoR.
 
   fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), cdnUrl: url, ok, roles: live.roles?.length, candidates: live.candidates?.length, realFeatured: (board.roles || []).filter(r => !r.pilot).length }, null, 2));
   console.log(JSON.stringify({ ok, cdnUrl: url, roles: live.roles?.length, candidates: live.candidates?.length, realFeatured: (board.roles || []).filter(r => !r.pilot).length }));

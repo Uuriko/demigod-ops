@@ -11,7 +11,9 @@ export function weekLabel(d = new Date()) {
 
 export function computeSignal(board = {}) {
   // honest: no invented math score — real counts only (mirrors foot-core renderSignal)
-  const roles = (board.roles || []).filter((r) => !/^role-seed/i.test(r.id || ''));
+  // isSeedRole (not a bare id regex) — seeds carry sample:true with random ids, so an
+  // id-prefix test counted every seed as real and poisoned signal.realRoles.
+  const roles = (board.roles || []).filter((r) => !isSeedRole(r));
   const realReceipts = (board.receipts || []).filter(
     (r) => r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || '')
   ).length;
