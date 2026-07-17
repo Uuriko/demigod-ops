@@ -17,7 +17,7 @@ host_receipt_fresh() {
 }
 
 coord_file_fallback() {
-  "$NODE_BIN" -e 'const fs=require("fs"),d="/tmp/dg-busy/coord/",read=n=>{try{return JSON.parse(fs.readFileSync(d+n))}catch{return null}},q=read("quality-backlog.json"),items=(q?.items||[]).filter(x=>x?.status==="open"&&["P0","P1"].includes(x?.sev));process.stdout.write(JSON.stringify({ok:true,degraded:true,source:"coord-files",at:new Date().toISOString(),board:read("board.json"),quality:q&&{at:q.at,openP0P1:items.length,items},claims:read("claims.json"),claude:read("claude-last.json"),codex:read("codex-last.json"),grok:read("grok-last.json")}))'
+  "$NODE_BIN" -e 'const fs=require("fs"),d="/tmp/dg-busy/coord/",read=n=>{try{return JSON.parse(fs.readFileSync(d+n))}catch{return null}},q=read("quality-backlog.json"),items=(q?.items||[]).filter(x=>x?.status==="open"&&["P0","P1"].includes(x?.sev));const out={degraded:true,source:"coord-files",at:new Date().toISOString(),board:read("board.json"),quality:q&&{at:q.at,openP0P1:items.length,items},claims:read("claims.json"),claude:read("claude-last.json"),codex:read("codex-last.json"),grok:read("grok-last.json")};const has=["board","quality","claims","claude","codex","grok"].some(k=>out[k]!=null);process.stdout.write(JSON.stringify(has?{ok:true,...out}:{ok:false,...out,reason:"coord unavailable · namespace blocks dashboard and no fresh cache exists"}));if(!has)process.exit(2)'
 }
 
 if [[ "${1:-}" == "stop" ]]; then
