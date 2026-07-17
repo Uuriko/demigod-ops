@@ -1944,7 +1944,21 @@ ok(
     'dashboard coord CLI names the canonical recovery command when its API is unavailable',
   );
   ok(
-    /dashboard-start\.log -mmin -2[^]*?"code":"EPERM"[^]*?exit 2[^]*?coord unavailable[^]*?exit 1/.test(dashCli),
+    // Rewritten against the CURRENT design, verified by exercising the real branch logic with
+    // all four input combinations (curl failing throughout):
+    //   EPERM + FRESH heartbeat -> unobservable   EPERM + STALE -> down
+    //   no EPERM + FRESH        -> down           no EPERM + STALE -> down
+    // The HEARTBEAT is the discriminator between fresh namespace blockage and confirmed
+    // downtime — not the log's age. The old assertion demanded `dashboard-start.log -mmin -2`
+    // plus `exit 2` / "coord unavailable": a REPLACED design that hard-failed. Freshness moved
+    // to a purpose-built /tmp/dg-busy/dashboard-server.heartbeat, and the coord path now
+    // degrades to a labelled payload (degraded:true, source:"coord-files") instead of erroring.
+    // Assert the real contract: EPERM evidence AND a fresh host receipt gate the unobservable
+    // branch, and a confirmed-down path names its recovery command.
+    /host_receipt_fresh\(\) \{[^]*?dashboard-server\.heartbeat -mmin -2/.test(dashCli) &&
+      /"code":"EPERM"[^]*?host_receipt_fresh[^]*?unobservable :\$\{PORT\}/.test(dashCli) &&
+      /unobservable[^]*?namespace blocks local probe/.test(dashCli) &&
+      /down :\$\{PORT\} · recovery: bin\/dg-dash/.test(dashCli),
     'dashboard coord distinguishes fresh namespace blockage from confirmed downtime',
   );
   ok(
