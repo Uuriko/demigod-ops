@@ -1320,16 +1320,24 @@ if (cdnFoot) {
     );
   }
   if (coreJs) {
-    // All three version markers must agree (mid-bump thrash left banner≠__dgFootVer)
+    // All FOUR version markers must agree (mid-bump thrash left banner≠__dgFootVer).
+    // The boot console.log is the 4th — it is what a human/agent reads in the browser console to
+    // confirm which version is live, and it was the one the gate did not check, so it was the one
+    // that drifted (file at v651 while the console announced v647). Nothing auto-bumps these; the
+    // gate is what makes a bumper remember them, so it has to name every marker.
     {
       const banner = (coreJs.match(/dg-foot-v(\d+)-core/) || [])[1] || null;
       const internal = (coreJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
       const publicV = (coreJs.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
-      const agree = !!(banner && internal && publicV && banner === internal && internal === publicV);
+      const booted = (coreJs.match(/foot v(\d+)-core loaded/) || [])[1] || null;
+      const all = [banner, internal, publicV, booted];
+      const agree = all.every((v) => v && v === banner);
       check(
         'core:version-marker',
         agree,
-        agree ? `v${internal}` : `split banner=${banner || '?'} internal=${internal || '?'} public=${publicV || '?'}`,
+        agree
+          ? `v${internal}`
+          : `split banner=${banner || '?'} internal=${internal || '?'} public=${publicV || '?'} booted=${booted || '?'}`,
       );
     }
     for (const fn of ['run', 'show', 'hide', 'sched', 'boot']) {
@@ -1434,41 +1442,37 @@ if (cdnFoot) {
     check('coreJs:all-calls-defined', true, 'info-only; candidates:' + serious.slice(0,3).join(','));
     check('core:90day-in-wiz', /90day-outcome/.test(coreJs) && /WIZ_CFG.*startup/.test(coreJs));
     check('core:90day-required-inject', /name="90day-outcome"[^>]*required|90day-outcome.*required/.test(coreJs));
-    // Explicit review step before thanks — matching UX (c185): both roles show answers before submit.
+    // Explicit review step before thanks — frege UX (Look good?/Ready?) + dg-wiz-review UI.
+    // Parse only var WIZ_CFG block so WIZ_THANKS / other strings cannot steal the regex.
     {
-      const startupSteps = (coreJs.match(/startup:\{steps:(\[[\s\S]*?\])\s*,\s*welcome:/) || [])[1] || '';
-      const engSteps = (coreJs.match(/engineer:\{steps:(\[[\s\S]*?\])\s*,\s*welcome:/) || [])[1] || '';
-      const orderOk = (steps, keys) => {
-        let i = -1;
-        for (const k of keys) {
-          const j = steps.indexOf("['" + k + "']");
-          if (j < 0 || j <= i) return false;
-          i = j;
-        }
-        return true;
-      };
-      const wizSubmitReview =
-        orderOk(startupSteps, ['90day-outcome', '__submit__', '__thanks__']) &&
-        orderOk(engSteps, ['__submit__', '__thanks__']) &&
-        /Review and submit your brief/.test(coreJs) &&
-        /Review and submit your profile/.test(coreJs) &&
-        /dg-wiz-review/.test(coreJs);
+      const cfg = (coreJs.match(/var\s+WIZ_CFG\s*=\s*\{[\s\S]*?\n\};/) || [])[0] || '';
+      const startupOrder =
+        /startup:\s*\{[\s\S]*?steps:\s*\[[\s\S]*?\['90day-outcome'\][\s\S]*?\['__submit__'\][\s\S]*?\['__thanks__'\]/.test(
+          cfg,
+        );
+      const engOrder =
+        /engineer:\s*\{[\s\S]*?steps:\s*\[[\s\S]*?\['__submit__'\][\s\S]*?\['__thanks__'\]/.test(cfg);
+      const reviewCopy =
+        (/Look good\?/.test(coreJs) || /Review and submit your brief/.test(coreJs)) &&
+        (/Ready\?/.test(coreJs) || /Review and submit your profile/.test(coreJs));
+      const wizSubmitReview = !!cfg && startupOrder && engOrder && reviewCopy && /dg-wiz-review/.test(coreJs);
       check(
         'core:wiz-submit-review',
         wizSubmitReview,
         wizSubmitReview
           ? null
-          : !startupSteps || !engSteps
-            ? 'WIZ_CFG startup/engineer steps missing'
-            : !orderOk(startupSteps, ['90day-outcome', '__submit__', '__thanks__'])
+          : !cfg
+            ? 'WIZ_CFG missing'
+            : !startupOrder
               ? 'startup steps must order 90day-outcome → __submit__ → __thanks__'
-              : !orderOk(engSteps, ['__submit__', '__thanks__'])
+              : !engOrder
                 ? 'engineer steps must include __submit__ before __thanks__'
-                : 'WIZ review copy + dg-wiz-review marker required for both roles',
+                : 'WIZ review copy (Look good?/Ready? or legacy Review…) + dg-wiz-review required',
       );
     }
     check('core:trust-fallback', /appendChild\(el\)|insertBefore\(el,f\)/.test(coreJs));
-    check('core:board-cdn-current', /BOARD_CDN=.*catbox|catbox\.moe/.test(coreJs) || coreJs.includes('sne1xv') || coreJs.includes('ni22zy') || coreJs.includes('bok9ax') || coreJs.includes('s83w5c') || coreJs.includes('06nhog')); // broadened for live CDN updates (board publish sets var)
+    // Removed core:board-cdn-current: it matched /catbox\.moe/ anywhere in foot-core, so it stayed
+    // green on unrelated art assets (catbox.moe/eg561c.jpg) even after BOARD_CDN was deleted outright.
     check('core:version-150plus', /__dgFootVer='(?:1[5-9][0-9]|[2-9][0-9]{2,})'/.test(coreJs));
     // Foot orgJsonLd must no-op when head already has #dg-org-jsonld (Claude c48 duplicate-LD fix).
     check(
@@ -1478,25 +1482,44 @@ if (cdnFoot) {
         /orgJsonLd\s*\(/.test(coreJs),
       /function\s+orgJsonLd\s*\(/.test(coreJs) ? null : 'orgJsonLd missing or does not guard on #dg-org-jsonld',
     );
-    // Notes cards are hand-copied from demigod-blog-posts.json (the SoR) into foot-core HTML;
-    // title+alt+summary+body+Full-note details (catches ship-path drift without a human diff-read).
+    // Notes SoR: demigod-blog-posts.json embedded as DG_BLOG_POSTS + runtime card render
+    // (static hand-copied HTML cards are gone; gate accepts embed + template path).
     try {
       const blogPosts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
       const published = (blogPosts.posts || []).filter((p) => p && p.published !== false);
       const missing = [];
+      const dynamicSor =
+        /var\s+DG_BLOG_POSTS\s*=/.test(coreJs) &&
+        /id="note-'\s*\+/.test(coreJs) &&
+        /class="dg-blog-more"/.test(coreJs) &&
+        /<summary>Full note · /.test(coreJs);
       for (const p of published) {
         if (!p.title || !coreJs.includes(p.title)) missing.push(`${p.slug || '?'}:title`);
         if (!p.summary || !coreJs.includes(p.summary)) missing.push(`${p.slug || '?'}:summary`);
         if (p.imageAlt && !coreJs.includes(p.imageAlt)) missing.push(`${p.slug || '?'}:alt`);
-        if (p.body && !coreJs.includes(String(p.body).slice(0, 48))) missing.push(`${p.slug || '?'}:body`);
+        if (p.body) {
+          const slice = String(p.body).slice(0, 48);
+          // Foot embeds JSON with escaped newlines; raw slice may not match source text.
+          const esc = JSON.stringify(slice).slice(1, -1);
+          if (!coreJs.includes(slice) && !coreJs.includes(esc)) missing.push(`${p.slug || '?'}:body`);
+        }
         if (p.image && !coreJs.includes(p.image)) missing.push(`${p.slug || '?'}:image`);
-        if (p.slug && !coreJs.includes(`id="note-${p.slug}"`)) missing.push(`${p.slug}:id`);
+        // Static id= or dynamic embed slug (runtime builds id="note-"+slug)
+        if (
+          p.slug &&
+          !coreJs.includes(`id="note-${p.slug}"`) &&
+          !(dynamicSor && coreJs.includes(`"slug":"${p.slug}"`))
+        ) {
+          missing.push(`${p.slug}:id`);
+        }
       }
       const moreCount = (coreJs.match(/class="dg-blog-more"/g) || []).length;
       if (published.length === 0) missing.push('no-published');
-      if (moreCount < published.length) missing.push(`details=${moreCount}<${published.length}`);
-      const labeled = (coreJs.match(/<summary>Full note · /g) || []).length;
-      if (labeled < published.length) missing.push(`labeledSummary=${labeled}<${published.length}`);
+      if (!dynamicSor) {
+        if (moreCount < published.length) missing.push(`details=${moreCount}<${published.length}`);
+        const labeled = (coreJs.match(/<summary>Full note · /g) || []).length;
+        if (labeled < published.length) missing.push(`labeledSummary=${labeled}<${published.length}`);
+      }
       if (!coreJs.includes('Deep-link Notes cards')) missing.push('no-deeplink');
       // Deep-link ship path: title rewrite + hashchange re-focus + reduced-motion scroll (v475–v478)
       if (!coreJs.includes(' · Notes · Demigod')) missing.push('deep-title');
@@ -1504,16 +1527,25 @@ if (cdnFoot) {
       if (!/prefers-reduced-motion:\s*reduce/.test(coreJs) || !/matches\)\s*\?\s*['"]auto['"]\s*:\s*['"]smooth['"]/.test(coreJs)) {
         missing.push('note-reduced-motion');
       }
-      // Notes card imgs: lazy+async decode + width/height (CLS; Claude c159 + dims already on disk)
-      const noteLazyDims = (
-        coreJs.match(
-          /id="note-[^"]+"><img\b[^>]*\bloading="lazy"[^>]*\bdecoding="async"[^>]*\bwidth="\d+"[^>]*\bheight="\d+"/g,
-        ) || []
-      ).length;
-      if (noteLazyDims < published.length) {
-        missing.push(`lazyDims=${noteLazyDims}<${published.length}`);
+      // Static cards need lazy dims on each id; dynamic template needs one lazy+async+width/height path.
+      if (dynamicSor) {
+        const dynLazy =
+          /loading=["']lazy["']/.test(coreJs) &&
+          /decoding=["']async["']/.test(coreJs) &&
+          /width=["']\d+["']/.test(coreJs) &&
+          /height=["']\d+["']/.test(coreJs);
+        if (!dynLazy) missing.push('lazyDims=dynamic-template');
+      } else {
+        const noteLazyDims = (
+          coreJs.match(
+            /id="note-[^"]+"><img\b[^>]*\bloading="lazy"[^>]*\bdecoding="async"[^>]*\bwidth="\d+"[^>]*\bheight="\d+"/g,
+          ) || []
+        ).length;
+        if (noteLazyDims < published.length) {
+          missing.push(`lazyDims=${noteLazyDims}<${published.length}`);
+        }
       }
-      // Draft posts must not ship as Notes cards (e.g. ship-when-ready published:false)
+      // Draft posts must not ship as static Notes cards (e.g. ship-when-ready published:false)
       for (const p of blogPosts.posts || []) {
         if (p && p.published === false && p.slug && coreJs.includes(`id="note-${p.slug}"`)) {
           missing.push(`${p.slug}:draft-in-foot`);
@@ -1524,7 +1556,7 @@ if (cdnFoot) {
         missing.length === 0,
         missing.length
           ? missing.slice(0, 8).join(',')
-          : `${published.length}posts+details+deeplink+labels+hash+rmotion+lazyDims`,
+          : `${published.length}posts+${dynamicSor ? 'dynSoR' : 'static'}+deeplink+hash+rmotion+lazyDims`,
       );
       // Runtime below-fold path: lazyBelowFold must set decoding=async (parity with static Notes cards).
       const lazyDecodeOk =
@@ -1585,30 +1617,11 @@ if (cdnFoot) {
     else if (!smoke.error) smoke = retry;
   }
   check('footer:boot-smoke', smoke.pass === true, smoke.error || smoke.version);
-} else {
-  check('footer:dg-foot-v20', foot.includes('dg-foot-v20-core') || foot.includes('dg-foot-v19-core'));
-  check('footer:hero-polish', foot.includes('function hero'));
-  check('footer:pricing-note', foot.includes('dg-pricing-note'));
-  check('footer:submit-copy', foot.includes("sb.value='Submit'") && foot.includes('Form submitted'));
-  check('footer:nav-cta', foot.includes('function nav') && foot.includes('function cta'));
-  check('footer:forms', foot.includes('function forms'));
-  check('footer:copy-spec', /dg-foot-v(2[5678]|7[0-9])-core/.test(coreJs) && coreJs.includes('ctaFounder') && coreJs.includes('navCta'));
-  check('footer:badge-remove', coreJs.includes('function badge'));
-  check('footer:form-trim-v36', coreJs.includes('why-this-role') && coreJs.includes('role-jd') && coreJs.includes('[name=links]') && coreJs.includes("rmF(st,'company-name')") && !coreJs.includes('syncGh'));
-  check('footer:single-pay-model', coreJs.includes('ALT_PAY') && coreJs.includes('10% placement fee on hire') && !coreJs.includes('No subscription'));
-  check('footer:all-candidates', coreJs.includes('SF Startup Talent') && coreJs.includes('Candidates join') && coreJs.includes('SUBMIT YOUR PROFILE'));
-  check('footer:hero-hire-cta', /ctaFounder:["']I'm hiring["']/.test(coreJs) || coreJs.includes("ctaFounder:'HIRE TALENT'"));
-  check('footer:nav-hire-cta', /navCta:["']I'm hiring["']/.test(coreJs) || coreJs.includes("navCta:'FIND TALENT'") || coreJs.includes("navCta:'HIRE TALENT'"));
-  check('footer:engineer-job-cta', /ctaEngineer:["']Find a job["']/.test(coreJs) || coreJs.includes("ctaEngineer:'JOIN NETWORK'"));
-  check('footer:debounced-observer', foot.includes('sched') && foot.includes('MutationObserver(sched)'));
-  check('footer:single-fee', foot.includes('dg-fee-note') && foot.includes("rmF(st,'hiring-model')"));
-  check('footer:hide-subscription', foot.includes('function price'));
-  check('footer:partnerships-page', coreJs.includes('function partnerships') && coreJs.includes('isPartnershipPage'));
-  check('footer:partner-wizard', coreJs.includes("partner:'") && coreJs.includes('#partner-modal'));
-  check('footer:partner-webhook', coreJs.includes('form_submission') && coreJs.includes('partner-apply') && !coreJs.includes('webflow.com/api/v1/form'));
-  check('footer:v63-marker', /dg-foot-v(6[0-9]|7[0-9])-core/.test(coreJs));
-  check('footer:dynamic-ledger', coreJs.includes('fetchBoard') && coreJs.includes('BOARD_CDN') && coreJs.includes('renderBoard'));
 }
+// Removed: the legacy `else` arm of `if (cdnFoot)`. cdnFoot is `foot.includes(demigod-foot-cdn-loader)`,
+// which the loader always contains (its own header comment + script id), so this arm never ran. It also
+// asserted against `coreJs`, which is  when cdnFoot is false — every check in it would have failed if
+// reached. footer:dynamic-ledger asserted fetchBoard/BOARD_CDN/renderBoard, all deleted as dead code.
 
 const combinedScan = scanLiveHtml(combined, { footerCoreJs: coreJs });
 check('combined:forms-via-footer', combinedScan.footerCoreOk);

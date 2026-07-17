@@ -185,23 +185,20 @@ describe('source files', () => {
     assert.ok(!core.includes('webflow.com/api/v1/form'));
   });
 
-  it('foot-core loads dynamic board ledger from CDN', () => {
-    const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-    assert.ok(core.includes('function fetchBoard'));
-    assert.ok(core.includes('function renderBoard'));
-    assert.ok(/var BOARD_CDN='https:\/\/files\.catbox\.moe\/.+\.json';/.test(core));
-  });
+  // Removed 'foot-core loads dynamic board ledger from CDN': it asserted fetchBoard/renderBoard/
+  // BOARD_CDN exist. v205 dropped the fetchBoard() call from run(), so the ledger stopped rendering
+  // and BOARD stayed null; the test kept passing for 3 days on the dead definitions alone. That code
+  // is now deleted, so the assertion has nothing honest left to make.
 
-  it('foot-core v90 has receipt/status routes, webhook, live proof ledger, board CDN, honest MVP (no 48h claims, candidates-only partner, human match)', () => {
+  // Was 'foot-core v90 has receipt/status routes, …'. That test was RED at git HEAD before any of
+  // this — statusRoute, receiptRoute, demigod-status and bindTap were all removed from foot-core long
+  // ago, and its first assert failed on every run. Reduced to the assertions that are still true and
+  // still worth guarding.
+  it('foot-core keeps pricing, WIZ thanks copy, a version marker, and no 48h claim in COPY', () => {
     const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-    assert.ok(core.includes('function statusRoute'));
-    assert.ok(core.includes('function receiptRoute'));
-    assert.ok(core.includes('#demigod-status-wrap') || core.includes('demigod-status'));
-    assert.ok(core.includes('dg-ledger-row') || core.includes('dg-ledger'));
     assert.ok(core.includes('function pricingCompare') || core.includes('pricing'));
     assert.ok(core.includes('WIZ_THANKS') || core.includes('WIZ_FAIL'));
     assert.ok(/dg-foot-v\d+-core/.test(core));
-    assert.ok(!/48h|48 hours/i.test((core.match(/var COPY=\{[\s\S]*?\};/)||[''])[0]));
-    assert.ok(core.includes('function bindTap') || core.includes('bindTap'));
+    assert.ok(!/48h|48 hours/i.test((core.match(/var COPY=\{[\s\S]*?\};/) || [''])[0]));
   });
 });
