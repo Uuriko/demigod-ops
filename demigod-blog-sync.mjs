@@ -124,7 +124,7 @@ function validate(j, pub) {
     const blob = `${p.title}\n${p.summary}\n${p.body}`;
     if (/hello@trydemigod\.com/i.test(blob)) errs.push(`${p.slug}: hello@ forbidden`);
   }
-  if (!pub.length) errs.push('no published posts');
+  // Empty published set is allowed (wipe / pre-content).
   return errs;
 }
 
@@ -143,7 +143,8 @@ function extractBlogLd(head) {
     /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
   )) {
     const body = String(m[1] || '').trim();
-    if (/"@type"\s*:\s*"Blog"/.test(body) && /BlogPosting/.test(body)) {
+    // Blog shell is enough when blogPost is empty (no published posts yet).
+    if (/"@type"\s*:\s*"Blog"/.test(body) && (/"blogPost"\s*:/.test(body) || /BlogPosting/.test(body))) {
       try {
         return JSON.parse(body);
       } catch {
@@ -200,16 +201,21 @@ function applyFoot(foot, pub) {
     throw new Error('demigod-foot-core.js missing var DG_BLOG_POSTS=');
   }
   foot = foot.replace(/var\s+DG_BLOG_POSTS\s*=\s*\[[\s\S]*?\];/, emb);
-  const alt = slugAlt(pub);
-  // KEEP allowlist used by openPage hash routing
-  if (/var\s+KEEP\s*=\s*\/\^\([^)]+\)\$\//.test(foot)) {
-    foot = foot.replace(/var\s+KEEP\s*=\s*\/\^\([^)]+\)\$\//, `var KEEP = /^(${alt})$/`);
+  // Never-match placeholder when no published slugs (empty alt breaks /^( )$/).
+  const alt = slugAlt(pub) || '__no_blog_slug__';
+  // Do NOT rewrite openPage body-hide KEEP with blog slugs — that KEEP skips hiding
+  // body children by id; blog slugs are not body ids. Only update deepLink hash branch.
+  // Guard the target like the DG_BLOG_POSTS rewrite above does: a .replace() whose pattern
+  // misses is a SILENT no-op, so a shape change in foot-core's deepLink branch would leave the
+  // OLD slugs routing forever and every new post's deep link would quietly 404-to-nothing —
+  // with blog-sync still reporting success. foot-core changes ~40x/day, and this file already
+  // shipped one silent semantic clobber today (the KEEP allowlist, which blanked the viewport).
+  // Same function, same risk: fail loudly instead.
+  const DEEPLINK_RE = /if\(\/\^note-\/\.test\(h\)\|\|\/\^\([^)]*\)\$\/\.test\(h\)\)/;
+  if (!DEEPLINK_RE.test(foot)) {
+    throw new Error('demigod-foot-core.js missing the deepLink hash branch — blog-sync cannot route new slugs');
   }
-  // deep-link openPage branch
-  foot = foot.replace(
-    /if\(\/\^note-\/\.test\(h\)\|\|\/\^\([^)]+\)\$\/\.test\(h\)\)/,
-    `if(/^note-/.test(h)||/^(${alt})$/.test(h))`,
-  );
+  foot = foot.replace(DEEPLINK_RE, `if(/^note-/.test(h)||/^(${alt})$/.test(h))`);
   return foot;
 }
 
@@ -221,7 +227,7 @@ function applyHead(head, pub) {
     /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi,
     (full) => {
       if (found) return full;
-      if (/"@type"\s*:\s*"Blog"/.test(full) && /BlogPosting/.test(full)) {
+      if (/"@type"\s*:\s*"Blog"/.test(full) && (/"blogPost"\s*:/.test(full) || /BlogPosting/.test(full))) {
         found = true;
         return script;
       }
