@@ -1,4 +1,4 @@
-/*dg-foot-v572-core*/
+/*dg-foot-v604-core*/
 /**
  * v567 positioning: Demigod tech + humans in the loop (not hand-matched)
  * v566 hero H1 scrub-safe + skip honesty rewrite on .hero-title/h1
@@ -298,7 +298,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v572'; console.log('[demigod] foot v572-core loaded');
+window.dgFootVersion = 'v604'; console.log('[demigod] foot v604-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -308,9 +308,9 @@ var HOW_IT_WORKS='/?p=how';
    Never use both "Hire talent" + "Find talent" — same meaning (company side). Pair = hiring vs job-seeking. */
 /* ==== SECTION: COPY (runtime marketing strings) ==== */
 var COPY={
-heroSub:'Demigod tech ranks the fit. A human reviews every potential match. Both sides approve before an intro.',
-badge:'SF STARTUP TALENT MATCHING',
-heroTrustLine:'SF Bay Area · 10% on hire · Free for talent · No intro without mutual interest',
+heroSub:'Demigod tech ranks the fit. A human reviews every potential match. Both sides approve before an intro — without locking talent or hiring to a black-box score.',
+badge:'// SF STARTUP TALENT · TECH + HUMANS IN THE LOOP',
+heroTrustLine:'Bay Area · 10% on hire · Free for talent · Mutual interest only',
 ctaFounder:"I'm hiring",
 ctaEngineer:"I'm looking",
 navCta:"I'm hiring",
@@ -346,22 +346,61 @@ pathMethod:'Method',
 pathFounders:'For founders',
 pathCandidates:'For talent'
 };
-var STARTUP_OK='Brief received. Demigod tech + humans in the loop. potter@trydemigod.com follows up. Payments/SMS pending.';
-var ENGINEER_OK='Profile saved privately. potter@trydemigod.com follows up only if fit. Payments/SMS pending.';
-var WIZ_THANKS={startup:{head:'Brief received',lead:'Human review next. Both sides approve — no spam lists.',steps:['We read your brief + 90-day outcome','We propose only strong fits','Both sides say yes before intro'],done:'How it works'},engineer:{head:'Profile saved',lead:'Private until both sides approve. Free for talent.',steps:['Stored securely — never blasted','Human proposes match if fit','potter@trydemigod.com may follow up'],done:'How it works'}};
+/* Frege-night WIZ copy (v597) — natural voice, match-critical only, no draft-save chrome */
+var STARTUP_OK="Got it. A human will read this. potter@trydemigod.com follows up if there's a real fit.";
+var ENGINEER_OK='Profile saved. Private until you approve a match. potter@trydemigod.com only reaches out on real fits.';
+var WIZ_THANKS={
+  startup:{head:'Brief in',lead:'Someone reads every submission. We only propose when the fit is real — both sides still have to say yes.',steps:['We read the role and 90-day outcome','We rank and human-review fits','You approve before any intro'],done:'How it works'},
+  engineer:{head:'You\'re in',lead:'Your profile stays private. Free for talent. No blasts.',steps:['We store it securely','A human proposes only real fits','You approve before anyone gets your name'],done:'How it works'}
+};
 /* ==== SECTION: WIZ_CFG (stepper paths) ==== */
-var WIZ_CFG={startup:{steps:[['welcome'],['contact-email'],['company-name'],['company-stage'],['role-title'],['stack-needs'],['90day-outcome'],['__submit__'],['__thanks__']],welcome:{t:"I'm hiring",b:'One role. What must they ship in 90 days?',btn:'Start brief →'},thanks:STARTUP_OK,total:7,optional:['phone','salary-range','why-this-role','role-jd','timeline','team-size']},engineer:{steps:[['welcome'],['full-name'],['seeker-email'],['linkedin-url'],['skills-stack'],['experience'],['sf-bay'],['__submit__'],['__thanks__']],welcome:{t:"I'm looking",b:'One private profile. Free.',btn:'Start profile →'},thanks:ENGINEER_OK,total:7,optional:['phone','links','resume','salary-expectation','why-startups','availability']}};
+var WIZ_CFG={
+  startup:{
+    steps:[['welcome'],['contact-email'],['company-name'],['company-stage'],['role-title'],['stack-needs'],['90day-outcome'],['__submit__'],['__thanks__']],
+    welcome:{t:"I'm hiring",b:'A short brief. One role. One clear 90-day outcome.',btn:'Start the brief'},
+    thanks:STARTUP_OK,total:6,
+    optional:['phone','salary-range','why-this-role','role-jd','timeline','team-size']
+  },
+  engineer:{
+    steps:[['welcome'],['full-name'],['seeker-email'],['linkedin-url'],['skills-stack'],['experience'],['sf-bay'],['__submit__'],['__thanks__']],
+    welcome:{t:"I'm looking",b:'One private profile. Free. Shared only when you approve.',btn:'Start my profile'},
+    thanks:ENGINEER_OK,total:6,
+    optional:['phone','links','resume','salary-expectation','why-startups','availability']
+  }
+};
 /* ==== SECTION: WIZ_Q (questions + hints) ==== */
-var WIZ_Q={startup:{'contact-email':{q:'Work email?',h:'For match proposals only — never a list, never spam.'},'company-name':{q:'Company name?',h:'Context for culture and stage fit.'},'company-stage':{q:'What stage is the company?',h:'Pre-seed / Seed / Series A+ — we match only to real startup operating realities.'},'role-title':{q:'What role are you hiring for?',h:'Founding PM, first Engineer, Head of Growth — specific titles get more relevant proposals.'},'stack-needs':{q:'Key skills or outcomes needed?',h:'Top must-haves and success metrics. This is what we screen candidates against.'},
-'90day-outcome':{q:'#1 outcome this hire must deliver in 90 days?',h:'Be specific and measurable — this is the anchor for every match we propose.'},'salary-range':{q:'Target comp range (cash + equity note)?',h:'Realistic range = candidates we propose will actually say yes. Critical for quality.'},'timeline':{q:'When do you need the hire?',h:'ASAP / This quarter / Exploratory — matches candidate availability.'},'team-size':{q:'Team size / reporting line?',h:'Helps us match seniority and collaboration style.'},'why-this-role':{q:'Why hire this role now?',h:'New bet, backfill, scaling team — the "why" drives who we suggest first.'},'role-jd':{q:'Job description, brief or link? (optional)',h:'PDF/Word up to 10MB. Humans read every detail you share.'},'phone':{q:'Phone (optional)',h:'SMS pending — email from potter@trydemigod.com always works.'},'__submit__':{q:'Submit your brief?',h:'A human reviews it personally. Matches only when fit is strong.'}},engineer:{'full-name':{q:'Your full name?',h:'Used only for the intro email to the right startup.'},'seeker-email':{q:'Best email?',h:'Match updates and proposals only — from potter@trydemigod.com.'},'linkedin-url':{q:'LinkedIn profile?',h:'Primary signal. Full profile URL lets a human assess real background fast.'},'skills-stack':{q:'Core skills & stack?',h:'React, Figma, GTM, product — what you actually do best.'},'experience':{q:'Key things you have shipped?',h:'2-3 concrete highlights or impact bullets. Wins > titles.'},'sf-bay':{q:'Open to SF Bay Area startups?',h:'Our focus. Remote fine if the startup is Bay Area.'},'availability':{q:'When are you available?',h:'Now / 2–4 weeks / Passive — matches role timeline.'},'salary-expectation':{q:'Comp expectation (optional)?',h:'Helps us only propose roles that will excite you.'},'why-startups':{q:'Why SF startups (optional)?',h:'Context for strong human matches.'},'links':{q:'Portfolio, GitHub, site? (optional)',h:'Links help humans see the work.'},'phone':{q:'Phone (optional)?',h:'Pending SMS. We can text when a fit appears.'},'resume':{q:'Resume (PDF/Word, optional now)',h:'Max 10MB. Private until a human proposes a specific match — add later if easier.'},'__submit__':{q:'Join the network?',h:'A human reviews your profile. Outreach only on real fits — no blasts.'}}};
-/* v197 copy polish: explicit review actions, complete contact language, and plain-English outcome guidance. */
-WIZ_Q.startup['90day-outcome']={q:'What must this hire accomplish in their first 90 days?',h:'Name one specific, measurable result. We use it as the anchor for every match.'};
-WIZ_Q.startup['salary-range']={q:'What is the target compensation range?',h:'Include base salary and an equity note, if known. This helps us propose aligned candidates.'};
-WIZ_Q.startup.__submit__={q:'Review and submit your brief',h:'Check your answers below. A human reviews every submission before proposing a match.'};
-WIZ_Q.engineer['full-name']={q:'What is your full name?',h:'Used only for relevant match proposals and introductions.'};
-WIZ_Q.engineer['seeker-email']={q:'What is the best email to reach you?',h:'Match proposals come from potter@trydemigod.com. No newsletters or lists.'};
-WIZ_Q.engineer.phone={q:'Phone number (optional)',h:'SMS is pending. Email from potter@trydemigod.com is the active contact channel.'};
-WIZ_Q.engineer.__submit__={q:'Review and submit your profile',h:'Check your answers below. Your profile stays private until you approve a specific match.'};
+var WIZ_Q={
+  startup:{
+    'contact-email':{q:"What's your work email?",h:'We use this for match notes — never a list, never spam.'},
+    'company-name':{q:'Company name?',h:'Just so we know who you are.'},
+    'company-stage':{q:'What stage are you at?',h:'Pre-seed, seed, Series A+ — helps us match reality, not hype.'},
+    'role-title':{q:'What role are you hiring?',h:'Be specific — founding engineer, first PM, head of growth…'},
+    'stack-needs':{q:'What must they be great at?',h:'A few must-haves. Keep it short.'},
+    '90day-outcome':{q:'What should they ship in the first 90 days?',h:'One concrete result. This is how we match — not keyword bingo.'},
+    'salary-range':{q:'Target compensation? (optional)',h:'Rough cash + equity is enough. Skip if you prefer.'},
+    'timeline':{q:'When do you need them? (optional)',h:'ASAP, this quarter, or exploring.'},
+    'team-size':{q:'Team context? (optional)',h:'Size or who they report to — only if useful.'},
+    'why-this-role':{q:'Why this role now? (optional)',h:'One sentence is fine.'},
+    'role-jd':{q:'JD or link? (optional)',h:'PDF, doc, or URL. Or skip and email later.'},
+    'phone':{q:'Phone? (optional)',h:'SMS is pending — email works today.'},
+    '__submit__':{q:'Look good?',h:"Submit when you're ready. A human reviews every brief."}
+  },
+  engineer:{
+    'full-name':{q:"What's your name?",h:'For intros only — not a public profile.'},
+    'seeker-email':{q:'Best email?',h:'Match notes from potter@trydemigod.com only.'},
+    'linkedin-url':{q:'LinkedIn URL?',h:'Fastest way for a human to understand your background.'},
+    'skills-stack':{q:'What do you do best?',h:'Stack, craft, domain — a short list is perfect.'},
+    'experience':{q:"What have you shipped that you're proud of?",h:'Two or three concrete wins beat a long bio.'},
+    'sf-bay':{q:'Open to SF Bay startups?',h:'Our focus. Remote is fine when the company is Bay-based.'},
+    'availability':{q:'When could you start? (optional)',h:'Now, a few weeks, or passive.'},
+    'salary-expectation':{q:'Comp range? (optional)',h:"Helps us skip roles that won't fit."},
+    'why-startups':{q:'Why startups? (optional)',h:'One line if you want.'},
+    'links':{q:'Portfolio or GitHub? (optional)',h:'Any link that shows the work.'},
+    'phone':{q:'Phone? (optional)',h:'SMS is pending. Email is the main channel.'},
+    'resume':{q:'Resume? (optional)',h:'PDF/Word if you have it handy — private until a match.'},
+    '__submit__':{q:'Ready?',h:'Submit when it looks right. Private until you approve a match.'}
+  }
+};
 function q(s){return document.querySelector(s)}
 function qa(s,r){return[...(r||document).querySelectorAll(s)]}
 
@@ -390,9 +429,9 @@ function forceWizVisible(form, modal) {
   }
   var root = modal || form;
   if (!root) return;
-  qa('.dg-wiz-head,.dg-wiz-nav,.dg-wiz-q,.dg-wiz-hint,.dg-wiz-count,.dg-wiz-bar,.dg-wiz-bar i,.dg-wiz-next,.dg-wiz-back', root).forEach(function(c){
+  qa('.dg-wiz-head,.dg-wiz-nav,.dg-wiz-q,.dg-wiz-hint,.dg-wiz-count,.dg-wiz-bar,.dg-wiz-bar i,.dg-wiz-next', root).forEach(function(c){
     if (!c || !c.style) return;
-    var d = c.classList && (c.classList.contains('dg-wiz-nav') || c.classList.contains('dg-wiz-next') || c.classList.contains('dg-wiz-back')) ? 'flex' : 'block';
+    var d = c.classList && (c.classList.contains('dg-wiz-nav') || c.classList.contains('dg-wiz-next')) ? 'flex' : 'block';
     if (c.classList && c.classList.contains('dg-wiz-bar')) d = 'block';
     if (c.tagName === 'I' || (c.parentElement && c.parentElement.classList && c.parentElement.classList.contains('dg-wiz-bar'))) d = 'block';
     c.style.setProperty('display', d, 'important');
@@ -420,7 +459,7 @@ function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] i
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function skipLink(){try{var early=q('#dg-skip-early');if(early)early.remove()}catch(e){}if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to main content';a.setAttribute('aria-label','Skip to main content');a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#dg-page')||q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus({preventScroll:true});var beh=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth';if(t.scrollIntoView)t.scrollIntoView({block:'start',behavior:beh})}catch(err){try{t.focus()}catch(e2){}}});document.body&&document.body.prepend(a)}
 function faqBlock(){/* v210: homepage FAQ removed for clarity */ var el=q('#dg-faq'); if(el)el.remove(); var ld=q('#dg-faq-jsonld'); if(ld)ld.remove(); }
-function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(localStorage.getItem('dgWizSave_startup')||localStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
+function offerAbandon(prevId){try{if(!DIRTY)return;var n=0;try{var s=JSON.parse(sessionStorage.getItem('dgWizSave_startup')||sessionStorage.getItem('dgWizSave_engineer')||'null');if(s&&s.answers)n=Object.keys(s.answers).length}catch(e){}if(n<2)return;var m=q(prevId);if(!m)return;if(m.querySelector('#dg-abandon'))return;var box=document.createElement('div');box.id='dg-abandon';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Follow-up email');box.style.cssText='position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);padding:1rem';box.innerHTML='<div style="background:#141414;border:1px solid rgba(201,168,76,.35);border-radius:12px;max-width:22rem;padding:1.1rem 1.2rem;color:#F5F0E6"><p style="margin:0 0 .75rem;line-height:1.4">Want a human follow-up? Drop your email — no spam.</p><input id="dg-abandon-email" class="w-input" type="email" autocomplete="email" placeholder="you@email.com" aria-label="Your email" style="width:100%;margin:0 0 .6rem;font-size:16px;min-height:44px"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" id="dg-abandon-send" style="flex:1;min-height:44px;background:#C9A84C;color:#0A0A0A;border:0;border-radius:8px;font-weight:600;cursor:pointer">Email potter@</button><button type="button" id="dg-abandon-skip" style="flex:1;min-height:44px;background:transparent;color:#A8A29E;border:1px solid #333;border-radius:8px;cursor:pointer">Close</button></div></div>';document.body.appendChild(box);var close=function(){document.removeEventListener('keydown',onEsc,true);box.remove();DIRTY=false};var onEsc=function(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}};document.addEventListener('keydown',onEsc,true);box.querySelector('#dg-abandon-skip').onclick=close;box.querySelector('#dg-abandon-send').onclick=function(){var em=(box.querySelector('#dg-abandon-email').value||'').trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){box.querySelector('#dg-abandon-email').style.borderColor='#F4D03F';return}window.location.href='mailto:potter@trydemigod.com?subject=Follow-up request&body='+encodeURIComponent('Please follow up with me.\nEmail: '+em);close()};box.addEventListener('click',function(e){if(e.target===box)close()});try{var inp=box.querySelector('#dg-abandon-email');if(inp)inp.focus()}catch(_){}}catch(e){}}
 function proofStrip(){/* v210: proof essay removed */ var el=q('#dg-proof-strip'); if(el)el.remove(); }
 function contactStrip(){/* v210: no hero essay — CTAs only */ var el=q('#dg-contact-strip'); if(el)el.remove(); }
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #C9A84C;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
@@ -643,30 +682,43 @@ function wizBuild(form, kind) {
   var current = 0;
   var SAVE_KEY = 'dgWizSave_' + kind;
   var answers = {};
-  try { window.__dgWizStore = localStorage.getItem('dgWizStoreConsent') === '1'; } catch(e) { window.__dgWizStore = false; }
-  var resumeStep=0; try { var saved = window.__dgWizStore===true ? JSON.parse(localStorage.getItem(SAVE_KEY) || 'null') : null; if (saved && saved.answers){ if (saved.t && (Date.now()-saved.t)>7*24*3600*1000){ try{localStorage.removeItem(SAVE_KEY)}catch(e){} saved=null; } else { answers = saved.answers; if (typeof saved.step==='number') resumeStep=saved.step; } } } catch(e){}
+  // v597: no draft-save UI / no 7-day localStorage (less is more; privacy)
+  window.__dgWizStore = false;
+  try {
+    localStorage.removeItem('dgWizStoreConsent');
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem('dgWizSave_startup');
+    localStorage.removeItem('dgWizSave_engineer');
+  } catch (e) {}
+  /* v604: same-session resume from the sessionStorage draft (see collect()). Restores answers +
+     step so a misclick/back/accidental close does not throw the form away. Never cross-session. */
+  var resumeStep = 0;
+  try {
+    var draft = JSON.parse(sessionStorage.getItem(SAVE_KEY) || 'null');
+    if (draft && draft.answers) {
+      answers = draft.answers;
+      resumeStep = Math.max(0, Math.min(draft.step | 0, (cfg.steps || []).length - 1));
+    }
+  } catch (e) {}
   var head = document.createElement('div');
   head.className = 'dg-wiz-head';
-  var __dgWizTotal = steps.filter(function(s){return (s[0]||'')!=='__thanks__' && (s[0]||'')!=='__submit__';}).length || Math.max(1, steps.length-2);
-  var progressLabel = kind === 'startup' ? 'Hiring brief progress' : kind === 'engineer' ? 'Talent profile progress' : 'Partner application progress';
-  // v514: one text node "N of T" so crawlers don't glue Progress1/of7 across spans
-  head.innerHTML = '<div class="dg-wiz-count" aria-live="polite"><span class="dg-wiz-progress-label">Progress </span><span class="dg-wiz-fraction"><span class="dg-cur">1 of ' + __dgWizTotal + '</span></span></div><div class="dg-wiz-bar" role="progressbar" aria-label="' + progressLabel + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i style="width:0%"></i></div><div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div><label class="dg-wiz-save"><input type="checkbox" class="dg-wiz-save-opt"' + (window.__dgWizStore===true?' checked':'') + '> Save this draft on this device for 7 days</label><div class="dg-wiz-live" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>';
+  var __dgWizTotal = steps.filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length || Math.max(1, steps.length-3);
+  var progressLabel = kind === 'startup' ? 'Hiring brief progress' : kind === 'engineer' ? 'Talent profile progress' : 'Application progress';
+  head.innerHTML =
+    '<div class="dg-wiz-count" aria-live="polite"><span class="dg-wiz-progress-label">Step </span><span class="dg-wiz-fraction"><span class="dg-cur">1 of ' + __dgWizTotal + '</span></span></div>' +
+    '<div class="dg-wiz-bar" role="progressbar" aria-label="' + progressLabel + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i style="width:0%"></i></div>' +
+    '<div class="dg-wiz-q"></div><div class="dg-wiz-hint"></div>' +
+    '<div class="dg-wiz-live" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)"></div>';
   var qEl = head.querySelector('.dg-wiz-q');
   var hEl = head.querySelector('.dg-wiz-hint');
   var progress = head.querySelector('.dg-wiz-bar');
   var bar = head.querySelector('.dg-wiz-bar i');
   var curEl = head.querySelector('.dg-cur');
-  var saveOpt = head.querySelector('.dg-wiz-save-opt');
-  if(saveOpt) saveOpt.addEventListener('change',function(){
-    window.__dgWizStore=saveOpt.checked===true;
-    try { if(window.__dgWizStore){localStorage.setItem('dgWizStoreConsent','1')}else{localStorage.removeItem('dgWizStoreConsent');localStorage.removeItem(SAVE_KEY)} } catch(e){}
-    if(window.__dgWizStore) collect();
-  });
   // map fields - prefer the visual container (.form-field-group or .dg-field-wrap)
   var fieldMap = {};
   qa('.dg-field-wrap, .w-input, .w-select, .w-file-upload, label, input, select, textarea, [name], [id]', form).forEach(function(el) {
     var n = (el.name || el.id || (el.getAttribute && el.getAttribute('name')) || '').toLowerCase().replace(/[^a-z0-9-]/g,'');
-    var container = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.closest('label') || el.parentElement || el;
+    var container = el.closest('.form-field-group, .dg-field-wrap') || el.closest('label') || el.parentElement || el;
     if (n && !fieldMap[n]) fieldMap[n] = container;
     if (el.name) fieldMap[el.name] = fieldMap[el.name] || container;
     if (el.id) fieldMap[el.id] = fieldMap[el.id] || container;
@@ -676,7 +728,7 @@ function wizBuild(form, kind) {
     if (!fieldMap[k]) {
       var el = form.querySelector('[name="' + k + '"], [id="' + k + '"]');
       if (el) {
-        var c = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.parentElement || el;
+        var c = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement || el;
         fieldMap[k] = c;
       }
     }
@@ -690,7 +742,7 @@ function wizBuild(form, kind) {
   });
   var nav = document.createElement('div');
   nav.className = 'dg-wiz-nav';
-  nav.innerHTML = '<button type="button" class="dg-wiz-back">Back</button><button type="button" class="dg-wiz-next">Next</button>';
+  nav.innerHTML = '<button type="button" class="dg-wiz-back">Back</button><button type="button" class="dg-wiz-next">Continue</button>';
   var backBtn = nav.querySelector('.dg-wiz-back');
   var nextBtn = nav.querySelector('.dg-wiz-next');
   // place chrome
@@ -701,7 +753,9 @@ function wizBuild(form, kind) {
   head.style.setProperty('display', 'block', 'important');
   nav.style.setProperty('display', 'flex', 'important');
   nav.style.setProperty('visibility', 'visible', 'important');
-  qa('.dg-wiz-next, .dg-wiz-back', nav).forEach(function(b){ b.style.setProperty('display','inline-block','important'); b.style.cursor='pointer'; });
+  qa('.dg-wiz-next', nav).forEach(function(b){ b.style.setProperty('display','inline-block','important'); b.style.cursor='pointer'; });
+  // .dg-wiz-back display is owned by showStep (must hide on welcome) — do not blanket-force it here.
+  qa('.dg-wiz-back', nav).forEach(function(b){ b.style.cursor='pointer'; });
   var nativeSub = form.querySelector('[type="submit"], .w-button');
   if (nativeSub) nativeSub.style.display = 'none';
   if (typeof forceWizVisible === 'function') forceWizVisible(form, form.closest && form.closest('#startup-modal,#jobseeker-modal'));
@@ -712,6 +766,11 @@ function wizBuild(form, kind) {
     qa('input,select,textarea', form).forEach(function(i) {
       var nm = i.name || i.id || '';
       if (!nm) return;
+      // Hidden inputs are not draft answers. Skips the Turnstile token (~750 chars) that the
+      // "save this draft" consent would otherwise persist for 7 days; also clears it from
+      // drafts saved before this fix. Restore never wrote it back (Turnstile re-issues), so
+      // this is hygiene, not a behaviour change.
+      if (i.type === 'hidden') { delete answers[nm]; return; }
       if (i.type === 'file') {
         if (i.files && i.files[0]) answers[nm] = i.files[0].name;
         else delete answers[nm];
@@ -721,7 +780,11 @@ function wizBuild(form, kind) {
       } else if (i.value && i.value.trim()) answers[nm] = i.value.trim();
       else delete answers[nm];
     });
-    try { if(window.__dgWizStore!==true) return; localStorage.setItem(SAVE_KEY, JSON.stringify({answers: answers, step: current, t: Date.now()})); } catch(e){}
+    /* v604: sessionStorage draft. v597 removed persistence but left offerAbandon() reading
+       dgWizSave_* — nothing wrote it, so n was always 0 and the abandon capture was dead code.
+       sessionStorage = same-session resume only (the Ovsiankina case: misclick, back, accidental
+       close). No TTL, no consent UI, no cross-session surface. Cleared on submit. */
+    try { sessionStorage.setItem(SAVE_KEY, JSON.stringify({ answers: answers, step: current })); } catch (e) {}
   }
   /* === WIZ STEP STATE — show/validate exactly one question; preserve values across back/reopen/resize === */
   function showStep(idx) {
@@ -737,7 +800,7 @@ function wizBuild(form, kind) {
         }
       });
     } catch(e){}
-    try { var live=form.querySelector('.dg-wiz-live'); if(live){ var qq=form.querySelector('.dg-wiz-q'); live.textContent=(qq&&qq.textContent)?('Step '+(current+1)+': '+qq.textContent):('Step '+(current+1)); } } catch(e){}
+    try { var live=form.querySelector('.dg-wiz-live'); if(live){ var qq=form.querySelector('.dg-wiz-q'); live.textContent=(qq&&qq.textContent)?qq.textContent:''; } } catch(e){}
     var keyArr = steps[current] || [];
     var key = keyArr[0] || '';
     if (form) {
@@ -752,14 +815,14 @@ function wizBuild(form, kind) {
       });
       if (typeof forceWizVisible === 'function') forceWizVisible(form, modal);
     }
-    var __tot = steps.filter(function(s){return (s[0]||'')!=='__thanks__' && (s[0]||'')!=='__submit__';}).length || Math.max(1, steps.length-2);
-    curEl.textContent = String(Math.min(current + 1, __tot)) + ' of ' + __tot;
+    var __tot = steps.filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length || Math.max(1, steps.length-3);
+    var __qn = steps.slice(0, current + 1).filter(function(s){var k=s[0]||'';return k!=='__thanks__' && k!=='__submit__' && k!=='welcome';}).length; curEl.textContent = String(Math.max(1, Math.min(__qn || 1, __tot))) + ' of ' + __tot;
     try{ var totEl=curEl.parentElement; if(totEl&&!totEl.getAttribute('data-dg-prog')){ totEl.setAttribute('data-dg-prog','1'); totEl.setAttribute('aria-live','polite'); } }catch(e){}
     // re-map fields every showStep in case of late injection or Webflow DOM changes
     var fieldMap = {};
     qa('.dg-field-wrap, .w-input, .w-select, .w-file-upload, label, input, select, textarea, [name], [id]', form).forEach(function(el) {
       var n = (el.name || el.id || (el.getAttribute && el.getAttribute('name')) || '').toLowerCase().replace(/[^a-z0-9-]/g,'');
-      var container = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.closest('label') || el.parentElement || el;
+      var container = el.closest('.form-field-group, .dg-field-wrap') || el.closest('label') || el.parentElement || el;
       if (n && !fieldMap[n]) fieldMap[n] = container;
       if (el.name) fieldMap[el.name] = fieldMap[el.name] || container;
       if (el.id) fieldMap[el.id] = fieldMap[el.id] || container;
@@ -767,14 +830,14 @@ function wizBuild(form, kind) {
     ['90day-outcome', 'contact-email', 'company-name', 'role-title', 'stack-needs', 'full-name'].forEach(function(k){
       if (!fieldMap[k]) {
         var el = form.querySelector('[name="' + k + '"], [id="' + k + '"]');
-        if (el) fieldMap[k] = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.parentElement || el;
+        if (el) fieldMap[k] = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement || el;
       }
     });
     // ULTRA ROBUST: aggressively hide EVERY possible Webflow/field wrapper except current step's
     try {
       qa('input,select,textarea,label,.w-input,.w-select,.w-file-upload,.form-field-group,.dg-field-wrap,fieldset,.w-checkbox,.w-radio', form).forEach(function(el){
         if (el.closest('.dg-wiz-head') || el.closest('.dg-wiz-nav') || el.closest('.dg-wiz-review')) return;
-        var c = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.closest('label') || el.closest('fieldset') || el.parentElement || el;
+        var c = el.closest('.form-field-group, .dg-field-wrap') || el.closest('label') || el.closest('fieldset') || el.parentElement || el;
         if (c && c !== form && !c.classList.contains('dg-wiz-head') && !c.classList.contains('dg-wiz-nav')) c.style.setProperty('display','none','important');
       });
     } catch(e){}
@@ -783,20 +846,21 @@ function wizBuild(form, kind) {
     if (key && fieldMap[key]) toShow.push(fieldMap[key]);
     qa('.dg-field-wrap, .form-field-group, label, input, select, textarea', form).forEach(function(el){
       var n = (el.name || el.id || (el.textContent||'').toLowerCase()).replace(/[^a-z0-9-]/g,'');
-      if (key && n.indexOf(key) > -1) toShow.push(el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el);
+      if (key && n.indexOf(key) > -1) toShow.push(el.closest('.form-field-group, .dg-field-wrap') || el);
     });
     toShow.forEach(function(c){
       if (c && c.style) { c.style.setProperty('display', 'block', 'important'); c.classList.add('dg-wiz-show'); }
       var i = c && c.querySelector ? c.querySelector('input,select,textarea') : c;
       if (i && i.style) i.style.setProperty('display', 'block', 'important');
     });
-    // explicit force for contact-email and critical to fix reported vis=0
-    ['contact-email', 'full-name', key].forEach(function(ck){
+    // Force ONLY the current step key. Was ['contact-email','full-name', key] — a vis=0 band-aid
+    // that force-showed those two on EVERY step, leaking them into later steps (user-confirmed bug).
+    [key].forEach(function(ck){
       if (!ck) return;
       var el = form.querySelector('[name="' + ck + '"], [id="' + ck + '"]');
       if (el) {
         el.style.setProperty('display', 'block', 'important');
-        var cc = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.parentElement;
+        var cc = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement;
         if (cc) { cc.style.setProperty('display', 'block', 'important'); }
       }
     });
@@ -808,7 +872,7 @@ function wizBuild(form, kind) {
       var el = form.querySelector('[name="' + ck + '"], [id="' + ck + '"]');
       if (el) {
         el.style.removeProperty('display'); el.style.setProperty('display','block','important'); el.style.visibility='visible';
-        var cc = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.parentElement;
+        var cc = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement;
         if (cc) { cc.style.removeProperty('display'); cc.style.setProperty('display','block','important'); cc.style.visibility='visible'; cc.classList.add('dg-wiz-show'); }
         var lab = el.previousElementSibling; if (lab && lab.tagName === 'LABEL') { lab.style.display='block'; lab.style.visibility='visible'; }
       }
@@ -830,7 +894,7 @@ function wizBuild(form, kind) {
       progress.setAttribute('aria-valuetext', pct + '% complete');
     }
     qEl.textContent = ''; hEl.textContent = '';
-    backBtn.style.display = (current > 0 && key !== 'welcome') ? '' : 'none';
+    backBtn.style.setProperty('display', (current > 0 && key !== 'welcome') ? 'flex' : 'none', 'important');
     if (key === 'welcome') {
       qEl.textContent = cfg.welcome ? cfg.welcome.t : 'Welcome';
       hEl.textContent = cfg.welcome ? cfg.welcome.b : '';
@@ -862,11 +926,24 @@ function wizBuild(form, kind) {
         var qd = qmap[k]; if (!qd) return; // skip turnstile/internal fields
         var lab = (qd.q || k).replace(/\s*\(optional[^)]*\)/i, '').replace(/[?？]+\s*$/, '');
         var extra = (k === '90day-outcome') ? ' style="font-weight:600;border-left:3px solid #C9A84C;padding-left:.5rem"' : '';
-        html += '<div' + extra + '><span>' + esc(lab) + '</span><em>' + esc(answers[k]) + '</em></div>';
+        // <select> stores the option value ('series-a'); show the label the user actually picked ('Series A').
+        // Display-only: answers[k] stays canonical so localStorage restore (i.value = answers[nm]) still matches.
+        var shownVal = answers[k];
+        try {
+          // checkbox stores "on" (no value attr on the Designer element) — show a human Yes/No
+          var cbEl = form.querySelector('input[type="checkbox"][name="' + k + '"], input[type="checkbox"][id="' + k + '"]');
+          if (cbEl) shownVal = cbEl.checked ? 'Yes' : 'No';
+          var selEl = form.querySelector('select[name="' + k + '"], select[id="' + k + '"]');
+          if (selEl && selEl.value === answers[k] && selEl.selectedOptions && selEl.selectedOptions[0]) {
+            shownVal = (selEl.selectedOptions[0].textContent || answers[k]).trim() || answers[k];
+          }
+        } catch (e) {}
+        html += '<div' + extra + '><span>' + esc(lab) + '</span><em>' + esc(shownVal) + '</em></div>';
       });
       rev.innerHTML = html || '<div>No answers captured — use Back to fill in your brief.</div>';
     } else if (key === '__thanks__') {
-      try { localStorage.removeItem(SAVE_KEY); } catch(e){} DIRTY=false;
+      /* v604: clear the sessionStorage draft too — submitted work must not resume. */
+      try { localStorage.removeItem(SAVE_KEY); sessionStorage.removeItem(SAVE_KEY); } catch(e){} DIRTY=false;
       nextBtn.style.display = 'none'; backBtn.style.display = 'none';
       return;
     } else {
@@ -963,7 +1040,7 @@ function wizBuild(form, kind) {
         var el = form.querySelector('[name="' + key + '"], [id="' + key + '"]');
         if (el) {
           el.style.setProperty('display','block','important'); el.style.visibility='visible';
-          var cc = el.closest('.form-field-group') || el.closest('.dg-field-wrap') || el.parentElement;
+          var cc = el.closest('.form-field-group, .dg-field-wrap') || el.parentElement;
           if (cc) { cc.style.setProperty('display','block','important'); cc.style.visibility='visible'; cc.classList.add('dg-wiz-show'); }
         }
       }
@@ -1167,7 +1244,7 @@ function wizBuild(form, kind) {
 function fetchBoard(){if(!BOARD_CDN)return;if(BOARD&&Date.now()-BOARD_AT<60000){renderBoard();return}var bucket=Math.floor(Date.now()/60000);fetch(BOARD_CDN+'?v='+bucket).then(function(r){return r.json()}).then(function(d){BOARD=d;BOARD_AT=Date.now();try{if(!BOARD.realRoles){(BOARD.roles||[]).forEach(function(r){if(r&&r.sample!==false)r.sample=true});(BOARD.candidates||[]).forEach(function(c){if(c&&c.sample!==false)c.sample=true})}else{(BOARD.roles||[]).forEach(function(r){if(r&&r.sample==null)r.sample=false});}}catch(e){}renderBoard();try{qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)})}catch(e){}}).catch(function(){})}
 function submitTrust(f,msg){if(!f||f.querySelector('#dg-submit-trust'))return;var p=document.createElement('p');p.id='dg-submit-trust';p.style.cssText='color:#9ca3af;font-size:.8rem;margin:.5rem 0 .25rem;line-height:1.4';p.textContent=msg||'Reviewed with humans in the loop. No spam lists.';var b=f.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(p,b)}
 function charCount(el,max){if(!el||el.dataset.dgCc)return;var wrap=el.closest('.dg-field-wrap,.w-input')||el.parentElement;var c=document.createElement('span');c.className='dg-char-count';c.style.cssText='display:block;color:#6b7280;font-size:.72rem;margin:.2rem 0 .35rem;text-align:right';var upd=function(){var n=(el.value||'').length;c.textContent=n+' / '+max};el.dataset.dgCc='1';el.addEventListener('input',upd);upd();if(wrap)wrap.appendChild(c);else el.insertAdjacentElement('afterend',c)}
-function successCta(){qa(S+' .w-form-done,'+J+' .w-form-done').forEach(function(done){if(done.querySelector('.dg-sample-match'))return;if(done.offsetParent===null&&getComputedStyle(done).display==='none')return;var a=document.createElement('button');a.type='button';a.className='dg-sample-match w-button';a.textContent='View sample matches';/* PREP for Twilio jack&jill post-form collection (before real SMS): optional follow-up questions shown in thanks */if(!done.querySelector('.dg-followup')){var fu=document.createElement('div');fu.className='dg-followup';fu.style.cssText='margin-top:1rem;padding:0.75rem;border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:0.85rem';fu.innerHTML='<strong>'+COPY.followUpTitle+'</strong><p style="margin:0.25rem 0 0.5rem;color:#A8A29E">'+COPY.followUpHint+'</p><div style="display:flex;flex-direction:column;gap:0.4rem"><input class="w-input dg-fu-salary" placeholder="'+COPY.followUpSalary+'" aria-label="'+COPY.followUpSalary+'" style="font-size:0.8rem"><input class="w-input dg-fu-start" placeholder="'+COPY.followUpStart+'" aria-label="'+COPY.followUpStart+'" style="font-size:0.8rem"><textarea class="w-input dg-fu-why" placeholder="'+COPY.followUpWhy+'" aria-label="'+COPY.followUpWhy+'" rows="2" style="font-size:0.8rem"></textarea></div><button type="button" style="margin-top:0.5rem;font-size:0.75rem;background:transparent;border:1px solid rgba(201,168,76,.3);color:#C9A84C;padding:0.25rem 0.5rem;border-radius:4px">Email these details</button>';fu.querySelector('button').addEventListener('click',function(){var sv=(fu.querySelector('.dg-fu-salary').value||'').trim(),st=(fu.querySelector('.dg-fu-start').value||'').trim(),wy=(fu.querySelector('.dg-fu-why').value||'').trim();if(!sv&&!st&&!wy){fu.querySelector('button').textContent='Add a detail above first';return}var body='Salary range: '+sv+'\nStart date: '+st+'\nDealbreakers: '+wy;window.location.href='mailto:potter@trydemigod.com?subject=Follow-up details&body='+encodeURIComponent(body);fu.style.opacity='0.6';fu.querySelector('button').textContent='Opened in your email app — send to reach us'});done.appendChild(fu)};a.style.cssText='margin-top:.75rem;background:transparent!important;color:#c9a84c!important;border:1px solid rgba(201,168,76,.45)!important';a.addEventListener('click',function(){var blk=q('#demigod-trust-block');if(blk)blk.scrollIntoView({behavior:'smooth',block:'start'});else window.scrollTo(0,document.body.scrollHeight*.55)});done.appendChild(a);var kind=done.closest(J)?'engineer':'startup';var t=WIZ_THANKS[kind];if(t&&!done.querySelector('.dg-thanks')){done.insertAdjacentHTML('afterbegin','<div class="dg-thanks"><h3>'+t.head+'</h3><p>'+t.lead+'</p>'+t.steps.map(function(s){return'<p class="dg-thanks-step">• '+s+'</p>'}).join('')+'</div>')}})}
+function successCta(){qa(S+' .w-form-done,'+J+' .w-form-done').forEach(function(done){if(done.querySelector('.dg-sample-match'))return;if(done.offsetParent===null&&getComputedStyle(done).display==='none')return;var a=document.createElement('button');a.type='button';a.className='dg-sample-match w-button';a.textContent='View sample matches';/* v598: no follow-up mini-form on thanks (less is more) */a.style.cssText='margin-top:.75rem;background:transparent!important;color:#c9a84c!important;border:1px solid rgba(201,168,76,.45)!important';a.addEventListener('click',function(){var blk=q('#demigod-trust-block');if(blk)blk.scrollIntoView({behavior:'smooth',block:'start'});else window.scrollTo(0,document.body.scrollHeight*.55)});done.appendChild(a);var kind=done.closest(J)?'engineer':'startup';var t=WIZ_THANKS[kind];if(t&&!done.querySelector('.dg-thanks')){done.insertAdjacentHTML('afterbegin','<div class="dg-thanks"><h3>'+t.head+'</h3><p>'+t.lead+'</p>'+t.steps.map(function(s){return'<p class="dg-thanks-step">• '+s+'</p>'}).join('')+'</div>')}})}
 function ph(i,t){if(i&&'placeholder'in i)i.placeholder=t}
 function formEl(sel){var el=typeof sel==='string'?q(sel):sel;if(!el)return null;return el.tagName==='FORM'?el:(el.querySelector&&el.querySelector('form'))||null}
 /* === FORMS / NATIVE WEBFLOW — id + labels + optional fields; WIZ wraps after === */
@@ -1175,12 +1252,15 @@ function formEl(sel){var el=typeof sel==='string'?q(sel):sel;if(!el)return null;
 function forms(){var stWrap=q('#startup-hire.w-form')||q(S+' .w-form');var st=formEl('#startup-hire')||formEl('#startup-form')||formEl(S+' form')||formEl(stWrap);if(st&&!st.dataset.dgStartup){st.dataset.dgStartup='1';if(stWrap&&stWrap!==st&&stWrap.id==='startup-hire')stWrap.removeAttribute('id');st.classList.add('w-form');st.classList.remove('w-form-loading');st.id='startup-hire';st.name='startup-hire';st.setAttribute('data-name','startup-hire');st.removeAttribute('aria-label');st.removeAttribute('action');st.setAttribute('method','post');rmF(st,'Source');rmF(st,'hiring-model');qa('label,span,p',st).forEach(function(el){if(/Hiring Model|Commission-only|Subscription/i.test(el.textContent||''))(el.closest('.w-radio,fieldset,.w-form-label,div')||el).remove();if(/Stack Needs|Tech stack/i.test(el.textContent||''))el.textContent='Skills / requirements *';if(/Role Title|Job Title/i.test(el.textContent||''))el.textContent='Role title *';if(/Company stage/i.test(el.textContent||''))el.textContent='Company stage *'});ph(st.querySelector('[name=contact-email]'),'you@company.com');ph(st.querySelector('[name=role-title]'),'e.g. Founding PM, Head of Growth, Designer');ph(st.querySelector('[name=stack-needs]'),'e.g. B2B SaaS, GTM, design systems, React');['contact-email','role-title','stack-needs'].forEach(function(n){var i=st.querySelector('[name='+n+']');if(i){i.required=true; if(n==='contact-email')i.setAttribute('autocomplete','email'); var l=i.closest('label')||i.previousElementSibling; if(l&&l.tagName==='LABEL') l.setAttribute('for',n); else if(!l){var nl=document.createElement('label');nl.className='w-form-label';nl.setAttribute('for',n);nl.textContent=(n==='contact-email'?'Best email?':n==='role-title'?'Role title?':'Key skills?'); i.parentNode.insertBefore(nl,i); } } });var cs=st.querySelector('[name=company-stage]');if(cs){cs.required=true} // remove Webflow static title
 qa('h3,.w-form-title,[class*=title]',st).forEach(function(h){if(/STARTUP HIRING FORM|HIRING FORM/i.test(h.textContent||'')){h.style.display='none';h.textContent='';}});
 // ensure company-name field exists for its WIZ step (some Webflow forms may not have it)
-/* company-name */ if(!st.querySelector('[name=company-name]')){var cn=document.createElement('div');cn.className='dg-field-wrap';cn.innerHTML='<label class="w-form-label" for="company-name">Company name?</label><input class="w-input" type="text" id="company-name" name="company-name" autocomplete="organization" required placeholder="Acme Inc">';var ce=st.querySelector('[name=contact-email]');(ce&&ce.parentElement||st).appendChild(cn);}
+/* company-name */ if(!st.querySelector('[name=company-name]')){var cn=document.createElement('div');cn.className='dg-field-wrap';cn.innerHTML='<label class="w-form-label" for="company-name">Company name?</label><input class="w-input" type="text" id="company-name" name="company-name" autocomplete="organization" required placeholder="Acme Inc">';var ce=st.querySelector('[name=contact-email]');var ceg=ce&&(ce.closest('.form-field-group')||ce.parentElement);if(ceg&&ceg.parentElement&&ceg!==st){ceg.insertAdjacentElement('afterend',cn);}else{(ce&&ce.parentElement||st).appendChild(cn);}}
 // inject timeline and team-size (per Fable perfect fields)
-if(!st.querySelector('[name=timeline]')){var tw=document.createElement('div');tw.className='dg-field-wrap';tw.innerHTML='<label class="w-form-label" for="timeline">Timeline?</label><select class="w-select" id="timeline" name="timeline"><option value="">Select</option><option value="asap">ASAP (2-4 wks)</option><option value="quarter">This quarter</option><option value="exploratory">Exploratory</option></select>';var sk=st.querySelector('[name=stack-needs]');(sk&&sk.parentElement||st).appendChild(tw);}
-if(!st.querySelector('[name=team-size]')){var tm=document.createElement('div');tm.className='dg-field-wrap';tm.innerHTML='<label class="w-form-label" for="team-size">Team size / reports to?</label><input class="w-input" type="text" id="team-size" name="team-size" placeholder="e.g. 5-person eng team, reports to CTO">';(st.querySelector('[name=stack-needs]')||st).parentElement.appendChild(tm);}var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.closest('.w-input')||sk.parentElement);if(!st.querySelector('[name=company-stage]')){var ce=st.querySelector('[name=contact-email]'),cew=ce&&(ce.closest('.w-input')||ce.parentElement);var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="company-stage">Company stage *</label><select class="w-select" id="company-stage" name="company-stage" required><option value="">Select stage</option><option value="pre-seed">Pre-seed</option><option value="seed">Seed</option><option value="series-a">Series A</option><option value="series-b">Series B+</option></select>';if(cew&&cew.parentElement)cew.parentElement.insertBefore(sw,cew.nextSibling);else{var rt=st.querySelector('[name=role-title]'),rw=rt&&(rt.closest('.w-input')||rt.parentElement);if(rw&&rw.parentElement)rw.parentElement.insertBefore(sw,rw)}} 
+if(!st.querySelector('[name=timeline]')){var tw=document.createElement('div');tw.className='dg-field-wrap';tw.innerHTML='<label class="w-form-label" for="timeline">Timeline?</label><select class="w-select" id="timeline" name="timeline"><option value="">Select</option><option value="asap">ASAP (2-4 wks)</option><option value="quarter">This quarter</option><option value="exploratory">Exploratory</option></select>';var sk=st.querySelector('[name=stack-needs]');var skg=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg&&skg.parentElement&&skg!==st){skg.insertAdjacentElement('afterend',tw);}else{(sk&&sk.parentElement||st).appendChild(tw);}}
+if(!st.querySelector('[name=team-size]')){var tm=document.createElement('div');tm.className='dg-field-wrap';tm.innerHTML='<label class="w-form-label" for="team-size">Team size / reports to?</label><input class="w-input" type="text" id="team-size" name="team-size" placeholder="e.g. 5-person eng team, reports to CTO">';(st.querySelector('[name=stack-needs]')||st).parentElement.appendChild(tm);}var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.closest('.w-input')||sk.parentElement);if(!st.querySelector('[name=company-stage]')){var ce=st.querySelector('[name=contact-email]'),cew=ce&&(ce.closest('.w-input')||ce.parentElement);var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="company-stage">Company stage *</label><select class="w-select" id="company-stage" name="company-stage" required><option value="">Select stage</option><option value="pre-seed">Pre-seed</option><option value="seed">Seed</option><option value="series-a">Series A</option><option value="series-b">Series B+</option></select>';var ceg3=ce&&(ce.closest('.form-field-group')||cew);if(ceg3&&ceg3.parentElement&&ceg3!==st)ceg3.parentElement.insertBefore(sw,ceg3.nextSibling);else if(cew&&cew.parentElement)cew.parentElement.insertBefore(sw,cew.nextSibling);else{var rt=st.querySelector('[name=role-title]'),rw=rt&&(rt.closest('.w-input')||rt.parentElement);if(rw&&rw.parentElement)rw.parentElement.insertBefore(sw,rw)}} 
 // inject 90day-outcome creative field for high-signal matching data (Fable recommended)
-if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="e.g. Ship v1 checkout; 2 paying pilot customers this quarter"></textarea>';(sk&&sk.parentElement||st).appendChild(od);}if(!st.querySelector('[name=salary-range]')){var w=document.createElement('div');w.id='dg-salary-wrap';w.className='dg-field-wrap';w.innerHTML='<label class="w-form-label" for="salary-range">Comp range (optional)</label><input class="w-input" type="text" id="salary-range" name="salary-range" placeholder="e.g. $180-220k + equity">';if(sa&&sa.parentElement)sa.parentElement.insertBefore(w,sa.nextSibling);else st.querySelector('[type=submit],.w-button')?.parentElement?.insertBefore(w,st.querySelector('[type=submit],.w-button'))}else{ph(st.querySelector('[name=salary-range]'),'e.g. $180-220k + equity');qa('label',st).forEach(function(l){if(/salary|comp range/i.test(l.textContent||''))l.textContent='Comp range (optional)'})}if(!st.querySelector('[name=why-this-role]')){var ww=document.createElement('div');ww.id='dg-why-wrap';ww.className='dg-field-wrap';ww.innerHTML='<label class="w-form-label" for="why-this-role">Why this role (optional)</label><textarea class="w-input" id="why-this-role" name="why-this-role" rows="2" placeholder="e.g. First PM hire; need someone who has shipped 0→1"></textarea>';var sal=st.querySelector('[name=salary-range]'),salw=sal&&(sal.closest('.dg-field-wrap,.w-input')||sal.parentElement);if(salw&&salw.parentElement)salw.parentElement.insertBefore(ww,salw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(ww,sa.nextSibling)}if(!st.querySelector('[name=role-jd]')){var jw=document.createElement('div');jw.id='dg-jd-wrap';jw.className='dg-field-wrap w-file-upload';jw.innerHTML='<label class="w-form-label" for="role-jd">Job description (optional)</label><input class="w-file-upload-input w-input" type="file" id="role-jd" name="role-jd" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var why=st.querySelector('[name=why-this-role]'),whyw=why&&(why.closest('.dg-field-wrap,.w-input')||why.parentElement);if(whyw&&whyw.parentElement)whyw.parentElement.insertBefore(jw,whyw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(jw,sa.nextSibling)}st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'Matched with Demigod tech; humans in the loop. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name=why-this-role]'),300);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}rmF(en,'github-url');rmF(en,'portfolio-url');rmF(en,'is-engineer');var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skillss*&s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *';if(/^LinkedIn/i.test((l.textContent||'').trim()))l.textContent='LinkedIn URL *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});var liIn=en.querySelector('[name=linkedin-url]');if(liIn){liIn.type='url';liIn.required=true;liIn.setAttribute('autocomplete','url');ph(liIn,'https://linkedin.com/in/you')}en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('[name=resume],[name=Resume]');if(!resIn){var rw=document.createElement('div');rw.id='dg-resume-wrap';rw.className='dg-field-wrap w-file-upload';rw.innerHTML='<label class="w-form-label" for="resume">Resume (optional now)</label><input class="w-input" type="file" id="resume" name="resume" style="display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var insBefore=en.querySelector('[name=skills-stack]');var insW=insBefore&&(insBefore.closest('.w-input')||insBefore.parentElement);if(insW&&insW.parentElement)insW.parentElement.insertBefore(rw,insW);else{var subR=en.querySelector('[type=submit],.w-button');subR?.parentElement?.insertBefore(rw,subR)}resIn=rw.querySelector('[name=resume]')}else{var resW=resIn.closest('.dg-field-wrap,.w-file-upload,.w-input')||resIn.parentElement;if(resW&&!resW.id)resW.id='dg-resume-wrap';resIn.classList.remove('w-file-upload-input');resIn.classList.add('w-input');resIn.style.cssText='display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0';/*resume opt per WIZ*/;if(!resIn.id)resIn.id='resume';if(!resIn.name)resIn.name='resume';if(!resIn.accept)resIn.setAttribute('accept','.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')}qa('label',en).forEach(function(l){if(/resume|résumé|cv/i.test((l.textContent||'').trim())&&!l.querySelector('[type=file]'))l.textContent='Resume (optional now)'});if(resIn&&!en.dataset.dgResumeVal){en.dataset.dgResumeVal='1';resIn.addEventListener('change',function(){var f=resIn.files&&resIn.files[0];if(f&&f.size>10485760)resIn.setCustomValidity('Max file size 10MB');else resIn.setCustomValidity('')})}ph(en.querySelector('[name=skills-stack]'),'e.g. Product strategy, Figma, growth marketing');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);charCount(en.querySelector('[name=experience]'),600);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR')}if(!en.querySelector('[name=links]')){var liWrap=liIn&&(liIn.closest('.w-input')||liIn.parentElement);var lw=document.createElement('div');lw.id='dg-links-wrap';lw.className='dg-field-wrap';lw.innerHTML='<label class="w-form-label" for="links">Links (optional)</label><input class="w-input" type="text" id="links" name="links" placeholder="GitHub, portfolio, or other links">';if(liWrap&&liWrap.parentElement)liWrap.parentElement.insertBefore(lw,liWrap.nextSibling);else{var sub=en.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(lw,sub)}}var sf=en.querySelector('[name=sf-bay]');if(sf){sf.required=true;var sl=sf.closest('label')||sf.parentElement;if(sl){var sp=sl.querySelector('.w-form-label,span');if(sp)sp.textContent='Based in SF Bay Area *'}}if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('label');c.className='w-checkbox';c.innerHTML='<input type="checkbox" name="sf-bay" value="yes" required><span class="w-form-label">Based in SF Bay Area *</span>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
+if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="e.g. Ship v1 checkout; 2 paying pilot customers this quarter"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}if(!st.querySelector('[name=salary-range]')){var w=document.createElement('div');w.id='dg-salary-wrap';w.className='dg-field-wrap';w.innerHTML='<label class="w-form-label" for="salary-range">Comp range (optional)</label><input class="w-input" type="text" id="salary-range" name="salary-range" placeholder="e.g. $180-220k + equity">';if(sa&&sa.parentElement)sa.parentElement.insertBefore(w,sa.nextSibling);else st.querySelector('[type=submit],.w-button')?.parentElement?.insertBefore(w,st.querySelector('[type=submit],.w-button'))}else{ph(st.querySelector('[name=salary-range]'),'e.g. $180-220k + equity');qa('label',st).forEach(function(l){if(/salary|comp range/i.test(l.textContent||''))l.textContent='Comp range (optional)'})}if(!st.querySelector('[name=why-this-role]')){var ww=document.createElement('div');ww.id='dg-why-wrap';ww.className='dg-field-wrap';ww.innerHTML='<label class="w-form-label" for="why-this-role">Why this role (optional)</label><textarea class="w-input" id="why-this-role" name="why-this-role" rows="2" placeholder="e.g. First PM hire; need someone who has shipped 0→1"></textarea>';var sal=st.querySelector('[name=salary-range]'),salw=sal&&(sal.closest('.dg-field-wrap,.w-input')||sal.parentElement);if(salw&&salw.parentElement)salw.parentElement.insertBefore(ww,salw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(ww,sa.nextSibling)}if(!st.querySelector('[name=role-jd]')){var jw=document.createElement('div');jw.id='dg-jd-wrap';jw.className='dg-field-wrap w-file-upload';jw.innerHTML='<label class="w-form-label" for="role-jd">Job description (optional)</label><input class="w-file-upload-input w-input" type="file" id="role-jd" name="role-jd" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var why=st.querySelector('[name=why-this-role]'),whyw=why&&(why.closest('.dg-field-wrap,.w-input')||why.parentElement);if(whyw&&whyw.parentElement)whyw.parentElement.insertBefore(jw,whyw.nextSibling);else if(sa&&sa.parentElement)sa.parentElement.insertBefore(jw,sa.nextSibling)}st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name=why-this-role]'),300);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}rmF(en,'github-url');rmF(en,'portfolio-url');rmF(en,'is-engineer');var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skillss*&s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *';if(/^LinkedIn/i.test((l.textContent||'').trim()))l.textContent='LinkedIn URL *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});var liIn=en.querySelector('[name=linkedin-url]');if(liIn){liIn.type='url';liIn.required=true;liIn.setAttribute('autocomplete','url');ph(liIn,'https://linkedin.com/in/you')}en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('[name=resume],[name=Resume]');if(!resIn){var rw=document.createElement('div');rw.id='dg-resume-wrap';rw.className='dg-field-wrap w-file-upload';rw.innerHTML='<label class="w-form-label" for="resume">Resume (optional now)</label><input class="w-input" type="file" id="resume" name="resume" style="display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="dg-resume-hint">PDF or Word · max 10MB</p>';var insBefore=en.querySelector('[name=skills-stack]');var insW=insBefore&&(insBefore.closest('.w-input')||insBefore.parentElement);if(insW&&insW.parentElement)insW.parentElement.insertBefore(rw,insW);else{var subR=en.querySelector('[type=submit],.w-button');subR?.parentElement?.insertBefore(rw,subR)}resIn=rw.querySelector('[name=resume]')}else{var resW=resIn.closest('.dg-field-wrap,.w-file-upload,.w-input')||resIn.parentElement;if(resW&&!resW.id)resW.id='dg-resume-wrap';resIn.classList.remove('w-file-upload-input');resIn.classList.add('w-input');resIn.style.cssText='display:block!important;width:100%!important;color:#A8A29E;padding:.45rem 0';/*resume opt per WIZ*/;if(!resIn.id)resIn.id='resume';if(!resIn.name)resIn.name='resume';if(!resIn.accept)resIn.setAttribute('accept','.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')}qa('label',en).forEach(function(l){if(/resume|résumé|cv/i.test((l.textContent||'').trim())&&!l.querySelector('[type=file]'))l.textContent='Resume (optional now)'});if(resIn&&!en.dataset.dgResumeVal){en.dataset.dgResumeVal='1';resIn.addEventListener('change',function(){var f=resIn.files&&resIn.files[0];if(f&&f.size>10485760)resIn.setCustomValidity('Max file size 10MB');else resIn.setCustomValidity('')})}ph(en.querySelector('[name=skills-stack]'),'e.g. Product strategy, Figma, growth marketing');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);charCount(en.querySelector('[name=experience]'),600);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'e.g. Shipped v1 at seed startup; led growth from 0→$1M ARR')}if(!en.querySelector('[name=links]')){var liWrap=liIn&&(liIn.closest('.w-input')||liIn.parentElement);var lw=document.createElement('div');lw.id='dg-links-wrap';lw.className='dg-field-wrap';lw.innerHTML='<label class="w-form-label" for="links">Links (optional)</label><input class="w-input" type="text" id="links" name="links" placeholder="GitHub, portfolio, or other links">';if(liWrap&&liWrap.parentElement)liWrap.parentElement.insertBefore(lw,liWrap.nextSibling);else{var sub=en.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(lw,sub)}}var sf=en.querySelector('[name=sf-bay]');
+if(sf&&sf.type==='checkbox'){var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var par=sf.closest('label,.w-checkbox,.dg-field-wrap')||sf.parentElement;if(par&&par.parentNode)par.parentNode.replaceChild(sw,par);else sf.replaceWith(sw);sf=sw.querySelector('[name=sf-bay]');}
+if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('div');c.className='dg-field-wrap';c.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
+else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;if(sfel.tagName==='SELECT'){/* ok */}}}
 // inject availability, salary-expect, why-startups for perfect matching
 if(!en.querySelector('[name=availability]')){var av=document.createElement('div');av.className='dg-field-wrap';av.innerHTML='<label class="w-form-label" for="availability">Availability?</label><select class="w-select" id="availability" name="availability"><option value="">Select</option><option value="now">Now</option><option value="2-4w">2-4 weeks</option><option value="passive">Passive / open</option></select>';(en.querySelector('[name=sf-bay]')||en).parentElement.appendChild(av);}
 if(!en.querySelector('[name=salary-expectation]')){var se=document.createElement('div');se.className='dg-field-wrap';se.innerHTML='<label class="w-form-label" for="salary-expectation">Comp expectation (optional)</label><input class="w-input" type="text" id="salary-expectation" name="salary-expectation" placeholder="e.g. 180-220k + equity">';en.appendChild(se);}
@@ -1193,13 +1273,15 @@ function copy(){qa(S+' h2').forEach(function(e){e.textContent=COPY.startupH2});q
 /* === HERO / CTA SURFACE — dual path pills live in contactStrip; keep sample labels honest === */
 function hero(){
   qa('.hero-section h1,.hero-title,.header h1').forEach(function(e){
-    e.innerHTML='The right people, <span class="title-accent-gold">with signal.</span>';
+    e.innerHTML='Many startups.<br><em class="dg-em">One matched reality.</em>';
   });
   qa('.hero-section p,.hero-description,.subheading,.header p').forEach(function(e){
-    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process'))return;
+    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
     var t=e.textContent||'';
     if(t.length>4&&t.length<400)e.textContent=COPY.heroSub;
   });
+  // keep frege eyebrow honest on re-run
+  var eye=q('#dg-eyebrow'); if(eye) eye.textContent=COPY.badge;
   qa('.badge-text,.hero-badge span:not(.badge-dot)').forEach(function(e){e.textContent=COPY.badge});
   // Hide noisy sample-role wall + empty-state apology; keep process + pricing
   qa('section').forEach(function(s){
@@ -1317,47 +1399,25 @@ function ensureNavTalent(parent){
   wireNavTalent(t);
   parent.appendChild(t);
 }
-/* ==== SECTION: nav (hire/talent wiring — dual CTA semantics) ==== */
+/* ==== SECTION: nav — logo only; dual path lives in hero (no top "I'm hiring") ==== */
 function nav(){
   var real=q('nav.w-nav,.w-nav');
   if(real){var inj=q('#dg-top-nav');if(inj)inj.remove();var st=q('#dg-nav-style');if(st)st.remove();document.body.style.paddingTop='';}
-  var bar=q('nav.w-nav .w-nav-menu, nav.w-nav, .w-nav, header nav, .nav_container');
-  var pickHire=function(a){if(a.closest('footer,.hero-actions,#dg-path-pills,#dg-bar'))return false;var t=(a.textContent||'').trim().split('\n')[0];return /^(GET STARTED|POST A JOB|HIRE TALENT|FIND TALENT|I'M HIRING)$/i.test(t)||a.classList.contains('is-talent')||a.id==='dg-nav-hire';};
-  var btns=qa('nav.w-nav a.button,.w-nav a.button,nav a.button,header a.button,nav a.premium-btn,header a.premium-btn');
-  var hireBtn=btns.find(pickHire)||btns[0];
-  if(hireBtn){
-    wireNavHire(hireBtn);
-    var talentBtn=btns.find(function(a){return a!==hireBtn&&(a.classList.contains('is-job')||/FIND A JOB|JOIN|LOOKING|CANDIDATE/i.test((a.textContent||'')));});
-    if(!talentBtn && btns.length>=2) talentBtn=btns.find(function(a){return a!==hireBtn;});
-    if(talentBtn) wireNavTalent(talentBtn);
-    else ensureNavTalent(hireBtn.parentElement||bar);
-    qa('nav a,header a,.w-nav a').forEach(function(x){
-      if(x===hireBtn||x===talentBtn||x.id==='dg-nav-talent') return;
-      if(x.closest('.hero-actions,#dg-path-pills,#dg-bar,.pricing-card')) return;
-      var t=(x.textContent||'').trim().split('\n')[0];
-      if(/^(FIND TALENT|HIRE TALENT|GET STARTED|POST A JOB)$/i.test(t) && x.dataset.dgCta!=='talent') {
-        x.style.setProperty('display','none','important');
-      }
-    });
-    return;
-  }
-  if(q('#dg-nav-hire')) return;
-  if(bar){
-    var a=document.createElement('a');a.id='dg-nav-hire';a.className='button on-inverse w-button';
-    wireNavHire(a); bar.appendChild(a); ensureNavTalent(bar); return;
-  }
-  if(!q('#dg-nav-style')){
-    var st2=document.createElement('style');st2.id='dg-nav-style';
-    st2.textContent='#dg-top-nav{position:fixed;top:0;left:0;right:0;z-index:999;display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.55rem 1rem;background:rgba(6,6,6,.94);border-bottom:1px solid rgba(201,168,76,.15)}#dg-top-nav .dg-logo{color:#c9a84c;font-weight:700;text-decoration:none!important;font-family:Cinzel,serif}#dg-top-nav .dg-nav-ctas{display:flex;gap:.5rem;align-items:center}#dg-top-nav a.dg-cta{font-weight:700!important;min-height:40px;display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:8px;text-decoration:none!important}#dg-top-nav a.dg-cta-hire{background:#C9A84C;color:#0A0A0A!important}#dg-top-nav a.dg-cta-talent{border:1px solid rgba(201,168,76,.55);color:#C9A84C!important}body{padding-top:3.1rem}';
-    document.head.appendChild(st2);
-  }
-  var top=document.createElement('div');top.id='dg-top-nav';
-  top.innerHTML='<a class="dg-logo" href="/">Demigod</a><div class="dg-nav-ctas"><a id="dg-nav-hire" class="dg-cta dg-cta-hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">'+COPY.navCta+'</a><a id="dg-nav-talent" class="dg-cta dg-cta-talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">'+COPY.navCtaTalent+'</a></div>';
-  document.body.prepend(top);
+  // Hide header/nav primary CTAs — hero dual-path is the only top-of-funnel CTA surface
+  qa('nav.w-nav a.button,.w-nav a.button,nav a.button,header a.button,nav a.premium-btn,header a.premium-btn,#dg-nav-hire,#dg-nav-talent,.nav_right a.button,.nav_right a.w-button').forEach(function(a){
+    if(a.closest('.hero-actions,#dg-path-pills,#dg-bar,footer,.footer,.pricing-card')) return;
+    var t=(a.textContent||'').replace(/\s+/g,' ').trim();
+    if(/i.?m hiring|i.?m looking|hire talent|find talent|get started|post a job|find a job|join network|start$/i.test(t) || a.id==='dg-nav-hire' || a.id==='dg-nav-talent' || a.getAttribute('data-dg-cta')==='hire' || a.getAttribute('data-dg-cta')==='talent'){
+      a.style.setProperty('display','none','important');
+      a.setAttribute('aria-hidden','true');
+      a.setAttribute('tabindex','-1');
+    }
+  });
+  var navCtas=q('#dg-top-nav .dg-nav-ctas'); if(navCtas) navCtas.style.setProperty('display','none','important');
 }
 function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="I\'m looking — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
-function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
+function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function footerDecisionLinks(){/* v564: keep footer lean — no extra decision links */}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
 function hide(f){try{detachTrap(true)}catch(e){}[S,J].forEach(function(id){if(!f&&OPEN===id)return;var m=q(id);if(m){m.style.display='none';m.setAttribute('aria-hidden','true');try{m.inert=true}catch(e){m.setAttribute('inert','')}}}); if(document.body){ var prev = document.body.dataset.prevOverflow || ''; var sy = parseInt(document.body.dataset.prevScrollY || '0', 10); document.body.style.overflow = prev; document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = ''; delete document.body.dataset.prevOverflow; delete document.body.dataset.prevScrollY; try { window.scrollTo(0, sy); } catch(e){} } if(document.documentElement) document.documentElement.style.overflow=''; try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){} }
@@ -1365,7 +1425,44 @@ var busy=false,tmr=null,OBS=null,LAST_FOCUS=null,TRAP_H=null;
 function focusables(root){if(!root)return[];return qa('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',root).filter(function(el){try{var s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&!el.disabled}catch(e){return true}})}
 function attachTrap(m){detachTrap(false);LAST_FOCUS=document.activeElement;TRAP_H=function(e){if(e.key!=='Tab'||!OPEN)return;var modal=q(OPEN);if(!modal)return;var list=focusables(modal);if(!list.length){e.preventDefault();return}var first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();try{last.focus()}catch(_){}}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();try{first.focus()}catch(_){}}else if(!modal.contains(document.activeElement)){e.preventDefault();try{first.focus()}catch(_){}}};document.addEventListener('keydown',TRAP_H,true)}
 function detachTrap(restore){if(TRAP_H){document.removeEventListener('keydown',TRAP_H,true);TRAP_H=null}if(restore!==false&&LAST_FOCUS&&LAST_FOCUS.focus){try{LAST_FOCUS.focus()}catch(e){}}LAST_FOCUS=null}
-function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent='#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{font-size:16px!important;min-height:48px;line-height:1.35}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{min-height:48px!important;padding:12px 16px!important;touch-action:manipulation;border-radius:10px!important}#startup-modal .dg-wiz-next:focus-visible,#startup-modal .dg-wiz-back:focus-visible,#jobseeker-modal .dg-wiz-next:focus-visible,#jobseeker-modal .dg-wiz-back:focus-visible{outline:2px solid #C9A84C!important;outline-offset:2px!important}#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{position:sticky;top:0;z-index:5;background:rgba(10,10,10,.96);padding:.5rem 0 .35rem;backdrop-filter:blur(6px)}#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{display:inline-flex;align-items:center;gap:.38rem;min-height:28px;padding:.2rem .6rem .2rem .24rem;border:1px solid rgba(201,168,76,.24);border-radius:999px;background:rgba(201,168,76,.07);color:#E8D5A3;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{display:inline-grid;place-items:center;min-width:1.65rem;min-height:1.65rem;border-radius:50%;background:#C9A84C;color:#0A0A0A;font-size:.78rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(232,213,163,.32)}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:7px;background:rgba(168,162,158,.16);border:1px solid rgba(201,168,76,.12);border-radius:999px;overflow:hidden;margin:.65rem 0 .75rem;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{position:relative;display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#B88C2D,#E8D5A3);box-shadow:0 0 12px rgba(201,168,76,.3);transition:width .25s ease}#startup-modal .dg-wiz-bar i:after,#jobseeker-modal .dg-wiz-bar i:after{content:"";position:absolute;right:0;top:50%;width:6px;height:6px;border-radius:50%;background:#F5F0E6;box-shadow:0 0 8px rgba(245,240,230,.75);transform:translate(0,-50%)}#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-size:1.15rem;font-weight:600;color:#F5F0E6;margin:.35rem 0}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.85rem;color:#A8A29E;margin:0 0 .5rem;line-height:1.4}@media(max-width:767px){#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column!important;gap:8px!important;display:flex!important}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important}#startup-modal,#jobseeker-modal{padding-bottom:env(safe-area-inset-bottom,0)}#dg-bar a{min-height:48px;display:flex;align-items:center;justify-content:center}}@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}}#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{border:1px solid rgba(201,168,76,.28);border-radius:12px;padding:.75rem .9rem;margin:.5rem 0 .75rem;background:rgba(14,14,18,.92);max-height:40vh;overflow:auto;box-shadow:inset 0 0 0 1px rgba(201,168,76,.08)}#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{color:#C9A84C;font-size:.85rem;margin:0 0 .5rem;letter-spacing:.04em;text-transform:uppercase}#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt{color:#A8A29E;font-size:.72rem;margin-top:.4rem}#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd{color:#F5F0E6;font-size:.9rem;margin:0 0 .15rem;line-height:1.4}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{box-shadow:0 0 0 1px rgba(201,168,76,.3),0 6px 20px rgba(0,0,0,.35)}#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{background:rgba(20,20,24,.85)!important;border:1px solid rgba(201,168,76,.3)!important;color:#F5F0E6!important;border-radius:8px!important}#startup-modal input::placeholder,#startup-modal textarea::placeholder,#jobseeker-modal input::placeholder,#jobseeker-modal textarea::placeholder{color:#7A756D!important}#startup-modal input[type=checkbox],#startup-modal input[type=radio],#jobseeker-modal input[type=checkbox],#jobseeker-modal input[type=radio]{accent-color:#C9A84C}';document.head.appendChild(s)}
+function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style');s.id='dg-wiz-css';s.textContent=
+/* v597 frege-night WIZ — phosphor, serif Q, clean motion, no draft-save chrome */
+"#startup-modal,#jobseeker-modal{--wiz-night:#03140d;--wiz-deep:#06271a;--wiz-field:#075f3a;--wiz-phosphor:#a6ffcb;--wiz-paper:#f3f0e7;--wiz-mute:#bdc9bf;--wiz-rule:rgba(166,255,203,.28);--wiz-serif:Georgia,'Iowan Old Style','Times New Roman',serif;--wiz-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--wiz-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}"
++"#startup-modal,#jobseeker-modal{background:rgba(3,20,13,.9)!important;backdrop-filter:blur(12px);align-items:center;justify-content:center}"
++"#startup-modal .modal-content,#jobseeker-modal .modal-content,#startup-modal .w-form,#jobseeker-modal .w-form,#startup-modal form,#jobseeker-modal form{background:var(--wiz-deep)!important;border:1px solid var(--wiz-rule)!important;border-radius:6px!important;color:var(--wiz-paper)!important;box-shadow:0 24px 64px rgba(0,0,0,.45)!important;max-width:min(34rem,calc(100vw - 1.5rem))!important}"
++"#startup-modal .modal-close-btn,#jobseeker-modal .modal-close-btn{color:var(--wiz-phosphor)!important;border-color:var(--wiz-rule)!important;background:transparent!important;border-radius:4px!important}"
++"#startup-modal .dg-wiz-save,#jobseeker-modal .dg-wiz-save,#startup-modal .dg-wiz-save-opt,#jobseeker-modal .dg-wiz-save-opt{display:none!important}"
++"#startup-modal input:not([type=checkbox]):not([type=radio]),#startup-modal select,#startup-modal textarea,#jobseeker-modal input:not([type=checkbox]):not([type=radio]),#jobseeker-modal select,#jobseeker-modal textarea{font-size:16px!important;min-height:48px;line-height:1.4;font-family:var(--wiz-sans)!important;background:var(--wiz-night)!important;border:1px solid var(--wiz-rule)!important;color:var(--wiz-paper)!important;border-radius:4px!important;padding:.7rem .85rem!important;transition:border-color .2s ease,box-shadow .25s ease!important}"
++"#startup-modal input:focus-visible,#startup-modal select:focus-visible,#startup-modal textarea:focus-visible,#jobseeker-modal input:focus-visible,#jobseeker-modal select:focus-visible,#jobseeker-modal textarea:focus-visible{outline:2px solid var(--wiz-phosphor)!important;outline-offset:2px!important;border-color:var(--wiz-phosphor)!important;box-shadow:0 0 0 3px rgba(16,198,116,.15)!important}"
++"#startup-modal input::placeholder,#startup-modal textarea::placeholder,#jobseeker-modal input::placeholder,#jobseeker-modal textarea::placeholder{color:rgba(189,201,191,.45)!important}"
++"#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{position:sticky;top:0;z-index:5;background:rgba(6,39,26,.96);padding:.65rem 0 .4rem;backdrop-filter:blur(8px);border-bottom:1px solid transparent}"
++"#startup-modal .dg-wiz-count,#jobseeker-modal .dg-wiz-count{display:inline-flex;align-items:center;gap:.4rem;min-height:28px;padding:.15rem .55rem;border:1px solid var(--wiz-rule);border-radius:4px;background:rgba(8,160,93,.12);color:var(--wiz-phosphor);font-size:.68rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase;font-family:var(--wiz-mono)}"
++"#startup-modal .dg-wiz-count .dg-cur,#jobseeker-modal .dg-wiz-count .dg-cur{font-variant-numeric:tabular-nums;color:var(--wiz-paper);letter-spacing:.04em;text-transform:none;font-size:.78rem}"
++"#startup-modal .dg-wiz-progress-label,#jobseeker-modal .dg-wiz-progress-label{opacity:.75}"
++"#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{height:3px;background:rgba(166,255,203,.1);border:0;border-radius:2px;overflow:hidden;margin:.75rem 0 .9rem}"
++"#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#08a05d,#a6ffcb);box-shadow:0 0 12px rgba(16,198,116,.35);transition:width .35s cubic-bezier(.2,.7,.2,1)}"
++"#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--wiz-serif)!important;font-size:clamp(1.2rem,3.2vw,1.45rem)!important;font-weight:430!important;color:var(--wiz-paper)!important;margin:.45rem 0 .35rem!important;line-height:1.25;letter-spacing:-.02em}"
++"#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-family:var(--wiz-sans)!important;font-size:.88rem!important;color:var(--wiz-mute)!important;margin:0 0 .75rem!important;line-height:1.45}"
++"#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{display:flex!important;gap:.65rem;margin-top:1.1rem;align-items:stretch}"
++"#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{min-height:48px!important;padding:12px 18px!important;touch-action:manipulation;border-radius:4px!important;font-family:var(--wiz-mono)!important;font-weight:650!important;font-size:.88rem!important;letter-spacing:.04em;cursor:pointer;transition:transform .2s ease,box-shadow .25s ease,border-color .2s ease,background .2s ease!important}"
++"#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{background:rgba(8,160,93,.4)!important;color:var(--wiz-phosphor)!important;border:1px solid rgba(166,255,203,.45)!important;box-shadow:0 0 0 0 rgba(166,255,203,0)}"
++"#startup-modal .dg-wiz-next:hover,#jobseeker-modal .dg-wiz-next:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(16,198,116,.2)!important;border-color:var(--wiz-phosphor)!important}"
++"#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-back{background:transparent!important;color:var(--wiz-paper)!important;border:1px solid var(--wiz-rule)!important}"
++"#startup-modal .dg-wiz-back:hover,#jobseeker-modal .dg-wiz-back:hover{border-color:var(--wiz-phosphor)!important}"
++"#startup-modal .dg-wiz-next:focus-visible,#startup-modal .dg-wiz-back:focus-visible,#jobseeker-modal .dg-wiz-next:focus-visible,#jobseeker-modal .dg-wiz-back:focus-visible{outline:2px solid var(--wiz-phosphor)!important;outline-offset:3px!important}"
++"#startup-modal .dg-wiz-review,#jobseeker-modal .dg-wiz-review{border:1px solid var(--wiz-rule);border-radius:4px;padding:.85rem 1rem;margin:.55rem 0 .8rem;background:rgba(3,20,13,.65);max-height:40vh;overflow:auto}"
++"#startup-modal .dg-wiz-review h3,#jobseeker-modal .dg-wiz-review h3{color:var(--wiz-phosphor);font-size:.72rem;margin:0 0 .5rem;letter-spacing:.12em;text-transform:uppercase;font-family:var(--wiz-mono)}"
++"#startup-modal .dg-wiz-review dt,#jobseeker-modal .dg-wiz-review dt{color:var(--wiz-mute);font-size:.72rem;margin-top:.45rem;font-family:var(--wiz-mono)}"
++"#startup-modal .dg-wiz-review dd,#jobseeker-modal .dg-wiz-review dd{color:var(--wiz-paper);font-size:.92rem;margin:0 0 .12rem;line-height:1.4}"
++"#startup-modal input[type=checkbox],#startup-modal input[type=radio],#jobseeker-modal input[type=checkbox],#jobseeker-modal input[type=radio]{accent-color:#10c674}"
++"#startup-modal .dg-file-honest,#jobseeker-modal .dg-file-honest{color:var(--wiz-mute)!important;font-size:.8rem!important}"
++"#startup-modal .dg-wiz-err,#jobseeker-modal .dg-wiz-err{color:#ffb4a2;font-size:.82rem;margin:.35rem 0 .5rem;font-family:var(--wiz-sans)}"
++"#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show{animation:dgWizIn .28s cubic-bezier(.2,.7,.2,1) both}"
++"#startup-modal .dg-wiz-q.dg-wiz-tick,#jobseeker-modal .dg-wiz-q.dg-wiz-tick,#startup-modal .dg-wiz-hint.dg-wiz-tick,#jobseeker-modal .dg-wiz-hint.dg-wiz-tick{animation:dgWizIn .3s cubic-bezier(.2,.7,.2,1) both}"
++"@keyframes dgWizIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}"
++"@media(max-width:767px){#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{flex-direction:column!important}#startup-modal .dg-wiz-next,#startup-modal .dg-wiz-back,#jobseeker-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-back{width:100%!important}#startup-modal,#jobseeker-modal{padding-bottom:env(safe-area-inset-bottom,0)}}"
++"@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-bar i,#jobseeker-modal .dg-wiz-bar i{transition:none}#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show,#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q,#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint,#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next{animation:none!important;transition:none!important;transform:none!important}}"
+;document.head.appendChild(s)}
 
 function fileUploadHonest(){qa('#startup-modal input[type=file],#jobseeker-modal input[type=file],form input[type=file]').forEach(function(fi){if(fi.dataset.dgFileHonest)return;fi.dataset.dgFileHonest='1';var wrap=fi.closest('.dg-field-wrap,.w-file-upload,div')||fi.parentElement;var hint=document.createElement('p');hint.className='dg-file-honest';hint.style.cssText='color:#A8A29E;font-size:.8rem;margin:.35rem 0';hint.textContent='Tip: paste a Drive/Dropbox link if upload is flaky, or email the file to potter@trydemigod.com.';var link=document.createElement('input');link.type='url';link.className='w-input';link.name=(fi.name||'file')+'-url';link.placeholder='https://… link to file (optional)';if(wrap){wrap.appendChild(hint);wrap.appendChild(link);}var form=fi.closest('form');if(form&&!form.dataset.dgFileVal){form.dataset.dgFileVal='1';form.addEventListener('submit',function(){try{var files=[].slice.call(form.querySelectorAll('input[type=file]'));var urls=[].slice.call(form.querySelectorAll('input[type=url][name$="-url"]'));var hasFile=files.some(function(x){return x.files&&x.files.length});var hasUrl=urls.some(function(x){return (x.value||'').trim().length>8});if(!hasFile&&!hasUrl){/* optional files — allow submit; surface tip only */}else if(!hasFile&&hasUrl){/* ok */} }catch(e){}});}});}
 
@@ -1389,14 +1486,20 @@ function cta(){/*dg-cta-prefetch*/
     var hire = kind === 'startup';
     var label = hire ? COPY.ctaFounder : COPY.ctaEngineer;
     try {
-      var span = a.querySelector('.btn-label,.button_label');
+      var span = a.querySelector('.btn-label,.button_label,.dg-cta-label');
       if (span) {
         span.textContent = label;
         Array.prototype.forEach.call(a.childNodes, function(n){
           if (n.nodeType === 3 && String(n.textContent || '').trim()) n.textContent = '';
         });
-      } else {
+      } else if (!a.querySelector('.dg-cta-hint')) {
         a.textContent = label;
+      } else {
+        // structured card without label span — inject label
+        var lab = document.createElement('span');
+        lab.className = 'dg-cta-label';
+        lab.textContent = label;
+        a.insertBefore(lab, a.firstChild);
       }
     } catch (e) { try { a.textContent = label; } catch (_) {} }
     a.setAttribute('href', hire ? '/?wiz=startup' : '/?wiz=engineer');
@@ -1405,23 +1508,22 @@ function cta(){/*dg-cta-prefetch*/
     a.setAttribute('aria-label', hire ? "I'm hiring — open startup brief" : "I'm looking — open talent profile");
     a.classList.toggle('is-talent', hire);
     a.classList.toggle('is-job', !hire);
+    // never let a talent card keep is-talent (Webflow class collision)
+    if (!hire) { a.classList.remove('is-talent'); a.classList.add('is-job'); }
+    else { a.classList.add('is-talent'); a.classList.remove('is-job'); }
   }
-  qa('a.premium-btn.is-talent,a.is-talent.premium-btn,a.is-talent').forEach(function(a){ wireCta(a, 'startup'); });
-  qa('a.premium-btn.is-job,a.is-job.premium-btn,a.is-job').forEach(function(a){ wireCta(a, 'engineer'); });
-  var heroPair = qa('.hero-actions a.premium-btn,.hero-actions a.button,.hero-section .hero-actions a,.hero-content-left a.premium-btn,.hero-content-left a.button');
-  if (heroPair.length >= 2) {
-    wireCta(heroPair[0], 'startup');
-    wireCta(heroPair[1], 'engineer');
-  } else if (heroPair.length === 1) {
-    wireCta(heroPair[0], 'startup');
-  }
-  var heroAll = qa('.hero-section a.premium-btn, header a.premium-btn, .header a.premium-btn');
-  if (heroAll.length >= 2) {
-    wireCta(heroAll[0], 'startup');
-    wireCta(heroAll[1], 'engineer');
-  }
+  qa('a.premium-btn.is-talent,a.is-talent.premium-btn,a.is-talent').forEach(function(a){
+    if(a.closest('#dg-bar,nav,header,.hero-actions')) return;
+    if(a.getAttribute('data-dg-cta')==='talent'||a.classList.contains('is-job')) return;
+    wireCta(a, 'startup');
+  });
+  qa('a.premium-btn.is-job,a.is-job.premium-btn,a.is-job').forEach(function(a){
+    if(a.closest('.hero-actions')) return; // dual owns hero pair
+    if(a.closest('nav,header')&&!a.closest('#dg-bar')) return;
+    wireCta(a, 'engineer');
+  });
   qa('a,button').forEach(function(a){
-    if (a.closest('#startup-modal,#jobseeker-modal,footer,#dg-faq')) return;
+    if (a.closest('#startup-modal,#jobseeker-modal,footer,#dg-faq,.hero-actions')) return;
     if (a.getAttribute('data-dg-cta')) return;
     if (a.closest('#dg-path-pills,#dg-bar')) return;
     if (a.classList.contains('is-job')) { wireCta(a, 'engineer'); return; }
@@ -1440,100 +1542,273 @@ function cta(){/*dg-cta-prefetch*/
   qa('#dg-path-pills a[data-demigod-modal=startup],#dg-path-pills a.dg-path-hire').forEach(function(a){ wireCta(a, 'startup'); });
   qa('#dg-path-pills a[data-demigod-modal=jobseeker],#dg-path-pills a.dg-path-talent').forEach(function(a){ wireCta(a, 'engineer'); });
   qa('.pricing-card a, .pricing-grid a, [class*=pricing] a.premium-btn, [class*=pricing] a.button').forEach(function(a){
-    if (a.closest('#startup-modal,#jobseeker-modal')) return;
+    if (a.closest('#startup-modal,#jobseeker-modal,.hero-actions')) return;
     wireCta(a, 'startup');
   });
+  // dual path LAST — hard rebuild so no later wireCta can collapse looking→hire
+  (function ensureHeroDual(){
+    var host = q('.hero-actions');
+    if (!host) {
+      var left = q('.hero-content-left') || q('.hero-container') || q('.hero-section');
+      if (!left) return;
+      host = document.createElement('div');
+      host.className = 'hero-actions dg-path-pair';
+      host.id = 'dg-hero-actions';
+      left.appendChild(host);
+    }
+    host.classList.add('dg-path-pair');
+    host.id = host.id || 'dg-hero-actions';
+    // always rebuild — cheap, prevents thrash/overwrite races
+    host.innerHTML = '';
+    function mk(kind){
+      var a = document.createElement('a');
+      a.className = 'premium-btn w-button ' + (kind==='hire' ? 'is-talent' : 'is-job');
+      a.setAttribute('data-dg-cta', kind);
+      a.setAttribute('data-demigod-modal', kind==='hire' ? 'startup' : 'jobseeker');
+      a.setAttribute('href', kind==='hire' ? '/?wiz=startup' : '/?wiz=engineer');
+      a.setAttribute('aria-label', kind==='hire' ? "I'm hiring — open startup brief" : "I'm looking — open talent profile");
+      a.dataset.dgHinted = '1';
+      a.innerHTML =
+        '<span class="dg-cta-label">' + (kind==='hire' ? COPY.ctaFounder : COPY.ctaEngineer) + '</span>' +
+        '<span class="dg-cta-hint">' + (kind==='hire' ? COPY.ctaHireHint : COPY.ctaTalentHint) + '</span>';
+      a.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important';
+      var w = document.createElement('div');
+      w.className = 'dg-cta-wrap dg-in';
+      w.style.cssText = 'display:block!important;opacity:1!important';
+      w.appendChild(a);
+      host.appendChild(w);
+      return a;
+    }
+    mk('hire');
+    mk('talent');
+    host.dataset.dgDual = '1';
+  })();
 }
-/* dual-path nudge: hint under each hero CTA + one-line chooser under the pair */
+/* dual-path: equal cards with hint inside — no broken flex wraps */
 function ctaHints(){
   var host=q('.hero-actions');
   if(!host)return;
+  host.classList.add('dg-path-pair');
+  // dual path already structured in cta() ensureHeroDual — only fill unhinted leftovers
+  if(host.dataset.dgDual==='1'){
+    var nudge0=q('#dg-path-nudge'); if(nudge0) nudge0.remove();
+    return;
+  }
   qa('a[data-dg-cta]',host).forEach(function(a){
     if(a.dataset.dgHinted)return;
     a.dataset.dgHinted='1';
-    var wrap=document.createElement('span');
+    var wrap=document.createElement('div');
     wrap.className='dg-cta-wrap';
     a.parentNode.insertBefore(wrap,a);
     wrap.appendChild(a);
-    var hint=document.createElement('small');
-    hint.className='dg-cta-hint';
-    hint.textContent=a.getAttribute('data-dg-cta')==='hire'?COPY.ctaHireHint:COPY.ctaTalentHint;
-    wrap.appendChild(hint);
+    var kind=a.getAttribute('data-dg-cta');
+    var label=kind==='hire'?COPY.ctaFounder:COPY.ctaEngineer;
+    var hint=kind==='hire'?COPY.ctaHireHint:COPY.ctaTalentHint;
+    a.innerHTML='<span class="dg-cta-label">'+label+'</span><span class="dg-cta-hint">'+hint+'</span>';
   });
-  if(!q('#dg-path-nudge')){
-    var nudge=document.createElement('p');
-    nudge.id='dg-path-nudge';
-    nudge.textContent='Choose one path — opens the right form.';
-    host.parentNode.insertBefore(nudge,host.nextSibling);
+  var nudge=q('#dg-path-nudge'); if(nudge) nudge.remove();
+}
+
+
+/* Night institutional hero art + scroll motion (Frege-inspired) */
+/* Art: permanent jsDelivr frege hero/aperture (re-encoded ~q80 for mobile LCP). Grain pure CSS. */
+var DG_ART={
+  hero:'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg',
+  aperture:'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-aperture.jpg'
+};
+function injectNightHero(){
+  var hero=q('.hero-section')||q('.header')||q('main')||document.body;
+  if(!hero||q('#dg-night-stage'))return;
+  var stage=document.createElement('div');
+  stage.id='dg-night-stage';
+  stage.setAttribute('aria-hidden','true');
+  stage.innerHTML=
+    '<div class="dg-grain"></div>'+
+    '<div class="dg-stars"></div>'+
+    '<div class="dg-art-panel">'+
+      '<img class="dg-art-img" src="'+DG_ART.hero+'" alt="" width="1280" height="720" decoding="async" fetchpriority="high"/>'+
+      '<div class="dg-art-caption">SIGNAL / ONE FIT · MANY PRESENTATIONS</div>'+
+    '</div>';
+  // put stage inside hero as first decorative layer
+  if(hero.firstChild) hero.insertBefore(stage, hero.firstChild);
+  else hero.appendChild(stage);
+  // eyebrow inject
+  if(!q('#dg-eyebrow')){
+    var left=q('.hero-content-left')||q('.hero-container')||q('.hero-section');
+    if(left){
+      var eye=document.createElement('p');
+      eye.id='dg-eyebrow';
+      eye.className='dg-eyebrow dg-reveal';
+      eye.textContent=COPY.badge;
+      var h1=left.querySelector('h1,.hero-title');
+      if(h1) left.insertBefore(eye,h1);
+      else left.prepend(eye);
+    }
+  }
+  // capability strip under trust line
+  if(!q('#dg-cap-strip')){
+    var host=q('.hero-actions')||q('.hero-content-left')||q('.hero-section');
+    if(host){
+      var cap=document.createElement('div');
+      cap.id='dg-cap-strip';
+      cap.className='dg-cap-strip dg-reveal';
+      cap.innerHTML=
+        '<div><span class="k">Interface</span><span class="v">WIZ · dual path</span></div>'+
+        '<div><span class="k">Control</span><span class="v">Tech rank · human review</span></div>'+
+        '<div><span class="k">Intro</span><span class="v">Mutual only</span></div>';
+      var chips=q('#dg-hero-chips');
+      if(chips&&chips.parentNode) chips.parentNode.insertBefore(cap, chips.nextSibling);
+      else host.appendChild(cap);
+    }
+  }
+  // aperture art near process section
+  var trust=q('.trust-section,section:has(.steps-grid)');
+  if(trust&&!q('#dg-aperture')){
+    var ap=document.createElement('figure');
+    ap.id='dg-aperture';
+    ap.className='dg-aperture dg-reveal';
+    ap.innerHTML='<img src="'+DG_ART.aperture+'" alt="Scoped passage — ranked fit into human review" width="1440" height="900" loading="lazy" decoding="async"/><figcaption>SCOPED PASSAGE / RANK → REVIEW → MUTUAL YES</figcaption>';
+    trust.insertBefore(ap, trust.firstChild);
+  }
+}
+function ensureMotion(){
+  if(document.documentElement.dataset.dgMotion==='1')return;
+  document.documentElement.dataset.dgMotion='1';
+  // pure CSS motion primarily; IO for reveal class (marker is data attr, not empty script)
+  try{
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    if(reduce){document.documentElement.classList.add('dg-reduce');return;}
+    document.documentElement.classList.add('dg-motion');
+    var io=new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if(en.isIntersecting){en.target.classList.add('dg-in');io.unobserve(en.target);}
+      });
+    },{threshold:0.08,rootMargin:'0px 0px -4% 0px'});
+    qa('.dg-reveal,.step-card,.pricing-card,.hero-actions .dg-cta-wrap,#dg-eyebrow,#dg-cap-strip,#dg-aperture,h1.hero-title,.hero-section h1').forEach(function(el){
+      el.classList.add('dg-reveal');
+      io.observe(el);
+    });
+    // hero above-fold: force visible quickly so dual CTAs never stay opacity:0
+    qa('.hero-section h1,.hero-actions .dg-cta-wrap,#dg-eyebrow').forEach(function(el){
+      el.classList.add('dg-in');
+    });
+    // staggered delay
+    qa('.hero-actions .dg-cta-wrap').forEach(function(el,i){el.style.setProperty('--d',(i*90)+'ms');});
+    qa('.step-card').forEach(function(el,i){el.style.setProperty('--d',(i*110)+'ms');});
+  }catch(e){
+    try{document.documentElement.classList.add('dg-motion');qa('.dg-reveal').forEach(function(el){el.classList.add('dg-in');});}catch(_){}
   }
 }
 
 function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElement('style');s.id='dg-brand-assets';s.textContent=
-/* v571 Operator Calm — warm paper, cobalt dual path, drop gold-recruiter night */
-"html,body{background:#F7F4EF!important;color:#141414!important}"
+/* v593 Frege-night — Fable polish: serif/sans hierarchy, CSS grain, section air */
+":root{--dg-night:#03140d;--dg-deep:#06271a;--dg-field:#075f3a;--dg-green:#08a05d;--dg-signal:#10c674;--dg-phosphor:#a6ffcb;--dg-paper:#f3f0e7;--dg-paper-mute:#bdc9bf;--dg-ink:#071d13;--dg-rule:rgba(166,255,203,.28);--dg-rule-paper:rgba(3,20,13,.2);--dg-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--dg-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;--dg-serif:Georgia,'Iowan Old Style','Times New Roman',serif}"
++"html,body{background:var(--dg-night)!important;color:var(--dg-paper)!important;font-family:var(--dg-sans)!important}"
+/* static CSS grain — no remote litter fuse, no infinite composite thrash (Fable #3) */
++"body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9997;opacity:.055;background-image:radial-gradient(rgba(166,255,203,.11) .6px,transparent .6px),radial-gradient(rgba(243,240,231,.05) .5px,transparent .5px);background-size:3px 3px,5px 5px;background-position:0 0,1px 2px;mix-blend-mode:screen}"
++"@keyframes dgGrain{0%,100%{transform:translate(0,0)}25%{transform:translate(-1%,1%)}50%{transform:translate(1%,-1%)}75%{transform:translate(-1%,-1%)}}"
++"@keyframes dgFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}"
++"@keyframes dgPulse{0%,100%{opacity:.55;filter:drop-shadow(0 0 0 transparent)}50%{opacity:1;filter:drop-shadow(0 0 10px rgba(166,255,203,.55))}}"
++"@keyframes dgStar{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}"
++"@keyframes dgFadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}"
++"@keyframes dgShimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}"
++"@keyframes dgBorderGlow{0%,100%{box-shadow:0 0 0 0 rgba(166,255,203,0)}50%{box-shadow:0 0 24px 0 rgba(16,198,116,.25)}}"
 +".nav_container,.nav_left,.nav_right{background:transparent!important}"
-+".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(10px);background:rgba(247,244,239,.9)!important;border-bottom:1px solid #e4ddd3!important}"
-+".nav_logo .paragraph_large,[data-brand-name]{color:#141414!important;font-weight:700!important;letter-spacing:.02em}"
-+".nav_logo-icon{color:#1F4B99!important}"
-+".hero-section,.header{background:#F7F4EF!important;background-image:none!important;min-height:auto!important;display:flex!important;align-items:flex-start!important;padding:clamp(2.5rem,8vh,4.5rem) 1.25rem 2.75rem!important;border-bottom:1px solid #e4ddd3!important}"
++".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(12px);background:rgba(3,20,13,.88)!important;border-bottom:1px solid var(--dg-rule)!important}"
++".nav_logo .paragraph_large,[data-brand-name]{color:var(--dg-paper)!important;font-weight:700!important;letter-spacing:.14em!important;text-transform:uppercase!important;font-size:.78rem!important}"
++".nav_logo-icon{color:var(--dg-phosphor)!important;animation:dgPulse 3.2s ease-in-out infinite}"
++"#dg-nav-hire,#dg-nav-talent,#dg-top-nav .dg-nav-ctas,header a.button,header a.premium-btn,nav.w-nav a.button,nav.w-nav a.premium-btn,.nav_right a.button,.nav_right a.w-button,.nav_container a.button.on-inverse{display:none!important}"
++"#dg-bar a.button,#dg-bar a{display:flex!important}"
+/* hero night stage */
++".hero-section,.header{position:relative!important;overflow:hidden!important;background:radial-gradient(120% 90% at 80% 20%,rgba(8,160,93,.22),transparent 55%),linear-gradient(180deg,#06271a 0%,#03140d 70%)!important;background-image:none!important;min-height:min(790px,calc(100svh - 56px))!important;display:flex!important;align-items:stretch!important;padding:clamp(2.5rem,7vh,5rem) 1.25rem 3rem!important;border-bottom:1px solid var(--dg-rule)!important}"
++"#dg-night-stage{position:absolute;inset:0;z-index:0;pointer-events:none}"
++"#dg-night-stage .dg-grain{position:absolute;inset:0;opacity:.28;background-image:radial-gradient(rgba(166,255,203,.18) .7px,transparent .7px);background-size:4px 4px;mix-blend-mode:soft-light;animation:dgGrain 18s steps(6) infinite}"
++"#dg-night-stage .dg-stars{position:absolute;inset:-20%;background:radial-gradient(1px 1px at 20% 30%,var(--dg-phosphor),transparent),radial-gradient(1px 1px at 70% 20%,rgba(166,255,203,.7),transparent),radial-gradient(1.5px 1.5px at 40% 70%,rgba(16,198,116,.8),transparent),radial-gradient(1px 1px at 85% 60%,var(--dg-phosphor),transparent);opacity:.45;animation:dgStar 80s linear infinite}"
++"#dg-night-stage .dg-art-panel{position:absolute;right:clamp(0px,4vw,48px);top:50%;transform:translateY(-50%);width:min(48vw,560px);aspect-ratio:4/3;border:1px solid var(--dg-rule);overflow:hidden;animation:dgFloat 7s ease-in-out infinite,dgBorderGlow 4.5s ease-in-out infinite}"
++"#dg-night-stage .dg-art-img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85) contrast(1.05);opacity:.92}"
++"#dg-night-stage .dg-art-caption{position:absolute;left:0;right:0;bottom:0;padding:.45rem .7rem;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dg-phosphor);background:linear-gradient(transparent,rgba(3,20,13,.92));font-family:var(--dg-mono)}"
++"@media(max-width:900px){#dg-night-stage .dg-art-panel{position:absolute;inset:auto 0 0 0;width:100%;height:42%;top:auto;transform:none;opacity:.35;animation:none;border:0;border-top:1px solid var(--dg-rule)}#dg-night-stage .dg-art-caption{display:none}}"
 +".hero-grid-background,.grid-col-line,.hero-content-right,.statue-frame,.statue-svg,.statue-wrapper{display:none!important}"
-+".hero-container,.hero-content-left{max-width:40rem!important;margin:0!important;width:100%!important}"
-+".hero-section h1,.header h1,.hero-title{text-shadow:none!important;letter-spacing:-.03em;max-width:14ch!important;font-size:clamp(2.4rem,7vw,3.9rem)!important;font-weight:700!important;line-height:1.02!important;margin:.4rem 0 .9rem!important;color:#141414!important;animation:none!important}"
-+".title-accent-gold{color:#1F4B99!important}.title-accent-cream,.title-accent-red,.title-accent-blue{color:#141414!important;display:inline}"
-+".hero-section p,.header p,.subheading,.hero-description{max-width:36ch!important;font-size:1.1rem!important;line-height:1.55!important;color:#5c574f!important;margin:0 0 1.1rem!important;animation:none!important}"
-+".hero-badge,.badge-text{display:inline-flex!important;align-items:center!important;gap:.4rem!important;color:#5c574f!important;font-size:.7rem!important;font-weight:600!important;letter-spacing:.14em!important;text-transform:uppercase!important;border:1px solid #e4ddd3!important;border-radius:999px!important;padding:.28rem .7rem!important;background:#fff!important;min-height:auto!important}"
-+".badge-dot{width:6px!important;height:6px!important;border-radius:50%!important;background:#1F4B99!important;box-shadow:none!important}"
-+"#dg-hero-chips,.dg-trust-line{display:block!important;margin:0 0 1.25rem!important;color:#5c574f!important;font-size:.92rem!important;letter-spacing:.01em;animation:none!important}"
-+"#dg-hero-chips .dg-chip{display:none!important}"
-+".hero-actions{display:flex!important;flex-wrap:wrap!important;gap:.75rem!important;align-items:stretch!important;margin-top:.15rem;animation:none!important}"
-+".hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,#dg-bar a.dg-h,#dg-bar a.dg-j,#dg-nav-hire,#dg-nav-talent,a.premium-btn[data-dg-cta],a.button[data-dg-cta]{box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:52px!important;padding:.85rem 1.35rem!important;border-radius:14px!important;font-weight:650!important;font-size:.95rem!important;line-height:1.2!important;letter-spacing:.01em;text-decoration:none!important;white-space:nowrap!important;cursor:pointer!important;transition:background .15s ease,border-color .15s ease,color .15s ease;box-shadow:none!important;transform:none!important;filter:none!important}"
-+".hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent,#dg-bar a.dg-h,#dg-nav-hire,a[data-dg-cta=hire],.button.on-inverse{background:#1F4B99!important;color:#fff!important;border:1px solid #1F4B99!important}"
-+".hero-actions a[data-dg-cta=hire]:hover,#dg-nav-hire:hover,a[data-dg-cta=hire]:hover{background:#163a7a!important}"
-+".hero-actions a[data-dg-cta=talent],.hero-actions a.is-job,#dg-bar a.dg-j,#dg-nav-talent,a[data-dg-cta=talent]{background:#fff!important;color:#141414!important;border:1px solid #e4ddd3!important}"
-+".hero-actions a[data-dg-cta=talent]:hover,a[data-dg-cta=talent]:hover{border-color:#1F4B99!important;color:#1F4B99!important}"
-+".hero-actions a .btn-label,.hero-actions a .button_label,.hero-actions a .btn-arrow,.hero-actions a svg{display:inline!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;color:inherit!important;font:inherit!important;opacity:1!important}"
++".hero-container,.hero-content-left{position:relative;z-index:2;max-width:min(42rem,52vw)!important;margin:0!important;width:100%!important}"
++"@media(max-width:900px){.hero-container,.hero-content-left{max-width:100%!important}}"
++".dg-eyebrow,#dg-eyebrow{font-family:var(--dg-mono)!important;font-size:.72rem!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--dg-signal)!important;margin:0 0 1.1rem!important;opacity:.9}"
++".hero-section h1,.header h1,.hero-title{position:relative;z-index:2;text-shadow:none!important;letter-spacing:-.035em!important;max-width:14ch!important;font-family:var(--dg-serif)!important;font-size:clamp(2.8rem,7.2vw,4.6rem)!important;font-weight:430!important;line-height:.98!important;margin:.2rem 0 1rem!important;color:var(--dg-paper)!important;text-transform:none!important}"
++".hero-section h1 em,.hero-title em,.dg-em{font-style:italic!important;color:rgba(243,240,231,.88)!important;font-weight:400!important}"
++".title-accent-gold,.title-accent-cream,.title-accent-red,.title-accent-blue,.hero-section h1 span{color:var(--dg-paper)!important;background:none!important;-webkit-text-fill-color:var(--dg-paper)!important}"
++".hero-section p,.header p,.subheading,.hero-description{position:relative;z-index:2;max-width:42ch!important;font-size:1.05rem!important;line-height:1.6!important;color:var(--dg-paper-mute)!important;margin:0 0 1.15rem!important;font-family:var(--dg-sans)!important}"
++".hero-badge,.badge-text{display:none!important}"
++"#dg-hero-chips,.dg-trust-line{position:relative;z-index:2;display:block!important;margin:0 0 1.25rem!important;color:rgba(166,255,203,.75)!important;font-size:.82rem!important;letter-spacing:.04em;background:transparent!important;font-family:var(--dg-mono)!important}"
++"#dg-path-nudge{display:none!important}"
+/* dual path frege-bracket cards */
++".hero-actions,.hero-actions.dg-path-pair{position:relative;z-index:5;display:grid!important;grid-template-columns:1fr 1fr!important;gap:.85rem!important;max-width:34rem!important;width:100%!important;margin:.5rem 0 0!important}"
++".hero-actions .dg-cta-wrap{display:block!important;min-width:0!important}"
++".hero-actions .dg-cta-wrap a,.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,.hero-actions a[data-dg-cta]{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:.25rem!important;width:100%!important;min-height:76px!important;padding:1.05rem 1.15rem!important;border-radius:4px!important;font-weight:600!important;font-size:.95rem!important;line-height:1.25!important;text-decoration:none!important;font-family:var(--dg-mono)!important;cursor:pointer!important;transition:transform .25s ease,box-shadow .35s ease,border-color .25s ease,background .25s ease!important}"
++".hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:linear-gradient(120deg,rgba(8,160,93,.35),rgba(16,198,116,.12))!important;color:var(--dg-phosphor)!important;border:1px solid rgba(166,255,203,.45)!important;box-shadow:0 0 0 0 rgba(166,255,203,0)!important}"
++".hero-actions a[data-dg-cta=hire]:hover,.hero-actions a.is-talent:hover{transform:translateY(-3px)!important;box-shadow:0 12px 40px rgba(16,198,116,.22)!important;border-color:var(--dg-phosphor)!important}"
++".hero-actions a[data-dg-cta=hire] .dg-cta-label,.hero-actions a[data-dg-cta=hire] .dg-cta-hint,.hero-actions a.is-talent .dg-cta-label,.hero-actions a.is-talent .dg-cta-hint{color:var(--dg-phosphor)!important}"
++".hero-actions a[data-dg-cta] .dg-cta-label,.hero-actions a[data-dg-cta] .dg-cta-hint{display:block!important;line-height:1.25!important}"
++".hero-actions a[data-dg-cta=hire] .dg-cta-label:before,.hero-actions a.is-talent .dg-cta-label:before{content:'[ ';opacity:.7}"
++".hero-actions a[data-dg-cta=hire] .dg-cta-label:after,.hero-actions a.is-talent .dg-cta-label:after{content:' → ]';opacity:.7}"
++".hero-actions a[data-dg-cta=talent],.hero-actions a.is-job{background:transparent!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.28)!important}"
++".hero-actions a[data-dg-cta=talent]:hover,.hero-actions a.is-job:hover{transform:translateY(-3px)!important;border-color:var(--dg-phosphor)!important;box-shadow:0 12px 36px rgba(3,20,13,.45)!important}"
++".hero-actions a[data-dg-cta=talent] .dg-cta-label,.hero-actions a[data-dg-cta=talent] .dg-cta-hint,.hero-actions a.is-job .dg-cta-label{color:var(--dg-paper)!important}"
++".hero-actions a[data-dg-cta=talent] .dg-cta-label:before{content:'[ ';opacity:.55}"
++".hero-actions a[data-dg-cta=talent] .dg-cta-label:after{content:' ]';opacity:.55}"
++".hero-actions a[data-dg-cta=talent] .dg-cta-hint{color:var(--dg-paper-mute)!important;font-size:.78rem!important;font-weight:500!important}"
++".hero-actions a[data-dg-cta=hire] .dg-cta-hint{opacity:.85!important;font-size:.78rem!important;font-weight:500!important}"
 +".hero-actions a .btn-arrow,.hero-actions a svg{display:none!important}"
-+"#dg-path-pills{display:flex!important;flex-wrap:wrap!important;gap:.35rem 1.15rem!important;margin:1.35rem 0 0!important;padding-top:1.1rem!important;border-top:1px solid #e4ddd3!important;animation:none!important}"
-+"#dg-path-pills a{color:#5c574f!important;font-size:.9rem!important;font-weight:500!important;text-decoration:none!important;border-bottom:none!important;min-height:44px!important;display:inline-flex!important;align-items:center!important}"
-+"#dg-path-pills a:hover,#dg-path-pills a:focus-visible{color:#1F4B99!important;outline:none}"
-+"#dg-path-pills a:focus-visible{box-shadow:0 0 0 2px rgba(31,75,153,.35);border-radius:4px}"
++"#dg-bar{background:rgba(3,20,13,.96)!important;border-top:1px solid var(--dg-rule)!important}"
++"#dg-bar a.dg-h{background:rgba(8,160,93,.35)!important;color:var(--dg-phosphor)!important;border:1px solid rgba(166,255,203,.4)!important}"
++"#dg-bar a.dg-j{background:transparent!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.28)!important}"
++"#dg-path-pills{position:relative;z-index:2;display:flex!important;flex-wrap:wrap!important;gap:.35rem 1.15rem!important;margin:1.25rem 0 0!important;padding:1rem 0 0!important;border-top:1px solid var(--dg-rule)!important;background:transparent!important}"
++"#dg-path-pills a{color:var(--dg-paper-mute)!important;font-size:.82rem!important;letter-spacing:.06em!important;text-transform:lowercase!important;text-decoration:none!important;background:transparent!important;border:0!important;min-height:40px!important;display:inline-flex!important;align-items:center!important;transition:color .2s ease!important}"
++"#dg-path-pills a:hover{color:var(--dg-phosphor)!important}"
++"#dg-cap-strip{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;max-width:34rem;margin:1.25rem 0 0;padding-top:1rem;border-top:1px solid var(--dg-rule)}"
++"#dg-cap-strip .k{display:block;font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dg-signal);margin-bottom:.2rem}"
++"#dg-cap-strip .v{font-size:.8rem;color:var(--dg-paper-mute)}"
++"@media(max-width:600px){#dg-cap-strip{grid-template-columns:1fr}}"
+/* below fold night institutional */
 +"#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-hero-trust,#insights-section,.insights-section{display:none!important}"
-+"section.trust-section,body>section:has(.steps-grid),body>section:has(.pricing-grid){display:block!important;visibility:visible!important;opacity:1!important;padding:3rem 1.25rem!important;background:#F7F4EF!important}"
++"section.trust-section,section:has(.steps-grid),section:has(.pricing-grid),body>section:not(.modal-overlay):not(#startup-modal):not(#jobseeker-modal),.w-section{display:block!important;visibility:visible!important;opacity:1!important;background:var(--dg-night)!important;background-image:none!important;color:var(--dg-paper)!important;padding:clamp(4.5rem,10vh,7rem) 1.25rem!important;border-top:1px solid var(--dg-rule)!important}"
 +"section:has(.roles-grid),[data-dg-hidden=roles-simplify]{display:none!important}"
-+".trust-header,.roles-header{max-width:40rem;margin:0 auto 1.5rem!important;text-align:left!important}"
-+".trust-header h2,.heading_tertiary,section h2{color:#141414!important;font-size:clamp(1.35rem,3vw,1.75rem)!important;font-weight:650!important;letter-spacing:-.02em!important;margin:.5rem 0 .4rem!important}"
-+".trust-header p,.paragraph_large{color:#5c574f!important;font-size:1rem!important;max-width:36ch}"
-+".steps-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1rem!important;max-width:52rem;margin:0 auto!important;visibility:visible!important;opacity:1!important}"
-+".step-card{background:#fff!important;border:1px solid #e4ddd3!important;border-radius:14px!important;padding:1.15rem 1.1rem!important;box-shadow:none!important;transition:border-color .15s ease}"
-+".step-card:hover,.step-card:focus-within{transform:none!important;border-color:#1F4B99!important}"
-+".step-num{color:#1F4B99!important;font-size:.75rem!important;font-weight:700!important;letter-spacing:.12em!important;margin-bottom:.45rem!important}"
-+".step-title{color:#141414!important;font-size:1.05rem!important;font-weight:650!important;margin:0 0 .35rem!important}"
-+".step-desc{color:#5c574f!important;font-size:.92rem!important;line-height:1.45!important;margin:0!important}"
-+".pricing-grid,.pricing-grid.is-single{display:block!important;max-width:26rem;margin:0 auto!important;padding:0!important;visibility:visible!important}"
-+".pricing-card{background:#fff!important;border:1px solid #e4ddd3!important;border-radius:18px!important;padding:1.6rem 1.4rem!important;box-shadow:none!important;text-align:left!important}"
-+".pricing-card h3{color:#5c574f!important;letter-spacing:.1em!important;font-size:.72rem!important;text-transform:uppercase!important;margin:0 0 .35rem!important}"
-+".pricing-card .pricing-amount,.pricing-card .price,.pricing-card > div > div{color:#141414!important}"
-+".pricing-card a.premium-btn,.pricing-card a.button{margin-top:1.1rem!important;min-height:48px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:14px!important;background:#1F4B99!important;color:#fff!important;border:none!important;padding:.7rem 1.2rem!important;font-weight:650!important}"
-+".pricing-card-border-red,.pricing-card-divider{opacity:.35}"
-+"#dg-legal-links{display:flex!important;flex-direction:column!important;align-items:center!important;gap:.45rem!important;margin:.75rem auto!important;max-width:28rem!important;padding:0 .75rem!important}"+"#dg-legal-links .dg-foot-primary,#dg-legal-links .dg-foot-more{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:.15rem .9rem!important}"+"#dg-legal-links .dg-foot-more a{color:#8a8378!important;font-size:.78rem!important}"+"#dg-legal-links .dg-foot-more a:hover{color:#5c574f!important}"
-+"#dg-legal-links a{color:#5c574f!important;text-decoration:none!important;margin-right:0!important;font-size:.85rem!important;min-height:44px!important;display:inline-flex!important;align-items:center!important}"
-+"#dg-legal-links a:hover,#dg-legal-links a:focus-visible{color:#1F4B99!important}"
-+"#footer-email,footer a[href^=mailto]{color:#1F4B99!important;text-decoration:none!important;border-bottom:none;min-height:44px!important;display:inline-flex!important;align-items:center!important}"
-+"#footer-email:hover,footer a[href^=mailto]:hover{color:#163a7a!important}"
++".trust-header h2,.heading_tertiary,section h2,.step-title{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(1.6rem,3.5vw,2.35rem)!important;font-weight:430!important;letter-spacing:-.03em!important;margin:.5rem 0 .55rem!important}"
++".trust-header p,.paragraph_large,.step-desc{color:var(--dg-paper-mute)!important;font-size:.95rem!important;max-width:44ch;font-family:var(--dg-sans)!important;line-height:1.55!important}"
++".steps-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1rem!important;max-width:56rem;margin:0 auto!important}"
++".step-card{background:rgba(255,255,255,.03)!important;border:1px solid var(--dg-rule)!important;border-radius:4px!important;padding:1.2rem 1.1rem!important;color:var(--dg-paper)!important;transition:transform .3s ease,border-color .3s ease,box-shadow .35s ease!important}"
++".step-card:hover{transform:translateY(-4px)!important;border-color:rgba(166,255,203,.55)!important;box-shadow:0 16px 40px rgba(0,0,0,.35)!important}"
++".step-num{color:var(--dg-phosphor)!important;font-size:.72rem!important;font-weight:700!important;letter-spacing:.14em!important;font-family:var(--dg-mono)!important}"
++".step-title{font-size:1.15rem!important}"
++".pricing-grid,.pricing-grid.is-single{display:block!important;max-width:28rem;margin:0 auto!important}"
++".pricing-card{background:rgba(255,255,255,.03)!important;border:1px solid var(--dg-rule)!important;border-radius:4px!important;padding:1.7rem 1.45rem!important;color:var(--dg-paper)!important;animation:dgBorderGlow 5s ease-in-out infinite}"
++".pricing-card h3{color:var(--dg-signal)!important;letter-spacing:.12em!important;font-size:.7rem!important;text-transform:uppercase!important;font-family:var(--dg-mono)!important}"
++".pricing-card .pricing-amount,.pricing-card .price,.pricing-card > div > div{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important}"
++".pricing-card a.premium-btn,.pricing-card a.button{margin-top:1.1rem!important;min-height:48px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:4px!important;background:rgba(8,160,93,.4)!important;color:var(--dg-phosphor)!important;border:1px solid rgba(166,255,203,.45)!important;padding:.7rem 1.2rem!important;font-family:var(--dg-mono)!important}"
++"#dg-aperture{margin:0 auto 2rem;max-width:56rem;border:1px solid var(--dg-rule);overflow:hidden}"
++"#dg-aperture img{display:block;width:100%;height:auto;filter:saturate(.9)}"
++"#dg-aperture figcaption{font-size:.65rem;letter-spacing:.12em;padding:.55rem .75rem;color:var(--dg-phosphor);font-family:var(--dg-mono);border-top:1px solid var(--dg-rule);background:rgba(3,20,13,.9)}"
++"#dg-legal-links{display:flex!important;flex-direction:column!important;align-items:center!important;gap:.45rem!important;margin:.75rem auto!important}"
++"#dg-legal-links a{color:var(--dg-paper-mute)!important;font-size:.82rem!important;text-decoration:none!important;min-height:40px!important;display:inline-flex!important;align-items:center!important}"
++"#dg-legal-links a:hover{color:var(--dg-phosphor)!important}"
++"#footer-email,footer a[href^=mailto]{color:var(--dg-phosphor)!important;text-decoration:none!important}"
 +"footer .w-layout-grid,footer .footer_icon-group,footer .button-group,footer nav:not(:has(a[href^=mailto])),footer ul{display:none!important}"
-+"footer,.footer{padding:2rem 1rem 2.5rem!important;text-align:center!important;border-top:1px solid #e4ddd3!important;max-width:32rem;margin-inline:auto;background:transparent!important}"
-+"#demigod-footer-tag,footer .footer-tagline{font-size:.88rem!important;color:#8a8378!important;max-width:26rem;margin:.35rem auto!important;line-height:1.45!important}"
-+"#dg-copyright,footer [class*=copyright],footer .text-color_secondary{color:#8a8378!important;font-size:.8rem!important;margin:.5rem auto 0!important}"
-+"#main,main,h1.hero-title,.hero-section h1,#dg-page{scroll-margin-top:4.5rem!important}"
-+"a:focus-visible,button:focus-visible,.premium-btn:focus-visible,#dg-bar a:focus-visible{outline:2px solid #1F4B99!important;outline-offset:3px!important}"
-+"@media(max-width:767px){#dg-path-pills{display:none!important}.hero-actions{display:none!important}#dg-bar{position:fixed!important;left:0;right:0;bottom:0;z-index:9998;display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;background:rgba(247,244,239,.97)!important;border-top:1px solid #e4ddd3!important}#dg-bar a{min-width:0!important;min-height:48px!important;border-radius:14px!important;font-size:.9rem!important;font-weight:650!important;padding:.65rem .5rem!important;display:flex!important;align-items:center!important;justify-content:center!important;text-decoration:none!important}body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}.steps-grid{grid-template-columns:1fr!important}.hero-section h1,.header h1{font-size:clamp(2rem,9vw,2.75rem)!important}#dg-path-pills{justify-content:flex-start}}"
++"footer,.footer{padding:2.25rem 1rem 2.75rem!important;text-align:center!important;border-top:1px solid var(--dg-rule)!important;max-width:36rem;margin-inline:auto;background:var(--dg-night)!important}"
++"#demigod-footer-tag,footer .footer-tagline{font-size:.85rem!important;color:var(--dg-paper-mute)!important}"
++"#dg-copyright,footer [class*=copyright],footer .text-color_secondary{color:rgba(189,201,191,.65)!important;font-size:.78rem!important}"
++"a:focus-visible,button:focus-visible,.premium-btn:focus-visible,#dg-bar a:focus-visible{outline:2px solid var(--dg-phosphor)!important;outline-offset:3px!important}"
+/* motion reveals */
++".dg-reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0ms)}"
++".dg-reveal.dg-in,.dg-motion .dg-reveal.dg-in{opacity:1;transform:none}"
++".dg-reduce .dg-reveal{opacity:1!important;transform:none!important;transition:none!important}"
++".dg-reduce body::before,.dg-reduce #dg-night-stage .dg-grain,.dg-reduce #dg-night-stage .dg-stars,.dg-reduce #dg-night-stage .dg-art-panel,.dg-reduce .nav_logo-icon,.dg-reduce .pricing-card{animation:none!important}"
++"@media(max-width:767px){#dg-path-pills{display:none!important}.hero-actions{display:none!important}#dg-bar{position:fixed!important;left:0;right:0;bottom:0;z-index:9998;display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important}#dg-bar a{min-height:48px!important;border-radius:4px!important;font-size:.88rem!important;font-weight:650!important;display:flex!important;align-items:center!important;justify-content:center!important;text-decoration:none!important}body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}.steps-grid{grid-template-columns:1fr!important}.hero-section h1,.header h1{font-size:clamp(2.2rem,10vw,3rem)!important}}"
 +"@media(min-width:768px){#dg-bar{display:none!important}body{padding-bottom:0!important}}"
-+"@media(prefers-reduced-motion:reduce){.hero-section h1,.hero-section p,.hero-actions,#dg-hero-chips,#dg-path-pills,.step-card{animation:none!important;transition:none!important}}"
++"@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}"
 +"";document.head.appendChild(s)}
 
-function ensureA11yCss(){if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
+
+function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
 function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=document.createElement('style');fc.id='dg-forced-colors';fc.textContent='@media(forced-colors:active){#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border:1px solid CanvasText!important;forced-color-adjust:auto}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{border:1px solid CanvasText!important;background:Canvas!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:Highlight!important;box-shadow:none!important}}';document.head.appendChild(fc)}
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();copy();forms();fileUploadHonest();cta();ctaHints();nav();try{wireLogoHome()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -2435,10 +2710,10 @@ var DG_PAGES = {
     desc: 'What is live vs pending — WIZ and email live; SMS/card tooling pending.',
     html:
       '<ul class="dg-p-list">' +
-      '<li><strong>Live:</strong> dual CTAs, one-question WIZ, 90-day outcome, tech matching with humans in the loop, product pages, email follow-up</li>' +
+      '<li><strong>Live:</strong> dual CTAs, one-question WIZ, 90-day outcome, tech matching with humans in the loop, product pages, Events Bot page, email follow-up</li>' +
       '<li><strong>Runtime:</strong> foot v__DG_FOOT_VER__ on this page load</li>' +
-      '<li><strong>Site:</strong> decision home, dual paths, chips, and product pages</li>' +
-      '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe) — commercial path is email until live</li>' +
+      '<li><strong>Site:</strong> decision home, dual paths, chips, product pages, /events → Events Bot</li>' +
+      '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe), Events Bot automation (RSVP/SMS/calendar) — commercial path is email until live</li>' +
       '<li><strong>Fee:</strong> 10% on hire — confirmed by email for now</li>' +
       '<li><strong>Honest board:</strong> sample roles labeled; no fake placements</li>' +
       '<li><strong>Notes:</strong> short product posts at /?p=blog — deep-link /?p=blog#note-{slug}</li>' +
@@ -2480,6 +2755,54 @@ var DG_PAGES = {
     html:
       '<p class="dg-p-lead">Anything marked <strong>Sample</strong> on the board is illustrative, not a live listing.</p>' +
       '<p class="dg-p-note">Real activity ships as it happens — we never invent placements. Want a real intro? <a href="/?p=hire" data-dg-page="hire">Submit a role</a> or <a href="/?p=talent" data-dg-page="talent">share a profile</a>.</p>',
+  },
+  events: {
+    title: 'Events Bot',
+    doc: 'Events Bot · Demigod',
+    desc: 'Demigod Events Bot handles event legwork — guest lists, RSVPs, agendas, reminders, and post-event intros. Humans keep host control. SMS/calendar tooling pending.',
+    html:
+      '<p class="dg-p-lead"><strong>Events Bot</strong> is the legwork layer for Demigod dinners and Match Circle nights: guest lists, RSVPs, agendas, reminders, and post-event follow-ups — so the host stays host, not ops.</p>' +
+      '<p class="dg-p-note">Not an auto-DM blaster. Not a public ticket marketplace. Human-approved guest lists and intros only.</p>' +
+      '<h3 class="dg-p-h3">What the bot owns (legwork)</h3>' +
+      '<ol class="dg-decision-grid" aria-label="Events Bot legwork">' +
+      '<li><span>01</span><strong>Capture</strong><small>Host goal, date windows, guest constraints, room size</small></li>' +
+      '<li><span>02</span><strong>Assemble</strong><small>Draft guest slate from signals + prior opt-ins (human edits)</small></li>' +
+      '<li><span>03</span><strong>Coordinate</strong><small>Invites, RSVPs, waitlist, seat math, dietary notes</small></li>' +
+      '<li><span>04</span><strong>Run-of-show</strong><small>Agenda, talking prompts, name cards, day-of checklist</small></li>' +
+      '<li><span>05</span><strong>Follow-up</strong><small>Thank-yous, mutual-interest notes, warm intros when both opt in</small></li>' +
+      '</ol>' +
+      '<h3 class="dg-p-h3">What stays human</h3>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>Final guest list</strong> — bot drafts; host approves who is in the room.</li>' +
+      '<li><strong>Tone of the night</strong> — vibe, topics, who sits where for chemistry.</li>' +
+      '<li><strong>Intros after</strong> — still mutual yes before names and emails move (same as matching).</li>' +
+      '<li><strong>No SLA clock</strong> — potter@trydemigod.com follows up; no 48h promise.</li>' +
+      '</ul>' +
+      '<h3 class="dg-p-h3">Live vs pending</h3>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>Live now:</strong> this product page, interest capture by email, human-run pilot dinners when we host them.</li>' +
+      '<li><strong>Building:</strong> structured event brief → guest draft → RSVP tracker → run-of-show pack.</li>' +
+      '<li><strong>Pending:</strong> SMS reminders (Twilio), calendar auto-sync, card deposits (Stripe) — we say so until live.</li>' +
+      '</ul>' +
+      '<h3 class="dg-p-h3">Who it is for</h3>' +
+      '<div class="dg-p-grid">' +
+      '<div><strong>Founder hosts</strong><p>Want a tight SF dinner without becoming full-time ops.</p></div>' +
+      '<div><strong>Operators</strong><p>Match Circle / community nights with a clean mutual-interest trail.</p></div>' +
+      '<div class="dg-p-hi"><strong>Demigod</strong><p>Same privacy bar as hiring: evidence first, both sides opt in.</p></div>' +
+      '</div>' +
+      '<details class="dg-p-det"><summary>How do I start?</summary><p>Chat below, or email <a href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">potter@trydemigod.com</a> with preferred dates, guest count, and one sentence on the night’s outcome.</p></details>' +
+      '<details class="dg-p-det"><summary>Is this the same as Demigod hiring?</summary><p>Related privacy model, different surface. Hiring is role + 90-day outcome. Events Bot is room + guest chemistry + post-event intros. Placement fee still only applies if a hire starts later — 10% of first-year cash.</p></details>' +
+      '<details class="dg-p-det"><summary>Will the bot spam my guests?</summary><p>No auto-DM blasts. Invites and reminders go only to people on a host-approved list. Guests can pass or leave anytime.</p></details>' +
+      '<div id="dg-events-chat" class="dg-events-chat" aria-label="Events Bot chat">' +
+      '<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status">connecting…</span></div>' +
+      '<p class="dg-ec-note">Drafts only — you approve guests and send messages. No auto-DM. AI when the chat API is up; otherwise offline guide.</p>' +
+      '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
+      '<form class="dg-ec-form" id="dg-ec-form">' +
+      '<label class="sr-only" for="dg-ec-input">Message</label>' +
+      '<textarea id="dg-ec-input" class="dg-ec-input" rows="2" maxlength="2000" placeholder="e.g. 8 seats, Thu/Fri next week, founders + eng, outcome: 3 real second meetings" required></textarea>' +
+      '<button type="submit" class="dg-ec-send" id="dg-ec-send">Send</button>' +
+      '</form></div>' +
+      '<p class="dg-p-note">Runtime foot v__DG_FOOT_VER__ · <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></p>',
   },
   notfound: {
     title: 'Page not found',
@@ -2539,8 +2862,141 @@ function pageCss() {
     '@media(prefers-reduced-motion:reduce){#dg-page{animation:none}}' +
     '@media(forced-colors:active){#dg-page{background:Canvas!important;forced-color-adjust:auto}#dg-page .dg-page-card,#dg-page .dg-decision-grid>li,#dg-page .dg-p-grid>div,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;box-shadow:none!important}#dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,#dg-page summary:focus-visible{outline:2px solid Highlight!important}}' +
     '@media(max-width:639px){#dg-page .dg-decision-grid{grid-template-columns:1fr}}' +
-    '@media(min-width:640px){#dg-page .dg-p-grid{grid-template-columns:1fr 1fr 1fr}}';
+    '@media(min-width:640px){#dg-page .dg-p-grid{grid-template-columns:1fr 1fr 1fr}}' +
+    /* Events Bot chat (frege-night) */
+    '#dg-page .dg-events-chat{margin:1.1rem 0 0;border:1px solid rgba(166,255,203,.28);border-radius:6px;background:rgba(3,20,13,.55);overflow:hidden}' +
+    '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.55rem .75rem;border-bottom:1px solid rgba(166,255,203,.18);font-family:ui-monospace,Menlo,Consolas,monospace}' +
+    '#dg-page .dg-ec-title{color:#a6ffcb;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}' +
+    '#dg-page .dg-ec-status{color:#bdc9bf;font-size:.68rem}' +
+    '#dg-page .dg-ec-note{margin:0;padding:.45rem .75rem;font-size:.78rem;color:#bdc9bf;line-height:1.4;border-bottom:1px solid rgba(166,255,203,.1)}' +
+    '#dg-page .dg-ec-log{max-height:min(42vh,280px);overflow:auto;padding:.65rem .75rem;display:flex;flex-direction:column;gap:.55rem}' +
+    '#dg-page .dg-ec-msg{max-width:95%;padding:.55rem .7rem;border-radius:4px;font-size:.88rem;line-height:1.45;white-space:pre-wrap}' +
+    '#dg-page .dg-ec-msg.bot{align-self:flex-start;background:rgba(8,160,93,.12);border:1px solid rgba(166,255,203,.22);color:#f3f0e7}' +
+    '#dg-page .dg-ec-msg.user{align-self:flex-end;background:rgba(166,255,203,.08);border:1px solid rgba(166,255,203,.28);color:#a6ffcb}' +
+    '#dg-page .dg-ec-form{display:grid;grid-template-columns:1fr auto;gap:.45rem;padding:.65rem .75rem;border-top:1px solid rgba(166,255,203,.18)}' +
+    '#dg-page .dg-ec-input{width:100%;min-height:48px;resize:vertical;background:#03140d;border:1px solid rgba(166,255,203,.28);border-radius:4px;color:#f3f0e7;padding:.55rem .65rem;font-size:16px;font-family:system-ui,sans-serif}' +
+    '#dg-page .dg-ec-input:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+    '#dg-page .dg-ec-send{min-height:48px;min-width:5.5rem;padding:0 .9rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
+    '#dg-page .dg-ec-send:disabled{opacity:.5;cursor:wait}' +
+    '#dg-page .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}';
   document.head.appendChild(s);
+}
+/* Events Bot conversational chat — API (local Codex-class OpenAI) + offline fallback */
+function eventsBotChatMount(root) {
+  var box = root && root.querySelector('#dg-events-chat');
+  if (!box || box.dataset.dgEc === '1') return;
+  box.dataset.dgEc = '1';
+  var log = box.querySelector('#dg-ec-log');
+  var form = box.querySelector('#dg-ec-form');
+  var input = box.querySelector('#dg-ec-input');
+  var send = box.querySelector('#dg-ec-send');
+  var status = box.querySelector('#dg-ec-status');
+  var history = [];
+  var endpoints = [
+    (typeof window !== 'undefined' && window.DG_EVENTS_BOT_API) || '',
+    'http://127.0.0.1:3460/api/events-bot/chat',
+    'http://localhost:3460/api/events-bot/chat',
+  ].filter(Boolean);
+  var apiBase = '';
+
+  function addMsg(role, text) {
+    if (!log) return;
+    var d = document.createElement('div');
+    d.className = 'dg-ec-msg ' + (role === 'user' ? 'user' : 'bot');
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+  function setStatus(t) {
+    if (status) status.textContent = t;
+  }
+  function offline(msg) {
+    var last = (msg || '').toLowerCase();
+    if (/date|when|calendar/.test(last))
+      return 'Calendar sync is pending. Share 2–3 date windows and seat count — I will draft a host brief. For live AI, run the Events Bot API locally (see DEMIGOD-EVENTS-BOT.md). Or email potter@trydemigod.com.';
+    if (/guest|invite|who/.test(last))
+      return 'I only draft guest lists; you approve every name. Tell me seats, mix (founders/eng), and constraints.';
+    if (/agenda|run/.test(last))
+      return 'Tight dinner skeleton: arrive → host frame → structured intros → free conversation → close + mutual-interest notes. Duration?';
+    return 'Hi — I draft event legwork (guests, invites, agenda, follow-ups). You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, want 3 second meetings." Live model needs the chat API on :3460.';
+  }
+
+  async function probe() {
+    for (var i = 0; i < endpoints.length; i++) {
+      var ep = endpoints[i];
+      var health = ep.replace(/\/chat\/?$/, '/health').replace(/events-bot\/chat/, 'events-bot/health');
+      if (health === ep) health = 'http://127.0.0.1:3460/api/events-bot/health';
+      try {
+        var r = await fetch(health, { method: 'GET', mode: 'cors', signal: AbortSignal.timeout(1800) });
+        if (r.ok) {
+          apiBase = ep.indexOf('/chat') >= 0 ? ep : 'http://127.0.0.1:3460/api/events-bot/chat';
+          var j = await r.json().catch(function () {
+            return {};
+          });
+          setStatus(j.openai ? 'AI live' : 'API · offline model');
+          return;
+        }
+      } catch (e) {}
+    }
+    apiBase = '';
+    setStatus('offline guide');
+  }
+
+  async function ask(text) {
+    history.push({ role: 'user', content: text });
+    addMsg('user', text);
+    send.disabled = true;
+    setStatus('thinking…');
+    var reply = offline(text);
+    var mock = true;
+    if (apiBase) {
+      try {
+        var r = await fetch(apiBase, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history }),
+          signal: AbortSignal.timeout(45000),
+        });
+        var j = await r.json();
+        if (j && j.reply) {
+          reply = j.reply;
+          mock = !!j.mock;
+        }
+      } catch (e) {
+        reply = offline(text);
+        mock = true;
+      }
+    }
+    history.push({ role: 'assistant', content: reply });
+    if (history.length > 24) history = history.slice(-24);
+    addMsg('bot', reply);
+    setStatus(mock ? (apiBase ? 'API · draft mode' : 'offline guide') : 'AI live');
+    send.disabled = false;
+    try {
+      input.focus();
+    } catch (e) {}
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = (input.value || '').trim();
+    if (!t || send.disabled) return;
+    input.value = '';
+    ask(t);
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  addMsg(
+    'bot',
+    'I help plan Demigod dinners — briefs, guest drafts, agendas, follow-ups. You approve and send. What are you hosting?',
+  );
+  probe();
 }
 function closePage() {
   var el = q('#dg-page');
@@ -2593,6 +3049,13 @@ function pageCtas(id) {
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
   if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
   if (id === 'talent') return '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Create profile</a>' + hire + back;
+  if (id === 'events') {
+    return (
+      '<a class="hire" href="#dg-events-chat" id="dg-ec-focus">Chat with bot</a>' +
+      '<a class="talent" href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">Email pilot</a>' +
+      back
+    );
+  }
   if (id === 'contact' || id === 'legal' || id === 'partners') return hire + talent + back;
   return hire + talent + back;
 }
@@ -2675,6 +3138,13 @@ function openPage(id, push) {
       else if (k === 'jobseeker') show(J);
     });
   });
+  qa('a[data-dg-page]', root).forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var pid = a.getAttribute('data-dg-page');
+      if (pid && DG_PAGES[pid]) openPage(pid, true);
+    });
+  });
   if (push !== false) {
     try {
       var u = new URL(location.href);
@@ -2687,6 +3157,22 @@ function openPage(id, push) {
   } catch (e) {}
   // Deep-link Notes cards: /?p=blog#note-{slug} (or #slug) → open Full note + scroll
   if (id === 'blog') focusBlogNoteFromHash(root);
+  if (id === 'events') {
+    try {
+      eventsBotChatMount(root);
+      var foc = root.querySelector('#dg-ec-focus');
+      if (foc)
+        foc.addEventListener('click', function (e) {
+          e.preventDefault();
+          var inp = root.querySelector('#dg-ec-input');
+          var chat = root.querySelector('#dg-events-chat');
+          if (chat) chat.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          try {
+            if (inp) inp.focus();
+          } catch (err) {}
+        });
+    } catch (e) {}
+  }
 
   // soft focus trap
   root.addEventListener('keydown', function(ev){
@@ -2761,6 +3247,9 @@ function routePages() {
       '/founders': 'founders',
       '/candidates': 'candidates',
       '/status': 'status',
+      '/events': 'events',
+      '/events-bot': 'events',
+      '/event-bot': 'events',
     };
     var p = new URLSearchParams(location.search);
     var id = (p.get('p') || p.get('page') || '').toLowerCase();
@@ -2809,7 +3298,7 @@ function deepLink(){
   }catch(e){}
 }
 
-function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit brief';a.textContent='Submit brief'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit profile';b.textContent='Submit profile'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='e.g. Launch v1 checkout and sign two paying pilot customers';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What must this hire accomplish in their first 90 days? *'}}
+function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit';a.textContent='Submit'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit';b.textContent='Submit'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='e.g. Ship self-serve onboarding and get 2 pilot customers';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should they ship in the first 90 days?'}}
 function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@type':'Organization',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Demigod tech matches SF startup talent, humans in the loop. 10% on hire.',areaServed:'San Francisco Bay Area'});document.head.appendChild(ld)}
 
 
@@ -2833,7 +3322,7 @@ function wizResumeToast(modal){
   }catch(e){}
 }
 function wireLogoHome(){
-  qa('a.w-nav-brand,a.nav_logo-link,.nav_logo-link,a.dg-logo,.logo-link').forEach(function(a){
+  qa('a.w-nav-brand,a.nav_logo,a.nav_logo-link,.nav_logo-link,a.dg-logo,.logo-link').forEach(function(a){
     if(!a||a.dataset.dgLogo==='1')return;
     a.dataset.dgLogo='1';
     a.setAttribute('href','/');
@@ -2863,7 +3352,7 @@ OBS=null;/* v190: no full-document MutationObserver — was freezing main thread
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
-window.__dgFootVer='572';console.log('Demigod v572');
+window.__dgFootVer='604';console.log('Demigod v603');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
