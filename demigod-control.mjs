@@ -352,7 +352,13 @@ export async function buildControlPlane() {
   const wfDoctorRaw = safeJsonFile(path.join(BUSY, 'webflow-doctor.json')) || wf?.doctor || null;
   const wfDoctorAgeMs = wfDoctorRaw?.at ? Date.now() - Date.parse(wfDoctorRaw.at) : Infinity;
   const wfDoctor = wfDoctorRaw
-    ? { ...wfDoctorRaw, ageMs: wfDoctorAgeMs, fresh: Number.isFinite(wfDoctorAgeMs) && wfDoctorAgeMs <= 120000 }
+    ? {
+        ...wfDoctorRaw,
+        ageMs: wfDoctorAgeMs,
+        // >= -60000 rejects a future-dated/clock-skewed doctor envelope instead of blessing it
+        // fresh forever (negative age passed `<= 120000`); mirrors dashboard.mjs truth-seal guard.
+        fresh: Number.isFinite(wfDoctorAgeMs) && wfDoctorAgeMs >= -60000 && wfDoctorAgeMs <= 120000,
+      }
     : null;
 
   const boardH = safeJsonFile(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
