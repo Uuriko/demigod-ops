@@ -36,6 +36,9 @@ function run(label, argv, { timeout = 180000, allowFail = false, keepFull = fals
   const out = keepFull ? full : full.slice(-1200);
   return {
     label,
+    // FOOTGUN: under allowFail, `ok` is forced true so the step does not abort the flow. It is NOT a
+    // success verdict. For any pass/fail decision (receipt, exit code, "✓/✗"), read `rawOk` (the real
+    // child exit). Trusting `.ok` on an allowFail step is a fail-open — it bit verify() (fixed 6b7913b).
     ok: allowFail ? true : ok,
     rawOk: ok,
     status: r.status ?? 0,
