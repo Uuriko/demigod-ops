@@ -3261,7 +3261,7 @@ var DG_PAGES = {
       '<details class="dg-p-det"><summary>What do I need to submit as a founder?</summary><p>Company context, the role, and one measurable 90-day outcome. Optional JD/link. Comp range helps us only propose people who will actually say yes.</p></details>' +
       '<details class="dg-p-det"><summary>What do I need as talent?</summary><p>Name, email, LinkedIn, core skills, and a few shipped highlights. Resume optional. Free forever — outreach only on real fits.</p></details>' +
       '<details class="dg-p-det"><summary>How do intros work?</summary><p>When both sides approve, we send a warm intro email. No cold LinkedIn spam from us. You take it from there.</p></details>' +
-      '<details class="dg-p-det"><summary>Where can I read updates?</summary><p>See <a href="/?p=blog" data-dg-page="blog">Notes</a> for short product and market posts. Share a note via /?p=blog#note-{slug} (opens full note). Questions: potter@trydemigod.com.</p></details>',
+      '<details class="dg-p-det"><summary>Where can I read updates?</summary><p>See <a href="/?p=blog" data-dg-page="blog">Notes</a> for short product and market posts. Each note has its own shareable link. Questions: potter@trydemigod.com.</p></details>',
   },
   hire: {
     title: "I'm hiring",
@@ -3387,7 +3387,7 @@ var DG_PAGES = {
       '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe), Events Bot real send transport (outreach still queued honestly) — commercial path is email until live</li>' +
       '<li><strong>Fee:</strong> 10% on hire — confirmed by email for now</li>' +
       '<li><strong>Honest board:</strong> sample roles labeled; no fake placements</li>' +
-      '<li><strong>Notes:</strong> short product posts at /?p=blog — deep-link /?p=blog#note-{slug}</li>' +
+      '<li><strong>Notes:</strong> short product posts at /?p=blog — each post has its own deep link</li>' +
       '</ul><p class="dg-p-lead">Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></p>',
   },
   blog: {
@@ -3398,7 +3398,7 @@ var DG_PAGES = {
       '<div class="dg-blog-hero">' +
       '<p class="dg-ev-pill" role="note">Notes · no spam</p>' +
       '<p class="dg-p-lead">Writing from Demigod — matching in SF, and the culture around it.</p>' +
-      '<p class="dg-p-note">Deep-link a post: <code>/?p=blog#note-{slug}</code>. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
+      '<p class="dg-p-note">Every post has its own shareable link. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
       '</div>' +
       '<div class="dg-blog-filters" id="dg-blog-filters" role="group" aria-label="Blog categories"></div>' +
       '<div class="dg-blog-grid" id="dg-blog-grid" aria-live="polite"></div>' +
@@ -3428,7 +3428,6 @@ var DG_PAGES = {
       '<p class="dg-p-lead">A <strong>full-page</strong> social hangout for people already on this site. When status says <strong>LIVE</strong>, other visitors hear you — <code>say hi</code> (this room) or <code>chat hi</code> (everyone). Tap <strong>Who is here</strong> / <strong>Say hi</strong> / <strong>Chat all</strong> under the log. Type <code>start</code> for a 4-step guide.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>Meet people</strong> — when status is LIVE: <code>who</code> · <code>say hi</code> (room) · <code>chat hi</code> (all)</li>' +
-      '<li><strong>Buttons</strong> — Who is here · Say hi · Chat all (under the terminal)</li>' +
       '<li><strong>Walk</strong> — n s e w · map · look (optional flavor)</li>' +
       '<li><strong>Stuck</strong> — <code>start</code> guide · <code>pray</code> to Vesper · <code>skip</code> tutorial</li>' +
       '</ul>' +
@@ -7134,7 +7133,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         if (guess) this.print('(Type ' + guess + (arg ? (' ' + arg) : '') + ' — or HELP / START for easy tips.)', 'sys');
         else if (this._huhStreak >= 2) {
           this._huhStreak = 0;
-          this.print('Easy: LOOK · N/S/E/W · SAY hi · MAP · WHO · HELP · PRAY · or tap a button below.', 'sys');
+          this.print('Easy: LOOK · N/S/E/W · SAY hi · MAP · WHO · HELP · PRAY — just type one.', 'sys');
         }
         return;
     }
