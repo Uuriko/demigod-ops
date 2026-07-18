@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { loadBoard, saveBoard, BOARD_PATH } from './demigod-submissions-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const PROOF_LOG = path.join(ROOT, 'DEMIGOD-PROOF-LOG.json');
 const EMBED = path.join(ROOT, 'DEMIGOD-PROOF-EMBED.json');
@@ -98,14 +99,18 @@ function main() {
   const log = loadLog();
   log.entries = (log.entries || []).slice(-99);
   log.entries.push(entry);
-  fs.writeFileSync(PROOF_LOG, JSON.stringify(log, null, 2));
+  // atomicWrite (tmp+rename): loadLog() already preserves a corrupt ledger, but a bare writeFileSync
+  // truncates-then-writes, so a crash or concurrent read mid-write can tear the file and lose EVERY
+  // logged proof (a real current-phase deliverable). Pair the preserve-on-read guard with a torn-free
+  // write. Same class as submissions saveInbox (b8897b9).
+  atomicWrite(PROOF_LOG, JSON.stringify(log, null, 2));
 
   const embed = {
     at: entry.at,
     matchRows: log.entries.slice(-3).map(toMatchRow),
     count: log.entries.length,
   };
-  fs.writeFileSync(EMBED, JSON.stringify(embed, null, 2));
+  atomicWrite(EMBED, JSON.stringify(embed, null, 2));
 
   const tweet = tweetTemplate(entry);
   const tweetPath = path.join(ASSETS, `${id}-tweet.txt`);
