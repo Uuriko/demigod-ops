@@ -1,0 +1,7 @@
+[Unit]
+Description=Close excess CDP browser tabs (keep one per role), skipping any active ship/paste
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:%h/bin:/usr/bin:/bin
+ExecStart=%h/bin/dg-tab-hygiene
