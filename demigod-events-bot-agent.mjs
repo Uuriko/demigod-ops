@@ -5003,11 +5003,12 @@ function saveStore(s) {
 
 // Archive-before-cap: the per-list caps below shift() the OLDEST real records (offers, money intents,
 // contacts — PII/financial) once a list exceeds its bound. Append evicted records to a private,
-// gitignored .archive.jsonl before dropping them, so nothing real is silently lost. Capping still
-// proceeds if the archive write fails (keep the store bounded), but we always try first.
+// gitignored .archive.jsonl BEFORE dropping them, so nothing real is silently lost. If the archive
+// write fails we keep the records in the store (unbounded this round, retried next cap) rather than
+// evict-then-lose — durability of real records beats staying bounded.
 function capArchive(arr, max, label) {
   if (!Array.isArray(arr) || arr.length <= max) return;
-  const evicted = arr.splice(0, arr.length - max);
+  const evicted = arr.slice(0, arr.length - max); // copy, don't mutate until archived
   try {
     const lines =
       evicted
@@ -5015,8 +5016,9 @@ function capArchive(arr, max, label) {
         .join('\n') + '\n';
     fs.appendFileSync(eventsStorePath() + '.archive.jsonl', lines, { mode: 0o600 });
   } catch {
-    /* archive best-effort; the cap still applies so the store stays bounded */
+    return; // archive failed — keep records rather than silently drop them
   }
+  arr.splice(0, evicted.length); // only evict what we durably archived
 }
 
 function ensureArrays(s) {

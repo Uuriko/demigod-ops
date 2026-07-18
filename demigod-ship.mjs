@@ -359,7 +359,7 @@ function verify() {
     console.log(a.rawOk ? '✓ live-attest' : '✗ live-attest');
     if (!r.rawOk) console.log(r.out.slice(-500));
   }
-  return r.rawOk ? 0 : 1;
+  return r.rawOk && a.rawOk ? 0 : 1; // match the receipt: verified iff BOTH truth-match AND live-attest pass
 }
 
 function runAll() {
