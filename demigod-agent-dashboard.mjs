@@ -2010,8 +2010,13 @@ function buildSessionStory(data) {
   else parts.push('smoke not run yet');
   parts.push(freezeOn ? 'freeze ON' : 'freeze OFF');
   parts.push(data?.live?.foot ? `live ${data.live.foot}` : 'live ?');
-  if (data?.gates?.verifySourcePass === true) parts.push(`verify PASS (${ageLabel(ev.verifySource?.ageSec)})`);
-  else if (data?.gates?.verifySourcePass === false) parts.push('verify FAIL');
+  // Respect freshness: a PASS from an EXPIRED verify file is not a current PASS. Without this the
+  // Session Story said "verify PASS" while the Freshness/Stale-Gates card called the same file stale
+  // -- two cards disagreeing about one fact. Say "PASS (stale)" so they agree.
+  if (data?.gates?.verifySourcePass === true) {
+    const vfresh = data?.freshness?.verifySource?.fresh;
+    parts.push(`verify PASS${vfresh === false ? ' (stale)' : ''} (${ageLabel(ev.verifySource?.ageSec)})`);
+  } else if (data?.gates?.verifySourcePass === false) parts.push('verify FAIL');
   const handoffs = readHandoffs(3);
   if (handoffs[0]) parts.push(`last note: ${handoffs[0].from} ${ageLabel(Math.round((Date.now() - Date.parse(handoffs[0].at)) / 1000))}`);
   return parts.join(' · ');
@@ -3125,6 +3130,12 @@ async function enrichStatus(data) {
           lagSec: Math.round((s.mtimeMs - g.mtimeMs) / 1000),
         };
       }
+      // Clock skew: a future mtime gives a NEGATIVE age, which slips past the max-age check below
+      // (negative is never > maxAge) and gets classified fresh. A file dated in the future is not a
+      // trustworthy "fresh" -- flag it, same guard as the headCss card and dg-autopilot-health.
+      if (g.ageSec != null && g.ageSec < -60) {
+        return { fresh: false, reason: 'clock-skew', label: 'future-mtime', ageSec: g.ageSec };
+      }
       if (maxAgeSec != null && g.ageSec != null && g.ageSec > maxAgeSec) {
         return { fresh: false, reason: 'max-age', label: 'stale-age', ageSec: g.ageSec };
       }
@@ -4160,7 +4171,11 @@ const server = http.createServer(async (req, res) => {
       const agents = {};
       for (const n of notes) {
         const age = n.at ? Math.round((now - Date.parse(n.at)) / 1000) : null;
-        if (age == null || age > maxAge) continue;
+        // Number.isFinite rejects an unparseable n.at (Date.parse -> NaN, and NaN passes both the
+        // `== null` and `> maxAge` checks, so a garbage timestamp would render as a CURRENT agent with
+        // ageSec NaN -> JSON null). age < -60 rejects a future-dated note that would otherwise stay
+        // "current" forever.
+        if (!Number.isFinite(age) || age < -60 || age > maxAge) continue;
         const a = n.from || 'agent';
         if (!agents[a] || age < agents[a].ageSec) {
           agents[a] = { from: a, at: n.at, ageSec: age, text: String(n.text || '').slice(0, 120), current: true };
@@ -4609,6 +4624,7 @@ const server = http.createServer(async (req, res) => {
           const clockSkewed = Number.isFinite(ageSec) && ageSec < -15 * 60;
           return {
             ...rec,
+            signedAgeSec: Number.isFinite(ageSec) ? ageSec : null,
             ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
             clockSkewed,
             stale: !Number.isFinite(ageSec) || clockSkewed || ageSec > 3600,
@@ -5253,7 +5269,7 @@ const server = http.createServer(async (req, res) => {
             : rec?.did
               ? [String(rec.did).trim()].filter(Boolean)
               : [];
-          const next = rec?.next != null ? String(rec.next).trim().slice(0, 280) : null;
+          const next = rec?.next != null ? (Array.isArray(rec.next) ? rec.next.join(' · ') : String(rec.next)).trim().slice(0, 280) : null;
           const headline = did[0] || next || rec?.focus || rec?.note || '(no recent did[])';
           return {
             id,
