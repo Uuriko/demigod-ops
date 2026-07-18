@@ -100,7 +100,10 @@ export function appendPilot(board = {}, {
   stageType = 'Pre-seed · SF startup',
   withReceipt = true,
 } = {}) {
-  const introN = Number(intros) || 0;
+  // intros is a delivered-count: reject non-finite / negative / fractional so a bad --intros
+  // (Infinity, 1e999, -5, 3.7) can't mint "Infinity intros delivered" text or a JSON-null intros field.
+  const n = Number(intros);
+  const introN = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   const roleOutcome = String(outcome || '').trim()
     || (introN > 0 ? `${introN} human intro${introN === 1 ? '' : 's'} delivered.` : 'Brief received · human review in progress.');
   const role = {
