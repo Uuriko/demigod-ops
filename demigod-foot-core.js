@@ -2651,8 +2651,8 @@ function scrubStaticLabels(){
   // v516: Webflow modal chrome still ships agency-style titles/intros
   qa('.modal-title,h2.modal-title,#startup-modal h2,#jobseeker-modal h2').forEach(function(el){
     var t=policyText(el.textContent);
-    if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)||/^I.?M HIRING$/i.test(t)) el.textContent='Demigod';
-    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)) el.textContent='Find a job';
+    if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)||/^I.?M HIRING$/i.test(t)) el.textContent="I'm hiring";
+    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)) el.textContent="I'm looking";
   });
   qa('.modal-subtitle,#startup-modal .modal-subtitle,#jobseeker-modal .modal-subtitle').forEach(function(el){
     var t=policyText(el.textContent);
@@ -2743,7 +2743,7 @@ function scrubStaticLabels(){
     staleIncludedReplacement.lastIndex=0;
     if(staleIncludedReplacement.test(out)){staleIncludedReplacement.lastIndex=0;out=out.replace(staleIncludedReplacement,'includes a 90-day outcome review');}
     // Attribute-only: do not map bare "Find talent" strings that are the dual-path hero.
-    if(staleHire.test(out) && !/^Find talent(?:\.\s*Find startups\.?)?$/i.test(out) && !/^Demigod\.?$/i.test(out))return 'Demigod';
+    if(staleHire.test(out) && !/^Find talent(?:\.\s*Find startups\.?)?$/i.test(out) && !/^I'm hiring\b/i.test(out))return "I'm hiring";
     staleHirePhrase.lastIndex=0;
     if(staleHirePhrase.test(out)){staleHirePhrase.lastIndex=0;out=out.replace(staleHirePhrase,"start a hiring brief");}
     stalePoolVolume.lastIndex=0;
@@ -2874,15 +2874,15 @@ function scrubStaticLabels(){
     ) {
       return;
     }
-    if (staleHire.test(t) && !/^Demigod\.?$/i.test(t)) {
-      el.textContent = 'Demigod';
+    if (staleHire.test(t) && !/^I'm hiring\b/i.test(t)) {
+      el.textContent = "I'm hiring";
       if (el.matches('a,button')) {
         el.setAttribute('aria-label', "I'm hiring — open startup brief");
         el.setAttribute('data-demigod-modal', 'startup');
         el.setAttribute('data-dg-cta', 'hire');
       }
       if (el.matches('a')) el.setAttribute('href', '/?wiz=startup');
-      if (el.hasAttribute('title')) el.setAttribute('title', 'Demigod');
+      if (el.hasAttribute('title')) el.setAttribute('title', "I'm hiring");
       return;
     }
     staleHirePhrase.lastIndex = 0;
@@ -3142,7 +3142,7 @@ function scrubStaticLabels(){
 
 function show(id){if(!q(id))run();var m=q(id);if(!m)return;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Join talent network');}}catch(e){}if(document.body){ if(!document.body.dataset.prevOverflow){ document.body.dataset.prevOverflow = document.body.style.overflow || getComputedStyle(document.body).overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){ document.documentElement.style.overflow='hidden'; } setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
 // Keep fallback accessible names on the same two paths as every visible CTA.
-if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? 'Demigod — startup brief' : "I'm looking — talent profile");
+if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? "I'm hiring — startup brief" : "I'm looking — talent profile");
 // extra force for form and title scrub to fix blank and bad title on live
 try {
   const f = m.querySelector('form');
@@ -3261,7 +3261,7 @@ var DG_PAGES = {
       '<details class="dg-p-det"><summary>Where can I read updates?</summary><p>See <a href="/?p=blog" data-dg-page="blog">Notes</a> for short product and market posts. Share a note via /?p=blog#note-{slug} (opens full note). Questions: potter@trydemigod.com.</p></details>',
   },
   hire: {
-    title: 'Demigod',
+    title: "I'm hiring",
     doc: 'Hire · Demigod',
     desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year cash only when a hire starts.',
     html:
@@ -3269,7 +3269,7 @@ var DG_PAGES = {
       '<ul class="dg-p-list"><li>~2 min brief</li><li>Human review, not a bot</li><li>Pay only when you hire</li></ul>',
   },
   talent: {
-    title: 'Find a job',
+    title: "I'm looking",
     doc: 'Talent · Demigod',
     desc: 'One private profile. Free forever. Shared only after mutual approve.',
     html:
@@ -4577,9 +4577,9 @@ function closePage() {
 }
 function pageCtas(id) {
   var hire =
-    '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Demigod</a>';
+    '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">I&#39;m hiring</a>';
   var talent =
-    '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Find a job</a>';
+    '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">I&#39;m looking</a>';
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
   if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
   if (id === 'talent') return '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Create profile</a>' + hire + back;
