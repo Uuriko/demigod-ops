@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Talk to Grok headlessly from here (Claude -> Grok link), mirror of `claude -p`.
+#   grok-ask "fix the failing test"          # prompt as args
+#   echo "summarize board.json" | grok-ask   # prompt from stdin
+# Env:
+#   GROK_ASK_TIMEOUT  seconds before giving up      (default 300)
+#   GROK_ASK_PERM     permission-mode               (default bypassPermissions)
+#   GROK_ASK_FORMAT   plain | json | streaming-json (default plain)
+#   GROK_ASK_MODEL    model id                       (default: grok's default)
+# Notes: single-turn / stateless. For a continued conversation add `-r <session>` yourself
+#   (don't resume the session that's open in the interactive tab — two writers corrupt it).
+set -euo pipefail
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
+LOG="$BUSY/grok-ask.log"
+TIMEOUT="${GROK_ASK_TIMEOUT:-300}"
+PERM="${GROK_ASK_PERM:-bypassPermissions}"
+FMT="${GROK_ASK_FORMAT:-plain}"
+
+if [ "$#" -gt 0 ]; then prompt="$*"; elif [ ! -t 0 ]; then prompt="$(cat)"; else echo "usage: grok-ask \"prompt\"  (or pipe via stdin)" >&2; exit 2; fi
+[[ -n "${prompt// /}" ]] || { echo "grok-ask: empty prompt" >&2; exit 2; }
+
+# Circuit breaker: a 402 "balance exhausted" trips a marker so subsequent calls fail-fast (no slow
+# grok round-trip) instead of hammering a dead endpoint 1000x. Auto-recovers after the cooldown.
+BREAKER="$BUSY/grok.DISABLED"
+COOLDOWN="${GROK_ASK_COOLDOWN:-1800}"
+if [ -f "$BREAKER" ]; then
+  age=$(( $(date +%s) - $(stat -c %Y "$BREAKER") ))
+  if [ "$age" -lt "$COOLDOWN" ]; then
+    echo "grok-ask: disabled — $(head -1 "$BREAKER" 2>/dev/null) (${age}s ago, cooldown ${COOLDOWN}s). rm $BREAKER to force." >&2
+    exit 3
+  fi
+  rm -f "$BREAKER"  # cooldown elapsed — allow a retry (balance may be topped up)
+fi
+
+args=( -p "$prompt" --permission-mode "$PERM" --output-format "$FMT" )
+[[ -n "${GROK_ASK_MODEL:-}" ]] && args+=( --model "$GROK_ASK_MODEL" )
+
+echo "[$(date -Iseconds)] ASK (${#prompt}b): ${prompt:0:140}" >>"$LOG"
+set +e
+out=$(timeout "$TIMEOUT" grok "${args[@]}" </dev/null 2>>"$LOG")
+ec=$?
+set -e
+printf '%s\n' "$out"
+echo "[$(date -Iseconds)] exit=$ec replylen=${#out}" >>"$LOG"
+# Trip the breaker on a payment/balance failure (signature may land on stdout or stderr→log tail).
+if [ "$ec" -ne 0 ] && { printf '%s' "$out"; tail -5 "$LOG"; } | grep -qiE "status 402|Payment Required|balance exhausted"; then
+  printf 'grok balance exhausted (402) at %s\n' "$(date -Iseconds)" >"$BREAKER"
+  echo "[$(date -Iseconds)] BREAKER tripped (402); subsequent calls fail-fast for ${COOLDOWN}s" >>"$LOG"
+fi
+exit "$ec"
