@@ -90,11 +90,11 @@ orca-linux.AppImage.bak.*
 
 # Private Events Bot ops (offers may contain PII)
 DEMIGOD-EVENTS.json
-DEMIGOD-EVENTS.json.tmp
-# .bak is a full copy of the events SoR; .corrupt/.archive hold preserved/evicted real records; the
-# outbox holds queued items — all carry the same offer/RSVP/contact PII. codex found .bak untracked
-# and commit-eligible (mode 0664, world-readable) — never commit any of them.
-DEMIGOD-EVENTS.json.bak
+# Every derivative is a full/partial copy of the events SoR (offer/RSVP/contact PII). Wildcard so the
+# pid-suffixed atomic-write temps (.tmp.<pid>, .bak.tmp.<pid>) are caught too — codex found .bak
+# untracked+commit-eligible; the temps had the same gap. Never commit any of them.
+DEMIGOD-EVENTS.json.tmp*
+DEMIGOD-EVENTS.json.bak*
 DEMIGOD-EVENTS.json.corrupt.*
 DEMIGOD-EVENTS.json.archive.*
 events-bot-outbox/
