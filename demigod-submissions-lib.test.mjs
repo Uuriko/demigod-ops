@@ -156,3 +156,22 @@ test('PII SoR writers create files 0600', () => {
   saveBoard({ roles: [], candidates: [] });
   assert.equal(fs.statSync(BOARD_PATH).mode & 0o077, 0, 'saveBoard must create BOARD_PATH 0600');
 });
+
+// #23 regression guard: anonymize* strips STRUCTURED PII fields, but the free-text skills/experience/
+// stack-needs are concatenated into the published summary/tags/skills — scrubPII must redact email/phone
+// there too, or a candidate/founder typing contact info into a free-text field leaks it to the live board.
+test('anonymize scrubs free-text email/phone (#23 regression)', () => {
+  const c = anonymizeCandidate({
+    'skills-stack': 'React, Node — reach me jane@acme.com or 415-555-0000',
+    experience: '5y, call 650.555.1212',
+  });
+  const cj = JSON.stringify(c);
+  assert.ok(!cj.includes('jane@acme.com'), 'candidate free-text email must be scrubbed');
+  assert.ok(!cj.includes('415-555-0000'), 'candidate free-text phone must be scrubbed');
+  assert.ok(!cj.includes('650.555.1212'), 'candidate experience phone must be scrubbed');
+  assert.ok(cj.includes('React') || cj.includes('Node'), 'useful skills must be kept');
+  const rj = JSON.stringify(anonymizeRole({ 'stack-needs': 'Seed SaaS, ping ceo@x.io or 415-555-9999' }));
+  assert.ok(!rj.includes('ceo@x.io'), 'role free-text email must be scrubbed');
+  assert.ok(!rj.includes('415-555-9999'), 'role free-text phone must be scrubbed');
+  assert.ok(/Seed|SaaS/.test(rj), 'useful role skills must be kept');
+});
