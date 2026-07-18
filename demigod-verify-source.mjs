@@ -1235,22 +1235,30 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
   );
 }
 // Head CTA fail-open when foot CDN never marks dg-ready (bounded; labels dual path).
-// Labels must match foot COPY: ctaFounder=Demigod, ctaEngineer=I'm looking (not stale "I'm hiring").
+// Labels must MATCH foot-core's canonical COPY.ctaFounder/ctaEngineer — derived here, NOT hardcoded.
+// This gate previously required the literal 'Demigod' to appear in the head; the brand name/meta/
+// wordmark always satisfy that, so it never verified the actual CTA label and passed straight through
+// the head-vs-foot 'Demigod' regression. Cross-check the real labels so drift in EITHER file fails.
 {
+  const footCoreSrc = coreJs || fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+  const ctaFounder = (footCoreSrc.match(/ctaFounder:\s*(["'])(.*?)\1/) || [])[2];
+  const ctaEngineer = (footCoreSrc.match(/ctaEngineer:\s*(["'])(.*?)\1/) || [])[2];
   const ctaOk =
     /dg-head-fallback/.test(head) &&
     /data-dg-cta/.test(head) &&
     /['"]hire['"]/.test(head) &&
     /['"]talent['"]/.test(head) &&
     /setTimeout\s*\(/.test(head) &&
-    /['"]Demigod['"]/.test(head) &&
-    /I'm looking|I\\'m looking/.test(head);
+    !!ctaFounder &&
+    head.includes(ctaFounder) &&
+    !!ctaEngineer &&
+    head.includes(ctaEngineer);
   check(
     'head:cta-fallback',
     ctaOk,
     ctaOk
       ? null
-      : 'head CTA fail-open must set dg-head-fallback + data-dg-cta hire/talent + bounded setTimeout + Demigod / I\'m looking labels',
+      : `head CTA fail-open must set dg-head-fallback + data-dg-cta hire/talent + bounded setTimeout + foot COPY labels (ctaFounder=${ctaFounder || '?'}, ctaEngineer=${ctaEngineer || '?'})`,
   );
 }
 check(
