@@ -133,6 +133,10 @@ function canonicalPreflight() {
       /if \(!persisted\.result\?\.value\?\.ok\)/.test(SELF_SOURCE),
     headHasUnhideV5: HEAD.includes('unhide-v5') && HEAD.includes('dg-unhide-critical'),
     headHasNoFootLoader: footLoaderUrls(HEAD).length === 0,
+    // Webflow's head custom-code field caps at 50,000 and truncates SILENTLY (API returns 200). Gate
+    // it locally at the paste site too (defense-in-depth vs verify-source), byte-measured like that
+    // gate. Current head ~42.7KB; this only ever blocks a head that would ship broken.
+    headUnderWebflowCap: Buffer.byteLength(HEAD, 'utf8') <= 50000,
     footerHasOneFootLoader: footLoaders.length === 1,
     footerUsesApprovedCdn: footLoaders.every((url) => /^(?:https:\/\/files\.catbox\.moe\/|https:\/\/litter\.catbox\.moe\/|https:\/\/gist\.githubusercontent\.com\/|https:\/\/cdn\.jsdelivr\.net\/|https:\/\/cdn\.statically\.io\/)/i.test(url)),
     manifestReadable: Boolean(MANIFEST && typeof MANIFEST === 'object'),
@@ -159,6 +163,7 @@ function canonicalPreflight() {
     'editorHelperVerifiesPersistedSplit',
     'headHasUnhideV5',
     'headHasNoFootLoader',
+    'headUnderWebflowCap',
     'footerHasOneFootLoader',
     'footerUsesApprovedCdn',
     'footerHasNoHeadPayload',
