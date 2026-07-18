@@ -104,9 +104,13 @@ function canonicalPreflight() {
   const manifestUrl = canonicalUrl(MANIFEST?.cdnUrl);
   const coreSha256 = crypto.createHash('sha256').update(CORE).digest('hex');
   const coreBytes = Buffer.byteLength(CORE);
+  // All FOUR foot version markers, not just two — a partial version bump (one marker missed) is a
+  // known drift source, and the paste is the last place to catch it before it ships.
   const coreVersions = [
     (CORE.match(/dgFootVersion\s*=\s*['"]v(\d+)['"]/) || [])[1] || null,
     (CORE.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || null,
+    (CORE.match(/dg-foot-v(\d+)-core/) || [])[1] || null, // banner comment (line 1)
+    (CORE.match(/foot v(\d+)-core loaded/) || [])[1] || null, // boot-log console.log
   ];
   const checks = {
     editorHelperParses: helperParses(GET_VIEW),
@@ -148,7 +152,7 @@ function canonicalPreflight() {
     ),
     footerMatchesManifest: Boolean(footerUrl && manifestUrl && footerUrl === manifestUrl),
     footerHasNoHeadPayload: !/unhide-v5|dg-unhide-critical/i.test(FOOT),
-    coreVersionMarkersAgree: Boolean(coreVersions[0] && coreVersions[0] === coreVersions[1]),
+    coreVersionMarkersAgree: Boolean(coreVersions[0] && coreVersions.every((v) => v === coreVersions[0])),
     manifestVersionMatchesCore: Boolean(MANIFEST && String(MANIFEST.version || '').replace(/^v/i, '') === coreVersions[0]),
     manifestShaMatchesCore: Boolean(MANIFEST?.sha256 && MANIFEST.sha256 === coreSha256),
     manifestBytesMatchCore: Boolean(Number.isSafeInteger(MANIFEST?.bytes) && MANIFEST.bytes === coreBytes),
