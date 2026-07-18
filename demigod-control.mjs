@@ -451,15 +451,19 @@ export async function buildControlPlane() {
       inboxNew: dashStatus?.inbox?.newCount,
     },
   });
+  // Show the review's age (not a stale flag): review runs on-demand, so an old result is valid until
+  // the code changes — a time-based "stale" verdict would wrongly flag a still-good review. Surfacing
+  // the age lets a reader judge whether it predates their edits without a false stale call.
+  const reviewAgeMin = review?.at ? Math.round((Date.now() - Date.parse(review.at)) / 60000) : null;
   modules.review = enrich('review', {
     ok: review ? !review.summary?.fail : null,
     findings: review?.summary?.count ?? null,
     bySev: review?.summary?.bySev || null,
     detail: review
-      ? `${review.summary?.count ?? 0} findings · fail=${review.summary?.fail}`
+      ? `${review.summary?.count ?? 0} findings · fail=${review.summary?.fail}${reviewAgeMin != null ? ` · ${reviewAgeMin < 90 ? `${reviewAgeMin}m` : `${Math.round(reviewAgeMin / 60)}h`} ago` : ''}`
       : 'no review yet',
     next: 'bin/dg review',
-    metrics: { fail: review?.summary?.fail, count: review?.summary?.count },
+    metrics: { fail: review?.summary?.fail, count: review?.summary?.count, ageMin: reviewAgeMin },
   });
   // Mirror the wfDoctor freshness guard (L353): the hygiene snapshot is a cached /tmp/dg-busy file;
   // without an age check a day-old snapshot shows tabs/load as current (was 27h stale, under-reporting
