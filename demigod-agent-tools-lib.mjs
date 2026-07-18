@@ -269,6 +269,11 @@ export function gateFreshness(gateFile, sourceFile, { skewMs = 2000, maxAgeSec =
       lagSec: Math.round((source.mtimeMs - gate.mtimeMs) / 1000),
     };
   }
+  // Future-dated gate file (clock skew / malformed write): negative ageSec silently passed the
+  // `> maxAgeSec` check below and was blessed fresh forever. Reject it (mirrors the dashboard guard).
+  if (gate.ageSec != null && gate.ageSec < -60) {
+    return { fresh: false, reason: 'clock-skew', gate, source, label: 'future-mtime', ageSec: gate.ageSec };
+  }
   if (maxAgeSec != null && gate.ageSec != null && gate.ageSec > maxAgeSec) {
     return { fresh: false, reason: 'max-age', gate, source, label: 'stale-age', ageSec: gate.ageSec };
   }

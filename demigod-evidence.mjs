@@ -114,6 +114,10 @@ export function isFresh(envelope, { maxAgeSec = null } = {}) {
   }
   const ageMax = maxAgeSec ?? envelope.ttlSec ?? 3600;
   const ended = Date.parse(envelope.endedAt || envelope.at || envelope.startedAt || 0);
+  // Future-dated envelope (clock skew): negative age silently passed the ttl check below. Reject it.
+  if (Number.isFinite(ended) && Date.now() - ended < -60000) {
+    return { fresh: false, reason: 'clock-skew', ageSec: Math.round((Date.now() - ended) / 1000) };
+  }
   if (Number.isFinite(ended) && ageMax > 0 && Date.now() - ended > ageMax * 1000) {
     return { fresh: false, reason: 'ttl-expired', ageSec: Math.round((Date.now() - ended) / 1000) };
   }
