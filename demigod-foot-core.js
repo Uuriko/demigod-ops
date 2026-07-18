@@ -4176,7 +4176,7 @@ function eventsBotOffersMount(root) {
       return;
     } catch (e) {}
     offerUrl = '';
-    if (counts) counts.textContent = 'Offer API offline — submit will open email to potter@';
+    if (counts) counts.textContent = 'Offer API offline — submit will open email to potter@trydemigod.com';
   }
 
   function mailtoFallback(payload) {
@@ -4227,7 +4227,7 @@ function eventsBotOffersMount(root) {
           return {};
         });
         if (r.ok && j.ok) {
-          setMsg(j.message || 'Offer recorded. potter@ will follow up.', 'ok');
+          setMsg(j.message || 'Offer recorded. potter@trydemigod.com will follow up.', 'ok');
           form.reset();
           setKind(payload.kind);
           probe();
@@ -4303,7 +4303,7 @@ function eventsBotExtraMount(root) {
         msg && msg.classList.add(j.ok !== false ? 'ok' : 'err');
       } catch (err) {
         if (msg) {
-          msg.textContent = 'API offline — email potter@ with your idea.';
+          msg.textContent = 'API offline — email potter@trydemigod.com with your idea.';
           msg.classList.add('err');
         }
       }
@@ -4353,7 +4353,7 @@ function eventsBotExtraMount(root) {
         if (j.ok) mForm.reset();
       } catch (err) {
         if (msg) {
-          msg.textContent = 'API offline — email potter@ to pledge.';
+          msg.textContent = 'API offline — email potter@trydemigod.com to pledge.';
           msg.className = 'dg-ev-msg err';
         }
       }
