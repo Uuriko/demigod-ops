@@ -48,6 +48,280 @@ export function extractEmail(data = {}, formName = '') {
   return String(data['seeker-email'] || data.seekerEmail || '').toLowerCase().trim();
 }
 
+/**
+ * Parse Webflow form-notification email body into form name + field map.
+ * Source: Gmail "New form submission on Webflow" previews (webhook often drops fields).
+ * Never invents keys/values — only splits literally present "kebab-key: value" pairs.
+ */
+export function parseWebflowFormEmailBody(text) {
+  const s = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const formM = s.match(/\bForm\s+([a-z0-9_-]+)\s+Site\b/i);
+  const form = formM ? formM[1].toLowerCase() : '';
+  const contentIdx = s.search(/Submitted content\s*/i);
+  const fieldBlob =
+    contentIdx >= 0 ? s.slice(contentIdx).replace(/^Submitted content\s*/i, '') : s;
+  const raw = {};
+  const re = /([a-z][a-z0-9_-]*)\s*:\s*/gi;
+  const parts = [];
+  let m;
+  while ((m = re.exec(fieldBlob)) !== null) {
+    parts.push({ key: m[1].toLowerCase(), keyEnd: re.lastIndex, start: m.index });
+  }
+  for (let i = 0; i < parts.length; i++) {
+    const end = i + 1 < parts.length ? parts[i + 1].start : fieldBlob.length;
+    const val = fieldBlob.slice(parts[i].keyEnd, end).trim();
+    if (val) raw[parts[i].key] = val;
+  }
+  return { form, raw, email: extractEmail(raw, form) || String(raw.email || '').toLowerCase().trim() };
+}
+
+/** Example/playtest contacts — never count as real form_filled / paid path. */
+export function isSyntheticContact(email, raw = {}) {
+  const e = String(email || '').toLowerCase().trim();
+  const blob = JSON.stringify(raw || {}).toLowerCase();
+  if (!e) return true;
+  if (/@example\.(com|org|net)$|@test\.(com|co)|@pending\.example|mailinator\.|guerrillamail/i.test(e)) {
+    return true;
+  }
+  if (/\b(acme labs|alex rivera|alex chen|founder@example|smoke check)\b/i.test(e + ' ' + blob)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Flatten Gmail dump threads → structured WIZ form candidates (report / rehydrate plan).
+ * @returns {{ forms: object[], real: object[], synthetic: object[] }}
+ */
+export function planGmailFormCandidates(payload) {
+  const threads = payload?.threads || payload?.messages || (Array.isArray(payload) ? payload : []);
+  const forms = [];
+  for (const t of threads) {
+    const msgs = t.messages || [t];
+    for (const msg of msgs) {
+      const from = String(msg.from || '');
+      const subject = String(msg.subject || t.subject || '');
+      const body = String(msg.body_preview || msg.snippet || msg.body || t.snippet || '');
+      if (!/no-reply-forms@webflow\.com/i.test(from) && !/form submission/i.test(subject)) continue;
+      const parsed = parseWebflowFormEmailBody(`${subject}\n${body}`);
+      if (!parsed.form && !Object.keys(parsed.raw).length) continue;
+      const synthetic = isSyntheticContact(parsed.email, parsed.raw);
+      forms.push({
+        messageId: msg.message_id || msg.id || '',
+        at: msg.date || '',
+        form: parsed.form,
+        raw: parsed.raw,
+        email: parsed.email || '',
+        synthetic,
+        subject,
+      });
+    }
+  }
+  return {
+    forms,
+    real: forms.filter((f) => !f.synthetic && f.email),
+    synthetic: forms.filter((f) => f.synthetic),
+  };
+}
+
+/** Self/noise emails that must never rehydrate onto inbox (join money path). */
+function isNonPatchableContactEmail(email) {
+  const e = String(email || '')
+    .toLowerCase()
+    .trim();
+  if (!e || !e.includes('@')) return true;
+  if (isSyntheticContact(e)) return true;
+  // Own product + noreply — same honesty as lead-collect usable gate (no circular import)
+  if (/@trydemigod\.com$|noreply|no-reply|donotreply|do-not-reply|@pending\.example/i.test(e)) {
+    return true;
+  }
+  return false;
+}
+
+function submissionDataBag(sub) {
+  if (!sub || typeof sub !== 'object') return {};
+  return sub.data || sub.payload || sub.raw || {};
+}
+
+function emailFieldKeyForForm(formName) {
+  const fn = String(formName || '').toLowerCase();
+  if (/partner/.test(fn)) return 'partner-email';
+  if (/engineer|jobseeker|seeker|candidate/.test(fn)) return 'seeker-email';
+  return 'contact-email';
+}
+
+function formFamilyMatch(a, b) {
+  const fa = String(a || '').toLowerCase();
+  const fb = String(b || '').toLowerCase();
+  if (!fa || !fb) return true; // unknown form → allow title/company match
+  if (fa === fb) return true;
+  // startup-hire ↔ startup, engineer-join ↔ engineer-join-sms
+  const stem = (s) => s.split(/[-_]/)[0] || s;
+  return stem(fa) === stem(fb) || fa.includes(stem(fb)) || fb.includes(stem(fa));
+}
+
+/**
+ * Pure: patch incomplete webhook submissions with contacts from real Gmail form emails.
+ * Webhook often stores role-title only; Gmail notification has contact-email.
+ * Fail-closed: never invents; skips synthetic/self; ambiguous multi-sub match denied.
+ * Does not mutate inputs.
+ * @returns {{ patches: object[], skipped: object[] }}
+ */
+export function planInboxContactPatches(realForms = [], submissions = []) {
+  const patches = [];
+  const skipped = [];
+  const claimedSubs = new Set();
+
+  for (const f of realForms || []) {
+    if (!f || typeof f !== 'object') continue;
+    const email = String(f.email || '')
+      .toLowerCase()
+      .trim();
+    if (!email) {
+      skipped.push({ reason: 'no_email' });
+      continue;
+    }
+    if (f.synthetic || isNonPatchableContactEmail(email)) {
+      skipped.push({ email, reason: 'synthetic_or_self' });
+      continue;
+    }
+    const raw = f.raw && typeof f.raw === 'object' ? f.raw : {};
+    const title = String(raw['role-title'] || raw.role || raw['full-name'] || '').trim();
+    const company = String(
+      raw['company-name'] || raw.company || raw['partner-org'] || raw['partner-name'] || '',
+    ).trim();
+    if (!title && !company) {
+      skipped.push({ email, reason: 'no_title_or_company' });
+      continue;
+    }
+
+    const candidates = [];
+    for (const sub of submissions || []) {
+      if (!sub?.id || claimedSubs.has(sub.id)) continue;
+      const formName = String(sub.form || sub.formName || '').toLowerCase();
+      if (!formFamilyMatch(f.form, formName)) continue;
+      const data = submissionDataBag(sub);
+      const existing = extractEmail(data, formName || f.form);
+      if (existing) continue; // already has contact — never overwrite
+      const subTitle = String(data['role-title'] || data.role || data['full-name'] || '').trim();
+      const subCompany = String(
+        data['company-name'] || data.company || data['partner-org'] || data['partner-name'] || '',
+      ).trim();
+      let score = 0;
+      if (title && subTitle && title.toLowerCase() === subTitle.toLowerCase()) score += 2;
+      if (company && subCompany && company.toLowerCase() === subCompany.toLowerCase()) score += 2;
+      // Need a strong signal (title or company exact) — role-only spam clones stay ambiguous
+      if (score < 2) continue;
+      candidates.push({ sub, score, formName });
+    }
+
+    if (!candidates.length) {
+      skipped.push({ email, reason: 'no_incomplete_submission_match' });
+      continue;
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    const topScore = candidates[0].score;
+    const top = candidates.filter((c) => c.score === topScore);
+    if (top.length > 1) {
+      skipped.push({
+        email,
+        reason: 'ambiguous_submission_match',
+        ids: top.map((c) => c.sub.id),
+      });
+      continue;
+    }
+
+    const { sub, formName } = top[0];
+    const emailKey = emailFieldKeyForForm(formName || f.form);
+    const data = submissionDataBag(sub);
+    const fields = { [emailKey]: email };
+    // Fill only missing identity fields literally present on the Gmail form
+    for (const k of [
+      'company-name',
+      'company-stage',
+      'full-name',
+      'role-title',
+      'stack-needs',
+      'skills-stack',
+      '90day-outcome',
+      'partner-name',
+      'partner-org',
+    ]) {
+      if (raw[k] && !data[k]) fields[k] = raw[k];
+    }
+    claimedSubs.add(sub.id);
+    patches.push({
+      submissionId: sub.id,
+      email,
+      emailKey,
+      fields,
+      form: formName || f.form || '',
+      via: 'gmail-form-rehydrate',
+      messageId: f.messageId || null,
+      score: topScore,
+    });
+  }
+
+  return { patches, skipped };
+}
+
+/**
+ * Pure: clone submissions with Gmail contact patches applied in-memory (for join planning).
+ * Never invents fields; never overwrites existing contact keys on the bag.
+ */
+export function submissionsWithGmailPatches(subs = [], patches = []) {
+  if (!Array.isArray(subs) || !patches?.length) return Array.isArray(subs) ? subs.slice() : [];
+  const byId = new Map(patches.map((p) => [p.submissionId, p]));
+  return subs.map((sub) => {
+    if (!sub?.id) return sub;
+    const p = byId.get(sub.id);
+    if (!p || !p.fields) return sub;
+    const base = { ...(sub.raw || sub.data || sub.payload || {}) };
+    for (const [k, v] of Object.entries(p.fields)) {
+      if (v == null || v === '') continue;
+      if (base[k]) continue; // never overwrite
+      base[k] = v;
+    }
+    return { ...sub, raw: base, data: base };
+  });
+}
+
+/**
+ * Apply planned contact patches onto inbox item objects (mutates matching items).
+ * Safe: only fills missing email keys; never overwrites existing contact.
+ * @returns {number} count applied
+ */
+export function applyInboxContactPatches(items, patches = []) {
+  if (!Array.isArray(items) || !patches?.length) return 0;
+  const byId = new Map(items.map((it) => [it?.id, it]));
+  let n = 0;
+  for (const p of patches) {
+    const it = byId.get(p.submissionId);
+    if (!it) continue;
+    // Prefer mutating the bag the record actually uses
+    let bag = null;
+    if (it.data && typeof it.data === 'object') bag = it.data;
+    else if (it.payload && typeof it.payload === 'object') bag = it.payload;
+    else if (it.raw && typeof it.raw === 'object') bag = it.raw;
+    else {
+      it.data = {};
+      bag = it.data;
+    }
+    const formName = String(it.form || it.formName || p.form || '');
+    if (extractEmail(bag, formName)) continue; // race: already has contact
+    for (const [k, v] of Object.entries(p.fields || {})) {
+      if (v && !bag[k]) bag[k] = v;
+    }
+    it.contactRehydratedAt = new Date().toISOString();
+    it.contactRehydrateVia = p.via || 'gmail-form-rehydrate';
+    if (p.messageId) it.contactRehydrateMessageId = p.messageId;
+    n++;
+  }
+  return n;
+}
+
 /** Auto-reject spam/duplicates before inbox (Heavy review-gate spec). */
 export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   const fn = String(formName).toLowerCase();
@@ -163,6 +437,14 @@ export function loadBoard() {
   try {
     return JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
   } catch (_) {
+    // Same guard as loadInbox: a board that EXISTS but won't parse must be copied aside before any
+    // caller saves over the empty default, else the next saveBoard silently WIPES the board SoR
+    // (roles/candidates). A MISSING file is a normal fresh start. Preserve corrupt bytes first.
+    try {
+      if (fs.existsSync(BOARD_PATH)) fs.copyFileSync(BOARD_PATH, `${BOARD_PATH}.corrupt.${Date.now()}`);
+    } catch {
+      /* best-effort preservation; never block the fresh start */
+    }
     return { at: new Date().toISOString(), roles: [], candidates: [], cdnUrl: null };
   }
 }

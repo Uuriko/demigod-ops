@@ -53,6 +53,12 @@ if (score >= 70) {
   if (doLog || args.logpilot) {
     console.log('Logging high-signal (dry: no publish, no fake receipt)...');
     const res = spawnSync('node', ['demigod-pilot-logger.mjs', `--founder=${email}`, `--brief=${brief}`, `--outcome=${outcome}`, '--intros=0', '--no-publish', '--no-receipt', '--no-signal'], { encoding: 'utf8' });
+    // Fail-closed: a spawn error or non-zero exit means the pilot was NOT logged. Do not print the
+    // "logged" fallback (a false success claim) — surface the failure and exit non-zero.
+    if (res.error || res.status !== 0) {
+      console.error('NOT logged — pilot-logger failed:', res.error?.message || (res.stderr || '').slice(-300) || `exit ${res.status}`);
+      process.exit(1);
+    }
     console.log(res.stdout || res.stderr || 'logged (check board/pilots)');
   }
 } else {
