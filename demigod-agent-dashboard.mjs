@@ -5373,7 +5373,10 @@ const server = http.createServer(async (req, res) => {
           return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
         });
         const busyBits = workAgents
-          .filter((a) => a.status === 'busy' || (!a.stale && a.ageSec != null && a.ageSec < 600))
+          // ageSec >= -60 rejects a future-dated/clock-skewed heartbeat (negative age passes `< 600`
+          // and would read as active) while tolerating ~60s of skew — same future-guard class as the
+          // dashboard's other freshness checks (>= -60000ms).
+          .filter((a) => a.status === 'busy' || (!a.stale && a.ageSec != null && a.ageSec >= -60 && a.ageSec < 600))
           .map((a) => `${a.label}${a.lane ? '·' + a.lane : ''}: ${a.headline}`)
           .slice(0, 4);
         let workSummary =
