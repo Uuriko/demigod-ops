@@ -1241,8 +1241,9 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
 // the head-vs-foot 'Demigod' regression. Cross-check the real labels so drift in EITHER file fails.
 {
   const footCoreSrc = coreJs || fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-  const ctaFounder = (footCoreSrc.match(/ctaFounder:\s*(["'])(.*?)\1/) || [])[2];
-  const ctaEngineer = (footCoreSrc.match(/ctaEngineer:\s*(["'])(.*?)\1/) || [])[2];
+  // \s* before the colon too: a valid reformat (`ctaFounder : "..."`) must not false-red this gate.
+  const ctaFounder = (footCoreSrc.match(/ctaFounder\s*:\s*(["'])(.*?)\1/) || [])[2];
+  const ctaEngineer = (footCoreSrc.match(/ctaEngineer\s*:\s*(["'])(.*?)\1/) || [])[2];
   const ctaOk =
     /dg-head-fallback/.test(head) &&
     /data-dg-cta/.test(head) &&
