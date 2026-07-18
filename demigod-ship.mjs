@@ -210,6 +210,8 @@ function prepare() {
     scope: [path.join(ROOT, 'demigod-foot-core.js')],
   });
   const steps = [];
+  // Blog SoR must match foot embed + head JSON-LD (bin/dg-blog sync)
+  steps.push(run('blog-check', ['demigod-blog-sync.mjs', '--check']));
   const v = spawnSync('npm', ['run', 'demigod:verify:source'], {
     cwd: ROOT,
     encoding: 'utf8',
@@ -311,6 +313,15 @@ function withShipPerf(fn) {
 function cdn() {
   requireMutate('ship-cdn');
   return withShipPerf(() => {
+    // Fan-out blog SoR → foot embed + head LD before CDN upload
+    const b = run('blog-sync', ['demigod-blog-sync.mjs'], { timeout: 60000 });
+    if (!b.ok) {
+      writeReceipt('cdn', false, 'blog-sync failed');
+      if (asJson) console.log(JSON.stringify(b, null, 2));
+      else console.log('✗ blog-sync\n' + b.out);
+      return 1;
+    }
+    if (!asJson) console.log('✓ blog-sync');
     const r = run('foot-cdn', ['demigod-foot-cdn-publish.mjs'], { timeout: 300000 });
     writeReceipt('cdn', r.ok, r.ok ? 'cdn ok' : 'cdn failed');
     if (asJson) console.log(JSON.stringify(r, null, 2));
@@ -334,14 +345,18 @@ function verify() {
   const r = run('truth-match', ['demigod-truth.mjs', '--require-match'], { allowFail: true });
   // also live-attest when available
   const a = run('live-attest', ['demigod-live-attest.mjs', '--json'], { allowFail: true, timeout: 60000 });
-  writeReceipt('verify', r.ok && a.ok, r.ok ? 'verify+attest' : 'verify failed');
+  // Use rawOk, NOT ok: run() forces ok=true under allowFail (so the process doesn't abort on a
+  // verification miss), but the REAL child exit is in rawOk. Reading .ok here made post-publish
+  // verify() always report success even when truth-match failed (disk≠live) or live-attest failed —
+  // a fail-open that would tell the operator "verified" on an unverified/broken publish.
+  writeReceipt('verify', r.rawOk && a.rawOk, r.rawOk ? 'verify+attest' : 'verify failed');
   if (asJson) console.log(JSON.stringify({ truth: r, attest: a }, null, 2));
   else {
-    console.log(r.ok ? '✓ truth --require-match' : '✗ truth --require-match (disk≠live)');
-    console.log(a.ok ? '✓ live-attest' : '✗ live-attest');
-    if (!r.ok) console.log(r.out.slice(-500));
+    console.log(r.rawOk ? '✓ truth --require-match' : '✗ truth --require-match (disk≠live)');
+    console.log(a.rawOk ? '✓ live-attest' : '✗ live-attest');
+    if (!r.rawOk) console.log(r.out.slice(-500));
   }
-  return r.ok ? 0 : 1;
+  return r.rawOk ? 0 : 1;
 }
 
 function runAll() {
