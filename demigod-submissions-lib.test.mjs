@@ -1,11 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   anonymizeRole,
   anonymizeCandidate,
   ingestSubmission,
   shouldAutoReject,
   filterBoard,
+  saveInbox,
+  saveBoard,
+  INBOX_PATH,
+  BOARD_PATH,
 } from './demigod-submissions-lib.mjs';
 
 test('anonymizeRole strips PII', () => {
@@ -140,4 +145,14 @@ test('parseWebhookPayload handles Webflow v2 envelope', async () => {
   }));
   assert.equal(name, 'startup-hire');
   assert.equal(data['role-title'], 'PM');
+});
+// Perm-regression guard: PII SoR writers must create files 0600 (cycles 280-288 secured contacts/
+// offers PII). A future edit dropping the post-write chmod would silently re-expose them; catch it.
+test('PII SoR writers create files 0600', () => {
+  try { fs.unlinkSync(INBOX_PATH); } catch {} // fresh file so we test creation-time mode (umask default is 0644)
+  saveInbox({ items: [] });
+  assert.equal(fs.statSync(INBOX_PATH).mode & 0o077, 0, 'saveInbox must create INBOX_PATH 0600 (no group/world PII)');
+  try { fs.unlinkSync(BOARD_PATH); } catch {}
+  saveBoard({ roles: [], candidates: [] });
+  assert.equal(fs.statSync(BOARD_PATH).mode & 0o077, 0, 'saveBoard must create BOARD_PATH 0600');
 });
