@@ -146,3 +146,17 @@ DEMIGOD-BOARD-CDN.json
 DEMIGOD-BOARD-PUBLIC.json
 demigod-board.corrupt*
 demigod-foot-core.b64
+
+# More SoRs a `git add -A --dry-run` (cycle 415) proved committable — the earlier per-file check missed
+# them. DEMIGOD-LEADS.json holds REAL founder/candidate PII (untracked today = active risk, not latent).
+# DEMIGOD-EVENTS.* (dot) missed hyphenated DEMIGOD-EVENTS-API.json + lowercase demigod-events-data.json;
+# DEMIGOD-BOARD.json.* (uppercase) missed lowercase demigod-board.json.bak-*. All never-tracked -> clean.
+DEMIGOD-LEADS.json
+DEMIGOD-LEADS.json.*
+DEMIGOD-PILOTS.json
+DEMIGOD-PILOTS.json.*
+DEMIGOD-EVENTS-API.json
+demigod-events-data.json
+demigod-events-data.json.*
+demigod-board.json.bak*
+*.mjs.bak
