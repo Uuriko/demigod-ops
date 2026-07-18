@@ -7330,7 +7330,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     box.innerHTML =
       '<div class="dg-mud" id="dg-mud-shell">' +
       '<div class="dg-mud-head"><span class="dg-mud-title">SF Night District</span>' +
-      '<span class="dg-mud-status" id="dg-mud-status">solo</span></div>' +
+      '<span class="dg-mud-status" id="dg-mud-status" aria-live="polite">solo</span></div>' +
       '<div class="dg-mud-log" id="dg-mud-log" role="log" aria-live="polite"></div>' +
       '<div class="dg-mud-soft" id="dg-mud-soft" aria-label="Room exits"></div>' +
       '<form class="dg-mud-form" id="dg-mud-form" autocomplete="off">' +
