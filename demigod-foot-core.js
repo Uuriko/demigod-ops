@@ -1,4 +1,4 @@
-/*dg-foot-v665-core*/
+/*dg-foot-v682-core*/
 /**
  * v648 a11y: focus now enters the WIZ dialog on open. show()'s focus query matched the
  *   first input in DOM order (contact-email, on a later step, HIDDEN on welcome) and
@@ -303,7 +303,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v665'; console.log('[demigod] foot v665-core loaded');
+window.dgFootVersion = 'v682'; console.log('[demigod] foot v682-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -1487,10 +1487,135 @@ qa('input,select,textarea', document).forEach(function(i){ if(!i.id) return; var
 }
 /* === COPY INJECTION — runtime marketing strings from COPY; honesty scrub separate === */
 function copy(){qa(S+' h2').forEach(function(e){e.textContent=COPY.startupH2});qa(J+' h2').forEach(function(e){e.textContent=COPY.engineerH2});qa(S+' p,'+J+' p').forEach(function(e){var t=e.textContent||'';if(t.length>240||e.closest('form,.w-form'))return;e.textContent=e.closest(J)?COPY.engineerBody:COPY.startupBody});var jm=q(J);if(jm)qa('*',jm).forEach(function(e){if(e.children.length||e.closest('form,.w-form'))return;var t=(e.textContent||'').trim();if(/^ENGINEER APPLICATION$|^CANDIDATE APPLICATION$/i.test(t))e.textContent='SF STARTUP ROLES'})}
+/** Brand wordmark font: rely on the --dg-cyber CSS fallback chain (ui-sans-serif, system-ui), NOT a
+ *  runtime external fetch. foot-core injecting <link href=fonts.googleapis.com> added a render-blocking
+ *  cross-origin request, broke offline/CSP, and duplicated the head's font ownership — all to swap a
+ *  display face on one hero word. The uppercase phosphor styling reads fine on the system fallback. */
+function ensureCyberFont() { /* no-op: use CSS var fallback, no external font load */ }
+
+/** Cyber wordmark: split letters for motion. Pure DOM paint. */
+function paintCyberWord(el, word) {
+  if (!el) return;
+  var w = String(word || 'Demigod');
+  var reduce =
+    (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) ||
+    document.documentElement.classList.contains('dg-reduce');
+  el.classList.add('dg-cyber-host');
+  if (reduce) {
+    el.innerHTML =
+      '<span class="dg-cyber-word" aria-label="' +
+      w +
+      '">' +
+      w +
+      '</span>';
+    return;
+  }
+  el.innerHTML =
+    '<span class="dg-cyber-word" aria-label="' +
+    w +
+    '">' +
+    w
+      .split('')
+      .map(function (ch, i) {
+        var c = ch === ' ' ? '&nbsp;' : ch;
+        return (
+          '<span class="dg-cyber-ch" style="--i:' +
+          i +
+          '" data-ch="' +
+          ch +
+          '">' +
+          c +
+          '</span>'
+        );
+      })
+      .join('') +
+    '</span>';
+}
+
+/** Dual-path product H1 (after brand hold). */
+function paintDualPathH1(el) {
+  if (!el) return;
+  el.classList.remove('dg-cyber-host', 'dg-hero-hold', 'dg-hero-morph-out');
+  el.setAttribute('data-dg-hero-h1', '1');
+  el.setAttribute('data-dg-hero-phase', 'dual');
+  el.innerHTML = 'Find talent.<br><em class="dg-em">Find startups.</em>';
+  // Keep stable block height so morph does not jump layout
+  el.style.minHeight = el.style.minHeight || '';
+}
+
+/**
+ * Smooth brand hold → dual-path.
+ * Jumpiness was: short hold, harsh glitch, 0.4s swap, serif/cyber CSS fight, layout reflow.
+ */
+function scheduleHeroBrandHold(el) {
+  if (!el) return;
+  // Codex: ~3× prior 27s hold; calm premium morph (opacity only)
+  var HOLD_MS = Number(window.__dgHeroHoldMs) || 81000;
+  var FADE_MS = Number(window.__dgHeroFadeMs) || 2800;
+  var phase = el.getAttribute('data-dg-hero-phase') || '';
+  if (phase === 'dual' || phase === 'hold' || phase === 'morph') return;
+
+  var reduce =
+    (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) ||
+    document.documentElement.classList.contains('dg-reduce');
+  if (reduce) {
+    paintDualPathH1(el);
+    return;
+  }
+
+  ensureCyberFont();
+  el.setAttribute('data-dg-hero-h1', '1');
+  el.setAttribute('data-dg-hero-phase', 'hold');
+  el.classList.add('dg-hero-hold', 'dg-cyber-host');
+  // Reserve two-line height early so dual-path does not shove content
+  el.style.minHeight = '2.55em';
+  el.style.opacity = '1';
+  el.style.transform = 'none';
+  el.style.filter = 'none';
+  el.style.transition = 'opacity ' + FADE_MS + 'ms cubic-bezier(.4,0,.2,1)';
+  paintCyberWord(el, 'Demigod');
+
+  window.clearTimeout(el._dgHeroHoldTimer);
+  window.clearTimeout(el._dgHeroMorphTimer);
+  el._dgHeroHoldTimer = window.setTimeout(function () {
+    try {
+      el.setAttribute('data-dg-hero-phase', 'morph');
+      el.classList.add('dg-hero-morph-out');
+      el.style.opacity = '0';
+      el._dgHeroMorphTimer = window.setTimeout(function () {
+        paintDualPathH1(el);
+        el.classList.add('dg-hero-morph-in');
+        void el.offsetWidth;
+        el.style.opacity = '0';
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            el.style.opacity = '1';
+          });
+        });
+        window.setTimeout(function () {
+          el.classList.remove('dg-hero-morph-in', 'dg-hero-morph-out');
+          el.style.transition = '';
+          el.style.minHeight = '';
+        }, FADE_MS + 80);
+      }, FADE_MS);
+    } catch (_) {
+      paintDualPathH1(el);
+    }
+  }, HOLD_MS);
+}
+
 /* === HERO / CTA SURFACE — dual path pills live in contactStrip; keep sample labels honest === */
 function hero(){
   qa('.hero-section h1,.hero-title,.header h1').forEach(function(e){
-    e.innerHTML='Many startups.<br><em class="dg-em">One matched reality.</em>';
+    e.setAttribute('data-dg-hero-h1','1');
+    var phase = e.getAttribute('data-dg-hero-phase') || '';
+    if (phase === 'dual') {
+      // already settled — keep dual path text stable across re-runs
+      if (!/Find talent/i.test(e.textContent || '')) paintDualPathH1(e);
+      return;
+    }
+    if (phase === 'hold' || phase === 'morph') return; // leave timer / fade alone
+    scheduleHeroBrandHold(e);
   });
   qa('.hero-section p,.hero-description,.subheading,.header p').forEach(function(e){
     if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
@@ -1607,7 +1732,7 @@ function nav(){
   qa('nav.w-nav a.button,.w-nav a.button,nav a.button,header a.button,nav a.premium-btn,header a.premium-btn,#dg-nav-hire,#dg-nav-talent,.nav_right a.button,.nav_right a.w-button').forEach(function(a){
     if(a.closest('.hero-actions,#dg-path-pills,#dg-bar,footer,.footer,.pricing-card')) return;
     var t=(a.textContent||'').replace(/\s+/g,' ').trim();
-    if(/i.?m hiring|i.?m looking|hire talent|find talent|get started|post a job|find a job|join network|start$/i.test(t) || a.id==='dg-nav-hire' || a.id==='dg-nav-talent' || a.getAttribute('data-dg-cta')==='hire' || a.getAttribute('data-dg-cta')==='talent'){
+    if(/^(demigod)$/i.test(t)||/i.?m hiring|i.?m looking|hire talent|find talent|get started|post a job|find a job|join network|start$/i.test(t) || a.id==='dg-nav-hire' || a.id==='dg-nav-talent' || a.getAttribute('data-dg-cta')==='hire' || a.getAttribute('data-dg-cta')==='talent'){
       a.style.setProperty('display','none','important');
       a.setAttribute('aria-hidden','true');
       a.setAttribute('tabindex','-1');
@@ -1616,7 +1741,7 @@ function nav(){
   var navCtas=q('#dg-top-nav .dg-nav-ctas'); if(navCtas) navCtas.style.setProperty('display','none','important');
 }
 function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
-function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I\'m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="I\'m looking — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
+function mob(){if(q('#dg-bar'))return;var b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="I&#39;m hiring — open startup brief">'+COPY.ctaFounder+'</a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="I\'m looking — open talent profile">'+COPY.ctaEngineer+'</a>';document.body.appendChild(b)}
 function foot(){var f=q('footer,.footer');if(!f)return;if(!q('#dg-legal-links')){var lg=document.createElement('p');lg.id='dg-legal-links';lg.style.cssText='margin:.5rem 0;font-size:.8rem';lg.innerHTML='<span class="dg-foot-primary"><a href="/?p=how" data-dg-page="how">How</a><a href="/?p=pricing" data-dg-page="pricing">Pricing</a><a href="/?p=faq" data-dg-page="faq">FAQ</a><a href="/?p=blog" data-dg-page="blog">Blog</a><a href="/?p=events" data-dg-page="events">Events Bot</a><a href="/?p=contact" data-dg-page="contact">Contact</a></span><span class="dg-foot-more" aria-label="More pages"><a href="/?p=legal" data-dg-page="legal">Legal</a><a href="/?p=pilot" data-dg-page="pilot">Pilot</a><a href="/?p=founders" data-dg-page="founders">Founders</a><a href="/?p=candidates" data-dg-page="candidates">Talent</a><a href="/?p=compare" data-dg-page="compare">Compare</a><a href="/?p=mud" data-dg-page="mud">MUD</a></span><a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>';f.appendChild(lg);lg.addEventListener('click',function(e){var a=e.target.closest('[data-dg-page]');if(!a)return;e.preventDefault();openPage(a.getAttribute('data-dg-page'),true);})}qa('footer nav,footer ul,footer .w-col,footer [class*="column"],footer section',f).forEach(function(c){var t=c.textContent||'';if(t.length<8||t.length>8000)return;if(/Company|Services|Resources|Legal|ABOUT|TEAM|CAREERS|Facebook|Instagram|LinkedIn|YouTube|GET STARTED/i.test(t)&&!/hello@trydemigod|potter@trydemigod|© 2026/i.test(t))c.style.setProperty('display','none','important')});qa('footer a[href="#"]',f).forEach(function(a){var p=a.closest('li,nav,div')||a;if(!/hello@trydemigod|potter@trydemigod/i.test(p.textContent||''))p.style.setProperty('display','none','important')});qa('footer .footer_icon-group,footer .button-group,footer [class*="social"]',f).forEach(function(g){g.style.setProperty('display','none','important')});var dgFt=f.querySelector('.footer-tagline');if(dgFt){if(dgFt.textContent!==COPY.footerTag)dgFt.textContent=COPY.footerTag;}else if(!q('#demigod-footer-tag')){var p=document.createElement('p');p.id='demigod-footer-tag';p.style.cssText='color:#9ca3af;font-size:.9rem;margin:.5rem 0 1rem;max-width:42rem';p.textContent=COPY.footerTag;var c=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c&&c.parentNode)c.parentNode.insertBefore(p,c)}if(!q('#footer-email')){var a=document.createElement('a');a.id='footer-email';a.href='mailto:potter@trydemigod.com';a.textContent='potter@trydemigod.com';a.style.cssText='display:block!important;color:#c9a84c;font-size:.95rem;margin:.75rem 0;text-decoration:none';var c2=f.querySelector('[class*="copyright"],.footer_bottom')||f.lastElementChild;if(c2&&c2.parentNode)c2.parentNode.insertBefore(a,c2)}qa('footer .text-color_secondary,footer [class*="copyright"]',f).forEach(function(el){el.style.fontSize='0.875rem';el.style.lineHeight='1.4';el.textContent='© 2026 Demigod. All rights reserved.'});if(!q('#dg-copyright')&&!qa('footer .text-color_secondary,footer [class*="copyright"]',f).length){var cp=document.createElement('p');cp.id='dg-copyright';cp.textContent='© 2026 Demigod. All rights reserved.';cp.style.cssText='color:#A8A29E;font-size:.875rem;margin:.5rem 0 0';var bot=f.querySelector('.footer_bottom')||f;bot.appendChild(cp)}}
 function footerDecisionLinks(){/* v564: keep footer lean — no extra decision links */}
 function rmOrphanForms(){qa('form.w-form').forEach(function(f){if(f.closest('#startup-modal,#jobseeker-modal'))return;var n=(f.getAttribute('data-name')||f.name||'').toLowerCase();if(n==='email-form'||n==='test-form'||f.id==='email-form'){(f.closest('section,.w-form-wrap,div')||f).remove()}})}
@@ -1915,19 +2040,30 @@ function cta(){/*dg-cta-prefetch*/
     var label = hire ? COPY.ctaFounder : COPY.ctaEngineer;
     try {
       var span = a.querySelector('.btn-label,.button_label,.dg-cta-label');
-      if (span) {
-        span.textContent = label;
-        Array.prototype.forEach.call(a.childNodes, function(n){
+      if (!span) {
+        Array.prototype.forEach.call(a.childNodes, function (n) {
           if (n.nodeType === 3 && String(n.textContent || '').trim()) n.textContent = '';
         });
-      } else if (!a.querySelector('.dg-cta-hint')) {
-        a.textContent = label;
+        if (!a.querySelector('.dg-cta-hint')) {
+          span = document.createElement('span');
+          span.className = 'dg-cta-label';
+          a.appendChild(span);
+        } else {
+          span = document.createElement('span');
+          span.className = 'dg-cta-label';
+          a.insertBefore(span, a.firstChild);
+        }
       } else {
-        // structured card without label span — inject label
-        var lab = document.createElement('span');
-        lab.className = 'dg-cta-label';
-        lab.textContent = label;
-        a.insertBefore(lab, a.firstChild);
+        Array.prototype.forEach.call(a.childNodes, function (n) {
+          if (n.nodeType === 3 && String(n.textContent || '').trim()) n.textContent = '';
+        });
+      }
+      if (hire && /demigod/i.test(label)) {
+        span.classList.add('dg-cta-cyber');
+        paintCyberWord(span, label);
+      } else {
+        span.classList.remove('dg-cta-cyber', 'dg-cyber-host');
+        span.textContent = label;
       }
     } catch (e) { try { a.textContent = label; } catch (_) {} }
     a.setAttribute('href', hire ? '/?wiz=startup' : '/?wiz=engineer');
@@ -1997,8 +2133,15 @@ function cta(){/*dg-cta-prefetch*/
       a.setAttribute('aria-label', kind==='hire' ? "I'm hiring — open startup brief" : "I'm looking — open talent profile");
       a.dataset.dgHinted = '1';
       a.innerHTML =
-        '<span class="dg-cta-label">' + (kind==='hire' ? COPY.ctaFounder : COPY.ctaEngineer) + '</span>' +
-        '<span class="dg-cta-hint">' + (kind==='hire' ? COPY.ctaHireHint : COPY.ctaTalentHint) + '</span>';
+        '<span class="dg-cta-label' +
+        (kind === 'hire' ? ' dg-cta-cyber' : '') +
+        '"></span>' +
+        '<span class="dg-cta-hint">' +
+        (kind === 'hire' ? COPY.ctaHireHint : COPY.ctaTalentHint) +
+        '</span>';
+      var lab = a.querySelector('.dg-cta-label');
+      if (kind === 'hire') paintCyberWord(lab, COPY.ctaFounder);
+      else if (lab) lab.textContent = COPY.ctaEngineer;
       a.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important';
       var w = document.createElement('div');
       w.className = 'dg-cta-wrap dg-in';
@@ -2102,12 +2245,10 @@ function ensureMotion(){
       el.classList.add('dg-reveal');
       io.observe(el);
     });
-    // hero above-fold: force visible quickly so dual CTAs never stay opacity:0
-    qa('.hero-section h1,.hero-actions .dg-cta-wrap,#dg-eyebrow').forEach(function(el){
-      el.classList.add('dg-in');
-    });
+    // Let the hidden start state paint once; CTA chrome remains gated on honest labels.
+    requestAnimationFrame(function(){qa('.hero-section h1,.hero-actions .dg-cta-wrap,#dg-eyebrow').forEach(function(el){el.classList.add('dg-in');});});
     // staggered delay
-    qa('.hero-actions .dg-cta-wrap').forEach(function(el,i){el.style.setProperty('--d',(i*90)+'ms');});
+    qa('.hero-actions .dg-cta-wrap').forEach(function(el,i){el.style.setProperty('--d',(260+i*180)+'ms');});
     qa('.step-card').forEach(function(el,i){el.style.setProperty('--d',(i*110)+'ms');});
   }catch(e){
     try{document.documentElement.classList.add('dg-motion');qa('.dg-reveal').forEach(function(el){el.classList.add('dg-in');});}catch(_){}
@@ -2164,7 +2305,7 @@ function ensureLogo(){
 }
 function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElement('style');s.id='dg-brand-assets';s.textContent=
 /* v618 Frege-night — large translucent art stage + left scrim; dual-path CTAs primary */
-":root{--dg-night:#03140d;--dg-deep:#06271a;--dg-field:#075f3a;--dg-green:#08a05d;--dg-signal:#10c674;--dg-phosphor:#a6ffcb;--dg-paper:#f3f0e7;--dg-paper-mute:#bdc9bf;--dg-ink:#071d13;--dg-rule:rgba(166,255,203,.28);--dg-rule-paper:rgba(3,20,13,.2);--dg-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--dg-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;--dg-serif:Georgia,'Iowan Old Style','Times New Roman',serif}"
+":root{--dg-night:#03140d;--dg-deep:#06271a;--dg-field:#075f3a;--dg-green:#08a05d;--dg-signal:#10c674;--dg-phosphor:#a6ffcb;--dg-paper:#f3f0e7;--dg-paper-mute:#bdc9bf;--dg-ink:#071d13;--dg-rule:rgba(166,255,203,.28);--dg-rule-paper:rgba(3,20,13,.2);--dg-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--dg-sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;--dg-serif:Georgia,'Iowan Old Style','Times New Roman',serif;--dg-cyber:'Unbounded',ui-sans-serif,system-ui,sans-serif}"
 +"html,body{background:var(--dg-night)!important;color:var(--dg-paper)!important;font-family:var(--dg-sans)!important}"
 /* static CSS grain — no remote litter fuse, no infinite composite thrash (Fable #3) */
 +"body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9997;opacity:.055;background-image:radial-gradient(rgba(166,255,203,.11) .6px,transparent .6px),radial-gradient(rgba(243,240,231,.05) .5px,transparent .5px);background-size:3px 3px,5px 5px;background-position:0 0,1px 2px;mix-blend-mode:screen}"
@@ -2175,6 +2316,25 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"@keyframes dgFadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}"
 +"@keyframes dgShimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}"
 +"@keyframes dgBorderGlow{0%,100%{box-shadow:0 0 0 0 rgba(166,255,203,0)}50%{box-shadow:0 0 24px 0 rgba(16,198,116,.25)}}"
++"@keyframes dgCtaPhosphor{0%{text-shadow:0 0 0 rgba(166,255,203,0)}45%{text-shadow:0 0 9px rgba(166,255,203,.9),0 0 24px rgba(16,198,116,.5)}100%{text-shadow:0 0 3px rgba(166,255,203,.22)}}"
+/* Codex hero: Unbounded + long calm phosphor (no vertical jump / glitch) */
++"@keyframes dgCyberIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}"
++"@keyframes dgCyberBreathe{0%,100%{text-shadow:0 0 8px rgba(166,255,203,.35),0 0 18px rgba(16,198,116,.18)}50%{text-shadow:0 0 11px rgba(166,255,203,.45),0 0 24px rgba(16,198,116,.24)}}"
++"@keyframes dgCyberPulseSoft{0%,100%{opacity:1}50%{opacity:.96}}"
++"@keyframes dgCyberScan{0%,72%{transform:scaleX(0);opacity:0}78%{opacity:.48}88%{transform:scaleX(1);opacity:.22}94%,100%{transform:scaleX(1);opacity:0}}"
++".dg-cyber-host,.dg-cyber-word{font-family:var(--dg-cyber)!important;font-weight:600!important;letter-spacing:.085em!important;text-transform:uppercase!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;text-shadow:0 0 10px rgba(166,255,203,.4),0 0 22px rgba(16,198,116,.2)!important}"
+/* beat serif + paper-span rules that caused color/size flash */
++".hero-section h1.dg-hero-hold,.header h1.dg-hero-hold,.hero-section h1.dg-cyber-host,.header h1.dg-cyber-host{font-family:var(--dg-cyber)!important;font-size:clamp(2.6rem,8vw,4.8rem)!important;font-weight:600!important;line-height:1.08!important;letter-spacing:.085em!important;max-width:18ch!important;min-height:2.55em!important;color:var(--dg-phosphor)!important;text-transform:uppercase!important}"
++".hero-section h1.dg-hero-hold.dg-reveal,.header h1.dg-hero-hold.dg-reveal,.hero-section h1.dg-cyber-host.dg-reveal{opacity:1!important;transform:none!important;transition:none!important}"
++".hero-section h1.dg-cyber-host .dg-cyber-ch,.header h1.dg-cyber-host .dg-cyber-ch,.hero-section h1.dg-cyber-host span{color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;background:none!important}"
++".dg-cyber-word{display:inline-flex!important;flex-wrap:nowrap!important;gap:0.02em!important;position:relative!important;align-items:baseline!important}"
++".dg-hero-hold .dg-cyber-word::after{content:'';position:absolute;left:0;right:.085em;bottom:-.16em;height:1px;background:linear-gradient(90deg,transparent,var(--dg-phosphor) 20%,var(--dg-signal) 80%,transparent);transform-origin:left;animation:dgCyberScan 16s cubic-bezier(.22,1,.36,1) .6s infinite;box-shadow:0 0 7px rgba(166,255,203,.28)}"
++".dg-cyber-ch{display:inline-block!important;opacity:0;animation:dgCyberIn 1.2s cubic-bezier(.22,1,.36,1) calc(var(--i,0)*110ms) both,dgCyberBreathe 12s ease-in-out calc(1.2s + var(--i,0)*110ms) infinite}"
+/* one letter soft pulse only — sparse over long hold */
++".dg-cyber-ch:nth-child(4){animation:dgCyberIn 1.2s cubic-bezier(.22,1,.36,1) calc(var(--i,0)*110ms) both,dgCyberBreathe 12s ease-in-out calc(1.2s + var(--i,0)*110ms) infinite,dgCyberPulseSoft 19s ease-in-out 2.5s infinite}"
++".dg-cta-cyber.dg-cyber-host,.dg-cta-cyber .dg-cyber-word{font-size:1.02em!important;letter-spacing:.1em!important;font-weight:600!important}"
++".dg-cta-cyber .dg-cyber-ch{animation-duration:1s,10s}"
++".dg-reduce .dg-cyber-ch,.dg-reduce .dg-cyber-word{animation:none!important;opacity:1!important;transform:none!important;filter:none!important}"
 +".nav_container,.nav_left,.nav_right{background:transparent!important}"
 +".nav_container{position:sticky!important;top:0!important;z-index:50!important;display:flex!important;align-items:center!important;justify-content:space-between!important;padding:.85rem 1.25rem!important;backdrop-filter:blur(12px);background:rgba(3,20,13,.88)!important;border-bottom:1px solid var(--dg-rule)!important}"
 +"#main,main,h1.hero-title,.hero-section,.hero-section h1,#dg-page{scroll-margin-top:5.5rem!important}"
@@ -2277,8 +2437,11 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"#dg-copyright,footer [class*=copyright],footer .text-color_secondary{color:rgba(189,201,191,.65)!important;font-size:.78rem!important}"
 +"a:focus-visible,button:focus-visible,.premium-btn:focus-visible,#dg-bar a:focus-visible{outline:2px solid var(--dg-phosphor)!important;outline-offset:3px!important}"
 /* motion reveals */
-+".dg-reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0ms)}"
++".dg-reveal{opacity:0;transform:translateY(22px);transition:opacity 1.25s cubic-bezier(.16,1,.3,1),transform 1.25s cubic-bezier(.16,1,.3,1);transition-delay:var(--d,0ms)}"
++".hero-section h1.dg-reveal,.header h1.dg-reveal{transform:translateY(38px);transition-duration:1.65s}"
 +".dg-reveal.dg-in,.dg-motion .dg-reveal.dg-in{opacity:1;transform:none}"
++"body.dg-ready .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-label,body[data-dg-ready=\"1\"] .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-label{animation:dgCtaPhosphor 2.4s cubic-bezier(.16,1,.3,1) var(--d,0ms) both}"
++"body.dg-ready .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-cyber .dg-cyber-ch{text-shadow:0 0 8px rgba(166,255,203,.75)}"
 +".dg-reduce .dg-reveal{opacity:1!important;transform:none!important;transition:none!important}"
 +".dg-reduce body::before,.dg-reduce #dg-night-stage .dg-grain,.dg-reduce #dg-night-stage .dg-stars,.dg-reduce #dg-night-stage .dg-art-panel,.dg-reduce .nav_logo-icon,.dg-reduce .pricing-card{animation:none!important}"
 +"@media(max-width:767px){#dg-path-pills{display:none!important}.hero-actions{display:none!important}#dg-bar{position:fixed!important;left:0;right:0;bottom:0;z-index:9998;display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important}#dg-bar a{min-height:48px!important;border-radius:4px!important;font-size:.88rem!important;font-weight:650!important;display:flex!important;align-items:center!important;justify-content:center!important;text-decoration:none!important}body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}.steps-grid{grid-template-columns:1fr!important}.hero-section h1,.header h1{font-size:clamp(2.2rem,10vw,3rem)!important}}"
@@ -2289,7 +2452,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 
 function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr);if(!q('#dg-legal-mobile')){var lm=document.createElement('style');lm.id='dg-legal-mobile';lm.textContent='@media(max-width:767px){#dg-legal-links{font-size:.75rem!important;gap:.25rem .55rem!important;padding:0 .5rem;justify-content:center}#dg-legal-links a{margin-right:0!important}}';document.head.appendChild(lm)}}
 function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=document.createElement('style');fc.id='dg-forced-colors';fc.textContent='@media(forced-colors:active){#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border:1px solid CanvasText!important;forced-color-adjust:auto}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{border:1px solid CanvasText!important;background:Canvas!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:Highlight!important;box-shadow:none!important}}';document.head.appendChild(fc)}
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();try{injectBlogHome()}catch(eBlogH){}mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();try{injectBlogHome()}catch(eBlogH){}mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{hero()}catch(e){}try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
 function dedupeAll(){
   // Extremely aggressive dedupe for duplicate CTAs, badges, footer (Fable spec + live audit findings)
@@ -2488,7 +2651,7 @@ function scrubStaticLabels(){
   // v516: Webflow modal chrome still ships agency-style titles/intros
   qa('.modal-title,h2.modal-title,#startup-modal h2,#jobseeker-modal h2').forEach(function(el){
     var t=policyText(el.textContent);
-    if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)) el.textContent="I'm hiring";
+    if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)||/^I.?M HIRING$/i.test(t)) el.textContent='Demigod';
     else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)) el.textContent='Find a job';
   });
   qa('.modal-subtitle,#startup-modal .modal-subtitle,#jobseeker-modal .modal-subtitle').forEach(function(el){
@@ -2579,7 +2742,8 @@ function scrubStaticLabels(){
     if(staleGuaranteedPeriod.test(out)){staleGuaranteedPeriod.lastIndex=0;out=out.replace(staleGuaranteedPeriod,'90-day outcome focus');}
     staleIncludedReplacement.lastIndex=0;
     if(staleIncludedReplacement.test(out)){staleIncludedReplacement.lastIndex=0;out=out.replace(staleIncludedReplacement,'includes a 90-day outcome review');}
-    if(staleHire.test(out))return "I'm hiring";
+    // Attribute-only: do not map bare "Find talent" strings that are the dual-path hero.
+    if(staleHire.test(out) && !/^Find talent(?:\.\s*Find startups\.?)?$/i.test(out) && !/^Demigod\.?$/i.test(out))return 'Demigod';
     staleHirePhrase.lastIndex=0;
     if(staleHirePhrase.test(out)){staleHirePhrase.lastIndex=0;out=out.replace(staleHirePhrase,"start a hiring brief");}
     stalePoolVolume.lastIndex=0;
@@ -2702,19 +2866,27 @@ function scrubStaticLabels(){
       el.textContent = t.replace(staleIncludedReplacement, 'includes a 90-day outcome review');
       return;
     }
-    if (staleHire.test(t)) {
-      el.textContent = "I'm hiring";
+    // Never rewrite the dual-path hero H1 ("Find talent / Find startups") to the hire CTA.
+    // Bare "Find talent." matches staleHire (legacy "Find talent" CTAs); hero must stay.
+    if (
+      (el.matches && el.matches('h1,.hero-title,.header h1,[data-dg-hero-h1],.dg-em')) ||
+      (el.closest && el.closest('h1[data-dg-hero-h1],.hero-section h1,.header h1,h1.hero-title'))
+    ) {
+      return;
+    }
+    if (staleHire.test(t) && !/^Demigod\.?$/i.test(t)) {
+      el.textContent = 'Demigod';
       if (el.matches('a,button')) {
         el.setAttribute('aria-label', "I'm hiring — open startup brief");
         el.setAttribute('data-demigod-modal', 'startup');
         el.setAttribute('data-dg-cta', 'hire');
       }
       if (el.matches('a')) el.setAttribute('href', '/?wiz=startup');
-      if (el.hasAttribute('title')) el.setAttribute('title', "I'm hiring");
+      if (el.hasAttribute('title')) el.setAttribute('title', 'Demigod');
       return;
     }
     staleHirePhrase.lastIndex = 0;
-    if (staleHirePhrase.test(t) && !(el.matches&&el.matches('h1,.hero-title,.title-accent-gold,.title-accent-cream'))) {
+    if (staleHirePhrase.test(t) && !(el.matches&&el.matches('h1,.hero-title,.title-accent-gold,.title-accent-cream,[data-dg-hero-h1]'))) {
       staleHirePhrase.lastIndex = 0;
       el.textContent = t.replace(staleHirePhrase, 'start a hiring brief');
       return;
@@ -2970,7 +3142,7 @@ function scrubStaticLabels(){
 
 function show(id){if(!q(id))run();var m=q(id);if(!m)return;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Join talent network');}}catch(e){}if(document.body){ if(!document.body.dataset.prevOverflow){ document.body.dataset.prevOverflow = document.body.style.overflow || getComputedStyle(document.body).overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){ document.documentElement.style.overflow='hidden'; } setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
 // Keep fallback accessible names on the same two paths as every visible CTA.
-if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? "I'm hiring — startup brief" : "I'm looking — talent profile");
+if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? 'Demigod — startup brief' : "I'm looking — talent profile");
 // extra force for form and title scrub to fix blank and bad title on live
 try {
   const f = m.querySelector('form');
@@ -3039,7 +3211,7 @@ try {
 /* === SIMPLE PAGES (?p=) — short secondary screens; home stays a decision screen === */
 /* ==== SECTION: product pages (DG_PAGES + openPage / routePages /?p=) ==== */
 /* Blog SoR embed from demigod-blog-posts.json */
-var DG_BLOG_POSTS=[{"slug":"first-year-cash-not-equity-fog","category":"Pricing","title":"Put the cash number in the note","summary":"Demigod charges 10% of first-year cash when a hire starts, while talent pays nothing. Equity belongs in the conversation, but it cannot replace a usable cash range.","body":"Suppose an offer has a $150,000 base, a possible $15,000 first-year cash bonus, and an option grant described as 0.5%. The match note should not compress that into “competitive total compensation.” It should show which cash is guaranteed, which cash depends on a stated condition, and what the equity number actually refers to.\n\nDemigod's hire fee is 10% of first-year cash when the hire starts. Talent pays nothing. The option grant is not part of that fee, and there is no retainer for looking at a private profile. Card and invoice tooling are still pending, so the current commercial path is an email arrangement through potter@trydemigod.com.\n\nThe arithmetic is the easy part. The hard part is getting an honest cash number onto the page before a name moves.\n\nA founder may be waiting on a financing close, building a compensation band for the first time, or leaving room for a genuinely unusual candidate. Those are real conditions. Write the range anyway, with the condition beside it: “$140,000–$160,000 base; upper end requires prior ownership of this migration,” or “cash floor may change if the round does not close.” A candidate can reason about that. “Meaningful equity” gives them nothing to use for rent, family planning, or the opportunity cost of leaving a stable role.\n\nEquity deserves detail too. State the number of options or percentage, the fully diluted denominator if known, vesting schedule, cliff, exercise window, and whether the company has supplied a current strike price. If one of those is unknown, label it unknown. We won't turn an option grant into a guessed dollar value. Private-company shares can become valuable, remain illiquid for years, or end up worth zero, and a polished “total comp” estimate hides that range behind a single confident-looking number.\n\nThis creates an obvious cost for equity-heavy companies. Some candidates will pass before hearing the larger story. Demigod also earns less on a hire whose cash is modest and whose equity later becomes unusually valuable, because the fee remains tied to first-year cash. That alignment is intentional: the matching fee should not become a lottery ticket that rewards pushing a candidate toward the largest speculative grant.\n\nVariable cash needs a separate line. A guaranteed signing bonus belongs in first-year cash. A performance bonus should name its target and conditions rather than appearing as certain money. Commission-heavy roles require the founder and reviewer to distinguish base, draw, quota, target payout, and any cap; otherwise “first-year cash” looks precise while resting on assumptions nobody has agreed to. The final fee basis gets settled in the email arrangement, not invented inside the match note.\n\nThere are uncomfortable edge cases. A pre-seed role might be almost entirely equity. A founder salary may be deferred. A contractor may convert after a trial period. The present pricing rule does not magically make those structures comparable, and a role with almost no cash may need a bespoke decision or may simply be a poor fit for this model. That remains an open pricing problem.\n\nBefore either side approves, put the guaranteed cash, conditional cash, and equity terms on separate lines. If a figure is unsettled, say who decides it and when. The note can carry uncertainty; it cannot ask the other person to pretend uncertainty is a number.","image":"https://files.catbox.moe/eg561c.jpg","imageAlt":"Gold coin standing edge-on inside a gold gauge dial, on near-black","publishedAt":"2026-07-17"},{"slug":"match-note-anti-patterns","category":"Ops","title":"Five ways a match note fails","summary":"A weak match note usually fails in one of five visible places. Repair those before asking either side to approve an introduction.","body":"Open a match note and cover the candidate's name. Could a founder make a reasoned yes or pass from what remains? Now cover the company name and ask the same question from the talent side. If either answer depends on guessing, the note needs another pass.\n\nHere are the failures we keep looking for.\n\n**1. A tool list standing in for the job.** “React, systems, ownership” describes a search query, not the work. Replace it with the result expected by day 90: migrate the billing path without interrupting invoices, take the prototype to a monitored production service, or cut a manual support queue. Then attach proof that bears on that result. A repository, a launched feature, or a former teammate who can confirm scope gives a reviewer something to inspect.\n\n**2. Personality labels with no observed behavior.** “High agency” could mean the person found a missing requirement before launch. It could also mean they ignored a decision and shipped around the team. Write what happened. The same rule applies to “low ego,” “founder mindset,” and “great communicator.” These phrases become useful only after the note names a situation, an action, and who can verify it.\n\n**3. A constraint saved for the call.** City, visa, working hours, cash band, start timing, and on-site expectations belong in the note before contact details move. The awkward version is still better than the late version. If a role needs four days a week in San Francisco and a candidate can do two, neither person benefits from discovering that under the flattering pressure of a live conversation.\n\n**4. No admitted gap.** Every review has an edge it cannot see. Perhaps the candidate's strongest work is under NDA. Perhaps the company has not decided whether the first quarter is mostly hiring or mostly coding. Record the uncertainty in ordinary language: “We could not verify production ownership at this traffic level,” or “The founder has not settled the on-call expectation.” We won't turn an unknown into a positive adjective. Sometimes the gap triggers a pass; sometimes it becomes the first question after both sides approve.\n\n**5. Identity doing the persuasive work.** If the note becomes convincing only after a famous employer, school, investor, or founder name appears, the underlying case is thin. Demigod keeps profiles private while the reviewer compares the role's first-quarter result, relevant proof, binding constraints, and one unresolved point. Names and contact details follow a private yes from each side.\n\nThere is a tradeoff in doing this properly. Writing the concrete version takes longer than pasting a résumé summary, and a clear constraint may end a possible match before a charming call can rescue it. That is acceptable. Early disagreement costs a few minutes; late disagreement costs attention from two people who were told the basics had already been checked.\n\nOne edge case deserves care: a career switcher may have excellent adjacent proof without the exact title or production setting. The answer is not to inflate the evidence. State what transfers, state what remains untested, and let the reviewer decide whether the role can absorb that uncertainty. A seed-stage team hiring its only infrastructure engineer may pass; a team with two senior operators may reasonably accept the same gap.\n\nBefore requesting an intro, read the note once as the founder and once as the candidate. Mark any sentence that requires private context not written on the page. Add the missing fact or remove the claim, then send the revised note to potter@trydemigod.com for review.","image":"https://files.catbox.moe/zhxopd.jpg","imageAlt":"Human review over volume — shortlist not flood","publishedAt":"2026-07-17"},{"slug":"no-public-talent-feed","category":"Privacy","title":"Why candidate profiles stay private","summary":"A public candidate catalog makes unsolicited outreach the default. Demigod shares role evidence first and reveals contact details only after the founder and talent each approve.","body":"A public talent page answers the wrong first question. It invites a founder to ask, “Who can I contact?” before anyone has established what the role requires or whether the person wants to hear about it.\n\nThe familiar version looks convenient: headshots, titles, employer logos, skill tags, maybe a green availability dot. A visitor filters the grid, opens six profiles, and sends six variations of the same note. The candidate cannot tell whether the sender studied their work or selected a label. Even careful founders are nudged toward browsing people as inventory because that is what the interface makes easy.\n\nDemigod keeps that page from existing. The first object in review is the role: the result expected in the first quarter, evidence that would support the match, compensation and location limits, and any unresolved question. A reviewer then checks candidate work without handing over a directory. The founder receives enough substance to approve or pass on the possible match, while the candidate receives the relevant role facts and makes a separate private choice.\n\nOnly two approvals release an introduction.\n\nThis design costs something. Founders cannot roam through a network to see who looks interesting, and talent cannot use a public listing as free distribution. A match can wait while the evidence is checked. There will also be cases where privacy removes context that would help a founder decide, such as a recognizable company, a public talk, or a mutual acquaintance; the reviewer must decide whether that fact is necessary evidence or merely an identity shortcut.\n\nThe boundary is not perfect anonymity. Some work is inherently identifying. A niche open-source repository may have one maintainer, and a detailed description of a tiny company’s launch can reveal the person before contact details move. When that risk is material, the note has to become less specific or wait for the candidate’s permission. We won't promise privacy that the underlying facts cannot provide.\n\nWhat the product refuses is casual access, not useful proof. A founder can still learn that the person owned a migration of comparable scope, shipped a relevant feature, worked within the stated operating constraints, and has one unresolved gap around team size. Those facts help decide whether a conversation makes sense. A surname and an email address do not improve that judgment at the review stage; they make premature outreach possible.\n\nTalent gets an actual choice too. Free for talent means there is no payment required to be considered, but “free” would be a thin promise if joining also meant appearing in an open catalog. A private profile can be reviewed for a specific role and declined without announcing availability to employers, scrapers, or anyone curious enough to browse.\n\nCommercial terms do not purchase access to the profiles. If a hire starts, the fee is 10% of first-year cash, paid on the hiring side; talent pays nothing. There is no retainer for a list, and no equity cut. Card and invoice tooling remain pending, so current arrangements happen through potter@trydemigod.com rather than a checkout flow.\n\nMutual approval can still fail after identities move. A call may expose a working-style mismatch, the role may change, or one side may reconsider. The private review is not a guarantee of a hire or even a second conversation. Its narrower job is to prevent a predictable class of unwanted first contact and give both people the same chance to decline before inboxes become involved.\n\nFor a specific role, send the outcome, SF expectations, cash band, and proof bar to potter@trydemigod.com. No candidate list is sent in return; the next artifact is a reviewed match note if the evidence supports one.","image":"https://files.catbox.moe/i4j3y0.jpg","imageAlt":"Compact private match-note packet","publishedAt":"2026-07-17"},{"slug":"sf-events-calendar","category":"Product","title":"Two SF events can belong on the same date","summary":"The SF Events Bot calendar can hold overlapping in-person nights and practical offers from hosts, venues, sponsors, and volunteers. Nothing gets auto-booked or auto-sent.","body":"Thursday in San Francisco does not arrive one event at a time. A small AI demo might start in SoMa at six while a founder dinner is already planned in Hayes Valley at seven, and neither should disappear merely because both occupy the same square on a monthly calendar.\n\nThat is why the events page allows more than one listing on a date. The calendar is a record of distinct nights, not a reservation system that treats a day as taken. Open /?p=events and each entry keeps its own time, place, host context, and request. Someone looking for a venue should not be confused with someone who already has a room and needs a volunteer at the door.\n\nThe workflow is intentionally manual at the consequential points. A host can describe an SF-only, in-person event. A sponsor, venue operator, or volunteer can offer help. Those details can be collected and reviewed, but the software does not book a room, send invitations, DM attendees, or turn an offer into an agreement. Autonomy remains in draft. SMS and calendar synchronization are pending too.\n\nThere is an obvious cost. Manual review makes coordination slower, especially when a host changes the address on the afternoon of the event or two listings use nearly identical names. Yet automatic action would create a worse class of mistake: an unapproved sponsor appearing on a listing, a volunteer assuming they have a shift, or guests receiving a message the host never saw. The calendar may show an idea before every operating detail is settled, so the entry needs to say what is confirmed and what is merely requested.\n\nA useful listing is specific. “Founder gathering, Thursday” leaves the reader guessing. A better entry says the neighborhood, start time, in-person format, who the room is for, whether the venue is confirmed, and the exact kind of help needed. If the event is a dinner with eight seats, say that. If capacity is unknown, leave it unknown instead of inventing scarcity.\n\nMultiple-event days create edge cases that a tidy product screenshot misses. One event can move from Mission Bay to Dogpatch without affecting the other. A venue offer may fit the later gathering but not the earlier demo. A person might volunteer for both and discover the travel time makes that impossible. Separate entries keep those decisions separate, although a human still has to notice the conflict.\n\nThe calendar is also not permission to turn a social night into undisclosed recruiting outreach. Hosts can run events that have nothing to do with Demigod hiring. If matching is part of the format, it should be named plainly; if it is not, attendee information should not quietly become a prospect list. We won't auto-message people because they appeared near an event record.\n\nKeeping the scope to San Francisco is another deliberate constraint. In-person context is the point, and pretending to support remote or national programming would add listings that the current operation cannot responsibly coordinate. This excludes worthwhile nights elsewhere. It also means an Oakland event, however close geographically, does not become “SF” for convenience.\n\nThe page will still have rough edges. A listing can go stale. A host may stop replying. Weather, permits, or a venue problem can invalidate a plan after it has been reviewed. The honest response is to update the entry or remove it, not imply that the calendar guarantees the night.\n\nFor current listings and their stated status, use /?p=events. It remains an SF calendar with human follow-up, not an automatic booking service.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone with a gold lattice and connector nodes","publishedAt":"2026-07-17"},{"slug":"sf-night-is-not-a-pipeline-hack","category":"Market","title":"An SF night is not a stealth pipeline","summary":"Demigod's calendar is for genuine in-person San Francisco events. Hosts can collect practical offers, but attendance is not permission for recruiting outreach.","body":"The easiest way to ruin a small event is to change its purpose after people arrive.\n\nA dinner listed as a founder meal should remain a founder meal. A demo night should not become a disguised candidate screen. And a guest who offered to help find a venue did not also volunteer for a recruiting sequence. Those boundaries sound basic until the attendee list lands in a spreadsheet and every row begins to look useful.\n\nDemigod's Events Bot is deliberately narrow. It covers in-person San Francisco nights. A host can discuss an idea, park a date, list it on /?p=events, and collect sponsor, venue, or volunteer offers connected to that event. Multiple nights may share a calendar date. Draft autonomy means exactly that: the system can prepare material, while follow-up remains human. There is no auto-DM, no automatic booking, and SMS and calendar sync are still pending.\n\nThe important workflow step happens before listing. Write one sentence that says what the night is for and another that says what help is welcome. “Eight infrastructure founders comparing incident reviews; seeking a quiet table near SoMa” is useful. “Exclusive gathering for innovators” tells a guest almost nothing and gives the host permission to reinterpret the night later. A real frame also makes it easier to reject a sponsor whose pitch would take over the room.\n\nHosts face a genuine tradeoff. A clean event can consume planning time and produce no match introduction at all. Treating every attendee as a lead might create more follow-up opportunities in the short run, but it also makes the invitation untrustworthy; people cannot relax into a useful conversation when the host is quietly grading them for a different transaction. We won't import attendance into cold recruiting outreach.\n\nRecruiting can still be present when it is named. If the event is a hiring office hour, say so on the listing. If a founder mentions an open role during dinner and another person asks to learn more, that consent applies to that conversation, not to the entire guest list. The matching path can begin separately with a private role note, review, and approval from both sides before contact details move.\n\nSponsors need the same boundary. An offer to cover food does not purchase attendee emails, a captive product demo, or the right to add guests without the host agreeing. Venue partners may need a headcount and arrival window; they do not need candidate profiles. Volunteers get the information required for their task. Access follows the work, and nothing in the current events flow promises a CRM export.\n\nWeather, capacity, and duplicate dates create less dramatic failures. Two events on Tuesday are allowed, so the calendar should distinguish neighborhood, time, capacity, and audience rather than silently treating one as a conflict. If a venue falls through, the host updates the listing or pauses it; the system does not relocate or notify everyone by itself. Because calendar sync and SMS are pending, the human follow-up matters here, especially when a late change could send someone across San Francisco to the wrong door.\n\nThis scope excludes remote events and nights outside San Francisco for now. It also leaves a hard product question unresolved: how much coordination can be automated without making a host sound like a bot or turning a guest's narrow offer into broad consent? Drafting is safe enough. Sending and booking require more care than the current tooling claims to provide.\n\nThe public calendar is at /?p=events. Each listing should tell a guest what will happen, where it happens, and what the host is asking from the room. If those three facts are not settled, the event can remain a draft.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone with a gold lattice and connector nodes","publishedAt":"2026-07-17"},{"slug":"what-talent-sees","category":"Product","title":"What talent sees before approving","summary":"A company story is not enough for informed approval. Talent should see the first-quarter result, evidence bar, binding constraints, and the reviewer's unresolved question.","body":"Talent approval happens before Demigod releases contact details, so the material shown at that point has to support a real decision. A logo, founder biography, and request to “hop on a quick call” do not meet that bar.\n\nStart with the work. The note names the result the company expects during the first 90 days, in terms a person can challenge. “Own backend” is too loose. “Move the billing worker off the founder's laptop, add monitoring, and document recovery before the next customer cohort” gives the candidate a job to evaluate. They can ask whether the deadline is plausible, whether the system already has tests, and whether ownership includes being on call.\n\nNext comes the proof bar. This is not a demand that candidates perform free project work. It is the evidence the reviewer thinks bears on the role: a production migration they can explain, commits connected to a shipped service, a design document, or a former teammate who can confirm scope. Talent should see that bar early enough to say, “My relevant work is under NDA,” or, “I have done the failure recovery but not at this traffic level.” The note records that distinction instead of smoothing it away.\n\nThen list the constraints that can end the match. Cash range. San Francisco presence. Visa support. Working hours. Start timing. On-call load. If the company has not decided one of them, “not decided” is the honest entry, along with when it will be settled. We don't ask someone to approve a role while hiding a condition that would predictably make them pass.\n\nThe reviewer also includes one unresolved concern. It might be limited evidence of managing engineers, an unclear appetite for customer support, or a gap between the candidate's cash floor and the company's present band. Showing that concern can feel less persuasive than sending a spotless pitch, but it gives talent a chance to correct a factual error or decline without entering a sales call. The tradeoff is fewer speculative conversations and more passes before introductions.\n\nCompany context still matters. A candidate needs to know the product, stage, funding facts the company is willing to substantiate, who they report to, and why this role exists now. The rule is simply that narrative cannot carry a missing job definition. A vivid mission does not answer whether the first month will be architecture work, customer support, or recruiting a team.\n\nThere is a privacy edge case here. Occasionally one detail would reveal the company or candidate even if the name is removed: a singular acquisition, a famous launch, a one-person technical team in a narrow market. The reviewer should generalize only the identifying detail, tell the recipient that it was generalized, and preserve the part needed for the decision. If removing identity also removes the substance, the review pauses until the owner approves a safer description.\n\nTalent never pays Demigod. If a match proceeds, the company fee is 10% of first-year cash when the hire starts. That fact belongs near the process explanation because a candidate should not wonder whether approving the introduction creates a bill or gives Demigod a claim on their equity.\n\nRead the note as if the founder will never join a call to fill in its blanks. Can you describe the actual first-quarter work, the evidence being evaluated, the conditions that bind, and the open concern? If not, ask for the missing item in writing before approving. A private yes should mean the written role is worth discussing, not that the recipient surrendered the right to basic facts.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Two-sided private approval path","publishedAt":"2026-07-17"},{"slug":"when-not-to-intro","category":"Product","title":"When a match should stop","summary":"An introduction should wait when the role, evidence, or hard constraints cannot support two informed approvals. A recorded pass is part of the review, not a failed attempt to create activity.","body":"Sometimes the right next step is nothing.\n\nA founder has a pressing role. A candidate looks adjacent on paper. Both are willing to “take a quick call,” which can feel like enough reason to connect them. It is not enough when the underlying note still lacks the cash range, the location requirement, or any work showing that the candidate can own the result the role needs.\n\nThe review stops there. The reviewer writes what is missing and records a pass or holds the note for more evidence. Names and contact details stay private. No introduction email is drafted simply to keep the search moving.\n\nSuppose an SF company needs someone to move a prototype into production during the first quarter. The candidate has built prototypes and can explain the model work, but nothing yet shows production ownership, incident response, or collaboration with the team that will operate it. That does not make the candidate weak. It makes one part of this match unverified, and the founder has to decide whether the role can absorb that uncertainty before talent is asked to spend time on it.\n\nLocation can end the review more cleanly. If the work requires regular in-person time in San Francisco and the candidate is only considering remote roles, charm will not repair the constraint. The same is true when the stated cash floor sits above the founder’s range or when visa needs cannot be supported. A conversation might reveal flexibility, but nobody should be sent into it on the assumption that a hard fact will dissolve.\n\nThere is a tradeoff in making passes explicit. A narrow review produces fewer meetings, and it can miss a person whose best evidence is under NDA, buried in an unfamiliar project, or hard to verify without revealing their identity. We don't claim that every stopped match was impossible. The claim is smaller: based on the facts available now, there is not yet enough for two informed approvals.\n\nThat wording matters because a pass can change. The founder may revise an unrealistic scope. The candidate may provide a former teammate who can confirm ownership. A role described as “founding engineer” may become a precise infrastructure job once the team names the failure they need fixed. Reopening the note after a material fact changes is reasonable; recycling the same vague request through another round of names is not.\n\nUrgency deserves special care. A runway deadline or launch date can be real, but it does not prove a candidate fits, and Demigod does not attach a made-up hiring clock or promise a certain number of people by Friday. Under pressure, the review should become more concrete: which result cannot slip, which constraint is truly fixed, and which missing proof is acceptable to test in a call? If those questions remain unanswered, an intro adds motion without resolving the decision.\n\nTalent can pass privately as well. They may dislike the cash band, the in-office schedule, the risk in the first-quarter goal, or simply the role itself. Mutual approval means that refusal does not need a sales rebuttal. The founder receives no private profile to browse, and the candidate's contact information does not move.\n\nThe hardest case is a near match where everyone suspects the call might work. Judgment lives there. The reviewer can state the exact gap, let each side consider it, and proceed only if each independently accepts the uncertainty. What cannot happen is quietly deleting the gap so the introduction feels easier.\n\nIf a note is stalled, add the missing role fact or the checkable piece of work. If neither exists, leave the pass in place until something material changes.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Private approval path — both sides opt in or stop","publishedAt":"2026-07-17"},{"slug":"90-day-outcomes","category":"Product","title":"Why 90-day outcomes beat keyword JDs","summary":"Name what must be true after one quarter, then review proof against it. A tool list can come later.","body":"A founder opens a blank job description and starts typing nouns: React, TypeScript, Postgres, AWS. By the bottom of the page, the role asks for twelve tools, six personality traits, and an unspecified amount of “ownership.” The actual problem might be much simpler: customers cannot finish onboarding without an engineer in the room.\n\nWrite that problem down first. Then write the condition you want to see after 90 days. For example: a new customer can connect its data, invite a teammate, and reach the first useful report without founder support. That sentence gives a reviewer something to inspect. It also gives a candidate room to challenge the premise before anybody spends an hour on a call.\n\nThe next step is proof. The reviewer looks for work that resembles the result, not merely a word that resembles the stack. A candidate may have rebuilt an activation path, instrumented where users quit, or owned the awkward migration that made self-serve possible. The database brand matters if the job truly turns on it. Often it does not.\n\nThis changes the first exchange. Before identities move, the private note can carry the quarter-one result, the candidate’s relevant work, location and cash constraints, and one thing nobody has verified yet. Founder and talent can each give a private yes or pass on those facts. Contact details follow only after both approve.\n\nThere is a cost. Writing a useful outcome takes more thought than copying last year’s senior-engineer template, and a founder may discover that two people disagree about what the hire is supposed to accomplish. That disagreement is worth finding early. If one founder expects a reliability overhaul while another expects a new enterprise dashboard, no keyword filter can repair the role.\n\nWe don’t turn every responsibility into a fake quarterly promise. Some work is continuous: keeping incidents rare, coaching a small team, answering the ugly customer escalation. In those cases, name observable conditions instead. Which incidents should this person own? What decision can the team make without the founder by week twelve? What recurring failure should become less common, and what evidence would show it?\n\nEdge cases remain. A zero-to-one research role may not have a clean shipping milestone. A security hire cannot promise that nothing bad will happen. A candidate under NDA may be unable to show the closest project. The note should record those limits plainly and use the best checkable substitute, such as a redacted design walk-through, a reference who can confirm scope, or a smaller public artifact. An unknown stays unknown; it does not become a flattering adjective.\n\nTools still belong in the discussion when they create a real boundary. If the only engineer on call must debug a Go service on Monday, prior Go depth is not decorative. If the team can tolerate a learning curve, treating syntax as the main gate discards people who have already solved the harder version of the problem elsewhere.\n\nTry the edit on one open role. Delete the first screen of requirements, write one result that a customer or teammate could notice after 90 days, then attach two forms of proof that would make you believe someone can reach it. If the sentence remains disputed, the role needs another founder conversation before it needs candidates.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Classical marble figure on dark stone, linked by gold connector paths","publishedAt":"2026-07-16"},{"slug":"both-approve","category":"Privacy","title":"Both sides approve before intros","summary":"Founder and talent review the same private facts before contact details move. Either side can stop the introduction without being exposed.","body":"The second approval is the inconvenient one. A founder has read the note and wants to meet; the tempting move is to reveal the candidate and send a calendar link. Demigod waits for the candidate’s answer too.\n\nHere is the sequence. A reviewer prepares a private note with the role’s first-quarter result, proof connected to that result, hard constraints, and an evidence gap. The founder reviews it without receiving a candidate directory. The candidate gets the role facts needed to judge the conversation, not a vague request to “hear about an opportunity.” Each side answers yes or pass in private. Only two yeses release contact details for an introduction.\n\nThat extra gate protects different things on each side. Talent can decline because the cash range, SF expectation, visa situation, hours, or work itself does not fit. The founder can decline because the demonstrated work misses the result the team needs. Neither answer becomes a public badge, and neither person has to invent interest to be polite.\n\nIt also removes a familiar ambiguity. “Open to chat” might mean curious, actively interviewing, afraid to say no, or simply willing to take almost any introduction from a trusted friend. A private approval tied to written facts asks a narrower question: given what is known and what remains unproven, is this particular conversation worth exposing both identities?\n\nWe won’t publish a browsable talent catalog. Catalogs make it easy to detach a person’s name and employer from the conditions under which they were willing to talk, then circulate that stale snapshot through inboxes they never chose. The less dramatic refusal is operational: contact fields stay out of the first packet.\n\nThe tradeoff shows up before the intro. Someone has to write the note, ask both parties, and wait for two independent answers; a link anyone can open requires less coordination. Mutual approval can also kill a conversation that might have become useful after ten minutes of chemistry. We accept that loss because the alternative spends privacy and attention on speculation, and neither resource is restored by a cheerful follow-up email.\n\nThere are messy cases. A candidate may approve based on a cash band, then learn the role has an on-call load the note omitted. A founder may say yes while still treating remote work as negotiable, although the candidate marked it as fixed. Approval is not consent to changed terms. When a material constraint changes, the note needs an update and the affected side gets another choice before the introduction proceeds.\n\nA pass is kept small. It does not require an essay, and Demigod does not turn it into a score that follows someone. Sometimes the answer is “not now,” especially when a candidate is finishing a launch or a founder has not settled the role. That is still a stop, not permission to drip reminders.\n\nFor a current match, read the note as if the names were permanently hidden. Check whether the outcome, proof, cash, location, hours, visa facts, and unresolved gap are enough for an honest decision. Missing material goes back into the note. When both answers are yes on the same version, the introduction can carry context instead of surprise.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Private match approval path illustration — both sides opt in","publishedAt":"2026-07-16"},{"slug":"human-review-over-volume","category":"Market","title":"Human review before an intro","summary":"Candidate counts are easy to inflate and hard to use. Demigod reviews evidence against the role’s first-quarter job before asking either side to meet.","body":"A shortlist of twelve can be less useful than one careful pass. The number says nothing about whether anyone read the role, checked the work, or noticed that the cash band cannot support the person being considered.\n\nDemigod starts with a person reading the role. That sounds ordinary because it is. The reviewer turns the founder’s request into a concrete first-quarter result: ship the billing migration without breaking renewals, get the first production model behind an API, or take a prototype through a customer-ready release. Then the candidate’s work is checked against that result. A title may help locate the right project, but it does not finish the review.\n\nThe useful part is often a small, awkward detail. A candidate shipped a similar migration but never owned the rollback plan. Their repository shows the core system work, while the operating piece is still unproven. That gap belongs in the note. It gives the founder a reason to pass, ask a precise question, or approve the next step without pretending the record is complete.\n\nNo fixed candidate total is promised. A quota would pressure the reviewer to pad a thin set, and the founder would receive more profiles without gaining another plausible hire. The tradeoff is real: human review takes attention before an intro exists, and sometimes the result of that attention is an empty shortlist. An empty shortlist is frustrating when a role is urgent. It is still accurate.\n\nConsider the opposite path. A broad application form collects resumes from anyone matching “founding engineer,” software ranks familiar employers and keywords, and five names move forward because five names make the dashboard look alive. One person needs remote work although the role is in SF. Another is outside the cash range. Two have adjacent titles but no checkable ownership of the requested outcome. Those are not subtle misses; they are facts that could have been read before anyone received a calendar link.\n\nHuman review has limits too. Private company work may be impossible to inspect. A reference may confirm scope but not quality. Career switchers can have excellent side projects with no evidence yet that they operated inside a team. We record those boundaries rather than turning uncertainty into confidence. Sometimes the open question is safe to carry into a conversation. Sometimes it blocks the match.\n\nThe process also protects talent. Contact details remain private while the reviewer assembles the outcome, relevant proof, location and compensation constraints, and the unresolved question. The founder sees enough to make a private yes or pass. Talent gets the role facts before deciding as well. Only mutual approval opens the introduction.\n\nThis is deliberately less scalable than sending every plausible keyword hit downstream. It also leaves judgment calls in human hands, where inconsistency can happen. Notes need rereading. A reviewer can overweight familiar proof. The answer is not to hide that judgment behind a score; it is to make the evidence and the missing piece visible enough that either side can disagree.\n\nFor a role under review, send the first-quarter result, SF expectations, cash range, and the strongest evidence you would accept to potter@trydemigod.com. The review may end in a pass, and that remains a legitimate result.","image":"https://files.catbox.moe/zhxopd.jpg","imageAlt":"Human review shortlist over volume flood — brand visual","publishedAt":"2026-07-16"},{"slug":"private-match-notes","category":"Product","title":"What belongs in a private match note","summary":"A useful note contains enough evidence and constraints for a private decision. It also says what the reviewer still cannot verify.","body":"Read this note and try to decide: “Strong founding engineer. High agency. Great communicator. Interested in AI.”\n\nThere is nothing to decide. The praise may be sincere, but the note withholds the job, the work, the constraints, and every source of uncertainty. Adding a LinkedIn link would make it more identifiable, not more useful.\n\nA private match note needs five parts. First, name the result expected during the person’s first quarter. Second, attach proof that bears on that result: shipped work, a specific operating example, a reference who can confirm scope, or another checkable artifact. Third, record the conditions that can end the match, including SF location expectations, cash band, visa, hours, and on-call load where relevant. Fourth, state one consequential gap in the evidence. Fifth, collect a private yes or pass from the reviewer before the note goes to the other side.\n\nThe evidence gap is where weak notes often become sales copy. Suppose a candidate has led a migration at a larger company, while the open role requires choosing the first architecture with two engineers and little support. The overlap is real. So is the missing proof. Write both facts. The reviewer may still approve, but nobody should discover during an interview that “zero to one” was inferred from a job title.\n\nConstraints need the same treatment. “SF preferred” is useless if the role requires four office days; “competitive cash” gives talent no basis for a pass; “flexible hours” can conceal a standing evening call with Europe. Put the actual condition in the note. A person can accept it, reject it, or ask for clarification without exposing contact details.\n\nWe won’t make the note persuasive by hiding the hardest fact. Its purpose is to support a decision, which sometimes means the match ends on the page. The tradeoff is fewer speculative conversations and more work before an introduction: someone must ask the uncomfortable compensation question, separate observed work from inference, and admit when an important claim has no checkable source.\n\nLength is not the goal. A compact note can work when the role is narrow and the proof is direct. A longer note can still fail after six paragraphs of biography. As a practical edit, label each sentence in the draft as outcome, proof, constraint, gap, or decision. Background that fits none of those labels needs a reason to stay.\n\nSome cases resist compression. NDA-bound work may only permit a redacted explanation. A career switcher may have strong side-project evidence but no teammate who can confirm production scope. A stealth company may be unable to reveal a customer name before mutual approval. Record the boundary and identify what can be checked now; do not fill the blank with confidence.\n\nThe note also needs version discipline. If the founder changes the cash band, the candidate changes location availability, or a reference contradicts the claimed scope, the earlier approval no longer covers the same facts. Update the note and ask the affected side again. A screenshot of an old yes is not permission to proceed on a different offer.\n\nBefore requesting an introduction, remove the names and read the note once more. If a stranger could identify the expected result, inspect the proof, see the deal-breakers, and point to the remaining uncertainty, the packet is ready for private review. If not, revise the missing field rather than adding enthusiasm.","image":"https://files.catbox.moe/i4j3y0.jpg","imageAlt":"Compact private match-note packet sketch","publishedAt":"2026-07-16"},{"slug":"ten-percent","category":"Pricing","title":"10% on hire, free for talent","summary":"Demigod charges the company 10% of first-year cash when a hire starts. Talent pays nothing, and equity is outside the fee.","body":"Start with the invoice nobody should have to decode. If a hire’s first-year cash is $180,000, the Demigod fee is $18,000. An option grant does not enter that calculation. Talent owes $0.\n\n“First-year cash” includes the cash compensation agreed for the first year. It does not mean a guessed future value for options, a fundraising headline, or a spreadsheet number assigned to common stock. If an offer has a base salary and a guaranteed cash bonus, those terms need to be written clearly enough for both sides to identify what is actually guaranteed. A discretionary bonus is not quietly promoted into guaranteed money for fee purposes.\n\nThe fee becomes due only when the hire starts. There is no retainer for access and no subscription to browse profiles. Card tooling is still pending, so the commercial arrangement is handled by email at potter@trydemigod.com rather than presented as an automated checkout that already exists.\n\nWhy leave equity alone? Early-company option grants are hard to compare even when everyone is acting honestly. Strike price, preferred-price headlines, dilution, exercise windows, liquidation preferences, and the chance that the shares never become liquid all affect the lived value. Charging against a confident fictional number would make the bill look precise while moving the uncertainty onto the founder and candidate.\n\nWe don’t take a slice of the candidate’s compensation. The company is buying matching work; the person considering the job is not buying access to employment. That also means a candidate should never have to trade part of a signing bonus or future paycheck for an introduction through Demigod.\n\nCash-only pricing has a real downside for us. A company offering $90,000 plus a large grant produces a smaller fee than one offering $180,000 and modest equity, even if the first company becomes extraordinarily valuable. Accepted. The rule is easy to audit at the moment of hire and does not reward Demigod for talking up speculative equity.\n\nEdge cases deserve an email before the offer closes. A commission-heavy sales role may have a modest base and a variable plan that depends on performance. A founder role may pay almost no salary. A guaranteed first-year draw is different from an uncapped target that nobody can promise. Contract-to-hire arrangements also need their terms stated rather than squeezed into a permanent-hire example. The current pricing statement does not solve every unusual compensation design.\n\nThere is another practical wrinkle: the cash figure can change between the initial match note and the signed offer. The note should show the honest band before identities move, because talent needs it to decide whether a conversation makes sense. The fee calculation, however, uses the agreed first-year cash when the person starts, not an earlier aspirational ceiling.\n\nAn early departure is another term that belongs in the written commercial agreement, not in a blog-post promise. This page does not invent a replacement guarantee or refund policy that has not been agreed.\n\nFor a standard hire, the arithmetic should fit in one line: agreed first-year cash multiplied by 10%. Keep the equity column separate and keep talent’s side at zero. If a compensation term makes that line ambiguous, send the actual terms to potter@trydemigod.com; the edge case should be resolved in writing before anyone pretends the invoice is obvious.","image":"https://files.catbox.moe/eg561c.jpg","imageAlt":"Gold coin standing edge-on inside a gold gauge dial, on near-black","publishedAt":"2026-07-16"}];
+var DG_BLOG_POSTS=[{"slug":"epicurus-garden-hacker-houses","category":"Market","title":"Epicurus' Garden and the SF hacker house","summary":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","body":"Around 306 BCE, Epicurus bought a house and garden outside the Dipylon gate, on the road toward Plato's Academy. Diogenes Laërtius puts the price at eighty minae, writing centuries later, so treat that number the way you would any figure from one late source. What is better attested is how the place ran. People lived there. They ate at one table, argued over the food, and came back to the same unfinished questions the next week. The Academy up the road was a school you visited. The Garden was one you moved into, which changed what it could ask of the people in it.\n\nThey were after ataraxia: a quieter mind, less fear, fewer pointless wants. Friendship was part of the practice, not a networking bonus. Women studied there. So did people the rest of the city treated as background. That made the Garden unusually open for an Athenian school, but it was not casual about commitment. If you needed public honor more than the shared table, you did not last.\n\nEpicurus's will tried to keep the group going after him. Successors named. Friends' children cared for. Freedom for slaves who had studied. The legal language is dry and that is the point. The house was supposed to outlive one charismatic man.\n\nYou see cousins of this arrangement long before anyone rented a Victorian in the Mission and called it a house for builders. Pythagoras's circle in southern Italy was harsher and weirder: shared property, heavy secrecy, intellectual heat with a mystic edge. Monasteries later made a more durable version of group life. Their purposes were religious, their rules stricter, their days split between prayer, labor, and study. They also copied books.\n\nIn 1417, Poggio Bracciolini found Lucretius' On the Nature of Things in a monastic library. Lucretius was the great Roman carrier of Epicurean thought. A Christian house preserved a poem whose gods, matter, and death sat badly with Christian teaching. Nobody needed to plan that irony. The rule said copy books, so books got copied, including ones the copyists would have disliked if they stopped to argue with every page. That is a boring reason to write shared rules down, and a strong one. Rules keep operating on days when nobody is in the mood to remember the founding pitch.\n\nSan Francisco keeps reinventing a louder cousin of the same pressure. Rent is absurd. Solo technical work is lonely. Hard problems move faster when the people who can help are down the hall instead of three Slack hops and a calendar invite away.\n\nReporting on HF0 describes a selective residency for technical founders in large SF properties. AGI House has been covered as a place for AI builders, researchers, dinners, and events. Those are specific organizations with their own admissions and economics. They are useful because the trade is visible. Residents give up privacy and some control over the room in exchange for people, conversation, and work being close.\n\nProximity helps when the people already share enough. A stuck problem can come up over eggs. Someone can watch a demo fail and still be there when the fix works at midnight. Proximity has no moral quality of its own. If residents disagree about noise, money, ambition, cleanliness, or whether every meal is a pitch session, the hallway becomes another meeting they cannot leave.\n\nFounder mythology likes to skip the boring part. A house full of impressive résumés can be worse than a smaller one where people agree about visitors, quiet hours, chores, and rest. Size photographs well. Norms decide whether anyone wants to stay. Intensity needs a limit too. Epicurus treated modest pleasure, freedom from fear, and time among friends as the point. A modern technical residency may be trying to ship a company in weeks. Different aims. Both get worse when sleep thins, the kitchen turns strange, and small annoyances become politics.\n\nDemigod is not a house, and we will not pretend the lineage is direct. We run a matching service for SF startups and talent: profiles stay private, both sides see evidence before names move, and an introduction happens only after each side approves. What we take from the houses is a working assumption rather than a philosophy. Selection has to be honest before proximity is worth much, because the wrong people in a good room mostly cost each other a month.\n\nWhether any of this works outside one small city is an open question. SF is where we can check our own claims in person, so SF is where we operate.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Gold-on-dark mark for garden, cloister, and group-house pattern essay","publishedAt":"2026-07-17"}];
 var DG_PAGES = {
   how: {
     title: 'How it works',
@@ -3089,7 +3261,7 @@ var DG_PAGES = {
       '<details class="dg-p-det"><summary>Where can I read updates?</summary><p>See <a href="/?p=blog" data-dg-page="blog">Notes</a> for short product and market posts. Share a note via /?p=blog#note-{slug} (opens full note). Questions: potter@trydemigod.com.</p></details>',
   },
   hire: {
-    title: "I'm hiring",
+    title: 'Demigod',
     doc: 'Hire · Demigod',
     desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year cash only when a hire starts.',
     html:
@@ -3209,7 +3381,7 @@ var DG_PAGES = {
       '<li><strong>Live:</strong> dual CTAs, one-question WIZ, 90-day outcome, tech matching with humans in the loop, product pages, Events Bot, Night District MUD (/?p=mud), email follow-up</li>' +
       '<li><strong>Runtime:</strong> foot v__DG_FOOT_VER__ on this page load</li>' +
       '<li><strong>Site:</strong> decision home, dual paths, chips, product pages, /events → Events Bot</li>' +
-      '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe), Events Bot automation (RSVP/SMS/calendar) — commercial path is email until live</li>' +
+      '<li><strong>Pending:</strong> SMS (Twilio), card payments (Stripe), Events Bot real send transport (outreach still queued honestly) — commercial path is email until live</li>' +
       '<li><strong>Fee:</strong> 10% on hire — confirmed by email for now</li>' +
       '<li><strong>Honest board:</strong> sample roles labeled; no fake placements</li>' +
       '<li><strong>Notes:</strong> short product posts at /?p=blog — deep-link /?p=blog#note-{slug}</li>' +
@@ -3218,12 +3390,12 @@ var DG_PAGES = {
   blog: {
     title: 'Blog',
     doc: 'Blog · Demigod',
-    desc: 'Short product notes: 90-day outcomes, mutual approval, simple pricing, SF events.',
+    desc: 'Essays and product notes from Demigod — SF talent matching, culture, and how we work.',
     html:
       '<div class="dg-blog-hero">' +
-      '<p class="dg-ev-pill" role="note">Product notes · no spam</p>' +
-      '<p class="dg-p-lead">Short writing on how Demigod matches — evidence first, both sides approve, honest pricing.</p>' +
-      '<p class="dg-p-note">Deep-link any post: <code>/?p=blog#note-{slug}</code>. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
+      '<p class="dg-ev-pill" role="note">Notes · no spam</p>' +
+      '<p class="dg-p-lead">Writing from Demigod — matching in SF, and the culture around it.</p>' +
+      '<p class="dg-p-note">Deep-link a post: <code>/?p=blog#note-{slug}</code>. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
       '</div>' +
       '<div class="dg-blog-filters" id="dg-blog-filters" role="group" aria-label="Blog categories"></div>' +
       '<div class="dg-blog-grid" id="dg-blog-grid" aria-live="polite"></div>' +
@@ -3250,17 +3422,17 @@ var DG_PAGES = {
     doc: 'SF Night District MUD · Demigod',
     desc: 'Social SF text multiplayer for site visitors — talk, walk SoMa, pray to Vesper the Immortal. Skippable tutorial.',
     html:
-      '<p class="dg-p-lead">A <strong>full-page</strong> social text MUD set in <strong>San Francisco</strong>. Primary goal: meet other visitors. Lightweight exploration + <strong>Vesper the Immortal</strong> (DM) if you get stuck — type <code>pray</code>. Short tutorial — type <code>skip</code> anytime.</p>' +
+      '<p class="dg-p-lead">A <strong>full-page</strong> social hangout for people already on this site. When status says <strong>LIVE</strong>, other visitors hear you — <code>say hi</code> (this room) or <code>chat hi</code> (everyone). Tap <strong>Who is here</strong> / <strong>Say hi</strong> / <strong>Chat all</strong> under the log. Type <code>start</code> for a 4-step guide.</p>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Talk</strong> — say · emote · chat · tell · who · intro</li>' +
-      '<li><strong>Walk</strong> — n s e w · map · look (SoMa / Market / Embarcadero / Mission)</li>' +
-      '<li><strong>Vesper</strong> — immortal DM: <code>pray</code> · <code>pray for a quest</code></li>' +
-      '<li><strong>Create</strong> — name + founder / engineer / wanderer</li>' +
+      '<li><strong>Meet people</strong> — when status is LIVE: <code>who</code> · <code>say hi</code> (room) · <code>chat hi</code> (all)</li>' +
+      '<li><strong>Buttons</strong> — Who is here · Say hi · Chat all (under the terminal)</li>' +
+      '<li><strong>Walk</strong> — n s e w · map · look (optional flavor)</li>' +
+      '<li><strong>Stuck</strong> — <code>start</code> guide · <code>pray</code> to Vesper · <code>skip</code> tutorial</li>' +
       '</ul>' +
       '<div id="dg-mud" class="dg-mud-host" aria-label="SF Night District MUD terminal"></div>' +
       /* v638: same leak class as the events :3460 note — a filename, a port and an env var are
    setup instructions for me, not product copy for a visitor. Solo play is the real experience. */
-'<p class="dg-p-note">Play solo in the browser. SF startup names are flavor only.</p>',
+'<p class="dg-p-note">LIVE = real visitors can hear you. Solo still works with NPCs. SF names are flavor only.</p>',
   },
 
   sample: {
@@ -3274,12 +3446,12 @@ var DG_PAGES = {
   events: {
     title: 'Events Bot',
     doc: 'Events Bot · Demigod',
-    desc: 'Full-cycle SF events — fun nights and sponsorable formats. Ideate, resource, plan, run, follow-up. Humans host and send.',
+    desc: 'Autonomous SF event organizer — invents nights, finds venues, queues sponsor/volunteer asks, tracks every stage. Chat or offer help anytime.',
     html:
       '<div class="dg-ev-hero" aria-hidden="true"></div>' +
-      '<p class="dg-p-lead"><strong>Events Bot</strong> runs any <strong>San Francisco</strong> night from first idea through debrief — dinners, showcases, parties, salons, and more. Not limited to Demigod-branded events. You stay host.</p>' +
-      '<p class="dg-ev-pill" role="note">San Francisco only · in-person</p>' +
-      '<p class="dg-p-note">When the bot invents ideas, it prefers <strong>sponsorable</strong> formats (clear audience + fundable needs). Drafts only · no auto-blast. On-page <strong>calendar</strong> is live (multi-event days OK). SMS / Stripe still <strong>pending</strong>.</p>' +
+      '<p class="dg-p-lead"><strong>Events Bot</strong> is the organizer of record for <strong>San Francisco</strong> nights — idea through debrief. It finds venues, queues sponsor and volunteer outreach, tracks the checklist, and advances the plan on its own. Not limited to Demigod-branded events.</p>' +
+      '<p class="dg-ev-pill" role="note">San Francisco only · in-person · bot-owned</p>' +
+      '<p class="dg-p-note">It messages people when it needs something (email queue until SMS is live). You can still chat, suggest ideas, or offer a venue/sponsor/volunteer anytime. Prefer <strong>sponsorable</strong> formats when inventing. On-page <strong>calendar</strong> is live. SMS / Stripe still <strong>pending</strong> — no fake sends.</p>' +
       '<div class="dg-ev-cta-band" role="navigation" aria-label="Events Bot shortcuts">' +
       '<a class="dg-ev-cta-pri" href="#dg-events-chat" id="dg-ec-focus">Talk to Events Bot</a>' +
       '<a class="dg-ev-cta-sec" href="#dg-ev-cal">Calendar</a>' +
@@ -3316,12 +3488,12 @@ var DG_PAGES = {
       '</form></div></div>' +
       '<h3 class="dg-p-h3">The cycle</h3>' +
       '<ol class="dg-decision-grid dg-ev-cycle" aria-label="Events Bot lifecycle">' +
-      '<li><span>01</span><strong>Ideate</strong><small>Outcome · size · SF windows</small></li>' +
-      '<li><span>02</span><strong>Resource</strong><small>Sponsors · venues · volunteers</small></li>' +
-      '<li><span>03</span><strong>Plan</strong><small>Guest slate · invites · agenda</small></li>' +
-      '<li><span>04</span><strong>RSVP</strong><small>Tally · waitlist · reminders</small></li>' +
-      '<li><span>05</span><strong>Run</strong><small>Day-of checklist · host frame</small></li>' +
-      '<li><span>06</span><strong>Follow-up</strong><small>Thanks · mutual interest</small></li>' +
+      '<li><span>01</span><strong>Ideate</strong><small>Bot invents · accepts your ideas</small></li>' +
+      '<li><span>02</span><strong>Resource</strong><small>Bot finds venue · queues asks</small></li>' +
+      '<li><span>03</span><strong>Plan</strong><small>Agenda · invites · Partiful draft</small></li>' +
+      '<li><span>04</span><strong>RSVP</strong><small>Tally · reminder queue</small></li>' +
+      '<li><span>05</span><strong>Run</strong><small>Day-of checklist · frame</small></li>' +
+      '<li><span>06</span><strong>Follow-up</strong><small>Thanks · feedback · mutual yes</small></li>' +
       '<li><span>07</span><strong>Debrief</strong><small>Learnings · next night</small></li>' +
       '</ol>' +
       '<p class="dg-ev-status" id="dg-ev-status" role="status" aria-live="polite">Checking night status…</p>' +
@@ -3331,15 +3503,15 @@ var DG_PAGES = {
 // so without it a screen-reader user never learns the state changed (WCAG 4.1.3 Status Messages, AA).
 // polite matches the 9 other aria-live uses in this file.
 '<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status" aria-live="polite">Ready</span></div>' +
-      '<p class="dg-ec-note">Tell us your night — we draft the slate; you send every invite.</p>' +
+      '<p class="dg-ec-note">It owns the night. Chat ideas, ask status, or say “drive the next dinner” — offer help anytime below.</p>' +
       '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-ec-form" id="dg-ec-form">' +
       '<label class="sr-only" for="dg-ec-input">Message</label>' +
-      '<textarea id="dg-ec-input" class="dg-ec-input" rows="2" maxlength="2000" placeholder="e.g. 40-person SoMa party, need free venue + drink sponsor" required></textarea>' +
+      '<textarea id="dg-ec-input" class="dg-ec-input" rows="2" maxlength="2000" placeholder="e.g. drive a 40-person SoMa party — free venue + drink sponsor" required></textarea>' +
       '<button type="submit" class="dg-ec-send" id="dg-ec-send">Send</button>' +
       '</form></div>' +
       '<h3 class="dg-p-h3" id="dg-ev-offers-h">Offer to the night</h3>' +
-      '<p class="dg-p-note">Bring a venue, sponsor a table, or volunteer. We follow up — no auto-booking.</p>' +
+      '<p class="dg-p-note">Bring a venue, sponsor a table, or volunteer. The bot absorbs offers into its plan and still messages others for gaps — no auto-booking.</p>' +
       '<div class="dg-ev-tabs" role="group" aria-label="Offer type">' +
       '<button type="button" class="dg-ev-tab is-on" data-ev-tab="sponsor" aria-pressed="true">Sponsor</button>' +
       '<button type="button" class="dg-ev-tab" data-ev-tab="venue" aria-pressed="false">Venue</button>' +
@@ -3414,9 +3586,13 @@ var DG_PAGES = {
   }
 };
 function pageCss() {
-  if (q('#dg-page-css')) return;
+  // Versioned so Events gold (and other page polish) re-injects after foot bumps
+  var existing = q('#dg-page-css');
+  if (existing && existing.getAttribute('data-v') === '682') return;
+  if (existing) existing.remove();
   var s = document.createElement('style');
   s.id = 'dg-page-css';
+  s.setAttribute('data-v', '682');
   s.textContent =
     '#dg-page{position:relative;z-index:10050;background:#060606;min-height:100vh;overflow:visible;padding:1rem;animation:dg-page-in .25s ease both}' +
     '#dg-page .dg-page-card{max-width:34rem;margin:2rem auto;background:#121212;border:1px solid rgba(201,168,76,.28);border-radius:16px;padding:1.35rem 1.35rem 1.5rem;color:#F5F0E6;box-shadow:0 20px 60px rgba(0,0,0,.45)}' +
@@ -3467,7 +3643,9 @@ function pageCss() {
     '#dg-blog-home h2{margin:0;font-family:Cinzel,Georgia,serif;font-size:1.25rem;color:#E8D5A3}' +
     '#dg-blog-home .dg-blog-home-all{color:#C9A84C;font-weight:650;text-decoration:none;min-height:44px;display:inline-flex;align-items:center}' +
     '#dg-blog-home .dg-blog-home-grid{display:grid;gap:.75rem;grid-template-columns:1fr}' +
-    '@media(min-width:640px){#dg-blog-home .dg-blog-home-grid{grid-template-columns:1fr 1fr 1fr}}' +
+    '@media(min-width:640px){#dg-blog-home .dg-blog-home-grid:not(.is-one){grid-template-columns:1fr 1fr 1fr}}' +
+    '#dg-blog-home .dg-blog-home-grid.is-one{max-width:28rem}' +
+    '#dg-page .dg-blog-card{opacity:1!important}' +
     '#dg-blog-home .dg-blog-home-card{border:1px solid rgba(201,168,76,.2);border-radius:12px;overflow:hidden;background:rgba(14,14,18,.9);text-decoration:none;color:inherit;display:block;transition:border-color .15s}' +
     '#dg-blog-home .dg-blog-home-card:hover{border-color:rgba(201,168,76,.55)}' +
     '#dg-blog-home .dg-blog-home-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}' +
@@ -3507,53 +3685,79 @@ function pageCss() {
     '#dg-page .dg-mud-send{min-height:48px;min-width:4.5rem;padding:0 .75rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
     '#dg-page .dg-mud-hint{margin:.55rem 0 0;font-size:.75rem;color:#9aab9f}' +
     '#dg-page .dg-mud-hint code{color:#a6ffcb}' +
-    /* Events Bot — homepage gold Demigod system (not MUD phosphor) */
-    '#dg-page.dg-page-events .dg-page-card{max-width:min(42rem,96vw)}' +
-    '#dg-page .dg-ev-hero{height:7.5rem;margin:-.35rem 0 1rem;border-radius:14px;border:1px solid rgba(201,168,76,.22);' +
-    'background:linear-gradient(105deg,rgba(10,10,10,.88) 0%,rgba(10,10,10,.55) 48%,rgba(201,168,76,.12) 100%),' +
-    'radial-gradient(ellipse 80% 60% at 70% 40%,rgba(201,168,76,.14),transparent 60%),#0a0a0a;' +
-    'box-shadow:inset 0 1px 0 rgba(201,168,76,.08)}' +
-    '#dg-page .dg-ev-pill{display:inline-flex;align-items:center;margin:0 0 .85rem;padding:.28rem .7rem;border-radius:999px;' +
-    'border:1px solid rgba(201,168,76,.35);color:#C9A84C;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}' +
+    '#dg-page .dg-mud-soft{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;padding:.4rem .65rem;border-top:1px solid rgba(166,255,203,.12);background:rgba(3,20,13,.55)}' +
+    '#dg-page .dg-mud-soft[hidden]{display:none!important}' +
+    '#dg-page .dg-mud-soft-label{color:#9aab9f;font-size:.72rem;font-family:ui-monospace,Menlo,Consolas,monospace;margin-right:.25rem}' +
+    '#dg-page .dg-mud-quick{display:flex;flex-wrap:wrap;gap:.35rem;padding:.4rem .65rem;border-top:1px solid rgba(166,255,203,.14)}' +
+    '#dg-page .dg-mud-quick button,#dg-page .dg-mud-exit{min-height:40px;padding:.3rem .65rem;border-radius:4px;border:1px solid rgba(166,255,203,.35);background:rgba(8,160,93,.18);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;font-weight:650;cursor:pointer}' +
+    '#dg-page .dg-mud-quick button:hover,#dg-page .dg-mud-exit:hover{background:rgba(8,160,93,.35);border-color:rgba(166,255,203,.55)}' +
+    '#dg-page .dg-mud-quick button:focus-visible,#dg-page .dg-mud-exit:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+    /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
+    '#dg-page.dg-page-events{background:radial-gradient(120% 80% at 80% 0%,rgba(201,168,76,.09),transparent 55%),#060606!important}' +
+    '#dg-page.dg-page-events .dg-page-card{max-width:min(44rem,96vw);border-color:rgba(201,168,76,.38);' +
+    'background:linear-gradient(180deg,#161412 0%,#121212 40%,#0e0e12 100%);box-shadow:0 24px 70px rgba(0,0,0,.5),inset 0 1px 0 rgba(201,168,76,.1)}' +
+    '#dg-page.dg-page-events h1{font-family:Cinzel,Georgia,serif!important;color:#C9A84C!important;letter-spacing:.04em;' +
+    'font-size:clamp(1.35rem,3.5vw,1.75rem)!important}' +
+    '#dg-page.dg-page-events .dg-p-lead{color:#D6D3D1}' +
+    '#dg-page.dg-page-events .dg-p-lead strong{color:#E8D5A3}' +
+    '#dg-page.dg-page-events .dg-page-x{border-color:rgba(201,168,76,.5);color:#C9A84C}' +
+    /* kill any leaked phosphor on events page only */
+    '#dg-page.dg-page-events,#dg-page.dg-page-events *{--dg-phosphor:#C9A84C;--dg-signal:#E8D5A3}' +
+    '#dg-page.dg-page-events a:not(.dg-ev-cta-pri):not(.dg-page-ctas a){color:#E8D5A3}' +
+    '#dg-page .dg-ev-hero{position:relative;height:8.25rem;margin:-.35rem 0 1.1rem;border-radius:14px;border:1px solid rgba(201,168,76,.3);' +
+    'background:linear-gradient(115deg,#0A0A0A 0%,#14110c 42%,rgba(201,168,76,.16) 100%),' +
+    'radial-gradient(ellipse 70% 55% at 78% 35%,rgba(201,168,76,.2),transparent 62%);' +
+    'box-shadow:inset 0 1px 0 rgba(232,213,163,.12),0 10px 28px rgba(0,0,0,.35);overflow:hidden}' +
+    '#dg-page .dg-ev-hero::after{content:"DEMIGOD · EVENTS";position:absolute;left:1rem;bottom:.85rem;' +
+    'font-family:Cinzel,Georgia,serif;font-size:.72rem;font-weight:700;letter-spacing:.18em;color:rgba(201,168,76,.85)}' +
+    '#dg-page .dg-ev-hero::before{content:"";position:absolute;right:-10%;top:-30%;width:55%;height:140%;' +
+    'background:radial-gradient(circle,rgba(201,168,76,.18),transparent 68%);pointer-events:none}' +
+    '#dg-page .dg-ev-pill{display:inline-flex;align-items:center;margin:0 0 .85rem;padding:.28rem .75rem;border-radius:999px;' +
+    'border:1px solid rgba(201,168,76,.42);color:#C9A84C;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;' +
+    'background:rgba(201,168,76,.06)}' +
     '#dg-page .dg-ev-cta-band{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}' +
-    '#dg-page .dg-ev-cta-pri{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;' +
-    'background:#C9A84C;color:#0A0A0A!important;font-weight:700;text-decoration:none!important}' +
+    '#dg-page .dg-ev-cta-pri{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.2rem;border-radius:12px;' +
+    'background:linear-gradient(180deg,#E8D5A3 0%,#C9A84C 100%);color:#0A0A0A!important;font-weight:700;text-decoration:none!important;' +
+    'box-shadow:0 6px 18px rgba(201,168,76,.22)}' +
     '#dg-page .dg-ev-cta-sec{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1rem;border-radius:12px;' +
-    'border:1.5px solid rgba(201,168,76,.55);color:#E8D5A3!important;font-weight:650;text-decoration:none!important;background:transparent}' +
+    'border:1.5px solid rgba(201,168,76,.55);color:#E8D5A3!important;font-weight:650;text-decoration:none!important;background:rgba(201,168,76,.04)}' +
     '#dg-page .dg-ev-cta-pri:hover,#dg-page .dg-ev-cta-sec:hover{transform:translateY(-1px)}' +
-    '#dg-page .dg-events-chat{margin:0 0 1.35rem;border:1px solid rgba(201,168,76,.28);border-radius:14px;background:#121212;overflow:hidden;' +
-    'box-shadow:0 12px 40px rgba(0,0,0,.35)}' +
-    '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.7rem .9rem;' +
-    'border-bottom:1px solid rgba(201,168,76,.18);background:rgba(201,168,76,.04)}' +
-    '#dg-page .dg-ec-title{color:#C9A84C;font-family:Cinzel,Georgia,serif;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;font-weight:600}' +
+    '#dg-page .dg-ev-cta-pri:focus-visible,#dg-page .dg-ev-cta-sec:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}' +
+    '#dg-page .dg-events-chat{margin:0 0 1.35rem;border:1px solid rgba(201,168,76,.32);border-radius:14px;background:#141210;overflow:hidden;' +
+    'box-shadow:0 14px 44px rgba(0,0,0,.4),inset 0 1px 0 rgba(201,168,76,.08)}' +
+    '#dg-page .dg-ec-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.75rem .95rem;' +
+    'border-bottom:1px solid rgba(201,168,76,.2);background:linear-gradient(90deg,rgba(201,168,76,.08),rgba(201,168,76,.02))}' +
+    '#dg-page .dg-ec-title{color:#C9A84C;font-family:Cinzel,Georgia,serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600}' +
     '#dg-page .dg-ec-status{color:#A8A29E;font-size:.72rem}' +
-    '#dg-page .dg-ec-note{margin:0;padding:.55rem .9rem;font-size:.84rem;color:#A8A29E;line-height:1.45;border-bottom:1px solid rgba(201,168,76,.1)}' +
-    '#dg-page .dg-ec-log{max-height:min(42vh,300px);overflow:auto;padding:.75rem .9rem;display:flex;flex-direction:column;gap:.55rem}' +
+    '#dg-page .dg-ec-note{margin:0;padding:.55rem .95rem;font-size:.84rem;color:#A8A29E;line-height:1.45;border-bottom:1px solid rgba(201,168,76,.12)}' +
+    '#dg-page .dg-ec-log{max-height:min(42vh,300px);overflow:auto;padding:.75rem .95rem;display:flex;flex-direction:column;gap:.55rem}' +
     '#dg-page .dg-ec-msg{max-width:92%;padding:.6rem .75rem;border-radius:12px;font-size:.9rem;line-height:1.5;white-space:pre-wrap;font-family:Manrope,system-ui,sans-serif}' +
-    '#dg-page .dg-ec-msg.bot{align-self:flex-start;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.22);color:#F5F0E6}' +
-    '#dg-page .dg-ec-msg.user{align-self:flex-end;background:rgba(201,168,76,.14);border:1px solid rgba(201,168,76,.32);color:#E8D5A3}' +
-    '#dg-page .dg-ec-form{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid rgba(201,168,76,.18)}' +
-    '#dg-page .dg-ec-input{width:100%;min-height:48px;resize:vertical;background:#0a0a0a;border:1px solid rgba(201,168,76,.3);border-radius:12px;' +
+    '#dg-page .dg-ec-msg.bot{align-self:flex-start;background:rgba(201,168,76,.09);border:1px solid rgba(201,168,76,.24);color:#F5F0E6}' +
+    '#dg-page .dg-ec-msg.user{align-self:flex-end;background:rgba(201,168,76,.16);border:1px solid rgba(201,168,76,.35);color:#E8D5A3}' +
+    '#dg-page .dg-ec-form{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.75rem .95rem;border-top:1px solid rgba(201,168,76,.2)}' +
+    '#dg-page .dg-ec-input{width:100%;min-height:48px;resize:vertical;background:#0A0A0A;border:1px solid rgba(201,168,76,.32);border-radius:12px;' +
     'color:#F5F0E6;padding:.6rem .75rem;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +
     '#dg-page .dg-ec-input:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}' +
     '#dg-page .dg-ec-send{min-height:48px;min-width:5.5rem;padding:0 1rem;border-radius:12px;border:1px solid #C9A84C;' +
-    'background:#C9A84C;color:#0A0A0A;font-family:Manrope,system-ui,sans-serif;font-weight:700;cursor:pointer}' +
-    '#dg-page .dg-ec-send:hover{box-shadow:0 8px 24px rgba(201,168,76,.22)}' +
+    'background:linear-gradient(180deg,#E8D5A3,#C9A84C);color:#0A0A0A;font-family:Manrope,system-ui,sans-serif;font-weight:700;cursor:pointer}' +
+    '#dg-page .dg-ec-send:hover{box-shadow:0 8px 24px rgba(201,168,76,.28)}' +
     '#dg-page .dg-ec-send:disabled{opacity:.55;cursor:wait}' +
     '#dg-page .dg-ev-cycle{grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))!important}' +
+    '#dg-page.dg-page-events .dg-ev-cycle>li{border-color:rgba(201,168,76,.28);background:rgba(201,168,76,.05)}' +
+    '#dg-page.dg-page-events .dg-ev-cycle span{color:#C9A84C}' +
     '#dg-page .dg-ev-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:.65rem 0 .5rem}' +
-    '#dg-page .dg-ev-tab{min-height:44px;padding:.45rem .9rem;border-radius:12px;border:1px solid rgba(201,168,76,.35);background:transparent;' +
+    '#dg-page .dg-ev-tab{min-height:44px;padding:.45rem .9rem;border-radius:12px;border:1px solid rgba(201,168,76,.38);background:transparent;' +
     'color:#E8D5A3;font-weight:650;cursor:pointer;font-family:Manrope,system-ui,sans-serif;transition:border-color .18s,background .18s}' +
-    '#dg-page .dg-ev-tab.is-on{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.75);color:#C9A84C}' +
-    '#dg-page .dg-ev-offers{margin:.35rem 0 0;padding:1rem;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92)}' +
+    '#dg-page .dg-ev-tab.is-on{background:rgba(201,168,76,.2);border-color:rgba(201,168,76,.8);color:#C9A84C}' +
+    '#dg-page .dg-ev-offers{margin:.35rem 0 0;padding:1rem;border:1px solid rgba(201,168,76,.28);border-radius:14px;background:rgba(14,14,18,.95)}' +
     '#dg-page .dg-ev-form{display:grid;gap:.35rem}' +
     '#dg-page .dg-ev-lab{font-size:.78rem;color:#A8A29E;margin-top:.3rem}' +
-    '#dg-page .dg-ev-in{width:100%;min-height:48px;padding:.6rem .75rem;border-radius:12px;border:1px solid rgba(201,168,76,.28);' +
-    'background:#0a0a0a;color:#F5F0E6;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ev-in{width:100%;min-height:48px;padding:.6rem .75rem;border-radius:12px;border:1px solid rgba(201,168,76,.3);' +
+    'background:#0A0A0A;color:#F5F0E6;font-size:16px;font-family:Manrope,system-ui,sans-serif}' +
     '#dg-page .dg-ev-ta{min-height:5.5rem;resize:vertical}' +
     '#dg-page .dg-ev-in:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}' +
-    '#dg-page .dg-ev-submit{min-height:48px;margin-top:.6rem;border-radius:12px;border:1px solid #C9A84C;background:#C9A84C;' +
-    'color:#0A0A0A;font-weight:700;cursor:pointer;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ev-submit{min-height:48px;margin-top:.6rem;border-radius:12px;border:1px solid #C9A84C;' +
+    'background:linear-gradient(180deg,#E8D5A3,#C9A84C);color:#0A0A0A;font-weight:700;cursor:pointer;font-family:Manrope,system-ui,sans-serif}' +
     '#dg-page .dg-ev-submit-ghost{background:transparent;color:#C9A84C}' +
     '#dg-page .dg-ev-submit:disabled{opacity:.55;cursor:wait}' +
     '#dg-page .dg-ev-msg{min-height:1.2rem;font-size:.84rem;color:#A8A29E;margin:.4rem 0 0}' +
@@ -3562,30 +3766,30 @@ function pageCss() {
     '#dg-page .dg-ev-counts{font-size:.8rem;color:#A8A29E;margin:.5rem 0 1rem}' +
     '#dg-page .dg-ev-extra{display:grid;gap:0;margin:1.1rem 0 1.25rem}' +
     '#dg-page .dg-ev-mini{padding:.35rem 0 .65rem}' +
-    '#dg-page .dg-ev-status{margin:.35rem 0 1.15rem;padding:.7rem .9rem;border-radius:12px;border:1px solid rgba(201,168,76,.22);' +
-    'background:rgba(201,168,76,.06);color:#A8A29E;font-size:.88rem;line-height:1.45}' +
-    '#dg-page .dg-ev-cycle>li.is-current{border-color:rgba(201,168,76,.7)!important;background:rgba(201,168,76,.12)!important}' +
+    '#dg-page .dg-ev-status{margin:.35rem 0 1.15rem;padding:.75rem .95rem;border-radius:12px;border:1px solid rgba(201,168,76,.28);' +
+    'background:rgba(201,168,76,.08);color:#A8A29E;font-size:.88rem;line-height:1.45}' +
+    '#dg-page .dg-ev-cycle>li.is-current{border-color:rgba(201,168,76,.75)!important;background:rgba(201,168,76,.14)!important}' +
     '#dg-page .dg-ev-cycle>li.is-current strong{color:#C9A84C}' +
-    '#dg-page .dg-ev-cal{margin:0 0 1.35rem;padding:1rem;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92)}' +
+    '#dg-page .dg-ev-cal{margin:0 0 1.35rem;padding:1rem;border:1px solid rgba(201,168,76,.28);border-radius:14px;background:rgba(14,14,18,.95)}' +
     '#dg-page .dg-ev-cal-nav{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:0 0 .65rem}' +
     '#dg-page .dg-ev-cal-month{margin:0;font-family:Cinzel,Georgia,serif;font-size:1.05rem;color:#E8D5A3;font-weight:600}' +
-    '#dg-page .dg-ev-cal-navbtn{min-width:44px;min-height:44px;border-radius:12px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#C9A84C;font-size:1.35rem;cursor:pointer}' +
+    '#dg-page .dg-ev-cal-navbtn{min-width:44px;min-height:44px;border-radius:12px;border:1px solid rgba(201,168,76,.38);background:transparent;color:#C9A84C;font-size:1.35rem;cursor:pointer}' +
     '#dg-page .dg-ev-cal-navbtn:hover{background:rgba(201,168,76,.12)}' +
     '#dg-page .dg-ev-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:0 0 .35rem;text-align:center;font-size:.72rem;color:#A8A29E;font-weight:650}' +
     '#dg-page .dg-ev-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}' +
-    '#dg-page .dg-ev-cal-cell{min-height:3.1rem;padding:.25rem .2rem;border-radius:10px;border:1px solid rgba(201,168,76,.12);background:#0a0a0a;color:#F5F0E6;font-size:.82rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:Manrope,system-ui,sans-serif}' +
-    '#dg-page .dg-ev-cal-cell:hover{border-color:rgba(201,168,76,.45)}' +
+    '#dg-page .dg-ev-cal-cell{min-height:3.1rem;padding:.25rem .2rem;border-radius:10px;border:1px solid rgba(201,168,76,.14);background:#0A0A0A;color:#F5F0E6;font-size:.82rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:Manrope,system-ui,sans-serif}' +
+    '#dg-page .dg-ev-cal-cell:hover{border-color:rgba(201,168,76,.48)}' +
     '#dg-page .dg-ev-cal-cell.is-out{opacity:.35;cursor:default}' +
-    '#dg-page .dg-ev-cal-cell.is-today{border-color:rgba(201,168,76,.55);box-shadow:inset 0 0 0 1px rgba(201,168,76,.25)}' +
-    '#dg-page .dg-ev-cal-cell.is-sel{background:rgba(201,168,76,.16);border-color:#C9A84C;color:#E8D5A3}' +
+    '#dg-page .dg-ev-cal-cell.is-today{border-color:rgba(201,168,76,.6);box-shadow:inset 0 0 0 1px rgba(201,168,76,.28)}' +
+    '#dg-page .dg-ev-cal-cell.is-sel{background:rgba(201,168,76,.18);border-color:#C9A84C;color:#E8D5A3}' +
     '#dg-page .dg-ev-cal-cell:focus-visible{outline:2px solid #C9A84C;outline-offset:2px}' +
     '#dg-page .dg-ev-cal-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;min-height:8px}' +
     '#dg-page .dg-ev-cal-dot{width:5px;height:5px;border-radius:50%;background:#C9A84C}' +
     '#dg-page .dg-ev-cal-n{font-size:.65rem;color:#C9A84C;font-weight:700;line-height:1}' +
-    '#dg-page .dg-ev-cal-daypanel{margin-top:.85rem;padding-top:.75rem;border-top:1px solid rgba(201,168,76,.18)}' +
+    '#dg-page .dg-ev-cal-daypanel{margin-top:.85rem;padding-top:.75rem;border-top:1px solid rgba(201,168,76,.2)}' +
     '#dg-page .dg-ev-cal-daylabel{margin:0 0 .45rem;color:#E8D5A3;font-weight:650;font-size:.92rem}' +
     '#dg-page .dg-ev-cal-list{list-style:none;margin:0 0 .75rem;padding:0;display:grid;gap:.4rem}' +
-    '#dg-page .dg-ev-cal-list li{padding:.55rem .7rem;border-radius:10px;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.06);color:#F5F0E6;font-size:.88rem;line-height:1.35}' +
+    '#dg-page .dg-ev-cal-list li{padding:.55rem .7rem;border-radius:10px;border:1px solid rgba(201,168,76,.24);background:rgba(201,168,76,.07);color:#F5F0E6;font-size:.88rem;line-height:1.35}' +
     '#dg-page .dg-ev-cal-list li strong{color:#C9A84C;font-weight:650}' +
     '#dg-page .dg-ev-cal-list li em{color:#A8A29E;font-style:normal;font-size:.8rem}' +
     '#dg-page .dg-ev-cal-empty{color:#A8A29E;font-size:.86rem;margin:0 0 .65rem}' +
@@ -3859,12 +4063,18 @@ function eventsBotCycleMount(root) {
       var j = await r.json();
       if (!j || !j.ok) throw new Error('bad lifecycle');
       var ae = j.activeEvent || {};
-      var st = ae.stage || 'ideate';
+      // Prefer API hasActive (empty shell after seed is not "in flight")
+      var hasActive =
+        j.hasActive === true ||
+        ae.hasActive === true ||
+        (j.hasActive == null && ae.hasActive == null && !!(ae.id || ae.title));
+      if (j.hasActive === false || ae.hasActive === false) hasActive = false;
+      var st = hasActive ? ae.stage || 'ideate' : 'ideate';
       var oc = j.offerCounts || {};
-      var title = ae.title ? '“' + ae.title + '” · ' : '';
+      var title = hasActive && ae.title ? '“' + ae.title + '” · ' : '';
       var offers =
         (oc.sponsor | 0) + ' sponsor · ' + (oc.venue | 0) + ' venue · ' + (oc.volunteer | 0) + ' volunteer';
-      if (ae.id || ae.title) {
+      if (hasActive) {
         status.textContent =
           'In flight: ' + title + 'stage ' + stageLabel(st) + '. Offers on file: ' + offers + '.';
       } else {
@@ -4207,12 +4417,14 @@ function eventsBotChatMount(root) {
   function offline(msg) {
     var last = (msg || '').toLowerCase();
     if (/date|when|calendar/.test(last))
-      return 'Use the SF calendar above to park nights (multiple events per day are fine). Share seats + outcome here and I will draft a host brief — or email potter@trydemigod.com.';
+      return 'I keep SF date windows on the active night and the calendar above (multiple events per day OK). Tell me 1–3 windows and I update the plan — or email potter@trydemigod.com.';
     if (/guest|invite|who/.test(last))
-      return 'I only draft guest lists; you approve every name. Tell me seats, mix (founders/eng), and constraints.';
+      return 'I draft guest framing and invite copy, then queue messages. Share seats, mix, and constraints if you have them — I still drive the night.';
     if (/agenda|run/.test(last))
-      return 'Tight dinner skeleton: arrive → host frame → structured intros → free conversation → close + mutual-interest notes. Duration?';
-    return 'I run the full cycle: Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief → next. You stay host; no auto-DM. Try: "8 seats, next Thu/Fri, founders + eng, outcome: 3 second meetings" — or use the calendar / offer forms above.';
+      return 'I own the run-of-show: arrive → frame → structured block → free conversation → close + reconnect notes. Duration or vibe and I revise.';
+    if (/sponsor|venue|volunteer|offer/.test(last))
+      return 'Use Offer help below or paste details here. I absorb offers and still queue outreach for anything missing.';
+    return 'I am the organizer of record for SF nights end-to-end (not a host assistant). Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief. Try: "drive a 40-person SoMa party — free venue + drink sponsor" — or offer help / chat anytime. Outreach stays queued until email/SMS is live; no fake sends.';
   }
 
   async function probe() {
@@ -4365,7 +4577,7 @@ function closePage() {
 }
 function pageCtas(id) {
   var hire =
-    '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">I\'m hiring</a>';
+    '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Demigod</a>';
   var talent =
     '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Find a job</a>';
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
@@ -4419,7 +4631,9 @@ function openPage(id, push) {
      Verified: force-hiding sticks; no MutationObserver re-shows them. */
   document.body.classList.add('dg-page-on');
   try {
-    var KEEP = /^(first-year-cash-not-equity-fog|match-note-anti-patterns|no-public-talent-feed|sf-events-calendar|sf-night-is-not-a-pipeline-hack|what-talent-sees|when-not-to-intro|90-day-outcomes|both-approve|human-review-over-volume|private-match-notes|ten-percent)$/;
+    /* Body-hide allowlist: never use blog slugs here (blog-sync used to stomp this and
+       confused hide logic with deep-link routing). #dg-page is appended after this loop. */
+    var KEEP = /^(?:)$/;
     /* openPage can run twice (deepLink on boot, then a nav click). Without this guard the second
        pass captures the ALREADY-HIDDEN display:none as the "prior" value, and closePage then
        faithfully restores none — leaving the homepage blank. Capture once per open. */
@@ -4427,6 +4641,7 @@ function openPage(id, push) {
     [].slice.call(document.body.children).forEach(function (el) {
       var t = el.tagName;
       if (t === 'SCRIPT' || t === 'STYLE' || t === 'LINK' || t === 'NOSCRIPT') return;
+      if (el.id === 'dg-page') return;
       if (el.id && KEEP.test(el.id)) return;
       dgPageHidden.push([el, el.style.display, el.style.getPropertyPriority('display')]);
       el.style.setProperty('display', 'none', 'important');
@@ -4626,6 +4841,8 @@ function blogCardHtml(p, opts) {
       '</span></a>'
     );
   }
+  /* Single long essay with collapsed <details> looked empty; open when only one post or forced. */
+  var openAttr = opts.open ? ' open' : '';
   return (
     '<article class="dg-blog-card" id="note-' +
     slug +
@@ -4645,7 +4862,9 @@ function blogCardHtml(p, opts) {
     '</h3><p>' +
     sum +
     '</p>' +
-    '<details class="dg-blog-more"><summary>Full note · ' +
+    '<details class="dg-blog-more"' +
+    openAttr +
+    '><summary>Full note · ' +
     title +
     '</summary><div class="dg-blog-body">' +
     bodyHtml +
@@ -4672,9 +4891,11 @@ function blogPageMount(root) {
     var list = posts.filter(function (p) {
       return active === 'All' || (p.category || 'Note') === active;
     });
+    /* One post in the filtered set: expand body so the page is not a teaser-only shell. */
+    var expand = list.length === 1;
     grid.innerHTML = list
       .map(function (p) {
-        return blogCardHtml(p);
+        return blogCardHtml(p, { open: expand });
       })
       .join('');
     if (empty) empty.hidden = list.length > 0;
@@ -4686,8 +4907,17 @@ function blogPageMount(root) {
       });
     }
     try {
+      /* Cards must be readable even if reveal IO is late/misses inside #dg-page. */
+      qa('.dg-blog-card', grid).forEach(function (el) {
+        el.classList.add('dg-reveal-in');
+        el.style.opacity = '1';
+      });
       addMotion();
     } catch (e0) {}
+    /* Chip re-render wipes DOM; re-apply deep-link open/scroll if hash still points at a note. */
+    try {
+      focusBlogNoteFromHash(root);
+    } catch (eH) {}
   }
   if (filters) {
     filters.innerHTML = cats
@@ -4736,7 +4966,9 @@ function injectBlogHome() {
     '<h2>From the blog</h2>' +
     '<a class="dg-blog-home-all" href="/?p=blog" data-dg-page="blog">All posts →</a>' +
     '</div>' +
-    '<div class="dg-blog-home-grid">' +
+    '<div class="dg-blog-home-grid' +
+    (top.length === 1 ? ' is-one' : '') +
+    '">' +
     top
       .map(function (p) {
         return blogCardHtml(p, { teaser: true });
@@ -4863,7 +5095,7 @@ function deepLink(){
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('partners',false); window.__dgDeepLinked=1; return; }
-    if(/^note-/.test(h)||/^(first-year-cash-not-equity-fog|match-note-anti-patterns|no-public-talent-feed|sf-events-calendar|sf-night-is-not-a-pipeline-hack|what-talent-sees|when-not-to-intro|90-day-outcomes|both-approve|human-review-over-volume|private-match-notes|ten-percent)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
+    if(/^note-/.test(h)||/^(epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
     if(!w)return;
     var open=function(){
       if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
@@ -4914,7 +5146,7 @@ function wireLogoHome(){
 }
 function ensureReducedMotionHeroCss(){if(q('#dg-reduced-motion-hero'))return;var s=document.createElement('style');s.id='dg-reduced-motion-hero';s.textContent='@media(prefers-reduced-motion:reduce){.hero-section h1,.hero-section p,.header h1,.header p,.hero-actions,#dg-hero-chips,#dg-path-pills{animation:none!important;transition:none!important}}';document.head.appendChild(s)}
 function ensureTapTargetCss(){if(q('#dg-tap-targets'))return;var s=document.createElement('style');s.id='dg-tap-targets';s.textContent='.hero-actions a[data-dg-cta],#dg-nav-hire,#dg-nav-talent,#dg-bar a{min-height:48px!important}a.nav_logo,a.footer_link{min-height:48px!important}';document.head.appendChild(s)}
-function boot(){if(!document.body)return;forceMainVisible();run();ensureReducedMotionHeroCss();ensureTapTargetCss();finalButtonLabels();try{wireLogoHome();ensureLogo()}catch(e){}try{scrubBadStaticClaims();scrubContactEmail()}catch(e){}deepLink();try{document.body.classList.add('dg-ready');document.body.setAttribute('data-dg-ready','1')}catch(e){}try{if(window.requestIdleCallback)requestIdleCallback(function(){try{orgJsonLd()}catch(e){}});else setTimeout(function(){try{orgJsonLd()}catch(e){}},1200)}catch(e){}}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
+function boot(){if(!document.body)return;forceMainVisible();run();ensureReducedMotionHeroCss();ensureTapTargetCss();finalButtonLabels();try{wireLogoHome();ensureLogo()}catch(e){}try{scrubBadStaticClaims();scrubContactEmail()}catch(e){}try{hero()}catch(e){}deepLink();try{document.body.classList.add('dg-ready');document.body.setAttribute('data-dg-ready','1')}catch(e){}try{if(window.requestIdleCallback)requestIdleCallback(function(){try{orgJsonLd()}catch(e){}});else setTimeout(function(){try{orgJsonLd()}catch(e){}},1200)}catch(e){}}boot();document.addEventListener('DOMContentLoaded',boot);[400,1500].forEach(function(ms){setTimeout(boot,ms)});/* v190: drop t=50 forceMainVisible — boot/run cover */
 // Extra delayed dedupes to catch late-rendered Webflow elements / repeated sections
 /* v190: delayed dedupe/scrub removed — run() already calls both */
 document.addEventListener('click',function(e){var c=e.target.closest('[class*=close],.modal_close,.w-modal-close');if(c&&c.closest(S+','+J)){e.preventDefault();var prev=OPEN;OPEN=null;hide(true);setTimeout(function(){offerAbandon(prev)},800);return}
@@ -4933,7 +5165,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('popstate',
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
 
-/* ==== SECTION: Night District MUD client (demigod-mud-client.js embedded) ==== */
+/* ==== SECTION: Night District MUD client (demigod-mud-client.js embedded) ====
 /**
  * demigod-mud-client.js — SF Night District MUD (social-first, lightweight)
  * Offline solo + NPCs + Vesper immortal. Optional multi :3461.
@@ -4962,167 +5194,498 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   var ROOMS = {
     plaza: {
       name: 'Market Street Crossing',
-      desc: 'Fog on Market. F-line clang. Phosphor plaque: DECISION > VOLUME. Stickers: old Twitter bird, fresh Stripe atlas pin. Best place to bump into other visitors.',
-      exits: { north: 'lobby', east: 'alley', west: 'cafe', south: 'dock', northeast: 'garden', southeast: 'market' },
-      items: ['leaflet'],
+      desc: 'Fog rolls along Market. An F-line streetcar clangs past. Stickers on the signal box: old Twitter bird, Stripe atlas pin, a hand-drawn "DECISION > VOLUME." People cross without looking up — except the ones who do, looking for someone to talk to. Best place to bump into other visitors.',
+      exits: { north: 'lobby', east: 'alley', west: 'cafe', south: 'dock', northeast: 'garden', southeast: 'market', southsoutheast: 'diner', southwest: 'transit' },
+      items: ['leaflet', 'transit_map'],
     },
     lobby: {
       name: 'Demigod Matching Lobby (SoMa)',
-      desc: 'Second-floor loft south of Market. Sealed envelopes — no open job board. Bay map pins: SoMa, Mission, Dogpatch, Oakland.',
-      exits: { south: 'plaza', east: 'review', up: 'roof', west: 'office' },
-      items: ['notebook'],
+      desc: 'Second-floor loft south of Market. Soft phosphor light. Sealed envelopes on a shelf — no open job board. A Bay map pins SoMa, Mission, Dogpatch, Oakland. Quiet enough for a real conversation if you keep your voice low.',
+      exits: { south: 'plaza', east: 'review', up: 'roof', west: 'office', north: 'museum' },
+      items: ['notebook', 'welcome_card'],
     },
     review: {
       name: 'Mutual-Approve Booths',
-      desc: 'Six quiet booths. Evidence packets only. A Notion printout: "90-day outcome — no keyword soup."',
-      exits: { west: 'lobby', north: 'archive' },
-      items: ['stamp'],
+      desc: 'Six quiet booths, frosted glass, one lamp each. A printout taped to the wall: "90-day outcome — no keyword soup." The air smells like paper and anxiety. Evidence packets only. Names later.',
+      exits: { west: 'lobby', north: 'archive', east: 'library' },
+      items: ['stamp', 'red_pen'],
     },
     archive: {
       name: 'Outcome Archive',
-      desc: 'Shelves of SF first-quarter ships. A spine: "Airbnb host trust · history only — not a partnership."',
-      exits: { south: 'review' },
-      items: ['tome'],
+      desc: 'Shelves of SF first-quarter ships — case studies, not trophies. One spine reads "Airbnb host trust · history only." Dust motes drift in frege green. A ladder leans against the stacks like someone meant to return.',
+      exits: { south: 'review', up: 'attic' },
+      items: ['tome', 'index_card'],
     },
     cafe: {
       name: 'Ritual Coffee Nook',
-      desc: 'Cold brew, laptop stickers (Linear, Figma), battered YC backpack. Chalkboard: open tables — humans only, no auto-DM. Great for conversation.',
-      exits: { east: 'plaza', north: 'garden', west: 'mission' },
-      items: ['mug'],
+      desc: 'Cold brew, laptop stickers (Linear, Figma, a faded YC backpack under a chair). Chalkboard: open tables — humans only, no auto-DM. The espresso machine hisses. Great place to SAY hello without a pitch deck.',
+      exits: { east: 'plaza', north: 'garden', west: 'mission', south: 'parklet' },
+      items: ['mug', 'sugar_packet'],
     },
     garden: {
       name: 'South Park Pocket',
-      desc: 'Tiny green oval off 2nd & Bryant. Startup ghosts on the benches. Fog from the Embarcadero.',
-      exits: { south: 'cafe', east: 'lobby' },
-      items: ['keycard'],
+      desc: 'Tiny green oval off 2nd & Bryant. Startup ghosts on the benches, dogs on the grass, fog from the Embarcadero. Someone left a half-finished stand-up still echoing. Soft social gravity.',
+      exits: { south: 'cafe', east: 'lobby', west: 'showplace' },
+      items: ['keycard', 'frisbee'],
     },
     alley: {
       name: 'Folsom Alley',
-      desc: 'Brick, loading docks, server fans. Graffiti: SHIP IT. Faded Uber Eats stencil. Side door hums like a Twilio edge box.',
-      exits: { west: 'plaza', north: 'lab', south: 'market', northwest: 'plaza', southwest: 'dock' },
-      items: ['coin'],
+      desc: 'Brick, loading docks, server fans. Graffiti: SHIP IT. A faded delivery stencil. A side door hums like an edge box. Puddles hold neon. Something small and metallic glints by the dumpster.',
+      exits: { west: 'plaza', north: 'lab', south: 'market', northwest: 'plaza', southwest: 'dock', east: 'warehouse' },
+      items: ['coin', 'sticker_sheet'],
     },
     lab: {
       name: 'Stack Lab (Dogpatch edge)',
-      desc: 'Whiteboards: latency, Postgres, "what would Stripe do at p99?" Dropbox sticker sheet. Quiet enough to think — or pair.',
-      exits: { south: 'alley' },
-      items: ['cable'],
+      desc: 'Whiteboards: latency budgets, Postgres, "what would Stripe do at p99?" A Dropbox sticker sheet peels at the corner. Quiet enough to pair — or overhear a real problem.',
+      exits: { south: 'alley', east: 'dogpatch', up: 'mezzanine' },
+      items: ['cable', 'usb_drive'],
     },
     market: {
       name: 'Ferry Building Night Market',
-      desc: 'String lights, SAMPLE role stalls (honest labels). Seed vs Series A comps near the oyster cart. Social gravity is high here.',
-      exits: { north: 'alley', west: 'dock', south: 'shop_stall' },
-      items: ['badge'],
+      desc: 'String lights, SAMPLE role stalls with honest labels, oyster carts, cold wind off the bay. Seed vs Series A comps whispered near the cheese counter. Social gravity is high — people linger.',
+      exits: { north: 'alley', west: 'dock', south: 'shop_stall', east: 'embarcadero_path' },
+      items: ['badge', 'oyster_fork'],
     },
     dock: {
       name: 'Embarcadero Pier',
-      desc: 'Salt air, Bay Bridge lights. Ferry horn. Salesforce Park glows inland. Perfect for a long say or a quiet emote.',
-      exits: { north: 'plaza', east: 'market' },
-      items: ['shell'],
+      desc: 'Salt air. Bay Bridge lights. A ferry horn. Salesforce Park glows inland. Perfect for a long SAY or a quiet emote. The water takes secrets and returns fog.',
+      exits: { north: 'plaza', east: 'market', west: 'caltrain_view', south: 'bridge_view' },
+      items: ['shell', 'fog_jar'],
     },
     roof: {
       name: 'SoMa Roof Deck',
-      desc: 'Wind off the bay. Neon and cranes. Sutro Tower a faint trident. Immortal Vesper is often "nearby" in spirit.',
-      exits: { down: 'lobby' },
-      items: ['lantern'],
+      desc: 'Wind off the bay. Neon and cranes. Sutro Tower a faint trident west. Folding chairs still in a circle from a demo-day afterparty that never officially ended. Immortal Vesper is often "nearby" in spirit. Someone left a plant that is trying very hard.',
+      exits: { down: 'lobby', east: 'helipad' },
+      items: ['lantern', 'hoodie', 'pitch_clicker'],
     },
     mission: {
       name: 'Valencia Sidewalk',
-      desc: 'Mission warmth even at night. Murals, taqueria steam, a Field Notes shop window. West-of-cafe stroll.',
-      exits: { east: 'cafe', north: 'bar' },
-      items: ['clipper'],
+      desc: 'Mission warmth even at night. Murals, taqueria steam, a Field Notes window. West-of-cafe stroll. Music from a bar that pretends not to be a founder hang.',
+      exits: { east: 'cafe', north: 'bar', west: 'grouphouse', south: 'bookstore', northwest: 'haight_edge' },
+      items: ['clipper', 'zine'],
     },
     bar: {
       name: 'Founder Dive (16th edge)',
-      desc: 'Dark wood, no pitch decks allowed after 9. Someone debates pricing honesty over a pint. Social room.',
-      exits: { south: 'mission' },
+      desc: 'Dark wood. No pitch decks after 9 — a sign says so twice. Someone debates pricing honesty over a pint. The jukebox is broken on purpose. Social room.',
+      exits: { south: 'mission', east: 'nocturne' },
       items: ['coaster', 'snack'],
     },
     shop_stall: {
       name: 'Night Market Stall',
-      desc: 'A SAMPLE stall at the Ferry Building. Honest labels. Type LIST · BUY · VALUE.',
+      desc: 'A SAMPLE stall at the Ferry Building. Honest labels, no fake scarcity. Type LIST · BUY · VALUE. The vendor is never quite looking at you.',
       exits: { north: 'market' },
       items: ['badge'],
       shop: [
         { id: 'mug', cost: 0, name: 'a Ritual coffee mug (sample)' },
         { id: 'leaflet', cost: 0, name: 'a phosphor SF leaflet' },
         { id: 'coaster', cost: 0, name: 'a dive-bar coaster' },
+        { id: 'tote', cost: 0, name: 'a night-market tote' },
+        { id: 'matcha', cost: 0, name: 'a paper cup of matcha' },
       ],
     },
     office: {
       name: 'Shared Desk Loft',
-      desc: 'Standing desks, standing jokes. A whiteboard lists "talk to a human" as the sprint goal. West of the matching lobby.',
-      exits: { east: 'lobby', down: 'transit' },
-      items: ['badge_lanyard'],
+      desc: 'Standing desks, standing jokes. Whiteboard sprint goal: "talk to a human." Slack pings from a monitor nobody owns. West of the matching lobby.',
+      exits: { east: 'lobby', down: 'transit', north: 'parklet' },
+      items: ['badge_lanyard', 'sourdough'],
     },
     transit: {
       name: 'Muni Underground Glimpse',
-      desc: 'Brake squeal, clipper taps, a map of the lines. Doors open south toward Market Street when you are ready.',
-      exits: { south: 'plaza', up: 'office' },
-      items: [],
+      desc: 'Brake squeal, Clipper taps, a mosaic map of the lines. Doors open south toward Market when you are ready. Someone practices a pitch under their breath and then decides against it.',
+      exits: { south: 'plaza', up: 'office', east: 'caltrain_view' },
+      items: ['transit_map'],
+    },
+    /* —— new rooms —— */
+    museum: {
+      name: 'Museum Lobby Night',
+      desc: 'Cool stone, a late ticket window closed, a sculpture that looks expensive and slightly judgmental. Free Wi‑Fi for people who refuse to go home. North of the matching lobby.',
+      exits: { south: 'lobby', east: 'library' },
+      items: ['museum_map', 'audio_wand'],
+    },
+    library: {
+      name: 'Tech History Stacks',
+      desc: 'A quiet wing of books and old product manuals. "Don\'t reinvent the job board" is scribbled in a margin. Soft chairs. Good for WHO and thinking.',
+      exits: { west: 'review', south: 'museum' },
+      items: ['zine', 'red_pen'],
+    },
+    attic: {
+      name: 'Archive Attic',
+      desc: 'Dust, skylight fog, a trunk of unsent intros. Someone filed "almost" under A. You can hear the city through the roof seams.',
+      exits: { down: 'archive' },
+      items: ['old_letter', 'tote'],
+    },
+    parklet: {
+      name: 'Hayes Valley Parklet',
+      desc: 'A wooden deck where a parking space used to be. String lights, a dog, two founders who are not working. A picnic blanket waits for a board game that may or may not appear. South of the coffee nook, north of the loft.',
+      exits: { north: 'cafe', south: 'office', west: 'bookstore' },
+      items: ['matcha', 'bike_lock', 'burner_phone'],
+    },
+    bookstore: {
+      name: 'City Lights-ish Corner',
+      desc: 'Poetry spines, radical pamphlets, a cat that has tenure. Not the real City Lights — a cousin that stole the vibe. Good place to read a ZINE or SAY something honest.',
+      exits: { north: 'mission', east: 'parklet' },
+      items: ['zine', 'bookmark'],
+    },
+    warehouse: {
+      name: 'Showplace Loading Dock',
+      desc: 'High ceilings, a half-assembled booth for a design fair, gaffer tape on the floor. East of Folsom Alley. Echoes make chatty people sound important.',
+      exits: { west: 'alley', north: 'dogpatch' },
+      items: ['gaffer_tape', 'sticker_sheet'],
+    },
+    dogpatch: {
+      name: 'Dogpatch Waterfront',
+      desc: 'Cranes, condo glass, a brewery laugh down the block. The bay is closer than it looks. Lab is west; warehouse south.',
+      exits: { west: 'lab', south: 'warehouse', east: 'pier_east' },
+      items: ['shell', 'sourdough'],
+    },
+    pier_east: {
+      name: 'Quiet East Pier',
+      desc: 'Fewer tourists. More wind. A single bench faces Treasure Island lights. Perfect for TELL and quiet plans.',
+      exits: { west: 'dogpatch' },
+      items: ['fog_jar', 'coin'],
+    },
+    caltrain_view: {
+      name: '4th & King Approach',
+      desc: 'Caltrain sighs into the station. Suitcases, hoodies, a late laptop. West of the pier path, east of Muni underground.',
+      exits: { east: 'dock', west: 'transit', north: 'plaza' },
+      items: ['transit_map', 'hoodie'],
+    },
+    bridge_view: {
+      name: 'Bay Bridge Pedestrian Glimpse',
+      desc: 'You cannot walk the whole span from here — only a view: orange towers, black water, a freighter that does not care about your Series A. South of the Embarcadero pier.',
+      exits: { north: 'dock' },
+      items: ['binoculars', 'shell'],
+    },
+    embarcadero_path: {
+      name: 'Embarcadero Path',
+      desc: 'Joggers, scooters, the smell of the bay. Connects the night market east toward nothing urgent. A good place to CHAT without a room full of stalls.',
+      exits: { west: 'market', north: 'chinatown_gate' },
+      items: ['tote', 'oyster_fork'],
+    },
+    chinatown_gate: {
+      name: 'Grant Avenue Gate (night)',
+      desc: 'Lanterns, late kitchens, a tourist pose that never finishes. North of the Embarcadero path. The city stacks languages here.',
+      exits: { south: 'embarcadero_path', west: 'nocturne' },
+      items: ['lantern', 'tea_cup'],
+    },
+    haight_edge: {
+      name: 'Haight Edge Walk',
+      desc: 'Not the full Haight — just the edge of it. Vintage windows, a busker packing up, fog that smells like eucalyptus. West of Valencia.',
+      exits: { east: 'mission', west: 'panhandle', south: 'grouphouse' },
+      items: ['zine', 'frisbee'],
+    },
+    nocturne: {
+      name: 'Nocturne Alcove',
+      desc: 'A side pocket off the dive bar and the gate path. Dark enough that people tell the truth. A single bulb. Two chairs that disagree about comfort.',
+      exits: { west: 'bar', east: 'chinatown_gate' },
+      items: ['coaster', 'old_letter'],
+    },
+    showplace: {
+      name: 'Design District Corner',
+      desc: 'Showrooms closed, mood lighting still on. Fabric samples in a window. West of South Park. Someone argues about "taste" like it is a metric.',
+      exits: { east: 'garden', south: 'warehouse' },
+      items: ['fabric_swatch', 'badge_lanyard'],
+    },
+    mezzanine: {
+      name: 'Lab Mezzanine',
+      desc: 'Above the stack lab: cables labeled with hope, a couch that has hosted three all-nighters. You can hear whiteboards below without the jargon.',
+      exits: { down: 'lab' },
+      items: ['usb_drive', 'hoodie'],
+    },
+    helipad: {
+      name: 'Roof Helipad (unused)',
+      desc: 'Painted circle, no helicopter. Just wind and a view that makes equity arguments feel smaller. East of the roof deck.',
+      exits: { west: 'roof' },
+      items: ['binoculars', 'lantern'],
+    },
+    grouphouse: {
+      name: 'Group House Living Room',
+      desc: 'Shoes by the door. Whiteboard: HOUSE DINNER THURS — BRING A TAKE. No status updates. The group chat became a couch. A pin tray says earnest. Visitors welcome if you SAY hello first. Online SF culture, offline bodies.',
+      exits: { east: 'mission', north: 'haight_edge', west: 'panhandle' },
+      items: ['house_key', 'earnest_pin', 'wifi_card', 'group_chat_print'],
+    },
+    panhandle: {
+      name: 'Panhandle Night Path',
+      desc: 'A green strip between avenues. Joggers, a late Frisbee, fog in the eucalyptus. Two people walk-and-talk past: "—it is not a startup, it is more of a practice." People who live on timelines come here to remember legs exist.',
+      exits: { east: 'haight_edge', south: 'grouphouse' },
+      items: ['frisbee', 'earnest_pin'],
+    },
+    diner: {
+      name: 'All-Night Diner Booth',
+      desc: 'Chromed stool, endless coffee, pie carousel. Mutuals from that part of Twitter debrief group houses, microfame, and whether the discourse was worth missing dinner. Best late CHAT room. SAY debrief.',
+      exits: { northwest: 'plaza', south: 'caltrain_view' },
+      items: ['coffee', 'wifi_card', 'pie_slice', 'printed_tweet'],
+    },
+    salon: {
+      name: 'Third Place Salon',
+      desc: 'A living room disguised as a coworking space: mismatched lamps, one long couch, no demo screen. Hand-lettered sign: no phones — livetweeting from memory afterward is permitted. Tiny internet discoveries and the useful kind of "what are you building?"',
+      exits: { east: 'office', south: 'launch_kitchen' },
+      items: ['question_card', 'risograph_card', 'sparkling_water'],
+    },
+    launch_kitchen: {
+      name: 'Launch Night Kitchen',
+      desc: 'Pizza boxes and seltzer orbit a scarred kitchen island. A laptop replays a launch video with 11 views — everyone here has watched it twice. Hand-lettered note: ask one real question.',
+      exits: { north: 'salon', southwest: 'mission' },
+      items: ['name_tag', 'pizza_slice', 'tiny_keyboard'],
     },
   };
 
+  ROOMS.office.exits.west = 'salon';
+  ROOMS.mission.exits.northeast = 'launch_kitchen';
+  ROOMS.caltrain_view.exits.north = 'diner';
+  ROOMS.diner.exits.northwest = 'plaza';
+  ROOMS.plaza.exits.southeast = 'market';
+  ROOMS.plaza.exits.south = 'dock';
+  ROOMS.mission.exits.west = 'grouphouse';
+  ROOMS.haight_edge.exits.west = 'panhandle';
+  ROOMS.haight_edge.exits.south = 'grouphouse';
+  ROOMS.grouphouse.exits.east = 'mission';
+
+
   var ITEMS = {
-    leaflet: { name: 'a phosphor SF leaflet', look: 'create · walk · talk · pray if stuck · skip tutorial anytime. SF startups = flavor only.' },
+    leaflet: { name: 'a phosphor SF leaflet', look: 'Talk first: who · say hi · chat hi. Walk: n/s/e/w. LIVE status means real visitors hear you. SF startups = flavor only.' },
     notebook: { name: 'a Field Notes pad', look: 'Valencia purchase. For score and 90-day scribbles.', container: true, capacity: 3, holds: [] },
     stamp: { name: 'a mutual-approve stamp', look: 'BOTH SIDES. Not cold LinkedIn spam.' },
     tome: { name: 'a Bay Area outcome tome', look: 'Metrics from SF ships. No fake Demigod placements.' },
     mug: { name: 'a Ritual coffee mug', look: 'Still warm. Someone wanted Stripe-quality craft.', container: true, capacity: 2, holds: [] },
     keycard: { name: 'a South Park fob', look: '2ND & BRYANT. Decorative.' },
-    coin: { name: 'a sample Muni token', look: 'SAMPLE. Not Clipper. Quest bait for the pier.' },
+    coin: { name: 'a sample Muni token', look: 'SAMPLE. Not Clipper. Quest bait for the pier — take it to Embarcadero and SAY "token for the bay".' },
     cable: { name: 'a Cat6 run', look: 'For the lab rack — not your HDMI crisis.' },
     badge: { name: 'a pilot badge', look: 'White-glove SF pilot. Email: potter@trydemigod.com.', wear: 'badge' },
     shell: { name: 'an Embarcadero shell', look: 'Bay Bridge light on the ridge.' },
-    lantern: { name: 'a roof lantern', look: 'Soft green over SoMa.' },
-    quest_note: { name: 'a quest slip from Vesper', look: 'Immortal handwriting: optional, skippable, fun.' },
+    lantern: { name: 'a roof lantern', look: 'Soft green over SoMa. Nice at the pier after dark.' },
+    quest_note: { name: 'a quest slip from Vesper', look: 'Immortal handwriting: optional, skippable, fun. Type QUEST to reread.' },
     coffee: { name: 'a warm coffee', look: 'Vesper conjured. Flavor only.', drink: true },
     clipper: { name: 'a sample Clipper card', look: 'Stamped DEMO. Will not open gates.' },
     coaster: { name: 'a dive-bar coaster', look: 'No pitch decks after 9.' },
     snack: { name: 'a Mission pastry', look: 'Sweet. Eat for flavor.', food: true },
     badge_lanyard: { name: 'a blank lanyard', look: 'Write your own title. Or do not.', wear: 'neck' },
+    /* new */
+    transit_map: { name: 'a crumpled Muni map', look: 'Lines like spaghetti. Home is still Market Street Crossing.' },
+    welcome_card: { name: 'a welcome card', look: 'Front: meet someone. Back: SAY hi · WHO · CHAT.' },
+    red_pen: { name: 'a red editing pen', look: 'For outcomes, not for burning founders.' },
+    index_card: { name: 'an archive index card', look: 'Almost-hires filed under A for Almost.' },
+    sugar_packet: { name: 'a sugar packet', look: 'Ritual. Unused. Optimistic.' },
+    frisbee: { name: 'a soft park frisbee', look: 'South Park soft toss. Non-weapon.' },
+    sticker_sheet: { name: 'a sticker sheet', look: 'Cloudflare, GitHub, a tiny Bay Bridge.' },
+    usb_drive: { name: 'a unmarked USB', look: 'Labeled "NOT PROD". Probably true.' },
+    oyster_fork: { name: 'a tiny oyster fork', look: 'Ferry Building souvenir. Useless and perfect.' },
+    fog_jar: { name: 'a jar of fog', look: 'Marketing claim. Contents: air and hope.' },
+    hoodie: { name: 'a black SF hoodie', look: 'Default founder skin. Soft. Wearable.', wear: 'torso' },
+    zine: { name: 'a Mission zine', look: 'Poems about rent and latency.' },
+    tote: { name: 'a night-market tote', look: 'Canvas. Can hold a notebook and a grudge.', container: true, capacity: 2, holds: [] },
+    matcha: { name: 'a paper cup of matcha', look: 'Bitter green. Drink if you must.', drink: true },
+    sourdough: { name: 'a sourdough heel', look: 'Tart. Eat for flavor.', food: true },
+    bike_lock: { name: 'a U-lock', look: 'Still locked to nothing. Metaphor?' },
+    museum_map: { name: 'a museum floor map', look: 'You are here (lobby). Art is that way (closed).' },
+    audio_wand: { name: 'an audio tour wand', look: 'Battery dead. Imagine the curator.' },
+    old_letter: { name: 'an unsent intro letter', look: 'Dear founder — never mailed. Keep or junk.' },
+    bookmark: { name: 'a City Lights-ish bookmark', look: 'Read more. Pitch less.' },
+    gaffer_tape: { name: 'a roll of gaffer tape', look: 'Fixes booths, egos, and one shoe.' },
+    binoculars: { name: 'a pair of binoculars', look: 'Bay Bridge towers look close. Still not close.' },
+    tea_cup: { name: 'a paper tea cup', look: 'Jasmine. Steam ghosts.', drink: true },
+    fabric_swatch: { name: 'a design-district swatch', look: 'Color: "honest gold". Texture: ambitious.' },
+    question_card: { name: 'a conversation card', look: 'One prompt: What are you building when nobody is watching?' },
+    risograph_card: { name: 'a risograph invite', look: 'Third Place, Thursday-ish. Bring curiosity, not a deck.' },
+    sparkling_water: { name: 'a can of sparkling water', look: 'Mystery citrus. Cold enough for launch night.', drink: true },
+    name_tag: { name: 'a blank name tag', look: 'Name, pronouns, and one oddly specific interest. Wearable.', wear: 'badge' },
+    pizza_slice: { name: 'a launch-night pizza slice', look: 'Room temperature, structurally sound, socially useful.', food: true },
+    tiny_keyboard: { name: 'a tiny mechanical keyboard', look: 'Forty percent keys, one hundred percent opinions. It is not connected to anything.' },
+    house_key: { name: 'a group-house guest key', look: 'Tagged GUEST. SAY hello before the couch myth.' },
+    earnest_pin: { name: 'an earnestness pin', look: 'Underrated, according to half of online SF. Wearable.', wear: 'badge' },
+    wifi_card: { name: 'a wifi password card', look: 'Network: guests. Password: still-human.' },
+    pie_slice: { name: 'a diner pie slice', look: 'Cherry. 1am decisions taste better with sugar.', food: true },
+    eacc_sticker: { name: 'an e/acc sticker', look: 'Decorative. Debates optional.' },
+    group_chat_print: { name: 'a printed group-chat thread', look: 'Dinner plan survived. Dishes fight redacted.' },
+    printed_tweet: { name: 'a printed, ratioed tweet', look: 'Someone posted through it. Now it is paper.' },
+    pitch_clicker: { name: 'an abandoned pitch clicker', look: 'Slide 1 of 12. Battery dead. Afterparty lives longer than decks.' },
+    burner_phone: { name: 'a burner with 41 group chats', look: 'Muted: sf-walks · saturday-sauna · demo-day-copium · dinner-tonight. Pure icebreaker — quote a chat name at someone.' },
+
   };
+
 
   var NPCS = [
     {
       id: 'hermes', name: 'Hermes', room: 'lobby', immortal: false,
-      look: 'SoMa coordinator, phosphor pin, BART card in a notebook.',
+      look: 'SoMa coordinator, phosphor pin, BART card in a notebook. Looks like they actually reply to email.',
       lines: [
         'Evidence first. Names later — still San Francisco.',
-        'Type HELP if new. SAY hello if you see another visitor.',
-        'Vesper is the Immortal — if stuck: pray  (or pray <message>)',
+        'If status says LIVE, try SAY hello — other visitors can hear you.',
+        'Vesper is the Immortal — if stuck: pray',
       ],
     },
     {
       id: 'ada', name: 'Ada', room: 'lab', immortal: false,
-      look: 'Engineer on p99. Stickers: Cloudflare, GitHub, Postgres.',
+      look: 'Engineer on p99. Stickers: Cloudflare, GitHub, Postgres. Half a cold brew.',
       lines: [
         'Ship something measurable in 90 days.',
         'Outcome beats stack fashion.',
+        'I pair well with a quiet SAY.',
       ],
     },
     {
       id: 'rio', name: 'Rio', room: 'cafe', immortal: false,
-      look: 'Founder + Ritual cold brew. YC backpack under the chair.',
+      look: 'Founder + Ritual cold brew. YC backpack under the chair. Exhausted in a hopeful way.',
       lines: [
         'One hire who owns the outcome — not a ten-name shortlist.',
         'Say HI — I will point you back to Market Street.',
+        'If you brought the mutual-approve stamp, you get free respect.',
       ],
     },
     {
       id: 'kai', name: 'Kai', room: 'dock', immortal: false,
-      look: 'PM watching ferry lights. Salesforce tower inland.',
+      look: 'PM watching ferry lights. Salesforce tower inland. Soft smile.',
       lines: [
         'Comps get real fast in SF. Founders know it.',
         'I want builders who have seen a Series A kitchen.',
+        'Bring a Muni token and say "token for the bay" if you are on a quest.',
       ],
     },
     {
       id: 'sam', name: 'Sam', room: 'bar', immortal: false,
-      look: 'Operator nursing a pint. No deck in sight.',
+      look: 'Operator nursing a pint. No deck in sight. Good listener. Soft e/acc sticker on the glass, half-joking.',
       lines: [
         'Best intros still happen face to face — or in a quiet SAY.',
         'Vesper hangs around when the multiplayer relay is lonely.',
+        'Say hello. I do not bite. The coaster might.',
+        'Ship tonight is a joke until someone actually opens a PR.',
+      ],
+    },
+    {
+      id: 'jules', name: 'Jules', room: 'market', immortal: false,
+      look: 'Night-market host with a SAMPLE badge and a warm voice.',
+      lines: [
+        'Welcome to the stalls — labels are honest, I promise.',
+        'LIST and BUY if you want souvenirs. Or just CHAT with a stranger.',
+        'Social gravity is high here. That is the point.',
+      ],
+    },
+    {
+      id: 'priya', name: 'Priya', room: 'mission', immortal: false,
+      look: 'Designer with a tote full of zines. Murals behind her.',
+      lines: [
+        'Valencia is for walking and talking, not for optimizing funnels.',
+        'Read the zine. Then SAY something true.',
+      ],
+    },
+    {
+      id: 'dex', name: 'Dex', room: 'transit', immortal: false,
+      look: 'Muni regular with a crumpled map and excellent timing.',
+      lines: [
+        'Trains come. Conversations should too.',
+        'Up to the loft if you need desks. South to Market if you need people.',
+      ],
+    },
+    {
+      id: 'nora', name: 'Nora', room: 'bookstore', immortal: false,
+      look: 'Bookseller who has seen every founder phase. Soft cardigan, sharp eyes.',
+      lines: [
+        'Buy less, read more. Or just SAY hello.',
+        'The cat has tenure. You do not.',
+      ],
+    },
+    {
+      id: 'cole', name: 'Cole', room: 'roof', immortal: false,
+      look: 'Night photographer. Camera, hoodie, patience.',
+      lines: [
+        'Sutro looks like a trident if you squint.',
+        'Lanterns are better at the pier. Take one if you find it.',
+      ],
+    },
+    {
+      id: 'mei', name: 'Mei', room: 'chinatown_gate', immortal: false,
+      look: 'Late kitchen runner on a break. Tea steam still on her coat.',
+      lines: [
+        'The gate looks better when you stop treating it like a backdrop.',
+        'Tea helps. So does a real conversation.',
+      ],
+    },
+    {
+      id: 'oz', name: 'Oz', room: 'warehouse', immortal: false,
+      look: 'Install tech with gaffer tape on both wrists. Cheerful chaos.',
+      lines: [
+        'If it moves and should not, tape it. If it should move and does not, also tape it.',
+        'Show floors are just rooms waiting for people.',
+      ],
+    },
+    {
+      id: 'lane', name: 'Lane', room: 'dogpatch', immortal: false,
+      look: 'Brewery regular in a canvas jacket. Points at cranes like weather.',
+      lines: [
+        'Dogpatch got fancy. The wind did not get the memo.',
+        'East pier is quieter if you need to TELL someone something.',
+      ],
+    },
+    {
+      id: 'mara', name: 'Mara', room: 'salon', immortal: false,
+      look: 'Community host rearranging chairs into a shape where strangers might actually talk.',
+      lines: [
+        'The best online mutuals eventually become coffee.',
+        'Ask what someone is building. Then stay for the answer.',
+      ],
+    },
+    {
+      id: 'sol', name: 'Sol', room: 'salon', immortal: false,
+      look: 'Indie hacker with a risograph invite and a browser full of tiny, delightful tools.',
+      lines: [
+        'My favorite launch has twelve users and a group chat.',
+        'Small internet is still internet.',
+      ],
+    },
+    {
+      id: 'imani', name: 'Imani', room: 'launch_kitchen', immortal: false,
+      look: 'Founder peeling a name tag off a hoodie after finally closing the laptop.',
+      lines: [
+        'The post did numbers. The kitchen conversation was better.',
+        'Nice to meet you beats nice metrics to meet you.',
+      ],
+    },
+    {
+      id: 'theo', name: 'Theo', room: 'launch_kitchen', immortal: false,
+      look: 'Engineer comparing tiny keyboards with anyone willing to humor the bit.',
+      lines: [
+        'I came for the keyboard discourse and stayed for the people.',
+        'Grab a slice. Tell me the weird version of your idea.',
+      ],
+    },
+    {
+      id: 'tess', name: 'Tess', room: 'grouphouse', immortal: false,
+      look: 'Group-house host. Soft hoodie, chore chart pen. Treats the living room like a group chat that finally got bodies.',
+      lines: [
+        'The group chat became a living room. SAY hello before you sit.',
+        'Dinner is for humans. Status updates are for Slack.',
+      ],
+    },
+    {
+      id: 'bo', name: 'Bo', room: 'plaza', immortal: false,
+      look: 'Transplant with good shoes. Knows everyone online, almost no one on this block — until you SAY hi.',
+      lines: [
+        'I only know people from Twitter. That is why I am outside.',
+        'WHO is the offline following graph. Try it when status says LIVE.',
+      ],
+    },
+    {
+      id: 'wren', name: 'Wren', room: 'cafe', immortal: false,
+      look: 'Builder with an e/acc sticker half-peeled on a laptop. Curious, not a sermon.',
+      lines: [
+        'What are you building — or are you between arcs?',
+        'Build something. Argue later. Cafe is for feelings.',
+      ],
+    },
+    {
+      id: 'juno', name: 'Juno', room: 'embarcadero_path', immortal: false,
+      look: 'Night-walk organizer with a soft smile and a terrible sense of time.',
+      lines: [
+        'Walk-and-talk to the pier if anyone wants company.',
+        'Moving together is the whole game.',
+      ],
+    },
+    {
+      id: 'maru', name: 'Maru', room: 'diner', immortal: false,
+      look: 'Night-owl with pie. Debriefs like a kind postmortem.',
+      lines: [
+        'All-night booths are for truth-telling, not dunks.',
+        'SAY debrief if you need the ritual.',
       ],
     },
     {
@@ -5131,6 +5694,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       lines: [
         'I am Vesper the Immortal. Ask for a quest, a hint, or company — just pray.',
         'This district is for talking. Game bits are optional.',
+        'LIVE status means real visitors. SAY and CHAT are how you meet them.',
       ],
     },
   ];
@@ -5182,6 +5746,9 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   };
 
   var HELP_TOPICS = {
+    easy: 'Talk first: WHO · SAY hi (room) · CHAT hi (all online). Walk: N/S/E/W. LIVE in the status bar means multiplayer is on.',
+    meet: 'Meet visitors: WHO lists LIVE people. Go to their room (MAP) then SAY. Or CHAT district-wide. INTRO presents you.',
+    talk: 'Talk: say / "text · emote / :pose · tell · chat · intro · who',
     movement: 'Movement: n s e w u d · ne nw se sw · go <dir> · enter · leave · exits · home/recall · map · scan · glance',
     communication: 'Talk: say / "text · emote / :pose · tell/whisper · reply (r) · chat/gossip/ooc · shout/yell · intro · afk',
     socials: 'Socials: smile grin laugh giggle nod bow wave shrug wink hug dance sigh cheer clap point ponder salute yawn highfive glare cry frown blush thank curtsey growl stare poke facepalm think cough snicker whistle jump stretch · socials',
@@ -5196,7 +5763,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   var TUTORIAL = [
     'Tutorial 1/4 — type LOOK (or SKIP to dismiss forever).',
     'Tutorial 2/4 — move: N S E W (try E). Or SKIP.',
-    'Tutorial 3/4 — talk: SAY hello (others hear you when multi is on). Or SKIP.',
+    'Tutorial 3/4 — talk to people: SAY hello (LIVE visitors hear you in this room). Or SKIP.',
     'Tutorial 4/4 — stuck? PRAY  or  PRAY for a quest. Done — have fun.',
   ];
 
@@ -5211,7 +5778,21 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     return 'p' + Math.random().toString(36).slice(2, 10);
   }
 
-  
+  function normalizeChar(ch) {
+    if (!ch || typeof ch !== 'object') return ch;
+    ch.inv = ch.inv || [];
+    ch.eq = ch.eq || {};
+    ch.position = ch.position || 'standing';
+    ch.title = ch.title || '';
+    ch.ignore = ch.ignore || [];
+    ch.afk = !!ch.afk;
+    ch.follow = ch.follow || '';
+    ch.group = ch.group || [];
+    ch.lastTell = ch.lastTell || '';
+    ch.xp = ch.xp || 0;
+    ch.brief = !!ch.brief;
+    return ch;
+  }
   function loadChar() {
     try {
       var j = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem('dgMudChar_v1') || 'null');
@@ -5252,7 +5833,8 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   Engine.prototype.boot = function () {
     var ch = loadChar();
     this.print('— San Francisco · Night District —', 'sys');
-    this.print('Social text multiplayer for site visitors — walk, talk, meet. Lightweight game layer. HELP · SKIP tutorial · PRAY if stuck.', 'sys');
+    this.print('Primary: talk to other live visitors on this site. SAY is room chat. CHAT is district-wide. WHO shows who is online.', 'sys');
+    this.print('If status says LIVE, other people can hear you. Buttons: Say hi · Who · Chat all. Type START anytime.', 'sys');
     if (ch) {
       this.char = ch;
       if (!this.char.inv) this.char.inv = [];
@@ -5278,11 +5860,11 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       (typeof window !== 'undefined' && window.DG_MUD_API) || '',
       'http://127.0.0.1:3461/api/mud',
       'http://localhost:3461/api/mud',
-    ].filter(Boolean).filter(dgLocalOk);
+    ].filter(Boolean);
     var i = 0;
     function next() {
       if (i >= bases.length) {
-        self.onStatus('solo · offline');
+        self.onStatus('solo · NPCs only');
         return;
       }
       var b = bases[i++].replace(/\/$/, '');
@@ -5290,12 +5872,12 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function (j) {
           self.apiBase = b;
-          self.onStatus(j && j.players != null ? ('multi · ' + j.players + ' online') : 'multi · live');
+          self.onStatus(j && j.players != null ? ('LIVE · ' + j.players + ' online') : 'LIVE · connecting…');
           if (self.char && self.mode === 'play') self.tryJoinMulti();
         })
         .catch(next);
     }
-    try { next(); } catch (e) { self.onStatus('solo · offline'); }
+    try { next(); } catch (e) { self.onStatus('solo · NPCs only'); }
   };
 
   Engine.prototype.here = function () {
@@ -5304,16 +5886,18 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
 
   Engine.prototype.peopleHere = function () {
     var room = this.char.room;
+    var me = this.char && this.char.name;
     var list = NPCS.filter(function (n) { return n.room === room; }).map(function (n) {
-      return n.immortal ? n.name + ' (Immortal)' : n.name;
+      return n.immortal ? n.name + ' (Immortal)' : n.name + ' (NPC)';
     });
     (this.remoteHere || []).forEach(function (n) {
-      if (list.indexOf(n) < 0 && n !== (this.char && this.char.name)) list.push(n);
-    }, this);
-    if (this.char) list.push('you (' + this.char.name + ')');
-    // Vesper always "reachable"
-    if (list.indexOf('Vesper (Immortal)') < 0 && list.indexOf('Vesper') < 0) {
-      list.push('Vesper (Immortal · type pray …)');
+      if (!n || n === me) return;
+      var label = n + ' (visitor)';
+      if (list.indexOf(label) < 0 && list.indexOf(n) < 0) list.push(label);
+    });
+    if (me) list.push('you (' + me + ')');
+    if (list.indexOf('Vesper (Immortal)') < 0 && list.indexOf('Vesper (Immortal · type pray …)') < 0) {
+      list.push('Vesper (Immortal · type pray)');
     }
     return list;
   };
@@ -5325,13 +5909,20 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     this.print(r.name, 'room');
     if (!brief || verbose === 'force') this.print(r.desc, 'out');
     var exits = Object.keys(r.exits || {});
+    var shortEx = exits.map(function (d) { return DIR_SHORT[d] || d; });
     this.print('Exits: ' + (exits.length ? exits.join(', ') : 'none'), 'meta');
     var items = (this.roomItems[id] || []).map(function (i) {
       return (ITEMS[i] && ITEMS[i].name) || i;
     });
     if (items.length) this.print('You see: ' + items.join(', ') + '.', 'meta');
     this.print('Here: ' + this.peopleHere().join(', ') + '.', 'meta');
-    if (verbose === true && !brief) this.print('(HELP · EXITS · HOME · SAY · PRAY · SKIP)', 'sys');
+    /* Easy-play hint — always one line so new players know next step */
+    var tip = 'Try: ' + (shortEx.length ? shortEx.join(' ') + ' · ' : '') + 'say hi · who · map · help';
+    if (!this.char.tutorialDone) tip += ' · skip';
+    this.print(tip, 'sys');
+    if (typeof this.onSoftUi === 'function') {
+      try { this.onSoftUi({ exits: shortEx, room: r.name || id }); } catch (e0) {}
+    }
   };
 
   Engine.prototype.tutorialTick = function (event) {
@@ -5445,10 +6036,26 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         if (x.ok && x.j && x.j.token) {
           self.session = x.j.token;
           if (x.j.who) self.remoteWho = x.j.who;
-          self.onStatus('multi · joined');
+          if (x.j.here) self.remoteHere = x.j.here;
+          else if (x.j.who && self.char) {
+            self.remoteHere = x.j.who.filter(function (p) {
+              return p && p.room === self.char.room;
+            }).map(function (p) { return p.name; });
+          }
+          var n = (x.j.who && x.j.who.length) || 1;
+          self.onStatus('LIVE · ' + n + ' online');
+          self.print('You are LIVE with other site visitors.', 'sys');
+          self.print('Talk: SAY hi (this room) · CHAT hi (everyone online) · WHO (list) · TELL name message', 'sys');
+          if (n <= 1) self.print('No one else is here yet — leave a SAY or CHAT; they will see you when they arrive.', 'sys');
+          else {
+            var names = x.j.who.map(function (p) { return p.name; }).filter(function (nm) {
+              return nm && self.char && nm !== self.char.name;
+            });
+            if (names.length) self.print('Online now: ' + names.join(', ') + '. Try: say hello', 'sys');
+          }
           self.pollMulti();
         } else if (x.j && x.j.error) {
-          self.print('(multi) ' + x.j.error + ' — still fine solo.', 'sys');
+          self.print('(live chat) ' + x.j.error + ' — you can still play solo with NPCs.', 'sys');
         }
       })
       .catch(function () {});
@@ -5484,12 +6091,24 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         if (j && j.events) {
           j.events.forEach(function (ev) {
             if (ev.t > (self._since || 0)) self._since = ev.t;
-            if (ev.text) self.print(ev.text, ev.kind === 'system' ? 'sys' : 'say');
+            var from = ev.from ? String(ev.from) : '';
+            var ign = (self.char && self.char.ignore) || [];
+            if (from && ign.indexOf(from.toLowerCase()) >= 0 && /^(say|chat|emote|tell)$/.test(ev.kind || '')) {
+              return;
+            }
+            if (ev.kind === 'tell' && from && from !== 'system' && self.char) {
+              self.char.lastTell = from;
+            }
+            if (ev.text) {
+              var kind = ev.kind === 'system' ? 'sys' : 'say';
+              if (ev.kind === 'tell') kind = 'say';
+              self.print(ev.text, kind);
+            }
           });
         }
         if (j && j.here) self.remoteHere = j.here;
         if (j && j.who) self.remoteWho = j.who;
-        if (j && j.players != null) self.onStatus('multi · ' + j.players + ' online');
+        if (j && j.players != null) self.onStatus('LIVE · ' + j.players + ' online');
       })
       .catch(function () {})
       .finally(function () {
@@ -5585,9 +6204,23 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         reply = 'You are in ' + r.name + '. Exits: ' + Object.keys(r.exits || {}).join(', ') + '. Try MAP or LOOK.';
         actions = [{ type: 'hint', text: Object.keys(r.exits || {}).join(', ') }];
       } else if (/quest|task|something to do/.test(m)) {
-        reply = 'Optional quest: take a sample Muni token from Folsom Alley to Embarcadero Pier, then SAY "token for the bay". Or just meet someone with SAY hello.';
+        var qopts = [
+          { id: 'muni_to_pier', text: 'GET the Muni token in Folsom Alley → go to Embarcadero Pier → SAY "token for the bay"', reply: 'Quest 1: alley token to the pier. SAY "token for the bay" when you arrive with it.' },
+          { id: 'coffee_break', text: 'GET a mug (cafe or stall) → SAY "coffee break" at Ritual Coffee Nook', reply: 'Quest 2: grab a mug, stand in the coffee nook, SAY "coffee break".' },
+          { id: 'stamp_intro', text: 'GET the mutual-approve stamp in Mutual-Approve Booths → go to Market Street → SAY "both sides"', reply: 'Quest 3: stamp from the booths, then at Market Street Crossing SAY "both sides".' },
+          { id: 'lantern_pier', text: 'GET the roof lantern → bring it to Embarcadero Pier → LOOK shell (or SAY "light the fog")', reply: 'Quest 4: lantern from the roof deck to the pier, then LOOK shell or SAY "light the fog".' },
+          { id: 'say_sam', text: 'Go to Founder Dive · SAY hello (Sam is there)', reply: 'Quest 5: find Sam at the Founder Dive and SAY hello. Social quest — perfect.' },
+          { id: 'meet_live', text: 'When LIVE: WHO then SAY or CHAT to a real visitor', reply: 'Quest 6 (best one): when status is LIVE, WHO, then SAY or CHAT to a real visitor.' },
+          { id: 'ask_builder', text: 'GET the conversation card at Third Place Salon → SAY "what are you building" in the Launch Night Kitchen', reply: 'Quest 7: take the salon conversation card south, then ask the launch kitchen what they are building.' },
+          { id: 'meet_kitchen', text: 'GET the name tag in the Launch Night Kitchen → SAY "nice to meet you" at Third Place Salon', reply: 'Quest 8: pick up a kitchen name tag, head north, and say "nice to meet you" at the salon.' },
+          { id: 'group_chat_irl', text: 'GET house key at Group House → Market Street → SAY "group chat is irl"', reply: 'Quest 9: guest key from the group house, then at Market Street SAY "group chat is irl".' },
+          { id: 'diner_debrief', text: 'All-Night Diner Booth · SAY "debrief"', reply: 'Quest 10: find the diner and SAY "debrief".' },
+          { id: 'three_hellos', text: 'SAY hello in cafe, bar, and roof (three rooms)', reply: 'Quest 11: SAY hello in Ritual Coffee, Founder Dive, and SoMa Roof — three rooms, three hellos.' },
+        ];
+        var pick = qopts[Math.floor(Math.random() * qopts.length)];
+        reply = pick.reply + ' Or skip quests and just talk to people.';
         actions = [
-          { type: 'quest', id: 'muni_to_pier', text: 'Muni token → Embarcadero Pier · say: token for the bay' },
+          { type: 'quest', id: pick.id, text: pick.text },
           { type: 'give', item: 'quest_note' },
         ];
       } else if (/hello|hi |hey/.test(m)) {
@@ -5688,7 +6321,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       give:1,news:1,motd:1,bug:1,typo:1,idea:1,sit:1,stand:1,rest:1,sleep:1,wake:1,map:1,quest:1,journal:1,
       score:1,stats:1,status:1,channels:1,config:1,color:1,colour:1,auto:1,
       list:1,buy:1,sell:1,value:1,kill:1,flee:1,flee:1,wimpy:1,
-      help:1,'?':1,commands:1,socials:1,tutorial:1,quit:1,logout:1,
+      help:1,'?':1,commands:1,socials:1,tutorial:1,quit:1,logout:1,start:1,begin:1,play:1,how:1,howto:1,tip:1,tips:1,
       restart:1,new:1,delete:1,hi:1,hello:1,password:1,practice:1,train:1,auction:1,music:1,ask:1,answer:1
     };
     Object.keys(SOCIALS).forEach(function (s) { known[s] = 1; });
@@ -5727,17 +6360,64 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       case 'talk':
         if (!arg) { this.print('Say what?', 'err'); return; }
         // quest check
-        if (/token for the bay/i.test(arg) && ch.room === 'dock' && ch.inv.indexOf('coin') >= 0) {
-          this.print('You say, "' + arg + '"', 'say');
-          this.print('The bay seems to approve. Vesper whispers: quest complete — optional XP for talking to the city.', 'sys');
-          ch.xp = (ch.xp || 0) + 5;
-          if (ch.quest && ch.quest.id === 'muni_to_pier') ch.quest = null;
+        var said = false;
+        function completeQuest(self, id, xp, msg) {
+          self.print('You say, "' + arg + '"', 'say');
+          self.print(msg, 'sys');
+          ch.xp = (ch.xp || 0) + (xp || 5);
+          if (ch.quest && ch.quest.id === id) ch.quest = null;
           saveChar(ch);
-        } else {
+        }
+        if (/token for the bay/i.test(arg) && ch.room === 'dock' && ch.inv.indexOf('coin') >= 0) {
+          completeQuest(this, 'muni_to_pier', 5, 'The bay seems to approve. Quest complete (+xp).');
+          said = true;
+        } else if (/coffee break/i.test(arg) && ch.room === 'cafe' && ch.inv.indexOf('mug') >= 0) {
+          completeQuest(this, 'coffee_break', 5, 'Steam and small talk. Coffee-break quest complete (+xp).');
+          said = true;
+        } else if (/both sides/i.test(arg) && ch.room === 'plaza' && ch.inv.indexOf('stamp') >= 0) {
+          completeQuest(this, 'stamp_intro', 5, 'You stamp the air with mutual yes. Quest complete (+xp).');
+          said = true;
+        } else if (/light the fog/i.test(arg) && ch.room === 'dock' && ch.inv.indexOf('lantern') >= 0) {
+          completeQuest(this, 'lantern_pier', 5, 'Lantern light on salt air. Quest complete (+xp).');
+          said = true;
+        } else if (/what are you building/i.test(arg) && ch.room === 'launch_kitchen' && ch.inv.indexOf('question_card') >= 0) {
+          completeQuest(this, 'ask_builder', 3, 'The kitchen answers with three weird little ideas. Social quest complete (+xp).');
+          said = true;
+        } else if (/nice to meet you/i.test(arg) && ch.room === 'salon' && ch.inv.indexOf('name_tag') >= 0) {
+          completeQuest(this, 'meet_kitchen', 3, 'Names turn into a conversation. Social quest complete (+xp).');
+          said = true;
+        } else if (/group chat is irl/i.test(arg) && ch.room === 'plaza' && ch.inv.indexOf('house_key') >= 0) {
+          completeQuest(this, 'group_chat_irl', 3, 'The street hears the group chat. Quest complete (+xp).');
+          said = true;
+        } else if (/^debrief\b/i.test(arg) && ch.room === 'diner') {
+          completeQuest(this, 'diner_debrief', 3, 'Maru slides pie your way. Debrief complete (+xp).');
+          said = true;
+        } else if (/^(hi|hello)\b/i.test(arg) && (ch.room === 'cafe' || ch.room === 'bar' || ch.room === 'roof')) {
+          // three_hellos + Sam social (bar)
+          ch.flags = ch.flags || {};
+          ch.flags.hellos = ch.flags.hellos || {};
+          ch.flags.hellos[ch.room] = true;
+          var h = ch.flags.hellos;
+          if (h.cafe && h.bar && h.roof) {
+            completeQuest(this, 'three_hellos', 5, 'Three rooms, three hellos. The district softens (+xp).');
+            said = true;
+          } else if (ch.room === 'bar') {
+            completeQuest(this, 'say_sam', 3, 'Sam nods back. Social quest complete (+xp).');
+            said = true;
+          }
+        }
+        if (!said) {
           this.print('You say, "' + arg + '"', 'say');
         }
         this.npcHear(arg);
         this.pushMulti('say', ch.name + ' says, "' + arg + '"', { room: ch.room });
+        if (this.session && !this._saidLiveTip) {
+          this._saidLiveTip = true;
+          this.print('(LIVE) Visitors in this room hear that. CHAT reaches the whole district. WHO lists people.', 'sys');
+        } else if (!this.session && !this._saidSoloTip) {
+          this._saidSoloTip = true;
+          this.print('(solo) NPCs heard the vibe. When LIVE, real visitors hear SAY too.', 'sys');
+        }
         this.tutorialTick('say');
         return;
       case 'emote':
@@ -5762,6 +6442,10 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         if (!arg) { this.print('Chat what? (district-wide)', 'err'); return; }
         this.print('[chat] ' + ch.name + ': ' + arg, 'say');
         this.pushMulti('chat', '[chat] ' + ch.name + ': ' + arg, { room: '*' });
+        if (this.session && !this._chatTip) {
+          this._chatTip = true;
+          this.print('(LIVE) CHAT goes to everyone online in the district — not just this room.', 'sys');
+        }
         return;
       case 'tell':
       case 'whisper':
@@ -5783,13 +6467,28 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       }
       case 'who':
       case 'players': {
-        var lines = (this.remoteWho && this.remoteWho.length)
-          ? this.remoteWho.map(function (p) { return p.name + ' (' + (p.klass || '?') + ') @ ' + (p.room || '?'); })
-          : ['(solo — start multi with node demigod-mud-app.mjs, or just talk to NPCs / pray to Vesper)'];
-        this.print('Online: ' + lines.join(' · '), 'meta');
-        this.print('Here: ' + this.peopleHere().join(', '), 'meta');
+        if (this.session && this.remoteWho && this.remoteWho.length) {
+          var others = this.remoteWho.filter(function (p) {
+            return p && p.name && (!ch || p.name !== ch.name);
+          });
+          this.print('LIVE visitors online (' + this.remoteWho.length + '):', 'meta');
+          if (!others.length) {
+            this.print('  (just you right now — SAY or CHAT so newcomers see activity)', 'meta');
+          } else {
+            for (var wi = 0; wi < others.length; wi++) {
+              var pw = others[wi];
+              this.print('  · ' + pw.name + ' (' + (pw.klass || 'visitor') + ') — ' + (pw.room || '?'), 'meta');
+            }
+          }
+          this.print('Talk: SAY hello (same room) · CHAT hello (everyone) · TELL name hi', 'sys');
+        } else {
+          this.print('Not LIVE yet — only NPCs. Relay offline or still connecting.', 'meta');
+          this.print('When status says LIVE, other site visitors hear your SAY/CHAT.', 'sys');
+        }
+        this.print('Here now: ' + this.peopleHere().join(', '), 'meta');
         return;
       }
+      case 'exit':
       case 'exits':
       case 'doors': {
         var rEx = this.here();
@@ -5910,17 +6609,19 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         return;
       case 'map':
         this.print(
-          'SF Night District (sketch):\n' +
-          '  [roof]\n' +
-          '    |\n' +
-          ' [office]—[lobby]—[review]—[archive]\n' +
-          '    |        |\n' +
-          ' [transit] [garden]—[cafe]—[plaza]—[alley]—[lab]\n' +
-          '              |        |        |\n' +
-          '           [mission] [dock]—[market]\n' +
-          '              |\n' +
-          '            [bar]\n' +
-          'You: ' + ch.room,
+          'SF Night District (sketch — LOOK in each room):\n' +
+          '  roof/helipad above lobby · attic above archive · mezz above lab\n' +
+          '  [transit]-[office]-[lobby]-[review]-[archive]\n' +
+          '      |     west:salon      |\n' +
+          '  [caltrain] [parklet] [plaza]-[alley]-[lab]-[dogpatch]-[pier]\n' +
+          '   |diner     |        |       |      |\n' +
+          '   [dock]-[bridge]  [cafe]  [market]-[stall]\n' +
+          '                    |\n' +
+          '  [panhandle]-[haight]-[mission]-[bookstore]  · kitchen NE of mission\n' +
+          '       \\-[grouphouse]-/    |\n' +
+          '                       [bar]-[nocturne]-[chinatown gate]\n' +
+          '  also: salon west of loft · showplace west of garden · emb path east of market\n' +
+          'You are: ' + ch.room,
           'meta'
         );
         return;
@@ -5949,14 +6650,11 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       case 'tutorial':
         if (!arg || arg === 'commands' || arg === 'list') {
           this.print(
-            'SMAUG-style commands (social SF MUD):\n' +
-            '  help movement|communication|socials|items|info|shop|position|settings|immortal\n' +
-            '  help <verb> · commands · socials\n' +
-            '  LOOK · EXITS · N/S/E/W/U/D/NE/NW/SE/SW · HOME · MAP · SCAN\n' +
-            '  INV · GET · DROP · PUT · GIVE · WEAR · REMOVE · EQ · OPEN · CLOSE\n' +
-            '  SAY · EMOTE · TELL · REPLY · CHAT · SHOUT · WHO · WHERE · WHOIS\n' +
-            '  SIT/STAND/REST/SLEEP/WAKE · SCORE · SAVE · BRIEF · TIME · WEATHER\n' +
-            '  LIST/BUY (market stall) · PRAY · SKIP · QUIT',
+            'Easy start (you can use the buttons too):\n' +
+            '  LOOK · N S E W · SAY hi · WHO · MAP · PRAY · SKIP · START\n' +
+            'More: help movement|talk|socials|items|info|shop|immortal\n' +
+            '  LOOK · EXITS · HOME · MAP · INV · GET · DROP · GIVE\n' +
+            '  SAY · EMOTE · TELL · CHAT · WHO · SCORE · SAVE · QUIT',
             'sys'
           );
           return;
@@ -5974,7 +6672,6 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         this.print('No help on "' + arg + '". Try HELP or HELP socials.', 'err');
         return;
       case 'quit':
-      case 'exit':
       case 'logout':
         try { this.pushMulti('system', ch.name + ' steps into the fog.', { room: ch.room }); } catch (e) {}
         saveChar(ch);
@@ -6388,18 +7085,52 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       case 'hello':
         this.cmd('say hello');
         return;
+      case 'start':
+      case 'begin':
+      case 'play':
+      case 'how':
+      case 'howto':
+      case 'tip':
+      case 'tips':
+        this._cmdOk();
+        this.print(
+          'Talk to live visitors (main point of this MUD):\n' +
+          '  1) Wait until status says LIVE\n' +
+          '  2) WHO — see who is online\n' +
+          '  3) SAY hi — people in this room hear you\n' +
+          '  4) CHAT hi — everyone online hears you\n' +
+          'Also: LOOK · N/S/E/W · MAP · PRAY · SKIP · buttons below',
+          'sys'
+        );
+        if (!arg && verb !== 'tip' && verb !== 'tips') this.lookRoom(false);
+        return;
       default:
         if (SOCIALS[verb]) {
           this._cmdOk();
           return this.doSocial(verb, arg);
         }
         this._huhStreak = (this._huhStreak || 0) + 1;
-        this.print('Huh?', 'err');
-        if (this._huhStreak >= 3) {
+        var guess = '';
+        var TYPO = {
+          loook:'look', lok:'look', luk:'look', invn:'inv', hlep:'help', hepl:'help',
+          extis:'exits', exi:'exits', nroth:'north', soth:'south', eaast:'east',
+          whos:'who', wher:'where', mpa:'map', pry:'pray', praay:'pray', saay:'say'
+        };
+        if (TYPO[verb]) guess = TYPO[verb];
+        else {
+          var keys = Object.keys(known).concat(Object.keys(DIRS));
+          for (var ki = 0; ki < keys.length; ki++) {
+            if (keys[ki].indexOf(verb) === 0 && keys[ki].length <= verb.length + 4) {
+              guess = keys[ki];
+              break;
+            }
+          }
+        }
+        this.print(guess ? ('Not sure about "' + verb + '". Did you mean ' + guess.toUpperCase() + '?') : 'Huh?', 'err');
+        if (guess) this.print('(Type ' + guess + (arg ? (' ' + arg) : '') + ' — or HELP / START for easy tips.)', 'sys');
+        else if (this._huhStreak >= 2) {
           this._huhStreak = 0;
-          this.print('Stuck? Try HELP for commands, LOOK to see the room, or PRAY to talk to Vesper.', 'sys');
-        } else if (this._huhStreak === 2) {
-          this.print('(Type HELP for a command list.)', 'sys');
+          this.print('Easy: LOOK · N/S/E/W · SAY hi · MAP · WHO · HELP · PRAY · or tap a button below.', 'sys');
         }
         return;
     }
@@ -6468,6 +7199,15 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         this.print(holds.length
           ? ('Contains: ' + holds.map(function (h) { return (ITEMS[h] && ITEMS[h].name) || h; }).join(', '))
           : 'It is empty.', 'meta');
+      }
+      // lantern quest: look shell at pier while carrying lantern
+      if (id === 'shell' && this.char.room === 'dock' && (this.char.inv || []).indexOf('lantern') >= 0) {
+        if (this.char.quest && this.char.quest.id === 'lantern_pier') {
+          this.char.quest = null;
+          this.char.xp = (this.char.xp || 0) + 5;
+          saveChar(this.char);
+          this.print('Lantern light on the shell. Quest complete (+xp).', 'sys');
+        }
       }
       return;
     }
@@ -6589,17 +7329,28 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     box.innerHTML =
       '<div class="dg-mud" id="dg-mud-shell">' +
       '<div class="dg-mud-head"><span class="dg-mud-title">SF Night District</span>' +
-      // aria-live: rewritten by the onStatus callback at :6619 (solo -> connected -> offline).
-'<span class="dg-mud-status" id="dg-mud-status" aria-live="polite">solo</span></div>' +
+      '<span class="dg-mud-status" id="dg-mud-status">solo</span></div>' +
       '<div class="dg-mud-log" id="dg-mud-log" role="log" aria-live="polite"></div>' +
+      '<div class="dg-mud-soft" id="dg-mud-soft" aria-label="Room exits"></div>' +
+      '<div class="dg-mud-quick" id="dg-mud-quick" role="toolbar" aria-label="Easy commands">' +
+      '<button type="button" data-mud-cmd="who">Who is here</button>' +
+      '<button type="button" data-mud-cmd="say hi">Say hi</button>' +
+      '<button type="button" data-mud-cmd="chat hello everyone">Chat all</button>' +
+      '<button type="button" data-mud-cmd="look">Look</button>' +
+      '<button type="button" data-mud-cmd="map">Map</button>' +
+      '<button type="button" data-mud-cmd="start">How to talk</button>' +
+      '<button type="button" data-mud-cmd="help">Help</button>' +
+      '<button type="button" data-mud-cmd="pray">Pray</button>' +
+      '<button type="button" data-mud-cmd="skip">Skip tutorial</button>' +
+      '</div>' +
       '<form class="dg-mud-form" id="dg-mud-form" autocomplete="off">' +
       '<label class="sr-only" for="dg-mud-input">Command</label>' +
       '<span class="dg-mud-prompt" aria-hidden="true">&gt;</span>' +
       '<input id="dg-mud-input" class="dg-mud-input" type="text" maxlength="240" ' +
-      'placeholder="say hi · map · pray · help · skip" enterkeyhint="send" />' +
-      '<button type="submit" class="dg-mud-send">Enter</button>' +
+      'placeholder="type or tap a button · say hi · map · help" enterkeyhint="send" />' +
+      '<button type="submit" class="dg-mud-send">Go</button>' +
       '</form>' +
-      '<p class="dg-mud-hint">SF social MUD · talk first · <code>pray</code> (Vesper, Immortal) · <code>skip</code> tutorial</p>' +
+      '<p class="dg-mud-hint"><strong>Talk to live visitors:</strong> <code>say hi</code> (room) · <code>chat hi</code> (all) · <code>who</code> · status <em>LIVE</em> = others can hear you</p>' +
       '</div>';
 
     var log = box.querySelector('#dg-mud-log');
@@ -6618,24 +7369,58 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       while (log.children.length > 450) log.removeChild(log.firstChild);
     }
 
+    var soft = box.querySelector('#dg-mud-soft');
+    var quick = box.querySelector('#dg-mud-quick');
+
+    function runCmd(t, silent) {
+      t = String(t || '').trim();
+      if (!t) return;
+      hist.push(t);
+      if (hist.length > 80) hist.shift();
+      histIdx = hist.length;
+      if (!silent) addLine('> ' + t, 'cmd');
+      engine.cmd(t);
+      try { input.focus(); } catch (eF) {}
+    }
+
     var engine = new Engine({
       out: addLine,
       onStatus: function (t) { if (status) status.textContent = t; },
       apiBase: opts.apiBase || '',
     });
+    engine.onSoftUi = function (info) {
+      if (!soft) return;
+      var ex = (info && info.exits) || [];
+      if (!ex.length) {
+        soft.innerHTML = '';
+        soft.hidden = true;
+        return;
+      }
+      soft.hidden = false;
+      soft.innerHTML =
+        '<span class="dg-mud-soft-label">Walk:</span> ' +
+        ex.map(function (d) {
+          return '<button type="button" class="dg-mud-exit" data-mud-cmd="' + d + '">' + d.toUpperCase() + '</button>';
+        }).join(' ');
+    };
     box.__mudEngine = engine;
     engine.boot();
+
+    function onSoftClick(e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-mud-cmd]');
+      if (!b) return;
+      e.preventDefault();
+      runCmd(b.getAttribute('data-mud-cmd') || '');
+    }
+    if (soft) soft.addEventListener('click', onSoftClick);
+    if (quick) quick.addEventListener('click', onSoftClick);
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var t = (input.value || '').trim();
       if (!t) return;
-      hist.push(t);
-      if (hist.length > 80) hist.shift();
-      histIdx = hist.length;
-      addLine('> ' + t, 'cmd');
       input.value = '';
-      engine.cmd(t);
+      runCmd(t);
     });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowUp') {
@@ -6686,9 +7471,20 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     eng.cmd('time');
     eng.cmd('desc a tired founder in a black hoodie');
     eng.cmd('help');
+    eng.cmd('start');
     eng.cmd('xyzzy');
     eng.cmd('nope');
     eng.cmd('asdf');
+    var exitsValid = Object.keys(ROOMS).every(function (id) {
+      return Object.keys(ROOMS[id].exits || {}).every(function (dir) { return !!ROOMS[ROOMS[id].exits[dir]]; });
+    });
+    var contentValid = ['question_card', 'risograph_card', 'sparkling_water', 'name_tag', 'pizza_slice', 'tiny_keyboard', 'house_key', 'burner_phone', 'pitch_clicker', 'printed_tweet'].every(function (id) {
+      return !!ITEMS[id];
+    }) && ['mara', 'sol', 'imani', 'theo', 'tess', 'wren', 'juno', 'maru', 'bo'].every(function (id) {
+      return NPCS.some(function (npc) { return npc.id === id && !!ROOMS[npc.room]; });
+    }) && ['grouphouse', 'diner', 'salon', 'launch_kitchen', 'panhandle'].every(function (id) {
+      return !!ROOMS[id];
+    });
     var ok =
       eng.char &&
       eng.char.name === 'TestRunner' &&
@@ -6696,11 +7492,13 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       eng.char.inv.indexOf('coin') >= 0 &&
       eng.char.room === 'plaza' &&
       eng.char.desc &&
+      exitsValid &&
+      contentValid &&
       lines.some(function (l) { return /Immortal|Vesper/i.test(l[1]); }) &&
       lines.some(function (l) { return /Obvious exits|Fundamentals/i.test(l[1]); }) &&
       lines.some(function (l) { return /Character saved|Brief mode/i.test(l[1]); }) &&
-      lines.some(function (l) { return l[1] === 'Huh?'; }) &&
-      lines.some(function (l) { return /Stuck\? Try HELP|command list/i.test(l[1]); });
+      lines.some(function (l) { return /Huh\?|Did you mean|Not sure about/i.test(l[1]); }) &&
+      lines.some(function (l) { return /Easy:|HELP|START|LOOK/i.test(l[1]); });
     if (!ok) {
       console.error('MUD selftest FAIL', eng.char, lines.slice(-12));
       process.exitCode = 1;
@@ -6729,7 +7527,8 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     selftest: selftest,
   };
 });
-window.__dgFootVer='665';console.log('Demigod v663');
+
+window.__dgFootVer='682';console.log('Demigod v682');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
