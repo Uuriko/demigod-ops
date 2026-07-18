@@ -83,11 +83,34 @@ const server = http.createServer(async (req, res) => {
   }
 
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let bodySize = 0;
+  const MAX_BODY = 256 * 1024; // a form submission is tiny; cap the body so an unbounded stream can't OOM the receiver
+  try {
+    for await (const chunk of req) {
+      bodySize += chunk.length;
+      if (bodySize > MAX_BODY) {
+        res.writeHead(413, { 'Content-Type': 'application/json', ...cors });
+        res.end(JSON.stringify({ ok: false, error: 'payload_too_large' }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    }
+  } catch {
+    // aborted/errored request stream — do not let it become an unhandled rejection that kills the server
+    try { res.writeHead(400, { 'Content-Type': 'application/json', ...cors }); res.end('{"ok":false,"error":"bad_request"}'); } catch { /* client gone */ }
+    return;
+  }
   const buf = Buffer.concat(chunks);
 
   try {
     const { name, data } = parseWebhookPayload(buf);
+    // Guard: a payload like {payload:{data:null}} yields data=null; ingestSubmission does Object.entries(data).
+    if (!data || typeof data !== 'object') {
+      res.writeHead(400, { 'Content-Type': 'application/json', ...cors });
+      res.end(JSON.stringify({ ok: false, error: 'invalid_payload' }));
+      return;
+    }
     const formName = name || req.headers['x-webflow-form'] || 'unknown';
     const result = ingestSubmission({ name: formName, data });
     if (result.featured) publishBoard();
