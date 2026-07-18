@@ -3451,7 +3451,7 @@ var DG_PAGES = {
       '<div class="dg-ev-hero" aria-hidden="true"></div>' +
       '<p class="dg-p-lead"><strong>Events Bot</strong> runs <strong>San Francisco</strong> nights end to end — invents them, finds venues, queues sponsor &amp; volunteer asks, and advances the plan on its own.</p>' +
       '<p class="dg-ev-pill" role="note">San Francisco only · in-person · bot-owned</p>' +
-      '<p class="dg-p-note">It reaches out by email when it needs something. Chat, suggest, or offer help anytime. SMS &amp; Stripe <strong>pending</strong> — no fake sends.</p>' +
+      '<p class="dg-p-note">It drafts and queues outreach when it needs something — real sending (email/SMS) <strong>pending</strong>, no fake sends. Chat, suggest, or offer help anytime.</p>' +
       '<div class="dg-ev-cta-band" role="navigation" aria-label="Events Bot shortcuts">' +
       '<a class="dg-ev-cta-pri" href="#dg-events-chat" id="dg-ec-focus">Talk to Events Bot</a>' +
       '<a class="dg-ev-cta-sec" href="#dg-ev-cal">Calendar</a>' +
@@ -3571,8 +3571,8 @@ var DG_PAGES = {
       '<ul class="dg-p-list">' +
       '<li><strong>Guest list &amp; partners</strong> — AI curates who fits and drafts partner outreach.</li>' +
       '<li><strong>Tone of the night</strong> — AI tunes the vibe and seating chemistry.</li>' +
-      '<li><strong>Intros</strong> — AI makes them, only after a mutual yes.</li>' +
-      '<li><strong>Sending</strong> — AI times invites and reminders; opt-in, never a blast.</li>' +
+      '<li><strong>Intros</strong> — AI drafts them, only after a mutual yes.</li>' +
+      '<li><strong>Sending</strong> — AI drafts invites and reminders; sending pending, opt-in, never a blast.</li>' +
       '</ul>' +
       '<details class="dg-p-det"><summary>How do I start?</summary><p>Chat above with seats, SF date windows, and one outcome — or email <a href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">potter@trydemigod.com</a>.</p></details>' +
       '<details class="dg-p-det"><summary>Pending tooling</summary><p>SMS, calendar sync, Stripe card capture — named pending until live. Email always works.</p></details>' +
