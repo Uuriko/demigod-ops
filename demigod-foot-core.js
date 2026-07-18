@@ -3449,9 +3449,9 @@ var DG_PAGES = {
     desc: 'Autonomous SF event organizer — invents nights, finds venues, queues sponsor/volunteer asks, tracks every stage. Chat or offer help anytime.',
     html:
       '<div class="dg-ev-hero" aria-hidden="true"></div>' +
-      '<p class="dg-p-lead"><strong>Events Bot</strong> is the organizer of record for <strong>San Francisco</strong> nights — idea through debrief. It finds venues, queues sponsor and volunteer outreach, tracks the checklist, and advances the plan on its own. Not limited to Demigod-branded events.</p>' +
+      '<p class="dg-p-lead"><strong>Events Bot</strong> runs <strong>San Francisco</strong> nights end to end — invents them, finds venues, queues sponsor &amp; volunteer asks, and advances the plan on its own.</p>' +
       '<p class="dg-ev-pill" role="note">San Francisco only · in-person · bot-owned</p>' +
-      '<p class="dg-p-note">It messages people when it needs something (email queue until SMS is live). You can still chat, suggest ideas, or offer a venue/sponsor/volunteer anytime. Prefer <strong>sponsorable</strong> formats when inventing. On-page <strong>calendar</strong> is live. SMS / Stripe still <strong>pending</strong> — no fake sends.</p>' +
+      '<p class="dg-p-note">It reaches out by email when it needs something. Chat, suggest, or offer help anytime. SMS &amp; Stripe <strong>pending</strong> — no fake sends.</p>' +
       '<div class="dg-ev-cta-band" role="navigation" aria-label="Events Bot shortcuts">' +
       '<a class="dg-ev-cta-pri" href="#dg-events-chat" id="dg-ec-focus">Talk to Events Bot</a>' +
       '<a class="dg-ev-cta-sec" href="#dg-ev-cal">Calendar</a>' +
@@ -3459,7 +3459,7 @@ var DG_PAGES = {
       '<a class="dg-ev-cta-sec" href="#dg-ev-extra">Ideas &amp; feedback</a>' +
       '</div>' +
       '<h3 class="dg-p-h3" id="dg-ev-cal-h">SF calendar</h3>' +
-      '<p class="dg-p-note">Multiple events can share the same day. Click a date to list or add another night.</p>' +
+      '<p class="dg-p-note">Click a date to view or add a night.</p>' +
       '<div id="dg-ev-cal" class="dg-ev-cal" aria-label="Events calendar">' +
       '<div class="dg-ev-cal-nav">' +
       '<button type="button" class="dg-ev-cal-navbtn" id="dg-ev-cal-prev" aria-label="Previous month">‹</button>' +
@@ -3503,7 +3503,7 @@ var DG_PAGES = {
 // so without it a screen-reader user never learns the state changed (WCAG 4.1.3 Status Messages, AA).
 // polite matches the 9 other aria-live uses in this file.
 '<div class="dg-ec-head"><span class="dg-ec-title">Talk to Events Bot</span><span class="dg-ec-status" id="dg-ec-status" aria-live="polite">Ready</span></div>' +
-      '<p class="dg-ec-note">It owns the night. Chat ideas, ask status, or say “drive the next dinner” — offer help anytime below.</p>' +
+      '<p class="dg-ec-note">Chat ideas, ask status, or say “drive the next dinner.”</p>' +
       '<div class="dg-ec-log" id="dg-ec-log" role="log" aria-live="polite"></div>' +
       '<form class="dg-ec-form" id="dg-ec-form">' +
       '<label class="sr-only" for="dg-ec-input">Message</label>' +
@@ -3511,7 +3511,7 @@ var DG_PAGES = {
       '<button type="submit" class="dg-ec-send" id="dg-ec-send">Send</button>' +
       '</form></div>' +
       '<h3 class="dg-p-h3" id="dg-ev-offers-h">Offer to the night</h3>' +
-      '<p class="dg-p-note">Bring a venue, sponsor a table, or volunteer. The bot absorbs offers into its plan and still messages others for gaps — no auto-booking.</p>' +
+      '<p class="dg-p-note">Bring a venue, sponsor a table, or volunteer — the bot folds it in. No auto-booking.</p>' +
       '<div class="dg-ev-tabs" role="group" aria-label="Offer type">' +
       '<button type="button" class="dg-ev-tab is-on" data-ev-tab="sponsor" aria-pressed="true">Sponsor</button>' +
       '<button type="button" class="dg-ev-tab" data-ev-tab="venue" aria-pressed="false">Venue</button>' +
@@ -3682,16 +3682,11 @@ function pageCss() {
     '#dg-page .dg-mud-prompt{color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700}' +
     '#dg-page .dg-mud-input{width:100%;min-height:48px;background:#03140d;border:1px solid rgba(166,255,203,.28);border-radius:4px;color:#f3f0e7;padding:.55rem .65rem;font-size:16px;font-family:ui-monospace,Menlo,Consolas,monospace}' +
     '#dg-page .dg-mud-input:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
-    '#dg-page .dg-mud-send{min-height:48px;min-width:4.5rem;padding:0 .75rem;border-radius:4px;border:1px solid rgba(166,255,203,.45);background:rgba(8,160,93,.35);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:650;cursor:pointer}' +
     '#dg-page .dg-mud-hint{margin:.55rem 0 0;font-size:.75rem;color:#9aab9f}' +
     '#dg-page .dg-mud-hint code{color:#a6ffcb}' +
     '#dg-page .dg-mud-soft{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;padding:.4rem .65rem;border-top:1px solid rgba(166,255,203,.12);background:rgba(3,20,13,.55)}' +
     '#dg-page .dg-mud-soft[hidden]{display:none!important}' +
     '#dg-page .dg-mud-soft-label{color:#9aab9f;font-size:.72rem;font-family:ui-monospace,Menlo,Consolas,monospace;margin-right:.25rem}' +
-    '#dg-page .dg-mud-quick{display:flex;flex-wrap:wrap;gap:.35rem;padding:.4rem .65rem;border-top:1px solid rgba(166,255,203,.14)}' +
-    '#dg-page .dg-mud-quick button,#dg-page .dg-mud-exit{min-height:40px;padding:.3rem .65rem;border-radius:4px;border:1px solid rgba(166,255,203,.35);background:rgba(8,160,93,.18);color:#a6ffcb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;font-weight:650;cursor:pointer}' +
-    '#dg-page .dg-mud-quick button:hover,#dg-page .dg-mud-exit:hover{background:rgba(8,160,93,.35);border-color:rgba(166,255,203,.55)}' +
-    '#dg-page .dg-mud-quick button:focus-visible,#dg-page .dg-mud-exit:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
     /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
     '#dg-page.dg-page-events{background:radial-gradient(120% 80% at 80% 0%,rgba(201,168,76,.09),transparent 55%),#060606!important}' +
     '#dg-page.dg-page-events .dg-page-card{max-width:min(44rem,96vw);border-color:rgba(201,168,76,.38);' +
@@ -7358,7 +7353,6 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
     }
 
     var soft = box.querySelector('#dg-mud-soft');
-    var quick = box.querySelector('#dg-mud-quick');
 
     function runCmd(t, silent) {
       t = String(t || '').trim();
@@ -7398,7 +7392,6 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       runCmd(b.getAttribute('data-mud-cmd') || '');
     }
     if (soft) soft.addEventListener('click', onSoftClick);
-    if (quick) quick.addEventListener('click', onSoftClick);
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
