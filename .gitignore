@@ -160,3 +160,11 @@ demigod-events-data.json
 demigod-events-data.json.*
 demigod-board.json.bak*
 *.mjs.bak
+
+# Browser/system dotfile dirs (the repo IS /home/potter, so `git add -A` would stage them). Agent
+# dotfiles (.grok/.codex/.cursor/.claude) were ignored earlier; these hold browser session state/cookies
+# (.mozilla — incl auth for the :9223 Designer), Wine app data, and cert DBs. Defense-in-depth so an
+# accidental `git add -A` of the home dir can't commit session tokens or system cruft. (cycle 421)
+.mozilla/
+.wine/
+.pki/
