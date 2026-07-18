@@ -1756,7 +1756,12 @@ const JOBS = {
     cmd: 'node',
     args: ['demigod-cycle-work.mjs', '--domain=auto', '--owner=dashboard', '--cycle=dash'],
     timeout: 180000,
-    safe: true,
+    // mutate, NOT safe: --domain=auto can select the ship/foot domains, which edit
+    // demigod-foot-core.js and drive CM6 publishing. Marked safe:true it was startable via a plain
+    // GET with no mutation authorization; mutate:true routes it through the allowMutate+freeze gate
+    // (startJob :3499). Downstream ship still re-checks the lock, but the dashboard gate should not
+    // wave a publishing job through as "safe".
+    mutate: true,
   },
   'never-stop-status': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'status'], timeout: 15000, safe: true },
   'never-stop-stop': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'stop'], timeout: 15000, safe: true },
@@ -1913,8 +1918,11 @@ function appendHandoff({ from = 'agent', text = '', meta = null, done = null, ne
     fs.writeFileSync(tmp, body);
     fs.renameSync(tmp, HANDOFF_PATH);
     pushEvent('handoff', `${note.from}: ${note.text.slice(0, 80)}`);
+    note.written = true;
   } catch {
-    /* */
+    // Do NOT silently succeed: the POST handler reported ok:true even when this write threw, so a
+    // handoff that never persisted looked recorded. Signal failure via note.written so the caller
+    // can respond 500 instead of a lying ok:true.
   }
   return note;
 }
@@ -5806,6 +5814,13 @@ const server = http.createServer(async (req, res) => {
           next,
           blocked,
         });
+        if (!note.written) {
+          // The handoff file write failed -- report it, don't claim ok:true on a note that never
+          // persisted (the operator/agent would think the handoff was recorded).
+          res.writeHead(500, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: 'handoff write failed — not persisted', note }));
+          return;
+        }
         statusCache = { at: 0, data: null };
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ ok: true, note, notes: readHandoffs(12) }));
