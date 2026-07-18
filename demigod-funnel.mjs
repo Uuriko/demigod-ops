@@ -401,6 +401,7 @@ export function normalizeDoc(doc) {
 
 function saveDoc(doc) {
   atomicWrite(LEADS, JSON.stringify(doc, null, 2) + '\n');
+  try { fs.chmodSync(LEADS, 0o600); } catch { /* PII (contacts): 0600 even on a fresh (umask) file */ }
 }
 
 /** Draft "To:" target: email || handle || url (reply via posting). */

@@ -524,6 +524,9 @@ export function saveInbox(inbox) {
   // 58.6% torn reads on a 340KB file. This same file already atomicWrites BOARD_PATH at :321 with
   // the helper imported at :12; the inbox was simply missed.
   atomicWrite(INBOX_PATH, JSON.stringify(inbox, null, 2));
+  // PII (contacts) — atomicWrite preserves an existing 0600 but a FRESH file gets the umask default
+  // (0644). Ensure 0600 on every save so a newly-created inbox is never world-readable.
+  try { fs.chmodSync(INBOX_PATH, 0o600); } catch { /* best-effort */ }
 }
 
 export function saveBoard(board, opts = {}) {
@@ -621,6 +624,7 @@ function persistBoardCore(board, opts = {}) {
     throw err;
   }
   atomicWrite(BOARD_PATH, JSON.stringify(filtered, null, 2) + '\n');
+  try { fs.chmodSync(BOARD_PATH, 0o600); } catch { /* PII: 0600 even on a fresh (umask) file */ }
   appendBoardAudit({
     at: filtered.at,
     actor,
