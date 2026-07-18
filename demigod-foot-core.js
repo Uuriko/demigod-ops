@@ -3271,7 +3271,7 @@ var DG_PAGES = {
   talent: {
     title: "I'm looking",
     doc: 'Talent · Demigod',
-    desc: 'One private profile. Free forever. Shared only after mutual approve.',
+    desc: 'One private profile. Free forever. Shared only after both sides approve.',
     html:
       '<p class="dg-p-lead">One profile for SF startups. Private until a human sees a real fit — then you still say yes.</p>' +
       '<ul class="dg-p-list"><li>Free for candidates</li><li>No board spam</li><li>both sides approve before intro</li></ul>',
@@ -4373,7 +4373,7 @@ function eventsBotExtraMount(root) {
         });
         if (msg) {
           if (j && (j.error || '').toString().indexOf('ops secret') >= 0) {
-            msg.textContent = 'Ops-only — set DEMIGOD_EVENTS_OPS_SECRET (or OPS_OPEN=1 locally). Not public.';
+            msg.textContent = 'This action is available to Events Bot operators only.';
             msg.className = 'dg-ev-msg err';
           } else {
             msg.textContent = (j.summary || j.error || JSON.stringify(j).slice(0, 350)).slice(0, 500);
