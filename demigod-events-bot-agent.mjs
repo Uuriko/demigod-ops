@@ -4941,6 +4941,13 @@ function emptyEventsStore() {
 function loadStore() {
   const STORE = eventsStorePath();
   if (!fs.existsSync(STORE)) return emptyEventsStore();
+  // PII (contacts/offers/RSVPs/financial intent) — the live SoR must be 0600. saveStore writes new
+  // files 0600, but a legacy or externally-created file can be group/world-readable; repair on read.
+  try {
+    if ((fs.statSync(STORE).mode & 0o077) !== 0) fs.chmodSync(STORE, 0o600);
+  } catch {
+    /* best-effort; never block the load */
+  }
   let lastErr = null;
   for (let attempt = 0; attempt < 6; attempt++) {
     try {
