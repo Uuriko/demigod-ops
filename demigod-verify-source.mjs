@@ -64,6 +64,19 @@ check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !h
 // Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
 check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && (head.includes('curated talent') || head.includes('curated candidates')));
 check('head:og:title', head.includes('og:title'));
+// No internal identifiers on the customer-facing site: an env-var NAME (18da2af leaked
+// DEMIGOD_EVENTS_OPS_SECRET into a user message), the dev home dir, or the ops path must never
+// reach foot-core/head. That leak was caught by codex review, not a gate — gate it so a re-leak
+// fails the build. Conservative pattern (verified 0 matches in the current clean site).
+{
+  const leakRe = /DEMIGOD_[A-Z_]*(?:SECRET|TOKEN|KEY|PASSWORD)\b|\/home\/potter\b|\/tmp\/dg-busy/;
+  const leak = (coreJs.match(leakRe) || [])[0] || (head.match(leakRe) || [])[0];
+  check(
+    'site:no-internal-leak',
+    !leak,
+    leak ? `internal identifier leaked to customer-facing foot-core/head: "${leak}" (env-var name / home dir / ops path)` : null,
+  );
+}
 // Social cards must not under-promise vs primary meta (share drift = honesty bug).
 {
   const metaDesc = (attr, key) => {
