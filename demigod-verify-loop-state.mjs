@@ -17,7 +17,10 @@ const claimed = get('foot_ver_disk').replace(/^v/, '');
 const actual = (readFileSync('/home/potter/demigod-foot-core.js', 'utf8')
   .match(/__dgFootVer='(\d+)'/) || [])[1];
 if (!block.trim()) errs.push('no ## loop-state block found');
-if (claimed && claimed !== actual) errs.push(`foot_ver_disk claims v${claimed}, disk is v${actual}`);
+// foot_ver_disk is this gate's whole point — a missing claim must FAIL, not silently skip the drift
+// check (a block present-but-lacking the line used to pass vacuously via the old `claimed &&` guard).
+if (!claimed) errs.push('foot_ver_disk missing from loop-state block');
+else if (claimed !== actual) errs.push(`foot_ver_disk claims v${claimed}, disk is v${actual}`);
 if (!/- dm_freeze: OFF/.test(block)) errs.push('dm_freeze missing or not ON/OFF');
 const sha = get('last_checkpoint');
 if (sha && sha !== 'none' && !sha.startsWith('(')) {
