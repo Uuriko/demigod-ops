@@ -5855,7 +5855,13 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       (typeof window !== 'undefined' && window.DG_MUD_API) || '',
       'http://127.0.0.1:3461/api/mud',
       'http://localhost:3461/api/mud',
-    ].filter(Boolean);
+    ].filter(Boolean).filter(function (u) {
+      // v624 parity with the events-bot (dgEventsBotBases): only probe a localhost API when the page
+      // is itself served from localhost. On production these fired at every VISITOR'S OWN machine —
+      // mixed-content (http from https) + Private-Network-Access blocking + console spam. MUD falls
+      // back to solo/NPCs offline, so dropping the prod probe costs nothing.
+      try { return typeof dgLocalOk !== 'function' || dgLocalOk(u); } catch (e) { return true; }
+    });
     var i = 0;
     function next() {
       if (i >= bases.length) {
