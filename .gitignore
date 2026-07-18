@@ -91,6 +91,13 @@ orca-linux.AppImage.bak.*
 # Private Events Bot ops (offers may contain PII)
 DEMIGOD-EVENTS.json
 DEMIGOD-EVENTS.json.tmp
+# .bak is a full copy of the events SoR; .corrupt/.archive hold preserved/evicted real records; the
+# outbox holds queued items — all carry the same offer/RSVP/contact PII. codex found .bak untracked
+# and commit-eligible (mode 0664, world-readable) — never commit any of them.
+DEMIGOD-EVENTS.json.bak
+DEMIGOD-EVENTS.json.corrupt.*
+DEMIGOD-EVENTS.json.archive.*
+events-bot-outbox/
 # Leads SoR + its derivatives hold founder/candidate PII -- never commit. Untracked today, so
 # ignoring now keeps it out of history cleanly (no scrub needed). The .archive.jsonl is written by
 # ingestSubmission's cap (46a1c30); .corrupt.* by loadInbox's preserve-on-corruption guard (665d0da).
