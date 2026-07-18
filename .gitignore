@@ -12,6 +12,10 @@
 .codex/
 .cursor/
 .claude/
+.claude.json
+.claude.json.*
+.gemini/
+.factory/
 .nvm/
 .agents/
 .commandcode/
@@ -88,15 +92,13 @@ keep-awake.log
 orca-linux.AppImage
 orca-linux.AppImage.bak.*
 
-# Private Events Bot ops (offers may contain PII)
+# Private Events Bot ops — EVERY DEMIGOD-EVENTS.* file is a full/partial copy of the events SoR
+# (offer/RSVP/contact PII). Broad wildcard: the earlier .json.* patterns missed the pre-<label>-<ts>
+# snapshots (pre-calpurge/pre-rungate — the suffix is BEFORE .json), which held 12+11 real contact
+# emails and were commit-eligible. DEMIGOD-EVENTS.* catches the main file, atomic-write temps
+# (.json.tmp.<pid>, .json.bak.<pid>), .corrupt/.archive, AND the pre-* snapshots. Never commit any.
 DEMIGOD-EVENTS.json
-# Every derivative is a full/partial copy of the events SoR (offer/RSVP/contact PII). Wildcard so the
-# pid-suffixed atomic-write temps (.tmp.<pid>, .bak.tmp.<pid>) are caught too — codex found .bak
-# untracked+commit-eligible; the temps had the same gap. Never commit any of them.
-DEMIGOD-EVENTS.json.tmp*
-DEMIGOD-EVENTS.json.bak*
-DEMIGOD-EVENTS.json.corrupt.*
-DEMIGOD-EVENTS.json.archive.*
+DEMIGOD-EVENTS.*
 events-bot-outbox/
 # Leads SoR + its derivatives hold founder/candidate PII -- never commit. Untracked today, so
 # ignoring now keeps it out of history cleanly (no scrub needed). The .archive.jsonl is written by
