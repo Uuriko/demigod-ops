@@ -65,15 +65,26 @@ function connect(wsUrl) {
     ws.once('open', r);
     ws.once('error', j);
   });
-  async function send(method, params = {}, timeout = 20000) {
+  async function send(method, params = {}, timeout = 20000, tries = 2) {
     await ready;
-    const i = id++;
-    const p = new Promise((resolve, reject) => {
-      pending.set(i, (m) => (m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result || {})));
-      setTimeout(() => reject(new Error('timeout ' + method)), timeout);
-    });
-    ws.send(JSON.stringify({ id: i, method, params }));
-    return p;
+    let lastErr;
+    for (let attempt = 0; attempt < tries; attempt++) {
+      const i = id++;
+      try {
+        const p = new Promise((resolve, reject) => {
+          pending.set(i, (m) => (m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result || {})));
+          setTimeout(() => reject(new Error('timeout ' + method)), timeout);
+        });
+        ws.send(JSON.stringify({ id: i, method, params }));
+        return await p;
+      } catch (e) {
+        lastErr = e;
+        // Retry once on a transient CDP timeout (browser load false-fails the smoke); real CDP
+        // errors and the final attempt rethrow immediately.
+        if (!/^timeout /.test(e.message) || attempt === tries - 1) throw e;
+      }
+    }
+    throw lastErr;
   }
   return { ws, send };
 }
