@@ -96,7 +96,13 @@ export function compactWriteJson(filePath, obj) {
 export function writeJsonAuto(filePath, obj) {
   const pretty = process.env.DEMIGOD_JSON_PRETTY === '1';
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, (pretty ? JSON.stringify(obj, null, 2) : JSON.stringify(obj)) + '\n');
+  const data = (pretty ? JSON.stringify(obj, null, 2) : JSON.stringify(obj)) + '\n';
+  // Atomic: a direct writeFileSync let concurrent readers see a truncated JSON (this helper backs
+  // truth.json / ship-status.json / demand caches read by the dashboard). Temp+rename so a reader
+  // always sees a complete old-or-new file; a mid-write crash orphans the temp, never the target.
+  const tmp = `${filePath}.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, filePath);
 }
 
 /**
