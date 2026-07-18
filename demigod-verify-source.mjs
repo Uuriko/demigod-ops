@@ -1235,6 +1235,7 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
   );
 }
 // Head CTA fail-open when foot CDN never marks dg-ready (bounded; labels dual path).
+// Labels must match foot COPY: ctaFounder=Demigod, ctaEngineer=I'm looking (not stale "I'm hiring").
 {
   const ctaOk =
     /dg-head-fallback/.test(head) &&
@@ -1242,14 +1243,14 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
     /['"]hire['"]/.test(head) &&
     /['"]talent['"]/.test(head) &&
     /setTimeout\s*\(/.test(head) &&
-    /I'm hiring|I\\'m hiring/.test(head) &&
-    /Find a job/.test(head);
+    /['"]Demigod['"]/.test(head) &&
+    /I'm looking|I\\'m looking/.test(head);
   check(
     'head:cta-fallback',
     ctaOk,
     ctaOk
       ? null
-      : 'head CTA fail-open must set dg-head-fallback + data-dg-cta hire/talent + bounded setTimeout + path labels',
+      : 'head CTA fail-open must set dg-head-fallback + data-dg-cta hire/talent + bounded setTimeout + Demigod / I\'m looking labels',
   );
 }
 check(
@@ -1709,7 +1710,9 @@ for (const f of requiredScripts) {
   check(`file:${f}`, fs.existsSync(path.join(ROOT, f)));
 }
 
-const pass = checks.every((c) => c.ok);
+// length>0 floor: [].every() is vacuously true, so if a refactor ever skipped every check() call
+// this keystone gate would report pass:true having verified nothing. Assert checks actually ran.
+const pass = checks.length > 0 && checks.every((c) => c.ok);
 const out = { at: new Date().toISOString(), architecture: 'head-minimal-css + foot-core-cdn', checks, pass };
 // Atomic write: coord + autopilot run this gate concurrently; direct write can be read torn.
 // Write is best-effort: Codex (and other agents) run in read-only sandbox on purpose — EROFS

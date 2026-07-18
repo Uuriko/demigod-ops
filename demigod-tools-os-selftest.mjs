@@ -1922,8 +1922,11 @@ ok(
     !/^\s*curl (?!.*--noproxy '\*').*127\.0\.0\.1:/m.test(dashCli),
     'dashboard CLI local probes bypass ambient proxies',
   );
+  const healthLines = dashCli.split('\n').filter((line) => line.includes('/healthz'));
   ok(
-    dashCli.split('\n').filter((line) => line.includes('/healthz')).every((line) => line.includes(' -fsS ')),
+    // length>0: an empty filter makes .every() vacuously true — if the /healthz probes are renamed or
+    // dropped this would pass having checked nothing. Require the probes to exist AND all use -fsS.
+    healthLines.length > 0 && healthLines.every((line) => line.includes(' -fsS ')),
     'dashboard CLI rejects unhealthy HTTP responses in every health probe',
   );
   ok(
@@ -1992,13 +1995,14 @@ ok(
       /dashboard host-running · namespace-unobservable/.test(startCli),
     'session start reports a host-running dashboard honestly when its socket is namespace-unobservable',
   );
+  // Was: every line containing `127.0.0.1:${PORT}/api/` — also matched echo URL lines.
+  // Contract: real curl API probes use -fsS; ignore help/echo text.
+  const apiProbeLines = dashCli
+    .split('\n')
+    .filter((line) => /\bcurl\b/.test(line) && /\/api\//.test(line));
   ok(
-    // Was: every line containing `127.0.0.1:${PORT}/api/` — also matched echo URL lines.
-    // Contract: real curl API probes use -fsS; ignore help/echo text.
-    dashCli
-      .split('\n')
-      .filter((line) => /\bcurl\b/.test(line) && /\/api\//.test(line))
-      .every((line) => line.includes(' -fsS ')),
+    // length>0: empty filter → vacuous .every() pass. Require at least one real API probe to exist.
+    apiProbeLines.length > 0 && apiProbeLines.every((line) => line.includes(' -fsS ')),
     'dashboard CLI rejects unhealthy HTTP responses from every API probe',
   );
   ok(
@@ -2171,6 +2175,10 @@ ok(
   ok(
     /product = any\(k in text for k in \("designer",/.test(coordSrc),
     'coord routes explicit Designer backlog work to the Claude website lane',
+  );
+  ok(
+    /if role == "codex":[\s\S]{0,300}"funnel"[\s\S]{0,120}"lead"[\s\S]{0,120}"pipeline"[\s\S]{0,120}"policy"[\s\S]{0,160}"events bot"/.test(coordSrc),
+    'coord routes funnel, lead, policy, pipeline, and Events Bot backlog work to Codex',
   );
   ok(
     /while \[\[ ! -f "\$STOP" \]\]; do\s*spawn_wave \|\| true\s*local s=0\s*while \(\( s < tick \)\)/.test(coordSrc) &&
@@ -2727,8 +2735,8 @@ ok(
     /head:cta-fallback/.test(verifySrc) &&
       /dg-head-fallback/.test(verifySrc) &&
       /data-dg-cta/.test(verifySrc) &&
-      /Find a job/.test(verifySrc) &&
-      /I.m hiring/.test(verifySrc) &&
+      /Demigod/.test(verifySrc) &&
+      /I.m looking/.test(verifySrc) &&
       /setTimeout/.test(verifySrc) &&
       /hire/.test(verifySrc) &&
       /talent/.test(verifySrc),
