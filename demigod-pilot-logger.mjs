@@ -19,7 +19,7 @@ try {
 // const inv = createInvoiceStub({pilotId: '...', amount: '10% first year', toEmail: founderEmail});
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
+import { loadBoard, saveBoard, writeBoard } from './demigod-submissions-lib.mjs';
 import { appendPilot, computeSignal, latestReceipt } from './demigod-board-lib.mjs';
 import { createInvoiceStub, getServiceStatus, onHireInvoice } from './demigod-future-services.mjs';  // Stripe stub for future 10% fee automation (manual now)
 import { generateIntroRequest } from './demigod-matching-engine.mjs';
@@ -158,19 +158,31 @@ function main() {
     }
   }
 
-  let board = loadBoard();
-  const { board: next, role, receipt } = appendPilot(board, {
-    founder: args.founder,
-    brief: args.brief,
-    intros: args.intros,
-    quote: args.quote,
-    outcome: args.outcome,
-    stage: args.stage,
-    stageType: args.stageType,
-    withReceipt: args.receipt,
-    source: args.source,
-  });
-  saveBoard(next, { reason: 'pilot-logger', actor: process.env.USER || 'pilot-logger' });
+  // Atomic load-modify-save under BOARD_LOCK: a plain loadBoard()+saveBoard() left a lost-update
+  // window (another writer could commit between the load and the save, and pilot-logger's save would
+  // clobber it). writeBoard runs appendPilot on a freshly-locked board. Capture role/receipt/next via
+  // closure for the response below.
+  let role, receipt, next;
+  writeBoard(
+    (board) => {
+      const r = appendPilot(board, {
+        founder: args.founder,
+        brief: args.brief,
+        intros: args.intros,
+        quote: args.quote,
+        outcome: args.outcome,
+        stage: args.stage,
+        stageType: args.stageType,
+        withReceipt: args.receipt,
+        source: args.source,
+      });
+      role = r.role;
+      receipt = r.receipt;
+      next = r.board;
+      return r.board;
+    },
+    { reason: 'pilot-logger', actor: process.env.USER || 'pilot-logger' },
+  );
 
   if (args.source === 'sms') {
     let introTmpl = '';
