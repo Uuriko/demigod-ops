@@ -3567,12 +3567,12 @@ var DG_PAGES = {
       '<button type="button" class="dg-ev-submit dg-ev-submit-ghost" id="dg-ev-tick">Run autonomy tick</button>' +
       '<p class="dg-ev-msg" id="dg-ev-tick-msg" role="status"></p></details>' +
       '</div>' +
-      '<h3 class="dg-p-h3">What stays human</h3>' +
+      '<h3 class="dg-p-h3">AI, start to finish</h3>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Final guest list &amp; partners</strong> — bot drafts; host approves.</li>' +
-      '<li><strong>Tone of the night</strong> — vibe and seating chemistry.</li>' +
-      '<li><strong>Intros after</strong> — mutual yes before names move.</li>' +
-      '<li><strong>Sending</strong> — invites and reminders are never auto-blasted.</li>' +
+      '<li><strong>Guest list &amp; partners</strong> — AI curates who fits and drafts partner outreach.</li>' +
+      '<li><strong>Tone of the night</strong> — AI tunes the vibe and seating chemistry.</li>' +
+      '<li><strong>Intros</strong> — AI makes them, only after a mutual yes.</li>' +
+      '<li><strong>Sending</strong> — AI times invites and reminders; opt-in, never a blast.</li>' +
       '</ul>' +
       '<details class="dg-p-det"><summary>How do I start?</summary><p>Chat above with seats, SF date windows, and one outcome — or email <a href="mailto:potter@trydemigod.com?subject=Events%20Bot%20pilot">potter@trydemigod.com</a>.</p></details>' +
       '<details class="dg-p-det"><summary>Pending tooling</summary><p>SMS, calendar sync, Stripe card capture — named pending until live. Email always works.</p></details>' +
@@ -7332,23 +7332,11 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
       '<span class="dg-mud-status" id="dg-mud-status">solo</span></div>' +
       '<div class="dg-mud-log" id="dg-mud-log" role="log" aria-live="polite"></div>' +
       '<div class="dg-mud-soft" id="dg-mud-soft" aria-label="Room exits"></div>' +
-      '<div class="dg-mud-quick" id="dg-mud-quick" role="toolbar" aria-label="Easy commands">' +
-      '<button type="button" data-mud-cmd="who">Who is here</button>' +
-      '<button type="button" data-mud-cmd="say hi">Say hi</button>' +
-      '<button type="button" data-mud-cmd="chat hello everyone">Chat all</button>' +
-      '<button type="button" data-mud-cmd="look">Look</button>' +
-      '<button type="button" data-mud-cmd="map">Map</button>' +
-      '<button type="button" data-mud-cmd="start">How to talk</button>' +
-      '<button type="button" data-mud-cmd="help">Help</button>' +
-      '<button type="button" data-mud-cmd="pray">Pray</button>' +
-      '<button type="button" data-mud-cmd="skip">Skip tutorial</button>' +
-      '</div>' +
       '<form class="dg-mud-form" id="dg-mud-form" autocomplete="off">' +
       '<label class="sr-only" for="dg-mud-input">Command</label>' +
       '<span class="dg-mud-prompt" aria-hidden="true">&gt;</span>' +
       '<input id="dg-mud-input" class="dg-mud-input" type="text" maxlength="240" ' +
-      'placeholder="type or tap a button · say hi · map · help" enterkeyhint="send" />' +
-      '<button type="submit" class="dg-mud-send">Go</button>' +
+      'placeholder="type a command · say hi · look · map · help · then Enter" enterkeyhint="send" />' +
       '</form>' +
       '<p class="dg-mud-hint"><strong>Talk to live visitors:</strong> <code>say hi</code> (room) · <code>chat hi</code> (all) · <code>who</code> · status <em>LIVE</em> = others can hear you</p>' +
       '</div>';
@@ -7397,11 +7385,8 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
         return;
       }
       soft.hidden = false;
-      soft.innerHTML =
-        '<span class="dg-mud-soft-label">Walk:</span> ' +
-        ex.map(function (d) {
-          return '<button type="button" class="dg-mud-exit" data-mud-cmd="' + d + '">' + d.toUpperCase() + '</button>';
-        }).join(' ');
+      // Text-only MUD (potter): exits are shown as plain text, not clickable buttons — type e.g. "north".
+      soft.innerHTML = '<span class="dg-mud-soft-label">Exits:</span> ' + ex.join(', ');
     };
     box.__mudEngine = engine;
     engine.boot();
