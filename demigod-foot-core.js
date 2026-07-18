@@ -4412,13 +4412,13 @@ function eventsBotChatMount(root) {
   function offline(msg) {
     var last = (msg || '').toLowerCase();
     if (/date|when|calendar/.test(last))
-      return 'I keep SF date windows on the active night and the calendar above (multiple events per day OK). Tell me 1–3 windows and I update the plan — or email potter@trydemigod.com.';
+      return 'I keep SF date windows on the active night and the calendar above (multiple events per day OK). Tell me 1–3 windows and I draft them into the plan — or email potter@trydemigod.com.';
     if (/guest|invite|who/.test(last))
-      return 'I draft guest framing and invite copy, then queue messages. Share seats, mix, and constraints if you have them — I still drive the night.';
+      return 'I draft guest framing and invite copy (sending pending). Share seats, mix, and constraints if you have them — I still drive the night.';
     if (/agenda|run/.test(last))
       return 'I own the run-of-show: arrive → frame → structured block → free conversation → close + reconnect notes. Duration or vibe and I revise.';
     if (/sponsor|venue|volunteer|offer/.test(last))
-      return 'Use Offer help below or paste details here. I absorb offers and still queue outreach for anything missing.';
+      return 'Use Offer help below or paste details here. I fold offers in and draft outreach for anything missing.';
     return 'I am the organizer of record for SF nights end-to-end (not a host assistant). Ideate → Resource → Plan → RSVP → Run → Follow-up → Debrief. Try: "drive a 40-person SoMa party — free venue + drink sponsor" — or offer help / chat anytime. Outreach stays queued until email/SMS is live; no fake sends.';
   }
 
