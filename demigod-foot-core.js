@@ -440,8 +440,11 @@ function dgEventsBotBases() {
   } catch (e0) {}
   var list = [raw]
     .concat(__dgEvBotExtraBases || [])
+    // No hardcoded loca.lt tunnel: that subdomain ROTATES (dev localtunnel), so a fixed guess is always
+    // stale and CORS-503s on every prod visitor's console. dgLocalOk can't catch it (not localhost). The
+    // CURRENT tunnel arrives dynamically via DG_EVENTS_BOT_API + __dgEvBotExtraBases (CDN config
+    // discovery); localhost dev bases below stay (dgLocalOk-gated). Same console-hygiene class as the MUD.
     .concat([
-      'https://demigod-events-bot.loca.lt/api/events-bot',
       'http://127.0.0.1:3460/api/events-bot',
       'http://localhost:3460/api/events-bot',
     ]);
