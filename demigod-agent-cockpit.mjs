@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { buildNext } from './demigod-next.mjs';
 import { cachedFetchText, writeJsonAuto, isFreshFile } from './demigod-perf-cache.mjs';
+import { computeSignal } from './demigod-board-lib.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -76,7 +77,6 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   const truth = readJson(path.join(BUSY, 'truth.json'));
   const ship = readJson(path.join(BUSY, 'ship-status.json'));
   const verify = readJson(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json'));
-  const boardHonesty = readJson(path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json'));
 
   const core = readText(corePath);
   const footer = readText(footerPath);
@@ -190,8 +190,13 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
   try {
     const b = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-BOARD.json'), 'utf8'));
     board.roles = (b.roles || []).length;
-    board.realRoles = b.signal?.realRoles ?? null;
-    board.pass = boardHonesty?.pass ?? (board.roles <= 3 && (board.realRoles === 0 || board.realRoles == null));
+    // Evidence, not the stored claim: recompute realRoles from the roles array (computeSignal filters
+    // seeds via isSeedRole) instead of reading the stored b.signal.realRoles or trusting the stored
+    // DEMIGOD-BOARD-HONESTY.json verdict. Both could be stale: a board with <=3 REAL roles but a
+    // missing/stale signal read as honest-pass (null == null), and that drove the cockpit nextAction
+    // (~line 252) and coord API off a stale file. Derive pass from the recomputed count.
+    board.realRoles = computeSignal(b).realRoles;
+    board.pass = board.roles <= 3 && board.realRoles === 0;
   } catch {
     /* */
   }
