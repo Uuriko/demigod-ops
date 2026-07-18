@@ -130,3 +130,19 @@ grok-tail.txt
 
 # Agent status scratch with a personal email (ORCA pair status).
 ORCA-PAIR-EMAIL-STATUS.txt
+
+# Board + pairs SoRs and their regenerable runtime outputs — hold candidate/role data (anonymized but
+# identifiable once real inbound starts). Untracked today (0 real, sample-only), so ignoring now keeps
+# them out of history cleanly — same proactive rule as the inbox/leads SoRs above. The tracked symlink
+# demigod-board.json -> DEMIGOD-BOARD.json stays (it is a pointer, no data). NB: DEMIGOD-BOARD.corrupt*
+# above is uppercase and missed the lowercase demigod-board.corrupt-* backups (real data at corrupt-time).
+DEMIGOD-BOARD.json
+DEMIGOD-BOARD.json.*
+DEMIGOD-PAIRS.json
+DEMIGOD-PAIRS.json.*
+DEMIGOD-BOARD-HONESTY.json
+DEMIGOD-BOARD-AUDIT.jsonl
+DEMIGOD-BOARD-CDN.json
+DEMIGOD-BOARD-PUBLIC.json
+demigod-board.corrupt*
+demigod-foot-core.b64
