@@ -3521,6 +3521,28 @@ function startJob(toolId, { allowMutate = false } = {}) {
         freezeWhy: freeze.why || null,
       };
     }
+    // Also refuse when another writer holds the canonical foot-core lock: a mutate job (e.g. cycle-work
+    // --domain=auto) can edit demigod-foot-core.js, and the dashboard should not dispatch it on top of an
+    // active foreign edit. The child publisher re-checks the lock too (defense-in-depth), so fail OPEN
+    // here — block ONLY on a valid, unexpired, foreign-owned lock. Corrupt/expired/own-lock reads fall
+    // through (the foot-lock file is frequently malformed; over-blocking every dashboard mutate on a
+    // stray parse error would be worse than the race the child already guards).
+    const footLock = safeJson(path.join(BUSY, 'foot-lock.json'));
+    const flExpiryMs = footLock?.expiresAt ? Date.parse(footLock.expiresAt) : NaN;
+    if (
+      footLock &&
+      Number.isFinite(flExpiryMs) &&
+      flExpiryMs > Date.now() &&
+      footLock.owner &&
+      footLock.owner !== `dash:${toolId}`
+    ) {
+      return {
+        ok: false,
+        error: `mutate job blocked — foot-core lock held by ${footLock.owner}`,
+        mutate: true,
+        footLock: { owner: footLock.owner, pid: footLock.pid || null, expiresAt: footLock.expiresAt },
+      };
+    }
     // Cross-process mutate lock (survives concurrent agent CLIs)
     try {
       const lockPath = path.join(BUSY, 'mutate-job-lock.json');
