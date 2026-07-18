@@ -63,7 +63,8 @@ while [[ ! -f "$STOP" && ! -f "$GSTOP" ]]; do
   base=$(basename "$req" .req); run="$INBOX/$base.run"; out="$OUT/$base.res"
   mv "$req" "$run" 2>/dev/null || continue     # another claimant won the race
   log "REQ $base"
-  set +e; run_agent "$(cat "$run")" >"$out" 2>>"$LOG"; ec=$?; set -e
+  set +e; run_agent "$(cat "$run")" >"$out.wip" 2>>"$LOG"; ec=$?; set -e
+  mv -f "$out.wip" "$out"   # atomic publish: .res appears only when complete (no 0-byte false-"done" for pollers)
   rm -f "$run"
   log "REQ $base exit=$ec -> $out"
   sleep "$COOLDOWN"                            # throttle to avoid tight cross-post loops
