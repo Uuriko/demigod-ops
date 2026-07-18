@@ -461,14 +461,19 @@ export async function buildControlPlane() {
     next: 'bin/dg review',
     metrics: { fail: review?.summary?.fail, count: review?.summary?.count },
   });
+  // Mirror the wfDoctor freshness guard (L353): the hygiene snapshot is a cached /tmp/dg-busy file;
+  // without an age check a day-old snapshot shows tabs/load as current (was 27h stale, under-reporting
+  // 13 live tabs as 5). >= -60000 rejects a future/clock-skewed stamp; <= 15min is the fresh window.
+  const hygieneAgeMs = hygiene?.at ? Date.now() - Date.parse(hygiene.at) : Infinity;
+  const hygieneStale = !!hygiene && !(hygieneAgeMs >= -60000 && hygieneAgeMs <= 15 * 60 * 1000);
   modules.hygiene = enrich('hygiene', {
-    ok: hygiene?.healthy ?? null,
+    ok: hygieneStale ? null : (hygiene?.healthy ?? null),
     tabs: hygiene?.tabs?.pages ?? wf?.tabs?.pages,
     detail: hygiene
-      ? `load ${hygiene.load?.load1} · tabs ${hygiene.tabs?.pages} · free ${hygiene.load?.memAvailGb}G`
+      ? `load ${hygiene.load?.load1} · tabs ${hygiene.tabs?.pages} · free ${hygiene.load?.memAvailGb}G${hygieneStale ? ` (stale${Number.isFinite(hygieneAgeMs) ? ` ${Math.round(hygieneAgeMs / 3600000)}h` : ''} — run bin/dg hygiene)` : ''}`
       : 'run hygiene',
     next: 'bin/dg hygiene --prune',
-    metrics: { load: hygiene?.load?.load1, tabs: hygiene?.tabs?.pages },
+    metrics: { load: hygiene?.load?.load1, tabs: hygiene?.tabs?.pages, stale: hygieneStale, ageMs: hygieneAgeMs },
   });
   modules.ponytail = enrich('ponytail', {
     ok: ponytail?.ok ?? null,
