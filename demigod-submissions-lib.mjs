@@ -380,6 +380,17 @@ export function slugId(prefix) {
   return `${prefix}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
+// Redact email/phone from free-text before it is published. anonymize* already drops the structured
+// PII fields, but the free-text skills/experience/stack-needs get concatenated into the published
+// summary/tags/skills verbatim — a candidate/founder who types their email or phone there would
+// otherwise leak it to the live board. Names aren't pattern-detectable; email+phone are the
+// legal/trust-critical PII. (#23)
+function scrubPII(text = '') {
+  return String(text)
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[contact removed]')
+    .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]');
+}
+
 export function inferStageType(text = '') {
   const t = String(text);
   const stage = (t.match(STAGE_RE) || [])[0] || 'Seed-stage';
@@ -397,8 +408,8 @@ export function clip(s, max = 120) {
 
 /** startup-hire fields → anonymized open role */
 export function anonymizeRole(raw = {}) {
-  const title = clip(raw['role-title'] || raw.roleTitle || 'Open role', 60);
-  const skills = clip(raw['stack-needs'] || raw.stackNeeds || '', 100);
+  const title = clip(scrubPII(raw['role-title'] || raw.roleTitle || 'Open role'), 60);
+  const skills = clip(scrubPII(raw['stack-needs'] || raw.stackNeeds || ''), 100);
   const comp = clip(raw['salary-range'] || raw.salaryRange || 'Comp on intro', 40);
   const stageType = inferStageType(`${raw['company-stage'] || ''} ${raw['stack-needs'] || ''} ${raw['why-this-role'] || ''}`);
   return {
@@ -414,8 +425,8 @@ export function anonymizeRole(raw = {}) {
 
 /** engineer-join fields → anonymized candidate card */
 export function anonymizeCandidate(raw = {}) {
-  const skills = clip(raw['skills-stack'] || raw.skillsStack || '', 80);
-  const exp = clip(raw.experience || '', 100);
+  const skills = clip(scrubPII(raw['skills-stack'] || raw.skillsStack || ''), 80);
+  const exp = clip(scrubPII(raw.experience || ''), 100);
   const summary = exp
     ? `${skills ? `${skills}. ` : ''}${exp}`
     : skills || 'SF Bay Area candidate open to startup roles';
