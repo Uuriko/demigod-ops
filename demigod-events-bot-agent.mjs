@@ -987,7 +987,7 @@ export function seedNextFromDebrief(store, args = {}) {
       at,
     };
     store.ideas.push(idea);
-    while (store.ideas.length > 200) store.ideas.shift();
+    capArchive(store.ideas, 200, 'ideas');
   }
   // Clear active — empty ideate shell (no fake spin)
   store.activeEvent = {
@@ -5001,6 +5001,24 @@ function saveStore(s) {
   }
 }
 
+// Archive-before-cap: the per-list caps below shift() the OLDEST real records (offers, money intents,
+// contacts — PII/financial) once a list exceeds its bound. Append evicted records to a private,
+// gitignored .archive.jsonl before dropping them, so nothing real is silently lost. Capping still
+// proceeds if the archive write fails (keep the store bounded), but we always try first.
+function capArchive(arr, max, label) {
+  if (!Array.isArray(arr) || arr.length <= max) return;
+  const evicted = arr.splice(0, arr.length - max);
+  try {
+    const lines =
+      evicted
+        .map((r) => JSON.stringify({ evictedFrom: label, at: new Date().toISOString(), record: r }))
+        .join('\n') + '\n';
+    fs.appendFileSync(eventsStorePath() + '.archive.jsonl', lines, { mode: 0o600 });
+  } catch {
+    /* archive best-effort; the cap still applies so the store stays bounded */
+  }
+}
+
 function ensureArrays(s) {
   s.ideas = s.ideas || [];
   s.feedback = s.feedback || [];
@@ -5822,7 +5840,7 @@ function runTool(name, args) {
         at: now,
       };
       store.ideas.push(idea);
-      while (store.ideas.length > 200) store.ideas.shift();
+      capArchive(store.ideas, 200, 'ideas');
       saveStore(store);
       return { ok: true, idea };
     }
@@ -5836,7 +5854,7 @@ function runTool(name, args) {
         at: now,
       };
       store.feedback.push(fb);
-      while (store.feedback.length > 500) store.feedback.shift();
+      capArchive(store.feedback, 500, 'feedback');
       saveStore(store);
       return { ok: true, id: fb.id };
     }
@@ -6001,7 +6019,7 @@ function runTool(name, args) {
         emailCheck: { syntax: true, mx: null, at: null },
       };
       store.outreach.push(item);
-      while (store.outreach.length > 500) store.outreach.shift();
+      capArchive(store.outreach, 500, 'outreach');
       try {
         const outbox = eventsOutboxPath();
         fs.mkdirSync(outbox, { recursive: true });
@@ -6042,7 +6060,7 @@ function runTool(name, args) {
         at: now,
       };
       store.money.push(mon);
-      while (store.money.length > 200) store.money.shift();
+      capArchive(store.money, 200, 'money');
       // also mirror as sponsor offer
       store.offers.sponsor = store.offers.sponsor || [];
       store.offers.sponsor.push({
@@ -6362,7 +6380,7 @@ function runTool(name, args) {
         if (args.stage) t.stage = clamp(args.stage, 24);
         t.updatedAt = now;
       }
-      while (store.tasks.length > 400) store.tasks.shift();
+      capArchive(store.tasks, 400, 'tasks');
       saveStore(store);
       return { ok: true, task: t };
     }
@@ -6386,7 +6404,7 @@ function runTool(name, args) {
         if (args.notes) c.notes = clamp((c.notes || '') + ' | ' + args.notes, 800);
         c.updatedAt = now;
       }
-      while (store.contacts.length > 500) store.contacts.shift();
+      capArchive(store.contacts, 500, 'contacts');
       saveStore(store);
       return { ok: true, contact: c };
     }
