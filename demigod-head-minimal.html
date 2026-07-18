@@ -11,6 +11,15 @@
     '/how':'/?p=how','/pricing':'/?p=pricing','/faq':'/?p=faq','/founders':'/?p=founders',
     '/candidates':'/?p=candidates','/compare':'/?p=compare','/about':'/?p=about','/status':'/?p=status',
     '/partnerships':'/?p=partners','/partnership':'/?p=partners',
+    /* /untitled is a stray Webflow page: 200 + <title>Untitled</title> + index,follow, and foot
+       renders "Page not found" into it — a textbook soft-404. Webflow will not 404 a page that
+       exists, so redirect it. */
+    '/untitled':'/',
+    /* INVARIANT: every key here must be a REAL published Webflow page. This script lives in the
+       site head, and Webflow serves its utility 404 (which is excluded from site-wide custom code)
+       for any unpublished path — so the head never loads and this never runs on a true 404. Adding
+       a phantom key like '/login' is inert: verified live 2026-07-17, /login still 404s. To catch a
+       new pretty path, first create a thin page for it in the Designer. See memory mud-v611-404. */
     '/apply':'/?wiz=startup','/engineers':'/?p=candidates','/jobs':'/?wiz=engineer','/careers':'/?wiz=engineer'
   };
   var key=(p||'/').replace(/\/+$/,'')||'/';
@@ -26,7 +35,7 @@
     <p style="margin:0 0 .75rem">Continue on Demigod (no JavaScript):</p>
     <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
       <a href="/">Home</a>
-      <a href="/?wiz=startup">I'm hiring</a>
+      <a href="/?wiz=startup">Demigod</a>
       <a href="/?wiz=engineer">Find a job</a>
       <a href="/?p=pricing">Pricing</a>
       <a href="/?p=how">How it works</a>
@@ -172,9 +181,9 @@ try{(function(){
     [/Share the role, skills, and comp range\./gi,'Share the role, skills, and a 90-day outcome.'],
     [/\bFIND TALENT\b/g,"I'm hiring"],
     [/\bHIRE TALENT\b/g,"I'm hiring"],
-    [/\bJOIN NETWORK\b/g,'Find a job'],
+    [/\bJOIN NETWORK\b/g,"I'm looking"],
     [/HIRE SF STARTUP TALENT/gi,"I'm hiring"],
-    [/GET MATCHED TO SF STARTUPS/gi,'Find a job'],
+    [/GET MATCHED TO SF STARTUPS/gi,"I'm looking"],
     [/90-?\s*day replacement guarantee/gi,'90-day outcome focus (replacement policy pending)'],
     [/SF BAY AREA STARTUP MATCHING/gi,'SF · TECH-MATCHED'],
     [/Access to pre-vetted SF talent/gi,'Human-reviewed SF Bay matches'],
@@ -294,14 +303,14 @@ try{(function(){
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="720">
-<meta property="og:image:alt" content="Demigod — human-matched SF startup talent">
+<meta property="og:image:alt" content="Demigod — tech-matched SF startup talent">
 <meta property="og:url" content="https://www.trydemigod.com/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Demigod • Tech-Matched SF Startup Talent">
 <meta name="twitter:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
 <meta name="twitter:url" content="https://www.trydemigod.com/">
 <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
-<meta name="twitter:image:alt" content="Demigod — human-matched SF startup talent">
+<meta name="twitter:image:alt" content="Demigod — tech-matched SF startup talent">
 <meta name="twitter:image:width" content="1280">
 <meta name="twitter:image:height" content="720">
 <script id="dg-blog-canonical">
@@ -340,7 +349,7 @@ try{(function(){
 <link rel="dns-prefetch" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Unbounded:wght@600;700&display=swap">
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
 
@@ -421,8 +430,8 @@ try{(function(){
         if(!n.nodeValue)continue;
         if(/within\s*\d+\s*hours?/i.test(n.nodeValue)||new RegExp(('4'+'8')+'\\s*h').test(n.nodeValue)||new RegExp(('2'+'4')+'\\s*h').test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:within\s*)?\d+\s*hours?/gi,'soon').replace(new RegExp(('4'+'8')+'\\s*h(?:ours?)?','gi'),'soon').replace(new RegExp(('2'+'4')+'\\s*h(?:ours?)?','gi'),'soon');
-        if(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/i.test(n.nodeValue))
-          n.nodeValue=n.nodeValue.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring");
+        if(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/i.test(n.nodeValue)||/\bI['’]?m hiring\b/i.test(n.nodeValue))
+          n.nodeValue=n.nodeValue.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring").replace(/\bI['’]?m hiring\b/gi,"I'm hiring");
         if(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/i.test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist');
         if(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/i.test(n.nodeValue))
@@ -434,7 +443,7 @@ try{(function(){
         ['aria-label','title','alt'].forEach(function(attr){
           if(!el.hasAttribute(attr))return;
           var v=el.getAttribute(attr)||'';
-          v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring")
+          v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring").replace(/\bI['’]?m hiring\b/gi,"I'm hiring")
             .replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist')
             .replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'90-day outcome focus');
           el.setAttribute(attr,v);
@@ -468,8 +477,8 @@ try{(function(){
       try{document.documentElement.classList.add('dg-contact-honest')}catch(_){}
       document.querySelectorAll('.btn-label,.button_label').forEach(function(el){
         var t=(el.textContent||'').replace(/\s+/g,' ').trim();
-        if(/^(FIND TALENT|HIRE TALENT)$/i.test(t)) el.textContent="I'm hiring";
-        else if(/^(JOIN NETWORK|GET MATCHED)$/i.test(t)) el.textContent='Find a job';
+        if(/^(FIND TALENT|HIRE TALENT|I['’]?M HIRING)$/i.test(t)) el.textContent="I'm hiring";
+        else if(/^(JOIN NETWORK|GET MATCHED)$/i.test(t)) el.textContent="I'm looking";
       });
       try{document.documentElement.classList.add('dg-cta-honest')}catch(_){}
       document.querySelectorAll('.pricing-card div,.pricing-card li,.pricing-grid div').forEach(function(el){
@@ -492,9 +501,9 @@ try{(function(){
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
-<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"I'm hiring","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Find a job","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Method","url":"https://www.trydemigod.com/?p=method"},{"@type":"ListItem","position":9,"name":"For founders","url":"https://www.trydemigod.com/?p=founders"},{"@type":"ListItem","position":10,"name":"For talent","url":"https://www.trydemigod.com/?p=candidates"},{"@type":"ListItem","position":11,"name":"Pilot","url":"https://www.trydemigod.com/?p=pilot"},{"@type":"ListItem","position":12,"name":"Compare","url":"https://www.trydemigod.com/?p=compare"},{"@type":"ListItem","position":13,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":14,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":15,"name":"About","url":"https://www.trydemigod.com/?p=about"},{"@type":"ListItem","position":16,"name":"Status","url":"https://www.trydemigod.com/?p=status"}]}</script>
+<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Demigod","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Find a job","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Method","url":"https://www.trydemigod.com/?p=method"},{"@type":"ListItem","position":9,"name":"For founders","url":"https://www.trydemigod.com/?p=founders"},{"@type":"ListItem","position":10,"name":"For talent","url":"https://www.trydemigod.com/?p=candidates"},{"@type":"ListItem","position":11,"name":"Pilot","url":"https://www.trydemigod.com/?p=pilot"},{"@type":"ListItem","position":12,"name":"Compare","url":"https://www.trydemigod.com/?p=compare"},{"@type":"ListItem","position":13,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":14,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":15,"name":"About","url":"https://www.trydemigod.com/?p=about"},{"@type":"ListItem","position":16,"name":"Status","url":"https://www.trydemigod.com/?p=status"}]}</script>
 
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Put the cash number in the note","description":"Demigod charges 10% of first-year cash when a hire starts, while talent pays nothing. Equity belongs in the conversation, but it cannot replace a usable cash range.","url":"https://www.trydemigod.com/?p=blog#note-first-year-cash-not-equity-fog","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-first-year-cash-not-equity-fog"},"image":"https://files.catbox.moe/eg561c.jpg","articleSection":"Pricing","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Five ways a match note fails","description":"A weak match note usually fails in one of five visible places. Repair those before asking either side to approve an introduction.","url":"https://www.trydemigod.com/?p=blog#note-match-note-anti-patterns","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-match-note-anti-patterns"},"image":"https://files.catbox.moe/zhxopd.jpg","articleSection":"Ops","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Why candidate profiles stay private","description":"A public candidate catalog makes unsolicited outreach the default. Demigod shares role evidence first and reveals contact details only after the founder and talent each approve.","url":"https://www.trydemigod.com/?p=blog#note-no-public-talent-feed","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-no-public-talent-feed"},"image":"https://files.catbox.moe/i4j3y0.jpg","articleSection":"Privacy","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Two SF events can belong on the same date","description":"The SF Events Bot calendar can hold overlapping in-person nights and practical offers from hosts, venues, sponsors, and volunteers. Nothing gets auto-booked or auto-sent.","url":"https://www.trydemigod.com/?p=blog#note-sf-events-calendar","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-sf-events-calendar"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Product","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"An SF night is not a stealth pipeline","description":"Demigod's calendar is for genuine in-person San Francisco events. Hosts can collect practical offers, but attendance is not permission for recruiting outreach.","url":"https://www.trydemigod.com/?p=blog#note-sf-night-is-not-a-pipeline-hack","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-sf-night-is-not-a-pipeline-hack"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"What talent sees before approving","description":"A company story is not enough for informed approval. Talent should see the first-quarter result, evidence bar, binding constraints, and the reviewer's unresolved question.","url":"https://www.trydemigod.com/?p=blog#note-what-talent-sees","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-what-talent-sees"},"image":"https://files.catbox.moe/wewe5r.jpg","articleSection":"Product","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"When a match should stop","description":"An introduction should wait when the role, evidence, or hard constraints cannot support two informed approvals. A recorded pass is part of the review, not a failed attempt to create activity.","url":"https://www.trydemigod.com/?p=blog#note-when-not-to-intro","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-when-not-to-intro"},"image":"https://files.catbox.moe/wewe5r.jpg","articleSection":"Product","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Why 90-day outcomes beat keyword JDs","description":"Name what must be true after one quarter, then review proof against it. A tool list can come later.","url":"https://www.trydemigod.com/?p=blog#note-90-day-outcomes","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-90-day-outcomes"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Product","datePublished":"2026-07-16","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Both sides approve before intros","description":"Founder and talent review the same private facts before contact details move. Either side can stop the introduction without being exposed.","url":"https://www.trydemigod.com/?p=blog#note-both-approve","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-both-approve"},"image":"https://files.catbox.moe/wewe5r.jpg","articleSection":"Privacy","datePublished":"2026-07-16","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Human review before an intro","description":"Candidate counts are easy to inflate and hard to use. Demigod reviews evidence against the role’s first-quarter job before asking either side to meet.","url":"https://www.trydemigod.com/?p=blog#note-human-review-over-volume","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-human-review-over-volume"},"image":"https://files.catbox.moe/zhxopd.jpg","articleSection":"Market","datePublished":"2026-07-16","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"What belongs in a private match note","description":"A useful note contains enough evidence and constraints for a private decision. It also says what the reviewer still cannot verify.","url":"https://www.trydemigod.com/?p=blog#note-private-match-notes","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-private-match-notes"},"image":"https://files.catbox.moe/i4j3y0.jpg","articleSection":"Product","datePublished":"2026-07-16","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"10% on hire, free for talent","description":"Demigod charges the company 10% of first-year cash when a hire starts. Talent pays nothing, and equity is outside the fee.","url":"https://www.trydemigod.com/?p=blog#note-ten-percent","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-ten-percent"},"image":"https://files.catbox.moe/eg561c.jpg","articleSection":"Pricing","datePublished":"2026-07-16","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
 <script id="dg-oauth-init"></script>
 
@@ -509,8 +518,8 @@ body.dg-ready .nav_right a:not([data-dg-cta]):not(#dg-nav-hire):not(#dg-nav-tale
 body[data-dg-ready="1"] .nav_right a:not([data-dg-cta]):not(#dg-nav-hire):not(#dg-nav-talent),
 body.dg-ready .nav_right button:not([data-dg-cta]),
 body[data-dg-ready="1"] .nav_right button:not([data-dg-cta]){visibility:hidden;opacity:0}
-body.dg-ready .hero-actions,body[data-dg-ready="1"] .hero-actions{visibility:visible;opacity:1;transition:opacity .18s ease}
-body.dg-ready .nav_right a,body.dg-ready .nav_right button,body[data-dg-ready="1"] .nav_right a,body[data-dg-ready="1"] .nav_right button{visibility:visible;opacity:1;transition:opacity .18s ease}
+body.dg-ready .hero-actions,body[data-dg-ready="1"] .hero-actions{visibility:visible;opacity:1;transition:opacity .55s cubic-bezier(.4,0,.2,1)}
+body.dg-ready .nav_right a,body.dg-ready .nav_right button,body[data-dg-ready="1"] .nav_right a,body[data-dg-ready="1"] .nav_right button{visibility:visible;opacity:1;transition:opacity .45s ease}
 
 body.dg-head-fallback .process-section,body.dg-head-fallback .pricing-section,
 body.dg-head-fallback [class*="process-section"],body.dg-head-fallback [class*="pricing-section"]{display:none!important}
@@ -526,7 +535,7 @@ document.addEventListener('DOMContentLoaded',function(){
           if(el.children&&el.children.length>1)return;
           var t=(el.textContent||'').trim();
           if(!t||t.length>180)return;
-          if(/^(?:find|hire)\s+(?:sf\s+)?(?:engineering\s+)?talent[.!]?$/i.test(t)){
+          if(/^(?:find|hire)\s+(?:sf\s+)?(?:engineering\s+)?talent[.!]?$/i.test(t)||/^I['’]?m hiring[.!]?$/i.test(t)){
             el.textContent="I'm hiring";
             if(el.matches('a'))el.setAttribute('href','/?wiz=startup');
           }else if(/(?:3\s*(?:[–—-]|to)\s*5|three\s+to\s+five)\s+(?:[\w-]+\s+){0,3}(?:candidates?|matches?|profiles?|finalists?)/i.test(t)){
@@ -539,7 +548,8 @@ document.addEventListener('DOMContentLoaded',function(){
       function labelPair(root){
         if(!root)return;
         var links=root.querySelectorAll('a');
-        ['I\'m hiring','Find a job'].forEach(function(label,i){
+        // Must match foot COPY.ctaFounder / ctaEngineer (verify head:cta-fallback)
+        ["I'm hiring","I'm looking"].forEach(function(label,i){
           var link=links[i]; if(!link)return;
           var text=link.querySelector('.btn-label,.button_label')||link;
           text.textContent=label;
