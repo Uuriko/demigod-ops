@@ -1416,7 +1416,16 @@ async function collectStatus() {
     cockpit = { error: String(e.message || e) };
   }
 
-  const freezeState = safeJson(path.join(BUSY, 'publish-freeze.json')) || { on: false };
+  // Distinguish a MISSING freeze file (normal -- unfrozen is the default state) from a CORRUPT one
+  // (exists but won't parse). The old `|| { on: false }` fabricated a clean "freeze OFF, ship allowed"
+  // for both, silently hiding a freeze that may have been ON before its file corrupted. Keep on:false
+  // (matches the real isFrozen gate + the missing-default) but flag corrupt so the `why` surfaces
+  // "state uncertain" instead of a confident OFF.
+  const freezeFile = path.join(BUSY, 'publish-freeze.json');
+  const freezeState = safeJson(freezeFile)
+    || (fs.existsSync(freezeFile)
+      ? { on: false, corrupt: true, why: 'publish-freeze.json present but unreadable — freeze state uncertain' }
+      : { on: false });
   let host = 'local';
   try {
     host = fs.readFileSync('/etc/hostname', 'utf8').trim() || 'local';
