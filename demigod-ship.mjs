@@ -107,14 +107,14 @@ function status() {
   try {
     const p = path.join(BUSY, 'truth.json');
     const age = (Date.now() - fs.statSync(p).mtimeMs) / 1000;
-    if (age <= 15) truth = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (age >= -60 && age <= 15) truth = JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch {
     /* */
   }
   try {
     const p = path.join(BUSY, 'ship-status.json');
     const age = (Date.now() - fs.statSync(p).mtimeMs) / 1000;
-    if (age <= 20) ship = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (age >= -60 && age <= 20) ship = JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch {
     /* */
   }
