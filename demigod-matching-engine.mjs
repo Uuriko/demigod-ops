@@ -171,8 +171,95 @@ function scoreMatch(role, candidate) {
   return Math.min(100, Math.round(score));
 }
 
-function getStartupRoles(board) {
-  return (board.roles || []).filter(r => !r.pilot || r.status === 'Active');
+const FUNNEL_ROLE_STATES = new Set(['form_filled', 'in_review']);
+const LEADS_PATH = path.join(ROOT, 'DEMIGOD-LEADS.json');
+
+function loadLeadsQuiet() {
+  try {
+    return JSON.parse(fs.readFileSync(LEADS_PATH, 'utf8'));
+  } catch {
+    return { partners: [], talent: [] };
+  }
+}
+
+/**
+ * Partner leads at form_filled/in_review → matcher role shape.
+ * Pure / read-only. Never writes board or inbox (real inbound only).
+ */
+export function funnelRolesFromPartners(partners = [], boardRoles = []) {
+  const seen = new Set(
+    (boardRoles || []).map((r) => `${norm(r.company)}|${norm(r.title)}`),
+  );
+  const out = [];
+  for (const lead of partners || []) {
+    const st = lead.state || lead.status;
+    if (!FUNNEL_ROLE_STATES.has(st)) continue;
+    const title = String(lead.title || lead.role || lead.company || lead.id || '').trim();
+    if (!title) continue;
+    const company = String(lead.company || lead.org || '').trim();
+    const key = `${norm(company)}|${norm(title)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: `funnel:${lead.id}`,
+      title,
+      company,
+      source: 'funnel',
+      status: 'Active',
+      stageType: lead.stageType || lead.stage || undefined,
+      skills: lead.skills || lead.stack || lead['stack-needs'] || undefined,
+    });
+  }
+  return out;
+}
+
+/** Partner/startup WIZ submissions → matcher role shape (real inbound). */
+export function rolesFromPartnerInbox(inbox, existing = []) {
+  const seen = new Set(
+    (existing || []).map((r) => `${norm(r.company)}|${norm(r.title)}`),
+  );
+  const out = [];
+  const items = inbox?.items || inbox?.submissions || [];
+  for (const i of items) {
+    if (i.status === 'rejected' || i.status === 'spam') continue;
+    if (!/hire|startup|partner|founders/i.test(i.form || i.formName || '')) continue;
+    const raw = i.raw || i.data || {};
+    const title = String(
+      raw['role-title'] || raw.title || raw.role || raw.brief || raw['company-name'] || i.id || '',
+    ).trim();
+    if (!title) continue;
+    const company = String(raw['company-name'] || raw.company || raw.org || '').trim();
+    const key = `${norm(company)}|${norm(title)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: i.id,
+      title,
+      company,
+      source: 'inbox',
+      real: !i.sample && !i.selftest,
+      status: 'Active',
+      stageType: raw.stage || raw['company-stage'] || undefined,
+      skills: raw['stack-needs'] || raw.skills || undefined,
+      outcome90d: raw['90day-outcome'] || raw.outcome90d || undefined,
+    });
+  }
+  return out;
+}
+
+/** Board roles + funnel partner leads + partner WIZ inbox. Optional leadsDoc for tests. */
+export function getStartupRoles(board, leadsDoc) {
+  const boardRoles = (board?.roles || []).filter((r) => !r.pilot || r.status === 'Active');
+  const doc = leadsDoc !== undefined ? leadsDoc : loadLeadsQuiet();
+  const funnel = funnelRolesFromPartners(doc?.partners || [], boardRoles);
+  let inboxRoles = [];
+  try {
+    const inbox = loadInbox ? loadInbox() : { items: [] };
+    inboxRoles = rolesFromPartnerInbox(inbox, [...boardRoles, ...funnel]);
+  } catch {
+    /* */
+  }
+  return [...boardRoles, ...funnel, ...inboxRoles];
 }
 
 function getCandidates(inbox) {
@@ -180,13 +267,23 @@ function getCandidates(inbox) {
 }
 
 export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {}) {
+  // A blank query makes norm(title).includes(norm('')) true, so roles.find returns roles[0] (a sample
+  // seed) and --propose would rank real candidates against it — the exact harm the "No roles[0] fallback"
+  // guard below prevents. Reject blank up front (mirrors the no-role error shape).
+  if (!norm(roleTitleOrId)) return { error: 'no role', query: roleTitleOrId };
   const board = loadBoard();
   const inbox = loadInbox ? loadInbox() : { items: [] };
   const roles = getStartupRoles(board);
   const cands = getCandidates(inbox);
 
-  const role = roles.find(r => norm(r.title).includes(norm(roleTitleOrId)) || r.id === roleTitleOrId) || roles[0];
-  if (!role) return { error: 'no role' };
+  const role = roles.find(
+    (r) =>
+      r.id === roleTitleOrId ||
+      norm(r.title).includes(norm(roleTitleOrId)) ||
+      norm(r.company || '').includes(norm(roleTitleOrId)),
+  );
+  // No roles[0] fallback — that ranked real candidates against a sample seed
+  if (!role) return { error: 'no role', query: roleTitleOrId };
 
   const scored = cands.map(c => ({
     candidate: c,
@@ -213,6 +310,42 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   }
 
   return { role, matches: scored, proposed: propose ? proposed : undefined };
+}
+
+/**
+ * Candidate-centric match: score one inbox submission against all startup roles.
+ * Proposes pairs above threshold (sample:true for board seeds / non-real roles).
+ */
+export function proposeForCandidate(candId, { threshold = 60, propose = true } = {}) {
+  const board = loadBoard();
+  const inbox = loadInbox ? loadInbox() : { items: [] };
+  const cand = (inbox.items || []).find(
+    (i) => i.id === candId || extractEmail(i.raw || {}, i.form) === candId,
+  );
+  if (!cand) return { ok: false, error: `submission not found: ${candId}` };
+  const roles = getStartupRoles(board);
+  const ranked = [];
+  const proposed = [];
+  for (const role of roles) {
+    const score = scoreMatch(role, cand.raw || cand);
+    if (score < threshold) continue;
+    ranked.push({ roleId: role.id || role.title, title: role.title, score });
+    if (!propose) continue;
+    try {
+      const pair = proposePair({
+        roleId: role.id || role.title,
+        candId: cand.id || candId,
+        score: Math.min(1, score / 100),
+        reasons: [`funnel-match score=${score}`],
+        actor: 'funnel-match',
+        sample: role.real !== true && role.source !== 'funnel',
+      });
+      proposed.push({ pairId: pair.pairId, roleId: pair.roleId, score, state: pair.state });
+    } catch (e) {
+      proposed.push({ error: String(e.message || e), roleId: role.id || role.title });
+    }
+  }
+  return { ok: true, candId, ranked, proposed: propose ? proposed : undefined };
 }
 
 function markStartupInterest(roleId, candidateId) {
@@ -430,6 +563,13 @@ function main() {
     const doPropose = args.includes('--propose');
     const res = suggestMatches(q, { propose: doPropose });
     console.log(JSON.stringify(res, null, 2));
+    return;
+  }
+  if (cmd === 'propose-for-candidate' || cmd === 'for-candidate') {
+    const candId = args[1] || '';
+    const thr = Number((args.find((a) => a.startsWith('--threshold=')) || '--threshold=60').split('=')[1]);
+    const doPropose = !args.includes('--rank-only');
+    console.log(JSON.stringify(proposeForCandidate(candId, { threshold: thr, propose: doPropose }), null, 2));
     return;
   }
   if (cmd === 'startup-interest') {
