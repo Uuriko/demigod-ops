@@ -72,8 +72,15 @@ function connect(wsUrl) {
       const i = id++;
       try {
         const p = new Promise((resolve, reject) => {
-          pending.set(i, (m) => (m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result || {})));
-          setTimeout(() => reject(new Error('timeout ' + method)), timeout);
+          pending.set(i, (m) => {
+            pending.delete(i); // drop the handler so a late reply can't invoke a settled promise
+            if (m.error) reject(new Error(JSON.stringify(m.error)));
+            else resolve(m.result || {});
+          });
+          setTimeout(() => {
+            pending.delete(i); // don't leak the stale entry across a retry
+            reject(new Error('timeout ' + method));
+          }, timeout);
         });
         ws.send(JSON.stringify({ id: i, method, params }));
         return await p;
@@ -123,10 +130,15 @@ async function main() {
     });
     const home = homeR.result?.value || homeR;
 
-    await send('Runtime.evaluate', {
-      expression: `document.querySelector('a.premium-btn.is-talent,[data-demigod-modal=startup]')?.click(); 'ok'`,
-      returnByValue: true,
-    });
+    await send(
+      'Runtime.evaluate',
+      {
+        expression: `document.querySelector('a.premium-btn.is-talent,[data-demigod-modal=startup]')?.click(); 'ok'`,
+        returnByValue: true,
+      },
+      20000,
+      1, // mutating (click) — do NOT retry: a timeout doesn't cancel the first click (codex 252)
+    );
     await new Promise((r) => setTimeout(r, 1000));
 
     const wizR = await send('Runtime.evaluate', {
@@ -150,8 +162,10 @@ async function main() {
     });
     const wiz = wizR.result?.value || wizR;
 
-    const reR = await send('Runtime.evaluate', {
-      expression: `(() => {
+    const reR = await send(
+      'Runtime.evaluate',
+      {
+        expression: `(() => {
         const counts = [];
         for (let i = 0; i < 3; i++) {
           document.querySelector('[data-demigod-modal=startup]')?.click();
@@ -160,8 +174,11 @@ async function main() {
         }
         return counts;
       })()`,
-      returnByValue: true,
-    });
+        returnByValue: true,
+      },
+      20000,
+      1, // mutating (click + dispatch loop) — do NOT retry (non-idempotent, codex 252)
+    );
     const reopenHeads = reR.result?.value || reR;
 
     ws.close();

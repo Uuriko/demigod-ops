@@ -322,7 +322,7 @@ export async function buildControlPlane() {
   // Prefer busy cache — only hit dash if stale (>30s)
   let dashStatus = safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
   const dashAge = dashStatus?.at ? Date.now() - Date.parse(dashStatus.at) : Infinity;
-  if (!dashStatus?.at || dashAge > 30000) {
+  if (!dashStatus?.at || dashAge > 30000 || dashAge < -60000) {
     // Prefer slim status for speed
     dashStatus =
       (await fetchJson(`${DASH}/api/status?slim=1`)) ||
@@ -332,7 +332,7 @@ export async function buildControlPlane() {
   const [webflow, review, hygiene, matchesBusy, ponytail] = await Promise.all([
     Promise.resolve(
       safeJsonFile(path.join(BUSY, 'webflow-status.json')) ||
-        (dashAge < 60000 ? null : fetchJson(`${DASH}/api/webflow`)),
+        (dashAge >= -60000 && dashAge < 60000 ? null : fetchJson(`${DASH}/api/webflow`)),
     ),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'review-latest.json'))),
     Promise.resolve(safeJsonFile(path.join(BUSY, 'laptop-hygiene.json'))),
