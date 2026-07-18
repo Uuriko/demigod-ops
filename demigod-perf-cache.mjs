@@ -89,7 +89,11 @@ export function readJsonIfFresh(filePath, maxAgeSec) {
 /** Compact write — no pretty indent (hot path) */
 export function compactWriteJson(filePath, obj) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(obj) + '\n');
+  // Atomic (temp+rename), same as writeJsonAuto — an exported JSON writer must not leave a torn file
+  // for a concurrent reader, and a non-atomic twin next to the atomic one is a footgun.
+  const tmp = `${filePath}.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(obj) + '\n');
+  fs.renameSync(tmp, filePath);
 }
 
 /** Pretty only when DEMIGOD_JSON_PRETTY=1 */
