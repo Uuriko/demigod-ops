@@ -34,6 +34,7 @@ if (ship || wizard) {
     ['demigod-verify-board-honesty.test.mjs'],
     ['demigod-demand.test.mjs'],
     ['demigod-board-publish.test.mjs'],
+    ['demigod-foot-smoke.test.mjs'], // #40 — locks foot-smoke's parse+boot fail-capability (outage class)
     ['demigod-verify-source.mjs'],
     ['demigod-verify-live.mjs'],
     ['demigod-verify-receipt.mjs'],

@@ -85,6 +85,7 @@ const STEPS = [
   { name: 'honesty-board', script: 'demigod-verify-board-honesty.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'honesty-demand', script: 'demigod-demand.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'honesty-scrub', script: 'demigod-board-publish.test.mjs', timeout: 45000, out: null, args: ['--test'] },
+  { name: 'foot-smoke-poison', script: 'demigod-foot-smoke.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'source', script: 'demigod-verify-source.mjs', timeout: 45000, out: 'DEMIGOD-VERIFY-SOURCE.json' },
   { name: 'live', script: 'demigod-verify-live.mjs', timeout: 60000, out: 'DEMIGOD-VERIFY-LIVE.json' },
   { name: 'designSnap', script: 'demigod-design-snap.mjs', timeout: 90000, out: null },
