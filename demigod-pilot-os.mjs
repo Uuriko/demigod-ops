@@ -21,6 +21,7 @@ import {
   atomicWrite,
   opt,
 } from './demigod-agent-tools-lib.mjs';
+import { isRealReceipt } from './demigod-submissions-lib.mjs';
 
 function multi(args, name) {
   const out = [];
@@ -91,7 +92,11 @@ function boardHonestyOk() {
   try {
     const board = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-BOARD.json'), 'utf8'));
     const realRoles = (board.roles || []).filter((r) => r && r.sample === false);
-    const realReceipts = (board.receipts || []).filter((r) => r && r.sample === false);
+    // isRealReceipt (status==='delivered'), NOT sample===false: mintReceipt sets no sample field,
+    // so a real delivered receipt (sample:undefined) would slip a ===false check and this honesty
+    // assertion would undercount to 0 (false-green no_board_lie). Same canonical predicate as the
+    // write-guard + computeSignal (#33/#439). Roles keep ===false — no role path leaves sample unset (#32/c444).
+    const realReceipts = (board.receipts || []).filter(isRealReceipt);
     return { ok: realRoles.length === 0 && realReceipts.length === 0, realRoles: realRoles.length, realReceipts: realReceipts.length };
   } catch {
     return { ok: false, realRoles: null, realReceipts: null };
