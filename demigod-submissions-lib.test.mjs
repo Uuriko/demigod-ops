@@ -157,6 +157,20 @@ test('PII SoR writers create files 0600', () => {
   assert.equal(fs.statSync(BOARD_PATH).mode & 0o077, 0, 'saveBoard must create BOARD_PATH 0600');
 });
 
+// Receipt write-guard: a real delivered receipt (mintReceipt sets no `sample` field, so sample===undefined)
+// must be refused without DEMIGOD_ALLOW_REAL_RECEIPTS — the guard keys on status==='delivered', not the
+// sample===false proxy the minted receipt slipped through (caught only downstream before this fix).
+test('saveBoard refuses a real delivered receipt without the allow-real env', async () => {
+  const { mintReceipt } = await import('./demigod-board-lib.mjs');
+  const real = { roles: [], candidates: [], receipts: [] };
+  mintReceipt(real, { intros: 2, status: 'delivered', note: '' }); // sample:undefined, hex hash
+  delete process.env.DEMIGOD_ALLOW_REAL_RECEIPTS; delete process.env.DEMIGOD_ALLOW_REAL_ROLES;
+  assert.throws(() => saveBoard(real, { reason: 'test-real-receipt' }), /REAL_RECEIPTS_REFUSED|realReceipts/);
+  // a sample-labeled receipt (note says "Sample") stays writable — not a real proof claim
+  const sample = { roles: [], candidates: [], receipts: [{ hash: 'demo004', number: 4, status: 'delivered', note: 'Sample receipt', intros: 3 }] };
+  assert.doesNotThrow(() => saveBoard(sample, { reason: 'test-sample-receipt' }));
+});
+
 // #23 regression guard: anonymize* strips STRUCTURED PII fields, but the free-text skills/experience/
 // stack-needs are concatenated into the published summary/tags/skills — scrubPII must redact email/phone
 // there too, or a candidate/founder typing contact info into a free-text field leaks it to the live board.

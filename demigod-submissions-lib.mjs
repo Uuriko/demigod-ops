@@ -610,8 +610,12 @@ function persistBoardCore(board, opts = {}) {
   filtered.at = new Date().toISOString();
   const roles = filtered.roles || [];
   const realRoles = roles.filter((r) => r && r.sample === false);
+  // Match computeSignal/board-honesty's definition of a real proof claim (status==='delivered'),
+  // NOT sample===false: mintReceipt sets no `sample` field, so a real delivered receipt has
+  // sample===undefined and slipped the old ===false guard — writing silently, caught only by the
+  // downstream gate. Keying on delivered blocks it at write-time, matching the honesty invariant.
   const realReceipts = (filtered.receipts || []).filter(
-    (r) => r && r.sample === false && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || ''),
+    (r) => r && r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || ''),
   );
   if (roles.length > 3 && !opts.allowOverCap) {
     filtered.roles = roles.slice(0, 3);
