@@ -29,6 +29,11 @@ if (ship || wizard) {
     ['demigod-verify-loop-state.mjs'],
     ['demigod-live-lib.test.mjs'],
     ['demigod-board-lib.test.mjs'],
+    // Honesty poison-tests (c458 vein) — a poison-test that no gate runs locks nothing. These assert the
+    // board-honesty gate, the anti-fake-DM attestation gate, and the public-board scrub stay fail-capable.
+    ['demigod-verify-board-honesty.test.mjs'],
+    ['demigod-demand.test.mjs'],
+    ['demigod-board-publish.test.mjs'],
     ['demigod-verify-source.mjs'],
     ['demigod-verify-live.mjs'],
     ['demigod-verify-receipt.mjs'],
