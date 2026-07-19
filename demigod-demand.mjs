@@ -134,7 +134,7 @@ function parseQueue(md) {
   return rows;
 }
 
-function parseSendLog(text) {
+export function parseSendLog(text) {
   const lines = text
     .split('\n')
     .map((l) => l.trim())
@@ -960,7 +960,10 @@ function buildStatus() {
       pending: pending.length,
       sentConfirmedInQueue: sentFromQueue.length,
       top3,
+      // Full pending set (not just top3). Glance surfaces use this for
+      // quarantine↔queue overlap so double-DM risk is not understated.
       pendingNames: pending.map((p) => p.name),
+      pendingHandles: pending.map((p) => p.handle).filter(Boolean),
       ghostHandlesOutsideQueue: ghostHandles,
     },
     drafts: {
@@ -1107,7 +1110,7 @@ function loadDraftBody(row) {
  * Draft quality flags (agent-side). Never auto-rewrites body — surfaces issues only.
  * @param {{ name?: string, company?: string, handle?: string, body?: string|null }} row
  */
-function draftHygiene(row) {
+export function draftHygiene(row) {
   const flags = [];
   const raw = String(row.body || '');
   // Ready-email files carry three known metadata headers. Strip only those
@@ -1121,9 +1124,13 @@ function draftHygiene(row) {
   // positive on the exact drafts queued for the three highest-priority warm leads, which makes
   // three good drafts look broken and buries any real flag in noise.
   const readyMetadata = /^\s*#\s*(?:channel|company|log send|name|generated)\s*:/i;
+  // Funnel drafts (demigod-outreach/funnel-drafts/*.txt) emit plain To:/Lead-Id:/Subject:
+  // headers — same orphan_fragment trap as # name: (≤5 words, <40 chars, no terminal punct).
+  // Whitelist only those three keys; never strip arbitrary "Key:" lines (real body copy).
+  const funnelMetadata = /^\s*(?:To|Lead-Id|Subject)\s*:/i;
   const body = raw
     .split('\n')
-    .filter((l) => !readyMetadata.test(l) && !/^\s*\/\//.test(l))
+    .filter((l) => !readyMetadata.test(l) && !funnelMetadata.test(l) && !/^\s*\/\//.test(l))
     .join('\n')
     .trim();
   const name = String(row.name || '').trim();
@@ -1196,9 +1203,10 @@ function draftHygiene(row) {
     });
   }
 
-  const hi = firstLine.match(/^\s*hi\s+([^,!\n]+)/i);
+  // Stop greeter at em/en dash (funnel: "Hi Aravind — saw your…") so body after dash is not part of name
+  const hi = firstLine.match(/^\s*hi\s+([^,!\n—–]+)/i);
   if (hi) {
-    const greeter = hi[1].trim();
+    const greeter = hi[1].trim().replace(/\s*[-–—]\s*$/, '').trim();
     const greeterLc = greeter.toLowerCase();
     // "Hi —" / "Hi there" ok
     if (greeter === '—' || greeter === '-' || /^(there|friend|team)$/i.test(greeter)) {
@@ -1216,6 +1224,18 @@ function draftHygiene(row) {
         id: 'greet_handle',
         sev: 'warn',
         msg: `Opens "Hi ${greeter}" (raw X handle) — use a first name; a handle reads as mail-merge`,
+      });
+    } else if (
+      greeter.length > 40 ||
+      /\$|\/\s*hr|from\s*\$?\d|san francisco from|fractional cto in|open roles?|looking for/i.test(
+        greeter,
+      )
+    ) {
+      // Funnel talent scrapes often put SERP titles in name → "Hi Fractional CTO… $60/hr"
+      flags.push({
+        id: 'greet_seo_title',
+        sev: 'warn',
+        msg: `Opens "Hi ${greeter.slice(0, 50)}" (SEO/pricing title) — use a first name`,
       });
     } else if (looksLikePersonName(name) && looksLikePersonName(greeter) && greeterLc !== name.toLowerCase()) {
       // Exact-recipient filename lookup prevents Ann -> joann.txt, but cannot
@@ -1429,11 +1449,17 @@ const map = {
   templates: cmdTemplates,
 };
 
-if (!map[cmd]) {
-  console.error('usage: bin/dg demand status|queue|draft|send|log|templates|help');
-  process.exitCode = 2;
-} else {
-  // Do not force-exit after console output. Captured invocations (including the
-  // demand canary) need Node to flush stdout/stderr before the process closes.
-  process.exitCode = map[cmd]() ?? 0;
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  if (!map[cmd]) {
+    console.error('usage: bin/dg demand status|queue|draft|send|log|templates|help');
+    process.exitCode = 2;
+  } else {
+    // Do not force-exit after console output. Captured invocations (including the
+    // demand canary) need Node to flush stdout/stderr before the process closes.
+    process.exitCode = map[cmd]() ?? 0;
+  }
 }
