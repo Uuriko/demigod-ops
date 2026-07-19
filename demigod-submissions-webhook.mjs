@@ -124,9 +124,11 @@ const server = http.createServer(async (req, res) => {
       form: result.record.form,
     }));
   } catch (e) {
+    // Log the detail server-side; return a generic error to the client. Echoing e.message leaked
+    // internal detail to callers (e.g. board_write_refused honesty-gate text, fs paths).
     console.error('[demigod-webhook]', e);
     res.writeHead(500, { 'Content-Type': 'application/json', ...cors });
-    res.end(JSON.stringify({ ok: false, error: String(e.message || e) }));
+    res.end(JSON.stringify({ ok: false, error: 'server_error' }));
   }
 });
 
