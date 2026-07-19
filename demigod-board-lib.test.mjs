@@ -8,6 +8,7 @@ import {
   appendPilot,
   latestReceipt,
   mintReceipt,
+  computeSignal,
 } from './demigod-board-lib.mjs';
 
 describe('demigod-board-lib', () => {
@@ -22,6 +23,25 @@ describe('demigod-board-lib', () => {
     assert.equal(mintReceipt({ receipts: [] }, { intros: 3.7 }).intros, 3);
     assert.equal(mintReceipt({ receipts: [] }, { intros: 'abc' }).intros, 0);
     assert.equal(mintReceipt({ receipts: [] }, { intros: 3 }).intros, 3);
+  });
+
+  // computeSignal feeds board-honesty AND signal-theater's public marketing copy ("N real SF roles ·
+  // M intros delivered"). It once counted seeds as real because an id-prefix filter missed sample:true
+  // seeds with random ids (fixed via isSeedRole) — this locks that: seeds must never inflate realRoles,
+  // sample/demo receipts must never inflate realReceipts. A regression would put fake proof on the site.
+  it('computeSignal counts only real roles/receipts (seeds and samples never inflate)', () => {
+    // regression-lock: a seed with sample:true but a RANDOM id (not role-seed*) must NOT count
+    const seedRandomId = computeSignal({ roles: [{ id: 'role-xyz123', sample: true }], receipts: [] });
+    assert.equal(seedRandomId.realRoles, 0, 'sample:true seed (random id) must not count as a real role');
+    // a genuine non-seed role counts
+    const realRole = computeSignal({ roles: [{ id: 'role-real1', sample: false }], receipts: [] });
+    assert.equal(realRole.realRoles, 1);
+    // mixed: only the real one counts
+    const mixed = computeSignal({ roles: [{ id: 'role-xyz', sample: true }, { id: 'role-real2', sample: false }], receipts: [] });
+    assert.equal(mixed.realRoles, 1);
+    // receipts: sample/demo do not count, a real delivered one does
+    assert.equal(computeSignal({ roles: [], receipts: [{ hash: 'demo004', status: 'delivered', note: 'Sample receipt' }] }).realReceipts, 0);
+    assert.equal(computeSignal({ roles: [], receipts: [{ hash: 'a1b2c3', status: 'delivered', note: '' }] }).realReceipts, 1);
   });
 
   it('builds ledger notes for pilots and seeds', () => {
