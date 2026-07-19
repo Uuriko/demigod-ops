@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { pathToFileURL } from 'url';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { BOARD_PATH, loadBoard, saveBoard, isRealReceipt } from './demigod-submissions-lib.mjs';
 import { defaultBoardExtras } from './demigod-board-lib.mjs';
@@ -94,4 +95,10 @@ function inferStage(raw = {}) {
   return `${stage} · AI`;
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+// Run only when invoked as a CLI (`node demigod-board-publish.mjs`), never on import — importing this
+// module used to fire main() and do a real CDN upload (hit accidentally twice: autopilot c439, c447).
+// All real callers spawn it as a subprocess; nothing imports it. Guarding also makes the public-scrub
+// unit-testable via import without side effects. (backlog #36)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}
