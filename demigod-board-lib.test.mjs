@@ -7,6 +7,7 @@ import {
   ledgerRoles,
   appendPilot,
   latestReceipt,
+  mintReceipt,
 } from './demigod-board-lib.mjs';
 
 describe('demigod-board-lib', () => {
@@ -14,6 +15,13 @@ describe('demigod-board-lib', () => {
     assert.equal(isSeedRole({ id: 'role-seed1' }), true);
     assert.equal(isSeedRole({ sample: true }), true);
     assert.equal(isSeedRole({ id: 'role-abc', pilot: true }), false);
+  });
+
+  it('mintReceipt sanitizes intros (proof claim, no negative/fractional/NaN)', () => {
+    assert.equal(mintReceipt({ receipts: [] }, { intros: -5 }).intros, 0);
+    assert.equal(mintReceipt({ receipts: [] }, { intros: 3.7 }).intros, 3);
+    assert.equal(mintReceipt({ receipts: [] }, { intros: 'abc' }).intros, 0);
+    assert.equal(mintReceipt({ receipts: [] }, { intros: 3 }).intros, 3);
   });
 
   it('builds ledger notes for pilots and seeds', () => {

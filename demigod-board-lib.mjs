@@ -33,10 +33,13 @@ export function nextReceiptNumber(board = {}) {
 export function mintReceipt(board = {}, { intros = 3, status = 'delivered', note = '' } = {}) {
   const number = nextReceiptNumber(board);
   const hash = crypto.randomBytes(6).toString('hex');
+  // intros is a proof claim ("N intros delivered") — reject negative/fractional/NaN like appendPilot
+  // (c302). Number(intros)||0 let -5 and 3.7 through: `--intros=-5` would mint "−5 intros delivered".
+  const nIntros = Number(intros);
   const receipt = {
     hash,
     number,
-    intros: Number(intros) || 0,
+    intros: Number.isFinite(nIntros) && nIntros > 0 ? Math.floor(nIntros) : 0,
     status,
     note: String(note || '').trim(),
     at: new Date().toISOString(),
