@@ -111,6 +111,7 @@ DEMIGOD-SUBMISSIONS-INBOX.json.corrupt.*
 # testimonials. template-dm.md (no PII) is left trackable on purpose.
 demigod-outreach/founders.csv
 demigod-outreach/ready-emails/
+demigod-outreach/funnel-drafts/
 demigod-outreach/blast-log.json
 DEMIGOD-PROOF-LOG.json
 DEMIGOD-PROOF-LOG.json.corrupt.*
