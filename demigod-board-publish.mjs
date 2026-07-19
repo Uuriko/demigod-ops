@@ -38,6 +38,20 @@ function seedIfEmpty(board) {
   return board;
 }
 
+// Derive the public board from the local one: redact private pilots (PII) and FORCE HONEST for the
+// pre-services / no-real-receipts phase. Zeroing the signal isn't enough — strip the real OBJECTS too,
+// or a real role (sample:false) / receipt (delivered) on the local board would ride into the public
+// artifact while signal claims 0 (a self-contradicting board; the direct receipt-mint->board-publish
+// path skips the board-honesty gate). Keep only sample objects. Exported for the poison-test.
+export function scrubPublicBoard(board) {
+  const publicBoard = JSON.parse(JSON.stringify(board));
+  delete publicBoard.pilots;
+  publicBoard.signal = { realRoles: 0, realReceipts: 0 };
+  if (publicBoard.roles) publicBoard.roles = publicBoard.roles.filter((r) => r && r.sample !== false).slice(0, 2);
+  if (publicBoard.receipts) publicBoard.receipts = publicBoard.receipts.filter((r) => !isRealReceipt(r));
+  return publicBoard;
+}
+
 async function main() {
   let board = loadBoard();
   board = seedIfEmpty(board);
@@ -51,19 +65,9 @@ async function main() {
   // Always keep full local board (with private pilots)
   fs.writeFileSync(SRC, JSON.stringify(board, null, 2));
 
-  // Redact private pilots before public CDN upload (PII leak fix)
-  const publicBoard = JSON.parse(JSON.stringify(board));
-  delete publicBoard.pilots;
+  // Redact private pilots + force-honest the public artifact (see scrubPublicBoard).
+  const publicBoard = scrubPublicBoard(board);
   const pubPath = path.join(ROOT, 'DEMIGOD-BOARD-PUBLIC.json');
-
-// FORCE HONEST for pre-services / no real receipts phase (per DEMIGOD rules). Zeroing the signal
-// isn't enough: strip the real OBJECTS too, or a real role (sample:false) / receipt (delivered) on the
-// local board would ride into the public artifact while signal claims 0 — a self-contradicting board
-// (the direct receipt-mint->board-publish path skips the board-honesty gate). Keep only sample objects.
-publicBoard.signal = {realRoles: 0, realReceipts: 0};
-if (publicBoard.roles) publicBoard.roles = publicBoard.roles.filter((r) => r && r.sample !== false).slice(0, 2);
-if (publicBoard.receipts) publicBoard.receipts = publicBoard.receipts.filter((r) => !isRealReceipt(r));
-
   fs.writeFileSync(pubPath, JSON.stringify(publicBoard));
 
   const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${pubPath}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });
