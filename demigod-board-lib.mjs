@@ -1,7 +1,7 @@
 /** Shared board JSON helpers — signal, receipts, pilots, ghost roles. */
 import fs from 'fs';
 import crypto from 'crypto';
-import { BOARD_PATH, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
+import { BOARD_PATH, loadBoard, saveBoard, isRealReceipt } from './demigod-submissions-lib.mjs';
 
 export function weekLabel(d = new Date()) {
   const start = new Date(d.getFullYear(), 0, 1);
@@ -14,9 +14,7 @@ export function computeSignal(board = {}) {
   // isSeedRole (not a bare id regex) — seeds carry sample:true with random ids, so an
   // id-prefix test counted every seed as real and poisoned signal.realRoles.
   const roles = (board.roles || []).filter((r) => !isSeedRole(r));
-  const realReceipts = (board.receipts || []).filter(
-    (r) => r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || '')
-  ).length;
+  const realReceipts = (board.receipts || []).filter(isRealReceipt).length;
   return {
     score: null,
     realRoles: roles.length,

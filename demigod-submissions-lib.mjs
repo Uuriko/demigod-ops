@@ -592,6 +592,17 @@ function realReceiptsEnvOk() {
   );
 }
 
+/**
+ * A receipt that makes a real proof claim (status==='delivered', not sample/demo-labeled).
+ * Single source of truth reused by the write-guard here AND computeSignal (board-lib) — three
+ * slightly-different copies of this predicate drifted before (write-guard used sample===false while
+ * computeSignal used status==='delivered'), which let a real minted receipt slip the guard (#439).
+ * board-honesty's line-52 "delivered without sample label" is a DIFFERENT (labeling) check — leave it.
+ */
+export function isRealReceipt(r) {
+  return !!r && r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || '');
+}
+
 /** Core persist — call only while holding BOARD_LOCK (via saveBoard/writeBoard). */
 function persistBoardCore(board, opts = {}) {
   const actor = opts.actor || process.env.USER || process.env.DEMIGOD_ACTOR || 'agent';
@@ -610,13 +621,7 @@ function persistBoardCore(board, opts = {}) {
   filtered.at = new Date().toISOString();
   const roles = filtered.roles || [];
   const realRoles = roles.filter((r) => r && r.sample === false);
-  // Match computeSignal/board-honesty's definition of a real proof claim (status==='delivered'),
-  // NOT sample===false: mintReceipt sets no `sample` field, so a real delivered receipt has
-  // sample===undefined and slipped the old ===false guard — writing silently, caught only by the
-  // downstream gate. Keying on delivered blocks it at write-time, matching the honesty invariant.
-  const realReceipts = (filtered.receipts || []).filter(
-    (r) => r && r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || ''),
-  );
+  const realReceipts = (filtered.receipts || []).filter(isRealReceipt);
   if (roles.length > 3 && !opts.allowOverCap) {
     filtered.roles = roles.slice(0, 3);
   }
