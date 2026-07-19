@@ -33,8 +33,9 @@ export function nextReceiptNumber(board = {}) {
 export function mintReceipt(board = {}, { intros = 3, status = 'delivered', note = '' } = {}) {
   const number = nextReceiptNumber(board);
   const hash = crypto.randomBytes(6).toString('hex');
-  // intros is a proof claim ("N intros delivered") — reject negative/fractional/NaN like appendPilot
-  // (c302). Number(intros)||0 let -5 and 3.7 through: `--intros=-5` would mint "−5 intros delivered".
+  // intros is a proof claim ("N intros delivered") — coerce to a safe whole number like appendPilot
+  // (c302): negative/NaN → 0, positive fractional floored. Number(intros)||0 let -5 and 3.7 through:
+  // `--intros=-5` would mint "−5 intros delivered".
   const nIntros = Number(intros);
   const receipt = {
     hash,
@@ -101,8 +102,9 @@ export function appendPilot(board = {}, {
   stageType = 'Pre-seed · SF startup',
   withReceipt = true,
 } = {}) {
-  // intros is a delivered-count: reject non-finite / negative / fractional so a bad --intros
-  // (Infinity, 1e999, -5, 3.7) can't mint "Infinity intros delivered" text or a JSON-null intros field.
+  // intros is a delivered-count: coerce a bad --intros to a safe whole number so it can't mint
+  // "Infinity intros delivered" text or a JSON-null intros field. Non-finite/negative/NaN → 0;
+  // a positive fractional is floored (3.7 → 3), not rejected — don't "fix" this to isInteger.
   const n = Number(intros);
   const introN = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   const roleOutcome = String(outcome || '').trim()
