@@ -110,7 +110,7 @@ DEMIGOD-SUBMISSIONS-INBOX.json.corrupt.*
 # holds real contact data + the actual DM drafts + send history; the proof log holds delivery
 # testimonials. template-dm.md (no PII) is left trackable on purpose.
 demigod-outreach/founders.csv
-demigod-outreach/ready-emails/
+demigod-outreach/ready-emails*/
 demigod-outreach/funnel-drafts/
 demigod-outreach/blast-log.json
 DEMIGOD-PROOF-LOG.json
