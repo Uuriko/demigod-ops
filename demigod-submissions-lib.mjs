@@ -388,7 +388,11 @@ export function slugId(prefix) {
 function scrubPII(text = '') {
   return String(text)
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[contact removed]')
-    .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]');
+    .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]')
+    // A LinkedIn profile URL in a free-text field de-anonymizes the candidate (defeats anonymize*).
+    // /in/ and /pub/ are always personal profiles — redact. (github/twitter left alone: repo/org refs
+    // there are legit skill signal, and over-scrubbing them loses matching value.)
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/(?:in|pub)\/[\w%-]+/gi, '[profile removed]');
 }
 
 export function inferStageType(text = '') {

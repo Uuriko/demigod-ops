@@ -189,3 +189,13 @@ test('anonymize scrubs free-text email/phone (#23 regression)', () => {
   assert.ok(!rj.includes('415-555-9999'), 'role free-text phone must be scrubbed');
   assert.ok(/Seed|SaaS/.test(rj), 'useful role skills must be kept');
 });
+
+// A LinkedIn URL in a free-text field de-anonymizes the candidate (the structured linkedin-url field is
+// already dropped, but a typed one leaked — the c358 fix covered email/phone, not profile URLs). Redact
+// linkedin.com/in|pub; keep github/skills (repo refs are legit signal).
+test('anonymize scrubs free-text LinkedIn URL but keeps github/skills', () => {
+  const c = JSON.stringify(anonymizeCandidate({ 'skills-stack': 'React — https://www.linkedin.com/in/jane-doe-123, github.com/facebook/react' }));
+  assert.ok(!c.includes('linkedin.com/in/jane-doe-123'), 'free-text LinkedIn profile URL must be scrubbed (de-anonymizer)');
+  assert.ok(c.includes('github.com/facebook/react'), 'github repo ref must be kept (skill signal, not PII)');
+  assert.ok(c.includes('React'), 'skills must be kept');
+});
