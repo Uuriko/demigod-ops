@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { BOARD_PATH, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
+import { BOARD_PATH, loadBoard, saveBoard, isRealReceipt } from './demigod-submissions-lib.mjs';
 import { defaultBoardExtras } from './demigod-board-lib.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
@@ -55,9 +55,13 @@ async function main() {
   delete publicBoard.pilots;
   const pubPath = path.join(ROOT, 'DEMIGOD-BOARD-PUBLIC.json');
 
-// FORCE HONEST for pre-services / no real receipts phase (per DEMIGOD rules)
+// FORCE HONEST for pre-services / no real receipts phase (per DEMIGOD rules). Zeroing the signal
+// isn't enough: strip the real OBJECTS too, or a real role (sample:false) / receipt (delivered) on the
+// local board would ride into the public artifact while signal claims 0 — a self-contradicting board
+// (the direct receipt-mint->board-publish path skips the board-honesty gate). Keep only sample objects.
 publicBoard.signal = {realRoles: 0, realReceipts: 0};
-if (publicBoard.roles) publicBoard.roles = publicBoard.roles.slice(0,2);
+if (publicBoard.roles) publicBoard.roles = publicBoard.roles.filter((r) => r && r.sample !== false).slice(0, 2);
+if (publicBoard.receipts) publicBoard.receipts = publicBoard.receipts.filter((r) => !isRealReceipt(r));
 
   fs.writeFileSync(pubPath, JSON.stringify(publicBoard));
 
