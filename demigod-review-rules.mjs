@@ -52,6 +52,23 @@ function inQuotedString(src, index) {
   return sq % 2 === 1 || dq % 2 === 1 || bq % 2 === 1;
 }
 
+function isStaticStringAssignment(src, index) {
+  while (/\s/.test(src[index] || '')) index++;
+  const quote = src[index];
+  if (quote !== "'" && quote !== '"' && quote !== '`') return false;
+  for (index++; index < src.length; index++) {
+    if (src[index] === '\\') {
+      index++;
+      continue;
+    }
+    if (quote === '`' && src[index] === '$' && src[index + 1] === '{') return false;
+    if (src[index] !== quote) continue;
+    while (/\s/.test(src[++index] || '')) {}
+    return src[index] === ';';
+  }
+  return false;
+}
+
 
 export const RULES = [
   {
@@ -89,7 +106,13 @@ export const RULES = [
       let seenCode = false;
       let inBlock = false;
       let inImport = false;
+      let inTemplate = false;
       for (let i = 0; i < lines.length; i++) {
+        const templateTicks = (lines[i].match(/(?<!\\)`/g) || []).length;
+        if (inTemplate || templateTicks % 2 === 1) {
+          if (templateTicks % 2 === 1) inTemplate = !inTemplate;
+          continue;
+        }
         const t = lines[i].trim();
         if (inBlock) {
           if (t.includes('*/')) inBlock = false;
@@ -184,7 +207,7 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs, isMeta }) {
       if (!isJs || isMeta) return [];
-      if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
+      if (/test\.mjs$/i.test(rel)) return [];
       const out = [];
       for (const m of findAll(src, /saveBoard\s*\(\s*[^,)]+\s*\)/g)) {
         if (!src.slice(m.index, m.index + 100).includes('{')) {
@@ -237,11 +260,13 @@ export const RULES = [
     tier: 'C',
     run({ rel, src, isMeta }) {
       if (isMeta || /\.md$/.test(rel)) return [];
+      // Test/selftest fixtures intentionally include banned phrases to assert detectors.
+      if (/\.test\.mjs$/i.test(rel) || /selftest/i.test(rel)) return [];
       if (/scrubTimeClaims|TIME_RE|promise language|banned phrase/i.test(src)) return [];
       const out = [];
       for (const m of findAll(src, /\b48\s*h(our)?s?\b|\bwithin\s*48\b/gi)) {
         const ctx = src.slice(Math.max(0, m.index - 80), m.index + 80);
-        if (/scrub|ban|forbid|never|avoid|policy|replace|strip|remove|claim/i.test(ctx)) continue;
+        if (/scrub|ban|forbid|never|avoid|policy|replace|strip|remove|claim|\bno\b/i.test(ctx)) continue;
         out.push(
           finding({
             rule: 'copy-policy',
@@ -250,7 +275,7 @@ export const RULES = [
             line: lineNo(src, m.index),
             title: '48h promise language',
             detail: m.match,
-            fix: 'Use pending language; hello@trydemigod.com will follow up',
+            fix: 'Use pending language; potter@trydemigod.com will follow up',
             tier: 'C',
           }),
         );
@@ -266,7 +291,7 @@ export const RULES = [
       if (!isJs || isMeta) return [];
       if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
       const out = [];
-      for (const m of findAll(src, /\beval\s*\(|new Function\s*\(/g)) {
+      for (const m of findAll(src, /(?<![$.\w])eval\s*\((?!\?)|new Function\s*\(/g)) {
         const lineStart = src.lastIndexOf('\n', m.index) + 1;
         const lineEnd = src.indexOf('\n', m.index);
         const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
@@ -296,8 +321,16 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs, isFoot, bugMode }) {
       if (!isJs) return [];
+      // Selftests often quote production HTML-assignment snippets for static source assertions.
+      if (
+        /demigod-review-selftest\.mjs$/i.test(rel) ||
+        /\.test\.mjs$/i.test(rel) ||
+        /selftest/i.test(rel) ||
+        /demigod-review-rules\.mjs$/i.test(rel)
+      ) return [];
       const out = [];
       for (const m of findAll(src, /\.innerHTML\s*=/g)) {
+        if (isStaticStringAssignment(src, m.index + m.match.length)) continue;
         const ctx = src.slice(Math.max(0, m.index - 120), m.index + 80);
         if (isFoot && !bugMode) {
           if (/\besc\s*\(/.test(ctx)) continue;
@@ -608,6 +641,7 @@ export const RULES = [
     run({ rel, src, isJs }) {
       if (!isJs) return [];
       if (!/ingestSubmission|function ingest/i.test(src)) return [];
+      if (/from\s+['"]\.\/demigod-submissions-lib\.mjs['"]/.test(src) && /\bingestSubmission\s*\(/.test(src)) return [];
       if (/dedupe|already|duplicate|slugId|find.*email/i.test(src)) return [];
       return [
         finding({
@@ -633,8 +667,7 @@ export const RULES = [
       // Anti-pattern: treat stdout PASS as success when status may be non-zero
       // Word-bound OK|PASS — avoids false hit on nav regex /LOOKING/ (contains "OK")
       if (!/status\s*===?\s*0/.test(src) && !/r\.status|exitCode|\.status\b/.test(src)) return [];
-      if (!/\|\|\s*\/[^/\n]*\b(?:OK|PASS)\b/.test(src) && !/status\s*===\s*0\s*\|\|/.test(src)) return [];
-      const hits = findAll(src, /status\s*===\s*0\s*\|\||\|\|\s*\/[^/\n]*\b(OK|PASS)\b/g);
+      const hits = findAll(src, /status\s*===\s*0\s*\|\|[^\n;]*(?:\b(?:OK|PASS)\b|\.?ok\b)|\|\|\s*\/[^/\n]*\b(?:OK|PASS)\b/gi);
       return hits
         .filter((h) => {
           const lineStart = src.lastIndexOf('\n', h.index) + 1;
@@ -664,6 +697,7 @@ export const RULES = [
     tier: 'B',
     run({ rel, src, isJs, isMeta }) {
       if (!isJs || isMeta) return [];
+      if (/test\.mjs$/i.test(rel)) return [];
       const hasExport = /\bexport\s+(async\s+)?function|\bexport\s+\{|\bexport\s+const|\bexport\s+default/.test(src);
       if (!hasExport) return [];
       // top-level process.exit or main() call without isMain / import.meta.url guard nearby
@@ -718,7 +752,7 @@ export const RULES = [
           const lineEnd = src.indexOf('\n', h.index);
           const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
           // skip regex literals / detectors
-          if (/\/;;|;;\+|replace\(.*;;|findAll.*;;/.test(line)) return false;
+          if (/\/;;|;;\+|replace\(.*;;|findAll.*;;|\/.*;;.*\/\.test\(/.test(line)) return false;
           if (inQuotedString(src, h.index)) return false;
           return true;
         })

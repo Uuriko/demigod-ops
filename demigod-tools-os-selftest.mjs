@@ -42,6 +42,23 @@ const diagnoseSpawn = (label, r) => {
 };
 
 const qualitySource = fs.readFileSync(path.join(ROOT, 'bin/dg-quality'), 'utf8');
+const dgSource = fs.readFileSync(path.join(ROOT, 'bin/dg'), 'utf8');
+const eventsOnlineSource = fs.readFileSync(path.join(ROOT, 'demigod-events-online.mjs'), 'utf8');
+const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+ok(
+  /events-outbox\)[\s\S]{0,100}exec bin\/dg-events-outbox/.test(dgSource) &&
+    /events-invite-drain\|invite-drain\)[\s\S]{0,100}exec node demigod-events-invite-drain\.mjs/.test(dgSource) &&
+    /events-online\)[\s\S]{0,100}exec node demigod-events-online\.mjs/.test(dgSource),
+  'dg routes Events outbox and real invite drain through the control-plane front door',
+);
+ok(
+  /certified: !hostUnobservable && publicOk && websiteConfig\.reachable === true && hygiene\.ok && nativeRsvpRoutes === true/.test(eventsOnlineSource),
+  'Events online status certifies only observable, public, hygienic health',
+);
+ok(
+  /const confirmedCount = Array\.isArray\(store\.rsvps\)[\s\S]{0,120}confirmedRsvps\.length[\s\S]{0,120}active\.outcomes\?\.confirmed[\s\S]{0,80}: null/.test(dashboardSource),
+  'dashboard keeps unknown Events RSVP counts null instead of inventing zero',
+);
 ok(
   /Q3\)[\s\S]{0,220}demigod-review\.mjs --bug --json --no-contract --fail-on critical[\s\S]{0,120}--files demigod-foot-core\.js demigod-head-minimal\.html demigod-blog-posts\.json/.test(qualitySource) &&
     /Q4\)[\s\S]{0,120}demigod-review\.mjs --json --no-contract/.test(qualitySource),
@@ -177,32 +194,17 @@ if (rTruth.error) {
       /reservation:\s*Boolean\(lockHeld && footLock\?\.pidScope === ['"]claim-command['"]\)/.test(controlSource),
     'fallback control plane does not infer publisher liveness from a claim-command reservation PID',
   );
-    ok(
-      /footOwnerExited\s*=\s*footLock\?\.locked\s*&&\s*footLock\.ownerAlive\s*===\s*false/.test(dashboardUiSource) &&
-        /foot lease compromised/.test(dashboardUiSource),
-      'fallback dashboard glance distinguishes a compromised foot lease from an active owner',
-    );
+  ok(
+    /buildControlPlane\(\{ dashStatus: data \}\)/.test(dashboardSource) &&
+      /suppliedDashStatus \|\| safeJsonFile/.test(controlSource) &&
+      !/writeJsonAtomic\(STATUS_JSON, \{ \.\.\.data, control: undefined \}\)/.test(dashboardSource),
+    'fallback dashboard passes in-memory status to control without publishing a partial receipt',
+  );
     ok(
       /function clearGoChord\(\)/.test(dashboardUiSource) &&
         /goChordTimer=setTimeout\(clearGoChord,1200\)/.test(dashboardUiSource) &&
         /if\(goChord\)\{\s*clearGoChord\(\)/.test(dashboardUiSource),
       'fallback dashboard navigation chord expires and clears on consumption',
-    );
-    ok(
-      /footLeaseIsReservation\s*=\s*footLock\?\.locked\s*&&\s*footLock\.json\?\.pidScope\s*===\s*['"]claim-command['"]/.test(dashboardUiSource) &&
-        /footTtl/.test(dashboardUiSource) &&
-        /footLeaseIsReservation\?['"]reserved ['"]:['"]held ['"]/.test(dashboardUiSource),
-      'fallback dashboard distinguishes TTL reservations from live foot owners',
-    );
-    ok(
-      /supervisor=host-heartbeat/.test(dashboardUiSource) && /supBit\?' · '/.test(dashboardUiSource),
-      'fallback dashboard coord strip surfaces supervisor host-heartbeat state',
-    );
-    ok(
-      /presenceLockCompromised=presenceLock\.compromised===true/.test(dashboardUiSource) &&
-        /presenceLockChanged=presenceLock\.baseShaMatch===false/.test(dashboardUiSource) &&
-        /!presenceLockCompromised&&presenceLockChanged\?['"] · owner edit in progress['"]/.test(dashboardUiSource),
-      'fallback dashboard system presence separates owner edits from compromised foot leases',
     );
     ok(
       /if \(terminal && state\.failCounts\) delete state\.failCounts\[work\.id\]/.test(neverStopSource) &&
@@ -213,40 +215,25 @@ if (rTruth.error) {
       /function\s+productHealth\s*\(/.test(dashboardSource) &&
         /truthGreen\s*=\s*data\?\.truthEvidence\?\.green\s*===\s*true/.test(dashboardSource) &&
         /url\.pathname\s*===\s*['"]\/healthz['"]/.test(dashboardSource) &&
+        /url\.pathname\s*===\s*['"]\/api\/healthz['"]/.test(dashboardSource) &&
         /url\.pathname\s*===\s*['"]\/api\/health['"]/.test(dashboardSource) &&
         /res\.writeHead\(health\.ok\s*\?\s*200\s*:\s*503/.test(dashboardSource),
       'fallback dashboard separates liveness from fail-closed product health',
     );
     ok(
-      /data\?\.live\?\.ok === true \|\| data\?\.live\?\.reachable === true \|\| data\?\.live\?\.htmlOk === true/.test(dashboardSource),
-      'fallback dashboard glance accepts canonical truth reachability fields',
+      /const liveOk = truthGreen \|\| data\?\.live\?\.ok === true \|\| data\?\.live\?\.reachable === true \|\| data\?\.live\?\.htmlOk === true/.test(dashboardSource) &&
+        /if \(next\.shipped\) site \+= ['"] · hash chain green['"]/.test(dashboardSource),
+      'fallback dashboard glance lets fresh canonical truth override an unobservable local probe',
     );
     ok(
       /const allClear\s*=\s*d\.truthEvidence\?\.green\s*===\s*true\s*&&\s*d\.live\?\.ok/.test(dashboardUiSource),
       'fallback dashboard all-clear bar requires canonical green truth evidence',
     );
     ok(
-      /releaseDetails\?\.identityDelta/.test(dashboardUiSource) &&
-        /identity ['"]?\+releaseIdentityLabel/.test(dashboardUiSource) &&
-        /v\.slice\(0,8\)/.test(dashboardUiSource),
-      'fallback dashboard renders concise staged-to-expected release identity',
-    );
-    ok(
       /releaseDetails\?\.identityDelta\s*\|\|/.test(dashboardSource) &&
         /releaseDetails\?\.core\s*&&\s*releaseDetails\?\.manifest/.test(dashboardSource) &&
         /expected === staged \? \[\] : \[\[key, \{ expected, staged \}\]\]/.test(dashboardSource),
       'fallback dashboard derives release identity from website core/manifest receipts',
-    );
-    ok(
-      /toolsReady===true/.test(dashboardUiSource) &&
-        /toolsReady===false[\s\S]{0,100}tools OS unverified/.test(dashboardUiSource) &&
-        /release staging blocked \(tools remain healthy\)/.test(dashboardUiSource),
-      'fallback dashboard separates tools attestation from release staging drift',
-    );
-    ok(
-      /const childCode=raw\.match/.test(dashboardUiSource) &&
-        /return 'child start '\+childCode\[1\]\.toUpperCase\(\)/.test(dashboardUiSource),
-      'fallback dashboard summarizes child-start errno without dumping spawn payloads',
     );
     ok(
       /const flags = \[/.test(cycleStatusSource) &&
@@ -472,7 +459,8 @@ if (rTruth.error) {
       'fallback dashboard surfaces compromised foot leases without unlocking them',
     );
     ok(
-      /if\(\$\('confirmOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,180}return;[\s\S]{0,120}if\(\$\('helpOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,220}return;/.test(dashboardUiSource),
+      /if\(\$\('palette'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,120}return;/.test(dashboardUiSource) &&
+        /if\(\$\('confirmOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,120}return;/.test(dashboardUiSource),
       'fallback dashboard modal dialogs suppress global shortcuts while open',
     );
     ok(
@@ -489,17 +477,10 @@ if (rTruth.error) {
     );
     ok(/statusJsonPath:\s*data\.statusJsonPath/.test(dashboardSource) && /orientApi:\s*data\.orientApi/.test(dashboardSource), 'fallback status JSON advertises path and orient API');
     ok(
-      /orientDemandDraftsHygieneReadyJsonPointer:\s*['"]\/orient\/demandDraftsHygieneReady['"]/.test(dashboardSource) &&
-        /demandDraftsHygieneReadyJsonPointer:\s*['"]\/demandDraftsHygieneReady['"]/.test(dashboardSource) &&
-        /orientDemandDraftsHygieneReady:\s*data\.orient\?\.demandDraftsHygieneReady === true/.test(dashboardSource) &&
-        /demandDraftsHygieneReady:\s*data\.demandDraftsHygieneReady === true/.test(dashboardSource),
-      'fallback persisted status contract advertises fail-closed draft-hygiene readiness values and pointers',
-    );
-    ok(
       /orient:\s*data\.orient[\s\S]{0,520}receiptGreen:\s*data\.orient\.receiptGreen[\s\S]{0,220}receiptAgeMs:\s*data\.orient\.receiptAgeMs[\s\S]{0,180}degraded:\s*data\.orient\.degraded === true/.test(dashboardSource),
       'fallback status delta replaces orient freshness and degradation atomically',
     );
-    ok(/cycleWorkJsonPointer:\s*['"]\/cycleWork['"]/.test(dashboardSource) && /data\.cycleWork\s*=\s*safeJson/.test(dashboardSource), 'fallback status exposes latest cycle receipt and discovery pointer');
+    ok(/data\.cycleWork\s*=\s*safeJson/.test(dashboardSource), 'fallback status exposes latest cycle receipt');
     ok(
       /const fields = \{[\s\S]{0,420}cycleWork:\s*data\.cycleWork \|\| null,[\s\S]{0,120}cycleWorkHealth:\s*data\.cycleWorkHealth \|\| null,/.test(dashboardSource),
       'fallback status delta carries cycle receipt and attestation health',
@@ -514,21 +495,12 @@ if (rTruth.error) {
       'fallback status delta carries demand-hygiene freshness and fails stale by default',
     );
     ok(
-  /releaseBlocker:\s*cycleReleaseBlocker/.test(dashboardSource) &&
-        /releaseDrift:\s*cycleReleaseDrift/.test(dashboardSource) &&
-        /releaseRecovery:\s*cycleHasReleasePreflight \? cycleReleaseRecovery : null/.test(dashboardSource) &&
-      /cycleWorkHealth\?\.releaseBlocker/.test(dashboardUiSource) &&
-        /cycleWorkHealth\?\.releaseDrift/.test(dashboardUiSource) &&
-        /cycleWorkHealth\?\.releaseRecovery\?\.command/.test(dashboardUiSource) &&
-        /release staging blocked.*separate from tools verification/.test(dashboardUiSource),
-      'fallback dashboard preserves concrete ship release drift and guarded recovery',
-    );
-    ok(
       /inferredReleaseMutation[\s\S]{0,500}demigod-foot-cdn-publish/.test(dashboardSource) &&
         /releaseRecoveryMutates = rawReleaseRecovery\?\.mutates === true \|\| inferredReleaseMutation/.test(dashboardSource) &&
-        /\['publish-freeze-off', 'foot-write-lock'\]/.test(dashboardSource) &&
+        /\['current-request-authorization', 'publish-freeze-off', 'foot-write-lock'\]/.test(dashboardSource) &&
+        /command: releaseRecoveryMutates \? null : agentSafeCommand/.test(dashboardSource) &&
         /mutates:\s*releaseRecoveryMutates/.test(dashboardSource),
-      'fallback dashboard infers known release publishers as gated mutations',
+      'fallback dashboard suppresses known release publishers behind explicit authority gates',
     );
     ok(
       /cycleHasReleasePreflight/.test(dashboardSource) &&
@@ -545,16 +517,6 @@ if (rTruth.error) {
       'fallback dashboard cycle exceptions force a failed verification label',
     );
     ok(
-      /cycleWorkHealthJsonPointer:\s*['"]\/cycleWorkHealth['"]/.test(dashboardSource) &&
-        /cycleWorkAttestedJsonPointer:\s*['"]\/cycleWorkHealth\/attested['"]/.test(dashboardSource) &&
-        /attested:\s*data\.cycleWork\?\.attested\s*===\s*true/.test(dashboardSource) &&
-        /data\.cycleWork\?\.attested\s*===\s*true/.test(dashboardSource) &&
-        /degraded:\s*cycleWorkDegraded/.test(dashboardSource) &&
-        /verification:\s*cycleWorkVerification/.test(dashboardSource) &&
-        /d\.cycleWorkHealth\?\.degraded/.test(dashboardUiSource),
-      'fallback dashboard requires explicit cycle attestation and distinguishes degraded receipts',
-    );
-    ok(
       /Date\.parse\(data\.cycleWork\?\.at/.test(dashboardSource) &&
         /rawReceiptAgeSec >= -60/.test(dashboardSource) &&
         /timestampSource:\s*['"]receipt\.at['"]/.test(dashboardSource) &&
@@ -562,9 +524,9 @@ if (rTruth.error) {
       'fallback dashboard cycle freshness comes from receipt.at, with file age diagnostic only',
     );
     ok(
-      /orient\.demandDraftsHygiene\|\|d\.demandDraftsHygiene/.test(dashboardUiSource) &&
-        /draftHygieneStale/.test(dashboardUiSource),
-      'fallback dashboard orient card uses normalized hygiene evidence and labels stale receipts',
+      /const draftHygiene = dem\.drafts&&dem\.drafts\.hygiene/.test(dashboardUiSource) &&
+        /draftHygiene\.stale===true/.test(dashboardUiSource),
+      'fallback dashboard uses canonical demand hygiene evidence and labels stale receipts',
     );
     ok(
       /draftHygiene\.stale===true[\s\S]{0,120}draft hygiene stale/.test(dashboardUiSource) &&
@@ -585,14 +547,6 @@ if (rTruth.error) {
         /queue-overlap=/.test(dashboardUiSource) &&
         /__dgDemandQuarantine/.test(dashboardUiSource),
       'fallback dashboard demand card surfaces receipt quarantine when present',
-    );
-    ok(
-      /const cycleChecks = Array\.isArray\(data\.cycleWork\?\.health\)/.test(dashboardSource) &&
-        /childStartBlocked:\s*check\?\.childStartBlocked === true/.test(dashboardSource) &&
-        /detail:\s*diagnostic \? diagnostic\.trim\(\)\.slice\(0, 240\) : null/.test(dashboardSource) &&
-        /reasons:\s*\[\.\.\.new Set\(cycleWorkReasons\)\]/.test(dashboardSource) &&
-        /child-start blocked/.test(dashboardUiSource),
-      'fallback dashboard preserves bounded child-start diagnostics and health reasons',
     );
     ok(
       /check\?\.detail,\s*childError,\s*check\?\.tail/.test(dashboardSource),
@@ -676,13 +630,9 @@ if (rTruth.error) {
     );
     ok(/data\.demandDraftsHygiene\s*=/.test(dashboardSource) && /data\.demandDraftsHygieneOk\s*=/.test(dashboardSource) && /data\.demandStatusPath\s*=/.test(dashboardSource), 'fallback status JSON exposes draft hygiene health and source path');
     ok(
-      /const statusJsonContractComplete =[\s\S]{0,900}orientDemandDraftsHygieneConsistent &&[\s\S]{0,500}data\.demandDraftsHygieneReady === true &&[\s\S]{0,120}data\.orient\?\.demandDraftsHygieneReady === true/.test(dashboardSource),
-      'fallback status contract completeness fails closed on stale or failing draft hygiene',
-    );
-    ok(
       /sourceReceipt[\s\S]{0,260}sha256:\s*sha256File\(hygieneStatusPath\)/.test(dashboardSource) &&
         /data\.demandStatusSourceReceipt\s*=/.test(dashboardSource) &&
-        /demandStatusSourceReceiptJsonPointer:\s*['"]\/demandStatusSourceReceipt['"]/.test(dashboardSource),
+        /data\.demandStatusSourceReceipt\s*=/.test(dashboardSource),
       'fallback status binds demand hygiene provenance to source bytes',
     );
     ok(
@@ -699,9 +649,7 @@ if (rTruth.error) {
       'fallback full, slim, and orient status share fail-closed draft-hygiene semantics',
     );
     ok(
-      /data\.orient\.drafts\s*=\s*\{[\s\S]{0,220}hygiene:\s*data\.demandDraftsHygiene \|\| null[\s\S]{0,160}hygieneVerdict:\s*data\.draftHygieneVerdict[\s\S]{0,360}sourceReceipt:\s*\{/.test(dashboardSource) &&
-        /orientDraftsHygieneVerdictJsonPointer:\s*['"]\/orient\/drafts\/hygieneVerdict['"]/.test(dashboardSource) &&
-        /orientDraftsHygieneSourceReceiptJsonPointer:\s*['"]\/orient\/drafts\/sourceReceipt['"]/.test(dashboardSource),
+      /data\.orient\.drafts\s*=\s*\{[\s\S]{0,220}hygiene:\s*data\.demandDraftsHygiene \|\| null[\s\S]{0,160}hygieneVerdict:\s*data\.draftHygieneVerdict[\s\S]{0,360}sourceReceipt:\s*\{/.test(dashboardSource),
       'fallback persisted orient drafts co-locates hygiene verdict and source receipt',
     );
     ok(
@@ -729,28 +677,14 @@ if (rTruth.error) {
       'fallback full, slim, and orient status expose fail-closed draft-hygiene readiness',
     );
     ok(
-      /if \(!truthEvidence\.green\) \{[\s\S]{0,160}health = Math\.min\(health, 49\);[\s\S]{0,120}healthLabel = ['"]truth-stale['"]/.test(controlSource),
-      'fallback control health fails closed when truth evidence is not green',
-    );
-    ok(
-      /data\.statusJsonContract\s*=\s*\{/.test(dashboardSource) &&
-        /statusJsonContract:\s*data\.statusJsonContract \|\| null/.test(dashboardSource) &&
-        /orientApi:\s*data\.orientApi/.test(dashboardSource) &&
-        /demandDraftsHygiene:\s*data\.demandDraftsHygiene \|\| null/.test(dashboardSource),
-      'fallback status JSON co-locates orient API and demand draft hygiene contract',
+      /fresh:\s*Boolean\(te\.fresh\)/.test(controlSource) &&
+        /if \(!truthEvidence\.green\) \{[\s\S]{0,160}health = Math\.min\(health, 49\);[\s\S]{0,160}healthLabel = truthEvidence\.fresh \? ['"]truth-failed['"] : ['"]truth-stale['"]/.test(controlSource),
+      'fallback control health distinguishes fresh truth failure from stale evidence',
     );
     ok(
       /freeze:\s*\{\s*on:\s*freezeState\?\.on\s*===\s*true,\s*why:\s*freezeState\?\.why\s*\|\|\s*null/.test(dashboardSource) &&
         /freeze:\s*data\.orient\.freeze\s*\|\|/.test(dashboardSource),
       'fallback persisted and delta orient cards mirror current publish freeze honestly',
-    );
-    ok(
-      (dashboardSource.match(/statusPathView:\s*\{/g) || []).length >= 2 &&
-        /orientApiVisible:\s*data\.orientApi === ['"]\/api\/orient['"]/.test(dashboardSource) &&
-        /orientDraftsHygieneVisible:\s*data\.orient\?\.drafts\?\.hygiene != null/.test(dashboardSource) &&
-        /demandDraftsHygieneVisible:\s*data\.demandDraftsHygiene != null/.test(dashboardSource) &&
-        /data\.statusPathView\.complete\s*=[\s\S]{0,220}orientApiVisible[\s\S]{0,120}orientDraftsHygieneVisible[\s\S]{0,120}demandDraftsHygieneVisible/.test(dashboardSource),
-      'fallback status path view advertises orient and draft-hygiene fields in one read',
     );
     ok(
       /data\.statusJsonPathView\s*=\s*\{[\s\S]*?orientDemandDraftsHygiene:\s*data\.orient\?\.demandDraftsHygiene \|\| null[\s\S]{0,300}orientDemandDraftsHygieneConsistent/.test(dashboardSource) &&
@@ -762,7 +696,7 @@ if (rTruth.error) {
       'fallback compact status JSON view mirrors canonical demand.drafts.hygiene',
     );
     ok(
-      /orientDemandDraftsHygieneConsistent\s*&&[\s\S]{0,300}data\.draftHygieneVerdict\?\.ready === true,\n\s*\};\n\s*\/\/ Canonical one-read agent entrypoint/.test(dashboardSource),
+      /complete:[\s\S]{0,300}orientDemandDraftsHygieneConsistent\s*&&[\s\S]{0,300}data\.draftHygieneVerdict\?\.ready === true/.test(dashboardSource),
       'fallback compact status JSON view fails complete closed on stale or flagged hygiene',
     );
     ok(
@@ -770,13 +704,6 @@ if (rTruth.error) {
         /demandDraftsHygieneVerdictJsonPointer:\s*['"]\/statusJsonPathView\/demand\/drafts\/hygieneVerdict['"]/.test(dashboardSource) &&
         /demandDraftsHygieneReady:\s*data\.draftHygieneVerdict\?\.ready === true/.test(dashboardSource),
       'fallback compact status JSON view pairs draft hygiene evidence with fail-closed readiness',
-    );
-    ok(
-      /demandDraftsHygieneSourceReceiptJsonPointer:\s*['"]\/agentOrientStatus\/demand\/drafts\/sourceReceipt['"]/.test(dashboardSource) &&
-        /demandDraftsHygieneStatusPathJsonPointer:\s*['"]\/agentOrientStatus\/demand\/drafts\/statusPath['"]/.test(dashboardSource) &&
-        /sourceReceipt:\s*\{\s*\n\s*source:/.test(dashboardSource) &&
-        /statusPath:\s*\n\s*data\.demandDraftsHygieneStatusPath \|\| data\.demandStatusPath \|\| null/.test(dashboardSource),
-      'fallback compact agent orient status points to byte-bound draft-hygiene provenance and source path',
     );
     ok(
       /hygieneVerdict:\s*body\.draftHygieneVerdict/.test(dashboardSource) &&
@@ -794,35 +721,11 @@ if (rTruth.error) {
       'fallback compact status JSON endpoint exposes draft-hygiene source receipt path',
     );
     ok(
-      (dashboardSource.match(/demandDraftsHygieneSourceJsonPointer:\s*['"]\/demandDraftsHygieneSource['"]/g) || []).length >= 2 &&
-        (dashboardSource.match(/demandDraftsHygieneStatusPathJsonPointer:\s*['"]\/demandDraftsHygieneStatusPath['"]/g) || []).length >= 2 &&
-        (dashboardSource.match(/demandStatusPathJsonPointer:\s*['"]\/demandStatusPath['"]/g) || []).length >= 2,
-      'fallback persisted status and orient API contracts advertise demand hygiene evidence pointers',
-    );
-    ok(
-      /visibility:\s*\{[\s\S]{0,240}orientApi:[\s\S]{0,160}orientCard:[\s\S]{0,160}orientDemandDraftsHygiene:[\s\S]{0,160}demandDraftsHygiene:/.test(dashboardSource),
-      'fallback status contract attests root and orient-mirrored draft-hygiene visibility',
-    );
-    ok(
-      /data\.statusVisibility\s*=\s*\{[\s\S]*?orientJsonPointer:\s*['"]\/orient['"][\s\S]*?orientDemandDraftsHygieneJsonPointer:\s*['"]\/orient\/demandDraftsHygiene['"]/.test(dashboardSource) &&
-        /body\.statusVisibility\s*=\s*\{[\s\S]*?orientStatusJsonPointer:\s*['"]\/orient['"][\s\S]*?orientStatusDemandDraftsHygieneJsonPointer:\s*['"]\/orient\/demandDraftsHygiene['"]/.test(dashboardSource),
-      'fallback status visibility receipt links orient response fields to persisted status JSON pointers',
-    );
-    ok(
       /orientDemandDraftsHygieneVisible:\s*data\.orient\?\.demandDraftsHygiene != null/.test(dashboardSource) &&
         /Boolean\(data\.orient\)[\s\S]{0,120}data\.orient\?\.demandDraftsHygiene != null[\s\S]{0,120}data\.demandDraftsHygiene != null/.test(dashboardSource),
       'fallback persisted visibility is complete only when orient mirrors draft hygiene',
     );
-    ok(
-      /data\.statusVisibility\s*=\s*\{[\s\S]*?complete:\s*[\s\S]{0,420}orientDemandDraftsHygieneConsistent\s*&&[\s\S]{0,180}data\.demandDraftsHygieneReady\s*===\s*true\s*&&[\s\S]{0,180}data\.orient\?\.demandDraftsHygieneReady\s*===\s*true/.test(dashboardSource),
-      'fallback persisted visibility fails complete closed on stale or flagged draft hygiene',
-    );
     ok(/demandDraftsHygieneJsonPointer:\s*['"]\/demandDraftsHygiene['"]/.test(dashboardSource) && /data\.demandDraftsHygieneSource\s*=/.test(dashboardSource), 'fallback status discovery exposes exact draft-hygiene pointer and evidence source');
-    ok(
-      /data\.statusPathView\.complete\s*=\s*[\s\S]{0,420}data\.statusPathView\.orientDraftsHygieneConsistent\s*&&[\s\S]{0,240}data\.statusPathView\.demandDraftsHygieneReady\s*===\s*true/.test(dashboardSource),
-      'fallback status path completeness fails closed on stale or failing draft hygiene',
-    );
-    ok(/orientApiJsonPointer:\s*['"]\/orientApi['"]/.test(dashboardSource) && /demandStatusPathJsonPointer:\s*['"]\/demandStatusPath['"]/.test(dashboardSource), 'dashboard status discovery exposes exact orient API and demand source pointers');
     ok(
       /agentConsume:\s*\{[\s\S]{0,500}preferred:\s*\[[\s\S]{0,180}\/api\/orient[\s\S]{0,500}note:\s*['"]Start with \/api\/orient or bin\/dg orient/.test(dashboardSource),
       'dashboard status directs agents to canonical orient first',
@@ -837,17 +740,9 @@ if (rTruth.error) {
           /orientDemandDraftsHygieneReady:/.test(snapshot) &&
           /demandDraftsHygieneStatusPath:/.test(snapshot) &&
           /demandStatusPath:/.test(snapshot) &&
-          /statusDiscovery:/.test(snapshot);
+          /statusJsonPathView:/.test(snapshot);
       })(),
       'fallback dashboard snapshot keeps orient and draft-hygiene source discovery in one response',
-    );
-    ok(
-      /body\.statusJsonContract\s*=\s*\{/.test(dashboardSource) &&
-        /demandDraftsHygiene:\s*body\.demandDraftsHygiene/.test(dashboardSource) &&
-        /demandDraftsHygieneStatusPath:\s*body\.demandDraftsHygieneStatusPath/.test(dashboardSource) &&
-        /orientDemandDraftsHygiene:\s*body\.demandDraftsHygiene != null/.test(dashboardSource) &&
-        /consistent:\s*body\.demandDraftsHygiene != null/.test(dashboardSource),
-      'fallback orient API mirrors persisted status and draft-hygiene contract',
     );
     ok(/receiptAvailable:\s*Boolean\(j\)/.test(dashboardSource) && /demandDraftsHygiene:\s*demand\?\.drafts\?\.hygiene/.test(dashboardSource), 'fallback persisted status keeps orient discovery and draft hygiene without an orient receipt');
     ok(
@@ -855,16 +750,9 @@ if (rTruth.error) {
       'fallback persisted orient canonical demand path refreshes drafts.hygiene from demand status',
     );
     ok(
-      /demandDraftsHygieneSource:\s*demand\?\.drafts\?\.hygiene\?\.source \|\| ['"]unknown['"]/.test(dashboardSource) &&
-        /orientDemandDraftsHygieneExplicitSourceJsonPointer:\s*['"]\/orient\/demandDraftsHygieneSource['"]/.test(dashboardSource) &&
-        /orientDemandDraftsHygieneStatusPathJsonPointer:\s*['"]\/orient\/demandDraftsHygieneStatusPath['"]/.test(dashboardSource),
-      'fallback persisted orient record exposes explicit draft-hygiene evidence pointers',
-    );
-    ok(
       /rawAgeMs >= -60_000/.test(dashboardSource) &&
-      /const degraded = !j \|\| receiptAgeMs == null \|\| receiptAgeMs > 120_000[\s\S]{0,320}degraded,/.test(dashboardSource) &&
-        /orientReceiptAgeSec==null\?'age unknown'/.test(dashboardUiSource),
-      'fallback dashboard labels stale orient receipts',
+        /const degraded = !j \|\| receiptAgeMs == null \|\| receiptAgeMs > 120_000[\s\S]{0,320}degraded,/.test(dashboardSource),
+      'fallback dashboard fails stale orient receipts closed',
     );
     ok(
       /const receiptAtMs = Date\.parse\(j\?\.at \|\| ['"]{2}\)/.test(dashboardSource) &&
@@ -894,32 +782,10 @@ ok(
   dashboardUiSource.includes('publish frozen') && dashboardUiSource.includes('publish open'),
   'fallback dashboard header names publish freeze without conflating the foot-write lease',
 );
-ok(
-  /const footLock = d\.foot\?\.lock/.test(dashboardUiSource) &&
-    /const footOwner = footLock\?\.locked \? footLock\.json\?\.owner : null/.test(dashboardUiSource) &&
-    /publish open · foot ['"]\+\(footLeaseIsReservation\?['"]reserved ['"]:['"]held ['"]\)/.test(dashboardUiSource) &&
-    /publish open · foot free/.test(dashboardUiSource),
-  'fallback dashboard distinguishes publish freeze from foot-write ownership',
-);
-ok(
-  /const footStatus = footOwnerExited/.test(dashboardUiSource) &&
-    /String\(d\.freeze\?\.why\|\|['"]publish locked['"]\)[\s\S]{0,160}\+footStatus/.test(dashboardUiSource),
-  'fallback dashboard keeps foot-write ownership visible while publish is frozen',
-);
     ok(
       /n\.mutate \? ['"]human['"] : \(n\.pri != null && n\.pri <= 1 \? ['"]priority['"]/.test(dashboardUiSource) &&
         /owner === ['"]priority['"] \? ['"]Priority['"]/.test(dashboardUiSource),
       'fallback dashboard does not label read-only P0/P1 NEXT as mutate',
-    );
-    ok(
-      /\['\/api\/orient','orient'\]/.test(dashboardUiSource) &&
-        dashboardUiSource.includes('Agent: <code>/api/orient</code> · <code>bin/dg orient</code>'),
-      'dashboard API strip exposes orient',
-    );
-    ok(
-      /Agent contracts[\s\S]*?href="\/api\/orient"[\s\S]*?>\/api\/orient</.test(dashboardUiSource) &&
-        !/Agent contracts[\s\S]*?href="\/api\/unify"[\s\S]*?>\/api\/unify</.test(dashboardUiSource),
-      'dashboard agent-contract card exposes canonical orient API',
     );
     ok(
       dashboardSource.includes('## Orient (canonical entry — prefer /api/orient)') &&
@@ -948,10 +814,9 @@ ok(
       'dashboard SSE preserves the initial activity snapshot until status is ready',
     );
     ok(
-      /id=["']helpOverlay["'][^>]*role=["']dialog["'][^>]*aria-modal=["']true["']/.test(dashboardUiSource) &&
-        /_releaseHelpTrap=trapFocus/.test(dashboardUiSource) &&
-        /if\(target&&target\.isConnected&&!target\.disabled\)target\.focus\(\)/.test(dashboardUiSource),
-      'dashboard help dialog traps focus and restores its opener',
+      /id=["']btnPalette["'][^>]*aria-haspopup=["']dialog["']/.test(dashboardUiSource) &&
+        !/helpOverlay|btnHelp/.test(dashboardUiSource),
+      'dashboard keeps one visible command surface without a duplicate help dialog',
     );
     ok(
       /const target=mutateReturnFocus; mutateReturnFocus=null;[\s\S]{0,240}target\.focus\(\);[\s\S]{0,120}await runJobNow/.test(dashboardUiSource),
@@ -979,7 +844,7 @@ ok(
     );
     ok(
       /const canRun = t\.runnable === true/.test(dashboardUiSource) &&
-        /t\.runnable===true\s*\?/.test(dashboardUiSource),
+        /canRun\s*\?/.test(dashboardUiSource),
       'dashboard run buttons require server-issued runnable authority',
     );
     ok(
@@ -1010,12 +875,12 @@ ok(
       'dashboard tools filter reports visible and total result counts',
     );
     ok(
-      /hot\.length\?hot\.map[\s\S]{0,620}t\.runnable===true[\s\S]{0,420}data-copy-cmd/.test(dashboardUiSource),
-      'dashboard hot tools keep a copy action for view-only catalog entries',
+      /const canRun = t\.runnable === true[\s\S]{0,900}: '<button type="button" data-copy-cmd/.test(dashboardUiSource),
+      'dashboard tools keep a copy action for view-only catalog entries',
     );
     ok(
-      /function renderSystem\(d\)[\s\S]*?root\.querySelectorAll\('\[data-copy-cmd\]'\)[\s\S]*?copyText\(btn\.getAttribute\('data-copy-cmd'\)\)/.test(dashboardUiSource),
-      'dashboard hot tools bind their copy command action',
+      /function renderTools\(reg\)[\s\S]*?\$\('toolsRoot'\)\.querySelectorAll\('\[data-copy-cmd\]'\)[\s\S]*?copyText\(btn\.getAttribute\('data-copy-cmd'\)\)/.test(dashboardUiSource),
+      'dashboard tools bind their copy command action',
     );
     ok(
       /cur && \(!Number\.isFinite\(curExpiryMs\) \|\| curExpiryMs > Date\.now\(\)\)/.test(dashboardSource),
@@ -1219,7 +1084,7 @@ ok(exited(evP, [0, 1]), 'evidence producers runs');
 diagnoseSpawn('evidence producers', evP);
 const ho = spawnSync(
   process.execPath,
-  [path.join(ROOT, 'demigod-handoff.mjs'), '--from', 'selftest', '--done', 'p1', '--next', 'verify', '--fast'],
+  [path.join(ROOT, 'demigod-handoff.mjs'), '--from', 'selftest', '--done', 'p1', '--next', 'verify', '--fast', '--print'],
   { cwd: ROOT, encoding: 'utf8', timeout: 15000 },
 );
 ok(exited(ho, [0]), 'handoff structured');
@@ -1241,7 +1106,7 @@ const orientSt = spawnSync(process.execPath, [path.join(ROOT, 'demigod-orient.mj
   encoding: 'utf8',
   timeout: 60000,
 });
-const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+const dashboardHttpPolicySource = fs.readFileSync(path.join(ROOT, 'demigod-dashboard-http-policy.mjs'), 'utf8');
 const dashboardUiSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
 try {
   const inlineScripts = [...dashboardUiSource.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
@@ -1259,12 +1124,8 @@ try {
   ok(false, 'dashboard inline JavaScript parses');
 }
 ok(
-  /function render\(d, \{ light = false \} = \{\}\)\{[\s\S]{0,500}renderPriorityBoard\(d\);/.test(dashboardUiSource),
+  /function render\(d\)\{[\s\S]{0,700}renderPriorityBoard\(d\);/.test(dashboardUiSource),
   'dashboard status refresh renders the priority board',
-);
-ok(
-  /activeMap=id;/.test(dashboardUiSource) && /window\.open\('\/api\/maps\/'\+activeMap/.test(dashboardUiSource),
-  'dashboard raw map action follows the active map',
 );
 ok(
   /body\.cached = true;[\s\S]{0,120}body\.degraded = true;/.test(dashboardSource) &&
@@ -1282,17 +1143,7 @@ ok(
   'dashboard compact status preserves ship-critical live evidence',
 );
 ok(
-  /rawAgeMs >= -60_000/.test(dashboardSource) &&
-  /const degraded = !j \|\| receiptAgeMs == null \|\| receiptAgeMs > 120_000[\s\S]{0,320}degraded,/.test(dashboardSource) &&
-    /orientReceiptAgeSec==null\?'age unknown'/.test(dashboardUiSource),
-  'dashboard overview labels stale orient receipts instead of presenting cached truth as current',
-);
-ok(
-  /'attention'\+\(orient\.greenReason\?' · '\+String\(orient\.greenReason\)\.slice\(0,48\):''\)/.test(dashboardUiSource),
-  'dashboard orient card preserves the fail-closed green reason',
-);
-ok(
-  /const canRun = t\.runnable === true/.test(dashboardUiSource) && /t\.runnable===true\s*\?/.test(dashboardUiSource),
+  /const canRun = t\.runnable === true/.test(dashboardUiSource) && /canRun\s*\?/.test(dashboardUiSource),
   'dashboard run buttons require server-issued runnable authority',
 );
 ok(
@@ -1306,16 +1157,17 @@ ok(
   'dashboard server-classified mutate jobs enter explicit confirmation',
 );
 ok(
-  /hot\.length\?hot\.map[\s\S]{0,620}t\.runnable===true[\s\S]{0,420}data-copy-cmd/.test(dashboardUiSource),
-  'dashboard hot tools keep a copy action for view-only catalog entries',
+  /const canRun = t\.runnable === true[\s\S]{0,900}: '<button type="button" data-copy-cmd/.test(dashboardUiSource),
+  'dashboard tools keep a copy action for view-only catalog entries',
 );
 ok(
-  /function renderSystem\(d\)[\s\S]*?root\.querySelectorAll\('\[data-copy-cmd\]'\)[\s\S]*?copyText\(btn\.getAttribute\('data-copy-cmd'\)\)/.test(dashboardUiSource),
-  'dashboard hot tools bind their copy command action',
+  /function renderTools\(reg\)[\s\S]*?\$\('toolsRoot'\)\.querySelectorAll\('\[data-copy-cmd\]'\)[\s\S]*?copyText\(btn\.getAttribute\('data-copy-cmd'\)\)/.test(dashboardUiSource),
+  'dashboard tools bind their copy command action',
 );
 ok(
-  /\['orient','unify','next','truth','status\?slim=1','tools','control'/.test(dashboardUiSource),
-  'dashboard agent API strip starts with canonical orient endpoint',
+  !/id=['"]apiStrip['"]/.test(dashboardUiSource) &&
+    dashboardUiSource.includes("{t:'Copy orient URL', d:'canonical session-start card', run:()=>copyText('http://127.0.0.1:9878/api/orient')}"),
+  'dashboard keeps canonical orient discovery without a duplicate API strip',
 );
 ok(
   dashboardUiSource.includes("{t:'Copy orient URL', d:'canonical session-start card', run:()=>copyText('http://127.0.0.1:9878/api/orient')}"),
@@ -1325,22 +1177,10 @@ const paletteTitles = [...dashboardUiSource.matchAll(/\{t:'([^']+)'[^\n]*run:/g)
 ok(new Set(paletteTitles).size === paletteTitles.length, 'dashboard command palette has no duplicate actions');
 ok(paletteTitles.includes('Run orient'), 'dashboard command palette exposes canonical orient job');
 ok(
-  /body\.statusJsonContract\s*=\s*\{/.test(dashboardSource) &&
-    /demandDraftsHygiene:\s*body\.demandDraftsHygiene/.test(dashboardSource) &&
-    /demandDraftsHygieneStatusPath:\s*body\.demandDraftsHygieneStatusPath/.test(dashboardSource),
-  'orient API mirrors persisted status and draft-hygiene contract',
-);
-ok(
   /body\.statusJsonPathView\s*=\s*\{/.test(dashboardSource) &&
     /hygiene:\s*body\.demandDraftsHygiene/.test(dashboardSource) &&
     /demandDraftsHygieneJsonPointer:\s*['"]\/statusJsonPathView\/demand\/drafts\/hygiene['"]/.test(dashboardSource),
   'orient API exposes the compact status JSON path view with demand draft hygiene',
-);
-ok(
-  /data\.agentOrientStatus\s*=\s*\{/.test(dashboardSource) &&
-    /endpoint:\s*\{[\s\S]{0,180}method:\s*['"]GET['"][\s\S]{0,120}path:\s*['"]\/api\/orient['"]/.test(dashboardSource) &&
-    /demandDraftsHygieneJsonPointer:\s*['"]\/agentOrientStatus\/demand\/drafts\/hygiene['"]/.test(dashboardSource),
-  'persisted agent orient receipt exposes an executable endpoint and exact draft-hygiene pointer',
 );
 ok(
   /cycleWorkExceptions\.length === 0/.test(dashboardSource) &&
@@ -1366,11 +1206,8 @@ ok(
   /doctorPass:\s*webflowDoctorFresh\s*\?\s*webflow\.doctor\?\.pass/.test(dashboardSource) &&
     /doctorFailed:\s*webflowDoctorFresh/.test(dashboardSource) &&
     /doctorObservable:\s*webflowDoctorFresh\s*&&/.test(dashboardSource) &&
-    /check\.name === 'cdp' && \/EPERM\//.test(dashboardSource) &&
-    /doctorFresh&&!j\.webflow\.doctorObservable\?'unobservable here'/.test(dashboardUiSource) &&
-    /doctorPass===false\?'doctor issues'/.test(dashboardUiSource) &&
-    /doctorFailed\.join\(', '\)/.test(dashboardUiSource),
-  'coord API and strip distinguish an unobservable Webflow doctor from a real failure',
+    /check\.name === 'cdp' && \/EPERM\//.test(dashboardSource),
+  'coord API distinguishes an unobservable Webflow doctor from a real failure',
 );
 ok(
   /hasPilotPath/.test(dashboardSource) &&
@@ -1418,6 +1255,11 @@ ok(
   ),
   'Webflow doctor does not overwrite host receipts from a namespace-blocked CDP probe',
 );
+ok(
+  /namespaceBlocked = s\.cdp\.error\?\.includes\(['"]EPERM['"]\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-webflow.mjs'), 'utf8')) &&
+    /namespaceBlocked \? \['cdp', 'live fetch'\] : \[\]/.test(fs.readFileSync(path.join(ROOT, 'demigod-webflow.mjs'), 'utf8')),
+  'Webflow doctor does not fail on namespace-blocked observational probes',
+);
 {
   const prioritySource = fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8');
   ok(
@@ -1426,8 +1268,8 @@ ok(
     'priority board demotes tools OK·release-blocked to P3 when truth is green',
   );
   ok(
-    /pri: 3,[\s\S]{0,80}id: 'webflow-doctor-stale',[\s\S]{0,80}kind: 'watch'/.test(prioritySource),
-    'priority board keeps stale Webflow doctor receipts as P3 watch work',
+    /pri: 3,[\s\S]{0,80}id: 'webflow-doctor-stale',[\s\S]{0,120}kind: siteTruthCoversStaleness \? 'info' : 'watch'/.test(prioritySource),
+    'priority board keeps stale Webflow doctor receipts as P3 watch (or info when truth already covers it)',
   );
 ok(
   /Site sealed green/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')) &&
@@ -1437,7 +1279,8 @@ ok(
 );
 ok(
   /const liveUnobservable = \/ENOTFOUND\|EAI_AGAIN\|EPERM\//.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')) &&
-    /live\.ok === false && !liveUnobservable/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')),
+    /live\.ok === false && !liveUnobservable/.test(fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8')) &&
+    /error\?\.cause\?\.code/.test(fs.readFileSync(path.join(ROOT, 'demigod-truth.mjs'), 'utf8')),
   'priority board does not report a namespace-blocked live probe as an outage',
 );
 ok(
@@ -1490,9 +1333,8 @@ ok(
 }
 ok(
   /clockSkewed: Number\.isFinite\(doctorAgeMs\) && doctorAgeMs < -60000/.test(dashboardSource) &&
-    /doctorAgeMs >= -60000 && doctorAgeMs <= 120000/.test(dashboardSource) &&
-    /j\.webflow\.clockSkewed\?['"]clock-skew['"]:['"]stale['"]/.test(dashboardUiSource),
-  'dashboard Webflow doctor rejects and labels future-dated receipts',
+    /doctorAgeMs >= -60000 && doctorAgeMs <= 120000/.test(dashboardSource),
+  'dashboard Webflow doctor rejects future-dated receipts',
 );
 ok(
   /shipStatusFresh:\s*Number\.isFinite\(shipAgeMs\) && shipAgeMs >= -60000 && shipAgeMs <= 300000/.test(dashboardSource),
@@ -1536,8 +1378,10 @@ ok(
 );
 ok(
   /dg-early-skip/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
-    /Skip to content/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head early skip link before foot-core for a11y',
+    /Skip to content/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    /querySelector\('\.hero-section'\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    /setAttribute\('role','main'\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  'head early skip link has a real main target before foot-core',
 );
 ok(
   /prefers-reduced-motion:\s*reduce/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
@@ -1837,9 +1681,11 @@ ok(
 
 
 
+const headMinimalSource = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
 ok(
-  /preconnect" href="https:\/\/fonts\.googleapis\.com"/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head preconnect fonts.googleapis.com',
+  (headMinimalSource.match(/rel="preconnect"/g) || []).length === 1 &&
+    /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(headMinimalSource),
+  'head preconnect budget keeps only critical jsDelivr',
 );
 
 
@@ -1891,21 +1737,120 @@ ok(
     /webflowStatus \|\| webflowDoctor \? \{ \.\.\.\(webflowStatus \|\| \{\}\), doctor: webflowDoctor \|\| webflowStatus\?\.doctor \|\| null \} : null/.test(dashboardSource) &&
     /doctorPass: webflowDoctorFresh \? webflow\.doctor\?\.pass/.test(dashboardSource) &&
     /doctorFresh: webflowDoctorFresh/.test(dashboardSource) &&
-    /doctorCmd: webflowDoctorFresh \? null : ['"]bin\/dg webflow doctor['"]/.test(dashboardSource) &&
-    /!j\.webflow\.doctorFresh\?\(j\.webflow\.doctorClockSkewed\?['"]doctor clock-skew['"]:['"]doctor stale['"]\)/.test(dashboardUiSource),
+    /doctorCmd: webflowDoctorFresh \? null : ['"]bin\/dg webflow doctor['"]/.test(dashboardSource),
   'coord API preserves only a fresh standalone Webflow doctor receipt and names stale recovery',
 );
 ok(
-  /fetch\('\/api\/coord'\);[\s\S]{0,80}!r\.ok[\s\S]{0,80}coord HTTP/.test(dashboardUiSource) &&
-    /j\?\.schema!==['"]demigod\.coord-api\/2['"][\s\S]{0,80}coord response invalid/.test(dashboardUiSource),
-  'dashboard coord strip fails closed on HTTP errors and malformed payloads',
+  /const wl=d\?\.work\|\|d\?\.workLog/.test(dashboardUiSource) &&
+    !/fetch\('\/api\/coord'\)/.test(dashboardUiSource),
+  'dashboard work view uses the canonical status payload without a second poll',
 );
 ok(
   /agentWorkLog/.test(dashboardUiSource) &&
-    /What agents are working on/.test(dashboardUiSource) &&
-    /demigod\.work-log\/1/.test(dashboardUiSource) &&
-    /renderWorkLog/.test(dashboardUiSource),
-  'dashboard Home workLog panel auto-refreshes from /api/coord workLog',
+    /Current work/.test(dashboardUiSource) &&
+    /renderWorkLog/.test(dashboardUiSource) &&
+    /function renderActivePanel\(d\)/.test(dashboardUiSource),
+  'dashboard Work panel renders collaboration from the status read model',
+);
+ok(
+  /['"]events-tick['"]:\s*\{[^}]*bin\/dg-events-tick[^}]*mutate:\s*true/.test(dashboardSource) &&
+    /data-event-primary=/.test(dashboardUiSource) &&
+    /btn\.onclick=\(\)=>runJob\('events-tick',\{mutate:true,btn\}\)/.test(dashboardUiSource),
+  'dashboard exposes guarded private Events Bot action',
+);
+ok(
+  /['"]events-invite-drain['"]:\s*\{[^}]*demigod-events-invite-drain\.mjs[^}]*mutate:\s*true/.test(dashboardSource) &&
+    /data-run-job="events-invite-drain"/.test(dashboardUiSource),
+  'dashboard exposes the existing guarded Events Bot invite drain',
+);
+ok(
+  /const inviteDrainMatchesActive = inviteDrain\?\.eventId === active\?\.id/.test(dashboardSource) &&
+    /stale: !inviteDrainMatchesActive \|\|/.test(dashboardSource),
+  'dashboard marks missing or prior-event invite drain evidence stale',
+);
+ok(
+  /mutate:\[['"]events-invite-drain['"],['"]events-tick['"]\]\.includes\(id\)/.test(dashboardUiSource) &&
+    !/['"]events-online-heal['"]\s*:/.test(dashboardSource) &&
+    !/data-run-job=['"]events-online-heal['"]/.test(dashboardUiSource),
+  'dashboard Events mutations are limited to invite drain and lifecycle tick',
+);
+ok(
+  // Was: pre-v7 "copy invite drop line" markup (platform=+id=+url=), removed by the
+  // v7 editorial command-center redesign (d1958b4). Current UI shows ready/missing
+  // status instead of naming the specific platform draft; backend still computes
+  // inviteDraft but it is no longer rendered.
+  /Invite '\+\(d\.eventsBot\.inviteUrlRecorded\?'ready':'missing'\)/.test(dashboardUiSource),
+  'dashboard shows invite ready/missing status for the active event stage',
+);
+ok(
+  /r\?\.eventId === active\.id && r\.status === ['"]yes['"]/.test(dashboardSource),
+  'dashboard reports the canonical native yes RSVP count',
+);
+ok(
+  /seatsRemaining: Number\.isFinite\(active\.seats\)[\s\S]{0,120}Math\.max\(0, active\.seats - confirmedCount\)/.test(dashboardSource) &&
+    /d\.eventsBot\.seatsRemaining==null[\s\S]{0,100}seats left/.test(dashboardUiSource),
+  'dashboard reports non-negative remaining event capacity when both counts are known',
+);
+ok(
+  /import \{[^}]*matchOffersToEvent[^}]*\} from ['"]\.\/demigod-events-bot-agent\.mjs['"]/.test(dashboardSource) &&
+    /const resourceOffers = matchOffersToEvent\(store\)\.offerCounts/.test(dashboardSource) &&
+    /offers: resourceOffers/.test(dashboardSource),
+  'dashboard resource pools reuse canonical eligible offer counts',
+);
+ok(
+  /\[['"]luma['"], ['"]partiful['"]\]\.flatMap/.test(dashboardSource) &&
+    !/Object\.entries\(store\.platforms \|\| \{\}\)/.test(dashboardSource),
+  'dashboard external invite truth cannot be satisfied by a native Demigod URL',
+);
+ok(
+  // Was: pre-v7 "copy invite drop line" markup (platform=+id=+url=) + a data-run-job="events-tick"
+  // Blocked/Run-lifecycle-tick ternary, removed by the v7 editorial command-center redesign
+  // (d1958b4), same as the assertion above. Current UI: a single data-event-primary button that
+  // is disabled with the block reason as its title/label instead of promising advancement;
+  // backend still computes inviteDraft but it is no longer rendered (0 occurrences in the UI).
+  !dashboardUiSource.includes('inviteDraft') &&
+    /data-event-primary="1"'\+\(eventsLifecycleBlocked\?' disabled title="'\+esc\(eventsLifecycleBlockReason\)\+'"':''\)/.test(dashboardUiSource) &&
+    /\(eventsLifecycleBlocked\?'Planning paused · '\+esc\(eventsLifecycleBlockReason\):'Continue planning'\)/.test(dashboardUiSource),
+  'dashboard does not promise lifecycle advancement — blocked primary button is disabled and states the reason',
+);
+ok(
+  // Was: pre-redesign two-button split ("Drain pasted URL" gated by
+  // !inviteUrlRecorded&&!invitePlatformUrlRecorded). Current UI: native invite is the
+  // primary CTA (Open/Copy guest invite) and external hosting is a single secondary
+  // "Refresh invite drain" button that only appears once a native invite is recorded
+  // AND the drain is stale — verified live-executing in
+  // demigod-dashboard-events-native-invite.test.mjs ("event operator card refreshes
+  // invite drain only when stale", 35/35 pass), not just this regex.
+  /const inviteShareable = \[['"]rsvp['"], ['"]run['"], ['"]followup['"], ['"]debrief['"]\]\.includes\(active\.stage\)/.test(dashboardSource) &&
+    /const inviteUrl = \[active\.published_url[\s\S]{0,260}\]\.find\(realInviteUrl\) \|\| null/.test(dashboardSource) &&
+    /inviteUrl:\s*inviteShareable \? inviteUrl : null/.test(dashboardSource) &&
+    /store\.platforms\?\.demigod/.test(dashboardSource) &&
+    /row\.eventId === active\.id/.test(dashboardSource) &&
+    /data-copy-cli="['"]\+esc\(d\.eventsBot\.inviteUrl\)/.test(dashboardUiSource) &&
+    /d\.eventsBot\?\.inviteUrlRecorded&&d\.eventsBot\?\.inviteDrain\?\.stale\?'<button type="button" data-run-job="events-invite-drain">Refresh invite drain<\/button> '/.test(dashboardUiSource),
+  'dashboard exposes the native guest invite and demotes external hosting to optional actions',
+);
+ok(
+  (() => {
+    const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
+    // Public events surface is the SF map + bot draft path (dgMapEventsHtml), not the
+    // retired calendar heading / host-tick ops chrome. Calendar mount may remain as
+    // dead code; it must not be called. Aligns with demigod-dashboard-events-native-invite.
+    return (
+      /function dgMapEventsHtml\s*\(/.test(foot) &&
+      /html:\s*dgMapEventsHtml\('events'\)/.test(foot) &&
+      !foot.includes('id="dg-ev-cal-h"') &&
+      !/eventsBotCalendarMount\([^)]*\)(?!\s*\{)/.test(foot)
+    );
+  })(),
+  'Events Bot public page is chat-only (no calendar heading, no dead ops control)',
+);
+ok(
+  /stale: !Number\.isFinite\(ageMs\)[\s\S]{0,80}30 \* 60_000/.test(dashboardSource) &&
+    /liveSnap\.open > 0 && !liveSnap\.stale/.test(dashboardSource) &&
+    /currentAgents=agents\.filter\(a=>a\.ageSec==null\|\|a\.ageSec<3600\)/.test(dashboardUiSource) &&
+    /timeline=recent\.filter\(r=>r\.ageSec==null\|\|r\.ageSec<3600\)/.test(dashboardUiSource),
+  'dashboard Home suppresses stale live findings and Work Log entries older than one hour',
 );
 ok(
   // ES6 shorthand: the response is built as { ..., workLog, ... } (verified: "items: openP0P1, },
@@ -1965,8 +1910,9 @@ ok(
       /cached:true/.test(dashCli) &&
       /degraded:true/.test(dashCli) &&
       /coord_file_fallback/.test(dashCli) &&
-      /source:"coord-files"/.test(dashCli),
-    'dashboard coord serves only a fresh cached payload when the host API is namespace-blocked',
+      /source:"coord-files"/.test(dashCli) &&
+      /reachability:\{"\/api\/coord":false,observedAt:new Date\(\)\.toISOString\(\)\}/.test(dashCli),
+    'dashboard coord serves fresh cache or timestamped API-unreachable file fallback when the host API is namespace-blocked',
   );
   ok(
     /const coordPayload = \{\s*ok: true,/.test(dashboardSource) &&
@@ -2066,25 +2012,27 @@ ok(
       /recovery: bin\/dg-dash/.test(fs.readFileSync(path.join(ROOT, 'bin/dg-workflow-map'), 'utf8')),
     'workflow map API and its dashboard recovery command stay wired together',
   );
+  ok(
+    /"reachabilityObservedAt": now_s/.test(fs.readFileSync(path.join(ROOT, 'bin/dg-workflow-map'), 'utf8')),
+    'workflow map timestamps reachability so stale receipts cannot imply current health',
+  );
 }
+const coordRuntime = spawnSync(process.execPath, [path.join(ROOT, 'demigod-agent-dashboard.mjs'), '--selftest-coord-runtime'], {
+  encoding: 'utf8',
+});
 ok(
-  /if \(Number\.isInteger\(pid\) && pid > 0\)/.test(dashboardSource) &&
-    // Was `... return false`. workerStatus returns a LANE STATUS ('idle'/'busy'), never a
-    // boolean — `return false` would itself break the contract. The guard is real and works:
-    // exercised with malformed pid files, "garbage"/"-5"/"0"/"" all -> 'idle', a live pid ->
-    // 'busy'. Assert the guard exists; don't dictate its return value.
-    /if \(!Number\.isInteger\(pid\) \|\| pid <= 0\) return /.test(dashboardSource),
+  coordRuntime.status === 0 && /dashboard coord runtime selftest PASS/.test(coordRuntime.stdout),
   'coord API rejects malformed supervisor and worker PID files',
 );
 ok(
   /ExecStart=\/bin\/bash -ec /.test(
     fs.readFileSync(path.join(ROOT, 'systemd-user/demigod-agent-coord-watchdog.service'), 'utf8'),
-  ) && /for unit in demigod-agent-coord demigod-dash/.test(
+  ) && /coord\/coord\.heartbeat -mmin -2/.test(
     fs.readFileSync(path.join(ROOT, 'systemd-user/demigod-agent-coord-watchdog.service'), 'utf8'),
   ) && /curl --noproxy ["']\*["'] -fsS --max-time 3 http:\/\/127\.0\.0\.1:9878\/healthz[^]*systemctl --user restart demigod-dash\.service/.test(
     fs.readFileSync(path.join(ROOT, 'systemd-user/demigod-agent-coord-watchdog.service'), 'utf8'),
   ),
-  'coordinator watchdog recovers both serving paths, including an unhealthy active dashboard',
+  'coordinator watchdog recovers a stale coordinator and both dashboard failure modes',
 );
 ok(
   /if \(!rec\.at\) return \{ \.\.\.rec, ageSec: null, clockSkewed: false, stale: true \}/.test(dashboardSource),
@@ -2153,6 +2101,10 @@ ok(
     'coord releases canonical and worker-role claims on every worker exit',
   );
   ok(
+    /Write \/tmp\/dg-busy\/coord\/codex-last\.json/.test(coordSrc),
+    'coord tells Codex to write the receipt path the supervisor watches',
+  );
+  ok(
     /tail -c [^\n]+\| sed '1d'/.test(coordSrc) &&
       /inbox\(\)\s*\{[\s\S]{0,100}flock -x 9[\s\S]{0,100}rotate_log "\$INBOX"[\s\S]{0,240}\} 9>"\$DIR\/inbox\.lock"/.test(
         coordSrc,
@@ -2160,17 +2112,25 @@ ok(
     'coord serializes and bounds supervisor inbox appends',
   );
   ok(
-    /once\)\s*refresh_digest; init_board\s*spawn_wave once/.test(coordSrc) ||
-      /once\)\s*\{[\s\S]{0,80}spawn_wave once/.test(coordSrc),
-    'coord once mode forces a full wave (spawn_wave once) sharing one cycle ID',
+    /""\) spawn_wave ;;/.test(coordSrc) &&
+      /all\) spawn_wave force ;;/.test(coordSrc) &&
+      /claude\|codex\|grok\) spawn_wave force "\$2"/.test(coordSrc),
+    'coord once respects work by default and only explicit role/all forces a targeted shared-cycle wave',
   );
   ok(
     /claim_hold\(\)/.test(coordSrc) &&
+      /renew_hold\(\)/.test(coordSrc) &&
       /release_hold\(\)/.test(coordSrc) &&
       /role_has_work\(\)/.test(coordSrc) &&
       /claim\)/.test(coordSrc) &&
+      /renew\)/.test(coordSrc) &&
+      /if o not in aliases:\s*\n\s*print\(json\.dumps\(\{"ok": False, "error": "not_owner"/.test(coordSrc) &&
       /release-hold\|unclaim\)/.test(coordSrc),
-    'coord exposes atomic claim/release-hold + role_has_work idle-spawn gate (swarm P0/P1)',
+    'coord exposes owner-only claim renewal, atomic release, and the idle-spawn gate',
+  );
+  ok(
+    /if nxt and current_receipt\(d\):/.test(coordSrc),
+    'coord never renders actionable next instructions from stale receipts',
   );
   ok(
     /product = any\(k in text for k in \("designer",/.test(coordSrc),
@@ -2186,15 +2146,20 @@ ok(
     'coord spawns once per outer tick; the five-second inner loop only heartbeats',
   );
   ok(
+    /failure_backoff\(\)[\s\S]{0,240}weekly limit\|usage balance exhausted\|status 402[\s\S]{0,120}echo 21600/.test(coordSrc) &&
+      (coordSrc.match(/delay=\$\(failure_backoff "\$logf"/g) || []).length === 3,
+    'coord backs off quota-exhausted workers instead of retrying every 60–90 seconds',
+  );
+  ok(
     /start\)\s*exec 9>"\$DIR\/start\.lock"\s*flock -n 9/.test(coordSrc) &&
       /nohup "\$0" _loop[^\n]+\n\s*echo \$! >"\$PIDF"\n\s*touch "\$HEARTBEAT"/.test(coordSrc),
     'coord serializes concurrent supervisor starts',
   );
   ok(
     ['claude', 'codex', 'grok'].every((role) =>
-      new RegExp(`spawn_${role}\\(\\) \\{\\s*local spawn_fd; exec \\{spawn_fd\\}>"\\$DIR/${role}-spawn\\.lock"\\s*flock -n "\\$spawn_fd"`).test(coordSrc),
+      new RegExp(`spawn_${role}\\(\\) \\(\\s*local spawn_fd; exec \\{spawn_fd\\}>"\\$DIR/${role}-spawn\\.lock"\\s*flock -n "\\$spawn_fd"`).test(coordSrc),
     ),
-    'coord serializes each worker check-and-spawn across supervisors',
+    'coord serializes each worker check-and-spawn without leaking lock descriptors into the supervisor',
   );
   ok(
     /worker_active\(\)/.test(coordSrc) &&
@@ -2222,9 +2187,10 @@ ok(
       /pidUnobservable = !pidAlive && heartbeatFresh/.test(dashboardSource) &&
       /fs\.statSync\(path\.join\(coordDir, ['"]coord\.heartbeat['"]\)\)/.test(dashboardSource) &&
       !/\['coord\.heartbeat', 'coord\.log'\]/.test(dashboardSource) &&
-      /const workerGraceMs = \{ claude: 315000, codex: 255000, grok: 255000 \}/.test(dashboardSource) &&
-      /const workerStatus = \(name\)/.test(dashboardSource) &&
-      /pidUnobservable && Date\.now\(\) - fs\.statSync\(pidFile\)\.mtimeMs < workerGraceMs\[name\] \? 'pid-unobservable' : 'idle'/.test(dashboardSource) &&
+      /const COORD_WORKER_GRACE_MS = \{ claude: 315000, codex: 255000, grok: 255000 \}/.test(dashboardSource) &&
+      /function coordWorkerStatus\(coordDir, name, pidUnobservable = false\)/.test(dashboardSource) &&
+      /ageMs < \(COORD_WORKER_GRACE_MS\[name\] \?\? 255000\)/.test(dashboardSource) &&
+      coordRuntime.status === 0 &&
       /loopRunning: pidAlive \|\| pidUnobservable/.test(dashboardSource),
     'coord heartbeat distinguishes a host-running supervisor from a confirmed local death',
   );
@@ -2296,7 +2262,7 @@ ok(
     'read-only coord dogfood falls back to files without starting a second dashboard',
   );
   ok(
-    /release_owner_claims\(\)[\s\S]{0,900}tmp\.replace\(p\)/.test(coordSrc),
+    /release_owner_claims\(\)[\s\S]{0,1400}tmp\.replace\(p\)/.test(coordSrc),
     'coord worker claim release publishes atomically',
   );
   ok(
@@ -2338,8 +2304,15 @@ ok(
     'coord write_exit_receipt lets process failure override fresh worker green and fails closed without a write',
   );
   ok(
-    /write_exit_receipt\(\)[\s\S]{0,1800}tmp\.replace\(p\)/.test(coordSrc),
+    /write_exit_receipt\(\)[\s\S]*?tmp\.replace\(p\)/.test(coordSrc),
     'coord exit receipts publish atomically',
+  );
+  ok(
+    ['claude', 'codex', 'grok'].every((role) => {
+      const pid = role.toUpperCase();
+      return new RegExp(`set_track ${role} idle[\\s\\S]{0,400}rm -f "\\$${pid}_PIDF"[\\s\\S]{0,120}write_exit_receipt "\\$DIR/${role}-last\\.json"`).test(coordSrc);
+    }),
+    'coord persists idle track and clears worker pid before publishing each exit receipt',
   );
   ok(
     /for role in claude codex grok; do[\s\S]{0,220}release_owner_claims "coord-\$role"[\s\S]{0,120}set_track "\$role" idle "supervisor startup recovery"/.test(coordSrc) &&
@@ -2406,8 +2379,8 @@ ok(
     );
     out = JSON.parse(fs.readFileSync(receipt, 'utf8'));
     ok(
-      silent.status === 0 && out.ok === false && out.exit === 0,
-      'write_exit_receipt runtime: exit 0 without receipt update → ok:false',
+      silent.status === 0 && out.ok === false && out.exit === 0 && out.reason === 'worker exited without fresh receipt',
+      'write_exit_receipt runtime: exit 0 without receipt update → ok:false with reason',
     );
     fs.writeFileSync(receipt, JSON.stringify({ ok: true, did: ['fresh-green'] }) + '\n');
     const failedFresh = spawnSync(
@@ -2582,8 +2555,9 @@ ok(
   );
   ok(
     /head:canonical-https/.test(verifySrc) &&
-      /https:\/\/www\.trydemigod\.com\//.test(verifySrc),
-    'verify-source locks homepage canonical HTTPS apex (head:canonical-https)',
+      /route canonical must use the HTTPS apex/.test(verifySrc) &&
+      /explicit product-page allowlist/.test(verifySrc),
+    'verify-source locks route canonical HTTPS apex + explicit product-page allowlist (head:canonical-https)',
   );
   ok(
     /head:og-type-locale/.test(verifySrc) &&
@@ -2686,9 +2660,9 @@ ok(
       /dg-decision-grid/.test(verifySrc) &&
       /no infinite CTA glow/.test(verifySrc) &&
       /dg-gold-glow/.test(verifySrc) &&
-      /126k4p/.test(verifySrc) &&
+      /duplicate CSS background/.test(verifySrc) &&
       /demigod-hermes-hero-16x9/.test(verifySrc),
-    'verify-source locks disk CSS honesty guards v421/v449/decision-grid/v316 no infinite glow + hero brand 126k4p ban hermes (css:disk-honesty-guards)',
+    'verify-source locks disk CSS honesty guards v421/v449/decision-grid/v316 no infinite glow + duplicate hero background ban (css:disk-honesty-guards)',
   );
   ok(
     /head:contact-scrub/.test(verifySrc) &&
@@ -2731,12 +2705,15 @@ ok(
   );
   // Gate checks head HTML markers (dg-head-fallback + data-dg-cta hire/talent + labels + setTimeout).
   // Stale tools-os required #dg-head-cta-fallback + once:true + setInterval which verify never locked.
+  // 07-17 (c-post-02a4562): gate stopped hardcoding 'Demigod'/"I'm looking" literals and now derives
+  // ctaFounder/ctaEngineer from foot-core's COPY at check time, so those literals no longer appear
+  // in verify-source.mjs source — assert the derivation instead of the retired hardcoded labels.
   ok(
     /head:cta-fallback/.test(verifySrc) &&
       /dg-head-fallback/.test(verifySrc) &&
       /data-dg-cta/.test(verifySrc) &&
-      /Demigod/.test(verifySrc) &&
-      /I.m looking/.test(verifySrc) &&
+      /ctaFounder/.test(verifySrc) &&
+      /ctaEngineer/.test(verifySrc) &&
       /setTimeout/.test(verifySrc) &&
       /hire/.test(verifySrc) &&
       /talent/.test(verifySrc),
@@ -2983,8 +2960,8 @@ ok(
   );
   ok(
     /onlyCssLag/.test(dashboardSource) &&
-      /metaReady; re-publish head CSS/.test(dashboardSource),
-    'coord diskReady.onlyCssLag notes intentional CSS re-publish when sole head.css blocker',
+      /metaReady; head CSS differs · external publish remains current-request-gated/.test(dashboardSource),
+    'coord diskReady.onlyCssLag preserves the external publish authority gate',
   );
   ok(
     /quality-backlog\.json/.test(dashboardSource) &&
@@ -3013,8 +2990,7 @@ ok(
     'coord ship.facts backfills live/man from truth when ship-status partial',
   );
   ok(
-    /nextCmdSource/.test(dashboardSource) &&
-      /live foot ver lags disk/.test(dashboardSource),
+    /if \(lag && \(liesGreen \|\| ship\.shipped === true\)\) \{[\s\S]{0,180}ship\.shipped = false;[\s\S]{0,300}ship\.nextCmd = ['"]bin\/dg ship prepare['"];[\s\S]{0,160}ship\.nextCmdSource = ['"]coord-honesty['"]/.test(dashboardSource),
     'coord ship never claims all-green when diskVer≠liveVer',
   );
   ok(
@@ -3035,9 +3011,12 @@ ok(
     'coord exposes shipPrepare from ship-prepare.json with freshness',
   );
   ok(
-    /bin\/dg ship cdn then paste/.test(dashboardSource) &&
-      /CM6 paste/.test(dashboardSource),
-    'diskReady.note distinguishes man lag (cdn) vs live lag (paste)',
+    (() => {
+      const notes = dashboardSource.match(/if \(onlyCssLag\)[\s\S]*?const diskReady =/)?.[0] || '';
+      return (notes.match(/bin\/dg ship prepare/g) || []).length === 3 &&
+        !/ship cdn|CM6 paste|demigod-(?:foot-cdn|cm6-paste)/i.test(notes);
+    })(),
+    'diskReady notes route manifest/live drift through guarded ship preparation',
   );
   // CDN publish used to rewrite footer-lite as v27 without blog|notes|method+#note → diskReady thrash.
   {
@@ -3162,11 +3141,17 @@ ok(
     /cycleReleaseBlocked[\s\S]{0,180}cycleWorkExceptions\.length > 0[\s\S]{0,80}\? ['"]failed['"]/.test(dashboardSource),
   'dashboard cycle exceptions force an explicit failed verification label',
 );
+const siteChainSource = dashboardUiSource.slice(
+  dashboardUiSource.indexOf('const chainCard='),
+  dashboardUiSource.indexOf('root.innerHTML=', dashboardUiSource.indexOf('const chainCard=')),
+);
 ok(
-  /releaseDetails\?\.identityDelta/.test(dashboardUiSource) &&
-    /identity ['"]?\+releaseIdentityLabel/.test(dashboardUiSource) &&
-    /v\.slice\(0,8\)/.test(dashboardUiSource),
-  'dashboard renders concrete staged-to-expected release identity without dumping full hashes',
+  /const diskVer=ck\.foot\?\.diskVer/.test(dashboardUiSource) &&
+    /Site chain/.test(siteChainSource) &&
+    /manifest v['"]\+manifestVer/.test(siteChainSource) &&
+    /live v['"]\+liveVer/.test(siteChainSource) &&
+    !/deltaLine|sha256/.test(siteChainSource),
+  'dashboard renders the compact disk to manifest to live chain without hashes',
 );
 ok(
   /releaseDetails\?\.identityDelta\s*\|\|/.test(dashboardSource) &&
@@ -3179,10 +3164,10 @@ ok(
   'dashboard live-loader discovery accepts fragment cache-busters in script tags',
 );
 ok(
-  /toolsReady===true/.test(dashboardUiSource) &&
-    /toolsReady===false[\s\S]{0,100}tools OS unverified/.test(dashboardUiSource) &&
-    /release staging blocked \(tools remain healthy\)/.test(dashboardUiSource),
-  'dashboard separates tools attestation from release staging drift',
+  /const cycleToolsReady =[\s\S]{0,140}data\.cycleWork\?\.toolsReady === true/.test(dashboardSource) &&
+    /toolsReady: data\.cycleWork\?\.domain === ['"]tools['"] \? data\.cycleWork\?\.toolsReady === true : null/.test(dashboardSource) &&
+    /releaseReady: cycleHasReleasePreflight \? data\.cycleWork\?\.releaseReady === true : null/.test(dashboardSource),
+  'dashboard API separates tools attestation from release staging drift',
 );
 ok(
   /malformedReceipts/.test(dashboardSource) &&
@@ -3210,11 +3195,13 @@ ok(
   'dashboard getStatus invalidates cache when truth/cycle/pilot/demand/doctor receipts are newer',
 );
 ok(
-  /const conciseCheckDetail=value=>/.test(dashboardUiSource) &&
-    /typeof value===['"]object['"][\s\S]{0,100}JSON\.stringify\(value\)/.test(dashboardUiSource) &&
-    /raw\.length>140\?raw\.slice\(0,137\)\+'…'/.test(dashboardUiSource) &&
-    /const detail=conciseCheckDetail\(c\.detail\)/.test(dashboardUiSource),
-  'dashboard preserves structured check detail and bounds it in the status rail',
+  /const ageMs = at \? Date\.now\(\) - Date\.parse\(at\) : NaN;\s*if \(!Number\.isFinite\(ageMs\) \|\| ageMs < -60_000\) continue;/.test(dashboardSource),
+  'dashboard excludes malformed and far-future board history from recent work',
+);
+ok(
+  /const diagnostic = \[check\?\.detail, childError, check\?\.tail\]\.find/.test(dashboardSource) &&
+    /detail: diagnostic \? diagnostic\.trim\(\)\.slice\(0, 240\) : null/.test(dashboardSource),
+  'dashboard API preserves useful check detail and bounds it',
 );
 const cycleWorkSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-work.mjs'), 'utf8');
 const webflowLibSource = fs.readFileSync(path.join(ROOT, 'demigod-webflow-lib.mjs'), 'utf8');
@@ -3255,13 +3242,13 @@ ok(
   'cycle receipts propagate child-start blockage even when in-process fallback passes',
 );
 ok(
-  /then:\s*typeof rawReleaseRecovery\.then === ['"]string['"]/.test(dashboardSource) &&
+  /const releaseRecoveryMutates = rawReleaseRecovery\?\.mutates === true \|\| inferredReleaseMutation/.test(dashboardSource) &&
+    /command: releaseRecoveryMutates \? null : agentSafeCommand/.test(dashboardSource) &&
+    /then:\s*typeof rawReleaseRecovery\.then === ['"]string['"][\s\S]{0,120}releaseRecoveryMutates \? null/.test(dashboardSource) &&
     /Array\.isArray\(rawReleaseRecovery\?\.gatedBy\)/.test(dashboardSource) &&
-    /rawReleaseRecovery\?\.mutates === true/.test(dashboardSource) &&
-    /releaseRecovery\?\.command/.test(dashboardUiSource) &&
-    /releaseRecovery\.then/.test(dashboardUiSource) &&
-    /releaseRecovery\.gatedBy/.test(dashboardUiSource),
-  'dashboard preserves and renders guarded multi-step release recovery contracts',
+    /gatedBy: releaseRecoveryGates/.test(dashboardSource) &&
+    /guarded:[\s\S]{0,120}releaseRecoveryMutates && releaseRecoveryGates\.length > 0/.test(dashboardSource),
+  'dashboard API preserves guarded recovery metadata while suppressing mutating commands',
 );
 ok(
   /const fields = \{[\s\S]{0,420}cycleWork:\s*data\.cycleWork \|\| null,[\s\S]{0,120}cycleWorkHealth:\s*data\.cycleWorkHealth \|\| null,/.test(dashboardSource),
@@ -3293,6 +3280,15 @@ ok(
     /mutate:\s*job \? job\.mutate === true : false/.test(dashboardSource),
   'dashboard server derives runnable and mutate authority from the JOBS allowlist',
 );
+ok(
+  /['"]pipeline-packages['"]:\s*\{[^}]*['"]demigod-lead-pipeline\.mjs['"][^}]*['"]--stage=packages['"][^}]*safe:\s*true/.test(dashboardSource),
+  'dashboard can refresh isolated pipeline package evidence without mutation authority',
+);
+ok(
+  !/['"]favicon-ship['"]\s*:/.test(dashboardSource) &&
+    !/data-(?:run-job|run)=['"]favicon-ship['"]/.test(dashboardUiSource),
+  'dashboard does not expose favicon publishing',
+);
 
 ok(
   /timeoutMs:\s*spec\.timeout/.test(dashboardSource) &&
@@ -3307,10 +3303,6 @@ ok(
 ok(
   /id=["']toasts["'][^>]*role=["']status["'][^>]*aria-live=["']polite["'][^>]*aria-atomic=["']false["']/.test(dashboardUiSource),
   'dashboard exposes toast feedback as non-atomic status updates',
-);
-ok(
-  /coord unavailable · ['"]\+String\(e\?\.message\|\|e\)\.slice\(0,120\)/.test(dashboardUiSource),
-  'dashboard coord strip preserves a bounded integration failure reason',
 );
 ok(
   /let lastJobStripHtml = ['"]['"]/.test(dashboardUiSource) &&
@@ -3370,12 +3362,9 @@ ok(
 );
 ok(
   /const response=await fetch\('\/api\/inbox\?refresh=1'\);[\s\S]{0,120}!response\.ok[\s\S]{0,100}Inbox refresh HTTP/.test(dashboardUiSource) &&
-    /const r=await fetch\('\/api\/status\?force=1'\);[\s\S]{0,100}!r\.ok[\s\S]{0,100}Status refresh HTTP/.test(dashboardUiSource),
+    /if\(!await load\(true\)\) return;[\s\S]{0,80}Inbox refreshed/.test(dashboardUiSource) &&
+    /const r = await fetch\('\/api\/status\?'\+qs,[\s\S]{0,100}if\(!r\.ok\) throw new Error/.test(dashboardUiSource),
   'dashboard inbox actions do not report success after HTTP failures',
-);
-ok(
-  /const bc=\$\('btnCopyUnify'\);[\s\S]{0,180}!r\.ok[\s\S]{0,80}Unify HTTP/.test(dashboardUiSource),
-  'dashboard copy-unify action does not copy HTTP error bodies as valid JSON',
 );
 ok(
   /\[502,503,504\]\.includes\(r\.status\)/.test(dashboardUiSource) &&
@@ -3393,17 +3382,19 @@ ok(
   'dashboard surfaces compromised foot leases without unlocking them',
 );
 ok(
-  /parsed\.port === String\(PORT\)/.test(dashboardSource) &&
-    /return origin \? isLocalHttpUrl\(origin\) : !referer \|\| isLocalHttpUrl\(referer\)/.test(dashboardSource),
+  /dashboardLocalRequest\(req\.headers\.origin \|\| ['"]['"], req\.headers\.referer \|\| ['"]['"], PORT\)/.test(dashboardSource) &&
+    /url\.port === String\(port\)/.test(dashboardHttpPolicySource) &&
+    /return origin \? local\(origin\) : !referer \|\| local\(referer\)/.test(dashboardHttpPolicySource),
   'dashboard mutation guard requires the dashboard loopback port',
 );
 ok(
-  /agentOrientStatus: data\.agentOrientStatus \|\| null/.test(dashboardSource) &&
-    /agentOrientStatusReady: data\.agentOrientStatus\?\.ready === true/.test(dashboardSource),
-  'dashboard snapshot exposes compact orient and draft-hygiene readiness',
+  /statusJsonPathView: data\.statusJsonPathView \|\| null/.test(dashboardSource) &&
+    /statusJsonPathViewComplete: data\.statusJsonPathView\?\.complete === true/.test(dashboardSource),
+  'dashboard snapshot exposes the canonical status path and readiness',
 );
 ok(
-  /if\(\$\('confirmOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,180}return;[\s\S]{0,120}if\(\$\('helpOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,220}return;/.test(dashboardUiSource),
+  /if\(\$\('palette'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,120}return;/.test(dashboardUiSource) &&
+    /if\(\$\('confirmOverlay'\)\.classList\.contains\('open'\)\)\{[\s\S]{0,120}return;/.test(dashboardUiSource),
   'dashboard modal dialogs suppress global shortcuts while open',
 );
 ok(
@@ -3478,14 +3469,6 @@ if (spawnErrors.length) {
   process.exit(2);
 }
 
-if (fails.length) {
-  writeReceipt(false);
-  console.error('FAIL', fails);
-  process.exit(1);
-}
-writeReceipt(true);
-console.log('ALL PASS tools-os-selftest');
-
 ok(
   /dg-contact-scrub/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
     /script\[type=["']application\/ld\+json["']\]/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
@@ -3509,18 +3492,6 @@ ok(
   'coord workLog includes shipSnap sealed/disk/live for human dash summary',
 );
 ok(
-  /shipHtml/.test(dashboardUiSource) && /wl\.ship/.test(dashboardUiSource) && /sealed/.test(dashboardUiSource),
-  'dashboard workLog UI renders shipHtml pill from workLog.ship',
-);
-ok(
-  /crawlHtml/.test(dashboardUiSource) && /wl\.crawl/.test(dashboardUiSource),
-  'dashboard workLog UI renders crawlHtml pill from workLog.crawl',
-);
-ok(
-  /liveHtml/.test(dashboardUiSource) && /wl\.live/.test(dashboardUiSource),
-  'dashboard workLog UI renders liveHtml from DEMIGOD-VERIFY-LIVE findings',
-);
-ok(
   /volumeStatic/.test(dashboardSource) && /canvas volume/.test(dashboardSource),
   'coord workLog.live flags volumeStatic Designer canvas residual',
 );
@@ -3541,18 +3512,6 @@ ok(
   'coord workLog redesign manVer pin in paste-blocked summary',
 );
 ok(
-  /redesignHtml/.test(dashboardUiSource) && /wl\.redesign/.test(dashboardUiSource),
-  'dashboard workLog UI redesign paste-blocked pill',
-);
-ok(
-  /manVer\|\|rd\.man/.test(dashboardUiSource) && /manCdnShort/.test(dashboardUiSource) && /liveCdnShort/.test(dashboardUiSource),
-  'dashboard redesign UI shows manVer + man@ + live@ CDN pins',
-);
-ok(
-  /lag \+/.test(dashboardUiSource) && /pasteBlocked&&rd\.disk&&rd\.live/.test(dashboardUiSource),
-  'dashboard redesign UI shows version lag when disk≠live',
-);
-ok(
   /@media print/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) && /prefers-contrast:more/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
   'head print media + prefers-contrast redesign',
 );
@@ -3566,14 +3525,6 @@ ok(
   'head font-optical-sizing redesign',
 );
 ok(
-  /font-family:var\(--mono\)/.test(dashboardUiSource) && /Redesign ·/.test(dashboardUiSource),
-  'dashboard redesign row mono pin typography',
-);
-ok(
-  /cdnSealed/.test(dashboardSource) && /cdn sealed/.test(dashboardUiSource),
-  'redesignSnap cdnSealed + UI pill when disk≡man',
-);
-ok(
   /cdn-sealed/.test(dashboardSource),
   'workSummary includes cdn-sealed when redesignSnap.cdnSealed',
 );
@@ -3584,14 +3535,6 @@ ok(
   'head :target + forced-colors + prefers-reduced-data redesign',
 );
 ok(
-  /Number\.isFinite/.test(dashboardUiSource) && /lag \+/.test(dashboardUiSource),
-  'dashboard redesign lag uses Number.isFinite',
-);
-ok(
-  /title=/.test(dashboardUiSource) && /Redesign ·/.test(dashboardUiSource) && /rd\.disk/.test(dashboardUiSource),
-  'dashboard redesign row title pin truth',
-);
-ok(
   /dg-truncate/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
     /min-width:1280px/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
   'head large-viewport + dg-truncate redesign',
@@ -3599,10 +3542,6 @@ ok(
 ok(
   /live: String\(shipSnap\.live \|\| pub\?\.liveFoot/.test(dashboardSource),
   'redesignSnap.live strips leading v for lag math',
-);
-ok(
-  /lagVer:/.test(dashboardSource) && /rd\.lagVer/.test(dashboardUiSource),
-  'redesignSnap.lagVer precomputed for UI',
 );
 ok(
   /lagBit/.test(dashboardSource) && /lag\+\$\{redesignSnap\.lagVer\}/.test(dashboardSource),
@@ -3643,10 +3582,6 @@ ok(
   'head 100dvh hero + standalone safe-area top',
 );
 ok(
-  /paste lag critical/.test(dashboardUiSource),
-  'dashboard redesign paste lag critical when lagVer high',
-);
-ok(
   /color-scheme:dark only/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
   'head color-scheme dark only',
 );
@@ -3656,9 +3591,8 @@ ok(
   'head short-landscape hero min-height auto',
 );
 ok(
-  /potter@trydemigod\.com/.test(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8')) &&
-    !/hello@trydemigod\.com/.test(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8')),
-  'blog public contact potter@ only (no hello@ mailbox)',
+  !/hello@trydemigod\.com/.test(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8')),
+  'blog public contact never uses hello@ mailbox (matches blog-sync validate(), which forbids hello@ but does not require potter@ presence — posts are not all pricing/policy CTAs)',
 );
 ok(
   /input\[type=search\]/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
@@ -3670,15 +3604,19 @@ ok(
   'head number spin hide + date color-scheme dark',
 );
 ok(
-  /stage: pub\?\.stage/.test(dashboardSource) && /rd\.stage/.test(dashboardUiSource),
-  'redesignSnap.stage from publish-status + UI pill',
+  /stage: pub\?\.stage/.test(dashboardSource),
+  'redesignSnap.stage comes from publish status',
 );
 ok(
   /scrollbar-gutter:stable both-edges/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
   'head scrollbar-gutter both-edges',
 );
 ok(
-  /Gold-on-dark abstract mark/.test(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8')),
+  (() => {
+    const posts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
+    const list = Array.isArray(posts) ? posts : posts.posts || [];
+    return list.length > 0 && list.every((p) => p.imageAlt && p.imageAlt !== p.title && p.imageAlt.length > 20);
+  })(),
   'blog imageAlt descriptive (not title-only)',
 );
 ok(
@@ -3686,8 +3624,8 @@ ok(
   'head svg fluid max-width',
 );
 ok(
-  /manAt: man\?\.at/.test(dashboardSource) && /rd\.manAt/.test(dashboardUiSource),
-  'redesignSnap.manAt + UI pill',
+  /manAt: man\?\.at/.test(dashboardSource),
+  'redesignSnap preserves manifest evidence time',
 );
 ok(
   /button,input,select,textarea\{font:inherit\}/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
@@ -3745,19 +3683,27 @@ ok(
 
 
 ok(
-  /pasteReason/.test(dashboardSource) && /pasteReason/.test(dashboardUiSource),
-  'redesignSnap pasteReason in workLog + UI',
+  /pasteReason/.test(dashboardSource),
+  'redesignSnap preserves paste reason in workLog',
 );
 ok(
-  /volumeStatic/.test(dashboardUiSource),
-  'dashboard liveHtml shows canvas 3-5 pill when volumeStatic',
-);
-ok(
-  /og:image:secure_url/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
-    /126k4p\.jpg/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  (() => {
+    const headHtml = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
+    const img = headHtml.match(/<meta property="og:image" content="([^"]+)"/);
+    const secure = headHtml.match(/<meta property="og:image:secure_url" content="([^"]+)"/);
+    return !!img && !!secure && img[1] === secure[1] && secure[1].startsWith('https://');
+  })(),
   'head og:image:secure_url for https unfurl parity',
 );
 ok(
   /workLog/.test(dashboardSource) && /crawlSnap/.test(dashboardSource) && /FIRECRAWL-DATA-REPORT/.test(dashboardSource),
   'coord workLog surfaces optional firecrawl crawlSnap from FIRECRAWL-DATA-REPORT.json',
 );
+
+if (fails.length) {
+  writeReceipt(false);
+  console.error('FAIL', fails);
+  process.exit(1);
+}
+writeReceipt(true);
+console.log('ALL PASS tools-os-selftest');

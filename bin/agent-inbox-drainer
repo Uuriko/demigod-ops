@@ -43,8 +43,33 @@ run_agent() { # $1 = prompt ; stdout = reply
 }
 
 log(){ echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
+
+write_response_meta() { # response receipt exit started_epoch
+  local response="$1" receipt="$2" exit_code="$3" started="$4" ok=false
+  [[ "$exit_code" -eq 0 ]] && ok=true
+  printf '{"schema":"demigod.agent-response/1","at":"%s","exit":%d,"ok":%s,"bytes":%d,"durationSec":%d}\n' \
+    "$(date -Iseconds)" "$exit_code" "$ok" "$(stat -c %s "$response")" "$(( $(date +%s) - started ))" >"$receipt.wip"
+  chmod 600 "$receipt.wip"
+  mv -f "$receipt.wip" "$receipt"
+}
+
+if [[ "$cmd" == "selftest-meta" ]]; then
+  test_dir=$(mktemp -d); trap 'rm -rf "$test_dir"' EXIT
+  printf test >"$test_dir/sample.res"
+  write_response_meta "$test_dir/sample.res" "$test_dir/sample.meta.json" 124 "$(( $(date +%s) - 2 ))"
+  meta_text=$(<"$test_dir/sample.meta.json")
+  [[ "$meta_text" == *'"exit":124,"ok":false,"bytes":4'* && "$(stat -c %a "$test_dir/sample.meta.json")" == 600 ]] || {
+    echo "agent response metadata selftest FAIL" >&2; exit 1;
+  }
+  echo "agent response metadata selftest PASS"; exit 0
+fi
+
 rm -f "$STOP"; echo $$ >"$PIDF"
 log "DRAIN START agent=$AGENT inbox=$INBOX timeout=${TIMEOUT}s sandbox=${CODEX_SANDBOX}"
+if [[ "$AGENT" == "grok" ]]; then
+  DEMIGOD_BUSY="$BUSY" node "$ROOT/demigod-agent-dashboard.mjs" --project-grok-out >>"$LOG" 2>&1 ||
+    log "WARN startup shared Grok receipt projection failed"
+fi
 
 # Recover orphaned claims: a .run left by a crashed/killed predecessor is a silently-lost task.
 # One drainer instance per agent (systemd), so at startup any .run is stale → requeue it.
@@ -60,12 +85,19 @@ while [[ ! -f "$STOP" && ! -f "$GSTOP" ]]; do
     for ((s=0; s<POLL; s++)); do [[ -f $STOP || -f $GSTOP ]] && break; ls "$INBOX"/*.req >/dev/null 2>&1 && break; sleep 1; done
     continue
   fi
-  base=$(basename "$req" .req); run="$INBOX/$base.run"; out="$OUT/$base.res"
+  base=$(basename "$req" .req); run="$INBOX/$base.run"; out="$OUT/$base.res"; meta="$OUT/$base.meta.json"
   mv "$req" "$run" 2>/dev/null || continue     # another claimant won the race
   log "REQ $base"
+  started_epoch=$(date +%s)
   set +e; run_agent "$(cat "$run")" >"$out.wip" 2>>"$LOG"; ec=$?; set -e
+  chmod 600 "$out.wip"
   mv -f "$out.wip" "$out"   # atomic publish: .res appears only when complete (no 0-byte false-"done" for pollers)
+  write_response_meta "$out" "$meta" "$ec" "$started_epoch"
   rm -f "$run"
+  if [[ "$AGENT" == "grok" ]]; then
+    DEMIGOD_BUSY="$BUSY" node "$ROOT/demigod-agent-dashboard.mjs" --project-grok-out >>"$LOG" 2>&1 ||
+      log "WARN $base shared Grok receipt projection failed"
+  fi
   log "REQ $base exit=$ec -> $out"
   sleep "$COOLDOWN"                            # throttle to avoid tight cross-post loops
 done

@@ -36,6 +36,10 @@ if (!item) {
   console.error(JSON.stringify({ ok: false, error: 'not_found', hint: '--id or --latest-startup' }));
   process.exit(1);
 }
+if (!['reviewed', 'featured', 'approved'].includes(item.status)) {
+  console.error(JSON.stringify({ ok: false, error: 'review_required', id: item.id, status: item.status || 'unknown' }));
+  process.exit(1);
+}
 
 const raw = item.raw || {};
 const company = raw['company-name'] || raw.companyName || raw.company || 'Unknown';
@@ -47,7 +51,7 @@ const contact = raw['contact-email'] || raw.contactEmail || '';
 const r = spawnSync(
   'node',
   [
-    'demigod-pilot-os.mjs',
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'demigod-pilot-os.mjs'),
     'add',
     '--company',
     String(company),

@@ -15,6 +15,47 @@ const fails = [];
 const ok = (c, m) => (c ? console.log('ok', m) : fails.push(m));
 
 const n1 = buildNext();
+ok(!n1.title.includes(n1.cmd), 'NEXT title does not repeat its command');
+const freshFail = buildNext({
+  truth: { fullyShipped: false },
+  truthEvidence: { green: false, pass: false, fresh: true, reason: 'fail-fresh' },
+});
+const stale = buildNext({
+  truth: { fullyShipped: false },
+  truthEvidence: { green: false, pass: false, fresh: false, reason: 'ttl-expired' },
+});
+const prepareOnlyDrift = buildNext({
+  truth: {
+    fullyShipped: false,
+    prepareOnlyRelease: true,
+    live: { footVer: '802' },
+    summaryLine: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
+  },
+  truthEvidence: {
+    green: true,
+    pass: true,
+    fresh: true,
+    reason: 'pass-fresh',
+    summary: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
+  },
+});
+const orientSource = fs.readFileSync(path.join(ROOT, 'demigod-orient.mjs'), 'utf8');
+ok(
+  freezeStatus().frozen
+    ? freshFail.id === 'demand-ops' && freshFail.mutate === false
+    : freshFail.id === 'ship-prepare' && freshFail.cmd === 'bin/dg ship prepare',
+  'fresh release drift respects freeze; otherwise advances to read-only ship preparation',
+);
+ok(stale.id === 'truth', 'stale truth evidence still refreshes');
+ok(
+  prepareOnlyDrift.id === 'ship-prepare' &&
+    prepareOnlyDrift.pri >= 2 &&
+    !/disk≠live/.test(prepareOnlyDrift.title) &&
+    /publish unauthorized|prepare-only/i.test(prepareOnlyDrift.title),
+  'prepare-only version drift is not P1 disk≠live critical',
+);
+ok(/if\s*\(!te\.fresh\s*&&\s*!noRefresh\)/.test(orientSource), 'orient refreshes stale evidence only');
+ok(!orientSource.includes('! fix: bin/dg truth &&'), 'orient does not contradict its canonical NEXT command');
 const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-next.mjs'), '--json'], {
   cwd: ROOT,
   encoding: 'utf8',
@@ -25,13 +66,14 @@ if (r.error) {
     const nextSource = fs.readFileSync(path.join(ROOT, 'demigod-next.mjs'), 'utf8');
     const cockpitSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-cockpit.mjs'), 'utf8');
     ok(/export\s+function\s+buildNext\b/.test(nextSource), 'fallback canonical buildNext export');
-    ok(/--assert-same/.test(nextSource) && /mismatches/.test(nextSource), 'fallback assert-same contract');
+ok(/--assert-same/.test(nextSource) && /mismatches/.test(nextSource), 'fallback assert-same contract');
+ok(/assertCli\.status === 0 && assertCliBody\?\.ok !== false/.test(orientSource), 'fallback orient requires exit success and non-failing assert receipt');
     ok(
       /id: ['"]demand-ops['"][\s\S]*?mutate: false,[\s\S]*?freezeBlocks: false,/.test(nextSource),
       'fallback frozen demand NEXT remains read-only and unblocked',
     );
     ok(
-      /draftHygieneOk/.test(nextSource) && /draft hygiene=clean/.test(nextSource) && /draft hygiene flagged=/.test(nextSource),
+      /draftHygieneOk/.test(nextSource) && /recordedDraftHygieneOk/.test(nextSource) && /draftFlagged/.test(nextSource),
       'fallback frozen demand NEXT carries tri-state draft hygiene evidence',
     );
     ok(
@@ -48,13 +90,12 @@ if (r.error) {
       /warmInbound:\s*\{/.test(nextSource) &&
         /overdueActionCount/.test(nextSource) &&
         /dueTodayActionCount/.test(nextSource) &&
-        /isPilot:\s*false/.test(nextSource) &&
-        /warm inbound overdue=/.test(nextSource),
+        /isPilot:\s*false/.test(nextSource),
       'fallback frozen demand NEXT preserves fresh inbound action priority without pilot promotion',
     );
     ok(
-      /id: ['"]hold-green['"][\s\S]*?publish-freeze\.mjs on[\s\S]*?mutate: true,[\s\S]*?freezeBlocks: false,/.test(nextSource),
-      'fallback re-freeze NEXT is classified as a mutation',
+      /id: ['"]hold-green['"][\s\S]*?bin\/dg demand status[\s\S]*?mutate: false,[\s\S]*?freezeBlocks: false,/.test(nextSource),
+      'fallback shipped-green NEXT stays on read-only demand ops while freeze is disabled',
     );
     ok(/(?:let\s+nextSource\s*=|nextSource:)\s*['"]demigod-next['"]/.test(cockpitSource), 'fallback cockpit identifies canonical NEXT');
     ok(Boolean(n1.id && n1.cmd && n1.title), 'fallback buildNext shape');

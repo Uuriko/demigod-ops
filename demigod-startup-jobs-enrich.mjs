@@ -61,22 +61,40 @@ export function isUsPostedLocation(blob) {
 // undetected (shown "hiring unknown") — under-claiming is the honest failure mode here.
 // ponytail: naive registrable-label = second-to-last dotted label; fine for single-label
 // TLDs (.com/.io/.ai/.co/.camp). Multi-part TLDs (.co.uk) yield a weak slug that just 404s.
+// Domain → ATS board slug only when domain label ≠ board id and the board is
+// independently evidenced (under-claim remains the default for unknowns).
+// Never map by company name. Wrong-company boards (e.g. ashby "weave" = dental SaaS)
+// must not appear here.
+export const DOMAIN_ATS_SLUGS = {
+  'usepylon.com': ['pylon-labs'],
+};
+
 export const slugs = (company) => {
   const out = new Set();
-  const push = (s) => {
+  // Domain labels: alphanumerics only. ATS aliases may keep hyphens (pylon-labs).
+  const pushDomainLabel = (s) => {
     s = String(s || '')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
     if (s.length >= 3) out.add(s);
   };
+  const pushAtsSlug = (s) => {
+    s = String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/^-+|-+$/g, '');
+    if (s.replace(/-/g, '').length >= 3) out.add(s);
+  };
   try {
-    const labels = new URL(company.website).hostname.replace(/^www\./, '').split('.');
+    const host = new URL(company.website).hostname.replace(/^www\./, '').toLowerCase();
+    const labels = host.split('.');
     const main = labels.length >= 2 ? labels[labels.length - 2] : labels[0];
-    push(main);
+    pushDomainLabel(main);
+    for (const alias of DOMAIN_ATS_SLUGS[host] || []) pushAtsSlug(alias);
   } catch {
     /* no website → no board */
   }
-  return [...out].slice(0, 2);
+  return [...out].slice(0, 3);
 };
 
 async function tryFetch(url, parse) {
@@ -187,6 +205,11 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || process.argv.
   assert(sl('GitLab Inc.', 'https://about.gitlab.com/company/').includes('gitlab'), 'about.gitlab.com → gitlab (subdomain parse)');
   assert(sl('Stripe', 'https://stripe.com/').includes('stripe'), 'stripe.com → stripe');
   assert(sl('X', '').length === 0, 'no website → no slug → no board');
+  // Evidenced domain→board alias (usepylon.com ATS is pylon-labs, not usepylon).
+  assert(sl('Pylon', 'https://usepylon.com/').includes('pylon-labs'), 'usepylon.com → pylon-labs alias');
+  // Must NOT invent ashby "weave" for YC Weave (that board is dental SaaS in Lehi).
+  assert(!sl('Weave', 'https://weaveos.com/').includes('weave') || sl('Weave', 'https://weaveos.com/').includes('weaveos'), 'weaveos primary');
+  assert(!DOMAIN_ATS_SLUGS['weaveos.com'], 'no weaveos false alias');
   // Import must not rewrite MAP or run the enrich CLI (side-effect footgun).
   const selfPath = fileURLToPath(import.meta.url);
   const beforeMtime = fs.existsSync(MAP) ? fs.statSync(MAP).mtimeMs : 0;

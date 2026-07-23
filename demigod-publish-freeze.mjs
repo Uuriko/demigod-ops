@@ -1,15 +1,10 @@
 #!/usr/bin/env node
 /**
- * Publish freeze — DISABLED for now (user request 2026-07-16).
- *
- * Module kept so imports/assertNotFrozen call sites stay stable.
- * Always reports unfrozen; on/off are no-ops that clear any stale file.
- *
- * State path (legacy): /tmp/dg-busy/publish-freeze.json
+ * Publish freeze — shared hard gate for CDN/Webflow release mutations.
  *
  * Usage:
  *   node demigod-publish-freeze.mjs status
- *   node demigod-publish-freeze.mjs on|off   # no-op, forces off
+ *   node demigod-publish-freeze.mjs on|off
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,14 +12,14 @@ import { fileURLToPath } from 'url';
 import { BUSY, ensureBusy, atomicWrite, opt } from './demigod-agent-tools-lib.mjs';
 
 const FILE = path.join(BUSY, 'publish-freeze.json');
-/** Set false to re-enable real freeze behavior later. */
 export const FREEZE_DISABLED = true;
 
-function writeOff(why = 'freeze disabled — always off') {
+function writeState(on, why) {
   ensureBusy();
+  if (FREEZE_DISABLED) on = false;
   const rec = {
-    on: false,
-    disabled: true,
+    on,
+    disabled: FREEZE_DISABLED,
     at: new Date().toISOString(),
     by: process.env.DG_LOCK_OWNER || process.env.USER || 'agent',
     why,
@@ -34,25 +29,54 @@ function writeOff(why = 'freeze disabled — always off') {
 }
 
 export function status() {
-  // Ignore env + file while disabled
+  if (FREEZE_DISABLED) {
+    return {
+      frozen: false,
+      disabled: true,
+      env: false,
+      file: false,
+      corrupt: false,
+      why: 'Publish freeze permanently disabled by user',
+      at: new Date().toISOString(),
+      by: process.env.USER || 'agent',
+      authorized: process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH === '1',
+      path: FILE,
+    };
+  }
+  const env = process.env.DEMIGOD_PUBLISH_FREEZE === '1';
+  let file = null;
+  let corrupt = false;
+  if (fs.existsSync(FILE)) {
+    try {
+      file = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    } catch {
+      corrupt = true;
+    }
+  }
+  const frozen = env || corrupt || file?.on === true;
   return {
-    frozen: false,
-    disabled: true,
-    env: false,
-    file: false,
-    why: 'freeze disabled (entirely off for now)',
-    at: new Date().toISOString(),
-    by: null,
+    frozen,
+    disabled: false,
+    env,
+    file: file?.on === true,
+    corrupt,
+    why: corrupt ? 'publish-freeze.json is unreadable — failing closed' : file?.why || (env ? 'DEMIGOD_PUBLISH_FREEZE=1' : null),
+    at: file?.at || new Date().toISOString(),
+    by: file?.by || null,
+    authorized: process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH === '1',
     path: FILE,
   };
 }
 
-/** No-op while freeze is disabled. */
 export function assertNotFrozen(label = 'publish') {
-  if (FREEZE_DISABLED) return;
-  // re-enable path left for later restore
-  if (process.env.DEMIGOD_FORCE_PUBLISH === '1') return;
-  void label;
+  const state = status();
+  if (state.frozen) throw new Error(`${label} blocked by publish freeze${state.why ? `: ${state.why}` : ''}`);
+  if (!state.authorized) {
+    throw new Error(
+      `${label} blocked: current request did not authorize external publication ` +
+        '(set DEMIGOD_CURRENT_REQUEST_PUBLISH=1 only for that foreground request)',
+    );
+  }
 }
 
 /** Dynamic import avoids cycle: control → next → freeze → control */
@@ -79,19 +103,16 @@ if (isMain) {
     }
 
     if (cmd === 'on' || cmd === 'off') {
-      const rec = writeOff(
-        cmd === 'on'
-          ? `freeze disabled — ignored on --why ${opt(args, '--why', 'n/a')}`
-          : 'freeze disabled — off',
-      );
+      const on = cmd === 'on';
+      const rec = writeState(on, on ? opt(args, '--why', 'manual publish freeze') : opt(args, '--why', 'manual publish unfreeze'));
       const next = await refreshNextCanon();
       console.log(
         JSON.stringify(
           {
             ok: true,
-            on: false,
-            disabled: true,
-            note: 'Publish freeze removed for now; mutate allowed (foot-lock still applies).',
+            note: rec.disabled
+              ? 'Publish freeze is permanently disabled; foot lock still applies.'
+              : on ? 'Publish mutations are blocked.' : 'Publish mutations are allowed; foot lock still applies.',
             ...rec,
             next: next ? { id: next?.id, cmd: next?.cmd } : null,
           },
@@ -102,7 +123,7 @@ if (isMain) {
       process.exit(0);
     }
 
-    console.error('usage: status | on | off  (all no-op while freeze disabled)');
+    console.error('usage: status | on | off [--why TEXT]');
     process.exit(2);
   })().catch((e) => {
     console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));

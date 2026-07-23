@@ -82,8 +82,8 @@ if (cmd === 'hire') {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);
   }
-  if (p.status !== 'intro' && p.status !== 'hired' && !args.includes('--force')) {
-    console.error(JSON.stringify({ ok: false, error: 'expect_status_intro', status: p.status, hint: '--force to override' }));
+  if (p.status !== 'intro' && p.status !== 'hired') {
+    console.error(JSON.stringify({ ok: false, error: 'expect_status_intro', status: p.status }));
     process.exit(1);
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {

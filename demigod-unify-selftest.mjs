@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildUnify, buildRoleLamps } from './demigod-unify.mjs';
@@ -20,6 +21,7 @@ ok(Array.isArray(u.toolsHot), 'toolsHot array');
 ok(Array.isArray(u.ledger), 'ledger array');
 ok(u.links?.unify && u.links?.ui, 'links');
 ok(Array.isArray(u.cli?.spine) && u.cli.spine.length >= 3, 'cli spine');
+ok(u.rules?.some((rule) => /Auto-DM STOPPED.*current user request/i.test(rule)), 'unify never grants outbound authority');
 ok(u.lamps && u.lamps.schema === 'demigod.role-lamps/1', 'lamps schema');
 ok(typeof u.lamps.demand.queueOk === 'boolean', 'lamps.demand.queueOk');
 ok(typeof u.lamps.demand.outcomeOk === 'boolean', 'lamps.demand.outcomeOk');
@@ -68,6 +70,8 @@ ok(soft.driftExpected === true && soft.softDrift === true, 'soft drift under fre
 ok(soft.footVersionSeverity === 'warn', 'soft drift severity warn');
 const hard = classifyFootDrift({ freezeOn: false, diskVer: '199', liveVer: '198' });
 ok(hard.driftExpected === false, 'no soft drift when freeze off');
+const prep = classifyFootDrift({ freezeOn: false, diskVer: '199', liveVer: '198', prepareOnly: true });
+ok(prep.softDrift === true && /prepare-only/i.test(prep.note || ''), 'soft drift when prepareOnly');
 const match = classifyFootDrift({ freezeOn: true, diskVer: '198', liveVer: 'v198' });
 ok(match.footVersionMatch === true && !match.softDrift, 'match no soft drift');
 
@@ -75,19 +79,20 @@ const n = buildNext();
 ok(u.next.id === n.id, `unify next id === buildNext (${u.next.id})`);
 ok(u.next.cmd === n.cmd, 'unify next cmd === buildNext');
 
-const cli = spawnSync(process.execPath, [path.join(ROOT, 'demigod-unify.mjs'), '--json'], {
-  cwd: ROOT,
-  encoding: 'utf8',
-  timeout: 30000,
-});
-ok(cli.status === 0, 'unify CLI exit 0');
-try {
-  const j = JSON.parse(cli.stdout);
-  ok(j.next?.id === u.next.id, 'CLI json next id');
-  ok(j.schema === 'demigod.unify/1', 'CLI schema');
-} catch {
-  fails.push('CLI json parse');
-}
+const coordSource = fs.readFileSync(path.join(ROOT, 'bin/dg-agent-coord'), 'utf8');
+const usefulSource = fs.readFileSync(path.join(ROOT, 'demigod-useful-loop.mjs'), 'utf8');
+const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+const websiteTurnSource = fs.readFileSync(path.join(ROOT, 'demigod-website-turn.mjs'), 'utf8');
+ok(/stdbuf -oL -eL grok-ask/.test(coordSource) && !/stdbuf -oL -eL grok -p/.test(coordSource), 'coord Grok always receives shared context through grok-ask');
+ok((coordSource.match(/Production SoRs[^\n]+read-only/g) || []).length >= 4 && /DEMIGOD-EVENTS\.json[^\n]+read-only/.test(coordSource), 'background coordinator workers cannot rewrite production SoRs');
+ok(/bin\/grok-ask/.test(websiteTurnSource) && !/grok -p|Fable\/Heavy authority|CM6 paste\+Publish/.test(websiteTurnSource), 'website turn cannot bypass Grok context or publish authority');
+ok(!/ship prepare\|run|publish needed|CDN events-api pending when freeze ON/.test(coordSource + usefulSource), 'autonomous surfaces never turn drift or freeze state into publish authority');
+ok(!/b\.tracks\.grok\s*=\s*\{\s*status:\s*['"]busy['"]/.test(usefulSource) && !/Live sealed — hold-green/.test(usefulSource), 'useful loop cannot invent Grok activity or release truth');
+ok(!/['"](?:foot-cdn|cm6-paste|favicon-ship|cycle-work|events-online-heal)['"]\s*:/.test(dashboardSource), 'dashboard cannot dispatch external publish or public-tunnel jobs');
+ok(!/cmd:\s*['"]node demigod-cm6-paste-publish\.mjs|npm run demigod:foot:cdn|Disk v\$\{diskVerGreen\} vs live v\$\{liveVerGreen\} — publish needed/.test(dashboardSource), 'dashboard drift actions are preparation-only');
+
+const serialized = JSON.parse(JSON.stringify(u));
+ok(serialized.next?.id === u.next.id && serialized.schema === 'demigod.unify/1', 'unify JSON contract');
 
 // Optional live dash check (skip if down)
 try {

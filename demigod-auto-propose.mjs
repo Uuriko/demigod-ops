@@ -7,15 +7,46 @@
  */
 import { loadBoard } from './demigod-submissions-lib.mjs';
 import { proposePair, listPairs, loadPairs } from './demigod-pairs-lib.mjs';
-import { suggestMatches } from './demigod-matching-engine.mjs';
+import { isSampleCandidate, isSampleRole, suggestMatches } from './demigod-matching-engine.mjs';
 import fs from 'fs';
 
 const args = process.argv.slice(2);
+const AUTO_PROPOSE_FLAGS = new Set(['--json', '--allow-sample', '--limit', '--min-score', '--help', '-h']);
+const unknownAuto = args.find(
+  (a, i) =>
+    a.startsWith('-') &&
+    !AUTO_PROPOSE_FLAGS.has(a) &&
+    !(args[i - 1] === '--limit' || args[i - 1] === '--min-score'),
+);
+if (unknownAuto) {
+  console.error(
+    `auto-propose: unknown argument ${unknownAuto} — try: node demigod-auto-propose.mjs [--json] [--limit N] [--min-score 0.72] [--allow-sample]`,
+  );
+  process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`demigod-auto-propose — freeze-safe pair proposals (no board mint)
+
+Usage: node demigod-auto-propose.mjs [--json] [--limit N] [--min-score 0.72] [--allow-sample]`);
+  process.exit(0);
+}
 const asJson = args.includes('--json');
 const allowSample = args.includes('--allow-sample');
-const limit = Number(args.includes('--limit') ? args[args.indexOf('--limit') + 1] : 5) || 5;
-const minScore =
-  Number(args.includes('--min-score') ? args[args.indexOf('--min-score') + 1] : 0.72);
+
+function numberFlag(flag, fallback, valid) {
+  const i = args.indexOf(flag);
+  if (i < 0) return fallback;
+  const raw = args[i + 1];
+  const value = Number(raw);
+  if (raw == null || String(raw).startsWith('-') || !valid(value)) {
+    console.error(`${flag} requires a valid value (got ${raw == null ? 'nothing' : JSON.stringify(raw)})`);
+    process.exit(2);
+  }
+  return value;
+}
+
+const limit = numberFlag('--limit', 5, (value) => Number.isInteger(value) && value > 0);
+const minScore = numberFlag('--min-score', 0.72, (value) => Number.isFinite(value) && value >= 0 && value <= 1);
 
 const board = loadBoard();
 let roles = board.roles || [];
@@ -52,10 +83,12 @@ for (const role of roles) {
         score: normalizedScore,
         reasons: [
           `auto-propose score=${m.score}`,
+          ...(m.evidence || []),
           role.title || '',
           role.sample ? 'role-sample' : '',
         ].filter(Boolean),
         actor: 'auto-propose',
+        sample: isSampleRole(role) || m.sample === true || isSampleCandidate(m.candidate),
       });
       proposed.push({
         pairId: pair.pairId,

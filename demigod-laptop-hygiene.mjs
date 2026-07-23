@@ -15,12 +15,42 @@ import { BUSY, ensureBusy, atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
+// Flag validation runs only from main() — this module is also imported for sensitiveRetention.
 const asJson = args.includes('--json');
 const optimize = args.includes('--optimize');
 const doPrune = args.includes('--prune') || optimize;
 const killHung = args.includes('--kill-hung') || optimize;
 const MAX_LOG_BYTES = 2 * 1024 * 1024;
 const KEEP_LOG_BYTES = 512 * 1024;
+const RETENTION_DAYS = 7;
+
+export function sensitiveRetention(roots, now = Date.now(), retentionDays = RETENTION_DAYS) {
+  const files = [];
+  const walk = (dir) => {
+    try {
+      const stat = fs.statSync(dir);
+      if (stat.isFile()) { files.push(stat); return; }
+    } catch { return; }
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (entry.isFile()) {
+        try { files.push(fs.statSync(p)); } catch { /* raced with a writer */ }
+      }
+    }
+  };
+  for (const root of roots) walk(root);
+  const ages = files.map((stat) => Math.max(0, (now - stat.mtimeMs) / 86400000));
+  return {
+    fileCount: files.length,
+    agedCount: ages.filter((days) => days > retentionDays).length,
+    oldestAgeDays: ages.length ? Math.floor(Math.max(...ages)) : null,
+    retentionDays,
+    unsafeModeCount: files.filter((stat) => (stat.mode & 0o077) !== 0).length,
+  };
+}
 
 function sh(cmd) {
   return spawnSync('bash', ['-lc', cmd], { encoding: 'utf8', timeout: 20000 });
@@ -116,7 +146,24 @@ function trimBusyLogs() {
 }
 
 async function main() {
+  const HYGIENE_FLAGS = new Set(['--json', '--prune', '--kill-hung', '--optimize', '--help', '-h']);
+  const unknownHygiene = args.find((a) => !HYGIENE_FLAGS.has(a));
+  if (unknownHygiene) {
+    console.error(
+      `hygiene: unknown argument ${unknownHygiene} — try: node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung] [--optimize]`,
+    );
+    process.exit(2);
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`demigod-laptop-hygiene — CDP tabs + load
+
+Usage: node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung] [--optimize]`);
+    process.exit(0);
+  }
   ensureBusy();
+  const warmPrepFiles = fs.readdirSync(BUSY)
+    .filter((name) => /^warm-.*\.md$/i.test(name))
+    .map((name) => path.join(BUSY, name));
   const before = { load: loadMem(), tabs: await tabCount(), paused: pausedState() };
   const report = {
     at: new Date().toISOString(),
@@ -127,6 +174,11 @@ async function main() {
     hung: listHung(),
     actions: [],
     tips: [],
+    sensitiveRetention: sensitiveRetention([
+      path.join(BUSY, 'talent-crm'),
+      path.join(ROOT, 'talent-crm', 'resumes'),
+      ...warmPrepFiles,
+    ]),
   };
 
   if (optimize && before.paused.watchdogPaused) {
@@ -151,6 +203,11 @@ async function main() {
   }
   if (hung.length) {
     report.tips.push(`${hung.length} hung agent process(es) ≥25m — --kill-hung if stuck`);
+  }
+  if (report.sensitiveRetention.agedCount > 0) {
+    report.tips.push(
+      `${report.sensitiveRetention.agedCount} private raw/resume artifact(s) exceed ${report.sensitiveRetention.retentionDays}d retention review`,
+    );
   }
 
   if (doPrune) {
@@ -245,7 +302,9 @@ async function main() {
   process.exit(report.healthy ? 0 : 1);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(2);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(2);
+  });
+}

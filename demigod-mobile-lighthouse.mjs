@@ -11,6 +11,8 @@ import { ROOT } from './demigod-turn-lib.mjs';
 const OUT = path.join(ROOT, 'DEMIGOD-MOBILE-LIGHTHOUSE.json');
 const REPORT = path.join(ROOT, 'audit-shots', 'mobile-lighthouse');
 const TARGET_URL = `${LIVE_ORIGIN}/?v=lh-${Date.now()}`;
+const LOCAL = process.argv.includes('--local');
+const CORE = LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function scoreCat(report, id) {
@@ -33,10 +35,16 @@ async function navTiming(page) {
   });
 }
 
-async function puppeteerTiming() {
+async function puppeteerTiming(local = false) {
   const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 180000 });
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  if (local) {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => /foot-latest\.js(?:[?#]|$)|demigod-foot|(?:catbox|jsdelivr).*foot.*\.js(?:[?#]|$)/i.test(req.url())
+      ? req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {})
+      : req.continue().catch(() => {}));
+  }
   const t0 = Date.now();
   await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 120000 });
   await page.waitForFunction(() => window.__dgFootVer, { timeout: 30000 });
@@ -56,20 +64,23 @@ async function puppeteerTiming() {
 function runLighthouse() {
   fs.mkdirSync(REPORT, { recursive: true });
   const jsonPath = path.join(REPORT, `lighthouse-mobile-${Date.now()}.json`);
-  const port = new URL(CDP_URL).port || '9223';
   const args = [
     TARGET_URL,
-    `--port=${port}`,
     '--form-factor=mobile',
     '--screenEmulation.mobile',
+    '--chrome-flags=--headless --no-sandbox --disable-gpu',
     '--throttling-method=simulate',
     '--only-categories=performance,accessibility,best-practices,seo',
     '--output=json',
     `--output-path=${jsonPath}`,
     '--quiet',
   ];
+  const env = { ...process.env };
+  const flatpakChrome = path.join(ROOT, 'bin/dg-flatpak-chrome');
+  if (!env.CHROME_PATH && fs.existsSync(flatpakChrome)) env.CHROME_PATH = flatpakChrome;
   const run = spawnSync('npx', ['--yes', 'lighthouse', ...args], {
     encoding: 'utf8',
+    env,
     timeout: 300000,
   });
   let report = null;
@@ -93,6 +104,7 @@ function runLighthouse() {
     audits: report
       ? {
           lcp: report.audits?.['largest-contentful-paint']?.displayValue,
+          lcpMs: report.audits?.['largest-contentful-paint']?.numericValue ?? null,
           cls: report.audits?.['cumulative-layout-shift']?.displayValue,
           tbt: report.audits?.['total-blocking-time']?.displayValue,
           inp: report.audits?.['interaction-to-next-paint']?.displayValue,
@@ -112,7 +124,8 @@ function runLighthouse() {
 }
 
 async function main() {
-  const timing = await puppeteerTiming().catch((e) => ({ error: String(e.message || e) }));
+  const baseline = LOCAL ? await puppeteerTiming().catch((e) => ({ error: String(e.message || e) })) : null;
+  const timing = await puppeteerTiming(LOCAL).catch((e) => ({ error: String(e.message || e) }));
   const lh = runLighthouse();
   const scores = lh.scores || {};
   const pass = {
@@ -120,17 +133,18 @@ async function main() {
     perf: scores.performance == null || scores.performance >= 50,
     a11y: scores.accessibility == null || scores.accessibility >= 85,
     seo: scores.seo == null || scores.seo >= 85,
-    footV75: timing.foot === '75',
-    heroDeduped: timing.heroHidden === true,
-    lcpUnder4s: !timing.timing?.lcp || timing.timing.lcp < 4000,
+    footLoaded: /^\d+$/.test(String(timing.foot || '')),
+    heroVisible: timing.heroHidden === false,
+    lcpUnder4s: lh.audits?.lcpMs == null ? null : lh.audits.lcpMs < 4000,
   };
   const result = {
     at: new Date().toISOString(),
     url: TARGET_URL,
     lighthouse: lh,
     puppeteer: timing,
+    baseline,
     pass,
-    ok: pass.footV75 && pass.heroDeduped && (pass.lighthouseRan ? pass.perf && pass.a11y && pass.seo : true),
+    ok: pass.lighthouseRan && pass.footLoaded && pass.heroVisible && pass.perf && pass.a11y && pass.seo && pass.lcpUnder4s,
   };
   fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ ok: result.ok, pass, scores: lh.scores, audits: lh.audits, out: OUT }));

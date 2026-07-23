@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-/** Generate personalized founder outreach (DM + email).
- * --dry (default): write ready-emails only.
- * --send: refused unless DEMIGOD_ALLOW_AUTO_DM=1 (user stopped auto-DM 2026-07-15).
- */
+/** Generate personalized founder outreach drafts. Delivery is permanently disabled. */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -83,6 +80,7 @@ function fill(template, row) {
 }
 
 function ensureSamples() {
+  process.umask(0o077);
   fs.mkdirSync(OUTREACH, { recursive: true });
   if (!fs.existsSync(CSV)) {
     fs.writeFileSync(CSV, [
@@ -110,60 +108,40 @@ function main() {
     console.log(`Usage: node demigod-founder-dm-blast.mjs [options]
 Options:
   --dry (default)   Generate ready files only (safe)
-  --send            Auto-send via CDP X (requires logged-in session on :9223)
+  --send            Refused; this tool only generates drafts
   --limit=N         Max rows
   --csv=PATH        Custom CSV (must have name,company,trigger[,why,email,handle])
   --template=PATH   Custom template with {{name}} {{company}} {{trigger}} {{why}}
-  --mark-sent=Name  Mark a generated item as sent, log to tracker (status=dm-sent)
+  --mark-sent=Name  Refused; a local draft cannot prove external delivery
   --prune           Keep only files from latest batch
   --log-prepared    After generate, log each to tracker as dm-prepared
   --help            This help
 
 Examples:
   node ... --dry --limit=5
-  node ... --send --limit=3
-  bin/dg demand send --names=T0,Hellyeah,Weave
   node ... --log-prepared
-  node ... --mark-sent=Marty
 `);
     return;
   }
-  ensureSamples();
 
   if (args.send) {
-    if (process.env.DEMIGOD_ALLOW_AUTO_DM !== '1' && process.env.DEMIGOD_ALLOW_AUTO_DM !== 'true') {
-      console.error(
-        JSON.stringify({
-          error: 'auto_dm_stopped',
-          hint: 'Auto-DM disabled. Use --dry for ready-emails only.',
-        }),
-      );
-      process.exit(2);
-    }
-    const r = spawnSync(
-      process.execPath,
-      [path.join(ROOT, 'demigod-dm-auto-send.mjs'), `--timeout=120000`],
-      { cwd: ROOT, encoding: 'utf8', timeout: 600000, stdio: 'inherit' },
-    );
-    process.exit(r.status ?? 1);
+    console.error(JSON.stringify({
+      error: 'auto_dm_stopped',
+      overrideAllowed: false,
+      hint: 'Use --dry; this tool has no delivery path.',
+    }));
+    process.exit(2);
   }
 
   if (args.markSent) {
-    const log = loadLog();
-    const item = (log.runs.flatMap(r => r.items || []).find(i => i.name.toLowerCase() === args.markSent.toLowerCase()));
-    if (item) {
-      log.sent = (log.sent || []).filter(s => s.name !== args.markSent);
-      log.sent.push({ name: args.markSent, at: new Date().toISOString(), batch: item.id });
-      fs.writeFileSync(LOG, JSON.stringify(log, null, 2));
-      // Log to tracker as dm-sent
-      const track = spawnSync('node', ['demigod-pilot-tracker.mjs', `--founderEmail=${item.name.toLowerCase().replace(/\W+/g,'')}+dm@trydemigod.com`, '--status=dm-sent', `--brief=DM sent batch ${item.id}`], { encoding: 'utf8' });
-      console.log('Marked sent and logged to tracker:', args.markSent);
-      if (track.stdout) console.log(track.stdout.trim());
-    } else {
-      console.error('Not found in runs:', args.markSent);
-    }
-    return;
+    console.error(JSON.stringify({
+      error: 'external_delivery_receipt_required',
+      hint: 'This drafts-only tool cannot attest delivery.',
+    }));
+    process.exit(2);
   }
+
+  ensureSamples();
 
   if (args.prune) {
     const log = loadLog();
@@ -235,7 +213,7 @@ Examples:
     count: generated.length,
     readyDir: path.relative(ROOT, READY),
     log: path.relative(ROOT, LOG),
-    next: 'Review ready-emails/* then send manually. Use --mark-sent=Name to log sent+track, or --log-prepared on generate.',
+    next: 'Review ready-emails/*; delivery remains outside this drafts-only tool.',
   }, null, 2));
 }
 

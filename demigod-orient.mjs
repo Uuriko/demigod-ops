@@ -4,7 +4,7 @@
  *
  *   bin/dg orient [--json] [--no-refresh] [--role demand|match|ship|review|all]
  *
- * 1. If truth evidence not green/fresh → run demigod-truth (unless --no-refresh)
+ * 1. If truth evidence is stale/missing → run demigod-truth (unless --no-refresh)
  * 2. Soft-refresh demand if missing/stale >15m
  * 3. buildUnify + assert-same (in-process + CLI)
  * 4. Print 5-line card (or JSON)
@@ -30,10 +30,33 @@ import { writeJsonAuto, isFreshFile } from './demigod-perf-cache.mjs';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
 const args = process.argv.slice(2);
+const ORIENT_FLAGS = new Set(['--json', '--no-refresh', '--role', '--help', '-h']);
+const unknownOrient = args.find(
+  (a, i) =>
+    a.startsWith('-') &&
+    !ORIENT_FLAGS.has(a) &&
+    !(args[i - 1] === '--role' && !a.startsWith('-')),
+);
+if (unknownOrient) {
+  console.error(
+    `orient: unknown argument ${unknownOrient} — try: bin/dg orient [--json] [--no-refresh] [--role demand|match|ship|review|all]`,
+  );
+  process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`demigod-orient — session start card
+
+Usage: bin/dg orient [--json] [--no-refresh] [--role demand|match|ship|review|all]`);
+  process.exit(0);
+}
 const asJson = args.includes('--json');
 const noRefresh = args.includes('--no-refresh');
 const roleIdx = args.indexOf('--role');
 const role = roleIdx >= 0 ? args[roleIdx + 1] || 'all' : 'all';
+if (roleIdx >= 0 && (args[roleIdx + 1] == null || String(args[roleIdx + 1]).startsWith('-'))) {
+  console.error('orient: --role requires a value (demand|match|ship|review|all)');
+  process.exit(2);
+}
 
 function runNode(scriptArgs, timeout = 90000) {
   return spawnSync(process.execPath, scriptArgs, {
@@ -250,7 +273,7 @@ async function main() {
     hardRefuse('corrupt truth evidence: ' + e.message);
   }
 
-  if (!te.green && !noRefresh) {
+  if (!te.fresh && !noRefresh) {
     const r = runNode([path.join(ROOT, 'demigod-truth.mjs'), '--quiet'], 90000);
     steps.push({ step: 'truth-refresh', ok: r.status === 0, status: r.status });
     try {
@@ -286,7 +309,7 @@ async function main() {
   } catch {
     /* */
   }
-  const assertOk = same.ok && (assertCli.status === 0 || assertCliBody?.ok !== false);
+  const assertOk = same.ok && assertCli.status === 0 && assertCliBody?.ok !== false;
 
   const freeze = freezeStatus();
   const lock = readJson(path.join(BUSY, 'foot-lock.json'));
@@ -431,9 +454,6 @@ async function main() {
     if (card.roleHint) console.log(`+ role(${role}): ${card.roleHint}`);
     if (!assertOk && card.assertSame.mismatches?.length) {
       console.error('! dual-NEXT:', JSON.stringify(card.assertSame.mismatches));
-    }
-    if (exit !== 0) {
-      console.error('! fix: bin/dg truth && bin/dg next-canon --assert-same && bin/dg unify');
     }
   }
   process.exit(exit);

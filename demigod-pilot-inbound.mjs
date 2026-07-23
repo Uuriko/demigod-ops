@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
+const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 const OPS = path.join(ROOT, 'demigod-ops');
 const PILOT_LOG = process.env.DEMIGOD_PILOT_LOG || path.join(OPS, 'PILOT-LOG.md');
 const args = process.argv.slice(2);
@@ -1308,6 +1308,47 @@ const map = {
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  const PILOT_FLAGS_OK = (a) =>
+    a === '--json' ||
+    a === '--selftest' ||
+    a === '--log' ||
+    a === '--log-pilot' ||
+    a === '--os' ||
+    a === '--help' ||
+    a === '-h' ||
+    a === '--email' ||
+    a === '--90d' ||
+    a === '--brief' ||
+    a === '--who' ||
+    a === '--channel' ||
+    a === '--status' ||
+    a === '--next' ||
+    a === '--company' ||
+    a === '--role' ||
+    a === '--source' ||
+    a.startsWith('--email=') ||
+    a.startsWith('--90d=') ||
+    a.startsWith('--brief=') ||
+    a.startsWith('--who=') ||
+    a.startsWith('--channel=') ||
+    a.startsWith('--status=') ||
+    a.startsWith('--next=') ||
+    a.startsWith('--company=') ||
+    a.startsWith('--role=') ||
+    a.startsWith('--source=');
+  const unknownPilotFlag = args.find((a) => a.startsWith('-') && !PILOT_FLAGS_OK(a));
+  if (unknownPilotFlag) {
+    console.error(
+      `pilot: unknown argument ${unknownPilotFlag} — try: bin/dg pilot status|from-wiz|warm|white-glove|os|selftest [--json]`,
+    );
+    process.exit(2);
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`demigod-pilot-inbound — inbound → pilot path (no fake pilots)
+
+Usage: bin/dg pilot status|from-wiz|warm|white-glove|os|selftest [--json]`);
+    process.exit(0);
+  }
   if (!map[cmd]) {
     console.error('usage: bin/dg pilot status|from-wiz|warm|white-glove|os|help');
     process.exitCode = 2;

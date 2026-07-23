@@ -4,7 +4,7 @@
  *
  *   bin/dg ship status|help|prepare|cdn|paste|verify|run
  *
- * Mutating steps (cdn, paste, run) require freeze OFF + foot lock.
+ * Mutating steps (cdn, paste, run) require current-request authorization + freeze OFF + foot lock.
  * prepare/status/help/verify are freeze-safe (read-only).
  *
  * Never auto-unfreezes. Never claims live==disk without truth --require-match.
@@ -16,12 +16,28 @@ import { fileURLToPath } from 'url';
 import { status as freezeStatus, assertNotFrozen } from './demigod-publish-freeze.mjs';
 import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
 import { beginRun, sealRun } from './demigod-evidence.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
-const cmd = process.argv[2] || 'help';
-const asJson = process.argv.includes('--json');
-const factsOnly = process.argv.includes('--facts');
+const argv = process.argv.slice(2);
+const cmd = argv[0] || 'help';
+const rest = argv.slice(1);
+// Fail closed on typos so `ship status --strcit` cannot silently run prepare-state.
+const SHIP_FLAGS = new Set(['--json', '--facts']);
+const unknownFlag = rest.find((a) => !SHIP_FLAGS.has(a));
+if (unknownFlag) {
+  console.error(
+    `ship: unknown argument ${unknownFlag} — try: bin/dg ship ${cmd} [--json]${cmd === 'status' ? ' [--facts]' : ''}`,
+  );
+  process.exit(2);
+}
+const asJson = rest.includes('--json');
+const factsOnly = rest.includes('--facts');
+if (factsOnly && cmd !== 'status' && cmd !== 'help') {
+  console.error('ship: --facts is only valid with status');
+  process.exit(2);
+}
 
 function run(label, argv, { timeout = 180000, allowFail = false, keepFull = false } = {}) {
   const t0 = Date.now();
@@ -72,17 +88,18 @@ function help() {
   const f = freezeStatus();
   const text = `# demigod-ship — single path
 
-freeze: ${f.frozen ? 'ON — ' + (f.why || '') : 'OFF (mutations allowed)'}
+publish: ${f.authorized ? 'CURRENT REQUEST AUTHORIZED' : 'PREPARE ONLY — current request has not authorized publication'}
+freeze: ${f.frozen ? 'ON — ' + (f.why || '') : 'OFF'}
 
 Subcommands:
   help       this text
   status     ship-status + truth summary (read-only)
   status --facts   disk/live/stage/freeze only (no agent NEXT)
   prepare    verify-source, honesty, foot-smoke, review summary (no CDN)
-  cdn        upload foot CDN (needs freeze OFF + lock)
-  paste      CM6 footer paste (needs freeze OFF + lock)
+  cdn        upload foot CDN (needs current-request authorization + freeze OFF + lock)
+  paste      CM6 footer paste (needs current-request authorization + freeze OFF + lock)
   verify     bin/dg truth --require-match
-  run        prepare → cdn → paste → verify (full; freeze OFF + lock)
+  run        prepare → cdn → paste → verify (full; current-request authorization + freeze OFF + lock)
 
 Power: cdn/paste/run briefly switch system76-power → performance, then restore.
   Skip with DG_SHIP_NO_PERF=1 · restore override DG_SHIP_RESTORE_PROFILE=balanced
@@ -90,7 +107,8 @@ Power: cdn/paste/run briefly switch system76-power → performance, then restore
 Typical:
   bin/dg ship status
   bin/dg ship prepare
-  # human: node demigod-publish-freeze.mjs off
+  # only when the current user request explicitly authorizes this publication:
+  export DEMIGOD_CURRENT_REQUEST_PUBLISH=1
   bin/dg lock claim --owner "$USER" --why ship
   export DG_LOCK_TOKEN=…
   bin/dg ship run
@@ -142,20 +160,35 @@ function status() {
     }
   }
   const freeze = freezeStatus();
-  const summary =
+  let summary =
     truth?.summaryLine ||
     (truth
       ? `disk v${truth.foot?.ver} live v${truth.live?.footVer} freeze=${freeze.frozen ? 'ON' : 'OFF'} pass=${truth.pass}`
       : null);
+  // While publish is unauthorized, disk≠live is prepare-state — not a release FAIL for operators/Q7.
+  if (
+    summary &&
+    !freeze.authorized &&
+    truth &&
+    !truth.fullyShipped &&
+    truth.pass === false &&
+    /\bTRUTH\s+FAIL\b/i.test(summary)
+  ) {
+    summary = summary
+      .replace(/\bTRUTH\s+FAIL\b/i, 'TRUTH PREPARE')
+      .replace(/\s*$/, '') + ' · publish unauthorized (prepare-only)';
+  }
   const next = freeze.frozen
-    ? 'No ship — freeze holds (demand-first). Disk work OK. Human: freeze off only when intentional.'
-    : ship?.nextAction ||
-      (truth?.fullyShipped ? 'already shipped' : 'bin/dg ship prepare → lock → run');
+    ? 'No ship — freeze holds (demand-first). Disk work OK.'
+    : !freeze.authorized
+      ? 'Prepare only — current request has not authorized publish.'
+      : ship?.nextAction ||
+        (truth?.fullyShipped ? 'already shipped' : 'bin/dg ship prepare → lock → run');
   const report = {
     ok: true,
     subcommand: 'status',
     at: new Date().toISOString(),
-    freeze: { on: freeze.frozen, why: freeze.why },
+    freeze: { on: freeze.frozen, why: freeze.why, authorized: freeze.authorized },
     truth: truth
       ? {
           pass: truth.pass,
@@ -167,6 +200,7 @@ function status() {
         }
       : null,
     shipStage: ship?.stage || ship?.status || null,
+    shipNextGate: ship?.shipped ? null : ship?.stage || ship?.status || null,
     next,
     steps: [
       { label: 'truth', ok: tStep.rawOk, status: tStep.status, ms: tStep.ms },
@@ -183,6 +217,7 @@ function status() {
       diskVer: report.truth?.diskVer || ship?.disk?.ver || null,
       liveVer: report.truth?.liveVer || ship?.live?.footVer || null,
       stage: report.shipStage,
+      nextGate: report.shipNextGate,
       shipped: Boolean(report.truth?.fullyShipped || ship?.shipped),
       driftExpected: report.truth?.driftExpected ?? null,
       facts: ship?.facts || null,
@@ -190,7 +225,7 @@ function status() {
     };
     if (asJson) console.log(JSON.stringify(facts));
     else {
-      console.log(`# ship facts freeze=${facts.freeze.on ? 'ON' : 'OFF'}`);
+      console.log(`# ship facts freeze=${facts.freeze.on ? 'ON' : 'OFF'} publish=${facts.freeze.authorized ? 'AUTHORIZED' : 'UNAUTHORIZED'}`);
       console.log(`  disk v${facts.diskVer} live v${facts.liveVer} stage=${facts.stage}`);
       console.log(`  shipped=${facts.shipped} driftExpected=${facts.driftExpected}`);
     }
@@ -198,9 +233,9 @@ function status() {
   }
   if (asJson) console.log(JSON.stringify(report, null, 2));
   else {
-    console.log(`# ship status freeze=${report.freeze.on ? 'ON' : 'OFF'}`);
+    console.log(`# ship status freeze=${report.freeze.on ? 'ON' : 'OFF'} publish=${report.freeze.authorized ? 'AUTHORIZED' : 'UNAUTHORIZED'}`);
     console.log(`  truth: ${report.truth?.summary || '?'}`);
-    console.log(`  stage: ${report.shipStage || '?'}`);
+    console.log(`  ${report.shipNextGate ? 'next gate' : 'stage'}: ${report.shipNextGate || report.shipStage || '?'}`);
     console.log(`  next:  ${report.next}`);
     console.log(`  report: ${path.join(BUSY, 'ship-latest.json')}`);
   }
@@ -210,7 +245,14 @@ function status() {
 
 function prepare() {
   const runEv = beginRun('ship-prepare', {
-    scope: [path.join(ROOT, 'demigod-foot-core.js')],
+    scope: [
+      'demigod-foot-core.js',
+      'demigod-startup-atlas-web.js',
+      'DEMIGOD-SF-STARTUP-MAP.json',
+      'demigod-head-minimal.html',
+      'demigod-head-styles.css',
+      'demigod-footer-lite.html',
+    ].map((file) => path.join(ROOT, file)),
   });
   const steps = [];
   // Blog SoR must match foot embed + head JSON-LD (bin/dg-blog sync)
@@ -228,20 +270,34 @@ function prepare() {
   });
   steps.push(run('board-honesty', ['demigod-verify-board-honesty.mjs']));
   steps.push(run('foot-smoke', ['demigod-foot-smoke.mjs']));
-  steps.push(run('truth', ['demigod-truth.mjs'], { allowFail: true }));
+  steps.push({
+    ...run('truth', ['demigod-truth.mjs'], { allowFail: true }),
+    observational: true,
+  });
   steps.push(
-    run('review', ['demigod-review.mjs', '--format', 'summary', '--fail-on', 'high'], {
-      allowFail: true,
-    }),
+    run('review', [
+      'demigod-review.mjs', '--format', 'summary', '--fail-on', 'high', '--no-contract', '--files',
+      'demigod-foot-core.js', 'demigod-head-minimal.html', 'demigod-head-styles.css', 'demigod-footer-lite.html',
+    ]),
   );
-  const ok = steps.filter((s) => s.label !== 'truth' && s.label !== 'review').every((s) => s.ok);
+  const ok = steps.filter((s) => s.label !== 'truth').every((s) => s.ok);
   const report = { at: new Date().toISOString(), ok, steps, freeze: freezeStatus() };
   sealRun(runEv, { pass: ok, summary: ok ? 'ship-prepare ok' : 'ship-prepare fail' });
-  fs.writeFileSync(path.join(BUSY, 'ship-prepare.json'), JSON.stringify(report, null, 2) + '\n');
+  atomicWrite(
+    path.join(BUSY, 'ship-prepare.json'),
+    JSON.stringify(report, null, 2) + '\n',
+    { mode: 0o600 },
+  );
   if (asJson) console.log(JSON.stringify(report, null, 2));
   else {
     console.log(`# ship prepare ${ok ? 'OK' : 'FAIL'}`);
-    for (const s of steps) console.log(`  ${s.ok ? '✓' : '✗'} ${s.label}`);
+    for (const s of steps) {
+      if (s.observational) {
+        console.log(`  ${s.rawOk ? '✓' : '○'} ${s.label} (observational${s.rawOk ? '' : ' failure; non-blocking'})`);
+      } else {
+        console.log(`  ${s.ok ? '✓' : '✗'} ${s.label}`);
+      }
+    }
   }
   return ok ? 0 : 1;
 }

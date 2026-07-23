@@ -80,7 +80,7 @@ ok(/var\s+WIZ_Q\s*=/.test(src), 'WIZ_Q present');
 ok(/role=["']progressbar["']/.test(src), 'WIZ progressbar semantics');
 ok(/setAttribute\(["']aria-valuenow["']/.test(src), 'WIZ progressbar state sync');
 ok(/eErr\.id\s*=\s*eErr\.id\s*\|\|/.test(src) &&
-  /el\.setAttribute\(["']aria-describedby["']\s*,\s*eErr\.id\)/.test(src),
+  /(?:el\.setAttribute\(["']aria-describedby["']\s*,\s*eErr\.id\)|describedAdd\(el\s*,\s*eErr\.id\))/.test(src),
   'WIZ email validation describes its alert');
 ok(/getAttribute\(["']aria-describedby["']\).*removeAttribute\(["']aria-describedby["']\)/.test(src),
   'WIZ cleared validation removes its owned description');
@@ -136,7 +136,20 @@ if (cfg) {
   ok(ss.includes('__submit__'), 'parsed: startup submit');
   ok(!(cfg.startup?.optional || []).includes('90day-outcome'), 'parsed: 90day required');
   if (cfg.partner) ok(steps('partner').includes('__submit__'), 'parsed: partner submit');
-  if (cfg.engineer) ok(steps('engineer').includes('__submit__'), 'parsed: engineer submit');
+  if (cfg.engineer) {
+    const es = steps('engineer');
+    // linkedin-url was retired as a dedicated step (foot-core actively strips it via
+    // rmF(en,'linkedin-url')). It briefly lived on as a generic optional 'links' field,
+    // but v801 consolidated that into the 'resume' step itself (WIZ_Q resume.q is now
+    // "Resume or work link?" — one reachable file-or-link step) and foot-core now strips
+    // any leftover 'links' field via rmF(en,'links'). There is no dedicated links field left.
+    ok(JSON.stringify(es) === JSON.stringify([
+      'welcome', 'full-name', 'seeker-email', 'skills-stack', 'experience',
+      'sf-bay', 'availability', 'salary-expectation', 'work-auth', 'resume', '__submit__', '__thanks__',
+    ]), 'parsed: engineer matching sequence');
+    ok(!es.includes('links') && !(cfg.engineer.optional || []).includes('links'), 'parsed: no separate links step (consolidated into resume)');
+    ok(!cfg.engineer.optional.includes('availability') && !cfg.engineer.optional.includes('salary-expectation') && !cfg.engineer.optional.includes('work-auth') && !cfg.engineer.optional.includes('resume'), 'parsed: engineer constraints and resume required');
+  }
 } else {
   ok(true, 'object parse optional (string checks primary)');
 }

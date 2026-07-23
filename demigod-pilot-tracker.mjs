@@ -2,7 +2,7 @@
 /**
  * demigod-pilot-tracker.mjs
  * Usage: node demigod-pilot-tracker.mjs --founderEmail=you@co.com --status=briefed
- * Appends to board.pilots[], calls publish, prints Slack copy + demo link.
+ * Appends to board.pilots[] locally; CDN publish requires explicit opt-in.
  * npm run demigod:verify:all
  * Zero extra deps. Max ~70 lines.
  */
@@ -21,19 +21,26 @@ const email = parseArg('founderEmail') || parseArg('email');
 const status = parseArg('status') || 'new';
 const brief = parseArg('brief') || '';
 const phone = parseArg('phone') || '';
-const intros = parseInt(parseArg('intros') || '0', 10) || 0;
+const intros = parseArg('intros');
 const resetSla = !!parseArg('reset-sla');
 const dryRun = !!parseArg('dry-run') || !!parseArg('dry');
+const publishRequested = !parseArg('no-publish') &&
+  (!!parseArg('publish') || process.env.DEMIGOD_FORCE_PUBLISH === '1');
 const outcome90d = parseArg('90d-outcome') || parseArg('90d');
 
-const STATUSES = ['new', 'briefed', 'matched', 'intros-sent', 'dm-sent', 'closed', 'churned'];
+if (['intros-sent', 'dm-sent'].includes(status) || intros !== null) {
+  console.error(JSON.stringify({ ok: false, error: 'external_delivery_receipt_required' }));
+  process.exit(2);
+}
+
+const STATUSES = ['new', 'briefed', 'matched', 'closed', 'churned'];
 if (!STATUSES.includes(status)) {
   console.error(`Invalid --status=${status}. Allowed: ${STATUSES.join(', ')}`);
   process.exit(1);
 }
 
 if (!email && !parseArg('report')) {
-  console.error('Usage: node demigod-pilot-tracker.mjs --founderEmail=foo@bar.com --status=briefed [--brief="..."] [--phone=1] [--intros=3] [--reset-sla] [--report]');
+  console.error('Usage: node demigod-pilot-tracker.mjs --founderEmail=foo@bar.com --status=briefed [--brief="..."] [--phone=1] [--publish] [--dry-run] [--report]');
   process.exit(1);
 }
 
@@ -70,7 +77,6 @@ if (isNew) {
     brief: brief.slice(0, 200) || undefined,
     phone: phone || undefined,
     phoneProvided: !!phone,
-    introsSent: intros || undefined,
     '90d-outcome': outcome90d || undefined,
     history: [{ status, at: now.toISOString() }]
   };
@@ -83,7 +89,6 @@ if (isNew) {
     entry.phone = phone;
     entry.phoneProvided = true;
   }
-  if (intros) entry.introsSent = (entry.introsSent || 0) + intros;
   if (resetSla) {
     // no slaDue re-mint
   }
@@ -96,9 +101,12 @@ if (isNew) {
 if (!dryRun) {
   saveBoard(board, { reason: 'pilot-tracker', actor: process.env.USER || 'pilot-tracker' });
 
-  // Publish (re-uses board CDN + real roles logic)
-  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { stdio: 'inherit' });
-  if (pub.status !== 0) console.warn('board-publish non-zero but continuing');
+  if (publishRequested) {
+    const pub = spawnSync('node', ['demigod-board-publish.mjs'], { stdio: 'inherit' });
+    if (pub.status !== 0) console.warn('board-publish non-zero but continuing');
+  } else {
+    console.log('Board saved locally; CDN publish requires --publish or DEMIGOD_FORCE_PUBLISH=1.');
+  }
 } else {
   console.log('[dry-run] skipping saveBoard + publish');
 }
@@ -106,7 +114,6 @@ if (!dryRun) {
 const demoHash = (board.receipts && board.receipts[0] && board.receipts[0].hash) || 'demo';
 const phoneClaim = entry.phone ? `phone ${entry.phone} collected for SMS` : 'phone field collected (no number yet)';
 console.log('NEW PILOT logged:', email, 'status:', status, 'phone:', !!entry.phone, '90d:', entry['90d-outcome'] || 'n/a');
-if (intros) console.log(`Intro log: ${intros} intro${intros === 1 ? '' : 's'} sent for ${email}`);
 console.log('Slack copy: `New Demigod pilot: ' + email + ' — ' + status + ' (Fast human reply or $100 back). Demo: https://www.trydemigod.com/#receipt/' + demoHash + ' (' + phoneClaim + ' — Twilio/Stripe pending)`');
 console.log('Public demo link: https://www.trydemigod.com/#receipt/' + demoHash);
 console.log('Verify: npm run demigod:verify:all');

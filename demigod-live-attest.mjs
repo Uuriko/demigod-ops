@@ -18,6 +18,20 @@ import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
+const LIVE_ATTEST_FLAGS = new Set(['--json', '--soft', '--help', '-h']);
+const unknownLiveAttest = process.argv.slice(2).find((a) => !LIVE_ATTEST_FLAGS.has(a));
+if (unknownLiveAttest) {
+  console.error(
+    `live-attest: unknown argument ${unknownLiveAttest} — try: bin/dg live-attest [--json] [--soft]`,
+  );
+  process.exit(2);
+}
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`demigod-live-attest — prove live foot CDN body matches disk
+
+Usage: bin/dg live-attest [--json] [--soft]`);
+  process.exit(0);
+}
 const asJson = process.argv.includes('--json');
 const soft = process.argv.includes('--soft');
 const LIVE = process.env.DEMIGOD_LIVE_URL || 'https://www.trydemigod.com/';
@@ -116,13 +130,7 @@ async function main() {
       check('manifest-sha', liveSha === manifest.sha256 || shaMatch, 'vs DEMIGOD-FOOT-CDN.json');
     }
     // Default: require exact body SHA (disk == live). Use --soft for version/marker-only.
-    const hardChecks = report.checks.filter((c) => soft ? !['sha-match', 'manifest-sha'].includes(c.name) : c.name !== 'manifest-sha' || c.ok || true);
     report.ok = report.checks
-      .filter((c) => {
-        if (c.name === 'manifest-sha') return true; // informational
-        if (soft && c.name === 'sha-match') return true;
-        return true;
-      })
       .filter((c) => c.name !== 'manifest-sha' && !(soft && c.name === 'sha-match'))
       .every((c) => c.ok);
     if (!soft && !shaMatch) report.ok = false;

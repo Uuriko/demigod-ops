@@ -278,6 +278,7 @@ async function main() {
     const ts = Date.now();
     const html = await fetch(`https://www.trydemigod.com/?v=${ts}`, { cache: 'no-store' }).then((r) => r.text());
     const pub = (html.match(/Last Published: ([^<]+)/) || [])[1] || '';
+    const headMatchesDisk = html.includes(HEAD);
     const v5 = /unhide-v5/.test(html);
     const critical = /dg-unhide-critical/.test(html);
     const liveFootUrls = footLoaderUrls(html).map(canonicalUrl);
@@ -292,9 +293,9 @@ async function main() {
     const liveFootMatchesDisk = liveFootVersion === expectedFootVersion && livePublicFootVersion === expectedPublicFootVersion;
     const early = (html.match(/<script id="dg-early-unhide"[^>]*>([\s\S]*?)<\/script>/) || [])[1] || '';
     const braces = early ? { o: (early.match(/\{/g) || []).length, c: (early.match(/\}/g) || []).length } : null;
-    last = { i, pub: pub.slice(0, 40), v5, critical, singleCanonicalFoot, liveFootMatchesDisk, liveFootVersion, livePublicFootVersion, liveFootUrls, braces, bytes: html.length };
+    last = { i, pub: pub.slice(0, 40), headMatchesDisk, v5, critical, singleCanonicalFoot, liveFootMatchesDisk, liveFootVersion, livePublicFootVersion, liveFootUrls, braces, bytes: html.length };
     console.log('poll', last);
-    if (v5 && critical && singleCanonicalFoot && liveFootMatchesDisk && braces && braces.o === braces.c) {
+    if (headMatchesDisk && v5 && critical && singleCanonicalFoot && liveFootMatchesDisk && braces && braces.o === braces.c) {
       ok = true;
       break;
     }

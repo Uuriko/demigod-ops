@@ -4,8 +4,8 @@
  * CDP → open Hire modal → drive WIZ → submit tagged email → report network destination.
  * No board writes. No foot-core edits.
  *
- *   node demigod-form-e2e.mjs
- *   node demigod-form-e2e.mjs --dry   # open + inspect only, no submit
+ *   node demigod-form-e2e.mjs          # open + inspect only, no submit
+ *   node demigod-form-e2e.mjs --submit # intentional tagged live submit
  */
 import fs from 'fs';
 import path from 'path';
@@ -14,9 +14,15 @@ import { CDP_URL } from './cdp-config.mjs';
 
 const LIVE = 'https://www.trydemigod.com/';
 const TAG = `e2e-test-${Date.now()}@trydemigod.com`;
-const DRY = process.argv.includes('--dry');
+const SUBMIT = process.argv.includes('--submit');
+const DRY = !SUBMIT;
 const OUT = path.join('/tmp', `demigod-form-e2e-${Date.now()}.json`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+if (process.argv.includes('--policy')) {
+  fs.writeFileSync(1, JSON.stringify({ submit: SUBMIT, externalWrites: SUBMIT }) + '\n');
+  process.exit(0);
+}
 
 async function main() {
   const report = {

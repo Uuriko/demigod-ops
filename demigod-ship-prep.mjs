@@ -13,6 +13,19 @@ import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
+const shipPrepArgs = process.argv.slice(2);
+const SHIP_PREP_FLAGS = new Set(['--json', '--help', '-h']);
+const unknownShipPrep = shipPrepArgs.find((a) => !SHIP_PREP_FLAGS.has(a));
+if (unknownShipPrep) {
+  console.error(`ship-prep: unknown argument ${unknownShipPrep} — try: node demigod-ship-prep.mjs [--json]`);
+  process.exit(2);
+}
+if (shipPrepArgs.includes('--help') || shipPrepArgs.includes('-h')) {
+  console.log(`demigod-ship-prep — freeze-safe paste prep (no CDN/Webflow mutate)
+
+Usage: node demigod-ship-prep.mjs [--json]`);
+  process.exit(0);
+}
 const asJson = process.argv.includes('--json');
 
 function run(label, cmd, timeout = 60000) {

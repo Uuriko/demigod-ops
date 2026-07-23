@@ -8,11 +8,55 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { listPairs, reviewPair, loadPairs } from './demigod-pairs-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const BUSY = '/tmp/dg-busy';
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
-const stateFlag = args.includes('--state') ? args[args.indexOf('--state') + 1] : null;
+
+/** Require a non-flag value after `--name`; never steal the next `--flag` as a value. */
+function requireFlagValue(flag) {
+  const i = args.indexOf(flag);
+  if (i < 0) return null;
+  const v = args[i + 1];
+  if (v == null || String(v).startsWith('-')) {
+    const msg = `${flag} requires a value (got ${v == null ? 'nothing' : JSON.stringify(v)})`;
+    if (asJson) console.error(JSON.stringify({ ok: false, error: msg }));
+    else console.error(msg);
+    process.exit(2);
+  }
+  return v;
+}
+
+const stateFlag = args.includes('--state') ? requireFlagValue('--state') : null;
+
+const isMainEarly =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMainEarly) {
+  // Known tokens: subcommand review, pair id, --json/--include-sample/--state/--decision/--note + values.
+  const knownFlags = new Set(['--json', '--include-sample', '--state', '--decision', '--note', '--help', '-h']);
+  const valueFlags = new Set(['--state', '--decision', '--note']);
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (!a.startsWith('-')) continue;
+    if (a.includes('=') && knownFlags.has(a.split('=')[0])) continue;
+    if (!knownFlags.has(a)) {
+      console.error(
+        `match-review: unknown argument ${a} — try: node demigod-match-review.mjs [--json] [--state S] [--include-sample] | review <id> --decision …`,
+      );
+      process.exit(2);
+    }
+    if (valueFlags.has(a)) i += 1; // skip consumed value
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`match-review — list/review DEMIGOD-PAIRS
+
+Usage:
+  node demigod-match-review.mjs [--json] [--state proposed] [--include-sample]
+  node demigod-match-review.mjs review <pairId> --decision approve|reject|defer`);
+    process.exit(0);
+  }
+}
 
 function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
   // Never auto-seed fixtures on list/status — honesty: empty means empty.
@@ -59,14 +103,16 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
   };
 }
 
+export function writeQueue(file, queue) {
+  atomicWrite(file, JSON.stringify(queue, null, 2) + '\n', { mode: 0o600 });
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   if (args[0] === 'review') {
     const id = args[1];
-    const di = args.indexOf('--decision');
-    const decision = di >= 0 ? args[di + 1] : null;
-    const ni = args.indexOf('--note');
-    const note = ni >= 0 ? args[ni + 1] : '';
+    const decision = args.includes('--decision') ? requireFlagValue('--decision') : null;
+    const note = args.includes('--note') ? requireFlagValue('--note') : '';
     try {
       const p = reviewPair(id, { decision, note, actor: process.env.USER || 'agent' });
       console.log(JSON.stringify({ ok: true, pair: p }, null, 2));
@@ -79,7 +125,7 @@ if (isMain) {
   const includeSample = args.includes('--include-sample');
   const q = buildQueue({ state: stateFlag, includeSample });
   fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(q, null, 2) + '\n');
+  writeQueue(path.join(BUSY, 'match-review-latest.json'), q);
   if (asJson) console.log(JSON.stringify(q, null, 2));
   else {
     const s = q.summary;

@@ -228,7 +228,7 @@ export async function buildUnify({ includeTools = true } = {}) {
       'lamps.ship.green false under freeze',
       'Single NEXT from demigod-next (no dual NEXT)',
       'Never invent pilots or SENT without a real send result',
-      'Auto-DM allowed: bin/dg demand send (CDP X must be logged in)',
+      'Auto-DM STOPPED; outbound requires exact authorization in the current user request',
     ],
   };
 
@@ -282,6 +282,19 @@ export function toMarkdown(u) {
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  const unifyArgs = process.argv.slice(2);
+  const UNIFY_FLAGS = new Set(['--json', '--md', '--help', '-h']);
+  const unknownUnify = unifyArgs.find((a) => !UNIFY_FLAGS.has(a));
+  if (unknownUnify) {
+    console.error(`unify: unknown argument ${unknownUnify} — try: bin/dg unify [--json|--md]`);
+    process.exit(2);
+  }
+  if (unifyArgs.includes('--help') || unifyArgs.includes('-h')) {
+    console.log(`demigod-unify — one orientation snapshot
+
+Usage: bin/dg unify [--json] [--md]`);
+    process.exit(0);
+  }
   const asJson = process.argv.includes('--json');
   const u = await buildUnify();
   if (asJson) {

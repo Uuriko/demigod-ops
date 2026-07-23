@@ -179,7 +179,11 @@ function main() {
         human: human.length,
         realForms: realForms.length,
         test: (by.test?.length || 0) + (by['test-form']?.length || 0),
+        // Full human list for replies-ingest (samples kept for dashboards)
+        humans: human,
         humanSamples: human.slice(0, 5),
+        // Flat message rows (same shape as human inbound) for legacy consumers
+        messages: human,
         report: REPORT,
       },
       null,

@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { resolveWebflowWebhookSecrets, webhookAuthReadiness } from './demigod-webhook-auth.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -64,6 +65,8 @@ export function buildShipChecklist() {
   const lockHeld = Boolean(lock && lock.expiresAt && Date.parse(lock.expiresAt) > Date.now());
   const roles = (board?.roles || []).length;
   const real = board?.signal?.realRoles ?? null;
+  const webhookAuth = webhookAuthReadiness(resolveWebflowWebhookSecrets());
+  const webhookProductionReady = webhookAuth.mode === 'webflow-hmac-sha256' && webhookAuth.keyCount > 0;
 
   const items = [
     {
@@ -138,6 +141,16 @@ export function buildShipChecklist() {
       })(),
       block: false,
     },
+    {
+      id: 'webhook-auth-production',
+      ok: webhookProductionReady,
+      title: 'Webhook auth production-ready',
+      detail: webhookProductionReady
+        ? `${webhookAuth.mode} · ${webhookAuth.keyCount} configured key${webhookAuth.keyCount === 1 ? '' : 's'}`
+        : 'compat-unsigned · local only; production webhook is not ready',
+      block: false,
+      warn: !webhookProductionReady,
+    },
   ];
 
   const blockers = items.filter((i) => i.block);
@@ -147,6 +160,7 @@ export function buildShipChecklist() {
   return {
     at: new Date().toISOString(),
     ready,
+    webhookAuth: { ...webhookAuth, productionReady: webhookProductionReady },
     freezeOn,
     blockers: blockers.map((b) => b.id),
     warnings: warnings.map((w) => w.id),
@@ -161,6 +175,21 @@ export function buildShipChecklist() {
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
+  const args = process.argv.slice(2);
+  const CHECKLIST_FLAGS = new Set(['--json', '--help', '-h']);
+  const unknown = args.find((a) => !CHECKLIST_FLAGS.has(a));
+  if (unknown) {
+    console.error(
+      `ship-checklist: unknown argument ${unknown} — try: node demigod-ship-checklist.mjs [--json]`,
+    );
+    process.exit(2);
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`demigod-ship-checklist — freeze-aware local ship readiness (no publish)
+
+Usage: node demigod-ship-checklist.mjs [--json]`);
+    process.exit(0);
+  }
   const c = buildShipChecklist();
   fs.mkdirSync(BUSY, { recursive: true });
   fs.writeFileSync(path.join(BUSY, 'ship-checklist.json'), JSON.stringify(c, null, 2));

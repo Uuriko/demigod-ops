@@ -10,8 +10,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { findSubmission, extractEmail, publicStatus } from './demigod-submissions-lib.mjs';
+import { findSubmission, extractEmail, extractResumeReference, publicStatus } from './demigod-submissions-lib.mjs';
 import { getPair } from './demigod-pairs-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const BUSY = '/tmp/dg-busy';
 const args = process.argv.slice(2);
@@ -70,10 +71,11 @@ if (!item && pair) {
   ]
     .filter((line) => line != null)
     .join('\n');
-  fs.writeFileSync(outPath, md);
+  atomicWrite(outPath, md, { mode: 0o600 });
   try {
+    const auditPath = path.join(BUSY, 'intro-draft-audit.jsonl');
     fs.appendFileSync(
-      path.join(BUSY, 'intro-draft-audit.jsonl'),
+      auditPath,
       JSON.stringify({
         at: new Date().toISOString(),
         pairId: pair.pairId,
@@ -82,7 +84,9 @@ if (!item && pair) {
         actor: process.env.USER || 'agent',
         path: outPath,
       }) + '\n',
+      { mode: 0o600 },
     );
+    fs.chmodSync(auditPath, 0o600);
   } catch {
     /* */
   }
@@ -113,6 +117,7 @@ const stack = raw['stack-needs'] || raw.stackNeeds || raw['skills-stack'] || raw
 const outcome = raw['90day-outcome'] || raw['90dayOutcome'] || '';
 const company = raw['company-name'] || raw.companyName || '';
 const name = raw['full-name'] || raw.fullName || raw['partner-name'] || '';
+const resume = extractResumeReference(raw);
 
 const subject =
   kind === 'startup'
@@ -170,6 +175,7 @@ if (kind === 'startup') {
 lines.push('');
 lines.push('---');
 lines.push('## Ops notes (not in email)');
+if (resume) lines.push(`- resume (untrusted private upload; inspect safely): ${resume}`);
 lines.push(`- approve: node demigod-submissions-approve.mjs ${item.id}`);
 lines.push(`- mark reviewed: node demigod-submissions-inbox.mjs --mark-reviewed=${item.id}`);
 lines.push(`- pilot gate: node demigod-intro.mjs status <pilotId>`);
@@ -179,7 +185,7 @@ const md = lines.join('\n') + '\n';
 const dir = path.join(BUSY, 'intros');
 fs.mkdirSync(dir, { recursive: true });
 const outPath = path.join(dir, `${item.id}.md`);
-fs.writeFileSync(outPath, md);
+atomicWrite(outPath, md, { mode: 0o600 });
 
 const result = {
   ok: true,

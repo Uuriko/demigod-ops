@@ -3,14 +3,20 @@
  * Consensus sprint selftest — pairs + intro gate + audit file presence.
  * Usage: node demigod-sprint-selftest.mjs
  */
-import { listPairs, reviewPair, proposePair, pairId, getPair } from './demigod-pairs-lib.mjs';
-import { buildQueue } from './demigod-match-review.mjs';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const TEST_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-sprint-selftest-'));
+process.env.DEMIGOD_ROOT = TEST_ROOT;
+process.on('exit', () => fs.rmSync(TEST_ROOT, { recursive: true, force: true }));
+
+const { reviewPair, proposePair, pairId, getPair } = await import('./demigod-pairs-lib.mjs');
+const { buildQueue } = await import('./demigod-match-review.mjs');
 const fails = [];
 function ok(c, m) {
   if (!c) fails.push(m);
@@ -25,10 +31,18 @@ const p = proposePair({
   score: 0.5,
   reasons: ['selftest'],
   actor: 'selftest',
+  sample: true,
 });
 ok(!!p.pairId, 'propose returns pairId');
+ok(p.sample === true, 'selftest pair stays sample-only');
 ok(!!getPair(p.pairId), 'getPair after propose');
 ok(p.state === 'proposed', 'fresh propose is proposed');
+
+{
+  const src = fs.readFileSync(path.join(ROOT, 'demigod-matching-engine.mjs'), 'utf8');
+  const proposal = src.slice(src.indexOf('function proposeIntro('), src.indexOf('function presentMatchCard('));
+  ok(!/consentPair\s*\(/.test(proposal), 'intro proposal never manufactures consent');
+}
 
 let gateHit = false;
 try {
@@ -52,7 +66,7 @@ const draft = execFileSync(
 );
 ok(JSON.parse(draft).ok === true, 'intro after approve');
 
-const q = buildQueue({});
+const q = buildQueue({ includeSample: true });
 ok(q.pairs.length >= 1, 'queue non-empty');
 ok(fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl')), 'audit jsonl exists');
 
@@ -62,6 +76,7 @@ const p2 = proposePair({
   candId: `cand-${nonce}-b`,
   score: 0.1,
   actor: 'selftest',
+  sample: true,
 });
 const rej = reviewPair(p2.pairId, { decision: 'reject', actor: 'selftest' });
 ok(rej.state === 'rejected', 'review reject');
@@ -82,11 +97,58 @@ const p3 = proposePair({
   candId: `cand-${nonce}-c`,
   score: 0.9,
   actor: 'selftest',
+  sample: true,
 });
 const { consentPair } = await import('./demigod-pairs-lib.mjs');
-consentPair(p3.pairId, { side: 'founder', actor: 'selftest' });
-const both = consentPair(p3.pairId, { side: 'candidate', actor: 'selftest' });
+const beforeUnsupported = JSON.stringify(getPair(p3.pairId));
+let unsupportedRefused = false;
+try {
+  consentPair(p3.pairId, { side: 'founder', actor: 'selftest' });
+} catch (error) {
+  unsupportedRefused = error.message === 'consent_attestation_required';
+}
+ok(unsupportedRefused && JSON.stringify(getPair(p3.pairId)) === beforeUnsupported, 'unsupported consent refuses without mutation');
+for (const evidence of ['', 'ab', 'two\nlines', 'x'.repeat(501)]) {
+  let invalidRefused = false;
+  try {
+    consentPair(p3.pairId, { side: 'founder', actor: 'selftest', attested: true, evidence });
+  } catch (error) {
+    invalidRefused = error.message === 'consent_evidence_invalid';
+  }
+  ok(invalidRefused && JSON.stringify(getPair(p3.pairId)) === beforeUnsupported, 'invalid consent evidence refuses without mutation');
+}
+reviewPair(p3.pairId, { decision: 'approve', actor: 'selftest' });
+consentPair(p3.pairId, { side: 'founder', actor: 'selftest', attested: true, evidence: 'fixture founder reply' });
+const both = consentPair(p3.pairId, { side: 'candidate', actor: 'selftest', attested: true, evidence: 'fixture candidate reply' });
 ok(both.state === 'mutual_yes', 'dual consent → mutual_yes');
+ok(both.history.at(-1)?.evidence === 'fixture candidate reply', 'consent evidence recorded');
+
+const privateModeFixture = path.join('/tmp/dg-busy', `atomic-private-${process.pid}.txt`);
+fs.writeFileSync(privateModeFixture, 'old', { mode: 0o664 });
+fs.chmodSync(privateModeFixture, 0o664);
+atomicWrite(privateModeFixture, 'new', { mode: 0o600 });
+ok((fs.statSync(privateModeFixture).mode & 0o777) === 0o600, 'atomicWrite exact private mode tightens existing file');
+fs.chmodSync(privateModeFixture, 0o754);
+atomicWrite(privateModeFixture, 'default');
+ok((fs.statSync(privateModeFixture).mode & 0o777) === 0o754, 'atomicWrite default still preserves existing mode');
+fs.unlinkSync(privateModeFixture);
+
+const cliRoot = fs.mkdtempSync('/tmp/dg-pairs-cli-');
+fs.writeFileSync(path.join(cliRoot, 'DEMIGOD-PAIRS.json'), JSON.stringify({ pairs: {
+  paircli: { pairId: 'paircli', roleId: 'role', candId: 'candidate', state: 'approved', mutual: {}, history: [] },
+} }));
+const cliConsent = JSON.parse(execFileSync('node', [
+  path.join(ROOT, 'demigod-pairs-lib.mjs'), 'consent', 'paircli', '--side', 'candidate',
+  '--i-observed-consent', '--evidence', 'CLI fixture reply',
+], { encoding: 'utf8', env: { ...process.env, DEMIGOD_ROOT: cliRoot } }));
+ok(cliConsent.mutual.candidate === true && cliConsent.history.at(-1)?.evidence === 'CLI fixture reply', 'CLI consent requires and records evidence');
+ok((fs.statSync(path.join(cliRoot, 'DEMIGOD-PAIRS.json')).mode & 0o777) === 0o600, 'CLI pair write is private');
+fs.rmSync(cliRoot, { recursive: true, force: true });
+
+const dashboardServer = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
+const dashboardUi = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
+ok(/attested:\s*body\.attested === true[\s\S]*evidence:\s*body\.evidence/.test(dashboardServer), 'dashboard API forwards explicit consent evidence');
+ok(/window\.prompt\(['"]Evidence that[\s\S]*attested:true,evidence/.test(dashboardUi), 'dashboard UI collects and attests consent evidence');
 
 // real-roles env gate: opts alone insufficient
 {

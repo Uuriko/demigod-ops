@@ -5,7 +5,7 @@
  * Current reality (pre-services, 2026-07): NONE of these are live.
  * - Twilio: SMS is manual/sim only. Use PENDING_NUMBER.
  * - Stripe: 10% fee is manual invoice / hello@ follow-up. No checkout.
- * - Stripe Atlas: Not used (no entity setup automation).
+ * - Stripe Atlas: Needed for Delaware C-corp formation; application pending and separate from payments.
  * - Microsoft for Startups / Azure credits: Not claimed/used. Tools run locally or on existing infra.
  *
  * Purpose:
@@ -35,14 +35,18 @@ export const FUTURE_SERVICES = {
     enabled: false,
     account: null,
     atlas: false,
+    atlasNeeded: true,
+    atlasPurpose: 'Form Demigod as a Delaware C corporation; separate from the invoice runtime.',
     feePercent: 10,
     notes:
-      '10% on first-year cash only on successful hire. Manual hello@ invoicing now. Enable when keys land: Checkout/Invoice + webhook → match state paid. Talent never charged.',
-    /** Flip when keys work; wire demigod-ops-os invoice stage. */
+      'Stripe Atlas is pending for Delaware C-corp formation. Separately, the 10% verified-hire fee is manual now; future Stripe Invoicing starts draft-only with invoice.paid reconciliation. Talent never charged.',
+    /** Flip only after the draft adapter, restricted keys, and verified webhooks work in test mode. */
     enableChecklist: [
-      'STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in env (never commit)',
-      'createInvoiceForHire({ pilotId, matchId, amountCents, founderEmail })',
-      'webhook invoice.paid / checkout.session.completed → MATCH_STATES paid + ledger JSONL',
+      'restricted STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in server env (never commit)',
+      'createDraftInvoiceForHire({ placementId, companyId, amountCents, currency }) with idempotency',
+      'explicit review gate before finalizing or sending any invoice',
+      'verified invoice.paid webhook → MATCH_STATES paid + ledger JSONL',
+      'automatic tax stays off until registrations, tax code, and customer location are confirmed',
       'UI: replace pending copy only when enabled=true',
       'talent path: no Customer charges ever',
     ],
@@ -83,9 +87,9 @@ export function createInvoiceStub({ pilotId, amount, description, toEmail }) {
   console.log(`  pilot: ${pilotId}, amount: ${amount || '10% first year'}, to: ${toEmail}`);
   console.log(`  desc: ${description}`);
   if (!status.enabled) {
-    console.log('  (pending: manual hello@ invoice. Stripe + Atlas when ready)');
+    console.log('  (pending: manual invoice; future Stripe Invoicing creates a reviewed draft first)');
   }
-  // Future: stripe.invoices.create + send
+  // Future: idempotent draft Invoice + item; finalizing/sending stays a separate review-gated action.
   return { created: false, pending: true, manual: true };
 }
 

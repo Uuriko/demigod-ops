@@ -34,6 +34,15 @@ console.log('=== Demigod Future Services Test ===\n');
 assert(!isServiceEnabled('twilio'), 'twilio disabled');
 assert(!isServiceEnabled('stripe'), 'stripe disabled');
 assert(!isServiceEnabled('microsoftForStartups'), 'microsoft disabled');
+assert(
+  /draft-only|draft first/i.test(FUTURE_SERVICES.stripe.notes) &&
+    !/checkout|connect/i.test(FUTURE_SERVICES.stripe.notes),
+  'stripe payment plan is draft-first Invoicing without unrelated payment products'
+);
+assert(
+  FUTURE_SERVICES.stripe.atlas === false && FUTURE_SERVICES.stripe.atlasNeeded === true,
+  'Atlas is explicitly pending for the separate Delaware C-corp formation lane'
+);
 
 // Status returns structure
 const all = getServiceStatus();

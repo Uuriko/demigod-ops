@@ -4,17 +4,38 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { INBOX_PATH } from './demigod-submissions-lib.mjs';
+import { INBOX_PATH as PRODUCTION_INBOX_PATH } from './demigod-submissions-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const SLA_MS = Number(process.env.DEMIGOD_SLA_MS || 120 * 60 * 1000);
 const WARN_MS = Number(process.env.DEMIGOD_SLA_WARN_MS || 90 * 60 * 1000);
 const POLL_MS = Number(process.env.DEMIGOD_SLA_POLL_MS || 30_000);
 const PORT = Number(process.env.DEMIGOD_SLA_PORT || 9878);
-const SLACK = process.env.SLACK_WEBHOOK_URL || process.env.DEMIGOD_SLACK_WEBHOOK || '';
 
-const STATE_PATH = path.join(ROOT, 'DEMIGOD-SLA-STATE.json');
-const BADGE_PATH = path.join(ROOT, 'public', 'sla-badge.json');
-const DASH_PATH = path.join(ROOT, 'DEMIGOD-SLA-DASHBOARD.json');
+export function slaSlackConfig(env = {}) {
+  const webhook = env.SLACK_WEBHOOK_URL || env.DEMIGOD_SLACK_WEBHOOK || '';
+  return { webhook, authorized: Boolean(webhook) && env.DEMIGOD_ALLOW_SLA_SLACK === '1' };
+}
+
+const SLACK = slaSlackConfig(process.env);
+
+export function pagerPaths({ test = false, pid = process.pid } = {}) {
+  const testDir = test ? path.join('/tmp/dg-busy/tests', `sla-pager-${pid}`) : '';
+  return {
+    testDir,
+    inbox: testDir ? path.join(testDir, 'inbox.json') : PRODUCTION_INBOX_PATH,
+    state: testDir ? path.join(testDir, 'state.json') : path.join(ROOT, 'DEMIGOD-SLA-STATE.json'),
+    badge: testDir ? path.join(testDir, 'badge.json') : path.join(ROOT, 'public', 'sla-badge.json'),
+    dashboard: testDir ? path.join(testDir, 'dashboard.json') : path.join(ROOT, 'DEMIGOD-SLA-DASHBOARD.json'),
+  };
+}
+
+const PAGER_PATHS = pagerPaths({ test: process.argv.includes('--test') });
+const TEST_DIR = PAGER_PATHS.testDir;
+const INBOX_PATH = PAGER_PATHS.inbox;
+const STATE_PATH = PAGER_PATHS.state;
+const BADGE_PATH = PAGER_PATHS.badge;
+const DASH_PATH = PAGER_PATHS.dashboard;
 
 function loadJson(p, fallback) {
   try {
@@ -24,14 +45,15 @@ function loadJson(p, fallback) {
   }
 }
 
-function saveJson(p, data) {
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(data, null, 2));
+export function saveJson(p, data) {
+  const privateFile = p === INBOX_PATH || /^(?:DEMIGOD-SLA-(?:STATE|DASHBOARD)|state|dashboard)\.json$/.test(path.basename(p));
+  atomicWrite(p, JSON.stringify(data, null, 2), { mode: privateFile ? 0o600 : null });
 }
 
-async function postSlack(text) {
-  if (!SLACK) return { ok: false, reason: 'no_slack_webhook' };
-  const res = await fetch(SLACK, {
+export async function postSlack(text, { config = SLACK, send = fetch } = {}) {
+  if (!config.webhook) return { ok: false, reason: 'no_slack_webhook' };
+  if (!config.authorized) return { ok: false, reason: 'outbound_not_authorized' };
+  const res = await send(config.webhook, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, unfurl_links: false }),
@@ -52,7 +74,7 @@ function computeBadge(state) {
   const rate = times.length ? Math.round((compliant / times.length) * 100) : null;
   return {
     at: new Date().toISOString(),
-    badge: 'Fastest human reply in SF startup hiring',
+    badge: 'Human reply tracking',
     targetMinutes: SLA_MS / 60_000,
     averageReplyMinutes: avgMs != null ? Math.round(avgMs / 60_000) : null,
     complianceRate: rate,
@@ -148,8 +170,9 @@ function runTest() {
     testId,
     open: r1.state.open.length,
     badge: r1.badge,
-    slackConfigured: !!SLACK,
-    note: 'Mark replied: node demigod-sla-pager.mjs --reply ' + testId,
+    slackConfigured: !!SLACK.webhook,
+    slackAuthorized: SLACK.authorized,
+    testDir: TEST_DIR,
   }, null, 2));
 }
 
@@ -199,19 +222,22 @@ function startWatcher() {
       port: PORT,
       health: `http://127.0.0.1:${PORT}/health`,
       badgePath: path.relative(ROOT, BADGE_PATH),
-      slackConfigured: !!SLACK,
+      slackConfigured: !!SLACK.webhook,
+      slackAuthorized: SLACK.authorized,
       targetMinutes: SLA_MS / 60_000,
     }));
   });
 }
 
-const arg = process.argv[2];
-if (arg === '--test') runTest();
-else if (arg === '--tick') {
-  const state = loadJson(STATE_PATH, { open: [], history: [] });
-  const r = tick(state);
-  console.log(JSON.stringify({ ok: true, badge: r.badge, open: r.state.open?.length }, null, 2));
-} else if (arg === '--reply') markReply(process.argv[3]);
-else if (arg === '--status') {
-  console.log(JSON.stringify(loadJson(DASH_PATH, computeBadge(loadJson(STATE_PATH, {}))), null, 2));
-} else startWatcher();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const arg = process.argv[2];
+  if (arg === '--test') runTest();
+  else if (arg === '--tick') {
+    const state = loadJson(STATE_PATH, { open: [], history: [] });
+    const r = tick(state);
+    console.log(JSON.stringify({ ok: true, badge: r.badge, open: r.state.open?.length }, null, 2));
+  } else if (arg === '--reply') markReply(process.argv[3]);
+  else if (arg === '--status') {
+    console.log(JSON.stringify(loadJson(DASH_PATH, computeBadge(loadJson(STATE_PATH, {}))), null, 2));
+  } else startWatcher();
+}

@@ -17,9 +17,9 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
   BUSY,
-  ensureBusy,
   atomicWrite,
   opt,
+  withFileLock,
 } from './demigod-agent-tools-lib.mjs';
 import { isRealReceipt } from './demigod-submissions-lib.mjs';
 
@@ -31,8 +31,12 @@ function multi(args, name) {
   return out;
 }
 
-const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const SOURCE_ROOT = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = process.env.DEMIGOD_ROOT || SOURCE_ROOT;
+const PILOT_BUSY =
+  path.resolve(ROOT) === path.resolve(SOURCE_ROOT) ? BUSY : path.join(ROOT, '.dg-busy');
 const STORE = path.join(ROOT, 'DEMIGOD-PILOTS.json');
+const STORE_LOCK = STORE + '.lock';
 const STATUSES = new Set([
   'new',
   'briefed',
@@ -43,6 +47,11 @@ const STATUSES = new Set([
   'closed',
   'churned',
 ]);
+const EVIDENCE_COMMANDS = {
+  shortlist: 'node demigod-match.mjs finalize <pilotId>',
+  intro: 'externally observed delivery receipt (no local command yet)',
+  hired: 'node demigod-close.mjs hire <pilotId> --start YYYY-MM-DD --comp INTEGER',
+};
 
 const args = process.argv.slice(2);
 const cmd = args[0] || 'list';
@@ -59,6 +68,7 @@ function load() {
     const bak = STORE + '.corrupt-' + Date.now();
     try {
       fs.copyFileSync(STORE, bak);
+      fs.chmodSync(bak, 0o600);
     } catch {
       /* */
     }
@@ -69,10 +79,9 @@ function load() {
 
 function save(data) {
   data.at = new Date().toISOString();
-  atomicWrite(STORE, JSON.stringify(data, null, 2) + '\n');
-  ensureBusy();
+  atomicWrite(STORE, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
   atomicWrite(
-    path.join(BUSY, 'pilots-open.json'),
+    path.join(PILOT_BUSY, 'pilots-open.json'),
     JSON.stringify(
       {
         at: data.at,
@@ -81,7 +90,17 @@ function save(data) {
       null,
       2,
     ) + '\n',
+    { mode: 0o600 },
   );
+}
+
+function update(mutator) {
+  return withFileLock(STORE_LOCK, () => {
+    const data = load();
+    const result = mutator(data);
+    save(data);
+    return result;
+  }, { timeoutMs: 20000, staleMs: 120000 });
 }
 
 function id() {
@@ -140,7 +159,6 @@ if (cmd === 'list' || cmd === 'open') {
 }
 
 if (cmd === 'add') {
-  const data = load();
   const company = opt(args, '--company', '');
   const role = opt(args, '--role', '');
   const source = opt(args, '--source', 'manual');
@@ -179,8 +197,7 @@ if (cmd === 'add') {
     sample: force || badSource,
     history: [{ at: new Date().toISOString(), status: 'new', by: process.env.USER || 'agent' }],
   };
-  data.pilots.unshift(pilot);
-  save(data);
+  update((data) => data.pilots.unshift(pilot));
   console.log(JSON.stringify({ ok: true, pilot, checklist: checklist(pilot) }, null, 2));
   process.exit(0);
 }
@@ -196,28 +213,36 @@ if (cmd === 'set') {
     console.error(JSON.stringify({ ok: false, error: 'invalid_status', allowed: [...STATUSES] }));
     process.exit(2);
   }
-  const data = load();
-  const pilot = data.pilots.find((p) => p.id === pid || p.id.startsWith(pid));
-  if (!pilot) {
-    console.error(JSON.stringify({ ok: false, error: 'not_found' }));
+  let pilot;
+  try {
+    pilot = update((data) => {
+      const found = data.pilots.find((p) => p.id === pid || p.id.startsWith(pid));
+      if (!found) throw Object.assign(new Error('not_found'), { code: 'not_found' });
+      if (EVIDENCE_COMMANDS[status]) {
+        throw Object.assign(new Error('evidence_required'), { code: 'evidence_required' });
+      }
+      found.status = status;
+      found.updatedAt = new Date().toISOString();
+      if (status === 'briefed') found.ackedAt = found.ackedAt || new Date().toISOString();
+      if (status === 'intro') found.introAt = found.introAt || new Date().toISOString();
+      const note = opt(args, '--note', '');
+      if (note) found.notes = note;
+      const o90 = opt(args, '--90d', '');
+      if (o90) found.outcome90d = o90;
+      found.history = found.history || [];
+      found.history.push({
+        at: new Date().toISOString(),
+        status,
+        by: process.env.USER || 'agent',
+        note,
+      });
+      return found;
+    });
+  } catch (error) {
+    if (!['not_found', 'evidence_required'].includes(error.code)) throw error;
+    console.error(JSON.stringify({ ok: false, error: error.code, use: EVIDENCE_COMMANDS[status] }));
     process.exit(1);
   }
-  pilot.status = status;
-  pilot.updatedAt = new Date().toISOString();
-  if (status === 'briefed') pilot.ackedAt = pilot.ackedAt || new Date().toISOString();
-  if (status === 'intro') pilot.introAt = pilot.introAt || new Date().toISOString();
-  const note = opt(args, '--note', '');
-  if (note) pilot.notes = note;
-  const o90 = opt(args, '--90d', '');
-  if (o90) pilot.outcome90d = o90;
-  pilot.history = pilot.history || [];
-  pilot.history.push({
-    at: new Date().toISOString(),
-    status,
-    by: process.env.USER || 'agent',
-    note,
-  });
-  save(data);
   console.log(JSON.stringify({ ok: true, pilot, checklist: checklist(pilot) }, null, 2));
   process.exit(0);
 }

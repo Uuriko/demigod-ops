@@ -2,27 +2,23 @@
 /**
  * demigod-pilot-logger — log a REAL pilot after white-glove delivery
  *
- *   node demigod-pilot-logger.mjs --founder=… --brief=… [--outcome=…] [--no-publish]
+ *   node demigod-pilot-logger.mjs --founder=… --brief=… [--outcome=…] [--publish]
  *
- * Runs board-honesty first. Default no fake receipts. Prefer --no-publish until
- * board CDN should update. Warm inbound ≠ pilot — use bin/dg pilot warm first.
+ * Runs board-honesty first. Default no fake receipts and no CDN publish.
+ * Warm inbound ≠ pilot — use bin/dg pilot warm first.
  */
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { createRequire } from 'module';
+import { ROOT } from './demigod-turn-lib.mjs';
+import { loadBoard, saveBoard, writeBoard } from './demigod-submissions-lib.mjs';
+import { appendPilot, computeSignal, latestReceipt } from './demigod-board-lib.mjs';
+import { generateIntroRequest } from './demigod-matching-engine.mjs';
+
 const require = createRequire(import.meta.url);
 try {
   const out = execSync('node demigod-verify-board-honesty.mjs', {encoding:'utf8'});
   if (!out.includes('OK')) { console.error('Board not honest - abort'); process.exit(1); }
 } catch(e){ console.error('board check fail', e.message); process.exit(1); }
-
-// Future: when Stripe ready, call createInvoiceStub after successful pilot/hire
-// const inv = createInvoiceStub({pilotId: '...', amount: '10% first year', toEmail: founderEmail});
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, writeBoard } from './demigod-submissions-lib.mjs';
-import { appendPilot, computeSignal, latestReceipt } from './demigod-board-lib.mjs';
-import { createInvoiceStub, getServiceStatus, onHireInvoice } from './demigod-future-services.mjs';  // Stripe stub for future 10% fee automation (manual now)
-import { generateIntroRequest } from './demigod-matching-engine.mjs';
 
 function parseArgs(argv) {
   const out = {
@@ -33,7 +29,8 @@ function parseArgs(argv) {
     outcome: '',
     stage: 'Active',
     stageType: 'Pre-seed · SF startup',
-    publish: true,
+    publish: false,
+    noPublish: false,
     receipt: true,
     signal: true,
     png: false,
@@ -52,7 +49,8 @@ function parseArgs(argv) {
     else if (a.startsWith('--outcome=')) out.outcome = a.slice(10);
     else if (a.startsWith('--stage=')) out.stage = a.slice(8);
     else if (a.startsWith('--stage-type=')) out.stageType = a.slice(13);
-    else if (a === '--no-publish') out.publish = false;
+    else if (a === '--publish') out.publish = true;
+    else if (a === '--no-publish') out.noPublish = true;
     else if (a === '--no-receipt') out.receipt = false;
     else if (a === '--no-signal') out.signal = false;
     else if (a === '--png') out.png = true;
@@ -218,7 +216,7 @@ function main() {
   }
 
   let publishNote = 'skipped';
-  if (args.publish) {
+  if (!args.noPublish && (args.publish || process.env.DEMIGOD_FORCE_PUBLISH === '1')) {
     const pub = runNode('demigod-board-publish.mjs');
     publishNote = pub.ok ? 'ok' : `failed:${pub.status}`;
   }
@@ -262,12 +260,3 @@ function main() {
 }
 
 main();
-
-// Events integration: on outcome==="hired" or receipted, trigger Stripe stub (pending).
-// Human reviews before any real charge.
-try {
-  if (outcome && /hired|success|receipt/i.test(outcome)) {
-    const inv = onHireInvoice({id: pilotId || founder, comp: stageType, founder, outcome});
-    console.log("onHireInvoice stub:", inv);
-  }
-} catch(e){ console.log("invoice note (pending):", e.message); }

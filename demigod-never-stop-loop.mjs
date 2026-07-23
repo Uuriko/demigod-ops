@@ -272,13 +272,20 @@ function verifySuite() {
 function spawnSideWorker(kind, cycle) {
   const outFile = `/tmp/loop-${kind}-${cycle}.txt`;
   let args;
+  const focusHint =
+    'ACTIVE FOCUS: /tmp/dg-busy/events-bot/FOCUS.md — Events Bot / SF nights. Funnel automation is secondary and Firecrawl is paused.';
   if (kind === 'codex') {
     args = [
       'exec',
       '--full-auto',
-      `Demigod never-stop cycle ${cycle}. Read /tmp/demigod-design-v213/MEGA-PROMPT.md and /tmp/dg-busy/never-stop-state.json. Review recent foot/tools diffs. Write top 5 fixes to /tmp/loop-codex-${cycle}.md. Implement ONLY tool/dashboard fixes if foot lock held by another owner; else one small foot fix max.`,
+      '--sandbox',
+      'workspace-write',
+      `Demigod never-stop cycle ${cycle}. ${focusHint}
+Read /tmp/dg-busy/never-stop-state.json and the Events Bot focus file.
+Implement ONE tools fix (Events Bot, pipeline/policy/selftest, Webflow helper, or dash). No auto-DM, no board writes, no foot thrash.
+Write summary to /tmp/loop-codex-${cycle}.md`,
     ];
-    spawn('timeout', ['180', 'codex', ...args], {
+    spawn('timeout', ['240', 'codex', ...args], {
       cwd: ROOT,
       detached: true,
       stdio: ['ignore', fs.openSync(outFile, 'a'), fs.openSync(outFile, 'a')],
@@ -286,9 +293,11 @@ function spawnSideWorker(kind, cycle) {
   } else if (kind === 'fable') {
     args = [
       'review',
-      `Demigod never-stop cycle ${cycle}. Read never-stop-state + mega prompt. Rank next 3 P0s only. Concrete file:line. No human-task lists. Append to /tmp/loop-fable-${cycle}.txt`,
+      `Demigod never-stop cycle ${cycle}. ${focusHint}
+Rank next 3 P0s for Events Bot / SF nights, with funnel health secondary. Concrete file:line. No human-task lists.
+Write to /tmp/loop-fable-${cycle}.txt and /tmp/dg-busy/funnel-loop/FABLE-NEXT.md`,
     ];
-    spawn('timeout', ['120', path.join(ROOT, 'bin/df'), ...args], {
+    spawn('timeout', ['180', path.join(ROOT, 'bin/df'), ...args], {
       cwd: ROOT,
       detached: true,
       stdio: ['ignore', fs.openSync(outFile, 'a'), fs.openSync(outFile, 'a')],
@@ -559,8 +568,14 @@ async function cycleOnce(state) {
 async function mainRun(argv) {
   ensure();
   const maxCycles = Number(argv.find((a) => a.startsWith('--max-cycles='))?.split('=')[1] || process.env.DEMIGOD_NEVER_STOP_MAX || 999);
-  const requestedSleep = Number(argv.find((a) => a.startsWith('--sleep-sec='))?.split('=')[1] || 60);
-  const sleepSec = Number.isFinite(requestedSleep) ? Math.max(60, requestedSleep) : 60;
+  // accept --sleep-sec=30 or --sleep-sec 30
+  let rawSleep = argv.find((a) => a.startsWith('--sleep-sec='))?.split('=')[1];
+  if (rawSleep == null) {
+    const i = argv.indexOf('--sleep-sec');
+    if (i >= 0 && argv[i + 1]) rawSleep = argv[i + 1];
+  }
+  const requestedSleep = Number(rawSleep ?? 30);
+  const sleepSec = Number.isFinite(requestedSleep) ? Math.max(30, requestedSleep) : 30;
 
   let state = readJson(STATE, null) || {
     schema: 'demigod.never-stop/1',

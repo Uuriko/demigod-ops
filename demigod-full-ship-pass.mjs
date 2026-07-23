@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Full ship pass: resize, nav/forms/footer/bloat canvas, AI, publish, audit, verify. */
+/** Full ship pass: resize, nav/forms/footer/bloat canvas, AI, publish, audit, verify. Requires --apply. */
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -19,6 +19,13 @@ import { fetchLiveHtml, scanLiveHtml, evaluatePageScan, LIVE_ORIGIN } from './de
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-FULL-SHIP.json');
+const APPLY = process.argv.includes('--apply');
+
+if (process.argv.includes('--policy') || !APPLY) {
+  fs.writeFileSync(1, JSON.stringify({ apply: APPLY, externalWrites: APPLY, requiredFlag: '--apply' }) + '\n');
+  process.exit(APPLY ? 0 : 2);
+}
+
 const SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-COPY-SPEC.json'), 'utf8'));
 
 const AI_PROMPT = `FULL SHIP PASS — Demigod home (talentlink-sf). Viewport 1440px+. Publish when done.

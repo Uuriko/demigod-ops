@@ -1,8 +1,10 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer-core';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 const HEAD = fs.readFileSync('demigod-head-minimal.html', 'utf8');
 const FOOT = fs.readFileSync('demigod-footer-lite.html', 'utf8');
 async function push() {
+  assertNotFrozen('webflow-push-live-now');
   const b = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223', protocolTimeout: 180000 });
   const ps = await b.pages();
   let cc = ps.find(p => /custom-code/i.test(p.url()));

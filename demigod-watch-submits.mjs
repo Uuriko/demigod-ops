@@ -133,7 +133,7 @@ if (doMark) {
     cursor.seenIds = next;
   }
   ensureBusy();
-  atomicWrite(CURSOR, JSON.stringify(cursor, null, 2) + '\n');
+  atomicWrite(CURSOR, JSON.stringify(cursor, null, 2) + '\n', { mode: 0o600 });
 }
 
 const report = {
@@ -182,8 +182,8 @@ const md = [
   .join('\n');
 
 ensureBusy();
-atomicWrite(ALERT_JSON, JSON.stringify(report, null, 2) + '\n');
-atomicWrite(ALERT_MD, md + '\n');
+atomicWrite(ALERT_JSON, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
+atomicWrite(ALERT_MD, md + '\n', { mode: 0o600 });
 
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));

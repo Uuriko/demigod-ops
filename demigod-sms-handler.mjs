@@ -16,7 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadInbox, saveInbox, anonymizeCandidate, shouldAutoReject, slugId, inferStageType, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
+import { INBOX_PATH, loadInbox, updateInbox, anonymizeCandidate, shouldAutoReject, slugId, inferStageType, loadBoard, saveBoard } from './demigod-submissions-lib.mjs';
 import { suggestMatches, markCandidateOptin, generateIntroRequest } from './demigod-matching-engine.mjs';
 import { appendPilot } from './demigod-board-lib.mjs';  // for auto pilot stub on SMS yes
 import { sendSmsStub, getServiceStatus, isServiceEnabled } from './demigod-future-services.mjs';  // future Twilio adapter (currently pending stub)
@@ -30,7 +30,8 @@ const WEBHOOK_PENDING = 'https://demigod-trydemigod.loca.lt/sms'; // stub
 // dogfood run — the sim-launders-into-SoR pattern. persist=false still exercises all parsing/matching.
 export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
   // Simple state for multi-turn conversation (pre-services stub)
-  const stateFile = path.join(ROOT, 'demigod-sms-state.json');
+  const stateFile = path.join(path.dirname(INBOX_PATH), 'demigod-sms-state.json');
+  const isolated = path.dirname(INBOX_PATH) !== ROOT;
   let state = {};
   try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch {}
   const prev = state[from] || {};
@@ -39,7 +40,7 @@ export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
   const raw = {
     // A first message is usually a greeting or a request, not a name. The old `body.match(/^[A-Za-z ]+/)`
     // captured leading words indiscriminately, so "Hey looking for design roles" became full-name="Hey
-    // looking for design roles" and "Hi, I'm a PM" became "Hi". Since handleSms calls saveInbox() below,
+    // looking for design roles" and "Hi, I'm a PM" became "Hi". Since handleSms persists the inbox below,
     // that fake-looking name lands in the REAL submissions SoR the moment Twilio is wired to this stub --
     // the sim-launders-into-SoR pattern that caused the corruption era. Names come ONLY from the explicit
     // "my name is X" / "name: X" path (~line 55, which overrides this); default to an honest placeholder.
@@ -91,42 +92,44 @@ export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
   }
 
   state[from] = { name: raw['full-name'], skills: raw['skills-stack'], sf: raw['sf-bay'], why: raw['why-this-role'], body: combinedBody, updated: raw.at };
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2), { mode: 0o600 });
 
   const formName = 'engineer-join-sms';
-  let inbox = loadInbox();
-  inbox.items = inbox.items || [];
-
-  // SMS-friendly: dedupe/update by phone (not email), allow re-convo updates without dup reject
-  const phoneIdx = inbox.items.findIndex(i => i.phone === from);
-  const isExistingSms = phoneIdx >= 0;
-
-  let candidate;
-  if (isExistingSms) {
-    // update existing convo entry (multi-turn ok)
-    candidate = inbox.items[phoneIdx];
-    candidate.raw = { ...candidate.raw, ...raw };
-    candidate.at = raw.at;
-    candidate.status = 'updated';
-    inbox.items[phoneIdx] = candidate;
-  } else {
-    const rejectCheck = shouldAutoReject(raw, formName, inbox);
-    if (rejectCheck.reject) {
-      console.log('SMS auto-rejected:', rejectCheck.reasons, from);
-      return { ok: false, reason: rejectCheck.reasons };
+  const mutateInbox = (inbox) => {
+    inbox.items = inbox.items || [];
+    // SMS-friendly: dedupe/update by phone (not email), allow re-convo updates without dup reject
+    const phoneIdx = inbox.items.findIndex(i => i.phone === from);
+    let candidate;
+    if (phoneIdx >= 0) {
+      // update existing convo entry (multi-turn ok)
+      candidate = inbox.items[phoneIdx];
+      candidate.raw = { ...candidate.raw, ...raw };
+      candidate.at = raw.at;
+      candidate.status = 'updated';
+      inbox.items[phoneIdx] = candidate;
+    } else {
+      const rejectCheck = shouldAutoReject(raw, formName, inbox);
+      if (rejectCheck.reject) return { reason: rejectCheck.reasons };
+      candidate = {
+        id: slugId('sms-cand'),
+        form: formName,
+        at: raw.at,
+        raw,
+        status: 'new',
+        source: 'sms',
+        phone: from
+      };
+      inbox.items.unshift(candidate);
     }
-    candidate = {
-      id: slugId('sms-cand'),
-      form: formName,
-      at: raw.at,
-      raw,
-      status: 'new',
-      source: 'sms',
-      phone: from
-    };
-    inbox.items.unshift(candidate);
+    return { candidate };
+  };
+  const mutation = persist ? updateInbox(mutateInbox) : mutateInbox(loadInbox());
+  if (mutation.reason) {
+    console.log('SMS auto-rejected:', mutation.reason, from);
+    return { ok: false, reason: mutation.reason };
   }
-  if (persist) saveInbox(inbox); // false from the CLI smoke test so it never writes the real leads SoR
+  const candidate = mutation.candidate;
 
   // Role suggestion (no auto opt-in on first message; explicit only)
   let bestRoleTitle = 'Product Manager';
@@ -149,10 +152,10 @@ export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
   const yesMatch = body.match(/yes\s+(.+)/i);
   if (yesMatch) {
     const optedRole = yesMatch[1].trim();
-    markCandidateOptin(candidate.id, optedRole);
-    const gen = generateIntroRequest(candidate.id || from, optedRole);
+    if (!isolated) markCandidateOptin(candidate.id, optedRole);
+    const gen = isolated ? { ok: true, template: 'Isolated intro simulation.' } : generateIntroRequest(candidate.id || from, optedRole);
     // Integrate: auto log pilot stub for SMS yes (builds proof + GTM signal)
-    const pilotRes = spawnSync('node', ['demigod-pilot-logger.mjs', `--brief=${optedRole}`, '--intros=1', '--source=sms', `--sms-cand=${from}`, `--sms-role=${optedRole}`, '--no-publish', '--no-receipt', '--no-signal'], {encoding: 'utf8'});
+    if (!isolated) spawnSync('node', ['demigod-pilot-logger.mjs', `--brief=${optedRole}`, '--intros=1', '--source=sms', `--sms-cand=${from}`, `--sms-role=${optedRole}`, '--no-publish', '--no-receipt', '--no-signal'], {encoding: 'utf8'});
     // append to board as pilot stub (pre-services)
     let board = loadBoard();
     const { board: nextBoard } = appendPilot(board, {
@@ -162,7 +165,7 @@ export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
       stageType: 'from SMS',
       source: 'sms'
     });
-    saveBoard(nextBoard, { reason: 'sms-optin-pilot', actor: 'sms-handler' });
+    saveBoard(nextBoard, { reason: 'sms-optin-pilot', actor: 'sms-handler', allowRealRoles: isolated, allowRealReceipts: isolated });
     // Also append to .pilots[] (for tracker/SLA/pilot tools) using phone as key
     let b2 = loadBoard();
     b2.pilots = Array.isArray(b2.pilots) ? b2.pilots : [];
@@ -183,13 +186,13 @@ export function handleSms({ from, body, to = PENDING_NUMBER, persist = true }) {
         source: 'sms',
         history: [{ status: 'dm-sent', at: new Date().toISOString() }]
       });
-      saveBoard(b2, { reason: 'sms-pilot-append', actor: 'sms-handler' });
+      saveBoard(b2, { reason: 'sms-pilot-append', actor: 'sms-handler', allowRealRoles: isolated, allowRealReceipts: isolated });
     }
     const tmpl = (gen && (gen.template || gen.ok && 'Intro template generated.')) || '';
     reply = `Opted in for ${optedRole}! ${tmpl} Pilot logged. Humans will review for intro. Reply more details anytime.`;
   } else if (/match me|opt in|interested/i.test(body)) {
     // explicit: mark top suggestion now
-    if (presented.length) markCandidateOptin(candidate.id, bestRoleTitle);
+    if (presented.length && !isolated) markCandidateOptin(candidate.id, bestRoleTitle);
     reply = `Great! Opted in for top matches. ${presented.length ? JSON.stringify(presented) : 'Humans will propose soon.'} Reply "yes <role>" to confirm or skills update.`;
   } else {
     const note = updatedFields.length ? ` (${updatedFields.join('+')})` : '';

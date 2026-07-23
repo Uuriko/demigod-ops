@@ -29,6 +29,36 @@ const FOOT_SCRIPT_SRC_RE =
   /src=["'](https?:\/\/(?:files\.catbox\.moe|litter\.catbox\.moe|gist\.githubusercontent\.com|cdn\.jsdelivr\.net|cdn\.statically\.io)[^"']+\.js(?:[?#][^"']*)?)["']/i;
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const args = process.argv.slice(2);
+const TRUTH_FLAGS = new Set([
+  '--json',
+  '--md',
+  '--quiet',
+  '--strict',
+  '--selftest',
+  '--require-match',
+  '--no-cache',
+  '--help',
+  '-h',
+]);
+const unknownArg = args.find((a) => !TRUTH_FLAGS.has(a));
+if (unknownArg) {
+  console.error(
+    `truth: unknown argument ${unknownArg} — try: bin/dg truth [--json|--md|--quiet|--strict|--require-match|--selftest|--no-cache]`,
+  );
+  process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`demigod-truth — disk → manifest → CDN → live oracle
+
+Usage: bin/dg truth [--json|--md|--quiet|--strict|--require-match|--selftest|--no-cache]
+
+--json            machine-readable facts
+--strict          exit 1 unless fullyShipped
+--require-match   exit 1 if disk foot version ≠ live
+--selftest        offline contract checks only
+--no-cache        bypass live HTML cache`);
+  process.exit(0);
+}
 const asJson = args.includes('--json');
 const asMd = args.includes('--md') || (!asJson && !args.includes('--quiet'));
 const strict = args.includes('--strict');
@@ -217,6 +247,12 @@ async function fetchText(url, { timeoutMs = 22000 } = {}) {
   });
 }
 
+function errorText(error) {
+  return [error?.cause?.code, error?.cause?.message, error?.message || error]
+    .filter(Boolean)
+    .join(': ');
+}
+
 /** Prefer version from URL basename (demigod-foot-v449-….js) or loader comment. */
 function versionHintsFromLive(html, footUrl) {
   const fromUrl = (String(footUrl || '').match(/demigod-foot-v(\d+)/i) || [])[1] || null;
@@ -241,8 +277,10 @@ function gistRawFallback(url) {
 
 async function main() {
   const footPath = path.join(ROOT, 'demigod-foot-core.js');
+  const mapPath = path.join(ROOT, 'demigod-startup-atlas-web.js');
+  const mapDataPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
   const run = beginRun('truth', {
-    scope: [footPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
+    scope: [footPath, mapPath, mapDataPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
   });
   const headCssPath = path.join(ROOT, 'demigod-head-styles.css');
   const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
@@ -255,6 +293,12 @@ async function main() {
   const footJs = readText(footPath);
   const diskSha = sha256File(footPath);
   const diskBytes = footJs ? Buffer.byteLength(footJs) : null;
+  const mapSource = readText(mapPath);
+  const mapDataSource = readText(mapDataPath);
+  const mapSha = sha256File(mapPath);
+  const mapBytes = mapSource ? Buffer.byteLength(mapSource) : null;
+  const mapDataSha = sha256File(mapDataPath);
+  const mapDataBytes = mapDataSource ? Buffer.byteLength(mapDataSource) : null;
   const diskInternalVer = (footJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
   const diskPublicVer =
     (footJs.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
@@ -275,8 +319,9 @@ async function main() {
   // to the first approved-host `.js` can misidentify an unrelated asset as
   // the foot and makes loader count disagree with the URL we attest.
   const footerCdn = footLoaderUrls(footer, man.cdnUrl)[0] || null;
+  const headCssPattern = /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/i;
   const headCssDiskUrl =
-    (headMin.match(/https:\/\/files\.catbox\.moe\/[a-z0-9]+\.css/) || [])[0] || null;
+    (headMin.match(headCssPattern) || [])[0] || null;
 
   const syn = runNode(['--check', footPath]);
   const syntaxOk = syn.status === 0;
@@ -362,13 +407,13 @@ async function main() {
   try {
     liveHtml = await fetchText(LIVE + '/');
   } catch (e) {
-    liveHtml = { ok: false, status: 0, text: '', err: String(e.message || e), sha256: null, bytes: 0 };
+    liveHtml = { ok: false, status: 0, text: '', err: errorText(e), sha256: null, bytes: 0 };
   }
   const liveFootUrls = footLoaderUrls(liveHtml.text, man.cdnUrl);
   const liveFootUrl = liveFootUrls[0] || null;
   const liveFootLoaderCount = liveFootUrls.length;
   const liveCssUrl =
-    (liveHtml.text.match(/https:\/\/files\.catbox\.moe\/[a-z0-9]+\.css/) || [])[0] || null;
+    (liveHtml.text.match(headCssPattern) || [])[0] || null;
 
   let liveJs = null;
   let liveVer = null;
@@ -388,7 +433,7 @@ async function main() {
         liveJsSha = liveJs.sha256;
         if (liveVer || liveJsSha) break;
       } catch (e) {
-        lastErr = String(e.message || e);
+        lastErr = errorText(e);
         liveJs = { ok: false, err: lastErr };
       }
     }
@@ -414,6 +459,28 @@ async function main() {
     man.version != null &&
     man.footVer != null &&
     String(man.version).replace(/^v/i, '') === String(man.footVer).replace(/^v/i, ''),
+  );
+  const manifestMap = man.assets?.startupMap || {};
+  const manifestMapData = man.assets?.mapData || {};
+  const manifestMapMatchesDisk = Boolean(
+    manifestMap.sha256 === mapSha && manifestMap.bytes === mapBytes && canonicalAssetUrl(manifestMap.url),
+  );
+  const manifestMapDataMatchesDisk = Boolean(
+    manifestMapData.sha256 === mapDataSha &&
+      manifestMapData.bytes === mapDataBytes &&
+      canonicalAssetUrl(manifestMapData.url),
+  );
+  const [liveMap, liveMapData] = await Promise.all([
+    manifestMap.url ? fetchText(manifestMap.url, { timeoutMs: 30000 }) : null,
+    manifestMapData.url ? fetchText(manifestMapData.url, { timeoutMs: 30000 }) : null,
+  ]);
+  const liveMapMatchesDisk = Boolean(
+    liveMap?.ok && liveMap.sha256 === mapSha && isExecutableJavaScriptMime(liveMap.contentType),
+  );
+  const liveMapDataMatchesDisk = Boolean(
+    liveMapData?.ok &&
+      liveMapData.sha256 === mapDataSha &&
+      /^application\/json(?:;|$)/i.test(liveMapData.contentType || ''),
   );
   const rawReleaseReceipt = readJson(releaseReceiptPath);
   const releaseReceiptMatchesDisk = Boolean(
@@ -473,7 +540,9 @@ async function main() {
       manifestBytesMatchDisk &&
       manifestVersionMatchesDisk &&
       manifestAttested &&
-      manifestVersionMarkersAgree,
+      manifestVersionMarkersAgree &&
+      manifestMapMatchesDisk &&
+      manifestMapDataMatchesDisk,
   );
   const releaseIdentityDelta = {
     version: manifestVersionMatchesDisk
@@ -562,6 +631,31 @@ async function main() {
   if (diskVer && liveVer && diskVer !== liveVer && freeze.on && Number(diskVer) > Number(liveVer)) {
     driftExpected = true;
   }
+  // Publish-gated prepare-only: current request did not authorize CDN/Webflow publish.
+  // Disk may lead live/manifest on foot + sibling assets; ship prepare stays green, truth
+  // must not hard-fail on identity lag alone (fullyShipped still false).
+  const publishAuthorized = process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH === '1';
+  const prepareOnlyRelease = Boolean(
+    !publishAuthorized &&
+      syntaxOk &&
+      diskVersionMarkersAgree &&
+      liveHtml.ok &&
+      liveFootLoaderCount === 1 &&
+      liveFootMimeOk &&
+      boardOk &&
+      diskVer &&
+      liveVer,
+  );
+  // Backward-compat alias: sibling-only lag when foot already matches live/manifest.
+  const prepareOnlySiblingAssets =
+    prepareOnlyRelease &&
+    diskEqualsLiveVer &&
+    liveBodyMatchesDisk &&
+    liveMatchesManifest &&
+    diskMatchesManifest &&
+    manifestBytesMatchDisk &&
+    manifestVersionMatchesDisk &&
+    manifestAttested;
 
   const roles = board.roles || [];
   const signal = board.signal || {
@@ -590,7 +684,11 @@ async function main() {
       manifestBytesMatchDisk &&
       manifestVersionMatchesDisk &&
       manifestAttested &&
-      manifestVersionMarkersAgree
+      manifestVersionMarkersAgree &&
+      manifestMapMatchesDisk &&
+      manifestMapDataMatchesDisk &&
+      liveMapMatchesDisk &&
+      liveMapDataMatchesDisk
   );
 
   const issues = [];
@@ -615,34 +713,62 @@ async function main() {
   else if (diskVer && liveVer) {
     const msg = `version drift disk v${diskVer} != live v${liveVer}`;
     if (driftExpected) ok.push(`${msg} (freeze ON — intentional)`);
+    else if (prepareOnlyRelease) ok.push(`${msg} (prepare-only — publish unauthorized)`);
     else issues.push(msg);
   }
   if (liveBodyMatchesDisk) ok.push('live CDN body sha == disk');
   else if (liveJsSha && diskSha) {
     if (driftExpected) ok.push('CDN body ≠ disk (expected while freeze/disk-ahead)');
+    else if (prepareOnlyRelease) ok.push('live CDN body sha ≠ disk foot (prepare-only — publish unauthorized)');
     else issues.push('live CDN body sha ≠ disk foot');
   }
   if (diskMatchesManifest) ok.push('manifest sha == disk foot');
-  else if (man.sha256 && diskSha) issues.push('manifest sha ≠ disk foot (publish CDN before CM6)');
+  else if (prepareOnlyRelease && man.sha256 && diskSha) {
+    ok.push('manifest sha ≠ disk foot (prepare-only — publish unauthorized)');
+  } else if (man.sha256 && diskSha) issues.push('manifest sha ≠ disk foot (publish CDN before CM6)');
   else issues.push('manifest sha missing (publish CDN before CM6)');
   if (manifestBytesMatchDisk) ok.push(`manifest bytes == disk foot (${diskBytes})`);
-  else if (Number.isSafeInteger(man.bytes) && diskBytes != null) {
+  else if (prepareOnlyRelease && Number.isSafeInteger(man.bytes) && diskBytes != null) {
+    ok.push(`manifest bytes ${man.bytes} ≠ disk foot ${diskBytes} (prepare-only — publish unauthorized)`);
+  } else if (Number.isSafeInteger(man.bytes) && diskBytes != null) {
     issues.push(`manifest bytes ${man.bytes} ≠ disk foot ${diskBytes}`);
   } else {
     issues.push('manifest bytes missing or invalid (publish CDN before CM6)');
   }
   if (manifestVersionMatchesDisk) ok.push(`manifest version == disk v${diskVer}`);
-  else issues.push(`manifest version v${man.version || '?'} ≠ disk v${diskVer || '?'}`);
+  else if (prepareOnlyRelease) {
+    ok.push(`manifest version v${man.version || '?'} ≠ disk v${diskVer || '?'} (prepare-only — publish unauthorized)`);
+  } else issues.push(`manifest version v${man.version || '?'} ≠ disk v${diskVer || '?'}`);
   if (manifestAttested) ok.push('manifest release attested');
   else issues.push('manifest release is not positively attested');
   if (manifestVersionMarkersAgree) ok.push('manifest version markers agree');
   else issues.push(`manifest version markers disagree (${man.version || '?'} / ${man.footVer || '?'})`);
+  if (manifestMapMatchesDisk) ok.push('manifest startup-map identity == disk');
+  else if (prepareOnlyRelease) {
+    ok.push('manifest startup-map identity ≠ disk (prepare-only — publish unauthorized)');
+  } else issues.push('manifest startup-map identity missing or stale');
+  if (manifestMapDataMatchesDisk) ok.push('manifest map-data identity == disk');
+  else if (prepareOnlyRelease) {
+    ok.push('manifest map-data identity ≠ disk (prepare-only — publish unauthorized)');
+  } else issues.push('manifest map-data identity missing or stale');
+  if (liveMapMatchesDisk) ok.push('live startup-map body == disk with executable MIME');
+  else if (manifestMap.url && prepareOnlyRelease) {
+    ok.push('live startup-map body ≠ disk (prepare-only — publish unauthorized)');
+  } else if (manifestMap.url) issues.push('live startup-map body or MIME does not match disk');
+  if (liveMapDataMatchesDisk) ok.push('live map-data body == disk with JSON MIME');
+  else if (manifestMapData.url && prepareOnlyRelease) {
+    ok.push('live map-data body ≠ disk (prepare-only — publish unauthorized)');
+  } else if (manifestMapData.url) issues.push('live map-data body or MIME does not match disk');
   if (liveFootMimeOk) ok.push(`live CDN MIME executable (${liveJs.contentType})`);
   else if (liveJs?.ok) issues.push(`live CDN MIME is not executable JavaScript (${liveJs.contentType || 'missing'})`);
   if (liveMatchesManifest) ok.push('live foot URL == manifest CDN URL');
-  else if (liveHtml.ok && man.cdnUrl) issues.push('live foot URL ≠ manifest CDN URL');
+  else if (liveHtml.ok && man.cdnUrl && prepareOnlyRelease) {
+    ok.push('live foot URL ≠ manifest CDN URL (prepare-only — publish unauthorized)');
+  } else if (liveHtml.ok && man.cdnUrl) issues.push('live foot URL ≠ manifest CDN URL');
   if (footerCdn && manifestUrl && canonicalAssetUrl(footerCdn) === manifestUrl) {
     ok.push('disk footer URL == manifest CDN URL');
+  } else if (man.cdnUrl && prepareOnlyRelease) {
+    ok.push('disk footer URL ≠ manifest CDN URL (prepare-only — publish unauthorized)');
   } else if (man.cdnUrl) {
     issues.push('disk footer URL ≠ manifest CDN URL (publish CDN before CM6)');
   }
@@ -700,6 +826,10 @@ async function main() {
       versionMatchesDisk: manifestVersionMatchesDisk,
       attested: manifestAttested,
       versionMarkersAgree: manifestVersionMarkersAgree,
+      assets: {
+        startupMap: { ...manifestMap, matchesDisk: manifestMapMatchesDisk, liveMatchesDisk: liveMapMatchesDisk },
+        mapData: { ...manifestMapData, matchesDisk: manifestMapDataMatchesDisk, liveMatchesDisk: liveMapDataMatchesDisk },
+      },
     },
     release: {
       state: releaseState,
@@ -772,7 +902,15 @@ async function main() {
     summaryLine: null,
   };
 
-  facts.summaryLine = `TRUTH ${pass ? 'PASS' : 'FAIL'} disk=v${diskVer} live=v${liveVer || '?'} freeze=${freeze.on ? 'ON' : 'OFF'} lock=${lock.held ? lock.owner : 'free'} board=${boardOk ? 'ok' : 'FAIL'} shipped=${fullyShipped}${driftExpected ? ' driftExpected' : ''}`;
+  facts.prepareOnlyRelease = prepareOnlyRelease;
+  facts.prepareOnlySiblingAssets = prepareOnlySiblingAssets;
+  const prepareBit =
+    !fullyShipped && prepareOnlyRelease
+      ? prepareOnlySiblingAssets
+        ? ' prepareOnlyAssets'
+        : ' prepareOnly'
+      : '';
+  facts.summaryLine = `TRUTH ${pass ? 'PASS' : 'FAIL'} disk=v${diskVer} live=v${liveVer || '?'} freeze=${freeze.on ? 'ON' : 'OFF'} lock=${lock.held ? lock.owner : 'free'} board=${boardOk ? 'ok' : 'FAIL'} shipped=${fullyShipped}${driftExpected ? ' driftExpected' : ''}${prepareBit}`;
 
   fs.mkdirSync(BUSY, { recursive: true });
   writeJsonAuto(path.join(BUSY, 'truth.json'), facts);

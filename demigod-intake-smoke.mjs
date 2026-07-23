@@ -2,13 +2,57 @@
 /** Brief intake smoke: live forms + webhook path + wizard UX. */
 import fs from 'fs';
 import path from 'path';
-import { spawnSync } from 'child_process';
+import net from 'node:net';
+import { spawn, spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml, scanLiveHtml } from './demigod-live-lib.mjs';
-import { loadInbox } from './demigod-submissions-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-INTAKE-SMOKE.json');
-const PORT = Number(process.env.DEMIGOD_WEBHOOK_PORT || 9877);
+const LIVE_SUBMIT = process.argv.includes('--live-submit');
+const WEBHOOK_ONLY = process.env.DEMIGOD_INTAKE_SMOKE_WEBHOOK_ONLY === '1';
+let PORT = 0;
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+async function startIsolatedWebhook() {
+  PORT = await freePort();
+  const scope = `intake-smoke-${process.pid}-${Date.now()}`;
+  const env = { ...process.env, DEMIGOD_TEST_SCOPE: scope, DEMIGOD_WEBHOOK_PORT: String(PORT) };
+  for (const key of ['DEMIGOD_WEBFLOW_WEBHOOK_SECRET_STARTUP', 'DEMIGOD_WEBFLOW_WEBHOOK_SECRET_ENGINEER', 'DEMIGOD_WEBFLOW_WEBHOOK_SECRET']) delete env[key];
+  const child = spawn(process.execPath, ['demigod-submissions-webhook.mjs'], {
+    cwd: ROOT,
+    env,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  for (let i = 0; i < 50; i++) {
+    if (child.exitCode != null) throw new Error(`isolated webhook exited ${child.exitCode}: ${stderr.slice(-500)}`);
+    const health = await webhookHealth();
+    if (health.ok) return { child, scope, port: PORT };
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  child.kill('SIGTERM');
+  throw new Error(`isolated webhook did not start: ${stderr.slice(-500)}`);
+}
+
+async function stopWebhook(child) {
+  if (!child || child.exitCode != null) return;
+  child.kill('SIGTERM');
+  await Promise.race([
+    new Promise((resolve) => child.once('close', resolve)),
+    new Promise((resolve) => setTimeout(resolve, 1000)),
+  ]);
+}
 
 async function webhookHealth() {
   try {
@@ -36,13 +80,11 @@ async function formWebhookSmoke(name, data) {
     body: JSON.stringify(body),
   });
   const json = await res.json();
-  const inbox = loadInbox();
-  const rec = inbox.items.find((i) => i.id === json.id);
   return {
     httpStatus: res.status,
     ok: res.ok && json.ok,
     id: json.id,
-    inboxStatus: rec?.status,
+    inboxStatus: json.status,
     featured: json.featured,
   };
 }
@@ -74,18 +116,22 @@ function runWizardPlaytest() {
 
 async function main() {
   const checks = {};
-  const { html, footerCoreJs } = await fetchLiveHtml(true);
-  const scan = scanLiveHtml(html, { footerCoreJs });
+  const isolatedWebhook = await startIsolatedWebhook();
+  try {
+  const liveScan = WEBHOOK_ONLY
+    ? { formsOk: true, forms: [], footerCoreCopy: {}, liveWebhookUrl: null }
+    : await fetchLiveHtml(true).then(({ html, footerCoreJs }) => scanLiveHtml(html, { footerCoreJs }));
 
   checks.liveForms = {
-    ok: scan.formsOk,
-    startup: scan.forms.find((f) => f.name === 'startup-hire')?.present,
-    engineer: scan.forms.find((f) => f.name === 'engineer-join')?.present,
-    footVersion: scan.footerCoreCopy?.version,
-    webhookUrl: scan.liveWebhookUrl || null,
+    ok: liveScan.formsOk,
+    startup: liveScan.forms.find((f) => f.name === 'startup-hire')?.present,
+    engineer: liveScan.forms.find((f) => f.name === 'engineer-join')?.present,
+    footVersion: liveScan.footerCoreCopy?.version,
+    webhookUrl: liveScan.liveWebhookUrl || null,
   };
 
   checks.webhookHealth = await webhookHealth();
+  checks.webhookHealth.scope = isolatedWebhook.scope;
 
   if (checks.webhookHealth.ok) {
     const tag = Date.now();
@@ -111,28 +157,28 @@ async function main() {
     checks.engineerPost = { skipped: true, reason: 'webhook_down' };
   }
 
-  checks.wizard = runWizardPlaytest();
+  checks.wizard = WEBHOOK_ONLY ? { ok: true, skipped: true, reason: 'webhook-only-check' } : runWizardPlaytest();
 
-  const formTest = spawnSync('node', ['demigod-form-submit-test.mjs'], {
+  const formTest = LIVE_SUBMIT ? spawnSync('node', ['demigod-form-submit-test.mjs'], {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 120000,
-  });
+  }) : null;
   let formParsed = null;
   const formOut = path.join(ROOT, 'DEMIGOD-FORM-SUBMIT-TEST.json');
   try {
-    if (fs.existsSync(formOut)) formParsed = JSON.parse(fs.readFileSync(formOut, 'utf8'));
+    if (formTest && fs.existsSync(formOut)) formParsed = JSON.parse(fs.readFileSync(formOut, 'utf8'));
     else {
       const line = (formTest.stdout || '').trim().split('\n').filter((l) => l.startsWith('{')).pop();
       formParsed = line ? JSON.parse(line) : null;
     }
   } catch (_) { /* ignore */ }
   checks.webflowSubmit = {
-    exitCode: formTest.status,
-    ok: formTest.status === 0,
+    exitCode: formTest?.status ?? null,
+    ok: formTest ? formTest.status === 0 : true,
     pass: formParsed?.pass,
-    skipped: formParsed?.submitResult?.skipped,
-    reason: formParsed?.submitResult?.reason,
+    skipped: formTest ? formParsed?.submitResult?.skipped : true,
+    reason: formTest ? formParsed?.submitResult?.reason : 'explicit_--live-submit_required',
     mode: formParsed?.startup?.mode,
   };
 
@@ -150,7 +196,9 @@ async function main() {
     at: new Date().toISOString(),
     pass,
     checks,
-    humanFollowUp: checks.webflowSubmit.skipped
+    humanFollowUp: !LIVE_SUBMIT
+      ? null
+      : checks.webflowSubmit.skipped
       ? 'Turnstile blocks automated Webflow POST — webhook path verified via CLI smoke.'
       : checks.webflowSubmit.pass
         ? 'Check hello@trydemigod.com / Webflow form notifications for test submission.'
@@ -160,10 +208,13 @@ async function main() {
 
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2));
   console.log(JSON.stringify(out, null, 2));
-  process.exit(pass ? 0 : 1);
+  return pass;
+  } finally {
+    await stopWebhook(isolatedWebhook.child);
+  }
 }
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
-});
+  process.exitCode = 1;
+}).then((pass) => { if (pass === false) process.exitCode = 1; });

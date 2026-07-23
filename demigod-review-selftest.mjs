@@ -22,6 +22,11 @@ function ok(c, m) {
 
 ensureBusy();
 fs.mkdirSync(FIX, { recursive: true });
+fs.mkdirSync(path.join(BUSY, 'tests'), { recursive: true });
+const REVIEW_BUSY = fs.mkdtempSync(path.join(BUSY, 'tests', 'review-selftest-'));
+// Every child review must keep its intentionally bad fixture report out of the
+// canonical operator receipt. Static imports above already resolved their own paths.
+process.env.DEMIGOD_BUSY = REVIEW_BUSY;
 
 // Fixture: duplicate const + eval + bare saveBoard
 const badPath = path.join(FIX, 'fixture-bad.mjs');
@@ -41,7 +46,12 @@ fs.writeFileSync(
   goodPath,
   `import fs from 'fs';
 export function hello() {
-  return fs.existsSync('/tmp') ? 'ok' : 'no';
+  const browser = { $eval() {}, evaluate() {} };
+  const evaluationWord = /eval(?:uation)?/;
+  const embedded = \`import json
+import asyncio\`;
+  browser.$eval();
+  return embedded && fs.existsSync('/tmp') ? 'ok' : 'no';
 }
 `,
 );
@@ -60,10 +70,21 @@ fs.writeFileSync(
 `,
 );
 
+const xssPath = path.join(FIX, 'fixture-xss.mjs');
+fs.writeFileSync(
+  xssPath,
+  `const el = document.body;
+const userHtml = location.hash;
+el.innerHTML = '<strong>static scaffold</strong>';
+el.innerHTML = userHtml;
+`,
+);
+
 const relBad = path.relative(ROOT, badPath);
 const relGood = path.relative(ROOT, goodPath);
 const relWs = path.relative(ROOT, wsPath);
 const relGate = path.relative(ROOT, gateBadPath);
+const relXss = path.relative(ROOT, xssPath);
 
 function runReview(extraArgs) {
   // --no-contract: fixture multi-file inventory is not a mutate contract gate
@@ -109,6 +130,7 @@ ok(
   ),
   'good fixture clean of critical/high (except maybe imports)',
 );
+ok(!findings.some((f) => f.file?.includes('fixture-good') && f.rule === 'eval-use'), 'eval rule ignores $eval and regex vocabulary');
 
 // only-rule
 const only = runReview(['--files', relBad, '--only-rule', 'eval-use']);
@@ -142,6 +164,10 @@ ok(
   (gOr.report?.findings || []).some((f) => f.rule === 'gate-status-or-pass'),
   'detects gate status||PASS anti-pattern',
 );
+
+const xss = runReview(['--files', relXss, '--only-rule', 'xss-innerhtml']);
+const xssFindings = (xss.report?.findings || []).filter((f) => f.rule === 'xss-innerhtml');
+ok(xssFindings.length === 1 && xssFindings[0].line === 4, 'xss rule skips static HTML but keeps dynamic input');
 
 // computeSafeFixes unit
 const wsSrc = fs.readFileSync(wsPath, 'utf8');
@@ -259,14 +285,14 @@ const sinceHelp = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--h
 });
 ok(/--since/i.test(sinceHelp.stdout), 'help documents --since');
 
-// auto-send path exists (may fail if X not logged in — not a ban)
+// Legacy blast command remains useful for drafts but cannot deliver.
 const blastHelp = spawnSync('node', [path.join(ROOT, 'demigod-founder-dm-blast.mjs'), '--help'], {
   cwd: ROOT,
   encoding: 'utf8',
   timeout: 10000,
 });
-ok(/--send/i.test(blastHelp.stdout) && !/BANNED forever/i.test(blastHelp.stdout), 'blast --send allowed in help');
-ok(fs.existsSync(path.join(ROOT, 'demigod-dm-auto-send.mjs')), 'dm-auto-send module exists');
+ok(/--send\s+Refused/i.test(blastHelp.stdout), 'blast help marks --send refused');
+ok(fs.existsSync(path.join(ROOT, 'demigod-dm-auto-send.mjs')), 'dry-only DM compatibility module exists');
 
 const ded = dedupeFindings([
   { rule: 'x', sev: 'low', file: 'a', title: 't', fingerprint: 'abc' },
@@ -280,6 +306,7 @@ if (fails.length) {
   console.error('sample findings', findings.slice(0, 8));
   process.exit(1);
 }
+fs.rmSync(REVIEW_BUSY, { recursive: true, force: true });
 console.log('ALL PASS', {
   findings: findings.length,
   rules: [...rules],

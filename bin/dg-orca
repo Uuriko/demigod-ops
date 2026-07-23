@@ -8,7 +8,7 @@ export PATH="/usr/bin:${HOME}/.local/bin:/usr/local/bin:/bin:${PATH}"
 ROOT="${DEMIGOD_ROOT:-/home/potter}"
 cd "$ROOT"
 CLI="orca-ide"
-LAN="$(hostname -I 2>/dev/null | awk '{print $1}')"
+LAN="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 PAIR_TXT="${ROOT}/orca-pair-code.txt"
 PAIR_HTML="${ROOT}/orca-pair-code.html"
 KEEP_PID="${ROOT}/.keep-awake.pid"
@@ -284,5 +284,5 @@ httpd.serve_forever()
   site) cmd_site ;;
   doctor) cmd_doctor ;;
   -h|--help|help|"") usage ;;
-  *) echo "Unknown: $1" >&2; usage; exit 1 ;;
+  *) echo "Unknown: $1" >&2; usage; exit 2 ;;
 esac

@@ -1,243 +1,66 @@
 #!/usr/bin/env node
-/** Append SENT-CONFIRMED after a real human DM send.
- * Requires --i-sent-it (attestation). Agents must not invent SENT.
+/**
+ * Record an outbound attempt without claiming delivery.
+ * Confirmed delivery requires a provider-backed receipt; local attestation is not evidence.
  *
- * Usage: node demigod-dm-mark-sent.mjs --name=T0 --i-sent-it [--channel=x]
- *        node demigod-dm-mark-sent.mjs --handle=@x --company=Co --i-sent-it
+ * Usage: node demigod-dm-mark-sent.mjs --handle=@x --company=Co --channel=x --unattested
  */
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseSendLog } from './demigod-demand.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outreach = [
-  path.join(__dirname, 'demigod-outreach'),
-  '/home/potter/demigod-outreach',
-].find((d) => fs.existsSync(d));
-const logPath = path.join(outreach, 'dm-send-log.txt');
-const readyDir = path.join(outreach, 'ready-emails');
-const trackerPath = path.join(outreach, 'DM-BATCH-TRACKER.md');
+process.umask(0o077);
 
-function parseArgs(argv) {
-  const o = {
-    handle: '',
-    company: '',
-    channel: 'x',
-    fromFile: '',
-    name: '',
-    iSentIt: false,
-    unattested: false,
-    agentAuto: false,
-  };
-  for (const a of argv) {
-    if (a.startsWith('--handle=')) o.handle = a.slice(9);
-    else if (a.startsWith('--company=')) o.company = a.slice(10);
-    else if (a.startsWith('--channel=')) o.channel = a.slice(10);
-    else if (a.startsWith('--from-file=')) o.fromFile = a.slice(12);
-    else if (a.startsWith('--name=')) o.name = a.slice(7);
-    else if (a === '--i-sent-it' || a === '--i-sent-it=true') o.iSentIt = true;
-    else if (a === '--unattested' || a === '--unattested=true') o.unattested = true;
-    else if (a === '--agent-auto' || a === '--agent-auto=true') {
-      o.agentAuto = true;
-      o.iSentIt = true; // agent auto-send path counts as attestation
-    }
-  }
-  return o;
-}
-
-function parseReadyFile(file) {
-  const text = fs.readFileSync(file, 'utf8');
-  const handle = (text.match(/handle:\s*(@\S+)/i) || [])[1] || '';
-  const company = (text.match(/company:\s*(.+)/i) || [])[1]?.trim() || '';
-  return { handle, company };
-}
-
-function alreadyConfirmed(existing, handle) {
-  return existing
-    .split(/\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith('#') && !l.startsWith('//'))
-    .some((l) => /SENT-CONFIRMED/i.test(l) && l.includes(handle));
-}
-
-/** Patch tracker table: | Name | Company | Real? | Sent date | ... */
-function updateTracker(name, handle, day, channel) {
-  if (!fs.existsSync(trackerPath)) return { ok: false, reason: 'no tracker' };
-  let t = fs.readFileSync(trackerPath, 'utf8');
-  const lines = t.split('\n');
-  let hit = false;
-  const nameKey = (name || '').toLowerCase();
-  const handleKey = (handle || '').toLowerCase();
-  const out = lines.map((line) => {
-    if (!line.startsWith('|') || line.includes('------') || line.includes('Sent date')) return line;
-    const cells = line.split('|').map((c) => c.trim());
-    // | Name | Company | Real? | Sent date | Channel | Reply | Next step |
-    if (cells.length < 6) return line;
-    const rowName = (cells[1] || '').toLowerCase();
-    const rowChannel = (cells[5] || '').toLowerCase();
-    const match =
-      (nameKey && rowName === nameKey) ||
-      (handleKey && rowChannel.includes(handleKey.replace(/^@/, '')));
-    if (!match) return line;
-    hit = true;
-    cells[4] = day; // Sent date
-    if (cells[5] && !cells[5].includes(handle)) {
-      // keep existing channel text
-    }
-    cells[7] = cells[7] === 'send' || cells[7] === 'send honest DM' || !cells[7]
-      ? 'await reply'
-      : cells[7];
-    return '| ' + cells.slice(1, -1).join(' | ') + (line.endsWith('|') ? ' |' : '');
-  });
-  // Simpler reliable replace: find line containing name and replace 4th data column
-  if (!hit && nameKey) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.startsWith('|')) continue;
-      const parts = line.split('|');
-      if (parts.length < 6) continue;
-      if ((parts[1] || '').trim().toLowerCase() !== nameKey) continue;
-      parts[4] = ` ${day} `;
-      if ((parts[7] || '').trim().match(/send/i)) parts[7] = ' await reply ';
-      lines[i] = parts.join('|');
-      hit = true;
-      break;
-    }
-    if (hit) {
-      fs.writeFileSync(trackerPath, lines.join('\n'));
-      return { ok: true, path: trackerPath };
-    }
-  } else if (hit) {
-    // re-do with parts approach for cleanliness
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.startsWith('|')) continue;
-      const parts = line.split('|');
-      if (parts.length < 6) continue;
-      const rowName = (parts[1] || '').trim().toLowerCase();
-      const rowCh = (parts[5] || '').toLowerCase();
-      if (nameKey && rowName === nameKey) {
-        parts[4] = ` ${day} `;
-        if ((parts[7] || '').trim().match(/^send/i) || !(parts[7] || '').trim()) {
-          parts[7] = ' await reply ';
-        }
-        lines[i] = parts.join('|');
-        fs.writeFileSync(trackerPath, lines.join('\n'));
-        return { ok: true, path: trackerPath };
-      }
-      if (handleKey && rowCh.includes(handleKey.replace(/^@/, ''))) {
-        parts[4] = ` ${day} `;
-        lines[i] = parts.join('|');
-        fs.writeFileSync(trackerPath, lines.join('\n'));
-        return { ok: true, path: trackerPath };
-      }
-    }
-  }
-  return { ok: false, reason: 'name not in tracker table' };
-}
-
-const args = parseArgs(process.argv.slice(2));
-let resolvedName = args.name || '';
-if (args.fromFile || args.name) {
-  let file = args.fromFile;
-  if (!file && args.name) {
-    const slug = args.name.toLowerCase().replace(/\W+/g, '');
-    const candidates = fs
-      .readdirSync(readyDir)
-      .filter((f) => f.includes(slug) && f.endsWith('.txt'));
-    file = candidates[0] ? path.join(readyDir, candidates[0]) : '';
-  } else if (file && !path.isAbsolute(file)) {
-    file = path.join(readyDir, path.basename(file));
-  }
-  if (!file || !fs.existsSync(file)) {
-    console.error('Ready file not found. Use --from-file=dm-2026-07-09-marty.txt or --name=Marty');
-    process.exit(1);
-  }
-  const p = parseReadyFile(file);
-  args.handle = args.handle || p.handle;
-  args.company = args.company || p.company;
-  if (!resolvedName) {
-    const base = path.basename(file, '.txt'); // dm-2026-07-09-marty
-    resolvedName = base.replace(/^dm-\d{4}-\d{2}-\d{2}-/, '');
-    resolvedName = resolvedName.charAt(0).toUpperCase() + resolvedName.slice(1);
-  }
-}
-
-if (!args.handle || !args.company) {
-  console.error('Usage: node demigod-dm-mark-sent.mjs --name=T0 --i-sent-it [--channel=x]');
-  console.error('   or: node demigod-dm-mark-sent.mjs --handle=@x --company=Co --i-sent-it');
-  console.error('Requires --i-sent-it after a real human send. Auto-DM / invent banned.');
-  process.exit(1);
-}
-if (!args.handle.startsWith('@')) args.handle = '@' + args.handle;
-
-// Attestation: human --i-sent-it OR agent auto-send --agent-auto
-if (!args.iSentIt && !args.unattested) {
-  console.error(
-    JSON.stringify(
-      {
-        error: 'mark_sent_requires_attestation',
-        hint: 'Human: --i-sent-it after send · Agent auto: demigod-dm-auto-send (uses --agent-auto)',
-      },
-      null,
-      2,
-    ),
-  );
+const argv = process.argv.slice(2);
+const refuse = (error, detail) => {
+  console.error(JSON.stringify({ ok: false, error, detail }));
   process.exit(2);
-}
-
-// Canonical display names for tracker
-const NAME_MAP = {
-  marty: 'Marty',
-  hellyeah: 'Hellyeah',
-  chai: 'Chai',
-  heypocket: 'HeyPocket',
-  t0: 'T0',
-  camilo: 'Camilo',
-  weave: 'Weave',
-  vendo: 'Vendo',
 };
-if (resolvedName) {
-  const k = resolvedName.toLowerCase().replace(/\W+/g, '');
-  if (NAME_MAP[k]) resolvedName = NAME_MAP[k];
+
+if (argv.some((arg) => /^--agent-auto(?:=|$)/.test(arg))) {
+  refuse('auto_dm_stopped', 'Agents cannot record or perform external delivery.');
+}
+if (argv.some((arg) => /^--i-sent-it(?:=|$)/.test(arg))) {
+  refuse('external_delivery_receipt_required', 'Self-attestation is not delivery evidence.');
+}
+if (!argv.some((arg) => /^--unattested(?:=true)?$/.test(arg))) {
+  refuse('external_delivery_receipt_required', 'Self-attestation is not delivery evidence; only --unattested attempt logging is available.');
 }
 
-const day = new Date().toISOString().slice(0, 10);
-const kind = args.iSentIt && !args.unattested ? 'SENT-CONFIRMED' : 'SENT-UNATTESTED';
-const attested = kind === 'SENT-CONFIRMED' ? 1 : 0;
-const via = args.agentAuto ? 'agent-auto' : 'human';
-const line = `${kind} | ${day} | ${args.handle} | ${args.company} | ${args.channel} | attested=${attested} | via=${via}`;
-const existing = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-if (alreadyConfirmed(existing, args.handle) && kind === 'SENT-CONFIRMED') {
-  console.log('Already logged SENT-CONFIRMED:', args.handle);
-  const tr = updateTracker(resolvedName, args.handle, day, args.channel);
-  if (tr.ok) console.log('Tracker refreshed:', tr.path);
-  process.exit(0);
-}
-fs.appendFileSync(logPath, `\n${line}\n`);
-console.log('Appended:', line);
-console.log('Log:', logPath);
-if (!attested) {
-  console.log('NOTE: SENT-UNATTESTED does not count toward demand sentConfirmed progress');
+const values = { handle: '', company: '', channel: 'x' };
+const seen = new Set();
+for (const arg of argv) {
+  if (/^--unattested(?:=true)?$/.test(arg)) continue;
+  const match = arg.match(/^--(handle|company|channel)=(.+)$/s);
+  if (!match || seen.has(match[1])) refuse('invalid_argument', 'Use one value each for --handle, --company, and --channel.');
+  seen.add(match[1]);
+  values[match[1]] = match[2];
 }
 
-const tr = updateTracker(resolvedName, args.handle, day, args.channel);
-if (tr.ok) console.log('Tracker updated:', tr.path);
-else console.log('Tracker note:', tr.reason);
-
-// Sync ROOT copy if separate
-try {
-  const homeLog = '/home/potter/demigod-outreach/dm-send-log.txt';
-  if (logPath !== homeLog && fs.existsSync(path.dirname(homeLog))) {
-    fs.appendFileSync(homeLog, `\n${line}\n`);
-  }
-  const homeTrack = '/home/potter/demigod-outreach/DM-BATCH-TRACKER.md';
-  if (tr.ok && trackerPath !== homeTrack && fs.existsSync(trackerPath)) {
-    fs.copyFileSync(trackerPath, homeTrack);
-  }
-} catch {
-  /* ignore */
+if (!values.handle.startsWith('@')) values.handle = `@${values.handle}`;
+if (!/^@[A-Za-z0-9_]{1,30}$/.test(values.handle)) refuse('invalid_handle', 'Expected @ plus 1–30 letters, digits, or underscores.');
+if (!values.company || values.company.length > 120 || /[|\u0000-\u001f\u007f]/.test(values.company)) {
+  refuse('invalid_company', 'Company must be 1–120 characters without control characters or pipes.');
 }
+if (!/^[A-Za-z0-9_-]{1,32}$/.test(values.channel)) refuse('invalid_channel', 'Channel must be 1–32 letters, digits, underscores, or hyphens.');
 
-console.log('Next: node demigod-pilot-logger.mjs --report');
-console.log('     node demigod-gtm-status.mjs');
+const root = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+const outreach = path.join(root, 'demigod-outreach');
+const log = path.join(outreach, 'dm-send-log.txt');
+const dateParts = Object.fromEntries(
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts().map(({ type, value }) => [type, value]),
+);
+const line = `SENT-UNATTESTED | ${dateParts.year}-${dateParts.month}-${dateParts.day} | ${values.handle} | ${values.company} | ${values.channel} | attested=0 | via=human`;
+if (parseSendLog(line).unattestedCount !== 1) refuse('invalid_attempt_receipt', 'Generated row failed the canonical parser.');
+
+fs.mkdirSync(outreach, { recursive: true, mode: 0o700 });
+fs.chmodSync(outreach, 0o700);
+fs.appendFileSync(log, `\n${line}\n`, { encoding: 'utf8', mode: 0o600 });
+fs.chmodSync(log, 0o600);
+console.log(JSON.stringify({ ok: true, kind: 'SENT-UNATTESTED', countsAsSent: false, log }));

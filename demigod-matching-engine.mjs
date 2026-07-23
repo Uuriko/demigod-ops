@@ -19,13 +19,12 @@
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail } from './demigod-submissions-lib.mjs';
+import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail, scrubPII, startupRoleReadiness, candidateProfileReadiness, isSampleData } from './demigod-submissions-lib.mjs';
 import { appendPilot, computeSignal } from './demigod-board-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import {
   proposePair,
-  consentPair,
   reviewPair,
-  getPair,
   pairId as makePairId,
   listPairs,
 } from './demigod-pairs-lib.mjs';
@@ -47,7 +46,7 @@ function loadMatches() {
 function saveMatches(m) {
   m.at = new Date().toISOString();
   m.note = m.note || 'legacy mirror — prefer demigod-pairs-lib / DEMIGOD-PAIRS.json';
-  fs.writeFileSync(MATCHES_PATH, JSON.stringify(m, null, 2));
+  atomicWrite(MATCHES_PATH, JSON.stringify(m, null, 2), { mode: 0o600 });
 }
 
 /** One-shot: copy legacy interests into pair ledger (idempotent). */
@@ -61,12 +60,12 @@ export function migrateLegacyMatchesToPairs() {
     try {
       // keys are either roleId:candId or candId:roleTitle
       if (val.startup) {
-        mirrorPairInterest(a, b, 'founder', { reasons: ['migrate-legacy'] });
+        mirrorPairInterest(a, b, { reasons: ['migrate-legacy'] });
         out.migrated++;
       }
       if (val.candidate) {
         // candidate key is candId:roleTitle — reverse
-        mirrorPairInterest(b, a, 'candidate', { reasons: ['migrate-legacy'] });
+        mirrorPairInterest(b, a, { reasons: ['migrate-legacy'] });
         out.migrated++;
       }
     } catch (e) {
@@ -79,7 +78,7 @@ export function migrateLegacyMatchesToPairs() {
 }
 
 /** Dual-write interests into canonical pair ledger (freeze-safe SoR). */
-function mirrorPairInterest(roleId, candId, side, extra = {}) {
+function mirrorPairInterest(roleId, candId, extra = {}) {
   try {
     if (!roleId || !candId) return null;
     const pair = proposePair({
@@ -88,10 +87,8 @@ function mirrorPairInterest(roleId, candId, side, extra = {}) {
       score: extra.score != null ? Number(extra.score) / 100 : null,
       reasons: extra.reasons || ['matching-engine'],
       actor: 'matching-engine',
+      sample: true,
     });
-    if (side === 'founder' || side === 'candidate') {
-      return consentPair(pair.pairId, { side, actor: 'matching-engine' });
-    }
     return pair;
   } catch (e) {
     return { error: String(e.message || e) };
@@ -100,24 +97,108 @@ function mirrorPairInterest(roleId, candId, side, extra = {}) {
 
 function norm(s) { return String(s || '').toLowerCase().trim(); }
 
+export function parseCompRange(value = '') {
+  const text = norm(value).replace(/,/g, '').replace(/[–—]/g, '-');
+  if (!text || /\b(?:negotiable|market|tbd|unknown)\b/.test(text) || /(?:\/\s*mo\b|\bper\s+month\b|\bmonthly\b)/.test(text)) return null;
+  const unit = /(?:\/\s*(?:hr|hour)\b|\bper\s+hour\b|\bhourly\b)/.test(text) ? 'hourly' : 'annual';
+  const clean = text.replace(/\d+(?:\.\d+)?\s*%/g, '').replace(/\+?\s*equity.*$/, '');
+  let found = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(k)?\b/g)].slice(0, 2);
+  if (!found.length) return null;
+  if (found.length > 1) {
+    const between = clean.slice(found[0].index + found[0][0].length, found[1].index);
+    if (!/(?:-|\bto\b)/.test(between)) found = found.slice(0, 1);
+  }
+  const hasK = found.some((m) => m[2]);
+  const values = found.map((m) => {
+    const number = Number(m[1]);
+    return number * (unit === 'annual' && (m[2] || (hasK && number < 1000)) ? 1000 : 1);
+  });
+  if (values.some((n) => !Number.isFinite(n) || n < 0) || (unit === 'annual' && !hasK && Math.max(...values) < 10000)) return null;
+  let min = Math.min(...values), max = Math.max(...values);
+  if (/\b(?:up to|maximum|max)\b/.test(clean)) min = 0;
+  if (/\b(?:from|minimum|min)\b/.test(clean) || /\d+(?:\.\d+)?\s*k?\s*\+\s*$/.test(clean)) max = Infinity;
+  return { unit, min, max };
+}
+
+export function compAligned(roleComp, candidateComp) {
+  const role = parseCompRange(roleComp), candidate = parseCompRange(candidateComp);
+  return !!role && !!candidate && role.unit === candidate.unit && role.min <= candidate.max && candidate.min <= role.max;
+}
+
+function compensationConflict(role = {}, candidate = {}) {
+  const roleRange = parseCompRange(role.comp || role['salary-range'] || role.salaryRange);
+  const candidateRange = parseCompRange(candidate['salary-expectation'] || candidate['salary-range'] || candidate.compExpect);
+  return !!roleRange && !!candidateRange && roleRange.unit === candidateRange.unit
+    && (roleRange.min > candidateRange.max || candidateRange.min > roleRange.max);
+}
+
+function locationCompatible(role = {}, candidate = {}) {
+  const roleLocation = norm(role.locationPref || role['work-location']);
+  const candidateLocation = norm(candidate['sf-bay'] || candidate.locationPref);
+  if (!roleLocation || !candidateLocation) return true;
+  if (roleLocation.includes('remote')) return candidateLocation !== 'no';
+  if (roleLocation.includes('onsite') || roleLocation.includes('hybrid')) return candidateLocation === 'yes' || candidateLocation.includes('onsite') || candidateLocation.includes('hybrid');
+  return candidateLocation !== 'no';
+}
+
+const SKILL_STOP = new Set(['and', 'the', 'with', 'for', 'from', 'role', 'team', 'years', 'startup', 'startups', 'founding', 'founder', 'lead', 'head', 'build', 'built', 'building', 'repeatable', 'leadership', 'ai', 'platform', 'contact', 'phone', 'profile', 'link', 'removed']);
+function skillTerms(value) {
+  return [...new Set((norm(scrubPII(value)).match(/[a-z0-9][a-z0-9+#.-]*/g) || []).filter((x) => x.length > 1 && !SKILL_STOP.has(x)))];
+}
+
+function roleMatchText(role = {}) {
+  return [role.title, role.skills, role['stack-needs'], role.outcome, role.outcome90d, role['90day-outcome']].filter(Boolean).join(' ');
+}
+
+function candidateMatchText(candidate = {}) {
+  return [candidate.skills, candidate['skills-stack'], candidate.experience, candidate['background & highlights']].filter(Boolean).join(' ');
+}
+
+export function matchEvidence(role = {}, candidate = {}) {
+  const roleTerms = new Set(skillTerms(role.skills || role['stack-needs']));
+  const overlap = skillTerms(candidate.skills || candidate['skills-stack']).filter((x) => roleTerms.has(x));
+  const workOverlap = skillTerms(candidate.experience || candidate['background & highlights']).filter((x) => skillTerms(roleMatchText(role)).includes(x) && !overlap.includes(x));
+  const roleComp = role.comp || role['salary-range'] || role.salaryRange;
+  const candidateComp = candidate['salary-expectation'] || candidate['salary-range'] || candidate.compExpect;
+  const roleLocation = role.locationPref || role['work-location'];
+  const candidateLocation = candidate['sf-bay'] || candidate.locationPref;
+  const availability = norm(candidate.availability).replace(/[–—]/g, '-');
+  const availabilityLabel = {
+    now: 'ready now', 'ready now': 'ready now',
+    '2-4w': '2–4 weeks', '2-4 weeks': '2–4 weeks',
+    '1-3m': '1–3 months', '1-3 months': '1–3 months',
+    passive: 'passively open', 'passive / open': 'passively open', 'passively open / flexible': 'passively open',
+  }[availability];
+  const evidence = [];
+  if (overlap.length) evidence.push(`skills: ${overlap.slice(0, 4).join(', ')}`);
+  if (workOverlap.length) evidence.push(`work evidence: ${workOverlap.slice(0, 4).join(', ')}`);
+  if (/\b(sf|bay area|san francisco)\b/i.test(String(candidate['sf-bay'] || candidate.locationPref || ''))) evidence.push('SF Bay Area preference');
+  if (roleLocation && candidateLocation) evidence.push(locationCompatible(role, candidate) ? 'work-location preferences align' : 'work-location alignment needs review');
+  if (roleComp && candidateComp) evidence.push(compAligned(roleComp, candidateComp) ? 'compensation ranges overlap' : 'compensation alignment needs review');
+  if (availability) evidence.push(availabilityLabel ? `availability: ${availabilityLabel}` : 'availability provided');
+  if ((role.outcome || role.outcome90d || role['90day-outcome']) && (candidate.why || candidate['why-this-role'] || candidate['why-startups'])) evidence.push('90-day outcome motivation provided');
+  if (candidate.experience || candidate['background & highlights']) evidence.push('experience evidence provided');
+  return evidence;
+}
+
 // Events states (human-in-loop per EVENTS-FLOW.md): submitted -> reviewed(human) -> matched(human) -> introduced(human) -> piloted -> receipted -> invoiced(10% on hire) -> paid
 export const MATCH_STATES = ['submitted','reviewed','matched','introduced','piloted','receipted','invoiced','paid'];
 
 function scoreMatch(role, candidate) {
   // Deeper honest scoring for high-quality matches that drive revenue (better fit = higher close rate = more 10% invoices)
   let score = 0;
-  const rSkills = norm(role.skills || role['stack-needs'] || '');
-  const cSkills = norm(candidate.skills || candidate['skills-stack'] || '');
+  const rSkills = norm(roleMatchText(role));
+  const cSkills = norm(candidateMatchText(candidate));
   const rStage = norm(role.stageType || role.stage || '');
   const cPref = norm(candidate['sf-bay'] || candidate.locationPref || 'sf');
+  const rLocation = norm(role.locationPref || role['work-location']);
   const rComp = norm(role.comp || '');
-  const cWhy = norm(candidate['why-this-role'] || candidate.why || '');
+  const cWhy = norm(candidate['why-this-role'] || candidate['why-startups'] || candidate.why || '');
 
   // Skills overlap (core for good match)
   if (rSkills && cSkills) {
-    const rArr = rSkills.split(/[, ]+/).filter(Boolean);
-    const cArr = cSkills.split(/[, ]+/).filter(Boolean);
-    const overlap = rArr.filter(x => cArr.some(y => y.includes(x) || x.includes(y))).length;
+    const roleTerms = new Set(skillTerms(rSkills));
+    const overlap = skillTerms(cSkills).filter((x) => roleTerms.has(x)).length;
     score += Math.min(55, overlap * 18);
   }
 
@@ -125,11 +206,12 @@ function scoreMatch(role, candidate) {
   if (rStage.includes('seed') || rStage.includes('pre-seed')) {
     score += (cPref.includes('sf') || cPref.includes('bay')) ? 22 : 8;
   }
+  if (rLocation && locationCompatible(role, candidate)) score += 12;
 
   // Comp alignment (revenue protection — realistic expectations)
-  if (rComp && (candidate['salary-range'] || candidate.compExpect)) {
-    const candComp = norm(candidate['salary-range'] || candidate.compExpect);
-    if (candComp && (rComp.includes(candComp.split('-')[0]?.slice(0,3)) || candComp.includes(rComp.split('-')[0]?.slice(0,3)))) score += 12;
+  if (rComp && (candidate['salary-range'] || candidate['salary-expectation'] || candidate.compExpect)) {
+    const candComp = norm(candidate['salary-range'] || candidate['salary-expectation'] || candidate.compExpect);
+    if (compAligned(rComp, candComp)) score += 12;
   }
 
   // "Why this" signal (deeper motivation = better retention/hire)
@@ -222,8 +304,12 @@ export function rolesFromPartnerInbox(inbox, existing = []) {
   const items = inbox?.items || inbox?.submissions || [];
   for (const i of items) {
     if (i.status === 'rejected' || i.status === 'spam') continue;
-    if (!/hire|startup|partner|founders/i.test(i.form || i.formName || '')) continue;
+    const formName = i.form || i.formName || '';
+    if (!/hire|startup|partner|founders/i.test(formName)) continue;
     const raw = i.raw || i.data || {};
+    const readiness = startupRoleReadiness(i);
+    if (!readiness.matchReady) continue;
+    const comp = String(raw['salary-range'] || raw.salaryRange || '').trim();
     const title = String(
       raw['role-title'] || raw.title || raw.role || raw.brief || raw['company-name'] || i.id || '',
     ).trim();
@@ -242,9 +328,29 @@ export function rolesFromPartnerInbox(inbox, existing = []) {
       stageType: raw.stage || raw['company-stage'] || undefined,
       skills: raw['stack-needs'] || raw.skills || undefined,
       outcome90d: raw['90day-outcome'] || raw.outcome90d || undefined,
+      locationPref: raw['work-location'] || raw.workLocation || undefined,
+      comp: comp || undefined,
     });
   }
   return out;
+}
+
+export function isMatchingReadyRole(role = {}) {
+  const status = norm(role.status);
+  return Boolean(
+    role.id && role.title && (role.skills || role.stack || role['stack-needs'])
+    && (role.outcome || role.outcome90d || role['90day-outcome'])
+    && (role.comp || role['salary-range']) && (role.stageType || role.stage || role['company-stage'])
+    && (status === 'active' || status === 'open')
+  );
+}
+
+export function isSampleRole(role = {}) {
+  return isSampleData(role);
+}
+
+export function isSampleCandidate(candidate = {}) {
+  return isSampleData(candidate);
 }
 
 /** Board roles + funnel partner leads + partner WIZ inbox. Optional leadsDoc for tests. */
@@ -259,11 +365,16 @@ export function getStartupRoles(board, leadsDoc) {
   } catch {
     /* */
   }
-  return [...boardRoles, ...funnel, ...inboxRoles];
+  return [...boardRoles, ...funnel, ...inboxRoles].filter(isMatchingReadyRole);
+}
+
+export function isMatchingReadyCandidate(item = {}) {
+  const readiness = candidateProfileReadiness(item);
+  return readiness.applicable && readiness.matchReady;
 }
 
 function getCandidates(inbox) {
-  return (inbox.items || []).filter(i => /engineer|jobseeker|candidate/i.test(i.form || '') && i.status !== 'rejected' && i.status !== 'spam');
+  return (inbox.items || []).filter(isMatchingReadyCandidate);
 }
 
 export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {}) {
@@ -285,22 +396,25 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   // No roles[0] fallback — that ranked real candidates against a sample seed
   if (!role) return { error: 'no role', query: roleTitleOrId };
 
-  const scored = cands.map(c => ({
+  const scored = cands.filter(c => !compensationConflict(role, c.raw || c)).map(c => ({
     candidate: c,
     score: scoreMatch(role, c.raw || c),
+    evidence: matchEvidence(role, c.raw || c),
     id: c.id || extractEmail(c.raw || {}, c.form)
   })).sort((a,b) => b.score - a.score).slice(0, limit);
 
   const proposed = [];
   if (propose) {
     for (const m of scored) {
+      if (!decideMatch(role, m.candidate.raw || m.candidate).match) continue;
       try {
         const pair = proposePair({
           roleId: role.id || role.title,
           candId: m.id,
           score: Math.min(1, (m.score || 0) / 100),
-          reasons: ['suggest-matches', `score=${m.score}`],
+          reasons: ['suggest-matches', `score=${m.score}`, ...m.evidence],
           actor: 'matching-engine',
+          sample: isSampleRole(role) || isSampleCandidate(m.candidate),
         });
         proposed.push({ pairId: pair.pairId, state: pair.state, score: m.score, candId: m.id });
       } catch (e) {
@@ -320,25 +434,27 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
   const board = loadBoard();
   const inbox = loadInbox ? loadInbox() : { items: [] };
   const cand = (inbox.items || []).find(
-    (i) => i.id === candId || extractEmail(i.raw || {}, i.form) === candId,
+    (i) => isMatchingReadyCandidate(i) && (i.id === candId || extractEmail(i.raw || {}, i.form) === candId),
   );
   if (!cand) return { ok: false, error: `submission not found: ${candId}` };
   const roles = getStartupRoles(board);
   const ranked = [];
   const proposed = [];
   for (const role of roles) {
+    if (compensationConflict(role, cand.raw || cand)) continue;
     const score = scoreMatch(role, cand.raw || cand);
     if (score < threshold) continue;
-    ranked.push({ roleId: role.id || role.title, title: role.title, score });
+    const evidence = matchEvidence(role, cand.raw || cand);
+    ranked.push({ roleId: role.id || role.title, title: role.title, score, evidence });
     if (!propose) continue;
     try {
       const pair = proposePair({
         roleId: role.id || role.title,
         candId: cand.id || candId,
         score: Math.min(1, score / 100),
-        reasons: [`funnel-match score=${score}`],
+        reasons: [`funnel-match score=${score}`, ...evidence],
         actor: 'funnel-match',
-        sample: role.real !== true && role.source !== 'funnel',
+        sample: isSampleRole(role) || isSampleCandidate(cand),
       });
       proposed.push({ pairId: pair.pairId, roleId: pair.roleId, score, state: pair.state });
     } catch (e) {
@@ -348,23 +464,26 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
   return { ok: true, candId, ranked, proposed: propose ? proposed : undefined };
 }
 
-function markStartupInterest(roleId, candidateId) {
+export function markStartupInterest(roleId, candidateId) {
+  roleId = String(roleId || '').trim(); candidateId = String(candidateId || '').trim();
+  if (!roleId || !candidateId) return { ok: false, error: 'role and candidate are required' };
   const m = loadMatches();
   const key = `${roleId}:${candidateId}`;
   m.interests[key] = { ...(m.interests[key] || {}), startup: true, at: Date.now() };
   saveMatches(m);
-  const pair = mirrorPairInterest(roleId, candidateId, 'founder');
+  const pair = mirrorPairInterest(roleId, candidateId);
   return { ok: true, key, pairId: pair?.pairId || makePairId(roleId, candidateId), pair };
 }
 
 export function markCandidateOptin(candidateId, roleTitle) {
+  candidateId = String(candidateId || '').trim(); roleTitle = String(roleTitle || '').trim();
+  if (!candidateId || !roleTitle) return { ok: false, error: 'candidate and role are required' };
   const m = loadMatches();
   const key = `${candidateId}:${norm(roleTitle)}`;
   m.interests[key] = { ...(m.interests[key] || {}), candidate: true, at: Date.now() };
   saveMatches(m);
   // roleTitle may be id or title — pairs ledger needs stable ids; use title slug as role key when unknown
-  const roleKey = String(roleTitle || '').trim() || 'role-unknown';
-  const pair = mirrorPairInterest(roleKey, candidateId, 'candidate');
+  const pair = mirrorPairInterest(roleTitle, candidateId);
   return { ok: true, key, pairId: pair?.pairId || null, pair };
 }
 
@@ -402,10 +521,15 @@ function findMutual() {
     .filter((x) => x.role || x.candidate || x.pair);
 }
 
-function proposeIntro(roleOrId, candIdOrEmail) {
+export function proposeIntro(roleOrId, candIdOrEmail) {
+  roleOrId = String(roleOrId || '').trim(); candIdOrEmail = String(candIdOrEmail || '').trim();
+  if (!roleOrId || !candIdOrEmail) return { error: 'role and candidate are required' };
   const board = loadBoard();
   const matches = findMutual();
-  const target = matches.find(mm => (mm.role && (mm.role.id === roleOrId || norm(mm.role.title).includes(norm(roleOrId)))) && (mm.candidate && (mm.candidate.id === candIdOrEmail || extractEmail(mm.candidate.raw||{}, mm.candidate.form) === candIdOrEmail )) ) || matches[0];
+  const target = matches.find((mm) =>
+    (mm.pair?.roleId === roleOrId || (mm.role && (mm.role.id === roleOrId || norm(mm.role.title) === norm(roleOrId))))
+    && (mm.pair?.candId === candIdOrEmail || (mm.candidate && (mm.candidate.id === candIdOrEmail || extractEmail(mm.candidate.raw || {}, mm.candidate.form) === candIdOrEmail)))
+  );
 
   if (!target) return { error: 'no mutual match found' };
 
@@ -424,7 +548,7 @@ function proposeIntro(roleOrId, candIdOrEmail) {
   mm.intros.push(introRec);
   saveMatches(mm);
 
-  // Canonical pair ledger: propose + soft to mutual_yes when both consented; leave review to human
+  // Canonical pair ledger: proposal only. Consent must come from observed founder/candidate actions.
   let pair = null;
   try {
     const rid = target.role?.id || roleOrId;
@@ -434,14 +558,8 @@ function proposeIntro(roleOrId, candIdOrEmail) {
       candId: cid,
       reasons: ['propose-intro', 'matching-engine'],
       actor: 'matching-engine',
+      sample: target.pair?.sample === true || isSampleRole(target.role) || isSampleCandidate(target.candidate),
     });
-    try {
-      consentPair(pair.pairId, { side: 'founder', actor: 'matching-engine' });
-      consentPair(pair.pairId, { side: 'candidate', actor: 'matching-engine' });
-      pair = getPair(pair.pairId);
-    } catch {
-      /* consent best-effort */
-    }
   } catch (e) {
     pair = { error: String(e.message || e) };
   }
@@ -462,22 +580,17 @@ function proposeIntro(roleOrId, candIdOrEmail) {
   };
 }
 
-function presentMatchCard(match) {
-  // Creative rich presentation for human review (better decisions → better matches → more revenue)
-  const c = match.candidate.raw || match.candidate;
-  const email = extractEmail(c, '');
-  return [
-    `MATCH CARD (score: ${match.score})`,
-    `Role: ${match.role ? match.role.title : ''} @ ${match.role ? match.role.stageType : ''}`,
-    `Candidate: ${c['full-name'] || email}`,
-    `Skills: ${c['skills-stack'] || ''}`,
-    `Why: ${(c['why-this-role'] || '').slice(0,80)}`,
-    `Action: startup-interest then propose when mutual`,
-    `---`
-  ].join('\n');
+export function founderMatchSummary(match = {}) {
+  return {
+    candidateId: match.id || match.candidate?.id || 'candidate',
+    score: Number(match.score) || 0,
+    evidence: Array.isArray(match.evidence) ? match.evidence : [],
+  };
 }
 
-function logOutcome(introKey, outcome) {
+export function logOutcome(introKey, outcome) {
+  introKey = String(introKey || '').trim(); outcome = String(outcome || '').trim();
+  if (!introKey || !outcome) return { ok: false, error: 'intro key and outcome are required' };
   // Track outcomes for learning + proof assets (hired? comp? = direct revenue signal)
   const mm = loadMatches();
   mm.outcomes = mm.outcomes || {};
@@ -492,11 +605,11 @@ function presentForStartup(roleTitleOrId, includeSms = true) {
   console.log(`=== Matches for startup role: ${res.role.title} (${res.role.stageType}) ===`);
   console.log('Use: node demigod-matching-engine.mjs startup-interest --role-id=' + (res.role.id || res.role.title) + ' --candidate-id=CAND-ID');
   res.matches.forEach((m,i) => {
-    const email = extractEmail(m.candidate.raw || {}, m.candidate.form || '');
     const isSms = m.candidate.source === 'sms' || (m.candidate.raw && m.candidate.raw.source === 'sms');
     const tag = isSms ? ' [SMS/text-started]' : '';
-    console.log(`${i+1}. score=${m.score}${tag} | ${m.candidate.raw && m.candidate.raw['full-name'] || email || m.id}`);
-    console.log(`   skills: ${(m.candidate.raw && m.candidate.raw['skills-stack']) || ''}`);
+    const summary = founderMatchSummary(m);
+    console.log(`${i+1}. score=${summary.score}${tag} | ${summary.candidateId}`);
+    console.log(`   evidence: ${summary.evidence.join(' · ') || 'insufficient structured evidence'}`);
     console.log(`   To intro: mark interest then propose when mutual`);
   });
   if (includeSms) {
@@ -559,16 +672,17 @@ function main() {
   const cmd = args[0] || 'help';
 
   if (cmd === 'suggest' || cmd === 'list') {
-    const q = args[1] || '';
+    const q = (args.find((a) => a.startsWith('--role=')) || '').slice(7) || args.slice(1).find((a) => !a.startsWith('--')) || '';
     const doPropose = args.includes('--propose');
     const res = suggestMatches(q, { propose: doPropose });
     console.log(JSON.stringify(res, null, 2));
     return;
   }
   if (cmd === 'propose-for-candidate' || cmd === 'for-candidate') {
-    const candId = args[1] || '';
+    const candId = (args.find((a) => a.startsWith('--candidate-id=')) || '').slice(15) || args.slice(1).find((a) => !a.startsWith('--')) || '';
     const thr = Number((args.find((a) => a.startsWith('--threshold=')) || '--threshold=60').split('=')[1]);
-    const doPropose = !args.includes('--rank-only');
+    if (!candId || !Number.isFinite(thr) || thr < 0 || thr > 100) { console.error(JSON.stringify({ ok: false, error: 'candidate and threshold 0-100 are required' })); process.exitCode = 2; return; }
+    const doPropose = args.includes('--propose');
     console.log(JSON.stringify(proposeForCandidate(candId, { threshold: thr, propose: doPropose }), null, 2));
     return;
   }
@@ -606,7 +720,7 @@ function main() {
   }
   if (cmd === 'log-outcome') {
     const key = args[1] || '';
-    const outcome = args[2] || 'hired';
+    const outcome = args[2] || '';
     console.log(logOutcome(key, outcome));
     return;
   }
@@ -632,6 +746,8 @@ function main() {
   console.log(`Demigod Matching Engine (for revenue + highest quality matches)
 Commands:
   suggest "Product Manager"          # scored candidates (JSON)
+  suggest --role="Product Manager" --propose  # write proposed pairs
+  propose-for-candidate CAND-ID [--threshold=60] [--propose]  # rank-only unless explicit
   present-startup "Product Manager"  # rich cards + next actions (includes SMS)
   present-candidate CAND-ID          # roles for opt-in
   present-sms                        # list SMS/text-started candidates
@@ -663,9 +779,7 @@ export function decideMatch(role, candidate, threshold=60) {
   // Design: human in loop. Auto scores based on 90d (key per research), skills, stage.
   // Return {score, match: bool, reasons}. Human approves.
   const score = scoreMatch(role, candidate); // existing
-  const reasons = [];
-  if (role.outcome90d && candidate.why) reasons.push("90d outcome alignment");
-  if (role.skills && candidate.skills) reasons.push("skills overlap");
-  if (role.stageType && candidate.locationPref) reasons.push("stage/location fit");
-  return {score, match: score >= threshold, reasons, state: "matched" /* human confirm */ };
+  const reasons = matchEvidence(role, candidate);
+  const match = !compensationConflict(role, candidate) && locationCompatible(role, candidate) && score >= threshold;
+  return {score, match, reasons, state: match ? "matched" : "reviewed" /* human confirm */ };
 }

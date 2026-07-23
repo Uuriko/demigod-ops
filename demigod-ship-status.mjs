@@ -23,6 +23,20 @@ const FOOTER = path.join(ROOT, 'demigod-footer-lite.html');
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const BUSY = '/tmp/dg-busy';
 const OUT = path.join(BUSY, 'ship-status.json');
+const SHIP_STATUS_FLAGS = new Set(['--json', '--strict', '--no-cache', '--help', '-h']);
+const unknownShipStatusArg = process.argv.slice(2).find((a) => !SHIP_STATUS_FLAGS.has(a));
+if (unknownShipStatusArg) {
+  console.error(
+    `ship-status: unknown argument ${unknownShipStatusArg} — try: node demigod-ship-status.mjs [--json|--strict|--no-cache]`,
+  );
+  process.exit(2);
+}
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`ship-status — disk → manifest → live stage machine
+
+Usage: node demigod-ship-status.mjs [--json] [--strict] [--no-cache]`);
+  process.exit(0);
+}
 const strict = process.argv.includes('--strict');
 // default human-readable; --json for machines
 const asJson = process.argv.includes('--json');

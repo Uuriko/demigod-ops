@@ -123,7 +123,8 @@ async function main() {
 
   const headOk = afterHead.includes('<meta name="description"')
     && (afterHead.includes('hide-webflow-badge') || afterHead.includes('rel="stylesheet"'))
-    && afterHead.includes('hello@trydemigod.com')
+    && afterHead.includes('potter@trydemigod.com')
+    && !afterHead.includes('hello@trydemigod.com')
     && !afterHead.includes('demigod-core')
     && afterHead.length >= Math.min(HEAD.length * 0.85, 700)
     && afterHead.length <= 14000;

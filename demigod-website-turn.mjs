@@ -2,7 +2,7 @@
 /**
  * Demigod website autopilot turn:
  *   metrics + live markers → CDP screenshot → Fable plan → handoff file
- *   Optional: spawn grok -p with continue prompt (DEMIGOD_AUTO_GROK=1)
+ *   Optional: spawn the guarded grok-ask wrapper (DEMIGOD_AUTO_GROK=1)
  *
  * Usage:
  *   node demigod-website-turn.mjs              # audit + fable + handoff
@@ -165,11 +165,10 @@ function writeHandoff({ live, met, ver, shot, fable }) {
   const green = fable.green || siteGreen(met, live);
   const continuePrompt = green
     ? `Demigod GTM. Read ${HANDOFF}. Site GREEN metrics ${met.score}/100 foot v${ver} CDN ${live.cdn}.
-**No foot/head bump.** Ship Fable #1 GTM/ops slice (max 2). Never auto-send founder DMs.
-Verify gates if code changed. Write handoff. Self-continue GTM until human sends DMs or Douglas call.`
+**No foot/head bump.** Prepare Fable #1 GTM/ops slice locally (max 2). Never send founder DMs.
+Verify gates if code changed. Write handoff.`
     : `Demigod website. Read ${HANDOFF}. Current metrics ${met.score}/100, foot v${ver}, CDN ${live.cdn}.
-Implement Fable #1 SEARCH/REPLACE from ${fable.path}, verify (source+board+loop-state), CDN publish + Webflow CM6 paste+Publish, screenshot confirm.
-Then call Fable again for next slice. Self-continue: keep shipping website until metrics improve or 3 slices done this turn.`;
+Implement Fable #1 SEARCH/REPLACE from ${fable.path} locally and verify (source+board+loop-state). Prepare/verify only; do not publish or send anything.`;
 
   const body = `# Demigod website turn handoff
 **at:** ${nowIso()}
@@ -194,7 +193,7 @@ ${(fable.text || '').slice(0, 3500)}
 
 ## Grok continue prompt
 ${continuePrompt}
-No user questions — Fable/Heavy authority. Pending language. No game.
+Fable/Heavy are advisory only; the initiating user request is authority. Pending language. No game.
 `;
   fs.writeFileSync(HANDOFF, body);
   fs.writeFileSync(STATE, JSON.stringify({
@@ -214,14 +213,14 @@ function maybeSpawnGrok() {
   if (process.env.DEMIGOD_AUTO_GROK !== '1') return null;
   const prompt = fs.readFileSync(HANDOFF, 'utf8');
   const cont = `Continue Demigod website work autonomously.\n\n${prompt.slice(0, 6000)}`;
-  const pf = '/tmp/dg-turn-grok-prompt.txt';
-  fs.writeFileSync(pf, cont);
-  // fire-and-forget headless grok in background
   const log = '/tmp/dg-turn-grok.log';
-  const child = spawn('bash', ['-lc', `cd ${ROOT} && grok -p "$(cat ${pf})" --cwd ${ROOT} --yolo >> ${log} 2>&1`], {
+  const logFd = fs.openSync(log, 'a');
+  const child = spawn(path.join(ROOT, 'bin/grok-ask'), [cont], {
+    cwd: ROOT,
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
   });
+  fs.closeSync(logFd);
   child.unref();
   return { pid: child.pid, log };
 }

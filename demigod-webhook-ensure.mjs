@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /** Ensure local webhook + tunnel are healthy; rewire live footer if URL drifted. */
-import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
 import { extractLiveWebhookUrl } from './demigod-live-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-WEBHOOK-ENSURE.json');
 const PORT = Number(process.env.DEMIGOD_WEBHOOK_PORT || 9877);
 const norm = (u) => String(u || '').trim().replace(/\/?$/, '/');
+
+export function writeResult(file, result) {
+  atomicWrite(file, JSON.stringify(result, null, 2), { mode: 0o600 });
+}
 
 async function localHealth() {
   try {
@@ -76,7 +81,7 @@ async function main() {
     expected = await waitForTunnel();
     if (!expected) {
       result.actions.push('tunnel_failed');
-      fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+      writeResult(OUT, result);
       console.error(JSON.stringify({ ok: false, error: 'tunnel not healthy after restart', out: OUT }));
       process.exit(1);
     }
@@ -91,16 +96,18 @@ async function main() {
     const wire = spawnSync('npm', ['run', 'demigod:webhook:wire'], { cwd: ROOT, stdio: 'inherit', timeout: 180000 });
     result.rewireExit = wire.status ?? 1;
     if (wire.status !== 0) {
-      fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+      writeResult(OUT, result);
       process.exit(1);
     }
     result.live = norm(await liveWebhook());
   }
 
   result.ok = result.live === expected;
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
+  writeResult(OUT, result);
   console.log(JSON.stringify({ ok: result.ok, expected, live: result.live, actions: result.actions, out: OUT }));
   process.exit(result.ok ? 0 : 1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

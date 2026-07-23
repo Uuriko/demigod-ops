@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Upload demigod-head-styles.css to catbox; patch link in demigod-head-minimal.html */
+/** Upload demigod-head-styles.css to catbox, or attest DEMIGOD_HEAD_CDN_URL; patch canonical head. */
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -20,10 +20,18 @@ assertNotFrozen('head-css-publish');
 const diskBuf = fs.readFileSync(SRC);
 const diskMd5 = crypto.createHash('md5').update(diskBuf).digest('hex');
 
-const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${SRC}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });
-const cdnUrl = (up.stdout || '').trim();
-if (!/^https:\/\/files\.catbox\.moe\/.+\.css$/.test(cdnUrl)) {
-  console.error('upload failed', up.stdout, up.stderr);
+let cdnUrl = String(process.env.DEMIGOD_HEAD_CDN_URL || '').trim();
+if (!cdnUrl) {
+  const up = spawnSync('curl', ['-s', '-F', 'reqtype=fileupload', '-F', `fileToUpload=@${SRC}`, 'https://catbox.moe/user/api.php'], { encoding: 'utf8' });
+  cdnUrl = (up.stdout || '').trim();
+  if (!cdnUrl) {
+    console.error('upload failed', up.stdout, up.stderr);
+    process.exit(1);
+  }
+}
+const approvedCdn = /^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+\.css|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest\.css)$/i;
+if (!approvedCdn.test(cdnUrl)) {
+  console.error('unapproved stylesheet CDN URL', cdnUrl);
   process.exit(1);
 }
 
@@ -69,13 +77,14 @@ if (!ok) {
 
 let head = fs.readFileSync(HEAD, 'utf8');
 // Match stylesheet links that may carry onerror/media attrs (not only exact <link rel=stylesheet href="…">)
-const re = /(<link\b[^>]*rel=["']stylesheet["'][^>]*href=["'])https?:\/\/files\.catbox\.moe\/[a-z0-9]+\.css(["'])/i;
-const re2 = /(<link\b[^>]*href=["'])https?:\/\/files\.catbox\.moe\/[a-z0-9]+\.css(["'][^>]*rel=["']stylesheet["'])/i;
+const oldCdn = 'https?:\\/\\/(?:files\\.catbox\\.moe\\/[a-z0-9]+|cdn\\.jsdelivr\\.net\\/gh\\/Uuriko\\/demigod-site-cdn@[a-f0-9]+\\/head-latest)\\.css';
+const re = new RegExp('(<link\\b[^>]*rel=["\\\']stylesheet["\\\'][^>]*href=["\\\'])' + oldCdn + '(["\\\'])', 'i');
+const re2 = new RegExp('(<link\\b[^>]*href=["\\\'])' + oldCdn + '(["\\\'][^>]*rel=["\\\']stylesheet["\\\'])', 'i');
 if (re.test(head)) head = head.replace(re, `$1${cdnUrl}$2`);
 else if (re2.test(head)) head = head.replace(re2, `$1${cdnUrl}$2`);
 else if (head.includes('PLACEHOLDER_CSS')) head = head.replace('PLACEHOLDER_CSS', cdnUrl);
-else if (/files\.catbox\.moe\/[a-z0-9]+\.css/.test(head)) {
-  head = head.replace(/https?:\/\/files\.catbox\.moe\/[a-z0-9]+\.css/i, cdnUrl);
+else if (new RegExp(oldCdn, 'i').test(head)) {
+  head = head.replace(new RegExp(oldCdn, 'i'), cdnUrl);
 } else {
   console.error('no stylesheet catbox link found to patch');
   process.exit(2);

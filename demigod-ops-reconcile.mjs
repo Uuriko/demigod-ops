@@ -17,6 +17,8 @@ import {
   readJson,
   flag,
 } from './demigod-agent-tools-lib.mjs';
+import { hasValidSendReceipt } from './demigod-funnel.mjs';
+import { countOpenPilotOs } from './demigod-demand.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const asJson = flag(process.argv, '--json');
@@ -29,10 +31,13 @@ const stale = readJson(path.join(BUSY, 'submissions-stale.json'));
 const items = inbox.items || [];
 const newSubs = items.filter((i) => i.status === 'new');
 const startupNew = newSubs.filter((i) => /startup/i.test(i.form || ''));
-const pilotList = (pilots.pilots || []).filter((p) => !['churned', 'closed'].includes(p.status) && !p.sample);
+const pilotsOpen = countOpenPilotOs(pilots);
 const leads = outreach.leads || [];
 const openLeads = leads.filter((l) => !['pass', 'pilot'].includes(l.status));
-const sent = leads.filter((l) => l.status === 'sent' || l.sentAt);
+const sent = leads.filter((l) => hasValidSendReceipt({
+  ...l,
+  stateHistory: (l.stateHistory || l.history || []).map((h) => ({ ...h, to: h.to || h.status })),
+}));
 const replied = leads.filter((l) => l.status === 'replied' || l.repliedAt);
 
 // submit ids referenced by pilots
@@ -45,7 +50,7 @@ const pilotSources = new Set(
 const orphanSubs = startupNew.filter((s) => s.id && !pilotSources.has(s.id)).slice(0, 20);
 
 const gaps = [];
-if (startupNew.length > 0 && pilotList.length === 0) {
+if (startupNew.length > 0 && pilotsOpen === 0) {
   gaps.push({
     severity: 'P1',
     msg: `${startupNew.length} new startup sub(s) but zero open non-sample pilots`,
@@ -76,7 +81,7 @@ const report = {
     inboxTotal: items.length,
     statusNew: newSubs.length,
     startupNew: startupNew.length,
-    pilotsOpen: pilotList.length,
+    pilotsOpen,
     pilotsAll: (pilots.pilots || []).length,
     outreachOpen: openLeads.length,
     outreachSent: sent.length,

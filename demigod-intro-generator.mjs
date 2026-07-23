@@ -7,8 +7,8 @@
  * Usage: node demigod-intro-generator.mjs --role-id=... --cand-id=...
  */
 
-import fs from 'fs';
 import { loadBoard } from './demigod-submissions-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 function main() {
   const args = process.argv.slice(2);
@@ -30,7 +30,7 @@ Worth a 15min chat? Reply or let me know.
 Best,
 Demigod (human-curated)`;
   console.log(intro);
-  fs.writeFileSync('/tmp/intro-draft.txt', intro);
+  atomicWrite('/tmp/intro-draft.txt', intro, { mode: 0o600 });
   console.log('Draft saved to /tmp/intro-draft.txt (human review before send)');
 }
 

@@ -37,7 +37,7 @@ export function loadPairs() {
 
 function savePairs(store) {
   store.at = new Date().toISOString();
-  atomicWrite(PAIRS_PATH, JSON.stringify(store, null, 2) + '\n');
+  atomicWrite(PAIRS_PATH, JSON.stringify(store, null, 2) + '\n', { mode: 0o600 });
   return store;
 }
 
@@ -61,7 +61,7 @@ export function proposePair({
   score = null,
   reasons = [],
   actor = 'agent',
-  sample = false,
+  sample = true,
 } = {}) {
   if (!roleId || !candId) throw new Error('roleId and candId required');
   return withFileLock(PAIRS_LOCK, () => {
@@ -104,7 +104,9 @@ export function reviewPair(id, { decision, actor = 'agent', note = '' } = {}) {
     if (!pair) throw new Error('pair_not_found');
     const now = new Date().toISOString();
     const map = { approve: 'approved', reject: 'rejected', defer: 'deferred' };
-    pair.state = map[d];
+    const next = map[d];
+    if ((pair.state === 'rejected' || pair.state === 'mutual_yes') && next !== pair.state) throw new Error('pair_transition_invalid');
+    pair.state = next;
     pair.reviewNote = note || pair.reviewNote;
     pair.reviewedAt = now;
     pair.reviewedBy = actor;
@@ -119,15 +121,22 @@ export function reviewPair(id, { decision, actor = 'agent', note = '' } = {}) {
   });
 }
 
-export function consentPair(id, { side, actor = 'agent' } = {}) {
+export function consentPair(id, { side, actor = 'agent', attested = false, evidence = '' } = {}) {
   const s = String(side || '').toLowerCase();
   if (s !== 'founder' && s !== 'candidate') throw new Error('side must be founder|candidate');
+  const proof = String(evidence || '').trim();
+  if (attested !== true) throw new Error('consent_attestation_required');
+  if (proof.length < 3 || proof.length > 500 || /[\r\n\u0000-\u001f\u007f]/.test(proof)) {
+    throw new Error('consent_evidence_invalid');
+  }
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
-    const now = new Date().toISOString();
+    if (pair.state !== 'approved' && pair.state !== 'mutual_yes') throw new Error('pair_not_reviewed');
     pair.mutual = pair.mutual || { founder: false, candidate: false };
+    if (pair.mutual[s]) return pair;
+    const now = new Date().toISOString();
     pair.mutual[s] = true;
     pair.updatedAt = now;
     if (pair.mutual.founder && pair.mutual.candidate) {
@@ -135,7 +144,7 @@ export function consentPair(id, { side, actor = 'agent' } = {}) {
     }
     pair.history = [
       ...(pair.history || []),
-      { at: now, actor, event: 'consent', side: s, state: pair.state },
+      { at: now, actor, event: 'consent', side: s, evidence: proof, state: pair.state },
     ].slice(-40);
     store.pairs[id] = pair;
     savePairs(store);
@@ -224,6 +233,7 @@ if (isMain) {
             candId: flag('--cand'),
             score: flag('--score'),
             reasons: (flag('--why') || '').split('|').filter(Boolean),
+            sample: !rest.includes('--real'),
           }),
           null,
           2,
@@ -233,7 +243,11 @@ if (isMain) {
       const id = rest[0];
       console.log(JSON.stringify(reviewPair(id, { decision: flag('--decision'), note: flag('--note') || '' }), null, 2));
     } else if (cmd === 'consent') {
-      console.log(JSON.stringify(consentPair(rest[0], { side: flag('--side') }), null, 2));
+      console.log(JSON.stringify(consentPair(rest[0], {
+        side: flag('--side'),
+        attested: rest.includes('--i-observed-consent'),
+        evidence: flag('--evidence') || '',
+      }), null, 2));
     } else if (cmd === 'prune') {
       console.log(
         JSON.stringify(
@@ -247,7 +261,7 @@ if (isMain) {
         ),
       );
     } else {
-      console.log('usage: list|seed|propose|review|consent|prune');
+      console.log('usage: list|seed|propose --role ID --cand ID [--real]|review|consent <id> --side founder|candidate --i-observed-consent --evidence "note"|prune');
       process.exit(1);
     }
   } catch (e) {

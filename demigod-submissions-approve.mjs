@@ -7,8 +7,7 @@ import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import {
   loadInbox,
-  saveInbox,
-  mintBoardEntry,
+  approveSubmission,
   loadBoard,
 } from './demigod-submissions-lib.mjs';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
@@ -61,17 +60,12 @@ if (!/startup|engineer|jobseeker|candidate/.test(form)) {
   process.exit(1);
 }
 
-// Gate: mint requires reviewed|featured|approved
-item.status = 'reviewed';
-item.reviewedAt = new Date().toISOString();
-saveInbox(inbox);
-
 const wantReal =
   process.env.DEMIGOD_FORCE_REAL === '1' || process.env.DEMIGOD_FORCE_REAL === 'true';
 
-let board;
+let approval;
 try {
-  board = mintBoardEntry(item, {
+  approval = approveSubmission(subId, {
     actor: process.env.USER || 'approve',
     reason: `approve:${subId}`,
     real: wantReal,
@@ -80,30 +74,20 @@ try {
   console.error(JSON.stringify({ ok: false, error: String(e.message || e), code: e.code }));
   process.exit(1);
 }
-
-// Resolve featured id from board head entry
-const featured =
-  /startup/.test(form)
-    ? (board.roles || [])[0]
-    : (board.candidates || [])[0];
-
-const inbox2 = loadInbox();
-const item2 = inbox2.items.find((i) => i.id === subId);
-if (item2) {
-  item2.status = 'featured';
-  item2.featuredId = featured?.id || null;
-  item2.featuredAt = new Date().toISOString();
-  saveInbox(inbox2);
+if (!approval) {
+  console.error(JSON.stringify({ ok: false, error: 'submission disappeared', subId }));
+  process.exit(1);
 }
+const { featured } = approval;
 
 const freeze = isFrozen();
 let publish = { skipped: true, reason: null };
-if (freeze.on && process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
+if (process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
   publish = {
     skipped: true,
-    reason: 'publish_frozen',
-    why: freeze.why,
-    hint: 'board minted locally; CDN when freeze OFF or DEMIGOD_FORCE_PUBLISH=1',
+    reason: freeze.on ? 'publish_frozen' : 'explicit_publish_required',
+    why: freeze.on ? freeze.why : undefined,
+    hint: 'board minted locally; CDN publish requires DEMIGOD_FORCE_PUBLISH=1',
   };
 } else {
   const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
@@ -126,6 +110,8 @@ console.log(
       ok: honesty.status === 0,
       subId,
       via: 'mintBoardEntry',
+      reused: approval.reused,
+      repaired: !!approval.repaired,
       featured,
       sample: featured?.sample !== false,
       board: {

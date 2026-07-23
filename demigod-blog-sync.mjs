@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { inspectBlog } from './demigod-blog-quality.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -25,6 +26,31 @@ const SITE = 'https://www.trydemigod.com';
 const LOGO = 'https://files.catbox.moe/ges75q.jpg';
 
 const args = process.argv.slice(2);
+const BLOG_SYNC_OK = (a) =>
+  a === '--check' ||
+  a === '--status' ||
+  a === '--new' ||
+  a === '--json' ||
+  a === '--help' ||
+  a === '-h' ||
+  a.startsWith('--slug=') ||
+  a.startsWith('--title=') ||
+  a.startsWith('--category=') ||
+  a.startsWith('--excerpt=') ||
+  a.startsWith('--body=');
+const unknownBlogSync = args.find((a) => a.startsWith('-') && !BLOG_SYNC_OK(a));
+if (unknownBlogSync) {
+  console.error(
+    `blog-sync: unknown argument ${unknownBlogSync} — try: node demigod-blog-sync.mjs [--check|--status|--new --slug=… --title=…]`,
+  );
+  process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`demigod-blog-sync — fan-out from demigod-blog-posts.json
+
+Usage: node demigod-blog-sync.mjs [--check|--status|--new --slug=… --title=…]`);
+  process.exit(0);
+}
 const checkOnly = args.includes('--check');
 const statusOnly = args.includes('--status');
 const doNew = args.includes('--new');
@@ -124,6 +150,7 @@ function validate(j, pub) {
     const blob = `${p.title}\n${p.summary}\n${p.body}`;
     if (/hello@trydemigod\.com/i.test(blob)) errs.push(`${p.slug}: hello@ forbidden`);
   }
+  errs.push(...inspectBlog(j, ROOT).publishedBlockers);
   // Empty published set is allowed (wipe / pre-content).
   return errs;
 }

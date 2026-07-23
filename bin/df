@@ -15,6 +15,8 @@ if [[ "$tpl" == "cursor" ]]; then
   # ensure template exists; falls back gracefully
 fi
 export DF_TASK="${*:-review current state, propose next minimal step}"
+reply=$(mktemp)
+trap 'rm -f "$reply"' EXIT
 ver=$(grep -o "__dgFootVer='[0-9]*'" demigod-foot-core.js | grep -o '[0-9]*' || echo '?')
 board=$(node -e 'const b=require("/home/potter/DEMIGOD-BOARD.json");console.log(`roles:${(b.roles||[]).length} receipts:${(b.receipts||[]).length} pilots:${(b.pilots||[]).length} realRoles:${b.signal?.realRoles??"?"} realReceipts:${b.signal?.realReceipts??"?"}`)')
 state=$(sed -n '/^## loop-state/,/^\*\*/p' demigod-keep-going.md | head -12)
@@ -40,7 +42,8 @@ gates=$(npm run -s demigod:verify:source 2>&1 | tail -3 || true)
   echo "describes the dashboard's opinion — it is NOT your task and must not replace it. Answer:"
   echo
   echo "${DF_TASK}"
-} | claude --print --model fable --add-dir /home/potter
+} | claude --print --model fable --add-dir /home/potter | tee "$reply"
+grep -q '[^[:space:]]' "$reply" || { echo 'df: Claude returned an empty review' >&2; exit 1; }
 # Cursor best practice reminder: always use Plan Mode (Shift+Tab) for Fable plans before editing.
 # Use: bin/df cursor 'your task here'   # uses prompts/demigod/cursor.txt → Fable emits Plan/S/R/Verify/Stop for Cursor.
 # After: bin/fable-to-cursor ; open in Cursor (Plan Mode); /dg-implement or apply blocks; then Grok verify.

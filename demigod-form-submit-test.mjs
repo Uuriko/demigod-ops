@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-/** Smoke test live Webflow forms via CDP (single browser session). */
+/**
+ * Smoke test live Webflow forms via CDP (single browser session).
+ * Dry by default; pass --submit for an intentional tagged live submission.
+ */
 import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer-core';
@@ -8,7 +11,13 @@ import { LIVE_ORIGIN } from './demigod-live-lib.mjs';
 
 const ROOT = '/home/potter';
 const OUT = path.join(ROOT, 'DEMIGOD-FORM-SUBMIT-TEST.json');
+const SUBMIT = process.argv.includes('--submit');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+if (process.argv.includes('--policy')) {
+  console.log(JSON.stringify({ submit: SUBMIT, externalWrites: SUBMIT }));
+  process.exit(0);
+}
 
 async function main() {
   const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 600000 });
@@ -66,7 +75,9 @@ async function main() {
   });
 
   let submitResult = { skipped: true };
-  if (startup.mode === 'webflow' && startup.turnstile && !startup.turnstileReady) {
+  if (startup.mode === 'webflow' && !SUBMIT) {
+    submitResult = { skipped: true, reason: 'explicit-submit-required' };
+  } else if (startup.mode === 'webflow' && startup.turnstile && !startup.turnstileReady) {
     submitResult = {
       skipped: true,
       reason: 'turnstile-required',

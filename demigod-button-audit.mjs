@@ -95,6 +95,7 @@ async function clickAndObserve(page, item, idx) {
   const before = await safeEval(page, () => ({
     hash: location.hash,
     path: location.pathname,
+    search: location.search,
     startupOpen: !!document.querySelector('#startup-modal.dg-wiz-active'),
     engineerOpen: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
     partnerOpen: !!document.querySelector('#partner-modal.dg-wiz-active'),
@@ -147,6 +148,7 @@ async function clickAndObserve(page, item, idx) {
     after = await safeEval(page, () => ({
     hash: location.hash,
     path: location.pathname,
+    search: location.search,
     startupOpen: !!document.querySelector('#startup-modal.dg-wiz-active'),
     engineerOpen: !!document.querySelector('#jobseeker-modal.dg-wiz-active'),
     partnerOpen: !!document.querySelector('#partner-modal.dg-wiz-active'),
@@ -175,6 +177,7 @@ async function clickAndObserve(page, item, idx) {
   else if (after.legalPage && !before.legalPage) result = 'legal-page';
   else if (after.hash !== before.hash) result = 'hash:' + after.hash;
   else if (after.path !== before.path) result = 'navigate:' + after.path;
+  else if (after.search !== before.search) result = 'navigate:' + after.path + after.search;
   else if (item.href?.startsWith('mailto:')) result = 'mailto';
   else if (before.pricingY != null && after.pricingY != null && Math.abs(after.pricingY - before.pricingY) > 80) result = 'scroll-pricing';
   else if (before.trustY != null && after.trustY != null && Math.abs(after.trustY - before.trustY) > 80) result = 'scroll-trust';

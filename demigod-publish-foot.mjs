@@ -106,7 +106,7 @@ function updateFooterLite(cdnUrl, ver) {
   const loader = `<!-- demigod-foot-cdn-loader · foot v${ver} · dg-publish-foot -->
 <script>(function(){var p=location.pathname;
 if(/^\\/legal\\/?$/i.test(p)&&!/#privacy|#terms/.test(location.hash))location.replace('/#legal');
-else if(/^\\/partnerships?\\/?$/i.test(p)&&location.hash!=='#partnerships')location.replace('/#partnerships');
+else if((/^\\/partnerships?\\/?$/i.test(p)||/^\\/partners\\/?$/i.test(p))&&location.hash!=='#partnerships')location.replace('/#partnerships');
 else if(/^\\/events\\/?$/i.test(p))location.replace('/?p=events');
 })();</script>
 <script src="${cdnUrl}"></script>
@@ -221,6 +221,7 @@ async function main() {
       } else {
         // prefer existing publisher
         const up = runNode(['demigod-foot-cdn-publish.mjs'], { allowFail: true, inherit: false, timeout: 180000 });
+        if (up.status === 3) throw new Error((up.stderr || up.stdout || 'same-version content rewrite refused').trim());
         if (up.status !== 0) {
           // manual catbox fallback
           step('cdn-publish script failed — catbox curl fallback');

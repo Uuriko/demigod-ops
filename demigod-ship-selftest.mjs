@@ -33,7 +33,7 @@ else {
   ok(/status|prepare|cdn|paste|verify|run/.test(help.outputText), 'ship help lists verbs');
 }
 
-const st = dgShip(['status', '--json']);
+const st = dgShip(['status', '--json'], { DEMIGOD_CURRENT_REQUEST_PUBLISH: '' });
 let report = null;
 if (!subprocessDenied) {
   ok([0, 1].includes(Number(st.status)), 'ship status runs');
@@ -44,6 +44,8 @@ if (!subprocessDenied) {
   }
   ok(report && report.subcommand === 'status', 'status JSON schema');
   ok(report && report.freeze && typeof report.freeze.on === 'boolean', 'status has freeze');
+  ok(report && report.freeze && report.freeze.authorized === false, 'status exposes publish authorization');
+  ok(report && /prepare only/i.test(report.next), 'status keeps unauthorized work prepare-only');
   ok(report && report.next, 'status has next');
   ok(report && report.truth && report.truth.diskVer, 'status parses truth diskVer');
 }
@@ -63,6 +65,11 @@ if (freeze.frozen && !subprocessDenied) {
 
 const bad = dgShip(['nope']);
 if (!subprocessDenied) ok(bad.status === 2, 'unknown subcommand exit 2');
+const badFlag = dgShip(['status', '--definitely-unknown']);
+if (!subprocessDenied) {
+  ok(badFlag.status === 2, 'unknown ship flag exit 2');
+  ok(/unknown argument/.test(`${badFlag.stdout || ''}${badFlag.stderr || ''}`), 'unknown ship flag message');
+}
 
 const cm6Check = spawnSync(process.execPath, [path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), '--check'], {
   cwd: ROOT,
@@ -129,6 +136,16 @@ const coreVersions = [
   (coreSource.match(/__dgFootVer\s*=\s*["'](\d+)["']/) || [])[1],
 ];
 const shipStatusSource = fs.readFileSync(path.join(ROOT, 'demigod-ship-status.mjs'), 'utf8');
+const shipSource = fs.readFileSync(path.join(ROOT, 'demigod-ship.mjs'), 'utf8');
+ok(
+  /shipNextGate:\s*ship\?\.shipped \? null : ship\?\.stage/.test(shipSource) &&
+    /\$\{report\.shipNextGate \? 'next gate' : 'stage'\}/.test(shipSource),
+  'ship status labels the first failing stage as the next gate, not an achieved stage',
+);
+ok(
+  /beginRun\('ship-prepare'[\s\S]*demigod-startup-atlas-web\.js[\s\S]*DEMIGOD-SF-STARTUP-MAP\.json/.test(shipSource),
+  'ship prepare evidence covers the atlas script and map data shipped with the foot',
+);
 ok(
   /function canonicalAssetUrl\(raw\)/.test(shipStatusSource) &&
     /liveCdnCanon\s*&&\s*manCdnCanon\s*&&\s*liveCdnCanon\s*===\s*manCdnCanon/.test(shipStatusSource) &&
@@ -188,10 +205,28 @@ ok(footerLoaderSource === footerSource, 'footer loader mirror exactly matches ca
 ok(coreVersions[0] && coreVersions[0] === coreVersions[1], 'canonical foot version markers agree');
 
 const truthSource = fs.readFileSync(path.join(ROOT, 'demigod-truth.mjs'), 'utf8');
+ok(
+  /manifestMapMatchesDisk[\s\S]*manifestMapDataMatchesDisk[\s\S]*liveMapMatchesDisk[\s\S]*liveMapDataMatchesDisk/.test(truthSource),
+  'truth fullyShipped includes manifest and live attestation for the startup-map bundle',
+);
 const cm6Source = fs.readFileSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), 'utf8');
 const shipHeadSource = fs.readFileSync(path.join(ROOT, 'demigod-ship-head-now.mjs'), 'utf8');
 const webflowPublishSource = fs.readFileSync(path.join(ROOT, 'demigod-webflow-publish-auto.mjs'), 'utf8');
+ok(
+  /DO_PUBLISH && process\.env\.DEMIGOD_CURRENT_REQUEST_PUBLISH !== '1'/.test(webflowPublishSource),
+  'Webflow publisher requires current-request authorization before external publication',
+);
+ok(
+  /cliArgs\.some\(\(arg\) => arg !== '--publish'\)/.test(webflowPublishSource),
+  'Webflow publisher rejects unknown CLI flags',
+);
 const cdnSource = fs.readFileSync(path.join(ROOT, 'demigod-foot-cdn-publish.mjs'), 'utf8');
+ok(
+  /Promise\.all\(\[fetchExact\(mapUrl, mapJs, true\), fetchExact\(mapDataUrl, mapData\)\]\)/.test(cdnSource) &&
+    /check\.ok && mapCheck\.ok && mapDataCheck\.ok/.test(cdnSource) &&
+    /complete attested foot \+ map bundle/.test(cdnSource),
+  'CDN publisher attests the complete foot and map bundle and fails closed without it',
+);
 const cycleSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-work.mjs'), 'utf8');
 ok(/document\.querySelectorAll\('\.cm-editor'\)/.test(cm6Source), 'cm6 discovers editors in DOM order');
 ok(/ed\.isConnected/.test(cm6Source) && /getClientRects\(\)\.length===0/.test(cm6Source), 'cm6 ignores hidden or disconnected editor trees');

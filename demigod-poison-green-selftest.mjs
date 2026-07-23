@@ -65,6 +65,9 @@ const frTtl = isFresh(old);
 ok(!frTtl.fresh, 'ttl-expired not fresh');
 ok(!(old.result?.pass && frTtl.fresh), 'ttl poison not green');
 
+const invalidTime = isFresh({ ...sealed, endedAt: 'not-a-timestamp' });
+ok(!invalidTime.fresh && invalidTime.reason === 'invalid-timestamp', 'invalid seal timestamp fails closed');
+
 // 5) Disk poison of latest-truth + restore (Codex: green MUST flip off)
 fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 let backup = null;

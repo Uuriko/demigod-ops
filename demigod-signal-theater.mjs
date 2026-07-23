@@ -13,6 +13,8 @@ import {
   isSeedRole,
 } from './demigod-board-lib.mjs';
 
+process.umask(0o077);
+
 const OUT_DIR = path.join(ROOT, 'demigod-outreach', 'signal-theater');
 const MANIFEST = path.join(ROOT, 'SIGNAL-THEATER.json');
 
@@ -195,6 +197,7 @@ async function main() {
       : 'Open signal-card-latest.html → screenshot · or re-run with --png if CDP is up',
   };
   fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2));
+  fs.chmodSync(MANIFEST, 0o600);
 
   if (args.open) {
     spawnSync('xdg-open', [latestHtml], { stdio: 'ignore' });

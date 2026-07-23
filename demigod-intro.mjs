@@ -7,7 +7,6 @@
  *   node demigod-intro.mjs status <pilotId>
  *   node demigod-intro.mjs yes <pilotId> --side founder|candidate --cand <id>
  *   node demigod-intro.mjs packet <pilotId>
- *   node demigod-intro.mjs send <pilotId>
  */
 import fs from 'fs';
 import path from 'path';
@@ -23,17 +22,13 @@ const cmd = args[0] || 'help';
 function load() {
   return JSON.parse(fs.readFileSync(STORE, 'utf8'));
 }
-function save(data) {
-  data.at = new Date().toISOString();
-  atomicWrite(STORE, JSON.stringify(data, null, 2) + '\n');
-}
 /** Exclusive load → mutate → save (prevents lost updates). */
 function updatePilot(mutator) {
   return withFileLock(STORE_LOCK, () => {
     const data = load();
     const out = mutator(data);
     data.at = new Date().toISOString();
-    atomicWrite(STORE, JSON.stringify(data, null, 2) + '\n');
+    atomicWrite(STORE, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
     return out;
   });
 }
@@ -54,6 +49,11 @@ function resolveCand(p, candId) {
   if (exact) return exact;
   const hits = (p.shortlist || []).filter((c) => c.id.startsWith(candId));
   return hits.length === 1 ? hits[0] : null;
+}
+
+if (cmd === 'send') {
+  console.error(JSON.stringify({ ok: false, error: 'external_delivery_receipt_required', use: 'packet' }));
+  process.exit(2);
 }
 
 if (cmd === 'status') {
@@ -93,32 +93,39 @@ if (cmd === 'yes') {
     console.error('usage: yes <pilotId> --side founder|candidate --cand <exact-or-unique-prefix-id>');
     process.exit(2);
   }
-  const data = load();
-  const p = findPilot(data, pid);
-  if (!p) {
+  const resolved = findPilot(load(), pid);
+  if (!resolved) {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);
   }
-  const cand = resolveCand(p, candId);
-  if (!cand) {
-    console.error(JSON.stringify({ ok: false, error: 'cand_not_on_shortlist', candId }));
+  let mutual;
+  try {
+    mutual = updatePilot((data) => {
+      const p = data.pilots.find((candidate) => candidate.id === resolved.id);
+      if (!p) throw Object.assign(new Error('not_found'), { code: 'not_found' });
+      const cand = resolveCand(p, candId);
+      if (!cand) throw Object.assign(new Error('cand_not_on_shortlist'), { code: 'cand_not_on_shortlist' });
+      p.mutual = p.mutual || {};
+      p.mutual.candId = cand.id;
+      if (side === 'founder') {
+        p.mutual.founderYesFor = cand.id;
+        p.mutual.founderYesAt = new Date().toISOString();
+      } else {
+        p.mutual.candidateYesFor = cand.id;
+        p.mutual.candidateYesAt = new Date().toISOString();
+      }
+      return p.mutual;
+    });
+  } catch (error) {
+    if (!['not_found', 'cand_not_on_shortlist'].includes(error.code)) throw error;
+    console.error(JSON.stringify({ ok: false, error: error.code, candId }));
     process.exit(1);
   }
-  p.mutual = p.mutual || {};
-  p.mutual.candId = cand.id;
-  if (side === 'founder') {
-    p.mutual.founderYesFor = cand.id;
-    p.mutual.founderYesAt = new Date().toISOString();
-  } else {
-    p.mutual.candidateYesFor = cand.id;
-    p.mutual.candidateYesAt = new Date().toISOString();
-  }
-  save(data);
-  console.log(JSON.stringify({ ok: true, mutual: p.mutual }, null, 2));
+  console.log(JSON.stringify({ ok: true, mutual }, null, 2));
   process.exit(0);
 }
 
-if (cmd === 'packet' || cmd === 'send') {
+if (cmd === 'packet') {
   const pid = args[1];
   const data = load();
   const p = findPilot(data, pid);
@@ -135,23 +142,6 @@ if (cmd === 'packet' || cmd === 'send') {
     Boolean(p.outcome90d) &&
     cand?.consent === true &&
     (p.status === 'shortlist' || p.status === 'intro');
-  if (cmd === 'send' && !ready) {
-    console.error(
-      JSON.stringify({
-        ok: false,
-        error: 'need_shortlist_mutual_yes_consent_outcome',
-        mutual: m,
-        status: p.status,
-        hasOutcome: Boolean(p.outcome90d),
-        candConsent: cand?.consent ?? false,
-      }),
-    );
-    process.exit(1);
-  }
-  if (!cand && cmd === 'send') {
-    console.error(JSON.stringify({ ok: false, error: 'cand_missing' }));
-    process.exit(1);
-  }
   const md = [
     `# Intro packet — ${p.company} × ${cand?.name || 'candidate'}`,
     ``,
@@ -178,21 +168,13 @@ if (cmd === 'packet' || cmd === 'send') {
 
   ensureBusy();
   const out = path.join(BUSY, `intro-packet-${p.id}.md`);
-  atomicWrite(out, md + '\n');
-  fs.mkdirSync(path.join(ROOT, 'demigod-ops', 'intros'), { recursive: true });
-  atomicWrite(path.join(ROOT, 'demigod-ops', 'intros', `${p.id}.md`), md + '\n');
-
-  if (cmd === 'send') {
-    p.status = 'intro';
-    p.introAt = new Date().toISOString();
-    p.history = p.history || [];
-    p.history.push({ at: p.introAt, status: 'intro', by: 'dg-intro' });
-    save(data);
-  }
+  atomicWrite(out, md + '\n', { mode: 0o600 });
+  fs.mkdirSync(path.join(ROOT, 'demigod-ops', 'intros'), { recursive: true, mode: 0o700 });
+  atomicWrite(path.join(ROOT, 'demigod-ops', 'intros', `${p.id}.md`), md + '\n', { mode: 0o600 });
 
   console.log(JSON.stringify({ ok: true, packet: out, status: p.status, mutual: m, ready }, null, 2));
   process.exit(0);
 }
 
-console.error('usage: status|yes|packet|send <pilotId> …');
+console.error('usage: status|yes|packet <pilotId> …');
 process.exit(2);

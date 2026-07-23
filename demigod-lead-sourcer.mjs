@@ -2,30 +2,40 @@
 /**
  * Demigod Lead Sourcer (internal automation tool)
  * Sources talent (engineers) and hiring partners (startups) leads.
- * Parses submissions + mocks for external. Scores basic fit.
- * Human reviews before board/ingest.
+ * Parses real submissions and writes a preview for human triage.
+ * Never overwrites the canonical lead CRM.
  *
  * Usage:
  *   node demigod-lead-sourcer.mjs --type=talent
  *   node demigod-lead-sourcer.mjs --type=partners --limit=10
  *
- * Integrates: submissions-inbox, mock for now (future LinkedIn etc API).
+ * Integrates: submissions-inbox. Partner sourcing has no connected evidence source yet.
  * Honest: outputs for human triage only. No auto board.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { ROOT } from './demigod-turn-lib.mjs';
-import { loadInbox } from './demigod-submissions-lib.mjs';
+import { candidateProfileReadiness, loadInbox } from './demigod-submissions-lib.mjs';
+import { isSfBayLocation } from './demigod-lead-collect.mjs';
 
-const OUT = path.join(ROOT, 'DEMIGOD-LEADS.json');
+const OUT = path.join(process.env.DEMIGOD_BUSY || '/tmp/dg-busy', 'lead-sourcer-latest.json');
+const USAGE = 'usage: node demigod-lead-sourcer.mjs [--type=talent|partners] [--limit=1..100]';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  return {
-    type: (args.find(a => a.startsWith('--type=')) || '--type=talent').split('=')[1],
-    limit: parseInt((args.find(a => a.startsWith('--limit=')) || '--limit=5').split('=')[1])
-  };
+  const type = (args.find(a => a.startsWith('--type=')) || '--type=talent').split('=')[1];
+  const rawLimit = (args.find(a => a.startsWith('--limit=')) || '--limit=5').split('=')[1];
+  const limit = Number(rawLimit);
+  if (
+    args.length > 2 ||
+    new Set(args.map(a => a.split('=')[0])).size !== args.length ||
+    args.some(a => !a.startsWith('--type=') && !a.startsWith('--limit=')) ||
+    !['talent', 'partners'].includes(type) ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 100
+  ) throw new Error(USAGE);
+  return { type, limit };
 }
 
 function scoreLead(lead, type) {
@@ -35,22 +45,19 @@ function scoreLead(lead, type) {
   const loc = (lead.location || lead['sf-bay'] || '').toLowerCase();
   if (skills) score += 30;
   if (stage.includes('seed') || stage.includes('pre')) score += 20;
-  if (loc.includes('sf') || loc.includes('bay')) score += 20;
+  if (isSfBayLocation(loc)) score += 20;
   if (lead['90day-outcome'] || lead.why) score += 15;
   return Math.min(100, score);
 }
 
 function main() {
   const { type, limit } = parseArgs();
-  const MOCK_PARTNERS = [
-    {id:'p-seed-ai-1', type:'partner', title:'Founding Engineer', stage:'Seed · AI', skills:'full-stack, agents, matching', location:'SF Bay', comp:'seed+eq', outcome90d:'Ship core matching + 3 pilots logged', why:'Early 0-1 builder.'},
-    {id:'p-pre-b2b-2', type:'partner', title:'Head of Growth', stage:'Pre-seed · SaaS', skills:'GTM, DMs, demand', location:'SF', comp:'seed+eq', outcome90d:'15+ warm founder DMs + 1 white-glove pilot', why:'Demand gen phase.'},
-    {id:'p-seed-3', type:'partner', title:'Founding PM', stage:'Seed · Consumer', skills:'product, research, 0-1', location:'Bay Area', comp:'seed+eq', outcome90d:'Define v1 product + 5 user interviews/week', why:'Own roadmap early.'}
-  ];
   let leads = [];
   if (type === 'talent') {
     const inbox = loadInbox();
-    leads = (inbox.items || []).filter(i => /engineer|candidate|jobseeker/i.test(i.form || '')).slice(0, limit).map(i => ({
+    leads = (inbox.items || []).filter(i =>
+      /engineer|candidate|jobseeker/i.test(i.form || '') && candidateProfileReadiness(i).policyReady
+    ).map(i => ({
       id: i.id,
       type: 'talent',
       skills: i.raw?.['skills-stack'] || '',
@@ -58,13 +65,23 @@ function main() {
       why: i.raw?.['why-this-role'] || '',
       score: 0
     }));
-  } else {
-    leads = MOCK_PARTNERS.slice(0, limit);
   }
   leads.forEach(l => l.score = scoreLead(l, type));
-  fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), type, leads }, null, 2));
-  console.log(`Sourced ${leads.length} ${type} leads to ${OUT}`);
-  console.log('Top:', leads.sort((a,b)=>b.score-a.score).slice(0,2));
+  leads.sort((a, b) => b.score - a.score);
+  leads = leads.slice(0, limit);
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  const tmp = `${OUT}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify({ at: new Date().toISOString(), type, leads }, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, OUT);
+  console.log(`Previewed ${leads.length} evidence-backed ${type} leads at ${OUT}`);
+  if (type === 'partners') console.log('No connected partner evidence source; emitted an honest empty preview.');
+  console.log('Top:', leads.slice(0, 2));
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  if (error.message !== USAGE) throw error;
+  console.error(USAGE);
+  process.exitCode = 2;
+}

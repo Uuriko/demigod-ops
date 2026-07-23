@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Focused static drift fix: METHODOLOGY, TalentLink, email-form, FIND TALENT nav. */
+/** Focused static drift fix: METHODOLOGY, TalentLink, email-form, FIND TALENT nav. Requires --apply. */
 import fs from 'fs';
 import path from 'path';
 import { connectBrowser } from './collab-lib.mjs';
@@ -8,28 +8,53 @@ import {
   wlog,
   sleep,
   prepareWebflowDesigner,
+  submitWebflowAiPrompt,
+  waitWebflowTurnComplete,
   WEBFLOW_DESIGNER_URL,
 } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-DRIFT-FIX.json');
+const APPLY = process.argv.includes('--apply');
+
+if (process.argv.includes('--policy') || !APPLY) {
+  fs.writeFileSync(1, JSON.stringify({ apply: APPLY, externalWrites: APPLY, requiredFlag: '--apply' }) + '\n');
+  process.exit(APPLY ? 0 : 2);
+}
 
 const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. hello@trydemigod.com';
 const CLEAN_OG = 'SF startups submit a brief. Candidates upload once. Humans match. 10% on hire.';
 const CLEAN_HERO = 'SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match.';
+const HONESTY_PROMPT = `HOME PAGE COPY HONESTY ONLY — make these exact permanent text changes in the Webflow Designer. Do not alter layout, styles, forms, links, components, or any other copy.
+
+- "LIVE ROLES" → "SAMPLE ROLES"
+- "Live SF startup roles hiring now" → "Examples of roles we can help with"
+- "Meet Your 3-5 Candidates" → "Meet curated matches"
+- "Startups receive 3-5 highly aligned, pre-vetted candidates ready to interview." → "Startups receive human-reviewed profiles when there is a fit."
+- "Access to pre-vetted SF talent" → "Human-reviewed talent profiles"
+- "Dedicated talent partner" → "Human review from brief to intro"
+- "90-day replacement guarantee" → "Outcome-focused matching"
+
+These are sample roles and Demigod is pre-services, so the old claims must not remain anywhere on the home page. Make the model changes but do not publish; the release orchestrator will publish after verification.`;
 
 async function driftMetrics() {
   const { html } = await fetchLiveHtml();
+  const markup = html.replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<style\b[\s\S]*?<\/style>/gi, '');
+  const text = markup.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   return {
-    emailForm: (html.match(/data-name=["']email-form["']/gi) || []).length,
-    startupHire: (html.match(/data-name=["']startup-hire["']/gi) || []).length,
-    talentLink: (html.match(/TalentLink/gi) || []).length,
-    methodology: (html.match(/METHODOLOGY/gi) || []).length,
-    findTalent: (html.match(/FIND TALENT/gi) || []).length,
-    speedLeaks: (html.match(/48\s*h(?:ours?)?|within\s*(?:48|24)|3-5[^<]{0,40}48|Humans Match Within|Meet Your \d/gi) || []).length,
-    nameLeaks: (html.match(/John\s+Doe/gi) || []).length,
-    badMeta: (/3-5.*48\s*h|48\s*hours.*10% fee/i.test(html) ? 1 : 0),
+    emailForm: (markup.match(/data-name=["']email-form["']/gi) || []).length,
+    startupHire: (markup.match(/data-name=["']startup-hire["']/gi) || []).length,
+    talentLink: (text.match(/TalentLink/gi) || []).length,
+    methodology: (text.match(/METHODOLOGY/gi) || []).length,
+    findTalent: (text.match(/FIND TALENT/gi) || []).length,
+    speedLeaks: (text.match(/48\s*h(?:ours?)?|within\s*(?:48|24)|3-5.{0,40}48|Humans Match Within|Meet Your \d/gi) || []).length,
+    nameLeaks: (text.match(/John\s+Doe/gi) || []).length,
+    badMeta: (/3-5.*48\s*h|48\s*hours.*10% fee/i.test(text) ? 1 : 0),
+    liveRoleClaims: (text.match(/LIVE ROLES|Live SF startup roles hiring now/gi) || []).length,
+    guaranteeClaims: (text.match(/90-day replacement guarantee/gi) || []).length,
+    volumeClaims: (text.match(/Meet Your 3-5 Candidates|Startups receive 3-5 highly aligned, pre-vetted candidates ready to interview/gi) || []).length,
+    vettingClaims: (text.match(/Access to pre-vetted SF talent|Dedicated talent partner/gi) || []).length,
   };
 }
 
@@ -160,6 +185,21 @@ async function patchCanvas(page) {
     while ((node = walk.nextNode())) {
       let v = node.nodeValue || '';
       if (!v.trim()) continue;
+      const honestCopy = [
+        [/^LIVE ROLES$/i, 'SAMPLE ROLES', 'honesty:sample-badge'],
+        [/^Live SF startup roles hiring now$/i, 'Examples of roles we can help with', 'honesty:sample-heading'],
+        [/^Meet Your 3-5 Candidates$/i, 'Meet curated matches', 'honesty:curated-step'],
+        [/^Startups receive 3-5 highly aligned, pre-vetted candidates ready to interview\.?$/i, 'Startups receive human-reviewed profiles when there is a fit.', 'honesty:curated-step-copy'],
+        [/^Access to pre-vetted SF talent$/i, 'Human-reviewed talent profiles', 'honesty:reviewed-talent'],
+        [/^Dedicated talent partner$/i, 'Human review from brief to intro', 'honesty:human-review'],
+        [/^90-day replacement guarantee$/i, 'Outcome-focused matching', 'honesty:no-guarantee'],
+      ];
+      const honest = honestCopy.find(([re]) => re.test(v.trim()));
+      if (honest) {
+        node.nodeValue = honest[1];
+        changes.push(honest[2]);
+        continue;
+      }
       if (/TalentLink/i.test(v)) {
         node.nodeValue = v.replace(/TalentLink\s*SF?/gi, 'Demigod').replace(/TalentLink/gi, 'Demigod');
         changes.push('brand:TalentLink');
@@ -258,10 +298,20 @@ async function main() {
   result.patch = patch;
   wlog(`patch: ${JSON.stringify(patch)}`);
 
+  if (!patch.ok || result.before.liveRoleClaims || result.before.guaranteeClaims
+    || result.before.volumeClaims || result.before.vettingClaims) {
+    result.ai = await submitWebflowAiPrompt(HONESTY_PROMPT);
+    wlog(`ai: ${JSON.stringify(result.ai)}`);
+    if (result.ai.ok) {
+      result.aiWait = await waitWebflowTurnComplete(420000, result.ai.beforeTail || '');
+      wlog(`ai wait: ${JSON.stringify(result.aiWait)}`);
+    }
+  }
+
   result.seo = await patchPageSeo(page);
   wlog(`seo: ${JSON.stringify(result.seo)}`);
 
-  if (patch.ok || result.seo?.hits?.length) {
+  if (patch.ok || result.seo?.hits?.length || result.aiWait?.ok) {
     await savePublish(page);
     result.published = true;
     await sleep(10000);
@@ -282,7 +332,9 @@ async function main() {
   }
   result.pass = result.after.emailForm === 0 && result.after.talentLink === 0
     && result.after.methodology === 0 && result.after.startupHire >= 1
-    && result.after.speedLeaks === 0 && result.after.nameLeaks === 0 && result.after.badMeta === 0;
+    && result.after.speedLeaks === 0 && result.after.nameLeaks === 0 && result.after.badMeta === 0
+    && result.after.liveRoleClaims === 0 && result.after.guaranteeClaims === 0
+    && result.after.volumeClaims === 0 && result.after.vettingClaims === 0;
 
   fs.writeFileSync(OUT, JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ pass: result.pass, before: result.before, after: result.after, out: OUT }));

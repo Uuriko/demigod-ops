@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Master-only pass: Navigation + Footer masters + form settings via CDP + Webflow AI. */
+/** Master-only pass: Navigation + Footer masters + form settings via CDP + Webflow AI. Requires --apply. */
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -20,6 +20,12 @@ import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-MASTER-ONLY.json');
 const NAV_CTA = 'FIND TALENT';
+const APPLY = process.argv.includes('--apply');
+
+if (process.argv.includes('--policy') || !APPLY) {
+  fs.writeFileSync(1, JSON.stringify({ apply: APPLY, externalWrites: APPLY, requiredFlag: '--apply' }) + '\n');
+  process.exit(APPLY ? 0 : 2);
+}
 
 const AI_PROMPT = `MASTER-ONLY PASS — Demigod. Do NOT touch hero copy or pricing body.
 

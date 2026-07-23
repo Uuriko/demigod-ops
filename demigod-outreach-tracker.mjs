@@ -14,6 +14,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWrite, opt } from './demigod-agent-tools-lib.mjs';
+import { canTransition } from './demigod-funnel.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const STORE = path.join(ROOT, 'DEMIGOD-OUTREACH.json');
@@ -104,6 +105,14 @@ if (cmd === 'set') {
     console.error(JSON.stringify({ ok: false, error: 'not_found' }));
     process.exit(1);
   }
+  const evidence = opt(args, '--evidence', '');
+  if (status === 'sent') {
+    const gate = canTransition('approved', 'sent', { evidencePath: evidence });
+    if (!gate.ok) {
+      console.error(JSON.stringify({ ok: false, error: 'send_evidence_required', detail: gate.error }));
+      process.exit(1);
+    }
+  }
   lead.status = status;
   lead.updatedAt = new Date().toISOString();
   if (status === 'sent') lead.sentAt = lead.sentAt || new Date().toISOString();
@@ -111,7 +120,7 @@ if (cmd === 'set') {
   const note = opt(args, '--note', '');
   if (note) lead.note = note;
   lead.history = lead.history || [];
-  lead.history.push({ at: new Date().toISOString(), status, note });
+  lead.history.push({ at: new Date().toISOString(), status, note, evidence: evidence || undefined });
   save(d);
   console.log(JSON.stringify({ ok: true, lead }, null, 2));
   process.exit(0);

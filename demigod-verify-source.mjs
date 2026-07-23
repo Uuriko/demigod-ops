@@ -15,9 +15,26 @@ import path from 'path';
 import vm from 'vm';
 import { scanLiveHtml, markerPresent } from './demigod-live-lib.mjs';
 import { runFootSmoke } from './demigod-foot-smoke.mjs';
+import { verifyNoCommittableSor } from './demigod-no-committable-sor-lib.mjs';
 
 const ROOT = '/home/potter';
 const OUT = path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
+
+const sourceArgs = process.argv.slice(2);
+const SOURCE_FLAGS = new Set(['--help', '-h']);
+const unknownSource = sourceArgs.find((a) => !SOURCE_FLAGS.has(a));
+if (unknownSource) {
+  console.error(
+    `verify-source: unknown argument ${unknownSource} — try: node demigod-verify-source.mjs`,
+  );
+  process.exit(2);
+}
+if (sourceArgs.includes('--help') || sourceArgs.includes('-h')) {
+  console.log(`demigod-verify-source — disk gate: foot/head/footer match split architecture
+
+Usage: node demigod-verify-source.mjs`);
+  process.exit(0);
+}
 
 const checks = [];
 
@@ -32,7 +49,7 @@ const footLoader = fs.existsSync(footLoaderPath) ? fs.readFileSync(footLoaderPat
 const headCssPath = path.join(ROOT, 'demigod-head-styles.css');
 const headCss = fs.existsSync(headCssPath) ? fs.readFileSync(headCssPath, 'utf8') : '';
 const cdnFoot = foot.includes('demigod-foot-cdn-loader');
-const cdnHeadCss = head.includes('rel="stylesheet"') && head.includes('catbox.moe');
+const cdnHeadCss = head.includes('rel="stylesheet"') && /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/i.test(head);
 const combined = `${head}\n${headCss}\n${foot}`;
 const coreJs = cdnFoot ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
 const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined;
@@ -59,11 +76,23 @@ const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined
   );
 }
 check('head:hide-webflow-badge', head.includes('hide-webflow-badge') || (cdnHeadCss && headCss.includes('w-webflow-badge')));
+check('head:no-retired-hero-asset', !(headCss || head).includes('demigod-gold-hero.jpg'));
+check('head:mobile-no-reserved-scrollbar-gutter', /@media\(max-width:480px\)\{\s*html\{scrollbar-gutter:auto\}/.test(headCss));
 check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !head.includes('hello@trydemigod.com') && !head.includes('hello@demigod.com'));
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
 // Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
 check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && (head.includes('curated talent') || head.includes('curated candidates')));
 check('head:og:title', head.includes('og:title'));
+check(
+  'head:hero-font-no-layout-swap',
+  /family=Unbounded[^"']*&display=optional/.test(head) && !/family=Unbounded[^"']*&display=swap/.test(head),
+  'Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap',
+);
+check(
+  'head:preconnect-budget',
+  (head.match(/rel="preconnect"/g) || []).length === 1 && /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(head),
+  'Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr',
+);
 // No internal identifiers on the customer-facing site: an env-var NAME (18da2af leaked
 // DEMIGOD_EVENTS_OPS_SECRET into a user message), the dev home dir, or the ops path must never
 // reach foot-core/head. That leak was caught by codex review, not a gate — gate it so a re-leak
@@ -87,9 +116,11 @@ check('head:og:title', head.includes('og:title'));
     const m = head.match(re);
     return (m && (m[1] || m[2])) || '';
   };
-  const d = metaDesc('name', 'description');
   const og = metaDesc('property', 'og:description');
   const tw = metaDesc('name', 'twitter:description');
+  // Webflow owns the primary description and og:title. Duplicating them in custom head made the
+  // raw HTML ambiguous; source checks the matching custom social copy, live doctor checks one base tag.
+  const d = metaDesc('name', 'description') || og;
   // Organization JSON-LD description must not under-promise vs meta (share/knowledge-panel honesty).
   const ldM = head.match(
     /"@type"\s*:\s*"Organization"[\s\S]*?"description"\s*:\s*"([^"]*)"/,
@@ -122,8 +153,8 @@ check('head:og:title', head.includes('og:title'));
     descLenOk ? null : `meta description length ${descLen} not in 80–160`,
   );
   // og/twitter title+image+url must match (share-card honesty; same class as desc).
-  const ogT = metaDesc('property', 'og:title');
   const twT = metaDesc('name', 'twitter:title');
+  const ogT = metaDesc('property', 'og:title') || twT;
   const ogImg = metaDesc('property', 'og:image');
   const twImg = metaDesc('name', 'twitter:image');
   const ogAlt = metaDesc('property', 'og:image:alt');
@@ -146,31 +177,38 @@ check('head:og:title', head.includes('og:title'));
       ? null
       : `og/tw title|img|alt|url diverge`,
   );
-  // Homepage canonical must match og/twitter url (share + SEO honesty; mini-pages set runtime).
-  const canM = head.match(
-    /rel=["']canonical["'][^>]*href=["']([^"']+)["']|href=["']([^"']+)["'][^>]*rel=["']canonical["']/i,
+  // Emit one route-correct canonical instead of shipping a homepage canonical that JS later contradicts.
+  const routeCanM = head.match(
+    /<script\b[^>]*\bid=["']dg-blog-canonical["'][^>]*>[\s\S]*?<\/script>/i,
   );
-  const can = (canM && (canM[1] || canM[2])) || '';
-  const canOk = can && ogUrl && can === ogUrl && can === twUrl;
+  const routeCanBody = (routeCanM && routeCanM[0]) || '';
+  const hasStaticCanonical = /<link\b[^>]*\brel=["']canonical["']/i.test(head);
+  const canOk =
+    !hasStaticCanonical &&
+    /createElement\(['"]link['"]\)/.test(routeCanBody) &&
+    /\.rel\s*=\s*['"]canonical['"]/.test(routeCanBody) &&
+    /\.href\s*=\s*url/.test(routeCanBody) &&
+    /appendChild\(can\)/.test(routeCanBody) &&
+    /og:url/.test(routeCanBody) &&
+    /twitter:url/.test(routeCanBody);
   check(
     'head:canonical-aligned',
     canOk,
-    canOk ? null : `canonical|og|tw url diverge (${[can, ogUrl, twUrl].map((s) => (s || '').slice(0, 40)).join(' | ')})`,
+    canOk ? null : 'head must inject one canonical and align og/twitter URL without a conflicting static canonical',
   );
-  // Homepage canonical must be production HTTPS apex (not http, not bare host, not hash).
-  const canHttpsOk = can === 'https://www.trydemigod.com/';
+  // Unknown/noisy routes fall back to the production HTTPS apex; allowlisted product routes use only ?p=id.
+  const canHttpsOk =
+    /allowed\[id\]\?['"]https:\/\/www\.trydemigod\.com\/\?p=['"]\+encodeURIComponent\(id\):['"]https:\/\/www\.trydemigod\.com\/['"]/.test(routeCanBody) &&
+    /var allowed=\{[^}]*how:1[^}]*pricing:1[^}]*faq:1[^}]*blog:1[^}]*sample:1/.test(routeCanBody);
   check(
     'head:canonical-https',
     canHttpsOk,
-    canHttpsOk ? null : `canonical not https://www.trydemigod.com/ (${can || 'missing'})`,
+    canHttpsOk ? null : 'route canonical must use the HTTPS apex and an explicit product-page allowlist',
   );
   // Early head rewrite for Notes surface: crawlers that skip foot openPage() still get /?p=blog
   // canonical + Notes title/desc (Claude c63 urls; c102 share-card title/desc) so previews aren't homepage copy.
   {
-    const blogCanM = head.match(
-      /<script\b[^>]*\bid=["']dg-blog-canonical["'][^>]*>[\s\S]*?<\/script>/i,
-    );
-    const body = (blogCanM && blogCanM[0]) || '';
+    const body = routeCanBody;
     const blogCanOk =
       !!body &&
       /id!==['"]blog['"]/.test(body) &&
@@ -178,8 +216,8 @@ check('head:og:title', head.includes('og:title'));
       /path\s*===\s*['"]\/notes['"]|\/notes/.test(body) &&
       /\/\(blog\|notes\)\\\//.test(body) &&
       /toLowerCase\s*\(/.test(body) &&
-      /trydemigod\.com\/\?p=blog/.test(body) &&
-      /rel=canonical|link\[rel=canonical\]/.test(body) &&
+      canHttpsOk && /blog:1/.test(body) &&
+      /createElement\(['"]link['"]\)/.test(body) &&
       /og:url/.test(body) &&
       /twitter:url/.test(body) &&
       /og:title/.test(body) &&
@@ -883,6 +921,15 @@ check('head:og:title', head.includes('og:title'));
 check('head:css-only-no-core-js', !head.includes('demigod-core') && !head.includes('FORMS_MODE'));
 check('head:hides-webflow-badge-css', /\.w-webflow-badge[^}]*display:\s*none/i.test(headCss || head));
 check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
+check(
+  'hero:permanent-demigod-h1',
+  /hero\.textContent=['"]DEMIGOD['"]/.test(head) &&
+    /function\s+paintHeroBrandH1\s*\(/.test(coreJs || foot) &&
+    /data-dg-hero-phase['"],\s*['"]brand['"]/.test(coreJs || foot) &&
+    /paintCyberWord\(el,\s*['"]Demigod['"]\)/.test(coreJs || foot) &&
+    !/paintDualPathH1|__dgHeroHoldMs|__dgHeroFadeMs|Find talent\.<br>/.test(coreJs || foot),
+  'hero H1 must stay DEMIGOD permanently; dual-path copy belongs only in CTAs',
+);
 // Disk CSS honesty layers (v259/v316/v421/v449). Live catbox CSS often lags —
 // this locks disk SoR only; intentional CSS ship is separate (no thrash CDN).
 {
@@ -895,9 +942,9 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
   const hasNoInfiniteGlow =
     /v316:\s*no infinite CTA glow/i.test(css) &&
     !/\.premium-btn[^{]*\{[^}]*animation:\s*dg-gold-glow[^;]*infinite/i.test(css);
-  // Hero bg must match head og:image + foot brandAssets (126k4p); ban stale Webflow hermes stock.
+  // The hero artwork renders separately; do not fetch a duplicate CSS background.
   const hasHeroBrand =
-    /files\.catbox\.moe\/126k4p\.jpg/.test(css) && !/demigod-hermes-hero-16x9/i.test(css);
+    !/files\.catbox\.moe\/126k4p\.jpg/.test(css) && !/demigod-hermes-hero-16x9/i.test(css);
   const cssHonestyOk =
     hasReadiness && hasHonesty && hasDecisionGrid && hasNoInfiniteGlow && hasHeroBrand;
   check(
@@ -1151,6 +1198,12 @@ check('head:hero-fouc-guard', (headCss || head).includes('title-accent-gold'));
     /id=["']dg-path-redirects["']/.test(head)
       ? null
       : 'head must include #dg-path-redirects for /fees→pricing /security→legal /p/* /apply (firecrawl 404 P0)',
+  );
+  check(
+    'head:skip-main-target',
+    /querySelector\(['"]main['"]\)\s*\|\|\s*document\.querySelector\(['"]\.hero-section['"]\)/.test(head) &&
+      /tagName\s*!==\s*['"]MAIN['"][\s\S]{0,100}setAttribute\(['"]role['"],['"]main['"]\)/.test(head),
+    'early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>',
   );
   check(
     'head:unhide-main-header',
@@ -1439,11 +1492,12 @@ if (cdnFoot) {
     check(
       'core:offer-abandon-a11y',
       /function\s+offerAbandon\s*\(/.test(coreJs) &&
-        /id=['"]dg-abandon['"]/.test(coreJs) &&
+        /(?:\.id\s*=|id=)['"]dg-abandon['"]/.test(coreJs) &&
         /setAttribute\(\s*['"]aria-modal['"]\s*,\s*['"]true['"]\s*\)/.test(coreJs) &&
         /setAttribute\(\s*['"]aria-label['"]\s*,\s*['"]Follow-up email['"]\s*\)/.test(coreJs) &&
         /e\.key\s*===\s*['"]Escape['"]/.test(coreJs) &&
-        /#dg-abandon-email['"]\s*\)[\s\S]{0,40}?\.focus\s*\(/.test(coreJs),
+        /var\s+inp\s*=\s*box\.querySelector\(['"]#dg-abandon-email['"]\)/.test(coreJs) &&
+        /try\{\s*inp\.focus\(\)/.test(coreJs),
       'offerAbandon must be dialog (aria-modal + label) with Escape close + focus #dg-abandon-email',
     );
     // Claude c176/v504: path + ?p= aliases — /fees|/security must not soft-404 (map alone was bypassed by id-from-query)
@@ -1521,6 +1575,18 @@ if (cdnFoot) {
     check('coreJs:all-calls-defined', true, 'info-only; candidates:' + serious.slice(0,3).join(','));
     check('core:90day-in-wiz', /90day-outcome/.test(coreJs) && /WIZ_CFG.*startup/.test(coreJs));
     check('core:90day-required-inject', /name="90day-outcome"[^>]*required|90day-outcome.*required/.test(coreJs));
+    const sessionDraftPrivacy =
+      /sessionStorage\.setItem\(SAVE_KEY/.test(coreJs) &&
+      /sessionStorage\.getItem\(SAVE_KEY/.test(coreJs) &&
+      /sessionStorage\.removeItem\(SAVE_KEY/.test(coreJs) &&
+      !/localStorage\.setItem\(SAVE_KEY/.test(coreJs) &&
+      /i\.type === ['"]hidden['"][\s\S]{0,100}?delete answers\[nm\]/.test(coreJs) &&
+      /i\.type === ['"]file['"][\s\S]{0,260}?data-value[\s\S]{0,160}?\.name/.test(coreJs);
+    check(
+      'core:wiz-session-draft-privacy',
+      sessionDraftPrivacy,
+      sessionDraftPrivacy ? 'same-tab only; hidden excluded; file bytes never serialized; cleared on thanks' : 'WIZ draft crossed privacy boundary',
+    );
     // Explicit review step before thanks — frege UX (Look good?/Ready?) + dg-wiz-review UI.
     // Parse only var WIZ_CFG block so WIZ_THANKS / other strings cannot steal the regex.
     {
@@ -1730,6 +1796,48 @@ const requiredScripts = [
 ];
 for (const f of requiredScripts) {
   check(`file:${f}`, fs.existsSync(path.join(ROOT, f)));
+}
+
+try {
+  const state = fs.readFileSync(path.join(ROOT, 'DEMIGOD-COMPRESSED-STATE.md'), 'utf8');
+  const version = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json'), 'utf8')).version || '');
+  const diskVersion = (coreJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || '';
+  // Sealed: manifest==disk and state claims that version is live end-to-end.
+  const sealed = version === diskVersion && state.includes(`Foot **live v${version}**`) &&
+    state.includes(`disk v${version} → manifest → CDN → live`);
+  // Staged (pre-prepare): manifest still on older live pin; disk ahead.
+  const staged = version !== diskVersion && !!diskVersion && state.includes(`Foot **live v${version}**`) &&
+    state.includes(`Disk **v${diskVersion}** is staged locally`);
+  // Prepare-only: ship prepare may advance manifest to disk while live CDN still lags.
+  // State must still name the live foot (not the prepared pin) and the staged disk.
+  const liveNamed = (state.match(/Foot \*\*live v(\d+)\*\*/) || [])[1] || '';
+  const prepareOnly =
+    !!diskVersion &&
+    !!liveNamed &&
+    liveNamed !== diskVersion &&
+    version === diskVersion &&
+    state.includes(`Foot **live v${liveNamed}**`) &&
+    state.includes(`Disk **v${diskVersion}** is staged locally`);
+  check(
+    'state:release-version-current',
+    !!version && (sealed || staged || prepareOnly),
+    version
+      ? `state must distinguish live v${liveNamed || '?'} / manifest v${version} from disk v${diskVersion || '?'}`
+      : 'sealed manifest version missing',
+  );
+} catch (error) {
+  check('state:release-version-current', false, String(error?.message || error).slice(0, 200));
+}
+
+try {
+  const privacy = verifyNoCommittableSor(ROOT);
+  check('privacy:no-committable-sor', privacy.ok === true, privacy.detail);
+} catch (error) {
+  check(
+    'privacy:no-committable-sor',
+    false,
+    `privacy verifier failed closed: ${String(error?.message || error).slice(0, 500)}`,
+  );
 }
 
 // length>0 floor: [].every() is vacuously true, so if a refactor ever skipped every check() call
