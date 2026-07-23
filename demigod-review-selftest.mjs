@@ -234,6 +234,24 @@ ok(sum.status === 0 && /REVIEW OK/.test(sum.stdout), 'format summary');
 const unk = spawnSync('node', [path.join(ROOT, 'demigod-review.mjs'), '--not-a-real-flag'], { cwd: ROOT, encoding: 'utf8', timeout: 10000 });
 ok(unk.status === 2, 'unknown flag exits 2');
 
+// --paths alias (comma list) — agents/plan-ledger muscle memory; was unknown-flag exit 2
+const pathsAlias = spawnSync(
+  'node',
+  [
+    path.join(ROOT, 'demigod-review.mjs'),
+    '--format',
+    'summary',
+    '--no-git',
+    '--no-contract',
+    '--paths',
+    `${relGood},${relWs}`,
+    '--fail-on',
+    'never',
+  ],
+  { cwd: ROOT, encoding: 'utf8', timeout: 30000 },
+);
+ok(pathsAlias.status === 0 && /files=2/.test(pathsAlias.stdout), '--paths comma list scopes two files');
+
 // Multi-file without contract must FAIL (Codex N-C1)
 const multiNo = spawnSync(
   'node',

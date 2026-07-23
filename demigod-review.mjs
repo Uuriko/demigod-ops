@@ -62,7 +62,7 @@ const KNOWN = new Set([
   '--json', '--quiet', '--bug', '--fix', '--dry-run', '--gates', '--no-git',
   '--untracked', '--all', '--full', '--llm', '--catalog', '--baseline-add',
   '--allow-foot', '--rescan', '--fix-rescan', '--include-meta', '--diff',
-  '--files', '--fail-on', '--max', '--only-rule', '--exclude-rule', '--exclude',
+  '--files', '--paths', '--fail-on', '--max', '--only-rule', '--exclude-rule', '--exclude',
   '--gate-ids', '--version', '-V', '--help', '-h', '--format', '--stats',
   '--print-fix-prompt', '--config', '--no-config', '--changed', '--no-save-baseline',
   '--contract', '--no-contract', '--since', '--baseline-diff', '--watch',
@@ -87,6 +87,16 @@ function listAfter(name) {
   const out = [];
   for (let j = i + 1; j < args.length && !args[j].startsWith('--'); j++) out.push(args[j]);
   return out;
+}
+/** --files path… and --paths path|a,b alias (plan-ledger / agent muscle memory). */
+function listScopePaths() {
+  const raw = [...(listAfter('--files') || []), ...(listAfter('--paths') || [])];
+  if (!raw.length) return null;
+  const out = [];
+  for (const item of raw) {
+    for (const p of String(item).split(',').map((s) => s.trim()).filter(Boolean)) out.push(p);
+  }
+  return out.length ? out : null;
 }
 function multiOpt(name) {
   const out = [];
@@ -134,7 +144,8 @@ for (const a of args) {
           prev === '--format' ||
           prev === '--config' ||
           prev === '--contract' ||
-          prev === '--files'
+          prev === '--files' ||
+          prev === '--paths'
         ) {
           continue;
         }
@@ -161,7 +172,8 @@ Options:
   --fix --dry-run --rescan --allow-foot
   --llm --include-meta --no-git --untracked
   --diff <base> --since [ref]   # default since=HEAD~1 when no --files (agent thrash↓)
-  --files <paths...> --changed (git scope)
+  --files <paths...> --paths <a,b|paths...>  # --paths alias (comma or space)
+  --changed (git scope)
   --contract path.json          # required when scope >1 files (PASS blocked without)
   --no-contract                 # escape multi-file contract requirement
   --fail-on critical|high|medium|low|any|never
@@ -201,7 +213,7 @@ const cli = {
     if (!v || v.startsWith('--')) return 'HEAD~1';
     return v;
   })(),
-  files: listAfter('--files'),
+  files: listScopePaths(),
   failOn: flag('--fail-on') ? opt('--fail-on') : null,
   max: flag('--max') ? Number(opt('--max')) : null,
   onlyRules: flag('--only-rule') ? csv('--only-rule') : null,
