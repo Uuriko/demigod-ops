@@ -691,7 +691,8 @@ export function publicStatus(record = {}) {
   let kind = 'submission';
   let headline = 'Submission received';
   let lead = 'A human is reviewing your submission.';
-  let steps = ['Received', 'Human review', 'hello@ follow-up on fit'];
+  // Public contact SoR is potter@ only (hello@ mailbox not set up).
+  let steps = ['Received', 'Human review', 'potter@ follow-up on fit'];
 
   if (/partner/.test(form)) {
     kind = 'partner';

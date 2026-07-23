@@ -4,7 +4,7 @@
  *
  * Current reality (pre-services, 2026-07): NONE of these are live.
  * - Twilio: SMS is manual/sim only. Use PENDING_NUMBER.
- * - Stripe: 10% fee is manual invoice / hello@ follow-up. No checkout.
+ * - Stripe: 10% fee is manual invoice / potter@ follow-up. No checkout.
  * - Stripe Atlas: Needed for Delaware C-corp formation; application pending and separate from payments.
  * - Microsoft for Startups / Azure credits: Not claimed/used. Tools run locally or on existing infra.
  *
@@ -97,7 +97,7 @@ export function createInvoiceStub({ pilotId, amount, description, toEmail }) {
 export function onHireInvoice(pilot) {
   // When: after pilot close with hire outcome, or receipt.
   // 10% first year. Research: 10-25% first-yr common, post start/90d guarantee. Pending.
-  return createInvoiceStub({pilotId: pilot.id, amount: "10% " + (pilot.comp || "first year"), toEmail: pilot.founder || "hello@"});
+  return createInvoiceStub({pilotId: pilot.id, amount: "10% " + (pilot.comp || "first year"), toEmail: pilot.founder || "potter@trydemigod.com"});
 }
 
 /** Future Azure / hosting stub. */

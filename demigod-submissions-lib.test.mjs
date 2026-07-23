@@ -282,6 +282,10 @@ test('publicStatus omits PII and shapes steps by form', async () => {
   assert.ok(st.steps.length >= 3);
   assert.ok(!JSON.stringify(st).includes('secret@'), 'raw fields and the internal form name must stay private');
   assert.equal('form' in st, false, 'safe kind replaces the unbounded internal form name');
+  // Default / residual path must not advertise the unset hello@ mailbox.
+  const generic = publicStatus({ id: 'sub-gen', form: 'other', status: 'new', at: '2026-06-30T12:00:00.000Z' });
+  assert.ok(generic.steps.some((s) => /potter@/i.test(s)), 'generic status names potter@ contact');
+  assert.ok(!JSON.stringify(generic).includes('hello@'), 'generic status never names hello@');
 });
 
 test('publicStatus reports the latest public workflow update', async () => {
