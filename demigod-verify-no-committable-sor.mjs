@@ -35,6 +35,7 @@ export function main(argv = process.argv.slice(2)) {
     test('funnel-draft flagged', 'demigod-outreach/funnel-drafts/x.txt', true);
     test('funnel receipt flagged', 'demigod-outreach/funnel-receipts/x.txt', true);
     test('send log flagged', 'demigod-outreach/dm-send-log.txt', true);
+    test('root send log flagged', 'dm-send-log.txt', true);
     test('tracker flagged', 'demigod-outreach/DM-BATCH-TRACKER.md', true);
     test('send archive flagged', 'demigod-outreach/sends-2026-07-09/SEND-LOG.txt', true);
     test('generic template NOT flagged', 'demigod-outreach/template-dm.md', false);

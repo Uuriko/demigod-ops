@@ -34,10 +34,27 @@ node_modules/
 .bash*
 .profile
 .viminfo
+.gitconfig
+.zshrc
+.wget-hsts
+.sudo_as_admin_successful
 .DS_Store
 *.swp
 .ssh/
 .gnupg/
+
+# Other local agent/editor/runtime state. This repository is rooted at $HOME, so these are private
+# machine configuration, not Demigod source.
+.finch/
+.fzf/
+.hermes/
+.kimi-code/
+.omp/
+.openclaude/
+.orca/
+.pi/
+.pyenv/
+.vscode/
 
 # Desktop folders
 Downloads/
@@ -74,6 +91,18 @@ tmp/
 # Ad-hoc CDP verification/probe scripts (kept in repo root for ./cdp-config.mjs imports,
 # but they are disposable scratch — never commit them).
 .dg-*.mjs
+.aperture-*.mjs
+.check-*.mjs
+.dbg-*.mjs
+.form-html.mjs
+.head-*.mjs
+.inspect-*.mjs
+.live-*
+.mobile-*.mjs
+.orca-run-demigod-sequence.*
+.reveal-*.mjs
+.scroll-*.mjs
+.verify-*.mjs
 
 # Large / generated
 screenshots/
@@ -106,15 +135,30 @@ events-bot-outbox/
 DEMIGOD-SUBMISSIONS-INBOX.json
 DEMIGOD-SUBMISSIONS-INBOX.json.archive.jsonl
 DEMIGOD-SUBMISSIONS-INBOX.json.corrupt.*
-# More founder/candidate PII, same rule (untracked today -> ignore now, no scrub). The outreach dir
-# holds real contact data + the actual DM drafts + send history; the proof log holds delivery
-# testimonials. template-dm.md (no PII) is left trackable on purpose.
-demigod-outreach/founders.csv
-demigod-outreach/ready-emails*/
-demigod-outreach/funnel-drafts/
-demigod-outreach/blast-log.json
+DEMIGOD-INBOX-REPORT.json
+# Private local candidate CRM (messages, resumes, contact details); never stage.
+talent-crm/
+# Private YC directory snapshot; public map data is a separate licensed projection.
+DEMIGOD-SF-STARTUPS.json
+# Per-person meeting prep contains private contact/context; keep other demigod-ops sources trackable.
+demigod-ops/*-PREP-*.md
+# Founder/candidate outreach is private operational data: contacts, drafts, trackers, and send
+# history. Only the two generic templates are source; everything else stays local.
+demigod-outreach/*
+!demigod-outreach/template-dm.md
+!demigod-outreach/template-dm-engineer.md
+# Root-level send logs (stray copies outside demigod-outreach/) hold DM transport evidence.
+dm-send-log.txt
+# Generated signal manifest may contain a real receipt capability URL.
+SIGNAL-THEATER.json
 DEMIGOD-PROOF-LOG.json
 DEMIGOD-PROOF-LOG.json.corrupt.*
+# Private matching/outreach state and generated intro/invoice packets.
+DEMIGOD-MATCHES.json*
+DEMIGOD-OUTREACH.json*
+demigod-ops/intros/*
+!demigod-ops/intros/.gitkeep
+demigod-ops/invoices/
 # Board corruption backups (old .bak/.corrupt snapshots hold real founder handles/emails) and grok
 # conversation scratch (contains a personal email). Cruft/scratch, never meant to be committed.
 DEMIGOD-BOARD.corrupt*
@@ -156,6 +200,8 @@ DEMIGOD-LEADS.json
 DEMIGOD-LEADS.json.*
 DEMIGOD-PILOTS.json
 DEMIGOD-PILOTS.json.*
+DEMIGOD-REFERRALS.json
+DEMIGOD-REFERRALS.json.*
 DEMIGOD-EVENTS-API.json
 demigod-events-data.json
 demigod-events-data.json.*
