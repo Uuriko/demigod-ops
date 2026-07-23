@@ -27,12 +27,20 @@ import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
 import { BUSY, ensureBusy, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
 import { isFreshFile, writeJsonAuto } from './demigod-perf-cache.mjs';
+import { receiptIsFresh } from './demigod-harness-coord.mjs';
+import { status as publishFreezeStatus } from './demigod-publish-freeze.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const DASH = process.env.DEMIGOD_DASH || 'http://127.0.0.1:9878';
 const OUT = path.join(BUSY, 'control-plane.json');
 const NEXT_JSON = path.join(BUSY, 'next.json');
 const COCKPIT_JSON = path.join(BUSY, 'cockpit.json');
+
+/** Age in ms from an ISO-ish `at`; missing/malformed → Infinity (fail closed → refresh). */
+function ageMsFrom(at) {
+  const t = Date.parse(at);
+  return Number.isFinite(t) ? Date.now() - t : Infinity;
+}
 
 /** Project full buildNext() → plane.next / cockpit.next shape */
 export function projectNext(nextCanon) {
@@ -56,9 +64,9 @@ export function writeNextSnapshot(nextCanon) {
   ensureBusy();
   atomicWrite(NEXT_JSON, JSON.stringify(nextCanon, null, 2) + '\n');
 
-  // Freeze module is disabled — always unfrozen (imports stay for API stability).
-  const freeze = { on: false, why: 'freeze disabled', at: null, by: null };
-  const frozen = false;
+  const freeze = publishFreezeStatus();
+  const frozen = freeze.frozen;
+  const publishAuthorized = freeze.authorized === true;
   const nextOut = projectNext(nextCanon);
 
   const plane = safeJsonFile(OUT);
@@ -70,7 +78,7 @@ export function writeNextSnapshot(nextCanon) {
     plane.freezeWhy = freeze.why || null;
     plane.freezeAt = freeze.at || null;
     plane.freezeBy = freeze.by || null;
-    plane.sessionMode = frozen ? 'read-only' : 'read-write';
+    plane.sessionMode = frozen || !publishAuthorized ? 'prepare-only' : 'publish-authorized';
     atomicWrite(OUT, JSON.stringify(plane) + '\n');
   }
 
@@ -123,6 +131,21 @@ export const MODULES = {
     actions: [
       { id: 'smoke', label: 'Smoke', job: 'smoke' },
       { id: 'truth', label: 'Truth', job: 'truth' },
+    ],
+  },
+  events: {
+    title: 'Events',
+    why: 'SF night lifecycle, native RSVP, and public API health',
+    emoji: '◉',
+    accent: '#C9A84C',
+    key: 'e',
+    cli: 'bin/dg-events-online status',
+    dashTab: 'overview',
+    jobs: ['events-outbox-status', 'events-invite-drain', 'events-tick'],
+    actions: [
+      { id: 'events-status', label: 'Status', cmd: 'bin/dg-events-online status' },
+      { id: 'events-outbox', label: 'Resource outbox', job: 'events-outbox-status' },
+      { id: 'events-drain', label: 'Invite drain', job: 'events-invite-drain' },
     ],
   },
   webflow: {
@@ -200,21 +223,14 @@ export const MODULES = {
   },
   workloop: {
     title: 'Work loop',
-    why: 'Cycle-work · never-stop · swarm status (safe; no auto thrash)',
+    why: 'Continuous local audits and draft-only checks',
     emoji: '⟳',
     accent: '#7dd3fc',
     key: 'l',
-    cli: 'bin/dg cycle-status',
+    cli: 'bin/dg-useful-loop status',
     dashTab: 'system',
-    jobs: ['cycle-status', 'cycle-work', 'never-stop-status', 'swarm-status', 'harness-selftest', 'dogfood', 'priority'],
-    actions: [
-      { id: 'cstat', label: 'Cycle status', job: 'cycle-status' },
-      { id: 'cwork', label: 'One cycle', job: 'cycle-work' },
-      { id: 'ns', label: 'Never-stop status', job: 'never-stop-status' },
-      { id: 'sw', label: 'Swarm status', job: 'swarm-status' },
-      { id: 'stop-ns', label: 'Stop never-stop', job: 'never-stop-stop' },
-      { id: 'stop-sw', label: 'Stop swarm', job: 'swarm-stop' },
-    ],
+    jobs: [],
+    actions: [],
   },
   ship: {
     title: 'Ship',
@@ -225,10 +241,12 @@ export const MODULES = {
     cli: 'node demigod-publish-freeze.mjs status',
     dashTab: 'roadmap',
     api: `${DASH}/api/ship-checklist`,
-    jobs: ['ship-checklist', 'verify-source', 'board-honesty'],
+    jobs: ['ship-checklist', 'verify-source', 'board-honesty', 'craft', 'craft-mint-ship'],
     actions: [
       { id: 'shipc', label: 'Checklist', job: 'ship-checklist' },
       { id: 'honest', label: 'Board honesty', job: 'board-honesty' },
+      { id: 'craft', label: 'Craft log', job: 'craft' },
+      { id: 'craft-mint', label: 'Mint ship', job: 'craft-mint-ship' },
     ],
   },
   swarm: {
@@ -312,17 +330,17 @@ async function fetchJson(url, ms = 8000) {
  * Includes modules, spine, freeze, nextCanon (via buildNext + writeNextSnapshot).
  * Call refreshNextCanon() after freeze flips when a full rebuild is not needed.
  */
-export async function buildControlPlane() {
+export async function buildControlPlane({ dashStatus: suppliedDashStatus = null } = {}) {
   ensureBusy();
   /* ==== SECTION: freeze + dash status (cached) ==== */
-  // Publish freeze disabled entirely for now.
-  const freeze = { on: false, why: 'freeze disabled', at: null, by: null };
-  const frozen = false;
+  const freeze = publishFreezeStatus();
+  const frozen = freeze.frozen;
+  const publishAuthorized = freeze.authorized === true;
 
-  // Prefer busy cache — only hit dash if stale (>30s)
-  let dashStatus = safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
-  const dashAge = dashStatus?.at ? Date.now() - Date.parse(dashStatus.at) : Infinity;
-  if (!dashStatus?.at || dashAge > 30000 || dashAge < -60000) {
+  // Prefer busy cache — only hit dash if stale (>30s); malformed `at` → Infinity → refresh
+  let dashStatus = suppliedDashStatus || safeJsonFile(path.join(BUSY, 'dashboard-status.json'));
+  const dashAge = ageMsFrom(dashStatus?.at);
+  if (dashAge > 30000 || dashAge < -60000) {
     // Prefer slim status for speed
     dashStatus =
       (await fetchJson(`${DASH}/api/status?slim=1`)) ||
@@ -350,14 +368,14 @@ export async function buildControlPlane() {
     wf = safeJsonFile(wfPath);
   }
   const wfDoctorRaw = safeJsonFile(path.join(BUSY, 'webflow-doctor.json')) || wf?.doctor || null;
-  const wfDoctorAgeMs = wfDoctorRaw?.at ? Date.now() - Date.parse(wfDoctorRaw.at) : Infinity;
+  const wfDoctorAgeMs = ageMsFrom(wfDoctorRaw?.at);
   const wfDoctor = wfDoctorRaw
     ? {
         ...wfDoctorRaw,
         ageMs: wfDoctorAgeMs,
         // >= -60000 rejects a future-dated/clock-skewed doctor envelope instead of blessing it
         // fresh forever (negative age passed `<= 120000`); mirrors dashboard.mjs truth-seal guard.
-        fresh: Number.isFinite(wfDoctorAgeMs) && wfDoctorAgeMs >= -60000 && wfDoctorAgeMs <= 120000,
+        fresh: Number.isFinite(wfDoctorAgeMs) && wfDoctorAgeMs >= -60000 && wfDoctorAgeMs <= 15 * 60 * 1000,
       }
     : null;
 
@@ -400,23 +418,148 @@ export async function buildControlPlane() {
   }
 
   const modules = {};
-  const siteTruthGreen = dashStatus?.truthEvidence?.green === true;
-  const siteFullyShipped = dashStatus?.truth?.fullyShipped === true;
+  // Canonical truth first — never mix stale dash glance for live foot identity.
+  // If truth.json exists, live foot comes only from that receipt (or unknown).
+  // Dash glance may only fill gaps when there is no truth receipt at all.
+  const te = refuseIfStale('truth');
+  const truthReceipt = safeJsonFile(path.join(BUSY, 'truth.json'));
+  const hasTruthReceipt = Boolean(truthReceipt && typeof truthReceipt === 'object');
+  const siteTruthGreen = Boolean(te.green);
+  const siteFullyShipped = Boolean(truthReceipt?.fullyShipped) && Boolean(te.fresh);
+  const liveFootVer = truthReceipt?.live?.footVer || null;
+  const liveFootUrl = truthReceipt?.live?.footUrl || null;
+  const diskFootVer = truthReceipt?.foot?.ver || null;
+  let siteDetail;
+  const prepareOnlyRelease = Boolean(truthReceipt?.prepareOnlyRelease);
+  const prepareOnlyAssets = Boolean(truthReceipt?.prepareOnlySiblingAssets);
+  if (liveFootVer) {
+    siteDetail = `Live foot v${liveFootVer}${liveFootUrl ? ` · ${liveFootUrl}` : ''}${
+      siteFullyShipped
+        ? ''
+        : prepareOnlyRelease
+          ? prepareOnlyAssets
+            ? ' · prepare-only (sibling assets ahead of CDN)'
+            : ' · prepare-only (publish unauthorized)'
+          : ' · not fully shipped'
+    }`;
+  } else if (hasTruthReceipt && te.summary) {
+    // Truth ran but live unknown — do not invent vN from dash cache
+    siteDetail = String(te.summary).slice(0, 160);
+  } else if (hasTruthReceipt) {
+    siteDetail = diskFootVer
+      ? `disk v${diskFootVer} · live unknown (truth)`
+      : 'live unknown (truth receipt; no dash fill)';
+  } else {
+    siteDetail =
+      dashStatus?.glance?.site ||
+      dashStatus?.live?.foot ||
+      (te.summary ? String(te.summary).slice(0, 120) : '—');
+  }
   modules.site = enrich('site', {
     // Reachability/smoke are useful metrics, but cannot make the Site module
     // green while canonical truth says disk and live are not fully shipped.
-    ok: siteTruthGreen && siteFullyShipped,
-    detail: dashStatus?.glance?.site || dashStatus?.live?.foot || '—',
-    next: siteFullyShipped ? 'bin/dg smoke' : 'bin/dg truth',
+    // Exception: prepareOnlyRelease means truth already soft-passed identity lag
+    // while publish is unauthorized — treat as healthy prepare-only, not outage.
+    ok: siteTruthGreen && (siteFullyShipped || prepareOnlyRelease),
+    detail: siteDetail,
+    next: siteFullyShipped
+      ? 'bin/dg smoke'
+      : prepareOnlyRelease
+        ? 'bin/dg ship prepare  # publish unauthorized — identity lag soft-ok'
+        : 'bin/dg truth',
     metrics: {
-      foot: dashStatus?.live?.foot || null,
+      // Live identity only from truth when receipt exists (Codex cont16)
+      foot: liveFootVer
+        ? `foot v${liveFootVer}`
+        : hasTruthReceipt
+          ? null
+          : dashStatus?.live?.foot || null,
+      disk: diskFootVer,
       smoke: dashStatus?.smoke?.pass ?? null,
       truthGreen: siteTruthGreen,
+      truthFresh: Boolean(te.fresh),
       fullyShipped: siteFullyShipped,
+      prepareOnlyRelease,
+      prepareOnlyAssets,
+      truthSource: hasTruthReceipt ? 'truth.json' : 'dash-fallback',
+    },
+  });
+  const eventsStore = safeJsonFile(path.join(ROOT, 'DEMIGOD-EVENTS.json'));
+  const eventsOnlinePath = path.join(BUSY, 'events-online', 'status.json');
+  // Refresh when stale; 30s covers slow tunnel probes (was 12s → null receipt → false "public unknown").
+  if (!isFreshFile(eventsOnlinePath, 90)) sh('node demigod-events-online.mjs status >/dev/null 2>&1', 30000);
+  const eventsOnlineFresh = isFreshFile(eventsOnlinePath, 90);
+  // Keep last receipt when refresh still stale — prefer "up (stale)" over inventing unknown.
+  const eventsOnline = safeJsonFile(eventsOnlinePath);
+  const activeEvent = eventsStore?.activeEvent;
+  const eventsPublic =
+    eventsOnline?.public === true ? 'up' : eventsOnline?.public === false ? 'down' : 'unknown';
+  const eventsPublicLabel = eventsOnlineFresh ? eventsPublic : `${eventsPublic} (stale)`;
+  const eventsCertified =
+    eventsOnlineFresh &&
+    eventsOnline?.certified === true &&
+    eventsOnline?.storeHygiene?.ok === true;
+  // Local tunnel can be up while CDN website config still points at dead bases (publish-config gated).
+  const websiteConfigStale =
+    eventsOnlineFresh &&
+    eventsOnline?.public === true &&
+    eventsOnline?.websiteConfigCurrent === false;
+  const websiteConfigDead =
+    websiteConfigStale && eventsOnline?.websiteConfigReachable === false;
+  const prepareOnlyWebsiteConfig =
+    eventsOnline?.prepareOnlyWebsiteConfig === true || websiteConfigDead;
+  // Operational health (public tunnel + routes + hygiene) is separate from CDN config ship.
+  // Mirror site prepareOnlyRelease: do not red the module for publish-gated config lag alone.
+  const eventsOperational =
+    eventsOnlineFresh &&
+    eventsOnline?.public === true &&
+    eventsOnline?.needHeal !== true &&
+    eventsOnline?.storeHygiene?.ok !== false &&
+    eventsOnline?.nativeRsvpRoutes === true;
+  const configNote = websiteConfigDead
+    ? ' · prepare-only (website config dead tunnels)'
+    : websiteConfigStale
+      ? ' · prepare-only (website config stale)'
+      : '';
+  // Sticky preferred loca name can 503 while a random loca tunnel is still public.
+  const preferredTunnelMatch = eventsOnline?.preferredTunnelMatch;
+  const preferredNote =
+    eventsOnlineFresh &&
+    eventsOnline?.public === true &&
+    preferredTunnelMatch === false
+      ? ' · preferred tunnel sticky name unavailable'
+      : '';
+  const eventsDetailCore = activeEvent?.id
+    ? `${activeEvent.title || 'Untitled SF night'} · ${activeEvent.stage || '?'} · public ${eventsPublicLabel}`
+    : `no active event · public ${eventsPublicLabel}`;
+  modules.events = enrich('events', {
+    // null = receipt stale/unknown; true = public operational (or certified);
+    // publish-gated website-config lag must not paint red alone.
+    ok: eventsOnlineFresh ? eventsOperational || eventsCertified : null,
+    detail: `${eventsDetailCore}${configNote}${preferredNote}`,
+    next: eventsOnline?.needHeal
+      ? 'bin/dg-events-online heal'
+      : websiteConfigStale
+        ? 'bin/dg-events-online status  # website config publish gated'
+        : 'bin/dg-events-online status',
+    metrics: {
+      activeId: activeEvent?.id || null,
+      stage: activeEvent?.stage || null,
+      certified: eventsCertified,
+      public: eventsOnline?.public ?? null,
+      nativeRsvpRoutes: eventsOnlineFresh && eventsOnline?.nativeRsvpRoutes === true,
+      storeHygiene: eventsOnline?.storeHygiene?.ok ?? null,
+      receiptFresh: eventsOnlineFresh,
+      websiteConfigCurrent: eventsOnline?.websiteConfigCurrent ?? null,
+      websiteConfigReachable: eventsOnline?.websiteConfigReachable ?? null,
+      prepareOnlyWebsiteConfig: prepareOnlyWebsiteConfig,
+      eventsOperational: eventsOperational,
+      preferredTunnelMatch: preferredTunnelMatch ?? null,
+      pendingConfigPath: eventsOnline?.pendingConfigPath || null,
     },
   });
   modules.webflow = enrich('webflow', {
-    ok: Boolean(wf?.cdp?.ok) && wfDoctor?.pass === true && wfDoctor.fresh,
+    ok: wfDoctor?.fresh ? Boolean(wf?.cdp?.ok) && wfDoctor.pass === true : null,
     freeze: frozen,
     ready: wf?.ready || null,
     tabs: wf?.tabs?.byRole || null,
@@ -433,6 +576,13 @@ export async function buildControlPlane() {
     (matchSum?.byState?.proposed != null && matchSum?.sampleCount != null
       ? Math.max(0, (matchSum.byState.proposed || 0) - (matchSum.sampleCount || 0))
       : matchSum?.byState?.proposed);
+  // Prefer realCount so sample fixtures never inflate the "pairs" headline (cont25).
+  const realPairCount =
+    matchSum?.realCount != null
+      ? Number(matchSum.realCount)
+      : matchSum?.total != null && matchSum?.sampleCount != null
+        ? Math.max(0, Number(matchSum.total) - Number(matchSum.sampleCount))
+        : matchSum?.total ?? null;
   modules.match = enrich('match', {
     ok: true,
     summary: matchSum,
@@ -440,11 +590,12 @@ export async function buildControlPlane() {
       ? { new: dashStatus.inbox.newCount, total: dashStatus.inbox.total }
       : null,
     detail: matchSum
-      ? `pairs ${matchSum.total} · realProposed ${realProposed ?? 0} · samples ${matchSum.sampleCount ?? '?'}`
+      ? `pairs ${realPairCount ?? 0} real · realProposed ${realProposed ?? 0} · samples ${matchSum.sampleCount ?? '?'}`
       : 'run bin/dg matches',
     next: 'bin/dg matches',
     metrics: {
-      pairs: matchSum?.total,
+      pairs: realPairCount,
+      totalLedger: matchSum?.total ?? null,
       proposed: realProposed ?? 0,
       realProposed: realProposed ?? 0,
       sampleCount: matchSum?.sampleCount ?? 0,
@@ -454,21 +605,23 @@ export async function buildControlPlane() {
   // Show the review's age (not a stale flag): review runs on-demand, so an old result is valid until
   // the code changes — a time-based "stale" verdict would wrongly flag a still-good review. Surfacing
   // the age lets a reader judge whether it predates their edits without a false stale call.
-  const reviewAgeMin = review?.at ? Math.round((Date.now() - Date.parse(review.at)) / 60000) : null;
+  const reviewAgeMs = ageMsFrom(review?.at);
+  const reviewAgeMin = Number.isFinite(reviewAgeMs) ? Math.round(reviewAgeMs / 60000) : null;
+  const reviewPriority = (review?.summary?.bySev?.critical || 0) + (review?.summary?.bySev?.high || 0);
   modules.review = enrich('review', {
     ok: review ? !review.summary?.fail : null,
-    findings: review?.summary?.count ?? null,
+    findings: review ? reviewPriority : null,
     bySev: review?.summary?.bySev || null,
     detail: review
-      ? `${review.summary?.count ?? 0} findings · fail=${review.summary?.fail}${reviewAgeMin != null ? ` · ${reviewAgeMin < 90 ? `${reviewAgeMin}m` : `${Math.round(reviewAgeMin / 60)}h`} ago` : ''}`
+      ? `${reviewPriority} priority · ${review.summary?.count ?? 0} total · fail=${review.summary?.fail}${reviewAgeMin != null ? ` · ${reviewAgeMin < 90 ? `${reviewAgeMin}m` : `${Math.round(reviewAgeMin / 60)}h`} ago` : ''}`
       : 'no review yet',
     next: 'bin/dg review',
-    metrics: { fail: review?.summary?.fail, count: review?.summary?.count, ageMin: reviewAgeMin },
+    metrics: { fail: review?.summary?.fail, count: review?.summary?.count, priority: review ? reviewPriority : null, ageMin: reviewAgeMin },
   });
   // Mirror the wfDoctor freshness guard (L353): the hygiene snapshot is a cached /tmp/dg-busy file;
   // without an age check a day-old snapshot shows tabs/load as current (was 27h stale, under-reporting
   // 13 live tabs as 5). >= -60000 rejects a future/clock-skewed stamp; <= 15min is the fresh window.
-  const hygieneAgeMs = hygiene?.at ? Date.now() - Date.parse(hygiene.at) : Infinity;
+  const hygieneAgeMs = ageMsFrom(hygiene?.at);
   const hygieneStale = !!hygiene && !(hygieneAgeMs >= -60000 && hygieneAgeMs <= 15 * 60 * 1000);
   modules.hygiene = enrich('hygiene', {
     ok: hygieneStale ? null : (hygiene?.healthy ?? null),
@@ -494,33 +647,61 @@ export async function buildControlPlane() {
       missing: ponytail?.missing || [],
     },
   });
-  const cycle = safeJsonFile(path.join(BUSY, 'cycle-work-latest.json'));
-  const nsStop = fs.existsSync(path.join(BUSY, 'never-stop.STOP'));
-  const swStop = fs.existsSync(path.join(BUSY, 'swarm-busy.STOP'));
+  const usefulLoop = safeJsonFile(path.join(BUSY, 'useful-loop-last.json'));
+  const usefulLoopFresh = receiptIsFresh(usefulLoop, Date.now(), 5 * 60 * 1000);
+  const usefulLoopAgeMs = ageMsFrom(usefulLoop?.at);
+  const usefulLoopStopped = ['useful-loop.STOP', 'watchdog.PAUSED']
+    .some((file) => fs.existsSync(path.join(BUSY, file)));
+  const usefulLoopTasks = Array.isArray(usefulLoop?.did) ? usefulLoop.did : [];
+  const usefulLoopPassed = usefulLoopTasks.filter((task) => task?.ok === true).length;
+  const usefulLoopHealthy = usefulLoopFresh && !usefulLoopStopped && usefulLoopTasks.length > 0 && usefulLoopPassed === usefulLoopTasks.length;
   modules.workloop = enrich('workloop', {
-    ok: cycle?.ok === true && cycle?.attested === true,
-    detail: cycle
-      ? `cycle ${cycle.domain || '?'} · verdict=${cycle.verdict || cycle.verification || '?'} · ns=${nsStop ? 'stopped' : 'run?'} · swarm=${swStop ? 'stopped' : 'run?'}`
-      : `no cycle receipt · ns=${nsStop ? 'stopped' : '?'} swarm=${swStop ? 'stopped' : '?'}`,
-    next: 'bin/dg cycle-status',
+    ok: usefulLoopFresh ? usefulLoopHealthy : null,
+    detail: usefulLoopStopped
+      ? 'background work loops paused · laptop-friendly'
+      : usefulLoop
+      ? usefulLoopFresh
+        ? `useful cycle ${usefulLoop.cycle ?? '?'} · ${usefulLoopPassed}/${usefulLoopTasks.length} ok · ${usefulLoopStopped ? 'stopped' : 'active'}`
+        : `useful-loop receipt stale${Number.isFinite(usefulLoopAgeMs) ? ` ${Math.round(usefulLoopAgeMs / 60000)}m` : ''}`
+      : 'no useful-loop receipt',
+    next: 'bin/dg-useful-loop status',
     metrics: {
-      domain: cycle?.domain || null,
-      ok: cycle?.ok ?? null,
-      neverStopStopped: nsStop,
-      swarmStopped: swStop,
+      cycle: usefulLoop?.cycle ?? null,
+      ok: usefulLoopFresh ? usefulLoopHealthy : null,
+      stale: !!usefulLoop && !usefulLoopFresh,
+      ageMs: usefulLoopAgeMs,
+      stopped: usefulLoopStopped,
+      tasks: usefulLoopTasks.length,
+      passed: usefulLoopPassed,
     },
   });
+  let craftCount = null;
+  let craftShipReady = null;
+  try {
+    const craft = await import('./demigod-craft-log.mjs').then((m) => m.status());
+    craftCount = craft.count ?? 0;
+    craftShipReady = Boolean(craft.ready?.ship_live && !String(craft.ready.ship_live).startsWith('no:'));
+  } catch {
+    /* craft log optional */
+  }
   modules.ship = enrich('ship', {
-    ok: !frozen,
+    ok: !frozen && publishAuthorized,
     freeze: frozen,
-    detail: frozen ? `FROZEN — ${freeze.why || ''}` : 'freeze OFF — mutate with care',
-    next: frozen ? 'do not paste/publish' : 'bin/dg-webflow playbook prep-footer-paste',
+    detail: frozen
+      ? `FROZEN — ${freeze.why || ''}`
+      : publishAuthorized
+        ? `current request authorizes publish · craft entries=${craftCount ?? '?'}`
+        : `prepare only — current request has not authorized publish · craft entries=${craftCount ?? '?'}`,
+    next: frozen || !publishAuthorized ? 'bin/dg ship prepare' : 'bin/dg-webflow playbook prep-footer-paste',
     metrics: {
       frozen,
+      publishAuthorized,
       boardRoles: dashStatus?.board?.roles,
       boardReal: dashStatus?.board?.signal?.realRoles,
       honesty: boardH?.pass ?? null,
       footLock: lockHeld ? footLock?.owner || 'held' : 'free',
+      craftCount,
+      craftShipReady,
     },
   });
   // Orca remote seat — prefer cache file; skip 5s orca-ide spawn when fresh
@@ -561,12 +742,6 @@ export async function buildControlPlane() {
     metrics: { handoffs: (dashStatus?.handoffs || []).length },
   });
 
-  const next = dashStatus?.next || {
-    id: 'orient',
-    title: 'Orient via control plane',
-    cmd: 'bin/dg home',
-  };
-
   const spine = [];
   if (!wf?.cdp?.ok) spine.push({ pri: 0, id: 'cdp', title: 'Start CDP Chrome', cmd: '~/agent-dev.sh up', module: 'webflow' });
   if ((wf?.tabs?.pages || 0) > 10 || (wf?.tabs?.byRole?.['ops-dash'] || 0) > 2) {
@@ -591,14 +766,6 @@ export async function buildControlPlane() {
       module: 'ship',
     });
   }
-  spine.push({
-    pri: 3,
-    id: 'next',
-    title: next.title || 'NEXT',
-    cmd: next.cmd || 'bin/dg smoke',
-    module: 'site',
-    job: next.id === 'smoke' ? 'smoke' : null,
-  });
   const rp = modules.match.metrics?.realProposed ?? modules.match.metrics?.proposed ?? 0;
   if (rp > 0) {
     spine.push({
@@ -615,17 +782,18 @@ export async function buildControlPlane() {
   // Health score 0–100
   let health = 100;
   if (!modules.site.ok) health -= 25;
-  if (!modules.webflow.ok) health -= 20;
+  if (modules.webflow.ok === false) health -= 20;
   if (modules.review.ok === false) health -= 20;
   if (modules.hygiene.ok === false) health -= 10;
   if ((modules.hygiene.tabs || 0) > 12) health -= 10;
   if (frozen) health = Math.min(health, 85); // frozen is fine, not a failure
   health = Math.max(0, health);
 
-  // Fresh truth evidence + single NEXT builder
-  const te = refuseIfStale('truth');
+  // Fresh truth evidence (same `te` as modules.site — single snapshot) + NEXT builder
   const truthEvidence = {
     green: Boolean(te.green),
+    pass: Boolean(te.pass),
+    fresh: Boolean(te.fresh),
     reason: te.reason || 'unknown',
     summary: te.summary || null,
     runId: te.runId || null,
@@ -665,7 +833,7 @@ export async function buildControlPlane() {
   // never "solid" and must be distinguishable from ordinary demand starvation.
   if (!truthEvidence.green) {
     health = Math.min(health, 49);
-    healthLabel = 'truth-stale';
+    healthLabel = truthEvidence.fresh ? 'truth-failed' : 'truth-stale';
   } else if (demandStarved) {
     health = Math.min(health, 55);
     healthLabel = 'demand-starved';
@@ -684,7 +852,7 @@ export async function buildControlPlane() {
     freezeWhy: freeze.why || null,
     freezeAt: freeze.at || null,
     freezeBy: freeze.by || null,
-    sessionMode: frozen ? 'read-only' : 'read-write',
+    sessionMode: frozen || !publishAuthorized ? 'prepare-only' : 'publish-authorized',
     health,
     healthLabel,
     demandStarved: Boolean(demandStarved),
@@ -714,7 +882,7 @@ export async function buildControlPlane() {
     next: nextOut,
     spine: orderedSpine,
     modules,
-    moduleOrder: ['site', 'webflow', 'match', 'review', 'hygiene', 'ponytail', 'workloop', 'ship', 'swarm', 'orca'],
+    moduleOrder: ['site', 'events', 'webflow', 'match', 'review', 'hygiene', 'ponytail', 'workloop', 'ship', 'swarm', 'orca'],
     moduleDefs: MODULES,
     entrypoints: {
       cli: 'bin/dg',
@@ -726,15 +894,16 @@ export async function buildControlPlane() {
     },
     map: [
       '1. bin/dg home OR dash #overview (same home)',
-      '2. bin/dg hygiene --prune',
-      '3. bin/dg ponytail (lazy-senior agents)',
-      '4. bin/dg webflow doctor',
-      '5. Dash rooms: Inbox · Matches · Ship',
-      '6. bin/dg review when shipping code',
-      '7. Ship only freeze OFF + checklist',
+      '2. bin/dg-events-online status',
+      '3. bin/dg hygiene --prune',
+      '4. bin/dg ponytail (lazy-senior agents)',
+      '5. bin/dg webflow doctor',
+      '6. Dash rooms: Inbox · Matches · Ship',
+      '7. bin/dg review when shipping code',
+      '8. Ship only with current-request authorization + checklist',
     ],
     kbd: {
-      g: 'go module (then s/w/m/r/h/y/p/a)',
+      g: 'go module (then s/e/w/m/r/h/y/p/a)',
       '/': 'command palette',
       r: 'refresh',
       '?': 'help',
@@ -790,6 +959,16 @@ async function main() {
   const args = process.argv.slice(2);
   const cmd = args[0] || 'home';
   const asJson = args.includes('--json');
+  // Control-plane verbs only accept --json; ignore-unknown would mask typos (cont27).
+  if (['home', 'status', 'next', 'plane', 'modules'].includes(cmd)) {
+    const bad = args.slice(1).filter((a) => a !== '--json');
+    if (bad.length) {
+      console.error(
+        `unknown argument${bad.length > 1 ? 's' : ''}: ${bad.join(' ')} — try: bin/dg ${cmd} [--json]`,
+      );
+      process.exit(2);
+    }
+  }
 
   // Dispatch: bin/dg webflow doctor → demigod-webflow doctor
   if (DISPATCH[cmd]) {
@@ -861,7 +1040,8 @@ async function main() {
   bin/dg-start             # session bootstrap
   open ${DASH}
 `);
-  process.exit(cmd === 'help' || cmd === '--help' ? 0 : 1);
+  // Unknown verbs: exit 2 (fail-closed family; help stays 0).
+  process.exit(cmd === 'help' || cmd === '--help' ? 0 : 2);
 }
 
 // allow import

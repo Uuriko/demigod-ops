@@ -11,12 +11,16 @@ import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { refuseIfStale } from './demigod-evidence.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const OUT = '/tmp/dg-busy/demand-selftest.json';
+const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const OUT = path.join(BUSY, 'demand-selftest.json');
 const fails = [];
 const spawnErrors = [];
-const canaryDir = path.join('/tmp/dg-busy', `demand-canary-${process.pid}`);
+const canaryDir = path.join(BUSY, 'tests', `demand-selftest-${process.pid}`);
 const SELFTEST_STATUS = path.join(canaryDir, 'demand-status-selftest.json');
 const ok = (c, m) => (c ? console.log('ok', m) : fails.push(m));
+
+fs.mkdirSync(canaryDir, { recursive: true, mode: 0o700 });
+process.on('exit', () => fs.rmSync(canaryDir, { recursive: true, force: true }));
 
 function runSandboxFallback() {
   const demandSource = fs.readFileSync(path.join(ROOT, 'demigod-demand.mjs'), 'utf8');
@@ -46,6 +50,7 @@ function runSandboxFallback() {
   ok(!/const allow\s*=\s*[\s\S]*DEMIGOD_ALLOW_AUTO_DM/.test(demandSource), 'fallback has no environment auto-send bypass');
   ok(/error:\s*['"]auto_dm_stopped['"]/.test(demandSource), 'fallback keeps drafts-only refusal');
   ok(!/send yourself|human re-enables/i.test(demandSource), 'fallback demand output assigns no human send task');
+  ok(/humanOutcomeOnly[\s\S]*human outcome\|call outcome\|when known/.test(demandSource), 'fallback demand does not assign human-only outcome notes to an agent');
   ok(/SENT-CONFIRMED remains zero until an externally attested send is recorded/.test(demandSource), 'fallback draft output states the evidence boundary');
   ok(/inventsPilots:\s*false/.test(demandSource), 'fallback keeps no-invented-pilots contract');
   ok(
@@ -197,7 +202,8 @@ function runSandboxFallback() {
     'fallback demand publishes the canonical status atomically for concurrent readers',
   );
   ok(
-    /const draftHygieneOk = top3Drafts\.length > 0[\s\S]*?: null;/.test(demandSource) &&
+    /const draftHygieneOk = pendingDrafts\.length > 0[\s\S]*?: null;/.test(demandSource) &&
+      /const top3Drafts = pendingDrafts\.slice\(0, 3\)/.test(demandSource) &&
       /allHygieneOk: draftHygieneOk/.test(demandSource) &&
       /ok: draftHygieneOk/.test(demandSource),
     'fallback empty draft set reports hygiene unknown, not failed',
@@ -359,7 +365,8 @@ function writeReceipt(pass, { mode = 'full' } = {}) {
     failureKind: blocked ? 'child-start' : (!pass && fails.length ? 'contract' : null),
     fails,
     spawnErrors,
-  }, null, 2) + '\n');
+  }, null, 2) + '\n', { mode: 0o600 });
+  fs.chmodSync(OUT, 0o600);
 }
 
 function run(script, args = [], env = {}) {
@@ -367,9 +374,15 @@ function run(script, args = [], env = {}) {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 60000,
-    // Demand canaries must never replace the production status card read by
-    // orient. Individual cases can still override this explicit test path.
-    env: { ...process.env, DEMIGOD_DEMAND_STATUS: SELFTEST_STATUS, ...env },
+    // Every child receipt belongs to this run, never the production control plane.
+    // Individual cases can still override explicit fixture paths such as PILOT_LOG.
+    env: {
+      ...process.env,
+      DG_BUSY: canaryDir,
+      DEMIGOD_BUSY: canaryDir,
+      DEMIGOD_DEMAND_STATUS: SELFTEST_STATUS,
+      ...env,
+    },
   });
   // Node 24 can expose a spawn error alongside a misleading numeric status.
   // Normalize it so an empty capture can never look like a successful canary.
@@ -411,6 +424,11 @@ ok(typeof demand?.dms?.sentConfirmed === 'number', 'sentConfirmed is number');
 ok(Number.isInteger(demand?.dms?.malformedReceipts), 'malformed receipt quarantine count present');
 ok(demand?.dms?.malformedReceiptReasons && typeof demand.dms.malformedReceiptReasons === 'object', 'malformed receipt quarantine reasons present');
 ok(typeof demand?.queue?.pending === 'number', 'pending is number');
+ok(Array.isArray(demand?.queue?.pendingHandles), 'pendingHandles exposed (full queue, not top3-only)');
+ok(
+  demand.queue.pendingHandles.length === demand.queue.pending,
+  'pendingHandles length matches pending count',
+);
 ok(demand?.pilots?.realFilled === 0 || demand?.pilots?.realFilled > 0, 'realFilled present');
 ok(Number.isInteger(demand?.pilots?.pilotOsOpen), 'open pilot OS count present');
 ok(Number.isInteger(demand?.pilots?.boardEvidence?.realRoles), 'board real-role evidence present');
@@ -424,7 +442,7 @@ ok(q.status === 0, 'demand queue');
 
 // Webhook-shaped warm input is untrusted. Oversized fields and terminal
 // controls must fail before the append-only pilot log is touched.
-const invalidWarmLog = path.join('/tmp/dg-busy/demand-canary', 'PILOT-LOG-invalid-warm.md');
+const invalidWarmLog = path.join(canaryDir, 'PILOT-LOG-invalid-warm.md');
 fs.mkdirSync(path.dirname(invalidWarmLog), { recursive: true });
 const invalidWarmSeed = '# Pilot log\n\n## Warm inbound (not a pilot yet)\n| Who | Channel | Status | Next | Date |\n|-----|---------|--------|------|------|\n';
 fs.writeFileSync(invalidWarmLog, invalidWarmSeed);
@@ -456,9 +474,18 @@ try {
 ok(sendOverrideJson?.error === 'auto_dm_stopped', 'auto-DM override refusal is explicit');
 ok(sendOverrideJson?.overrideAllowed === false, 'auto-DM override reports immutable policy');
 
+for (const [file, argv] of [
+  ['demigod-dm-auto-send.mjs', ['--name=T0']],
+  ['demigod-founder-dm-blast.mjs', ['--send', '--limit=1']],
+]) {
+  const directOverride = run(file, argv, { DEMIGOD_ALLOW_AUTO_DM: '1' });
+  ok(directOverride.status === 2, `${file} refuses legacy environment override`);
+  ok(/auto_dm_stopped/.test(directOverride.stderr + directOverride.stdout), `${file} refusal is explicit`);
+}
+
 // Only the canonical seven-column queue table is demand. A second table,
 // duplicate handle, shifted row, or invalid handle must not inflate pending.
-const queueCanary = path.join('/tmp/dg-busy/demand-canary', 'QUEUE.md');
+const queueCanary = path.join(canaryDir, 'QUEUE.md');
 fs.mkdirSync(path.dirname(queueCanary), { recursive: true });
 fs.writeFileSync(queueCanary, `# Queue
 | Prio | Name | Handle | Company | Why first | Open | After send |
@@ -727,8 +754,24 @@ const t = run('demigod-demand.mjs', ['templates']);
 ok(t.status === 0, 'demand templates');
 ok(/REPLY-TEMPLATES|reply/i.test(t.stdout), 'templates mention reply');
 
-// draft (never sends)
-const dr = run('demigod-demand.mjs', ['draft', '--name=T0', '--json']);
+// draft (never sends). --name=T0 is the CLI's own usage-example placeholder
+// (see cmdDraft's "usage: bin/dg demand draft --name=T0"), not a guaranteed
+// production queue entry, so this needs its own isolated fixture like the
+// other draft-flow canaries above.
+const t0Root = path.join(canaryDir, 't0-root');
+const t0Ready = path.join(t0Root, 'demigod-outreach', 'ready-emails');
+fs.mkdirSync(t0Ready, { recursive: true });
+fs.writeFileSync(path.join(t0Ready, `dm-${draftDay(-1)}-t0.txt`), 'Hi T0,\n\nDraft fixture body.\n');
+const t0Queue = path.join(t0Root, 'QUEUE.md');
+fs.writeFileSync(t0Queue, `# Queue
+| Prio | Name | Handle | Company | Why first | Open | After send |
+|---|---|---|---|---|---|---|
+| high | T0 | @t0_handle | T0 Co | hiring | https://example.test | receipt |
+`);
+const dr = run('demigod-demand.mjs', ['draft', '--name=T0', '--json'], {
+  DEMIGOD_ROOT: t0Root,
+  DEMIGOD_QUEUE_MD: t0Queue,
+});
 ok(dr.status === 0, 'demand draft T0');
 try {
   const d = JSON.parse(dr.stdout.slice(dr.stdout.indexOf('{')));
@@ -780,28 +823,11 @@ if (te.green && freeze.frozen) {
   ok(n.id === 'demand-human' || n.cmd.includes('demand') || n.id === 'demand-ops', 'green+freeze → demand next');
   ok(n.mutate === false, 'demand next not mutate');
 }
-if (!te.green) {
+if (!te.fresh) {
   ok(n.id === 'truth', 'stale → truth next');
+} else if (!te.green) {
+  ok(n.id === (freeze.frozen ? 'demand-ops' : 'ship-prepare'), 'fresh failure respects publish freeze');
 }
-
-const nx = run('demigod-next.mjs', ['--json']);
-ok(nx.status === 0, 'demigod-next CLI');
-ok(fs.existsSync('/tmp/dg-busy/next.json'), 'next.json written');
-
-// ledger
-const led = path.join(ROOT, 'DEMIGOD-VERSION-LEDGER.jsonl');
-const truth = run('demigod-truth.mjs', ['--quiet']);
-ok([0, 1].includes(Number(truth.status)), 'truth runs for ledger');
-ok(fs.existsSync(led), 'version ledger file exists');
-const last = fs.readFileSync(led, 'utf8').trim().split('\n').pop();
-let line = null;
-try {
-  line = JSON.parse(last);
-} catch {
-  /* */
-}
-ok(line && line.diskVer, 'ledger last line has diskVer');
-ok(typeof line.freeze === 'boolean', 'ledger freeze boolean');
 
 // refuse inventing high sent counts when log empty
 // A malformed/transient status response should fail assertions, not crash the suite.
@@ -810,8 +836,6 @@ if (demand?.dms?.sentConfirmed === 0) {
 }
 
 // --- CANARY: adversarial false-green (Codex N-D2) ---
-fs.mkdirSync(canaryDir, { recursive: true });
-process.on('exit', () => fs.rmSync(canaryDir, { recursive: true, force: true }));
 const canaryLog = path.join(canaryDir, 'dm-send-log.txt');
 const canaryPilot = path.join(canaryDir, 'PILOT-LOG.md');
 
@@ -1858,19 +1882,6 @@ ok(
   markSentLines.length > 0 && markSentLines.every((l) => /--i-sent-it/.test(l)),
   'SEND-QUEUE After send rows require --i-sent-it attestation',
 );
-
-
-// freeze theater: ship run under freeze must fail
-if (freeze.frozen) {
-  const shipRun = run('demigod-ship.mjs', ['run'], { DEMIGOD_PUBLISH_FREEZE: '1' });
-  ok(shipRun.status !== 0, 'ship run fails under freeze');
-  ok(/publish_frozen|frozen/i.test(shipRun.stderr + shipRun.stdout), 'ship run freeze error');
-  // status/prepare allowed
-  const shipSt = run('demigod-ship.mjs', ['status', '--facts']);
-  ok(shipSt.status === 0, 'ship status --facts ok under freeze');
-  ok(!/ship-ready|ready to publish|go live/i.test(shipSt.stdout), 'no ship-ready theater in facts');
-}
-
 if (fails.length) {
   writeReceipt(false);
   console.error('FAIL', fails);

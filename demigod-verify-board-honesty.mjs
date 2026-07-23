@@ -13,6 +13,21 @@ import { readFileSync, writeFileSync, renameSync, lstatSync, existsSync } from '
 import path from 'path';
 
 const ROOT = process.env.DEMIGOD_ROOT || process.cwd();
+const boardHonestyArgs = process.argv.slice(2);
+const BOARD_HONESTY_FLAGS = new Set(['--help', '-h']);
+const unknownBoardHonesty = boardHonestyArgs.find((a) => !BOARD_HONESTY_FLAGS.has(a));
+if (unknownBoardHonesty) {
+  console.error(
+    `board-honesty: unknown argument ${unknownBoardHonesty} — try: node demigod-verify-board-honesty.mjs`,
+  );
+  process.exit(2);
+}
+if (boardHonestyArgs.includes('--help') || boardHonestyArgs.includes('-h')) {
+  console.log(`demigod-verify-board-honesty — gate: no fabricated board roles/receipts
+
+Usage: node demigod-verify-board-honesty.mjs`);
+  process.exit(0);
+}
 const boardPath = path.join(ROOT, 'DEMIGOD-BOARD.json');
 const outPath = path.join(ROOT, 'DEMIGOD-BOARD-HONESTY.json');
 const b = JSON.parse(readFileSync(boardPath, 'utf8'));

@@ -50,11 +50,9 @@ describe('scanLiveHtml', () => {
     const head = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
     const html = head + foot;
     const scan = scanLiveHtml(html, { footerCoreJs: core });
-    assert.equal(true, true);
-    assert.equal(true, true);
-    assert.equal(true, true);
-    assert.equal(true, true);
-    assert.equal(true, true);
+    assert.equal(scan.footerCoreOk, true);
+    assert.equal(scan.footerCoreCopy.ok, true);
+    assert.equal(scan.headOk, true);
   });
 
   it('does not flag hireTalent when ensureNav is in footer script', () => {

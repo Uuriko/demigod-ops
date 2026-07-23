@@ -120,7 +120,7 @@ function readLock({ clearExpired = true } = {}) {
 }
 
 function clearLockFiles() {
-  for (const f of [LOCK_JSON, LOCK]) {
+  for (const f of [LOCK_JSON, LOCK, path.join(BUSY, 'foot-lock-token.env')]) {
     try {
       fs.unlinkSync(f);
     } catch {
@@ -131,7 +131,7 @@ function clearLockFiles() {
 
 function writeLock(rec) {
   fs.mkdirSync(BUSY, { recursive: true });
-  atomicWrite(LOCK_JSON, JSON.stringify(rec, null, 2) + '\n');
+  atomicWrite(LOCK_JSON, JSON.stringify(rec, null, 2) + '\n', { mode: 0o600 });
   const text = [
     `owner=${rec.owner}`,
     `pid=${rec.pid}`,
@@ -149,6 +149,7 @@ function writeLock(rec) {
     atomicWrite(
       path.join(BUSY, 'foot-lock-token.env'),
       `export DG_LOCK_TOKEN=${rec.token}\nexport DG_LOCK_OWNER=${rec.owner}\n`,
+      { mode: 0o600 },
     );
   } catch {
     /* */
@@ -395,11 +396,6 @@ function releaseBody() {
     }
   }
   clearLockFiles();
-  try {
-    fs.unlinkSync(path.join(BUSY, 'foot-lock-token.env'));
-  } catch {
-    /* */
-  }
   console.log(JSON.stringify({ ok: true, released: true, was: { ...existing, token: existing.token ? '…' : null } }));
 }
 
@@ -542,6 +538,52 @@ const isMain =
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 
 if (isMain) {
+  // CLI-only validation — never run on import (ship/truth import assertCanWriteFoot).
+  const LOCK_CMDS = new Set(['status', 'who', 'claim', 'release', 'check', 'require', 'wrap', 'help', '-h', '--help']);
+  const LOCK_FLAGS = new Set([
+    '--owner',
+    '--ttl',
+    '--why',
+    '--token',
+    '--force',
+    '--json',
+    '--who',
+    '--soft',
+    '--help',
+    '-h',
+  ]);
+  if (cmd.startsWith('-') && !LOCK_CMDS.has(cmd) && !LOCK_FLAGS.has(cmd)) {
+    console.error(
+      `foot-lock: unknown argument ${cmd} — try: node demigod-foot-lock.mjs status|claim|release|check|require|wrap`,
+    );
+    process.exit(2);
+  }
+  if (!cmd.startsWith('-') && !LOCK_CMDS.has(cmd)) {
+    console.error(
+      `foot-lock: unknown command ${cmd} — try: status|who|claim|release|check|require|wrap`,
+    );
+    process.exit(2);
+  }
+  for (let i = cmd === args[0] ? 1 : 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--') break; // wrap -- cmd...
+    if (!a.startsWith('-')) continue;
+    if (a.includes('=') && LOCK_FLAGS.has(a.split('=')[0])) continue;
+    if (!LOCK_FLAGS.has(a)) {
+      console.error(
+        `foot-lock: unknown argument ${a} — try: node demigod-foot-lock.mjs ${cmd} [--json|--owner …|--token …]`,
+      );
+      process.exit(2);
+    }
+    if (['--owner', '--ttl', '--why', '--token'].includes(a)) i += 1;
+  }
+  if (cmd === 'help' || cmd === '-h' || cmd === '--help') {
+    console.log(`demigod-foot-lock — durable foot-core writer lock
+
+Usage: node demigod-foot-lock.mjs status|who|claim|release|check|require|wrap -- <cmd>…`);
+    process.exit(0);
+  }
+
   if (cmd === 'status' || cmd === 'who') {
     const st = statusJson();
     if (cmd === 'who' || process.argv.includes('--who')) {

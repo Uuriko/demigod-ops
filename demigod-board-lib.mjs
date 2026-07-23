@@ -1,6 +1,7 @@
 /** Shared board JSON helpers — signal, receipts, pilots, ghost roles. */
 import fs from 'fs';
 import crypto from 'crypto';
+import { pathToFileURL } from 'url';
 import { BOARD_PATH, loadBoard, saveBoard, isRealReceipt } from './demigod-submissions-lib.mjs';
 
 export function weekLabel(d = new Date()) {
@@ -170,4 +171,10 @@ export function defaultBoardExtras(board = {}) {
 /** Prefer saveBoard(board, { reason, actor }) — single persist path. */
 export function writeBoard(board, opts = {}) {
   return saveBoard(board, { reason: opts.reason || 'board-lib.writeBoard', actor: opts.actor, ...opts });
+}
+
+// Library only — direct CLI runs must not soft-succeed as empty exit 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  console.error('board-lib: library module — import from demigod-board-lib.mjs (no CLI)');
+  process.exit(2);
 }

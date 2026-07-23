@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Reset featured board to curated seed cards (no test duplicates). */
+/** Reset featured board to curated seed cards; CDN publish is explicit opt-in. */
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { saveBoard } from './demigod-submissions-lib.mjs';
@@ -20,10 +20,18 @@ const board = {
 };
 
 saveBoard(board, { reason: 'board-reset-seeds', actor: process.env.USER || 'reset' });
-const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
+let publish = { skipped: true, reason: 'explicit_publish_required' };
+if (process.env.DEMIGOD_FORCE_PUBLISH === '1') {
+  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
+  publish = {
+    skipped: false,
+    ok: pub.status === 0,
+    out: pub.stdout?.trim() || pub.stderr,
+  };
+}
 console.log(JSON.stringify({
-  ok: pub.status === 0,
+  ok: publish.skipped || publish.ok,
   roles: board.roles.length,
   candidates: board.candidates.length,
-  publish: pub.stdout?.trim() || pub.stderr,
+  publish,
 }));

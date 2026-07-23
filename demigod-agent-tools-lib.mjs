@@ -12,7 +12,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 
-export const BUSY = '/tmp/dg-busy';
+export const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 export const LIVE_DEFAULT = 'https://www.trydemigod.com';
 
 export function sha256File(file) {
@@ -44,21 +44,24 @@ export function readText(file, max = 500_000) {
   }
 }
 
-/** Atomic write: temp file in same dir then rename (crash-safe for busy JSON). */
-export function atomicWrite(file, body) {
+/** Atomic write: temp file in same dir then rename. Optional exact mode is for private artifacts. */
+export function atomicWrite(file, body, { mode = null } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
   try {
-    fs.writeFileSync(tmp, body);
+    fs.writeFileSync(tmp, body, mode == null ? undefined : { mode });
     // rename(2) REPLACES the inode, so the survivor's mode is the tmp file's (umask), not the
     // original's. Without this, an atomic rewrite silently widens 600 -> 664 and strips +x from
     // 775 -> 664. That is reachable: demigod-review-fix.mjs:103 atomicWrites arbitrary repo paths
     // (path.join(ROOT, rel)) and the repo root holds 775 .mjs entrypoints, which would stop being
     // executable. statSync throws for a NEW file -- there the umask default is exactly right.
-    try {
-      fs.chmodSync(tmp, fs.statSync(file).mode & 0o777);
-    } catch {
-      /* new file: keep the umask default */
+    if (mode != null) fs.chmodSync(tmp, mode);
+    else {
+      try {
+        fs.chmodSync(tmp, fs.statSync(file).mode & 0o777);
+      } catch {
+        /* new file: keep the umask default */
+      }
     }
     fs.renameSync(tmp, file);
   } finally {
@@ -403,9 +406,7 @@ export function withFileLock(lockPath, fn, { timeoutMs = 15000, staleMs = 120000
       lockBackoffMs(40);
     }
   }
-  try {
-    return fn();
-  } finally {
+  const release = () => {
     try {
       if (fd != null) fs.closeSync(fd);
     } catch {
@@ -416,5 +417,14 @@ export function withFileLock(lockPath, fn, { timeoutMs = 15000, staleMs = 120000
     } catch {
       /* */
     }
+  };
+  try {
+    const result = fn();
+    if (result && typeof result.finally === 'function') return result.finally(release);
+    release();
+    return result;
+  } catch (error) {
+    release();
+    throw error;
   }
 }

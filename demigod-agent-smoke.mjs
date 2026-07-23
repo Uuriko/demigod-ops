@@ -13,18 +13,28 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import WebSocket from 'ws';
 import { classifyFootDrift } from './demigod-smoke-policy.mjs';
+export { classifyFootDrift };
 
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const LIVE = process.env.DEMIGOD_LIVE || 'https://www.trydemigod.com';
 const BUSY = '/tmp/dg-busy';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-export { classifyFootDrift } from './demigod-smoke-policy.mjs';
+
+function isLivePage(x) {
+  const u = x.url || '';
+  return x.type === 'page' && u.includes('trydemigod.com') && !u.includes('design');
+}
+/** Prefer home/smoke over heavy product routes (?p=events map) that stall Runtime.evaluate under load. */
+function liveTabScore(x) {
+  const u = x.url || '';
+  if (/[?&]smoke=/.test(u)) return 0;
+  if (!/[?&]p=/.test(u)) return 1;
+  return 2;
+}
 
 async function getTab() {
   const tabs = await (await fetch(`${CDP}/json/list`)).json();
-  let t = tabs.find(
-    (x) => (x.url || '').includes('trydemigod.com') && !(x.url || '').includes('design'),
-  );
+  let t = tabs.filter(isLivePage).sort((a, b) => liveTabScore(a) - liveTabScore(b))[0];
   if (t) return t;
   const ver = await (await fetch(`${CDP}/json/version`)).json();
   const bws = new WebSocket(ver.webSocketDebuggerUrl);
@@ -96,6 +106,27 @@ function connect(wsUrl) {
   return { ws, send };
 }
 
+export async function waitForPageReady(send, { attempts = 30, delayMs = 500 } = {}) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const ready = await send('Runtime.evaluate', {
+        // readyState guards mid-navigation races when agents reuse a live CDP tab.
+        expression: `Boolean(document.body && document.readyState !== 'loading' && document.querySelector('h1') && (window.__dgFootVer || window.dgFootVersion))`,
+        returnByValue: true,
+      });
+      if (ready.result?.value === true) return;
+      lastErr = null;
+    } catch (e) {
+      // Transient CDP evaluate timeouts / mid-nav detach — keep polling until attempts exhausted.
+      lastErr = e;
+    }
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  const detail = lastErr?.message ? ` (${String(lastErr.message).slice(0, 120)})` : '';
+  throw new Error('live page did not become ready' + detail);
+}
+
 async function main() {
   const at = new Date().toISOString();
   let out = { at, pass: false, corePass: false, wizPass: null, error: null };
@@ -105,8 +136,20 @@ async function main() {
     if (!tab?.webSocketDebuggerUrl) throw new Error('no CDP live tab');
     const { ws, send } = connect(tab.webSocketDebuggerUrl);
     await send('Runtime.enable');
-    await send('Page.navigate', { url: `${LIVE}/?smoke=${Date.now()}` });
-    await new Promise((r) => setTimeout(r, 4000));
+    await send('Page.enable');
+    const smokeUrl = `${LIVE}/?smoke=${Date.now()}`;
+    await send('Page.navigate', { url: smokeUrl });
+    try {
+      await waitForPageReady(send);
+    } catch (first) {
+      // One hard re-nav recovers when another agent raced the shared live tab.
+      await send('Page.navigate', { url: `${LIVE}/?smoke=${Date.now()}` });
+      try {
+        await waitForPageReady(send);
+      } catch {
+        throw first;
+      }
+    }
 
     const homeR = await send('Runtime.evaluate', {
       expression: `(() => {
@@ -236,19 +279,31 @@ async function main() {
       freezeOn = process.env.DEMIGOD_PUBLISH_FREEZE === '1';
     }
     out.freezeOn = freezeOn;
+    let prepareOnly = false;
+    try {
+      const truth = JSON.parse(fs.readFileSync(path.join(BUSY, 'truth.json'), 'utf8'));
+      prepareOnly = Boolean(truth?.prepareOnlyRelease);
+    } catch {
+      prepareOnly = false;
+    }
+    // Publish unauthorized + disk ahead of live is prepare-only soft drift (matches bin/dg truth).
+    out.prepareOnly = prepareOnly;
     const drift = classifyFootDrift({
       freezeOn,
       diskVer: diskFootVer,
       liveVer: out.liveFootVer,
+      prepareOnly,
     });
     out.footVersionMatch = drift.footVersionMatch;
     out.driftExpected = drift.driftExpected;
     out.softDrift = Boolean(drift.softDrift && out.corePass);
     out.footVersionSeverity = drift.footVersionSeverity;
     out.footVersionNote = drift.note;
-    // Never flip corePass / pass false solely due to freeze drift
+    // Never flip corePass / pass false solely due to freeze/prepare-only identity lag
     if (out.softDrift) {
-      out.passReason = 'core-ok-soft-drift-under-freeze';
+      out.passReason = prepareOnly && !freezeOn
+        ? 'core-ok-soft-drift-prepare-only'
+        : 'core-ok-soft-drift-under-freeze';
     }
   } catch (e) {
     out.diskFootVer = null;
@@ -273,6 +328,22 @@ async function main() {
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  const smokeArgs = process.argv.slice(2);
+  const SMOKE_FLAGS = new Set(['--help', '-h']);
+  const unknownSmoke = smokeArgs.find((a) => !SMOKE_FLAGS.has(a));
+  if (unknownSmoke) {
+    console.error(
+      `agent-smoke: unknown argument ${unknownSmoke} — try: node demigod-agent-smoke.mjs (no flags)`,
+    );
+    process.exit(2);
+  }
+  if (smokeArgs.includes('--help') || smokeArgs.includes('-h')) {
+    console.log(`demigod-agent-smoke — CDP live body/h1/foot/WIZ proof
+
+Usage: node demigod-agent-smoke.mjs
+Writes /tmp/dg-busy/agent-smoke.json`);
+    process.exit(0);
+  }
   main().catch((e) => {
     console.error(JSON.stringify({ pass: false, error: String(e.message || e) }));
     process.exit(1);

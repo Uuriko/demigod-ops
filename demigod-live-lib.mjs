@@ -193,14 +193,16 @@ export function evaluateFooterCoreCopy(js = '') {
   // Accept legacy superCleanup OR current scrubTimeClaims + scrubStaticLabels (v150+)
   const hasScrub = (/function superCleanup/.test(js) && /SPEED_LEAK|patchMeta/.test(js))
     || (/function scrubTimeClaims/.test(js) && /function scrubStaticLabels/.test(js));
-  // navCta: HIRE TALENT (current product) or FIND TALENT (legacy); partners via partnerships() or partnerNav COPY
-  const navOk = /navCta:\s*['"](?:FIND TALENT|HIRE TALENT)['"]/.test(js);
-  const partnerOk = /function partnerships/.test(js) || /partnerNav:\s*['"]/.test(js);
+  // navCta: HIRE TALENT (current product) or FIND TALENT (legacy)
+  const navOk = /navCta:\s*['"](?:FIND TALENT|HIRE TALENT)['"]/i.test(js);
+  const partnerOk = /function partnerships/.test(js)
+    || /partnerNav:\s*['"]/.test(js)
+    || /\bpartners\s*:\s*\{/.test(js);
   return {
-    ok: /ctaFounder:\s*['"]HIRE TALENT['"]/.test(js)
+    ok: /ctaFounder:\s*['"]HIRE TALENT['"]/i.test(js)
       && navOk
-      && /ctaEngineer:\s*['"]JOIN NETWORK['"]/.test(js)
-      && /SF Startup Talent/.test(js)
+      && /ctaEngineer:\s*['"]JOIN (?:THE TALENT )?NETWORK['"]/i.test(js)
+      && /SF STARTUP TALENT/i.test(js)
       && partnerOk
       && noSpeedInCopy
       && noNameInCopy

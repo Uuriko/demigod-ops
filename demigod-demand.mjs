@@ -20,7 +20,7 @@ import { beginRun, sealRun } from './demigod-evidence.mjs';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = '/tmp/dg-busy';
+const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 // Tests and other isolated readers may redirect the materialized status card.
 // Without this boundary, a fixture status run can overwrite the production
 // card consumed by `bin/dg orient` and briefly present canary demand as truth.
@@ -29,6 +29,26 @@ const OPS = path.join(ROOT, 'demigod-ops');
 const OUTREACH = path.join(ROOT, 'demigod-outreach');
 const args = process.argv.slice(2);
 const cmd = args.find((a) => !a.startsWith('-')) || 'status';
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const DEMAND_FLAGS_OK = (a) =>
+  a === '--json' ||
+  a === '--dry' ||
+  a === '--help' ||
+  a === '-h' ||
+  a === '--name' ||
+  a === '--note' ||
+  a.startsWith('--name=') ||
+  a.startsWith('--note=');
+// Values after --name/--note are free text; only reject unknown dashed tokens.
+const unknownDemandFlag = args.find((a) => a.startsWith('-') && !DEMAND_FLAGS_OK(a));
+if (isMain && unknownDemandFlag) {
+  console.error(
+    `demand: unknown argument ${unknownDemandFlag} — try: bin/dg demand status|queue|draft|send|log|templates|help [--json]`,
+  );
+  process.exit(2);
+}
 const asJson = args.includes('--json');
 const WARM_HEADING_RE = /^##[ \t]+Warm inbound(?:[ \t]+\(not a pilot yet\))?[ \t]*$/im;
 
@@ -729,7 +749,7 @@ function isReplyableContact(value) {
   return digits.length >= 7 && digits.length <= 15;
 }
 
-function countOpenPilotOs(store) {
+export function countOpenPilotOs(store) {
   const latestById = new Map();
   for (const pilot of Array.isArray(store?.pilots) ? store.pilots : []) {
     const id = String(pilot?.id || '').trim().toLowerCase();
@@ -810,7 +830,7 @@ function cmdSend() {
   return r.status ?? 1;
 }
 
-function buildStatus() {
+export function buildStatus() {
   const statusPath = DEMAND_STATUS;
   const statusAt = new Date().toISOString();
   const freeze = freezeStatus();
@@ -830,8 +850,8 @@ function buildStatus() {
   });
   const sentFromQueue = queue.filter((q) => sendLog.handles.has((q.handle || '').toLowerCase()));
   const top3 = pending.slice(0, 3);
-  // Agent pack quality for top pending (advisory; never blocks status)
-  const top3Drafts = top3.map((t) => {
+  // Audit every pending draft; only trim the display list.
+  const pendingDrafts = pending.map((t) => {
     const { body, readyFile } = loadDraftBody(t);
     const hygiene = draftHygiene({ name: t.name, company: t.company, handle: t.handle, body });
     return {
@@ -844,8 +864,9 @@ function buildStatus() {
       draftCmd: `bin/dg demand draft --name=${t.name}`,
     };
   });
-  const draftsNeedFix = top3Drafts.filter((d) => !d.hygieneOk || d.flagCount > 0);
-  const draftHygieneOk = top3Drafts.length > 0
+  const top3Drafts = pendingDrafts.slice(0, 3);
+  const draftsNeedFix = pendingDrafts.filter((d) => !d.hygieneOk || d.flagCount > 0);
+  const draftHygieneOk = pendingDrafts.length > 0
     ? draftsNeedFix.length === 0
     : null;
   const draftHygieneReceipt = {
@@ -859,8 +880,8 @@ function buildStatus() {
     ageSec: 0,
     stale: false,
     clockSkewed: false,
-    checked: top3Drafts.length,
-    clean: top3Drafts.filter((d) => d.hygieneOk && d.flagCount === 0).length,
+    checked: pendingDrafts.length,
+    clean: pendingDrafts.filter((d) => d.hygieneOk && d.flagCount === 0).length,
     flagged: draftsNeedFix.length,
     ok: draftHygieneOk,
   };
@@ -883,15 +904,19 @@ function buildStatus() {
   // dashboard surfaces so a real signal cannot be buried by an eight-row
   // queue. This changes prioritization only: warm inbound remains != pilot and
   // no send or SENT receipt is created.
-  const nextAgent = warmFreshness.overdueActionCount > 0
+  const humanOutcomeOnly = (items) => items.length > 0 && items.every((item) =>
+    /(?:human outcome|call outcome|when known)/i.test(`${item?.action || ''} ${item?.next || ''}`));
+  const nextAgent = warmFreshness.overdueActionCount > 0 && !humanOutcomeOnly(warmFreshness.overdueActionItems)
     ? `Agent: review overdue warm inbound · ${warmFreshness.overdueActionCount} signal${warmFreshness.overdueActionCount === 1 ? '' : 's'}` +
       `${warmFreshness.overdueActionOldestDays == null ? '' : ` · oldest ${warmFreshness.overdueActionOldestDays}d`}` +
       `${warmFreshness.overdueActionItems[0]?.actionDate ? ` · action ${warmFreshness.overdueActionItems[0].actionDate}` : ''}` +
       ` · ${warmFreshness.overdueActionWho.join(', ')} · warm ≠ pilot`
-    : warmFreshness.dueTodayActionCount > 0
+    : warmFreshness.dueTodayActionCount > 0 && !humanOutcomeOnly(warmFreshness.dueTodayActionItems)
       ? `Agent: review warm inbound due today · ${warmFreshness.dueTodayActionCount} signal${warmFreshness.dueTodayActionCount === 1 ? '' : 's'} · ${warmFreshness.dueTodayActionWho.join(', ')} · warm ≠ pilot`
+    : draftsNeedFix.length
+      ? `Agent: repair draft packs · ${draftsNeedFix.length}/${pendingDrafts.length} pending blocked by hygiene · no draft is ready`
     : top3.length
-      ? `Agent: draft packs ready for ${top3.map((t) => t.name).join(' → ')} · hygiene ${draftsNeedFix.length ? draftsNeedFix.map((d) => d.name + (d.hygieneOk ? ':warn' : ':fail')).join(',') : 'ok'} · mark-sent only after real send`
+      ? `Agent: draft packs ready for ${top3.map((t) => t.name).join(' → ')} · hygiene ok · mark-sent only after real send`
       : sendLog.count
         ? 'Queue handles all marked SENT-CONFIRMED — refresh queue or pilot inbound'
         : 'No queue rows parsed — check demigod-ops/SEND-QUEUE-PRIORITIZED.md';
@@ -1062,7 +1087,7 @@ function cmdQueue() {
   }));
   const out = { at: new Date().toISOString(), freeze, rows, sentConfirmed: sendLog.count };
   fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'demand-queue.json'), JSON.stringify(out, null, 2) + '\n');
+  writeJsonAuto(path.join(BUSY, 'demand-queue.json'), out);
   if (asJson) console.log(JSON.stringify(out, null, 2));
   else {
     console.log(`# demand queue (${rows.length}) · SENT-CONFIRMED total=${sendLog.count}`);
@@ -1123,7 +1148,7 @@ export function draftHygiene(row) {
   // punctuation). That is the whole of "draft hygiene 3 flagged" on the dashboard — a false
   // positive on the exact drafts queued for the three highest-priority warm leads, which makes
   // three good drafts look broken and buries any real flag in noise.
-  const readyMetadata = /^\s*#\s*(?:channel|company|log send|name|generated)\s*:/i;
+  const readyMetadata = /^\s*#\s*(?:channel|company|log send|name|generated|source|verified)\s*:/i;
   // Funnel drafts (demigod-outreach/funnel-drafts/*.txt) emit plain To:/Lead-Id:/Subject:
   // headers — same orphan_fragment trap as # name: (≤5 words, <40 chars, no terminal punct).
   // Whitelist only those three keys; never strip arbitrary "Key:" lines (real body copy).
@@ -1146,6 +1171,62 @@ export function draftHygiene(row) {
   // first real line; keep `body` intact for the honesty scans.
   const firstLine = body.split('\n').find((l) => l.trim() && !/^\s*#/.test(l)) || '';
   const looksLikePersonName = (value) => /^[A-Z][a-z]{1,12}$/.test(String(value || '').trim());
+
+  if (/^\s*#\s*log send in\b.*\bSENT-CONFIRMED\b/im.test(raw)) {
+    flags.push({
+      id: 'legacy_send_logging',
+      sev: 'error',
+      msg: 'Legacy logging instruction bypasses current external-delivery attestation',
+    });
+  }
+
+  // Hiring signals decay quickly. A generated date proves only when copy was
+  // written, not when the recipient claim was checked, so require an explicit
+  // source receipt and a recent verification date for such personalization.
+  const timeSensitiveClaim = body.match(
+    /\b(?:noticed|saw|congrats on)\b[^\n]{0,300}\b(?:hiring|open roles?|roles? open|roles?|interns?|engineers?|designer|head of|relocation)\b/i,
+  );
+  if (timeSensitiveClaim) {
+    const source = raw.match(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/im)?.[1];
+    const verified = raw.match(/^\s*#\s*verified\s*:\s*(\d{4}-\d{2}-\d{2})\s*$/im)?.[1];
+    const ageDays = isIsoCalendarDate(verified)
+      ? (Date.parse(`${operatingDateKey()}T00:00:00Z`) - Date.parse(`${verified}T00:00:00Z`)) / 86400000
+      : null;
+    if (!source || ageDays === null || ageDays < 0 || ageDays > 7) {
+      flags.push({
+        id: 'claim_source_freshness',
+        sev: 'error',
+        msg: !source
+          ? 'Time-sensitive recipient claim requires "# source: https://..." metadata'
+          : ageDays === null
+            ? 'Time-sensitive recipient claim requires "# verified: YYYY-MM-DD" metadata'
+            : ageDays < 0
+              ? `Recipient claim verification date is in the future: ${verified}`
+              : `Recipient claim verification is stale (${ageDays}d; maximum 7d)`,
+      });
+    }
+  }
+
+  // Exact role/opening counts need a countable job board or YC jobs index — not a
+  // marketing /careers homepage that only says "Open roles" in chrome (Hellyeah live miss).
+  const quantifiedRoleClaim = body.match(
+    /\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:current\s+)?(?:san francisco\s+|sf\s+)?(?:open\s+)?(?:openings?|roles?)\b/i,
+  );
+  if (quantifiedRoleClaim) {
+    const sources = [...raw.matchAll(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/gim)].map((m) => m[1]);
+    const countable = sources.some((s) =>
+      /ycombinator\.com\/companies\/[^/\s]+\/jobs(?:\/|$|\?)|boards(?:-api)?\.greenhouse\.io|ashbyhq\.com\/(?:posting-api\/job-board|)|jobs\.ashbyhq\.com|jobs\.lever\.co|api\.lever\.co\/v0\/postings|workatastartup\.com/i.test(
+        s,
+      ),
+    );
+    if (!countable) {
+      flags.push({
+        id: 'role_count_source',
+        sev: 'error',
+        msg: `Quantified role claim "${quantifiedRoleClaim[0]}" needs a YC /jobs or Greenhouse/Lever/Ashby board URL in # source: (not a marketing careers page)`,
+      });
+    }
+  }
 
   // A draft is copy-pasted as-is, so unresolved merge fields are a hard
   // hygiene failure. Keep the vocabulary narrow to avoid treating ordinary
@@ -1324,9 +1405,11 @@ function cmdDraft() {
     readyFile: readyFile || null,
     body: body || null,
     hygiene,
-    note: body
-      ? 'Draft ready. SENT-CONFIRMED remains zero until an externally attested send is recorded; agents never auto-DM.'
-      : 'No ready body found; draft source is SEND-PACK-TOP3.md.',
+    note: !body
+      ? 'No ready body found; draft source is SEND-PACK-TOP3.md.'
+      : hygiene.flags.length
+        ? `Draft blocked by hygiene (${hygiene.flags.length}); agents never auto-DM.`
+        : 'Draft ready. SENT-CONFIRMED remains zero until an externally attested send is recorded; agents never auto-DM.',
   };
   fs.mkdirSync(BUSY, { recursive: true });
   writeJsonAuto(path.join(BUSY, 'demand-draft.json'), out);
@@ -1448,10 +1531,6 @@ const map = {
   log: cmdLog,
   templates: cmdTemplates,
 };
-
-const isMain =
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   if (!map[cmd]) {

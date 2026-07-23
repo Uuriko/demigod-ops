@@ -8,8 +8,11 @@
  * Pure ranker over already-built status / busy receipts. No network.
  */
 import fs from 'fs';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { refuseIfStale } from './demigod-evidence.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -20,6 +23,20 @@ function readJson(p) {
   } catch {
     return null;
   }
+}
+
+export function newestLiveObservation(observations = [], now = Date.now(), maxAgeMs = 300000) {
+  return observations
+    .filter((item) => Number.isFinite(Date.parse(item?.at || '')))
+    .filter((item) => {
+      const age = now - Date.parse(item.at);
+      return age >= -60000 && age <= maxAgeMs;
+    })
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] || null;
+}
+
+export function lockChangedSinceClaim(lock, currentSha) {
+  return Boolean(lock?.baseSha && currentSha && lock.baseSha !== currentSha);
 }
 
 /**
@@ -49,16 +66,25 @@ export function buildPriorityBoard(data = {}) {
   const demand = data.demand || {};
   const pilot = data.pilot || readJson(path.join(BUSY, 'pilot-inbound.json')) || {};
   const cycle = data.cycleWorkHealth || data.cycleWork || {};
+  const shipPrepare = data.shipPrepare || {};
   const live = data.live || {};
+  const eventsOnline = data.eventsBot?.online || data.eventsOnline || {};
   const lock = data.lock || data.control?.lock || {};
-  const webflow = data.webflow || readJson(path.join(BUSY, 'webflow-status.json')) || {};
-  const webflowDoctor = webflow.doctor || readJson(path.join(BUSY, 'webflow-doctor.json'));
+  const hasStandaloneDoctor = Object.hasOwn(data, 'webflowDoctor');
+  const webflow = data.webflow || (hasStandaloneDoctor ? {} : readJson(path.join(BUSY, 'webflow-status.json'))) || {};
+  const standaloneDoctor = hasStandaloneDoctor
+    ? data.webflowDoctor
+    : readJson(path.join(BUSY, 'webflow-doctor.json'));
+  const webflowDoctor = [webflow.doctor, standaloneDoctor]
+    .filter((receipt) => Number.isFinite(Date.parse(receipt?.at || '')))
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] || null;
+  const formsAudit = data.formsAudit || readJson(path.join(ROOT, 'DEMIGOD-FORMS-FULL-AUDIT.json'));
   const webflowDoctorAgeSec = webflowDoctor?.at
     ? Math.round((Date.now() - Date.parse(webflowDoctor.at)) / 1000)
     : null;
   const webflowDoctorFresh = Number.isFinite(webflowDoctorAgeSec)
     && webflowDoctorAgeSec >= -60
-    && webflowDoctorAgeSec <= 120;
+    && webflowDoctorAgeSec <= 15 * 60;
   const paused =
     fs.existsSync(path.join(BUSY, 'watchdog.PAUSED')) ||
     fs.existsSync(path.join(BUSY, 'never-stop.STOP'));
@@ -71,14 +97,14 @@ export function buildPriorityBoard(data = {}) {
   const awaitingShip = (live.ok === true || liveUnobservable) && /shipped=false/.test(String(te.summary || ''));
   if (te.green !== true && awaitingShip) {
     push({
-      pri: 1,
+      pri: 2,
       id: 'truth-awaiting-ship',
-      kind: 'action',
-      title: 'Site changes await coordinated ship',
-      detail: te.summary || 'disk differs from live',
+      kind: 'watch',
+      title: 'Site changes staged locally · publish not authorized',
+      detail: `${te.summary || 'disk differs from live'} · prepare/verify only`,
       cmd: 'bin/dg ship prepare',
       job: 'ship-prepare',
-      owner: 'agent',
+      owner: 'unassigned',
     });
   } else if (te.green !== true) {
     push({
@@ -116,12 +142,58 @@ export function buildPriorityBoard(data = {}) {
     });
   }
 
+  if (eventsOnline.stale !== true && eventsOnline.public === true && eventsOnline.configPublished === false) {
+    const unreachable = eventsOnline.websiteConfigReachable === false;
+    const prepareOnly = eventsOnline.prepareOnlyWebsiteConfig ?? unreachable;
+    push({
+      pri: prepareOnly ? 3 : unreachable ? 1 : 2,
+      id: 'events-config-stale',
+      kind: prepareOnly ? 'info' : 'watch',
+      title: prepareOnly
+        ? 'Events website config stale · prepare-only'
+        : unreachable
+        ? 'Events website configuration points to dead tunnels'
+        : 'Events website configuration is stale',
+      detail: unreachable
+        ? 'Current API tunnel is healthy · browser-consumed config is unreachable · external config publish not authorized'
+        : 'Current API tunnel is healthy · published browser config differs · external config publish not authorized',
+      cmd: 'bin/dg-events-online status',
+      tab: 'overview',
+      owner: prepareOnly ? 'system' : 'unassigned',
+    });
+  }
+
+  // Sticky preferred loca name can 503 while a random public tunnel is still healthy.
+  // Info only — do not thrash heal while public is up.
+  if (
+    eventsOnline.stale !== true &&
+    eventsOnline.public === true &&
+    eventsOnline.preferredTunnelMatch === false
+  ) {
+    push({
+      pri: 3,
+      id: 'events-preferred-tunnel',
+      kind: 'info',
+      title: 'Events preferred tunnel sticky name unavailable',
+      detail: [
+        eventsOnline.tunnelUrl ? `serving ${eventsOnline.tunnelUrl}` : 'public on non-preferred tunnel',
+        'do not thrash heal while public is up',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      cmd: 'bin/dg-events-online status',
+      tab: 'overview',
+      owner: 'system',
+    });
+  }
+
   if (webflowDoctor && !webflowDoctorFresh) {
     const clockSkewed = Number.isFinite(webflowDoctorAgeSec) && webflowDoctorAgeSec < -60;
+    const siteTruthCoversStaleness = te.green === true && live.ok !== false;
     push({
       pri: 3,
       id: 'webflow-doctor-stale',
-      kind: 'watch',
+      kind: siteTruthCoversStaleness ? 'info' : 'watch',
       title: 'Webflow doctor stale',
       detail: webflowDoctorAgeSec == null
         ? 'receipt has no valid timestamp'
@@ -129,7 +201,7 @@ export function buildPriorityBoard(data = {}) {
       cmd: 'bin/dg webflow doctor',
       job: 'webflow-doctor',
       tab: 'overview',
-      owner: 'agent',
+      owner: siteTruthCoversStaleness ? 'system' : 'agent',
     });
   } else if (webflowDoctor?.pass === false) {
     const cdpDown = (webflowDoctor.checks || []).some((check) => check.name === 'cdp' && !check.ok);
@@ -138,17 +210,22 @@ export function buildPriorityBoard(data = {}) {
       .filter((check) => !check.ok && (!cdpDown || !/ tab$/.test(check.name)))
       .filter((check) => !observational.has(check.name))
       .map((check) => check.name);
-    push({
-      pri: failed.length ? 1 : 3,
-      id: 'webflow-doctor',
-      kind: failed.length ? 'action' : 'watch',
-      title: failed.length ? 'Webflow doctor found issues' : 'Webflow checks unobservable here',
-      detail: failed.slice(0, 4).join(', ') || 'canonical truth confirms live; CDP/DNS unavailable in this namespace',
-      cmd: 'bin/dg webflow doctor',
-      job: 'webflow-doctor',
-      tab: 'overview',
-      owner: 'agent',
-    });
+    const publishOnly = awaitingShip && failed.length > 0 && failed.every((name) =>
+      ['live sitemap', 'robots advertises sitemap'].includes(name),
+    );
+    if (!publishOnly) {
+      push({
+        pri: failed.length ? 1 : 3,
+        id: 'webflow-doctor',
+        kind: failed.length ? 'action' : 'watch',
+        title: failed.length ? 'Webflow doctor found issues' : 'Webflow checks unobservable here',
+        detail: failed.slice(0, 4).join(', ') || 'canonical truth confirms live; CDP/DNS unavailable in this namespace',
+        cmd: 'bin/dg webflow doctor',
+        job: 'webflow-doctor',
+        tab: 'overview',
+        owner: 'agent',
+      });
+    }
   } else if (webflowDoctor?.pass === true) {
     push({
       pri: 4,
@@ -166,7 +243,24 @@ export function buildPriorityBoard(data = {}) {
   // Freeze disabled for now — do not surface freeze on/off as priority work.
   // Foot-lock still guards concurrent foot edits.
 
-  if (lock.compromised || lock.changedSinceClaim) {
+  const resumeUploadIssue = (formsAudit?.issues || []).find(
+    (issue) => issue?.issue === 'rich_resume_upload_unavailable',
+  );
+  const formsAuditAgeMs = Date.now() - Date.parse(formsAudit?.at || '');
+  if (resumeUploadIssue && Number.isFinite(formsAuditAgeMs) && formsAuditAgeMs >= -60_000 && formsAuditAgeMs <= 86_400_000) {
+    push({
+      pri: 1,
+      id: 'talent-resume-upload-missing',
+      kind: 'action',
+      title: 'Talent résumé upload missing · link-only',
+      detail: 'Verified on mobile and desktop; native Webflow File Upload prerequisite remains.',
+      cmd: 'bin/dg webflow change "add Webflow File Upload component for talent résumé"',
+      tab: 'gates',
+      owner: 'unassigned',
+    });
+  }
+
+  if (lock.compromised) {
     push({
       pri: 0,
       id: 'lock-compromised',
@@ -185,6 +279,7 @@ export function buildPriorityBoard(data = {}) {
       title: `Foot lock held by ${lock.owner || 'someone'}`,
       detail: [
         lock.why ? String(lock.why).slice(0, 80) : null,
+        lock.changedSinceClaim ? 'source changed under active lock' : null,
         lock.ttlLeftSec != null ? `ttl ~${lock.ttlLeftSec}s` : null,
         lock.footVer ? `core v${String(lock.footVer).replace(/^v/, '')}` : null,
       ]
@@ -199,6 +294,7 @@ export function buildPriorityBoard(data = {}) {
 
   // Demand / pilot (GTM) — use freshness counts, not loose NEXT text (due today ≠ overdue).
   const warmFresh =
+    demand?.warmInbound?.freshness ||
     pilot?.warmInbound?.freshness ||
     pilot?.warmHealth ||
     {};
@@ -209,18 +305,22 @@ export function buildPriorityBoard(data = {}) {
       0,
   );
   const warmDueToday = Number(warmFresh.dueTodayActionCount ?? 0);
-  const warmNext = pilot?.next || pilot?.NEXT || demand?.next || null;
+  const warmNext = demand?.next || pilot?.next || pilot?.NEXT || null;
+  const overdueItems = warmFresh.overdueActionItems || [];
+  const humanOnlyOverdue = overdueItems.length > 0 && overdueItems.every((item) =>
+    /(?:human outcome|call outcome|when known)/i.test(`${item?.action || ''} ${item?.next || ''}`),
+  );
   if (warmOverdue > 0) {
     push({
-      pri: 1,
+      pri: humanOnlyOverdue ? 3 : 1,
       id: 'warm-overdue',
-      kind: 'action',
-      title: 'Warm inbound overdue',
+      kind: humanOnlyOverdue ? 'info' : 'action',
+      title: humanOnlyOverdue ? 'Warm inbound awaiting outcome note' : 'Warm inbound overdue',
       detail: String(warmNext || `overdue=${warmOverdue}`).slice(0, 160),
       cmd: 'bin/dg pilot status',
       job: 'pilot',
       tab: 'inbox',
-      owner: 'unassigned',
+      owner: humanOnlyOverdue ? 'system' : 'unassigned',
     });
   } else if (warmDueToday > 0) {
     push({
@@ -244,6 +344,8 @@ export function buildPriorityBoard(data = {}) {
       .filter(Boolean)
       .slice(0, 3);
     const hyg = demand.drafts?.hygiene || demand.hygiene || null;
+    const draftsReady = hyg?.ready === true || (hyg?.ready == null && hyg?.ok === true && hyg?.stale === false);
+    const draftsBlocked = hyg?.ok === false;
     const hygBit =
       hyg?.ok === true
         ? `hygiene ok ${hyg.clean ?? '?'}/${hyg.checked ?? '?'}`
@@ -260,59 +362,84 @@ export function buildPriorityBoard(data = {}) {
       .slice(0, 160);
     push({
       pri: 2,
-      id: 'demand-drafts-ready',
-      kind: 'action',
-      title: `${pending} demand drafts ready · 0 sent`,
+      id: draftsReady ? 'demand-drafts-ready' : draftsBlocked ? 'demand-drafts-blocked' : 'demand-drafts-review',
+      kind: draftsReady ? 'info' : 'action',
+      title: draftsReady
+        ? `${pending} demand drafts ready · 0 sent`
+        : draftsBlocked
+          ? `${hyg.flagged ?? pending} of ${pending} demand drafts blocked by hygiene · 0 sent`
+          : `${pending} demand drafts need hygiene review · 0 sent`,
       detail,
       cmd: 'bin/dg demand status',
       job: 'demand',
-      owner: 'unassigned',
+      owner: draftsReady ? 'system' : 'unassigned',
     });
   }
 
   const pilots = demand.pilotsFilled ?? pilot?.activeReal ?? 0;
   if (Number(pilots) === 0 && te.green === true) {
     push({
-      pri: 3,
+      pri: 4,
       id: 'no-pilots',
-      kind: 'watch',
+      kind: 'info',
       title: 'No real pilots logged yet (honest)',
       detail: 'Warm ≠ pilot. Log only real briefs.',
       cmd: 'bin/dg pilot status',
       job: 'pilot',
-      owner: 'agent',
+      owner: 'system',
     });
   }
 
   // Cycle / work-loop — do not call tools "not attested" when toolsReady and only release is blocked.
-  if (cycle && (cycle.attested === false || cycle.degraded === true || cycle.blocked === true)) {
-    const toolsReady = cycle.toolsReady === true || cycle.domain === 'tools' && cycle.attested === true;
-    const releaseBlocked =
-      cycle.verification === 'release-blocked' ||
-      cycle.failureKind === 'release-blocked' ||
-      cycle.releaseReady === false;
-    const title =
-      toolsReady && releaseBlocked
-        ? 'Cycle tools OK · release-blocked'
-        : cycle.degraded
-          ? `Cycle ${cycle.domain || '?'} degraded`
-          : `Cycle ${cycle.domain || '?'} not attested`;
-    push({
-      // When tools OS is green and only release structure is blocked, demote so
-      // demand drafts and warm due-today stay above CM6/readback noise.
-      pri: toolsReady && releaseBlocked && te.green === true ? 3 : 2,
-      id: 'cycle-unhealthy',
-      kind: 'watch',
-      title,
-      detail:
-        (toolsReady && releaseBlocked
-          ? cycle.releaseBlocker || cycle.verification || 'release structure unverified'
-          : cycle.verification || cycle.releaseBlocker || cycle.detail) ||
-        'see cycle-work-latest.json',
-      cmd: 'bin/dg cycle-status',
-      job: 'cycle-status',
-      owner: 'agent',
-    });
+  const cycleAt = Date.parse(cycle?.at || '');
+  const canonicalTruthSupersedesCycle = te.green === true && cycle?.domain === 'ship'
+    && (cycle.stale === true || Number(cycle.ageSec) > 900 || Number.isFinite(cycleAt) && Date.now() - cycleAt > 900_000);
+  if (!canonicalTruthSupersedesCycle && cycle && (cycle.attested === false || cycle.degraded === true || cycle.blocked === true)) {
+    const prepareAt = Date.parse(shipPrepare.at || '');
+    const prepareAgeMs = Date.now() - prepareAt;
+    const historicalCycle = Number.isFinite(cycleAt) && Number.isFinite(prepareAt)
+      && Date.now() - cycleAt > 900000 && prepareAt > cycleAt
+      && prepareAgeMs >= -60000 && prepareAgeMs <= 900000 && shipPrepare.ok === true;
+    if (historicalCycle) {
+      push({
+        pri: 4,
+        id: 'cycle-historical',
+        kind: 'info',
+        title: 'Latest ship prepare green · prior cycle historical',
+        detail: `prepare ${shipPrepare.steps?.length || 0} gates · old cycle ${cycle.domain || '?'} ${cycle.verification || 'unattested'}`,
+        cmd: 'bin/dg cycle-status',
+        job: 'cycle-status',
+        owner: 'system',
+      });
+    } else {
+      const toolsReady = cycle.toolsReady === true || cycle.domain === 'tools' && cycle.attested === true;
+      const releaseBlocked =
+        cycle.verification === 'release-blocked' ||
+        cycle.failureKind === 'release-blocked' ||
+        cycle.releaseReady === false;
+      const title =
+        toolsReady && releaseBlocked
+          ? 'Cycle tools OK · release-blocked'
+          : cycle.degraded
+            ? `Cycle ${cycle.domain || '?'} degraded`
+            : `Cycle ${cycle.domain || '?'} not attested`;
+      push({
+        // When tools OS is green and only release structure is blocked, demote so
+        // demand drafts and warm due-today stay above CM6/readback noise.
+        pri: toolsReady && releaseBlocked && te.green === true ? 3 : 2,
+        id: 'cycle-unhealthy',
+        kind: 'watch',
+        title,
+        detail:
+          (toolsReady && releaseBlocked
+            ? cycle.releaseBlocker || cycle.verification || 'release structure unverified'
+            : cycle.verification || cycle.releaseBlocker || cycle.detail) ||
+          'see cycle-work-latest.json',
+        cmd: 'bin/dg cycle-status',
+        job: 'cycle-status',
+        owner: 'agent',
+      });
+    }
   }
 
   if (paused) {
@@ -349,7 +476,7 @@ export function buildPriorityBoard(data = {}) {
   }
   const ranked = [...byId.values()].sort((a, b) => a.pri - b.pri || a.title.localeCompare(b.title));
   const top = ranked.slice(0, 8);
-  const headline = top[0] || {
+  const headline = top.find((card) => !['info', 'ok'].includes(card.kind)) || {
     pri: 5,
     id: 'idle',
     kind: 'ok',
@@ -368,25 +495,45 @@ export function buildPriorityBoard(data = {}) {
 }
 
 function main() {
+  if (process.argv.slice(2).some((arg) => arg !== '--json')) {
+    console.error('usage: node demigod-priority-board.mjs [--json]');
+    process.exit(2);
+  }
   const asJson = process.argv.includes('--json');
   // Build from busy receipts without full dashboard status
   const truth = readJson(path.join(BUSY, 'truth.json')) || {};
   const demand = readJson(path.join(BUSY, 'demand-status.json')) || {};
   const pilot = readJson(path.join(BUSY, 'pilot-inbound.json')) || {};
   const cycle = readJson(path.join(BUSY, 'cycle-work-latest.json')) || {};
+  const shipPrepare = readJson(path.join(BUSY, 'ship-prepare.json')) || {};
   const freeze = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
   const footLock = readJson(path.join(BUSY, 'foot-lock.json')) || {};
   const dashboard = readJson(path.join(BUSY, 'dashboard-status.json')) || {};
+  const webflow = readJson(path.join(BUSY, 'webflow-status.json')) || {};
+  const smoke = readJson(path.join(BUSY, 'agent-smoke.json')) || {};
+  const eventsStatus = readJson(path.join(BUSY, 'events-online', 'status.json')) || {};
   const dashboardAgeMs = dashboard.at ? Date.now() - Date.parse(dashboard.at) : Infinity;
   // >= -60000 rejects a future-dated/clock-skewed status instead of blessing it fresh (false-fresh class)
   const dashboardFresh = dashboardAgeMs >= -60000 && dashboardAgeMs <= 120000;
+  const eventsAgeMs = eventsStatus.at ? Date.now() - Date.parse(eventsStatus.at) : Infinity;
+  const eventsFresh = eventsAgeMs >= -60000 && eventsAgeMs <= 10 * 60 * 1000;
+  const latestLive = newestLiveObservation([
+    { at: truth.at, ok: truth.live?.reachable === true || truth.live?.htmlOk === true, error: truth.live?.htmlError || null, foot: truth.live?.footVer ? `v${truth.live.footVer}` : null },
+    { at: dashboard.at, ok: dashboard.live?.ok === true, error: dashboard.live?.error || null, foot: dashboard.live?.foot || null },
+    { at: webflow.at, ok: webflow.live?.ok === true, error: webflow.live?.error || null, foot: webflow.live?.footVerHint || null },
+    { at: smoke.at, ok: smoke.pass === true && smoke.corePass === true, error: smoke.error || null, foot: smoke.liveFootVer ? `v${smoke.liveFootVer}` : null },
+  ]);
   const lockHeld = Boolean(footLock.owner && footLock.expiresAt && Date.parse(footLock.expiresAt) > Date.now());
+  const currentFootSha = (() => {
+    try {
+      return crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'))).digest('hex');
+    } catch {
+      return null;
+    }
+  })();
+  const lockChanged = lockHeld && lockChangedSinceClaim(footLock, currentFootSha);
   const data = {
-    truthEvidence: truth.truthEvidence || {
-      green: /PASS|shipped=true/.test(String(truth.summaryLine || truth.summary || '')),
-      summary: truth.summaryLine || truth.summary,
-      reason: truth.pass === false ? 'fail' : 'pass',
-    },
+    truthEvidence: refuseIfStale('truth'),
     freeze: { on: Boolean(freeze.on), why: freeze.why },
     demand: {
       pending: demand.queue?.pending ?? demand.pending,
@@ -394,12 +541,15 @@ function main() {
       pilotsFilled: demand.pilots?.filled ?? demand.pilotsFilled ?? demand.pilots?.realFilled,
       next: demand.next,
       drafts: demand.drafts || null,
+      warmInbound: demand.warmInbound || null,
       top3: (demand.drafts?.top3 || []).map((d) => d?.name).filter(Boolean),
       hygiene: demand.drafts?.hygiene || null,
     },
     pilot,
     cycleWork: cycle,
+    shipPrepare,
     cycleWorkHealth: {
+      at: cycle.at,
       attested: cycle.attested,
       degraded: cycle.degraded,
       blocked: cycle.blocked,
@@ -411,10 +561,25 @@ function main() {
       releaseBlocker: cycle.releaseBlocker,
     },
     live: {
-      ok: dashboardFresh && dashboard.live?.ok === true || truth.live?.reachable === true || truth.live?.htmlOk === true,
-      foot: dashboardFresh && dashboard.live?.foot || (truth.live?.footVer ? `v${truth.live.footVer}` : null),
-      error: dashboardFresh && dashboard.live?.ok === true ? null : truth.live?.htmlError || null,
+      ok: latestLive?.ok ?? (dashboardFresh && dashboard.live?.ok === true || truth.live?.reachable === true || truth.live?.htmlOk === true),
+      foot: latestLive?.foot || dashboardFresh && dashboard.live?.foot || (truth.live?.footVer ? `v${truth.live.footVer}` : null),
+      error: latestLive ? (latestLive.ok ? null : latestLive.error) : (dashboardFresh && dashboard.live?.ok === true ? null : truth.live?.htmlError || null),
     },
+    eventsOnline: eventsFresh ? {
+      stale: false,
+      public: eventsStatus.public ?? null,
+      needHeal: eventsStatus.needHeal === true,
+      configPublished: typeof eventsStatus.websiteConfigCurrent === 'boolean'
+        ? eventsStatus.websiteConfigCurrent
+        : null,
+      websiteConfigReachable: eventsStatus.websiteConfigReachable ?? null,
+      prepareOnlyWebsiteConfig: eventsStatus.prepareOnlyWebsiteConfig === true,
+      preferredTunnelMatch:
+        typeof eventsStatus.preferredTunnelMatch === 'boolean'
+          ? eventsStatus.preferredTunnelMatch
+          : null,
+      tunnelUrl: eventsStatus.tunnelUrl || null,
+    } : { stale: true },
     lock: {
       held: lockHeld,
       foot: lockHeld,
@@ -424,14 +589,17 @@ function main() {
       ttlLeftSec: lockHeld
         ? Math.max(0, Math.round((Date.parse(footLock.expiresAt) - Date.now()) / 1000))
         : null,
-      compromised: footLock.baseShaMatch === false && lockHeld,
-      changedSinceClaim: footLock.baseShaMatch === false && lockHeld,
+      compromised: false,
+      changedSinceClaim: lockChanged,
     },
     next: readJson(path.join(BUSY, 'next.json'))?.next || readJson(path.join(BUSY, 'next.json')),
   };
   const board = buildPriorityBoard(data);
-  fs.mkdirSync(BUSY, { recursive: true });
-  fs.writeFileSync(path.join(BUSY, 'priority-board.json'), JSON.stringify(board, null, 2) + '\n');
+  atomicWrite(
+    path.join(BUSY, 'priority-board.json'),
+    JSON.stringify(board, null, 2) + '\n',
+    { mode: 0o600 },
+  );
   if (asJson) console.log(JSON.stringify(board, null, 2));
   else {
     console.log(`# priority · ${board.headline.title}`);

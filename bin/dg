@@ -4,9 +4,9 @@
 # Prefer this over inventing one-off paths.
 # Subcommands:
 #   orient | unify | truth | next-canon | cycle-status | demand | pilot | ship | home | …
-#   webflow | matches | review | hygiene | doctor | smoke | freeze
+#   webflow | matches | review | hygiene | doctor | smoke | freeze | events-test
 #   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | ledger | ship-receipt
+#   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | craft | ledger | ship-receipt
 #   demigod:*  → npm run
 # Agents: start with `bin/dg orient`
 # Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
@@ -95,6 +95,10 @@ case "$1" in
     shift
     exec bin/dg-orca "$@"
     ;;
+  free-ops|freeops|email-check|uptime-smoke)
+    shift
+    exec bin/dg-free-ops "$@"
+    ;;
   full-check|fullcheck|check-all)
     shift
     exec node demigod-full-check.mjs "$@"
@@ -162,9 +166,79 @@ case "$1" in
     shift
     exec node demigod-demand.mjs "$@"
     ;;
+  funnel|leads-funnel)
+    shift
+    exec node demigod-funnel.mjs "$@"
+    ;;
+  funnel-loop)
+    shift
+    exec node demigod-funnel-loop.mjs "$@"
+    ;;
+  events-outbox)
+    shift
+    exec bin/dg-events-outbox "$@"
+    ;;
+  events-invite-drain|invite-drain)
+    shift
+    exec node demigod-events-invite-drain.mjs "$@"
+    ;;
+  events-online)
+    shift
+    exec node demigod-events-online.mjs "${@:-status}"
+    ;;
+  events-reconcile)
+    shift
+    exec node demigod-events-reconcile.mjs "$@"
+    ;;
+  events-test)
+    shift
+    events_tests=(
+      demigod-events-app-policy-selftest.mjs
+      demigod-events-lifecycle-readiness.test.mjs
+      demigod-events-audience-brief.test.mjs
+      demigod-events-outbox-scope.test.mjs
+      demigod-events-public-invite.test.mjs
+      demigod-events-publish-config.test.mjs
+      demigod-events-online-config.test.mjs
+      demigod-events-venue-ranking.test.mjs
+      demigod-dashboard-events-native-invite.test.mjs
+      demigod-chatroom.test.mjs
+    )
+    if [[ "${1:-}" == "fast" ]]; then
+      for events_test in "${events_tests[@]}"; do node --test "$events_test" || exit; done
+      exec env DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
+    fi
+    node --test --test-concurrency=1 "${events_tests[@]}" "$@"
+    exec env DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
+    ;;
+  lead-collect|leads-collect)
+    shift
+    exec node demigod-lead-collect.mjs "$@"
+    ;;
+  lead-pipeline)
+    shift
+    [[ "${1:-}" == "status" ]] && set -- tick --stage=status "${@:2}"
+    exec node demigod-lead-pipeline.mjs "$@"
+    ;;
+  never-stop)
+    shift
+    exec node demigod-never-stop-loop.mjs "$@"
+    ;;
+  codex-swarm)
+    shift
+    exec bin/dg-codex-swarm "$@"
+    ;;
+  grok-loop|grok-busy)
+    shift
+    exec node demigod-grok-busy-loop.mjs "$@"
+    ;;
   pilot|inbound)
     shift
     exec node demigod-pilot-inbound.mjs "$@"
+    ;;
+  referrals|referral)
+    shift
+    exec node demigod-referrals.mjs "${@:-status}"
     ;;
   next-canon|canon-next)
     shift
@@ -177,6 +251,10 @@ case "$1" in
   evidence)
     shift
     exec node demigod-evidence.mjs "$@"
+    ;;
+  craft|craft-log)
+    shift
+    exec node demigod-craft-log.mjs "$@"
     ;;
   lock-who|who-lock)
     shift
@@ -223,6 +301,7 @@ case "$1" in
     fi
     # Unknown verb → control help + try as webflow subcommand hint
     echo "Unknown: $1 — try: bin/dg orient | cycle-status | demand | pilot | truth | home | tools" >&2
-    exec node demigod-control.mjs help
+    node demigod-control.mjs help
+    exit 2
     ;;
 esac

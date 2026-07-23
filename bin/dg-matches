@@ -17,7 +17,8 @@ case "$cmd" in
   prune) exec node demigod-pairs-lib.mjs prune "$@" ;;
   api) curl -sS "http://127.0.0.1:9878/api/matches${1:+?$1}" ;;
   *)
-    echo "usage: bin/dg-matches list|seed|propose|auto|review|consent|draft|migrate|prune|api"
-    exit 1
+    # Unknown verb (incl. mistyped flags like --foo) → exit 2 for agent fail-closed (cont30)
+    echo "Unknown: $cmd — usage: bin/dg-matches list|seed|propose|auto|review|consent|draft|migrate|prune|api" >&2
+    exit 2
     ;;
 esac

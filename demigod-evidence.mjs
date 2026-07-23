@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DG_BUSY || '/tmp/dg-busy';
@@ -89,9 +90,9 @@ export function sealRun(run, result = {}, meta = {}) {
   };
   const outPath = path.join(EVIDENCE_DIR, `${sealed.runId}.json`);
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(sealed, null, 2) + '\n');
+  atomicWrite(outPath, JSON.stringify(sealed, null, 2) + '\n', { mode: 0o600 });
   const latest = path.join(EVIDENCE_DIR, `latest-${sealed.producer}.json`);
-  fs.writeFileSync(latest, JSON.stringify(sealed, null, 2) + '\n');
+  atomicWrite(latest, JSON.stringify(sealed, null, 2) + '\n', { mode: 0o600 });
   sealed._path = outPath;
   sealed._latestPath = latest;
   return sealed;
@@ -114,11 +115,12 @@ export function isFresh(envelope, { maxAgeSec = null } = {}) {
   }
   const ageMax = maxAgeSec ?? envelope.ttlSec ?? 3600;
   const ended = Date.parse(envelope.endedAt || envelope.at || envelope.startedAt || 0);
+  if (!Number.isFinite(ended)) return { fresh: false, reason: 'invalid-timestamp' };
   // Future-dated envelope (clock skew): negative age silently passed the ttl check below. Reject it.
-  if (Number.isFinite(ended) && Date.now() - ended < -60000) {
+  if (Date.now() - ended < -60000) {
     return { fresh: false, reason: 'clock-skew', ageSec: Math.round((Date.now() - ended) / 1000) };
   }
-  if (Number.isFinite(ended) && ageMax > 0 && Date.now() - ended > ageMax * 1000) {
+  if (ageMax > 0 && Date.now() - ended > ageMax * 1000) {
     return { fresh: false, reason: 'ttl-expired', ageSec: Math.round((Date.now() - ended) / 1000) };
   }
   return { fresh: true, reason: 'ok' };

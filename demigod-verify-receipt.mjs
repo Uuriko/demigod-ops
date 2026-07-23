@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-/** Verify foot-core has receipt route + board receipts schema. */
+/**
+ * Verify board receipts schema + still-true foot MVP markers.
+ *
+ * Receipt/status hash routes (statusRoute, receiptRoute, #demigod-status-wrap,
+ * #receipt/, signal bar, ledger CDN) were slimmed out of foot-core (v205+).
+ * Do not re-assert those — they false-failed every verify:all run.
+ */
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';
@@ -14,12 +20,8 @@ function main() {
   const checks = {
     v90: /dg-foot-v\d+-core/.test(foot),
     formSend: true, // MVP slim, direct forms
-    ledgerRows: /dg-ledger-row/.test(foot) || /dg-ledger/.test(foot), // slim ok, role notes in board or html
     pricingCompare: true,
-    statusRoute: /function statusRoute/.test(foot) && /#demigod-status-wrap/.test(foot),
-    receiptRoute: /function receiptRoute/.test(foot), // receipts func slimmed in some versions
-    signalBar: /dg-signal-bar/.test(foot) && /renderSignal/.test(foot),
-    hashRoute: /#receipt\//.test(foot),
+    // Board SoR still owns receipts/signal (foot no longer routes #receipt/)
     boardReceipts: Array.isArray(board.receipts),
     boardSignal: board.signal == null || typeof board.signal?.score !== 'undefined', // honest: score may be null until real data
     noSpeedInFoot: !/48\s*h|reply\s*in\s*\d/i.test((foot.match(/var COPY=\{[\s\S]*?\};/) || [''])[0]),
@@ -32,6 +34,7 @@ function main() {
     at: new Date().toISOString(),
     pass,
     checks,
+    // URL convention for board tooling; foot no longer implements the hash route
     sampleUrl: sample ? `https://www.trydemigod.com/#receipt/${sample.hash}` : null,
   };
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2));

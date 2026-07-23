@@ -6,7 +6,7 @@
  *   node demigod-next.mjs [--json]
  *
  * Priority:
- *  1. Refresh truth if evidence not green
+ *  1. Refresh truth if evidence is stale/missing
  *  2. If freeze ON + green → demand/human (no ship)
  *  3. If freeze OFF + not shipped → ship prepare/run
  *  4. Else orient home
@@ -34,9 +34,9 @@ function readJson(p) {
 /**
  * @returns {{ id: string, title: string, cmd: string, pri: number, mutate: boolean, freezeBlocks: boolean, reason: string, freeze: object, truthEvidence: object, versions: object }}
  */
-export function buildNext({ truth = null, demand = null } = {}) {
+export function buildNext({ truth = null, demand = null, truthEvidence = null } = {}) {
   const freeze = freezeStatus();
-  const te = refuseIfStale('truth');
+  const te = truthEvidence || refuseIfStale('truth');
   const truthFacts = truth || readJson(path.join(BUSY, 'truth.json'));
   const demandStatus = demand || readJson(path.join(BUSY, 'demand-status.json'));
   const diskVersion = footVerFromJs(readText(path.join(ROOT, 'demigod-foot-core.js'), 2_000_000));
@@ -54,6 +54,8 @@ export function buildNext({ truth = null, demand = null } = {}) {
     freeze: { on: freeze.frozen, why: freeze.why },
     truthEvidence: {
       green: Boolean(te.green),
+      pass: Boolean(te.pass),
+      fresh: Boolean(te.fresh),
       reason: te.reason,
       runId: te.runId,
       summary: te.summary,
@@ -64,11 +66,11 @@ export function buildNext({ truth = null, demand = null } = {}) {
     at: new Date().toISOString(),
   };
 
-  if (!te.green) {
+  if (!te.fresh) {
     return {
       ...base,
       id: 'truth',
-      title: 'Refresh truth evidence (not green/fresh)',
+      title: 'Refresh truth evidence (stale/missing)',
       cmd: 'bin/dg truth',
       pri: 0,
       mutate: false,
@@ -129,28 +131,10 @@ export function buildNext({ truth = null, demand = null } = {}) {
       statusTtlMs: DEMAND_STATUS_TTL_MS,
       statusFutureToleranceMs: DEMAND_STATUS_FUTURE_TOLERANCE_MS,
     };
-    const hygieneHint = demandSignal.draftHygieneOk === false
-      ? ` · draft hygiene flagged=${demandSignal.draftFlagged ?? '?'}`
-      : demandSignal.draftHygieneOk === true
-        ? ' · draft hygiene=clean'
-        : ' · draft hygiene=unknown';
-    const inboundHint = demandSignal.warmInbound.overdueActionCount > 0
-      ? `warm inbound overdue=${demandSignal.warmInbound.overdueActionCount} (not pilots)`
-      : demandSignal.warmInbound.dueTodayActionCount > 0
-        ? `warm inbound due today=${demandSignal.warmInbound.dueTodayActionCount} (not pilots)`
-        : null;
-    const dmHint =
-      !demandStatusFresh
-        ? 'demand snapshot stale/unknown — refresh status'
-        : inboundHint
-          ? inboundHint
-        : pending != null
-        ? `demand queue pending=${pending}` + (top ? ` head=${top.name}` : '') + hygieneHint
-        : 'run bin/dg demand status (refresh queue snapshot)';
     return {
       ...base,
       id: 'demand-ops',
-      title: `No ship — freeze holds · ${dmHint}`,
+      title: 'Review demand operations · publish freeze holds',
       cmd: 'bin/dg demand status',
       pri: 0,
       mutate: false,
@@ -167,7 +151,7 @@ export function buildNext({ truth = null, demand = null } = {}) {
     return {
       ...base,
       id: 'hold-green',
-      title: 'Shipped + green — demand ops (freeze disabled)',
+      title: 'Review demand operations',
       cmd: 'bin/dg demand status',
       pri: 1,
       mutate: false,
@@ -176,15 +160,63 @@ export function buildNext({ truth = null, demand = null } = {}) {
     };
   }
 
+  // Honest titles: prepare-only / unauthorized publish is not a P1 outage.
+  const summary = String(
+    truthFacts?.summaryLine || truthFacts?.summary || te.summary || '',
+  );
+  const diskLiveSame =
+    versions.disk != null &&
+    versions.live != null &&
+    String(versions.disk) === String(versions.live);
+  const prepareOnlyAssets =
+    Boolean(truthFacts?.prepareOnlyAssets) ||
+    Boolean(truthFacts?.prepareOnlySiblingAssets) ||
+    Boolean(truthFacts?.claims?.prepareOnlyAssets) ||
+    /prepareOnlyAssets/i.test(summary);
+  const prepareOnlyRelease =
+    Boolean(truthFacts?.prepareOnlyRelease) ||
+    prepareOnlyAssets ||
+    /\bprepareOnly(?:Release|Assets)?\b/i.test(summary) ||
+    /\bprepare-only\b/i.test(summary);
+
+  if (prepareOnlyRelease) {
+    const shipTitle = diskLiveSame
+      ? prepareOnlyAssets
+        ? 'Prepare ship (foot version match · sibling assets pending)'
+        : 'Prepare ship (prepare-only · not fully shipped)'
+      : 'Staged foot ahead of live · publish unauthorized';
+    return {
+      ...base,
+      id: 'ship-prepare',
+      title: shipTitle,
+      cmd: 'bin/dg ship prepare',
+      // Pri 2: truth already soft-passed identity lag; do not drown demand/warm.
+      pri: 2,
+      mutate: false,
+      freezeBlocks: false,
+      reason: diskLiveSame
+        ? prepareOnlyAssets
+          ? 'prepare-only-assets'
+          : 'prepare-only-release'
+        : 'prepare-only-version-drift',
+    };
+  }
+
+  const shipTitle = diskLiveSame
+    ? 'Prepare ship (not fully shipped)'
+    : 'Prepare ship (disk≠live)';
+
   return {
     ...base,
     id: 'ship-prepare',
-    title: 'Prepare ship (disk≠live)',
+    title: shipTitle,
     cmd: 'bin/dg ship prepare',
     pri: 1,
     mutate: false,
     freezeBlocks: false,
-    reason: 'unfrozen-not-shipped',
+    reason: diskLiveSame
+      ? 'unfrozen-not-fully-shipped'
+      : 'unfrozen-disk-live-drift',
   };
 }
 
@@ -227,6 +259,19 @@ function assertSameSurfaces() {
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  const nextArgs = process.argv.slice(2);
+  const NEXT_FLAGS = new Set(['--json', '--assert-same', '--help', '-h']);
+  const unknownNext = nextArgs.find((a) => !NEXT_FLAGS.has(a));
+  if (unknownNext) {
+    console.error(`next: unknown argument ${unknownNext} — try: node demigod-next.mjs [--json|--assert-same]`);
+    process.exit(2);
+  }
+  if (nextArgs.includes('--help') || nextArgs.includes('-h')) {
+    console.log(`demigod-next — single NEXT builder
+
+Usage: node demigod-next.mjs [--json] [--assert-same]`);
+    process.exit(0);
+  }
   if (process.argv.includes('--assert-same')) {
     const a = assertSameSurfaces();
     console.log(JSON.stringify(a, null, 2));

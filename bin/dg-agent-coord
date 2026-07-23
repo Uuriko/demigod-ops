@@ -3,6 +3,7 @@
 # Lanes (anti-thrash): Claude=website (foot lock), Codex=dash/tools, Grok=gates+blog/light.
 # Re-spawns idle workers each tick. Stop: bin/dg-agent-coord stop
 set -euo pipefail
+umask 077
 ROOT="${DEMIGOD_ROOT:-$HOME}"
 BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
 DIR="$BUSY/coord"
@@ -19,6 +20,9 @@ INBOX="$DIR/inbox.jsonl"
 CLAIMS="$DIR/claims.json"
 DIGEST="$DIR/digest.md"
 mkdir -p "$DIR"
+chmod 700 "$DIR"
+touch "$INBOX" "$DIR/inbox.lock"
+chmod 600 "$INBOX" "$DIR/inbox.lock"
 export PATH="${HOME}/.local/bin:${HOME}/bin:${HOME}/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH}"
 cd "$ROOT"
 
@@ -76,6 +80,7 @@ now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"
 def atomic_write(path, text):
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     tmp.write_text(text)
+    tmp.chmod(0o600)
     tmp.replace(path)
 
 def load(name):
@@ -87,10 +92,21 @@ def load(name):
     except Exception:
         return {"ok": False, "at": None, "did": ["(unparseable)"], "raw_error": True}
 
+def receipt_time(receipt):
+    try:
+        return datetime.datetime.fromisoformat(str(receipt["at"]).replace("Z", "+00:00"))
+    except Exception:
+        return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+
+coord_grok = load("grok-last.json")
+mailbox_grok = load("grok-mailbox-last.json")
+if not isinstance(mailbox_grok, dict) or mailbox_grok.get("schema") != "demigod.grok-out-receipt/1":
+    mailbox_grok = None
+
 agents = {
     "claude": load("claude-last.json"),
     "codex": load("codex-last.json"),
-    "grok": load("grok-last.json"),
+    "grok": max((r for r in (coord_grok, mailbox_grok) if r), key=receipt_time, default=None),
     "chat": load("chat-last.json"),
     "term-claude": load("term-claude-last.json"),
     "term-grok": load("term-grok-last.json"),
@@ -102,7 +118,7 @@ def current_receipt(receipt):
     try:
         stamp = datetime.datetime.fromisoformat(str(receipt["at"]).replace("Z", "+00:00"))
         age = (datetime.datetime.now(datetime.timezone.utc) - stamp).total_seconds()
-        return -60 <= age <= 3600
+        return -(15 * 60) <= age <= 3600
     except Exception:
         return False
 
@@ -129,8 +145,11 @@ with (DIR / "claims.lock").open("w") as claims_lock:
             claims = {}
     holds = claims.get("holds") if isinstance(claims.get("holds"), dict) else {}
     def stale(value):
-        stamp = value.get("at") if isinstance(value, dict) else claims.get("at")
+        stamp = value.get("expiresAt") if isinstance(value, dict) else None
         try:
+            if stamp:
+                return datetime.datetime.now(datetime.timezone.utc) > datetime.datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            stamp = value.get("at") if isinstance(value, dict) else claims.get("at")
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))).total_seconds() * 1000
         except Exception:
             return True
@@ -140,6 +159,9 @@ with (DIR / "claims.lock").open("w") as claims_lock:
     if cleared:
         holds = {key: value for key, value in holds.items() if key not in cleared}
         claims.update({"holds": holds, "at": now, "holdsCleared": cleared, "holdsStale": True})
+        atomic_write(cp, json.dumps(claims, indent=2) + "\n")
+    elif claims.get("holdsStale") or claims.get("holdsCleared"):
+        claims.update({"holdsCleared": [], "holdsStale": False})
         atomic_write(cp, json.dumps(claims, indent=2) + "\n")
 active_holds = holds  # empty when stale/cleared
 
@@ -157,6 +179,10 @@ with (DIR / "board.lock").open("w") as board_lock:
         board["receipts"] = receipts
         board["receiptsAt"] = max(receipts.values(), default=None)
     tracks = board.setdefault("tracks", {})
+    # Collapse dual-plane descriptors (website/dash_tools/gates) — lanes live in /api/coord.lanes.
+    for legacy in ("website", "dash_tools", "gates"):
+        if tracks.pop(legacy, None) is not None:
+            changed = True
     for lane, names in {"claude": ("claude", "term-claude"), "codex": ("codex",), "grok": ("grok", "term-grok")}.items():
         latest = max((agents[name] for name in names if current_receipt(agents.get(name))), key=lambda d: d["at"], default=None)
         if latest and tracks.get(lane, {}).get("at") != latest["at"]:
@@ -166,7 +192,7 @@ with (DIR / "board.lock").open("w") as board_lock:
         facts = json.loads((DIR.parent / "ship-status.json").read_text()).get("facts") or {}
         versions = {str(facts.get(key) or "").lstrip("v") for key in ("diskVer", "liveVer", "manVer")}
         if len(versions) == 1 and "" not in versions:
-            backlog = [x for x in board.get("backlog", []) if not ("hold head" in str(x).lower() and "thrash" in str(x).lower())]
+            backlog = [x for x in board.get("backlog", []) if not str(x).lower().startswith(("after lock free + webflow re-auth:", "hold head 8s6x5e;"))]
             if backlog != board.get("backlog", []):
                 board["backlog"] = backlog
                 changed = True
@@ -178,12 +204,20 @@ with (DIR / "board.lock").open("w") as board_lock:
 lines = [
     f"# Coord digest (auto) · {now}",
     "",
-    f"**Disk foot:** {foot_ver} · ship only with `bin/dg-lock` + foot lock · no auto-DM · no game",
+    f"**Disk foot:** {foot_ver} · prepare/verify only; publish requires exact current-request authorization + foot lock · no auto-DM · no game",
     "",
+    "## Active focus (read before choosing work)",
+]
+focus = next((p for p in (
+    ROOT / ".dg-busy" / "lead-system" / "FOCUS.md",
+    DIR.parent / "lead-system" / "FOCUS.md",
+    DIR.parent / "events-bot" / "FOCUS.md",
+) if p.exists()), None)
+lines += [focus.read_text(errors="replace").strip() if focus else "- (no active focus file)", "",
     "## Lanes (stay in lane; claims serialize access, never grant authority)",
     "- **claude** → website SoR only: `demigod-foot-core.js`, `demigod-head-minimal.html`, `demigod-blog-posts.json` — always `DG_LOCK_OWNER=coord-claude bin/dg-lock …` for foot",
     "- **codex** → dash/tools only: `demigod-agent-dashboard*`, webflow helpers, verify tooling — **never** edit foot-core",
-    "- **grok** → gates + light blog/head + coord hygiene; foot only if claim free via dg-lock; prefer verify + /api/coord dogfood",
+    "- **grok** → gates + coord hygiene; website SoR only with an explicit board assignment (foot still requires dg-lock); prefer verify + /api/coord dogfood",
     "- **chat/term** → read digest; pick ONE backlog item; skip if claim held by another agent",
     "",
     "## Recent did (read before working — do not redo)",
@@ -198,16 +232,16 @@ for name, d in agents.items():
     did_s = "; ".join(str(x)[:120] for x in did[:3]) or "(empty)"
     at = d.get("at") or "?"
     ok = d.get("ok")
-    nxt = str(d.get("next") or "")[:100]
+    nxt = (" · ".join(map(str, d["next"])) if isinstance(d.get("next"), list) else str(d.get("next") or ""))[:100]
     try:
         age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(str(at).replace("Z", "+00:00"))).total_seconds()
-        note = " [stale]" if age < -60 or age > 3600 else ""
+        note = " [clock-skewed]" if age < -(15 * 60) else " [stale]" if age > 3600 else ""
     except Exception:
         note = " [stale]"
     if d.get("staleSuccessAvoided"):
         note += " [staleSuccessAvoided]"
     lines.append(f"- **{name}** ok={ok} at={at}{note}: {did_s}")
-    if nxt:
+    if nxt and current_receipt(d):
         lines.append(f"  - next: {nxt}")
 
 lines += ["", "## Active claims"]
@@ -256,7 +290,7 @@ lines.append("- **Product first:** best website + Demigod matching UX/honesty/sh
 lines.append("- **Create & delete:** new pages/copy/forms OK; remove bad copy, dead code, wrong features when right.")
 lines.append("- Catalog: `docs/DEMIGOD-ANTI-BLOAT-SEARCHES.md` · pick: `bin/dg-anti-bloat pick` · doctrine: `bin/dg-anti-bloat doctrine`")
 lines.append("- Prefer 1 solid foot/head/blog/WIZ win over 3 meta-tool wins. Cut timers/planes that do not serve product.")
-lines.append("- **Ship cadence:** if disk foot ≫ live/manifest, run `bin/dg ship prepare|run|verify` — do not hoard unshipped site work. Full product scope (blog, SEO, WIZ, copy).")
+lines.append("- **Ship preparation:** if disk foot differs from live/manifest, run `bin/dg ship prepare|verify` only. Publish/outbound requires exact current-request authorization; freeze state never grants it.")
 if ab:
     lines.append(f"- Last research {ab.get('id') or ab.get('pick') or '?'} at={ab.get('at')}: {str((ab.get('bullets') or [ab.get('did') or ''])[0])[:140]}")
     if ab.get("apply"):
@@ -315,7 +349,8 @@ lines += [
     "2. One concrete win per cycle; Ponytail; verify:source if foot/head.",
     "3. Write your *-last.json with {ok,at,did[],next,files[],lane}.",
     f"4. Stay in lane. Claims only serialize hot files: `bin/dg-agent-coord claim <role> <path>` before edit; `release-hold <role> <path>` when done (foot still uses bin/dg-lock).",
-    "5. No thrash publish/CDN; intentional ship only.",
+    "5. No publish/outbound without exact current-request authorization; freeze/lock state never grants authority.",
+    "6. Production SoRs are read-only for background workers (including `DEMIGOD-EVENTS.json`); use an isolated `/tmp` fixture for tests and cleanup proposals.",
     "",
 ]
 atomic_write(DIR / "digest.md", "\n".join(lines) + "\n")
@@ -326,10 +361,10 @@ brief = f"""# Demigod multi-agent brief (Claude + Grok + Codex)
 **North star:** best **website + Demigod product** (honesty, WIZ, matching UX, ship). Orchestration is scaffolding — cut what does not serve product.
 **Goal:** improve site + tools continuously — **lanes, no thrash**. Prefer 1 solid site win over 3 meta-tools.
 **Anti-bloat:** `docs/DEMIGOD-ANTI-BLOAT-SEARCHES.md` · `bin/dg-anti-bloat doctrine|pick|log`
-**Ship cadence:** disk ≫ live → `bin/dg ship prepare|run|verify`. Full product scope (blog/SEO/WIZ/copy).
+**Ship preparation:** disk ≠ live → `bin/dg ship prepare|verify` only. Publishing requires exact current-request authorization.
 **Quality loop:** after feature batches run `bin/dg-quality once` — fix P0/P1 before more features. `docs/DEMIGOD-QUALITY-LOOP.md`
 **Ops OS:** full funnel autonomy map `bin/dg-ops-os status|next` · roadmap `docs/DEMIGOD-AUTONOMY-OS-ROADMAP.md` · Stripe pending
-**Live:** foot disk may be ahead of live; `bin/dg truth`; ship only with lock. No auto-DM. No game.
+**Live:** foot disk may be ahead of live; `bin/dg truth`; publishing requires current-request authorization + freeze OFF + lock. No auto-DM. No game.
 **SoR:** demigod-foot-core.js · demigod-head-minimal.html · demigod-blog-posts.json
 **Dash:** http://127.0.0.1:9878/ · GET /api/coord · Map→Agents · bin/dg
 **CDP:** :9223 · verify: npm run demigod:verify:source
@@ -342,7 +377,7 @@ brief = f"""# Demigod multi-agent brief (Claude + Grok + Codex)
 |-------|------|-----------|
 | claude | foot/head/blog (via bin/dg-lock) | dash thrash, auto-DM |
 | codex | dash/tools/webflow helpers | demigod-foot-core.js |
-| grok | verify, coord, light head/blog | concurrent foot without lock |
+| grok | verify, coord | website SoR without explicit board assignment |
 
 **Full digest (auto-refreshed):** `{DIR / 'digest.md'}`
 """
@@ -362,6 +397,7 @@ b.setdefault("cycle", 0)
 b.setdefault("goal", "nonstop website+tools · lanes")
 tmp = p.with_name(f".{p.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(b, indent=2) + "\n")
+tmp.chmod(0o600)
 tmp.replace(p)
 PY
   [[ -f "$CLAIMS" ]] || printf '%s\n' '{"schema":"demigod.coord-claims/1","holds":{}}' >"$CLAIMS"
@@ -392,56 +428,89 @@ b["cycle"]=int(b.get("cycle") or 0)+1
 b["at"]=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 b["goal"]="nonstop website+tools · lanes Claude/Codex/Grok"
 tracks=b.setdefault("tracks", {})
-tracks.setdefault("website", {"status":"active","owner":"claude","focus":"foot/head/blog via dg-lock"})
-tracks.setdefault("dash_tools", {"status":"active","owner":"codex","focus":"dashboard + webflow tools only"})
-tracks.setdefault("gates", {"status":"active","owner":"grok","focus":"verify + coord hygiene"})
+# Lanes already have one canonical mapping in /api/coord.lanes. Remove the old
+# permanent descriptor tracks so status consumers see only real worker state.
+for legacy in ("website", "dash_tools", "gates"):
+    tracks.pop(legacy, None)
 
 def ship_facts():
-    busy = DIR.parent
+    busy = p.parent.parent
+    best = (float("-inf"), None, None, None)
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+
+    def receipt_time(q, s):
+        raw = s.get("at")
+        if raw is None:
+            return q.stat().st_mtime
+        try:
+            stamp = datetime.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=datetime.timezone.utc)
+            value = stamp.timestamp()
+            return value if value <= now + 60 else None
+        except Exception:
+            return None
     try:
         hit = re.search(r"__dgFootVer=['\"](\d+)['\"]", (root / "demigod-foot-core.js").read_text(errors="replace"))
         canonical = hit.group(1) if hit else None
     except Exception:
         canonical = None
     try:
-        s = json.loads((busy / "ship-status.json").read_text())
+        q = busy / "truth.json"
+        s = json.loads(q.read_text())
+        d = str((s.get("foot") or {}).get("ver") or "").lstrip("v")
+        l = str((s.get("live") or {}).get("footVer") or "").lstrip("v")
+        m = str((s.get("manifest") or {}).get("version") or "").lstrip("v")
+        stamp = receipt_time(q, s)
+        if d and stamp is not None and (not canonical or d == canonical):
+            best = (stamp, d, l, m)
+    except Exception:
+        pass
+    try:
+        q = busy / "ship-status.json"
+        s = json.loads(q.read_text())
         f = s.get("facts") or {}
         d = str(f.get("diskVer") or "").lstrip("v")
         l = str(f.get("liveVer") or "").lstrip("v")
         m = str(f.get("manVer") or "").lstrip("v")
-        if d and (not canonical or d == canonical):
-            return d, l, m
+        stamp = receipt_time(q, s)
+        if d and stamp is not None and (not canonical or d == canonical) and stamp > best[0]:
+            best = (stamp, d, l, m)
     except Exception:
         pass
-    try:
-        s = json.loads((busy / "truth.json").read_text())
-        d = str((s.get("foot") or {}).get("ver") or "").lstrip("v")
-        l = str((s.get("live") or {}).get("footVer") or "").lstrip("v")
-        m = str((s.get("manifest") or {}).get("version") or "").lstrip("v")
-        if d and (not canonical or d == canonical):
-            return d, l, m
-    except Exception:
-        pass
-    return None, None, None
+    return best[1:]
 
 d, l, m = ship_facts()
 if d:
-    seal = f"After lock free + Webflow re-auth: CM6 paste seals live to disk/man v{d}"
+    try:
+        invite_url_needed = int(json.loads((p.parent.parent / "events-bot/invite-drain-latest.json").read_text()).get("needsUrl") or 0) > 0
+    except Exception:
+        invite_url_needed = True
+    seal = f"Disk/live release drift for v{d}: prepare and verify only (`bin/dg ship prepare`)"
     if l and l != d:
         seal += f" (live now v{l})"
-    hold = "Hold head 8s6x5e; no thrash while login wall"
     keep = []
     for x in (b.get("backlog") or []):
         xl = str(x).lower()
-        if any(k in xl for k in ("cm6 paste", "seals live", "disk/man v", "paste seals")):
+        if not invite_url_needed and (
+            ("invite url" in xl and "human-invite" in xl)
+            or "pf_mrphyj7rhhzs" in xl
+            or ("events p0" in xl and "invite" in xl)
+        ):
+            continue
+        if any(k in xl for k in ("cm6 paste", "seals live", "disk/man v", "paste seals", "disk/live release drift")):
             continue
         if "hold head" in xl and "thrash" in xl:
+            continue
+        if "cdn events-api pending" in xl or "publish-config when off" in xl:
+            continue
+        # Drop stale "Live sealed vNNN" — rewritten from truth below when green
+        if "live sealed v" in xl and "hold-green" in xl:
             continue
         keep.append(str(x))
     bl = []
     if (l and l != d) or (m and m != d):
         bl.append(seal)
-        bl.append(hold)
     bl.extend(keep)
     b["backlog"] = bl
     # Stale ship version must not survive when truth disk is known (e.g. v531 vs v562)
@@ -452,6 +521,7 @@ if d:
 
 tmp=p.with_name(f".{p.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(b, indent=2)+"\n")
+tmp.chmod(0o600)
 tmp.replace(p)
 print(b["cycle"])
 PY
@@ -473,6 +543,7 @@ if all(t.get(ag, {}).get(k) == v for k, v in next_track.items()):
 t[ag]={**next_track,"at":datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 tmp=p.with_name(f".{p.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(b, indent=2)+"\n")
+tmp.chmod(0o600)
 tmp.replace(p)
 PY
 }
@@ -506,6 +577,7 @@ if len(c["holds"]) != len(holds):
     c["at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     tmp = p.with_name(f".{p.name}.{os.getpid()}.tmp")
     tmp.write_text(json.dumps(c, indent=2) + "\n")
+    tmp.chmod(0o600)
     tmp.replace(p)
 PY
 }
@@ -521,6 +593,9 @@ from pathlib import Path
 role, key, path, root = sys.argv[1], sys.argv[2], Path(sys.argv[3]), Path(sys.argv[4])
 owner = f"coord-{role}" if not str(role).startswith("coord-") else str(role)
 lane = role.removeprefix("coord-")
+if lane not in {"claude", "codex", "grok"}:
+    print(json.dumps({"ok": False, "error": "unknown_lane", "lane": lane}))
+    raise SystemExit(1)
 try:
     claimed_path = Path(key) if Path(key).is_absolute() else root / key
     relative = claimed_path.resolve().relative_to(root.resolve()).as_posix()
@@ -532,6 +607,7 @@ if lane == "codex" and relative in {"demigod-foot-core.js", "demigod-head-minima
     raise SystemExit(1)
 now = datetime.datetime.now(datetime.timezone.utc)
 now_s = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+expires_s = (now + datetime.timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
 if path.exists():
     try:
         c = json.loads(path.read_text())
@@ -558,14 +634,59 @@ if cur is not None:
         if age <= 15 * 60:
             print(json.dumps({"ok": False, "error": "held", "key": key, "owner": o, "at": hold_at(cur)}))
             raise SystemExit(1)
-holds[key] = {"owner": owner, "at": now_s, "lane": lane}
+holds[key] = {"owner": owner, "at": now_s, "expiresAt": expires_s, "lane": lane}
 c["holds"] = holds
 c["at"] = now_s
 c["schema"] = c.get("schema") or "demigod.coord-claims/1"
 tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(c, indent=2) + "\n")
+tmp.chmod(0o600)
 tmp.replace(path)
 print(json.dumps({"ok": True, "claimed": holds[key], "key": key}))
+PY
+}
+
+renew_hold() {
+  # $1 role  $2 key — only the current owner may extend a lease
+  local role="${1:-}" key="${2:-}"
+  [[ -n "$role" && -n "$key" ]] || { echo "usage: $0 renew <role> <key>" >&2; return 2; }
+  flock -x "$DIR/claims.lock" python3 - "$role" "$key" "$CLAIMS" "$ROOT" <<'PY'
+import datetime, json, os, sys
+from pathlib import Path
+role, key, path, root = sys.argv[1], sys.argv[2], Path(sys.argv[3]), Path(sys.argv[4])
+try:
+    key = (Path(key) if Path(key).is_absolute() else root / key).resolve().relative_to(root.resolve()).as_posix()
+except (OSError, ValueError):
+    pass
+if not path.exists():
+    print(json.dumps({"ok": False, "error": "absent", "key": key}))
+    raise SystemExit(1)
+c = json.loads(path.read_text())
+holds = c.get("holds") if isinstance(c.get("holds"), dict) else {}
+cur = holds.get(key)
+if cur is None:
+    print(json.dumps({"ok": False, "error": "absent", "key": key}))
+    raise SystemExit(1)
+owner = f"coord-{role}" if not str(role).startswith("coord-") else str(role)
+aliases = {owner, owner.removeprefix("coord-"), role, f"coord-{role}"}
+o = cur.get("owner") if isinstance(cur, dict) else cur
+if o not in aliases:
+    print(json.dumps({"ok": False, "error": "not_owner", "owner": o, "key": key}))
+    raise SystemExit(1)
+now = datetime.datetime.now(datetime.timezone.utc)
+renewed = dict(cur) if isinstance(cur, dict) else {"owner": o}
+renewed.update({
+    "at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expiresAt": (now + datetime.timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+})
+holds[key] = renewed
+c["holds"] = holds
+c["at"] = renewed["at"]
+tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+tmp.write_text(json.dumps(c, indent=2) + "\n")
+tmp.chmod(0o600)
+tmp.replace(path)
+print(json.dumps({"ok": True, "renewed": renewed, "key": key}))
 PY
 }
 
@@ -601,6 +722,7 @@ c["holds"] = holds
 c["at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(c, indent=2) + "\n")
+tmp.chmod(0o600)
 tmp.replace(path)
 print(json.dumps({"ok": True, "released": True, "key": key}))
 PY
@@ -622,11 +744,12 @@ PY
 # Tightened: ship/CSS lag alone must NOT keep all three lanes forever-busy (swarm full P1).
 role_has_work() {
   local role="$1"
-  python3 - "$role" "$DIR/quality-backlog.json" "$BOARD" "$CLAIMS" "$BUSY" <<'PY'
-import json, sys, time
+  python3 - "$role" "$DIR/quality-backlog.json" "$BOARD" "$CLAIMS" "$BUSY" "$ROOT" <<'PY'
+import json, re, sys, time
 from pathlib import Path
 role = sys.argv[1]
 qpath, bpath, cpath, busy = Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]), Path(sys.argv[5])
+root = Path(sys.argv[6])
 
 def ship_lag():
     try:
@@ -657,6 +780,23 @@ try:
 except Exception:
     pass
 
+# Follow the active-focus redirect and inspect only its current Next section.
+try:
+    focus = busy / "lead-system/FOCUS.md"
+    text = focus.read_text() if focus.exists() else ""
+    target = re.search(r"`((?:/|\./)[^`]+/FOCUS\.md)`", text)
+    if target:
+        focus = Path(target.group(1)) if target.group(1).startswith("/") else root / target.group(1)
+        text = focus.read_text()
+    next_work = re.split(r"^##\s+Next\b", text, maxsplit=1, flags=re.M | re.I)
+    next_work = re.split(r"^##\s+", next_work[1], maxsplit=1, flags=re.M)[0].lower() if len(next_work) == 2 else ""
+    if role == "codex" and any(k in next_work for k in ("funnel", "drain", "tool", "bot")):
+        print("1"); raise SystemExit(0)
+    if role == "grok" and any(k in next_work for k in ("healthy", "heal", "status", "verify", "gate")):
+        print("1"); raise SystemExit(0)
+except Exception:
+    pass
+
 # Backlog: only lane-specific *new product* work — ignore pure ship/css thrash notes
 try:
     b = json.loads(bpath.read_text()) if bpath.exists() else {}
@@ -671,7 +811,7 @@ try:
         if any(k in text for k in ("wiz", "blog post", "notes card")):
             print("1"); raise SystemExit(0)
     if role == "codex":
-        if any(k in text for k in ("dashboard", "dash bug", "webflow helper", "cm6", "claim", "coord claim", "tools-os")):
+        if any(k in text for k in ("dashboard", "dash bug", "webflow helper", "cm6", "claim", "coord claim", "tools-os", "funnel", "lead", "pipeline", "policy", "events bot", "events-bot")):
             print("1"); raise SystemExit(0)
     if role == "grok":
         if any(k in text for k in ("loop-state", "board honesty", "verify fail", "gate fail")):
@@ -685,7 +825,10 @@ if ship_lag() and role == "codex":
 # Grok dogfood ship lag at most every 12 minutes (receipt age)
 if ship_lag() and role == "grok":
     try:
-        rec = json.loads((busy / "coord/grok-last.json").read_text())
+        receipts = [json.loads(p.read_text()) for p in (
+            busy / "coord/grok-last.json", busy / "coord/term-grok-last.json"
+        ) if p.exists()]
+        rec = max(receipts, key=lambda x: str(x.get("at", "")))
         age = time.time() - __import__("datetime").datetime.fromisoformat(
             str(rec.get("at", "")).replace("Z", "+00:00")
         ).timestamp()
@@ -704,10 +847,23 @@ inbox() {
   printf '{"at":"%s","from":"%s","msg":%s}\n' "$(date -Iseconds)" "$1" "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$2")" >>"$INBOX"
 } 9>"$DIR/inbox.lock"
 
+# Agents often write $BUSY/<role>-last.json; supervisor expects $DIR/<role>-last.json.
+# Promote a run-scoped alt receipt (mtime > pre) so write_exit_receipt sees a fresh primary write.
+promote_alt_receipt() {
+  # $1 role  $2 pre_mtime_ns
+  local role="$1" pre="${2:-0}" primary="$DIR/${role}-last.json" alt="$BUSY/${role}-last.json"
+  [[ -f "$alt" ]] || return 0
+  local alt_ns; alt_ns=$(receipt_mtime_ns "$alt")
+  (( alt_ns > pre )) || return 0
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert isinstance(d,dict) and ("did" in d or "ok" in d)' "$alt" 2>/dev/null || return 0
+  cp -a "$alt" "$primary" 2>/dev/null || cp "$alt" "$primary"
+}
+
 write_exit_receipt() {
   # $1 path $2 exit $3 logpath $4 lane $5 pre_mtime_ns (0 if none)
   # Preserve prior ok:true ONLY if agent rewrote the receipt during this run (mtime advanced).
   # Stops timeouts from advertising stale success (swarm P1).
+  # Last-good: when overwriting success with empty fail, keep sibling *.last-good.json (receipt separation).
   python3 - <<PY
 import json, datetime, pathlib, os
 p=pathlib.Path("$1")
@@ -725,19 +881,46 @@ try:
   post_ns=p.stat().st_mtime_ns
 except Exception:
   pass
+
+def _is_good(d):
+  return isinstance(d, dict) and d.get("ok") is True and bool(d.get("did"))
+
+def _save_last_good(d):
+  if not _is_good(d):
+    return
+  lg = p.with_name(p.name.replace(".json", "") + ".last-good.json")
+  tmp_lg = lg.with_name(f".{lg.name}.{os.getpid()}.tmp")
+  payload = dict(d)
+  payload["lastGoodAt"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+  tmp_lg.write_text(json.dumps(payload, indent=2) + "\n")
+  tmp_lg.chmod(0o600)
+  tmp_lg.replace(lg)
+
 # Agent wrote during this run if mtime advanced past pre-spawn snapshot
 fresh_write = isinstance(prev, dict) and post_ns > pre_ns
 if fresh_write:
+  if _is_good(prev) and (ec != 0 or prev.get("ok") is False):
+    _save_last_good(prev)
   prev.setdefault("lane", lane)
   if ec != 0:
     prev["workerVerdict"] = prev.get("ok")
     prev["ok"] = False
+  if prev.get("ok") is False and not any(prev.get(k) for k in ("reason", "error", "tail")):
+    prev["reason"] = "agent reported failure" if ec == 0 else f"process exit {ec}"
   prev["exit"]=ec
   prev["supervisorNote"]=f"process exit {ec}; {'overrode' if ec else 'kept'} agent receipt verdict (mtime advanced this run)"
   if "at" not in prev:
     prev["at"]=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 else:
   # No fresh agent receipt means no run-scoped success evidence, regardless of exit code.
+  # Archive last-good from primary and/or BUSY alt so failed cycles do not erase coord truth.
+  _save_last_good(prev)
+  try:
+    alt = pathlib.Path(os.environ.get("DG_BUSY", "/tmp/dg-busy")) / p.name
+    if alt.resolve() != p.resolve() and alt.is_file():
+      _save_last_good(json.loads(alt.read_text()))
+  except Exception:
+    pass
   prev = {
     "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "exit": ec,
@@ -745,10 +928,13 @@ else:
     "lane": lane,
     "did": [],
     "staleSuccessAvoided": bool(isinstance(prev, dict) and prev.get("ok") is True),
+    "reason": "worker exited without fresh receipt" if ec == 0 else f"process exit {ec}",
     "tail": tail[-1500:] if ec != 0 else "",
+    "lastGoodPath": str(p.with_name(p.name.replace(".json", "") + ".last-good.json")),
   }
 tmp=p.with_name(f".{p.name}.{os.getpid()}.tmp")
 tmp.write_text(json.dumps(prev, indent=2)+"\n")
+tmp.chmod(0o600)
 tmp.replace(p)
 PY
 }
@@ -772,8 +958,13 @@ set_backoff() {
   echo $(( $(date +%s) + ${2:-60} )) >"$DIR/${1}.backoff"
 }
 
+failure_backoff() {
+  # Quota failures are not transient; stop retrying them every coordinator tick.
+  grep -Eqi 'weekly limit|usage balance exhausted|status 402|http_status[^0-9]*402' "$1" && echo 21600 || echo "$2"
+}
+
 # Spawn helpers: optional cycle id $1 (shared tick). If empty, bump for this spawn only.
-spawn_claude() {
+spawn_claude() (
   local spawn_fd; exec {spawn_fd}>"$DIR/claude-spawn.lock"
   flock -n "$spawn_fd" || return 0
   worker_active "$CLAUDE_PIDF" && return 0
@@ -791,27 +982,27 @@ spawn_claude() {
     set +e
     timeout "$COORD_CLAUDE_TIMEOUT" stdbuf -oL -eL claude -p \
 "Demigod NONSTOP cycle $c · LANE=website (foot/head/blog only).
-READ digest.md + /tmp/dg-busy/swarm/latest.md first (peer receipts only if digest flags conflict).
+READ /tmp/dg-busy/coord/digest.md + /tmp/dg-busy/swarm/latest.md first (peer receipts only if digest flags conflict).
 Before editing any hot file: bin/dg-agent-coord claim claude <path> (fail=skip that file). Foot: DG_LOCK_OWNER=coord-claude bin/dg-lock …
 NORTH STAR: website product first. 1-2 Ponytail site wins. verify:source if foot/head edited.
-FORBIDDEN: demigod-agent-dashboard*. No auto-DM/game/thrash publish.
-Write claude-last.json {ok,at,did[],next,files[],claims[],lane:\"website\",cycle:$c}." \
+FORBIDDEN: demigod-agent-dashboard*. Production SoRs are read-only; use /tmp fixtures. No auto-DM/game/thrash publish.
+Write $DIR/claude-last.json {ok,at,did[],next,files[],claims[],lane:\"website\",cycle:$c}." \
       --dangerously-skip-permissions --permission-mode bypassPermissions \
       --model "${COORD_CLAUDE_MODEL:-sonnet}" --add-dir "$ROOT" \
       >>"$logf" 2>&1
     ec=$?
-    write_exit_receipt "$DIR/claude-last.json" "$ec" "$logf" website "$pre"
     release_owner_claims coord-claude
     set_track claude idle "done ec=$ec"
-    if (( ec == 124 || ec != 0 )); then set_backoff claude 90; log "claude backoff 90s after ec=$ec"; fi
+    if (( ec == 124 || ec != 0 )); then delay=$(failure_backoff "$logf" 90); set_backoff claude "$delay"; log "claude backoff ${delay}s after ec=$ec"; fi
     rm -f "$CLAUDE_PIDF"
+    promote_alt_receipt claude "$pre"; write_exit_receipt "$DIR/claude-last.json" "$ec" "$logf" website "$pre"
     log "claude done ec=$ec"
     refresh_digest
   ) &
   echo $! >"$CLAUDE_PIDF"
-}
+)
 
-spawn_codex() {
+spawn_codex() (
   local spawn_fd; exec {spawn_fd}>"$DIR/codex-spawn.lock"
   flock -n "$spawn_fd" || return 0
   worker_active "$CODEX_PIDF" && return 0
@@ -828,25 +1019,26 @@ spawn_codex() {
   (
     set +e
     timeout "$COORD_CODEX_TIMEOUT" stdbuf -oL -eL codex exec --full-auto --sandbox workspace-write \
-"Demigod NONSTOP cycle $c · LANE=tools (dash/webflow only).
-READ digest.md + /tmp/dg-busy/swarm/latest.md first.
-Before edit: bin/dg-agent-coord claim codex <path>. Prefer Webflow paste/doctor/ship tooling + dash light path.
+"Demigod NONSTOP cycle $c · LANE=tools (dash/webflow/funnel tooling).
+READ /tmp/dg-busy/coord/digest.md + /tmp/dg-busy/swarm/latest.md first.
+Before edit: bin/dg-agent-coord claim codex <path>. Prefer the named tools backlog: funnel/lead/pipeline/policy/events, Webflow helpers, or dash.
 NORTH STAR: product first. 1-2 Ponytail tools/Webflow wins. FORBIDDEN: demigod-foot-core.js.
-Write codex-last.json {ok,at,did,files,claims[],verification,lane:\"tools\",cycle:$c}. No auto-DM/game." \
+Production SoRs, including DEMIGOD-EVENTS.json, are read-only. Use an isolated /tmp fixture; report cleanup proposals without rewriting live store data.
+Write /tmp/dg-busy/coord/codex-last.json {ok,at,did,files,claims[],verification,lane:\"tools\",cycle:$c}. No auto-DM/game." \
       >>"$logf" 2>&1
     ec=$?
-    write_exit_receipt "$DIR/codex-last.json" "$ec" "$logf" tools "$pre"
     release_owner_claims coord-codex
     set_track codex idle "done ec=$ec"
-    if (( ec == 124 || ec != 0 )); then set_backoff codex 60; log "codex backoff 60s after ec=$ec"; fi
+    if (( ec == 124 || ec != 0 )); then delay=$(failure_backoff "$logf" 60); set_backoff codex "$delay"; log "codex backoff ${delay}s after ec=$ec"; fi
     rm -f "$CODEX_PIDF"
+    promote_alt_receipt codex "$pre"; write_exit_receipt "$DIR/codex-last.json" "$ec" "$logf" tools "$pre"
     log "codex done ec=$ec"
     refresh_digest
   ) &
   echo $! >"$CODEX_PIDF"
-}
+)
 
-spawn_grok() {
+spawn_grok() (
   local spawn_fd; exec {spawn_fd}>"$DIR/grok-spawn.lock"
   flock -n "$spawn_fd" || return 0
   worker_active "$GROK_PIDF" && return 0
@@ -863,30 +1055,32 @@ spawn_grok() {
   inbox supervisor "spawn grok c=$c lane=gates"
   (
     set +e
-    timeout "$COORD_GROK_TIMEOUT" stdbuf -oL -eL grok -p \
+    GROK_ASK_TIMEOUT="$COORD_GROK_TIMEOUT" stdbuf -oL -eL grok-ask \
 "Demigod NONSTOP Grok cycle $c · LANE=gates+coord.
-READ digest.md + /tmp/dg-busy/swarm/latest.md first.
-Before hot-file edit: bin/dg-agent-coord claim grok <path>. Prefer verify/board/loop-state + /api/coord dogfood; light head/blog only if claim free.
-Foot only via DG_LOCK_OWNER=coord-grok bin/dg-lock …. 1-2 Ponytail wins. verify:source if foot/head edited.
-Write grok-last.json {ok,at,did[],next,files[],claims[],lane:\"gates\",cycle:$c}. No auto-DM/game/thrash publish." \
-      --always-approve --cwd "$ROOT" </dev/null \
+READ /tmp/dg-busy/coord/digest.md + /tmp/dg-busy/swarm/latest.md first.
+Before hot-file edit: bin/dg-agent-coord claim grok <path>. Prefer verify/board/loop-state + /api/coord dogfood; website SoR only when board.json explicitly assigns that resource to Grok.
+An explicitly assigned foot edit still requires DG_LOCK_OWNER=coord-grok bin/dg-lock …. 1-2 Ponytail wins. verify:source if foot/head edited.
+Production SoRs, including DEMIGOD-EVENTS.json, are read-only. Use an isolated /tmp fixture; report cleanup proposals without rewriting live store data.
+Write $DIR/grok-last.json {ok,at,did[],next,files[],claims[],lane:\"gates\",cycle:$c}. No publish, outbound, forms, money, or game unless this exact task carries current user authorization." \
+      </dev/null \
       >>"$logf" 2>&1
     ec=$?
-    write_exit_receipt "$DIR/grok-last.json" "$ec" "$logf" gates "$pre"
     release_owner_claims coord-grok
     set_track grok idle "done ec=$ec"
-    if (( ec == 124 || ec != 0 )); then set_backoff grok 60; log "grok backoff 60s after ec=$ec"; fi
+    if (( ec == 124 || ec != 0 )); then delay=$(failure_backoff "$logf" 60); set_backoff grok "$delay"; log "grok backoff ${delay}s after ec=$ec"; fi
     rm -f "$GROK_PIDF"
+    promote_alt_receipt grok "$pre"; write_exit_receipt "$DIR/grok-last.json" "$ec" "$logf" gates "$pre"
     log "grok done ec=$ec"
     refresh_digest
   ) &
   echo $! >"$GROK_PIDF"
-}
+)
 
 # One cycle id per wave: bump once if any role will spawn, pass same c to all
-# $1 = force|once → spawn idle roles even when role_has_work=0 (manual audit)
+# $1 = force → bypass role_has_work; $2 optionally limits the wave to one role
 spawn_wave() {
   local force="${1:-}"
+  local only="${2:-}"
   local need_c=0 need_x=0 need_g=0
   local g_c=$(( COORD_CLAUDE_TIMEOUT + 15 ))
   local g_x=$(( COORD_CODEX_TIMEOUT + 15 ))
@@ -894,7 +1088,10 @@ spawn_wave() {
   if ! worker_active "$CLAUDE_PIDF" "$g_c" && ! backoff_active claude; then need_c=1; fi
   if ! worker_active "$CODEX_PIDF" "$g_x" && ! backoff_active codex; then need_x=1; fi
   if ! worker_active "$GROK_PIDF" "$g_g" && ! backoff_active grok; then need_g=1; fi
-  if [[ "$force" != "force" && "$force" != "once" ]]; then
+  [[ -z "$only" || "$only" == "claude" ]] || need_c=0
+  [[ -z "$only" || "$only" == "codex" ]] || need_x=0
+  [[ -z "$only" || "$only" == "grok" ]] || need_g=0
+  if [[ "$force" != "force" ]]; then
     (( need_c )) && [[ "$(role_has_work claude)" == "1" ]] || need_c=0
     (( need_x )) && [[ "$(role_has_work codex)" == "1" ]] || need_x=0
     (( need_g )) && [[ "$(role_has_work grok)" == "1" ]] || need_g=0
@@ -955,11 +1152,19 @@ case "${1:-status}" in
     ;;
   once)
     refresh_digest; init_board
-    spawn_wave once
+    case "${2:-}" in
+      "") spawn_wave ;;
+      all) spawn_wave force ;;
+      claude|codex|grok) spawn_wave force "$2" ;;
+      *) echo "usage: $0 once [claude|codex|grok|all]" >&2; exit 2 ;;
+    esac
     echo spawned_once
     ;;
   claim)
     claim_hold "${2:-}" "${3:-}"
+    ;;
+  renew)
+    renew_hold "${2:-}" "${3:-}"
     ;;
   release-hold|unclaim)
     release_hold "${2:-}" "${3:-}"
@@ -992,5 +1197,5 @@ case "${1:-status}" in
     rm -f "$STOP"
     "$0" start
     ;;
-  *) echo "usage: $0 start|stop|status|lanes|once|brief|digest|restart|claim|release-hold|claims"; exit 2 ;;
+  *) echo "usage: $0 start|stop|status|lanes|once [claude|codex|grok|all]|brief|digest|restart|claim|renew|release-hold|claims"; exit 2 ;;
 esac

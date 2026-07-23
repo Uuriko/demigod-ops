@@ -18,8 +18,6 @@ import { BOARD_PATH, loadBoard, saveBoard, isRealReceipt } from './demigod-submi
 import { defaultBoardExtras } from './demigod-board-lib.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
-assertNotFrozen('board-publish');
-
 const OUT = path.join(ROOT, 'DEMIGOD-BOARD-CDN.json');
 const SRC = path.join(ROOT, 'demigod-board.json');
 
@@ -53,6 +51,10 @@ export function scrubPublicBoard(board) {
 }
 
 async function main() {
+  // Freeze guard runs only when this file is the CLI entrypoint (see bottom main-guard).
+  // Must not run at import time — demigod-board-publish.test.mjs imports scrubPublicBoard only.
+  assertNotFrozen('board-publish');
+
   let board = loadBoard();
   board = seedIfEmpty(board);
   board = defaultBoardExtras(board);

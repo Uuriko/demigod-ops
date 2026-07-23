@@ -4,7 +4,7 @@
  * SoR: DEMIGOD-LEADS.json (does not write board.json).
  *
  *   node demigod-funnel.mjs status
- *   node demigod-funnel.mjs transition --id=LEAD --to=STATE [--evidence=path]
+ *   node demigod-funnel.mjs transition --id=LEAD --to=STATE [--evidence=path] [--pair=PAIR]
  *   node demigod-funnel.mjs normalize   # add state from legacy status
  *   node demigod-funnel.mjs draft --id=LEAD   # write email draft artifact only
  *   node demigod-funnel.mjs hygiene           # copy-policy scan of funnel-drafts/
@@ -15,16 +15,18 @@
  *   node demigod-funnel.mjs send-package              # approved + contact → human send board (no send)
  *   node demigod-funnel.mjs approve-drafted --note="reviewed batch" [--dry-run]  # human package under /tmp/dg-busy/funnel/
  *   node demigod-funnel.mjs receipt --id=LEAD --channel=email --to=addr --message-id=MID
+ *   node demigod-funnel.mjs repair-history --id=LEAD [--apply]
  *   node demigod-funnel.mjs join [--apply]
  *
  * Honesty: no state advances on a claim. `sent` requires a receipt file.
  * No auto-send. No auto-DM.
  */
 import fs from 'fs';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { atomicWrite, readJson, BUSY } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite, readJson, BUSY, withFileLock } from './demigod-agent-tools-lib.mjs';
 import {
   checkOutreach,
   identityKeys,
@@ -37,8 +39,8 @@ import {
   loadInbox,
   planGmailFormCandidates,
   planInboxContactPatches,
-  saveInbox,
   submissionsWithGmailPatches,
+  updateInbox,
 } from './demigod-submissions-lib.mjs';
 import {
   attachPublicContact,
@@ -46,9 +48,11 @@ import {
   isUsableOutreachEmail,
   isUsableOutreachHandle,
   needsContactEnrich,
+  enrichScrapeUrlKey,
   enrichRecentlyAttempted,
   enrichAttemptsExhausted,
   ENRICH_COOLDOWN_MS,
+  leadCollectionPaused,
   scrubNoiseContact,
 } from './demigod-lead-collect.mjs';
 import { feeCents, invoiceStub } from './demigod-revenue.mjs';
@@ -58,11 +62,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
 const LEADS = path.join(ROOT, 'DEMIGOD-LEADS.json');
 const RECEIPTS = path.join(ROOT, 'demigod-outreach', 'funnel-receipts');
+const CRM_LOCK = path.join(ROOT, 'DEMIGOD-LEADS.json.lock');
 const DRAFTS = path.join(ROOT, 'demigod-outreach', 'funnel-drafts');
 const LOG = path.join(BUSY, 'funnel', 'transitions.jsonl');
 /** Live Trust Ladder packages under /tmp/dg-busy; isolated DEMIGOD_ROOT never overwrites them. */
 const PKG_BUSY =
-  path.resolve(ROOT) === path.resolve(__dirname) ? BUSY : path.join(ROOT, '.dg-busy');
+  path.resolve(ROOT) === path.resolve(__dirname)
+    ? (process.env.DEMIGOD_BUSY || BUSY)
+    : path.join(ROOT, '.dg-busy');
 
 /** Ordered non-terminal path (not all edges are linear — see ALLOWED). */
 export const STATES = [
@@ -158,13 +165,6 @@ const EVIDENCE_FOR = {
 };
 
 function loadLeads() {
-  // PII (founder/candidate contacts) — self-heal perms to 0600 if a legacy/umask-created file is
-  // group/world-readable. atomicWrite preserves mode, so once tightened it stays tightened.
-  try {
-    if (fs.existsSync(LEADS) && (fs.statSync(LEADS).mode & 0o077) !== 0) fs.chmodSync(LEADS, 0o600);
-  } catch {
-    /* best-effort; never block the load */
-  }
   const j = readJson(LEADS);
   if (!j) throw new Error(`missing or invalid ${LEADS}`);
   return j;
@@ -184,6 +184,16 @@ function findLead(doc, id) {
   return null;
 }
 
+export function placementPairId(lead, requested = '') {
+  const explicit = String(requested || '').trim();
+  const primary = String(lead?.pairId || '').trim();
+  const listed = [...new Set((Array.isArray(lead?.pairIds) ? lead.pairIds : [])
+    .map((id) => String(id).trim()).filter(Boolean))];
+  const bound = new Set([primary, ...listed].filter(Boolean));
+  if (explicit) return bound.has(explicit) ? explicit : '';
+  return primary || (listed.length === 1 ? listed[0] : '');
+}
+
 /** Map legacy status → funnel state */
 export function legacyToState(status) {
   const s = String(status || '').toLowerCase();
@@ -198,19 +208,40 @@ export function getState(lead) {
   return legacyToState(lead.status);
 }
 
+/** Pure audit: each recorded transition must continue from the prior destination. */
+export function lifecycleHistoryIssues(lead) {
+  const history = Array.isArray(lead?.stateHistory) ? lead.stateHistory : [];
+  return history.flatMap((entry, index) => {
+    if (!entry?.from || !entry?.to) return [{ index, reason: 'missing from/to' }];
+    if (index && entry.from !== history[index - 1]?.to) {
+      return [{ index, reason: `chain break: ${history[index - 1]?.to} → ${entry.from}` }];
+    }
+    return [];
+  });
+}
+
+/** Keep a valid chain anchored at the first entry; quarantine links that cannot follow it. */
+export function repairLifecycleHistory(lead) {
+  const history = Array.isArray(lead?.stateHistory) ? lead.stateHistory : [];
+  const kept = [];
+  const removed = [];
+  for (const [index, entry] of history.entries()) {
+    if (!entry?.from || !entry?.to || (kept.length && entry.from !== kept.at(-1).to)) {
+      removed.push({ index, entry });
+    } else {
+      kept.push(entry);
+    }
+  }
+  return { kept, removed };
+}
+
 export function receiptLooksValid(text) {
   if (!text || !String(text).trim()) return false;
   const t = String(text);
   // Fail closed: must look like a real send record, not a draft
   if (/SIMULATED|placeholder@|example\.com/i.test(t)) return false;
   if (/DRAFT-ONLY|BLAST/i.test(t)) return false;
-  return /SENT-CONFIRMED/i.test(t) && (
-    /Message-ID\s*:/i.test(t) ||
-    /message_id\s*[:=]/i.test(t) ||
-    /smtp\s*250/i.test(t) ||
-    /gmail.*id/i.test(t) ||
-    /note\s*:/i.test(t)
-  );
+  return /SENT-CONFIRMED/i.test(t) && hasTransportReceiptMarker(t);
 }
 
 const hasTransportReceiptMarker = (text) =>
@@ -535,6 +566,10 @@ export async function parkNoMx(
       skipped.push({ id: lead.id, reason: 'mx-ok' });
       continue;
     }
+    if (mx?.retryable) {
+      skipped.push({ id: lead.id, reason: 'mx-retry:' + (mx.reason || 'dns-error') });
+      continue;
+    }
     if (from === 'policy_hold') {
       lead.policyHoldReason = lead.policyHoldReason || 'no-mx';
       skipped.push({ id: lead.id, reason: 'already-hold' });
@@ -792,14 +827,20 @@ export function releaseContactableHolds(
   return { released, skipped };
 }
 
-export function statusReport(doc, { focusPaused = false } = {}) {
+export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
   const counts = {};
   for (const s of STATES) counts[s] = 0;
   const rows = [];
+  const idsByUrl = new Map();
+  const invalidHistoryIds = [];
+  let invalidHistoryTransitions = 0;
   for (const { side, lead } of allLeads(doc)) {
     attachPublicContact(lead);
     const st = getState(lead);
     counts[st] = (counts[st] || 0) + 1;
+    const discontinuities = lifecycleHistoryIssues(lead);
+    if (discontinuities.length) invalidHistoryIds.push(lead.id);
+    invalidHistoryTransitions += discontinuities.length;
     rows.push({
       id: lead.id,
       side,
@@ -809,16 +850,25 @@ export function statusReport(doc, { focusPaused = false } = {}) {
       title: lead.title || null,
       score: lead.score ?? null,
       source: lead.source || null,
+      eventId: lead.eventId || null,
       email: lead.email || lead.contactEmail || null,
       handle: lead.handle || null,
       stateUpdatedAt: lead.stateUpdatedAt || null,
     });
+    const url = partnerUrlKey(lead.url);
+    if (side === 'partner' && url && !String(lead.source || '').startsWith('events-bot:')) {
+      idsByUrl.set(url, [...(idsByUrl.get(url) || []), lead.id]);
+    }
   }
+  const duplicateUrlGroups = [...idsByUrl.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([url, ids]) => ({ url, ids }));
   const byState = Object.fromEntries(
     Object.entries(counts).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]),
   );
+  const visible = (row) => !focusPaused || row.state !== 'policy_hold';
   const stuck = rows
-    .filter((r) => !TERMINAL.has(r.state) && r.state !== 'sourced')
+    .filter((r) => visible(r) && !TERMINAL.has(r.state) && r.state !== 'sourced')
     .sort((a, b) => (a.stateUpdatedAt || '9999').localeCompare(b.stateUpdatedAt || '9999'))
     .slice(0, 20);
   const { noContact } = countNoContact(doc);
@@ -831,39 +881,31 @@ export function statusReport(doc, { focusPaused = false } = {}) {
   let sendReady = 0;
   let holdsEnrichable = 0;
   let holdsCooling = 0; // enrichable but within scrape cooldown (not re-scraped this day)
-  const holdsScrapeDueRows = []; // enrichable + not cooling — next --enrich targets
-  try {
-    const ap = planApproveDrafted(doc, {
-      note: 'status',
-      actor: 'human',
-      draftsDir: DRAFTS,
-    });
-    const ready = ap.ready || [];
-    approveReady = ready.length;
-    const apEmail = ready.filter((r) => r.channel === 'email');
-    approveEmailIds = apEmail.map((r) => r.id);
-    approveEmailTos = apEmail.map((r) => r.to).filter(Boolean);
-    approveReadyEmail = approveEmailIds.length;
-    approveReadyHandle = ready.filter((r) => r.channel === 'handle').length;
-  } catch {
-    /* pure plan; ignore */
-  }
+  let holdsScrapeDueRows = []; // enrichable + not cooling — next --enrich targets
+  const ap = planApproveDrafted(doc, {
+    note: 'status',
+    actor: 'human',
+    draftsDir: DRAFTS,
+  });
+  const ready = ap.ready || [];
+  approveReady = ready.length;
+  const apEmail = ready.filter((r) => r.channel === 'email');
+  approveEmailIds = apEmail.map((r) => r.id);
+  approveEmailTos = apEmail.map((r) => r.to).filter(Boolean);
+  approveReadyEmail = approveEmailIds.length;
+  approveReadyHandle = ready.filter((r) => r.channel === 'handle').length;
   let sendReadyEmail = 0;
   let sendReadyHandle = 0;
   let sendEmailIds = [];
   let sendEmailTos = [];
-  try {
-    const sp = planSendReady(doc, { draftsDir: DRAFTS });
-    const sready = sp.ready || [];
-    sendReady = sready.length;
-    const seEmail = sready.filter((r) => r.channel === 'email');
-    sendEmailIds = seEmail.map((r) => r.id);
-    sendEmailTos = seEmail.map((r) => r.to).filter(Boolean);
-    sendReadyEmail = sendEmailIds.length;
-    sendReadyHandle = sready.filter((r) => r.channel === 'handle').length;
-  } catch {
-    /* */
-  }
+  const sp = planSendReady(doc, { draftsDir: DRAFTS });
+  const sready = sp.ready || [];
+  sendReady = sready.length;
+  const seEmail = sready.filter((r) => r.channel === 'email');
+  sendEmailIds = seEmail.map((r) => r.id);
+  sendEmailTos = seEmail.map((r) => r.to).filter(Boolean);
+  sendReadyEmail = sendEmailIds.length;
+  sendReadyHandle = sready.filter((r) => r.channel === 'handle').length;
   let holdsExhausted = 0;
   const holdsReason = {};
   const holdsCoolingIds = [];
@@ -909,6 +951,13 @@ export function statusReport(doc, { focusPaused = false } = {}) {
     });
   }
   holdsScrapeDueRows.sort((a, b) => (b.score || 0) - (a.score || 0));
+  const holdsScrapeDueUrls = new Set();
+  holdsScrapeDueRows = holdsScrapeDueRows.filter((lead) => {
+    const url = enrichScrapeUrlKey(lead);
+    if (holdsScrapeDueUrls.has(url)) return false;
+    holdsScrapeDueUrls.add(url);
+    return true;
+  });
 
   // Human package board honesty (detect stale approve/send md vs live ready counts)
   let packageHonesty = {
@@ -920,20 +969,67 @@ export function statusReport(doc, { focusPaused = false } = {}) {
     ok: true,
   };
   let packageAgeSec = null;
+  let packagePaths = {
+    approve: path.join(PKG_BUSY, 'funnel', 'approve-batch-latest.md'),
+    approveEmailFirst: path.join(PKG_BUSY, 'funnel', 'approve-email-first-latest.md'),
+    send: path.join(PKG_BUSY, 'funnel', 'send-batch-latest.md'),
+    sendEmailFirst: path.join(PKG_BUSY, 'funnel', 'send-email-first-latest.md'),
+    l1Snapshot: path.join(PKG_BUSY, 'funnel', 'l1-snapshot-latest.json'),
+    inviteDrain: path.join(BUSY, 'events-bot', 'INVITE-DRAIN.md'),
+    inviteDrainJson: path.join(BUSY, 'events-bot', 'invite-drain-latest.json'),
+    outboxPurge: path.join(BUSY, 'events-bot', 'outbox-purge-latest.json'),
+  };
   try {
-    const apPath = path.join(PKG_BUSY, 'funnel', 'approve-batch-latest.md');
-    const spPath = path.join(PKG_BUSY, 'funnel', 'send-batch-latest.md');
-    const apMd = fs.existsSync(apPath) ? fs.readFileSync(apPath, 'utf8') : '';
-    const spMd = fs.existsSync(spPath) ? fs.readFileSync(spPath, 'utf8') : '';
+    const funnelPkg = path.join(PKG_BUSY, 'funnel');
+    const commitPath = path.join(funnelPkg, 'package-commit-latest.json');
+    const commitRaw = fs.readFileSync(commitPath, 'utf8');
+    const commit = JSON.parse(commitRaw);
+    const generation = path.resolve(String(commit?.generation || ''));
+    const expectedPackageKeys = [
+      'events-bot/INVITE-DRAIN.md',
+      'events-bot/invite-drain-latest.json',
+      'events-bot/outbox-purge-latest.json',
+      'funnel/approve-batch-latest.md',
+      'funnel/approve-email-first-latest.md',
+      'funnel/l1-snapshot-latest.json',
+      'funnel/send-batch-latest.md',
+      'funnel/send-email-first-latest.md',
+    ];
+    const packageKeys = Object.keys(commit?.files || {}).sort();
+    const packageFiles = packageKeys.map((file) => path.join(generation, file));
+    const committed = commit?.schema === 'demigod.package-commit/2' &&
+      generation.startsWith(path.join(PKG_BUSY, 'package-generations') + path.sep) &&
+      !fs.existsSync(path.join(funnelPkg, 'package-refresh.lock')) &&
+      JSON.stringify(packageKeys) === JSON.stringify(expectedPackageKeys) && packageFiles.every((file) =>
+        crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') === commit.files[path.relative(generation, file)],
+      );
+    if (!committed) throw new Error('package generation is incomplete');
+    packagePaths = {
+      approve: path.join(generation, 'funnel/approve-batch-latest.md'),
+      approveEmailFirst: path.join(generation, 'funnel/approve-email-first-latest.md'),
+      send: path.join(generation, 'funnel/send-batch-latest.md'),
+      sendEmailFirst: path.join(generation, 'funnel/send-email-first-latest.md'),
+      l1Snapshot: path.join(generation, 'funnel/l1-snapshot-latest.json'),
+      inviteDrain: path.join(BUSY, 'events-bot/INVITE-DRAIN.md'),
+      inviteDrainJson: path.join(BUSY, 'events-bot/invite-drain-latest.json'),
+      outboxPurge: path.join(BUSY, 'events-bot/outbox-purge-latest.json'),
+    };
+    const apPath = packagePaths.approve;
+    const spPath = packagePaths.send;
+    const apMd = fs.readFileSync(apPath, 'utf8');
+    const spMd = fs.readFileSync(spPath, 'utf8');
+    if (fs.existsSync(path.join(funnelPkg, 'package-refresh.lock')) || fs.readFileSync(commitPath, 'utf8') !== commitRaw) {
+      throw new Error('package generation changed while reading');
+    }
     packageHonesty = packageBoardHonesty({
       approveReady,
       sendReady,
       approveMd: apMd,
       sendMd: spMd,
     });
-    // Age of oldest package board file so one refresh cannot hide a stale sibling.
+    // Age the full composite package so one refreshed sibling cannot hide stale evidence.
     let oldest = Infinity;
-    for (const p of [apPath, spPath]) {
+    for (const p of packageFiles) {
       try {
         const mt = fs.statSync(p).mtimeMs;
         if (mt < oldest) oldest = mt;
@@ -943,13 +1039,13 @@ export function statusReport(doc, { focusPaused = false } = {}) {
     }
     if (Number.isFinite(oldest)) packageAgeSec = Math.max(0, Math.round((Date.now() - oldest) / 1000));
   } catch {
-    /* optional board files */
+    packageHonesty = { ...packageHonesty, approveDrift: true, sendDrift: true, drift: true, ok: false };
   }
 
   // L1 machine snapshot age (written by cmdStatus)
   let l1SnapshotAgeSec = null;
   try {
-    const l1Path = path.join(PKG_BUSY, 'funnel', 'l1-snapshot-latest.json');
+    const l1Path = packagePaths.l1Snapshot;
     if (fs.existsSync(l1Path)) {
       const j = JSON.parse(fs.readFileSync(l1Path, 'utf8'));
       if (j?.at) {
@@ -1015,12 +1111,18 @@ export function statusReport(doc, { focusPaused = false } = {}) {
   } catch {
     /* optional */
   }
+  const currentEventId = activeEventId === undefined ? eventsActive.id : activeEventId;
+  for (const row of rows) {
+    if (row.source === 'events-bot:event' && row.eventId) {
+      row.eventStatus = row.eventId === currentEventId ? 'active' : 'historical';
+    }
+  }
 
   // FOCUS #2: invite outbox drain snapshot (JSON preferred, md fallback — never invents URLs)
   let inviteDrain = { total: null, needsUrl: null, recorded: null, ageSec: null };
   let outboxPurge = { deleted: null, capped: null, scanned: null };
   try {
-    const invJsonPath = path.join(BUSY, 'events-bot', 'invite-drain-latest.json');
+    const invJsonPath = packagePaths.inviteDrainJson;
     if (fs.existsSync(invJsonPath)) {
       const j = JSON.parse(fs.readFileSync(invJsonPath, 'utf8'));
       let ageSec = null;
@@ -1040,7 +1142,7 @@ export function statusReport(doc, { focusPaused = false } = {}) {
         ageSec,
       };
     } else {
-      const invPath = path.join(BUSY, 'events-bot', 'INVITE-DRAIN.md');
+      const invPath = packagePaths.inviteDrain;
       if (fs.existsSync(invPath)) {
         const invMd = fs.readFileSync(invPath, 'utf8');
         const m = invMd.match(
@@ -1055,7 +1157,7 @@ export function statusReport(doc, { focusPaused = false } = {}) {
         }
       }
     }
-    const purgePath = path.join(BUSY, 'events-bot', 'outbox-purge-latest.json');
+    const purgePath = packagePaths.outboxPurge;
     if (fs.existsSync(purgePath)) {
       const p = JSON.parse(fs.readFileSync(purgePath, 'utf8'));
       outboxPurge = {
@@ -1103,17 +1205,22 @@ export function statusReport(doc, { focusPaused = false } = {}) {
       drafted: counts.drafted || 0,
       approved: counts.approved || 0,
       noContact,
+      invalid_history_transitions: invalidHistoryTransitions,
+      invalid_history_ids: invalidHistoryIds,
+      duplicate_partner_url_groups: duplicateUrlGroups.length,
+      duplicate_partner_url_ids: duplicateUrlGroups,
       approve_ready: approveReady,
       approve_ready_email: approveReadyEmail,
       approve_ready_handle: approveReadyHandle,
       // Machine-readable L1 email-first ids + tos (no parse nextHuman / package md)
-      approve_ready_email_ids: approveEmailIds.slice(0, 12),
-      approve_ready_email_tos: approveEmailTos.slice(0, 12),
+      approve_ready_email_ids: approveEmailIds,
+      approve_ready_email_tos: approveEmailTos,
       send_ready: sendReady,
       send_ready_email: sendReadyEmail,
       send_ready_handle: sendReadyHandle,
-      send_ready_email_ids: sendEmailIds.slice(0, 12),
-      send_ready_email_tos: sendEmailTos.slice(0, 12),
+      send_ready_human_only: sendReadyHandle,
+      send_ready_email_ids: sendEmailIds,
+      send_ready_email_tos: sendEmailTos,
       package_approve_ready: packageHonesty.packageApproveReady,
       package_send_ready: packageHonesty.packageSendReady,
       package_drift: packageHonesty.drift ? 1 : 0,
@@ -1123,7 +1230,8 @@ export function statusReport(doc, { focusPaused = false } = {}) {
       l1_snapshot_age_sec: l1SnapshotAgeSec,
       events_api_base: eventsApi.base,
       events_api_age_sec: eventsApi.ageSec,
-      events_api_published: eventsApi.published,
+      // CDN config publication is not endpoint reachability; events-online owns health.
+      events_api_config_published: eventsApi.published,
       events_active_has_active: eventsActive.hasActive,
       events_active_stage: eventsActive.stage,
       events_active_id: eventsActive.id,
@@ -1140,17 +1248,18 @@ export function statusReport(doc, { focusPaused = false } = {}) {
       outbox_file_total: outboxFileTotal,
       outbox_fixture_names: outboxFixtureNames,
       invite_drain_age_sec: inviteDrain.ageSec,
-      invite_drain_stale: inviteDrain.ageSec != null && inviteDrain.ageSec > 600 ? 1 : 0,
+      invite_drain_stale: inviteDrain.needsUrl > 0 && inviteDrain.ageSec != null && inviteDrain.ageSec > 600 ? 1 : 0,
       holds_enrichable: holdsEnrichable,
       holds_cooling: holdsCooling,
-      holds_cooling_ids: holdsCoolingIds.slice(0, 12),
+      holds_cooling_ids: holdsCoolingIds,
       // Seconds until earliest cooling hold is due for enrich (null if none cooling)
       holds_cooling_min_remaining_sec: holdsCoolingMinRemainingSec,
       holds_exhausted: holdsExhausted,
-      holds_exhausted_ids: holdsExhaustedIds.slice(0, 12),
+      holds_exhausted_ids: holdsExhaustedIds,
       holds_scrape_due: holdsScrapeDueRows.length,
+      enrichment_paused: !!focusPaused,
       // Machine path for pipeline skip honesty (0 due → skip Firecrawl)
-      holds_scrape_due_ids: holdsScrapeDueRows.map((r) => r.id).slice(0, 12),
+      holds_scrape_due_ids: holdsScrapeDueRows.map((r) => r.id),
       holds_reason: holdsReason,
       sent: counts.sent || 0,
       sent_receipt_backed: countReceiptBackedSent(doc),
@@ -1170,28 +1279,26 @@ export function statusReport(doc, { focusPaused = false } = {}) {
     autoSend: false,
     autoDm: false,
     packages: {
-      approve: path.join(PKG_BUSY, 'funnel', 'approve-batch-latest.md'),
-      approveEmailFirst: path.join(PKG_BUSY, 'funnel', 'approve-email-first-latest.md'),
-      send: path.join(PKG_BUSY, 'funnel', 'send-batch-latest.md'),
-      sendEmailFirst: path.join(PKG_BUSY, 'funnel', 'send-email-first-latest.md'),
-      l1Snapshot: path.join(PKG_BUSY, 'funnel', 'l1-snapshot-latest.json'),
-      inviteDrain: path.join(BUSY, 'events-bot', 'INVITE-DRAIN.md'),
-      inviteDrainJson: path.join(BUSY, 'events-bot', 'invite-drain-latest.json'),
+      ...packagePaths,
       holdsEnrichDue: path.join(PKG_BUSY, 'funnel', 'holds-enrich-due-latest.md'),
     },
-    holdsScrapeDue: holdsScrapeDueRows.slice(0, 12),
+    eventLeads: rows.filter((row) => row.source === 'events-bot:event'),
+    holdsScrapeDue: holdsScrapeDueRows,
     stuckOldest: stuck,
     top: rows
-      .slice()
+      .filter((row) => row.state !== 'policy_hold' && !TERMINAL.has(row.state))
       .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 12),
     opsNotes: [
+      duplicateUrlGroups.length
+        ? `Duplicate partner URLs (${duplicateUrlGroups.length}) — review: funnel collision-plan`
+        : null,
       !focusPaused &&
       (packageHonesty.drift || (packageAgeSec != null && packageAgeSec > 600) || (inviteDrain.ageSec != null && inviteDrain.ageSec > 600))
         ? `Package evidence stale or drifted — node demigod-lead-pipeline.mjs tick --stage=packages`
         : null,
       !focusPaused && approveReadyEmail
-        ? `Prefer email approve first (${approveReadyEmail}): node demigod-funnel.mjs approve-drafted --note="reviewed email" --actor=human --id=${approveEmailIds.slice(0, 12).join(',')} · board /tmp/dg-busy/funnel/approve-email-first-latest.md · l1 /tmp/dg-busy/funnel/l1-snapshot-latest.json`
+        ? `Prefer email approve first (${approveReadyEmail}): node demigod-funnel.mjs approve-drafted --note="reviewed email" --actor=human --id=${approveEmailIds.join(',')} · board /tmp/dg-busy/funnel/approve-email-first-latest.md · l1 /tmp/dg-busy/funnel/l1-snapshot-latest.json`
         : null,
       !focusPaused && approveReady
         ? `Review approve package (${approveReady} ready · email ${approveReadyEmail} · handle ${approveReadyHandle}) — /tmp/dg-busy/funnel/approve-batch-latest.md`
@@ -1215,11 +1322,8 @@ export function statusReport(doc, { focusPaused = false } = {}) {
                 : '') +
               ` — wait or --id= force`
             : null,
-      inviteDrain.needsUrl > 0
+      ['rsvp', 'run', 'followup', 'debrief'].includes(eventsActive.stage) && inviteDrain.needsUrl > 0
         ? `Events invite URL pending (${inviteDrain.needsUrl}) — drain path /tmp/dg-busy/events-bot/HUMAN-INVITE-URLS.md · demigod-events-invite-drain.mjs`
-        : null,
-      eventsApi.ageSec != null && eventsApi.ageSec > 3600
-        ? `Events API config age ${eventsApi.ageSec}s — node demigod-events-online.mjs status (heal if needHeal)`
         : null,
       eventsActive.fixtureCount > 0
         ? `Events store has ${eventsActive.fixtureCount} fixture-titled night(s) (Fogline/selftest) — purge from DEMIGOD-EVENTS.json`
@@ -1234,6 +1338,59 @@ export function statusReport(doc, { focusPaused = false } = {}) {
     ].filter(Boolean),
     packageHonesty,
   };
+}
+
+function partnerUrlKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    url.hash = '';
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.href;
+  } catch {
+    return raw;
+  }
+}
+
+/** Pure review plan; never mutates or silently discards duplicate evidence. */
+export function planPartnerUrlCollisionMerges(doc) {
+  const progress = STATES.slice(0, STATES.indexOf('paid') + 1);
+  const rank = (lead) => Math.max(0, progress.indexOf(getState(lead)));
+  const suppressionRank = (lead) => {
+    const state = getState(lead);
+    return state === 'opted_out' ? 3 : ['bounced', 'quarantined'].includes(state) ? 2 : TERMINAL.has(state) ? 1 : 0;
+  };
+  const updatedAt = (lead) => Date.parse(lead.stateUpdatedAt || '') || 0;
+  const groups = new Map();
+  for (const lead of doc?.partners || []) {
+    const url = partnerUrlKey(lead.url);
+    if (url && !String(lead.source || '').startsWith('events-bot:')) {
+      groups.set(url, [...(groups.get(url) || []), lead]);
+    }
+  }
+  return [...groups.entries()].filter(([, leads]) => leads.length > 1).map(([url, leads]) => {
+    const survivor = [...leads].sort((a, b) =>
+      suppressionRank(b) - suppressionRank(a) ||
+      rank(b) - rank(a) ||
+      updatedAt(b) - updatedAt(a) ||
+      String(a.id).localeCompare(String(b.id))
+    )[0];
+    return {
+      url,
+      keepId: survivor.id,
+      keepState: getState(survivor),
+      mergeIds: leads.filter((lead) => lead !== survivor).map((lead) => lead.id),
+      evidence: leads.map((lead) => ({
+        id: lead.id,
+        state: getState(lead),
+        stateHistory: lead.stateHistory || [],
+        history: lead.history || [],
+        provenance: lead.provenance || null,
+        contactProvenance: lead.contactProvenance || null,
+      })),
+    };
+  });
 }
 
 /**
@@ -1458,14 +1615,28 @@ function cmdNormalize() {
   console.log(JSON.stringify({ ok: true, updated, total: allLeads(doc).length, file: LEADS, written: updated > 0 }, null, 2));
 }
 
-function cmdStatus() {
+export function currentStatusReport() {
   const doc = loadLeads();
   normalizeDoc(doc); // in-memory only for report consistency
   const focusPath = path.join(BUSY, 'lead-system', 'FOCUS.md');
   const focus = fs.existsSync(focusPath) ? fs.readFileSync(focusPath, 'utf8') : '';
-  console.log(
-    JSON.stringify(statusReport(doc, { focusPaused: /\blead funnel\b[\s\S]{0,200}\bpaused\b/i.test(focus) }), null, 2),
-  );
+  return statusReport(doc, { focusPaused: leadCollectionPaused(focus) });
+}
+
+function cmdStatus() {
+  console.log(JSON.stringify(currentStatusReport(), null, 2));
+}
+
+export function cmdL1Snapshot({ emit = true, busyDir = PKG_BUSY } = {}) {
+  const doc = loadLeads();
+  normalizeDoc(doc);
+  const rep = statusReport(doc);
+  const out = path.join(busyDir, 'funnel', 'l1-snapshot-latest.json');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  atomicWrite(out, JSON.stringify(buildL1Snapshot(rep, { pkgDir: path.dirname(out), busyDir: PKG_BUSY }), null, 2) + '\n');
+  const result = { ok: true, out, autoSend: false, autoDm: false };
+  if (emit) console.log(JSON.stringify(result));
+  return result;
 }
 
 function policyGate(lead, doc, mode, action) {
@@ -1754,7 +1925,7 @@ export function buildL1Snapshot(rep, { pkgDir = null, busyDir = null } = {}) {
     invite_drain_recorded: m.invite_drain_recorded ?? null,
     events_api_base: m.events_api_base ?? null,
     events_api_age_sec: m.events_api_age_sec ?? null,
-    events_api_published: m.events_api_published ?? null,
+    events_api_config_published: m.events_api_config_published ?? m.events_api_published ?? null,
     outbox_purge_deleted: m.outbox_purge_deleted ?? null,
     outbox_purge_capped: m.outbox_purge_capped ?? null,
     outbox_purge_scanned: m.outbox_purge_scanned ?? null,
@@ -2241,7 +2412,7 @@ export function approveDrafted(
   return { approved, errors, plan };
 }
 
-function cmdApproveDrafted(args) {
+export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}) {
   const note = arg(args, '--note');
   const actor = arg(args, '--actor') || 'human';
   const mode = arg(args, '--mode') || 'draft-only';
@@ -2280,7 +2451,7 @@ function cmdApproveDrafted(args) {
     const plan = planApproveDrafted(doc, opts);
     let packagePath = null;
     if (wantPackage) {
-      const pkgDir = path.join(PKG_BUSY, 'funnel');
+      const pkgDir = path.join(busyDir, 'funnel');
       fs.mkdirSync(pkgDir, { recursive: true });
       packagePath = path.join(pkgDir, 'approve-batch-latest.md');
       atomicWrite(
@@ -2290,10 +2461,12 @@ function cmdApproveDrafted(args) {
           draftsDir: DRAFTS,
         }),
       );
+      atomicWrite(
+        path.join(pkgDir, 'approve-email-first-latest.md'),
+        formatEmailFirstApprovePackage(plan),
+      );
     }
-    console.log(
-      JSON.stringify(
-        {
+    const result = {
           ok: true,
           dryRun: true,
           readyCount: plan.ready.length,
@@ -2304,12 +2477,9 @@ function cmdApproveDrafted(args) {
           packagePath,
           greetingRefreshed,
           note: 'report only — pass --note=… without --dry-run to apply (actor=human)',
-        },
-        null,
-        2,
-      ),
-    );
-    return;
+        };
+    if (emit) console.log(JSON.stringify(result, null, 2));
+    return result;
   }
   const result = approveDrafted(doc, { ...opts, actor });
   if (result.approved.length) saveDoc(doc);
@@ -2318,7 +2488,7 @@ function cmdApproveDrafted(args) {
   }
   let packagePath = null;
   if (args.includes('--package') && result.plan) {
-    const pkgDir = path.join(PKG_BUSY, 'funnel');
+    const pkgDir = path.join(busyDir, 'funnel');
     fs.mkdirSync(pkgDir, { recursive: true });
     packagePath = path.join(pkgDir, 'approve-batch-latest.md');
     atomicWrite(
@@ -2345,7 +2515,7 @@ function cmdApproveDrafted(args) {
   if (result.errors.length) process.exitCode = 1;
 }
 
-function cmdSendPackage(args) {
+export function cmdSendPackage(args, { emit = true, busyDir = PKG_BUSY } = {}) {
   const note = arg(args, '--note') || 'pipeline-send-board';
   const idArg = arg(args, '--id');
   const ids = idArg
@@ -2358,16 +2528,18 @@ function cmdSendPackage(args) {
   normalizeDoc(doc);
   const greetingRefreshed = refreshTalentDraftGreetings(doc, { draftsDir: DRAFTS });
   const plan = planSendReady(doc, { draftsDir: DRAFTS, ids });
-  const pkgDir = path.join(PKG_BUSY, 'funnel');
+  const pkgDir = path.join(busyDir, 'funnel');
   fs.mkdirSync(pkgDir, { recursive: true });
   const packagePath = path.join(pkgDir, 'send-batch-latest.md');
   atomicWrite(
     packagePath,
     formatSendBatchPackage(plan, { note, draftsDir: DRAFTS }),
   );
-  console.log(
-    JSON.stringify(
-      {
+  atomicWrite(
+    path.join(pkgDir, 'send-email-first-latest.md'),
+    formatEmailFirstSendPackage(plan),
+  );
+  const result = {
         ok: true,
         readyCount: plan.ready.length,
         blockedCount: plan.blocked.length,
@@ -2378,11 +2550,9 @@ function cmdSendPackage(args) {
         greetingRefreshed,
         autoSend: false,
         note: 'human send board only — never auto-sends',
-      },
-      null,
-      2,
-    ),
-  );
+      };
+  if (emit) console.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 function cmdTransition(args) {
@@ -2392,9 +2562,14 @@ function cmdTransition(args) {
   const note = arg(args, '--note');
   const actor = arg(args, '--actor') || 'agent';
   const mode = arg(args, '--mode') || 'draft-only';
+  const requestedPairId = arg(args, '--pair');
   if (!id || !to) {
-    console.error('usage: transition --id=LEAD --to=STATE [--evidence=path] [--note=text]');
+    console.error('usage: transition --id=LEAD --to=STATE [--evidence=path] [--note=text] [--pair=PAIR]');
     process.exit(2);
+  }
+  if (to === 'invoiced') {
+    console.error(JSON.stringify({ ok: false, error: 'use invoice so the placement pair and fee are recorded together' }));
+    process.exit(1);
   }
   const doc = loadLeads();
   normalizeDoc(doc);
@@ -2402,6 +2577,32 @@ function cmdTransition(args) {
   if (!row) {
     console.error(JSON.stringify({ ok: false, error: `lead not found: ${id}` }));
     process.exit(1);
+  }
+  const pairBound = to === 'hired' || to === 'paid';
+  const pairId = pairBound ? placementPairId(row.lead, requestedPairId) : '';
+  if (pairBound && !pairId) {
+    console.error(JSON.stringify({
+      ok: false,
+      id,
+      to,
+      error: requestedPairId ? 'pair_not_bound_to_lead' : `${to}_requires_unambiguous_pair`,
+    }));
+    process.exit(1);
+  }
+  let paidFeeCents;
+  if (to === 'paid') {
+    const invoice = [...(row.lead.stateHistory || [])].reverse().find((entry) =>
+      entry?.to === 'invoiced' && entry?.pairId === pairId && entry?.evidence);
+    const invoiceAt = Date.parse(invoice?.at || '');
+    if (!Number.isFinite(invoiceAt) || invoiceAt > Date.now()) {
+      console.error(JSON.stringify({ ok: false, id, to, pairId, error: 'paid_requires_pair_bound_invoice_chronology' }));
+      process.exit(1);
+    }
+    paidFeeCents = Number(invoice?.netFeeCents ?? invoice?.feeCents);
+    if (!Number.isSafeInteger(paidFeeCents) || paidFeeCents <= 0) {
+      console.error(JSON.stringify({ ok: false, id, to, pairId, error: 'paid_requires_pair_bound_invoice_fee' }));
+      process.exit(1);
+    }
   }
   if (to === 'approved' || to === 'sent' || to === 'drafted') {
     if (isUnreachable(row.lead)) {
@@ -2445,6 +2646,7 @@ function cmdTransition(args) {
   }
   row.lead.state = to;
   row.lead.status = to;
+  if (pairId) row.lead.pairId = pairId;
   row.lead.stateUpdatedAt = new Date().toISOString();
   row.lead.stateHistory = row.lead.stateHistory || [];
   row.lead.stateHistory.push({
@@ -2454,6 +2656,8 @@ function cmdTransition(args) {
     actor,
     evidence: evidence || null,
     note: note || null,
+    ...(pairId ? { pairId } : {}),
+    ...(paidFeeCents ? { feeCents: paidFeeCents } : {}),
   });
   saveDoc(doc);
   appendLog({
@@ -2463,8 +2667,10 @@ function cmdTransition(args) {
     to,
     actor,
     evidence: evidence || null,
+    pairId: pairId || undefined,
+    feeCents: paidFeeCents,
   });
-  console.log(JSON.stringify({ ok: true, id, from, to, actor }, null, 2));
+  console.log(JSON.stringify({ ok: true, id, from, to, actor, pairId: pairId || undefined, feeCents: paidFeeCents }, null, 2));
 }
 
 function cmdParkNoContact(args) {
@@ -2823,7 +3029,7 @@ export function planReceipt(
   if (!hasMid && !hasNote) {
     return { ok: false, reason: 'message-id or note required' };
   }
-  // Always include SENT-CONFIRMED so receiptLooksValid accepts note-only paste paths
+  // SENT-CONFIRMED plus transport evidence is required; note is supplementary context.
   const evidenceText = [
     'SENT-CONFIRMED',
     hasMid ? `Message-ID: ${String(messageId).trim()}` : null,
@@ -2843,7 +3049,7 @@ export function planReceipt(
       return { ok: false, reason: `max ${MAX_NUDGES} nudges reached — mark cold instead` };
     }
     if (!receiptLooksValid(evidenceText)) {
-      return { ok: false, reason: 'nudge receipt invalid — need SENT-CONFIRMED or Message-ID' };
+      return { ok: false, reason: 'nudge receipt invalid — Message-ID or transport proof required' };
     }
     return {
       ok: true,
@@ -2871,6 +3077,40 @@ export function planReceipt(
   return { ok: true, from: f, to, reason: 'allowed', evidenceText };
 }
 
+/** Commit CRM/log before publishing receipt evidence; restore every target on write failure. */
+export function commitReceiptTransaction({ receiptPath, receiptBody, trackedPaths, commit }) {
+  const stage = `${receiptPath}.stage.${process.pid}.${Date.now()}`;
+  const paths = [...new Set([...trackedPaths, receiptPath])];
+  const before = new Map(paths.map((file) => {
+    try {
+      const stat = fs.statSync(file);
+      return [file, { body: fs.readFileSync(file), mode: stat.mode & 0o777 }];
+    } catch {
+      return [file, null];
+    }
+  }));
+  try {
+    atomicWrite(stage, receiptBody);
+    commit();
+    fs.renameSync(stage, receiptPath);
+  } catch (error) {
+    const rollbackErrors = [];
+    for (const [file, snapshot] of before) {
+      try {
+        if (snapshot) atomicWrite(file, snapshot.body, { mode: snapshot.mode });
+        else fs.unlinkSync(file);
+      } catch (rollbackError) {
+        if (snapshot || rollbackError?.code !== 'ENOENT') rollbackErrors.push({ file, error: String(rollbackError) });
+      }
+    }
+    try { fs.unlinkSync(stage); } catch (rollbackError) {
+      if (rollbackError?.code !== 'ENOENT') rollbackErrors.push({ file: stage, error: String(rollbackError) });
+    }
+    if (rollbackErrors.length) error.rollbackErrors = rollbackErrors;
+    throw error;
+  }
+}
+
 /**
  * Log a real send receipt then transition:
  *   approved → sent  |  sent → nudged  |  mutual_yes → intro_made
@@ -2878,6 +3118,10 @@ export function planReceipt(
  * Human must have already sent; this only records evidence. Never sends.
  */
 function cmdReceipt(args) {
+  if (!receiptArgsValid(args)) {
+    console.error('unknown, duplicate, or missing receipt argument');
+    process.exit(2);
+  }
   const id = arg(args, '--id');
   const channel = arg(args, '--channel') || 'email';
   const toAddr = arg(args, '--to');
@@ -2918,6 +3162,28 @@ function cmdReceipt(args) {
     );
     process.exit(1);
   }
+  if ((plan.to === 'sent' || plan.to === 'nudged' || plan.recordOnly) && !receiptDestinationMatches(row.lead, channel, toAddr)) {
+    console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'receipt destination missing or does not match lead' }));
+    process.exit(1);
+  }
+  if (!plan.recordOnly && (plan.to === 'sent' || plan.to === 'drafted' || plan.to === 'approved')) {
+    if (isUnreachable(row.lead) || !hasUsableOutreachContact(row.lead)) {
+      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'no usable email|handle' }));
+      process.exit(1);
+    }
+    const pol = policyGate(row.lead, doc, 'approve-each', plan.to === 'sent' ? 'send' : 'draft');
+    if (!pol.ok) {
+      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: pol.reason, policy: pol }, null, 2));
+      process.exit(1);
+    }
+  }
+  if (!plan.recordOnly) {
+    const check = canTransition(from, plan.to, { evidenceText: plan.evidenceText, actor });
+    if (!check.ok) {
+      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: check.error }, null, 2));
+      process.exit(1);
+    }
+  }
   const at = new Date().toISOString();
   const lines = [
     'SENT-CONFIRMED',
@@ -2941,34 +3207,44 @@ function cmdReceipt(args) {
   } else {
     out = path.join(RECEIPTS, `${id}-${plan.to}.txt`);
   }
-  atomicWrite(out, lines.join('\n'));
+  commitReceiptTransaction({
+    receiptPath: out,
+    receiptBody: lines.join('\n'),
+    trackedPaths: [LEADS, LOG],
+    commit() {
+      const lead = row.lead;
+      lead.stateUpdatedAt = at;
+      lead.stateHistory = lead.stateHistory || [];
+      if (plan.recordOnly) lead.nudgeCount = nudgeCount(lead) + 1;
+      else {
+        lead.state = plan.to;
+        lead.status = plan.to;
+        if (plan.to === 'nudged') lead.nudgeCount = Math.max(1, nudgeCount(lead));
+      }
+      lead.stateHistory.push({
+        at,
+        from,
+        to: plan.to,
+        ...(plan.recordOnly ? { kind: 'nudge' } : {}),
+        actor,
+        evidence: out,
+        note: note || (plan.recordOnly ? 'nudge_record' : null),
+      });
+      saveDoc(doc);
+      appendLog({
+        at,
+        id,
+        from,
+        to: plan.to,
+        ...(plan.recordOnly ? { kind: 'nudge_record' } : {}),
+        actor,
+        evidence: out,
+      });
+    },
+  });
 
   if (plan.recordOnly) {
-    // Stay in nudged; append history so nudgeCount / age gate advance (fail-closed max)
     const lead = row.lead;
-    const prevN = nudgeCount(lead);
-    lead.stateUpdatedAt = at;
-    lead.nudgeCount = prevN + 1;
-    lead.stateHistory = lead.stateHistory || [];
-    lead.stateHistory.push({
-      at,
-      from: 'nudged',
-      to: 'nudged',
-      kind: 'nudge',
-      actor,
-      evidence: out,
-      note: note || 'nudge_record',
-    });
-    saveDoc(doc);
-    appendLog({
-      at,
-      id,
-      from: 'nudged',
-      to: 'nudged',
-      kind: 'nudge_record',
-      actor,
-      evidence: out,
-    });
     console.log(
       JSON.stringify(
         {
@@ -2989,22 +3265,6 @@ function cmdReceipt(args) {
     return;
   }
 
-  cmdTransition([
-    `--id=${id}`,
-    `--to=${plan.to}`,
-    `--evidence=${out}`,
-    `--actor=${actor}`,
-    '--mode=approve-each',
-  ]);
-  // First nudge: also stamp nudgeCount so planFollowups ages correctly
-  if (plan.to === 'nudged') {
-    const doc2 = loadLeads();
-    const row2 = findLead(doc2, id);
-    if (row2) {
-      row2.lead.nudgeCount = Math.max(1, nudgeCount(row2.lead));
-      saveDoc(doc2);
-    }
-  }
   console.log(
     JSON.stringify(
       {
@@ -3020,6 +3280,39 @@ function cmdReceipt(args) {
       2,
     ),
   );
+}
+
+/** Receipt writes real-send evidence, so ambiguous or stray CLI input fails closed. */
+export function receiptArgsValid(args) {
+  const names = new Map([
+    ['--id', '--id'],
+    ['--channel', '--channel'],
+    ['--to', '--to'],
+    ['--message-id', '--message-id'],
+    ['--messageId', '--message-id'],
+    ['--note', '--note'],
+    ['--actor', '--actor'],
+    ['--to-state', '--to-state'],
+    ['--toState', '--to-state'],
+  ]);
+  const seen = new Set();
+  for (let i = 0; i < args.length; i++) {
+    const [raw, inline] = args[i].split(/=(.*)/s, 2);
+    const name = names.get(raw);
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    if (inline === undefined && (!args[++i] || args[i].startsWith('-'))) return false;
+    if (inline !== undefined && !inline) return false;
+  }
+  return true;
+}
+
+/** Bind outreach receipts to the selected CRM identity; intro recipients are handled separately. */
+export function receiptDestinationMatches(lead, channel, destination) {
+  const value = normalizeLoose(destination).toLowerCase();
+  if (channel === 'email') return Boolean(value && value === normalizeLoose(lead?.email || lead?.contactEmail).toLowerCase());
+  if (channel === 'x') return Boolean(value && value.replace(/^@/, '') === normalizeLoose(lead?.handle || lead?.twitter || lead?.x).replace(/^@/, '').toLowerCase());
+  return false;
 }
 
 function isSyntheticSubmission(sub) {
@@ -3277,15 +3570,19 @@ function cmdJoin(args) {
     };
     if (apply && patchPlan.patches.length) {
       try {
-        const live = loadInbox();
-        const items = live.items || live.submissions || [];
-        gmail.inboxPatched = applyInboxContactPatches(items, patchPlan.patches);
+        let refreshed = [];
+        gmail.inboxPatched = updateInbox((live) => {
+          const items = live.items || live.submissions || [];
+          const patched = applyInboxContactPatches(items, patchPlan.patches);
+          if (patched) {
+            if (live.items) live.items = items;
+            else if (live.submissions) live.submissions = items;
+          }
+          refreshed = live.items || live.submissions || items;
+          return patched;
+        });
         if (gmail.inboxPatched) {
-          if (live.items) live.items = items;
-          else if (live.submissions) live.submissions = items;
-          saveInbox(live);
           // refresh subs after durable patch
-          const refreshed = live.items || live.submissions || items;
           subs = refreshed.filter((s) => !isSyntheticSubmission(s));
         }
       } catch (e) {
@@ -3397,7 +3694,8 @@ export function planFollowups(doc, { days = 5, id = null, now = Date.now() } = {
   const draftable = [];
   const skipped = [];
   const coldEligible = [];
-  const minDays = Number(days) || 5;
+  const minDays = Number(days);
+  if (!Number.isFinite(minDays) || minDays <= 0) throw new Error('days must be a positive number');
   const root = doc || {};
   for (const { lead, side } of allLeads(root)) {
     if (id && lead.id !== id) continue;
@@ -3489,7 +3787,7 @@ function followupBody(lead, side, { final = false } = {}) {
 /** Nudge draft for sent/nudged leads (never sends). Caps at MAX_NUDGES. */
 function cmdFollowup(args) {
   const id = arg(args, '--id');
-  const days = Number(arg(args, '--days') || 5);
+  const days = Number(arg(args, '--days') ?? 5);
   const doc = loadLeads();
   normalizeDoc(doc);
   const plan = planFollowups(doc, { days, id, now: Date.now() });
@@ -4406,6 +4704,7 @@ function cmdPairSync(args) {
           null,
           2,
         ) + '\n',
+        { mode: 0o600 },
       );
       if (apply) {
         if (m.hopViaProposed || getState(lead) === 'in_review') {
@@ -4716,6 +5015,7 @@ function cmdInvoice(args) {
   const apply = args.includes('--apply');
   const actor = arg(args, '--actor') || 'agent';
   const evidenceArg = arg(args, '--evidence');
+  const requestedPairId = arg(args, '--pair');
   const toArg = arg(args, '--to');
 
   if (toArg === 'paid') {
@@ -4788,30 +5088,34 @@ function cmdInvoice(args) {
     );
     process.exit(1);
   }
+  const pairId = placementPairId(row.lead, requestedPairId);
+  if (!pairId) {
+    console.error(JSON.stringify({
+      ok: false,
+      id,
+      error: requestedPairId ? 'pair_not_bound_to_lead' : 'invoice_requires_unambiguous_pair',
+    }));
+    process.exit(1);
+  }
 
-  // Hire evidence: explicit --evidence, else last hired stateHistory evidence path
-  let hireEvidence = evidenceArg ? resolveEvidence(evidenceArg) : null;
-  if (!hireEvidence) {
-    const hist = row.lead.stateHistory || [];
-    for (let i = hist.length - 1; i >= 0; i--) {
-      const h = hist[i];
-      if (h && h.to === 'hired' && h.evidence) {
-        hireEvidence = resolveEvidence(h.evidence);
-        break;
-      }
-    }
-  }
-  if (!hireEvidence && row.lead.hireEvidence) {
-    hireEvidence = resolveEvidence(row.lead.hireEvidence);
-  }
-  if (!hireEvidence || !fs.existsSync(hireEvidence) || !fs.statSync(hireEvidence).size) {
+  const hire = [...(row.lead.stateHistory || [])].reverse().find((entry) =>
+    entry?.to === 'hired' && entry?.pairId === pairId && entry?.evidence);
+  const hireAt = Date.parse(hire?.at || '');
+  const hireEvidence = hire?.evidence ? resolveEvidence(hire.evidence) : null;
+  const requestedEvidence = evidenceArg ? resolveEvidence(evidenceArg) : hireEvidence;
+  if (!Number.isFinite(hireAt) || hireAt > Date.now() || !hireEvidence ||
+      !fs.existsSync(hireEvidence) || !fs.statSync(hireEvidence).isFile() || !fs.statSync(hireEvidence).size) {
     console.error(
       JSON.stringify({
         ok: false,
         id,
-        error: 'hire evidence missing — pass --evidence=path or record hired with evidence file',
+        error: 'pair-bound hired transition with valid evidence and chronology required',
       }),
     );
+    process.exit(1);
+  }
+  if (path.resolve(requestedEvidence) !== path.resolve(hireEvidence)) {
+    console.error(JSON.stringify({ ok: false, id, pairId, error: 'invoice_evidence_must_match_pair_hire' }));
     process.exit(1);
   }
 
@@ -4831,6 +5135,7 @@ function cmdInvoice(args) {
           from,
           would: 'invoiced',
           cash,
+          pairId,
           feeCents: calc.feeCents,
           hireEvidence,
           note: 'report-only; pass --apply to write stub + transition',
@@ -4843,7 +5148,7 @@ function cmdInvoice(args) {
   }
 
   const stub = invoiceStub({
-    pairId: row.lead.pairId || row.lead.id,
+    pairId,
     cash,
     evidencePath: hireEvidence,
     actor,
@@ -4865,6 +5170,7 @@ function cmdInvoice(args) {
   const at = new Date().toISOString();
   row.lead.state = 'invoiced';
   row.lead.status = 'invoiced';
+  row.lead.pairId = pairId;
   row.lead.stateUpdatedAt = at;
   row.lead.invoiceId = stub.invoice?.id || null;
   row.lead.invoicePath = stub.path;
@@ -4876,6 +5182,8 @@ function cmdInvoice(args) {
     to: 'invoiced',
     actor,
     evidence: stub.path,
+    pairId,
+    feeCents: calc.feeCents,
     note: `invoice stub feeCents=${calc.feeCents}`,
   });
   saveDoc(doc);
@@ -4886,6 +5194,7 @@ function cmdInvoice(args) {
     to: 'invoiced',
     actor,
     evidence: stub.path,
+    pairId,
     feeCents: calc.feeCents,
   });
   console.log(
@@ -4897,6 +5206,7 @@ function cmdInvoice(args) {
         from,
         to: 'invoiced',
         cash,
+        pairId,
         feeCents: calc.feeCents,
         invoiceId: stub.invoice?.id,
         path: stub.path,
@@ -4937,6 +5247,40 @@ function cmdReplies(args) {
   }
 }
 
+function cmdRepairHistory(args) {
+  const id = arg(args, '--id');
+  const apply = args.includes('--apply');
+  if (!id) throw new Error('repair-history requires --id=LEAD');
+  const doc = loadLeads();
+  const row = findLead(doc, id);
+  if (!row) throw new Error(`lead not found: ${id}`);
+  const repair = repairLifecycleHistory(row.lead);
+  if (!repair.removed.length || !apply) {
+    console.log(JSON.stringify({ ok: true, apply: false, id, remove: repair.removed.length }, null, 2));
+    return;
+  }
+  const at = new Date().toISOString();
+  const receipt = path.join(PKG_BUSY, 'funnel', `history-repair-${id}-${at.replace(/[:.]/g, '-')}.json`);
+  fs.mkdirSync(path.dirname(receipt), { recursive: true });
+  row.lead.stateHistory = repair.kept;
+  commitReceiptTransaction({
+    receiptPath: receipt,
+    receiptBody: JSON.stringify({ schema: 'demigod.lifecycle-history-repair/1', at, id, removed: repair.removed }, null, 2) + '\n',
+    trackedPaths: [LEADS],
+    commit: () => saveDoc(doc),
+  });
+  console.log(JSON.stringify({ ok: true, apply: true, id, removed: repair.removed.length, receipt }, null, 2));
+}
+
+function cmdCollisionPlan() {
+  const at = new Date().toISOString();
+  const plan = planPartnerUrlCollisionMerges(loadLeads());
+  const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-plan-${at.replace(/[:.]/g, '-')}.json`);
+  fs.mkdirSync(path.dirname(receipt), { recursive: true });
+  atomicWrite(receipt, JSON.stringify({ schema: 'demigod.partner-url-collision-plan/1', at, apply: false, plan }, null, 2) + '\n');
+  console.log(JSON.stringify({ ok: true, apply: false, groups: plan.length, receipt, plan }, null, 2));
+}
+
 function arg(args, name) {
   const hit = args.find((a) => a.startsWith(name + '='));
   if (hit) return hit.slice(name.length + 1);
@@ -4951,7 +5295,7 @@ function usage() {
 Commands:
   status
   normalize
-  transition --id=LEAD --to=STATE [--evidence=path] [--note=text] [--actor=name] [--mode=draft-only]
+  transition --id=LEAD --to=STATE [--evidence=path] [--note=text] [--actor=name] [--mode=draft-only] [--pair=PAIR]
   approve-drafted --note=text [--actor=human] [--id=a,b] [--dry-run] [--package]
                   # Trust Ladder L1 human-only; email|handle required (not url-only)
   match [--apply] [--force]
@@ -4971,12 +5315,14 @@ Commands:
   hygiene                  # scan funnel-drafts/ for copy-policy flags
   receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID
                   # approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made
+  repair-history --id=LEAD [--apply]  # quarantine broken history entries with receipt
+  collision-plan          # review-only duplicate partner URL merge receipt
   join [--apply]
   followup [--id=LEAD] [--days=5]   # drafts only; max 2 nudges then coldEligible
   match [--apply]
   intro [--draft]
   pilot [--apply]   # intro_made → pilot-os add (idempotent via pilotId)
-  invoice --id=LEAD --cash=INTEGER [--apply] [--evidence=hire-path]
+  invoice --id=LEAD --cash=INTEGER [--apply] [--evidence=hire-path] [--pair=PAIR]
                   # hired → invoiced; stub is evidence; never paid
   replies [--apply] [--file=/tmp/demigod-gmail-inbound.json]
                   # Gmail dump → replied/opted_out (never invents From)
@@ -4995,50 +5341,99 @@ const isMain =
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
+const CRM_MUTATING_COMMANDS = new Set([
+  'normalize',
+  'norm',
+  'transition',
+  'to',
+  'approve-drafted',
+  'approve',
+  'park-no-contact',
+  'park',
+  'park-no-usable-contact',
+  'park-url-only',
+  'hygiene-contact',
+  'release-contactable-holds',
+  'release-holds',
+  'unpark-contact',
+  'disqualify-junk',
+  'dq-junk',
+  'email-mx',
+  'mx-hygiene',
+  'import-events',
+  'events-import',
+  'receipt',
+  'repair-history',
+  'join',
+  'match',
+  'pair-sync',
+  'pairsync',
+  'pilot',
+  'invoice',
+]);
+
 if (isMain) {
   const cmd = process.argv[2] || 'status';
   const rest = process.argv.slice(3);
   (async () => {
     try {
-      if (cmd === 'status' || cmd === 'st') cmdStatus();
-      else if (cmd === 'normalize' || cmd === 'norm') cmdNormalize();
-      else if (cmd === 'transition' || cmd === 'to') cmdTransition(rest);
-      else if (cmd === 'approve-drafted' || cmd === 'approve') cmdApproveDrafted(rest);
-      else if (cmd === 'draft') cmdDraft(rest);
-      else if (cmd === 'park-no-contact' || cmd === 'park') cmdParkNoContact(rest);
-      else if (
-        cmd === 'park-no-usable-contact' ||
-        cmd === 'park-url-only' ||
-        cmd === 'hygiene-contact'
-      )
-        cmdParkNoUsableContact(rest);
-      else if (
-        cmd === 'release-contactable-holds' ||
-        cmd === 'release-holds' ||
-        cmd === 'unpark-contact'
-      )
-        cmdReleaseContactableHolds(rest);
-      else if (cmd === 'send-package' || cmd === 'send-board' || cmd === 'human-send-package')
-        cmdSendPackage(rest);
-      else if (cmd === 'disqualify-junk' || cmd === 'dq-junk') cmdDisqualifyJunk(rest);
-      else if (cmd === 'email-mx' || cmd === 'mx-hygiene') await cmdEmailMx(rest);
-      else if (cmd === 'import-events' || cmd === 'events-import') await cmdImportEvents(rest);
-      else if (cmd === 'hygiene') cmdHygiene(rest);
-      else if (cmd === 'receipt') cmdReceipt(rest);
-      else if (cmd === 'join') cmdJoin(rest);
-      else if (cmd === 'followup' || cmd === 'nudge') cmdFollowup(rest);
-      else if (cmd === 'match') cmdMatch(rest);
-      else if (cmd === 'pair-sync' || cmd === 'pairsync') cmdPairSync(rest);
-      else if (cmd === 'onboard' || cmd === 'onboarding') cmdOnboard(rest);
-      else if (cmd === 'intro') cmdIntro(rest);
-      else if (cmd === 'pilot') cmdPilot(rest);
-      else if (cmd === 'invoice') cmdInvoice(rest);
-      else if (cmd === 'replies' || cmd === 'reply-ingest') cmdReplies(rest);
-      else if (cmd === 'help' || cmd === '-h' || cmd === '--help') usage();
-      else {
-        usage();
-        process.exit(2);
-      }
+      const execute = () => {
+        if (cmd === 'status' || cmd === 'st') {
+          if (rest.length) {
+            console.error(`unknown option: ${rest[0]}`);
+            process.exit(2);
+          }
+          cmdStatus();
+        }
+        else if (cmd === 'l1-snapshot') cmdL1Snapshot();
+        else if (cmd === 'normalize' || cmd === 'norm') cmdNormalize();
+        else if (cmd === 'transition' || cmd === 'to') cmdTransition(rest);
+        else if (cmd === 'approve-drafted' || cmd === 'approve') cmdApproveDrafted(rest);
+        else if (cmd === 'draft') cmdDraft(rest);
+        else if (cmd === 'park-no-contact' || cmd === 'park') cmdParkNoContact(rest);
+        else if (
+          cmd === 'park-no-usable-contact' ||
+          cmd === 'park-url-only' ||
+          cmd === 'hygiene-contact'
+        )
+          cmdParkNoUsableContact(rest);
+        else if (
+          cmd === 'release-contactable-holds' ||
+          cmd === 'release-holds' ||
+          cmd === 'unpark-contact'
+        )
+          cmdReleaseContactableHolds(rest);
+        else if (cmd === 'send-package' || cmd === 'send-board' || cmd === 'human-send-package')
+          cmdSendPackage(rest);
+        else if (cmd === 'disqualify-junk' || cmd === 'dq-junk') cmdDisqualifyJunk(rest);
+        else if (cmd === 'email-mx' || cmd === 'mx-hygiene') return cmdEmailMx(rest);
+        else if (cmd === 'import-events' || cmd === 'events-import') return cmdImportEvents(rest);
+        else if (cmd === 'hygiene') cmdHygiene(rest);
+        else if (cmd === 'receipt') cmdReceipt(rest);
+        else if (cmd === 'repair-history') cmdRepairHistory(rest);
+        else if (cmd === 'collision-plan') {
+          if (rest.length) {
+            console.error(`unknown option: ${rest[0]}`);
+            process.exit(2);
+          }
+          cmdCollisionPlan();
+        }
+        else if (cmd === 'join') cmdJoin(rest);
+        else if (cmd === 'followup' || cmd === 'nudge') cmdFollowup(rest);
+        else if (cmd === 'match') cmdMatch(rest);
+        else if (cmd === 'pair-sync' || cmd === 'pairsync') cmdPairSync(rest);
+        else if (cmd === 'onboard' || cmd === 'onboarding') cmdOnboard(rest);
+        else if (cmd === 'intro') cmdIntro(rest);
+        else if (cmd === 'pilot') cmdPilot(rest);
+        else if (cmd === 'invoice') cmdInvoice(rest);
+        else if (cmd === 'replies' || cmd === 'reply-ingest') cmdReplies(rest);
+        else if (cmd === 'help' || cmd === '-h' || cmd === '--help') usage();
+        else {
+          usage();
+          process.exit(2);
+        }
+      };
+      await (CRM_MUTATING_COMMANDS.has(cmd) ? withFileLock(CRM_LOCK, execute) : execute());
     } catch (e) {
       console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
       process.exit(1);

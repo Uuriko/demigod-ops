@@ -20,12 +20,20 @@ const findings = buildFindings({
   pageScan,
   expectedWebhookUrl: resolveWebhookPublicUrl(),
 });
+const metaCounts = {
+  description: (html.match(/<meta\b(?=[^>]*\bname=["']description["'])[^>]*>/gi) || []).length,
+  ogTitle: (html.match(/<meta\b(?=[^>]*\bproperty=["']og:title["'])[^>]*>/gi) || []).length,
+};
+for (const [name, count] of Object.entries(metaCounts)) {
+  if (count !== 1) findings.push({ severity: 'medium', issue: `Raw HTML ${name} meta count is ${count}, expected 1` });
+}
 const pass = reportPass(findings);
 
 const out = {
   at: new Date().toISOString(),
   url,
   htmlScan,
+  metaCounts,
   pageScan,
   findings,
   pass,

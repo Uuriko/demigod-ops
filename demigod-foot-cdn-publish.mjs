@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * demigod-foot-cdn-publish — upload foot-core → CDN + patch footer-lite + manifest
+ * demigod-foot-cdn-publish — upload the foot + map bundle → CDN, then patch footer-lite + manifest
  *
  *   node demigod-foot-cdn-publish.mjs [--check|--selftest]
  *
- * Prefers permanent hosts (jsDelivr / catbox); verifies non-empty JS body + MIME.
- * Asserts publish freeze OFF (or DEMIGOD_FORCE_PUBLISH=1). Never writes a dead CDN URL.
+ * Uses an immutable jsDelivr commit so the foot's sibling map assets stay together.
+ * Verifies exact remote bytes + MIME for all three files before mutating canonical artifacts.
+ * Asserts publish freeze OFF (or DEMIGOD_FORCE_PUBLISH=1). Never writes a partial/dead release URL.
  * After: cm6-paste footer → live-doctor / truth.
  */
 import fs from 'fs';
@@ -22,8 +23,8 @@ const args = new Set(process.argv.slice(2));
 if (args.has('--help') || args.has('-h')) {
   console.log(`Usage: node demigod-foot-cdn-publish.mjs [--check|--selftest]
 
-Publishes the canonical foot core to an attested JavaScript CDN, then atomically
-updates the footer loader and DEMIGOD-FOOT-CDN.json. Requires freeze OFF and the
+Publishes the canonical foot + map bundle to an attested immutable CDN commit,
+then atomically updates the footer loader and DEMIGOD-FOOT-CDN.json. Requires freeze OFF and the
 active foot release lock. --check and --selftest are read-only and require neither.`);
   process.exit(0);
 }
@@ -35,16 +36,23 @@ if (args.size) {
 }
 
 const SRC = path.join(ROOT, 'demigod-foot-core.js');
+const MAP_SRC = path.join(ROOT, 'demigod-startup-atlas-web.js');
+const MAP_DATA_SRC = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
 const LOADER = path.join(ROOT, 'demigod-footer-loader.html');
 const OUT = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
 const RELEASE_RECEIPT = '/tmp/dg-busy/foot-cdn-publish-latest.json';
-const ALLOW_LITTER = process.env.DEMIGOD_ALLOW_LITTER === '1';
 const sourceJs = fs.readFileSync(SRC, 'utf8');
+const mapJs = fs.readFileSync(MAP_SRC, 'utf8');
+const mapData = fs.readFileSync(MAP_DATA_SRC, 'utf8');
 const sourceVer = (sourceJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1];
 const sourcePublicVer = (sourceJs.match(/dgFootVersion\s*=\s*['"]v(\d+)['"]/) || [])[1];
 const sourceSha = crypto.createHash('sha256').update(sourceJs).digest('hex');
 const sourceBytes = Buffer.byteLength(sourceJs);
+const mapSha = crypto.createHash('sha256').update(mapJs).digest('hex');
+const mapBytes = Buffer.byteLength(mapJs);
+const mapDataSha = crypto.createHash('sha256').update(mapData).digest('hex');
+const mapDataBytes = Buffer.byteLength(mapData);
 const uploadAttempts = [];
 
 function recordUploadAttempt(host, ok, detail = '') {
@@ -175,11 +183,14 @@ function writeReleaseReceipt(payload) {
 }
 
 function assertCanonicalSourceUnchanged() {
-  const currentSource = fs.readFileSync(SRC, 'utf8');
-  const currentSha = crypto.createHash('sha256').update(currentSource).digest('hex');
-  if (currentSha !== sourceSha) {
+  const current = [
+    [SRC, sourceSha],
+    [MAP_SRC, mapSha],
+    [MAP_DATA_SRC, mapDataSha],
+  ];
+  if (current.some(([file, expected]) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected)) {
     throw new Error(
-      'canonical foot core changed during CDN publish; refusing to write a stale footer or manifest',
+      'canonical release source changed during CDN publish; refusing to write a stale footer or manifest',
     );
   }
 }
@@ -292,6 +303,15 @@ function releaseAlignment() {
   };
 }
 
+function sameVersionContentCollision(manifest) {
+  const manifestVersion = String(manifest?.version || '').replace(/^v/i, '');
+  const manifestFootVersion = String(manifest?.footVer || manifest?.version || '').replace(/^v/i, '');
+  return Boolean(
+    manifest?.sha256 && sourceVer && manifestVersion === sourceVer &&
+    manifestFootVersion === sourceVer && manifest.sha256 !== sourceSha
+  );
+}
+
 if (CHECK_ONLY) {
   const result = releaseAlignment();
   console.log(JSON.stringify(result, null, 2));
@@ -306,6 +326,8 @@ if (SELFTEST) {
   };
   checkSelf(Boolean(sourceVer && sourcePublicVer && sourceVer === sourcePublicVer), 'canonical version markers agree');
   checkSelf(sourceJs.length > 40000 && /dg-foot-v\d+-core/.test(sourceJs), 'canonical source has foot-core identity');
+  checkSelf(mapJs.includes("demigod.sf-startup-map/3"), 'startup map script expects the current data schema');
+  checkSelf(JSON.parse(mapData).schema === 'demigod.sf-startup-map/3', 'startup map data uses the current schema');
   checkSelf(isExecutableJavaScriptMime('application/javascript; charset=utf-8'), 'accepts executable JavaScript MIME');
   checkSelf(!isExecutableJavaScriptMime('text/plain'), 'rejects text/plain MIME');
   checkSelf(!isExecutableJavaScriptMime('application/octet-stream'), 'rejects generic binary MIME');
@@ -431,6 +453,14 @@ if (SELFTEST) {
     rewrittenLeaseRecovery.staleForSource === true && rewrittenLeaseRecovery.sourceMismatch.join(',') === 'sha256',
     'same-version rewritten source is diagnosed as SHA drift',
   );
+  checkSelf(
+    sameVersionContentCollision({ version: sourceVer, footVer: sourceVer, sha256: '0'.repeat(64) }),
+    'same-version rewritten source is refused before upload',
+  );
+  checkSelf(
+    !sameVersionContentCollision({ version: String(Number(sourceVer) - 1), footVer: String(Number(sourceVer) - 1), sha256: '0'.repeat(64) }),
+    'new source version may replace older release bytes',
+  );
   if (failures.length) {
     console.error('FAIL', failures);
     process.exit(1);
@@ -467,6 +497,13 @@ if (!sourceVer || !sourcePublicVer || sourceVer !== sourcePublicVer) {
       `dgFootVersion=${sourcePublicVer || 'missing'}`,
   );
   process.exit(1);
+}
+
+let stagedManifest = null;
+try { stagedManifest = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch {}
+if (sameVersionContentCollision(stagedManifest)) {
+  console.error(`refusing same-version content rewrite: v${sourceVer} already attests different bytes; bump all foot version markers`);
+  process.exit(3);
 }
 
 const check = spawnSync('node', ['--check', SRC], { encoding: 'utf8' });
@@ -602,6 +639,22 @@ async function fetchOk(cdnUrl) {
   }
 }
 
+async function fetchExact(cdnUrl, expected, javascript = false) {
+  try {
+    const response = await fetch(`${cdnUrl}?v=${Date.now()}`, { cache: 'no-store' });
+    const body = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    return {
+      ok: response.ok && body === expected &&
+        (javascript ? isExecutableJavaScriptMime(contentType) : /^application\/json(?:;|$)/i.test(contentType)),
+      status: response.status,
+      contentType,
+    };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
+  }
+}
+
 async function uploadPermanent() {
   for (let i = 1; i <= 4; i++) {
     const upload = curlUpload('https://catbox.moe/user/api.php');
@@ -727,11 +780,13 @@ async function uploadJsdelivr() {
     const verName = `foot-v${sourceVer}.js`;
     fs.writeFileSync(path.join(work, verName), sourceJs);
     fs.writeFileSync(path.join(work, 'foot-latest.js'), sourceJs);
+    fs.writeFileSync(path.join(work, 'startup-map-latest.js'), mapJs);
+    fs.writeFileSync(path.join(work, 'sf-startup-map.json'), mapData);
     const git = (args) =>
       spawnSync('git', args, { cwd: work, encoding: 'utf8', timeout: 60000 });
     git(['config', 'user.email', 'demigod-cdn@local']);
     git(['config', 'user.name', 'demigod-cdn']);
-    git(['add', verName, 'foot-latest.js']);
+    git(['add', verName, 'foot-latest.js', 'startup-map-latest.js', 'sf-startup-map.json']);
     const st = git(['status', '--porcelain']);
     if ((st.stdout || '').trim()) {
       git(['commit', '-m', `foot v${sourceVer}`]);
@@ -750,18 +805,33 @@ async function uploadJsdelivr() {
     const rev = git(['rev-parse', 'HEAD']);
     const sha = (rev.stdout || '').trim().slice(0, 12) || 'main';
     const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${sha}/foot-latest.js`;
-    // purge / wait for jsdelivr
-    await new Promise((r) => setTimeout(r, 3000));
-    for (let i = 0; i < 6; i++) {
+    // Probe the immutable commit URL immediately. If propagation lags, preserve
+    // the old 3s first wait and every later backoff/check.
+    for (let i = 0; i < 7; i++) {
       const check = await fetchOk(cdnUrl);
+      const mapUrl = new URL('startup-map-latest.js', cdnUrl).href;
+      const mapDataUrl = new URL('sf-startup-map.json', cdnUrl).href;
+      const [mapCheck, mapDataCheck] = check.ok
+        ? await Promise.all([fetchExact(mapUrl, mapJs, true), fetchExact(mapDataUrl, mapData)])
+        : [{ ok: false }, { ok: false }];
       console.error(
         `jsdelivr try ${i + 1}: ${cdnUrl} len=${check.liveJs.length} ` +
-          `sha=${check.liveSha?.slice(0, 12) || '?'} mime=${check.contentType || '?'} ok=${check.ok}`,
+          `sha=${check.liveSha?.slice(0, 12) || '?'} mime=${check.contentType || '?'} ` +
+          `foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok}`,
       );
-      if (check.ok) {
-        return { cdnUrl, liveJs: check.liveJs, host: 'cdn.jsdelivr.net', temporary: false };
+      if (check.ok && mapCheck.ok && mapDataCheck.ok) {
+        return {
+          cdnUrl,
+          liveJs: check.liveJs,
+          host: 'cdn.jsdelivr.net',
+          temporary: false,
+          assets: {
+            startupMap: { url: mapUrl, sha256: mapSha, bytes: mapBytes },
+            mapData: { url: mapDataUrl, sha256: mapDataSha, bytes: mapDataBytes },
+          },
+        };
       }
-      await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
+      await new Promise((r) => setTimeout(r, i === 0 ? 3000 : 2500 * i));
     }
     return null;
   } catch (e) {
@@ -848,17 +918,6 @@ async function uploadGist() {
 // path; otherwise a successful CDN publish can immediately fail CM6 preflight.
 let result = await uploadJsdelivr();
 if (!result) {
-  console.error('jsdelivr failed — trying permanent catbox…');
-  result = await uploadPermanent();
-}
-if (!result && ALLOW_LITTER) {
-  result = await uploadLitter();
-}
-if (!result) {
-  console.error('jsdelivr failed — trying gist/statically (last resort)…');
-  result = await uploadGist();
-}
-if (!result) {
   const failureKind = classifyUploadFailure(uploadAttempts);
   const recovery = uploadFailureRecovery(failureKind, uploadAttempts);
   writeReleaseReceipt({
@@ -867,40 +926,42 @@ if (!result) {
     canonicalArtifactsChanged: false,
     uploadAttempts,
     ...recovery,
-    message: 'No upload host returned an attested JavaScript asset; loader and manifest were preserved.',
+    message: 'No upload host returned the complete attested foot + map bundle; loader and manifest were preserved.',
   });
   console.error(formatUploadFailure(failureKind, uploadAttempts));
   // Do NOT overwrite footer with a dead URL
   process.exit(publishExitCode(result));
 }
 
-const { cdnUrl, liveJs, host, temporary } = result;
+const { cdnUrl, liveJs, host, temporary, assets } = result;
 const ok = true;
 
 // v28: blog|notes|method + #note-{slug} must survive CDN publish (v27 thrash dropped them).
-const redirect = `<script>(function(){var p=location.pathname;
-if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))location.replace('/?p=legal');
-else if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))location.replace('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
-else if(/^\\/(blog|notes)\\/?$/i.test(p))location.replace('/?p=blog');
-else if(/^\\/method\\/?$/i.test(p))location.replace('/?p=method');
-else if(/^\\/partnerships?\\/?$/i.test(p))location.replace('/?p=partners');
-else if(/^\\/how\\/?$/i.test(p))location.replace('/?p=how');
-else if(/^\\/pricing\\/?$/i.test(p))location.replace('/?p=pricing');
-else if(/^\\/faq\\/?$/i.test(p))location.replace('/?p=faq');
-else if(/^\\/founders\\/?$/i.test(p))location.replace('/?p=founders');
-else if(/^\\/candidates\\/?$/i.test(p))location.replace('/?p=candidates');
-else if(/^\\/fees\\/?$/i.test(p))location.replace('/?p=pricing');
-else if(/^\\/security\\/?$/i.test(p))location.replace('/?p=legal');
-else if(/^\\/sample\\/?$/i.test(p))location.replace('/?p=sample');
-else if(/^\\/network\\/?$/i.test(p))location.replace('/?p=talent');
-else if(/^\\/hire\\/?$/i.test(p))location.replace('/?p=hire');
-else if(/^\\/talent\\/?$/i.test(p))location.replace('/?p=talent');
-else if(/^\\/contact\\/?$/i.test(p))location.replace('/?p=contact');
-else if(/^\\/compare\\/?$/i.test(p))location.replace('/?p=compare');
-else if(/^\\/pilot\\/?$/i.test(p))location.replace('/?p=pilot');
-else if(/^\\/about\\/?$/i.test(p))location.replace('/?p=about');
-else if(/^\\/status\\/?$/i.test(p))location.replace('/?p=status');
-else if(/^\\/events\\/?$/i.test(p))location.replace('/?p=events');
+const redirect = `<script>(function(){var p=location.pathname,s=location.search||'',h=location.hash||'';function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
+if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))go('/?p=legal');
+else if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
+else if(/^\\/(blog|notes)\\/?$/i.test(p))go('/?p=blog');
+else if(/^\\/method\\/?$/i.test(p))go('/?p=method');
+else if(/^\\/partnerships?\\/?$/i.test(p)||/^\\/partners\\/?$/i.test(p))go('/?p=partners');
+else if(/^\\/(?:mud|night-district|night)\\/?$/i.test(p))go('/?p=mud');
+else if(/^\\/(?:event-bot|events-bot)\\/?$/i.test(p))go('/?p=events');
+else if(/^\\/how\\/?$/i.test(p))go('/?p=how');
+else if(/^\\/pricing\\/?$/i.test(p))go('/?p=pricing');
+else if(/^\\/faq\\/?$/i.test(p))go('/?p=faq');
+else if(/^\\/founders\\/?$/i.test(p))go('/?p=founders');
+else if(/^\\/candidates\\/?$/i.test(p))go('/?p=candidates');
+else if(/^\\/fees\\/?$/i.test(p))go('/?p=pricing');
+else if(/^\\/security\\/?$/i.test(p))go('/?p=legal');
+else if(/^\\/sample\\/?$/i.test(p))go('/?p=sample');
+else if(/^\\/network\\/?$/i.test(p))go('/?p=talent');
+else if(/^\\/hire\\/?$/i.test(p))go('/?p=hire');
+else if(/^\\/talent\\/?$/i.test(p))go('/?p=talent');
+else if(/^\\/contact\\/?$/i.test(p))go('/?p=contact');
+else if(/^\\/compare\\/?$/i.test(p))go('/?p=compare');
+else if(/^\\/pilot\\/?$/i.test(p))go('/?p=pilot');
+else if(/^\\/about\\/?$/i.test(p))go('/?p=about');
+else if(/^\\/status\\/?$/i.test(p))go('/?p=status');
+else if(/^\\/events\\/?$/i.test(p))go('/?p=events');
 })();</script>`;
 const webhookUrl = resolveWebhookPublicUrl();
 const webhookScript = webhookUrl ? `<script>window.__dgWebhookUrl=${JSON.stringify(webhookUrl)};</script>\n` : '';
@@ -923,6 +984,7 @@ const manifest = JSON.stringify({
   webhookUrl: webhookUrl || null,
   host,
   footVer: ver,
+  assets,
 }, null, 2);
 
 // Upload and CDN propagation can take long enough for another process to alter
@@ -944,6 +1006,7 @@ writeReleaseReceipt({
   cdnUrl,
   host,
   footVer: ver,
+  assets,
 });
 
 console.log(JSON.stringify({
