@@ -1,419 +1,94 @@
-# Demigod — Compressed State (living)
-
-## 2026-07-16 · REDESIGN LOOP CYCLE 1 · v571 Operator Calm LIVE
-
-- **Shipped:** foot **v571** disk=live TRUTH PASS · Operator Calm paper/cobalt theme (not dark gold)
-- **Live proof:** `body` bg `rgb(247,244,239)` · title `Demigod · SF startup talent matching` · foot 571
-- **Lab:** design-lab V1/V2/V7 scored · V1 promote 90.5 · V2 challenger 89.5
-- **Docs:** `docs/exchange/WEBSITE-REDESIGN-MASTER-PROMPT.md` · research · debate log · Codex experiment protocol
-- **MCP:** homepage SEO updated (drop Human-Matched) · site publish queued
-- **Tools:** design-lab capture headless · df review dogfood-fail (hold-green inject) · website fable template `prompts/demigod/website.txt`
-- **Cycle 2 next:** Codex A–F lab HTML · H1/copy rewrite to Operator Calm signal set · dual-path equal panels
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · WEBFLOW AGENT CONNECT DEEPENED
-
-- **MCP:** Grok + Claude Code + Cursor + **Codex** all point at `https://mcp.webflow.com/mcp`
-- **OAuth:** Grok credentials live · Data API MCP green (`list_sites` → Demigod)
-- **Designer Bridge:** smokes green (`get_current_mode` = design · homepage · breakpoints)
-- **Agent instructions on site:** `rules/demigod-agent.md` + skill `demigod-ship/SKILL.md`
-- **Local mirror:** `docs/WEBFLOW-AGENT-INSTRUCTIONS.md` · playbook §3.2 updated
-- **CLI:** `bin/dg-webflow connect` · `connect bridge` · `node demigod-webflow-token.mjs`
-- **Site token (REST):** optional · `~/.config/demigod/webflow.env` (example: `webflow.env.example`) — MCP OAuth ≠ REST token
-- **Webhooks:** 0 registered · local receiver on `:9877` · needs `DEMIGOD_WEBHOOK_PUBLIC_URL` for Webflow POSTs
-- **Spine:** Data MCP · Designer MCP+Bridge · CDP ship · foot CDN · chrome-devtools eyes
-- **No auto-DM** · no game
-
----
-## 2026-07-16 · SEALED v563 + HEAD 8s6x5e
-
-- **Foot sealed:** disk = live = man **v563** · CDN @765978dbaae1 · TRUTH PASS · lock free · fullyShipped
-- **Head live:** CSS **8s6x5e** · FOUC honesty · path-redirects · CM6 head+footer paste this ship
-- **Ship:** `bin/dg-publish` (CDN + cm6 paste + site_publish) · hard truth live==disk body sha
-- **Gates:** verify:source PASS · board honesty OK · quality open P0/P1=0
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · DISK/MAN v523 · LIVE v522 · HEAD 8s6x5e
-
-- **Foot:** disk/man **v523** · live **v522** — TRUTH FAIL version drift · chat-ship holds lock
-- **Head live:** CSS **8s6x5e** · FOUC honesty · skip · path-redirects · pricing FOUC may be mid-paste
-- **Gates:** verify:source PASS · loop markers v523 · quality open P0/P1=0
-- **No auto-DM** · no game · no thrash race with chat-ship
-
----
-
-## 2026-07-16 · SEALED v521 + HEAD 8s6x5e
-
-- **Foot sealed:** disk = live = man **v521** · TRUTH PASS · lock free
-- **Head live:** CSS **8s6x5e** · FOUC honesty · path-redirects
-- **Gates:** verify:source PASS · quality open P0/P1=0
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · SEALED v519 + HEAD 8s6x5e
-
-- **Foot sealed:** disk = live = man **v519** (step-desc volume scrub) · CDN @0b66356ee8a9 · TRUTH PASS · lock free
-- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · step-title/desc volume
-- **Gates:** verify:source PASS · quality open P0/P1=0 · diskReady.ok
-- **Residual:** Designer static canvas may still show volume phrases for JS-less (punchlist out-of-band)
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · SEALED v518 + HEAD 8s6x5e
-
-- **Foot sealed:** disk = live = man **v518** (human-review no fixed candidate-count) · CDN @3cb62839cad6 · TRUTH PASS
-- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · honesty INTROS
-- **Gates:** verify:source PASS · quality open P0/P1=0 · diskReady.ok
-- **Residual:** Designer static pricing overclaims for JS-less (punchlist P1 out-of-band)
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · SEALED v516 + HEAD 8s6x5e + modal honesty
-
-- **Foot sealed:** disk = live = man **v516** (modal title/subtitle/intro honesty) · CDN @c3f7cecb8e34 · TRUTH PASS
-- **Head live:** CSS **8s6x5e** · contact-scrub · path-redirects · modal-intro honesty
-- **Gates:** verify:source PASS · quality open P0/P1=0
-- **Tick99:** mid-write version-marker flake then settle; CDN publish + concurrent chat ship sealed live
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · DISK/MAN v514 · LIVE v513 · HEAD 8s6x5e
-
-- **Foot:** disk/man **v514** (head /p/* /apply redirects) · live **v513** — TRUTH FAIL version drift · chat-ship holding lock
-- **Head live:** CSS **8s6x5e** · secure_url · twitter dims · path-redirects pricing/legal/talent
-- **Gates:** verify:source PASS · board honesty OK · loop markers v514 · quality open P0/P1=0
-- **No auto-DM** · no game · no thrash race with chat-ship
-
----
-
-## 2026-07-16 · DISK v513 · LIVE/MAN v512 · HEAD twitter dims + 8s6x5e
-
-- **Foot:** disk **v513** · live/man **v512** — TRUTH FAIL version drift (concurrent mid-tick) · intentional ship when free
-- **Head live:** CSS **8s6x5e** · twitter:image:width/height **1280x720** (tick86 CM6 paste)
-- **Path redirects:** pricing/legal/talent live
-- **Gates:** verify:source PASS · quality open P0/P1=0
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · SEALED v511 + HEAD 8s6x5e
-
-- **Foot sealed:** disk = live = man **v511** (contact-scrub attrs) · TRUTH PASS · freeze OFF
-- **Head CSS live:** `https://files.catbox.moe/8s6x5e.css` · modal-hide-closed · path-redirects
-- **Path redirects:** fees→pricing · security→legal · network→talent (survived CDN ship — publisher template fixed tick82)
-- **Gates:** verify:source PASS · board honesty OK · loop v511 · quality open P0/P1=0
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · DISK v509 (WIZ spacing) · LIVE/MAN v508 · HEAD 8s6x5e
-
-- **Foot:** disk **v509** (WIZ '1 of 7' spacing) · live/man **v508** — TRUTH FAIL version drift · intentional ship when ready (`bin/dg-lock` + CDN + CM6)
-- **Head CSS live:** `https://files.catbox.moe/8s6x5e.css` (tick75 CM6; still current on live HTML)
-- **Blog:** 5 notes live · quality open P0/P1=0 · foot lock free
-- **Gates:** verify:source PASS · board honesty OK · loop-state markers agree v509 · /healthz + /api/coord ok
-- **No auto-DM** · no game · no thrash until intentional ship
-
----
-
-## 2026-07-16 · SWARM FULL + CLAIMS + WEBFLOW PATH
-## 2026-07-16 · SWARM FULL + CLAIMS + WEBFLOW PATH
-
-- **Codex swarm ON** · timer `demigod-codex-swarm.timer` · full review → `/tmp/dg-busy/swarm/` (latest + WORKFLOW-WEBFLOW.md)
-- **Claims atomic:** `bin/dg-agent-coord claim|release-hold|claims` (coord-role owners); foot still `bin/dg-lock`
-- **Idle spawn gated** by `role_has_work` (once forces); worker prompts shortened to digest+swarm
-- **Drift:** disk foot **v509** · man/CDN/live **v508** · head CSS **8s6x5e** live; lock free
-- **Dash light:** coord cache 12s · receipt CSS · poll 45s · workLog panel
-- **No auto-DM** · no game
-
----
-
-## 2026-07-16 · MULTI-AGENT COORD + SITE disk v508
-
-- **DISK foot v509** · LIVE/MAN **v508** · head CSS **8s6x5e** · dashboard :9878 · CDP :9223
-- **Coord:** `bin/dg-agent-coord` · board `/tmp/dg-busy/coord/` · dash `GET /api/coord` (ship.facts + loopState + blog + head.metaReady/cssFresh + footerLite + footNotes + diskReady blockers)
-- **Website disk:** Notes 5 cards (id=note-{slug}, Full-note, hash focus + hashchange + reduced-motion); mini-pages `/?p=`; footer-lite fees→pricing security→legal network→talent sample→sample + nested blog/notes/method; head unhide hero-shell + graceful hero-only
-- **State docs:** AGENT-STATE.md ≡ DEMIGOD-COMPRESSED-STATE.md (hardlink)
-- **Ship:** intentional only with `bin/dg-lock` + `bin/dg ship`; freeze OFF · quality open P0/P1=0
-- **No auto-DM** · no game
-
----
-## 2026-07-15 · WEBSITE v209 LIVE (post net-outage reconfirm)
-
-- **LIVE foot:** **v209** `yeepfv.js` — WIZ progress "N of total", logo→home, a11y focus rings, mobile footer density
-- Built on v208; re-shipped after internet restore when paste failed mid-flight
-- Freeze ON
-
----
-
-## 2026-07-15 · WEBSITE v208 LIVE
-
-- **LIVE foot:** **v208** `ixb392.js` (shorter WIZ welcome/thanks, About+Status pages, focus rings, page focus trap)
-- Prior v207 still documented below; pilot log website-first (no auto-DM)
-- Freeze after this ship
-
----
-
-## 2026-07-15 · WEBSITE v207 LIVE · STARTUP-ONLY PHASE
-
-- **Phase:** Website + startup only — **no Twitter / no auto-DM**
-- **LIVE foot (superseded by v208):** was v207 `jar78p.js` · head CSS `cycbs6.css` · favicon `bvp5uy.svg`
-- **Home:** decision screen (~350 chars) · dual CTAs **I'm hiring** / **Find a job** · mobile bar
-- **Pages:** short `/?p=` overlays (how, pricing, faq, hire, talent, contact, legal, partners, compare, pilot)
-- **Footer-lite v27:** clean path redirects → `/?p=` · `/events` → catbox
-- **Git tip:** `7d37db9` (v207 site+docs) · live CDN `jar78p.js`
-- **Gates:** verify:source + foot-smoke green at v207 ship
-- **Freeze:** OFF (re-freeze when quiet) · foot lock may need force-release if abandoned
-- **Full writeup:** `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md`
-- **Backlog:** `docs/process/WEBSITE-BACKLOG-MEGA.md` · review: `docs/process/WEBSITE-REVIEW-2026-07-15-V207.md`
-- **GTM:** auto-DM hard-stopped (`DEMIGOD_ALLOW_AUTO_DM=1` emergency only)
-
----
-
-## 2026-07-14 · P4 + TOOLS BRAINSTORM + REVIEW
-
-- Cockpit NEXT = demigod-next (override only live-down/board/verify)
-- Dash demand refresh ≤15m; next-canon --assert-same; ledger delta
-- ship-status: facts + nextCanon (stage next ≠ agent NEXT)
-- Fable/Codex tools want merged: /tmp/dg-busy/swarm-tools-brainstorm/MERGED-TOOLS-WANT.md
-- Code review tools stack: REVIEW OK high=0 (info: dash size)
-- tools-os-selftest ALL PASS
-
-
-## 2026-07-14 · P3 AGENT SURFACE (no human tasks)
-
-- Dash `/api/next` + glance use **demigod-next** (canonical)
-- Demand line on dash from demand-status.json
-- Jobs: demand · next-canon · wiz-ownership
-- **wiz-ownership-selftest** source gate (90day required, no SLA)
-- agent-smoke soft driftExpected under freeze (WARN, not core fail)
-- tools-os-selftest green
-
-## 2026-07-14 · P2 DEMAND OPS + NEXT + LEDGER
-
-- **`bin/dg demand`** status/queue/log/templates — honest SENT-CONFIRMED + 0 pilots
-- **`bin/dg next-canon`** / demigod-next.mjs — freeze+green → demand human
-- **Version ledger** DEMIGOD-VERSION-LEDGER.jsonl append on every truth
-- Control plane next uses buildNext (same as next-canon)
-- Still freeze ON · live v198 · disk v199 · human DMs
-
-## 2026-07-14 · P1 OPS SURFACE (ship + dash light)
-
-- **`bin/dg ship`** status|prepare|cdn|paste|verify|run — mutators freeze+lock gated
-- **Dash:** Light card + whyGreen from `refuseIfStale('truth')`
-- **Control:** truthEvidence on plane; spine prepends truth or freeze-hold
-- **Registry:** ship canonical; ship-prep/checklist/help aliases
-- **Selftest:** demigod-ship-selftest + tools-os includes it
-- **Still freeze ON** live v198 · disk v199 · demand-first
-
-## 2026-07-14 · ROUND-4 · history + tools + annotations
-
-- **LIVE** foot **v198** `ksbrmy.js` + CSS `vjxyrf.css` · **DISK** foot **v199** (section banners + header)
-- **FREEZE ON** — intentional; live-doctor reports driftExpected=true (PASS)
-- **Tools hot:** `bin/dg live` · `bin/dg mime` · `bin/dg full-check [--release]`
-- **Docs:** ROUND4 discussion + Fable/Codex history · atlas §12 · one-shot classification
-- **Annotation policy:** headers + section banners + JSDoc — **not** every-line comments
-- **Next ship (when intentional):** freeze off → CDN v199 → CM6 → `full-check --release`
-- **Next software (disk):** WIZ ownership tests · smoke disk/live soft assert · version ledger
-
----
-## 2026-07-14 · TRUTH + FOOT LOCK LIVE
-
-- **Oracle:** `bin/dg truth` → PASS (driftExpected: disk v199 / live v198)
-- **Freeze ON:** sales surface v198 — demand-first; disk v199 staged
-- **Foot lock:** free; `bin/dg lock require` hard-fails until claim
-- **Ship:** only when intentional unfreeze + CDN body match
-
----
-
-## 2026-07-14 · ELEGANT REFINE
-
-- **Too complex?** Yes — we over-built process essays. **Fix:** one card `DEMIGOD-SIMPLE.md` + one ops page `docs/process/OPS.md`.
-- Agents: open SIMPLE first; exchange/ = history; don’t re-read 58 docs per session.
-- Method still true: stages PLAN/EXECUTE/REVIEW; human authorizes blast radius; 1 agent default.
-
----
-
-## 2026-07-14 · AGENT METHOD CRITIQUE
-
-- **Verdict:** process “hats” OK for humans/checklists; **bad as agent authority**
-- **Replace with:** PLAN→EXECUTE→REVIEW + contracts · topology 1/2/3
-- **Doc:** `docs/process/AGENT-COLLABORATION-METHOD.md`
-- Swarm: Fable+Codex method notes in `docs/exchange/DEMIGOD-*-AGENT-METHOD.md`
-
----
-
-## 2026-07-14 · FULL TEAM PROCESS OS
-
-- **Master index:** `docs/process/README.md` (RACI, cadences, checklist catalog, anti-process)
-- **Swarm inputs:** `docs/exchange/DEMIGOD-FABLE-TEAM-PROCESS.md` · `DEMIGOD-CODEX-TEAM-PROCESS.md`
-- **Executable checklists:** OPS/DEM/INT/CAN/MAT/INTRO/PIL/HIR/BRD/WEB/INC/AGT under `docs/process/`
-- **Ops records dirs:** `demigod-ops/{demand,intake,intros,finance,outcomes,incidents,releases}/`
-- **Missing-before:** mutual-yes/consent/invoice/incident DoR · weekly rhythm · doc sprawl plan
-- **Still true:** freeze ON · live v198 · disk v199 · human DMs + freeze A
-
----
-
-
-## 2026-07-14 · EXEC PASS · disk v199 / live v198
-
-- **Disk foot:** v199 (section banners + prior design)
-- **Live foot:** still **v198** `ksbrmy.js` + CSS `vjxyrf.css` until next ship
-- **Freeze:** ON (`v198 great design live — no thrash`) until intentional unfreeze
-- **Docs:** FULL-HISTORY atlas, module/bin indexes, MASTER website + ops prompts v2
-- **Next:** live-doctor + MIME check tools; ship v199; WIZ ownership harden; smoke version assert
-
----
-
-
-## 2026-07-13 · v195 LIVE SHIP
-
-- **One-question:** forceWizVisible chrome-only; removed ultimate unhide; critical = current key only
-- **Validation:** checkbox `.checked`; non-optional steps require non-empty; company-name required
-- **Click:** bare `href="#"` no longer opens hire modal
-- **Product:** loadProduct onerror + empty fallback UI
-- **Dashboard:** site-green only when live==disk versions + freeze off
-- **CDN:** https://files.catbox.moe/gxwld0.js · footer v41
-- truth claims.live==disk true
-
-
-## 2026-07-13 · v194 DISK (not live) — WIZ reopen idempotent
-
-- `show()` no longer deletes `dgWizBuilt` / rebuilds chrome every open
-- Reopen uses `form.__dgWizShow` to refresh current step
-- Gates: smoke + verify:source PASS · **publish freeze ON** → live still v193 until ship
-- Codex API: gpt-5.6-sol ~$5/1M in · $30/1M out; rate limit sample 5k RPM / 4M TPM on gpt-4o-mini tier
-
-
-## 2026-07-13 · v193 LIVE — dual CTAs
-
-- **Buttons:** `I'm hiring` (startup) · `Find a job` (candidate) — not Hire/Find Talent pair
-- **Competitor copy:** Underdog "I'm Hiring"/"I'm a Candidate"; Wellfound "Find your next hire/job"; Arc "Hire talent"/"Find jobs"
-- **CDN:** `https://files.catbox.moe/7s02w8.js` · footer-lite **v40**
-- **Also:** submit wrapper fix, How→/?p=how, resume step, #dg-bar hide in modal
-- **Gates:** source PASS · smoke v193
-- **Prompt pack still drives:** product loader race, one-question ownership, waitPost fixtures
-
-
-## 2026-07-13 · v191 DISK (multi-agent pack + form P1s)
-
-- **Agents queried:** Fable, Codex exec+review, Claude Sonnet, Claude Opus (Heavy-grade). SuperGrok Heavy browser: no grok.com tab.
-- **Master pack:** `docs/exchange/DEMIGOD-MULTI-AGENT-PROMPT-PACK-2026-07-13.md` · `/tmp/dg-busy/prompt-pack/`
-- **Disk foot v191:** submit wrapper fix (`dgWfStatusRoot`), no force `.w-form-done`, How → `/?p=how`, resume `startIdx`, truth CDN `src=` match.
-- **Gates:** verify:source PASS · foot-smoke v191 PASS · board honesty OK.
-- **Live:** still **v190** `f5r4yt.js` — publish freeze ON; ship CDN+Webflow after unfreeze.
-- **Next Grok:** fixture for waitPost · product loader · one-question ownership · CDN ship v191.
-
----
-
-## 2026-07-13 · v187 FREEZE FIX (shipped)
-
-- **Root cause:** `wizBuild` form MutationObserver wrote `style` on every attribute mutation → infinite sync thrash → page freeze / never `load`.
-- **Also:** removed full-document OBS thrash; hero CTAs no longer `display:none` by aggressive nav dedupe (v184).
-- **Live foot:** `https://files.catbox.moe/sx8bw3.js` · footer-lite **v31 map5** · product sticky mobile CTAs.
-- **Local proof:** load 120ms · WIZ open · deep-link · mobile bar · hero CTAs visible.
-- **Verify:** `demigod:verify:source` PASS.
-- **Product map5:** hire 9hf7zj, talent kuejms, how qoc2gv, pricing af8teb, pilot 7tf8v0, proof ne8030, faq ylgfkk, compare njdv6h.
-
-
-**Update this file every ship.** Source of truth for humans + agents.  
-**Last update:** 2026-07-13 · Live foot **v187** (`sx8bw3.js`) freeze fix
-**Live:** https://www.trydemigod.com · Staging: https://talentlink-sf.webflow.io  
-**Decision:** **FIX** not rewrite · demand + lean site build  
-**Roadmaps:** `docs/exchange/DEMIGOD-STARTUP-ROADMAP.md` · `docs/exchange/DEMIGOD-LIVING-ROADMAP.md`
-
----
-
-## 1. One-line truth
-
-**SF startup talent matching:** human-reviewed briefs ↔ candidates; **10% on hire**; `hello@trydemigod.com`.  
-**Differentiator:** not a job board / not ATS — **90-day outcome + mutual yes + private until both sides agree**.  
-**Bottleneck:** demand (founder DMs + one pilot) · site conversion polish is secondary.
-
----
-
-## 2. Live vs disk
-
-| Piece | Truth |
-|-------|--------|
-| Foot disk | `demigod-foot-core.js` **v183** · `__dgFootVer='183'` |
-| Foot CDN | https://files.catbox.moe/3fzlp6.js |
-| Loader | `demigod-footer-lite.html` → 3fzlp6 + honesty soft-patch |
-| Head | `demigod-head-minimal.html` unhide-v5-safe |
-| Board | 2 samples · realRoles 0 · realReceipts 0 |
-| Verify | `npm run demigod:verify:source` + board-honesty + loop-state |
-
-**Version rule:** Never claim live == disk without CDN body hash.
-
----
-
-## 3. Recent ships
-
-| Ver | What |
-|-----|------|
-| v181 | Mobile CTA color fix; 48h scrub |
-| v182 | Diff FAQ; hero not board/ATS; contact deep-links |
-| **v183** | Path pills **I'm hiring / I'm looking**; `ensureHowLink` in run; badge HUMAN-MATCHED; CDN sync |
-
----
-
-## 4. Startup phase (summary)
-
-| Phase | Focus |
-|-------|--------|
-| **Now** | Demand + first white-glove pilot + conversion site polish |
-| **30–90d** | Proof + first invoice path |
-| **90d+** | Light matching OS only if demand hurts humans |
-
-Full: `docs/exchange/DEMIGOD-STARTUP-ROADMAP.md`  
-Research: `docs/research/DEMIGOD-DEEP-RESEARCH-STRATEGY-2026-07-13.md`
-
----
-
-## 5. Agent roles
-
-| Actor | Job |
-|-------|-----|
-| Heavy / Opus | Strategy |
-| Fable | Plans via `bin/df` |
-| Sonnet | Copy / audit |
-| Codex | Code review |
-| Grok | Execute, verify, publish, docs |
-| Human | Real DMs + money decisions |
-
-**Not for Demigod product:** Hermes / ElizaOS (personal later only).
-
----
-
-## 6. Hard constraints
-
-No 48h/SLA/founder-name · pending Twilio/Stripe language · ≤3 sample board roles · one foot-core writer · no game work · no concurrent thrash
-
----
-
-## 7. Next
-
-1. Human Top3–15 warm founder DMs  
-2. Form e2e when useful  
-3. Pilot terms + invoice SOP  
-4. Site only for P0 / clear conversion wins
-
----
-
-## Agent session tooling (2026-07-13)
-- `bin/dg-start` — refresh AGENT-BRIEF + ship-status + lock
-- `demigod-foot-lock.mjs` / `bin/dg-lock` — durable + flock foot writer lock
-- `demigod-ship-status.mjs` — disk→CDN→live state machine
-- Dashboard: http://127.0.0.1:9878/ · brief file `/tmp/dg-busy/AGENT-BRIEF.md`
-- Docs: `docs/exchange/DEMIGOD-AGENT-TOOLING-2026-07-13.md`
-
-## Agent wants debate (2026-07-13)
-See `docs/research/DEMIGOD-AGENT-WANTS-DEBATE-SETTLEMENT-2026-07-13.md` — settlement: demand pack + hash-gated publish + PLAN-LEDGER + claim-verifier.
+# Demigod — Current State
+
+Updated 2026-07-23T22:26Z from canonical receipts (`bin/dg truth` PASS shipped=false prepareOnly).
+
+## Website
+
+- Foot **live v802** is sealed on CDN/manifest. Forms keep native Demigod RSVP; no fake guest counts.
+- Disk **v815** is staged locally (events page simple+elegant redesign in `dgMapEventsHtml`: gold hero band, collapsed submit, single disclaimer; plus v814 WIZ cleanup and v813 referral short links + `/?p=refer`) — not fully shipped; publish unauthorized (prepare-only).
+- The last sealed release passed disk v802 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- Product direction (sealed live): keep EventsBot, startup discovery, and venue discovery on the same map page with independently toggleable startup/venue layers, adjustable search radius, and map/list views. Disk v811 stages a split directory/events layout (events-only vs startups-only submit/listings/manage; atlas mounts only on `/?p=map`) plus analytics tunnel-probe kill — not sealed product direction until authorized ship.
+- Referral simple path: `bin/dg referrals mint-talent` → approve → pack (unique short link + disclosure) → talent WIZ → sync/qualify/hire/retain/settle. Design: `DEMIGOD-REFERRAL-SIMPLE.md`.
+- v802 says referral rewards become eligible after the documented conditions instead of claiming observation-only rewards accrue.
+- v801 removes example-like intake placeholders and the duplicate talent proof question, exposes one reachable file-or-HTTPS-link step even with Webflow's native uploader, uses founder work-location in match scoring/evidence, requires reviewable event/startup details on create and edit, and exposes all editable event details in management. v800 keeps freshly issued event/startup management bearer links out of the current tab's URL and history. v799 accurately discloses that this browser keeps private management keys for both event and startup submissions. v798 fixes founder work-location form initialization. v797 keeps a chat display name in the current browser tab instead of retaining it indefinitely. v796 removes imported event/startup management bearer keys from the address bar and browser history immediately after saving them locally.
+- A stale destructive `demigod-archive-scripts.mjs` run moved 439 active root modules into `archive/demigod-automation`, breaking source verification and the next Events healer start. Every manifest-listed missing file was copied back without removing the archive evidence; source verification and ship preparation pass again. The archiver is now dry-run by default and requires explicit `--apply`.
+- v794 shortens talent proof intake, adds founder work-mode fit, and makes community event intent explicit. v793 labels reviewed startup submissions as reviewed rather than claiming verification; hiring remains explicitly submitter-reported. v792 keeps valid reviewed events or startups visible when the other independent feed fails, announces the unavailable feed, and preserves the last good startup-map enrichment through a transient startup-feed failure.
+- The staged v791 release bundle keeps the foot, startup-map script, and map data on one immutable CDN commit. Reviewed-event calendar exports safely encode every newline form, including lone carriage returns, so submitted text cannot break an RFC 5545 property boundary. The simple SF chatroom gives its sequential live message log the accessible name required by the ARIA `log` role, releases a failed pinned Events API base so the existing cache-throttled probe can recover after tunnel rotation, and returns users to the join form when an API restart invalidates their in-memory session. The combined map's Venues-only layer hides the startup directory, startup browsing can filter the honest reported/unknown hiring labels with a native select, and radius results announce separate startup-area and venue counts. Async community results preserve the active center, radius, view, layers, selection, company filters, selected-result focus, company search/filter focus and cursor, plus directory/card disclosure state across the atlas rebuild; startup-area rows show their already-computed distance, selection survives list rebuilds, and map selection scrolls and focuses the matching list row. Startup neighborhood bubbles and venue pins are keyboard-operable with Enter or Space, visibly focusable, and move focus to their selected list row. List neighborhood selection recenters the search area while restoring keyboard focus after the result list rebuild, a native Reset area control returns to the SF three-mile default, and empty hiring filters explain that reports come only from reviewed community submissions. Reviewed listing cards sit beneath their event/startup category in the heading hierarchy. Reviewed event cards render localized semantic `<time>` values with an explicit browser-local timezone instead of raw ISO strings. Reviewed dated events offer native RFC 5545 calendar downloads with stable IDs, UTF-8-safe line folding, and no invented end time. Event date controls round-trip browser-local wall time to timezone-aware API timestamps, fixing dated create/edit requests. Venue rows expose distance, cost, and planning notes; unverified Demigod research seeds no longer falsely link to or claim the license of an unrelated City Facilities dataset. Seed capacities are labeled planning estimates and availability remains unverified. Public event/startup submission, management, and withdrawal forms expose pending state programmatically and reject in-flight re-entry; event submission now warns when browser storage rejects the sole management key instead of silently losing future edit/withdraw access, and managed event save and withdraw share one lock so mutations cannot race. Saving an edit refreshes the canonical event status and reviewed listings while retaining success feedback and keyboard focus, so resubmitted withdrawn events no longer look withdrawn. Submitted startups with no neighborhood say it was not provided rather than inventing a city-level location. On phone widths, the 55-profile company directory is a native collapsed disclosure so Community listings and event/startup submission controls are not buried; it remains open on desktop. The combined map host is no longer one giant live region; its scoped result, detail, filter, loading, and error statuses remain available to assistive technology without announcing the whole mounted directory.
+- `ship prepare` now seals hashes for the atlas script and public map data alongside foot/head/footer, matching the actual CDN publisher bundle; the latest prepare receipt is green and remains non-publishing. The CDN publisher now accepts only a remotely byte/MIME-attested foot + atlas + map-data bundle and refuses single-file fallback success; `bin/dg truth` also requires those manifest identities and live sibling bodies before `fullyShipped`.
+- Webflow **Auto-generate sitemap is On**; live `/sitemap.xml` and the `robots.txt` sitemap directive are present.
+- Foot **live v758** is sealed on CDN/manifest. Mobile LCP: skip replacing hero copy when Webflow already contains the canonical text. Forms keep native Demigod RSVP; no fake guest counts.
+- Foot **live v757** is sealed on CDN/manifest (jsDelivr `@9045a1cf430a/foot-latest.js`). The public `/?p=event` page only shows an RSVP yes-count when rsvpOpen; pre-RSVP stages use venue lining-up copy; post-RSVP closed nights say RSVPs closed. Forms keep native Demigod RSVP; no fake guest counts.
+- Foot **live v756** is sealed on CDN/manifest (jsDelivr `@bb7fa843dcd6/foot-latest.js`). Forms keep native Demigod RSVP; no fake guest counts.
+- Foot **live v755** is sealed on CDN/manifest (Events API config loads all CDN mirrors and unions apiBases so a stale raw.githubusercontent cache cannot strand RSVP). Forms keep native Demigod RSVP; no fake guest counts.
+- Foot **live v754** is sealed on CDN/manifest. The responsive footer has one canonical panel with grouped Product, Network, and Explore navigation, distinct startup/talent actions, precise fee and privacy copy, 44px link targets, visible keyboard focus, and no horizontal overflow. Direct blog-note deep links retain keyboard and screen-reader focus on the opened article title; form Privacy links open the legal page. Forms collect required availability, cash compensation, and a résumé before review; keep optional work samples reachable; use native Demigod RSVP; and close hard-route pages without reopening the previously active virtual page.
+- The last sealed release passed disk v759 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- The last sealed release passed disk v758 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- The last sealed release passed disk v757 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- The last sealed release passed disk v756 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- The last sealed release passed disk v755 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
+- v753 collapses the public Events Bot page to one optional direction and one “Imagine my event” private-draft action; it no longer mounts the public calendar editor, lifecycle controls, offers, money, or feedback forms. A live v754 mobile probe confirmed a blank click returns the private Mission Workshop Supper draft with no overflow. The shared geography guard no longer mistakes ordinary prose `, or` for Oregon. The private dashboard likewise presents one planning action and keeps API/resource diagnostics in a closed disclosure. Luma and Partiful remain draft destinations, not connected publishing accounts.
+- The last sealed release passed disk v754 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation. Freeze is ON (`post-user-authorized-v754-ship`) after the authorized release; foot-lock free — publish remains current-request-gated. The canonical release workflow is now one `bin/dg ship run`; duplicate manual gates are skipped, visual smoke is separate and capped, and CDN/Webflow propagation is probed immediately instead of after fixed waits.
+- Webflow's canonical homepage now labels the examples “SAMPLE ROLES,” describes human-reviewed profiles only when there is a fit, and no longer promises a fixed candidate volume or 90-day replacement guarantee. Pretty-path redirects preserve incoming query parameters and fragments; closing the routed page removes only the route parameter, so campaign attribution survives.
+- v733 ships native Demigod event invite + RSVP page (`/?p=event&id=ev_…`); Partiful/Luma remain optional alternate invite URLs.
+- Head CSS: jsDelivr pin `2c99905fd0dc4ff397abea57e2f29f7c6f154c51`.
+- Current forms support hiring and technical/non-technical talent; talent availability, cash compensation, and one PDF/Word résumé or secure file link are required, while LinkedIn and work samples remain optional and reachable. Browser and ingestion share bounded matching-text limits (startup 500/300, talent 400/600); restored oversized drafts remain visible but cannot advance. Drafts preserve answers but never native upload filenames; legacy drafts are scrubbed on restore while the current-session review still shows the selected filename.
+- Referral MVP is observation-only: invalid/revoked codes reserve direct attribution; expired unlinked claims no longer lock a subject against a later valid referral, while placement-linked claims keep attribution and malformed expiry fails closed; invoices cannot switch placement pairs; and reward eligibility requires pair-bound hire → invoice → payment chronology plus an exact invoice/payment fee match. There are no production ledger entries, credits, Stripe transfers, or money movement.
+
+Evidence: `/tmp/dg-busy/truth.json` · `/tmp/dg-busy/term-grok-last.json` · `DEMIGOD-FOOT-CDN.json` · craft-log
+
+## Product and operations
+
+- Phase: startup GTM + pre-services honesty.
+- Public promises must match current capability; no fixed candidate volume, SLA, or automated matching claim.
+- Board contains samples unless backed by real receipts; current real-role count is zero.
+- No automatic DMs, emails, posts, applications, or form submissions.
+- Legacy X delivery entrypoints are permanently drafts-only; environment variables cannot re-enable sending.
+- Intro proposals remain `proposed`; only observed founder and candidate consent may produce `mutual_yes`. The dashboard exposes consent controls only after review and only for a missing side, while the shared ledger treats repeated consent as idempotent instead of duplicating evidence history.
+- Grok exchange routes through `bin/grok-ask`, automatically injects current truth plus ownership claims, and treats context/claims as restrictions rather than external-action authority. Atomic exit metadata, settled request files, explicit PASS/BLOCKED verdicts, and the shared redacted receipt at `/tmp/dg-busy/coord/grok-mailbox-last.json` now drive status, brief, digest, and `/api/coord` consistently. The legacy automatic terminal pump is disabled and its receipts are non-authoritative.
+- Private dashboard job dispatch is POST-only and same-origin guarded; cross-origin GETs are rejected before routing, headerless GET dispatch is rejected with 405, and read-only job listing remains available. Auto-propose uses the shared mutation confirmation/polling path and cannot claim success after cancellation. Terminal match rejection requires an explicit native confirmation before its POST. The job registry has no prototype, so inherited names such as `toString`, `constructor`, and `__proto__` cannot bypass the allowlist; persisted history is filtered through that same registry, leaving obsolete security probes in forensic storage without rendering them as current failures. Collaboration runtime state is PID-backed across both status views; dead workers become idle and PID-namespace uncertainty is explicit instead of inheriting stale `busy`. The running dashboard has been restarted onto this source.
+- The dashboard's shared UI change token is a 64-character SHA-256 digest instead of a 1.5 KB serialized state string, saving 1,436 bytes (8.1%) in the controlled UI-poll fixture without changing refresh behavior; the running dashboard is on the compact source.
+- The dashboard exposes seven focused tabs, including the new private SF Map; unreachable legacy glance/status handlers and retired mode, density, help, Mermaid, ambient, and API-pill UI remain gone. Global shortcuts preserve Ctrl/Cmd/Alt browser commands except the intentional Ctrl/Cmd+K palette shortcut.
+- The private SF Startup Atlas contains 2,013 active YC companies whose public profiles explicitly list San Francisco. DataSF normalized-name evidence places 333 unambiguous records into 26 analysis neighborhoods; 1,680 stay city-only and off-map. Missing YC team sizes remain unknown instead of becoming zero, positive values are explicitly labeled, and only YC's positive hiring signal is shown. Duplicate names fail closed, and the projection contains no registry addresses, owners, contacts, or private Demigod records. Refresh requires caller-supplied YC records; automatic YC directory scraping is disabled.
+- EventsBot: active SoMa Supper Club (`ev_mrphyj7d56du`) stage `resource`, native invite closed, rsvpYes=0 (no invented guests).
+- Events recovery work is live-status-gated: stale or unreadable cached health cannot enqueue a false tunnel heal. The control plane refreshes Events health on a bounded 90-second display cache, and concurrent status writers replace the shared receipt atomically.
+- Events certification probes the same raw GitHub/jsDelivr configuration sources as the public browser and separately reports whether published bases are current and reachable. Current app/tunnel health still controls `needHeal`, so publish-only config drift fails certification without causing pointless rotation. Startup and the recurring healer prefer the reusable `demigod-events-bot.loca.lt` name and safely fall back to a reachable localtunnel URL; a second stray-process sweep catches late `npx` children. The current reachable fallback is published at immutable config commit `33aed047f6e3`; jsDelivr `@main` may lag, so the browser unions both mirrors.
+- The destructive tools self-test now runs entirely in a copied temporary busy namespace. A full 135-check run completed while the production foot lease stayed owned and token-valid, so background verification can no longer force-release an active website writer.
+- The live agent smoke waits for a real page target with a rendered H1 and initialized foot instead of sleeping four seconds and dereferencing a missing body. Its reproduced navigation race now fails with a bounded readiness error rather than fabricated whole-site breakage.
+- Community intake rejects exact active duplicates from the same organizer or startup submitter inside the serialized store lock. Event edits cannot collapse two active listings into the same organizer/title/date identity; different dates, rejected records, and withdrawn records remain eligible.
+- Native Demigod RSVP intake requires a matching Demigod invite URL for the same event. Partiful and Luma links remain valid lifecycle evidence but cannot silently open a second native RSVP form, and attendee-facing copy distinguishes platform RSVP from Demigod-native RSVP.
+- Invite URL recording fails closed before mutation when a selected draft is already bound to another event, preventing singleton, title, or exact-ID fallback from silently rebinding archived invite evidence. Model tool calls cannot attest that an external Partiful/Luma invite was published; only explicit foreground/manual evidence paths may record the URL.
+- The shared lifecycle gate rejects a confirmed venue when its known capacity is below the event's target seats.
+- EventsBot model tools always start at `ideate`, cannot force stage jumps, and use the canonical lifecycle gate for planning. A held plan → RSVP transition reports its safe recovery (including a real timezone-aware future SF datetime) instead of claiming readiness or inventing evidence. A queued thank-you draft no longer opens followup → debrief: the planner requires the same real debrief evidence as the mutation gate and names `record_debrief` as the evidence-gated recovery. The run planner also consults the canonical run → followup gate and stays held without explicit host-close evidence. Run intent recognizes the same trusted host-start phrases as the RSVP → run evidence gate, including “The event is starting now,” and follow-up intent recognizes “The event ended.” One-click owner ticks run one deterministic safe completion cycle even after a shallow model tool; after a debrief they select the newest idea linked to the cleared event instead of replaying the oldest historical idea. Idea-only generation explicitly opts out and cannot activate an event or queue outreach.
+- The ops RSVP-list endpoint requires an explicit event ID instead of silently falling back to the active night, preventing an operator request from returning the wrong event's guest list.
+- EventsBot background Luma tooling is draft/export-only even when credentials and auto mode are present. Publishing the public events config requires an explicit foreground `--publish-config` invocation plus the existing health and publish-freeze gates; inherited environment variables cannot grant either external authority.
+- `bin/dg events-test fast` runs all nine focused EventsBot suites (76 checks); the full gate runs that same set before the isolated autonomy selftest, so audience, outbox privacy, native invite, publish-freeze, venue ranking, lifecycle, API policy, chatroom, and dashboard regressions cannot be skipped.
+- Reviewed talent who explicitly answer `sf-bay=no` remain stored but are excluded from every matching/proposal path; the private inbox exposes only the privacy-safe `sf-bay-not-open` blocker.
+- Known, parseable, same-unit compensation ranges that do not overlap are excluded from role-centric, candidate-centric, and automatic proposals; vague ranges remain available for human review, and explicit manual proposals remain possible. Generic `AI`/`platform` vocabulary no longer counts as skill evidence, and role-centric writes must pass the same shared match decision, preventing contradictory-function automatic proposals.
+- Candidate/startup free text is scrubbed before public cards and matching evidence: email, phone, protocol and scheme-less links, repository/profile URLs, signed query strings, and bare personal domains are removed while plain skill words remain. Raw submissions stay confined to private operator paths.
+- Same-email resubmissions remain review-gated updates: they cannot auto-feature or approve into a second public card, cannot mutate the original featured record, and public status does not reveal the prior capability-grade submission ID.
+- Direct `.test.mjs` runs isolate referral side effects under `/tmp/dg-busy/tests`; a synthetic-only ledger created before this guard was moved intact to `/tmp/dg-busy/quarantine/DEMIGOD-REFERRALS.accidental-test-20260722T021611Z.json`, and the production referral path is absent after repeated regressions.
+- The durable useful-work loop treats the legacy JSONL queue as audit history and tracks only post-migration pending work in a private atomic cursor. Peer-appended tasks are coalesced by task, overflow survives the per-cycle budget, successful work is acknowledged once, failures remain pending, and an existing shared lock prevents overlapping consumers.
+- The locked idea engine refreshes current snapshots every run but appends history only when the semantic idea batch changes. Missing or empty history and partial appends recover with one clean batch; promotion remains independently idempotent. Useful-loop orientation falls back to its canonical status receipt when a status subprocess returns no parsable JSON.
+- Useful-loop output has one canonical application log; systemd no longer writes the same lines a second time. The existing daily busy-log timer is enabled, nested oversized logs retain a 1 MiB active tail plus two compressed generations, and its first run pruned only stale ephemeral receipts.
+- A SHA-backed direct + 12-file test-isolation sweep left BOARD, INBOX, LEADS, PAIRS, and EVENTS byte-identical and REFERRALS absent; the freeze-dependent approval assertion now derives its exact expected reason from the active freeze state.
+- The shared review engine ignores provably static `innerHTML` literals while continuing to flag dynamic assignments, reducing the foot XSS queue from 47 to 19 actionable checks.
+- A bounded trace of the remaining 19 dynamic-HTML sinks found no exploitable public XSS or unintended PII exposure: API-backed text is escaped or tag-breaking `<` is encoded, and public event data omits host details and gates invite/venue/date until RSVP.
+- Public chat remains read-only; host open-rsvp / list-rsvps need ops secret when set.
+- Eat the Sounds remains archived and out of scope.
+
+## Canonical operator path
+
+1. `bin/dg orient` — session card and canonical NEXT.
+2. `bin/dg truth` — disk → manifest → CDN → live evidence.
+3. `bin/dg home` — control-plane summary.
+4. `bin/dg ship prepare` / `bin/dg ship verify` — guarded release checks.
+
+Local dashboard: `http://127.0.0.1:9878/` · receipts: `/tmp/dg-busy/` · current source: `demigod-foot-core.js`
+
+## Current focus
+
+- Fill the active SF night's venue, sponsor, and volunteer resource gaps with draft-only outreach.
+- Keep craft-log fail-closed (ship / mutual intro / event_ran only with proof).
+- Keep the dashboard thin: render canonical receipts and suppress stale evidence.
+- Matching proposals retain privacy-safe skills, compensation-alignment, and normalized availability evidence for human review.
+- Preserve privacy. This continuation authorizes local improvements and verification only; publishing, messages, posts, applications, and form submissions remain separately gated.
