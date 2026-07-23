@@ -960,7 +960,30 @@ set_backoff() {
 
 failure_backoff() {
   # Quota failures are not transient; stop retrying them every coordinator tick.
-  grep -Eqi 'weekly limit|usage balance exhausted|status 402|http_status[^0-9]*402' "$1" && echo 21600 || echo "$2"
+  # Codex CLI: "You've hit your usage limit... try again at Jul 28th, 2026 10:02 AM"
+  if ! grep -Eqi 'weekly limit|usage balance exhausted|status 402|http_status[^0-9]*402|hit your usage limit|usage limit' "$1"; then
+    echo "$2"
+    return 0
+  fi
+  local secs
+  secs=$(LOGF="$1" python3 - <<'PY'
+import os, re, time, datetime
+from pathlib import Path
+text = Path(os.environ["LOGF"]).read_text(errors="ignore")
+m = re.search(r"try again at\s+(.+?)(?:\.|$|\n)", text, re.I)
+if m:
+    s = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", m.group(1).strip())
+    for fmt in ("%b %d, %Y %I:%M %p", "%B %d, %Y %I:%M %p", "%b %d %Y %I:%M %p"):
+        try:
+            dt = datetime.datetime.strptime(s, fmt)
+            print(max(3600, int(dt.timestamp() - time.time())))
+            raise SystemExit
+        except ValueError:
+            pass
+print(21600)  # 6h floor when parse fails
+PY
+)
+  echo "${secs:-21600}"
 }
 
 # Spawn helpers: optional cycle id $1 (shared tick). If empty, bump for this spawn only.
