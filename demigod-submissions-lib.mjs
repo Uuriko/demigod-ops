@@ -10,14 +10,18 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { recordDirectSubmission, recordReferralSubmission } from './demigod-referrals.mjs';
 
 const ROOT = '/home/potter';
 
 // Tests must never write production SoRs. *.test.mjs polluted the inbox with 115 fixture rows that
 // read as real demand, and the board (which feeds the live site) was corrupted twice the same way.
 // node --test sets NODE_TEST_CONTEXT; the argv check covers direct `node foo.test.mjs` runs.
-const IS_TEST = !!process.env.NODE_TEST_CONTEXT || /\.test\.mjs$/.test(process.argv[1] || '');
-const TEST_DIR = '/tmp/dg-busy';
+const IS_TEST = !!process.env.NODE_TEST_CONTEXT || !!process.env.DEMIGOD_TEST_SCOPE || /\.test\.mjs$/.test(process.argv[1] || '');
+const TEST_SCOPE = IS_TEST
+  ? (process.env.DEMIGOD_TEST_SCOPE ||= String(process.pid)).replace(/[^A-Za-z0-9_.-]/g, '_')
+  : '';
+const TEST_DIR = path.join('/tmp/dg-busy/tests', TEST_SCOPE);
 
 export const BOARD_PATH = IS_TEST
   ? path.join(TEST_DIR, 'test-board.json')
@@ -37,6 +41,10 @@ export const INBOX_LOCK = INBOX_PATH + '.lock';
 const STAGE_RE = /\b(pre-?seed|seed|series\s*[a-d]|yc|stealth)\b/i;
 const VERTICAL_RE = /\b(b2b\s*saas?|consumer|fintech|healthtech|devtools|ai|marketplace|hardware)\b/i;
 const DEDUPE_DAYS = Number(process.env.DEMIGOD_DEDUPE_DAYS || 30);
+const ARCHIVE_RETENTION_DAYS = Math.max(
+  DEDUPE_DAYS,
+  Number(process.env.DEMIGOD_ARCHIVE_RETENTION_DAYS) || 365,
+);
 const ARCHIVE_DAYS = Number(process.env.DEMIGOD_ARCHIVE_DAYS || 14);
 const TEST_RE = /\btest\b/i;
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
@@ -46,6 +54,92 @@ export function extractEmail(data = {}, formName = '') {
   if (/startup/.test(fn)) return String(data['contact-email'] || data.contactEmail || '').toLowerCase().trim();
   if (/partner/.test(fn)) return String(data['partner-email'] || data.partnerEmail || '').toLowerCase().trim();
   return String(data['seeker-email'] || data.seekerEmail || '').toLowerCase().trim();
+}
+
+export function startupRoleReadiness(item = {}) {
+  const form = String(item.form || item.formName || '');
+  if (!/hire|startup|founders/i.test(form)) return { applicable: false, matchReady: true, missing: [], lifecycleReady: true, policyReady: true };
+  const raw = item.raw || item.data || {};
+  const required = [
+    ['company-name', raw['company-name'] || raw.companyName],
+    ['company-stage', raw['company-stage'] || raw.companyStage],
+    ['role-title', raw['role-title'] || raw.roleTitle],
+    ['stack-needs', raw['stack-needs'] || raw.stackNeeds],
+    ['90day-outcome', raw['90day-outcome'] || raw.outcome90d],
+    ['work-location', raw['work-location'] || raw.workLocation],
+    ['salary-range', raw['salary-range'] || raw.salaryRange],
+    ['contact-email', extractEmail(raw, form)],
+  ];
+  const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
+  const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
+  const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
+  return { applicable: true, matchReady: lifecycleReady && policyReady && !missing.length, missing, lifecycleReady, policyReady };
+}
+
+export function candidateProfileReadiness(item = {}) {
+  const form = String(item.form || item.formName || '');
+  if (!/engineer|jobseeker|candidate/i.test(form)) return { applicable: false, matchReady: true, missing: [], lifecycleReady: true, policyReady: true };
+  const raw = item.raw || item.data || {};
+  const bayPreference = String(raw['sf-bay'] || raw.sfBay || '').trim().toLowerCase();
+  const preferenceReady = !['no', 'not right now'].includes(bayPreference);
+  const required = [
+    ['full-name', raw['full-name'] || raw.fullName],
+    ['seeker-email', extractEmail(raw, form)],
+    ['skills-stack', raw['skills-stack'] || raw.skillsStack],
+    ['experience', raw.experience || raw['background & highlights']],
+    ['sf-bay', raw['sf-bay'] || raw.sfBay],
+    ['availability', raw.availability],
+    ['salary-expectation', raw['salary-expectation'] || raw['salary-range'] || raw.compExpect],
+    ['resume', extractResumeReference(raw)],
+  ];
+  const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
+  const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
+  const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
+  return { applicable: true, matchReady: lifecycleReady && policyReady && preferenceReady && !missing.length, missing, lifecycleReady, policyReady, preferenceReady };
+}
+
+/** Private resume reference from Webflow's native file field or the URL fallback. */
+export function extractResumeReference(data = {}) {
+  for (const value of [data.resume, data.Resume, data['resume-url'], data.resumeUrl]) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function sourceSubmissionId(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  return id && id.length <= 160 && /^[A-Za-z0-9._:-]+$/.test(id) ? id : '';
+}
+
+function emailFingerprint(email) {
+  return crypto.createHash('sha256').update(String(email || '')).digest('hex');
+}
+
+function recentContacts(inbox = {}, now = Date.now()) {
+  const cutoff = now - DEDUPE_DAYS * 86400000;
+  return Array.isArray(inbox.recentContacts)
+    ? inbox.recentContacts.filter((item) => {
+        const at = item && new Date(item.at).getTime();
+        return /^[a-f0-9]{64}$/.test(String(item && item.emailHash || '').toLowerCase()) &&
+          Number.isFinite(at) && at > cutoff && at <= now + 300000;
+      })
+    : [];
+}
+
+/** Keep bounded raw recovery history; anchor malformed/future legacy bytes without discarding them. */
+export function retainSubmissionArchive(text = '', now = Date.now()) {
+  const cutoff = now - ARCHIVE_RETENTION_DAYS * 86400000;
+  const maxFuture = now + 300000;
+  return String(text).split('\n').filter(Boolean).flatMap((line) => {
+    try {
+      const row = JSON.parse(line);
+      const anchor = Date.parse(row?.archiveRetentionAnchor || row?.at || '');
+      if (Number.isFinite(anchor) && anchor <= maxFuture) return anchor >= cutoff ? [line] : [];
+    } catch {
+      // Preserve the exact legacy bytes below, under a trusted bounded anchor.
+    }
+    return [JSON.stringify({ archiveRetentionAnchor: new Date(now).toISOString(), archivedRaw: line })];
+  });
 }
 
 /**
@@ -246,6 +340,7 @@ export function planInboxContactPatches(realForms = [], submissions = []) {
       'stack-needs',
       'skills-stack',
       '90day-outcome',
+      'salary-range',
       'partner-name',
       'partner-org',
     ]) {
@@ -331,6 +426,20 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   );
   const reasons = [];
 
+  const textCaps = [];
+  if (/startup/.test(fn)) textCaps.push(
+    ['stack_needs_too_long', 500, data['stack-needs'], data.stackNeeds],
+    ['why_this_role_too_long', 300, data['why-this-role'], data.whyThisRole],
+  );
+  if (/engineer|jobseeker|candidate/.test(fn)) textCaps.push(
+    ['skills_stack_too_long', 400, data['skills-stack'], data.skillsStack],
+    ['experience_too_long', 600, data.experience, data['background & highlights']],
+  );
+  for (const [reason, max, ...values] of textCaps) {
+    if (values.some((value) => value != null && String(value).length > max)) reasons.push(reason);
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) reasons.push('invalid_email');
   if (TEST_RE.test(blobSansEmails) && !/^(test@|demo@)/i.test(email)) reasons.push('test_keyword');
   if (/^smoke-(?:intake|startup|engineer)\+/i.test(email)) reasons.push('intake_smoke_probe');
   if (/intake smoke probe/i.test(String(data['partner-org'] || data.partnerOrg || data['stack-needs'] || data['skills-stack'] || ''))) reasons.push('intake_smoke_probe');
@@ -347,8 +456,30 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
     if (!String(data['referral-plan'] || data.referralPlan || '').trim()) reasons.push('missing_plan');
     if (!String(data['partner-type'] || data.partnerType || '').trim()) reasons.push('missing_type');
   }
-  const resumeSize = Number(data['resume-size'] || data.resumeSize || data._resumeBytes || 0);
-  if (resumeSize > MAX_RESUME_BYTES) reasons.push('resume_too_large');
+  const resumeSizeRaw = data['resume-size'] ?? data.resumeSize ?? data._resumeBytes;
+  const hasResumeSize = resumeSizeRaw != null && String(resumeSizeRaw).trim() !== '';
+  const resumeSize = Number(resumeSizeRaw);
+  if (hasResumeSize && (!Number.isFinite(resumeSize) || resumeSize < 0)) reasons.push('resume_size_invalid');
+  else if (resumeSize > MAX_RESUME_BYTES) reasons.push('resume_too_large');
+  const resumeType = String(data['resume-type'] || data.resumeType || data._resumeMime || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  if (resumeType && !['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(resumeType)) {
+    reasons.push('resume_type_unsupported');
+  }
+  const resumeUrl = extractResumeReference(data);
+  const resumeReferences = [data.resume, data.Resume, data['resume-url'], data.resumeUrl];
+  if (/engineer|jobseeker|candidate/.test(fn) && !resumeUrl) reasons.push('missing_resume');
+  if (resumeReferences.some((value) => value != null && typeof value !== 'string')) reasons.push('resume_url_invalid');
+  if (resumeUrl) {
+    try {
+      const parsed = new URL(resumeUrl);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password || resumeUrl.length > 2048) reasons.push('resume_url_invalid');
+    } catch {
+      reasons.push('resume_url_invalid');
+    }
+  }
 
   const cutoff = Date.now() - DEDUPE_DAYS * 86400000;
   const dup = (inbox.items || []).find((item) => {
@@ -356,9 +487,16 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
     const itemEmail = extractEmail(item.raw || {}, item.form || '');
     return email && itemEmail && itemEmail === email && new Date(item.at).getTime() > cutoff;
   });
-  if (dup) reasons.push('duplicate_email');
+  const archivedDup = email && recentContacts(inbox).some((item) => item.emailHash === emailFingerprint(email));
+  if (dup || archivedDup) reasons.push('duplicate_email');
 
-  return { reject: reasons.length > 0, reasons, email };
+  return {
+    reject: reasons.some((reason) => reason !== 'duplicate_email'),
+    duplicate: Boolean(dup || archivedDup),
+    duplicateId: dup?.id || null,
+    reasons,
+    email,
+  };
 }
 
 /** Drop featured cards older than ARCHIVE_DAYS (board filter stub). */
@@ -377,22 +515,57 @@ export function filterBoard(board = {}) {
 }
 
 export function slugId(prefix) {
-  return `${prefix}-${crypto.randomBytes(4).toString('hex')}`;
+  return `${prefix}-${crypto.randomBytes(16).toString('hex')}`;
 }
 
-// Redact email/phone from free-text before it is published. anonymize* already drops the structured
-// PII fields, but the free-text skills/experience/stack-needs get concatenated into the published
-// summary/tags/skills verbatim — a candidate/founder who types their email or phone there would
-// otherwise leak it to the live board. Names aren't pattern-detectable; email+phone are the
-// legal/trust-critical PII. (#23)
-function scrubPII(text = '') {
+// Redact contact-shaped PII from free text before publication. anonymize* already drops structured
+// PII fields, but skills/experience/stack-needs feed public summaries and matching evidence.
+export function scrubPII(text = '') {
   return String(text)
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[contact removed]')
+    // Obfuscated emails: name [at] host [dot] tld (and (at)/(dot) variants)
+    .replace(
+      /\b[\w.+-]+\s*(?:\[at\]|\(at\)|\bat\b)\s*[\w-]+(?:\s*(?:\[dot\]|\(dot\)|\bdot\b)\s*[\w.-]+)+\b/gi,
+      '[contact removed]',
+    )
+    // International / E.164-ish first: +CC then 8–15 digits with common separators.
+    // Digit-count callback avoids scrubbing "+5 years" or short codes; NANP runs next.
+    .replace(/\+(?:\d[\d\s().-]{5,22}\d|\d{8,14})\b/g, (m) => {
+      const digits = m.replace(/\D/g, '');
+      return digits.length >= 8 && digits.length <= 15 ? '[phone removed]' : m;
+    })
     .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]')
-    // A LinkedIn profile URL in a free-text field de-anonymizes the candidate (defeats anonymize*).
-    // /in/ and /pub/ are always personal profiles — redact. (github/twitter left alone: repo/org refs
-    // there are legit skill signal, and over-scrubbing them loses matching value.)
-    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/(?:in|pub)\/[\w%-]+/gi, '[profile removed]');
+    // Spoken digit phones: "four one five five five five …"
+    .replace(
+      /\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine|oh)[\s.-]?){7,15}\b/gi,
+      '[phone removed]',
+    )
+    // US-ish street addresses: require a street number + street type (St/Ave/…) so
+    // "Main Street marketing" / "Series A" / bare "SF Bay Area" stay. Optional unit + city/ZIP tail.
+    // ponytail: high-precision regex, not NER — extend only when real free-text leaks appear.
+    .replace(
+      /\b\d{1,5}\s+(?:[A-Za-z0-9.'-]+\s+){0,4}(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Way|Court|Ct|Place|Pl|Circle|Cir)\.?(?:\s*(?:Apt|Apartment|Unit|#)\s*[A-Za-z0-9-]+)?(?:\s*,?\s*(?:[A-Za-z][A-Za-z.\s]{0,30}?,?\s*)?(?:[A-Z]{2}\s+)?\d{5}(?:-\d{4})?)?\b/gi,
+      '[address removed]',
+    )
+    // City + ZIP without street number (still de-anonymizing when both present).
+    .replace(
+      /\b(?:San Francisco|South San Francisco|Oakland|Berkeley|Palo Alto|San Jose|Mountain View|Daly City|SF)\s*,?\s*(?:CA\s+)?\d{5}(?:-\d{4})?\b/gi,
+      '[address removed]',
+    )
+    // PO Box lines (no street type): "PO Box 123, SF 94103" / "P.O. Box 456".
+    .replace(
+      /\bP\.?\s*O\.?\s*Box\s+\d{1,7}(?:\s*,?\s*(?:[A-Za-z][A-Za-z.\s]{0,30}?,?\s*)?(?:[A-Z]{2}\s+)?\d{5}(?:-\d{4})?)?\b/gi,
+      '[address removed]',
+    )
+    // Any free-text link can de-anonymize a person or carry a signed-file secret. Keep the useful
+    // surrounding words, never the URL; structured private links never belong on a public card.
+    // TLDs include shortener-heavy endings (in/ly/to/cc/gg/tv/link) so lnkd.in/bit.ly cannot bypass.
+    .replace(/\b(?:(?:https?:\/\/|www\.)[^\s<>"'`]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|ai|co|me|app|xyz|tech|in|ly|to|cc|gg|gl|tv|link)(?:[/?#][^\s<>"'`]*)?)/gi, (url) => {
+      const punctuation = (url.match(/[),.;:!?]+$/) || [''])[0];
+      return `[link removed]${punctuation}`;
+    })
+    // Bare social @handles after emails are gone. Skip npm-style @scope/pkg (@types/react).
+    .replace(/(?<![\w./])@(?![a-z0-9_-]+\/)[a-zA-Z][a-zA-Z0-9_]{1,29}\b/g, '[handle removed]');
 }
 
 export function inferStageType(text = '') {
@@ -414,7 +587,7 @@ export function clip(s, max = 120) {
 export function anonymizeRole(raw = {}) {
   const title = clip(scrubPII(raw['role-title'] || raw.roleTitle || 'Open role'), 60);
   const skills = clip(scrubPII(raw['stack-needs'] || raw.stackNeeds || ''), 100);
-  const comp = clip(raw['salary-range'] || raw.salaryRange || 'Comp on intro', 40);
+  const comp = clip(scrubPII(raw['salary-range'] || raw.salaryRange || 'Comp on intro'), 40);
   const stageType = inferStageType(`${raw['company-stage'] || ''} ${raw['stack-needs'] || ''} ${raw['why-this-role'] || ''}`);
   return {
     id: slugId('role'),
@@ -489,10 +662,32 @@ export function findSubmission(id) {
   return (loadInbox().items || []).find((i) => i.id === needle) || null;
 }
 
+/** Classify the public status namespace without throwing or touching the inbox. */
+export function parseSubmissionStatusPath(rawUrl = '') {
+  const pathname = String(rawUrl).split('?', 1)[0];
+  if (pathname !== '/status' && !pathname.startsWith('/status/')) return { matched: false, id: null };
+  const encoded = pathname.slice(8);
+  if (!encoded || encoded.length > 512) return { matched: true, id: null };
+  try {
+    const id = decodeURIComponent(encoded);
+    return /^sub-[A-Za-z0-9._~/-]+$/.test(id) && !/(?:^|\/)\.{1,2}(?:\/|$)/.test(id) && id.length <= 160
+      ? { matched: true, id }
+      : { matched: true, id: null };
+  } catch {
+    return { matched: true, id: null };
+  }
+}
+
+export function publicSubmissionStatusUrl(id) {
+  const safe = String(id || '').trim();
+  return safe ? `https://www.trydemigod.com/#status/${encodeURIComponent(safe)}` : null;
+}
+
 /** Public status payload — no PII (no raw fields, no email). */
 export function publicStatus(record = {}) {
   const form = String(record.form || 'submission').toLowerCase();
-  const status = String(record.status || 'new');
+  const internalStatus = String(record.status || 'new');
+  const status = internalStatus === 'spam' || internalStatus === 'rejected' ? 'not_accepted' : internalStatus;
   let kind = 'submission';
   let headline = 'Submission received';
   let lead = 'A human is reviewing your submission.';
@@ -516,19 +711,21 @@ export function publicStatus(record = {}) {
   }
 
   if (status === 'featured') steps[1] = 'Approved · added to network signal';
-  if (status === 'rejected') steps[1] = 'Declined — did not pass review gate';
-  if (status === 'spam') steps[1] = 'Filtered — did not pass review gate';
+  if (status === 'not_accepted') {
+    headline = 'Submission not processed';
+    lead = 'We could not accept this submission as sent.';
+    steps = ['Received', 'Not processed', 'No further action'];
+  }
 
   return {
     id: record.id,
     kind,
-    form: record.form || '',
     status,
     headline,
     lead,
     steps,
     at: record.at || null,
-    updatedAt: record.reviewedAt || record.at || null,
+    updatedAt: record.featuredAt || record.reviewedAt || record.at || null,
   };
 }
 
@@ -538,10 +735,21 @@ export function saveInbox(inbox) {
   // so a concurrent reader (triage, the dashboard, another agent) can catch it torn -- measured
   // 58.6% torn reads on a 340KB file. This same file already atomicWrites BOARD_PATH at :321 with
   // the helper imported at :12; the inbox was simply missed.
-  atomicWrite(INBOX_PATH, JSON.stringify(inbox, null, 2));
-  // PII (contacts) — atomicWrite preserves an existing 0600 but a FRESH file gets the umask default
-  // (0644). Ensure 0600 on every save so a newly-created inbox is never world-readable.
-  try { fs.chmodSync(INBOX_PATH, 0o600); } catch { /* best-effort */ }
+  atomicWrite(INBOX_PATH, JSON.stringify(inbox, null, 2), { mode: 0o600 });
+}
+
+/** Mutate the inbox under the same lock used by live form ingest. */
+export function updateInbox(mutator) {
+  return withFileLock(
+    INBOX_LOCK,
+    () => {
+      const inbox = loadInbox();
+      const result = mutator(inbox);
+      saveInbox(inbox);
+      return result;
+    },
+    { timeoutMs: 20000, staleMs: 120000 },
+  );
 }
 
 export function saveBoard(board, opts = {}) {
@@ -570,6 +778,10 @@ export function writeBoard(mutator, opts = {}) {
 
 function shaStable(obj) {
   return crypto.createHash('sha256').update(JSON.stringify(obj)).digest('hex').slice(0, 16);
+}
+
+function submissionFingerprint(id) {
+  return crypto.createHash('sha256').update(String(id || '')).digest('hex');
 }
 
 function appendBoardAudit(entry) {
@@ -605,6 +817,11 @@ function realReceiptsEnvOk() {
  */
 export function isRealReceipt(r) {
   return !!r && r.status === 'delivered' && !/sample|demo/i.test(r.note || '') && !/^demo/i.test(r.hash || '');
+}
+
+export function isSampleData(item = {}) {
+  return item.sample === true || item.selftest === true || item.real === false
+    || item.raw?.sample === true || item.raw?.selftest === true;
 }
 
 /** Core persist — call only while holding BOARD_LOCK (via saveBoard/writeBoard). */
@@ -701,6 +918,7 @@ export function mintBoardEntry(submission, opts = {}) {
       } else {
         return board;
       }
+      featured.sourceSubmissionHash = submissionFingerprint(submission.id);
       return board;
     },
     {
@@ -712,11 +930,60 @@ export function mintBoardEntry(submission, opts = {}) {
   );
 }
 
+/** Mint at most once, keeping review → board → featured serialized by submission. */
+export function submissionApprovalBlocker(submission = {}) {
+  if (submission.featuredId) return null;
+  if (submission.status === 'rejected' || submission.status === 'spam') return submission.status;
+  if (submission.status === 'updated' || submission.supersedes) return 'duplicate_update';
+  if (Array.isArray(submission.rejectReasons) && submission.rejectReasons.length) return 'rejected_by_intake';
+  const startup = startupRoleReadiness(submission);
+  const readiness = startup.applicable ? startup : candidateProfileReadiness(submission);
+  return readiness.applicable && readiness.missing.length ? 'missing_required_evidence' : null;
+}
+
+export function approveSubmission(submissionId, opts = {}) {
+  return updateInbox((inbox) => {
+    const submission = (inbox.items || []).find((item) => item.id === submissionId);
+    if (!submission) return null;
+    const blocker = submissionApprovalBlocker(submission);
+    if (blocker) {
+      const err = new Error(`approval_refused: ${blocker}`);
+      err.code = 'NOT_APPROVABLE';
+      throw err;
+    }
+    const boardBefore = loadBoard();
+    const cards = [...(boardBefore.roles || []), ...(boardBefore.candidates || [])];
+    if (submission.featuredId) {
+      const featured = cards.find((item) => item.id === submission.featuredId) || { id: submission.featuredId };
+      return { board: boardBefore, featured, reused: true };
+    }
+    const orphan = cards.find((item) => item.sourceSubmissionHash === submissionFingerprint(submissionId));
+    if (orphan) {
+      submission.status = 'featured';
+      submission.featuredId = orphan.id;
+      submission.featuredAt = orphan.featuredAt || new Date().toISOString();
+      return { board: boardBefore, featured: orphan, reused: true, repaired: true };
+    }
+
+    submission.status = 'reviewed';
+    submission.reviewedAt = new Date().toISOString();
+    const board = mintBoardEntry(submission, opts);
+    const featured = /startup/.test(String(submission.form || '').toLowerCase())
+      ? (board.roles || [])[0]
+      : (board.candidates || [])[0];
+    submission.status = 'featured';
+    submission.featuredId = featured?.id || null;
+    submission.featuredAt = new Date().toISOString();
+    return { board, featured, reused: false, repaired: false };
+  });
+}
+
 /** Ingest raw webhook/form body; returns { inbox, board, record, featured } */
 export function ingestSubmission(body = {}, opts = {}) {
   const formName = (body.name || body.formName || body['form-name'] || '').toLowerCase();
   const data = body.data || body.fields || body;
-  const board = loadBoard();
+  const providerId = sourceSubmissionId(body.sourceSubmissionId);
+  let board = loadBoard();
   const autoFeature = opts.autoFeature === true || process.env.DEMIGOD_AUTO_FEATURE === '1';
 
   // Serialize the whole inbox read-modify-write, not just the write. atomicWrite already stops a
@@ -727,58 +994,137 @@ export function ingestSubmission(body = {}, opts = {}) {
   // race the dedupe. record is captured out here for the featuring step below.
   let inbox;
   let record;
+  let reused = false;
   withFileLock(
     INBOX_LOCK,
     () => {
       inbox = loadInbox();
+      if (providerId) {
+        const existing = (inbox.items || []).find((item) => item.sourceSubmissionId === providerId);
+        if (existing) {
+          record = existing;
+          reused = true;
+          return;
+        }
+      }
       const gate = shouldAutoReject(data, formName, inbox);
       record = {
         id: slugId('sub'),
         at: new Date().toISOString(),
         form: formName,
+        sourceSubmissionId: providerId || undefined,
         raw: { ...data },
-        status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : 'new',
+        status: gate.reject ? (gate.reasons.includes('test_keyword') ? 'spam' : 'rejected') : gate.duplicate ? 'updated' : 'new',
+        supersedes: gate.duplicateId || undefined,
         rejectReasons: gate.reject ? gate.reasons : undefined,
       };
       // Cap the working inbox at 200 -- but ARCHIVE what falls off the end instead of dropping it.
       // The old `.slice(0, 200)` silently evicted the oldest lead on the 201st submission: a founder
       // who submitted early just vanished from the record. Same "never silently lose a lead" principle
       // as the lock (a5c881f) and the corrupt-preserve guard (665d0da). Append-only JSONL archive; the
-      // working file stays bounded and every lead is recoverable. Runs inside the INBOX_LOCK, so the
-      // archive append is serialized too.
+      // working file stays bounded and every recent lead is recoverable. Raw PII expires after the
+      // configured retention window; the hash-only dedupe index remains independently bounded.
+      // Runs inside the INBOX_LOCK, so archive compaction is serialized too.
       const combined = [record, ...(inbox.items || [])];
+      const indexed = recentContacts(inbox);
+      let evictedContacts = [];
       if (combined.length > 200) {
         const evicted = combined.slice(200);
         try {
-          fs.appendFileSync(INBOX_PATH + '.archive.jsonl', evicted.map((x) => JSON.stringify(x)).join('\n') + '\n');
+          const archive = INBOX_PATH + '.archive.jsonl';
+          const existing = fs.existsSync(archive) ? fs.readFileSync(archive, 'utf8') : '';
+          const lines = [...retainSubmissionArchive(existing), ...evicted.map((x) => JSON.stringify(x))];
+          atomicWrite(archive, lines.join('\n') + '\n', { mode: 0o600 });
         } catch {
           /* best-effort: never let archiving block the ingest of a new lead */
         }
+        evictedContacts = evicted.flatMap((item) => {
+          const email = extractEmail(item.raw || {}, item.form || '');
+          return email && item.status !== 'rejected' && item.status !== 'spam'
+            ? [{ emailHash: emailFingerprint(email), at: item.at }]
+            : [];
+        });
       }
+      inbox.recentContacts = [...evictedContacts, ...indexed];
       inbox.items = combined.slice(0, 200);
       saveInbox(inbox);
     },
     { timeoutMs: 20000, staleMs: 120000 },
   );
 
-  let featured = null;
-  if (autoFeature) {
-    if (/startup/.test(formName) && opts.featureRole !== false) {
-      featured = anonymizeRole(data);
-      board.roles = [featured, ...(board.roles || [])].slice(0, 3);
-    } else if (/engineer|jobseeker|candidate/.test(formName) && opts.featureCandidate !== false) {
-      featured = anonymizeCandidate(data);
-      board.candidates = [featured, ...(board.candidates || [])].slice(0, 3);
+  if (reused) return { inbox, board, record, featured: null, reused: true };
+
+  // Referral attribution is downstream of the lossless inbox write: a broken/locked referral
+  // ledger must never lose a real form submission. `sync` is the idempotent repair path.
+  let referral = null;
+  let directSource = null;
+  const attributionEmail = extractEmail(data, formName);
+  const attributionCompany = String(data['company-name'] || data.companyName || '').trim().toLowerCase();
+  const attributionKind = /startup|hire|founder/.test(formName)
+    ? 'company'
+    : /engineer|jobseeker|candidate|talent/.test(formName) ? 'talent' : '';
+  const attributionSubject = attributionKind === 'company'
+    ? `company:${attributionCompany}`
+    : attributionKind === 'talent' ? `talent:${attributionEmail}` : '';
+  const attributionEligible = !!attributionKind && record.status === 'new' &&
+    !submissionApprovalBlocker(record) && !isSyntheticContact(attributionEmail, data);
+  if (data.referral) {
+    try {
+      referral = recordReferralSubmission({
+        token: data.referral,
+        submissionId: record.id,
+        form: formName,
+        at: record.at,
+        eligible: attributionEligible,
+        subjectKey: attributionSubject,
+        actor: 'submission-ingest',
+      });
+    } catch {
+      referral = { attached: false, reason: 'referral_hook_failed_sync_required' };
     }
-    if (featured) {
-      record.status = 'featured';
-      record.featuredId = featured.id;
-      saveInbox(inbox);
-      saveBoard(board, { reason: `feature-on-ingest:${record?.id || 'unknown'}`, actor: 'ingest' });
+  } else if (attributionEligible) {
+    try {
+      directSource = recordDirectSubmission({
+        submissionId: record.id,
+        form: formName,
+        at: record.at,
+        eligible: true,
+        subjectKey: attributionSubject,
+        actor: 'submission-ingest',
+      });
+    } catch {
+      directSource = { recorded: false, reason: 'direct_source_hook_failed_sync_required' };
     }
   }
 
-  return { inbox, board, record, featured };
+  let featured = null;
+  if (autoFeature && !submissionApprovalBlocker(record)) {
+    if (/startup/.test(formName) && opts.featureRole !== false) {
+      featured = anonymizeRole(data);
+    } else if (/engineer|jobseeker|candidate/.test(formName) && opts.featureCandidate !== false) {
+      featured = anonymizeCandidate(data);
+    }
+    if (featured) {
+      featured.sourceSubmissionHash = submissionFingerprint(record.id);
+      board = writeBoard((current) => {
+        if (/startup/.test(formName)) current.roles = [featured, ...(current.roles || [])].slice(0, 3);
+        else current.candidates = [featured, ...(current.candidates || [])].slice(0, 3);
+        return current;
+      }, { reason: `feature-on-ingest:${record.id}`, actor: 'ingest' });
+      const updated = updateInbox((current) => {
+        const stored = (current.items || []).find((item) => item.id === record.id);
+        if (!stored) throw new Error(`feature_on_ingest_missing: ${record.id}`);
+        stored.status = 'featured';
+        stored.featuredId = featured.id;
+        stored.featuredAt = new Date().toISOString();
+        return { inbox: current, record: stored };
+      });
+      inbox = updated.inbox;
+      record = updated.record;
+    }
+  }
+
+  return { inbox, board, record, featured, referral, directSource, reused: false };
 }
 
 /** Parse Webflow webhook POST body (v2 envelope + legacy shapes) */
@@ -788,7 +1134,7 @@ export function parseWebhookPayload(buf) {
     const j = JSON.parse(text);
     if (j.triggerType === 'form_submission' && j.payload) {
       const p = j.payload;
-      return { name: p.name || '', data: p.data || {} };
+      return { name: p.name || '', data: p.data || {}, sourceSubmissionId: sourceSubmissionId(p.id) || undefined };
     }
     const name = j.name || j.formName || j['form-name'] || j.payload?.name || '';
     const data = j.data || j.payload?.data || (j.payload && !j.payload.name ? j.payload : j);
