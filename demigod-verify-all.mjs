@@ -37,6 +37,9 @@ if (ship || wizard) {
     ['demigod-foot-smoke.test.mjs'], // #40 — locks foot-smoke's parse+boot fail-capability (outage class)
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
     ['demigod-submissions-lib.test.mjs'],
+    ['demigod-outbound-poison.test.mjs'],
+    // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
+    ['demigod-grok-ask-selftest.mjs'],
     ['demigod-verify-source.mjs'],
 
     ['demigod-verify-live.mjs'],

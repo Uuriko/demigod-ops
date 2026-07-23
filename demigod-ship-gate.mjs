@@ -85,7 +85,11 @@ const STEPS = [
   { name: 'honesty-board', script: 'demigod-verify-board-honesty.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'honesty-demand', script: 'demigod-demand.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'honesty-scrub', script: 'demigod-board-publish.test.mjs', timeout: 45000, out: null, args: ['--test'] },
+  { name: 'honesty-referrals', script: 'demigod-referrals.test.mjs', timeout: 45000, out: null, args: ['--test'] },
+  { name: 'honesty-referrals-mint', script: 'demigod-referrals-mint.test.mjs', timeout: 30000, out: null, args: ['--test'] },
+  { name: 'honesty-outbound-poison', script: 'demigod-outbound-poison.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'foot-smoke-poison', script: 'demigod-foot-smoke.test.mjs', timeout: 45000, out: null, args: ['--test'] },
+  { name: 'grok-ask-selftest', script: 'demigod-grok-ask-selftest.mjs', timeout: 60000, out: null },
   { name: 'source', script: 'demigod-verify-source.mjs', timeout: 45000, out: 'DEMIGOD-VERIFY-SOURCE.json' },
   { name: 'live', script: 'demigod-verify-live.mjs', timeout: 60000, out: 'DEMIGOD-VERIFY-LIVE.json' },
   { name: 'designSnap', script: 'demigod-design-snap.mjs', timeout: 90000, out: null },
@@ -133,6 +137,7 @@ async function main() {
   const art = report.artifacts;
   report.pass = {
     tabs: report.tabs?.ok !== false,
+    allSteps: report.steps.every((step) => step.skipped || step.ok === true),
     unit: report.steps.find((s) => s.name === 'unit')?.ok === true,
     submissions: report.steps.find((s) => s.name === 'submissions')?.ok === true,
     source: report.steps.find((s) => s.name === 'source')?.ok === true,
@@ -150,6 +155,7 @@ async function main() {
 
   report.ok =
     report.pass.tabs &&
+    report.pass.allSteps &&
     report.pass.unit &&
     report.pass.submissions &&
     report.pass.source &&
