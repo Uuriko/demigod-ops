@@ -1489,10 +1489,11 @@ function selfcheck() {
     ok(!!a && typeof a.release === 'function', 'tryAcquireHealLock acquires');
     const b = tryAcquireHealLock(lockDir, process.pid + 1);
     ok(b === null, 'tryAcquireHealLock blocks second owner');
-    a.release();
+    // ok() records failures without throw — never bare .release() on a failed acquire.
+    a?.release();
     const c = tryAcquireHealLock(lockDir, process.pid);
     ok(!!c, 'tryAcquireHealLock re-acquires after release');
-    c.release();
+    c?.release();
     fs.writeFileSync(path.join(lockDir, 'heal.lock'), '');
     const empty = tryAcquireHealLock(lockDir, process.pid);
     ok(
@@ -1503,11 +1504,11 @@ function selfcheck() {
     fs.utimesSync(path.join(lockDir, 'heal.lock'), stale, stale);
     const recovered = tryAcquireHealLock(lockDir, process.pid);
     ok(!!recovered, 'tryAcquireHealLock clears stale empty owner');
-    recovered.release();
+    recovered?.release();
     fs.writeFileSync(path.join(lockDir, 'heal.lock'), '999999\n');
     const d = tryAcquireHealLock(lockDir, process.pid, signalError('ESRCH'));
     ok(!!d, 'tryAcquireHealLock releases dead ESRCH owner');
-    d.release();
+    d?.release();
     fs.writeFileSync(path.join(lockDir, 'heal.lock'), '1\n');
     const e = tryAcquireHealLock(lockDir, process.pid, signalError('EPERM'));
     ok(e === null && fs.existsSync(path.join(lockDir, 'heal.lock')), 'tryAcquireHealLock keeps EPERM owner');
@@ -1518,7 +1519,7 @@ function selfcheck() {
     fs.utimesSync(path.join(lockDir, 'heal.lock'), old, old);
     const g = tryAcquireHealLock(lockDir, process.pid, signalError('ERR_INVALID_ARG_TYPE'));
     ok(!!g, 'tryAcquireHealLock clears stale malformed owner');
-    g.release();
+    g?.release();
   }
 
   // ops secret provision: creates file, never empty, chmod-ish
