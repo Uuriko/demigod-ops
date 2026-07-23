@@ -90,6 +90,7 @@ const STEPS = [
   { name: 'honesty-outbound-poison', script: 'demigod-outbound-poison.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'foot-smoke-poison', script: 'demigod-foot-smoke.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'grok-ask-selftest', script: 'demigod-grok-ask-selftest.mjs', timeout: 60000, out: null },
+  { name: 'grok-out-contract', script: 'demigod-agent-dashboard.mjs', args: ['--selftest-grok-out'], timeout: 30000, out: null },
   { name: 'source', script: 'demigod-verify-source.mjs', timeout: 45000, out: 'DEMIGOD-VERIFY-SOURCE.json' },
   { name: 'live', script: 'demigod-verify-live.mjs', timeout: 60000, out: 'DEMIGOD-VERIFY-LIVE.json' },
   { name: 'designSnap', script: 'demigod-design-snap.mjs', timeout: 90000, out: null },

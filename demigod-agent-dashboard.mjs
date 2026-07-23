@@ -9,7 +9,7 @@
  * Cockpit/Smoke: /api/cockpit · /api/smoke
  * Control: /api/control · Orient: /api/orient · Unify: /api/unify · Truth: /api/truth
  * Ponytail: /api/ponytail · jobs ponytail|ponytail-check
- * Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Coord: /api/coord
+ * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Coord: /api/coord · Craft: /api/craft
  *
  * Sections in this file:
  *   imports/config · status builders · JOBS allowlist · HTTP API routes · static UI
@@ -18,6 +18,7 @@
  * Prefer bin/dg orient for CLI session start (not only the dash).
  */
 import http from 'http';
+import { dashboardCorsOrigin, dashboardLocalHost, dashboardLocalRequest, dashboardMutationIntent, privateDashboardJsonHeaders, privateDashboardSecurityHeaders } from './demigod-dashboard-http-policy.mjs';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -27,24 +28,310 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
+import { summarizeFormAnalytics } from './demigod-form-analytics.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { eventAudienceBrief, hasFutureDateTime, isRealInviteUrl, isRealOutreachEmail, matchOffersToEvent, outreachDraftReadiness, resourceGaps } from './demigod-events-bot-agent.mjs';
 
 const execFileAsync = promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
-const portArg = process.argv.includes('--port')
-  ? process.argv[process.argv.indexOf('--port') + 1]
-  : null;
-const PORT = Number(portArg || process.env.DEMIGOD_DASH_PORT || 9878) || 9878;
+const cliArgs = process.argv.slice(2);
+const portIndex = cliArgs.indexOf('--port');
+const portArg = portIndex < 0 ? null : cliArgs[portIndex + 1];
+const knownArgs = new Set(['--port', '--snapshot', '--selftest-coord-runtime', '--selftest-grok-out', '--project-grok-out', '--help', '-h']);
+const unknownArgs = cliArgs.filter((arg, index) => !(portIndex >= 0 && index === portIndex + 1) && !knownArgs.has(arg));
+const modes = cliArgs.filter((arg) => ['--snapshot', '--selftest-coord-runtime', '--selftest-grok-out', '--project-grok-out', '--help', '-h'].includes(arg));
+const requestedPort = portArg ?? process.env.DEMIGOD_DASH_PORT ?? '9878';
+if (
+  unknownArgs.length ||
+  modes.length > 1 ||
+  cliArgs.filter((arg) => arg === '--port').length > 1 ||
+  (portIndex >= 0 && portArg == null) ||
+  !/^\d+$/.test(requestedPort) ||
+  Number(requestedPort) < 1 ||
+  Number(requestedPort) > 65535
+) {
+  console.error('usage: node demigod-agent-dashboard.mjs [--port 1..65535] [--snapshot]');
+  process.exit(2);
+}
+const PORT = Number(requestedPort);
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
 const LIVE = 'https://www.trydemigod.com';
 const MULTI = '/tmp/dg-multi';
-const BUSY = '/tmp/dg-busy';
+const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const EVENTS_STORE = process.env.DEMIGOD_EVENTS_STORE || path.join(ROOT, 'DEMIGOD-EVENTS.json');
 const GATE_LATEST = '/tmp/demigod-gate-latest.txt';
 const BRIEF_MD = path.join(BUSY, 'AGENT-BRIEF.md');
 const BRIEF_JSON = path.join(BUSY, 'AGENT-BRIEF.json');
 const STATUS_JSON = path.join(BUSY, 'dashboard-status.json');
 const SERVER_HEARTBEAT = path.join(BUSY, 'dashboard-server.heartbeat');
+const COORD_WORKER_GRACE_MS = { claude: 315000, codex: 255000, grok: 255000 };
+
+function pidFileAlive(file) {
+  try {
+    const pid = Number(fs.readFileSync(file, 'utf8').trim());
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+function coordWorkerStatus(coordDir, name, pidUnobservable = false) {
+  const pidFile = path.join(coordDir, `${name}.pid`);
+  if (pidFileAlive(pidFile)) return 'busy';
+  try {
+    const ageMs = Date.now() - fs.statSync(pidFile).mtimeMs;
+    if (pidUnobservable && ageMs >= -60_000 && ageMs < (COORD_WORKER_GRACE_MS[name] ?? 255000)) {
+      return 'pid-unobservable';
+    }
+  } catch {
+    /* a missing pid file is idle */
+  }
+  return 'idle';
+}
+
+function coordWorkerStatusSelftest() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-coord-runtime-'));
+  const pidFile = path.join(dir, 'codex.pid');
+  try {
+    fs.writeFileSync(pidFile, String(process.pid));
+    if (coordWorkerStatus(dir, 'codex') !== 'busy') throw new Error('live pid was not busy');
+    fs.writeFileSync(pidFile, '999999999');
+    if (coordWorkerStatus(dir, 'codex') !== 'idle') throw new Error('dead pid was not idle');
+    if (coordWorkerStatus(dir, 'codex', true) !== 'pid-unobservable') throw new Error('pid namespace grace was lost');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  console.log('dashboard coord runtime selftest PASS');
+}
+
+if (process.argv.includes('--selftest-coord-runtime')) {
+  coordWorkerStatusSelftest();
+  process.exit(0);
+}
+
+function latestGrokOutReceipt(busy = BUSY) {
+  const dir = path.join(busy, 'grok-out');
+  let latest = null;
+  try {
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.endsWith('.res')) continue;
+      const file = path.join(dir, name);
+      const stat = fs.lstatSync(file);
+      if (!stat.isFile() || stat.size === 0 || (latest && stat.mtimeMs <= latest.stat.mtimeMs)) continue;
+      latest = { file, name, stat };
+    }
+  } catch {
+    return null;
+  }
+  if (!latest) return null;
+  const fd = fs.openSync(latest.file, 'r');
+  const bytes = Buffer.alloc(Math.min(latest.stat.size, 16_384));
+  try {
+    fs.readSync(fd, bytes, 0, bytes.length, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  const text = bytes.toString('utf8');
+  // Accept plain, ATX, and common markdown-bold headings (`**VERDICT:** BLOCKED`).
+  // Bold form is what the live Grok CLI emits; missing it falsely scored contract=0/4
+  // with transport=ok and a complete body (not a retry-worthy transport failure).
+  const headingMatch = (name) =>
+    new RegExp(
+      `(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?${name}(?:\\*\\*)?\\b[^\\n]*|#{1,4}\\s*${name}\\b[^\\n]*`,
+      'i',
+    ).exec(text);
+  const contract = ['VERDICT', 'EVIDENCE', 'FINDINGS', 'HANDOFF'].map(headingMatch);
+  const verdictText = contract[0]
+    ? text.slice(contract[0].index, contract[1]?.index > contract[0].index ? contract[1].index : contract[0].index + 240)
+    : '';
+  const verdictToken =
+    /\bVERDICT\b(?:\*\*)?\s*:?\s*(?:\*\*)?\s*(PASS(?:ED)?|OK|GREEN|COMPLETE|BLOCK(?:ED)?|FAIL(?:ED)?|RED)\b/i.exec(
+      verdictText,
+    )?.[1]?.toLowerCase() ||
+    /\bVERDICT\b[^\n]*(?:\n\s*)?(?:\*\*)?\s*(PASS(?:ED)?|OK|GREEN|COMPLETE|BLOCK(?:ED)?|FAIL(?:ED)?|RED)\b/i.exec(
+      verdictText,
+    )?.[1]?.toLowerCase();
+  const verdict = /^(?:block|blocked|fail|failed|red)$/.test(verdictToken || '')
+    ? 'blocked'
+    : /^(?:pass|passed|ok|green|complete)$/.test(verdictToken || '')
+      ? 'passed'
+      : 'unspecified';
+  const findingsAt = contract[2]?.index ?? -1;
+  const handoffAt = contract[3]?.index ?? text.length;
+  const findingsText = findingsAt >= 0 ? text.slice(findingsAt, handoffAt > findingsAt ? handoffAt : text.length) : '';
+  const findings = Math.min(99, findingsText.split('\n').filter((line) => {
+    const item = /^\s*(?:(?:#{2,4}\s*)?\d+\.|[-*])\s+(.+)/.exec(line);
+    return item && !/^(?:none|no findings?)\b/i.test(item[1].trim());
+  }).length);
+  const handoff = !!contract[3];
+  const contractSections = contract.filter(Boolean).length;
+  let meta = null;
+  try {
+    const metaFile = latest.file.replace(/\.res$/, '.meta.json');
+    const metaStat = fs.lstatSync(metaFile);
+    if (metaStat.isFile() && metaStat.size <= 4096) meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+  } catch {
+    /* old or interrupted responses have no trustworthy transport receipt */
+  }
+  const metaAt = Date.parse(meta?.at);
+  const requestBase = path.join(busy, 'grok-inbox', latest.name.slice(0, -4));
+  const requestSettled = !fs.existsSync(`${requestBase}.req`) && !fs.existsSync(`${requestBase}.run`);
+  const transportVerified =
+    meta?.schema === 'demigod.agent-response/1' &&
+    Number.isInteger(meta.exit) &&
+    meta.bytes === latest.stat.size &&
+    Number.isFinite(metaAt) &&
+    metaAt + 1000 >= latest.stat.mtimeMs &&
+    requestSettled;
+  const transport = !transportVerified ? 'unverified' : meta.exit === 0 ? 'ok' : meta.exit === 124 ? 'timeout' : `exit-${meta.exit}`;
+  const completed = transport === 'ok' && contractSections === contract.length && verdict !== 'unspecified';
+  const summary = completed
+    ? `Grok response completed · verdict=${verdict} · findings=${findings} · handoff=${handoff ? 'yes' : 'no'}`
+    : `Grok response incomplete · transport=${transport} · contract=${contractSections}/${contract.length} · verdict=${verdict}`;
+  return {
+    schema: 'demigod.grok-out-receipt/1',
+    source: 'grok-out',
+    id: latest.name.slice(0, -4).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120),
+    at: transportVerified ? new Date(metaAt).toISOString() : new Date(latest.stat.mtimeMs).toISOString(),
+    ok: completed ? (verdict === 'passed' ? true : false) : false,
+    completed,
+    transport,
+    requestSettled,
+    verdict,
+    contractSections,
+    lane: 'gates',
+    bytes: latest.stat.size,
+    truncated: latest.stat.size > bytes.length,
+    summary,
+    did: [summary],
+    next: null,
+    files: [],
+  };
+}
+
+function projectLatestGrokOutReceipt(busy = BUSY) {
+  const receipt = latestGrokOutReceipt(busy);
+  if (!receipt) return null;
+  atomicWrite(
+    path.join(busy, 'coord', 'grok-mailbox-last.json'),
+    `${JSON.stringify(receipt, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  return receipt;
+}
+
+function grokOutSelftest() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-grok-out-'));
+  const out = path.join(tmp, 'grok-out');
+  const inbox = path.join(tmp, 'grok-inbox');
+  fs.mkdirSync(out);
+  fs.mkdirSync(inbox);
+  const old = path.join(out, 'old.res');
+  const current = path.join(out, 'current.res');
+  fs.writeFileSync(old, 'VERDICT\nPASS\nEVIDENCE\nnone\nFINDINGS\nnone\nHANDOFF\nnone\n');
+  fs.writeFileSync(current, 'VERDICT\nBLOCK sk_live_DO_NOT_EXPOSE person@example.com\nFINDINGS\n- issue\n');
+  fs.writeFileSync(path.join(out, 'newer-empty.res'), '');
+  const now = Date.now() / 1000;
+  fs.utimesSync(old, now - 10, now - 10);
+  fs.utimesSync(current, now - 5, now - 5);
+  fs.utimesSync(path.join(out, 'newer-empty.res'), now, now);
+  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
+    schema: 'demigod.agent-response/1',
+    at: new Date((now - 4) * 1000).toISOString(),
+    exit: 124,
+    ok: false,
+    bytes: fs.statSync(current).size,
+  }));
+  const partial = latestGrokOutReceipt(tmp);
+  fs.writeFileSync(current, 'VERDICT\nNo edit.\nEVIDENCE\n- checked\nFINDINGS\n- none\nHANDOFF\nnone\n');
+  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
+    schema: 'demigod.agent-response/1',
+    at: new Date().toISOString(),
+    exit: 0,
+    ok: true,
+    bytes: fs.statSync(current).size,
+  }));
+  const ambiguous = latestGrokOutReceipt(tmp);
+  fs.writeFileSync(current, 'progress noise## VERDICT\nBLOCK sk_live_DO_NOT_EXPOSE person@example.com\nEVIDENCE\n- checked\nFINDINGS\n- none\n1. issue\nHANDOFF\nfull transcript\n');
+  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
+    schema: 'demigod.agent-response/1',
+    at: new Date().toISOString(),
+    exit: 0,
+    ok: true,
+    bytes: fs.statSync(current).size,
+  }));
+  const run = path.join(inbox, 'current.run');
+  fs.writeFileSync(run, 'still running');
+  const inFlight = latestGrokOutReceipt(tmp);
+  fs.rmSync(run);
+  const receipt = latestGrokOutReceipt(tmp);
+  // Real CLI shape: markdown-bold same-line verdict (funnel-mry2aeqq-0 class).
+  // Must complete as blocked — never contract=0/4 / verdict=unspecified under transport=ok.
+  fs.writeFileSync(
+    current,
+    '**VERDICT:** BLOCKED\n\n**EVIDENCE:**\n- checked\n\n**FINDINGS:**\n- issue one\n\n**HANDOFF:**\n- next step\n',
+  );
+  fs.writeFileSync(
+    path.join(out, 'current.meta.json'),
+    JSON.stringify({
+      schema: 'demigod.agent-response/1',
+      at: new Date().toISOString(),
+      exit: 0,
+      ok: true,
+      bytes: fs.statSync(current).size,
+    }),
+  );
+  const boldMd = latestGrokOutReceipt(tmp);
+  const projected = projectLatestGrokOutReceipt(tmp);
+  const sharedFile = path.join(tmp, 'coord', 'grok-mailbox-last.json');
+  const shared = JSON.parse(fs.readFileSync(sharedFile, 'utf8'));
+  const sharedMode = fs.statSync(sharedFile).mode & 0o777;
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const encoded = JSON.stringify({ partial, receipt, boldMd, projected, shared });
+  if (
+    partial?.completed !== false ||
+    partial?.transport !== 'timeout' ||
+    partial?.contractSections !== 2 ||
+    ambiguous?.completed !== false ||
+    ambiguous?.contractSections !== 4 ||
+    ambiguous?.verdict !== 'unspecified' ||
+    inFlight?.completed !== false ||
+    inFlight?.requestSettled !== false ||
+    receipt?.id !== 'current' ||
+    receipt?.completed !== true ||
+    receipt?.requestSettled !== true ||
+    receipt?.ok !== false ||
+    receipt?.summary !== 'Grok response completed · verdict=blocked · findings=1 · handoff=yes' ||
+    boldMd?.completed !== true ||
+    boldMd?.transport !== 'ok' ||
+    boldMd?.contractSections !== 4 ||
+    boldMd?.verdict !== 'blocked' ||
+    boldMd?.ok !== false ||
+    shared?.id !== boldMd?.id ||
+    sharedMode !== 0o600 ||
+    /sk_live|example\.com|full transcript/i.test(encoded)
+  ) throw new Error(`grok-out projection selftest failed: ${encoded}`);
+  console.log('grok-out projection selftest PASS');
+}
+
+if (process.argv.includes('--selftest-grok-out')) {
+  grokOutSelftest();
+  process.exit(0);
+}
+
+if (process.argv.includes('--project-grok-out')) {
+  const receipt = projectLatestGrokOutReceipt();
+  if (!receipt) {
+    console.error('no Grok mailbox response to project');
+    process.exit(1);
+  }
+  console.log(JSON.stringify({ ok: true, id: receipt.id, completed: receipt.completed }));
+  process.exit(0);
+}
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`demigod-agent-dashboard
@@ -53,7 +340,8 @@ Usage: node demigod-agent-dashboard.mjs [--port <port>] [--snapshot]
 
 Serves the local dashboard and agent API on 127.0.0.1.
 Default port: 9878 (override with --port or DEMIGOD_DASH_PORT).
---snapshot refreshes dashboard-status.json without opening a listener.`);
+--snapshot refreshes dashboard-status.json without opening a listener.
+--project-grok-out refreshes the shared redacted Grok mailbox receipt.`);
   process.exit(0);
 }
 
@@ -74,13 +362,225 @@ function safeJson(file) {
   }
 }
 
+const STARTUP_ATLAS_SCHEMA = 'demigod.sf-startup-atlas/1';
+const STARTUP_ATLAS_FILE = 'DEMIGOD-SF-STARTUPS.json';
+
+function startupAtlasView(input) {
+  const fail = (message) => { throw new Error(message); };
+  const record = (value, label) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label} must be an object`);
+    return value;
+  };
+  const own = (value, key, label) => {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) fail(`${label}.${key} is required`);
+    return value[key];
+  };
+  const text = (value, label, { nullable = false, empty = false, max = 500 } = {}) => {
+    if (nullable && value === null) return null;
+    if (typeof value !== 'string') fail(`${label} must be ${nullable ? 'a string or null' : 'a string'}`);
+    const clean = value.replace(/\s+/g, ' ').trim();
+    if (!clean && !nullable && !empty) fail(`${label} must not be empty`);
+    return clean.slice(0, max);
+  };
+  const url = (value, label, { nullable = false } = {}) => {
+    const clean = text(value, label, { nullable, max: 500 });
+    if (clean === null) return null;
+    let parsed;
+    try { parsed = new URL(clean); } catch { fail(`${label} must be an http(s) URL`); }
+    if (!['http:', 'https:'].includes(parsed.protocol)) fail(`${label} must be an http(s) URL`);
+    return parsed.href;
+  };
+  const date = (value, label) => {
+    const clean = text(value, label, { max: 80 });
+    const time = Date.parse(clean);
+    if (!Number.isFinite(time)) fail(`${label} must be a date`);
+    return new Date(time).toISOString();
+  };
+  const count = (value, label) => {
+    if (!Number.isSafeInteger(value) || value < 0) fail(`${label} must be a non-negative integer`);
+    return value;
+  };
+
+  const atlas = record(input, 'atlas');
+  if (own(atlas, 'schema', 'atlas') !== STARTUP_ATLAS_SCHEMA) fail(`schema must be ${STARTUP_ATLAS_SCHEMA}`);
+  const generatedAt = date(own(atlas, 'generatedAt', 'atlas'), 'generatedAt');
+  const boundsInput = record(own(atlas, 'bounds', 'atlas'), 'bounds');
+  const bounds = Object.fromEntries(['west', 'south', 'east', 'north'].map((key) => {
+    const value = own(boundsInput, key, 'bounds');
+    if (!Number.isFinite(value)) fail(`bounds.${key} must be finite`);
+    return [key, value];
+  }));
+  if (bounds.west >= bounds.east || bounds.south >= bounds.north) fail('bounds must describe a positive area');
+  if (bounds.west < -123 || bounds.east > -122 || bounds.south < 37 || bounds.north > 38.5) {
+    fail('bounds must stay within the San Francisco region');
+  }
+
+  const coverageInput = record(own(atlas, 'coverage', 'atlas'), 'coverage');
+  const coverage = {
+    total: count(own(coverageInput, 'total', 'coverage'), 'coverage.total'),
+    neighborhoodPlaced: count(own(coverageInput, 'neighborhoodPlaced', 'coverage'), 'coverage.neighborhoodPlaced'),
+    cityOnly: count(own(coverageInput, 'cityOnly', 'coverage'), 'coverage.cityOnly'),
+    neighborhoods: count(own(coverageInput, 'neighborhoods', 'coverage'), 'coverage.neighborhoods'),
+    definition: text(own(coverageInput, 'definition', 'coverage'), 'coverage.definition', { max: 800 }),
+    caveat: text(own(coverageInput, 'caveat', 'coverage'), 'coverage.caveat', { max: 1200 }),
+  };
+
+  const sourcesInput = own(atlas, 'sources', 'atlas');
+  if (!Array.isArray(sourcesInput) || !sourcesInput.length || sourcesInput.length > 100) fail('sources must be a non-empty array');
+  const sources = sourcesInput.map((item, index) => {
+    const source = record(item, `sources[${index}]`);
+    const clean = {
+      name: text(own(source, 'name', `sources[${index}]`), `sources[${index}].name`, { max: 160 }),
+      url: url(own(source, 'url', `sources[${index}]`), `sources[${index}].url`),
+      retrievedAt: date(own(source, 'retrievedAt', `sources[${index}]`), `sources[${index}].retrievedAt`),
+    };
+    if (Object.prototype.hasOwnProperty.call(source, 'license')) {
+      clean.license = text(source.license, `sources[${index}].license`, { nullable: true, max: 160 });
+    }
+    return clean;
+  });
+
+  const companiesInput = own(atlas, 'companies', 'atlas');
+  if (!Array.isArray(companiesInput) || companiesInput.length > 5000) fail('companies must be an array with at most 5000 entries');
+  const companyIds = new Set();
+  const companies = companiesInput.map((item, index) => {
+    const label = `companies[${index}]`;
+    const company = record(item, label);
+    for (const key of ['id', 'name', 'slug', 'website', 'oneLiner', 'batch', 'industry', 'subindustry', 'teamSize', 'hiring', 'status', 'source', 'sourceUrl', 'sfPresence', 'locationPrecision', 'neighborhood', 'locationSource']) own(company, key, label);
+    const id = text(company.id, `${label}.id`, { max: 120 });
+    if (!/^[A-Za-z0-9._:-]+$/.test(id) || companyIds.has(id)) fail(`${label}.id must be unique and URL-safe`);
+    companyIds.add(id);
+    if (typeof company.hiring !== 'boolean') fail(`${label}.hiring must be boolean`);
+    if (company.teamSize !== null && (!Number.isSafeInteger(company.teamSize) || company.teamSize < 0)) fail(`${label}.teamSize must be a non-negative integer or null`);
+    if (!['neighborhood', 'city'].includes(company.locationPrecision)) fail(`${label}.locationPrecision must be neighborhood or city`);
+    const neighborhood = text(company.neighborhood, `${label}.neighborhood`, { nullable: true, max: 120 });
+    if (company.locationPrecision === 'neighborhood' && !neighborhood) fail(`${label}.neighborhood is required at neighborhood precision`);
+    if (company.locationPrecision === 'city' && neighborhood !== null) fail(`${label}.neighborhood must be null at city precision`);
+    return {
+      id,
+      name: text(company.name, `${label}.name`, { max: 180 }),
+      slug: text(company.slug, `${label}.slug`, { empty: true, max: 180 }),
+      website: url(company.website, `${label}.website`, { nullable: true }),
+      oneLiner: text(company.oneLiner, `${label}.oneLiner`, { empty: true, max: 500 }),
+      batch: text(company.batch, `${label}.batch`, { empty: true, max: 80 }),
+      industry: text(company.industry, `${label}.industry`, { empty: true, max: 120 }),
+      subindustry: text(company.subindustry, `${label}.subindustry`, { empty: true, max: 160 }),
+      teamSize: company.teamSize,
+      hiring: company.hiring,
+      status: text(company.status, `${label}.status`, { nullable: true, max: 80 }),
+      source: text(company.source, `${label}.source`, { max: 160 }),
+      sourceUrl: url(company.sourceUrl, `${label}.sourceUrl`),
+      sfPresence: text(company.sfPresence, `${label}.sfPresence`, { max: 180 }),
+      locationPrecision: company.locationPrecision,
+      neighborhood,
+      locationSource: url(company.locationSource, `${label}.locationSource`, { nullable: true }),
+    };
+  });
+
+  const neighborhoodsInput = own(atlas, 'neighborhoods', 'atlas');
+  if (!Array.isArray(neighborhoodsInput) || neighborhoodsInput.length > 200) fail('neighborhoods must be an array with at most 200 entries');
+  const neighborhoodNames = new Set();
+  const placedIds = new Set();
+  const inBounds = ([lng, lat]) =>
+    Number.isFinite(lng) && Number.isFinite(lat) &&
+    lng >= bounds.west - 1e-6 && lng <= bounds.east + 1e-6 &&
+    lat >= bounds.south - 1e-6 && lat <= bounds.north + 1e-6;
+  const ring = (value, label) => {
+    if (!Array.isArray(value) || value.length < 4) fail(`${label} must contain at least four points`);
+    const clean = value.map((point, index) => {
+      if (!Array.isArray(point) || point.length < 2 || !inBounds(point)) fail(`${label}[${index}] must be a finite point within bounds`);
+      return [point[0], point[1]];
+    });
+    const first = clean[0];
+    const last = clean[clean.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) fail(`${label} must be closed`);
+    return clean;
+  };
+  const polygon = (value, label) => {
+    if (!Array.isArray(value) || !value.length) fail(`${label} must contain at least one ring`);
+    return value.map((item, index) => ring(item, `${label}[${index}]`));
+  };
+  const neighborhoods = neighborhoodsInput.map((item, index) => {
+    const label = `neighborhoods[${index}]`;
+    const neighborhood = record(item, label);
+    for (const key of ['name', 'count', 'companyIds', 'centroid', 'geometry']) own(neighborhood, key, label);
+    const name = text(neighborhood.name, `${label}.name`, { max: 120 });
+    const nameKey = name.toLocaleLowerCase('en-US');
+    if (neighborhoodNames.has(nameKey)) fail(`${label}.name must be unique`);
+    neighborhoodNames.add(nameKey);
+    const ids = neighborhood.companyIds;
+    if (!Array.isArray(ids)) fail(`${label}.companyIds must be an array`);
+    const cleanIds = ids.map((id, idIndex) => text(id, `${label}.companyIds[${idIndex}]`, { max: 120 }));
+    if (new Set(cleanIds).size !== cleanIds.length) fail(`${label}.companyIds must not contain duplicates`);
+    if (count(neighborhood.count, `${label}.count`) !== cleanIds.length) fail(`${label}.count must equal companyIds.length`);
+    for (const id of cleanIds) {
+      if (!companyIds.has(id)) fail(`${label}.companyIds contains an unknown company`);
+      if (placedIds.has(id)) fail('a company may belong to only one neighborhood cluster');
+      placedIds.add(id);
+    }
+    const centroidInput = record(neighborhood.centroid, `${label}.centroid`);
+    const centroid = {
+      lat: own(centroidInput, 'lat', `${label}.centroid`),
+      lng: own(centroidInput, 'lng', `${label}.centroid`),
+    };
+    if (!inBounds([centroid.lng, centroid.lat])) fail(`${label}.centroid must be finite and within bounds`);
+    const geometryInput = record(neighborhood.geometry, `${label}.geometry`);
+    if (!['Polygon', 'MultiPolygon'].includes(geometryInput.type)) fail(`${label}.geometry must be Polygon or MultiPolygon`);
+    const geometry = {
+      type: geometryInput.type,
+      coordinates: geometryInput.type === 'Polygon'
+        ? polygon(geometryInput.coordinates, `${label}.geometry.coordinates`)
+        : (() => {
+            if (!Array.isArray(geometryInput.coordinates) || !geometryInput.coordinates.length) fail(`${label}.geometry.coordinates must contain polygons`);
+            return geometryInput.coordinates.map((item, polygonIndex) => polygon(item, `${label}.geometry.coordinates[${polygonIndex}]`));
+          })(),
+    };
+    return { name, count: cleanIds.length, companyIds: cleanIds, centroid, geometry };
+  });
+
+  const companyById = new Map(companies.map((company) => [company.id, company]));
+  for (const neighborhood of neighborhoods) {
+    for (const id of neighborhood.companyIds) {
+      const company = companyById.get(id);
+      if (company.locationPrecision !== 'neighborhood' || company.neighborhood !== neighborhood.name) {
+        fail(`company ${id} does not match its neighborhood cluster`);
+      }
+    }
+  }
+  for (const company of companies) {
+    if (company.locationPrecision === 'neighborhood' && !placedIds.has(company.id)) fail(`company ${company.id} is missing from its neighborhood cluster`);
+    if (company.locationPrecision === 'city' && placedIds.has(company.id)) fail(`city-only company ${company.id} must not appear in a map cluster`);
+  }
+  const neighborhoodPlaced = companies.filter((company) => company.locationPrecision === 'neighborhood').length;
+  const cityOnly = companies.length - neighborhoodPlaced;
+  if (
+    coverage.total !== companies.length ||
+    coverage.neighborhoodPlaced !== neighborhoodPlaced ||
+    coverage.cityOnly !== cityOnly ||
+    coverage.neighborhoods !== neighborhoods.filter((neighborhood) => neighborhood.count > 0).length
+  ) fail('coverage counts do not match the atlas contents');
+
+  return { schema: STARTUP_ATLAS_SCHEMA, generatedAt, coverage, sources, bounds, companies, neighborhoods };
+}
+
+function freshestGrokReceipt(coordDir = path.join(BUSY, 'coord')) {
+  const coord = safeJson(path.join(coordDir, 'grok-last.json'));
+  const parsedMailbox = latestGrokOutReceipt(path.dirname(coordDir));
+  const sharedMailbox = safeJson(path.join(coordDir, 'grok-mailbox-last.json'));
+  const mailbox = parsedMailbox || (sharedMailbox?.schema === 'demigod.grok-out-receipt/1' ? sharedMailbox : null);
+  return [coord, mailbox]
+    .filter(Boolean)
+    .sort((a, b) => (Date.parse(b.at) || -Infinity) - (Date.parse(a.at) || -Infinity))[0] || null;
+}
+
 function writeJsonAtomic(file, value) {
   // A single dashboard process can have overlapping async request handlers.
   // PID-only temp names let one write rename another write's temp file, leaving
   // the second request to fail with ENOENT. Give every publication its own temp.
   const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(tmp, `${JSON.stringify(value)}\n`);
+    fs.writeFileSync(tmp, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+    fs.chmodSync(tmp, 0o600);
     fs.renameSync(tmp, file);
   } finally {
     try {
@@ -248,6 +748,28 @@ function sha256File(file) {
   }
 }
 
+function dashboardSourceIdentity() {
+  const files = ['demigod-agent-dashboard.mjs', 'demigod-agent-dashboard-ui.html']
+    .map((name) => ({ name, sha256: sha256File(path.join(ROOT, name)) }));
+  return {
+    sha256: crypto.createHash('sha256').update(JSON.stringify(files)).digest('hex'),
+    files,
+  };
+}
+
+const DASHBOARD_RUNNING_SOURCE = dashboardSourceIdentity();
+
+function dashboardRuntimeHealth() {
+  const disk = dashboardSourceIdentity();
+  const restartRequired = disk.sha256 !== DASHBOARD_RUNNING_SOURCE.sha256;
+  return {
+    running: DASHBOARD_RUNNING_SOURCE,
+    disk,
+    restartRequired,
+    restartCommand: restartRequired ? 'systemctl --user restart demigod-dash.service' : null,
+  };
+}
+
 function detectAgent(name, head = '') {
   const n = (name + ' ' + head.slice(0, 200)).toLowerCase();
   if (/fable|df review/.test(n)) return 'fable';
@@ -299,7 +821,7 @@ function listRecentDir(dir, limit = 25) {
 
 function workerSnapshot() {
   const out = run(
-    "ps -eo pid,etime,pcpu,pmem,cmd --width 220 | grep -E 'claude --print|codex exec|bin/df |demigod-agent-dashboard|chrome-devtools-mcp|remote-debugging-port=9223|cm6-paste' | grep -v grep | head -40",
+    "ps -eo pid,etime,pcpu,pmem,cmd --width 220 | grep -E '^[[:space:]]*[0-9]+[[:space:]]+[^ ]+[[:space:]]+[^ ]+[[:space:]]+[^ ]+[[:space:]]+(claude|grok)( |$)|codex exec|bin/df |demigod-agent-dashboard|chrome-devtools-mcp|remote-debugging-port=9223|cm6-paste' | grep -v grep | head -40",
   );
   const lines = out ? out.split('\n').filter(Boolean) : [];
   return lines.map((line) => {
@@ -311,6 +833,7 @@ function workerSnapshot() {
     else if (/model sonnet/.test(cmd)) kind = 'sonnet';
     else if (/model opus/.test(cmd)) kind = 'opus';
     else if (/claude/.test(cmd)) kind = 'claude';
+    else if (/^grok(?: |$)/.test(cmd)) kind = 'grok/tools';
     else if (/codex exec/.test(cmd)) kind = 'codex';
     else if (/chrome-devtools/.test(cmd)) kind = 'chrome-mcp';
     else if (/remote-debugging|chrome-automation/.test(cmd)) kind = 'chrome-cdp';
@@ -458,7 +981,7 @@ async function liveProbe({ force = false } = {}) {
   try {
     const r = await fetch(`${LIVE}/?cb=${Date.now()}`, {
       headers: { 'User-Agent': 'dg-dashboard' },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(2000),
     });
     const html = await r.text();
     const headHtml = htmlHead(html);
@@ -519,35 +1042,195 @@ let demandRefreshInflight = false;
 
 function jsonSend(res, code, obj, { pretty = false, headers = {} } = {}) {
   const body = pretty ? JSON.stringify(obj, null, 2) : JSON.stringify(obj);
-  res.writeHead(code, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 'no-store',
-    ...headers,
-  });
+  res.writeHead(code, privateDashboardJsonHeaders(res.dgCorsOrigin, headers));
   res.end(body);
 }
 
-function isLocalHttpUrl(value) {
+function localMutationRequest(req) {
+  return dashboardLocalRequest(req.headers.origin || '', req.headers.referer || '', PORT);
+}
+
+function eventsOpsSecret() {
   try {
-    const parsed = new URL(String(value || ''));
-    return (
-      parsed.protocol === 'http:' &&
-      (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') &&
-      parsed.port === String(PORT)
-    );
+    return fs.readFileSync(path.join(BUSY, 'events-online', 'ops-secret.env'), 'utf8').match(/^DEMIGOD_EVENTS_OPS_SECRET=(.+)$/m)?.[1]?.trim() || '';
   } catch {
-    return false;
+    return '';
   }
 }
 
-function localMutationRequest(req) {
-  const origin = String(req.headers.origin || '');
-  const referer = String(req.headers.referer || '');
-  // An explicit Origin is authoritative. Headerless CLI calls remain allowed;
-  // otherwise a Referer must resolve to this dashboard's loopback port, not
-  // merely some other local web app that can forge a mutation POST.
-  return origin ? isLocalHttpUrl(origin) : !referer || isLocalHttpUrl(referer);
+function compactWorkText(value, max) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/**
+ * Small, result-only coordination view for the main status payload.
+ * Keep prompts, tails, next instructions, and file lists on the specialized
+ * /api/coord endpoint; the dashboard only needs current runtime + outcomes.
+ */
+function compactWorkStatus() {
+  const now = Date.now();
+  const coordDir = path.join(BUSY, 'coord');
+  const cached = safeJson(path.join(BUSY, 'coord-api-last.json')) || {};
+  const cachedWork = cached.workLog || {};
+  const board = safeJson(path.join(coordDir, 'board.json')) || cached.board || {};
+  const cachedAgents = new Map(
+    (Array.isArray(cachedWork.agents) ? cachedWork.agents : []).map((agent) => [agent?.id, agent]),
+  );
+  const freshness = (at, staleAfterSec = 3600) => {
+    const signedAgeSec = at ? Math.round((now - Date.parse(at)) / 1000) : null;
+    const valid = Number.isFinite(signedAgeSec);
+    const clockSkewed = valid && signedAgeSec < -60;
+    return {
+      ageSec: valid ? Math.max(0, signedAgeSec) : null,
+      stale: !valid || clockSkewed || signedAgeSec > staleAfterSec,
+      clockSkewed,
+    };
+  };
+  let heartbeatAgeSec = null;
+  try {
+    heartbeatAgeSec = Math.round((now - fs.statSync(path.join(coordDir, 'coord.heartbeat')).mtimeMs) / 1000);
+  } catch {
+    /* no heartbeat means the loop is not observable */
+  }
+  const stopRequested = fs.existsSync(path.join(coordDir, 'STOP'));
+  const heartbeatFresh = Number.isFinite(heartbeatAgeSec) && heartbeatAgeSec >= -60 && heartbeatAgeSec < 120;
+  const supervisorAlive = pidFileAlive(path.join(coordDir, 'coord.pid'));
+  const pidUnobservable = !supervisorAlive && heartbeatFresh && !stopRequested;
+  const loopRunning = !stopRequested && heartbeatFresh;
+  const specs = [
+    ['claude', 'Claude', false],
+    ['codex', 'Codex', false],
+    ['grok', 'Grok', false],
+    ['chat', 'Chat', false],
+    ['term-claude', 'Term Claude', true],
+    ['term-grok', 'Term Grok', true],
+  ];
+  const agents = specs
+    .map(([id, label, optional]) => {
+      const fileId = id.startsWith('term-') ? id : id;
+      const direct = id === 'grok'
+        ? freshestGrokReceipt(coordDir)
+        : safeJson(path.join(coordDir, `${fileId}-last.json`));
+      const rec = direct || cachedAgents.get(id) || null;
+      if (optional && !rec) return null;
+      const trackStatus = board.tracks?.[id]?.status;
+      const workerStatus = ['claude', 'codex', 'grok'].includes(id)
+        ? coordWorkerStatus(coordDir, id, pidUnobservable)
+        : null;
+      const runtime =
+        workerStatus === 'busy'
+          ? 'running'
+          : workerStatus === 'pid-unobservable'
+            ? 'unobservable'
+            : workerStatus || trackStatus || (rec ? 'idle' : 'missing');
+      const result = freshness(rec?.at);
+      const did = Array.isArray(rec?.did) ? rec.did.find((item) => compactWorkText(item, 1)) : rec?.did;
+      const headline = compactWorkText(did, 160) || null;
+      return {
+        id,
+        label,
+        lane: compactWorkText(rec?.lane || cachedAgents.get(id)?.lane, 32) || null,
+        status:
+          runtime === 'running'
+            ? 'busy'
+            : runtime === 'unobservable'
+              ? 'pid-unobservable'
+              : !rec
+                ? 'missing'
+                : result.stale
+                  ? 'stale'
+                  : 'idle',
+        runtime,
+        lastResult: rec?.ok === true ? 'pass' : rec?.ok === false ? 'fail' : 'missing',
+        cycle: rec?.cycle ?? null,
+        at: rec?.at || null,
+        ...result,
+        headline,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const recent = agents
+    .filter((agent) => agent.at && agent.headline)
+    .map((agent) => ({
+      at: agent.at,
+      ageSec: agent.ageSec,
+      agent: agent.id,
+      label: agent.label,
+      cycle: agent.cycle,
+      lane: agent.lane,
+      text: agent.headline,
+      source: 'receipt',
+    }));
+  for (const done of Array.isArray(board.done_recent) ? board.done_recent : []) {
+    const text = compactWorkText(done?.did ?? done?.text, 220);
+    if (!text) continue;
+    recent.push({
+      at: done?.at || null,
+      ageSec: freshness(done?.at).ageSec,
+      agent: compactWorkText(done?.agent, 32) || 'board',
+      label: compactWorkText(done?.agent, 32) || 'Board',
+      cycle: done?.cycle ?? null,
+      lane: null,
+      text,
+      source: 'board',
+    });
+  }
+  recent.sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0));
+
+  const evidenceAt = [board.at, ...agents.map((agent) => agent.at)]
+    .filter((at) => Number.isFinite(Date.parse(at)))
+    .sort((a, b) => Date.parse(b) - Date.parse(a))[0] || cachedWork.at || null;
+  const evidence = freshness(evidenceAt, 300);
+  const summaryAgents = agents
+    .filter((agent) => agent.runtime === 'running' || (!agent.stale && agent.ageSec <= 600))
+    .slice(0, 4);
+  const summary = compactWorkText(
+    summaryAgents.length
+      ? summaryAgents
+          .map((agent) => `${agent.label}${agent.lane ? `·${agent.lane}` : ''}: ${agent.headline || agent.runtime}`)
+          .join(' | ')
+      : recent[0]
+        ? `${recent[0].label}: ${recent[0].text}`
+        : 'No recent agent results.',
+    400,
+  );
+
+  const rawClaims = safeJson(path.join(coordDir, 'claims.json')) || cached.claims || {};
+  const holds = Object.entries(rawClaims.holds && typeof rawClaims.holds === 'object' ? rawClaims.holds : {})
+    .filter(([, hold]) => {
+      const expiresAt = Date.parse(hold?.expiresAt);
+      const ageMs = now - Date.parse(hold?.at || rawClaims.at);
+      return Number.isFinite(expiresAt)
+        ? expiresAt >= now
+        : Number.isFinite(ageMs) && ageMs >= -60_000 && ageMs <= 15 * 60_000;
+    })
+    .slice(0, 8)
+    .map(([file, hold]) => ({
+      file: compactWorkText(file, 160),
+      owner: compactWorkText(hold?.owner, 48) || null,
+      lane: compactWorkText(hold?.lane, 32) || null,
+      expiresAt: hold?.expiresAt || null,
+    }));
+
+  return {
+    schema: 'demigod.dashboard-work/1',
+    at: evidenceAt,
+    ageSec: evidence.ageSec,
+    stale: evidence.stale,
+    summary,
+    agents,
+    recent: recent.slice(0, 5),
+    backlog: (Array.isArray(board.backlog) ? board.backlog : cachedWork.backlog || [])
+      .map((item) => compactWorkText(item, 160))
+      .filter(Boolean)
+      .slice(0, 3),
+    cycle: board.cycle ?? cachedWork.cycle ?? null,
+    goal: compactWorkText(board.goal ?? cachedWork.goal, 160) || null,
+    loopRunning,
+    claims: { active: holds.length > 0, count: holds.length, holds },
+  };
 }
 
 function slimStatus(data) {
@@ -557,17 +1240,15 @@ function slimStatus(data) {
     version: data.version,
     cached: data.cached,
     cacheAgeMs: data.cacheAgeMs,
+    dashboardRuntime: data.dashboardRuntime || null,
     statusJsonPath: data.statusJsonPath || STATUS_JSON,
-    statusJsonContract: data.statusJsonContract || null,
-    statusDiscovery: data.statusDiscovery || null,
-    statusVisibility: data.statusVisibility || null,
-    statusPathView: data.statusPathView || null,
     // Preserve the dedicated file-reader proof in the slim API too. Without
     // this, agents polling /api/status?slim=1 lose the exact /api/orient +
     // demand-draft-hygiene view that dashboard-status.json advertises.
     statusJsonPathView: data.statusJsonPathView || null,
     orientApi: data.orientApi || '/api/orient',
     orientUrl: data.orientUrl || `http://127.0.0.1:${PORT}/api/orient`,
+    work: data.work || null,
     cycleWork: data.cycleWork || null,
     cycleWorkHealth: data.cycleWorkHealth || null,
     priorityBoard: data.priorityBoard || null,
@@ -649,13 +1330,44 @@ function slimStatus(data) {
       : null,
     handoffs: (data.handoffs || []).slice(0, 8),
     inbox: data.inbox
-      ? { total: data.inbox.total, newCount: data.inbox.newCount, rows: (data.inbox.rows || []).slice(0, 8) }
+      ? {
+          at: data.inbox.at,
+          total: data.inbox.total,
+          newCount: data.inbox.newCount,
+          pendingReviewCount: data.inbox.pendingReviewCount,
+          operationalCount: data.inbox.operationalCount,
+          pendingOperationalReviewCount: data.inbox.pendingOperationalReviewCount,
+          testCount: data.inbox.testCount,
+          spamCount: data.inbox.spamCount,
+          incompleteCount: data.inbox.incompleteCount,
+          byKind: data.inbox.byKind,
+          newestAt: data.inbox.newestAt,
+          newestAgeSec: data.inbox.newestAgeSec,
+          operationalRows: (data.inbox.operationalRows || []).slice(0, 8),
+          rows: (data.inbox.rows || []).slice(0, 8),
+          error: data.inbox.error,
+        }
       : null,
+    formAnalytics: data.formAnalytics || null,
     matches: data.matches
-      ? { summary: data.matches.summary, pairs: (data.matches.pairs || []).slice(0, 12) }
+      ? { summary: data.matches.summary, pairs: (data.matches.pairs || []).slice(0, 12), error: data.matches.error }
       : null,
     shipChecklist: data.shipChecklist
-      ? { ready: data.shipChecklist.ready, frozen: data.shipChecklist.frozen, stage: data.shipChecklist.stage }
+      ? {
+          at: data.shipChecklist.at,
+          ready: data.shipChecklist.ready,
+          freezeOn: data.shipChecklist.freezeOn ?? data.shipChecklist.frozen ?? data.freeze?.on ?? null,
+          blockers: (data.shipChecklist.blockers || []).slice(0, 6),
+          items: (data.shipChecklist.items || []).slice(0, 12).map((item) => ({
+            id: item.id,
+            ok: item.ok,
+            title: item.title,
+            detail: item.detail,
+            block: item.block,
+            warn: item.warn,
+          })),
+          nextCmd: data.shipChecklist.nextCmd || null,
+        }
       : null,
     board: data.board,
     smoke: data.smoke ? { pass: data.smoke.pass, at: data.smoke.at } : null,
@@ -663,11 +1375,30 @@ function slimStatus(data) {
     foot: data.foot
       ? {
           disk: data.foot.disk ? { ver: data.foot.disk.ver, sha12: data.foot.disk.sha12 } : null,
+          manifest: data.foot.manifest
+            ? { version: data.foot.manifest.version, cdnUrl: data.foot.manifest.cdnUrl }
+            : null,
           liveMatchNote: data.foot.liveMatchNote,
         }
       : null,
     slim: true,
   };
+}
+
+function dashboardStatus(data) {
+  const status = slimStatus(data);
+  for (const key of [
+    'statusJsonPathView', 'orientApi', 'orientUrl', 'orient', 'control', 'webflow',
+    'cycleWork', 'cycleWorkHealth', 'glance', 'sessionStory', 'board', 'fullPass',
+    'demandDraftsHygiene', 'draftHygieneVerdict', 'demandDraftsHygieneStatusPath',
+    'demandStatusPath', 'demandDraftsHygieneAt', 'demandDraftsHygieneAgeSec',
+    'demandDraftsHygieneSource', 'demandDraftsHygieneStale', 'demandDraftsHygieneOk',
+    'demandDraftsHygieneReady', 'smoke', 'cdp',
+  ]) delete status[key];
+  if (status.inbox) delete status.inbox.rows;
+  status.eventsBot = data.eventsBot || null;
+  status.evidence = data.evidence || {};
+  return status;
 }
 
 function productHealth(data) {
@@ -744,6 +1475,14 @@ function memInfo() {
   }
 }
 
+function agentSafeCommand(value, fallback = 'bin/dg ship prepare') {
+  const command = typeof value === 'string' ? value.trim() : '';
+  if (!command) return null;
+  return /(?:publish|cm6-paste|ship\s+(?:cdn|paste|run)|publish-freeze\.mjs\s+off)/i.test(command)
+    ? fallback
+    : command;
+}
+
 function deriveActions(ctx) {
   const actions = [];
   const { live, cdp, foot, gates, env, board, workers, multiTop } = ctx;
@@ -776,8 +1515,9 @@ function deriveActions(ctx) {
       id: 'foot-loader-count',
       title: `Live HTML has ${live?.cdnCount ?? 0} foot loader references (expected exactly 1)`,
       why: (live?.cdnUrls || []).join(' · ') || 'no supported foot CDN URL found',
-      cmd: 'node demigod-cm6-paste-publish.mjs',
+      cmd: 'bin/dg ship prepare',
       owner: 'grok',
+      mutate: false,
     });
   }
 
@@ -787,8 +1527,9 @@ function deriveActions(ctx) {
       id: 'canonical-head-missing',
       title: 'Live HTML is missing canonical unhide-v5 head markers',
       why: `unhide-v5=${live?.hasUnhide === true} dg-unhide-critical=${live?.hasCriticalUnhide === true}`,
-      cmd: 'node demigod-cm6-paste-publish.mjs',
+      cmd: 'bin/dg ship prepare',
       owner: 'grok',
+      mutate: false,
     });
   }
 
@@ -808,8 +1549,9 @@ function deriveActions(ctx) {
         : `live=${liveId} manifest=${manId}`,
       // Frozen drift is state to observe, not work to assign. Keep the row
       // useful with a read-only evidence command and no human owner.
-      cmd: freezeOnEarly ? 'bin/dg truth' : 'node demigod-cm6-paste-publish.mjs',
+      cmd: freezeOnEarly ? 'bin/dg truth' : 'bin/dg ship prepare',
       owner: freezeOnEarly ? 'freeze-gate' : 'grok',
+      mutate: false,
     });
   }
 
@@ -827,8 +1569,9 @@ function deriveActions(ctx) {
         : 'Hash/version drift — do not claim ship until CDN matches',
       cmd: freezeOnEarly
         ? 'bin/dg truth'
-        : 'node --check demigod-foot-core.js && npm run demigod:foot:cdn # or manual catbox + cm6',
+        : 'bin/dg ship prepare',
       owner: freezeOnEarly ? 'freeze-gate' : 'grok',
+      mutate: false,
     });
   }
 
@@ -976,12 +1719,13 @@ function deriveActions(ctx) {
       id: 'disk-live-drift',
       title: freezeOnGreen
         ? `Disk v${diskVerGreen} vs live v${liveVerGreen} (freeze ON — intentional until unfreeze)`
-        : `Disk v${diskVerGreen} vs live v${liveVerGreen} — publish needed`,
-      why: freezeOnGreen ? 'publish-freeze on' : 'ship foot CDN + Webflow',
+        : `Disk v${diskVerGreen} vs live v${liveVerGreen} — local changes prepared`,
+      why: freezeOnGreen ? 'publish-freeze on' : 'external publish requires exact current-request authorization',
       cmd: freezeOnGreen
         ? 'node demigod-publish-freeze.mjs status'
-        : 'node demigod-foot-cdn-publish.mjs && node demigod-cm6-paste-publish.mjs',
+        : 'bin/dg ship prepare',
       owner: 'grok',
+      mutate: false,
     });
   }
 
@@ -1086,7 +1830,7 @@ function buildAgentBrief(data) {
   }
   const pf = data.preflight || safeJson(path.join(BUSY, 'preflight-latest.json'));
   const inbox = data.inbox || safeJson(path.join(BUSY, 'plan-inbox-latest.json'));
-  const orient = safeJson(path.join(BUSY, 'orient.json'));
+  const orient = data.orient;
   const unify = safeJson(path.join(BUSY, 'unify.json'));
   const unifyOnly =
     process.env.DEMIGOD_BRIEF_UNIFY_ONLY === '1' ||
@@ -1099,7 +1843,11 @@ function buildAgentBrief(data) {
   lines.push('');
   // Orient is the canonical compact entry point. Keep unify as a richer
   // fallback for older receipts, but do not advertise it as the starting API.
-  const spine = orient?.next ? orient : unify;
+  const spine = !orient?.degraded && orient?.next
+    ? orient
+    : data.next
+      ? { next: data.next, green: data.truthEvidence?.green, freeze: data.freeze, demand: data.demand }
+      : unify;
   lines.push('## Orient (canonical entry — prefer /api/orient)');
   if (spine?.next) {
     lines.push(`- NEXT: **${spine.next.title}**`);
@@ -1140,11 +1888,12 @@ function buildAgentBrief(data) {
     if (spine.lock) lines.push(`- foot lock: ${spine.lock.held ? spine.lock.owner : 'free'}`);
     lines.push('- curl: `http://127.0.0.1:9878/api/orient`');
     lines.push('- cli: `bin/dg orient`');
-    if (unify.cli?.spine?.length) {
+    // safeJson returns null when unify.json is missing — never deref bare unify.
+    if (unify?.cli?.spine?.length) {
       lines.push('- spine:');
       for (const c of unify.cli.spine) lines.push(`  - \`${c}\``);
     }
-    if (unify.rules?.length) {
+    if (unify?.rules?.length) {
       lines.push('- rules: ' + unify.rules.join(' · '));
     }
   } else {
@@ -1203,7 +1952,7 @@ function buildAgentBrief(data) {
     lines.push(`  review: bin/dg-matches list · curl -sS http://127.0.0.1:${PORT}/api/matches`);
   }
   if (data.inbox && !data.inbox.error) {
-    lines.push(`- submissions inbox: new=${data.inbox.newCount ?? 0} total=${data.inbox.total ?? 0}`);
+    lines.push(`- submissions inbox: awaiting_review=${data.inbox.pendingReviewCount ?? data.inbox.newCount ?? 0} total=${data.inbox.total ?? 0}`);
   }
   lines.push(`- cdp: ${data.cdp?.up ? 'UP' : 'DOWN'} pages=${data.cdp?.pages ?? 0}`);
   lines.push(`- foot-lock: ${data.foot?.lock?.locked ? 'HELD ' + (data.foot.lock.json?.owner || '') : 'free'}`);
@@ -1217,6 +1966,10 @@ function buildAgentBrief(data) {
   lines.push(`- cockpit shipped: ${data.cockpit?.shipped ?? '?'}`);
   lines.push(`- jobs running: ${data.jobQueue?.running || 'none'} recent=${data.jobQueue?.recent?.length ?? 0}`);
   lines.push(`- workers: ${JSON.stringify(data.workerCounts || {})}`);
+  const grokExchange = data.work?.agents?.find((agent) => agent.id === 'grok');
+  if (grokExchange) {
+    lines.push(`- grok exchange: ${grokExchange.lastResult} ${grokExchange.at || '?'} · ${grokExchange.headline || grokExchange.runtime}`);
+  }
   lines.push(`- load: ${data.system?.load?.['1m'] || '?'} mem_avail_mb: ${data.system?.mem?.availableMb ?? '?'}`);
   if (data.sessionStory) {
     lines.push('');
@@ -1290,7 +2043,7 @@ function buildAgentBrief(data) {
   lines.push('## Standing rules');
   lines.push('- One foot-core writer (claim lock with unique --owner); verify after edits; hash before claiming live');
   lines.push('- No 48h/SLA/founder-name; pending Twilio/Stripe language');
-  lines.push('- Never ship while publish-freeze ON; never trust site-green without cockpit.shipped');
+  lines.push('- Never publish without exact current-request authorization; freeze and lock state never grant it');
   lines.push('- No game work; no demigod:source-truth (archived mutator)');
   lines.push('- Prefer /api/next + /api/agent-brief over scraping HTML');
   return lines.join('\n');
@@ -1303,7 +2056,6 @@ async function collectStatus() {
   const verifySource = safeJson(path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json'));
   const board = safeJson(path.join(ROOT, 'DEMIGOD-BOARD.json'));
   const gateLatest = safeRead(GATE_LATEST, 4000);
-  const compressed = safeRead(path.join(ROOT, 'DEMIGOD-COMPRESSED-STATE.md'), 5000);
   const lock = footLock();
 
   const boardSignal = board?.signal || {
@@ -1315,9 +2067,7 @@ async function collectStatus() {
   // Single live + cdp probe (cockpit reuses live — no second network hop)
   const [live, cdp] = await Promise.all([liveProbe(), cdpProbe()]);
   const workers = workerSnapshot();
-  const multi = listRecentDir(MULTI, 20);
-  const busy = listRecentDir(BUSY, 12);
-  const research = listRecentDir(path.join(ROOT, 'docs/research'), 8);
+  const multi = listRecentDir(MULTI, 12);
 
   const since = Date.now() - 2 * 3600 * 1000;
   const recentAgents = {};
@@ -1477,6 +2227,7 @@ async function collectStatus() {
     at: new Date().toISOString(),
     host,
     version: 5,
+    dashboardRuntime: dashboardRuntimeHealth(),
     phase: 'GTM + pre-services honesty',
     decision: 'FIX not rewrite',
     system: { load: loadAvg(), mem: memInfo() },
@@ -1495,6 +2246,176 @@ async function collectStatus() {
     actions,
     preflight: preflightCache,
     inbox: inboxCache,
+    formAnalytics: (() => {
+      const doc = safeJson(path.join(BUSY, 'form-analytics.json'));
+      return { available: Boolean(doc), forms: summarizeFormAnalytics(doc || {}) };
+    })(),
+    eventsBot: (() => {
+      const store = safeJson(EVENTS_STORE);
+      const online = safeJson(path.join(BUSY, 'events-online', 'status.json'));
+      const lastUp = safeJson(path.join(BUSY, 'events-online', 'last-up.json'));
+      const inviteDrain = safeJson(path.join(BUSY, 'events-bot', 'invite-drain-latest.json'));
+      const onlineAgeMs = Date.now() - Date.parse(online?.at || '');
+      const onlineFresh = Number.isFinite(onlineAgeMs) && onlineAgeMs >= -60_000 && onlineAgeMs <= 10 * 60_000;
+      const publishedApiBase = lastUp?.published?.ok === true ? lastUp.apiBase || null : null;
+      const onlineSummary = online ? {
+        certified: onlineFresh && online.certified === true,
+        observation: onlineFresh ? online.observation || null : 'stale receipt',
+        needHeal: onlineFresh && online.needHeal === true,
+        public: onlineFresh ? online.public ?? null : null,
+        nativeRsvpRoutes: onlineFresh ? online.nativeRsvpRoutes ?? null : null,
+        storeHygieneOk: onlineFresh ? online.storeHygiene?.ok ?? null : null,
+        storeHygieneHitCount: onlineFresh && Number.isFinite(online.storeHygiene?.hitCount) ? online.storeHygiene.hitCount : null,
+        storeHygieneFirstHit: onlineFresh ? online.storeHygiene?.hits?.[0]?.kind || null : null,
+        configPublished: onlineFresh && typeof online.websiteConfigCurrent === 'boolean'
+          ? online.websiteConfigCurrent
+          : onlineFresh && publishedApiBase ? publishedApiBase === online.apiBase : null,
+        websiteConfigReachable: onlineFresh ? online.websiteConfigReachable ?? null : null,
+        // Priority board needs this flag — without it, prepare-only CDN lag looks like P1 agent work.
+        prepareOnlyWebsiteConfig: onlineFresh ? online.prepareOnlyWebsiteConfig === true : null,
+        eventsOperational: onlineFresh
+          ? online.public === true && online.needHeal !== true && online.storeHygiene?.ok !== false && online.nativeRsvpRoutes === true
+          : null,
+        preferredSubdomain: onlineFresh ? online.preferredSubdomain || null : null,
+        preferredTunnelMatch: onlineFresh
+          ? typeof online.preferredTunnelMatch === 'boolean'
+            ? online.preferredTunnelMatch
+            : null
+          : null,
+        stale: !onlineFresh,
+      } : null;
+      const inviteDrainAgeMs = Date.now() - Date.parse(inviteDrain?.at || '');
+      const eventSubmissions = Array.isArray(store?.eventSubmissions) ? store.eventSubmissions : [];
+      const startupSubmissions = Array.isArray(store?.startupSubmissions) ? store.startupSubmissions : [];
+      const reviewRows = (rows) => rows.filter((row) => row?.status === 'submitted')
+        .concat(rows.filter((row) => row?.status !== 'submitted').slice(-6).reverse());
+      const submissions = {
+        eventPending: eventSubmissions.filter((row) => row?.status === 'submitted').length,
+        startupPending: startupSubmissions.filter((row) => row?.status === 'submitted').length,
+        events: reviewRows(eventSubmissions).map((row) => ({
+          id: row.id, title: row.title, destination: row.destination, status: row.status,
+          startsAt: row.startsAt, venue: row.venue, audience: row.audience, details: row.details,
+          seats: row.seats, externalUrl: row.externalUrl, reviewedAt: row.reviewedAt,
+          reviewNote: row.reviewNote, updatedAt: row.updatedAt || row.createdAt,
+        })),
+        startups: reviewRows(startupSubmissions).map((row) => ({
+          id: row.id, name: row.name, neighborhood: row.neighborhood, hiring: row.hiring,
+          website: row.website, description: row.description, status: row.status,
+          reviewedAt: row.reviewedAt, reviewNote: row.reviewNote, createdAt: row.createdAt,
+        })),
+      };
+      const active = store?.activeEvent;
+      const inviteDrainMatchesActive = inviteDrain?.eventId === active?.id;
+      const inviteDrainSummary = active?.id ? {
+        needsUrl: Number.isFinite(inviteDrain?.needsUrl) ? inviteDrain.needsUrl : null,
+        recorded: Number.isFinite(inviteDrain?.recorded) ? inviteDrain.recorded : null,
+        stale: !inviteDrainMatchesActive || !Number.isFinite(inviteDrainAgeMs) || inviteDrainAgeMs < -60_000 || inviteDrainAgeMs > 10 * 60_000,
+      } : null;
+      if (!active?.id) return { active: false, online: onlineSummary, inviteDrain: inviteDrainSummary, submissions };
+      const platformRows = ['luma', 'partiful'].flatMap((platform) =>
+        Array.isArray(store.platforms?.[platform])
+          ? store.platforms[platform].map((row) => ({ ...row, platform: row.platform || platform }))
+          : [],
+      );
+      const normalizeTitle = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const title = normalizeTitle(active.title);
+      const matchingDrafts = platformRows.filter((row) =>
+        row?.id && (row.eventId ? row.eventId === active.id : title && normalizeTitle(row.title) === title),
+      );
+      const realInviteUrl = (value) => ['demigod', 'luma', 'partiful'].some((platform) => isRealInviteUrl(value, platform));
+      const inviteDraft = matchingDrafts.find((row) => row.status === 'published_url' && realInviteUrl(row.inviteUrl || row.publishedUrl)) ||
+        matchingDrafts[0] || null;
+      const nativeInvite = (store.platforms?.demigod || []).find((row) =>
+        row?.status === 'published_url' && row.eventId === active.id && realInviteUrl(row.inviteUrl || row.publishedUrl),
+      );
+      const confirmedRsvps = (Array.isArray(store.rsvps) ? store.rsvps : []).filter(
+        (r) => r?.eventId === active.id && r.status === 'yes',
+      );
+      const confirmedCount = Array.isArray(store.rsvps)
+        ? confirmedRsvps.length
+        : (Number.isFinite(active.outcomes?.confirmed) ? active.outcomes.confirmed : null);
+      const gaps = resourceGaps(store);
+      const resourceOffers = matchOffersToEvent(store).offerCounts;
+      const resourceDrafts = (Array.isArray(store.outreach) ? store.outreach : []).filter((row) =>
+        row?.eventId === active.id && ['queued', 'drafted'].includes(row.status) && /venue|sponsor|volunteer/.test(row.kind || ''),
+      );
+      const partnerReadyDrafts = resourceDrafts.filter((row) =>
+        isRealOutreachEmail(row.toEmail) && !/@trydemigod\.com$/i.test(row.toEmail) && outreachDraftReadiness(row) >= 3,
+      );
+      const internalOpsDrafts = resourceDrafts.filter((row) => /@trydemigod\.com$/i.test(row.toEmail));
+      const contactBlockedDrafts = resourceDrafts.filter((row) =>
+        !isRealOutreachEmail(row.toEmail) && !/@trydemigod\.com$/i.test(row.toEmail),
+      );
+      const contentBlockedDrafts = resourceDrafts.filter((row) =>
+        isRealOutreachEmail(row.toEmail) && !/@trydemigod\.com$/i.test(row.toEmail) && outreachDraftReadiness(row) < 3,
+      );
+      const venueConfirmed = active.venue?.confirmed === true && Boolean(String(active.venue.confirmationEvidence || '').trim());
+      const lifecycleEvidenceMismatch = ['plan', 'rsvp', 'run', 'followup', 'debrief'].includes(active.stage) && !venueConfirmed;
+      const venueCapacity = Number(active.venue?.capacity);
+      const venueTooSmall = Number.isFinite(active.seats) && Number.isFinite(venueCapacity) && venueCapacity > 0 && active.seats > venueCapacity;
+      const inviteShareable = ['rsvp', 'run', 'followup', 'debrief'].includes(active.stage);
+      const inviteUrl = [active.published_url, active.publishedUrl, active.inviteUrl,
+        nativeInvite?.inviteUrl, nativeInvite?.publishedUrl,
+        inviteDraft?.status === 'published_url' ? inviteDraft.inviteUrl || inviteDraft.publishedUrl : null,
+      ].find(realInviteUrl) || null;
+      return {
+        active: true,
+        id: active.id,
+        title: active.title || 'Untitled SF night',
+        stage: active.stage || null,
+        seats: Number.isFinite(active.seats) ? active.seats : null,
+        dateWindows: Array.isArray(active.dateWindows) ? active.dateWindows.filter(Boolean) : [],
+        audienceReady: eventAudienceBrief(active).ok,
+        futureDateTimeReady: hasFutureDateTime(active),
+        venueSelected: Boolean(active.venue?.name || active.venue?.title),
+        venueConfirmed,
+        matchedVenueOfferId: active.matchedOffers?.venueId || null,
+        lifecycleEvidenceMismatch,
+        venueTooSmall,
+        venueCapacity: Number.isFinite(venueCapacity) && venueCapacity > 0 ? venueCapacity : null,
+        resources: {
+          done: 3 - gaps.missing.length,
+          total: 3,
+          missing: gaps.missing.map((kind) => kind === 'venue_alt' ? 'Confirm a venue alternative with evidence' : kind === 'venue_capacity' ? 'Select a venue that fits the seat target' : kind === 'venue_confirmation' ? 'Confirm the selected venue with evidence' : `Confirm ${kind} with evidence`),
+          topFreeVenue: gaps.topFreeVenue ? {
+            name: gaps.topFreeVenue.name,
+            area: gaps.topFreeVenue.area,
+            capacity: gaps.topFreeVenue.capacity,
+          } : null,
+          offers: resourceOffers,
+          queuedDrafts: resourceDrafts.length,
+          partnerReadyDrafts: partnerReadyDrafts.length,
+          internalOpsDrafts: internalOpsDrafts.length,
+          contactBlockedDrafts: contactBlockedDrafts.length,
+          contentBlockedDrafts: contentBlockedDrafts.length,
+          contentBlocked: Object.fromEntries(['venue', 'sponsor', 'volunteer'].map((kind) => [kind,
+            contentBlockedDrafts.filter((row) => String(row.kind || '').includes(kind)).length,
+          ])),
+          partnerReady: Object.fromEntries(['venue', 'sponsor', 'volunteer'].map((kind) => [kind,
+            partnerReadyDrafts.filter((row) => String(row.kind || '').includes(kind)).length,
+          ])),
+          drafts: Object.fromEntries(['venue', 'sponsor', 'volunteer'].map((kind) => [kind,
+            resourceDrafts.filter((row) => String(row.kind || '').includes(kind)).length,
+          ])),
+        },
+        inviteUrl: inviteShareable ? inviteUrl : null,
+        inviteUrlRecorded: inviteShareable && Boolean(inviteUrl),
+        invitePlatformUrlRecorded: inviteShareable && Boolean(
+          inviteDraft?.status === 'published_url' && realInviteUrl(inviteDraft.inviteUrl || inviteDraft.publishedUrl),
+        ),
+        inviteDraft: inviteDraft ? { id: inviteDraft.id, platform: inviteDraft.platform } : null,
+        rsvpsConfirmed: confirmedCount,
+        seatsRemaining: Number.isFinite(active.seats) && Number.isFinite(confirmedCount)
+          ? Math.max(0, active.seats - confirmedCount)
+          : null,
+        overCapacity: Number.isFinite(active.seats) && Number.isFinite(confirmedCount)
+          ? Math.max(0, confirmedCount - active.seats)
+          : null,
+        inviteDrain: inviteDrainSummary,
+        online: onlineSummary,
+        submissions,
+      };
+    })(),
     truth: truthCache,
     truthEvidence: (() => {
       const te = refuseIfStale('truth');
@@ -1549,7 +2470,7 @@ async function collectStatus() {
           on: freezeState?.on === true,
           why: freezeState?.why || null,
         },
-        next: j?.next || null,
+        next: degraded ? null : (j?.next || null),
         // Keep the canonical nested status path current even when orient.json
         // is older than the independently refreshed demand-status receipt.
         // Consumers may now read /orient/demand/drafts/hygiene directly
@@ -1589,9 +2510,8 @@ async function collectStatus() {
     })(),
     evidence,
     tools: toolsSummary,
-    drops: { multi, busy, research },
+    drops: { multi },
     docs: {
-      compressedPreview: compressed?.split('\n').slice(0, 16).join('\n') || null,
       startupRoadmap: 'docs/exchange/DEMIGOD-STARTUP-ROADMAP.md',
       livingRoadmap: 'docs/exchange/DEMIGOD-LIVING-ROADMAP.md',
       toolsKeep: 'docs/exchange/DEMIGOD-TOOLS-KEEP-VS-ARCHIVE.md',
@@ -1636,8 +2556,8 @@ async function collectStatus() {
     // concurrent file-only reader never loses /api/orient or draft-hygiene
     // discovery to a partially written JSON document.
     writeJsonAtomic(STATUS_JSON, data);
-    fs.writeFileSync(BRIEF_MD, data.agentBriefMarkdown);
-    fs.writeFileSync(
+    atomicWrite(BRIEF_MD, data.agentBriefMarkdown, { mode: 0o600 });
+    atomicWrite(
       BRIEF_JSON,
       JSON.stringify({
         at: data.at,
@@ -1656,6 +2576,7 @@ async function collectStatus() {
         workerCounts: data.workerCounts,
         activity2h: data.activity2h,
       }),
+      { mode: 0o600 },
     );
   } catch {
     /* ignore */
@@ -1728,7 +2649,7 @@ function loadHtml() {
 
 /** Safe allowlist for jobs — safe = human-clickable anytime; mutate = freeze-gated */
 /* ==== SECTION: JOBS allowlist (mutate jobs freeze-gated) ==== */
-const JOBS = {
+const JOBS = Object.assign(Object.create(null), {
   orient: { cmd: 'node', args: ['demigod-orient.mjs', '--json'], timeout: 60000, safe: true },
   smoke: { cmd: 'node', args: ['demigod-agent-smoke.mjs'], timeout: 90000, safe: true },
   cockpit: { cmd: 'node', args: ['demigod-agent-cockpit.mjs', '--json'], timeout: 30000, safe: true },
@@ -1752,17 +2673,10 @@ const JOBS = {
   ponytail: { cmd: 'node', args: ['demigod-ponytail.mjs', 'status', '--json'], timeout: 30000, safe: true },
   'ponytail-check': { cmd: 'node', args: ['demigod-ponytail.mjs', 'check', '--json'], timeout: 30000, safe: true },
   'cycle-status': { cmd: 'node', args: ['demigod-cycle-status.mjs', '--json'], timeout: 20000, safe: true },
-  'cycle-work': {
-    cmd: 'node',
-    args: ['demigod-cycle-work.mjs', '--domain=auto', '--owner=dashboard', '--cycle=dash'],
-    timeout: 180000,
-    // mutate, NOT safe: --domain=auto can select the ship/foot domains, which edit
-    // demigod-foot-core.js and drive CM6 publishing. Marked safe:true it was startable via a plain
-    // GET with no mutation authorization; mutate:true routes it through the allowMutate+freeze gate
-    // (startJob :3499). Downstream ship still re-checks the lock, but the dashboard gate should not
-    // wave a publishing job through as "safe".
-    mutate: true,
-  },
+  'events-online-status': { cmd: 'node', args: ['demigod-events-online.mjs', 'certify'], timeout: 30000, safe: true },
+  'events-outbox-status': { cmd: 'bin/dg-events-outbox', args: ['status'], timeout: 30000, safe: true },
+  'events-invite-drain': { cmd: 'node', args: ['demigod-events-invite-drain.mjs'], timeout: 30000, mutate: true, publishSafe: true },
+  'events-tick': { cmd: 'bin/dg-events-tick', args: [], timeout: 180000, mutate: true, publishSafe: true },
   'never-stop-status': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'status'], timeout: 15000, safe: true },
   'never-stop-stop': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'stop'], timeout: 15000, safe: true },
   'swarm-status': { cmd: 'node', args: ['demigod-swarm-busy.mjs', 'status'], timeout: 15000, safe: true },
@@ -1777,6 +2691,9 @@ const JOBS = {
   'quality-once': { cmd: 'bin/dg-quality', args: ['once', '--context=auto'], timeout: 240000, safe: true },
   'quality-status': { cmd: 'bin/dg-quality', args: ['status'], timeout: 15000, safe: true },
   'quality-backlog': { cmd: 'bin/dg-quality', args: ['backlog'], timeout: 10000, safe: true },
+  'funnel-status': { cmd: 'bin/dg', args: ['funnel', 'status'], timeout: 30000, safe: true },
+  'pipeline-status': { cmd: 'node', args: ['demigod-lead-pipeline.mjs', 'tick', '--stage=status'], timeout: 30000, safe: true },
+  'pipeline-packages': { cmd: 'node', args: ['demigod-lead-pipeline.mjs', 'tick', '--stage=packages'], timeout: 60000, safe: true },
   'ops-os-status': { cmd: 'bin/dg-ops-os', args: ['status'], timeout: 20000, safe: true },
   'ops-os-next': { cmd: 'bin/dg-ops-os', args: ['next'], timeout: 15000, safe: true },
   'ops-os-tick': { cmd: 'bin/dg-ops-os', args: ['tick'], timeout: 180000, safe: true },
@@ -1785,13 +2702,13 @@ const JOBS = {
   priority: { cmd: 'node', args: ['demigod-priority-board.mjs', '--json'], timeout: 15000, safe: true },
   dogfood: { cmd: 'node', args: ['demigod-tool-dogfood.mjs', 'status', '--json'], timeout: 20000, safe: true },
   'coord-status': { cmd: 'bin/dg-agent-coord', args: ['status'], timeout: 10000, safe: true },
-  'favicon-ship': { cmd: 'node', args: ['demigod-favicon-ship.mjs'], timeout: 30000, safe: true },
   'blog-assets': { cmd: 'node', args: ['demigod-blog-assets-gen.mjs'], timeout: 30000, safe: true },
   'full-pass-status': { cmd: 'node', args: ['demigod-full-pass-loop.mjs', 'status'], timeout: 10000, safe: true },
   'webflow-status': { cmd: 'node', args: ['demigod-webflow.mjs', 'status', '--json'], timeout: 30000, safe: true },
   control: { cmd: 'node', args: ['demigod-control.mjs', 'status', '--json'], timeout: 45000, safe: true },
   'ship-checklist': { cmd: 'node', args: ['demigod-ship-checklist.mjs', '--json'], timeout: 15000, safe: true },
   demand: { cmd: 'node', args: ['demigod-demand.mjs', 'status', '--json'], timeout: 20000, safe: true },
+  'demand-draft': { cmd: 'bin/dg', args: ['demand', 'draft', '--name=T0'], timeout: 20000, safe: true },
   pilot: { cmd: 'node', args: ['demigod-pilot-inbound.mjs', 'status', '--json'], timeout: 15000, safe: true },
   'next-canon': { cmd: 'node', args: ['demigod-next.mjs', '--json'], timeout: 10000, safe: true },
   unify: { cmd: 'node', args: ['demigod-unify.mjs', '--json'], timeout: 20000, safe: true },
@@ -1801,6 +2718,8 @@ const JOBS = {
   'lock-who': { cmd: 'node', args: ['demigod-foot-lock.mjs', 'who'], timeout: 10000, safe: true },
   ledger: { cmd: 'node', args: ['demigod-version-ledger.mjs', 'delta'], timeout: 10000, safe: true },
   evidence: { cmd: 'node', args: ['demigod-evidence.mjs', 'fresh', 'truth'], timeout: 10000, safe: true },
+  craft: { cmd: 'node', args: ['demigod-craft-log.mjs', 'status'], timeout: 20000, safe: true },
+  'craft-mint-ship': { cmd: 'node', args: ['demigod-craft-log.mjs', 'mint', 'ship'], timeout: 45000, safe: true },
   'evidence-producers': {
     cmd: 'node',
     args: ['demigod-evidence.mjs', 'producers', 'truth,review,demand,smoke'],
@@ -1813,17 +2732,9 @@ const JOBS = {
   'cm6-check': { cmd: 'node', args: ['demigod-cm6-paste-publish.mjs', '--check-structural'], timeout: 15000, safe: true },
   inbox: { cmd: 'node', args: ['demigod-submissions-inbox.mjs', '--json'], timeout: 15000, safe: true },
   'match-review': { cmd: 'node', args: ['demigod-match-review.mjs', '--json'], timeout: 15000, safe: true },
-  'auto-propose': { cmd: 'node', args: ['demigod-auto-propose.mjs', '--json'], timeout: 30000, safe: true },
-  // mutate — never auto-run from simple mode
-  'foot-cdn': { cmd: 'node', args: ['demigod-foot-cdn-publish.mjs'], timeout: 120000, safe: false, mutate: true },
-  'cm6-paste': {
-    cmd: 'node',
-    args: ['demigod-cm6-paste-publish.mjs'],
-    timeout: 180000,
-    safe: false,
-    mutate: true,
-  },
-};
+  referrals: { cmd: 'node', args: ['demigod-referrals.mjs', 'status'], timeout: 15000, safe: true },
+  'auto-propose': { cmd: 'node', args: ['demigod-auto-propose.mjs', '--json'], timeout: 30000, safe: false, mutate: true },
+});
 
 const HANDOFF_PATH = path.join(BUSY, 'dashboard-handoff.json');
 const jobMap = new Map(); // id -> job record
@@ -1914,9 +2825,7 @@ function appendHandoff({ from = 'agent', text = '', meta = null, done = null, ne
     notes.unshift(note);
     notes = notes.slice(0, 50);
     const body = JSON.stringify({ at: note.at, notes }, null, 2) + '\n';
-    const tmp = HANDOFF_PATH + `.tmp.${process.pid}`;
-    fs.writeFileSync(tmp, body);
-    fs.renameSync(tmp, HANDOFF_PATH);
+    atomicWrite(HANDOFF_PATH, body, { mode: 0o600 });
     pushEvent('handoff', `${note.from}: ${note.text.slice(0, 80)}`);
     note.written = true;
   } catch {
@@ -1985,16 +2894,18 @@ function buildGlance(data) {
   // Accept both the dashboard probe shape (`ok`) and the canonical truth
   // shape (`reachable` / `htmlOk`). Cached truth-backed snapshots otherwise
   // misreport a reachable site as DOWN merely because they lack `live.ok`.
-  const liveOk = data?.live?.ok === true || data?.live?.reachable === true || data?.live?.htmlOk === true;
   const truthGreen = data?.truthEvidence?.green === true;
+  const liveOk = truthGreen || data?.live?.ok === true || data?.live?.reachable === true || data?.live?.htmlOk === true;
   const siteOk = liveOk && truthGreen;
   const freezeOn = Boolean(data?.freeze?.on);
   const next = nextContract(data);
   const stale = (data?.staleGates || []).length;
+  const liveFoot = data?.live?.foot || (data?.truth?.live?.footVer ? `foot v${data.truth.live.footVer}` : 'UP');
+  const liveCdn = data?.live?.cdnId || data?.truth?.live?.footUrl || 'cdn?';
   let site = liveOk
-    ? `Live ${data.live?.foot || 'UP'} · ${data.live?.cdnId || 'cdn?'}`
+    ? `Live ${liveFoot} · ${liveCdn}`
     : `Live DOWN · ${data.live?.error || 'probe failed'}`;
-  if (data?.cockpit?.shipped) site += ' · hash chain green';
+  if (next.shipped) site += ' · hash chain green';
   else if (liveOk) site += ' · not fully shipped';
   return {
     site,
@@ -2007,7 +2918,7 @@ function buildGlance(data) {
       : !truthGreen
         ? (data?.truthEvidence?.summary || data?.truthEvidence?.reason || 'truth not green')
         : 'canonical truth green',
-    freeze: freezeOn ? `ON — ${data.freeze?.why || 'publish frozen'}` : 'OFF — ship allowed if needed',
+    freeze: freezeOn ? `ON — ${data.freeze?.why || 'publish frozen'}` : 'OFF — capability open; publish still current-request-gated',
     freezeOn,
     agentNext: next.title
       ? `P${next.pri} ${next.title}${next.freezeBlocks ? ' (blocked by freeze)' : ''}`
@@ -2194,7 +3105,10 @@ function buildDelta(data, sinceIso) {
 }
 
 function buildJobQueue() {
+  const knownJob = (j) =>
+    j && typeof j.jobId === 'string' && typeof j.id === 'string' && Object.prototype.hasOwnProperty.call(JOBS, j.id);
   const memRecent = [...jobMap.values()]
+    .filter(knownJob)
     .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))
     .slice(0, 12)
     .map((j) => ({
@@ -2225,6 +3139,7 @@ function buildJobQueue() {
           }
         })
         .filter(Boolean)
+        .filter(knownJob)
         .sort((a, b) => (b._mtime || 0) - (a._mtime || 0))
         .slice(0, 12)
         .map((j) => ({
@@ -2318,6 +3233,7 @@ function ensureDemandFresh(maxAgeSec = 900) {
 
 async function enrichStatus(data) {
   data.version = 5;
+  data.work = compactWorkStatus();
   // Stable discovery fields survive both the full persisted status document
   // and the slim polling payload; consumers need no implicit /tmp knowledge.
   data.statusJsonPath = STATUS_JSON;
@@ -2428,16 +3344,16 @@ async function enrichStatus(data) {
         .slice(0, 8)
     : [];
   const releaseRecoveryGates = releaseRecoveryMutates && explicitReleaseGates.length === 0
-    ? ['publish-freeze-off', 'foot-write-lock']
+    ? ['current-request-authorization', 'publish-freeze-off', 'foot-write-lock']
     : explicitReleaseGates;
   const cycleReleaseRecovery = rawReleaseRecovery && typeof rawReleaseRecovery === 'object'
     ? {
         state: typeof rawReleaseRecovery.state === 'string'
           ? rawReleaseRecovery.state.trim().slice(0, 80) || null
           : null,
-        command: rawReleaseRecoveryCommand,
+        command: releaseRecoveryMutates ? null : agentSafeCommand(rawReleaseRecoveryCommand),
         then: typeof rawReleaseRecovery.then === 'string'
-          ? rawReleaseRecovery.then.trim().slice(0, 240) || null
+          ? releaseRecoveryMutates ? null : agentSafeCommand(rawReleaseRecovery.then.trim().slice(0, 240))
           : null,
         mutates: releaseRecoveryMutates,
         gatedBy: releaseRecoveryGates,
@@ -2595,74 +3511,6 @@ async function enrichStatus(data) {
     };
   data.demandDraftsHygieneStatusPath =
     data.demandDraftsHygiene?.statusPath || data.demandStatusPath;
-  // Small, stable file-reader view: a consumer opening dashboard-status.json
-  // can discover the orient endpoint and draft-hygiene value in one object.
-  data.statusPathView = {
-    schema: 'demigod.dashboard-status-path-view/1',
-    path: STATUS_JSON,
-    orientApi: data.orientApi,
-    orientUrl: data.orientUrl,
-    orientStatusJsonPath: data.orient?.statusJsonPath || STATUS_JSON,
-    // Make the HTTP entrypoint discoverable from the durable status receipt
-    // without requiring callers to assemble it from separate scalar fields.
-    orientEndpoint: {
-      method: 'GET',
-      path: data.orientApi,
-      statusJsonPath: STATUS_JSON,
-      demandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-      // Document both shapes served by /api/orient: its direct response and
-      // the durable mirror in dashboard-status.json. This keeps file readers
-      // and HTTP clients from accidentally applying the persisted /orient
-      // prefix to the endpoint response itself.
-      responseJsonPointers: {
-        draftsHygiene: '/drafts/hygiene',
-        demandDraftsHygiene: '/demandDraftsHygiene',
-        persistedMirror: '/orient/drafts/hygiene',
-      },
-    },
-    // One bounded read recipe for agents that start from the persisted file.
-    // Keep the endpoint, canonical nested value, and fail-closed readiness bit
-    // together so status consumers do not need to reverse-engineer aliases.
-    agentRead: {
-      statusJsonPath: STATUS_JSON,
-      orientApi: data.orientApi,
-      orientJsonPointer: '/orient',
-      demandDraftsHygieneJsonPointer: '/demand/drafts/hygiene',
-      orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-      demandDraftsHygieneReadyJsonPointer: '/demandDraftsHygieneReady',
-      demandDraftsHygieneReady: data.demandDraftsHygieneReady === true,
-    },
-    orientApiVisible: data.orientApi === '/api/orient',
-    orientApiJsonPointer: '/orientApi',
-    orientDraftsHygiene: data.orient?.drafts?.hygiene || null,
-    orientDraftsHygieneVisible: data.orient?.drafts?.hygiene != null,
-    orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-    demandDraftsHygiene: data.demandDraftsHygiene,
-    demandDraftsHygieneVisible: data.demandDraftsHygiene != null,
-    demandDraftsHygieneOk: data.demandDraftsHygieneOk,
-    demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-    demandDraftsHygieneCanonicalJsonPointer:
-      data.demandDraftsHygieneCanonicalJsonPointer,
-    demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-    demandDraftsHygieneSource: data.demandDraftsHygieneSource,
-    demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-    demandDraftsHygieneAt: data.demandDraftsHygieneAt,
-    demandDraftsHygieneAgeSec: data.demandDraftsHygieneAgeSec,
-    demandDraftsHygieneStale: data.demandDraftsHygieneStale,
-    demandDraftsHygieneReady: data.demandDraftsHygieneReady,
-    demandDraftsHygieneReadyJsonPointer: '/demandDraftsHygieneReady',
-    demandDraftsHygieneStatusPath: data.demandDraftsHygieneStatusPath,
-    demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-    demandStatusPath: data.demandStatusPath,
-    demandStatusPathJsonPointer: '/demandStatusPath',
-    demandStatusSourceReceipt: data.demandStatusSourceReceipt,
-    demandStatusSourceReceiptJsonPointer: '/demandStatusSourceReceipt',
-    complete:
-      data.orientApi === '/api/orient' &&
-      data.orient?.drafts?.hygiene != null &&
-      data.demandDraftsHygiene != null &&
-      data.demandDraftsHygieneReady === true,
-  };
     // collectStatus builds the orient mirror before this optional demand refresh.
     // Rejoin it here so the persisted /orient pointers cannot lag the root
     // hygiene snapshot within the same dashboard-status.json receipt.
@@ -2681,26 +3529,6 @@ async function enrichStatus(data) {
       data.orient.demandStatusSourceReceipt = data.demandStatusSourceReceipt;
       data.orient.statusJsonPath = STATUS_JSON;
     }
-    // statusPathView is assembled before the orient mirror is refreshed above.
-    // Rebind its value so a single read of dashboard-status.json never exposes
-    // a current root hygiene receipt beside a stale/null orient projection.
-    data.statusPathView.orientDraftsHygiene = data.orient?.drafts?.hygiene || null;
-    data.statusPathView.orientDraftsHygieneVisible =
-      data.statusPathView.orientDraftsHygiene != null;
-    data.statusPathView.orientDraftsHygieneConsistent =
-      data.statusPathView.orientDraftsHygieneVisible &&
-      data.statusPathView.demandDraftsHygieneVisible &&
-      JSON.stringify(data.statusPathView.orientDraftsHygiene) ===
-        JSON.stringify(data.statusPathView.demandDraftsHygiene);
-    data.statusPathView.complete =
-      data.statusPathView.orientApiVisible &&
-      data.statusPathView.orientDraftsHygieneVisible &&
-      data.statusPathView.demandDraftsHygieneVisible &&
-      data.statusPathView.orientDraftsHygieneConsistent &&
-      // Visibility and consistency only prove that both projections agree.
-      // They must not turn a stale or failing hygiene receipt into a complete
-      // status contract; readiness already folds ok=true and stale=false.
-      data.statusPathView.demandDraftsHygieneReady === true;
   } catch {
     /* */
   }
@@ -2716,148 +3544,6 @@ async function enrichStatus(data) {
       JSON.stringify(data.demandDraftsHygiene) &&
     data.orient.demandDraftsHygieneSource === data.demandDraftsHygieneSource &&
     data.orient.demandDraftsHygieneStatusPath === data.demandDraftsHygieneStatusPath;
-  const statusJsonContractComplete =
-    data.orientApi === '/api/orient' &&
-    Boolean(data.orient) &&
-    data.orient?.demandDraftsHygiene != null &&
-    data.demandDraftsHygiene != null &&
-    orientDemandDraftsHygieneConsistent &&
-    // Agreement only proves both projections describe the same receipt. A
-    // stale or failing receipt must keep the advertised status contract
-    // incomplete even when the root and orient mirrors agree byte-for-byte.
-    data.demandDraftsHygieneReady === true &&
-    data.orient?.demandDraftsHygieneReady === true;
-  // Compact machine-readable contract at the advertised status path. Agents
-  // should not have to infer endpoint names or traverse discovery metadata.
-  data.statusJsonContract = {
-    schema: 'demigod.dashboard-status-contract/1',
-    complete: statusJsonContractComplete,
-    completeJsonPointer: '/statusJsonContract/complete',
-    statusJsonPath: STATUS_JSON,
-    statusJsonPathJsonPointer: '/statusJsonPath',
-    orientApi: data.orientApi,
-    orientApiJsonPointer: '/orientApi',
-    orientUrl: data.orientUrl,
-    orientStatusJsonPath: data.orient?.statusJsonPath || STATUS_JSON,
-    orientJsonPointer: '/orient',
-    orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-    orientDemandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-    orientDemandDraftsHygieneOkJsonPointer: '/orient/demandDraftsHygieneOk',
-    orientDemandDraftsHygieneReady: data.orient?.demandDraftsHygieneReady === true,
-    orientDemandDraftsHygieneReadyJsonPointer: '/orient/demandDraftsHygieneReady',
-    orientDemandDraftsHygieneSourceJsonPointer: '/orient/demandDraftsHygieneSource',
-    orientDemandDraftsHygieneStatusPathJsonPointer: '/orient/demandDraftsHygieneStatusPath',
-    orientDemandStatusPathJsonPointer: '/orient/demandStatusPath',
-    demandDraftsHygiene: data.demandDraftsHygiene || null,
-    demandDraftsHygieneOk: data.demandDraftsHygiene?.ok ?? null,
-    demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-    demandDraftsHygieneCanonicalJsonPointer:
-      data.demandDraftsHygieneCanonicalJsonPointer,
-    demandDraftsHygieneSource: data.demandDraftsHygieneSource || 'unknown',
-    demandDraftsHygieneAt: data.demandDraftsHygieneAt || null,
-    demandDraftsHygieneAgeSec: data.demandDraftsHygieneAgeSec ?? null,
-    demandDraftsHygieneStale: data.demandDraftsHygieneStale ?? true,
-    demandDraftsHygieneReady: data.demandDraftsHygieneReady === true,
-    demandDraftsHygieneReadyJsonPointer: '/demandDraftsHygieneReady',
-    demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-    demandDraftsHygieneStatusPath: data.demandDraftsHygieneStatusPath || data.demandStatusPath,
-    demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-    demandStatusPath: data.demandStatusPath,
-    demandStatusPathJsonPointer: '/demandStatusPath',
-    // Minimal file-only entrypoint: one durable path plus the two fields an
-    // orienting agent needs before it decides whether to call the dashboard.
-    statusPathView: {
-      path: STATUS_JSON,
-      orientApi: data.orientApi,
-      orientUrl: data.orientUrl,
-      orientStatusJsonPath: data.orient?.statusJsonPath || STATUS_JSON,
-      orientApiJsonPointer: '/orientApi',
-      orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-      orientDemandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-      orientDemandDraftsHygieneOkJsonPointer: '/orient/demandDraftsHygieneOk',
-      orientDemandDraftsHygieneReadyJsonPointer: '/orient/demandDraftsHygieneReady',
-      demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-      demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-      demandDraftsHygieneReadyJsonPointer: '/demandDraftsHygieneReady',
-    },
-    visibility: {
-      orientApi: data.orientApi === '/api/orient',
-      orientCard: Boolean(data.orient),
-      orientDemandDraftsHygiene: data.orient?.demandDraftsHygiene != null,
-      demandDraftsHygiene: data.demandDraftsHygiene != null,
-      consistent: orientDemandDraftsHygieneConsistent,
-      complete: statusJsonContractComplete,
-    },
-  };
-  // Small, stable proof for agents that read dashboard-status.json directly.
-  // Keep values (not only JSON pointers) together so a single file read shows
-  // whether orientation and demand-draft hygiene are actually visible now.
-  data.statusVisibility = {
-    schema: 'demigod.dashboard-status-visibility/1',
-    // Keep the two cross-surface pointers at the front of this receipt: they
-    // are the minimal link from /api/orient back into dashboard-status.json.
-    orientJsonPointer: '/orient',
-    orientDemandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-    statusJsonPath: STATUS_JSON,
-    statusJsonPathVisible: data.statusJsonPath === STATUS_JSON,
-    orientApi: data.orientApi,
-    orientApiJsonPointer: '/orientApi',
-    // Treat only the canonical endpoint as visible. A non-empty typo would
-    // otherwise make the persisted dashboard receipt claim successful
-    // discovery while sending file-only agents to a missing route.
-    orientApiVisible: data.orientApi === '/api/orient',
-    orientUrl: data.orientUrl,
-    orientStatusJsonPath: data.orient?.statusJsonPath || STATUS_JSON,
-    orientVisible: Boolean(data.orient),
-    orientDemandDraftsHygieneVisible: data.orient?.demandDraftsHygiene != null,
-    orientDemandDraftsHygieneConsistent,
-    orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-    orientRoute: {
-      method: 'GET',
-      path: '/api/orient',
-      statusJsonPath: STATUS_JSON,
-    },
-    statusJsonPointers: {
-      statusJsonPath: '/statusJsonPath',
-      orientApi: '/orientApi',
-      orient: '/orient',
-      orientDraftsHygiene: '/orient/drafts/hygiene',
-      demandDraftsHygiene: '/demandDraftsHygiene',
-      orientDemandDraftsHygiene: '/orient/demandDraftsHygiene',
-      demandDraftsHygieneStatusPath: '/demandDraftsHygieneStatusPath',
-      demandStatusPath: '/demandStatusPath',
-    },
-    orientDemandDraftsHygieneOkJsonPointer: '/orient/demandDraftsHygieneOk',
-    orientDemandDraftsHygieneReady: data.orient?.demandDraftsHygieneReady === true,
-    orientDemandDraftsHygieneReadyJsonPointer: '/orient/demandDraftsHygieneReady',
-    orientDemandDraftsHygieneSourceJsonPointer: '/orient/demandDraftsHygieneSource',
-    orientDemandDraftsHygieneStatusPathJsonPointer: '/orient/demandDraftsHygieneStatusPath',
-    demandDraftsHygiene: data.demandDraftsHygiene || null,
-    demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-    demandDraftsHygieneVisible: data.demandDraftsHygiene != null,
-    demandDraftsHygieneOk: data.demandDraftsHygieneOk ?? null,
-    demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-    demandDraftsHygieneReady: data.demandDraftsHygieneReady === true,
-    demandDraftsHygieneReadyJsonPointer: '/demandDraftsHygieneReady',
-    demandDraftsHygieneSource: data.demandDraftsHygieneSource || 'unknown',
-    demandDraftsHygieneAt: data.demandDraftsHygieneAt || null,
-    demandDraftsHygieneAgeSec: data.demandDraftsHygieneAgeSec ?? null,
-    demandDraftsHygieneStale: data.demandDraftsHygieneStale ?? true,
-    demandDraftsHygieneStatusPath:
-      data.demandDraftsHygieneStatusPath || data.demandStatusPath,
-    demandStatusPath: data.demandStatusPath,
-    complete:
-      data.statusJsonPath === STATUS_JSON &&
-      data.orientApi === '/api/orient' &&
-      Boolean(data.orient) &&
-      data.orient?.demandDraftsHygiene != null &&
-      data.demandDraftsHygiene != null &&
-      orientDemandDraftsHygieneConsistent &&
-      // Visibility is not usability. Keep this one-read status-path receipt
-      // fail closed when the shared hygiene evidence is stale or flagged.
-      data.demandDraftsHygieneReady === true &&
-      data.orient?.demandDraftsHygieneReady === true,
-  };
   // Single fail-closed verdict shared by persisted status views, slim polling,
   // and /api/orient. Build it before the compact path view so that view never
   // publishes a raw receipt without its readiness decision.
@@ -2906,48 +3592,6 @@ async function enrichStatus(data) {
       },
     };
   }
-  // One durable locator for both the HTTP endpoint and the exact persisted
-  // hygiene field. This keeps file-only agents aligned with /api/orient.
-  data.statusDiscovery = {
-    schema: 'demigod.dashboard-status-discovery/1',
-    path: STATUS_JSON,
-    // Keep the canonical name alongside the legacy `path` field so consumers
-    // can copy this object between /api/status and /api/orient unchanged.
-    statusJsonPath: STATUS_JSON,
-    statusJsonPathJsonPointer: '/statusJsonPath',
-    orientApi: '/api/orient',
-    orientApiJsonPointer: '/orientApi',
-    orientUrl: data.orientUrl,
-    orientUrlJsonPointer: '/orientUrl',
-    orientField: 'orient',
-    orientJsonPointer: '/orient',
-    orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-    orientDraftsHygieneVerdictJsonPointer: '/orient/drafts/hygieneVerdict',
-    orientDraftsHygieneSourceReceiptJsonPointer: '/orient/drafts/sourceReceipt',
-    orientStatusJsonPathJsonPointer: '/orient/statusJsonPath',
-    orientDemandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-    orientDemandDraftsHygieneOkJsonPointer: '/orient/demandDraftsHygieneOk',
-    orientDemandDraftsHygieneSourceJsonPointer: '/orient/demandDraftsHygiene/source',
-    orientDemandDraftsHygieneExplicitSourceJsonPointer: '/orient/demandDraftsHygieneSource',
-    orientDemandDraftsHygieneStatusPathJsonPointer: '/orient/demandDraftsHygieneStatusPath',
-    orientDemandStatusPathJsonPointer: '/orient/demandStatusPath',
-    cycleWorkField: 'cycleWork',
-    cycleWorkJsonPointer: '/cycleWork',
-    cycleWorkPath: data.cycleWorkPath,
-    cycleWorkHealthField: 'cycleWorkHealth',
-    cycleWorkHealthJsonPointer: '/cycleWorkHealth',
-    cycleWorkAttestedJsonPointer: '/cycleWorkHealth/attested',
-    demandDraftsHygieneField: 'demandDraftsHygiene',
-    demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-    draftHygieneVerdictField: 'draftHygieneVerdict',
-    draftHygieneVerdictJsonPointer: '/draftHygieneVerdict',
-    demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-    demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-    demandDraftsHygieneSource: data.demandDraftsHygieneSource || 'unknown',
-    demandDraftsHygiene: data.demandDraftsHygiene || null,
-    draftHygieneVerdict: data.draftHygieneVerdict || null,
-    demandStatusPathJsonPointer: '/demandStatusPath',
-  };
   // Minimal file-reader view: consumers that only know dashboard-status.json
   // should not have to reverse-engineer the larger discovery contracts to
   // locate the live orient route and its persisted draft-hygiene evidence.
@@ -3040,79 +3684,9 @@ async function enrichStatus(data) {
       data.demandDraftsHygiene != null &&
       orientDemandDraftsHygieneConsistent &&
       // A consistent stale/flagged receipt is still unusable. Keep this
-      // compact file-reader contract aligned with statusPathView and the
+      // compact file-reader contract aligned with the
       // draftHygieneVerdict fail-closed readiness policy.
       data.draftHygieneVerdict?.ready === true,
-  };
-  // Canonical one-read agent entrypoint. Keep this deliberately smaller than
-  // the discovery/debug views above: readers of dashboard-status.json need the
-  // route, the exact demand shape returned by /api/orient, and a fail-closed
-  // consistency verdict without reconstructing JSON pointers.
-  data.agentOrientStatus = {
-    schema: 'demigod.agent-orient-status/1',
-    statusJsonPath: STATUS_JSON,
-    statusJsonPathVisible: data.statusJsonPath === STATUS_JSON,
-    api: '/api/orient',
-    url: data.orientUrl,
-    endpoint: {
-      method: 'GET',
-      path: '/api/orient',
-      statusJsonPath: STATUS_JSON,
-      demandDraftsHygieneJsonPointer: '/agentOrientStatus/demand/drafts/hygiene',
-      demandDraftsHygieneVerdictJsonPointer:
-        '/agentOrientStatus/demand/drafts/hygieneVerdict',
-      demandDraftsHygieneSourceReceiptJsonPointer:
-        '/agentOrientStatus/demand/drafts/sourceReceipt',
-      demandDraftsHygieneStatusPathJsonPointer:
-        '/agentOrientStatus/demand/drafts/statusPath',
-      demandDraftsHygieneStatusJsonPathJsonPointer:
-        '/agentOrientStatus/demand/drafts/statusJsonPath',
-      // Keep the durable file locator in the compact receipt itself. Agents
-      // can discover the HTTP route and verify the exact persisted evidence
-      // without first expanding statusDiscovery/statusJsonContract.
-      statusJsonPathViewJsonPointer: '/statusJsonPathView',
-    },
-    demand: {
-      drafts: {
-        hygiene: data.demandDraftsHygiene || null,
-        // Keep the evidence and its fail-closed interpretation adjacent in
-        // the compact status receipt. File-only readers must not infer that
-        // a present but stale/flagged hygiene object is ready.
-        hygieneVerdict: data.draftHygieneVerdict || null,
-        // Persist the source receipt path beside the evidence. This makes the
-        // compact status object independently auditable without a root-field
-        // join through demandDraftsHygieneStatusPath.
-        statusPath:
-          data.demandDraftsHygieneStatusPath || data.demandStatusPath || null,
-        // Keep the dashboard receipt location distinct from the upstream
-        // demand-status source. A file-only reader can now resolve this
-        // hygiene projection without inferring which path `statusPath` names.
-        statusJsonPath: STATUS_JSON,
-        // Materialize the receipt advertised by endpoint's
-        // demandDraftsHygieneSourceReceiptJsonPointer. Previously that pointer
-        // ended at a missing child of `hygiene`, so compact status consumers
-        // could discover the evidence but not its provenance in one read.
-        sourceReceipt: {
-          source: data.demandDraftsHygieneSource || 'unknown',
-          ...(data.demandDraftsHygiene?.sourceReceipt || data.demandStatusSourceReceipt || {}),
-          at: data.demandDraftsHygieneAt || null,
-          ageSec: data.demandDraftsHygieneAgeSec ?? null,
-          stale: data.demandDraftsHygieneStale ?? true,
-          statusPath:
-            data.demandDraftsHygieneStatusPath || data.demandStatusPath || null,
-        },
-      },
-    },
-    visible:
-      data.statusJsonPath === STATUS_JSON &&
-      data.orientApi === '/api/orient' &&
-      data.demandDraftsHygiene != null,
-    consistent: orientDemandDraftsHygieneConsistent,
-    ready:
-      data.statusJsonPath === STATUS_JSON &&
-      data.orientApi === '/api/orient' &&
-      data.demandDraftsHygieneReady === true &&
-      orientDemandDraftsHygieneConsistent,
   };
   // Freshness: verify vs foot-core (false PASS prevention)
   try {
@@ -3242,15 +3816,22 @@ async function enrichStatus(data) {
           at: snap.at,
           total: snap.summary?.total ?? snap.totalItems ?? 0,
           newCount: snap.newCount ?? 0,
+          pendingReviewCount: snap.pendingReviewCount ?? snap.newCount ?? 0,
+          operationalCount: snap.operationalCount ?? null,
+          testCount: snap.testCount ?? null,
+          spamCount: snap.spamCount ?? null,
+          incompleteCount: snap.incompleteCount ?? null,
+          pendingOperationalReviewCount: snap.pendingOperationalReviewCount ?? null,
           byKind: snap.summary?.byKind || snap.byKind || {},
           newestAt: snap.newestAt || null,
           newestAgeSec: snap.newestAgeSec ?? null,
+          operationalRows: (snap.operationalRows || []).slice(0, 12),
           rows: (snap.rows || []).slice(0, 12),
           actions: snap.actions || {},
         }
-      : { total: 0, newCount: 0, rows: [], error: 'no snapshot' };
+      : { total: 0, newCount: 0, pendingReviewCount: 0, rows: [], error: 'no snapshot' };
   } catch (e) {
-    data.inbox = { total: 0, newCount: 0, rows: [], error: String(e.message || e) };
+    data.inbox = { total: 0, newCount: 0, pendingReviewCount: 0, rows: [], error: String(e.message || e) };
   }
   // Match review queue — cache 60s (build can be heavy)
   try {
@@ -3263,7 +3844,7 @@ async function enrichStatus(data) {
       const msnap = buildQueue({ limit: 40 });
       try {
         fs.mkdirSync(BUSY, { recursive: true });
-        fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(msnap) + '\n');
+        writeJsonAtomic(path.join(BUSY, 'match-review-latest.json'), msnap);
       } catch {
         /* */
       }
@@ -3316,12 +3897,7 @@ async function enrichStatus(data) {
       data.controlCached = true;
     } else {
       const { buildControlPlane } = await import('./demigod-control.mjs');
-      try {
-        writeJsonAtomic(STATUS_JSON, { ...data, control: undefined });
-      } catch {
-        /* */
-      }
-      const plane = await buildControlPlane();
+      const plane = await buildControlPlane({ dashStatus: data });
       data.control = {
         at: plane.at,
         schema: plane.schema,
@@ -3377,7 +3953,7 @@ async function enrichStatus(data) {
     webflow: `http://127.0.0.1:${PORT}/api/webflow`,
     review: `http://127.0.0.1:${PORT}/api/review`,
   };
-  data.pulseKey = [
+  data.pulseKey = crypto.createHash('sha256').update([
     data.next?.id,
     data.next?.title,
     data.freeze?.on,
@@ -3387,7 +3963,17 @@ async function enrichStatus(data) {
     data.gates?.verifySourceFresh,
     data.smoke?.pass,
     data.jobQueue?.running,
-  ].join('|');
+    JSON.stringify([
+      data.work?.cycle,
+      data.work?.loopRunning,
+      data.work?.stale,
+      (data.work?.agents || []).map((agent) => [agent.id, agent.runtime, agent.lastResult, agent.at]),
+      data.work?.claims?.count,
+    ]),
+    JSON.stringify([data.inbox?.total, data.inbox?.newCount, data.inbox?.pendingReviewCount, data.inbox?.byKind, (data.inbox?.rows || []).map((r) => [r.id, r.status, r.matchingReady])]),
+    JSON.stringify([data.matches?.summary, (data.matches?.pairs || []).map((p) => [p.pairId, p.state, p.mutual])]),
+    JSON.stringify(data.formAnalytics?.forms || {}),
+  ].join('|')).digest('hex');
   return data;
 }
 
@@ -3404,7 +3990,7 @@ async function executeJob(jobId, toolId) {
   const t0 = Date.now();
   try {
     // Defense-in-depth: re-check freeze at execute time (not only startJob)
-    if (spec.mutate) {
+    if (spec.mutate && !spec.publishSafe) {
       const freeze = safeJson(path.join(BUSY, 'publish-freeze.json'));
       if (freeze?.on) {
         throw new Error('mutate blocked at execute — publish-freeze ON: ' + (freeze.why || ''));
@@ -3419,8 +4005,7 @@ async function executeJob(jobId, toolId) {
     });
     if (toolId === 'plan-inbox' && stdout && stdout.trim().startsWith('{')) {
       try {
-        fs.mkdirSync(BUSY, { recursive: true });
-        fs.writeFileSync(path.join(BUSY, 'plan-inbox-latest.json'), stdout.trim() + '\n');
+        atomicWrite(path.join(BUSY, 'plan-inbox-latest.json'), stdout.trim() + '\n', { mode: 0o600 });
       } catch {
         /* */
       }
@@ -3512,7 +4097,7 @@ function startJob(toolId, { allowMutate = false } = {}) {
   let mutateLockToken = null;
   if (spec.mutate) {
     const freeze = safeJson(path.join(BUSY, 'publish-freeze.json'));
-    if (freeze?.on) {
+    if (!spec.publishSafe && freeze?.on) {
       return {
         ok: false,
         error: 'mutate job blocked — publish-freeze is ON',
@@ -3527,7 +4112,7 @@ function startJob(toolId, { allowMutate = false } = {}) {
     // here — block ONLY on a valid, unexpired, foreign-owned lock. Corrupt/expired/own-lock reads fall
     // through (the foot-lock file is frequently malformed; over-blocking every dashboard mutate on a
     // stray parse error would be worse than the race the child already guards).
-    const footLock = safeJson(path.join(BUSY, 'foot-lock.json'));
+    const footLock = spec.publishSafe ? null : safeJson(path.join(BUSY, 'foot-lock.json'));
     const flExpiryMs = footLock?.expiresAt ? Date.parse(footLock.expiresAt) : NaN;
     if (
       footLock &&
@@ -3674,31 +4259,30 @@ if (process.argv.includes('--snapshot')) {
     statusJsonPathDemandDraftsHygieneJsonPointer: '/draftHygieneVerdict',
     draftHygieneVerdict: data.draftHygieneVerdict || null,
     draftHygieneVerdictReady: data.draftHygieneVerdict?.ready === true,
-    statusDiscovery: data.statusDiscovery || null,
-    // Preserve the persisted one-read proof in snapshot mode. Previously the
-    // snapshot exposed discovery pointers and the compact view, but omitted
-    // the receipt that says whether /api/orient + draft hygiene are both
-    // present and consistent in dashboard-status.json.
-    statusVisibility: data.statusVisibility || null,
-    statusVisibilityComplete: data.statusVisibility?.complete === true,
-    visibility: data.statusJsonContract?.visibility || null,
     // Keep the exact persisted-status view in the CLI snapshot. Cycle workers
     // can now verify /api/orient plus both hygiene projections from one read,
     // instead of reconstructing that contract from discovery pointers.
     statusJsonPathView: data.statusJsonPathView || null,
     statusJsonPathViewComplete: data.statusJsonPathView?.complete === true,
-    // Snapshot consumers get the same compact, fail-closed orient + hygiene
-    // receipt as readers of dashboard-status.json.
-    agentOrientStatus: data.agentOrientStatus || null,
-    agentOrientStatusReady: data.agentOrientStatus?.ready === true,
   }, null, 2));
   process.exit(0);
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://127.0.0.1:${PORT}`);
-  const noStore = { 'Cache-Control': 'no-store' };
+  for (const [name, value] of Object.entries(privateDashboardSecurityHeaders())) res.setHeader(name, value);
+  res.dgCorsOrigin = dashboardCorsOrigin(req.headers.origin || '', PORT);
+  const noStore = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
   try {
+    if (!dashboardLocalHost(req.headers.host || '', PORT)) {
+      jsonSend(res, 403, { ok: false, error: 'non_loopback_host_forbidden' });
+      return;
+    }
+    if (dashboardMutationIntent(req.method, url.pathname, url.search) && !localMutationRequest(req)) {
+      res.writeHead(403, { ...noStore, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'cross_origin_mutation_forbidden' }));
+      return;
+    }
     /* ==== SECTION: HTTP API routes (agent-first JSON) ==== */
     /* truth · unify · ledger · evidence · status · next · orient · events · presence · graph
      * jobs · ship-checklist · roadmap · inbox · matches · doctor · orca · control · webflow
@@ -3762,12 +4346,61 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
+    if (url.pathname === '/api/craft' || url.pathname === '/api/craft-log') {
+      try {
+        const craft = await import('./demigod-craft-log.mjs');
+        const mint = url.searchParams.get('mint');
+        if (req.method === 'POST' || mint) {
+          if (!localMutationRequest(req)) {
+            jsonSend(res, 403, { ok: false, error: 'craft mint local-only' });
+            return;
+          }
+          const kind = String(mint || url.searchParams.get('kind') || 'ship').toLowerCase();
+          const note = url.searchParams.get('note') || null;
+          let result;
+          if (kind === 'ship' || kind === 'ship_live') result = craft.mintShip(note);
+          else if (kind === 'event-ran' || kind === 'event_ran') result = craft.mintEventRan(note);
+          else if (kind === 'intro' || kind === 'mutual_intro') {
+            result = craft.mintIntro(url.searchParams.get('id') || url.searchParams.get('receipt') || '', note);
+          } else {
+            jsonSend(res, 400, { ok: false, error: 'unknown_mint_kind', kind });
+            return;
+          }
+          jsonSend(res, result.ok ? 200 : 409, {
+            at: new Date().toISOString(),
+            schema: 'demigod.craft-api/1',
+            mint: kind,
+            ...result,
+            status: craft.status(),
+          });
+          return;
+        }
+        const st = craft.status();
+        const entries = craft.loadEntries().slice(-40).reverse();
+        jsonSend(res, 200, {
+          at: new Date().toISOString(),
+          schema: 'demigod.craft-api/1',
+          ...st,
+          entries,
+          cmds: {
+            status: 'bin/dg craft status',
+            mintShip: 'bin/dg craft mint ship',
+            list: 'bin/dg craft list',
+            api: '/api/craft',
+          },
+        });
+      } catch (e) {
+        jsonSend(res, 500, { error: String(e.message || e) });
+      }
+      return;
+    }
     if (url.pathname === '/api/status' || url.pathname === '/api/status.json') {
       const force = url.searchParams.get('force') === '1';
       const pretty = url.searchParams.get('pretty') === '1';
       const slim = url.searchParams.get('slim') === '1';
+      const ui = url.searchParams.get('ui') === '1';
       const data = await getStatus({ force });
-      const payload = slim ? slimStatus(data) : data;
+      const payload = ui ? dashboardStatus(data) : slim ? slimStatus(data) : data;
       jsonSend(res, 200, payload, { pretty });
       return;
     }
@@ -3884,147 +4517,6 @@ const server = http.createServer(async (req, res) => {
       body.statusJsonPathVisible = true;
       body.orientApi = '/api/orient';
       body.orientUrl = `http://127.0.0.1:${PORT}/api/orient`;
-      // Give /api/orient the same small discovery surface as the persisted
-      // dashboard receipt. Callers can verify both the endpoint and hygiene
-      // evidence directly, without unpacking statusJsonContract first.
-      body.statusPathView = {
-        schema: 'demigod.dashboard-status-path-view/1',
-        path: STATUS_JSON,
-        orientApi: body.orientApi,
-        orientUrl: body.orientUrl,
-        orientApiVisible: body.orientApi === '/api/orient',
-        demandDraftsHygiene: body.demandDraftsHygiene,
-        demandDraftsHygieneVisible: body.demandDraftsHygiene != null,
-        demandDraftsHygieneOk: body.demandDraftsHygiene?.ok ?? null,
-        demandDraftsHygieneStatusPath: body.demandDraftsHygieneStatusPath,
-        complete:
-          body.orientApi === '/api/orient' &&
-          body.demandDraftsHygiene != null &&
-          Boolean(body.demandDraftsHygieneStatusPath),
-      };
-      // Mirror the compact persisted-status contract here. An agent entering
-      // through /api/orient can now discover the durable JSON receipt and the
-      // exact demand hygiene evidence without first fetching /api/status.
-      body.statusJsonContract = {
-        schema: 'demigod.dashboard-status-contract/1',
-        statusJsonPath: STATUS_JSON,
-        statusJsonPathJsonPointer: '/statusJsonPath',
-        orientApi: body.orientApi,
-        orientApiJsonPointer: '/orientApi',
-        orientUrl: body.orientUrl,
-        orientDraftsHygieneJsonPointer: '/orient/drafts/hygiene',
-        demandDraftsHygiene: body.demandDraftsHygiene,
-        demandDraftsHygieneOk: body.demandDraftsHygiene?.ok ?? null,
-        demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-        demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-        demandDraftsHygieneSource: body.demandDraftsHygieneSource,
-        demandDraftsHygieneAt: body.demandDraftsHygieneAt,
-        demandDraftsHygieneAgeSec: body.demandDraftsHygieneAgeSec,
-        demandDraftsHygieneStale: body.demandDraftsHygieneStale,
-        demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-        demandDraftsHygieneStatusPath: body.demandDraftsHygieneStatusPath,
-        demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-        demandStatusPath: body.demandStatusPath,
-        demandStatusPathJsonPointer: '/demandStatusPath',
-        statusPathView: {
-          path: STATUS_JSON,
-          orientApiJsonPointer: '/orientApi',
-          demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-          demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-          demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-          demandStatusPathJsonPointer: '/demandStatusPath',
-        },
-        visibility: {
-          orientApi: true,
-          orientCard: true,
-          orientDemandDraftsHygiene: body.demandDraftsHygiene != null,
-          demandDraftsHygiene: body.demandDraftsHygiene != null,
-          consistent: body.demandDraftsHygiene != null,
-          complete: body.demandDraftsHygiene != null,
-        },
-      };
-      // Give /api/orient the same one-read visibility receipt persisted in
-      // dashboard-status.json. This makes the endpoint and file contracts
-      // directly comparable instead of asking clients to infer visibility
-      // from a collection of nullable fields.
-      body.statusVisibility = {
-        schema: 'demigod.dashboard-status-visibility/1',
-        statusJsonPath: STATUS_JSON,
-        statusJsonPathVisible: body.statusJsonPath === STATUS_JSON,
-        orientApi: body.orientApi,
-        orientApiJsonPointer: '/orientApi',
-        orientApiVisible: true,
-        orientUrl: body.orientUrl,
-        orientStatusJsonPath: STATUS_JSON,
-        orientVisible: true,
-        // This response is the orient object; keep both its response-local
-        // pointer and the matching persisted dashboard-status.json pointer.
-        orientJsonPointer: '',
-        orientStatusJsonPointer: '/orient',
-        orientDemandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-        orientStatusDemandDraftsHygieneJsonPointer: '/orient/demandDraftsHygiene',
-        statusJsonPointers: {
-          statusJsonPath: '/statusJsonPath',
-          orientApi: '/orientApi',
-          orient: '/orient',
-          orientDraftsHygiene: '/orient/drafts/hygiene',
-          demandDraftsHygiene: '/demandDraftsHygiene',
-          orientDemandDraftsHygiene: '/orient/demandDraftsHygiene',
-          demandDraftsHygieneStatusPath: '/demandDraftsHygieneStatusPath',
-          demandStatusPath: '/demandStatusPath',
-        },
-        orientDemandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-        orientStatusDemandDraftsHygieneOkJsonPointer: '/orient/demandDraftsHygieneOk',
-        orientDemandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-        orientStatusDemandDraftsHygieneSourceJsonPointer: '/orient/demandDraftsHygieneSource',
-        orientDemandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-        orientStatusDemandDraftsHygieneStatusPathJsonPointer:
-          '/orient/demandDraftsHygieneStatusPath',
-        demandDraftsHygiene: body.demandDraftsHygiene,
-        demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-        demandDraftsHygieneVisible: body.demandDraftsHygiene != null,
-        demandDraftsHygieneOk: body.demandDraftsHygieneOk,
-        demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-        demandDraftsHygieneSource: body.demandDraftsHygieneSource,
-        demandDraftsHygieneAt: body.demandDraftsHygieneAt,
-        demandDraftsHygieneAgeSec: body.demandDraftsHygieneAgeSec,
-        demandDraftsHygieneStale: body.demandDraftsHygieneStale,
-        demandDraftsHygieneStatusPath: body.demandDraftsHygieneStatusPath,
-        demandStatusPath: body.demandStatusPath,
-        complete:
-          body.statusJsonPath === STATUS_JSON &&
-          body.orientApi === '/api/orient' &&
-          body.demandDraftsHygiene != null,
-      };
-      body.statusDiscovery = {
-        schema: 'demigod.dashboard-status-discovery/1',
-        path: STATUS_JSON,
-        statusJsonPath: STATUS_JSON,
-        statusJsonPathJsonPointer: '/statusJsonPath',
-        orientApi: '/api/orient',
-        orientApiJsonPointer: '/orientApi',
-        orientUrl: body.orientUrl,
-        orientUrlJsonPointer: '/orientUrl',
-        orientField: 'orient',
-        orientJsonPointer: '/orient',
-        orientStatusJsonPathJsonPointer: '/statusJsonPath',
-        // /api/orient returns the orient card itself, so these pointers are
-        // rooted in this response (the persisted dashboard status uses the
-        // nested /orient/... pointers assembled by enrichStatus above).
-        orientDemandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-        orientDemandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-        orientDemandDraftsHygieneSourceJsonPointer: '/demandDraftsHygiene/source',
-        orientDemandDraftsHygieneExplicitSourceJsonPointer: '/demandDraftsHygieneSource',
-        orientDemandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-        orientDemandStatusPathJsonPointer: '/demandStatusPath',
-        demandDraftsHygieneField: 'demandDraftsHygiene',
-        demandDraftsHygieneJsonPointer: '/demandDraftsHygiene',
-        demandDraftsHygieneOkJsonPointer: '/demandDraftsHygieneOk',
-        demandDraftsHygieneSourceJsonPointer: '/demandDraftsHygieneSource',
-        demandDraftsHygieneStatusPathJsonPointer: '/demandDraftsHygieneStatusPath',
-        demandDraftsHygieneSource: body.demandDraftsHygieneSource,
-        demandStatusPathJsonPointer: '/demandStatusPath',
-      };
       // Match the compact view persisted in dashboard-status.json so callers
       // entering through /api/orient can discover the durable receipt and
       // inspect demand.drafts.hygiene without translating contracts.
@@ -4126,6 +4618,7 @@ const server = http.createServer(async (req, res) => {
         // show that stale context until the next reconciliation poll.
         let lastFreezeKey = JSON.stringify(statusCache.data?.freeze || null);
         let lastHealthKey = JSON.stringify({
+          dashboardRuntime: statusCache.data?.dashboardRuntime || null,
           truthEvidence: statusCache.data?.truthEvidence || null,
           cycleWork: statusCache.data?.cycleWork || null,
           cycleWorkHealth: statusCache.data?.cycleWorkHealth || null,
@@ -4172,6 +4665,7 @@ const server = http.createServer(async (req, res) => {
                 lastJob = jr;
               }
               const health = {
+                dashboardRuntime: d.dashboardRuntime || null,
                 truthEvidence: d.truthEvidence || null,
                 cycleWork: d.cycleWork || null,
                 cycleWorkHealth: d.cycleWorkHealth || null,
@@ -4307,7 +4801,7 @@ const server = http.createServer(async (req, res) => {
         const lines = [
           `# Submissions inbox`,
           `at: ${ib.at || data.at}`,
-          `new: ${ib.newCount ?? 0} · total: ${ib.total ?? 0}`,
+          `awaiting review: ${ib.pendingReviewCount ?? ib.newCount ?? 0} · total: ${ib.total ?? 0}`,
           '',
         ];
         for (const r of ib.rows || []) {
@@ -4319,6 +4813,24 @@ const server = http.createServer(async (req, res) => {
       } else {
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data.inbox || {}, null, 2));
+      }
+      return;
+    }
+    if (url.pathname === '/api/events/submission-review' && req.method === 'POST') {
+      try {
+        const body = JSON.parse((await readBody(req)) || '{}');
+        const secret = eventsOpsSecret();
+        if (!secret) return jsonSend(res, 503, { ok: false, error: 'Events ops secret unavailable' });
+        const response = await fetch('http://127.0.0.1:3460/api/events-bot/submission-review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-dg-events-ops': secret },
+          body: JSON.stringify({ kind: body.kind, id: body.id, decision: body.decision, note: body.note }),
+        });
+        const result = await response.json();
+        if (response.ok) statusCache = { at: 0, data: null };
+        jsonSend(res, response.status, result);
+      } catch (error) {
+        jsonSend(res, 502, { ok: false, error: String(error.message || error) });
       }
       return;
     }
@@ -4375,7 +4887,12 @@ const server = http.createServer(async (req, res) => {
 
           if (action === 'consent') {
             const side = body.side;
-            const pair = consentPair(pairId, { side, actor });
+            const pair = consentPair(pairId, {
+              side,
+              actor,
+              attested: body.attested === true,
+              evidence: body.evidence,
+            });
             statusCache = { at: 0, data: null };
             pushEvent('match-consent', `${pairId} ${side} → ${pair.state}`, { pairId, side, state: pair.state });
             res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
@@ -4430,12 +4947,12 @@ const server = http.createServer(async (req, res) => {
         const { buildQueue } = await import('./demigod-match-review.mjs');
         const q = buildQueue({ state: stateFilter });
         fs.mkdirSync(BUSY, { recursive: true });
-        fs.writeFileSync(path.join(BUSY, 'match-review-latest.json'), JSON.stringify(q, null, 2) + '\n');
+        writeJsonAtomic(path.join(BUSY, 'match-review-latest.json'), q);
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(q, null, 2));
       } catch (e) {
         const data = await getStatus({});
-        res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
+        res.writeHead(500, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data.matches || { error: String(e.message || e) }, null, 2));
       }
       return;
@@ -4476,6 +4993,7 @@ const server = http.createServer(async (req, res) => {
         let keepAwake = false;
         try {
           const pid = Number(fs.readFileSync(path.join(ROOT, '.keep-awake.pid'), 'utf8').trim());
+          if (!Number.isInteger(pid) || pid <= 0) throw new Error('invalid keep-awake pid');
           process.kill(pid, 0);
           keepAwake = true;
         } catch {
@@ -4516,6 +5034,43 @@ const server = http.createServer(async (req, res) => {
         jsonSend(res, 200, board, { pretty });
       } catch (e) {
         jsonSend(res, 500, { error: String(e.message || e) });
+      }
+      return;
+    }
+    if (url.pathname === '/api/startup-atlas') {
+      const file = path.join(ROOT, STARTUP_ATLAS_FILE);
+      let input;
+      try {
+        const stat = fs.statSync(file);
+        if (!stat.isFile() || stat.size > 10_000_000) throw new Error('atlas file must be a regular file under 10 MB');
+        input = JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch (error) {
+        if (error?.code === 'ENOENT') {
+          jsonSend(res, 404, {
+            schema: STARTUP_ATLAS_SCHEMA,
+            status: 'not_generated',
+            generated: false,
+            message: 'The SF startup atlas has not been generated yet.',
+          });
+        } else {
+          jsonSend(res, 422, {
+            schema: STARTUP_ATLAS_SCHEMA,
+            status: 'invalid',
+            generated: false,
+            message: 'The SF startup atlas file could not be read as valid JSON.',
+          });
+        }
+        return;
+      }
+      try {
+        jsonSend(res, 200, startupAtlasView(input));
+      } catch (error) {
+        jsonSend(res, 422, {
+          schema: STARTUP_ATLAS_SCHEMA,
+          status: 'invalid',
+          generated: false,
+          message: String(error?.message || 'The SF startup atlas failed validation').slice(0, 240),
+        });
       }
       return;
     }
@@ -4671,7 +5226,7 @@ const server = http.createServer(async (req, res) => {
         };
         const claude = withFreshness(safeJson(path.join(coordDir, 'claude-last.json')));
         const codex = withFreshness(safeJson(path.join(coordDir, 'codex-last.json')));
-        const grok = withFreshness(safeJson(path.join(coordDir, 'grok-last.json')));
+        const grok = withFreshness(freshestGrokReceipt(coordDir));
         // Interactive tmux term-pump agents write term-*-last.json (separate from headless workers)
         const term = {
           claude: withFreshness(safeJson(path.join(coordDir, 'term-claude-last.json'))),
@@ -4695,16 +5250,7 @@ const server = http.createServer(async (req, res) => {
         } catch {
           /* */
         }
-        let pidAlive = false;
-        try {
-          const pid = parseInt(fs.readFileSync(path.join(coordDir, 'coord.pid'), 'utf8').trim(), 10);
-          if (Number.isInteger(pid) && pid > 0) {
-            process.kill(pid, 0);
-            pidAlive = true;
-          }
-        } catch {
-          pidAlive = false;
-        }
+        const pidAlive = pidFileAlive(path.join(coordDir, 'coord.pid'));
         let heartbeatAgeSec = null;
         try {
           heartbeatAgeSec = Math.max(0, Math.round((Date.now() - fs.statSync(path.join(coordDir, 'coord.heartbeat')).mtimeMs) / 1000));
@@ -4715,24 +5261,8 @@ const server = http.createServer(async (req, res) => {
         const stopRequested = fs.existsSync(path.join(coordDir, 'STOP'));
         const pidUnobservable = !pidAlive && heartbeatFresh && !stopRequested;
         const supervisorDown = !pidAlive && !heartbeatFresh && !stopRequested;
-        const workerGraceMs = { claude: 315000, codex: 255000, grok: 255000 };
-        const workerStatus = (name) => {
-          const pidFile = path.join(coordDir, `${name}.pid`);
-          try {
-            const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
-            if (!Number.isInteger(pid) || pid <= 0) return 'idle';
-            process.kill(pid, 0);
-            return 'busy';
-          } catch {
-            try {
-              return pidUnobservable && Date.now() - fs.statSync(pidFile).mtimeMs < workerGraceMs[name] ? 'pid-unobservable' : 'idle';
-            } catch {
-              return 'idle';
-            }
-          }
-        };
         const coordWorkers = Object.fromEntries(
-          ['claude', 'codex', 'grok'].map((name) => [name, workerStatus(name)]),
+          ['claude', 'codex', 'grok'].map((name) => [name, coordWorkerStatus(coordDir, name, pidUnobservable)]),
         );
         const effectiveBoard = board && {
           ...board,
@@ -4741,7 +5271,7 @@ const server = http.createServer(async (req, res) => {
             ...Object.fromEntries(
               Object.entries(coordWorkers).map(([name, status]) => [
                 name,
-                { ...(board.tracks?.[name] || {}), persistedStatus: board.tracks?.[name]?.status || null, status: status === 'pid-unobservable' ? board.tracks?.[name]?.status || status : status },
+                { ...(board.tracks?.[name] || {}), persistedStatus: board.tracks?.[name]?.status || null, status },
               ]),
             ),
           },
@@ -4821,11 +5351,12 @@ const server = http.createServer(async (req, res) => {
           evidence: truthEvidence,
           summaryLine: truth?.summaryLine || shipStatus?.nextAction || null,
           primaryBlocker: truth?.release?.primaryBlocker || truthEvidence?.reason || null,
-          recoveryCommand:
+          recoveryCommand: agentSafeCommand(
             truth?.release?.recovery?.command || shipStatus?.nextCmd || null,
+          ),
           at: truth?.at || shipStatus?.at || null,
           stage: shipStatus?.stage || null,
-          nextCmd: shipStatus?.nextCmd || null,
+          nextCmd: agentSafeCommand(shipStatus?.nextCmd || null),
           nextAction: shipStatus?.nextAction || null,
           facts: shipFacts,
           shipped: shipStatus?.shipped ?? null,
@@ -4845,8 +5376,7 @@ const server = http.createServer(async (req, res) => {
             ship.pass = false;
             ship.stage = ship.stage && ship.stage !== 'cdn_body_matches_disk' ? ship.stage : 'live_matches_disk_ver';
             ship.nextAction = `live v${l} disk v${d}`;
-            ship.nextCmd =
-              'node demigod-cm6-paste-publish.mjs  # live foot ver lags disk; paste footer after CDN';
+            ship.nextCmd = 'bin/dg ship prepare';
             ship.recoveryCommand = ship.nextCmd;
             ship.nextCmdSource = 'coord-honesty';
           }
@@ -4872,9 +5402,9 @@ const server = http.createServer(async (req, res) => {
               : pasteBlockedBy === 'no-custom-code-tab'
                 ? 'bin/dg-webflow open custom-code (authenticated session)'
                 : pasteBlockedBy === 'freeze'
-                  ? 'node demigod-publish-freeze.mjs off'
+                  ? 'node demigod-publish-freeze.mjs status'
                   : needsPaste
-                    ? 'bin/dg ship paste  # with foot lock'
+                    ? 'bin/dg ship prepare'
                     : null;
         } catch {
           /* */
@@ -4934,7 +5464,7 @@ const server = http.createServer(async (req, res) => {
           const hasTwitterCard = /name=["']twitter:card["']/.test(h);
           const hasRobots = /name=["']robots["']/.test(h);
           const hasColorScheme = /name=["']color-scheme["']/.test(h);
-          const cssUrl = (h.match(/<link[^>]+href=["'](https:\/\/files\.catbox\.moe\/[^"']+\.css)["']/i) || [])[1] || null;
+          const cssUrl = (h.match(/<link[^>]+href=["'](https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css)["']/i) || [])[1] || null;
           const diskCss = fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'));
           const diskCssSha = crypto.createHash('sha256').update(diskCss).digest('hex');
           const diskCssMd5 = crypto.createHash('md5').update(diskCss).digest('hex');
@@ -4996,7 +5526,7 @@ const server = http.createServer(async (req, res) => {
                 /* receipt write best-effort */
               }
             } catch {
-              /* catbox flaky — keep receipt result */
+              /* CDN flaky — keep receipt result */
             }
           }
           const metaReady =
@@ -5201,14 +5731,14 @@ const server = http.createServer(async (req, res) => {
         let diskReadyNote = null;
         if (onlyCssLag) {
           diskReadyNote =
-            'foot sealed + metaReady; re-publish head CSS via demigod-head-css-publish (intentional, not thrash)';
+            'foot sealed + metaReady; head CSS differs · external publish remains current-request-gated';
         } else if (onlyHeadCss && !footSealed) {
           if (dVer && mVer && dVer !== mVer) {
-            diskReadyNote = `disk v${dVer}≠man v${mVer} — bin/dg ship cdn then paste; then head CSS`;
+            diskReadyNote = `disk v${dVer}≠man v${mVer} — run bin/dg ship prepare`;
           } else if (dVer && lVer && dVer !== lVer) {
-            diskReadyNote = `live v${lVer} lags disk v${dVer} — CM6 paste (custom-code auth); then head CSS`;
+            diskReadyNote = `live v${lVer} lags disk v${dVer} — run bin/dg ship prepare`;
           } else {
-            diskReadyNote = 'head.css lag AND foot not sealed — ship foot then CSS';
+            diskReadyNote = 'head.css lag AND foot not sealed — run bin/dg ship prepare';
           }
         } else if (diskReadyBlockers.includes('foot.markers')) {
           diskReadyNote = 'foot version markers disagree (banner/internal/public/booted) — finish foot bump under lock';
@@ -5355,6 +5885,7 @@ const server = http.createServer(async (req, res) => {
           if (!text) continue;
           const at = d?.at || null;
           const ageMs = at ? Date.now() - Date.parse(at) : NaN;
+          if (!Number.isFinite(ageMs) || ageMs < -60_000) continue;
           const ageSec = Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null;
           recent.push({
             at,
@@ -5445,6 +5976,7 @@ const server = http.createServer(async (req, res) => {
             liveSnap = {
               at: live.at || null,
               ageSec: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
+              stale: !Number.isFinite(ageMs) || ageMs < -60_000 || ageMs > 30 * 60_000,
               pass: live.pass === true,
               open: findings.length,
               top: tops,
@@ -5455,7 +5987,7 @@ const server = http.createServer(async (req, res) => {
                 helloStatic ? 'hello@ in static HTML; runtime scrubs to potter@' : null,
               ].filter(Boolean).join(' · ') || null,
             };
-            if (liveSnap.open > 0) {
+            if (liveSnap.open > 0 && !liveSnap.stale) {
               const note = [volumeStatic ? 'canvas volume' : null, helloStatic ? 'hello@' : null].filter(Boolean);
               const noteBit = note.length ? ' · ' + note.join('+') + ' (JS scrub)' : '';
               const staticOnly = findings.every((f) => /volume promise|3-5|hello@/i.test(String(f.issue || '')));
@@ -5794,7 +6326,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/delta') {
       const data = await getStatus({});
       const since = url.searchParams.get('since') || null;
-      res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(200, {
+        ...noStore,
+        'Content-Type': 'application/json; charset=utf-8',
+        ...(res.dgCorsOrigin ? { 'Access-Control-Allow-Origin': res.dgCorsOrigin } : {}),
+      });
       res.end(JSON.stringify(buildDelta(data, since), null, 2));
       return;
     }
@@ -5935,7 +6471,7 @@ const server = http.createServer(async (req, res) => {
         if (url.searchParams.get('wait') === '1') {
           const job = await runJob('smoke');
           const fresh = safeJson(path.join(BUSY, 'agent-smoke.json'));
-          res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
+          res.writeHead(job.ok === false ? 409 : 200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ ...(fresh || {}), job }, null, 2));
           return;
         }
@@ -6016,7 +6552,7 @@ const server = http.createServer(async (req, res) => {
               how: {
                 async: `curl -X POST 'http://127.0.0.1:${PORT}/api/jobs?run=smoke'  # returns jobId immediately`,
                 poll: `curl -sS 'http://127.0.0.1:${PORT}/api/jobs/<jobId>'`,
-                wait: `curl -sS 'http://127.0.0.1:${PORT}/api/jobs?run=smoke&wait=1'`,
+                wait: `curl -sS -X POST 'http://127.0.0.1:${PORT}/api/jobs?run=smoke&wait=1'`,
               },
             },
             null,
@@ -6030,14 +6566,16 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: 'pass ?run=<id>', allowed: Object.keys(JOBS) }));
         return;
       }
+      // Dispatch always changes process/job state. Keeping it POST-only closes
+      // no-referrer cross-site GETs while preserving local CLI POSTs.
+      if (req.method !== 'POST') {
+        res.writeHead(405, { ...noStore, Allow: 'POST', 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'job dispatch requires POST' }));
+        return;
+      }
       // Mutate jobs: require POST + local Origin (CSRF soft-guard for browser tabs).
       // Authorize before both sync (?wait=1) and async dispatch paths.
       if (JOBS[id]?.mutate) {
-        if (req.method !== 'POST') {
-          res.writeHead(405, { ...noStore, 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'mutate jobs require POST' }));
-          return;
-        }
         const origin = req.headers.origin || '';
         const local = localMutationRequest(req);
         // curl has no Origin — allow; browser cross-origin blocked
@@ -6098,7 +6636,7 @@ const server = http.createServer(async (req, res) => {
       res.end(loadHtml());
       return;
     }
-    if (url.pathname === '/healthz' || url.pathname === '/health') {
+    if (url.pathname === '/healthz' || url.pathname === '/health' || url.pathname === '/api/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({

@@ -40,6 +40,8 @@ if (ship || wizard) {
     ['demigod-outbound-poison.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
     ['demigod-grok-ask-selftest.mjs'],
+    // grok-out contract projection (bold **VERDICT:** etc.) — transport=ok ≠ incomplete
+    ['demigod-agent-dashboard.mjs', ['--selftest-grok-out']],
     ['demigod-verify-source.mjs'],
 
     ['demigod-verify-live.mjs'],
@@ -50,8 +52,8 @@ if (ship || wizard) {
   if (browser) steps.push(['demigod-playtest-review.mjs']);
 
   let failed = 0;
-  for (const [script] of steps) {
-    const code = await run(script);
+  for (const [script, args = []] of steps) {
+    const code = await run(script, args);
     if (code !== 0) failed++;
   }
 
