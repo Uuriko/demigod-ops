@@ -1207,10 +1207,11 @@ export function draftHygiene(row) {
     }
   }
 
-  // Exact role/opening counts need a countable job board or YC jobs index — not a
-  // marketing /careers homepage that only says "Open roles" in chrome (Hellyeah live miss).
+  // Exact recipient role/opening counts need a countable job board or YC jobs index —
+  // not a marketing /careers homepage (Hellyeah live miss). Require has/have so Demigod's
+  // own "starts with one role and one 90-day outcome" pitch is not a false positive.
   const quantifiedRoleClaim = body.match(
-    /\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:current\s+)?(?:san francisco\s+|sf\s+)?(?:open\s+)?(?:openings?|roles?)\b/i,
+    /\b(?:has|have)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:current\s+)?(?:san francisco\s+|sf\s+)?(?:open\s+)?(?:openings?|roles?)\b/i,
   );
   if (quantifiedRoleClaim) {
     const sources = [...raw.matchAll(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/gim)].map((m) => m[1]);
