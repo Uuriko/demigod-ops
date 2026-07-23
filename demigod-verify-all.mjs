@@ -38,6 +38,13 @@ if (ship || wizard) {
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
     ['demigod-submissions-lib.test.mjs'],
     ['demigod-outbound-poison.test.mjs'],
+    // SF startup directory: YC-public merge + host dedupe + atlas honesty (not orphan unit-only)
+    ['demigod-startup-map-data.test.mjs'],
+    ['demigod-startup-atlas-web.test.mjs'],
+    // Jobs enrich slug honesty — domain-only slugs (blocks Camp/Cedar name→wrong ATS)
+    ['demigod-startup-jobs-enrich.mjs', ['--selftest']],
+    // Live smoke readiness polls through transient CDP evaluate timeouts
+    ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
     ['demigod-grok-ask-selftest.mjs'],
     // grok-out contract projection (bold **VERDICT:** etc.) — transport=ok ≠ incomplete

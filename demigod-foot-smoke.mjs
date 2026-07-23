@@ -30,6 +30,12 @@ export function runFootSmoke(src = '/home/potter/demigod-foot-core.js') {
 const code = fs.readFileSync(src, 'utf8');
 if (!/window\.__dgPageReturnFocus=document\.activeElement/.test(code)) throw new Error('product pages must remember their opener');
 if (!/returnFocus\.isConnected&&typeof returnFocus\.focus===['"]function['"]/.test(code)) throw new Error('product pages must restore focus to a connected opener');
+if (!/if \(rsvpBtn\) rsvpBtn\.disabled = true/.test(code)) throw new Error('public RSVP submit must disable its button while a request is in flight (double-submit guard)');
+if (!/if \(rsvpBtn\) rsvpBtn\.disabled = false/.test(code)) throw new Error('public RSVP submit must re-enable its button after the request settles');
+const executable = code.replace(
+  'window.__dgScrub = scrubStaticLabels;',
+  'window.__dgScrub = scrubStaticLabels; window.__dgClosePageForSmoke = closePage;',
+);
 const document = {
   body: makeEl(), head: makeEl(), documentElement: makeEl(),
   createElement: () => makeEl(),
@@ -37,9 +43,12 @@ const document = {
   addEventListener() {},
 };
 const thenable = { then() { return this; }, catch() { return this; } };
+let replacedUrl = null;
 const sandbox = {
   document,
   location: { hash: '', href: 'https://www.trydemigod.com/' },
+  history: { state: null, replaceState(_state, _title, url) { replacedUrl = String(url); } },
+  URL, URLSearchParams,
   navigator: { userAgent: 'smoke' },
   getComputedStyle: () => ({ display: 'block' }),
   MutationObserver: class { observe() {} disconnect() {} },
@@ -51,8 +60,14 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 
 let threw = null;
-try { vm.runInNewContext(code, sandbox, { filename: src, timeout: 5000 }); }
+try { vm.runInNewContext(executable, sandbox, { filename: src, timeout: 5000 }); }
 catch (e) { threw = e; }
+
+if (!threw && typeof sandbox.window.__dgClosePageForSmoke === 'function') {
+  sandbox.location.href = 'https://www.trydemigod.com/events?utm_source=smoke#calendar';
+  sandbox.window.__dgClosePageForSmoke();
+}
+const hardRouteCloseOk = replacedUrl === '/?utm_source=smoke#calendar';
 
 const privateVer = String(sandbox.window.__dgFootVer || '').replace(/^v/i, '');
 const publicVer = String(sandbox.window.dgFootVersion || '').replace(/^v/i, '');
@@ -60,7 +75,7 @@ const markersAgree = Boolean(privateVer && publicVer && privateVer === publicVer
 const decisionSequences = (code.match(/<ol class=["']dg-decision-grid["']/g) || []).length;
 const decisionSequenceLabels = (code.match(/aria-label=["'][^"']+decision sequence["']/g) || []).length;
 const decisionSemanticsOk = decisionSequences >= 2 && decisionSequenceLabels >= 2;
-const decisionPathIds = ['how', 'founders', 'candidates', 'pricing', 'faq', 'compare'];
+const decisionPathIds = ['how', 'founders', 'candidates', 'pricing', 'faq', 'method', 'compare', 'about'];
 const missingDecisionPaths = decisionPathIds.filter((id) =>
   !code.includes(`data-dg-page="${id}"`));
 const decisionPathsOk = missingDecisionPaths.length === 0;
@@ -74,7 +89,11 @@ const scalingAudienceHireScrubOk = code.includes('GROWING|SCALING|EARLY[\\s-]?ST
   code.includes('TEAMS?|STARTUPS?|COMPAN(?:Y|IES)') &&
   code.includes('teams?|startups?|compan(?:y|ies)');
 const tapTargetFloorOk = /#dg-nav-hire,#dg-nav-talent,#dg-bar a\{min-height:48px!important\}/.test(code);
-const pass = !threw && markersAgree && decisionSemanticsOk && decisionPathsOk && volumePrefixScrubOk && volumeSuffixSlashScrubOk && legacyHireDeservesScrubOk && founderAudienceHireScrubOk && scalingAudienceHireScrubOk && tapTargetFloorOk;
+const sampleCtaRouteOk = /See a fictional match note[\s\S]{0,500}openPage\(['"]sample['"],true\)/.test(code) &&
+  !/dg-sample-match,#jobseeker-modal \.dg-sample-match\{display:none!important\}/.test(code) &&
+  !/done\.offsetParent===null&&getComputedStyle\(done\)\.display===['"]none['"]/.test(code);
+const usefulPassOk = code.includes('A useful pass') && code.includes('do not force an intro');
+const pass = !threw && markersAgree && decisionSemanticsOk && decisionPathsOk && volumePrefixScrubOk && volumeSuffixSlashScrubOk && legacyHireDeservesScrubOk && founderAudienceHireScrubOk && scalingAudienceHireScrubOk && tapTargetFloorOk && sampleCtaRouteOk && usefulPassOk && hardRouteCloseOk;
 const markerError = !threw && !markersAgree
   ? `foot version markers disagree (public=${publicVer || 'missing'}, private=${privateVer || 'missing'})`
   : null;
@@ -102,6 +121,15 @@ const scalingAudienceHireError = !threw && markersAgree && decisionSemanticsOk &
 const tapTargetError = !threw && markersAgree && decisionSemanticsOk && decisionPathsOk && volumePrefixScrubOk && volumeSuffixSlashScrubOk && legacyHireDeservesScrubOk && founderAudienceHireScrubOk && scalingAudienceHireScrubOk && !tapTargetFloorOk
   ? 'shared hero/nav/mobile CTAs do not enforce the 48px tap-target floor'
   : null;
+const hardRouteCloseError = !threw && markersAgree && decisionSemanticsOk && decisionPathsOk && volumePrefixScrubOk && volumeSuffixSlashScrubOk && legacyHireDeservesScrubOk && founderAudienceHireScrubOk && scalingAudienceHireScrubOk && tapTargetFloorOk && !hardRouteCloseOk
+  ? `closing /events produced ${replacedUrl || 'no history update'}, expected / with query/hash preserved`
+  : null;
+const sampleCtaRouteError = !threw && !sampleCtaRouteOk
+  ? 'post-submit next action is hidden or does not open the fictional match note'
+  : null;
+const usefulPassError = !threw && !usefulPassOk
+  ? 'fictional sample route does not explain a useful pass'
+  : null;
 return {
   pass,
   version: markersAgree ? privateVer : null,
@@ -117,12 +145,30 @@ return {
   founderAudienceHireScrubOk,
   scalingAudienceHireScrubOk,
   tapTargetFloorOk,
-  error: threw ? String(threw.message || threw) : (markerError || semanticsError || pathsError || volumeError || volumeSuffixSlashError || legacyHireDeservesError || founderAudienceHireError || scalingAudienceHireError || tapTargetError),
+  sampleCtaRouteOk,
+  usefulPassOk,
+  hardRouteCloseOk,
+  error: threw ? String(threw.message || threw) : (markerError || semanticsError || pathsError || volumeError || volumeSuffixSlashError || legacyHireDeservesError || founderAudienceHireError || scalingAudienceHireError || tapTargetError || sampleCtaRouteError || usefulPassError || hardRouteCloseError),
 };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const result = runFootSmoke(process.argv[2]);
+  const smokeArgs = process.argv.slice(2);
+  if (smokeArgs.includes('--help') || smokeArgs.includes('-h')) {
+    console.log(`demigod-foot-smoke — boot foot-core in a DOM shim
+
+Usage: node demigod-foot-smoke.mjs [path/to/foot.js]`);
+    process.exit(0);
+  }
+  const pathArg = smokeArgs.find((a) => !a.startsWith('-'));
+  const unknown = smokeArgs.find((a) => a.startsWith('-'));
+  if (unknown) {
+    console.error(
+      `foot-smoke: unknown argument ${unknown} — try: node demigod-foot-smoke.mjs [path/to/foot.js]`,
+    );
+    process.exit(2);
+  }
+  const result = runFootSmoke(pathArg);
   console.log(JSON.stringify(result));
   process.exit(result.pass ? 0 : 1);
 }

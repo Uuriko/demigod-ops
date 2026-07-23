@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /** Bulk-mark e2e / playtest inbox noise as spam. */
-import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadInbox, saveInbox, extractEmail } from './demigod-submissions-lib.mjs';
+import { loadInbox, updateInbox, extractEmail } from './demigod-submissions-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-INBOX-TRIAGE.json');
-const DRY = process.argv.includes('--dry-run');
+const APPLY = process.argv.includes('--apply');
+
+function maskEmail(email) {
+  return email ? String(email).replace(/(^.).*(@.*$)/, '$1***$2') : '';
+}
 
 function isE2eItem(item) {
   const raw = item.raw || {};
@@ -42,41 +46,49 @@ function isE2eItem(item) {
   // RFC 2606 reserved TLDs can never belong to a real submitter (sms-sim uses @pending.example).
   if (/@[^@]*\.(example|test|invalid|localhost)$/i.test(email)) return 'reserved_tld_fixture';
 
+  // Empty unknown form with no fields is noise, not a real lead.
+  const rawKeys = Object.keys(raw).filter((k) => String(raw[k] ?? '').trim());
+  if ((form === 'unknown' || !form) && !email && rawKeys.length === 0) return 'empty_unknown_form';
+
   return null;
 }
 
 function main() {
-  const inbox = loadInbox();
   const marked = [];
   const kept = [];
 
-  for (const item of inbox.items || []) {
-    if (item.status !== 'new' && item.status !== 'pending') continue;
-    const reason = isE2eItem(item);
-    if (!reason) {
-      if (item.status === 'new') kept.push({ id: item.id, form: item.form, email: extractEmail(item.raw || {}, item.form) });
-      continue;
+  // new/pending open queue + updated SMS sims + orphan featured e2e (roles not on board).
+  // Never rewrite already-spam/rejected/reviewed operational records.
+  const triageable = new Set(['new', 'pending', 'updated', 'featured']);
+  const triage = (inbox) => {
+    for (const item of inbox.items || []) {
+      if (!triageable.has(item.status)) continue;
+      const reason = isE2eItem(item);
+      if (!reason) {
+        if (item.status === 'new') kept.push({ id: item.id, form: item.form, email: maskEmail(extractEmail(item.raw || {}, item.form)) });
+        continue;
+      }
+      marked.push({ id: item.id, form: item.form, reason, was: item.status, featuredId: item.featuredId || null });
+      if (APPLY) {
+        item.status = 'spam';
+        item.rejectReasons = [...new Set([...(item.rejectReasons || []), reason, 'bulk_triage'])];
+        item.reviewedAt = new Date().toISOString();
+      }
     }
-    marked.push({ id: item.id, form: item.form, reason, was: item.status });
-    if (!DRY) {
-      item.status = 'spam';
-      item.rejectReasons = [...new Set([...(item.rejectReasons || []), reason, 'bulk_triage'])];
-      item.reviewedAt = new Date().toISOString();
-    }
-  }
-
-  if (!DRY && marked.length) saveInbox(inbox);
+  };
+  if (APPLY) updateInbox(triage);
+  else triage(loadInbox());
 
   const summary = {
     at: new Date().toISOString(),
-    dryRun: DRY,
+    dryRun: !APPLY,
     marked: marked.length,
     keptNew: kept.length,
     kept,
     markedIds: marked.map((m) => m.id),
     details: marked,
   };
-  fs.writeFileSync(OUT, JSON.stringify(summary, null, 2));
+  atomicWrite(OUT, JSON.stringify(summary, null, 2), { mode: 0o600 });
   console.log(JSON.stringify(summary, null, 2));
   process.exit(0);
 }

@@ -1,9 +1,10 @@
 <script id="dg-path-redirects">
 (function(){try{
-  var p=location.pathname, s=location.search||'';
+  var p=location.pathname, s=location.search||'', h=location.hash||'';
+  function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
   if(/[?&]p=/.test(s)||/[?&]wiz=/.test(s)) return;
   var pp=p.match(new RegExp('^/p/([a-z0-9-]+)/?$','i'));
-  if(pp){ location.replace('/?p='+pp[1].toLowerCase()); return; }
+  if(pp){ go('/?p='+pp[1].toLowerCase()); return; }
   var map={
     '/fees':'/?p=pricing','/security':'/?p=legal','/sample':'/?p=sample','/pilot':'/?p=pilot',
     '/network':'/?p=talent','/hire':'/?p=hire','/talent':'/?p=talent','/contact':'/?p=contact',
@@ -23,10 +24,10 @@
     '/apply':'/?wiz=startup','/engineers':'/?p=candidates','/jobs':'/?wiz=engineer','/careers':'/?wiz=engineer'
   };
   var key=(p||'/').replace(/\/+$/,'')||'/';
-  if(key!=='/' && map[key.toLowerCase()]) location.replace(map[key.toLowerCase()]);
+  if(key!=='/' && map[key.toLowerCase()]) go(map[key.toLowerCase()]);
   else {
     var m=p.match(/^\/(?:blog|notes)\/([a-z0-9-]+)\/?$/i);
-    if(m) location.replace('/?p=blog#note-'+m[1]);
+    if(m) go('/?p=blog#note-'+m[1]);
   }
 }catch(e){}})();</script>
 
@@ -35,8 +36,8 @@
     <p style="margin:0 0 .75rem">Continue on Demigod (no JavaScript):</p>
     <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
       <a href="/">Home</a>
-      <a href="/?wiz=startup">I'm hiring</a>
-      <a href="/?wiz=engineer">I'm looking</a>
+      <a href="/?wiz=startup">Hire talent</a>
+      <a href="/?wiz=engineer">Join the talent network</a>
       <a href="/?p=pricing">Pricing</a>
       <a href="/?p=how">How it works</a>
       <a href="/?p=blog">Blog</a>
@@ -85,7 +86,8 @@ try{(function(){
       }catch(_){}
     });
     document.body.insertBefore(a,document.body.firstChild);
-    var main=document.querySelector('main'); if(main&&!main.id)main.id='main';
+    var main=document.querySelector('main')||document.querySelector('.hero-section'); if(main&&!main.id)main.id='main';if(main&&main.tagName!=='MAIN'&&!main.hasAttribute('role'))main.setAttribute('role','main');
+    var hero=document.querySelector('.hero-section h1,.hero-title,.header h1');if(hero){hero.textContent='DEMIGOD';hero.setAttribute('data-dg-hero-h1','1')}
   }
   if(document.body)ensure(); else document.addEventListener('DOMContentLoaded',ensure,{once:true});
 })()}catch(e){}</script>
@@ -179,11 +181,11 @@ try{(function(){
     [/Humans send you curated SF candidates\.?/gi,'A human reads every brief and proposes strong fits.'],
     [/Humans match you to SF startups that fit\.?/gi,'Humans propose SF startups that fit; intros only after both sides approve.'],
     [/Share the role, skills, and comp range\./gi,'Share the role, skills, and a 90-day outcome.'],
-    [/\bFIND TALENT\b/g,"I'm hiring"],
-    [/\bHIRE TALENT\b/g,"I'm hiring"],
-    [/\bJOIN NETWORK\b/g,"I'm looking"],
-    [/HIRE SF STARTUP TALENT/gi,"I'm hiring"],
-    [/GET MATCHED TO SF STARTUPS/gi,"I'm looking"],
+    [/\bFIND TALENT\b/g,'Hire talent'],
+    [/\bHIRE TALENT\b/g,'Hire talent'],
+    [/\bJOIN NETWORK\b/g,'Join the talent network'],
+    [/HIRE SF STARTUP TALENT/gi,'Hire talent'],
+    [/GET MATCHED TO SF STARTUPS/gi,'Join the talent network'],
     [/90-?\s*day replacement guarantee/gi,'90-day outcome focus (replacement policy pending)'],
     [/SF BAY AREA STARTUP MATCHING/gi,'SF · TECH-MATCHED'],
     [/Access to pre-vetted SF talent/gi,'Human-reviewed SF Bay matches'],
@@ -287,16 +289,12 @@ try{(function(){
 <meta name="msapplication-TileColor" content="#0A0A0A">
 <meta name="msapplication-TileImage" content="https://files.catbox.moe/ges75q.jpg">
 <meta name="format-detection" content="telephone=no">
-<meta name="description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
-
 <link rel="icon" href="https://files.catbox.moe/ges75q.jpg" type="image/jpeg" sizes="1024x1024">
 <link rel="apple-touch-icon" href="https://files.catbox.moe/ges75q.jpg" type="image/jpeg" sizes="1024x1024">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2211%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%221.25%22%20opacity%3D%220.55%22/%3E%3Cpath%20d%3D%22M10.5%2016a5.5%205.5%200%200%201%205.5-5.5%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M21.5%2016a5.5%205.5%200%200%201-5.5%205.5%22%20fill%3D%22none%22%20stroke%3D%22%2310c674%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%222.35%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E" type="image/svg+xml" sizes="any">
-<link rel="canonical" href="https://www.trydemigod.com/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Demigod">
 <meta property="og:locale" content="en_US">
-<meta property="og:title" content="Demigod • Tech-Matched SF Startup Talent">
 <meta property="og:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
 <meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:secure_url" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
@@ -319,15 +317,17 @@ try{(function(){
   var p=new URLSearchParams(location.search);
   var id=(p.get('p')||p.get('page')||'').toLowerCase();
   if(!id && (path==='/blog'||path==='/notes'||/^\/(blog|notes)\//.test(path))) id='blog';
+  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,partners:1,compare:1,pilot:1,about:1,founders:1,candidates:1,status:1,method:1,blog:1,map:1,events:1,sample:1};
+  if(!id&&path!=='/')id=path.slice(1);
+  var url=allowed[id]?'https://www.trydemigod.com/?p='+encodeURIComponent(id):'https://www.trydemigod.com/';
+  var can=document.createElement('link');can.rel='canonical';can.href=url;document.head.appendChild(can);
+  var og=document.querySelector('meta[property="og:url"]'); if(og)og.setAttribute('content',url);
+  var tw=document.querySelector('meta[name="twitter:url"]'); if(tw)tw.setAttribute('content',url);
   if(id!=='blog')return;
-  var url='https://www.trydemigod.com/?p=blog';
   var title='Demigod Notes — product, pricing, privacy, events';
   var desc='Short notes on 90-day outcomes, private match packets, and human-reviewed intros.';
   var img='https://files.catbox.moe/urbco5.jpg';
   var imgAlt='Demigod Notes — product, pricing, privacy, events';
-  var can=document.querySelector('link[rel=canonical]'); if(can)can.setAttribute('href',url);
-  var og=document.querySelector('meta[property="og:url"]'); if(og)og.setAttribute('content',url);
-  var tw=document.querySelector('meta[name="twitter:url"]'); if(tw)tw.setAttribute('content',url);
   var ogt=document.querySelector('meta[property="og:title"]'); if(ogt)ogt.setAttribute('content',title);
   var twt=document.querySelector('meta[name="twitter:title"]'); if(twt)twt.setAttribute('content',title);
   var ogd=document.querySelector('meta[property="og:description"]'); if(ogd)ogd.setAttribute('content',desc);
@@ -343,14 +343,9 @@ try{(function(){
 <style id="dg-hide-insights">#insights-section,.insights-section{display:none!important}</style>
 <style id="hide-webflow-badge">a.w-webflow-badge,.w-webflow-badge{display:none!important}</style>
 <style id="dg-simplify">.w-nav .w-dropdown,.w-nav .w-dropdown-toggle,.w-mega-menu,.mega-menu,[class*="mega-menu"]{display:none!important}footer .w-layout-grid,.footer .w-layout-grid{display:none!important}</style>
-<link rel="preconnect" href="https://files.catbox.moe" crossorigin>
-<link rel="preconnect" href="https://cdn.prod.website-files.com" crossorigin>
+<link rel="dns-prefetch" href="https://files.catbox.moe">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="dns-prefetch" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Unbounded:wght@600;700&display=swap">
-<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Unbounded:wght@600;700&display=optional">
 <link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
 
 <style id="dg-hero-ar">.hero-section img,.hero-content-right img,.statue-frame,.statue-wrapper{aspect-ratio:16/9;max-width:100%;height:auto}.statue-svg{aspect-ratio:2/3;width:100%;height:auto}</style>
@@ -416,7 +411,7 @@ video,iframe{display:block;border:0}
 ::file-selector-button{font:inherit;color:#0A0A0A;background:var(--g);border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}
 @media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#C9A84C;color:#0A0A0A}}
 @media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}</style>
-<link rel="stylesheet" href="https://files.catbox.moe/8s6x5e.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@2c99905fd0dc4ff397abea57e2f29f7c6f154c51/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
 <!-- Demigod forms --><!-- openModal --><!-- demigod-polish -->
 
 <script id="dg-early-copy-scrub">
@@ -428,10 +423,11 @@ try{(function(){
       var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),n;
       while(n=w.nextNode()){
         if(!n.nodeValue)continue;
+        if(n.parentElement&&n.parentElement.closest('[data-dg-hero-h1],.hero-section h1,.header h1,h1.hero-title'))continue;
         if(/within\s*\d+\s*hours?/i.test(n.nodeValue)||new RegExp(('4'+'8')+'\\s*h').test(n.nodeValue)||new RegExp(('2'+'4')+'\\s*h').test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:within\s*)?\d+\s*hours?/gi,'soon').replace(new RegExp(('4'+'8')+'\\s*h(?:ours?)?','gi'),'soon').replace(new RegExp(('2'+'4')+'\\s*h(?:ours?)?','gi'),'soon');
         if(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/i.test(n.nodeValue)||/\bI['’]?m hiring\b/i.test(n.nodeValue))
-          n.nodeValue=n.nodeValue.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring").replace(/\bI['’]?m hiring\b/gi,"I'm hiring");
+          n.nodeValue=n.nodeValue.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,'Hire talent').replace(/\bI['’]?m hiring\b/gi,'Hire talent');
         if(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/i.test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist');
         if(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/i.test(n.nodeValue))
@@ -440,10 +436,11 @@ try{(function(){
         if(junk.test(n.nodeValue)) n.nodeValue=' ';
       }
       document.querySelectorAll('[aria-label],[title],[alt]').forEach(function(el){
+        if(el.closest('[data-dg-hero-h1],.hero-section h1,.header h1,h1.hero-title'))return;
         ['aria-label','title','alt'].forEach(function(attr){
           if(!el.hasAttribute(attr))return;
           var v=el.getAttribute(attr)||'';
-          v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,"I'm hiring").replace(/\bI['’]?m hiring\b/gi,"I'm hiring")
+          v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,'Hire talent').replace(/\bI['’]?m hiring\b/gi,'Hire talent')
             .replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist')
             .replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'90-day outcome focus');
           el.setAttribute(attr,v);
@@ -477,8 +474,8 @@ try{(function(){
       try{document.documentElement.classList.add('dg-contact-honest')}catch(_){}
       document.querySelectorAll('.btn-label,.button_label').forEach(function(el){
         var t=(el.textContent||'').replace(/\s+/g,' ').trim();
-        if(/^(FIND TALENT|HIRE TALENT|I['’]?M HIRING)$/i.test(t)) el.textContent="I'm hiring";
-        else if(/^(JOIN NETWORK|GET MATCHED)$/i.test(t)) el.textContent="I'm looking";
+        if(/^(FIND TALENT|HIRE TALENT|I['’]?M HIRING)$/i.test(t)) el.textContent='Hire talent';
+        else if(/^(JOIN NETWORK|GET MATCHED|I['’]?M LOOKING)$/i.test(t)) el.textContent='Join the talent network';
       });
       try{document.documentElement.classList.add('dg-cta-honest')}catch(_){}
       document.querySelectorAll('.pricing-card div,.pricing-card li,.pricing-grid div').forEach(function(el){
@@ -501,7 +498,7 @@ try{(function(){
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
-<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"I'm hiring","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"I'm looking","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Method","url":"https://www.trydemigod.com/?p=method"},{"@type":"ListItem","position":9,"name":"For founders","url":"https://www.trydemigod.com/?p=founders"},{"@type":"ListItem","position":10,"name":"For talent","url":"https://www.trydemigod.com/?p=candidates"},{"@type":"ListItem","position":11,"name":"Pilot","url":"https://www.trydemigod.com/?p=pilot"},{"@type":"ListItem","position":12,"name":"Compare","url":"https://www.trydemigod.com/?p=compare"},{"@type":"ListItem","position":13,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":14,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":15,"name":"About","url":"https://www.trydemigod.com/?p=about"},{"@type":"ListItem","position":16,"name":"Status","url":"https://www.trydemigod.com/?p=status"}]}</script>
+<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Join the talent network","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Method","url":"https://www.trydemigod.com/?p=method"},{"@type":"ListItem","position":9,"name":"For founders","url":"https://www.trydemigod.com/?p=founders"},{"@type":"ListItem","position":10,"name":"For talent","url":"https://www.trydemigod.com/?p=candidates"},{"@type":"ListItem","position":11,"name":"Pilot","url":"https://www.trydemigod.com/?p=pilot"},{"@type":"ListItem","position":12,"name":"Compare","url":"https://www.trydemigod.com/?p=compare"},{"@type":"ListItem","position":13,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":14,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":15,"name":"About","url":"https://www.trydemigod.com/?p=about"},{"@type":"ListItem","position":16,"name":"Status","url":"https://www.trydemigod.com/?p=status"}]}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
@@ -536,7 +533,7 @@ document.addEventListener('DOMContentLoaded',function(){
           var t=(el.textContent||'').trim();
           if(!t||t.length>180)return;
           if(/^(?:find|hire)\s+(?:sf\s+)?(?:engineering\s+)?talent[.!]?$/i.test(t)||/^I['’]?m hiring[.!]?$/i.test(t)){
-            el.textContent="I'm hiring";
+            el.textContent='Hire talent';
             if(el.matches('a'))el.setAttribute('href','/?wiz=startup');
           }else if(/(?:3\s*(?:[–—-]|to)\s*5|three\s+to\s+five)\s+(?:[\w-]+\s+){0,3}(?:candidates?|matches?|profiles?|finalists?)/i.test(t)){
             el.textContent='Meet curated matches';
@@ -549,12 +546,13 @@ document.addEventListener('DOMContentLoaded',function(){
         if(!root)return;
         var links=root.querySelectorAll('a');
         // Must match foot COPY.ctaFounder / ctaEngineer (verify head:cta-fallback)
-        ["I'm hiring","I'm looking"].forEach(function(label,i){
+        ['Hire talent','Join the talent network'].forEach(function(label,i){
           var link=links[i]; if(!link)return;
           var text=link.querySelector('.btn-label,.button_label')||link;
           text.textContent=label;
           link.setAttribute('data-dg-cta',i===0?'hire':'talent');
           link.setAttribute('href',i===0?'/?wiz=startup':'/?wiz=engineer');
+          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Join the talent network — open private talent profile');
         });
       }
       labelPair(document.querySelector('.hero-actions'));

@@ -1973,7 +1973,12 @@ function buildAgentBrief(data) {
     lines.push(`  review: bin/dg-matches list · curl -sS http://127.0.0.1:${PORT}/api/matches`);
   }
   if (data.inbox && !data.inbox.error) {
-    lines.push(`- submissions inbox: awaiting_review=${data.inbox.pendingReviewCount ?? data.inbox.newCount ?? 0} total=${data.inbox.total ?? 0}`);
+    // Operational only — total pendingReviewCount includes SMS @pending.example sims.
+    const opsPending = data.inbox.pendingOperationalReviewCount ?? 0;
+    const testN = data.inbox.testCount ?? 0;
+    lines.push(
+      `- submissions inbox: awaiting_review_operational=${opsPending} tests=${testN} total=${data.inbox.total ?? 0}`,
+    );
   }
   lines.push(`- cdp: ${data.cdp?.up ? 'UP' : 'DOWN'} pages=${data.cdp?.pages ?? 0}`);
   lines.push(`- foot-lock: ${data.foot?.lock?.locked ? 'HELD ' + (data.foot.lock.json?.owner || '') : 'free'}`);
@@ -4822,7 +4827,7 @@ const server = http.createServer(async (req, res) => {
         const lines = [
           `# Submissions inbox`,
           `at: ${ib.at || data.at}`,
-          `awaiting review: ${ib.pendingReviewCount ?? ib.newCount ?? 0} · total: ${ib.total ?? 0}`,
+          `awaiting review (operational): ${ib.pendingOperationalReviewCount ?? 0} · tests: ${ib.testCount ?? 0} · total: ${ib.total ?? 0}`,
           '',
         ];
         for (const r of ib.rows || []) {
