@@ -42,6 +42,7 @@ if (ship || wizard) {
     // (orphan tests lock nothing if only run by hand — cold-start quality > quantity)
     ['demigod-matching-readiness.test.mjs'],
     ['demigod-pairs-cli-safety.test.mjs'],
+    ['demigod-lead-sourcer.test.mjs'],
     // SF startup directory: YC-public merge + host dedupe + atlas honesty (not orphan unit-only)
     ['demigod-startup-map-data.test.mjs'],
     ['demigod-startup-atlas-web.test.mjs'],

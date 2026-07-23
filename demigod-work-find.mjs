@@ -197,6 +197,19 @@ function main() {
       repeatable: false,
     });
   }
+  // Duplicate partner job URLs dilute match quality (cold-start: fewer better). Review-only plan.
+  const dupeGroups = Number(funnel?.metrics?.duplicate_partner_url_groups || 0);
+  if (dupeGroups > 0) {
+    pushWork(seen, found, {
+      kind: 'funnel-dupes',
+      pri: 2,
+      title: `${dupeGroups} duplicate partner URL group(s) — review collision-plan`,
+      task: 'funnel-collision-plan',
+      detail: { groups: dupeGroups },
+      note: 'bin/dg funnel collision-plan (review-only; no auto-merge of LEADS SoR)',
+      repeatable: true,
+    });
+  }
   // Blue-moon laptop check (~14d)
   {
     const stamp = path.join(BUSY, 'laptop-blue-moon.stamp');
