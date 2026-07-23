@@ -136,12 +136,12 @@ function latestGrokOutReceipt(busy = BUSY) {
     fs.closeSync(fd);
   }
   const text = bytes.toString('utf8');
-  // Accept plain, ATX, and common markdown-bold headings (`**VERDICT:** BLOCKED`).
-  // Bold form is what the live Grok CLI emits; missing it falsely scored contract=0/4
-  // with transport=ok and a complete body (not a retry-worthy transport failure).
+  // Accept plain, ATX, and markdown-bold headings (`**VERDICT:** BLOCKED`).
+  // Also match mid-line `**VERDICT**` when the model glues prose to the heading
+  // (funnel-mry2fz27-1 class → false contract=3/4 with transport=ok).
   const headingMatch = (name) =>
     new RegExp(
-      `(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?${name}(?:\\*\\*)?\\b[^\\n]*|#{1,4}\\s*${name}\\b[^\\n]*`,
+      `(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?${name}(?:\\*\\*)?\\b[^\\n]*|#{1,4}\\s*${name}\\b[^\\n]*|\\*\\*${name}\\*\\*`,
       'i',
     ).exec(text);
   const contract = ['VERDICT', 'EVIDENCE', 'FINDINGS', 'HANDOFF'].map(headingMatch);
@@ -286,12 +286,28 @@ function grokOutSelftest() {
     }),
   );
   const boldMd = latestGrokOutReceipt(tmp);
+  // Mid-line bold (prose glued to heading) — still 4/4 + passed (mry2fz27-1 class).
+  fs.writeFileSync(
+    current,
+    'Scanning for a safe fix.**VERDICT**\nPASS\n\n**EVIDENCE**\n- checked\n\n**FINDINGS**\n- issue one\n\n**HANDOFF**\n- next step\n',
+  );
+  fs.writeFileSync(
+    path.join(out, 'current.meta.json'),
+    JSON.stringify({
+      schema: 'demigod.agent-response/1',
+      at: new Date().toISOString(),
+      exit: 0,
+      ok: true,
+      bytes: fs.statSync(current).size,
+    }),
+  );
+  const midLineBold = latestGrokOutReceipt(tmp);
   const projected = projectLatestGrokOutReceipt(tmp);
   const sharedFile = path.join(tmp, 'coord', 'grok-mailbox-last.json');
   const shared = JSON.parse(fs.readFileSync(sharedFile, 'utf8'));
   const sharedMode = fs.statSync(sharedFile).mode & 0o777;
   fs.rmSync(tmp, { recursive: true, force: true });
-  const encoded = JSON.stringify({ partial, receipt, boldMd, projected, shared });
+  const encoded = JSON.stringify({ partial, receipt, boldMd, midLineBold, projected, shared });
   if (
     partial?.completed !== false ||
     partial?.transport !== 'timeout' ||
@@ -311,7 +327,12 @@ function grokOutSelftest() {
     boldMd?.contractSections !== 4 ||
     boldMd?.verdict !== 'blocked' ||
     boldMd?.ok !== false ||
-    shared?.id !== boldMd?.id ||
+    midLineBold?.completed !== true ||
+    midLineBold?.transport !== 'ok' ||
+    midLineBold?.contractSections !== 4 ||
+    midLineBold?.verdict !== 'passed' ||
+    midLineBold?.ok !== true ||
+    shared?.id !== midLineBold?.id ||
     sharedMode !== 0o600 ||
     /sk_live|example\.com|full transcript/i.test(encoded)
   ) throw new Error(`grok-out projection selftest failed: ${encoded}`);
