@@ -10,9 +10,44 @@
  * to list. Git's read-only index plus an explicit ignore-policy check catches tracked private data and
  * private roots reopened to staging without taking the index lock, including in restricted agents. (#30)
  */
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { isSensitive, verifyNoCommittableSor } from './demigod-no-committable-sor-lib.mjs';
+import {
+  isSensitive,
+  REQUIRED_IGNORE_RULES,
+  verifyNoCommittableSor,
+} from './demigod-no-committable-sor-lib.mjs';
+
+/** Positive control: re-tracking root dm-send-log must go RED (not vacuous green). */
+function poisonTrackedSendLog() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-sor-poison-'));
+  const run = (args) => {
+    const r = spawnSync('git', args, { cwd: tmp, encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr || r.stdout}`);
+  };
+  try {
+    run(['init']);
+    fs.writeFileSync(path.join(tmp, '.gitignore'), `${REQUIRED_IGNORE_RULES.join('\n')}\n`);
+    fs.writeFileSync(path.join(tmp, 'dm-send-log.txt'), 'poison-control\n');
+    fs.writeFileSync(path.join(tmp, 'safe.txt'), 'ok\n');
+    run(['add', 'safe.txt']);
+    // Clean tree with ignore rules present must PASS.
+    const clean = verifyNoCommittableSor(tmp);
+    if (!clean.ok) throw new Error(`clean temp FAIL: ${clean.detail || clean.error}`);
+    // Force-track send log despite gitignore — must FAIL closed.
+    run(['add', '-f', 'dm-send-log.txt']);
+    const poisoned = verifyNoCommittableSor(tmp);
+    if (poisoned.ok) throw new Error('tracked dm-send-log stayed green (vacuous)');
+    if (!poisoned.trackedSensitive?.includes('dm-send-log.txt')) {
+      throw new Error(`poison miss: ${JSON.stringify(poisoned.trackedSensitive)}`);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
 
 export function main(argv = process.argv.slice(2)) {
   if (argv.includes('--self-test')) {
@@ -52,7 +87,13 @@ export function main(argv = process.argv.slice(2)) {
     test('safe report NOT flagged', 'DEMIGOD-BOARD-REPORT.json', false);
     test('source NOT flagged', 'demigod-board-lib.mjs', false);
     if (!selfTestOk) return 2;
-    console.log('SELFTEST PASS: SoRs flagged, metadata/source not (fail-capable, no false-red)');
+    try {
+      poisonTrackedSendLog();
+    } catch (error) {
+      console.error('SELFTEST FAIL: poison tracked dm-send-log:', String(error?.message || error));
+      return 2;
+    }
+    console.log('SELFTEST PASS: SoRs flagged, poison tracked dm-send-log fails red (not vacuous green)');
     return 0;
   }
 

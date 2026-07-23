@@ -47,6 +47,8 @@ if (ship || wizard) {
     ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
     ['demigod-grok-ask-selftest.mjs'],
+    // SoR/PII gate must fail-red when dm-send-log is force-tracked (not vacuous green)
+    ['demigod-verify-no-committable-sor.mjs', ['--self-test']],
     // grok-out contract projection (bold **VERDICT:** etc.) — transport=ok ≠ incomplete
     ['demigod-agent-dashboard.mjs', ['--selftest-grok-out']],
     ['demigod-verify-source.mjs'],
