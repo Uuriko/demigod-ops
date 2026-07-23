@@ -769,7 +769,12 @@ export function publicOkFromProbes(oks) {
   return (oks || []).some(Boolean);
 }
 
-/** Sequential public health probes with early exit on a stable verdict. */
+/**
+ * Sequential public health probes.
+ * Early-exit only on stable *up* (fast happy path). Never early-exit on two
+ * failures — loca.lt often 503s twice then recovers; cutting short forced
+ * needHeal thrash and tunnel rotation of a still-live process.
+ */
 async function probePublicStable(root, { times = 3, gapMs = 450 } = {}) {
   if (!root) return { pub: null, publicOk: false, oks: [] };
   const oks = [];
@@ -778,8 +783,8 @@ async function probePublicStable(root, { times = 3, gapMs = 450 } = {}) {
     if (i) await new Promise((r) => setTimeout(r, gapMs));
     pub = await healthPublic(root);
     oks.push(!!pub?.ok);
-    const v = publicHealthVerdict(oks);
-    if (v === true || v === false) break;
+    // Only short-circuit when the tunnel is clearly healthy.
+    if (publicHealthVerdict(oks) === true) break;
   }
   return { pub, publicOk: publicOkFromProbes(oks), oks };
 }
@@ -1472,6 +1477,8 @@ function selfcheck() {
   ok(publicOkFromProbes([true, false, false]) === false, 'publicOkFromProbes recovers to dead');
   ok(publicOkFromProbes([]) === false, 'publicOkFromProbes empty is down');
   ok(publicOkFromProbes([true]) === true, 'publicOkFromProbes single ok is up');
+  // Full probe window recovers when early probes fail then succeed (status must not early-exit dead).
+  ok(publicOkFromProbes([false, false, true]) === true, 'publicOkFromProbes third-probe recovery is up');
   {
     const lockDir = path.join(fixtureDir, 'heal-lock');
     const signalError = (code) => () => {
