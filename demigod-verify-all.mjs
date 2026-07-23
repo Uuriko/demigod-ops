@@ -38,6 +38,10 @@ if (ship || wizard) {
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
     ['demigod-submissions-lib.test.mjs'],
     ['demigod-outbound-poison.test.mjs'],
+    // Matching funnel honesty: readiness gates + pairs CLI sample-by-default / consent fail-closed
+    // (orphan tests lock nothing if only run by hand — cold-start quality > quantity)
+    ['demigod-matching-readiness.test.mjs'],
+    ['demigod-pairs-cli-safety.test.mjs'],
     // SF startup directory: YC-public merge + host dedupe + atlas honesty (not orphan unit-only)
     ['demigod-startup-map-data.test.mjs'],
     ['demigod-startup-atlas-web.test.mjs'],

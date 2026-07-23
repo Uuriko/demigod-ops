@@ -88,6 +88,9 @@ const STEPS = [
   { name: 'honesty-referrals', script: 'demigod-referrals.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'honesty-referrals-mint', script: 'demigod-referrals-mint.test.mjs', timeout: 30000, out: null, args: ['--test'] },
   { name: 'honesty-outbound-poison', script: 'demigod-outbound-poison.test.mjs', timeout: 45000, out: null, args: ['--test'] },
+  // Matching cold-start honesty: readiness + pairs sample-by-default (not orphan unit-only)
+  { name: 'honesty-matching-readiness', script: 'demigod-matching-readiness.test.mjs', timeout: 30000, out: null },
+  { name: 'honesty-pairs-cli', script: 'demigod-pairs-cli-safety.test.mjs', timeout: 30000, out: null },
   { name: 'foot-smoke-poison', script: 'demigod-foot-smoke.test.mjs', timeout: 45000, out: null, args: ['--test'] },
   { name: 'grok-ask-selftest', script: 'demigod-grok-ask-selftest.mjs', timeout: 60000, out: null },
   { name: 'grok-out-contract', script: 'demigod-agent-dashboard.mjs', args: ['--selftest-grok-out'], timeout: 30000, out: null },
