@@ -181,18 +181,20 @@ exit 1
 EOS
   chmod +x "$fake"
 
-  # 1) First call trips breaker (marker file + log).
+  # 1) First call trips breaker with production default RETRIES=1.
+  # Empty 402 stdout must NOT be classified flaky (would double-hit balance).
   set +e
   out="$(
     DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
-      GROK_ASK_RETRIES=0 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
       "$self" 'breaker selftest trip' 2>/dev/null
   )"
   ec=$?
   set -e
   log_text=$(cat "$LOG" 2>/dev/null || true)
-  [[ "$ec" -ne 0 && -f "$BUSY/grok.DISABLED" && "$log_text" == *'BREAKER tripped'* && "$(cat "$hits")" == "1" ]] || {
-    echo "grok-ask breaker selftest FAIL (trip) ec=$ec hits=$(cat "$hits") log=$log_text" >&2
+  [[ "$ec" -ne 0 && -f "$BUSY/grok.DISABLED" && "$log_text" == *'BREAKER tripped'* \
+    && "$log_text" != *'flaky'* && "$(cat "$hits")" == "1" && "$log_text" == *'attempts=1'* ]] || {
+    echo "grok-ask breaker selftest FAIL (trip/no-retry) ec=$ec hits=$(cat "$hits") log=$log_text" >&2
     BUSY="$real_busy"; rm -rf "$root"; return 1
   }
 
@@ -201,7 +203,7 @@ EOS
   set +e
   out="$(
     DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
-      GROK_ASK_RETRIES=0 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
       "$self" 'breaker selftest blocked' 2>/dev/null
   )"
   ec=$?
@@ -217,12 +219,12 @@ EOS
   set +e
   out="$(
     DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
-      GROK_ASK_RETRIES=0 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=60 \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=60 \
       "$self" 'breaker selftest cooldown' 2>/dev/null
   )"
   ec=$?
   set -e
-  # Cooldown elapsed → breaker removed on entry → fake runs again (hits=2) and re-trips.
+  # Cooldown elapsed → breaker removed on entry → fake runs once more (hits=2) and re-trips.
   [[ "$(cat "$hits")" == "2" && -f "$BUSY/grok.DISABLED" ]] || {
     echo "grok-ask breaker selftest FAIL (cooldown re-trip) hits=$(cat "$hits") disabled=$([[ -f $BUSY/grok.DISABLED ]] && echo y || echo n)" >&2
     BUSY="$real_busy"; rm -rf "$root"; return 1
@@ -287,6 +289,12 @@ while [ "$attempt" -lt "$max_attempts" ]; do
     } >>"$LOG"
   fi
   rm -f "$tmp_out" "$tmp_err"
+
+  # Payment/balance is a hard stop — never retry as flaky. Empty stdout alone used to
+  # mark 402 as flaky and double-hit a dead balance under the default RETRIES=1.
+  if printf '%s' "$out$err" | grep -qiE 'status 402|Payment Required|balance exhausted'; then
+    break
+  fi
 
   # Success: clean exit + non-empty reply.
   if [ "$ec" -eq 0 ] && [ -n "${out// /}" ]; then
