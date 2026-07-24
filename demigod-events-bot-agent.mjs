@@ -5399,7 +5399,7 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-14: "financial district" only — bare "financial" is role title (financial controller).
   // mission bay before bare mission — Mission Bay ≠ Mission Dolores (area honesty)
   const areaNeed =
-    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s*point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|holly(?:\s+park)?|mt\.?\s+davidson|mount\s+davidson|tank\s+hill|alta\s+plaza|portsmouth\s+square|ina\s+coolbrith|grandview(?:\s+park)?|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza|alcatraz|fort\s+funston|sutro\s+baths|aquatic\s+park)\b/i.exec(
+    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s*point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|holly(?:\s+park)?|mt\.?\s+davidson|mount\s+davidson|tank\s+hill|alta\s+plaza|portsmouth\s+square|ina\s+coolbrith|grandview(?:\s+park)?|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood(?:\s+park)?|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza|alcatraz|fort\s+funston|sutro\s+baths|aquatic\s+park)\b/i.exec(
       needL,
     );
   if (areaNeed) {
@@ -5424,7 +5424,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'polk street') tok = 'polkstreet';
     else if (tok === 'jordan park') tok = 'jordanpark';
     else if (tok === 'mint plaza') tok = 'mintplaza';
-    else if (tok === 'westwood park') tok = 'westwoodpark';
+    // residual: bare westwood (SF Westwood Park colloquial) missed free-list areaNeed (draft only)
+    else if (/^westwood(?:\s+park)?$/.test(tok)) tok = 'westwoodpark';
     else if (/^st\.?\s*francis\s+wood$/.test(tok)) tok = 'stfranciswood';
     else if (tok === 'baker beach') tok = 'bakerbeach';
     else if (/^land'?s?\s+end$/.test(tok)) tok = 'landsend';
@@ -5682,6 +5683,24 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   if (civicIndoor && (/library/.test(blob) || /library/.test(tags))) {
     score += 4;
     reasons.push('civic-library');
+  }
+  // residual: japantown/fillmore/chinatown/treasure island indoor salon/talk crowned Mission
+  // SFPL via right-size over Civic Main (AREA_NEAR maps civic; draft free-list honesty only)
+  const centralIndoorSalon =
+    /\b(japantown|little\s+tokyo|fillmore|chinatown|treasure\s+island|western\s+addition)\b/.test(
+      needL,
+    ) &&
+    !outdoorAsked &&
+    !seatedMeal &&
+    !drinksAsked;
+  if (centralIndoorSalon) {
+    if (v.id === 'v_main_library' || /main library|civic center/.test(blob + ' ' + areaL)) {
+      score += 3;
+      reasons.push('central-library');
+    } else if (v.id === 'v_mission_library') {
+      score -= 2;
+      reasons.push('central-far-lib');
+    }
   }
   // residual: hood-labeled office/demo needs crowned Civic SFPL via area over citywide office loan
   // (Japantown/Fillmore map free indoor → main library; draft free-list honesty only)

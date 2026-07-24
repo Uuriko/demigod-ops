@@ -278,7 +278,13 @@ cmd_once() {
   trap 'rm -f "$PIDF"' EXIT
   local mode=assist
   for a in "$@"; do
-    [[ "$a" == "--full" ]] && mode=full
+    case "$a" in
+      --full) mode=full ;;
+      *)
+        echo "dg-codex-swarm: unknown argument $a — try: bin/dg-codex-swarm once [--full]" >&2
+        exit 2
+        ;;
+    esac
   done
   if [[ "$mode" == full ]]; then run_full; else run_assist; fi
   rm -f "$PIDF"
@@ -338,15 +344,37 @@ cmd_apply_hint() {
 case "${1:-status}" in
   once) shift; cmd_once "$@" ;;
   start|loop)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-codex-swarm: unknown argument $2 — try: bin/dg-codex-swarm start" >&2
+      exit 2
+    fi
     if alive; then echo "already $(cat "$PIDF")"; exit 0; fi
     nohup "$0" _loop >>"$LOG" 2>&1 &
     echo $! >"$PIDF"
     echo "started loop pid=$! interval=${INTERVAL}s"
     ;;
   _loop) cmd_loop ;;
-  stop) cmd_stop ;;
-  status) cmd_status ;;
-  apply-hint|hint) cmd_apply_hint ;;
+  stop)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-codex-swarm: unknown argument $2 — try: bin/dg-codex-swarm stop" >&2
+      exit 2
+    fi
+    cmd_stop
+    ;;
+  status)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-codex-swarm: unknown argument $2 — try: bin/dg-codex-swarm status" >&2
+      exit 2
+    fi
+    cmd_status
+    ;;
+  apply-hint|hint)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-codex-swarm: unknown argument $2 — try: bin/dg-codex-swarm apply-hint" >&2
+      exit 2
+    fi
+    cmd_apply_hint
+    ;;
   *)
     echo "usage: $0 once [--full]|start|stop|status|apply-hint"
     exit 2

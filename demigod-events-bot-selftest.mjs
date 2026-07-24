@@ -10831,6 +10831,34 @@ for (const t of [
     "hunter's point (spaced) outdoor: parklet beats roof",
   );
 }
+// residual: japantown/fillmore/chinatown indoor salon — Civic Main library over Mission SFPL
+{
+  const jtNeed = 'japantown indoor free salon talk';
+  const mainLib = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_main_library'), {
+    need: jtNeed,
+    seats: 12,
+    explain: true,
+  });
+  const missionLib = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_mission_library'), {
+    need: jtNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(mainLib.score > missionLib.score, 'japantown indoor salon: Main library beats Mission SFPL');
+  ok(mainLib.reasons?.includes('central-library'), 'japantown indoor salon: central-library on Main');
+  const fillNeed = 'fillmore indoor free talk';
+  ok(
+    scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_main_library'), {
+      need: fillNeed,
+      seats: 12,
+    }) >
+      scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_mission_library'), {
+        need: fillNeed,
+        seats: 12,
+      }),
+    'fillmore indoor talk: Main library beats Mission SFPL',
+  );
+}
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(

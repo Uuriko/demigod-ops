@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Copy systemd-user/*.service|timer into ~/.config/systemd/user and reload
+set -euo pipefail
+if [[ $# -gt 0 ]]; then
+  echo "dg-install-user-units: unknown argument $1 — try: bin/dg-install-user-units  (no flags)" >&2
+  exit 2
+fi
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+SRC="$ROOT/systemd-user"
+DST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+mkdir -p "$DST"
+n=0
+for f in "$SRC"/*.service "$SRC"/*.timer; do
+  [[ -f "$f" ]] || continue
+  cp -a "$f" "$DST/"
+  n=$((n+1))
+done
+systemctl --user daemon-reload
+echo "installed $n units from $SRC → $DST"
+systemctl --user list-unit-files 'demigod-*' 'power-ac-auto*' --no-pager 2>/dev/null | head -20

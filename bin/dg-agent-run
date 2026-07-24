@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Run a heavy agent command under user cgroup caps (memory + CPU).
+#   dg-agent-run codex exec ...
+#   dg-agent-run claude --print ...
+#   MEMORY_MAX=8G CPU_QUOTA=200% dg-agent-run ...
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: dg-agent-run <command> [args...]" >&2
+  echo "env: MEMORY_MAX=12G CPU_QUOTA=400% NICE=5" >&2
+  exit 2
+fi
+# Refuse flag-looking first token (not a command path) — avoids `nice --bogus` vacuous failures.
+if [[ "$1" == -* ]]; then
+  echo "dg-agent-run: first arg must be a command, not a flag ($1)" >&2
+  echo "usage: dg-agent-run <command> [args...]" >&2
+  exit 2
+fi
+
+MEM="${MEMORY_MAX:-12G}"
+CPU="${CPU_QUOTA:-400%}"
+NICE_LVL="${NICE:-5}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+mkdir -p "$BUSY"
+LOG="$BUSY/dg-agent-run.log"
+
+# Refuse to start heavy agents on battery unless forced
+if [[ "${DG_AGENT_ALLOW_BATTERY:-0}" != "1" ]]; then
+  ac=1
+  for online in /sys/class/power_supply/*/online; do
+    type="${online%/online}/type"
+    if [[ -r "$online" && -r "$type" ]] && grep -qiE 'Mains|ADP|AC' "$type"; then
+      ac="$(tr -d ' \n' <"$online")"
+      break
+    fi
+  done
+  if [[ "$ac" == "0" ]]; then
+    echo "dg-agent-run: on battery — refuse heavy agent (set DG_AGENT_ALLOW_BATTERY=1 to override)" >&2
+    exit 3
+  fi
+fi
+
+echo "[$(date -Iseconds)] mem=$MEM cpu=$CPU nice=$NICE_LVL cmd=$*" >>"$LOG"
+
+if command -v systemd-run >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+  exec systemd-run --user --scope --quiet \
+    -p "MemoryMax=$MEM" \
+    -p "CPUQuota=$CPU" \
+    -- nice -n "$NICE_LVL" -- "$@"
+fi
+
+# Fallback without systemd-run
+exec nice -n "$NICE_LVL" -- "$@"
