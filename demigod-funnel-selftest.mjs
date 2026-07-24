@@ -124,6 +124,7 @@ import {
   partnerUrlDedupeKey,
   collectArgsValid,
   leadCollectionPaused,
+  readLeadFocus,
   parseCollectLimit,
   previousLeadsById,
   scrubNoiseContact,
@@ -1309,6 +1310,20 @@ assert(placementPairId({ pairIds: ['pair-a'] }, 'pair-b') === '', 'unbound expli
 assert(!collectArgsValid(['--dry-run']), 'lead collect rejects misplaced dry-run before paid collection');
 assert(leadCollectionPaused('# Current\nLead funnel is **paused** now'), 'lead collect detects the shared focus pause');
 assert(!leadCollectionPaused('# Current\nLead funnel is active'), 'lead collect permits active focus');
+{
+  const focusTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-lead-focus-'));
+  fs.mkdirSync(path.join(focusTmp, 'lead-system'), { recursive: true });
+  fs.writeFileSync(
+    path.join(focusTmp, 'lead-system', 'FOCUS.md'),
+    'Lead funnel is **paused** for Events Bot\n',
+  );
+  assert(
+    leadCollectionPaused(readLeadFocus({ root: focusTmp, busy: path.join(focusTmp, 'no-busy') })),
+    'readLeadFocus prefers DEMIGOD_ROOT lead-system FOCUS',
+  );
+  assert(readLeadFocus({ root: path.join(focusTmp, 'empty'), busy: path.join(focusTmp, 'empty') }) === '', 'readLeadFocus empty when missing');
+  try { fs.rmSync(focusTmp, { recursive: true, force: true }); } catch { /* */ }
+}
 {
   const mixed = runSearchQueries(['ok', 'bad'], (q) => {
     if (q === 'bad') throw new Error('transport');

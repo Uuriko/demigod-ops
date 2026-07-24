@@ -53,6 +53,7 @@ import {
   enrichAttemptsExhausted,
   ENRICH_COOLDOWN_MS,
   leadCollectionPaused,
+  readLeadFocus,
   scrubNoiseContact,
 } from './demigod-lead-collect.mjs';
 import { feeCents, invoiceStub } from './demigod-revenue.mjs';
@@ -1805,8 +1806,7 @@ function cmdNormalize() {
 export function currentStatusReport() {
   const doc = loadLeads();
   normalizeDoc(doc); // in-memory only for report consistency
-  const focusPath = path.join(BUSY, 'lead-system', 'FOCUS.md');
-  const focus = fs.existsSync(focusPath) ? fs.readFileSync(focusPath, 'utf8') : '';
+  const focus = readLeadFocus({ root: ROOT, busy: PKG_BUSY });
   return statusReport(doc, { focusPaused: leadCollectionPaused(focus) });
 }
 

@@ -772,6 +772,22 @@ export function collectArgsValid(argv) {
 
 export const leadCollectionPaused = (focus) => /\blead funnel\b[\s\S]{0,200}\bpaused\b/i.test(focus);
 
+/** Resolve lead-system FOCUS text (env override → DEMIGOD_ROOT → DEMIGOD_BUSY). Empty if missing. */
+export function readLeadFocus({
+  root = process.env.DEMIGOD_ROOT || ROOT,
+  busy = process.env.DEMIGOD_BUSY || '/tmp/dg-busy',
+  focusPath = process.env.DEMIGOD_FOCUS_PATH,
+} = {}) {
+  for (const fp of [focusPath, path.join(root, 'lead-system', 'FOCUS.md'), path.join(busy, 'lead-system', 'FOCUS.md')].filter(Boolean)) {
+    try {
+      if (fs.existsSync(fp)) return fs.readFileSync(fp, 'utf8');
+    } catch {
+      /* try next */
+    }
+  }
+  return '';
+}
+
 const limit = parseCollectLimit(
   process.argv.find((a) => a.startsWith('--limit='))?.split('=')[1],
 );
@@ -2083,8 +2099,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error('--limit must be an integer from 1 to 100');
     process.exit(2);
   }
-  const focusPath = '/tmp/dg-busy/lead-system/FOCUS.md';
-  const focus = fs.existsSync(focusPath) ? fs.readFileSync(focusPath, 'utf8') : '';
+  const focus = readLeadFocus();
   if (leadCollectionPaused(focus) && !argv.includes('--force-paused')) {
     console.error(JSON.stringify({ focusPaused: true, error: 'requires --force-paused' }));
     process.exit(2);
