@@ -5736,15 +5736,15 @@ const server = http.createServer(async (req, res) => {
         else if (head?.shipReady === false) diskReadyBlockers.push('head');
         if (!footerLite?.shipReady) diskReadyBlockers.push('footerLite');
         if (!footNotes?.shipReady) diskReadyBlockers.push('footNotes');
-        // onlyCssLag must not fire when foot CDN also drifts (agents would skip needed foot ship)
+        // onlyCssLag must not fire when foot CDN also drifts (agents would skip needed foot ship).
+        // Never treat prepare-only truth green (ship.pass) as sealed — disk≠live/man is unshipped.
         const footSealed =
-          ship?.pass === true ||
-          (ship?.facts?.diskMatchesManifest === true &&
-            ship?.facts?.diskVer != null &&
-            String(ship.facts.diskVer).replace(/^v/, '') ===
-              String(ship.facts.liveVer ?? '').replace(/^v/, '') &&
-            String(ship.facts.diskVer).replace(/^v/, '') ===
-              String(ship.facts.manVer ?? '').replace(/^v/, ''));
+          ship?.facts?.diskMatchesManifest === true &&
+          ship?.facts?.diskVer != null &&
+          String(ship.facts.diskVer).replace(/^v/, '') ===
+            String(ship.facts.liveVer ?? '').replace(/^v/, '') &&
+          String(ship.facts.diskVer).replace(/^v/, '') ===
+            String(ship.facts.manVer ?? '').replace(/^v/, '');
         const onlyHeadCss =
           diskReadyBlockers.length === 1 && diskReadyBlockers[0] === 'head.css';
         const onlyCssLag = onlyHeadCss && footSealed === true;

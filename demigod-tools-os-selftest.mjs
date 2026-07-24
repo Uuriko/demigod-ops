@@ -2973,8 +2973,12 @@ ok(
     /footSealed/.test(dashboardSource) &&
       /onlyCssLag = onlyHeadCss && footSealed/.test(dashboardSource) &&
       !/const footSealed =\s*ship\?\.shipped === true/.test(dashboardSource) &&
-      !/const footSealed =[\s\S]{0,120}ship\?\.artifactPass === true/.test(dashboardSource),
-    'onlyCssLag requires fresh truth or exact versions, not historical ship receipts',
+      !/const footSealed =[\s\S]{0,120}ship\?\.artifactPass === true/.test(dashboardSource) &&
+      !/const footSealed =[\s\S]{0,80}ship\?\.pass/.test(dashboardSource) &&
+      /diskMatchesManifest === true/.test(
+        dashboardSource.match(/const footSealed =\s*([\s\S]*?);[\s\n]*const onlyHeadCss/)?.[1] || '',
+      ),
+    'onlyCssLag requires exact disk==live==man versions, not prepare-only truth pass or historical ship receipts',
   );
   ok(
     /footLock:/.test(dashboardSource) && /ttlLeftSec/.test(dashboardSource),
