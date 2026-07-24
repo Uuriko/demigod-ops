@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Free no-account ops: email MX, uptime, yc-oss research dump
+exec node "${DEMIGOD_ROOT:-$HOME}/demigod-free-ops.mjs" "$@"

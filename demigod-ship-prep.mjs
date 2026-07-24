@@ -43,6 +43,8 @@ const steps = [];
 steps.push(run('verify-source', 'npm run demigod:verify:source'));
 steps.push(run('board-honesty', 'node demigod-verify-board-honesty.mjs'));
 steps.push(run('loop-state', 'node demigod-verify-loop-state.mjs'));
+// Clone-breaker + export-contract gate (tracked SoR must stay importable).
+steps.push(run('import-integrity', 'node demigod-import-integrity.mjs'));
 steps.push(run('foot-smoke', 'node demigod-foot-smoke.mjs'));
 steps.push(run('match-review', 'node demigod-match-review.mjs --json | head -c 400'));
 steps.push(run('ship-checklist', 'node demigod-ship-checklist.mjs 2>/dev/null || true'));

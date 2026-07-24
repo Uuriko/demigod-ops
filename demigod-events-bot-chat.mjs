@@ -455,6 +455,7 @@ function normalizeUserChatText(s) {
     .replace(/\bwhassup\b/g, 'sup')
     .replace(/\bwassup\b/g, 'sup') // residual: wassup with the plan (parity whatsup/whassup)
     .replace(/\bwussup\b/g, 'sup') // residual: wussup with the plan (parity wassup/whatsup)
+    .replace(/\bwazzup\b/g, 'sup') // residual: wazzup with the plan (parity wassup/whatsup)
     // residual: "showya the plan" → show ya → show me (tick-plan)
     .replace(/\bshowya\b/g, 'show ya')
     // residual: "tellya the plan" → tell ya → tell me (parity showya)
