@@ -541,16 +541,29 @@ function ensureAppOpsSecret() {
 
 function cloudflaredBin() {
   const home = process.env.HOME || '';
+  // Prefer absolute paths first: startTunnel only cgroup-isolates CF when bin includes '/'.
+  // Bare "cloudflared" on PATH previously forced detached spawn under useful-loop → killed on restart.
   const cands = [
     process.env.CLOUDFLARED_BIN,
-    'cloudflared',
     path.join(home, '.local/bin/cloudflared'),
     '/usr/local/bin/cloudflared',
+    '/usr/bin/cloudflared',
+    'cloudflared',
   ].filter(Boolean);
   for (const c of cands) {
     try {
       const r = spawnSync(c, ['--version'], { encoding: 'utf8', timeout: 5000 });
-      if (r.status === 0) return c;
+      if (r.status !== 0) continue;
+      if (String(c).includes('/')) return c;
+      // Resolve bare name to absolute so systemd-run isolation can run.
+      const which = spawnSync('bash', ['-lc', 'command -v cloudflared'], {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: process.env,
+      });
+      const abs = String(which.stdout || '').trim().split('\n')[0];
+      if (abs && abs.includes('/')) return abs;
+      return c;
     } catch {
       /* */
     }
@@ -1697,12 +1710,17 @@ function selfcheck() {
     statusShouldAdoptLiveTunnel({ publicOk: false, tunnelPid: null }) === false,
     'statusShouldAdoptLiveTunnel skips without tunnel process',
   );
+  // Negative control (Claude c251): old 8s Abort would mark measured slow-healthy
+  // loca (9.17s) dead → needHeal thrash. Pure threshold proof — no 9s sleep in selfcheck.
+  const OLD_PUBLIC_HEALTH_TIMEOUT_MS = 8000;
+  const MEASURED_SLOW_HEALTHY_LOCA_MS = 9170;
   ok(
-    PUBLIC_HEALTH_TIMEOUT_MS >= 10_000 &&
+    OLD_PUBLIC_HEALTH_TIMEOUT_MS < MEASURED_SLOW_HEALTHY_LOCA_MS &&
+      PUBLIC_HEALTH_TIMEOUT_MS >= MEASURED_SLOW_HEALTHY_LOCA_MS &&
       fs
         .readFileSync(new URL(import.meta.url), 'utf8')
         .includes('AbortSignal.timeout(PUBLIC_HEALTH_TIMEOUT_MS)'),
-    'public health timeout covers slow loca.lt (≥10s) and is wired',
+    'negative-control: old 8s abort fails measured 9.17s healthy loca; PUBLIC_HEALTH_TIMEOUT_MS covers it and is wired',
   );
   ok(
     fs
@@ -1768,6 +1786,12 @@ function selfcheck() {
   );
   ok(tunnelSystemdRunArgs({ bin: 'npx', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs rejects non-absolute bin');
   ok(tunnelSystemdRunArgs({ bin: '', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs needs bin+log');
+  ok(
+    /path\.join\(home, '\.local\/bin\/cloudflared'\)[\s\S]{0,120}'cloudflared'/.test(
+      fs.readFileSync(new URL(import.meta.url), 'utf8'),
+    ),
+    'cloudflaredBin prefers absolute paths before bare name (cgroup isolation)',
+  );
   ok(
     filterHealAttemptsAfterCfGiveUp(
       [
