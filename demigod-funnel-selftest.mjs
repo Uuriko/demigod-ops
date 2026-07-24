@@ -51,6 +51,7 @@ import {
   planSendReady,
   formatSendBatchPackage,
   disqualifyJunk,
+  pruneTerminalDrafts,
   planFollowups,
   planFormFilledJoins,
   planIntroLeadReady,
@@ -1827,6 +1828,33 @@ Showed Expanding Rapidly We The open roles
   );
   const dq2 = disqualifyJunk(junkDoc, { actor: 'agent', note: 'junk-aggregator-or-fragment' });
   assert(dq2.disqualified.length === 0, 'disqualifyJunk idempotent');
+}
+
+// 14a2) pruneTerminalDrafts archives no-contact DQ drafts; keeps contactable
+{
+  const pruneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-funnel-prune-'));
+  try {
+    fs.writeFileSync(path.join(pruneDir, 'dq-no-contact.txt'), 'Hi there — junk.\n', 'utf8');
+    fs.writeFileSync(path.join(pruneDir, 'dq-with-handle.txt'), 'Hi Real — note.\n', 'utf8');
+    fs.writeFileSync(path.join(pruneDir, 'still-drafted.txt'), 'Hi Keep — note.\n', 'utf8');
+    const doc = {
+      partners: [],
+      talent: [
+        { id: 'dq-no-contact', state: 'disqualified', name: '1000+ jobs' },
+        { id: 'dq-with-handle', state: 'disqualified', name: 'Real Person', handle: '@real' },
+        { id: 'still-drafted', state: 'drafted', name: 'Keep', handle: '@keep' },
+      ],
+    };
+    const r = pruneTerminalDrafts(doc, { draftsDir: pruneDir });
+    assert(r.pruned.includes('dq-no-contact'), 'pruneTerminalDrafts prunes no-contact DQ draft');
+    assert(!r.pruned.includes('dq-with-handle'), 'pruneTerminalDrafts keeps contactable DQ draft');
+    assert(!r.pruned.includes('still-drafted'), 'pruneTerminalDrafts skips non-terminal');
+    assert(!fs.existsSync(path.join(pruneDir, 'dq-no-contact.txt')), 'source draft removed');
+    assert(fs.existsSync(path.join(pruneDir, '.terminal-archive', 'dq-no-contact.txt')), 'draft archived');
+    assert(fs.existsSync(path.join(pruneDir, 'dq-with-handle.txt')), 'contactable draft remains');
+  } finally {
+    fs.rmSync(pruneDir, { recursive: true, force: true });
+  }
 }
 
 // 14b) parkNoMx — free DNS MX (injectable) parks bad domains only

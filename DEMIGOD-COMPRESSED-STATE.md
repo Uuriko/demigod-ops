@@ -1,11 +1,11 @@
 # Demigod — Current State
 
-Updated 2026-07-23T22:26Z from canonical receipts (`bin/dg truth` PASS shipped=false prepareOnly).
+Updated 2026-07-24T01:16Z from canonical receipts (`bin/dg truth` PASS shipped=false prepareOnly).
 
 ## Website
 
 - Foot **live v802** is sealed on CDN/manifest. Forms keep native Demigod RSVP; no fake guest counts.
-- Disk **v815** is staged locally (events page simple+elegant redesign in `dgMapEventsHtml`: gold hero band, collapsed submit, single disclaimer; plus v814 WIZ cleanup and v813 referral short links + `/?p=refer`) — not fully shipped; publish unauthorized (prepare-only).
+- Disk **v818** is staged locally (mobile events-calendar day-cell tap target bumped 41.6px->44px at the <=520px breakpoint, matching WCAG 2.5.5; plus v817 Webflow's default `.w-file-upload-error` gets `role=alert` + `aria-live=assertive` so screen readers announce resume upload failures — was silent; plus v816 SF chatroom sets status to Events API offline on mount when no Events base is reachable — join-form honesty without inventing reachability; v815 events page simple+elegant redesign in `dgMapEventsHtml`: gold hero band, collapsed submit, single disclaimer; v814 WIZ cleanup; v813 referral short links + `/?p=refer`) — not fully shipped; publish unauthorized (prepare-only).
 - The last sealed release passed disk v802 → manifest → CDN → live, board honesty, version markers, MIME, and release attestation.
 - Product direction (sealed live): keep EventsBot, startup discovery, and venue discovery on the same map page with independently toggleable startup/venue layers, adjustable search radius, and map/list views. Disk v811 stages a split directory/events layout (events-only vs startups-only submit/listings/manage; atlas mounts only on `/?p=map`) plus analytics tunnel-probe kill — not sealed product direction until authorized ship.
 - Referral simple path: `bin/dg referrals mint-talent` → approve → pack (unique short link + disclosure) → talent WIZ → sync/qualify/hire/retain/settle. Design: `DEMIGOD-REFERRAL-SIMPLE.md`.

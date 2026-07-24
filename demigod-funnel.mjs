@@ -721,6 +721,51 @@ export function disqualifyJunk(doc, { actor = 'agent', note = 'junk-aggregator-o
   return { disqualified, skipped };
 }
 
+/**
+ * Archive draft files for terminal leads with no usable email|handle.
+ * Keeps contactable DQ drafts (re-open path). Receipt-friendly; never invents.
+ * @returns {{ pruned: string[], skipped: {id:string,reason:string}[], archiveDir: string|null }}
+ */
+export function pruneTerminalDrafts(
+  doc,
+  { draftsDir = DRAFTS, states = ['disqualified', 'opted_out', 'quarantined'] } = {},
+) {
+  const pruned = [];
+  const skipped = [];
+  if (!draftsDir || !fs.existsSync(draftsDir)) {
+    return { pruned, skipped, archiveDir: null };
+  }
+  const terminal = new Set(states);
+  const archiveDir = path.join(draftsDir, '.terminal-archive');
+  for (const { lead } of allLeads(doc || {})) {
+    const id = lead?.id;
+    if (!id) continue;
+    const st = getState(lead);
+    if (!terminal.has(st)) {
+      skipped.push({ id, reason: `state=${st}` });
+      continue;
+    }
+    if (hasUsableOutreachContact(lead)) {
+      skipped.push({ id, reason: 'has-usable-contact' });
+      continue;
+    }
+    const src = path.join(draftsDir, `${id}.txt`);
+    if (!fs.existsSync(src)) {
+      skipped.push({ id, reason: 'no-draft' });
+      continue;
+    }
+    try {
+      fs.mkdirSync(archiveDir, { recursive: true });
+      const dest = path.join(archiveDir, `${id}.txt`);
+      fs.renameSync(src, dest);
+      pruned.push(id);
+    } catch (err) {
+      skipped.push({ id, reason: String(err?.message || err).slice(0, 120) });
+    }
+  }
+  return { pruned, skipped, archiveDir: pruned.length ? archiveDir : null };
+}
+
 /** drafted/approved with no *usable* email/handle (noise-only = gap). */
 export function countNoContact(doc) {
   let n = 0;
@@ -2895,6 +2940,8 @@ function cmdDisqualifyJunk(args) {
       appendLog({ at: row.at, id: row.id, from: row.from, to: 'disqualified', actor, evidence: null });
     }
   }
+  // Drop no-contact terminal drafts so hygiene/package boards don't re-surface SERP spam.
+  const pruned = pruneTerminalDrafts(doc);
   console.log(
     JSON.stringify(
       {
@@ -2902,6 +2949,33 @@ function cmdDisqualifyJunk(args) {
         disqualified: result.disqualified.length,
         ids: result.disqualified.map((p) => p.id),
         detail: result.disqualified,
+        draftsPruned: pruned.pruned.length,
+        draftArchive: pruned.archiveDir,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function cmdPruneTerminalDrafts() {
+  const doc = loadLeads();
+  normalizeDoc(doc);
+  const result = pruneTerminalDrafts(doc);
+  const receipt = path.join(PKG_BUSY, 'funnel', 'terminal-draft-prune-latest.json');
+  fs.mkdirSync(path.dirname(receipt), { recursive: true });
+  atomicWrite(
+    receipt,
+    JSON.stringify({ at: new Date().toISOString(), ...result }, null, 2) + '\n',
+  );
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        pruned: result.pruned.length,
+        ids: result.pruned,
+        archiveDir: result.archiveDir,
+        receipt,
       },
       null,
       2,
@@ -5474,7 +5548,8 @@ Commands:
   release-contactable-holds  # policy_hold + usable contact → drafted
   send-package [--note=…]    # approved + contact → human send board (no send)
   disqualify-junk [--actor=agent] [--note=junk-aggregator-or-fragment]
-                  # web-*/AGG SERP noise → disqualified (keeps waas- jobs)
+                  # web-*/AGG SERP noise → disqualified (keeps waas- jobs); prunes no-contact terminal drafts
+  prune-terminal-drafts  # archive drafts for DQ/opt-out/quarantine without email|handle
   email-mx [--actor=agent]  # free DNS MX fail → policy_hold (no invent)
   import-events [--dry-run] # merge consented Events Bot leads into DEMIGOD-LEADS
   hygiene                  # scan funnel-drafts/ for copy-policy flags
@@ -5571,6 +5646,7 @@ if (isMain) {
         else if (cmd === 'send-package' || cmd === 'send-board' || cmd === 'human-send-package')
           cmdSendPackage(rest);
         else if (cmd === 'disqualify-junk' || cmd === 'dq-junk') cmdDisqualifyJunk(rest);
+        else if (cmd === 'prune-terminal-drafts' || cmd === 'prune-drafts') cmdPruneTerminalDrafts();
         else if (cmd === 'email-mx' || cmd === 'mx-hygiene') return cmdEmailMx(rest);
         else if (cmd === 'import-events' || cmd === 'events-import') return cmdImportEvents(rest);
         else if (cmd === 'hygiene') cmdHygiene(rest);
