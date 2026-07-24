@@ -704,7 +704,21 @@ async function ensurePublicTunnel() {
 
   const hasCf = !!cloudflaredBin();
   // Heal ladder uses host shape (trycloudflare vs loca) — root form is fine
-  const attempts = tunnelHealAttempts(url, { hasCloudflared: hasCf });
+  let attempts = tunnelHealAttempts(url, { hasCloudflared: hasCf });
+
+  // Preferred sticky name is often 503/held by others; probing it first burns 25s+ and thrash.
+  // If the sticky host is stably dead, skip loca-preferred and go random (or CF) immediately.
+  if (PREFERRED_SUB) {
+    const prefRoot = `https://${String(PREFERRED_SUB).toLowerCase()}.loca.lt`;
+    const prefProbes = [];
+    for (let i = 0; i < 2; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 400));
+      prefProbes.push(!!(await healthPublic(prefRoot))?.ok);
+    }
+    if (publicHealthVerdict(prefProbes) === false) {
+      attempts = filterHealAttemptsWhenPreferredDead(attempts, false);
+    }
+  }
 
   // After cloudflared hard-fails (429/1015), skip further CF attempts in this loop.
   let skipCloudflared = false;
@@ -740,12 +754,28 @@ async function ensurePublicTunnel() {
       await new Promise((r) => setTimeout(r, 600));
       const pub2 = await healthPublic(url);
       if (pub2?.ok) {
-        return { url, pub: pub2, healed: true, via: attempt.label };
+        // localtunnel often ignores --subdomain when sticky is taken — don't claim preferred.
+        return { url, pub: pub2, healed: true, via: healViaLabel(attempt.label, url) };
       }
       pub = pub2;
     }
   }
   return { url: url || null, pub: pub || null, healed: true, via: 'failed' };
+}
+
+/** Pure: drop loca-preferred when sticky host is known dead (avoids thrash). */
+export function filterHealAttemptsWhenPreferredDead(attempts, preferredAlive) {
+  if (preferredAlive !== false) return attempts || [];
+  return (attempts || []).filter((a) => a?.label !== 'loca-preferred');
+}
+
+/** Pure: honest heal via when preferred attempt yields a non-preferred URL. */
+export function healViaLabel(attemptLabel, url) {
+  const label = String(attemptLabel || '');
+  if (label === 'loca-preferred' && !preferredTunnelMatch(url)) {
+    return 'loca-preferred-miss-random';
+  }
+  return label || 'unknown';
 }
 
 /** Pure: only a stable tail is actionable; null leaves the current tunnel alone. */
@@ -1479,6 +1509,20 @@ function selfcheck() {
   ok(publicOkFromProbes([true]) === true, 'publicOkFromProbes single ok is up');
   // Full probe window recovers when early probes fail then succeed (status must not early-exit dead).
   ok(publicOkFromProbes([false, false, true]) === true, 'publicOkFromProbes third-probe recovery is up');
+  ok(
+    filterHealAttemptsWhenPreferredDead(
+      [{ label: 'loca-preferred' }, { label: 'loca-random' }, { label: 'cloudflared' }],
+      false,
+    ).map((a) => a.label).join(',') === 'loca-random,cloudflared',
+    'filterHealAttemptsWhenPreferredDead drops sticky when dead',
+  );
+  ok(
+    filterHealAttemptsWhenPreferredDead([{ label: 'loca-preferred' }], true).length === 1,
+    'filterHealAttemptsWhenPreferredDead keeps sticky when alive/unknown',
+  );
+  ok(healViaLabel('loca-preferred', 'https://random-xyz.loca.lt') === 'loca-preferred-miss-random', 'healViaLabel preferred miss');
+  ok(healViaLabel('loca-preferred', 'https://demigod-events-bot.loca.lt') === 'loca-preferred', 'healViaLabel preferred hit');
+  ok(healViaLabel('loca-random', 'https://x.loca.lt') === 'loca-random', 'healViaLabel random passthrough');
   {
     const lockDir = path.join(fixtureDir, 'heal-lock');
     const signalError = (code) => () => {
