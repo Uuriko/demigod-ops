@@ -31,6 +31,16 @@ test('public Events page does not hardcode an RSVP for an unproven event', () =>
   assert.doesNotMatch(pageSource, /<a\b[^>]*href=(['"])[^'"]*\?p=event[^'"]*\1[^>]*>[^<]*RSVP/i);
 });
 
+// Live site (trydemigod.com) fetches Events API via public tunnel host — CORS must stay open.
+// Stale "tunnel CORS block" memory is not a re-dispatch signal when these headers remain wired.
+test('public Events API allows browser cross-origin from live site', () => {
+  assert.match(appSource, /Access-Control-Allow-Origin',\s*'\*'/);
+  assert.match(appSource, /Access-Control-Allow-Methods',\s*'GET,POST,OPTIONS'/);
+  assert.match(appSource, /Bypass-Tunnel-Reminder/);
+  assert.match(appSource, /req\.method === 'OPTIONS'/);
+  assert.match(appSource, /function cors\(res\)/);
+});
+
 async function freePort() {
   const probe = net.createServer();
   probe.listen(0, '127.0.0.1');
