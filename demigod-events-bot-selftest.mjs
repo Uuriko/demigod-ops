@@ -10621,6 +10621,28 @@ ok(
     }),
   'usability test: office beats parklet',
 );
+// residual: free-ask blocked still left Mission SFPL tying/beating office on right-size+free
+const designResearch = matchFreeVenues({ need: 'design research free SF', seats: 12, limit: 2 });
+ok(
+  designResearch[0]?.id === 'v_office_loan' || /office|loan/i.test(designResearch[0]?.name || ''),
+  'design research free SF tops office: ' + (designResearch[0]?.id || 'none'),
+);
+const focusGroup = matchFreeVenues({ need: 'focus group free SoMa', seats: 12, limit: 2 });
+ok(
+  focusGroup[0]?.id === 'v_office_loan' || /office|loan/i.test(focusGroup[0]?.name || ''),
+  'focus group free SoMa tops office: ' + (focusGroup[0]?.id || 'none'),
+);
+ok(
+  scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_office_loan'), {
+    need: 'participant testing free Mission',
+    seats: 12,
+  }) >
+    scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_mission_library'), {
+      need: 'participant testing free Mission',
+      seats: 12,
+    }),
+  'participant testing: office beats Mission library',
+);
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(

@@ -1465,7 +1465,8 @@ export function isRealInviteUrl(url, platform) {
     }
   }
   if (p === 'partiful' || !p) {
-    if (/^https:\/\/(www\.)?partiful\.com\/.+/i.test(u)) return true;
+    // www + m. (mobile share residual) — still require path; never bare homepage
+    if (/^https:\/\/((www|m)\.)?partiful\.com\/.+/i.test(u)) return true;
   }
   if (p === 'luma' || !p) {
     if (/^https:\/\/(www\.)?(lu\.ma|luma\.com)\/.+/i.test(u)) return true;
@@ -3885,10 +3886,11 @@ function needIsPerformance(needL) {
 /**
  * UX research / user testing / usability / user research → office tables + quiet control (not parks).
  * residual-7: bare "user research" (was ferry meetup-fit; only "ux research" matched).
+ * residual: focus group / moderated research / design research free-ask tied Mission SFPL over office.
  * Draft match only — not a booking API.
  */
 function needIsUxResearch(needL) {
-  return /\b(user\s*(?:test(?:ing|s)?|research)|ux\s*research|usability\s*(?:test|session|study|lab)?|research\s*session|customer\s*interview|participant\s*test(?:ing)?|design\s*research|research\s*ops)\b/.test(
+  return /\b(user\s*(?:test(?:ing|s)?|research)|ux\s*research|usability\s*(?:test|session|study|lab)?|research\s*session|customer\s*interview|participant\s*test(?:ing)?|design\s*research|research\s*ops|focus\s*groups?|moderated\s*(?:research|interview|session|usability|test(?:ing)?)|research\s*interview)\b/.test(
     needL,
   );
 }
@@ -4454,9 +4456,10 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score -= 4;
       reasons.push('ux-outdoor');
     }
-    // Open SFPL rooms are weak for moderated usability (noise, no isolation)
+    // Open SFPL rooms are weak for moderated usability (noise, no isolation).
+    // residual: free-ask blocked still left library right-size/free tying office (design research free SF).
     if (/library/.test(blob) || /library/.test(tags)) {
-      score -= 2;
+      score -= 4;
       reasons.push('ux-library');
     }
     if (/sponsor tab/i.test(v.cost || '')) {

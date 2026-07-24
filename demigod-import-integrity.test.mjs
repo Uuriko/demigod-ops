@@ -121,7 +121,7 @@ test('import-integrity FAILS when a contract export is gutted (fail-capable)', (
   });
 });
 
-// Build fixture sources without a contiguous `from './demigod-….mjs'` literal so this
+// Build fixture sources without a contiguous from-./demigod-*.mjs path literal so this
 // poison file itself is not a false clone-breaker edge for the real-tree scan.
 function consumerImporting(modBase) {
   return "import { x } from './" + modBase + ".mjs';\nexport const ok = 1;\n";
