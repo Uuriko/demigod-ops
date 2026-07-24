@@ -521,6 +521,19 @@ function readLog(limit = 500) {
   }
 }
 
+/** Back-compat: older wrap rows lack executionOk; recover observational reds from childExit. */
+export function rowExecutionOk(r) {
+  if (!r || typeof r !== 'object') return false;
+  if (r.executionOk === true) return true;
+  if (r.executionOk === false) return false;
+  if (r.ok === true) return true;
+  const tool = r.tool;
+  const exit = r.childExit ?? r.status;
+  if (exit === 1 && EXIT1_OK_TOOLS.has(canonicalTool(tool))) return true;
+  if (exit === 2 && EXIT2_OK_TOOLS.has(canonicalTool(tool))) return true;
+  return false;
+}
+
 export function summarize(rows) {
   const by = {};
   for (const r of rows) {
@@ -529,7 +542,7 @@ export function summarize(rows) {
     by[t].n += 1;
     if (r.failureKind === 'timeout' || r.childExit === 124) by[t].timeout += 1;
     if (r.ok) by[t].ok += 1;
-    else if (r.executionOk === true) by[t].red += 1;
+    else if (rowExecutionOk(r)) by[t].red += 1;
     else by[t].fail += 1;
     if (r.useful === true) by[t].useful += 1;
     if (r.useful === false) by[t].notUseful += 1;
