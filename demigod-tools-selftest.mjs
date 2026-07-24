@@ -469,6 +469,15 @@ function assert(name, cond, detail = '') {
     [0, 1].includes(p.status) && /preflight\s+(?:PASS|FAIL)/.test(p.out),
     p.out.slice(0, 120),
   );
+  // prepare-only lag must soft-ok (edit readiness ≠ fully shipped cert)
+  const preflightSrc = fs.readFileSync(path.join(ROOT, 'demigod-preflight.mjs'), 'utf8');
+  assert(
+    'preflight soft-oks prepare-only ship lag for edit readiness',
+    /function shipStatusOkForPreflight/.test(preflightSrc) &&
+      /prepare-only disk v/.test(preflightSrc) &&
+      !/demigod-claim-verify\.mjs',\s*'--ship'/.test(preflightSrc),
+    'shipStatusOkForPreflight + no claim-verify --ship in preflight',
+  );
 
   const t = run(['demigod-truth.mjs', '--json'], { timeout: 90000 });
   const tj = parseFirstJson(t.out);
