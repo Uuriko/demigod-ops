@@ -302,9 +302,32 @@ test('prepare-only dead browser Events config stays informational', () => {
   assert.equal(card?.kind, 'info');
   assert.equal(card?.owner, 'system');
   assert.match(card?.title || '', /prepare-only/);
-  assert.match(card?.detail || '', /publish not authorized/);
+  assert.match(card?.detail || '', /publish not authorized|blockedBy|auth/i);
   assert.equal(card?.cmd, 'bin/dg events status');
   assert.notEqual(board.headline.id, 'events-config-stale');
+});
+
+test('events config card names pending-matches-local when staged', () => {
+  const board = buildPriorityBoard({
+    truthEvidence: { green: true },
+    live: { ok: true },
+    eventsOnline: {
+      public: true,
+      configPublished: false,
+      prepareOnlyWebsiteConfig: true,
+      websiteConfigReachable: false,
+      pendingMatchesLocal: true,
+      pendingApiBase: 'https://short-melons-push.loca.lt/api/events-bot',
+      pendingBlockedBy: 'current-request auth + explicit --publish-config required (prepare-only)',
+    },
+    formsAudit: { at: 'invalid', issues: [] },
+  });
+  const card = board.cards.find((item) => item.id === 'events-config-stale');
+  assert.equal(card?.pri, 3);
+  assert.equal(card?.kind, 'info');
+  assert.match(card?.title || '', /pending matches local/);
+  assert.match(card?.detail || '', /pending matches local tunnel/);
+  assert.match(card?.detail || '', /publish-config/);
 });
 
 test('preferred tunnel mismatch is informational while public is up', () => {

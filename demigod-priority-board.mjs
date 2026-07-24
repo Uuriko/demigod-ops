@@ -194,19 +194,27 @@ export function buildPriorityBoard(data = {}) {
   if (eventsOnline.stale !== true && eventsOnline.public === true && eventsOnline.configPublished === false) {
     const unreachable = eventsOnline.websiteConfigReachable === false;
     const prepareOnly = eventsOnline.prepareOnlyWebsiteConfig ?? unreachable;
+    const pendingMatch = eventsOnline.pendingMatchesLocal === true;
+    const pendingBase = String(eventsOnline.pendingApiBase || '').trim();
+    const pendingBits = [
+      pendingMatch ? 'pending matches local tunnel' : pendingBase ? `pending ${pendingBase}` : 'pending config ready',
+      eventsOnline.pendingBlockedBy || 'external config publish not authorized',
+    ];
     push({
       pri: prepareOnly ? 3 : unreachable ? 1 : 2,
       id: 'events-config-stale',
       kind: prepareOnly ? 'info' : 'watch',
       title: prepareOnly
-        ? 'Events website config stale · prepare-only'
+        ? pendingMatch
+          ? 'Events website config prepare-only · pending matches local'
+          : 'Events website config stale · prepare-only'
         : unreachable
         ? 'Events website configuration points to dead tunnels'
         : 'Events website configuration is stale',
       // Keep pri/kind prepare-only (no thrash); still name the live product impact for operators.
       detail: unreachable
-        ? 'Current API tunnel is healthy · browser-consumed config is unreachable (live chat + event invite offline) · pending config ready · external config publish not authorized'
-        : 'Current API tunnel is healthy · published browser config differs · external config publish not authorized',
+        ? `Current API tunnel is healthy · browser-consumed CDN config is unreachable (live chat + event invite offline) · ${pendingBits.join(' · ')}`
+        : `Current API tunnel is healthy · published browser config differs · ${pendingBits.join(' · ')}`,
       cmd: 'bin/dg events status',
       tab: 'overview',
       owner: prepareOnly ? 'system' : 'unassigned',
@@ -641,6 +649,12 @@ function main() {
         : null,
       websiteConfigReachable: eventsStatus.websiteConfigReachable ?? null,
       prepareOnlyWebsiteConfig: eventsStatus.prepareOnlyWebsiteConfig === true,
+      pendingApiBase: eventsStatus.pendingApiBase || null,
+      pendingMatchesLocal:
+        typeof eventsStatus.pendingMatchesLocal === 'boolean'
+          ? eventsStatus.pendingMatchesLocal
+          : null,
+      pendingBlockedBy: eventsStatus.pendingBlockedBy || null,
       preferredTunnelMatch:
         typeof eventsStatus.preferredTunnelMatch === 'boolean'
           ? eventsStatus.preferredTunnelMatch
