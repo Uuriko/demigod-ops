@@ -118,6 +118,7 @@ export const TOOLS = [
   { id: 'approve-sub', name: 'Approve submission', group: 'session', cmd: 'node demigod-submissions-approve.mjs --list', purpose: 'Mint sample board card via mintBoardEntry', hot: true },
   { id: 'inbox', name: 'Submissions inbox', group: 'session', cmd: 'bin/dg-inbox', purpose: 'Redacted startup/engineer/partner queue', out: '/tmp/dg-busy/submissions-inbox-latest.json', hot: true },
   { id: 'submissions-lib', name: 'Submissions lib selftest', group: 'gates', cmd: 'node --test demigod-submissions-lib.test.mjs', purpose: 'Public status, PII scrub, webhook parse, board write guards (verify:all)', hot: true },
+  { id: 'webhook-auth', name: 'Webhook auth selftest', group: 'gates', cmd: 'node --test demigod-webhook-auth.test.mjs', purpose: 'Webflow webhook secret readiness + signature verify (shared by setup/submissions/ship checklist)', hot: true },
   { id: 'submissions-e2e', name: 'Submissions e2e gate', group: 'gates', cmd: 'node demigod-submissions-e2e.mjs', purpose: 'Submissions end-to-end honesty gate (fixture isolation; no real outbound)', hot: false },
   { id: 'match-review', name: 'Match review queue', group: 'session', cmd: 'bin/dg-matches list', purpose: 'Pair ledger review queue (not public board)', out: '/tmp/dg-busy/match-review-latest.json', hot: true },
   { id: 'pairs', name: 'Pair ledger CLI', group: 'session', cmd: 'node demigod-pairs-lib.mjs list', purpose: 'Canonical DEMIGOD-PAIRS propose/review/consent', out: 'DEMIGOD-PAIRS.json' },
@@ -133,6 +134,8 @@ export const TOOLS = [
   { id: 'verify-source', name: 'Verify source', group: 'gates', cmd: 'npm run demigod:verify:source', purpose: 'Foot/head/footer source gate', out: 'DEMIGOD-VERIFY-SOURCE.json' },
   { id: 'board-honesty', name: 'Board honesty', group: 'gates', cmd: 'node demigod-verify-board-honesty.mjs', purpose: '≤3 seed roles, real counts honest', out: 'DEMIGOD-BOARD-HONESTY.json' },
   { id: 'loop-state', name: 'Loop state', group: 'gates', cmd: 'node demigod-verify-loop-state.mjs', purpose: 'Loop/busy state consistency' },
+  { id: 'import-integrity', name: 'Import integrity', group: 'gates', cmd: 'node demigod-import-integrity.mjs', purpose: 'Tracked sources must not import untracked/missing demigod-*.mjs (clone-breakers)' },
+
   { id: 'foot-smoke', name: 'Foot smoke', group: 'gates', cmd: 'node demigod-foot-smoke.mjs', purpose: 'Local foot JS smoke' },
 
   // Ship (mutate — respect freeze)
