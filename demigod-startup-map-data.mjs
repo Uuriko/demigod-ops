@@ -376,15 +376,46 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(2);
   }
   // Fast, no-network integrity gate for verify-all: real on-disk map passes; a poisoned copy must fail.
+  // Base rebuild (no --with-jobs) is valid without ATS fields — jobs floor only when enrich is present
+  // or when callers pass withJobs after jobs-enrich (see rebuild path below).
   if (process.argv.includes('--selftest')) {
     try {
       const real = JSON.parse(fs.readFileSync(PUBLIC_STARTUP_MAP_PATH, 'utf8'));
-      const floors = assertMapFloors(real, { withJobs: true });
+      const cos = Array.isArray(real?.companies) ? real.companies : [];
+      const boardsPresent = cos.filter((c) => c?.openRoles && c?.atsSource).length;
+      const jobsEnriched = boardsPresent > 0;
+      // Base integrity always (companies + YC volume).
+      const floors = assertMapFloors(real, { withJobs: false });
       // fail-capable: a truncated rebuild (below the company floor) must breach.
       let threw = false;
-      try { assertMapFloors({ ...real, companies: real.companies.slice(0, 1000) }, { withJobs: true }); } catch { threw = true; }
+      try {
+        assertMapFloors({ ...real, companies: cos.slice(0, 1000) }, { withJobs: false });
+      } catch {
+        threw = true;
+      }
       if (!threw) throw new Error('floor guard did not fire on a truncated map');
-      console.log(JSON.stringify({ ok: true, selftest: 'map-floors', ...floors }));
+      // Jobs floor still exists: zero-board map under withJobs:true must fail.
+      let jobsFloorThrew = false;
+      try {
+        assertMapFloors(
+          { companies: cos.map((c) => ({ id: c.id, name: c.name })) },
+          { withJobs: true },
+        );
+      } catch {
+        jobsFloorThrew = true;
+      }
+      if (!jobsFloorThrew) throw new Error('jobs floor did not fire on zero boards');
+      // If disk already carries ATS enrich, enforce live board volume too.
+      if (jobsEnriched) assertMapFloors(real, { withJobs: true });
+      console.log(
+        JSON.stringify({
+          ok: true,
+          selftest: 'map-floors',
+          jobsEnriched,
+          boardsPresent,
+          ...floors,
+        }),
+      );
     } catch (error) {
       console.error(JSON.stringify({ ok: false, selftest: 'map-floors', error: String(error?.message || error) }));
       process.exit(1);
