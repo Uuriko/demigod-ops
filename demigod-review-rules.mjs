@@ -669,6 +669,8 @@ export const RULES = [
     run({ rel, src, isJs }) {
       if (!isJs) return [];
       if (/demigod-review-selftest\.mjs$/i.test(rel)) return [];
+      // This rule's own source contains the detector regex + filter samples — never self-hit
+      if (/demigod-review-rules\.mjs$/i.test(rel)) return [];
       // Anti-pattern: treat stdout PASS as success when status may be non-zero
       // Word-bound OK|PASS — avoids false hit on nav regex /LOOKING/ (contains "OK")
       if (!/status\s*===?\s*0/.test(src) && !/r\.status|exitCode|\.status\b/.test(src)) return [];
@@ -685,10 +687,17 @@ export const RULES = [
           if (inQuotedString(src, h.index) && /fixture|test/i.test(rel)) return false;
           // CPM/planner domain: "forward pass" / "backward pass" is not gate PASS
           if (/\b(forward|backward)\s+pass\b/i.test(span)) return false;
-          // Content intent alternation regexes (|| /\b(foo|bar pass|…)\b/) are not gate success checks
+          // Content intent alternation regexes are not gate success checks
+          // (split tokens so this filter source never matches the detector regex)
+          const contentAlt =
+            String.raw`\b(` +
+            '[^)]*' +
+            String.raw`\bpass\b` +
+            '[^)]*' +
+            String.raw`)`;
           if (
             !/status\s*===?\s*0/.test(span) &&
-            (/\\b\([^)]*\bpass\b[^)]*\)/i.test(span) || /\\b\(pass\|/i.test(span))
+            (new RegExp(contentAlt, 'i').test(span) || /\\b\(pass\|/i.test(span))
           ) {
             return false;
           }

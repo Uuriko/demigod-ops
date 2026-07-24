@@ -70,6 +70,11 @@ export function buildPriorityBoard(data = {}) {
   const live = data.live || {};
   const eventsOnline = data.eventsBot?.online || data.eventsOnline || {};
   const lock = data.lock || data.control?.lock || {};
+  // Publish-lag debt (truth soft-ok forever made multi-version lag invisible)
+  const publishLag =
+    (data.publishLag && typeof data.publishLag === 'object' ? data.publishLag : null) ||
+    (te.publishLag && typeof te.publishLag === 'object' ? te.publishLag : null) ||
+    null;
   const hasStandaloneDoctor = Object.hasOwn(data, 'webflowDoctor');
   const webflow = data.webflow || (hasStandaloneDoctor ? {} : readJson(path.join(BUSY, 'webflow-status.json'))) || {};
   const standaloneDoctor = hasStandaloneDoctor
@@ -118,14 +123,47 @@ export function buildPriorityBoard(data = {}) {
       owner: 'agent',
     });
   } else {
+    const lagNote =
+      publishLag?.overdue
+        ? ` · lag DEBT +${publishLag.versionsAhead || '?'}ver ${publishLag.ageHours ?? '?'}h`
+        : publishLag?.lagging
+          ? ` · lag +${publishLag.versionsAhead || '?'}ver tracked`
+          : '';
     push({
-      pri: 4,
+      pri: publishLag?.overdue ? 3 : 4,
       id: 'truth-green',
-      kind: 'ok',
-      title: `Site sealed green${live.foot ? ' · ' + live.foot : ''}`,
+      kind: publishLag?.overdue ? 'watch' : 'ok',
+      title: `Site sealed green${live.foot ? ' · ' + live.foot : ''}${lagNote}`,
       detail: te.summary || te.runId || 'fresh pass',
       cmd: 'bin/dg truth',
       job: 'truth',
+      owner: 'system',
+    });
+  }
+
+  // Aging prepare-only lag is debt (needs current-request publish auth — never auto-ship)
+  if (publishLag?.overdue) {
+    push({
+      pri: 1,
+      id: 'publish-lag-debt',
+      kind: 'action',
+      title: `Publish lag DEBT disk v${publishLag.diskVer || '?'} live v${publishLag.liveVer || '?'} (+${publishLag.versionsAhead || '?'}ver · ${publishLag.ageHours ?? '?'}h)`,
+      detail:
+        publishLag.note ||
+        'needs exact current-request publish authorization (not auto-ship) · prepare/verify only',
+      cmd: 'bin/dg ship prepare',
+      job: 'ship-prepare',
+      owner: 'unassigned',
+    });
+  } else if (publishLag?.lagging) {
+    push({
+      pri: 2,
+      id: 'publish-lag-tracked',
+      kind: 'watch',
+      title: `Publish lag tracked disk v${publishLag.diskVer || '?'} live v${publishLag.liveVer || '?'} (+${publishLag.versionsAhead || '?'}ver · ${publishLag.ageHours ?? '?'}h)`,
+      detail: 'under age/version thresholds · prepare-only until authorized publish',
+      cmd: 'bin/dg ship prepare',
+      job: 'ship-prepare',
       owner: 'system',
     });
   }
@@ -541,8 +579,13 @@ function main() {
     }
   })();
   const lockChanged = lockHeld && lockChangedSinceClaim(footLock, currentFootSha);
+  const truthReceipt = readJson(path.join(BUSY, 'truth.json')) || {};
   const data = {
     truthEvidence: refuseIfStale('truth'),
+    publishLag:
+      truthReceipt.publishLag && typeof truthReceipt.publishLag === 'object'
+        ? truthReceipt.publishLag
+        : null,
     freeze: { on: Boolean(freeze.on), why: freeze.why },
     demand: {
       pending: demand.queue?.pending ?? demand.pending,
