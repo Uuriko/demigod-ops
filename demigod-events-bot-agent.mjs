@@ -4238,9 +4238,30 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       reasons.push('ti-far');
     }
   }
+  // residual: north beach outdoor picnic crowned SoMa/Mission lawns via picnic-lawn+AREA_NEAR
+  // (NB free outdoor → Embarcadero/Ferry waterfront; draft free-list honesty only)
+  if (outdoorAsked && /\bnorth\s+beach\b/.test(needL)) {
+    if (
+      v.id === 'v_ferry_arcade' ||
+      v.id === 'v_embarcadero_bench' ||
+      /embarcadero|ferry/.test(blob + ' ' + areaL)
+    ) {
+      score += 5;
+      reasons.push('nb-waterfront');
+    } else if (
+      ['v_soma_parklet', 'v_yerba_buena', 'v_salesforce_park', 'v_dolores', 'v_hayes_green', 'v_crissy'].includes(
+        v.id,
+      )
+    ) {
+      score -= 3;
+      reasons.push('nb-far');
+    }
+  }
   // residual: bayview outdoor free hang tied Salesforce roof (right-size) with SoMa parklet
   // (SE soft lawns/parklets beat elevated roof garden; draft free-list honesty only)
-  if (outdoorAsked && /\b(bayview|visitacion)\b/.test(needL)) {
+  // residual: dogpatch outdoor free meetup crowned Salesforce roof (right-size+meetup) over
+  // SE lawns/parklets — same SE-soft preference (draft free-list honesty only)
+  if (outdoorAsked && /\b(bayview|visitacion|dogpatch)\b/.test(needL)) {
     if (
       v.id === 'v_soma_parklet' ||
       v.id === 'v_dolores' ||
@@ -4249,7 +4270,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score += 2;
       reasons.push('se-outdoor');
     } else if (v.id === 'v_salesforce_park') {
-      score -= 2;
+      // -4: meetup-fit+right-size still crowned roof over SE lawns at -2 (dogpatch residual)
+      score -= 4;
       reasons.push('se-roof');
     }
   }
@@ -4260,7 +4282,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score += 3;
       reasons.push('picnic-lawn');
     } else if (v.id === 'v_ferry_arcade' || (/ferry|arcade/.test(blob) && /food/.test(tags))) {
-      score -= 2;
+      // residual: right-size (+2) canceled picnic-plaza (-2) → ferry arcade crowned NB picnic
+      // over emb promenade (draft free-list honesty only)
+      score -= 4;
       reasons.push('picnic-plaza');
     }
   }

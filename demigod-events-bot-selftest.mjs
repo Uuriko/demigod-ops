@@ -10731,6 +10731,56 @@ for (const t of [
 ]) {
   ok(isSfLocation(t) === true && mentionsNonSf(t) === false, 'SF_OK residual: ' + t);
 }
+// residual: north beach outdoor picnic → Embarcadero/Ferry waterfront over SoMa lawns
+{
+  const nbNeed = 'north beach outdoor picnic';
+  const emb = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_embarcadero_bench'), {
+    need: nbNeed,
+    seats: 12,
+    explain: true,
+  });
+  const ferry = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_ferry_arcade'), {
+    need: nbNeed,
+    seats: 12,
+    explain: true,
+  });
+  const parklet = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_soma_parklet'), {
+    need: nbNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(emb.score > parklet.score, 'north beach outdoor: Embarcadero beats SoMa parklet');
+  ok(ferry.score > parklet.score, 'north beach outdoor: Ferry beats SoMa parklet');
+  ok(emb.reasons?.includes('nb-waterfront'), 'north beach outdoor: nb-waterfront on Embarcadero');
+  ok(parklet.reasons?.includes('nb-far'), 'north beach outdoor: nb-far on SoMa parklet');
+  const nbTop = matchFreeVenues({ need: nbNeed, seats: 12, limit: 1 })[0];
+  ok(
+    nbTop && /ferry|embarcadero/i.test((nbTop.id || '') + ' ' + (nbTop.name || '')),
+    'north beach outdoor tops waterfront: ' + (nbTop?.id || 'none'),
+  );
+}
+// residual: dogpatch outdoor free meetup — SE soft lawns beat Salesforce roof (meetup-fit)
+{
+  const dogNeed = 'dogpatch outdoor free meetup';
+  const dolores = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_dolores'), {
+    need: dogNeed,
+    seats: 12,
+    explain: true,
+  });
+  const roof = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_salesforce_park'), {
+    need: dogNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(dolores.score > roof.score, 'dogpatch outdoor meetup: Dolores beats Salesforce roof');
+  ok(dolores.reasons?.includes('se-outdoor'), 'dogpatch outdoor meetup: se-outdoor on Dolores');
+  ok(roof.reasons?.includes('se-roof'), 'dogpatch outdoor meetup: se-roof on Salesforce');
+  const dogTop = matchFreeVenues({ need: dogNeed, seats: 12, limit: 1 })[0];
+  ok(
+    dogTop && dogTop.id !== 'v_salesforce_park',
+    'dogpatch outdoor meetup not crowned Salesforce roof: ' + (dogTop?.id || 'none'),
+  );
+}
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(
