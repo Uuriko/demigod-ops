@@ -548,9 +548,10 @@ async function main() {
     throw new Error('--footer-only was removed: CM6 safety requires an exact canonical head + footer pair');
   }
   if (UNKNOWN_ARGS.length) {
-    throw new Error(
+    console.error(
       `unknown argument(s): ${UNKNOWN_ARGS.join(', ')}; expected --check, --check-structural, --check-only, --selftest, --no-publish, or --publish-only`,
     );
+    process.exit(2);
   }
   if (CHECK_ONLY && CHECK_STRUCTURAL) throw new Error('choose one check mode');
   if (NO_PUBLISH && PUBLISH_ONLY) throw new Error('--no-publish and --publish-only are mutually exclusive');

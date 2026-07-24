@@ -17,7 +17,21 @@ export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/u
 export BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
 CDP_URL="${CDP_URL:-http://127.0.0.1:9223}"
 LOG="$BUSY/dg-publish.log"
-DRY=0; [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]] && DRY=1
+DRY=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n) DRY=1 ;;
+    -h|--help)
+      echo "usage: dg-publish [--dry-run|-n]"
+      echo "  (real publish requires DEMIGOD_CURRENT_REQUEST_PUBLISH=1)"
+      exit 0
+      ;;
+    *)
+      echo "dg-publish: unknown argument: $arg — try: dg-publish [--dry-run|-n]" >&2
+      exit 2
+      ;;
+  esac
+done
 
 say(){ echo "[$(date -Iseconds)] dg-publish: $*" | tee -a "$LOG"; }
 fail(){ say "ABORT — $*"; exit 1; }

@@ -185,6 +185,17 @@ function assert(cond, msg) {
   process.env.PATH = oldPath;
 }
 
+{
+  // Fail-closed: this harness takes no flags (unknown must not vacuous-green).
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-funnel-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
+
 console.log('demigod-funnel-selftest\n');
 
 assert(parseCollectLimit(undefined) === 50, 'collect limit defaults to 50');
@@ -6099,6 +6110,20 @@ const funnelSource = fs.readFileSync(path.join(__dirname, 'demigod-funnel.mjs'),
   });
   if (unknown.error?.code === 'EPERM') skipReason = 'nested process spawn unavailable';
   assert(unknown.status === 2 && /unknown option: --definitely-unknown/.test(unknown.stderr), 'funnel status rejects unknown flags');
+  skipReason = '';
+}
+{
+  // This harness itself must not vacuous-green on unknown flags.
+  const selfUnknown = spawnSync(
+    process.execPath,
+    [fileURLToPath(import.meta.url), '--definitely-unknown'],
+    { encoding: 'utf8', timeout: 8000 },
+  );
+  if (selfUnknown.error?.code === 'EPERM') skipReason = 'nested process spawn unavailable';
+  assert(
+    selfUnknown.status === 2 && /no flags|unknown/i.test(selfUnknown.stderr || ''),
+    'funnel-selftest rejects unknown flags (exit 2)',
+  );
   skipReason = '';
 }
 assert(
