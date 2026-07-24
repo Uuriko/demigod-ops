@@ -10666,6 +10666,20 @@ for (const need of [
   );
 }
 
+// residual: free film screening crowned Mission SFPL over office AV (indoor control)
+const filmScreen = matchFreeVenues({ need: 'film screening free SoMa', seats: 20, limit: 2 });
+ok(
+  filmScreen[0]?.id === 'v_office_loan' || /office|loan/i.test(filmScreen[0]?.name || ''),
+  'film screening free SoMa tops office: ' + (filmScreen[0]?.id || 'none'),
+);
+ok(
+  matchFreeVenues({ need: 'outdoor film screening free SoMa', seats: 20, limit: 1 })[0] &&
+    /park|parklet|yerba|salesforce|dolores|crissy|lawn|promenade/i.test(
+      matchFreeVenues({ need: 'outdoor film screening free SoMa', seats: 20, limit: 1 })[0]?.name || '',
+    ),
+  'outdoor film screening stays outdoor free-list',
+);
+
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(
   watchParty[0] && !/park|lawn|green|promenade|parklet|dolores|crissy|yerba/i.test(watchParty[0].name || ''),

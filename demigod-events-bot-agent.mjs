@@ -305,6 +305,10 @@ export function mentionsNonSf(text) {
   if (/\b(?:A[KLRSZ]|C[OT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AIT]|W[AIVY]|tx)\s*$/.test(t)) return true;
   // State abbreviations are uppercase; case-insensitive OR/IN/ME/HI/etc. also match ordinary prose.
   if (/,\s*(?:A[KLRSZ]|C[OT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AIT]|W[AIVY])\b/.test(t)) return true;
+  // residual-80: SF|San Francisco + non-CA state mid-string (end-anchor missed "SF NM loft")
+  // Uppercase state only (same as end-anchor) so "SF or Mission" is not Oregon.
+  if (/\bSF\s*,?\s*(?:A[KLRSZ]|C[OT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AIT]|W[AIVY])\b/.test(t)) return true;
+  if (/\bSan Francisco\s*,?\s*(?:A[KLRSZ]|C[OT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AIT]|W[AIVY])\b/.test(t)) return true;
   if (/,\s*(?:alabama|alaska|arizona|arkansas|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)\b/i.test(t)) return true;
   if (/\bcambridge\b/i.test(t)) return true;
   // residual-49: bare Tahoe (lake/south/city covered; bare still default-passed) + AZ cities
@@ -1168,6 +1172,17 @@ const AREA_NEAR = {
   lagunahonda: ['laguna honda', 'forest hill', 'twin peaks', 'inner sunset', 'castro', 'mission', 'dolores', 'civic', 'main library'],
   'laguna honda': ['laguna honda', 'forest hill', 'twin peaks', 'inner sunset', 'castro', 'mission', 'dolores', 'civic', 'main library'],
   bayshore: ['bayshore', 'visitacion', 'bayview', 'excelsior', 'mission', 'bernal', 'soma'],
+  // residual: tank hill / alta plaza / portsmouth / coolbrith / grandview free-list areaNeed missed (draft only)
+  tankhill: ['tank hill', 'twin peaks', 'castro', 'mission', 'dolores'],
+  'tank hill': ['tank hill', 'twin peaks', 'castro', 'mission', 'dolores'],
+  altaplaza: ['alta plaza', 'pacific heights', 'marina', 'fillmore', 'hayes', 'civic', 'main library'],
+  'alta plaza': ['alta plaza', 'pacific heights', 'marina', 'fillmore', 'hayes', 'civic', 'main library'],
+  portsmouthsquare: ['portsmouth square', 'chinatown', 'north beach', 'embarcadero', 'ferry', 'civic', 'main library'],
+  'portsmouth square': ['portsmouth square', 'chinatown', 'north beach', 'embarcadero', 'ferry', 'civic', 'main library'],
+  inacoolbrith: ['ina coolbrith', 'russian hill', 'north beach', 'nob hill', 'embarcadero', 'civic', 'main library'],
+  'ina coolbrith': ['ina coolbrith', 'russian hill', 'north beach', 'nob hill', 'embarcadero', 'civic', 'main library'],
+  grandview: ['grandview', 'inner sunset', 'sunset', 'twin peaks', 'golden gate park', 'marina', 'crissy', 'civic', 'main library'],
+  'grandview park': ['grandview', 'inner sunset', 'sunset', 'twin peaks', 'golden gate park', 'marina', 'crissy', 'civic', 'main library'],
 };
 
 /** True when need-area token matches venue area/blob (incl. near-neighborhood aliases). */
@@ -4948,8 +4963,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       reasons.push('drinks-near');
     }
     // residual: happy-hour ranked SFPL/office over café (alcohol ban / wrong room type)
+    // residual: free-ask still crowned SFPL (+free) over drinks-cafe (not-free-ask) — demote harder
     if (/library/.test(blob) || /library/.test(tags)) {
-      score -= 5;
+      score -= freeAsked ? 8 : 5;
       reasons.push('no-drinks-room');
     }
     if (
@@ -5260,9 +5276,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score += 3;
       reasons.push('av-private');
     }
-    // Podcast/recording: open library rooms are weak (noise, no isolation).
+    // Podcast/recording/indoor film: open library rooms are weak (noise, no isolation).
+    // residual: free "film screening free SoMa" crowned Mission SFPL over office av-private.
     // -6 so free(+3)+right-size(+2) cannot crown SFPL over office av-private.
-    if (/\b(podcast|recording)\b/.test(needL) && (/library/.test(blob) || /library/.test(tags))) {
+    if (
+      needWantsAvQuiet(needL) &&
+      (/library/.test(blob) || /library/.test(tags))
+    ) {
       score -= 6;
       reasons.push('rec-library');
     }
@@ -5275,7 +5295,7 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-14: "financial district" only — bare "financial" is role title (financial controller).
   // mission bay before bare mission — Mission Bay ≠ Mission Dolores (area honesty)
   const areaNeed =
-    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mount\s+davidson|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
+    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mt\.?\s+davidson|mount\s+davidson|tank\s+hill|alta\s+plaza|portsmouth\s+square|ina\s+coolbrith|grandview(?:\s+park)?|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
       needL,
     );
   if (areaNeed) {
@@ -5352,7 +5372,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'silver terrace') tok = 'silverterrace';
     else if (tok === 'india basin') tok = 'indiabasin';
     else if (/^candlestick/.test(tok)) tok = 'candlestick';
-    else if (tok === 'mount davidson') tok = 'mountdavidson';
+    else if (/^mt\.?\s+davidson$/.test(tok) || tok === 'mount davidson') tok = 'mountdavidson';
+    else if (tok === 'tank hill') tok = 'tankhill';
+    else if (tok === 'alta plaza') tok = 'altaplaza';
+    else if (tok === 'portsmouth square') tok = 'portsmouthsquare';
+    else if (tok === 'ina coolbrith') tok = 'inacoolbrith';
+    else if (/^grandview(?:\s+park)?$/.test(tok)) tok = 'grandview';
     else if (/^mclaren(?:\s+park)?$/.test(tok)) tok = 'mclaren';
     else if (/^crissy(?:\s+field)?$/.test(tok)) tok = 'crissyfield';
     else if (tok === 'market street') tok = 'marketstreet';
@@ -5463,7 +5488,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     // residual: free dinner/supper still crowned SFPL via free-ask over in-kind kitchen
     (foodServiceFormat && !outdoorAsked) ||
     (needIsAllDay(needL) && !outdoorAsked) ||
-    (needWantsAvQuiet(needL) && /\b(podcast|recording)\b/.test(needL));
+    // residual: indoor film/screening free-ask crowned SFPL (podcast/recording already blocked)
+    needWantsAvQuiet(needL);
   if (isTrueFreeCost(v.cost)) {
     score += 3;
     reasons.push('free');

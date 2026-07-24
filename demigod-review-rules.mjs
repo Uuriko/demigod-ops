@@ -678,8 +678,20 @@ export const RULES = [
           const lineStart = src.lastIndexOf('\n', h.index) + 1;
           const lineEnd = src.indexOf('\n', h.index);
           const line = src.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
-          if (/fixture|gate-status-or-pass|Prefer exit status|DEMIGOD_GATE_ALLOW/.test(line)) return false;
+          // findAll returns { index, match }; match may span ||\n  /…forward pass…/
+          const matched = String(h.match || '');
+          const span = matched + '\n' + line;
+          if (/fixture|gate-status-or-pass|Prefer exit status|DEMIGOD_GATE_ALLOW/.test(span)) return false;
           if (inQuotedString(src, h.index) && /fixture|test/i.test(rel)) return false;
+          // CPM/planner domain: "forward pass" / "backward pass" is not gate PASS
+          if (/\b(forward|backward)\s+pass\b/i.test(span)) return false;
+          // Content intent alternation regexes (|| /\b(foo|bar pass|…)\b/) are not gate success checks
+          if (
+            !/status\s*===?\s*0/.test(span) &&
+            (/\\b\([^)]*\bpass\b[^)]*\)/i.test(span) || /\\b\(pass\|/i.test(span))
+          ) {
+            return false;
+          }
           return true;
         })
         .map((h) =>
