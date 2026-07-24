@@ -849,12 +849,26 @@ for (const b of [
     'Events online status exposes prepare-only website config + pending path',
     /prepareOnlyWebsiteConfig:/.test(eventsOnlineSource) &&
       /pendingConfigPath:/.test(eventsOnlineSource) &&
+      /pendingApiBase:/.test(eventsOnlineSource) &&
+      /pendingMatchesLocal:/.test(eventsOnlineSource) &&
+      /function readPendingWebsiteConfig/.test(eventsOnlineSource) &&
       /mkdirSync\(DIR, \{ recursive: true \}\)/.test(eventsOnlineSource),
   );
   assert(
     'control-plane events metrics include prepareOnlyWebsiteConfig',
     /prepareOnlyWebsiteConfig:/.test(controlSource) &&
-      /pendingConfigPath:/.test(controlSource),
+      /pendingConfigPath:/.test(controlSource) &&
+      /pendingApiBase:/.test(controlSource) &&
+      /pendingMatchesLocal:/.test(controlSource) &&
+      /pending matches local/.test(controlSource),
+  );
+  assert(
+    'dashboard online summary + UI surface pending events-api honesty',
+    /pendingApiBase: onlineFresh \? online\.pendingApiBase/.test(dashboardSource) &&
+      /pendingMatchesLocal: onlineFresh/.test(dashboardSource) &&
+      /pendingMatchesLocal/.test(dashboardUiSource) &&
+      /pending matches local/.test(dashboardUiSource) &&
+      /pendingApiBase/.test(dashboardUiSource),
   );
   assert(
     'control-plane + events-online expose preferredTunnelMatch honesty',
