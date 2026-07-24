@@ -443,6 +443,26 @@ async function websiteConfigStatus(currentApiBase) {
   };
 }
 
+/**
+ * Pure-ish: staged prepare-only website config (not live CDN).
+ * Operators previously only saw dead published bases and had to open the pending file.
+ */
+export function readPendingWebsiteConfig(pendingPath, readFile = fs.readFileSync) {
+  try {
+    const j = JSON.parse(String(readFile(pendingPath, 'utf8') || ''));
+    const apiBase = eventsPublicApiBase(j?.apiBase || j?.tunnelUrl || '');
+    if (!apiBase) return null;
+    return {
+      apiBase,
+      tunnelUrl: normalizeEventsPublicBase(j?.tunnelUrl || j?.apiBase || '') || null,
+      pendingPublish: j?.pendingPublish !== false,
+      blockedBy: j?.blockedBy || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function systemctlUser(args, opts = {}) {
   return spawnSync('systemctl', ['--user', ...args], {
     encoding: 'utf8',
@@ -1484,6 +1504,8 @@ async function status(requireCertified = false) {
   const nativeRsvpRoutes = localOk ? await localNativeRsvpRoutesOk() : false;
   const apiBase = eventsPublicApiBase(root) || null;
   const websiteConfig = await websiteConfigStatus(apiBase);
+  const pendingPath = path.join(BUSY, 'events-bot', 'events-api-latest.pending.json');
+  const pending = readPendingWebsiteConfig(pendingPath);
   const out = {
     at: new Date().toISOString(),
     ok: hostUnobservable ? null : reachable,
@@ -1516,7 +1538,11 @@ async function status(requireCertified = false) {
     websiteConfigReachable: websiteConfig.reachable,
     websiteConfigApiBases: websiteConfig.apiBases,
     // Local public can be up while CDN config is stale; pending is prepare-only (publish-config gated).
-    pendingConfigPath: path.join(BUSY, 'events-bot', 'events-api-latest.pending.json'),
+    // Surface staged base so dash/agents do not confuse dead CDN bases with the pending heal target.
+    pendingConfigPath: pendingPath,
+    pendingApiBase: pending?.apiBase || null,
+    pendingMatchesLocal: pending?.apiBase && apiBase ? pending.apiBase === apiBase : null,
+    pendingBlockedBy: pending?.blockedBy || null,
     prepareOnlyWebsiteConfig:
       !hostUnobservable &&
       publicOk === true &&
@@ -1831,6 +1857,20 @@ function selfcheck() {
     /function stop\([\s\S]*?killStrayTunnels\(\)/.test(srcOnline) &&
       /cloudflared-patience/.test(srcOnline),
     'stop() sweeps tunnel strays; CF patience before loca thrash',
+  );
+  ok(
+    readPendingWebsiteConfig('/no/such/pending.json') === null,
+    'readPendingWebsiteConfig missing file → null',
+  );
+  ok(
+    readPendingWebsiteConfig('/x', () =>
+      JSON.stringify({
+        apiBase: 'https://staged.trycloudflare.com/api/events-bot',
+        pendingPublish: true,
+        blockedBy: 'current-request auth + explicit --publish-config required (prepare-only)',
+      }),
+    )?.apiBase === 'https://staged.trycloudflare.com/api/events-bot',
+    'readPendingWebsiteConfig surfaces staged apiBase',
   );
   ok(
     filterHealAttemptsAfterCfGiveUp(
