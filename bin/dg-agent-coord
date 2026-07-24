@@ -201,10 +201,30 @@ with (DIR / "board.lock").open("w") as board_lock:
     if changed:
         atomic_write(bp, json.dumps(board, indent=2) + "\n")
 
+# Publish-lag debt from truth (aging prepare-only disk≠live)
+lag_line = ""
+try:
+    tj = json.loads(Path("/tmp/dg-busy/truth.json").read_text())
+    pl = tj.get("publishLag") or {}
+    if pl.get("lagging"):
+        debt = "DEBT" if pl.get("overdue") else "tracked"
+        lag_line = (
+            f"**Publish lag ({debt}):** disk v{pl.get('diskVer')} live v{pl.get('liveVer')} "
+            f"· +{pl.get('versionsAhead')} ver · {pl.get('ageHours')}h "
+            f"(threshold {pl.get('thresholdHours')}h / +{pl.get('thresholdVersions')} ver) "
+            f"— needs exact current-request publish auth · not auto-ship"
+        )
+except Exception:
+    lag_line = ""
+
 lines = [
     f"# Coord digest (auto) · {now}",
     "",
     f"**Disk foot:** {foot_ver} · prepare/verify only; publish requires exact current-request authorization + foot lock · no auto-DM · no game",
+]
+if lag_line:
+    lines += ["", lag_line]
+lines += [
     "",
     "## Active focus (read before choosing work)",
 ]

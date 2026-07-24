@@ -433,6 +433,14 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
   let siteDetail;
   const prepareOnlyRelease = Boolean(truthReceipt?.prepareOnlyRelease);
   const prepareOnlyAssets = Boolean(truthReceipt?.prepareOnlySiblingAssets);
+  const publishLag = truthReceipt?.publishLag && typeof truthReceipt.publishLag === 'object'
+    ? truthReceipt.publishLag
+    : null;
+  const lagSuffix = publishLag?.lagging
+    ? publishLag.overdue
+      ? ` · lag DEBT +${publishLag.versionsAhead}ver ${publishLag.ageHours}h (auth publish)`
+      : ` · lag +${publishLag.versionsAhead}ver ${publishLag.ageHours}h tracked`
+    : '';
   if (liveFootVer) {
     siteDetail = `Live foot v${liveFootVer}${liveFootUrl ? ` · ${liveFootUrl}` : ''}${
       siteFullyShipped
@@ -442,7 +450,7 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
             ? ' · prepare-only (sibling assets ahead of CDN)'
             : ' · prepare-only (publish unauthorized)'
           : ' · not fully shipped'
-    }`;
+    }${lagSuffix}`;
   } else if (hasTruthReceipt && te.summary) {
     // Truth ran but live unknown — do not invent vN from dash cache
     siteDetail = String(te.summary).slice(0, 160);
@@ -466,7 +474,9 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     next: siteFullyShipped
       ? 'bin/dg smoke'
       : prepareOnlyRelease
-        ? 'bin/dg ship prepare  # publish unauthorized — identity lag soft-ok'
+        ? publishLag?.overdue
+          ? 'bin/dg ship prepare  # lag DEBT — ask current-request publish auth (not auto-ship)'
+          : 'bin/dg ship prepare  # publish unauthorized — identity lag soft-ok'
         : 'bin/dg truth',
     metrics: {
       // Live identity only from truth when receipt exists (Codex cont16)
@@ -482,6 +492,9 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
       fullyShipped: siteFullyShipped,
       prepareOnlyRelease,
       prepareOnlyAssets,
+      publishLagOverdue: Boolean(publishLag?.overdue),
+      publishLagVersions: publishLag?.versionsAhead ?? null,
+      publishLagAgeHours: publishLag?.ageHours ?? null,
       truthSource: hasTruthReceipt ? 'truth.json' : 'dash-fallback',
     },
   });
@@ -745,6 +758,16 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
 
   const spine = [];
   if (!wf?.cdp?.ok) spine.push({ pri: 0, id: 'cdp', title: 'Start CDP Chrome', cmd: '~/agent-dev.sh up', module: 'webflow' });
+  // Aging prepare-only debt: surface before hygiene thrash (still not auto-publish).
+  if (publishLag?.overdue) {
+    spine.push({
+      pri: 0,
+      id: 'publish-lag-debt',
+      title: `Publish lag DEBT disk v${publishLag.diskVer} live v${publishLag.liveVer} (+${publishLag.versionsAhead}ver · ${publishLag.ageHours}h)`,
+      cmd: 'bin/dg ship prepare  # needs exact current-request publish auth — not auto-ship',
+      module: 'ship',
+    });
+  }
   if ((wf?.tabs?.pages || 0) > 10 || (wf?.tabs?.byRole?.['ops-dash'] || 0) > 2) {
     spine.push({ pri: 1, id: 'prune', title: 'Prune tabs', cmd: 'bin/dg hygiene --prune', module: 'hygiene', job: 'hygiene' });
   }

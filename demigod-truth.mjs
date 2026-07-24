@@ -128,6 +128,67 @@ function runSelftest() {
     'release recovery exposes an explicit retry trigger',
   );
 
+  const lagClear = computePublishLag({
+    prepareOnlyRelease: true,
+    fullyShipped: true,
+    diskVer: '818',
+    liveVer: '802',
+    at: '2026-07-24T03:00:00.000Z',
+  });
+  check(lagClear.lagging === false && lagClear.overdue === false, 'publish lag clears when fullyShipped');
+
+  const lagFresh = computePublishLag({
+    prepareOnlyRelease: true,
+    fullyShipped: false,
+    diskVer: '805',
+    liveVer: '802',
+    at: '2026-07-24T03:00:00.000Z',
+    prev: { lagging: true, pair: '805->802', firstSeenAt: '2026-07-24T02:30:00.000Z' },
+    thresholdHours: 6,
+    thresholdVersions: 8,
+  });
+  check(
+    lagFresh.lagging === true &&
+      lagFresh.versionsAhead === 3 &&
+      lagFresh.overdue === false &&
+      lagFresh.firstSeenAt === '2026-07-24T02:30:00.000Z',
+    'publish lag tracks age under thresholds without overdue',
+  );
+
+  const lagDebt = computePublishLag({
+    prepareOnlyRelease: true,
+    fullyShipped: false,
+    diskVer: '818',
+    liveVer: '802',
+    at: '2026-07-24T10:00:00.000Z',
+    prev: { lagging: true, pair: '818->802', firstSeenAt: '2026-07-23T20:00:00.000Z' },
+    thresholdHours: 6,
+    thresholdVersions: 8,
+  });
+  check(
+    lagDebt.overdue === true && lagDebt.overdueByAge === true && lagDebt.overdueByVersions === true,
+    'publish lag overdue by age and version delta',
+  );
+
+  const lagLedger = computePublishLag({
+    prepareOnlyRelease: true,
+    fullyShipped: false,
+    diskVer: '810',
+    liveVer: '802',
+    at: '2026-07-24T12:00:00.000Z',
+    ledgerLines: [
+      { at: '2026-07-23T10:00:00.000Z', diskVer: '802', liveVer: '802', fullyShipped: true },
+      { at: '2026-07-23T11:00:00.000Z', diskVer: '803', liveVer: '802', fullyShipped: false },
+      { at: '2026-07-23T12:00:00.000Z', diskVer: '810', liveVer: '802', fullyShipped: false },
+    ],
+    thresholdHours: 1000,
+    thresholdVersions: 100,
+  });
+  check(
+    lagLedger.firstSeenAt === '2026-07-23T11:00:00.000Z',
+    'publish lag bootstraps firstSeenAt from version ledger after last ship',
+  );
+
   if (failures.length) {
     for (const label of failures) console.error(`FAIL ${label}`);
     console.error(`${failures.length} FAIL demigod-truth selftest`);
@@ -145,6 +206,145 @@ function releaseMutationGuards({ leaseHeld, transportBlocked }) {
     blockedByLease: Boolean(leaseHeld),
     progressBlockedByLease: Boolean(leaseHeld && !transportBlocked),
   };
+}
+
+/**
+ * Track prepare-only disk≠live as aging *debt* (not an outage). Soft-ok forever
+ * made multi-version lag invisible; this surfaces threshold breaches without
+ * auto-shipping. Thresholds: DEMIGOD_PUBLISH_LAG_HOURS (default 6),
+ * DEMIGOD_PUBLISH_LAG_VERSIONS (default 8).
+ */
+export function computePublishLag({
+  prepareOnlyRelease,
+  fullyShipped,
+  diskVer,
+  liveVer,
+  at = new Date().toISOString(),
+  prev = null,
+  ledgerLines = null,
+  thresholdHours = Number(process.env.DEMIGOD_PUBLISH_LAG_HOURS || 6),
+  thresholdVersions = Number(process.env.DEMIGOD_PUBLISH_LAG_VERSIONS || 8),
+} = {}) {
+  const thrH = Number.isFinite(thresholdHours) && thresholdHours > 0 ? thresholdHours : 6;
+  const thrV =
+    Number.isFinite(thresholdVersions) && thresholdVersions > 0 ? thresholdVersions : 8;
+  const d = Number(String(diskVer || '').replace(/^v/, ''));
+  const l = Number(String(liveVer || '').replace(/^v/, ''));
+  const versionsAhead =
+    Number.isFinite(d) && Number.isFinite(l) ? Math.max(0, d - l) : 0;
+  const pair = `${diskVer || '?'}->${liveVer || '?'}`;
+  const lagging = Boolean(
+    prepareOnlyRelease && !fullyShipped && versionsAhead > 0 && diskVer && liveVer,
+  );
+
+  if (!lagging) {
+    return {
+      schema: 'demigod.publish-lag/1',
+      at,
+      lagging: false,
+      pair: null,
+      diskVer: diskVer || null,
+      liveVer: liveVer || null,
+      versionsAhead: 0,
+      firstSeenAt: null,
+      ageHours: 0,
+      thresholdHours: thrH,
+      thresholdVersions: thrV,
+      overdue: false,
+      overdueByAge: false,
+      overdueByVersions: false,
+      note: 'no prepare-only version debt',
+    };
+  }
+
+  let firstSeenAt = null;
+  if (prev?.lagging && prev?.pair === pair && prev?.firstSeenAt) {
+    firstSeenAt = prev.firstSeenAt;
+  } else if (Array.isArray(ledgerLines)) {
+    // Earliest continuous lag vs this live pin after last fullyShipped of that pin.
+    let lastShipAt = null;
+    for (const row of ledgerLines) {
+      if (!row || typeof row !== 'object') continue;
+      const lv = String(row.liveVer || '').replace(/^v/, '');
+      const dv = String(row.diskVer || '').replace(/^v/, '');
+      if (row.fullyShipped && lv === String(liveVer).replace(/^v/, '') && dv === lv) {
+        lastShipAt = row.at || lastShipAt;
+      }
+    }
+    for (const row of ledgerLines) {
+      if (!row || typeof row !== 'object') continue;
+      const lv = String(row.liveVer || '').replace(/^v/, '');
+      const dv = String(row.diskVer || '').replace(/^v/, '');
+      if (lv !== String(liveVer).replace(/^v/, '')) continue;
+      if (!dv || !Number.isFinite(Number(dv)) || Number(dv) <= Number(lv)) continue;
+      if (lastShipAt && row.at && row.at < lastShipAt) continue;
+      firstSeenAt = row.at;
+      break;
+    }
+  }
+  if (!firstSeenAt) firstSeenAt = at;
+
+  const ageMs = Math.max(0, Date.parse(at) - Date.parse(firstSeenAt));
+  const ageHours = Math.round((ageMs / 3600000) * 10) / 10;
+  const overdueByAge = ageHours >= thrH;
+  const overdueByVersions = versionsAhead >= thrV;
+  const overdue = overdueByAge || overdueByVersions;
+
+  return {
+    schema: 'demigod.publish-lag/1',
+    at,
+    lagging: true,
+    pair,
+    diskVer: String(diskVer),
+    liveVer: String(liveVer),
+    versionsAhead,
+    firstSeenAt,
+    ageHours,
+    thresholdHours: thrH,
+    thresholdVersions: thrV,
+    overdue,
+    overdueByAge,
+    overdueByVersions,
+    note: overdue
+      ? 'publish lag DEBT — needs exact current-request publish authorization (not auto-ship)'
+      : 'publish lag tracked — still under age/version thresholds',
+  };
+}
+
+function loadPublishLagPrev(busy = BUSY) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(busy, 'publish-lag.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function loadLedgerRows(root = ROOT) {
+  try {
+    const text = fs.readFileSync(path.join(root, 'DEMIGOD-VERSION-LEDGER.jsonl'), 'utf8');
+    return text
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function persistPublishLag(lag, busy = BUSY) {
+  try {
+    fs.mkdirSync(busy, { recursive: true });
+    writeJsonAuto(path.join(busy, 'publish-lag.json'), lag);
+  } catch {
+    /* best-effort */
+  }
 }
 
 function canonicalAssetUrl(raw) {
@@ -904,13 +1104,33 @@ async function main() {
 
   facts.prepareOnlyRelease = prepareOnlyRelease;
   facts.prepareOnlySiblingAssets = prepareOnlySiblingAssets;
+
+  // Aging prepare-only debt (soft — never forces publish; surfaces threshold breach).
+  const publishLag = computePublishLag({
+    prepareOnlyRelease,
+    fullyShipped,
+    diskVer,
+    liveVer,
+    at: facts.at || new Date().toISOString(),
+    prev: loadPublishLagPrev(BUSY),
+    ledgerLines: loadLedgerRows(ROOT),
+  });
+  persistPublishLag(publishLag, BUSY);
+  facts.publishLag = publishLag;
+  if (publishLag.lagging) {
+    const lagMsg = `publish lag disk v${publishLag.diskVer} live v${publishLag.liveVer} · +${publishLag.versionsAhead} ver · ${publishLag.ageHours}h (debt after ${publishLag.thresholdHours}h or +${publishLag.thresholdVersions} ver)`;
+    if (publishLag.overdue) ok.push(`${lagMsg} · DEBT — needs current-request publish auth`);
+    else ok.push(`${lagMsg} · tracked`);
+  }
+
   const prepareBit =
     !fullyShipped && prepareOnlyRelease
       ? prepareOnlySiblingAssets
         ? ' prepareOnlyAssets'
         : ' prepareOnly'
       : '';
-  facts.summaryLine = `TRUTH ${pass ? 'PASS' : 'FAIL'} disk=v${diskVer} live=v${liveVer || '?'} freeze=${freeze.on ? 'ON' : 'OFF'} lock=${lock.held ? lock.owner : 'free'} board=${boardOk ? 'ok' : 'FAIL'} shipped=${fullyShipped}${driftExpected ? ' driftExpected' : ''}${prepareBit}`;
+  const lagBit = publishLag.overdue ? ' lagDebt' : publishLag.lagging ? ' lagTracked' : '';
+  facts.summaryLine = `TRUTH ${pass ? 'PASS' : 'FAIL'} disk=v${diskVer} live=v${liveVer || '?'} freeze=${freeze.on ? 'ON' : 'OFF'} lock=${lock.held ? lock.owner : 'free'} board=${boardOk ? 'ok' : 'FAIL'} shipped=${fullyShipped}${driftExpected ? ' driftExpected' : ''}${prepareBit}${lagBit}`;
 
   fs.mkdirSync(BUSY, { recursive: true });
   writeJsonAuto(path.join(BUSY, 'truth.json'), facts);
