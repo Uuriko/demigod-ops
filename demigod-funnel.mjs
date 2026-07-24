@@ -1524,24 +1524,47 @@ export function wizLinkFor(lead, side) {
 
 /**
  * Pure: true when talent draft body greets with SEO junk or full name instead of first name.
+ * Even when we only know "there", SEO/pricing greets must rewrite (was skipped — left hygiene warns).
  */
 export function talentDraftNeedsGreetingRefresh(body, lead) {
   const who = talentGreetingName(lead);
-  if (!who || who === 'there') return false;
   const m = String(body || '').match(/^Hi\s+([^\n—\-]{1,80})/m);
   if (!m) return true;
   const greeter = m[1].trim().replace(/\s+$/, '');
+  // Always rewrite SEO/pricing titles in the greeting slot
   if (isSeoDisplayJunk(greeter)) return true;
+  if (!who || who === 'there') {
+    if (greeter === 'there') return false;
+    // Keep a plausible single first name already in the draft; multi-word residual → Hi there
+    if (/^[A-Za-z][A-Za-z'.-]{1,24}$/.test(greeter)) return false;
+    return true;
+  }
   if (greeter === who) return false;
   // "Kaveri Mekala" when we prefer "Kaveri"
   if (greeter.startsWith(who + ' ')) return true;
-  // Completely different SEO string
-  if (isSeoDisplayJunk(greeter) || greeter.length > who.length + 8) return true;
+  if (greeter.length > who.length + 8) return true;
   return false;
 }
 
+/** States that may hold a human-edited post-send draft — never auto-refresh greetings. */
+const TALENT_GREETING_SKIP_STATES = new Set([
+  'sent',
+  'nudged',
+  'replied',
+  'form_filled',
+  'in_review',
+  'proposed',
+  'mutual_yes',
+  'intro_made',
+  'interviewing',
+  'hired',
+  'invoiced',
+  'paid',
+]);
+
 /**
  * Soft-rewrite talent draft files whose greeting is SEO/full-name junk.
+ * Includes disqualified/hold (was drafted|approved only — left hygiene greets_seo_title warns).
  * Returns refreshed lead ids. Never invents contact.
  */
 export function refreshTalentDraftGreetings(doc, { draftsDir = DRAFTS } = {}) {
@@ -1550,7 +1573,7 @@ export function refreshTalentDraftGreetings(doc, { draftsDir = DRAFTS } = {}) {
   for (const { lead, side } of allLeads(doc || {})) {
     if (side !== 'talent' && side !== 'engineer') continue;
     const st = getState(lead);
-    if (st !== 'drafted' && st !== 'approved') continue;
+    if (TALENT_GREETING_SKIP_STATES.has(st)) continue;
     const df = path.join(draftsDir, `${lead.id}.txt`);
     let body = '';
     try {
@@ -1567,6 +1590,33 @@ export function refreshTalentDraftGreetings(doc, { draftsDir = DRAFTS } = {}) {
     } catch {
       /* skip unwritable */
     }
+  }
+  // Orphan talent drafts (no lead row) with SEO greets → Hi there (hygiene only)
+  try {
+    const known = new Set((doc?.talent || []).map((l) => l.id));
+    for (const f of fs.readdirSync(draftsDir).filter((n) => /^fc-t-.*\.txt$/i.test(n))) {
+      const id = f.replace(/\.txt$/i, '');
+      if (known.has(id)) continue;
+      const df = path.join(draftsDir, f);
+      let body = '';
+      try {
+        body = fs.readFileSync(df, 'utf8');
+      } catch {
+        continue;
+      }
+      const m = body.match(/^Hi\s+([^\n—\-]{1,80})/m);
+      if (!m || !isSeoDisplayJunk(m[1].trim())) continue;
+      const next = body.replace(/^Hi\s+[^\n—\-]{1,80}/m, 'Hi there');
+      if (next === body) continue;
+      try {
+        atomicWrite(df, next);
+        refreshed.push(id);
+      } catch {
+        /* skip */
+      }
+    }
+  } catch {
+    /* drafts dir unreadable */
   }
   return refreshed;
 }

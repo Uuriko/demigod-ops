@@ -29,6 +29,7 @@ import {
   countReceiptBackedSent,
   draftContactTo,
   draftEmail,
+  refreshTalentDraftGreetings,
   talentGreetingName,
   talentDraftNeedsGreetingRefresh,
   isSeoDisplayJunk,
@@ -3927,6 +3928,52 @@ assert(
     }) === false,
     'talentDraftNeedsGreetingRefresh: good greeting ok',
   );
+  assert(
+    talentDraftNeedsGreetingRefresh(
+      'Hi Software Engineer jobs at Y Combinator startups in San Francisco — note.\n',
+      { name: 'Software Engineer jobs at Y Combinator startups in San Francisco', email: '' },
+    ) === true,
+    'talentDraftNeedsGreetingRefresh: SEO greeting when who=there still needs refresh',
+  );
+  assert(
+    talentDraftNeedsGreetingRefresh('Hi there — saw your public SF eng signal.\n', {
+      name: '1000+ Startup Engineer jobs in San Francisco',
+      email: '',
+    }) === false,
+    'talentDraftNeedsGreetingRefresh: Hi there ok when no first name',
+  );
+  {
+    const greetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-funnel-greet-'));
+    try {
+      const junkId = 'fc-t-seo-junk';
+      fs.writeFileSync(
+        path.join(greetDir, `${junkId}.txt`),
+        'To: (no direct contact)\nSubject: SF matching\n\nHi 1000+ Startup Engineer jobs in San Francisco — listing noise.\n\n— Potter\n',
+        'utf8',
+      );
+      const refreshed = refreshTalentDraftGreetings(
+        {
+          talent: [
+            {
+              id: junkId,
+              type: 'talent',
+              name: '1000+ Startup Engineer jobs in San Francisco',
+              state: 'disqualified',
+              signal: 'listing noise',
+            },
+          ],
+          partners: [],
+        },
+        { draftsDir: greetDir },
+      );
+      const body = fs.readFileSync(path.join(greetDir, `${junkId}.txt`), 'utf8');
+      assert(refreshed.includes(junkId), 'refreshTalentDraftGreetings rewrites disqualified SEO greets');
+      assert(/^Hi there/m.test(body), 'refreshTalentDraftGreetings uses Hi there for SEO names');
+      assert(!/Hi 1000\+/m.test(body), 'refreshTalentDraftGreetings drops SEO title greeting');
+    } finally {
+      fs.rmSync(greetDir, { recursive: true, force: true });
+    }
+  }
 
   const bare = {
     id: 'bare-fc',
