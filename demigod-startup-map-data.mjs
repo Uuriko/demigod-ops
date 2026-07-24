@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { cleanBoundaryFeatures, mergeBounds } from './demigod-startup-atlas.mjs';
@@ -342,9 +344,51 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
   return { map, outPath };
 }
 
+// Rebuild-integrity floors: a deterministic rebuild must not silently produce a truncated directory
+// or a total jobs-enrich failure. Job-board MISATTRIBUTION honesty is enforced separately by
+// demigod-startup-jobs-enrich.mjs (domain-label + curated ATS aliases, with its own --selftest) —
+// the floor deliberately does NOT re-check slugs (legit boards can differ from the domain label,
+// e.g. usepylon.com → pylon-labs), it only guards volume so a bad rebuild fails loud.
+export function assertMapFloors(map, { withJobs = false, minCompanies = 2000, minYc = 1900, minBoards = 100 } = {}) {
+  const cos = Array.isArray(map?.companies) ? map.companies : [];
+  const yc = cos.filter((c) => String(c?.id || '').startsWith('yc:')).length;
+  const boards = cos.filter((c) => c?.openRoles && c?.atsSource).length;
+  const problems = [];
+  if (cos.length < minCompanies) problems.push(`companies ${cos.length} < ${minCompanies}`);
+  if (yc < minYc) problems.push(`yc: companies ${yc} < ${minYc}`);
+  if (withJobs && boards < minBoards) problems.push(`job boards ${boards} < ${minBoards}`);
+  if (problems.length) throw new Error('map floor breach: ' + problems.join('; '));
+  return { companies: cos.length, yc, boards };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // Fast, no-network integrity gate for verify-all: real on-disk map passes; a poisoned copy must fail.
+  if (process.argv.includes('--selftest')) {
+    try {
+      const real = JSON.parse(fs.readFileSync(PUBLIC_STARTUP_MAP_PATH, 'utf8'));
+      const floors = assertMapFloors(real, { withJobs: true });
+      // fail-capable: a truncated rebuild (below the company floor) must breach.
+      let threw = false;
+      try { assertMapFloors({ ...real, companies: real.companies.slice(0, 1000) }, { withJobs: true }); } catch { threw = true; }
+      if (!threw) throw new Error('floor guard did not fire on a truncated map');
+      console.log(JSON.stringify({ ok: true, selftest: 'map-floors', ...floors }));
+    } catch (error) {
+      console.error(JSON.stringify({ ok: false, selftest: 'map-floors', error: String(error?.message || error) }));
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+  const withJobs = process.argv.includes('--with-jobs');
   refreshPublicStartupMap()
-    .then(({ map, outPath }) => console.log(JSON.stringify({ ok: true, outPath, coverage: map.coverage })))
+    .then(({ map, outPath }) => {
+      if (withJobs) {
+        const r = spawnSync('node', [path.join(ROOT, 'demigod-startup-jobs-enrich.mjs')], { stdio: 'inherit' });
+        if (r.status !== 0) throw new Error(`jobs-enrich failed (exit ${r.status})`);
+        map = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+      }
+      const floors = assertMapFloors(map, { withJobs });
+      console.log(JSON.stringify({ ok: true, outPath, withJobs, floors }));
+    })
     .catch((error) => {
       console.error(JSON.stringify({ ok: false, error: String(error?.message || error) }));
       process.exitCode = 1;

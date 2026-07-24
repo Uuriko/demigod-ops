@@ -52,6 +52,8 @@ if (ship || wizard) {
     ['demigod-startup-atlas-web.test.mjs'],
     // Jobs enrich slug honesty — domain-only slugs (blocks Camp/Cedar name→wrong ATS)
     ['demigod-startup-jobs-enrich.mjs', ['--selftest']],
+    // Directory rebuild-integrity floors — real map clears volume floors; truncation must fail-loud
+    ['demigod-startup-map-data.mjs', ['--selftest']],
     // Live smoke readiness polls through transient CDP evaluate timeouts
     ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
