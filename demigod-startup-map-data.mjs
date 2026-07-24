@@ -18,6 +18,11 @@ const SINCE = '2020-01-01T00:00:00.000';
 const TECH_NAICS = ['3254', '3341', '3344', '3345', '5112', '5132', '5182', '5191', '5415', '5417'];
 const YC_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { { ?company wdt:P1951 wd:Q2616400. } UNION { ?company wdt:P1344 ?batch. ?batch wdt:P664 wd:Q2616400. } ?company wdt:P159 wd:Q62. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
 const STARTUP_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { ?company wdt:P31 wd:Q129238; wdt:P159 wd:Q62. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
+// Broadened SF-tech net: any SF-HQ (P159=Q62) company/business/tech-company type WITH an official
+// website (P856), not dissolved, excluding banks/nonprofits, founded 2005+ when dated. Widens coverage
+// beyond the strict "startup" instance (Q129238) to real SF tech companies that carry a website (so they
+// can be job-enriched). Website-required keeps entries useful; QID/host dedupe removes overlaps.
+const BROAD_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { VALUES ?type { wd:Q4830453 wd:Q783794 wd:Q6881511 wd:Q18388277 wd:Q1058914 wd:Q167037 } ?company wdt:P159 wd:Q62; wdt:P31 ?type; wdt:P856 ?website. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } FILTER NOT EXISTS { ?company wdt:P31 ?x. VALUES ?x { wd:Q22687 wd:Q163740 } } OPTIONAL { ?company wdt:P571 ?inception. } FILTER( !BOUND(?inception) || YEAR(?inception) >= 2005 ) SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
 // Bay-ish locations on the public YC dump (same spirit as demigod-free-ops yc-oss --sf).
 const YC_SF_LOC_RE =
   /\b(san\s*francisco|oakland|berkeley|palo\s*alto|mountain\s*view|san\s*mateo|redwood\s*city|menlo\s*park|sunnyvale|cupertino|santa\s*clara|san\s*jose|daly\s*city|south\s*san\s*francisco|emeryville|alameda|fremont|hayward|burlingame|san\s*carlos|foster\s*city|milpitas|los\s*altos|los\s*gatos|campbell|saratoga|belmont|san\s*bruno|south\s*bay|east\s*bay|peninsula|silicon\s*valley|bay\s*area)\b/i;
@@ -190,11 +195,12 @@ export function buildPublicVenues(venues = [], retrievedAt = new Date().toISOStr
 }
 
 export function buildPublicStartupMap({ counts = [], total = 0, companies = [], venues = [], neighborhoodGeoJson, generatedAt } = {}) {
-  // Named companies must carry an attributed public source: CC0-1.0 (Wikidata) or YC-public
-  // (Y Combinator's public company directory, linked to the company's YC page). No unattributed data.
-  const ALLOWED_LICENSES = ['CC0-1.0', 'YC-public'];
+  // Named companies must carry an attributed public source: CC0-1.0 (Wikidata), YC-public (Y
+  // Combinator's public directory), or HN-public (a company's own public "Who is hiring?" post on
+  // Hacker News, linked to that thread). No unattributed data.
+  const ALLOWED_LICENSES = ['CC0-1.0', 'YC-public', 'HN-public'];
   if (!Array.isArray(companies) || companies.some((company) => !ALLOWED_LICENSES.includes(company?.sourceLicense))) {
-    throw new Error('public named companies require an attributed public source (CC0-1.0 or YC-public)');
+    throw new Error('public named companies require an attributed public source (CC0-1.0, YC-public, or HN-public)');
   }
   const boundaries = cleanBoundaryFeatures(neighborhoodGeoJson);
   if (!boundaries.length) throw new Error('DataSF neighborhood boundaries are missing');
@@ -302,12 +308,13 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
       'User-Agent': 'DemigodStartupAtlas/1.0 (https://trydemigod.com)',
     },
   });
-  const [counts, totals, neighborhoodGeoJson, ycBody, startupBody, ycOssRaw] = await Promise.all([
+  const [counts, totals, neighborhoodGeoJson, ycBody, startupBody, broadBody, ycOssRaw] = await Promise.all([
     json(fetchImpl, `${BUSINESSES}?${grouped}`),
     json(fetchImpl, `${BUSINESSES}?${totalQuery}`),
     json(fetchImpl, BOUNDARIES),
     wikidata(YC_QUERY),
     wikidata(STARTUP_QUERY),
+    wikidata(BROAD_QUERY),
     json(fetchImpl, YC_OSS_URL),
   ]);
   if (!Array.isArray(counts) || !Array.isArray(totals) || totals.length !== 1) {
@@ -328,13 +335,20 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
     [
       { body: ycBody, tag: 'yc' },
       { body: startupBody, tag: 'wikidata-startup' },
+      { body: broadBody, tag: 'wikidata-sf-tech' },
     ],
     at,
   );
+  // HN "Who is hiring?" companies (map-ready cache written by demigod-hn-hiring.mjs; refresh monthly).
+  // Graceful if absent — the directory rebuilds fine without it.
+  const hnCompanies = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || []; }
+    catch { return []; }
+  })();
   const map = buildPublicStartupMap({
     counts,
     total: totals[0]?.count,
-    companies: mergeNamedCompanies(ycCompanies, wikidataCompanies),
+    companies: mergeNamedCompanies(mergeNamedCompanies(ycCompanies, wikidataCompanies), hnCompanies),
     venues: buildPublicVenues(FREE_SF_VENUES, at),
     neighborhoodGeoJson,
     generatedAt: at,

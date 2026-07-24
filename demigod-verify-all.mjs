@@ -60,6 +60,15 @@ if (ship || wizard) {
     ['demigod-startup-jobs-enrich.mjs', ['--selftest']],
     // Directory rebuild-integrity floors — real map clears volume floors; truncation must fail-loud
     ['demigod-startup-map-data.mjs', ['--selftest']],
+    // HN Who-is-Hiring source honesty — SF-only gate, mega-corp/subdomain exclusion, no URL injection
+    ['demigod-hn-hiring.mjs', ['--selftest']],
+    // Hiring Pulse — empty map must not fabricate; deltas only with history; render escapes injection
+    ['demigod-hiring-pulse.mjs', ['--selftest']],
+    // Crawlable static directory — real company/job content in served HTML; JSON-LD verified-only; escapes
+    ['demigod-directory-static.mjs', ['--selftest']],
+    // Live honesty gate logic — scrub-scripts/comments must NOT false-positive; real content must be caught.
+    // (Only the --selftest is wired; the live audit is RED pending Designer-gated source fix, see WEBFLOW-HONESTY-FIX-READY.md)
+    ['demigod-live-honesty-audit.mjs', ['--selftest']],
     // Live smoke readiness polls through transient CDP evaluate timeouts
     ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
