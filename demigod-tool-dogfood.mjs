@@ -467,6 +467,7 @@ const EXIT1_OK_TOOLS = new Set([
   'orient',
   'control',
   'ship',
+  'dg-publish', // dry-run / truth not-fully-shipped is product red (prepare-only lag)
   'priority',
   'review',
   'webflow',

@@ -17679,6 +17679,11 @@ try {
     ['what is the convertible note', 'what-convertible-note'],
     ['safe note', 'safe-note'],
     ['what is the safe note', 'what-safe-note'],
+    // residual: glued hows|howz|whats|whatz + aboutyourplan (parity howboutyourplan / howsabouttheplan)
+    ['howsaboutyourplan', 'hows-about-your-plan'],
+    ['howzaboutyourplan', 'howz-about-your-plan'],
+    ['whatsaboutyourplan', 'whats-about-your-plan'],
+    ['whatzaboutyourplan', 'whatz-about-your-plan'],
   ]) {
     const natChat = await eventsBotChat({
       messages: [{ role: 'user', content: phrase }],

@@ -74,6 +74,9 @@ test('dogfood merges only uniquely registered tool aliases', () => {
   assert.equal(canonicalTool('wiz-mobile-startup'), 'wiz-playtest');
   assert.equal(executionSucceeded(1, 'webflow-doctor'), true);
   assert.equal(executionSucceeded(1, 'webflow'), true);
+  assert.equal(executionSucceeded(1, 'dg-publish'), true);
+  assert.equal(executionSucceeded(1, 'publish-dry-run'), true); // alias → dg-publish
+  assert.equal(executionSucceeded(1, 'cm6-check'), false); // structural gate fail stays fail
 });
 
 test('dogfood retires generic wrap labels that are not registry tools', () => {
