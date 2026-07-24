@@ -7,7 +7,23 @@ import { LIVE_ORIGIN, appendNovelFindings } from './demigod-live-lib.mjs';
 
 const FINDINGS = '/tmp/dg-busy/dg-findings.jsonl';
 const RECEIPT = '/tmp/dg-busy/claude-yolo-last.json';
-const USE_LOCAL = process.argv.includes('--local');
+// Fail-closed: unknown flags must not vacuous-green a full CDP sweep.
+const A11Y_FLAGS = new Set(['--local', '--help', '-h']);
+const a11yArgs = process.argv.slice(2);
+const unknownA11y = a11yArgs.find((a) => a.startsWith('-') && !A11Y_FLAGS.has(a));
+if (unknownA11y) {
+  console.error(
+    `mobile-a11y-sweep: unknown argument ${unknownA11y} — try: node demigod-mobile-a11y-sweep.mjs [--local]`,
+  );
+  process.exit(2);
+}
+if (a11yArgs.includes('--help') || a11yArgs.includes('-h')) {
+  console.log(`demigod-mobile-a11y-sweep — mobile overflow/tap/label/live-region sweep
+
+Usage: node demigod-mobile-a11y-sweep.mjs [--local]`);
+  process.exit(0);
+}
+const USE_LOCAL = a11yArgs.includes('--local');
 const CORE = USE_LOCAL ? fs.readFileSync('demigod-foot-core.js', 'utf8') : '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
