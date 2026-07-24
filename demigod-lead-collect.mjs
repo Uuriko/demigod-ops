@@ -494,6 +494,30 @@ export function enrichRecentlyAttempted(
 export const ENRICH_MAX_ATTEMPTS = 3;
 
 /**
+ * Pure: stamp enrich attempt after a scrape loop.
+ * - scrapeCompleted: full attempt (counts toward ENRICH_MAX_ATTEMPTS)
+ * - transportFailed: cooldown only (Firecrawl credits/spawn) — does not burn budget
+ */
+export function applyEnrichAttemptStamp(
+  lead,
+  { scrapeCompleted = false, transportFailed = false, at = null, transportError = null } = {},
+) {
+  if (!lead || typeof lead !== 'object') return lead;
+  const ts = at || new Date().toISOString();
+  if (scrapeCompleted) {
+    lead.enrichAttemptedAt = ts;
+    lead.enrichAttemptCount = (Number(lead.enrichAttemptCount) || 0) + 1;
+    return lead;
+  }
+  if (transportFailed) {
+    lead.enrichAttemptedAt = ts;
+    lead.lastTransportFailedAt = ts;
+    if (transportError) lead.lastTransportError = String(transportError).slice(0, 240);
+  }
+  return lead;
+}
+
+/**
  * Pure: too many failed enrich attempts without usable contact.
  */
 export function enrichAttemptsExhausted(lead, { max = ENRICH_MAX_ATTEMPTS } = {}) {
@@ -807,8 +831,12 @@ export function runSearchQueries(queries, search = fcSearch, onAllFailed = () =>
   return { results, errors };
 }
 
+/** Last firecrawl scrape transport error (credits, spawn, etc.) — for enrich abort honesty. */
+export let lastFcScrapeError = null;
+
 /** Scrape one URL → markdown text (CLI). Null means transport failure. */
 export function fcScrape(url) {
+  lastFcScrapeError = null;
   if (!url) return null;
   const env = { ...process.env };
   const key = loadFcKey();
@@ -838,6 +866,11 @@ export function fcScrape(url) {
   } catch {
     /* */
   }
+  const errText = String(r.stderr || r.stdout || r.error?.message || '').trim();
+  if (/Insufficient credits/i.test(errText)) lastFcScrapeError = 'firecrawl_insufficient_credits';
+  else if (r.error) lastFcScrapeError = `firecrawl_spawn:${r.error.message}`;
+  else if (errText) lastFcScrapeError = errText.slice(0, 240);
+  else lastFcScrapeError = `firecrawl_exit_${r.status ?? 'unknown'}`;
   try {
     if (fs.existsSync(out)) fs.unlinkSync(out);
   } catch {
@@ -868,6 +901,7 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
   const pending = [];
   const pages = new Map();
   const at = new Date().toISOString();
+  let transportAbort = null; // e.g. firecrawl_insufficient_credits — stop burning API
 
   for (const lead of targets) {
     const url = enrichScrapeUrl(lead) || lead.url;
@@ -875,22 +909,41 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
     let scrapeOk = false;
     let scrapeCompleted = false;
     let hopUrl = null;
+    let extracted = { contactEmail: null, handle: null, applyUrl: null };
+    if (transportAbort) {
+      pending.push({
+        lead,
+        extracted,
+        url,
+        hopUrl: null,
+        scrapeOk: false,
+        scrapeCompleted: false,
+        skipped: transportAbort,
+      });
+      continue;
+    }
     if (!dryRun && url) {
       const scraped = pages.has(url) ? pages.get(url) : fcScrape(url);
       pages.set(url, scraped);
       scrapeCompleted = scraped !== null;
       page = scraped || '';
       scrapeOk = page.length > 40;
+      if (!scrapeCompleted && lastFcScrapeError === 'firecrawl_insufficient_credits') {
+        transportAbort = lastFcScrapeError;
+      }
     }
-    let extracted = extractContactFromPage(page);
+    extracted = extractContactFromPage(page);
     let enriched = applyContactEnrich(lead, extracted, { url, at });
     // Second hop: listing only gave ATS applyUrl → scrape that host for real contact
     const hop = shouldEnrichSecondHop(enriched, extracted, url);
-    if (hop && !dryRun) {
+    if (hop && !dryRun && !transportAbort) {
       hopUrl = hop;
       const page2 = pages.has(hop) ? pages.get(hop) : fcScrape(hop);
       pages.set(hop, page2);
       scrapeCompleted ||= page2 !== null;
+      if (!page2 && lastFcScrapeError === 'firecrawl_insufficient_credits') {
+        transportAbort = lastFcScrapeError;
+      }
       if ((page2 || '').length > 40) {
         scrapeOk = true;
         const ex2 = extractContactFromPage(page2);
@@ -903,10 +956,17 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
 
   const finish = (current, item) => {
     const enriched = applyContactEnrich(current, item.extracted, { url: item.hopUrl || item.url, at });
-    if (item.scrapeCompleted) {
-      enriched.enrichAttemptedAt = at;
-      enriched.enrichAttemptCount = (Number(current.enrichAttemptCount) || 0) + 1;
-    }
+    const transportFailed = !dryRun && !!item.url && !item.scrapeCompleted;
+    applyEnrichAttemptStamp(enriched, {
+      scrapeCompleted: !!item.scrapeCompleted,
+      transportFailed,
+      at,
+      transportError:
+        item.skipped ||
+        transportAbort ||
+        (!item.scrapeCompleted ? lastFcScrapeError : null) ||
+        null,
+    });
     const rel = releaseHoldIfContactable(enriched, { at, actor: 'enrich', note: 'enrich-found-contact' });
     const usableContact = !!(
       isUsableOutreachEmail(enriched.contactEmail || enriched.email) ||
@@ -919,7 +979,8 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
       listingUrl: current.url || null,
       hopUrl: item.hopUrl,
       scrapeOk: item.scrapeOk,
-      transportFailed: !dryRun && !!item.url && !item.scrapeCompleted,
+      transportFailed,
+      skipped: item.skipped || null,
       contactEmail: enriched.contactEmail || null,
       handle: enriched.handle || null,
       applyUrl: enriched.applyUrl || null,
@@ -975,6 +1036,8 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
     targets: targets.length,
     results,
     transportFailures,
+    transportAbort: transportAbort || null,
+    lastFcScrapeError: lastFcScrapeError || null,
     redrafted,
     redraftFailures,
     firecrawl: Boolean(loadFcKey()),
