@@ -33,19 +33,22 @@ const KNOWN_MINOR_BARE = new Set([
   'label:Startups', 'label:Venues',
 ]);
 
-function selOf(el) {
-  if (el.id) return '#' + el.id;
-  const cls = el.getAttribute('class'); // el.className is an SVGAnimatedString on SVG elements, not a string
-  return (el.tagName || '').toLowerCase() + (cls ? '.' + cls.split(' ').filter(Boolean).slice(0, 2).join('.') : '');
-}
-
 async function sweep(page, url, label) {
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.waitForFunction(() => window.__dgFootVer, { timeout: 20000 }).catch(() => {});
   await sleep(2000);
 
-  return page.evaluate((KNOWN_MINOR_ARR, KNOWN_MINOR_BARE_ARR, selOfSrc) => {
-    const selOf = eval('(' + selOfSrc + ')');
+  // Inline helpers in the browser context (no eval/new Function — review eval-use).
+  return page.evaluate((KNOWN_MINOR_ARR, KNOWN_MINOR_BARE_ARR) => {
+    const selOf = (el) => {
+      if (el.id) return '#' + el.id;
+      // el.className is SVGAnimatedString on SVG — use getAttribute
+      const cls = el.getAttribute('class');
+      return (
+        (el.tagName || '').toLowerCase() +
+        (cls ? '.' + cls.split(' ').filter(Boolean).slice(0, 2).join('.') : '')
+      );
+    };
     const out = { overflow: null, tapTargets: [], unlabeledInputs: [], liveRegions: [] };
 
     // 1. horizontal overflow
@@ -138,7 +141,7 @@ async function sweep(page, url, label) {
     });
 
     return out;
-  }, [...KNOWN_MINOR], [...KNOWN_MINOR_BARE], selOf.toString());
+  }, [...KNOWN_MINOR], [...KNOWN_MINOR_BARE]);
 }
 
 async function main() {

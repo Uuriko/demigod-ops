@@ -299,14 +299,18 @@ export const RULES = [
         // Skip detector source / fixtures / quoted samples
         if (/findAll\s*\(|rule:\s*['"]eval-use|findAll\(src, \/\\beval/i.test(line)) continue;
         if (inQuotedString(src, m.index)) continue;
-        const low = rel.includes('user-test') && /new Function/.test(m.match);
+        // Unit/selftests often `new Function(source)` to execute extracted production snippets.
+        const testHarness =
+          /\.test\.mjs$/i.test(rel) ||
+          /selftest/i.test(rel) ||
+          (rel.includes('user-test') && /new Function/.test(m.match));
         out.push(
           finding({
             rule: 'eval-use',
-            sev: low ? 'low' : bugMode ? 'critical' : 'high',
+            sev: testHarness ? 'low' : bugMode ? 'critical' : 'high',
             file: rel,
             line: lineNo(src, m.index),
-            title: low ? 'new Function (test harness)' : 'Dynamic code execution',
+            title: testHarness ? 'new Function (test harness)' : 'Dynamic code execution',
             detail: m.match,
             fix: 'Avoid eval on untrusted input',
             tier: 'C',
