@@ -10,6 +10,8 @@ Type=oneshot
 WorkingDirectory=/home/potter
 Environment=PATH=%h/.local/bin:%h/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
 Environment=DEMIGOD_ROOT=/home/potter
+# Prefer cloudflared on up/heal (see demigod-events-heal.service). Sticky loca still in ladder fallback.
+Environment=DEMIGOD_EVENTS_TUNNEL=cloudflared
 # Starts tunnel if needed and writes local DEMIGOD-EVENTS-API.json. CDN publish stays explicit.
 ExecStart=/home/potter/bin/dg-events-online up
 StandardOutput=append:/tmp/dg-busy/events-online/tunnel-unit.log

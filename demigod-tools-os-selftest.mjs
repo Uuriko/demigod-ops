@@ -2146,8 +2146,9 @@ ok(
     'coord spawns once per outer tick; the five-second inner loop only heartbeats',
   );
   ok(
-    /failure_backoff\(\)[\s\S]{0,240}weekly limit\|usage balance exhausted\|status 402[\s\S]{0,120}echo 21600/.test(coordSrc) &&
-      (coordSrc.match(/delay=\$\(failure_backoff "\$logf"/g) || []).length === 3,
+    /failure_backoff\(\)[\s\S]{0,240}weekly limit\|usage balance exhausted\|status 402[\s\S]{0,700}print\(21600\)[\s\S]{0,120}echo "\$\{secs:-21600\}"/.test(
+      coordSrc,
+    ) && (coordSrc.match(/delay=\$\(failure_backoff "\$logf"/g) || []).length === 3,
     'coord backs off quota-exhausted workers instead of retrying every 60–90 seconds',
   );
   ok(

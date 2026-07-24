@@ -1058,7 +1058,7 @@ Next if needed: full end-to-end submit test, more acquisition tools, GTM.
 - Phase: GTM + pre-services honesty
 - foot_ver_disk: v818
 - dm_freeze: OFF
-- last_checkpoint: (none)
+- last_checkpoint: f5fb689
 - Last gate: public-event-probe lifecycle honesty; venue free-list office>SFPL for format-blocked free asks; events-bot-selftest 19938 green
 - Next: prepare-only until publish auth; SoMa needs real venue/datetime evidence for rsvp
 - Notes: dm_freeze OFF; freeze OFF; SoMa resource honest; pre-rsvp public redacted; tunnel local (config publish gated); restamp foot_ver with disk
@@ -1123,7 +1123,7 @@ All respects invariants, GTM focus, simple/elegant.
 - foot_ver_disk: v747
 - dm_freeze: OFF
 - board: 3 seeds max, honest
-- last_checkpoint: none
+- last_checkpoint: f5fb689
 - next: hold-green source disk v747 (live v746 freeze OFF)
 **Fable workflow plan processed (from /tmp/fable-workflow-output.txt + timed bg):** Current strong (130 scripts, agent-dev, roles, honesty). Gap = trust (locks, ungameable gates, checkpoints) not more tools. Implemented: dg-lock, dg (palette), dg-cockpit+entr, verify-all + smoke, verify-source ungameable checks (def+call for wizBuild/run/show/...), dgsnap alias, keep-going loop-state, prompts/demigod/ship+demand.txt, aliases+settings+cursor rules discipline, dg-cockpit. Ran gates green. Creative website: wired 90day-outcome Q into startup WIZ steps (better matching signal for revenue). Source ready; human Publish + re-audit for live. GTM first, minimal, verify always. New daily: `dg`, `dg-cockpit`, `dgsnap`, `dglock npm run ...`
 

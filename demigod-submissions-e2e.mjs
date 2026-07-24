@@ -3,11 +3,10 @@
 import net from 'node:net';
 import { spawn, spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
-import fs from 'fs';
 
 const SCOPE = `submissions-e2e-${process.pid}-${Date.now()}`;
 process.env.DEMIGOD_TEST_SCOPE = SCOPE;
-const { loadInbox, BOARD_PATH } = await import('./demigod-submissions-lib.mjs');
+const { loadInbox, loadBoard } = await import('./demigod-submissions-lib.mjs');
 let PORT = 0;
 
 function freePort() {
@@ -66,6 +65,7 @@ async function main() {
         'role-title': 'Founding Engineer',
         'stack-needs': 'Seed B2B SaaS, React, Node',
         '90day-outcome': 'Ship the first customer-ready product release',
+        'work-location': 'San Francisco, CA (in-person)',
         'salary-range': '$190-230k',
         'why-this-role': 'First eng hire',
       },
@@ -97,12 +97,14 @@ async function main() {
   const inbox = loadInbox();
   const partnerRec = inbox.items.find((i) => i.form === 'partner-apply' && i.raw?.['partner-email'] === 'partner@isolated-e2e.vc');
   const subId = postStartup.json?.id || inbox.items.find((i) => i.form === 'startup-hire')?.id;
-  const approve = spawnSync('node', ['demigod-submissions-approve.mjs', subId || '--latest'], {
+  // Child must share DEMIGOD_TEST_SCOPE so approve writes the same isolated board/inbox.
+  const approve = spawnSync(process.execPath, ['demigod-submissions-approve.mjs', subId || '--latest'], {
     cwd: ROOT,
     encoding: 'utf8',
+    env: { ...process.env, DEMIGOD_TEST_SCOPE: SCOPE },
   });
 
-  const board = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
+  const board = loadBoard();
   const approvedRole = board.roles?.find((role) => role.title === 'Founding Engineer');
 
   const ok = postStartup.json?.ok && !postStartup.json?.featured
