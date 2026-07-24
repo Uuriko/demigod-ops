@@ -58,6 +58,13 @@ def unit_active(name):
     return True if state == "active" else False if state == "inactive" else None
 
 
+def unit_enabled(name):
+    """True only when systemd unit is enabled (disabled/static/masked → False)."""
+    out = sh(["systemctl", "--user", "is-enabled", name]).strip().splitlines()
+    state = (out[-1] if out else "unknown").strip()
+    return state == "enabled"
+
+
 def unit_label(state, off="off"):
     return "active" if state is True else off if state is False else "unknown"
 
@@ -189,8 +196,20 @@ if units.get("demigod-codex-swarm.timer") is False and not unit_intentionally_ab
         improvements.append(f"codex-swarm timer off during codex backoff until {until_s} (expected)")
     else:
         problems.append("P2: codex-swarm timer inactive — review plane may be stale")
-if units.get("demigod-term-pump.service") is False and not unit_intentionally_absent("demigod-term-pump.service"):
-    problems.append("P2: term-pump inactive — interactive plane offline")
+# term-pump is optional interactive backup (types into tmux when headless idle).
+# Headless-first ops: disabled unit (or classify intentionally_absent) is expected —
+# anti-bloat: avoid dual thrash with agent-coord / useful-loop / scheduled agents.
+# Enabled-but-inactive still P2 (crashed interactive plane).
+if units.get("demigod-term-pump.service") is False:
+    intentional = unit_intentionally_absent("demigod-term-pump.service") or (
+        not unit_enabled("demigod-term-pump.service")
+    )
+    if intentional:
+        improvements.append(
+            "term-pump off (disabled interactive backup; headless coord+useful-loop cover lanes)"
+        )
+    else:
+        problems.append("P2: term-pump inactive — interactive plane offline")
 # Surface classified failures (core/optional) even when inactive-plane noise is suppressed
 for _uname, _meta in _unit_class.items():
     if not isinstance(_meta, dict):

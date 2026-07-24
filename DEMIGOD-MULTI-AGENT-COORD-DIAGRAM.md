@@ -7,7 +7,7 @@ This is the **current** multi-agent operating model (Claude Code · Codex · Gro
 
 ---
 
-## Live snapshot (2026-07-24T05:25:44Z)
+## Live snapshot (2026-07-24T06:08:39Z)
 
 | Field | Value |
 |-------|-------|
@@ -19,7 +19,7 @@ This is the **current** multi-agent operating model (Claude Code · Codex · Gro
 | Term-pump | off · every 300s |
 | Codex swarm timer | off · ~15m |
 | Coord watchdog | off |
-| Dash :9878 /api/coord | unobservable (fresh host heartbeat) |
+| Dash :9878 /api/coord | ok |
 | Tick / timeouts | tick=30s · claude=300s · codex=240s · grok=240s |
 | spawn_wave + honest receipts | wave=True · mtime receipts=True |
 
@@ -27,7 +27,7 @@ This is the **current** multi-agent operating model (Claude Code · Codex · Gro
 
 - **claude** ok=True lane=claude:startup-map rebuild integrity: Coordinated with Grok build; it corrected 2 of my stale findings (map JSON is TRACKED; refreshPublic
 - **codex** ok=False lane=tools: (empty)
-- **grok** ok=True lane=events+gates: Claude idle foot; needHeal claim was stale — public healthy short-melons-push
+- **grok** ok=True lane=gates+tools: bin/dg events-test: unknown mode exit 2 (was vacuous green)
 - **chat**: (no receipt)
 
 ---
@@ -227,14 +227,16 @@ No auto-DM · no game · no thrash publish. Disk may lead live until deliberate 
 
 ---
 
-## 8. Last auto-review (2026-07-24T05:25:44Z)
+## 8. Last auto-review (2026-07-24T06:08:39Z)
 
 **Problems**
-- P2: term-pump inactive — interactive plane offline
+- (none)
 
 **Improvements applied / suggested**
 - codex-swarm timer off during codex backoff until 2026-07-28T17:01Z (expected)
+- term-pump off (disabled interactive backup; headless coord+useful-loop cover lanes)
 - mermaid diagrams ok (4)
+- No structural P0/P1 — Live snapshot + lanes + swarm + timers consistent
 
 ---
 
