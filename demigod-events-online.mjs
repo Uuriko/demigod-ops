@@ -571,39 +571,129 @@ export function tunnelUrlMatchesPreference(url, configured = process.env.DEMIGOD
   return configured !== 'cloudflared' || /\.trycloudflare\.com(\/|$)/i.test(String(url || ''));
 }
 
+/** Transient user unit so heal-from-useful-loop does not put CF in useful-loop's cgroup. */
+const TUNNEL_RUN_UNIT = 'demigod-events-tunnel-run';
+
+/**
+ * Pure: argv for systemd-run --user --no-block (isolation from parent service cgroup).
+ * useful-loop restart previously SIGKILL'd detached CF still in its control-group.
+ * Only cloudflared (absolute bin) — npx/loca needs full agent PATH; keep those detached.
+ */
+export function tunnelSystemdRunArgs({
+  bin,
+  args = [],
+  unit = TUNNEL_RUN_UNIT,
+  logPath,
+  workingDirectory = ROOT,
+  pathEnv = '',
+} = {}) {
+  if (!bin || !logPath || !String(bin).includes('/')) return null;
+  const out = [
+    '--user',
+    '--no-block',
+    `--unit=${unit}`,
+    `--working-directory=${workingDirectory}`,
+    `--property=StandardOutput=append:${logPath}`,
+    `--property=StandardError=append:${logPath}`,
+  ];
+  if (pathEnv) out.push(`--property=Environment=PATH=${pathEnv}`);
+  out.push(bin, ...args);
+  return out;
+}
+
+function stopTunnelRunUnit() {
+  systemctlUser(['stop', `${TUNNEL_RUN_UNIT}.service`], { timeout: 15000 });
+  systemctlUser(['reset-failed', `${TUNNEL_RUN_UNIT}.service`], { timeout: 10000 });
+}
+
+function tunnelRunUnitMainPid() {
+  const show = systemctlUser(['show', `${TUNNEL_RUN_UNIT}.service`, '-p', 'MainPID', '--value']);
+  const p = Number(String(show.stdout || '').trim());
+  return Number.isInteger(p) && p > 0 ? p : null;
+}
+
+function tunnelRunUnitActive() {
+  const r = systemctlUser(['is-active', `${TUNNEL_RUN_UNIT}.service`]);
+  return String(r.stdout || '').trim() === 'active';
+}
+
 /**
  * Start public tunnel. opts.randomSub: skip preferred subdomain (loca.lt often dies on sticky names).
  * opts.forceCloudflared: use cloudflared quick tunnel when available.
+ * Cloudflared → systemd-run transient unit (cgroup-isolated); loca/npx → detached spawn.
  */
 function startTunnel(opts = {}) {
   const log = path.join(DIR, 'tunnel.log');
   fs.writeFileSync(log, '');
-  const outFd = fs.openSync(log, 'a');
   const cf = cloudflaredBin();
-  let child;
   const forceCf = tunnelAttemptUsesCloudflared(opts);
+  let bin;
+  let args;
+  let kind;
   // Prefer localtunnel; cloudflared when forced or second-chance heal.
   if (cf && forceCf) {
-    child = spawn(cf, ['tunnel', '--url', `http://127.0.0.1:${PORT}`, '--no-autoupdate'], {
-      cwd: ROOT,
-      env: process.env,
-      detached: true,
-      stdio: ['ignore', outFd, outFd],
-    });
-    fs.writeFileSync(path.join(DIR, 'tunnel-kind'), 'cloudflared\n');
+    bin = cf;
+    args = ['tunnel', '--url', `http://127.0.0.1:${PORT}`, '--no-autoupdate'];
+    kind = 'cloudflared';
   } else {
-    const args = ['--yes', 'localtunnel', '--port', String(PORT)];
+    bin = 'npx';
+    args = ['--yes', 'localtunnel', '--port', String(PORT)];
     if (PREFERRED_SUB && !opts.randomSub) args.push('--subdomain', PREFERRED_SUB);
-    child = spawn('npx', args, {
-      cwd: ROOT,
-      env: process.env,
-      detached: true,
-      stdio: ['ignore', outFd, outFd],
+    kind = opts.randomSub ? 'localtunnel-random' : 'localtunnel';
+  }
+  fs.writeFileSync(path.join(DIR, 'tunnel-kind'), kind + '\n');
+
+  // CF only: isolate from useful-loop/heal cgroup. npx needs agent PATH → detached.
+  if (
+    kind === 'cloudflared' &&
+    process.env.DEMIGOD_EVENTS_TUNNEL_SYSTEMD !== '0' &&
+    String(bin).includes('/')
+  ) {
+    stopTunnelRunUnit();
+    const runArgs = tunnelSystemdRunArgs({
+      bin,
+      args,
+      logPath: log,
+      workingDirectory: ROOT,
+      pathEnv: process.env.PATH || '',
     });
-    fs.writeFileSync(
-      path.join(DIR, 'tunnel-kind'),
-      opts.randomSub ? 'localtunnel-random\n' : 'localtunnel\n',
-    );
+    const r = spawnSync('systemd-run', runArgs, {
+      encoding: 'utf8',
+      timeout: 20000,
+      env: process.env,
+    });
+    if (r.status === 0) {
+      let pid = null;
+      for (let i = 0; i < 50; i++) {
+        if (tunnelRunUnitActive()) {
+          pid = tunnelRunUnitMainPid();
+          if (pid) {
+            try {
+              process.kill(pid, 0);
+              writePid('tunnel.pid', pid);
+              return pid;
+            } catch {
+              /* still starting */
+            }
+          }
+        }
+        spawnSync('sleep', ['0.1']);
+      }
+      stopTunnelRunUnit();
+    }
+  }
+
+  const outFd = fs.openSync(log, 'a');
+  const child = spawn(bin, args, {
+    cwd: ROOT,
+    env: process.env,
+    detached: true,
+    stdio: ['ignore', outFd, outFd],
+  });
+  try {
+    fs.closeSync(outFd);
+  } catch {
+    /* */
   }
   child.unref();
   writePid('tunnel.pid', child.pid);
@@ -619,6 +709,7 @@ function startTunnel(opts = {}) {
  * /bracketed-IPv4 and equals/glued/quoted --port/-p orphans on heal.
  */
 function killStrayTunnels() {
+  stopTunnelRunUnit();
   killPid('tunnel.pid');
   try {
     const out = execSync('ps -eo pid,args 2>/dev/null || true', {
@@ -1648,6 +1739,26 @@ function selfcheck() {
       tunnelUrlMatchesPreference('https://stale.loca.lt', ''),
     'forced cloudflared does not adopt a healthy-looking loca tunnel',
   );
+  const sdArgs = tunnelSystemdRunArgs({
+    bin: '/usr/bin/cloudflared',
+    args: ['tunnel', '--url', 'http://127.0.0.1:3460', '--no-autoupdate'],
+    unit: 'demigod-events-tunnel-run',
+    logPath: '/tmp/dg-busy/events-online/tunnel.log',
+    workingDirectory: '/home/potter',
+    pathEnv: '/usr/bin:/bin',
+  });
+  ok(
+    Array.isArray(sdArgs) &&
+      sdArgs.includes('--user') &&
+      sdArgs.includes('--no-block') &&
+      sdArgs.includes('--unit=demigod-events-tunnel-run') &&
+      sdArgs.includes('/usr/bin/cloudflared') &&
+      sdArgs.includes('--property=Environment=PATH=/usr/bin:/bin') &&
+      sdArgs.some((a) => String(a).startsWith('--property=StandardOutput=append:')),
+    'tunnelSystemdRunArgs isolates cloudflared under user transient unit',
+  );
+  ok(tunnelSystemdRunArgs({ bin: 'npx', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs rejects non-absolute bin');
+  ok(tunnelSystemdRunArgs({ bin: '', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs needs bin+log');
   ok(
     filterHealAttemptsAfterCfGiveUp(
       [

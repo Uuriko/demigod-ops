@@ -201,6 +201,10 @@ const explicitAliases = new Map([
   // manual logs + discovery wrappers (not separate registry tools)
   ['useful-loop', 'work-find'],
   ['demigod-useful-loop', 'work-find'],
+  // Claude/Grok wrap shorthand for quality+gates wave
+  ['gates-trio', 'quality'],
+  ['gate-trio', 'quality'],
+  ['quality-trio', 'quality'],
   ['demigod-tools-selftest', 'tools-os-selftest'],
   ['tools-selftest', 'tools-os-selftest'],
   ['tools-discovery', 'tools-os-selftest'],
