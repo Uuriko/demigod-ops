@@ -5389,7 +5389,8 @@ const server = http.createServer(async (req, res) => {
           shipStatusAgeMs: Number.isFinite(shipAgeMs) ? shipAgeMs : null,
           shipStatusFresh: Number.isFinite(shipAgeMs) && shipAgeMs >= -60000 && shipAgeMs <= 300000,
         };
-        // Never advertise "all green" when disk foot ver ≠ live (stale ship-status / race)
+        // Never advertise "all green" when disk foot ver ≠ live (stale ship-status / race).
+        // prepare-only truth green still sets pass=true — clear pass whenever versions lag.
         try {
           const d = shipFacts?.diskVer != null ? String(shipFacts.diskVer).replace(/^v/, '') : null;
           const l = shipFacts?.liveVer != null ? String(shipFacts.liveVer).replace(/^v/, '') : null;
@@ -5397,14 +5398,17 @@ const server = http.createServer(async (req, res) => {
           const liesGreen = /all green|no ship needed|fully shipped/i.test(
             String(ship.nextCmd || '') + ' ' + String(ship.nextAction || ''),
           );
-          if (lag && (liesGreen || ship.shipped === true)) {
-            ship.shipped = false;
+          if (lag) {
+            const needRewrite = liesGreen || ship.shipped === true;
             ship.pass = false;
-            ship.stage = ship.stage && ship.stage !== 'cdn_body_matches_disk' ? ship.stage : 'live_matches_disk_ver';
-            ship.nextAction = `live v${l} disk v${d}`;
-            ship.nextCmd = 'bin/dg ship prepare';
-            ship.recoveryCommand = ship.nextCmd;
-            ship.nextCmdSource = 'coord-honesty';
+            ship.shipped = false;
+            if (needRewrite) {
+              ship.stage = ship.stage && ship.stage !== 'cdn_body_matches_disk' ? ship.stage : 'live_matches_disk_ver';
+              ship.nextAction = `live v${l} disk v${d}`;
+              ship.nextCmd = 'bin/dg ship prepare';
+              ship.recoveryCommand = ship.nextCmd;
+              ship.nextCmdSource = 'coord-honesty';
+            }
           }
         } catch {
           /* */

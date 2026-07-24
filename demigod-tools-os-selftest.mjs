@@ -2995,8 +2995,10 @@ ok(
     'coord ship.facts backfills live/man from truth when ship-status partial',
   );
   ok(
-    /if \(lag && \(liesGreen \|\| ship\.shipped === true\)\) \{[\s\S]{0,180}ship\.shipped = false;[\s\S]{0,300}ship\.nextCmd = ['"]bin\/dg ship prepare['"];[\s\S]{0,160}ship\.nextCmdSource = ['"]coord-honesty['"]/.test(dashboardSource),
-    'coord ship never claims all-green when diskVer≠liveVer',
+    /if \(lag\) \{[\s\S]{0,120}ship\.pass = false;[\s\S]{0,80}ship\.shipped = false;[\s\S]{0,200}if \(needRewrite\) \{[\s\S]{0,220}ship\.nextCmd = ['"]bin\/dg ship prepare['"];[\s\S]{0,160}ship\.nextCmdSource = ['"]coord-honesty['"]/.test(
+      dashboardSource,
+    ) && /const needRewrite = liesGreen \|\| ship\.shipped === true/.test(dashboardSource),
+    'coord ship never claims pass/all-green when diskVer≠liveVer (prepare-only truth green included)',
   );
   ok(
     /pasteBlockedBy/.test(dashboardSource) &&

@@ -401,6 +401,10 @@ const explicitAliases = new Map([
   ['dg-publish-dry', 'dg-publish'],
   ['publish-dry', 'dg-publish'],
   ['publish-dry-run', 'dg-publish'],
+  // webhook auth SoR + tests (also registered as webhook-auth)
+  ['webhook-auth-test', 'webhook-auth'],
+  ['demigod-webhook-auth', 'webhook-auth'],
+  ['webflow-webhook-auth', 'webhook-auth'],
 ].map(([from, to]) => [String(from).toLowerCase(), to]));
 
 function isRetiredLabel(value) {
