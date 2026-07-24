@@ -830,6 +830,20 @@ for (const b of [
     'referrals usage errors exit 2 (not product fail 1)',
     /process\.exitCode = \/\^usage:\/\.test\(msg\) \? 2 : 1/.test(referralsCliSource),
   );
+  const ideaEngineSource = fs.readFileSync(path.join(ROOT, 'demigod-idea-engine.mjs'), 'utf8');
+  assert(
+    'idea-engine rejects unknown flags with exit 2',
+    /idea-engine: unknown argument/.test(ideaEngineSource) &&
+      /IDEA_FLAGS/.test(ideaEngineSource) &&
+      /process\.exit\(2\)/.test(ideaEngineSource),
+  );
+  const workflowMapSource = fs.readFileSync(path.join(ROOT, 'bin/dg-workflow-map'), 'utf8');
+  assert(
+    'workflow-map rejects unknown cmds with exit 2 (no vacuous update)',
+    /workflow-map: unknown argument/.test(workflowMapSource) &&
+      /update\|review\|status/.test(workflowMapSource) &&
+      /exit 2/.test(workflowMapSource),
+  );
 
   assert(
     'control-plane match detail prefers realCount over sample-inflated total',

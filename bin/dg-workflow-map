@@ -25,6 +25,21 @@ cd "$ROOT"
 mkdir -p "$COORD" "$ROOT/docs"
 
 cmd="${1:-update}"
+case "$cmd" in
+  update|review|status) ;;
+  -h|--help)
+    echo "usage: bin/dg-workflow-map [update|review|status]"
+    exit 0
+    ;;
+  *)
+    echo "workflow-map: unknown argument $cmd — try: bin/dg-workflow-map [update|review|status]" >&2
+    exit 2
+    ;;
+esac
+if [[ -n "${2:-}" ]]; then
+  echo "workflow-map: unknown argument $2 — try: bin/dg-workflow-map [update|review|status]" >&2
+  exit 2
+fi
 
 python3 - "$cmd" <<'PY'
 import json, os, re, subprocess, sys

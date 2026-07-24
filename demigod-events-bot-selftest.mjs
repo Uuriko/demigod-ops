@@ -2788,6 +2788,23 @@ ok(mentionsNonSf('Baker Beach picnic') === false, 'mentionsNonSf Baker Beach sti
 ok(mentionsNonSf('NoPa loft') === false, 'mentionsNonSf NoPa still SF residual-43');
 ok(offerIsSf({ city: 'Baker Beach', offer: 'picnic' }) === true, 'offer Baker Beach SF residual-42');
 ok(offerIsSf({ city: 'NoPa', offer: 'loft' }) === true, 'offer NoPa SF residual-43');
+// SF geo residual-46: Presidio TX / Fillmore TN mid-string / Sunset Blvd LA (not SF districts)
+ok(isSfLocation('Presidio TX loft') === false, 'Presidio TX reject residual-46');
+ok(isSfLocation('Presidio Texas dinner') === false, 'Presidio Texas reject residual-46');
+ok(isSfLocation('Presidio picnic') === true, 'Presidio SF still ok residual-46');
+ok(isSfLocation('Fillmore TN loft') === false, 'Fillmore TN reject residual-46');
+ok(isSfLocation('Fillmore, TN warehouse') === false, 'Fillmore, TN reject residual-46');
+ok(isSfLocation('Fillmore district') === true, 'Fillmore district still SF residual-46');
+ok(isSfLocation('Sunset Blvd loft') === false, 'Sunset Blvd reject residual-46');
+ok(isSfLocation('Sunset Boulevard party') === false, 'Sunset Boulevard reject residual-46');
+ok(isSfLocation('Outer Sunset picnic') === true, 'Outer Sunset still SF residual-46');
+ok(isSfLocation('Sunset district salon') === true, 'Sunset district still SF residual-46');
+ok(mentionsNonSf('Presidio TX loft') === true, 'mentionsNonSf Presidio TX residual-46');
+ok(mentionsNonSf('Fillmore TN loft') === true, 'mentionsNonSf Fillmore TN residual-46');
+ok(mentionsNonSf('Sunset Blvd loft') === true, 'mentionsNonSf Sunset Blvd residual-46');
+ok(mentionsNonSf('Presidio picnic') === false, 'mentionsNonSf Presidio SF residual-46');
+ok(mentionsNonSf('Fillmore district') === false, 'mentionsNonSf Fillmore district residual-46');
+ok(mentionsNonSf('Outer Sunset picnic') === false, 'mentionsNonSf Outer Sunset residual-46');
 ok(isSfLocation('Tomales') === false, 'SF geo rejects Tomales');
 ok(mentionsNonSf('Tomales dinner') === true, 'chat SF geo rejects Tomales');
 ok(offerIsSf({ city: 'Tomales', offer: 'room for 12' }) === false, 'offer Tomales reject');

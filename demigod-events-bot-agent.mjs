@@ -332,6 +332,11 @@ export function mentionsNonSf(text) {
   // (state abbrev end-anchor missed "Franklin TN loft" / "Washington D.C. loft").
   // Washington Square SF still SF_OK. Bare Franklin / bare Washington stay default-pass.
   if (/\bfranklin(?:\s*,?\s*(?:tn|ma|ca|tx|in|ky|oh|nc|va|wi|pa|nj|ny|ga|il|mi|mo)|\s+(?:tennessee|massachusetts|california|texas|indiana|kentucky|ohio|north\s+carolina|virginia|wisconsin|pennsylvania|new\s+jersey|new\s+york|georgia|illinois|michigan|missouri))\b/i.test(t)) return true;
+  // residual-46: Presidio TX (not SF Presidio); Fillmore TN mid-string (CA already NON_SF);
+  // Sunset Blvd/Boulevard LA (not Sunset district / Inner|Outer Sunset).
+  if (/\bpresidio(?:\s*,?\s*(?:tx|nm)|\s+(?:texas|new\s+mexico))\b/i.test(t)) return true;
+  if (/\bfillmore(?:\s*,?\s*(?:tn|ut)|\s+(?:tennessee|utah))\b/i.test(t)) return true;
+  if (/\bsunset\s+(?:blvd|boulevard)\b/i.test(t)) return true;
   if (/\bwashington\s+d\.?\s*c\.?\b/i.test(t)) return true;
   if (/\bwashington\s+state\b/i.test(t)) return true;
   if (/\bstreaming[- ]only\b/i.test(t)) return true;
