@@ -491,17 +491,27 @@ console.log(JSON.stringify({ ok: true, path: '/tmp/dg-busy/demand/warm-inbound-p
     case 'outreach-draft-audit': {
       const code = `
 import fs from 'fs';
+import { outreachDraftReadiness, isRealOutreachEmail } from './demigod-events-bot-agent.mjs';
 const s = JSON.parse(fs.readFileSync('DEMIGOD-EVENTS.json','utf8'));
 const o = s.outreach || [];
 const by = {};
 for (const x of o) by[x.status] = (by[x.status]||0)+1;
-const sample = o.filter(x => x.status==='queued'||x.status==='drafted').slice(0,5).map(x => ({
-  id: x.id, kind: x.kind, to: x.toEmail, subject: (x.subject||'').slice(0,80), mx: x.emailCheck?.mx
-}));
-const report = { at: new Date().toISOString(), by, sample, note: 'draft only — no send' };
+const row = (x) => ({
+  id: x.id, kind: x.kind, to: x.toEmail, subject: (x.subject||'').slice(0,80),
+  mx: x.emailCheck?.mx, ready: outreachDraftReadiness(x),
+  external: isRealOutreachEmail(x.toEmail) && !/@trydemigod\\.com$/i.test(x.toEmail||''),
+});
+const open = o.filter(x => x.status==='queued'||x.status==='drafted');
+const sample = open.slice(0,5).map(row);
+const rejected = o.filter(x => x.status==='rejected').slice(0,3).map(row);
+const externalReady = open.filter(x => row(x).external && row(x).ready >= 3).length;
+const report = {
+  at: new Date().toISOString(), by, sample, rejected, externalReady,
+  note: 'draft only — no send',
+};
 fs.mkdirSync('/tmp/dg-busy/events-bot', { recursive: true });
 fs.writeFileSync('/tmp/dg-busy/events-bot/outreach-draft-audit.json', JSON.stringify(report, null, 2)+'\\n');
-console.log(JSON.stringify({ ok: true, by, n: o.length }));
+console.log(JSON.stringify({ ok: true, by, n: o.length, externalReady, rejected: rejected.length }));
 `;
       const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
         cwd: ROOT,
