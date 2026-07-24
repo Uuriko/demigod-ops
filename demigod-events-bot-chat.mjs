@@ -135,6 +135,11 @@ function normalizeUserChatText(s) {
     .replace(/\bhow u\b/g, 'how are you')
     .replace(/\bare u\b/g, 'are you')
     .replace(/\bu gonna\b/g, 'you going to')
+    // residual: show|tell|gimme u the plan · ur plan/plans (parity r→are textspeak; no invent RSVPs)
+    .replace(/\bshow u\b/g, 'show you')
+    .replace(/\btell u\b/g, 'tell you')
+    .replace(/\bgimme u\b/g, 'give me')
+    .replace(/\bur plans?\b/g, 'your plan')
     // residual: "what|how r u|we planning" textspeak r→are (/tmp probe miss → lifecycle; no invent RSVPs)
     .replace(/\b(what|how) r u\b/g, '$1 are you')
     .replace(/\b(what|how) r we\b/g, '$1 are we')
@@ -5638,6 +5643,13 @@ function isTickPlanAsk(last) {
       last,
     ) ||
     /\bwhat(?:'s| is) (the )?(runsheet plan|runsheet strategy|run sheet plan|run sheet strategy|call[- ]?time plan|call[- ]?time strategy|usher plan|usher strategy|greeter plan|greeter strategy|lanyard plan|lanyard strategy|checkin plan|checkin strategy|check in plan|check in strategy)\b/.test(
+      last,
+    ) ||
+    // Wave 61: wristband/name-tag/timeline/stage|house manager/box office/reg desk/place card/clipboard/walkie/runner + glued greenroom (lifecycle miss; /tmp probe; no invent RSVPs)
+    /\b(wristband plan|wristband strategy|name tag plan|name tag strategy|nametag plan|nametag strategy|timeline plan|timeline strategy|stage manager plan|stage manager strategy|house manager plan|house manager strategy|box office plan|box office strategy|reg desk plan|reg desk strategy|registration desk plan|registration desk strategy|place card plan|place card strategy|clipboard plan|clipboard strategy|walkie plan|walkie strategy|runner plan|runner strategy|greenroom plan|greenroom strategy|door list plan|door list strategy)\b/.test(
+      last,
+    ) ||
+    /\bwhat(?:'s| is) (the )?(wristband plan|wristband strategy|name tag plan|name tag strategy|nametag plan|nametag strategy|timeline plan|timeline strategy|stage manager plan|stage manager strategy|house manager plan|house manager strategy|box office plan|box office strategy|reg desk plan|reg desk strategy|registration desk plan|registration desk strategy|place card plan|place card strategy|clipboard plan|clipboard strategy|walkie plan|walkie strategy|runner plan|runner strategy|greenroom plan|greenroom strategy|door list plan|door list strategy)\b/.test(
       last,
     )
   );

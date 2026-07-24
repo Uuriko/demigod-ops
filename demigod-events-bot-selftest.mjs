@@ -10802,6 +10802,35 @@ for (const t of [
     'dogpatch outdoor meetup not crowned Salesforce roof: ' + (dogTop?.id || 'none'),
   );
 }
+// residual: hunters point outdoor free hang — SE soft lawns (optional space in hunter'spoint)
+{
+  const hpNeed = "hunters point outdoor free hang";
+  const parklet = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_soma_parklet'), {
+    need: hpNeed,
+    seats: 12,
+    explain: true,
+  });
+  const roof = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_salesforce_park'), {
+    need: hpNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(parklet.score > roof.score, 'hunters point outdoor: parklet beats Salesforce roof');
+  ok(parklet.reasons?.includes('se-outdoor'), 'hunters point outdoor: se-outdoor on parklet');
+  ok(roof.reasons?.includes('se-roof'), 'hunters point outdoor: se-roof on Salesforce');
+  const hpSpace = "hunter's point outdoor free hang";
+  ok(
+    scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_soma_parklet'), {
+      need: hpSpace,
+      seats: 12,
+    }) >
+      scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_salesforce_park'), {
+        need: hpSpace,
+        seats: 12,
+      }),
+    "hunter's point (spaced) outdoor: parklet beats roof",
+  );
+}
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(
