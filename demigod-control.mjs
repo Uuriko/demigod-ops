@@ -139,11 +139,11 @@ export const MODULES = {
     emoji: '◉',
     accent: '#C9A84C',
     key: 'e',
-    cli: 'bin/dg-events-online status',
+    cli: 'bin/dg events status',
     dashTab: 'overview',
     jobs: ['events-outbox-status', 'events-invite-drain', 'events-tick'],
     actions: [
-      { id: 'events-status', label: 'Status', cmd: 'bin/dg-events-online status' },
+      { id: 'events-status', label: 'Status', cmd: 'bin/dg events status' },
       { id: 'events-outbox', label: 'Resource outbox', job: 'events-outbox-status' },
       { id: 'events-drain', label: 'Invite drain', job: 'events-invite-drain' },
     ],
@@ -297,6 +297,7 @@ const DISPATCH = {
   freeze: ['demigod-publish-freeze.mjs', 'status'],
   cockpit: ['demigod-agent-cockpit.mjs'],
   usertest: ['demigod-user-test.mjs', '--quick'],
+  priority: ['demigod-priority-board.mjs'],
 };
 
 function sh(cmd, timeout = 20000) {
@@ -538,10 +539,10 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     ok: eventsOnlineFresh ? eventsOperational || eventsCertified : null,
     detail: `${eventsDetailCore}${configNote}${preferredNote}`,
     next: eventsOnline?.needHeal
-      ? 'bin/dg-events-online heal'
+      ? 'bin/dg events heal'
       : websiteConfigStale
-        ? 'bin/dg-events-online status  # website config publish gated'
-        : 'bin/dg-events-online status',
+        ? 'bin/dg events status  # website config publish gated'
+        : 'bin/dg events status',
     metrics: {
       activeId: activeEvent?.id || null,
       stage: activeEvent?.stage || null,
@@ -894,7 +895,7 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     },
     map: [
       '1. bin/dg home OR dash #overview (same home)',
-      '2. bin/dg-events-online status',
+      '2. bin/dg events status',
       '3. bin/dg hygiene --prune',
       '4. bin/dg ponytail (lazy-senior agents)',
       '5. bin/dg webflow doctor',
@@ -1033,7 +1034,7 @@ async function main() {
   # dispatch
   bin/dg webflow [doctor|tabs|…]
   bin/dg review [flags]
-  bin/dg matches | hygiene | doctor | smoke | truth | freeze
+  bin/dg matches | hygiene | doctor | smoke | truth | freeze | priority
   bin/dg dash
 
   # classic

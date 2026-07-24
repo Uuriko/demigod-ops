@@ -283,7 +283,8 @@ function isIsoCalendarDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text;
 }
 
-function operatingDateKey(now = new Date()) {
+/** SF operating calendar day (not UTC) — demand hygiene age uses this. */
+export function operatingDateKey(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
     year: 'numeric',
@@ -854,13 +855,15 @@ export function buildStatus() {
   const pendingDrafts = pending.map((t) => {
     const { body, readyFile } = loadDraftBody(t);
     const hygiene = draftHygiene({ name: t.name, company: t.company, handle: t.handle, body });
+    // Queue "Why first" can stale-claim N roles after the draft was de-quantified (Hellyeah).
+    const flags = [...hygiene.flags, ...queueWhyUnbackedFlags(t.why, body)];
     return {
       name: t.name,
       handle: t.handle,
       readyFile,
-      hygieneOk: hygiene.ok,
-      flagCount: hygiene.flags.length,
-      flags: hygiene.flags,
+      hygieneOk: flags.filter((f) => f.sev === 'error').length === 0,
+      flagCount: flags.length,
+      flags,
       draftCmd: `bin/dg demand draft --name=${t.name}`,
     };
   });
@@ -1129,6 +1132,29 @@ function loadDraftBody(row) {
   const re = new RegExp(`##\\s*${row.name}[\\s\\S]*?\`\`\`([\\s\\S]*?)\`\`\``, 'i');
   const m = pack.match(re);
   return { body: m ? m[1].trim() : '', readyFile: null };
+}
+
+/** Queue "Why first" vs ready-draft body: catch stale N-role claims after draft de-quantification. */
+export function queueWhyUnbackedFlags(why, body) {
+  const whyText = String(why || '');
+  const draftBody = String(body || '');
+  const whyCount = whyText.match(
+    /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:live\s+|current\s+|sf\s+|san francisco\s+)?(?:hq\s+)?(?:roles?|openings?)\b/i,
+  );
+  if (!whyCount) return [];
+  const token = whyCount[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const draftBacks = new RegExp(
+    `\\b(?:has|have)\\s+${token}\\s+|\\b${token}\\s+(?:live|current|open|sf|san francisco)\\b|\\b${token}\\s+(?:roles?|openings?)\\b`,
+    'i',
+  ).test(draftBody);
+  if (draftBacks) return [];
+  return [
+    {
+      id: 'queue_why_unbacked',
+      sev: 'error',
+      msg: `Queue why claims "${whyCount[0]}" but ready draft body does not — update SEND-QUEUE-PRIORITIZED.md`,
+    },
+  ];
 }
 
 /**

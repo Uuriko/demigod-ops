@@ -13254,6 +13254,22 @@ try {
   });
   ok(mx2.checked === 1, 'mx hygiene checked item');
   ok(noMxReal.status === 'rejected' && /no_mx/i.test(noMxReal.rejectReason || ''), 'mx rejects no-MX domain');
+  ok(mx2.changed >= 1, 'mx reject reports changed (persist stamp + status)');
+
+  // Successful null→true stamp must report changed so ticks saveStore (not only rejects).
+  const mxOkRow = {
+    id: 'mx_ok_stamp',
+    toEmail: 'friends@sportsbasement.com',
+    kind: 'venue_alt',
+    status: 'queued',
+    body: 'MX stamp persistence fixture.',
+    emailCheck: { syntax: true, mx: null, reason: null, at: null },
+  };
+  const mxOk = await hygieneOutreachMx([mxOkRow], {
+    checkMx: async () => ({ ok: true }),
+  });
+  ok(mxOk.checked === 1 && mxOk.changed >= 1, 'mx success null→true reports changed');
+  ok(mxOkRow.emailCheck?.mx === true, 'mx success stamps emailCheck.mx true');
 
   const retryMx = { ...noMxReal, id: 'mx_retry', status: 'queued', rejectReason: null };
   const mxRetry = await hygieneOutreachMx([retryMx], {

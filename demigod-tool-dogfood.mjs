@@ -56,10 +56,17 @@ const retiredLabels = new Set([
   'foot-privacy-check',
   // one-shot manual logs — not recurring CLIs
   'store-reconcile-premature-rsvp',
+  'git-durability-restore',
+  'funnel-hygiene-draftid',
+  'draft-claim-source-repair',
+  'talent-greet-seo-refresh',
   // external agent CLIs — not demigod product tools
   'ask-claude',
   'ask-codex',
   'grok-ask',
+  // one-shot agent-entry / yolo labels — not registry tools
+  'claude-yolo-loop',
+  'claude-entry',
   // generic wrap labels / one-shot probes (not registry tools)
   'node-test',
   'tools-defect-scan',
@@ -74,6 +81,7 @@ const explicitAliases = new Map([
   ['dash-coord', 'api-coord'],
   ['dashboard-events', 'events-dashboard-test'],
   ['dashboard-coord', 'api-coord'],
+  ['dashboard-status', 'dash'],
   ['dg-cli', 'control'],
   ['bin/dg', 'control'],
   ['dg-dash-status', 'dash'],
@@ -81,6 +89,10 @@ const explicitAliases = new Map([
   ['quality-q1-host', 'quality'],
   ['dg-demand', 'demand'],
   ['demigod-user-test', 'usertest'],
+  // wrap/shorthand variants of registry usertest
+  ['user-test', 'usertest'],
+  ['dg-user-test', 'usertest'],
+  ['dg-usertest', 'usertest'],
   ['demigod:funnel:selftest', 'funnel-selftest'],
   ['events-online-selfcheck', 'events-online'],
   ['events-online-selftest', 'events-online'],
@@ -292,6 +304,8 @@ const explicitAliases = new Map([
   ['webflow-token-privacy-test', 'webflow'],
   ['webflow-loop', 'webflow'],
   ['startup-map-browser', 'startup-map-refresh'],
+  ['atlas-source-locate', 'startup-map-refresh'],
+  ['atlas-source', 'startup-map-refresh'],
   ['demigod-startup-atlas', 'tools-os-selftest'],
   ['startup-atlas-web', 'tools-os-selftest'],
   ['dashboard-events-contract', 'events-dashboard-test'],
@@ -341,6 +355,8 @@ const explicitAliases = new Map([
   ['webflow-webhook', 'webflow'],
   ['events-online-heal-lock', 'events-online'],
   ['events-online-dual-confirm', 'events-online'],
+  ['events-test-fast-c173', 'events-test'],
+  ['coord-gates-c173', 'agent-coord-status'],
   ['dg-review', 'review'],
   ['outreach-policy', 'demand'],
   ['verify-all', 'verify-source'],
@@ -377,7 +393,11 @@ const explicitAliases = new Map([
 ].map(([from, to]) => [String(from).toLowerCase(), to]));
 
 function isRetiredLabel(value) {
-  return !toolIds.has(value) && (retiredLabels.has(value) || /-\d{3,}$/.test(value));
+  // Cycle tags: -123 or -c173 / name-c173 one-off wrap labels
+  return (
+    !toolIds.has(value) &&
+    (retiredLabels.has(value) || /-\d{3,}$/.test(value) || /-c\d{2,}$/i.test(value))
+  );
 }
 
 const toolAliases = new Map();
@@ -434,12 +454,16 @@ const EXIT1_OK_TOOLS = new Set([
   'live-doctor',
 ]);
 
+/** Exit 2 = observational product amber (local ok / public flaky), not tool crash. */
+const EXIT2_OK_TOOLS = new Set(['events-online', 'cockpit', 'ship']);
+
 export function executionSucceeded(status, tool) {
   if (status === 0) return true;
   const id = canonicalTool(tool);
   // Exit 1 = product/status red only for allowlisted observational tools.
   if (status === 1 && EXIT1_OK_TOOLS.has(id)) return true;
-  if (id === 'cockpit' && status === 2) return true;
+  // Exit 2 = soft product red (e.g. events local ok / public flaky) — not tool failure.
+  if (status === 2 && EXIT2_OK_TOOLS.has(id)) return true;
   return false;
 }
 

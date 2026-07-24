@@ -4,7 +4,7 @@
 # Prefer this over inventing one-off paths.
 # Subcommands:
 #   orient | unify | truth | next-canon | cycle-status | demand | pilot | ship | home | …
-#   webflow | matches | review | hygiene | doctor | smoke | freeze | events-test
+#   webflow | matches | review | hygiene | doctor | smoke | freeze | priority | events | events-test
 #   cockpit | usertest | dash | orca | start | tools
 #   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | craft | ledger | ship-receipt
 #   demigod:*  → npm run
@@ -60,7 +60,7 @@ case "$1" in
   home|status|next|plane|modules|help|--help|-h)
     exec node demigod-control.mjs "$@"
     ;;
-  webflow|wf|matches|match|pairs|inbox|review|hygiene|ponytail|doctor|smoke|freeze|cockpit|usertest|dash)
+  webflow|wf|matches|match|pairs|inbox|review|hygiene|ponytail|doctor|smoke|freeze|cockpit|usertest|dash|priority)
     exec node demigod-control.mjs "$@"
     ;;
   linux|laptop|sysctl|power)
@@ -182,7 +182,8 @@ case "$1" in
     shift
     exec node demigod-events-invite-drain.mjs "$@"
     ;;
-  events-online)
+  events|events-online)
+    # short alias: bin/dg events [status|heal|up|…] — default status
     shift
     exec node demigod-events-online.mjs "${@:-status}"
     ;;
