@@ -720,6 +720,11 @@ function main() {
     console.error(`dogfood: unknown command ${cmd}`);
     process.exit(2);
   }
+  for (const a of args.slice(1)) {
+    if (a === '--json') continue;
+    console.error(`dogfood: unknown argument ${a} — try: node demigod-tool-dogfood.mjs ${cmd} [--json]`);
+    process.exit(2);
+  }
   const status = summarize(readLog());
   fs.writeFileSync(STATUS, JSON.stringify(status, null, 2) + '\n');
   if (asJson || cmd === 'report') console.log(JSON.stringify(status, null, 2));

@@ -135,11 +135,12 @@ function normalizeUserChatText(s) {
     .replace(/\bhow u\b/g, 'how are you')
     .replace(/\bare u\b/g, 'are you')
     .replace(/\bu gonna\b/g, 'you going to')
-    // residual: show|tell|gimme u the plan · ur plan/plans (parity r→are textspeak; no invent RSVPs)
-    .replace(/\bshow u\b/g, 'show you')
-    .replace(/\btell u\b/g, 'tell you')
+    // residual: show|tell|gimme u the plan · ur plan/plans
+    // (textspeak "u" = me when asking the bot to surface the plan; "show you" never hits isTickPlanAsk)
+    .replace(/\bshow u\b/g, 'show me')
+    .replace(/\btell u\b/g, 'tell me')
     .replace(/\bgimme u\b/g, 'give me')
-    .replace(/\bur plans?\b/g, 'your plan')
+    .replace(/\bur plans?\b/g, "what's your plan")
     // residual: "what|how r u|we planning" textspeak r→are (/tmp probe miss → lifecycle; no invent RSVPs)
     .replace(/\b(what|how) r u\b/g, '$1 are you')
     .replace(/\b(what|how) r we\b/g, '$1 are we')
@@ -3805,7 +3806,9 @@ function isTickPlanAsk(last) {
     // residual: walkme|talkme|runme the plan (no "through"; parity tell|hit me the plan; no invent RSVPs)
     /\b(walk|talk|run) (me|us) (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // bare plan/next steps parity show|give (outline your plan → Owner tick plan)
-    /\b(explain|outline) (the |your )?(tick |owner |agent )?(plan|pipeline|tick|next steps)\b/.test(last) ||
+    // residual: narrate|recite|voice|speak|state|declare|announce|broadcast the|your plan
+    // (parity explain|outline → Owner tick plan; no invent RSVPs)
+    /\b(explain|outline|narrate|recite|voice|speak|state|declare|announce|broadcast) (the |your )?(tick |owner |agent )?(plan|pipeline|tick|next steps)\b/.test(last) ||
     /\b(preview|summarize|describe) (the |your |this )?(agent |owner )?(tick|plan|pipeline|cycle)\b/.test(
       last,
     ) ||

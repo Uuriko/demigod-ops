@@ -16777,6 +16777,13 @@ try {
     ['what is our sequencing', 'what-sequencing'],
     ['our sequencing', 'our-sequencing'],
     ["whats the plan", 'whats-the-plan'],
+    // residual: textspeak show|tell|gimme u the plan · ur plan → Owner tick plan
+    ['show u the plan', 'show-u-the-plan'],
+    ['tell u the plan', 'tell-u-the-plan'],
+    ['gimme u the plan', 'gimme-u-the-plan'],
+    ['ur plan', 'ur-plan'],
+    ['wristband plan', 'wristband-plan'],
+    ["whats the greenroom plan", 'whats-greenroom-plan'],
     ["whats the forcing function", 'whats-forcing-function'],
     // Natural planner phrasing wave 17 (pre-mortem / DRI / MIT / GTD / RAID / OMTM / timebox)
     // Apostrophe-less "whats the DRI" / bare pre-mortem must hit Owner tick plan (not lifecycle).
