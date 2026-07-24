@@ -405,6 +405,10 @@ const explicitAliases = new Map([
   ['webhook-auth-test', 'webhook-auth'],
   ['demigod-webhook-auth', 'webhook-auth'],
   ['webflow-webhook-auth', 'webhook-auth'],
+  // useful-loop single-task labels
+  ['useful-loop-task', 'outreach-draft-audit'],
+  ['outreach-audit', 'outreach-draft-audit'],
+  ['events-outreach-audit', 'outreach-draft-audit'],
 ].map(([from, to]) => [String(from).toLowerCase(), to]));
 
 function isRetiredLabel(value) {

@@ -71,6 +71,7 @@ export const TOOLS = [
   { id: 'harness-selftest', name: 'Harness selftest', group: 'gates', cmd: 'node demigod-harness-selftest.mjs', purpose: 'Workloop harness contract selftest', hot: true },
   { id: 'priority', name: 'Priority board', group: 'session', cmd: 'bin/dg priority', purpose: 'Dynamic top-of-dash priorities (demigod-priority-board)', out: '/tmp/dg-busy/priority-board.json', hot: true },
   { id: 'work-find', name: 'Work find', group: 'session', cmd: 'node demigod-work-find.mjs', purpose: 'Auto-discover unblocked agent work into work-queue', out: '/tmp/dg-busy/WORK-FOUND.md', hot: true },
+  { id: 'outreach-draft-audit', name: 'Outreach draft audit', group: 'session', cmd: 'node demigod-useful-loop.mjs task outreach-draft-audit', purpose: 'Draft-only Events outreach readiness sample (queued/rejected; no send)', out: '/tmp/dg-busy/events-bot/outreach-draft-audit.json', hot: true },
   { id: 'wiz-a11y-audit', name: 'WIZ a11y audit', group: 'gates', cmd: 'node demigod-wiz-a11y-audit.mjs', purpose: 'Wizard accessibility audit (labels, focus, targets)', hot: true },
   { id: 'dogfood', name: 'Tool dogfood', group: 'session', cmd: 'node demigod-tool-dogfood.mjs status --json', purpose: 'Tool usage usefulness telemetry', out: '/tmp/dg-busy/tool-dogfood-status.json', hot: true },
   { id: 'quality', name: 'Quality wave', group: 'gates', cmd: 'bin/dg-quality once', purpose: 'Rotated product and tooling quality checks', out: '/tmp/dg-busy/coord/quality-last.json', hot: true },

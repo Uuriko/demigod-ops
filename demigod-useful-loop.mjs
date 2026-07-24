@@ -289,14 +289,14 @@ await withEventsStoreLock(async () => {
       const code = `
 import { loadStore, publicEventView, hasPublishedInviteUrl, normalizeStage, STAGES } from './demigod-events-bot-agent.mjs';
 import fs from 'fs';
-const s = loadStore();
-const id = s.activeEvent?.id;
-const stage = normalizeStage(s.activeEvent?.stage);
+const store = loadStore();
+const id = store.activeEvent?.id;
+const stage = normalizeStage(store.activeEvent?.stage);
 const atRsvp = STAGES.indexOf(stage) >= STAGES.indexOf('rsvp');
-const v = publicEventView(s, id);
-const hasPub = hasPublishedInviteUrl(s.activeEvent, s);
+const v = publicEventView(store, id);
+const hasPub = hasPublishedInviteUrl(store.activeEvent, store);
 const apiMeta = (() => { try { return JSON.parse(fs.readFileSync('DEMIGOD-EVENTS-API.json','utf8')); } catch { return {}; } })();
-const api = String(apiMeta.apiBase || '');
+const eventsApiBase = String(apiMeta.apiBase || '');
 const port = Number(apiMeta.port) || 3460;
 const path = '/public-event?id=' + encodeURIComponent(id || '');
 async function probe(url, headers = {}) {
@@ -305,11 +305,11 @@ async function probe(url, headers = {}) {
 }
 let httpOk = null;
 let httpVia = null;
-if (api && id) {
+if (eventsApiBase && id) {
   for (let attempt = 0; attempt < 2 && httpOk !== true; attempt++) {
     try {
       if (attempt) await new Promise((r) => setTimeout(r, 400));
-      httpOk = await probe(api + path, { 'Bypass-Tunnel-Reminder': '1' });
+      httpOk = await probe(eventsApiBase + path, { 'Bypass-Tunnel-Reminder': '1' });
       if (httpOk) httpVia = 'tunnel';
     } catch { httpOk = false; }
   }
@@ -331,7 +331,7 @@ const rsvpReadyOk = atRsvp && v?.ok && hasPub;
 const out = {
   id, stage, atRsvp, hasPub,
   viewOk: !!v?.ok, rsvpOpen: v?.event?.rsvpOpen, rsvpYes: v?.event?.rsvpYes,
-  api, httpOk, httpVia, redactedOk, rsvpReadyOk,
+  api: eventsApiBase, httpOk, httpVia, redactedOk, rsvpReadyOk,
 };
 console.log(JSON.stringify(out));
 if (!id || !v?.ok) process.exit(1);
@@ -351,13 +351,13 @@ import fs from 'fs';
 import path from 'path';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 const busy = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
-const api = JSON.parse(fs.readFileSync('DEMIGOD-EVENTS-API.json', 'utf8'));
+const eventsApiCfg = JSON.parse(fs.readFileSync('DEMIGOD-EVENTS-API.json', 'utf8'));
 const fr = freezeStatus();
 const blockedBy = fr.frozen
   ? 'publish freeze ON'
   : 'current-request auth + explicit --publish-config required (prepare-only)';
 const pending = {
-  ...api,
+  ...eventsApiCfg,
   pendingPublish: true,
   blockedBy,
   freezeOn: Boolean(fr.frozen),
@@ -366,7 +366,7 @@ const pending = {
 const dir = path.join(busy, 'events-bot');
 fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, 'events-api-latest.pending.json'), JSON.stringify(pending, null, 2) + '\\n');
-console.log(JSON.stringify({ ok: true, apiBase: api.apiBase, staged: true, blockedBy }));
+console.log(JSON.stringify({ ok: true, apiBase: eventsApiCfg.apiBase, staged: true, blockedBy }));
 `;
       const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
         cwd: ROOT,
@@ -492,8 +492,8 @@ console.log(JSON.stringify({ ok: true, path: '/tmp/dg-busy/demand/warm-inbound-p
       const code = `
 import fs from 'fs';
 import { outreachDraftReadiness, isRealOutreachEmail } from './demigod-events-bot-agent.mjs';
-const s = JSON.parse(fs.readFileSync('DEMIGOD-EVENTS.json','utf8'));
-const o = s.outreach || [];
+const eventsStore = JSON.parse(fs.readFileSync('DEMIGOD-EVENTS.json','utf8'));
+const o = eventsStore.outreach || [];
 const by = {};
 for (const x of o) by[x.status] = (by[x.status]||0)+1;
 const row = (x) => ({
@@ -659,7 +659,16 @@ const sleepSec = Number(
   (process.argv.find((a) => a.startsWith('--sleep-sec=')) || '--sleep-sec=120').split('=')[1] || 120,
 );
 
-if (cmd === 'once') {
+if (cmd === 'task') {
+  const taskId = process.argv[3];
+  if (!taskId) {
+    console.error('usage: demigod-useful-loop.mjs task <id>');
+    process.exit(2);
+  }
+  const r = doTask(taskId);
+  console.log(JSON.stringify({ id: taskId, ok: !!r?.ok, status: r?.status ?? null, out: r?.out || '', err: r?.err || '', meta: r?.meta || null }, null, 2));
+  process.exit(r?.ok ? 0 : 1);
+} else if (cmd === 'once') {
   once(1)
     .then((r) => {
       console.log(JSON.stringify(r, null, 2));
@@ -700,6 +709,6 @@ if (cmd === 'once') {
   log(`RUN start sleepSec=${sleepSec} pid=${process.pid} NONSTOP find+do`);
   tick();
 } else {
-  console.error('usage: demigod-useful-loop.mjs once|run [--sleep-sec=60]');
+  console.error('usage: demigod-useful-loop.mjs once|run|task <id> [--sleep-sec=60]');
   process.exit(2);
 }
