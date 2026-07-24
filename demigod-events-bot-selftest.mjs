@@ -10672,6 +10672,14 @@ ok(
   filmScreen[0]?.id === 'v_office_loan' || /office|loan/i.test(filmScreen[0]?.name || ''),
   'film screening free SoMa tops office: ' + (filmScreen[0]?.id || 'none'),
 );
+// residual: free press conference / product launch crowned SFPL via indoor + free-ask
+for (const need of ['press conference free SoMa', 'product launch free SoMa', 'media day free SF']) {
+  const top = matchFreeVenues({ need, seats: 20, limit: 1 })[0];
+  ok(
+    top?.id === 'v_office_loan' || /office|loan/i.test(top?.name || ''),
+    need + ' tops office: ' + (top?.id || 'none'),
+  );
+}
 ok(
   matchFreeVenues({ need: 'outdoor film screening free SoMa', seats: 20, limit: 1 })[0] &&
     /park|parklet|yerba|salesforce|dolores|crissy|lawn|promenade/i.test(

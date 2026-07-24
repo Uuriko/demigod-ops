@@ -4247,10 +4247,18 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   }
   // Pitch / demo day / showcase / hackathon / product launch → office/loan/showcase rooms
   // Free-ask on parks must not tie bare "investor pitch" (career-fair strength).
+  // residual: free "product launch free SoMa" crowned Mission SFPL via indoor tags + free-ask.
   if (needIsDemoFormat(needL)) {
-    if (/demo|showcase|office|indoor/.test(tags) || isOfficeish) {
+    if (isOfficeish || /demo|showcase|office|after-hours|in-kind|coworking/.test(tags + ' ' + blob)) {
       score += 6;
       reasons.push('demo-format');
+    } else if (/indoor|salon|talk/.test(tags) && !/library/.test(blob) && !/library/.test(tags)) {
+      score += 2;
+      reasons.push('demo-format');
+    }
+    if (/library/.test(blob) || /library/.test(tags)) {
+      score -= 4;
+      reasons.push('demo-library');
     }
     if (isPublicOutdoor && !outdoorAsked) {
       score -= 4;
@@ -4302,10 +4310,18 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     }
   }
   // Press conference / media day → office/demo AV; free lawns are weak press rooms
+  // residual: free "press conference free SoMa" crowned Mission SFPL via indoor + free-ask.
   if (needIsPressMedia(needL)) {
-    if (isOfficeish || /office|after-hours|in-kind|demo|showcase|indoor/.test(tags + ' ' + blob)) {
+    if (isOfficeish || /office|after-hours|in-kind|demo|showcase|coworking/.test(tags + ' ' + blob)) {
       score += 6;
       reasons.push('press-media');
+    } else if (/indoor|salon|talk/.test(tags) && !/library/.test(blob) && !/library/.test(tags)) {
+      score += 2;
+      reasons.push('press-media');
+    }
+    if (/library/.test(blob) || /library/.test(tags)) {
+      score -= 4;
+      reasons.push('press-library');
     }
     if (isPublicOutdoor && !outdoorAsked) {
       score -= 4;
@@ -5064,7 +5080,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     score -= freeAsked ? 7 : 5;
     reasons.push('no-food-room');
   } else if (resourceFoodGap && /library/.test(blob) && !talkOnlyNotDinner) {
-    score -= 2;
+    // residual: multi-resource food/beverage only −2 left SFPL within 1 of kitchen (draft free-list)
+    score -= 4;
     reasons.push('resource-no-food');
   }
   // Seated dinner/supper: boost kitchen/dining/in-kind food rooms only (not bare office loan).
@@ -5467,8 +5484,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // Under-cap free rooms skip free-ask bonus (capacity honesty over free label).
   // SFPL format-blocked needs (evening/Sunday/holiday hours, amp/performance, maker/tool,
   // food-class, all-day/cowork, podcast isolation, UX/usability, team-ops confidentiality,
-  // private/exclusive room): still mark free, but no free-ask boost — isolation/process, not price,
-  // is the block. Otherwise free-ask + right-size crowns closed SFPL over office/in-kind draft leads.
+  // press/demo, private/exclusive room): still mark free, but no free-ask boost — isolation/process,
+  // not price, is the block. Otherwise free-ask + right-size crowns closed SFPL over office/in-kind.
   // Drop-in free public still gets free-ask; free (reserve) under no-reserve skip free-ask.
   const sfplFormatBlocked =
     eveningIndoorNeed ||
@@ -5483,6 +5500,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     needIsTeamOps(needL) ||
     // residual: screening call free-ask crowned SFPL
     needIsCareerHiring(needL) ||
+    // residual: free press conference / product launch crowned Mission SFPL
+    needIsPressMedia(needL) ||
+    needIsDemoFormat(needL) ||
     // residual: private meeting free-ask crowned SFPL
     /\bprivate\b|exclusive|closed[- ]?room/.test(needL) ||
     // residual: free dinner/supper still crowned SFPL via free-ask over in-kind kitchen

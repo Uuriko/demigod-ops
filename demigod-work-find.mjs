@@ -104,6 +104,23 @@ function main() {
   })();
 
   // --- discoveries ---
+  // Aging prepare-only disk≠live is debt (needs current-request publish auth — never auto-ship)
+  const pl = truth?.publishLag;
+  if (pl?.overdue) {
+    pushWork(seen, found, {
+      kind: 'publish-lag-debt',
+      pri: 1,
+      title: `Publish lag DEBT disk v${pl.diskVer || '?'} live v${pl.liveVer || '?'} (+${pl.versionsAhead || '?'}ver · ${pl.ageHours ?? '?'}h)`,
+      task: 'ship-prepare',
+      note: pl.note || 'needs exact current-request publish authorization (not auto-ship)',
+      detail: {
+        pair: pl.pair || null,
+        versionsAhead: pl.versionsAhead ?? null,
+        ageHours: pl.ageHours ?? null,
+      },
+      repeatable: true,
+    });
+  }
   if (events?.needHeal || events?.public === false) {
     pushWork(seen, found, {
       kind: 'heal',

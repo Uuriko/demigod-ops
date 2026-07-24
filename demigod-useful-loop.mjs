@@ -262,6 +262,20 @@ await withEventsStoreLock(async () => {
         err: (r.stderr || '').slice(-1000),
       };
     }
+    case 'ship-prepare': {
+      // Prepare-only gates — never publishes (current-request auth required for ship)
+      const r = spawnSync('bash', [path.join(ROOT, 'bin/dg'), 'ship', 'prepare'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 300000,
+      });
+      return {
+        ok: r.status === 0,
+        status: r.status,
+        out: (r.stdout || '').slice(-2000),
+        err: (r.stderr || '').slice(-800),
+      };
+    }
     case 'loop-state':
       // Craft loops bump foot often; restamp foot_ver_disk to disk so gate stays honest.
       return run(['demigod-verify-loop-state.mjs', '--restamp'], 30000);
