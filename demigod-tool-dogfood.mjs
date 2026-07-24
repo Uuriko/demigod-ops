@@ -397,6 +397,10 @@ const explicitAliases = new Map([
   ['webhook-setup-test', 'webflow'],
   ['webhook-ssrf', 'webflow'],
   ['webflow-webhook-ssrf', 'webflow'],
+  // dry-run publish front door labels
+  ['dg-publish-dry', 'dg-publish'],
+  ['publish-dry', 'dg-publish'],
+  ['publish-dry-run', 'dg-publish'],
 ].map(([from, to]) => [String(from).toLowerCase(), to]));
 
 function isRetiredLabel(value) {
