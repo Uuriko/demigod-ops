@@ -206,7 +206,7 @@ function main() {
       title: `${dupeGroups} duplicate partner URL group(s) — review collision-plan`,
       task: 'funnel-collision-plan',
       detail: { groups: dupeGroups },
-      note: 'bin/dg funnel collision-plan (review-only; no auto-merge of LEADS SoR)',
+      note: 'bin/dg funnel collision-plan; after review: node demigod-funnel.mjs collision-plan --apply',
       repeatable: true,
     });
   }

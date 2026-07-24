@@ -1394,6 +1394,54 @@ export function planPartnerUrlCollisionMerges(doc) {
 }
 
 /**
+ * Apply a collision plan: keep survivors, drop mergeIds, attach full evidence on survivor.
+ * Pure doc mutation (caller persists). Same-URL only; never invents contact.
+ */
+export function applyPartnerUrlCollisionMerges(doc, plan = null, { at = new Date().toISOString(), actor = 'agent' } = {}) {
+  const groups = Array.isArray(plan) ? plan : planPartnerUrlCollisionMerges(doc);
+  const partners = Array.isArray(doc?.partners) ? doc.partners : [];
+  const byId = new Map(partners.map((p) => [p.id, p]));
+  const remove = new Set();
+  const applied = [];
+  for (const g of groups) {
+    const keep = byId.get(g.keepId);
+    if (!keep) continue;
+    const keepUrl = partnerUrlKey(keep.url);
+    const merged = [];
+    for (const mid of g.mergeIds || []) {
+      const m = byId.get(mid);
+      if (!m || remove.has(mid)) continue;
+      if (partnerUrlKey(m.url) !== keepUrl) continue;
+      merged.push({
+        id: m.id,
+        state: getState(m),
+        source: m.source || null,
+        score: m.score ?? null,
+        stateHistory: m.stateHistory || [],
+        history: m.history || [],
+        provenance: m.provenance || null,
+        contactProvenance: m.contactProvenance || null,
+      });
+      remove.add(mid);
+    }
+    if (!merged.length) continue;
+    keep.mergedFrom = [...new Set([...(keep.mergedFrom || []), ...merged.map((x) => x.id)])];
+    if (!Array.isArray(keep.history)) keep.history = [];
+    keep.history.push({
+      at,
+      kind: 'url_collision_merge',
+      actor,
+      url: g.url,
+      mergedIds: merged.map((x) => x.id),
+      evidence: merged,
+    });
+    applied.push({ keepId: keep.id, mergeIds: merged.map((x) => x.id), url: g.url });
+  }
+  if (remove.size) doc.partners = partners.filter((p) => !remove.has(p.id));
+  return { applied, removed: [...remove], remainingGroups: planPartnerUrlCollisionMerges(doc).length };
+}
+
+/**
  * Pure markdown board: policy_hold leads due for contact scrape (not in cooldown).
  * Agent/human visibility for holds_scrape_due.
  */
@@ -5272,13 +5320,45 @@ function cmdRepairHistory(args) {
   console.log(JSON.stringify({ ok: true, apply: true, id, removed: repair.removed.length, receipt }, null, 2));
 }
 
-function cmdCollisionPlan() {
+function cmdCollisionPlan(args = []) {
+  const apply = args.includes('--apply');
   const at = new Date().toISOString();
-  const plan = planPartnerUrlCollisionMerges(loadLeads());
-  const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-plan-${at.replace(/[:.]/g, '-')}.json`);
+  const doc = loadLeads();
+  const plan = planPartnerUrlCollisionMerges(doc);
+  if (!apply) {
+    const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-plan-${at.replace(/[:.]/g, '-')}.json`);
+    fs.mkdirSync(path.dirname(receipt), { recursive: true });
+    atomicWrite(receipt, JSON.stringify({ schema: 'demigod.partner-url-collision-plan/1', at, apply: false, plan }, null, 2) + '\n');
+    console.log(JSON.stringify({ ok: true, apply: false, groups: plan.length, receipt, plan }, null, 2));
+    return;
+  }
+  const result = applyPartnerUrlCollisionMerges(doc, plan, { at, actor: 'agent' });
+  const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-apply-${at.replace(/[:.]/g, '-')}.json`);
   fs.mkdirSync(path.dirname(receipt), { recursive: true });
-  atomicWrite(receipt, JSON.stringify({ schema: 'demigod.partner-url-collision-plan/1', at, apply: false, plan }, null, 2) + '\n');
-  console.log(JSON.stringify({ ok: true, apply: false, groups: plan.length, receipt, plan }, null, 2));
+  commitReceiptTransaction({
+    receiptPath: receipt,
+    receiptBody: JSON.stringify({
+      schema: 'demigod.partner-url-collision-apply/1',
+      at,
+      apply: true,
+      plan,
+      applied: result.applied,
+      removed: result.removed,
+      remainingGroups: result.remainingGroups,
+    }, null, 2) + '\n',
+    trackedPaths: [LEADS],
+    commit: () => saveDoc(doc),
+  });
+  console.log(JSON.stringify({
+    ok: true,
+    apply: true,
+    groups: plan.length,
+    applied: result.applied.length,
+    removed: result.removed.length,
+    remainingGroups: result.remainingGroups,
+    receipt,
+    appliedGroups: result.applied,
+  }, null, 2));
 }
 
 function arg(args, name) {
@@ -5316,7 +5396,7 @@ Commands:
   receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID
                   # approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made
   repair-history --id=LEAD [--apply]  # quarantine broken history entries with receipt
-  collision-plan          # review-only duplicate partner URL merge receipt
+  collision-plan [--apply]  # review-only plan; --apply merges same-URL partners (evidence kept)
   join [--apply]
   followup [--id=LEAD] [--days=5]   # drafts only; max 2 nudges then coldEligible
   match [--apply]
@@ -5412,11 +5492,12 @@ if (isMain) {
         else if (cmd === 'receipt') cmdReceipt(rest);
         else if (cmd === 'repair-history') cmdRepairHistory(rest);
         else if (cmd === 'collision-plan') {
-          if (rest.length) {
-            console.error(`unknown option: ${rest[0]}`);
+          const unknown = rest.find((a) => a !== '--apply');
+          if (unknown) {
+            console.error(`unknown option: ${unknown}`);
             process.exit(2);
           }
-          cmdCollisionPlan();
+          cmdCollisionPlan(rest);
         }
         else if (cmd === 'join') cmdJoin(rest);
         else if (cmd === 'followup' || cmd === 'nudge') cmdFollowup(rest);
@@ -5433,7 +5514,10 @@ if (isMain) {
           process.exit(2);
         }
       };
-      await (CRM_MUTATING_COMMANDS.has(cmd) ? withFileLock(CRM_LOCK, execute) : execute());
+      const needsLock =
+        CRM_MUTATING_COMMANDS.has(cmd) ||
+        (cmd === 'collision-plan' && rest.includes('--apply'));
+      await (needsLock ? withFileLock(CRM_LOCK, execute) : execute());
     } catch (e) {
       console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
       process.exit(1);
