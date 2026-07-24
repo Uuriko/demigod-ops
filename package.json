@@ -119,6 +119,7 @@
     "demigod:partnerships:playtest": "node demigod-partnerships-playtest.mjs",
     "demigod:verify:unit": "node --test demigod-live-lib.test.mjs",
     "demigod:verify:source": "node demigod-verify-source.mjs",
+    "demigod:import-integrity": "node demigod-import-integrity.mjs",
     "demigod:verify:live": "node demigod-verify-live.mjs",
     "demigod:verify:smoke": "node demigod-foot-smoke.mjs",
     "demigod:deploy:prep": "node demigod-verify-board-honesty.mjs && node --check demigod-foot-core.js && npm run demigod:verify:source && node demigod-foot-cdn-publish.mjs && node demigod-fix-custom-code.mjs && npm run demigod:verify:live",

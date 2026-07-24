@@ -6,10 +6,13 @@
  *
  * Content hashes thrash on every intentional edit; export contracts catch silent gutting.
  * Poison (verify-the-verifier): node --test demigod-import-integrity.test.mjs
+ * Wired into: verify:source (sor:import-integrity), ship prepare, .githooks/pre-commit
  *
  *   node demigod-import-integrity.mjs
+ *   npm run demigod:import-integrity
  *   node demigod-import-integrity.mjs --json
  *   DEMIGOD_ROOT=/tmp/fixture node demigod-import-integrity.mjs  # isolated tree
+ *   git config core.hooksPath .githooks   # enable pre-commit (once per clone)
  */
 import fs from 'fs';
 import path from 'path';

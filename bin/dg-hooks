@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# dg-hooks — install Demigod tracked git hooks (pre-commit → import-integrity)
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /home/potter)"
+cmd="${1:-install}"
+case "$cmd" in
+  install|ensure)
+    git config core.hooksPath .githooks
+    chmod +x .githooks/pre-commit 2>/dev/null || true
+    echo "hooksPath=$(git config --get core.hooksPath) · pre-commit=import-integrity"
+    ;;
+  status)
+    echo "hooksPath=$(git config --get core.hooksPath 2>/dev/null || echo unset)"
+    test -x .githooks/pre-commit && echo "pre-commit: executable" || echo "pre-commit: missing"
+    ;;
+  test)
+    exec .githooks/pre-commit
+    ;;
+  *)
+    echo "usage: bin/dg-hooks install|status|test" >&2
+    exit 2
+    ;;
+esac

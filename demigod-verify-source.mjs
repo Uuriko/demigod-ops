@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import vm from 'vm';
+import { spawnSync } from 'child_process';
 import { scanLiveHtml, markerPresent } from './demigod-live-lib.mjs';
 import { runFootSmoke } from './demigod-foot-smoke.mjs';
 import { verifyNoCommittableSor } from './demigod-no-committable-sor-lib.mjs';
@@ -1788,6 +1789,7 @@ const requiredScripts = [
   'demigod-live-lib.test.mjs',
   'demigod-verify-live.mjs',
   'demigod-verify-all.mjs',
+  'demigod-import-integrity.mjs',
   'demigod-foot-cdn-publish.mjs',
   'demigod-fix-custom-code.mjs',
   'demigod-foot-core.js',
@@ -1838,6 +1840,18 @@ try {
     false,
     `privacy verifier failed closed: ${String(error?.message || error).slice(0, 500)}`,
   );
+}
+
+// Clone-breaker + export contracts — also on ship prepare / pre-commit, but verify:source is the
+// agent day-loop path; without this a gutted SoR can commit until someone runs prepare.
+{
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-import-integrity.mjs')], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  const detail = ((r.stdout || '') + (r.stderr || '')).trim().split('\n')[0] || `exit=${r.status}`;
+  check('sor:import-integrity', r.status === 0, detail.slice(0, 240));
 }
 
 // length>0 floor: [].every() is vacuously true, so if a refactor ever skipped every check() call
