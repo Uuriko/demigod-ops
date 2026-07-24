@@ -37,6 +37,8 @@ if (ship || wizard) {
     ['demigod-foot-smoke.test.mjs'], // #40 — locks foot-smoke's parse+boot fail-capability (outage class)
     // Import-integrity poison (Claude/Grok): export contracts + clone-breaker edges must fail-red
     ['demigod-import-integrity.test.mjs'],
+    // tools-selftest fail-capability (Claude c266): POISON=1 must fail suite (not vacuous-green)
+    ['demigod-tools-selftest.poison.test.mjs'],
     // Canonical ship prepare must keep import-integrity + honesty steps (not ship-prep-only)
     ['demigod-ship-prepare-contract.test.mjs'],
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
