@@ -1074,7 +1074,14 @@ function renderOverview(d){
   const chainNode=(label,ok)=>'<span class="node '+(ok===true?'ok':ok===false?'bad':'')+'">'+esc(label)+'</span>';
   const eventsOnline=d.eventsBot?.online;
   const eventMetric=value=>value===true?'true':value===false?'false':'unknown';
-  const eventsApiLabel=!eventsOnline?'unobserved':eventsOnline.stale?'stale receipt':eventsOnline.public===false?'public route down':eventsOnline.nativeRsvpRoutes===false?'RSVP routes missing':eventsOnline.storeHygieneOk===false?'store hygiene failed'+(eventsOnline.storeHygieneHitCount==null?'':' ('+esc(eventsOnline.storeHygieneHitCount)+(eventsOnline.storeHygieneFirstHit?': '+esc(eventsOnline.storeHygieneFirstHit):'')+')'):eventsOnline.observation==='host_unobservable'?'host unobservable':eventsOnline.configPublished===false?'healthy, website config stale':eventsOnline.configPublished===null?'website config unverified':eventsOnline.certified?'certified':esc(eventsOnline.observation||'not certified');
+  const eventsConfigStaleLabel=eventsOnline?.configPublished===false
+    ? (eventsOnline.pendingMatchesLocal===true
+      ? 'healthy, website config prepare-only (pending matches local)'
+      : eventsOnline.prepareOnlyWebsiteConfig===true
+        ? 'healthy, website config prepare-only'
+        : 'healthy, website config stale')
+    : null;
+  const eventsApiLabel=!eventsOnline?'unobserved':eventsOnline.stale?'stale receipt':eventsOnline.public===false?'public route down':eventsOnline.nativeRsvpRoutes===false?'RSVP routes missing':eventsOnline.storeHygieneOk===false?'store hygiene failed'+(eventsOnline.storeHygieneHitCount==null?'':' ('+esc(eventsOnline.storeHygieneHitCount)+(eventsOnline.storeHygieneFirstHit?': '+esc(eventsOnline.storeHygieneFirstHit):'')+')'):eventsOnline.observation==='host_unobservable'?'host unobservable':eventsConfigStaleLabel?eventsConfigStaleLabel:eventsOnline.configPublished===null?'website config unverified':eventsOnline.certified?'certified':esc(eventsOnline.observation||'not certified');
   const eventsApiAction=eventsOnline?.observation==='host_unobservable'?'Retry Events API check':'Certify Events API';
   const eventsLifecycleBlocked=d.eventsBot?.lifecycleEvidenceMismatch||d.eventsBot?.venueTooSmall||d.eventsBot?.stage==='resource'&&!d.eventsBot?.audienceReady||d.eventsBot?.stage==='plan'&&!d.eventsBot?.futureDateTimeReady||d.eventsBot?.stage==='rsvp'&&!d.eventsBot?.inviteUrlRecorded;
   const eventsLifecycleBlockReason=d.eventsBot?.lifecycleEvidenceMismatch?'Venue confirmation evidence is required':d.eventsBot?.venueTooSmall?'Venue capacity is below the event seat target':d.eventsBot?.stage==='resource'?'Record real audience and outcome wording with record_idea':d.eventsBot?.stage==='rsvp'?'A real guest invite URL is required':'Replace date alternatives with one real timezone-aware future SF datetime via record_schedule';
@@ -1103,7 +1110,8 @@ function renderOverview(d){
   const eventsDetails=
     '<details style="margin-top:.65rem"><summary>System details</summary>'+
     '<div class="meta" style="margin-top:.5rem">Events API: '+eventsApiLabel+' · invite destinations: Demigod native, Luma draft, Partiful draft</div>'+
-    '<div class="meta">eventsOperational '+eventMetric(eventsOnline?.eventsOperational)+' · prepareOnlyWebsiteConfig '+eventMetric(eventsOnline?.prepareOnlyWebsiteConfig)+' · preferredTunnelMatch '+eventMetric(eventsOnline?.preferredTunnelMatch)+'</div>'+
+    '<div class="meta">eventsOperational '+eventMetric(eventsOnline?.eventsOperational)+' · prepareOnlyWebsiteConfig '+eventMetric(eventsOnline?.prepareOnlyWebsiteConfig)+' · pendingMatchesLocal '+eventMetric(eventsOnline?.pendingMatchesLocal)+' · preferredTunnelMatch '+eventMetric(eventsOnline?.preferredTunnelMatch)+'</div>'+
+    (eventsOnline?.pendingApiBase?'<div class="meta">pendingApiBase '+esc(eventsOnline.pendingApiBase)+(eventsOnline.pendingBlockedBy?' · '+esc(eventsOnline.pendingBlockedBy):'')+'</div>':'')+
     (d.eventsBot?.resources?'<div class="meta">Resources '+esc(d.eventsBot.resources.done)+'/'+esc(d.eventsBot.resources.total)+(eventsMissing.length?' · missing '+esc(eventsMissing.join('; ')):'')+' · queued drafts '+esc(d.eventsBot.resources.queuedDrafts||0)+'</div>':'')+
     (d.eventsBot?.venueSelected?'<div class="meta">Venue '+(d.eventsBot.venueConfirmed?'confirmed':'selected, confirmation needed')+(d.eventsBot.venueCapacity?' · capacity '+esc(d.eventsBot.venueCapacity):'')+'</div>':'')+
     (['rsvp','run','followup','debrief'].includes(d.eventsBot?.stage)?'<div class="meta">Invite '+(d.eventsBot.inviteUrlRecorded?'ready':'missing')+' · RSVPs '+esc(d.eventsBot.rsvpsConfirmed??'unknown')+(d.eventsBot.seatsRemaining==null?'':' · '+esc(d.eventsBot.seatsRemaining)+' seats left')+'</div>':'')+
