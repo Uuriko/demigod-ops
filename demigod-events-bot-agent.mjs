@@ -862,8 +862,9 @@ const AREA_NEAR = {
   dogpatch: ['dogpatch', 'potrero', 'mission', 'mission bay', 'soma', 'yerba', 'south park', 'salesforce'],
   potrero: ['potrero', 'dogpatch', 'mission', 'soma'],
   // Mission Bay ≠ Mission Dolores (was false area hit via bare "mission")
-  'mission bay': ['mission bay', 'dogpatch', 'potrero', 'soma', 'yerba'],
-  missionbay: ['mission bay', 'dogpatch', 'potrero', 'soma', 'yerba'],
+  // residual: mission bay indoor free-list is Civic SFPL (no bare mission — outdoor stays SoMa)
+  'mission bay': ['mission bay', 'dogpatch', 'potrero', 'soma', 'yerba', 'civic', 'main library'],
+  missionbay: ['mission bay', 'dogpatch', 'potrero', 'soma', 'yerba', 'civic', 'main library'],
   // residual: no Richmond free-list card — outdoor Crissy/Marina; indoor Civic SFPL
   // residual: richmond dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft affinity only
   richmond: ['richmond', 'marina', 'presidio', 'crissy', 'sunset', 'civic', 'main library', 'mission', 'soma'],
@@ -973,8 +974,9 @@ const AREA_NEAR = {
   // Indoor free-list is Civic SFPL (no Western Addition free indoor card)
   westernaddition: ['western addition', 'fillmore', 'hayes', 'japantown', 'haight', 'civic', 'main library'],
   'western addition': ['western addition', 'fillmore', 'hayes', 'japantown', 'haight', 'civic', 'main library'],
+  // residual: visitacion outdoor free-list area-missed SoMa/Bayview (only Mission Dolores via mission)
   // residual: visitacion/rincon/corona/park merced/presidio heights in SF_OK, free-list missed
-  visitacion: ['visitacion', 'excelsior', 'mission', 'bernal'],
+  visitacion: ['visitacion', 'excelsior', 'bayview', 'mission', 'bernal', 'soma', 'yerba'],
   // Indoor free-list is Civic SFPL (was area-miss on quiet indoor; outdoor stays SoMa)
   rinconhill: ['rincon hill', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
   'rincon hill': ['rincon hill', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
@@ -989,8 +991,9 @@ const AREA_NEAR = {
   presidioheights: ['presidio heights', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   'presidio heights': ['presidio heights', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   // residual: yerba buena / south beach / mid-market → SoMa free-list (draft affinity only)
-  yerbabuena: ['yerba', 'soma', 'moscone', 'salesforce', 'south park'],
-  'yerba buena': ['yerba', 'soma', 'moscone', 'salesforce', 'south park'],
+  // residual: yerba buena indoor free-list is Civic SFPL (no bare mission — outdoor stays SoMa)
+  yerbabuena: ['yerba', 'soma', 'moscone', 'salesforce', 'south park', 'civic', 'main library'],
+  'yerba buena': ['yerba', 'soma', 'moscone', 'salesforce', 'south park', 'civic', 'main library'],
   // residual: South Beach indoor free-list is Civic SFPL (was area-miss on SFPL; outdoor stays SoMa)
   southbeach: ['soma', 'yerba', 'embarcadero', 'south park', 'salesforce', 'civic', 'main library'],
   'south beach': ['soma', 'yerba', 'embarcadero', 'south park', 'salesforce', 'civic', 'main library'],
@@ -1004,10 +1007,11 @@ const AREA_NEAR = {
   // residual: portola / china basin free-list areaNeed missed (draft affinity only)
   // portola valley is NON_SF — capture only portola / portola district
   portola: ['portola', 'excelsior', 'bernal', 'mission', 'glen park'],
-  chinabasin: ['china basin', 'mission bay', 'dogpatch', 'soma', 'yerba', 'embarcadero'],
-  'china basin': ['china basin', 'mission bay', 'dogpatch', 'soma', 'yerba', 'embarcadero'],
+  // residual: china basin/mission rock indoor free-list is Civic SFPL (no bare mission)
+  chinabasin: ['china basin', 'mission bay', 'dogpatch', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
+  'china basin': ['china basin', 'mission bay', 'dogpatch', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
   // residual: SF_OK hoods free-list areaNeed missed (draft affinity only)
-  missionrock: ['mission rock', 'china basin', 'mission bay', 'dogpatch', 'soma', 'yerba'],
+  missionrock: ['mission rock', 'china basin', 'mission bay', 'dogpatch', 'soma', 'yerba', 'civic', 'main library'],
   // Indoor free-list affinity: Civic SFPL (no North Beach free indoor card)
   // residual: telegraph hill dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   telegraphhill: ['telegraph hill', 'north beach', 'embarcadero', 'ferry', 'civic', 'main library', 'mission', 'soma'],
@@ -1065,7 +1069,8 @@ const AREA_NEAR = {
   miraloma: ['miraloma', 'twin peaks', 'glen park', 'castro', 'mission', 'dolores'],
   // free-list has no bayview/dogpatch cards — affinity must hit mission/soma/etc.
   silverterrace: ['silver terrace', 'bayview', 'visitacion', 'excelsior', 'mission', 'bernal'],
-  indiabasin: ['india basin', 'dogpatch', 'bayview', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero'],
+  // residual: india basin indoor free-list is Civic SFPL (no bare mission)
+  indiabasin: ['india basin', 'dogpatch', 'bayview', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
   clarendon: ['clarendon', 'twin peaks', 'forest hill', 'castro', 'mission', 'dolores'],
   candlestick: ['candlestick', 'bayview', 'visitacion', 'excelsior', 'mission', 'bernal'],
   // residual: McLaren Park free-list areaNeed missed (draft affinity only; SE → Mission outdoor)
@@ -1089,25 +1094,27 @@ const AREA_NEAR = {
   pier39: ['pier 39', 'embarcadero', 'ferry', 'north beach', 'civic', 'main library'],
   'pier 39': ['pier 39', 'embarcadero', 'ferry', 'north beach', 'civic', 'main library'],
   // residual: Pier 70 free-list areaNeed missed (draft affinity only; Dogpatch/SoMa outdoor)
-  pier70: ['pier 70', 'dogpatch', 'potrero', 'mission bay', 'china basin', 'soma', 'yerba', 'south park'],
-  'pier 70': ['pier 70', 'dogpatch', 'potrero', 'mission bay', 'china basin', 'soma', 'yerba', 'south park'],
+  // residual: pier 70 indoor free-list is Civic SFPL (no bare mission — outdoor stays SoMa)
+  pier70: ['pier 70', 'dogpatch', 'potrero', 'mission bay', 'china basin', 'soma', 'yerba', 'south park', 'civic', 'main library'],
+  'pier 70': ['pier 70', 'dogpatch', 'potrero', 'mission bay', 'china basin', 'soma', 'yerba', 'south park', 'civic', 'main library'],
   // Indoor free-list is Civic SFPL (no Sloat free indoor card)
   sloat: ['sloat', 'sunset', 'west portal', 'ocean beach', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
   lombard: ['lombard', 'marina', 'russian hill', 'cow hollow', 'crissy', 'presidio', 'civic', 'main library'],
   'lombard street': ['lombard', 'marina', 'russian hill', 'cow hollow', 'crissy', 'civic', 'main library'],
-  // residual: showplace/design district/central waterfront/islais/cayuga/sunnydale free-list areaNeed missed
-  showplacesquare: ['showplace', 'dogpatch', 'potrero', 'soma', 'yerba', 'south park'],
-  designdistrict: ['design district', 'dogpatch', 'potrero', 'soma', 'yerba'],
-  centralwaterfront: ['central waterfront', 'dogpatch', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero'],
-  islaiscreek: ['islais', 'dogpatch', 'bayview', 'china basin', 'soma', 'yerba'],
+  // residual: showplace/design/central waterfront/islais indoor free-list = Civic SFPL
+  showplacesquare: ['showplace', 'dogpatch', 'potrero', 'soma', 'yerba', 'south park', 'civic', 'main library'],
+  designdistrict: ['design district', 'dogpatch', 'potrero', 'soma', 'yerba', 'civic', 'main library'],
+  centralwaterfront: ['central waterfront', 'dogpatch', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
+  islaiscreek: ['islais', 'dogpatch', 'bayview', 'china basin', 'soma', 'yerba', 'civic', 'main library'],
   cayuga: ['cayuga', 'excelsior', 'mission', 'bernal', 'visitacion'],
   sunnydale: ['sunnydale', 'visitacion', 'excelsior', 'mission', 'bernal'],
   // residual: ghirardelli/oracle park/chase center/lincoln way in SF_OK, free-list areaNeed missed
   ghirardelli: ['ghirardelli', 'marina', 'north beach', 'embarcadero', 'ferry', 'civic', 'main library'],
   oraclepark: ['oracle park', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero'],
   'oracle park': ['oracle park', 'china basin', 'mission bay', 'soma', 'yerba', 'embarcadero'],
-  chasecenter: ['chase center', 'mission bay', 'dogpatch', 'china basin', 'soma', 'yerba'],
-  'chase center': ['chase center', 'mission bay', 'dogpatch', 'china basin', 'soma', 'yerba'],
+  // residual: chase center indoor free-list is Civic SFPL (no bare mission)
+  chasecenter: ['chase center', 'mission bay', 'dogpatch', 'china basin', 'soma', 'yerba', 'civic', 'main library'],
+  'chase center': ['chase center', 'mission bay', 'dogpatch', 'china basin', 'soma', 'yerba', 'civic', 'main library'],
   // residual: lincoln way indoor free-list is Civic SFPL (outdoor stays west parks)
   lincolnway: ['lincoln way', 'golden gate park', 'richmond', 'sunset', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
   'lincoln way': ['lincoln way', 'golden gate park', 'richmond', 'sunset', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
@@ -1127,7 +1134,8 @@ const AREA_NEAR = {
   rincon: ['rincon', 'rincon hill', 'soma', 'yerba', 'embarcadero'],
   // residual: mint plaza / transbay / westwood park free-list areaNeed missed (draft affinity only)
   mintplaza: ['mint plaza', 'civic', 'soma', 'yerba', 'mid market', 'salesforce'],
-  transbay: ['transbay', 'soma', 'yerba', 'salesforce', 'south park'],
+  // residual: transbay indoor free-list is Civic SFPL (no bare mission — outdoor stays SoMa)
+  transbay: ['transbay', 'soma', 'yerba', 'salesforce', 'south park', 'civic', 'main library'],
   // Indoor free-list is Civic SFPL (no westwood free indoor card; was area-miss → Crissy outdoor)
   westwoodpark: ['westwood park', 'west portal', 'ingleside', 'ocean beach', 'sunset', 'marina', 'crissy', 'civic', 'main library'],
   // residual: St. Francis Wood free-list areaNeed missed (draft affinity only; west cluster + Civic indoor)
@@ -1183,6 +1191,14 @@ const AREA_NEAR = {
   'ina coolbrith': ['ina coolbrith', 'russian hill', 'north beach', 'nob hill', 'embarcadero', 'civic', 'main library'],
   grandview: ['grandview', 'inner sunset', 'sunset', 'twin peaks', 'golden gate park', 'marina', 'crissy', 'civic', 'main library'],
   'grandview park': ['grandview', 'inner sunset', 'sunset', 'twin peaks', 'golden gate park', 'marina', 'crissy', 'civic', 'main library'],
+  // residual: SF_OK landmarks free-list areaNeed missed (draft affinity only)
+  alcatraz: ['alcatraz', 'marina', 'crissy', 'ferry', 'embarcadero', 'civic', 'main library'],
+  fortfunston: ['fort funston', 'ocean beach', 'sunset', 'richmond', 'crissy', 'marina', 'civic', 'main library'],
+  'fort funston': ['fort funston', 'ocean beach', 'sunset', 'richmond', 'crissy', 'marina', 'civic', 'main library'],
+  sutrobaths: ['sutro baths', 'ocean beach', 'richmond', 'sunset', 'crissy', 'marina', 'civic', 'main library'],
+  'sutro baths': ['sutro baths', 'ocean beach', 'richmond', 'sunset', 'crissy', 'marina', 'civic', 'main library'],
+  aquaticpark: ['aquatic park', 'marina', 'crissy', 'ferry', 'embarcadero', 'civic', 'main library'],
+  'aquatic park': ['aquatic park', 'marina', 'crissy', 'ferry', 'embarcadero', 'civic', 'main library'],
 };
 
 /** True when need-area token matches venue area/blob (incl. near-neighborhood aliases). */
@@ -4183,6 +4199,22 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       reasons.push('west-far');
     }
   }
+  // residual: fillmore/japantown/tenderloin/haight/alamo dinner AREA_NEAR includes soma —
+  // outdoor free-list still area-hit SoMa lawns (meetup-fit +4) over Hayes green (draft only).
+  if (
+    outdoorAsked &&
+    /\b(fillmore|japantown|little\s+tokyo|tenderloin|haight|alamo(?:\s+square)?)\b/.test(
+      needL,
+    )
+  ) {
+    if (v.id === 'v_hayes_green' || /hayes|patricia/.test(blob + ' ' + areaL)) {
+      score += 5;
+      reasons.push('central-outdoor');
+    } else if (['v_soma_parklet', 'v_yerba_buena', 'v_salesforce_park', 'v_dolores'].includes(v.id)) {
+      score -= 2;
+      reasons.push('central-far');
+    }
+  }
   // residual: treasure island outdoor crowned SoMa/Mission lawns via AREA_NEAR dinner aliases
   // (TI free outdoor → Embarcadero/Ferry bridge side; draft free-list honesty only)
   if (outdoorAsked && /\btreasure\s+island\b/.test(needL)) {
@@ -5067,8 +5099,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual: breakfast was missing (same class as brunch → SFPL beat kitchen on "family breakfast").
   // residual: space/hyphen "food beverage sponsor" is sponsor-gap text, not dinner format
   // multi-resource seed still prefers edible rooms over SFPL/office (draft free-list only).
+  // residual: bare "food sponsor" multi-resource (no "beverage") skipped kitchen seatedMeal
+  // → office-tables + kitchen-only crowned office over dining (draft free-list honesty only).
   const resourceFoodGap =
-    multiResourceNeed && /\bfood(?:\s*[\/&-]\s*|\s+)beverage\b/.test(needL);
+    multiResourceNeed &&
+    (/\bfood(?:\s*[\/&-]\s*|\s+)beverage\b/.test(needL) ||
+      (/\bfood\b/.test(needL) && !outdoorAsked));
   const foodServiceFormat =
     /dinner|supper|brunch|breakfast|meal|course|wine\s*tasting|cooking\s*class|\bdining\b/.test(needL) ||
     (/\bfood\b/.test(needL) && !/\bfood(?:\s*[\/&-]\s*|\s+)beverage(\s+sponsor)?\b/.test(needL));
@@ -5312,7 +5348,7 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-14: "financial district" only — bare "financial" is role title (financial controller).
   // mission bay before bare mission — Mission Bay ≠ Mission Dolores (area honesty)
   const areaNeed =
-    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mt\.?\s+davidson|mount\s+davidson|tank\s+hill|alta\s+plaza|portsmouth\s+square|ina\s+coolbrith|grandview(?:\s+park)?|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
+    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mt\.?\s+davidson|mount\s+davidson|tank\s+hill|alta\s+plaza|portsmouth\s+square|ina\s+coolbrith|grandview(?:\s+park)?|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza|alcatraz|fort\s+funston|sutro\s+baths|aquatic\s+park)\b/i.exec(
       needL,
     );
   if (areaNeed) {
@@ -5352,6 +5388,10 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'forest knolls') tok = 'forestknolls';
     else if (tok === 'city hall') tok = 'cityhall';
     else if (tok === 'un plaza') tok = 'unplaza';
+    else if (tok === 'alcatraz') tok = 'alcatraz';
+    else if (tok === 'fort funston') tok = 'fortfunston';
+    else if (tok === 'sutro baths') tok = 'sutrobaths';
+    else if (tok === 'aquatic park') tok = 'aquaticpark';
     else if (tok === 'corona heights') tok = 'coronaheights';
     else if (tok === 'park merced') tok = 'parkmerced';
     else if (tok === 'presidio heights') tok = 'presidioheights';
@@ -5813,13 +5853,17 @@ export function resourceOutreachCovered(gaps = {}) {
 
 /** Normalize outreach kind aliases for drain (venue_alt / venue_capacity → venue). */
 export function normalizeOutreachKind(kind) {
-  const k = String(kind || 'other').toLowerCase();
-  if (k === 'venue_alt' || k === 'venue-alt' || k === 'venue_capacity' || k === 'venue-capacity')
-    return 'venue';
-  // Hyphen/short aliases must hit venue_confirmation floor (95), not other (10)
-  if (k === 'venue-confirmation' || k === 'venue_confirm' || k === 'confirm_venue')
+  // Hyphen/space → _; camelCase residue (venueConfirmation → venueconfirmation)
+  let k = String(kind || 'other').toLowerCase().replace(/[\s-]+/g, '_');
+  if (k === 'venueconfirmation' || k === 'venueconfirm' || k === 'confirmvenue')
+    k = 'venue_confirmation';
+  if (k === 'venuealt') k = 'venue_alt';
+  if (k === 'venuecapacity') k = 'venue_capacity';
+  if (k === 'venue_alt' || k === 'venue_capacity') return 'venue';
+  // Short aliases must hit venue_confirmation floor (95), not other (10)
+  if (k === 'venue_confirmation' || k === 'venue_confirm' || k === 'confirm_venue')
     return 'venue_confirmation';
-  if (k === 'follow_up' || k === 'follow-up') return 'thanks';
+  if (k === 'follow_up') return 'thanks';
   return k || 'other';
 }
 

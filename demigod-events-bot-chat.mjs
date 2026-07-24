@@ -164,6 +164,11 @@ function normalizeUserChatText(s) {
     .replace(/\blemmy\b/g, 'let me') // residual: lemmy see the plan (parity lemme/lemmie)
     // residual: "lmk the|your plan" → let me know (isTickPlanAsk)
     .replace(/\blmk\b/g, 'let me know')
+    // residual: plz|pls the plan → please (isTickPlanAsk; no invent RSVPs)
+    .replace(/\bplz\b/g, 'please')
+    .replace(/\bpls\b/g, 'please')
+    // residual: cmon|c'mon the|with the plan → come on (isTickPlanAsk; no invent RSVPs)
+    .replace(/\bc['’]?mon\b/g, 'come on')
     // residual: "whats holdin|blockin the gate" (g-drop → holding/blocking; isTickPlanAsk gate surface)
     .replace(/\bholdin['’]?\b/g, 'holding')
     .replace(/\bblockin['’]?\b/g, 'blocking')
@@ -217,6 +222,9 @@ function normalizeUserChatText(s) {
     .replace(/\bwatsyurplan\b/g, "what's your plan")
     .replace(/\bwutsyurplan\b/g, "what's your plan")
     .replace(/\bwhutsyurplan\b/g, "what's your plan")
+    // residual: whatz|howz + yurplan (parity whatzyerplan / whatsyurplan → tick-plan)
+    .replace(/\bwhatzyurplan\b/g, "what's your plan")
+    .replace(/\bhowzyurplan\b/g, "how's your plan")
     // residual: fully glued +yaplan (\bwhatsya\b cannot split whatsyaplan → tick-plan)
     .replace(/\bwhatsyaplan\b/g, "what's your plan")
     .replace(/\bhowsyaplan\b/g, "how's your plan")
@@ -275,13 +283,13 @@ function normalizeUserChatText(s) {
     .replace(/\bsendustheplan\b/g, 'send us the plan')
     .replace(/\bsharemetheplan\b/g, 'share me the plan')
     .replace(/\bshareustheplan\b/g, 'share us the plan')
-    // residual: fully glued kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling + me|us + theplan
-    // (parity sendmetheplan; feedme cannot split theplan → isTickPlanAsk verb set)
-    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay)metheplan\b/g, '$1 me the plan')
-    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay)ustheplan\b/g, '$1 us the plan')
-    // residual: *mewith|*uswith + theplan (parity hitmewiththeplan; hand|drop|shoot|toss|send|share too)
-    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|hand|drop|shoot|toss|send|share|spit|spill|run|read)mewiththeplan\b/g, '$1 me the plan')
-    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|hand|drop|shoot|toss|send|share|spit|spill|run|read)uswiththeplan\b/g, '$1 us the plan')
+    // residual: fully glued kick|blast|…|grab|bring + me|us + theplan
+    // (parity sendmetheplan; grabme|bringme cannot split theplan → isTickPlanAsk verb set)
+    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|grab|bring)metheplan\b/g, '$1 me the plan')
+    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|grab|bring)ustheplan\b/g, '$1 us the plan')
+    // residual: *mewith|*uswith + theplan (parity hitmewiththeplan; hand|drop|…|grab|bring too)
+    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|hand|drop|shoot|toss|send|share|spit|spill|run|read|grab|bring)mewiththeplan\b/g, '$1 me the plan')
+    .replace(/\b(kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|dump|lay|hand|drop|shoot|toss|send|share|spit|spill|run|read|grab|bring)uswiththeplan\b/g, '$1 us the plan')
     // residual: fully glued gimme|gimmie|gimmi|gimmy|gimmee + theplan (\bgimme\b cannot split)
     .replace(/\bgimmetheplan\b/g, 'give me the plan')
     .replace(/\bgimmietheplan\b/g, 'give me the plan')
@@ -491,6 +499,7 @@ function normalizeUserChatText(s) {
     // residual: "hit me|us w|w/ the plan" (informal with; isTickPlanAsk hit…(?: with)?; no invent RSVPs)
     .replace(/\bhit (me|us) w\/?(?=\s)/g, 'hit $1 with')
     .replace(/\bdropme\b/g, 'drop me') // residual: dropme the plan (parity hitme → tick-plan)
+    .replace(/\bdumpme\b/g, 'dump me') // residual: dumpme the plan (parity dropme → isTickPlanAsk; no invent RSVPs)
     .replace(/\bshootme\b/g, 'shoot me') // residual: shootme the plan (parity dropme)
     .replace(/\btossme\b/g, 'toss me') // residual: tossme the plan (parity dropme)
     .replace(/\bsendme\b/g, 'send me') // residual: sendme the plan (plan surface only; not email send)
@@ -505,8 +514,9 @@ function normalizeUserChatText(s) {
     .replace(/\bgrabus\b/g, 'grab us')
     .replace(/\bbringme\b/g, 'bring me')
     .replace(/\bbringus\b/g, 'bring us')
-    // residual: dropus|shootus|tossus|sendus the plan (parity dropme + hitus → tick-plan; no invent RSVPs)
+    // residual: dropus|dumpus|shootus|tossus|sendus the plan (parity dropme + hitus → tick-plan; no invent RSVPs)
     .replace(/\bdropus\b/g, 'drop us')
+    .replace(/\bdumpus\b/g, 'dump us') // residual: dumpus the plan (parity dropus → isTickPlanAsk; no invent RSVPs)
     .replace(/\bshootus\b/g, 'shoot us')
     .replace(/\btossus\b/g, 'toss us')
     .replace(/\bsendus\b/g, 'send us')
@@ -3736,8 +3746,12 @@ function isTickPlanAsk(last) {
     /\bare you (planning|plan to do|going to (plan|drive|do))\b/.test(last) ||
     // residual: "what|how are we planning" (collaborative ask → owner plan surface; SF only, no fake RSVPs)
     /\b(what|how) are we (planning|plan to do)\b/.test(last) ||
-    // residual: "what do|are we do|doing next|tonight" (collab → Owner tick plan; SF stamp; no fake RSVPs)
-    /\bwhat (do|are) we (do|doing) (next|tonight|this (tick|cycle|night))\b/.test(last) ||
+    // residual: "what do|are we do|doing|drive|driving next|tonight" (collab → Owner tick plan; SF stamp; no fake RSVPs)
+    /\bwhat (do|are) we (do|doing|drive|driving) (next|tonight|this (tick|cycle|night))\b/.test(last) ||
+    // residual: "what should we prioritize (this tick)" (collab → Owner tick plan; no invent RSVPs)
+    /\bwhat should we prioritize\b/.test(last) ||
+    // residual: bare "pull the plan" (pullup→pull up covered; bare pull missed plan surface)
+    /\bpull (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // "what will you plan next" / "whatll|whatd you plan" (after normalize) — plan surface
     /\bwhat (will|would|do) you plan( next| tonight| this (tick|cycle|night))?\b/.test(last) ||
     // "how are you planning" / "howre|howya you gonna plan|drive|do" (→ going to)
@@ -3782,6 +3796,10 @@ function isTickPlanAsk(last) {
     ) ||
     // After normalize: "gimme the|my plan" / "lemme see|peep the plan" → plan surface
     /\bgive (me|us) (a |the |my |your |our )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: plz|pls→please the plan (bare please + article; Owner tick plan; no invent RSVPs)
+    /\bplease (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: cmon→come on the|with the plan (parity please the plan → Owner tick plan; no invent RSVPs)
+    /\bcome on (with )?(the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // residual: "get me|us the plan" / "can i get the plan" (parity give|can i see; no invent RSVPs)
     /\bget (me|us) (a |the |my |your |our )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     /\bcan i get (a |the |my |your |our )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
@@ -3795,24 +3813,24 @@ function isTickPlanAsk(last) {
     // spit|spill me|us: spillme|spitme after normalize (parity tell me; no invent RSVPs)
     /\bspill (me |us )?(the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     /\bspit (me |us )?(the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
-    // residual: bare "drop|dump|lay the plan" (me|us covered below; spit|spill bare parity)
-    /\b(drop|dump|lay) (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
-    // residual: bare "share the plan" (share me|us below; parity drop — plan surface only)
-    /\bshare (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: bare "drop|dump|lay the|my|our plan" (my|our parity gimme/show; spit|spill bare parity)
+    /\b(drop|dump|lay) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: bare "share the|my|our plan" (share me|us below; my|our parity drop)
+    /\bshare (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
 
     /\bsup with (the |your )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // After normalize: bare "see ya plan" → "see your plan" (lemme see already covered)
     /\bsee (the |your )?(tick |owner |agent )?plan\b/.test(last) ||
     // "read me|us the plan" parity show/tell (plan surface; no invent RSVPs)
-    /\bread (me|us) (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    /\bread (me|us) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
 
     // "tell me|us / hit me|us [with] the plan" — with optional (hitya→hit me the plan)
-    /\b(tell (me|us)|hit (me|us)(?: with)?) (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(
+    /\b(tell (me|us)|hit (me|us)(?: with)?) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(
       last,
     ) ||
-    // drop|dump|lay|shoot|…|grab|bring me|us the plan (grab|bring parity give/drop; no invent RSVPs)
+    // drop|dump|lay|shoot|…|grab|bring me|us the|my|our plan (my|our parity gimme; no invent RSVPs)
     // (after dropme|handme|shareme|grabme|bringme→… me; plan surface only — no invent RSVPs / no claim email send)
-    /\b(drop|dump|lay|shoot|toss|send|hand|share|run|kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|grab|bring) (me|us) (the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(
+    /\b(drop|dump|lay|shoot|toss|send|hand|share|run|kick|blast|ship|ping|slide|serve|feed|throw|pass|lob|fire|deal|cue|beam|fling|grab|bring) (me|us) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(
       last,
     ) ||
     /\b(show me the pipeline|what(?:'s| is) the pipeline|what(?:'s| is) next in (the )?pipeline|next in (the )?pipeline)\b/.test(
@@ -3895,7 +3913,8 @@ function isTickPlanAsk(last) {
     // "talk/run me|us through" / bare "run|talk through" / "spell|run down" = walk-through residual
     // map out: normalize residual (mapout→map out); parity lay out → Owner tick plan
     // my|a: parity give-me articles (lay out my plan / map out a plan → Owner tick plan)
-    /\b(lay out|map out|break down|spell out|run down|walk (me |us )?through|talk (me |us )?through|run (me |us )?through) (the |my |your |this |a )?(plan|pipeline|tick|night|ops|tonight)\b/.test(
+    // sequence: "lay out the sequence" was generic lifecycle; parity plan|pipeline → Owner tick plan
+    /\b(lay out|map out|break down|spell out|run down|walk (me |us )?through|talk (me |us )?through|run (me |us )?through) (the |my |your |this |a )?(plan|pipeline|tick|night|ops|tonight|sequence)\b/.test(
       last,
     ) ||
     // residual: "recap the|my|your plan|tick" → Owner tick plan (was generic owner head only)
@@ -5558,8 +5577,9 @@ function isTickPlanAsk(last) {
       last,
     ) ||
     // Wave 54: livestream plan/strategy = SF day-of AV (agent NON_SF false-hits bare livestream; /tmp probe; no invent RSVPs)
-    /\b(livestream plan|livestream strategy)\b/.test(last) ||
-    /\bwhat(?:'s| is) (the )?(livestream plan|livestream strategy)\b/.test(last) ||
+    // residual: runbook|checklist|pipeline parity livestreamOpsPlan non-SF exception → Owner tick plan
+    /\b(livestream plan|livestream strategy|livestream runbook|livestream checklist|livestream pipeline)\b/.test(last) ||
+    /\bwhat(?:'s| is) (the )?(livestream plan|livestream strategy|livestream runbook|livestream checklist|livestream pipeline)\b/.test(last) ||
     // Wave 55: hybrid/recording/overflow + permit/insurance/ADA + power/rigging/stream/cue (lifecycle miss; /tmp probe; no invent RSVPs)
     /\b(hybrid plan|hybrid strategy|recording plan|recording strategy|overflow plan|overflow strategy|permit plan|permit strategy|insurance plan|insurance strategy|ada plan|ada strategy|power plan|power strategy|rigging plan|rigging strategy|stream plan|stream strategy|cue plan|cue strategy)\b/.test(
       last,
@@ -5567,11 +5587,12 @@ function isTickPlanAsk(last) {
     /\bwhat(?:'s| is) (the )?(hybrid plan|hybrid strategy|recording plan|recording strategy|overflow plan|overflow strategy|permit plan|permit strategy|insurance plan|insurance strategy|ada plan|ada strategy|power plan|power strategy|rigging plan|rigging strategy|stream plan|stream strategy|cue plan|cue strategy)\b/.test(
       last,
     ) ||
-    // Wave 56: fire/egress/occupancy/crowd + capacity strategy + arrival/departure/welcome (lifecycle miss; /tmp probe; no invent RSVPs)
-    /\b(fire plan|fire strategy|fire marshal plan|egress plan|egress strategy|occupancy plan|occupancy strategy|crowd plan|crowd strategy|capacity strategy|arrival plan|arrival strategy|departure plan|departure strategy|welcome plan|welcome strategy)\b/.test(
+    // Wave 56: fire/egress/occupancy/crowd + capacity plan|strategy + arrival/departure/welcome (lifecycle miss; /tmp probe; no invent RSVPs)
+    // residual: capacity plan parity (strategy-only was lifecycle miss; /tmp probe; no invent RSVPs)
+    /\b(fire plan|fire strategy|fire marshal plan|egress plan|egress strategy|occupancy plan|occupancy strategy|crowd plan|crowd strategy|capacity plan|capacity strategy|arrival plan|arrival strategy|departure plan|departure strategy|welcome plan|welcome strategy)\b/.test(
       last,
     ) ||
-    /\bwhat(?:'s| is) (the )?(fire plan|fire strategy|fire marshal plan|egress plan|egress strategy|occupancy plan|occupancy strategy|crowd plan|crowd strategy|capacity strategy|arrival plan|arrival strategy|departure plan|departure strategy|welcome plan|welcome strategy)\b/.test(
+    /\bwhat(?:'s| is) (the )?(fire plan|fire strategy|fire marshal plan|egress plan|egress strategy|occupancy plan|occupancy strategy|crowd plan|crowd strategy|capacity plan|capacity strategy|arrival plan|arrival strategy|departure plan|departure strategy|welcome plan|welcome strategy)\b/.test(
       last,
     ) ||
     // Wave 57: guest-flow/queue/networking + fire-marshal strategy parity + afterparty/mixer (lifecycle miss; /tmp probe; no invent RSVPs)
@@ -5592,11 +5613,11 @@ function isTickPlanAsk(last) {
     /\bwhat(?:'s| is) (the )?(bizdev plan|bizdev strategy|business development plan|business development strategy|investor relations plan|investor relations strategy|corp dev plan|corp dev strategy|corporate development plan|corporate development strategy|special projects plan|special projects strategy|procurement plan|procurement strategy|capital markets plan|capital markets strategy)\b/.test(
       last,
     ) ||
-    // Wave 60: runsheet/call-time/usher/greeter/lanyard + glued checkin (lifecycle miss; /tmp probe; no invent RSVPs)
-    /\b(runsheet plan|runsheet strategy|run sheet plan|run sheet strategy|call[- ]?time plan|call[- ]?time strategy|usher plan|usher strategy|greeter plan|greeter strategy|lanyard plan|lanyard strategy|checkin plan|checkin strategy)\b/.test(
+    // Wave 60: runsheet/call-time/usher/greeter/lanyard + glued checkin + spaced check in (lifecycle miss; /tmp probe; no invent RSVPs)
+    /\b(runsheet plan|runsheet strategy|run sheet plan|run sheet strategy|call[- ]?time plan|call[- ]?time strategy|usher plan|usher strategy|greeter plan|greeter strategy|lanyard plan|lanyard strategy|checkin plan|checkin strategy|check in plan|check in strategy)\b/.test(
       last,
     ) ||
-    /\bwhat(?:'s| is) (the )?(runsheet plan|runsheet strategy|run sheet plan|run sheet strategy|call[- ]?time plan|call[- ]?time strategy|usher plan|usher strategy|greeter plan|greeter strategy|lanyard plan|lanyard strategy|checkin plan|checkin strategy)\b/.test(
+    /\bwhat(?:'s| is) (the )?(runsheet plan|runsheet strategy|run sheet plan|run sheet strategy|call[- ]?time plan|call[- ]?time strategy|usher plan|usher strategy|greeter plan|greeter strategy|lanyard plan|lanyard strategy|checkin plan|checkin strategy|check in plan|check in strategy)\b/.test(
       last,
     )
   );
@@ -5633,9 +5654,6 @@ function offlineReply(messages, opts = {}) {
       )
         ? " Your optional role is fuel (venue/sponsor/volunteer/constraints) — not running my checklist."
         : '';
-    // Multi-step reclaim: numbered Pipeline is the plan surface (skip duplicate **Next:**)
-    // Same maxSteps as Owner tick plan so agent planning parity holds on co-pilot asks
-    const multi = (plan?.next || []).length >= 2;
     // Gate open|held(+unlock) so reclaim names the same unlock as Owner tick plan
     // roleBit covers waves 1–25; wave-26…34 infra roles use same fuel line when matched above
     // (toolformer…people ops/fundraising ops also hit isHostCopilotAsk — extend match)
@@ -5646,8 +5664,9 @@ function offlineReply(messages, opts = {}) {
       )
         ? " Your optional role is fuel (venue/sponsor/volunteer/constraints) — not running my checklist."
         : '';
-    // Reuse statusOwnerBits tickPlan lead (stage · SF · gate open|held+unlock) so reclaim
-    // matches Owner tick plan asks — no hand-rolled focus/gate/gaps/drain/rsvp drift.
+    // Reuse statusOwnerBits tickPlan lead + tickPipelineBit (parity isTickPlanAsk) so reclaim
+    // always numbers Pipeline (1)… incl. unlock fallback when next[] empty — no multi-only gap.
+    const pipe = tickPipelineBit(plan, 3);
     return (
       head +
       "I'm the organizer of record — **not** a host co-pilot or assistant. I drive the SF night through plans, drafts, queues, and runbooks; real sends, bookings, attendance, and day-of actions stay evidence-gated. You can offer venue/sponsor/volunteer fuel or constraints." +
@@ -5655,8 +5674,8 @@ function offlineReply(messages, opts = {}) {
       // Space before tickLead — reclaim body ends with period; no double-join glue
       ' ' +
       statusOwnerBits(plan, snap, { tickPlan: true }) +
-      (multi ? '' : next) +
-      (multi ? tickPipelineBit(plan, 3) : '')
+      (pipe || opts.skipNext ? '' : next) +
+      pipe
     );
   }
   // Same NON_SF list as agent isSfLocation (SSF, peninsula, Brooklyn, …) — not a short local regex

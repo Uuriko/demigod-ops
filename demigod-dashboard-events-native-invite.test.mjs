@@ -301,8 +301,15 @@ test('control plane preserves unknown Events reachability', () => {
 test('dashboard exposes healthy API publication drift without publishing', () => {
   assert.match(server, /events-online', 'last-up\.json'/);
   assert.match(server, /publishedApiBase === online\.apiBase/);
-  assert.match(ui, /eventsOnline\.configPublished===false\?'healthy, website config stale'/);
-  assert.match(ui, /eventsOnline\.public===false\?'public route down'.*eventsOnline\.configPublished===false\?'healthy, website config stale'/);
+  // prepare-only pending matches local is named; bare "stale" remains for non-prepare drift
+  assert.match(ui, /eventsOnline\?\.configPublished===false/);
+  assert.match(ui, /pendingMatchesLocal===true/);
+  assert.match(ui, /healthy, website config prepare-only \(pending matches local\)/);
+  assert.match(ui, /healthy, website config stale/);
+  assert.match(
+    ui,
+    /eventsOnline\.public===false\?'public route down'.*eventsConfigStaleLabel\?eventsConfigStaleLabel/,
+  );
   assert.doesNotMatch(ui, /data-run-job="events-[^"]*publish/);
 });
 
