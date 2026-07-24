@@ -16,12 +16,26 @@ import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const BUSY = '/tmp/dg-busy';
 const args = process.argv.slice(2);
+const INTRO_FLAGS = new Set(['--json', '--force', '--help', '-h']);
+const unknownIntro = args.find((a) => a.startsWith('-') && !INTRO_FLAGS.has(a));
+if (unknownIntro) {
+  console.error(
+    `intro-draft: unknown argument ${unknownIntro} — try: node demigod-intro-draft.mjs <sub-id|pairId> [--json] [--force]`,
+  );
+  process.exit(2);
+}
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`demigod-intro-draft — draft intro email from submission/pair (NO SEND)
+
+Usage: node demigod-intro-draft.mjs <sub-id|pairId> [--json] [--force]`);
+  process.exit(0);
+}
 const id = args.find((a) => !a.startsWith('--'));
 const asJson = args.includes('--json');
 
 if (!id) {
   console.error('usage: node demigod-intro-draft.mjs <sub-id|pairId> [--json] [--force]');
-  process.exit(1);
+  process.exit(2);
 }
 
 // Allow either submission id OR pair id for drafts

@@ -3,6 +3,16 @@
  * Events Bot owner-mode selftest (offline).
  *   DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
  */
+// Fail-closed: unknown flags must not vacuous-green a multi-minute suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
