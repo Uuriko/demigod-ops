@@ -25,7 +25,7 @@ FORMS (startup modal):
 - Form name/data-name: startup-hire (NOT email-form)
 - Remove mailto action — Webflow native POST only
 - Delete Company Name field
-- Notify hello@trydemigod.com
+- Notify potter@trydemigod.com (never hello@ — mailbox not set up)
 
 NAVIGATION MASTER:
 - Delete SOLUTIONS dropdown + ABOUT/BLOG/SUPPORT links
@@ -34,7 +34,7 @@ NAVIGATION MASTER:
 
 FOOTER MASTER:
 - Delete Company/Services/Resources/Legal columns + all social icons
-- Keep: tagline + hello@trydemigod.com + © 2026 Demigod
+- Keep: tagline + potter@trydemigod.com + © 2026 Demigod
 
 CANVAS: Delete METHODOLOGY, CURATED INSIGHTS, orphan forms if any.
 
@@ -93,7 +93,6 @@ async function submitAi(page, prompt) {
 }
 
 async function reliablePublish(page) {
-  assertNotFrozen('webflow-ai-ship');
   await page.keyboard.down('Control');
   await page.keyboard.press('s');
   await page.keyboard.up('Control');
@@ -134,6 +133,7 @@ async function reliablePublish(page) {
 }
 
 async function main() {
+  assertNotFrozen('webflow-ai-ship');
   wlog('=== WEBFLOW AI SHIP START ===');
   const result = { at: new Date().toISOString(), steps: [] };
   result.before = metrics((await fetchLiveHtml()).html);

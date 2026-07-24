@@ -5,11 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#0A0A0A"/>
 <meta name="description" content="Demigod control plane — truth, NEXT, tools, ship, demand"/>
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml"/>
 <title>Demigod · Control</title>
-<!-- Fonts: system stack first (0 network). Optional Google non-blocking. -->
-<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'"/>
-<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/></noscript>
 <style>
 :root{
   --bg:#060605;
@@ -62,12 +59,6 @@ body::before{
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
   opacity:.55;
 }
-/* Ambient image deferred — pure CSS gradient is free; image optional via .has-ambient */
-body.has-ambient::after{
-  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:url("/assets/dashboard/control-plane-ambient.jpg") center/cover no-repeat;
-  opacity:.06;mix-blend-mode:screen;will-change:opacity;
-}
 body>*{position:relative;z-index:1}
 a{color:var(--gold);text-decoration:none;transition:color var(--dur) var(--ease)}
 a:hover{color:var(--gold2)}
@@ -83,7 +74,7 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 button:focus-visible,.btn:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,.nav button:focus-visible{
   outline:2px solid var(--gold);outline-offset:2px;
 }
-button.primary{
+button.primary,.btn.primary{
   background:linear-gradient(180deg,rgba(201,168,76,.32),rgba(201,168,76,.12));
   border-color:rgba(201,168,76,.55);color:var(--gold2);font-weight:600;
 }
@@ -134,16 +125,11 @@ header{
   letter-spacing:.08em;text-transform:uppercase;padding:.18rem .48rem;border-radius:999px;
   border:1px solid var(--line);color:var(--gold);background:var(--gold-dim);
 }
-.badge.v5{border-color:rgba(126,182,232,.35);color:var(--info);background:var(--info-dim)}
 .badge.freeze{border-color:rgba(232,184,74,.45);color:var(--warn);background:var(--warn-dim)}
 .badge.ok{border-color:rgba(79,214,138,.4);color:var(--ok);background:var(--ok-dim)}
 .badge.bad{border-color:rgba(240,120,120,.4);color:var(--bad);background:var(--bad-dim)}
-.badge.pulse{animation:pulse-glow 1.1s var(--ease) 2}
 @keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 transparent}40%{box-shadow:0 0 0 6px rgba(201,168,76,.18)}}
 .hdr-right{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
-.mode-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:rgba(0,0,0,.4)}
-.mode-toggle button{border:0;border-radius:0;padding:.36rem .75rem;background:transparent;min-height:48px}
-.mode-toggle button.active{background:var(--gold-dim);color:var(--gold2)}
 .hdr-actions{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
 
 /* ===== Command center (NEXT + light) ===== */
@@ -212,51 +198,7 @@ header{
 .owner-tag.agent{color:var(--info);border-color:rgba(126,182,232,.4);background:var(--info-dim)}
 .owner-tag.clear{color:var(--ok);border-color:rgba(79,214,138,.4);background:var(--ok-dim)}
 
-/* ===== Metrics ===== */
-.metrics{
-  width:var(--shell);margin:.75rem auto 0;
-  display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem;
-}
-@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}}
-@media(max-width:520px){.metrics{grid-template-columns:1fr}}
-.metric{
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  padding:.8rem .9rem;box-shadow:0 8px 28px rgba(0,0,0,.25);
-  backdrop-filter:blur(12px);
-  transition:border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-.metric:hover{border-color:var(--line-strong);transform:translateY(-1px)}
-.metric .lbl{
-  font-size:.62rem;text-transform:uppercase;letter-spacing:.11em;color:var(--gold);
-  font-weight:600;margin-bottom:.3rem;
-}
-.metric .val{font-size:1.05rem;font-weight:600;letter-spacing:.01em;line-height:1.2}
-.metric .sub{font-size:.72rem;color:var(--muted);margin-top:.25rem;line-height:1.3;word-break:break-word}
-.metric.ok{border-color:rgba(79,214,138,.28)}
-.metric.ok .val{color:var(--ok)}
-.metric.bad{border-color:rgba(240,120,120,.32)}
-.metric.bad .val{color:var(--bad)}
-.metric.warn{border-color:rgba(232,184,74,.32)}
-.metric.warn .val{color:var(--warn)}
-
-/* ===== Demand + why + story ===== */
-.context-band{
-  width:var(--shell);margin:.65rem auto 0;
-  display:grid;gap:.5rem;
-}
-.context-card{
-  background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius-sm);
-  padding:.65rem .85rem;font-size:.8rem;color:var(--muted);
-}
-.context-card strong{color:var(--text);font-weight:600}
-.demand-card{
-  display:flex;flex-wrap:wrap;gap:.5rem .75rem;align-items:center;
-  border-color:var(--line);
-  background:linear-gradient(90deg, rgba(201,168,76,.06), transparent 60%), var(--panel);
-}
-.demand-card .dlbl{
-  font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;
-}
+.demand-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.65rem}
 .dchip{
   display:inline-flex;align-items:center;gap:.25rem;
   padding:.22rem .55rem;border-radius:999px;border:1px solid var(--line2);
@@ -265,16 +207,18 @@ header{
 .dchip b{color:var(--gold2);font-weight:600}
 .dchip.soft{color:var(--muted)}
 .dchip.mono{font-family:var(--mono);font-size:.68rem;color:var(--gold2)}
-#whyGreen{margin:0;font-size:.78rem;color:var(--muted)}
-#demandLine{display:none}
-.story{font-size:.76rem;color:var(--muted2)}
+/* Policy quarantine — must read as refusal-to-count, not "nobody contacted" */
+.dchip.bad{
+  border-color:rgba(240,120,120,.5);color:var(--bad);background:var(--bad-dim);
+}
+.dchip.bad b{color:var(--bad)}
 .ver-rail{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
 .ver-pill{
   font-family:var(--mono);font-size:.68rem;padding:.18rem .45rem;border-radius:6px;
   border:1px solid var(--line2);color:var(--muted);background:rgba(0,0,0,.3);
 }
 
-/* ===== Jobs + freeze ===== */
+/* ===== Jobs ===== */
 #jobStrip{
   width:var(--shell);margin:.55rem auto 0;
   display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;min-height:1.4rem;
@@ -286,34 +230,6 @@ header{
 #jobStrip .job.run{border-color:rgba(126,182,232,.4);color:var(--info)}
 #jobStrip .job.ok{border-color:rgba(79,214,138,.35);color:var(--ok)}
 #jobStrip .job.bad{border-color:rgba(240,120,120,.4);color:var(--bad)}
-.freeze-banner{
-  width:var(--shell);margin:.55rem auto 0;padding:.55rem .9rem;border-radius:12px;
-  border:1px solid rgba(232,184,74,.4);
-  background:linear-gradient(90deg,rgba(232,184,74,.14),rgba(14,12,8,.92));
-  display:none;align-items:center;gap:.75rem;flex-wrap:wrap;
-}
-.freeze-banner.on{display:flex}
-.freeze-banner .big{font-family:var(--serif);font-size:1.02rem;color:var(--warn)}
-.session-pill{
-  font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-  padding:.22rem .5rem;border-radius:999px;border:1px solid var(--line);
-}
-.session-pill.ro{color:var(--warn);border-color:rgba(232,184,74,.4);background:var(--warn-dim)}
-.session-pill.rw{color:var(--ok);border-color:rgba(79,214,138,.4);background:var(--ok-dim)}
-
-/* ===== API strip (agent) ===== */
-.api-strip{
-  width:var(--shell);margin:.45rem auto 0;
-  display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;
-}
-.api-strip .hint{font-size:.65rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;margin-right:.25rem}
-.api-pill{
-  font-family:var(--mono);font-size:.65rem;padding:.2rem .45rem;border-radius:6px;
-  border:1px solid var(--line2);color:var(--muted);background:rgba(0,0,0,.3);
-}
-.api-pill:hover{color:var(--gold2);border-color:var(--line-strong)}
-body.simple .api-strip{display:none}
-
 /* ===== Nav ===== */
 .nav{
   width:var(--shell);margin:.7rem auto 0;padding:0;
@@ -324,13 +240,10 @@ body.simple .api-strip{display:none}
 .nav::-webkit-scrollbar{display:none}
 .nav button{
   border:0;border-bottom:2px solid transparent;border-radius:10px 10px 0 0;
-  padding:.6rem .85rem;color:var(--muted);background:transparent;font-weight:500;min-height:40px;
+  padding:.6rem .85rem;color:var(--muted);background:transparent;font-weight:500;min-height:44px;
 }
 .nav button:hover{color:var(--text);background:rgba(255,255,255,.03)}
 .nav button.active{color:var(--gold2);border-bottom-color:var(--gold);background:rgba(201,168,76,.06)}
-body.simple .nav button[data-agent-only]{display:none}
-body.simple .agent-only,body.simple .agent-link{display:none!important}
-body.simple #hdrStats .badge:not(.human){display:none}
 
 /* ===== Main panels ===== */
 main{width:var(--shell);margin:0 auto;padding:1rem 0 3.5rem}
@@ -434,43 +347,35 @@ pre{
 .handoff-item{padding:.55rem 0;border-bottom:1px solid var(--line2);animation:fade-up var(--dur) var(--ease)}
 .foot-hint{margin-top:1.75rem;color:var(--muted2);font-size:.72rem;text-align:center}
 
-/* modules (control plane cards) */
-.health-ring{
-  width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
-  font-weight:700;font-size:.85rem;border:2px solid var(--line);background:rgba(0,0,0,.4);
+/* SF startup atlas — native SVG, no tiles or location services */
+.atlas-toolbar{display:grid;grid-template-columns:minmax(14rem,1fr) repeat(2,minmax(9rem,.45fr)) auto;gap:.5rem;align-items:center;margin:.8rem 0}
+.atlas-toolbar input,.atlas-toolbar select{
+  width:100%;min-height:44px;background:rgba(6,5,4,.9);border:1px solid var(--line);border-radius:var(--radius-sm);
+  color:var(--text);padding:.6rem .75rem;font:inherit
 }
-.health-ring.solid{border-color:rgba(79,214,138,.5);color:var(--ok)}
-.health-ring.watch{border-color:rgba(232,184,74,.5);color:var(--warn)}
-.health-ring.attention{border-color:rgba(240,120,120,.5);color:var(--bad)}
-.mod-grid{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-.mod-card{
-  position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--radius);padding:1rem;box-shadow:var(--shadow);
-  transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease);
+.atlas-toolbar select:focus{outline:2px solid var(--gold);outline-offset:2px}
+.atlas-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(18rem,.8fr);gap:.8rem;align-items:start}
+.atlas-map-wrap{border:1px solid var(--line2);border-radius:14px;background:rgba(0,0,0,.3);padding:.55rem;min-width:0}
+.atlas-map{display:block;width:100%;height:auto;max-height:38rem}
+.atlas-neighborhood{fill:rgba(201,168,76,.055);stroke:rgba(201,168,76,.32);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.atlas-neighborhood.active{fill:rgba(79,214,138,.12);stroke:var(--ok)}
+.atlas-marker{cursor:pointer}
+.atlas-marker circle{fill:#17130c;stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
+.atlas-marker:hover circle,.atlas-marker:focus circle,.atlas-marker[aria-pressed=true] circle{fill:#3a3217;stroke:var(--gold2);stroke-width:3}
+.atlas-marker text{fill:var(--gold2);font:700 13px var(--font);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.atlas-list{display:flex;flex-direction:column;gap:.5rem;max-height:38rem;overflow:auto;padding-right:.15rem}
+.atlas-company{border:1px solid var(--line2);border-radius:12px;background:rgba(0,0,0,.24);padding:.7rem .8rem}
+.atlas-company-top{display:flex;gap:.6rem;align-items:flex-start;justify-content:space-between}
+.atlas-company strong{font-size:.9rem}.atlas-company .meta{margin-top:.3rem;line-height:1.4}
+.atlas-source-list{display:flex;flex-wrap:wrap;gap:.4rem .8rem;margin-top:.55rem}
+.atlas-status{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;justify-content:space-between;margin:.4rem 0 .65rem}
+@media(max-width:820px){
+  .atlas-toolbar{grid-template-columns:1fr 1fr}.atlas-toolbar input{grid-column:1/-1}
+  .atlas-layout{grid-template-columns:1fr}.atlas-list{max-height:none}
 }
-.mod-card:hover{transform:translateY(-2px);border-color:rgba(201,168,76,.4)}
-.mod-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--mod-accent,var(--gold));opacity:.9}
-.mod-card .mod-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.45rem}
-.mod-card .mod-emoji{font-size:1.2rem;line-height:1;opacity:.9}
-.mod-card h3{margin:0;font-family:var(--serif);font-size:1.12rem;font-weight:400}
-.mod-card .mod-why{color:var(--muted);font-size:.76rem;margin:.15rem 0 .5rem}
-.mod-card .mod-detail{font-size:.84rem;line-height:1.35;min-height:2.4em}
-.mod-card .mod-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem}
-.mod-card .mod-cli{margin-top:.5rem;font-size:.68rem}
-.spine{display:flex;flex-direction:column}
-.spine-step{
-  display:grid;grid-template-columns:28px 1fr auto;gap:.65rem;align-items:start;
-  padding:.6rem 0;border-bottom:1px solid var(--line2);
-}
-.spine-step:last-child{border:0}
-.spine-num{
-  width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
-  font-size:.7rem;font-weight:700;border:1px solid var(--line);color:var(--gold);background:var(--gold-dim);
-}
-.plane-hero{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center}
-@media(max-width:700px){.plane-hero{grid-template-columns:1fr}}
-.board-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+@media(max-width:520px){.atlas-toolbar{grid-template-columns:1fr}.atlas-toolbar input{grid-column:auto}}
 
+/* modules (control plane cards) */
 /* overlays */
 #toasts{position:fixed;right:1rem;bottom:1rem;z-index:100;display:flex;flex-direction:column;gap:.45rem;max-width:min(360px,92vw)}
 .toast{
@@ -479,68 +384,42 @@ pre{
   backdrop-filter:blur(12px);
 }
 .toast.ok{border-color:rgba(79,214,138,.4)}.toast.bad{border-color:rgba(240,120,120,.45)}
-#palette,#helpOverlay,#confirmOverlay{
+#palette,#confirmOverlay{
   display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.62);
   align-items:flex-start;justify-content:center;padding:12vh 1rem 1rem;backdrop-filter:blur(6px);
 }
-#palette.open,#helpOverlay.open,#confirmOverlay.open{display:flex}
-#palette .box,#helpOverlay .box,#confirmOverlay .box{
+#palette.open,#confirmOverlay.open{display:flex}
+#palette .box,#confirmOverlay .box{
   width:min(560px,100%);background:linear-gradient(180deg,#16130e,#0e0c09);
   border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
 }
-#helpOverlay,#confirmOverlay{align-items:center}
-#helpOverlay .box,#confirmOverlay .box{padding:1.15rem 1.25rem}
+#confirmOverlay{align-items:center}
+#confirmOverlay .box{padding:1.15rem 1.25rem}
 #confirmOverlay .box{border-color:rgba(240,120,120,.4);background:#140f0f}
 #palette input{border:0;border-bottom:1px solid var(--line2);border-radius:0;outline:none;background:transparent;padding:1rem 1.1rem;font-size:1rem}
 #palette .item{padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03)}
 #palette .item:hover,#palette .item.active{background:var(--gold-dim)}
 #palette .item .t{font-weight:600}#palette .item .d{font-size:.78rem;color:var(--muted);margin-top:.1rem}
 
-/* legacy glance id mapping — hide old structure if present */
-#glance{display:contents}
-.glance-card{/* mapped to .metric via JS class updates */}
-
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   body::after{opacity:.04}
 }
-/* Density + mobile */
-body.density-compact{--shell:min(1280px,calc(100% - 1rem))}
-body.density-compact .card{padding:.7rem .85rem}
-body.density-compact .command{padding:.75rem .9rem}
-body.density-compact .metric{padding:.55rem .65rem}
-body.density-compact .metric .val{font-size:.95rem}
 @media(max-width:640px){
   .hdr-inner{padding:.5rem 0}
   .brand h1{font-size:1.05rem}
-  .hdr-actions .agent-link{display:none}
   .command{gap:.65rem}
   .command .cmd{font-size:.68rem}
   main{padding:.75rem 0 2.5rem}
   .nav button{padding:.5rem .55rem;font-size:.78rem}
-  #palette .box,#helpOverlay .box,#confirmOverlay .box{width:100%;max-width:100%;border-radius:12px 12px 0 0;margin-top:auto}
-  #palette,#helpOverlay,#confirmOverlay{align-items:flex-end;padding:0}
+  #palette .box,#confirmOverlay .box{width:100%;max-width:100%;border-radius:12px 12px 0 0;margin-top:auto}
+  #palette,#confirmOverlay{align-items:flex-end;padding:0}
 }
-.graph-edges{font-family:var(--mono);font-size:.72rem;color:var(--muted);line-height:1.6}
-.presence-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;border:1px solid var(--line);font-size:.72rem;margin:.15rem}
-.presence-pill.current{border-color:rgba(79,214,138,.4);color:var(--ok)}
-#palette[role=dialog],#helpOverlay .box,#confirmOverlay .box{outline:none}
+#palette[role=dialog],#confirmOverlay .box{outline:none}
 #palette.open .box:focus-within{box-shadow:0 0 0 2px rgba(201,168,76,.35)}
-/* Light theme tokens (export-ready) */
-body.theme-light{
-  --bg:#f4f0e6;--bg2:#ebe4d4;--panel:rgba(255,252,245,.92);--panel-solid:#fffaf0;
-  --panel2:rgba(255,250,240,.96);--line:rgba(138,112,40,.25);--line-strong:rgba(138,112,40,.45);
-  --line2:rgba(0,0,0,.08);--text:#1a1610;--muted:#6a645c;--muted2:#8a8478;
-  --gold:#9a7a28;--gold2:#6b5420;--gold-dim:rgba(154,122,40,.12);
-  --shadow:0 12px 36px rgba(40,30,10,.12),0 0 0 1px rgba(154,122,40,.08);
-}
-body.theme-light .command{background:linear-gradient(135deg,rgba(154,122,40,.1),#fffaf0 50%)}
-body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
-.mod-card[data-mod]{cursor:pointer}
-.mod-card[data-mod]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 /* priority board — dynamic top */
-#priorityBoard{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.55rem;margin:.55rem 0 .75rem}
+#priorityBoard{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.55rem;max-width:1180px;margin:.55rem auto .75rem}
 #priorityBoard .pcard{
   background:var(--card,rgba(20,20,24,.92));
   border:1px solid rgba(201,168,76,.22);
@@ -558,53 +437,23 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
 #priorityBoard .p-actions{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem}
 #priorityBoard .p-actions button{font-size:.72rem;padding:.35rem .65rem;min-height:44px;min-width:44px}
 #priorityBoard .p-actions button:focus-visible{outline:2px solid var(--gold,#C9A84C);outline-offset:2px}
-#mapRoot .map-toolbar{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:.65rem}
-#mapRoot .map-body{
-  background:var(--card,rgba(14,14,18,.95));
-  border:1px solid rgba(201,168,76,.18);
-  border-radius:12px;padding:1rem 1.1rem;
-  max-height:min(70vh,48rem);overflow:auto;
-  font-size:.86rem;line-height:1.45;
-}
-#mapRoot .map-body pre{white-space:pre-wrap;word-break:break-word}
-#mapRoot .map-body .mermaid{background:rgba(0,0,0,.25);padding:.75rem;border-radius:8px;overflow:auto;margin:.75rem 0}
-#mapRoot .map-table{width:100%;border-collapse:collapse;margin:.65rem 0 1rem;font-size:.85rem}
-#mapRoot .map-table th,#mapRoot .map-table td{border:1px solid rgba(201,168,76,.25);padding:.35rem .5rem;text-align:left;vertical-align:top}
-#mapRoot .map-table th{color:var(--gold);font-weight:600;background:rgba(201,168,76,.08)}
-#mapRoot .map-table td{color:var(--fg,#e8e4dc)}
-#mapRoot .md-chunk h3,#mapRoot .md-chunk h4{margin:1rem 0 .4rem;color:var(--gold);font-family:var(--serif);font-weight:400}
 </style>
 </head>
-<body class="agent">
+<body>
 <header>
   <div class="hdr-inner">
     <div class="brand">
       <span class="mark" aria-hidden="true"></span>
       <div>
-        <h1>Demigod · <span class="gold">Control</span> <span class="badge v5">v7</span></h1>
-        <div class="sub" id="stamp">Loading… · <kbd>?</kbd> help · <kbd>/</kbd> palette · <kbd>r</kbd> refresh</div>
+        <h1>Demigod · <span class="gold">Control</span></h1>
+        <div class="sub" id="stamp">Loading… · <kbd>/</kbd> commands · <kbd>r</kbd> refresh</div>
       </div>
     </div>
     <div class="hdr-right">
-      <div class="mode-toggle" title="Focus = calmer · Full = all agent surfaces" role="group" aria-label="UI mode">
-        <button type="button" id="modeSimple" aria-pressed="false">Focus</button>
-        <button type="button" id="modeAgent" class="active" aria-pressed="true">Full</button>
-      </div>
-      <div class="mode-toggle" title="Spacing density" role="group" aria-label="Density">
-        <button type="button" id="densityComfy" class="active" aria-pressed="true">Comfy</button>
-        <button type="button" id="densityCompact" aria-pressed="false">Dense</button>
-      </div>
-      <div class="mode-toggle agent-only" title="Theme tokens" role="group" aria-label="Theme">
-        <button type="button" id="themeDark" class="active" aria-pressed="true">Dark</button>
-        <button type="button" id="themeLight" aria-pressed="false">Light</button>
-      </div>
       <div id="hdrStats"></div>
       <div class="hdr-actions">
         <button type="button" class="primary" id="btnRefresh">Refresh</button>
-        <button type="button" id="btnSmoke">Smoke</button>
-        <button type="button" id="btnCopy" class="agent-link">Brief</button>
-        <button type="button" id="btnPalette" title="Command palette" aria-keyshortcuts="Control+K Meta+K /" aria-haspopup="dialog" aria-controls="palette" aria-expanded="false">⌘K</button>
-        <button type="button" id="btnHelp" class="ghost" title="Help" aria-keyshortcuts="? H" aria-haspopup="dialog" aria-controls="helpOverlay" aria-expanded="false">?</button>
+        <button type="button" id="btnPalette" title="Commands" aria-keyshortcuts="Control+K Meta+K /" aria-haspopup="dialog" aria-controls="palette" aria-expanded="false">Commands&nbsp; ⌘K</button>
         <a class="btn" href="https://www.trydemigod.com" target="_blank" rel="noopener">Live</a>
       </div>
     </div>
@@ -629,8 +478,7 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
   </div>
   <div class="actions">
     <button type="button" class="primary" id="btnDoThis">Copy cmd</button>
-    <button type="button" id="btnRunHere" class="agent-link" style="display:none">Run smoke</button>
-    <button type="button" id="btnCopyNextTitle" class="ghost">Copy title</button>
+    <button type="button" id="btnRunHere" style="display:none">Run smoke</button>
   </div>
 </div>
 
@@ -638,66 +486,24 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
 
 <div id="jobStrip" role="status" aria-live="polite" aria-atomic="true" aria-busy="false"></div>
 
-<div class="freeze-banner" id="freezeBanner" role="status">
-  <span class="big">Publish freeze ON</span>
-  <span class="meta" id="freezeBannerMeta">—</span>
-  <span class="session-pill ro" id="sessionModePill">read-only</span>
-</div>
-
-<!-- Metrics (ids preserved) -->
-<div id="glance" class="metrics" data-testid="metrics">
-  <div class="metric" id="gLightCard" data-testid="metric-light">
-    <div class="lbl">Truth light</div>
-    <div class="val" id="gLight">…</div>
-    <div class="sub" id="gLightSub">evidence</div>
-  </div>
-  <div class="metric" data-testid="metric-site">
-    <div class="lbl">Site</div>
-    <div class="val" id="gSite">…</div>
-    <div class="sub" id="gSiteSub">live</div>
-  </div>
-  <div class="metric" data-testid="metric-freeze">
-    <div class="lbl">Freeze</div>
-    <div class="val" id="gFreeze">…</div>
-    <div class="sub" id="gFreezeSub">publish lock</div>
-  </div>
-  <div class="metric" data-testid="metric-next">
-    <div class="lbl">Next id</div>
-    <div class="val" id="gNext">…</div>
-    <div class="sub" id="gNextSub">cmd</div>
-  </div>
-</div>
-
-<div class="context-band">
-  <div class="context-card demand-card" data-testid="demand-card">
-    <span class="dlbl">Demand</span>
-    <div id="demandChips" style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center"></div>
-    <span id="demandLine"></span>
-  </div>
-  <div class="context-card" id="whyGreen" data-testid="why-green">…</div>
-  <div class="context-card story" id="sessionStory">…</div>
-  <div class="story" id="deltaLine" style="padding:0 .2rem"></div>
-</div>
-
-<div class="api-strip agent-only" id="apiStrip" data-testid="api-strip"></div>
-
 <nav class="nav" role="tablist" aria-label="Sections" aria-orientation="horizontal">
   <button type="button" class="active" id="tab-overview" role="tab" aria-controls="panel-overview" aria-selected="true" tabindex="0" data-tab="overview">Home</button>
   <button type="button" id="tab-inbox" role="tab" aria-controls="panel-inbox" aria-selected="false" tabindex="-1" data-tab="inbox">Inbox</button>
   <button type="button" id="tab-matches" role="tab" aria-controls="panel-matches" aria-selected="false" tabindex="-1" data-tab="matches">Matches</button>
+  <button type="button" id="tab-handoff" role="tab" aria-controls="panel-handoff" aria-selected="false" tabindex="-1" data-tab="handoff">Work</button>
   <button type="button" id="tab-tools" role="tab" aria-controls="panel-tools" aria-selected="false" tabindex="-1" data-tab="tools">Tools</button>
   <button type="button" id="tab-roadmap" role="tab" aria-controls="panel-roadmap" aria-selected="false" tabindex="-1" data-tab="roadmap">Ship</button>
-  <button type="button" id="tab-system" role="tab" aria-controls="panel-system" aria-selected="false" tabindex="-1" data-tab="system">System</button>
-  <button type="button" id="tab-map" role="tab" aria-controls="panel-map" aria-selected="false" tabindex="-1" data-tab="map">Map</button>
-  <button type="button" id="tab-handoff" role="tab" aria-controls="panel-handoff" aria-selected="false" tabindex="-1" data-tab="handoff">Handoff</button>
-  <button type="button" id="tab-swarm" role="tab" aria-controls="panel-swarm" aria-selected="false" tabindex="-1" data-tab="swarm" data-agent-only>Swarm</button>
-  <button type="button" id="tab-brief" role="tab" aria-controls="panel-brief" aria-selected="false" tabindex="-1" data-tab="brief" data-agent-only>Brief</button>
-  <button type="button" id="tab-gates" role="tab" aria-controls="panel-gates" aria-selected="false" tabindex="-1" data-tab="gates" data-agent-only>Gates</button>
+  <button type="button" id="tab-map" role="tab" aria-controls="panel-map" aria-selected="false" tabindex="-1" data-tab="map">SF Map</button>
 </nav>
 
 <main>
   <div id="panel-overview" class="panel active"><div class="grid" id="overviewRoot"><div class="card wide"><div class="skel block"></div></div></div></div>
   <div id="panel-handoff" class="panel">
+    <div class="card wide hero">
+      <h2>Current work <span class="meta">last 24h · auto-refresh</span></h2>
+      <div class="meta" id="coordStrip">Loading coordination…</div>
+      <div id="agentWorkLog"><div class="meta">Loading work summary…</div></div>
+    </div>
     <div class="card wide">
       <h2>Handoff wall</h2>
       <p class="meta">Structured notes so the next session starts oriented.</p>
@@ -707,13 +513,16 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
         <input id="handoffBlocked" type="text" aria-label="Blocker" placeholder="blocked: (optional)" autocomplete="off"/>
         <textarea id="handoffText" aria-label="Additional handoff note" placeholder="Freeform note (optional if done/next set)"></textarea>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-          <button type="button" class="primary" id="btnHandoffHuman">Post as human</button>
-          <button type="button" id="btnHandoffAgent">Post as agent</button>
+          <button type="button" class="primary" id="btnHandoffAgent">Add note</button>
         </div>
         <div class="meta">CLI: <code>bin/dg handoff --from agent --done "…" --next "…"</code> · notes &gt;4h not “current”</div>
       </div>
       <div class="handoff-list" id="handoffList"></div>
     </div>
+    <details class="card wide" id="workerDetails">
+      <summary>Worker diagnostics</summary>
+      <div class="grid" id="swarmRoot"><div class="meta">Loading…</div></div>
+    </details>
   </div>
   <div id="panel-inbox" class="panel">
     <div class="grid" id="inboxRoot">
@@ -725,10 +534,19 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
       <div class="card wide"><h2>Match review</h2><div class="meta">Loading…</div></div>
     </div>
   </div>
+  <div id="panel-map" class="panel">
+    <div id="startupMapRoot" aria-live="polite">
+      <div class="card wide"><h2>SF startup atlas</h2><div class="meta">Open this tab to load the private atlas.</div></div>
+    </div>
+  </div>
   <div id="panel-roadmap" class="panel">
     <div class="grid" id="roadmapRoot">
-      <div class="card wide"><h2>Sprint / ship</h2><div class="meta">Loading…</div></div>
+      <div class="card wide"><h2>Ship readiness</h2><div class="meta">Loading…</div></div>
     </div>
+    <details class="card wide" id="evidenceDetails">
+      <summary>Evidence details</summary>
+      <div class="grid" id="gatesRoot"><div class="meta">Loading…</div></div>
+    </details>
   </div>
   <div id="panel-tools" class="panel">
     <div class="card wide">
@@ -736,52 +554,25 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
       <div class="meta" style="margin-bottom:.45rem">One catalog · allowlisted read-only jobs · mutate needs freeze OFF · start with <code>bin/dg orient</code></div>
       <div style="display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:.65rem">
         <input id="toolsSearch" type="search" aria-label="Filter tools" placeholder="Filter tools…" style="max-width:20rem;margin:0" autocomplete="off"/>
-        <label class="meta" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" id="toolsHideAlias" checked/> hide aliases</label>
-        <label class="meta" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" id="toolsHotOnly"/> hot only</label>
         <button type="button" id="btnToolsRefresh" class="ghost">Refresh ages</button>
       </div>
       <div id="toolsRoot"><div class="skel block"></div></div>
     </div>
-  </div>
-  <div id="panel-map" class="panel">
-    <div class="card wide" id="mapRoot">
-      <h2><span>Workflow maps</span><span class="meta" id="mapMeta">—</span></h2>
-      <div class="map-toolbar">
-        <button type="button" class="primary" data-map="agents">Agents / coord</button>
-        <button type="button" data-map="workflow">Total workflow</button>
-        <button type="button" data-map="website">Website architecture</button>
-        <button type="button" data-map="resources">Resources</button>
-        <button type="button" class="ghost" id="btnMapRaw">Raw MD</button>
-        <a class="btn ghost" href="/api/maps/agents" target="_blank" rel="noopener" id="mapOpenMd">Open MD</a>
-      </div>
-      <div class="map-body" id="mapBody"><div class="meta">Select a map…</div></div>
-    </div>
-  </div>
-  <div id="panel-system" class="panel">
-    <div class="grid" id="systemRoot">
-      <div class="card wide"><h2>System</h2><div class="meta">Loading…</div></div>
-    </div>
-  </div>
-  <div id="panel-swarm" class="panel"><div class="grid" id="swarmRoot"><div class="card wide"><div class="skel block"></div></div></div></div>
-  <div id="panel-brief" class="panel">
     <div class="card wide">
-      <h2><span>Agent brief</span><button type="button" id="btnCopy2">Copy</button></h2>
-      <pre id="briefPre">Loading…</pre>
+      <h2>Workflow reference</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+        <a class="btn" href="/api/maps/agents" target="_blank" rel="noopener">Agents</a>
+        <a class="btn" href="/api/maps/workflow" target="_blank" rel="noopener">Product workflow</a>
+        <a class="btn" href="/api/maps/website" target="_blank" rel="noopener">Website</a>
+        <a class="btn" href="/api/maps/resources" target="_blank" rel="noopener">Resources</a>
+        <button type="button" id="btnCopy2">Copy agent brief</button>
+      </div>
     </div>
   </div>
-  <div id="panel-gates" class="panel"><div class="grid" id="gatesRoot"><div class="card"><div class="skel block"></div></div></div></div>
-  <p class="foot-hint">Demigod Control · <code>bin/dg home</code> · <code>/api/control</code> · truth evidence only for green</p>
+  <p class="foot-hint">Private control plane · fresh evidence only</p>
 </main>
 
 <div id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
-<div id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-hidden="true"><div class="box" tabindex="-1">
-  <h2 style="margin:0 0 .6rem;color:var(--gold);font-family:var(--serif);font-weight:400;font-size:1.25rem" id="helpTitle">Keyboard map</h2>
-  <div class="meta"><kbd>r</kbd> refresh · <kbd>/</kbd> or <kbd>⌘K</kbd> palette · <kbd>?</kbd>/<kbd>h</kbd> help · <kbd>m</kbd> Focus/Full · <kbd>d</kbd> density · <kbd>l</kbd> theme</div>
-  <div class="meta" style="margin-top:.45rem"><kbd>g</kbd> then: <kbd>s</kbd> home · <kbd>i</kbd> inbox · <kbd>m</kbd> matches · <kbd>t</kbd> tools · <kbd>x</kbd> system · <kbd>z</kbd> map · <kbd>p</kbd> ship · <kbd>a</kbd> swarm · <kbd>r</kbd> review · <kbd>h</kbd> hygiene · <kbd>y</kbd> ponytail · <kbd>w</kbd> Webflow doctor</div>
-  <div class="meta" style="margin-top:.45rem"><kbd>1</kbd> Home · <kbd>2</kbd> Inbox · <kbd>3</kbd> Matches · <kbd>4</kbd> Handoff · <kbd>5</kbd> Tools · <kbd>6</kbd> System · <kbd>Esc</kbd> close</div>
-  <div class="meta" style="margin-top:.55rem">Green = fresh truth evidence only · Agent: <code>/api/orient</code> · <code>bin/dg orient</code></div>
-  <div style="margin-top:.9rem"><button type="button" class="primary" id="btnHelpClose">Close</button></div>
-</div></div>
 <div id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText" aria-hidden="true"><div class="box" tabindex="-1">
   <h2 id="confirmTitle" style="margin:0 0 .5rem;color:var(--bad);font-family:var(--serif);font-weight:400;font-size:1.2rem">Confirm mutate</h2>
   <p class="meta" id="confirmText">This can change live site / CDN.</p>
@@ -804,18 +595,20 @@ body.theme-light .api-pill{background:rgba(255,255,255,.7);color:var(--muted)}
 const $ = (id) => document.getElementById(id);
 function prefGet(key){ try{return localStorage.getItem(key)}catch(_){return null} }
 function prefSet(key,value){ try{localStorage.setItem(key,value);return true}catch(_){return false} }
-let mode = prefGet('dg-dash-mode') || 'agent';
 let lastBrief = '';
 let lastData = null;
 let lastPulse = '';
 let lastJobStripHtml = '';
 let toolsCache = null;
+let startupAtlasCache = null;
+let startupAtlasInflight = null;
+let startupAtlasNeighborhood = '';
+const STARTUP_ATLAS_LIST_LIMIT = 100;
 let loadInflight = null;
 let loadGen = 0;
 let failStreak = 0;
 let activeTab = 'overview';
 let pollMs = 45000; // lighter default — laptop-friendly; override ?poll=20
-let lastPulseKey = '';
 let pendingActivityEvents = [];
 
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -833,47 +626,6 @@ function toast(msg, kind){
 function copyText(t){
   return navigator.clipboard.writeText(t||'').then(()=>toast('Copied','ok')).catch(()=>toast('Copy failed — select text manually','bad'));
 }
-function applyMode(m){
-  mode = m;
-  prefSet('dg-dash-mode', m);
-  document.body.classList.toggle('simple', m==='simple');
-  document.body.classList.toggle('agent', m==='agent');
-  if ($('modeSimple')) {
-    $('modeSimple').classList.toggle('active', m==='simple');
-    $('modeSimple').setAttribute('aria-pressed', m==='simple'?'true':'false');
-  }
-  if ($('modeAgent')) {
-    $('modeAgent').classList.toggle('active', m==='agent');
-    $('modeAgent').setAttribute('aria-pressed', m==='agent'?'true':'false');
-  }
-  if (m==='simple' && ['swarm','gates','brief'].includes(activeTab)) setTab('overview');
-}
-function applyDensity(d){
-  const dense = d==='compact';
-  document.body.classList.toggle('density-compact', dense);
-  prefSet('dg-dash-density', dense?'compact':'comfy');
-  if ($('densityComfy')) {
-    $('densityComfy').classList.toggle('active', !dense);
-    $('densityComfy').setAttribute('aria-pressed', !dense?'true':'false');
-  }
-  if ($('densityCompact')) {
-    $('densityCompact').classList.toggle('active', dense);
-    $('densityCompact').setAttribute('aria-pressed', dense?'true':'false');
-  }
-}
-function applyTheme(t){
-  const light = t==='light';
-  document.body.classList.toggle('theme-light', light);
-  prefSet('dg-dash-theme', light?'light':'dark');
-  if ($('themeDark')) {
-    $('themeDark').classList.toggle('active', !light);
-    $('themeDark').setAttribute('aria-pressed', !light?'true':'false');
-  }
-  if ($('themeLight')) {
-    $('themeLight').classList.toggle('active', light);
-    $('themeLight').setAttribute('aria-pressed', light?'true':'false');
-  }
-}
 function persistTab(name){
   prefSet('dg-dash-tab', name);
 }
@@ -882,14 +634,12 @@ function loadPollPref(){
   if (Number.isFinite(n) && n >= 8000 && n <= 120000) pollMs = n;
 }
 function setTab(name){
-  // plane merged into home
-  if(name==='plane') name='overview';
+  name=({plane:'overview',system:'tools',brief:'tools',swarm:'handoff',gates:'roadmap'})[name]||name;
   // Query parameters and persisted preferences are untrusted inputs. An
   // unknown tab used to hide every panel and persist a blank dashboard until
   // storage was cleared manually.
   const validTabs=[...document.querySelectorAll('.nav button[data-tab]')].map(b=>b.dataset.tab);
   if(!validTabs.includes(name)) name='overview';
-  if (mode==='simple' && ['swarm','gates','brief'].includes(name)) name='overview';
   activeTab = name;
   document.querySelectorAll('.nav button').forEach(b=>{
     const on=b.dataset.tab===name;
@@ -900,6 +650,7 @@ function setTab(name){
     b.setAttribute('aria-selected',on?'true':'false');
     b.tabIndex=on?0:-1;
     b.classList.toggle('active', on);
+    if(on) b.parentElement.scrollLeft=b.offsetLeft-(b.parentElement.clientWidth-b.offsetWidth)/2;
   });
   document.querySelectorAll('.panel').forEach(p=>{
     const on=p.id==='panel-'+name;
@@ -909,11 +660,11 @@ function setTab(name){
     p.hidden=!on;
     p.classList.toggle('active',on);
   });
-  if (name==='tools' && !toolsCache) loadTools();
-  if (name==='system') renderSystem(lastData || {});
-  if (name==='map') { bindMapTab(); if(!$('mapBody')?.dataset.loaded) loadMap('agents'); }
+  if(lastData) renderActivePanel(lastData);
+  if(name==='tools' && !toolsCache) loadTools();
+  if(name==='map' && !startupAtlasCache) loadStartupAtlas();
   persistTab(name);
-  try { history.replaceState(null,'','#'+name+(mode==='agent'?'&agent':'')); } catch(_){}
+  try { history.replaceState(null,'','#'+name); } catch(_){}
 }
 
 
@@ -921,9 +672,11 @@ function renderPriorityBoard(d){
   const root=$('priorityBoard');
   if(!root) return;
   const pb=d.priorityBoard||{};
-  const cards=Array.isArray(pb.cards)?pb.cards:[];
+  const cards=(Array.isArray(pb.cards)?pb.cards:[])
+    .filter(c=>!['ok','info'].includes(c.kind))
+    .slice(0,3);
   if(!cards.length){
-    root.innerHTML='<div class="pcard info"><div class="p-kicker">Priority</div><div class="p-title">Waiting for status…</div></div>';
+    root.innerHTML='';
     return;
   }
   root.innerHTML=cards.map(c=>{
@@ -956,7 +709,6 @@ function renderPriorityBoard(d){
   });
 }
 
-let mapCache={}, activeMap='agents';
 function ageLabel(sec){
   if(sec==null||!Number.isFinite(sec)) return '?';
   if(sec<60) return sec+'s';
@@ -964,266 +716,66 @@ function ageLabel(sec){
   if(sec<86400) return Math.round(sec/3600)+'h';
   return Math.round(sec/86400)+'d';
 }
-function renderWorkLog(j){
-  const box=$('agentWorkLog'); if(!box) return;
-  const wl=j?.workLog;
-  if(!wl||wl.schema!=='demigod.work-log/1'){
-    // Fallback: synthesize from raw receipts if older dash binary
-    const agents=['claude','codex','grok','chat'].map(id=>{
-      const r=j?.[id]; if(!r) return null;
-      const did=Array.isArray(r.did)?r.did:[];
-      return {id,label:id,lane:r.lane||j.lanes?.[id],status:j.workers?.[id]||'?',ageSec:r.ageSec,ok:r.ok,cycle:r.cycle,headline:did[0]||r.next||'(no did)',did,next:r.next||null};
-    }).filter(Boolean);
-    if(!agents.length){ box.innerHTML='<div class="meta">No agent work receipts yet.</div>'; return; }
-    renderWorkLogDom(box,{summary:agents.map(a=>a.label+': '+a.headline).join(' | '),agents,recent:[],backlog:j.board?.backlog||[],cycle:j.board?.cycle,goal:j.board?.goal,loopRunning:j.loopRunning});
+function renderWorkLog(d){
+  const box=$('agentWorkLog');
+  const strip=$('coordStrip');
+  if(!box||!strip) return;
+  const wl=d?.work||d?.workLog;
+  if(!wl){
+    strip.textContent='No current work summary';
+    box.innerHTML='<div class="meta">No agent work receipts yet.</div>';
     return;
   }
+  const agents=Array.isArray(wl.agents)?wl.agents:[];
+  const claimCount=wl.claims?.count??(Array.isArray(wl.claims)?wl.claims.length:0);
+  const channels=wl.channels&&typeof wl.channels==='object'?Object.entries(wl.channels):[];
+  strip.textContent=[
+    wl.loopRunning===true?'loop on':wl.loopRunning===false?'loop off':null,
+    wl.cycle!=null?'cycle '+wl.cycle:null,
+    agents.length?agents.length+' agents':null,
+    claimCount?claimCount+' claims':null,
+    ...channels.slice(0,3).map(([name,value])=>name+' '+(typeof value==='object'?(value.status||value.health||'?'):value)),
+  ].filter(Boolean).join(' · ')||'Current work';
   renderWorkLogDom(box,wl);
 }
 function renderWorkLogDom(box,wl){
   const agents=Array.isArray(wl.agents)?wl.agents:[];
   const recent=Array.isArray(wl.recent)?wl.recent:[];
   const backlog=Array.isArray(wl.backlog)?wl.backlog:[];
-  const sh=wl.ship||null;
-  const shipHtml=sh?(
-    '<div class="meta" style="margin:.35rem 0 .15rem">Ship · '+
-    '<span class="pill '+(sh.sealed?'ok':'warn')+'">'+(sh.sealed?'sealed':'open')+'</span> '+
-    'disk='+esc(String(sh.disk||'?'))+' live='+esc(String(sh.live||'?'))+' man='+esc(String(sh.man||'?'))+
-    (sh.blockers&&sh.blockers.length?' · '+esc(sh.blockers.join(',')):'')+
-    '</div>'
-  ):'';
-  const rd=wl.redesign||null;
-  const _cdnPin=(rd&&rd.cdnUrl&&String(rd.cdnUrl).match(/@([a-f0-9]{7,12})/))||null;
-  const redesignHtml=rd?(
-    '<div class="meta" style="margin:.2rem 0 .15rem;font-family:var(--mono);font-size:.72rem;line-height:1.45" title="disk v'+esc(String(rd.disk||'?'))+' · live v'+esc(String(rd.live||'?'))+' · man v'+esc(String(rd.manVer||rd.man||'?'))+(rd.manCdnShort?' · man@'+esc(String(rd.manCdnShort)):'')+(rd.liveCdnShort?' · live@'+esc(String(rd.liveCdnShort)):'')+(rd.lagVer!=null?' · lag+'+esc(String(rd.lagVer)):'')+'">Redesign · '+
-    '<span class="pill '+(rd.pasteBlocked?'warn':'ok')+'">'+(rd.pasteBlocked?(Number(rd.lagVer)>=20?'paste lag critical':'paste blocked'):'pinned')+'</span> '+(rd.cdnSealed?'<span class="pill ok">cdn sealed</span> ':'')+(rd.stage?'<span class="pill">'+esc(String(rd.stage).slice(0,28))+'</span> ':'')+(rd.manAt?'<span class="pill" title="CDN manifest at">man@t '+esc(String(rd.manAt).slice(0,16))+'</span> ':'')+
-    'disk=v'+esc(String(rd.disk||'?'))+' live=v'+esc(String(rd.live||'?'))+
-    ((rd.manVer||rd.man)?' man=v'+esc(String(rd.manVer||rd.man)):'')+
-    (rd.manCdnShort?' man@'+esc(String(rd.manCdnShort)):'')+
-    (rd.liveCdnShort?' live@'+esc(String(rd.liveCdnShort)):(_cdnPin?' · @'+esc(_cdnPin[1]):''))+
-    (rd.lagVer!=null&&Number.isFinite(Number(rd.lagVer))?' · lag +'+Number(rd.lagVer)+' ver':(function(){if(!rd.pasteBlocked||!rd.disk||!rd.live)return '';var d=Number(String(rd.disk).replace(/^v/,'')),l=Number(String(rd.live).replace(/^v/,''));if(!Number.isFinite(d)||!Number.isFinite(l)||d===l)return '';return ' · lag +'+(d-l)+' ver';})())+
-    (rd.pasteReason?' · '+esc(String(rd.pasteReason).slice(0,48)):'')+
-    '</div>'
-  ):'';
-  const cr=wl.crawl||null;
-  const crawlHtml=cr?(
-    '<div class="meta" style="margin:.2rem 0 .15rem">Crawl · '+
-    '<span class="pill '+(cr.open>0?'warn':'ok')+'">'+(cr.open>0?('open '+cr.open):'clean')+'</span> '+
-    (Array.isArray(cr.top)&&cr.top.length?esc(cr.top.join(', ')):'no P0/P1')+
-    (cr.serpHello?' · <span class="pill warn">SERP hello@</span>':'')+
-    (cr.serpVolume?' · <span class="pill warn">SERP 3-5</span>':'')+
-    (cr.noSitemap?' · <span class="pill warn">no sitemap</span>':'')+
-    (cr.liveFoot?' · crawlFoot '+esc(String(cr.liveFoot)):'')+
-    (cr.shipLive?' · shipLive v'+esc(String(cr.shipLive)):'')+
-    (cr.shipSealed?' · <span class="pill ok">ship sealed</span>':(cr.shipDisk?' · <span class="pill warn">ship open</span>':''))+
-    (cr.ageSec!=null?' · '+esc(ageLabel(cr.ageSec))+' ago':'')+
-    '</div>'
-  ):'';
-  const lv=wl.live||null;
-  const liveHtml=lv?(
-    '<div class="meta" style="margin:.2rem 0 .15rem">Live verify · '+
-    '<span class="pill '+(lv.pass?'ok':(lv.open>0?'warn':'warn'))+'">'+(lv.pass?'pass':('open '+lv.open))+'</span> '+
-    (Array.isArray(lv.top)&&lv.top.length?esc(lv.top.join('; ')):'')+
-    (lv.volumeStatic?' · <span class="pill warn">canvas 3-5</span>':'')+
-    (lv.helloStatic?' · <span class="pill warn">hello@</span>':'')+
-    (lv.staticOnlyResiduals?' · <span class="pill ok">static-only</span>':'')+
-    (lv.runtimeScrubNote?' · <span class="meta">'+esc(String(lv.runtimeScrubNote).slice(0,80))+'</span>':'')+
-    (lv.ageSec!=null?' · '+esc(ageLabel(lv.ageSec))+' ago':'')+
-    '</div>'
-  ):'';
-
-  const stCls=(s)=>s==='busy'?'ok':(s==='stale'||s==='missing'?'bad':(s==='idle'?'warn':''));
-  const agentHtml=agents.map(a=>{
-    const pill=stCls(a.status);
-    const didRest=(a.did||[]).slice(1,3).map(d=>'<div class="meta" style="margin-top:.15rem">· '+esc(String(d).slice(0,140))+'</div>').join('');
+  const currentAgents=agents.filter(a=>a.ageSec==null||a.ageSec<3600).slice(0,6);
+  const agentHtml=currentAgents.map(a=>{
+    const runtime=a.runtime||a.status||'unknown';
+    const result=a.lastResult||a.result||(a.ok===true?'pass':a.ok===false?'fail':null);
+    const runtimeClass=runtime==='busy'||runtime==='running'?'ok':runtime==='stale'||runtime==='missing'?'bad':'warn';
+    const resultClass=result==='pass'||result==='ok'||result==='done'?'ok':result==='fail'||result==='failed'?'bad':'';
     return '<div class="work-agent">'+
-      '<div class="wa-top"><span class="wa-name">'+esc(a.label||a.id)+
+      '<div class="wa-top"><span class="wa-name">'+esc(a.label||a.id||'agent')+
       (a.lane?' <span class="meta">'+esc(a.lane)+'</span>':'')+
-      '</span><span class="pill '+(pill||'')+'">'+esc(a.status||'?')+
-      (a.ageSec!=null?' · '+ageLabel(a.ageSec):'')+
-      (a.cycle!=null?' · c'+esc(String(a.cycle)):'')+
-      (a.ok===false?' · fail':'')+
-      '</span></div>'+
-      '<div class="wa-headline">'+esc(String(a.headline||'').slice(0,200))+'</div>'+
-      didRest+
+      '</span><span><span class="pill '+runtimeClass+'">'+esc(runtime)+(a.ageSec!=null?' · '+ageLabel(a.ageSec):'')+'</span>'+
+      (result?'<span class="pill '+resultClass+'">last '+esc(result)+'</span>':'')+'</span></div>'+
+      '<div class="wa-headline">'+esc(String(a.headline||(a.did||[])[0]||'No recent result').slice(0,200))+'</div>'+
       (a.next?'<div class="wa-next">next: '+esc(String(a.next).slice(0,160))+'</div>':'')+
       '</div>';
   }).join('');
-  // Dedupe near-identical timeline lines (receipt + board often overlap)
   const seen=new Set();
-  const tl=recent.filter(r=>{
-    const k=(r.agent||'')+'|'+(r.text||'').slice(0,80);
-    if(seen.has(k)) return false; seen.add(k); return true;
-  }).slice(0,14).map(r=>
+  const timeline=recent.filter(r=>r.ageSec==null||r.ageSec<3600).filter(r=>{
+    const key=(r.agent||'')+'|'+(r.text||'').slice(0,80);
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0,5).map(r=>
     '<li><span class="wl-age">'+esc(ageLabel(r.ageSec))+'</span>'+
-    '<span class="wl-who">'+esc(r.label||r.agent||'?')+(r.cycle!=null?' c'+esc(String(r.cycle)):'')+'</span>'+
-    '<span class="wl-text">'+esc(String(r.text||'').slice(0,280))+'</span></li>'
+    '<span class="wl-who">'+esc(r.label||r.agent||'?')+'</span>'+
+    '<span class="wl-text">'+esc(String(r.text||'').slice(0,240))+'</span></li>'
   ).join('');
-  const bl=backlog.slice(0,4).map(b=>'<li>'+esc(String(b).slice(0,160))+'</li>').join('');
-  box.innerHTML=
-    '<div class="work-log" aria-live="polite">'+
-    shipHtml+
-    redesignHtml+
-    crawlHtml+
-    liveHtml+
-    '<div class="work-log-summary"><strong>Now · </strong>'+esc(String(wl.summary||'').slice(0,500))+
-    (wl.cycle!=null?' <span class="meta">· cycle '+esc(String(wl.cycle))+'</span>':'')+
-    (wl.loopRunning===false?' <span class="pill bad">loop off</span>':wl.loopRunning?' <span class="pill ok">loop on</span>':'')+
-    (wl.goal?'<div class="meta" style="margin-top:.3rem">goal: '+esc(String(wl.goal).slice(0,120))+'</div>':'')+
-    '</div>'+
+  const open=backlog.slice(0,3).map(item=>'<li>'+esc(String(item).slice(0,160))+'</li>').join('');
+  box.innerHTML='<div class="work-log" aria-live="polite">'+
+    '<div class="work-log-summary"><strong>Now · </strong>'+esc(String(wl.summary||wl.goal||'No active summary').slice(0,360))+'</div>'+
     (agentHtml?'<div class="work-log-agents">'+agentHtml+'</div>':'')+
-    (tl?'<div class="meta" style="margin-top:.15rem">Recent work</div><ul class="work-log-timeline">'+tl+'</ul>':'')+
-    (bl?'<div class="meta">Open backlog</div><ul class="work-log-backlog">'+bl+'</ul>':'')+
-    '<div class="meta" style="margin-top:.35rem">Updates ~every '+Math.round((typeof pollMs==='number'?pollMs:20000)/1000)+'s from agent receipts (*-last.json) + board done_recent</div>'+
+    (timeline?'<div class="meta">Recent work</div><ul class="work-log-timeline">'+timeline+'</ul>':'')+
+    (open?'<details><summary>Backlog</summary><ul class="work-log-backlog">'+open+'</ul></details>':'')+
     '</div>';
 }
-async function loadCoord(){
-  const el=$('coordStrip'); if(!el) return;
-  try{
-    const r=await fetch('/api/coord');
-    if(!r.ok) throw new Error('coord HTTP '+r.status);
-    const j=await r.json();
-    if(j?.schema!=='demigod.coord-api/2') throw new Error('coord response invalid');
-    const cyc=j.board?.cycle??'?';
-    const bit=(r)=>!r?'-':r.ok!==true?'fail':r.clockSkewed?'clock-skew':r.stale?'stale':'ok';
-    const cl=bit(j.claude), cx=bit(j.codex), gk=bit(j.grok);
-    const tcl=bit(j.term?.claude), tgk=bit(j.term?.grok);
-    const sh=j.ship;
-    const shipBit=sh?(sh.pass?'ship=ok':'ship=FAIL'+(sh.primaryBlocker?' · '+sh.primaryBlocker:'')):'';
-    const pasteBit=sh?(sh.pasteReady?'paste=ready':(sh.pasteBlockedBy?'paste='+sh.pasteBlockedBy:(sh.nextCmd&&/paste|cm6/i.test(String(sh.nextCmd||''))?'paste=needed':''))):'';
-    const prepBit=j.shipPrepare?(j.shipPrepare.ok?'prepare=ok':(j.shipPrepare.pass?'prepare=stale':'prepare=FAIL')):'';
-    const releaseBit=sh?.facts?[sh.facts.diskVer,sh.facts.liveVer,sh.facts.manVer].filter(Boolean).join('/')+(sh.stage?' · '+sh.stage:''):'';
-    const wfBit=j.webflow?(j.webflow.doctorFresh&&!j.webflow.doctorObservable?'unobservable here':j.webflow.doctorFresh&&j.webflow.doctorPass===false?'doctor issues'+(j.webflow.doctorFailed?.length?' ('+j.webflow.doctorFailed.join(', ')+')':''):!j.webflow.fresh?(j.webflow.clockSkewed?'clock-skew':'stale'):!j.webflow.doctorFresh?(j.webflow.doctorClockSkewed?'doctor clock-skew':'doctor stale'):(j.webflow.ready?.paste?'ready':(j.webflow.cdp?'open code':'cdp down'))):'';
-    const ls=j.loopState?(j.loopState.ok?'loop-state=ok':'loop-state=FAIL'):'';
-    const mk=j.footMarkers?(j.footMarkers.agree?'markers=ok':'markers=SPLIT'):'';
-    const headBit=j.head?(j.head.shipReady?'head=ready':(!j.head.ok?'head=FAIL':(j.head.metaReady===false?'head=meta':(j.head.cssFresh===false?'head=css-lag':'head=gap')))):'';
-    const cssBit=j.headCss?(j.headCss.ok&&j.headCss.match?'csscdn=ok':(j.headCss.match===false?'csscdn=lag':'csscdn=?')):'';
-    const blogBit=j.blog?(j.blog.ok?'blog='+(j.blog.published||0)+'ok':'blog=FAIL'):'';
-    const notesBit=j.footNotes?(j.footNotes.shipReady?'notes=ready':(j.footNotes.ok?'notes=gap':'notes=FAIL')):'';
-    const ftBit=j.footerLite?(j.footerLite.shipReady?'foot-lite='+(j.footerLite.ver||'ok'):(j.footerLite.ok?'foot-lite=gap':'foot-lite=FAIL')):'';
-    const dr=j.diskReady?(j.diskReady.ok?'diskReady=ok':(j.diskReady.onlyCssLag?'diskReady=css-only':('diskReady=FAIL'+(j.diskReady.blockers?.length?'('+j.diskReady.blockers.join(',')+')':'')))):'';
-    const qBit=j.quality?(j.quality.openP0P1>0?'quality=P0/P1:'+j.quality.openP0P1:'quality=clear'):'';
-    const supBit=j.supervisor?(j.supervisor.alive?'supervisor=up':j.supervisor.heartbeatFresh?'supervisor=host-heartbeat':'supervisor=down'):'';
-    const flk=j.footLock?(j.footLock.locked?'footlock='+((j.footLock.owner||'held')+(j.footLock.ttlLeftSec!=null?' '+j.footLock.ttlLeftSec+'s':'')):'footlock=free'):'';
-    const dig=j.digest?(j.digest.stale?'digest=stale':'digest=ok'+(j.digest.ageSec!=null?' '+j.digest.ageSec+'s':'')):'';
-    const laneBit=j.lanes?'lanes cl=web/cx=tools/gk=gates':'';
-    const holdN=j.claims?.holds?Object.keys(j.claims.holds).length:0;
-    const claimBit=j.claims?(j.claims.holdsStale?'claims=cleared':(holdN?'claims='+holdN:'claims=0')):'';
-    const sw=j.swarm?(j.swarm.stale?'swarm=stale':(j.swarm.latestAgeSec!=null?'swarm='+j.swarm.latestAgeSec+'s':'swarm=?')):'';
-    el.innerHTML='loop='+(j.loopRunning?'on':'off')+' · cycle='+esc(String(cyc))+
-      (laneBit?' · '+esc(laneBit):'')+
-      ' · claude='+esc(cl)+' · codex='+esc(cx)+' · grok='+esc(gk)+
-      ' · term cl/gk='+esc(tcl)+'/'+esc(tgk)+
-      (dig?' · '+esc(dig):'')+
-      (qBit?' · '+esc(qBit):'')+
-      (supBit?' · '+esc(supBit):'')+
-      (flk?' · '+esc(flk):'')+
-      (claimBit?' · '+esc(claimBit):'')+
-      (sw?' · '+esc(sw):'')+
-      (ls?' · '+esc(ls):'')+
-      (mk?' · '+esc(mk):'')+
-      (headBit?' · '+esc(headBit):'')+
-      (cssBit?' · '+esc(cssBit):'')+
-      (blogBit?' · '+esc(blogBit):'')+
-      (notesBit?' · '+esc(notesBit):'')+
-      (ftBit?' · '+esc(ftBit):'')+
-      (dr?' · '+esc(dr):'')+
-      (shipBit?' · '+esc(shipBit):'')+
-      (prepBit?' · '+esc(prepBit):'')+
-      (pasteBit?' · '+esc(pasteBit):'')+
-      (releaseBit?' · release='+esc(releaseBit):'')+
-      (wfBit?' · webflow='+esc(wfBit):'')+
-      (j.board?.goal?' · '+esc(String(j.board.goal).slice(0,80)):'');
-    try{renderWorkLog(j);}catch(we){ const b=$('agentWorkLog'); if(b) b.innerHTML='<div class="meta bad">work log render: '+esc(String(we?.message||we).slice(0,120))+'</div>'; }
-  }catch(e){
-    el.textContent='coord unavailable · '+String(e?.message||e).slice(0,120);
-    const b=$('agentWorkLog'); if(b) b.innerHTML='<div class="meta bad">coord unavailable</div>';
-  }
-}
-async function loadMap(id){
-  const body=$('mapBody'); const meta=$('mapMeta');
-  if(!body) return;
-  body.innerHTML='<div class="meta">Loading '+esc(id)+'…</div>';
-  try{
-    const r=await fetch('/api/maps/'+encodeURIComponent(id)+'?format=json',{cache:'no-store'});
-    const j=await r.json();
-    if(!r.ok) throw new Error(j.error||r.status);
-    mapCache[id]=j;
-    activeMap=id;
-    if(meta) meta.textContent=j.path||id;
-    const openMd=$('mapOpenMd');
-    if(openMd) openMd.href='/api/maps/'+encodeURIComponent(id);
-    // highlight active map button
-    document.querySelectorAll('[data-map]').forEach(btn=>{
-      const on=btn.getAttribute('data-map')===id;
-      btn.classList.toggle('primary', on);
-    });
-    const md=j.markdown||'';
-    // light render: extract mermaid + tables + pre
-    let html='';
-    const parts=md.split(/```/);
-    for(let i=0;i<parts.length;i++){
-      if(i%2===0){
-        const text=parts[i];
-        const lines=text.split('\n');
-        let tableBuf=[];
-        const flushTable=()=>{
-          if(tableBuf.length<2){ tableBuf=[]; return; }
-          const rows=tableBuf.map(r=>r.replace(/^\||\|$/g,'').split('|').map(c=>c.trim()));
-          // skip separator row
-          const bodyRows=rows.filter((r,idx)=>idx===0 || !r.every(c=>/^[-:]+$/.test(c)));
-          if(bodyRows.length){
-            html+='<table class="map-table"><thead><tr>'+bodyRows[0].map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
-              bodyRows.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+
-              '</tbody></table>';
-          }
-          tableBuf=[];
-        };
-        html+='<div class="md-chunk">';
-        for(const line of lines){
-          if(/^\|/.test(line) && /\|$/.test(line.trim()) || /^\|/.test(line)){
-            tableBuf.push(line);
-            continue;
-          }
-          flushTable();
-          const heading=line.match(/^(#{1,3})\s+(.+)$/);
-          if(heading){ html+='<h'+(heading[1].length+1)+'>'+esc(heading[2].replace(/\*\*/g,''))+'</h'+(heading[1].length+1)+'>'; continue; }
-          if(!line.trim()){ html+='<br/>'; continue; }
-          if(/^[-*] /.test(line)){ html+='<div class="meta">• '+esc(line.replace(/^[-*] /,'').replace(/\*\*/g,''))+'</div>'; continue; }
-          html+='<div>'+esc(line.replace(/\*\*/g,''))+'</div>';
-        }
-        flushTable();
-        html+='</div>';
-      } else {
-        const lang=(parts[i].split('\n')[0]||'').trim();
-        const code=parts[i].replace(/^[a-zA-Z]*\n/,'');
-        if(lang==='mermaid'){
-          html+='<pre class="mermaid">'+esc(code)+'</pre>';
-        } else {
-          html+='<pre>'+esc(code)+'</pre>';
-        }
-      }
-    }
-    body.innerHTML=html;
-    body.dataset.loaded='1';
-    if(window.mermaid){
-      try{ await mermaid.run({nodes: body.querySelectorAll('.mermaid')}); }catch(e){ console.warn('mermaid',e); }
-    }
-  }catch(e){
-    delete body.dataset.loaded;
-    body.innerHTML='<div class="bad">'+esc(String(e.message||e))+'</div>';
-  }
-}
-function bindMapTab(){
-  document.querySelectorAll('[data-map]').forEach(btn=>{
-    btn.onclick=()=>loadMap(btn.getAttribute('data-map'));
-  });
-  const raw=$('btnMapRaw');
-  if(raw) raw.onclick=()=>{
-    window.open('/api/maps/'+activeMap,'_blank');
-  };
-}
-
 function renderNextBar(d){
   const n = d.next || {};
   const bar = $('nextBar');
@@ -1235,7 +787,6 @@ function renderNextBar(d){
     toast('Status changed', 'ok');
   }
   lastPulse = pulse;
-  const idle = !n.title || (n.pri != null && n.pri >= 3 && !n.mutate && d.live?.ok && d.freeze?.on);
   const allClear = d.truthEvidence?.green === true && d.live?.ok && d.freeze?.on && (n.pri == null || n.pri >= 3) && !(d.staleGates||[]).some(s=>s.reason==='missing'&&s.key==='verifySource');
   bar.classList.toggle('clear', !!allClear && !n.mutate);
   const owner = n.mutate ? 'human' : (n.pri != null && n.pri <= 1 ? 'priority' : (allClear ? 'clear' : 'agent'));
@@ -1268,11 +819,11 @@ function renderJobStrip(d){
   const strip = $('jobStrip');
   strip.setAttribute('aria-busy', q.running ? 'true' : 'false');
   if (q.running) parts.push('<span class="job run">running: '+esc(q.running)+'</span>');
-  (q.recent||[]).slice(0,5).forEach(j=>{
+  (q.recent||[]).filter(j=>j.status==='failed'||j.ok===false||j.status==='running'||j.status==='queued').slice(0,3).forEach(j=>{
     const cls = j.status==='done'&&j.ok!==false?'ok':(j.status==='failed'||j.ok===false)?'bad':(j.status==='running'||j.status==='queued')?'run':'';
     parts.push('<span class="job '+cls+'">'+esc(j.id)+' · '+esc(j.status)+(j.ms!=null?' · '+j.ms+'ms':'')+'</span>');
   });
-  if (!parts.length) parts.push('<span class="job">no recent jobs</span>');
+  strip.hidden = parts.length === 0;
   const html = parts.join('');
   // This is a polite live region. Replacing identical markup on every poll
   // makes some screen readers announce the same job history repeatedly.
@@ -1283,8 +834,6 @@ function renderJobStrip(d){
 }
 
 function renderGlance(d){
-  const g = d.glance || {};
-  const n = d.next || {};
   const te = d.truthEvidence || {};
   const light = te.green ? 'GREEN' : (d.live?.ok ? 'AMBER' : 'RED');
   const lightCls = te.green ? 'ok' : (d.live?.ok ? 'warn' : 'bad');
@@ -1294,205 +843,79 @@ function renderGlance(d){
     orb.setAttribute('data-state', light.toLowerCase());
     orb.setAttribute('aria-label', 'Truth light '+light);
   }
-  if ($('gLight')) {
-    $('gLight').textContent = light;
-    $('gLight').parentElement.className = 'metric '+lightCls;
-  }
-  if ($('gLightSub')) {
-    $('gLightSub').textContent = te.reason || (te.green ? 'pass-fresh' : 'not green');
-  }
-  if ($('whyGreen')) {
-    $('whyGreen').textContent = te.green
-      ? ('Evidence '+ (te.runId||'sealed') +' · '+(te.summary||'fresh pass'))
-      : ('Not green: '+(te.reason||'no fresh truth')+' · bin/dg truth');
-  }
-  if ($('demandLine')) {
-    const dem = d.demand;
-    const chips = $('demandChips');
-    if (dem) {
-      const tops = (dem.top3||[]).map(t=>t.name).filter(Boolean).slice(0,3);
-      const draftHygiene = dem.drafts&&dem.drafts.hygiene;
-      const hygieneLabel = draftHygiene
-        ? (draftHygiene.stale===true
-          ? 'draft hygiene stale'+(draftHygiene.clockSkewed===true?' · clock skew':'')+(draftHygiene.ageSec==null?'':' · '+age(draftHygiene.ageSec))
-          : draftHygiene.ok===true
-          ? 'draft hygiene '+(draftHygiene.clean??draftHygiene.checked??0)+'/'+(draftHygiene.checked??0)+' clean'
-          : draftHygiene.ok===false
-            ? 'draft hygiene '+(draftHygiene.flagged??'?')+' flagged'
-            : 'draft hygiene unknown')
-        : 'draft hygiene unknown';
-      $('demandLine').textContent = '';
-      if (chips) {
-        chips.innerHTML = [
-          '<span class="dchip" data-testid="demand-pending"><b>'+esc(dem.pending??'?')+'</b> pending</span>',
-          '<span class="dchip" data-testid="demand-sent"><b>'+esc(dem.sentConfirmed??'?')+'</b> SENT-CONFIRMED</span>',
-          '<span class="dchip" data-testid="demand-pilots"><b>'+esc(dem.pilotsFilled??'?')+'</b> pilots</span>',
-          '<span class="dchip '+(draftHygiene&&(draftHygiene.stale===true||draftHygiene.ok===false)?'bad':'soft')+'" data-testid="demand-draft-hygiene">'+esc(hygieneLabel)+'</span>',
-          tops.length ? '<span class="dchip soft">head · '+esc(tops.join(' · '))+'</span>' : '',
-          '<span class="dchip soft mono">bin/dg demand status</span>',
-        ].filter(Boolean).join('');
-      } else {
-        $('demandLine').textContent = 'Demand: pending '+(dem.pending??'?')+' · sent '+(dem.sentConfirmed??'?');
-      }
-    } else {
-      if (chips) chips.innerHTML = '<span class="dchip soft">no demand snapshot · job demand</span>';
-      else $('demandLine').textContent = 'Demand: no status yet';
-    }
-  }
-  if ($('gSite')) {
-    $('gSite').textContent = g.siteOk
-      ? (d.live?.foot || 'UP')
-      : (g.siteReachable ? 'DRIFT' : 'DOWN');
-    $('gSite').parentElement.className = 'metric '+(g.siteOk?'ok':g.siteReachable?'warn':'bad');
-  }
-  if ($('gSiteSub')) $('gSiteSub').textContent = g.siteOk
-    ? (d.live?.cdnId || 'live')
-    : String(g.siteReason || d.live?.error || 'unreachable').slice(0,96);
-  if ($('gFreeze')) {
-    $('gFreeze').textContent = g.freezeOn ? 'ON' : 'OFF';
-    $('gFreeze').parentElement.className = 'metric '+(g.freezeOn?'warn':'ok');
-  }
-  if ($('gFreezeSub')) {
-    const footLock = d.foot?.lock;
-    const footOwner = footLock?.locked ? footLock.json?.owner : null;
-    const footOwnerExited = footLock?.locked && footLock.ownerAlive === false;
-    const footLeaseIsReservation = footLock?.locked && footLock.json?.pidScope === 'claim-command';
-    const footTtl = Number.isFinite(footLock?.ttlLeftSec)
-      ? ' · '+Math.max(1,Math.ceil(footLock.ttlLeftSec/60))+'m TTL'
+  const dem = d.demand;
+  const chips = $('demandChips');
+  if (dem) {
+    const tops = (dem.top3||[]).map(t=>t.name).filter(Boolean).slice(0,3);
+    const draftHygiene = dem.drafts&&dem.drafts.hygiene;
+    const hygieneLabel = draftHygiene
+      ? (draftHygiene.stale===true
+        ? 'draft hygiene stale'+(draftHygiene.clockSkewed===true?' · clock skew':'')+(draftHygiene.ageSec==null?'':' · '+age(draftHygiene.ageSec))
+        : draftHygiene.ok===true
+        ? 'draft hygiene '+(draftHygiene.clean??draftHygiene.checked??0)+'/'+(draftHygiene.checked??0)+' clean'
+        : draftHygiene.ok===false
+          ? 'draft hygiene '+(draftHygiene.flagged??'?')+' flagged'
+          : 'draft hygiene unknown')
+      : 'draft hygiene unknown';
+    // 0 SENT-CONFIRMED + quarantine ≠ "nobody contacted" — policy refused the rows.
+    const malN = Number(dem.malformedReceipts)||0;
+    const malReasons = dem.malformedReceiptReasons||{};
+    const reasonBits = Object.entries(malReasons)
+      .filter(([,n])=>Number(n)>0)
+      .map(([r,n])=>r+(Number(n)>1?'='+n:''))
+      .slice(0,3);
+    const overlap = Array.isArray(dem.quarantineQueueOverlap)?dem.quarantineQueueOverlap:[];
+    const pendingN = dem.pending;
+    const overlapLabel = overlap.length
+      ? (pendingN!=null ? 'queue-overlap='+overlap.length+'/'+pendingN : 'queue-overlap='+overlap.length)
       : '';
-    const footStatus = footOwnerExited
-      ? 'foot lease compromised · '+(footOwner||'owner exited')
-      : footOwner
-        ? 'foot '+(footLeaseIsReservation?'reserved ':'held ')+footOwner+footTtl
-        : 'foot free';
-    $('gFreezeSub').textContent = g.freezeOn
-      ? (String(d.freeze?.why||'publish locked').slice(0,48)+' · '+footStatus).slice(0,96)
-      : footOwnerExited
-        ? ('publish open · foot lease compromised · '+(footOwner||'owner exited')).slice(0,72)
-      : footOwner
-        ? ('publish open · foot '+(footLeaseIsReservation?'reserved ':'held ')+footOwner+footTtl).slice(0,72)
-        : 'publish open · foot free';
-    $('gFreezeSub').className = 'metric-sub'+(footOwnerExited?' bad':'');
-  }
-  if ($('gNext')) {
-    $('gNext').textContent = n.id || '—';
-    $('gNext').parentElement.className = 'metric';
-  }
-  if ($('gNextSub')) $('gNextSub').textContent = (n.cmd||'').slice(0,40) || (g.freezeOn ? 'freeze-safe' : 'ready');
-  // versions rail
-  if ($('verDisk')) $('verDisk').textContent = 'disk v'+(d.truth?.foot?.ver || d.next?.versions?.disk || '?');
-  if ($('verLive')) $('verLive').textContent = 'live v'+(d.truth?.live?.footVer || d.next?.versions?.live || d.live?.foot || '?');
-  if ($('sessionStory')) $('sessionStory').textContent = d.sessionStory || '—';
-  const dl = $('deltaLine');
-  if (dl) {
-    const st = (d.staleGates||[]).length;
-    const fr = d.freshness?.verifySource;
-    const releaseIdentity=d.cycleWorkHealth?.releaseDetails?.identityDelta||null;
-    const releaseIdentityLabel=releaseIdentity
-      ? ['version','sha256','bytes'].filter(k=>releaseIdentity[k]).map(k=>{
-          const delta=releaseIdentity[k];
-          const short=v=>k==='sha256'&&typeof v==='string'?v.slice(0,8):String(v??'?');
-          // Keep the release comparison in the same direction as the labels:
-          // expected (current foot core) first, staged manifest second. The
-          // previous staged→expected rendering made an old v213 manifest look
-          // like the desired destination when disk was already at v350.
-          return (k==='sha256'?'sha':k)+' expected '+short(delta.expected)+' · staged '+short(delta.staged);
-        }).join(', ')
+    const quarantineLabel = malN
+      ? (malN+' receipt'+(malN===1?'':'s')+' quarantined'
+        +(reasonBits.length?' · '+reasonBits.join(', '):'')
+        +' · SENT may under-report'
+        +(overlapLabel?' · '+overlapLabel:'')
+      )
+      : '';
+    // Keep last demand quarantine on window for Run demand confirm (status is safe;
+    // confirm only when pending queue overlaps quarantined handles — double-DM trap).
+    window.__dgDemandQuarantine = malN
+      ? { malformedReceipts: malN, overlap, pending: pendingN, reasons: malReasons }
       : null;
-    const cycleChecks=(d.cycleWorkHealth?.checks||[]);
-    const conciseCheckDetail=value=>{
-      // Health details are usually strings, but structured checks may retain a
-      // compact object. String(object) erases that evidence as
-      // "[object Object]", so serialize objects before applying the same
-      // bounded status-rail treatment.
-      let raw='';
-      if(value&&typeof value==='object'){
-        try{raw=JSON.stringify(value);}catch(_){raw='unserializable detail';}
-      }else raw=String(value||'');
-      raw=raw.replace(/\s+/g,' ').trim();
-      if (!raw) return '';
-      // Child-start failures are infrastructure diagnostics, not product
-      // contract failures. Preserve the useful errno while avoiding a long
-      // serialized spawnSync payload in the status rail.
-      const childCode=raw.match(/["']code["']\s*:\s*["']([A-Z0-9_-]+)["']/i);
-      const childMessage=raw.match(/["']message["']\s*:\s*["']([^"']+)["']/i);
-      if(childCode && /spawn|child|eperm|eacces/i.test(raw)){
-        const command=childMessage&&childMessage[1].match(/spawn(?:Sync)?\s+([^\s]+)/i);
-        return 'child start '+childCode[1].toUpperCase()+(command?' · '+command[1]:'');
-      }
-      // Check details can contain a complete serialized CM6 receipt. Keep the
-      // status rail scannable; structured release identity is rendered below.
-      const identity=raw.match(/artifactLag[^}]*direction["']?\s*:\s*["']?([\w-]+)/i);
-      if (identity) return 'artifact '+identity[1];
-      return raw.length>140?raw.slice(0,137)+'…':raw;
-    };
-    const cycleExceptions=cycleChecks
-      .filter(c=>c.exit!==0||c.blocked||c.childStartBlocked||c.degraded||c.fallback)
-      .map(c=>{
-        const detail=conciseCheckDetail(c.detail);
-        return c.name+(c.failureKind?' '+c.failureKind:c.childStartBlocked?' child-start blocked':c.blocked?' blocked':c.exit!==0?' exit '+(Number.isInteger(c.exit)?c.exit:'unknown'):c.degraded||c.fallback?' fallback':'')+(detail?' ('+detail+')':'');
-      })
-      .join(', ');
-    dl.textContent = [
-      st ? st+' stale' : 'caches ok',
-      fr && !fr.fresh ? 'verify '+fr.label : null,
-      d.cycleWorkHealth?.degraded ? 'cycle '+(d.cycleWorkHealth.cycle??'?')+' degraded' : null,
-      d.cycleWorkHealth?.verification &&
-        d.cycleWorkHealth.verification!=='attested' &&
-        d.cycleWorkHealth.verification!=='release-blocked'
-        ? 'verification '+d.cycleWorkHealth.verification
-        : null,
-      d.cycleWorkHealth?.domain==='tools' && d.cycleWorkHealth?.toolsReady===true
-        ? 'tools attested'
-        : null,
-      d.cycleWorkHealth?.domain==='tools' && d.cycleWorkHealth?.toolsReady===false
-        ? 'tools OS unverified'
-        : null,
-      d.cycleWorkHealth?.domain==='tools' && d.cycleWorkHealth?.releaseReady===false
-        ? (d.cycleWorkHealth?.toolsReady===true
-          ? 'release staging blocked (tools remain healthy)'
-          : 'release staging blocked (separate from tools verification)')
-        : null,
-      d.cycleWorkHealth?.blocked ? 'cycle blocked' : null,
-      d.cycleWorkHealth?.releaseBlocker ? 'release '+d.cycleWorkHealth.releaseBlocker : null,
-      d.cycleWorkHealth?.releaseRecovery?.command
-        ? 'recovery '+(d.cycleWorkHealth.releaseRecovery.state||'guarded')+
-          ' · '+d.cycleWorkHealth.releaseRecovery.command+
-          (d.cycleWorkHealth.releaseRecovery.then?' → '+d.cycleWorkHealth.releaseRecovery.then:'')+
-          (d.cycleWorkHealth.releaseRecovery.gatedBy?.length
-            ? ' · gated '+d.cycleWorkHealth.releaseRecovery.gatedBy.join('+')
-            : '')
-        : null,
-      releaseIdentityLabel ? 'identity '+releaseIdentityLabel : null,
-      d.cycleWorkHealth?.releaseDrift?.length ? 'drift '+d.cycleWorkHealth.releaseDrift.join(',') : null,
-      d.cycleWorkHealth?.stale ? 'cycle receipt stale' : null,
-      d.cycleWorkHealth?.reasons?.length ? 'reason '+d.cycleWorkHealth.reasons.join(',') : null,
-      d.cycleWorkHealth?.summary?.fallbackPassed
-        ? 'fallback contracts '+d.cycleWorkHealth.summary.fallbackPassed+'/'+d.cycleWorkHealth.summary.total
-        : null,
-      cycleExceptions ? 'checks '+cycleExceptions : null,
-      d.jobQueue?.running ? 'job '+d.jobQueue.running : null,
-      'handoffs '+(d.handoffs||[]).length,
-    ].filter(Boolean).join(' · ');
+    if (chips) {
+      chips.innerHTML = [
+        '<span class="dchip" data-testid="demand-pending"><b>'+esc(dem.pending??'?')+'</b> pending</span>',
+        '<span class="dchip'+(malN?' soft':'')+'" data-testid="demand-sent" title="'+(malN?'Policy-pass count only; see quarantine chip':'')+'"><b>'+esc(dem.sentConfirmed??'?')+'</b> SENT-CONFIRMED</span>',
+        malN
+          ? '<span class="dchip bad" data-testid="demand-quarantine" title="Receipt rows refused by policy — not proof of absence of contact">'+esc(quarantineLabel)+'</span>'
+          : '',
+        '<span class="dchip" data-testid="demand-pilots"><b>'+esc(dem.pilotsFilled??'?')+'</b> pilots</span>',
+        '<span class="dchip '+(draftHygiene&&(draftHygiene.stale===true||draftHygiene.ok===false)?'bad':'soft')+'" data-testid="demand-draft-hygiene">'+esc(hygieneLabel)+'</span>',
+        tops.length ? '<span class="dchip soft">head · '+esc(tops.join(' · '))+'</span>' : '',
+        '<span class="dchip soft mono">bin/dg demand status</span>',
+      ].filter(Boolean).join('');
+    }
+  } else {
+    window.__dgDemandQuarantine = null;
+    if (chips) chips.innerHTML = '<span class="dchip soft">no demand snapshot · job demand</span>';
   }
-  // Agent API strip
-  if ($('apiStrip')) {
-    $('apiStrip').innerHTML = [
-      ['/api/orient','orient'],['/api/next','next'],['/api/truth','truth'],['/api/control','control'],['/api/coord','coord'],
-      ['/api/tools','tools'],['/api/agent-brief','brief'],['/api/status','status']
-    ].map(([h,l])=>'<a class="api-pill" href="'+h+'" target="_blank" rel="noopener" data-testid="api-'+l+'">'+l+'</a>').join('');
-  }
+  $('verDisk').textContent = 'disk v'+(d.truth?.foot?.ver || d.next?.versions?.disk || '?');
+  $('verLive').textContent = 'live v'+(d.truth?.live?.footVer || d.next?.versions?.live || d.live?.foot || '?');
 }
 
 function renderHdr(d){
   const liveOk = d.live && d.live.ok;
   const freezeOn = d.freeze && d.freeze.on;
   const staleN = (d.staleGates||[]).length;
-  // Simple mode only shows human badges
+  const footLock = d.foot?.lock || null;
+  // Unexpired lease whose recorded owner died — surface before any foot edit.
+  const footOwnerExited = footLock?.locked && footLock.ownerAlive === false;
   $('hdrStats').innerHTML = [
     '<span class="badge human '+(liveOk?'ok':'bad')+'">'+(liveOk?'site up':'site down')+'</span>',
     freezeOn ? '<span class="badge human freeze">publish frozen</span>' : '<span class="badge human ok">publish open</span>',
     staleN ? '<span class="badge freeze">'+staleN+' stale</span>' : '',
+    footOwnerExited
+      ? '<span class="badge freeze" title="owner process exited; lease still held">foot lease compromised · ttl '+(footLock?.ttlLeftSec??'?')+'s</span>'
+      : (footLock?.locked ? '<span class="badge freeze">foot lock held</span>' : ''),
   ].join('');
 }
 
@@ -1510,11 +933,6 @@ function renderHandoffs(d){
     : '<div class="meta">No handoffs yet — post the first note.</div>';
 }
 
-function toolsQuery(){
-  const hideAlias = !$('toolsHideAlias') || $('toolsHideAlias').checked;
-  const hotOnly = $('toolsHotOnly') && $('toolsHotOnly').checked;
-  return 'hideAliases='+(hideAlias?'1':'0')+'&hotOnly='+(hotOnly?'1':'0');
-}
 function renderTools(reg){
   toolsCache = reg;
   const aliasN = reg.aliasesHidden||0;
@@ -1554,119 +972,6 @@ function renderTools(reg){
   });
 }
 
-async function renderSystem(d){
-  const root=$('systemRoot');
-  if(!root) return;
-  let unify=null, ledger=null, evidence=null, presence=null, graph=null, jobsHist=null, dogfood=null;
-  const pulls=await Promise.allSettled([
-    fetch('/api/unify').then(r=>r.ok?r.json():null),
-    fetch('/api/ledger?n=12').then(r=>r.ok?r.json():null),
-    fetch('/api/evidence').then(r=>r.ok?r.json():null),
-    fetch('/api/presence').then(r=>r.ok?r.json():null),
-    fetch('/api/graph').then(r=>r.ok?r.json():null),
-    fetch('/api/jobs/history').then(r=>r.ok?r.json():null),
-    fetch('/api/dogfood').then(r=>r.ok?r.json():null),
-  ]);
-  unify=pulls[0].status==='fulfilled'?pulls[0].value:null;
-  ledger=pulls[1].status==='fulfilled'?pulls[1].value:null;
-  evidence=pulls[2].status==='fulfilled'?pulls[2].value:null;
-  presence=pulls[3].status==='fulfilled'?pulls[3].value:null;
-  graph=pulls[4].status==='fulfilled'?pulls[4].value:null;
-  jobsHist=pulls[5].status==='fulfilled'?pulls[5].value:null;
-  dogfood=pulls[6].status==='fulfilled'?pulls[6].value:null;
-  const hot=(unify&&unify.toolsHot)||[];
-  const led=(ledger&&ledger.rows)||(unify&&unify.ledger)||[];
-  const evItems=(evidence&&evidence.items)||[];
-  const agents=(presence&&presence.agents)||[];
-  const presenceLock=(presence&&presence.lock)||{};
-  // A base SHA mismatch is expected once the active owner edits foot-core.
-  // Only the lock service's explicit verdict (for example, a dead lease-owner)
-  // is a compromised lease; keep ordinary in-lease edits informational.
-  const presenceLockCompromised=presenceLock.compromised===true;
-  const presenceLockChanged=presenceLock.baseShaMatch===false;
-  const presenceLockExited=presenceLock.alive===false || presenceLock.ownerAlive===false;
-  const presenceLockBad=presenceLockCompromised || presenceLockExited;
-  const edges=(graph&&graph.edges)||[];
-  const jobs=(jobsHist&&jobsHist.recent)||[];
-  root.innerHTML=[
-    '<div class="card hero wide">',
-    '<h2><span>Unify</span><span class="meta">one product snapshot</span></h2>',
-    '<div class="meta">'+(unify?esc(unify.next&&unify.next.title||'—'):'fetch /api/unify…')+'</div>',
-    unify?'<code class="cmd">'+esc(unify.next&&unify.next.cmd||'')+'</code>':'',
-    '<div style="margin-top:.55rem;display:flex;flex-wrap:wrap;gap:.35rem">',
-    '<button type="button" class="primary" id="btnUnify">Refresh</button>',
-    '<button type="button" id="btnCopyUnify">Copy JSON</button>',
-    '<button type="button" data-run-job="truth">Truth</button>',
-    '<button type="button" data-run-job="demand">Demand</button>',
-    '<button type="button" data-run-job="ship-status">Ship</button>',
-    '<button type="button" data-run-job="next-canon">NEXT</button>',
-    '<button type="button" data-run-job="ledger">Ledger</button>',
-    '<button type="button" data-run-job="tools-os-selftest">Selftest</button>',
-    '<button type="button" data-run-job="ponytail">Ponytail</button>',
-    '</div>',
-    '<div class="meta" style="margin-top:.45rem"><code>bin/dg unify</code> · <code>/api/unify</code></div>',
-    '</div>',
-    '<div class="card wide"><h2>Presence <span class="meta">handoffs &lt;4h · lock who</span></h2>'+
-      (agents.length?agents.map(a=>'<span class="presence-pill current">'+esc(a.from)+' · '+esc(age(a.ageSec))+' · '+esc((a.text||'').slice(0,40))+'</span>').join(''):
-        '<div class="meta">No recent agents — post a handoff</div>')+
-      (presenceLock.owner?'<div class="meta '+(presenceLockBad?'bad':'')+'" style="margin-top:.4rem">foot lock: <strong>'+esc(presenceLock.owner)+'</strong> pid='+esc(String(presenceLock.pid||'?'))+' age='+esc(String(presenceLock.ageSec??'?'))+'s'+(presenceLockCompromised?' · COMPROMISED':'')+(!presenceLockCompromised&&presenceLockChanged?' · owner edit in progress':'')+(presenceLockExited?' · OWNER EXITED; lease held for '+esc(String(presenceLock.ttlLeftSec??'?'))+'s':'')+'</div>':
-        '<div class="meta" style="margin-top:.4rem">foot lock: free · <code>bin/dg lock-who</code></div>')+
-    '</div>',
-    '<div class="card wide"><h2>Job history</h2>'+
-      (jobsHist&&jobsHist.running?'<div class="meta">running: '+esc(jobsHist.running)+'</div>':'')+
-      (jobs.length?'<table><thead><tr><th>Job</th><th>Status</th><th>ms</th></tr></thead><tbody>'+
-        jobs.slice(0,12).map(j=>'<tr><td>'+esc(j.id)+'</td><td class="'+(j.ok===false?'bad':j.ok?'ok':'')+'">'+esc(j.status)+'</td><td class="meta">'+esc(j.ms!=null?j.ms:'—')+'</td></tr>').join('')+
-        '</tbody></table>':'<div class="meta">No jobs yet</div>')+
-    '</div>',
-    '<div class="card wide"><h2>Tool dogfood <span class="meta">'+esc(String(dogfood?.total??0))+' events</span></h2>'+
-      ((dogfood?.tools||[]).length?'<table><thead><tr><th>Tool</th><th>Runs</th><th>OK</th><th>Useful</th></tr></thead><tbody>'+
-        dogfood.tools.slice(0,8).map(t=>'<tr><td>'+esc(t.tool)+'</td><td>'+esc(t.n)+'</td><td class="'+(t.fail?'bad':'ok')+'">'+esc(t.ok)+'</td><td>'+esc(t.useful)+'/'+esc(t.useful+t.notUseful)+'</td></tr>').join('')+
-        '</tbody></table>':'<div class="meta">No dogfood receipts yet</div>')+
-      '<button type="button" data-run-job="dogfood" style="margin-top:.4rem">Refresh dogfood</button></div>',
-    '<div class="card wide"><h2>Tool graph <span class="meta">module → job → evidence</span></h2>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem">'+(
-        (graph&&graph.nodes||[{id:'truth'},{id:'next'},{id:'unify'},{id:'dash'}]).map(n=>
-          '<span class="presence-pill">'+esc(n.id)+(n.kind?' · '+esc(n.kind):'')+'</span>').join('')
-      )+'</div>'+
-      '<div class="graph-edges">'+
-      (edges.length?edges.map(e=>'→ '+esc(e.from)+' ── '+esc(e.to)).join('<br>'):'truth → next → unify → dash')+
-    '</div></div>',
-    '<div class="card wide"><h2>Hot tools</h2><div class="tool-grid">'+
-      (hot.length?hot.map(t=>'<div class="tool-card"><h3>'+esc(t.name||t.id)+'</h3><code class="cmd">'+esc(t.cmd)+'</code>'+
-        (t.runnable===true
-          ? '<button type="button" data-run-job="'+esc(t.id)+'" data-mutate="'+(t.mutate?'1':'0')+'" style="margin-top:.35rem">'+(t.mutate?'Run mutate…':'Run')+'</button>'
-          : '<button type="button" data-copy-cmd="'+esc(t.cmd)+'" style="margin-top:.35rem">Copy cmd</button>')+
-        '</div>').join(''):'<div class="meta">—</div>')+
-    '</div></div>',
-    '<div class="card wide"><h2>Version ledger</h2>'+
-      (led.length?'<table><thead><tr><th>At</th><th>Disk</th><th>Live</th><th>Freeze</th><th>Pass</th></tr></thead><tbody>'+
-        led.slice().reverse().map(r=>'<tr><td class="meta">'+esc((r.at||'').slice(0,19))+'</td><td>v'+esc(r.diskVer)+'</td><td>v'+esc(r.liveVer)+'</td><td>'+(r.freeze?'ON':'OFF')+'</td><td class="'+(r.pass?'ok':'bad')+'">'+(r.pass?'pass':'fail')+'</td></tr>').join('')+
-        '</tbody></table>':'<div class="meta">No ledger — run bin/dg truth</div>')+
-    '</div>',
-    '<div class="card wide"><h2>Evidence seals</h2>'+
-      (evItems.length?'<table><thead><tr><th>File</th><th>Producer</th><th>Age</th></tr></thead><tbody>'+
-        evItems.map(e=>'<tr><td class="meta">'+esc(e.file)+'</td><td>'+esc(e.producer||'—')+'</td><td>'+esc(age(e.ageSec!=null?e.ageSec:(e.mtimeMs?Math.round((Date.now()-e.mtimeMs)/1000):null)))+'</td></tr>').join('')+
-        '</tbody></table>':'<div class="meta">No evidence yet</div>')+
-      (evidence&&evidence.truth?'<div class="meta" style="margin-top:.4rem">truth green='+!!evidence.truth.green+' · '+esc(evidence.truth.reason||'')+'</div>':'')+
-    '</div>',
-    '<div class="card wide"><h2>Agent APIs</h2><div class="api-strip" style="margin:0">'+
-      ['orient','unify','next','truth','status?slim=1','tools','control','ledger','evidence','presence','graph','jobs/history','agent-brief'].map(p=>
-        '<a class="api-pill" href="/api/'+p+'" target="_blank" rel="noopener">/api/'+p+'</a>').join('')+
-    '</div></div>',
-  ].join('');
-  const bu=$('btnUnify'); if(bu) bu.onclick=()=>renderSystem(d);
-  const bc=$('btnCopyUnify'); if(bc) bc.onclick=async()=>{ try{ const r=await fetch('/api/unify'); if(!r.ok) throw new Error('Unify HTTP '+r.status); copyText(await r.text()); }catch(e){toast(e.message,'bad');} };
-  root.querySelectorAll('[data-run-job]').forEach(btn=>{
-    btn.onclick=()=>runJob(btn.getAttribute('data-run-job'), {
-      mutate: btn.getAttribute('data-mutate')==='1',
-      btn
-    });
-  });
-  root.querySelectorAll('[data-copy-cmd]').forEach(btn=>{
-    btn.onclick=()=>copyText(btn.getAttribute('data-copy-cmd'));
-  });
-}
-
 function renderSwarm(d){
   const multi=(d.drops&&d.drops.multi)||[];
   const rep=(d.cockpit&&d.cockpit.swarm&&d.cockpit.swarm.reports)||[];
@@ -1694,35 +999,47 @@ function renderGates(d){
     Object.entries(ev).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td class="age '+ageClass(v&&v.ageSec)+'">'+(v&&v.missing?'missing':esc(age(v&&v.ageSec)))+'</td><td class="meta">'+esc(v&&v.mtime||'—')+'</td></tr>').join('')+
     '</tbody></table></div>',
     '<div class="card wide"><h2>Gate latest</h2><pre>'+esc(d.gates&&d.gates.latestFile||'(none)')+'</pre></div>',
-    '<div class="card wide agent-only"><h2>SSOT</h2><pre>'+esc(d.docs&&d.docs.compressedPreview||'')+'</pre></div>',
   ].join('');
 }
 
 
 
+function inboxSource(attribution){
+  const a=attribution&&typeof attribution==='object'?attribution:{};
+  const source=[a.utm_source,a.utm_medium].filter(Boolean).join('/');
+  return a.utm_campaign||source||a.referral||a.role_id||a.event_id||'—';
+}
+
 function renderInbox(d){
   const root=document.getElementById('inboxRoot');
   if(!root) return;
   const ib=d.inbox||{};
-  const rows=ib.rows||[];
+  const rows=ib.operationalRows||(ib.operationalCount===0?[]:ib.rows||[]);
   const age=ib.newestAgeSec!=null?(ib.newestAgeSec<3600?Math.round(ib.newestAgeSec/60)+'m':Math.round(ib.newestAgeSec/3600)+'h'):'—';
+  const analytics=d.formAnalytics||{};
+  const funnel=Object.entries(analytics.forms||{}).map(([name,f])=>{
+    const steps=Object.entries(f.steps||{}).sort((a,b)=>b[1]-a[1]).map(([step,count])=>step+' '+count).join(' · ');
+    const validationSteps=Object.entries(f.validationSteps||{}).sort((a,b)=>b[1]-a[1]).map(([step,count])=>step+' '+count).join(' · ');
+    return '<div class="meta"><strong>'+esc(name)+'</strong> · '+esc(f.starts)+' starts · '+esc(f.completions)+' complete · '+esc(f.completionRate==null?'—':f.completionRate+'%')+' · '+esc(f.validations)+' validation blocks'+(validationSteps?'<br>blocked at · '+esc(validationSteps):'')+(steps?'<br>views · '+esc(steps):'')+'</div>';
+  }).join('');
   root.innerHTML=[
     '<div class="card hero wide">',
-    '<h2><span>Submissions</span><span class="meta">'+(ib.newCount||0)+' new · '+(ib.total||0)+' total</span></h2>',
+    '<h2><span>Submissions</span><span class="meta">'+(ib.pendingOperationalReviewCount??ib.pendingReviewCount??ib.newCount??0)+' operational reviews · '+(ib.testCount??0)+' test · '+(ib.spamCount??0)+' spam · '+(ib.incompleteCount??0)+' incomplete</span></h2>',
     '<div class="meta">Newest: '+esc(age)+' ago · kinds: startup '+(ib.byKind&&ib.byKind.startup||0)+' · engineer '+(ib.byKind&&ib.byKind.engineer||0)+' · partner '+(ib.byKind&&ib.byKind.partner||0)+'</div>',
     '<div style="margin-top:.55rem;display:flex;gap:.4rem;flex-wrap:wrap">',
     '<button type="button" class="primary" id="btnInboxRefresh">Refresh inbox</button>',
-    '<button type="button" id="btnInboxNew">Show new only (CLI)</button>',
     '</div>',
     ib.error?'<div class="bad" style="margin-top:.4rem">'+esc(ib.error)+'</div>':'',
     '</div>',
+    analytics.available?'<div class="card wide"><h2>Form funnel <span class="meta">private · aggregate · 30d</span></h2>'+(funnel||'<div class="meta">No form events yet.</div>')+'</div>':'',
     '<div class="card wide">',
     '<h2>Queue (redacted)</h2>',
-    rows.length?'<table><thead><tr><th>Age</th><th>Kind</th><th>Status</th><th>Email</th><th>Headline</th><th></th></tr></thead><tbody>'+
+    rows.length?'<table><thead><tr><th>Age</th><th>Kind</th><th>Status</th><th>Match</th><th>Email</th><th>Headline</th><th>Source</th><th></th></tr></thead><tbody>'+
       rows.map(r=>{
         const ageSec=r.at?Math.round((Date.now()-Date.parse(r.at))/1000):null;
         const a=ageSec==null?'—':ageSec<3600?Math.round(ageSec/60)+'m':Math.round(ageSec/3600)+'h';
-        return '<tr><td>'+esc(a)+'</td><td>'+esc(r.kind)+'</td><td><span class="pill '+(r.status==='new'?'warn':'')+'">'+esc(r.status)+'</span></td><td class="meta">'+esc(r.email||'—')+'</td><td>'+esc(r.headline||'')+'</td><td><button type="button" data-draft="'+esc(r.id)+'">Draft</button></td></tr>';
+        const match=r.matchingReady===null||r.matchingReady===undefined?'—':r.matchingReady?'Ready':'Blocked · '+(r.matchingBlockers||[]).map(x=>String(x).replace(/-/g,' ')).join(', ');
+        return '<tr><td>'+esc(a)+'</td><td>'+esc(r.kind)+'</td><td><span class="pill '+(r.status==='new'?'warn':'')+'">'+esc(r.status)+'</span></td><td><span class="pill '+(r.matchingReady===false?'warn':'')+'">'+esc(match)+'</span></td><td class="meta">'+esc(r.email||'—')+'</td><td>'+esc(r.headline||'')+'</td><td class="meta">'+esc(inboxSource(r.attribution))+'</td><td><button type="button" data-draft="'+esc(r.id)+'">Copy draft cmd</button></td></tr>';
       }).join('')+'</tbody></table>':'<div class="meta">No submissions yet — empty is honest.</div>',
     '<div class="meta" style="margin-top:.5rem">CLI: <span class="cmd" style="display:inline">bin/dg-inbox</span> · draft: <span class="cmd" style="display:inline">bin/dg-inbox draft &lt;id&gt;</span></div>',
     '</div>',
@@ -1733,26 +1050,12 @@ function renderInbox(d){
     try{
       const response=await fetch('/api/inbox?refresh=1');
       if(!response.ok) throw new Error('Inbox refresh HTTP '+response.status);
-      await load(true);
+      if(!await load(true)) return;
       toast('Inbox refreshed','ok');
     }catch(e){toast(e.message,'bad');}
   };
   root.querySelectorAll('[data-draft]').forEach(btn=>{
-    btn.onclick=async()=>{
-      const id=btn.getAttribute('data-draft');
-      toast('Drafting '+id+'…');
-      try{
-        // run via jobs if available else copy cmd
-        await runJob('inbox'); // refresh
-        const r=await fetch('/api/status?force=1');
-        if(!r.ok) throw new Error('Status refresh HTTP '+r.status);
-        await navigator.clipboard.writeText('node demigod-intro-draft.mjs '+id);
-        toast('Copied draft cmd for '+id,'ok');
-      }catch(e){
-        try{ await navigator.clipboard.writeText('node demigod-intro-draft.mjs '+id); toast('Copied cmd','ok'); }
-        catch(_){ toast('Run: node demigod-intro-draft.mjs '+id,'warn'); }
-      }
-    };
+    btn.onclick=()=>copyText('node demigod-intro-draft.mjs '+btn.getAttribute('data-draft'));
   });
 }
 
@@ -1760,274 +1063,146 @@ function renderInbox(d){
 function renderOverview(d){
   const root=$('overviewRoot');
   if(!root) return;
-  const c=d.control||{};
-  const mods=c.modules||{};
-  const order=c.moduleOrder||['site','webflow','match','review','hygiene','ponytail','ship','swarm','orca'];
-  const spine=c.spine||[];
-  const health=c.health!=null?c.health:'—';
-  const hl=c.healthLabel||'';
-  const frozen=!!(c.frozen||(d.freeze&&d.freeze.on));
-  const board=c.board||{};
-  const lock=c.lock||{};
-  const fullPass=d.fullPass||{};
-  const lockLabel=lock.foot
-    ? ((lock.owner||'held')+(lock.compromised?' · COMPROMISED':''))
-    : 'free';
-  const lockClass=lock.compromised?'bad':(lock.foot?'warn':'');
+  const inbox=d.inbox||{};
+  const matchSummary=d.matches?.summary||{};
   const ck=d.cockpit||{};
-  const actions=d.actions||[];
-  const p0=actions.filter(a=>a.pri===0);
+  const diskVer=ck.foot?.diskVer||d.foot?.disk?.ver||'?';
+  const manifestVer=ck.foot?.manifestVer||d.foot?.manifest?.version||'?';
+  const liveVer=ck.live?.footVer||String(d.live?.foot||'?').replace(/^foot v?/,'');
+  const releaseMatch=/matches manifest|disk sha == manifest sha/i.test(d.foot?.liveMatchNote||'');
   const drift=d.foot&&d.foot.liveMatchNote&&/DRIFT|≠|unpublished/i.test(d.foot.liveMatchNote);
   const chainNode=(label,ok)=>'<span class="node '+(ok===true?'ok':ok===false?'bad':'')+'">'+esc(label)+'</span>';
-  const dem=d.demand||{};
-  const te=d.truthEvidence||{};
-  const orient=d.orient||{};
-  const orientAssertOk=orient.assertSame&&typeof orient.assertSame==='object'
-    ? orient.assertSame.ok===true
-    : orient.assertSame==='ok'||orient.assertSame===true;
-  const orientAssertLabel=orient.assertSame==null?'unknown':(orientAssertOk?'ok':'mismatch');
-  const orientDegraded=orient.degraded===true;
-  // The root freeze snapshot is refreshed independently of the orient receipt.
-  // Prefer it when present so a stale orient ON cannot mask a current OFF (or
-  // vice versa); cached/slim payloads can still fall back to orient.freeze.
-  const orientFreezeOn=typeof d.freeze?.on==='boolean'
-    ? d.freeze.on
-    : orient.freeze?.on===true;
-  const orientFreezeLabel=orientFreezeOn
-    ? 'ON'+((orient.freeze?.why||d.freeze?.why)?' · '+String(orient.freeze?.why||d.freeze?.why).slice(0,48):'')
-    : 'OFF';
-  // A matching NEXT is necessary but does not make the whole orient receipt
-  // green. Truth/freeze evidence can still require attention, so never paint
-  // the row green from assertSame alone.
-  const orientState=orientDegraded
-    ? 'warn'
-    : orient.assertSame==null
-      ? ''
-      : (!orientAssertOk?'bad':(orient.green===true?'ok':'warn'));
-  const orientReceiptAgeSec=Number.isFinite(orient.receiptAgeMs)
-    ? Math.max(0,Math.round(orient.receiptAgeMs/1000))
-    : null;
-  const orientReceiptLabel=orientReceiptAgeSec==null?'age unknown':age(orientReceiptAgeSec);
-  const orientGreenLabel=d.orient==null
-    ? 'unknown'
-    : orientDegraded
-      ? 'stale '+(orientReceiptAgeSec==null?'age unknown':age(orientReceiptAgeSec))
-      : (orient.green
-        ? 'green'
-        : 'attention'+(orient.greenReason?' · '+String(orient.greenReason).slice(0,48):''));
-  // Slim/cached status may carry this normalized on orient/root rather than
-  // under demand. Do not render "unknown" when that evidence is available.
-  const draftHygiene=(dem.drafts&&dem.drafts.hygiene)||
-    orient.demandDraftsHygiene||d.demandDraftsHygiene;
-  const draftHygieneStale=orient.demandDraftsHygieneStale??d.demandDraftsHygieneStale??true;
-  const draftHygieneAgeSec=orient.demandDraftsHygieneAgeSec??d.demandDraftsHygieneAgeSec??draftHygiene?.ageSec;
-  const draftHygieneVerdict=draftHygiene?.ok===true
-    ? 'clean '+(draftHygiene.clean??draftHygiene.checked??0)+'/'+(draftHygiene.checked??0)
-    : draftHygiene?.ok===false
-      ? 'flagged '+(draftHygiene.flagged??'?')
-      : 'unknown';
-  const draftHygieneLabel=draftHygiene
-    ? (draftHygieneStale
-      ? (draftHygiene.clockSkewed===true?'clock skew ':'stale ')+draftHygieneVerdict+(Number.isFinite(draftHygieneAgeSec)?' · '+age(draftHygieneAgeSec):'')
-      : draftHygieneVerdict)
-    : 'unknown';
-  const systemStrip =
-    '<div class="card wide" data-testid="system-strip">'+
-    '<h2><span>Control spine</span><span class="meta">human + agent</span></h2>'+
-    '<div class="meta">green='+(te.green?'yes':'no')+' · demand pending '+(dem.pending??'?')+' · SENT '+(dem.sentConfirmed??'?')+' · pilots '+(dem.pilotsFilled??'?')+' · draft hygiene '+esc(draftHygieneLabel)+'</div>'+
-    '<div class="meta '+orientState+'" data-testid="orient-card" role="status">'+
-    '<strong>orient '+orientGreenLabel+'</strong> · receipt '+esc(orientReceiptLabel)+' · assertSame '+orientAssertLabel+' · freeze '+esc(orientFreezeLabel)+'<br>'+
-    'truth policy '+esc(orient.greenMeans||'truth-seal-pass-fresh-only')+' · run '+esc(orient.evidenceRunId||'unknown')+'<br>'+
-    'NEXT '+esc((orient.next&&orient.next.id)||'unknown')+' · '+esc((orient.next&&(orient.next.title||orient.next.id))||'unknown')+
-    '</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">'+
-    [['orient','Orient'],['truth','Truth'],['demand','Demand'],['next-canon','NEXT'],['unify','Unify'],['ship-status','Ship'],['ledger','Ledger'],['evidence','Evidence']].map(([id,lab])=>
-      '<button type="button" data-home-job="'+id+'">'+lab+'</button>').join('')+
-    '<button type="button" data-tab-go="system">System tab</button>'+
-    '<button type="button" data-tab-go="tools">Tools</button>'+
-    '</div>'+
-    '<div class="meta" style="margin-top:.45rem">Agent: <code>curl -sS http://127.0.0.1:9878/api/orient</code> · <code>bin/dg orient</code></div>'+
+  const eventsOnline=d.eventsBot?.online;
+  const eventMetric=value=>value===true?'true':value===false?'false':'unknown';
+  const eventsApiLabel=!eventsOnline?'unobserved':eventsOnline.stale?'stale receipt':eventsOnline.public===false?'public route down':eventsOnline.nativeRsvpRoutes===false?'RSVP routes missing':eventsOnline.storeHygieneOk===false?'store hygiene failed'+(eventsOnline.storeHygieneHitCount==null?'':' ('+esc(eventsOnline.storeHygieneHitCount)+(eventsOnline.storeHygieneFirstHit?': '+esc(eventsOnline.storeHygieneFirstHit):'')+')'):eventsOnline.observation==='host_unobservable'?'host unobservable':eventsOnline.configPublished===false?'healthy, website config stale':eventsOnline.configPublished===null?'website config unverified':eventsOnline.certified?'certified':esc(eventsOnline.observation||'not certified');
+  const eventsApiAction=eventsOnline?.observation==='host_unobservable'?'Retry Events API check':'Certify Events API';
+  const eventsLifecycleBlocked=d.eventsBot?.lifecycleEvidenceMismatch||d.eventsBot?.venueTooSmall||d.eventsBot?.stage==='resource'&&!d.eventsBot?.audienceReady||d.eventsBot?.stage==='plan'&&!d.eventsBot?.futureDateTimeReady||d.eventsBot?.stage==='rsvp'&&!d.eventsBot?.inviteUrlRecorded;
+  const eventsLifecycleBlockReason=d.eventsBot?.lifecycleEvidenceMismatch?'Venue confirmation evidence is required':d.eventsBot?.venueTooSmall?'Venue capacity is below the event seat target':d.eventsBot?.stage==='resource'?'Record real audience and outcome wording with record_idea':d.eventsBot?.stage==='rsvp'?'A real guest invite URL is required':'Replace date alternatives with one real timezone-aware future SF datetime via record_schedule';
+  const eventsMissing=d.eventsBot?.resources?.missing||[];
+  const eventSubmissions=d.eventsBot?.submissions||{eventPending:0,startupPending:0,events:[],startups:[]};
+  const submissionRows=[...(eventSubmissions.events||[]).map(row=>({...row,kind:'event',label:row.title})),...(eventSubmissions.startups||[]).map(row=>({...row,kind:'startup',label:row.name}))];
+  const reviewUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:'';}catch{return '';}};
+  const reviewCard=row=>{
+    const label=(row.kind==='event'?'Event: ':'Startup: ')+(row.label||'Untitled');
+    const facts=row.kind==='event'
+      ? [row.startsAt||'Date not provided',row.venue||'Venue not provided',row.destination||'Destination unknown',row.seats?'capacity '+row.seats:'Capacity not provided',row.audience||'Audience not provided']
+      : [row.neighborhood||'Neighborhood not provided','hiring '+(row.hiring||'unknown')];
+    const description=row.details||row.description||'Description not provided';
+    const url=reviewUrl(row.externalUrl||row.website||'');
+    return '<details class="card" style="padding:.55rem"><summary><strong>'+esc(label)+'</strong> · '+esc(row.status||'unknown')+'</summary><div class="meta" style="margin-top:.45rem">'+facts.map(esc).join(' · ')+'</div><p class="meta">'+esc(description)+'</p>'+
+      (url?'<a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Open submitted link</a> ':'')+
+      (row.reviewNote?'<div class="meta">Review: '+esc(row.reviewNote)+'</div>':'')+
+      (['submitted','rejected'].includes(row.status)?'<button type="button" data-submission-review="approve" data-kind="'+row.kind+'" data-id="'+esc(row.id)+'" aria-label="Approve '+esc(label)+'">Approve</button> ':'')+
+      (['submitted','approved','verified'].includes(row.status)?'<button type="button" data-submission-review="reject" data-kind="'+row.kind+'" data-id="'+esc(row.id)+'" aria-label="Reject '+esc(label)+'">Reject</button>':'')+'</details>';
+  };
+  const submissionSummary='<div class="meta" style="margin:.45rem 0">Pending review · '+esc(eventSubmissions.eventPending)+' events · '+esc(eventSubmissions.startupPending)+' startups</div>'+
+    (submissionRows.length
+      ? '<details><summary>Review queue and recent decisions</summary><div style="display:grid;gap:.4rem;margin-top:.5rem">'+submissionRows.map(reviewCard).join('')+'</div></details>'
+      : '');
+  const eventsNext=eventsLifecycleBlocked?eventsLifecycleBlockReason:eventsMissing[0]||'Ready for the next planning pass';
+  const eventsDetails=
+    '<details style="margin-top:.65rem"><summary>System details</summary>'+
+    '<div class="meta" style="margin-top:.5rem">Events API: '+eventsApiLabel+' · invite destinations: Demigod native, Luma draft, Partiful draft</div>'+
+    '<div class="meta">eventsOperational '+eventMetric(eventsOnline?.eventsOperational)+' · prepareOnlyWebsiteConfig '+eventMetric(eventsOnline?.prepareOnlyWebsiteConfig)+' · preferredTunnelMatch '+eventMetric(eventsOnline?.preferredTunnelMatch)+'</div>'+
+    (d.eventsBot?.resources?'<div class="meta">Resources '+esc(d.eventsBot.resources.done)+'/'+esc(d.eventsBot.resources.total)+(eventsMissing.length?' · missing '+esc(eventsMissing.join('; ')):'')+' · queued drafts '+esc(d.eventsBot.resources.queuedDrafts||0)+'</div>':'')+
+    (d.eventsBot?.venueSelected?'<div class="meta">Venue '+(d.eventsBot.venueConfirmed?'confirmed':'selected, confirmation needed')+(d.eventsBot.venueCapacity?' · capacity '+esc(d.eventsBot.venueCapacity):'')+'</div>':'')+
+    (['rsvp','run','followup','debrief'].includes(d.eventsBot?.stage)?'<div class="meta">Invite '+(d.eventsBot.inviteUrlRecorded?'ready':'missing')+' · RSVPs '+esc(d.eventsBot.rsvpsConfirmed??'unknown')+(d.eventsBot.seatsRemaining==null?'':' · '+esc(d.eventsBot.seatsRemaining)+' seats left')+'</div>':'')+
+    '<div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap">'+
+    (d.eventsBot?.inviteUrl?'<a class="btn" href="'+esc(d.eventsBot.inviteUrl)+'" target="_blank" rel="noopener">Open guest invite</a> <button type="button" data-copy-cli="'+esc(d.eventsBot.inviteUrl)+'">Copy guest invite</button> ':'')+
+    (d.eventsBot?.inviteUrlRecorded&&d.eventsBot?.inviteDrain?.stale?'<button type="button" data-run-job="events-invite-drain">Refresh invite drain</button> ':'')+
+    (!d.eventsBot?.online?.certified?'<button type="button" data-run-job="events-online-status">'+eventsApiAction+'</button> ':'')+
+    (d.eventsBot?.online?.needHeal?'<button type="button" data-copy-cli="node demigod-events-online.mjs heal">Copy API heal command</button> ':'')+
+    (d.eventsBot?.active?'<button type="button" data-run-job="events-outbox-status">Check resource drafts</button>':'')+
+    '</div></details>';
+  const dashboardRuntime=d.dashboardRuntime||{};
+  const cycleHealth=d.cycleWorkHealth||d.cycleWork||{};
+  const cycleChecks=Array.isArray(cycleHealth.checks)?cycleHealth.checks:[];
+  const cycleCheckLines=cycleChecks.slice(0,8).map(c=>{
+    const exitLabel=Number.isInteger(c.exit)?c.exit:'unknown';
+    const name=c.name||c.id||c.check||'check';
+    return esc(name)+' · exit '+esc(exitLabel);
+  });
+  const dashboardStatusCard=
+    '<div class="card wide'+(dashboardRuntime.restartRequired?' alert':'')+'">'+
+    '<h2>Dashboard status</h2>'+
+    '<div class="meta">Running source '+esc((dashboardRuntime.running?.sha256||'unknown').slice(0,12))+
+    ' · disk '+esc((dashboardRuntime.disk?.sha256||'unknown').slice(0,12))+'</div>'+
+    (dashboardRuntime.restartRequired
+      ? '<div class="bad" style="margin-top:.45rem">Restart required · <code>'+esc(dashboardRuntime.restartCommand)+'</code></div>'
+      : '<div class="ok" style="margin-top:.45rem">Running source matches disk</div>')+
+    (cycleCheckLines.length
+      ? '<div class="meta" style="margin-top:.45rem">Cycle checks · '+cycleCheckLines.join(' · ')+'</div>'
+      : '')+
     '</div>';
-
-  // freeze banner (global chrome)
-  const fb=document.getElementById('freezeBanner');
-  if(fb){
-    fb.classList.toggle('on', frozen);
-    const meta=document.getElementById('freezeBannerMeta');
-    if(meta) meta.textContent=(c.freezeWhy||(d.freeze&&d.freeze.why)||'')+
-      (c.freezeBy?' · by '+c.freezeBy:'')+
-      (c.freezeAt?' · '+(c.freezeAt||'').slice(0,19):'');
-    const sm=document.getElementById('sessionModePill');
-    if(sm){
-      sm.textContent=c.sessionMode||(frozen?'read-only':'read-write');
-      sm.className='session-pill '+(frozen?'ro':'rw');
-    }
-  }
-
-  const modCards=order.map(id=>{
-    const m=mods[id]||{};
-    const ok=m.ok===true?'ok':m.ok===false?'bad':'';
-    const accent=m.accent||'var(--gold)';
-    const acts=(m.actions||[]).map(a=>
-      '<button type="button" data-job="'+(a.job?esc(a.job):'')+'" data-tab-go="'+(a.tab?esc(a.tab):'')+'">'+esc(a.label||a.id)+'</button>'
-    ).join('');
-    return '<div class="mod-card" data-mod="'+esc(id)+'" tabindex="0" style="--mod-accent:'+accent+'" data-module="'+esc(id)+'">'+
-      '<div class="mod-head"><div><span class="mod-emoji">'+(m.emoji||'·')+'</span> <h3>'+esc(m.title||id)+'</h3>'+
-      '<div class="mod-why">'+esc(m.why||'')+(m.key?' · <kbd>g '+esc(m.key)+'</kbd>':'')+'</div></div>'+
-      '<span class="pill '+ok+'">'+(m.ok===true?'ok':m.ok===false?'issue':'—')+'</span></div>'+
-      '<div class="mod-detail">'+esc(String(m.detail||'—'))+'</div>'+
-      (m.metrics&&mode==='agent'?'<div class="meta" style="margin-top:.35rem">'+esc(JSON.stringify(m.metrics).slice(0,120))+'</div>':'')+
-      '<div class="mod-actions">'+acts+
-      '<button type="button" class="ghost" data-copy-cli="'+esc(m.cli||'')+'">Copy CLI</button></div>'+
-      (mode==='agent'&&m.cli?'<div class="mod-cli cmd" style="display:block">'+esc(m.cli)+'</div>':'')+
-      '</div>';
-  }).join('');
-
-  const spineHtml=spine.length?spine.map((s,i)=>
-    '<div class="spine-step">'+
-    '<div class="spine-num">'+(s.pri!=null?s.pri:i)+'</div>'+
-    '<div><strong>'+esc(s.title)+'</strong>'+
-    (s.module?' <span class="pill">'+esc(s.module)+'</span>':'')+
-    '<div class="cmd" style="margin-top:.3rem">'+esc(s.cmd||'')+'</div></div>'+
-    '<div style="display:flex;gap:.3rem;flex-wrap:wrap">'+
-    (s.job?'<button type="button" class="primary" data-spine-job="'+esc(s.job)+'">Run</button>':'')+
-    (s.tab?'<button type="button" data-tab-go="'+esc(s.tab)+'">Open</button>':'')+
-    '<button type="button" data-copy-cli="'+esc(s.cmd||'')+'">Copy</button>'+
-    '</div></div>'
-  ).join(''):'<div class="meta">Spine empty — hit Refresh</div>';
-
   // Compact hash chain (always useful, not a second home)
   const chainCard=
     '<div class="card wide'+(drift?' alert':'')+'">'+
     '<h2>Site chain <span class="meta">disk → CDN → live</span></h2>'+
     '<div class="chain">'+
-    chainNode('disk v'+(ck.foot&&ck.foot.diskVer||d.foot&&d.foot.disk&&d.foot.disk.ver||'?'), true)+
+    chainNode('disk v'+diskVer, true)+
     '<span class="arrow">→</span>'+
-    chainNode('man '+String(ck.foot&&ck.foot.manId||'?').slice(0,10), ck.foot&&ck.foot.diskMatchesManifest)+
+    chainNode('manifest v'+manifestVer, ck.foot?.diskMatchesManifest??releaseMatch)+
     '<span class="arrow">→</span>'+
-    chainNode('live '+String(ck.live&&ck.live.cdnId||d.live&&d.live.cdnId||'?').slice(0,10), ck.live&&ck.live.liveEqManId)+
-    '<span class="arrow">→</span>'+
-    chainNode('ver '+(ck.live&&ck.live.footVer||d.live&&d.live.foot||'?'), ck.live&&ck.live.liveEqDiskVer)+
+    chainNode('live v'+liveVer, ck.live?.liveEqDiskVer??String(liveVer)===String(diskVer))+
     '</div>'+
     '<div style="margin-top:.55rem;display:flex;gap:.4rem;flex-wrap:wrap">'+
     '<button type="button" class="primary" id="btnSmokeHome">Check site</button>'+
-    '<button type="button" id="btnGoInboxHome">Inbox'+(d.inbox&&d.inbox.newCount?' · '+esc(d.inbox.newCount):'')+'</button>'+
+    '<button type="button" id="btnGoInboxHome">Inbox'+(d.inbox&&(d.inbox.pendingOperationalReviewCount??0)?' · '+esc(d.inbox.pendingOperationalReviewCount):'')+'</button>'+
     '<button type="button" id="btnGoMatchesHome">Matches</button>'+
     '</div></div>';
 
   root.innerHTML=[
-    '<div class="card hero wide plane-hero">',
+    '<div class="card hero wide">',
+    '<h2>Signals</h2>',
     '<div>',
-    '<h2 style="font-family:var(--serif);font-size:1.45rem;text-transform:none;letter-spacing:.01em;font-weight:400;margin:0 0 .35rem">Demigod <span style="color:var(--gold);font-style:italic">home</span></h2>',
-    '<div class="meta">Control plane + ops · one place · <span class="cmd" style="display:inline">bin/dg home</span></div>',
-    '<div class="board-badges">',
-    '<span class="pill '+(board.honestyPass?'ok':'')+'">board roles '+esc(board.roles!=null?board.roles:'?')+' · real '+esc(board.realRoles!=null?board.realRoles:'?')+'</span>',
-    '<span class="pill '+lockClass+'" title="'+esc(lock.foot
-      ? ('owner alive='+(lock.ownerAlive==null?'unknown':lock.ownerAlive)+'; owner has edited='+Boolean(lock.changedSinceClaim)+'; ttl '+(lock.ttlLeftSec??'?')+'s')
-      : 'No active foot-core lease')+'">foot lock: '+esc(lockLabel)+'</span>',
-    '<span class="pill '+(fullPass.mode==='run'?'ok':'')+'">full pass '+esc(fullPass.mode||'unknown')+' · cycle '+esc(fullPass.cycles??'?')+'</span>',
-    '<span class="pill">schema '+esc(c.schema||'control/2')+'</span>',
-    '</div>',
-    '<div style="margin-top:.65rem;display:flex;gap:.4rem;flex-wrap:wrap">',
-    '<button type="button" class="primary" id="btnPlaneRefresh">Refresh</button>',
-    '<button type="button" id="btnPlaneHygiene">Hygiene</button>',
-    '<button type="button" id="btnPlaneReview">Review</button>',
-    '<button type="button" id="btnPlaneWebflow">Webflow</button>',
-    '<button type="button" id="btnCopyPlaneCli">Copy bin/dg home</button>',
-    '</div></div>',
-    '<div style="text-align:center">',
-    '<div class="health-ring '+esc(hl)+'" title="Ops health">'+esc(String(health))+'</div>',
-    '<div class="meta" style="margin-top:.35rem">health</div>',
-    '<div class="session-pill '+(frozen?'ro':'rw')+'" style="margin-top:.4rem">'+esc(c.sessionMode||(frozen?'read-only':'read-write'))+'</div>',
-    '</div></div>',
+    '<div><strong>'+esc(inbox.operationalCount??0)+'</strong> <span class="meta">operational submissions</span></div>',
+    '<div><strong>'+esc(inbox.pendingOperationalReviewCount??inbox.pendingReviewCount??0)+'</strong> <span class="meta">operational reviews</span></div>',
+    '<div><strong>'+esc(matchSummary.realCount??0)+'</strong> <span class="meta">real matches</span></div>',
+    '</div><div class="demand-row" id="demandChips" aria-label="Demand status"></div></div>',
 
-    systemStrip,
-
-    '<div class="card wide">',
-    '<h2>Webflow <span class="meta">custom code workbench</span></h2>',
-    '<div style="display:flex;gap:.4rem;flex-wrap:wrap">',
-    '<button type="button" data-wf-job="webflow-doctor">Doctor</button>',
-    '<button type="button" data-wf-job="webflow-open-code">Open custom code</button>',
-    '<button type="button" data-wf-job="ship-prepare">Ship prepare</button>',
-    '<button type="button" data-wf-job="webflow-paste-check">Paste check</button>',
-    '</div></div>',
-
-    '<div class="card wide hero">',
-    '<h2>What agents are working on <span class="meta">live · auto-refresh</span></h2>',
-    '<div class="meta" id="coordStrip">Loading /api/coord…</div>',
-    '<div id="agentWorkLog"><div class="meta">Loading agent work summary…</div></div>',
-    '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.55rem;align-items:center">',
-    '<button type="button" data-run-job="coord-status">Refresh coord</button>',
-    '<button type="button" id="btnCoordMap">Workflow map</button>',
-    '<a class="meta" href="/api/coord?pretty=1" target="_blank" rel="noopener">Raw JSON</a>',
-    '<a class="meta" href="/api/maps/agents" target="_blank" rel="noopener">Diagram MD</a>',
-    '</div></div>',
-
-    '<div class="card wide">',
-    '<h2>Do this next <span class="meta">spine</span></h2>',
-    '<div class="spine">'+spineHtml+'</div>',
-    '</div>',
+    (d.eventsBot?.active
+      ? '<div class="card wide" id="eventsBotCard"><h2 id="eventsBotTitle">Events Bot <span class="meta">private operator</span></h2>'+
+        '<div><strong>'+esc(d.eventsBot.title)+'</strong> <span class="pill">'+esc(d.eventsBot.stage||'stage unknown')+'</span></div>'+
+        '<div class="meta" id="eventsBotStatus" role="status" aria-live="polite" style="margin:.45rem 0">'+esc(eventsNext)+'</div>'+
+        '<div class="meta" id="eventsBotSafety" style="margin-bottom:.65rem">Private planning only. Nothing is sent, published, booked, or charged.</div>'+
+        submissionSummary+
+        '<button type="button" class="primary" data-event-primary="1"'+(eventsLifecycleBlocked?' disabled title="'+esc(eventsLifecycleBlockReason)+'"':'')+' style="width:100%;min-height:48px">'+(eventsLifecycleBlocked?'Planning paused · '+esc(eventsLifecycleBlockReason):'Continue planning')+'</button>'+
+        eventsDetails+'</div>'
+      : '<div class="card wide" id="eventsBotCard"><h2 id="eventsBotTitle">Event &amp; startup submissions</h2>'+
+        '<div class="meta" id="eventsBotSafety">Public forms feed reviewed drafts here. Nothing auto-publishes.</div>'+
+        submissionSummary+
+        '<div id="eventsBotStatus" role="status" aria-live="polite" aria-atomic="true"></div>'+eventsDetails+'</div>'),
 
     chainCard,
-
-    '<div class="card wide">',
-    '<h2>Modules <span class="meta">g then letter</span></h2>',
-    '<div class="mod-grid">'+modCards+'</div>',
-    '</div>',
-
-    mode==='agent' ? (
-      '<div class="card wide agent-only">'+
-      '<h2>Agent contracts</h2>'+
-      '<div class="row"><span class="k">CLI</span><span class="v"><span class="cmd" style="display:inline">bin/dg home</span></span></div>'+
-      '<div class="row"><span class="k">API</span><span class="v"><a href="/api/orient" target="_blank">/api/orient</a> · <a href="/api/control" target="_blank">/api/control</a> · <a href="/api/status?slim=1" target="_blank">/api/status</a></span></div>'+
-      '<div class="row"><span class="k">Brief</span><span class="v"><a href="/api/agent-brief" target="_blank">/api/agent-brief</a> · <a href="/api/ledger" target="_blank">/api/ledger</a></span></div>'+
-      (p0.length?'<div class="meta" style="margin-top:.5rem">P0 actions: '+p0.length+' (see Diagnostics tools)</div>':'')+
-      '</div>'
-    ) : (
-      '<div class="card wide"><h2>Tip</h2>'+
-      '<div class="meta">Use <strong>Do this</strong> in the bar above for the single next step. Open <strong>Inbox</strong> / <strong>Matches</strong> for work queues. Diagnostics adds tools & agent APIs.</div></div>'
-    ),
+    dashboardStatusCard,
   ].join('');
 
-  const br=$('btnPlaneRefresh');
-  if(br) br.onclick=async()=>{ toast('Refreshing…'); try{ const r=await fetch('/api/control'); if(!r.ok) throw new Error('Control refresh HTTP '+r.status); await load(true); toast('Home ready','ok'); }catch(e){toast(e.message,'bad');} };
-  const bh=$('btnPlaneHygiene'); if(bh) bh.onclick=()=>runJob('hygiene');
-  const brr=$('btnPlaneReview'); if(brr) brr.onclick=()=>runJob('review');
-  const bw=$('btnPlaneWebflow'); if(bw) bw.onclick=()=>runJob('webflow-doctor');
-  const bc=$('btnCopyPlaneCli'); if(bc) bc.onclick=()=>copyText('bin/dg home');
   const bs=$('btnSmokeHome'); if(bs) bs.onclick=()=>runSmoke();
   const bi=$('btnGoInboxHome'); if(bi) bi.onclick=()=>setTab('inbox');
   const bm=$('btnGoMatchesHome'); if(bm) bm.onclick=()=>setTab('matches');
-  const bmap=$('btnCoordMap'); if(bmap) bmap.onclick=()=>{ setTab('map'); loadMap('agents'); };
   root.querySelectorAll('[data-run-job]').forEach(btn=>{
-    btn.onclick=()=>runJob(btn.getAttribute('data-run-job'), {mutate:false, btn});
+    btn.onclick=()=>{const id=btn.getAttribute('data-run-job');runJob(id,{mutate:['events-invite-drain','events-tick'].includes(id),btn});};
+  });
+  root.querySelectorAll('[data-event-primary]').forEach(btn=>{
+    btn.onclick=()=>runJob('events-tick',{mutate:true,btn});
   });
 
-  root.querySelectorAll('[data-job]').forEach(btn=>{
-    btn.onclick=()=>{ const j=btn.getAttribute('data-job'); if(j) runJob(j); };
-  });
-  root.querySelectorAll('[data-spine-job]').forEach(btn=>{
-    btn.onclick=()=>runJob(btn.getAttribute('data-spine-job'));
-  });
-  root.querySelectorAll('[data-tab-go]').forEach(btn=>{
-    btn.onclick=()=>{ const t=btn.getAttribute('data-tab-go'); if(t) setTab(t); };
-  });
-  root.querySelectorAll('[data-mod]').forEach(card=>{
-    const go=()=>{ const id=card.getAttribute('data-mod');
-      const map={site:'overview',webflow:'overview',match:'matches',review:'gates',hygiene:'system',ship:'roadmap',swarm:'swarm',orca:'system'};
-      setTab(map[id]||'overview');
-      if(id==='review') runJob('review');
-      if(id==='hygiene') runJob('hygiene');
-      if(id==='webflow') runJob('webflow-doctor');
+  root.querySelectorAll('[data-submission-review]').forEach(btn=>{
+    btn.onclick=async()=>{
+      const decision=btn.getAttribute('data-submission-review');
+      const note=window.prompt('Review note for '+decision+':','');
+      if(note==null||!note.trim()) return;
+      btn.disabled=true;
+      try{
+        const response=await fetch('/api/events/submission-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:btn.getAttribute('data-kind'),id:btn.getAttribute('data-id'),decision,note})});
+        const result=await response.json();
+        if(!response.ok) throw new Error(result.error||'Review failed');
+        toast('Submission '+result.submission.status,'ok');
+        await load(true);
+      }catch(error){btn.disabled=false;toast(error.message,'bad');}
     };
-    card.onclick=go; card.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } };
   });
-  root.querySelectorAll('[data-home-job]').forEach(btn=>{
-    btn.onclick=()=>runJob(btn.getAttribute('data-home-job'));
-  });
-  root.querySelectorAll('[data-wf-job]').forEach(btn=>{
-    btn.onclick=()=>runJob(btn.getAttribute('data-wf-job'));
-  });
+
   root.querySelectorAll('[data-copy-cli]').forEach(btn=>{
     btn.onclick=()=>copyText(btn.getAttribute('data-copy-cli')||'');
   });
@@ -2039,15 +1214,15 @@ function renderMatches(d){
   const m=d.matches||{};
   const pairs=m.pairs||[];
   const by=m.summary&&m.summary.byState||{};
-  const total=m.summary&&m.summary.total!=null?m.summary.total:pairs.length;
+  const total=pairs.length;
+  const hiddenSamples=m.summary&&m.summary.sampleCount||0;
   root.innerHTML=[
     '<div class="card hero wide">',
-    '<h2><span>Match review queue</span><span class="meta">'+esc(String(total))+' pairs</span></h2>',
+    '<h2><span>Match review queue</span><span class="meta">'+esc(String(total))+' visible'+(hiddenSamples?' · '+esc(String(hiddenSamples))+' samples hidden':'')+'</span></h2>',
     '<div class="meta">proposed '+(by.proposed||0)+' · approved '+(by.approved||0)+' · mutual_yes '+(by.mutual_yes||0)+' · rejected '+(by.rejected||0)+' · deferred '+(by.deferred||0)+'</div>',
     '<div class="meta" style="margin-top:.25rem">Not the public board. Review before intro draft. Freeze-safe local ledger.</div>',
     '<div style="margin-top:.55rem;display:flex;gap:.4rem;flex-wrap:wrap">',
     '<button type="button" class="primary" id="btnMatchRefresh">Refresh queue</button>',
-    '<button type="button" id="btnMatchSeed">Seed fixtures</button>',
     '<button type="button" id="btnAutoPropose">Auto-propose from inbox</button>',
     '</div>',
     m.error?'<div class="bad" style="margin-top:.4rem">'+esc(m.error)+'</div>':'',
@@ -2061,6 +1236,7 @@ function renderMatches(d){
         const st=p.state||'?';
         const pill=st==='approved'||st==='mutual_yes'?'ok':st==='rejected'?'bad':st==='proposed'?'warn':'';
         const mut=p.mutual||{};
+        const canConsent=st==='approved'||st==='mutual_yes';
         const mutLab=(mut.founder?'F':'·')+(mut.candidate?'C':'·');
         return '<tr data-pair="'+esc(p.pairId)+'">'+
           '<td>'+esc(sc)+'</td>'+
@@ -2073,13 +1249,14 @@ function renderMatches(d){
             '<button type="button" data-rev="approve" data-id="'+esc(p.pairId)+'">Approve</button> '+
             '<button type="button" data-rev="reject" data-id="'+esc(p.pairId)+'">Reject</button> '+
             '<button type="button" data-rev="defer" data-id="'+esc(p.pairId)+'">Defer</button>':'')+
-          (st!=='rejected'?
-            '<button type="button" data-consent="founder" data-id="'+esc(p.pairId)+'" aria-label="Record founder consent for '+esc(p.pairId)+'" title="Founder consent">F✓</button> '+
+          (canConsent&&!mut.founder?
+            '<button type="button" data-consent="founder" data-id="'+esc(p.pairId)+'" aria-label="Record founder consent for '+esc(p.pairId)+'" title="Founder consent">F✓</button> ':'')+
+          (canConsent&&!mut.candidate?
             '<button type="button" data-consent="candidate" data-id="'+esc(p.pairId)+'" aria-label="Record candidate consent for '+esc(p.pairId)+'" title="Candidate consent">C✓</button> ':'')+
           (st==='approved'||st==='mutual_yes'?
             '<button type="button" class="primary" data-intro-run="'+esc(p.pairId)+'">Intro draft</button>':'')+
           '</td></tr>';
-      }).join('')+'</tbody></table>':'<div class="meta">No pairs — seed fixtures or propose via CLI.</div>',
+      }).join('')+'</tbody></table>':'<div class="meta">No real pairs in this queue. Propose from the inbox or use the CLI.</div>',
     '<div class="meta" style="margin-top:.5rem">CLI: <span class="cmd" style="display:inline">bin/dg-matches list</span> · POST consent/review/intro · no HTTP --force</div>',
     '</div>',
   ].join('');
@@ -2093,32 +1270,13 @@ function renderMatches(d){
       toast('Matches refreshed','ok');
     }catch(e){toast(e.message,'bad');}
   };
-  const bs=document.getElementById('btnMatchSeed');
-  if(bs) bs.onclick=async()=>{
-    toast('Seeding fixtures…');
-    try{
-      await runJob('match-review');
-      const r=await fetch('/api/matches?refresh=1');
-      if(!r.ok) throw new Error('Matches refresh HTTP '+r.status);
-      await load(true);
-      toast('Queue ready','ok');
-    }catch(e){toast(e.message,'bad');}
-  };
   const ba=document.getElementById('btnAutoPropose');
-  if(ba) ba.onclick=async()=>{
-    toast('Auto-proposing pairs…');
-    try{
-      await runJob('auto-propose');
-      const r=await fetch('/api/matches?refresh=1');
-      if(!r.ok) throw new Error('Matches refresh HTTP '+r.status);
-      await load(true);
-      toast('Auto-propose done','ok');
-    }catch(e){toast(e.message,'bad');}
-  };
+  if(ba) ba.onclick=()=>runJob('auto-propose',{mutate:true,btn:ba});
   root.querySelectorAll('[data-rev]').forEach(btn=>{
     btn.onclick=async()=>{
       const id=btn.getAttribute('data-id');
       const decision=btn.getAttribute('data-rev');
+      if(decision==='reject'&&!window.confirm('Reject this match permanently? This cannot be undone.')) return;
       toast(decision+' '+id.slice(0,8)+'…');
       try{
         const r=await fetch('/api/matches',{
@@ -2137,12 +1295,14 @@ function renderMatches(d){
     btn.onclick=async()=>{
       const id=btn.getAttribute('data-id');
       const side=btn.getAttribute('data-consent');
+      const evidence=window.prompt('Evidence that '+side+' consented (message, call, or receipt note):','');
+      if(evidence==null) return;
       toast(side+' consent '+id.slice(0,8)+'…');
       try{
         const r=await fetch('/api/matches',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'consent',pairId:id,side,actor:'dashboard'}),
+          body:JSON.stringify({action:'consent',pairId:id,side,actor:'dashboard',attested:true,evidence}),
         });
         const j=await r.json();
         if(!j.ok) throw new Error(j.error||'fail');
@@ -2177,28 +1337,16 @@ function renderShipRoadmap(d){
   if(!root) return;
   const sc = d.shipChecklist || {};
   const items = sc.items || [];
-  const rd = d.roadmap || {};
-  const ev = d.events || [];
+  const freezeOn=sc.freezeOn??sc.frozen??d.freeze?.on??true;
   root.innerHTML = [
-    '<div class="card '+(sc.ready && !sc.freezeOn ? '' : 'warn')+' wide">',
-    '<h2><span>Ship readiness</span><span class="meta">'+(sc.ready && !sc.freezeOn ? 'READY' : (sc.freezeOn ? 'FROZEN' : 'BLOCKED'))+'</span></h2>',
+    '<div class="card '+(sc.ready && !freezeOn ? '' : 'warn')+' wide">',
+    '<h2><span>Ship readiness</span><span class="meta">'+(sc.ready && !freezeOn ? 'READY' : (freezeOn ? 'FROZEN' : 'BLOCKED'))+'</span></h2>',
     items.length ? items.map(i => '<div class="row"><span class="k">'+esc(i.title)+'</span><span class="v '+(i.block?'bad':i.warn?'warn':'ok')+'">'+esc(i.detail)+'</span></div>').join('') : '<div class="meta">No checklist yet</div>',
     '<div class="cmd" style="margin-top:.5rem">'+esc(sc.nextCmd||'')+'</div>',
     '<div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap">',
     '<button type="button" class="primary" id="btnShipCheck">Refresh checklist</button>',
     '<button type="button" id="btnDoctor">Run doctor</button>',
     '</div></div>',
-    '<div class="card wide">',
-    '<h2>Sprint '+(esc(rd.sprint||'A'))+'</h2>',
-    (rd.items||[]).map(i => '<div class="row"><span class="k">'+esc(i.title)+'</span><span class="v '+(i.done?'ok':'warn')+'">'+(i.done?'done':'todo')+'</span></div>').join('') || '<div class="meta">—</div>',
-    '<div class="meta" style="margin-top:.5rem">doc: <span class="cmd" style="display:inline">'+esc(rd.doc||'docs/exchange/DEMIGOD-BACKLOG-HUGE.md')+'</span></div>',
-    '</div>',
-    '<div class="card wide">',
-    '<h2>Events</h2>',
-    ev.length ? '<table><thead><tr><th>When</th><th>Type</th><th>Message</th></tr></thead><tbody>'+
-      ev.slice(0,16).map(e=>'<tr><td class="meta">'+esc((e.at||'').slice(11,19))+'</td><td>'+esc(e.type)+'</td><td>'+esc(e.message)+'</td></tr>').join('')+
-      '</tbody></table>' : '<div class="meta">No events yet — run a job or post a handoff</div>',
-    '</div>',
   ].join('');
   const b1=document.getElementById('btnShipCheck');
   if(b1) b1.onclick=()=>runJob('ship-checklist');
@@ -2206,7 +1354,21 @@ function renderShipRoadmap(d){
   if(b2) b2.onclick=()=>runJob('doctor');
 }
 
-function render(d, { light = false } = {}){
+function renderActivePanel(d){
+  if(activeTab==='overview') renderOverview(d);
+  else if(activeTab==='handoff'){
+    renderWorkLog(d);
+    renderHandoffs(d);
+    if($('workerDetails')?.open) renderSwarm(d);
+  }else if(activeTab==='inbox') renderInbox(d);
+  else if(activeTab==='matches') renderMatches(d);
+  else if(activeTab==='roadmap'){
+    renderShipRoadmap(d);
+    if($('evidenceDetails')?.open) renderGates(d);
+  }
+}
+
+function render(d){
   lastData = d;
   if(pendingActivityEvents.length){
     const queued=pendingActivityEvents;
@@ -2219,25 +1381,14 @@ function render(d, { light = false } = {}){
   renderHdr(d);
   renderNextBar(d);
   renderPriorityBoard(d);
-  try{loadCoord();}catch(e){}
-
   renderJobStrip(d);
+  renderActivePanel(d);
   renderGlance(d);
   $('stamp').textContent =
     'Updated '+new Date(d.at).toLocaleString()+
     (d.timing&&d.timing.collectMs!=null?' · '+d.timing.collectMs+'ms':'')+
     (d.cached?' · cached':'')+
-    (d.slim?' · slim':'')+
-    ' · '+(mode==='simple'?'Focus':'Full');
-  if (light) return; // pulse unchanged — skip heavy panels
-  renderOverview(d);
-  renderHandoffs(d);
-  renderInbox(d);
-  renderMatches(d);
-  renderShipRoadmap(d);
-  renderSwarm(d);
-  renderGates(d);
-  if (activeTab === 'system') renderSystem(d);
+    (d.slim?' · slim':'');
 }
 
 async function load(force){
@@ -2248,30 +1399,27 @@ async function load(force){
   const request = (async()=>{
     try{
       // Poll uses slim+no force (fast cache). Refresh button uses force full.
-      const qs = force
-        ? 'force=1&t='+Date.now()
-        : 'slim=1&t='+Date.now();
+      const qs = 'ui=1'+(force?'&force=1':'')+'&t='+Date.now();
       const r = await fetch('/api/status?'+qs, {signal:ctrl.signal});
       if(!r.ok) throw new Error('HTTP '+r.status);
       const d = await r.json();
-      if(gen!==loadGen) return;
+      if(gen!==loadGen) return false;
       try {
-        const pk = d.pulseKey || '';
-        const light = !force && pk && pk === lastPulseKey && lastData;
-        lastPulseKey = pk || lastPulseKey;
-        render(d, { light: !!light });
+        render(d);
         failStreak=0;
         pollMs = document.hidden ? 90000 : 45000;
+        return true;
       }
-      catch(re){ console.error(re); toast('Render: '+re.message,'bad'); }
+      catch(re){ console.error(re); toast('Render: '+re.message,'bad'); return false; }
     }catch(e){
-      if(gen!==loadGen) return;
+      if(gen!==loadGen) return false;
       failStreak++;
       pollMs = Math.min(120000, 45000 * Math.pow(1.5, failStreak));
       const msg = e.name==='AbortError'?'timed out':(e.message||String(e));
       if(!lastData) $('overviewRoot').innerHTML = '<div class="card alert wide"><h2>Load failed</h2><div class="bad">'+esc(msg)+'</div></div>';
       else toast('Refresh failed (kept last view): '+msg, 'bad');
       $('stamp').textContent = 'Load failed: '+msg;
+      return false;
     }finally{
       clearTimeout(timer);
       // A forced refresh may supersede an older request. Only the request that
@@ -2286,7 +1434,7 @@ async function load(force){
 
 async function loadTools(){
   try{
-    const r=await fetch('/api/tools?'+toolsQuery()+'&t='+Date.now());
+    const r=await fetch('/api/tools?t='+Date.now());
     const body=await r.json().catch(()=>null);
     if(!r.ok) throw new Error(body&&body.error||('tools API HTTP '+r.status));
     if(!body||!Array.isArray(body.tools)) throw new Error('tools API returned an invalid catalog');
@@ -2294,11 +1442,185 @@ async function loadTools(){
     if ($('toolsSearch') && !$('toolsSearch')._bound) {
       $('toolsSearch')._bound = true;
       $('toolsSearch').addEventListener('input', ()=>{ if (toolsCache) renderTools(toolsCache); });
-      if ($('toolsHideAlias')) $('toolsHideAlias').addEventListener('change', ()=>loadTools());
-      if ($('toolsHotOnly')) $('toolsHotOnly').addEventListener('change', ()=>loadTools());
       if ($('btnToolsRefresh')) $('btnToolsRefresh').onclick=()=>loadTools();
     }
   }catch(e){ $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
+}
+
+function renderStartupAtlasState(title, message, kind){
+  const root=$('startupMapRoot');
+  if(!root) return;
+  root.innerHTML='<div class="card wide '+(kind==='bad'?'alert':'')+'">'+
+    '<h2><span>'+esc(title)+'</span><button type="button" id="btnAtlasReload">Try again</button></h2>'+
+    '<div class="'+(kind==='bad'?'bad':'meta')+'">'+esc(message)+'</div></div>';
+  $('btnAtlasReload').onclick=()=>loadStartupAtlas();
+}
+
+async function loadStartupAtlas(){
+  if(startupAtlasInflight) return startupAtlasInflight;
+  const root=$('startupMapRoot');
+  if(root) root.innerHTML='<div class="card wide"><h2>SF startup atlas</h2><div class="skel block"></div></div>';
+  const request=(async()=>{
+    try{
+      const r=await fetch('/api/startup-atlas?t='+Date.now());
+      const body=await r.json().catch(()=>null);
+      if(!r.ok){
+        startupAtlasCache=body||{status:'invalid'};
+        if(r.status===404&&body?.status==='not_generated'){
+          renderStartupAtlasState('SF startup atlas',body.message||'The atlas has not been generated yet.','empty');
+          return;
+        }
+        throw new Error(body?.message||('startup atlas API HTTP '+r.status));
+      }
+      if(body?.schema!=='demigod.sf-startup-atlas/1'||!Array.isArray(body.companies)||!Array.isArray(body.neighborhoods)){
+        throw new Error('startup atlas API returned an invalid projection');
+      }
+      startupAtlasCache=body;
+      startupAtlasNeighborhood='';
+      renderStartupAtlas(body);
+    }catch(error){
+      renderStartupAtlasState('Atlas unavailable',error.message||String(error),'bad');
+    }finally{
+      if(startupAtlasInflight===request) startupAtlasInflight=null;
+    }
+  })();
+  startupAtlasInflight=request;
+  return request;
+}
+
+function atlasDate(value){
+  const date=new Date(value);
+  return Number.isFinite(date.getTime())?date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'unknown date';
+}
+
+function formatEventWindow(value){
+  const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date=new Date(dateOnly?value+'T00:00:00':value);
+  return Number.isFinite(date.getTime())?date.toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',...(dateOnly?{}:{hour:'numeric',minute:'2-digit'})}):value;
+}
+
+function atlasPath(geometry,bounds,width,height){
+  const point=([lng,lat])=>[
+    ((lng-bounds.west)/(bounds.east-bounds.west))*width,
+    ((bounds.north-lat)/(bounds.north-bounds.south))*height,
+  ];
+  const ring=(coordinates)=>coordinates.map((coordinate,index)=>{
+    const [x,y]=point(coordinate);
+    return (index?'L':'M')+x.toFixed(2)+' '+y.toFixed(2);
+  }).join('')+'Z';
+  const polygon=(coordinates)=>coordinates.map(ring).join('');
+  return geometry.type==='Polygon'
+    ?polygon(geometry.coordinates)
+    :geometry.coordinates.map(polygon).join('');
+}
+
+function renderStartupAtlas(atlas){
+  const root=$('startupMapRoot');
+  if(!root) return;
+  const industries=[...new Set(atlas.companies.map(company=>company.industry).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b));
+  const sourceHtml=atlas.sources.map(source=>
+    '<span><a href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer">'+esc(source.name)+'</a>'+
+    ' · '+esc(atlasDate(source.retrievedAt))+(source.license?' · '+esc(source.license):'')+'</span>'
+  ).join('');
+  root.innerHTML='<div class="card wide">'+
+    '<h2><span>SF startup atlas</span><button type="button" id="btnAtlasReload">Reload dataset</button></h2>'+
+    '<div class="atlas-status"><div class="meta">'+esc(atlas.coverage.total)+' companies · '+
+      esc(atlas.coverage.neighborhoodPlaced)+' neighborhood-level · '+esc(atlas.coverage.cityOnly)+' city-only · '+
+      esc(atlas.coverage.neighborhoods)+' neighborhoods</div><div class="meta">Generated '+esc(atlasDate(atlas.generatedAt))+'</div></div>'+
+    '<p class="meta">'+esc(atlas.coverage.definition)+'</p>'+
+    '<p class="meta">'+esc(atlas.coverage.caveat)+'</p>'+
+    '<p class="meta"><strong>Map rule:</strong> cluster markers sit at approximate neighborhood centers derived from public boundaries. They are counts, never company addresses. City-only companies stay in the list and never receive a marker.</p>'+
+    '<div class="atlas-source-list meta" aria-label="Atlas sources">'+sourceHtml+'</div>'+
+    '<div class="atlas-toolbar" aria-label="Atlas filters">'+
+      '<input id="atlasSearch" type="search" aria-label="Search startup atlas" placeholder="Search company, sector, batch, or neighborhood…" autocomplete="off"/>'+
+      '<select id="atlasIndustry" aria-label="Filter by industry"><option value="">All industries</option>'+
+        industries.map(industry=>'<option value="'+esc(industry)+'">'+esc(industry)+'</option>').join('')+'</select>'+
+      '<select id="atlasHiring" aria-label="Filter by YC hiring signal"><option value="">All companies</option><option value="yes">YC marks hiring</option></select>'+
+      '<button type="button" id="atlasClearNeighborhood" disabled>All neighborhoods</button>'+
+    '</div>'+
+    '<div class="atlas-status"><div id="atlasResultCount" class="meta" role="status"></div><div id="atlasSelection" class="meta"></div></div>'+
+    '<div class="atlas-layout"><div class="atlas-map-wrap" id="atlasMap"></div><div class="atlas-list" id="atlasCompanyList"></div></div>'+
+    '</div>';
+  $('btnAtlasReload').onclick=()=>loadStartupAtlas();
+  for(const id of ['atlasSearch','atlasIndustry','atlasHiring']){
+    $(id).addEventListener(id==='atlasSearch'?'input':'change',paintStartupAtlas);
+  }
+  $('atlasClearNeighborhood').onclick=()=>{ startupAtlasNeighborhood=''; paintStartupAtlas(); };
+  paintStartupAtlas();
+  $('tab-map').parentElement.scrollLeft=$('tab-map').parentElement.scrollWidth;
+}
+
+function paintStartupAtlas(){
+  const atlas=startupAtlasCache;
+  if(!atlas||atlas.schema!=='demigod.sf-startup-atlas/1'||!$('atlasMap')) return;
+  const query=($('atlasSearch').value||'').trim().toLocaleLowerCase('en-US');
+  const industry=$('atlasIndustry').value;
+  const hiring=$('atlasHiring').value;
+  const companies=atlas.companies.filter(company=>{
+    if(startupAtlasNeighborhood&&company.neighborhood!==startupAtlasNeighborhood) return false;
+    if(industry&&company.industry!==industry) return false;
+    if(hiring==='yes'&&company.hiring!==true) return false;
+    if(!query) return true;
+    return [company.name,company.oneLiner,company.batch,company.industry,company.subindustry,company.status,company.sfPresence,company.neighborhood]
+      .filter(Boolean).join(' ').toLocaleLowerCase('en-US').includes(query);
+  }).sort((a,b)=>a.name.localeCompare(b.name));
+  const listedCompanies=companies.slice(0,STARTUP_ATLAS_LIST_LIMIT);
+  const visibleIds=new Set(companies.map(company=>company.id));
+  const width=720;
+  const height=560;
+  const shapes=atlas.neighborhoods.map(neighborhood=>
+    '<path class="atlas-neighborhood'+(startupAtlasNeighborhood===neighborhood.name?' active':'')+'" d="'+
+      esc(atlasPath(neighborhood.geometry,atlas.bounds,width,height))+'"><title>'+esc(neighborhood.name)+'</title></path>'
+  ).join('');
+  const markers=atlas.neighborhoods.map(neighborhood=>{
+    const count=neighborhood.companyIds.filter(id=>visibleIds.has(id)).length;
+    if(!count) return '';
+    const x=((neighborhood.centroid.lng-atlas.bounds.west)/(atlas.bounds.east-atlas.bounds.west))*width;
+    const y=((atlas.bounds.north-neighborhood.centroid.lat)/(atlas.bounds.north-atlas.bounds.south))*height;
+    const selected=startupAtlasNeighborhood===neighborhood.name;
+    return '<g class="atlas-marker" role="button" tabindex="0" focusable="true" aria-pressed="'+(selected?'true':'false')+'" aria-label="'+
+      esc(neighborhood.name+', '+count+' matching '+(count===1?'company':'companies'))+'" data-neighborhood="'+esc(neighborhood.name)+'" transform="translate('+
+      esc(x.toFixed(2))+' '+esc(y.toFixed(2))+')"><title>'+esc(neighborhood.name+': '+count)+'</title><circle r="18"></circle><text>'+esc(count)+'</text></g>';
+  }).join('');
+  $('atlasMap').innerHTML='<svg class="atlas-map" viewBox="0 0 '+width+' '+height+'" role="group" aria-label="San Francisco neighborhood startup clusters" preserveAspectRatio="xMidYMid meet">'+
+    '<g fill-rule="evenodd">'+shapes+'</g><g>'+markers+'</g></svg><div class="meta">Neighborhood geometry is projected locally from the atlas dataset; no map tiles or geolocation are used.</div>';
+  $('atlasMap').querySelectorAll('.atlas-marker').forEach(marker=>{
+    const choose=()=>{
+      const name=marker.dataset.neighborhood;
+      startupAtlasNeighborhood=startupAtlasNeighborhood===name?'':name;
+      paintStartupAtlas();
+      requestAnimationFrame(()=>{
+        const next=[...$('atlasMap').querySelectorAll('.atlas-marker')].find(item=>item.dataset.neighborhood===name);
+        (next||$('atlasClearNeighborhood')).focus();
+      });
+    };
+    marker.addEventListener('click',choose);
+    marker.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){ event.preventDefault(); choose(); }
+    });
+  });
+  $('atlasClearNeighborhood').disabled=!startupAtlasNeighborhood;
+  $('atlasClearNeighborhood').textContent=startupAtlasNeighborhood?'Clear '+startupAtlasNeighborhood:'All neighborhoods';
+  $('atlasSelection').textContent=startupAtlasNeighborhood?'Neighborhood: '+startupAtlasNeighborhood:'Showing city-wide coverage';
+  $('atlasResultCount').textContent=companies.length+' of '+atlas.companies.length+' companies'+
+    (companies.length>STARTUP_ATLAS_LIST_LIMIT?' · first '+STARTUP_ATLAS_LIST_LIMIT+' shown; refine filters':'');
+  $('atlasCompanyList').innerHTML=companies.length?listedCompanies.map(company=>{
+    const hiringBadge=company.hiring?'<span class="pill ok">YC marks hiring</span>':'';
+    const facts=[company.industry,company.subindustry,company.batch,company.teamSize>0?'YC team size: '+company.teamSize:null,company.status].filter(Boolean);
+    const location=company.locationPrecision==='neighborhood'
+      ?company.neighborhood+' · neighborhood-level'
+      :'San Francisco · city-level only · no map marker';
+    const companyName=company.website
+      ?'<a href="'+esc(company.website)+'" target="_blank" rel="noopener noreferrer">'+esc(company.name)+'</a>'
+      :esc(company.name);
+    return '<article class="atlas-company"><div class="atlas-company-top"><strong>'+companyName+'</strong>'+hiringBadge+'</div>'+
+      '<div class="meta">'+esc(company.oneLiner||'No public summary in the source dataset.')+'</div>'+
+      '<div>'+facts.map(fact=>'<span class="pill">'+esc(fact)+'</span>').join('')+'</div>'+
+      '<div class="meta">'+esc(location)+' · '+esc(company.sfPresence)+'</div>'+
+      '<div class="meta">Source: <a href="'+esc(company.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(company.source)+'</a>'+
+        (company.locationSource?' · <a href="'+esc(company.locationSource)+'" target="_blank" rel="noopener noreferrer">location evidence</a>':'')+'</div></article>';
+  }).join(''):'<div class="meta">No companies match these filters.</div>';
 }
 
 async function pollJob(jobId, onDone, timeoutMs=120000){
@@ -2379,7 +1701,7 @@ function askMutateConfirm(id, opts){
   if($('confirmOverlay').classList.contains('open')) return;
   pendingMutate = { id, opts };
   mutateReturnFocus = opts&&opts.btn ? opts.btn : document.activeElement;
-  $('confirmText').textContent = 'Run mutate job “'+id+'”? Freeze must be OFF. This can change CDN/Webflow.';
+  $('confirmText').textContent = 'Run mutate job “'+id+'”? Freeze must be OFF. This can change product or operator state.';
   $('confirmOverlay').setAttribute('aria-hidden','false');
   $('confirmOverlay').classList.add('open');
   releaseMutateTrap=trapFocus($('confirmOverlay').querySelector('.box'));
@@ -2390,12 +1712,27 @@ async function runJob(id, opts={}){
     askMutateConfirm(id, opts);
     return;
   }
+  // Demand status job is read-only, but when quarantine overlaps queue head the
+  // glance card used to look like "0 sent · ready" — confirm so operators pause
+  // before treating Run demand as a green light to re-DM the same leads.
+  if (id === 'demand' && !opts.skipQuarantineConfirm) {
+    const q = window.__dgDemandQuarantine;
+    if (q && Number(q.malformedReceipts) > 0 && Array.isArray(q.overlap) && q.overlap.length) {
+      const handles = q.overlap.slice(0, 8).join(', ');
+      const frac = q.pending!=null ? (q.overlap.length+'/'+q.pending) : String(q.overlap.length);
+      const msg =
+        q.malformedReceipts + ' receipt(s) quarantined · queue-overlap=' + frac + ' (' + handles + '). ' +
+        'SENT-CONFIRMED may under-report — do not re-DM those handles without checking X history. ' +
+        'Continue with demand status refresh only?';
+      if (!window.confirm(msg)) return;
+    }
+  }
   return runJobNow(id, opts);
 }
 async function runJobNow(id, opts={}){
   const btn=opts.btn;
   const buttonLabel=btn?.textContent;
-  if(btn){ btn.disabled=true; btn.textContent='Queued…'; }
+  if(btn){ btn.disabled=true; btn.setAttribute('aria-busy','true'); btn.textContent='Queued…'; }
   toast('Starting '+id+'…');
   try{
     let url='/api/jobs?run='+encodeURIComponent(id);
@@ -2435,15 +1772,11 @@ async function runJobNow(id, opts={}){
       if(activeTab==='tools') await loadTools();
     }, j.timeoutMs);
   }catch(e){ toast(id+(e.name==='AbortError'?' launch timed out':' error: '+e.message),'bad'); }
-  finally{ if(btn){ btn.disabled=false; btn.textContent=buttonLabel||'Run'; } }
+  finally{ if(btn){ btn.disabled=false; btn.removeAttribute('aria-busy'); btn.textContent=buttonLabel||'Run'; } }
 }
 
 async function runSmoke(){
-  const b=$('btnSmoke');
-  // runJob owns the complete queued/running/final button lifecycle. Keeping a
-  // second lifecycle here used to overwrite the original "Smoke" label with
-  // "Run smoke" after every run and could re-enable the control out of band.
-  await runJob('smoke', {btn:b});
+  await runJob('smoke');
 }
 
 async function postHandoff(from){
@@ -2466,17 +1799,21 @@ async function postHandoff(from){
 }
 
 /* palette */
+// Control spine: orient first, then next — keep API path map for agents/dogfood.
+const CONTROL_SPINE=[['/api/orient','orient'],['/api/next','next']];
 const PALETTE=[
   {t:'Refresh', d:'force status', run:()=>load(true)},
   {t:'Run orient', d:'canonical session-start card', run:()=>runJob('orient')},
   {t:'Run smoke', d:'async safe', run:()=>runSmoke()},
   {t:'Ship checklist', d:'readiness', run:()=>runJob('ship-checklist')},
   {t:'Doctor', d:'env health', run:()=>runJob('doctor')},
-  {t:'Tab Roadmap', d:'', run:()=>setTab('roadmap')},
+  {t:'Tab Ship', d:'readiness', run:()=>setTab('roadmap')},
   {t:'Tab Inbox', d:'submissions', run:()=>setTab('inbox')},
   {t:'Tab Home', d:'control plane', run:()=>setTab('overview')},
   {t:'Tab Matches', d:'pair review queue', run:()=>setTab('matches')},
-  {t:'Refresh home', d:'/api/control', run:async()=>{await fetch('/api/control'); await load(true);}},
+  {t:'Tab Work', d:'agents and handoffs', run:()=>setTab('handoff')},
+  {t:'Tab Tools', d:'catalog and workflows', run:()=>setTab('tools')},
+  {t:'Tab SF Map', d:'private startup atlas', run:()=>setTab('map')},
   {t:'Hygiene prune', d:'tabs+load', run:()=>runJob('hygiene')},
   {t:'Code review', d:'dg-review', run:()=>runJob('review')},
   {t:'Webflow doctor', d:'CDP+freeze', run:()=>runJob('webflow-doctor')},
@@ -2484,12 +1821,6 @@ const PALETTE=[
   {t:'Refresh matches', d:'safe', run:()=>runJob('match-review')},
   {t:'Copy NEXT cmd', d:'Do this', run:()=>copyText(($('nextCmd').textContent)||'')},
   {t:'Copy agent brief', d:'c', run:()=>copyText(lastBrief)},
-  {t:'Simple mode', d:'human glance', run:()=>applyMode('simple')},
-  {t:'Agent mode', d:'full detail', run:()=>applyMode('agent')},
-  {t:'Tab Overview', run:()=>setTab('overview')},
-  {t:'Tab Handoff', run:()=>setTab('handoff')},
-  {t:'Tab Tools', run:()=>{applyMode('agent'); setTab('tools'); loadTools();}},
-  {t:'Tab Brief', run:()=>setTab('brief')},
   {t:'Run truth', d:'bin/dg truth', run:()=>runJob('truth')},
   {t:'Run demand', d:'bin/dg demand status', run:()=>runJob('demand')},
   {t:'Run NEXT canon', d:'bin/dg next-canon', run:()=>runJob('next-canon')},
@@ -2500,15 +1831,11 @@ const PALETTE=[
   {t:'Evidence fresh truth', run:()=>runJob('evidence')},
   {t:'Full check (no smoke)', run:()=>runJob('full-check')},
   {t:'Tools OS selftest', run:()=>runJob('tools-os-selftest')},
-  {t:'Open System tab', run:()=>setTab('system')},
-  {t:'Open Tools tab', run:()=>setTab('tools')},
   {t:'Copy orient URL', d:'canonical session-start card', run:()=>copyText('http://127.0.0.1:9878/api/orient')},
   {t:'Run preflight', run:()=>runJob('preflight')},
   {t:'Prune tabs', d:'hygiene', run:()=>runJob('tab-prune')},
-  {t:'Review', run:()=>runJob('review')},
   {t:'Review bug', run:()=>runJob('review-bug')},
   {t:'WIZ ownership', run:()=>runJob('wiz-ownership')},
-  {t:'Smoke site', run:()=>runJob('smoke')},
 ];
 let paletteIdx=0;
 let _palettePrevFocus = null;
@@ -2527,26 +1854,6 @@ function trapFocus(container){
   return ()=>container.removeEventListener('keydown', onKey);
 }
 let _releasePaletteTrap = null;
-let _helpPrevFocus = null;
-let _releaseHelpTrap = null;
-function openHelp(){
-  if($('helpOverlay').classList.contains('open')) return;
-  _helpPrevFocus=document.activeElement;
-  $('btnHelp').setAttribute('aria-expanded','true');
-  $('helpOverlay').setAttribute('aria-hidden','false');
-  $('helpOverlay').classList.add('open');
-  const box=$('helpOverlay').querySelector('.box');
-  _releaseHelpTrap=trapFocus(box||$('helpOverlay'));
-  $('btnHelpClose').focus();
-}
-function closeHelp(){
-  $('helpOverlay').classList.remove('open');
-  $('helpOverlay').setAttribute('aria-hidden','true');
-  $('btnHelp').setAttribute('aria-expanded','false');
-  if(_releaseHelpTrap){ _releaseHelpTrap(); _releaseHelpTrap=null; }
-  const target=_helpPrevFocus; _helpPrevFocus=null;
-  if(target&&target.isConnected&&!target.disabled)target.focus();
-}
 function openPalette(){
   if($('palette').classList.contains('open')) return;
   _palettePrevFocus=document.activeElement;
@@ -2595,23 +1902,11 @@ function paintPalette(q){
 }
 
 $('btnRefresh').onclick=()=>load(true);
-$('btnSmoke').onclick=()=>runSmoke();
 if($('btnCopy')) $('btnCopy').onclick=()=>copyText(lastBrief);
 if($('btnCopy2')) $('btnCopy2').onclick=()=>copyText(lastBrief);
 $('btnPalette').onclick=()=>openPalette();
 $('btnDoThis').onclick=()=>copyText($('nextCmd').textContent||'');
-$('btnCopyNextTitle').onclick=()=>copyText($('nextTitle').textContent||'');
-if($('modeSimple')) $('modeSimple').onclick=()=>applyMode('simple');
-if($('modeAgent')) $('modeAgent').onclick=()=>applyMode('agent');
-if($('densityComfy')) $('densityComfy').onclick=()=>applyDensity('comfy');
-if($('densityCompact')) $('densityCompact').onclick=()=>applyDensity('compact');
-if($('themeDark')) $('themeDark').onclick=()=>applyTheme('dark');
-if($('themeLight')) $('themeLight').onclick=()=>applyTheme('light');
-$('btnHandoffHuman').onclick=()=>postHandoff('human');
 $('btnHandoffAgent').onclick=()=>postHandoff('agent');
-if($('btnHelp')) $('btnHelp').onclick=openHelp;
-if($('btnHelpClose')) $('btnHelpClose').onclick=closeHelp;
-if($('helpOverlay')) $('helpOverlay').onclick=e=>{ if(e.target.id==='helpOverlay') closeHelp(); };
 if($('confirmOverlay')) $('confirmOverlay').onclick=e=>{ if(e.target.id==='confirmOverlay') closeMutateConfirm(); };
 if($('confirmNo')) $('confirmNo').onclick=closeMutateConfirm;
 if($('confirmYes')) $('confirmYes').onclick=async()=>{
@@ -2642,6 +1937,8 @@ document.querySelectorAll('.nav button').forEach(b=>{
     tabs[next].focus();
   });
 });
+$('workerDetails').addEventListener('toggle',()=>{ if($('workerDetails').open&&lastData) renderSwarm(lastData); });
+$('evidenceDetails').addEventListener('toggle',()=>{ if($('evidenceDetails').open&&lastData) renderGates(lastData); });
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-copy]');
   if(!t) return;
@@ -2676,11 +1973,7 @@ function clearGoChord(){
   if(goChordTimer){ clearTimeout(goChordTimer); goChordTimer=null; }
 }
 document.addEventListener('keydown',e=>{
-  // Editable controls own printable keys. Include selects and contenteditable
-  // surfaces so single-key dashboard shortcuts cannot fire during interaction.
   if(e.target.closest('input,textarea,select,[contenteditable="true"]')) return;
-  // Modal dialogs own the keyboard while open. Do not let dashboard shortcuts
-  // change tabs, refresh data, or open a second overlay behind them.
   if($('palette').classList.contains('open')){
     if(e.key==='Escape'){ closePalette(); e.preventDefault(); }
     return;
@@ -2689,70 +1982,38 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){ closeMutateConfirm(); e.preventDefault(); }
     return;
   }
-  if($('helpOverlay').classList.contains('open')){
-    if(e.key==='Escape'||e.key==='?'||(e.key==='h'&&!goChord)){
-      closeHelp(); e.preventDefault();
-    }
-    return;
-  }
+  if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){ openPalette(); e.preventDefault(); return; }
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
   if(e.key==='r'||e.key==='R'){ if(!goChord){ load(true); e.preventDefault(); } }
-  if(e.key==='?'||(e.key==='h'&&!goChord)){
-    $('helpOverlay').classList.contains('open') ? closeHelp() : openHelp();
-    e.preventDefault();
-  }
-  if((e.key==='m'||e.key==='M')&&!goChord){ applyMode(mode==='simple'?'agent':'simple'); e.preventDefault(); }
-  if((e.key==='l'||e.key==='L')&&!goChord){ applyTheme(document.body.classList.contains('theme-light')?'dark':'light'); e.preventDefault(); }
-  if(e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey))){ openPalette(); e.preventDefault(); }
-  if(e.key==='Escape'){
-    closeHelp();
-    if($('confirmOverlay').classList.contains('open'))closeMutateConfirm();
-    closePalette(); clearGoChord();
-  }
-  if(e.key==='1') setTab('overview');
-  if(e.key==='2') setTab('inbox');
-  if(e.key==='3') setTab('matches');
-  if(e.key==='4') setTab('handoff');
-  if(e.key==='5') setTab('tools');
-  if(e.key==='6') setTab('system');
-  if((e.key==='d'||e.key==='D')&&!goChord){
-    applyDensity(document.body.classList.contains('density-compact')?'comfy':'compact');
-    e.preventDefault();
-  }
-  // g + letter → module / room
+  if(e.key==='Escape'){ closePalette(); clearGoChord(); }
+  const numberTabs={1:'overview',2:'inbox',3:'matches',4:'handoff',5:'tools',6:'roadmap',7:'map'};
+  if(numberTabs[e.key]){ setTab(numberTabs[e.key]); e.preventDefault(); }
   if(e.key==='g'||e.key==='G'){
     clearGoChord();
     goChord=true;
     goChordTimer=setTimeout(clearGoChord,1200);
-    toast('Go: s home · i inbox · m matches · t tools · x system · y ponytail · p ship · a swarm','ok');
+    toast('Go: s home · i inbox · m matches · a work · t tools · p ship · f SF map','ok');
     e.preventDefault();
     return;
   }
   if(goChord){
     clearGoChord();
-    const map={s:'overview',w:'overview',m:'matches',r:'overview',h:'overview',p:'roadmap',a:'swarm',i:'inbox',t:'tools',x:'system',y:'tools'};
-    const t=map[e.key.toLowerCase()];
-    if(t){
-      setTab(t);
-      if(e.key.toLowerCase()==='r') runJob('review');
-      if(e.key.toLowerCase()==='h') runJob('hygiene');
-      if(e.key.toLowerCase()==='y') runJob('ponytail');
-      if(e.key.toLowerCase()==='w') runJob('webflow-doctor');
-      e.preventDefault();
-    }
+    const key=e.key.toLowerCase();
+    const tab={s:'overview',i:'inbox',m:'matches',a:'handoff',t:'tools',p:'roadmap',f:'map'}[key];
+    if(tab) setTab(tab);
+    else if(key==='r') runJob('review');
+    else if(key==='h') runJob('hygiene');
+    else if(key==='y') runJob('ponytail');
+    else if(key==='w') runJob('webflow-doctor');
+    if(tab||['r','h','y','w'].includes(key)) e.preventDefault();
   }
 });
-
 // boot
 const hash=(location.hash||'').replace(/^#/,'');
-if(hash.includes('agent')) applyMode('agent');
-else applyMode(mode);
-applyDensity(prefGet('dg-dash-density')||'comfy');
-applyTheme(prefGet('dg-dash-theme')||'dark');
 loadPollPref();
 const savedTab=prefGet('dg-dash-tab');
 const tab=hash.split('&')[0] || savedTab || '';
-if(tab==='plane') setTab('overview');
-else if(tab&&['overview','handoff','inbox','matches','roadmap','tools','system','swarm','brief','gates'].includes(tab)) setTab(tab);
+if(tab) setTab(tab);
 // deep-link ?tab=&job=
 try{
   const sp=new URLSearchParams(location.search);
@@ -2840,18 +2101,13 @@ try{
           if(activeTab==='overview') renderOverview(lastData);
           if(activeTab==='roadmap') renderShipRoadmap(lastData);
         }
-        if(delta.pulseKey) lastPulseKey=delta.pulseKey;
       }catch(_){}
     });
     window.__dgEs=es;
   }
 }catch(_){}
-// Optional ambient after first paint (non-blocking)
-requestAnimationFrame(()=>{ setTimeout(()=>document.body.classList.add('has-ambient'), 800); });
 })();
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>try{mermaid.initialize({startOnLoad:false,theme:"dark",securityLevel:"strict"});}catch(e){}</script>
 </body>
 </html>

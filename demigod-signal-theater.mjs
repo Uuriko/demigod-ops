@@ -114,7 +114,7 @@ function dmSnippets(board, limit) {
   const variants = [
     `SF founders: human-matched hiring desk (not AI spam). ${signal.realRoles > 0 ? `${signal.realRoles} real SF role${signal.realRoles === 1 ? '' : 's'} · ${signal.realReceipts} intro${signal.realReceipts === 1 ? '' : 's'} delivered` : 'Early honest catalog — first pilots in human review'} · ${signal.slotsTaken} brief slot${signal.slotsTaken === 1 ? '' : 's'} this week.${pilotLine} Submit a role → trydemigod.com`,
     `Anti-slop filter for Bay Area startups. ${signal.realRoles > 0 ? `${signal.realRoles} real SF role${signal.realRoles === 1 ? '' : 's'} · ${signal.realReceipts} intro${signal.realReceipts === 1 ? '' : 's'} delivered` : 'Early honest catalog — first pilots in human review'} · ${signal.slotsTaken} open brief slot${signal.slotsTaken === 1 ? '' : 's'} · humans intro on fit only · 10% on hire.${receiptLine}`,
-    `Demigod placement ledger is live — anonymized roles + real outcomes, no embellishment.${pilotLine} hello@trydemigod.com · trydemigod.com`,
+    `Demigod placement ledger is live — anonymized roles + real outcomes, no embellishment.${pilotLine} potter@trydemigod.com · trydemigod.com`,
   ];
   return variants.slice(0, Math.max(1, limit));
 }

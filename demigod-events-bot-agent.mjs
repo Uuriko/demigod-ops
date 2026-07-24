@@ -816,7 +816,8 @@ export const FREE_SF_VENUES = [
   { id: 'v_soma_parklet', name: 'South Park lawn / parklet hang', area: 'SoMa', capacity: 25, cost: 'free public', notes: 'Weather-dependent; soft social / picnic', tags: ['social','outdoor','picnic'], lat: 37.78159, lng: -122.39397 },
   { id: 'v_yerba_buena', name: 'Yerba Buena Gardens edge meetup', area: 'SoMa', capacity: 35, cost: 'free public', notes: 'Soft outdoor hang near Moscone; no exclusive use', tags: ['outdoor','social','meetup'], lat: 37.78487, lng: -122.40215 },
   { id: 'v_embarcadero_bench', name: 'Embarcadero promenade meetup point', area: 'Embarcadero', capacity: 40, cost: 'free public', notes: 'Walk-and-talk start; no exclusive use', tags: ['walk','outdoor','networking'], lat: 37.79546, lng: -122.39361 },
-  { id: 'v_hayes_green', name: 'Patricia\'s Green / Hayes Valley open space', area: 'Hayes Valley', capacity: 30, cost: 'free public', notes: 'Daytime preferred; loud evenings', tags: ['outdoor','daytime'], lat: 37.776227, lng: -122.424422 },
+  // residual: picnic keyword missed Hayes green → Alamo/Hayes free picnic crowned SoMa parklet (draft free-list)
+  { id: 'v_hayes_green', name: 'Patricia\'s Green / Hayes Valley open space', area: 'Hayes Valley', capacity: 30, cost: 'free public', notes: 'Daytime preferred; loud evenings', tags: ['outdoor','daytime','picnic','social'], lat: 37.776227, lng: -122.424422 },
   { id: 'v_dolores', name: 'Mission Dolores Park edge meetup', area: 'Mission', capacity: 50, cost: 'free public', notes: 'Large soft hang; bring blankets', tags: ['outdoor','party','picnic'], lat: 37.759576, lng: -122.426868 },
   { id: 'v_ferry_arcade', name: 'Ferry Building arcade / plaza edge', area: 'Embarcadero', capacity: 20, cost: 'free public (no exclusive)', notes: 'Short meetups; food nearby for sponsor tab', tags: ['meetup','food','outdoor'], lat: 37.795464, lng: -122.393614 },
   { id: 'v_crissy', name: 'Crissy Field / Marina Green meetup', area: 'Marina / Presidio', capacity: 40, cost: 'free public', notes: 'Walk-and-talk start; weather-dependent; no exclusive use', tags: ['walk','outdoor','meetup','networking'], lat: 37.806, lng: -122.4457 },
@@ -5244,7 +5245,7 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-14: "financial district" only — bare "financial" is role title (financial controller).
   // mission bay before bare mission — Mission Bay ≠ Mission Dolores (area honesty)
   const areaNeed =
-    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mount\s+davidson|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
+    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|no\s*pa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mount\s+davidson|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
       needL,
     );
   if (areaNeed) {
@@ -5347,6 +5348,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (/^sunnyside/.test(tok)) tok = 'sunnyside';
     else if (tok === 'laguna honda') tok = 'lagunahonda';
     else if (tok === 'bayshore') tok = 'bayshore';
+    // residual: SF_OK has no\s*pa but free-list areaNeed only matched bare nopa
+    else if (/^no\s*pa$/.test(tok)) tok = 'nopa';
     else {
       tok = tok.replace(/\s+center$/, '').replace(/\s+heights$/, '').trim();
       if (tok === 'fi' || tok === 'fdi') tok = 'fidi';
@@ -8972,7 +8975,13 @@ function driveCycle(store, goal, now, m) {
           toEmail: 'potter@trydemigod.com',
           toName: 'Events Bot ops',
           kind: 'sponsor',
-          subject: 'Events Bot needs a sponsor for: ' + ae.title,
+          subject:
+            'Sponsor contacts (draft): ' +
+            ae.title +
+            ' — SF ' +
+            (ae.seats || '?') +
+            '-seat, venue ' +
+            (ae.venue?.name || 'TBD'),
           body:
             'I am producing "' +
             ae.title +
@@ -8993,7 +9002,7 @@ function driveCycle(store, goal, now, m) {
           toEmail: 'potter@trydemigod.com',
           toName: 'Events Bot ops',
           kind: 'volunteer',
-          subject: 'Events Bot needs a volunteer for: ' + ae.title,
+          subject: 'Door/setup volunteer (draft): ' + ae.title + ' (SF)',
           body:
             'Looking for one door/setup volunteer for "' +
             ae.title +

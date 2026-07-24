@@ -15,7 +15,7 @@ const CONTEXT = {
     name: 'Demigod',
     domain: 'trydemigod.com',
     model: '10% placement fee on hire, SF Bay Area startups, human-matched talent (all roles)',
-    email: 'hello@trydemigod.com',
+    email: 'potter@trydemigod.com',
     founder: 'John Potter (@jjohnpotter)',
     location: 'SF Bay Area',
     stage: 'MVP shipped — forms live, manual matching, no hires logged yet',

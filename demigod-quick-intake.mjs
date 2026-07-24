@@ -47,7 +47,7 @@ const html = `<!DOCTYPE html>
   <div id="success" class="success">
     <strong>Thanks! Logged.</strong><br>
     A human will review. Go to <a href="https://www.trydemigod.com#startup-modal" style="color:#C9A84C;">trydemigod.com</a> for the full WIZ form (email, company, stage, role, etc.).<br>
-    (Payments/SMS pending setup — confirmations via hello@trydemigod.com)
+    (Payments/SMS pending setup — confirmations via potter@trydemigod.com)
   </div>
   
   <p class="note">Honest: 3 seeds max on board until real. Pre-services. 10% on hire only.</p>

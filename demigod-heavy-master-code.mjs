@@ -32,7 +32,7 @@ STACK: Puppeteer CDP on Chrome :9223, Webflow Designer, prepareWebflowDesigner()
 
 TASKS FOR CURSOR TO IMPLEMENT:
 1. Navigation master: CTA "FIND TALENT" → #startup-modal; delete SOLUTIONS/ABOUT/BLOG/SUPPORT; keep hero "HIRE TALENT" separate
-2. Footer master: delete mega-columns + social; hello@trydemigod.com + © 2026 Demigod + tagline only
+2. Footer master: delete mega-columns + social; potter@trydemigod.com + © 2026 Demigod + tagline only
 3. Form Settings: rename startup-form → startup-hire, jobseeker-form → engineer-join (remove duplicate email-form data-name)
 4. Delete orphan Email Form / Test Form in dashboard
 

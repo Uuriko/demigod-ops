@@ -131,7 +131,7 @@ function tick(state) {
     }
     if (!o.breached && elapsed >= SLA_MS) {
       o.breached = true;
-      const msg = `🚨 Demigod SLA BREACH: ${o.form} ${o.id} — reply NOW (hello@trydemigod.com)`;
+      const msg = `🚨 Demigod SLA BREACH: ${o.form} ${o.id} — reply NOW (potter@trydemigod.com)`;
       console.log(msg);
       postSlack(msg).then((r) => { o.breachSlack = r; });
     }

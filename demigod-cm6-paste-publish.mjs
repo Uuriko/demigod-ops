@@ -3,9 +3,10 @@
  * Paste demigod head + footer-lite into Webflow Custom Code via CDP cmTile.view.dispatch
  * (Input.insertText is unreliable on this Webflow CM6 UI).
  *
- * Usage: node demigod-cm6-paste-publish.mjs [--no-publish] [--publish-only] [--check|--check-structural|--selftest]
+ * Usage: node demigod-cm6-paste-publish.mjs [--no-publish] [--publish-only] [--check|--check-structural|--check-only|--selftest]
  *   --no-publish     save head+footer only (no queue-publish)
  *   --publish-only   if Custom Code already exact vs disk, skip re-paste; only queue-publish (long CDP timeout)
+ *   --check-only     alias of --check-structural (agent muscle memory)
  */
 import fs from 'fs';
 import path from 'path';
@@ -75,13 +76,16 @@ const NO_PUBLISH = args.has('--no-publish');
 const PUBLISH_ONLY = args.has('--publish-only');
 const CHECK_ONLY = args.has('--check');
 const SELFTEST = args.has('--selftest');
-const CHECK_STRUCTURAL = args.has('--check-structural') || SELFTEST;
+// --check-only: agent alias for structural (not full release-ready --check)
+const CHECK_STRUCTURAL =
+  args.has('--check-structural') || args.has('--check-only') || SELFTEST;
 const DEPRECATED_ARGS = [...args].filter((arg) => arg === '--footer-only');
 const ALLOWED_ARGS = new Set([
   '--no-publish',
   '--publish-only',
   '--check',
   '--check-structural',
+  '--check-only',
   '--selftest',
   '--footer-only',
 ]);
@@ -545,7 +549,7 @@ async function main() {
   }
   if (UNKNOWN_ARGS.length) {
     throw new Error(
-      `unknown argument(s): ${UNKNOWN_ARGS.join(', ')}; expected --check, --check-structural, --selftest, --no-publish, or --publish-only`,
+      `unknown argument(s): ${UNKNOWN_ARGS.join(', ')}; expected --check, --check-structural, --check-only, --selftest, --no-publish, or --publish-only`,
     );
   }
   if (CHECK_ONLY && CHECK_STRUCTURAL) throw new Error('choose one check mode');

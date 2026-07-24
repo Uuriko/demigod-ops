@@ -39,7 +39,7 @@ PART 1 — NAVIGATION (page has NO nav — critical):
 PART 2 — FOOTER MASTER:
 - Double-click Footer → edit master
 - Delete Company/Services/Resources/Legal link columns, social icons, fake phone (415-555), fake address
-- Keep: hello@trydemigod.com + "© 2026 Demigod. All rights reserved." + tagline: "${SPEC.footerTag}"
+- Keep: potter@trydemigod.com + "© 2026 Demigod. All rights reserved." + tagline: "${SPEC.footerTag}"
 - Update all instances
 
 PART 3 — DELETE PAGE BLOAT (permanent delete, not hide):
@@ -57,13 +57,13 @@ PART 4 — HERO + COPY (all SF startup candidates, not engineers-only):
 - CTAs: "${SPEC.ctaFounder}" + "${SPEC.ctaEngineer}"
 
 PART 5 — STARTUP MODAL FORM (#startup-modal):
-- Form name: startup-hire (NOT email-form), send to hello@trydemigod.com
+- Form name: startup-hire (NOT email-form), send to potter@trydemigod.com
 - Fields: company-name, contact-email, role-title, stack-needs, salary-range (optional)
 - DELETE: team-size, urgency, hiring-model, Source
 - Label stack-needs: "Skills / requirements *"
 
 PART 6 — CANDIDATE MODAL (#jobseeker-modal):
-- Form name: engineer-join, send to hello@trydemigod.com
+- Form name: engineer-join, send to potter@trydemigod.com
 - Fields: full-name, seeker-email, linkedin-url (required), github-url (optional), is-engineer checkbox, skills-stack, experience, portfolio-url (optional), sf-bay checkbox
 - GitHub required ONLY when is-engineer checked
 - Labels: Skills & experience *, Background & highlights *

@@ -9,7 +9,7 @@
  *   node demigod-reply-check.mjs --scan-local # scan demigod-ops + dm-send-log only
  *
  * Agent path (preferred): use Gmail MCP gmail__search then pipe or save JSON, e.g.
- *   gmail__search query: '(to:jjohnpotter@gmail.com OR to:hello@trydemigod.com) (subject:form OR demigod OR brief) newer_than:14d'
+ *   gmail__search query: '(to:jjohnpotter@gmail.com OR to:potter@trydemigod.com OR to:hello@trydemigod.com) (subject:form OR demigod OR brief) newer_than:14d'
  *   → save /tmp/demigod-gmail-inbound.json → node demigod-reply-check.mjs --file=/tmp/demigod-gmail-inbound.json
  */
 import fs from 'fs';
@@ -134,7 +134,8 @@ function main() {
     lines.push('Suggested queries:');
     lines.push('```');
     lines.push('to:jjohnpotter@gmail.com subject:"form submission" newer_than:14d');
-    lines.push('to:hello@trydemigod.com newer_than:14d');
+    lines.push('to:potter@trydemigod.com newer_than:14d');
+    lines.push('to:hello@trydemigod.com newer_than:14d'); // residual mailbox
     lines.push('subject:Demigod newer_than:14d -from:noreply@x.ai');
     lines.push('```');
   } else {

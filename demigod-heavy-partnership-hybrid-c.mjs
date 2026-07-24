@@ -35,7 +35,7 @@ const CONTEXT = {
     domain: 'trydemigod.com',
     model: '10% first-year salary on hire, SF Bay Area startups, all roles',
     guarantee: '90-day replacement',
-    email: 'hello@trydemigod.com',
+    email: 'potter@trydemigod.com',
     founder: 'John Potter — solo, manual matching',
     stage: 'MVP live v41, 0 placements, forms e2e OK, Privacy/Terms injected via foot-core',
     stack: 'Webflow talentlink-sf + demigod-foot-core.js CDN + Notion for ops (planned)',

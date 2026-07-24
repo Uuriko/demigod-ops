@@ -17,7 +17,7 @@ const CONTEXT = {
     model: '10% of first-year salary on hire — SF Bay Area startups only, all roles (PM, design, growth, eng)',
     guarantee: '90-day replacement',
     candidateSide: 'Free to join',
-    email: 'hello@trydemigod.com',
+    email: 'potter@trydemigod.com',
     founder: 'John Potter — solo founder, manual human matching',
     stage: 'MVP live, 0 logged placements, forms e2e confirmed',
   },

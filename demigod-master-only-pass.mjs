@@ -39,12 +39,12 @@ VIEWPORT 1440px+. Publish when done.
 
 2) FOOTER MASTER (double-click Footer → Edit master):
 - DELETE Company/Services/Resources/Legal columns, social icons, fake phone/address
-- KEEP: hello@trydemigod.com + "© 2026 Demigod. All rights reserved." + tagline
+- KEEP: potter@trydemigod.com + "© 2026 Demigod. All rights reserved." + tagline
 - Replace any TalentLink SF with Demigod
 - Update all instances → save master
 
 3) FORM SETTINGS (Site Settings → Forms + each modal form):
-- Startup modal form: name startup-hire (unique, NOT email-form), notify hello@trydemigod.com
+- Startup modal form: name startup-hire (unique, NOT email-form), notify potter@trydemigod.com
 - Candidate modal form: name engineer-join (unique, NOT email-form)
 - Fields: linkedin-url, github-url, is-engineer checkbox, portfolio-url optional
 - DELETE dashboard orphan forms: Email Form, Test Form
@@ -294,7 +294,7 @@ async function main() {
   if (result.after.footerCols) {
     human.push('Footer master: delete Company/Services/Resources/Legal columns manually');
   }
-  human.push('Incognito: submit startup + candidate modals; confirm hello@trydemigod.com receives fields');
+  human.push('Incognito: submit startup + candidate modals; confirm potter@trydemigod.com receives fields');
   result.humanTasks = human;
 
   fs.writeFileSync(OUT, JSON.stringify(result, null, 2));

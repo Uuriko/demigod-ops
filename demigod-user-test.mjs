@@ -45,6 +45,56 @@ function check(suite, name, ok, detail = '', severity = 'high') {
   });
 }
 
+/** Safe detail for CDP values that may be undefined (JSON.stringify(undefined) is undefined, not a string). */
+function jdetail(v, n = 160) {
+  return String(JSON.stringify(v ?? null)).slice(0, n);
+}
+
+/** Runtime.evaluate → value; null if missing/exception. */
+async function evalVal(send, expression, timeout = 20000) {
+  const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, timeout);
+  if (r.exceptionDetails) return null;
+  return r.result?.value ?? null;
+}
+
+/** After navigate: poll until h1 + foot runtime or timeout (CDN foot is async). */
+async function waitLiveSnap(send, ms = 12000) {
+  const deadline = Date.now() + ms;
+  let last = null;
+  while (Date.now() < deadline) {
+    last = await evalVal(
+      send,
+      `(() => {
+        const b = getComputedStyle(document.body);
+        const h1 = document.querySelector('h1');
+        const hr = h1 && h1.getBoundingClientRect();
+        const ctas = [...document.querySelectorAll('a.premium-btn, a[data-demigod-modal], #dg-path-pills a')].map((a) => ({
+          t: (a.innerText || a.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 40),
+          m: a.getAttribute('data-demigod-modal'),
+          href: (a.getAttribute('href') || '').slice(0, 60),
+        }));
+        const foot = window.__dgFootVer || window.dgFootVersion || (document.body.innerText.match(/foot v\\d+/) || [])[0] || null;
+        return {
+          rs: document.readyState,
+          bodyDisplay: b.display,
+          bodyVis: b.visibility,
+          h1: h1 ? h1.textContent.trim().slice(0, 100) : null,
+          h1w: hr ? Math.round(hr.width) : 0,
+          h1h: hr ? Math.round(hr.height) : 0,
+          foot,
+          ctas,
+          hasStartupModal: !!document.querySelector('#startup-modal'),
+          hasJobModal: !!document.querySelector('#jobseeker-modal'),
+          title: document.title,
+        };
+      })()`,
+    );
+    if (last && last.rs === 'complete' && last.h1 && last.foot) return last;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return last;
+}
+
 function runNode(scriptArgs, timeout = 90000) {
   const r = spawnSync('node', scriptArgs, {
     cwd: ROOT,
@@ -115,8 +165,15 @@ function cdpConnect(wsUrl) {
     await ready;
     const i = id++;
     const p = new Promise((resolve, reject) => {
-      pending.set(i, (m) => (m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result || {})));
-      setTimeout(() => reject(new Error('timeout ' + method)), timeout);
+      const timer = setTimeout(() => {
+        pending.delete(i);
+        reject(new Error('timeout ' + method));
+      }, timeout);
+      pending.set(i, (m) => {
+        clearTimeout(timer);
+        pending.delete(i);
+        m.error ? reject(new Error(JSON.stringify(m.error))) : resolve(m.result || {});
+      });
     });
     ws.send(JSON.stringify({ id: i, method, params }));
     return p;
@@ -127,18 +184,14 @@ function cdpConnect(wsUrl) {
 async function withLivePage(fn) {
   const list = await cdpList();
   if (!list) throw new Error('CDP down');
-  let tab = list.find((t) => t.type === 'page' && /trydemigod\.com/.test(t.url || '') && !/design/.test(t.url || ''));
-  let created = false;
-  if (!tab?.webSocketDebuggerUrl) {
-    const r = await fetch(`${CDP}/json/new?${encodeURIComponent(LIVE + '/?ut=' + Date.now())}`, {
-      method: 'PUT',
-      signal: AbortSignal.timeout(8000),
-    });
-    tab = await r.json();
-    created = true;
-    await new Promise((r) => setTimeout(r, 2000));
-  }
+  // Always a fresh tab: shared live tabs race with other agents/hygiene and produce empty evals.
+  const r = await fetch(`${CDP}/json/new?${encodeURIComponent(LIVE + '/?ut=' + Date.now())}`, {
+    method: 'PUT',
+    signal: AbortSignal.timeout(8000),
+  });
+  const tab = await r.json();
   if (!tab?.webSocketDebuggerUrl) throw new Error('no live tab');
+  await new Promise((x) => setTimeout(x, 800));
   const session = cdpConnect(tab.webSocketDebuggerUrl);
   try {
     await session.send('Runtime.enable');
@@ -146,7 +199,7 @@ async function withLivePage(fn) {
     return await fn(session, tab);
   } finally {
     session.close();
-    if (created && tab.id) {
+    if (tab.id) {
       try {
         await fetch(`${CDP}/json/close/${tab.id}`, { signal: AbortSignal.timeout(2000) });
       } catch {
@@ -193,45 +246,25 @@ async function suiteSite() {
   try {
     await withLivePage(async ({ send }) => {
       await send('Page.navigate', { url: `${LIVE}/?ut=${Date.now()}` });
-      await new Promise((r) => setTimeout(r, 3500));
-
-      const homeEval = await send('Runtime.evaluate', {
-        expression: `(() => {
-          const b = getComputedStyle(document.body);
-          const h1 = document.querySelector('h1');
-          const hr = h1 && h1.getBoundingClientRect();
-          const ctas = [...document.querySelectorAll('a.premium-btn, a[data-demigod-modal], #dg-path-pills a')].map((a) => ({
-            t: (a.innerText || a.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 40),
-            m: a.getAttribute('data-demigod-modal'),
-            href: (a.getAttribute('href') || '').slice(0, 60),
-          }));
-          const foot = window.__dgFootVer || window.dgFootVersion || (document.body.innerText.match(/foot v\\d+/) || [])[0] || null;
-          return {
-            bodyDisplay: b.display,
-            bodyVis: b.visibility,
-            h1: h1 ? h1.textContent.trim().slice(0, 100) : null,
-            h1w: hr ? Math.round(hr.width) : 0,
-            h1h: hr ? Math.round(hr.height) : 0,
-            foot,
-            ctas,
-            hasStartupModal: !!document.querySelector('#startup-modal'),
-            hasJobModal: !!document.querySelector('#jobseeker-modal'),
-            title: document.title,
-          };
-        })()`,
-        returnByValue: true,
-      });
-      const h = homeEval.result?.value || {};
-      check('site', 'body visible', h.bodyDisplay !== 'none' && h.bodyVis !== 'hidden', `display=${h.bodyDisplay}`, 'critical');
+      // Poll full snap (CDN foot async). Empty snap used to throw on JSON.stringify(undefined).slice
+      // and abort the suite as "CDP site session" + false body-visible pass on undefined styles.
+      const h = (await waitLiveSnap(send, 14000)) || {};
+      check(
+        'site',
+        'body visible',
+        typeof h.bodyDisplay === 'string' && h.bodyDisplay !== 'none' && h.bodyVis !== 'hidden',
+        `display=${h.bodyDisplay}`,
+        'critical',
+      );
       check('site', 'h1 present with size', Boolean(h.h1 && h.h1w > 40 && h.h1h > 20), `${h.h1} ${h.h1w}x${h.h1h}`, 'critical');
-      check('site', 'foot runtime version', Boolean(h.foot), String(h.foot), 'critical');
+      check('site', 'foot runtime version', Boolean(h.foot), String(h.foot ?? ''), 'critical');
       check('site', 'startup modal in DOM', h.hasStartupModal, '', 'high');
       check('site', 'jobseeker modal in DOM', h.hasJobModal, '', 'high');
 
       const hasHire = (h.ctas || []).some((c) => /hiring/i.test(c.t) || c.m === 'startup');
       const hasJob = (h.ctas || []).some((c) => /job|looking/i.test(c.t) || c.m === 'jobseeker');
-      check('site', 'hiring path CTA present', hasHire, JSON.stringify(h.ctas).slice(0, 160), 'high');
-      check('site', 'job path CTA present', hasJob, JSON.stringify(h.ctas).slice(0, 160), 'high');
+      check('site', 'hiring path CTA present', hasHire, jdetail(h.ctas), 'high');
+      check('site', 'job path CTA present', hasJob, jdetail(h.ctas), 'high');
       check(
         'site',
         'dual CTAs not both company-side',
@@ -312,7 +345,7 @@ async function suiteSite() {
         returnByValue: true,
       });
       const w = wiz.result?.value || {};
-      check('site', 'WIZ startup opens', w.open, JSON.stringify(w).slice(0, 120), 'critical');
+      check('site', 'WIZ startup opens', w.open, jdetail(w, 120), 'critical');
       // Welcome: 0 fields OK; residual ≤1 OK (smoke contract)
       check(
         'site',
@@ -374,23 +407,24 @@ async function suiteSite() {
 
 async function suiteDash() {
   const health = await httpGet(`${DASH}/healthz`, 3000);
-  check('dash', 'health up', health.ok, health.text.slice(0, 80), 'critical');
+  check('dash', 'health up', health.ok, (health.text || health.error || '').slice(0, 80), 'critical');
   if (!health.ok) return;
 
-  const t = Date.now();
-  const status = await httpGet(`${DASH}/api/status?force=1`, 20000);
+  // Critical path: warm/default status (force=1 can stall when dash is busy with jobs/CDP).
+  const status = await httpGet(`${DASH}/api/status`, 8000);
   check('dash', 'status 200', status.ok, `${status.ms}ms`, 'critical');
-  const statusConfirm = status.ms < 3000 ? null : await httpGet(`${DASH}/api/status?force=1`, 20000);
+  const cold = await httpGet(`${DASH}/api/status?force=1`, 12000);
+  const coldConfirm = cold.ms < 3000 ? null : await httpGet(`${DASH}/api/status?force=1`, 12000);
   check(
     'dash',
     'status cold < 3s',
-    status.ms < 3000 || statusConfirm?.ms < 3000,
-    [status.ms, statusConfirm?.ms].filter(Number.isFinite).join('ms, ') + 'ms',
+    cold.ok && (cold.ms < 3000 || coldConfirm?.ms < 3000),
+    [cold.ms, coldConfirm?.ms].filter(Number.isFinite).join('ms, ') + 'ms',
     'medium',
   );
   let d = null;
   try {
-    d = JSON.parse(status.text);
+    d = JSON.parse(status.ok ? status.text : cold.text);
   } catch {
     check('dash', 'status JSON', false, 'parse fail', 'critical');
     return;
@@ -668,16 +702,19 @@ async function suiteForms() {
   try {
     await withLivePage(async ({ send }) => {
       await send('Page.navigate', { url: `${LIVE}/?ut=${Date.now()}` });
-      await new Promise((r) => setTimeout(r, 3000));
-      await send('Runtime.evaluate', {
-        expression: `document.querySelector('[data-demigod-modal=startup]')?.click(); 'ok'`,
-        returnByValue: true,
-      });
+      const snap = await waitLiveSnap(send, 14000);
+      if (!snap?.foot) {
+        check('forms', 'forms CDP flow', false, 'live snap not ready (foot/h1)', 'high');
+        return;
+      }
+      await evalVal(send, `document.querySelector('[data-demigod-modal=startup]')?.click(); 'ok'`);
       await new Promise((r) => setTimeout(r, 800));
 
       // Try advance: fill first visible required-ish input and click next
-      const step = await send('Runtime.evaluate', {
-        expression: `(() => {
+      const st =
+        (await evalVal(
+          send,
+          `(() => {
           const m = document.querySelector('#startup-modal');
           if (!m) return { err: 'no modal' };
           const welcome = m.querySelector('.dg-wiz-nav button, button.dg-wiz-next, [data-dg-wiz-start]');
@@ -699,24 +736,22 @@ async function suiteForms() {
           }
           return { action: 'none' };
         })()`,
-        returnByValue: true,
-      });
-      const st = step.result?.value || {};
-      check('forms', 'WIZ can start/fill first step', st.action === 'start' || st.action === 'fill', JSON.stringify(st), 'high');
+        )) || {};
+      check('forms', 'WIZ can start/fill first step', st.action === 'start' || st.action === 'fill', jdetail(st), 'high');
       let a = {};
       for (let i = 0; i < 20 && !a.open; i++) {
-        const after = await send('Runtime.evaluate', {
-          expression: `(() => {
+        a =
+          (await evalVal(
+            send,
+            `(() => {
             const m = document.querySelector('#startup-modal');
             const q = m && m.querySelector('.dg-wiz-q');
             return { q: q ? q.textContent.trim().slice(0, 60) : null, open: m && getComputedStyle(m).display !== 'none' };
           })()`,
-          returnByValue: true,
-        });
-        a = after.result?.value || {};
+          )) || {};
         if (!a.open) await new Promise((r) => setTimeout(r, 100));
       }
-      check('forms', 'WIZ still open after step', a.open, JSON.stringify(a), 'high');
+      check('forms', 'WIZ still open after step', a.open, jdetail(a), 'high');
     });
   } catch (e) {
     check('forms', 'forms CDP flow', false, String(e.message || e), 'high');
@@ -732,7 +767,8 @@ async function suiteCopy() {
   const text = home.text || '';
   // Policy: no founder names in marketing (loose)
   check('copy', 'has dual path language or foot CTAs', /hiring|job|talent|match/i.test(text), '', 'low');
-  check('copy', 'hello@ present', /hello@trydemigod\.com/i.test(text), '', 'medium');
+  // Public contact is potter@ only (hello@ mailbox was never stood up; foot scrubs Designer leftovers).
+  check('copy', 'public contact potter@', /potter@trydemigod\.com/i.test(text), '', 'medium');
   // disk foot COPY
   try {
     const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
@@ -740,6 +776,17 @@ async function suiteCopy() {
     check('copy', 'foot has Find a job CTA', /Find a job/.test(foot), '', 'high');
     check('copy', 'foot no 48h promise', !/48\s*h(?:our)?\s+(?:response|SLA|guarantee)/i.test(foot), '', 'high');
     check('copy', 'foot pending payments language', /pending/i.test(foot), '', 'medium');
+    // Foot source embeds /hello@…demigod\.com/ regexes (backslash before dot);
+    // assert scrubContactEmail + potter@ + hello@ token, not raw mailbox as SoR.
+    check(
+      'copy',
+      'foot scrubs hello@ → potter@',
+      /function\s+scrubContactEmail\s*\(/.test(foot) &&
+        /potter@trydemigod\.com/i.test(foot) &&
+        /hello@/i.test(foot),
+      '',
+      'high',
+    );
   } catch (e) {
     check('copy', 'read foot-core', false, e.message, 'high');
   }

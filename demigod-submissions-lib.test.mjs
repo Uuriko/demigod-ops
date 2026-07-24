@@ -89,6 +89,22 @@ test('auto-feature cannot bypass rejection or required evidence', () => {
   assert.equal(incomplete.record.status, 'new');
   assert.equal(incomplete.featured, null);
 
+  // work-location is required startup evidence (founder work-mode fit) — missing blocks feature
+  const noLocation = ingestSubmission({
+    name: 'startup-hire',
+    data: {
+      'company-name': 'No Loc Co',
+      'company-stage': 'seed',
+      'role-title': 'Founding Eng',
+      'stack-needs': 'Seed B2B',
+      '90day-outcome': 'Ship MVP',
+      'salary-range': '$180-220k',
+      'contact-email': 'noloc@fixture.invalid',
+    },
+  }, { autoFeature: true });
+  assert.equal(noLocation.record.status, 'new');
+  assert.equal(noLocation.featured, null);
+
   const rejected = ingestSubmission({
     name: 'engineer-join',
     data: { 'seeker-email': 'candidate@example.invalid', 'skills-stack': '' },

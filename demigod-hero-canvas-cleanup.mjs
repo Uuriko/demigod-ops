@@ -24,14 +24,14 @@ const AI_PROMPT = `HERO CANVAS CLEANUP — Demigod home page ONLY. Permanent tex
 DELETE / replace mythic hero copy:
 - Badge: remove "THE ELITE SYNDICATE", "DEMIGOD //" coords — set to "SF AI TALENT MATCHING"
 - H1: remove FORGE / DIVINE / AI AGENTS — set to three spans: "SF AI Talent." + "Human" + "Matched."
-- Subhead: remove Hermes, perfect demigod, Precision-matched — set to: "Startups: get 3-5 perfect SF AI engineers in 48 hours. Engineers: get matched to the right roles. Humans read every brief."
+- Subhead: remove Hermes, perfect demigod, Precision-matched — set to: "SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match."
 - Hero CTAs: red button "HIRE TALENT", blue button "JOIN NETWORK" (not FIND TALENT / GET JOB)
 - Remove LAT. 37.7749, SF // CA, Two buttons placeholder
 
 Also DELETE any remaining on page (not modals):
 - HERMES, PANTHEON, ATHENA, HEPHAESTUS, FORGE, SUMMON, SYNDICATE, demigod.ai references in visible sections
 
-KEEP: pricing (10% on hire), modals, trust/how section, footer hello@trydemigod.com.
+KEEP: pricing (10% on hire), modals, trust/how section, footer potter@trydemigod.com.
 
 Publish to production + staging. List every hero element changed.`;
 
@@ -89,8 +89,8 @@ async function patchCanvas(page) {
       if (/^FORGE$/i.test(v.trim())) { n.nodeValue = 'SF AI Talent.'; changes.push('h1-forge'); }
       if (/^DIVINE$/i.test(v.trim())) { n.nodeValue = 'Human'; changes.push('h1-divine'); }
       if (/^AI AGENTS$/i.test(v.trim())) { n.nodeValue = 'Matched.'; changes.push('h1-agents'); }
-      if (/Hermes|perfect demigod|Precision-matched/i.test(v)) {
-        n.nodeValue = 'Startups: get 3-5 perfect SF AI engineers in 48 hours. Engineers: get matched to the right roles. Humans read every brief.';
+      if (/Hermes|perfect demigod|Precision-matched|48\s*h(?:ours?)?/i.test(v)) {
+        n.nodeValue = 'SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match.';
         changes.push('subhead');
       }
     }

@@ -52,7 +52,7 @@ export function buildStatusReport() {
     },
     nextHuman: [
       'Publish Webflow after foot-core / head changes',
-      'Incognito form smoke test → hello@trydemigod.com',
+      'Incognito form smoke test → potter@trydemigod.com notifications',
     ],
   };
 

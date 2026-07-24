@@ -60,6 +60,8 @@ const retiredLabels = new Set([
   'funnel-hygiene-draftid',
   'draft-claim-source-repair',
   'talent-greet-seo-refresh',
+  'events-preferred-tunnel-note',
+  'wip-triage-tools-batch',
   // external agent CLIs — not demigod product tools
   'ask-claude',
   'ask-codex',
@@ -152,6 +154,7 @@ const explicitAliases = new Map([
   ['startup-map-test', 'events-test'],
   ['codex-discover', 'work-find'],
   ['ship-prepare', 'ship'],
+  ['ship-verify', 'ship'],
   ['ship-status', 'ship'],
   ['dg-ship', 'ship'],
   ['submission-approval-guard-test', 'approve-sub'],

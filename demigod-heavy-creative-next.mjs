@@ -22,7 +22,7 @@ const CONSTRAINTS = `
 ## HARD CONSTRAINTS (non-negotiable — override your prior SLA/John advice)
 - Site must NOT promise reply speed (no 48h, 2h, SLA badges, "fastest reply")
 - Site must NOT mention founder name (no John, no personal SLA surface)
-- Success copy: generic hello@trydemigod.com follow-up only
+- Success copy: generic potter@trydemigod.com follow-up only
 - foot-core v64 already scrubs Webflow canvas leaks at runtime
 `;
 

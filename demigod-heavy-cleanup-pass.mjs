@@ -41,7 +41,7 @@ PAGE SETTINGS (SEO tab):
 - OG title: ${SPEC.ogTitle}
 - OG description: ${SPEC.ogDescription}
 
-KEEP: Hero (HIRE TALENT + JOIN NETWORK), trust block area, single On hire pricing card, both modals with current fields, hello@trydemigod.com, © 2026 Demigod.
+KEEP: Hero (HIRE TALENT + JOIN NETWORK), trust block area, single On hire pricing card, both modals with current fields, potter@trydemigod.com, © 2026 Demigod.
 
 Publish to production + staging when done. List every section you deleted.`;
 

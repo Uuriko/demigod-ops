@@ -36,7 +36,7 @@ ${JSON.stringify(STATUS, null, 2)}
 ${AGENT_OPINION}
 
 ## CONTEXT
-- Demigod: 10% on hire, SF startups, human-matched, hello@trydemigod.com, solo founder John Potter
+- Demigod: 10% on hire, SF startups, human-matched, potter@trydemigod.com, solo founder John Potter
 - Competitors: Fonzi (ledger), Jack & Jill (Friends 20%), Paraform (marketplace) — John should NOT copy marketplace
 - Option C partnership plan exists but agent says defer until proof loop
 - Eat the Sounds game is separate project — ignore

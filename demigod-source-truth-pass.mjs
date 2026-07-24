@@ -24,7 +24,7 @@ const NAV_CTA = 'FIND TALENT';
 const AI_PROMPT = `SOURCE TRUTH PASS — Demigod talentlink-sf. Viewport 1440px+. Publish when done.
 
 1) NAVIGATION MASTER: CTA button text FIND TALENT → #startup-modal. DELETE SOLUTIONS, ABOUT, BLOG, SUPPORT links and dropdowns. Save master + Update all instances.
-2) FOOTER MASTER: DELETE Company/Services/Resources/Legal columns + social icons + fake phone/address. KEEP hello@trydemigod.com + © 2026 Demigod + tagline only.
+2) FOOTER MASTER: DELETE Company/Services/Resources/Legal columns + social icons + fake phone/address. KEEP potter@trydemigod.com + © 2026 Demigod + tagline only.
 3) CANVAS DELETE (home page): remove METHODOLOGY block, CURATED INSIGHTS, FAQ accordion, ATHENA/HEPHAESTUS pantheon cards, fake contact (415-555), SYNDICATE SUBSCRIPTION pricing card.
 4) FORM SETTINGS: startup form data-name startup-hire (NOT email-form). Candidate form data-name engineer-join. Delete orphan Email Form + Test Form in dashboard.
 5) Do NOT change hero HIRE TALENT or JOIN NETWORK buttons. List every deletion.`;
@@ -91,7 +91,7 @@ async function patchAllIframes(page, kind) {
       for (const col of [...doc.querySelectorAll('footer nav, footer ul, footer .w-col, footer section')]) {
         const t = col.textContent || '';
         if (t.length < 8 || t.length > 8000) continue;
-        if (/Company|Services|Resources|Legal|Facebook|Instagram|YouTube|415-555/i.test(t) && !/hello@trydemigod/i.test(t)) {
+        if (/Company|Services|Resources|Legal|Facebook|Instagram|YouTube|415-555/i.test(t) && !/potter@trydemigod\.com|hello@trydemigod/i.test(t)) {
           col.remove();
           changes.push('rm-footer-col');
         }

@@ -18,7 +18,7 @@ export const APPLY_CHUNKS = [
   'Hide startup-modal and jobseeker-modal on page load (display:none). Show on FIND TALENT / GET JOB / HIRE TALENT click. Remove duplicate engineer form from main page — forms inside modals only.',
   'Simplify nav to: How It Works, Pricing, FAQ, FIND TALENT, GET JOB. Remove SOLUTIONS ABOUT BLOG SUPPORT POST A JOB.',
   'Wire pricing CTAs CHOOSE COMMISSION and CHOOSE SUBSCRIPTION to #startup-modal. Add 3 trust lines under hero: Daedalus delivers 3-5 curated SF matches; SF AI startups only; Trusted by YC founders.',
-  'Footer: add hello@trydemigod.com visible. Add line: Daedalus — the AI demigod craftsman built only for SF AI talent matching.',
+  'Footer: add potter@trydemigod.com visible. Add line: Daedalus — the AI demigod craftsman built only for SF AI talent matching.',
 ];
 
 export function wlog(msg) {
@@ -556,7 +556,7 @@ Published: talentlink-sf.webflow.io
 RECENT FIXES:
 - Removed "Made in Webflow" badge via head custom code (CSS hide + JS remove .w-webflow-badge)
 - Modals exist (startup + jobseeker); hero CTAs wired
-- hello@trydemigod.com on page
+- potter@trydemigod.com on page
 
 BLOCKER: Navigation + Footer are SITE COMPONENT MASTERS — Webflow AI says read-only; must double-click masters or use MCP Bridge.
 

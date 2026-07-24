@@ -184,7 +184,8 @@ export const RULES = [
     run({ rel, src, isJs }) {
       if (!isJs) return [];
       const out = [];
-      for (const m of findAll(src, /writeFileSync\s*\(\s*[^)]*BOARD|fs\.writeFileSync\s*\([^)]*DEMIGOD-BOARD/g)) {
+      // Match DEMIGOD-BOARD / BOARD.json only — not substrings like SMS-ONBOARD-*.
+      for (const m of findAll(src, /writeFileSync\s*\(\s*[^)]*(?:DEMIGOD-BOARD|\bBOARD\.json\b)/gi)) {
         out.push(
           finding({
             rule: 'board-chokepoint',

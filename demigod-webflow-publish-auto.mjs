@@ -28,6 +28,18 @@ import path from 'path';
 import { chromium } from 'playwright';   // Using Playwright (installed) for superior auto-wait, selectors, reliability on Webflow UI
 import { execSync, spawn } from 'child_process';
 import { CDP_URL } from './cdp-config.mjs';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
+
+const cliArgs = process.argv.slice(2);
+if (cliArgs.some((arg) => arg !== '--publish') || cliArgs.filter((arg) => arg === '--publish').length > 1) {
+  console.error('usage: node demigod-webflow-publish-auto.mjs [--publish]');
+  process.exit(2);
+}
+const DO_PUBLISH = cliArgs.includes('--publish');
+if (DO_PUBLISH && process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH !== '1') {
+  console.error('current request did not authorize external publication (DEMIGOD_CURRENT_REQUEST_PUBLISH=1 required)');
+  process.exit(2);
+}
 
 const ROOT = '/home/potter';
 const HEAD = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
@@ -45,8 +57,6 @@ const SCREENSHOT_DIR = path.join(ROOT, 'screenshots');
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-const DO_PUBLISH = process.argv.includes('--publish');
 
 async function readEditorDoc(editorHandle) {
   return await editorHandle.evaluate((el) => {
@@ -240,6 +250,7 @@ async function screenshot(page, name) {
 }
 
 async function main() {
+  assertNotFrozen('webflow-custom-code-save-publish');
   console.log('=== Demigod Autonomous Webflow Publish ===');
   console.log('HEAD length:', HEAD.length);
   console.log('FOOTER length:', FOOTER.length);

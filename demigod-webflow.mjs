@@ -14,7 +14,7 @@
  *   bin/dg-webflow open designer|custom-code|live|dashboard
  *   bin/dg-webflow paste-check
  *   bin/dg-webflow playbook [name]
- *   bin/dg-webflow run <tool> [--dry-run] [--force]
+ *   bin/dg-webflow run <tool> [--dry-run]
  *   bin/dg-webflow tools
  *   bin/dg-webflow brief          # markdown for agents
  *   bin/dg-webflow hygiene [--prune]  # tabs + load (laptop snappy)
@@ -51,7 +51,29 @@ const args = process.argv.slice(2);
 const cmd = args[0] || 'status';
 const asJson = args.includes('--json');
 const dryRun = args.includes('--dry-run');
-const force = args.includes('--force');
+
+function argsValid() {
+  const rest = args.slice(1);
+  const flags = rest.filter((arg) => arg.startsWith('--'));
+  const values = rest.filter((arg) => !arg.startsWith('--'));
+  const onlyFlags = (...allowed) => new Set(flags).size === flags.length && flags.every((arg) => allowed.includes(arg));
+  if (cmd === '--json') return args.length === 1;
+  if (['status', 'doctor', 'tabs', 'truth', 'freeze', 'paste-check', 'tools', 'brief'].includes(cmd)) {
+    return values.length === 0 && onlyFlags('--json');
+  }
+  if (cmd === 'connect') return values.length <= 1 && (!values[0] || ['status', 'bridge', 'all'].includes(values[0])) && onlyFlags('--json');
+  if (cmd === 'open') return values.length <= 1 && onlyFlags('--json');
+  if (cmd === 'change') return values.length > 0 && onlyFlags('--json');
+  if (cmd === 'playbook') return values.length <= 1 && onlyFlags('--json');
+  if (cmd === 'run') return values.length === 1 && onlyFlags('--json', '--dry-run');
+  if (cmd === 'hygiene') return values.length === 0 && onlyFlags('--json', '--prune', '--kill-hung');
+  return false;
+}
+
+if (!argsValid()) {
+  console.error('invalid arguments; run bin/dg-webflow for usage');
+  process.exit(2);
+}
 
 function print(obj) {
   if (asJson || cmd === 'status' && args.includes('--json')) {
@@ -91,6 +113,7 @@ function humanStatus(s) {
   lines.push('## Next');
   if (!s.cdp.ok) lines.push(s.cdp.error?.includes('EPERM') ? '- CDP unobservable in this namespace' : '- Fix CDP first');
   else if (s.freeze.frozen) lines.push('- Freeze ON — only read-only playbooks');
+  else if (!s.freeze.authorized) lines.push('- Prepare only — current request has not authorized publish or paste');
   else if (!s.ready.paste) lines.push('- Open custom-code tab, then paste-check');
   else lines.push('- bin/dg-webflow playbook prep-footer-paste');
   return lines.join('\n') + '\n';
@@ -112,6 +135,16 @@ async function doctor() {
     s.live.metaCounts?.description === 1 && s.live.metaCounts?.ogTitle === 1,
     `description=${s.live.metaCounts?.description ?? '?'} og:title=${s.live.metaCounts?.ogTitle ?? '?'}`,
   );
+  check(
+    'live sitemap',
+    s.live.sitemap?.valid === true,
+    `status=${s.live.sitemap?.status ?? '?'} type=${s.live.sitemap?.type || '?'} bytes=${s.live.sitemap?.bytes ?? '?'}`,
+  );
+  check(
+    'robots advertises sitemap',
+    s.live.robots?.hasSitemap === true,
+    `status=${s.live.robots?.status ?? '?'} bytes=${s.live.robots?.bytes ?? '?'}`,
+  );
   check('designer tab', (s.tabs.byRole.designer || 0) > 0, s.tabs.byRole.designer || 0);
   const ccN = s.tabs.byRole['custom-code'] || 0;
   const loginN = s.tabs.byRole['webflow-login'] || 0;
@@ -128,7 +161,26 @@ async function doctor() {
   check('tab-prune script', fs.existsSync(path.join(ROOT, 'demigod-cdp-tab-prune.mjs')));
   check('foot-cdn script', fs.existsSync(path.join(ROOT, 'demigod-foot-cdn-publish.mjs')));
   // designer/custom-code/live missing is warn not hard fail for doctor
-  const hard = checks.filter((c) => !c.ok && !['designer tab', 'custom-code tab', 'live tab', 'live SEO meta unique'].includes(c.name));
+  const namespaceBlocked = s.cdp.error?.includes('EPERM');
+  const liveUnobservable = !s.live.ok && s.live.status == null;
+  // Sitemap/robots: soft when live SEO is unobservable, fetch failed (status 0), or
+  // publish is unauthorized (prepare-only SEO — tip already says so; don't red the module).
+  const seoFetchUnobservable =
+    Number(s.live?.sitemap?.status) === 0 ||
+    Number(s.live?.robots?.status) === 0 ||
+    Boolean(s.live?.sitemap?.error) ||
+    Boolean(s.live?.robots?.error);
+  const prepareOnlySeo = s.freeze?.authorized !== true;
+  const softSeo = liveUnobservable || seoFetchUnobservable || prepareOnlySeo;
+  const soft = [
+    'designer tab',
+    'custom-code tab',
+    'live tab',
+    'live SEO meta unique',
+    ...(softSeo ? ['live sitemap', 'robots advertises sitemap'] : []),
+    ...(namespaceBlocked ? ['cdp', 'live fetch'] : []),
+  ];
+  const hard = checks.filter((c) => !c.ok && !soft.includes(c.name));
   const out = {
     at: new Date().toISOString(),
     pass: hard.length === 0,
@@ -334,20 +386,22 @@ async function main() {
       process.exit(1);
     }
     const freeze = freezeStatus();
-    if (tool.mutate && freeze.frozen && !force) {
-      print({
-        ok: false,
-        error: 'freeze_blocks_mutate',
-        freeze,
-        tool: id,
-        cmd: tool.cmd,
-        hint: 'Freeze ON. Use --force only with explicit human override, or freeze off first.',
-      });
-      process.exit(3);
-    }
     if (dryRun) {
       print({ ok: true, dryRun: true, wouldRun: tool.cmd, mutate: tool.mutate, freeze });
       process.exit(0);
+    }
+    if (tool.mutate && (freeze.frozen || !freeze.authorized)) {
+      print({
+        ok: false,
+        error: freeze.frozen ? 'freeze_blocks_mutate' : 'current_request_publish_required',
+        freeze,
+        tool: id,
+        cmd: tool.cmd,
+        hint: freeze.frozen
+          ? 'Freeze ON. Mutation is blocked.'
+          : 'This foreground request has not authorized external publication.',
+      });
+      process.exit(3);
     }
     // parse cmd into node args
     const parts = tool.cmd.split(/\s+/);
@@ -407,7 +461,7 @@ async function main() {
   bin/dg-webflow paste-check
   bin/dg-webflow change "describe the site change"
   bin/dg-webflow playbook [list|name]
-  bin/dg-webflow run <tool> [--dry-run] [--force]
+  bin/dg-webflow run <tool> [--dry-run]
 `);
   process.exit(1);
 }

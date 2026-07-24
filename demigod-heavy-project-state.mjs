@@ -32,7 +32,7 @@ const inboxSpam = (inbox?.items || []).filter((i) => i.status === 'spam').length
 const PROJECT_ARC = `
 ## PROJECT ARC (full history — June 2026)
 
-**Product:** Demigod — SF human-matched startup talent. 10% on hire. hello@trydemigod.com. Solo founder ops.
+**Product:** Demigod — SF human-matched startup talent. 10% on hire. potter@trydemigod.com. Solo founder ops.
 **Site:** https://www.trydemigod.com (Webflow talentlink-sf). NOT a job board; positioning = SF Human Signal Broker / anti-AI-slop curation.
 **Architecture:** Webflow shell + demigod-head-minimal.html + Catbox head CSS + demigod-footer-lite.html loader + demigod-foot-core.js v65 on Catbox CDN (~103KB IIFE). Board JSON on Catbox → live trust block. Local submissions webhook :9877 + localtunnel for partner form.
 

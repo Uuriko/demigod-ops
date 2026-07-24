@@ -23,7 +23,7 @@ if (process.argv.includes('--policy') || !APPLY) {
   process.exit(APPLY ? 0 : 2);
 }
 
-const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. hello@trydemigod.com';
+const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. potter@trydemigod.com';
 const CLEAN_OG = 'SF startups submit a brief. Candidates upload once. Humans match. 10% on hire.';
 const CLEAN_HERO = 'SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match.';
 const HONESTY_PROMPT = `HOME PAGE COPY HONESTY ONLY — make these exact permanent text changes in the Webflow Designer. Do not alter layout, styles, forms, links, components, or any other copy.
