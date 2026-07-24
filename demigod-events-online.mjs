@@ -581,7 +581,11 @@ export function tunnelAttemptUsesCloudflared(
     : configured === 'cloudflared';
 }
 
-/** A forced Cloudflare service must not keep adopting an old loca.lt process. */
+/**
+ * Soft preference for *new* tunnel selection (heal ladder order).
+ * Must NOT gate preserve-of-healthy: DEMIGOD_EVENTS_TUNNEL=cloudflared used to
+ * skip stable loca.lt and thrash-rotate every heal (CF miss → random loca).
+ */
 export function tunnelUrlMatchesPreference(url, configured = process.env.DEMIGOD_EVENTS_TUNNEL) {
   return configured !== 'cloudflared' || /\.trycloudflare\.com(\/|$)/i.test(String(url || ''));
 }
@@ -838,7 +842,10 @@ async function ensurePublicTunnel() {
     /* */
   }
   let pub = null;
-  if (url && tunnelUrlMatchesPreference(url)) {
+  // Prefer-stable: keep any healthy public (loca or CF). Preference only orders
+  // the ladder when the written URL is dead — do not thrash-rotate healthy loca
+  // just because DEMIGOD_EVENTS_TUNNEL=cloudflared (systemd default).
+  if (url) {
     const probes = [];
     // loca.lt flakes both ways: require a stable verdict before preserving or rotating.
     for (let i = 0; i < 3; i++) {
@@ -946,6 +953,26 @@ async function ensurePublicTunnel() {
             healed: true,
             via: healViaLabel(attempt.label, url) || 'cloudflared',
           };
+        }
+      }
+      // Process still up + URL in log: give one more patience window before loca thrash.
+      // Observed: CF prints URL, first window fails on DNS, killStray then forces loca-random.
+      if (resolveTunnelPid()) {
+        for (let i = 0; i < 12 && !pub?.ok; i++) {
+          await new Promise((r) => setTimeout(r, 1000));
+          pub = await healthPublic(url);
+        }
+        if (pub?.ok) {
+          await new Promise((r) => setTimeout(r, 500));
+          const hold = await healthPublic(url);
+          if (hold?.ok) {
+            return {
+              url,
+              pub: hold,
+              healed: true,
+              via: 'cloudflared-patience',
+            };
+          }
         }
       }
     }
@@ -1764,7 +1791,16 @@ function selfcheck() {
     tunnelUrlMatchesPreference('https://healthy.trycloudflare.com', 'cloudflared') &&
       !tunnelUrlMatchesPreference('https://stale.loca.lt', 'cloudflared') &&
       tunnelUrlMatchesPreference('https://stale.loca.lt', ''),
-    'forced cloudflared does not adopt a healthy-looking loca tunnel',
+    'preference helper still ranks CF over loca under cloudflared env (ladder only)',
+  );
+  ok(
+    fs
+      .readFileSync(new URL(import.meta.url), 'utf8')
+      .includes('Prefer-stable: keep any healthy public') &&
+      !/if \(url && tunnelUrlMatchesPreference\(url\)\)/.test(
+        fs.readFileSync(new URL(import.meta.url), 'utf8'),
+      ),
+    'negative-control: ensurePublicTunnel preserves healthy loca without preference gate',
   );
   const sdArgs = tunnelSystemdRunArgs({
     bin: '/usr/bin/cloudflared',
@@ -1786,11 +1822,15 @@ function selfcheck() {
   );
   ok(tunnelSystemdRunArgs({ bin: 'npx', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs rejects non-absolute bin');
   ok(tunnelSystemdRunArgs({ bin: '', logPath: '/tmp/x' }) === null, 'tunnelSystemdRunArgs needs bin+log');
+  const srcOnline = fs.readFileSync(new URL(import.meta.url), 'utf8');
   ok(
-    /path\.join\(home, '\.local\/bin\/cloudflared'\)[\s\S]{0,120}'cloudflared'/.test(
-      fs.readFileSync(new URL(import.meta.url), 'utf8'),
-    ),
+    /path\.join\(home, '\.local\/bin\/cloudflared'\)[\s\S]{0,120}'cloudflared'/.test(srcOnline),
     'cloudflaredBin prefers absolute paths before bare name (cgroup isolation)',
+  );
+  ok(
+    /function stop\([\s\S]*?killStrayTunnels\(\)/.test(srcOnline) &&
+      /cloudflared-patience/.test(srcOnline),
+    'stop() sweeps tunnel strays; CF patience before loca thrash',
   );
   ok(
     filterHealAttemptsAfterCfGiveUp(
@@ -2629,10 +2669,12 @@ function stop() {
     return 2;
   }
   try {
-    // Reattach missing tunnel.pid before kill (oneshot/detached leave orphans otherwise)
+    // Reattach missing tunnel.pid before kill (oneshot/detached leave orphans otherwise).
+    // Also stop systemd-run CF unit + residual CF/loca for :PORT — bare killPid left
+    // orphans that the next up() "adopt-live-tunnel" and skipped a clean CF rehome.
     resolveTunnelPid();
     resolveAppPid();
-    killPid('tunnel.pid');
+    killStrayTunnels();
     killPid('app.pid');
     console.log(JSON.stringify({ ok: true, stopped: true }));
     return 0;
