@@ -686,6 +686,15 @@ export function tunnelHealAttempts(url, opts = {}) {
 }
 
 /**
+ * Pure: status should adopt a live tunnel URL from log when the url-file probe
+ * failed but a tunnel process is still up (avoids needHeal thrash while heal
+ * is single-flight-skipped).
+ */
+export function statusShouldAdoptLiveTunnel({ publicOk, tunnelPid } = {}) {
+  return publicOk !== true && Boolean(tunnelPid);
+}
+
+/**
  * Pure-ish helper: if a tunnel process is already up, probe the last log URL
  * before kill/restart (prevents orphaning a healthy CF while url file still
  * points at a dead loca host).
@@ -1312,7 +1321,7 @@ async function status(requireCertified = false) {
   // If url file is a dead loca/CF host but a live tunnel process still serves a
   // healthy URL (from tunnel.log), adopt it here — otherwise status stays
   // needHeal while heal is single-flight-skipped ("heal already running").
-  if (!publicOk && tunnelPid) {
+  if (statusShouldAdoptLiveTunnel({ publicOk, tunnelPid })) {
     const adopted = await tryAdoptLiveTunnelFromLog();
     if (adopted?.url && adopted?.pub?.ok) {
       root = normalizeEventsPublicBase(adopted.url);
@@ -1583,6 +1592,24 @@ function selfcheck() {
   );
   ok(statusObservation(false, 'enabled') === 'down', 'observable dead app → down');
   ok(statusObservation(true, 'unknown') === 'up', 'successful health probe → up');
+  ok(
+    statusShouldAdoptLiveTunnel({ publicOk: false, tunnelPid: 42 }) === true,
+    'statusShouldAdoptLiveTunnel when public dead + process up',
+  );
+  ok(
+    statusShouldAdoptLiveTunnel({ publicOk: true, tunnelPid: 42 }) === false,
+    'statusShouldAdoptLiveTunnel skips when public already ok',
+  );
+  ok(
+    statusShouldAdoptLiveTunnel({ publicOk: false, tunnelPid: null }) === false,
+    'statusShouldAdoptLiveTunnel skips without tunnel process',
+  );
+  ok(
+    fs
+      .readFileSync(new URL(import.meta.url), 'utf8')
+      .includes('statusShouldAdoptLiveTunnel({ publicOk, tunnelPid })'),
+    'status path uses statusShouldAdoptLiveTunnel gate',
+  );
   ok(
     lastTunnelUrlFromLog(
       'Visit it at https://old-dead-host.trycloudflare.com\nVisit it at https://fresh-live-host.trycloudflare.com\n',
