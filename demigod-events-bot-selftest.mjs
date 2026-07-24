@@ -10841,6 +10841,46 @@ for (const t of [
     "hunter's point (spaced) outdoor: parklet beats roof",
   );
 }
+// residual: SE outdoor meetup — Yerba gardens demoted (se-far); potrero/mission bay SE bias
+{
+  for (const need of [
+    "hunter's point outdoor free meetup",
+    'potrero outdoor free meetup',
+    'mission bay outdoor free hang',
+    'bayview outdoor free meetup',
+  ]) {
+    const parklet = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_soma_parklet'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    const dolores = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_dolores'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    const yerba = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_yerba_buena'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    const roof = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_salesforce_park'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    const soft = Math.max(parklet.score, dolores.score);
+    ok(soft > yerba.score, need + ': SE soft beats Yerba gardens');
+    ok(soft > roof.score, need + ': SE soft beats Salesforce roof');
+    ok(yerba.reasons?.includes('se-far'), need + ': se-far on Yerba');
+    ok(roof.reasons?.includes('se-roof'), need + ': se-roof on Salesforce');
+    const top = matchFreeVenues({ need, seats: 12, limit: 1 })[0];
+    ok(
+      top && top.id !== 'v_salesforce_park' && top.id !== 'v_yerba_buena',
+      need + ' not crowned roof/yerba: ' + (top?.id || 'none'),
+    );
+  }
+}
 // residual: japantown/fillmore/chinatown indoor salon — Civic Main library over Mission SFPL
 {
   const jtNeed = 'japantown indoor free salon talk';

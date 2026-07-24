@@ -4272,7 +4272,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // (SE soft lawns/parklets beat elevated roof garden; draft free-list honesty only)
   // residual: dogpatch outdoor free meetup crowned Salesforce roof (right-size+meetup) over
   // SE lawns/parklets — same SE-soft preference (draft free-list honesty only)
-  if (outdoorAsked && /\b(bayview|visitacion|dogpatch|hunter'?s?\s*point)\b/.test(needL)) {
+  // residual: hunter's point / dogpatch meetup still crowned Yerba gardens (meetup-fit) over
+  // SE parklets; potrero/mission bay missed SE bias entirely (draft free-list honesty only)
+  if (
+    outdoorAsked &&
+    /\b(bayview|visitacion|dogpatch|hunter'?s?\s*point|potrero|mission\s+bay)\b/.test(needL)
+  ) {
     if (
       v.id === 'v_soma_parklet' ||
       v.id === 'v_dolores' ||
@@ -4280,10 +4285,10 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     ) {
       score += 2;
       reasons.push('se-outdoor');
-    } else if (v.id === 'v_salesforce_park') {
-      // -4: meetup-fit+right-size still crowned roof over SE lawns at -2 (dogpatch residual)
-      score -= 4;
-      reasons.push('se-roof');
+    } else if (v.id === 'v_salesforce_park' || v.id === 'v_yerba_buena') {
+      // -6: meetup-fit (+4) still tied SE parklets at -4 (hunter's/potrero residual)
+      score -= 6;
+      reasons.push(v.id === 'v_salesforce_park' ? 'se-roof' : 'se-far');
     }
   }
   // residual: bare picnic crowned ferry food arcade via outdoor-fit+right-size over lawns
