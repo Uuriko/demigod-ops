@@ -95,6 +95,27 @@ function assert(name, cond, detail = '') {
   results.push({ name, ok: Boolean(cond), detail: String(detail).slice(0, 220) });
 }
 
+// Fail-capability poison (Claude c266): suite must not be vacuous-green.
+// DEMIGOD_TOOLS_SELFTEST_POISON=1 forces one red assert and exits non-zero immediately.
+// Meta-proof: node --test demigod-tools-selftest.poison.test.mjs
+if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
+  assert(
+    'poison-control-intentional-fail',
+    false,
+    'DEMIGOD_TOOLS_SELFTEST_POISON=1 must fail the suite (not vacuous-green)',
+  );
+  const receipt = {
+    at: new Date().toISOString(),
+    pass: false,
+    poison: true,
+    results,
+    failed: results.filter((r) => !r.ok).map((r) => r.name),
+  };
+  writeReceiptAtomic(receipt);
+  console.log('tools-selftest  FAIL ✗  (poison control)');
+  process.exit(1);
+}
+
 {
   const source = fs.readFileSync(path.join(ROOT, 'demigod-webflow.mjs'), 'utf8');
   const lib = fs.readFileSync(path.join(ROOT, 'demigod-webflow-lib.mjs'), 'utf8');

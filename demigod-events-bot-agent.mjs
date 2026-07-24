@@ -5171,10 +5171,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // Seated dinner/supper: boost kitchen/dining/in-kind food rooms only (not bare office loan).
   // residual: "meal" was in foodServiceFormat (no-food-room) but missed here → parks beat kitchen on "family-style meal"
   // residual: food-class (wine tasting/cooking) missed dinner-room → office loan crowned kitchen
+  // residual: multi-resource food/beverage (resourceFoodGap) skipped dinner-room while seatedMeal
+  // already blocked office-tables — kitchen explain missed dinner-room (draft free-list honesty only).
   // office-tables boost is separate and already skipped for seatedMeal (draft shortlist honesty).
   if (
     (/dinner|supper|brunch|breakfast|meal|course|\bdining\b/.test(needL) ||
-      needIsFoodClass(needL)) &&
+      needIsFoodClass(needL) ||
+      resourceFoodGap) &&
     !outdoorAsked &&
     !/library/.test(blob) &&
     !/sponsor tab/i.test(v.cost || '') &&

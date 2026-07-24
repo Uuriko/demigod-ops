@@ -203,6 +203,7 @@ function resolveAppPid() {
  * Port flag residual: --port N · --port=N · --portN (glued long) · lt -p N ·
  *   lt -p=N · lt -pN (glued short) · quoted --port "N" / 'N' / --port="N" / -p "N"
  *   · smart-quoted --port “N” / ‘N’ (Word/iMessage paste residual).
+ *   · guillemet --port «N» (FR/Word paste residual).
  *   Unquoted branch keeps \\b after digits so --port34600 ≠ 3460.
  * Order: cloudflared first, then localtunnel, then lt (same preference as status rediscover).
  * @param {string} psOut
@@ -233,7 +234,8 @@ export function tunnelPidsFromPs(psOut, port = PORT) {
   // unquoted keeps \\b so --port34600 ≠ 3460.
   // Matching quotes only — mismatched `"3460'` / `'3460"` not matched by design (LAST).
   // Smart-quote residual: Word/iMessage paste --port “3460” / ‘3460’ (U+201C/D/8/9).
-  const portFlag = `(?:--port[=\\s]*|-p[=\\s]*)(?:"${p}"|'${p}'|\u201c${p}\u201d|\u2018${p}\u2019|${p}\\b)`;
+  // Guillemet residual: FR/Word paste --port «3460» (U+00AB/BB).
+  const portFlag = `(?:--port[=\\s]*|-p[=\\s]*)(?:"${p}"|'${p}'|\u201c${p}\u201d|\u2018${p}\u2019|\u00ab${p}\u00bb|${p}\\b)`;
   const patterns = [
     new RegExp(
       `^\\s*(\\d+)\\s+.*\\bcloudflared\\b.*\\btunnel\\b.*${cfHost}:${p}\\b`,
@@ -2562,6 +2564,14 @@ function selfcheck() {
     ok(
       tunnelPidFromPs('1211 lt --port \u20183460\u2019', 3460) === 1211,
       'tunnelPidFromPs lt --port smart single-quoted form',
+    );
+    ok(
+      tunnelPidFromPs('1212 lt --port \u00ab3460\u00bb', 3460) === 1212,
+      'tunnelPidFromPs lt --port guillemet-quoted form',
+    );
+    ok(
+      tunnelPidFromPs('1213 lt --port=\u00ab3460\u00bb', 3460) === 1213,
+      'tunnelPidFromPs lt --port= guillemet equals form',
     );
     ok(
       tunnelPidFromPs('1198 lt --port 3460', 3460) === 1198,

@@ -10907,6 +10907,23 @@ ok(
     }),
   'cooking class: office beats parklet',
 );
+// residual: multi-resource food/beverage (resourceFoodGap) still stamps dinner-room on kitchen
+{
+  const foodNeed = 'sponsor food and beverage for SoMa supper club shared table';
+  const kitchen = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_community_dining'), {
+    need: foodNeed,
+    seats: 12,
+    explain: true,
+  });
+  const office = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_office_loan'), {
+    need: foodNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(kitchen.reasons?.includes('dinner-room'), 'resource food/beverage: dinner-room on kitchen');
+  ok(kitchen.score > office.score, 'resource food/beverage: kitchen beats bare office loan');
+}
+
 
 const trivia = matchFreeVenues({ need: 'trivia night free SF', seats: 20, limit: 2 });
 ok(
