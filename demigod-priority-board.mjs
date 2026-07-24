@@ -373,15 +373,22 @@ export function buildPriorityBoard(data = {}) {
   const warmDueToday = Number(warmFresh.dueTodayActionCount ?? 0);
   const warmNext = demand?.next || pilot?.next || pilot?.NEXT || null;
   const overdueItems = warmFresh.overdueActionItems || [];
-  const humanOnlyOverdue = overdueItems.length > 0 && overdueItems.every((item) =>
-    /(?:human outcome|call outcome|when known)/i.test(`${item?.action || ''} ${item?.next || ''}`),
-  );
+  // Human-gated warm (drafted not sent, outcome note, no observed reply) is not agent DM work.
+  const humanOnlyOverdue =
+    overdueItems.length > 0 &&
+    overdueItems.every((item) =>
+      /(?:human outcome|call outcome|when known|drafted locally|not sent|warm\s*[≠!=]+\s*pilot|no later reply|reschedule reply)/i.test(
+        `${item?.action || ''} ${item?.next || ''}`,
+      ),
+    );
   if (warmOverdue > 0) {
     push({
       pri: humanOnlyOverdue ? 3 : 1,
       id: 'warm-overdue',
       kind: humanOnlyOverdue ? 'info' : 'action',
-      title: humanOnlyOverdue ? 'Warm inbound awaiting outcome note' : 'Warm inbound overdue',
+      title: humanOnlyOverdue
+        ? 'Warm inbound awaiting human outcome (no auto-DM)'
+        : 'Warm inbound overdue',
       detail: String(warmNext || `overdue=${warmOverdue}`).slice(0, 160),
       cmd: 'bin/dg pilot status',
       job: 'pilot',

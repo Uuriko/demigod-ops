@@ -41,6 +41,8 @@ if (ship || wizard) {
     ['demigod-tools-selftest.poison.test.mjs'],
     // events-app policy fail-capability (Claude c269): strip CORS → assert red
     ['demigod-events-app-policy-selftest.poison.test.mjs'],
+    // events-bot-selftest + funnel-loop once CLI fail-closed (unknown flags / FOCUS pause)
+    ['demigod-events-bot-selftest-cli.test.mjs'],
     // Canonical ship prepare must keep import-integrity + honesty steps (not ship-prep-only)
     ['demigod-ship-prepare-contract.test.mjs'],
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
