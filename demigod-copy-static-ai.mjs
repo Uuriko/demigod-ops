@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-/** Webflow AI: permanent static scrub of 48h / John Doe + page SEO meta. */
+/** Webflow AI: permanent static scrub of timed-match SLA copy / John Doe + page SEO meta. */
 import fs from 'fs';
 import path from 'path';
 import { ROOT, wlog, submitWebflowAiPrompt, waitWebflowTurnComplete } from './demigod-turn-lib.mjs';
 import { fetchLiveHtml } from './demigod-live-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-COPY-STATIC-AI.json');
-const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. hello@trydemigod.com';
+const CLEAN_META = 'Demigod matches SF startups with curated talent. Human-reviewed profiles. 10% fee on hire only. potter@trydemigod.com';
 const CLEAN_OG = 'SF startups submit a brief. Candidates upload once. Humans match. 10% on hire.';
 const CLEAN_HERO = 'SF Bay Area startups submit a role brief. Candidates upload a profile once. Humans review every match.';
 
@@ -18,11 +18,11 @@ PAGE SETTINGS → SEO tab:
 - Twitter description: ${CLEAN_OG}
 
 CANVAS permanent fixes (edit text, do not rely on hide):
-- Remove/replace ALL "48 hours", "48h", "Within 48", "3-5 matches in 48 hours", "Humans Match Within 48h"
+- Scrub every reply-speed / hour-count SLA claim (no timed match promises of any kind)
 - Hero description → ${CLEAN_HERO}
 - Engineer modal placeholder "John Doe" → "Your full name"
-- Delete or rewrite step card titled "Humans Match Within 48h"
-- Footer tagline: remove "48 hours" timing
+- Delete or rewrite any step card that claims timed human matching speed
+- Footer tagline: scrub timed match promises
 - Replace TalentLink branding with Demigod
 
 Publish to www.trydemigod.com AND talentlink-sf.webflow.io. List every string changed.`;

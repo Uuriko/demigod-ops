@@ -73,8 +73,20 @@ export const GEO_RULE = {
 // residual-39: bare Telegraph Hill + South Park free-text lacked SF_OK (city empty → false reject)
 // residual-40: Upper Market (Castro corridor) lacked SF_OK — bare "Upper Market" false-reject
 // residual-41: Ferry Building + India Basin lacked SF_OK (china basin already OK; free-list v_ferry_arcade)
+// residual-42: free-list/area hoods already in offer geo but bare isSfLocation false-reject
+// (Baker Beach/Lands End/Fort Point/Aquatic Park/Pier 70/Candlestick/Glen Canyon/
+// South Van Ness/Buena Vista Park/Rincon Park). Skip bare panhandle (Texas) + bare
+// Buena Vista (CA/CO cities). Van Ness alone still via south van ness only.
+// residual-43: bare SF-only hoods false-reject (Silver Terrace/St. Francis Wood/Cayuga/
+// NoPa/Polk Gulch/Crocker Amazon/Lone Mountain/University Mound). Not bare South Beach
+// (Miami) or bare Balboa Park (San Diego) — those still need SF qualifier.
+// residual-44: more bare SF parks/districts false-reject (Mount Davidson/McLaren/Holly/
+// Showplace Square/Sunnydale/Islais Creek). Not LA Westwood (NON_SF) or bare Design District
+// without SF cue if later narrowed; Design District SF is Showplace-adjacent.
+// residual-45: free-list Salesforce Park + Transbay + Cathedral Hill bare false-reject
+// (v_salesforce_park card already SoMa; not bare Design District / Balboa Park / South Beach).
 const SF_OK =
-  /\b(san francisco|sf\b|soma|south\s+of\s+market|mission district|mission\b|folsom|market street|upper\s+market|mid[- ]market|financial district|fi?di\b|civic center|hayes valley|castro|eureka valley|north beach|marina|potrero|dogpatch|tenderloin|nob hill|russian hill|telegraph hill|pacific heights|chinatown|japantown|embarcadero|union square|presidio|bayview|excelsior|bernal|noe valley|haight|richmond|sunset|twin peaks|glen park|south park|ingleside|visitacion|treasure island|yerba buena(?:\s+island)?|alamo square|west portal|cow hollow|jackson square|rincon hill|lake merced|merced heights|merced manor|park merced|parkmerced|anza vista|little hollywood|golden gate park|fort mason|crissy field|dolores park|hunter'?s?\s+point|duboce(?:\s+triangle)?|cole valley|fisherman'?s?\s+wharf|moscone|pier\s*39|oracle park|chase center|ghirardelli|coit tower|lombard street|corona heights|washington square|lincoln way|ocean beach|sea\s*cliff|diamond heights|stonestown|parkside|oceanview|china basin|india basin|ferry\s+building|western addition|fillmore|north waterfront|ashbury(?:\s+heights)?|valencia\s+street|portola(?:\s+district)?|forest\s+hill|miraloma(?:\s+park)?|sloat|lakeside(?:\s+(?:village|district))?|sunnyside\s+(?:district|neighborhood))\b/i;
+  /\b(san francisco|sf\b|soma|south\s+of\s+market|mission district|mission\b|folsom|market street|upper\s+market|mid[- ]market|financial district|fi?di\b|civic center|hayes valley|castro|eureka valley|north beach|marina|potrero|dogpatch|tenderloin|nob hill|russian hill|telegraph hill|pacific heights|chinatown|japantown|embarcadero|union square|presidio|bayview|excelsior|bernal|noe valley|haight|richmond|sunset|twin peaks|glen park|south park|ingleside|visitacion|treasure island|yerba buena(?:\s+island)?|alamo square|west portal|cow hollow|jackson square|rincon hill|lake merced|merced heights|merced manor|park merced|parkmerced|anza vista|little hollywood|golden gate park|fort mason|crissy field|dolores park|hunter'?s?\s+point|duboce(?:\s+triangle)?|cole valley|fisherman'?s?\s+wharf|moscone|pier\s*39|oracle park|chase center|ghirardelli|coit tower|lombard street|corona heights|washington square|lincoln way|ocean beach|sea\s*cliff|diamond heights|stonestown|parkside|oceanview|china basin|india basin|ferry\s+building|western addition|fillmore|north waterfront|ashbury(?:\s+heights)?|valencia\s+street|portola(?:\s+district)?|forest\s+hill|miraloma(?:\s+park)?|sloat|lakeside(?:\s+(?:village|district))?|sunnyside\s+(?:district|neighborhood)|baker\s+beach|land'?s?\s+end|fort\s+point|aquatic\s+park|pier\s*70|candlestick(?:\s+point)?|glen\s+canyon|south\s+van\s+ness|buena\s+vista\s+park|rincon\s+park|silver\s+terrace|st\.?\s*francis\s+wood|cayuga(?:\s+park)?|nopa|no\s*pa|polk\s+gulch|crocker[- ]?amazon|lone\s+mountain|university\s+mound|mount\s+davidson|mclaren\s+park|holly\s+park|showplace\s+square|sunnydale|islais\s+creek|salesforce\s+(?:park|tower)|transbay(?:\s+(?:terminal|center|transit))?|cathedral\s+hill|midtown\s+terrace|alcatraz|fort\s+funston|sutro\s+baths|golden\s+gate\s+bridge)\b/i;
 // NON_SF first. Include CA cities outside SF proper (Sacramento/San Diego/Santa Cruz
 // used to default-pass via the generic-title branch). Bare Richmond = SF district;
 // Richmond, CA / Richmond California = East Bay city. SFO airport is San Mateo County.
@@ -280,7 +292,7 @@ const SF_OK =
 // Del Dios/Dulzura/Guatay/Mount Laguna/Cabazon/Whitewater/South Laguna).
 // Mission/Marina/Castro/Potrero still SF.
 const NON_SF =
-  /\b(nyc|new york|brooklyn|manhattan|queens|paris|tokyo|berlin|singapore|sydney|mexico city|los angeles|\bla\b|santa monica|long beach|seattle|austin|san antonio|chicago|miami|london|boston|denver|portland|atlanta|philadelphia|\bphilly\b|houston|dallas|phoenix|las vegas|salt lake city|nashville|minneapolis|toronto|vancouver|washington\s*dc|\bdc\b|remote[- ]only|remote[- ]first|fully remote|video[- ]only|webinar[- ]only|youtube\s+live[- ]only|livestream[- ]only|livestream(?:\s+(?:meetup|event|hang|night|call|session|webinar))?|teleconference|conference\s+call|broadcast[- ]only|virtual(?:[- ]only)?|zoom(?:[- ]only|\s+(?:meetup|event|call|session|room))|online[- ]only|teams[- ]only|microsoft\s+teams[- ]only|discord[- ]only|telegram[- ]only|signal[- ]only|phone[- ]only|slack[- ]only|google\s+meet[- ]only|webex[- ]only|skype[- ]only|facetime[- ]only|hangouts[- ]only|async[- ]only|distributed[- ]only|digital[- ]only|metaverse(?:[- ]only|\s+(?:meetup|event|hang|night|call|session))?|telephone[- ]only|sms[- ]only|text[- ]only|vr(?:[- ]only|\s+(?:meetup|event|hang|night|call|session))|web[- ]only|audio[- ]only|voice[- ]only|call[- ]only|clubhouse(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|loft|dinner|space))|spaces[- ]only|(?:twitter|x)\s+spaces?(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|loft|room|dinner|space))?|oakland|berkeley|alameda|emeryville|el cerrito|albany|piedmont|moraga|hercules|pinole|san pablo|pittsburg|pittsburgh|martinez|benicia|rodeo|crockett|newark|american canyon|suisun(?:\s+city)?|vacaville|temescal|rockridge|fruitvale|lake merritt|san jose|palo alto|mountain view|menlo park|los altos|sunnyvale|cupertino|stanford|googleplex|apple park|moffett(?:\s+field)?|nasa ames|redwood city|redwood shores|san mateo|daly city|south san francisco|south san fran|south sf|\bssf\b|\bsfo\b|san francisco (?:international )?airport|san francisco international|oyster point|san bruno|foster city|burlingame|millbrae|brisbane|colma|broadmoor|pacifica|half moon bay|montara|north fair oaks|bodega bay|sea ranch|forestville|geyserville|sacramento|san diego|santa cruz|capitola|aptos|felton|boulder creek|santa barbara|santa clara|santa rosa|fresno|bakersfield|chico|eureka(?!\s+valley)|redding|red bluff|oroville|arcata|mckinleyville|fortuna|willits|clearlake|lakeport|crescent city|susanville|paradise(?:\s*,?\s*ca|\s+california)|gridley|live oak|orland|corning|anderson(?:\s*,?\s*ca|\s+california)|(?:mount\s+)?shasta(?:\s+lake)?|weed(?:\s*,?\s*ca|\s+california)|yreka|alturas|dunsmuir|ferndale|rio dell|garberville|laytonville|kelseyville|lower lake|middletown|gualala|point arena|boonville|anaheim|pasadena|burbank|santa ana|riverside|san bernardino|palm springs|(?<!lake\s)(?<!park\s)merced(?!\s+(?:heights|manor))|visalia|oxnard|ventura|san luis obispo|\bslo\b|roseville|woodland|yuba city|marysville|turlock|manteca|lodi|lathrop|ripon|oakdale|ceres|galt|isleton|rio vista|patterson|escalon|wasco|shafter|taft|tehachapi|mojave|ridgecrest|big bear|lake arrowhead|twentynine palms|yucca valley|perris|menifee|lake elsinore|wildomar|carlsbad|encinitas|oceanside|escondido|folsom\s*,?\s*ca|folsom\s+california|lake tahoe|south lake tahoe|tahoe city|south shore(?:\s+tahoe)?|tahoe donner|incline village|kings beach|zephyr cove|olympic valley|squaw valley|\breno\b|carson city|carson(?:\s*,?\s*ca|\s+california)?|grass valley|nevada city|placerville|el dorado hills|\bauburn\b|mendocino|big sur|yosemite|fort bragg|ukiah|yountville|st\.?\s*helena|rocklin|elk grove|citrus heights|rancho cordova|cameron park|lincoln(?:\s*,?\s*ca|\s+california)|loomis|west sacramento|malibu|venice beach|venice|culver city|culver|pacific palisades|pebble beach|mission valley|fashion valley|mission beach|mission viejo|pacific beach|coronado|marina del rey|balboa island|del mar|solana beach|newport(?:\s+beach)?|laguna beach|huntington beach|hermosa(?:\s+beach)?|redondo(?:\s+beach)?|costa mesa|dana point|san clemente|fountain valley|garden grove|truckee|monterey|carmel|pacific grove|seaside|sand city|del rey oaks|guadalupe|irvine|davis|yolo(?:\s+county|\s*,?\s*ca\b|\s+california)?|winters(?:\s*,?\s*ca|\s+california)|dixon(?:\s*,?\s*ca|\s+california)|napa|calistoga|petaluma|novato|san rafael|san anselmo|fairfax|ross|concord|pleasanton|dublin|livermore|san carlos|belmont|atherton|los gatos|campbell|milpitas|union city|san leandro|san lorenzo|el sobrante|san ramon|danville|lafayette|orinda|pleasant hill|antioch|tracy|stockton|modesto|vallejo|fairfield|sonoma|guerneville|tiburon|larkspur|corte madera|castro valley|gilroy|morgan hill|hollister|san juan bautista|silicon valley|tri[- ]valley|richmond\s*,?\s*ca\b|richmond\s+california|richmond\s*,?\s*va\b|richmond\s+virginia|richmond\s*,?\s*ky\b|richmond\s+kentucky|richmond\s*,?\s*in\b|richmond\s+indiana|richmond\s*,?\s*tx\b|richmond\s+texas|jackson\s*,?\s*ca\b|jackson\s+california|jackson\s*,?\s*ms\b|jackson\s+mississippi|bay area|north bay|south bay|east bay|peninsula|muir beach|marin|sausalito|mill valley|walnut creek|fremont|hayward|belvedere|kentfield|greenbrae|san quentin|bolinas|stinson beach|inverness|point reyes|kensington|point richmond|brentwood|oakley|clayton|discovery bay|blackhawk|alamo(?!\s+square)|portola valley|sky londa|woodside|hillsborough|saratoga|monte sereno|pescadero|moss beach|el granada|rohnert park|cotati|healdsburg|sebastopol|windsor|cloverdale|scotts valley|watsonville|salinas|clovis|hanford|tulare|porterville|madera|atwater|los banos|chowchilla|lemoore|delano|reedley|sanger|selma|kingsburg|dinuba|pismo beach|arroyo grande|paso robles|templeton|atascadero|morro bay|cayucos|cambria|lompoc|santa maria|goleta|carpinteria|ojai|solvang|buellton|king city|soledad|gonzales|greenfield(?:\s*,?\s*ca|\s+california)?|camarillo|thousand oaks|simi valley|agoura hills|calabasas|sherman oaks|studio city|glendale|pomona|ontario|rancho cucamonga|fontana|rialto|moreno valley|corona(?!\s+heights)|temecula|murrieta|hemet|palm desert|indio|cathedral city|coachella|barstow|victorville|hesperia|apple valley|lancaster|palmdale|santa clarita|claremont|upland|chino hills|whittier|downey|compton|inglewood|torrance|gardena|hawthorne|el segundo|fullerton|orange(?:\s*,?\s*ca|\s+california)?|tustin|lake forest|san juan capistrano|chula vista|national city|imperial beach|el cajon|santee|poway|(?<!anza\s)vista|encino|van nuys|northridge|reseda|sonora(?:\s*,?\s*ca|\s+california)|mariposa|oakhurst|mammoth lakes|bishop|angels camp|sutter creek|colfax|murphys|groveland|tam valley|port costa|sunol|bethel island|byron(?:\s*,?\s*ca|\s+california)|detroit|cleveland|baltimore|charlotte|tampa|orlando|jacksonville|columbus|indianapolis|milwaukee|kansas city|st\.?\s*louis|saint louis|new orleans|cincinnati|memphis|louisville|raleigh|durham|providence|hartford|buffalo|rochester|honolulu|maui|\bhilo\b|kauai|\boahu\b|boise|spokane|tacoma|eugene|anchorage|oklahoma city|tulsa|omaha|des moines|wichita|little rock|birmingham|norfolk|virginia beach|charleston|savannah|knoxville|chattanooga|albuquerque|tucson|el paso|fort worth|plano|irving|garland|corpus christi|laredo|mcallen|baton rouge|shreveport|mobile|huntsville|montgomery|tallahassee|gainesville|pensacola|sarasota|fort lauderdale|west palm beach|cape coral|madison|green bay|grand rapids|ann arbor|lansing|flint|akron|toledo|dayton|fort wayne|south bend|evansville|lexington|bowling green|bellevue(?:\s*,?\s*wa|\s+washington)|olympia|bellingham|salem(?:\s*,?\s*or|\s+oregon)?|bend|medford|grants pass|idaho falls|missoula|billings|bozeman|cheyenne|casper|fargo|sioux falls|bismarck|rapid city|quincy(?:\s*,?\s*ca|\s+california)|portola(?:\s*,?\s*ca|\s+california)|colusa|willows(?:\s*,?\s*ca|\s+california)|firebaugh|kerman(?:\s*,?\s*ca|\s+california)|lindsay|corcoran|avenal|coalinga|fillmore(?:\s*,?\s*ca|\s+california)|santa paula|moorpark|west hollywood|beverly hills|alhambra|arcadia|redlands|yucaipa|beaumont(?:\s*,?\s*ca|\s+california)?|banning(?:\s*,?\s*ca|\s+california)?|valencia(?:\s*,?\s*ca|\s+california)|livingston(?:\s*,?\s*ca|\s+california)|provo(?:\s*,?\s*ut|\s+utah)?|scottsdale|boulder(?:\s*,?\s*co|\s+colorado)|colorado springs|columbia(?:\s*,?\s*sc|\s+south carolina)|lincoln(?:\s*,?\s*ne|\s+nebraska)|topeka|fayetteville(?:\s*,?\s*ar|\s+arkansas)|fairbanks|juneau|seal beach|rancho mirage|calexico|el centro|brawley|san marcos|st\.?\s*paul|saint paul|greensboro|exeter|lone pine|adelanto|grover beach|mountain house|bodega|occidental|marina(?:\s*,?\s*ca|\s+california)|laguna niguel|diamond bar|rowland heights|hacienda heights|norwalk|bellflower|lakewood|cerritos|cypress|yorba linda|placentia|brea|colton|highland|loma linda|san jacinto|canyon lake|norco|west covina|chino|san dimas|glendora|azusa|monrovia|duarte|covina|baldwin park|el monte|south gate|lynwood|desert hot springs|montebello|pico rivera|commerce(?:\s*,?\s*ca|\s+california)?|vernon(?:\s*,?\s*ca|\s+california)?|maywood|cudahy|huntington park|paramount(?:\s*,?\s*ca|\s+california)?|westminster(?:\s*,?\s*ca|\s+california|\s*,?\s*md|\s+maryland)?|bell gardens|bell(?:\s*,?\s*ca|\s+california)|rosemead|san gabriel|san marino|temple city|aliso viejo|laguna hills|laguna woods|rancho santa margarita|capistrano beach|joshua tree|indian wells|needles(?:\s*,?\s*ca|\s+california)?|california city|parlier|huron(?:\s*,?\s*ca|\s+california)?|mendota|fowler(?:\s*,?\s*ca|\s+california)?|mcfarland|arvin|newhall|canyon country|saugus|acton(?:\s*,?\s*ca|\s+california)?|stevenson ranch|castaic|agua dulce|walnut(?!\s+creek)|flagstaff|sedona|santa fe(?:\s*,?\s*nm|\s+new mexico)?|arlington(?:\s*,?\s*va|\s+virginia)?|alexandria(?:\s*,?\s*va|\s+virginia)?|reston|mclean|bethesda|silver spring|rockville|annapolis|frederick(?:\s*,?\s*md|\s+maryland)?|hagerstown|cumberland(?:\s*,?\s*md|\s+maryland)?|wheeling|winston[- ]salem|roanoke(?:\s*,?\s*va|\s+virginia)?|boca raton|manchester|syracuse|worcester|nashua|jersey city|princeton|asheville|(?<!little\s)hollywood|silver lake|silverlake|echo park|los feliz|koreatown|boyle heights|westwood|dtla|downtown\s+la|downtown\s+los\s+angeles|north hollywood|\bnoho\b|canoga park|tarzana|sylmar|pacoima|san fernando|granada hills|sunland|tujunga|century city|playa del rey|playa vista|mar vista|\bpalms\b|mid[- ]wilshire|arts district|san pedro|wilmington|lawndale|lomita|rancho palos verdes|palos verdes|rolling hills|eagle rock|glassell park|mount washington|lincoln heights|el sereno|leimert(?:\s+park)?|crenshaw|baldwin hills|view park|ladera heights|west adams|jefferson park|south central|\bwatts\b|florence[- ]firestone|bel[- ]?air|frogtown|elysian valley|signal hill|harbor city|\blennox\b|rancho bernardo|los osos|nipomo|santa ynez|calimesa|grand terrace|bloomington|sierra madre|altadena|exclusively\s+remote|100\s*%?\s*remote|100\s+percent\s+remote|no\s+in[- ]person|cyber[- ]only|internet[- ]only|distributed\s+team|chatsworth|toluca lake|valley village|universal city|porter ranch|north hills|panorama city|winnetka|shadow hills|lake view terrace|\barleta\b|mission hills|k[- ]?town|fashion district|sawtelle|topanga(?:\s+canyon)?|miracle mile|\bmelrose\b|larchmont(?:\s+village)?|hancock park|mid[- ]city|thai town|little armenia|(?:historic\s+)?filipinotown|macarthur park|pico[- ]union|exposition park|\bucla\b(?:\s+campus)?|pacific design center|beverly center|carthay(?:\s+circle)?|wilshire center|\bglassell\b|elysian park|westlake village|newbury park|port hueneme|\bagoura\b|hidden hills|bell canyon|sunset beach|amsterdam|madrid|barcelona|lisbon|copenhagen|stockholm|\boslo\b|zurich|geneva|munich|hamburg|melbourne|auckland|hong kong|taipei|seoul|bangkok|dubai|tel aviv|mumbai|bangalore|bengaluru|s[aã]o\s+paulo|buenos aires|montreal|calgary|ottawa|capitol hill|georgetown|dupont circle|adams morgan|williamsburg|bushwick|long island city|hoboken|brookline|new haven|fort collins|greeley|pueblo|grand junction|\baspen\b|\bvail\b|breckenridge|durango|loveland|boulder(?!\s+creek)|buena park|cardiff(?:[- ]by[- ]the[- ]sea)?|los alamitos|coto de caza|ladera ranch|trabuco(?:\s+canyon)?|portola hills|foothill ranch|eastvale|jurupa valley|modjeska(?:\s+canyon)?|silverado|\bdixon\b|\bwinters\b|edinburgh|glasgow|bristol|leeds|liverpool|vienna|prague|warsaw|budapest|bucharest|athens|rome|milan|florence|naples|brussels|bruges|antwerp|rotterdam|the hague|helsinki|reykjavik|\bcork\b|guadalajara|monterrey|\bcancun\b|bogot[aá]|\blima\b|santiago|cape town|johannesburg|nairobi|\blagos\b|cairo|istanbul|beirut|\bamman\b|delhi|hyderabad|chennai|kolkata|\bpune\b|jakarta|manila|kuala lumpur|ho chi minh|\bhanoi\b|shanghai|beijing|shenzhen|guangzhou|osaka|kyoto|\bbusan\b|perth|adelaide|wellington|christchurch|winnipeg|quebec city|halifax|edmonton|whatsapp(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|only))|imessage(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|only))|wechat(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|only))|(?:facebook\s+)?messenger(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|only))|jitsi[- ]only|whereby[- ]only|(?:remo|hopin|spatial|vrchat)[- ]only|(?:mozilla\s+hubs|rec\s+room|gather\s+town)[- ]only|wfh[- ]only|work[- ]from[- ]home(?:[- ]only)?|work[- ]from[- ]anywhere|cloud[- ]only|cloud[- ]first|async[- ]first|asynchronous[- ]only|distributed[- ]first|timezone[- ]agnostic|global[- ]remote|anywhere[- ]in[- ]the[- ]world|venue[- ]free|location[- ]free|astoria|park slope|\bdumbo\b|greenpoint|bed[- ]?stuy|crown heights|flatbush|\bharlem\b|soho|tribeca|\bmidtown\b|upper east side|upper west side|lower east side|chelsea|weehawken|asbury park|jersey shore|somerville|allston|back bay|south end|\bfenway\b|beacon hill|charlestown|ballard|queen anne|wallingford|south lake union|\bbellevue\b|\brino\b|\blodo\b|cherry creek|brickell|south beach|little havana|coral gables|hollywood hills|rancho park|cheviot hills|beverly grove|inland empire|orange county|frankfurt|cologne|d[uü]sseldorf|stuttgart|\blyon\b|marseille|nice(?:\s*,?\s*france|\s+france)|basel|lausanne|\bbern\b|luxembourg|\bmonaco\b|jerusalem|\bhaifa\b|riyadh|\bdoha\b|abu dhabi|kuwait city|karachi|lahore|islamabad|colombo|kathmandu|phnom penh|\byangon\b|chiang mai|\bphuket\b|\bbali\b|\bubud\b|\bfiji\b|tahiti|\bcdmx\b|ciudad de m[eé]xico|kingston|\bhamilton\b|\bwaterloo\b|long island|staten island|(?:the\s+)?bronx|yonkers|white plains|westchester|coney island|rockaways?|jackson heights|flushing|bayside|forest hills|bay ridge|(?<!inner\s)(?<!outer\s)sunset park|red hook|fort greene|clinton hill|prospect heights|boerum hill|carroll gardens|cobble hill|gowanus|(?:the\s+)?hamptons|montauk|fire island|lemon grove|spring valley|bonita|lakeside(?:\s*,?\s*ca|\s+california)|\balpine\b|ramona|fallbrook|bonsall|valley center|\blic\b|kips bay|murray hill|gramercy|nolita|west village|east village|battery park|meatpacking(?:\s+district)?|washington heights|morningside heights|hell'?s kitchen|hell kitchen|\binwood\b|bensonhurst|sheepshead bay|brighton beach|dyker heights|borough park|point loma|hillcrest|north park|clairemont|kearny mesa|mira mesa|\bencanto\b|barrio logan|gaslamp(?:\s+quarter)?|normal heights|university heights|bankers hill|flatiron|hudson yards|roosevelt island|governors island|\bues\b|\buws\b|scripps ranch|rancho pe[nñ]asquitos|tierrasanta|serra mesa|grantville|allied gardens|del cerro|rolando|talmadge|logan heights|shelltown|paradise hills|otay mesa|san ysidro|sorrento valley|torrey pines|(?:nas\s+)?miramar|liberty station|university city|college area|golden hill|midway district|\bmorena\b|bay park|wall street|canarsie|elmhurst|rego park|middle village|maspeth|atlantic city|times square|bryant park|penn station|grand central|\bnomad\b|bush terminal|industry city|ozone park|howard beach|\bjamaica\b|st\.?\s*albans|bayswater|brownsville|ditmas park|midwood|marine park|gerritsen beach|mill basin|bergen beach|prospect park|greenwich village|alphabet city|south street seaport|seaport district|pier\s*17|central park(?:\s+west|\s+south)?|lincoln center|high line|bedford[- ]stuyvesant|prospect[- ]lefferts(?:\s+gardens)?|herald square|two bridges|iowa city|cedar rapids|cedar falls|dubuque|ames(?:\s*,?\s*ia|\s+iowa)?|kalamazoo|chapel hill|champaign|urbana|\bithaca\b|burlington(?:\s*,?\s*vt|\s+vermont)?|charlottesville|blacksburg|columbia(?:\s*,?\s*(?:mo|sc)|\s+(?:missouri|south carolina))?|rockefeller center|empire state(?:\s+building)?|tompkins square|st\.?\s*mark'?s?\s+place|\bbowery\b|madison square(?:\s+park)?|park avenue|corvallis|pullman|state college|college station|college park|tempe|\bmesa\b|tuscaloosa|amherst|northampton|poughkeepsie|schenectady|binghamton|\butica\b|new brunswick|university park|lubbock|\bwaco\b|denton|stillwater|duluth|great falls|pocatello|\bogden\b|las cruces|amarillo|midland|st\.?\s*george|starkville|hattiesburg|biloxi|gulfport|key west|myrtle beach|youngstown|harrisburg|allentown|scranton|\berie\b|stamford|bridgeport|evanston|naperville|peoria|\blogan\b|norman|\btroy\b|lawrence|\boxford\b|bluejeans[- ]only|go\s*to\s*meeting[- ]only|\bles\b|morningside|hudson square|ridgewood|south slope|\bditmas\b|bangor|augusta|montpelier|portsmouth|trenton|\bdover\b|huntington(?!\s+(?:beach|park))|lynchburg|greenville|spartanburg|fayetteville|daytona(?:\s+beach)?|fort myers|st\.?\s*pete(?:rsburg)?|clearwater|ocala|\bboca\b|lakeland|fort pierce|port st\.?\s*lucie|deltona|palm bay|homestead|kissimmee|bradenton|\bpierre\b|\bhelena\b|laramie|\bbutte\b|kalispell|twin falls|\bhampton\b|chesapeake|\bsuffolk\b|fredericksburg|grand forks|sioux city|\bcanton\b|\bmacon\b|hot springs|overland park|\beverett\b|wine country|russian river|anderson valley|\bminot\b|grand island|\bkearney\b|\bjoplin\b|cape girardeau|terre haute|\bmuncie\b|\bkokomo\b|parkersburg|morgantown|punta gorda|\bsebring\b|okeechobee|vero beach|\bstuart\b|\bjupiter\b|deerfield beach|pompano beach|\bhialeah\b|key largo|redmond|palm beach|appleton|springfield|dry creek valley|podcast[- ]only|rockford|eau claire|janesville|wausau|sheboygan|mankato|elmira|plattsburgh|rutland|presque isle|bar harbor|\bacadia\b|traverse city|saginaw|battle creek|muskegon|grand haven|fishers|noblesville|michigan city|elkhart|mishawaka|\bgary\b|hammond|blythe|oceano|trona|farmersville|three rivers|inyokern|kingman|bullhead city|lake havasu(?:\s+city)?|payson|wickenburg|mecca|salton city|calipatria|westmorland|niland|seeley|heber|winterhaven|imperial valley|imperial(?:\s*,?\s*ca|\s+california)?|douglas(?:\s*,?\s*az|\s+arizona)?|bisbee|tombstone|show low|cottonwood|camp verde|paradise valley|cutler|orosi|woodlake|springville|los alamos(?:\s*,?\s*ca|\s+california)?|cuyama|villa park|esparto|knights landing|magalia|salt lake|williams|paradise(?!\s+(?:hills|valley))|anderson(?!\s+valley)|weed|high point|chualar|prunedale|del dios|dulzura|guatay|mount laguna|mt\.?\s+laguna|cabazon|whitewater|south laguna)\b/i;
+  /\b(nyc|new york|brooklyn|manhattan|queens|paris|tokyo|berlin|singapore|sydney|mexico city|los angeles|\bla\b|santa monica|long beach|seattle|austin|san antonio|chicago|miami|london|boston|denver|portland|atlanta|philadelphia|\bphilly\b|houston|dallas|phoenix|las vegas|salt lake city|nashville|minneapolis|toronto|vancouver|washington\s*dc|\bdc\b|remote[- ]only|remote[- ]first|fully remote|video[- ]only|webinar[- ]only|youtube\s+live[- ]only|livestream[- ]only|livestream(?:\s+(?:meetup|event|hang|night|call|session|webinar))?|teleconference|conference\s+call|broadcast[- ]only|virtual(?:[- ]only)?|zoom(?:[- ]only|\s+(?:meetup|event|call|session|room))|online[- ]only|teams[- ]only|microsoft\s+teams[- ]only|discord[- ]only|telegram[- ]only|signal[- ]only|phone[- ]only|slack[- ]only|google\s+meet[- ]only|webex[- ]only|skype[- ]only|facetime[- ]only|hangouts[- ]only|async[- ]only|distributed[- ]only|digital[- ]only|metaverse(?:[- ]only|\s+(?:meetup|event|hang|night|call|session))?|telephone[- ]only|sms[- ]only|text[- ]only|vr(?:[- ]only|\s+(?:meetup|event|hang|night|call|session))|web[- ]only|audio[- ]only|voice[- ]only|call[- ]only|clubhouse(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|loft|dinner|space))|spaces[- ]only|(?:twitter|x)\s+spaces?(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|loft|room|dinner|space))?|oakland|berkeley|alameda|emeryville|el cerrito|albany|piedmont|moraga|hercules|pinole|san pablo|pittsburg|pittsburgh|martinez|benicia|rodeo|crockett|newark|american canyon|suisun(?:\s+city)?|vacaville|temescal|rockridge|fruitvale|lake merritt|san jose|palo alto|mountain view|menlo park|los altos|sunnyvale|cupertino|stanford|googleplex|apple park|moffett(?:\s+field)?|nasa ames|redwood city|redwood shores|san mateo|daly city|south san francisco|south san fran|south sf|\bssf\b|\bsfo\b|san francisco (?:international )?airport|san francisco international|oyster point|san bruno|foster city|burlingame|millbrae|brisbane|colma|broadmoor|pacifica|half moon bay|montara|north fair oaks|bodega bay|sea ranch|forestville|geyserville|sacramento|san diego|santa cruz|capitola|aptos|felton|boulder creek|santa barbara|santa clara|santa rosa|fresno|bakersfield|chico|eureka(?!\s+valley)|redding|red bluff|oroville|arcata|mckinleyville|fortuna|willits|clearlake|lakeport|crescent city|susanville|paradise(?:\s*,?\s*ca|\s+california)|gridley|live oak|orland|corning|anderson(?:\s*,?\s*ca|\s+california)|(?:mount\s+)?shasta(?:\s+lake)?|weed(?:\s*,?\s*ca|\s+california)|yreka|alturas|dunsmuir|ferndale|rio dell|garberville|laytonville|kelseyville|lower lake|middletown|gualala|point arena|boonville|anaheim|pasadena|burbank|santa ana|riverside|san bernardino|palm springs|(?<!lake\s)(?<!park\s)merced(?!\s+(?:heights|manor))|visalia|oxnard|ventura|san luis obispo|\bslo\b|roseville|woodland|yuba city|marysville|turlock|manteca|lodi|lathrop|ripon|oakdale|ceres|galt|isleton|rio vista|patterson|escalon|wasco|shafter|taft|tehachapi|mojave|ridgecrest|big bear|lake arrowhead|twentynine palms|yucca valley|perris|menifee|lake elsinore|wildomar|carlsbad|encinitas|oceanside|escondido|folsom\s*,?\s*ca|folsom\s+california|lake tahoe|south lake tahoe|tahoe city|south shore(?:\s+tahoe)?|tahoe donner|incline village|kings beach|zephyr cove|olympic valley|squaw valley|\breno\b|carson city|carson(?:\s*,?\s*ca|\s+california)?|grass valley|nevada city|placerville|el dorado hills|\bauburn\b|mendocino|big sur|yosemite|fort bragg|ukiah|yountville|st\.?\s*helena|rocklin|elk grove|citrus heights|rancho cordova|cameron park|lincoln(?:\s*,?\s*ca|\s+california)|loomis|west sacramento|malibu|venice beach|venice|culver city|culver|pacific palisades|pebble beach|mission valley|fashion valley|mission beach|mission viejo|pacific beach|coronado|marina del rey|balboa island|del mar|solana beach|newport(?:\s+beach)?|laguna beach|huntington beach|hermosa(?:\s+beach)?|redondo(?:\s+beach)?|costa mesa|dana point|san clemente|fountain valley|garden grove|truckee|monterey|carmel|pacific grove|seaside|sand city|del rey oaks|guadalupe|irvine|davis|yolo(?:\s+county|\s*,?\s*ca\b|\s+california)?|winters(?:\s*,?\s*ca|\s+california)|dixon(?:\s*,?\s*ca|\s+california)|napa|calistoga|petaluma|novato|san rafael|san anselmo|fairfax|ross|concord|pleasanton|dublin|livermore|san carlos|belmont|atherton|los gatos|campbell|milpitas|union city|san leandro|san lorenzo|el sobrante|san ramon|danville|lafayette|orinda|pleasant hill|antioch|tracy|stockton|modesto|vallejo|fairfield|sonoma|guerneville|tiburon|larkspur|corte madera|castro valley|gilroy|morgan hill|hollister|san juan bautista|silicon valley|tri[- ]valley|richmond\s*,?\s*ca\b|richmond\s+california|richmond\s*,?\s*va\b|richmond\s+virginia|richmond\s*,?\s*ky\b|richmond\s+kentucky|richmond\s*,?\s*in\b|richmond\s+indiana|richmond\s*,?\s*tx\b|richmond\s+texas|jackson\s*,?\s*ca\b|jackson\s+california|jackson\s*,?\s*ms\b|jackson\s+mississippi|bay area|north bay|south bay|east bay|peninsula|muir beach|marin|sausalito|mill valley|walnut creek|fremont|hayward|belvedere|kentfield|greenbrae|san quentin|bolinas|stinson beach|inverness|point reyes|kensington|point richmond|brentwood|oakley|clayton|discovery bay|blackhawk|alamo(?!\s+square)|portola valley|sky londa|woodside|hillsborough|saratoga|monte sereno|pescadero|moss beach|el granada|rohnert park|cotati|healdsburg|sebastopol|windsor|cloverdale|scotts valley|watsonville|salinas|clovis|hanford|tulare|porterville|madera|atwater|los banos|chowchilla|lemoore|delano|reedley|sanger|selma|kingsburg|dinuba|pismo beach|arroyo grande|paso robles|templeton|atascadero|morro bay|cayucos|cambria|lompoc|santa maria|goleta|carpinteria|ojai|solvang|buellton|king city|soledad|gonzales|greenfield(?:\s*,?\s*ca|\s+california)?|camarillo|thousand oaks|simi valley|agoura hills|calabasas|sherman oaks|studio city|glendale|pomona|ontario|rancho cucamonga|fontana|rialto|moreno valley|corona(?!\s+heights)|temecula|murrieta|hemet|palm desert|indio|cathedral city|coachella|barstow|victorville|hesperia|apple valley|lancaster|palmdale|santa clarita|claremont|upland|chino hills|whittier|downey|compton|inglewood|torrance|gardena|hawthorne|el segundo|fullerton|orange(?:\s*,?\s*ca|\s+california)?|tustin|lake forest|san juan capistrano|chula vista|national city|imperial beach|el cajon|santee|poway|(?<!(?:anza|buena)\s)vista|encino|van nuys|northridge|reseda|sonora(?:\s*,?\s*ca|\s+california)|mariposa|oakhurst|mammoth lakes|bishop|angels camp|sutter creek|colfax|murphys|groveland|tam valley|port costa|sunol|bethel island|byron(?:\s*,?\s*ca|\s+california)|detroit|cleveland|baltimore|charlotte|tampa|orlando|jacksonville|columbus|indianapolis|milwaukee|kansas city|st\.?\s*louis|saint louis|new orleans|cincinnati|memphis|louisville|raleigh|durham|providence|hartford|buffalo|rochester|honolulu|maui|\bhilo\b|kauai|\boahu\b|boise|spokane|tacoma|eugene|anchorage|oklahoma city|tulsa|omaha|des moines|wichita|little rock|birmingham|norfolk|virginia beach|charleston|savannah|knoxville|chattanooga|albuquerque|tucson|el paso|fort worth|plano|irving|garland|corpus christi|laredo|mcallen|baton rouge|shreveport|mobile|huntsville|montgomery|tallahassee|gainesville|pensacola|sarasota|fort lauderdale|west palm beach|cape coral|madison|green bay|grand rapids|ann arbor|lansing|flint|akron|toledo|dayton|fort wayne|south bend|evansville|lexington|bowling green|bellevue(?:\s*,?\s*wa|\s+washington)|olympia|bellingham|salem(?:\s*,?\s*or|\s+oregon)?|bend|medford|grants pass|idaho falls|missoula|billings|bozeman|cheyenne|casper|fargo|sioux falls|bismarck|rapid city|quincy(?:\s*,?\s*ca|\s+california)|portola(?:\s*,?\s*ca|\s+california)|colusa|willows(?:\s*,?\s*ca|\s+california)|firebaugh|kerman(?:\s*,?\s*ca|\s+california)|lindsay|corcoran|avenal|coalinga|fillmore(?:\s*,?\s*ca|\s+california)|santa paula|moorpark|west hollywood|beverly hills|alhambra|arcadia|redlands|yucaipa|beaumont(?:\s*,?\s*ca|\s+california)?|banning(?:\s*,?\s*ca|\s+california)?|valencia(?:\s*,?\s*ca|\s+california)|livingston(?:\s*,?\s*ca|\s+california)|provo(?:\s*,?\s*ut|\s+utah)?|scottsdale|boulder(?:\s*,?\s*co|\s+colorado)|colorado springs|columbia(?:\s*,?\s*sc|\s+south carolina)|lincoln(?:\s*,?\s*ne|\s+nebraska)|topeka|fayetteville(?:\s*,?\s*ar|\s+arkansas)|fairbanks|juneau|seal beach|rancho mirage|calexico|el centro|brawley|san marcos|st\.?\s*paul|saint paul|greensboro|exeter|lone pine|adelanto|grover beach|mountain house|bodega|occidental|marina(?:\s*,?\s*ca|\s+california)|laguna niguel|diamond bar|rowland heights|hacienda heights|norwalk|bellflower|lakewood|cerritos|cypress|yorba linda|placentia|brea|colton|highland|loma linda|san jacinto|canyon lake|norco|west covina|chino|san dimas|glendora|azusa|monrovia|duarte|covina|baldwin park|el monte|south gate|lynwood|desert hot springs|montebello|pico rivera|commerce(?:\s*,?\s*ca|\s+california)?|vernon(?:\s*,?\s*ca|\s+california)?|maywood|cudahy|huntington park|paramount(?:\s*,?\s*ca|\s+california)?|westminster(?:\s*,?\s*ca|\s+california|\s*,?\s*md|\s+maryland)?|bell gardens|bell(?:\s*,?\s*ca|\s+california)|rosemead|san gabriel|san marino|temple city|aliso viejo|laguna hills|laguna woods|rancho santa margarita|capistrano beach|joshua tree|indian wells|needles(?:\s*,?\s*ca|\s+california)?|california city|parlier|huron(?:\s*,?\s*ca|\s+california)?|mendota|fowler(?:\s*,?\s*ca|\s+california)?|mcfarland|arvin|newhall|canyon country|saugus|acton(?:\s*,?\s*ca|\s+california)?|stevenson ranch|castaic|agua dulce|walnut(?!\s+creek)|flagstaff|sedona|santa fe(?:\s*,?\s*nm|\s+new mexico)?|arlington(?:\s*,?\s*va|\s+virginia)?|alexandria(?:\s*,?\s*va|\s+virginia)?|reston|mclean|bethesda|silver spring|rockville|annapolis|frederick(?:\s*,?\s*md|\s+maryland)?|hagerstown|cumberland(?:\s*,?\s*md|\s+maryland)?|wheeling|winston[- ]salem|roanoke(?:\s*,?\s*va|\s+virginia)?|boca raton|manchester|syracuse|worcester|nashua|jersey city|princeton|asheville|(?<!little\s)hollywood|silver lake|silverlake|echo park|los feliz|koreatown|boyle heights|westwood|dtla|downtown\s+la|downtown\s+los\s+angeles|north hollywood|\bnoho\b|canoga park|tarzana|sylmar|pacoima|san fernando|granada hills|sunland|tujunga|century city|playa del rey|playa vista|mar vista|\bpalms\b|mid[- ]wilshire|arts district|san pedro|wilmington|lawndale|lomita|rancho palos verdes|palos verdes|rolling hills|eagle rock|glassell park|mount washington|lincoln heights|el sereno|leimert(?:\s+park)?|crenshaw|baldwin hills|view park|ladera heights|west adams|jefferson park|south central|\bwatts\b|florence[- ]firestone|bel[- ]?air|frogtown|elysian valley|signal hill|harbor city|\blennox\b|rancho bernardo|los osos|nipomo|santa ynez|calimesa|grand terrace|bloomington|sierra madre|altadena|exclusively\s+remote|100\s*%?\s*remote|100\s+percent\s+remote|no\s+in[- ]person|cyber[- ]only|internet[- ]only|distributed\s+team|chatsworth|toluca lake|valley village|universal city|porter ranch|north hills|panorama city|winnetka|shadow hills|lake view terrace|\barleta\b|mission hills|k[- ]?town|fashion district|sawtelle|topanga(?:\s+canyon)?|miracle mile|\bmelrose\b|larchmont(?:\s+village)?|hancock park|mid[- ]city|thai town|little armenia|(?:historic\s+)?filipinotown|macarthur park|pico[- ]union|exposition park|\bucla\b(?:\s+campus)?|pacific design center|beverly center|carthay(?:\s+circle)?|wilshire center|\bglassell\b|elysian park|westlake village|newbury park|port hueneme|\bagoura\b|hidden hills|bell canyon|sunset beach|amsterdam|madrid|barcelona|lisbon|copenhagen|stockholm|\boslo\b|zurich|geneva|munich|hamburg|melbourne|auckland|hong kong|taipei|seoul|bangkok|dubai|tel aviv|mumbai|bangalore|bengaluru|s[aã]o\s+paulo|buenos aires|montreal|calgary|ottawa|capitol hill|georgetown|dupont circle|adams morgan|williamsburg|bushwick|long island city|hoboken|brookline|new haven|fort collins|greeley|pueblo|grand junction|\baspen\b|\bvail\b|breckenridge|durango|loveland|boulder(?!\s+creek)|buena park|cardiff(?:[- ]by[- ]the[- ]sea)?|los alamitos|coto de caza|ladera ranch|trabuco(?:\s+canyon)?|portola hills|foothill ranch|eastvale|jurupa valley|modjeska(?:\s+canyon)?|silverado|\bdixon\b|\bwinters\b|edinburgh|glasgow|bristol|leeds|liverpool|vienna|prague|warsaw|budapest|bucharest|athens|rome|milan|florence|naples|brussels|bruges|antwerp|rotterdam|the hague|helsinki|reykjavik|\bcork\b|guadalajara|monterrey|\bcancun\b|bogot[aá]|\blima\b|santiago|cape town|johannesburg|nairobi|\blagos\b|cairo|istanbul|beirut|\bamman\b|delhi|hyderabad|chennai|kolkata|\bpune\b|jakarta|manila|kuala lumpur|ho chi minh|\bhanoi\b|shanghai|beijing|shenzhen|guangzhou|osaka|kyoto|\bbusan\b|perth|adelaide|wellington|christchurch|winnipeg|quebec city|halifax|edmonton|whatsapp(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|only))|imessage(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|only))|wechat(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|room|only))|(?:facebook\s+)?messenger(?:[- ]only|\s+(?:meetup|event|hang|night|call|session|only))|jitsi[- ]only|whereby[- ]only|(?:remo|hopin|spatial|vrchat)[- ]only|(?:mozilla\s+hubs|rec\s+room|gather\s+town)[- ]only|wfh[- ]only|work[- ]from[- ]home(?:[- ]only)?|work[- ]from[- ]anywhere|cloud[- ]only|cloud[- ]first|async[- ]first|asynchronous[- ]only|distributed[- ]first|timezone[- ]agnostic|global[- ]remote|anywhere[- ]in[- ]the[- ]world|venue[- ]free|location[- ]free|astoria|park slope|\bdumbo\b|greenpoint|bed[- ]?stuy|crown heights|flatbush|\bharlem\b|soho|tribeca|\bmidtown\b|upper east side|upper west side|lower east side|chelsea|weehawken|asbury park|jersey shore|somerville|allston|back bay|south end|\bfenway\b|beacon hill|charlestown|ballard|queen anne|wallingford|south lake union|\bbellevue\b|\brino\b|\blodo\b|cherry creek|brickell|south beach|little havana|coral gables|hollywood hills|rancho park|cheviot hills|beverly grove|inland empire|orange county|frankfurt|cologne|d[uü]sseldorf|stuttgart|\blyon\b|marseille|nice(?:\s*,?\s*france|\s+france)|basel|lausanne|\bbern\b|luxembourg|\bmonaco\b|jerusalem|\bhaifa\b|riyadh|\bdoha\b|abu dhabi|kuwait city|karachi|lahore|islamabad|colombo|kathmandu|phnom penh|\byangon\b|chiang mai|\bphuket\b|\bbali\b|\bubud\b|\bfiji\b|tahiti|\bcdmx\b|ciudad de m[eé]xico|kingston|\bhamilton\b|\bwaterloo\b|long island|staten island|(?:the\s+)?bronx|yonkers|white plains|westchester|coney island|rockaways?|jackson heights|flushing|bayside|forest hills|bay ridge|(?<!inner\s)(?<!outer\s)sunset park|red hook|fort greene|clinton hill|prospect heights|boerum hill|carroll gardens|cobble hill|gowanus|(?:the\s+)?hamptons|montauk|fire island|lemon grove|spring valley|bonita|lakeside(?:\s*,?\s*ca|\s+california)|\balpine\b|ramona|fallbrook|bonsall|valley center|\blic\b|kips bay|murray hill|gramercy|nolita|west village|east village|battery park|meatpacking(?:\s+district)?|washington heights|morningside heights|hell'?s kitchen|hell kitchen|\binwood\b|bensonhurst|sheepshead bay|brighton beach|dyker heights|borough park|point loma|hillcrest|north park|clairemont|kearny mesa|mira mesa|\bencanto\b|barrio logan|gaslamp(?:\s+quarter)?|normal heights|university heights|bankers hill|flatiron|hudson yards|roosevelt island|governors island|\bues\b|\buws\b|scripps ranch|rancho pe[nñ]asquitos|tierrasanta|serra mesa|grantville|allied gardens|del cerro|rolando|talmadge|logan heights|shelltown|paradise hills|otay mesa|san ysidro|sorrento valley|torrey pines|(?:nas\s+)?miramar|liberty station|university city|college area|golden hill|midway district|\bmorena\b|bay park|wall street|canarsie|elmhurst|rego park|middle village|maspeth|atlantic city|times square|bryant park|penn station|grand central|\bnomad\b|bush terminal|industry city|ozone park|howard beach|\bjamaica\b|st\.?\s*albans|bayswater|brownsville|ditmas park|midwood|marine park|gerritsen beach|mill basin|bergen beach|prospect park|greenwich village|alphabet city|south street seaport|seaport district|pier\s*17|central park(?:\s+west|\s+south)?|lincoln center|high line|bedford[- ]stuyvesant|prospect[- ]lefferts(?:\s+gardens)?|herald square|two bridges|iowa city|cedar rapids|cedar falls|dubuque|ames(?:\s*,?\s*ia|\s+iowa)?|kalamazoo|chapel hill|champaign|urbana|\bithaca\b|burlington(?:\s*,?\s*vt|\s+vermont)?|charlottesville|blacksburg|columbia(?:\s*,?\s*(?:mo|sc)|\s+(?:missouri|south carolina))?|rockefeller center|empire state(?:\s+building)?|tompkins square|st\.?\s*mark'?s?\s+place|\bbowery\b|madison square(?:\s+park)?|park avenue|corvallis|pullman|state college|college station|college park|tempe|\bmesa\b|tuscaloosa|amherst|northampton|poughkeepsie|schenectady|binghamton|\butica\b|new brunswick|university park|lubbock|\bwaco\b|denton|stillwater|duluth|great falls|pocatello|\bogden\b|las cruces|amarillo|midland|st\.?\s*george|starkville|hattiesburg|biloxi|gulfport|key west|myrtle beach|youngstown|harrisburg|allentown|scranton|\berie\b|stamford|bridgeport|evanston|naperville|peoria|\blogan\b|norman|\btroy\b|lawrence|\boxford\b|bluejeans[- ]only|go\s*to\s*meeting[- ]only|\bles\b|morningside|hudson square|ridgewood|south slope|\bditmas\b|bangor|augusta|montpelier|portsmouth|trenton|\bdover\b|huntington(?!\s+(?:beach|park))|lynchburg|greenville|spartanburg|fayetteville|daytona(?:\s+beach)?|fort myers|st\.?\s*pete(?:rsburg)?|clearwater|ocala|\bboca\b|lakeland|fort pierce|port st\.?\s*lucie|deltona|palm bay|homestead|kissimmee|bradenton|\bpierre\b|\bhelena\b|laramie|\bbutte\b|kalispell|twin falls|\bhampton\b|chesapeake|\bsuffolk\b|fredericksburg|grand forks|sioux city|\bcanton\b|\bmacon\b|hot springs|overland park|\beverett\b|wine country|russian river|anderson valley|\bminot\b|grand island|\bkearney\b|\bjoplin\b|cape girardeau|terre haute|\bmuncie\b|\bkokomo\b|parkersburg|morgantown|punta gorda|\bsebring\b|okeechobee|vero beach|\bstuart\b|\bjupiter\b|deerfield beach|pompano beach|\bhialeah\b|key largo|redmond|palm beach|appleton|springfield|dry creek valley|podcast[- ]only|rockford|eau claire|janesville|wausau|sheboygan|mankato|elmira|plattsburgh|rutland|presque isle|bar harbor|\bacadia\b|traverse city|saginaw|battle creek|muskegon|grand haven|fishers|noblesville|michigan city|elkhart|mishawaka|\bgary\b|hammond|blythe|oceano|trona|farmersville|three rivers|inyokern|kingman|bullhead city|lake havasu(?:\s+city)?|payson|wickenburg|mecca|salton city|calipatria|westmorland|niland|seeley|heber|winterhaven|imperial valley|imperial(?:\s*,?\s*ca|\s+california)?|douglas(?:\s*,?\s*az|\s+arizona)?|bisbee|tombstone|show low|cottonwood|camp verde|paradise valley|cutler|orosi|woodlake|springville|los alamos(?:\s*,?\s*ca|\s+california)?|cuyama|villa park|esparto|knights landing|magalia|salt lake|williams|paradise(?!\s+(?:hills|valley))|anderson(?!\s+valley)|weed|high point|chualar|prunedale|del dios|dulzura|guatay|mount laguna|mt\.?\s+laguna|cabazon|whitewater|south laguna)\b/i;
 
 /**
  * True when free text explicitly names a non-SF city/region.
@@ -778,6 +790,8 @@ export function isSfLocation(text) {
   if (!t) return true; // empty → default SF
   // residual-62: South Beach SF (SoMa) — bare "south beach" is Miami NON_SF
   if (/\bsouth beach\b/i.test(t) && SF_OK.test(t)) return true;
+  // residual-65: Midtown Terrace SF — bare midtown is NYC NON_SF
+  if (/\bmidtown\s+terrace\b/i.test(t) && SF_OK.test(t)) return true;
   // residual-63: Inner/Outer Sunset SF — bare "Sunset Park" stays Brooklyn NON_SF
   if (/\b(?:inner|outer)\s+sunset\b/i.test(t)) {
     const rest = t.replace(/\b(?:inner|outer)\s+sunset(?:\s+park)?\b/gi, ' ');
@@ -826,8 +840,9 @@ const AREA_NEAR = {
   valencia: ['valencia', 'mission', 'dolores'],
   castro: ['castro', 'mission', 'dolores', 'noe'],
   // Indoor free-list is Civic SFPL (no Hayes/Haight free indoor card)
-  hayes: ['hayes', 'haight', 'civic', 'main library'],
-  haight: ['haight', 'hayes', 'civic', 'main library'],
+  // residual: hayes/haight dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  hayes: ['hayes', 'haight', 'civic', 'main library', 'mission', 'soma'],
+  haight: ['haight', 'hayes', 'civic', 'main library', 'mission', 'soma'],
   embarcadero: ['embarcadero', 'ferry', 'fidi', 'financial', 'civic'],
   // residual: ferry/ferry building indoor free-list is Civic SFPL (draft affinity only)
   ferry: ['ferry', 'embarcadero', 'fidi', 'financial', 'civic', 'main library'],
@@ -859,14 +874,14 @@ const AREA_NEAR = {
   // residual: sea cliff indoor free-list is Civic SFPL (outdoor stays Crissy/Marina)
   // residual: sea cliff dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   seacliff: ['seacliff', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
-  // residual: parkside indoor free-list is Civic SFPL (outdoor stays west)
-  parkside: ['parkside', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
-  // residual: ocean beach indoor free-list is Civic SFPL (outdoor stays west)
-  'ocean beach': ['ocean beach', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
-  oceanbeach: ['ocean beach', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
+  // residual: parkside indoor free-list is Civic SFPL; dinner → Mission/SoMa kitchen (draft only)
+  parkside: ['parkside', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
+  // residual: ocean beach indoor free-list is Civic SFPL; dinner → Mission/SoMa kitchen (draft only)
+  'ocean beach': ['ocean beach', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
+  oceanbeach: ['ocean beach', 'sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   // residual: Sunset District → west free-list (Crissy/Marina), not golden-hour alone
-  // residual: Sunset indoor free-list is Civic SFPL (outdoor stays Crissy/Marina)
-  sunset: ['sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
+  // residual: Sunset indoor free-list is Civic SFPL; dinner → Mission/SoMa kitchen (draft only)
+  sunset: ['sunset', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   // residual: marina indoor free-list is Civic SFPL; dinner free-list is Mission/SoMa kitchen
   marina: ['marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   // residual: bare presidio indoor free-list is Civic SFPL; dinner → Mission/SoMa kitchen
@@ -891,15 +906,22 @@ const AREA_NEAR = {
   // residual: chinatown outdoor emb/ferry; indoor free-list is Civic SFPL
   // residual: chinatown dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   chinatown: ['chinatown', 'north beach', 'union square', 'embarcadero', 'ferry', 'civic', 'main library', 'mission', 'soma'],
-  'union square': ['union square', 'chinatown', 'civic', 'embarcadero', 'ferry'],
+  // residual: union square dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  'union square': ['union square', 'chinatown', 'civic', 'embarcadero', 'ferry', 'mission', 'soma'],
   // residual: Japantown/Fillmore outdoor→Hayes; indoor free-list is Civic SFPL
   // residual: japantown dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   japantown: ['japantown', 'hayes', 'fillmore', 'haight', 'civic', 'main library', 'mission', 'soma'],
+  // residual: little tokyo (Japantown colloquial) free-list areaNeed missed (draft only)
+  littletokyo: ['japantown', 'hayes', 'fillmore', 'haight', 'civic', 'main library', 'mission', 'soma'],
+  'little tokyo': ['japantown', 'hayes', 'fillmore', 'haight', 'civic', 'main library', 'mission', 'soma'],
+  // residual: stanyan (Haight/GGP edge) free-list areaNeed missed (draft affinity only)
+  stanyan: ['stanyan', 'haight', 'panhandle', 'cole valley', 'golden gate park', 'hayes', 'dolores'],
   // residual: fillmore dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   fillmore: ['fillmore', 'hayes', 'haight', 'japantown', 'civic', 'main library', 'mission', 'soma'],
   // residual: alamo square indoor free-list is Civic SFPL
-  alamo: ['alamo square', 'hayes', 'haight', 'fillmore', 'civic', 'main library'],
-  'alamo square': ['alamo square', 'hayes', 'haight', 'fillmore', 'civic', 'main library'],
+  // residual: alamo dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  alamo: ['alamo square', 'hayes', 'haight', 'fillmore', 'civic', 'main library', 'mission', 'soma'],
+  'alamo square': ['alamo square', 'hayes', 'haight', 'fillmore', 'civic', 'main library', 'mission', 'soma'],
   // residual: Pac Heights / Russian Hill / Cow Hollow → Marina/Crissy free-list (not SoMa default)
   // Indoor quiet free-list is Civic SFPL; dinner free-list is Mission/SoMa kitchen (SFPL no-food)
   pacificheights: ['pacific heights', 'marina', 'presidio', 'crissy', 'fillmore', 'civic', 'main library', 'mission', 'soma'],
@@ -910,14 +932,17 @@ const AREA_NEAR = {
   cowhollow: ['cow hollow', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   'cow hollow': ['cow hollow', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
   // residual: SF_OK hoods that free-list areaNeed missed (draft affinity only)
-  bayview: ['bayview', 'dogpatch', 'potrero', 'mission'],
+  // residual: bayview outdoor free-list areaNeed missed SoMa parklets (draft affinity only)
+  bayview: ['bayview', 'dogpatch', 'potrero', 'mission', 'soma', 'yerba'],
   // residual: jackson square dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
   'jackson square': ['jackson square', 'embarcadero', 'ferry', 'fidi', 'financial', 'civic', 'main library', 'soma', 'mission'],
   'twin peaks': ['twin peaks', 'castro', 'mission', 'dolores'],
-  'treasure island': ['treasure island', 'embarcadero', 'ferry', 'marina', 'civic', 'main library'],
+  // residual: treasure island dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  'treasure island': ['treasure island', 'embarcadero', 'ferry', 'marina', 'civic', 'main library', 'mission', 'soma'],
   // residual: nob hill / cole valley in SF_OK but free-list areaNeed missed
-  nobhill: ['nob hill', 'russian hill', 'north beach', 'embarcadero', 'civic'],
-  'nob hill': ['nob hill', 'russian hill', 'north beach', 'embarcadero', 'civic'],
+  // residual: nob hill dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  nobhill: ['nob hill', 'russian hill', 'north beach', 'embarcadero', 'civic', 'mission', 'soma'],
+  'nob hill': ['nob hill', 'russian hill', 'north beach', 'embarcadero', 'civic', 'mission', 'soma'],
   // Indoor free-list is Civic SFPL (haight/hayes already map civic; cole/ashbury were area-miss)
   colevalley: ['cole valley', 'haight', 'hayes', 'civic', 'main library'],
   'cole valley': ['cole valley', 'haight', 'hayes', 'civic', 'main library'],
@@ -927,14 +952,17 @@ const AREA_NEAR = {
   excelsior: ['excelsior', 'mission', 'bernal', 'glen park'],
   ingleside: ['ingleside', 'mission', 'sunset', 'bernal'],
   // residual: fort mason / hunters point / duboce / fisherman's wharf in SF_OK, free-list missed
-  fortmason: ['fort mason', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
-  'fort mason': ['fort mason', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
-  hunterspoint: ['hunters point', 'dogpatch', 'potrero', 'bayview', 'soma', 'yerba'],
-  'hunters point': ['hunters point', 'dogpatch', 'potrero', 'bayview', 'soma', 'yerba'],
+  // residual: fort mason dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  fortmason: ['fort mason', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
+  'fort mason': ['fort mason', 'marina', 'presidio', 'crissy', 'civic', 'main library', 'mission', 'soma'],
+  // residual: hunters point indoor free-list area-missed Mission SFPL (dogpatch/bayview have mission)
+  hunterspoint: ['hunters point', 'dogpatch', 'potrero', 'bayview', 'mission', 'soma', 'yerba'],
+  'hunters point': ['hunters point', 'dogpatch', 'potrero', 'bayview', 'mission', 'soma', 'yerba'],
   duboce: ['duboce', 'castro', 'hayes', 'mission', 'dolores'],
   // residual: fisherman's wharf indoor free-list is Civic SFPL (outdoor emb/ferry)
-  fishermanswharf: ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library'],
-  'fishermans wharf': ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library'],
+  // residual: fisherman's wharf dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  fishermanswharf: ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library', 'mission', 'soma'],
+  'fishermans wharf': ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library', 'mission', 'soma'],
   // residual: western addition in SF_OK but free-list areaNeed missed (draft affinity only)
   // Indoor free-list is Civic SFPL (no Western Addition free indoor card)
   westernaddition: ['western addition', 'fillmore', 'hayes', 'japantown', 'haight', 'civic', 'main library'],
@@ -946,7 +974,8 @@ const AREA_NEAR = {
   coronaheights: ['corona heights', 'castro', 'mission', 'dolores'],
   'corona heights': ['corona heights', 'castro', 'mission', 'dolores'],
   // Indoor free-list is Civic SFPL (west park-merced cluster had area-miss on quiet indoor)
-  parkmerced: ['park merced', 'sunset', 'ingleside', 'marina', 'civic', 'main library'],
+  // residual: park merced dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+  parkmerced: ['park merced', 'sunset', 'ingleside', 'marina', 'civic', 'main library', 'mission', 'soma'],
   'park merced': ['park merced', 'sunset', 'ingleside', 'marina', 'civic', 'main library'],
   // Indoor free-list affinity: Civic SFPL (no west-side free indoor card)
   // residual: Presidio Heights dinner free-list is Mission/SoMa kitchen (SFPL no-food)
@@ -1118,6 +1147,24 @@ const AREA_NEAR = {
   // west cluster + Civic SFPL indoor (same pattern as St. Francis Wood)
   sherwoodforest: ['sherwood forest', 'west portal', 'stonestown', 'lakeside', 'parkside', 'sunset', 'marina', 'crissy', 'civic', 'main library'],
   'sherwood forest': ['sherwood forest', 'west portal', 'stonestown', 'lakeside', 'parkside', 'sunset', 'marina', 'crissy', 'civic', 'main library'],
+  // residual: divisadero / fort point / china beach free-list areaNeed missed (draft affinity only)
+  divisadero: ['divisadero', 'nopa', 'fillmore', 'hayes', 'haight', 'western addition', 'civic', 'main library'],
+  fortpoint: ['fort point', 'marina', 'presidio', 'crissy', 'seacliff', 'civic', 'main library'],
+  'fort point': ['fort point', 'marina', 'presidio', 'crissy', 'seacliff', 'civic', 'main library'],
+  chinabeach: ['china beach', 'seacliff', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
+  'china beach': ['china beach', 'seacliff', 'richmond', 'marina', 'presidio', 'crissy', 'civic', 'main library'],
+  // residual: Parnassus / Lakeshore / Forest Knolls free-list areaNeed missed (draft affinity only)
+  // Parnassus → Inner Sunset/Civic indoor; dinner free-list Mission/SoMa kitchen (SFPL no-food)
+  parnassus: ['parnassus', 'inner sunset', 'sunset', 'cole valley', 'haight', 'civic', 'main library', 'mission', 'soma'],
+  // Lakeshore → Lake Merced west cluster + Civic indoor; dinner → Mission/SoMa kitchen
+  lakeshore: ['lakeshore', 'lakeside', 'lake merced', 'park merced', 'stonestown', 'marina', 'crissy', 'civic', 'main library', 'mission', 'soma'],
+  // Forest Knolls → Twin Peaks corridor; indoor Civic SFPL; dinner Mission/SoMa kitchen
+  forestknolls: ['forest knolls', 'twin peaks', 'forest hill', 'midtown terrace', 'castro', 'mission', 'dolores', 'civic', 'main library'],
+  'forest knolls': ['forest knolls', 'twin peaks', 'forest hill', 'midtown terrace', 'castro', 'mission', 'dolores', 'civic', 'main library'],
+  // residual: laguna honda / bayshore free-list areaNeed missed (draft affinity only)
+  lagunahonda: ['laguna honda', 'forest hill', 'twin peaks', 'inner sunset', 'castro', 'mission', 'dolores', 'civic', 'main library'],
+  'laguna honda': ['laguna honda', 'forest hill', 'twin peaks', 'inner sunset', 'castro', 'mission', 'dolores', 'civic', 'main library'],
+  bayshore: ['bayshore', 'visitacion', 'bayview', 'excelsior', 'mission', 'bernal', 'soma'],
 };
 
 /** True when need-area token matches venue area/blob (incl. near-neighborhood aliases). */
@@ -2903,12 +2950,15 @@ export function cleanInviteUrlCandidate(raw) {
   //   white tortoise 〙 / half brackets ⸣⸥ / sideways ⸧ / corner ⌝⌟ /
   // residual-15 medium dingbat ❩❫❭❱❵ / super/sub ⁾₎ / vertical square ﹈ /
   // residual-16 fullwidth sticky －＿＼＋％＠＆＄＾｀ / footnote †‡°§¶);
+  // residual-35: bare trailing < & (entity incomplete left &NAME; peel can leave lone &;
+  //   paste angle open stuck at path end; leading class already had <; fullwidth ＆ already r16)
   // loop so `<url>,` and `` `url` `` and `||url||` peel fully. Lone trailing ?/# ok — real
   // query/hash keep content after ?/# so they do not match `$`.
   for (let i = 0; i < 4; i++) {
     const n = u.replace(
       // residual-33: fullwidth ｝ (U+FF5D) — ASCII } / small ﹜ / white ⦄ / dingbat ❵ already peeled
-      /[>\]"'`.,);:!?…；。！？#*|}\\*_~】」』］＞》〉〕〗）“”‘’«»‹›„‟″′•·，．、–—‒―／→←⇒⇐＂＇﹚｣⟩｜～〜・﹜﹞﹐﹑﹒﹔﹕﹖﹗﹘﹟﹡﹣﹥﹦※＝｠⟧：＊＃｡⟫⦄⦘⌉⌋⦌⟭⟯¿¡￨︶︸︺︼︾﹀﹂﹄〞〟❞❜❯⸩〉､･︰︱︲︳︴〛❳⁆⦆〙⸣⸥⸧⌝⌟❩❫❭❱❵｝⁾₎﹈－＿＼＋％＠＆＄＾｀†‡°§¶]+$/g,
+      // residual-35: bare < &
+      /[<>&\]"'`.,);:!?…；。！？#*|}\\*_~】」』］＞》〉〕〗）“”‘’«»‹›„‟″′•·，．、–—‒―／→←⇒⇐＂＇﹚｣⟩｜～〜・﹜﹞﹐﹑﹒﹔﹕﹖﹗﹘﹟﹡﹣﹥﹦※＝｠⟧：＊＃｡⟫⦄⦘⌉⌋⦌⟭⟯¿¡￨︶︸︺︼︾﹀﹂﹄〞〟❞❜❯⸩〉､･︰︱︲︳︴〛❳⁆⦆〙⸣⸥⸧⌝⌟❩❫❭❱❵｝⁾₎﹈－＿＼＋％＠＆＄＾｀†‡°§¶]+$/g,
       '',
     );
     if (n === u) break;
@@ -3984,8 +4034,11 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-7: bare "social" hang ≠ "social media marketing" (was false outdoor)
   const socialHang =
     /\bsocial\b/.test(needL) && !/\bsocial\s+media\b/.test(needL);
-  // residual: "South Park" hood must not flip outdoorAsked (\bpark\b) — parklet beat office on indoor
-  const outdoorAskText = needL.replace(/\bsouth\s+park\b/gi, ' ');
+  // residual: SF hoods with "park" must not flip outdoorAsked (\bpark\b) — indoor free-list
+  // (South/Glen/McLaren/Balboa/Cayuga/Holly/Buena Vista Park; picnic/outdoor tokens still fire)
+  const outdoorAskText = needL
+    .replace(/\b(?:south|glen|mclaren|balboa|cayuga|holly)\s+park\b/gi, ' ')
+    .replace(/\bbuena\s+vista\s+park\b/gi, ' ');
   const outdoorAsked =
     // residual-16: word-bound park/lawn — "spark" / "sparkline" must not trip outdoor
     /picnic|outdoor|\bparks?\b|\blawns?\b|\bparking\b/.test(outdoorAskText) ||
@@ -4090,9 +4143,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   }
   // residual: richmond/sunset dinner AREA_NEAR includes mission/soma kitchens — outdoor
   // west needs still area-hit SoMa lawns equal to Crissy (draft free-list honesty only).
+  // residual: marina/pac heights/cow hollow/presidio/russian hill outdoor same SoMa-tie
+  // (AREA_NEAR adds soma for dinner indoor; outdoor must still crown Crissy — draft only).
   if (
     outdoorAsked &&
-    /\b(richmond|sunset|seacliff|sea\s*cliff|parkside|ocean\s+beach)\b/.test(needL)
+    /\b(richmond|sunset|seacliff|sea\s*cliff|parkside|ocean\s+beach|marina|pacific\s+heights|cow\s+hollow|presidio|russian\s+hill)\b/.test(
+      needL,
+    )
   ) {
     if (v.id === 'v_crissy' || /crissy|marina green|marina\s*\/\s*presidio/.test(blob + ' ' + areaL)) {
       score += 3;
@@ -4100,6 +4157,25 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     } else if (['v_soma_parklet', 'v_yerba_buena', 'v_salesforce_park', 'v_dolores'].includes(v.id)) {
       score -= 2;
       reasons.push('west-far');
+    }
+  }
+  // residual: treasure island outdoor crowned SoMa/Mission lawns via AREA_NEAR dinner aliases
+  // (TI free outdoor → Embarcadero/Ferry bridge side; draft free-list honesty only)
+  if (outdoorAsked && /\btreasure\s+island\b/.test(needL)) {
+    if (
+      v.id === 'v_ferry_arcade' ||
+      v.id === 'v_embarcadero_bench' ||
+      /embarcadero|ferry/.test(blob + ' ' + areaL)
+    ) {
+      score += 4;
+      reasons.push('ti-waterfront');
+    } else if (
+      ['v_soma_parklet', 'v_yerba_buena', 'v_salesforce_park', 'v_dolores', 'v_hayes_green', 'v_crissy'].includes(
+        v.id,
+      )
+    ) {
+      score -= 3;
+      reasons.push('ti-far');
     }
   }
   // residual: bare picnic crowned ferry food arcade via outdoor-fit+right-size over lawns
@@ -4293,6 +4369,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score += 3;
       reasons.push('field-sport');
     }
+    // residual: field sport ranked ferry arcade #1 via outdoor-activity+intimate-fit
+    // (food plaza is not a court/field — draft free-list honesty only)
+    if (fieldSportAsked && (v.id === 'v_ferry_arcade' || (/ferry|arcade/.test(blob) && /food/.test(tags)))) {
+      score -= 3;
+      reasons.push('sport-plaza');
+    }
     // residual: bare stargazing/astronomy tied all outdoors (ferry arcade = Crissy). Prefer
     // open-sky west free-list (Crissy/Marina/Presidio) over plaza/arcade — draft match only.
     if (
@@ -4398,9 +4480,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     }
   }
   // Book club / reading circle → SFPL meeting rooms (quiet free reserve) over parks
+  // residual: bare indoor office tags got full book-club (+5) and tied free SFPL (draft only)
   if (needIsBookClub(needL)) {
-    if (/library/.test(blob) || /library|salon|talk|indoor/.test(tags)) {
+    if (/library/.test(blob) || /library|salon|talk/.test(tags)) {
       score += 5;
+      reasons.push('book-club');
+    } else if (/indoor/.test(tags) || isOfficeish) {
+      score += 2;
       reasons.push('book-club');
     }
     if (isPublicOutdoor && !outdoorAsked) {
@@ -4550,6 +4636,20 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     ) {
       score -= 2;
       reasons.push('run-lawn');
+    }
+    // residual: "run club waterfront" crowned ferry arcade via right-size over emb/crissy walks
+    if (needWantsWaterfront(needL)) {
+      if (
+        v.id === 'v_crissy' ||
+        v.id === 'v_embarcadero_bench' ||
+        /crissy|marina green|embarcadero promenade/.test(blob)
+      ) {
+        score += 3;
+        reasons.push('run-waterfront');
+      } else if (v.id === 'v_ferry_arcade' || /\bferry building\b|\barcade\b/.test(blob)) {
+        score -= 2;
+        reasons.push('run-plaza');
+      }
     }
   }
   // Bike / group ride → same walk start points (not libraries)
@@ -4902,6 +5002,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual: bare "dining" (family-style dining) was missing → SFPL beat kitchen rooms.
   // residual: breakfast was missing (same class as brunch → SFPL beat kitchen on "family breakfast").
   // residual: space/hyphen "food beverage sponsor" is sponsor-gap text, not dinner format
+  // multi-resource seed still prefers edible rooms over SFPL/office (draft free-list only).
+  const resourceFoodGap =
+    multiResourceNeed && /\bfood(?:\s*[\/&-]\s*|\s+)beverage\b/.test(needL);
   const foodServiceFormat =
     /dinner|supper|brunch|breakfast|meal|course|wine\s*tasting|cooking\s*class|\bdining\b/.test(needL) ||
     (/\bfood\b/.test(needL) && !/\bfood(?:\s*[\/&-]\s*|\s+)beverage(\s+sponsor)?\b/.test(needL));
@@ -4912,6 +5015,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     // free-ask + area still crowned SFPL over in-kind kitchens (draft free-list honesty)
     score -= freeAsked ? 7 : 5;
     reasons.push('no-food-room');
+  } else if (resourceFoodGap && /library/.test(blob) && !talkOnlyNotDinner) {
+    score -= 2;
+    reasons.push('resource-no-food');
   }
   // Seated dinner/supper: boost kitchen/dining/in-kind food rooms only (not bare office loan).
   // residual: "meal" was in foodServiceFormat (no-food-room) but missed here → parks beat kitchen on "family-style meal"
@@ -4957,8 +5063,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   }
   // After-hours / evening indoor → office loans over SFPL (libraries close early / daytime reserve).
   // library-hours + no free-ask on libraries so "free evening indoor" does not crown closed SFPL.
+  // residual: bare "game/poker/scrabble night" is format, not after-hours — do not library-hours sink free tables.
+  const eveningProbe = needL.replace(
+    /\b(?:board\s*games?|game|tabletop|mahjong|mah\s*jong|poker|scrabble|card\s*games?|chess(?:\s*club)?|bridge|trivia|quiz)\s*nights?\b/g,
+    ' ',
+  );
   const eveningIndoorNeed =
-    /\bafter[- ]?hours\b|\bevening\b|\bnight\b/.test(needL) &&
+    /\bafter[- ]?hours\b|\bevening\b|\bnight\b/.test(eveningProbe) &&
     !outdoorAsked &&
     (needWantsIndoor(needL) || needWantsQuiet(needL) || needIsDemoFormat(needL));
   if (eveningIndoorNeed) {
@@ -5132,13 +5243,15 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // residual-14: "financial district" only — bare "financial" is role title (financial controller).
   // mission bay before bare mission — Mission Bay ≠ Mission Dolores (area honesty)
   const areaNeed =
-    /\b(soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker\s+amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mount\s+davidson|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|city\s+hall|un\s+plaza)\b/i.exec(
+    /\b(so\s+ma|soma|south\s+of\s+market|south\s+park|south\s+beach|south\s+van\s+ness|van\s+ness|yerba\s+buena|mid[- ]?market|mission\s+bay|mission\s+rock|mission|valencia|hayes|haight|embarcadero|ferry|dolores|castro|eureka\s+valley|marina|potrero|dogpatch|richmond|sunset|fi\s+di|fi?di|financial\s+district|north beach|chinatown|union square|presidio\s+heights|presidio|civic(?:\s+center)?|bernal(?:\s+heights)?|pac\s+heights|pacific\s+heights|russian\s+hill|cow\s+hollow|nob\s+hill|cole\s+valley|tenderloin|noe(?:\s+valley)?|glen\s+canyon|glen park|japantown|little\s+tokyo|stanyan|fillmore|alamo\s+square|bayview|jackson\s+square|twin\s+peaks|treasure\s+island|west\s+portal|excelsior|ingleside|sea\s*cliff|parkside|ocean\s+beach|fort\s+mason|hunter'?s?\s+point|duboce(?:\s+triangle)?|fisherman'?s?\s+wharf|western\s+addition|visitacion(?:\s+valley)?|rincon(?:\s+hill)?|parkmerced|park\s+merced|corona\s+heights|anza\s+vista|lake\s+merced|portola(?:\s+district)?(?!\s+valley)|china\s+basin|telegraph\s+hill|nopa|laurel\s+heights|diamond\s+heights|polk\s+gulch|merced\s+heights|balboa(?:\s+park)?|crocker[- ]?amazon|little\s+hollywood|merced\s+manor|stonestown|oceanview|north\s+waterfront|ashbury(?:\s+heights)?|cathedral\s+hill|forest\s+hill|midtown\s+terrace|upper\s+market|golden\s+gate\s+park|ggp|golden\s+gate(?:\s+bridge)?|lone\s+mountain|panhandle|moscone|miraloma(?:\s+park)?|silver\s+terrace|india\s+basin|clarendon(?:\s+heights)?|candlestick(?:\s+point)?|mclaren(?:\s+park)?|mount\s+davidson|folsom|crissy(?:\s+field)?|market\s+street|coit\s+tower|washington\s+square|pier\s*39|pier\s*70|sloat|lombard(?:\s+street)?|showplace(?:\s+square)?|design\s+district|central\s+waterfront|islais(?:\s+creek)?|cayuga(?:\s+terrace)?|sunnydale|buena\s+vista|ghirardelli|oracle\s+park|chase\s+center|lincoln\s+way|lake\s+street|lakeside(?:\s+(?:village|district))?|sunnyside(?:\s+(?:district|neighborhood))?|polk\s+street|jordan\s+park|mint\s+plaza|transbay|westwood\s+park|st\.?\s*francis\s+wood|baker\s+beach|land'?s?\s+end|mount\s+sutro|university\s+mound|sherwood\s+forest|divisadero|fort\s+point|china\s+beach|parnassus(?:\s+heights)?|lakeshore|forest\s+knolls|laguna\s+honda|bayshore|city\s+hall|un\s+plaza)\b/i.exec(
       needL,
     );
   if (areaNeed) {
     let tok = areaNeed[1].toLowerCase().trim();
     // Keep "pacific heights" (≠ bernal heights strip that would leave bare "pacific")
     if (tok === 'pacific heights' || tok === 'pac heights') tok = 'pacificheights';
+    else if (/^fi\s+di$/.test(tok)) tok = 'fidi';
+    else if (/^so\s+ma$/.test(tok)) tok = 'soma';
     else if (tok === 'russian hill') tok = 'russianhill';
     else if (tok === 'cow hollow') tok = 'cowhollow';
     else if (tok === 'nob hill') tok = 'nobhill';
@@ -5162,6 +5275,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'mount sutro') tok = 'mountsutro';
     else if (tok === 'university mound') tok = 'universitymound';
     else if (tok === 'sherwood forest') tok = 'sherwoodforest';
+    else if (tok === 'divisadero') tok = 'divisadero';
+    else if (tok === 'fort point') tok = 'fortpoint';
+    else if (tok === 'china beach') tok = 'chinabeach';
+    else if (/^parnassus/.test(tok)) tok = 'parnassus';
+    else if (tok === 'lakeshore') tok = 'lakeshore';
+    else if (tok === 'forest knolls') tok = 'forestknolls';
     else if (tok === 'city hall') tok = 'cityhall';
     else if (tok === 'un plaza') tok = 'unplaza';
     else if (tok === 'corona heights') tok = 'coronaheights';
@@ -5184,8 +5303,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'merced heights') tok = 'mercedheights';
     else if (/^portola(?:\s+district)?$/.test(tok)) tok = 'portola';
     else if (/^balboa(?:\s+park)?$/.test(tok)) tok = 'balboa';
-    else if (tok === 'crocker amazon') tok = 'crockeramazon';
+    else if (/^crocker[- ]amazon$/.test(tok)) tok = 'crockeramazon';
     else if (tok === 'little hollywood') tok = 'littlehollywood';
+    else if (tok === 'little tokyo') tok = 'littletokyo';
     else if (tok === 'merced manor') tok = 'mercedmanor';
     else if (tok === 'north waterfront') tok = 'northwaterfront';
     else if (/^ashbury/.test(tok)) tok = 'ashbury';
@@ -5224,6 +5344,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     else if (tok === 'van ness') tok = 'vanness';
     else if (/^lakeside/.test(tok)) tok = 'lakeside';
     else if (/^sunnyside/.test(tok)) tok = 'sunnyside';
+    else if (tok === 'laguna honda') tok = 'lagunahonda';
+    else if (tok === 'bayshore') tok = 'bayshore';
     else {
       tok = tok.replace(/\s+center$/, '').replace(/\s+heights$/, '').trim();
       if (tok === 'fi' || tok === 'fdi') tok = 'fidi';
@@ -5234,6 +5356,14 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       if (tok === 'alamo square') tok = 'alamo';
     }
     if (areaMatchesNeed(tok, areaL, blob)) {
+      score += 4;
+      reasons.push('area');
+    } else if (
+      // residual: dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
+      foodServiceFormat &&
+      isKitchenAsk &&
+      areaMatchesNeed('mission', areaL, blob)
+    ) {
       score += 4;
       reasons.push('area');
     } else if (!/sf various|various/i.test(areaL)) {
@@ -5345,7 +5475,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // Draft free-list honesty only — not a booking API.
   const seatedMeal =
     /dinner|supper|brunch|breakfast|meal|course|\bdining\b/.test(needL) ||
-    needIsFoodClass(needL);
+    needIsFoodClass(needL) ||
+    resourceFoodGap;
   // residual: City Hall/UN Plaza/Civic indoor — office-tables + SoMa area alias crowned
   // office loan over Civic SFPL (draft free-list honesty only; office-need still wins explicit office ask)
   const civicIndoor =
@@ -5361,7 +5492,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     !seatedMeal &&
     !drinksAsked &&
     !freeAsked &&
-    !civicIndoor
+    !civicIndoor &&
+    !needIsBookClub(needL)
   ) {
     score += 3;
     reasons.push('office-tables');
@@ -5383,7 +5515,13 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     score += 5;
     reasons.push('office-need');
   }
-  if (isKitchenAsk && !foodServiceFormat && !needIsFoodClass(needL) && !drinksAsked) {
+  if (
+    isKitchenAsk &&
+    !foodServiceFormat &&
+    !needIsFoodClass(needL) &&
+    !drinksAsked &&
+    !resourceFoodGap
+  ) {
     score -= 3;
     reasons.push('kitchen-only');
   }
@@ -5406,6 +5544,9 @@ function freeCostRank(cost) {
  */
 export function matchFreeVenues({ need = '', seats = 0, limit = 6, excludeIds = [] } = {}) {
   const nSeats = Number(seats) || 0;
+  // residual: free-ask score-ties used capacity-distance before freeCostRank → sponsor-tab café
+  // outranked true-free (reserve) on equal scores (draft free-list honesty only).
+  const freeAsked = /\bfree\b/.test(String(need || '').toLowerCase());
   const skip = new Set((excludeIds || []).map((id) => String(id || '')).filter(Boolean));
   const scored = FREE_SF_VENUES.filter((v) => !skip.has(String(v.id || '')))
     .map((v) => {
@@ -5426,6 +5567,11 @@ export function matchFreeVenues({ need = '', seats = 0, limit = 6, excludeIds = 
       const aArea = (a.reasons || []).includes('area') ? 1 : 0;
       const bArea = (b.reasons || []).includes('area') ? 1 : 0;
       if (bArea !== aArea) return bArea - aArea;
+      // freeAsked: true free before capacity-distance so sponsor-tab cannot win score-ties
+      if (freeAsked) {
+        const costEarly = freeCostRank(b.cost) - freeCostRank(a.cost);
+        if (costEarly) return costEarly;
+      }
       // Capacity that meets seats before free-label when scores tie
       if (nSeats > 0) {
         const aOk = (a.capacity || 0) >= nSeats ? 1 : 0;
@@ -5436,8 +5582,10 @@ export function matchFreeVenues({ need = '', seats = 0, limit = 6, excludeIds = 
         if (da !== db) return da - db;
       }
       // Prefer true free, then smaller room
-      const costDelta = freeCostRank(b.cost) - freeCostRank(a.cost);
-      if (costDelta) return costDelta;
+      if (!freeAsked) {
+        const costDelta = freeCostRank(b.cost) - freeCostRank(a.cost);
+        if (costDelta) return costDelta;
+      }
       return (a.capacity || 0) - (b.capacity || 0);
     })
     .slice(0, Math.max(1, Math.min(limit, FREE_SF_VENUES.length)));
@@ -5580,6 +5728,9 @@ export function normalizeOutreachKind(kind) {
   const k = String(kind || 'other').toLowerCase();
   if (k === 'venue_alt' || k === 'venue-alt' || k === 'venue_capacity' || k === 'venue-capacity')
     return 'venue';
+  // Hyphen/short aliases must hit venue_confirmation floor (95), not other (10)
+  if (k === 'venue-confirmation' || k === 'venue_confirm' || k === 'confirm_venue')
+    return 'venue_confirmation';
   if (k === 'follow_up' || k === 'follow-up') return 'thanks';
   return k || 'other';
 }
@@ -6229,13 +6380,31 @@ export function buildVenueResourceOutreachBody(ae = {}, gaps = null, opts = {}) 
   const need = opts.need || eventNeedText(ae, opts.goal || '') || 'meetup';
   const seats = Number(opts.seats) || Number(ae.seats) || 12;
   const g = gaps || { missing: [] };
-  // Align with resourceGaps: weak pick (venue_alt) or under-cap (venue_capacity) → exclude id.
-  const excludeIds =
-    opts.excludeIds ||
-    g.excludeIds ||
-    ((g.needVenueAlt || (g.missing || []).includes('venue_capacity')) && ae.venue?.id
-      ? [ae.venue.id]
-      : []);
+  // Align with resourceGaps: weak/under-cap → exclude current free-list pick (id or name).
+  let excludeIds = opts.excludeIds || g.excludeIds || [];
+  const wantEx =
+    g.needVenueAlt ||
+    (g.missing || []).includes('venue_capacity') ||
+    (g.missing || []).includes('venue_alt');
+  if (wantEx && ae.venue && !excludeIds.some((id) => FREE_SF_VENUES.some((v) => v.id === id))) {
+    let vid = ae.venue.id != null ? String(ae.venue.id) : '';
+    if (!vid || !FREE_SF_VENUES.some((v) => v.id === vid)) {
+      const name = String(ae.venue.name || ae.venue.title || '')
+        .toLowerCase()
+        .trim();
+      const hit = name
+        ? FREE_SF_VENUES.find((v) => {
+            const vn = String(v.name || '').toLowerCase().trim();
+            if (vn === name) return true;
+            if (name.length < 8) return false;
+            const head = vn.split(/\s*\/\s*/)[0].trim();
+            return vn.includes(name) || (head.length >= 8 && name.includes(head));
+          })
+        : null;
+      vid = hit?.id || '';
+    }
+    if (vid) excludeIds = [vid];
+  }
   const shortlist = freeVenueShortlistLines(need, seats, 3, excludeIds);
   // Live re-rank; same food filter + empty-edible fallback as freeVenueShortlistLines (draft only).
   const needL = String(need || '').toLowerCase();
@@ -8440,6 +8609,7 @@ export async function hygieneOutreachMx(outreach = [], opts = {}) {
   let rejectedMx = 0;
   let reconciledTransient = 0;
   let checked = 0;
+  let changed = 0;
   try {
     const { checkEmailMx, isAuthoritativeNoMx } = await import('./demigod-free-ops.mjs');
     const checkMx = opts.checkMx || checkEmailMx;
@@ -8458,28 +8628,35 @@ export async function hygieneOutreachMx(outreach = [], opts = {}) {
         if (o.error && /^no_mx:/i.test(String(o.error))) o.error = null;
         o.sentAt = null;
         reconciledTransient++;
+        changed++;
       }
       if (!o || (o.status !== 'queued' && o.status !== 'drafted')) continue;
       if (!isRealOutreachEmail(o.toEmail)) continue;
       checked++;
+      const prev = o.emailCheck || {};
       const mx = await checkMx(o.toEmail, { force: !!opts.force });
-      o.emailCheck = {
+      const next = {
         syntax: true,
         mx: mx.ok ? true : mx.retryable ? null : false,
         reason: mx.reason || null,
         at: new Date().toISOString(),
       };
+      o.emailCheck = next;
+      if (prev.mx !== next.mx || prev.reason !== next.reason || prev.syntax !== next.syntax) {
+        changed++;
+      }
       if (!mx.ok && !mx.retryable) {
         o.status = 'rejected';
         o.rejectReason = 'no_mx:' + (mx.reason || 'fail');
         o.sentAt = null;
         rejectedMx++;
+        changed++;
       }
     }
   } catch (err) {
-    return { checked, rejectedMx, reconciledTransient, error: String(err?.message || err) };
+    return { checked, rejectedMx, reconciledTransient, changed, error: String(err?.message || err) };
   }
-  return { checked, rejectedMx, reconciledTransient };
+  return { checked, rejectedMx, reconciledTransient, changed };
 }
 
 /**
@@ -10012,7 +10189,8 @@ export async function eventsBotAgentTick(opts = {}) {
       const pre = loadStore();
       ensureArrays(pre);
       const mxPre = await hygieneOutreachMx(pre.outreach);
-      if (mxPre.rejectedMx || mxPre.reconciledTransient) saveStore(pre);
+      // Persist successful mx stamps too (null→true) — not only rejects/reconciles.
+      if (mxPre.rejectedMx || mxPre.reconciledTransient || mxPre.changed) saveStore(pre);
     });
   } catch {
     /* non-fatal */

@@ -36,9 +36,13 @@ export function markerPresent(html, marker) {
     return html.includes('hide-webflow-badge')
       || (/rel="stylesheet"/.test(html) && /\.w-webflow-badge[^}]*display:\s*none/i.test(html));
   }
-  // Contact email: potter@ is active; hello@ still accepted on stale live until republish
-  if (marker === 'potter@trydemigod.com' || marker === 'hello@trydemigod.com') {
-    return html.includes('potter@trydemigod.com') || html.includes('hello@trydemigod.com');
+  // Contact SoR: potter@ only (foot v495+). hello@ is residual canvas, not a pass marker.
+  if (marker === 'potter@trydemigod.com') {
+    return html.includes('potter@trydemigod.com');
+  }
+  if (marker === 'hello@trydemigod.com') {
+    // Explicit hello@ checks still see residual canvas truth (do not treat as contact OK).
+    return html.includes('hello@trydemigod.com');
   }
   if (marker === 'og:title') return html.includes('og:title');
   if (marker === 'Demigod forms') {

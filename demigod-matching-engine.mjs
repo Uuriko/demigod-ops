@@ -564,7 +564,7 @@ export function proposeIntro(roleOrId, candIdOrEmail) {
     pair = { error: String(e.message || e) };
   }
 
-  const notify = `hello@trydemigod.com will follow up with intro details for ${target.role ? target.role.title : ''} + candidate.`;
+  const notify = `potter@trydemigod.com will follow up with intro details for ${target.role ? target.role.title : ''} + candidate.`;
 
   return {
     ok: true,

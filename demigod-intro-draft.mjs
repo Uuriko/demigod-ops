@@ -150,7 +150,7 @@ if (kind === 'startup') {
   }
   lines.push('If fit looks real, we only propose intros after mutual yes. Fee is 10% of first-year cash only when you hire (payments still pending — we confirm by email).');
   lines.push('');
-  lines.push('Reply to hello@trydemigod.com with any constraints we missed.');
+  lines.push('Reply to potter@trydemigod.com with any constraints we missed.');
   lines.push('');
   lines.push('— Demigod');
 } else if (kind === 'engineer') {
@@ -162,7 +162,7 @@ if (kind === 'startup') {
     lines.push(`**Skills you listed:** ${stack}`);
     lines.push('');
   }
-  lines.push('No spam. hello@trydemigod.com will reach out only when something is worth your time.');
+  lines.push('No spam. potter@trydemigod.com will reach out only when something is worth your time.');
   lines.push('');
   lines.push('— Demigod');
 } else {

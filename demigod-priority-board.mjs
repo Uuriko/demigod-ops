@@ -154,10 +154,11 @@ export function buildPriorityBoard(data = {}) {
         : unreachable
         ? 'Events website configuration points to dead tunnels'
         : 'Events website configuration is stale',
+      // Keep pri/kind prepare-only (no thrash); still name the live product impact for operators.
       detail: unreachable
-        ? 'Current API tunnel is healthy · browser-consumed config is unreachable · external config publish not authorized'
+        ? 'Current API tunnel is healthy · browser-consumed config is unreachable (live chat + event invite offline) · pending config ready · external config publish not authorized'
         : 'Current API tunnel is healthy · published browser config differs · external config publish not authorized',
-      cmd: 'bin/dg-events-online status',
+      cmd: 'bin/dg events status',
       tab: 'overview',
       owner: prepareOnly ? 'system' : 'unassigned',
     });
@@ -181,7 +182,7 @@ export function buildPriorityBoard(data = {}) {
       ]
         .filter(Boolean)
         .join(' · '),
-      cmd: 'bin/dg-events-online status',
+      cmd: 'bin/dg events status',
       tab: 'overview',
       owner: 'system',
     });
