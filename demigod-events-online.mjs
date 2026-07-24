@@ -221,8 +221,10 @@ export function tunnelPidsFromPs(psOut, port = PORT) {
   // Expanded loopback residual: [0:0:0:0:0:0:0:1] / zero-padded [0000:…:0001] (+ optional %iface).
   // Zero-padded last hextet residual: [::01%lo0] / ::0001 (not only [::1%lo0]).
   // [::0]/[::0000] zero-pad all-if; [::ffff:0:127.0.0.1] transitional IPv4-mapped.
+  // Bare unbracket mapped residual: ::ffff:127.0.0.1 / ::ffff:7f00:1 (+ optional %iface).
+  // Link-local residual: fe80::1 / [fe80::1%lo0] (manual cloudflared --url on iface).
   const cfHost =
-    `(?:127\\.0\\.0\\.1(?:%[^\\s:/]+)?|\\[127\\.0\\.0\\.1(?:%[^\\]]+)?\\]|localhost(?:%[^\\s:/]+)?|\\[::0{0,3}1(?:%[^\\]]+)?\\]|::0{0,3}1(?:%[^\\s:/\\]]+)?|\\[(?:0{1,4}:){7}0{0,3}1(?:%[^\\]]+)?\\]|\\[::ffff:(?:0:)?(?:127\\.0\\.0\\.1|7f00:0*1)(?:%[^\\]]+)?\\]|\\[::0{0,4}(?:%[^\\]]+)?\\]|0\\.0\\.0\\.0(?:%[^\\s:/]+)?|\\[0\\.0\\.0\\.0(?:%[^\\]]+)?\\])`;
+    `(?:127\\.0\\.0\\.1(?:%[^\\s:/]+)?|\\[127\\.0\\.0\\.1(?:%[^\\]]+)?\\]|localhost(?:%[^\\s:/]+)?|\\[::0{0,3}1(?:%[^\\]]+)?\\]|::0{0,3}1(?:%[^\\s:/\\]]+)?|\\[(?:0{1,4}:){7}0{0,3}1(?:%[^\\]]+)?\\]|\\[::ffff:(?:0:)?(?:127\\.0\\.0\\.1|7f00:0*1)(?:%[^\\]]+)?\\]|::ffff:(?:0:)?(?:127\\.0\\.0\\.1|7f00:0*1)(?:%[^\\s:/]+)?|\\[fe80::0{0,3}1(?:%[^\\]]+)?\\]|fe80::0{0,3}1(?:%[^\\s:/\\]]+)?|\\[::0{0,4}(?:%[^\\]]+)?\\]|0\\.0\\.0\\.0(?:%[^\\s:/]+)?|\\[0\\.0\\.0\\.0(?:%[^\\]]+)?\\])`;
   // Port residual: --port 3460 | --port=3460 | --port3460 (glued long) |
   // -p 3460 | -p=3460 | -p3460 (glued short) | quoted --port "3460" / '3460' /
   // --port="3460" / -p "3460". Quoted branch needs full quotes (\\b after " fails);
@@ -1304,9 +1306,29 @@ async function status(requireCertified = false) {
   // Refresh pids when systemd/oneshot left processes up but files missing
   const appPid = resolveAppPid();
   const tunnelPid = resolveTunnelPid();
-  const root = normalizeEventsPublicBase(url);
+  let root = normalizeEventsPublicBase(url);
   // Multi-probe: loca.lt single-shot flakes used to set needHeal and thrash tunnels.
-  const { publicOk } = await probePublicStable(root);
+  let { publicOk } = await probePublicStable(root);
+  // If url file is a dead loca/CF host but a live tunnel process still serves a
+  // healthy URL (from tunnel.log), adopt it here — otherwise status stays
+  // needHeal while heal is single-flight-skipped ("heal already running").
+  if (!publicOk && tunnelPid) {
+    const adopted = await tryAdoptLiveTunnelFromLog();
+    if (adopted?.url && adopted?.pub?.ok) {
+      root = normalizeEventsPublicBase(adopted.url);
+      url = root;
+      publicOk = true;
+      try {
+        writeConfig(root);
+      } catch {
+        try {
+          fs.writeFileSync(path.join(DIR, 'url'), root + '\n');
+        } catch {
+          /* */
+        }
+      }
+    }
+  }
   const localOk = !!local?.ok;
   const reachable = localOk || publicOk;
   const observation = statusObservation(
@@ -2406,6 +2428,11 @@ function selfcheck() {
     ok(tunnelPidFromPs('1234 cloudflared tunnel --url http://127.0.0.1%lo0:3460 --no-autoupdate', 3460) === 1234, 'tunnelPidFromPs bare 127.0.0.1%lo0 zone');
     ok(tunnelPidFromPs('1235 cloudflared tunnel --url http://0.0.0.0%lo0:3460 --no-autoupdate', 3460) === 1235, 'tunnelPidFromPs bare 0.0.0.0%lo0 zone');
     ok(tunnelPidFromPs('1236 cloudflared tunnel --url http://127.0.0.1%lo0:9999 --no-autoupdate', 3460) === null, 'tunnelPidFromPs bare IPv4 zone other port ignored');
+    // Residual: bare unbracket ::ffff mapped (hex form was MISS; decimal already via 127.0.0.1 submatch)
+    ok(tunnelPidFromPs('1240 cloudflared tunnel --url http://::ffff:7f00:1:3460 --no-autoupdate', 3460) === 1240, 'tunnelPidFromPs bare ::ffff:7f00:1');
+    ok(tunnelPidFromPs('1241 cloudflared tunnel --url http://::ffff:7f00:1%lo0:3460 --no-autoupdate', 3460) === 1241, 'tunnelPidFromPs bare ::ffff:7f00:1%lo0');
+    ok(tunnelPidFromPs('1242 cloudflared tunnel --url http://::ffff:7f00:1:9999 --no-autoupdate', 3460) === null, 'tunnelPidFromPs bare ::ffff hex other port ignored');
+    ok(tunnelPidFromPs('1243 cloudflared tunnel --url http://[::ffff:7f00:1]:3460 --no-autoupdate', 3460) === 1243, 'tunnelPidFromPs bracketed mapped still after bare');
   }
 
   if (fails.length) {
@@ -2418,7 +2445,7 @@ function selfcheck() {
     JSON.stringify({
       ok: true,
       checks:
-        'shouldPublishConfig+tunnelHealAttempts+publicBaseNorm+queryHashStrip+storeHygiene+opsSecret+tunnelPidFromPs+tunnelPidLocalhost+tunnelPidsKillStray+tunnelPid0x0+tunnelPortFlag+tunnelPidV6Any+tunnelPortShortEquals+tunnelPortGluedShort+tunnelPortGluedLong+tunnelPidV4Mapped+tunnelPidBracketIPv4+tunnelPortQuoted+tunnelPidZoneId',
+        'shouldPublishConfig+tunnelHealAttempts+publicBaseNorm+queryHashStrip+storeHygiene+opsSecret+tunnelPidFromPs+tunnelPidLocalhost+tunnelPidsKillStray+tunnelPid0x0+tunnelPortFlag+tunnelPidV6Any+tunnelPortShortEquals+tunnelPortGluedShort+tunnelPortGluedLong+tunnelPidV4Mapped+tunnelPidBracketIPv4+tunnelPortQuoted+tunnelPidZoneId+tunnelPidBareMapped',
     }),
   );
 }
