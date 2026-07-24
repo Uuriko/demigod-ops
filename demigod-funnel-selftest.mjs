@@ -1845,13 +1845,19 @@ Showed Expanding Rapidly We The open roles
         { id: 'still-drafted', state: 'drafted', name: 'Keep', handle: '@keep' },
       ],
     };
+    fs.writeFileSync(path.join(pruneDir, 'fc-t-orphan-hash.txt'), 'Hi there — SERP leftover.\n', 'utf8');
     const r = pruneTerminalDrafts(doc, { draftsDir: pruneDir });
     assert(r.pruned.includes('dq-no-contact'), 'pruneTerminalDrafts prunes no-contact DQ draft');
     assert(!r.pruned.includes('dq-with-handle'), 'pruneTerminalDrafts keeps contactable DQ draft');
     assert(!r.pruned.includes('still-drafted'), 'pruneTerminalDrafts skips non-terminal');
+    assert(r.orphans?.includes('fc-t-orphan-hash'), 'pruneTerminalDrafts archives orphan drafts');
     assert(!fs.existsSync(path.join(pruneDir, 'dq-no-contact.txt')), 'source draft removed');
     assert(fs.existsSync(path.join(pruneDir, '.terminal-archive', 'dq-no-contact.txt')), 'draft archived');
     assert(fs.existsSync(path.join(pruneDir, 'dq-with-handle.txt')), 'contactable draft remains');
+    assert(
+      fs.existsSync(path.join(pruneDir, '.terminal-archive', 'fc-t-orphan-hash.txt')),
+      'orphan draft archived',
+    );
   } finally {
     fs.rmSync(pruneDir, { recursive: true, force: true });
   }

@@ -969,8 +969,9 @@ const AREA_NEAR = {
   'western addition': ['western addition', 'fillmore', 'hayes', 'japantown', 'haight', 'civic', 'main library'],
   // residual: visitacion/rincon/corona/park merced/presidio heights in SF_OK, free-list missed
   visitacion: ['visitacion', 'excelsior', 'mission', 'bernal'],
-  rinconhill: ['rincon hill', 'soma', 'yerba', 'embarcadero'],
-  'rincon hill': ['rincon hill', 'soma', 'yerba', 'embarcadero'],
+  // Indoor free-list is Civic SFPL (was area-miss on quiet indoor; outdoor stays SoMa)
+  rinconhill: ['rincon hill', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
+  'rincon hill': ['rincon hill', 'soma', 'yerba', 'embarcadero', 'civic', 'main library'],
   coronaheights: ['corona heights', 'castro', 'mission', 'dolores'],
   'corona heights': ['corona heights', 'castro', 'mission', 'dolores'],
   // Indoor free-list is Civic SFPL (west park-merced cluster had area-miss on quiet indoor)

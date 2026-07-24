@@ -10,6 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { Script } from 'node:vm';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
@@ -96,6 +97,21 @@ function csrfHeaders(token) {
   if (!token) throw new Error('missing Webflow CSRF token');
   return { 'X-CSRF-Token': token, 'X-XSRF-TOKEN': token };
 }
+
+function publishTaskState(payload) {
+  const task = payload?.status && typeof payload.status === 'object'
+    ? payload.status
+    : payload?.task || payload;
+  return task?.status || task?.state || task?.data?.stage || String(JSON.stringify(payload) || '').slice(0, 120);
+}
+
+function publishTaskComplete(status) {
+  return /complete|success|done|published|finished/i.test(String(status || ''));
+}
+
+function shouldReloadCustomCode({ editorCount, errorVisible, reloadVisible, retried }) {
+  return editorCount === 0 && errorVisible && reloadVisible && !retried;
+}
 const UNKNOWN_ARGS = [...args].filter((arg) => !ALLOWED_ARGS.has(arg));
 
 function canonicalPreflight() {
@@ -135,6 +151,9 @@ function canonicalPreflight() {
       /fetch\('\/api\/sites\/talentlink-sf\/code'/.test(SELF_SOURCE) &&
       /pre === expectedHead && post === expectedFoot/.test(SELF_SOURCE) &&
       /if \(!persisted\.result\?\.value\?\.ok\)/.test(SELF_SOURCE),
+    editorHelperWaitsForSaveButton:
+      /for \(let attempt = 1; attempt <= 20; attempt\+\+\)/.test(SELF_SOURCE) &&
+      /return \{ saved: false, attempts: 20 \}/.test(SELF_SOURCE),
     headHasUnhideV5: HEAD.includes('unhide-v5') && HEAD.includes('dg-unhide-critical'),
     headHasNoFootLoader: footLoaderUrls(HEAD).length === 0,
     // Webflow's head custom-code field caps at 50,000 and truncates SILENTLY (API returns 200). Gate
@@ -165,6 +184,7 @@ function canonicalPreflight() {
     'editorHelperAssertsFinalSplit',
     'editorHelperRejectsLoaderOutsideFooter',
     'editorHelperVerifiesPersistedSplit',
+    'editorHelperWaitsForSaveButton',
     'headHasUnhideV5',
     'headHasNoFootLoader',
     'headUnderWebflowCap',
@@ -362,7 +382,7 @@ function canonicalUrl(raw) {
 
 function helperParses(source) {
   try {
-    new Function(source);
+    new Script(source);
     return true;
   } catch {
     return false;
@@ -551,6 +571,11 @@ async function main() {
     let missingCsrfFailed = false;
     try { csrfHeaders(''); } catch { missingCsrfFailed = true; }
     if (!missingCsrfFailed) throw new Error('missing CSRF must fail closed');
+    const nestedTask = { status: { taskId: 'fixture', status: 'finished', data: { stage: 'PUBLISH_FINISHED' } } };
+    const nestedTaskState = publishTaskState(nestedTask);
+    if (nestedTaskState !== 'finished' || !publishTaskComplete(nestedTaskState)) {
+      throw new Error('nested publish task completion selftest failed');
+    }
     const blockerOrderOk =
       primaryReleaseBlocker({ transportBlocked: true, leaseHeld: true }) === 'release-transport' &&
       primaryReleaseBlocker({ transportBlocked: false, leaseHeld: true }) === 'release-lease' &&
@@ -577,6 +602,16 @@ async function main() {
       new Set(remediation.releaseRecovery.gatedBy).size === remediation.releaseRecovery.gatedBy.length
     );
     if (!recoveryGateOk) throw new Error('release recovery gate contract selftest failed');
+    const reloadFixture = { editorCount: 0, errorVisible: true, reloadVisible: true, retried: false };
+    if (
+      !shouldReloadCustomCode(reloadFixture) ||
+      shouldReloadCustomCode({ ...reloadFixture, editorCount: 1 }) ||
+      shouldReloadCustomCode({ ...reloadFixture, errorVisible: false }) ||
+      shouldReloadCustomCode({ ...reloadFixture, reloadVisible: false }) ||
+      shouldReloadCustomCode({ ...reloadFixture, retried: true })
+    ) {
+      throw new Error('custom-code one-time Reload gate selftest failed');
+    }
   }
   if (CHECK_ONLY || CHECK_STRUCTURAL) {
     const pass = CHECK_STRUCTURAL ? preflight.structuralOk : preflight.ok;
@@ -641,14 +676,39 @@ async function main() {
   await call('Page.enable');
   await call('Page.navigate', { url: 'https://webflow.com/dashboard/sites/talentlink-sf/custom-code' });
   let eds = 0;
-  for (let i = 0; i < 25; i++) {
-    await sleep(1200);
-    const r = await call('Runtime.evaluate', {
-      expression: `${GET_VIEW}; orderedEditors().length`,
+  let reloaded = false;
+  for (let load = 0; load < 2 && eds !== 2; load++) {
+    for (let i = 0; i < 25; i++) {
+      await sleep(1200);
+      const r = await call('Runtime.evaluate', {
+        expression: `${GET_VIEW}; orderedEditors().length`,
+        returnByValue: true,
+      }, CDP_EVAL_MS);
+      eds = r.result?.value || 0;
+      if (eds === 2) break;
+    }
+    if (eds === 2 || reloaded) break;
+    const recovery = await call('Runtime.evaluate', {
+      expression: `(() => {
+        ${shouldReloadCustomCode.toString()}
+        const visible = node => node && node.getClientRects().length > 0;
+        const reload = [...document.querySelectorAll('button')].find(node =>
+          visible(node) && /^\\s*Reload\\s*$/.test(node.textContent || '')
+        );
+        const state = {
+          editorCount: document.querySelectorAll('.cm-editor').length,
+          errorVisible: visible(document.body) && /Something went wrong/.test(document.body.innerText || ''),
+          reloadVisible: Boolean(reload),
+          retried: false,
+        };
+        if (!shouldReloadCustomCode(state)) return { reloaded: false, ...state };
+        reload.click();
+        return { reloaded: true, ...state };
+      })()`,
       returnByValue: true,
     }, CDP_EVAL_MS);
-    eds = r.result?.value || 0;
-    if (eds === 2) break;
+    reloaded = recovery.result?.value?.reloaded === true;
+    if (reloaded) console.log('custom-code error shell: clicked built-in Reload once');
   }
   if (eds !== 2) {
     console.error(`expected exactly 2 editors; found ${eds}`);
@@ -745,19 +805,23 @@ async function main() {
     },
     CDP_EVAL_MS,
   );
-  await sleep(500);
   const sav = await call(
     'Runtime.evaluate',
     {
-      expression: `(() => {
-      const b=[...document.querySelectorAll('button')].find(x=>
-        !x.disabled && x.getAttribute('aria-disabled')!=='true' &&
-        /^\\s*(Save|Save changes)\\s*$/i.test(x.textContent||'')
-      );
-      if(b){b.click();return {saved:true, label:(b.textContent||'').trim().slice(0,40)};}
-      return {saved:false};
+      expression: `(async () => {
+      // Webflow debounces CM6 dirty-state propagation before enabling the site-level Save.
+      for (let attempt = 1; attempt <= 20; attempt++) {
+        const b=[...document.querySelectorAll('button')].find(x=>
+          !x.disabled && x.getAttribute('aria-disabled')!=='true' &&
+          /^\\s*(Save|Save changes)\\s*$/i.test(x.textContent||'')
+        );
+        if(b){b.click();return {saved:true, label:(b.textContent||'').trim().slice(0,40), attempts:attempt};}
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      return { saved: false, attempts: 20 };
     })()`,
       returnByValue: true,
+      awaitPromise: true,
     },
     CDP_EVAL_MS,
   );
@@ -766,10 +830,6 @@ async function main() {
   // button before this lookup. Do not false-fail on button state: the API
   // readback below is the authoritative persistence gate.
   if (!sav.result?.value?.saved) console.warn('Save button unavailable after keyboard save; verifying persisted API');
-  // Webflow Save latency varies. Readback below polls the persisted API, so a
-  // slow save does not become a false failure after one fixed delay.
-  await sleep(1000);
-
   // Verify both saved editors exactly match canonical disk content.
   const ver = await call(
     'Runtime.evaluate',
@@ -851,6 +911,8 @@ async function main() {
       'Runtime.evaluate',
       {
       expression: `(async () => {
+        ${publishTaskState.toString()}
+        ${publishTaskComplete.toString()}
         // Confirm the saved API payload exactly matches disk before queueing publish.
         const code = await (await fetch('/api/sites/talentlink-sf/code', { credentials: 'include' })).json();
         // Webflow custom-code API uses meta.head (not preBody) for site head paste.
@@ -897,8 +959,9 @@ async function main() {
         // Wait for completion via task polling if we got an id; else wait fixed
         let taskStatus = null;
         if (taskId) {
-          for (let i = 0; i < 30; i++) {
-            await new Promise(r => setTimeout(r, 2000));
+          // Probe immediately, then preserve the old 2s cadence and 60s ceiling.
+          for (let i = 0; i <= 30; i++) {
+            if (i) await new Promise(r => setTimeout(r, 2000));
             try {
               const taskPaths = [
                 '/api/sites/talentlink-sf/tasks/' + taskId,
@@ -911,16 +974,14 @@ async function main() {
               }
               if (!tr) throw new Error('publish task endpoint unavailable');
               const tj = await tr.json();
-              taskStatus = tj?.status || tj?.state || tj?.task?.status || JSON.stringify(tj).slice(0, 120);
-              if (/complete|success|done|published/i.test(String(taskStatus))) break;
+              taskStatus = publishTaskState(tj);
+              if (publishTaskComplete(taskStatus)) break;
               if (/fail|error/i.test(String(taskStatus))) break;
             } catch (e) { taskStatus = String(e); }
           }
-        } else {
-          await new Promise(r => setTimeout(r, 25000));
         }
         const taskFailed = /fail|error|cancel/i.test(String(taskStatus || ''));
-        const taskComplete = /complete|success|done|published/i.test(String(taskStatus || ''));
+        const taskComplete = publishTaskComplete(taskStatus);
         const positiveAcceptance = /published|publish(?:ing)?\s+(?:queued|accepted)|queued|accepted|success/i.test(text);
         const negativeAcceptance = /fail(?:ed|ure)?|error|cancel(?:led|ed)?|abort(?:ed)?|reject(?:ed)?|denied/i.test(text);
         const acceptedWithoutTask = res.ok && !taskId && positiveAcceptance && !negativeAcceptance;

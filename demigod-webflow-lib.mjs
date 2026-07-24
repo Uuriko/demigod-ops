@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { BUSY, ensureBusy, readJson, atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { status as publishFreezeStatus } from './demigod-publish-freeze.mjs';
 
 export const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 export const CDP = process.env.CDP_URL || process.env.DEMIGOD_CDP || 'http://127.0.0.1:9223';
@@ -93,16 +94,7 @@ export async function listPages() {
 }
 
 export function freezeStatus() {
-  // Publish freeze disabled entirely for now — never block paste/publish on freeze.
-  return {
-    frozen: false,
-    disabled: true,
-    env: false,
-    file: false,
-    why: 'freeze disabled (entirely off for now)',
-    at: null,
-    by: null,
-  };
+  return publishFreezeStatus();
 }
 
 export function diskTruth() {
@@ -148,10 +140,20 @@ export function diskTruth() {
 
 export async function liveTruth() {
   try {
-    const r = await fetch(`${LIVE}/?wf=${Date.now()}`, {
-      signal: AbortSignal.timeout(12000),
-      headers: { 'Cache-Control': 'no-cache' },
-    });
+    const [r, robots, sitemap] = await Promise.all([
+      fetch(`${LIVE}/?wf=${Date.now()}`, {
+        signal: AbortSignal.timeout(12000),
+        headers: { 'Cache-Control': 'no-cache' },
+      }),
+      ...['/robots.txt', '/sitemap.xml'].map(async (pathname) => {
+        try {
+          const response = await fetch(`${LIVE}${pathname}`, { signal: AbortSignal.timeout(12000) });
+          return { status: response.status, type: response.headers.get('content-type') || '', body: await response.text() };
+        } catch (e) {
+          return { status: 0, type: '', body: '', error: e.message || String(e) };
+        }
+      }),
+    ]);
     const html = await r.text();
     const footCdn = (html.match(/https:\/\/files\.catbox\.moe\/[a-z0-9]+\.js/i) || [])[0] || null;
     const loader = (html.match(/demigod-foot-cdn-loader v(\d+)/) || [])[1] || null;
@@ -171,6 +173,19 @@ export async function liveTruth() {
       footVerHint: footVer ? `v${footVer}` : null,
       hasFooterLoader: /demigod-foot-cdn-loader|catbox\.moe\/[a-z0-9]+\.js/i.test(html),
       metaCounts,
+      robots: {
+        status: robots.status,
+        hasSitemap: robots.status === 200 && /Sitemap:\s*https:\/\/www\.trydemigod\.com\/sitemap\.xml/i.test(robots.body),
+        bytes: robots.body.length,
+        error: robots.error || null,
+      },
+      sitemap: {
+        status: sitemap.status,
+        type: sitemap.type,
+        valid: sitemap.status === 200 && /<(?:urlset|sitemapindex)\b/i.test(sitemap.body),
+        bytes: sitemap.body.length,
+        error: sitemap.error || null,
+      },
       bytes: html.length,
     };
   } catch (e) {
@@ -292,7 +307,9 @@ export function agentTips(status) {
   }
   tips.push(status.freeze?.frozen
     ? `Publish freeze is enabled${status.freeze.why ? ` — ${status.freeze.why}` : ''}; read-only checks only.`
-    : 'Publish freeze is disabled; foot CDN/paste mutations still require the foot lock.');
+    : !status.freeze?.authorized
+      ? 'Current request has not authorized CDN/paste/publish mutations; prepare-only checks remain available.'
+      : 'Current request authorizes publication; foot CDN/paste mutations still require the foot lock.');
   const roles = status.tabs?.byRole || {};
   if ((roles['webflow-login'] || 0) > 0 && status.cdp?.ok) {
     tips.push('Webflow login/404 wall — re-auth site-owner account (not empty Google workspace), then open custom-code');
@@ -314,6 +331,9 @@ export function agentTips(status) {
   if (status.disk?.footVer && status.live?.footVerHint && status.disk.footVer !== status.live.footVerHint) {
     tips.push(`Foot disk ${status.disk.footVer} vs live ${status.live.footVerHint}`);
   }
+  if (status.live?.sitemap && !status.live.sitemap.valid) {
+    tips.push('Live sitemap is missing; Webflow auto-generation remains a prepare-only SEO fix until an authorized publish request.');
+  }
   if (status.disk && !status.disk.diskMatchesManifest) {
     tips.push('disk foot sha ≠ manifest — foot-cdn only if intentionally shipping foot');
   }
@@ -328,8 +348,11 @@ export function classifyChange(intent = '') {
   const text = String(intent).trim();
   const rules = [
     { type: 'cms', test: /\b(cms|collection|blog post|note post)\b/i, files: ['demigod-blog-posts.json'], commands: ['node demigod-webflow-blog-cms-setup.mjs', '# Dry-run only until Webflow API/Designer credentials are available'] },
+    { type: 'designer-layout', test: /(?:resume|résumé).*upload|upload.*(?:resume|résumé)/i, files: [], commands: ['npm run demigod:resume-field', 'bin/dg-webflow open designer', '# Add the native Webflow File Upload only when the readiness check reports link-only; then run: bin/dg-webflow playbook post-publish-confirm'] },
+    { type: 'designer-layout', test: /\b(file upload|upload (field|component)|webflow upload)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },
+    { type: 'designer-layout', test: /\b(?:add|remove|rename|replace|create|change|edit|update|move|reorder|make) (?:an? |the )?(?:(?:native|webflow) )*form (?:field|input|control)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'assets', test: /\b(asset|image|photo|hero image|upload)\b/i, files: ['assets/', 'demigod-assets/'], commands: ['node demigod-blog-assets-gen.mjs', 'bin/dg-webflow open designer'] },
-    { type: 'page-settings-seo', test: /\b(page settings|page title|meta description|open graph title)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Page Settings → SEO/Open Graph; then: bin/dg-webflow playbook post-publish-confirm'] },
+    { type: 'page-settings-seo', test: /\b(page settings|page title|meta description|seo\.description|open graph title)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Page Settings → SEO/Open Graph; then: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'head-meta', test: /\b(meta|seo|favicon|open graph|og image|title tag|canonical|structured data|schema)\b/i, files: ['demigod-head-minimal.html'], commands: ['node demigod-favicon-ship.mjs   # only for favicon changes', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
     { type: 'head-css', test: /\b(css|style|font|color|spacing|responsive|mobile|animation)\b/i, files: ['demigod-head-styles.css', 'demigod-head-minimal.html'], commands: ['node demigod-head-css-publish.mjs', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
     { type: 'custom-code-head', test: /\b(head|header) (code|custom code)\b/i, files: ['demigod-head-minimal.html'], commands: ['npm run demigod:verify:source', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
@@ -380,8 +403,8 @@ export async function buildStatus() {
   status.tips = agentTips(status);
   status.ready = {
     readOnly: Boolean(cdp.ok),
-    paste: Boolean(cdp.ok && byRole['custom-code'] && !freeze.frozen),
-    publish: Boolean(cdp.ok && !freeze.frozen),
+    paste: Boolean(cdp.ok && byRole['custom-code'] && !freeze.frozen && freeze.authorized),
+    publish: Boolean(cdp.ok && !freeze.frozen && freeze.authorized),
   };
   atomicWrite(OUT, JSON.stringify(status, null, 2) + '\n');
   return status;
@@ -404,6 +427,7 @@ export async function openUrl(url) {
   if (!r || !r.ok) {
     r = await fetch(u, { method: 'GET', signal: AbortSignal.timeout(8000) });
   }
+  if (!r.ok) throw new Error(`CDP /json/new HTTP ${r.status}`);
   const text = await r.text();
   try {
     return JSON.parse(text);

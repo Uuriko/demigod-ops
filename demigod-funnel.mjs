@@ -722,24 +722,35 @@ export function disqualifyJunk(doc, { actor = 'agent', note = 'junk-aggregator-o
 }
 
 /**
- * Archive draft files for terminal leads with no usable email|handle.
+ * Archive draft files for terminal leads with no usable email|handle,
+ * plus orphan drafts (file on disk, no lead row — SERP/id-hash leftovers).
  * Keeps contactable DQ drafts (re-open path). Receipt-friendly; never invents.
- * @returns {{ pruned: string[], skipped: {id:string,reason:string}[], archiveDir: string|null }}
+ * @returns {{ pruned: string[], orphans: string[], skipped: {id:string,reason:string}[], archiveDir: string|null }}
  */
 export function pruneTerminalDrafts(
   doc,
   { draftsDir = DRAFTS, states = ['disqualified', 'opted_out', 'quarantined'] } = {},
 ) {
   const pruned = [];
+  const orphans = [];
   const skipped = [];
   if (!draftsDir || !fs.existsSync(draftsDir)) {
-    return { pruned, skipped, archiveDir: null };
+    return { pruned, orphans, skipped, archiveDir: null };
   }
   const terminal = new Set(states);
   const archiveDir = path.join(draftsDir, '.terminal-archive');
+  const known = new Set();
+  const archiveOne = (id) => {
+    const src = path.join(draftsDir, `${id}.txt`);
+    if (!fs.existsSync(src)) return false;
+    fs.mkdirSync(archiveDir, { recursive: true });
+    fs.renameSync(src, path.join(archiveDir, `${id}.txt`));
+    return true;
+  };
   for (const { lead } of allLeads(doc || {})) {
     const id = lead?.id;
     if (!id) continue;
+    known.add(id);
     const st = getState(lead);
     if (!terminal.has(st)) {
       skipped.push({ id, reason: `state=${st}` });
@@ -749,21 +760,36 @@ export function pruneTerminalDrafts(
       skipped.push({ id, reason: 'has-usable-contact' });
       continue;
     }
-    const src = path.join(draftsDir, `${id}.txt`);
-    if (!fs.existsSync(src)) {
-      skipped.push({ id, reason: 'no-draft' });
-      continue;
-    }
     try {
-      fs.mkdirSync(archiveDir, { recursive: true });
-      const dest = path.join(archiveDir, `${id}.txt`);
-      fs.renameSync(src, dest);
-      pruned.push(id);
+      if (archiveOne(id)) pruned.push(id);
+      else skipped.push({ id, reason: 'no-draft' });
     } catch (err) {
       skipped.push({ id, reason: String(err?.message || err).slice(0, 120) });
     }
   }
-  return { pruned, skipped, archiveDir: pruned.length ? archiveDir : null };
+  // Orphan .txt drafts: no lead row (base64-id SERP leftovers etc.)
+  try {
+    for (const f of fs.readdirSync(draftsDir).filter((n) => n.endsWith('.txt'))) {
+      const id = f.replace(/\.txt$/i, '');
+      if (known.has(id)) continue;
+      try {
+        if (archiveOne(id)) {
+          pruned.push(id);
+          orphans.push(id);
+        }
+      } catch (err) {
+        skipped.push({ id, reason: String(err?.message || err).slice(0, 120) });
+      }
+    }
+  } catch {
+    /* drafts dir unreadable */
+  }
+  return {
+    pruned,
+    orphans,
+    skipped,
+    archiveDir: pruned.length ? archiveDir : null,
+  };
 }
 
 /** drafted/approved with no *usable* email/handle (noise-only = gap). */
@@ -2973,6 +2999,8 @@ function cmdPruneTerminalDrafts() {
       {
         ok: true,
         pruned: result.pruned.length,
+        orphans: (result.orphans || []).length,
+        orphanIds: result.orphans || [],
         ids: result.pruned,
         archiveDir: result.archiveDir,
         receipt,
