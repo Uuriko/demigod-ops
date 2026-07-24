@@ -85,9 +85,14 @@ async function sweep(page, url, label) {
     });
 
     document.querySelectorAll('[data-dg-toast],[class*=toast],[class*=Toast],[id*=toast],[class*=alert]:not([role]),[class*=status]:not([role])').forEach((el) => {
+      // SVG className is SVGAnimatedString; String(el.className) → "[object SVGAnimatedString]" and floods noise.
+      // Decorative icons inside <svg> are not toast/status surfaces.
+      if (el.closest('svg')) return;
       if (!el.hasAttribute('aria-live') && el.getAttribute('role') !== 'status' && el.getAttribute('role') !== 'alert') {
+        const cls = el.getAttribute('class') || '';
+        const token = cls.split(/\s+/).filter(Boolean)[0];
         out.missingLiveRegions.push({
-          sel: el.id ? '#' + el.id : (el.className ? '.' + String(el.className).split(' ').filter(Boolean)[0] : el.tagName.toLowerCase()),
+          sel: el.id ? '#' + el.id : (token ? '.' + token : el.tagName.toLowerCase()),
         });
       }
     });
