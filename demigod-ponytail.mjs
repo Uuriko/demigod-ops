@@ -237,6 +237,14 @@ Upstream: ${REPO}
 
 function main() {
   const args = process.argv.slice(2);
+  const ponyAllowed = new Set(['--json', '--help', '-h']);
+  const ponyUnknown = args.find((a) => a.startsWith('-') && !ponyAllowed.has(a));
+  if (ponyUnknown) {
+    console.error(
+      `ponytail: unknown argument ${ponyUnknown} — try: demigod-ponytail.mjs status|check|mode [lite|full|ultra|off] [--json]`,
+    );
+    process.exit(2);
+  }
   const cmd = args[0] || 'status';
   const asJson = args.includes('--json');
 

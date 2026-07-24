@@ -313,8 +313,15 @@ function usage() {
 }
 
 async function main(argv) {
+  const craftUnknown = argv.find((a) => a.startsWith('-') && a !== '-h' && a !== '--help');
+  if (craftUnknown) {
+    console.error(
+      `craft: unknown argument ${craftUnknown} — try: node demigod-craft-log.mjs list|status|mint|show|render`,
+    );
+    process.exit(2);
+  }
   const [cmd, a, ...rest] = argv;
-  if (!cmd || cmd === 'help' || cmd === '-h') {
+  if (!cmd || cmd === 'help' || cmd === '-h' || cmd === '--help') {
     usage();
     process.exit(0);
   }

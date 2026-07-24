@@ -362,6 +362,19 @@ export function assertMapFloors(map, { withJobs = false, minCompanies = 2000, mi
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const mapArgv = process.argv.slice(2);
+  const mapAllowed = new Set(['--selftest', '--with-jobs']);
+  const mapUnknown = mapArgv.find((a) => a.startsWith('-') && !mapAllowed.has(a));
+  if (mapUnknown) {
+    console.error(
+      JSON.stringify({
+        ok: false,
+        error: `unknown argument ${mapUnknown}`,
+        usage: 'node demigod-startup-map-data.mjs [--selftest] [--with-jobs]',
+      }),
+    );
+    process.exit(2);
+  }
   // Fast, no-network integrity gate for verify-all: real on-disk map passes; a poisoned copy must fail.
   if (process.argv.includes('--selftest')) {
     try {

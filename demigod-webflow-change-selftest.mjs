@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-webflow-change-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';

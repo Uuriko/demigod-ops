@@ -68,9 +68,19 @@ export function tail(n = 10) {
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
-  const cmd = process.argv[2] || 'tail';
-  const nIdx = process.argv.indexOf('--n');
-  const n = nIdx >= 0 ? Number(process.argv[nIdx + 1]) || 20 : 20;
+  const ledgerArgv = process.argv.slice(2);
+  const ledgerUnknown = ledgerArgv.find(
+    (a, i) => a.startsWith('-') && a !== '--n' && !(i > 0 && ledgerArgv[i - 1] === '--n'),
+  );
+  if (ledgerUnknown) {
+    console.error(
+      `version-ledger: unknown argument ${ledgerUnknown} — try: tail|show|delta [--n 20] | path`,
+    );
+    process.exit(2);
+  }
+  const cmd = ledgerArgv[0] || 'tail';
+  const nIdx = ledgerArgv.indexOf('--n');
+  const n = nIdx >= 0 ? Number(ledgerArgv[nIdx + 1]) || 20 : 20;
   if (cmd === 'tail' || cmd === 'show') {
     const rows = tail(n);
     console.log(JSON.stringify({ path: LEDGER, n: rows.length, rows }, null, 2));
