@@ -9,9 +9,17 @@ import test from 'node:test';
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const agentSource = fs.readFileSync(path.join(ROOT, 'demigod-events-bot-agent.mjs'), 'utf8');
-const appSource = fs.readFileSync(path.join(ROOT, 'demigod-events-app.mjs'), 'utf8');
+let appSource = fs.readFileSync(path.join(ROOT, 'demigod-events-app.mjs'), 'utf8');
 const onlineSource = fs.readFileSync(path.join(ROOT, 'demigod-events-online.mjs'), 'utf8');
 const pageSource = fs.readFileSync(path.join(ROOT, 'demigod-events.html'), 'utf8');
+
+// Fail-capability poison (Claude c269): strip CORS contract so source assert.match must red.
+// Meta-proof: node --test demigod-events-app-policy-selftest.poison.test.mjs
+if (process.env.DEMIGOD_POLICY_SELFTEST_POISON === '1') {
+  appSource = appSource
+    .replace(/Access-Control-Allow-Origin',\s*'\*'/g, "Access-Control-Allow-Origin','null'")
+    .replace(/function cors\(res\)/g, 'function corsPoisoned(res)');
+}
 
 test('background Events Bot cannot create or publish externally', () => {
   assert.doesNotMatch(agentSource, /public-api\.luma\.com\/v1\/event\/create/);
