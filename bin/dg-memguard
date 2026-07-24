@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Soft memory guard — warn + optional prune when free RAM low.
+# Intended as user timer every 5m. Never kills Chrome CDP or dash.
+set -euo pipefail
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+LOG="$BUSY/memguard.log"
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      echo "usage: dg-memguard  (no flags; timer soft RAM guard)"
+      exit 0
+      ;;
+    *)
+      echo "dg-memguard: unknown argument $arg — try: dg-memguard" >&2
+      exit 2
+      ;;
+  esac
+done
+mkdir -p "$BUSY"
+# available MiB
+avail_kb="$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)"
+avail_mb=$((avail_kb / 1024))
+threshold_mb="${DG_MEM_WARN_MB:-4096}"
+[[ "$threshold_mb" =~ ^[0-9]+$ ]] || { echo "dg-memguard: DG_MEM_WARN_MB must be a non-negative integer" >&2; exit 2; }
+
+line="[$(date -Iseconds)] avail_mb=$avail_mb threshold=$threshold_mb"
+echo "$line" >>"$LOG"
+
+if (( avail_mb < threshold_mb )); then
+  echo "$line WARN" >>"$LOG"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -u critical -a Demigod "Low memory" "${avail_mb} MiB available" 2>/dev/null || true
+  fi
+  # Soft: stop never-stop / full-pass only
+  date -Iseconds >"$BUSY/full-pass.STOP" 2>/dev/null || true
+  date -Iseconds >"$BUSY/never-stop.STOP" 2>/dev/null || true
+  # hygiene if CDP
+  if curl -sS --max-time 1 http://127.0.0.1:9223/json/version >/dev/null 2>&1; then
+    timeout 40 "${HOME}/bin/dg-hygiene" --prune >>"$LOG" 2>&1 || true
+  fi
+fi

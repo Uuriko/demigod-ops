@@ -10908,8 +10908,9 @@ ok(
   'cooking class: office beats parklet',
 );
 // residual: multi-resource food/beverage (resourceFoodGap) still stamps dinner-room on kitchen
+// (need must include venue+sponsor AND food/beverage without seated-meal words, or supper alone masks the residual)
 {
-  const foodNeed = 'sponsor food and beverage for SoMa supper club shared table';
+  const foodNeed = 'venue sponsor volunteer food beverage for SoMa shared table night';
   const kitchen = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_community_dining'), {
     need: foodNeed,
     seats: 12,
@@ -10922,6 +10923,10 @@ ok(
   });
   ok(kitchen.reasons?.includes('dinner-room'), 'resource food/beverage: dinner-room on kitchen');
   ok(kitchen.score > office.score, 'resource food/beverage: kitchen beats bare office loan');
+  ok(
+    !office.reasons?.includes('office-tables') || kitchen.score > office.score,
+    'resource food/beverage: office-tables must not crown kitchen',
+  );
 }
 
 

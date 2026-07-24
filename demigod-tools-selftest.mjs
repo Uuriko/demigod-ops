@@ -865,6 +865,13 @@ for (const b of [
       /update\|review\|status/.test(workflowMapSource) &&
       /exit 2/.test(workflowMapSource),
   );
+  const usefulLoopSource = fs.readFileSync(path.join(ROOT, 'demigod-useful-loop.mjs'), 'utf8');
+  assert(
+    'useful-loop rejects unknown flags with exit 2 (no vacuous once)',
+    /useful-loop: unknown argument/.test(usefulLoopSource) &&
+      /--sleep-sec=/.test(usefulLoopSource) &&
+      /process\.exit\(2\)/.test(usefulLoopSource),
+  );
 
   assert(
     'control-plane match detail prefers realCount over sample-inflated total',

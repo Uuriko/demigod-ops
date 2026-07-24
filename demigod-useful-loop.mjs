@@ -672,21 +672,43 @@ async function once(cycle) {
   }, { timeoutMs: 120000, staleMs: 600000 });
 }
 
-const cmd = process.argv[2] || 'once';
+const rawArgs = process.argv.slice(2);
+for (const a of rawArgs) {
+  if (a.startsWith('-') && !a.startsWith('--sleep-sec=') && a !== '--help' && a !== '-h') {
+    console.error(
+      `useful-loop: unknown argument ${a} — try: demigod-useful-loop.mjs once|run|task <id> [--sleep-sec=60]`,
+    );
+    process.exit(2);
+  }
+}
+const positionals = rawArgs.filter((a) => !a.startsWith('-'));
+const cmd = positionals[0] || 'once';
 const sleepSec = Number(
-  (process.argv.find((a) => a.startsWith('--sleep-sec=')) || '--sleep-sec=120').split('=')[1] || 120,
+  (rawArgs.find((a) => a.startsWith('--sleep-sec=')) || '--sleep-sec=120').split('=')[1] || 120,
 );
 
 if (cmd === 'task') {
-  const taskId = process.argv[3];
+  const taskId = positionals[1];
   if (!taskId) {
     console.error('usage: demigod-useful-loop.mjs task <id>');
+    process.exit(2);
+  }
+  if (positionals.length > 2) {
+    console.error(
+      `useful-loop: unknown argument ${positionals[2]} — try: demigod-useful-loop.mjs task <id>`,
+    );
     process.exit(2);
   }
   const r = doTask(taskId);
   console.log(JSON.stringify({ id: taskId, ok: !!r?.ok, status: r?.status ?? null, out: r?.out || '', err: r?.err || '', meta: r?.meta || null }, null, 2));
   process.exit(r?.ok ? 0 : 1);
 } else if (cmd === 'once') {
+  if (positionals.length > 1) {
+    console.error(
+      `useful-loop: unknown argument ${positionals[1]} — try: demigod-useful-loop.mjs once [--sleep-sec=60]`,
+    );
+    process.exit(2);
+  }
   once(1)
     .then((r) => {
       console.log(JSON.stringify(r, null, 2));
@@ -705,6 +727,12 @@ if (cmd === 'task') {
       process.exit(1);
     });
 } else if (cmd === 'run') {
+  if (positionals.length > 1) {
+    console.error(
+      `useful-loop: unknown argument ${positionals[1]} — try: demigod-useful-loop.mjs run [--sleep-sec=60]`,
+    );
+    process.exit(2);
+  }
   let cycle = 0;
   try {
     fs.writeFileSync(path.join(BUSY, 'useful-loop.pid'), String(process.pid) + '\n');
