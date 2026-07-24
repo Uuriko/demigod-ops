@@ -5027,6 +5027,37 @@ assert(
     assert(empty.ok === false, 'hygiene: empty drafts dir → ok=false');
     assert(empty.checked === 0, 'hygiene: empty drafts dir → checked=0');
     assert(String(empty.error || '').includes('empty'), 'hygiene: empty drafts dir error text');
+
+    const dirtyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-funnel-hygiene-dirty-'));
+    try {
+      fs.writeFileSync(
+        path.join(dirtyDir, 'lead-alpha.txt'),
+        'Hi Alpha,\n\nI noticed you are hiring engineers this week.\n\n— Potter\n',
+        'utf8',
+      );
+      fs.writeFileSync(
+        path.join(dirtyDir, 'lead-beta.txt'),
+        'Hi Beta,\n\nDemigod matches SF engineers with startups.\n\n— Potter\n',
+        'utf8',
+      );
+      const dirty = scanFunnelDraftHygiene({ draftsDir: dirtyDir });
+      assert(dirty.checked === 2, 'hygiene: dirty dir checks both drafts');
+      assert(dirty.ok === false, 'hygiene: dirty dir fails closed');
+      assert(
+        dirty.flags.some(
+          (f) =>
+            f.draftId === 'lead-alpha' &&
+            f.id === 'claim_source_freshness',
+        ),
+        'hygiene: flags keep draftId and rule id (no overwrite)',
+      );
+      assert(
+        !dirty.flags.some((f) => f.draftId === 'claim_source_freshness'),
+        'hygiene: rule id must not replace draftId',
+      );
+    } finally {
+      fs.rmSync(dirtyDir, { recursive: true, force: true });
+    }
   } finally {
     fs.rmSync(emptyDir, { recursive: true, force: true });
   }

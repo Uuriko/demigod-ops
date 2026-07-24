@@ -3022,7 +3022,8 @@ export function scanFunnelDraftHygiene({ draftsDir = DRAFTS } = {}) {
     items.push(item);
     if (!h.ok || h.flags.length) {
       flagged++;
-      for (const fl of h.flags) flags.push({ id, ...fl });
+      // draftId first; keep flag.id as the rule id (do not overwrite with filename).
+      for (const fl of h.flags) flags.push({ draftId: id, ...fl });
     }
   }
   // ok = no error-severity flags (warns still surface in flagged count)
@@ -3032,12 +3033,14 @@ export function scanFunnelDraftHygiene({ draftsDir = DRAFTS } = {}) {
 
 function cmdHygiene() {
   const report = scanFunnelDraftHygiene();
+  const failedIds = (report.items || []).filter((it) => !it.ok).map((it) => it.id);
   console.log(
     JSON.stringify(
       {
         ok: report.ok,
         checked: report.checked,
         flagged: report.flagged,
+        failedIds,
         flags: report.flags,
         ...(report.error ? { error: report.error } : {}),
       },
