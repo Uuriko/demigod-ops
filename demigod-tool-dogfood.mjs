@@ -393,6 +393,10 @@ const explicitAliases = new Map([
   ['events-bot-agent', 'events-bot-selftest'],
   ['public-event-probe', 'events-online'],
   ['public-event', 'events-online'],
+  // agents shorten webflow-webhook-setup* wraps / SSRF selftest labels
+  ['webhook-setup-test', 'webflow'],
+  ['webhook-ssrf', 'webflow'],
+  ['webflow-webhook-ssrf', 'webflow'],
 ].map(([from, to]) => [String(from).toLowerCase(), to]));
 
 function isRetiredLabel(value) {
