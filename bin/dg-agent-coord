@@ -201,11 +201,11 @@ with (DIR / "board.lock").open("w") as board_lock:
     if changed:
         atomic_write(bp, json.dumps(board, indent=2) + "\n")
 
-# Publish-lag debt + sibling asset reconciliation from truth
+# Publish-lag debt + sibling asset reconciliation from truth (DIR.parent = busy root)
 lag_line = ""
 sib_line = ""
 try:
-    tj = json.loads(Path("/tmp/dg-busy/truth.json").read_text())
+    tj = json.loads((DIR.parent / "truth.json").read_text())
     pl = tj.get("publishLag") or {}
     if pl.get("lagging"):
         debt = "DEBT" if pl.get("overdue") else "tracked"
