@@ -10,8 +10,10 @@
  *   node demigod-funnel-loop.mjs run [--sleep-sec=30] [--max-cycles=0]
  *   node demigod-funnel-loop.mjs status
  *   node demigod-funnel-loop.mjs stop
+ *   node demigod-funnel-loop.mjs once|once-draft [--force-paused]
  *
- * max-cycles=0 means unlimited.
+ * max-cycles=0 means unlimited. once-draft is blocked while lead FOCUS is paused
+ * unless --force-paused (parity demigod-lead-collect.mjs).
  */
 import fs from 'fs';
 import path from 'path';
@@ -478,10 +480,24 @@ function cmdStop() {
   console.log(JSON.stringify({ ok: true, stop: STOP }));
 }
 
-function cmdOnceDraft() {
+function cmdOnceDraft({ forcePaused = false } = {}) {
   ensure();
+  // Lead funnel FOCUS pause must block once-draft mutations (parity collect --force-paused).
+  const status = funnelStatus();
+  if (status.focusPaused && !forcePaused) {
+    console.error(
+      JSON.stringify({
+        ok: false,
+        focusPaused: true,
+        error: 'requires --force-paused while lead funnel is paused',
+      }),
+    );
+    process.exit(2);
+  }
   const done = draftNextBatch(3);
-  console.log(JSON.stringify({ ok: true, drafted: done }, null, 2));
+  console.log(
+    JSON.stringify({ ok: true, drafted: done, focusPaused: !!status.focusPaused }, null, 2),
+  );
 }
 
 const isMain =
@@ -491,20 +507,24 @@ const isMain =
 if (isMain) {
   const argv = process.argv.slice(2);
   const cmd = argv[0] || 'status';
-  const allowedFlag = (a) => a.startsWith('--sleep-sec=') || a.startsWith('--max-cycles=');
+  const allowedFlag = (a) =>
+    a.startsWith('--sleep-sec=') || a.startsWith('--max-cycles=') || a === '--force-paused';
   const unknown = argv.find((a) => a.startsWith('-') && !allowedFlag(a));
   if (unknown) {
     console.error(
-      `funnel-loop: unknown argument ${unknown} — try: demigod-funnel-loop.mjs run|status|stop|once-draft [--sleep-sec=30] [--max-cycles=0]`,
+      `funnel-loop: unknown argument ${unknown} — try: demigod-funnel-loop.mjs run|status|stop|once|once-draft [--sleep-sec=30] [--max-cycles=0] [--force-paused]`,
     );
     process.exit(2);
   }
   if (cmd.startsWith('-')) {
-    console.error('usage: run|status|stop|once-draft [--sleep-sec=30] [--max-cycles=0]');
+    console.error(
+      'usage: run|status|stop|once|once-draft [--sleep-sec=30] [--max-cycles=0] [--force-paused]',
+    );
     process.exit(2);
   }
   const sleepArg = argv.find((a) => a.startsWith('--sleep-sec='));
   const maxArg = argv.find((a) => a.startsWith('--max-cycles='));
+  const forcePaused = argv.includes('--force-paused');
   const opts = {
     sleepSec: sleepArg ? Number(sleepArg.split('=')[1]) : undefined,
     maxCycles: maxArg ? Number(maxArg.split('=')[1]) : undefined,
@@ -517,9 +537,11 @@ if (isMain) {
     });
   } else if (cmd === 'status') cmdStatus();
   else if (cmd === 'stop') cmdStop();
-  else if (cmd === 'once-draft') cmdOnceDraft();
+  else if (cmd === 'once-draft' || cmd === 'once') cmdOnceDraft({ forcePaused });
   else {
-    console.error('usage: run|status|stop|once-draft [--sleep-sec=30] [--max-cycles=0]');
+    console.error(
+      'usage: run|status|stop|once|once-draft [--sleep-sec=30] [--max-cycles=0] [--force-paused]',
+    );
     process.exit(2);
   }
 }

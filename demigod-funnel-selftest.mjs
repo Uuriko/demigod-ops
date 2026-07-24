@@ -6388,6 +6388,12 @@ assert(
     'paused funnel loop does not spawn the status-only composite pipeline',
   );
   assert(
+    funnelLoopSource.includes('status.focusPaused && !forcePaused') &&
+      funnelLoopSource.includes('requires --force-paused while lead funnel is paused') &&
+      funnelLoopSource.includes("cmd === 'once-draft' || cmd === 'once'"),
+    'once|once-draft fails closed under lead FOCUS pause without --force-paused',
+  );
+  assert(
     funnelLoopSource.includes('if (!status.focusPaused && (status?.metrics?.package_drift || pkgStale))') &&
       !funnelLoopSource.includes('const pkgCadence = cycle % 5 === 0;'),
     'funnel loop repairs drift or stale packages without duplicating the active pipeline refresh on cadence',
