@@ -525,16 +525,17 @@ function readLog(limit = 500) {
   }
 }
 
-/** Back-compat: older wrap rows lack executionOk; recover observational reds from childExit. */
+/**
+ * Was the tool process healthy? Product red (ok=false) can still be execution-ok.
+ * Prefer childExit over stamped executionOk — wraps from before EXIT2_OK allowlists
+ * stamped executionOk:false for observational exit 2, which would freeze false fails.
+ */
 export function rowExecutionOk(r) {
   if (!r || typeof r !== 'object') return false;
-  if (r.executionOk === true) return true;
-  if (r.executionOk === false) return false;
   if (r.ok === true) return true;
-  const tool = r.tool;
   const exit = r.childExit ?? r.status;
-  if (exit === 1 && EXIT1_OK_TOOLS.has(canonicalTool(tool))) return true;
-  if (exit === 2 && EXIT2_OK_TOOLS.has(canonicalTool(tool))) return true;
+  if (exit != null && exit !== '') return executionSucceeded(Number(exit), r.tool);
+  if (r.executionOk === true) return true;
   return false;
 }
 

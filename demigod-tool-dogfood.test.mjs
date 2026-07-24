@@ -163,18 +163,20 @@ test('dogfood separates red policy outcomes from execution failures', () => {
   assert.equal(executionSucceeded(2, 'ship'), true);
   assert.equal(executionSucceeded(2, 'funnel-selftest'), false);
   assert.equal(executionSucceeded(null), false);
-  // Older wrap rows omit executionOk — recover observational red from childExit.
+  // childExit is ground truth — even when stale executionOk:false predated EXIT2_OK.
   assert.equal(rowExecutionOk({ ok: false, childExit: 2, tool: 'events-online' }), true);
   assert.equal(rowExecutionOk({ ok: false, childExit: 1, tool: 'truth' }), true);
   assert.equal(rowExecutionOk({ ok: false, childExit: 1, tool: 'funnel-selftest' }), false);
-  assert.equal(rowExecutionOk({ ok: false, executionOk: false, childExit: 2, tool: 'events-online' }), false);
+  assert.equal(rowExecutionOk({ ok: false, executionOk: false, childExit: 2, tool: 'events-online' }), true);
+  assert.equal(rowExecutionOk({ ok: false, executionOk: false, childExit: 1, tool: 'funnel-selftest' }), false);
   const legacy = summarize([
     { tool: 'events-online', ok: false, childExit: 2, why: 'legacy-wrap-no-executionOk' },
     { tool: 'events-online', ok: false, executionOk: true, childExit: 2 },
+    { tool: 'events-online', ok: false, executionOk: false, childExit: 2, why: 'stale-pre-EXIT2' },
     { tool: 'events-online', ok: false, childExit: null, failureKind: 'child-start' },
   ]);
   const eo = legacy.tools.find((t) => t.tool === 'events-online');
-  assert.equal(eo.red, 2);
+  assert.equal(eo.red, 3);
   assert.equal(eo.fail, 1);
 });
 
