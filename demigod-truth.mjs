@@ -189,6 +189,27 @@ function runSelftest() {
     'publish lag bootstraps firstSeenAt from version ledger after last ship',
   );
 
+  const sibOk = classifySiblingAssetDrift({
+    diskAtlas: 'map-free Craigslist dg-dir-list No SVG map',
+    liveAtlas: 'radiusMiles: 3 dg-atlas-map layers: { startups: true, venues: true }',
+    diskMapJson: JSON.stringify({
+      companies: Array.from({ length: 100 }, (_, i) => ({ name: 'c' + i, hiring: 'yes' })),
+    }),
+    liveMapJson: JSON.stringify({
+      companies: Array.from({ length: 10 }, (_, i) => ({ name: 'c' + i })),
+    }),
+    diskAtlasSha: 'a',
+    liveAtlasSha: 'b',
+    diskMapSha: 'c',
+    liveMapSha: 'd',
+  });
+  check(
+    sibOk.intentional === true &&
+      sibOk.atlas.status === 'intentional-redesign' &&
+      sibOk.mapData.status === 'intentional-expand',
+    'sibling drift classifies map-free atlas + expanded map-data as intentional',
+  );
+
   if (failures.length) {
     for (const label of failures) console.error(`FAIL ${label}`);
     console.error(`${failures.length} FAIL demigod-truth selftest`);
@@ -345,6 +366,113 @@ function persistPublishLag(lag, busy = BUSY) {
   } catch {
     /* best-effort */
   }
+}
+
+/**
+ * Classify startup-map / map-data identity lag: intentional staged product work
+ * vs unexplained corruption. Used when prepare-only publish lag is already DEBT
+ * so agents do not thrash "heal" sibling assets.
+ */
+export function classifySiblingAssetDrift({
+  diskAtlas = '',
+  liveAtlas = '',
+  diskMapJson = '',
+  liveMapJson = '',
+  diskAtlasSha = null,
+  liveAtlasSha = null,
+  diskMapSha = null,
+  liveMapSha = null,
+} = {}) {
+  const atlasMatch = Boolean(diskAtlasSha && liveAtlasSha && diskAtlasSha === liveAtlasSha);
+  const mapMatch = Boolean(diskMapSha && liveMapSha && diskMapSha === liveMapSha);
+  if (atlasMatch && mapMatch) {
+    return {
+      schema: 'demigod.sibling-drift/1',
+      intentional: true,
+      status: 'matched',
+      atlas: { status: 'matched' },
+      mapData: { status: 'matched' },
+      summary: 'sibling assets match live/manifest',
+    };
+  }
+
+  const diskMapFree =
+    /\bmap-free\b|dg-dir-|Craigslist|No SVG map/i.test(diskAtlas) &&
+    !/\bradiusMiles\b|\bdg-atlas-map\b/.test(diskAtlas);
+  const liveFullAtlas =
+    /\bradiusMiles\b|\bdg-atlas-map\b|\blayers:\s*\{[^}]*venues/i.test(liveAtlas);
+
+  let diskCos = null;
+  let liveCos = null;
+  let diskHiring = null;
+  let liveHiring = null;
+  try {
+    const d = diskMapJson ? JSON.parse(diskMapJson) : null;
+    diskCos = Array.isArray(d?.companies) ? d.companies.length : null;
+    diskHiring = Array.isArray(d?.companies)
+      ? d.companies.filter((c) => c && c.hiring != null).length
+      : null;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const l = liveMapJson ? JSON.parse(liveMapJson) : null;
+    liveCos = Array.isArray(l?.companies) ? l.companies.length : null;
+    liveHiring = Array.isArray(l?.companies)
+      ? l.companies.filter((c) => c && c.hiring != null).length
+      : null;
+  } catch {
+    /* ignore */
+  }
+
+  const atlas = atlasMatch
+    ? { status: 'matched' }
+    : {
+        status: diskMapFree && liveFullAtlas ? 'intentional-redesign' : 'unexplained',
+        diskBytes: diskAtlas ? Buffer.byteLength(diskAtlas) : null,
+        liveBytes: liveAtlas ? Buffer.byteLength(liveAtlas) : null,
+        note:
+          diskMapFree && liveFullAtlas
+            ? 'disk=map-free directory (dg-dir); live=SVG atlas+radius+venues'
+            : 'atlas body differs without map-free redesign markers',
+      };
+
+  const mapExpanded =
+    Number.isFinite(diskCos) &&
+    Number.isFinite(liveCos) &&
+    diskCos > liveCos * 2 &&
+    (diskHiring || 0) > (liveHiring || 0);
+  const mapData = mapMatch
+    ? { status: 'matched' }
+    : {
+        status: mapExpanded ? 'intentional-expand' : 'unexplained',
+        diskCompanies: diskCos,
+        liveCompanies: liveCos,
+        diskHiringLabeled: diskHiring,
+        liveHiringLabeled: liveHiring,
+        note: mapExpanded
+          ? `disk companies ${diskCos} (hiring-labeled ${diskHiring}) vs live ${liveCos}`
+          : 'map-data body differs without clear expansion signal',
+      };
+
+  const intentional =
+    (atlas.status === 'matched' || atlas.status === 'intentional-redesign') &&
+    (mapData.status === 'matched' || mapData.status === 'intentional-expand');
+
+  const bits = [];
+  if (atlas.status !== 'matched') bits.push(`atlas:${atlas.status}`);
+  if (mapData.status !== 'matched') bits.push(`mapData:${mapData.status}`);
+
+  return {
+    schema: 'demigod.sibling-drift/1',
+    intentional,
+    status: intentional ? 'intentional-staged' : 'needs-review',
+    atlas,
+    mapData,
+    summary: bits.length
+      ? bits.join(' · ')
+      : 'sibling assets match live/manifest',
+  };
 }
 
 function canonicalAssetUrl(raw) {
@@ -1105,6 +1233,31 @@ async function main() {
   facts.prepareOnlyRelease = prepareOnlyRelease;
   facts.prepareOnlySiblingAssets = prepareOnlySiblingAssets;
 
+  // Sibling asset drift classification (startup-map + map-data) — intentional vs unexplained.
+  const siblingDrift = classifySiblingAssetDrift({
+    diskAtlas: mapSource || '',
+    liveAtlas: liveMap?.ok ? liveMap.text || liveMap.body || '' : '',
+    diskMapJson: mapDataSource || '',
+    liveMapJson: liveMapData?.ok ? liveMapData.text || liveMapData.body || '' : '',
+    diskAtlasSha: mapSha,
+    liveAtlasSha: liveMap?.ok ? liveMap.sha256 : null,
+    diskMapSha: mapDataSha,
+    liveMapSha: liveMapData?.ok ? liveMapData.sha256 : null,
+  });
+  facts.siblingDrift = siblingDrift;
+  try {
+    writeJsonAuto(path.join(BUSY, 'sibling-drift.json'), { ...siblingDrift, at: facts.at });
+  } catch {
+    /* best-effort */
+  }
+  if (!liveMapMatchesDisk || !liveMapDataMatchesDisk) {
+    ok.push(
+      siblingDrift.intentional
+        ? `sibling asset drift intentional: ${siblingDrift.summary}`
+        : `sibling asset drift NEEDS REVIEW: ${siblingDrift.summary}`,
+    );
+  }
+
   // Aging prepare-only debt (soft — never forces publish; surfaces threshold breach).
   const publishLag = computePublishLag({
     prepareOnlyRelease,
@@ -1119,8 +1272,13 @@ async function main() {
   facts.publishLag = publishLag;
   if (publishLag.lagging) {
     const lagMsg = `publish lag disk v${publishLag.diskVer} live v${publishLag.liveVer} · +${publishLag.versionsAhead} ver · ${publishLag.ageHours}h (debt after ${publishLag.thresholdHours}h or +${publishLag.thresholdVersions} ver)`;
-    if (publishLag.overdue) ok.push(`${lagMsg} · DEBT — needs current-request publish auth`);
-    else ok.push(`${lagMsg} · tracked`);
+    const sibBit = siblingDrift.intentional
+      ? ' · siblings intentional-staged'
+      : siblingDrift.status === 'needs-review'
+        ? ' · siblings NEED REVIEW'
+        : '';
+    if (publishLag.overdue) ok.push(`${lagMsg} · DEBT — needs current-request publish auth${sibBit}`);
+    else ok.push(`${lagMsg} · tracked${sibBit}`);
   }
 
   const prepareBit =

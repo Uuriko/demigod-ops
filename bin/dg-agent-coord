@@ -201,8 +201,9 @@ with (DIR / "board.lock").open("w") as board_lock:
     if changed:
         atomic_write(bp, json.dumps(board, indent=2) + "\n")
 
-# Publish-lag debt from truth (aging prepare-only disk≠live)
+# Publish-lag debt + sibling asset reconciliation from truth
 lag_line = ""
+sib_line = ""
 try:
     tj = json.loads(Path("/tmp/dg-busy/truth.json").read_text())
     pl = tj.get("publishLag") or {}
@@ -214,8 +215,13 @@ try:
             f"(threshold {pl.get('thresholdHours')}h / +{pl.get('thresholdVersions')} ver) "
             f"— needs exact current-request publish auth · not auto-ship"
         )
+    sd = tj.get("siblingDrift") or {}
+    if sd.get("status") and sd.get("status") != "matched":
+        tag = "intentional staged" if sd.get("intentional") else "NEEDS REVIEW"
+        sib_line = f"**Sibling assets ({tag}):** {sd.get('summary') or sd.get('status')}"
 except Exception:
     lag_line = ""
+    sib_line = ""
 
 lines = [
     f"# Coord digest (auto) · {now}",
@@ -224,6 +230,8 @@ lines = [
 ]
 if lag_line:
     lines += ["", lag_line]
+if sib_line:
+    lines += ["", sib_line]
 lines += [
     "",
     "## Active focus (read before choosing work)",

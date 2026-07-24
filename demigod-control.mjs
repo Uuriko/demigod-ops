@@ -436,11 +436,21 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
   const publishLag = truthReceipt?.publishLag && typeof truthReceipt.publishLag === 'object'
     ? truthReceipt.publishLag
     : null;
-  const lagSuffix = publishLag?.lagging
-    ? publishLag.overdue
-      ? ` · lag DEBT +${publishLag.versionsAhead}ver ${publishLag.ageHours}h (auth publish)`
-      : ` · lag +${publishLag.versionsAhead}ver ${publishLag.ageHours}h tracked`
-    : '';
+  const siblingDrift = truthReceipt?.siblingDrift && typeof truthReceipt.siblingDrift === 'object'
+    ? truthReceipt.siblingDrift
+    : null;
+  const lagSuffix = [
+    publishLag?.lagging
+      ? publishLag.overdue
+        ? ` · lag DEBT +${publishLag.versionsAhead}ver ${publishLag.ageHours}h (auth publish)`
+        : ` · lag +${publishLag.versionsAhead}ver ${publishLag.ageHours}h tracked`
+      : '',
+    siblingDrift?.status && siblingDrift.status !== 'matched'
+      ? siblingDrift.intentional
+        ? ` · siblings intentional (${siblingDrift.summary || 'staged'})`
+        : ` · siblings NEED REVIEW (${siblingDrift.summary || 'unexplained'})`
+      : '',
+  ].join('');
   if (liveFootVer) {
     siteDetail = `Live foot v${liveFootVer}${liveFootUrl ? ` · ${liveFootUrl}` : ''}${
       siteFullyShipped
