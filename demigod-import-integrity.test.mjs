@@ -121,10 +121,16 @@ test('import-integrity FAILS when a contract export is gutted (fail-capable)', (
   });
 });
 
+// Build fixture sources without a contiguous `from './demigod-….mjs'` literal so this
+// poison file itself is not a false clone-breaker edge for the real-tree scan.
+function consumerImporting(modBase) {
+  return "import { x } from './" + modBase + ".mjs';\nexport const ok = 1;\n";
+}
+
 test('import-integrity FAILS when a tracked source imports a missing demigod-*.mjs', () => {
   const files = {
     ...GOOD_MODULES,
-    'demigod-consumer.mjs': `import { x } from './demigod-ghost-missing.mjs';\nexport const ok = 1;\n`,
+    'demigod-consumer.mjs': consumerImporting('demigod-ghost-missing'),
   };
   withFixture(files, (dir) => {
     const r = runGate({ DEMIGOD_ROOT: dir }, ['--json']);
@@ -140,7 +146,7 @@ test('import-integrity FAILS when a tracked source imports a missing demigod-*.m
 test('import-integrity FAILS when a tracked source imports an untracked demigod-*.mjs', () => {
   const files = {
     ...GOOD_MODULES,
-    'demigod-consumer.mjs': `import { x } from './demigod-ghost-untracked.mjs';\nexport const ok = 1;\n`,
+    'demigod-consumer.mjs': consumerImporting('demigod-ghost-untracked'),
   };
   withFixture(
     files,
