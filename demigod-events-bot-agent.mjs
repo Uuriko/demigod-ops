@@ -3420,7 +3420,7 @@ function needIsSeatedDiscussion(needL) {
  * Draft match only — not a booking API.
  */
 function needIsCareerHiring(needL) {
-  return /\b(career\s*fair|job\s*fair|hiring\s*(?:night|fair|mixer|event)|recruiting\s*(?:fair|night|mixer)|talent\s*fair|recruit(?:er)?\s*night)\b/.test(
+  return /\b(career\s*fair|job\s*fair|hiring\s*(?:night|fair|mixer|event|screen)|recruiting\s*(?:fair|night|mixer)|talent\s*fair|recruit(?:er)?\s*night|screening\s*call|phone\s*screen|candidate\s*screen)\b/.test(
     needL,
   );
 }
@@ -3887,10 +3887,12 @@ function needIsPerformance(needL) {
  * UX research / user testing / usability / user research → office tables + quiet control (not parks).
  * residual-7: bare "user research" (was ferry meetup-fit; only "ux research" matched).
  * residual: focus group / moderated research / design research free-ask tied Mission SFPL over office.
+ * residual: user interview / diary study / card sort / prototype|concept|tree|first-click test /
+ * A/B test debrief still free-ask crowned SFPL.
  * Draft match only — not a booking API.
  */
 function needIsUxResearch(needL) {
-  return /\b(user\s*(?:test(?:ing|s)?|research)|ux\s*research|usability\s*(?:test|session|study|lab)?|research\s*session|customer\s*interview|participant\s*test(?:ing)?|design\s*research|research\s*ops|focus\s*groups?|moderated\s*(?:research|interview|session|usability|test(?:ing)?)|research\s*interview)\b/.test(
+  return /\b(user\s*(?:test(?:ing|s)?|research|interview)|ux\s*research|usability\s*(?:test|session|study|lab)?|research\s*session|customer\s*interview|participant\s*(?:test(?:ing)?|interview)|design\s*research|research\s*ops|focus\s*groups?|moderated\s*(?:research|interview|session|usability|test(?:ing)?)|research\s*interview|stakeholder\s*interview|diary\s*stud(?:y|ies)|card\s*sort(?:ing)?|prototype\s*test(?:ing)?|concept\s*test(?:ing)?|tree\s*test(?:ing)?|first[- ]?click(?:\s*test(?:ing)?)?|a\s*\/\s*b\s*test(?:ing)?|ab\s*test(?:ing)?|guerrilla\s*test(?:ing)?)\b/.test(
     needL,
   );
 }
@@ -4330,10 +4332,19 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     }
   }
   // All-hands / town hall / sprint / retro / whiteboard / reviews / brown-bag → office tables
+  // residual: bare indoor tags gave SFPL full team-ops (+6); free-ask then crowned Mission over office
+  // for 1:1 / interview debrief (confidential — not public library rooms).
   if (needIsTeamOps(needL)) {
-    if (isOfficeish || /office|after-hours|in-kind|demo|showcase|coworking|indoor/.test(tags + ' ' + blob)) {
+    if (isOfficeish || /office|after-hours|in-kind|demo|showcase|coworking/.test(tags + ' ' + blob)) {
       score += 6;
       reasons.push('team-ops');
+    } else if (/indoor|salon|talk/.test(tags) && !/library/.test(blob) && !/library/.test(tags)) {
+      score += 2;
+      reasons.push('team-ops');
+    }
+    if (/library/.test(blob) || /library/.test(tags)) {
+      score -= 4;
+      reasons.push('ops-library');
     }
     if (isPublicOutdoor && !outdoorAsked) {
       score -= 4;
@@ -4579,7 +4590,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       reasons.push('discussion-sponsor');
     }
   }
-  // Career fair / job fair / hiring night → office/loan showcase tables (not lawns)
+  // Career fair / job fair / hiring night / screening call → office/loan (not lawns/SFPL)
+  // residual: screening call free SoMa crowned Mission library (intimate hire screen ≠ public room)
   if (needIsCareerHiring(needL)) {
     if (isOfficeish || /office|after-hours|in-kind|demo|showcase|coworking/.test(tags + ' ' + blob)) {
       score += 6;
@@ -4589,9 +4601,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
       score -= 4;
       reasons.push('career-outdoor');
     }
-    // Small free fairs can use SFPL; large counts need office floor space
-    if ((/library/.test(blob) || /library/.test(tags)) && nSeats >= 25) {
-      score -= 2;
+    // Large fairs need floor space; screens/small hiring still prefer private office over SFPL
+    if (/library/.test(blob) || /library/.test(tags)) {
+      score -= nSeats >= 25 || /\b(screen(?:ing)?|phone\s*screen|candidate)\b/.test(needL) ? 4 : 2;
       reasons.push('career-library');
     }
     if (/sponsor tab/i.test(v.cost || '')) {
@@ -4992,11 +5004,23 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     score -= 4;
     reasons.push('indoor-only');
   }
-  // Private / exclusive room → indoor loan/library/café; demote free public parks
+  // Private / exclusive / closed room → office loan first; SFPL free reserve is not confidential.
+  // residual: "private meeting free SoMa" crowned Mission library via free-ask + private+library.
   if (/\bprivate\b|exclusive|closed[- ]?room|bookable room/.test(needL)) {
-    if (/indoor|office|library|salon|dinner|demo|showcase/.test(tags) || isOfficeish || /library|office|café|cafe/.test(blob)) {
-      score += 3;
+    if (isOfficeish || /office|after-hours|in-kind|demo|showcase|coworking/.test(tags + ' ' + blob)) {
+      score += 5;
       reasons.push('private');
+    } else if (
+      (/indoor|salon|dinner/.test(tags) || /café|cafe/.test(blob)) &&
+      !/library/.test(blob) &&
+      !/library/.test(tags)
+    ) {
+      score += 2;
+      reasons.push('private');
+    }
+    if (/library/.test(blob) || /library/.test(tags)) {
+      score -= 3;
+      reasons.push('private-library');
     }
     if (isPublicOutdoor || /free public/i.test(v.cost || '')) {
       score -= 3;
@@ -5417,9 +5441,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // Seated dinner/supper/brunch alone is format, not a sponsor-tab ask (office/in-kind over café buyout).
   // Under-cap free rooms skip free-ask bonus (capacity honesty over free label).
   // SFPL format-blocked needs (evening/Sunday/holiday hours, amp/performance, maker/tool,
-  // food-class, all-day/cowork, podcast isolation, UX/usability): still mark free, but no free-ask
-  // boost — hours/process/amp/isolation, not price, are the block. Otherwise free-ask + right-size
-  // crowns closed SFPL over office/in-kind draft leads.
+  // food-class, all-day/cowork, podcast isolation, UX/usability, team-ops confidentiality,
+  // private/exclusive room): still mark free, but no free-ask boost — isolation/process, not price,
+  // is the block. Otherwise free-ask + right-size crowns closed SFPL over office/in-kind draft leads.
   // Drop-in free public still gets free-ask; free (reserve) under no-reserve skip free-ask.
   const sfplFormatBlocked =
     eveningIndoorNeed ||
@@ -5430,6 +5454,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     needIsFoodClass(needL) ||
     // residual: free "user testing" crowned Mission SFPL over office loan (isolation)
     needIsUxResearch(needL) ||
+    // residual: free 1:1 / interview debrief crowned Mission SFPL over office (confidential)
+    needIsTeamOps(needL) ||
+    // residual: screening call free-ask crowned SFPL
+    needIsCareerHiring(needL) ||
+    // residual: private meeting free-ask crowned SFPL
+    /\bprivate\b|exclusive|closed[- ]?room/.test(needL) ||
     // residual: free dinner/supper still crowned SFPL via free-ask over in-kind kitchen
     (foodServiceFormat && !outdoorAsked) ||
     (needIsAllDay(needL) && !outdoorAsked) ||
@@ -6134,13 +6164,14 @@ export function prioritizeOutreachQueue(outreach = [], opts = {}) {
           whyBits.push('alt-ready');
         }
         // Draft body that labels the primary open gap drains before mislabeled stubs
+        // residual: venue_capacity used labeled.includes only — "venue" / "venue_alt" bodies missed +3
         if (primaryGap && (kind === normalizeOutreachKind(primaryGap) || (primaryGap === 'venue_alt' && kind === 'venue'))) {
           const gapsLine = String(o.body || '').match(/Resource gaps:\s*([^\n.]+)/i);
           if (gapsLine) {
             const labeled = gapsLine[1].toLowerCase();
             const want =
-              primaryGap === 'venue_alt'
-                ? /venue_alt|venue-alt|\bvenue\b/.test(labeled)
+              primaryGap === 'venue_alt' || primaryGap === 'venue_capacity'
+                ? /venue[_-]?alt|venue[_-]?capacity|\bvenue\b/.test(labeled)
                 : labeled.includes(String(primaryGap).toLowerCase());
             if (want) {
               priority += 3;

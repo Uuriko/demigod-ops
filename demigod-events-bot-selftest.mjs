@@ -10643,6 +10643,28 @@ ok(
     }),
   'participant testing: office beats Mission library',
 );
+// residual wave: research methods + confidential team-ops / private room free-asks
+for (const need of [
+  'user interview free SoMa',
+  'diary study free SF',
+  'card sort free SoMa',
+  'prototype test free Mission',
+  'concept test free SoMa',
+  'tree test free SF',
+  'first-click test free SoMa',
+  'A/B test debrief free SoMa',
+  '1:1 interview free SoMa',
+  'private meeting free SoMa',
+  'interview debrief free SoMa',
+  'stakeholder interview free SF',
+  'screening call free SoMa',
+]) {
+  const top = matchFreeVenues({ need, seats: 8, limit: 1 })[0];
+  ok(
+    top?.id === 'v_office_loan' || /office|loan/i.test(top?.name || ''),
+    need + ' tops office: ' + (top?.id || 'none'),
+  );
+}
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(
