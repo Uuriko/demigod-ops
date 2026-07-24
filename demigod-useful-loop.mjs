@@ -479,13 +479,23 @@ console.log(JSON.stringify({ ok: true, path: '/tmp/dg-busy/demand/warm-inbound-p
         encoding: 'utf8',
         timeout: 60000,
       });
-      const ok = r.status === 0 && /hygiene=ok|hygiene OK|drafts/i.test(r.stdout || '');
+      // Prefer structured receipt over stdout string match (review gate-status-or-pass)
+      let hygieneLooksOk = false;
+      try {
+        const receipt = readJson(path.join(BUSY, 'demand-status.json'));
+        hygieneLooksOk =
+          receipt?.drafts?.allHygieneOk === true ||
+          receipt?.drafts?.hygiene?.ok === true ||
+          (Array.isArray(receipt?.drafts?.needFix) && receipt.drafts.needFix.length === 0);
+      } catch {
+        hygieneLooksOk = false;
+      }
       return {
         ok: r.status === 0,
         status: r.status,
         out: (r.stdout || '').slice(-1200),
         err: (r.stderr || '').slice(-400),
-        meta: { hygieneLooksOk: ok },
+        meta: { hygieneLooksOk },
       };
     }
     case 'outreach-draft-audit': {
@@ -592,9 +602,13 @@ function orient() {
   if (!events) events = readJson(path.join(BUSY, 'events-online', 'status.json'));
   const truth = readJson(path.join(BUSY, 'truth.json'));
   const freeze = readJson(path.join(BUSY, 'publish-freeze.json'));
+  // Structured only — never string-match "TRUTH PASS" (review gate-status-or-pass)
+  const truthPass =
+    truth?.pass === true ||
+    (Array.isArray(truth?.ok) && truth.ok.length > 0 && !(Array.isArray(truth?.fail) && truth.fail.length));
   return {
     events,
-    truthPass: !!truth?.pass || /TRUTH PASS/.test(JSON.stringify(truth || {})),
+    truthPass,
     freezeOn: !!(freeze?.frozen || freeze?.on),
     statusOk: st.ok || events?.local === true,
   };
