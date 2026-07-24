@@ -56,7 +56,7 @@ import {
   scrubNoiseContact,
 } from './demigod-lead-collect.mjs';
 import { feeCents, invoiceStub } from './demigod-revenue.mjs';
-import { draftHygiene } from './demigod-demand.mjs';
+import { draftHygiene, operatingDateKey } from './demigod-demand.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -1613,12 +1613,21 @@ export function draftEmail(lead, side) {
     (lead.location ? `you're hiring in ${lead.location}` : 'your public hiring signal');
   const wiz = wizLinkFor(lead, side);
   if (side === 'partner') {
+    // Time-sensitive "Saw … hiring" openers require # source + # verified (draftHygiene).
+    const sourceUrl = String(lead.url || lead.applyUrl || '').trim();
+    const meta = sourceUrl
+      ? [`# source: ${sourceUrl}`, `# verified: ${operatingDateKey()}`]
+      : [];
+    const opener = sourceUrl
+      ? `Saw a public hiring signal for ${company}${lead.location ? ` (${lead.location})` : ''}.`
+      : `Public signal: ${String(fact).trim().slice(0, 160)}.`;
     return [
       toLine,
       `Lead-Id: ${lead.id || ''}`,
       `Subject: eng hiring at ${company}`,
+      ...meta,
       '',
-      `Saw ${fact}${lead.url ? ` (${lead.url})` : ''}.`,
+      opener,
       '',
       'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
       '',

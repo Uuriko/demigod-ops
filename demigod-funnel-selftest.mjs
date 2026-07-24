@@ -3848,6 +3848,23 @@ assert(
   const body = draftEmail(xLead, 'partner');
   assert(/^To: @theconsensusdev\n/m.test(body), 'draft with handle starts with To: @…');
   assert(draftContactTo(xLead) === '@theconsensusdev', 'draftContactTo prefers handle');
+  assert(
+    /^# source: https:\/\/x\.com\/theconsensusdev\/status\//m.test(body) &&
+      /^# verified: \d{4}-\d{2}-\d{2}$/m.test(body),
+    'partner draft with URL carries # source + # verified for claim_source_freshness',
+  );
+  assert(
+    draftHygiene({ name: 'TensorLake', company: 'TensorLake', handle: '@theconsensusdev', body }).ok === true,
+    'partner draft with source meta passes draftHygiene',
+  );
+  const noUrlPartner = draftEmail(
+    { id: 'p-nourl', company: 'Acme', signal: 'open roles in SF', state: 'drafted' },
+    'partner',
+  );
+  assert(
+    !/^Saw\b/m.test(noUrlPartner) && /Public signal:/m.test(noUrlPartner),
+    'partner draft without URL avoids unbacked Saw…hiring opener',
+  );
 
   // job-board poster URLs must NOT stamp noise handles (would fake a contact)
   const boardLead = {
