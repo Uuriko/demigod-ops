@@ -4038,10 +4038,12 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   const socialHang =
     /\bsocial\b/.test(needL) && !/\bsocial\s+media\b/.test(needL);
   // residual: SF hoods with "park" must not flip outdoorAsked (\bpark\b) — indoor free-list
-  // (South/Glen/McLaren/Balboa/Cayuga/Holly/Buena Vista Park; picnic/outdoor tokens still fire)
+  // (South/Glen/McLaren/Balboa/Cayuga/Holly/Buena Vista/Jordan/Westwood Park; Park Merced;
+  // picnic/outdoor tokens still fire). Oracle Park keeps outdoor via explicit outdoor tokens.
   const outdoorAskText = needL
-    .replace(/\b(?:south|glen|mclaren|balboa|cayuga|holly)\s+park\b/gi, ' ')
-    .replace(/\bbuena\s+vista\s+park\b/gi, ' ');
+    .replace(/\b(?:south|glen|mclaren|balboa|cayuga|holly|jordan|westwood)\s+park\b/gi, ' ')
+    .replace(/\bbuena\s+vista\s+park\b/gi, ' ')
+    .replace(/\bpark\s+merced\b/gi, ' ');
   const outdoorAsked =
     // residual-16: word-bound park/lawn — "spark" / "sparkline" must not trip outdoor
     /picnic|outdoor|\bparks?\b|\blawns?\b|\bparking\b/.test(outdoorAskText) ||
@@ -5412,9 +5414,9 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
   // Seated dinner/supper/brunch alone is format, not a sponsor-tab ask (office/in-kind over café buyout).
   // Under-cap free rooms skip free-ask bonus (capacity honesty over free label).
   // SFPL format-blocked needs (evening/Sunday/holiday hours, amp/performance, maker/tool,
-  // food-class, all-day/cowork, podcast isolation): still mark free, but no free-ask boost —
-  // hours/process/amp, not price, are the block. Otherwise free-ask + right-size crowns closed SFPL
-  // over office/in-kind draft leads.
+  // food-class, all-day/cowork, podcast isolation, UX/usability): still mark free, but no free-ask
+  // boost — hours/process/amp/isolation, not price, are the block. Otherwise free-ask + right-size
+  // crowns closed SFPL over office/in-kind draft leads.
   // Drop-in free public still gets free-ask; free (reserve) under no-reserve skip free-ask.
   const sfplFormatBlocked =
     eveningIndoorNeed ||
@@ -5423,6 +5425,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
     needIsPerformance(needL) ||
     needIsMakerHardware(needL) ||
     needIsFoodClass(needL) ||
+    // residual: free "user testing" crowned Mission SFPL over office loan (isolation)
+    needIsUxResearch(needL) ||
     // residual: free dinner/supper still crowned SFPL via free-ask over in-kind kitchen
     (foodServiceFormat && !outdoorAsked) ||
     (needIsAllDay(needL) && !outdoorAsked) ||

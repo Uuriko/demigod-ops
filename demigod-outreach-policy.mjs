@@ -3,6 +3,8 @@
  * demigod-outreach-policy — pure fail-closed decisions (no IO).
  * CLI: node demigod-outreach-policy.mjs selftest
  */
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 export const SUPPRESS_STATES = new Set([
   'opted_out',
@@ -235,8 +237,6 @@ function selftest() {
   process.exit(failed ? 1 : 0);
 }
 
-import { fileURLToPath } from 'url';
-import path from 'path';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   if (process.argv.length === 3 && process.argv[2] === 'selftest') selftest();
