@@ -380,6 +380,13 @@ function normalizeUserChatText(s) {
     .replace(/\bhowbouturplan\b/g, 'how about your plan')
     .replace(/\bhowboutyerplan\b/g, 'how about your plan')
     .replace(/\bhowboutyurplan\b/g, 'how about your plan')
+    // residual: hows|howz + about + ur|yer|yur + plan (\bhowsaboutyur\b cannot split *plan → tick-plan)
+    .replace(/\bhowsabouturplan\b/g, 'how about your plan')
+    .replace(/\bhowsaboutyerplan\b/g, 'how about your plan')
+    .replace(/\bhowsaboutyurplan\b/g, 'how about your plan')
+    .replace(/\bhowzabouturplan\b/g, 'how about your plan')
+    .replace(/\bhowzaboutyerplan\b/g, 'how about your plan')
+    .replace(/\bhowzaboutyurplan\b/g, 'how about your plan')
     .replace(/\bwhatbouturplan\b/g, 'what about your plan')
     .replace(/\bwhatboutyerplan\b/g, 'what about your plan')
     .replace(/\bwhatboutyurplan\b/g, 'what about your plan')
@@ -4109,6 +4116,10 @@ function isTickPlanAsk(last) {
     /\b(show|surface|print) (me )?(the )?runway\b/.test(last) ||
     /\bwhat(?:'s| is) on (the )?runway\b/.test(last) ||
     /\brunway for (this |the )?(tick|cycle|night|tonight)\b/.test(last) ||
+    // residual: runway plan (cash runway + "plan" glue; bare "runway plan" → Owner tick plan; no invent RSVPs)
+    /\brunway plan\b/.test(last) ||
+    /\bwhat(?:'s| is) (the |our |my |your )?runway plan\b/.test(last) ||
+    /\b(give|show|get) (me |us )?(a |the |my |your |our )?runway plan\b/.test(last) ||
     /\b(launch plan|preflight)\b/.test(last) ||
     /\bpreflight (checklist|for advance|check)\b/.test(last) ||
     /\b(go list|stop list)\b/.test(last) ||

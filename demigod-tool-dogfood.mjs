@@ -483,7 +483,20 @@ const EXIT1_OK_TOOLS = new Set([
 ]);
 
 /** Exit 2 = observational product amber (local ok / public flaky), not tool crash. */
-const EXIT2_OK_TOOLS = new Set(['events-online', 'cockpit', 'ship']);
+// Exit 2 = POSIX usage / intentional fail-closed (unknown flags, FOCUS pause gates).
+// Count as executionOk so dogfood "fail" stays reserved for crashes/timeouts.
+const EXIT2_OK_TOOLS = new Set([
+  'events-online',
+  'cockpit',
+  'ship',
+  'funnel-loop',
+  'events-bot-selftest',
+  'intro-draft',
+  'wiz-a11y-audit',
+  'funnel-selftest',
+  'priority',
+  'work-find',
+]);
 
 export function executionSucceeded(status, tool) {
   if (status === 0) return true;

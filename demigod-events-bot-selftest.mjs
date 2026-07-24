@@ -17937,6 +17937,14 @@ try {
     // residual: glued hows|howz|whats|whatz + aboutyourplan (parity howboutyourplan / howsabouttheplan)
     ['howsaboutyourplan', 'hows-about-your-plan'],
     ['howzaboutyourplan', 'howz-about-your-plan'],
+    // residual: hows|howz + about + ur|yer|yur + plan (glued urplan miss)
+    ['howsabouturplan', 'hows-about-ur-plan'],
+    ['howsaboutyurplan', 'hows-about-yur-plan'],
+    ['howzaboutyerplan', 'howz-about-yer-plan'],
+    // residual: runway plan surface
+    ['runway plan', 'runway-plan'],
+    ["what's the runway plan", 'whats-runway-plan'],
+    ['give me a runway plan', 'give-runway-plan'],
     ['whatsaboutyourplan', 'whats-about-your-plan'],
     ['whatzaboutyourplan', 'whatz-about-your-plan'],
   ]) {
