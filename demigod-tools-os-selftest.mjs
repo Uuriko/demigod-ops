@@ -1264,8 +1264,8 @@ ok(
   const prioritySource = fs.readFileSync(path.join(ROOT, 'demigod-priority-board.mjs'), 'utf8');
   ok(
     /Cycle tools OK · release-blocked/.test(prioritySource) &&
-      /toolsReady && releaseBlocked && te\.green === true \? 3 : 2/.test(prioritySource),
-    'priority board demotes tools OK·release-blocked to P3 when truth is green',
+      /pri: releaseBlocked && te\.green === true \? 3 : 2/.test(prioritySource),
+    'priority board demotes release-blocked to P3 when truth is green (prepare-only lag)',
   );
   ok(
     /pri: 3,[\s\S]{0,80}id: 'webflow-doctor-stale',[\s\S]{0,120}kind: siteTruthCoversStaleness \? 'info' : 'watch'/.test(prioritySource),
