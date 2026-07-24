@@ -22,7 +22,11 @@ import { pathToFileURL, fileURLToPath } from 'url';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const JSON_OUT = process.argv.includes('--json');
 
-/** Import-critical SoRs: required named exports (not content hashes). */
+/**
+ * Import-critical SoRs: required named exports (not content hashes).
+ * Priority = consumer fan-in (contract-testing: critical integration points first).
+ * Webhook/craft set: trust boundary. High-fan-in libs: silent gutting breaks half the tree.
+ */
 const EXPORT_CONTRACTS = {
   'demigod-webhook-auth.mjs': [
     'resolveWebflowWebhookSecrets',
@@ -45,6 +49,44 @@ const EXPORT_CONTRACTS = {
   'demigod-webhook-rate-limit.mjs': ['webhookClientIp', 'allowWebhookRequest'],
   'demigod-webflow-token.mjs': ['resolveWebflowApiToken', 'hasWebflowApiToken'],
   'demigod-craft-log.mjs': ['mintShip', 'mintIntro', 'status', 'verifyShipLive'],
+  // High fan-in (ranked by real named-import sites across tracked mjs/bin)
+  'demigod-turn-lib.mjs': [
+    'ROOT',
+    'sleep',
+    'wlog',
+    'prepareWebflowDesigner',
+    'captureDemigodScreenshots',
+    'submitWebflowAiPrompt',
+    'waitWebflowTurnComplete',
+  ],
+  'demigod-agent-tools-lib.mjs': [
+    'BUSY',
+    'atomicWrite',
+    'ensureBusy',
+    'readJson',
+    'opt',
+    'flag',
+    'withFileLock',
+  ],
+  'demigod-live-lib.mjs': [
+    'LIVE_ORIGIN',
+    'fetchLiveHtml',
+    'scanLiveHtml',
+    'markerPresent',
+    'buildFindings',
+    'reportPass',
+  ],
+  'demigod-publish-freeze.mjs': ['status', 'assertNotFrozen'],
+  'demigod-submissions-lib.mjs': [
+    'loadBoard',
+    'saveBoard',
+    'loadInbox',
+    'extractEmail',
+    'scrubPII',
+    'ingestSubmission',
+    'approveSubmission',
+    'publicStatus',
+  ],
 };
 
 const tracked = new Set(
