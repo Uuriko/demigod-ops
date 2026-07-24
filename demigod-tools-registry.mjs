@@ -55,6 +55,7 @@ export const TOOLS = [
   { id: 'review-selftest', name: 'Review selftest', group: 'gates', cmd: 'node demigod-review-selftest.mjs', purpose: 'Fixture proof + multi-file contract + blast --send ban', hot: true },
   { id: 'ship-selftest', name: 'Ship selftest', group: 'gates', cmd: 'node demigod-ship-selftest.mjs', purpose: 'Freeze-safe ship CLI and release-bundle contract gate', hot: true },
   { id: 'ship', name: 'Ship orchestrator', group: 'ship', cmd: 'bin/dg ship status|prepare|cdn|paste|verify|run', purpose: 'Single ship path; mutators need freeze OFF + foot lock', out: '/tmp/dg-busy/ship-os.json', hot: true },
+  { id: 'dg-publish', name: 'Publish front door', group: 'ship', cmd: 'bin/dg-publish --dry-run', purpose: 'Fail-closed live publish (auth+CDP+gates); dry-run default for agents', out: '/tmp/dg-busy/dg-publish.log', hot: true },
   { id: 'demand', name: 'Demand ops', group: 'session', cmd: 'bin/dg demand status', purpose: 'GTM queue + SENT-CONFIRMED + pilots', out: '/tmp/dg-busy/demand-status.json', hot: true },
   { id: 'demand-draft', name: 'Demand draft pack', group: 'session', cmd: 'bin/dg demand draft --name=T0', purpose: 'Copy-paste DM pack — never sends (drafts-only policy)', out: '/tmp/dg-busy/demand-draft.json', hot: true },
   { id: 'pilot', name: 'Pilot inbound', group: 'session', cmd: 'bin/dg pilot status', purpose: 'WIZ/warm inbound → PILOT-LOG / white-glove (warm ≠ pilot)', out: '/tmp/dg-busy/pilot-inbound.json', hot: true },

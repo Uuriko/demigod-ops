@@ -164,7 +164,9 @@ test('network failure preserves a webhook created earlier in the batch', async (
   }
 });
 
-test('invalid webhook targets fail before any fetch', async () => {
+// Fail-closed SSRF control: bad targets must reject *before* any outbound fetch.
+// Negative cases prove the gate fires (not only that good targets pass).
+test('SSRF/private webhook targets fail closed before any fetch', async () => {
   process.env.WEBFLOW_API_TOKEN = 'fixture-token';
   let calls = 0;
   const fetchImpl = async () => { calls += 1; throw new Error('must not fetch'); };
@@ -173,8 +175,14 @@ test('invalid webhook targets fail before any fetch', async () => {
       'http://hooks.example.com/',
       'https://127.0.0.1/',
       'https://10.2.3.4/',
+      'https://192.168.0.5/hook',
+      'https://172.16.9.1/hook',
+      'https://100.64.0.1/', // CGNAT
+      'https://0.0.0.0/',
+      'https://169.254.169.254/latest/meta-data/', // cloud metadata
       'https://[::1]/',
       'https://[::ffff:127.0.0.1]/',
+      'https://metadata.google.internal/',
       'https://service.local/hook',
       'https://user:pass@hooks.example.com/',
       'https://hooks.example.com/#secret',
@@ -183,10 +191,11 @@ test('invalid webhook targets fail before any fetch', async () => {
     ]) {
       assert.equal(validateWebhookTarget(target).ok, false, target);
       const result = await tryApiWebhooks(target, { fetchImpl });
-      assert.equal(result.ok, false);
-      assert.match(result.reason, /^invalid webhook target:/);
+      assert.equal(result.ok, false, target);
+      assert.match(result.reason, /^invalid webhook target:/, target);
     }
-    assert.equal(calls, 0);
+    assert.equal(calls, 0, 'SSRF rejects must not call fetch');
+    // Positive control: public HTTPS still accepted (validator only; no live register here).
     assert.equal(validateWebhookTarget('https://hooks.example.com/webflow').ok, true);
   } finally { delete process.env.WEBFLOW_API_TOKEN; }
 });

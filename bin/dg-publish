@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# dg-publish — one command to publish trydemigod.com live. No human click.
+#
+# Thin, fail-closed front door. Does NOT reimplement any CDP/paste logic — it reuses the
+# hard-won chain in demigod-ship.mjs (foot-cdn-publish -> cm6-paste-publish[Webflow queue-publish
+# API] -> truth --require-match). It only removes the friction: CDP+tab preflight, foot-lock
+# claim/release, and an HONEST verdict read from truth (fullyShipped) — never a bare "published".
+#
+#   dg-publish            # real publish, then verify live==disk
+#   dg-publish --dry-run  # gates + CDN attest(--check) + truth only; publishes NOTHING
+#
+# Aborts (never publishes) if: CDP down, no authed Webflow custom-code tab, any gate red,
+# or the foot-lock is held by another writer (don't double-ship over the swarm).
+set -uo pipefail
+cd /home/potter
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+export BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
+CDP_URL="${CDP_URL:-http://127.0.0.1:9223}"
+LOG="$BUSY/dg-publish.log"
+DRY=0; [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]] && DRY=1
+
+say(){ echo "[$(date -Iseconds)] dg-publish: $*" | tee -a "$LOG"; }
+fail(){ say "ABORT — $*"; exit 1; }
+verdict(){ # $1 = freshness-floor epoch. exit 0 ONLY if truth.json was refreshed this run AND fullyShipped.
+  FLOOR="${1:-0}" node -e 'const fs=require("fs");const p=process.env.BUSY+"/truth.json";let t,mt;
+  try{mt=Math.floor(fs.statSync(p).mtimeMs/1000);t=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){console.log("truth.json unreadable — cannot confirm");process.exit(1)}
+  if(mt < Number(process.env.FLOOR||0)){console.log("truth.json STALE (truth run did not refresh it this run) — cannot confirm shipped");process.exit(1)}
+  const ok=t.fullyShipped===true;
+  console.log((ok?"LIVE==DISK ✓  ":"NOT FULLY SHIPPED ✗  ")+(t.summaryLine||("disk v"+(t.foot&&t.foot.ver)+" live v"+(t.live&&t.live.footVer)+" shipped="+t.fullyShipped)));
+  process.exit(ok?0:1)'
+}
+
+# 0) Auth first on real publishes — never burn gates/CDN without current-request authority.
+# Dry-run may inspect without DEMIGOD_CURRENT_REQUEST_PUBLISH.
+if [[ $DRY == 0 ]]; then
+  [[ "${DEMIGOD_CURRENT_REQUEST_PUBLISH:-}" == "1" ]] \
+    || fail "current request did not authorize external publication (DEMIGOD_CURRENT_REQUEST_PUBLISH=1 required)"
+fi
+
+# 1) Preflight: CDP reachable + an authed Webflow custom-code tab present
+say "preflight CDP $CDP_URL"
+curl -sf --max-time 5 "$CDP_URL/json/version" >/dev/null || fail "CDP not reachable at $CDP_URL (start demigod-cdp / Chrome :9223)"
+curl -sf --max-time 5 "$CDP_URL/json" 2>/dev/null | grep -q 'webflow.com/dashboard/sites/.*custom-code' \
+  || fail "no Webflow custom-code tab open in the CDP Chrome (open …/sites/talentlink-sf/custom-code, signed in)"
+
+# 2) Gates — read-only, fail-closed. Never publish broken.
+say "gates: verify:source / board-honesty / foot-smoke"
+node demigod-verify-source.mjs        >/dev/null 2>&1 || fail "verify:source FAILED"
+node demigod-verify-board-honesty.mjs >/dev/null 2>&1 || fail "board-honesty FAILED"
+node demigod-foot-smoke.mjs           >/dev/null 2>&1 || fail "foot-smoke FAILED"
+
+if [[ $DRY == 1 ]]; then
+  say "DRY-RUN: CDN attest(--check) + truth, no publish"
+  node demigod-foot-cdn-publish.mjs --check 2>&1 | tail -3 | tee -a "$LOG"
+  floor=$(date +%s); node demigod-truth.mjs --json >/dev/null 2>&1 || true
+  verdict "$floor"; v=$?
+  say "DRY-RUN complete (published nothing)"; exit $v
+fi
+
+# 3) Claim foot-lock. Do NOT steal an active lock (serialize vs swarm/coord).
+say "claiming foot-lock (owner=dg-publish, ttl=900s)"
+node demigod-foot-lock.mjs claim --owner dg-publish --ttl 900 >/dev/null 2>&1 \
+  || fail "foot-lock held by another writer — refusing to double-ship (see: bin/dg lock status)"
+# Source the creds foot-lock just wrote: exports DG_LOCK_TOKEN + DG_LOCK_OWNER so the delegated
+# ship proves ownership, and release uses the token (never --force → can't steal another owner's lock).
+[ -f "$BUSY/foot-lock-token.env" ] && . "$BUSY/foot-lock-token.env"
+release(){ node demigod-foot-lock.mjs release --owner dg-publish >/dev/null 2>&1 || true; say "released foot-lock"; }
+trap release EXIT
+
+# 4) The real chain — reuses demigod-ship.mjs (cdn → cm6 paste → queue-publish → truth)
+say "PUBLISH: demigod-ship.mjs run"
+node demigod-ship.mjs run --json >"$BUSY/dg-publish-ship.json" 2>>"$LOG" || say "ship run returned non-zero (verifying live anyway)"
+tail -20 "$BUSY/dg-publish-ship.json" >>"$LOG" 2>/dev/null
+
+# 5) Honest verdict — the load-bearing live==disk proof, not ship's exit code
+say "verify live==disk (truth --require-match)"
+floor=$(date +%s); node demigod-truth.mjs --require-match >/dev/null 2>&1 || true
+verdict "$floor"; v=$?
+[[ $v == 0 ]] && say "SUCCESS — live now serves the disk version" || say "FAILED — live did not match disk (see $BUSY/dg-publish-*.json + truth.json)"
+exit $v
