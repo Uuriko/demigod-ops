@@ -540,10 +540,15 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     eventsOnline?.needHeal !== true &&
     eventsOnline?.storeHygiene?.ok !== false &&
     eventsOnline?.nativeRsvpRoutes === true;
+  const pendingMatch = eventsOnline?.pendingMatchesLocal === true;
   const configNote = websiteConfigDead
-    ? ' · prepare-only (website config dead tunnels)'
+    ? pendingMatch
+      ? ' · prepare-only (website config dead tunnels · pending matches local)'
+      : ' · prepare-only (website config dead tunnels)'
     : websiteConfigStale
-      ? ' · prepare-only (website config stale)'
+      ? pendingMatch
+        ? ' · prepare-only (website config stale · pending matches local)'
+        : ' · prepare-only (website config stale)'
       : '';
   // Sticky preferred loca name can 503 while a random loca tunnel is still public.
   const preferredTunnelMatch = eventsOnline?.preferredTunnelMatch;
@@ -580,6 +585,12 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
       eventsOperational: eventsOperational,
       preferredTunnelMatch: preferredTunnelMatch ?? null,
       pendingConfigPath: eventsOnline?.pendingConfigPath || null,
+      pendingApiBase: eventsOnline?.pendingApiBase || null,
+      pendingMatchesLocal:
+        typeof eventsOnline?.pendingMatchesLocal === 'boolean'
+          ? eventsOnline.pendingMatchesLocal
+          : null,
+      pendingBlockedBy: eventsOnline?.pendingBlockedBy || null,
     },
   });
   modules.webflow = enrich('webflow', {

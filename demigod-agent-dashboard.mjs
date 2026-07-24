@@ -2299,6 +2299,14 @@ async function collectStatus() {
         websiteConfigReachable: onlineFresh ? online.websiteConfigReachable ?? null : null,
         // Priority board needs this flag — without it, prepare-only CDN lag looks like P1 agent work.
         prepareOnlyWebsiteConfig: onlineFresh ? online.prepareOnlyWebsiteConfig === true : null,
+        // Staged prepare-only config (not live CDN) — keep priority/dash honest vs dead published bases.
+        pendingApiBase: onlineFresh ? online.pendingApiBase || null : null,
+        pendingMatchesLocal: onlineFresh
+          ? typeof online.pendingMatchesLocal === 'boolean'
+            ? online.pendingMatchesLocal
+            : null
+          : null,
+        pendingBlockedBy: onlineFresh ? online.pendingBlockedBy || null : null,
         eventsOperational: onlineFresh
           ? online.public === true && online.needHeal !== true && online.storeHygiene?.ok !== false && online.nativeRsvpRoutes === true
           : null,
