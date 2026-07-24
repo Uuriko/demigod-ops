@@ -35,6 +35,8 @@ if (ship || wizard) {
     ['demigod-demand.test.mjs'],
     ['demigod-board-publish.test.mjs'],
     ['demigod-foot-smoke.test.mjs'], // #40 — locks foot-smoke's parse+boot fail-capability (outage class)
+    // Import-integrity poison (Claude/Grok): export contracts + clone-breaker edges must fail-red
+    ['demigod-import-integrity.test.mjs'],
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
     ['demigod-submissions-lib.test.mjs'],
     ['demigod-outbound-poison.test.mjs'],

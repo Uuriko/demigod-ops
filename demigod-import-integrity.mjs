@@ -5,9 +5,11 @@
  * import-critical modules no longer export their required public surface.
  *
  * Content hashes thrash on every intentional edit; export contracts catch silent gutting.
+ * Poison (verify-the-verifier): node --test demigod-import-integrity.test.mjs
  *
  *   node demigod-import-integrity.mjs
  *   node demigod-import-integrity.mjs --json
+ *   DEMIGOD_ROOT=/tmp/fixture node demigod-import-integrity.mjs  # isolated tree
  */
 import fs from 'fs';
 import path from 'path';

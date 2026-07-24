@@ -134,7 +134,8 @@ export const TOOLS = [
   { id: 'verify-source', name: 'Verify source', group: 'gates', cmd: 'npm run demigod:verify:source', purpose: 'Foot/head/footer source gate', out: 'DEMIGOD-VERIFY-SOURCE.json' },
   { id: 'board-honesty', name: 'Board honesty', group: 'gates', cmd: 'node demigod-verify-board-honesty.mjs', purpose: '≤3 seed roles, real counts honest', out: 'DEMIGOD-BOARD-HONESTY.json' },
   { id: 'loop-state', name: 'Loop state', group: 'gates', cmd: 'node demigod-verify-loop-state.mjs', purpose: 'Loop/busy state consistency' },
-  { id: 'import-integrity', name: 'Import integrity', group: 'gates', cmd: 'node demigod-import-integrity.mjs', purpose: 'Tracked sources must not import untracked/missing demigod-*.mjs (clone-breakers)' },
+  { id: 'import-integrity', name: 'Import integrity', group: 'gates', cmd: 'node demigod-import-integrity.mjs', purpose: 'Clone-breaker edges + export contracts on webhook/form/craft SoR; poison: node --test demigod-import-integrity.test.mjs' },
+  { id: 'import-integrity-poison', name: 'Import integrity poison', group: 'gates', cmd: 'node --test demigod-import-integrity.test.mjs', purpose: 'Verify-the-verifier: PASS real tree + FAIL gutted exports / missing / untracked demigod-*.mjs', hot: true },
 
   { id: 'foot-smoke', name: 'Foot smoke', group: 'gates', cmd: 'node demigod-foot-smoke.mjs', purpose: 'Local foot JS smoke' },
 
