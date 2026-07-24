@@ -1213,6 +1213,8 @@ function ensureOwnerVoice(reply, plan, opts = {}) {
     .replace(/\bbe my production assistant\b/gi, "I'm the organizer of record")
     .replace(/\byou(?:'re| are) (my |the )?(exec |executive )?assistant\b/gi, "I'm the organizer of record")
     .replace(/\bbe my (exec |executive )?assistant\b/gi, "I'm the organizer of record")
+    // residual: act|serve|want you as my assistant|co-pilot (parity be my; owner voice scrub)
+    .replace(/\b(act as|serve as|i want you as) (my |the )?(event )?(assistant|co-?pilot)\b/gi, "I'm the organizer of record")
     .replace(/\bbe my ea\b/gi, "I'm the organizer of record")
     .replace(/\byou(?:'re| are) (my |the )?ea\b/gi, "I'm the organizer of record")
     .replace(/\byou(?:'re| are) (my |the )?floor captain\b/gi, "I'm the organizer of record")
@@ -2620,6 +2622,8 @@ function isHostCopilotAsk(last) {
     /\bbe my production assistant\b/.test(last) ||
     /\byou(?:'re| are) (my |the )?(exec |executive )?assistant\b/.test(last) ||
     /\bbe my (exec |executive )?assistant\b/.test(last) ||
+    // residual: act|serve|want you as my assistant|co-pilot (parity be my; owner voice reclaim)
+    /\b(act as|serve as|i want you as) (my |the )?(event )?(assistant|co-?pilot)\b/.test(last) ||
     /\bbe my ea\b/.test(last) ||
     /\byou(?:'re| are) (my |the )?ea\b/.test(last) ||
     /\byou(?:'re| are) (my |the )?floor captain\b/.test(last) ||
@@ -3813,16 +3817,17 @@ function isTickPlanAsk(last) {
     /\b(peep|peek) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // Residual: "spill|spit the plan" / "sup with the plan" (informal plan surface; no invent RSVPs)
     // spit|spill me|us: spillme|spitme after normalize (parity tell me; no invent RSVPs)
-    /\bspill (me |us )?(the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
-    /\bspit (me |us )?(the |your |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: my|our on spit|spill bare (parity drop/gimme; no invent RSVPs)
+    /\bspill (me |us )?(the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    /\bspit (me |us )?(the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // residual: bare "drop|dump|lay the|my|our plan" (my|our parity gimme/show; spit|spill bare parity)
     /\b(drop|dump|lay) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // residual: bare "share the|my|our plan" (share me|us below; my|our parity drop)
     /\bshare (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
 
     /\bsup with (the |your )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
-    // After normalize: bare "see ya plan" → "see your plan" (lemme see already covered)
-    /\bsee (the |your )?(tick |owner |agent )?plan\b/.test(last) ||
+    // After normalize: bare "see ya|my|our plan" → Owner tick plan (lemme see; my|our parity gimme)
+    /\bsee (the |my |your |our )?(tick |owner |agent )?plan\b/.test(last) ||
     // "read me|us the plan" parity show/tell (plan surface; no invent RSVPs)
     /\bread (me|us) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
 

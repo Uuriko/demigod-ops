@@ -10687,6 +10687,50 @@ ok(
     ),
   'outdoor film screening stays outdoor free-list',
 );
+// residual: bayview outdoor free hang — SE soft lawns/parklets beat Salesforce roof garden
+{
+  const bayNeed = 'bayview outdoor free hang';
+  const parklet = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_soma_parklet'), {
+    need: bayNeed,
+    seats: 12,
+    explain: true,
+  });
+  const roof = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_salesforce_park'), {
+    need: bayNeed,
+    seats: 12,
+    explain: true,
+  });
+  ok(parklet.score > roof.score, 'bayview outdoor: parklet beats Salesforce roof');
+  ok(parklet.reasons?.includes('se-outdoor'), 'bayview outdoor: se-outdoor on parklet');
+  ok(roof.reasons?.includes('se-roof'), 'bayview outdoor: se-roof on Salesforce');
+}
+// residual: Holly Park areaNeed + picnic affinity (draft free-list honesty)
+{
+  const hollyTop = matchFreeVenues({ need: 'holly park picnic', seats: 8, limit: 2 })[0];
+  ok(
+    hollyTop && /parklet|dolores|yerba|picnic|lawn|park/i.test((hollyTop.name || '') + ' ' + (hollyTop.id || '')),
+    'holly park picnic tops lawn/parklet: ' + (hollyTop?.id || 'none'),
+  );
+  ok(
+    scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_dolores'), {
+      need: 'holly park picnic',
+      seats: 8,
+      explain: true,
+    }).reasons?.includes('area'),
+    'holly park: Dolores gets area affinity',
+  );
+}
+// residual: SF_OK hoods — Clarendon / Jordan / East Cut / Balboa Terrace / GGH / Parnassus
+for (const t of [
+  'Clarendon Heights meetup',
+  'Jordan Park office night',
+  'East Cut dinner',
+  'Balboa Terrace picnic',
+  'Golden Gate Heights walk',
+  'Parnassus study group',
+]) {
+  ok(isSfLocation(t) === true && mentionsNonSf(t) === false, 'SF_OK residual: ' + t);
+}
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });
 ok(

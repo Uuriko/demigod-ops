@@ -35,9 +35,5 @@ Goal: qualify fit, get one pilot search moving. No SLA/turnaround promises. Fee 
 - Thank him, end on time.
 
 ---
-**Never say:** any SLA/turnaround number, "48 hours," a personal name as a commitment point, inflated pipeline size.
+**Never say:** any SLA/turnaround number, "48 hours," a personal name as a commitment point, inflated pipeline size, "100% vetted."
 **If pricing comes up:** 10% of first-year base, due only on hire — nothing upfront.
-
----
-
-Want me to retry saving this to a file (e.g. `DOUGLAS-CALL-RUN-OF-SHOW-2026-07-13.md`) once you grant write permission, or is inline fine for now?
