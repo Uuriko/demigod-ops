@@ -269,6 +269,8 @@ function prepare() {
     out: ((v.stdout || '') + (v.stderr || '')).slice(-400),
   });
   steps.push(run('board-honesty', ['demigod-verify-board-honesty.mjs']));
+  // Clone-breaker edges + export contracts (poison: demigod-import-integrity.test.mjs)
+  steps.push(run('import-integrity', ['demigod-import-integrity.mjs']));
   steps.push(run('foot-smoke', ['demigod-foot-smoke.mjs']));
   steps.push({
     ...run('truth', ['demigod-truth.mjs'], { allowFail: true }),
