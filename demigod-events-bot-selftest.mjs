@@ -10738,6 +10738,7 @@ ok(
   );
 }
 // residual: SF_OK hoods — Clarendon / Jordan / East Cut / Balboa Terrace / GGH / Parnassus
+// residual-47: Sutro Tower/Heights + Design District bare false-reject
 for (const t of [
   'Clarendon Heights meetup',
   'Jordan Park office night',
@@ -10745,6 +10746,9 @@ for (const t of [
   'Balboa Terrace picnic',
   'Golden Gate Heights walk',
   'Parnassus study group',
+  'Sutro Tower meetup',
+  'Sutro Heights picnic',
+  'Design District loft dinner',
 ]) {
   ok(isSfLocation(t) === true && mentionsNonSf(t) === false, 'SF_OK residual: ' + t);
 }
