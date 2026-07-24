@@ -42,12 +42,19 @@ async function sweep(page, url, label) {
     }
 
     const KNOWN_MINOR = ['a.nav_logo', 'a.footer_link'];
+    let atlasPinUndersize = 0;
     document.querySelectorAll('a,button,input[type=button],input[type=submit],[role=button],[onclick]').forEach((el) => {
       const st = getComputedStyle(el);
       if (st.display === 'none' || st.visibility === 'hidden') return;
       const r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) return;
       if (r.height < 44 || r.width < 44) {
+        // Atlas pins: role=button on <g> geometry — count once, do not N-flood findings.
+        const attrClass = el.getAttribute('class') || '';
+        if (/\bdg-atlas-(marker|venue)\b/.test(attrClass)) {
+          atlasPinUndersize += 1;
+          return;
+        }
         if (el.matches('.dg-ev-cal-cell') && r.width >= 24 && r.height >= 24) return;
         if (el.matches('.dg-blog-home-all,.dg-page-x') && r.width >= 24 && r.height >= 24 && (el.textContent || el.getAttribute('aria-label') || '').trim()) return;
         // WCAG 2.5.8 inline exception: a link inside a sentence of text is exempt.
@@ -55,8 +62,8 @@ async function sweep(page, url, label) {
           const ownText = (el.textContent || '').trim();
           if (ownText && el.closest('p')) return;
         }
-        const cls = el.getAttribute('class');
-        const sel = el.id ? '#' + el.id : (el.tagName.toLowerCase() + (cls ? '.' + cls.split(' ').filter(Boolean).slice(0, 2).join('.') : ''));
+        const tokens = attrClass.split(/\s+/).filter(Boolean).slice(0, 2).join('.');
+        const sel = el.id ? '#' + el.id : (el.tagName.toLowerCase() + (tokens ? '.' + tokens : ''));
         if (KNOWN_MINOR.some((k) => sel.startsWith(k))) return;
         out.tapTargets.push({
           sel,
@@ -66,6 +73,15 @@ async function sweep(page, url, label) {
         });
       }
     });
+    if (atlasPinUndersize > 0) {
+      out.tapTargets.push({
+        sel: 'g.dg-atlas-marker|venue',
+        text: `${atlasPinUndersize} atlas map pins/venues under 44px (aggregated)`,
+        w: 0,
+        h: 0,
+        aggregated: atlasPinUndersize,
+      });
+    }
 
     document.querySelectorAll('input,select,textarea').forEach((el) => {
       if (el.type === 'hidden') return;
