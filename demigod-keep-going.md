@@ -1053,15 +1053,16 @@ Fresh shots and CDP data confirm. Fable-led design + loops from prior research a
 Next if needed: full end-to-end submit test, more acquisition tools, GTM.
 
 ## loop-state
-- Cycle: multi-agent ship + positioning 2026-07-16 (v572)
-- Active loop: website product polish + gates honesty
+- Cycle: 7589 gates+coord (Grok)
+- Active loop: Events Bot focus + gates honesty
 - Phase: GTM + pre-services honesty
-- foot_ver_disk: v572
+- foot_ver_disk: v818
 - dm_freeze: OFF
 - last_checkpoint: (none)
-- Last gate: tick17 gates — sealed disk=live=man v572 fullyShipped (concurrent grok ship)
-- Next: hold-green; Designer hello@ residual
-- Notes: foot-lock may still be held by grok mid-ship; dm_freeze OFF; truth PASS.
+- Last gate: public-event-probe lifecycle honesty; venue free-list office>SFPL for format-blocked free asks; events-bot-selftest 19938 green
+- Next: prepare-only until publish auth; SoMa needs real venue/datetime evidence for rsvp
+- Notes: dm_freeze OFF; freeze OFF; SoMa resource honest; pre-rsvp public redacted; tunnel local (config publish gated); restamp foot_ver with disk
+
 
 **LATEST (Fix push + WIZ field visible confirmation, 2026-07-06):** 
 Fix completed (saved+published).
@@ -1119,11 +1120,11 @@ All respects invariants, GTM focus, simple/elegant.
 
 ## loop-state (Fable v1 trust contract)
 - writer: none
-- foot_ver_disk: v150
+- foot_ver_disk: v747
 - dm_freeze: OFF
 - board: 3 seeds max, honest
 - last_checkpoint: none
-- next: run dg-cockpit; df < prompts/demigod/demand.txt
+- next: hold-green source disk v747 (live v746 freeze OFF)
 **Fable workflow plan processed (from /tmp/fable-workflow-output.txt + timed bg):** Current strong (130 scripts, agent-dev, roles, honesty). Gap = trust (locks, ungameable gates, checkpoints) not more tools. Implemented: dg-lock, dg (palette), dg-cockpit+entr, verify-all + smoke, verify-source ungameable checks (def+call for wizBuild/run/show/...), dgsnap alias, keep-going loop-state, prompts/demigod/ship+demand.txt, aliases+settings+cursor rules discipline, dg-cockpit. Ran gates green. Creative website: wired 90day-outcome Q into startup WIZ steps (better matching signal for revenue). Source ready; human Publish + re-audit for live. GTM first, minimal, verify always. New daily: `dg`, `dg-cockpit`, `dgsnap`, `dglock npm run ...`
 
 **Fable workflow-next (completed task):** 6 infra improvements implemented (cycle retired, board symlink+guard, loop-state verifier, dgsnap, a11y in playtest, df for fresh Fable). Order followed. More from deep think: 90day WIZ polish, GTM prep, a11y script, remove dead, enhance playtest for submit/90day.
@@ -1424,3 +1425,54 @@ Dashboard tested (serves :3456). Playtest improve noted (will edit if run again)
 - www foot CDN el26dg.js v179 · Last Published Jul 13 2026 00:41:27 GMT
 - path: demigod-cm6-paste-publish.mjs · metrics 115/100
 - Next: Top3 DMs + Douglas 07-14 · hygiene after CDP
+
+## 2026-07-23 cont33–35 (Grok)
+- Recovered archive wipe; archive-scripts allowlist-only + DEMIGOD_ARCHIVE_APPLY.
+- cont33 dogfood --ok/--useful fail-closed; cont34 unknown dogfood cmd exit 2; cont35 control unknown verb exit 2.
+- Events public (cloudflare/loca rotating); selftest 19945; tools-selftest 158; ship prepare OK; truth disk v787≠live v759 (no ship).
+
+## cont36–40
+- cont36 community-events demigod dest
+- cont37 startup https approve
+- cont38 event approve full validate
+- cont39 calendar pre-rsvp redaction
+- cont40 foot v790 no invented SF neighborhood
+- dogfood cont33/34; control exit 2; archive recovery
+
+## cont42–44
+- cont42 v793 reviewed startups label
+- cont43 public community URL scrub (safeSubmissionUrl)
+- cont44 atlas search not “independently sourced” for mixed directory
+
+## cont47–50
+- cont47 atlas Visit submitted website (community)
+- cont48 approve status already approved + legacy verified public
+- cont49 publicOfferCounts hide moneyIntents
+- cont50 public calendar RSVP+ only (hide ideate/resource/plan)
+
+## cont51–52
+- cont51 lifecycle hide pre-RSVP id + clearedFrom
+- cont52 publicData no server host/port
+
+## cont51–54
+- cont51 lifecycle hide pre-RSVP id
+- cont52 publicData no server
+- cont53 publicData no lifecycle playbook
+- cont54 manage duplicate uses full next state + selftest fixtures for format/startsAt
+
+## cont55–56
+- cont55 v796 strip #dg-manage hash after import
+- cont56 v797 chat name sessionStorage not localStorage
+
+## cont57
+- foot v799 Manage my submissions (event+startup keys)
+
+## cont58
+- foot v800 private management link target=_blank rel=noopener
+
+## cont59
+- heal: skip further cloudflared after tunnelLogGivesUp (429/1015)
+
+## cont60
+- heal lock: release dead ESRCH owners; keep EPERM owners; clear malformed PID locks; selfcheck green
+- foot v802: referral rewards “become eligible,” not “accrue”; source/honesty/loop/truth green
