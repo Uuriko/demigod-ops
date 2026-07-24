@@ -1,4 +1,4 @@
-/*dg-foot-v818-core*/
+/*dg-foot-v820-core*/
 /**
  * v818 bumps the mobile events-calendar day-cell tap target from 41.6px to 44px (2.6rem->2.75rem)
  *       at the <=520px breakpoint, matching the WCAG 2.5.5 target used elsewhere on the page.
@@ -425,7 +425,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v818'; console.log('[demigod] foot v818-core loaded');
+window.dgFootVersion = 'v820'; console.log('[demigod] foot v820-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -2898,7 +2898,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 /* below fold night institutional */
 +"#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-hero-trust,#insights-section,.insights-section{display:none!important}"
 +"section.trust-section,section:has(.steps-grid),section:has(.pricing-grid),body>section:not(.modal-overlay):not(#startup-modal):not(#jobseeker-modal),.w-section{display:block!important;visibility:visible!important;opacity:1!important;background:var(--dg-night)!important;background-image:none!important;color:var(--dg-paper)!important;padding:clamp(4.5rem,10vh,7rem) 1.25rem!important;border-top:1px solid var(--dg-rule)!important}"
-+"section:has(.roles-grid),[data-dg-hidden=roles-simplify]{display:none!important}"
++".roles-grid,[data-dg-hidden=roles-simplify]{display:none!important}"
 +".trust-header h2,.heading_tertiary,section h2,.step-title{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(1.6rem,3.5vw,2.35rem)!important;font-weight:430!important;letter-spacing:-.03em!important;margin:.5rem 0 .55rem!important}"
 +".trust-header p,.paragraph_large,.step-desc{color:var(--dg-paper-mute)!important;font-size:.95rem!important;max-width:44ch;font-family:var(--dg-sans)!important;line-height:1.55!important}"
 +".steps-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1rem!important;max-width:56rem;margin:0 auto!important}"
@@ -3738,12 +3738,13 @@ var DG_PAGES = {
     doc: 'How it works · Demigod',
     desc: 'Three steps: brief or profile → human review → both approve. 10% on hire.',
     html:
+      '<p class="dg-p-lead">A match has three gates. Nothing reaches the other side until all three pass.</p>' +
       '<ol class="dg-p-list">' +
-      '<li><strong>Brief or profile</strong> — startups: role + 90-day outcome. Talent: one profile.</li>' +
-      '<li><strong>Tech + review</strong> — Demigod ranks against the 90-day outcome; humans in the loop propose only when evidence is real.</li>' +
-      '<li><strong>Both sides approve → intro</strong> — either side can pass privately. Fee only if you hire.</li>' +
+      '<li><strong>Brief or profile</strong> — startups send a role + one measurable 90-day outcome; talent sends one profile. Real inputs, not keywords.</li>' +
+      '<li><strong>Tech ranks, humans review</strong> — Demigod ranks fits against the outcome; a person reviews every proposal and forwards only when the evidence is real. If it\'s thin, we say so instead of manufacturing a shortlist.</li>' +
+      '<li><strong>Both approve → intro</strong> — either side can pass privately. A warm intro email only when both say yes. Fee (10% of first-year cash) only if you hire.</li>' +
       '</ol>' +
-      '<p class="dg-p-note"><a href="/?p=sample" data-dg-page="sample">See a fictional match note →</a></p>',
+      '<p class="dg-p-note">What it isn\'t: no public job feed, no application blast, no auto-DMs, no SLA theater. <a href="/?p=sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/?p=pricing" data-dg-page="pricing">Pricing →</a> · <a href="/?p=faq" data-dg-page="faq">FAQ →</a></p>',
   },
   pricing: {
     title: 'Pricing',
@@ -3786,16 +3787,26 @@ var DG_PAGES = {
     doc: 'Hire · Demigod',
     desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year cash only when a hire starts.',
     html:
-      '<p class="dg-p-lead">Tell us the role and the 90-day outcome. We propose only strong fits.</p>' +
-      '<ul class="dg-p-list"><li>~2 min brief</li><li>Human review, not a bot</li><li>Pay only when you hire</li></ul>',
+      '<p class="dg-p-lead">Tell us the role and the one outcome a hire must own in their first 90 days. A person reads every brief — we only propose when the fit is real, and both sides still have to say yes.</p>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>Send a ~2-min brief</strong> — role, must-haves, one 90-day outcome, cash band.</li>' +
+      '<li><strong>Tech ranks, a human reviews</strong> — against your outcome, before anything reaches you.</li>' +
+      '<li><strong>You approve before any intro</strong> — 10% of first-year cash only when a hire starts; nothing to post.</li>' +
+      '</ul>' +
+      '<p class="dg-p-note">No application blast, no résumé black hole, comp bands kept honest. SMS/card payments pending — follow-ups by email from potter@trydemigod.com. <a href="/?p=how" data-dg-page="how">How it works →</a> · <a href="/?p=pricing" data-dg-page="pricing">Pricing →</a></p>',
   },
   talent: {
     title: 'Join the talent network',
     doc: 'Talent · Demigod',
     desc: 'One profile. Free forever. Not shared with startups until you approve an intro.',
     html:
-      '<p class="dg-p-lead">One profile for SF startups. Not shared with startups until a human sees a real fit and you approve an intro.</p>' +
-      '<ul class="dg-p-list"><li>Free for candidates</li><li>No board spam</li><li>both sides approve before intro</li></ul>',
+      '<p class="dg-p-lead">One profile for SF startups. It\'s free, and it\'s private — your name and contact details are never shared with a company until a human sees a real fit and you approve the intro.</p>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>Free for candidates.</strong> Always. No fee, ever.</li>' +
+      '<li><strong>No board spam</strong>, no cold-LinkedIn blasts — outreach only when a real role fits.</li>' +
+      '<li><strong>Both sides approve before any intro.</strong> Pass privately; no rejection trail.</li>' +
+      '</ul>' +
+      '<p class="dg-p-note">What we ask: strengths, a couple of work highlights, availability, and a cash band — enough to match a real 90-day outcome, not keywords. <a href="/?p=how" data-dg-page="how">How it works →</a> · <a href="/?p=faq" data-dg-page="faq">FAQ →</a></p>',
   },
   contact: {
     title: 'Contact',
@@ -6077,6 +6088,7 @@ function focusBlogNoteFromHash(root) {
 }
 
 var DG_PAGE_PATHS = {
+  '/startups': 'map',
   '/how': 'how',
   '/how-it-works': 'how',
   '/pricing': 'pricing',
@@ -8573,7 +8585,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   };
 });
 
-window.__dgFootVer='818';console.log('Demigod v818');
+window.__dgFootVer='820';console.log('Demigod v820');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
