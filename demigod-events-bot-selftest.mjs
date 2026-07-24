@@ -16785,6 +16785,14 @@ try {
     ['wristband plan', 'wristband-plan'],
     ["whats the greenroom plan", 'whats-greenroom-plan'],
     ["whats the forcing function", 'whats-forcing-function'],
+    // residual: battleplan|battle-plan + strategy|approach (scoped; not "strategy engine")
+    ['battleplan for tonight', 'battleplan-tonight'],
+    ['battle-plan for tonight', 'battle-plan-hyphen'],
+    ["what's the battle plan", 'whats-battle-plan'],
+    ["what's the strategy", 'whats-the-strategy'],
+    ['show me the strategy', 'show-strategy'],
+    ["what's my next approach", 'whats-next-approach'],
+    ['lay out the approach', 'lay-out-approach'],
     // Natural planner phrasing wave 17 (pre-mortem / DRI / MIT / GTD / RAID / OMTM / timebox)
     // Apostrophe-less "whats the DRI" / bare pre-mortem must hit Owner tick plan (not lifecycle).
     ['pre-mortem', 'pre-mortem'],

@@ -419,6 +419,8 @@ function normalizeUserChatText(s) {
     .replace(/\bwhatstherunofshow\b/g, "what's the run of show")
     // residual: "what's|gimme the gameplan" → game plan (isTickPlanAsk game plan)
     .replace(/\bgameplan\b/g, 'game plan')
+    // residual: battleplan|battle-plan → battle plan (isTickPlanAsk battle plan; glued/hyphen miss)
+    .replace(/\bbattle[- ]?plan\b/g, 'battle plan')
     // residual: "whats the callsheet" → call sheet (isTickPlanAsk call sheet; glued miss)
     .replace(/\bcallsheet\b/g, 'call sheet')
     // residual: "whats the cuesheet|runofshow" → cue sheet|run of show (isTickPlanAsk; glued miss parity callsheet)
@@ -3912,7 +3914,11 @@ function isTickPlanAsk(last) {
     /\bwhat(?:'s| is) (the )?(agent|owner|bot) next move\b/.test(last) ||
     /\border of op(eration)?s\b/.test(last) ||
     // Natural planner phrasing (were falling to generic lifecycle / checklist RSVP path)
-    /\b(game plan|plan of attack|playbook)\b/.test(last) ||
+    /\b(game plan|battle plan|plan of attack|playbook)\b/.test(last) ||
+    // residual: strategy|approach plan surface (parity playbook; scoped articles — not "strategy engine")
+    /\bwhat(?:'s| is) (the |my |your |our )?(next )?(strategy|approach)\b/.test(last) ||
+    /\b(show|print|surface|give|get|drop|dump|share|spill|spit|peep|peek) (me |us )?(the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
+    /\b(lay out|map out|outline|explain|preview|summarize|describe) (the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
     /\b(roadmap for|sequence of (steps|ops|actions)|what should happen)\b/.test(last) ||
     /\bwhat (are|is) (the |my |your )?priorities\b/.test(last) ||
     /\bpriorities? (this|for|on) (the )?(tick|cycle|night|tonight|event)\b/.test(last) ||
