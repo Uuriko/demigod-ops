@@ -141,19 +141,30 @@ export function buildPriorityBoard(data = {}) {
     });
   }
 
-  // Aging prepare-only lag is debt (needs current-request publish auth — never auto-ship)
+  // Aging prepare-only lag is debt (needs current-request publish auth — never auto-ship).
+  // Intentional sibling-staged lag is watch/system (visible debt, not agent thrash).
+  const siblingDrift =
+    (data.siblingDrift && typeof data.siblingDrift === 'object' ? data.siblingDrift : null) ||
+    (te.siblingDrift && typeof te.siblingDrift === 'object' ? te.siblingDrift : null) ||
+    null;
   if (publishLag?.overdue) {
+    const intentionalSib = siblingDrift?.intentional === true;
+    const sibNeed = siblingDrift?.status === 'needs-review';
+    const sibBit = siblingDrift?.summary
+      ? ` · siblings ${siblingDrift.intentional ? 'intentional' : 'REVIEW'}: ${siblingDrift.summary}`
+      : '';
     push({
-      pri: 1,
+      pri: sibNeed ? 1 : intentionalSib ? 2 : 1,
       id: 'publish-lag-debt',
-      kind: 'action',
+      kind: intentionalSib && !sibNeed ? 'watch' : 'action',
       title: `Publish lag DEBT disk v${publishLag.diskVer || '?'} live v${publishLag.liveVer || '?'} (+${publishLag.versionsAhead || '?'}ver · ${publishLag.ageHours ?? '?'}h)`,
       detail:
-        publishLag.note ||
-        'needs exact current-request publish authorization (not auto-ship) · prepare/verify only',
+        (publishLag.note ||
+          'needs exact current-request publish authorization (not auto-ship) · prepare/verify only') +
+        sibBit,
       cmd: 'bin/dg ship prepare',
       job: 'ship-prepare',
-      owner: 'unassigned',
+      owner: intentionalSib && !sibNeed ? 'system' : 'unassigned',
     });
   } else if (publishLag?.lagging) {
     push({
@@ -585,6 +596,10 @@ function main() {
     publishLag:
       truthReceipt.publishLag && typeof truthReceipt.publishLag === 'object'
         ? truthReceipt.publishLag
+        : null,
+    siblingDrift:
+      truthReceipt.siblingDrift && typeof truthReceipt.siblingDrift === 'object'
+        ? truthReceipt.siblingDrift
         : null,
     freeze: { on: Boolean(freeze.on), why: freeze.why },
     demand: {

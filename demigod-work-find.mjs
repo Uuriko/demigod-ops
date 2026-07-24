@@ -104,22 +104,35 @@ function main() {
   })();
 
   // --- discoveries ---
-  // Aging prepare-only disk≠live is debt (needs current-request publish auth — never auto-ship)
+  // Aging prepare-only disk≠live is debt (needs current-request publish auth — never auto-ship).
+  // Do not thrash `ship prepare` every hour when prepare is already green and siblings are
+  // intentional-staged — truth/digest already surface the debt.
   const pl = truth?.publishLag;
   if (pl?.overdue) {
-    pushWork(seen, found, {
-      kind: 'publish-lag-debt',
-      pri: 1,
-      title: `Publish lag DEBT disk v${pl.diskVer || '?'} live v${pl.liveVer || '?'} (+${pl.versionsAhead || '?'}ver · ${pl.ageHours ?? '?'}h)`,
-      task: 'ship-prepare',
-      note: pl.note || 'needs exact current-request publish authorization (not auto-ship)',
-      detail: {
-        pair: pl.pair || null,
-        versionsAhead: pl.versionsAhead ?? null,
-        ageHours: pl.ageHours ?? null,
-      },
-      repeatable: true,
-    });
+    const prep = readJson(path.join(BUSY, 'ship-prepare.json'));
+    const prepAgeMs = prep?.at ? Date.now() - Date.parse(prep.at) : Number.POSITIVE_INFINITY;
+    const prepFreshOk = prep?.ok === true && Number.isFinite(prepAgeMs) && prepAgeMs < 2 * 3600 * 1000;
+    const sib = truth?.siblingDrift;
+    const siblingsNeedReview = sib?.status === 'needs-review' || sib?.intentional === false;
+    if (!prepFreshOk || siblingsNeedReview) {
+      pushWork(seen, found, {
+        kind: 'publish-lag-debt',
+        pri: siblingsNeedReview ? 0 : 2,
+        title: `Publish lag DEBT disk v${pl.diskVer || '?'} live v${pl.liveVer || '?'} (+${pl.versionsAhead || '?'}ver · ${pl.ageHours ?? '?'}h)`,
+        task: 'ship-prepare',
+        note: siblingsNeedReview
+          ? 'sibling assets need review + lag debt — prepare only (not auto-ship)'
+          : pl.note || 'needs exact current-request publish authorization (not auto-ship)',
+        detail: {
+          pair: pl.pair || null,
+          versionsAhead: pl.versionsAhead ?? null,
+          ageHours: pl.ageHours ?? null,
+          siblingStatus: sib?.status || null,
+        },
+        // Hourly key only when we actually need prepare; otherwise skip entirely.
+        repeatable: true,
+      });
+    }
   }
   if (events?.needHeal || events?.public === false) {
     pushWork(seen, found, {

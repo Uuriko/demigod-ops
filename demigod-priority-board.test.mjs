@@ -169,6 +169,33 @@ test('publish lag DEBT elevates prepare-only multi-version lag (never auto-ship)
   assert.match(sealed?.title || '', /lag DEBT/);
 });
 
+test('publish lag DEBT with intentional siblings is watch/system (no agent thrash)', () => {
+  const board = buildPriorityBoard({
+    truthEvidence: { green: true, summary: 'TRUTH PASS shipped=false prepareOnly lagDebt' },
+    live: { ok: true, foot: 'v802' },
+    publishLag: {
+      lagging: true,
+      overdue: true,
+      diskVer: '818',
+      liveVer: '802',
+      versionsAhead: 16,
+      ageHours: 8.2,
+      note: 'publish lag DEBT — needs exact current-request publish authorization (not auto-ship)',
+    },
+    siblingDrift: {
+      intentional: true,
+      status: 'intentional-staged',
+      summary: 'atlas:intentional-redesign · mapData:intentional-expand',
+    },
+  });
+  const debt = board.cards.find((item) => item.id === 'publish-lag-debt');
+  assert.equal(debt?.pri, 2);
+  assert.equal(debt?.kind, 'watch');
+  assert.equal(debt?.owner, 'system');
+  assert.match(debt?.detail || '', /siblings intentional/);
+  assert.match(debt?.detail || '', /atlas:intentional-redesign/);
+});
+
 test('newest fresh live observation wins without changing truth drift', () => {
   const now = Date.now();
   const olderFail = { at: new Date(now - 60_000).toISOString(), ok: false, error: 'fetch failed' };
