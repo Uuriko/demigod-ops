@@ -4230,7 +4230,8 @@ export function scoreFreeVenue(v, { need = '', seats = 0, explain = false } = {}
         v.id,
       )
     ) {
-      score -= 3;
+      // picnic-lawn (+3) was neutralizing ti-far (-3) → SoMa parklet tied emb (draft honesty)
+      score -= 5;
       reasons.push('ti-far');
     }
   }
