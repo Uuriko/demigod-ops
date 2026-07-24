@@ -3836,6 +3836,10 @@ function isTickPlanAsk(last) {
     /\blet me (see|read|hear|peep|peek|know|get) (the |my |your |our )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(
       last,
     ) ||
+    // residual: bare "let me the|your plan" (lemme the plan without see; parity give me; no invent RSVPs)
+    /\blet me (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
+    // residual: (i) need the|your plan → Owner tick plan (parity give me; no invent RSVPs)
+    /\b(i )?need (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // residual: bare "peep|peek the plan" (peepya→let me peep; bare peep missed plan surface)
     /\b(peep|peek) (the |my |your |our |a )?(tick |owner |agent )?(plan|pipeline|next steps)\b/.test(last) ||
     // Residual: "spill|spit the plan" / "sup with the plan" (informal plan surface; no invent RSVPs)
@@ -3885,8 +3889,8 @@ function isTickPlanAsk(last) {
     /\b(what(?:'s| is) (the )?gate|stage gate|gate open|gate held|gate status|ready to advance)\b/.test(
       last,
     ) ||
-    // After normalize: hows→how's — "how's the|my|your|our gate/plan" → Owner tick plan (parity what's my/our plan)
-    /\bhow(?:'s| is) (the |my |your |our )?(gate|plan|pipeline|tick)\b/.test(last) ||
+    // After normalize: hows→how's — "how's the|my|your|our gate/plan|strategy" → Owner tick plan
+    /\bhow(?:'s| is) (the |my |your |our )?(gate|plan|pipeline|tick|strategy|approach)\b/.test(last) ||
     /\b(is (the )?gate open|is advance open)\b/.test(last) ||
     /\b(primary next|primary step|first step (this|for) (tick|cycle))\b/.test(last) ||
     // Blockers / unlock — still plan surface (no advance walk, no invent RSVPs)
@@ -3917,8 +3921,11 @@ function isTickPlanAsk(last) {
     /\b(game plan|battle plan|plan of attack|playbook)\b/.test(last) ||
     // residual: strategy|approach plan surface (parity playbook; scoped articles — not "strategy engine")
     /\bwhat(?:'s| is) (the |my |your |our )?(next )?(strategy|approach)\b/.test(last) ||
-    /\b(show|print|surface|give|get|drop|dump|share|spill|spit|peep|peek) (me |us )?(the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
-    /\b(lay out|map out|outline|explain|preview|summarize|describe) (the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
+    // residual: tell|break down|spell out strategy (parity show/give + plan walk-through; no invent RSVPs)
+    /\b(show|print|surface|give|get|drop|dump|share|spill|spit|peep|peek|tell) (me |us )?(the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
+    /\b(lay out|map out|outline|explain|preview|summarize|describe|break down|spell out) (the |my |your |our |a )?(strategy|approach)\b/.test(last) ||
+    // residual: strategy|approach for tonight (parity plan for night; no invent RSVPs)
+    /\b(strategy|approach) for (tonight|this (tick|cycle|night)|the (night|event|tick|cycle))\b/.test(last) ||
     /\b(roadmap for|sequence of (steps|ops|actions)|what should happen)\b/.test(last) ||
     /\bwhat (are|is) (the |my |your )?priorities\b/.test(last) ||
     /\bpriorities? (this|for|on) (the )?(tick|cycle|night|tonight|event)\b/.test(last) ||
@@ -4025,10 +4032,10 @@ function isTickPlanAsk(last) {
     /\bwhat (are you|will you be) tackling\b/.test(last) ||
     // "what will you prioritize next" (whatll after normalize) — plan surface
     /\bwhat (will|would|do) you prioritize\b/.test(last) ||
-    // "how about the|my|your|our|a plan/pipeline" (how bout → how about in normalize)
-    /\bhow about (the |my |your |our |this |a )?(plan|pipeline|tick|night|ops)\b/.test(last) ||
-    // "what about the|my|your|our|a plan" (parity how-about; plan surface, no invent RSVPs)
-    /\bwhat about (the |my |your |our |this |a )?(plan|pipeline|tick|night|ops)\b/.test(last) ||
+    // "how about the|my|your|our|a plan/pipeline|strategy" (how bout → how about in normalize)
+    /\bhow about (the |my |your |our |this |a )?(plan|pipeline|tick|night|ops|strategy|approach)\b/.test(last) ||
+    // "what about the|my|your|our|a plan|strategy" (parity how-about; plan surface, no invent RSVPs)
+    /\bwhat about (the |my |your |our |this |a )?(plan|pipeline|tick|night|ops|strategy|approach)\b/.test(last) ||
     /\bwhat(?:'s| is) on your plate\b/.test(last) ||
     /\bon your plate (tonight|this (tick|cycle|night))\b/.test(last) ||
     /\bwhat(?:'s| is) (the )?owner doing\b/.test(last) ||

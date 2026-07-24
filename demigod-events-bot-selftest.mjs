@@ -16860,6 +16860,17 @@ try {
     ['show me the strategy', 'show-strategy'],
     ["what's my next approach", 'whats-next-approach'],
     ['lay out the approach', 'lay-out-approach'],
+    // residual: let me/need the plan · tell strategy · hows strategy · strategy for tonight
+    ['let me the plan', 'let-me-the-plan'],
+    ['need the plan', 'need-the-plan'],
+    ['i need your plan', 'i-need-your-plan'],
+    ['tell me the strategy', 'tell-strategy'],
+    ['break down the approach', 'break-down-approach'],
+    ["how's the strategy", 'hows-the-strategy'],
+    ['how about the strategy', 'how-about-strategy'],
+    ['what about the approach', 'what-about-approach'],
+    ['strategy for tonight', 'strategy-for-tonight'],
+    ['approach for this tick', 'approach-for-tick'],
     // Natural planner phrasing wave 17 (pre-mortem / DRI / MIT / GTD / RAID / OMTM / timebox)
     // Apostrophe-less "whats the DRI" / bare pre-mortem must hit Owner tick plan (not lifecycle).
     ['pre-mortem', 'pre-mortem'],
