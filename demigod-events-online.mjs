@@ -42,6 +42,8 @@ const OPS_SECRET_ENV = path.join(DIR, 'ops-secret.env');
 const API_JSON = path.join(ROOT, 'DEMIGOD-EVENTS-API.json');
 const PREFERRED_SUB = (process.env.DEMIGOD_EVENTS_TUNNEL_SUBDOMAIN || 'demigod-events-bot').trim();
 const CDN_REPO = process.env.DEMIGOD_CDN_REPO || 'Uuriko/demigod-site-cdn';
+/** loca.lt health often lands ~8–10s under load; 8s Abort cut true-ups into needHeal thrash. */
+export const PUBLIC_HEALTH_TIMEOUT_MS = 12_000;
 const cmd = process.argv[2] || 'up';
 const wantPublish = process.argv.includes('--publish-config');
 const cliArgsValid = (args) => {
@@ -406,7 +408,7 @@ async function healthPublic(base) {
         'Bypass-Tunnel-Reminder': '1',
         'User-Agent': 'Mozilla/5.0 DemigodEventsOnline/1',
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(PUBLIC_HEALTH_TIMEOUT_MS),
     });
     if (!r.ok) return null;
     const j = await r.json();
@@ -1694,6 +1696,13 @@ function selfcheck() {
   ok(
     statusShouldAdoptLiveTunnel({ publicOk: false, tunnelPid: null }) === false,
     'statusShouldAdoptLiveTunnel skips without tunnel process',
+  );
+  ok(
+    PUBLIC_HEALTH_TIMEOUT_MS >= 10_000 &&
+      fs
+        .readFileSync(new URL(import.meta.url), 'utf8')
+        .includes('AbortSignal.timeout(PUBLIC_HEALTH_TIMEOUT_MS)'),
+    'public health timeout covers slow loca.lt (≥10s) and is wired',
   );
   ok(
     fs
