@@ -1525,14 +1525,20 @@ export function wizLinkFor(lead, side) {
 /**
  * Pure: true when talent draft body greets with SEO junk or full name instead of first name.
  * Even when we only know "there", SEO/pricing greets must rewrite (was skipped — left hygiene warns).
+ * Also true when the post-dash opener still pastes SERP/job-board spam.
  */
 export function talentDraftNeedsGreetingRefresh(body, lead) {
   const who = talentGreetingName(lead);
-  const m = String(body || '').match(/^Hi\s+([^\n—\-]{1,80})/m);
+  const line = String(body || '').match(/^Hi\s+[^\n]+/m)?.[0] || '';
+  if (!line) return true;
+  const m = line.match(/^Hi\s+([^\n—\-]{1,80})/);
   if (!m) return true;
   const greeter = m[1].trim().replace(/\s+$/, '');
   // Always rewrite SEO/pricing titles in the greeting slot
   if (isSeoDisplayJunk(greeter)) return true;
+  // SERP residual after em-dash: "Hi there — 862 Founding Engineer jobs…"
+  const afterDash = line.split(/[—–]/).slice(1).join('—').trim().replace(/\.$/, '');
+  if (afterDash && isTalentOpenerSerp(afterDash)) return true;
   if (!who || who === 'there') {
     if (greeter === 'there') return false;
     // Keep a plausible single first name already in the draft; multi-word residual → Hi there
@@ -1691,7 +1697,10 @@ export function draftEmail(lead, side) {
   }
   const who = talentGreetingName(lead);
   // If signal already narrates the person, don't glue "Hi Name — Name has been…"
-  const factStr = String(fact || '').trim();
+  // Drop job-board SERP spam / bare URLs; keep short human signals (not isSeoDisplayJunk —
+  // that length cap is for package display names and was over-stripping real notes).
+  let factStr = String(fact || '').trim();
+  if (!factStr || isTalentOpenerSerp(factStr)) factStr = '';
   const whoRe = new RegExp('^' + who.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
   const opener =
     factStr && whoRe.test(factStr)
@@ -2157,6 +2166,20 @@ export function isSeoDisplayJunk(s) {
   if (!t) return true;
   if (t.length > 48) return true;
   return /\$|\/\s*hr|from\s*\$?\d|san francisco from|open roles?|hiring|jobs?\b|looking for|fractional cto in/i.test(
+    t,
+  );
+}
+
+/**
+ * Pure: talent draft opener fact is job-board SERP spam (not a human note).
+ * Looser than isSeoDisplayJunk so short personal signals survive.
+ */
+export function isTalentOpenerSerp(s) {
+  const t = String(s || '').trim();
+  if (!t) return true;
+  if (t.length > 140) return true;
+  if (/^https?:\/\//i.test(t)) return true;
+  return /\b\d{2,}\s+(?:jobs?|openings?|roles?)\b|jobs?\s+(?:available|added|in\b)|job alerts|new jobs added|leverage your professional network|apply to (?:engineer|account|site|solutions)|on indeed\.com|workatastartup|top tech jobs|startup jobs (?:in|added)|find tech jobs|read articles and research companies|msPilot|turn ai adoption/i.test(
     t,
   );
 }

@@ -1,5 +1,9 @@
-/*dg-foot-v815-core*/
+/*dg-foot-v818-core*/
 /**
+ * v818 bumps the mobile events-calendar day-cell tap target from 41.6px to 44px (2.6rem->2.75rem)
+ *       at the <=520px breakpoint, matching the WCAG 2.5.5 target used elsewhere on the page.
+ * v817 adds role=alert + aria-live=assertive to Webflow's default .w-file-upload-error so screen readers
+ *       announce resume upload failures (silent before this).
  * v814 cleans hire+talent WIZ: salary band dropdowns, urgency/work-auth selects, Typeform choice chips,
  *       tighter question copy, and progress as N of M.
  * v813 normalizes short referral aliases (?r= / ?ref= / /r/rf_…) into referral= so unique talent links stay shareable.
@@ -421,7 +425,7 @@
  * v280 apply the search-restart scrub to visible canvas leaves, not only metadata
  * Sections on disk: COPY · WIZ_* · WIZ runtime · BOARD · forms · nav/CTA · product pages · boot · honesty
  */
-window.dgFootVersion = 'v815'; console.log('[demigod] foot v815-core loaded');
+window.dgFootVersion = 'v818'; console.log('[demigod] foot v818-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null,DIRTY=false;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -2940,7 +2944,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"";document.head.appendChild(s)}
 
 
-function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr)}
+function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}try{qa('.w-file-upload-error').forEach(function(b){if(!b.getAttribute('role'))b.setAttribute('role','alert');if(!b.getAttribute('aria-live'))b.setAttribute('aria-live','assertive');});}catch(e){}if(q('#dg-focus-ring'))return;var fr=document.createElement('style');fr.id='dg-focus-ring';fr.textContent='a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.premium-btn:focus-visible,.dg-page-x:focus-visible,#dg-bar a:focus-visible{outline:2px solid #C9A84C!important;outline-offset:3px!important}.modal-close-btn{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}';document.head.appendChild(fr)}
 function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=document.createElement('style');fc.id='dg-forced-colors';fc.textContent='@media(forced-colors:active){#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head,#startup-modal .dg-wiz-chrome,#jobseeker-modal .dg-wiz-chrome{border:1px solid CanvasText!important;forced-color-adjust:auto}#startup-modal .dg-wiz-bar,#jobseeker-modal .dg-wiz-bar{border:1px solid CanvasText!important;background:Canvas!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:Highlight!important;box-shadow:none!important}}';document.head.appendChild(fc)}
 function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}if(OBS)OBS.disconnect();try{forceMainVisible();skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();trust();try{injectBlogHome()}catch(eBlogH){}mob();foot();footerDecisionLinks();rmOrphanForms();successCta();if(!OPEN)hide();/* v210: essays off; trust sr-only */dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();scrubContactEmail();try{hero()}catch(e){}try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest','dg-contact-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})}catch(e){console.error('Demigod foot fail',e)}finally{if(OBS){OBS.takeRecords();OBS.observe(document.documentElement,{childList:true,subtree:true})}busy=false}}
 
@@ -4277,7 +4281,7 @@ function pageCss() {
     '#dg-page .dg-ev-cal-empty{color:#A8A29E;font-size:.86rem;margin:0 0 .65rem}' +
     '#dg-page .dg-ev-cal-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}' +
     '#dg-page .dg-ev-cal-add{margin-top:.25rem}' +
-    '@media(max-width:520px){#dg-page .dg-ev-cal-row,#dg-page .dg-ec-form,#dg-page .dg-community-form{grid-template-columns:1fr}#dg-page .dg-ec-send{width:100%}#dg-page .dg-ev-cal-cell{min-height:2.6rem;font-size:.75rem}}' +
+    '@media(max-width:520px){#dg-page .dg-ev-cal-row,#dg-page .dg-ec-form,#dg-page .dg-community-form{grid-template-columns:1fr}#dg-page .dg-ec-send{width:100%}#dg-page .dg-ev-cal-cell{min-height:2.75rem;font-size:.75rem}}' +
     '@media(prefers-reduced-motion:reduce){#dg-page .dg-ev-cta-pri,#dg-page .dg-ev-cta-sec,#dg-page .dg-ev-tab{transition:none;transform:none!important}}' +
     '#dg-page .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}';
   document.head.appendChild(s);
@@ -5474,6 +5478,10 @@ function communityChatMount(root) {
   var message = host.querySelector('.dg-submit-msg');
   var log = host.querySelector('.dg-mud-log');
   var base = '', token = '', since = 0, polling = false;
+  dgEventsBotPickBase(4000).then(function (picked) {
+    if (picked && picked.base) base = picked.base;
+    else if (!token) status.textContent = 'Events API offline';
+  });
   async function request(path, options) {
     if (!base) { var picked = await dgEventsBotPickBase(4000); if (!picked || !picked.base) throw new Error('Chat is offline'); base = picked.base; }
     try {
@@ -8565,7 +8573,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('hashchange
   };
 });
 
-window.__dgFootVer='815';console.log('Demigod v815');
+window.__dgFootVer='818';console.log('Demigod v818');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

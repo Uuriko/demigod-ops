@@ -3942,6 +3942,37 @@ assert(
     }) === false,
     'talentDraftNeedsGreetingRefresh: Hi there ok when no first name',
   );
+  assert(
+    talentDraftNeedsGreetingRefresh(
+      'Hi there — 862 Founding Engineer jobs available in San Francisco Bay Area, CA on Indeed.com.\n',
+      { name: 'Founding Engineer jobs in San Francisco Bay Area, Ca', email: '' },
+    ) === true,
+    'talentDraftNeedsGreetingRefresh: SERP body after Hi there still needs refresh',
+  );
+  const serpLead = {
+    id: 'fc-serp-body',
+    name: 'Software Engineer jobs at Y Combinator startups',
+    signal: 'San Francisco startup jobs added recently ... Job alerts and startup launches',
+    url: 'https://www.ycombinator.com/jobs/role/software-engineer/san-francisco',
+    state: 'disqualified',
+  };
+  const serpDraft = draftEmail(serpLead, 'talent');
+  assert(/^Hi there — saw your public SF eng signal\./m.test(serpDraft), 'talent draftEmail drops SERP signal body');
+  assert(!/Job alerts and startup launches/i.test(serpDraft), 'talent draftEmail no SERP spam in body');
+  const humanSignalDraft = draftEmail(
+    {
+      id: 'fc-human-sig',
+      name: 'Kaveri Mekala',
+      handle: '@MekalaKave15955',
+      signal: 'Public: seeking Founding Engineer at YC/a16z-backed startups',
+      state: 'approved',
+    },
+    'talent',
+  );
+  assert(
+    /Hi Kaveri — Public: seeking Founding Engineer at YC\/a16z-backed startups\./m.test(humanSignalDraft),
+    'talent draftEmail keeps short human signal (not over-strip)',
+  );
   {
     const greetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-funnel-greet-'));
     try {

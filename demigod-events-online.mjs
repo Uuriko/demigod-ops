@@ -637,11 +637,11 @@ function killStrayTunnels() {
 
 /**
  * Pure: tunnel heal attempt order (FOCUS #1 public API).
- * Prefer cloudflared first when last URL was sticky loca (often 503) or
- * trycloudflare (already on CF — do not thrash into loca on QUIC drop).
- * Fresh / unknown → loca preferred, then random, then CF.
+ * Prefer cloudflared first when last URL was trycloudflare (stay on CF), or a
+ * *random* loca host (shared localtunnel relay thrash; no sticky name to preserve).
+ * Fresh / preferred sticky loca → reusable subdomain first, then random, then CF.
  * @param {string} url last known public base (may be empty)
- * @param {{ hasCloudflared?: boolean, forceCloudflared?: boolean }} [opts]
+ * @param {{ hasCloudflared?: boolean, forceCloudflared?: boolean, preferredSubdomain?: string }} [opts]
  * @returns {{ randomSub: boolean, forceCloudflared: boolean, label: string }[]}
  */
 export function tunnelHealAttempts(url, opts = {}) {
@@ -651,9 +651,24 @@ export function tunnelHealAttempts(url, opts = {}) {
   const forceCf = tunnelAttemptUsesCloudflared(opts);
   const wasLoca = /\.loca\.lt(\/|$)/i.test(u);
   const wasCf = /\.trycloudflare\.com(\/|$)/i.test(u);
-  // A reusable loca subdomain avoids republishing after every restart. Retry CF first
-  // only when it was already selected or explicitly requested.
-  const cfFirst = forceCf || wasCf;
+  const preferred = String(
+    opts.preferredSubdomain !== undefined ? opts.preferredSubdomain : PREFERRED_SUB || '',
+  )
+    .trim()
+    .toLowerCase();
+  let wasPreferredLoca = false;
+  if (wasLoca && preferred) {
+    try {
+      const host = new URL(u.includes('://') ? u : `https://${u}`).hostname.toLowerCase();
+      wasPreferredLoca = host === `${preferred}.loca.lt` || host.startsWith(`${preferred}.`);
+    } catch {
+      wasPreferredLoca = false;
+    }
+  }
+  // Random loca already requires config republish; CF is usually more stable than the
+  // public localtunnel relay (no sticky name left to protect).
+  const wasRandomLoca = wasLoca && !wasPreferredLoca;
+  const cfFirst = forceCf || wasCf || wasRandomLoca;
   const all = cfFirst
     ? [
         { randomSub: false, forceCloudflared: true, label: 'cloudflared' },
@@ -666,6 +681,30 @@ export function tunnelHealAttempts(url, opts = {}) {
         { randomSub: false, forceCloudflared: true, label: 'cloudflared' },
       ];
   return all.filter((a) => !a.forceCloudflared || hasCf);
+}
+
+/**
+ * Pure-ish helper: if a tunnel process is already up, probe the last log URL
+ * before kill/restart (prevents orphaning a healthy CF while url file still
+ * points at a dead loca host).
+ */
+async function tryAdoptLiveTunnelFromLog() {
+  const pid = resolveTunnelPid();
+  if (!pid) return null;
+  let logText = '';
+  try {
+    logText = fs.readFileSync(path.join(DIR, 'tunnel.log'), 'utf8');
+  } catch {
+    return null;
+  }
+  const hit = normalizeEventsPublicBase(lastTunnelUrlFromLog(logText));
+  if (!hit) return null;
+  const a = await healthPublic(hit);
+  if (!a?.ok) return null;
+  await new Promise((r) => setTimeout(r, 400));
+  const b = await healthPublic(hit);
+  if (!b?.ok) return null;
+  return { url: hit, pub: b };
 }
 
 /**
@@ -700,6 +739,20 @@ async function ensurePublicTunnel() {
     if (publicHealthVerdict(probes) === null) {
       return { url, pub: null, healed: false, via: 'unstable' };
     }
+  }
+
+  // Written url is missing/dead — but a live CF/loca process may already be healthy.
+  // Adopt it instead of killStray → thrash (observed: CF orphan healthy while loca url dead).
+  const adopted = await tryAdoptLiveTunnelFromLog();
+  if (adopted?.url && adopted?.pub?.ok) {
+    return {
+      url: adopted.url,
+      pub: adopted.pub,
+      healed: true,
+      via: /\.trycloudflare\.com(\/|$)/i.test(adopted.url)
+        ? 'adopt-live-cloudflared'
+        : 'adopt-live-tunnel',
+    };
   }
 
   const hasCf = !!cloudflaredBin();
@@ -744,10 +797,12 @@ async function ensurePublicTunnel() {
       continue;
     }
     // Quick-tunnel DNS can lag the printed URL; give Cloudflare longer than loca.lt.
+    // cloudflared even prints "it may take some time to be reachable".
     pub = null;
-    const healthAttempts = usesCloudflared ? 24 : 8;
+    if (usesCloudflared) await new Promise((r) => setTimeout(r, 1500));
+    const healthAttempts = usesCloudflared ? 28 : 8;
     for (let i = 0; i < healthAttempts && !pub?.ok; i++) {
-      await new Promise((r) => setTimeout(r, 700));
+      await new Promise((r) => setTimeout(r, usesCloudflared ? 800 : 700));
       pub = await healthPublic(url);
     }
     if (pub?.ok) {
@@ -758,6 +813,24 @@ async function ensurePublicTunnel() {
         return { url, pub: pub2, healed: true, via: healViaLabel(attempt.label, url) };
       }
       pub = pub2;
+    }
+    // CF late-accept: DNS/QUIC sometimes clears only after the first probe window.
+    // Prefer keeping a live trycloudflare process over thrashing into flaky loca.lt.
+    if (usesCloudflared && url) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const late = await healthPublic(url);
+      if (late?.ok) {
+        await new Promise((r) => setTimeout(r, 500));
+        const late2 = await healthPublic(url);
+        if (late2?.ok) {
+          return {
+            url,
+            pub: late2,
+            healed: true,
+            via: healViaLabel(attempt.label, url) || 'cloudflared',
+          };
+        }
+      }
     }
   }
   return { url: url || null, pub: pub || null, healed: true, via: 'failed' };
@@ -819,14 +892,18 @@ async function probePublicStable(root, { times = 3, gapMs = 450 } = {}) {
   return { pub, publicOk: publicOkFromProbes(oks), oks };
 }
 
-/** Pure: last tunnel URL in an append-only tunnel log (first match is often a dead prior heal). */
+/**
+ * Pure: last tunnel URL in a tunnel log by file order.
+ * Prefer chronological last match — do not concatenate host-type groups (that made any
+ * historical loca.lt win over a newer trycloudflare.com URL printed later in the same log).
+ */
 export function lastTunnelUrlFromLog(s) {
   const text = String(s || '');
-  const all = [
-    ...text.matchAll(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi),
-    ...text.matchAll(/https:\/\/[a-z0-9-]+\.loca\.lt/gi),
-  ].map((m) => m[0].replace(/\/$/, ''));
-  return all.length ? all[all.length - 1] : '';
+  let last = '';
+  for (const m of text.matchAll(/https:\/\/[a-z0-9-]+\.(?:trycloudflare\.com|loca\.lt)/gi)) {
+    last = m[0].replace(/\/$/, '');
+  }
+  return last;
 }
 
 /**
@@ -983,6 +1060,33 @@ function preferredTunnelMatch(root) {
   }
 }
 
+/**
+ * Operator-facing honesty: why preferredTunnelMatch is false.
+ * CF quick tunnels (trycloudflare.com) are always random — sticky name is loca.lt only.
+ */
+export function preferredTunnelNote(root) {
+  if (!root) return 'no public tunnel URL';
+  const match = preferredTunnelMatch(root);
+  if (match) return null;
+  try {
+    const host = new URL(root.includes('://') ? root : `https://${root}`).hostname.toLowerCase();
+    if (host.endsWith('.trycloudflare.com')) {
+      return (
+        'Cloudflare quick tunnels assign random *.trycloudflare.com hostnames; preferredSubdomain ' +
+        `"${PREFERRED_SUB}" is for loca.lt sticky only. Match false is expected until a named CF tunnel + custom domain is configured.`
+      );
+    }
+    if (host.endsWith('.loca.lt') && PREFERRED_SUB) {
+      return `Sticky loca preferred is ${PREFERRED_SUB}.loca.lt; live host is ${host}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return PREFERRED_SUB
+    ? `preferred tunnel name ${PREFERRED_SUB} not matched`
+    : 'preferred tunnel name not configured';
+}
+
 function writeConfig(tunnelUrl) {
   // Normalize so accidental apiBase paste never writes double-path config
   const root = normalizeEventsPublicBase(tunnelUrl);
@@ -994,6 +1098,7 @@ function writeConfig(tunnelUrl) {
     apiBase,
     preferredSubdomain: PREFERRED_SUB || null,
     preferredTunnelMatch: preferredTunnelMatch(root),
+    preferredTunnelNote: preferredTunnelNote(root),
     appPid: resolveAppPid(),
     tunnelPid: resolveTunnelPid(),
     publicConfigUrls: publicConfigUrls(),
@@ -1231,6 +1336,7 @@ async function status(requireCertified = false) {
     apiBase,
     preferredSubdomain: PREFERRED_SUB || null,
     preferredTunnelMatch: hostUnobservable ? null : preferredTunnelMatch(root),
+    preferredTunnelNote: hostUnobservable ? null : preferredTunnelNote(root),
     appPid,
     tunnelPid,
     // Do not read openai from public /health (capability flags only). Env is the ops truth.
@@ -1275,7 +1381,9 @@ async function up() {
   ensureDir();
   const healLock = tryAcquireHealLock();
   if (!healLock) {
-    // Concurrent heal/up — do not kill tunnels mid-ladder
+    // Concurrent heal/up — do not kill tunnels mid-ladder.
+    // systemd timer + useful-loop often race: exit 2 here reds the oneshot while a
+    // peer heal is already recovering. Peer owns recovery; next tick re-checks.
     let url = '';
     try {
       url = normalizeEventsPublicBase(fs.readFileSync(path.join(DIR, 'url'), 'utf8'));
@@ -1295,7 +1403,7 @@ async function up() {
         apiBase: url ? eventsPublicApiBase(url) : null,
       }),
     );
-    process.exit(pub?.ok ? 0 : 2);
+    process.exit(0);
   }
 const exitWith = (code) => {
     healLock.release();
@@ -1458,6 +1566,18 @@ function selfcheck() {
       'Visit it at https://old-dead-host.trycloudflare.com\nVisit it at https://fresh-live-host.trycloudflare.com\n',
     ) === 'https://fresh-live-host.trycloudflare.com',
     'lastTunnelUrlFromLog prefers last URL',
+  );
+  ok(
+    lastTunnelUrlFromLog(
+      'your url is: https://old.loca.lt\nVisit it at https://fresh-cf.trycloudflare.com\n',
+    ) === 'https://fresh-cf.trycloudflare.com',
+    'lastTunnelUrlFromLog prefers later CF over earlier loca',
+  );
+  ok(
+    lastTunnelUrlFromLog(
+      'Visit it at https://a.trycloudflare.com\nyour url is: https://b.loca.lt\n',
+    ) === 'https://b.loca.lt',
+    'lastTunnelUrlFromLog prefers later loca over earlier CF',
   );
   ok(lastTunnelUrlFromLog('') === '', 'lastTunnelUrlFromLog empty');
   ok(
@@ -1659,6 +1779,13 @@ function selfcheck() {
       forceCloudflared: false,
     })[0] === 'loca-preferred',
     'dead reusable loca → retry the same subdomain first',
+  );
+  ok(
+    labels('https://shiny-donkeys-report.loca.lt', {
+      hasCloudflared: true,
+      forceCloudflared: false,
+    })[0] === 'cloudflared',
+    'dead random loca → cloudflared first (no sticky to preserve)',
   );
   ok(
     labels('https://x.trycloudflare.com', {
