@@ -835,7 +835,8 @@ export const FREE_SF_VENUES = [
  * Need token → tokens that count as a hit on venue area/name/notes.
  */
 const AREA_NEAR = {
-  soma: ['soma', 'yerba', 'south park', 'moscone', 'south of market', 'salesforce'],
+  // residual: SoMa free indoor free-list is Mission SFPL (no free SoMa indoor card) — draft only
+  soma: ['soma', 'yerba', 'south park', 'moscone', 'south of market', 'salesforce', 'mission'],
   // residual: Mission outdoor free-list area-missed SoMa parklet/Yerba (Dolores alt → Crissy)
   mission: ['mission', 'dolores', 'bernal', 'noe', 'valencia', 'soma', 'south park', 'yerba'],
   valencia: ['valencia', 'mission', 'dolores'],
