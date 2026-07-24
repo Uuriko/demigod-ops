@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# dg-laptop-blue-moon — occasional laptop speed/hygiene pass ("once in a blue moon")
+#
+#   bin/dg-laptop-blue-moon           # report + prune + write receipt
+#   bin/dg-laptop-blue-moon --full    # also --optimize (logs trim, hung kill)
+#   bin/dg-laptop-blue-moon --due     # exit 0 if last run older than DAYS (default 14)
+#   bin/dg-laptop-blue-moon --stamp-only
+#
+# Docs: DEMIGOD-LAPTOP-BLUE-MOON.md
+set -euo pipefail
+export PATH="$HOME/bin:$HOME/.local/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+STAMP="$BUSY/laptop-blue-moon.stamp"
+RECEIPT="$BUSY/laptop-blue-moon-latest.json"
+DAYS="${LAPTOP_BLUE_MOON_DAYS:-14}"
+cd "$ROOT"
+mkdir -p "$BUSY"
+
+due_check() {
+  if [ ! -f "$STAMP" ]; then return 0; fi
+  local age=$(( $(date +%s) - $(stat -c %Y "$STAMP") ))
+  local need=$(( DAYS * 86400 ))
+  [ "$age" -ge "$need" ]
+}
+
+cmd="${1:-run}"
+case "$cmd" in
+  --due|due)
+    if due_check; then
+      echo "DUE last=$( [ -f "$STAMP" ] && date -Iseconds -r "$STAMP" || echo never ) days=$DAYS"
+      exit 0
+    else
+      echo "OK not-due last=$(date -Iseconds -r "$STAMP") days=$DAYS"
+      exit 1
+    fi
+    ;;
+  --stamp-only|stamp)
+    date -Iseconds >"$STAMP"
+    echo "stamped $STAMP"
+    exit 0
+    ;;
+  --full|full)
+    MODE=full
+    ;;
+  -h|--help|help)
+    sed -n '2,14p' "$0"
+    exit 0
+    ;;
+  run|"")
+    MODE=run
+    ;;
+  *)
+    echo "dg-laptop-blue-moon: unknown argument $cmd — try: bin/dg-laptop-blue-moon [--full|--due|--stamp-only]" >&2
+    exit 2
+    ;;
+esac
+if [[ -n "${2:-}" ]]; then
+  echo "dg-laptop-blue-moon: unknown argument $2 — try: bin/dg-laptop-blue-moon [--full|--due|--stamp-only]" >&2
+  exit 2
+fi
+
+echo "# laptop blue-moon · $(date -Iseconds)"
+echo "## 1) Hygiene $( [ "${MODE:-run}" = full ] && echo optimize || echo prune )"
+if [ "${MODE:-run}" = full ]; then
+  node demigod-laptop-hygiene.mjs --optimize --json | tee "$RECEIPT" | tail -5
+else
+  node demigod-laptop-hygiene.mjs --prune --json | tee "$RECEIPT" | tail -5
+fi
+
+echo "## 2) Snapshot"
+{
+  echo "host=$(hostname) up=$(uptime -p 2>/dev/null || true)"
+  echo "load=$(cut -d' ' -f1-3 /proc/loadavg)"
+  free -h | awk '/Mem:/{print "mem_avail="$7" total="$2}'
+  echo "swappiness=$(cat /proc/sys/vm/swappiness)"
+  system76-power profile 2>/dev/null | head -3 || true
+  sensors 2>/dev/null | awk '/Package id 0:/{print "cpu_pkg="$4}' || true
+  if curl -sS -m 2 http://127.0.0.1:9223/json/list >/tmp/cdp-pages.json 2>/dev/null; then
+    python3 - <<'PY'
+import json
+d=json.load(open('/tmp/cdp-pages.json'))
+pages=[p for p in d if p.get('type')=='page']
+print(f"cdp_pages={len(pages)} targets={len(d)}")
+for p in pages[:12]:
+  print(" -", (p.get('title') or '')[:40], (p.get('url') or '')[:60])
+PY
+  else
+    echo "cdp=down"
+  fi
+  echo "demigod_units:"
+  systemctl --user list-units 'demigod-*' --state=running --no-pager 2>/dev/null | awk '/\.service|\.timer/{print " - "$1}'
+} | tee "$BUSY/laptop-blue-moon-snapshot.txt"
+
+echo "## 3) Tips (from DEMIGOD-LAPTOP-BLUE-MOON.md)"
+# non-destructive tips only
+SW=$(cat /proc/sys/vm/swappiness)
+if [ "$SW" -gt 60 ] 2>/dev/null; then
+  echo "· swappiness=$SW is high — prefer 10: sudo sysctl -w vm.swappiness=10 && echo vm.swappiness=10 | sudo tee /etc/sysctl.d/99-demigod-swappiness.conf"
+fi
+PKG=$(sensors 2>/dev/null | awk '/Package id 0:/{gsub(/\+|°C/,"",$4); print int($4+0)}' | head -1)
+if [ -n "${PKG:-}" ] && [ "$PKG" -ge 85 ] 2>/dev/null; then
+  echo "· CPU package ~${PKG}°C — lift laptop, clear vents; consider system76-power profile balanced if on battery"
+fi
+echo "· Keep CDP pages ≤6–8 (ops + live + designer + custom-code)"
+echo "· cosmic-comp high CPU multi-day → reboot session if compositor stuck >30%"
+echo "· Avoid parallel claude --print + codex exec + full funnel selftest"
+echo "· Optional tools if missing: btop, nvtop, duf, dust (apt/cargo) — check with command -v"
+
+echo "## 4) Optional tool presence"
+for t in btop htop nvtop duf dust radeontop intel_gpu_top; do
+  if command -v "$t" >/dev/null 2>&1; then echo "  ok  $t"; else echo "  --  $t (optional)"; fi
+done
+
+date -Iseconds >"$STAMP"
+echo "stamped $STAMP"
+echo "receipt $RECEIPT"
+echo "BLUE_MOON_OK"

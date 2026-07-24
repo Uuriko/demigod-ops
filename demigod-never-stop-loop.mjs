@@ -650,14 +650,31 @@ function stop() {
   console.log(JSON.stringify({ ok: true, stop: STOP }));
 }
 
-const cmd = process.argv[2] || 'status';
-if (cmd === 'run') mainRun(process.argv.slice(3)).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
-else if (cmd === 'stop') stop();
-else if (cmd === 'status') status();
-else {
+const rawArgs = process.argv.slice(2);
+const cmd = rawArgs[0] || 'status';
+const rest = rawArgs.slice(1);
+const RUN_OK = (a) => a.startsWith('--max-cycles=') || a.startsWith('--sleep-sec=');
+if (cmd === 'run') {
+  for (const a of rest) {
+    if (!RUN_OK(a)) {
+      console.error(
+        `never-stop: unknown argument ${a} — try: demigod-never-stop-loop.mjs run [--max-cycles=N] [--sleep-sec=S]`,
+      );
+      process.exit(2);
+    }
+  }
+  mainRun(rest).catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+} else if (cmd === 'stop' || cmd === 'status') {
+  if (rest.length) {
+    console.error(`never-stop: unknown argument ${rest[0]} — try: demigod-never-stop-loop.mjs ${cmd}`);
+    process.exit(2);
+  }
+  if (cmd === 'stop') stop();
+  else status();
+} else {
   console.error('usage: run|status|stop');
   process.exit(2);
 }

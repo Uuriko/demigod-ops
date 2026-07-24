@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# dgsnap — verified checkpoint
+set -euo pipefail
+if [[ $# -gt 0 ]]; then
+  echo "dgsnap: unknown argument $1 — try: bin/dgsnap  (no flags; runs verify:all + foot checkpoint)" >&2
+  exit 2
+fi
+cd /home/potter
+/home/potter/bin/dg-lock npm run demigod:verify:all
+ver=$(grep -o "__dgFootVer='[0-9]*'" demigod-foot-core.js | grep -o '[0-9]*' || echo '?')
+git add demigod-foot-core.js DEMIGOD-BOARD.json demigod-head-minimal.html demigod-footer-lite.html demigod-keep-going.md 2>/dev/null || true
+git diff --cached --quiet && { echo "nothing to snap"; exit 0; }
+git commit -m "checkpoint: dg-foot-v${ver} gates green"
+sha=$(git rev-parse --short HEAD)
+sed -i "s/^- last_checkpoint:.*/- last_checkpoint: ${sha}/" demigod-keep-going.md
+echo "snapped ${sha} (v${ver})"

@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# COSMIC / Demigod workspace helper
+# COSMIC D-Bus only exposes Show/Hide overview today — Super+N still switches workspaces.
+#
+# Roles (recommended Super+1..4):
+#   1 GTM     — mail, demand, notes
+#   2 Webflow — Designer, Custom Code, live
+#   3 Agents  — terminals / Grok / Codex
+#   4 Ops     — dash :9878, truth, ship
+#
+# Usage:
+#   dg-workspace cheat
+#   dg-workspace overview [show|hide]
+#   dg-workspace open <role>     # open apps/urls for that role
+#   dg-workspace layout          # open all role bundles + cheat sheet
+#   dg-workspace webflow|ops|agents|gtm
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+mkdir -p "$BUSY"
+
+DESIGNER="${WEBFLOW_DESIGNER_URL:-https://talentlink-sf.design.webflow.com/}"
+CUSTOM_CODE="${WEBFLOW_CUSTOM_CODE_URL:-https://webflow.com/dashboard/sites/talentlink-sf/custom-code}"
+LIVE="${DEMIGOD_LIVE:-https://www.trydemigod.com}"
+DASH="http://127.0.0.1:9878/"
+
+open_url() {
+  local u="$1"
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$u" >/dev/null 2>&1 || true
+  fi
+}
+
+overview() {
+  local a="${1:-show}"
+  case "$a" in
+    show)
+      gdbus call --session \
+        --dest com.system76.CosmicWorkspaces \
+        --object-path /com/system76/CosmicWorkspaces \
+        --method com.system76.CosmicWorkspaces.Show >/dev/null 2>&1 \
+        && echo "overview: show" || echo "overview: dbus failed (is COSMIC running?)"
+      ;;
+    hide)
+      gdbus call --session \
+        --dest com.system76.CosmicWorkspaces \
+        --object-path /com/system76/CosmicWorkspaces \
+        --method com.system76.CosmicWorkspaces.Hide >/dev/null 2>&1 \
+        && echo "overview: hide" || echo "overview: dbus failed"
+      ;;
+    *)
+      echo "usage: dg-workspace overview show|hide" >&2
+      return 2
+      ;;
+  esac
+}
+
+cheat() {
+  cat <<EOF
+# Demigod × COSMIC workspace map
+
+  Super+1   GTM       mail / demand / notes
+  Super+2   Webflow   Designer · Custom Code · live
+  Super+3   Agents    terminals · Grok · Codex (tmux: dg-tmux-cockpit)
+  Super+4   Ops       dash :9878 · truth · ship
+
+  Super+W   workspace overview (or: dg-workspace overview show)
+
+Open bundles:
+  dg-workspace gtm | webflow | agents | ops | layout
+
+Tips:
+  • Keep CDP Chrome on WS2/WS3; human browsing elsewhere
+  • Unplug → battery profile + heavy loops stop (power-ac-auto)
+  • Ship mutates boost performance then restore (bin/dg ship run)
+EOF
+}
+
+open_role() {
+  local role="$1"
+  case "$role" in
+    gtm|1)
+      echo "→ WS1 GTM — Super+1 then focus these"
+      open_url "https://mail.google.com" || true
+      (cd "$ROOT" && bin/dg demand status 2>/dev/null | head -20) || true
+      command -v dg-notify >/dev/null && dg-notify "Workspace GTM" "Super+1 · demand status printed"
+      ;;
+    webflow|wf|2)
+      echo "→ WS2 Webflow — Super+2"
+      open_url "$DESIGNER"
+      sleep 0.3
+      open_url "$CUSTOM_CODE"
+      sleep 0.3
+      open_url "$LIVE"
+      systemctl --user start demigod-cdp.service 2>/dev/null || ~/agent-dev.sh up 2>/dev/null || true
+      command -v dg-notify >/dev/null && dg-notify "Workspace Webflow" "Super+2 · Designer + Custom Code + live"
+      ;;
+    agents|3)
+      echo "→ WS3 Agents — Super+3 · tmux dg"
+      dg-tmux-cockpit status >/dev/null 2>&1 || dg-tmux-cockpit new >/dev/null 2>&1 || true
+      if command -v cosmic-term >/dev/null 2>&1; then
+        cosmic-term -e bash -lc 'dg-tmux-cockpit attach' >/dev/null 2>&1 &
+      elif command -v xdg-terminal-exec >/dev/null 2>&1; then
+        xdg-terminal-exec bash -lc 'dg-tmux-cockpit attach' >/dev/null 2>&1 &
+      else
+        echo "  attach manually: dg-tmux-cockpit"
+      fi
+      command -v dg-notify >/dev/null && dg-notify "Workspace Agents" "Super+3 · tmux session dg"
+      ;;
+    ops|4)
+      echo "→ WS4 Ops — Super+4"
+      systemctl --user start demigod-dash.service 2>/dev/null || bin/dg-dash 2>/dev/null || true
+      open_url "$DASH"
+      (cd "$ROOT" && bin/dg-linux-config status 2>/dev/null | head -25) || true
+      command -v dg-notify >/dev/null && dg-notify "Workspace Ops" "Super+4 · dash :9878"
+      ;;
+    *)
+      echo "unknown role: $role" >&2
+      return 2
+      ;;
+  esac
+  printf '%s\n' "{\"at\":\"$(date -Iseconds)\",\"role\":\"$role\"}" >"$BUSY/workspace-last.json"
+}
+
+layout() {
+  cheat
+  echo
+  echo "Opening role bundles (switch Super+1..4 as windows appear)..."
+  open_role gtm
+  sleep 0.5
+  open_role webflow
+  sleep 0.5
+  open_role agents
+  sleep 0.5
+  open_role ops
+  overview show || true
+}
+
+cmd="${1:-cheat}"
+case "$cmd" in
+  cheat|help|-h|--help)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-workspace: unknown argument $2 — try: dg-workspace cheat" >&2
+      exit 2
+    fi
+    cheat
+    ;;
+  overview)
+    case "${2:-show}" in show|hide) ;; *)
+      echo "dg-workspace: unknown overview mode ${2} — try: show|hide" >&2
+      exit 2
+      ;;
+    esac
+    if [[ -n "${3:-}" ]]; then
+      echo "dg-workspace: unknown argument $3 — try: dg-workspace overview [show|hide]" >&2
+      exit 2
+    fi
+    overview "${2:-show}"
+    ;;
+  open)
+    if [[ -z "${2:-}" || -n "${3:-}" ]]; then
+      echo "usage: dg-workspace open <role>" >&2
+      exit 2
+    fi
+    open_role "$2"
+    ;;
+  gtm|webflow|wf|agents|ops)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-workspace: unknown argument $2 — try: dg-workspace $cmd" >&2
+      exit 2
+    fi
+    open_role "$cmd"
+    ;;
+  layout|all)
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-workspace: unknown argument $2 — try: dg-workspace layout" >&2
+      exit 2
+    fi
+    layout
+    ;;
+  *)
+    echo "usage: dg-workspace cheat|overview|layout|gtm|webflow|agents|ops" >&2
+    exit 2
+    ;;
+esac
