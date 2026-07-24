@@ -10858,6 +10858,35 @@ for (const t of [
       }),
     'fillmore indoor talk: Main library beats Mission SFPL',
   );
+  // residual: chinatown + treasure island + western addition (central-library reason)
+  for (const [need, tag] of [
+    ['chinatown indoor free salon talk', 'chinatown'],
+    ['treasure island indoor free talk', 'treasure-island'],
+    ['western addition indoor free salon', 'western-addition'],
+  ]) {
+    const main = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_main_library'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    const mission = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_mission_library'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    ok(main.score > mission.score, tag + ' indoor: Main library beats Mission SFPL');
+    ok(main.reasons?.includes('central-library'), tag + ' indoor: central-library on Main');
+  }
+  // residual: bare westwood / westwood park areaNeed → Civic Main area hit (not area-miss)
+  for (const need of ['westwood indoor free salon', 'westwood park indoor free salon']) {
+    const main = scoreFreeVenue(FREE_SF_VENUES.find((v) => v.id === 'v_main_library'), {
+      need,
+      seats: 12,
+      explain: true,
+    });
+    ok(main.reasons?.includes('area'), need + ': Main library area hit');
+    ok(!main.reasons?.includes('area-miss'), need + ': Main not area-miss');
+  }
 }
 
 const watchParty = matchFreeVenues({ need: 'watch party free', seats: 20, limit: 2 });

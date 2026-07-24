@@ -483,21 +483,24 @@ export function buildPriorityBoard(data = {}) {
         cycle.verification === 'release-blocked' ||
         cycle.failureKind === 'release-blocked' ||
         cycle.releaseReady === false;
-      const title =
-        toolsReady && releaseBlocked
+      // Honest title: prepare-only release lag ≠ "not attested" (contracts/os often green).
+      const title = releaseBlocked
+        ? toolsReady
           ? 'Cycle tools OK · release-blocked'
-          : cycle.degraded
-            ? `Cycle ${cycle.domain || '?'} degraded`
-            : `Cycle ${cycle.domain || '?'} not attested`;
+          : `Cycle ${cycle.domain || '?'} · release-blocked (prepare-only)`
+        : cycle.degraded
+          ? `Cycle ${cycle.domain || '?'} degraded`
+          : cycle.attested === false
+            ? `Cycle ${cycle.domain || '?'} not attested`
+            : `Cycle ${cycle.domain || '?'} blocked`;
       push({
-        // When tools OS is green and only release structure is blocked, demote so
-        // demand drafts and warm due-today stay above CM6/readback noise.
-        pri: toolsReady && releaseBlocked && te.green === true ? 3 : 2,
+        // Release structure lag under green truth is prepare-only — demote vs demand/warm.
+        pri: releaseBlocked && te.green === true ? 3 : 2,
         id: 'cycle-unhealthy',
         kind: 'watch',
         title,
         detail:
-          (toolsReady && releaseBlocked
+          (releaseBlocked
             ? cycle.releaseBlocker || cycle.verification || 'release structure unverified'
             : cycle.verification || cycle.releaseBlocker || cycle.detail) ||
           'see cycle-work-latest.json',
