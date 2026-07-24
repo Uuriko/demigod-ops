@@ -180,14 +180,7 @@ function assert(cond, msg) {
 }
 
 {
-  const oldPath = process.env.PATH;
-  process.env.PATH = '';
-  assert(fcScrape('https://example.com') === null, 'enrich scrape transport failure is distinct from an empty page');
-  process.env.PATH = oldPath;
-}
-
-{
-  // Fail-closed: this harness takes no flags (unknown must not vacuous-green).
+  // Fail-closed before any assert: unknown flags must not vacuous-green.
   const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
   if (argvFlags.length) {
     console.error(
@@ -195,6 +188,13 @@ function assert(cond, msg) {
     );
     process.exit(2);
   }
+}
+
+{
+  const oldPath = process.env.PATH;
+  process.env.PATH = '';
+  assert(fcScrape('https://example.com') === null, 'enrich scrape transport failure is distinct from an empty page');
+  process.env.PATH = oldPath;
 }
 
 console.log('demigod-funnel-selftest\n');

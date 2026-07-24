@@ -489,9 +489,22 @@ const isMain =
   path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (isMain) {
-  const cmd = process.argv[2] || 'status';
-  const sleepArg = process.argv.find((a) => a.startsWith('--sleep-sec='));
-  const maxArg = process.argv.find((a) => a.startsWith('--max-cycles='));
+  const argv = process.argv.slice(2);
+  const cmd = argv[0] || 'status';
+  const allowedFlag = (a) => a.startsWith('--sleep-sec=') || a.startsWith('--max-cycles=');
+  const unknown = argv.find((a) => a.startsWith('-') && !allowedFlag(a));
+  if (unknown) {
+    console.error(
+      `funnel-loop: unknown argument ${unknown} — try: demigod-funnel-loop.mjs run|status|stop|once-draft [--sleep-sec=30] [--max-cycles=0]`,
+    );
+    process.exit(2);
+  }
+  if (cmd.startsWith('-')) {
+    console.error('usage: run|status|stop|once-draft [--sleep-sec=30] [--max-cycles=0]');
+    process.exit(2);
+  }
+  const sleepArg = argv.find((a) => a.startsWith('--sleep-sec='));
+  const maxArg = argv.find((a) => a.startsWith('--max-cycles='));
   const opts = {
     sleepSec: sleepArg ? Number(sleepArg.split('=')[1]) : undefined,
     maxCycles: maxArg ? Number(maxArg.split('=')[1]) : undefined,

@@ -7,6 +7,16 @@
  * Tamper latest-truth on disk → refuseIfStale green MUST be false → restore.
  * Never leaves permanent poison in latest-truth.
  */
+// Fail-closed: unknown flags must not vacuous-green (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-poison-green-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -1333,6 +1333,9 @@ async function main() {
       checkedConflicts: flag(rest, '--i-checked-conflicts'),
     });
   } else if (cmd === 'sync') {
+    const badSync = rest.find((a) => a.startsWith('-'));
+    if (badSync) throw new Error(`usage: referrals sync  (unknown: ${badSync})`);
+    if (rest.length) throw new Error('usage: referrals sync');
     result = await syncReferralInbox();
   } else if (cmd === 'hire') {
     result = confirmHire(rest[0], {
@@ -1377,6 +1380,9 @@ async function main() {
       reviewed: flag(rest, '--i-reviewed'),
     });
   } else if (cmd === 'status') {
+    const badStatus = rest.find((a) => a.startsWith('-'));
+    if (badStatus) throw new Error(`usage: referrals status  (unknown: ${badStatus})`);
+    if (rest.length) throw new Error('usage: referrals status');
     result = referralStatus({ write: true });
   } else {
     throw new Error('usage: referrals create|mint-talent|pack|approve|qualify|sync|status|hire|retain|settle|reverse|revoke|void');

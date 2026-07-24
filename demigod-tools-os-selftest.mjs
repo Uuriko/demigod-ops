@@ -8,6 +8,16 @@
  * Runs child selftests (unify, next-identity, poison-green, ship facts, lock who).
  * Exit 0 only if tools OS contracts hold (assertSame path, no false green).
  */
+// Fail-closed: unknown flags must not vacuous-green a multi-minute suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-tools-os-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';

@@ -3,6 +3,16 @@
  * demigod-ship-selftest — freeze-safe ship CLI contract
  * Run: node demigod-ship-selftest.mjs
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-ship-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
