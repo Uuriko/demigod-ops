@@ -41,7 +41,7 @@ Website-first: **no auto-DM / Twitter blast**. Pilots come from inbound site (WI
 ## Warm inbound (not a pilot yet)
 | Who | Channel | Status | Next | Date |
 |-----|---------|--------|------|------|
-| Douglas Green (Alpha High / 1517) | email + Calendly | **call window passed** · **needs human outcome note** | prep pack ready · prep email already sent · log call outcome when known; warm ≠ pilot until brief | 2026-07-16 |
+| Douglas Green (Alpha High / 1517) | email + Calendly | Jul 14 meeting missed · reschedule welcomed · no later reply observed | reschedule reply drafted locally, not sent; warm ≠ pilot until brief | 2026-07-23 |
 | Webflow forms Acme/Alex | form | **test noise only** | ignore | 2026-06-30..07-04 |
 | hello@trydemigod.com | inbox | 0 threads (14d) | forms land on personal Gmail | 2026-07-09 |
 

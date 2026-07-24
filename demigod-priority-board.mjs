@@ -165,19 +165,27 @@ export function buildPriorityBoard(data = {}) {
   }
 
   // Sticky preferred loca name can 503 while a random public tunnel is still healthy.
+  // CF quick tunnels never match sticky loca name — expected, not a heal thrash.
   // Info only — do not thrash heal while public is up.
   if (
     eventsOnline.stale !== true &&
     eventsOnline.public === true &&
     eventsOnline.preferredTunnelMatch === false
   ) {
+    const note = String(eventsOnline.preferredTunnelNote || '').trim();
+    const cfExpected =
+      /\.trycloudflare\.com/i.test(String(eventsOnline.tunnelUrl || '')) ||
+      /Cloudflare quick tunnels/i.test(note);
     push({
-      pri: 3,
+      pri: cfExpected ? 4 : 3,
       id: 'events-preferred-tunnel',
       kind: 'info',
-      title: 'Events preferred tunnel sticky name unavailable',
+      title: cfExpected
+        ? 'Events on CF quick tunnel (sticky loca name N/A)'
+        : 'Events preferred tunnel sticky name unavailable',
       detail: [
         eventsOnline.tunnelUrl ? `serving ${eventsOnline.tunnelUrl}` : 'public on non-preferred tunnel',
+        note || null,
         'do not thrash heal while public is up',
       ]
         .filter(Boolean)
@@ -579,6 +587,7 @@ function main() {
         typeof eventsStatus.preferredTunnelMatch === 'boolean'
           ? eventsStatus.preferredTunnelMatch
           : null,
+      preferredTunnelNote: eventsStatus.preferredTunnelNote || null,
       tunnelUrl: eventsStatus.tunnelUrl || null,
     } : { stale: true },
     lock: {

@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import {
   scanLiveHtml,
   evaluatePageScan,
@@ -13,6 +14,9 @@ import {
   createCtaFixHarness,
   markerPresent,
   HEAD_MARKERS,
+  findingStreamKey,
+  loadFindingStreamKeys,
+  appendNovelFindings,
 } from './demigod-live-lib.mjs';
 
 const ROOT = '/home/potter';
@@ -198,5 +202,25 @@ describe('source files', () => {
     assert.ok(core.includes('WIZ_THANKS') || core.includes('WIZ_FAIL'));
     assert.ok(/dg-foot-v\d+-core/.test(core));
     assert.ok(!/48h|48 hours/i.test((core.match(/var COPY=\{[\s\S]*?\};/) || [''])[0]));
+  });
+
+  it('appendNovelFindings skips already-logged task+finding pairs', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-findings-'));
+    const file = path.join(dir, 'dg-findings.jsonl');
+    const a = { at: 't1', task: 'mobile-a11y-sweep', finding: 'tap target <44px on home: a.nav' };
+    const b = { at: 't2', task: 'mobile-a11y-sweep', finding: 'tap target <44px on home: a.nav' };
+    const c = { at: 't3', task: 'mobile-a11y-sweep', finding: 'input missing label on events: #x' };
+    const first = appendNovelFindings(file, [a, c]);
+    assert.equal(first.written, 2);
+    assert.equal(first.skipped, 0);
+    const second = appendNovelFindings(file, [b, c]);
+    assert.equal(second.written, 0);
+    assert.equal(second.skipped, 2);
+    assert.equal(findingStreamKey(a), findingStreamKey(b));
+    const keys = loadFindingStreamKeys(file, { task: 'mobile-a11y-sweep' });
+    assert.equal(keys.size, 2);
+    const lines = fs.readFileSync(file, 'utf8').trim().split('\n');
+    assert.equal(lines.length, 2);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });

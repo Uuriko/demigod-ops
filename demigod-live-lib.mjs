@@ -6,6 +6,9 @@
  *
  * Used by: verify-source, playtests, smoke. Never invents board/pilot truth.
  */
+import fs from 'fs';
+import path from 'path';
+
 export const LIVE_ORIGIN = 'https://www.trydemigod.com';
 
 /** MCP Bridge scripts that rewrite CTAs — must never appear on live HTML. */
@@ -371,6 +374,52 @@ export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues 
 
 export function reportPass(findings) {
   return findings.filter((f) => f.severity === 'high').length === 0;
+}
+
+/** Stable key for audit jsonl rows (task + finding text; ignore at/evidence). */
+export function findingStreamKey(row) {
+  return `${row?.task || ''}\0${row?.finding || ''}`;
+}
+
+/** Load known keys from a dg-findings-style jsonl (optional task filter). */
+export function loadFindingStreamKeys(filePath, { task = null } = {}) {
+  const keys = new Set();
+  try {
+    const text = fs.readFileSync(filePath, 'utf8');
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const o = JSON.parse(line);
+        if (task && o.task !== task) continue;
+        keys.add(findingStreamKey(o));
+      } catch {
+        /* skip corrupt line */
+      }
+    }
+  } catch {
+    /* missing file */
+  }
+  return keys;
+}
+
+/**
+ * Append only novel findings to jsonl. Stops re-appending known a11y/defect noise.
+ * @returns {{ written: number, skipped: number, novel: object[] }}
+ */
+export function appendNovelFindings(filePath, findings, { known = null } = {}) {
+  const keys = known || loadFindingStreamKeys(filePath);
+  const novel = [];
+  for (const f of findings || []) {
+    const k = findingStreamKey(f);
+    if (keys.has(k)) continue;
+    keys.add(k);
+    novel.push(f);
+  }
+  if (novel.length) {
+    fs.mkdirSync(path.dirname(filePath) || '.', { recursive: true });
+    fs.appendFileSync(filePath, `${novel.map((f) => JSON.stringify(f)).join('\n')}\n`);
+  }
+  return { written: novel.length, skipped: (findings?.length || 0) - novel.length, novel };
 }
 
 export function htmlToVisibleText(html) {

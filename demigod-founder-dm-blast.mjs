@@ -18,7 +18,7 @@ Demigod matches SF startups with human-curated talent — 10% on hire only, no m
 
 If you are hiring, submit a brief at https://www.trydemigod.com/?wiz=startup. A human reviews every role.
 
-hello@trydemigod.com`;
+potter@trydemigod.com`;
 
 function parseArgs(argv) {
   const out = {

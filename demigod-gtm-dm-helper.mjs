@@ -22,9 +22,9 @@ Building in ${stage} — we're running human-reviewed matching for pre-vetted SF
 
 For a ${role.title} role (${skills}, ${comp}), we ask founders for the #1 outcome this hire must deliver in the first 90 days (high-signal for precise matches). We can surface 1-2 curated intros when there's mutual interest.
 
-10% on hire only. Or email hello@trydemigod.com (SMS pending) to onboard. Free for candidates. 90-day replacement once payments are live and a hire is placed.
+10% on hire only. Or email potter@trydemigod.com (SMS pending) to onboard. Free for candidates. 90-day replacement once payments are live and a hire is placed.
 
-If this is useful, reply with a quick brief (or just say hi): hello@trydemigod.com
+If this is useful, reply with a quick brief (or just say hi): potter@trydemigod.com
 
 Best,
 Demigod (human matches only)`;
@@ -48,19 +48,19 @@ function main() {
 
 main();
 console.log('\n=== SMS Volume Driver (GTM) ===');
-console.log('Email hello@trydemigod.com (SMS pending) to start a conversation and get matched to SF startups. Low friction, humans review every lead.');
+console.log('Email potter@trydemigod.com (SMS pending) to start a conversation and get matched to SF startups. Low friction, humans review every lead.');
 
 console.log('\n--- Ready SMS-recruit copy for founders (paste into your DMs/posts) ---');
 console.log(`Subject: SF startup roles — text to get matched (no spam)
 
-Hey — if you're in the Bay and looking for the right next role, email hello@trydemigod.com (SMS pending) with your skills (e.g. "PM product GTM SF" or "eng React seed").
+Hey — if you're in the Bay and looking for the right next role, email potter@trydemigod.com (SMS pending) with your skills (e.g. "PM product GTM SF" or "eng React seed").
 
 We only forward real fits to a handful of SF startups. Free for candidates. Humans review everything.
 
 (Sharing because I just used it for my open role brief.)`);
 
 console.log('\n--- Short version for replies / network shares ---');
-console.log('Candidates: email hello@trydemigod.com (SMS pending) with your stack + "SF". Low-friction, human-reviewed intros to real Bay Area startup briefs. No blasting.');
+console.log('Candidates: email potter@trydemigod.com (SMS pending) with your stack + "SF". Low-friction, human-reviewed intros to real Bay Area startup briefs. No blasting.');
 
 console.log('\n--- Founder-to-candidate SMS specific for current board roles ---');
 const board2 = loadBoard();
@@ -68,8 +68,8 @@ const roles2 = (board2.roles || []).filter(r => !r.pilot || r.status === 'Active
 roles2.forEach(r => {
   const sk = r.skills || 'your key skills';
   const st = r.stageType || 'early-stage SF';
-  console.log(`For ${r.title} (${st}): "Email hello@trydemigod.com (SMS pending) with skills like ${sk} to get matched to this and similar SF briefs. Humans only forward strong fits."`);
-  console.log(`  Alt: "Email hello@trydemigod.com (SMS pending) — ${r.title} at ${st} (${sk}). Low volume, real intros only."`);
+  console.log(`For ${r.title} (${st}): "Email potter@trydemigod.com (SMS pending) with skills like ${sk} to get matched to this and similar SF briefs. Humans only forward strong fits."`);
+  console.log(`  Alt: "Email potter@trydemigod.com (SMS pending) — ${r.title} at ${st} (${sk}). Low volume, real intros only."`);
 });
 
 console.log('\nTip: Use these in founder DMs, LinkedIn comments, or warm intros to drive inbound SMS volume. More quality SMS leads = stronger pool for mutual-interest matches.');
@@ -83,7 +83,7 @@ roles2.forEach(r => {
   const sk = (r.skills || 'key skills').split(',')[0] || 'your stack';
   const body = `Subject: SF startup roles — text to get matched (no spam)
 
-Hey — if you're in the Bay and looking for the right next role, email hello@trydemigod.com (SMS pending) with your skills (e.g. "${sk} SF" or "${r.title} ${r.stageType}").
+Hey — if you're in the Bay and looking for the right next role, email potter@trydemigod.com (SMS pending) with your skills (e.g. "${sk} SF" or "${r.title} ${r.stageType}").
 
 We only forward real fits to a handful of SF startups like this ${r.title} brief (${r.stageType}, ${r.skills}). Free for candidates. Humans review everything.
 
@@ -104,9 +104,9 @@ Building in ${r.stageType} — we're running human-reviewed matching for pre-vet
 
 For a ${r.title} role (${r.skills}, ${r.comp || 'comp on intro'}), we can surface 1-2 curated intros when there's mutual interest.
 
-10% on hire. Or email hello@trydemigod.com (SMS pending) to onboard. Free for candidates. 90-day replacement once payments are live and a hire is placed.
+10% on hire. Or email potter@trydemigod.com (SMS pending) to onboard. Free for candidates. 90-day replacement once payments are live and a hire is placed.
 
-If this is useful, reply with a quick brief or just say hi: hello@trydemigod.com
+If this is useful, reply with a quick brief or just say hi: potter@trydemigod.com
 
 Best,
 Demigod (human matches only)`;
@@ -117,7 +117,7 @@ Demigod (human matches only)`;
 try {
   const onboard = `HOW TO START A CONVERSATION (SMS)
 
-Email hello@trydemigod.com (SMS pending)
+Email potter@trydemigod.com (SMS pending)
 
 Examples:
 - "PM product GTM SF" or "Founding Designer Figma seed"
@@ -131,7 +131,7 @@ What happens:
 
 Pre-services: number pending real Twilio. Use form at trydemigod.com too.
 
-See trydemigod.com for current briefs. hello@trydemigod.com follows up.
+See trydemigod.com for current briefs. potter@trydemigod.com follows up.
 `;
   require('fs').writeFileSync(`${outDir}/SMS-ONBOARD-INSTRUCTIONS.txt`, onboard);
   console.log('Wrote SMS-ONBOARD-INSTRUCTIONS.txt');
@@ -139,7 +139,7 @@ See trydemigod.com for current briefs. hello@trydemigod.com follows up.
 
 // Combined SMS volume sweep
 try {
-  const sweep = roles2.map(r => `For ${r.title}: email hello@trydemigod.com (SMS pending) with skills like ${r.skills}`).join('\n');
+  const sweep = roles2.map(r => `For ${r.title}: email potter@trydemigod.com (SMS pending) with skills like ${r.skills}`).join('\n');
   require('fs').writeFileSync(`${outDir}/SMS-VOLUME-SWEEP.txt`, `SMS Volume Sweep (use with founder DMs)\n${sweep}\n\nSee individual sms-recruit-*.txt , founder-dm-sms-*.txt and SMS-ONBOARD-INSTRUCTIONS.txt for full ready DMs and sharing.`);
   console.log('Wrote SMS-VOLUME-SWEEP.txt');
 } catch(e){}

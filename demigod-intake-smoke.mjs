@@ -201,7 +201,7 @@ async function main() {
       : checks.webflowSubmit.skipped
       ? 'Turnstile blocks automated Webflow POST — webhook path verified via CLI smoke.'
       : checks.webflowSubmit.pass
-        ? 'Check hello@trydemigod.com / Webflow form notifications for test submission.'
+        ? 'Check potter@trydemigod.com / Webflow form notifications for test submission.'
         : 'Webflow submit did not show success — investigate before live traffic.',
     note: 'All three wizards POST to submissions webhook when window.__dgWebhookUrl is set (v69+).',
   };

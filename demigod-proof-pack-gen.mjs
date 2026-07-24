@@ -17,6 +17,6 @@ const puppeteer = require("puppeteer-core");
   await browser.disconnect();
 })();
 ' `);
-const pack = { ts, board: {roles: b.roles.length, realR: b.signal.realRoles, realRec: b.signal.realReceipts}, note: 'Pre-services: hello@trydemigod.com follows up. SMS pending.', liveVerified: true };
+const pack = { ts, board: {roles: b.roles.length, realR: b.signal.realRoles, realRec: b.signal.realReceipts}, note: 'Pre-services: potter@trydemigod.com follows up. SMS pending.', liveVerified: true };
 fs.writeFileSync(`${out}.json`, JSON.stringify(pack, null, 2));
 console.log(`Created ${out}.png + .json (honest inputs only)`);

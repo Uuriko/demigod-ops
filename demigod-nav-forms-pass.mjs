@@ -35,7 +35,7 @@ PART 1 — RE-ADD NAVIGATION (critical — page currently has NO nav):
 PART 2 — STARTUP MODAL FORM (#startup-modal):
 1. Select form inside startup modal. Form settings:
    - Form name: startup-hire (NOT email-form)
-   - Send to: hello@trydemigod.com
+   - Send to: potter@trydemigod.com
    - Success: inline message, no redirect
 2. Keep fields only: company-name, contact-email, role-title, stack-needs, salary-range (optional text).
 3. DELETE orphan fields: team-size, urgency, hiring-model, Source, availability.
@@ -43,7 +43,7 @@ PART 2 — STARTUP MODAL FORM (#startup-modal):
 5. Placeholders: role "e.g. Founding PM, Head of Growth"; skills "e.g. B2B SaaS, GTM, design systems"
 
 PART 3 — CANDIDATE MODAL FORM (#jobseeker-modal):
-1. Form settings: name engineer-join (NOT email-form), send to hello@trydemigod.com
+1. Form settings: name engineer-join (NOT email-form), send to potter@trydemigod.com
 2. Labels: "Skills & experience *", "Background & highlights *"
 3. Placeholders: skills "e.g. Product strategy, Figma, growth marketing"; experience "e.g. Product lead at Series B startup"
 4. Keep: full-name, seeker-email, linkedin-url (required), github-url (separate field), portfolio-url (optional), is-engineer checkbox (GitHub required only when checked), skills-stack (textarea), experience (textarea), sf-bay checkbox

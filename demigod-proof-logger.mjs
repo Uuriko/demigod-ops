@@ -51,7 +51,7 @@ function tweetTemplate(entry) {
     entry.detail ? entry.detail : 'Human-matched intro, no marketplace spam.',
     '',
     'Human-matched SF startup talent → trydemigod.com',
-    '10% on hire only · hello@trydemigod.com',
+    '10% on hire only · potter@trydemigod.com',
   ];
   return lines.join('\n');
 }
