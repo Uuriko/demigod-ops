@@ -1386,6 +1386,8 @@ async function main() {
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) main().catch((error) => {
-  console.error(JSON.stringify({ ok: false, error: String(error.message || error) }));
-  process.exitCode = 1;
+  const msg = String(error.message || error);
+  console.error(JSON.stringify({ ok: false, error: msg }));
+  // usage / bad invocation → 2; product failures stay 1
+  process.exitCode = /^usage:/.test(msg) ? 2 : 1;
 });

@@ -817,6 +817,19 @@ for (const b of [
     'pilot-inbound rejects unknown flags with exit 2',
     /pilot: unknown argument/.test(pilotInboundSource),
   );
+  const dgCliSource = fs.readFileSync(path.join(ROOT, 'bin/dg'), 'utf8');
+  assert(
+    'dg events-test rejects unknown modes with exit 2 (no node --test vacuous-green)',
+    /events-test: unknown argument/.test(dgCliSource) &&
+      /bin\/dg events-test \[fast\]/.test(dgCliSource) &&
+      /mode="\$\{1:-\}"/.test(dgCliSource) &&
+      !/node --test --test-concurrency=1 "\$\{events_tests\[@\]\}" "\$@"/.test(dgCliSource),
+  );
+  const referralsCliSource = fs.readFileSync(path.join(ROOT, 'demigod-referrals.mjs'), 'utf8');
+  assert(
+    'referrals usage errors exit 2 (not product fail 1)',
+    /process\.exitCode = \/\^usage:\/\.test\(msg\) \? 2 : 1/.test(referralsCliSource),
+  );
 
   assert(
     'control-plane match detail prefers realCount over sample-inflated total',
