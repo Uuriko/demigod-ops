@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Clean automation browser profile cache for speed (keeps logins)
-set -euo pipefail
-PROFILE="${HOME}/.grok/chrome-automation"
-echo "Cleaning cache in $PROFILE (logins preserved)..."
-find "$PROFILE" -type d -name 'Cache' -exec rm -rf {} + 2>/dev/null || true
-find "$PROFILE" -type d -name 'Code Cache' -exec rm -rf {} + 2>/dev/null || true
-find "$PROFILE" -name '*.log' -delete 2>/dev/null || true
-echo "Cache cleaned. Relaunch for effect."

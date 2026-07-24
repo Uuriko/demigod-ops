@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-cd /home/potter && exec node demigod-submit-fixture.mjs "$@"
