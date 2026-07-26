@@ -94,18 +94,25 @@ export function summarize(ledger, today) {
   };
 }
 
-export function report(ledger, { days = 30, fn = '', usOnly = true, today } = {}) {
-  const rows = Object.values(ledger.roles || {})
+// basis 'observed' = our first-seen age (accrues over daily polls; the conservative headline metric).
+// basis 'posted'   = the board's own posting date, ATTRIBUTED, Greenhouse first_published only —
+//   usable day 1. Roles older than evergreenDays (likely perennial talent-pool posts, not stuck
+//   vacancies) are excluded from the aging list and counted separately, honestly.
+export function report(ledger, { days = 30, fn = '', usOnly = true, today, basis = 'observed', evergreenDays = 365 } = {}) {
+  const ageOf = (r) => (basis === 'posted' ? postedDaysAgo(r, today) : observedOpenDays(r, today));
+  let rows = Object.values(ledger.roles || {})
     .filter((r) => !r.closedAt)
     .filter((r) => (usOnly ? r.usPosted : true))
     .filter((r) => (fn ? r.fn === fn : true))
-    .map((r) => ({ ...r, observedOpenDays: observedOpenDays(r, today), postedDaysAgo: postedDaysAgo(r, today) }))
-    .filter((r) => r.observedOpenDays >= days)
-    .sort((a, b) => b.observedOpenDays - a.observedOpenDays);
+    .map((r) => ({ ...r, observedOpenDays: observedOpenDays(r, today), postedDaysAgo: postedDaysAgo(r, today), age: ageOf(r) }))
+    .filter((r) => r.age != null && r.age >= days);
+  let evergreen = 0;
+  if (basis === 'posted') { const keep = rows.filter((r) => r.age <= evergreenDays); evergreen = rows.length - keep.length; rows = keep; }
+  rows.sort((a, b) => b.age - a.age);
   const openAll = Object.values(ledger.roles || {}).filter((r) => !r.closedAt && (usOnly ? r.usPosted : true));
   const ghost = openAll.length ? Math.round((100 * openAll.filter((r) => observedOpenDays(r, today) >= 60).length) / openAll.length) : 0;
   const byFn = {}; for (const r of rows) byFn[r.fn] = (byFn[r.fn] || 0) + 1;
-  return { agingRoles: rows, openUsRoles: openAll.length, ghostRatePct: ghost, byFunction: byFn, days };
+  return { agingRoles: rows, openUsRoles: openAll.length, ghostRatePct: ghost, byFunction: byFn, days, basis, evergreenExcluded: evergreen };
 }
 
 // ---- board fetch (I/O; ok:true ONLY on a valid parsed job array, else ok:false → closes nothing) ----
@@ -218,12 +225,14 @@ if (isMain) {
     console.log(JSON.stringify({ ok: true, today, boards: boards.length, ok_fetches: polled.filter((p) => p.ok).length, failed: polled.filter((p) => !p.ok).length, pruned, ...summary }, null, 2));
   } else if (cmd === 'report') {
     const arg = (f, d) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : d; };
+    const basis = process.argv.includes('--posted') ? 'posted' : 'observed';
     const ledger = readJson(LEDGER) || { schema: SCHEMA, roles: {} };
-    const rep = report(ledger, { days: +arg('--days', 30), fn: arg('--fn', ''), today });
+    const rep = report(ledger, { days: +arg('--days', 30), fn: arg('--fn', ''), today, basis });
     if (process.argv.includes('--json')) { console.log(JSON.stringify(rep, null, 2)); }
     else {
-      console.log(`SF startup aging roles — ${rep.agingRoles.length} open ≥${rep.days}d · ghost-rate(≥60d) ${rep.ghostRatePct}% of ${rep.openUsRoles} US-posted open · by fn ${JSON.stringify(rep.byFunction)}`);
-      for (const r of rep.agingRoles.slice(0, 40)) console.log(`  ${String(r.observedOpenDays).padStart(3)}d obs${r.postedDaysAgo != null ? ` (${r.postedDaysAgo}d posted)` : ''}  ${r.company} — ${r.title}`.slice(0, 110));
+      const label = basis === 'posted' ? 'posted per board (attributed, Greenhouse)' : 'observed-open';
+      console.log(`SF startup roles ${label} ≥${rep.days}d — ${rep.agingRoles.length} roles${rep.evergreenExcluded ? ` (+${rep.evergreenExcluded} evergreen >365d flagged separately)` : ''} · ghost-rate(observed≥60d) ${rep.ghostRatePct}% of ${rep.openUsRoles} US-posted open · by fn ${JSON.stringify(rep.byFunction)}`);
+      for (const r of rep.agingRoles.slice(0, 40)) console.log(`  ${String(r.age).padStart(3)}d ${basis === 'posted' ? 'posted' : 'obs'}  ${r.company} — ${r.title}`.slice(0, 110));
     }
   } else {
     console.log('usage: demigod-role-ledger.mjs poll | report [--days N] [--fn F] [--json] | --selftest');
