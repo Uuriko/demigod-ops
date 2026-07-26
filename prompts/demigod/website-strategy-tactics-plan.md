@@ -4,6 +4,12 @@
 data, building the Hiring Pulse, publishing via the Webflow MCP API (no more browser paste), and
 fixing the first source-level SEO bugs. This plan assumes full programmatic control of the site.*
 
+> **CORRECTION (2026-07-26):** the *strategic bets* in this doc — especially framing "open data" as a
+> pillar/wedge — were Claude's proposed framing, NOT positioning the user committed to. The user made no
+> "open-data promise." Treat the strategy sections here as one agent's proposal, superseded by the deeper
+> research in `DEMIGOD-STRATEGY-OPTIONS-0726.md` (options to weigh, not commitments). Honesty is a value
+> the user has stated; using only redistributable data is a legal/sourcing constraint, not a brand.
+
 A note on the two words, because they are **distinctly different and the user asked that they stay that way:**
 
 - **Strategy** = *where we play and how we win.* Choices and bets. A POV. It is falsifiable and it
@@ -17,8 +23,7 @@ A note on the two words, because they are **distinctly different and the user as
 # Part I — STRATEGY (the why and the what)
 
 ## 1. The one-sentence strategy
-**Become the one hiring-adjacent product in SF that provably never lies — built on open data anyone
-can check — and convert that hard-won trust into honest human-reviewed matches.**
+**Become the one hiring-adjacent product in SF that provably never lies, and converts that trust into honest human-reviewed matches.**
 "Come for the honest hiring data, stay for the honest matching."
 
 ## 2. The binding constraint (name it, or every plan is fiction)
@@ -96,7 +101,7 @@ Tactics (all via Webflow MCP, on a **branch** for safety — the site is `canBra
    banned phrase reappears in served HTML. Wire into `verify-all`. (A scrub that no gate guards, and
    now a *cleanliness* no gate guards, locks nothing.)
 
-## Workstream B — Crawlability & findability → serves Pillar: Open data / demand front door
+## Workstream B — Crawlability & findability → serves: crawlability / demand front door
 **Why:** the directory and Pulse are client-rendered JS — search engines and social scrapers see
 nothing. A magnet nobody can find generates no demand.
 1. Ship a **crawlable `/startups`** with real company/job content in *served* HTML. Decide the host:
