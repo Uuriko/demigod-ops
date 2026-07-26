@@ -102,18 +102,22 @@ export function parseCompRange(value = '') {
   if (!text || /\b(?:negotiable|market|tbd|unknown)\b/.test(text) || /(?:\/\s*mo\b|\bper\s+month\b|\bmonthly\b)/.test(text)) return null;
   const unit = /(?:\/\s*(?:hr|hour)\b|\bper\s+hour\b|\bhourly\b)/.test(text) ? 'hourly' : 'annual';
   const clean = text.replace(/\d+(?:\.\d+)?\s*%/g, '').replace(/\+?\s*equity.*$/, '');
-  let found = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(k)?\b/g)].slice(0, 2);
+  let found = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(k|mm|million|m)?\b/g)].slice(0, 2);
   if (!found.length) return null;
   if (found.length > 1) {
     const between = clean.slice(found[0].index + found[0][0].length, found[1].index);
     if (!/(?:-|\bto\b)/.test(between)) found = found.slice(0, 1);
   }
-  const hasK = found.some((m) => m[2]);
+  const factorOf = (s) => (s === 'k' ? 1000 : s === 'm' || s === 'mm' || s === 'million' ? 1e6 : 1);
+  // a k/m suffix on ANY token in a range applies to bare siblings too ("120-160k" -> both ×1000).
+  const rangeSuffix = found.map((m) => m[2] || '').find(Boolean) || '';
+  const hasSuffix = !!rangeSuffix;
   const values = found.map((m) => {
     const number = Number(m[1]);
-    return number * (unit === 'annual' && (m[2] || (hasK && number < 1000)) ? 1000 : 1);
+    const factor = m[2] ? factorOf(m[2]) : unit === 'annual' && hasSuffix ? factorOf(rangeSuffix) : 1;
+    return number * factor;
   });
-  if (values.some((n) => !Number.isFinite(n) || n < 0) || (unit === 'annual' && !hasK && Math.max(...values) < 10000)) return null;
+  if (values.some((n) => !Number.isFinite(n) || n < 0) || (unit === 'annual' && !hasSuffix && Math.max(...values) < 10000)) return null;
   let min = Math.min(...values), max = Math.max(...values);
   if (/\b(?:up to|maximum|max)\b/.test(clean)) min = 0;
   if (/\b(?:from|minimum|min)\b/.test(clean) || /\d+(?:\.\d+)?\s*k?\s*\+\s*$/.test(clean)) max = Infinity;
