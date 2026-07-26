@@ -70,6 +70,7 @@ if (ship || wizard) {
     // (Only the --selftest is wired; the live audit is RED pending Designer-gated source fix, see WEBFLOW-HONESTY-FIX-READY.md)
     ['demigod-live-honesty-audit.mjs', ['--selftest']],
     // Role first-seen ledger — failed-fetch-never-closes + firstSeen-monotonic + observed≠posted honesty
+    ['demigod-ats-providers.mjs', ['--selftest']],
     ['demigod-role-ledger.mjs', ['--selftest']],
     // WIZ funnel report — summary math + empty-store no-crash
     ['demigod-funnel-report.mjs', ['--selftest']],

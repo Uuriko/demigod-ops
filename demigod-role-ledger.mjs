@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizeRole, isUsPostedLocation } from './demigod-startup-jobs-enrich.mjs';
 import { readJson, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { NEW_PROVIDERS } from './demigod-ats-providers.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
@@ -123,7 +124,10 @@ async function fetchJson(url) {
     return await r.json();
   } catch { return null; }
 }
+// SmartRecruiters/Workable/Recruitee/Personio come from the shared module; the original 3 are inline.
+const SUBDOMAIN_ATS = new Set(['Recruitee', 'Personio']); // slug lives in the hostname, not the path
 const POLLERS = {
+  ...NEW_PROVIDERS,
   Greenhouse: async (slug) => {
     const d = await fetchJson(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=false`);
     if (!d || !Array.isArray(d.jobs)) return { ok: false, roles: [] };
@@ -146,7 +150,10 @@ export function boardsFromMap(map) {
   for (const c of map?.companies || []) {
     if (!c.atsSource || !c.jobsUrl || !POLLERS[c.atsSource]) continue;
     let slug = '';
-    try { slug = new URL(c.jobsUrl).pathname.split('/').filter(Boolean).pop() || ''; } catch { continue; }
+    try {
+      const u = new URL(c.jobsUrl);
+      slug = SUBDOMAIN_ATS.has(c.atsSource) ? (u.hostname.split('.')[0] || '') : (u.pathname.split('/').filter(Boolean).pop() || '');
+    } catch { continue; }
     if (slug) out.push({ provider: c.atsSource, slug, company: c.name || '' });
   }
   return out;
