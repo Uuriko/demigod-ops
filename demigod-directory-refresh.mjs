@@ -20,6 +20,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const steps = [
   ['demigod-hn-hiring.mjs', ['--months', '3']],
   ['demigod-startup-map-data.mjs', ['--with-jobs']],
+  ['demigod-role-ledger.mjs', ['poll']], // accrue per-role open-lifetime (observed age; native posting dates)
   ['demigod-hiring-pulse.mjs', []],
   ['demigod-directory-static.mjs', []],
 ];

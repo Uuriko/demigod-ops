@@ -71,6 +71,8 @@ if (ship || wizard) {
     ['demigod-live-honesty-audit.mjs', ['--selftest']],
     // Role first-seen ledger — failed-fetch-never-closes + firstSeen-monotonic + observed≠posted honesty
     ['demigod-role-ledger.mjs', ['--selftest']],
+    // WIZ funnel report — summary math + empty-store no-crash
+    ['demigod-funnel-report.mjs', ['--selftest']],
     // Live smoke readiness polls through transient CDP evaluate timeouts
     ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
