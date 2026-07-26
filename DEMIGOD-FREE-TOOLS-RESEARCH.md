@@ -1,7 +1,7 @@
 # Free tools/APIs for Demigod — research (2026-07-26)
 
 Free-tier only, ranked by concrete plug-in value to the directory / ledger / Pulse / funnel beacon.
-Licenses + PII flagged (the directory uses only openly-licensed, attributed data + no PII — a legal/sourcing constraint, not a positioning claim). All ATS feeds below are public
+Licenses + PII flagged (each source below is flagged for its own license terms + whether it involves PII, so it is clear what is freely usable vs restricted). All ATS feeds below are public
 *employer* job data — no candidate PII.
 
 ## 1. More ATS providers → widen directory + role-ledger (no auth, no keys, no PII)
@@ -32,7 +32,7 @@ enrich — same "poll public board, diff first-seen roles" mechanic, ~doubles AT
   no activity (the daily commit keeps it alive); 5-min min, UTC.
 - **Cloudflare Cron Triggers** if the beacon already lives on a Worker (one platform).
 
-## 4. Free SF company / hiring-signal data (honest enrichment) — license is the constraint
+## 4. Free SF company / hiring-signal data (each source flagged for its own license terms + PII)
 | Source | License | Fit |
 |--------|---------|-----|
 | **SEC EDGAR** | US public domain (cleanest) | **BEST.** Funding/S-1, real HQ, WARN cross-ref. 10 req/s, UA w/ email. |

@@ -8,7 +8,7 @@ fixing the first source-level SEO bugs. This plan assumes full programmatic cont
 > pillar/wedge — were Claude's proposed framing, NOT positioning the user committed to. The user made no
 > "open-data promise." Treat the strategy sections here as one agent's proposal, superseded by the deeper
 > research in `DEMIGOD-STRATEGY-OPTIONS-0726.md` (options to weigh, not commitments). Honesty is a value
-> the user has stated; using only redistributable data is a legal/sourcing constraint, not a brand.
+> the user has stated. The sources picked when building the directory were a choice, not a rule — paid or restricted sources are the user's call.
 
 A note on the two words, because they are **distinctly different and the user asked that they stay that way:**
 
