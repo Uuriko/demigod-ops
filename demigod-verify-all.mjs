@@ -69,6 +69,8 @@ if (ship || wizard) {
     // Live honesty gate logic — scrub-scripts/comments must NOT false-positive; real content must be caught.
     // (Only the --selftest is wired; the live audit is RED pending Designer-gated source fix, see WEBFLOW-HONESTY-FIX-READY.md)
     ['demigod-live-honesty-audit.mjs', ['--selftest']],
+    // Role first-seen ledger — failed-fetch-never-closes + firstSeen-monotonic + observed≠posted honesty
+    ['demigod-role-ledger.mjs', ['--selftest']],
     // Live smoke readiness polls through transient CDP evaluate timeouts
     ['demigod-agent-smoke.test.mjs'],
     // grok-ask transport poison (Broken-pipe retry + context) — not orphaned manual-only
