@@ -5,9 +5,12 @@
 //
 //   node demigod-funnel-report.mjs [--json] [--selftest]
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { summarizeFormAnalytics } from './demigod-form-analytics.mjs';
 
 const STORE = process.env.DEMIGOD_FORM_ANALYTICS_STORE || '/tmp/dg-busy/form-analytics.json';
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 // WIZ step order per form (matches foot-core dgFormAnalytics stepMap).
 const ORDER = {
   startup: ['start', 'company', 'stage', 'role', 'skills', 'outcome', 'constraints', 'contact', 'review', 'complete'],
@@ -46,9 +49,11 @@ if (process.argv.includes('--selftest')) {
   process.exit(0);
 }
 
-const doc = fs.existsSync(STORE) ? JSON.parse(fs.readFileSync(STORE, 'utf8')) : { cells: [] };
-const forms = summarizeFormAnalytics(doc);
-if (process.argv.includes('--json')) { console.log(JSON.stringify(forms, null, 2)); process.exit(0); }
-const total = Object.values(forms).reduce((s, f) => s + f.starts, 0);
-console.log(`SF Demigod WIZ funnel — ${total} total starts (rolling 30d, anonymized)${total === 0 ? '  [no data yet — endpoint may be unset or no traffic]' : ''}`);
-console.log(renderFunnel(forms));
+if (isMain) {
+  const doc = fs.existsSync(STORE) ? JSON.parse(fs.readFileSync(STORE, 'utf8')) : { cells: [] };
+  const forms = summarizeFormAnalytics(doc);
+  if (process.argv.includes('--json')) { console.log(JSON.stringify(forms, null, 2)); process.exit(0); }
+  const total = Object.values(forms).reduce((s, f) => s + f.starts, 0);
+  console.log(`SF Demigod WIZ funnel — ${total} total starts (rolling 30d, anonymized)${total === 0 ? '  [no data yet — endpoint may be unset or no traffic]' : ''}`);
+  console.log(renderFunnel(forms));
+}

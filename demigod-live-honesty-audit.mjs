@@ -8,8 +8,11 @@
 // (Webflow Designer edits — see WEBFLOW-HONESTY-FIX-READY.md). Wire into verify-all once green.
 //
 //   node demigod-live-honesty-audit.mjs [--url <u>] [--selftest]
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 const URL = (() => { const i = process.argv.indexOf('--url'); return i > 0 ? process.argv[i + 1] : 'https://www.trydemigod.com/'; })();
 const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 // Each: label + a regex tested against crawler-visible content (scripts/styles stripped).
 export const BANNED = [
@@ -48,14 +51,18 @@ if (process.argv.includes('--selftest')) {
   assert(auditHtml('<head><title>Demigod</title></head><script>/* stray <title>Untitled</title> soft-404 */</script>').length === 0, 'script-comment title excluded');
   // but a real stray <title> in the head IS caught
   assert(auditHtml('<head><title>Untitled</title></head>').includes('stray "Untitled" title'), 'real head Untitled caught');
+  // the 4 overclaims not covered above (find-talent / pre-vetted / 3-5 / replacement) each fire
+  assert(auditHtml('<p>find talent, pre-vetted, meet your 3-5 candidates, 90-day replacement guarantee</p>').length === 4, 'catches find-talent + pre-vetted + 3-5 + replacement overclaims');
   // clean honest content passes
   assert(auditHtml('<h2>Tech-matched SF startup talent</h2><a href="mailto:potter@trydemigod.com">potter@</a>').length === 0, 'honest content passes');
   console.log(JSON.stringify({ ok: true, selftest: 'live-honesty-audit' }));
   process.exit(0);
 }
 
-const r = await fetch(URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
-const html = await r.text();
-const found = auditHtml(html);
-console.log(JSON.stringify({ ok: found.length === 0, url: URL, httpStatus: r.status, bannedInServedHtml: found }, null, 2));
-process.exit(found.length ? 1 : 0);
+if (isMain) {
+  const r = await fetch(URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
+  const html = await r.text();
+  const found = auditHtml(html);
+  console.log(JSON.stringify({ ok: found.length === 0, url: URL, httpStatus: r.status, bannedInServedHtml: found }, null, 2));
+  process.exit(found.length ? 1 : 0);
+}

@@ -39,10 +39,15 @@ export const postedDaysAgo = (row, today) => (row.nativePostedAt && row.nativeDa
 export function upsertLedger(prev, polledBoards, today) {
   const next = {};
   for (const [k, v] of Object.entries(prev?.roles || {})) next[k] = { ...v };
+  // Pass 1: upsert all polled roles; accumulate seen keys PER board-prefix, UNIONED across duplicate
+  // board entries in one poll (a slug collision emitting the same prefix twice) — so an empty board
+  // can't close a role that a sibling board with the same prefix populated in the same poll (no flap).
+  const seenByPrefix = new Map(); // prefix → Set(roleKey); only prefixes fetched ok appear here
   for (const board of polledBoards || []) {
     if (!board.ok) continue; // INVARIANT 2: a failed fetch closes nothing, touches nothing.
     const prefix = `${board.provider}|${board.slug}|`;
-    const seen = new Set();
+    let seen = seenByPrefix.get(prefix);
+    if (!seen) seenByPrefix.set(prefix, (seen = new Set()));
     for (const r of board.roles || []) {
       const key = roleKey(board.provider, board.slug, r.jobId);
       seen.add(key);
@@ -66,10 +71,13 @@ export function upsertLedger(prev, polledBoards, today) {
         ex.fn = categorizeRole(ex.title);
       }
     }
-    // Close roles on THIS successfully-fetched board that are open but were absent from the fetch.
-    for (const [key, row] of Object.entries(next)) {
-      if (key.startsWith(prefix) && !row.closedAt && !seen.has(key)) row.closedAt = today;
-    }
+  }
+  // Pass 2: ONE scan (O(roles), not O(boards×roles)) — close an open role iff its board was fetched ok
+  // this poll (its prefix is present) and the role wasn't among the seen keys.
+  for (const [key, row] of Object.entries(next)) {
+    if (row.closedAt) continue;
+    const seen = seenByPrefix.get(key.slice(0, key.lastIndexOf('|') + 1));
+    if (seen && !seen.has(key)) row.closedAt = today;
   }
   return { schema: SCHEMA, updatedAt: today, roles: next };
 }
@@ -194,6 +202,11 @@ if (isMain && process.argv.includes('--selftest')) {
   const reopened = upsertLedger(control, board(true, [R('1')]), '2026-07-25');
   assert(reopened.roles[k].closedAt === null && reopened.roles[k].reopenCount === 1 && reopened.roles[k].firstSeen === T0, 'reopen: closedAt cleared, reopenCount++, firstSeen kept');
 
+  // duplicate board (slug collision) in ONE poll: an empty sibling must NOT close/flap a role another
+  // sibling with the same prefix populated (order-independent — empty listed first here).
+  const dup = upsertLedger(L, [{ provider: 'Greenhouse', slug: 'acme', company: 'Acme', ok: true, roles: [] }, { provider: 'Greenhouse', slug: 'acme', company: 'Acme', ok: true, roles: [R('1')] }], '2026-07-28');
+  assert(dup.roles[k].closedAt === null && dup.roles[k].reopenCount === 0, 'dup board same poll: empty sibling does not close/flap the populated role');
+
   // no PII / allowed shape only
   const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField']);
   assert(Object.keys(L.roles[k]).every((key) => allowed.has(key)), 'row has no fields outside the allowed (no PII)');
@@ -201,6 +214,8 @@ if (isMain && process.argv.includes('--selftest')) {
   // degenerate — empty map → empty; all-failed poll must NOT wipe state (vacuous-green guard)
   assert(Object.keys(upsertLedger(null, [], T0).roles).length === 0, 'empty poll → empty ledger, no crash');
   assert(boardsFromMap({ companies: [] }).length === 0, 'empty map → no boards');
+  assert(boardsFromMap({ companies: [{ name: 'A', atsSource: 'Greenhouse', jobsUrl: 'https://boards.greenhouse.io/acme' }] })[0]?.slug === 'acme', 'boardsFromMap: path-provider slug from pathname');
+  assert(boardsFromMap({ companies: [{ name: 'B', atsSource: 'Recruitee', jobsUrl: 'https://bco.recruitee.com' }] })[0]?.slug === 'bco', 'boardsFromMap: subdomain-provider slug from hostname (not empty path)');
   assert(Object.keys(upsertLedger(L, board(false, []), T1).roles).length === 1, 'all-failed poll preserves existing roles (not wiped)');
 
   // prune
@@ -231,10 +246,11 @@ if (isMain) {
     });
     console.log(JSON.stringify({ ok: true, today, boards: boards.length, ok_fetches: polled.filter((p) => p.ok).length, failed: polled.filter((p) => !p.ok).length, pruned, ...summary }, null, 2));
   } else if (cmd === 'report') {
-    const arg = (f, d) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : d; };
+    const arg = (f, d) => { const i = process.argv.indexOf(f); const v = i > 0 ? process.argv[i + 1] : d; return (typeof v === 'string' && v.startsWith('--')) ? d : v; }; // reject a following flag as a value
     const basis = process.argv.includes('--posted') ? 'posted' : 'observed';
     const ledger = readJson(LEDGER) || { schema: SCHEMA, roles: {} };
-    const rep = report(ledger, { days: +arg('--days', 30), fn: arg('--fn', ''), today, basis });
+    const dv = Number(arg('--days', 30));
+    const rep = report(ledger, { days: Number.isFinite(dv) ? dv : 30, fn: arg('--fn', ''), today, basis });
     if (process.argv.includes('--json')) { console.log(JSON.stringify(rep, null, 2)); }
     else {
       const label = basis === 'posted' ? 'posted per board (attributed, Greenhouse)' : 'observed-open';

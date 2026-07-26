@@ -96,10 +96,12 @@ export function computePulse(map, prior = null, today = '') {
 
   // AI insight, computed: only claim "more than product+design+marketing combined" when it's true.
   const fnN = (name) => byFunction.find((f) => f.fn === name)?.n || 0;
-  const roleTagTotal = byFunction.reduce((s, f) => s + f.n, 0);
+  // Denominator = ALL categorized roles INCLUDING 'other' (byFunction excludes 'other'); using the
+  // excludes-'other' sum overstates the AI share in the public "1 in N open roles" copy.
+  const allRoleTags = Object.values(map?.coverage?.roleMix || {}).reduce((s, n) => s + (Number(n) || 0), 0);
   const aiN = fnN('ai/data');
   const pdmN = fnN('product') + fnN('design') + fnN('marketing');
-  const aiInsight = aiN ? { roles: aiN, share: Math.round((100 * aiN) / (roleTagTotal || 1)), beatsPDM: aiN > pdmN, pdm: pdmN } : null;
+  const aiInsight = aiN ? { roles: aiN, share: Math.round((100 * aiN) / (allRoleTags || 1)), beatsPDM: aiN > pdmN, pdm: pdmN } : null;
 
   return {
     generatedAt: today,
@@ -269,7 +271,7 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   const pc = computePulse(curveMap, null, '2026-07-24');
   assert(pc.finding && pc.finding.type === 'batch-curve', 'finding computed when curve present');
   assert(pc.finding.freshRate === 10 && pc.finding.matureRate === 60 && pc.finding.multiple === 6, `finding numbers: ${JSON.stringify(pc.finding)}`);
-  assert(pc.aiInsight.beatsPDM === true && pc.aiInsight.share === 28, `aiInsight: ${JSON.stringify(pc.aiInsight)}`);
+  assert(pc.aiInsight.beatsPDM === true && pc.aiInsight.share === 27, `aiInsight share vs full denominator incl 'other': ${JSON.stringify(pc.aiInsight)}`);
   // no false finding: a flat curve (mature not ≥1.8× fresh) must NOT assert the claim
   const flatMap = { companies: [...cohort('YC Summer 2026', 20, 8), ...cohort('YC Spring 2026', 20, 8), ...cohort('YC Summer 2025', 20, 9), ...cohort('YC Spring 2025', 20, 9)] };
   assert(computePulse(flatMap, null, '2026-07-24').finding === null, 'flat curve (4 cohorts, <1.8×) → no fabricated finding');

@@ -35,21 +35,22 @@ export function isUsPostedLocation(blob) {
     .trim();
   if (!t) return false;
   if (/\b(united states|u\.?\s*s\.?\s*a\.?|u\.s\.|\bus\b)\b/.test(t)) return true;
-  // Common US metros / states / remote (SF-map companies; remote counted as US-posted).
+  // Foreign markers — checked BEFORE US metros so an explicit foreign signal (esp. an ISO country code
+  // like CA=Canada, MA=Morocco, CO=Colombia, GA=Gabon that collides with a US-state abbrev) wins the tie.
   if (
-    /\b(remote|san francisco|\bsf\b|bay area|oakland|berkeley|palo alto|mountain view|san jose|sunnyvale|redwood city|menlo park|south bay|east bay|peninsula|los angeles|\bla\b|seattle|new york|\bnyc\b|brooklyn|austin|boston|chicago|denver|miami|atlanta|portland|dallas|houston|phoenix|washington\s*d\.?c\.?|california|\bca\b|texas|\btx\b|washington|\bwa\b|massachusetts|\bma\b|colorado|\bco\b|illinois|\bil\b|florida|\bfl\b|oregon|\bor\b|arizona|\baz\b|georgia|\bga\b|new york|\bny\b)\b/.test(
-      t,
-    )
-  ) {
-    return true;
-  }
-  // Foreign-only strong signals without a US marker above.
-  if (
-    /\b(japan|tokyo|osaka|london|united kingdom|\buk\b|england|scotland|india|bangalore|bengaluru|hyderabad|singapore|australia|sydney|melbourne|germany|berlin|munich|france|paris|netherlands|amsterdam|ireland|dublin|canada|toronto|vancouver|montreal|mexico|brazil|china|beijing|shanghai|korea|seoul|israel|tel aviv|uae|dubai|poland|warsaw|spain|madrid|italy|milan|sweden|stockholm|switzerland|zurich)\b/.test(
+    /\b(japan|tokyo|osaka|london|united kingdom|\buk\b|england|scotland|india|bangalore|bengaluru|hyderabad|singapore|australia|sydney|melbourne|germany|berlin|munich|france|paris|netherlands|amsterdam|ireland|dublin|canada|toronto|vancouver|montreal|calgary|ottawa|mexico|brazil|china|beijing|shanghai|korea|seoul|israel|tel aviv|uae|dubai|poland|warsaw|spain|madrid|italy|milan|sweden|stockholm|switzerland|zurich)\b/.test(
       t,
     )
   ) {
     return false;
+  }
+  // Common US metros / states / remote (SF-map companies; remote counted as US-posted).
+  if (
+    /\b(remote|san francisco|\bsf\b|bay area|oakland|berkeley|palo alto|mountain view|san jose|sunnyvale|redwood city|menlo park|south bay|east bay|peninsula|los angeles|\bla\b|seattle|new york|\bnyc\b|brooklyn|austin|boston|chicago|denver|miami|atlanta|portland|dallas|houston|phoenix|washington\s*d\.?c\.?|california|\bca\b|texas|\btx\b|washington|\bwa\b|massachusetts|\bma\b|colorado|\bco\b|illinois|\bil\b|florida|\bfl\b|oregon|\bor\b|arizona|\baz\b|georgia|\bga\b|\bny\b)\b/.test(
+      t,
+    )
+  ) {
+    return true;
   }
   return false;
 }
@@ -265,6 +266,10 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || process.argv.
   assert(!isUsPostedLocation('Toronto'), 'Toronto');
   assert(!isUsPostedLocation(''), 'empty');
   assert(!isUsPostedLocation('Tokyo · Japan'), 'Tokyo');
+  // ISO country code CA=Canada must NOT beat the foreign check (was: \bca\b matched California first)
+  assert(!isUsPostedLocation('CA | Toronto | Full-time'), 'CA(Canada)+Toronto → not US');
+  assert(!isUsPostedLocation('Montreal, CA'), 'Montreal, CA → not US');
+  assert(isUsPostedLocation('San Francisco, CA'), 'SF+CA still US-posted');
   // Slug honesty: board slug comes from the domain, never the generic name (real misattributions found live).
   const sl = (name, website) => slugs({ name, website });
   assert(!sl('Camp', 'https://nouns.camp/').includes('camp'), 'Camp must not slug to the toy-store /camp board');
