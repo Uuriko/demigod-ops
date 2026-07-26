@@ -225,6 +225,25 @@ if (isMain && process.argv.includes('--selftest')) {
   // report shape
   const rep = report(reobs, { days: 10, today: T1 });
   assert(rep.agingRoles.length === 1 && rep.agingRoles[0].observedOpenDays === 19, 'report lists aging role w/ observedOpenDays');
+
+  // report(): posted-basis + ghost-rate + evergreen + filters — the public honesty math (firstSeen 2026-05-01 == 90d open at T=2026-07-30)
+  const RT = '2026-07-30';
+  const mk = (o) => ({ provider: 'Greenhouse', slug: 's', jobId: 'j', company: 'C', title: 't', location: 'SF', fn: 'Engineering', usPosted: true, firstSeen: '2026-05-01', lastSeen: RT, closedAt: null, reopenCount: 0, nativePostedAt: null, nativeDateField: null, ...o });
+  const led = (rows) => ({ schema: SCHEMA, roles: Object.fromEntries(rows.map((r, i) => [`k${i}`, r])) });
+  { const r = report(led([mk({})]), { days: 30, today: RT, basis: 'observed' });
+    assert(r.agingRoles.length === 1 && r.agingRoles[0].observedOpenDays === 90 && r.ghostRatePct === 100 && r.openUsRoles === 1, 'report observed: 90d role listed, ghost 100%, 1 open'); }
+  assert(report(led([mk({}), mk({ firstSeen: '2026-07-20' })]), { days: 0, today: RT }).ghostRatePct === 50, 'report ghostRatePct is a ratio: one aged + one fresh => 50%');
+  { const r = report(led([mk({ nativePostedAt: '2026-05-01', nativeDateField: 'first_published' }), mk({ nativePostedAt: '2026-05-01', nativeDateField: 'created_at' })]), { days: 30, today: RT, basis: 'posted' });
+    assert(r.agingRoles.length === 1 && r.agingRoles[0].postedDaysAgo === 90, 'report posted: only first_published-attributed roles count (created_at excluded)'); }
+  { const r = report(led([mk({ nativePostedAt: '2026-05-01', nativeDateField: 'first_published' })]), { days: 30, today: RT, basis: 'posted', evergreenDays: 60 });
+    assert(r.agingRoles.length === 0 && r.evergreenExcluded === 1, 'report posted: role older than evergreenDays is excluded AND counted'); }
+  assert(report(led([mk({ usPosted: false })]), { days: 30, today: RT }).agingRoles.length === 0, 'report usOnly (default): non-US role excluded');
+  assert(report(led([mk({ usPosted: false })]), { days: 30, today: RT, usOnly: false }).agingRoles.length === 1, 'report usOnly:false: non-US role included');
+  { const r = report(led([mk({ fn: 'Engineering' }), mk({ fn: 'Product' })]), { days: 30, today: RT });
+    assert(r.byFunction.Engineering === 1 && r.byFunction.Product === 1, 'report byFunction aggregates per function'); }
+  assert(report(led([mk({ fn: 'Engineering' }), mk({ fn: 'Product' })]), { days: 30, today: RT, fn: 'Product' }).agingRoles.every((x) => x.fn === 'Product'), 'report fn filter restricts to one function');
+  assert(report(led([mk({ closedAt: RT })]), { days: 0, today: RT }).openUsRoles === 0, 'report never counts closed roles');
+
   console.log(JSON.stringify({ ok: true, selftest: 'role-ledger' }));
   process.exit(0);
 }
