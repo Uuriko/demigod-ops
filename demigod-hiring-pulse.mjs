@@ -160,7 +160,7 @@ export function renderPulseHtml(pulse, site = 'https://www.trydemigod.com') {
   const atsMax = Math.max(1, ...(pulse.atsLandscape || []).map((a) => a.n));
   const batchMax = Math.max(1, ...(pulse.batches || []).map((b) => b.rate));
   const aiCallout = pulse.aiInsight
-    ? `<p class="dek">${pulse.aiInsight.beatsPDM
+    ? `<p class="dek">${pulse.aiInsight.beatsPDM && pulse.aiInsight.share >= 1
         ? `AI &amp; data is now <b>1 in ${Math.max(2, Math.round(100 / pulse.aiInsight.share))}</b> open roles (${pulse.aiInsight.share}%) — more than product, design, and marketing <em>combined</em>.`
         : `AI &amp; data is <b>${pulse.aiInsight.share}%</b> of open roles.`}</p>`
     : '';
@@ -286,6 +286,10 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   // conversion funnel: the CTA must route readers into the product (come-for-insight → stay-for-network)
   assert(html.includes('https://www.trydemigod.com/startups') && html.includes('/hire') && html.includes('/talent'), 'render includes CTA routes into product');
   assert(renderPulseHtml({ generatedAt: 'd', levels: {}, byFunction: [], topHirers: [], atsLandscape: [], batches: [], deltas: null, method: 'm' }, 'https://example.test/').includes('https://example.test/startups'), 'CTA honors custom site base (no trailing-slash dup)');
+  // degenerate aiInsight: beatsPDM but share rounds to 0 must NOT render "1 in Infinity (0%)" (div-by-zero in a public claim)
+  const degen = renderPulseHtml({ generatedAt: 'd', levels: {}, byFunction: [{ fn: 'ai/data', n: 1 }], topHirers: [], atsLandscape: [], batches: [], deltas: null, aiInsight: { roles: 1, share: 0, beatsPDM: true, pdm: 0 }, method: 'm' });
+  assert(!/Infinity|NaN|1 in <b>0<\/b>/.test(degen), 'aiInsight share:0 never renders "1 in Infinity/NaN/0"');
+  assert(renderPulseHtml({ generatedAt: 'd', levels: {}, byFunction: [{ fn: 'ai/data', n: 10 }], topHirers: [], atsLandscape: [], batches: [], deltas: null, aiInsight: { roles: 10, share: 10, beatsPDM: true, pdm: 2 }, method: 'm' }).includes('<b>1 in 10</b>'), 'aiInsight share:10 still renders honest "1 in 10"');
   console.log(JSON.stringify({ ok: true, selftest: 'hiring-pulse' }));
   process.exit(0);
 }
