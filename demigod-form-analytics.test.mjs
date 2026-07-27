@@ -100,6 +100,25 @@ test('aggregate form summary exposes recent funnel counts without copying unknow
   assert.doesNotMatch(JSON.stringify(summary), /private@example|private-answer/);
 });
 
+test('summary rejects junk cells so public funnel numbers stay honest', () => {
+  const now = Date.parse('2026-07-20T12:00:00Z');
+  const c = (o) => ({ bucket: '2026-07-20T11:00:00Z', form: 'talent', step: 'start', event: 'start', device: 'desktop', count: 1, ...o });
+  const st = (cells) => summarizeFormAnalytics({ cells }, now).talent;
+  // out-of-window + malformed counts must not inflate a count
+  assert.equal(st([c({ bucket: '2099-01-01T00:00:00Z', count: 9 })]).starts, 0, 'future bucket rejected');
+  for (const bad of [0, -5, 1.5, '3', NaN]) assert.equal(st([c({ count: bad })]).starts, 0, `count ${bad} rejected (positive safe int only)`);
+  // unknown enum values rejected
+  assert.equal(st([c({ event: 'hover' })]).starts, 0, 'unknown event rejected');
+  assert.equal(st([c({ device: 'watch' })]).starts, 0, 'unknown device rejected');
+  // step whitelist: named steps + step-0..12 only
+  assert.deepEqual(st([c({ event: 'view', step: 'secret', count: 3 })]).steps, {}, 'unknown step rejected');
+  assert.deepEqual(st([c({ event: 'view', step: 'step-12', count: 3 })]).steps, { 'step-12': 3 }, 'step-12 allowed');
+  assert.deepEqual(st([c({ event: 'view', step: 'step-13', count: 3 })]).steps, {}, 'step-13 out of range');
+  // completionRate: null when no starts (never a fake 0%/NaN), capped at 100 if completions exceed starts
+  assert.equal(st([c({ event: 'completion', step: 'complete', count: 2 })]).completionRate, null, 'no starts => null rate, not 0/NaN');
+  assert.equal(st([c({ count: 2 }), c({ event: 'completion', step: 'complete', count: 5 })]).completionRate, 100, 'completions>starts caps at 100%');
+});
+
 // Poison-test: identity must never reach the store, and "silent no-op success" must stay detectable.
 // DNT and invalid events return non-ok / 204-without-write — not a green write of empty privacy theater.
 test('form analytics disabled/ignore paths are fail-capable (not silent green writes)', () => {
