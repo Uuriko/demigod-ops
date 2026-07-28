@@ -72,6 +72,19 @@ export function buildAsset(map, ledger, today) {
   };
 }
 
+// Enrich map companies in place with the aging count the directory renderer shows. Idempotent: clears
+// stale aging on companies that no longer qualify, so re-running never leaves phantom badges.
+export function enrichMap(map, asset) {
+  const byName = asset.companies || {};
+  let enriched = 0;
+  for (const c of map.companies || []) {
+    const a = byName[norm(c.name)];
+    if (a && a.agingRoles > 0) { c.agingRoles = a.agingRoles; c.oldestAgingDays = a.oldestAgingDays; enriched++; }
+    else if ('agingRoles' in c) { delete c.agingRoles; delete c.oldestAgingDays; }
+  }
+  return enriched;
+}
+
 if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const T = '2026-07-28';
@@ -107,17 +120,30 @@ if (isMain && process.argv.includes('--selftest')) {
   const dir = directoryAging(map, led([role({ firstSeen: '2026-04-24' })]), T);
   assert(dir.acme && dir.acme.openRoles === 1 && dir.acme.observed90 === 1, 'company with board+open roles joined');
   assert(!dir.noboard, 'company without a board is omitted (no fabricated aging)');
+  // enrichMap: adds agingRoles to matching companies; idempotent (clears stale)
+  const em = { companies: [{ name: 'Acme' }, { name: 'Other', agingRoles: 9 }] };
+  const asset = { companies: { acme: { agingRoles: 4, oldestAgingDays: 200 } } };
+  enrichMap(em, asset);
+  assert(em.companies[0].agingRoles === 4 && em.companies[0].oldestAgingDays === 200, 'enrichMap adds aging by normalized name');
+  assert(!('agingRoles' in em.companies[1]), 'enrichMap clears stale aging on non-matching company (idempotent)');
   console.log(JSON.stringify({ ok: true, selftest: 'directory-aging' }));
   process.exit(0);
 }
 
 if (isMain) {
   const today = process.env.DEMIGOD_LEDGER_DATE || new Date().toISOString().slice(0, 10);
-  const map = JSON.parse(fs.readFileSync(process.env.DEMIGOD_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'), 'utf8'));
+  const mapPath = process.env.DEMIGOD_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+  const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
   const ledger = JSON.parse(fs.readFileSync(process.env.DEMIGOD_ROLE_LEDGER || path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json'), 'utf8'));
   const asset = buildAsset(map, ledger, today);
-  const oi = process.argv.indexOf('--out');
-  const out = oi >= 0 && process.argv[oi + 1] ? process.argv[oi + 1] : path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');
-  fs.writeFileSync(out, JSON.stringify(asset));
-  console.log(`wrote ${out} · ${asset.companyCount} companies with open roles · ${asset.companiesWithAgingRole} with a role posted 90-365d ago (still open)`);
+  if (process.argv.includes('--enrich-map')) {
+    const n = enrichMap(map, asset); // map object now carries per-company agingRoles
+    fs.writeFileSync(mapPath, JSON.stringify(map));
+    console.log(`enriched ${mapPath} · ${n} companies tagged with an aging-role count (posted 90-365d)`);
+  } else {
+    const oi = process.argv.indexOf('--out');
+    const out = oi >= 0 && process.argv[oi + 1] ? process.argv[oi + 1] : path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');
+    fs.writeFileSync(out, JSON.stringify(asset));
+    console.log(`wrote ${out} · ${asset.companyCount} companies with open roles · ${asset.companiesWithAgingRole} with a role posted 90-365d ago (still open)`);
+  }
 }

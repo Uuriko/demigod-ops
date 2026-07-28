@@ -21,6 +21,7 @@ const steps = [
   ['demigod-hn-hiring.mjs', ['--months', '3']],
   ['demigod-startup-map-data.mjs', ['--with-jobs']],
   ['demigod-role-ledger.mjs', ['poll']], // accrue per-role open-lifetime (observed age; native posting dates)
+  ['demigod-directory-aging.mjs', ['--enrich-map']], // tag companies with open-role aging (posted 90-365d) for the directory badge
   ['demigod-hiring-pulse.mjs', []],
   ['demigod-directory-static.mjs', []],
 ];
