@@ -122,7 +122,7 @@ Research **never** writes `ratings[]`.
 ## 7. CLI (shipped)
 
 ```bash
-node demigod-role-packet.mjs list|show|init|add-must|note|project|stage|set-comp|set-plan|debrief
+node demigod-role-packet.mjs list|show|init|add-must|note|project|stage|set-comp|set-plan|kit|debrief
 node demigod-role-packet.mjs --selftest
 # compose
 node demigod-structured-hiring.mjs status|desk|shortlist|pack|audit

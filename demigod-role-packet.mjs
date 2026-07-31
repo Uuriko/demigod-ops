@@ -11,6 +11,7 @@
  *   node demigod-role-packet.mjs note --role=ID --cand=ID --ratings='[…]' [--by=…]
  *   node demigod-role-packet.mjs stage --role=ID --to=reviewing|…
  *   node demigod-role-packet.mjs set-comp --role=ID --text=… --source=… [--url=] [--quote=]
+ *   node demigod-role-packet.mjs kit --role=ID [--json]   # interviewer kit: questions + anchors
  *   node demigod-role-packet.mjs list
  *   node demigod-role-packet.mjs --selftest
  *
@@ -181,6 +182,123 @@ export function setInterviewPlan(packet, plan = null) {
   };
   assertPacket(next);
   return next;
+}
+
+/**
+ * Past-behavior questions + descriptively anchored rating scales, per competency KIND.
+ *
+ * The packet already had the content half of a structured interview (competencies, a
+ * competency→interviewer map, evidence required per competency) and a bare 4-point scale. The
+ * evaluation half — what to ASK, and what each rating LOOKS like — was missing, and that half is
+ * where the validity lives: structured interviews run at rho .42 against .19 unstructured, same
+ * hour and same interviewer, and past-behavior questions scored against descriptive anchors reach
+ * .63 where situational questions reach .47. See docs/DEMIGOD-ASSESSMENT-METHODS-RESEARCH.md §5.
+ *
+ * Past behaviour ("what did you do") over situational ("what would you do") on purpose: situational
+ * validity degrades as job complexity rises, past-behaviour validity does not.
+ *
+ * Anchors describe OBSERVABLE EVIDENCE — what the candidate said and whether it was first-hand,
+ * specific and at scope. They never describe a trait, a personality, or a "fit". A kit is an
+ * interviewer aid; it produces no score, no ranking and no verdict.
+ *
+ * ponytail: one generic bank per kind, label-interpolated. A search lead writing role-specific
+ * anchors at kickoff beats these; upgrade by editing the printed markdown, which is why the kit is
+ * derived output and not stored state.
+ */
+export const KIT_BANK = {
+  skill: {
+    questions: [
+      'Tell me about the most recent time you did work like "{label}". What was the situation, what did you personally do, and how did it turn out?',
+      'Walk me through a specific example where "{label}" was the hard part. What did you try first, and what did you change?',
+    ],
+    anchors: {
+      strong_no: 'No example offered, or the example is hypothetical or second-hand ("we would", "the team did") with no personal action described.',
+      no: 'An example is offered, but their own actions stay vague, or the work described is materially simpler than this role.',
+      yes: 'A specific first-hand example at roughly this role\'s scope: names the situation, what they personally did, and the outcome.',
+      strong_yes: 'As "yes", and they volunteer what went wrong or what they would do differently now, at or above this role\'s scope.',
+    },
+  },
+  trait: {
+    questions: [
+      'Tell me about a specific time "{label}" was actually tested. What happened, what did you do, and what was the result?',
+      'Describe a time that went badly. What did you do differently afterwards?',
+    ],
+    anchors: {
+      strong_no: 'No concrete instance — only self-description ("I am the kind of person who…") or a restatement of the requirement.',
+      no: 'An instance is named but stays general; the specific decision or action they took is not recoverable from the answer.',
+      yes: 'A specific instance with their own decision and its consequence, told concretely enough to check.',
+      strong_yes: 'As "yes", and the example includes a cost they carried or a correction they made, not only a success.',
+    },
+  },
+  _default: {
+    questions: [
+      'Tell me about a specific time "{label}" mattered in your work. What was the situation, what did you personally do, and how did it turn out?',
+    ],
+    anchors: {
+      strong_no: 'No example offered, or the answer is hypothetical rather than something that happened.',
+      no: 'An example is offered but their personal contribution is unclear.',
+      yes: 'A specific first-hand example: situation, their own actions, outcome.',
+      strong_yes: 'As "yes", plus what they would do differently, at or above this role\'s scope.',
+    },
+  },
+};
+
+/**
+ * Pure: derive the interviewer kit for a packet. Never mutates, never stores, never scores.
+ * `complete` is the gate's subject — false for a packet with no competencies, so an empty kit can
+ * never read as a ready one.
+ */
+export function interviewKit(packet) {
+  assertPacket(packet);
+  const planBy = new Map((packet.interviewPlan || []).map((r) => [r.mustHaveId, r]));
+  const fill = (s, label) => String(s).split('{label}').join(label);
+  const rows = packet.mustHaves.map((m) => {
+    const bank = KIT_BANK[m.kind] || KIT_BANK._default;
+    const slot = planBy.get(m.id) || {};
+    return {
+      mustHaveId: m.id,
+      label: m.label,
+      kind: m.kind,
+      moment: slot.moment || null,
+      owner: slot.owner || null,
+      questions: bank.questions.map((q) => fill(q, m.label)),
+      anchors: Object.fromEntries(RATINGS.map((r) => [r, fill(bank.anchors[r], m.label)])),
+    };
+  });
+  const covered = (row) =>
+    row.questions.length > 0 && RATINGS.every((r) => String(row.anchors[r] || '').trim().length > 0);
+  return {
+    roleId: packet.roleId,
+    title: packet.title,
+    rows,
+    complete: rows.length > 0 && rows.every(covered),
+    uncovered: rows.filter((r) => !covered(r)).map((r) => r.mustHaveId),
+  };
+}
+
+/** Render a kit as markdown an interviewer reads during the call. Output only — not a record. */
+export function renderKitMarkdown(kit) {
+  const out = [`# Interview kit — ${kit.title} (${kit.roleId})`, ''];
+  out.push('Ask every candidate the same questions in the same order, and score each competency');
+  out.push('against the anchors below **before** the debrief. The anchors are what make this a');
+  out.push('structured interview rather than a conversation; skipping them gives up most of the value.');
+  out.push('');
+  out.push('This kit is an interviewer aid. It produces no score, no ranking and no recommendation,');
+  out.push('and nothing in it may be used to reject a candidate automatically. The hiring decision,');
+  out.push('and the evidence behind it, stay with the humans in the room.');
+  out.push('');
+  for (const row of kit.rows) {
+    const where = row.moment ? ` · ${row.moment}` : '';
+    const who = row.owner ? ` · ${row.owner}` : '';
+    out.push(`## ${row.label}`, `_${row.mustHaveId} · ${row.kind}${where}${who}_`, '');
+    out.push('**Ask**');
+    for (const q of row.questions) out.push(`- ${q}`);
+    out.push('', '**Score against**');
+    for (const r of RATINGS) out.push(`- \`${r}\` — ${row.anchors[r]}`);
+    out.push('');
+  }
+  if (!kit.complete) out.push(`> INCOMPLETE — no anchors for: ${kit.uncovered.join(', ') || '(no competencies on this packet)'}`, '');
+  return out.join('\n');
 }
 
 /** Pure: note must cover every mustHave with evidence. */
@@ -937,6 +1055,53 @@ function selftest() {
   }
   assert(threwDb, 'short deal-breaker refused');
 
+  // interview kit — the evaluation half. Every competency must get a question AND an anchor for
+  // EVERY rating, or the interviewer is back to scoring against a bare label.
+  const kit = interviewKit(p2);
+  assert(kit.rows.length === p2.mustHaves.length, 'kit covers every mustHave');
+  assert(kit.complete && kit.uncovered.length === 0, 'kit complete: ' + JSON.stringify(kit.uncovered));
+  for (const row of kit.rows) {
+    assert(row.questions.length > 0, `kit question for ${row.mustHaveId}`);
+    // At least one question must name the competency being scored — a generic follow-up probe
+    // ("describe a time that went badly") is legitimate, a kit of only generic probes is not.
+    assert(row.questions.some((q) => q.includes(row.label)), `kit question names the competency: ${row.mustHaveId}`);
+    assert(!row.questions.some((q) => q.includes('{label}')), `kit question interpolated: ${row.mustHaveId}`);
+    for (const r of RATINGS) assert(String(row.anchors[r] || '').trim(), `kit anchor ${r} for ${row.mustHaveId}`);
+  }
+  // Past behaviour, not situational — the format choice is the validity claim, so pin it.
+  assert(
+    kit.rows.every((row) => row.questions.some((q) => /Tell me about|Walk me through|Describe a time/i.test(q))),
+    'kit asks what they DID, not what they would do',
+  );
+  // Vacuous-green guards. `complete` is an .every() over rows, which is TRUE on an empty list —
+  // so prove both that an empty kit is unreachable and that `complete` can actually go false.
+  let threwBare = false;
+  try {
+    interviewKit({ ...p2, mustHaves: [] });
+  } catch {
+    threwBare = true;
+  }
+  assert(threwBare, 'a packet with no competencies is refused outright — an empty kit is unreachable');
+  {
+    // Break one anchor in the bank and watch `complete` flip. Without this the assertion above
+    // would still pass if coverage stopped being checked at all.
+    const kind = p2.mustHaves[0].kind;
+    const bank = KIT_BANK[kind] || KIT_BANK._default;
+    const keep = bank.anchors.strong_yes;
+    bank.anchors.strong_yes = '   ';
+    const broken = interviewKit(p2);
+    bank.anchors.strong_yes = keep;
+    assert(broken.complete === false, 'a missing anchor makes the kit INCOMPLETE (coverage is really checked)');
+    assert(broken.uncovered.length > 0, 'an incomplete kit names which competencies lack anchors');
+    assert(renderKitMarkdown(broken).includes('INCOMPLETE'), 'an incomplete kit renders as incomplete');
+    assert(interviewKit(p2).complete === true, 'bank restored — kit complete again');
+  }
+  // A kit is an aid, not a decision — it must never emit a score or a recommendation.
+  const md = renderKitMarkdown(kit);
+  assert(md.includes('no score, no ranking and no recommendation'), 'kit markdown states the decision boundary');
+  assert(!/\b(fit\s*score|recommend(ed|ation)?:|overall score|hire|do not hire)\b/i.test(md), 'kit markdown carries no verdict');
+  assert(RATINGS.every((r) => md.includes(r)), 'kit markdown shows every rating anchor');
+
   // temp store
   const tmpP = path.join('/tmp', `dg-packets-${process.pid}.json`);
   saveStore(tmpP, { schema: 'demigod.role-packets-store/1', packets: { [p2.roleId]: p2 } });
@@ -971,8 +1136,9 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|add-deal|note|project|stage|set-comp|set-plan|debrief [--role=] …
+    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|add-deal|note|project|stage|set-comp|set-plan|kit|debrief [--role=] …
   set-plan  map must-haves → screen|tech|founder|debrief (Ashby interview plan; no scheduling)
+  kit       render past-behavior questions + anchored ratings (no score or verdict)
   add-deal  human deal-breaker label (not a score)
   debrief   aggregate review notes per must-have (no hire score)
 Design: docs/die/ROLE-PACKET-DESIGN.md`);
@@ -1161,6 +1327,24 @@ Design: docs/die/ROLE-PACKET-DESIGN.md`);
       console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
       process.exit(1);
     }
+    return;
+  }
+
+  if (cmd === 'kit') {
+    const id = flags.role;
+    if (!id) {
+      console.error(JSON.stringify({ ok: false, error: '--role required' }));
+      process.exit(1);
+    }
+    const cur = loadPackets().packets[id];
+    if (!cur) {
+      console.error(JSON.stringify({ ok: false, error: 'not found' }));
+      process.exit(1);
+    }
+    const kit = interviewKit(cur);
+    if (args.includes('--json')) console.log(JSON.stringify(kit, null, 2));
+    else console.log(renderKitMarkdown(kit));
+    if (!kit.complete) process.exitCode = 1; // an incomplete kit is not a usable one
     return;
   }
 
