@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Release demigod foot lock only if the holder PID is dead.
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$ROOT"
+json=$(node demigod-foot-lock.mjs status)
+free=$(echo "$json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('free'))")
+if [[ "$free" == "True" || "$free" == "true" ]]; then
+  echo "lock already free"
+  exit 0
+fi
+pid=$(echo "$json" | python3 -c "import sys,json; print((json.load(sys.stdin).get('lock') or {}).get('pid') or '')")
+if [[ -z "$pid" ]]; then
+  echo "locked but no pid — refuse auto release"
+  exit 1
+fi
+if kill -0 "$pid" 2>/dev/null; then
+  echo "owner pid $pid still alive — not releasing"
+  exit 1
+fi
+node demigod-foot-lock.mjs release --force
