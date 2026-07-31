@@ -35,7 +35,7 @@ export function pricingFragment(examples = pricingExamples()) {
 </section>`;
 }
 
-if (process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const ex = pricingExamples([120000, 150000, 200000]);
   assert(ex.length === 3, 'three valid examples');

@@ -32,7 +32,7 @@ export async function audit(fetchImpl = fetch) {
   return { ok: brokenRequired.length === 0, site: SITE, brokenRequired, bareAliasesStill404: bareStill404 };
 }
 
-if (process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const mkFetch = (statusMap) => async (url) => {
     const rel = url.slice(SITE.length + 1);

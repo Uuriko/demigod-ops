@@ -33,7 +33,7 @@ export function faqJsonLdScript(items = []) {
   return `<script type="application/ld+json">${json}</script>`;
 }
 
-if (process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const obj = faqPageJsonLd([{ q: 'What is Demigod?', a: 'A matcher.' }, { question: 'Cost?', answer: 'Free for talent.' }]);
   assert(obj['@context'] === 'https://schema.org' && obj['@type'] === 'FAQPage', 'root context/type');

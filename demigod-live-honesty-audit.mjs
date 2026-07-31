@@ -50,7 +50,7 @@ export function auditAssets(html) {
   return BANNED_ASSETS.filter(b => b.re.test(String(html || ''))).map(b => b.label);
 }
 
-if (process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error(m); };
   // dishonest content is caught…
   assert(auditHtml('<h2>Human-Matched startup talent</h2>').includes('overclaim "Human-Matched" (model is tech-ranks + human-review)'), 'catches Human-Matched');

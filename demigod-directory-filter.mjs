@@ -76,7 +76,7 @@ render();
 </script>`;
 }
 
-if (process.argv.includes('--selftest')) {
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const cos = [
     { name: 'Acme AI', description: 'ml platform', tags: ['yc', 'YC Winter 2025'], hiring: 'yes', jobsUrl: 'u', inceptionYear: 2024 },

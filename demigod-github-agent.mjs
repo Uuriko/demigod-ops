@@ -324,7 +324,7 @@ function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (args.cmd === '--selftest' || process.argv.includes('--selftest')) {
+  if (isMain && (args.cmd === '--selftest' || process.argv.includes('--selftest'))) {
     selftest();
     return;
   }
