@@ -264,6 +264,9 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   // The link is the tap target. Inline with the company name it measured 22px tall on a 390px
   // viewport — under WCAG 2.5.8's 24px floor and half this directory's own 44px control convention.
   assert.match(src, /\.dg-fresh-title\{[^}]*min-height:44px/, 'the role link must keep a 44px tap target');
+  // The feed is NOT filtered to US-posted (40 of 200 live rows are not), but the open-role counts
+  // on the same page ARE. The page must say so rather than present two scopes as one.
+  assert.match(src, /including outside the US/, 'the section must state that its scope differs from the counts');
   const start = src.indexOf('function dgRecentRoles');
   const end = src.indexOf('\n  var state = {');
   const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();

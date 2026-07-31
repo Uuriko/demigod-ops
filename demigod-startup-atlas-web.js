@@ -238,7 +238,13 @@
       '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
       (days ? ' in the last ' + days + ' days' : '') +
       '. <strong>First observed</strong> is our timestamp, not the employer\'s posting date — most ' +
-      'boards do not expose one, so this says when we noticed a role, never how long it has existed.</p>' +
+      'boards do not expose one, so this says when we noticed a role, never how long it has existed. ' +
+      // Measured: 40 of 200 feed rows are non-US (Remote Canada/Spain/Poland, São Paulo). The
+      // open-role counts above DO filter to US-posted or Remote, so without this sentence the page
+      // contradicts itself — two different scopes presented as one. Stating the scope is honest;
+      // quietly filtering here would invent a third rule that matches neither the feed nor the counts.
+      'Locations are wherever the company posted the role, including outside the US — unlike the ' +
+      'open-role counts above, which include only US-posted or Remote listings.</p>' +
       '<ul class="dg-fresh-list">' +
       rows.map(function (role) {
         var url = safeUrl(role.url);
