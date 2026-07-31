@@ -185,6 +185,23 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
         ex.lastSeen = today; // firstSeen is MONOTONIC — never touched (INVARIANT 1)
         if (company) ex.company = company;
         if (!ex.nativePostedAt && r.nativePostedAt) { ex.nativePostedAt = r.nativePostedAt; ex.nativeDateField = r.nativeDateField || null; } // backfill only; never overwrite the earliest captured date
+        else if (
+          ex.nativePostedAt && r.nativePostedAt &&
+          // Compare against what the board LAST said, not against our stored floor. Comparing to
+          // the floor re-counts on every poll forever once a date has been recycled once.
+          r.nativePostedAt !== (ex.lastReportedPostedAt || ex.nativePostedAt)
+        ) {
+          // The board now reports a DIFFERENT posting date for a role we already track. ATS
+          // platforms auto-renew listings on a 30-90 day cycle, so a recycled date is expected —
+          // and the stored date deliberately does not move, which keeps our posting ages an honest
+          // LOWER BOUND. But silently discarding the change means we can never answer how often
+          // boards recycle dates, and that number decides whether the public median-posting-age
+          // claim needs qualifying. Count it instead. Absent field = no change ever observed.
+          ex.postedDateChangeCount = (Number(ex.postedDateChangeCount) || 0) + 1;
+        }
+        // Track the board's current answer so the next poll compares like with like. The gap
+        // between this and nativePostedAt IS the renewal evidence: floor vs what the board claims.
+        if (r.nativePostedAt && r.nativePostedAt !== ex.nativePostedAt) ex.lastReportedPostedAt = r.nativePostedAt;
         if (disp.title) ex.title = disp.title;
         if (disp.location) { ex.location = disp.location; ex.usPosted = isUsPostedLocation(disp.location); }
         if (rawUrl) ex.url = disp.url;
@@ -246,6 +263,11 @@ export function summarize(ledger, today) {
     closedToday: rows.filter((r) => r.closedAt === today).length,
     aging30: open.filter((r) => observedOpenDays(r, today) >= 30).length,
     aging60: open.filter((r) => observedOpenDays(r, today) >= 60).length,
+    // Open roles whose board has recycled the posting date since we first captured it. Our stored
+    // date never moves, so posting ages are a LOWER bound; this number says how much that matters.
+    // A counter nobody surfaces is invisible, and this one decides whether the public
+    // median-posting-age claim needs qualifying.
+    postedDateRecycled: open.filter((r) => (r.postedDateChangeCount || 0) > 0).length,
   };
 }
 
@@ -626,9 +648,43 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(dup.roles[k].closedAt === null && dup.roles[k].reopenCount === 0, 'dup board same poll: empty sibling does not close/flap the populated role');
 
   // no PII / allowed shape only
-  const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField', 'agencyPolicyEvidence']);
+  const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField', 'agencyPolicyEvidence',
+    'postedDateChangeCount', 'lastReportedPostedAt']);
   // Same trap on a privacy guard: an empty row would satisfy `.every()` and report "no PII".
   assert(Object.keys(L.roles[k]).length > 0 && Object.keys(L.roles[k]).every((key) => allowed.has(key)), 'row has no fields outside the allowed (no PII)');
+
+  // --- posting-date renewal detection (ATS auto-renew, 30-90d cycles) -----------------------
+  {
+    const fp = (d) => R('1', { nativePostedAt: d, nativeDateField: 'first_published' });
+    const seed = upsertLedger(null, board(true, [fp('2026-01-01')]), T0);
+    const key0 = Object.keys(seed.roles)[0];
+    assert(seed.roles[key0].nativePostedAt === '2026-01-01', 'first posting date is captured');
+    assert(!('postedDateChangeCount' in seed.roles[key0]), 'no change observed yet -> field absent');
+
+    // Board recycles the date forward (the documented auto-renew behaviour).
+    const renewed = upsertLedger(seed, board(true, [fp('2026-03-01')]), T1);
+    const r1 = renewed.roles[key0];
+    assert(r1.nativePostedAt === '2026-01-01', 'stored date must NOT move — ages stay a lower bound');
+    assert(r1.postedDateChangeCount === 1, `renewal counted, got ${r1.postedDateChangeCount}`);
+    assert(r1.lastReportedPostedAt === '2026-03-01', 'the board current claim is tracked alongside the floor');
+
+    // Re-reporting the SAME recycled date must not double-count.
+    const again = upsertLedger(renewed, board(true, [fp('2026-03-01')]), '2026-07-22');
+    assert(again.roles[key0].postedDateChangeCount === 1, 'unchanged date does not re-count');
+
+    // A second, different date counts again.
+    const twice = upsertLedger(again, board(true, [fp('2026-05-01')]), '2026-07-23');
+    assert(twice.roles[key0].postedDateChangeCount === 2, 'each distinct change counts');
+
+    // An EARLIER date is still a change worth counting: it means our floor was too high.
+    const earlier = upsertLedger(twice, board(true, [fp('2025-06-01')]), '2026-07-24');
+    assert(earlier.roles[key0].postedDateChangeCount === 3, 'a backwards change is counted too');
+    assert(earlier.roles[key0].nativePostedAt === '2026-01-01', 'stored date still pinned to first capture');
+
+    // A board that reports no date at all must not be read as a change.
+    const nodate = upsertLedger(earlier, board(true, [R('1')]), '2026-07-25');
+    assert(nodate.roles[key0].postedDateChangeCount === 3, 'absent date is not a change');
+  }
 
   // --- volume-anomaly quarantine: a truncated-but-valid board must not mass-close -----------
   {
