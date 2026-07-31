@@ -44,6 +44,19 @@ passing as success. It never resumes the live interactive session — two writer
 Selftest: `bin/codex-ask --selftest`. Shared context holds durable policy only; current website
 identity comes from `/tmp/dg-busy/truth.json`, while active task ownership comes from Orca.
 
+## SBAR handoff (when switching agent or worktree)
+
+Keep handoffs short. One block, no essays:
+
+| Letter | Meaning | Example |
+|--------|---------|---------|
+| **S** Situation | disk/live foot + lock | disk v869 live v868 lock free |
+| **B** Background | branch + last commit | `snapshot/v567-predisk` @ `abc1234` |
+| **A** Assessment | gates | `just gate` OK / truth prepare-only |
+| **R** Recommendation | next task | ship prepare only — no publish |
+
+Free recipes: `just orient`, `just gate`, `just truth` (see root `Justfile`).
+
 ## Routing
 
 - Ongoing Claude⇄Codex work → Orca thread or tracked dispatch (`bin/dg-bus task codex`).

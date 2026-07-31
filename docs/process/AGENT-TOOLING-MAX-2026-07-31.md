@@ -222,3 +222,21 @@ Canonical copies: `docs/skills/demigod-*/SKILL.md` (symlinked into agent homes).
 ---
 
 *References: OpenAI Codex learn/best-practices; Claude Code skills + plugins docs; skills.sh / Vercel agent-skills; Demigod AGENTS.md + bin/dg control plane.*
+
+## Justfile (2026-07-31)
+
+Root `Justfile` wraps Demigod gates for any agent:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+cd $DEMIGOD_ROOT
+just orient    # truth tail
+just gate      # smoke + board + blog
+just gate-full # + verify:source + site-health
+just prepare   # ship prepare only
+just secrets   # gitleaks
+just watch-foot
+```
+
+Install (once): `curl … just.systems/install.sh | bash -s -- --to ~/.local/bin`
+Also: `gitleaks`, `watchexec` in `~/.local/bin`. Config: `.gitleaks.toml`.
