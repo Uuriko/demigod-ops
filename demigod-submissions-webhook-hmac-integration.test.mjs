@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -7,7 +8,10 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import test from 'node:test';
 
-const ROOT = '/home/potter';
+// Derived, never hardcoded: REPO_ROOT exists on one laptop and fails in any clean checkout.
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
+
+const ROOT = REPO_ROOT;
 const PRODUCTION_FILES = ['DEMIGOD-SUBMISSIONS-INBOX.json', 'DEMIGOD-BOARD.json'].map((name) => path.join(ROOT, name));
 
 function fingerprint(file) {

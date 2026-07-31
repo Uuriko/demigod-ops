@@ -877,7 +877,9 @@ test('shared committed selector binds green research to the current fresh seal',
       },
     },
   };
-  fs.writeFileSync(receiptPath, JSON.stringify(receipt), { mode: 0o600 });
+  const receiptBody = JSON.stringify(receipt);
+  fs.writeFileSync(receiptPath, receiptBody, { mode: 0o600 });
+  fs.writeFileSync(path.join(evidenceDir, `${receipt.runId}.json`), receiptBody, { mode: 0o600 });
   assert.equal(run().status, 0, 'matching fresh research seal');
 
   fs.writeFileSync(catalogPath, JSON.stringify({ companies: [] }));
@@ -980,6 +982,11 @@ test('default partner source requires a private hash-bound export generation', (
     false,
     'desk pack fails before writing',
   );
+  fs.writeFileSync(jsonPath, '{', { mode: 0o600 });
+  const malformed = run();
+  assert.notEqual(malformed.status, 0, 'malformed JSON is refused');
+  assert.match(malformed.stderr, /invalid committed RecruitAI export/);
+  assert.doesNotMatch(malformed.stderr, /SyntaxError/, 'hash mismatch is diagnosed before JSON parsing');
   fs.writeFileSync(jsonPath, json, { mode: 0o600 });
   fs.chmodSync(csvPath, 0o644);
   assert.notEqual(run().status, 0, 'public export file');

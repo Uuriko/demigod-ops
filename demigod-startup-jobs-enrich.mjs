@@ -294,21 +294,44 @@ export function boardOwnerMatches(company, board) {
 
 // Coarse function category from a job title (keyword heuristic — an honest bucket, not a claim).
 // Order matters: high-confidence PeopleOps first, then product and ai/data before engineering.
+// AR-08: still PARTIAL taxonomy (honest coarse buckets); expand recall without stealing eng/science titles.
 export function categorizeRole(title) {
   const t = String(title || '').toLowerCase();
   if (
     !/\b(?:engineer|developer|scientist|designer)\b/.test(t) &&
-    /\b(?:recruiters?|recruitment|talent acquisition|people (?:(?:team )?business partner|partner)|human resources|employee relations|total rewards|people experience|people success)\b|(?:^|[^/\w])hrbp\b|^(?:senior\s+)?(?:head|director|vp|vice president)\b.*\bpeople\b|^chief people officer\b/.test(t)
+    /\b(?:recruiters?|recruitment|talent acquisition|people (?:(?:team )?business partner|partner)|human resources|employee relations|total rewards|people experience|people success|learning and development|\bl&d\b|workforce planning|org(?:anizational)? development)\b|(?:^|[^/\w])hrbp\b|^(?:senior\s+)?(?:head|director|vp|vice president)\b.*\bpeople\b|^chief people officer\b/.test(t)
   ) return 'people';
   if (/\b(product manager|product management|product owner|\bpm\b|technical product)\b/.test(t)) return 'product';
   if (/\b(data scientist|machine learning|\bml\b|\bai\b|deep learning|\bnlp\b|computer vision|research scientist|data engineer|analytics engineer|data analyst)\b/.test(t)) return 'ai/data';
+  // DevRel / tech writing before "developer" eng bucket
+  if (/\b(developer advocate|developer relations|\bdevrel\b|technical writer|docs engineer|documentation engineer)\b/.test(t)) {
+    return 'marketing';
+  }
+  // Security product eng stays engineering; pure GRC/compliance (no eng title) → finance/legal
+  if (
+    /\b(security engineer|application security|appsec|detection engineer|security software|security platform)\b/.test(t)
+  ) {
+    return 'engineering';
+  }
   if (/\b(engineer|developer|\bswe\b|programmer|software|devops|\bsre\b|infrastructure|backend|frontend|full[\s-]?stack|mobile|\bios\b|android|platform)\b/.test(t)) return 'engineering';
-  if (/\b(designer|\bux\b|\bui\b|product design|brand|graphic)\b/.test(t)) return 'design';
-  if (/\b(sales|account executive|\bae\b|account manager|business development|\bbdr\b|\bsdr\b|revenue|partnerships|solutions engineer)\b/.test(t)) return 'sales';
+  if (/\b(designer|\bux\b|\bui\b|product design|brand|graphic|design systems?)\b/.test(t)) return 'design';
+  if (/\b(sales|account executive|\bae\b|account manager|business development|\bbdr\b|\bsdr\b|revenue|partnerships|solutions engineer|sales engineer|customer engineer)\b/.test(t)) return 'sales';
   if (/\b(marketing|growth|content|\bseo\b|demand gen|community|social media|communications)\b/.test(t)) return 'marketing';
   if (/\b(?:recruit(?:er|ers|ing|ment)?|talent|people (?:ops|operations|partner)|human resources)\b|(?:^|[^/\w])hr(?:bp)?\b/.test(t)) return 'people';
-  if (/\b(finance|accounting|accountant|controller|fp&a|legal|counsel|compliance)\b/.test(t)) return 'finance/legal';
-  if (/\b(operations|\bops\b|support|customer success|\bcsm\b|program manager|project manager|chief of staff|office manager)\b/.test(t)) return 'operations';
+  // Split-ish finance/legal: same bucket key for export stability, broader title recall
+  if (
+    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|treasury|payroll|tax)\b/.test(t) ||
+    /\b(legal|counsel|attorney|paralegal|compliance|privacy counsel|data privacy|grc|governance risk)\b/.test(t)
+  ) {
+    return 'finance/legal';
+  }
+  if (
+    /\b(operations|\bops\b|support|customer success|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops)\b/.test(
+      t,
+    )
+  ) {
+    return 'operations';
+  }
   return 'other';
 }
 
@@ -677,6 +700,15 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(categorizeRole('Join Our Talent Community') === 'marketing', 'talent community is not PeopleOps');
   assert(categorizeRole('Remote Therapist — $75–115/hr') === 'other', 'hourly rate is not HR');
   assert(categorizeRole('Chief of Staff') === 'operations', 'chief of staff → operations');
+  assert(categorizeRole('Security Engineer') === 'engineering', 'security engineer stays eng');
+  assert(categorizeRole('GRC Analyst') === 'finance/legal', 'grc → finance/legal');
+  assert(categorizeRole('Privacy Counsel') === 'finance/legal', 'privacy counsel → finance/legal');
+  assert(categorizeRole('Technical Writer') === 'marketing', 'tech writer → marketing');
+  assert(categorizeRole('Developer Advocate') === 'marketing', 'devrel → marketing');
+  assert(categorizeRole('Customer Support Specialist') === 'operations', 'support → operations');
+  assert(categorizeRole('RevOps Manager') === 'operations', 'revops → operations');
+  assert(categorizeRole('Learning and Development Partner') === 'people', 'l&d → people');
+  assert(categorizeRole('Financial Analyst') === 'finance/legal', 'fin analyst → finance/legal');
   assert(categorizeRole('') === 'other', 'empty → other');
   assert(
     jobsEnrichCliMode([]) === 'enrich' &&

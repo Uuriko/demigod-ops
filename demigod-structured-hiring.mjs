@@ -17,6 +17,7 @@ import {
   projectForReview,
   advanceStage,
   upsertPacket,
+  debriefRoundup,
 } from './demigod-role-packet.mjs';
 import { rediscover, makeTouch, appendTouch } from './demigod-candidate-touch.mjs';
 import {
@@ -26,6 +27,7 @@ import {
   activeCount as batchActive,
 } from './demigod-pilot-batch.mjs';
 import { warmPaths, listPaths as listIntroPaths } from './demigod-intro-path.mjs';
+import { listCallNotes } from './demigod-call-note.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -66,6 +68,7 @@ export function buildStatus() {
   const batchList = Object.values(batches.batches || {});
   const touchList = touches.touches || [];
   const pathList = intros.paths || [];
+  const callNotes = listCallNotes({ limit: 500 });
 
   return {
     schema: 'demigod.structured-hiring/1',
@@ -75,6 +78,8 @@ export function buildStatus() {
       'Underdog/Wellfound batch caps',
       'Gem rediscovery',
       'Affinity intro paths (manual)',
+      'Metaview call notes (manual)',
+      'Levels public job-post bands',
     ],
     counts: {
       packets: packetList.length,
@@ -83,6 +88,7 @@ export function buildStatus() {
       activeBatchSlots: batchList.reduce((s, b) => s + batchActiveCount(b), 0),
       touches: touchList.length,
       introPaths: pathList.length,
+      callNotes: callNotes.length,
     },
     packets: packetList.map((p) => ({
       roleId: p.roleId,
@@ -100,17 +106,27 @@ export function buildStatus() {
     })),
     rediscoverTop: rediscover(touchList, { limit: 8 }),
     warmPaths: warmPaths(pathList, { limit: 8 }),
+    recentCallNotes: callNotes.slice(0, 5).map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      roleId: n.roleId,
+      candId: n.candId,
+      at: n.at,
+      summary: String(n.summary || '').slice(0, 120),
+    })),
     cmds: {
-      packet: 'node demigod-role-packet.mjs list|init|note|project|stage|set-comp',
+      packet: 'node demigod-role-packet.mjs list|init|note|project|stage|set-comp|set-plan',
       batch: 'node demigod-pilot-batch.mjs open|add|terminal',
       touch: 'node demigod-candidate-touch.mjs log|rediscover',
       intro: 'node demigod-intro-path.mjs log|list|warm',
+      call: 'node demigod-call-note.mjs log|list',
+      comp: 'node demigod-public-comp.mjs extract|apply --role= --url= --text=',
       desk: 'node demigod-structured-hiring.mjs desk --role=ID',
       shortlist: 'node demigod-structured-hiring.mjs shortlist --role=… --cand=… --why=…',
       pack: 'node demigod-structured-hiring.mjs pack',
     },
     policy:
-      'No fit score. Evidence-required ratings. Batch hard-cap 3 active. Rediscover from owned touches only. Intro paths are human-set (no mail scrape / auto-send).',
+      'No fit score. Evidence-required ratings. Batch hard-cap 3 active. Rediscover from owned touches only. Intro paths human-set (no mail scrape). Call notes never auto-change pairs. Comp only from public job-post quotes or founder_stated.',
   };
 }
 
@@ -176,6 +192,7 @@ export function buildDesk(roleId) {
     limit: 8,
   });
   const introRecent = listIntroPaths({ company: companyId, limit: 8 });
+  const calls = listCallNotes({ roleId: id, limit: 10 });
   const projections = notes.map((n) =>
     packet ? projectForReview(packet, n) : { candId: n.candId, note: n, packet: null },
   );
@@ -194,6 +211,8 @@ export function buildDesk(roleId) {
     projections,
     rediscover: redis,
     introPaths: { warm: introWarm, recent: introRecent },
+    callNotes: calls,
+    debrief: packet ? debriefRoundup(packet, notes) : null,
     next: !packet
       ? `node demigod-role-packet.mjs init --role=${id} --title=… --outcome="…(≥20 chars)…"`
       : !batch
@@ -373,7 +392,7 @@ function main() {
   if (json) console.log(JSON.stringify(st, null, 2));
   else {
     console.log(
-      `# structured-hiring · packets=${st.counts.packets} batches=${st.counts.batches} touches=${st.counts.touches} intros=${st.counts.introPaths}`,
+      `# structured-hiring · packets=${st.counts.packets} batches=${st.counts.batches} touches=${st.counts.touches} intros=${st.counts.introPaths} calls=${st.counts.callNotes}`,
     );
     for (const p of st.packets) {
       console.log(`  packet ${p.roleId} · ${p.title} · musts=${p.mustHaves}${p.stage ? ` · ${p.stage}` : ''}`);

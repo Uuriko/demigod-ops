@@ -45,6 +45,8 @@ export const DECISION_AIDS = [
   'none',
 ];
 export const COMP_SOURCES = ['founder_stated', 'public_job_post', 'unknown'];
+/** Ashby-shaped interview moments (plan only — no scheduling product). */
+export const INTERVIEW_MOMENTS = ['screen', 'tech', 'founder', 'debrief'];
 
 function now() {
   return new Date().toISOString();
@@ -103,6 +105,19 @@ export function assertPacket(p) {
       if (quote.length < 8 || quote.length > 280) throw new Error('packet_compBand_quote');
     }
   }
+  if (p.interviewPlan != null) {
+    if (!Array.isArray(p.interviewPlan)) throw new Error('packet_interviewPlan');
+    const mhIds = new Set(p.mustHaves.map((m) => m.id));
+    for (const row of p.interviewPlan) {
+      if (!row?.mustHaveId || !mhIds.has(row.mustHaveId)) {
+        throw new Error('packet_interviewPlan_mustHave');
+      }
+      if (!INTERVIEW_MOMENTS.includes(row.moment)) throw new Error('packet_interviewPlan_moment');
+      if (row.owner != null && String(row.owner).length > 80) {
+        throw new Error('packet_interviewPlan_owner');
+      }
+    }
+  }
   return true;
 }
 
@@ -132,6 +147,38 @@ export function setCompBand(packet, { text, source = 'founder_stated', url = nul
     band.evidence = { url: band.url, quote: band.quote };
   }
   const next = { ...packet, compBand: band, updatedAt: now() };
+  assertPacket(next);
+  return next;
+}
+
+/**
+ * Map must-haves → interview moments (Ashby interview-plan shaped).
+ * Default: first third → screen, middle → tech, last → founder; debrief optional.
+ */
+export function setInterviewPlan(packet, plan = null) {
+  assertPacket(packet);
+  let rows = plan;
+  if (rows == null) {
+    const mhs = packet.mustHaves;
+    const n = mhs.length;
+    const edge = Math.max(1, Math.floor(n / 3));
+    rows = mhs.map((m, i) => {
+      let moment = 'tech';
+      if (i < edge) moment = 'screen';
+      else if (i >= n - edge) moment = 'founder';
+      return { mustHaveId: m.id, moment, owner: null };
+    });
+  }
+  if (!Array.isArray(rows)) throw new Error('interviewPlan_not_array');
+  const next = {
+    ...packet,
+    interviewPlan: rows.map((r) => ({
+      mustHaveId: String(r.mustHaveId),
+      moment: String(r.moment),
+      owner: r.owner ? String(r.owner).trim().slice(0, 80) : null,
+    })),
+    updatedAt: now(),
+  };
   assertPacket(next);
   return next;
 }
@@ -245,6 +292,57 @@ export function createNote({
   };
 }
 
+/**
+ * Ashby-shaped debrief roundup: aggregate review notes per must-have.
+ * No average hire score — surfaces disagreement + evidence only.
+ */
+export function debriefRoundup(packet, notes = []) {
+  assertPacket(packet);
+  const roleNotes = (notes || []).filter((n) => n && n.roleId === packet.roleId);
+  const byMust = packet.mustHaves.map((m) => {
+    const cells = [];
+    for (const n of roleNotes) {
+      const r = (n.ratings || []).find((x) => x.mustHaveId === m.id);
+      if (!r) continue;
+      cells.push({
+        candId: n.candId,
+        rating: r.rating,
+        evidence: String(r.evidence || '').slice(0, 200),
+        reviewedBy: n.reviewedBy || null,
+        reviewedAt: n.reviewedAt || null,
+      });
+    }
+    const tally = { strong_no: 0, no: 0, yes: 0, strong_yes: 0 };
+    for (const c of cells) {
+      if (tally[c.rating] != null) tally[c.rating] += 1;
+    }
+    const distinct = new Set(cells.map((c) => c.rating));
+    return {
+      mustHaveId: m.id,
+      label: m.label,
+      n: cells.length,
+      tally,
+      disagree: distinct.size > 1,
+      cells,
+    };
+  });
+  return {
+    schema: 'demigod.debrief-roundup/1',
+    roleId: packet.roleId,
+    title: packet.title,
+    stage: packet.stage,
+    noteCount: roleNotes.length,
+    candidates: [...new Set(roleNotes.map((n) => n.candId))],
+    byMustHave: byMust,
+    decisionAids: roleNotes.map((n) => ({
+      candId: n.candId,
+      decisionAid: n.decisionAid || 'none',
+    })),
+    score: null,
+    policy: 'Debrief over average — no hire score; disagreement is a feature.',
+  };
+}
+
 /** Project packet + optional note for match-review UI (pure). */
 export function projectForReview(packet, note = null) {
   assertPacket(packet);
@@ -258,6 +356,7 @@ export function projectForReview(packet, note = null) {
     mustHaves: packet.mustHaves,
     dealBreakers: packet.dealBreakers || [],
     compBand: packet.compBand,
+    interviewPlan: packet.interviewPlan || null,
     note: note
       ? {
           candId: note.candId,
@@ -402,6 +501,21 @@ function selftest() {
   }
   assert(threw2, 'bad public comp refused');
 
+  const planned = setInterviewPlan(withComp);
+  assert(Array.isArray(planned.interviewPlan) && planned.interviewPlan.length === withComp.mustHaves.length, 'plan len');
+  assert(planned.interviewPlan.every((r) => INTERVIEW_MOMENTS.includes(r.moment)), 'plan moments');
+  threw2 = false;
+  try {
+    setInterviewPlan(withComp, [{ mustHaveId: 'nope', moment: 'screen' }]);
+  } catch {
+    threw2 = true;
+  }
+  assert(threw2, 'bad plan refused');
+
+  const round = debriefRoundup(p2, [note]);
+  assert(round.schema === 'demigod.debrief-roundup/1' && round.score === null, 'debrief');
+  assert(round.byMustHave.length === p2.mustHaves.length && round.noteCount === 1, 'debrief rows');
+
   // temp store
   const tmpP = path.join('/tmp', `dg-packets-${process.pid}.json`);
   saveStore(tmpP, { schema: 'demigod.role-packets-store/1', packets: { [p2.roleId]: p2 } });
@@ -436,7 +550,9 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|note|project [--role=] …
+    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|note|project|stage|set-comp|set-plan|debrief [--role=] …
+  set-plan  map must-haves → screen|tech|founder|debrief (Ashby interview plan; no scheduling)
+  debrief   aggregate review notes per must-have (no hire score)
 Design: docs/die/ROLE-PACKET-DESIGN.md`);
     return;
   }
@@ -570,6 +686,52 @@ Design: docs/die/ROLE-PACKET-DESIGN.md`);
       console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
       process.exit(1);
     }
+    return;
+  }
+
+  if (cmd === 'set-plan') {
+    const id = flags.role;
+    if (!id) {
+      console.error(JSON.stringify({ ok: false, error: '--role required' }));
+      process.exit(1);
+    }
+    const cur = loadPackets().packets[id];
+    if (!cur) {
+      console.error(JSON.stringify({ ok: false, error: 'not found' }));
+      process.exit(1);
+    }
+    try {
+      let plan = null;
+      if (flags.plan) plan = JSON.parse(flags.plan);
+      const next = setInterviewPlan(cur, plan);
+      upsertPacket(next);
+      console.log(
+        JSON.stringify({
+          ok: true,
+          roleId: id,
+          interviewPlan: next.interviewPlan,
+        }),
+      );
+    } catch (e) {
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (cmd === 'debrief') {
+    const id = flags.role;
+    if (!id) {
+      console.error(JSON.stringify({ ok: false, error: '--role required' }));
+      process.exit(1);
+    }
+    const packet = loadPackets().packets[id];
+    if (!packet) {
+      console.error(JSON.stringify({ ok: false, error: 'not found' }));
+      process.exit(1);
+    }
+    const notes = Object.values(loadNotes().notes || {}).filter((n) => n.roleId === id);
+    console.log(JSON.stringify(debriefRoundup(packet, notes), null, 2));
     return;
   }
 

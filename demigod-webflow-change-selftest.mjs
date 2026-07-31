@@ -44,11 +44,13 @@ assert.doesNotMatch(
 const cdnPublisher = fs.readFileSync(new URL('./demigod-foot-cdn-publish.mjs', import.meta.url), 'utf8');
 const webflowCli = fs.readFileSync(new URL('./demigod-webflow.mjs', import.meta.url), 'utf8');
 const webflowLib = fs.readFileSync(new URL('./demigod-webflow-lib.mjs', import.meta.url), 'utf8');
+const webflowConnect = fs.readFileSync(new URL('./demigod-webflow-connect.mjs', import.meta.url), 'utf8');
 assert.match(cdnPublisher, /\\\/partners\\\/?/);
 assert.match(cdnPublisher, /events-bot/);
 assert.match(webflowCli, /tool\.mutate && \(freeze\.frozen \|\| !freeze\.authorized\)/);
 assert.match(webflowCli, /'custom-code tab',\s*ccN > 0,/);
 assert.match(webflowLib, /paste: Boolean\([^)]+freeze\.authorized\)/);
+assert.doesNotMatch(webflowConnect, /\.cursor|Cursor/);
 assert.doesNotMatch(webflowCli, /--force/);
 for (const args of [['status', '--typo'], ['status', '--json', '--json'], ['hygiene', '--kill-hugn'], ['run', 'truth', 'extra']]) {
   const result = spawnSync(process.execPath, [new URL('./demigod-webflow.mjs', import.meta.url).pathname, ...args], { encoding: 'utf8' });

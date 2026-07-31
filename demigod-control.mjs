@@ -178,6 +178,38 @@ export const MODULES = {
       { id: 'auto', label: 'Auto-propose', job: 'auto-propose' },
     ],
   },
+  enrich: {
+    title: 'Enrich',
+    why: 'Map · role ledger · research seals · RecruitAI export (Clay/DIE)',
+    emoji: '⬡',
+    accent: '#34d399',
+    key: 'n',
+    cli: 'node demigod-control-board.mjs status',
+    dashTab: 'tools',
+    api: `${DASH}/api/control-board`,
+    jobs: ['control-board', 'reseal-queue', 'enrichment-scoreboard', 'recruitai-desk'],
+    actions: [
+      { id: 'cb', label: 'Control board', job: 'control-board' },
+      { id: 'reseal', label: 'Reseal status', job: 'reseal-queue' },
+      { id: 'scoreboard', label: 'Scoreboard', job: 'enrichment-scoreboard' },
+    ],
+  },
+  hiring: {
+    title: 'Structured hiring',
+    why: 'Ashby packets · Underdog batches · Gem touches · Affinity paths (no fit score)',
+    emoji: '▣',
+    accent: '#fbbf24',
+    key: 'i',
+    cli: 'node demigod-structured-hiring.mjs status',
+    dashTab: 'tools',
+    api: `${DASH}/api/structured-hiring`,
+    jobs: ['structured-hiring', 'role-packet', 'pilot-batch', 'candidate-touch', 'intro-path'],
+    actions: [
+      { id: 'sh', label: 'SH status', job: 'structured-hiring' },
+      { id: 'packets', label: 'Packets', job: 'role-packet' },
+      { id: 'rediscover', label: 'Rediscover', job: 'candidate-touch' },
+    ],
+  },
   review: {
     title: 'Review',
     why: 'Diff-aware policy scan + fix prompts',
@@ -645,6 +677,72 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
       inboxNew: dashStatus?.inbox?.newCount,
     },
   });
+
+  // OB-07: enrich + structured-hiring modules (read receipts only; no network)
+  const controlBoard = safeJsonFile(path.join(BUSY, 'control-board.json'));
+  const controlBoardAgeMs = ageMsFrom(controlBoard?.at);
+  const controlBoardFresh =
+    controlBoardAgeMs >= -60_000 && controlBoardAgeMs <= 6 * 3600 * 1000;
+  const shStatus =
+    dashStatus?.structuredHiring ||
+    dashStatus?.matches?.structuredHiringStatus ||
+    safeJsonFile(path.join(BUSY, 'structured-hiring-status.json'));
+  const resealLast = safeJsonFile(path.join(BUSY, 'reseal-queue-last.json'));
+  let resealPending = 0;
+  try {
+    const qpath = path.join(BUSY, 'reseal-queue.jsonl');
+    if (fs.existsSync(qpath)) {
+      resealPending = fs
+        .readFileSync(qpath, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => {
+          try {
+            return JSON.parse(l);
+          } catch {
+            return null;
+          }
+        })
+        .filter((r) => r && r.pending !== false).length;
+    }
+  } catch {
+    /* */
+  }
+  modules.enrich = enrich('enrich', {
+    ok: controlBoardFresh ? controlBoard?.ok !== false && resealPending === 0 : null,
+    detail: controlBoard
+      ? `controls ${controlBoard.summary || '?'}${resealPending ? ` · reseal pending=${resealPending}` : ''}${
+          controlBoardFresh ? '' : ' · stale — run control-board'
+        }`
+      : 'node demigod-control-board.mjs status',
+    next:
+      resealPending > 0
+        ? 'node demigod-reseal-queue.mjs run'
+        : 'node demigod-control-board.mjs status',
+    metrics: {
+      controlOk: controlBoard?.ok ?? null,
+      highExitFail: controlBoard?.exitFailures?.length ?? null,
+      resealPending,
+      resealLastAt: resealLast?.at || null,
+      ageMs: controlBoardAgeMs,
+    },
+  });
+  const shCounts = shStatus?.counts || shStatus || {};
+  modules.hiring = enrich('hiring', {
+    ok: true,
+    detail: shStatus
+      ? `packets ${shCounts.packets ?? 0} · batch slots ${shCounts.activeBatchSlots ?? 0} · touches ${shCounts.touches ?? 0} · intros ${shCounts.introPaths ?? 0} · calls ${shCounts.callNotes ?? 0}`
+      : 'node demigod-structured-hiring.mjs status',
+    next: 'node demigod-structured-hiring.mjs status',
+    metrics: {
+      packets: shCounts.packets ?? null,
+      activeBatchSlots: shCounts.activeBatchSlots ?? null,
+      touches: shCounts.touches ?? null,
+      introPaths: shCounts.introPaths ?? null,
+      callNotes: shCounts.callNotes ?? null,
+    },
+  });
+
   // Show the review's age (not a stale flag): review runs on-demand, so an old result is valid until
   // the code changes — a time-based "stale" verdict would wrongly flag a still-good review. Surfacing
   // the age lets a reader judge whether it predates their edits without a false stale call.

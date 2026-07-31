@@ -1,11 +1,16 @@
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
 
-const production = ['/home/potter/DEMIGOD-SUBMISSIONS-INBOX.json', '/home/potter/DEMIGOD-BOARD.json'];
+// Derived, never hardcoded: REPO_ROOT exists on one laptop and fails in any clean checkout.
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
+
+const production = [path.join(REPO_ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'), path.join(REPO_ROOT, 'DEMIGOD-BOARD.json')];
 const hashes = () => production.map((file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'));
 
 test('submissions E2E HTTP and approval path leaves production SoRs unchanged', async (t) => {
@@ -22,7 +27,7 @@ test('submissions E2E HTTP and approval path leaves production SoRs unchanged', 
   }
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
-  const child = spawn(process.execPath, ['demigod-submissions-e2e.mjs'], { cwd: '/home/potter', env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['demigod-submissions-e2e.mjs'], { cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '', stderr = '';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr += chunk; });

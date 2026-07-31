@@ -1,10 +1,14 @@
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+
+// Derived, never hardcoded: REPO_ROOT exists on one laptop and fails in any clean checkout.
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 const freePort = () => new Promise((resolve) => {
   const server = net.createServer();
@@ -19,7 +23,7 @@ test('community forms validate intent and preserve private startup management', 
   const store = path.join(dir, 'events.json');
   const port = await freePort();
   const child = spawn(process.execPath, ['demigod-events-app.mjs'], {
-    cwd: '/home/potter',
+    cwd: REPO_ROOT,
     env: {
       ...process.env,
       DEMIGOD_EVENTS_STORE: store,

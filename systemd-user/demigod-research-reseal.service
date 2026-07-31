@@ -1,0 +1,15 @@
+[Unit]
+Description=Demigod multi-day company-research re-verify (CH-13; schedule-gated)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+# Only reseals when due (not green, queue pending, or age ≥7d). No publish.
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-reseal-queue.mjs run --schedule --max-age-days=7
+Nice=10
+TimeoutStartSec=30min

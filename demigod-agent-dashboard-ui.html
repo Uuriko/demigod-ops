@@ -1125,6 +1125,42 @@ function renderOverview(d){
   const eventSubmissions=d.eventsBot?.submissions||{eventPending:0,startupPending:0,events:[],startups:[]};
   const submissionRows=[...(eventSubmissions.events||[]).map(row=>({...row,kind:'event',label:row.title})),...(eventSubmissions.startups||[]).map(row=>({...row,kind:'startup',label:row.name}))];
   const reviewUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:'';}catch{return '';}};
+  const companySignals=d.companySignals||{error:'company_signals_unavailable'};
+  const signalCounts=companySignals.counts||{};
+  const signalNet=value=>(value>0?'+':'')+String(value??0);
+  const signalWindow=value=>value
+    ? esc(value.observedDays)+'/'+esc(value.windowDays)+' observed days · net '+esc(signalNet(value.netObservedReqs))
+    : 'unavailable';
+  const signalRows=(companySignals.changes||[]).map(signal=>{
+    const source=reviewUrl(signal.jobsUrl);
+    const reasons=[
+      signal.openedReqs?signal.openedReqs+' newly observed':'',
+      signal.olderPostedReqs?signal.olderPostedReqs+' of those with an older posted date':'',
+      signal.closedReqs?signal.closedReqs+' closed':'',
+    ].filter(Boolean).join(' · ');
+    const current=[
+      signal.openReqs+' open now',
+      signal.peopleOpsOpenReqs>0?signal.peopleOpsOpenReqs+' PeopleOps open now':'no positive PeopleOps observation',
+      signal.stalePostedReqs>0?signal.stalePostedReqs+' stale posted-date attributions':'',
+      signal.maxObservedOpenDays?signal.maxObservedOpenDays+'d max observed open':'first observed today',
+    ].filter(Boolean).join(' · ');
+    return '<tr><td>'+(source?'<a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">'+esc(signal.name)+'</a>':esc(signal.name))+
+      (signal.domain?'<div class="meta">'+esc(signal.domain)+'</div>':'')+'</td><td>'+esc(reasons||'changed')+'</td><td>'+esc(current)+'</td></tr>';
+  }).join('');
+  const companySignalCard=companySignals.error
+    ? '<div class="card alert wide"><h2>Company signal inbox</h2><div class="bad" role="status">Signal feed unavailable; no partial account data is shown.</div></div>'
+    : '<div class="card wide"><h2><span>Company signal inbox</span><span class="meta"><time datetime="'+esc(companySignals.exportGeneratedAt)+'">'+esc(companySignals.changeDate)+'</time></span></h2>'+
+      '<div style="display:flex;gap:.3rem;flex-wrap:wrap">'+
+      '<span class="pill on">'+esc(signalCounts.changedAccounts??0)+' changed</span>'+
+      '<span class="pill">'+esc(signalCounts.firstObservedReqs??0)+' newly observed</span>'+
+      '<span class="pill">'+esc(signalCounts.closedReqs??0)+' closed</span>'+
+      '<span class="pill">7d · '+signalWindow(companySignals.observed7d)+'</span>'+
+      '<span class="pill">30d · '+signalWindow(companySignals.observed30d)+'</span></div>'+
+      '<div class="meta" style="margin-top:.45rem">'+esc(companySignals.policy||'Exact public ATS observations only.')+'</div>'+
+      (signalRows
+        ? '<div style="overflow-x:auto;margin-top:.55rem"><table><thead><tr><th scope="col">Company</th><th scope="col">Exact change</th><th scope="col">Current public evidence</th></tr></thead><tbody>'+signalRows+'</tbody></table></div>'
+        : '<div class="meta" role="status" style="margin-top:.55rem">No account changes observed on '+esc(companySignals.changeDate)+'.</div>')+
+      '</div>';
   const reviewCard=row=>{
     const label=(row.kind==='event'?'Event: ':'Startup: ')+(row.label||'Untitled');
     const facts=row.kind==='event'
@@ -1200,9 +1236,19 @@ function renderOverview(d){
       const slots=c.activeBatchSlots??0;
       const touches=c.touches??0;
       const intros=c.introPaths??0;
-      return '<div><strong>'+esc(String(packs))+'</strong> <span class="meta">scorecards</span> · <strong>'+esc(String(slots))+'</strong> <span class="meta">batch slots</span> · <strong>'+esc(String(touches))+'</strong> <span class="meta">touches</span> · <strong>'+esc(String(intros))+'</strong> <span class="meta">intro paths</span> <button type="button" class="ghost" id="btnGoShTools" style="margin-left:.35rem">Structured hiring</button></div>';
+      const calls=c.callNotes??0;
+      return '<div><strong>'+esc(String(packs))+'</strong> <span class="meta">scorecards</span> · <strong>'+esc(String(slots))+'</strong> <span class="meta">batch slots</span> · <strong>'+esc(String(touches))+'</strong> <span class="meta">touches</span> · <strong>'+esc(String(intros))+'</strong> <span class="meta">intro paths</span> · <strong>'+esc(String(calls))+'</strong> <span class="meta">calls</span> <button type="button" class="ghost" id="btnGoShTools" style="margin-left:.35rem">Structured hiring</button></div>';
+    })(),
+    (function(){
+      const cb=d.controlBoard||d.control?.modules?.enrich;
+      if(!cb) return '<div class="meta" id="cbHomeChip">integrity —</div>';
+      const ok=cb.ok!==false && (cb.exitFailures?cb.exitFailures.length===0:true);
+      const sum=cb.summary||cb.detail||(ok?'controls ok':'attention');
+      return '<div id="cbHomeChip"><span class="'+(ok?'ok':'bad')+'"><strong>'+(ok?'OK':'ATTN')+'</strong></span> <span class="meta">integrity</span> · '+esc(String(sum).slice(0,80))+' <button type="button" class="ghost" id="btnGoCbTools" style="margin-left:.35rem">Control board</button></div>';
     })(),
     '</div><div class="demand-row" id="demandChips" aria-label="Demand status"></div></div>',
+
+    companySignalCard,
 
     (d.eventsBot?.active
       ? '<div class="card wide" id="eventsBotCard"><h2 id="eventsBotTitle">Events Bot <span class="meta">private operator</span></h2>'+
@@ -1225,6 +1271,7 @@ function renderOverview(d){
   const bi=$('btnGoInboxHome'); if(bi) bi.onclick=()=>setTab('inbox');
   const bm=$('btnGoMatchesHome'); if(bm) bm.onclick=()=>setTab('matches');
   const bsh=$('btnGoShTools'); if(bsh) bsh.onclick=()=>setTab('tools');
+  const bcb=$('btnGoCbTools'); if(bcb) bcb.onclick=()=>setTab('tools');
   root.querySelectorAll('[data-run-job]').forEach(btn=>{
     btn.onclick=()=>{const id=btn.getAttribute('data-run-job');runJob(id,{mutate:['events-invite-drain','events-tick'].includes(id),btn});};
   });
@@ -1522,19 +1569,40 @@ async function loadStructuredHiring(){
     const batches=(j.batches||[]).map(b=>esc(b.roleId)+' · '+b.active+'/'+b.max+' active').join('<br>');
     const redis=(j.rediscoverTop||[]).slice(0,4).map(h=>esc(h.candId)+' · touches='+h.touches).join('<br>');
     const warm=(j.warmPaths||[]).slice(0,4).map(w=>esc(w.bestStrength)+' · '+esc(w.toCand||w.toCompany||'?')+' · paths='+w.paths).join('<br>');
+    // Optional: first packet debrief via desk API (async below)
     body.innerHTML=
       '<div><strong>packets</strong> '+(c.packets||0)+
       ' · <strong>notes</strong> '+(c.reviewNotes||0)+
       ' · <strong>batches</strong> '+(c.batches||0)+
       ' · <strong>active slots</strong> '+(c.activeBatchSlots||0)+
       ' · <strong>touches</strong> '+(c.touches||0)+
-      ' · <strong>intro paths</strong> '+(c.introPaths||0)+'</div>'+
+      ' · <strong>intro paths</strong> '+(c.introPaths||0)+
+      ' · <strong>call notes</strong> '+(c.callNotes||0)+'</div>'+
       (packs?'<div class="meta" style="margin-top:.4rem"><strong>Packets</strong><br>'+packs+'</div>':'')+
       (batches?'<div class="meta" style="margin-top:.35rem"><strong>Batches</strong><br>'+batches+'</div>':'')+
       (redis?'<div class="meta" style="margin-top:.35rem"><strong>Rediscover</strong><br>'+redis+'</div>':'')+
       (warm?'<div class="meta" style="margin-top:.35rem"><strong>Warm intro paths</strong><br>'+warm+'</div>':'')+
+      ((j.recentCallNotes||[]).length?'<div class="meta" style="margin-top:.35rem"><strong>Call notes</strong><br>'+(j.recentCallNotes||[]).slice(0,3).map(n=>esc(n.kind)+' · '+esc(n.roleId||n.candId||'')+' · '+esc(n.summary||'')).join('<br>')+'</div>':'')+
+      '<div class="meta" id="shDebrief" style="margin-top:.35rem"></div>'+
       '<div class="meta" style="margin-top:.35rem">'+(j.policy?esc(j.policy):'')+'</div>';
     if($('shMeta')) $('shMeta').textContent=(j.at||'').slice(0,19)+'Z · no fit score';
+    const firstRole=(j.packets&&j.packets[0]&&j.packets[0].roleId)||null;
+    if(firstRole){
+      fetch('/api/structured-hiring?role='+encodeURIComponent(firstRole)+'&t='+Date.now())
+        .then(r=>r.json())
+        .then(desk=>{
+          const db=desk&&desk.debrief;
+          const el=$('shDebrief');
+          if(!el||!db) return;
+          const lines=(db.byMustHave||[]).slice(0,6).map(m=>{
+            const t=m.tally||{};
+            return esc(m.label||m.mustHaveId)+' · n='+m.n+(m.disagree?' · <span class="bad">disagree</span>':'')+
+              ' · y='+(t.yes||0)+'/'+(t.strong_yes||0)+' n='+(t.no||0)+'/'+(t.strong_no||0);
+          }).join('<br>');
+          el.innerHTML='<strong>Debrief</strong> '+esc(db.roleId||firstRole)+' · notes='+(db.noteCount||0)+' · no score<br>'+lines;
+        })
+        .catch(()=>{});
+    }
   }catch(e){
     body.innerHTML='<span class="bad">'+esc(e.message||String(e))+'</span>';
   }

@@ -6,6 +6,7 @@
 // Every case below tries to produce a false absence, or to corrupt the observation interval.
 import assert from 'node:assert/strict';
 import {
+  EVIDENCE_TEXT_HASH_VERSION,
   evidenceTextSha256,
   isStaleVerifiedClaim,
   isTextStableTransportFlaky,
@@ -329,6 +330,42 @@ for (const [label, check] of Object.entries({
     evidenceTextSha256(base.quote, '', `fallback ${base.quote}`),
     evidenceTextSha256(base.quote, '', `changed fallback ${base.quote}`),
   );
+
+  const stableBefore = 'stable before '.repeat(30);
+  const stableAfter = ' stable after'.repeat(30);
+  const farNoise = (value) =>
+    `${value.repeat(400)} ${stableBefore}${base.quote}${stableAfter} ${value.repeat(400)}`;
+  assert.equal(
+    evidenceTextSha256(base.quote, farNoise('a')),
+    evidenceTextSha256(base.quote, farNoise('b')),
+    'page-wide noise outside the quote window is ignored',
+  );
+  assert.notEqual(
+    evidenceTextSha256(base.quote, `prefix ${base.quote} stable qualification`),
+    evidenceTextSha256(base.quote, `prefix ${base.quote} changed qualification`),
+    'nearby evidence context still changes the hash',
+  );
+
+  const legacyHash = reduce({}, [{
+    ...base, ok: true, status: 200, textSha256: 'whole-page-hash',
+  }], T1);
+  const migrated = reduce(legacyHash, [{
+    ...base,
+    ok: true,
+    status: 200,
+    textSha256: 'quote-window-hash',
+    textHashVersion: EVIDENCE_TEXT_HASH_VERSION,
+  }], T2);
+  assert.equal(only(migrated).textSha256ChangeCount, 0, 'hash migration establishes a baseline');
+  assert.equal(only(migrated).lastTextHashVersion, EVIDENCE_TEXT_HASH_VERSION);
+  const movedAfterMigration = reduce(migrated, [{
+    ...base,
+    ok: true,
+    status: 200,
+    textSha256: 'changed-quote-window-hash',
+    textHashVersion: EVIDENCE_TEXT_HASH_VERSION,
+  }], T3);
+  assert.equal(only(movedAfterMigration).textSha256ChangeCount, 1, 'later scoped change still counts');
 }
 
 // --- a pre-existing claim must gain real counters, not keep `undefined` -------------------

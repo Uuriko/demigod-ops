@@ -1,4 +1,6 @@
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -11,6 +13,9 @@ import {
   saveInbox,
 } from './demigod-submissions-lib.mjs';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
+
+// Derived, never hardcoded: REPO_ROOT exists on one laptop and fails in any clean checkout.
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 const requiredRoleEvidence = {
   'company-name': 'Fixture Co',
@@ -84,7 +89,7 @@ test('approval stays local unless publishing is explicit', (t) => {
   };
   delete env.NODE_TEST_CONTEXT;
   const run = spawnSync(process.execPath, ['demigod-submissions-approve.mjs', 'sub-approval-local-only'], {
-    cwd: '/home/potter',
+    cwd: REPO_ROOT,
     env,
     encoding: 'utf8',
   });

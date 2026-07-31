@@ -130,6 +130,8 @@ test('an older concurrent seal cannot roll latest backward', async (t) => {
     assert.equal(evidence.loadLatest('race').runId, newer.runId);
     assert.equal(fs.readFileSync(latest, 'utf8'), fs.readFileSync(newerReceipt, 'utf8'));
     assert.equal(JSON.parse(fs.readFileSync(olderReceipt, 'utf8')).runId, older.runId);
+    assert.equal(JSON.parse(fs.readFileSync(olderReceipt, 'utf8')).chain.canonical, false);
+    assert.equal(evidence.verifyEvidenceChain('race').ok, true);
     assert.equal(fs.existsSync(`${latest}.lock`), false);
     assert.equal(fs.statSync(evidence.EVIDENCE_DIR).mode & 0o777, 0o700);
     for (const file of [latest, newerReceipt, olderReceipt]) {
@@ -167,4 +169,46 @@ test('a later fail-fresh seal does not demote a still-fresh green latest', async
   // Latest stays green while that seal is still fresh.
   assert.equal(evidence.loadLatest('keep').runId, green.runId);
   assert.equal(evidence.loadLatest('keep').result.pass, true);
+});
+
+test('canonical receipts hash-link and refuse a mutated ancestor', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-ev-chain-'));
+  const previousBusy = process.env.DEMIGOD_BUSY;
+  process.env.DEMIGOD_BUSY = dir;
+  const evidence = await import(`./demigod-evidence.mjs?chain=${process.pid}-${Date.now()}`);
+  if (previousBusy == null) delete process.env.DEMIGOD_BUSY;
+  else process.env.DEMIGOD_BUSY = previousBusy;
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const input = path.join(dir, 'input.txt');
+  fs.writeFileSync(input, 'v1');
+  const first = evidence.sealRun(evidence.beginRun('chain', { scope: [input] }), { pass: true });
+  const firstSha = evidence.sha256File(first._path);
+  const second = evidence.sealRun(evidence.beginRun('chain', { scope: [input] }), { pass: true });
+
+  assert.deepEqual(first.chain, {
+    schema: 'demigod.evidence-chain-link/1',
+    canonical: true,
+    previousRunId: null,
+    previousSha256: null,
+  });
+  assert.equal(second.chain.previousRunId, first.runId);
+  assert.equal(second.chain.previousSha256, firstSha);
+  const verified = evidence.verifyEvidenceChain('chain');
+  assert.deepEqual(
+    { ok: verified.ok, depth: verified.depth },
+    { ok: true, depth: 2 },
+  );
+
+  const mutated = JSON.parse(fs.readFileSync(first._path, 'utf8'));
+  mutated.result.summary = 'tampered';
+  fs.writeFileSync(first._path, JSON.stringify(mutated, null, 2) + '\n');
+  assert.equal(evidence.verifyEvidenceChain('chain').reason, 'hash-mismatch');
+  assert.equal(evidence.refuseIfStale('chain').reason, 'evidence-chain-hash-mismatch');
+  const third = evidence.beginRun('chain', { scope: [input] });
+  assert.throws(
+    () => evidence.sealRun(third, { pass: true }),
+    /invalid evidence chain for chain: hash-mismatch/,
+  );
+  assert.equal(fs.existsSync(path.join(evidence.EVIDENCE_DIR, `${third.runId}.json`)), false);
 });

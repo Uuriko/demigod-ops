@@ -1,6 +1,6 @@
 {
   "schema": "demigod.role-packets-store/1",
-  "updatedAt": "2026-07-31T00:46:04.471Z",
+  "updatedAt": "2026-07-31T01:17:51.543Z",
   "packets": {
     "role-demo-founding-eng": {
       "schema": "demigod.role-packet/1",
@@ -33,13 +33,13 @@
       ],
       "dealBreakers": [],
       "compBand": {
-        "text": "$160-220k + equity",
+        "text": "$180k–$220k",
         "source": "public_job_post",
         "url": "https://boards.greenhouse.io/demo/jobs/1",
-        "quote": "Compensation range $160,000 to $220,000 base",
+        "quote": "Salary range $180,000 to $220,000 USD",
         "evidence": {
           "url": "https://boards.greenhouse.io/demo/jobs/1",
-          "quote": "Compensation range $160,000 to $220,000 base"
+          "quote": "Salary range $180,000 to $220,000 USD"
         }
       },
       "stages": [
@@ -51,7 +51,29 @@
       ],
       "stage": "reviewing",
       "createdAt": "2026-07-31T00:14:19.374Z",
-      "updatedAt": "2026-07-31T00:46:04.471Z"
+      "updatedAt": "2026-07-31T01:02:35.666Z",
+      "interviewPlan": [
+        {
+          "mustHaveId": "mh1",
+          "moment": "screen",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh2",
+          "moment": "tech",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh3",
+          "moment": "tech",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh4",
+          "moment": "founder",
+          "owner": null
+        }
+      ]
     },
     "role-seed1": {
       "schema": "demigod.role-packet/1",
@@ -97,7 +119,29 @@
       ],
       "stage": "brief_ready",
       "createdAt": "2026-07-31T00:17:48.699Z",
-      "updatedAt": "2026-07-31T00:17:48.747Z"
+      "updatedAt": "2026-07-31T01:17:51.543Z",
+      "interviewPlan": [
+        {
+          "mustHaveId": "mh1",
+          "moment": "screen",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh2",
+          "moment": "tech",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh3",
+          "moment": "tech",
+          "owner": null
+        },
+        {
+          "mustHaveId": "mh4",
+          "moment": "founder",
+          "owner": null
+        }
+      ]
     }
   }
 }

@@ -58,9 +58,72 @@ export function pendingCount() {
 }
 
 /**
- * Run reseal if research not green or --force. Marks queue drained on success.
+ * CH-13: is a scheduled multi-day re-verify due?
+ * due when research not green, OR last green reseal/evidence older than maxAgeDays.
  */
-export function runReseal({ force = false } = {}) {
+export function resealDue({ maxAgeDays = 7 } = {}) {
+  const maxD = Math.max(1, Number(maxAgeDays) || 7);
+  let research = null;
+  try {
+    research = refuseIfStale('company-research-benchmark');
+  } catch (e) {
+    research = { green: false, fresh: false, reason: String(e.message || e) };
+  }
+  const last = fs.existsSync(LAST) ? JSON.parse(fs.readFileSync(LAST, 'utf8')) : null;
+  const lastOkAt = last?.green || last?.verificationPass ? last.at : null;
+  // Prefer evidence run id age via refuseIfStale when green; else last reseal
+  let lastAt = lastOkAt;
+  try {
+    const evPath = path.join(BUSY, 'evidence', 'latest-company-research-benchmark.json');
+    if (fs.existsSync(evPath)) {
+      const ev = JSON.parse(fs.readFileSync(evPath, 'utf8'));
+      if (ev?.at && (!lastAt || Date.parse(ev.at) > Date.parse(lastAt))) lastAt = ev.at;
+    }
+  } catch {
+    /* */
+  }
+  const ageDays = lastAt && Number.isFinite(Date.parse(lastAt))
+    ? (Date.now() - Date.parse(lastAt)) / 864e5
+    : null;
+  const pending = pendingCount();
+  const notGreen = !(research?.green === true && research?.fresh === true);
+  const agedOut = ageDays == null || ageDays >= maxD;
+  const due = notGreen || pending > 0 || agedOut;
+  return {
+    schema: 'demigod.reseal-due/1',
+    at: new Date().toISOString(),
+    due,
+    maxAgeDays: maxD,
+    ageDays: ageDays == null ? null : Math.round(ageDays * 10) / 10,
+    lastAt,
+    pending,
+    research: {
+      green: research?.green === true,
+      fresh: research?.fresh === true,
+      reason: research?.reason || null,
+      runId: research?.runId || null,
+    },
+    reason: notGreen
+      ? 'research_not_green'
+      : pending > 0
+        ? 'queue_pending'
+        : agedOut
+          ? 'max_age_exceeded'
+          : 'fresh',
+  };
+}
+
+/**
+ * Run reseal if research not green or --force. Marks queue drained on success.
+ * With schedule:true, only runs when resealDue().due (CH-13 multi-day).
+ */
+export function runReseal({ force = false, schedule = false, maxAgeDays = 7 } = {}) {
+  if (schedule && !force) {
+    const d = resealDue({ maxAgeDays });
+    if (!d.due) {
+      return { ok: true, skipped: true, reason: 'not-due', due: d };
+    }
+  }
   let green = false;
   try {
     const st = refuseIfStale('company-research-benchmark');
@@ -146,10 +209,14 @@ function selftest() {
   fs.appendFileSync(qpath, JSON.stringify(row) + '\n');
   const lines = fs.readFileSync(qpath, 'utf8').trim().split('\n');
   assert(lines.length === 1, 'enqueue');
+  // due helper shape (uses module-level BUSY — call live after restore)
   if (prev == null) delete process.env.DEMIGOD_BUSY;
   else process.env.DEMIGOD_BUSY = prev;
   fs.rmSync(busy, { recursive: true, force: true });
-  console.log(JSON.stringify({ ok: true, selftest: 'reseal-queue' }));
+  const d = resealDue({ maxAgeDays: 7 });
+  assert(d.schema === 'demigod.reseal-due/1', 'due schema');
+  assert(typeof d.due === 'boolean' && d.reason, 'due fields');
+  console.log(JSON.stringify({ ok: true, selftest: 'reseal-queue', due: d.due, reason: d.reason }));
 }
 
 function main() {
@@ -159,19 +226,31 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('usage: node demigod-reseal-queue.mjs enqueue|status|run [--why=…] [--force]');
+    console.log(`usage: node demigod-reseal-queue.mjs enqueue|status|due|run [--why=…] [--force] [--schedule] [--max-age-days=7]
+  due       CH-13: whether multi-day re-verify is due (no network)
+  run       reseal when not green / pending / --force; --schedule respects due window`);
     return;
   }
   const cmd = args.find((a) => !a.startsWith('-')) || 'status';
   let why = 'manual';
+  let maxAgeDays = 7;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--why' && args[i + 1]) why = args[++i];
     else if (args[i].startsWith('--why=')) why = args[i].slice(6);
+    else if (args[i] === '--max-age-days' && args[i + 1]) maxAgeDays = Number(args[++i]);
+    else if (args[i].startsWith('--max-age-days=')) maxAgeDays = Number(args[i].slice(15));
   }
   if (cmd === 'enqueue') {
     const row = enqueueReseal({ why });
     console.log(JSON.stringify({ ok: true, enqueued: row, queue: QUEUE, pending: pendingCount() }));
     return;
+  }
+  if (cmd === 'due') {
+    const d = resealDue({ maxAgeDays });
+    console.log(JSON.stringify(d, null, 2));
+    // Always exit 0 for dash/tool jobs; scripts can read `.due`.
+    // Use: node demigod-reseal-queue.mjs due | jq -e .due  for gate-style.
+    process.exit(0);
   }
   if (cmd === 'status') {
     const pending = pendingCount();
@@ -181,11 +260,13 @@ function main() {
     } catch (e) {
       research = { green: false, reason: String(e.message || e) };
     }
+    const due = resealDue({ maxAgeDays });
     console.log(
       JSON.stringify(
         {
           ok: true,
           pending,
+          due,
           research: { green: research.green, reason: research.reason, runId: research.runId },
           last: fs.existsSync(LAST) ? JSON.parse(fs.readFileSync(LAST, 'utf8')) : null,
           queue: QUEUE,
@@ -198,7 +279,8 @@ function main() {
   }
   if (cmd === 'run') {
     const force = args.includes('--force');
-    const result = runReseal({ force });
+    const schedule = args.includes('--schedule');
+    const result = runReseal({ force, schedule, maxAgeDays });
     console.log(JSON.stringify(result, null, 2));
     process.exit(result.ok ? 0 : 1);
   }

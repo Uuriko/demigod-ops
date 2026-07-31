@@ -16,6 +16,21 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | PARKED | Kill condition unmeasurable or deferred |
 | KILLED | Explicitly rejected by data or non-goals |
 
+## Execution updates — 2026-07-31
+
+- **OP-08 — BUILT (enrich discovery):** `demigod-work-find.mjs` now surfaces reseal
+  pending, control-board stale/fail, weekly reseal due, missing interview plan/comp
+  bands, and shallow aging ages — without inventing roles or outbound.
+- **CH-13 — BUILT (schedule-gated):** `demigod-reseal-queue.mjs due|run --schedule`
+  + `systemd-user/demigod-research-reseal.{service,timer}` (weekly, max-age 7d).
+- **OB-07 — BUILT:** control plane modules `enrich` + `hiring` on
+  `demigod-control.mjs` / `/api/control` (receipt-backed metrics).
+- **AR-08 — PARTIAL→improved:** categorizeRole recall for L&D, GRC/privacy counsel,
+  support/RevOps, DevRel/tech writer, security-eng stays engineering; still coarse
+  honest buckets (not a fine taxonomy).
+- **Public-comp fetch:** SSRF-safe `--fetch-url` for operator job pages (https +
+  safeResearchUrl); strip HTML; quote-bound apply only.
+
 ## Execution updates — 2026-07-30
 
 - **AR-26 — BUILT / AR-08 — PARTIAL:** high-confidence PeopleOps precedence now covers
@@ -112,7 +127,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-05 | Lever descriptionPlain/additional for agency extract | BUILT | POLLERS.Lever | demigod-role-ledger.mjs | selftest extractAgency | AR |
 | AR-06 | Ashby description fields for agency extract | BUILT | POLLERS.Ashby | demigod-role-ledger.mjs | selftest | AR |
 | AR-07 | nativePostedAt + nativeDateField per provider | BUILT | first_published/createdAt/publishedAt | demigod-role-ledger.mjs | export attributedPosted counts | AR |
-| AR-08 | Role fn categorizeRole taxonomy | PARTIAL | coarse honest buckets; high-confidence PeopleOps precedence fixed | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
+| AR-08 | Role fn categorizeRole taxonomy | PARTIAL | coarse buckets + L&D/GRC/support/DevRel/security-eng canaries; not fine-grained taxonomy | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
 | AR-09 | openPeopleOpsReqCount export aggregate | BUILT | fn===people count | demigod-recruitai-export.mjs | export rows people>0 (local ~74) | AR |
 | AR-10 | samplePeopleOpsRole title/URL positive only | BUILT | null when count 0 | export aggregateRoles | assertExportValid people ops pair | AR |
 | AR-11 | noAgencyEvidenceReqCount positive only | BUILT | supported agencyPolicyEvidence | export | local yield 1 board | AR |
@@ -153,7 +168,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | CH-10 | textStableFlaky diagnostic | BUILT | isTextStableTransportFlaky | history counts | source-history-poison | CH |
 | CH-11 | sha256ChangeCount / textSha256ChangeCount page churn | BUILT | INSTRUMENTED mechanism 3 | reduceSourceVerificationHistory | history fields present | CH |
 | CH-12 | Change-triggered refresh productization | PARKED | high body churn low text churn; no skip | history counters | ≥10 runs kill condition | CH |
-| CH-13 | Multi-day research re-verify schedule | NOW | pri7; decay needs absences | benchmark live + timer | evidence fresh + history absences | CH |
+| CH-13 | Multi-day research re-verify schedule | BUILT | due + weekly schedule-gated reseal (max-age 7d) | demigod-reseal-queue due/run --schedule + research-reseal.timer | node demigod-reseal-queue.mjs due | CH |
 | CH-14 | Partner same-day export/map/ledger bind | BUILT | assertCurrentRecruitaiSource | demigod-lead-sourcer.mjs | lead-sourcer committed tests | CH |
 | CH-15 | Directory aging badges ≥7d/≥30d from ledger | PARTIAL | aging enrich; ages young until poll history | demigod-directory-aging.mjs | directory-aging --selftest | CH |
 | CH-16 | Export changeDate / changeBasis ledger-observation | BUILT | changeDate defaults to ledger updatedAt, not UTC wall-clock | demigod-recruitai-export.mjs | cross-UTC-boundary export + selftest | CH |
@@ -226,7 +241,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | OP-05 | role-ledger report --posted aging SF | BUILT | CLI report | demigod-role-ledger.mjs | report --posted | OP |
 | OP-06 | CDN re-ship map ages | GATED | pri3 current-request publish auth | foot-cdn-publish + cm6 | only with DEMIGOD_CURRENT_REQUEST_PUBLISH=1 | OP |
 | OP-07 | Map identity / funnel collision dedupe | NOW | pri10 | funnel + map | funnel collision tests | OP |
-| OP-08 | Useful-loop / work-find discovery of enrich tasks | PARTIAL | work-find may be empty honest | demigod-work-find.mjs | work-find count | OP |
+| OP-08 | Useful-loop / work-find discovery of enrich tasks | BUILT | reseal/control-board/SH plan/comp/aging keys | demigod-work-find.mjs | work-find --json enrich kinds | OP |
 | OP-09 | Hermetic clay soak 9-gate loop | BUILT | soak design/audit | systemd dg-clay-soak | clay-soak-receipt.jsonl | OP |
 | OP-10 | Tools registry recruitai export/partner jobs | BUILT | tools-registry | demigod-tools-registry.mjs | registry list | OP |
 | OP-11 | Firecrawl only safe public targets | BUILT | enrich --repair-denied policy | startup-jobs-enrich | invocation selftest | OP |
@@ -239,7 +254,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | OB-04 | Source history counts in export researchEvidence | BUILT | sourceHistory.counts | export researchGate | export sourceHistory | OB |
 | OB-05 | Desk researchStaleVsExport warning | BUILT | pack when export green research not | demigod-recruitai-desk.mjs | status/pack flag | OB |
 | OB-06 | Dogfood wrap for tools | BUILT | tool-dogfood | demigod-tool-dogfood.mjs | dogfood status | OB |
-| OB-07 | Control plane /api/control enrich modules | PARTIAL | dash home | demigod-agent-dashboard.mjs | GET /api/control | OB |
+| OB-07 | Control plane /api/control enrich modules | BUILT | modules.enrich + modules.hiring | demigod-control.mjs | node demigod-control.mjs modules · GET /api/control | OB |
 | OB-08 | Hiring pulse render escape injection | BUILT | selftest escape | demigod-hiring-pulse.mjs | --selftest | OB |
 | OB-09 | Import integrity untracked import edges | BUILT | import-integrity | demigod-import-integrity.mjs | node demigod-import-integrity.mjs | OB |
 | OB-10 | Publish freeze / ship prepare evidence | BUILT | ship-prepare receipt | demigod-ship.mjs | ship-prepare contract test | OB |

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import {
+
   scanLiveHtml,
   evaluatePageScan,
   evaluateDesignerScan,
@@ -20,7 +22,10 @@ import {
   appendNovelFindings,
 } from './demigod-live-lib.mjs';
 
-const ROOT = '/home/potter';
+// Derived, never hardcoded: '/home/potter' exists on one laptop and fails in any clean checkout.
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
+
+const ROOT = REPO_ROOT;
 
 describe('scanLiveHtml', () => {
   it('flags MCP rewrite scripts', () => {

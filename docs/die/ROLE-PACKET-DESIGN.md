@@ -43,10 +43,15 @@ Match review without a scorecard becomes vibes. Greenhouse/Ashby win by forcing 
   },
   "stages": ["brief_ready", "reviewing", "mutual_pending", "intro", "outcome"],
   "stage": "brief_ready",
+  "interviewPlan": [
+    { "mustHaveId": "mh1", "moment": "screen|tech|founder|debrief", "owner": null }
+  ],
   "createdAt": "ISO",
   "updatedAt": "ISO"
 }
 ```
+
+`interviewPlan` is optional (Ashby interview-plan shaped): maps each must-have to a moment. No scheduling product — plan only. Default via `node demigod-role-packet.mjs set-plan --role=…`.
 
 Constraints:
 

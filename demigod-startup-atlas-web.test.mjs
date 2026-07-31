@@ -137,9 +137,12 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   // Search + hiring filter present and labelled.
   assert.match(source, /aria-label="Search startups"/);
   assert.match(source, /aria-label="Filter by hiring status"/);
+  assert.match(source, /aria-label="Filter by ATS provider"/);
   assert.match(source, /var CAP = 20;/);
   assert.doesNotMatch(source, /\bfilter\(\);/);
   assert.match(source, /state\.hiringOf\[i\] === h/);
+  assert.match(source, /state\.providerOf\[i\] === provider/);
+  assert.match(source, /providerEl\.addEventListener\('change', renderRows\)/);
   assert.match(source, /\[c\.name, c\.description\]\.concat\(c\.tags/);
   // Output escaping + https-only links.
   assert.match(source, /function esc\(value\)/);

@@ -46,7 +46,6 @@ function mcpConfigs() {
   return {
     grok: fileHas(path.join(home, '.grok/config.toml'), /mcp\.webflow\.com/),
     claude: fileHas(path.join(home, '.claude.json'), /mcp\.webflow\.com/),
-    cursor: fileHas(path.join(home, '.cursor/mcp.json'), /mcp\.webflow\.com/) || fs.existsSync(path.join(home, '.cursor/plugins/cache/cursor-public/webflow')),
     codex: fileHas(path.join(home, '.codex/config.toml'), /mcp\.webflow\.com/),
   };
 }
@@ -189,7 +188,7 @@ async function main() {
       console.log('');
       const L = status.layers;
       const row = (ok, name, detail) => console.log(`  ${ok ? '✓' : '·'} ${name}${detail ? ' — ' + detail : ''}`);
-      row(L.mcpConfigAllAgents, 'MCP config (Grok/Claude/Cursor/Codex)', JSON.stringify(status.mcpConfigs));
+      row(L.mcpConfigAllAgents, 'MCP config (Grok/Claude/Codex)', JSON.stringify(status.mcpConfigs));
       row(L.mcpOAuthGrok, 'MCP OAuth (Grok credentials)');
       row(L.designerTab, 'Designer tab open (Bridge when app panel running)');
       row(L.siteTokenRest, 'Site token for REST scripts', status.siteToken.source || status.siteToken.hint?.slice(0, 60));

@@ -12,10 +12,12 @@
 | 4 | Batch cap (**Underdog / Wellfound Autopilot**) | `PilotBatch` max 2–3; terminal before add | `demigod-pilot-batch.mjs`, `DEMIGOD-PILOT-BATCHES.json` | none | `node demigod-pilot-batch.mjs --selftest` | **shipped** |
 | 5 | Touch rediscovery (**Gem**) | `CandidateTouch` append-only + rediscover | `demigod-candidate-touch.mjs`, `DEMIGOD-CANDIDATE-TOUCHES.json` | none | `node demigod-candidate-touch.mjs --selftest` | **shipped** |
 | 4b | Intro path memory (**Affinity** phase-0) | Manual `IntroPath` strength+evidence; warm rank | `demigod-intro-path.mjs`, `DEMIGOD-INTRO-PATHS.json` | none (no connectors) | `node demigod-intro-path.mjs --selftest` | **shipped (manual)** |
+| 7b | Call notes (**Metaview** thin, no bot) | Manual `CallNote` summary ≥20; no score/auto-pair | `demigod-call-note.mjs`, `DEMIGOD-CALL-NOTES.json` | after real screens | `node demigod-call-note.mjs --selftest` | **shipped (manual)** |
+| 9b | Public job-post comp (**Levels** thin) | Extract quote → `public_job_post` band on packet | `demigod-public-comp.mjs` → `setCompBand` | https URL + parseable quote | `node demigod-public-comp.mjs --selftest` | **shipped (extract/apply)** |
 
 ## Explicitly not in top 5 (still researched)
 
-Affinity **connectors** (Gmail/calendar) · Harmonic-scale DB · Metaview bot · Levels product · Paraform marketplace software.
+Affinity **connectors** (Gmail/calendar) · Harmonic-scale DB · Metaview **bot-joiner** · Levels crowd DB · Paraform marketplace software.
 
 ## Agent policy when implementing
 

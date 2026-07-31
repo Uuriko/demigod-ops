@@ -177,6 +177,79 @@ test('Inbox renders an explicitly operational queue', () => {
   assert.match(ui, /ib\.operationalRows\|\|\(ib\.operationalCount===0\?\[\]:ib\.rows\|\|\[\]\)/);
 });
 
+test('Home projects a bounded fail-closed company signal inbox', () => {
+  const projection = server.slice(
+    server.indexOf('function companySignalInboxView'),
+    server.indexOf('function peopleIntelligenceView'),
+  );
+  assert.match(server, /companySignals: companySignalInboxView\([\s\S]{0,120}demigod-signals\.json/);
+  assert.match(server, /companySignals: data\.companySignals \|\| null/);
+  assert.match(ui, /Company signal inbox/);
+  assert.match(ui, /no positive PeopleOps observation/);
+  assert.match(ui, /Exact public ATS observations/);
+  const view = Function(`${projection}; return companySignalInboxView`)();
+  const observed = (windowDays) => ({
+    windowDays,
+    observedDays: 1,
+    changedAccounts: 1,
+    changedAccountDays: 1,
+    firstObservedReqs: 1,
+    firstObservedOlderPostedReqs: 0,
+    closedReqs: 2,
+    netObservedReqs: -1,
+    from: '2026-07-30',
+    through: '2026-07-30',
+  });
+  const feed = {
+    schema: 'demigod.recruitai-signals/3',
+    at: '2026-07-30T12:00:00.000Z',
+    sourceSchema: 'demigod.recruitai-export/3',
+    exportGeneratedAt: '2026-07-30T11:59:59.000Z',
+    changeDate: '2026-07-30',
+    changeBasis: 'ledger-observation',
+    counts: {
+      accounts: 1,
+      changedAccounts: 1,
+      firstObservedTodayReqs: 1,
+      firstObservedTodayOlderPostedReqs: 0,
+      closedTodayReqs: 2,
+      observedHistoryDays: 1,
+    },
+    changes: [{
+      mapCompanyId: 'test:acme',
+      name: 'Acme',
+      domain: 'acme.test',
+      jobsUrl: 'https://jobs.acme.test/',
+      openReqCount: 3,
+      firstObservedTodayReqCount: 1,
+      firstObservedTodayOlderPostedReqCount: 0,
+      closedTodayReqCount: 2,
+    }],
+    velocity: {
+      basis: 'exact ledger-observation sums; latest snapshot per observed date; no inferred rate',
+      observed7d: observed(7),
+      observed30d: observed(30),
+    },
+    byMapCompanyId: {
+      'test:acme': {
+        jobsUrl: 'https://jobs.acme.test/',
+        openReqCount: 3,
+        openPeopleOpsReqCount: 1,
+        staleAttributedPostedReqCount: 1,
+        maxObservedOpenDays: 5,
+        sampleRoleUrl: 'https://jobs.acme.test/private-detail-not-projected',
+      },
+    },
+  };
+  const result = view(feed);
+  assert.equal(result.observed7d.netObservedReqs, -1);
+  assert.equal(result.changes[0].peopleOpsOpenReqs, 1);
+  assert.equal('sampleRoleUrl' in result.changes[0], false);
+  const poisoned = structuredClone(feed);
+  poisoned.byMapCompanyId['test:acme'].jobsUrl = 'https://user:secret@jobs.acme.test/';
+  assert.deepEqual(view(poisoned), { error: 'company_signals_unavailable' });
+});
+
 test('Inbox reuses the funnel report as aggregate-only people intelligence', () => {
   const projection = server.slice(
     server.indexOf('function peopleIntelligenceView'),

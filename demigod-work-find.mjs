@@ -236,6 +236,144 @@ function main() {
     });
   }
 
+  // —— OP-08: enrich / integrity / structured-hiring product tasks (local, no invent roles) ——
+  {
+    const resealQ = path.join(BUSY, 'reseal-queue.jsonl');
+    let resealPending = 0;
+    try {
+      if (fs.existsSync(resealQ)) {
+        resealPending = fs
+          .readFileSync(resealQ, 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .map((l) => {
+            try {
+              return JSON.parse(l);
+            } catch {
+              return null;
+            }
+          })
+          .filter((r) => r && r.pending !== false).length;
+      }
+    } catch {
+      /* */
+    }
+    if (resealPending > 0) {
+      pushWork(seen, found, {
+        key: 'enrich:reseal-pending',
+        kind: 'enrich',
+        pri: 1,
+        title: `Research reseal queue pending=${resealPending}`,
+        task: 'reseal-run',
+        note: 'node demigod-reseal-queue.mjs run',
+        repeatable: true,
+      });
+    }
+
+    const cb = readJson(path.join(BUSY, 'control-board.json'));
+    const cbAgeMs = cb?.at ? Date.now() - Date.parse(cb.at) : Number.POSITIVE_INFINITY;
+    if (!cb || !Number.isFinite(cbAgeMs) || cbAgeMs > 6 * 3600 * 1000) {
+      pushWork(seen, found, {
+        key: 'enrich:control-board-stale',
+        kind: 'enrich',
+        pri: 2,
+        title: 'Control board receipt missing or >6h — re-evaluate integrity controls',
+        task: 'control-board',
+        note: 'node demigod-control-board.mjs status',
+        repeatable: true,
+      });
+    } else if (cb.ok === false || (cb.exitFailures && cb.exitFailures.length)) {
+      pushWork(seen, found, {
+        key: `enrich:control-board-fail:${(cb.exitFailures || []).join(',') || 'attn'}`,
+        kind: 'enrich',
+        pri: 0,
+        title: `Control board ATTENTION · ${cb.summary || 'high exit fail'}`,
+        task: 'control-board',
+        detail: { highFailures: cb.highFailures || [], exitFailures: cb.exitFailures || [] },
+        note: 'node demigod-control-board.mjs status',
+        repeatable: true,
+      });
+    }
+
+    // Multi-day reseal due (CH-13): last successful reseal / research green older than 7d
+    {
+      const resealLast = readJson(path.join(BUSY, 'reseal-queue-last.json'));
+      const researchFresh = readJson(path.join(BUSY, 'evidence', 'latest-company-research-benchmark.json'))
+        || readJson(path.join(BUSY, 'evidence/latest-company-research-benchmark.json'));
+      const lastAt = resealLast?.at || researchFresh?.at || researchFresh?.runAt || null;
+      const ageDays = lastAt ? (Date.now() - Date.parse(lastAt)) / 864e5 : 999;
+      if (ageDays >= 7) {
+        pushWork(seen, found, {
+          key: 'enrich:reseal-weekly',
+          kind: 'enrich',
+          pri: 2,
+          title: `Research re-verify due (last ${ageDays === 999 ? 'unknown' : ageDays.toFixed(0) + 'd'} ago)`,
+          task: 'reseal-due',
+          note: 'node demigod-reseal-queue.mjs due || node demigod-reseal-queue.mjs run --force',
+          repeatable: true,
+        });
+      }
+    }
+
+    // Structured hiring: packets without interview plan or public/founder comp (demo-aware)
+    try {
+      const packets = readJson(path.join(ROOT, 'DEMIGOD-ROLE-PACKETS.json'));
+      const list = Object.values(packets?.packets || {});
+      const missingPlan = list.filter((p) => !Array.isArray(p.interviewPlan) || !p.interviewPlan.length);
+      const missingComp = list.filter((p) => !p.compBand?.text);
+      if (missingPlan.length) {
+        pushWork(seen, found, {
+          key: 'sh:interview-plan',
+          kind: 'structured-hiring',
+          pri: 3,
+          title: `${missingPlan.length} RolePacket(s) missing interview plan`,
+          task: 'role-packet-set-plan',
+          note: 'node demigod-role-packet.mjs set-plan --role=…',
+          detail: { roles: missingPlan.map((p) => p.roleId).slice(0, 8) },
+          repeatable: false,
+        });
+      }
+      if (missingComp.length) {
+        pushWork(seen, found, {
+          key: 'sh:comp-band',
+          kind: 'structured-hiring',
+          pri: 3,
+          title: `${missingComp.length} RolePacket(s) missing comp band`,
+          task: 'public-comp-or-set-comp',
+          note: 'node demigod-public-comp.mjs apply --role=… --url=… --text=…  OR  set-comp --source=founder_stated',
+          detail: { roles: missingComp.map((p) => p.roleId).slice(0, 8) },
+          repeatable: false,
+        });
+      }
+    } catch {
+      /* */
+    }
+
+    // Aging badges still young: surface poll health (AR-25) without inventing roles
+    {
+      const aging = readJson(path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json'));
+      const maxObs = Number(aging?.maxOldestObservedDays ?? aging?.coverage?.maxOldestObservedDays ?? 0);
+      // If asset has per-company, derive max
+      let derivedMax = maxObs;
+      if (!derivedMax && aging?.companies && typeof aging.companies === 'object') {
+        for (const c of Object.values(aging.companies)) {
+          if (Number(c?.oldestObservedDays) > derivedMax) derivedMax = Number(c.oldestObservedDays);
+        }
+      }
+      if (derivedMax > 0 && derivedMax < 7) {
+        pushWork(seen, found, {
+          key: 'enrich:aging-shallow',
+          kind: 'enrich',
+          pri: 3,
+          title: `Directory observed ages still young (max ${derivedMax}d) — role-ledger timer accrues ≥7d badges`,
+          task: 'role-ledger-poll-status',
+          note: 'systemctl --user status demigod-role-ledger.timer; poll is daily (do not force thrash)',
+          repeatable: true,
+        });
+      }
+    }
+  }
+
   found.sort((a, b) => a.pri - b.pri || a.task.localeCompare(b.task));
   for (const item of found) {
     fs.appendFileSync(QUEUE, JSON.stringify(item) + '\n');

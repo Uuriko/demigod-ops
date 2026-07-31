@@ -40,6 +40,7 @@ const HISTORY_PATH = path.join(BUSY, 'company-research-source-history.json');
 // otherwise read-reduce-write the same history file and the later writer drops the earlier.
 const LOCK_PATH = path.join(BUSY, 'company-research-benchmark.lock');
 const SEED = 'demigod-die-benchmark-v1';
+export const EVIDENCE_TEXT_HASH_VERSION = 'quote-window-v1';
 
 const sourceFamily = (company) =>
   company.source === 'Y Combinator' ? 'YC'
@@ -240,17 +241,31 @@ export function reduceSourceVerificationHistory(previous = {}, checks = [], at) 
     // Counted only on a SUCCESSFUL fetch that returned a hash differing from the stored one: a
     // first observation is not a change, a missing hash is not a change, and a transport failure
     // is never a change (it never reaches this).
-    const noteHashChange = (fetched, lastKey, countKey, atKey) => {
+    const noteHashChange = (
+      fetched,
+      lastKey,
+      countKey,
+      atKey,
+      versionKey = null,
+      fetchedVersion = null,
+    ) => {
       // Backfill the counter on EVERY reduce, not only at claim creation. Claims that predate the
       // field carried `undefined`, which the 3.8 population query coerces to 0 — flattening
       // "never compared" into "compared and stable". Those are different facts (Claude loop 10).
       next[countKey] = Number(prior[countKey]) || 0;
       if (!fetched) return;
+      // Changing the hash algorithm is a new baseline, not a page change.
+      if (versionKey && fetchedVersion && prior[lastKey] && prior[versionKey] !== fetchedVersion) {
+        next[lastKey] = fetched;
+        next[versionKey] = fetchedVersion;
+        return;
+      }
       if (prior[lastKey] && prior[lastKey] !== fetched) {
         next[countKey] = (Number(prior[countKey]) || 0) + 1;
         next[atKey] = at;
       }
       next[lastKey] = fetched;
+      if (versionKey && fetchedVersion) next[versionKey] = fetchedVersion;
     };
     const notePageChange = () => {
       // Two independent signals. sha256 is the response body and is dominated by noise (measured
@@ -258,7 +273,16 @@ export function reduceSourceVerificationHistory(previous = {}, checks = [], at) 
       // the one that means "the evidence moved". Keeping both makes the ratio observable over time
       // instead of a single-day anecdote.
       noteHashChange(check.sha256, 'lastSha256', 'sha256ChangeCount', 'lastSha256ChangedAt');
-      noteHashChange(check.textSha256, 'lastTextSha256', 'textSha256ChangeCount', 'lastTextSha256ChangedAt');
+      noteHashChange(
+        check.textSha256,
+        'lastTextSha256',
+        'textSha256ChangeCount',
+        'lastTextSha256ChangedAt',
+        'lastTextHashVersion',
+        check.textHashVersion === EVIDENCE_TEXT_HASH_VERSION
+          ? EVIDENCE_TEXT_HASH_VERSION
+          : null,
+      );
     };
     if (check.ok === true) {
       next.firstVerifiedAt ||= at;
@@ -340,9 +364,59 @@ export function evidenceTextSha256(quote, httpText, fallbackText = '') {
   const sourceText = [httpText, fallbackText]
     .map(normalizeText)
     .find((text) => normalizedQuote && text.includes(normalizedQuote));
-  return sourceText
-    ? crypto.createHash('sha256').update(sourceText).digest('hex')
-    : null;
+  if (!sourceText) return null;
+  const quoteAt = sourceText.indexOf(normalizedQuote);
+  // ponytail: fixed quote context avoids a selector/config system; widen only if real
+  // qualification text is observed beyond 256 characters from an accepted quote.
+  const scoped = sourceText.slice(
+    Math.max(0, quoteAt - 256),
+    quoteAt + normalizedQuote.length + 256,
+  );
+  return crypto.createHash('sha256').update(scoped).digest('hex');
+}
+
+/** Collapse repeated claim failures into stable source issues for this immutable run receipt. */
+export function groupSourceFailures(checks = []) {
+  const groups = new Map();
+  for (const check of Array.isArray(checks) ? checks : []) {
+    if (check?.ok === true) continue;
+    const url = safeResearchUrl(check?.url) || 'unsafe-url';
+    const status =
+      Number.isInteger(check?.status) && check.status >= 100 && check.status <= 599
+        ? check.status
+        : null;
+    // ponytail: exact bounded reason grouping; add volatile-token stripping only if real
+    // request IDs are observed fragmenting one failure class.
+    const reason = check?.error
+      ? `fetch:${normalizeText(check.error).slice(0, 120)}`
+      : check?.fallbackError
+        ? `fallback:${normalizeText(check.fallbackError).slice(0, 120)}`
+        : status && status >= 200 && status < 300
+          ? 'quote-absent'
+          : status
+            ? `http:${status}`
+            : 'unknown';
+    const key = `${url}\0${reason}`;
+    const issue = groups.get(key) || {
+      fingerprint: crypto.createHash('sha256').update(key).digest('hex').slice(0, 16),
+      url,
+      reason,
+      failureCount: 0,
+      claims: new Set(),
+    };
+    issue.failureCount += 1;
+    const rowId = String(check?.rowId || '').slice(0, 200);
+    const fieldName = String(check?.fieldName || '').slice(0, 80);
+    if (rowId && fieldName) issue.claims.add(`${rowId}:${fieldName}`);
+    groups.set(key, issue);
+  }
+  return [...groups.values()]
+    .map((issue) => ({
+      ...issue,
+      claims: [...issue.claims].sort(),
+      claimCount: issue.claims.size,
+    }))
+    .sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
 }
 
 async function verifySources(doc) {
@@ -402,6 +476,7 @@ async function verifySources(doc) {
             fetched.ok ? visibleText : '',
             fallbackText,
           ),
+          textHashVersion: EVIDENCE_TEXT_HASH_VERSION,
           transport,
           fallbackError,
         }));
@@ -509,6 +584,7 @@ export async function runBenchmark({ verifyLive = true } = {}) {
   );
   const sourceChecks = verifyLive ? await verifySources(doc) : [];
   const sourceFailures = sourceChecks.filter((check) => !check.ok);
+  const sourceIssues = groupSourceFailures(sourceFailures);
   const at = new Date().toISOString();
   const verificationPass = sourceVerificationPass({
     verifyLive,
@@ -528,6 +604,8 @@ export async function runBenchmark({ verifyLive = true } = {}) {
     expectedClaims,
     sourceChecks,
     sourceFailureCount: sourceFailures.length,
+    sourceIssueCount: sourceIssues.length,
+    sourceIssues,
     benchmarkPass,
     verificationPass,
   };
@@ -568,9 +646,10 @@ export async function runBenchmark({ verifyLive = true } = {}) {
       addArtifact(run, 'company-research-source-history', HISTORY_PATH);
       const envelope = sealRun(run, {
         pass: output.verificationPass,
-        summary: `${grade.acceptedFields.length}/5 fields accepted; ${sourceChecks.length}/${expectedClaims} source checks ran; ${sourceFailures.length} failed`,
+        summary: `${grade.acceptedFields.length}/5 fields accepted; ${sourceChecks.length}/${expectedClaims} source checks ran; ${sourceFailures.length} failed (${sourceIssues.length} issues)`,
         acceptedFields: grade.acceptedFields,
         benchmarkPass: output.benchmarkPass,
+        sourceIssues,
       });
       return { ...output, evidencePath: envelope._path, outputPath };
     },
@@ -676,6 +755,43 @@ async function selftest() {
     expectedClaims: 1,
     sourceChecks: [{ ok: true }],
   }), true, 'complete live subject passes');
+  {
+    const repeated = [
+      {
+        ok: false,
+        status: 503,
+        url: 'https://example.com/source',
+        rowId: 'a',
+        fieldName: 'productSummary',
+      },
+      {
+        ok: false,
+        status: 503,
+        url: 'https://example.com/source',
+        rowId: 'b',
+        fieldName: 'likelyBuyer',
+      },
+    ];
+    const issues = groupSourceFailures(repeated);
+    assert.equal(issues.length, 1, 'same source failure collapses to one issue');
+    assert.equal(issues[0].failureCount, 2);
+    assert.equal(issues[0].claimCount, 2);
+    assert.deepEqual(
+      groupSourceFailures([...repeated].reverse()).map((issue) => issue.fingerprint),
+      issues.map((issue) => issue.fingerprint),
+      'fingerprint is stable across claim order',
+    );
+    assert.notEqual(
+      groupSourceFailures([{ ...repeated[0], status: 429 }])[0].fingerprint,
+      issues[0].fingerprint,
+      'a different failure class is a different issue',
+    );
+    assert.deepEqual(
+      groupSourceFailures(repeated.map((check) => ({ ...check, ok: true }))),
+      [],
+      'a recovered source emits no current issue',
+    );
+  }
   // Seal-scope race: gold/map pin must fail closed on drift (not seal against rewritten gold).
   {
     const goldBytes = Buffer.from('gold-v1');

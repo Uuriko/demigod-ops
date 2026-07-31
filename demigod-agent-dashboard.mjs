@@ -872,6 +872,161 @@ function compactWorkStatus() {
   };
 }
 
+function companySignalInboxView(feed) {
+  try {
+    const count = (value) => {
+      if (!Number.isSafeInteger(value) || value < 0) throw new Error('invalid count');
+      return value;
+    };
+    const text = (value, max = 200) => {
+      const out = typeof value === 'string' ? value.trim() : '';
+      if (!out || out.length > max || /[\u0000-\u001f\u007f]/.test(out)) throw new Error('invalid text');
+      return out;
+    };
+    const day = (value) => {
+      if (
+        typeof value !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+        new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value
+      ) throw new Error('invalid day');
+      return value;
+    };
+    const instant = (value) => {
+      if (
+        typeof value !== 'string' ||
+        !Number.isFinite(Date.parse(value)) ||
+        new Date(value).toISOString() !== value
+      ) throw new Error('invalid instant');
+      return value;
+    };
+    const https = (value) => {
+      const url = new URL(text(value, 2048));
+      if (url.protocol !== 'https:' || url.username || url.password) throw new Error('invalid url');
+      return url.href;
+    };
+    if (
+      feed?.schema !== 'demigod.recruitai-signals/3' ||
+      feed.sourceSchema !== 'demigod.recruitai-export/3' ||
+      feed.changeBasis !== 'ledger-observation' ||
+      feed.velocity?.basis !==
+        'exact ledger-observation sums; latest snapshot per observed date; no inferred rate' ||
+      !feed.counts ||
+      !Array.isArray(feed.changes) ||
+      !feed.byMapCompanyId ||
+      typeof feed.byMapCompanyId !== 'object'
+    ) throw new Error('invalid feed');
+    const counts = {
+      accounts: count(feed.counts.accounts),
+      changedAccounts: count(feed.counts.changedAccounts),
+      firstObservedReqs: count(feed.counts.firstObservedTodayReqs),
+      olderPostedReqs: count(feed.counts.firstObservedTodayOlderPostedReqs),
+      closedReqs: count(feed.counts.closedTodayReqs),
+      observedHistoryDays: count(feed.counts.observedHistoryDays),
+    };
+    if (
+      counts.changedAccounts !== feed.changes.length ||
+      counts.changedAccounts > counts.accounts ||
+      counts.olderPostedReqs > counts.firstObservedReqs
+    ) throw new Error('invalid totals');
+    const changeDate = day(feed.changeDate);
+    const window = (value, windowDays) => {
+      if (!value || value.windowDays !== windowDays || value.through !== changeDate) {
+        throw new Error('invalid window');
+      }
+      const out = {
+        windowDays,
+        observedDays: count(value.observedDays),
+        changedAccounts: count(value.changedAccounts),
+        changedAccountDays: count(value.changedAccountDays),
+        firstObservedReqs: count(value.firstObservedReqs),
+        olderPostedReqs: count(value.firstObservedOlderPostedReqs),
+        closedReqs: count(value.closedReqs),
+        netObservedReqs: value.netObservedReqs,
+        from: value.from === null ? null : day(value.from),
+        through: changeDate,
+      };
+      if (
+        !Number.isSafeInteger(out.netObservedReqs) ||
+        out.netObservedReqs !== out.firstObservedReqs - out.closedReqs ||
+        out.olderPostedReqs > out.firstObservedReqs ||
+        out.observedDays > windowDays ||
+        out.changedAccounts > counts.accounts ||
+        out.changedAccountDays < out.changedAccounts ||
+        (out.observedDays === 0) !== (out.from === null) ||
+        (out.from && out.from > out.through)
+      ) throw new Error('invalid window');
+      return out;
+    };
+    const seen = new Set();
+    let firstObservedReqs = 0;
+    let olderPostedReqs = 0;
+    let closedReqs = 0;
+    const changes = [];
+    for (const change of feed.changes) {
+      const mapCompanyId = text(change?.mapCompanyId);
+      if (seen.has(mapCompanyId) || !Object.hasOwn(feed.byMapCompanyId, mapCompanyId)) {
+        throw new Error('invalid account');
+      }
+      seen.add(mapCompanyId);
+      const current = feed.byMapCompanyId[mapCompanyId];
+      const opened = count(change.firstObservedTodayReqCount);
+      const olderPosted = count(change.firstObservedTodayOlderPostedReqCount);
+      const closed = count(change.closedTodayReqCount);
+      const openReqs = count(current?.openReqCount);
+      const peopleOpsOpenReqs = count(current?.openPeopleOpsReqCount);
+      const stalePostedReqs = count(current?.staleAttributedPostedReqCount);
+      if (
+        olderPosted > opened ||
+        count(change.openReqCount) !== openReqs ||
+        peopleOpsOpenReqs > openReqs ||
+        stalePostedReqs > openReqs
+      ) throw new Error('invalid account counts');
+      firstObservedReqs += opened;
+      olderPostedReqs += olderPosted;
+      closedReqs += closed;
+      if (changes.length < 20) {
+        changes.push({
+          mapCompanyId,
+          name: text(change.name),
+          domain: change.domain == null ? null : text(change.domain, 253),
+          jobsUrl: https(current.jobsUrl || change.jobsUrl),
+          openReqs,
+          peopleOpsOpenReqs,
+          stalePostedReqs,
+          maxObservedOpenDays: count(current.maxObservedOpenDays),
+          openedReqs: opened,
+          olderPostedReqs: olderPosted,
+          closedReqs: closed,
+        });
+      }
+    }
+    if (
+      firstObservedReqs !== counts.firstObservedReqs ||
+      olderPostedReqs !== counts.olderPostedReqs ||
+      closedReqs !== counts.closedReqs
+    ) throw new Error('divergent totals');
+    const observed7d = window(feed.velocity.observed7d, 7);
+    const observed30d = window(feed.velocity.observed30d, 30);
+    if (
+      observed7d.observedDays > observed30d.observedDays ||
+      observed30d.observedDays > counts.observedHistoryDays
+    ) throw new Error('divergent windows');
+    return {
+      schema: 'demigod.company-signal-inbox/1',
+      at: instant(feed.at),
+      exportGeneratedAt: instant(feed.exportGeneratedAt),
+      changeDate,
+      counts,
+      observed7d,
+      observed30d,
+      changes,
+      policy: 'Exact public ATS observations; no inferred rate, fit score, contact enrichment, or outbound action.',
+    };
+  } catch {
+    return { error: 'company_signals_unavailable' };
+  }
+}
+
 function peopleIntelligenceView(report) {
   try {
     const count = (value) => {
@@ -996,6 +1151,7 @@ function slimStatus(data) {
         }
       : null,
     handoffs: (data.handoffs || []).slice(0, 8),
+    companySignals: data.companySignals || null,
     peopleIntelligence: data.peopleIntelligence || null,
     inbox: data.inbox
       ? {
@@ -1860,6 +2016,9 @@ async function collectStatus() {
     actions,
     preflight: preflightCache,
     inbox: inboxCache,
+    companySignals: companySignalInboxView(
+      safeJson(path.join(BUSY, 'recruitai-handoff', 'demigod-signals.json')),
+    ),
     eventsBot: (() => {
       const store = safeJson(EVENTS_STORE);
       const online = safeJson(path.join(BUSY, 'events-online', 'status.json'));
@@ -2354,6 +2513,18 @@ const JOBS = Object.assign(Object.create(null), {
     timeout: 10000,
     safe: true,
   },
+  'call-note': {
+    cmd: 'node',
+    args: ['demigod-call-note.mjs', 'list', '--json'],
+    timeout: 10000,
+    safe: true,
+  },
+  'public-comp': {
+    cmd: 'node',
+    args: ['demigod-public-comp.mjs', '--selftest'],
+    timeout: 10000,
+    safe: true,
+  },
   'control-board': { cmd: 'node', args: ['demigod-control-board.mjs', '--json'], timeout: 30000, safe: true },
   'control-board-history': {
     cmd: 'node',
@@ -2362,10 +2533,22 @@ const JOBS = Object.assign(Object.create(null), {
     safe: true,
   },
   'reseal-queue': { cmd: 'node', args: ['demigod-reseal-queue.mjs', 'status'], timeout: 10000, safe: true },
+  'reseal-due': {
+    cmd: 'node',
+    args: ['demigod-reseal-queue.mjs', 'due'],
+    timeout: 15000,
+    safe: true,
+  },
   'reseal-run': {
     cmd: 'node',
     args: ['demigod-reseal-queue.mjs', 'run'],
     timeout: 300000,
+    safe: true,
+  },
+  'enrichment-scoreboard': {
+    cmd: 'node',
+    args: ['demigod-enrichment.mjs', 'scoreboard'],
+    timeout: 60000,
     safe: true,
   },
   referrals: { cmd: 'node', args: ['demigod-referrals.mjs', 'status'], timeout: 15000, safe: true },
@@ -3295,6 +3478,24 @@ async function enrichStatus(data) {
     }
   } catch (e) {
     data.matches = { summary: { total: 0 }, pairs: [], error: String(e.message || e) };
+  }
+  // Home integrity chip — receipt only (no re-evaluate on every status poll)
+  try {
+    const cbPath = path.join(BUSY, 'control-board.json');
+    if (fs.existsSync(cbPath)) {
+      const cb = JSON.parse(fs.readFileSync(cbPath, 'utf8'));
+      data.controlBoard = {
+        ok: cb.ok !== false,
+        summary: cb.summary || null,
+        at: cb.at || null,
+        exitFailures: cb.exitFailures || [],
+        highFailures: cb.highFailures || [],
+      };
+    } else {
+      data.controlBoard = null;
+    }
+  } catch {
+    data.controlBoard = null;
   }
   // Control plane — TTL cache (was ~1.3s every collect)
   try {

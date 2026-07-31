@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * demigod-evidence — proof envelopes for unforgeable green
+ * demigod-evidence — tamper-evident proof envelopes for trustworthy green
  *
  *   import { beginRun, sealRun, isFresh, loadLatest, refuseIfStale } from './demigod-evidence.mjs'
  *   node demigod-evidence.mjs list|show <runId>|fresh <producer>
@@ -19,6 +19,10 @@ const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.
 // Prefer DEMIGOD_BUSY (same as export/sourcer); keep DG_BUSY as legacy alias.
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 export const EVIDENCE_DIR = path.join(BUSY, 'evidence');
+const CHAIN_SCHEMA = 'demigod.evidence-chain-link/1';
+const SAFE_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,240}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
+const MAX_CHAIN_DEPTH = 1000;
 
 export const COMPANY_RESEARCH_FIELDS = [
   'canonicalCompany',
@@ -246,6 +250,13 @@ export function addArtifact(run, label, filePath) {
  * Seal and write evidence. Returns envelope with pass/fresh helpers.
  */
 export function sealRun(run, result = {}, meta = {}) {
+  if (
+    !SAFE_EVIDENCE_NAME.test(String(run?.producer || '')) ||
+    !SAFE_EVIDENCE_NAME.test(String(run?.runId || '')) ||
+    !run.runId.startsWith(`${run.producer}-`)
+  ) {
+    throw new TypeError('invalid evidence producer or runId');
+  }
   const sealed = {
     ...run,
     endedAt: new Date().toISOString(),
@@ -283,16 +294,28 @@ export function sealRun(run, result = {}, meta = {}) {
     };
   }
   const outPath = path.join(EVIDENCE_DIR, `${sealed.runId}.json`);
-  const body = JSON.stringify(sealed, null, 2) + '\n';
   ensureEvidenceDir();
-  atomicWrite(outPath, body, { mode: 0o600 });
   const latest = path.join(EVIDENCE_DIR, `latest-${sealed.producer}.json`);
   withFileLock(`${latest}.lock`, () => {
-    const prev = loadEvidence(latest);
+    if (fs.existsSync(outPath)) throw new Error(`evidence run already sealed: ${sealed.runId}`);
+    const chain = verifyEvidenceChain(sealed.producer);
+    if (
+      chain.reason === 'missing' &&
+      fs.readdirSync(EVIDENCE_DIR)
+        .filter((file) => file.endsWith('.json') && !file.startsWith('latest-'))
+        .some((file) => loadEvidence(path.join(EVIDENCE_DIR, file))?.producer === sealed.producer)
+    ) {
+      throw new Error(`invalid evidence chain for ${sealed.producer}: missing-head`);
+    }
+    if (!chain.ok && chain.reason !== 'missing') {
+      throw new Error(`invalid evidence chain for ${sealed.producer}: ${chain.reason}`);
+    }
+    const prev = chain.envelope || null;
     const previousEndedAt = Date.parse(prev?.endedAt || '');
     const sealedEnded = Date.parse(sealed.endedAt);
     const previousStartedAt = Date.parse(prev?.startedAt || '');
     const sealedStartedAt = Date.parse(sealed.startedAt || '');
+    let promote = true;
     // Older concurrent writer never rolls latest backward.
     if (
       Number.isFinite(previousEndedAt) &&
@@ -300,7 +323,7 @@ export function sealRun(run, result = {}, meta = {}) {
         (previousEndedAt === sealedEnded &&
           Number.isFinite(previousStartedAt) &&
           previousStartedAt > sealedStartedAt))
-    ) return;
+    ) promote = false;
     // Do not demote a still-fresh green latest with a later red seal. Failed runs
     // still write their runId envelope; only latest is protected. (Clay: yahoo 404
     // reseal un-greened a good seal while transport was flaky, 2026-07-30.)
@@ -309,9 +332,19 @@ export function sealRun(run, result = {}, meta = {}) {
       sealed.result?.pass !== true &&
       isFresh(prev).fresh
     ) {
-      return;
+      promote = false;
     }
-    atomicWrite(latest, body, { mode: 0o600 });
+    sealed.chain = promote
+      ? {
+          schema: CHAIN_SCHEMA,
+          canonical: true,
+          previousRunId: prev?.runId || null,
+          previousSha256: prev ? sha256File(path.join(EVIDENCE_DIR, `${prev.runId}.json`)) : null,
+        }
+      : { schema: CHAIN_SCHEMA, canonical: false };
+    const body = JSON.stringify(sealed, null, 2) + '\n';
+    atomicWrite(outPath, body, { mode: 0o600 });
+    if (promote) atomicWrite(latest, body, { mode: 0o600 });
   });
   sealed._path = outPath;
   sealed._latestPath = latest;
@@ -369,13 +402,103 @@ export function loadEvidence(runIdOrPath) {
 }
 
 export function loadLatest(producer) {
+  if (!SAFE_EVIDENCE_NAME.test(String(producer || ''))) return null;
   return loadEvidence(path.join(EVIDENCE_DIR, `latest-${producer}.json`));
+}
+
+/**
+ * Verify latest byte identity and each prior receipt hash for one producer.
+ * ponytail: O(n) walk capped at 1,000; add signed checkpoints if a producer approaches the cap.
+ * This detects mutation but cannot defeat an attacker who can rewrite the entire local store.
+ */
+export function verifyEvidenceChain(producer) {
+  if (!SAFE_EVIDENCE_NAME.test(String(producer || ''))) {
+    return { ok: false, reason: 'invalid-producer' };
+  }
+  const latestPath = path.join(EVIDENCE_DIR, `latest-${producer}.json`);
+  let latestBody;
+  let head;
+  try {
+    latestBody = fs.readFileSync(latestPath);
+    head = JSON.parse(latestBody);
+  } catch (error) {
+    return { ok: false, reason: error?.code === 'ENOENT' ? 'missing' : 'malformed-head' };
+  }
+  if (
+    head?.producer !== producer ||
+    !SAFE_EVIDENCE_NAME.test(String(head?.runId || ''))
+  ) {
+    return { ok: false, reason: 'invalid-head' };
+  }
+
+  let currentBody;
+  let current;
+  try {
+    currentBody = fs.readFileSync(path.join(EVIDENCE_DIR, `${head.runId}.json`));
+    current = JSON.parse(currentBody);
+  } catch {
+    return { ok: false, reason: 'missing-head-receipt' };
+  }
+  if (!latestBody.equals(currentBody)) return { ok: false, reason: 'head-mismatch' };
+
+  const envelope = current;
+  const seen = new Set();
+  for (let depth = 1; depth <= MAX_CHAIN_DEPTH; depth++) {
+    if (
+      current?.producer !== producer ||
+      !SAFE_EVIDENCE_NAME.test(String(current?.runId || ''))
+    ) {
+      return { ok: false, reason: 'invalid-receipt' };
+    }
+    if (seen.has(current.runId)) return { ok: false, reason: 'cycle' };
+    seen.add(current.runId);
+    if (!Object.hasOwn(current, 'chain')) {
+      return { ok: true, reason: 'legacy-anchor', depth, runId: envelope.runId, envelope };
+    }
+    const link = current.chain;
+    if (
+      !link ||
+      link.schema !== CHAIN_SCHEMA ||
+      link.canonical !== true ||
+      !(
+        (link.previousRunId === null && link.previousSha256 === null) ||
+        (SAFE_EVIDENCE_NAME.test(String(link.previousRunId || '')) &&
+          SHA256.test(String(link.previousSha256 || '')))
+      )
+    ) {
+      return { ok: false, reason: 'invalid-link' };
+    }
+    if (link.previousRunId === null) {
+      return { ok: true, reason: 'ok', depth, runId: envelope.runId, envelope };
+    }
+
+    try {
+      currentBody = fs.readFileSync(path.join(EVIDENCE_DIR, `${link.previousRunId}.json`));
+      if (crypto.createHash('sha256').update(currentBody).digest('hex') !== link.previousSha256) {
+        return { ok: false, reason: 'hash-mismatch' };
+      }
+      current = JSON.parse(currentBody);
+    } catch {
+      return { ok: false, reason: 'missing-ancestor' };
+    }
+    if (current.runId !== link.previousRunId) return { ok: false, reason: 'invalid-ancestor' };
+  }
+  return { ok: false, reason: 'too-deep' };
 }
 
 /** For dashboards: green only if pass && fresh */
 export function refuseIfStale(producer, { maxAgeSec = null } = {}) {
-  const env = loadLatest(producer);
-  if (!env) return { ok: false, green: false, reason: 'no-evidence', producer };
+  const chain = verifyEvidenceChain(producer);
+  if (!chain.ok) {
+    return {
+      ok: false,
+      green: false,
+      fresh: false,
+      reason: chain.reason === 'missing' ? 'no-evidence' : `evidence-chain-${chain.reason}`,
+      producer,
+    };
+  }
+  const env = chain.envelope;
   const fr = isFresh(env, { maxAgeSec });
   return {
     ok: true,
@@ -388,6 +511,7 @@ export function refuseIfStale(producer, { maxAgeSec = null } = {}) {
     endedAt: env.endedAt,
     summary: env.result?.summary,
     producer,
+    chainDepth: chain.depth,
   };
 }
 

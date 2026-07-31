@@ -179,7 +179,7 @@ MCP can also **read/write freeform site/page custom code** — evaluate carefull
 
 - Stale auth → reinstall/re-auth connector  
 - Permission prompts for write tools — don’t disable safety for publish  
-- On this machine (2026-07-16): Webflow MCP **re-authed** (Grok/Claude/Cursor/Codex) · Designer Bridge smokes · `bin/dg-webflow connect` for spine status. Fall back CDP only when Bridge/MCP down.  
+- On this machine: Webflow MCP is configured for Grok, Claude, and Codex · Designer Bridge smokes · `bin/dg-webflow connect` for spine status. Fall back CDP only when Bridge/MCP down.  
 
 ---
 

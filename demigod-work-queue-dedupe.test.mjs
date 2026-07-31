@@ -58,6 +58,9 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   fs.writeFileSync(path.join(busy, 'events-online', 'status.json'), '{"public":true,"needHeal":false,"nativeRsvpRoutes":true}\n');
   fs.writeFileSync(path.join(busy, 'events-bot', 'invite-drain-latest.json'), '{"needsUrl":0}\n');
   fs.writeFileSync(path.join(busy, 'demand-status.json'), '{}\n');
+  const now = new Date().toISOString();
+  fs.writeFileSync(path.join(busy, 'control-board.json'), JSON.stringify({ at: now, ok: true }));
+  fs.writeFileSync(path.join(busy, 'reseal-queue-last.json'), JSON.stringify({ at: now }));
   fs.writeFileSync(path.join(busy, 'laptop-blue-moon.stamp'), '');
   const queue = path.join(busy, 'work-queue.jsonl');
   const pathEnv = `${fakeBin}:${process.env.PATH}`;
@@ -124,6 +127,7 @@ fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'ship-pre
   script('demigod-funnel.mjs', `
 import fs from 'node:fs';
 import path from 'node:path';
+
 fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'funnel-collision-plan\\n');
 `);
   fs.mkdirSync(path.join(busy, 'events-online'), { recursive: true });

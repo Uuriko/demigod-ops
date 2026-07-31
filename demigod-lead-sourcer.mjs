@@ -228,20 +228,22 @@ export function loadRecruitaiExport({ committedOnly = false, withFiles = false }
     files.map((file) => [file, fs.readFileSync(path.join(generation, file))]),
   );
   const commit = JSON.parse(buffers['commit.json']);
-  const artifact = JSON.parse(buffers['latest.json']);
   const committedFiles = Object.keys(commit?.files || {}).sort();
   if (
     commit?.schema !== 'demigod.recruitai-export-commit/1' ||
     commit.generation !== generation ||
     !validDate(commit.at) ||
-    !Array.isArray(artifact?.rows) ||
-    commit.rows !== artifact.rows.length ||
-    commit.rowLimit !== artifact.rowLimit ||
     JSON.stringify(committedFiles) !== JSON.stringify(['latest.csv', 'latest.json']) ||
     committedFiles.some((file) =>
       !/^[0-9a-f]{64}$/.test(commit.files[file]) ||
       createHash('sha256').update(buffers[file]).digest('hex') !== commit.files[file]
     )
+  ) throw new Error('invalid committed RecruitAI export');
+  const artifact = JSON.parse(buffers['latest.json']);
+  if (
+    !Array.isArray(artifact?.rows) ||
+    commit.rows !== artifact.rows.length ||
+    commit.rowLimit !== artifact.rowLimit
   ) throw new Error('invalid committed RecruitAI export');
   assertExportValid(artifact);
   return withFiles ? { artifact, commit, generation, files: buffers } : artifact;
