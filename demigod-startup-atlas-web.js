@@ -67,6 +67,24 @@
   // own observation because it is the only field present everywhere — ordering by postedAt would
   // silently rank the Greenhouse-attributed roles above every other board rather than showing the
   // newest, and would look like an editorial judgement we never made.
+  // PURE. Narrow the feed to the view the user is actually looking at. Filtering companies while
+  // the roles list ignores those filters shows roles from companies not on the page — the same
+  // "two scopes presented as one" problem as the US/non-US labelling above, just less visible.
+  //
+  // `companies` is null when NO filter is active, which is not the same as an empty set: null means
+  // "do not narrow", empty means "nothing matched". Collapsing those would blank the section on an
+  // unfiltered page.
+  function dgFilterRoles(roles, opts) {
+    var fn = (opts && opts.func) || '';
+    var names = opts && opts.companies;
+    return (roles || []).filter(function (r) {
+      if (!r) return false;
+      if (fn && String(r.fn || '') !== fn) return false;
+      if (names && !names.has(String(r.company || '').toLowerCase())) return false;
+      return true;
+    });
+  }
+
   function dgRecentRoles(feed, limit) {
     var n = (typeof limit === 'number' && limit > 0) ? limit : 8;
     var roles = (feed && Array.isArray(feed.roles)) ? feed.roles : [];
@@ -273,9 +291,10 @@
   // Fills the (initially hidden) section. Stays hidden when there is nothing to show — an empty
   // "Recently observed roles" box would imply we looked and found no hiring, which is not what an
   // absent or stale feed means.
-  function renderRecentRoles(host, feed) {
-    var rows = dgRecentRoles(feed, 8);
-    if (!rows.length) return;
+  function renderRecentRoles(host, feed, view) {
+    var rows = dgRecentRoles({ roles: dgFilterRoles(feed && feed.roles, view || {}) }, 8);
+    // Must clear, not just return: the section may already be showing rows from a wider view.
+    if (!rows.length) { host.hidden = true; host.innerHTML = ''; return; }
     var days = (typeof feed.windowDays === 'number' && feed.windowDays > 0) ? feed.windowDays : null;
     host.innerHTML =
       '<h2 class="dg-fresh-h">Recently observed roles</h2>' +
@@ -310,16 +329,20 @@
     host.hidden = false;
   }
 
-  function mountRecentRoles(root) {
+  var dgFeedCache = null;
+  function mountRecentRoles(root, view) {
     var host = root && root.querySelector('.dg-dir-fresh');
     if (!host || !feedUrl) return;
+    // Fetched once per page. renderRows calls this on every keystroke; refetching there would be a
+    // request per character even with force-cache.
+    if (dgFeedCache) { renderRecentRoles(host, dgFeedCache, view); return; }
     // force-cache, matching the map fetch below and for the same reason: feedUrl is derived from
     // this script's own src, so it is pinned to a CDN commit and immutable. no-store forced a fresh
     // round trip on every directory visit for bytes that cannot change at that URL. A new feed
     // ships under a new commit, which is a new URL, so staleness is not reachable.
     fetch(feedUrl, { cache: 'force-cache', credentials: 'omit' })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (feed) { if (feed && host.isConnected) renderRecentRoles(host, feed); })
+      .then(function (feed) { if (feed && host.isConnected) { dgFeedCache = feed; renderRecentRoles(host, feed, view); } })
       .catch(function () { /* optional asset — the directory must never degrade because a feed 404s */ });
   }
 
@@ -434,6 +457,10 @@
         matches.sort(function (a, b) { return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0)); });
       }
       var slice = matches.slice(0, CAP);
+      // Keep the roles panel in the same view as the rows. null = no filter active, so do not
+      // narrow; building a 2,735-name Set on every keystroke of an unfiltered page is pure waste.
+      var narrowed = (q || h || fn || provider) ? new Set(matches.map(function (i) { return String(companies[i].name || '').toLowerCase(); })) : null;
+      mountRecentRoles(root, { func: fn, companies: narrowed });
       list.innerHTML = slice.length
         ? slice.map(function (i) { return companyRow(companies[i], i); }).join('')
         : '<li class="dg-dir-empty">' + ((h || fn || provider) ? 'No companies match those filters.' : 'No companies match that search.') + '</li>';
@@ -451,7 +478,6 @@
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
     renderRows();
-    mountRecentRoles(root);
   }
 
   function mount(root) {

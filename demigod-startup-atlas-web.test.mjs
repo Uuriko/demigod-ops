@@ -271,7 +271,7 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   const end = src.indexOf('\n  var state = {');
   const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();
 
-  const feed = (roles) => ({ schema: 'demigod.roles-feed/7', windowDays: 7, roles });
+  const feed = (roles) => ({ schema: 'demigod.roles-feed/8', windowDays: 7, roles });
   const role = (o) => ({ company: 'C', title: 'T', url: 'https://x.example/j', firstObservedAt: '2026-07-30T00:00:00Z', postedAt: null, ...o });
 
   // Newest of OUR observations first.
@@ -331,4 +331,35 @@ test('directory filter state round-trips through the hash, and rejects junk', ()
   assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
   assert.deepEqual(api.parse('#%E0%A4%A', providers).query, '', 'a malformed escape does not throw');
   assert.equal(api.parse('#q=a+b', providers).query, 'a b', 'plus decodes to space');
+});
+
+test('recent roles follow the filters, and null is not an empty set', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  const start = src.indexOf('  function dgFilterRoles');
+  const end = src.indexOf('\n  var state = {');
+  const filter = new Function(src.slice(start, end) + '; return dgFilterRoles;')();
+
+  const roles = [
+    { company: 'Stripe', fn: 'engineering', title: 'a' },
+    { company: 'Brex', fn: 'sales', title: 'b' },
+    { company: 'Pier', fn: 'engineering', title: 'c' },
+  ];
+
+  assert.deepEqual(filter(roles, {}).map((r) => r.company), ['Stripe', 'Brex', 'Pier'], 'no opts -> untouched');
+  assert.deepEqual(filter(roles, { func: 'engineering' }).map((r) => r.company), ['Stripe', 'Pier']);
+  assert.deepEqual(filter(roles, { companies: new Set(['stripe', 'brex']) }).map((r) => r.company), ['Stripe', 'Brex']);
+  assert.deepEqual(
+    filter(roles, { func: 'engineering', companies: new Set(['stripe']) }).map((r) => r.company),
+    ['Stripe'], 'both narrowings compose',
+  );
+
+  // THE DISTINCTION. null means "no filter is active, do not narrow"; an empty Set means "the
+  // filters matched nothing". Treating null as empty would blank the section on an unfiltered page —
+  // the default view every visitor sees first.
+  assert.equal(filter(roles, { companies: null }).length, 3, 'null companies must NOT narrow');
+  assert.equal(filter(roles, { companies: new Set() }).length, 0, 'an empty set narrows to nothing');
+
+  assert.equal(filter(roles, { companies: new Set(['STRIPE']) }).length, 0, 'the set is matched lowercased by the caller');
+  assert.deepEqual(filter(null, { func: 'engineering' }), [], 'no roles -> empty, no crash');
+  assert.deepEqual(filter([null, undefined], {}), [], 'junk rows are dropped');
 });
