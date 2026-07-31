@@ -313,7 +313,11 @@
   function mountRecentRoles(root) {
     var host = root && root.querySelector('.dg-dir-fresh');
     if (!host || !feedUrl) return;
-    fetch(feedUrl, { cache: 'no-store', credentials: 'omit' })
+    // force-cache, matching the map fetch below and for the same reason: feedUrl is derived from
+    // this script's own src, so it is pinned to a CDN commit and immutable. no-store forced a fresh
+    // round trip on every directory visit for bytes that cannot change at that URL. A new feed
+    // ships under a new commit, which is a new URL, so staleness is not reachable.
+    fetch(feedUrl, { cache: 'force-cache', credentials: 'omit' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (feed) { if (feed && host.isConnected) renderRecentRoles(host, feed); })
       .catch(function () { /* optional asset — the directory must never degrade because a feed 404s */ });
