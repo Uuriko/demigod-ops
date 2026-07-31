@@ -1,4 +1,4 @@
-/** Resolve public submissions webhook URL for footer loader + partner form POSTs. */
+/** Resolve the public submissions webhook URL for Webflow setup and health checks. */
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';

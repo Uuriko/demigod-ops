@@ -184,13 +184,13 @@ Usage: node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung] [--optim
   if (optimize && before.paused.watchdogPaused) {
     report.actions.push({
       action: 'paused-guard', ok: true,
-      detail: 'watchdog.PAUSED present; swarm/never-stop restart refused',
+      detail: 'watchdog.PAUSED present; background restarts held',
     });
   }
 
   const { load, tabs, hung } = report;
   if (load.load1 != null && load.load1 > 4) {
-    report.tips.push(`Load high (${load.load1}) — prune tabs, skip parallel claude/swarm`);
+    report.tips.push(`Load high (${load.load1}) — prune tabs, skip parallel agents`);
   }
   if (load.memAvailPct != null && load.memAvailPct < 15) {
     report.tips.push(`Low free mem (${load.memAvailPct}%) — close Chrome tabs / restart dash`);
@@ -240,20 +240,6 @@ Usage: node demigod-laptop-hygiene.mjs [--json] [--prune] [--kill-hung] [--optim
   if (optimize) {
     const trimmed = trimBusyLogs();
     report.actions.push({ action: 'trim-busy-logs', ok: true, trimmed });
-  }
-
-  // Ensure one ops dash if CDP up and prune left zero
-  if (doPrune && report.tabs.ok && !(report.tabs.by['ops-dash'] > 0)) {
-    try {
-      await fetch(
-        `http://127.0.0.1:9223/json/new?${encodeURIComponent('http://127.0.0.1:9878/')}`,
-        { method: 'PUT', signal: AbortSignal.timeout(5000) },
-      );
-      report.actions.push({ action: 'reopen-ops-dash', ok: true });
-      report.tabs = await tabCount();
-    } catch (e) {
-      report.actions.push({ action: 'reopen-ops-dash', ok: false, err: String(e.message || e) });
-    }
   }
 
   report.after = { load: loadMem(), tabs: await tabCount(), paused: pausedState() };

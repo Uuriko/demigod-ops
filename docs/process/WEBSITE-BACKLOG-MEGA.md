@@ -137,7 +137,6 @@
 ## M. Analytics & feedback (honest)
 - [ ] Plausible or privacy-light analytics
 - [ ] CTA click events only (no PII)
-- [ ] WIZ funnel step events
 - [ ] Feedback mailto with page context
 
 ## N. Legal / policy

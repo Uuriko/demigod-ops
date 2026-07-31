@@ -329,6 +329,31 @@ async function main() {
 
   const demandSnap = readJson(path.join(BUSY, 'demand-status.json'));
   const demandHygiene = demandSnap ? demandHygieneSnapshot(demandSnap) : null;
+  let controlBoard;
+  try {
+    const result = runNode([path.join(ROOT, 'demigod-control-board.mjs'), '--json'], 15000);
+    controlBoard = JSON.parse(result.stdout);
+    if (
+      controlBoard?.schema !== 'demigod.control-board/1' ||
+      (result.status === 0) !== (controlBoard.ok === true)
+    ) {
+      throw new Error(`invalid control-board result (status=${result.status})`);
+    }
+    steps.push({
+      step: 'control-board',
+      ok: controlBoard.ok,
+      highFailures: controlBoard.highFailures,
+    });
+  } catch (error) {
+    controlBoard = {
+      ok: false,
+      summary: 'evaluation failed',
+      highFailures: ['control_board_error'],
+      exitFailures: ['control_board_error'],
+      error: String(error?.message || error),
+    };
+    steps.push({ step: 'control-board', ok: false, error: controlBoard.error });
+  }
   const shipSnap = readJson(path.join(BUSY, 'ship-status.json')) || readJson(path.join(BUSY, 'ship-latest.json'));
   const truthSnap = readJson(path.join(BUSY, 'truth.json'));
   const reviewEv = (() => {
@@ -395,6 +420,14 @@ async function main() {
         }
       : null,
     lamps,
+    controlBoard: {
+      ok: controlBoard.ok,
+      summary: controlBoard.summary,
+      highFailures: controlBoard.highFailures,
+      exitFailures: controlBoard.exitFailures,
+      receipt: path.join(BUSY, 'control-board.json'),
+      error: controlBoard.error || null,
+    },
     versions: unify.next?.versions || same.next?.versions || null,
     assertSame: {
       ok: assertOk,
@@ -406,6 +439,7 @@ async function main() {
       unify: 'bin/dg unify',
       api: 'http://127.0.0.1:9878/api/unify',
       assert: 'bin/dg next-canon --assert-same',
+      controls: 'node demigod-control-board.mjs status',
     },
   };
 
@@ -426,7 +460,7 @@ async function main() {
   // Exit codes: 2 dual-NEXT beats soft 1
   let exit = 0;
   if (!assertOk) exit = 2;
-  else if (!card.green || unify.error) exit = 1;
+  else if (!card.green || unify.error || !controlBoard.ok) exit = 1;
   else exit = 0;
 
   card.ok = exit === 0;
@@ -446,7 +480,7 @@ async function main() {
     console.log(`3 NEXT ${card.next.id}: ${card.next.title}`);
     console.log(`4 cmd: ${card.next.cmd}`);
     console.log(
-      `5 demand pending=${card.demand?.pending ?? '?'} sent=${card.demand?.sentConfirmed ?? '?'} pilots=${card.demand?.pilotsFilled ?? '?'} warm=${card.demand?.warmInbound?.count ?? '?'}(overdue=${card.demand?.warmInbound?.overdue ?? '?'}${Number.isInteger(card.demand?.warmInbound?.overdueOldestDays) ? `/${card.demand.warmInbound.overdueOldestDays}d` : ''},quarantined=${card.demand?.warmInbound?.quarantined ?? '?'}) drafts.hygiene=${formatDemandHygiene(card.demand?.drafts?.hygiene)} · assertSame=${card.assertSame.ok ? 'ok' : 'FAIL'}`,
+      `5 demand pending=${card.demand?.pending ?? '?'} sent=${card.demand?.sentConfirmed ?? '?'} pilots=${card.demand?.pilotsFilled ?? '?'} warm=${card.demand?.warmInbound?.count ?? '?'}(overdue=${card.demand?.warmInbound?.overdue ?? '?'}${Number.isInteger(card.demand?.warmInbound?.overdueOldestDays) ? `/${card.demand.warmInbound.overdueOldestDays}d` : ''},quarantined=${card.demand?.warmInbound?.quarantined ?? '?'}) drafts.hygiene=${formatDemandHygiene(card.demand?.drafts?.hygiene)} · controls=${card.controlBoard.ok ? 'ok' : 'ATTENTION'} · assertSame=${card.assertSame.ok ? 'ok' : 'FAIL'}`,
     );
     // Keep the CLI contract to exactly five numbered lines. Role lamps remain
     // available in orient.json / --json without competing with the canonical

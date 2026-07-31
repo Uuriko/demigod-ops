@@ -6,11 +6,11 @@
   var pp=p.match(new RegExp('^/p/([a-z0-9-]+)/?$','i'));
   if(pp){ go('/?p='+pp[1].toLowerCase()); return; }
   var map={
-    '/fees':'/?p=pricing','/security':'/?p=legal','/sample':'/?p=sample','/pilot':'/?p=pilot',
+    '/fees':'/?p=pricing','/security':'/?p=legal','/sample':'/?p=sample','/pilot':'/?p=hire',
     '/network':'/?p=talent','/hire':'/?p=hire','/talent':'/?p=talent','/contact':'/?p=contact',
-    '/legal':'/?p=legal','/blog':'/?p=blog','/notes':'/?p=blog','/method':'/?p=method',
-    '/how':'/?p=how','/pricing':'/?p=pricing','/faq':'/?p=faq','/founders':'/?p=founders',
-    '/candidates':'/?p=candidates','/compare':'/?p=compare','/about':'/?p=about','/status':'/?p=status',
+    '/legal':'/?p=legal','/blog':'/?p=blog','/notes':'/?p=blog','/method':'/?p=how',
+    '/how':'/?p=how','/pricing':'/?p=pricing','/faq':'/?p=faq','/founders':'/?p=hire',
+    '/candidates':'/?p=talent','/compare':'/?p=pricing','/about':'/?p=about','/status':'/?p=about',
     '/partnerships':'/?p=partners','/partnership':'/?p=partners',
     /* /untitled is a stray Webflow page: 200 + <title>Untitled</title> + index,follow, and foot
        renders "Page not found" into it — a textbook soft-404. Webflow will not 404 a page that
@@ -21,7 +21,7 @@
        for any unpublished path — so the head never loads and this never runs on a true 404. Adding
        a phantom key like '/login' is inert: verified live 2026-07-17, /login still 404s. To catch a
        new pretty path, first create a thin page for it in the Designer. See memory mud-v611-404. */
-    '/apply':'/?wiz=startup','/engineers':'/?p=candidates','/jobs':'/?wiz=engineer','/careers':'/?wiz=engineer'
+    '/apply':'/?wiz=startup','/engineers':'/?p=talent','/jobs':'/?wiz=engineer','/careers':'/?wiz=engineer'
   };
   var key=(p||'/').replace(/\/+$/,'')||'/';
   if(key!=='/' && map[key.toLowerCase()]) go(map[key.toLowerCase()]);
@@ -32,17 +32,14 @@
 }catch(e){}})();</script>
 
 <noscript id="dg-path-noscript">
+  <style id="dg-nojs-hero">html:not(.w-mod-js) .hero-section h1,html:not(.w-mod-js) .header h1,html:not(.w-mod-js) .hero-title{height:auto!important;min-height:0!important}</style>
+  <style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>
   <div style="max-width:36rem;margin:2rem auto;padding:1rem 1.25rem;font:500 1rem/1.5 system-ui,sans-serif;color:#0A0A0A;background:#F5F0E6;border:1px solid rgba(201,168,76,.45);border-radius:8px">
     <p style="margin:0 0 .75rem">Continue on Demigod (no JavaScript):</p>
     <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
       <a href="/">Home</a>
-      <a href="/?wiz=startup">Hire talent</a>
-      <a href="/?wiz=engineer">Join the talent network</a>
-      <a href="/?p=pricing">Pricing</a>
-      <a href="/?p=how">How it works</a>
-      <a href="/?p=blog">Blog</a>
-      <a href="/?p=faq">FAQ</a>
-      <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>
+      <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a>
+      <a href="mailto:potter@trydemigod.com?subject=Joining%20the%20Demigod%20talent%20network">Join the talent network by email</a>
     </p>
   </div>
 </noscript>
@@ -91,85 +88,6 @@ try{(function(){
   }
   if(document.body)ensure(); else document.addEventListener('DOMContentLoaded',ensure,{once:true});
 })()}catch(e){}</script>
-
-<style id="dg-unhide-critical">/*unhide-v5-safe*/
-
-html,body{visibility:visible!important;opacity:1!important;display:block!important}
-html.w-mod-js:not(.w-mod-ix3) .hero-section,
-html.w-mod-js:not(.w-mod-ix3) .hero-container{
-  visibility:visible!important;opacity:1!important;transform:none!important;translate:none!important
-}
-html.w-mod-js:not(.w-mod-ix3) .header,
-html.w-mod-js:not(.w-mod-ix3) main,
-html.w-mod-js:not(.w-mod-ix3) h1,
-html.w-mod-js:not(.w-mod-ix3) header{
-  visibility:visible!important;opacity:1!important
-}
-
-.hero-section,.hero-container{
-  visibility:visible!important;opacity:1!important;transform:none!important;translate:none!important
-}
-.header,.nav_container,main,h1,header{
-  visibility:visible!important;opacity:1!important
-}
-
-</style>
-<style id="dg-unhide-main">
-
-html.w-mod-js:not(.w-mod-ix3) body{visibility:visible!important;opacity:1!important}
-html.w-mod-js:not(.w-mod-ix3) .hero-section,
-html.w-mod-js:not(.w-mod-ix3) .hero-container,
-html.w-mod-js:not(.w-mod-ix3) .header,
-html.w-mod-js:not(.w-mod-ix3) main,
-html.w-mod-js:not(.w-mod-ix3) h1,
-html.w-mod-js:not(.w-mod-ix3) header{
-  visibility:visible!important;opacity:1!important
-}
-</style>
-<style id="dg-graceful-unhide">
-
-@keyframes dgForceShow{to{visibility:visible;opacity:1}}
-.hero-section,.hero-container{
-  animation:dgForceShow 0s linear 0.01s forwards
-}
-@media (prefers-reduced-motion:reduce){
-
-  .hero-section,.hero-container{animation:none!important}
-}
-</style>
-<noscript><style>html,body,.hero-section,.hero-container,main,h1,header{visibility:visible!important;opacity:1!important}</style></noscript>
-<script id="dg-early-unhide">
-
-try{(function(){
-  if(window.__dgUnhideV5)return; window.__dgUnhideV5=1;
-  function f(){
-    try{
-      var d=document.documentElement,b=document.body;
-      if(d){d.classList.add('w-mod-ix3');}
-      var nodes=document.querySelectorAll('.hero-section,.hero-container,.header,main,h1,header');
-      for(var i=0;i<nodes.length;i++){
-        var e=nodes[i];
-        if(!e||!e.style)continue;
-        e.style.setProperty('visibility','visible','important');
-        e.style.setProperty('opacity','1','important');
-
-        var cl=e.classList;
-        if(cl&&(cl.contains('hero-section')||cl.contains('hero-container'))){
-          e.style.setProperty('transform','none','important');
-          e.style.setProperty('translate','none','important');
-        }
-      }
-    }catch(_){}
-  }
-  f();
-  var n=0;
-  var iv=setInterval(function(){
-    f();
-    if(++n>=3)clearInterval(iv);
-  },120);
-  document.addEventListener('DOMContentLoaded',f,{once:true});
-  window.addEventListener('load',function(){f();clearInterval(iv);},{once:true});
-})();}catch(e){}</script>
 
 <script id="dg-contact-scrub">
 try{(function(){
@@ -317,8 +235,10 @@ try{(function(){
   var p=new URLSearchParams(location.search);
   var id=(p.get('p')||p.get('page')||'').toLowerCase();
   if(!id && (path==='/blog'||path==='/notes'||/^\/(blog|notes)\//.test(path))) id='blog';
-  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,partners:1,compare:1,pilot:1,about:1,founders:1,candidates:1,status:1,method:1,blog:1,map:1,events:1,sample:1};
   if(!id&&path!=='/')id=path.slice(1);
+  var aliases={pilot:'hire',method:'how',founders:'hire',candidates:'talent',compare:'pricing',status:'about'};
+  id=aliases[id]||id;
+  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,refer:1,partners:1,about:1,blog:1,map:1,events:1,sample:1};
   var url=allowed[id]?'https://www.trydemigod.com/?p='+encodeURIComponent(id):'https://www.trydemigod.com/';
   var can=document.createElement('link');can.rel='canonical';can.href=url;document.head.appendChild(can);
   var og=document.querySelector('meta[property="og:url"]'); if(og)og.setAttribute('content',url);
@@ -346,7 +266,7 @@ try{(function(){
 <link rel="dns-prefetch" href="https://files.catbox.moe">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Unbounded:wght@600;700&display=optional">
-<link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
+<link rel="preload" as="image" media="(min-width:901px)" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
 
 <style id="dg-hero-ar">.hero-section img,.hero-content-right img,.statue-frame,.statue-wrapper{aspect-ratio:16/9;max-width:100%;height:auto}.statue-svg{aspect-ratio:2/3;width:100%;height:auto}</style>
 <style id="dg-base-tokens">:root{--g:#C9A84C;--gl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--card:rgba(14,14,18,.92)}html{color-scheme:dark only;scrollbar-gutter:stable both-edges;scroll-behavior:smooth;overscroll-behavior-y:none;scroll-padding-top:4.5rem}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}body{isolation:isolate;overscroll-behavior-y:none}abbr[title]{text-decoration:underline dotted rgba(201,168,76,.55);text-underline-offset:.15em;cursor:help}#main,main,h1.hero-title,.hero-section h1{scroll-margin-top:4.5rem}html,body{background:var(--dk)!important;color:var(--cr)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:rgba(201,168,76,.2);-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;overflow-x:clip;padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0)}
@@ -411,7 +331,7 @@ video,iframe{display:block;border:0}
 ::file-selector-button{font:inherit;color:#0A0A0A;background:var(--g);border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}
 @media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#C9A84C;color:#0A0A0A}}
 @media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}</style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@2c99905fd0dc4ff397abea57e2f29f7c6f154c51/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@641e3c8c7e90/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
 <!-- Demigod forms --><!-- openModal --><!-- demigod-polish -->
 
 <script id="dg-early-copy-scrub">
@@ -498,11 +418,9 @@ try{(function(){
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
-<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Join the talent network","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Method","url":"https://www.trydemigod.com/?p=method"},{"@type":"ListItem","position":9,"name":"For founders","url":"https://www.trydemigod.com/?p=founders"},{"@type":"ListItem","position":10,"name":"For talent","url":"https://www.trydemigod.com/?p=candidates"},{"@type":"ListItem","position":11,"name":"Pilot","url":"https://www.trydemigod.com/?p=pilot"},{"@type":"ListItem","position":12,"name":"Compare","url":"https://www.trydemigod.com/?p=compare"},{"@type":"ListItem","position":13,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":14,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":15,"name":"About","url":"https://www.trydemigod.com/?p=about"},{"@type":"ListItem","position":16,"name":"Status","url":"https://www.trydemigod.com/?p=status"}]}</script>
+<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Join the talent network","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/?p=about"}]}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
-
-<script id="dg-oauth-init"></script>
 
 <style id="dg-cta-preboot">
 

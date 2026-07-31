@@ -214,32 +214,6 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
     }
   }
 
-  const swarmDir = path.join(BUSY, 'swarm');
-  let swarm = { present: false, reports: [] };
-  if (fs.existsSync(swarmDir)) {
-    const reports = [];
-    const walk = (d) => {
-      for (const name of fs.readdirSync(d)) {
-        const fp = path.join(d, name);
-        const st = fs.statSync(fp);
-        if (st.isDirectory()) walk(fp);
-        else if (/\.(md|json)$/.test(name)) {
-          reports.push({
-            name: path.relative(swarmDir, fp),
-            ageSec: Math.round((Date.now() - st.mtimeMs) / 1000),
-            bytes: st.size,
-          });
-        }
-      }
-    };
-    try {
-      walk(swarmDir);
-      swarm = { present: true, reports: reports.sort((a, b) => a.ageSec - b.ageSec).slice(0, 20) };
-    } catch {
-      /* */
-    }
-  }
-
   // ONE next: demigod-next is canonical (control + dash + ship agree).
   // Only override for live-down / board / verify hard fails that next builder may miss.
   let next = null;
@@ -303,7 +277,6 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
 
   const cockpit = {
     at,
-    phase: 'GTM + pre-services honesty',
     freeze: { on: freezeOn, why: freeze.why || null, at: freeze.at || null },
     foot: {
       diskVer,
@@ -334,7 +307,6 @@ export async function buildCockpit({ skipLive = false, liveOverride = null } = {
       OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
       openaiEnvFile: fs.existsSync(path.join(process.env.HOME || '', '.config/demigod/openai.env')),
     },
-    swarm,
     truth: truth
       ? {
           fullyShipped: truth.match?.fullyShipped,
@@ -411,13 +383,6 @@ export function toMarkdown(c) {
   lines.push('');
   lines.push('## Session start');
   for (const s of c.agentStart) lines.push(`- \`${s}\``);
-  if (c.swarm?.present) {
-    lines.push('');
-    lines.push('## Swarm reports');
-    for (const r of (c.swarm.reports || []).slice(0, 8)) {
-      lines.push(`- ${r.ageSec}s ${r.name} (${r.bytes}b)`);
-    }
-  }
   lines.push('');
   lines.push('## Rules');
   for (const r of c.rules) lines.push(`- ${r}`);

@@ -9,7 +9,7 @@
  *   L2 tools-os selftest + registry unique ids
  *   L3 live-attest (disk CDN body SHA)
  *   L4 truth + freeze + lock status
- *   L5 board honesty + loop-state
+ *   L5 board honesty
  *   L6 dash health (/api/orient if up)
  *   L7 git dirty / version drift signals
  *
@@ -77,7 +77,6 @@ layers.push(run('L4-lock-status', ['demigod-foot-lock.mjs', 'status'], { timeout
 
 // L5
 layers.push(run('L5-board-honesty', ['demigod-verify-board-honesty.mjs'], { timeout: 30000 }));
-if (!quick) layers.push(run('L5-loop-state', ['demigod-verify-loop-state.mjs'], { timeout: 30000, soft: true }));
 
 // L6 dash — argv curl only (no bash pipe / -lc)
 {
@@ -165,7 +164,7 @@ const report = {
     'Webflow Custom Code API body equals demigod-footer-lite.html (manual or cm6 verify)',
     'No uncommitted foot-core when freeze ON (or intentional disk-ahead)',
     'Board seeds ≤3 and labeled sample',
-    'Auto-DM still refused without DEMIGOD_ALLOW_AUTO_DM',
+    'Auto-DM permanently refused; no environment override',
     'Catbox host health if not on gist fallback',
   ],
 };

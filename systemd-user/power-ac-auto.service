@@ -1,0 +1,17 @@
+[Unit]
+Description=Auto System76 power profile on AC plug/unplug
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/bin/power-ac-auto-profile --watch
+Restart=on-failure
+RestartSec=5
+Environment=POWER_AC_POLL_SEC=4
+# Optional overrides:
+# Environment=POWER_AC_ON_PROFILE=balanced
+# Environment=POWER_AC_OFF_PROFILE=battery
+
+[Install]
+WantedBy=default.target

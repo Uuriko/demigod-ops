@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * demigod-foot-cdn-publish — upload the foot + map bundle → CDN, then patch footer-lite + manifest
+ * demigod-foot-cdn-publish — upload the site asset bundle → CDN, then patch canonical loaders
  *
  *   node demigod-foot-cdn-publish.mjs [--check|--selftest]
  *
- * Uses an immutable jsDelivr commit so the foot's sibling map assets stay together.
- * Verifies exact remote bytes + MIME for all three files before mutating canonical artifacts.
+ * Uses one immutable jsDelivr commit so the foot, map assets, and head CSS stay together.
+ * Verifies exact remote bytes + MIME for all four assets before mutating canonical artifacts.
  * Asserts publish freeze OFF (or DEMIGOD_FORCE_PUBLISH=1). Never writes a partial/dead release URL.
- * After: cm6-paste footer → live-doctor / truth.
+ * After: cm6-paste footer → truth.
  */
 import fs from 'fs';
 import path from 'path';
@@ -15,7 +15,6 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import WebSocket from 'ws';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
 
@@ -23,7 +22,7 @@ const args = new Set(process.argv.slice(2));
 if (args.has('--help') || args.has('-h')) {
   console.log(`Usage: node demigod-foot-cdn-publish.mjs [--check|--selftest]
 
-Publishes the canonical foot + map bundle to an attested immutable CDN commit,
+Publishes the canonical site bundle to an attested immutable CDN commit,
 then atomically updates the footer loader and DEMIGOD-FOOT-CDN.json. Requires freeze OFF and the
 active foot release lock. --check and --selftest are read-only and require neither.`);
   process.exit(0);
@@ -38,13 +37,18 @@ if (args.size) {
 const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const MAP_SRC = path.join(ROOT, 'demigod-startup-atlas-web.js');
 const MAP_DATA_SRC = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+const HEAD_CSS_SRC = path.join(ROOT, 'demigod-head-styles.css');
+const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
+const HEAD_OUT = path.join(ROOT, 'DEMIGOD-HEAD-CDN.json');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
 const LOADER = path.join(ROOT, 'demigod-footer-loader.html');
 const OUT = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
 const RELEASE_RECEIPT = '/tmp/dg-busy/foot-cdn-publish-latest.json';
+const HEAD_RECEIPT = '/tmp/dg-busy/head-css-cdn.json';
 const sourceJs = fs.readFileSync(SRC, 'utf8');
 const mapJs = fs.readFileSync(MAP_SRC, 'utf8');
 const mapData = fs.readFileSync(MAP_DATA_SRC, 'utf8');
+const headCss = fs.readFileSync(HEAD_CSS_SRC, 'utf8');
 const sourceVer = (sourceJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1];
 const sourcePublicVer = (sourceJs.match(/dgFootVersion\s*=\s*['"]v(\d+)['"]/) || [])[1];
 const sourceSha = crypto.createHash('sha256').update(sourceJs).digest('hex');
@@ -53,6 +57,9 @@ const mapSha = crypto.createHash('sha256').update(mapJs).digest('hex');
 const mapBytes = Buffer.byteLength(mapJs);
 const mapDataSha = crypto.createHash('sha256').update(mapData).digest('hex');
 const mapDataBytes = Buffer.byteLength(mapData);
+const headCssSha = crypto.createHash('sha256').update(headCss).digest('hex');
+const headCssMd5 = crypto.createHash('md5').update(headCss).digest('hex');
+const headCssBytes = Buffer.byteLength(headCss);
 const uploadAttempts = [];
 
 function recordUploadAttempt(host, ok, detail = '') {
@@ -154,6 +161,10 @@ function isExecutableJavaScriptMime(contentType) {
   return /^(?:application|text)\/(?:javascript|ecmascript|x-javascript)$/.test(mime);
 }
 
+function isCssMime(contentType) {
+  return String(contentType || '').split(';', 1)[0].trim().toLowerCase() === 'text/css';
+}
+
 // temp+rename so concurrent verify:source never reads a torn footer-lite/loader/manifest
 // mid-ship (same class as gate OUTPUT atomicity: verify-source/board-honesty c20/c21).
 function writeFileAtomic(file, contents) {
@@ -169,6 +180,16 @@ function writeFileAtomic(file, contents) {
       /* preserve original failure */
     }
   }
+}
+
+function headWithCdn(html, cdnUrl) {
+  if (!/^https:\/\/cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest\.css$/i.test(cdnUrl)) {
+    throw new Error(`unapproved head CSS URL: ${cdnUrl}`);
+  }
+  const old = /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/gi;
+  const matches = String(html || '').match(old) || [];
+  if (matches.length !== 1) throw new Error(`expected one canonical head CSS URL, found ${matches.length}`);
+  return html.replace(old, cdnUrl);
 }
 
 function writeReleaseReceipt(payload) {
@@ -187,6 +208,7 @@ function assertCanonicalSourceUnchanged() {
     [SRC, sourceSha],
     [MAP_SRC, mapSha],
     [MAP_DATA_SRC, mapDataSha],
+    [HEAD_CSS_SRC, headCssSha],
   ];
   if (current.some(([file, expected]) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected)) {
     throw new Error(
@@ -331,8 +353,18 @@ if (SELFTEST) {
   checkSelf(isExecutableJavaScriptMime('application/javascript; charset=utf-8'), 'accepts executable JavaScript MIME');
   checkSelf(!isExecutableJavaScriptMime('text/plain'), 'rejects text/plain MIME');
   checkSelf(!isExecutableJavaScriptMime('application/octet-stream'), 'rejects generic binary MIME');
+  checkSelf(isCssMime('text/css; charset=utf-8'), 'accepts CSS MIME');
+  checkSelf(!isCssMime('text/plain'), 'rejects non-CSS MIME');
   checkSelf(sourceSha.length === 64, 'computes canonical SHA-256');
   checkSelf(Number.isSafeInteger(sourceBytes) && sourceBytes > 40000, 'computes canonical UTF-8 byte count');
+  checkSelf(headCssSha.length === 64 && headCssBytes > 10000, 'computes canonical head CSS identity');
+  checkSelf(
+    headWithCdn(
+      '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@123abc/head-latest.css">',
+      'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@456def/head-latest.css',
+    ).includes('@456def/head-latest.css'),
+    'patches exactly one approved immutable head CSS URL',
+  );
   checkSelf(RELEASE_RECEIPT.startsWith('/tmp/dg-busy/'), 'failure receipt stays outside canonical release artifacts');
   checkSelf(
     footLoaderUrls('<script id="demigod-foot-cdn-loader" src="https://files.catbox.moe/abc123.js"></script>')[0] ===
@@ -655,6 +687,21 @@ async function fetchExact(cdnUrl, expected, javascript = false) {
   }
 }
 
+async function fetchCssExact(cdnUrl) {
+  try {
+    const response = await fetch(`${cdnUrl}?v=${Date.now()}`, { cache: 'no-store' });
+    const body = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    return {
+      ok: response.ok && body === headCss && isCssMime(contentType),
+      status: response.status,
+      contentType,
+    };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
+  }
+}
+
 async function uploadPermanent() {
   for (let i = 1; i <= 4; i++) {
     const upload = curlUpload('https://catbox.moe/user/api.php');
@@ -782,14 +829,15 @@ async function uploadJsdelivr() {
     fs.writeFileSync(path.join(work, 'foot-latest.js'), sourceJs);
     fs.writeFileSync(path.join(work, 'startup-map-latest.js'), mapJs);
     fs.writeFileSync(path.join(work, 'sf-startup-map.json'), mapData);
+    fs.writeFileSync(path.join(work, 'head-latest.css'), headCss);
     const git = (args) =>
       spawnSync('git', args, { cwd: work, encoding: 'utf8', timeout: 60000 });
     git(['config', 'user.email', 'demigod-cdn@local']);
     git(['config', 'user.name', 'demigod-cdn']);
-    git(['add', verName, 'foot-latest.js', 'startup-map-latest.js', 'sf-startup-map.json']);
+    git(['add', verName, 'foot-latest.js', 'startup-map-latest.js', 'sf-startup-map.json', 'head-latest.css']);
     const st = git(['status', '--porcelain']);
     if ((st.stdout || '').trim()) {
-      git(['commit', '-m', `foot v${sourceVer}`]);
+      git(['commit', '-m', `site v${sourceVer}`]);
       const push = spawnSync('git', ['push', 'origin', 'HEAD:main'], {
         cwd: work,
         encoding: 'utf8',
@@ -811,15 +859,20 @@ async function uploadJsdelivr() {
       const check = await fetchOk(cdnUrl);
       const mapUrl = new URL('startup-map-latest.js', cdnUrl).href;
       const mapDataUrl = new URL('sf-startup-map.json', cdnUrl).href;
-      const [mapCheck, mapDataCheck] = check.ok
-        ? await Promise.all([fetchExact(mapUrl, mapJs, true), fetchExact(mapDataUrl, mapData)])
-        : [{ ok: false }, { ok: false }];
+      const headCssUrl = new URL('head-latest.css', cdnUrl).href;
+      const [mapCheck, mapDataCheck, headCssCheck] = check.ok
+        ? await Promise.all([
+            fetchExact(mapUrl, mapJs, true),
+            fetchExact(mapDataUrl, mapData),
+            fetchCssExact(headCssUrl),
+          ])
+        : [{ ok: false }, { ok: false }, { ok: false }];
       console.error(
         `jsdelivr try ${i + 1}: ${cdnUrl} len=${check.liveJs.length} ` +
-          `sha=${check.liveSha?.slice(0, 12) || '?'} mime=${check.contentType || '?'} ` +
-          `foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok}`,
+        `sha=${check.liveSha?.slice(0, 12) || '?'} mime=${check.contentType || '?'} ` +
+          `foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok} head=${headCssCheck.ok}`,
       );
-      if (check.ok && mapCheck.ok && mapDataCheck.ok) {
+      if (check.ok && mapCheck.ok && mapDataCheck.ok && headCssCheck.ok) {
         return {
           cdnUrl,
           liveJs: check.liveJs,
@@ -828,6 +881,7 @@ async function uploadJsdelivr() {
           assets: {
             startupMap: { url: mapUrl, sha256: mapSha, bytes: mapBytes },
             mapData: { url: mapDataUrl, sha256: mapDataSha, bytes: mapDataBytes },
+            headCss: { url: headCssUrl, sha256: headCssSha, bytes: headCssBytes },
           },
         };
       }
@@ -926,7 +980,7 @@ if (!result) {
     canonicalArtifactsChanged: false,
     uploadAttempts,
     ...recovery,
-    message: 'No upload host returned the complete attested foot + map bundle; loader and manifest were preserved.',
+    message: 'No upload host returned the complete attested site bundle; canonical loaders and manifests were preserved.',
   });
   console.error(formatUploadFailure(failureKind, uploadAttempts));
   // Do NOT overwrite footer with a dead URL
@@ -935,21 +989,26 @@ if (!result) {
 
 const { cdnUrl, liveJs, host, temporary, assets } = result;
 const ok = true;
+const headAsset = assets?.headCss;
+if (!headAsset?.url || headAsset.sha256 !== headCssSha || headAsset.bytes !== headCssBytes) {
+  throw new Error('attested CDN bundle is missing the canonical head CSS identity');
+}
+const headBefore = fs.readFileSync(HEAD, 'utf8');
+const headAfter = headWithCdn(headBefore, headAsset.url);
 
 // v28: blog|notes|method + #note-{slug} must survive CDN publish (v27 thrash dropped them).
 const redirect = `<script>(function(){var p=location.pathname,s=location.search||'',h=location.hash||'';function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
 if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))go('/?p=legal');
 else if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
 else if(/^\\/(blog|notes)\\/?$/i.test(p))go('/?p=blog');
-else if(/^\\/method\\/?$/i.test(p))go('/?p=method');
+else if(/^\\/method\\/?$/i.test(p))go('/?p=how');
 else if(/^\\/partnerships?\\/?$/i.test(p)||/^\\/partners\\/?$/i.test(p))go('/?p=partners');
-else if(/^\\/(?:mud|night-district|night)\\/?$/i.test(p))go('/?p=mud');
 else if(/^\\/(?:event-bot|events-bot)\\/?$/i.test(p))go('/?p=events');
 else if(/^\\/how\\/?$/i.test(p))go('/?p=how');
 else if(/^\\/pricing\\/?$/i.test(p))go('/?p=pricing');
 else if(/^\\/faq\\/?$/i.test(p))go('/?p=faq');
-else if(/^\\/founders\\/?$/i.test(p))go('/?p=founders');
-else if(/^\\/candidates\\/?$/i.test(p))go('/?p=candidates');
+else if(/^\\/founders\\/?$/i.test(p))go('/?p=hire');
+else if(/^\\/(?:candidates|engineers)\\/?$/i.test(p))go('/?p=talent');
 else if(/^\\/fees\\/?$/i.test(p))go('/?p=pricing');
 else if(/^\\/security\\/?$/i.test(p))go('/?p=legal');
 else if(/^\\/sample\\/?$/i.test(p))go('/?p=sample');
@@ -957,16 +1016,14 @@ else if(/^\\/network\\/?$/i.test(p))go('/?p=talent');
 else if(/^\\/hire\\/?$/i.test(p))go('/?p=hire');
 else if(/^\\/talent\\/?$/i.test(p))go('/?p=talent');
 else if(/^\\/contact\\/?$/i.test(p))go('/?p=contact');
-else if(/^\\/compare\\/?$/i.test(p))go('/?p=compare');
-else if(/^\\/pilot\\/?$/i.test(p))go('/?p=pilot');
+else if(/^\\/compare\\/?$/i.test(p))go('/?p=pricing');
+else if(/^\\/pilot\\/?$/i.test(p))go('/?p=hire');
 else if(/^\\/about\\/?$/i.test(p))go('/?p=about');
-else if(/^\\/status\\/?$/i.test(p))go('/?p=status');
+else if(/^\\/status\\/?$/i.test(p))go('/?p=about');
 else if(/^\\/events\\/?$/i.test(p))go('/?p=events');
 })();</script>`;
-const webhookUrl = resolveWebhookPublicUrl();
-const webhookScript = webhookUrl ? `<script>window.__dgWebhookUrl=${JSON.stringify(webhookUrl)};</script>\n` : '';
 const ver = (liveJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || '?';
-const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${webhookScript}<script id="demigod-foot-cdn-loader" src="${cdnUrl}"></script>\n`;
+const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n<script id="demigod-foot-cdn-loader" src="${cdnUrl}"></script>\n`;
 const manifest = JSON.stringify({
   at: new Date().toISOString(),
   version: ver,
@@ -981,7 +1038,6 @@ const manifest = JSON.stringify({
   sha256: sourceSha,
   liveLen: liveJs.length,
   loaderLen: loader.length,
-  webhookUrl: webhookUrl || null,
   host,
   footVer: ver,
   assets,
@@ -991,11 +1047,36 @@ const manifest = JSON.stringify({
 // the canonical core. The release lock prevents normal competing writers, but
 // this final compare-and-swap guard also fails closed on an expired/overridden
 // lease instead of pairing current disk truth with an older attested asset.
+assertCanWriteFoot({ label: 'foot-cdn-publish-final' });
 assertCanonicalSourceUnchanged();
+if (fs.readFileSync(HEAD, 'utf8') !== headBefore) {
+  throw new Error('canonical head changed during CDN publish; refusing to overwrite concurrent work');
+}
 
 // Each canonical artifact is replaced atomically. A killed publisher can leave
 // old-or-new complete files, never a truncated loader or manifest that a later
 // CM6 run could paste.
+const headAt = new Date().toISOString();
+writeFileAtomic(HEAD, headAfter);
+writeFileAtomic(HEAD_OUT, JSON.stringify({
+  at: headAt,
+  cdnUrl: headAsset.url,
+  ok: true,
+  headLen: headAfter.length,
+  cssLen: headCss.length,
+}, null, 2) + '\n');
+writeFileAtomic(HEAD_RECEIPT, JSON.stringify({
+  at: headAt,
+  match: true,
+  href: headAsset.url,
+  diskSha256: headCssSha,
+  liveSha256: headCssSha,
+  diskMd5: headCssMd5,
+  liveMd5: headCssMd5,
+  diskBytes: headCssBytes,
+  liveBytes: headCssBytes,
+  note: 'demigod-foot-cdn-publish bundled head CSS',
+}, null, 2) + '\n');
 writeFileAtomic(FOOT, loader);
 writeFileAtomic(LOADER, loader);
 writeFileAtomic(OUT, manifest);

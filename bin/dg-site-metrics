@@ -35,8 +35,8 @@ else
 fi
 
 # Head health (file greps — no echo of huge strings)
-if grep -q 'unhide-v5-safe' "$HEAD_FILE" 2>/dev/null; then pass 15 head_v5 "unhide-v5-safe present"
-else fail head_v5 "missing unhide-v5-safe"; fi
+if grep -q 'dg-path-redirects' "$HEAD_FILE" 2>/dev/null; then pass 15 head_canonical "dg-path-redirects present"
+else fail head_canonical "missing dg-path-redirects"; fi
 
 MO=$(grep -c MutationObserver "$HEAD_FILE" 2>/dev/null || true)
 if [[ "${MO:-0}" -eq 0 ]]; then pass 10 head_no_mo "no MutationObserver in head"
@@ -46,19 +46,19 @@ if grep -q 'dg-base-tokens' "$HEAD_FILE" 2>/dev/null; then pass 5 head_tokens "d
 else fail head_tokens "missing design tokens"; fi
 
 # Foot CDN
-if grep -qE 'files\.catbox\.moe/[a-z0-9]+\.js' "$HTML_FILE" 2>/dev/null; then
-  FOOT_JS=$(grep -oE 'https://files.catbox.moe/[a-z0-9]+\.js' "$HTML_FILE" | head -1)
+FOOT_JS=$(grep -oE 'https://cdn\.jsdelivr\.net/gh/Uuriko/demigod-site-cdn@[a-f0-9]{7,40}/foot-latest\.js' "$HTML_FILE" | head -1 || true)
+if [[ -n "$FOOT_JS" ]]; then
   curl -sL --max-time 25 "$FOOT_JS" -o "$FOOT_FILE" || true
-  if grep -qE "dg-foot-v1[5-9]|__dgFootVer='1[5-9][0-9]'" "$FOOT_FILE" 2>/dev/null; then
+  if grep -qE "__dgFootVer='[0-9]+'" "$FOOT_FILE" 2>/dev/null; then
     FVER=$(grep -oE "__dgFootVer='[0-9]+'" "$FOOT_FILE" | head -1)
     pass 15 foot_ver "CDN foot OK $FVER ($FOOT_JS)"
   else
-    fail foot_ver "CDN foot not v150+ (file $(wc -c <"$FOOT_FILE" 2>/dev/null || echo 0)b)"
+    fail foot_ver "CDN foot has no release marker (file $(wc -c <"$FOOT_FILE" 2>/dev/null || echo 0)b)"
   fi
   if grep -q '90day-outcome' "$FOOT_FILE" 2>/dev/null; then pass 5 foot_90d "90day-outcome in foot"
   else fail foot_90d "missing 90day-outcome"; fi
 else
-  fail foot_ver "no catbox foot loader on live"
+  fail foot_ver "no canonical jsDelivr foot loader on live"
   fail foot_90d "no foot"
 fi
 
@@ -131,7 +131,7 @@ PY
 
 SCORE_RAW=$SCORE
 if [ "$SCORE" -gt 100 ]; then SCORE=100; fi
-ADJ=$SCORE; [[ "${FAILS:-0}" -gt 0 && "$SCORE" -ge 100 ]] && ADJ=$((100 - FAILS*5)); echo "=== dg-site-metrics score ${ADJ}/100 (raw=${SCORE} fails=${FAILS}) ==="
+ADJ=$SCORE; [[ "${FAILS:-0}" -gt 0 && "$SCORE" -ge 100 ]] && ADJ=$((100 - FAILS*5)); echo "=== dg-site-metrics score ${ADJ}/100 (raw=${SCORE_RAW} fails=${FAILS}) ==="
 printf '%s\n' "${NOTES[@]}"
 echo "json → $OUT"
 printf '%s\n' "${NOTES[@]}" > "${OUT%.json}.notes.txt"

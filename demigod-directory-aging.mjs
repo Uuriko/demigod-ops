@@ -24,13 +24,18 @@ export function agingByBoard(ledger, today) {
     if (r.closedAt || !r.usPosted) continue;
     const key = `${r.provider}|${r.slug}`;
     const b = byBoard[key] || (byBoard[key] = {
-      openRoles: 0, oldestObservedDays: 0, observed30: 0, observed60: 0, observed90: 0,
+      openRoles: 0, oldestObservedDays: 0,
+      observed7: 0, observed30: 0, observed60: 0, observed90: 0,
       attributed: 0, agingRoles: 0, evergreenRoles: 0, oldestAgingDays: 0,
+      roleMix: {},
     });
     b.openRoles++;
+    const fn = String(r.fn || 'other').slice(0, 40) || 'other';
+    b.roleMix[fn] = (b.roleMix[fn] || 0) + 1;
     const od = observedOpenDays(r, today);
     if (od >= 0) {
       if (od > b.oldestObservedDays) b.oldestObservedDays = od;
+      if (od >= 7) b.observed7++;
       if (od >= 30) b.observed30++;
       if (od >= 60) b.observed60++;
       if (od >= 90) b.observed90++;
@@ -72,15 +77,63 @@ export function buildAsset(map, ledger, today) {
   };
 }
 
-// Enrich map companies in place with the aging count the directory renderer shows. Idempotent: clears
-// stale aging on companies that no longer qualify, so re-running never leaves phantom badges.
+// Public-safe fields stamped onto map companies for the directory renderer.
+// Observed* = our firstSeen (honest, young ledger). agingRoles = attributed board post 90–365d.
+const MAP_AGING_KEYS = [
+  'agingRoles', 'oldestAgingDays',
+  'oldestObservedDays', 'observed7', 'observed30', 'observed60', 'observed90',
+  'ledgerOpenRoles', 'roleMix',
+];
+
+// Enrich map companies in place. Idempotent: clears stale keys when the company no longer qualifies.
 export function enrichMap(map, asset) {
   const byName = asset.companies || {};
   let enriched = 0;
+  const globalMix = {};
   for (const c of map.companies || []) {
+    for (const k of MAP_AGING_KEYS) {
+      if (k in c) delete c[k];
+    }
     const a = byName[norm(c.name)];
-    if (a && a.agingRoles > 0) { c.agingRoles = a.agingRoles; c.oldestAgingDays = a.oldestAgingDays; enriched++; }
-    else if ('agingRoles' in c) { delete c.agingRoles; delete c.oldestAgingDays; }
+    if (!a || !(a.openRoles > 0)) continue;
+    // Always attach observed span when we have ledger open roles (even if <7d) so the UI can
+    // say "tracked Nd (our first seen)" — never invent board post age.
+    if (Number.isSafeInteger(a.oldestObservedDays) && a.oldestObservedDays >= 0) {
+      c.oldestObservedDays = a.oldestObservedDays;
+    }
+    if (a.observed7 > 0) c.observed7 = a.observed7;
+    if (a.observed30 > 0) c.observed30 = a.observed30;
+    if (a.observed60 > 0) c.observed60 = a.observed60;
+    if (a.observed90 > 0) c.observed90 = a.observed90;
+    if (a.openRoles > 0) c.ledgerOpenRoles = a.openRoles;
+    if (a.agingRoles > 0) {
+      c.agingRoles = a.agingRoles;
+      c.oldestAgingDays = a.oldestAgingDays;
+    }
+    // roleMix from ledger fn (US-open only) — public counts, not a quality score.
+    if (a.roleMix && typeof a.roleMix === 'object' && !Array.isArray(a.roleMix)) {
+      const mix = {};
+      for (const [fn, n] of Object.entries(a.roleMix)) {
+        if (Number.isSafeInteger(n) && n > 0) {
+          mix[fn] = n;
+          globalMix[fn] = (globalMix[fn] || 0) + n;
+        }
+      }
+      if (Object.keys(mix).length) c.roleMix = mix;
+    }
+    enriched++;
+  }
+  if (map.coverage && typeof map.coverage === 'object') {
+    map.coverage.roleAgingBasis =
+      'observed* = days since Demigod first saw the role open on the public ATS board; ' +
+      'agingRoles = board first_published date 90–365d (Greenhouse only); evergreen >365d excluded from aging.';
+    map.coverage.roleAgingAt = asset.today || null;
+    map.coverage.companiesWithObservedOpen = asset.companyCount || 0;
+    map.coverage.companiesWithPostedAging = asset.companiesWithAgingRole || 0;
+    if (Object.keys(globalMix).length) {
+      map.coverage.roleMix = globalMix;
+      map.coverage.roleMixBasis = 'open US-posted ledger roles; title-heuristic fn buckets';
+    }
   }
   return enriched;
 }
@@ -95,6 +148,7 @@ if (isMain && process.argv.includes('--selftest')) {
     role({ firstSeen: '2026-04-24' }), role({ firstSeen: '2026-06-01' }), role({ firstSeen: '2026-07-20' }),
   ]), T)['Lever|acme'];
   assert(a.openRoles === 3, 'counts all 3 open roles');
+  assert(a.observed7 === 3, `observed7 all three (got ${a.observed7})`);
   assert(a.observed90 === 1 && a.observed60 === 1 && a.observed30 === 2, `observed buckets (got ${JSON.stringify(a)})`);
   assert(a.oldestObservedDays >= 94 && a.oldestObservedDays <= 96, `oldest observed ~95d (got ${a.oldestObservedDays})`);
   // posted basis: attributed (first_published) only; 90-365d = aging; >365d = evergreen (counted apart); non-attributed excluded
@@ -120,12 +174,42 @@ if (isMain && process.argv.includes('--selftest')) {
   const dir = directoryAging(map, led([role({ firstSeen: '2026-04-24' })]), T);
   assert(dir.acme && dir.acme.openRoles === 1 && dir.acme.observed90 === 1, 'company with board+open roles joined');
   assert(!dir.noboard, 'company without a board is omitted (no fabricated aging)');
-  // enrichMap: adds agingRoles to matching companies; idempotent (clears stale)
-  const em = { companies: [{ name: 'Acme' }, { name: 'Other', agingRoles: 9 }] };
-  const asset = { companies: { acme: { agingRoles: 4, oldestAgingDays: 200 } } };
-  enrichMap(em, asset);
-  assert(em.companies[0].agingRoles === 4 && em.companies[0].oldestAgingDays === 200, 'enrichMap adds aging by normalized name');
-  assert(!('agingRoles' in em.companies[1]), 'enrichMap clears stale aging on non-matching company (idempotent)');
+  // enrichMap: observed + posted aging; idempotent (clears stale)
+  const em = {
+    companies: [
+      { name: 'Acme' },
+      { name: 'Other', agingRoles: 9, oldestObservedDays: 99, observed7: 3 },
+    ],
+    coverage: {},
+  };
+  const asset = {
+    today: T,
+    companyCount: 1,
+    companiesWithAgingRole: 1,
+    companies: {
+      acme: {
+        openRoles: 5,
+        agingRoles: 4,
+        oldestAgingDays: 200,
+        oldestObservedDays: 12,
+        observed7: 3,
+        observed30: 1,
+        observed60: 0,
+        observed90: 0,
+      },
+    },
+  };
+  const n = enrichMap(em, asset);
+  assert(n === 1, 'one company enriched');
+  assert(em.companies[0].agingRoles === 4 && em.companies[0].oldestAgingDays === 200, 'enrichMap adds posted aging');
+  assert(em.companies[0].oldestObservedDays === 12 && em.companies[0].observed7 === 3, 'enrichMap adds observed span');
+  assert(em.companies[0].ledgerOpenRoles === 5 && em.companies[0].observed30 === 1, 'ledger open + observed30');
+  assert(!('agingRoles' in em.companies[1]) && !('oldestObservedDays' in em.companies[1]), 'clears stale on non-match');
+  assert(/first (?:seen|saw)/i.test(em.coverage.roleAgingBasis || ''), 'coverage documents observed basis');
+  // openRoles=0 board must not stamp phantom fields
+  const empty = { companies: [{ name: 'Ghost' }], coverage: {} };
+  enrichMap(empty, { companies: { ghost: { openRoles: 0, oldestObservedDays: 50 } }, companyCount: 0 });
+  assert(!('oldestObservedDays' in empty.companies[0]), 'zero openRoles does not enrich');
   console.log(JSON.stringify({ ok: true, selftest: 'directory-aging' }));
   process.exit(0);
 }
@@ -137,9 +221,14 @@ if (isMain) {
   const ledger = JSON.parse(fs.readFileSync(process.env.DEMIGOD_ROLE_LEDGER || path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json'), 'utf8'));
   const asset = buildAsset(map, ledger, today);
   if (process.argv.includes('--enrich-map')) {
-    const n = enrichMap(map, asset); // map object now carries per-company agingRoles
-    fs.writeFileSync(mapPath, JSON.stringify(map));
-    console.log(`enriched ${mapPath} · ${n} companies tagged with an aging-role count (posted 90-365d)`);
+    const n = enrichMap(map, asset); // map carries observed* + posted aging for the directory
+    // Compact JSON — same style as jobs enrich (CDN-friendly).
+    fs.writeFileSync(mapPath, `${JSON.stringify(map)}\n`);
+    console.log(
+      `enriched ${mapPath} · ${n} companies with ledger open roles · ` +
+        `${asset.companiesWithAgingRole} with posted 90–365d aging · ` +
+        `${asset.companiesWithObserved90} with observed≥90d`,
+    );
   } else {
     const oi = process.argv.indexOf('--out');
     const out = oi >= 0 && process.argv[oi + 1] ? process.argv[oi + 1] : path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');

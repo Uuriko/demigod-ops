@@ -9,7 +9,7 @@ marketplace-peer study, Fable architecture ruling, and direct verification of ev
 |---|---|
 | Head is **48,211 / 50,000 chars**. Overflow returns 200 + "saved" + a verifying readback, then **silently keeps the old head and every later ship no-ops** (cost 83min once). | `wc -c demigod-head-minimal.html` |
 | **ALL new CSS/JS goes in `demigod-foot-core.js`** (jsDelivr, no cap, 284,776 bytes). Nothing in head. | — |
-| Canvas still holds dishonest copy: `Human-Matched` ×4, `mailto:hello@` ×1, `hello@trydemigod` ×2 in live raw HTML. **Every scrub is load-bearing. Touch none.** | `curl` live |
+| Canvas still holds dishonest copy (re-measured 2026-07-23): `Human-Matched` ×2 outside scripts (h2 + footer tagline; +2 scrub regexes in foot = 4 total string hits), `mailto:hello@` ×3, `hello@trydemigod` ×5 outside scripts. Foot scrubs load-bearing until Designer retext ships. Public contact SoR = **potter@** only. | `curl` live |
 | Canvas element restructuring **cannot** be headless (Designer API = iframe). Data API retexts existing nodes only. | webflow docs |
 | Verify a ship by **Last Published moving**, NOT by `truth` (truth reads files; goes green while server keeps old head). | memory |
 | No new deps, no build step, no framework. One IIFE, must pass `node --check`. | — |
@@ -67,4 +67,4 @@ ship a fast-to-slow bar (deceptive) · touch the head (1,789 bytes left) · touc
 restore cross-session localStorage without consent UI · generate decorative assets.
 
 ## Verify
-`node --check` → `npm run demigod:verify:source` → board-honesty → loop-state → ship → **confirm Last Published moved**.
+`node --check` → `npm run demigod:verify:source` → board-honesty → ship → **confirm Last Published moved**.

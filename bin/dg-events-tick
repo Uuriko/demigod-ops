@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# dg-events-tick — draft-mode Events Bot agent tick (Trust Ladder: no auto-send)
+#   bin/dg-events-tick
+# Reads ops secret from /tmp/dg-busy/events-online/ops-secret (never prints it).
+# Appends one JSON line to /tmp/dg-busy/events-bot/tick.log
+set -euo pipefail
+if [[ $# -eq 1 && ( "$1" == "--help" || "$1" == "-h" ) ]]; then
+  echo "usage: bin/dg-events-tick"
+  exit 0
+fi
+if [[ $# -ne 0 ]]; then
+  echo "usage: bin/dg-events-tick" >&2
+  exit 2
+fi
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+export PATH="${HOME}/.local/bin:${HOME}/bin:${HOME}/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH}"
+cd "$ROOT"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+DIR="$BUSY/events-online"
+LOG="$BUSY/events-bot/tick.log"
+PORT="${DEMIGOD_EVENTS_PORT:-3460}"
+mkdir -p "$DIR" "$(dirname "$LOG")"
+
+# Ensure secret + app has it (never echoes secret)
+node demigod-events-online.mjs ensure-ops >>"$LOG" 2>&1 || true
+
+SECRET_FILE="$DIR/ops-secret"
+if [[ ! -s "$SECRET_FILE" ]]; then
+  printf '%s\n' "{\"ok\":false,\"error\":\"ops_secret_missing\",\"at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" | tee -a "$LOG"
+  exit 1
+fi
+SECRET="$(tr -d '[:space:]' <"$SECRET_FILE")"
+if [[ ${#SECRET} -lt 32 ]]; then
+  printf '%s\n' "{\"ok\":false,\"error\":\"ops_secret_invalid\",\"at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" | tee -a "$LOG"
+  exit 1
+fi
+
+TMP_RESP="$(mktemp)"
+trap 'rm -f "$TMP_RESP"' EXIT
+HTTP_CODE="$(curl -sS -m 120 -o "$TMP_RESP" -w '%{http_code}' -X POST "http://127.0.0.1:${PORT}/api/events-bot/agent/tick" \
+  -H 'content-type: application/json' \
+  -H "x-dg-events-ops: ${SECRET}" \
+  -d '{"mode":"draft","maxSteps":4}' 2>/dev/null)" || HTTP_CODE=000
+
+if [[ "$HTTP_CODE" == "000" ]]; then
+  OPENAI_API_KEY= node --input-type=module -e '
+    import { eventsBotAgentTick } from "./demigod-events-bot-agent.mjs";
+    const tick = await eventsBotAgentTick({ mode: "draft", maxSteps: 4 });
+    process.stdout.write(JSON.stringify({ ...tick, transportFallback: "http_000" }));
+  ' >"$TMP_RESP" && HTTP_CODE=200
+fi
+
+# Log response without ever logging SECRET
+python3 - "$TMP_RESP" "$HTTP_CODE" "$LOG" <<'PY'
+import json, datetime, sys
+path, code, log = sys.argv[1], sys.argv[2], sys.argv[3]
+raw = open(path, "r", errors="replace").read()
+at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+try:
+    body = json.loads(raw) if raw.strip() else {}
+except Exception:
+    body = {"ok": False, "error": "non_json", "raw": raw[:400]}
+if not isinstance(body, dict):
+    body = {"ok": False, "error": "bad_body"}
+for k in list(body.keys()):
+    if "secret" in str(k).lower():
+        body[k] = "[redacted]"
+line = json.dumps({"at": at, "http": int(code) if str(code).isdigit() else code, "tick": body}, ensure_ascii=False)
+open(log, "a").write(line + "\n")
+print(json.dumps({"ok": bool(body.get("ok")), "http": code, "mode": body.get("mode") or "draft"}, ensure_ascii=False))
+sys.exit(0 if body.get("ok") and str(code) == "200" else 1)
+PY

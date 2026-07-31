@@ -1,0 +1,40 @@
+{
+  "at": "2026-07-01T04:23:10.092Z",
+  "actions": [
+    {
+      "step": "cdp-close-tabs",
+      "ok": true,
+      "stdout": "e-f42e17\n  kept [other]: https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&su=Demigod+Partner+Intro&to=hel\n  kept [other]: https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&su=Demigod+Partner+Intro&to=hel\n  kept [grok]: https://grok.com/c/95789370-8cc9-4b94-a726-7b4d36081be2?rid=285fb2a6-08c0-4dbc-8535-c3ce5b\n  kept [other]: https://webflow.com/dashboard/sites/talentlink-sf/forms"
+    },
+    {
+      "step": "close-research-tabs",
+      "closed": []
+    }
+  ],
+  "cacheTrim": [
+    {
+      "dir": "/home/potter/.grok/chrome-heavy/GrShaderCache",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "dir": "/home/potter/.grok/chrome-heavy/ShaderCache",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "dir": "/home/potter/.grok/chrome-heavy/Code Cache/js",
+      "removed": 0,
+      "bytes": 0
+    }
+  ],
+  "system": {
+    "mem": "total        used        free      shared  buff/cache   available\nMem:            62Gi        21Gi        27Gi       527Mi        19Gi        41Gi\nSwap:           19Gi          0B        19Gi",
+    "load": "21:23:11 up 1 day, 12:57,  1 user,  load average: 3.02, 2.42, 2.41"
+  },
+  "recommendations": [
+    "cosmic-comp high CPU after 6+ days uptime — log out/in or reboot to reset compositor",
+    "Keep Chrome tabs ≤6: designer + live + grok + forms dashboard only",
+    "Defer webhook tunnel until needed — npm run demigod:submissions:webhook only when testing"
+  ]
+}

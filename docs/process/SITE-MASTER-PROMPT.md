@@ -2,7 +2,7 @@
 
 **Product:** trydemigod.com — SF human-matched talent. 10% on hire. Mutual yes. No fake board/SLA.
 **Canonical site JS:** `demigod-foot-core.js` only. Head CSS: `demigod-head-styles.css` / `demigod-head-minimal.html`.
-**Phase:** GTM + pre-services honesty. Freeze may be ON → **disk work OK**; **no CDN/Webflow mutate** unless freeze OFF + lock.
+**Release rule:** Freeze may be ON → **disk work OK**; **no CDN/Webflow mutate** unless freeze OFF + lock.
 **Verify:** `npm run demigod:verify:source` · board honesty · `node demigod-foot-smoke.mjs` · local WIZ playtest if forms touched.
 
 ## Mission

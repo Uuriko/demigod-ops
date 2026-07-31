@@ -6,14 +6,16 @@
  * CLI:
  *   node demigod-pairs-lib.mjs list
  *   node demigod-pairs-lib.mjs propose --role <id> --cand <id> [--score n] [--why "..."]
- *   node demigod-pairs-lib.mjs review <pairId> --decision approve|reject|defer
+ *   node demigod-pairs-lib.mjs review <pairId> --decision approve|reject|defer --i-reviewed --note "evidence"
  *   node demigod-pairs-lib.mjs consent <pairId> --side founder|candidate
  */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { UNSAFE_INVISIBLE_CLASS, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { listAcceptedRoles } from './demigod-accepted-role.mjs';
+import { candidateProfileReadiness, isSampleData, loadBoard, loadInbox } from './demigod-submissions-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 export const PAIRS_PATH = path.join(ROOT, 'DEMIGOD-PAIRS.json');
@@ -29,9 +31,15 @@ export function pairId(roleId, candId) {
 
 export function loadPairs() {
   try {
-    return JSON.parse(fs.readFileSync(PAIRS_PATH, 'utf8'));
-  } catch {
-    return { at: new Date().toISOString(), pairs: {} };
+    const store = JSON.parse(fs.readFileSync(PAIRS_PATH, 'utf8'));
+    if (!store || typeof store !== 'object' || Array.isArray(store) ||
+        !store.pairs || typeof store.pairs !== 'object' || Array.isArray(store.pairs)) {
+      throw new Error('pairs_store_invalid');
+    }
+    return store;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { at: new Date().toISOString(), pairs: {} };
+    throw error;
   }
 }
 
@@ -44,7 +52,7 @@ function savePairs(store) {
 export function listPairs({ state = null, limit = 50, includeSample = false } = {}) {
   const store = loadPairs();
   let rows = Object.values(store.pairs || {});
-  if (!includeSample) rows = rows.filter((p) => p.sample !== true);
+  if (!includeSample) rows = rows.filter((p) => p.sample === false);
   if (state) rows = rows.filter((p) => p.state === state);
   rows.sort((a, b) => String(b.updatedAt || b.at).localeCompare(String(a.updatedAt || a.at)));
   return rows.slice(0, limit);
@@ -55,6 +63,86 @@ export function getPair(id) {
   return store.pairs?.[id] || null;
 }
 
+export function isValidConsentEvidence(value) {
+  const raw = String(value || '');
+  const proof = raw.trim();
+  return proof.length >= 3 && proof.length <= 500 && !/[\r\n\u0000-\u001f\u007f]/.test(raw);
+}
+
+export function hasValidPairConsentReceipt(pair, side) {
+  return (Array.isArray(pair?.history) ? pair.history : []).some(
+    (row) =>
+      row?.event === 'consent' &&
+      row.side === side &&
+      isValidConsentEvidence(row.evidence),
+  );
+}
+
+export function assertMutualConsentReceipts(pair) {
+  if (
+    pair?.mutual?.founder !== true ||
+    pair?.mutual?.candidate !== true ||
+    !hasValidPairConsentReceipt(pair, 'founder') ||
+    !hasValidPairConsentReceipt(pair, 'candidate')
+  ) {
+    throw new Error('pair_consent_receipt_missing');
+  }
+  return pair;
+}
+
+/** Current real-pair gate. Samples and stale/forged persisted rows fail closed. */
+export function assertCurrentPairEligibility(
+  pair,
+  { pairKey = pair?.pairId, board = null, inbox = null } = {},
+) {
+  if (!pair || typeof pair !== 'object') throw new Error('real_pair_invalid');
+  if (pair.sample !== false) throw new Error('sample_pair_not_eligible');
+  if (
+    typeof pair.roleId !== 'string' ||
+    typeof pair.candId !== 'string' ||
+    pair.roleId !== pair.roleId.trim() ||
+    pair.candId !== pair.candId.trim()
+  ) {
+    throw new Error('real_pair_id_invalid');
+  }
+  const roleId = pair.roleId;
+  const candId = pair.candId;
+  const expectedId = pairId(roleId, candId);
+  if (
+    !roleId ||
+    !candId ||
+    roleId === candId ||
+    pair.pairId !== expectedId ||
+    pairKey !== expectedId
+  ) {
+    throw new Error('real_pair_id_invalid');
+  }
+  if (pair.createdSample !== false) throw new Error('real_pair_origin_invalid');
+  const currentBoard = board || loadBoard();
+  const currentInbox = inbox || loadInbox();
+  if (!listAcceptedRoles(currentBoard, currentInbox).acceptedRoles.some((role) => role.roleId === roleId)) {
+    throw new Error('real_pair_role_not_accepted');
+  }
+  const candidate = (currentInbox.items || []).find((item) => item?.id === candId);
+  const readiness = candidateProfileReadiness(candidate);
+  if (!candidate || isSampleData(candidate) || !readiness.applicable || !readiness.matchReady) {
+    throw new Error('real_pair_candidate_not_match_ready');
+  }
+  return pair;
+}
+
+export function assertCurrentMutualPairEligibility(pair, options = {}) {
+  assertCurrentPairEligibility(pair, options);
+  if (
+    pair.state !== 'mutual_yes' ||
+    pair.mutual?.founder !== true ||
+    pair.mutual?.candidate !== true
+  ) {
+    throw new Error('mutual_consent_required');
+  }
+  return assertMutualConsentReceipts(pair);
+}
+
 export function proposePair({
   roleId,
   candId,
@@ -63,11 +151,44 @@ export function proposePair({
   actor = 'agent',
   sample = true,
 } = {}) {
-  if (!roleId || !candId) throw new Error('roleId and candId required');
+  roleId = String(roleId || '').trim();
+  candId = String(candId || '').trim();
+  if (!roleId || !candId || roleId.length > 160 || candId.length > 160 ||
+      /[\r\n\u0000-\u001f\u007f]/.test(`${roleId}${candId}`)) {
+    throw new Error('roleId and candId required');
+  }
+  if (!sample) {
+    const id = pairId(roleId, candId);
+    assertCurrentPairEligibility({
+      pairId: id,
+      roleId: String(roleId),
+      candId: String(candId),
+      sample: false,
+      createdSample: false,
+    }, { pairKey: id });
+  }
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
     const id = pairId(roleId, candId);
     const prev = store.pairs[id];
+    if (prev?.sample === false && sample) return prev;
+    if (prev && prev.sample !== false && !sample) throw new Error('pair_sample_promotion_forbidden');
+    if (prev && prev.state !== 'proposed') {
+      return prev;
+    }
+    const nextScore = score == null ? null : Number(score);
+    if (nextScore != null && (!Number.isFinite(nextScore) || nextScore < 0 || nextScore > 1)) {
+      throw new Error('score must be finite and between 0 and 1');
+    }
+    if (!Array.isArray(reasons) || reasons.length > 20 ||
+        reasons.some((reason) =>
+          typeof reason !== 'string' ||
+          !reason.trim() ||
+          reason.length > 240 ||
+          new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']').test(reason)
+        )) {
+      throw new Error('reasons must be up to 20 bounded text values');
+    }
     const now = new Date().toISOString();
     const pair = prev || {
       pairId: id,
@@ -78,11 +199,12 @@ export function proposePair({
       reasons: [],
       mutual: { founder: false, candidate: false },
       sample: !!sample,
+      createdSample: !!sample,
       history: [],
       at: now,
     };
-    if (sample) pair.sample = true;
-    pair.score = score != null ? Number(score) : pair.score;
+    pair.sample = prev?.sample === false ? false : !!sample;
+    pair.score = nextScore != null ? nextScore : pair.score;
     if (reasons?.length) pair.reasons = reasons;
     pair.updatedAt = now;
     pair.history = [
@@ -95,25 +217,29 @@ export function proposePair({
   });
 }
 
-export function reviewPair(id, { decision, actor = 'agent', note = '' } = {}) {
+export function reviewPair(id, { decision, actor = 'agent', note = '', reviewed = false } = {}) {
   const d = String(decision || '').toLowerCase();
+  const reviewNote = String(note || '').trim();
   if (!['approve', 'reject', 'defer'].includes(d)) throw new Error('decision must be approve|reject|defer');
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
+    if (pair.sample === false && reviewed !== true) throw new Error('review_attestation_required');
+    if (pair.sample === false && !isValidConsentEvidence(note)) throw new Error('review_evidence_invalid');
     const now = new Date().toISOString();
     const map = { approve: 'approved', reject: 'rejected', defer: 'deferred' };
     const next = map[d];
     if ((pair.state === 'rejected' || pair.state === 'mutual_yes') && next !== pair.state) throw new Error('pair_transition_invalid');
+    if (next === 'approved') assertCurrentPairEligibility(pair, { pairKey: id });
     pair.state = next;
-    pair.reviewNote = note || pair.reviewNote;
+    pair.reviewNote = reviewNote || pair.reviewNote;
     pair.reviewedAt = now;
     pair.reviewedBy = actor;
     pair.updatedAt = now;
     pair.history = [
       ...(pair.history || []),
-      { at: now, actor, event: 'review', state: pair.state, note: note || undefined },
+      { at: now, actor, event: 'review', state: pair.state, note: reviewNote || undefined },
     ].slice(-40);
     store.pairs[id] = pair;
     savePairs(store);
@@ -126,16 +252,15 @@ export function consentPair(id, { side, actor = 'agent', attested = false, evide
   if (s !== 'founder' && s !== 'candidate') throw new Error('side must be founder|candidate');
   const proof = String(evidence || '').trim();
   if (attested !== true) throw new Error('consent_attestation_required');
-  if (proof.length < 3 || proof.length > 500 || /[\r\n\u0000-\u001f\u007f]/.test(proof)) {
-    throw new Error('consent_evidence_invalid');
-  }
+  if (!isValidConsentEvidence(evidence)) throw new Error('consent_evidence_invalid');
   return withFileLock(PAIRS_LOCK, () => {
     const store = loadPairs();
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
     if (pair.state !== 'approved' && pair.state !== 'mutual_yes') throw new Error('pair_not_reviewed');
+    assertCurrentPairEligibility(pair, { pairKey: id });
     pair.mutual = pair.mutual || { founder: false, candidate: false };
-    if (pair.mutual[s]) return pair;
+    if (pair.mutual[s] && hasValidPairConsentReceipt(pair, s)) return pair;
     const now = new Date().toISOString();
     pair.mutual[s] = true;
     pair.updatedAt = now;
@@ -241,7 +366,12 @@ if (isMain) {
       );
     } else if (cmd === 'review') {
       const id = rest[0];
-      console.log(JSON.stringify(reviewPair(id, { decision: flag('--decision'), note: flag('--note') || '' }), null, 2));
+      console.log(JSON.stringify(reviewPair(id, {
+        decision: flag('--decision'),
+        note: flag('--note') || '',
+        reviewed: rest.includes('--i-reviewed'),
+        actor: 'human:cli',
+      }), null, 2));
     } else if (cmd === 'consent') {
       console.log(JSON.stringify(consentPair(rest[0], {
         side: flag('--side'),
@@ -261,7 +391,7 @@ if (isMain) {
         ),
       );
     } else {
-      console.log('usage: list|seed|propose --role ID --cand ID [--real]|review|consent <id> --side founder|candidate --i-observed-consent --evidence "note"|prune');
+      console.log('usage: list|seed|propose --role ID --cand ID [--real]|review <id> --decision approve|reject|defer --i-reviewed --note "evidence"|consent <id> --side founder|candidate --i-observed-consent --evidence "note"|prune');
       process.exit(1);
     }
   } catch (e) {

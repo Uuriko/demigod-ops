@@ -33,15 +33,40 @@ export function analyzeRoute(s = {}, opts = {}) {
   else if (s.h1Count > 1) add('warn', 'multiple-h1', String(s.h1Count));
   if (opts.expectFaqSchema && !(s.ldTypes || []).includes('FAQPage')) add('warn', 'missing-faqpage-schema');
   if ((s.consoleErrors || 0) > 0) add('warn', 'console-errors', String(s.consoleErrors));
+  // Every signal above is read from the RENDERED DOM, so a page whose <body> ships empty and is
+  // built entirely by foot-core scores identically to one with real served markup. Anything that
+  // does not run JS — link unfurlers, some crawlers, archive tools — gets a blank document. Only
+  // flag it when the rendered page does have content, which is what proves the gap is JS-only.
+  if (s.staticBodyChars != null && s.staticBodyChars < 200 && (s.renderedBodyChars || 0) >= 200) {
+    add('warn', 'js-only-body', `${s.staticBodyChars}ch served → ${s.renderedBodyChars}ch rendered`);
+  }
   return issues;
+}
+
+/** PURE: visible text length of a served HTML document's body, script/style removed. */
+export function staticBodyTextLength(html) {
+  const source = String(html || '');
+  const start = source.toLowerCase().indexOf('<body');
+  if (start < 0) return 0;
+  return source
+    .slice(start)
+    .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z#0-9]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim().length;
 }
 
 export const hasErrors = (issues) => issues.some((i) => i.sev === 'error');
 
 async function gather(page, url) {
   let consoleErrors = 0;
-  const onC = (m) => { if (m.type() === 'error') consoleErrors++; };
-  const onE = () => { consoleErrors++; };
+  // Counting errors without keeping them made "console-errors(2)" unactionable — you had to
+  // re-drive a browser by hand to learn what broke. Keep the first few messages.
+  const errorMessages = [];
+  const note = (text) => { if (errorMessages.length < 5) errorMessages.push(String(text).slice(0, 200)); };
+  const onC = (m) => { if (m.type() === 'error') { consoleErrors++; note(m.text()); } };
+  const onE = (err) => { consoleErrors++; note(err?.message || err); };
   page.on('console', onC); page.on('pageerror', onE);
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
   await new Promise((r) => setTimeout(r, 2500));
@@ -57,10 +82,17 @@ async function gather(page, url) {
       h1Count: document.querySelectorAll('h1').length,  // DOM-level, not visibility-filtered
       h2Count: document.querySelectorAll('h2').length,
       ldTypes: ld.filter(Boolean),
+      renderedBodyChars: (document.body?.innerText || '').replace(/\s+/g, ' ').trim().length,
     };
   });
   page.off('console', onC); page.off('pageerror', onE);
-  return { ...s, consoleErrors };
+  // Fetch the document as a non-JS consumer receives it, to expose the served-vs-rendered gap.
+  let staticBodyChars = null;
+  try {
+    const res = await fetch(url, { headers: { 'user-agent': 'demigod-seo-audit' }, signal: AbortSignal.timeout(20000) });
+    staticBodyChars = staticBodyTextLength(await res.text());
+  } catch { /* leave null — unknown is not a finding */ }
+  return { ...s, consoleErrors, errorMessages, staticBodyChars };
 }
 
 export async function audit() {
@@ -102,6 +134,14 @@ if (process.argv.includes('--selftest')) {
   assert(codes(clean, { expectFaqSchema: true }).includes('missing-faqpage-schema'), 'faq without FAQPage schema flagged');
   assert(!codes({ ...clean, ldTypes: ['FAQPage'] }, { expectFaqSchema: true }).includes('missing-faqpage-schema'), 'FAQPage present -> not flagged');
   assert(codes({ ...clean, consoleErrors: 4 }).includes('console-errors'), 'console errors counted');
+  // js-only-body: an empty served <body> that renders fine is invisible to every other signal here.
+  assert(codes({ ...clean, staticBodyChars: 0, renderedBodyChars: 4000 }).includes('js-only-body'), 'empty served body flagged');
+  assert(!codes({ ...clean, staticBodyChars: 3000, renderedBodyChars: 4000 }).includes('js-only-body'), 'served markup -> not flagged');
+  assert(!codes({ ...clean, staticBodyChars: 0, renderedBodyChars: 0 }).includes('js-only-body'), 'a genuinely empty page is a different defect, not this one');
+  assert(!codes(clean).includes('js-only-body'), 'unknown static size is not a finding');
+  assert(staticBodyTextLength('<html><body> <script>var x=1</script> Hello  world </body></html>') === 11, 'body text length ignores script');
+  assert(staticBodyTextLength('<html><body><!-- c --></body></html>') === 0, 'comment-only body is empty');
+  assert(staticBodyTextLength('') === 0 && staticBodyTextLength(null) === 0, 'no html -> 0');
   assert(hasErrors([{ sev: 'error', code: 'x' }]) && !hasErrors([{ sev: 'warn', code: 'y' }]), 'hasErrors gates on error sev only');
   console.log(JSON.stringify({ ok: true, selftest: 'seo-audit' }));
   process.exit(0);
@@ -114,6 +154,7 @@ if (isMain) {
   for (const r of res.results) {
     if (!r.issues.length) { console.log(`  ✓ ${r.route}`); continue; }
     console.log(`  ${hasErrors(r.issues) ? '✗' : '·'} ${r.route}: ${r.issues.map((i) => `${i.code}${i.detail ? `(${i.detail})` : ''}`).join(', ')}`);
+    for (const m of r.signals?.errorMessages || []) console.log(`      ↳ ${m}`);
   }
   process.exit(res.ok ? 0 : 1);
 }

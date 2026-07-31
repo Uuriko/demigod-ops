@@ -1,0 +1,28 @@
+[Unit]
+Description=Demigod useful-work loop (plan→do→verify; product/gates; no auto-DM)
+Documentation=file:///tmp/dg-busy/USEFUL-LOOP-PLAN.md
+After=default.target demigod-events-bot.service
+Wants=demigod-events-bot.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+Environment=PATH=/home/potter/bin:/home/potter/.local/bin:/home/potter/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+Environment=DEMIGOD_BUSY=/tmp/dg-busy
+Environment=USEFUL_LOOP_SLEEP_SEC=60
+# Events heal via useful-loop inherits this (prefer CF over thrashy loca.lt).
+Environment=DEMIGOD_EVENTS_TUNNEL=cloudflared
+# Clear stop on intentional start so "keep working" always resumes
+ExecStartPre=/bin/mkdir -p /tmp/dg-busy
+ExecStartPre=/bin/rm -f /tmp/dg-busy/useful-loop.STOP
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-useful-loop.mjs run --sleep-sec=60
+Restart=always
+RestartSec=30
+# Don't die on one bad cycle
+TimeoutStartSec=30
+StandardOutput=null
+StandardError=append:/tmp/dg-busy/useful-loop.systemd.err
+
+[Install]
+WantedBy=default.target

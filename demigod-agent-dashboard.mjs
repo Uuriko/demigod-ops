@@ -2,14 +2,14 @@
 /**
  * demigod-agent-dashboard — multi-agent + tools dashboard (agent-first)
  *
- * Human UI:  http://127.0.0.1:9878/  (Dashboard v2)
+ * Human UI:  http://127.0.0.1:9878/
  * Agent API: http://127.0.0.1:9878/api/status
  * Agent brief: /api/agent-brief  → /tmp/dg-busy/AGENT-BRIEF.md
  * Tools: /api/tools · Jobs: POST /api/jobs?run=smoke
  * Cockpit/Smoke: /api/cockpit · /api/smoke
  * Control: /api/control · Orient: /api/orient · Unify: /api/unify · Truth: /api/truth
  * Ponytail: /api/ponytail · jobs ponytail|ponytail-check
- * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Coord: /api/coord · Craft: /api/craft
+ * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Orca: /api/orca · Craft: /api/craft
  *
  * Sections in this file:
  *   imports/config · status builders · JOBS allowlist · HTTP API routes · static UI
@@ -28,7 +28,6 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
-import { summarizeFormAnalytics } from './demigod-form-analytics.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { eventAudienceBrief, hasFutureDateTime, isRealInviteUrl, isRealOutreachEmail, matchOffersToEvent, outreachDraftReadiness, resourceGaps } from './demigod-events-bot-agent.mjs';
 
@@ -39,9 +38,9 @@ const ROOT = process.env.DEMIGOD_ROOT || __dirname;
 const cliArgs = process.argv.slice(2);
 const portIndex = cliArgs.indexOf('--port');
 const portArg = portIndex < 0 ? null : cliArgs[portIndex + 1];
-const knownArgs = new Set(['--port', '--snapshot', '--selftest-coord-runtime', '--selftest-grok-out', '--project-grok-out', '--help', '-h']);
+const knownArgs = new Set(['--port', '--snapshot', '--help', '-h']);
 const unknownArgs = cliArgs.filter((arg, index) => !(portIndex >= 0 && index === portIndex + 1) && !knownArgs.has(arg));
-const modes = cliArgs.filter((arg) => ['--snapshot', '--selftest-coord-runtime', '--selftest-grok-out', '--project-grok-out', '--help', '-h'].includes(arg));
+const modes = cliArgs.filter((arg) => ['--snapshot', '--help', '-h'].includes(arg));
 const requestedPort = portArg ?? process.env.DEMIGOD_DASH_PORT ?? '9878';
 if (
   unknownArgs.length ||
@@ -66,293 +65,6 @@ const BRIEF_MD = path.join(BUSY, 'AGENT-BRIEF.md');
 const BRIEF_JSON = path.join(BUSY, 'AGENT-BRIEF.json');
 const STATUS_JSON = path.join(BUSY, 'dashboard-status.json');
 const SERVER_HEARTBEAT = path.join(BUSY, 'dashboard-server.heartbeat');
-const COORD_WORKER_GRACE_MS = { claude: 315000, codex: 255000, grok: 255000 };
-
-function pidFileAlive(file) {
-  try {
-    const pid = Number(fs.readFileSync(file, 'utf8').trim());
-    if (!Number.isInteger(pid) || pid <= 0) return false;
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error?.code === 'EPERM';
-  }
-}
-
-function coordWorkerStatus(coordDir, name, pidUnobservable = false) {
-  const pidFile = path.join(coordDir, `${name}.pid`);
-  if (pidFileAlive(pidFile)) return 'busy';
-  try {
-    const ageMs = Date.now() - fs.statSync(pidFile).mtimeMs;
-    if (pidUnobservable && ageMs >= -60_000 && ageMs < (COORD_WORKER_GRACE_MS[name] ?? 255000)) {
-      return 'pid-unobservable';
-    }
-  } catch {
-    /* a missing pid file is idle */
-  }
-  return 'idle';
-}
-
-function coordWorkerStatusSelftest() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-coord-runtime-'));
-  const pidFile = path.join(dir, 'codex.pid');
-  try {
-    fs.writeFileSync(pidFile, String(process.pid));
-    if (coordWorkerStatus(dir, 'codex') !== 'busy') throw new Error('live pid was not busy');
-    fs.writeFileSync(pidFile, '999999999');
-    if (coordWorkerStatus(dir, 'codex') !== 'idle') throw new Error('dead pid was not idle');
-    if (coordWorkerStatus(dir, 'codex', true) !== 'pid-unobservable') throw new Error('pid namespace grace was lost');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-  console.log('dashboard coord runtime selftest PASS');
-}
-
-if (process.argv.includes('--selftest-coord-runtime')) {
-  coordWorkerStatusSelftest();
-  process.exit(0);
-}
-
-function latestGrokOutReceipt(busy = BUSY) {
-  const dir = path.join(busy, 'grok-out');
-  let latest = null;
-  try {
-    for (const name of fs.readdirSync(dir)) {
-      if (!name.endsWith('.res')) continue;
-      const file = path.join(dir, name);
-      const stat = fs.lstatSync(file);
-      if (!stat.isFile() || stat.size === 0 || (latest && stat.mtimeMs <= latest.stat.mtimeMs)) continue;
-      latest = { file, name, stat };
-    }
-  } catch {
-    return null;
-  }
-  if (!latest) return null;
-  const fd = fs.openSync(latest.file, 'r');
-  const bytes = Buffer.alloc(Math.min(latest.stat.size, 16_384));
-  try {
-    fs.readSync(fd, bytes, 0, bytes.length, 0);
-  } finally {
-    fs.closeSync(fd);
-  }
-  const text = bytes.toString('utf8');
-  // Accept plain, ATX, and markdown-bold headings (`**VERDICT:** BLOCKED`).
-  // Also match mid-line `**VERDICT**` when the model glues prose to the heading
-  // (funnel-mry2fz27-1 class → false contract=3/4 with transport=ok).
-  const headingMatch = (name) =>
-    new RegExp(
-      `(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?${name}(?:\\*\\*)?\\b[^\\n]*|#{1,4}\\s*${name}\\b[^\\n]*|\\*\\*${name}\\*\\*`,
-      'i',
-    ).exec(text);
-  const contract = ['VERDICT', 'EVIDENCE', 'FINDINGS', 'HANDOFF'].map(headingMatch);
-  const verdictText = contract[0]
-    ? text.slice(contract[0].index, contract[1]?.index > contract[0].index ? contract[1].index : contract[0].index + 240)
-    : '';
-  const verdictToken =
-    /\bVERDICT\b(?:\*\*)?\s*:?\s*(?:\*\*)?\s*(PASS(?:ED)?|OK|GREEN|COMPLETE|BLOCK(?:ED)?|FAIL(?:ED)?|RED)\b/i.exec(
-      verdictText,
-    )?.[1]?.toLowerCase() ||
-    /\bVERDICT\b[^\n]*(?:\n\s*)?(?:\*\*)?\s*(PASS(?:ED)?|OK|GREEN|COMPLETE|BLOCK(?:ED)?|FAIL(?:ED)?|RED)\b/i.exec(
-      verdictText,
-    )?.[1]?.toLowerCase();
-  const verdict = /^(?:block|blocked|fail|failed|red)$/.test(verdictToken || '')
-    ? 'blocked'
-    : /^(?:pass|passed|ok|green|complete)$/.test(verdictToken || '')
-      ? 'passed'
-      : 'unspecified';
-  const findingsAt = contract[2]?.index ?? -1;
-  const handoffAt = contract[3]?.index ?? text.length;
-  const findingsText = findingsAt >= 0 ? text.slice(findingsAt, handoffAt > findingsAt ? handoffAt : text.length) : '';
-  const findings = Math.min(99, findingsText.split('\n').filter((line) => {
-    const item = /^\s*(?:(?:#{2,4}\s*)?\d+\.|[-*])\s+(.+)/.exec(line);
-    return item && !/^(?:none|no findings?)\b/i.test(item[1].trim());
-  }).length);
-  const handoff = !!contract[3];
-  const contractSections = contract.filter(Boolean).length;
-  let meta = null;
-  try {
-    const metaFile = latest.file.replace(/\.res$/, '.meta.json');
-    const metaStat = fs.lstatSync(metaFile);
-    if (metaStat.isFile() && metaStat.size <= 4096) meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-  } catch {
-    /* old or interrupted responses have no trustworthy transport receipt */
-  }
-  const metaAt = Date.parse(meta?.at);
-  const requestBase = path.join(busy, 'grok-inbox', latest.name.slice(0, -4));
-  const requestSettled = !fs.existsSync(`${requestBase}.req`) && !fs.existsSync(`${requestBase}.run`);
-  const transportVerified =
-    meta?.schema === 'demigod.agent-response/1' &&
-    Number.isInteger(meta.exit) &&
-    meta.bytes === latest.stat.size &&
-    Number.isFinite(metaAt) &&
-    metaAt + 1000 >= latest.stat.mtimeMs &&
-    requestSettled;
-  const transport = !transportVerified ? 'unverified' : meta.exit === 0 ? 'ok' : meta.exit === 124 ? 'timeout' : `exit-${meta.exit}`;
-  const completed = transport === 'ok' && contractSections === contract.length && verdict !== 'unspecified';
-  const summary = completed
-    ? `Grok response completed · verdict=${verdict} · findings=${findings} · handoff=${handoff ? 'yes' : 'no'}`
-    : `Grok response incomplete · transport=${transport} · contract=${contractSections}/${contract.length} · verdict=${verdict}`;
-  return {
-    schema: 'demigod.grok-out-receipt/1',
-    source: 'grok-out',
-    id: latest.name.slice(0, -4).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120),
-    at: transportVerified ? new Date(metaAt).toISOString() : new Date(latest.stat.mtimeMs).toISOString(),
-    ok: completed ? (verdict === 'passed' ? true : false) : false,
-    completed,
-    transport,
-    requestSettled,
-    verdict,
-    contractSections,
-    lane: 'gates',
-    bytes: latest.stat.size,
-    truncated: latest.stat.size > bytes.length,
-    summary,
-    did: [summary],
-    next: null,
-    files: [],
-  };
-}
-
-function projectLatestGrokOutReceipt(busy = BUSY) {
-  const receipt = latestGrokOutReceipt(busy);
-  if (!receipt) return null;
-  atomicWrite(
-    path.join(busy, 'coord', 'grok-mailbox-last.json'),
-    `${JSON.stringify(receipt, null, 2)}\n`,
-    { mode: 0o600 },
-  );
-  return receipt;
-}
-
-function grokOutSelftest() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-grok-out-'));
-  const out = path.join(tmp, 'grok-out');
-  const inbox = path.join(tmp, 'grok-inbox');
-  fs.mkdirSync(out);
-  fs.mkdirSync(inbox);
-  const old = path.join(out, 'old.res');
-  const current = path.join(out, 'current.res');
-  fs.writeFileSync(old, 'VERDICT\nPASS\nEVIDENCE\nnone\nFINDINGS\nnone\nHANDOFF\nnone\n');
-  fs.writeFileSync(current, 'VERDICT\nBLOCK sk_live_DO_NOT_EXPOSE person@example.com\nFINDINGS\n- issue\n');
-  fs.writeFileSync(path.join(out, 'newer-empty.res'), '');
-  const now = Date.now() / 1000;
-  fs.utimesSync(old, now - 10, now - 10);
-  fs.utimesSync(current, now - 5, now - 5);
-  fs.utimesSync(path.join(out, 'newer-empty.res'), now, now);
-  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
-    schema: 'demigod.agent-response/1',
-    at: new Date((now - 4) * 1000).toISOString(),
-    exit: 124,
-    ok: false,
-    bytes: fs.statSync(current).size,
-  }));
-  const partial = latestGrokOutReceipt(tmp);
-  fs.writeFileSync(current, 'VERDICT\nNo edit.\nEVIDENCE\n- checked\nFINDINGS\n- none\nHANDOFF\nnone\n');
-  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
-    schema: 'demigod.agent-response/1',
-    at: new Date().toISOString(),
-    exit: 0,
-    ok: true,
-    bytes: fs.statSync(current).size,
-  }));
-  const ambiguous = latestGrokOutReceipt(tmp);
-  fs.writeFileSync(current, 'progress noise## VERDICT\nBLOCK sk_live_DO_NOT_EXPOSE person@example.com\nEVIDENCE\n- checked\nFINDINGS\n- none\n1. issue\nHANDOFF\nfull transcript\n');
-  fs.writeFileSync(path.join(out, 'current.meta.json'), JSON.stringify({
-    schema: 'demigod.agent-response/1',
-    at: new Date().toISOString(),
-    exit: 0,
-    ok: true,
-    bytes: fs.statSync(current).size,
-  }));
-  const run = path.join(inbox, 'current.run');
-  fs.writeFileSync(run, 'still running');
-  const inFlight = latestGrokOutReceipt(tmp);
-  fs.rmSync(run);
-  const receipt = latestGrokOutReceipt(tmp);
-  // Real CLI shape: markdown-bold same-line verdict (funnel-mry2aeqq-0 class).
-  // Must complete as blocked — never contract=0/4 / verdict=unspecified under transport=ok.
-  fs.writeFileSync(
-    current,
-    '**VERDICT:** BLOCKED\n\n**EVIDENCE:**\n- checked\n\n**FINDINGS:**\n- issue one\n\n**HANDOFF:**\n- next step\n',
-  );
-  fs.writeFileSync(
-    path.join(out, 'current.meta.json'),
-    JSON.stringify({
-      schema: 'demigod.agent-response/1',
-      at: new Date().toISOString(),
-      exit: 0,
-      ok: true,
-      bytes: fs.statSync(current).size,
-    }),
-  );
-  const boldMd = latestGrokOutReceipt(tmp);
-  // Mid-line bold (prose glued to heading) — still 4/4 + passed (mry2fz27-1 class).
-  fs.writeFileSync(
-    current,
-    'Scanning for a safe fix.**VERDICT**\nPASS\n\n**EVIDENCE**\n- checked\n\n**FINDINGS**\n- issue one\n\n**HANDOFF**\n- next step\n',
-  );
-  fs.writeFileSync(
-    path.join(out, 'current.meta.json'),
-    JSON.stringify({
-      schema: 'demigod.agent-response/1',
-      at: new Date().toISOString(),
-      exit: 0,
-      ok: true,
-      bytes: fs.statSync(current).size,
-    }),
-  );
-  const midLineBold = latestGrokOutReceipt(tmp);
-  const projected = projectLatestGrokOutReceipt(tmp);
-  const sharedFile = path.join(tmp, 'coord', 'grok-mailbox-last.json');
-  const shared = JSON.parse(fs.readFileSync(sharedFile, 'utf8'));
-  const sharedMode = fs.statSync(sharedFile).mode & 0o777;
-  fs.rmSync(tmp, { recursive: true, force: true });
-  const encoded = JSON.stringify({ partial, receipt, boldMd, midLineBold, projected, shared });
-  if (
-    partial?.completed !== false ||
-    partial?.transport !== 'timeout' ||
-    partial?.contractSections !== 2 ||
-    ambiguous?.completed !== false ||
-    ambiguous?.contractSections !== 4 ||
-    ambiguous?.verdict !== 'unspecified' ||
-    inFlight?.completed !== false ||
-    inFlight?.requestSettled !== false ||
-    receipt?.id !== 'current' ||
-    receipt?.completed !== true ||
-    receipt?.requestSettled !== true ||
-    receipt?.ok !== false ||
-    receipt?.summary !== 'Grok response completed · verdict=blocked · findings=1 · handoff=yes' ||
-    boldMd?.completed !== true ||
-    boldMd?.transport !== 'ok' ||
-    boldMd?.contractSections !== 4 ||
-    boldMd?.verdict !== 'blocked' ||
-    boldMd?.ok !== false ||
-    midLineBold?.completed !== true ||
-    midLineBold?.transport !== 'ok' ||
-    midLineBold?.contractSections !== 4 ||
-    midLineBold?.verdict !== 'passed' ||
-    midLineBold?.ok !== true ||
-    shared?.id !== midLineBold?.id ||
-    sharedMode !== 0o600 ||
-    /sk_live|example\.com|full transcript/i.test(encoded)
-  ) throw new Error(`grok-out projection selftest failed: ${encoded}`);
-  console.log('grok-out projection selftest PASS');
-}
-
-if (process.argv.includes('--selftest-grok-out')) {
-  grokOutSelftest();
-  process.exit(0);
-}
-
-if (process.argv.includes('--project-grok-out')) {
-  const receipt = projectLatestGrokOutReceipt();
-  if (!receipt) {
-    console.error('no Grok mailbox response to project');
-    process.exit(1);
-  }
-  console.log(JSON.stringify({ ok: true, id: receipt.id, completed: receipt.completed }));
-  process.exit(0);
-}
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`demigod-agent-dashboard
@@ -361,8 +73,7 @@ Usage: node demigod-agent-dashboard.mjs [--port <port>] [--snapshot]
 
 Serves the local dashboard and agent API on 127.0.0.1.
 Default port: 9878 (override with --port or DEMIGOD_DASH_PORT).
---snapshot refreshes dashboard-status.json without opening a listener.
---project-grok-out refreshes the shared redacted Grok mailbox receipt.`);
+--snapshot refreshes dashboard-status.json without opening a listener.`);
   process.exit(0);
 }
 
@@ -584,16 +295,6 @@ function startupAtlasView(input) {
   return { schema: STARTUP_ATLAS_SCHEMA, generatedAt, coverage, sources, bounds, companies, neighborhoods };
 }
 
-function freshestGrokReceipt(coordDir = path.join(BUSY, 'coord')) {
-  const coord = safeJson(path.join(coordDir, 'grok-last.json'));
-  const parsedMailbox = latestGrokOutReceipt(path.dirname(coordDir));
-  const sharedMailbox = safeJson(path.join(coordDir, 'grok-mailbox-last.json'));
-  const mailbox = parsedMailbox || (sharedMailbox?.schema === 'demigod.grok-out-receipt/1' ? sharedMailbox : null);
-  return [coord, mailbox]
-    .filter(Boolean)
-    .sort((a, b) => (Date.parse(b.at) || -Infinity) - (Date.parse(a.at) || -Infinity))[0] || null;
-}
-
 function writeJsonAtomic(file, value) {
   // A single dashboard process can have overlapping async request handlers.
   // PID-only temp names let one write rename another write's temp file, leaving
@@ -770,7 +471,15 @@ function sha256File(file) {
 }
 
 function dashboardSourceIdentity() {
-  const files = ['demigod-agent-dashboard.mjs', 'demigod-agent-dashboard-ui.html']
+  const files = [
+    'demigod-agent-dashboard.mjs',
+    'demigod-agent-dashboard-ui.html',
+    'demigod-agent-cockpit.mjs',
+    'demigod-control.mjs',
+    'demigod-priority-board.mjs',
+    'demigod-tools-registry.mjs',
+    'demigod-next.mjs',
+  ]
     .map((name) => ({ name, sha256: sha256File(path.join(ROOT, name)) }));
   return {
     sha256: crypto.createHash('sha256').update(JSON.stringify(files)).digest('hex'),
@@ -1026,9 +735,13 @@ async function liveProbe({ force = false } = {}) {
       foot,
       // Scope the head gate to <head>; a body/footer comment must not make a
       // structurally corrupt custom-code paste look canonical.
-      hasUnhide: /unhide-v5/.test(headHtml),
-      hasCriticalUnhide: /dg-unhide-critical/.test(headHtml),
-      canonicalHead: /unhide-v5/.test(headHtml) && /dg-unhide-critical/.test(headHtml),
+      hasPathRedirects: /dg-path-redirects/.test(headHtml),
+      hasBaseTokens: /dg-base-tokens/.test(headHtml),
+      hasRetiredIxUnhide: /dg-unhide-critical|dg-unhide-main|dg-graceful-unhide|dg-early-unhide|unhide-v5-safe|__dgUnhideV5/.test(headHtml),
+      canonicalHead:
+        /dg-path-redirects/.test(headHtml) &&
+        /dg-base-tokens/.test(headHtml) &&
+        !/dg-unhide-critical|dg-unhide-main|dg-graceful-unhide|dg-early-unhide|unhide-v5-safe|__dgUnhideV5/.test(headHtml),
       hasStartupModal: /startup-modal/.test(html),
       hasPathPills: /dg-path-pills|I'm hiring|I.?m hiring/.test(html) || /path-pills/.test(html),
     };
@@ -1047,12 +760,27 @@ async function liveProbe({ force = false } = {}) {
 const STATUS_TTL_MS = Number(process.env.DEMIGOD_STATUS_TTL_MS) || 15000;
 let statusCache = { at: 0, data: null };
 let statusInflight = null;
+let orcaRefreshRunning = false;
+
+function refreshOrcaReceiptIfStale(snapshot = safeJson(path.join(BUSY, 'orca-status.json'))) {
+  const ageMs = Date.now() - Date.parse(snapshot?.at);
+  if (snapshot && Number.isFinite(ageMs) && ageMs >= -60_000 && ageMs <= 300_000) return false;
+  if (orcaRefreshRunning) return true;
+  orcaRefreshRunning = true;
+  execFile(
+    process.execPath,
+    ['demigod-orca-bridge.mjs', 'status'],
+    { cwd: ROOT, timeout: 30_000 },
+    () => {
+      orcaRefreshRunning = false;
+    },
+  );
+  return true;
+}
+
 /** Control plane is expensive (~1s) — reuse within TTL */
 const CONTROL_TTL_MS = Number(process.env.DEMIGOD_CONTROL_TTL_MS) || 12000;
 let controlCache = { at: 0, data: null };
-/** /api/coord is hot-polled by UI + heartbeat — short cache (skip catbox live CSS by default) */
-const COORD_TTL_MS = Number(process.env.DEMIGOD_COORD_TTL_MS) || 12000;
-let coordCache = { at: 0, data: null };
 /** Match queue rebuild can be skipped when fresh */
 const MATCH_TTL_MS = Number(process.env.DEMIGOD_MATCH_TTL_MS) || 60000;
 let matchCache = { at: 0, data: null };
@@ -1079,179 +807,105 @@ function eventsOpsSecret() {
   }
 }
 
-function compactWorkText(value, max) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-/**
- * Small, result-only coordination view for the main status payload.
- * Keep prompts, tails, next instructions, and file lists on the specialized
- * /api/coord endpoint; the dashboard only needs current runtime + outcomes.
- */
+/** Small Orca-only coordination view for the dashboard and compatibility API. */
 function compactWorkStatus() {
-  const now = Date.now();
-  const coordDir = path.join(BUSY, 'coord');
-  const cached = safeJson(path.join(BUSY, 'coord-api-last.json')) || {};
-  const cachedWork = cached.workLog || {};
-  const board = safeJson(path.join(coordDir, 'board.json')) || cached.board || {};
-  const cachedAgents = new Map(
-    (Array.isArray(cachedWork.agents) ? cachedWork.agents : []).map((agent) => [agent?.id, agent]),
-  );
-  const freshness = (at, staleAfterSec = 3600) => {
-    const signedAgeSec = at ? Math.round((now - Date.parse(at)) / 1000) : null;
-    const valid = Number.isFinite(signedAgeSec);
-    const clockSkewed = valid && signedAgeSec < -60;
-    return {
-      ageSec: valid ? Math.max(0, signedAgeSec) : null,
-      stale: !valid || clockSkewed || signedAgeSec > staleAfterSec,
-      clockSkewed,
-    };
+  const receipt = safeJson(path.join(BUSY, 'orca-status.json'));
+  refreshOrcaReceiptIfStale(receipt);
+  const signedAgeSec = receipt?.at
+    ? Math.round((Date.now() - Date.parse(receipt.at)) / 1000)
+    : null;
+  const ageSec = Number.isFinite(signedAgeSec) ? Math.max(0, signedAgeSec) : null;
+  const stale = !Number.isFinite(signedAgeSec) || signedAgeSec < -60 || signedAgeSec > 300;
+  const channel = {
+    status: !receipt ? 'missing' : stale ? 'stale' : receipt.status || 'unknown',
+    reachable: !stale && receipt?.reachable === true,
+    claude: !stale && receipt?.agents?.claude?.connected === true,
+    codex: !stale && receipt?.agents?.codex?.connected === true,
+    unread: Number.isFinite(receipt?.unreadCount) ? receipt.unreadCount : null,
+    pending: Number.isFinite(receipt?.pendingTaskCount) ? receipt.pendingTaskCount : null,
+    roundTripMs: Number.isFinite(receipt?.lastRoundTrip?.ms) ? receipt.lastRoundTrip.ms : null,
+    at: receipt?.at || null,
+    ageSec,
   };
-  let heartbeatAgeSec = null;
-  try {
-    heartbeatAgeSec = Math.round((now - fs.statSync(path.join(coordDir, 'coord.heartbeat')).mtimeMs) / 1000);
-  } catch {
-    /* no heartbeat means the loop is not observable */
-  }
-  const stopRequested = fs.existsSync(path.join(coordDir, 'STOP'));
-  const heartbeatFresh = Number.isFinite(heartbeatAgeSec) && heartbeatAgeSec >= -60 && heartbeatAgeSec < 120;
-  const supervisorAlive = pidFileAlive(path.join(coordDir, 'coord.pid'));
-  const pidUnobservable = !supervisorAlive && heartbeatFresh && !stopRequested;
-  const loopRunning = !stopRequested && heartbeatFresh;
-  const specs = [
-    ['claude', 'Claude', false],
-    ['codex', 'Codex', false],
-    ['grok', 'Grok', false],
-    ['chat', 'Chat', false],
-    ['term-claude', 'Term Claude', true],
-    ['term-grok', 'Term Grok', true],
-  ];
-  const agents = specs
-    .map(([id, label, optional]) => {
-      const fileId = id.startsWith('term-') ? id : id;
-      const direct = id === 'grok'
-        ? freshestGrokReceipt(coordDir)
-        : safeJson(path.join(coordDir, `${fileId}-last.json`));
-      const rec = direct || cachedAgents.get(id) || null;
-      if (optional && !rec) return null;
-      const trackStatus = board.tracks?.[id]?.status;
-      const workerStatus = ['claude', 'codex', 'grok'].includes(id)
-        ? coordWorkerStatus(coordDir, id, pidUnobservable)
-        : null;
-      const runtime =
-        workerStatus === 'busy'
-          ? 'running'
-          : workerStatus === 'pid-unobservable'
-            ? 'unobservable'
-            : workerStatus || trackStatus || (rec ? 'idle' : 'missing');
-      const result = freshness(rec?.at);
-      const did = Array.isArray(rec?.did) ? rec.did.find((item) => compactWorkText(item, 1)) : rec?.did;
-      const headline = compactWorkText(did, 160) || null;
-      return {
-        id,
-        label,
-        lane: compactWorkText(rec?.lane || cachedAgents.get(id)?.lane, 32) || null,
-        status:
-          runtime === 'running'
-            ? 'busy'
-            : runtime === 'unobservable'
-              ? 'pid-unobservable'
-              : !rec
-                ? 'missing'
-                : result.stale
-                  ? 'stale'
-                  : 'idle',
-        runtime,
-        lastResult: rec?.ok === true ? 'pass' : rec?.ok === false ? 'fail' : 'missing',
-        cycle: rec?.cycle ?? null,
-        at: rec?.at || null,
-        ...result,
-        headline,
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 6);
-
-  const recent = agents
-    .filter((agent) => agent.at && agent.headline)
-    .map((agent) => ({
-      at: agent.at,
-      ageSec: agent.ageSec,
-      agent: agent.id,
-      label: agent.label,
-      cycle: agent.cycle,
-      lane: agent.lane,
-      text: agent.headline,
-      source: 'receipt',
-    }));
-  for (const done of Array.isArray(board.done_recent) ? board.done_recent : []) {
-    const text = compactWorkText(done?.did ?? done?.text, 220);
-    if (!text) continue;
-    recent.push({
-      at: done?.at || null,
-      ageSec: freshness(done?.at).ageSec,
-      agent: compactWorkText(done?.agent, 32) || 'board',
-      label: compactWorkText(done?.agent, 32) || 'Board',
-      cycle: done?.cycle ?? null,
-      lane: null,
-      text,
-      source: 'board',
-    });
-  }
-  recent.sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0));
-
-  const evidenceAt = [board.at, ...agents.map((agent) => agent.at)]
-    .filter((at) => Number.isFinite(Date.parse(at)))
-    .sort((a, b) => Date.parse(b) - Date.parse(a))[0] || cachedWork.at || null;
-  const evidence = freshness(evidenceAt, 300);
-  const summaryAgents = agents
-    .filter((agent) => agent.runtime === 'running' || (!agent.stale && agent.ageSec <= 600))
-    .slice(0, 4);
-  const summary = compactWorkText(
-    summaryAgents.length
-      ? summaryAgents
-          .map((agent) => `${agent.label}${agent.lane ? `·${agent.lane}` : ''}: ${agent.headline || agent.runtime}`)
-          .join(' | ')
-      : recent[0]
-        ? `${recent[0].label}: ${recent[0].text}`
-        : 'No recent agent results.',
-    400,
-  );
-
-  const rawClaims = safeJson(path.join(coordDir, 'claims.json')) || cached.claims || {};
-  const holds = Object.entries(rawClaims.holds && typeof rawClaims.holds === 'object' ? rawClaims.holds : {})
-    .filter(([, hold]) => {
-      const expiresAt = Date.parse(hold?.expiresAt);
-      const ageMs = now - Date.parse(hold?.at || rawClaims.at);
-      return Number.isFinite(expiresAt)
-        ? expiresAt >= now
-        : Number.isFinite(ageMs) && ageMs >= -60_000 && ageMs <= 15 * 60_000;
-    })
-    .slice(0, 8)
-    .map(([file, hold]) => ({
-      file: compactWorkText(file, 160),
-      owner: compactWorkText(hold?.owner, 48) || null,
-      lane: compactWorkText(hold?.lane, 32) || null,
-      expiresAt: hold?.expiresAt || null,
-    }));
+  const agents = ['claude', 'codex'].map((id) => {
+    const peer = receipt?.agents?.[id];
+    const connected = !stale && peer?.connected === true;
+    return {
+      id,
+      label: id === 'claude' ? 'Claude' : 'Codex',
+      status: !peer ? 'missing' : stale ? 'stale' : connected ? 'connected' : 'idle',
+      runtime: connected ? 'connected' : !peer ? 'missing' : 'idle',
+      lastResult: null,
+      at: receipt?.at || null,
+      ageSec,
+      stale,
+      headline: peer?.title || (connected ? 'Connected through Orca' : 'Not connected'),
+    };
+  });
+  const roundTripAt = receipt?.lastRoundTrip?.at;
+  const roundTripAgeSec = roundTripAt
+    ? Math.max(0, Math.round((Date.now() - Date.parse(roundTripAt)) / 1000))
+    : null;
 
   return {
-    schema: 'demigod.dashboard-work/1',
-    at: evidenceAt,
-    ageSec: evidence.ageSec,
-    stale: evidence.stale,
-    summary,
+    schema: 'demigod.dashboard-work/2',
+    at: receipt?.at || null,
+    ageSec,
+    stale,
+    summary: `Orca ${channel.status} · Claude ${channel.claude ? 'connected' : 'offline'} · Codex ${channel.codex ? 'connected' : 'offline'}`,
     agents,
-    recent: recent.slice(0, 5),
-    backlog: (Array.isArray(board.backlog) ? board.backlog : cachedWork.backlog || [])
-      .map((item) => compactWorkText(item, 160))
-      .filter(Boolean)
-      .slice(0, 3),
-    cycle: board.cycle ?? cachedWork.cycle ?? null,
-    goal: compactWorkText(board.goal ?? cachedWork.goal, 160) || null,
-    loopRunning,
-    claims: { active: holds.length > 0, count: holds.length, holds },
+    recent: roundTripAt
+      ? [{
+          at: roundTripAt,
+          ageSec: Number.isFinite(roundTripAgeSec) ? roundTripAgeSec : null,
+          agent: 'orca',
+          label: 'Orca',
+          text: 'Claude ↔ Codex round trip complete',
+          source: 'orca',
+        }]
+      : [],
+    backlog: [],
+    loopRunning: null,
+    claims: { active: false, count: 0, holds: [] },
+    channels: { orca: channel },
   };
+}
+
+function peopleIntelligenceView(report) {
+  try {
+    const count = (value) => {
+      if (!Number.isSafeInteger(value) || value < 0) throw new Error('invalid count');
+      return value;
+    };
+    const metrics = report?.metrics;
+    if (!metrics || report.autoSend !== false || report.autoDm !== false) throw new Error('invalid report');
+    const at = typeof report.at === 'string' && Number.isFinite(Date.parse(report.at)) &&
+      new Date(report.at).toISOString() === report.at ? report.at : null;
+    return {
+      at,
+      total: count(report.total),
+      partners: count(report.partners),
+      talent: count(report.talent),
+      enrichment: {
+        enrichable: count(metrics.holds_enrichable),
+        due: count(metrics.holds_scrape_due),
+        cooling: count(metrics.holds_cooling),
+        exhausted: count(metrics.holds_exhausted),
+        transportFailures: count(metrics.enrich_transport_failures),
+        providerCapacity: count(metrics.enrich_provider_capacity),
+        otherTransportFailures: count(metrics.enrich_other_transport_failures),
+      },
+      drafts: {
+        local: count(metrics.drafted),
+        reviewReady: count(metrics.approve_ready),
+        sendReady: count(metrics.send_ready),
+      },
+      outcomes: { receiptBackedSent: count(metrics.sent_receipt_backed) },
+      automation: { autoSend: false, autoDm: false },
+    };
+  } catch {
+    return { error: 'funnel_status_unavailable' };
+  }
 }
 
 function slimStatus(data) {
@@ -1270,11 +924,8 @@ function slimStatus(data) {
     orientApi: data.orientApi || '/api/orient',
     orientUrl: data.orientUrl || `http://127.0.0.1:${PORT}/api/orient`,
     work: data.work || null,
-    cycleWork: data.cycleWork || null,
-    cycleWorkHealth: data.cycleWorkHealth || null,
     priorityBoard: data.priorityBoard || null,
     webflow: data.webflow || null,
-    fullPass: data.fullPass || null,
     demandDraftsHygiene: data.demandDraftsHygiene || null,
     demandDraftsHygieneOk: data.demandDraftsHygiene?.ok ?? null,
     demandDraftsHygieneSource: data.demandDraftsHygieneSource || 'unknown',
@@ -1307,8 +958,9 @@ function slimStatus(data) {
           cdnUniqueCount: data.live.cdnUniqueCount,
           singleFootCdn: data.live.singleFootCdn,
           cdnUrls: data.live.cdnUrls,
-          hasUnhide: data.live.hasUnhide,
-          hasCriticalUnhide: data.live.hasCriticalUnhide,
+          hasPathRedirects: data.live.hasPathRedirects,
+          hasBaseTokens: data.live.hasBaseTokens,
+          hasRetiredIxUnhide: data.live.hasRetiredIxUnhide,
           canonicalHead: data.live.canonicalHead,
           error: data.live.error,
           ms: data.live.ms,
@@ -1323,13 +975,6 @@ function slimStatus(data) {
       : null,
     staleGates: data.staleGates,
     freshness: data.freshness,
-    gates: data.gates
-      ? {
-          verifySourcePass: data.gates.verifySourcePass,
-          verifySourceFresh: data.gates.verifySourceFresh,
-          verifySourceTrust: data.gates.verifySourceTrust,
-        }
-      : null,
     truth: data.truth
       ? {
           foot: data.truth.foot ? { ver: data.truth.foot.ver } : null,
@@ -1350,6 +995,7 @@ function slimStatus(data) {
         }
       : null,
     handoffs: (data.handoffs || []).slice(0, 8),
+    peopleIntelligence: data.peopleIntelligence || null,
     inbox: data.inbox
       ? {
           at: data.inbox.at,
@@ -1369,7 +1015,6 @@ function slimStatus(data) {
           error: data.inbox.error,
         }
       : null,
-    formAnalytics: data.formAnalytics || null,
     matches: data.matches
       ? { summary: data.matches.summary, pairs: (data.matches.pairs || []).slice(0, 12), error: data.matches.error }
       : null,
@@ -1410,7 +1055,7 @@ function dashboardStatus(data) {
   const status = slimStatus(data);
   for (const key of [
     'statusJsonPathView', 'orientApi', 'orientUrl', 'orient', 'control', 'webflow',
-    'cycleWork', 'cycleWorkHealth', 'glance', 'sessionStory', 'board', 'fullPass',
+    'glance', 'sessionStory', 'board',
     'demandDraftsHygiene', 'draftHygieneVerdict', 'demandDraftsHygieneStatusPath',
     'demandStatusPath', 'demandDraftsHygieneAt', 'demandDraftsHygieneAgeSec',
     'demandDraftsHygieneSource', 'demandDraftsHygieneStale', 'demandDraftsHygieneOk',
@@ -1423,7 +1068,6 @@ function dashboardStatus(data) {
 }
 
 function productHealth(data) {
-  const processOk = true;
   const truthGreen = data?.truthEvidence?.green === true;
   const freezeOn = data?.freeze?.on === true || data?.control?.frozen === true;
   const demandStarved = data?.control?.healthLabel === 'demand-starved';
@@ -1431,7 +1075,7 @@ function productHealth(data) {
   const blockedBy = [];
   if (!truthGreen) blockedBy.push('truth-evidence');
   if (data?.orient?.assertSame?.ok === false) blockedBy.push('next-mismatch');
-  const productOk = processOk && truthGreen && blockedBy.length === 0;
+  const productOk = truthGreen && blockedBy.length === 0;
   const reportedLabel = data?.control?.healthLabel || data?.glance?.light || 'unknown';
   const healthLabel = productOk
     ? reportedLabel
@@ -1440,7 +1084,6 @@ function productHealth(data) {
       : reportedLabel;
   return {
     ok: productOk,
-    processOk,
     productOk,
     truthGreen,
     freezeOn,
@@ -1496,17 +1139,9 @@ function memInfo() {
   }
 }
 
-function agentSafeCommand(value, fallback = 'bin/dg ship prepare') {
-  const command = typeof value === 'string' ? value.trim() : '';
-  if (!command) return null;
-  return /(?:publish|cm6-paste|ship\s+(?:cdn|paste|run)|publish-freeze\.mjs\s+off)/i.test(command)
-    ? fallback
-    : command;
-}
-
 function deriveActions(ctx) {
   const actions = [];
-  const { live, cdp, foot, gates, env, board, workers, multiTop } = ctx;
+  const { live, cdp, foot, gates, env, board, multiTop } = ctx;
 
   if (foot?.disk && foot.disk.versionMarkersAgree !== true) {
     actions.push({
@@ -1546,8 +1181,8 @@ function deriveActions(ctx) {
     actions.push({
       pri: 0,
       id: 'canonical-head-missing',
-      title: 'Live HTML is missing canonical unhide-v5 head markers',
-      why: `unhide-v5=${live?.hasUnhide === true} dg-unhide-critical=${live?.hasCriticalUnhide === true}`,
+      title: 'Live HTML is missing canonical head markers',
+      why: `dg-path-redirects=${live?.hasPathRedirects === true} dg-base-tokens=${live?.hasBaseTokens === true} retired-ix-unhide=${live?.hasRetiredIxUnhide === true}`,
       cmd: 'bin/dg ship prepare',
       owner: 'grok',
       mutate: false,
@@ -1693,13 +1328,15 @@ function deriveActions(ctx) {
         }
       }
       const ended = Date.parse(env.endedAt || '');
-      const ttl = (env.ttlSec || 3600) * 1000;
+      // Match isFresh: missing ttl → 3600s; ttlSec:0 → no age limit (hash-only).
+      // Was `(ttlSec || 3600)` which treated intentional 0 as one hour (Claude path audit).
+      const ttlSec = Number.isFinite(env.ttlSec) ? Number(env.ttlSec) : 3600;
       const ageMs = Date.now() - ended;
       // A pass without a valid seal time is not fresh evidence. Also reject
       // seals materially dated in the future instead of silently blessing a
       // clock-skewed or malformed envelope forever.
       const timestampValid = Number.isFinite(ended) && ageMs >= -60_000;
-      const expired = !timestampValid || ageMs > ttl;
+      const expired = !timestampValid || (ttlSec > 0 && ageMs > ttlSec * 1000);
       truthEvidenceOk = Boolean(env.result?.pass) && !mismatch && !expired;
     }
   } catch {
@@ -1810,29 +1447,6 @@ function deriveActions(ctx) {
     /* */
   }
 
-  const busyAgents = (workers || []).filter((w) => w.kind && !['dashboard', 'chrome-cdp', 'chrome-mcp', 'other'].includes(w.kind));
-  // Intentional swarm: recent /tmp/dg-busy/swarm → do NOT recommend hygiene kill
-  let swarmHot = false;
-  try {
-    const s = path.join(BUSY, 'swarm');
-    if (fs.existsSync(s)) {
-      const st = fs.statSync(s);
-      swarmHot = Date.now() - st.mtimeMs < 2 * 3600 * 1000;
-    }
-  } catch {
-    /* */
-  }
-  if (busyAgents.length >= 6 && !swarmHot) {
-    actions.push({
-      pri: 2,
-      id: 'thrash',
-      title: 'Many agent workers — check before hygiene kill',
-      why: busyAgents.map((w) => w.kind).join(', '),
-      cmd: 'pgrep -af "claude --print|codex exec|bin/df"; # only kill if NOT intentional swarm',
-      owner: 'grok',
-    });
-  }
-
   actions.sort((a, b) => a.pri - b.pri || a.id.localeCompare(b.id));
   return actions;
 }
@@ -1859,7 +1473,6 @@ function buildAgentBrief(data) {
   const lines = [];
   lines.push(`# Demigod AGENT-BRIEF`);
   lines.push(`at: ${data.at}`);
-  lines.push(`phase: ${data.phase}`);
   lines.push(`decision: ${data.decision}`);
   lines.push('');
   // Orient is the canonical compact entry point. Keep unify as a richer
@@ -1926,7 +1539,7 @@ function buildAgentBrief(data) {
     lines.push(
       data.freeze?.on
         ? `- ON — ${data.freeze.why || 'publish frozen'} (no CDN/Webflow mutate)`
-        : '- OFF — mutate only with lock + intent',
+        : '- OFF — publication still requires exact current-request authorization + lock',
     );
     lines.push('');
     lines.push('_Brief mode: DEMIGOD_BRIEF_UNIFY_ONLY — full snapshot omitted._');
@@ -1940,7 +1553,7 @@ function buildAgentBrief(data) {
     lines.push(`- at: ${data.freeze.at || '—'} by: ${data.freeze.by || '—'}`);
     lines.push('- **Do not ship CDN / Webflow / mutate jobs.** Safe: smoke, truth, brief, handoff.');
   } else {
-    lines.push('- **OFF** — ship allowed if cockpit NEXT says so and lock free');
+    lines.push('- **OFF** — publication still requires exact current-request authorization + lock');
   }
   lines.push('');
   if (data.next?.cmd || data.next?.title) {
@@ -2095,13 +1708,6 @@ async function collectStatus() {
   const workers = workerSnapshot();
   const multi = listRecentDir(MULTI, 12);
 
-  const since = Date.now() - 2 * 3600 * 1000;
-  const recentAgents = {};
-  for (const f of multi) {
-    if (new Date(f.mtime).getTime() < since) continue;
-    recentAgents[f.agent] = (recentAgents[f.agent] || 0) + 1;
-  }
-
   const manId = footCdnKey(cdnManifest?.cdnUrl);
   const liveId = live?.cdnId;
   let liveMatchNote = 'unknown';
@@ -2158,7 +1764,6 @@ async function collectStatus() {
     gates,
     env,
     board: boardInfo,
-    workers,
     multiTop: multi,
   });
 
@@ -2176,7 +1781,7 @@ async function collectStatus() {
         pri: n.pri,
         id: 'cockpit-' + n.id,
         title: n.title,
-        why: n.mutate ? 'MUTATE only if freeze OFF' : 'read-only / diagnostic',
+        why: n.mutate ? 'MUTATE only with its explicit authority gates' : 'read-only / diagnostic',
         cmd: n.cmd,
         owner: 'grok',
         mutate: !!n.mutate,
@@ -2202,12 +1807,6 @@ async function collectStatus() {
     || (fs.existsSync(freezeFile)
       ? { on: false, corrupt: true, why: 'publish-freeze.json present but unreadable — freeze state uncertain' }
       : { on: false });
-  let host = 'local';
-  try {
-    host = fs.readFileSync('/etc/hostname', 'utf8').trim() || 'local';
-  } catch {
-    host = 'local';
-  }
 
   // Evidence ages for every cached gate/artifact (UI badges)
   function evidenceOf(rel) {
@@ -2240,21 +1839,10 @@ async function collectStatus() {
     brief: evidenceOf(BRIEF_MD),
   };
 
-  let toolsSummary = null;
-  try {
-    const { buildRegistry } = await import('./demigod-tools-registry.mjs');
-    const reg = buildRegistry();
-    toolsSummary = { count: reg.count, groups: reg.groups, at: reg.at };
-  } catch {
-    toolsSummary = null;
-  }
-
   const data = {
     at: new Date().toISOString(),
-    host,
     version: 5,
     dashboardRuntime: dashboardRuntimeHealth(),
-    phase: 'GTM + pre-services honesty',
     decision: 'FIX not rewrite',
     system: { load: loadAvg(), mem: memInfo() },
     env,
@@ -2268,14 +1856,9 @@ async function collectStatus() {
     smoke: safeJson(path.join(BUSY, 'agent-smoke.json')),
     workers,
     workerCounts,
-    activity2h: recentAgents,
     actions,
     preflight: preflightCache,
     inbox: inboxCache,
-    formAnalytics: (() => {
-      const doc = safeJson(path.join(BUSY, 'form-analytics.json'));
-      return { available: Boolean(doc), forms: summarizeFormAnalytics(doc || {}) };
-    })(),
     eventsBot: (() => {
       const store = safeJson(EVENTS_STORE);
       const online = safeJson(path.join(BUSY, 'events-online', 'status.json'));
@@ -2543,14 +2126,7 @@ async function collectStatus() {
       }
     })(),
     evidence,
-    tools: toolsSummary,
     drops: { multi },
-    docs: {
-      startupRoadmap: 'docs/exchange/DEMIGOD-STARTUP-ROADMAP.md',
-      livingRoadmap: 'docs/exchange/DEMIGOD-LIVING-ROADMAP.md',
-      toolsKeep: 'docs/exchange/DEMIGOD-TOOLS-KEEP-VS-ARCHIVE.md',
-      swarm: '/tmp/dg-busy/swarm/SYNTHESIS.md',
-    },
     links: {
       live: LIVE,
       dashboard: `http://127.0.0.1:${PORT}/`,
@@ -2608,7 +2184,6 @@ async function collectStatus() {
         freeze: data.freeze,
         staleGates: data.staleGates,
         workerCounts: data.workerCounts,
-        activity2h: data.activity2h,
       }),
       { mode: 0o600 },
     );
@@ -2622,15 +2197,16 @@ async function collectStatus() {
 /** Cached / singleflight status — concurrent refreshers share one collect */
 async function getStatus({ force = false } = {}) {
   const now = Date.now();
-  // Invalidate status cache when truth or cycle receipts are newer than the
-  // cache stamp so health/priority do not keep stale truth/cycle cards after ship.
+  // Invalidate status cache when truth or operational receipts are newer than
+  // the cache stamp so health/priority do not keep stale state after ship.
   if (!force && statusCache.data && now - statusCache.at < STATUS_TTL_MS) {
     for (const name of [
       'truth.json',
-      'cycle-work-latest.json',
+      'ship-prepare.json',
       'pilot-inbound.json',
       'demand-status.json',
       'webflow-doctor.json',
+      'orca-status.json',
     ]) {
       try {
         const mtime = fs.statSync(path.join(BUSY, name)).mtimeMs;
@@ -2640,6 +2216,13 @@ async function getStatus({ force = false } = {}) {
         }
       } catch {
         /* optional receipts */
+      }
+    }
+    if (!force) {
+      try {
+        if (fs.statSync(path.join(ROOT, 'DEMIGOD-LEADS.json')).mtimeMs > statusCache.at) force = true;
+      } catch {
+        /* optional local CRM */
       }
     }
   }
@@ -2685,9 +2268,11 @@ function loadHtml() {
 /* ==== SECTION: JOBS allowlist (mutate jobs freeze-gated) ==== */
 const JOBS = Object.assign(Object.create(null), {
   orient: { cmd: 'node', args: ['demigod-orient.mjs', '--json'], timeout: 60000, safe: true },
+  check: { cmd: 'node', args: ['demigod-check.mjs', 'edit'], timeout: 300000, safe: true },
   smoke: { cmd: 'node', args: ['demigod-agent-smoke.mjs'], timeout: 90000, safe: true },
   cockpit: { cmd: 'node', args: ['demigod-agent-cockpit.mjs', '--json'], timeout: 30000, safe: true },
   truth: { cmd: 'node', args: ['demigod-truth.mjs'], timeout: 45000, safe: true },
+  'foot-lock': { cmd: 'node', args: ['demigod-foot-lock.mjs', 'status'], timeout: 10000, safe: true },
   preflight: { cmd: 'node', args: ['demigod-preflight.mjs'], timeout: 60000, safe: true },
   'plan-inbox': { cmd: 'node', args: ['demigod-plan-inbox.mjs', '--json'], timeout: 20000, safe: true },
   'tab-prune': { cmd: 'node', args: ['demigod-cdp-tab-prune.mjs'], timeout: 15000, safe: true },
@@ -2696,7 +2281,7 @@ const JOBS = Object.assign(Object.create(null), {
   'tools-registry': { cmd: 'node', args: ['demigod-tools-registry.mjs', '--json'], timeout: 10000, safe: true },
   usertest: { cmd: 'node', args: ['demigod-user-test.mjs', '--quick'], timeout: 120000, safe: true },
   doctor: { cmd: 'node', args: ['demigod-doctor.mjs', '--json'], timeout: 20000, safe: true },
-  review: { cmd: 'node', args: ['demigod-review.mjs', '--json'], timeout: 90000, safe: true },
+  review: { cmd: 'node', args: ['demigod-review.mjs', '--json', '--no-contract'], timeout: 90000, safe: true },
   'review-bug': { cmd: 'node', args: ['demigod-review.mjs', '--bug', '--json'], timeout: 120000, safe: true },
   'review-selftest': { cmd: 'node', args: ['demigod-review-selftest.mjs'], timeout: 60000, safe: true },
   webflow: { cmd: 'node', args: ['demigod-webflow.mjs', '--json'], timeout: 30000, safe: true },
@@ -2706,40 +2291,23 @@ const JOBS = Object.assign(Object.create(null), {
   hygiene: { cmd: 'node', args: ['demigod-laptop-hygiene.mjs', '--prune', '--json'], timeout: 45000, safe: true },
   ponytail: { cmd: 'node', args: ['demigod-ponytail.mjs', 'status', '--json'], timeout: 30000, safe: true },
   'ponytail-check': { cmd: 'node', args: ['demigod-ponytail.mjs', 'check', '--json'], timeout: 30000, safe: true },
-  'cycle-status': { cmd: 'node', args: ['demigod-cycle-status.mjs', '--json'], timeout: 20000, safe: true },
   'events-online-status': { cmd: 'node', args: ['demigod-events-online.mjs', 'certify'], timeout: 30000, safe: true },
+  'events-online': { cmd: 'node', args: ['demigod-events-online.mjs', 'status'], timeout: 30000, safe: true },
+  'events-test': { cmd: 'bin/dg', args: ['events', 'test', 'fast'], timeout: 300000, safe: true },
   'events-outbox-status': { cmd: 'bin/dg-events-outbox', args: ['status'], timeout: 30000, safe: true },
   'events-invite-drain': { cmd: 'node', args: ['demigod-events-invite-drain.mjs'], timeout: 30000, mutate: true, publishSafe: true },
   'events-tick': { cmd: 'bin/dg-events-tick', args: [], timeout: 180000, mutate: true, publishSafe: true },
-  'never-stop-status': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'status'], timeout: 15000, safe: true },
-  'never-stop-stop': { cmd: 'node', args: ['demigod-never-stop-loop.mjs', 'stop'], timeout: 15000, safe: true },
-  'swarm-status': { cmd: 'node', args: ['demigod-swarm-busy.mjs', 'status'], timeout: 15000, safe: true },
-  // Periodic Codex review/assist swarm (not cycle-work busy): bin/dg-codex-swarm
-  'codex-swarm-status': { cmd: 'bin/dg-codex-swarm', args: ['status'], timeout: 15000, safe: true },
-  'codex-swarm-once': { cmd: 'bin/dg-codex-swarm', args: ['once'], timeout: 360000, safe: true },
-  'codex-swarm-hint': { cmd: 'bin/dg-codex-swarm', args: ['apply-hint'], timeout: 10000, safe: true },
-  'workflow-map-update': { cmd: 'bin/dg-workflow-map', args: ['update'], timeout: 30000, safe: true },
-  'workflow-map-review': { cmd: 'bin/dg-workflow-map', args: ['review'], timeout: 20000, safe: true },
-  'anti-bloat-doctrine': { cmd: 'bin/dg-anti-bloat', args: ['doctrine'], timeout: 5000, safe: true },
-  'anti-bloat-pick': { cmd: 'bin/dg-anti-bloat', args: ['pick', '--context=auto'], timeout: 10000, safe: true },
   'quality-once': { cmd: 'bin/dg-quality', args: ['once', '--context=auto'], timeout: 240000, safe: true },
   'quality-status': { cmd: 'bin/dg-quality', args: ['status'], timeout: 15000, safe: true },
   'quality-backlog': { cmd: 'bin/dg-quality', args: ['backlog'], timeout: 10000, safe: true },
   'funnel-status': { cmd: 'bin/dg', args: ['funnel', 'status'], timeout: 30000, safe: true },
   'pipeline-status': { cmd: 'node', args: ['demigod-lead-pipeline.mjs', 'tick', '--stage=status'], timeout: 30000, safe: true },
   'pipeline-packages': { cmd: 'node', args: ['demigod-lead-pipeline.mjs', 'tick', '--stage=packages'], timeout: 60000, safe: true },
-  'ops-os-status': { cmd: 'bin/dg-ops-os', args: ['status'], timeout: 20000, safe: true },
-  'ops-os-next': { cmd: 'bin/dg-ops-os', args: ['next'], timeout: 15000, safe: true },
-  'ops-os-tick': { cmd: 'bin/dg-ops-os', args: ['tick'], timeout: 180000, safe: true },
-  'swarm-stop': { cmd: 'node', args: ['demigod-swarm-busy.mjs', 'stop'], timeout: 15000, safe: true },
-  'harness-selftest': { cmd: 'node', args: ['demigod-harness-selftest.mjs'], timeout: 60000, safe: true },
   priority: { cmd: 'node', args: ['demigod-priority-board.mjs', '--json'], timeout: 15000, safe: true },
   dogfood: { cmd: 'node', args: ['demigod-tool-dogfood.mjs', 'status', '--json'], timeout: 20000, safe: true },
-  'coord-status': { cmd: 'bin/dg-agent-coord', args: ['status'], timeout: 10000, safe: true },
   'blog-assets': { cmd: 'node', args: ['demigod-blog-assets-gen.mjs'], timeout: 30000, safe: true },
-  'full-pass-status': { cmd: 'node', args: ['demigod-full-pass-loop.mjs', 'status'], timeout: 10000, safe: true },
-  'webflow-status': { cmd: 'node', args: ['demigod-webflow.mjs', 'status', '--json'], timeout: 30000, safe: true },
   control: { cmd: 'node', args: ['demigod-control.mjs', 'status', '--json'], timeout: 45000, safe: true },
+  ship: { cmd: 'node', args: ['demigod-ship.mjs', 'status'], timeout: 60000, safe: true },
   'ship-checklist': { cmd: 'node', args: ['demigod-ship-checklist.mjs', '--json'], timeout: 15000, safe: true },
   demand: { cmd: 'node', args: ['demigod-demand.mjs', 'status', '--json'], timeout: 20000, safe: true },
   'demand-draft': { cmd: 'bin/dg', args: ['demand', 'draft', '--name=T0'], timeout: 20000, safe: true },
@@ -2760,13 +2328,24 @@ const JOBS = Object.assign(Object.create(null), {
     timeout: 15000,
     safe: true,
   },
-  'full-check': { cmd: 'node', args: ['demigod-full-check.mjs', '--json', '--skip-smoke'], timeout: 300000, safe: true },
   'tools-os-selftest': { cmd: 'node', args: ['demigod-tools-os-selftest.mjs'], timeout: 300000, safe: true },
   'wiz-ownership': { cmd: 'node', args: ['demigod-wiz-ownership-selftest.mjs'], timeout: 30000, safe: true },
   'cm6-check': { cmd: 'node', args: ['demigod-cm6-paste-publish.mjs', '--check-structural'], timeout: 15000, safe: true },
   inbox: { cmd: 'node', args: ['demigod-submissions-inbox.mjs', '--json'], timeout: 15000, safe: true },
   'match-review': { cmd: 'node', args: ['demigod-match-review.mjs', '--json'], timeout: 15000, safe: true },
   referrals: { cmd: 'node', args: ['demigod-referrals.mjs', 'status'], timeout: 15000, safe: true },
+  'recruitai-export': {
+    cmd: 'node',
+    args: ['demigod-recruitai-export.mjs'],
+    timeout: 120000,
+    safe: true,
+  },
+  'partner-sourcer': {
+    cmd: 'node',
+    args: ['demigod-lead-sourcer.mjs', '--type=partners', '--limit=10'],
+    timeout: 60000,
+    safe: true,
+  },
   'auto-propose': { cmd: 'node', args: ['demigod-auto-propose.mjs', '--json'], timeout: 30000, safe: false, mutate: true },
 });
 
@@ -3036,11 +2615,6 @@ function buildDelta(data, sinceIso) {
     return { at: data.at, changed: false, since: sinceIso || null, fields: {} };
   }
   const fields = {
-    // Delta consumers must receive the same cycle attestation verdict as full
-    // status. Omitting it lets a long-lived agent retain a stale green receipt
-    // after a degraded, blocked, or expired cycle replaces it on disk.
-    cycleWork: data.cycleWork || null,
-    cycleWorkHealth: data.cycleWorkHealth || null,
     next: nextContract(data),
     orient: data.orient
       ? {
@@ -3268,239 +2842,12 @@ function ensureDemandFresh(maxAgeSec = 900) {
 async function enrichStatus(data) {
   data.version = 5;
   data.work = compactWorkStatus();
+  data.shipPrepare = safeJson(path.join(BUSY, 'ship-prepare.json')) || null;
   // Stable discovery fields survive both the full persisted status document
   // and the slim polling payload; consumers need no implicit /tmp knowledge.
   data.statusJsonPath = STATUS_JSON;
   data.orientApi = '/api/orient';
   data.orientUrl = `http://127.0.0.1:${PORT}/api/orient`;
-  // Swarm cycles already emit a canonical receipt. Surface it here so agents
-  // can distinguish a clean run from a sandbox-degraded fallback without
-  // scraping logs or guessing from a successful exit code.
-  const cycleWorkPath = path.join(BUSY, 'cycle-work-latest.json');
-  data.cycleWorkPath = cycleWorkPath;
-  data.cycleWork = safeJson(cycleWorkPath) || null;
-  let cycleWorkAgeSec = null;
-  let cycleWorkTimestampValid = false;
-  let cycleWorkFileAgeSec = null;
-  try {
-    cycleWorkFileAgeSec = Math.max(0, Math.round((Date.now() - fs.statSync(cycleWorkPath).mtimeMs) / 1000));
-  } catch {
-    /* receipt is optional until the first cycle */
-  }
-  // Freshness belongs to the receipt, not its inode. Copying or touching an
-  // old receipt must never turn it into current cycle attestation.
-  const cycleWorkAtMs = Date.parse(data.cycleWork?.at || '');
-  const rawReceiptAgeSec = (Date.now() - cycleWorkAtMs) / 1000;
-  // Tolerate small clock skew, but never bless a materially future-dated
-  // receipt as age zero/fresh evidence.
-  cycleWorkTimestampValid = Number.isFinite(cycleWorkAtMs) && Number.isFinite(rawReceiptAgeSec) && rawReceiptAgeSec >= -60;
-  cycleWorkAgeSec = cycleWorkTimestampValid ? Math.max(0, Math.round(rawReceiptAgeSec)) : null;
-  const cycleChecks = Array.isArray(data.cycleWork?.health)
-    ? data.cycleWork.health.map((check) => {
-        const childError = check?.error && typeof check.error === 'object'
-          ? [check.error.code, check.error.message].filter(Boolean).join(': ')
-          : check?.error;
-        const diagnostic = [check?.detail, childError, check?.tail].find(
-          (value) => typeof value === 'string' && value.trim(),
-        );
-        return {
-        name: check?.name || 'unknown',
-        exit: Number.isInteger(check?.exit) ? check.exit : null,
-        failureKind: typeof check?.failureKind === 'string' ? check.failureKind : null,
-        degraded: check?.degraded === true,
-        blocked: check?.blocked === true,
-        childStartBlocked: check?.childStartBlocked === true,
-        fallback: check?.fallback === true,
-          // Cycle-work receipts use `tail`/structured `error`; older receipts
-          // use `detail`. Normalize all three without inflating every poll.
-          detail: diagnostic ? diagnostic.trim().slice(0, 240) : null,
-        };
-      })
-    : [];
-  const cycleWorkStale = !cycleWorkTimestampValid || cycleWorkAgeSec == null || cycleWorkAgeSec > 900;
-  const cycleWorkExceptions = cycleChecks.filter(
-    (check) => check.exit !== 0 || check.degraded || check.blocked || check.childStartBlocked,
-  );
-  const cycleWorkDegraded =
-    data.cycleWork?.degraded === true ||
-    cycleChecks.some((check) => check.degraded || check.fallback || check.childStartBlocked);
-  const cycleWorkReasons = [
-    !data.cycleWork ? 'receipt-missing' : null,
-    cycleWorkStale ? 'receipt-stale' : null,
-    data.cycleWork?.attested !== true ? 'not-attested' : null,
-    cycleWorkDegraded ? 'degraded' : null,
-    data.cycleWork?.blocked === true ? 'blocked' : null,
-    cycleChecks.some((check) => check.childStartBlocked) ? 'child-start-blocked' : null,
-    cycleChecks.some((check) => check.exit !== 0) ? 'check-failed' : null,
-    cycleWorkExceptions.length > 0 ? 'check-exception' : null,
-  ].filter(Boolean);
-  const cycleWorkSummary = {
-    total: cycleChecks.length,
-    // A successful fallback proves only its bounded in-process contract. It
-    // must not inflate the attested pass count shown to operators or agents.
-    passed: cycleChecks.filter((check) =>
-      check.exit === 0 &&
-      !check.blocked &&
-      !check.childStartBlocked &&
-      !check.degraded &&
-      !check.fallback
-    ).length,
-    fallbackPassed: cycleChecks.filter((check) =>
-      check.exit === 0 &&
-      (check.blocked || check.childStartBlocked || check.degraded || check.fallback)
-    ).length,
-    failed: cycleChecks.filter((check) => check.exit !== 0).length,
-    blocked: cycleChecks.filter((check) => check.blocked || check.childStartBlocked).length,
-    degraded: cycleChecks.filter((check) => check.degraded || check.fallback).length,
-    fallback: cycleChecks.filter((check) => check.fallback).length,
-  };
-  const cycleReleaseDrift = Array.isArray(data.cycleWork?.releaseDrift)
-    ? data.cycleWork.releaseDrift.filter((item) => typeof item === 'string' && item.trim()).slice(0, 12)
-    : [];
-  const cycleReleaseBlocker = typeof data.cycleWork?.releaseBlocker === 'string'
-    ? data.cycleWork.releaseBlocker.trim().slice(0, 500) || null
-    : null;
-  const rawReleaseRecovery = data.cycleWork?.releaseRecovery;
-  const rawReleaseRecoveryCommand = typeof rawReleaseRecovery?.command === 'string'
-    ? rawReleaseRecovery.command.trim().slice(0, 240) || null
-    : null;
-  // Older cycle receipts did not always annotate recovery commands. Known
-  // release publishers must still be presented fail-closed as mutations.
-  const inferredReleaseMutation = Boolean(
-    rawReleaseRecoveryCommand &&
-    /(?:^|\s)(?:node\s+)?(?:\.\/)?demigod-foot-cdn-publish\.mjs(?:\s|$)/.test(rawReleaseRecoveryCommand),
-  );
-  const releaseRecoveryMutates = rawReleaseRecovery?.mutates === true || inferredReleaseMutation;
-  const explicitReleaseGates = Array.isArray(rawReleaseRecovery?.gatedBy)
-    ? rawReleaseRecovery.gatedBy
-        .filter((gate) => typeof gate === 'string' && gate.trim())
-        .map((gate) => gate.trim().slice(0, 80))
-        .slice(0, 8)
-    : [];
-  const releaseRecoveryGates = releaseRecoveryMutates && explicitReleaseGates.length === 0
-    ? ['current-request-authorization', 'publish-freeze-off', 'foot-write-lock']
-    : explicitReleaseGates;
-  const cycleReleaseRecovery = rawReleaseRecovery && typeof rawReleaseRecovery === 'object'
-    ? {
-        state: typeof rawReleaseRecovery.state === 'string'
-          ? rawReleaseRecovery.state.trim().slice(0, 80) || null
-          : null,
-        command: releaseRecoveryMutates ? null : agentSafeCommand(rawReleaseRecoveryCommand),
-        then: typeof rawReleaseRecovery.then === 'string'
-          ? releaseRecoveryMutates ? null : agentSafeCommand(rawReleaseRecovery.then.trim().slice(0, 240))
-          : null,
-        mutates: releaseRecoveryMutates,
-        gatedBy: releaseRecoveryGates,
-        guarded:
-          rawReleaseRecovery.guarded === true ||
-          (releaseRecoveryMutates && releaseRecoveryGates.length > 0),
-        requiresLiveAttestation: rawReleaseRecovery.requiresLiveAttestation === true,
-        owner: typeof rawReleaseRecovery.owner === 'string'
-          ? rawReleaseRecovery.owner.trim().slice(0, 120) || null
-          : null,
-      }
-    : null;
-  const releaseDetails = data.cycleWork?.releaseDetails;
-  // Tools cycles already publish identityDelta, while website cycles retain
-  // the equivalent core/manifest pair. Normalize both receipt shapes here so
-  // a domain rotation cannot make an active staged-release mismatch disappear
-  // from the compact dashboard/status API.
-  const rawReleaseIdentity = releaseDetails?.identityDelta || (
-    releaseDetails?.core && releaseDetails?.manifest
-      ? Object.fromEntries(['version', 'sha256', 'bytes'].flatMap((key) => {
-          const expected = releaseDetails.core[key];
-          const staged = releaseDetails.manifest[key];
-          return expected === staged ? [] : [[key, { expected, staged }]];
-        }))
-      : null
-  );
-  const cycleReleaseIdentity = rawReleaseIdentity && typeof rawReleaseIdentity === 'object'
-    ? Object.fromEntries(
-        ['version', 'sha256', 'bytes'].flatMap((key) => {
-          const delta = rawReleaseIdentity[key];
-          if (!delta || typeof delta !== 'object') return [];
-          const clean = (value) => {
-            if (value == null) return null;
-            if (key === 'bytes') return Number.isSafeInteger(value) && value >= 0 ? value : null;
-            const text = String(value).trim();
-            return text ? text.slice(0, key === 'sha256' ? 128 : 40) : null;
-          };
-          const expected = clean(delta.expected);
-          const staged = clean(delta.staged);
-          return expected == null && staged == null ? [] : [[key, { expected, staged }]];
-        }),
-      )
-    : {};
-  const cycleWorkBlocked = data.cycleWork?.blocked === true ||
-    cycleChecks.some((check) => check.blocked || check.childStartBlocked);
-  // Derive the public verification label from normalized child health. Do not
-  // trust an older or contradictory receipt's top-level string: a blocked,
-  // degraded, or stale cycle can never remain labelled "attested" here.
-  const cycleHasReleasePreflight =
-    data.cycleWork?.domain === 'website' ||
-    data.cycleWork?.domain === 'ship' ||
-    data.cycleWork?.domain === 'tools';
-  // Tools OS can be green while release staging is not. Prefer release-blocked
-  // over generic "blocked" so priority/UI do not say tools are unattested.
-  const cycleToolsReady =
-    data.cycleWork?.domain === 'tools' && data.cycleWork?.toolsReady === true;
-  const cycleReleaseBlocked =
-    cycleHasReleasePreflight &&
-    data.cycleWork?.releaseReady === false &&
-    (data.cycleWork?.attested === true || cycleToolsReady) &&
-    !cycleWorkStale &&
-    (cycleToolsReady || !cycleWorkBlocked);
-  const cycleWorkVerification = cycleReleaseBlocked
-    ? 'release-blocked'
-    : cycleWorkBlocked
-      ? 'blocked'
-      : cycleWorkExceptions.length > 0
-        ? 'failed'
-      : cycleWorkDegraded || cycleWorkStale || data.cycleWork?.attested !== true
-        ? (data.cycleWork?.ok === true ? 'degraded' : 'failed')
-        : 'attested';
-  data.cycleWorkHealth = {
-    receiptAvailable: Boolean(data.cycleWork),
-    attested: data.cycleWork?.attested === true,
-    verification: cycleWorkVerification,
-    ok:
-      data.cycleWork?.ok === true &&
-      data.cycleWork?.attested === true &&
-      !cycleWorkDegraded &&
-      !cycleWorkBlocked &&
-      !cycleWorkStale &&
-      cycleWorkExceptions.length === 0,
-    degraded: cycleWorkDegraded,
-    blocked: cycleWorkBlocked,
-    // Keep concrete ship drift on the compact health surface. Otherwise the
-    // dashboard collapses an actionable manifest/core mismatch into the
-    // generic "cycle blocked" label even though the receipt knows the cause.
-    shipReady: data.cycleWork?.domain === 'ship' ? data.cycleWork?.shipReady === true : null,
-    // Tools OS health and release staging are independent. Preserve the
-    // receipt's explicit toolsReady bit so API/UI consumers do not infer that
-    // a staged manifest/core mismatch means the tools checks themselves failed.
-    toolsReady: data.cycleWork?.domain === 'tools' ? data.cycleWork?.toolsReady === true : null,
-    releaseReady: cycleHasReleasePreflight ? data.cycleWork?.releaseReady === true : null,
-    // Surface release-blocked so priority-board does not collapse to "not attested".
-    failureKind: data.cycleWork?.failureKind || (cycleReleaseBlocked ? 'release-blocked' : null),
-    releaseBlocker: cycleReleaseBlocker,
-    releaseDrift: cycleReleaseDrift,
-    releaseRecovery: cycleHasReleasePreflight ? cycleReleaseRecovery : null,
-    releaseDetails: cycleHasReleasePreflight && Object.keys(cycleReleaseIdentity).length
-      ? { identityDelta: cycleReleaseIdentity }
-      : null,
-    domain: data.cycleWork?.domain || null,
-    cycle: data.cycleWork?.cycle ?? null,
-    ageSec: cycleWorkAgeSec,
-    fileAgeSec: cycleWorkFileAgeSec,
-    timestampSource: 'receipt.at',
-    timestampValid: cycleWorkTimestampValid,
-    stale: cycleWorkStale,
-    reasons: [...new Set(cycleWorkReasons)],
-    exceptionCount: cycleWorkExceptions.length,
-    summary: cycleWorkSummary,
-    checks: cycleChecks,
-  };
   // Keep demand snapshot warm for glance (agent-only; never auto-sends)
   try {
     data.demandRefresh = ensureDemandFresh(900);
@@ -3757,7 +3104,7 @@ async function enrichStatus(data) {
       }
       // Clock skew: a future mtime gives a NEGATIVE age, which slips past the max-age check below
       // (negative is never > maxAge) and gets classified fresh. A file dated in the future is not a
-      // trustworthy "fresh" -- flag it, same guard as the headCss card and dg-autopilot-health.
+      // trustworthy "fresh" -- flag it, same guard as the headCss card.
       if (g.ageSec != null && g.ageSec < -60) {
         return { fresh: false, reason: 'clock-skew', label: 'future-mtime', ageSec: g.ageSec };
       }
@@ -3815,7 +3162,6 @@ async function enrichStatus(data) {
   data.webflow = webflow
     ? { ...webflow, doctor: safeJson(path.join(BUSY, 'webflow-doctor.json')) || webflow.doctor || null }
     : null;
-  data.fullPass = safeJson(path.join(BUSY, 'full-pass-state.json')) || null;
   try {
     const { buildPriorityBoard } = await import('./demigod-priority-board.mjs');
     data.priorityBoard = buildPriorityBoard(data);
@@ -3824,9 +3170,7 @@ async function enrichStatus(data) {
   }
   data.sessionStory = buildSessionStory(data);
   data.handoffs = readHandoffs(12);
-  data.jobsMeta = listJobsMeta();
   data.jobQueue = buildJobQueue();
-  data.events = eventRing.slice(0, 20);
   // Ship readiness
   try {
     const { buildShipChecklist } = await import('./demigod-ship-checklist.mjs').catch(() => ({ buildShipChecklist: null }));
@@ -3867,6 +3211,13 @@ async function enrichStatus(data) {
   } catch (e) {
     data.inbox = { total: 0, newCount: 0, pendingReviewCount: 0, rows: [], error: String(e.message || e) };
   }
+  // Funnel intelligence is aggregate-only: never expose contact values or lead rows.
+  try {
+    const { currentStatusReport } = await import('./demigod-funnel.mjs');
+    data.peopleIntelligence = peopleIntelligenceView(currentStatusReport());
+  } catch {
+    data.peopleIntelligence = { error: 'funnel_status_unavailable' };
+  }
   // Match review queue — cache 60s (build can be heavy)
   try {
     const now = Date.now();
@@ -3893,36 +3244,6 @@ async function enrichStatus(data) {
   } catch (e) {
     data.matches = { summary: { total: 0 }, pairs: [], error: String(e.message || e) };
   }
-  // Roadmap sprint snapshot
-  data.roadmap = {
-    sprint: 'D',
-    freezeOn: Boolean(data.freeze?.on),
-    items: [
-      { id: 'ship-checklist', title: 'Ship readiness checklist', done: Boolean(data.shipChecklist) },
-      { id: 'doctor', title: 'Doctor CLI', done: true },
-      { id: 'usertest', title: 'User-test harness', done: true },
-      { id: 'inbox', title: 'Submissions inbox in Ops', done: Boolean(data.inbox && !data.inbox.error) },
-      { id: 'intro-draft', title: 'Intro draft from sub-id', done: fs.existsSync(path.join(ROOT, 'demigod-intro-draft.mjs')) },
-      { id: 'board-choke', title: 'Board writeBoard lock+audit', done: fs.existsSync(path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl')) },
-      { id: 'pairs', title: 'Canonical pair ledger', done: fs.existsSync(path.join(ROOT, 'demigod-pairs-lib.mjs')) },
-      { id: 'match-queue', title: 'Match Review Queue', done: Boolean(data.matches && !data.matches.error) },
-      { id: 'intro-gate', title: 'Intro lifecycle gate', done: true },
-      { id: 'real-roles-env', title: 'allowRealRoles needs env gate', done: true },
-      { id: 'match-consent-ui', title: 'Matches consent + intro POST', done: true },
-      { id: 'lock-backoff', title: 'withFileLock Atomics backoff', done: true },
-      { id: 'pairs-dual-write', title: 'matching-engine → pairs SoR', done: true },
-      { id: 'job-history', title: 'Persisted job history', done: true },
-      { id: 'events', title: 'Events ring /api/events', done: true },
-      { id: 'sse', title: 'True SSE live push', done: true },
-      { id: 'auto-propose', title: 'Auto-propose pairs from inbox', done: true },
-      {
-        id: 'collapse-legacy-matches',
-        title: 'Pairs SoR (dg matches); pilot shortlist dual-writes',
-        done: Boolean(data.matches?.summary?.realProposed != null),
-      },
-    ],
-    doc: 'docs/exchange/DEMIGOD-BACKLOG-HUGE.md',
-  };
   // Control plane — TTL cache (was ~1.3s every collect)
   try {
     const now = Date.now();
@@ -3959,6 +3280,7 @@ async function enrichStatus(data) {
       };
       controlCache = { at: now, data: data.control };
     }
+    data.control = { ...data.control, nextCanon: data.next };
   } catch (e) {
     const cp = safeJson(path.join(BUSY, 'control-plane.json'));
     data.control = cp
@@ -4006,7 +3328,6 @@ async function enrichStatus(data) {
     ]),
     JSON.stringify([data.inbox?.total, data.inbox?.newCount, data.inbox?.pendingReviewCount, data.inbox?.byKind, (data.inbox?.rows || []).map((r) => [r.id, r.status, r.matchingReady])]),
     JSON.stringify([data.matches?.summary, (data.matches?.pairs || []).map((p) => [p.pairId, p.state, p.mutual])]),
-    JSON.stringify(data.formAnalytics?.forms || {}),
   ].join('|')).digest('hex');
   return data;
 }
@@ -4140,12 +3461,8 @@ function startJob(toolId, { allowMutate = false } = {}) {
         freezeWhy: freeze.why || null,
       };
     }
-    // Also refuse when another writer holds the canonical foot-core lock: a mutate job (e.g. cycle-work
-    // --domain=auto) can edit demigod-foot-core.js, and the dashboard should not dispatch it on top of an
-    // active foreign edit. The child publisher re-checks the lock too (defense-in-depth), so fail OPEN
-    // here — block ONLY on a valid, unexpired, foreign-owned lock. Corrupt/expired/own-lock reads fall
-    // through (the foot-lock file is frequently malformed; over-blocking every dashboard mutate on a
-    // stray parse error would be worse than the race the child already guards).
+    // Refuse when another writer holds the canonical foot-core lock. The child
+    // publisher re-checks it, so block only on a valid, live, foreign lock.
     const footLock = spec.publishSafe ? null : safeJson(path.join(BUSY, 'foot-lock.json'));
     const flExpiryMs = footLock?.expiresAt ? Date.parse(footLock.expiresAt) : NaN;
     if (
@@ -4264,19 +3581,11 @@ if (process.argv.includes('--snapshot')) {
     ok: true,
     statusJsonPath: data.statusJsonPath || STATUS_JSON,
     orientApi: data.orientApi || '/api/orient',
-    // Snapshot mode is commonly consumed by cycle workers. Keep the canonical
-    // attestation summary here so `ok: true` (snapshot creation succeeded)
-    // cannot be mistaken for a fully verified tools cycle.
-    cycleWork: data.cycleWork || null,
-    cycleWorkHealth: data.cycleWorkHealth || null,
-    cycleWorkAttested: data.cycleWorkHealth?.attested === true,
-    cycleWorkDegraded: data.cycleWorkHealth?.degraded === true,
-    cycleWorkVerification: data.cycleWorkHealth?.verification || null,
     demandDraftsHygiene: data.demandDraftsHygiene || null,
     demandDraftsHygieneReady: data.demandDraftsHygieneReady === true,
     orientDemandDraftsHygieneReady: data.orient?.demandDraftsHygieneReady === true,
     // Preserve the canonical /api/orient demand path in lightweight snapshots.
-    // Cycle workers can inspect demand.drafts.hygiene without translating the
+    // Agents can inspect demand.drafts.hygiene without translating the
     // root compatibility aliases used by older dashboard consumers.
     demand: {
       drafts: {
@@ -4293,8 +3602,8 @@ if (process.argv.includes('--snapshot')) {
     statusJsonPathDemandDraftsHygieneJsonPointer: '/draftHygieneVerdict',
     draftHygieneVerdict: data.draftHygieneVerdict || null,
     draftHygieneVerdictReady: data.draftHygieneVerdict?.ready === true,
-    // Keep the exact persisted-status view in the CLI snapshot. Cycle workers
-    // can now verify /api/orient plus both hygiene projections from one read,
+    // Keep the exact persisted-status view in the CLI snapshot. Agents can
+    // verify /api/orient plus both hygiene projections from one read,
     // instead of reconstructing that contract from discovery pointers.
     statusJsonPathView: data.statusJsonPathView || null,
     statusJsonPathViewComplete: data.statusJsonPathView?.complete === true,
@@ -4356,31 +3665,7 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/ledger') {
-      try {
-        const { tail } = await import('./demigod-version-ledger.mjs');
-        const n = Number(url.searchParams.get('n')) || 20;
-        jsonSend(res, 200, { at: new Date().toISOString(), rows: tail(n) });
-      } catch (e) {
-        jsonSend(res, 500, { error: String(e.message || e) });
-      }
-      return;
-    }
-    if (url.pathname === '/api/evidence' || url.pathname === '/api/evidence/list') {
-      try {
-        const { listEvidence, refuseIfStale } = await import('./demigod-evidence.mjs');
-        jsonSend(res, 200, {
-          at: new Date().toISOString(),
-          items: listEvidence({ limit: 30 }),
-          truth: refuseIfStale('truth'),
-          review: refuseIfStale('review'),
-        });
-      } catch (e) {
-        jsonSend(res, 500, { error: String(e.message || e) });
-      }
-      return;
-    }
-    if (url.pathname === '/api/craft' || url.pathname === '/api/craft-log') {
+    if (url.pathname === '/api/craft') {
       try {
         const craft = await import('./demigod-craft-log.mjs');
         const mint = url.searchParams.get('mint');
@@ -4428,11 +3713,12 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/status' || url.pathname === '/api/status.json') {
+    if (url.pathname === '/api/status') {
       const force = url.searchParams.get('force') === '1';
       const pretty = url.searchParams.get('pretty') === '1';
       const slim = url.searchParams.get('slim') === '1';
       const ui = url.searchParams.get('ui') === '1';
+      refreshOrcaReceiptIfStale();
       const data = await getStatus({ force });
       const payload = ui ? dashboardStatus(data) : slim ? slimStatus(data) : data;
       jsonSend(res, 200, payload, { pretty });
@@ -4654,8 +3940,6 @@ const server = http.createServer(async (req, res) => {
         let lastHealthKey = JSON.stringify({
           dashboardRuntime: statusCache.data?.dashboardRuntime || null,
           truthEvidence: statusCache.data?.truthEvidence || null,
-          cycleWork: statusCache.data?.cycleWork || null,
-          cycleWorkHealth: statusCache.data?.cycleWorkHealth || null,
           live: statusCache.data?.live || null,
         });
         const tick = setInterval(async () => {
@@ -4701,8 +3985,6 @@ const server = http.createServer(async (req, res) => {
               const health = {
                 dashboardRuntime: d.dashboardRuntime || null,
                 truthEvidence: d.truthEvidence || null,
-                cycleWork: d.cycleWork || null,
-                cycleWorkHealth: d.cycleWorkHealth || null,
                 live: d.live || null,
               };
               const healthKey = JSON.stringify(health);
@@ -4730,76 +4012,6 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ at: new Date().toISOString(), events: eventRing.slice(0, 40) }));
       return;
     }
-    if (url.pathname === '/api/presence') {
-      // Multi-agent presence from recent handoffs + foot lock who
-      const notes = readHandoffs(20);
-      const maxAge = 4 * 3600;
-      const now = Date.now();
-      const agents = {};
-      for (const n of notes) {
-        const age = n.at ? Math.round((now - Date.parse(n.at)) / 1000) : null;
-        // Number.isFinite rejects an unparseable n.at (Date.parse -> NaN, and NaN passes both the
-        // `== null` and `> maxAge` checks, so a garbage timestamp would render as a CURRENT agent with
-        // ageSec NaN -> JSON null). age < -60 rejects a future-dated note that would otherwise stay
-        // "current" forever.
-        if (!Number.isFinite(age) || age < -60 || age > maxAge) continue;
-        const a = n.from || 'agent';
-        if (!agents[a] || age < agents[a].ageSec) {
-          agents[a] = { from: a, at: n.at, ageSec: age, text: String(n.text || '').slice(0, 120), current: true };
-        }
-      }
-      let lockWho = null;
-      try {
-        const { getLockWho } = await import('./demigod-foot-lock.mjs');
-        lockWho = getLockWho();
-      } catch {
-        /* */
-      }
-      jsonSend(res, 200, {
-        at: new Date().toISOString(),
-        agents: Object.values(agents),
-        lock: lockWho || null,
-        freezeOn: Boolean(statusCache.data?.freeze?.on),
-        nextId: statusCache.data?.next?.id || null,
-      });
-      return;
-    }
-    if (url.pathname === '/api/graph') {
-      // Module → job → evidence edges for System tab
-      const nodes = [
-        { id: 'truth', kind: 'tool' },
-        { id: 'next', kind: 'tool' },
-        { id: 'demand', kind: 'tool' },
-        { id: 'ship', kind: 'tool' },
-        { id: 'review', kind: 'tool' },
-        { id: 'evidence-truth', kind: 'evidence' },
-        { id: 'ledger', kind: 'artifact' },
-        { id: 'unify', kind: 'tool' },
-        { id: 'dash', kind: 'ui' },
-      ];
-      const edges = [
-        { from: 'truth', to: 'evidence-truth' },
-        { from: 'truth', to: 'ledger' },
-        { from: 'truth', to: 'next' },
-        { from: 'demand', to: 'next' },
-        { from: 'next', to: 'unify' },
-        { from: 'ship', to: 'unify' },
-        { from: 'unify', to: 'dash' },
-        { from: 'review', to: 'evidence-truth' },
-      ];
-      jsonSend(res, 200, { at: new Date().toISOString(), nodes, edges });
-      return;
-    }
-    if (url.pathname === '/api/jobs-history' || url.pathname === '/api/jobs/history') {
-      // Fast path — never full collectStatus
-      jsonSend(res, 200, {
-        at: new Date().toISOString(),
-        running: jobState.running || null,
-        recent: buildJobQueue().recent || [],
-        meta: listJobsMeta(),
-      });
-      return;
-    }
     if (url.pathname === '/api/ship-checklist') {
       try {
         const { buildShipChecklist } = await import('./demigod-ship-checklist.mjs');
@@ -4810,12 +4022,6 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(500, { ...noStore, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(e.message || e) }));
       }
-      return;
-    }
-    if (url.pathname === '/api/roadmap') {
-      const data = await getStatus({});
-      res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(data.roadmap || {}, null, 2));
       return;
     }
     if (url.pathname === '/api/inbox') {
@@ -4868,7 +4074,7 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/matches' || url.pathname === '/api/match-review') {
+    if (url.pathname === '/api/matches') {
       // POST review: { pairId, decision, note? }
       if (req.method === 'POST') {
         // Local-origin soft-guard (same pattern as mutate jobs) — curl has no Origin
@@ -4940,7 +4146,8 @@ const server = http.createServer(async (req, res) => {
           const pair = reviewPair(pairId, {
             decision,
             note,
-            actor,
+            reviewed: body.reviewed === true,
+            actor: 'human:dashboard',
           });
           try {
             run('node demigod-match-review.mjs --json', 12000);
@@ -4991,39 +4198,11 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/doctor') {
-      try {
-        run('node demigod-doctor.mjs --json', 20000);
-        const doc = safeJson(path.join(BUSY, 'doctor.json'));
-        res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(doc || { error: 'no doctor output' }, null, 2));
-      } catch (e) {
-        res.writeHead(500, { ...noStore, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(e.message || e) }));
-      }
-      return;
-    }
     if (url.pathname === '/api/orca') {
       try {
-        const { spawnSync } = await import('child_process');
-        const st = spawnSync('bash', ['-lc', 'node demigod-orca-bridge.mjs doctor'], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          timeout: 12000,
-        });
-        let doctor = null;
-        try {
-          doctor = JSON.parse(st.stdout || '{}');
-        } catch {
-          doctor = { raw: (st.stdout || '').slice(0, 500), stderr: (st.stderr || '').slice(0, 300) };
-        }
-        let runtime = null;
-        const ost = spawnSync('orca-ide', ['status', '--json'], { encoding: 'utf8', timeout: 6000 });
-        try {
-          runtime = JSON.parse(ost.stdout || '{}')?.result || null;
-        } catch {
-          runtime = null;
-        }
+        const receiptPath = path.join(BUSY, 'orca-status.json');
+        const snapshot = safeJson(receiptPath);
+        const refreshing = refreshOrcaReceiptIfStale(snapshot);
         let keepAwake = false;
         try {
           const pid = Number(fs.readFileSync(path.join(ROOT, '.keep-awake.pid'), 'utf8').trim());
@@ -5037,17 +4216,14 @@ const server = http.createServer(async (req, res) => {
         res.end(
           JSON.stringify(
             {
-              at: new Date().toISOString(),
+              ...(snapshot || { at: new Date().toISOString(), reachable: false, status: 'missing' }),
+              refreshing,
               keepAwake,
-              runtime,
-              doctor,
               cmds: {
                 up: 'bin/dg-orca up',
                 pair: 'bin/dg-orca pair',
                 status: 'bin/dg-orca status',
-                swarm: 'bin/dg-orca swarm',
               },
-              pairPage: doctor?.lan ? `http://${doctor.lan}:8767/orca-pair.html` : null,
             },
             null,
             2,
@@ -5060,7 +4236,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (url.pathname === '/api/priority' || url.pathname === '/api/priority-board') {
+    if (url.pathname === '/api/priority') {
       try {
         const pretty = url.searchParams.get('pretty') === '1';
         const data = await getStatus({});
@@ -5108,14 +4284,14 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/maps' || url.pathname === '/api/maps/index') {
+    if (url.pathname === '/api/maps') {
       try {
         const maps = [
           {
             id: 'agents',
-            title: 'Multi-agent coord (Claude · Codex · Grok)',
+            title: 'Orca agent coordination',
             path: 'docs/DEMIGOD-MULTI-AGENT-COORD-DIAGRAM.md',
-            purpose: 'Lanes, spawn_wave, term-pump, Codex swarm, receipts, ship path',
+            purpose: 'Current Claude ↔ Codex transport and dashboard projection',
           },
           {
             id: 'workflow',
@@ -5206,1047 +4382,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Autonomy / ops OS spine
-    if (url.pathname === '/api/ops-os' || url.pathname === '/api/autonomy') {
-      try {
-        const { spawnSync } = await import('child_process');
-        spawnSync(process.execPath, [path.join(ROOT, 'demigod-ops-os.mjs'), 'status', '--json'], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          timeout: 20000,
-        });
-        const snap = safeJson(path.join(BUSY, 'ops-os.json')) || { error: 'no ops-os.json' };
-        jsonSend(res, 200, snap, url.searchParams.get('pretty') === '1');
-      } catch (e) {
-        jsonSend(res, 500, { error: String(e.message || e) });
-      }
-      return;
-    }
-
-    // Multi-agent coordination board (Claude + Codex + Grok)
-    if (url.pathname === '/api/coord' || url.pathname === '/api/agent-coord') {
-      try {
-        const pretty = url.searchParams.get('pretty') === '1';
-        const forceCoord =
-          url.searchParams.get('force') === '1' ||
-          url.searchParams.get('fresh') === '1' ||
-          url.searchParams.get('liveCss') === '1';
-        const wantLiveCss =
-          url.searchParams.get('liveCss') === '1' || process.env.DEMIGOD_COORD_LIVE_CSS === '1';
-        const nowCoord = Date.now();
-        if (!forceCoord && coordCache.data && nowCoord - coordCache.at < COORD_TTL_MS) {
-          jsonSend(
-            res,
-            200,
-            { ...coordCache.data, cached: true, cacheAgeMs: nowCoord - coordCache.at },
-            { pretty },
-          );
-          return;
-        }
-        const coordDir = path.join(BUSY, 'coord');
-        const board = safeJson(path.join(coordDir, 'board.json'));
-        const withFreshness = (rec) => {
-          if (!rec) return rec;
-          if (!rec.at) return { ...rec, ageSec: null, clockSkewed: false, stale: true };
-          const ageSec = Math.round((Date.now() - Date.parse(rec.at)) / 1000);
-          const clockSkewed = Number.isFinite(ageSec) && ageSec < -15 * 60;
-          return {
-            ...rec,
-            signedAgeSec: Number.isFinite(ageSec) ? ageSec : null,
-            ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
-            clockSkewed,
-            stale: !Number.isFinite(ageSec) || clockSkewed || ageSec > 3600,
-          };
-        };
-        const claude = withFreshness(safeJson(path.join(coordDir, 'claude-last.json')));
-        const codex = withFreshness(safeJson(path.join(coordDir, 'codex-last.json')));
-        const grok = withFreshness(freshestGrokReceipt(coordDir));
-        // Interactive tmux term-pump agents write term-*-last.json (separate from headless workers)
-        const term = {
-          claude: withFreshness(safeJson(path.join(coordDir, 'term-claude-last.json'))),
-          grok: withFreshness(safeJson(path.join(coordDir, 'term-grok-last.json'))),
-        };
-        let inboxTail = [];
-        try {
-          const raw = fs.readFileSync(path.join(coordDir, 'inbox.jsonl'), 'utf8');
-          inboxTail = raw
-            .trim()
-            .split('\n')
-            .filter(Boolean)
-            .slice(-12)
-            .map((line) => {
-              try {
-                return JSON.parse(line);
-              } catch {
-                return { raw: line.slice(0, 200) };
-              }
-            });
-        } catch {
-          /* */
-        }
-        const pidAlive = pidFileAlive(path.join(coordDir, 'coord.pid'));
-        let heartbeatAgeSec = null;
-        try {
-          heartbeatAgeSec = Math.max(0, Math.round((Date.now() - fs.statSync(path.join(coordDir, 'coord.heartbeat')).mtimeMs) / 1000));
-        } catch {
-          /* A log write is activity, not proof that the supervisor loop is alive. */
-        }
-        const heartbeatFresh = heartbeatAgeSec !== null && heartbeatAgeSec < 120;
-        const stopRequested = fs.existsSync(path.join(coordDir, 'STOP'));
-        const pidUnobservable = !pidAlive && heartbeatFresh && !stopRequested;
-        const supervisorDown = !pidAlive && !heartbeatFresh && !stopRequested;
-        const coordWorkers = Object.fromEntries(
-          ['claude', 'codex', 'grok'].map((name) => [name, coordWorkerStatus(coordDir, name, pidUnobservable)]),
-        );
-        const effectiveBoard = board && {
-          ...board,
-          tracks: {
-            ...(board.tracks || {}),
-            ...Object.fromEntries(
-              Object.entries(coordWorkers).map(([name, status]) => [
-                name,
-                { ...(board.tracks?.[name] || {}), persistedStatus: board.tracks?.[name]?.status || null, status },
-              ]),
-            ),
-          },
-        };
-        const staleTracks = Object.keys(coordWorkers).filter(
-          (name) => !pidUnobservable && board?.tracks?.[name]?.status !== coordWorkers[name],
-        );
-        const truth = safeJson(path.join(BUSY, 'truth.json'));
-        const truthEvidence = refuseIfStale('truth');
-        const webflowStatus = safeJson(path.join(BUSY, 'webflow-status.json'));
-        const webflowDoctor = safeJson(path.join(BUSY, 'webflow-doctor.json'));
-        const webflow = webflowStatus || webflowDoctor ? { ...(webflowStatus || {}), doctor: webflowDoctor || webflowStatus?.doctor || null } : null;
-        const webflowAgeMs = webflow?.at ? Date.now() - Date.parse(webflow.at) : null;
-        const webflowFresh = Number.isFinite(webflowAgeMs) && webflowAgeMs >= -60000 && webflowAgeMs <= 120000;
-        const webflowDoctorAgeMs = webflow?.doctor?.at ? Date.now() - Date.parse(webflow.doctor.at) : null;
-        const webflowDoctorFresh = Number.isFinite(webflowDoctorAgeMs) && webflowDoctorAgeMs >= -60000 && webflowDoctorAgeMs <= 120000;
-        // ship-status.json is fresher for disk/live/stage than truth alone (agents dogfood this)
-        const shipStatus = safeJson(path.join(BUSY, 'ship-status.json'));
-        const shipAgeMs = shipStatus?.at ? Date.now() - Date.parse(shipStatus.at) : null;
-        // Concurrent foot bumps leave ship-status.facts.diskVer lagging — overlay live disk marker
-        // Also backfill live/man from truth when ship-status is partial (agents dogfood full triple)
-        let shipFacts = shipStatus?.facts || null;
-        try {
-          const diskNow =
-            (fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8').match(/__dgFootVer='(\d+)'/) ||
-              [])[1] || null;
-          const liveNow =
-            truth?.live?.footVer != null
-              ? String(truth.live.footVer).replace(/^v/, '')
-              : truth?.foot?.liveVer != null
-                ? String(truth.foot.liveVer).replace(/^v/, '')
-                : null;
-          const manNow =
-            truth?.manifest?.version != null
-              ? String(truth.manifest.version).replace(/^v/, '')
-              : null;
-          if (diskNow || liveNow || manNow) {
-            const claimed = shipFacts?.diskVer != null ? String(shipFacts.diskVer).replace(/^v/, '') : null;
-            const next = { ...(shipFacts || {}) };
-            if (diskNow) {
-              next.diskVer = diskNow;
-              next.diskVerSource = claimed === diskNow ? 'ship-status' : 'disk-live';
-            }
-            // Prefer truth live/man when ship-status is missing, partial, or stale/mismatched
-            // (post-ship dogfood often showed liveVer lagging real HTML pin)
-            const shipLive = next.liveVer != null ? String(next.liveVer).replace(/^v/, '') : null;
-            if (
-              liveNow &&
-              (shipLive == null || shipLive === '' || shipLive === '?' || shipLive !== liveNow)
-            ) {
-              next.liveVer = liveNow;
-              next.liveVerSource = 'truth';
-            }
-            const shipMan = next.manVer != null ? String(next.manVer).replace(/^v/, '') : null;
-            if (
-              manNow &&
-              (shipMan == null || shipMan === '' || shipMan === '?' || shipMan !== manNow)
-            ) {
-              next.manVer = manNow;
-              next.manVerSource = 'truth';
-            }
-            const d = next.diskVer != null ? String(next.diskVer).replace(/^v/, '') : null;
-            const l = next.liveVer != null ? String(next.liveVer).replace(/^v/, '') : null;
-            const m = next.manVer != null ? String(next.manVer).replace(/^v/, '') : null;
-            if (d && l && m) {
-              next.diskMatchesManifest = d === m;
-              next.diskMatchesLive = d === l;
-            }
-            shipFacts = next;
-          }
-        } catch {
-          /* keep ship-status facts */
-        }
-        const ship = {
-          pass: truthEvidence?.green ?? false,
-          artifactPass: truth?.pass ?? null,
-          evidence: truthEvidence,
-          summaryLine: truth?.summaryLine || shipStatus?.nextAction || null,
-          primaryBlocker: truth?.release?.primaryBlocker || truthEvidence?.reason || null,
-          recoveryCommand: agentSafeCommand(
-            truth?.release?.recovery?.command || shipStatus?.nextCmd || null,
-          ),
-          at: truth?.at || shipStatus?.at || null,
-          stage: shipStatus?.stage || null,
-          nextCmd: agentSafeCommand(shipStatus?.nextCmd || null),
-          nextAction: shipStatus?.nextAction || null,
-          facts: shipFacts,
-          shipped: shipStatus?.shipped ?? null,
-          shipStatusAgeMs: Number.isFinite(shipAgeMs) ? shipAgeMs : null,
-          shipStatusFresh: Number.isFinite(shipAgeMs) && shipAgeMs >= -60000 && shipAgeMs <= 300000,
-        };
-        // Never advertise "all green" when disk foot ver ≠ live (stale ship-status / race).
-        // prepare-only truth green still sets pass=true — clear pass whenever versions lag.
-        try {
-          const d = shipFacts?.diskVer != null ? String(shipFacts.diskVer).replace(/^v/, '') : null;
-          const l = shipFacts?.liveVer != null ? String(shipFacts.liveVer).replace(/^v/, '') : null;
-          const lag = d && l && d !== l;
-          const liesGreen = /all green|no ship needed|fully shipped/i.test(
-            String(ship.nextCmd || '') + ' ' + String(ship.nextAction || ''),
-          );
-          if (lag) {
-            const needRewrite = liesGreen || ship.shipped === true;
-            ship.pass = false;
-            ship.shipped = false;
-            if (needRewrite) {
-              ship.stage = ship.stage && ship.stage !== 'cdn_body_matches_disk' ? ship.stage : 'live_matches_disk_ver';
-              ship.nextAction = `live v${l} disk v${d}`;
-              ship.nextCmd = 'bin/dg ship prepare';
-              ship.recoveryCommand = ship.nextCmd;
-              ship.nextCmdSource = 'coord-honesty';
-            }
-          }
-        } catch {
-          /* */
-        }
-        // Paste readiness (agents dogfood without re-running webflow doctor)
-        try {
-          const roles = webflow?.tabs?.byRole || {};
-          const freezeOn = shipFacts?.freezeOn === true;
-          let pasteBlockedBy = null;
-          if (freezeOn) pasteBlockedBy = 'freeze';
-          else if ((roles['webflow-login'] || 0) > 0) pasteBlockedBy = 'webflow-login';
-          else if (!(roles['custom-code'] > 0)) pasteBlockedBy = 'no-custom-code-tab';
-          const needsPaste =
-            shipFacts?.diskMatchesLive === false ||
-            /paste|cm6-paste|live_matches/i.test(String(ship.stage || '') + String(ship.nextCmd || ''));
-          ship.pasteReady = needsPaste && !pasteBlockedBy;
-          ship.pasteBlockedBy = needsPaste ? pasteBlockedBy : null;
-          ship.pasteHint =
-            pasteBlockedBy === 'webflow-login'
-              ? 'Re-auth site-owner Webflow in CDP (not empty Google account); custom-code must not be 404, then bin/dg-webflow open custom-code'
-              : pasteBlockedBy === 'no-custom-code-tab'
-                ? 'bin/dg-webflow open custom-code (authenticated session)'
-                : pasteBlockedBy === 'freeze'
-                  ? 'node demigod-publish-freeze.mjs status'
-                  : needsPaste
-                    ? 'bin/dg ship prepare'
-                    : null;
-        } catch {
-          /* */
-        }
-        // loop-state gate snapshot (keep-going.md vs disk foot) — no shell-out
-        let loopState = { ok: null, claimed: null, disk: null };
-        try {
-          const kg = fs.readFileSync(path.join(ROOT, 'demigod-keep-going.md'), 'utf8');
-          const block = (kg.split(/^## loop-state.*$/m)[1] || '').split(/^\*\*/m)[0];
-          const claimedRaw = (block.match(/- foot_ver_disk:\s*(\S+)/) || [])[1] || '';
-          const claimed = claimedRaw.replace(/^v/, '') || null;
-          const disk =
-            (fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8').match(/__dgFootVer='(\d+)'/) ||
-              [])[1] || null;
-          loopState = {
-            ok: !!(claimed && disk && claimed === disk),
-            claimed: claimed ? `v${claimed}` : null,
-            disk: disk ? `v${disk}` : null,
-          };
-        } catch (e) {
-          loopState = { ok: false, claimed: null, disk: null, error: String(e.message || e).slice(0, 120) };
-        }
-        // Blog SoR readiness (demigod-blog-posts.json) — agents dogfood without shelling out
-        let blog = { ok: false, posts: 0, published: 0, allHaveImageAlt: false, allHaveBody: false };
-        try {
-          const blogJson = safeJson(path.join(ROOT, 'demigod-blog-posts.json'));
-          const posts = Array.isArray(blogJson?.posts) ? blogJson.posts : [];
-          const published = posts.filter((p) => p && p.published !== false);
-          const allHaveImageAlt = posts.length > 0 && posts.every((p) => String(p?.imageAlt || '').trim());
-          const allHaveBody = posts.length > 0 && posts.every((p) => String(p?.body || '').trim().length >= 40);
-          const allHaveSummary = posts.length > 0 && posts.every((p) => String(p?.summary || '').trim());
-          blog = {
-            // fail closed: empty/thin SoR must not look green to agents
-            ok: posts.length > 0 && published.length > 0 && allHaveImageAlt && allHaveBody && allHaveSummary,
-            posts: posts.length,
-            published: published.length,
-            allHaveImageAlt,
-            allHaveBody,
-            allHaveSummary,
-            at: blogJson?.at || null,
-          };
-        } catch (e) {
-          blog = { ok: false, posts: 0, published: 0, error: String(e.message || e).slice(0, 120) };
-        }
-        // Head + footer-lite + foot Notes disk readiness (ship prep without shelling out)
-        let head = { ok: false, shipReady: false };
-        // Carries this request's disk md5 + head cssUrl out to the headCss card below, which is in a
-        // sibling block and cannot see them. Stays null if the try throws -> card falls back to age.
-        let headCssProof = null;
-        try {
-          const h = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
-          const hasCanonical = /rel=["']canonical["']/.test(h);
-          const hasOgSiteName = /property=["']og:site_name["']/.test(h);
-          const hasOgUrl = /property=["']og:url["']/.test(h);
-          const hasOgImageAlt = /property=["']og:image:alt["']/.test(h);
-          const hasTwitterUrl = /name=["']twitter:url["']/.test(h);
-          const hasTwitterCard = /name=["']twitter:card["']/.test(h);
-          const hasRobots = /name=["']robots["']/.test(h);
-          const hasColorScheme = /name=["']color-scheme["']/.test(h);
-          const cssUrl = (h.match(/<link[^>]+href=["'](https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css)["']/i) || [])[1] || null;
-          const diskCss = fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'));
-          const diskCssSha = crypto.createHash('sha256').update(diskCss).digest('hex');
-          const diskCssMd5 = crypto.createHash('md5').update(diskCss).digest('hex');
-          headCssProof = { diskCssMd5, cssUrl };
-          let cssFresh = false;
-          let cssFreshSource = null;
-          // Receipt first (no network). Content-proof (diskMd5 + href) does not expire —
-          // 30m TTL only when md5 is absent (legacy/partial receipts).
-          // Missing receipt ≠ stale: live-fetch when ?liveCss=1 / env, or once to self-heal.
-          {
-            const recPath = path.join(BUSY, 'head-css-cdn.json');
-            const rec = safeJson(recPath);
-            const ageMs = rec?.at ? Date.now() - Date.parse(rec.at) : Infinity;
-            const hrefOk = !rec?.href || !cssUrl || rec.href === cssUrl;
-            const md5Ok = !rec?.diskMd5 || rec.diskMd5 === diskCssMd5;
-            const contentProof = !!(rec?.diskMd5 && rec.diskMd5 === diskCssMd5 && hrefOk);
-            const ageOk =
-              Number.isFinite(ageMs) && ageMs >= -60000 && ageMs <= 30 * 60 * 1000;
-            if (rec?.match === true && hrefOk && md5Ok && (contentProof || ageOk)) {
-              cssFresh = true;
-              cssFreshSource = 'head-css-cdn.json';
-            } else if (
-              rec &&
-              rec.match === false &&
-              Number.isFinite(ageMs) &&
-              ageMs <= 30 * 60 * 1000
-            ) {
-              cssFresh = false;
-              cssFreshSource = 'head-css-cdn.json';
-            }
-          }
-          // Live prove when forced, or when no usable receipt (self-heal permanent false blocker)
-          const needLiveCss =
-            !cssFresh &&
-            cssUrl &&
-            (wantLiveCss || cssFreshSource !== 'head-css-cdn.json');
-          if (needLiveCss) {
-            try {
-              const liveCss = Buffer.from(
-                await (await fetch(cssUrl, { signal: AbortSignal.timeout(2500) })).arrayBuffer(),
-              );
-              const liveMd5 = crypto.createHash('md5').update(liveCss).digest('hex');
-              cssFresh =
-                crypto.createHash('sha256').update(liveCss).digest('hex') === diskCssSha;
-              if (cssFresh) cssFreshSource = 'live-fetch';
-              // Persist receipt so later /api/coord stays offline-green (publisher path is SoR writer)
-              try {
-                writeJsonAtomic(path.join(BUSY, 'head-css-cdn.json'), {
-                  at: new Date().toISOString(),
-                  match: cssFresh === true,
-                  href: cssUrl,
-                  diskMd5: diskCssMd5,
-                  liveMd5,
-                  diskBytes: diskCss.length,
-                  liveBytes: liveCss.length,
-                  note: cssFresh ? 'coord-live-self-heal' : 'coord-live-mismatch',
-                });
-              } catch {
-                /* receipt write best-effort */
-              }
-            } catch {
-              /* CDN flaky — keep receipt result */
-            }
-          }
-          const metaReady =
-            hasCanonical &&
-            hasOgSiteName &&
-            hasOgUrl &&
-            hasOgImageAlt &&
-            hasTwitterUrl &&
-            hasTwitterCard &&
-            hasRobots &&
-            hasColorScheme;
-          head = {
-            ok: true,
-            hasCanonical,
-            hasOgSiteName,
-            hasOgUrl,
-            hasOgImageAlt,
-            hasTwitterUrl,
-            hasTwitterCard,
-            hasRobots,
-            hasColorScheme,
-            cssUrl,
-            cssFresh,
-            cssFreshSource,
-            metaReady,
-            // shipReady still requires CSS CDN match; agents distinguish via metaReady/cssFresh
-            shipReady: metaReady && cssFresh,
-          };
-        } catch (e) {
-          head = { ok: false, shipReady: false, metaReady: false, error: String(e.message || e).slice(0, 120) };
-        }
-        let footerLite = { ok: false };
-        try {
-          const f = fs.readFileSync(path.join(ROOT, 'demigod-footer-lite.html'), 'utf8');
-          const ver = (f.match(/cdn-loader\s+v(\d+)/i) || f.match(/\bv(\d+)\b/) || [])[1] || null;
-          // Accept exact or nested path redirects: /(blog|notes)(/|$) and /method(/|$)
-          // Also v28 \/ ?$ form: /^\/(blog|notes)\/?$/i and /^\/method\/?$/i
-          const hasBlogRedirect = /\/\(blog\|notes\)/.test(f) || /blog\|notes/.test(f);
-          const hasMethodRedirect = /\/method/.test(f) || /p=method/.test(f);
-          const hasNestedPathRedirects =
-            /\/\(blog\|notes\)\(\\\/\|\$\)/.test(f) ||
-            /\/method\(\\\/\|\$\)/.test(f) ||
-            /\/\(blog\|notes\)\\\/\?\$/.test(f) ||
-            /\/method\\\/\?\$/.test(f);
-          // /blog|notes/{slug} → /?p=blog#note-{slug} (deep-link preserve)
-          const hasNoteSlugRedirect = /#note-/.test(f) && /blog\|notes/.test(f);
-          // c228/v505: /sample → ?p=sample (pairs with core DG_PAGES.sample + verify footer:sample-path)
-          const hasSamplePath = /\\\/sample/.test(f) && /p=sample/.test(f);
-          // c309/v507: /pilot → ?p=pilot (pairs with DG_PAGES.pilot + legal nav + verify footer:pilot-path)
-          const hasPilotPath = /\\\/pilot/.test(f) && /p=pilot/.test(f);
-          footerLite = {
-            ok: true,
-            ver: ver ? `v${ver}` : null,
-            hasBlogRedirect,
-            hasMethodRedirect,
-            hasNestedPathRedirects,
-            hasNoteSlugRedirect,
-            hasSamplePath,
-            hasPilotPath,
-            shipReady:
-              hasBlogRedirect &&
-              hasMethodRedirect &&
-              hasNestedPathRedirects &&
-              hasNoteSlugRedirect &&
-              hasSamplePath &&
-              hasPilotPath,
-          };
-        } catch (e) {
-          footerLite = { ok: false, error: String(e.message || e).slice(0, 120) };
-        }
-        // Foot Notes vs blog SoR (dynamic DG_BLOG_POSTS template OR legacy static cards)
-        let footNotes = { ok: false, shipReady: false };
-        try {
-          const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-          const blogJson = safeJson(path.join(ROOT, 'demigod-blog-posts.json'));
-          const posts = (Array.isArray(blogJson?.posts) ? blogJson.posts : []).filter(
-            (p) => p && p.published !== false,
-          );
-          // Same dynamicSoR markers as demigod-verify-source core:blog-sor-in-sync
-          const dynamicSor =
-            /var\s+DG_BLOG_POSTS\s*=/.test(core) &&
-            /id="note-'\s*\+/.test(core) &&
-            /class="dg-blog-more"/.test(core) &&
-            /<summary>Full note · /.test(core);
-          let matched = 0;
-          let anchors = 0;
-          const gaps = [];
-          for (const p of posts) {
-            const slug = String(p.slug || '').trim();
-            const okTitle = !!(p.title && core.includes(p.title));
-            const okSummary = !!(p.summary && core.includes(p.summary));
-            const okAlt = !p.imageAlt || core.includes(p.imageAlt);
-            const bodySlice = p.body ? String(p.body).slice(0, 48) : '';
-            const bodyEsc = bodySlice ? JSON.stringify(bodySlice).slice(1, -1) : '';
-            const okBody =
-              !p.body || core.includes(bodySlice) || (bodyEsc && core.includes(bodyEsc));
-            // Static id= OR dynamic embed slug (runtime builds id="note-"+slug)
-            const okAnchor = !!(
-              slug &&
-              (core.includes(`id="note-${slug}"`) ||
-                (dynamicSor && core.includes(`"slug":"${slug}"`)))
-            );
-            if (okAnchor) anchors += 1;
-            if (okTitle && okSummary && okAlt && okBody && okAnchor) matched += 1;
-            else gaps.push(slug || '?');
-          }
-          const moreCount = (core.match(/class="dg-blog-more"/g) || []).length;
-          const hasDetails = dynamicSor
-            ? true
-            : moreCount >= posts.length && posts.length > 0;
-          // Deep-link path is focusBlogNoteFromHash + hashchange (comment string is not a gate)
-          const hasDeepLink =
-            core.includes('focusBlogNoteFromHash') || core.includes('Deep-link Notes cards');
-          const hasReducedMotionScroll =
-            /prefers-reduced-motion:\s*reduce/.test(core) && /scrollIntoView/.test(core);
-          const labeledSummaries = (core.match(/<summary>Full note · /g) || []).length;
-          const hasLabeledSummaries = dynamicSor
-            ? true
-            : labeledSummaries >= posts.length && posts.length > 0;
-          const hasNoteTitle = core.includes(' · Notes · Demigod');
-          const hasNoteHashChange =
-            /hashchange/.test(core) && core.includes('focusBlogNoteFromHash');
-          footNotes = {
-            ok: true,
-            posts: posts.length,
-            matched,
-            anchors,
-            moreCount,
-            dynamicSor: dynamicSor === true,
-            hasDetails,
-            hasDeepLink,
-            hasReducedMotionScroll,
-            labeledSummaries,
-            hasLabeledSummaries,
-            hasNoteTitle,
-            hasNoteHashChange,
-            gaps: gaps.slice(0, 5),
-            shipReady:
-              posts.length > 0 &&
-              matched === posts.length &&
-              hasDetails &&
-              anchors === posts.length &&
-              hasDeepLink &&
-              hasLabeledSummaries &&
-              hasNoteTitle &&
-              hasNoteHashChange &&
-              hasReducedMotionScroll,
-          };
-        } catch (e) {
-          footNotes = { ok: false, shipReady: false, error: String(e.message || e).slice(0, 120) };
-        }
-        // Foot version markers — thrash leaves splits mid-edit
-        let footMarkers = { ok: false, agree: false };
-        try {
-          const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-          const banner = (core.match(/dg-foot-v(\d+)-core/) || [])[1] || null;
-          const internal = (core.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
-          const publicV = (core.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
-          const booted = (core.match(/foot v(\d+)-core loaded/) || [])[1] || null;
-          const agree = !!(banner && internal && publicV && booted && new Set([banner, internal, publicV, booted]).size === 1);
-          footMarkers = {
-            ok: true,
-            agree,
-            banner: banner ? `v${banner}` : null,
-            internal: internal ? `v${internal}` : null,
-            public: publicV ? `v${publicV}` : null,
-            booted: booted ? `v${booted}` : null,
-          };
-        } catch (e) {
-          footMarkers = { ok: false, agree: false, error: String(e.message || e).slice(0, 80) };
-        }
-        // One fail-closed disk-prep signal for agents (no CDN/ship — paste readiness only)
-        const diskReadyBlockers = [];
-        if (!loopState?.ok) diskReadyBlockers.push('loopState');
-        if (!footMarkers?.agree) diskReadyBlockers.push('foot.markers');
-        if (!blog?.ok) diskReadyBlockers.push('blog');
-        // Prefer precise head blockers (CSS CDN lag ≠ missing og/meta)
-        if (head?.ok === false) diskReadyBlockers.push('head');
-        else if (head?.metaReady === false) diskReadyBlockers.push('head.meta');
-        else if (head?.cssFresh === false) diskReadyBlockers.push('head.css');
-        else if (head?.shipReady === false) diskReadyBlockers.push('head');
-        if (!footerLite?.shipReady) diskReadyBlockers.push('footerLite');
-        if (!footNotes?.shipReady) diskReadyBlockers.push('footNotes');
-        // onlyCssLag must not fire when foot CDN also drifts (agents would skip needed foot ship).
-        // Never treat prepare-only truth green (ship.pass) as sealed — disk≠live/man is unshipped.
-        const footSealed =
-          ship?.facts?.diskMatchesManifest === true &&
-          ship?.facts?.diskVer != null &&
-          String(ship.facts.diskVer).replace(/^v/, '') ===
-            String(ship.facts.liveVer ?? '').replace(/^v/, '') &&
-          String(ship.facts.diskVer).replace(/^v/, '') ===
-            String(ship.facts.manVer ?? '').replace(/^v/, '');
-        const onlyHeadCss =
-          diskReadyBlockers.length === 1 && diskReadyBlockers[0] === 'head.css';
-        const onlyCssLag = onlyHeadCss && footSealed === true;
-        const dVer =
-          ship?.facts?.diskVer != null ? String(ship.facts.diskVer).replace(/^v/, '') : null;
-        const lVer =
-          ship?.facts?.liveVer != null ? String(ship.facts.liveVer).replace(/^v/, '') : null;
-        const mVer =
-          ship?.facts?.manVer != null ? String(ship.facts.manVer).replace(/^v/, '') : null;
-        let diskReadyNote = null;
-        if (onlyCssLag) {
-          diskReadyNote =
-            'foot sealed + metaReady; head CSS differs · external publish remains current-request-gated';
-        } else if (onlyHeadCss && !footSealed) {
-          if (dVer && mVer && dVer !== mVer) {
-            diskReadyNote = `disk v${dVer}≠man v${mVer} — run bin/dg ship prepare`;
-          } else if (dVer && lVer && dVer !== lVer) {
-            diskReadyNote = `live v${lVer} lags disk v${dVer} — run bin/dg ship prepare`;
-          } else {
-            diskReadyNote = 'head.css lag AND foot not sealed — run bin/dg ship prepare';
-          }
-        } else if (diskReadyBlockers.includes('foot.markers')) {
-          diskReadyNote = 'foot version markers disagree (banner/internal/public/booted) — finish foot bump under lock';
-        }
-        const diskReady = {
-          ok: diskReadyBlockers.length === 0,
-          blockers: diskReadyBlockers,
-          footSealed: footSealed === true,
-          onlyCssLag,
-          note: diskReadyNote,
-        };
-        // Lanes + shared digest (anti-thrash multi-agent contract)
-        const lanes = {
-          claude: 'website',
-          codex: 'tools',
-          grok: 'gates',
-          rules:
-            'claude=foot/head/blog via dg-lock; codex=dash/tools only (no foot-core); grok=verify+coord (website SoR only by explicit board assignment)',
-        };
-        let claims = safeJson(path.join(coordDir, 'claims.json'));
-        // Drop stale holds independently; legacy strings fall back to claims.at.
-        try {
-          if (claims && typeof claims === 'object') {
-            const holds = claims.holds && typeof claims.holds === 'object' ? { ...claims.holds } : {};
-            const staleKeys = Object.entries(holds)
-              .filter(([, hold]) => {
-                const age = Date.now() - Date.parse(hold?.at || claims.at);
-                return !Number.isFinite(age) || age < -60_000 || age > 15 * 60_000;
-              })
-              .map(([key]) => key);
-            const activeHolds = Object.fromEntries(Object.entries(holds).filter(([key]) => !staleKeys.includes(key)));
-            if (staleKeys.length) {
-              claims = {
-                ...claims,
-                holds: activeHolds,
-                holdsCleared: staleKeys,
-                holdsStale: true,
-                active: Object.keys(activeHolds).length > 0,
-                activeHoldCount: Object.keys(activeHolds).length,
-              };
-            } else {
-              claims = {
-                ...claims,
-                holds,
-                holdsStale: false,
-                // Non-active claims must never be treated as ship-ready evidence
-                active: Object.keys(holds).length > 0,
-                activeHoldCount: Object.keys(holds).length,
-              };
-            }
-          }
-        } catch {
-          /* keep raw claims */
-        }
-        let digest = null;
-        try {
-          const digPath = path.join(coordDir, 'digest.md');
-          const st = fs.statSync(digPath);
-          const ageSec = Math.round((Date.now() - st.mtimeMs) / 1000);
-          const clockSkewed = ageSec < -60;
-          const text = fs.readFileSync(digPath, 'utf8');
-          digest = {
-            ageSec: Math.max(0, ageSec),
-            clockSkewed,
-            stale: clockSkewed || ageSec > 600,
-            lines: text.split('\n').length,
-            preview: text.slice(0, 600),
-          };
-        } catch {
-          digest = { ageSec: null, clockSkewed: false, stale: true, lines: 0, preview: '' };
-        }
-        const chat = withFreshness(safeJson(path.join(coordDir, 'chat-last.json')));
-        // Periodic Codex swarm assist (bin/dg-codex-swarm + demigod-codex-swarm.timer)
-        const swarmLast = withFreshness(safeJson(path.join(BUSY, 'swarm', 'swarm-last.json')));
-        let swarmLatestAgeSec = null;
-        let swarmLatestClockSkewed = false;
-        try {
-          const st = fs.statSync(path.join(BUSY, 'swarm', 'latest.md'));
-          const ageSec = Math.round((Date.now() - st.mtimeMs) / 1000);
-          swarmLatestClockSkewed = ageSec < -60;
-          swarmLatestAgeSec = Math.max(0, ageSec);
-        } catch {
-          /* */
-        }
-        const swarm = {
-          last: swarmLast,
-          latestAgeSec: swarmLatestAgeSec,
-          clockSkewed: swarmLatestClockSkewed,
-          stale: swarmLatestClockSkewed || swarmLatestAgeSec == null || swarmLatestAgeSec > 20 * 60,
-          dir: path.join(BUSY, 'swarm'),
-          cmd: 'bin/dg-codex-swarm once',
-        };
-        // Human-readable multi-agent work summary (Home panel; refresh via /api/coord poll)
-        const workLogAgent = (id, label, rec, workerStatus) => {
-          const did = Array.isArray(rec?.did)
-            ? rec.did.map((d) => String(d).trim()).filter(Boolean).slice(0, 6)
-            : rec?.did
-              ? [String(rec.did).trim()].filter(Boolean)
-              : [];
-          const next = rec?.next != null ? (Array.isArray(rec.next) ? rec.next.join(' · ') : String(rec.next)).trim().slice(0, 280) : null;
-          const headline = did[0] || next || rec?.focus || rec?.note || '(no recent did[])';
-          return {
-            id,
-            label,
-            lane: rec?.lane || lanes[id] || null,
-            status: workerStatus || (rec?.stale ? 'stale' : rec ? 'idle' : 'missing'),
-            ok: rec?.ok ?? null,
-            cycle: rec?.cycle ?? null,
-            at: rec?.at || null,
-            ageSec: rec?.ageSec ?? null,
-            stale: !!rec?.stale,
-            clockSkewed: !!rec?.clockSkewed,
-            headline: String(headline).slice(0, 220),
-            did,
-            next,
-            files: Array.isArray(rec?.files) ? rec.files.slice(0, 8) : [],
-          };
-        };
-        const workAgents = [
-          workLogAgent('claude', 'Claude', claude, coordWorkers.claude),
-          workLogAgent('codex', 'Codex', codex, coordWorkers.codex),
-          workLogAgent('grok', 'Grok', grok, coordWorkers.grok),
-          workLogAgent('chat', 'Chat (this thread)', chat, null),
-        ];
-        if (term?.claude) workAgents.push(workLogAgent('term-claude', 'Term Claude', term.claude, null));
-        if (term?.grok) workAgents.push(workLogAgent('term-grok', 'Term Grok', term.grok, null));
-        const recent = [];
-        for (const a of workAgents) {
-          if (!a.at && !a.did.length) continue;
-          recent.push({
-            at: a.at,
-            ageSec: a.ageSec,
-            agent: a.id,
-            label: a.label,
-            cycle: a.cycle,
-            lane: a.lane,
-            text: a.did.length ? a.did.join(' · ') : a.headline,
-            source: 'receipt',
-          });
-        }
-        const boardDone = Array.isArray(effectiveBoard?.done_recent) ? effectiveBoard.done_recent : [];
-        for (const d of boardDone.slice(0, 12)) {
-          const text = d?.did != null ? String(d.did).trim() : d?.text != null ? String(d.text).trim() : '';
-          if (!text) continue;
-          const at = d?.at || null;
-          const ageMs = at ? Date.now() - Date.parse(at) : NaN;
-          if (!Number.isFinite(ageMs) || ageMs < -60_000) continue;
-          const ageSec = Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null;
-          recent.push({
-            at,
-            ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
-            agent: d?.agent || 'board',
-            label: d?.agent || 'board',
-            cycle: d?.cycle ?? null,
-            lane: null,
-            text: text.slice(0, 400),
-            source: 'board',
-          });
-        }
-        recent.sort((a, b) => {
-          const ta = a.at ? Date.parse(a.at) : 0;
-          const tb = b.at ? Date.parse(b.at) : 0;
-          return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-        });
-        const busyBits = workAgents
-          // ageSec >= -60 rejects a future-dated/clock-skewed heartbeat (negative age passes `< 600`
-          // and would read as active) while tolerating ~60s of skew — same future-guard class as the
-          // dashboard's other freshness checks (>= -60000ms).
-          .filter((a) => a.status === 'busy' || (!a.stale && a.ageSec != null && a.ageSec >= -60 && a.ageSec < 600))
-          .map((a) => `${a.label}${a.lane ? '·' + a.lane : ''}: ${a.headline}`)
-          .slice(0, 4);
-        let workSummary =
-          busyBits.length > 0
-            ? busyBits.join(' | ')
-            : recent[0]
-              ? `${recent[0].label}: ${String(recent[0].text).slice(0, 160)}`
-              : 'No recent agent receipts yet — workers write *-last.json each cycle.';
-        // Ship strip for humans (sealed vs lag) — avoids reading raw ship.facts JSON
-        const shipSnap = {
-          disk: shipFacts?.diskVer != null ? String(shipFacts.diskVer).replace(/^v/, '') : null,
-          live: shipFacts?.liveVer != null ? String(shipFacts.liveVer).replace(/^v/, '') : null,
-          man: shipFacts?.manVer != null ? String(shipFacts.manVer).replace(/^v/, '') : null,
-          sealed: diskReady?.footSealed === true || diskReady?.ok === true,
-          blockers: Array.isArray(diskReady?.blockers) ? diskReady.blockers.slice(0, 4) : [],
-        };
-        if (shipSnap.disk || shipSnap.live) {
-          const shipBit = shipSnap.sealed
-            ? `ship=sealed v${shipSnap.live || shipSnap.disk}`
-            : `ship disk=${shipSnap.disk || '?'} live=${shipSnap.live || '?'} man=${shipSnap.man || '?'}${shipFacts?.liveCdnId ? ' live@' + String(shipFacts.liveCdnId).slice(0,12) : ''}${shipFacts?.manCdnId ? ' man@' + String(shipFacts.manCdnId).slice(0,12) : ''}${shipSnap.blockers.length ? ' · ' + shipSnap.blockers.join(',') : ''}`;
-          workSummary = `${shipBit} · ${workSummary}`;
-        }
-        // Firecrawl usertest snapshot (optional file; no extra network)
-        let crawlSnap = null;
-        try {
-          const crawlPath = path.join(BUSY, 'firecrawl', 'FIRECRAWL-DATA-REPORT.json');
-          const crawl = safeJson(crawlPath);
-          if (crawl?.findings?.length) {
-            const open = crawl.findings.filter((f) => f && f.sev && f.sev !== 'info');
-            const ids = open.map((f) => String(f.id || ''));
-            const ageMs = crawl.at ? Date.now() - Date.parse(crawl.at) : null;
-            crawlSnap = {
-              at: crawl.at || null,
-              ageSec: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
-              liveFoot: crawl.live_foot || null,
-              shipLive: shipSnap.live || null,
-              shipDisk: shipSnap.disk || null,
-              shipSealed: shipSnap.sealed === true,
-              open: open.length,
-              top: open.slice(0, 4).map((f) => `${f.sev}·${f.id}`),
-              serpHello: ids.some((id) => /hello|serp-stale-hello/i.test(id)),
-              serpVolume: ids.some((id) => /3-5|volume|serp-stale-3/i.test(id)),
-              noSitemap: ids.some((id) => /sitemap/i.test(id)),
-            };
-            if (crawlSnap.open > 0) {
-              const flags = [
-                crawlSnap.serpHello ? 'hello@' : null,
-                crawlSnap.serpVolume ? '3-5' : null,
-                crawlSnap.noSitemap ? 'sitemap' : null,
-              ].filter(Boolean);
-              workSummary = `crawl open=${crawlSnap.open}${flags.length ? ' [' + flags.join(',') + ']' : ''} (${crawlSnap.top.join(',')}) · ${workSummary}`;
-            }
-          }
-        } catch (_) { /* ignore */ }
-        // Live verify residual (DEMIGOD-VERIFY-LIVE.json) — Designer static drift vs runtime scrub
-        let liveSnap = null;
-        try {
-          const livePath = path.join(ROOT, 'DEMIGOD-VERIFY-LIVE.json');
-          const live = safeJson(livePath);
-          if (live?.findings?.length || live?.at) {
-            const findings = Array.isArray(live.findings) ? live.findings : [];
-            const ageMs = live.at ? Date.now() - Date.parse(live.at) : null;
-            const tops = findings.slice(0, 4).map((f) => `${f.severity || f.sev || '?'}:${String(f.issue || f.id || '').slice(0, 60)}`);
-            const volumeStatic = findings.some((f) => /volume promise|3-5/i.test(String(f.issue || '')));
-            const helloStatic = findings.some((f) => /hello@/i.test(String(f.issue || '')));
-            liveSnap = {
-              at: live.at || null,
-              ageSec: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
-              stale: !Number.isFinite(ageMs) || ageMs < -60_000 || ageMs > 30 * 60_000,
-              pass: live.pass === true,
-              open: findings.length,
-              top: tops,
-              volumeStatic,
-              helloStatic,
-              runtimeScrubNote: [
-                volumeStatic ? 'Designer canvas 3-5 remains in raw HTML; head+foot rewrite after JS' : null,
-                helloStatic ? 'hello@ in static HTML; runtime scrubs to potter@' : null,
-              ].filter(Boolean).join(' · ') || null,
-            };
-            if (liveSnap.open > 0 && !liveSnap.stale) {
-              const note = [volumeStatic ? 'canvas volume' : null, helloStatic ? 'hello@' : null].filter(Boolean);
-              const noteBit = note.length ? ' · ' + note.join('+') + ' (JS scrub)' : '';
-              const staticOnly = findings.every((f) => /volume promise|3-5|hello@/i.test(String(f.issue || '')));
-              liveSnap.staticOnlyResiduals = staticOnly;
-              workSummary = `liveVerify open=${liveSnap.open}${noteBit}${staticOnly && shipSnap.sealed ? ' · hold sealed' : ''} (${liveSnap.top.join('; ')}) · ${workSummary}`;
-            }
-          }
-        } catch (_) { /* ignore */ }
-        // Redesign / CDN pin lag (disk ship blocked on Webflow paste)
-        let redesignSnap = null;
-        try {
-          const man = safeJson(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json'));
-          const pub = safeJson(path.join(BUSY, 'redesign-publish-status.json'));
-          if (man?.footVer || man?.version || pub?.diskFoot) {
-            const manVer = String(man?.footVer || man?.version || shipSnap.man || '').replace(/^v/, '');
-            redesignSnap = {
-              disk: String(shipSnap.disk || pub?.diskFoot || man?.footVer || man?.version || '').replace(/^v/, ''),
-              live: String(shipSnap.live || pub?.liveFoot || '').replace(/^v/, '') || null,
-              man: shipSnap.man || manVer || null,
-              manVer: manVer || null,
-              cdnUrl: man?.cdnUrl || pub?.cdn || null,
-              manCdnShort: (man?.cdnUrl || pub?.cdn || '').split('@')[1]?.slice(0,12) || (shipFacts?.manCdnId || '').slice(0,12) || null,
-              liveCdnShort: (shipFacts?.liveCdnId || '').slice(0,12) || null,
-              pasteBlocked: Boolean(pub?.blockers?.length) || (shipSnap.disk && shipSnap.live && String(shipSnap.disk) !== String(shipSnap.live)) || (man?.version && shipSnap.live && String(man.version) !== String(shipSnap.live).replace(/^v/,'')),
-              pasteReason: (Array.isArray(pub?.blockers) && pub.blockers[0]) || shipFacts?.pasteBlockedBy || null,
-              stage: pub?.stage || shipSnap.stage || null,
-              manAt: man?.at || null,
-              cdnSealed: Boolean(shipSnap.disk && manVer && String(shipSnap.disk).replace(/^v/, '') === String(manVer).replace(/^v/, '')),
-              lagVer: (function () {
-                const d = Number(String(shipSnap.disk || pub?.diskFoot || '').replace(/^v/, ''));
-                const l = Number(String(shipSnap.live || pub?.liveFoot || '').replace(/^v/, ''));
-                if (Number.isFinite(d) && Number.isFinite(l) && d !== l) return d - l;
-                if (pub?.lagVer != null && Number.isFinite(Number(pub.lagVer))) return Number(pub.lagVer);
-                return null;
-              })(),
-            };
-            if (redesignSnap.pasteBlocked && redesignSnap.disk) {
-              const manBit = redesignSnap.manVer ? ` man v${redesignSnap.manVer}` : '';
-              const why = redesignSnap.pasteReason ? ` · ${String(redesignSnap.pasteReason).slice(0, 48)}` : '';
-              const seal = redesignSnap.cdnSealed ? ' cdn-sealed' : '';
-              const lagBit = redesignSnap.lagVer != null ? ` lag+${redesignSnap.lagVer}` : '';
-              const manAtBit = redesignSnap.manAt ? ` manAt ${String(redesignSnap.manAt).slice(0, 16)}` : '';
-              workSummary = `redesign disk v${redesignSnap.disk} live v${redesignSnap.live || '?'}${manBit}${seal}${lagBit}${manAtBit} man@${redesignSnap.manCdnShort || '?'} live@${redesignSnap.liveCdnShort || '?'} (paste blocked${why}) · ${workSummary}`;
-            }
-          }
-        } catch (_) { /* ignore */ }
-        const workLog = {
-          schema: 'demigod.work-log/1',
+    if (url.pathname === '/api/coord') {
+      const workLog = compactWorkStatus();
+      jsonSend(
+        res,
+        200,
+        {
+          ok: true,
+          schema: 'demigod.coord-compat/1',
           at: new Date().toISOString(),
-          summary: workSummary.slice(0, 600),
-          ship: shipSnap,
-          redesign: redesignSnap,
-          crawl: crawlSnap,
-          live: liveSnap,
-          agents: workAgents,
-          recent: recent.slice(0, 24),
-          backlog: Array.isArray(effectiveBoard?.backlog)
-            ? effectiveBoard.backlog.map((b) => String(b).slice(0, 200)).slice(0, 6)
-            : [],
-          goal: effectiveBoard?.goal || null,
-          cycle: effectiveBoard?.cycle ?? null,
-          loopRunning: pidAlive || pidUnobservable,
-        };
-        const qualityBacklog = safeJson(path.join(coordDir, 'quality-backlog.json'));
-        const openP0P1 = (qualityBacklog?.items || []).filter(
-          (item) => item?.status === 'open' && (item?.sev === 'P0' || item?.sev === 'P1'),
-        );
-        const coordPayload = {
-            ok: true,
-            schema: 'demigod.coord-api/2',
-            at: new Date().toISOString(),
-            loopRunning: pidAlive || pidUnobservable,
-            supervisor: { alive: pidAlive, pidUnobservable, heartbeatFresh, heartbeatAgeSec, stopRequested, unexpectedDown: supervisorDown },
-            workers: coordWorkers,
-            reconciliation: {
-              needed: supervisorDown || (!stopRequested && staleTracks.length > 0),
-              staleTracks,
-              cmd: supervisorDown ? 'bin/dg-agent-coord start' : 'bin/dg-agent-coord status',
-            },
-            lanes,
-            claims,
-            digest,
-            swarm,
-            quality: {
-              at: qualityBacklog?.at || null,
-              openP0P1: openP0P1.length,
-              items: openP0P1,
-            },
-            workLog,
-            board: effectiveBoard,
-            claude,
-            codex,
-            grok,
-            chat,
-            term,
-            ship,
-            // Fresh ship prepare dogfood (bin/dg ship prepare → ship-prepare.json)
-            shipPrepare: (() => {
-              const rec = safeJson(path.join(BUSY, 'ship-prepare.json'));
-              if (!rec?.at) return { ok: false, fresh: false };
-              const ageMs = Date.now() - Date.parse(rec.at);
-              const ageSec = Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null;
-              const fresh =
-                Number.isFinite(ageSec) && ageSec >= -60 && ageSec <= 30 * 60;
-              const steps = Array.isArray(rec.steps)
-                ? rec.steps.map((s) => ({
-                    label: s?.label || s?.name || '?',
-                    ok: s?.ok === true,
-                  }))
-                : [];
-              return {
-                ok: rec.ok === true && fresh,
-                pass: rec.ok === true,
-                fresh,
-                ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
-                at: rec.at,
-                steps,
-                failed: steps.filter((s) => !s.ok).map((s) => s.label),
-              };
-            })(),
-            loopState,
-            footMarkers,
-            blog,
-            head,
-            footerLite,
-            footNotes,
-            // Head CSS CDN dogfood (agents check match without shell curl)
-            headCss: (() => {
-              const rec = safeJson(path.join(BUSY, 'head-css-cdn.json'));
-              if (!rec?.at) return rec || { ok: false, match: null };
-              const ageMs = Date.now() - Date.parse(rec.at);
-              const ageSec = Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null;
-              const clockSkewed = Number.isFinite(ageSec) && ageSec < -60;
-              const stale = !Number.isFinite(ageSec) || clockSkewed || ageSec > 3600;
-              // Content-proof does not expire -- same rule the ship path uses above. Age alone made
-              // this card PERMANENTLY ok:false: the live re-probe that would advance the receipt's
-              // `at` is gated on !cssFresh, and cssFresh is true precisely BECAUSE content-proof
-              // holds, so the timestamp can never refresh. The card then contradicted the ship path
-              // on the same receipt -- byte-identical CSS (md5 ==, 81890 B) reported not-ok for
-              // hours. Proof requires the head still point at the receipt's href, so a re-upload to
-              // a new CDN URL correctly falls back to age.
-              const contentProof = !!(
-                rec.diskMd5 &&
-                headCssProof &&
-                rec.diskMd5 === headCssProof.diskCssMd5 &&
-                (!rec.href || !headCssProof.cssUrl || rec.href === headCssProof.cssUrl)
-              );
-              return {
-                ok: rec.match === true && !clockSkewed && (contentProof || !stale),
-                match: rec.match === true,
-                contentProof,
-                href: rec.href || null,
-                diskMd5: rec.diskMd5 || null,
-                liveMd5: rec.liveMd5 || null,
-                diskBytes: rec.diskBytes ?? null,
-                liveBytes: rec.liveBytes ?? null,
-                at: rec.at,
-                ageSec: Number.isFinite(ageSec) ? Math.max(0, ageSec) : null,
-                clockSkewed,
-                stale,
-                note: rec.note || null,
-              };
-            })(),
-            diskReady,
-            // Compact foot-lock dogfood (agents avoid shelling demigod-foot-lock status)
-            footLock: (() => {
-              try {
-                const lk = footLock();
-                const j = lk?.json || null;
-                return {
-                  locked: lk?.locked === true,
-                  free: lk?.locked !== true,
-                  expired: lk?.expired === true,
-                  compromised: lk?.compromised === true,
-                  owner: j?.owner || null,
-                  why: j?.why ? String(j.why).slice(0, 120) : null,
-                  footVer: j?.footVer || null,
-                  at: j?.at || null,
-                  expiresAt: j?.expiresAt || null,
-                  ttlLeftSec: lk?.ttlLeftSec ?? null,
-                  baseShaMatch: lk?.baseShaMatch ?? null,
-                  changedSinceClaim: lk?.changedSinceClaim ?? null,
-                };
-              } catch (e) {
-                return { locked: null, free: false, error: String(e.message || e).slice(0, 80) };
-              }
-            })(),
-            webflow: webflow
-              ? {
-                  at: webflow.at || null,
-                  ageMs: webflowAgeMs,
-                  fresh: webflowFresh,
-                  clockSkewed: Number.isFinite(webflowAgeMs) && webflowAgeMs < -60000,
-                  cdp: webflow.cdp?.ok === true,
-                  tabs: webflow.tabs?.byRole || {},
-                  doctorFresh: webflowDoctorFresh,
-                  doctorCmd: webflowDoctorFresh ? null : 'bin/dg webflow doctor',
-                  doctorClockSkewed: Number.isFinite(webflowDoctorAgeMs) && webflowDoctorAgeMs < -60000,
-                  doctorObservable:
-                    webflowDoctorFresh &&
-                    !(webflow.doctor?.tips || []).some((tip) => tip.includes('unobservable')) &&
-                    !(webflow.doctor?.checks || []).some((check) => check.name === 'cdp' && /EPERM/.test(check.detail || '')),
-                  doctorPass: webflowDoctorFresh ? webflow.doctor?.pass ?? null : null,
-                  doctorFailed: webflowDoctorFresh
-                    ? (webflow.doctor?.checks || [])
-                        .filter((check) => !check.ok && !['designer tab', 'custom-code tab', 'live tab'].includes(check.name))
-                        .map((check) => check.name)
-                    : [],
-                  ready: webflowFresh ? webflow.ready ?? null : null,
-                }
-              : null,
-            inboxTail,
-            brief: '/tmp/dg-busy/coord/CLAUDE-BRIEF.md',
-            cli: 'bin/dg-agent-coord status|lanes|start|stop|once',
-        };
-        writeJsonAtomic(path.join(BUSY, 'coord-api-last.json'), coordPayload);
-        coordCache = { at: Date.now(), data: coordPayload };
-        jsonSend(res, 200, coordPayload, { pretty });
-      } catch (e) {
-        jsonSend(res, 500, { error: String(e.message || e) });
-      }
+          workLog,
+          orca: safeJson(path.join(BUSY, 'orca-status.json')),
+        },
+        { pretty: url.searchParams.get('pretty') === '1' },
+      );
       return;
     }
 
@@ -6266,7 +4415,7 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/api/control' || url.pathname === '/api/control-plane') {
+    if (url.pathname === '/api/control') {
       try {
         const force = url.searchParams.get('force') === '1' || url.searchParams.get('refresh') === '1';
         const pretty = url.searchParams.get('pretty') === '1';
@@ -6429,7 +4578,7 @@ const server = http.createServer(async (req, res) => {
       res.end('GET or POST');
       return;
     }
-    if (url.pathname === '/api/agent-brief' || url.pathname === '/api/brief') {
+    if (url.pathname === '/api/agent-brief') {
       const data = await getStatus({ force: url.searchParams.get('force') === '1' });
       const format = url.searchParams.get('format') || 'md';
       const wantUnifyOnly = url.searchParams.get('unify') === '1' || url.searchParams.get('unifyOnly') === '1';
@@ -6535,19 +4684,10 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/tools') {
       try {
         const { buildRegistry, toMarkdown } = await import('./demigod-tools-registry.mjs');
-        const group = url.searchParams.get('group') || null;
-        // Default agent-friendly: hide aliases + hot only.
-        // Full catalog: ?all=1 or hideAliases=0&hotOnly=0
+        // Default agent-friendly: primary tools only. Full catalog: ?all=1.
         const allTools =
           url.searchParams.get('all') === '1' || url.searchParams.get('all') === 'true';
-        const hideAliases = allTools
-          ? false
-          : url.searchParams.get('hideAliases') !== '0' &&
-            url.searchParams.get('hideAliases') !== 'false';
-        const hotOnly = allTools
-          ? false
-          : url.searchParams.get('hotOnly') !== '0' && url.searchParams.get('hotOnly') !== 'false';
-        const reg = annotateRunnableTools(buildRegistry({ group, hideAliases, hotOnly }));
+        const reg = annotateRunnableTools(buildRegistry({ hotOnly: !allTools }));
         const format = url.searchParams.get('format') || 'json';
         if (format === 'md') {
           res.writeHead(200, { ...noStore, 'Content-Type': 'text/markdown; charset=utf-8' });
@@ -6575,7 +4715,7 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(rec, null, 2));
       return;
     }
-    if (url.pathname === '/api/jobs' || url.pathname === '/api/job/start') {
+    if (url.pathname === '/api/jobs') {
       const id = url.searchParams.get('run') || url.searchParams.get('id') || url.searchParams.get('type');
       const allowMutate = url.searchParams.get('allowMutate') === '1';
       const wait = url.searchParams.get('wait') === '1';
@@ -6669,12 +4809,12 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/dashboard' || url.pathname === '/v2' || url.pathname === '/v5') {
+    if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/dashboard') {
       res.writeHead(200, { ...noStore, 'Content-Type': 'text/html; charset=utf-8' });
       res.end(loadHtml());
       return;
     }
-    if (url.pathname === '/healthz' || url.pathname === '/health' || url.pathname === '/api/healthz') {
+    if (url.pathname === '/healthz' || url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
@@ -6683,8 +4823,6 @@ const server = http.createServer(async (req, res) => {
           cacheAgeMs: statusCache.data ? Date.now() - statusCache.at : null,
           statusTtlMs: STATUS_TTL_MS,
           controlTtlMs: CONTROL_TTL_MS,
-          coordTtlMs: COORD_TTL_MS,
-          coordCacheAgeMs: coordCache.data ? Date.now() - coordCache.at : null,
           inflight: Boolean(statusInflight),
         }),
       );
@@ -6748,7 +4886,6 @@ server.listen(PORT, '127.0.0.1', () => {
         briefFile: BRIEF_MD,
         refreshSec: 45,
         statusTtlMs: STATUS_TTL_MS,
-        coordTtlMs: COORD_TTL_MS,
       },
       null,
       2,

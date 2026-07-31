@@ -8,7 +8,7 @@ const control = fs.readFileSync(new URL('./demigod-control.mjs', import.meta.url
 const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
 const eventPage = foot.slice(foot.indexOf("  events: {"), foot.indexOf("  notfound:", foot.indexOf("  events: {")));
 const mapEventsHtml = foot.slice(foot.indexOf('function dgMapEventsHtml'), foot.indexOf('var DG_PAGES'));
-const submissionMount = foot.slice(foot.indexOf('function communitySubmissionsMount'), foot.indexOf('function eventsBotChatMount'));
+const submissionMount = foot.slice(foot.indexOf('function communitySubmissionsMount'), foot.indexOf('function closePage'));
 
 test('dashboard Events status supports an isolated store fixture', () => {
   assert.match(server, /const EVENTS_STORE = process\.env\.DEMIGOD_EVENTS_STORE \|\| path\.join\(ROOT, 'DEMIGOD-EVENTS\.json'\)/);
@@ -39,9 +39,12 @@ test('public Events page is SF events with reviewed submissions (map is separate
   assert.match(eventPage, /html:\s*dgMapEventsHtml\('events'\)/);
   assert.match(foot, /map:\s*\{[\s\S]*?html:\s*dgMapEventsHtml\('startups'\)/);
   assert.match(mapEventsHtml, /function dgMapEventsHtml\(kind\)/);
-  assert.match(mapEventsHtml, /Submit an SF event/);
-  assert.match(mapEventsHtml, /Every submission is human-reviewed before it appears/);
-  assert.match(mapEventsHtml, /Submitting does not publish|nothing is published, booked, or sent/);
+  // v859 reworded this copy; the guard tracks the CLAIMS, not the old sentences.
+  // SF framing, human review before listing, and "we don't act on your behalf" all still
+  // have to be on the page — each assertion below fails if its claim disappears.
+  assert.match(mapEventsHtml, /SF tech events/);
+  assert.match(mapEventsHtml, /A human reviews every submission before it appears|human checks before it/);
+  assert.match(mapEventsHtml, /never publishes, books a venue, or messages guests for you|Submitting does not publish|nothing is published, booked, or sent/);
   assert.doesNotMatch(mapEventsHtml, /dg-ev-cal-form|dg-ev-offers|dg-ev-extra/);
   assert.match(
     foot,
@@ -59,9 +62,15 @@ test('public Events page is SF events with reviewed submissions (map is separate
     /if \(id === 'events' \|\| id === 'map'\) root\.classList\.add\('dg-page-events',\s*'dg-page-map'\)/,
   );
   // v810: map directory CTAs are Home only (not dual hire/talent strip)
-  assert.match(foot, /if \(id === 'events' \|\| id === 'map'\) return back/);
+  // v859 added `|| id === 'refer'` to the same rule. Pin the behaviour (events AND map
+  // both get the plain back link), not the exact page list, so adding a page is not a RED.
+  const backRule = foot.match(/if \(id === 'events'[^)]*\) return back/)?.[0] || '';
+  assert.match(backRule, /id === 'map'/, 'map must share the plain back link with events');
 
-  assert.doesNotMatch(foot, /\n\s+(eventsBotCalendarMount|eventsBotOffersMount|eventsBotExtraMount)\(root\);/);
+  assert.doesNotMatch(
+    foot,
+    /function eventsBot(?:NativeHost|Calendar|Cycle|Offers|Extra|Chat)Mount\(/,
+  );
 });
 
 
@@ -87,14 +96,22 @@ test('public submissions use explicit reviewed endpoints and browser-held manage
   assert.match(submissionMount, /post\('\/startup-submission'[\s\S]*?remember\(credential\)/);
   {
     const render = new Function(mapEventsHtml + '; return dgMapEventsHtml;')();
-    assert.match(render('events'), /Manage my event submissions/);
-    assert.match(render('startups'), /Manage my startup submissions/);
-    assert.match(render('events'), /private management keys for event submissions/);
-    assert.match(render('startups'), /private management keys for startup submissions/);
+    const eventsHtml = render('events');
+    const startupsHtml = render('startups');
+    assert.match(eventsHtml, /<details hidden><summary>Manage my event submissions/);
+    assert.match(startupsHtml, /<details hidden><summary>Manage my startup submissions/);
+    assert.match(eventsHtml, /private management keys for event submissions/);
+    assert.match(startupsHtml, /private management keys for startup submissions/);
+    assert.doesNotMatch(eventsHtml + startupsHtml, /No (?:event|startup) submissions saved|Submit and manage/);
   }
   assert.doesNotMatch(foot, /Manage my submitted events/);
   assert.match(submissionMount, /No reachable event submissions are saved in this browser/);
   assert.match(submissionMount, /No reachable startup submissions are saved in this browser/);
+  assert.match(
+    submissionMount,
+    /var pageKind = \(listingsBox && listingsBox\.getAttribute\('data-kind'\)\) \|\| 'both';[\s\S]*var rows = credentials\(\)\.filter[\s\S]*pageKind === 'events' && startup[\s\S]*pageKind === 'startups' && !startup[\s\S]*if \(!rows\.length\) return;\s*manage\.parentElement\.hidden = false;/,
+  );
+  assert.doesNotMatch(submissionMount, /return Promise\.resolve\(null\)/);
   assert.doesNotMatch(mapEventsHtml, /Imagine my event|Events Bot event planner|Surprise me/);
   // Form markup is JSON-string embedded (escaped quotes in source); assert runtime HTML.
   {
@@ -138,10 +155,16 @@ test('community listings render each feed independently when the other fails', (
   assert.match(submissionMount, /if \(startupsOk\) \{\s*window\.dgCommunityStartups = startups;\s*if \(window\.DemigodStartupMap && window\.DemigodStartupMap\.addCommunityStartups\)/);
 });
 
-test('event submission warns when its only browser-held management key cannot be saved', () => {
-  const source = submissionMount.match(/function remember\(row\) \{[\s\S]*?\n  \}/)?.[0];
-  const remember = Function('credentials', 'storageKey', `var localStorage = { setItem() { throw new Error('storage blocked'); } }; ${source}; return remember;`)(() => [], 'dg-event-management-v1');
-  assert.equal(remember({ id: 'event_1', manageToken: 'secret' }), false);
+test('blocked storage keeps a management key in memory and retains imported private links', () => {
+  const source = submissionMount.slice(submissionMount.indexOf("var storageKey = 'dg-event-management-v1'"), submissionMount.indexOf('function managementLink'));
+  const { remember, credentials } = Function('localStorage', `${source}; return { remember, credentials };`)({
+    getItem() { return '[]'; },
+    setItem() { throw new Error('storage blocked'); },
+  });
+  const credential = { id: 'event_1', manageToken: 'secret' };
+  assert.equal(remember(credential), false);
+  assert.deepEqual(credentials(), [credential]);
+  assert.match(submissionMount, /if \(remember\(\{ id: imported\[0\], manageToken: imported\[1\] \}\)\) history\.replaceState/);
   assert.match(submissionMount, /var saved = remember\([\s\S]*?browser blocked saving its management key[\s\S]*?event id/);
 });
 
@@ -365,7 +388,7 @@ test('event operator card uses canonical event resource gaps, not planning check
 test('event status retains resource-planning size and date windows without crowding the card', () => {
   assert.match(server, /seats: Number\.isFinite\(active\.seats\) \? active\.seats : null/);
   assert.match(server, /dateWindows: Array\.isArray\(active\.dateWindows\) \? active\.dateWindows\.filter\(Boolean\) : \[\]/);
-  assert.doesNotMatch(ui, /dateWindows\.map\(formatEventWindow\)/);
+  assert.doesNotMatch(ui, /formatEventWindow/);
 });
 
 test('event operator card exposes the future-datetime RSVP gate first', () => {

@@ -10,11 +10,19 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { findSubmission, extractEmail, extractResumeReference, publicStatus } from './demigod-submissions-lib.mjs';
-import { getPair } from './demigod-pairs-lib.mjs';
+import {
+  findSubmission,
+  extractEmail,
+  extractResumeReference,
+  projectDraftText,
+  projectDraftUrl,
+  publicStatus,
+  scrubPII,
+} from './demigod-submissions-lib.mjs';
+import { assertCurrentPairEligibility, getPair } from './demigod-pairs-lib.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
-const BUSY = '/tmp/dg-busy';
+const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 const args = process.argv.slice(2);
 const INTRO_FLAGS = new Set(['--json', '--force', '--help', '-h']);
 const unknownIntro = args.find((a) => a.startsWith('-') && !INTRO_FLAGS.has(a));
@@ -48,31 +56,44 @@ if (!item && !pair) {
 
 // Intro lifecycle gate: if drafting for a pair, must be approved or mutual_yes
 const forced = process.argv.includes('--force');
-if (pair && !['approved', 'mutual_yes'].includes(pair.state) && !forced) {
+const pairSample = pair ? pair.sample !== false : false;
+const forceAllowed = forced && pairSample;
+const actor = projectDraftText(process.env.USER || 'agent', 80);
+let gateError = pair && !['approved', 'mutual_yes'].includes(pair.state) ? 'pair_not_reviewed' : '';
+if (pair && !forceAllowed && !gateError) {
+  try {
+    assertCurrentPairEligibility(pair, { pairKey: id });
+  } catch (error) {
+    gateError = String(error.message || error);
+  }
+}
+if (pair && gateError && !forceAllowed) {
   console.error(
     JSON.stringify({
       ok: false,
       error: 'intro_gate',
+      reason: gateError,
       pairId: pair.pairId,
       state: pair.state,
-      hint: 'review pair first: node demigod-match-review.mjs review <pairId> --decision approve',
+      hint: 'review pair first: node demigod-match-review.mjs review <pairId> --decision approve --i-reviewed --note "evidence"',
     }),
   );
   process.exit(2);
 }
 
-if (!item && pair) {
+if (pair) {
   // pair-only draft
   const dir = path.join(BUSY, 'intros');
   fs.mkdirSync(dir, { recursive: true });
   const outPath = path.join(dir, `pair-${pair.pairId}.md`);
   const md = [
-    `# Intro draft (NOT SENT) · pair ${pair.pairId}`,
+    `# Intro draft (NOT SENT${pairSample ? ' · SAMPLE' : ''}) · pair ${pair.pairId}`,
     `state: ${pair.state} · role ${pair.roleId} · cand ${pair.candId}`,
+    pairSample ? 'SAMPLE: true' : null,
     `score: ${pair.score ?? '—'}`,
-    `reasons: ${(pair.reasons || []).join('; ')}`,
+    `reasons: ${projectDraftText(scrubPII(Array.isArray(pair.reasons) ? pair.reasons.slice(0, 8).join('; ') : ''), 500)}`,
     `mutual: founder=${!!pair.mutual?.founder} candidate=${!!pair.mutual?.candidate}`,
-    forced ? `FORCED: true · actor: ${process.env.USER || 'agent'} · at: ${new Date().toISOString()}` : null,
+    forced ? `FORCED: true · actor: ${actor} · at: ${new Date().toISOString()}` : null,
     '',
     'Hi,',
     '',
@@ -94,8 +115,9 @@ if (!item && pair) {
         at: new Date().toISOString(),
         pairId: pair.pairId,
         state: pair.state,
+        sample: pairSample,
         forced,
-        actor: process.env.USER || 'agent',
+        actor,
         path: outPath,
       }) + '\n',
       { mode: 0o600 },
@@ -104,7 +126,15 @@ if (!item && pair) {
   } catch {
     /* */
   }
-  const result = { ok: true, pairId: pair.pairId, state: pair.state, path: outPath, sent: false, forced };
+  const result = {
+    ok: true,
+    pairId: pair.pairId,
+    state: pair.state,
+    sample: pairSample,
+    path: outPath,
+    sent: false,
+    forced,
+  };
   if (asJson) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(md);
@@ -126,12 +156,18 @@ const email = extractEmail(raw, form);
 const masked = email ? email.replace(/(^.).*(@.*$)/, '$1***$2') : '(no email)';
 const pub = publicStatus(item);
 
-const role = raw['role-title'] || raw.roleTitle || '';
-const stack = raw['stack-needs'] || raw.stackNeeds || raw['skills-stack'] || raw.skillsStack || '';
-const outcome = raw['90day-outcome'] || raw['90dayOutcome'] || '';
-const company = raw['company-name'] || raw.companyName || '';
-const name = raw['full-name'] || raw.fullName || raw['partner-name'] || '';
-const resume = extractResumeReference(raw);
+const role = projectDraftText(scrubPII(raw['role-title'] || raw.roleTitle || ''), 160);
+const stack = projectDraftText(
+  scrubPII(raw['stack-needs'] || raw.stackNeeds || raw['skills-stack'] || raw.skillsStack || ''),
+  500,
+);
+const outcome = projectDraftText(scrubPII(raw['90day-outcome'] || raw['90dayOutcome'] || ''), 500);
+const company = projectDraftText(scrubPII(raw['company-name'] || raw.companyName || ''), 120);
+const name = projectDraftText(
+  scrubPII(raw['full-name'] || raw.fullName || raw['partner-name'] || ''),
+  120,
+);
+const resume = projectDraftUrl(extractResumeReference(raw));
 
 const subject =
   kind === 'startup'

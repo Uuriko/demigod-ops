@@ -17,10 +17,10 @@ node demigod-pilot-logger.mjs \
   --no-publish   # add publish only when board CDN should update
 ```
 
-## Phase note (2026-07-15)
+## Operating note (2026-07-15)
 Website-first: **no auto-DM / Twitter blast**. Pilots come from inbound site (WIZ) + warm human outreach only. Site status page: `/?p=status`.
 
-## Active pipeline (fill by hand)
+## Active pipeline
 | ID | Founder/co | Role | 90d outcome | Status | Next action | Date |
 |----|------------|------|-------------|--------|-------------|------|
 | P0 | — | — | — | waiting first brief | inbound WIZ + human warm only | 2026-07-15 |
@@ -41,7 +41,7 @@ Website-first: **no auto-DM / Twitter blast**. Pilots come from inbound site (WI
 ## Warm inbound (not a pilot yet)
 | Who | Channel | Status | Next | Date |
 |-----|---------|--------|------|------|
-| Douglas Green (Alpha High / 1517) | email + Calendly | Jul 14 meeting missed · reschedule welcomed · no later reply observed | reschedule reply drafted locally, not sent; warm ≠ pilot until brief | 2026-07-23 |
+| Douglas Green (Alpha High / 1517) | email + Calendly | Jul 14 meeting missed · reschedule welcomed · no later reply observed | local follow-up draft ready (DOUGLAS-GMAIL-DRAFT); awaiting human disposition · warm ≠ pilot | 2026-07-29 |
 | Webflow forms Acme/Alex | form | **test noise only** | ignore | 2026-06-30..07-04 |
 | hello@trydemigod.com | inbox | 0 threads (14d) | forms land on personal Gmail | 2026-07-09 |
 

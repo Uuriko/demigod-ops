@@ -41,6 +41,7 @@ else {
   ok(help.status === 0, 'ship help exit 0');
   ok(/freeze:/i.test(help.outputText), 'ship help shows freeze');
   ok(/status|prepare|cdn|paste|verify|run/.test(help.outputText), 'ship help lists verbs');
+  ok(!/export DEMIGOD_CURRENT_REQUEST_PUBLISH/.test(help.outputText), 'ship help scopes publish authorization to one command');
 }
 
 const st = dgShip(['status', '--json'], { DEMIGOD_CURRENT_REQUEST_PUBLISH: '' });
@@ -55,8 +56,9 @@ if (!subprocessDenied) {
   ok(report && report.subcommand === 'status', 'status JSON schema');
   ok(report && report.freeze && typeof report.freeze.on === 'boolean', 'status has freeze');
   ok(report && report.freeze && report.freeze.authorized === false, 'status exposes publish authorization');
-  ok(report && /prepare only/i.test(report.next), 'status keeps unauthorized work prepare-only');
+  ok(report && report.freeze && report.freeze.on === false, 'status freeze off under standing disable');
   ok(report && report.next, 'status has next');
+  ok(report && /prepare only/i.test(report.next), 'status keeps unauthorized work prepare-only');
   ok(report && report.truth && report.truth.diskVer, 'status parses truth diskVer');
 }
 
@@ -175,7 +177,12 @@ ok(
   /identityChecks:\s*\{[\s\S]*sha:\s*manShaOk[\s\S]*bytes:\s*manBytesOk[\s\S]*version:\s*manVersionOk[\s\S]*markersAgree:\s*manMarkersAgree/.test(shipStatusSource),
   'ship status receipt exposes each manifest identity check',
 );
-ok(/unhide-v5/.test(headSource) && !/foot-latest\.js/.test(headSource), 'canonical head is v5 and loader-free');
+ok(
+  /dg-path-redirects/.test(headSource) &&
+    /dg-base-tokens/.test(headSource) &&
+    !/foot-latest\.js/.test(headSource),
+  'canonical head markers are present and loader-free',
+);
 ok(
   /#dg-page \.dg-page-ctas a,[\s\S]*#dg-page \.dg-page-x\{[\s\S]*min-width:48px;[\s\S]*min-height:48px;/.test(headStylesSource),
   'head CSS preserves the 48px product-page control floor before runtime CSS',
@@ -220,24 +227,19 @@ ok(
   'truth fullyShipped includes manifest and live attestation for the startup-map bundle',
 );
 const cm6Source = fs.readFileSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), 'utf8');
-const shipHeadSource = fs.readFileSync(path.join(ROOT, 'demigod-ship-head-now.mjs'), 'utf8');
-const webflowPublishSource = fs.readFileSync(path.join(ROOT, 'demigod-webflow-publish-auto.mjs'), 'utf8');
 ok(
-  /DO_PUBLISH && process\.env\.DEMIGOD_CURRENT_REQUEST_PUBLISH !== '1'/.test(webflowPublishSource),
-  'Webflow publisher requires current-request authorization before external publication',
-);
-ok(
-  /cliArgs\.some\(\(arg\) => arg !== '--publish'\)/.test(webflowPublishSource),
-  'Webflow publisher rejects unknown CLI flags',
+  /function requireMutate\(label\)\s*\{\s*assertNotFrozen\(label\);\s*assertCanWriteFoot\(\{ label \}\);\s*\}/.test(shipSource),
+  'single ship path requires current-request authorization, freeze clearance, and the foot lock',
 );
 const cdnSource = fs.readFileSync(path.join(ROOT, 'demigod-foot-cdn-publish.mjs'), 'utf8');
 ok(
-  /Promise\.all\(\[fetchExact\(mapUrl, mapJs, true\), fetchExact\(mapDataUrl, mapData\)\]\)/.test(cdnSource) &&
-    /check\.ok && mapCheck\.ok && mapDataCheck\.ok/.test(cdnSource) &&
-    /complete attested foot \+ map bundle/.test(cdnSource),
-  'CDN publisher attests the complete foot and map bundle and fails closed without it',
+  /fetchExact\(mapUrl, mapJs, true\)/.test(cdnSource) &&
+    /fetchExact\(mapDataUrl, mapData\)/.test(cdnSource) &&
+    /fetchCssExact\(headCssUrl\)/.test(cdnSource) &&
+    /check\.ok && mapCheck\.ok && mapDataCheck\.ok && headCssCheck\.ok/.test(cdnSource) &&
+    /complete attested site bundle/.test(cdnSource),
+  'CDN publisher attests the complete site bundle and fails closed without it',
 );
-const cycleSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-work.mjs'), 'utf8');
 ok(/document\.querySelectorAll\('\.cm-editor'\)/.test(cm6Source), 'cm6 discovers editors in DOM order');
 ok(/ed\.isConnected/.test(cm6Source) && /getClientRects\(\)\.length===0/.test(cm6Source), 'cm6 ignores hidden or disconnected editor trees');
 ok(/const candidates=\[\.\.\.ed\.querySelectorAll\('\.cm-content'\)\]/.test(cm6Source), 'cm6 skips gutter views within each editor');
@@ -279,191 +281,10 @@ ok(
     /retryInMs,/.test(cm6Source),
   'cm6 lease recovery exposes a bounded retry time',
 );
-ok((shipHeadSource.match(/editorCount !== 2/g) || []).length >= 2, 'head publisher refuses ambiguous CM6 editor counts');
-ok(
-  (shipHeadSource.match(/querySelectorAll\('\.cm-content'\)/g) || []).length >= 2 &&
-    (shipHeadSource.match(/value\.length < 200|current\.length < 200/g) || []).length >= 2,
-  'head publisher resolves real CM6 document views instead of gutter panes',
-);
-ok(/savedHeadText === HEAD && loaderCount\(savedHeadText\) === 0/.test(shipHeadSource), 'head publisher verifies exact loader-free head readback');
-ok(/footText === FOOT/.test(shipHeadSource), 'head publisher verifies exact canonical footer readback');
-ok(
-  /process\.env\.DEMIGOD_ROOT\s*\|\|\s*path\.dirname\(fileURLToPath\(import\.meta\.url\)\)/.test(shipHeadSource) &&
-    !/const ROOT = ['"]\/home\/potter['"]/.test(shipHeadSource),
-  'head publisher resolves canonical artifacts from the active checkout with an isolated-root override',
-);
-ok(/if \(cm6\.blocked\) cm6 = checkCm6StructureInProcess\(\)/.test(cycleSource), 'ship cycle has sandbox-safe CM6 structural fallback');
-ok(/demigod-cm6-paste-publish\.mjs', '--check-structural'/.test(cycleSource), 'offline ship cycle checks structure without requiring CDN release alignment');
-ok(/mode:\s*'check-structural-fallback'/.test(cycleSource) && /out:\s*JSON\.stringify\(report\)/.test(cycleSource), 'CM6 fallback emits a parseable structural receipt');
-ok(/manifestVersionMatchesCore/.test(cycleSource) && /manifestShaMatchesCore/.test(cycleSource), 'CM6 fallback preserves concrete manifest drift');
-ok(
-  (cycleSource.match(/replace\(\/\^v\/i,\s*['"]['"]\)/g) || []).length >= 5,
-  'ship cycle normalizes uppercase and lowercase version prefixes consistently',
-);
-ok(
-  /releaseRecovery\s*=/.test(cycleSource) &&
-    /wait-for-active-publisher/.test(cycleSource) &&
-    /publish-canonical-foot/.test(cycleSource) &&
-    /requiresLiveAttestation:\s*true/.test(cycleSource),
-  'ship cycle exposes guarded machine-readable release recovery',
-);
-ok(/manifestBytesMatchCore/.test(cycleSource) && /Buffer\.byteLength\(core\)/.test(cycleSource), 'CM6 fallback preserves manifest byte-count drift');
-ok(
-  /function releaseArtifactLag\(/.test(cycleSource) &&
-    /'core-ahead'/.test(cycleSource) &&
-    /'manifest-ahead'/.test(cycleSource) &&
-    /artifactLag:\s*releaseArtifactLag\(/.test(cycleSource),
-  'CM6 fallback classifies staged release identity direction',
-);
-ok(
-  /rec\.domain === 'website' \|\| rec\.domain === 'ship' \|\| rec\.domain === 'tools'/.test(cycleSource) &&
-    /rec\.releaseBlocked = releaseBlocked/.test(cycleSource),
-  'website cycle exposes canonical manifest drift as an explicit release block',
-);
-ok(
-  /retryable:\s*publishReceipt\.retryable\s*===\s*true/.test(cycleSource) &&
-    /blockedTransports:\s*Array\.isArray\(publishReceipt\.blockedTransports\)/.test(cycleSource) &&
-    /nextState:\s*publishReceipt\.nextState/.test(cycleSource),
-  'ship recovery preserves structured CDN transport retry evidence',
-);
-ok(
-  /function canonicalUrl\(raw\)/.test(cycleSource) &&
-    /if \(url\.protocol !== 'https:'\) return null/.test(cycleSource) &&
-    /catch \{\s*return null;\s*\}/.test(cycleSource),
-  'CM6 sandbox fallback rejects malformed and non-HTTPS release URLs',
-);
-ok(/releaseReady\s*=\s*cm6Report\.releaseReady\s*===\s*true/.test(cycleSource), 'offline ship receipt preserves CDN release readiness');
-ok(
-  /lock\.pidScope\s*===\s*['"]lease-owner['"]/.test(cycleSource),
-  'ship cycle only interprets durable lease-owner PIDs as publisher liveness',
-);
-ok(/releaseDrift/.test(cycleSource) && /releaseReady=\$\{releaseReady\}/.test(cycleSource), 'offline ship log exposes staged manifest drift');
-ok(
-  /releaseDetails:\s*\{/.test(cycleSource) &&
-    /releaseDetails\s*=\s*cm6Report\.releaseDetails\s*\|\|\s*null/.test(cycleSource) &&
-    /releaseDetails,/.test(cycleSource),
-  'ship cycle receipt preserves expected-versus-staged release identity',
-);
-ok(/releaseLock/.test(cycleSource) && /foot-lock\.json/.test(cycleSource), 'ship receipt exposes the active release lock');
 ok(
   /blockedByLease:\s*lease\.held/.test(cm6Source) &&
     /progressBlockedByLease:\s*lease\.held\s*&&\s*!transportBlocked/.test(cm6Source),
   'CM6 recovery separates the lease mutation guard from the primary progress blocker',
-);
-ok(!/token:\s*lock\.token/.test(cycleSource), 'ship receipt never exposes the release-lock token');
-ok(
-  /receiptMatchesCore\s*=\s*Boolean\(/.test(cycleSource) &&
-    /releaseTransportBlocked\s*=\s*Boolean\(/.test(cycleSource) &&
-    /failureKind\s*===\s*['"]release-transport-unavailable['"]/.test(cycleSource) &&
-    /primaryBlocker:\s*releaseTransportBlocked\s*\?\s*['"]release-transport['"]/.test(cycleSource) &&
-    /blockedTransports:\s*releaseTransportBlocked/.test(cycleSource),
-  'website CM6 fallback preserves matching CDN transport failure evidence',
-);
-ok(
-  /initialReleaseReady\s*=\s*initialReport\.releaseReady\s*===\s*true/.test(cycleSource) &&
-    /live repair blocked — publish CDN first/.test(cycleSource) &&
-    /!initialReleaseReady/.test(cycleSource),
-  'ship cycle requires attested CDN readiness before mutating CM6',
-);
-ok(
-  /liveProbeOk\s*&&\s*\(feet !== 1 \|\| vers\.length > 1\)\s*&&\s*!releaseLock/.test(cycleSource) &&
-    /live repair deferred to active writer/.test(cycleSource),
-  'ship cycle does not invoke CM6 repair while another release lease is active',
-);
-ok(
-  /releaseLockMatchesCore\s*=/.test(cycleSource) &&
-    /releaseLockMatchesCore,/.test(cycleSource) &&
-    /lock v\$\{releaseLockVersion/.test(cycleSource) &&
-    /staged core v\$\{releaseCoreVersion/.test(cycleSource),
-  'ship receipt distinguishes a current release lease from a lock pinned to older core',
-);
-ok(
-  /function currentFootCoreIdentity\(\)/.test(cycleSource) &&
-    /releaseSourceChanged\s*=/.test(cycleSource) &&
-    /coreChangedDuringCycle/.test(cycleSource) &&
-    /releaseCoreAtReceipt,/.test(cycleSource) &&
-    /releaseSourceChanged,/.test(cycleSource),
-  'ship cycle detects foot-core changes between preflight and final receipt',
-);
-ok(
-  /releaseLockOwnedByCycle\s*=/.test(cycleSource) &&
-    /releaseMutationBlocked\s*&&[\s\S]{0,160}releaseStructuralOk\s*&&[\s\S]{0,160}!releaseLockOwnedByCycle\s*&&[\s\S]{0,160}!releaseLockStaleForCore/.test(cycleSource) &&
-    /releaseLockOwnedByCycle,/.test(cycleSource),
-  'ship cycle never treats its own release lease as a coordinated wait',
-);
-ok(
-  /releaseMutationBlocked\s*=\s*releaseReady\s*===\s*false\s*&&\s*Boolean\(releaseLock\)/.test(cycleSource) &&
-    /active foot release lock owned by/.test(cycleSource),
-  'ship receipt makes lock-blocked release mutation explicit',
-);
-ok(
-  /coordinatedReleaseWait\s*=/.test(cycleSource) &&
-    /releaseMutationBlocked\s*&&[\s\S]{0,120}releaseStructuralOk/.test(cycleSource) &&
-    /release safely deferred to active writer/.test(cycleSource),
-  'ship cycle treats a structurally safe active-writer collision as degraded coordination',
-);
-ok(
-  /releaseLockStaleForCore\s*=/.test(cycleSource) &&
-    /wait-for-stale-lease-expiry/.test(cycleSource) &&
-    /releaseLockStaleForCore,/.test(cycleSource),
-  'ship cycle never labels an older-core lease as the active publisher',
-);
-ok(
-  /ownerAlive/.test(cycleSource) &&
-    /releaseOwnerExited\s*=/.test(cycleSource) &&
-    /wait-for-lease-expiry/.test(cycleSource) &&
-    /owner exited/.test(cycleSource),
-  'ship cycle distinguishes a held lease whose publisher process exited',
-);
-ok(
-  /releaseOwnerActive\s*=/.test(cycleSource) &&
-    /releaseOwnerUnknown\s*=/.test(cycleSource) &&
-    /wait-for-lease-owner-status/.test(cycleSource) &&
-    /owner liveness unknown/.test(cycleSource) &&
-    /releaseOwnerActive,/.test(cycleSource) &&
-    /releaseOwnerUnknown,/.test(cycleSource),
-  'ship cycle never labels an unknown-liveness lease owner as an active publisher',
-);
-ok(
-  /Active Codex assignment \(nested exec suppressed\):\\n\$\{prompt\}/.test(cycleSource) &&
-    !/cycle-ship-codex-\$\{cycle\}\.txt`\);[\s\S]{0,180}appendFileSync\(out, 'Skipped nested codex exec/.test(cycleSource),
-  'ship cycle preserves the implementation brief when nested Codex execution is suppressed',
-);
-ok(
-  /expiresInMs:\s*Number\.isFinite\(expiresAtMs\)/.test(cycleSource) &&
-    /retryAfter:\s*releaseOwnerExited/.test(cycleSource) &&
-    /retryInMs:\s*releaseOwnerExited/.test(cycleSource),
-  'dead-owner recovery exposes the exact guarded lease retry window',
-);
-ok(
-  /publishTransportUnavailableKinds\s*=\s*new Set/.test(cycleSource) &&
-    /'upload-unavailable'/.test(cycleSource) &&
-    /'release-transport-unavailable'/.test(cycleSource) &&
-    /publishTransportUnavailableKinds\.has\(publishReceipt\.failureKind\)/.test(cycleSource),
-  'ship cycle recognizes every non-mutating CDN transport failure classification',
-);
-ok(
-  /releaseDriftBlocker\s*=\s*releaseReady\s*===\s*false/.test(cycleSource) &&
-    /release artifacts drift:/.test(cycleSource) &&
-    /releaseDrift\.join\(', '\)/.test(cycleSource),
-  'ship receipt explains release drift even when no foot lock is active',
-);
-ok(/rec\.shipReady\s*=/.test(cycleSource) && /release-blocked/.test(cycleSource), 'cycle receipt distinguishes staged ship drift from generic degradation');
-ok(/truthIssues\.every\(allowedOfflineIssue\)/.test(cycleSource), 'offline ship cycle allows only reachability and preserved manifest drift');
-ok(
-  /demigod-truth\.mjs', '--json'/.test(cycleSource) &&
-    /JSON\.parse\(truth\.out\.slice\(truth\.out\.indexOf\('\{'\)\)\)/.test(cycleSource),
-  'ship cycle consumes its own truth JSON before the shared swarm artifact',
-);
-ok(/manifestDriftIssue/.test(cycleSource), 'offline ship cycle centralizes manifest drift classification');
-ok(/\(\?:sha\|bytes\|version\)/.test(cycleSource), 'offline ship cycle accepts truth manifest SHA, byte, and version drift details');
-ok(/'-fsSL'/.test(cycleSource) && /'--retry-all-errors'/.test(cycleSource), 'ship cycle live probe follows redirects and retries transient failures');
-ok(/'--connect-timeout', '10'/.test(cycleSource) && /'--max-time', '45'/.test(cycleSource), 'ship cycle live probe has bounded network timeouts');
-ok(
-  /files\\\.catbox\\\.moe\|litter\\\.catbox\\\.moe/.test(cycleSource) &&
-    /demigod-foot-cdn-loader/.test(cycleSource) &&
-    /const feet = footLoaderTags\.length/.test(cycleSource),
-  'ship cycle counts approved hashed fallback CDN loaders',
 );
 const fullyShippedBlock = (truthSource.match(/const fullyShipped = Boolean\(([\s\S]*?)\n  \);/) || [])[1] || '';
 ok(/liveFootLoaderCount === 1/.test(fullyShippedBlock), 'truth fullyShipped requires one live loader');
@@ -534,8 +355,12 @@ ok(
 );
 ok(
   /function assertCanonicalSourceUnchanged\(\)/.test(cdnSource) &&
-    /assertCanonicalSourceUnchanged\(\);\s*\n\s*\/\/ Each canonical artifact/.test(cdnSource),
-  'CDN publisher refuses stale manifest writes when foot core changes during upload',
+    /assertCanonicalSourceUnchanged\(\);[\s\S]{0,300}canonical head changed[\s\S]{0,300}\/\/ Each canonical artifact/.test(cdnSource),
+  'CDN publisher refuses stale manifest writes when the site bundle changes during upload',
+);
+ok(
+  /assertCanWriteFoot\(\{ label: 'foot-cdn-publish-final' \}\);\s*assertCanonicalSourceUnchanged\(\);/.test(cdnSource),
+  'CDN publisher rechecks the release lease immediately before canonical writes',
 );
 ok(/sha256: sourceSha/.test(cdnSource), 'CDN manifest records the attested canonical source hash');
 ok(/bytes: sourceBytes/.test(cdnSource), 'CDN manifest records the attested canonical byte count');
@@ -544,18 +369,6 @@ ok(
   /gatedBy:\s*\['publish-freeze', 'foot-lock', 'live-attestation'\]/.test(cdnSource) &&
     /then:\s*'node demigod-cm6-paste-publish\.mjs'/.test(cdnSource),
   'CDN lock recovery preserves the complete guarded release sequence',
-);
-ok(
-  /hasCanonicalHead\s*=\s*\/unhide-v5/.test(webflowPublishSource) &&
-    !/unhide-v4\|dg-unhide-critical/.test(webflowPublishSource),
-  'autonomous Webflow verifier requires the canonical unhide-v5 head',
-);
-ok(
-  /loaders\.length === 1/.test(webflowPublishSource) &&
-    /foot-latest\\\.js/.test(webflowPublishSource) &&
-    /ver === EXPECTED_FOOT_VERSION/.test(webflowPublishSource) &&
-    /javascript\|ecmascript/.test(webflowPublishSource),
-  'autonomous Webflow verifier requires one executable current-version foot loader',
 );
 ok(
   /const releaseRecovery = releaseArtifactsMatchDisk/.test(truthSource) &&

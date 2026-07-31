@@ -65,8 +65,6 @@ export function buildPriorityBoard(data = {}) {
   const next = data.next || {};
   const demand = data.demand || {};
   const pilot = data.pilot || readJson(path.join(BUSY, 'pilot-inbound.json')) || {};
-  const cycle = data.cycleWorkHealth || data.cycleWork || {};
-  const shipPrepare = data.shipPrepare || {};
   const live = data.live || {};
   const eventsOnline = data.eventsBot?.online || data.eventsOnline || {};
   const lock = data.lock || data.control?.lock || {};
@@ -90,9 +88,7 @@ export function buildPriorityBoard(data = {}) {
   const webflowDoctorFresh = Number.isFinite(webflowDoctorAgeSec)
     && webflowDoctorAgeSec >= -60
     && webflowDoctorAgeSec <= 15 * 60;
-  const paused =
-    fs.existsSync(path.join(BUSY, 'watchdog.PAUSED')) ||
-    fs.existsSync(path.join(BUSY, 'never-stop.STOP'));
+  const paused = fs.existsSync(path.join(BUSY, 'watchdog.PAUSED'));
   const liveUnobservable = /ENOTFOUND|EAI_AGAIN|EPERM/i.test(String(live.error || '')) ||
     webflowDoctorFresh && (webflowDoctor?.checks || []).some(
       (check) => check.name === 'cdp' && !check.ok && /EPERM/.test(check.detail || ''),
@@ -463,75 +459,24 @@ export function buildPriorityBoard(data = {}) {
     });
   }
 
-  // Cycle / work-loop — do not call tools "not attested" when toolsReady and only release is blocked.
-  const cycleAt = Date.parse(cycle?.at || '');
-  const canonicalTruthSupersedesCycle = te.green === true && cycle?.domain === 'ship'
-    && (cycle.stale === true || Number(cycle.ageSec) > 900 || Number.isFinite(cycleAt) && Date.now() - cycleAt > 900_000);
-  if (!canonicalTruthSupersedesCycle && cycle && (cycle.attested === false || cycle.degraded === true || cycle.blocked === true)) {
-    const prepareAt = Date.parse(shipPrepare.at || '');
-    const prepareAgeMs = Date.now() - prepareAt;
-    const historicalCycle = Number.isFinite(cycleAt) && Number.isFinite(prepareAt)
-      && Date.now() - cycleAt > 900000 && prepareAt > cycleAt
-      && prepareAgeMs >= -60000 && prepareAgeMs <= 900000 && shipPrepare.ok === true;
-    if (historicalCycle) {
-      push({
-        pri: 4,
-        id: 'cycle-historical',
-        kind: 'info',
-        title: 'Latest ship prepare green · prior cycle historical',
-        detail: `prepare ${shipPrepare.steps?.length || 0} gates · old cycle ${cycle.domain || '?'} ${cycle.verification || 'unattested'}`,
-        cmd: 'bin/dg cycle-status',
-        job: 'cycle-status',
-        owner: 'system',
-      });
-    } else {
-      const toolsReady = cycle.toolsReady === true || cycle.domain === 'tools' && cycle.attested === true;
-      const releaseBlocked =
-        cycle.verification === 'release-blocked' ||
-        cycle.failureKind === 'release-blocked' ||
-        cycle.releaseReady === false;
-      // Honest title: prepare-only release lag ≠ "not attested" (contracts/os often green).
-      const title = releaseBlocked
-        ? toolsReady
-          ? 'Cycle tools OK · release-blocked'
-          : `Cycle ${cycle.domain || '?'} · release-blocked (prepare-only)`
-        : cycle.degraded
-          ? `Cycle ${cycle.domain || '?'} degraded`
-          : cycle.attested === false
-            ? `Cycle ${cycle.domain || '?'} not attested`
-            : `Cycle ${cycle.domain || '?'} blocked`;
-      push({
-        // Release structure lag under green truth is prepare-only — demote vs demand/warm.
-        pri: releaseBlocked && te.green === true ? 3 : 2,
-        id: 'cycle-unhealthy',
-        kind: 'watch',
-        title,
-        detail:
-          (releaseBlocked
-            ? cycle.releaseBlocker || cycle.verification || 'release structure unverified'
-            : cycle.verification || cycle.releaseBlocker || cycle.detail) ||
-          'see cycle-work-latest.json',
-        cmd: 'bin/dg cycle-status',
-        job: 'cycle-status',
-        owner: 'agent',
-      });
-    }
-  }
-
   if (paused) {
     push({
       pri: 4,
       id: 'loops-paused',
       kind: 'info',
       title: 'Background loops paused',
-      detail: 'watchdog / never-stop / swarm STOP files present',
+      detail: 'watchdog.PAUSED is present',
       cmd: 'ls /tmp/dg-busy/*.STOP /tmp/dg-busy/watchdog.PAUSED 2>/dev/null',
       owner: 'system',
     });
   }
 
   // Canonical NEXT from control plane
-  if (next.title && !(awaitingShip && next.id === 'truth') && !cards.some((card) => next.cmd && card.cmd === next.cmd)) {
+  if (
+    next.title &&
+    !(awaitingShip && next.id === 'truth') &&
+    !cards.some((card) => next.cmd && card.cmd === next.cmd && !['info', 'ok'].includes(card.kind))
+  ) {
     push({
       pri: next.pri != null ? Math.min(3, Number(next.pri)) : 2,
       id: 'next-' + (next.id || 'item'),
@@ -580,8 +525,6 @@ function main() {
   const truth = readJson(path.join(BUSY, 'truth.json')) || {};
   const demand = readJson(path.join(BUSY, 'demand-status.json')) || {};
   const pilot = readJson(path.join(BUSY, 'pilot-inbound.json')) || {};
-  const cycle = readJson(path.join(BUSY, 'cycle-work-latest.json')) || {};
-  const shipPrepare = readJson(path.join(BUSY, 'ship-prepare.json')) || {};
   const freeze = readJson(path.join(BUSY, 'publish-freeze.json')) || {};
   const footLock = readJson(path.join(BUSY, 'foot-lock.json')) || {};
   const dashboard = readJson(path.join(BUSY, 'dashboard-status.json')) || {};
@@ -631,20 +574,6 @@ function main() {
       hygiene: demand.drafts?.hygiene || null,
     },
     pilot,
-    cycleWork: cycle,
-    shipPrepare,
-    cycleWorkHealth: {
-      at: cycle.at,
-      attested: cycle.attested,
-      degraded: cycle.degraded,
-      blocked: cycle.blocked,
-      verification: cycle.verification,
-      domain: cycle.domain,
-      toolsReady: cycle.toolsReady,
-      releaseReady: cycle.releaseReady,
-      failureKind: cycle.failureKind,
-      releaseBlocker: cycle.releaseBlocker,
-    },
     live: {
       ok: latestLive?.ok ?? (dashboardFresh && dashboard.live?.ok === true || truth.live?.reachable === true || truth.live?.htmlOk === true),
       foot: latestLive?.foot || dashboardFresh && dashboard.live?.foot || (truth.live?.footVer ? `v${truth.live.footVer}` : null),

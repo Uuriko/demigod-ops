@@ -109,38 +109,27 @@ test('clean drafts remain informational until outbound delivery is authorized', 
   assert.notEqual(board.headline.id, 'demand-drafts-ready');
 });
 
-test('fresh ship prepare demotes an old blocked cycle to historical info', () => {
-  const board = buildPriorityBoard({
-    truthEvidence: { green: false, summary: 'shipped=false' },
-    live: { ok: true },
-    cycleWorkHealth: {
-      at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      blocked: true,
-      attested: false,
-      domain: 'ship',
-      verification: 'release-blocked',
-    },
-    shipPrepare: { at: new Date().toISOString(), ok: true, steps: Array(6).fill({ ok: true }) },
-  });
-  assert.equal(board.cards.some((item) => item.id === 'cycle-unhealthy'), false);
-  assert.equal(board.cards.find((item) => item.id === 'cycle-historical')?.pri, 4);
-});
-
-test('fresh canonical truth suppresses stale ship-cycle blockage', () => {
+test('informational cards cannot suppress canonical NEXT with the same command', () => {
   const board = buildPriorityBoard({
     truthEvidence: { green: true },
     live: { ok: true },
-    cycleWorkHealth: {
-      domain: 'ship',
-      blocked: true,
-      stale: true,
-      ageSec: 901,
-      verification: 'release-blocked',
+    demand: {
+      pending: 5,
+      sentConfirmed: 0,
+      drafts: { hygiene: { ok: true, ready: true, stale: false } },
+    },
+    pilot: { warmInbound: { freshness: { overdueActionCount: 0 } } },
+    next: {
+      id: 'demand-ops',
+      title: 'Local release prepared · continue demand operations',
+      cmd: 'bin/dg demand status',
+      pri: 2,
+      mutate: false,
     },
     formsAudit: { at: 'invalid', issues: [] },
+    webflowDoctor: null,
   });
-  assert.equal(board.cards.some((item) => item.id === 'cycle-unhealthy'), false);
-  assert.equal(board.cards.some((item) => item.id === 'cycle-historical'), false);
+  assert.equal(board.headline.id, 'next-demand-ops');
 });
 
 test('publish lag DEBT elevates prepare-only multi-version lag (never auto-ship)', () => {

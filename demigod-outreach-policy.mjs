@@ -40,6 +40,22 @@ export function normalizeEmail(e) {
   return String(e).trim().toLowerCase();
 }
 
+/** Canonical public person-profile identity. Company/jobs/feed URLs are not people. */
+export function normalizeLinkedInProfile(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, '')}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const match = /^\/in\/([a-z0-9_%~-]+)\/?$/i.exec(url.pathname);
+    return (host === 'linkedin.com' || host.endsWith('.linkedin.com')) && match
+      ? `https://www.linkedin.com/in/${match[1].toLowerCase()}`
+      : '';
+  } catch {
+    return '';
+  }
+}
+
 function leadState(lead) {
   const states = [lead?.state, lead?.status].map((x) => String(x || '').toLowerCase());
   return states.find((x) => SUPPRESS_STATES.has(x)) || states.find(Boolean) || '';
@@ -55,7 +71,7 @@ export function flattenLeads(docOrList) {
     .filter(Boolean);
 }
 
-/** Pure identity keys for one lead (email:… / handle:…). */
+/** Pure identity keys for one lead (email:… / handle:… / linkedin:…). */
 export function identityKeys(lead) {
   const keys = new Set();
   for (const email of [lead?.email, lead?.contactEmail].map(normalizeEmail)) {
@@ -63,6 +79,14 @@ export function identityKeys(lead) {
   }
   for (const handle of [lead?.handle, lead?.twitter, lead?.x].map(normalizeHandle)) {
     if (handle) keys.add('handle:' + handle);
+  }
+  for (const linkedin of [
+    lead?.linkedin,
+    lead?.linkedIn,
+    lead?.linkedinUrl,
+    lead?.['linkedin-url'],
+  ].map(normalizeLinkedInProfile)) {
+    if (linkedin) keys.add('linkedin:' + linkedin);
   }
   return keys;
 }
@@ -219,6 +243,30 @@ function selftest() {
   // Shared identity suppress helpers (match/intro/replies money path)
   assert(identityKeys({ email: 'A@X.COM', handle: '@Bar' }).has('email:a@x.com'), 'identityKeys email');
   assert(identityKeys({ handle: '@Bar' }).has('handle:bar'), 'identityKeys handle');
+  assert(
+    normalizeLinkedInProfile('linkedin.com/in/Example-Person/?trk=public') ===
+      'https://www.linkedin.com/in/example-person',
+    'LinkedIn profile canonicalized without tracking',
+  );
+  assert(normalizeLinkedInProfile('https://www.linkedin.com/company/acme') === '', 'LinkedIn company is not a person');
+  const linkedInDoc = {
+    partners: [{ id: 'li-old', linkedin: 'https://linkedin.com/in/example-person', state: 'opted_out' }],
+  };
+  assert(
+    isIdentitySuppressedByOther(
+      { id: 'li-new', linkedinUrl: 'https://www.linkedin.com/in/Example-Person/?trk=copy' },
+      linkedInDoc,
+    ),
+    'opted_out LinkedIn identity suppresses duplicate record',
+  );
+  assert(
+    checkOutreach(
+      { id: 'li-only', linkedin: 'https://linkedin.com/in/example-person' },
+      { partners: [] },
+      { mode: 'approve-each', action: 'send', approved: true },
+    ).reason === 'contact_required',
+    'LinkedIn-only record cannot enter send transport',
+  );
   assert(suppressedIdentityKeys(doc).has('handle:foo'), 'suppressedIdentityKeys from opted_out');
   assert(
     isIdentitySuppressedByOther({ id: 'new', handle: 'foo' }, doc) === true,

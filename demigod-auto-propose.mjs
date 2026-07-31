@@ -8,9 +8,11 @@
 import { loadBoard } from './demigod-submissions-lib.mjs';
 import { proposePair, listPairs, loadPairs } from './demigod-pairs-lib.mjs';
 import { isSampleCandidate, isSampleRole, suggestMatches } from './demigod-matching-engine.mjs';
-import fs from 'fs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
+const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const AUTO_PROPOSE_FLAGS = new Set(['--json', '--allow-sample', '--limit', '--min-score', '--help', '-h']);
 const unknownAuto = args.find(
   (a, i) =>
@@ -84,7 +86,6 @@ for (const role of roles) {
         reasons: [
           `auto-propose score=${m.score}`,
           ...(m.evidence || []),
-          role.title || '',
           role.sample ? 'role-sample' : '',
         ].filter(Boolean),
         actor: 'auto-propose',
@@ -108,7 +109,7 @@ const all = Object.values(loadPairs().pairs || {});
 let sampleCount = 0;
 let realProposed = 0;
 for (const p of all) {
-  if (p.sample) sampleCount += 1;
+  if (p.sample !== false) sampleCount += 1;
   else if (p.state === 'proposed') realProposed += 1;
 }
 
@@ -127,12 +128,11 @@ const out = {
   },
   actions: {
     review: 'bin/dg-matches list',
-    approve: 'node demigod-match-review.mjs review <pairId> --decision approve',
+    approve: 'node demigod-match-review.mjs review <pairId> --decision approve --i-reviewed --note "evidence"',
   },
 };
 
-fs.mkdirSync('/tmp/dg-busy', { recursive: true });
-fs.writeFileSync('/tmp/dg-busy/auto-propose-latest.json', JSON.stringify(out, null, 2) + '\n');
+atomicWrite(path.join(BUSY, 'auto-propose-latest.json'), JSON.stringify(out, null, 2) + '\n', { mode: 0o600 });
 
 if (asJson) console.log(JSON.stringify(out, null, 2));
 else {

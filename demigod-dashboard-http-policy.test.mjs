@@ -41,19 +41,16 @@ test('dashboard JSON privacy headers cannot be weakened by caller overrides', ()
 test('dashboard mutation policy blocks cross-origin simple requests but preserves local CLI', () => {
   assert.equal(dashboardMutationIntent('POST', '/api/handoff'), true);
   assert.equal(dashboardMutationIntent('GET', '/api/jobs', '?run=tab-prune'), true);
-  assert.equal(dashboardMutationIntent('GET', '/api/job/start', '?id=smoke'), true);
   assert.equal(dashboardMutationIntent('GET', '/api/jobs'), false);
   assert.equal(dashboardMutationIntent('GET', '/api/review', '?run=1'), true);
   assert.equal(dashboardMutationIntent('GET', '/api/inbox', '?refresh=1'), true);
   for (const request of [
     ['/api/matches', '?refresh=1'],
-    ['/api/match-review', '?run=1'],
     ['/api/webflow', '?refresh=1'],
     ['/api/smoke', '?run=1'],
     ['/api/status', '?force=1'],
-    ['/api/brief', '?force=1'],
+    ['/api/agent-brief', '?force=1'],
     ['/api/control', '?force=1'],
-    ['/api/control-plane', '?refresh=1'],
   ]) assert.equal(dashboardMutationIntent('GET', ...request), true, request.join(''));
   assert.equal(dashboardMutationIntent('GET', '/api/review'), false);
   assert.equal(dashboardLocalRequest('https://evil.example', '', 9878), false);

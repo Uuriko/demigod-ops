@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# Auto-switch System76 power profile + Demigod load on AC plug/unplug.
+#   AC plugged  → balanced (+ optional light services)
+#   AC unplugged → battery + tab prune
+#
+# Usage:
+#   power-ac-auto-profile            # apply once
+#   power-ac-auto-profile --watch    # poll AC and re-apply on change
+#   power-ac-auto-profile --status
+set -euo pipefail
+
+AC_ONLINE_FILE="${POWER_AC_ONLINE_FILE:-/sys/class/power_supply/AC/online}"
+if [[ ! -r "$AC_ONLINE_FILE" ]]; then
+  for c in /sys/class/power_supply/*/online; do
+    typef="${c%/online}/type"
+    if [[ -r "$typef" ]] && grep -qiE 'Mains|ADP|AC' "$typef" 2>/dev/null; then
+      AC_ONLINE_FILE="$c"
+      break
+    fi
+  done
+fi
+
+ON_PROFILE="${POWER_AC_ON_PROFILE:-balanced}"
+OFF_PROFILE="${POWER_AC_OFF_PROFILE:-battery}"
+POLL_SEC="${POWER_AC_POLL_SEC:-4}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
+LOG="${POWER_AC_LOG:-$STATE_DIR/power-ac-auto.log}"
+LAST_FILE="$STATE_DIR/power-ac-auto.last"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+
+mkdir -p "$STATE_DIR" "$BUSY"
+
+log() {
+  local line="[$(date -Iseconds)] $*"
+  printf '%s\n' "$line" >>"$LOG" 2>/dev/null || true
+  if [[ -t 1 ]] || [[ "${POWER_AC_VERBOSE:-0}" == 1 ]]; then
+    printf '%s\n' "$line"
+  fi
+}
+
+read_ac() {
+  if [[ -r "$AC_ONLINE_FILE" ]]; then
+    tr -d ' \n' <"$AC_ONLINE_FILE"
+  else
+    echo unknown
+  fi
+}
+
+current_profile() {
+  system76-power profile 2>/dev/null | awk -F': ' '/Power Profile/{print tolower($2); exit}'
+}
+
+run_unplug_hygiene() {
+  # Hygiene prune if CDP up (best-effort, short timeout)
+  if curl -sS --max-time 1 "http://127.0.0.1:9223/json/version" >/dev/null 2>&1; then
+    if [[ -x "$ROOT/bin/dg-hygiene" ]]; then
+      (cd "$ROOT" && timeout 45 "$ROOT/bin/dg-hygiene" --prune >>"$LOG" 2>&1) && log "unplug: hygiene --prune ok" || log "unplug: hygiene prune skipped/failed"
+    fi
+  else
+    log "unplug: CDP down — skip hygiene"
+  fi
+}
+
+apply_profile() {
+  local want="$1"
+  local have
+  have="$(current_profile || true)"
+  if [[ "$have" == "$want" ]]; then
+    log "ok: profile already $want"
+    return 0
+  fi
+  local out ec=0
+  out="$(system76-power profile "$want" 2>&1)" || ec=$?
+  have="$(current_profile || true)"
+  if [[ "$have" == "$want" ]]; then
+    log "switched → $want (ec=$ec)"
+    command -v dg-notify >/dev/null 2>&1 && dg-notify "Power profile" "$want" || true
+    return 0
+  fi
+  log "fail: wanted $want got '$have' ec=$ec out=${out//$'\n'/; }"
+  return 1
+}
+
+apply_for_ac() {
+  local online="$1"
+  case "$online" in
+    1|yes|true)
+      apply_profile "$ON_PROFILE" || true
+      printf '%s\n' "$online:$ON_PROFILE" >"$LAST_FILE"
+      ;;
+    0|no|false)
+      apply_profile "$OFF_PROFILE" || true
+      run_unplug_hygiene
+      printf '%s\n' "$online:$OFF_PROFILE" >"$LAST_FILE"
+      ;;
+    *)
+      log "skip: AC online='$online'"
+      return 1
+      ;;
+  esac
+}
+
+cmd="${1:-once}"
+case "$cmd" in
+  --status|status)
+    echo "AC file: $AC_ONLINE_FILE"
+    echo "AC online: $(read_ac)"
+    echo "on-profile: $ON_PROFILE"
+    echo "off-profile: $OFF_PROFILE"
+    echo "current: $(current_profile || echo '?')"
+    [[ -f "$LAST_FILE" ]] && echo "last: $(cat "$LAST_FILE")"
+    echo "log: $LOG"
+    system76-power profile 2>&1 | head -6 || true
+    ;;
+  --watch|watch)
+    log "watch start poll=${POLL_SEC}s on=$ON_PROFILE off=$OFF_PROFILE"
+    last=""
+    online="$(read_ac)"
+    apply_for_ac "$online" || true
+    last="$online"
+    while true; do
+      sleep "$POLL_SEC"
+      online="$(read_ac)"
+      if [[ "$online" != "$last" ]]; then
+        log "AC change $last → $online"
+        apply_for_ac "$online" || true
+        last="$online"
+      fi
+    done
+    ;;
+  --once|once|"")
+    apply_for_ac "$(read_ac)"
+    ;;
+  --unplug-hooks-only)
+    run_unplug_hygiene
+    ;;
+  -h|--help|help)
+    sed -n '2,12p' "$0"
+    ;;
+  *)
+    echo "usage: $0 [--once|--watch|--status|--unplug-hooks-only]" >&2
+    exit 2
+    ;;
+esac

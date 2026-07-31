@@ -4,7 +4,7 @@
  *
  * Exports: BUSY, ensureBusy, atomicWrite, readJson, isFrozen, withFileLock,
  * footVerFromJs, claimMutateLock, opt, …
- * Used by: freeze, ship, webflow, pairs, live-doctor, dashboard helpers.
+ * Used by: freeze, ship, webflow, pairs, truth, dashboard helpers.
  * Keep small — product truth lives in truth/evidence, not here.
  */
 import fs from 'fs';
@@ -14,6 +14,18 @@ import { spawnSync } from 'child_process';
 
 export const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 export const LIVE_DEFAULT = 'https://www.trydemigod.com';
+
+/**
+ * Invisible, bidi-control, and Unicode line/paragraph separator characters that must never
+ * survive in untrusted descriptive text. One source of truth: this class had been copy-pasted
+ * into six regexes across four files and drifted twice — every copy omitted \u2028/\u2029
+ * (line/paragraph separators, honoured by JS and by several spreadsheet importers), and five of
+ * six omitted \u061c (ARABIC LETTER MARK, a bidi control). Callers append their own ASCII C0
+ * policy, which legitimately differs: the CSV/export path preserves \t\n\r and quotes them,
+ * the reject predicates refuse them outright. Only the shared tail lives here.
+ */
+export const UNSAFE_INVISIBLE_CLASS =
+  '\\u007f-\\u009f\\u061c\\u200b-\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2060-\\u206f\\ufeff';
 
 export function sha256File(file) {
   try {
@@ -25,6 +37,26 @@ export function sha256File(file) {
 
 export function sha256Buf(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
+}
+
+/**
+ * True only for a plain object — not null, not an array, not a primitive.
+ *
+ * Extracted from SIX real defects found 2026-07-30, all the same shape: parseable data of the wrong
+ * type reaching code that assumed an object. `Object.entries('engineering')` yields index-keyed
+ * character pairs; `{ ...'str' }` yields character keys; `arr.filter(r => r.id)` throws on a null
+ * entry. Each site had hand-rolled this check, or omitted it. Consequences ranged from an inflated
+ * coverage denominator to fabricated ledger rows to FAKE HIRING CATEGORIES ON A PUBLIC PAGE.
+ *
+ * Use at every boundary where data arrives from a file, a fetch, or another agent's output.
+ */
+export function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Entries of `value` if it is a plain object, else none. The safe form of Object.entries(x || {}). */
+export function objectEntries(value) {
+  return isPlainObject(value) ? Object.entries(value) : [];
 }
 
 export function readJson(file) {

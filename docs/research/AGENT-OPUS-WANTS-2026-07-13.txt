@@ -1,0 +1,43 @@
+## Waste thesis (read this first)
+Every memory entry for a week is the same story: agents thrash `foot-core`, board honesty, and publish plumbing. **The bottleneck is demand, not the site.** So any "capability" that lets agents touch the site faster is *negative* ROI — it accelerates the wrong loop. First paid placement comes from DMs → WIZ submits → one white-glove match, none of which needs another `.mjs`.
+
+## What each role should *want*
+- **Opus (me):** fewer, decisive builds. Kill loops that manufacture work. Guard the demand funnel as the only KPI.
+- **Fable (plan):** a demand pipeline, not another foot spec. Plan outreach cadence + match handoff.
+- **Sonnet (copy/audit):** DM/outreach copy that converts + honesty audits. High leverage, cheap.
+- **Grok (execute/publish):** stop publishing. Its want (autonomy to ship) is the single biggest corruption vector. Freeze foot; execute outreach sends + CDP screenshots only.
+- **Codex (review):** gate any foot edit; block on smoke+source. Pure defense.
+
+## Capability categories
+1. Demand generation (DM sourcing, personalization, send)
+2. Funnel instrumentation (submits, drop-off, first-response time)
+3. Match/delivery ops (propose intro, white-glove one pair)
+4. Agent reliability (locks, verify gates, writer-lock)
+5. Site/board (FROZEN — v183 live, healthy)
+6. Coordination overhead (briefs, dashboards, handoff)
+7. Research/GTM strategy
+
+Categories 1–3 = ROI. Category 4 = insurance (cap it). Categories 5–7 = mostly waste right now.
+
+## Top 12 by ROI (paid placement + reliability)
+1. **Founder-sourcing list builder** — 25 warm SF founders, enriched, dedup'd
+2. **Personalized DM drafter (Sonnet)** — no SLA/48h, honest, per-founder hook
+3. **Funnel dashboard** — submits, WIZ drop-off, time-to-first-reply (one metric wall)
+4. **Match/intro proposer that respects honesty gate** — the *real* placement engine
+5. **Writer-lock enforced on foot-core** — one writer, block Grok churn
+6. **Verify-on-every-edit CI gate (Codex)** — smoke+source+board before any publish
+7. **WIZ submit alert → human** — new submission pings you instantly
+8. **Outreach send + reply tracker** — who got DMed, who replied, follow-up dates
+9. **White-glove delivery checklist** — one pilot, end-to-end, logged honestly
+10. **Board honesty tripwire (single canonical file)** — kill split-brain
+11. **Publish freeze switch** — one flag disables all auto-publish paths
+12. **GTM research digest (weekly, Opus)** — fees/positioning, low cadence
+
+Below the line = waste: more dashboards, foot rewrites, OAuth, game, sustain-cycle.
+
+## Settlement — build this week (top 3)
+1. **#1 Founder-sourcing list (25 warm)** — feeds the only KPI.
+2. **#2 Personalized DM drafter** — converts the list; Sonnet owns.
+3. **#5 Writer-lock + #11 publish freeze (bundle as reliability)** — stops the corruption engine so the demand work isn't undone.
+
+Everything else waits. Demand first, plumbing frozen, one placement.

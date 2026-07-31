@@ -6,13 +6,12 @@ import { CDP_URL } from './cdp-config.mjs';
 import { LIVE_ORIGIN, appendNovelFindings } from './demigod-live-lib.mjs';
 
 const FINDINGS = '/tmp/dg-busy/dg-findings.jsonl';
-const RECEIPT = '/tmp/dg-busy/claude-yolo-last.json';
+const RECEIPT = '/tmp/dg-busy/mobile-a11y-sweep.json';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PAGES = [
   { path: '/', label: 'home' },
   { path: '/?p=events', label: 'events' },
-  { path: '/?p=mud', label: 'mud' },
 ];
 
 const KNOWN_MINOR = new Set([
@@ -27,8 +26,8 @@ const KNOWN_MINOR = new Set([
 // a.nav_logo/a.footer_link above.
 const KNOWN_MINOR_BARE = new Set([
   'a:Pricing', 'a:How it works', 'a:FAQ', 'a:Method', 'a:Compare', 'a:Pilot',
-  'a:For startups', 'a:For talent', 'a:Partners', 'a:Notes', 'a:Events',
-  'a:SF startup map', 'a:About', 'a:Privacy & terms',
+  'a:For startups', 'a:For talent', 'a:Refer talent', 'a:Partners', 'a:Notes', 'a:Events',
+  'a:SF startup map', 'a:SF startup directory', 'a:About', 'a:Privacy & terms',
   'button:Map + list', 'button:Map', 'button:List',
   'label:Startups', 'label:Venues',
 ]);

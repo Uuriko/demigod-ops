@@ -29,21 +29,25 @@ for (const [intent, type] of [
   ['improve mobile spacing', 'head-css'],
 ]) assert.equal(classifyChange(intent).type, type, intent);
 
-assert.equal(classifyChange('add Webflow File Upload component for talent résumé').commands[0], 'npm run demigod:resume-field');
+assert.equal(classifyChange('add Webflow File Upload component for talent résumé').commands[0], 'bin/dg-webflow open designer');
+assert.deepEqual(classifyChange('improve mobile spacing').commands, ['bin/dg-webflow playbook ship-all']);
+assert.doesNotMatch(classifyChange('improve mobile spacing').commands.join('\n'), /head-css-publish/);
 
 assert.match(agentTips({ freeze: { frozen: true, why: 'green hold' }, cdp: {}, tabs: {} })[1], /enabled — green hold/);
 assert.match(agentTips({ freeze: { frozen: false, authorized: false }, cdp: {}, tabs: {} })[1], /has not authorized/);
 assert.match(agentTips({ freeze: { frozen: false, authorized: true }, cdp: {}, tabs: {} })[1], /authorizes publication/);
+assert.doesNotMatch(
+  agentTips({ freeze: {}, cdp: { ok: true }, tabs: { byRole: { 'custom-code': 1, 'webflow-login': 1 } } }).join('\n'),
+  /login\/404 wall|No Custom Code tab/,
+);
 
 const cdnPublisher = fs.readFileSync(new URL('./demigod-foot-cdn-publish.mjs', import.meta.url), 'utf8');
-const footPublisher = fs.readFileSync(new URL('./demigod-publish-foot.mjs', import.meta.url), 'utf8');
 const webflowCli = fs.readFileSync(new URL('./demigod-webflow.mjs', import.meta.url), 'utf8');
 const webflowLib = fs.readFileSync(new URL('./demigod-webflow-lib.mjs', import.meta.url), 'utf8');
-const aiShip = fs.readFileSync(new URL('./demigod-webflow-ai-ship.mjs', import.meta.url), 'utf8');
-for (const source of [cdnPublisher, footPublisher]) assert.match(source, /\\\/partners\\\/?/);
-assert.match(cdnPublisher, /night-district/);
+assert.match(cdnPublisher, /\\\/partners\\\/?/);
 assert.match(cdnPublisher, /events-bot/);
 assert.match(webflowCli, /tool\.mutate && \(freeze\.frozen \|\| !freeze\.authorized\)/);
+assert.match(webflowCli, /'custom-code tab',\s*ccN > 0,/);
 assert.match(webflowLib, /paste: Boolean\([^)]+freeze\.authorized\)/);
 assert.doesNotMatch(webflowCli, /--force/);
 for (const args of [['status', '--typo'], ['status', '--json', '--json'], ['hygiene', '--kill-hugn'], ['run', 'truth', 'extra']]) {
@@ -54,11 +58,6 @@ for (const args of [['unknown'], ['bridge', '--typo'], ['status', '--json', '--j
   const result = spawnSync(process.execPath, [new URL('./demigod-webflow-connect.mjs', import.meta.url).pathname, ...args], { encoding: 'utf8' });
   assert.equal(result.status, 2, `reject connect ${args.join(' ')}`);
 }
-assert.ok(
-  aiShip.indexOf("assertNotFrozen('webflow-ai-ship')") < aiShip.indexOf('submitWebflowAiPrompt(AI_PROMPT)'),
-  'AI ship checks current-request authorization before mutating Webflow',
-);
-
 const originalFetch = globalThis.fetch;
 const originalAuthorization = process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH;
 try {

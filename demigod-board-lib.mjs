@@ -1,4 +1,4 @@
-/** Shared board JSON helpers — signal, receipts, pilots, ghost roles. */
+/** Shared board JSON helpers — signal, receipts, and pilots. */
 import fs from 'fs';
 import crypto from 'crypto';
 import { pathToFileURL } from 'url';
@@ -146,10 +146,6 @@ export function appendPilot(board = {}, {
   });
   board.milestones = board.milestones.slice(0, 6);
   return { board, role, receipt };
-}
-
-export function ghostRoles(board = {}) {
-  return ledgerRoles(board, 8).filter((r) => !isSeedRole(r));
 }
 
 export function defaultBoardExtras(board = {}) {

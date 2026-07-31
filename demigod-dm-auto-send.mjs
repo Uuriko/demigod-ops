@@ -10,7 +10,8 @@ import { spawnSync } from 'child_process';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+// Prefer DEMIGOD_BUSY (same as demand/evidence/export); keep DG_BUSY as legacy alias.
+const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const OUTREACH = path.join(ROOT, 'demigod-outreach');
 const OPS = path.join(ROOT, 'demigod-ops');
 

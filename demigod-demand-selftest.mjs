@@ -2,16 +2,27 @@
 /**
  * demigod-demand-selftest + canary (adversarial false-green)
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-demand-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildNext } from './demigod-next.mjs';
+import { draftEvidence } from './demigod-demand.mjs';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
 import { refuseIfStale } from './demigod-evidence.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const OUT = path.join(BUSY, 'demand-selftest.json');
 const fails = [];
 const spawnErrors = [];
@@ -22,10 +33,41 @@ const ok = (c, m) => (c ? console.log('ok', m) : fails.push(m));
 fs.mkdirSync(canaryDir, { recursive: true, mode: 0o700 });
 process.on('exit', () => fs.rmSync(canaryDir, { recursive: true, force: true }));
 
+{
+  const body = [
+    '# source: https://jobs.example.test/acme',
+    '# verified: 2026-07-29',
+    'Saw Acme has nine open roles.',
+  ].join('\n');
+  const company = {
+    id: 'map:acme',
+    name: 'Acme',
+    jobsUrl: 'https://jobs.example.test/acme/',
+    sourceUrl: 'https://directory.example.test/acme',
+    sourceLicense: 'public',
+    retrievedAt: '2026-07-29',
+  };
+  const evidence = draftEvidence({}, body, [company], new Date('2026-07-29T12:00:00Z'));
+  ok(
+    evidence.freshness === 'fresh' && evidence.hiringClaim?.roleCount === 9 &&
+      evidence.companyIdentity?.mapCompanyId === 'map:acme',
+    'draft evidence projects fresh count + exact source identity',
+  );
+  ok(
+    draftEvidence({}, body, [company, { ...company, id: 'map:collision' }], new Date('2026-07-29T12:00:00Z'))
+      .companyIdentity?.status === 'ambiguous',
+    'draft evidence fails closed on an exact-source identity collision',
+  );
+  const unsafe = draftEvidence({}, '# source: http://127.0.0.1/private\n# verified: 2026-07-29\n# verified: 2026-07-28');
+  ok(
+    unsafe.sourceUrls.length === 0 && unsafe.freshness === 'ambiguous',
+    'draft evidence rejects private URLs and duplicate verification metadata',
+  );
+}
+
 function runSandboxFallback() {
   const demandSource = fs.readFileSync(path.join(ROOT, 'demigod-demand.mjs'), 'utf8');
   const inboundSource = fs.readFileSync(path.join(ROOT, 'demigod-pilot-inbound.mjs'), 'utf8');
-  const cycleSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-work.mjs'), 'utf8');
   const selfSource = fs.readFileSync(path.join(ROOT, 'demigod-demand-selftest.mjs'), 'utf8');
   ok(
     (selfSource.match(/^\s*contractPass:\s*pass,\s*$/gm) || []).length === 1,
@@ -137,14 +179,6 @@ function runSandboxFallback() {
   ok(!/email\s*\|\|\s*['"]unknown@co\.com['"]/.test(inboundSource), 'fallback never synthesizes a WIZ identity');
   ok(/process\.exitCode\s*=\s*map\[cmd\]\(\)/.test(inboundSource), 'fallback lets inbound JSON pipes flush');
   ok(!/process\.exit\(map\[cmd\]\(\)/.test(inboundSource), 'fallback forbids immediate inbound exit');
-  ok(/startup-source-contract/.test(cycleSource), 'fallback cycle labels startup verification scope');
-  ok(/externallyAttested:\s*false/.test(cycleSource), 'fallback cycle never promotes source checks to external attestation');
-  ok(/no send attested/.test(cycleSource), 'fallback cycle tail states that no send was attested');
-  ok(/childStartBlocked:\s*true/.test(cycleSource), 'fallback cycle preserves child-start denial');
-  ok(/blocked:\s*result\.blocked === true \|\| result\.childStartBlocked === true/.test(cycleSource), 'fallback startup health exposes child-start denial');
-  ok(/schema:\s*['"]demigod\.cycle-startup-health\/1['"]/.test(cycleSource), 'fallback startup cycle writes a dedicated health receipt');
-  ok(/executionMode,\s*\n\s*attestationCommand,\s*\n\s*summary:\s*healthSummary/.test(cycleSource), 'fallback startup receipt exposes execution mode, retry command, and summary');
-  ok(/for \(const n of healthBlocked \? \[\] : names\)/.test(cycleSource), 'fallback startup cycle skips draft mutation attempts after child-start denial');
   ok(/allowedChannels\.has/.test(demandSource), 'fallback demand reader rejects invalid warm-inbound channels');
   ok(/quarantine\(['"]unsafe_markup['"]\)/.test(demandSource), 'fallback demand rejects markup in warm evidence identity fields');
   ok(/\[who, channel, status, next\]\.some\(hasUnsafeEvidenceMarkup\)/.test(demandSource), 'fallback demand rejects markup in every surfaced warm-inbound text field');
@@ -1037,6 +1071,51 @@ ok(
   /Quarantine: \$\{reasons \|\| ['"]unclassified['"]\}/.test(inboundSource),
   'pilot inbound text status explains quarantine reasons',
 );
+
+// Reviewed-startup submission projection (hermetic temp inbox): one ready
+// reviewed startup must project as readyForPilotOs=1; spam + example.com test
+// rows must project zero everywhere operational. DEMIGOD_INBOX_PATH points the
+// shared loadInbox at a fixture, so canonical leads/pilot data is never read.
+const nowIso = new Date().toISOString();
+const startupRaw = {
+  'company-name': 'Acme', 'company-stage': 'seed', 'role-title': 'Founding Eng',
+  'stack-needs': 'ts node', '90day-outcome': 'Ship v1', 'work-location': 'SF',
+  'salary-range': '150-180k', 'contact-email': 'founder@acme.co',
+};
+const readyInbox = path.join(canaryDir, 'inbox-ready-startup.json');
+fs.writeFileSync(readyInbox, JSON.stringify({ at: nowIso, items: [
+  { id: 'sub-ready-1', at: nowIso, form: 'startup-intake', status: 'reviewed', raw: { ...startupRaw } },
+] }));
+const readyRun = run('demigod-pilot-inbound.mjs', ['status', '--json'], { DEMIGOD_INBOX_PATH: readyInbox });
+let readyOut = null;
+try { readyOut = JSON.parse(readyRun.stdout.slice(readyRun.stdout.indexOf('{'))); } catch { /* */ }
+ok(readyRun.status === 0, 'submission projection canary runs');
+ok(readyOut?.submissionInbox?.readyForPilotOs === 1, 'one reviewed startup projects as ready for Pilot OS');
+ok(readyOut?.submissionInbox?.awaitingReview === 0, 'ready reviewed startup is not counted as awaiting');
+const readyRow = readyOut?.submissionInbox?.rows?.[0];
+ok(
+  readyRow?.id === 'sub-ready-1' && readyRow?.readiness === 'ready' &&
+    !('email' in readyRow) && !('raw' in readyRow) && !('contact-email' in readyRow),
+  'projection row is redacted (id/status/at/readiness/missing; no raw contact)',
+);
+
+const spamTestInbox = path.join(canaryDir, 'inbox-spam-test-startup.json');
+fs.writeFileSync(spamTestInbox, JSON.stringify({ at: nowIso, items: [
+  { id: 'sub-spam-1', at: nowIso, form: 'startup-intake', status: 'spam', raw: { ...startupRaw } },
+  { id: 'sub-test-1', at: nowIso, form: 'startup-intake', status: 'reviewed', raw: { ...startupRaw, 'contact-email': 'founder@example.com' } },
+] }));
+const spamRun = run('demigod-pilot-inbound.mjs', ['status', '--json'], { DEMIGOD_INBOX_PATH: spamTestInbox });
+let spamOut = null;
+try { spamOut = JSON.parse(spamRun.stdout.slice(spamRun.stdout.indexOf('{'))); } catch { /* */ }
+ok(spamRun.status === 0, 'submission spam/test canary runs');
+ok(
+  spamOut?.submissionInbox && spamOut.submissionInbox.readyForPilotOs === 0 &&
+    spamOut.submissionInbox.awaitingReview === 0 && spamOut.submissionInbox.blocked === 0 &&
+    spamOut.submissionInbox.alreadyOpen === 0,
+  'spam and example.com startups project zero operational',
+);
+ok(spamOut?.submissionInbox?.rows?.length === 0, 'spam/test projection exposes no rows');
+ok(!/human review/i.test(String(readyOut?.next || '')), 'submission next text avoids the human-review phrase');
 
 // A row-shaped line under the right heading is still not evidence when the
 // canonical warm-inbound schema is absent or shifted.

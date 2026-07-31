@@ -18,11 +18,14 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { loadInbox, extractEmail } from './demigod-submissions-lib.mjs';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { normalizeLinkedInProfile } from './demigod-outreach-policy.mjs';
+import { safeResearchUrl } from './demigod-evidence.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
 const OUT = path.join(ROOT, 'DEMIGOD-LEADS.json');
 const CRM_LOCK = `${OUT}.lock`;
+const ENRICH_RUN_LOCK = `${OUT}.enrich.lock`;
 const BUSY = '/tmp/dg-busy/leads';
 const SCRAPE_DIR = path.join(BUSY, 'scrapes');
 
@@ -207,10 +210,13 @@ export function mergeLeadState(current, previous) {
     'email',
     'contactEmail',
     'handle',
+    'linkedin',
     'applyUrl',
     'companyUrl',
     'enrichAttemptCount',
     'enrichAttemptedAt',
+    'lastTransportFailedAt',
+    'lastTransportError',
     'enrichExhaustedAt',
     'collectLabel',
     'provenance',
@@ -218,6 +224,15 @@ export function mergeLeadState(current, previous) {
   ]) {
     if (previous[key] != null && (merged[key] == null || merged[key] === '' || (['stateHistory', 'history'].includes(key) && !merged[key]?.length))) {
       merged[key] = previous[key];
+    }
+  }
+  const previousConflicts = previous.contactProvenance?.conflicts;
+  if (previousConflicts && typeof previousConflicts === 'object') {
+    for (const field of ['linkedin', 'companyUrl']) {
+      if (previousConflicts[field] && previous[field] != null) {
+        merged[field] = previous[field];
+        merged.contactProvenance = previous.contactProvenance;
+      }
     }
   }
   // Prefer higher enrich attempt counts (re-collect must not reset cooldown/exhaust)
@@ -270,7 +285,7 @@ export function mergeLeadState(current, previous) {
   return attachPublicContact(merged);
 }
 
-/** Public poster handle from x.com status URL (not invented contact). Noise org/job-board handles never stamp. */
+/** Public person identity already present in a lead URL/source (never invented contact). */
 export function attachPublicContact(lead) {
   if (!lead || typeof lead !== 'object') return lead;
   if (!lead.handle) {
@@ -280,6 +295,10 @@ export function attachPublicContact(lead) {
   if (!lead.handle) {
     const m2 = String(lead.source || '').match(/x:@([A-Za-z0-9_]+)/i);
     if (m2 && isUsableOutreachHandle(m2[1])) lead.handle = '@' + m2[1];
+  }
+  if (!lead.linkedin) {
+    const linkedin = normalizeLinkedInProfile(lead.url);
+    if (linkedin) lead.linkedin = linkedin;
   }
   return lead;
 }
@@ -304,6 +323,13 @@ export function isUsableOutreachEmail(email) {
   return true;
 }
 
+/** First valid email wins; a noisy primary alias must not shadow a valid alternate. */
+export function firstUsableOutreachEmail(...emails) {
+  return emails
+    .map((email) => String(email || '').trim())
+    .find(isUsableOutreachEmail) || '';
+}
+
 /** True when handle is a person-shaped X target (not org/job-board noise). */
 export function isUsableOutreachHandle(handle) {
   const h = String(handle || '')
@@ -320,12 +346,173 @@ export function isOwnSiteUrl(url) {
   return /(?:^|[/.])trydemigod\.com(?:[/:?]|$)/i.test(String(url || ''));
 }
 
+const WAAS_MAX_BYTES = 256 * 1024;
+
+function waasJobIdentity(value) {
+  try {
+    const url = new URL(String(value || ''));
+    const match = url.pathname.match(/^\/jobs\/(\d+)\/?$/);
+    if (
+      url.protocol !== 'https:' ||
+      url.hostname !== 'www.workatastartup.com' ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      !match
+    ) return null;
+    return { id: match[1], url: url.href };
+  } catch {
+    return null;
+  }
+}
+
+export const isWaasPublicJobUrl = (value) => Boolean(waasJobIdentity(value));
+
+const exactCompanyKey = (value) =>
+  String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+
+const decodeDataPageAttribute = (value) =>
+  String(value || '')
+    .replace(/&quot;/gi, '"')
+    .replace(/(?:&#39;|&apos;|&#x27;)/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+
+/**
+ * Parse only Inertia's public WaaS job payload. No page-text contact guessing.
+ * A sole named founder profile is unambiguous enough for a local review draft.
+ */
+export function parseWaasPublicJobPage(html, { jobUrl, company } = {}) {
+  const identity = waasJobIdentity(jobUrl);
+  const attribute = String(html || '').match(/\bdata-page=(["'])([\s\S]*?)\1/i)?.[2];
+  if (!identity || !attribute || !exactCompanyKey(company)) return null;
+  let payload;
+  try {
+    payload = JSON.parse(decodeDataPageAttribute(attribute));
+  } catch {
+    return null;
+  }
+  if (
+    payload?.component !== 'jobs/public/pages/JobDetailPage' ||
+    String(payload?.props?.job?.id ?? '') !== identity.id ||
+    exactCompanyKey(payload?.props?.company?.name) !== exactCompanyKey(company)
+  ) return null;
+  const companyUrl = safeResearchUrl(payload?.props?.company?.url);
+  if (!companyUrl || isJunkCompanyUrl(companyUrl)) return null;
+  const profiles = (Array.isArray(payload?.props?.company?.founders)
+    ? payload.props.company.founders
+    : [])
+    .filter((founder) => String(founder?.name || '').trim())
+    .map((founder) => normalizeLinkedInProfile(founder.linkedin))
+    .filter(Boolean);
+  return {
+    companyUrl,
+    ...(profiles.length === 1 ? { linkedin: profiles[0] } : {}),
+  };
+}
+
+async function boundedResponseText(response, maxBytes) {
+  const contentLength = Number(response.headers?.get?.('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    try { await response.body?.cancel?.(); } catch { /* */ }
+    return null;
+  }
+  if (!response.body?.getReader) {
+    const text = await response.text();
+    return Buffer.byteLength(text) <= maxBytes ? text : null;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let bytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      try { await reader.cancel(); } catch { /* */ }
+      return null;
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks, bytes).toString('utf8');
+}
+
+async function cancelResponseBody(response) {
+  try { await response?.body?.cancel?.(); } catch { /* */ }
+}
+
+/** One allowlisted public fetch; terminal empty responses remain distinguishable from transport failure. */
+export async function fetchWaasPublicJobPage(
+  lead,
+  { fetchImpl = fetch, timeoutMs = 10000, maxBytes = WAAS_MAX_BYTES } = {},
+) {
+  const identity = waasJobIdentity(lead?.url);
+  if (
+    !identity ||
+    !Number.isInteger(maxBytes) ||
+    maxBytes < 1 ||
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs < 1
+  ) return { completed: false, extracted: null, error: 'invalid_request' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(identity.url, {
+      headers: {
+        Accept: 'text/html',
+        'User-Agent': 'demigod-public-enrichment/1 (+https://www.trydemigod.com)',
+      },
+      redirect: 'manual',
+      signal: controller.signal,
+    });
+    if (response.status === 404 || response.status === 410) {
+      await cancelResponseBody(response);
+      return { completed: true, extracted: null, error: `http_${response.status}` };
+    }
+    if (response.status !== 200) {
+      await cancelResponseBody(response);
+      return { completed: false, extracted: null, error: `http_${response.status}` };
+    }
+    if (!/^text\/html(?:;|$)/i.test(String(response.headers?.get?.('content-type') || ''))) {
+      await cancelResponseBody(response);
+      return { completed: false, extracted: null, error: 'not_html' };
+    }
+    const finalIdentity = response.url ? waasJobIdentity(response.url) : identity;
+    if (!finalIdentity || finalIdentity.id !== identity.id) {
+      await cancelResponseBody(response);
+      return { completed: false, extracted: null, error: 'final_url_mismatch' };
+    }
+    const html = await boundedResponseText(response, maxBytes);
+    if (html == null) return { completed: false, extracted: null, error: 'body_too_large' };
+    const extracted = parseWaasPublicJobPage(html, {
+      jobUrl: identity.url,
+      company: lead.company,
+    });
+    return {
+      completed: Boolean(extracted),
+      extracted,
+      error: extracted ? null : 'invalid_payload',
+    };
+  } catch (error) {
+    return {
+      completed: false,
+      extracted: null,
+      error: error?.name === 'AbortError' ? 'timeout' : 'fetch_failed',
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Back-compat alias used in older call sites / comments
 const SKIP_EMAIL_RE = NOISE_EMAIL_RE;
 
 /**
  * Pure: extract ONLY contacts literally present on a scraped page.
- * Never constructs first@domain. Returns {contactEmail?, handle?, applyUrl?} (absent keys = not found).
+ * Never constructs first@domain. Returns observed contact fields only (absent keys = not found).
  * Skips self-domain (trydemigod.com), noreply, pending.example — continues to next match.
  */
 export function extractContactFromPage(text) {
@@ -363,6 +550,24 @@ export function extractContactFromPage(text) {
       break;
     }
   }
+
+  const linkedinRe =
+    /(?<![a-z0-9.-])(?:https?:\/\/)?(?:[a-z]{2,3}\.)?(?:www\.)?linkedin\.com\/in\/[a-z0-9_%~-]+\/?(?:\?[^\s)"'<>]*)?/gi;
+  let li;
+  const linkedinProfiles = new Set();
+  while ((li = linkedinRe.exec(raw)) !== null) {
+    const context = raw.slice(Math.max(0, li.index - 64), li.index);
+    if (
+      !/(?:founder|co[- ]?founder|hiring manager|recruiter|contact(?: person)?|posted by|author|profile)\b[^\r\n]{0,48}$/i.test(
+        context,
+      )
+    ) {
+      continue;
+    }
+    const profile = normalizeLinkedInProfile(li[0]);
+    if (profile) linkedinProfiles.add(profile);
+  }
+  if (linkedinProfiles.size === 1) out.linkedin = [...linkedinProfiles][0];
 
   // Job-board apply hosts only (not CDN/logo paths like app.ashbyhq.com/api/images/…)
   // Never accept aggregator index/apply shells (workatastartup.com/application).
@@ -433,27 +638,41 @@ export function scrubNoiseContact(lead) {
   if (lead.handle && !isUsableOutreachHandle(lead.handle)) {
     delete lead.handle;
   }
+  if (lead.linkedin) {
+    const linkedin = normalizeLinkedInProfile(lead.linkedin);
+    if (linkedin) lead.linkedin = linkedin;
+    else delete lead.linkedin;
+  }
   if (lead.applyUrl && isAggregatorUrl(lead.applyUrl)) {
     delete lead.applyUrl;
   }
   // Job boards / YC corporate / social are not real company websites
-  if (lead.companyUrl && isJunkCompanyUrl(lead.companyUrl)) {
+  if (
+    lead.companyUrl &&
+    (!safeResearchUrl(lead.companyUrl) || isJunkCompanyUrl(lead.companyUrl))
+  ) {
     delete lead.companyUrl;
   }
-  const email = String(lead.email || lead.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
   const handle = String(lead.handle || '').trim();
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
   const usable =
-    isUsableOutreachEmail(email) || isUsableOutreachHandle(handle);
+    isUsableOutreachEmail(email) || isUsableOutreachHandle(handle) || Boolean(linkedin);
   const hasAtsApply = Boolean(lead.applyUrl && !isAggregatorUrl(lead.applyUrl));
+  const hasCompanyUrl = Boolean(
+    lead.companyUrl &&
+    safeResearchUrl(lead.companyUrl) &&
+    !isJunkCompanyUrl(lead.companyUrl)
+  );
   // Provenance with neither usable contact nor real ATS apply was a false stamp
   // (e.g. workatastartup@ycombinator.com + /application shell).
-  if (lead.contactProvenance && !usable && !hasAtsApply) {
+  if (lead.contactProvenance && !usable && !hasAtsApply && !hasCompanyUrl) {
     delete lead.contactProvenance;
   }
   return lead;
 }
 
-/** Partner needs scrape-enrich: active, has url, and no usable email/handle. */
+/** Partner needs scrape-enrich: active, has url, and no observed person contact. */
 export function needsContactEnrich(lead) {
   if (!lead || typeof lead !== 'object') return false;
   const st = lead.state || lead.status || '';
@@ -461,12 +680,19 @@ export function needsContactEnrich(lead) {
   if (!lead.url) return false;
   // Never scrape our own site — footer email is not a lead contact
   if (isOwnSiteUrl(lead.url)) return false;
+  attachPublicContact(lead);
   scrubNoiseContact(lead);
-  const email = String(lead.email || lead.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
   const handle = String(lead.handle || '').trim();
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
   // Usable contact already present → done
-  if (isUsableOutreachEmail(email) || isUsableOutreachHandle(handle)) return false;
+  if (isUsableOutreachEmail(email) || isUsableOutreachHandle(handle) || linkedin) return false;
   return true;
+}
+
+/** Fail closed while structured public evidence disputes the stored LinkedIn identity. */
+export function hasUnresolvedLinkedInConflict(lead) {
+  return Boolean(lead?.contactProvenance?.conflicts?.linkedin);
 }
 
 /** Default: do not re-scrape the same no-contact hold every triage (Firecrawl thrash). */
@@ -507,6 +733,8 @@ export function applyEnrichAttemptStamp(
   if (scrapeCompleted) {
     lead.enrichAttemptedAt = ts;
     lead.enrichAttemptCount = (Number(lead.enrichAttemptCount) || 0) + 1;
+    delete lead.lastTransportFailedAt;
+    delete lead.lastTransportError;
     return lead;
   }
   if (transportFailed) {
@@ -538,16 +766,27 @@ export function stampEnrichExhausted(
   { at = null, max = ENRICH_MAX_ATTEMPTS } = {},
 ) {
   if (!lead || typeof lead !== 'object') return { exhausted: false };
-  const email = String(lead.email || lead.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
   const handle = String(lead.handle || '').trim();
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
+  const linkedinConflict = hasUnresolvedLinkedInConflict(lead);
   const usable =
-    isUsableOutreachEmail(email) || isUsableOutreachHandle(handle);
+    isUsableOutreachEmail(email) ||
+    isUsableOutreachHandle(handle) ||
+    (Boolean(linkedin) && !linkedinConflict);
   if (usable) {
     if (lead.policyHoldReason === 'enrich-exhausted') delete lead.policyHoldReason;
     if (lead.enrichExhaustedAt) delete lead.enrichExhaustedAt;
     return { exhausted: false, cleared: true };
   }
+  if (linkedinConflict) return { exhausted: false, conflict: true };
   if (!enrichAttemptsExhausted(lead, { max })) return { exhausted: false };
+  if (
+    String(lead.state || lead.status || '') === 'policy_hold' &&
+    !hasContactReleaseHoldReason(lead)
+  ) {
+    return { exhausted: true, preserved: true };
+  }
   const ts = at || new Date().toISOString();
   lead.policyHoldReason = 'enrich-exhausted';
   lead.enrichExhaustedAt = ts;
@@ -559,10 +798,32 @@ export function stampEnrichExhausted(
  * Only writes fields that were literally found AND usable (never invents; never self-domain).
  * Heals prior platform-noise stamps before merging.
  */
-export function applyContactEnrich(lead, extracted, { url, at } = {}) {
+export function applyContactEnrich(
+  lead,
+  extracted,
+  { url, at, fieldSources = {}, method = 'scrape' } = {},
+) {
   const next = scrubNoiseContact({ ...lead });
   const ex = extracted && typeof extracted === 'object' ? extracted : {};
-  let found = false;
+  const observedAt = at || new Date().toISOString();
+  const observedUrl = url || next.url || null;
+  const observedMethod =
+    method === 'waas-data-page' && isWaasPublicJobUrl(observedUrl)
+      ? method
+      : 'scrape';
+  const priorProvenance =
+    next.contactProvenance && typeof next.contactProvenance === 'object'
+      ? next.contactProvenance
+      : {};
+  const conflicts = {};
+  for (const field of ['linkedin', 'companyUrl']) {
+    const record = priorProvenance.conflicts?.[field];
+    if (record && typeof record === 'object' && !Array.isArray(record)) {
+      conflicts[field] = { ...record };
+    }
+  }
+  let conflictsChanged = false;
+  const observedFields = [];
   if (
     ex.contactEmail &&
     !next.contactEmail &&
@@ -570,26 +831,95 @@ export function applyContactEnrich(lead, extracted, { url, at } = {}) {
     isUsableOutreachEmail(ex.contactEmail)
   ) {
     next.contactEmail = ex.contactEmail;
-    found = true;
+    observedFields.push('contactEmail');
   }
   if (ex.handle && !next.handle && isUsableOutreachHandle(ex.handle)) {
     next.handle = ex.handle;
-    found = true;
+    observedFields.push('handle');
+  }
+  const linkedin = normalizeLinkedInProfile(ex.linkedin);
+  const storedLinkedin = normalizeLinkedInProfile(next.linkedin);
+  if (observedMethod === 'waas-data-page' && linkedin && storedLinkedin) {
+    if (linkedin !== storedLinkedin) {
+      conflicts.linkedin = {
+        status: 'conflict',
+        kept: storedLinkedin,
+        observed: linkedin,
+        url: observedUrl,
+        at: observedAt,
+        method: observedMethod,
+      };
+      conflictsChanged = true;
+    } else if (conflicts.linkedin) {
+      delete conflicts.linkedin;
+      conflictsChanged = true;
+    }
+  }
+  if (linkedin && !next.linkedin) {
+    next.linkedin = linkedin;
+    observedFields.push('linkedin');
   }
   if (ex.applyUrl && !next.applyUrl && !isAggregatorUrl(ex.applyUrl)) {
     next.applyUrl = ex.applyUrl;
-    found = true;
+    observedFields.push('applyUrl');
   }
-  if (ex.companyUrl && !next.companyUrl && !isJunkCompanyUrl(ex.companyUrl)) {
-    next.companyUrl = ex.companyUrl;
-    found = true;
+  const companyUrl = safeResearchUrl(ex.companyUrl);
+  const storedCompanyUrl = safeResearchUrl(next.companyUrl);
+  if (
+    observedMethod === 'waas-data-page' &&
+    companyUrl &&
+    !isJunkCompanyUrl(companyUrl) &&
+    storedCompanyUrl
+  ) {
+    if (companyUrl !== storedCompanyUrl) {
+      conflicts.companyUrl = {
+        status: 'conflict',
+        kept: storedCompanyUrl,
+        observed: companyUrl,
+        url: observedUrl,
+        at: observedAt,
+        method: observedMethod,
+      };
+      conflictsChanged = true;
+    } else if (conflicts.companyUrl) {
+      delete conflicts.companyUrl;
+      conflictsChanged = true;
+    }
   }
-  if (found) {
+  if (
+    companyUrl &&
+    !next.companyUrl &&
+    !isJunkCompanyUrl(companyUrl)
+  ) {
+    next.companyUrl = companyUrl;
+    observedFields.push('companyUrl');
+  }
+  if (observedFields.length) {
+    const fields = { ...(priorProvenance.fields || {}) };
+    for (const field of observedFields) {
+      fields[field] = {
+        url: fieldSources[field] || observedUrl,
+        at: observedAt,
+        method: observedMethod,
+      };
+    }
+    const { conflicts: _priorConflicts, ...rest } = priorProvenance;
     next.contactProvenance = {
-      url: url || next.url || null,
-      at: at || new Date().toISOString(),
-      method: 'scrape',
+      ...rest,
+      url: observedUrl,
+      at: observedAt,
+      method: observedMethod,
+      fields,
+      ...(Object.keys(conflicts).length ? { conflicts } : {}),
     };
+  } else if (conflictsChanged) {
+    const { conflicts: _priorConflicts, ...rest } = priorProvenance;
+    const updated = {
+      ...rest,
+      ...(Object.keys(conflicts).length ? { conflicts } : {}),
+    };
+    if (Object.keys(updated).length) next.contactProvenance = updated;
+    else delete next.contactProvenance;
   }
   return next;
 }
@@ -600,12 +930,16 @@ export function applyContactEnrich(lead, extracted, { url, at } = {}) {
  * over aggregator job shells (WaaS/Wellfound) that almost never do.
  */
 export function enrichUrlPriority(url) {
-  const u = String(url || '');
-  if (
-    /jobs\.ashbyhq\.com|boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.lever\.co|apply\.workable\.com/i.test(
-      u,
-    )
-  ) {
+  const u = safeResearchUrl(url);
+  if (!u) return 3;
+  const host = new URL(u).hostname.toLowerCase();
+  if ([
+    'jobs.ashbyhq.com',
+    'boards.greenhouse.io',
+    'job-boards.greenhouse.io',
+    'jobs.lever.co',
+    'apply.workable.com',
+  ].includes(host)) {
     return 0;
   }
   if (isAggregatorUrl(u)) return 2;
@@ -619,13 +953,20 @@ export function enrichUrlPriority(url) {
 export function enrichScrapeUrl(lead) {
   if (!lead || typeof lead !== 'object') return '';
   const listing = String(lead.url || '').trim();
+  // Exact public WaaS jobs have a structured allowlisted route; never replace it with a hop.
+  if (isWaasPublicJobUrl(listing)) return listing;
   const apply = String(lead.applyUrl || '').trim();
   if (apply && !isAggregatorUrl(apply) && enrichUrlPriority(apply) < enrichUrlPriority(listing || apply)) {
     return apply;
   }
   // Prior enrich may have stamped companyUrl — scrape that before re-hitting WaaS shells
   const company = String(lead.companyUrl || '').trim();
-  if (company && !isJunkCompanyUrl(company) && enrichUrlPriority(listing || company) >= 2) {
+  if (
+    company &&
+    safeResearchUrl(company) &&
+    !isJunkCompanyUrl(company) &&
+    enrichUrlPriority(listing || company) >= 2
+  ) {
     return company;
   }
   return listing || apply || (!isJunkCompanyUrl(company) ? company : '') || '';
@@ -633,8 +974,18 @@ export function enrichScrapeUrl(lead) {
 
 export const enrichScrapeUrlKey = (lead) => enrichScrapeUrl(lead).replace(/#.*$/, '').replace(/\/$/, '');
 
+const CONTACT_RELEASE_HOLD_REASONS = new Set([
+  'no-usable-contact',
+  'no-contact-email',
+  'enrich-exhausted',
+  'linkedin-identity-conflict',
+]);
+
+export const hasContactReleaseHoldReason = (lead) =>
+  CONTACT_RELEASE_HOLD_REASONS.has(String(lead?.policyHoldReason || ''));
+
 /**
- * Pure: policy_hold + usable email|handle → drafted (FOCUS release after enrich).
+ * Pure: policy_hold + observed person contact → drafted (local draft only).
  * Never invents contact. Mutates lead in place when released.
  */
 export function releaseHoldIfContactable(
@@ -644,22 +995,31 @@ export function releaseHoldIfContactable(
   if (!lead || typeof lead !== 'object') return { released: false, reason: 'no-lead' };
   const from = String(lead.state || lead.status || '');
   if (from !== 'policy_hold') return { released: false, reason: 'not-hold' };
-  const email = String(lead.email || lead.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
   const handle = String(lead.handle || '').trim();
-  if (!isUsableOutreachEmail(email) && !isUsableOutreachHandle(handle)) {
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
+  const emailOk = isUsableOutreachEmail(email);
+  const handleOk = isUsableOutreachHandle(handle);
+  const linkedinConflict = hasUnresolvedLinkedInConflict(lead);
+  const linkedinOk = Boolean(linkedin) && !linkedinConflict;
+  if (!emailOk && !handleOk && !linkedinOk) {
+    if (linkedinConflict) {
+      if (hasContactReleaseHoldReason(lead)) {
+        lead.policyHoldReason = 'linkedin-identity-conflict';
+        delete lead.enrichExhaustedAt;
+      }
+      return { released: false, reason: 'linkedin-identity-conflict' };
+    }
     return { released: false, reason: 'no-contact' };
+  }
+  if (!hasContactReleaseHoldReason(lead)) {
+    return { released: false, reason: 'hold-reason-not-contact' };
   }
   const ts = at || new Date().toISOString();
   lead.state = 'drafted';
   lead.status = 'drafted';
-  if (
-    lead.policyHoldReason === 'no-usable-contact' ||
-    lead.policyHoldReason === 'no-contact-email' ||
-    lead.policyHoldReason === 'enrich-exhausted'
-  ) {
-    delete lead.policyHoldReason;
-    if (lead.enrichExhaustedAt) delete lead.enrichExhaustedAt;
-  }
+  delete lead.policyHoldReason;
+  if (lead.enrichExhaustedAt) delete lead.enrichExhaustedAt;
   lead.stateUpdatedAt = ts;
   lead.stateHistory = Array.isArray(lead.stateHistory) ? lead.stateHistory : [];
   lead.stateHistory.push({ at: ts, from, to: 'drafted', actor, evidence: null, note });
@@ -667,17 +1027,23 @@ export function releaseHoldIfContactable(
 }
 
 /**
- * Pure: after first scrape, if no usable email|handle, hop once:
+ * Pure: after first scrape, if no observed person contact, hop once:
  * 1) ATS applyUrl (best)
- * 2) company website (when listing was aggregator shell)
- * Never hops to aggregators or same URL.
+ * 2) company website (when listing was an unstructured aggregator shell)
+ * Never hops from exact public WaaS jobs, to aggregators, or to the same URL.
  */
 export function shouldEnrichSecondHop(lead, extracted, firstUrl) {
   if (!lead || typeof lead !== 'object') return null;
-  const email = String(lead.email || lead.contactEmail || extracted?.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(
+    lead.email,
+    lead.contactEmail,
+    extracted?.contactEmail,
+  );
   const handle = String(lead.handle || extracted?.handle || '').trim();
-  if (isUsableOutreachEmail(email) || isUsableOutreachHandle(handle)) return null;
+  const linkedin = normalizeLinkedInProfile(lead.linkedin || extracted?.linkedin);
+  if (isUsableOutreachEmail(email) || isUsableOutreachHandle(handle) || linkedin) return null;
   const first = String(firstUrl || '').trim();
+  if (isWaasPublicJobUrl(first)) return null;
   const apply = String(lead.applyUrl || extracted?.applyUrl || '').trim();
   if (apply && !isAggregatorUrl(apply) && enrichUrlPriority(apply) === 0 && apply !== first) {
     return apply;
@@ -685,6 +1051,7 @@ export function shouldEnrichSecondHop(lead, extracted, firstUrl) {
   const company = String(lead.companyUrl || extracted?.companyUrl || '').trim();
   if (
     company &&
+    safeResearchUrl(company) &&
     !isJunkCompanyUrl(company) &&
     company !== first &&
     enrichUrlPriority(first) >= 2 // only hop off aggregator listings
@@ -710,7 +1077,21 @@ export function selectEnrichTargets(
   for (let i = 0; i < list.length; i++) {
     const lead = list[i];
     if (id && lead.id !== id) continue;
-    if (!needsContactEnrich(lead)) continue;
+    const state =
+      funnelPipelineState(lead.state, lead.status) ||
+      String(lead.state || lead.status || '').toLowerCase();
+    const forcedWaasConflict =
+      id &&
+      lead.id === id &&
+      !SUPPRESSED_STATUSES.has(state) &&
+      isWaasPublicJobUrl(lead.url) &&
+      ['linkedin', 'companyUrl'].some(
+        (field) => lead.contactProvenance?.conflicts?.[field],
+      );
+    if (
+      !needsContactEnrich(lead) &&
+      !forcedWaasConflict
+    ) continue;
     // Forced --id= always retries; batch path respects cooldown + max attempts
     if (!id && enrichRecentlyAttempted(lead, { now, cooldownMs })) continue;
     if (!id && enrichAttemptsExhausted(lead)) continue;
@@ -854,6 +1235,11 @@ export let lastFcScrapeError = null;
 export function fcScrape(url) {
   lastFcScrapeError = null;
   if (!url) return null;
+  const safeUrl = safeResearchUrl(url);
+  if (!safeUrl) {
+    lastFcScrapeError = 'unsafe_url';
+    return null;
+  }
   const env = { ...process.env };
   const key = loadFcKey();
   if (key) env.FIRECRAWL_API_KEY = key;
@@ -863,7 +1249,7 @@ export function fcScrape(url) {
     /* */
   }
   const out = path.join(BUSY, `enrich-scrape-${process.pid}-${randomUUID()}.md`);
-  const r = spawnSync('firecrawl', ['scrape', String(url), '-o', out], {
+  const r = spawnSync('firecrawl', ['scrape', safeUrl, '-o', out], {
     encoding: 'utf8',
     timeout: 90000,
     env,
@@ -899,7 +1285,7 @@ export function fcScrape(url) {
  * --enrich [--id=LEAD] [--limit=10]
  * Scrape partner + talent posting URLs; attach only contacts literally on-page.
  */
-export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
+export async function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
   let doc;
   try {
     doc = JSON.parse(fs.readFileSync(OUT, 'utf8'));
@@ -920,25 +1306,40 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
   let transportAbort = null; // e.g. firecrawl_insufficient_credits — stop burning API
 
   for (const lead of targets) {
-    const url = enrichScrapeUrl(lead) || lead.url;
+    const waas = isWaasPublicJobUrl(lead.url);
+    const structuredAttempt =
+      !dryRun && waas ? await fetchWaasPublicJobPage(lead) : null;
+    const structured = structuredAttempt?.extracted || null;
+    const structuredCompleted = structuredAttempt?.completed === true;
+    const structuredSource = structured ? 'waas-data-page' : null;
+    const structuredError = structuredAttempt?.error || null;
+    const url = waas ? lead.url : (enrichScrapeUrl(lead) || lead.url);
     let page = '';
     let scrapeOk = false;
     let scrapeCompleted = false;
     let hopUrl = null;
-    let extracted = { contactEmail: null, handle: null, applyUrl: null };
-    if (transportAbort) {
+    let extracted = { contactEmail: null, handle: null, linkedin: null, applyUrl: null };
+    const fieldSources = {};
+    if (transportAbort && !structuredCompleted) {
       pending.push({
         lead,
         extracted,
+        fieldSources,
         url,
         hopUrl: null,
         scrapeOk: false,
         scrapeCompleted: false,
-        skipped: transportAbort,
+        skipped: structuredError || transportAbort,
+        structuredSource,
+        structuredError,
       });
       continue;
     }
-    if (!dryRun && url) {
+    if (structuredCompleted) {
+      extracted = structured || extracted;
+      scrapeCompleted = true;
+      scrapeOk = Boolean(structured);
+    } else if (!dryRun && url) {
       const scraped = pages.has(url) ? pages.get(url) : fcScrape(url);
       pages.set(url, scraped);
       scrapeCompleted = scraped !== null;
@@ -947,11 +1348,18 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
       if (!scrapeCompleted && lastFcScrapeError === 'firecrawl_insufficient_credits') {
         transportAbort = lastFcScrapeError;
       }
+      extracted = extractContactFromPage(page);
     }
-    extracted = extractContactFromPage(page);
-    let enriched = applyContactEnrich(lead, extracted, { url, at });
+    for (const [field, value] of Object.entries(extracted)) {
+      if (value) fieldSources[field] = url;
+    }
+    let enriched = applyContactEnrich(lead, extracted, {
+      url,
+      at,
+      method: structuredSource || 'scrape',
+    });
     // Second hop: listing only gave ATS applyUrl → scrape that host for real contact
-    const hop = shouldEnrichSecondHop(enriched, extracted, url);
+    const hop = waas ? null : shouldEnrichSecondHop(enriched, extracted, url);
     if (hop && !dryRun && !transportAbort) {
       hopUrl = hop;
       const page2 = pages.has(hop) ? pages.get(hop) : fcScrape(hop);
@@ -964,14 +1372,32 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
         scrapeOk = true;
         const ex2 = extractContactFromPage(page2);
         enriched = applyContactEnrich(enriched, ex2, { url: hop, at });
+        for (const [field, value] of Object.entries(ex2)) {
+          if (value) fieldSources[field] = hop;
+        }
         extracted = { ...extracted, ...ex2 };
       }
     }
-    pending.push({ lead, extracted, url, hopUrl, scrapeOk, scrapeCompleted });
+    pending.push({
+      lead,
+      extracted,
+      fieldSources,
+      url,
+      hopUrl,
+      scrapeOk,
+      scrapeCompleted,
+      structuredSource,
+      structuredError,
+    });
   }
 
   const finish = (current, item) => {
-    const enriched = applyContactEnrich(current, item.extracted, { url: item.hopUrl || item.url, at });
+    const enriched = applyContactEnrich(current, item.extracted, {
+      url: item.hopUrl || item.url,
+      at,
+      fieldSources: item.fieldSources,
+      method: item.structuredSource || 'scrape',
+    });
     const transportFailed = !dryRun && !!item.url && !item.scrapeCompleted;
     applyEnrichAttemptStamp(enriched, {
       scrapeCompleted: !!item.scrapeCompleted,
@@ -985,8 +1411,12 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
     });
     const rel = releaseHoldIfContactable(enriched, { at, actor: 'enrich', note: 'enrich-found-contact' });
     const usableContact = !!(
-      isUsableOutreachEmail(enriched.contactEmail || enriched.email) ||
-      isUsableOutreachHandle(enriched.handle)
+      Boolean(firstUsableOutreachEmail(enriched.email, enriched.contactEmail)) ||
+      isUsableOutreachHandle(enriched.handle) ||
+      (
+        normalizeLinkedInProfile(enriched.linkedin) &&
+        !hasUnresolvedLinkedInConflict(enriched)
+      )
     );
     const exh = item.scrapeCompleted ? stampEnrichExhausted(enriched, { at }) : { exhausted: false };
     results.push({
@@ -999,13 +1429,22 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
       skipped: item.skipped || null,
       contactEmail: enriched.contactEmail || null,
       handle: enriched.handle || null,
+      linkedin: enriched.linkedin || null,
       applyUrl: enriched.applyUrl || null,
+      companyUrl: enriched.companyUrl || null,
+      structuredSource: item.structuredSource || null,
+      structuredError: item.structuredError || null,
+      conflictFields: ['linkedin', 'companyUrl'].filter(
+        (field) => enriched.contactProvenance?.conflicts?.[field],
+      ),
       usableContact,
       found: Boolean(
         usableContact ||
           item.extracted.contactEmail ||
           item.extracted.handle ||
-          item.extracted.applyUrl,
+          item.extracted.linkedin ||
+          item.extracted.applyUrl ||
+          item.extracted.companyUrl,
       ),
       released: !!rel.released,
       state: enriched.state || enriched.status || null,
@@ -1037,7 +1476,7 @@ export function cmdEnrich({ id = null, limit: lim = 10, dryRun = false } = {}) {
     });
   }
 
-  // Re-draft only when usable email|handle (url/apply-only is not draftable — FOCUS)
+  // Re-draft only when a direct observed person contact exists; never sends.
   const { redrafted, failures: redraftFailures } = dryRun
     ? { redrafted: [], failures: [] }
     : redraftEnrichedLeads(results);
@@ -2106,11 +2545,23 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   if (argv.includes('--enrich') || argv.includes('enrich')) {
     const idArg = argv.find((a) => a.startsWith('--id='));
-    cmdEnrich({
+    const options = {
       id: idArg ? idArg.split('=').slice(1).join('=') : null,
       limit: limArg ? cliLimit : 10,
       dryRun: argv.includes('--dry-run'),
-    });
+    };
+    try {
+      await (options.dryRun
+        ? cmdEnrich(options)
+        : withFileLock(ENRICH_RUN_LOCK, () => cmdEnrich(options), { timeoutMs: 0 }));
+    } catch (error) {
+      if (String(error?.message || error) === `lock_timeout:${ENRICH_RUN_LOCK}`) {
+        console.error(JSON.stringify({ ok: false, error: 'enrich_already_running' }));
+        process.exitCode = 1;
+      } else {
+        throw error;
+      }
+    }
   } else {
     main();
   }

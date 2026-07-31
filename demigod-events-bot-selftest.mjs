@@ -198,7 +198,7 @@ if (
 process.env.DEMIGOD_EVENTS_BOT_MOCK = '1';
 delete process.env.OPENAI_API_KEY;
 // Isolate all selftest store writes from prod DEMIGOD-EVENTS.json
-// PID-unique path so concurrent funnel-loop + grok-busy selftests never thrash each other
+// PID-unique path so concurrent loop selftests never thrash each other.
 const PROD_EVENTS_STORE = path.join(process.cwd(), 'DEMIGOD-EVENTS.json');
 const SELFTEST_STORE =
   process.env.DEMIGOD_EVENTS_SELFTEST_STORE ||

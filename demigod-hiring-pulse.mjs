@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { objectEntries } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
@@ -73,9 +74,13 @@ export function computePulse(map, prior = null, today = '') {
   }
 
   // What functions are SF startups hiring for? (global role-mix from the enrich, excl. "other")
-  const byFunction = Object.entries(map?.coverage?.roleMix || {})
-    .filter(([fn]) => fn !== 'other')
-    .map(([fn, n]) => ({ fn, n }))
+  // roleMix must be a plain object of category → count. A corrupt artifact whose roleMix is a STRING
+  // spread character-by-character into fake categories — 'engineering' became {fn:'0',n:'e'}, …
+  // {fn:'10',n:'g'} — and renderPulseHtml published them. This is a PUBLIC claim, so a malformed
+  // artifact must yield no finding rather than an invented one (Claude poison sweep, 2026-07-30).
+  const byFunction = objectEntries(map?.coverage?.roleMix)
+    .filter(([fn, n]) => fn !== 'other' && Number.isFinite(Number(n)))
+    .map(([fn, n]) => ({ fn, n: Number(n) }))
     .sort((a, b) => b.n - a.n);
 
   // HEADLINE finding, computed (not asserted): YC cohorts barely hire fresh out of the batch and ramp
@@ -98,7 +103,11 @@ export function computePulse(map, prior = null, today = '') {
   const fnN = (name) => byFunction.find((f) => f.fn === name)?.n || 0;
   // Denominator = ALL categorized roles INCLUDING 'other' (byFunction excludes 'other'); using the
   // excludes-'other' sum overstates the AI share in the public "1 in N open roles" copy.
-  const allRoleTags = Object.values(map?.coverage?.roleMix || {}).reduce((s, n) => s + (Number(n) || 0), 0);
+  // Reuse guarded roleMix — raw string/array must not invent a public denominator either.
+  const allRoleTags = objectEntries(map?.coverage?.roleMix).reduce(
+    (sum, [, n]) => sum + (Number.isFinite(Number(n)) ? Number(n) : 0),
+    0,
+  );
   const aiN = fnN('ai/data');
   const pdmN = fnN('product') + fnN('design') + fnN('marketing');
   const aiInsight = aiN ? { roles: aiN, share: Math.round((100 * aiN) / (allRoleTags || 1)), beatsPDM: aiN > pdmN, pdm: pdmN } : null;
@@ -290,6 +299,22 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   const degen = renderPulseHtml({ generatedAt: 'd', levels: {}, byFunction: [{ fn: 'ai/data', n: 1 }], topHirers: [], atsLandscape: [], batches: [], deltas: null, aiInsight: { roles: 1, share: 0, beatsPDM: true, pdm: 0 }, method: 'm' });
   assert(!/Infinity|NaN|1 in <b>0<\/b>/.test(degen), 'aiInsight share:0 never renders "1 in Infinity/NaN/0"');
   assert(renderPulseHtml({ generatedAt: 'd', levels: {}, byFunction: [{ fn: 'ai/data', n: 10 }], topHirers: [], atsLandscape: [], batches: [], deltas: null, aiInsight: { roles: 10, share: 10, beatsPDM: true, pdm: 2 }, method: 'm' }).includes('<b>1 in 10</b>'), 'aiInsight share:10 still renders honest "1 in 10"');
+  // A corrupt roleMix must never invent public role categories. A STRING roleMix used to spread
+  // character-by-character into {fn:'0',n:'e'} … and renderPulseHtml published it. Poison-tested here
+  // because the Pulse is a public claim: a malformed artifact must yield no finding, not a fake one.
+  for (const badMix of ['engineering', ['a', 'b'], 42, true]) {
+    const bad = computePulse({ companies: [], coverage: { roleMix: badMix, total: 10 } }, null, '2026-07-24');
+    assert(Array.isArray(bad.byFunction) && bad.byFunction.length === 0, `malformed roleMix ${JSON.stringify(badMix)} must yield no categories`);
+    assert(!JSON.stringify(bad.byFunction).includes('"0"'), 'and must never emit index-keyed categories');
+  }
+  // Non-numeric counts are dropped; valid siblings survive.
+  const mixed = computePulse(
+    { companies: [], coverage: { roleMix: { engineering: 'five', product: 4, other: 99 }, total: 10 } },
+    null, '2026-07-24',
+  );
+  assert(mixed.byFunction.length === 1 && mixed.byFunction[0].fn === 'product' && mixed.byFunction[0].n === 4,
+    'a non-numeric count is dropped, a valid sibling survives, and "other" stays excluded');
+
   console.log(JSON.stringify({ ok: true, selftest: 'hiring-pulse' }));
   process.exit(0);
 }

@@ -96,7 +96,7 @@ test('public map rejects named companies without CC0 evidence', () => {
       type: 'FeatureCollection',
       features: [{ properties: { nhood: 'Mission' }, geometry: box(-122.44, 37.74, -122.40, 37.78) }],
     },
-  }), /require an attributed public source \(CC0-1\.0 or YC-public\)/);
+  }), /require an attributed public source \(CC0-1\.0, YC-public, or HN-public\)/);
 });
 
 test('minimal directory renderer is lazy, accessible, honest, and map-free', () => {
@@ -116,7 +116,7 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   assert.match(source, /City-level only/);
   assert.match(source, /coverage\.definition/);
   assert.match(source, /coverage\.caveat/);
-  assert.match(source, /No companies match that hiring filter\./);
+  assert.match(source, /No companies match those filters\./);
   // v-jobs: live open-role counts from public ATS boards, honestly labelled point-in-time.
   assert.match(source, /Open-role counts come from each company/);
   assert.match(source, /open role/);
@@ -137,6 +137,8 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   // Search + hiring filter present and labelled.
   assert.match(source, /aria-label="Search startups"/);
   assert.match(source, /aria-label="Filter by hiring status"/);
+  assert.match(source, /var CAP = 20;/);
+  assert.doesNotMatch(source, /\bfilter\(\);/);
   assert.match(source, /state\.hiringOf\[i\] === h/);
   assert.match(source, /\[c\.name, c\.description\]\.concat\(c\.tags/);
   // Output escaping + https-only links.
@@ -151,7 +153,7 @@ test('generated public artifact keeps named companies city-only and strips sensi
   assert.equal(map.schema, 'demigod.sf-startup-map/3');
   assert.ok(map.companies.length > 0);
   assert.equal(map.companies.every((company) => company.locationPrecision === 'city' && company.neighborhood === null), true);
-  assert.equal(map.companies.every((company) => ['CC0-1.0', 'YC-public'].includes(company.sourceLicense)), true);
+  assert.equal(map.companies.every((company) => ['CC0-1.0', 'YC-public', 'HN-public'].includes(company.sourceLicense)), true);
   assert.deepEqual([...new Set(map.sources.map((source) => source.license))].sort(), ['CC0-1.0', 'PDDL-1.0', 'YC-public']);
   const serialized = JSON.stringify(map).toLowerCase();
   // Field names / PII keys only — prose descriptions may say "email security" honestly.
@@ -177,9 +179,13 @@ test('generated public artifact keeps named companies city-only and strips sensi
 
 test('website route is discoverable and loads the immutable map asset only on demand', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
-  assert.match(foot, /<a href="\/\?p=map" data-dg-page="map">SF startup directory<\/a>/);
+  // v858: hard route /startups; path pill uses COPY.pathStartups ('SF startups'), not the
+  // prose "SF startup directory" on the events cross-link. data-dg-page stays "map".
+  assert.match(foot, /<a href="\/startups" data-dg-page="map">'\+COPY\.pathStartups\+'<\/a>/);
+  assert.doesNotMatch(foot, /<a href="\/\?p=map"/);
   // v805: page-scoped HTML — startups page has directory host + startup form; events page has event form only.
   assert.match(foot, /function dgMapEventsHtml\(kind\)/);
+  assert.doesNotMatch(foot, /<strong>A plain directory of San Francisco startups\.<\/strong>/);
   assert.match(foot, /data-kind="'\+\(isEvents\?'events':'startups'\)/);
   assert.match(foot, /id=\\?"dg-startup-map\\?"/);
   assert.match(foot, /id=\\?"dg-event-submit\\?"/);

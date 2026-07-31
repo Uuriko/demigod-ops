@@ -16,11 +16,11 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { status as freezeStatus } from './demigod-publish-freeze.mjs';
-import { beginRun, sealRun } from './demigod-evidence.mjs';
+import { beginRun, safeResearchUrl, sealRun } from './demigod-evidence.mjs';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 // Tests and other isolated readers may redirect the materialized status card.
 // Without this boundary, a fixture status run can overwrite the production
 // card consumed by `bin/dg orient` and briefly present canary demand as truth.
@@ -844,6 +844,7 @@ export function buildStatus() {
   const warmParsed = parseWarmInbound(pilotMd);
   const warmInbound = warmParsed.rows;
   const warmFreshness = warmInboundFreshness(warmInbound);
+  const startupCompanies = readJson(path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'))?.companies || [];
   const realPilots = pilots.filter((p) => !p.empty);
   const pending = queue.filter((q) => {
     const h = (q.handle || '').toLowerCase();
@@ -861,6 +862,7 @@ export function buildStatus() {
       name: t.name,
       handle: t.handle,
       readyFile,
+      evidence: draftEvidence(t, body, startupCompanies),
       hygieneOk: flags.filter((f) => f.sev === 'error').length === 0,
       flagCount: flags.length,
       flags,
@@ -1134,6 +1136,90 @@ function loadDraftBody(row) {
   return { body: m ? m[1].trim() : '', readyFile: null };
 }
 
+/** Inspectable draft provenance; never changes copy, ranking, recipients, or delivery state. */
+export function draftEvidence(row, body, companies = [], now = new Date()) {
+  const raw = String(body || '');
+  const sourceUrls = [...new Set(
+    [...raw.matchAll(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/gim)]
+      .map((match) => safeResearchUrl(match[1]))
+      .filter(Boolean),
+  )];
+  const verifiedHeaders = [...raw.matchAll(/^\s*#\s*verified\s*:\s*(\S+)\s*$/gim)]
+    .map((match) => match[1]);
+  const verifiedOn = verifiedHeaders.length === 1 && isIsoCalendarDate(verifiedHeaders[0])
+    ? verifiedHeaders[0]
+    : null;
+  const ageDays = verifiedOn
+    ? (Date.parse(`${operatingDateKey(now)}T00:00:00Z`) - Date.parse(`${verifiedOn}T00:00:00Z`)) / 86400000
+    : null;
+  const freshness = verifiedHeaders.length > 1
+    ? 'ambiguous'
+    : ageDays === null
+      ? 'unknown'
+      : ageDays < 0
+        ? 'future'
+        : ageDays > 7
+          ? 'stale'
+          : 'fresh';
+  const roleClaim = raw.match(
+    /\b(?:has|have)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:current\s+)?(?:san francisco\s+|sf\s+)?(?:open\s+)?(?:openings?|roles?)\b/i,
+  );
+  const roleWords = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+  const countToken = roleClaim?.[1]?.toLowerCase();
+  const roleCount = countToken == null
+    ? null
+    : /^\d+$/.test(countToken)
+      ? Number(countToken)
+      : roleWords.indexOf(countToken);
+  const timeSensitive = /\b(?:noticed|saw|congrats on)\b[^\n]{0,300}\b(?:hiring|open roles?|roles? open|roles?|interns?|engineers?|designer|head of|relocation)\b/i.test(raw);
+  const urlKey = (value) => {
+    const safe = safeResearchUrl(value);
+    if (!safe) return null;
+    const url = new URL(safe);
+    url.hash = '';
+    if (url.pathname !== '/') url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.href;
+  };
+  const sourceKeys = new Set(sourceUrls.map(urlKey).filter(Boolean));
+  const identityMatches = new Map();
+  for (const company of Array.isArray(companies) ? companies : []) {
+    const matchFields = ['jobsUrl', 'sourceUrl', 'website']
+      .filter((field) => sourceKeys.has(urlKey(company?.[field])));
+    if (company?.id && matchFields.length) identityMatches.set(company.id, { company, matchFields });
+  }
+  const [identityMatch] = identityMatches.values();
+  const matchLabel = { jobsUrl: 'exact_jobs_url', sourceUrl: 'exact_source_url', website: 'exact_website' };
+  const companyIdentity = identityMatches.size === 1
+    ? {
+        status: 'matched',
+        match: matchLabel[identityMatch.matchFields[0]],
+        mapCompanyId: identityMatch.company.id,
+        name: String(identityMatch.company.name || '').slice(0, 160),
+        sourceUrl: safeResearchUrl(identityMatch.company.sourceUrl),
+        sourceLicense: String(identityMatch.company.sourceLicense || '').slice(0, 80) || null,
+        retrievedAt: identityMatch.company.retrievedAt || null,
+      }
+    : {
+        status: identityMatches.size ? 'ambiguous' : 'unknown',
+        match: null,
+        mapCompanyId: null,
+        name: null,
+        sourceUrl: null,
+        sourceLicense: null,
+        retrievedAt: null,
+      };
+  return {
+    sourceUrls,
+    verifiedOn,
+    freshness,
+    ageDays,
+    companyIdentity,
+    hiringClaim: timeSensitive || roleClaim
+      ? { kind: roleClaim ? 'open_role_count' : 'hiring_signal', roleCount, text: roleClaim?.[0] || null }
+      : null,
+  };
+}
+
 /** Queue "Why first" vs ready-draft body: catch stale N-role claims after draft de-quantification. */
 export function queueWhyUnbackedFlags(why, body) {
   const whyText = String(why || '');
@@ -1164,6 +1250,7 @@ export function queueWhyUnbackedFlags(why, body) {
 export function draftHygiene(row) {
   const flags = [];
   const raw = String(row.body || '');
+  const evidence = draftEvidence(row, raw);
   // Ready-email files carry three known metadata headers. Strip only those
   // headers: removing every Markdown heading let sendable `# {{name}}` or
   // `# guaranteed matches` lines evade the same honesty checks as body copy.
@@ -1209,26 +1296,21 @@ export function draftHygiene(row) {
   // Hiring signals decay quickly. A generated date proves only when copy was
   // written, not when the recipient claim was checked, so require an explicit
   // source receipt and a recent verification date for such personalization.
-  const timeSensitiveClaim = body.match(
-    /\b(?:noticed|saw|congrats on)\b[^\n]{0,300}\b(?:hiring|open roles?|roles? open|roles?|interns?|engineers?|designer|head of|relocation)\b/i,
-  );
-  if (timeSensitiveClaim) {
-    const source = raw.match(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/im)?.[1];
-    const verified = raw.match(/^\s*#\s*verified\s*:\s*(\d{4}-\d{2}-\d{2})\s*$/im)?.[1];
-    const ageDays = isIsoCalendarDate(verified)
-      ? (Date.parse(`${operatingDateKey()}T00:00:00Z`) - Date.parse(`${verified}T00:00:00Z`)) / 86400000
-      : null;
-    if (!source || ageDays === null || ageDays < 0 || ageDays > 7) {
+  if (evidence.hiringClaim) {
+    const source = evidence.sourceUrls[0];
+    if (!source || evidence.freshness !== 'fresh') {
       flags.push({
         id: 'claim_source_freshness',
         sev: 'error',
         msg: !source
           ? 'Time-sensitive recipient claim requires "# source: https://..." metadata'
-          : ageDays === null
+          : evidence.freshness === 'ambiguous'
+            ? 'Time-sensitive recipient claim requires exactly one "# verified: YYYY-MM-DD" metadata line'
+            : evidence.ageDays === null
             ? 'Time-sensitive recipient claim requires "# verified: YYYY-MM-DD" metadata'
-            : ageDays < 0
-              ? `Recipient claim verification date is in the future: ${verified}`
-              : `Recipient claim verification is stale (${ageDays}d; maximum 7d)`,
+            : evidence.ageDays < 0
+              ? `Recipient claim verification date is in the future: ${evidence.verifiedOn}`
+              : `Recipient claim verification is stale (${evidence.ageDays}d; maximum 7d)`,
       });
     }
   }
@@ -1236,12 +1318,11 @@ export function draftHygiene(row) {
   // Exact recipient role/opening counts need a countable job board or YC jobs index —
   // not a marketing /careers homepage (Hellyeah live miss). Require has/have so Demigod's
   // own "starts with one role and one 90-day outcome" pitch is not a false positive.
-  const quantifiedRoleClaim = body.match(
-    /\b(?:has|have)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+(?:current\s+)?(?:san francisco\s+|sf\s+)?(?:open\s+)?(?:openings?|roles?)\b/i,
-  );
+  const quantifiedRoleClaim = evidence.hiringClaim?.kind === 'open_role_count'
+    ? evidence.hiringClaim
+    : null;
   if (quantifiedRoleClaim) {
-    const sources = [...raw.matchAll(/^\s*#\s*source\s*:\s*(https?:\/\/\S+)\s*$/gim)].map((m) => m[1]);
-    const countable = sources.some((s) =>
+    const countable = evidence.sourceUrls.some((s) =>
       /ycombinator\.com\/companies\/[^/\s]+\/jobs(?:\/|$|\?)|boards(?:-api)?\.greenhouse\.io|ashbyhq\.com\/(?:posting-api\/job-board|)|jobs\.ashbyhq\.com|jobs\.lever\.co|api\.lever\.co\/v0\/postings|workatastartup\.com/i.test(
         s,
       ),
@@ -1250,7 +1331,7 @@ export function draftHygiene(row) {
       flags.push({
         id: 'role_count_source',
         sev: 'error',
-        msg: `Quantified role claim "${quantifiedRoleClaim[0]}" needs a YC /jobs or Greenhouse/Lever/Ashby board URL in # source: (not a marketing careers page)`,
+        msg: `Quantified role claim "${quantifiedRoleClaim.text}" needs a YC /jobs or Greenhouse/Lever/Ashby board URL in # source: (not a marketing careers page)`,
       });
     }
   }
@@ -1407,17 +1488,18 @@ function cmdDraft() {
     console.error('usage: bin/dg demand draft --name=T0  (never sends)');
     return 2;
   }
-  const s = buildStatus();
   const queueMd = read(queuePath());
   const queue = parseQueue(queueMd);
   const row =
     queue.find((q) => q.name.toLowerCase() === name.toLowerCase()) ||
     queue.find((q) => (q.handle || '').toLowerCase().includes(name.toLowerCase().replace(/^@/, '')));
   if (!row) {
+    const s = buildStatus();
     console.error(JSON.stringify({ error: 'name_not_in_queue', name, pending: s.queue.pendingNames }));
     return 1;
   }
   const { body, readyFile } = loadDraftBody(row);
+  const startupCompanies = readJson(path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'))?.companies || [];
   const openUrl = (row.open.match(/https?:\/\/[^\s\])]+/) || [])[0] || '';
   const hygiene = draftHygiene({ name: row.name, company: row.company, handle: row.handle, body });
   const out = {
@@ -1431,6 +1513,7 @@ function cmdDraft() {
     afterSend: `node demigod-dm-mark-sent.mjs --name=${row.name} --i-sent-it`,
     readyFile: readyFile || null,
     body: body || null,
+    evidence: draftEvidence(row, body, startupCompanies),
     hygiene,
     note: !body
       ? 'No ready body found; draft source is SEND-PACK-TOP3.md.'
@@ -1517,7 +1600,17 @@ function cmdLog() {
 }
 
 function cmdStatus() {
-  const run = beginRun('demand', { scope: [] });
+  // Non-empty scope so sealed demand envelopes cannot be vacuous-fresh
+  // (Claude clay evidence review F1, 2026-07-29). Inputs that actually shape status.
+  const run = beginRun('demand', {
+    scope: [
+      path.join(ROOT, 'demigod-demand.mjs'),
+      queuePath(),
+      pilotLogPath(),
+      path.join(ROOT, 'DEMIGOD-PILOTS.json'),
+      path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'),
+    ],
+  });
   const s = buildStatus();
   fs.mkdirSync(BUSY, { recursive: true });
   // `statusPath` is part of the public status contract consumed by orient and

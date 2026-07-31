@@ -61,7 +61,7 @@ function requiredFiles() {
     'AGENTS.md', 'DEMIGOD-AGENTS.md', 'DEMIGOD-WORKFLOW.md',
     'demigod-foot-core.js', 'demigod-head-minimal.html', 'demigod-footer-lite.html',
     'demigod-verify-all.mjs', 'demigod-open-workspace.mjs', 'launch-demigod-chrome.sh',
-    'agent-dev.sh', 'orca-demigod.sh', '.cursor/mcp.json', '.cursor/rules/demigod.mdc',
+    'agent-dev.sh', 'bin/dg-orca', '.cursor/mcp.json', '.cursor/rules/demigod.mdc',
   ];
   return files.map((f) => ({ file: f, ok: fs.existsSync(path.join(ROOT, f)) }));
 }
@@ -110,7 +110,6 @@ function orcaWorktrees() {
 function buildRecommendations(audit) {
   const rec = [];
   const deskOk = fs.existsSync(path.join(ROOT, 'DESK.json'));
-  const mobileOk = fs.existsSync(path.join(ROOT, '.orca/mobile-grok.path'));
   if (!audit.binaries.node?.present) rec.push('Add node to agent PATH — run ~/agent-dev.sh path and use in shells');
   if (!audit.services.cdp) rec.push('Start session: ~/agent-dev.sh ready');
   if ((audit.chrome.purposefulCount ?? audit.chrome.count) > 6) {
@@ -120,8 +119,7 @@ function buildRecommendations(audit) {
   if (!audit.demigod.verifyLive?.pass) rec.push('Live site drift — run ~/agent-dev.sh ship');
   if (!audit.demigod.verifySource?.pass) rec.push('Source drift — run npm run demigod:verify:source');
   if (audit.git.dirtyFiles > 200) rec.push('Archive run artifacts: ~/agent-dev.sh archive');
-  if (!audit.orca.reachable) rec.push('Orca IDE offline — ~/orca-ide.sh');
-  if (!mobileOk) rec.push('Prime Orca mobile: ~/orca-setup.sh mobile-ready');
+  if (!audit.orca.reachable) rec.push('Orca IDE offline — canonical recovery: bin/dg orca up');
   if (!deskOk) rec.push('Write desk snapshot: ~/agent-dev.sh ready');
   rec.push('Start of day: ~/agent-dev.sh ready · Before publish: ~/agent-dev.sh ship');
   return rec;

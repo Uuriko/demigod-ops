@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Demigod tmux cockpit — durable panes for ops (survives shell death; not full reboot).
+#   dg-tmux-cockpit          # attach or create session "dg"
+#   dg-tmux-cockpit new      # recreate
+#   dg-tmux-cockpit status
+set -euo pipefail
+
+SESSION="${DG_TMUX_SESSION:-dg}"
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+mkdir -p "$BUSY"
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux not installed. sudo apt install tmux" >&2
+  exit 1
+fi
+
+export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${HOME}/.local/bin:${ROOT}/bin:${PATH}"
+
+create_session() {
+  tmux kill-session -t "$SESSION" 2>/dev/null || true
+  tmux new-session -d -s "$SESSION" -c "$ROOT" -n ops
+  # pane 0: agent-dev status loop
+  tmux send-keys -t "$SESSION:ops.0" "cd $ROOT; while true; do clear; date; ~/agent-dev.sh status 2>/dev/null | head -40; echo; curl -sS --max-time 2 http://127.0.0.1:9878/api/health 2>/dev/null || echo dash:down; echo cdp:; curl -sS --max-time 1 http://127.0.0.1:9223/json/version 2>/dev/null | head -c 120; echo; sleep 15; done" C-m
+  # pane 1: dash log
+  tmux split-window -t "$SESSION:ops" -h -c "$ROOT"
+  tmux send-keys -t "$SESSION:ops.1" "mkdir -p $BUSY; touch $BUSY/dashboard.log; tail -F $BUSY/dashboard.log" C-m
+  # pane 2: shell for commands
+  tmux split-window -t "$SESSION:ops.0" -v -c "$ROOT"
+  tmux send-keys -t "$SESSION:ops.2" "cd $ROOT; export PATH=\"\$HOME/.local/bin:\$HOME/bin:\$PATH\"; echo 'Demigod shell — bin/dg dash | truth | hygiene'; history -a" C-m
+  # Optional and deliberately off by default.
+  if [[ "${DG_TMUX_NEVER_STOP:-0}" == 1 ]]; then
+    tmux split-window -t "$SESSION:ops.1" -v -c "$ROOT" "bin/dg-useful-loop status; exec bash"
+  fi
+  tmux select-pane -t "$SESSION:ops.2"
+  tmux display-message -t "$SESSION" "dg cockpit ready"
+}
+
+cmd="${1:-attach}"
+case "$cmd" in
+  new|create|reset)
+    create_session
+    if [[ -t 0 ]]; then
+      exec tmux attach -t "$SESSION"
+    else
+      echo "created session $SESSION (no TTY to attach)"
+      tmux list-panes -t "$SESSION" -F '#{session_name}:#{window_name}.#{pane_index} #{pane_current_command}'
+    fi
+    ;;
+  status)
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+      echo "session $SESSION: up"
+      tmux list-panes -t "$SESSION" -F '  #{window_name}.#{pane_index} #{pane_current_command}'
+    else
+      echo "session $SESSION: down"
+      exit 1
+    fi
+    ;;
+  attach|"" )
+    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+      create_session
+    fi
+    if [[ -t 0 ]]; then
+      exec tmux attach -t "$SESSION"
+    else
+      echo "session $SESSION ready (no TTY)"
+      tmux list-sessions
+    fi
+    ;;
+  help|-h)
+    echo "usage: dg-tmux-cockpit [attach|new|status]  # DG_TMUX_NEVER_STOP=1 adds status pane"
+    ;;
+  *)
+    echo "unknown: $cmd" >&2
+    exit 2
+    ;;
+esac

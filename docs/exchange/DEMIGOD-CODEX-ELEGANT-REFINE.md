@@ -42,7 +42,7 @@ explicit user authority plus `bin/dg live` wins; record one resolution, not both
 
 ## 4. Agent session card
 
-Demigod is Webflow talent matching; phase is GTM + pre-services honesty.
+Demigod is Webflow talent matching; phase is retired setup framing.
 Read compressed state, then run `bin/dg live`.
 Freeze ON means inspect and prepare only unless explicitly authorized otherwise.
 Use one canonical source and one writer.

@@ -7,7 +7,6 @@
  *   bin/dg truth --strict     # exit 1 unless fullyShipped (disk==CDN==live + board)
  *   bin/dg truth --require-match  # exit 1 if disk ver ≠ live ver (release mode)
  *
- * Also: node demigod-live-doctor.mjs  → thin alias of this tool
  *
  * Writes: /tmp/dg-busy/truth.json + truth.md
  */
@@ -117,6 +116,15 @@ function runSelftest() {
   check(isExecutableJavaScriptMime('application/javascript; charset=utf-8'), 'MIME accepts executable JavaScript');
   check(!isExecutableJavaScriptMime('text/plain'), 'MIME rejects text/plain');
   check(!isExecutableJavaScriptMime('application/octet-stream'), 'MIME rejects generic binary content');
+  check(isCssMime('text/css; charset=utf-8'), 'MIME accepts CSS');
+  check(!isCssMime('text/plain'), 'MIME rejects non-CSS text');
+  check(
+    headCssUrls(
+      '<link href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@abc123/head-latest.css">' +
+        '<link href="https://files.catbox.moe/abc123.css">',
+    ).length === 2,
+    'head CSS detection preserves duplicate approved loaders',
+  );
   check(sha256Buf(Buffer.from('demigod')).length === 64, 'SHA-256 identity is complete');
   const combinedBlock = releaseMutationGuards({ leaseHeld: true, transportBlocked: true });
   check(
@@ -526,6 +534,14 @@ function footLoaderUrls(html, manifestCdnUrl) {
     .filter(Boolean);
 }
 
+function headCssUrls(html) {
+  return [
+    ...String(html || '').matchAll(
+      /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/gi,
+    ),
+  ].map((match) => match[0]);
+}
+
 function sha256Buf(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
 }
@@ -533,6 +549,9 @@ function isExecutableJavaScriptMime(contentType) {
   return /^(?:application|text)\/(?:javascript|x-javascript|ecmascript)(?:\s*;|$)/i.test(
     String(contentType || '').trim(),
   );
+}
+function isCssMime(contentType) {
+  return /^text\/css(?:\s*;|$)/i.test(String(contentType || '').trim());
 }
 function sha256File(file) {
   try {
@@ -621,6 +640,9 @@ async function main() {
   const footJs = readText(footPath);
   const diskSha = sha256File(footPath);
   const diskBytes = footJs ? Buffer.byteLength(footJs) : null;
+  const headCss = readText(headCssPath);
+  const headCssSha = sha256File(headCssPath);
+  const headCssBytes = headCss ? Buffer.byteLength(headCss) : null;
   const mapSource = readText(mapPath);
   const mapDataSource = readText(mapDataPath);
   const mapSha = sha256File(mapPath);
@@ -647,9 +669,8 @@ async function main() {
   // to the first approved-host `.js` can misidentify an unrelated asset as
   // the foot and makes loader count disagree with the URL we attest.
   const footerCdn = footLoaderUrls(footer, man.cdnUrl)[0] || null;
-  const headCssPattern = /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/i;
-  const headCssDiskUrl =
-    (headMin.match(headCssPattern) || [])[0] || null;
+  const headCssDiskUrls = headCssUrls(headMin);
+  const headCssDiskUrl = headCssDiskUrls[0] || null;
 
   const syn = runNode(['--check', footPath]);
   const syntaxOk = syn.status === 0;
@@ -740,8 +761,9 @@ async function main() {
   const liveFootUrls = footLoaderUrls(liveHtml.text, man.cdnUrl);
   const liveFootUrl = liveFootUrls[0] || null;
   const liveFootLoaderCount = liveFootUrls.length;
-  const liveCssUrl =
-    (liveHtml.text.match(headCssPattern) || [])[0] || null;
+  const liveCssUrls = headCssUrls(liveHtml.text);
+  const liveCssUrl = liveCssUrls[0] || null;
+  const liveCssLoaderCount = liveCssUrls.length;
 
   let liveJs = null;
   let liveVer = null;
@@ -790,6 +812,7 @@ async function main() {
   );
   const manifestMap = man.assets?.startupMap || {};
   const manifestMapData = man.assets?.mapData || {};
+  const manifestHeadCss = man.assets?.headCss || {};
   const manifestMapMatchesDisk = Boolean(
     manifestMap.sha256 === mapSha && manifestMap.bytes === mapBytes && canonicalAssetUrl(manifestMap.url),
   );
@@ -798,9 +821,24 @@ async function main() {
       manifestMapData.bytes === mapDataBytes &&
       canonicalAssetUrl(manifestMapData.url),
   );
-  const [liveMap, liveMapData] = await Promise.all([
+  const manifestHeadCssMatchesDisk = Boolean(
+    manifestHeadCss.sha256 === headCssSha &&
+      manifestHeadCss.bytes === headCssBytes &&
+      canonicalAssetUrl(manifestHeadCss.url),
+  );
+  const canonicalManifestHeadCssUrl = canonicalAssetUrl(manifestHeadCss.url);
+  const diskHeadCssMatchesManifest = Boolean(
+    canonicalManifestHeadCssUrl &&
+      canonicalAssetUrl(headCssDiskUrl) === canonicalManifestHeadCssUrl,
+  );
+  const liveHeadCssMatchesManifest = Boolean(
+    canonicalManifestHeadCssUrl &&
+      canonicalAssetUrl(liveCssUrl) === canonicalManifestHeadCssUrl,
+  );
+  const [liveMap, liveMapData, liveHeadCss] = await Promise.all([
     manifestMap.url ? fetchText(manifestMap.url, { timeoutMs: 30000 }) : null,
     manifestMapData.url ? fetchText(manifestMapData.url, { timeoutMs: 30000 }) : null,
+    liveCssUrl ? fetchText(liveCssUrl, { timeoutMs: 30000 }) : null,
   ]);
   const liveMapMatchesDisk = Boolean(
     liveMap?.ok && liveMap.sha256 === mapSha && isExecutableJavaScriptMime(liveMap.contentType),
@@ -809,6 +847,12 @@ async function main() {
     liveMapData?.ok &&
       liveMapData.sha256 === mapDataSha &&
       /^application\/json(?:;|$)/i.test(liveMapData.contentType || ''),
+  );
+  const liveHeadCssMatchesDisk = Boolean(
+    liveHeadCss?.ok &&
+      liveHeadCss.sha256 === headCssSha &&
+      liveHeadCss.bytes === headCssBytes &&
+      isCssMime(liveHeadCss.contentType),
   );
   const rawReleaseReceipt = readJson(releaseReceiptPath);
   const releaseReceiptMatchesDisk = Boolean(
@@ -870,7 +914,10 @@ async function main() {
       manifestAttested &&
       manifestVersionMarkersAgree &&
       manifestMapMatchesDisk &&
-      manifestMapDataMatchesDisk,
+      manifestMapDataMatchesDisk &&
+      manifestHeadCssMatchesDisk &&
+      diskHeadCssMatchesManifest &&
+      headCssDiskUrls.length === 1,
   );
   const releaseIdentityDelta = {
     version: manifestVersionMatchesDisk
@@ -882,6 +929,17 @@ async function main() {
     bytes: manifestBytesMatchDisk
       ? null
       : { expected: diskBytes, staged: Number.isSafeInteger(man.bytes) ? man.bytes : null },
+    headCss:
+      manifestHeadCssMatchesDisk && diskHeadCssMatchesManifest
+        ? null
+        : {
+            expected: { sha256: headCssSha, bytes: headCssBytes, url: headCssDiskUrl },
+            staged: {
+              sha256: manifestHeadCss.sha256 || null,
+              bytes: Number.isSafeInteger(manifestHeadCss.bytes) ? manifestHeadCss.bytes : null,
+              url: manifestHeadCss.url || null,
+            },
+          },
   };
   // Distinguish an unattended drift from a coordinated publish already in
   // progress. This is diagnostic only: neither state is release attestation.
@@ -1003,6 +1061,8 @@ async function main() {
       diskVersionMarkersAgree &&
       liveHtml.ok &&
       liveFootLoaderCount === 1 &&
+      liveCssLoaderCount === 1 &&
+      headCssDiskUrls.length === 1 &&
       diskEqualsLiveVer &&
       liveBodyMatchesDisk &&
       liveFootMimeOk &&
@@ -1016,7 +1076,11 @@ async function main() {
       manifestMapMatchesDisk &&
       manifestMapDataMatchesDisk &&
       liveMapMatchesDisk &&
-      liveMapDataMatchesDisk
+      liveMapDataMatchesDisk &&
+      manifestHeadCssMatchesDisk &&
+      diskHeadCssMatchesManifest &&
+      liveHeadCssMatchesManifest &&
+      liveHeadCssMatchesDisk
   );
 
   const issues = [];
@@ -1031,6 +1095,10 @@ async function main() {
   else issues.push(`live HTML fail ${liveHtml.err || liveHtml.status}`);
   if (liveHtml.ok && liveFootLoaderCount === 1) ok.push('live foot loader count == 1');
   else if (liveHtml.ok) issues.push(`live foot loader count ${liveFootLoaderCount} != 1`);
+  if (liveHtml.ok && liveCssLoaderCount === 1) ok.push('live head CSS loader count == 1');
+  else if (liveHtml.ok) issues.push(`live head CSS loader count ${liveCssLoaderCount} != 1`);
+  if (headCssDiskUrls.length === 1) ok.push('disk head CSS loader count == 1');
+  else issues.push(`disk head CSS loader count ${headCssDiskUrls.length} != 1`);
   if (liveFootUrl && liveVer) ok.push(`live foot ${liveFootUrl} v${liveVer}`);
   else if (liveHtml.ok && liveFootUrl && !liveVer) {
     issues.push(
@@ -1087,6 +1155,23 @@ async function main() {
   else if (manifestMapData.url && prepareOnlyRelease) {
     ok.push('live map-data body ≠ disk (prepare-only — publish unauthorized)');
   } else if (manifestMapData.url) issues.push('live map-data body or MIME does not match disk');
+  if (manifestHeadCssMatchesDisk) ok.push('manifest head-CSS identity == disk');
+  else if (prepareOnlyRelease) {
+    ok.push('manifest head-CSS identity ≠ disk (prepare-only — publish unauthorized)');
+  } else issues.push('manifest head-CSS identity missing or stale');
+  if (diskHeadCssMatchesManifest) ok.push('disk head CSS URL == manifest');
+  else if (prepareOnlyRelease) {
+    ok.push('disk head CSS URL ≠ manifest (prepare-only — publish unauthorized)');
+  } else issues.push('disk head CSS URL ≠ manifest');
+  if (liveHeadCssMatchesManifest) ok.push('live head CSS URL == manifest');
+  else if (prepareOnlyRelease) {
+    ok.push('live head CSS URL ≠ manifest (prepare-only — publish unauthorized)');
+  } else issues.push('live head CSS URL ≠ manifest');
+  if (liveHeadCssMatchesDisk) {
+    ok.push(`live head CSS body == disk with CSS MIME (${liveHeadCss.contentType})`);
+  } else if (liveCssUrl && prepareOnlyRelease) {
+    ok.push('live head CSS body ≠ disk (prepare-only — publish unauthorized)');
+  } else if (liveCssUrl) issues.push('live head CSS body or MIME does not match disk');
   if (liveFootMimeOk) ok.push(`live CDN MIME executable (${liveJs.contentType})`);
   else if (liveJs?.ok) issues.push(`live CDN MIME is not executable JavaScript (${liveJs.contentType || 'missing'})`);
   if (liveMatchesManifest) ok.push('live foot URL == manifest CDN URL');
@@ -1140,8 +1225,20 @@ async function main() {
     },
     headCss: {
       path: headCssPath,
-      sha256: sha256File(headCssPath),
+      sha256: headCssSha,
+      bytes: headCssBytes,
       diskUrl: headCssDiskUrl,
+      diskLoaderCount: headCssDiskUrls.length,
+      diskUrlMatchesManifest: diskHeadCssMatchesManifest,
+      manifestUrl: manifestHeadCss.url || null,
+      manifestMatchesDisk: manifestHeadCssMatchesDisk,
+      liveUrl: liveCssUrl,
+      liveLoaderCount: liveCssLoaderCount,
+      liveUrlMatchesManifest: liveHeadCssMatchesManifest,
+      liveSha256: liveHeadCss?.sha256 || null,
+      liveBytes: liveHeadCss?.bytes ?? null,
+      liveContentType: liveHeadCss?.contentType || null,
+      liveMatchesDisk: liveHeadCssMatchesDisk,
     },
     manifest: {
       version: man.version || null,
@@ -1157,6 +1254,11 @@ async function main() {
       assets: {
         startupMap: { ...manifestMap, matchesDisk: manifestMapMatchesDisk, liveMatchesDisk: liveMapMatchesDisk },
         mapData: { ...manifestMapData, matchesDisk: manifestMapDataMatchesDisk, liveMatchesDisk: liveMapDataMatchesDisk },
+        headCss: {
+          ...manifestHeadCss,
+          matchesDisk: manifestHeadCssMatchesDisk,
+          liveMatchesDisk: liveHeadCssMatchesDisk,
+        },
       },
     },
     release: {
@@ -1197,6 +1299,11 @@ async function main() {
       footUrl: liveFootUrl,
       footVer: liveVer,
       cssUrl: liveCssUrl,
+      cssLoaderCount: liveCssLoaderCount,
+      cssSha256: liveHeadCss?.sha256 || null,
+      cssBytes: liveHeadCss?.bytes ?? null,
+      cssContentType: liveHeadCss?.contentType || null,
+      cssMatchesDisk: liveHeadCssMatchesDisk,
       footSha256: liveJsSha,
       footBytes: liveJs?.bytes ?? null,
       footContentType: liveJs?.contentType || null,
@@ -1207,6 +1314,8 @@ async function main() {
       liveBodyMatchesDisk,
       liveFootMimeOk,
       liveMatchesManifest,
+      liveHeadCssMatchesManifest,
+      liveHeadCssMatchesDisk,
       fullyShipped,
     },
     freeze: { on: freeze.on, why: freeze.why || null, env: freeze.env, file: freeze.file },
@@ -1292,7 +1401,6 @@ async function main() {
 
   fs.mkdirSync(BUSY, { recursive: true });
   writeJsonAuto(path.join(BUSY, 'truth.json'), facts);
-  writeJsonAuto(path.join(BUSY, 'live-doctor.json'), facts);
 
   const md = [
     `# Demigod TRUTH ${facts.at}`,
@@ -1313,7 +1421,6 @@ async function main() {
   facts.evidenceRunId = facts.evidence.runId;
   facts.evidenceFresh = true;
   writeJsonAuto(path.join(BUSY, 'truth.json'), facts);
-  writeJsonAuto(path.join(BUSY, 'live-doctor.json'), facts);
   try {
     facts.ledgerLine = appendFromTruth(facts);
   } catch (e) {

@@ -1,13 +1,18 @@
 # Demigod — Simple (the only card)
 
 **Product:** SF tech-matched talent, humans in the loop · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
-**Site:** foot-core only for JS · Webflow + CDN · freeze when green  
-**Phase (2026-07-16):** Website + startup only — no Twitter/auto-DM · disk/man/live foot **v572** (CDN@11622275daa2 · fullyShipped)
+**Site:** foot-core only for JS · Webflow + CDN · release identity comes only from `bin/dg truth`
+**Operating mode:** First Pilot Delivery — complete one real brief → reviewed match → mutual yes → intro → recorded outcome · no Twitter/auto-DM
 
 ## User communication (standing)
 
 - **Never assign the user work** or list “what you should do next” (DMs, calls, Publish, fees).
+- **When told to choose:** pick one track and execute — no choice menus for the user.
 - Report agent results only. **Human-action advice only if the user asks** (“what should I do?”).
+
+## Production handbook
+
+**How the studio runs:** [`docs/DEMIGOD-HANDBOOK.md`](docs/DEMIGOD-HANDBOOK.md) — standards, roles, ship loop, honesty, checklists, onboarding.
 
 ## Ponytail (all agents)
 
@@ -27,7 +32,7 @@
 | Plan | Fable/Claude | Spec, touch list, risks — no “I shipped” |
 | Execute | Grok/Cursor | Only listed files + paste real gate output |
 | Review | Codex | PASS/BLOCK vs plan — don’t silent-rewrite |
-| Authorize | **Human** | Freeze · Publish · DMs · money |
+| Authorize | **Current user request** | Publish · messages/posts/forms · money |
 
 **Default: 1 agent.** Use 2–3 only if ambiguous or high-risk mutate.
 
@@ -39,7 +44,7 @@ bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence 
 node demigod-evidence.mjs fresh truth   # refuse stale green
 bin/dg lock claim|require|release|status   # hard foot-core mutex
 bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
-bin/dg demand status|queue|draft|log|templates  # GTM drafts only; auto-DM STOPPED unless DEMIGOD_ALLOW_AUTO_DM=1
+bin/dg demand status|queue|draft|log|templates  # GTM drafts only; delivery is permanently disabled
 bin/dg unify                                    # deep snapshot (orient is short path)
 bin/dg next-canon                                 # single NEXT builder
 bin/dg mime | full-check | home | tools
@@ -54,9 +59,9 @@ Ship mutators (`cdn`/`paste`/`run`) need freeze OFF + lock.
 ## Hard stops
 
 - No game work · no concurrent foot writers · no inventing pilots/receipts  
-- Freeze ON → **disk work OK**; **no CDN/Webflow mutate** unless human lifts freeze  
-- Disk ahead of live under freeze is **expected**, not a P0  
-- If freeze ON and task was “ship live”: stop and ask human — don’t thrash  
+- No external publish, message, post, application, or form submission unless the current request explicitly asks for it
+- Disk ahead of live is expected until an intentional, authorized release
+- Release mutations still require the foot lock and fresh verification
 
 ## Deeper only if needed
 
@@ -67,8 +72,8 @@ Ship mutators (`cdn`/`paste`/`run`) need freeze OFF + lock.
 | Website backlog | `docs/process/WEBSITE-BACKLOG-MEGA.md` |
 | Rules detail | `DEMIGOD-AGENTS.md` |
 | Business stage checklists | `docs/process/OPS.md` (one file) |
+| DIE intelligence build | `DEMIGOD-DIE-SPEC.md` + `docs/die/` · multi-agent atlas: [`docs/die/CLAY-DIE-MULTI-AGENT.md`](docs/die/CLAY-DIE-MULTI-AGENT.md) |
 | History / debates | `docs/exchange/` (archive — don’t re-read by default) |
-| Long improve prompts | `prompts/demigod/MASTER-*.md` (task-scoped) |
 
 ---
 *If this page and `bin/dg live` disagree with a long essay, trust live + this page.*

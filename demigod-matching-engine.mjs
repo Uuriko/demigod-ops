@@ -19,10 +19,14 @@
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail, scrubPII, startupRoleReadiness, candidateProfileReadiness, isSampleData } from './demigod-submissions-lib.mjs';
+import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail, scrubPII, clip, startupRoleReadiness, candidateProfileReadiness, isSampleData } from './demigod-submissions-lib.mjs';
 import { appendPilot, computeSignal } from './demigod-board-lib.mjs';
-import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
+import { projectCompanyResearch, refuseIfStale } from './demigod-evidence.mjs';
+import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
+import { boardsFromMap, observedOpenDays } from './demigod-role-ledger.mjs';
 import {
+  assertCurrentMutualPairEligibility,
   proposePair,
   reviewPair,
   pairId as makePairId,
@@ -33,14 +37,33 @@ import {
  * Legacy interests file — kept for read-compat / migration.
  * Canonical SoR for pairs is DEMIGOD-PAIRS.json via demigod-pairs-lib.
  */
-const MATCHES_PATH = path.join(ROOT, 'DEMIGOD-MATCHES.json');
-const INBOX_PATH = path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json');
+const EVIDENCE_ROOT = process.env.DEMIGOD_ROOT || ROOT;
+const MATCHES_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-MATCHES.json');
+const STARTUP_MAP_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+const ROLE_LEDGER_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-ROLE-LEDGER.json');
+const COMPANY_RESEARCH_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json');
+const COMPANY_RESEARCH_CATALOG_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-COMPANY-RESEARCH.json');
 
 function loadMatches() {
   try {
-    return JSON.parse(fs.readFileSync(MATCHES_PATH, 'utf8'));
-  } catch {
-    return { interests: {}, intros: [], at: new Date().toISOString(), legacy: true };
+    const stored = JSON.parse(fs.readFileSync(MATCHES_PATH, 'utf8'));
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+      throw new Error('matches_store_invalid');
+    }
+    const analyticsShape = ['matches', 'events', 'suggestions'].every((key) => Array.isArray(stored[key]));
+    const matches = analyticsShape
+      ? { ...stored, interests: stored.interests ?? {}, intros: stored.intros ?? [] }
+      : stored;
+    if (!matches.interests || typeof matches.interests !== 'object' || Array.isArray(matches.interests) ||
+        !Array.isArray(matches.intros)) {
+      throw new Error('matches_store_invalid');
+    }
+    return matches;
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return { interests: {}, intros: [], at: new Date().toISOString(), legacy: true };
+    }
+    throw error;
   }
 }
 function saveMatches(m) {
@@ -97,8 +120,175 @@ function mirrorPairInterest(roleId, candId, extra = {}) {
 
 function norm(s) { return String(s || '').toLowerCase().trim(); }
 
+function boundedStoreText(value, max = 160) {
+  const text = String(value || '').trim();
+  return text && text.length <= max && !/[\r\n\u0000-\u001f\u007f]/.test(text) ? text : '';
+}
+
+const exactTitle = (value) => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
+const projectedText = (value, max = 240) =>
+  value == null ? value : clip(scrubPII(String(value).slice(0, max * 4)), max);
+
+function projectResearchForReview(research) {
+  if (!research) return research;
+  return {
+    ...research,
+    fields: Object.fromEntries(Object.entries(research.fields || {}).map(([name, field]) => [
+      name,
+      {
+        ...field,
+        value: projectedText(field.value, 500),
+        evidence: field.evidence
+          ? { ...field.evidence, quote: projectedText(field.evidence.quote) }
+          : field.evidence,
+      },
+    ])),
+  };
+}
+
+export function loadCompanyEvidenceSources() {
+  const research = readJson(COMPANY_RESEARCH_PATH) || {};
+  const researchCatalog = readJson(COMPANY_RESEARCH_CATALOG_PATH) || {};
+  const researchEvidence = refuseIfStale('company-research-benchmark');
+  const researchGreen = researchEvidence.green === true;
+  return {
+    map: readJson(STARTUP_MAP_PATH) || {},
+    ledger: readJson(ROLE_LEDGER_PATH) || {},
+    research: researchGreen ? research : {},
+    researchCatalog: researchGreen ? researchCatalog : {},
+    researchEvidence,
+  };
+}
+
+/**
+ * Read-only evidence projection. Exact unique company identity only; ambiguity stays visible.
+ * Nothing here changes match score/state or persists research as matching truth.
+ */
+export function resolveCompanyEvidence(
+  role = {},
+  map = {},
+  ledger = {},
+  today = new Date().toISOString().slice(0, 10),
+  research = {},
+  researchCatalog = {},
+) {
+  const companyKey = normalizeCompanyName(role.company);
+  if (!companyKey) return { status: 'unknown', reason: 'company_missing' };
+  const matches = (Array.isArray(map.companies) ? map.companies : [])
+    .filter((company) => normalizeCompanyName(company.name) === companyKey);
+  if (!matches.length) return { status: 'unknown', reason: 'company_not_found' };
+  if (matches.length > 1) {
+    return {
+      status: 'ambiguous',
+      reason: 'company_name_not_unique',
+      candidates: matches.map(({ id, name, website }) => ({
+        id,
+        name: projectedText(name, 120),
+        website: website || null,
+      })),
+    };
+  }
+
+  const company = matches[0];
+  const companyResearch = projectResearchForReview(projectCompanyResearch({
+    companyId: company.id,
+    benchmark: research,
+    catalog: researchCatalog,
+  }));
+  const hiringQuarantined = companyResearch?.quarantineHiring === true;
+  const board = hiringQuarantined ? null : boardsFromMap({ companies: [company] })[0] || null;
+  const title = exactTitle(role.title);
+  const ledgerAvailable = ledger?.roles && typeof ledger.roles === 'object';
+  // ponytail: linear scan is enough at 13.6k rows; index by board+title if review latency becomes visible.
+  const observations = board && title && ledgerAvailable
+    ? Object.values(ledger.roles)
+        .filter((row) =>
+          row.provider === board.provider &&
+          row.slug === board.slug &&
+          exactTitle(row.title) === title)
+        .map((row) => ({
+          title: projectedText(row.title || role.title, 160),
+          location: projectedText(row.location || null, 160),
+          url: row.url || null,
+          provider: row.provider,
+          observedFrom: row.firstSeen || null,
+          observedThrough: row.lastSeen || null,
+          closedAt: row.closedAt || null,
+          observedDays: row.firstSeen ? observedOpenDays(row, row.closedAt || today) : null,
+        }))
+    : [];
+  const roleEvidenceStatus = hiringQuarantined
+    ? 'board_quarantined'
+    : !board
+      ? 'board_unknown'
+    : !title
+      ? 'title_missing'
+      : !ledgerAvailable
+        ? 'ledger_unavailable'
+        : observations.some((row) => !row.closedAt)
+          ? 'observed_open'
+          : observations.length
+            ? 'observed_closed'
+            : 'not_observed_exact_title';
+  const reviewFlags = [
+    ...(roleEvidenceStatus === 'observed_closed' ? ['public_role_observed_closed'] : []),
+    ...(companyResearch?.status === 'verified_with_conflict' ? ['company_research_conflict'] : []),
+    ...(hiringQuarantined ? ['public_hiring_quarantined'] : []),
+  ];
+
+  return {
+    status: 'matched',
+    identityBasis: 'exact_unique_name',
+    role: {
+      id: role.id || null,
+      title: projectedText(role.title || null, 160),
+      company: projectedText(role.company, 120),
+      source: projectedText(role.source || null, 120),
+    },
+    company: {
+      id: company.id || null,
+      name: projectedText(company.name, 120),
+      description: projectedText(company.description || null, 500),
+      website: company.website || null,
+      inceptionYear: company.inceptionYear || null,
+      tags: Array.isArray(company.tags) ? company.tags.map((tag) => projectedText(tag, 80)) : [],
+    },
+    provenance: {
+      source: projectedText(company.source || null, 120),
+      sourceUrl: company.sourceUrl || null,
+      sourceLicense: projectedText(company.sourceLicense || null, 120),
+      retrievedAt: company.retrievedAt || null,
+      mapGeneratedAt: map.generatedAt || null,
+    },
+    hiring: {
+      status: hiringQuarantined
+        ? 'quarantined'
+        : company.openRolesAt
+          ? 'board_observed'
+          : company.hiring === 'yes'
+            ? 'company_reported'
+            : 'unknown',
+      openRoles: hiringQuarantined ? null : Number.isSafeInteger(company.openRoles) ? company.openRoles : null,
+      atsSource: hiringQuarantined ? null : company.atsSource || null,
+      jobsUrl: hiringQuarantined ? null : company.jobsUrl || null,
+      roleMix: hiringQuarantined ? null : company.roleMix || null,
+      observedAt: hiringQuarantined ? null : company.openRolesAt || null,
+    },
+    roleEvidenceStatus,
+    reviewFlags,
+    roleObservations: observations,
+    research: companyResearch,
+  };
+}
+
+function companyEvidenceForRole(role) {
+  if (!normalizeCompanyName(role?.company)) return resolveCompanyEvidence(role);
+  const { map, ledger, research, researchCatalog } = loadCompanyEvidenceSources();
+  return resolveCompanyEvidence(role, map, ledger, undefined, research, researchCatalog);
+}
+
 export function parseCompRange(value = '') {
-  const text = norm(value).replace(/,/g, '').replace(/[–—]/g, '-');
+  const text = norm(String(value).slice(0, 200)).replace(/,/g, '').replace(/[–—]/g, '-');
   if (!text || /\b(?:negotiable|market|tbd|unknown)\b/.test(text) || /(?:\/\s*mo\b|\bper\s+month\b|\bmonthly\b)/.test(text)) return null;
   const unit = /(?:\/\s*(?:hr|hour)\b|\bper\s+hour\b|\bhourly\b)/.test(text) ? 'hourly' : 'annual';
   const clean = text.replace(/\d+(?:\.\d+)?\s*%/g, '').replace(/\+?\s*equity.*$/, '');
@@ -114,7 +304,7 @@ export function parseCompRange(value = '') {
   const hasSuffix = !!rangeSuffix;
   const values = found.map((m) => {
     const number = Number(m[1]);
-    const factor = m[2] ? factorOf(m[2]) : unit === 'annual' && hasSuffix ? factorOf(rangeSuffix) : 1;
+    const factor = m[2] ? factorOf(m[2]) : unit === 'annual' && hasSuffix && number < 10000 ? factorOf(rangeSuffix) : 1;
     return number * factor;
   });
   if (values.some((n) => !Number.isFinite(n) || n < 0) || (unit === 'annual' && !hasSuffix && Math.max(...values) < 10000)) return null;
@@ -136,37 +326,74 @@ function compensationConflict(role = {}, candidate = {}) {
     && (roleRange.min > candidateRange.max || candidateRange.min > roleRange.max);
 }
 
+function candidateLocationPreference(candidate = {}) {
+  const value = norm(String(candidate['sf-bay'] || candidate.locationPref || '').slice(0, 80));
+  return /^(?:yes|no|not right now|sf|sf bay(?: area)?|san francisco|bay area|remote(?:-(?:us|bay))?|onsite|sf-onsite|hybrid|sf-hybrid)$/.test(value)
+    ? value
+    : '';
+}
+
+function roleLocationPreference(role = {}) {
+  const value = norm(String(role.locationPref || role['work-location'] || '').slice(0, 120));
+  return /^(?:sf-onsite|sf-hybrid|bay-flexible|remote-us|remote-global|remote|onsite|hybrid|sf|sf bay(?: area)?)$/.test(value)
+    ? value
+    : '';
+}
+
 function locationCompatible(role = {}, candidate = {}) {
-  const roleLocation = norm(role.locationPref || role['work-location']);
-  const candidateLocation = norm(candidate['sf-bay'] || candidate.locationPref);
+  const roleLocation = roleLocationPreference(role);
+  const candidateLocation = candidateLocationPreference(candidate);
   if (!roleLocation || !candidateLocation) return true;
   if (roleLocation.includes('remote')) return candidateLocation !== 'no';
   if (roleLocation.includes('onsite') || roleLocation.includes('hybrid')) return candidateLocation === 'yes' || candidateLocation.includes('onsite') || candidateLocation.includes('hybrid');
   return candidateLocation !== 'no';
 }
 
-const SKILL_STOP = new Set(['and', 'the', 'with', 'for', 'from', 'role', 'team', 'years', 'startup', 'startups', 'founding', 'founder', 'lead', 'head', 'build', 'built', 'building', 'repeatable', 'leadership', 'ai', 'platform', 'contact', 'phone', 'profile', 'link', 'removed']);
+const SKILL_STOP = new Set([
+  'and', 'the', 'with', 'for', 'from', 'role', 'team', 'years', 'startup', 'startups',
+  'founding', 'founder', 'lead', 'head', 'build', 'built', 'building', 'repeatable',
+  'leadership', 'ai', 'platform', 'contact', 'phone', 'profile', 'link', 'removed',
+  'age', 'aged', 'young', 'younger', 'old', 'older', 'gender', 'male', 'female', 'man',
+  'woman', 'men', 'women', 'sex', 'sexual', 'gay', 'lesbian', 'bisexual', 'queer',
+  'transgender', 'nonbinary', 'race', 'racial', 'ethnicity', 'ethnic', 'white', 'black',
+  'asian', 'latino', 'latina', 'latinx', 'hispanic', 'indigenous', 'religion',
+  'religious', 'christian', 'jewish', 'muslim', 'hindu', 'buddhist', 'disability',
+  'disabled', 'autistic', 'handicapped', 'veteran', 'veterans', 'marital', 'married',
+  'pregnant', 'pregnancy', 'nationality', 'citizenship', 'genetic',
+]);
 function skillTerms(value) {
-  return [...new Set((norm(scrubPII(value)).match(/[a-z0-9][a-z0-9+#.-]*/g) || []).filter((x) => x.length > 1 && !SKILL_STOP.has(x)))];
+  return [...new Set(
+    (norm(scrubPII(String(value || '').slice(0, 2000))).match(/[a-z0-9][a-z0-9+#.-]*/g) || [])
+      .filter((x) => x.length > 1 && x.length <= 48 && !/^\d+(?:\.\d+)?$/.test(x) && !SKILL_STOP.has(x)),
+  )].slice(0, 80);
+}
+
+function candidateFeatureTerms(candidate, value) {
+  const identity = new Set(skillTerms(candidate['full-name'] || candidate.fullName));
+  return skillTerms(value).filter((term) => !identity.has(term));
 }
 
 function roleMatchText(role = {}) {
-  return [role.title, role.skills, role['stack-needs'], role.outcome, role.outcome90d, role['90day-outcome']].filter(Boolean).join(' ');
+  return [role.title, role.skills, role['stack-needs'], role.outcome, role.outcome90d, role['90day-outcome']]
+    .filter(Boolean).map((value) => String(value).slice(0, 700)).join(' ');
 }
 
 function candidateMatchText(candidate = {}) {
-  return [candidate.skills, candidate['skills-stack'], candidate.experience, candidate['background & highlights']].filter(Boolean).join(' ');
+  return [candidate.skills, candidate['skills-stack'], candidate.experience, candidate['background & highlights']]
+    .filter(Boolean).map((value) => String(value).slice(0, 1000)).join(' ');
 }
 
 export function matchEvidence(role = {}, candidate = {}) {
   const roleTerms = new Set(skillTerms(role.skills || role['stack-needs']));
-  const overlap = skillTerms(candidate.skills || candidate['skills-stack']).filter((x) => roleTerms.has(x));
-  const workOverlap = skillTerms(candidate.experience || candidate['background & highlights']).filter((x) => skillTerms(roleMatchText(role)).includes(x) && !overlap.includes(x));
+  const overlap = candidateFeatureTerms(candidate, candidate.skills || candidate['skills-stack']).filter((x) => roleTerms.has(x));
+  const roleWorkTerms = new Set(skillTerms(roleMatchText(role)));
+  const experienceTerms = candidateFeatureTerms(candidate, candidate.experience || candidate['background & highlights']);
+  const workOverlap = experienceTerms.filter((x) => roleWorkTerms.has(x) && !overlap.includes(x));
   const roleComp = role.comp || role['salary-range'] || role.salaryRange;
   const candidateComp = candidate['salary-expectation'] || candidate['salary-range'] || candidate.compExpect;
-  const roleLocation = role.locationPref || role['work-location'];
-  const candidateLocation = candidate['sf-bay'] || candidate.locationPref;
-  const availability = norm(candidate.availability).replace(/[–—]/g, '-');
+  const roleLocation = roleLocationPreference(role);
+  const candidateLocation = candidateLocationPreference(candidate);
+  const availability = norm(String(candidate.availability || '').slice(0, 80)).replace(/[–—]/g, '-');
   const availabilityLabel = {
     now: 'ready now', 'ready now': 'ready now',
     '2-4w': '2–4 weeks', '2-4 weeks': '2–4 weeks',
@@ -179,9 +406,12 @@ export function matchEvidence(role = {}, candidate = {}) {
   if (/\b(sf|bay area|san francisco)\b/i.test(String(candidate['sf-bay'] || candidate.locationPref || ''))) evidence.push('SF Bay Area preference');
   if (roleLocation && candidateLocation) evidence.push(locationCompatible(role, candidate) ? 'work-location preferences align' : 'work-location alignment needs review');
   if (roleComp && candidateComp) evidence.push(compAligned(roleComp, candidateComp) ? 'compensation ranges overlap' : 'compensation alignment needs review');
-  if (availability) evidence.push(availabilityLabel ? `availability: ${availabilityLabel}` : 'availability provided');
-  if ((role.outcome || role.outcome90d || role['90day-outcome']) && (candidate.why || candidate['why-this-role'] || candidate['why-startups'])) evidence.push('90-day outcome motivation provided');
-  if (candidate.experience || candidate['background & highlights']) evidence.push('experience evidence provided');
+  if (availabilityLabel) evidence.push(`availability: ${availabilityLabel}`);
+  if (
+    (role.outcome || role.outcome90d || role['90day-outcome']) &&
+    candidateFeatureTerms(candidate, candidate.why || candidate['why-this-role'] || candidate['why-startups']).length
+  ) evidence.push('90-day outcome motivation provided');
+  if (experienceTerms.length) evidence.push('experience evidence provided');
   return evidence;
 }
 
@@ -191,26 +421,28 @@ export const MATCH_STATES = ['submitted','reviewed','matched','introduced','pilo
 function scoreMatch(role, candidate) {
   // Deeper honest scoring for high-quality matches that drive revenue (better fit = higher close rate = more 10% invoices)
   let score = 0;
-  const rSkills = norm(roleMatchText(role));
-  const cSkills = norm(candidateMatchText(candidate));
-  const rStage = norm(role.stageType || role.stage || '');
-  const cPref = norm(candidate['sf-bay'] || candidate.locationPref || 'sf');
-  const rLocation = norm(role.locationPref || role['work-location']);
-  const rComp = norm(role.comp || '');
-  const cWhy = norm(candidate['why-this-role'] || candidate['why-startups'] || candidate.why || '');
+  const roleTerms = new Set(skillTerms(roleMatchText(role)));
+  const candidateTerms = candidateFeatureTerms(candidate, candidateMatchText(candidate));
+  const rStage = norm(String(role.stageType || role.stage || '').slice(0, 120));
+  const cPref = candidateLocationPreference(candidate);
+  const rLocation = roleLocationPreference(role);
+  const rComp = norm(String(role.comp || '').slice(0, 200));
+  const cWhy = candidateFeatureTerms(
+    candidate,
+    candidate['why-this-role'] || candidate['why-startups'] || candidate.why,
+  );
 
   // Skills overlap (core for good match)
-  if (rSkills && cSkills) {
-    const roleTerms = new Set(skillTerms(rSkills));
-    const overlap = skillTerms(cSkills).filter((x) => roleTerms.has(x)).length;
+  if (roleTerms.size && candidateTerms.length) {
+    const overlap = candidateTerms.filter((x) => roleTerms.has(x)).length;
     score += Math.min(55, overlap * 18);
   }
 
   // Stage + location fit (SF early startup focus)
-  if (rStage.includes('seed') || rStage.includes('pre-seed')) {
+  if (cPref && (rStage.includes('seed') || rStage.includes('pre-seed'))) {
     score += (cPref.includes('sf') || cPref.includes('bay')) ? 22 : 8;
   }
-  if (rLocation && locationCompatible(role, candidate)) score += 12;
+  if (rLocation && cPref && locationCompatible(role, candidate)) score += 12;
 
   // Comp alignment (revenue protection — realistic expectations)
   if (rComp && (candidate['salary-range'] || candidate['salary-expectation'] || candidate.compExpect)) {
@@ -219,40 +451,10 @@ function scoreMatch(role, candidate) {
   }
 
   // "Why this" signal (deeper motivation = better retention/hire)
-  if (cWhy && (rStage || rSkills)) score += 8;
+  if (cWhy.length && (rStage || roleTerms.size)) score += 8;
 
   // Experience proxy
-  if (candidate.experience || candidate['background & highlights']) score += 8;
-
-  // SMS source boost (richer conversational signal for better matches)
-  if (candidate.source === 'sms' || candidate.smsBody) {
-    score += 5;
-    const sms = (candidate.smsBody || '').toLowerCase();
-    const smsRaw = candidate.smsBody || '';
-
-    // deeper "why"/motivation parse from convo (quality signal for retention)
-    const whyMatch = smsRaw.match(/(?:why|because|interested in|excited about|want to|looking for)[^.|!|?]{5,80}/i);
-    if (whyMatch) score += 7;  // stronger boost for explicit motivation
-    if (sms.includes('why') || sms.includes('because') || sms.includes('interested')) score += 3;
-
-    // better skills parse directly from raw SMS body (beyond pre-extracted stack)
-    const bodySkills = smsRaw.toLowerCase().match(/\b(react|figma|gtm|product|growth|plg|design|eng|engineer|pm|startup|seed|saas)\b/g) || [];
-    const roleSkillHits = bodySkills.filter(s => rSkills.includes(s)).length;
-    if (roleSkillHits) score += Math.min(8, roleSkillHits * 3);
-
-    // engagement / convo depth (multi-turn = higher intent)
-    const turns = (smsRaw.match(/\|/g) || []).length + (smsRaw.match(/[.!?]/g) || []).length;
-    if (turns > 1) score += 4;
-    if (turns > 3) score += 3;
-
-    // stage + other quality keywords from text convo
-    if (rStage.includes('seed') && (sms.includes('seed') || sms.includes('early') || sms.includes('0 to 1'))) score += 4;
-    if (sms.includes('shipped') || sms.includes('built') || sms.includes('led')) score += 4;
-    if (sms.includes('sf') || sms.includes('bay') || sms.includes('san francisco')) score += 3;
-
-    // extra base if rich sms data present
-    if (candidate.raw && candidate.raw['why-this-role'] && candidate.raw['why-this-role'].length > 10) score += 3;
-  }
+  if (candidateFeatureTerms(candidate, candidate.experience || candidate['background & highlights']).length) score += 8;
 
   return Math.min(100, Math.round(score));
 }
@@ -291,9 +493,15 @@ export function funnelRolesFromPartners(partners = [], boardRoles = []) {
       title,
       company,
       source: 'funnel',
+      sample: isSampleData(lead),
       status: 'Active',
-      stageType: lead.stageType || lead.stage || undefined,
-      skills: lead.skills || lead.stack || lead['stack-needs'] || undefined,
+      stageType: lead.stageType || lead.stage || lead['company-stage'] || undefined,
+      skills: lead.skills || lead.stack || lead.stackNeeds || lead['stack-needs'] || undefined,
+      outcome90d:
+        lead.outcome90d || lead.outcome || lead['90day-outcome'] || lead['90d-outcome'] || undefined,
+      locationPref:
+        lead.locationPref || lead.workLocation || lead['work-location'] || lead.location || undefined,
+      comp: lead.comp || lead.salaryRange || lead['salary-range'] || undefined,
     });
   }
   return out;
@@ -399,6 +607,7 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   );
   // No roles[0] fallback — that ranked real candidates against a sample seed
   if (!role) return { error: 'no role', query: roleTitleOrId };
+  const companyEvidence = companyEvidenceForRole(role);
 
   const scored = cands.filter(c => !compensationConflict(role, c.raw || c)).map(c => ({
     candidate: c,
@@ -427,7 +636,7 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
     }
   }
 
-  return { role, matches: scored, proposed: propose ? proposed : undefined };
+  return { role, companyEvidence, matches: scored, proposed: propose ? proposed : undefined };
 }
 
 /**
@@ -442,6 +651,9 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
   );
   if (!cand) return { ok: false, error: `submission not found: ${candId}` };
   const roles = getStartupRoles(board);
+  const companySources = roles.some((role) => normalizeCompanyName(role.company))
+    ? loadCompanyEvidenceSources()
+    : null;
   const ranked = [];
   const proposed = [];
   for (const role of roles) {
@@ -449,7 +661,22 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
     const score = scoreMatch(role, cand.raw || cand);
     if (score < threshold) continue;
     const evidence = matchEvidence(role, cand.raw || cand);
-    ranked.push({ roleId: role.id || role.title, title: role.title, score, evidence });
+    ranked.push({
+      roleId: role.id || role.title,
+      title: role.title,
+      score,
+      evidence,
+      companyEvidence: companySources
+        ? resolveCompanyEvidence(
+            role,
+            companySources.map,
+            companySources.ledger,
+            undefined,
+            companySources.research,
+            companySources.researchCatalog,
+          )
+        : resolveCompanyEvidence(role),
+    });
     if (!propose) continue;
     try {
       const pair = proposePair({
@@ -469,7 +696,7 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
 }
 
 export function markStartupInterest(roleId, candidateId) {
-  roleId = String(roleId || '').trim(); candidateId = String(candidateId || '').trim();
+  roleId = boundedStoreText(roleId); candidateId = boundedStoreText(candidateId);
   if (!roleId || !candidateId) return { ok: false, error: 'role and candidate are required' };
   const m = loadMatches();
   const key = `${roleId}:${candidateId}`;
@@ -480,7 +707,7 @@ export function markStartupInterest(roleId, candidateId) {
 }
 
 export function markCandidateOptin(candidateId, roleTitle) {
-  candidateId = String(candidateId || '').trim(); roleTitle = String(roleTitle || '').trim();
+  candidateId = boundedStoreText(candidateId); roleTitle = boundedStoreText(roleTitle);
   if (!candidateId || !roleTitle) return { ok: false, error: 'candidate and role are required' };
   const m = loadMatches();
   const key = `${candidateId}:${norm(roleTitle)}`;
@@ -496,23 +723,16 @@ function findMutual() {
   const inbox = loadInbox ? loadInbox() : { items: [] };
   const mutuals = [];
 
-  // Prefer canonical pair ledger
+  // Canonical pair ledger only. Legacy interests have no current eligibility or consent receipt.
   for (const p of listPairs({ limit: 200 })) {
-    if (p.state === 'mutual_yes' || (p.mutual?.founder && p.mutual?.candidate)) {
+    if (p.state !== 'mutual_yes' || p.mutual?.founder !== true || p.mutual?.candidate !== true) continue;
+    try {
+      assertCurrentMutualPairEligibility(p, { pairKey: p.pairId });
       mutuals.push({ key: p.pairId, role: p.roleId, cand: p.candId, pair: p });
+    } catch {
+      /* stale/forged pairs are not mutual intro inputs */
     }
   }
-
-  // Legacy DEMIGOD-MATCHES.json
-  const m = loadMatches();
-  Object.keys(m.interests || {}).forEach((k) => {
-    const [a, b] = k.split(':');
-    if (m.interests[k] && m.interests[k].startup && m.interests[k].candidate) {
-      if (!mutuals.some((x) => x.role === a && x.cand === b)) {
-        mutuals.push({ key: k, role: a, cand: b });
-      }
-    }
-  });
 
   return mutuals
     .map((mu) => {
@@ -526,7 +746,7 @@ function findMutual() {
 }
 
 export function proposeIntro(roleOrId, candIdOrEmail) {
-  roleOrId = String(roleOrId || '').trim(); candIdOrEmail = String(candIdOrEmail || '').trim();
+  roleOrId = boundedStoreText(roleOrId); candIdOrEmail = boundedStoreText(candIdOrEmail);
   if (!roleOrId || !candIdOrEmail) return { error: 'role and candidate are required' };
   const board = loadBoard();
   const matches = findMutual();
@@ -593,7 +813,7 @@ export function founderMatchSummary(match = {}) {
 }
 
 export function logOutcome(introKey, outcome) {
-  introKey = String(introKey || '').trim(); outcome = String(outcome || '').trim();
+  introKey = boundedStoreText(introKey); outcome = boundedStoreText(outcome, 240);
   if (!introKey || !outcome) return { ok: false, error: 'intro key and outcome are required' };
   // Track outcomes for learning + proof assets (hired? comp? = direct revenue signal)
   const mm = loadMatches();
@@ -603,30 +823,17 @@ export function logOutcome(introKey, outcome) {
   return { ok: true, key: introKey, outcome };
 }
 
-function presentForStartup(roleTitleOrId, includeSms = true) {
+function presentForStartup(roleTitleOrId) {
   const res = suggestMatches(roleTitleOrId);
   if (res.error) return res;
   console.log(`=== Matches for startup role: ${res.role.title} (${res.role.stageType}) ===`);
   console.log('Use: node demigod-matching-engine.mjs startup-interest --role-id=' + (res.role.id || res.role.title) + ' --candidate-id=CAND-ID');
   res.matches.forEach((m,i) => {
-    const isSms = m.candidate.source === 'sms' || (m.candidate.raw && m.candidate.raw.source === 'sms');
-    const tag = isSms ? ' [SMS/text-started]' : '';
     const summary = founderMatchSummary(m);
-    console.log(`${i+1}. score=${summary.score}${tag} | ${summary.candidateId}`);
+    console.log(`${i+1}. score=${summary.score} | ${summary.candidateId}`);
     console.log(`   evidence: ${summary.evidence.join(' · ') || 'insufficient structured evidence'}`);
     console.log(`   To intro: mark interest then propose when mutual`);
   });
-  if (includeSms) {
-    const inbox = loadInbox ? loadInbox() : {items:[]};
-    const smsOnly = (inbox.items || []).filter(i => (i.source === 'sms' || (i.raw && i.raw.source === 'sms')) && !res.matches.some(m => m.id === (i.id || extractEmail(i.raw||{},i.form))));
-    if (smsOnly.length) {
-      console.log('\n--- Additional SMS/text-started candidates (not scored for this role yet) ---');
-      smsOnly.slice(0,3).forEach(c => {
-        const skills = (c.raw && c.raw['skills-stack']) || '';
-        console.log(`- ${c.id} phone:${c.phone} skills:${skills.slice(0,40)} | use: candidate-optin or present-sms`);
-      });
-    }
-  }
   return {ok:true};
 }
 
@@ -638,37 +845,6 @@ function presentForCandidate(candidateIdOrEmail) {
     const sc = scoreMatch(r, { 'skills-stack': '' }); // placeholder
     console.log(`- ${r.title} (${r.stageType}) | use: candidate-optin --candidate-id=${candidateIdOrEmail} --role="${r.title}"`);
   });
-}
-
-export function presentSmsCandidates() {
-  // Best next for "present relevant" from SMS onboarding
-  const inbox = loadInbox ? loadInbox() : {items:[]};
-  const smsCands = (inbox.items || []).filter(i => i.source === 'sms' || (i.raw && i.raw.source === 'sms'));
-  console.log(`=== SMS candidates (from text conversations) ready for matching ===`);
-  smsCands.forEach(c => {
-    const skills = (c.raw && c.raw['skills-stack']) || '';
-    console.log(`- ${c.id} phone:${c.phone} skills:${skills.slice(0,40)} | use present-candidate or optin`);
-  });
-  if (!smsCands.length) console.log('(no SMS yet - test with node demigod-sms-handler)');
-}
-
-export function generateIntroRequest(smsCandIdOrPhone, roleTitle) {
-  // High-impact for revenue + quality: turn SMS opt-in into actionable human-ready template
-  const inbox = loadInbox ? loadInbox() : {items:[]};
-  const cand = (inbox.items || []).find(i => i.id === smsCandIdOrPhone || i.phone === smsCandIdOrPhone || (i.raw && extractEmail(i.raw, i.form) === smsCandIdOrPhone));
-  if (!cand) return {error: 'no SMS candidate'};
-  const skills = (cand.raw && cand.raw['skills-stack']) || '';
-  const why = (cand.raw && cand.raw['why-this-role']) || 'from SMS convo';
-  const template = `Intro request (SMS-started candidate):
-Role: ${roleTitle}
-Candidate: ${cand.raw && cand.raw['full-name'] || cand.phone} (phone ${cand.phone})
-Skills: ${skills}
-Why from text: ${why}
-Source: SMS conversation (low friction onboard)
-Next: human review -> propose if fit -> log outcome.
-Use: node demigod-matching-engine.mjs propose-intro --role="${roleTitle}" --candidate="${cand.id || cand.phone}"`;
-  console.log(template);
-  return {ok:true, template};
 }
 
 function main() {
@@ -728,20 +904,6 @@ function main() {
     console.log(logOutcome(key, outcome));
     return;
   }
-  if (cmd === 'present-sms') {
-    presentSmsCandidates();
-    return;
-  }
-  if (cmd === 'generate-intro-request') {
-    const id = args[1] || '';
-    const role = args[2] || '';
-    generateIntroRequest(id, role);
-    return;
-  }
-  if (cmd === 'sms-proof' || cmd === 'proof-sms') {
-    generateSmsProof();
-    return;
-  }
   if (cmd === 'migrate-pairs' || cmd === 'migrate') {
     console.log(JSON.stringify(migrateLegacyMatchesToPairs(), null, 2));
     return;
@@ -752,28 +914,15 @@ Commands:
   suggest "Product Manager"          # scored candidates (JSON)
   suggest --role="Product Manager" --propose  # write proposed pairs
   propose-for-candidate CAND-ID [--threshold=60] [--propose]  # rank-only unless explicit
-  present-startup "Product Manager"  # rich cards + next actions (includes SMS)
+  present-startup "Product Manager"  # rich cards + next actions
   present-candidate CAND-ID          # roles for opt-in
-  present-sms                        # list SMS/text-started candidates
-  generate-intro-request <sms-id-or-phone> <role>  # human-ready template from SMS opt-in
   startup-interest --role-id=xxx --candidate-id=yyy
   candidate-optin --candidate-id=yyy --role="Founding Designer"
   mutual-intros
   propose-intro --role=xxx --candidate=yyy
   migrate-pairs                      # legacy DEMIGOD-MATCHES → DEMIGOD-PAIRS
   log-outcome INTRO-KEY hired|not|comp-180k   # track for proof & learning
-  sms-proof                          # quick GTM proof text for SMS volume ("X started via text")
 `);
-}
-
-export function generateSmsProof() {
-  const inbox = loadInbox ? loadInbox() : {items:[]};
-  const smsCands = (inbox.items || []).filter(i => i.source === 'sms' || (i.raw && i.raw.source === 'sms'));
-  const board = loadBoard();
-  const smsPilots = (board.pilots || []).filter(p => p.source === 'sms' || (p.email && /sms-/.test(p.email))).length;
-  const text = `SMS/text-started leads: ${smsCands.length} candidates started via conversation. ${smsPilots} pilots logged from text. Low-friction SMS onboarding = stronger match pool.`;
-  console.log(text);
-  return text;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

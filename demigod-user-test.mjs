@@ -767,8 +767,8 @@ async function suiteCopy() {
   const text = home.text || '';
   // Policy: no founder names in marketing (loose)
   check('copy', 'has dual path language or foot CTAs', /hiring|job|talent|match/i.test(text), '', 'low');
-  // Public contact is potter@ only (hello@ mailbox was never stood up; foot scrubs Designer leftovers).
-  check('copy', 'public contact potter@', /potter@trydemigod\.com/i.test(text), '', 'medium');
+  // Public contact is authored as potter@; do not rely on runtime masking for crawler-visible truth.
+  check('copy', 'public contact potter@ only', /potter@trydemigod\.com/i.test(text) && !/hello@(?:try)?demigod\.com/i.test(text), '', 'high');
   // disk foot COPY
   try {
     const foot = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
@@ -776,17 +776,6 @@ async function suiteCopy() {
     check('copy', 'foot has Find a job CTA', /Find a job/.test(foot), '', 'high');
     check('copy', 'foot no 48h promise', !/48\s*h(?:our)?\s+(?:response|SLA|guarantee)/i.test(foot), '', 'high');
     check('copy', 'foot pending payments language', /pending/i.test(foot), '', 'medium');
-    // Foot source embeds /hello@…demigod\.com/ regexes (backslash before dot);
-    // assert scrubContactEmail + potter@ + hello@ token, not raw mailbox as SoR.
-    check(
-      'copy',
-      'foot scrubs hello@ → potter@',
-      /function\s+scrubContactEmail\s*\(/.test(foot) &&
-        /potter@trydemigod\.com/i.test(foot) &&
-        /hello@/i.test(foot),
-      '',
-      'high',
-    );
   } catch (e) {
     check('copy', 'read foot-core', false, e.message, 'high');
   }

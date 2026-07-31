@@ -1,0 +1,351 @@
+{
+  "title": "Cursor - The best way to code with AI",
+  "url": "https://cursor.com/dashboard/cloud-agents",
+  "body": "Back to Agents\nJonathan Potter\nPro+\nOverview\nSettings\nCloud Agents\nBugbot\nSecurity Agents\nApproval Agents\nPlugins\nIntegrations\nAPI Keys\nShared Canvases\nMembers\nUsage\nSpending\nBilling & Invoices\nCloud Agents\nCreate Agents to edit and run code, asynchronously\nEnvironments\nNew\nName\nScope\nStatus\nLast Updated\nActions\nUuriko/crispy-garbanzo\nUnconfigured\nInactive\n1d\nShowing 1-1 of 1\nPrev\n1 / 1\nNext\nSelf-Hosted\nMonitor and manage your self-hosted cloud machines\nEnable self-hosted pool\nEnable self-hosted pool to create a personal pool of workers.\nMy Machines\nView personal self-hosted workers and CLI commands to connect machines.\nDefaults\nDefault Model\nUsed when no model is specified\nGPT-5.5 High\nDefault Repository\nUsed when no repository is specified\nUuriko/crispy-garbanzo\nBase Branch\nWhen empty, Cloud Agent will use a repository's default branch (recommended)\nBranch Prefix\nPrefix for branch names created by Cloud Agent\nPull Requests\nCreate PRs\nAutomatically create a pull request when Cloud Agent completes.\nFor Single Model Runs\nAllow posting artifacts to GitHub\nAllow cloud agents to embed images directly in PR descriptions using hard-to-guess public URLs. Learn more\nLink Only\nNotifications\nSlack Notifications\nGet notified in Slack when a Cloud Agent completes a task\nSlack routing\nRouting rules to help Cloud Agents pick the right repository or environment.\nAdd Rule\nNo routing rules yet\nAdd Rule\nSecurity\nNetwork Access Settings\nControl which network destinations your cloud agents can access\nAllow all network access\nMy Secrets\nSecurely set environment variables for your Cloud Agents.\nAdd Secrets\nNo secrets yet\nAdd Secrets",
+  "clickables": [
+    {
+      "i": 0,
+      "tag": "A",
+      "text": "Back to Agents",
+      "href": "/agents",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 1,
+      "tag": "BUTTON",
+      "text": "User menu",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 2,
+      "tag": "A",
+      "text": "Overview",
+      "href": "/dashboard",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 3,
+      "tag": "A",
+      "text": "Settings",
+      "href": "/dashboard/settings",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 4,
+      "tag": "A",
+      "text": "Cloud Agents",
+      "href": "/dashboard/cloud-agents",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 5,
+      "tag": "A",
+      "text": "Bugbot",
+      "href": "/dashboard/bugbot",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 6,
+      "tag": "A",
+      "text": "Security Agents",
+      "href": "/dashboard/security-agents",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 7,
+      "tag": "A",
+      "text": "Approval Agents",
+      "href": "/dashboard/approval-agents",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 8,
+      "tag": "A",
+      "text": "Plugins",
+      "href": "/dashboard/plugins",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 9,
+      "tag": "A",
+      "text": "Integrations",
+      "href": "/dashboard/integrations",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 10,
+      "tag": "A",
+      "text": "API Keys",
+      "href": "/dashboard/api",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 11,
+      "tag": "A",
+      "text": "Shared Canvases",
+      "href": "/dashboard/shared-canvases",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 12,
+      "tag": "A",
+      "text": "Members",
+      "href": "/dashboard/members",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 13,
+      "tag": "A",
+      "text": "Usage",
+      "href": "/dashboard/usage",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 14,
+      "tag": "A",
+      "text": "Spending",
+      "href": "/dashboard/spending",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 15,
+      "tag": "A",
+      "text": "Billing & Invoices",
+      "href": "/dashboard/billing",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 16,
+      "tag": "DIV",
+      "text": "Environments",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 17,
+      "tag": "BUTTON",
+      "text": "New",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 18,
+      "tag": "A",
+      "text": "Uuriko/crispy-garbanzo\nUnconfigured\nInactive\n1d",
+      "href": "/dashboard/cloud-agents/environments/r/github.com/uuriko/crispy-garbanzo",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 19,
+      "tag": "A",
+      "text": "View details for Uuriko/crispy-garbanzo",
+      "href": "/dashboard/cloud-agents/environments/r/github.com/uuriko/crispy-garbanzo",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 20,
+      "tag": "BUTTON",
+      "text": "Actions for Uuriko/crispy-garbanzo",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 21,
+      "tag": "BUTTON",
+      "text": "Prev",
+      "href": "",
+      "type": "",
+      "disabled": true
+    },
+    {
+      "i": 22,
+      "tag": "BUTTON",
+      "text": "Next",
+      "href": "",
+      "type": "",
+      "disabled": true
+    },
+    {
+      "i": 23,
+      "tag": "DIV",
+      "text": "Self-Hosted\nMonitor and manage your self-hosted cloud machines",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 25,
+      "tag": "DIV",
+      "text": "Defaults",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 26,
+      "tag": "BUTTON",
+      "text": "GPT-5.5 High",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 27,
+      "tag": "BUTTON",
+      "text": "Uuriko/crispy-garbanzo",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 28,
+      "tag": "INPUT",
+      "text": "Branch name...",
+      "href": "",
+      "type": "text",
+      "disabled": false
+    },
+    {
+      "i": 29,
+      "tag": "INPUT",
+      "text": "cursor/",
+      "href": "",
+      "type": "text",
+      "disabled": false
+    },
+    {
+      "i": 30,
+      "tag": "DIV",
+      "text": "Pull Requests",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 31,
+      "tag": "BUTTON",
+      "text": "For Single Model Runs",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 32,
+      "tag": "A",
+      "text": "Learn more",
+      "href": "https://cursor.com/docs/cloud-agent/capabilities#artifacts-in-github",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 33,
+      "tag": "BUTTON",
+      "text": "Link Only",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 34,
+      "tag": "DIV",
+      "text": "Notifications",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 36,
+      "tag": "DIV",
+      "text": "Slack routing\nRouting rules to help Cloud Agents pick the right repository or en",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 37,
+      "tag": "BUTTON",
+      "text": "Add Rule",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 38,
+      "tag": "BUTTON",
+      "text": "Add Rule",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 39,
+      "tag": "DIV",
+      "text": "Security",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 40,
+      "tag": "BUTTON",
+      "text": "Allow all network access",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 41,
+      "tag": "DIV",
+      "text": "My Secrets\nSecurely set environment variables for your Cloud Agents.",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 42,
+      "tag": "BUTTON",
+      "text": "Search secrets",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    },
+    {
+      "i": 43,
+      "tag": "BUTTON",
+      "text": "Add Secrets",
+      "href": "",
+      "type": "",
+      "disabled": false
+    },
+    {
+      "i": 44,
+      "tag": "BUTTON",
+      "text": "Add Secrets",
+      "href": "",
+      "type": "button",
+      "disabled": false
+    }
+  ]
+}

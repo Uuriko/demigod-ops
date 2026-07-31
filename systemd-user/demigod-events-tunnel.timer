@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Demigod Events tunnel/config every 20m (recover dead loca.lt)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=20min
+AccuracySec=1min
+Persistent=true
+Unit=demigod-events-tunnel.service
+
+[Install]
+WantedBy=timers.target

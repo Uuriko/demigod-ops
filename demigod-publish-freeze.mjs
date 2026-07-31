@@ -39,6 +39,7 @@ export function status() {
       why: 'Publish freeze permanently disabled by user',
       at: new Date().toISOString(),
       by: process.env.USER || 'agent',
+      // Disabling the freeze does not widen authority to publish.
       authorized: process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH === '1',
       path: FILE,
     };

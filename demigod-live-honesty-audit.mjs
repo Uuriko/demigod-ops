@@ -1,11 +1,6 @@
 #!/usr/bin/env node
-// Honesty gate for the LIVE site's served HTML (the crawler's view). The homepage ships dishonest
-// authored copy that ~15 runtime "scrub" scripts patch for JS users — but crawlers and no-JS clients
-// index the un-scrubbed source. This audits the crawler-visible CONTENT (outside <script>/<style>,
-// so the scrub scripts' own regex patterns don't false-positive) for banned phrases.
-//
-// Currently RED by design: it flags the real trust-leak. It goes GREEN when the source copy is fixed
-// (Webflow Designer edits — see WEBFLOW-HONESTY-FIX-READY.md). Wire into verify-all once green.
+// Honesty gate for the LIVE site's served HTML (the crawler's view). This audits crawler-visible
+// content outside <script>/<style> so defensive scrub code cannot make the source look honest.
 //
 //   node demigod-live-honesty-audit.mjs [--url <u>] [--selftest]
 import path from 'node:path';
@@ -23,6 +18,17 @@ export const BANNED = [
   { label: 'volume promise "3-5 candidates"', re: /\b3\s*[–-]\s*5\s+(?:candidates?|finalists?|profiles?|matches?)/i },
   { label: 'unbacked "replacement guarantee"', re: /replacement\s+guarantee/i },
   { label: 'stray "Untitled" title', re: /<title>\s*untitled\s*<\/title>/i },
+  { label: 'form action opens an email client', re: /<form\b[^>]*\baction\s*=\s*["']mailto:/i },
+];
+
+export const BANNED_ASSETS = [
+  { label: 'Webflow GSAP runtime', re: /\/gsap\/[^/"']+\/gsap(?:\.min)?\.js/i },
+  { label: 'Webflow SplitText plugin', re: /SplitText(?:\.min)?\.js/i },
+  { label: 'Webflow ScrollTrigger plugin', re: /ScrollTrigger(?:\.min)?\.js/i },
+  { label: 'Webflow IX visibility-hide rule', re: /html\.w-mod-js:not\(\.w-mod-ix3\)\s+:is\(/i },
+  { label: 'retired custom IX unhide workaround', re: /id=["']dg-(?:unhide-critical|unhide-main|graceful-unhide|early-unhide)["']|unhide-v5-safe|__dgUnhideV5/i },
+  { label: 'retired nav interaction', re: /i-aisb-nav-on-page-load-fade-in-all-elements-ec2d63bc/i },
+  { label: 'retired section interaction', re: /i-aisb-fade-in-all-elements-5274fcbd/i },
 ];
 
 // Strip <script> and <style> blocks so the scrub scripts' own regex patterns don't false-positive.
@@ -40,6 +46,10 @@ export function auditHtml(html) {
   return BANNED.filter(b => b.re.test(content)).map(b => b.label);
 }
 
+export function auditAssets(html) {
+  return BANNED_ASSETS.filter(b => b.re.test(String(html || ''))).map(b => b.label);
+}
+
 if (process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error(m); };
   // dishonest content is caught…
@@ -51,10 +61,14 @@ if (process.argv.includes('--selftest')) {
   assert(auditHtml('<head><title>Demigod</title></head><script>/* stray <title>Untitled</title> soft-404 */</script>').length === 0, 'script-comment title excluded');
   // but a real stray <title> in the head IS caught
   assert(auditHtml('<head><title>Untitled</title></head>').includes('stray "Untitled" title'), 'real head Untitled caught');
+  assert(auditHtml('<form method="post" action="mailto:potter@trydemigod.com"></form>').includes('form action opens an email client'), 'catches mailto form action');
   // the 4 overclaims not covered above (find-talent / pre-vetted / 3-5 / replacement) each fire
   assert(auditHtml('<p>find talent, pre-vetted, meet your 3-5 candidates, 90-day replacement guarantee</p>').length === 4, 'catches find-talent + pre-vetted + 3-5 + replacement overclaims');
   // clean honest content passes
   assert(auditHtml('<h2>Tech-matched SF startup talent</h2><a href="mailto:potter@trydemigod.com">potter@</a>').length === 0, 'honest content passes');
+  const bloated = '<script src="/gsap/3.15.0/gsap.min.js"></script><script src="SplitText.min.js"></script><script src="ScrollTrigger.min.js"></script><style>html.w-mod-js:not(.w-mod-ix3) :is(.nav_container){visibility:hidden}</style><style id="dg-unhide-critical">/*unhide-v5-safe*/</style>i-aisb-nav-on-page-load-fade-in-all-elements-ec2d63bc i-aisb-fade-in-all-elements-5274fcbd';
+  assert(auditAssets(bloated).length === BANNED_ASSETS.length, 'catches the retired Webflow animation stack');
+  assert(auditAssets('<script src="/js/webflow.js"></script>').length === 0, 'ordinary Webflow runtime passes');
   console.log(JSON.stringify({ ok: true, selftest: 'live-honesty-audit' }));
   process.exit(0);
 }
@@ -63,6 +77,8 @@ if (isMain) {
   const r = await fetch(URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
   const html = await r.text();
   const found = auditHtml(html);
-  console.log(JSON.stringify({ ok: found.length === 0, url: URL, httpStatus: r.status, bannedInServedHtml: found }, null, 2));
-  process.exit(found.length ? 1 : 0);
+  const assets = auditAssets(html);
+  const ok = r.ok && found.length === 0 && assets.length === 0;
+  console.log(JSON.stringify({ ok, url: URL, httpStatus: r.status, bannedInServedHtml: found, bannedAssets: assets }, null, 2));
+  process.exit(ok ? 0 : 1);
 }

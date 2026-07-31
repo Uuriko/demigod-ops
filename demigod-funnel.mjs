@@ -26,27 +26,36 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
+import { isDeepStrictEqual } from 'node:util';
 import { atomicWrite, readJson, BUSY, withFileLock } from './demigod-agent-tools-lib.mjs';
 import {
   checkOutreach,
   identityKeys,
   isIdentitySuppressedByOther,
+  normalizeLinkedInProfile,
   SUPPRESS_STATES,
 } from './demigod-outreach-policy.mjs';
 import {
   applyInboxContactPatches,
   extractEmail,
+  loadBoard,
   loadInbox,
   planGmailFormCandidates,
   planInboxContactPatches,
+  projectDraftText,
+  projectDraftUrl,
+  scrubPII,
   submissionsWithGmailPatches,
   updateInbox,
 } from './demigod-submissions-lib.mjs';
 import {
   attachPublicContact,
+  firstUsableOutreachEmail,
+  hasContactReleaseHoldReason,
   isJunkAggregatorLead,
   isUsableOutreachEmail,
   isUsableOutreachHandle,
+  hasUnresolvedLinkedInConflict,
   needsContactEnrich,
   enrichScrapeUrlKey,
   enrichRecentlyAttempted,
@@ -56,6 +65,11 @@ import {
   readLeadFocus,
   scrubNoiseContact,
 } from './demigod-lead-collect.mjs';
+import {
+  assertCurrentMutualPairEligibility,
+  assertCurrentPairEligibility,
+} from './demigod-pairs-lib.mjs';
+import { selectRecruitaiPartners } from './demigod-lead-sourcer.mjs';
 import { feeCents, invoiceStub } from './demigod-revenue.mjs';
 import { draftHygiene, operatingDateKey } from './demigod-demand.mjs';
 
@@ -65,12 +79,32 @@ const LEADS = path.join(ROOT, 'DEMIGOD-LEADS.json');
 const RECEIPTS = path.join(ROOT, 'demigod-outreach', 'funnel-receipts');
 const CRM_LOCK = path.join(ROOT, 'DEMIGOD-LEADS.json.lock');
 const DRAFTS = path.join(ROOT, 'demigod-outreach', 'funnel-drafts');
-const LOG = path.join(BUSY, 'funnel', 'transitions.jsonl');
 /** Live Trust Ladder packages under /tmp/dg-busy; isolated DEMIGOD_ROOT never overwrites them. */
 const PKG_BUSY =
   path.resolve(ROOT) === path.resolve(__dirname)
     ? (process.env.DEMIGOD_BUSY || BUSY)
     : path.join(ROOT, '.dg-busy');
+const LOG = path.join(PKG_BUSY, 'funnel', 'transitions.jsonl');
+// Caller-supplied board/inbox short-circuits `assertCurrentPairEligibility`'s fresh load, so
+// this flag decides whether pair eligibility is checked against the REAL board or against
+// whatever the caller passed. `DEMIGOD_TEST_SCOPE` used to unlock it, and any non-empty value
+// did: demigod-referrals-mint.test.mjs sets it to `mint-<pid>`, others to arbitrary strings, and
+// process.env mutation leaks to every later import and every spawned child. Measured 2026-07-30:
+// with an unrelated scope set, a forged role that exists on no board passed both
+// "currently accepted" and "match-ready" and was stopped only by a deeper consent check.
+// The sourcer hardened the same leak on 2026-07-29 by binding scope to basename(BUSY); funnel's
+// tests do not follow that convention, so the weak signal is dropped instead of strengthened.
+// Remaining signals are process-identity, not caller-settable strings.
+const PAIR_FIXTURE_CONTEXT_ALLOWED = Boolean(
+  process.env.NODE_TEST_CONTEXT ||
+  /(?:^|\/)demigod-funnel-selftest\.mjs$/.test(process.argv[1] || ''),
+);
+
+function ensurePrivateDir(dir) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(dir, 0o700);
+  return dir;
+}
 
 /** Ordered non-terminal path (not all edges are linear — see ALLOWED). */
 export const STATES = [
@@ -167,7 +201,13 @@ const EVIDENCE_FOR = {
 
 function loadLeads() {
   const j = readJson(LEADS);
-  if (!j) throw new Error(`missing or invalid ${LEADS}`);
+  if (
+    !j ||
+    typeof j !== 'object' ||
+    Array.isArray(j) ||
+    !Array.isArray(j.partners) ||
+    !Array.isArray(j.talent)
+  ) throw new Error(`missing or invalid ${LEADS}`);
   return j;
 }
 
@@ -436,14 +476,37 @@ function saveDoc(doc) {
   try { fs.chmodSync(LEADS, 0o600); } catch { /* PII (contacts): 0600 even on a fresh (umask) file */ }
 }
 
-/** Draft "To:" target: email || handle || url (reply via posting). */
-export function draftContactTo(lead) {
+/** Canonical direct email/X target used by drafts, approval, send, and receipts. */
+export function outreachContactTo(lead) {
   attachPublicContact(lead);
-  const email = String(lead.email || lead.contactEmail || '').trim();
+  const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
   if (email) return email;
   const handle = String(lead.handle || '').trim();
-  if (handle) return handle.startsWith('@') ? handle : `@${handle}`;
-  if (lead.url) return `${lead.url} (no direct contact — reply via posting)`;
+  if (isUsableOutreachHandle(handle)) {
+    return handle.startsWith('@') ? handle : `@${handle}`;
+  }
+  return '';
+}
+
+/** The disputed LinkedIn is the only person identity; independent email/X still wins. */
+export function hasOnlyConflictedLinkedInContact(lead) {
+  return (
+    hasUnresolvedLinkedInConflict(lead) &&
+    !firstUsableOutreachEmail(lead?.email, lead?.contactEmail) &&
+    !isUsableOutreachHandle(lead?.handle)
+  );
+}
+
+/** Draft "To:" target: email || X || observed LinkedIn profile || posting URL. */
+export function draftContactTo(lead) {
+  const outreach = outreachContactTo(lead);
+  if (outreach) return outreach;
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
+  if (linkedin && !hasUnresolvedLinkedInConflict(lead)) {
+    return `${linkedin} (manual profile draft; no auto-DM)`;
+  }
+  const postingUrl = projectDraftUrl(lead.url);
+  if (postingUrl) return `${postingUrl} (no direct contact — reply via posting)`;
   return '(no direct contact)';
 }
 
@@ -456,20 +519,31 @@ export function isUnreachable(lead) {
   attachPublicContact(lead);
   const email = String(lead.email || lead.contactEmail || '').trim();
   const handle = String(lead.handle || '').trim();
+  const linkedin = normalizeLinkedInProfile(lead.linkedin);
   const url = String(lead.url || lead.applyUrl || '').trim();
-  return !email && !handle && !url;
+  return (
+    !email &&
+    !handle &&
+    (!linkedin || hasUnresolvedLinkedInConflict(lead)) &&
+    !url
+  );
 }
 
-/**
- * FOCUS: draft/approve/send money path needs usable email|handle.
- * URL-only is reachable for enrich but not draftable (would clog human approve queue).
- */
+/** Email/X contact accepted by approval and send paths. */
 export function hasUsableOutreachContact(lead) {
   if (!lead || typeof lead !== 'object') return false;
-  attachPublicContact(lead);
-  const email = String(lead.email || lead.contactEmail || '').trim();
-  const handle = String(lead.handle || '').trim();
-  return isUsableOutreachEmail(email) || isUsableOutreachHandle(handle);
+  return Boolean(outreachContactTo(lead));
+}
+
+/** Local drafting also accepts an observed LinkedIn person profile; never a send transport. */
+export function hasUsableDraftContact(lead) {
+  return (
+    hasUsableOutreachContact(lead) ||
+    (
+      Boolean(normalizeLinkedInProfile(lead?.linkedin)) &&
+      !hasUnresolvedLinkedInConflict(lead)
+    )
+  );
 }
 
 /**
@@ -487,7 +561,6 @@ export function parkUnreachable(doc, { actor = 'agent', note = 'no-contact-email
       continue;
     }
     if (from === 'policy_hold') {
-      if (!lead.policyHoldReason) lead.policyHoldReason = 'no-contact-email';
       skipped.push({ id: lead.id, reason: 'already-hold' });
       continue;
     }
@@ -532,14 +605,14 @@ export async function parkNoMx(
   for (const { lead } of allLeads(doc)) {
     const from = getState(lead);
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '')
-      .trim()
+    const rawEmail = String(lead.email || lead.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(lead.email, lead.contactEmail)
       .toLowerCase();
-    if (!email) {
+    if (!rawEmail) {
       skipped.push({ id: lead.id, reason: 'no-email' });
       continue;
     }
-    if (!isUsableOutreachEmail(email)) {
+    if (!email) {
       skipped.push({ id: lead.id, reason: 'noise-email' });
       continue;
     }
@@ -625,8 +698,7 @@ export function importEventsLeads(doc, events = {}) {
   const byEmail = new Map();
   for (const { lead, side } of allLeads(doc)) {
     if (lead?.id) byId.set(String(lead.id), { lead, side });
-    const em = String(lead?.email || lead?.contactEmail || '')
-      .trim()
+    const em = firstUsableOutreachEmail(lead?.email, lead?.contactEmail)
       .toLowerCase();
     if (em) byEmail.set(em, { lead, side });
   }
@@ -640,19 +712,15 @@ export function importEventsLeads(doc, events = {}) {
       skipped.push({ id: row.id, reason: 'consent-required' });
       return;
     }
-    const email = String(row.email || row.contactEmail || '')
-      .trim()
+    const rawEmail = String(row.email || row.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(row.email, row.contactEmail)
       .toLowerCase();
     const handle = String(row.handle || '')
       .replace(/^@/, '')
       .trim();
     // Funnel needs a contact path — calendar/event signals without email|handle stay in Events store only
     if (!email && !isUsableOutreachHandle(handle)) {
-      skipped.push({ id: row.id, reason: 'no-contact' });
-      return;
-    }
-    if (email && !isUsableOutreachEmail(email)) {
-      skipped.push({ id: row.id, reason: 'noise-email' });
+      skipped.push({ id: row.id, reason: rawEmail ? 'noise-email' : 'no-contact' });
       return;
     }
     if (row.id && byId.has(String(row.id))) {
@@ -700,7 +768,7 @@ export function disqualifyJunk(doc, { actor = 'agent', note = 'junk-aggregator-o
       String(lead.source || '').startsWith('submissions-inbox:') &&
       String(lead.company || '').trim() === '(from WIZ)' &&
       !lead.url &&
-      !isUsableOutreachEmail(lead.email || lead.contactEmail) &&
+      !firstUsableOutreachEmail(lead.email, lead.contactEmail) &&
       !isUsableOutreachHandle(lead.handle);
     if (!isJunkAggregatorLead(lead) && !legacyWizPlaceholder) {
       skipped.push({ id: lead.id, reason: 'not-junk' });
@@ -757,7 +825,7 @@ export function pruneTerminalDrafts(
       skipped.push({ id, reason: `state=${st}` });
       continue;
     }
-    if (hasUsableOutreachContact(lead)) {
+    if (hasUsableDraftContact(lead)) {
       skipped.push({ id, reason: 'has-usable-contact' });
       continue;
     }
@@ -793,7 +861,7 @@ export function pruneTerminalDrafts(
   };
 }
 
-/** drafted/approved with no *usable* email/handle (noise-only = gap). */
+/** Drafted/approved with no usable local-draft person contact (noise-only = gap). */
 export function countNoContact(doc) {
   let n = 0;
   const ids = [];
@@ -801,9 +869,7 @@ export function countNoContact(doc) {
     const st = getState(lead);
     if (st !== 'drafted' && st !== 'approved') continue;
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
-    const handle = String(lead.handle || '').trim();
-    if (!isUsableOutreachEmail(email) && !isUsableOutreachHandle(handle)) {
+    if (!hasUsableDraftContact(lead)) {
       n++;
       ids.push(lead.id);
     }
@@ -812,9 +878,9 @@ export function countNoContact(doc) {
 }
 
 /**
- * FOCUS: drafted/approved url-only (no usable email|handle) clog the human approve queue.
+ * FOCUS: drafted/approved URL-only rows clog the local review queue.
  * Park → policy_hold so once-draft only advances contactable sourced leads.
- * URL remains on the row for later enrich; never invents email.
+ * Observed LinkedIn profiles remain local drafts but never enter a send lane.
  */
 export function parkNoUsableContact(
   doc,
@@ -829,10 +895,8 @@ export function parkNoUsableContact(
       continue;
     }
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
-    const handle = String(lead.handle || '').trim();
-    if (isUsableOutreachEmail(email) || isUsableOutreachHandle(handle)) {
-      skipped.push({ id: lead.id, reason: 'has-usable-contact' });
+    if (hasUsableDraftContact(lead)) {
+      skipped.push({ id: lead.id, reason: 'has-usable-draft-contact' });
       continue;
     }
     const check = canTransition(from, 'policy_hold', { evidenceText: note, actor });
@@ -843,7 +907,9 @@ export function parkNoUsableContact(
     const at = new Date().toISOString();
     lead.state = 'policy_hold';
     lead.status = 'policy_hold';
-    lead.policyHoldReason = 'no-usable-contact';
+    lead.policyHoldReason = hasUnresolvedLinkedInConflict(lead)
+      ? 'linkedin-identity-conflict'
+      : 'no-usable-contact';
     lead.stateUpdatedAt = at;
     lead.stateHistory = lead.stateHistory || [];
     lead.stateHistory.push({ at, from, to: 'policy_hold', actor, evidence: null, note });
@@ -853,7 +919,7 @@ export function parkNoUsableContact(
 }
 
 /**
- * After enrich (or manual fix): policy_hold rows with usable email|handle → drafted.
+ * After enrich (or manual fix): policy_hold rows with an observed person contact → drafted.
  * Never invents contact. Leaves no-usable-contact holds parked for URL enrich later.
  */
 export function releaseContactableHolds(
@@ -869,10 +935,27 @@ export function releaseContactableHolds(
       continue;
     }
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
     const handle = String(lead.handle || '').trim();
-    if (!isUsableOutreachEmail(email) && !isUsableOutreachHandle(handle)) {
-      skipped.push({ id: lead.id, reason: 'still-no-usable-contact' });
+    const linkedin = normalizeLinkedInProfile(lead.linkedin);
+    const emailOk = isUsableOutreachEmail(email);
+    const handleOk = isUsableOutreachHandle(handle);
+    const linkedinConflict = hasUnresolvedLinkedInConflict(lead);
+    const linkedinOk = Boolean(linkedin) && !linkedinConflict;
+    if (!emailOk && !handleOk && !linkedinOk) {
+      if (linkedinConflict && hasContactReleaseHoldReason(lead)) {
+        lead.policyHoldReason = 'linkedin-identity-conflict';
+      }
+      skipped.push({
+        id: lead.id,
+        reason: linkedinConflict
+          ? 'linkedin-identity-conflict'
+          : 'still-no-usable-contact',
+      });
+      continue;
+    }
+    if (!hasContactReleaseHoldReason(lead)) {
+      skipped.push({ id: lead.id, reason: 'hold-reason-not-contact' });
       continue;
     }
     const check = canTransition(from, 'drafted', { evidenceText: note, actor });
@@ -883,18 +966,18 @@ export function releaseContactableHolds(
     const at = new Date().toISOString();
     lead.state = 'drafted';
     lead.status = 'drafted';
-    if (
-      lead.policyHoldReason === 'no-usable-contact' ||
-      lead.policyHoldReason === 'no-contact-email' ||
-      lead.policyHoldReason === 'enrich-exhausted'
-    ) {
-      delete lead.policyHoldReason;
-      if (lead.enrichExhaustedAt) delete lead.enrichExhaustedAt;
-    }
+    delete lead.policyHoldReason;
+    if (lead.enrichExhaustedAt) delete lead.enrichExhaustedAt;
     lead.stateUpdatedAt = at;
     lead.stateHistory = lead.stateHistory || [];
     lead.stateHistory.push({ at, from, to: 'drafted', actor, evidence: null, note });
-    released.push({ id: lead.id, at, email: email || null, handle: handle || null });
+    released.push({
+      id: lead.id,
+      at,
+      email: emailOk ? email : null,
+      handle: handleOk ? handle : null,
+      linkedin: linkedinOk ? linkedin : null,
+    });
   }
   return { released, skipped };
 }
@@ -923,8 +1006,9 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
       score: lead.score ?? null,
       source: lead.source || null,
       eventId: lead.eventId || null,
-      email: lead.email || lead.contactEmail || null,
+      email: firstUsableOutreachEmail(lead.email, lead.contactEmail) || null,
       handle: lead.handle || null,
+      linkedin: normalizeLinkedInProfile(lead.linkedin) || null,
       stateUpdatedAt: lead.stateUpdatedAt || null,
     });
     const url = partnerUrlKey(lead.url);
@@ -979,12 +1063,28 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
   sendReadyEmail = sendEmailIds.length;
   sendReadyHandle = sready.filter((r) => r.channel === 'handle').length;
   let holdsExhausted = 0;
+  let enrichTransportFailures = 0;
+  let enrichProviderCapacity = 0;
+  let enrichOtherTransportFailures = 0;
   const holdsReason = {};
   const holdsCoolingIds = [];
   const holdsExhaustedIds = [];
   let holdsCoolingMinRemainingSec = null;
   const nowMs = Date.now();
   for (const { lead } of allLeads(doc)) {
+    const transportError = String(lead.lastTransportError || '');
+    if (
+      transportError &&
+      lead.lastTransportFailedAt &&
+      lead.lastTransportFailedAt === lead.enrichAttemptedAt
+    ) {
+      enrichTransportFailures++;
+      if (/insufficient[_\s-]*credits|quota|rate[_\s-]*limit|capacity/i.test(transportError)) {
+        enrichProviderCapacity++;
+      } else {
+        enrichOtherTransportFailures++;
+      }
+    }
     if (getState(lead) !== 'policy_hold') continue;
     const reason = String(lead.policyHoldReason || 'unspecified').slice(0, 64);
     holdsReason[reason] = (holdsReason[reason] || 0) + 1;
@@ -1058,6 +1158,7 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
     const commit = JSON.parse(commitRaw);
     const generation = path.resolve(String(commit?.generation || ''));
     const expectedPackageKeys = [
+      'events-bot/HUMAN-INVITE-URLS.md',
       'events-bot/INVITE-DRAIN.md',
       'events-bot/invite-drain-latest.json',
       'events-bot/outbox-purge-latest.json',
@@ -1073,6 +1174,7 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
       generation.startsWith(path.join(PKG_BUSY, 'package-generations') + path.sep) &&
       !fs.existsSync(path.join(funnelPkg, 'package-refresh.lock')) &&
       JSON.stringify(packageKeys) === JSON.stringify(expectedPackageKeys) && packageFiles.every((file) =>
+        (fs.statSync(file).mode & 0o777) === 0o600 &&
         crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') === commit.files[path.relative(generation, file)],
       );
     if (!committed) throw new Error('package generation is incomplete');
@@ -1329,6 +1431,9 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
       holds_exhausted: holdsExhausted,
       holds_exhausted_ids: holdsExhaustedIds,
       holds_scrape_due: holdsScrapeDueRows.length,
+      enrich_transport_failures: enrichTransportFailures,
+      enrich_provider_capacity: enrichProviderCapacity,
+      enrich_other_transport_failures: enrichOtherTransportFailures,
       enrichment_paused: !!focusPaused,
       // Machine path for pipeline skip honesty (0 due → skip Firecrawl)
       holds_scrape_due_ids: holdsScrapeDueRows.map((r) => r.id),
@@ -1714,7 +1819,8 @@ export function talentGreetingName(lead) {
     const first = raw.split(/\s+/)[0];
     if (/^[A-Za-z][A-Za-z'.-]{1,24}$/.test(first)) return first;
   }
-  const email = String(lead?.email || lead?.contactEmail || '').trim().toLowerCase();
+  const email = firstUsableOutreachEmail(lead?.email, lead?.contactEmail)
+    .toLowerCase();
   const local = email.split('@')[0] || '';
   if (
     local &&
@@ -1734,21 +1840,26 @@ export function talentGreetingName(lead) {
 export function draftEmail(lead, side) {
   attachPublicContact(lead);
   const toLine = `To: ${draftContactTo(lead)}`;
-  const company = lead.company || 'your company';
-  const fact =
-    lead.signal ||
-    lead.url ||
-    (lead.location ? `you're hiring in ${lead.location}` : 'your public hiring signal');
+  const company = projectDraftText(scrubPII(lead.company || ''), 120) || 'your company';
+  const location = projectDraftText(scrubPII(lead.location || ''), 120);
+  const sourceUrl = projectDraftUrl(lead.url || lead.applyUrl);
+  const fact = projectDraftText(
+    scrubPII(
+      lead.signal ||
+      sourceUrl ||
+      (location ? `you're hiring in ${location}` : 'your public hiring signal'),
+    ),
+    240,
+  );
   const wiz = wizLinkFor(lead, side);
   if (side === 'partner') {
     // Time-sensitive "Saw … hiring" openers require # source + # verified (draftHygiene).
-    const sourceUrl = String(lead.url || lead.applyUrl || '').trim();
     const meta = sourceUrl
       ? [`# source: ${sourceUrl}`, `# verified: ${operatingDateKey()}`]
       : [];
     const opener = sourceUrl
-      ? `Saw a public hiring signal for ${company}${lead.location ? ` (${lead.location})` : ''}.`
-      : `Public signal: ${String(fact).trim().slice(0, 160)}.`;
+      ? `Saw a public hiring signal for ${company}${location ? ` (${location})` : ''}.`
+      : `Public signal: ${fact}.`;
     return [
       toLine,
       `Lead-Id: ${lead.id || ''}`,
@@ -1819,8 +1930,12 @@ export function cmdL1Snapshot({ emit = true, busyDir = PKG_BUSY } = {}) {
   normalizeDoc(doc);
   const rep = statusReport(doc);
   const out = path.join(busyDir, 'funnel', 'l1-snapshot-latest.json');
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  atomicWrite(out, JSON.stringify(buildL1Snapshot(rep, { pkgDir: path.dirname(out), busyDir: PKG_BUSY }), null, 2) + '\n');
+  ensurePrivateDir(path.dirname(out));
+  atomicWrite(
+    out,
+    JSON.stringify(buildL1Snapshot(rep, { pkgDir: path.dirname(out), busyDir: PKG_BUSY }), null, 2) + '\n',
+    { mode: 0o600 },
+  );
   const result = { ok: true, out, autoSend: false, autoDm: false };
   if (emit) console.log(JSON.stringify(result));
   return result;
@@ -1849,9 +1964,12 @@ export function classifyApproveBlockReason(reason) {
   if (/junk aggregator/i.test(r)) return 'junk';
   if (/noise contact/i.test(r)) return 'noise_contact';
   if (/ATS apply only|applyUrl/i.test(r)) return 'ats_apply_only';
+  if (/LinkedIn identity conflict/i.test(r)) return 'linkedin_identity_conflict';
+  if (/LinkedIn profile only|manual profile review/i.test(r)) return 'linkedin_manual_review';
   if (/no email\/handle|url-only|enrich first/i.test(r)) return 'no_contact';
   if (/draft file missing/i.test(r)) return 'draft_missing';
   if (/draft file unreadable/i.test(r)) return 'draft_unreadable';
+  if (/draft target/i.test(r)) return 'draft_target';
   if (/copy-policy/i.test(r)) return 'copy_policy';
   if (/policy gate/i.test(r)) return 'policy';
   if (/unreachable/i.test(r)) return 'unreachable';
@@ -1895,9 +2013,23 @@ export function draftSubjectPreview(body) {
   return { subject, preview };
 }
 
+/** Pure route bind: the first draft header must target the lead's current email/X. */
+export function draftTargetsCurrentContact(body, lead) {
+  const targets = String(body || '')
+    .split(/\r?\n/)
+    .map((line) => line.match(/^To:\s*(.+?)\s*$/i)?.[1])
+    .filter(Boolean);
+  const expected = outreachContactTo({ ...lead });
+  return Boolean(
+    targets.length === 1 &&
+    expected &&
+    targets[0].trim().toLowerCase() === expected.toLowerCase()
+  );
+}
+
 /**
  * Pure batch-approve plan (Trust Ladder L1) — no mutations.
- * Ready only when drafted + human actor + note + email|handle (not url-only)
+ * Ready only when drafted + human actor + note + email|handle (not URL/LinkedIn-only)
  * + not junk aggregator + not sample/selftest + not identity-suppressed twin
  * + optional draft file on disk. Fail-closed (followup/match-bridge parity).
  * Human console: ready rows carry draftPath, subject/preview, sendLane;
@@ -1939,7 +2071,15 @@ export function planApproveDrafted(
     if (idSet && !idSet.has(lead.id)) continue;
     const st = getState(lead);
     if (st !== 'drafted') {
-      if (idSet) pushBlocked({ id: lead.id, side, reason: `state=${st} (need drafted)` });
+      if (st === 'policy_hold' && hasUnresolvedLinkedInConflict(lead)) {
+        pushBlocked({
+          id: lead.id,
+          side,
+          reason: 'LinkedIn identity conflict — abstain pending matching public evidence',
+        });
+      } else if (idSet) {
+        pushBlocked({ id: lead.id, side, reason: `state=${st} (need drafted)` });
+      }
       continue;
     }
     if (!noteOk) {
@@ -1969,19 +2109,33 @@ export function planApproveDrafted(
       continue;
     }
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
+    const rawEmail = String(lead.email || lead.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
     const handle = String(lead.handle || '').trim();
-    const emailOk = isUsableOutreachEmail(email);
+    const emailOk = Boolean(email);
     const handleOk = isUsableOutreachHandle(handle);
+    const to = outreachContactTo(lead);
+    const linkedin = normalizeLinkedInProfile(lead.linkedin);
     const applyUrl = String(lead.applyUrl || '').trim() || null;
+    if (hasOnlyConflictedLinkedInContact(lead)) {
+      pushBlocked({
+        id: lead.id,
+        side,
+        reason: 'LinkedIn identity conflict — abstain pending matching public evidence',
+        applyUrl,
+      });
+      continue;
+    }
     if (requireContact && !emailOk && !handleOk) {
       // ATS apply-only is still not batch-approvable (no sendable To:), but human can open posting
       const why =
-        email || handle
-          ? `noise contact (${email || handle}) — self/org/noreply not batch-approvable`
+        rawEmail || handle
+          ? `noise contact (${rawEmail || handle}) — self/org/noreply not batch-approvable`
           : applyUrl
             ? 'ATS apply only — open posting; not batch-approvable (no email/handle)'
-            : 'no email/handle — enrich first (url-only not batch-approvable)';
+            : linkedin
+              ? 'LinkedIn profile only — manual profile review; no batch approval or auto-DM'
+              : 'no email/handle — enrich first (url-only not batch-approvable)';
       pushBlocked({ id: lead.id, side, reason: why, applyUrl });
       continue;
     }
@@ -2011,6 +2165,14 @@ export function planApproveDrafted(
             id: lead.id,
             side,
             reason: `copy-policy hygiene failed${fl ? ': ' + fl : ''}`,
+          });
+          continue;
+        }
+        if (!draftTargetsCurrentContact(body, lead)) {
+          pushBlocked({
+            id: lead.id,
+            side,
+            reason: 'draft target does not match selected email/X contact — redraft first',
           });
           continue;
         }
@@ -2051,7 +2213,7 @@ export function planApproveDrafted(
       id: lead.id,
       side,
       channel: emailOk ? 'email' : 'handle',
-      to: emailOk ? email : handle,
+      to,
       company: lead.company || null,
       name: lead.name || null,
       title: lead.title || lead.role || null,
@@ -2372,12 +2534,23 @@ export function formatApproveBatchPackage(
   if (!blocked.length) {
     lines.push('_none blocked_');
   } else {
-    for (const b of blocked.slice(0, 40)) {
+    const conflicts = blocked.filter(
+      (b) => (b.reasonClass || classifyApproveBlockReason(b.reason)) ===
+        'linkedin_identity_conflict',
+    );
+    const conflictRows = new Set(conflicts);
+    const visible = [
+      ...conflicts,
+      ...blocked
+        .filter((b) => !conflictRows.has(b))
+        .slice(0, Math.max(0, 40 - conflicts.length)),
+    ];
+    for (const b of visible) {
       const cls = b.reasonClass || classifyApproveBlockReason(b.reason);
       const apply = b.applyUrl ? ` · apply: \`${b.applyUrl}\`` : '';
       lines.push(`- ${b.id} [${cls}]: ${b.reason || '?'}${apply}`);
     }
-    if (blocked.length > 40) lines.push(`- … +${blocked.length - 40} more`);
+    if (blocked.length > visible.length) lines.push(`- … +${blocked.length - visible.length} more`);
   }
   lines.push('');
   lines.push('## Commands');
@@ -2442,10 +2615,11 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
       continue;
     }
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
     const handle = String(lead.handle || '').trim();
-    const emailOk = isUsableOutreachEmail(email);
+    const emailOk = Boolean(email);
     const handleOk = isUsableOutreachHandle(handle);
+    const to = outreachContactTo(lead);
     if (!emailOk && !handleOk) {
       blocked.push({
         id: lead.id,
@@ -2462,6 +2636,14 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
       try {
         if (fs.existsSync(draftPath) && fs.statSync(draftPath).size) {
           const body = fs.readFileSync(draftPath, 'utf8');
+          if (!draftTargetsCurrentContact(body, lead)) {
+            blocked.push({
+              id: lead.id,
+              side,
+              reason: 'draft target does not match selected email/X contact — redraft first',
+            });
+            continue;
+          }
           const sp = draftSubjectPreview(body);
           subject = sp.subject;
           preview = sp.preview;
@@ -2490,7 +2672,7 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
       id: lead.id,
       side,
       channel: emailOk ? 'email' : 'handle',
-      to: emailOk ? email : handle,
+      to,
       company: lead.company || null,
       name: lead.name || null,
       title: lead.title || lead.role || null,
@@ -2500,8 +2682,8 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
       preview,
       sendLane: emailOk ? 'email' : 'x-or-li-human',
       receiptCmd: emailOk
-        ? `node demigod-funnel.mjs receipt --id=${lead.id} --channel=email --to=${email} --message-id=MID`
-        : `node demigod-funnel.mjs receipt --id=${lead.id} --channel=x --to=${handle} --message-id=MID`,
+        ? `node demigod-funnel.mjs receipt --id=${lead.id} --channel=email --to=${to} --message-id=MID`
+        : `node demigod-funnel.mjs receipt --id=${lead.id} --channel=x --to=${to} --message-id=MID`,
     });
   }
   // Email commercial path first (parity with planApproveDrafted)
@@ -2652,8 +2834,7 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
     const plan = planApproveDrafted(doc, opts);
     let packagePath = null;
     if (wantPackage) {
-      const pkgDir = path.join(busyDir, 'funnel');
-      fs.mkdirSync(pkgDir, { recursive: true });
+      const pkgDir = ensurePrivateDir(path.join(busyDir, 'funnel'));
       packagePath = path.join(pkgDir, 'approve-batch-latest.md');
       atomicWrite(
         packagePath,
@@ -2661,10 +2842,12 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
           note: opts.note,
           draftsDir: DRAFTS,
         }),
+        { mode: 0o600 },
       );
       atomicWrite(
         path.join(pkgDir, 'approve-email-first-latest.md'),
         formatEmailFirstApprovePackage(plan),
+        { mode: 0o600 },
       );
     }
     const result = {
@@ -2689,12 +2872,12 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
   }
   let packagePath = null;
   if (args.includes('--package') && result.plan) {
-    const pkgDir = path.join(busyDir, 'funnel');
-    fs.mkdirSync(pkgDir, { recursive: true });
+    const pkgDir = ensurePrivateDir(path.join(busyDir, 'funnel'));
     packagePath = path.join(pkgDir, 'approve-batch-latest.md');
     atomicWrite(
       packagePath,
       formatApproveBatchPackage(result.plan, { note, draftsDir: DRAFTS }),
+      { mode: 0o600 },
     );
   }
   console.log(
@@ -2729,16 +2912,17 @@ export function cmdSendPackage(args, { emit = true, busyDir = PKG_BUSY } = {}) {
   normalizeDoc(doc);
   const greetingRefreshed = refreshTalentDraftGreetings(doc, { draftsDir: DRAFTS });
   const plan = planSendReady(doc, { draftsDir: DRAFTS, ids });
-  const pkgDir = path.join(busyDir, 'funnel');
-  fs.mkdirSync(pkgDir, { recursive: true });
+  const pkgDir = ensurePrivateDir(path.join(busyDir, 'funnel'));
   const packagePath = path.join(pkgDir, 'send-batch-latest.md');
   atomicWrite(
     packagePath,
     formatSendBatchPackage(plan, { note, draftsDir: DRAFTS }),
+    { mode: 0o600 },
   );
   atomicWrite(
     path.join(pkgDir, 'send-email-first-latest.md'),
     formatEmailFirstSendPackage(plan),
+    { mode: 0o600 },
   );
   const result = {
         ok: true,
@@ -2770,6 +2954,15 @@ function cmdTransition(args) {
   }
   if (to === 'invoiced') {
     console.error(JSON.stringify({ ok: false, error: 'use invoice so the placement pair and fee are recorded together' }));
+    process.exit(1);
+  }
+  if (to === 'form_filled' || to === 'in_review') {
+    console.error(JSON.stringify({
+      ok: false,
+      error: to === 'form_filled'
+        ? 'use join --apply so submitted identity/contact evidence is bound'
+        : 'use match --apply so engine output is subject-bound',
+    }));
     process.exit(1);
   }
   const doc = loadLeads();
@@ -2817,14 +3010,20 @@ function cmdTransition(args) {
       );
       process.exit(1);
     }
-    // URL-only is reachable but not draftable/approvable/sendable (FOCUS usable-contact)
-    if (!hasUsableOutreachContact(row.lead)) {
+    const contactOk =
+      to === 'drafted'
+        ? hasUsableDraftContact(row.lead)
+        : hasUsableOutreachContact(row.lead);
+    if (!contactOk) {
       console.error(
         JSON.stringify({
           ok: false,
           id,
           to,
-          error: 'no usable email|handle — url-only not draftable (park-no-usable-contact or enrich)',
+          error:
+            to === 'drafted'
+              ? 'no usable email/X/LinkedIn person contact'
+              : `${to} requires usable email or X contact`,
         }),
       );
       process.exit(1);
@@ -2832,6 +3031,37 @@ function cmdTransition(args) {
     const pol = policyGate(row.lead, doc, mode, to === 'sent' ? 'send' : 'draft');
     if (!pol.ok) {
       console.error(JSON.stringify({ ok: false, id, to, error: pol.reason, policy: pol }, null, 2));
+      process.exit(1);
+    }
+  }
+  if (to === 'approved') {
+    const approval = planApproveDrafted(doc, {
+      note: note || evidence,
+      actor,
+      mode,
+      ids: [id],
+      draftsDir: DRAFTS,
+    });
+    if (!approval.ready.some((item) => item.id === id)) {
+      console.error(JSON.stringify({
+        ok: false,
+        id,
+        to,
+        error: approval.blocked.find((item) => item.id === id)?.reason ||
+          'approve plan denied',
+      }));
+      process.exit(1);
+    }
+  }
+  if (to === 'sent') {
+    const send = planSendReady(doc, { draftsDir: DRAFTS, ids: [id] });
+    if (!send.ready.some((item) => item.id === id)) {
+      console.error(JSON.stringify({
+        ok: false,
+        id,
+        to,
+        error: send.blocked.find((item) => item.id === id)?.reason || 'send plan denied',
+      }));
       process.exit(1);
     }
   }
@@ -3088,6 +3318,160 @@ async function cmdImportEvents(args) {
   );
 }
 
+const SOURCER_IMPORT_NOTE = 'import-sourcer:recruitai-public';
+const SOURCER_IMPORT_USAGE =
+  'usage: import-sourcer --id=yc:slug [--apply|--dry-run]';
+
+function sourcerPartnerProjection(candidate) {
+  return JSON.parse(JSON.stringify({
+    id: candidate.id,
+    type: 'partner',
+    company: candidate.company,
+    ...(candidate.domain ? { domain: candidate.domain } : {}),
+    title: candidate.sampleRoleTitle,
+    url: candidate.sampleRoleUrl || candidate.jobsUrl,
+    jobsUrl: candidate.jobsUrl,
+    sampleRoleTitle: candidate.sampleRoleTitle,
+    sampleRoleUrl: candidate.sampleRoleUrl,
+    openReqCount: candidate.openReqCount,
+    reviewSignals: candidate.reviewSignals,
+    provenance: candidate.provenance,
+    state: 'sourced',
+    status: 'sourced',
+  }));
+}
+
+function hasSourcerImportReceipt(lead) {
+  return Array.isArray(lead?.stateHistory) &&
+    lead.stateHistory.some((entry) =>
+      entry?.from === 'sourcer' &&
+      entry.to === 'sourced' &&
+      entry.actor === 'agent' &&
+      entry.note === SOURCER_IMPORT_NOTE
+    );
+}
+
+function isExactSourcerImport(lead, candidate) {
+  if (!lead || typeof lead !== 'object') return false;
+  const { stateHistory, stateUpdatedAt, ...projection } = lead;
+  if (
+    !isDeepStrictEqual(projection, sourcerPartnerProjection(candidate)) ||
+    typeof stateUpdatedAt !== 'string' ||
+    !Number.isFinite(Date.parse(stateUpdatedAt))
+  ) return false;
+  return isDeepStrictEqual(stateHistory, [{
+    at: stateUpdatedAt,
+    from: 'sourcer',
+    to: 'sourced',
+    actor: 'agent',
+    evidence: null,
+    note: SOURCER_IMPORT_NOTE,
+  }]);
+}
+
+function parseImportSourcerArgs(args) {
+  const ids = args.filter((value) => value.startsWith('--id='));
+  const applyCount = args.filter((value) => value === '--apply').length;
+  const dryCount = args.filter((value) => value === '--dry-run').length;
+  if (
+    ids.length !== 1 ||
+    applyCount > 1 ||
+    dryCount > 1 ||
+    (applyCount && dryCount) ||
+    args.length !== ids.length + applyCount + dryCount
+  ) return null;
+  const id = ids[0].slice('--id='.length);
+  if (!/^yc:[a-z0-9][a-z0-9-]*$/.test(id)) return null;
+  return { id, apply: applyCount === 1 };
+}
+
+function cmdImportSourcer(args) {
+  const parsed = parseImportSourcerArgs(args);
+  if (!parsed) {
+    console.error(SOURCER_IMPORT_USAGE);
+    process.exitCode = 2;
+    return;
+  }
+  const { id, apply } = parsed;
+  const doc = loadLeads();
+  if (!Array.isArray(doc?.partners)) throw new Error('invalid lead CRM');
+  const existing = doc.partners.find((lead) => lead?.id === id) || null;
+  const receiptBearing = hasSourcerImportReceipt(existing);
+  const validationDoc = receiptBearing
+    ? { ...doc, partners: doc.partners.filter((lead) => lead !== existing) }
+    : doc;
+  const selected = selectRecruitaiPartners(validationDoc, {
+    limit: Number.MAX_SAFE_INTEGER,
+    committedOnly: true,
+  });
+  const candidate = selected.leads.find((lead) => lead.id === id) || null;
+  if (!candidate) {
+    console.log(JSON.stringify({
+      ok: false,
+      id,
+      apply,
+      dryRun: !apply,
+      eligible: false,
+      alreadyPresent: false,
+      written: false,
+      reason: 'not-eligible-current-source-or-crm',
+    }, null, 2));
+    process.exitCode = 1;
+    return;
+  }
+  if (existing) {
+    const exact = receiptBearing && isExactSourcerImport(existing, candidate);
+    console.log(JSON.stringify({
+      ok: exact,
+      id,
+      apply,
+      dryRun: !apply,
+      eligible: exact,
+      alreadyPresent: exact,
+      written: false,
+      reason: exact ? 'exact-current-import' : 'existing-row-altered-or-source-drifted',
+      currentState: existing.state || existing.status || null,
+    }, null, 2));
+    if (!exact) process.exitCode = 1;
+    return;
+  }
+  const at = new Date().toISOString();
+  const receipt = {
+    at,
+    from: 'sourcer',
+    to: 'sourced',
+    actor: 'agent',
+    evidence: null,
+    note: SOURCER_IMPORT_NOTE,
+  };
+  const lead = {
+    ...sourcerPartnerProjection(candidate),
+    stateUpdatedAt: at,
+    stateHistory: [receipt],
+  };
+  if (apply) {
+    commitReceiptTransaction({
+      trackedPaths: [LEADS, LOG],
+      commit() {
+        doc.partners.push(lead);
+        saveDoc(doc);
+        appendLog({ id, ...receipt });
+      },
+    });
+  }
+  console.log(JSON.stringify({
+    ok: true,
+    id,
+    apply,
+    dryRun: !apply,
+    eligible: true,
+    alreadyPresent: false,
+    written: apply,
+    sourceGeneratedAt: selected.source.generatedAt,
+    lead,
+  }, null, 2));
+}
+
 function cmdDraft(args) {
   const id = arg(args, '--id');
   const mode = arg(args, '--mode') || 'draft-only';
@@ -3107,18 +3491,18 @@ function cmdDraft(args) {
       JSON.stringify({
         ok: false,
         id,
-        error: 'unreachable: no email/handle/url — park-no-contact or enrich first',
+        error: 'unreachable: no observed person contact or posting URL',
       }),
     );
     process.exit(1);
   }
-  // FOCUS: draft only with usable email|handle (url-only parks via park-no-usable-contact)
-  if (!hasUsableOutreachContact(row.lead)) {
+  // Local draft only with an observed direct person contact.
+  if (!hasUsableDraftContact(row.lead)) {
     console.error(
       JSON.stringify({
         ok: false,
         id,
-        error: 'no usable email|handle — url-only not draftable (enrich or park-no-usable-contact)',
+        error: 'no usable email/X/LinkedIn person contact — posting URL alone is not draftable',
       }),
     );
     process.exit(1);
@@ -3312,22 +3696,26 @@ export function planReceipt(
   return { ok: true, from: f, to, reason: 'allowed', evidenceText };
 }
 
-/** Commit CRM/log before publishing receipt evidence; restore every target on write failure. */
+/** Commit tracked files before optionally publishing receipt evidence; restore every target on failure. */
 export function commitReceiptTransaction({ receiptPath, receiptBody, trackedPaths, commit }) {
-  const stage = `${receiptPath}.stage.${process.pid}.${Date.now()}`;
-  const paths = [...new Set([...trackedPaths, receiptPath])];
+  const stage = receiptPath
+    ? `${receiptPath}.stage.${process.pid}.${Date.now()}`
+    : null;
+  const paths = [...new Set([...trackedPaths, ...(receiptPath ? [receiptPath] : [])])];
   const before = new Map(paths.map((file) => {
+    let stat;
     try {
-      const stat = fs.statSync(file);
-      return [file, { body: fs.readFileSync(file), mode: stat.mode & 0o777 }];
-    } catch {
-      return [file, null];
+      stat = fs.statSync(file);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [file, null];
+      throw error;
     }
+    return [file, { body: fs.readFileSync(file), mode: stat.mode & 0o777 }];
   }));
   try {
-    atomicWrite(stage, receiptBody);
+    if (stage) atomicWrite(stage, receiptBody, { mode: 0o600 });
     commit();
-    fs.renameSync(stage, receiptPath);
+    if (stage) fs.renameSync(stage, receiptPath);
   } catch (error) {
     const rollbackErrors = [];
     for (const [file, snapshot] of before) {
@@ -3338,7 +3726,9 @@ export function commitReceiptTransaction({ receiptPath, receiptBody, trackedPath
         if (snapshot || rollbackError?.code !== 'ENOENT') rollbackErrors.push({ file, error: String(rollbackError) });
       }
     }
-    try { fs.unlinkSync(stage); } catch (rollbackError) {
+    try {
+      if (stage) fs.unlinkSync(stage);
+    } catch (rollbackError) {
       if (rollbackError?.code !== 'ENOENT') rollbackErrors.push({ file: stage, error: String(rollbackError) });
     }
     if (rollbackErrors.length) error.rollbackErrors = rollbackErrors;
@@ -3402,8 +3792,21 @@ function cmdReceipt(args) {
     process.exit(1);
   }
   if (!plan.recordOnly && (plan.to === 'sent' || plan.to === 'drafted' || plan.to === 'approved')) {
-    if (isUnreachable(row.lead) || !hasUsableOutreachContact(row.lead)) {
-      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'no usable email|handle' }));
+    const contactOk =
+      plan.to === 'drafted'
+        ? hasUsableDraftContact(row.lead)
+        : hasUsableOutreachContact(row.lead);
+    if (isUnreachable(row.lead) || !contactOk) {
+      console.error(JSON.stringify({
+        ok: false,
+        id,
+        from,
+        to: plan.to,
+        error:
+          plan.to === 'drafted'
+            ? 'no usable email/X/LinkedIn person contact'
+            : `${plan.to} requires usable email or X contact`,
+      }));
       process.exit(1);
     }
     const pol = policyGate(row.lead, doc, 'approve-each', plan.to === 'sent' ? 'send' : 'draft');
@@ -3431,7 +3834,7 @@ function cmdReceipt(args) {
     note ? `note: ${note}` : null,
     '',
   ].filter((x) => x != null);
-  fs.mkdirSync(RECEIPTS, { recursive: true });
+  ensurePrivateDir(RECEIPTS);
   // Separate files so intro/nudge receipts never clobber outreach receipt
   let out;
   if (plan.to === 'sent') {
@@ -3545,7 +3948,16 @@ export function receiptArgsValid(args) {
 /** Bind outreach receipts to the selected CRM identity; intro recipients are handled separately. */
 export function receiptDestinationMatches(lead, channel, destination) {
   const value = normalizeLoose(destination).toLowerCase();
-  if (channel === 'email') return Boolean(value && value === normalizeLoose(lead?.email || lead?.contactEmail).toLowerCase());
+  if (channel === 'email') {
+    return Boolean(
+      value &&
+      [lead?.email, lead?.contactEmail].some(
+        (email) =>
+          isUsableOutreachEmail(email) &&
+          value === normalizeLoose(email).toLowerCase(),
+      )
+    );
+  }
   if (channel === 'x') return Boolean(value && value.replace(/^@/, '') === normalizeLoose(lead?.handle || lead?.twitter || lead?.x).replace(/^@/, '').toLowerCase());
   return false;
 }
@@ -3553,7 +3965,7 @@ export function receiptDestinationMatches(lead, channel, destination) {
 function isSyntheticSubmission(sub) {
   const blob = JSON.stringify(sub || {}).toLowerCase();
   if (sub?.sample || sub?.selftest || sub?.test) return true;
-  // SMS mocks use @pending.example; never count as real WIZ form_filled
+  // Reserved @pending.example fixtures never count as real WIZ form_filled.
   if (
     /e2e_playtest|selftest|fixture|bulk_triage|@test\.|playwright|synthetic|@pending\.example|@example\.(com|org)/.test(
       blob,
@@ -3584,9 +3996,17 @@ function submissionIdentity(sub) {
         data.contactEmail,
     );
   const handle = normalizeLoose(
-    data.handle || data.twitter || data.x || data.twitter_handle || data.linkedin,
+    data.handle || data.twitter || data.x || data.twitter_handle,
   ).replace(/^@/, '');
-  return { email: (email || '').toLowerCase(), handle: (handle || '').toLowerCase(), id: sub?.id };
+  const linkedin = normalizeLinkedInProfile(
+    data.linkedin || data.linkedinUrl || data['linkedin-url'],
+  );
+  return {
+    email: (email || '').toLowerCase(),
+    handle: (handle || '').toLowerCase(),
+    linkedin,
+    id: sub?.id,
+  };
 }
 
 function normalizeLoose(s) {
@@ -3595,10 +4015,15 @@ function normalizeLoose(s) {
 
 function leadIdentity(lead) {
   return {
-    email: normalizeLoose(lead.email || lead.contactEmail).toLowerCase(),
+    email: normalizeLoose(
+      firstUsableOutreachEmail(lead.email, lead.contactEmail) ||
+      lead.email ||
+      lead.contactEmail,
+    ).toLowerCase(),
     handle: normalizeLoose(lead.handle || lead.twitter || lead.x)
       .replace(/^@/, '')
       .toLowerCase(),
+    linkedin: normalizeLinkedInProfile(lead.linkedin),
   };
 }
 
@@ -3617,8 +4042,8 @@ const PAST_FORM_FILLED = new Set([
 
 /**
  * How a lead identity links to a submission (pure).
- * Prefer email/handle; dg_lead from WIZ personalization; inbox-sub id.
- * @returns {'email'|'handle'|'dg_lead'|'joinedSubmissionId'|'inbox_id'|null}
+ * Prefer email/handle/LinkedIn; dg_lead from WIZ personalization; inbox-sub id.
+ * @returns {'email'|'handle'|'linkedin'|'dg_lead'|'joinedSubmissionId'|'inbox_id'|null}
  */
 export function joinMatchVia(lead, sub, si = null, li = null) {
   if (!lead || !sub) return null;
@@ -3627,6 +4052,7 @@ export function joinMatchVia(lead, sub, si = null, li = null) {
   const leadIdn = li || leadIdentity(lead);
   if (identity.email && leadIdn.email && identity.email === leadIdn.email) return 'email';
   if (identity.handle && leadIdn.handle && identity.handle === leadIdn.handle) return 'handle';
+  if (identity.linkedin && leadIdn.linkedin && identity.linkedin === leadIdn.linkedin) return 'linkedin';
   // Draft personalization: WIZ opened with ?dg_lead=<id> (or form field)
   const raw = sub.raw || sub.data || sub.payload || {};
   const dgLead = String(
@@ -3667,7 +4093,7 @@ function isFormFillIdentitySuppressed(lead, doc) {
  * Pure form_filled join plan — no IO. Matches real (caller-filtered) submissions to leads.
  * Eligible when ALLOWED[state] includes form_filled (inbound early states + replied/sent/…).
  * Contactless / noise-only joins stay in the plan as ineligible — never silent vanish,
- * never promote SMS mocks or self-joins to form_filled. attachEmail only for usable emails.
+ * never promote synthetic contacts or self-joins to form_filled. attachEmail only for usable emails.
  * Fail-closed (replies/match parity): sample leads, hard-suppress twins (opt-out/bounce/
  * quarantine), and one submission matching multiple eligible leads never convert.
  * Cold twin sharing email is allowed (person re-engaged via WIZ).
@@ -3680,28 +4106,33 @@ export function planFormFilledJoins(doc, submissions = []) {
     if (isSyntheticSubmission(sub)) continue;
     const si = submissionIdentity(sub);
     const subId = sub.id || si.id;
-    if (!subId && !si.email && !si.handle) continue;
-    const hasAnyContactField = !!(si.email || si.handle);
-    // Money path: usable contact on submission, OR (structural via + usable contact on lead
-    // after gmail rehydrate attach). Never promote contactless id-only self-joins.
-    const usableFromSub =
-      isUsableOutreachEmail(si.email) || isUsableOutreachHandle(si.handle);
+    if (!subId && !si.email && !si.handle && !si.linkedin) continue;
+    const hasAnyContactField = !!(si.email || si.handle || si.linkedin);
     for (const { lead, side } of leads) {
       const st = getState(lead);
       if (PAST_FORM_FILLED.has(st) || TERMINAL.has(st)) continue;
       const li = leadIdentity(lead);
       const via = joinMatchVia(lead, sub, si, li);
       if (!via) continue;
-      // email/handle vias need an identity field on the sub (match already requires equality)
-      if ((via === 'email' || via === 'handle') && !hasAnyContactField) continue;
+      // Direct identity vias need a contact field on the submission.
+      if (['email', 'handle', 'linkedin'].includes(via) && !hasAnyContactField) continue;
       const allowed = ALLOWED[st] || [];
       let eligible = allowed.includes('form_filled');
       let reason = eligible ? null : `state=${st} cannot → form_filled`;
       const structuralVia =
         via === 'inbox_id' || via === 'joinedSubmissionId' || via === 'dg_lead';
+      const linkedinConflict = hasUnresolvedLinkedInConflict(lead);
+      // Money path: usable submission contact, or structural join + usable lead contact.
+      // A disputed LinkedIn identity cannot be the sole proof of a form fill.
+      const usableFromSub =
+        isUsableOutreachEmail(si.email) ||
+        isUsableOutreachHandle(si.handle) ||
+        (Boolean(si.linkedin) && !linkedinConflict);
       const usableFromLead =
         structuralVia &&
-        (isUsableOutreachEmail(li.email) || isUsableOutreachHandle(li.handle));
+        (isUsableOutreachEmail(li.email) ||
+          isUsableOutreachHandle(li.handle) ||
+          (Boolean(li.linkedin) && !linkedinConflict));
       const usableContact = usableFromSub || usableFromLead;
       // Any via without usable contact cannot verify a person filled the form
       // (id-only, dg_lead, and email-matched noise like @pending.example)
@@ -3709,9 +4140,10 @@ export function planFormFilledJoins(doc, submissions = []) {
         eligible = false;
         const noiseOnSub = hasAnyContactField && !usableFromSub;
         const noiseOnLead =
-          structuralVia && !!(li.email || li.handle) && !usableFromLead;
-        reason =
-          noiseOnSub || noiseOnLead
+          structuralVia && !!(li.email || li.handle || li.linkedin) && !usableFromLead;
+        reason = linkedinConflict && (si.linkedin || li.linkedin)
+          ? 'linkedin_identity_conflict'
+          : noiseOnSub || noiseOnLead
             ? 'noise contact (pending/noreply/self) — cannot verify real form fill'
             : 'submission has no contact — cannot verify a person filled the form';
       }
@@ -3725,8 +4157,15 @@ export function planFormFilledJoins(doc, submissions = []) {
         eligible = false;
         reason = 'identity_suppressed';
       }
-      const attachEmail = !!(isUsableOutreachEmail(si.email) && !li.email);
-      const attachHandle = !!(isUsableOutreachHandle(si.handle) && !li.handle);
+      const attachEmail = !!(
+        isUsableOutreachEmail(si.email) &&
+        !isUsableOutreachEmail(li.email)
+      );
+      const attachHandle = !!(
+        isUsableOutreachHandle(si.handle) &&
+        !isUsableOutreachHandle(li.handle)
+      );
+      const attachLinkedIn = !!(si.linkedin && !li.linkedin && !linkedinConflict);
       pairs.push({
         leadId: lead.id,
         side,
@@ -3735,8 +4174,10 @@ export function planFormFilledJoins(doc, submissions = []) {
         via,
         emailFromSub: si.email || null,
         handleFromSub: si.handle || null,
+        linkedinFromSub: si.linkedin || null,
         attachEmail,
         attachHandle,
+        attachLinkedIn,
         eligible,
         reason,
       });
@@ -3860,17 +4301,36 @@ function cmdJoin(args) {
       row.lead.state = 'form_filled';
       row.lead.status = 'form_filled';
       row.lead.joinedSubmissionId = m.submissionId;
+      const joinedAt = new Date().toISOString();
+      const attachedFields = [];
       // Onboarding: attach only usable WIZ contact when lead was missing it
       if (m.attachEmail && m.emailFromSub && isUsableOutreachEmail(m.emailFromSub)) {
         row.lead.email = m.emailFromSub;
+        attachedFields.push('email');
       }
       if (m.attachHandle && m.handleFromSub && isUsableOutreachHandle(m.handleFromSub)) {
         const h = String(m.handleFromSub).replace(/^@/, '');
         row.lead.handle = `@${h}`;
+        attachedFields.push('handle');
+      }
+      if (m.attachLinkedIn && m.linkedinFromSub) {
+        row.lead.linkedin = normalizeLinkedInProfile(m.linkedinFromSub);
+        attachedFields.push('linkedin');
+      }
+      if (attachedFields.length) {
+        const fields = { ...(row.lead.contactProvenance?.fields || {}) };
+        for (const field of attachedFields) {
+          fields[field] = {
+            method: 'self-submitted',
+            submissionId: m.submissionId,
+            at: joinedAt,
+          };
+        }
+        row.lead.contactProvenance = { ...(row.lead.contactProvenance || {}), fields };
       }
       // Clear park reason once real form fill proves contact
       if (row.lead.policyHoldReason) delete row.lead.policyHoldReason;
-      row.lead.stateUpdatedAt = new Date().toISOString();
+      row.lead.stateUpdatedAt = joinedAt;
       row.lead.stateHistory = row.lead.stateHistory || [];
       row.lead.stateHistory.push({
         at: row.lead.stateUpdatedAt,
@@ -3950,14 +4410,15 @@ export function planFollowups(doc, { days = 5, id = null, now = Date.now() } = {
       continue;
     }
     attachPublicContact(lead);
-    const email = String(lead.email || lead.contactEmail || '').trim();
+    const rawEmail = String(lead.email || lead.contactEmail || '').trim();
+    const email = firstUsableOutreachEmail(lead.email, lead.contactEmail);
     const handle = String(lead.handle || '').trim();
-    const emailOk = isUsableOutreachEmail(email);
+    const emailOk = Boolean(email);
     const handleOk = isUsableOutreachHandle(handle);
     if (!emailOk && !handleOk) {
       const why =
-        email || handle
-          ? `noise contact (${email || handle}) — not followup-draftable`
+        rawEmail || handle
+          ? `noise contact (${rawEmail || handle}) — not followup-draftable`
           : 'no email/handle — cannot draft followup (url-only not sendable)';
       skipped.push({ id: lead.id, side, reason: why, state: st });
       continue;
@@ -4000,7 +4461,9 @@ export function planFollowups(doc, { days = 5, id = null, now = Date.now() } = {
 }
 
 function followupBody(lead, side, { final = false } = {}) {
-  const who = lead.company || lead.name || lead.handle || lead.id;
+  const who = lead.company || lead.name
+    ? projectDraftText(scrubPII(lead.company || lead.name), 120)
+    : projectDraftText(lead.handle || lead.id, 120);
   const wiz = wizLinkFor(lead, side);
   const bump = final
     ? `Last check-in for ${who} — if timing is wrong I'll close this out (no hard feelings).`
@@ -4099,6 +4562,15 @@ export function planMatchBridge(doc) {
     if (!['form_filled', 'in_review'].includes(st)) continue;
     if (lead.sample || lead.selftest || lead.test) {
       skipped.push({ leadId: lead.id, side, state: st, reason: 'sample_or_test' });
+      continue;
+    }
+    if (hasOnlyConflictedLinkedInContact(lead)) {
+      skipped.push({
+        leadId: lead.id,
+        side,
+        state: st,
+        reason: 'linkedin_identity_conflict',
+      });
       continue;
     }
     if (isIdentitySuppressedByOther(lead, root)) {
@@ -4269,6 +4741,24 @@ export function planMatchAdvance(planRow, engineResult, { engineExitOk = true } 
           : Array.isArray(engineResult.ranked)
             ? `ranked:${engineResult.ranked.length}`
             : 'shape';
+  const companyEvidence = mode === 'suggest'
+    ? [engineResult.companyEvidence]
+    : (engineResult.ranked || []).map((row) => row?.companyEvidence);
+  const companyEvidenceStatus = [...new Set(companyEvidence
+    .map((item) => item?.status)
+    .filter((status) => ['matched', 'unknown', 'ambiguous'].includes(status)))]
+    .join(',') || 'none';
+  const roleEvidenceStatus = [...new Set(companyEvidence
+    .map((item) => item?.roleEvidenceStatus)
+    .filter(Boolean))]
+    .join(',') || 'none';
+  const researchEvidenceStatus = [...new Set(companyEvidence
+    .map((item) => item?.research?.status)
+    .filter(Boolean))]
+    .join(',') || 'none';
+  const researchFields = [...new Set(companyEvidence
+    .flatMap((item) => item?.research?.acceptedFields || []))]
+    .join(',') || 'none';
   const evidenceText = [
     'match bridge',
     `lead: ${planRow.leadId}`,
@@ -4276,6 +4766,10 @@ export function planMatchAdvance(planRow, engineResult, { engineExitOk = true } 
     expectCand ? `candId: ${expectCand}` : null,
     expectRole ? `roleId: ${expectRole}` : null,
     `engine: ${shapeTag}`,
+    `companyEvidence: ${companyEvidenceStatus}`,
+    `roleEvidence: ${roleEvidenceStatus}`,
+    `researchEvidence: ${researchEvidenceStatus}`,
+    `researchFields: ${researchFields}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -4294,17 +4788,49 @@ export function planMatchAdvance(planRow, engineResult, { engineExitOk = true } 
  *  - requires roleId + candId (intro-draft needs both sides)
  *  - roleId === candId denied (vacuous same-side pair)
  *  - mutual_yes requires both mutual.founder and mutual.candidate
+ *  - real rows always pass the shared current pair eligibility assertion
  *  - optional leadsDoc: pair linked to sample / identity-suppressed / terminal lead is denied
  *  - optional leadsDoc: linked leads sharing identity with another pair-linked lead
  *    denied (ambiguous_identity — match/replies/pair-sync parity)
  *  - when leadsDoc links exist, eligible items carry leadIds (intro receipt bridge)
  * Draft prep allowed for human-approved pairs; intro-ready only when mutual_yes + both consents.
  */
-export function planIntroQueue(pairsMap, { includeSample = false, leadsDoc = null } = {}) {
+function pairEligibilityFailure(pair, pairKey, pairContext, requireMutual = false) {
+  const context = pairContext && typeof pairContext === 'object' ? pairContext : {};
+  try {
+    (requireMutual ? assertCurrentMutualPairEligibility : assertCurrentPairEligibility)(pair, {
+      pairKey,
+      board: context.board || null,
+      inbox: context.inbox || null,
+    });
+    return '';
+  } catch (error) {
+    return String(error.message || error);
+  }
+}
+
+function currentPairContext(fixture = null) {
+  if (
+    PAIR_FIXTURE_CONTEXT_ALLOWED &&
+    fixture &&
+    typeof fixture === 'object'
+  ) {
+    return fixture;
+  }
+  return { board: loadBoard(), inbox: loadInbox() };
+}
+
+export function planIntroQueue(
+  pairsMap,
+  { includeSample = false, leadsDoc = null, pairContext = null } = {},
+) {
   const items = [];
   const skipped = [];
+  const eligibilityContext = currentPairContext(pairContext);
   const map = pairsMap && typeof pairsMap === 'object' ? pairsMap : {};
-  const list = Array.isArray(map) ? map : Object.values(map);
+  const list = Array.isArray(map)
+    ? map.map((pair) => [pair?.pairId || pair?.id || '', pair])
+    : Object.entries(map);
   // Index leads that claim each pairId (money-path identity gate)
   const leadsByPair = new Map();
   // Ambiguous identity among pair-linked non-sample non-suppress leads (pair-sync parity)
@@ -4330,7 +4856,7 @@ export function planIntroQueue(pairsMap, { includeSample = false, leadsDoc = nul
       if (ids.size > 1) for (const lid of ids) ambiguousLeadIds.add(lid);
     }
   }
-  for (const p of list) {
+  for (const [pairKey, p] of list) {
     if (!p || typeof p !== 'object') continue;
     const id = p.pairId || p.id;
     if (!id) {
@@ -4363,6 +4889,16 @@ export function planIntroQueue(pairsMap, { includeSample = false, leadsDoc = nul
       });
       continue;
     }
+    const eligibilityFailure = pairEligibilityFailure(
+      p,
+      pairKey,
+      eligibilityContext,
+      p.state === 'mutual_yes',
+    );
+    if (eligibilityFailure) {
+      skipped.push({ pairId: id, state: p.state, reason: eligibilityFailure });
+      continue;
+    }
     // When leadsDoc is present: any linked lead that is sample, terminal, or identity-suppressed
     // blocks the pair money path (parity with planIntroLeadReady / replies-ingest).
     const linked = leadsByPair.get(String(id)) || [];
@@ -4374,6 +4910,10 @@ export function planIntroQueue(pairsMap, { includeSample = false, leadsDoc = nul
       // Self-terminal linked lead (desync: pair still mutual_yes, lead already cold/opted_out/…)
       if (linked.some((l) => SUPPRESS_STATES.has(getState(l)))) {
         skipped.push({ pairId: id, state: p.state, reason: 'linked_lead_terminal' });
+        continue;
+      }
+      if (linked.some(hasOnlyConflictedLinkedInContact)) {
+        skipped.push({ pairId: id, state: p.state, reason: 'linkedin_identity_conflict' });
         continue;
       }
       if (linked.some((l) => isIdentitySuppressedByOther(l, leadsDoc))) {
@@ -4409,12 +4949,18 @@ export function planIntroQueue(pairsMap, { includeSample = false, leadsDoc = nul
  * roleId === candId (vacuous same-side), co-linked lead on same pair is
  * sample/terminal/identity-suppressed (pair-queue parity), or ambiguous identity
  * among ready leads (match/replies parity).
+ * Real rows always pass the shared current pair eligibility assertion.
  * Never sends — only reports who may receive an intro receipt.
  * @returns {{ ready: object[], skipped: object[] }}
  */
-export function planIntroLeadReady(doc, pairsMap, { includeSample = false } = {}) {
+export function planIntroLeadReady(
+  doc,
+  pairsMap,
+  { includeSample = false, pairContext = null } = {},
+) {
   const ready = [];
   const skipped = [];
+  const eligibilityContext = currentPairContext(pairContext);
   const map = pairsMap && typeof pairsMap === 'object' ? pairsMap : {};
   const root = doc || {};
   // Index co-leads per pairId (money path must not open when the other side is terminal)
@@ -4434,6 +4980,10 @@ export function planIntroLeadReady(doc, pairsMap, { includeSample = false } = {}
     if (st !== 'mutual_yes') continue;
     if ((lead.sample || lead.selftest || lead.test) && !includeSample) {
       skipped.push({ leadId: lead.id, side, reason: 'sample_or_test' });
+      continue;
+    }
+    if (hasOnlyConflictedLinkedInContact(lead)) {
+      skipped.push({ leadId: lead.id, side, reason: 'linkedin_identity_conflict' });
       continue;
     }
     if (isIdentitySuppressedByOther(lead, root)) {
@@ -4482,6 +5032,11 @@ export function planIntroLeadReady(doc, pairsMap, { includeSample = false } = {}
         skipped.push({ leadId: lead.id, pairId: pid, reason: 'roleId_equals_candId' });
         continue;
       }
+      const eligibilityFailure = pairEligibilityFailure(pair, pid, eligibilityContext, true);
+      if (eligibilityFailure) {
+        skipped.push({ leadId: lead.id, pairId: pid, reason: eligibilityFailure });
+        continue;
+      }
       // Co-linked leads on this pair (other side terminal / sample / suppress twin)
       const linked = leadsByPair.get(String(pid)) || [];
       if (linked.some((l) => l.id !== lead.id && (l.sample || l.selftest || l.test)) && !includeSample) {
@@ -4490,6 +5045,14 @@ export function planIntroLeadReady(doc, pairsMap, { includeSample = false } = {}
       }
       if (linked.some((l) => l.id !== lead.id && SUPPRESS_STATES.has(getState(l)))) {
         skipped.push({ leadId: lead.id, pairId: pid, reason: 'linked_lead_terminal' });
+        continue;
+      }
+      if (linked.some((l) => l.id !== lead.id && hasOnlyConflictedLinkedInContact(l))) {
+        skipped.push({
+          leadId: lead.id,
+          pairId: pid,
+          reason: 'linked_linkedin_identity_conflict',
+        });
         continue;
       }
       if (linked.some((l) => l.id !== lead.id && isIdentitySuppressedByOther(l, root))) {
@@ -4623,6 +5186,7 @@ function cmdMatch(args) {
       ok: engineOk,
       error: parsed?.error || (r.status !== 0 ? 'engine_exit_nonzero' : null),
       pairIds,
+      companyEvidence: parsed?.companyEvidence || null,
       ranked: (parsed?.ranked || parsed?.matches || []).slice?.(0, 3) || [],
     });
     if (!apply || !row.canAdvanceToInReview) continue;
@@ -4687,15 +5251,21 @@ function cmdMatch(args) {
  * Sample pairs never open the money path.
  * approved → proposed and mutual_yes both require roleId + candId and roleId !== candId
  * (intro-queue parity — vacuous same-side / half-identified pairs never open money path).
+ * Real rows always pass the shared current pair eligibility assertion.
  * mutual_yes also requires both consents.
  * Two pair-linked leads sharing email/handle → both denied (ambiguous identity, match/replies parity).
  * Co-linked lead on same pair is sample / terminal / identity-suppressed → deny
  * (parity with planIntroLeadReady / planIntroQueue — other side cold blocks money path).
  * @returns {{ moves: object[], skipped: object[] }}
  */
-export function planPairSyncMoves(doc, pairsMap, { includeSample = false } = {}) {
+export function planPairSyncMoves(
+  doc,
+  pairsMap,
+  { includeSample = false, pairContext = null } = {},
+) {
   const moves = [];
   const skipped = [];
+  const eligibilityContext = currentPairContext(pairContext);
   const map = pairsMap && typeof pairsMap === 'object' ? pairsMap : {};
   const root = doc || {};
   // Index co-leads per pairId (money path must not open when the other side is cold)
@@ -4713,6 +5283,7 @@ export function planPairSyncMoves(doc, pairsMap, { includeSample = false } = {})
   for (const { lead } of allLeads(root)) {
     if (!lead?.id) continue;
     if (lead.sample || lead.selftest || lead.test) continue;
+    if (hasOnlyConflictedLinkedInContact(lead)) continue;
     if (isIdentitySuppressedByOther(lead, root)) continue;
     if (!(lead.pairIds || []).length) continue;
     for (const k of identityKeys(lead)) {
@@ -4729,6 +5300,12 @@ export function planPairSyncMoves(doc, pairsMap, { includeSample = false } = {})
     if (lead.sample || lead.selftest || lead.test) {
       if ((lead.pairIds || []).length) {
         skipped.push({ leadId: lead.id, reason: 'sample_or_test_lead' });
+      }
+      continue;
+    }
+    if (hasOnlyConflictedLinkedInContact(lead)) {
+      if ((lead.pairIds || []).length) {
+        skipped.push({ leadId: lead.id, reason: 'linkedin_identity_conflict' });
       }
       continue;
     }
@@ -4767,22 +5344,51 @@ export function planPairSyncMoves(doc, pairsMap, { includeSample = false } = {})
         skipped.push({ leadId: lead.id, pairId: pid, reason: 'linked_lead_terminal' });
         continue;
       }
+      if (linked.some((l) => l.id !== lead.id && hasOnlyConflictedLinkedInContact(l))) {
+        skipped.push({
+          leadId: lead.id,
+          pairId: pid,
+          reason: 'linked_linkedin_identity_conflict',
+        });
+        continue;
+      }
       if (linked.some((l) => l.id !== lead.id && isIdentitySuppressedByOther(l, root))) {
         skipped.push({ leadId: lead.id, pairId: pid, reason: 'linked_identity_suppressed' });
         continue;
       }
       const st = getState(lead);
-      if (pair.state === 'approved' && st === 'in_review') {
-        // Intro-queue parity: approved prep still needs both side ids (not half-identified)
+      if (pair.state === 'approved' || pair.state === 'mutual_yes') {
         if (!pair.roleId || !pair.candId) {
           skipped.push({ leadId: lead.id, pairId: pid, reason: 'missing_roleId_or_candId' });
           continue;
         }
-        // Vacuous same-side pair cannot open proposed money path
         if (String(pair.roleId) === String(pair.candId)) {
           skipped.push({ leadId: lead.id, pairId: pid, reason: 'roleId_equals_candId' });
           continue;
         }
+        if (
+          pair.state === 'mutual_yes' &&
+          !(pair.mutual?.founder && pair.mutual?.candidate)
+        ) {
+          skipped.push({
+            leadId: lead.id,
+            pairId: pid,
+            reason: 'mutual_yes_without_both_consents',
+          });
+          continue;
+        }
+        const eligibilityFailure = pairEligibilityFailure(
+          pair,
+          pid,
+          eligibilityContext,
+          pair.state === 'mutual_yes',
+        );
+        if (eligibilityFailure) {
+          skipped.push({ leadId: lead.id, pairId: pid, reason: eligibilityFailure });
+          continue;
+        }
+      }
+      if (pair.state === 'approved' && st === 'in_review') {
         // Evidence must bind pair + role/cand (mutual path parity — not "approved by human" alone)
         const note = [
           'pair-sync approved',
@@ -4812,24 +5418,6 @@ export function planPairSyncMoves(doc, pairsMap, { includeSample = false } = {})
         continue;
       }
       if (pair.state === 'mutual_yes' && (st === 'proposed' || st === 'in_review')) {
-        const mutual = pair.mutual || {};
-        if (!(mutual.founder && mutual.candidate)) {
-          skipped.push({
-            leadId: lead.id,
-            pairId: pid,
-            reason: 'mutual_yes_without_both_consents',
-          });
-          continue;
-        }
-        if (!pair.roleId || !pair.candId) {
-          skipped.push({ leadId: lead.id, pairId: pid, reason: 'missing_roleId_or_candId' });
-          continue;
-        }
-        // Vacuous same-side pair (intro bridge parity)
-        if (String(pair.roleId) === String(pair.candId)) {
-          skipped.push({ leadId: lead.id, pairId: pid, reason: 'roleId_equals_candId' });
-          continue;
-        }
         // Pure check: evidenceText stands in for the mutual artifact written on apply
         const evText = `pair-sync mutual\npairId: ${pid}\nroleId: ${pair.roleId}\ncandId: ${pair.candId}`;
         if (st === 'in_review') {
@@ -4884,7 +5472,9 @@ function cmdPairSync(args) {
     /* */
   }
   const map = pairsStore.pairs || {};
-  const plan = planPairSyncMoves(doc, map, { includeSample });
+  const plan = planPairSyncMoves(doc, map, {
+    includeSample,
+  });
   const moves = [];
   const errors = [];
   for (const m of plan.moves) {
@@ -5496,7 +6086,7 @@ function cmdRepairHistory(args) {
   }
   const at = new Date().toISOString();
   const receipt = path.join(PKG_BUSY, 'funnel', `history-repair-${id}-${at.replace(/[:.]/g, '-')}.json`);
-  fs.mkdirSync(path.dirname(receipt), { recursive: true });
+  ensurePrivateDir(path.dirname(receipt));
   row.lead.stateHistory = repair.kept;
   commitReceiptTransaction({
     receiptPath: receipt,
@@ -5514,14 +6104,18 @@ function cmdCollisionPlan(args = []) {
   const plan = planPartnerUrlCollisionMerges(doc);
   if (!apply) {
     const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-plan-${at.replace(/[:.]/g, '-')}.json`);
-    fs.mkdirSync(path.dirname(receipt), { recursive: true });
-    atomicWrite(receipt, JSON.stringify({ schema: 'demigod.partner-url-collision-plan/1', at, apply: false, plan }, null, 2) + '\n');
+    ensurePrivateDir(path.dirname(receipt));
+    atomicWrite(
+      receipt,
+      JSON.stringify({ schema: 'demigod.partner-url-collision-plan/1', at, apply: false, plan }, null, 2) + '\n',
+      { mode: 0o600 },
+    );
     console.log(JSON.stringify({ ok: true, apply: false, groups: plan.length, receipt, plan }, null, 2));
     return;
   }
   const result = applyPartnerUrlCollisionMerges(doc, plan, { at, actor: 'agent' });
   const receipt = path.join(PKG_BUSY, 'funnel', `partner-url-collision-apply-${at.replace(/[:.]/g, '-')}.json`);
-  fs.mkdirSync(path.dirname(receipt), { recursive: true });
+  ensurePrivateDir(path.dirname(receipt));
   commitReceiptTransaction({
     receiptPath: receipt,
     receiptBody: JSON.stringify({
@@ -5580,6 +6174,7 @@ Commands:
   prune-terminal-drafts  # archive drafts for DQ/opt-out/quarantine without email|handle
   email-mx [--actor=agent]  # free DNS MX fail → policy_hold (no invent)
   import-events [--dry-run] # merge consented Events Bot leads into DEMIGOD-LEADS
+  import-sourcer --id=yc:slug [--apply] # validated RecruitAI partner; dry-run by default
   hygiene                  # scan funnel-drafts/ for copy-policy flags
   receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID
                   # approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made
@@ -5630,6 +6225,7 @@ const CRM_MUTATING_COMMANDS = new Set([
   'mx-hygiene',
   'import-events',
   'events-import',
+  'import-sourcer',
   'receipt',
   'repair-history',
   'join',
@@ -5677,6 +6273,7 @@ if (isMain) {
         else if (cmd === 'prune-terminal-drafts' || cmd === 'prune-drafts') cmdPruneTerminalDrafts();
         else if (cmd === 'email-mx' || cmd === 'mx-hygiene') return cmdEmailMx(rest);
         else if (cmd === 'import-events' || cmd === 'events-import') return cmdImportEvents(rest);
+        else if (cmd === 'import-sourcer') cmdImportSourcer(rest);
         else if (cmd === 'hygiene') cmdHygiene(rest);
         else if (cmd === 'receipt') cmdReceipt(rest);
         else if (cmd === 'repair-history') cmdRepairHistory(rest);
@@ -5704,7 +6301,8 @@ if (isMain) {
         }
       };
       const needsLock =
-        CRM_MUTATING_COMMANDS.has(cmd) ||
+        (CRM_MUTATING_COMMANDS.has(cmd) &&
+          (cmd !== 'import-sourcer' || rest.includes('--apply'))) ||
         (cmd === 'collision-plan' && rest.includes('--apply'));
       await (needsLock ? withFileLock(CRM_LOCK, execute) : execute());
     } catch (e) {

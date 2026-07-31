@@ -1,0 +1,12 @@
+[Unit]
+Description=Observe Demigod public role boards daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+AccuracySec=5min
+Persistent=true
+Unit=demigod-role-ledger.service
+
+[Install]
+WantedBy=timers.target

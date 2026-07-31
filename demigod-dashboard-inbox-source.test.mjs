@@ -24,13 +24,12 @@ test('Inbox Source cell prefers compact redacted attribution with a clear fallba
 test('slim polling preserves inbox fields and changes pulse when queues change', () => {
   const slimInbox = dashboard.match(/inbox: data\.inbox[\s\S]*?\n\s*: null,/)?.[0] || '';
   for (const field of ['byKind', 'newestAgeSec', 'error']) assert.match(slimInbox, new RegExp(field));
-  assert.match(dashboard, /formAnalytics: data\.formAnalytics \|\| null/);
   assert.match(dashboard, /data\.inbox\?\.rows \|\| \[\]/);
   assert.match(dashboard, /data\.matches\?\.pairs \|\| \[\]/);
   const expression = dashboard.match(/data\.pulseKey = (crypto\.createHash\('sha256'\)\.update\([\s\S]*?\.join\('\|'\)\)\.digest\('hex'\));/)?.[1];
   assert.ok(expression, 'pulse is hashed at the shared producer');
   const pulse = (data) => Function('crypto', 'data', `return ${expression}`)(crypto, data);
-  const base = { work: { agents: [], claims: {} }, inbox: { total: 0, rows: [] }, matches: { pairs: [] }, formAnalytics: {} };
+  const base = { work: { agents: [], claims: {} }, inbox: { total: 0, rows: [] }, matches: { pairs: [] } };
   assert.match(pulse(base), /^[0-9a-f]{64}$/);
   assert.equal(pulse(base), pulse(structuredClone(base)));
   assert.notEqual(pulse(base), pulse({ ...base, inbox: { total: 1, rows: [] } }));

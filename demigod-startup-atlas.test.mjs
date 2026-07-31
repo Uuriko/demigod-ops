@@ -105,6 +105,14 @@ test('startup atlas keeps coverage honest and private', () => {
   assertAtlasPublicSafe(atlas, 'buildStartupAtlas output');
 });
 
+test('company identity preserves non-Latin letters and combining marks', () => {
+  assert.equal(normalizeCompanyName('株式会社テストラボ LLC'), '株式会社テストラボ');
+  assert.equal(normalizeCompanyName('ボイス株式会社'), 'ボイス株式会社');
+  assert.equal(normalizeCompanyName('Космос ООО'), 'космос ооо');
+  assert.equal(normalizeCompanyName('شركة المدار'), 'شركة المدار');
+  assert.equal(normalizeCompanyName('Café, Inc.'), 'cafe');
+});
+
 // Poison-test: the PII exclusion detector must catch a hand-leaked payload. Without this, a
 // vacuous helper (or a build that only drops empty fields) can stay green while real leaks ship.
 test('atlas public-PII detector is fail-capable (hand-poisoned payload trips it)', () => {

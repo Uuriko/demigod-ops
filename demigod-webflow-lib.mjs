@@ -109,7 +109,17 @@ export function diskTruth() {
     : '';
   const footLoaderVer = (footer.match(/demigod-foot-cdn-loader v(\d+)/) || [])[1] || null;
   const footerShipReady =
-    /blog\|notes/.test(footer) && /#note-/.test(footer) && /\/method/.test(footer) && /\\\/sample/.test(footer) && /p=sample/.test(footer);
+    /blog\|notes/.test(footer) &&
+    /#note-/.test(footer) &&
+    /\\\/sample/.test(footer) &&
+    /p=sample/.test(footer) &&
+    [
+      /method[^\n]{0,80}p=how/,
+      /founders[^\n]{0,80}p=hire/,
+      /candidates\|engineers[^\n]{0,80}p=talent/,
+      /compare[^\n]{0,80}p=pricing/,
+      /status[^\n]{0,80}p=about/,
+    ].every((pattern) => pattern.test(footer));
   const man = readJson(path.join(ROOT, CANONICAL.footManifest)) || {};
   const sha = foot ? crypto.createHash('sha256').update(foot).digest('hex') : null;
   return {
@@ -311,7 +321,7 @@ export function agentTips(status) {
       ? 'Current request has not authorized CDN/paste/publish mutations; prepare-only checks remain available.'
       : 'Current request authorizes publication; foot CDN/paste mutations still require the foot lock.');
   const roles = status.tabs?.byRole || {};
-  if ((roles['webflow-login'] || 0) > 0 && status.cdp?.ok) {
+  if (!(roles['custom-code'] > 0) && (roles['webflow-login'] || 0) > 0 && status.cdp?.ok) {
     tips.push('Webflow login/404 wall — re-auth site-owner account (not empty Google workspace), then open custom-code');
   } else if (!(roles['custom-code'] > 0) && status.cdp?.ok) {
     tips.push('No Custom Code tab — bin/dg-webflow open custom-code');
@@ -348,13 +358,12 @@ export function classifyChange(intent = '') {
   const text = String(intent).trim();
   const rules = [
     { type: 'cms', test: /\b(cms|collection|blog post|note post)\b/i, files: ['demigod-blog-posts.json'], commands: ['node demigod-webflow-blog-cms-setup.mjs', '# Dry-run only until Webflow API/Designer credentials are available'] },
-    { type: 'designer-layout', test: /(?:resume|résumé).*upload|upload.*(?:resume|résumé)/i, files: [], commands: ['npm run demigod:resume-field', 'bin/dg-webflow open designer', '# Add the native Webflow File Upload only when the readiness check reports link-only; then run: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'designer-layout', test: /\b(file upload|upload (field|component)|webflow upload)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'designer-layout', test: /\b(?:add|remove|rename|replace|create|change|edit|update|move|reorder|make) (?:an? |the )?(?:(?:native|webflow) )*form (?:field|input|control)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'assets', test: /\b(asset|image|photo|hero image|upload)\b/i, files: ['assets/', 'demigod-assets/'], commands: ['node demigod-blog-assets-gen.mjs', 'bin/dg-webflow open designer'] },
     { type: 'page-settings-seo', test: /\b(page settings|page title|meta description|seo\.description|open graph title)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Page Settings → SEO/Open Graph; then: bin/dg-webflow playbook post-publish-confirm'] },
     { type: 'head-meta', test: /\b(meta|seo|favicon|open graph|og image|title tag|canonical|structured data|schema)\b/i, files: ['demigod-head-minimal.html'], commands: ['node demigod-favicon-ship.mjs   # only for favicon changes', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
-    { type: 'head-css', test: /\b(css|style|font|color|spacing|responsive|mobile|animation)\b/i, files: ['demigod-head-styles.css', 'demigod-head-minimal.html'], commands: ['node demigod-head-css-publish.mjs', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
+    { type: 'head-css', test: /\b(css|style|font|color|spacing|responsive|mobile|animation)\b/i, files: ['demigod-head-styles.css', 'demigod-head-minimal.html'], commands: ['bin/dg-webflow playbook ship-all'] },
     { type: 'custom-code-head', test: /\b(head|header) (code|custom code)\b/i, files: ['demigod-head-minimal.html'], commands: ['npm run demigod:verify:source', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
     { type: 'custom-code-footer', test: /\b(footer|loader) (code|custom code)\b/i, files: ['demigod-footer-lite.html'], commands: ['npm run demigod:verify:source', 'bin/dg ship prepare', 'bin/dg-webflow playbook ship-all'] },
     { type: 'designer-layout', test: /\b(designer|layout|section|component|grid|webflow page)\b/i, files: [], commands: ['bin/dg-webflow open designer', '# Use Webflow Designer/API; then: bin/dg-webflow playbook post-publish-confirm'] },

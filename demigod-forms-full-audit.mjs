@@ -85,7 +85,7 @@ async function auditForm(page, modalSel, openTexts, name) {
       scrollH,
       clientH,
       ghosts,
-      trustLines: [...modal.querySelectorAll('#dg-fee-note,#dg-privacy,#dg-submit-trust,p')].map((el) => (el.textContent || '').trim().slice(0, 100)),
+      trustLines: [...modal.querySelectorAll('#dg-fee-note,#dg-privacy,.dg-submit-trust,p')].map((el) => (el.textContent || '').trim().slice(0, 100)),
       turnstile: !!modal.querySelector('[name=cf-turnstile-response],.cf-turnstile'),
       resumeUpload: {
         mode: resumeFile ? 'native-file-or-link' : resumeLink ? 'link-only' : 'missing',

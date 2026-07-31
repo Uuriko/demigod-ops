@@ -39,7 +39,7 @@ Extend `demigod-session-contract.mjs`; do not create a parallel contract format.
 ### PLAN — Fable
 
 ```text
-Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty.
+Demigod (Webflow talent matching). Use current disk truth and task-specific context.
 STAGE: PLAN. You are plan-only; touch=[]; do not claim commands ran.
 GOAL / NON-GOALS: [observable outcome] / [explicit exclusions]
 FRESH STATE: inspect current bin/dg live + named canonical docs; record time,
@@ -54,7 +54,7 @@ risks/rollback; hard stops; EXECUTE handoff. Label PROVEN/INFERRED/UNKNOWN.
 ### EXECUTE — Grok
 
 ```text
-Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty.
+Demigod (Webflow talent matching). Use current disk truth and task-specific context.
 STAGE: EXECUTE. Contract: [path]. Plan artifact: [path].
 GOAL / TOUCH / FORBID: [copy exactly from approved contract].
 PRECHECK: run fresh bin/dg live; validate contract; check freeze; acquire the
@@ -70,7 +70,7 @@ Never ship, unfreeze, publish, or send unless this contract explicitly authorize
 ### REVIEW — Codex
 
 ```text
-Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty.
+Demigod (Webflow talent matching). Use current disk truth and task-specific context.
 STAGE: REVIEW. Read-only unless separately authorized. Contract: [path].
 GOAL: independently decide whether the deliverable satisfies the contract.
 REFRESH: run/read fresh bin/dg live; inspect actual diff and generated gate artifacts.

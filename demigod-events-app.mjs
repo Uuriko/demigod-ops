@@ -18,7 +18,6 @@
  *   POST /api/events-bot/idea     { title?, outcome?, seed?, generate? }
  *   POST /api/events-bot/event-submission · /read · /manage · /withdraw // reviewed submissions + token-scoped management
  *   POST /api/events-bot/startup-submission                    // public unlisted-startup suggestion
- *   POST /api/events-bot/chatroom/join · /send · /messages     // simple ephemeral public chat
  *   POST /api/events-bot/feedback { text, name?, email?, topic? }
  *   POST /api/events-bot/money    { name, email, amountNote, org?, cents? }
  *   POST /api/events-bot/agent/tick { goal?, maxSteps? }  // autonomous Codex-class loop
@@ -38,7 +37,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { eventsBotChat } from './demigod-events-bot-chat.mjs';
 import { webhookClientIp } from './demigod-webhook-rate-limit.mjs';
-import { recordFormEvent } from './demigod-form-analytics.mjs';
 import {
   eventsBotAgentTick,
   eventsBotIdentity,
@@ -179,10 +177,6 @@ const clientIp = webhookClientIp;
 
 /** Simple per-IP+bucket rate limit for public POSTs (Ponytail — no deps). */
 const rateHits = new Map();
-// ponytail: ephemeral single-process chat; move to shared storage only when multi-instance traffic exists.
-const chatroomSessions = new Map();
-const chatroomMessages = [];
-const RESERVED_CHAT_NAMES = /^(?:demigod|admin(?:istrator)?|mod(?:erator)?|support|staff|events? ?bot|potter|vesper)$/i;
 function rateLimit(req, { max = 40, windowMs = 60_000, bucket = 'default' } = {}) {
   const ip = clientIp(req);
   const key = bucket + '|' + ip;
@@ -203,14 +197,6 @@ function rateLimit(req, { max = 40, windowMs = 60_000, bucket = 'default' } = {}
 
 function rateLimited(res) {
   return json(res, 429, { ok: false, error: 'rate_limited', message: 'Slow down — try again in a minute.' });
-}
-
-function cleanChatName(value) {
-  return clamp(value, 24).replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ');
-}
-
-function cleanChatMessage(value) {
-  return clamp(value, 500).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ');
 }
 
 function clamp(s, n) {
@@ -595,48 +581,6 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    if (p === '/api/events-bot/chatroom/join' && req.method === 'POST') {
-      if (!rateLimit(req, { max: 10, bucket: 'chatroom-join' })) return rateLimited(res);
-      const body = await readBody(req);
-      const name = cleanChatName(body.name);
-      if (name.length < 2) return json(res, 400, { ok: false, error: 'name must be 2–24 characters' });
-      if (RESERVED_CHAT_NAMES.test(name)) return json(res, 400, { ok: false, error: 'that display name is reserved' });
-      const now = Date.now();
-      for (const [token, session] of chatroomSessions) if (session.expiresAt <= now) chatroomSessions.delete(token);
-      const nameKey = name.toLowerCase();
-      for (const session of chatroomSessions.values()) {
-        if (session.expiresAt > now && String(session.name || '').toLowerCase() === nameKey) {
-          return json(res, 409, { ok: false, error: 'display name already in use' });
-        }
-      }
-      const token = crypto.randomBytes(24).toString('base64url');
-      chatroomSessions.set(token, { name, expiresAt: now + 12 * 60 * 60 * 1000 });
-      return json(res, 201, { ok: true, token, name });
-    }
-
-    if (p === '/api/events-bot/chatroom/messages' && req.method === 'POST') {
-      if (!rateLimit(req, { max: 180, bucket: 'chatroom-read' })) return rateLimited(res);
-      const body = await readBody(req);
-      const session = chatroomSessions.get(String(body.token || ''));
-      if (!session || session.expiresAt <= Date.now()) return json(res, 401, { ok: false, error: 'join the chatroom again' });
-      const since = Math.max(0, Number(body.since) || 0);
-      return json(res, 200, { ok: true, messages: chatroomMessages.filter((message) => message.seq > since), online: [...chatroomSessions.values()].filter((session) => session.expiresAt > Date.now()).length });
-    }
-
-    if (p === '/api/events-bot/chatroom/send' && req.method === 'POST') {
-      if (!rateLimit(req, { max: 12, bucket: 'chatroom-send' })) return rateLimited(res);
-      const body = await readBody(req);
-      const session = chatroomSessions.get(String(body.token || ''));
-      if (!session || session.expiresAt <= Date.now()) return json(res, 401, { ok: false, error: 'join the chatroom again' });
-      const text = cleanChatMessage(body.text);
-      if (!text) return json(res, 400, { ok: false, error: 'message required' });
-      session.expiresAt = Date.now() + 12 * 60 * 60 * 1000;
-      const message = { seq: (chatroomMessages.at(-1)?.seq || 0) + 1, name: session.name, text, at: new Date().toISOString() };
-      chatroomMessages.push(message);
-      if (chatroomMessages.length > 200) chatroomMessages.splice(0, chatroomMessages.length - 200);
-      return json(res, 201, { ok: true, message });
-    }
-
     if (p === '/api/events-bot/agent/status' && req.method === 'GET') {
       if (!opsOk(req)) return json(res, 401, { ok: false, error: 'ops secret required' });
       return json(res, 200, {
@@ -696,14 +640,6 @@ const server = http.createServer(async (req, res) => {
         }),
       );
       return json(res, result.ok ? 200 : 400, result);
-    }
-
-    if (p === '/api/events-bot/analytics/forms' && req.method === 'POST') {
-      if (!rateLimit(req, { max: 120, bucket: 'form-analytics' })) return rateLimited(res);
-      const body = await readBody(req);
-      const recorded = recordFormEvent({ ...body, dnt: req.headers.dnt === '1' || body.dnt });
-      if (!recorded.ok) return json(res, recorded.ignored ? 204 : 400, recorded.ignored ? null : { ok: false, error: recorded.error });
-      return json(res, 202, { ok: true });
     }
 
     if (p === '/api/events-bot/event-submission' && req.method === 'POST') {
@@ -1072,7 +1008,7 @@ const server = http.createServer(async (req, res) => {
           city: hasActive ? ae.city || 'San Francisco' : '',
           outcome: isPublic ? ae.outcome || '' : '',
           seats: isPublic ? (ae.seats ?? null) : null,
-          // Foot eventsBotNativeHostMount reads published_url | publishedUrl | inviteUrl
+          // Retained public invite UI accepts all three historical URL aliases.
           inviteUrl: publicInvite,
           published_url: publicInvite,
           publishedUrl: publicInvite,

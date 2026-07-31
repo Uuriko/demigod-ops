@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * demigod-work-find — always discover NEW work (never "nothing to do").
+ * demigod-work-find — discover work from current evidence.
  *
  *   node demigod-work-find.mjs
  *   node demigod-work-find.mjs --json
@@ -174,16 +174,6 @@ function main() {
       repeatable: true,
     });
   }
-  const queued = outreach.filter((o) => o?.status === 'queued' || o?.status === 'drafted');
-  if (queued.length > 0) {
-    pushWork(seen, found, {
-      kind: 'outreach-draft',
-      pri: 2,
-      title: `${queued.length} outreach drafts queued (no send)`,
-      task: 'outreach-draft-audit',
-      repeatable: true,
-    });
-  }
   const ae = store?.activeEvent;
   if (ae?.stage === 'rsvp' && !(store?.rsvps || []).length) {
     pushWork(seen, found, {
@@ -191,30 +181,6 @@ function main() {
       pri: 2,
       title: 'Active event rsvp stage with 0 RSVPs — keep invite honest',
       task: 'public-event-probe',
-      repeatable: true,
-    });
-  }
-  const warm = demand?.warmInbound || {};
-  const warmOverdue =
-    (warm.overdueActionCount || 0) > 0 ||
-    (warm.overdue || 0) > 0 ||
-    (Array.isArray(warm.overdueActionWho) && warm.overdueActionWho.length) ||
-    (Array.isArray(warm.rows) && warm.rows.some((r) => /overdue|passed|needs human/i.test(String(r.status || r.next || ''))));
-  if (warmOverdue) {
-    pushWork(seen, found, {
-      kind: 'warm',
-      pri: 1,
-      title: 'Warm inbound overdue — agent receipt only (warm≠pilot)',
-      task: 'warm-review',
-      repeatable: true,
-    });
-  }
-  if ((demand?.queue?.pending || demand?.pending || 0) > 0 || (demand?.queue?.total || 0) > 0) {
-    pushWork(seen, found, {
-      kind: 'demand-drafts',
-      pri: 2,
-      title: 'Pending demand drafts hygiene (no send)',
-      task: 'demand-draft-hygiene',
       repeatable: true,
     });
   }
@@ -259,65 +225,18 @@ function main() {
     }
   }
 
-  // Always-on improvement backlog (rotating product code work)
-  const deep = [
-    {
-      key: 'deep:events-selftest',
-      kind: 'selftest',
-      pri: 2,
-      title: 'Events bot mock selftest green',
-      task: 'events-selftest',
-      repeatable: true,
-    },
-    {
-      key: 'deep:verify-source',
-      kind: 'gate',
-      pri: 2,
-      title: 'verify:source green',
-      task: 'verify-source',
-      repeatable: true,
-    },
-    {
-      key: 'deep:lifecycle-readiness',
-      kind: 'test',
-      pri: 2,
-      title: 'Events lifecycle readiness tests',
-      task: 'lifecycle-tests',
-      repeatable: true,
-    },
-    {
-      key: 'deep:cdn-stale-note',
-      kind: 'docs',
-      pri: 3,
-      title: 'Refresh WORK-FOUND with CDN drift status',
-      task: 'rewrite-work-found',
-      repeatable: true,
-    },
-    ...(inviteDrain?.needsUrl === 0
-      ? []
-      : [{
-          key: 'deep:invite-drain',
-          kind: 'events',
-          pri: 1,
-          title: 'Invite drain tick',
-          task: 'invite-drain',
-          repeatable: true,
-        }]),
-    {
-      key: 'deep:truth',
-      kind: 'gate',
+  if (Number(inviteDrain?.needsUrl || 0) > 0) {
+    pushWork(seen, found, {
+      key: 'invite-drain:needs-url',
+      kind: 'events',
       pri: 1,
-      title: 'Truth seal check',
-      task: 'truth',
+      title: `${inviteDrain.needsUrl} invite URL(s) need drain`,
+      task: 'invite-drain',
       repeatable: true,
-    },
-  ];
-  // Pick 2 deep items by hour so we always have new-ish work
-  const hour = new Date().getUTCHours();
-  pushWork(seen, found, deep[hour % deep.length]);
-  pushWork(seen, found, deep[(hour + 2) % deep.length]);
-  pushWork(seen, found, deep[(hour + 4) % deep.length]);
+    });
+  }
 
+  found.sort((a, b) => a.pri - b.pri || a.task.localeCompare(b.task));
   for (const item of found) {
     fs.appendFileSync(QUEUE, JSON.stringify(item) + '\n');
   }

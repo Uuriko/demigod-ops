@@ -10,9 +10,8 @@
 import { execSync, spawnSync } from 'child_process';
 import { createRequire } from 'module';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, writeBoard } from './demigod-submissions-lib.mjs';
+import { writeBoard } from './demigod-submissions-lib.mjs';
 import { appendPilot, computeSignal, latestReceipt } from './demigod-board-lib.mjs';
-import { generateIntroRequest } from './demigod-matching-engine.mjs';
 
 const require = createRequire(import.meta.url);
 try {
@@ -35,8 +34,6 @@ function parseArgs(argv) {
     signal: true,
     png: false,
     source: '',
-    smsCand: '',
-    smsRole: '',
     report: false,
   };
   for (let i = 2; i < argv.length; i++) {
@@ -55,8 +52,6 @@ function parseArgs(argv) {
     else if (a === '--no-signal') out.signal = false;
     else if (a === '--png') out.png = true;
     else if (a.startsWith('--source=')) out.source = a.slice(9);
-    else if (a.startsWith('--sms-cand=')) out.smsCand = a.slice(11);
-    else if (a.startsWith('--sms-role=')) out.smsRole = a.slice(11);
   }
   return out;
 }
@@ -145,15 +140,8 @@ function main() {
     process.exit(0);
   }
   if (!args.brief?.trim()) {
-    console.error('Usage: npm run demigod:pilot:log -- --brief="Founding PM" --intros=3 [--quote="..."] [--outcome="..."] [--png] [--source=sms] [--sms-cand=ID --sms-role=ROLE] [--report]');
+    console.error('Usage: npm run demigod:pilot:log -- --brief="Founding PM" --intros=3 [--quote="..."] [--outcome="..."] [--png] [--report]');
     process.exit(1);
-  }
-
-  if (args.smsCand && args.smsRole) {
-    const gen = generateIntroRequest(args.smsCand, args.smsRole);
-    if (gen && gen.template && !args.quote) {
-      args.quote = gen.template.split('\n').slice(0,5).join(' ');
-    }
   }
 
   // Atomic load-modify-save under BOARD_LOCK: a plain loadBoard()+saveBoard() left a lost-update
@@ -181,39 +169,6 @@ function main() {
     },
     { reason: 'pilot-logger', actor: process.env.USER || 'pilot-logger' },
   );
-
-  if (args.source === 'sms') {
-    let introTmpl = '';
-    const roleTitle = args.brief || args.smsRole || '';
-    // Always integrate generate for SMS source: prefer explicit, else recent SMS cand + role
-    if (args.smsCand && roleTitle) {
-      const g = generateIntroRequest(args.smsCand, roleTitle);
-      introTmpl = g && g.template ? g.template : '';
-    }
-    if (!introTmpl) {
-      try {
-        const { loadInbox } = require('./demigod-submissions-lib.mjs');
-        const inbox = loadInbox();
-        const recentSms = (inbox.items || []).find(i => (i.source === 'sms' || (i.raw && i.raw.source === 'sms')));
-        if (recentSms && roleTitle) {
-          const g = generateIntroRequest(recentSms.id || recentSms.phone, roleTitle);
-          introTmpl = g && g.template ? g.template : '';
-        }
-      } catch(e){}
-    }
-    console.log('SMS proof: 1 pilot logged from text conversation.');
-    if (introTmpl) console.log('Ready intro template for this SMS lead:\n' + introTmpl.split('\n').slice(0,6).join('\n'));
-    else console.log('(no recent SMS cand for auto-generate; use sms-proof or present-sms)');
-    console.log('Use matching-engine sms-proof or present-sms for volume signal.');
-
-    // Make SMS proof visible: append simple line for GTM / signal use (honest, from real convo)
-    try {
-      const fs = require('fs');
-      const proofLine = `${new Date().toISOString()} | SMS lead: ${roleTitle || args.brief} via +1 (415) 555-DEMO (pending) | intro generated | source=text\n`;
-      fs.appendFileSync('demigod-outreach/SMS-PROOF.txt', proofLine);
-      console.log('Appended to demigod-outreach/SMS-PROOF.txt');
-    } catch(e){}
-  }
 
   let publishNote = 'skipped';
   if (!args.noPublish && (args.publish || process.env.DEMIGOD_FORCE_PUBLISH === '1')) {

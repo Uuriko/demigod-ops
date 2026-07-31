@@ -46,4 +46,4 @@ No Jira · no 3-agent ceremony for typos · no second metrics dashboard · no au
 ## Archive
 
 Individual checklist files under this folder are **optional detail** — prefer this page.  
-Method essay: `AGENT-COLLABORATION-METHOD.md` (read once, not every session).
+Agent transport: root `AGENT-COMMS.md`.

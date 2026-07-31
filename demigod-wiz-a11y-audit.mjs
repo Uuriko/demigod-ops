@@ -6,12 +6,17 @@ import { CDP_URL } from './cdp-config.mjs';
 const USE_LOCAL = process.argv.includes('--local');
 const THROTTLE = process.argv.includes('--throttle');
 const CORE = USE_LOCAL ? fs.readFileSync(process.env.DEMIGOD_A11Y_CORE || 'demigod-foot-core.js', 'utf8') : '';
+const HEAD_CSS = USE_LOCAL ? fs.readFileSync('demigod-head-styles.css', 'utf8') : '';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
 const rgb = (s) => (s.match(/\d+(\.\d+)?/g) || [0, 0, 0]).slice(0, 3).map(Number);
 const ratio = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return (h + 0.05) / (l + 0.05); };
 const browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
 const page = await browser.newPage();
+const heroArtRequests = [];
+page.on('request', (req) => {
+  if (/\/frege-hero\.jpg(?:[?#]|$)/i.test(req.url())) heroArtRequests.push(req.url());
+});
 if (THROTTLE) {
   const cdp = await page.createCDPSession();
   await cdp.send('Network.enable');
@@ -23,7 +28,9 @@ if (USE_LOCAL) {
   await page.setRequestInterception(true);
   page.on('request', (req) => {
     const url = req.url();
-    if (/foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url) || (/catbox|jsdelivr/i.test(url) && /foot.*\.js(?:[?#]|$)/i.test(url))) {
+    if (/\/head-latest\.css(?:[?#]|$)|files\.catbox\.moe\/[a-z0-9]+\.css(?:[?#]|$)/i.test(url)) {
+      req.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
+    } else if (/foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url) || (/catbox|jsdelivr/i.test(url) && /foot.*\.js(?:[?#]|$)/i.test(url))) {
       req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
     } else req.continue().catch(() => {});
   });
@@ -65,6 +72,8 @@ const contrast = a.colors.map((c) => ({ ...c, ratio: +ratio(rgb(c.fg), rgb(c.bg)
 contrast.filter((c) => c.ratio < 4.5).forEach((c) => a.issues.push(`low-contrast ${c.sel}: ${c.ratio}:1 (< 4.5)`));
 if (perf.lcpMs > 2500) a.issues.push(`lcp-slow: ${perf.lcpMs}ms (> 2500)`);
 if (perf.cls > 0.1) a.issues.push(`cls-high: ${perf.cls} (> 0.1)`);
+if (heroArtRequests.length) a.issues.push('mobile downloaded hidden desktop hero art');
+perf.heroArtRequests = heroArtRequests;
 const pass = a.issues.length === 0;
 console.log(JSON.stringify({ pass, issues: a.issues, contrast, perf }, null, 2));
 try { await page.close(); } catch {}

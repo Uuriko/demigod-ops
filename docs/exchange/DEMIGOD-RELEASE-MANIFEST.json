@@ -1,0 +1,45 @@
+{
+  "at": "2026-07-12T17:42:03",
+  "decision": "FIX",
+  "disk": {
+    "footCore": {
+      "file": "demigod-foot-core.js",
+      "version": "v179",
+      "bytes": 112659,
+      "sha256": "72301b018b03bff341a5d86f34b24d4e3f59b70d379214a2f237e07af21d489d"
+    },
+    "footerLite": {
+      "file": "demigod-footer-lite.html",
+      "cdnUrl": "https://files.catbox.moe/el26dg.js",
+      "inlinePatch": "dg-v177-honesty-patch kept as belt"
+    },
+    "head": {
+      "file": "demigod-head-minimal.html",
+      "marker": "unhide-v5-safe"
+    },
+    "howItWorks": "https://files.catbox.moe/i61ega.html"
+  },
+  "cdnReady": {
+    "url": "https://files.catbox.moe/el26dg.js",
+    "version": "v179",
+    "sha256": "72301b018b03bff341a5d86f34b24d4e3f59b70d379214a2f237e07af21d489d",
+    "matchesDisk": true,
+    "webflowPaste": "/tmp/READY/footer-custom-code.html",
+    "liveStill": "8tjw79.js v176 until Publish",
+    "liveMatchesDisk": true
+  },
+  "gates": {
+    "verifySource": true,
+    "boardHonesty": true,
+    "loopState": "v179"
+  },
+  "live": {
+    "url": "https://www.trydemigod.com/",
+    "lastPublished": "Mon Jul 13 2026 00:41:27 GMT+0000",
+    "footCdn": "https://files.catbox.moe/el26dg.js",
+    "footVersionLoaded": "v179",
+    "unhide": "unhide-v5-safe",
+    "publishPath": "demigod-cm6-paste-publish.mjs",
+    "note": "queue-publish API returned 412 auth but UI save+publish landed; live verified el26dg/v179"
+  }
+}

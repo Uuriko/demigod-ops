@@ -108,10 +108,8 @@ Typical:
   bin/dg ship status
   bin/dg ship prepare
   # only when the current user request explicitly authorizes this publication:
-  export DEMIGOD_CURRENT_REQUEST_PUBLISH=1
   bin/dg lock claim --owner "$USER" --why ship
-  export DG_LOCK_TOKEN=…
-  bin/dg ship run
+  DEMIGOD_CURRENT_REQUEST_PUBLISH=1 DG_LOCK_TOKEN=… bin/dg ship run
   bin/dg ship verify
   node demigod-publish-freeze.mjs on --why post-ship
 `;

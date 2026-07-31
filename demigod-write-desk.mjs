@@ -83,7 +83,7 @@ const desk = {
     ready: '~/agent-dev.sh ready',
     ship: '~/agent-dev.sh ship',
     verify: 'npm run demigod:verify:all',
-    publish: 'npm run demigod:fix:custom-code',
+    publish: 'bin/dg ship run',
   },
 };
 

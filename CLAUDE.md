@@ -12,7 +12,7 @@ files are canonical when historical notes disagree.
 - Website truth comes only from `bin/dg truth`; never copy a release version
   into this file.
 - In Orca, check structured messages at task boundaries with
-  `orca-ide orchestration check --unread --inject --json`; follow injected
+  `orca-ide orchestration check --terminal <this-runtime-handle> --unread --inject --json`; follow injected
   task/dispatch preambles and reply in-thread. Hold the foot lock for foot-core edits.
 - Cross-agent protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md). Outside Orca,
   `ask-claude` is a stateless fallback.
@@ -20,5 +20,4 @@ files are canonical when historical notes disagree.
 - Data/insight tools — list with `bin/dg tools` or `node demigod-tools-registry.mjs --md`;
   reuse, don't rebuild. Key ones: `demigod-directory-refresh` (HN→map+jobs→role-ledger
   poll→Pulse→static), `demigod-role-ledger report --posted` (aging SF roles by posting age),
-  `demigod-hiring-pulse`, `demigod-funnel-report` (live anonymized WIZ funnel),
-  `demigod-live-honesty-audit`, `demigod-conversion-audit`.
+  `demigod-hiring-pulse`, `demigod-live-honesty-audit`, `demigod-conversion-audit`.

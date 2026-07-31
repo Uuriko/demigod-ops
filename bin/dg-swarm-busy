@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-cd /home/potter
-exec node demigod-swarm-busy.mjs "$@"

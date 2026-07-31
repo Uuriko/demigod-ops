@@ -978,9 +978,9 @@ const AREA_NEAR = {
   'hunters point': ['hunters point', 'dogpatch', 'potrero', 'bayview', 'mission', 'soma', 'yerba'],
   duboce: ['duboce', 'castro', 'hayes', 'mission', 'dolores'],
   // residual: fisherman's wharf indoor free-list is Civic SFPL (outdoor emb/ferry)
-  // residual: fisherman's wharf dinner free-list is Mission/SoMa kitchen (SFPL no-food); draft only
-  fishermanswharf: ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library', 'mission', 'soma'],
-  'fishermans wharf': ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library', 'mission', 'soma'],
+  // residual: fisherman's wharf dinner free-list is Mission/SoMa kitchen via foodServiceFormat fallback (no mission/soma here — was false area-hit crowning Mission SFPL over Civic for quiet indoor)
+  fishermanswharf: ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library'],
+  'fishermans wharf': ['fishermans wharf', 'embarcadero', 'north beach', 'ferry', 'civic', 'main library'],
   // residual: western addition in SF_OK but free-list areaNeed missed (draft affinity only)
   // Indoor free-list is Civic SFPL (no Western Addition free indoor card)
   westernaddition: ['western addition', 'fillmore', 'hayes', 'japantown', 'haight', 'civic', 'main library'],

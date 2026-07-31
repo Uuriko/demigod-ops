@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 import { BUSY, ensureBusy, atomicWrite, readJson, flag, opt } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const MULTI = '/tmp/dg-multi';
+const MULTI = process.env.DEMIGOD_MULTI || '/tmp/dg-multi';
 const CURSOR = path.join(BUSY, 'plan-inbox-cursor.json');
 const LEDGER = path.join(ROOT, 'DEMIGOD-PLAN-LEDGER.json');
 const args = process.argv.slice(2);

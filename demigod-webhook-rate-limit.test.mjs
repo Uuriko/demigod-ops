@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { allowWebhookRequest, webhookClientIp } from './demigod-webhook-rate-limit.mjs';
 
 const req = (remoteAddress, forwarded = '') => ({ socket: { remoteAddress }, headers: { 'x-forwarded-for': forwarded } });
@@ -19,5 +20,11 @@ assert.equal(allowWebhookRequest(hits, 'b', { now: 3, maxKeys: 2 }), true);
 assert.equal(allowWebhookRequest(hits, 'c', { now: 4, maxKeys: 2 }), true);
 assert.equal(hits.size, 2, 'attacker-controlled IP cardinality must not grow state without bound');
 assert.equal(allowWebhookRequest(hits, 'a', { now: 60_001, max: 2, maxKeys: 2 }), true, 'window expiry restores delivery');
+
+const receiver = fs.readFileSync(new URL('./demigod-submissions-webhook.mjs', import.meta.url), 'utf8');
+const statusRoute = receiver.slice(receiver.indexOf('if (statusPath.matched)'), receiver.indexOf("if (req.method !== 'POST')"));
+assert.match(receiver, /const statusHits = new Map\(\)/);
+assert.match(statusRoute, /allowWebhookRequest\(statusHits, webhookClientIp\(req, TRUSTED_PROXIES\)/);
+assert.doesNotMatch(statusRoute, /allowTimestampRequest/);
 
 console.log('demigod webhook rate-limit trust boundary: PASS');

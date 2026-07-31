@@ -3,12 +3,12 @@
 ## What we're building
 
 **trydemigod.com** — SF startup talent matching. Webflow site + custom foot JS + native forms.  
-**Startup ops** — submissions, outreach, partnerships, SLA pager, proof logging (see `npm run demigod:status`).
+**Startup ops** — submissions, outreach, partnerships, proof logging (see `bin/dg home`).
 
 ## Daily agent session
 
 ```bash
-~/agent-dev.sh audit           # full laptop + Demigod audit JSON
+~/agent-dev.sh audit           # laptop audit + control-plane JSON
 ~/agent-dev.sh status
 ~/agent-dev.sh up              # Chrome CDP only
 npm run dev:workspace          # Designer + live + Grok tabs
@@ -16,21 +16,15 @@ npm run dev:workspace          # Designer + live + Grok tabs
 
 If Chrome has >10 tabs: `npm run dev:tabs-cleanup`
 
-## Edit → verify → publish
+## Edit → verify → release when authorized
 
 1. **Edit** one file: usually `demigod-foot-core.js`, head CSS, or a `demigod-*-pass.mjs` script.
-2. **Verify:** `npm run demigod:verify:all` (or `demigod:verify:source` + board-honesty + loop-state).
-3. **CDN** (if foot-core changed): `npm run demigod:foot:cdn` then ensure footer embed still points at working catbox loader (`xngres.js`). Do not republish foot CDN casually.
-4. **Custom code paste (once, full replace):**
-   - HEAD = full `demigod-head-minimal.html` (must include `unhide-v5-safe`; **never** paste twice).
-   - FOOTER = full `demigod-footer-lite.html` (must include `xngres.js`).
-5. **Publish:** Webflow → check **both** `talentlink-sf.webflow.io` **and** `www.trydemigod.com` → “Publish to selected domains”.
-6. **Confirm production (not staging only):**
-   ```bash
-   curl -sL "https://www.trydemigod.com/?v=$(date +%s)" | grep -o 'Last Published: [^<]*'
-   curl -sL "https://www.trydemigod.com/?v=$(date +%s)" | grep -c unhide-v5-safe   # ≥1
-   ```
-7. **Smoke:** hard-refresh live — page must paint quickly (no endless spinner). Incognito form → `hello@trydemigod.com` copy.
+2. **During development, run the smallest targeted check.** Do not repeat a full audit immediately before release; the ship command reruns its own release gates.
+3. **Publish only when explicitly authorized in the current request.** With the freeze intentionally off and a fresh foot lock/token, run exactly `bin/dg ship run`. It owns the sequence: blog/source/honesty/smoke/review gates → CDN → Webflow save/publish → strict truth + live attestation.
+4. **Treat `truth --require-match` plus `live-attest` as completion.** Do not rerun the same gates or republish after a successful attestation.
+5. **Visual smoke is optional and separate.** Reuse the existing CDP browser and cap it at 20 seconds. A timeout after strict SHA attestation means “visual unverified,” never “publish again.”
+
+Reference: v754 shipped in 28.4 seconds. A later 13-minute delay was a browser-tool approval wait; the actual visual probe took 2.6 seconds.
 
 ### Load / publish failure modes (2026-07-09)
 
@@ -38,9 +32,9 @@ See `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`.
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Endless spinner / freeze | HEAD unhide MutationObserver thrash or doubled head paste | Ship `unhide-v5-safe` **once**; zero MO in `<head>` |
+| Endless spinner / freeze | Doubled/corrupt custom-code paste or a blocking network path | Restore the exact canonical head/footer split; zero MO in `<head>` |
 | “Publish did nothing” | Only staging domain selected | Check **www.trydemigod.com** in publish dialog; compare Last Published |
-| Blank hero | IX hide + broken unhide | v5 CSS unhide + finite ticks |
+| Blank hero | Designer interaction or visibility regression | Keep Designer GSAP/IX absent; run the raw-asset gate and visual smoke |
 | Gates green, site wrong | Disk ≠ live custom code | Always curl production after publish |
 
 **Never** reintroduce attribute `MutationObserver` in HEAD that writes styles.
@@ -52,9 +46,9 @@ See `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`.
 | JS/CSS logic + canonical edits | ✓ (full cycles) | |
 | Review, verify, dry GTM/pilot prep, CDP audits | ✓ (autonomous within rules) | |
 | Webflow Designer structure | MCP when asked | ✓ masters / IX |
-| Publish click | | ✓ |
+| Publish click | ✓ only when the current request explicitly authorizes it | |
 | Form spam test (incognito) | prepare + dry scripts | ✓ |
-| Strategy / copy (Heavy) | Heavy via Grok/Fable | review |
+| Advisory strategy / copy | `ask-claude` / `grok-ask` | review |
 
 Agent runs safe autonomy cycles (see DEMIGOD-AGENTS.md "Autonomous Operation").
 
@@ -67,10 +61,9 @@ Agent runs safe autonomy cycles (see DEMIGOD-AGENTS.md "Autonomous Operation").
 ## Useful status commands
 
 ```bash
-npm run demigod:status
+bin/dg home --json
 npm run demigod:verify:live
 npm run demigod:audit:forms
-npm run demigod:leverage:status
 ```
 
 ---

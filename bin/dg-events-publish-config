@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Publish staged events-api-latest.json to CDN when freeze allows.
+# Prefer pending file written by demigod-events-online writeConfig.
+set -euo pipefail
+if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+  echo "usage: bin/dg-events-publish-config [status]"
+  exit 0
+fi
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "status" ) ]]; then
+  echo "usage: bin/dg-events-publish-config [status]" >&2
+  exit 2
+fi
+cd "${DEMIGOD_ROOT:-$HOME}"
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+if ! freeze_status="$(node demigod-publish-freeze.mjs status 2>/dev/null)"; then
+  echo "blocked: could not verify publish freeze" >&2
+  exit 3
+fi
+if ! freeze_on="$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0, "utf8")).frozen === true))' <<<"$freeze_status")"; then
+  echo "blocked: invalid publish freeze status" >&2
+  exit 3
+fi
+if [[ "${1:-}" == "status" ]]; then
+  pending=/tmp/dg-busy/events-bot/events-api-latest.pending.json
+  [[ -s "$pending" ]] && echo "pending: $pending" || echo "pending: none"
+  echo "$freeze_status"
+  if [[ -s "$pending" && "$freeze_on" != true ]]; then
+    echo "ready: publish staged Events API config (explicit publish authorization required)"
+  fi
+  exit 0
+fi
+if [[ "$freeze_on" == true ]]; then
+  echo "blocked: publish freeze ON — pending at /tmp/dg-busy/events-bot/events-api-latest.pending.json" >&2
+  exit 3
+fi
+exec node demigod-events-online.mjs up --publish-config

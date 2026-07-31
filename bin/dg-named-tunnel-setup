@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# One-time setup for a *named* Cloudflare tunnel for Events Bot (:3460).
+# Free CF account. Needs interactive login once (opens browser).
+#
+#   bin/dg-named-tunnel-setup          # status / next steps
+#   bin/dg-named-tunnel-setup login    # cloudflared tunnel login
+#   bin/dg-named-tunnel-setup create   # create tunnel + config (after login)
+#   bin/dg-named-tunnel-setup run      # run named tunnel (foreground)
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+cd "$ROOT"
+CF="${CLOUDFLARED_BIN:-$HOME/.local/bin/cloudflared}"
+NAME="${DG_EVENTS_TUNNEL_NAME:-demigod-events}"
+CFG_DIR="${HOME}/.cloudflared"
+CFG_FILE="${CFG_DIR}/${NAME}.yml"
+CERT="${TUNNEL_ORIGIN_CERT:-$CFG_DIR/cert.pem}"
+
+cmd="${1:-status}"
+
+have_cert() { [[ -f "$CERT" ]]; }
+
+case "$cmd" in
+  status)
+    echo "cloudflared: $CF"
+    echo "tunnel name: $NAME"
+    echo "cert: $CERT  $(have_cert && echo OK || echo MISSING)"
+    echo "config: $CFG_FILE  $([[ -f $CFG_FILE ]] && echo OK || echo missing)"
+    if have_cert; then
+      "$CF" tunnel list 2>/dev/null || true
+    else
+      echo
+      echo "Next: bin/dg-named-tunnel-setup login"
+      echo "  (opens Cloudflare auth in browser once)"
+    fi
+    ;;
+  login)
+    mkdir -p "$CFG_DIR"
+    echo "Logging in — complete the browser flow if it opens."
+    exec "$CF" tunnel login
+    ;;
+  create)
+    if ! have_cert; then
+      echo "No origin cert. Run: bin/dg-named-tunnel-setup login" >&2
+      exit 2
+    fi
+    if ! "$CF" tunnel list 2>/dev/null | grep -q "$NAME"; then
+      "$CF" tunnel create "$NAME"
+    else
+      echo "tunnel $NAME already exists"
+    fi
+    # credentials file is written next to cert as <uuid>.json
+    CRED="$("$CF" tunnel list -o json 2>/dev/null | node -e '
+      let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{
+        try{
+          const j=JSON.parse(d);
+          const t=(j||[]).find(x=>x.name===process.env.N)||(j||[]).find(x=>(x.name||"").includes("demigod"));
+          if(!t){process.exit(3)}
+          process.stdout.write(t.id||t.ID||"");
+        }catch(e){process.exit(3)}
+      })
+    ')" || true
+    export N="$NAME"
+    if [[ -z "${CRED:-}" ]]; then
+      CRED="$("$CF" tunnel list 2>/dev/null | awk -v n="$NAME" '$0 ~ n {print $1; exit}')"
+    fi
+    if [[ -z "${CRED:-}" ]]; then
+      echo "Could not resolve tunnel id. Run: cloudflared tunnel list" >&2
+      exit 3
+    fi
+    CRED_FILE="${CFG_DIR}/${CRED}.json"
+    cat >"$CFG_FILE" <<EOF
+# Demigod Events Bot named tunnel
+tunnel: ${CRED}
+credentials-file: ${CRED_FILE}
+
+ingress:
+  - hostname: ${DG_EVENTS_HOSTNAME:-}
+    service: http://127.0.0.1:3460
+  - service: http_status:404
+EOF
+    # If no custom hostname, use trycloudflare-style named only via run without hostname rule
+    if [[ -z "${DG_EVENTS_HOSTNAME:-}" ]]; then
+      cat >"$CFG_FILE" <<EOF
+# Demigod Events Bot — named tunnel (no custom domain yet)
+# Optional: set DG_EVENTS_HOSTNAME=events.yourdomain.com and re-run create after DNS route
+tunnel: ${CRED}
+credentials-file: ${CRED_FILE}
+
+ingress:
+  - service: http://127.0.0.1:3460
+EOF
+    fi
+    echo "wrote $CFG_FILE"
+    echo "Run: bin/dg-named-tunnel-setup run"
+    echo "Then: DEMIGOD_CURRENT_REQUEST_PUBLISH=1 bin/dg-events-publish-config  # after tunnel URL known"
+    ;;
+  run)
+    if [[ ! -f "$CFG_FILE" ]]; then
+      echo "missing $CFG_FILE — run create first" >&2
+      exit 2
+    fi
+    exec "$CF" tunnel --config "$CFG_FILE" run
+    ;;
+  *)
+    echo "usage: bin/dg-named-tunnel-setup [status|login|create|run]" >&2
+    exit 2
+    ;;
+esac

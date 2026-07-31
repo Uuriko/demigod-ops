@@ -1,11 +1,11 @@
 # Demigod — Agent entry
 
-**Start here:** [`AGENT-SIMPLE.md`](AGENT-SIMPLE.md) (same file as `DEMIGOD-SIMPLE.md`) · state: `AGENT-STATE.md` · rules: `AGENT-RULES.md` · workflow: `AGENT-WORKFLOW.md`  
+**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) (`AGENT-SIMPLE.md` is a compatibility pointer) · state: `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` is a compatibility pointer) · rules: `AGENT-RULES.md` · workflow: `DEMIGOD-WORKFLOW.md`
 **Ponytail required (all agents):** lean code — see § Ponytail below + `docs/PONYTAIL-AGENTS.md`.
 
-**Website 2026-07-16:** disk/man **v531** · live **v522** (Webflow re-auth for CM6) · head CSS **8s6x5e** · [state](AGENT-STATE.md) · website+startup only (no auto-DM)
+**Website truth:** run `bin/dg truth`; never copy a release version into this entry card · [state](DEMIGOD-COMPRESSED-STATE.md) · website+startup only (no auto-DM)
 
-**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** consult Claude with `ask-claude "…"`, consult Grok with `grok-ask "…"` (prompt as args or stdin; prints reply, exits). Async/background work via the Claude inbox. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
+**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** Orca orchestration is primary for ongoing work (Linux: `orca-ide`, never `/usr/bin/orca`). `ask-claude` / `grok-ask` are stateless fallbacks; the old swarm drainers are gone. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
 
 ## User communication (standing — 2026-07-15)
 
@@ -22,7 +22,7 @@
 **Detail:** `DEMIGOD-AGENTS.md` + `DEMIGOD-WORKFLOW.md`  
 **Cursor rule:** `.cursor/rules/demigod.mdc`
 
-**Docs & Exchange:** **Start here:** `AGENT-STATE.md` / `DEMIGOD-COMPRESSED-STATE.md` (same inode). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Always start Claude prompts with "Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty."
+**Docs & Exchange:** **Start here:** `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` points there for compatibility). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Prompts use task-specific facts from current receipts; never prepend a standing phase label.
 
 ## Hard stops (game)
 
@@ -41,11 +41,11 @@ Game sources remain on disk; they are **archived from agent work**, not deleted.
 | Live site | https://www.trydemigod.com |
 | Designer | https://talentlink-sf.design.webflow.com/ |
 | Custom code dashboard | Webflow → talentlink-sf → Custom Code |
-| Foot JS truth | `demigod-foot-core.js` (disk/man **v531**; live **v522** — ship only with `bin/dg-lock`) |
+| Foot JS truth | `demigod-foot-core.js`; current disk/CDN/live identity comes only from `bin/dg truth` |
 | Head CSS truth | `demigod-head-styles.css` / `demigod-head-minimal.html` |
 | Footer loader | `demigod-footer-lite.html` |
-| Verify gate | `npm run demigod:verify:source` (or :all / targeted); also board-honesty + loop-state |
-| Fresh Fable | `bin/df review "..."` (or `node scripts/demigod-fable.mjs --fresh`) — always fresh disk truth |
+| Verify gate | `npm run demigod:verify:source` (or :all / targeted); also board-honesty |
+| Fresh Fable | `bin/df review "..."` — always fresh disk truth |
 | Tools | `bin/dg`, `bin/dgsnap` (checkpoint + verify + commit), `bin/dg-cockpit`, `demigod-wiz-cdp-playtest.mjs --local` |
 | Open workspace | `npm run demigod:workspace` |
 | CDP | `http://127.0.0.1:9223` |
@@ -55,7 +55,7 @@ Game sources remain on disk; they are **archived from agent work**, not deleted.
 1. Read `DEMIGOD-AGENTS.md` before multi-file Demigod work.
 2. One canonical file per task (`demigod-*` sources).
 3. Run `npm run demigod:verify:all` (or targeted `demigod:verify:live` / `demigod:verify:source`).
-4. Human clicks **Publish** in Webflow — agent prepares only.
+4. External publish is current-request-gated: prepare and verify by default; publish only when the current user request explicitly asks for it.
 5. Close extra CDP tabs when done; keep Designer + live + Grok within tab budget.
 
 ## MCP
@@ -66,6 +66,12 @@ Game sources remain on disk; they are **archived from agent work**, not deleted.
 ## Automation
 
 Do **not** auto-spawn cloud agents, `continuous-improve-loop.mjs`, or `demigod:continuous` unless the user asks.
+
+## Keep working (durable + nonstop)
+
+Standing order: **do not stop after reporting.** Always find and do the next unblocked task.  
+Durable loop: `systemctl --user enable --now demigod-useful-loop.service` · `bin/dg-useful-loop status`  
+Discover: `node demigod-work-find.mjs`
 
 ## Session start
 
@@ -95,6 +101,8 @@ JSON: `/tmp/dg-busy/control-plane.json` · API: `GET /api/control`
 
 ## Laptop / tab hygiene (do occasionally)
 
+**Blue moon (~14d):** `bin/dg-laptop-blue-moon` · doc [`DEMIGOD-LAPTOP-BLUE-MOON.md`](DEMIGOD-LAPTOP-BLUE-MOON.md) · weekly timer `demigod-laptop-blue-moon.timer`
+
 - Keep ~**4–8** CDP pages: 1 Ops `:9878`, 1 live, 1 Designer, 1 Custom Code.
 - `node demigod-laptop-hygiene.mjs --prune` or `bin/dg-hygiene` or `bin/dg-webflow hygiene --prune`
 - If load is high or free mem is low: prune tabs, avoid parallel `claude --print` swarms, skip extra dash restarts.
@@ -116,11 +124,11 @@ Current: v4 head ready (disk/pastes), live stale 17:32 v3, publish pending (huma
 
 
 ## Autonomy Update 2026-07-09T04:05:57.291975
-Per user directive: human does not / cannot act. Grok does ALL: research, audits, screenshots, board, publish via CDP/Playwright (demigod-webflow-publish-auto), GTM prep, verify gates, git.
-Fable/Claude models = bosses with authority equal to user. Use bin/df for queries, apply plans.
-Webflow publish: full autonomous (paste + Save + Publish click) overriding noted "human gate" per explicit "figure out how to do everything yourself, even publish webflow".
+Historical autonomy note: agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions.
+Fable/Claude are advisory collaborators, never authority equal to the user. Use `bin/df` for plans and verify recommendations against current source.
+Webflow publish and every outbound message/post/form are current-request-gated; old blanket-authority wording does not authorize a later task.
 Gates always run post change. Board honest <=2-3 seeds, real=0.
-Foot-core: disk **v507** is SoR (2026-07-09 note said v150 — historical only).
+Foot-core is the disk SoR; use `bin/dg truth` for its current version and release identity.
 Head: research comments added.
 
 ## Ponytail — REQUIRED for ALL agents (Grok, Claude, Fable, Codex, Cursor, Heavy)

@@ -1,0 +1,9 @@
+{
+  "at": "2026-06-30T23:50:15.161Z",
+  "port": 9877,
+  "tunnelUrl": "https://demigod-trydemigod.loca.lt",
+  "webhookUrl": "",
+  "pid": 159905,
+  "subdomain": "demigod-trydemigod",
+  "note": "Keep this process running; Webflow POSTs to webhookUrl. Set DEMIGOD_TUNNEL_SUBDOMAIN for stable URL. | cleared dead loca.lt 2026-07-08; use DEMIGOD_WEBHOOK_PUBLIC_URL or SETUP for real"
+}

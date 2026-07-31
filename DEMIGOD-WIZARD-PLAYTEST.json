@@ -1,0 +1,690 @@
+{
+  "at": "2026-07-06T06:34:48.967Z",
+  "viewports": {
+    "desktop": {
+      "startup": {
+        "steps": [
+          {
+            "wizOn": true,
+            "step": 0,
+            "welcome": true,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:0% next:Start brief ",
+            "next": "Start brief →",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "0%",
+            "q": "Hire SF startup talent"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:9% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "9%",
+            "q": "Best email for coordination?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:27% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "27%",
+            "q": "What stage is the company?"
+          },
+          {
+            "wizOn": true,
+            "step": 2,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:36% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "role-title",
+              "salary-range"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "36%",
+            "q": "What role are you hiring for?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:45% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "stack-needs"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "45%",
+            "q": "Key skills or outcomes needed?"
+          },
+          {
+            "wizOn": true,
+            "step": 2,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:55% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email",
+              "salary-range"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "55%",
+            "q": "Target comp range (cash + equity note)?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:64% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "stack-needs"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "64%",
+            "q": "When do you need the hire?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": true,
+            "meta": "bar:100% next:Send brief",
+            "next": "Send brief",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": true,
+            "bar": "100%",
+            "q": "Ready to submit your brief?"
+          }
+        ],
+        "blockedAtEmail": true,
+        "strayOk": true,
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-35-15-117Z.png"
+      },
+      "engineer": {
+        "steps": [
+          {
+            "wizOn": true,
+            "step": 0,
+            "welcome": true,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:0% next:Create profi",
+            "next": "Create profile →",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "0%",
+            "q": "Get matched to SF startups"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:15% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "seeker-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "15%",
+            "q": "Best email?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:23% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "linkedin-url"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "23%",
+            "q": "LinkedIn profile?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:31% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "resume"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "31%",
+            "q": "Core skills & stack?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:31% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "resume"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "31%",
+            "q": "Core skills & stack?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:38% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "experience"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "38%",
+            "q": "Key things you have shipped?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:46% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "46%",
+            "q": "Open to SF Bay Area startups?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:54% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "54%",
+            "q": "When are you available?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:62% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "salary-expectation"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "62%",
+            "q": "Comp expectation (optional)?"
+          }
+        ],
+        "strayOk": true,
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-35-40-091Z.png"
+      }
+    },
+    "mobile": {
+      "startup": {
+        "steps": [
+          {
+            "wizOn": true,
+            "step": 0,
+            "welcome": true,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:0% next:Start brief ",
+            "next": "Start brief →",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "0%",
+            "q": "Hire SF startup talent"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:9% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "9%",
+            "q": "Best email for coordination?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:27% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "27%",
+            "q": "What stage is the company?"
+          },
+          {
+            "wizOn": true,
+            "step": 2,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:36% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "role-title",
+              "salary-range"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "36%",
+            "q": "What role are you hiring for?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:45% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "stack-needs"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "45%",
+            "q": "Key skills or outcomes needed?"
+          },
+          {
+            "wizOn": true,
+            "step": 2,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:55% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "contact-email",
+              "salary-range"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "55%",
+            "q": "Target comp range (cash + equity note)?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:64% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "stack-needs"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "64%",
+            "q": "When do you need the hire?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": true,
+            "meta": "bar:100% next:Send brief",
+            "next": "Send brief",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": true,
+            "bar": "100%",
+            "q": "Ready to submit your brief?"
+          }
+        ],
+        "blockedAtEmail": true,
+        "strayOk": true,
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-36-06-583Z.png"
+      },
+      "engineer": {
+        "steps": [
+          {
+            "wizOn": true,
+            "step": 0,
+            "welcome": true,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:0% next:Create profi",
+            "next": "Create profile →",
+            "visible": [],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "0%",
+            "q": "Get matched to SF startups"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:15% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "seeker-email"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "15%",
+            "q": "Best email?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:23% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "linkedin-url"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "23%",
+            "q": "LinkedIn profile?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:31% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "resume"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "31%",
+            "q": "Core skills & stack?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:31% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "resume"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "31%",
+            "q": "Core skills & stack?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:38% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "experience"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "38%",
+            "q": "Key things you have shipped?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:46% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "46%",
+            "q": "Open to SF Bay Area startups?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:54% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "54%",
+            "q": "When are you available?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:62% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "salary-expectation"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "62%",
+            "q": "Comp expectation (optional)?"
+          }
+        ],
+        "strayOk": true,
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-36-32-566Z.png"
+      }
+    }
+  },
+  "nav": {
+    "hasNav": false,
+    "links": [],
+    "dupCta": 0,
+    "partners": false,
+    "wfHidden": true,
+    "ctaOk": false
+  },
+  "pass": {
+    "nav": false,
+    "startupDesktop": false,
+    "engineerDesktop": true,
+    "startupMobile": false,
+    "engineerMobile": true,
+    "noStrayDesktop": true
+  },
+  "ok": false
+}

@@ -31,9 +31,6 @@ if (( avail_mb < threshold_mb )); then
   if command -v notify-send >/dev/null 2>&1; then
     notify-send -u critical -a Demigod "Low memory" "${avail_mb} MiB available" 2>/dev/null || true
   fi
-  # Soft: stop never-stop / full-pass only
-  date -Iseconds >"$BUSY/full-pass.STOP" 2>/dev/null || true
-  date -Iseconds >"$BUSY/never-stop.STOP" 2>/dev/null || true
   # hygiene if CDP
   if curl -sS --max-time 1 http://127.0.0.1:9223/json/version >/dev/null 2>&1; then
     timeout 40 "${HOME}/bin/dg-hygiene" --prune >>"$LOG" 2>&1 || true

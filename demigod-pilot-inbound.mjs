@@ -15,9 +15,12 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { writeJsonAuto } from './demigod-perf-cache.mjs';
+import { loadInbox, startupRoleReadiness } from './demigod-submissions-lib.mjs';
+import { isTestSubmission } from './demigod-submissions-inbox.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
-const BUSY = process.env.DG_BUSY || process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+// Prefer DEMIGOD_BUSY (same as demand/evidence/export); keep DG_BUSY as legacy alias.
+const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const OPS = path.join(ROOT, 'demigod-ops');
 const PILOT_LOG = process.env.DEMIGOD_PILOT_LOG || path.join(OPS, 'PILOT-LOG.md');
 const args = process.argv.slice(2);
@@ -659,6 +662,67 @@ function dedupeActivePipelineSignals(rows) {
   return [...latestById.values()];
 }
 
+const SUBMISSION_ROW_LIMIT = 12;
+
+// Reviewed startup submissions are inbound pilot demand. Project the shared
+// leads inbox read-only into bounded, redacted counts; reuse the canonical
+// classifiers (never duplicate them) and never mutate inbox or pilot data.
+function submissionInboxProjection(pilotRows = []) {
+  let items = [];
+  try {
+    const inbox = loadInbox();
+    items = Array.isArray(inbox?.items) ? inbox.items : [];
+  } catch {
+    items = [];
+  }
+  // A submission already promoted into Pilot OS carries source `submit:<id>`.
+  // Those are operational pipeline state, not fresh inbound to project.
+  const represented = new Set(
+    pilotRows
+      .map((p) => String(p?.source || ''))
+      .filter((s) => s.startsWith('submit:'))
+      .map((s) => s.slice('submit:'.length))
+      .filter(Boolean),
+  );
+  const buckets = { awaitingReview: [], readyForPilotOs: [], blocked: [], alreadyOpen: [] };
+  for (const item of items) {
+    const readiness = startupRoleReadiness(item);
+    if (!readiness.applicable) continue; // startup form only
+    const status = String(item.status || '');
+    // Spam/test/example.com submissions never count anywhere operational.
+    if (status === 'spam' || isTestSubmission(item)) continue;
+    // Redacted row: no raw contact, only id/status/at/readiness/missing.
+    const row = { id: item.id, status, at: item.at, readiness: null, missing: readiness.missing };
+    if (represented.has(item.id)) {
+      row.readiness = 'already-open';
+      buckets.alreadyOpen.push(row);
+    } else if (status === 'new' || status === 'updated') {
+      row.readiness = 'awaiting-review';
+      buckets.awaitingReview.push(row);
+    } else if ((status === 'reviewed' || status === 'featured') && readiness.matchReady) {
+      row.readiness = 'ready';
+      buckets.readyForPilotOs.push(row);
+    } else if (status === 'reviewed' || status === 'featured') {
+      row.readiness = 'blocked';
+      buckets.blocked.push(row);
+    }
+    // Any other status (pending/rejected/…) counts nowhere operational.
+  }
+  const rows = [
+    ...buckets.readyForPilotOs,
+    ...buckets.awaitingReview,
+    ...buckets.blocked,
+    ...buckets.alreadyOpen,
+  ].slice(0, SUBMISSION_ROW_LIMIT);
+  return {
+    awaitingReview: buckets.awaitingReview.length,
+    readyForPilotOs: buckets.readyForPilotOs.length,
+    blocked: buckets.blocked.length,
+    alreadyOpen: buckets.alreadyOpen.length,
+    rows,
+  };
+}
+
 function cmdStatus() {
   // PILOT-LOG is an append-only evidence record. A bounded display read can
   // silently hide later warm rows once the file grows past its cap, so status
@@ -710,6 +774,11 @@ function cmdStatus() {
   const pilotRows = Array.isArray(pilotsOs?.pilots) ? pilotsOs.pilots : [];
   const openOs = latestPilotOsSignals(pilotRows).filter(isOpenPilotOsSignal);
   const warmFreshness = warmInboundFreshness(warm);
+  const submissionInbox = submissionInboxProjection(pilotRows);
+  const readyIds = submissionInbox.rows
+    .filter((r) => r.readiness === 'ready').slice(0, 3).map((r) => r.id).join(', ');
+  const awaitingIds = submissionInbox.rows
+    .filter((r) => r.readiness === 'awaiting-review').slice(0, 3).map((r) => r.id).join(', ');
 
   const out = {
     schema: 'demigod.pilot-inbound/1',
@@ -742,19 +811,24 @@ function cmdStatus() {
       freshness: warmFreshness,
     },
     pilotOs: { open: openOs.length, store: 'DEMIGOD-PILOTS.json' },
+    submissionInbox,
     next:
       realActive.length > 0
         ? `Active delivery state: ${realActive.map((r) => r.id + ' ' + r.status).join(' · ')}`
-        : warmFreshness.overdueActionCount > 0
-          ? `Inbound review overdue: ${warmFreshness.overdueActionCount} signal${warmFreshness.overdueActionCount === 1 ? '' : 's'}` +
-            `${warmFreshness.overdueActionOldestDays == null ? '' : ` · oldest ${warmFreshness.overdueActionOldestDays}d`}` +
-            `${warmFreshness.overdueActionItems[0]?.actionDate ? ` · action ${warmFreshness.overdueActionItems[0].actionDate}` : ''}` +
-            ` · ${warmFreshness.overdueActionWho.join(', ')} · warm ≠ pilot`
-        : warmFreshness.dueTodayActionCount > 0
-          ? `Inbound review due today: ${warmFreshness.dueTodayActionCount} signal${warmFreshness.dueTodayActionCount === 1 ? '' : 's'} · ${warmFreshness.dueTodayActionWho.join(', ')} · warm ≠ pilot`
-        : warm.length > 0
-          ? `Inbound watch: ${warm.length} warm signal${warm.length === 1 ? '' : 's'} logged · warm ≠ pilot`
-          : 'Inbound watch: no attributable warm inbound or delivered pilot logged',
+        : submissionInbox.readyForPilotOs > 0
+          ? `Ready to project into Pilot OS: ${submissionInbox.readyForPilotOs} reviewed startup submission${submissionInbox.readyForPilotOs === 1 ? '' : 's'}${readyIds ? ` · ${readyIds}` : ''}`
+          : submissionInbox.awaitingReview > 0
+            ? `Startup submissions awaiting triage: ${submissionInbox.awaitingReview}${awaitingIds ? ` · ${awaitingIds}` : ''}`
+            : warmFreshness.overdueActionCount > 0
+              ? `Inbound review overdue: ${warmFreshness.overdueActionCount} signal${warmFreshness.overdueActionCount === 1 ? '' : 's'}` +
+                `${warmFreshness.overdueActionOldestDays == null ? '' : ` · oldest ${warmFreshness.overdueActionOldestDays}d`}` +
+                `${warmFreshness.overdueActionItems[0]?.actionDate ? ` · action ${warmFreshness.overdueActionItems[0].actionDate}` : ''}` +
+                ` · ${warmFreshness.overdueActionWho.join(', ')} · warm ≠ pilot`
+              : warmFreshness.dueTodayActionCount > 0
+                ? `Inbound review due today: ${warmFreshness.dueTodayActionCount} signal${warmFreshness.dueTodayActionCount === 1 ? '' : 's'} · ${warmFreshness.dueTodayActionWho.join(', ')} · warm ≠ pilot`
+                : warm.length > 0
+                  ? `Inbound watch: ${warm.length} warm signal${warm.length === 1 ? '' : 's'} logged · warm ≠ pilot`
+                  : 'Inbound watch: no attributable warm inbound or delivered pilot logged',
     cmds: {
       fromWiz: 'bin/dg pilot from-wiz --email=f@co.com --90d="Ship v1" --brief="Head of Growth"',
       warm: 'bin/dg pilot warm --who="Name" --channel=email --status=new --next="review pending"',
@@ -774,6 +848,12 @@ function cmdStatus() {
       `${warmFreshness.overdueActionOldestDays == null ? '' : ` (oldest ${warmFreshness.overdueActionOldestDays}d)`}` +
       ` · dueToday=${warmFreshness.dueTodayActionCount}` +
       ` · quarantined=${out.warmInbound.quarantinedRows}`,
+    );
+    console.log(
+      `  Submissions: ready=${submissionInbox.readyForPilotOs}` +
+      ` · awaiting=${submissionInbox.awaitingReview}` +
+      ` · blocked=${submissionInbox.blocked}` +
+      ` · open=${submissionInbox.alreadyOpen}`,
     );
     if (out.warmInbound.quarantinedRows > 0) {
       const reasons = Object.entries(out.warmInbound.quarantineReasons)

@@ -32,7 +32,6 @@ function isE2eItem(item) {
     if (/^smoke-startup\+/i.test(email)) return 'intake_smoke_probe';
     if (raw['company-name'] === 'Smoke Check Co' && /intake smoke probe/i.test(raw['stack-needs'] || '')) return 'intake_smoke_probe';
     if (/^founder@test\.com$/i.test(email)) return 'e2e_startup_fixture';
-    if (/^sla-test@/i.test(email) || /SLA test role/i.test(raw['role-title'] || '')) return 'sla_test_probe';
     if (raw['role-title'] === 'Head of Growth' && raw['stack-needs'] === 'Seed fintech') return 'e2e_playtest_growth';
     if (!email && raw['role-title'] === 'Head of Growth') return 'e2e_playtest_no_email';
   }
@@ -43,7 +42,7 @@ function isE2eItem(item) {
   }
 
   if (raw.company === 'Test Co' || /^test@/i.test(email)) return 'e2e_test_keyword';
-  // RFC 2606 reserved TLDs can never belong to a real submitter (sms-sim uses @pending.example).
+  // RFC 2606 reserved TLDs can never belong to a real submitter.
   if (/@[^@]*\.(example|test|invalid|localhost)$/i.test(email)) return 'reserved_tld_fixture';
 
   // Empty unknown form with no fields is noise, not a real lead.

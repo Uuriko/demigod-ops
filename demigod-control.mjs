@@ -3,14 +3,13 @@
  * demigod-control — cohesive Control Plane over all Demigod ops modules
  *
  * One mental model:
- *   Site (live/disk) · Webflow · Match · Review · Hygiene · Ship · Swarm · Orca
+ *   Site · Events · Webflow · Match · Review · Hygiene · Ponytail · Work loop · Ship · Plans · Orca
  * One CLI spine:
- *   bin/dg status|home|next|webflow|matches|review|hygiene|orca|full-check|ship-prep|…
+ *   bin/dg status|home|next|webflow|matches|review|hygiene|orca|check|ship|…
  * One JSON:
  *   /tmp/dg-busy/control-plane.json  (+ dash /api/control)
  *
- * Related: demigod-agent-dashboard.mjs (:9878), demigod-tools-registry.mjs,
- *   docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
+ * Related: demigod-agent-dashboard.mjs (:9878), demigod-tools-registry.mjs
  * Usage:
  *   bin/dg status|--json
  *   bin/dg home
@@ -27,7 +26,6 @@ import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
 import { BUSY, ensureBusy, atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
 import { isFreshFile, writeJsonAuto } from './demigod-perf-cache.mjs';
-import { receiptIsFresh } from './demigod-harness-coord.mjs';
 import { status as publishFreezeStatus } from './demigod-publish-freeze.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -249,17 +247,17 @@ export const MODULES = {
       { id: 'craft-mint', label: 'Mint ship', job: 'craft-mint-ship' },
     ],
   },
-  swarm: {
-    title: 'Swarm',
-    why: 'Handoffs + multi-agent plans',
+  plans: {
+    title: 'Plans',
+    why: 'Agent plans + handoffs',
     emoji: '◉',
     accent: '#7eb6e8',
     key: 'a',
     cli: 'bin/dg-handoff',
-    dashTab: 'swarm',
+    dashTab: 'handoff',
     jobs: ['plan-inbox'],
     actions: [
-      { id: 'plans', label: 'Plans', job: 'plan-inbox', tab: 'swarm' },
+      { id: 'plans', label: 'Plans', job: 'plan-inbox', tab: 'handoff' },
       { id: 'hand', label: 'Handoff', tab: 'handoff' },
     ],
   },
@@ -275,7 +273,6 @@ export const MODULES = {
     actions: [
       { id: 'orca-up', label: 'Up', cmd: 'bin/dg-orca up' },
       { id: 'orca-pair', label: 'Pair URL', cmd: 'bin/dg-orca pair' },
-      { id: 'orca-swarm', label: 'Swarm', cmd: 'bin/dg-orca swarm' },
     ],
   },
 };
@@ -287,9 +284,8 @@ const DISPATCH = {
   match: ['demigod-match-review.mjs', '--json'],
   pairs: ['demigod-pairs-lib.mjs', 'list'],
   inbox: ['demigod-submissions-inbox.mjs', '--json'],
-  review: ['demigod-review.mjs'],
+  review: ['demigod-review.mjs', '--no-contract'],
   hygiene: ['demigod-laptop-hygiene.mjs'],
-  workloop: ['demigod-cycle-status.mjs'],
   ponytail: ['demigod-ponytail.mjs'],
   doctor: ['demigod-doctor.mjs'],
   smoke: ['demigod-agent-smoke.mjs'],
@@ -605,7 +601,19 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     doctor: wfDoctor,
     metrics: { pages: wf?.tabs?.pages, cdp: wf?.cdp?.ok, doctorPass: wfDoctor?.pass ?? null, doctorFresh: wfDoctor?.fresh ?? false },
   });
-  const matchSum = matchesBusy?.summary || dashStatus?.matches?.summary || null;
+  const matchReceiptAgeMs = ageMsFrom(matchesBusy?.at);
+  const currentMatchEvidenceAgeMs = Math.min(
+    ageMsFrom(safeJsonFile(path.join(ROOT, 'DEMIGOD-PAIRS.json'))?.at),
+    ageMsFrom(dashStatus?.matches?.at),
+  );
+  const matchSum =
+    (Number.isFinite(matchReceiptAgeMs) &&
+    matchReceiptAgeMs >= -60000 &&
+    matchReceiptAgeMs <= currentMatchEvidenceAgeMs
+      ? matchesBusy?.summary
+      : null) ||
+    dashStatus?.matches?.summary ||
+    null;
   const realProposed =
     matchSum?.realProposed ??
     (matchSum?.byState?.proposed != null && matchSum?.sampleCount != null
@@ -683,13 +691,17 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     },
   });
   const usefulLoop = safeJsonFile(path.join(BUSY, 'useful-loop-last.json'));
-  const usefulLoopFresh = receiptIsFresh(usefulLoop, Date.now(), 5 * 60 * 1000);
   const usefulLoopAgeMs = ageMsFrom(usefulLoop?.at);
+  const usefulLoopFresh = usefulLoopAgeMs >= -60_000 && usefulLoopAgeMs <= 5 * 60_000;
   const usefulLoopStopped = ['useful-loop.STOP', 'watchdog.PAUSED']
     .some((file) => fs.existsSync(path.join(BUSY, file)));
   const usefulLoopTasks = Array.isArray(usefulLoop?.did) ? usefulLoop.did : [];
   const usefulLoopPassed = usefulLoopTasks.filter((task) => task?.ok === true).length;
-  const usefulLoopHealthy = usefulLoopFresh && !usefulLoopStopped && usefulLoopTasks.length > 0 && usefulLoopPassed === usefulLoopTasks.length;
+  const usefulLoopHealthy =
+    usefulLoopFresh &&
+    !usefulLoopStopped &&
+    usefulLoop?.ok === true &&
+    usefulLoopPassed === usefulLoopTasks.length;
   modules.workloop = enrich('workloop', {
     ok: usefulLoopFresh ? usefulLoopHealthy : null,
     detail: usefulLoopStopped
@@ -739,18 +751,14 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
       craftShipReady,
     },
   });
-  // Orca remote seat — prefer cache file; skip 5s orca-ide spawn when fresh
+  // Orca remote seat — receipt only; the dashboard refreshes stale receipts asynchronously.
   let orcaReach = null;
   try {
-    const orcaMeta = safeJsonFile('/tmp/orca-pair-meta.json') || safeJsonFile(path.join(BUSY, 'orca-status.json'));
-    if (orcaMeta && (orcaMeta.reachable != null || orcaMeta.result?.runtime?.reachable != null)) {
+    const orcaMeta = safeJsonFile(path.join(BUSY, 'orca-status.json')) || safeJsonFile('/tmp/orca-pair-meta.json');
+    const ageMs = Date.now() - Date.parse(orcaMeta?.at);
+    const fresh = Number.isFinite(ageMs) && ageMs >= -60_000 && ageMs <= 300_000;
+    if (fresh && (orcaMeta.reachable != null || orcaMeta.result?.runtime?.reachable != null)) {
       orcaReach = Boolean(orcaMeta.reachable ?? orcaMeta.result?.runtime?.reachable);
-    } else {
-      const st = sh('orca-ide status --json 2>/dev/null', 2500);
-      if (st.status === 0 && st.stdout) {
-        const d = JSON.parse(st.stdout);
-        orcaReach = Boolean(d?.result?.runtime?.reachable);
-      }
     }
   } catch {
     /* ignore */
@@ -763,17 +771,19 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     awake = true;
   } catch { awake = false; }
   modules.orca = enrich('orca', {
-    ok: orcaReach && awake,
-    detail: orcaReach
-      ? `runtime ok · keep-awake ${awake ? 'on' : 'OFF'} · pair: bin/dg-orca pair`
-      : 'Orca down — bin/dg-orca up',
-    next: orcaReach ? 'bin/dg-orca pair' : 'bin/dg-orca up',
+    ok: orcaReach == null ? null : orcaReach && awake,
+    detail: orcaReach == null
+      ? 'Orca receipt stale — bin/dg-orca status'
+      : orcaReach
+        ? `runtime ok · keep-awake ${awake ? 'on' : 'OFF'} · pair: bin/dg-orca pair`
+        : 'Orca down — bin/dg-orca up',
+    next: orcaReach == null ? 'bin/dg-orca status' : orcaReach ? 'bin/dg-orca pair' : 'bin/dg-orca up',
     metrics: { reachable: orcaReach, keepAwake: awake },
   });
-  modules.swarm = enrich('swarm', {
+  modules.plans = enrich('plans', {
     ok: null,
     detail: `${(dashStatus?.handoffs || []).length} handoffs · plans via plan-inbox`,
-    next: 'open Swarm tab',
+    next: 'open Work tab',
     metrics: { handoffs: (dashStatus?.handoffs || []).length },
   });
 
@@ -927,7 +937,7 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
     next: nextOut,
     spine: orderedSpine,
     modules,
-    moduleOrder: ['site', 'events', 'webflow', 'match', 'review', 'hygiene', 'ponytail', 'workloop', 'ship', 'swarm', 'orca'],
+    moduleOrder: ['site', 'events', 'webflow', 'match', 'review', 'hygiene', 'ponytail', 'workloop', 'ship', 'plans', 'orca'],
     moduleDefs: MODULES,
     entrypoints: {
       cli: 'bin/dg',

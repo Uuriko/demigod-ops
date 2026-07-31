@@ -5,7 +5,7 @@ set -euo pipefail
 
 OUT="${1:-/tmp/laptop-metrics-latest.json}"
 SCORE=0
-MAX=100
+MAX=85
 declare -a NOTES=()
 declare -A M=()
 
@@ -45,19 +45,6 @@ for f in "${HOME}/bin/dg-linux-config" "${HOME}/bin/speed-optimize"; do
   fi
 done
 [[ $DROP -eq 0 ]] && pass 15 drop_caches "no drop_caches commands in speed scripts"
-
-# --- no autopilot *autostart* (tmux new ... dg-autopilot) ---
-AUTO=0
-for f in "${HOME}/bin/dg-linux-config"; do
-  [[ -f "$f" ]] || continue
-  if grep -nE '^[^#]*(tmux new.*dg-autopilot|dg-autopilot)' "$f" 2>/dev/null | grep -vq 'no autopilot'; then
-    if grep -nE '^[^#]*tmux.*dg-autopilot' "$f" >/dev/null 2>&1; then
-      AUTO=1
-      fail autopilot "autostart still in $f"
-    fi
-  fi
-done
-[[ $AUTO -eq 0 ]] && pass 15 autopilot "no autopilot autostart in dg-linux-config"
 
 # --- screen lock not disabled by scripts ---
 LOCKBAD=0

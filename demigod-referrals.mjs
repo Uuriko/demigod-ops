@@ -22,6 +22,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite, opt, readJson, sha256File, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { assertCurrentMutualPairEligibility } from './demigod-pairs-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const TEST_SCOPE = process.env.NODE_TEST_CONTEXT || process.env.DEMIGOD_TEST_SCOPE || /\.test\.mjs$/.test(process.argv[1] || '')
@@ -39,7 +40,7 @@ export const STATUS_PATH = process.env.DEMIGOD_REFERRALS_STATUS_PATH || path.joi
 
 export const RULE_VERSION = '2026-07-21.1';
 export const AGREEMENT_VERSION = '2026-07-21.1';
-export const DISCLOSURE = 'I may receive a referral reward if this introduction leads to a successful Demigod hire.';
+export const DISCLOSURE = 'I may receive a referral reward if this leads to a successful Demigod hire. It comes from Demigod’s fee, not your pay, and does not change how you are evaluated.';
 const ORIGIN = 'https://www.trydemigod.com/';
 const CLAIM_DAYS = 365;
 const RETENTION_DAYS = 90;
@@ -167,33 +168,28 @@ function linkUrls(code) {
   talent.searchParams.set('wiz', 'engineer');
   const hiring = new URL(base);
   hiring.searchParams.set('wiz', 'startup');
-  // Short aliases (foot normalizes ?r= / /r/{code} → referral=). Prefer talent short for sharing.
+  // Short query alias; unlike a path alias, this reaches Webflow's real home page before foot loads.
   const shortTalent = new URL(ORIGIN);
   shortTalent.searchParams.set('r', code);
   shortTalent.searchParams.set('wiz', 'engineer');
-  const shortPath = new URL(`/r/${code}`, ORIGIN);
-  shortPath.searchParams.set('wiz', 'engineer');
   return {
     universal: base.href,
     talent: talent.href,
     hiring: hiring.href,
     short: shortTalent.href,
-    path: shortPath.href,
   };
 }
 
 /** Copy-paste message the referrer can send to talent (includes mandatory disclosure). */
-export function formatShareMessage(code, { pct = 20 } = {}) {
+export function formatShareMessage(code) {
   if (!TOKEN_RE.test(code)) throw new Error('link_code_invalid');
   const urls = linkUrls(code);
   return [
-    'Thinking about SF Bay startup roles?',
-    '',
-    'Demigod is a human-reviewed talent matchmaker — candidates never pay. If you apply through my link and later get hired through Demigod (and stay 90 days with the fee paid), I may earn a referral reward. You are evaluated the same either way.',
+    'Thought this might be useful for you: Demigod privately matches people with SF Bay startups. You make one free profile, a human reviews it, and nothing is shared until you approve an intro.',
     '',
     urls.short,
     '',
-    `Disclosure: ${DISCLOSURE}`,
+    DISCLOSURE,
   ].join('\n');
 }
 
@@ -221,50 +217,21 @@ export function formatTalentReferrerPack(link, { reused = false } = {}) {
   const approval = link.approval?.status || 'pending';
   const bps = link.rules?.individualTalentBps ?? 2000;
   const pct = (bps / 100).toFixed(0);
-  const shareMessage = formatShareMessage(link.code, { pct: Number(pct) });
+  const shareMessage = formatShareMessage(link.code);
   const lines = [
     '# Demigod talent-referrer pack',
     `# linkId: ${link.id}${reused ? ' (existing)' : ''}`,
     `# approval: ${approval}`,
-    `# rewardMode: ${link.rewardMode || 'cash'} · owner: ${link.ownerType || 'individual'}`,
+    approval === 'approved' ? '# Ready to share' : '# Do not share until Demigod approves this link',
     '',
-    '## Unique talent link (prefer this short form)',
-    urls.short,
-    '',
-    '## Canonical talent link (same code; extra UTM)',
-    urls.talent,
-    '',
-    '## Path form (needs foot on the page; same code)',
-    urls.path,
-    '',
-    '## Universal link (home; they choose talent or hiring)',
-    urls.universal,
-    '',
-    '## Copy-paste share message (send as-is)',
+    '## Copy and send personally',
     shareMessage,
     '',
-    '## Disclosure (always include when sharing)',
-    DISCLOSURE,
-    '',
-    '## How they get paid (honest)',
-    `- Talent they introduce opens the link and submits their own profile (not uploaded by the referrer).`,
-    `- Demigod human-matches; both sides approve any intro.`,
-    `- On hire, the startup owes Demigod 10% of first-year cash (written terms).`,
-    `- After the hire completes ${RETENTION_DAYS} days AND Demigod's related fee is paid and retained,`,
-    `  the referrer becomes eligible for ${pct}% of that net placement fee (cash for individuals).`,
-    `- Payout tooling is pending — settle records an observed payment only; no auto Stripe yet.`,
-    '',
-    '## Ops next steps',
-    approval === 'approved'
-      ? '- Link already approved. Share the pack with the referrer.'
-      : `- Approve after written agreement: bin/dg referrals approve ${link.id} --evidence PATH --beneficiary-id ID --i-reviewed`,
-    '- After referred talent submits: bin/dg referrals sync',
-    '- Then qualify → hire → retain → settle (evidence-gated; see DEMIGOD-REFERRAL-SIMPLE.md)',
-    '',
-    '## Rules snapshot',
-    `- ruleVersion: ${link.rules?.version || RULE_VERSION}`,
-    `- talent intro: ${pct}% of net fee after day-${RETENTION_DAYS} + fee paid`,
-    `- claim window: ${CLAIM_DAYS} days from eligible submission unless already linked to a placement`,
+    '## Terms at a glance',
+    '- They submit their own profile; never upload it for them.',
+    '- Demigod reviews everyone the same, and both sides approve before an intro.',
+    `- ${pct}% of Demigod's net placement fee becomes eligible after day ${RETENTION_DAYS}, only once that fee is paid and retained. It never comes from candidate pay.`,
+    '- Written terms control. Automated payout is not live.',
     '',
   ];
   return {
@@ -494,6 +461,11 @@ export function recordReferralSubmission({ token, submissionId, form, at, eligib
       recordDirectInStore(store, { subId, kind, subjectHash, submittedAt, actor });
       return { attached: false, reason: 'referral_code_unknown_or_revoked' };
     }
+    if (kind === 'talent' && link.ownerType === 'individual' && subject === `talent:${link.email}`) {
+      const direct = recordDirectInStore(store, { subId, kind, subjectHash, submittedAt, actor });
+      if (!direct.reused) addEvent(store, { actor, type: 'self_referral_blocked', linkId: link.id, submissionId: subId });
+      return { attached: false, reason: 'self_referral_forbidden', directId: direct.directId };
+    }
     const bySubmission = Object.values(store.claims).find((claim) => claim.submissionId === subId);
     if (bySubmission) return { attached: true, reused: true, claimId: bySubmission.id, linkId: bySubmission.linkId };
 
@@ -635,6 +607,11 @@ function canonicalHirePair(leadsDoc, outcome, billing, notBefore = '') {
     if (!pair || pair.sample || pair.state !== 'mutual_yes' ||
         !pair.mutual?.founder || !pair.mutual?.candidate ||
         !pair.roleId || !pair.candId || String(pair.roleId) === String(pair.candId)) continue;
+    try {
+      assertCurrentMutualPairEligibility(pair, { pairKey: id });
+    } catch {
+      continue;
+    }
     const linked = leadRows(leadsDoc).filter(({ lead }) => pairIds(lead).has(id) && !lead.sample && !lead.selftest && !lead.test);
     if (linked.length !== 2 || !linked.some(({ lead }) => lead.id === billing.id) ||
         !linked.some(({ lead }) => lead.id === outcome.id)) continue;
@@ -989,13 +966,6 @@ export function referralStatus({ write = false } = {}) {
       note: 'Evidence-gated; see DEMIGOD-REFERRAL-SIMPLE.md',
     });
   }
-  next.push({
-    pri: 3,
-    id: 'public-page',
-    title: 'Public explainer /?p=refer (disk v813+; short ?r= links)',
-    cmd: 'open https://www.trydemigod.com/?p=refer  # live after authorized publish',
-    note: 'Design: DEMIGOD-REFERRAL-SIMPLE.md · mint pack includes share message',
-  });
   const report = {
     schema: 'demigod.referrals-status/1',
     at: new Date().toISOString(),

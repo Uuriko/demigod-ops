@@ -7,140 +7,160 @@ import {
   parseDogfoodBool,
   parseLogFlags,
   rowExecutionOk,
+  rowKind,
   summarize,
 } from './demigod-tool-dogfood.mjs';
+import { TOOLS } from './demigod-tools-registry.mjs';
 
-test('dogfood merges only uniquely registered tool aliases', () => {
-  assert.equal(canonicalTool('dg-truth'), 'truth');
-  assert.equal(canonicalTool('dg-funnel-status'), 'funnel-status');
-  assert.equal(canonicalTool('dg-funnel'), 'funnel-status');
-  assert.equal(canonicalTool('demigod-verify-source'), 'verify-source');
-  assert.equal(canonicalTool('source-verify'), 'verify-source');
-  assert.equal(canonicalTool('verify-board'), 'board-honesty');
-  assert.equal(canonicalTool('verify-loop-state'), 'loop-state');
-  assert.equal(canonicalTool('verify-loop'), 'loop-state');
-  assert.equal(canonicalTool('ask-claude'), 'ask-claude');
-  assert.equal(canonicalTool('lead-pipeline-packages'), 'pipeline-packages');
-  assert.equal(canonicalTool('events-selftest'), 'events-bot-selftest');
-  assert.equal(canonicalTool('coord'), 'agent-coord-status');
-  assert.equal(canonicalTool('dash-coord'), 'api-coord');
-  assert.equal(canonicalTool('dashboard-coord'), 'api-coord');
-  assert.equal(canonicalTool('dg-dash-status'), 'dash');
-  assert.equal(canonicalTool('dg-dash-health'), 'dg-dash-health');
-  assert.equal(canonicalTool('dg-quality'), 'quality');
-  assert.equal(canonicalTool('demigod-user-test'), 'usertest');
-  assert.equal(canonicalTool('user-test'), 'usertest');
-  assert.equal(canonicalTool('dg-user-test'), 'usertest');
-  assert.equal(canonicalTool('dg-usertest'), 'usertest');
-  assert.equal(canonicalTool('dashboard-status'), 'dash');
-  assert.equal(canonicalTool('demigod:funnel:selftest'), 'funnel-selftest');
-  assert.equal(canonicalTool('events-online-selftest'), 'events-online');
-  assert.equal(canonicalTool('events-online-status'), 'events-online');
-  assert.equal(canonicalTool('events-api-policy'), 'events-app-policy');
-  assert.equal(canonicalTool('events-review'), 'events-app-policy');
-  assert.equal(canonicalTool('events-management'), 'events-app-policy');
-  assert.equal(canonicalTool('store-reconcile-premature-rsvp'), 'events-reconcile');
-  assert.equal(canonicalTool('demigod-tools-os-selftest'), 'tools-os-selftest');
-  assert.equal(canonicalTool('events-fast-test'), 'events-test');
-  assert.equal(canonicalTool('node-check'), 'verify-source');
-  assert.equal(canonicalTool('quality-Q7'), 'tools-os-selftest');
-  assert.equal(canonicalTool('truth-prepareOnlyAssets'), 'truth');
-  assert.equal(canonicalTool('events-audience-gates'), 'events-test');
-  assert.equal(canonicalTool('startup-map-refresh'), 'startup-map-refresh');
-  assert.equal(canonicalTool('mobile-a11y'), 'wiz-a11y-audit');
-  assert.equal(canonicalTool('priority-board'), 'priority');
-  assert.equal(canonicalTool('dg-priority'), 'priority');
-  assert.equal(canonicalTool('dogfood-status'), 'dogfood');
-  assert.equal(canonicalTool('grok-busy-loop'), 'grok-busy-loop');
-  assert.equal(canonicalTool('dashboard-cli'), 'tools-os-selftest');
-  assert.equal(canonicalTool('lead-sourcer-test'), 'lead-sourcer');
-  assert.equal(canonicalTool('dg-orca'), 'orca-status');
-  assert.equal(canonicalTool('dashboard-events-test'), 'events-dashboard-test');
-  assert.equal(canonicalTool('events-honesty-test'), 'events-app-policy');
-  assert.equal(canonicalTool('demand-status'), 'demand');
-  assert.equal(canonicalTool('matches'), 'match-review');
-  assert.equal(canonicalTool('demigod-startup-atlas'), 'tools-os-selftest');
-  assert.equal(canonicalTool('dashboard-events-contract'), 'events-dashboard-test');
-  assert.equal(canonicalTool('pipeline'), 'pipeline-status');
-  assert.equal(canonicalTool('dg-work-find'), 'work-find');
-  assert.equal(canonicalTool('tools-regression'), 'funnel-selftest');
-  assert.equal(canonicalTool('forms-p0-tests'), 'usertest');
-  assert.equal(canonicalTool('forms-p0-browser'), 'wiz-playtest');
-  assert.equal(canonicalTool('matching-readiness'), 'match-review');
-  assert.equal(canonicalTool('wiz-cdp-talent'), 'wiz-playtest');
-  assert.equal(canonicalTool('wiz-cdp-startup'), 'wiz-playtest');
-  assert.equal(canonicalTool('dashboard-health'), 'dash');
-  assert.equal(canonicalTool('community-forms-integration'), 'usertest');
-  assert.equal(canonicalTool('wiz-mobile-startup'), 'wiz-playtest');
+test('dogfood derives registry aliases without collapsing registry IDs', () => {
+  for (const tool of TOOLS) assert.equal(canonicalTool(tool.id), tool.id);
+  for (const [alias, tool] of [
+    ['dg-truth', 'truth'],
+    ['demigod-verify-source', 'verify-source'],
+    ['bin/dg', 'orient'],
+    ['dg-quality', 'quality'],
+    ['matches', 'match-review'],
+    ['bin/dg-smoke', 'smoke'],
+  ]) assert.equal(canonicalTool(alias), tool);
+  for (const alias of ['orca-check', 'orca-wait', 'orca-dispatch', 'orca-task', 'api-orca']) {
+    assert.equal(canonicalTool(alias), 'orca-status');
+  }
+  assert.equal(canonicalTool('source-verify'), 'source-verify');
   assert.equal(executionSucceeded(1, 'webflow-doctor'), true);
-  assert.equal(executionSucceeded(1, 'webflow'), true);
-  assert.equal(executionSucceeded(1, 'dg-publish'), true);
-  assert.equal(executionSucceeded(1, 'publish-dry-run'), true); // alias → dg-publish
-  assert.equal(executionSucceeded(1, 'cm6-check'), false); // structural gate fail stays fail
+  assert.equal(executionSucceeded(1, 'ship'), true);
+  assert.equal(executionSucceeded(1, 'cm6-check'), false);
 });
 
-test('dogfood retires generic wrap labels that are not registry tools', () => {
+test('dogfood repairs stored umbrella rows from a registered raw tool', () => {
   const status = summarize([
-    { tool: 'node-test', ok: true },
-    { tool: 'tools-defect-scan', ok: false },
-    { tool: 'totally-fake-tool-xyz', ok: true },
-    { tool: 'dashboard-cli', ok: true },
+    {
+      at: '2026-01-01T00:00:00Z',
+      tool: 'control',
+      rawTool: 'bin/dg',
+      source: 'wrap',
+      ok: true,
+    },
+    {
+      at: '2026-01-01T00:00:01Z',
+      tool: 'ship',
+      rawTool: 'ship-prepare',
+      source: 'wrap',
+      ok: true,
+    },
   ]);
-  assert.equal(status.unregisteredEvents, 0);
-  assert.equal(status.retiredEvents, 3);
-  assert.equal(status.registeredEvents, 1);
-  assert.equal(status.tools[0].tool, 'tools-os-selftest');
+  assert.equal(status.tools.find((tool) => tool.tool === 'orient').executions, 1);
+  assert.equal(status.tools.find((tool) => tool.tool === 'control').executions, 0);
+  assert.equal(status.tools.find((tool) => tool.tool === 'ship-prepare').executions, 1);
+  assert.equal(status.tools.find((tool) => tool.tool === 'ship').executions, 0);
+  assert.deepEqual(status.recentExecutions.map((row) => row.tool), ['ship-prepare', 'orient']);
 });
 
-test('dogfood reports registry coverage without discarding unknown tools', () => {
+test('dogfood retires only current compatibility labels and cycle IDs', () => {
   const status = summarize([
-    { tool: 'dg-truth', ok: true },
-    { tool: 'grok-busy-loop', ok: true },
-  ]);
-  assert.equal(status.registeredEvents, 1);
-  assert.equal(status.unregisteredEvents, 0);
-  assert.equal(status.retiredEvents, 1);
-  assert.equal(status.retired[0].tool, 'grok-busy-loop');
-});
-
-test('dogfood excludes non-CLI capabilities from registry coverage', () => {
-  const status = summarize([{ tool: 'computer-use', ok: true }, { tool: 'agent-comms', ok: true }]);
-  assert.equal(status.unregisteredEvents, 0);
-  assert.equal(status.retiredEvents, 2);
-});
-
-test('dogfood maps user-test wrap labels onto usertest and retires yolo entry labels', () => {
-  const status = summarize([
-    { tool: 'user-test', ok: true },
-    { tool: 'dg-user-test', ok: true },
-    { tool: 'dashboard-status', ok: true },
-    { tool: 'claude-yolo-loop', ok: true },
-    { tool: 'claude-entry', ok: false },
-  ]);
-  assert.equal(status.unregisteredEvents, 0);
-  assert.equal(status.registeredEvents, 3);
-  assert.equal(status.retiredEvents, 2);
-  assert.ok(status.tools.some((t) => t.tool === 'usertest' && t.n === 2));
-  assert.ok(status.tools.some((t) => t.tool === 'dash' && t.n === 1));
-});
-
-test('dogfood retires run IDs rather than treating them as tools', () => {
-  const status = summarize([
-    { tool: 'dg-dash-health', ok: false },
+    { tool: 'workflow-map', ok: true },
+    { tool: 'api-coord', ok: false },
     { tool: 'gates-cycle-6573', ok: true },
-    { tool: 'events-online-6567', ok: true },
-    { tool: 'audit-100', ok: true },
+    { tool: 'unknown-wrapper', ok: true },
   ]);
-  assert.equal(status.total, 1);
+  assert.equal(status.unregisteredEvents, 1);
   assert.equal(status.retiredEvents, 3);
-  assert.equal(status.tools[0].tool, 'audit-100');
+  assert.deepEqual(status.retired.map((row) => row.tool).sort(), ['api-coord', 'gates-cycle-6573', 'workflow-map']);
+});
+
+test('dogfood separates executions, judgments, and synthetic wraps', () => {
+  const status = summarize([
+    { at: '2026-01-01T00:00:00Z', tool: 'truth', source: 'wrap', argv: ['bin/dg', 'truth'], ok: true, childExit: 0 },
+    { at: '2026-01-01T00:00:01Z', tool: 'truth', source: 'manual', ok: false, useful: true },
+    { at: '2026-01-01T00:00:02Z', tool: 'truth', source: 'wrap', argv: ['true'], ok: true, childExit: 0 },
+  ]);
+  const truth = status.tools.find((tool) => tool.tool === 'truth');
+  assert.equal(status.rawTotal, 3);
+  assert.equal(status.wrapTotal, 2);
+  assert.equal(status.executionTotal, 1);
+  assert.equal(status.annotationTotal, 1);
+  assert.equal(status.syntheticWrapTotal, 1);
+  assert.equal(
+    status.executionTotal + status.annotationTotal + status.syntheticWrapTotal,
+    status.rawTotal,
+  );
+  assert.equal(truth.executions, 1);
+  assert.equal(truth.annotations, 1);
+  assert.equal(truth.syntheticWraps, 1);
+  assert.equal(truth.ok, 1);
+  assert.equal(truth.fail, 0);
+  assert.equal(truth.useful, 1);
+  assert.deepEqual(status.recentExecutions.map(({ tool, outcome }) => ({ tool, outcome })), [
+    { tool: 'truth', outcome: 'ok' },
+  ]);
+});
+
+test('dogfood does not turn an annotation-only unknown label into a registry warning', () => {
+  const status = summarize([
+    { at: '2026-01-01T00:00:00Z', tool: 'local-note', source: 'manual', useful: true },
+  ]);
+  assert.equal(status.unregisteredEvents, 1);
+  assert.equal(status.unregisteredExecutions, 0);
+  assert.equal(status.unregisteredExecutionTools, 0);
   assert.equal(status.suggestions.some((suggestion) => suggestion.kind === 'registry'), false);
 });
 
-test('dogfood retires one-shot composite labels', () => {
-  const status = summarize([{ tool: 'release-check', ok: false }, { tool: 'foot-privacy-check', ok: true }]);
-  assert.equal(status.unregisteredEvents, 0);
+test('dogfood warns only when an unknown execution label repeats', () => {
+  const once = summarize([{ tool: 'new-wrapper', ok: true }]);
+  assert.equal(once.suggestions.some((suggestion) => suggestion.kind === 'registry'), false);
+  const repeated = summarize([{ tool: 'new-wrapper', ok: true }, { tool: 'new-wrapper', ok: true }]);
+  assert.equal(repeated.suggestions.some((suggestion) => suggestion.kind === 'registry'), true);
+});
+
+test('dogfood kind totals include retired rows and reconcile to raw input', () => {
+  const status = summarize([
+    { tool: 'workflow-map', source: 'wrap', argv: ['node', 'old-tool.mjs'], ok: true },
+    { tool: 'api-coord', source: 'manual', useful: true },
+  ]);
   assert.equal(status.retiredEvents, 2);
+  assert.equal(status.executionTotal, 1);
+  assert.equal(status.annotationTotal, 1);
+  assert.equal(status.syntheticWrapTotal, 0);
+  assert.equal(
+    status.executionTotal + status.annotationTotal + status.syntheticWrapTotal,
+    status.rawTotal,
+  );
+});
+
+test('dogfood reports registered tools with no real execution', () => {
+  const annotationOnly = summarize([
+    { at: '2026-01-01T00:00:00Z', tool: 'truth', source: 'manual', ok: true, useful: true },
+  ]);
+  assert.equal(annotationOnly.tools.find((tool) => tool.tool === 'truth').executions, 0);
+  assert.ok(annotationOnly.unusedTools.includes('truth'));
+
+  const empty = summarize([]);
+  assert.ok(empty.tools.some((tool) => tool.tool === 'truth' && tool.executions === 0));
+  assert.ok(empty.unusedTools.includes('truth'));
+});
+
+test('dogfood recognizes only one-command true wraps as synthetic', () => {
+  assert.equal(rowKind({ source: 'wrap', argv: ['true'] }), 'synthetic');
+  assert.equal(rowKind({ source: 'wrap', argv: ['/bin/true'] }), 'synthetic');
+  assert.equal(rowKind({ source: 'wrap', argv: ['true', 'arg'] }), 'execution');
+  assert.equal(rowKind({ source: 'manual' }), 'annotation');
+  assert.equal(rowKind({ ok: true }), 'execution');
+});
+
+test('dogfood limits reliability advice to registered tools', () => {
+  const status = summarize([
+    { tool: 'external-wrapper', ok: false },
+    { tool: 'external-wrapper', ok: false },
+    { tool: 'truth', ok: false },
+    { tool: 'truth', ok: false },
+  ]);
+  assert.equal(
+    status.suggestions.some((suggestion) => suggestion.tool === 'external-wrapper' && suggestion.kind === 'reliability'),
+    false,
+  );
+  assert.equal(
+    status.suggestions.some((suggestion) => suggestion.tool === 'truth' && suggestion.kind === 'reliability'),
+    true,
+  );
 });
 
 test('dogfood separates red policy outcomes from execution failures', () => {
@@ -185,18 +205,26 @@ test('dogfood separates red policy outcomes from execution failures', () => {
 
 test('dogfood distinguishes timeout pressure from other execution failures', () => {
   const timeoutStatus = summarize([
-    { tool: 'truth', ok: false, childExit: 124 },
-    { tool: 'truth', ok: false, childExit: 124 },
     { tool: 'truth', ok: true },
+    { tool: 'truth', ok: false, childExit: 124 },
+    { tool: 'truth', ok: false, childExit: 124 },
   ]);
   assert.match(timeoutStatus.suggestions[0].text, /timeout pressure \(2\/3\)/);
 
   const failureStatus = summarize([
-    { tool: 'truth', ok: false },
-    { tool: 'truth', ok: false },
     { tool: 'truth', ok: true },
+    { tool: 'truth', ok: false },
+    { tool: 'truth', ok: false },
   ]);
   assert.match(failureStatus.suggestions[0].text, /other execution failures \(2\/3\)/);
+
+  const recoveredStatus = summarize([
+    { tool: 'verify-source', ok: false, childExit: 1 },
+    { tool: 'verify-source', ok: false, childExit: 1 },
+    { tool: 'verify-source', ok: true, childExit: 0 },
+  ]);
+  assert.equal(recoveredStatus.tools.find((tool) => tool.tool === 'verify-source').fail, 2);
+  assert.equal(recoveredStatus.suggestions.some((suggestion) => suggestion.tool === 'verify-source'), false);
 });
 
 test('dogfood explains hard execution failures', () => {

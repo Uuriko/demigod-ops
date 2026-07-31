@@ -6,11 +6,15 @@ import {
   anonymizeCandidate,
   scrubPII,
   ingestSubmission,
+  loadBoard,
+  loadInbox,
   shouldAutoReject,
   slugId,
   filterBoard,
   saveInbox,
   saveBoard,
+  updateInbox,
+  writeBoard,
   INBOX_PATH,
   BOARD_PATH,
 } from './demigod-submissions-lib.mjs';
@@ -233,11 +237,10 @@ test('ingestSubmission stores partner-apply in inbox', () => {
   const { featured, record } = ingestSubmission({
     name: 'partner-apply',
     data: {
-      'partner-type': 'refer-both',
+      'partner-type': 'refer-talent',
       'partner-name': 'Alex Kim',
       'partner-email': email,
-      'partner-org': 'Bay Seed Fund',
-      'referral-plan': 'Warm intros to portfolio founders',
+      'referral-plan': 'I worked with the people I may refer.',
     },
   });
   assert.equal(featured, null);
@@ -350,6 +353,51 @@ test('PII SoR writers create files 0600', () => {
   try { fs.unlinkSync(BOARD_PATH); } catch {}
   saveBoard({ roles: [], candidates: [] });
   assert.equal(fs.statSync(BOARD_PATH).mode & 0o077, 0, 'saveBoard must create BOARD_PATH 0600');
+});
+
+test('inbox mutations preserve corrupt and wrong-shape stores but allow a missing store', () => {
+  const prior = fs.existsSync(INBOX_PATH) ? fs.readFileSync(INBOX_PATH) : null;
+  try {
+    for (const [poison, message] of [
+      ['{corrupt exact bytes', null],
+      ['{}', /invalid inbox store/],
+    ]) {
+      fs.writeFileSync(INBOX_PATH, poison, { mode: 0o600 });
+      assert.throws(() => updateInbox(() => null), message);
+      assert.equal(fs.readFileSync(INBOX_PATH, 'utf8'), poison);
+    }
+    fs.unlinkSync(INBOX_PATH);
+    assert.doesNotThrow(() => updateInbox(() => null));
+    assert.deepEqual(loadInbox().items, []);
+  } finally {
+    if (prior) fs.writeFileSync(INBOX_PATH, prior, { mode: 0o600 });
+    else try { fs.unlinkSync(INBOX_PATH); } catch {}
+  }
+});
+
+test('board mutations preserve corrupt and wrong-shape stores but allow a missing store', () => {
+  const prior = fs.existsSync(BOARD_PATH) ? fs.readFileSync(BOARD_PATH) : null;
+  try {
+    for (const [poison, message] of [
+      ['{corrupt exact bytes', null],
+      ['null', /invalid board store/],
+    ]) {
+      fs.writeFileSync(BOARD_PATH, poison, { mode: 0o600 });
+      assert.throws(
+        () => writeBoard((board) => board, { reason: 'recovery-test', actor: 'test' }),
+        message,
+      );
+      assert.equal(fs.readFileSync(BOARD_PATH, 'utf8'), poison);
+    }
+    fs.unlinkSync(BOARD_PATH);
+    assert.doesNotThrow(
+      () => writeBoard((board) => board, { reason: 'recovery-test', actor: 'test' }),
+    );
+    assert.deepEqual(loadBoard().roles, []);
+  } finally {
+    if (prior) fs.writeFileSync(BOARD_PATH, prior, { mode: 0o600 });
+    else try { fs.unlinkSync(BOARD_PATH); } catch {}
+  }
 });
 
 // Receipt write-guard: a real delivered receipt (mintReceipt sets no `sample` field, so sample===undefined)
@@ -516,6 +564,12 @@ test('scrubPII redacts obfuscated email and spoken-digit phone (fail-capable)', 
   const spoken = scrubPII('call four one five five five five zero zero zero one please');
   assert.ok(spoken.includes('[phone removed]'), 'spoken digits must scrub');
   assert.ok(!/four one five/i.test(spoken), 'spoken digit words must not remain as a number phrase');
+
+  // Parenthesized NANP must consume the open paren (not leave "Call ([phone removed]").
+  assert.equal(scrubPII('Call (415) 555-0123'), 'Call [phone removed]');
+  assert.equal(scrubPII('or (415) 555-0123, next'), 'or [phone removed], next');
+  assert.equal(scrubPII('Phone 415-555-0123 only'), 'Phone [phone removed] only');
+  assert.doesNotMatch(scrubPII('Reach (650) 555-1212 now'), /\(/);
 
   // Hand-poison: if only \d{3}-\d{3}-\d{4} is scrubbed, [at]/spoken phones leak on public cards.
   const multi = 'React — jane [at] acme [dot] com or four one five five five five one two one two';

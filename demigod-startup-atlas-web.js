@@ -78,6 +78,7 @@
       '.dg-dir-meta{color:#a8a29e;font-size:.78rem}' +
       '.dg-dir-flag{color:#c6c3bb;font-size:.72rem;border:1px solid rgba(166,255,203,.22);border-radius:999px;padding:.02rem .4rem}' +
       '.dg-dir-flag.is-hiring{color:#a6ffcb;border-color:rgba(166,255,203,.5)}' +
+      '.dg-dir-pulse{margin:.35rem 0 .55rem;color:#9fb8a8;font-size:.78rem;line-height:1.35}' +
       '.dg-dir-desc{color:#c9c6bf;font-size:.82rem;line-height:1.5;margin:.25rem 0 0}' +
       '.dg-dir-links{margin:.25rem 0 0;font-size:.76rem}' +
       '.dg-dir-links a{color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
@@ -119,6 +120,19 @@
     if (company.inceptionYear) bits.push('founded ' + esc(company.inceptionYear));
     if (community && company.neighborhood) bits.push(esc(company.neighborhood) + ' (descriptive)');
     if (openRoles) bits.push('US-posted roles as of ' + esc(company.openRolesAt || ''));
+    // Observed open age — days since Demigod first saw the role on the public ATS board (not a ghost verdict).
+    if (openRoles && typeof company.oldestObservedDays === 'number' && company.oldestObservedDays > 0) {
+      bits.push('longest open role tracked ' + esc(company.oldestObservedDays) + 'd (our first seen)');
+    }
+    if (openRoles && typeof company.observed30 === 'number' && company.observed30 > 0) {
+      bits.push(esc(company.observed30) + ' open ≥30d (tracked)');
+    } else if (openRoles && typeof company.observed7 === 'number' && company.observed7 > 0) {
+      bits.push(esc(company.observed7) + ' open ≥7d (tracked)');
+    }
+    // Attributed board post age (Greenhouse first_published only): 90–365d still open; not evergreen talent-pool posts.
+    if (openRoles && typeof company.agingRoles === 'number' && company.agingRoles > 0) {
+      bits.push(esc(company.agingRoles) + ' posted 90–365d ago (board date)');
+    }
     var nameHtml = website
       ? '<a class="dg-dir-name" href="' + esc(website) + '" target="_blank" rel="' + (community ? 'noopener noreferrer ugc nofollow' : 'noopener noreferrer') + '">' + esc(company.name) + '</a>'
       : '<span class="dg-dir-name is-plain">' + esc(company.name) + '</span>';
@@ -157,8 +171,20 @@
     }).join(' · ');
     var hiringNow = companies.filter(function (c) { return c.openRoles && c.atsSource; }).length;
     var hiringYc = companies.filter(function (c) { return c.jobsSource === 'YC'; }).length;
+    var trackedOpen = companies.filter(function (c) { return typeof c.oldestObservedDays === 'number' && c.oldestObservedDays > 0; }).length;
+    var postedAging = companies.filter(function (c) { return typeof c.agingRoles === 'number' && c.agingRoles > 0; }).length;
+    var pulseBits = [];
+    if (hiringNow) pulseBits.push(hiringNow + ' boards with verified US open roles');
+    if (trackedOpen) pulseBits.push(trackedOpen + ' with observed open-age (our first seen)');
+    if (postedAging) pulseBits.push(postedAging + ' with a role posted 90–365d (board date)');
+    if (hiringYc) pulseBits.push(hiringYc + ' YC self-reported careers links');
     root.innerHTML =
-      '<p class="dg-dir-intro">A plain directory of San Francisco startups from public open data, plus operator-reviewed community submissions. City-level only — these are companies with a listed SF headquarters, not verified offices or current status. Open-role counts come from each company\'s own public job board (Greenhouse/Lever/Ashby), count only US-posted or Remote listings when the board exposes location, and are point-in-time; everything else is not independently verified.</p>' +
+      '<p class="dg-dir-intro">A plain directory of San Francisco startups from public open data, plus operator-reviewed community submissions. City-level only — these are companies with a listed SF headquarters, not verified offices or current status. Open-role counts come from each company\'s own public job board (Greenhouse/Lever/Ashby), count only US-posted or Remote listings when the board exposes location, and are point-in-time. Where we track a board over time, we also show how long a role has been open <em>by our first observation</em> (not a score, not a ghost-job verdict). Board posting dates appear only when the ATS exposes a real post date.</p>' +
+      (pulseBits.length
+        ? '<p class="dg-dir-pulse" role="status">' + pulseBits.map(esc).join(' · ') +
+          (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
+          '</p>'
+        : '') +
       '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search startups" placeholder="Search startups…" autocomplete="off" value="' + esc(state.query) + '">' +
       '<select class="dg-dir-hiring" aria-label="Filter by hiring status"><option value="">All</option>' +
       '<option value="yes"' + (state.hiring === 'yes' ? ' selected' : '') + '>Hiring / open roles</option>' +
@@ -182,7 +208,7 @@
     var count = root.querySelector('.dg-dir-count');
     // Search-driven render: with ~2k companies, only paint matching rows (capped) instead of the
     // whole list — keeps the DOM light and the page fast. Search covers ALL companies.
-    var CAP = 250;
+    var CAP = 20;
     function renderRows() {
       var q = searchEl.value.trim().toLowerCase();
       var h = hiringEl.value;
@@ -211,7 +237,6 @@
     hiringEl.addEventListener('change', renderRows);
     funcEl.addEventListener('change', renderRows);
     renderRows();
-    if (state.query || state.hiring) filter();
   }
 
   function mount(root) {

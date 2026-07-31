@@ -1,0 +1,42 @@
+{
+  "schema": "demigod.pilot-batches-store/1",
+  "updatedAt": "2026-07-31T00:17:48.971Z",
+  "batches": {
+    "role-demo-founding-eng": {
+      "schema": "demigod.pilot-batch/1",
+      "roleId": "role-demo-founding-eng",
+      "max": 3,
+      "candidates": [
+        {
+          "candId": "cand-demo-alex",
+          "why": "Public open-source systems work matching the must-haves",
+          "state": "active",
+          "addedAt": "2026-07-31T00:14:19.518Z"
+        },
+        {
+          "candId": "cand-demo-sam",
+          "why": "Prior founding eng at similar stage company",
+          "state": "active",
+          "addedAt": "2026-07-31T00:14:19.569Z"
+        }
+      ],
+      "openedAt": "2026-07-31T00:14:19.467Z",
+      "updatedAt": "2026-07-31T00:14:19.569Z"
+    },
+    "role-seed1": {
+      "schema": "demigod.pilot-batch/1",
+      "roleId": "role-seed1",
+      "max": 3,
+      "candidates": [
+        {
+          "candId": "cand-fake",
+          "why": "Matches must-haves from structured packet review",
+          "state": "active",
+          "addedAt": "2026-07-31T00:17:48.970Z"
+        }
+      ],
+      "openedAt": "2026-07-31T00:17:48.920Z",
+      "updatedAt": "2026-07-31T00:17:48.970Z"
+    }
+  }
+}

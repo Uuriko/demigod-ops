@@ -2,6 +2,16 @@
 /**
  * Selftest: truth oracle + foot lock hard mutex
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-truth-lock-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -150,10 +160,6 @@ ok(tj && typeof tj.pass === 'boolean' && tj.summaryLine, 'truth pass + summaryLi
 ok(tj && tj.lock && typeof tj.lock.held === 'boolean', 'truth includes lock');
 ok(tj && typeof tj.lock.state === 'string' && 'ownerAlive' in tj.lock, 'truth includes lock liveness state');
 ok(tj && tj.freeze && typeof tj.freeze.on === 'boolean', 'truth includes freeze');
-
-// live-doctor alias
-const live = run(['demigod-live-doctor.mjs', '--json']);
-ok(live.status === truth.status || live.status === 0 || live.status === 1, 'live-doctor alias runs');
 
 // bin/dg truth
 const dg = spawnSync('bash', ['bin/dg', 'truth', '--json'], {

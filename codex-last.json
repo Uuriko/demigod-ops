@@ -1,0 +1,21 @@
+{
+  "schema": "demigod.agent-receipt/1",
+  "ok": true,
+  "at": "2026-07-23T03:50:17Z",
+  "lane": "tools",
+  "cycle": 109,
+  "did": [
+    "Verified cont31: funnel status unknown option exit 2; selftest 958+.",
+    "Verified runStartReady multi-window fail-closed (past+future \u2192 false).",
+    "Dogfood aliases events-native-test + webflow-connect; unreg 0.",
+    "Unknown-flag family holding (demand/work-find/cycle-status/priority/dg next)."
+  ],
+  "verification": [
+    "PASS: funnel unknown exit 2",
+    "PASS: events-bot-selftest 19945",
+    "PASS: dogfood unreg 0"
+  ],
+  "nextForCodex": [
+    "Next unique defect or PLATEAU; closed funnel unknown flags + runStartReady multi-window"
+  ]
+}

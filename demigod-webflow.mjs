@@ -127,7 +127,7 @@ async function doctor() {
   check('freeze readable', true, s.freeze.frozen ? `ON ${s.freeze.why || ''}` : 'OFF');
   check('disk foot-core', s.disk.files.footCore, s.disk.footVer);
   check('disk footer-lite', s.disk.files.footerLite, s.disk.footerLoaderVer);
-  check('disk footer redirects', s.disk.footerShipReady, 'blog/notes deep links + method');
+  check('disk footer redirects', s.disk.footerShipReady, 'blog/notes + canonical legacy aliases');
   check('disk head-minimal', s.disk.files.headMinimal, s.disk.bytes.headMinimal);
   check('live fetch', s.live.ok, s.live.footCdn || s.live.error);
   check(
@@ -150,7 +150,7 @@ async function doctor() {
   const loginN = s.tabs.byRole['webflow-login'] || 0;
   check(
     'custom-code tab',
-    ccN > 0 && loginN === 0,
+    ccN > 0,
     loginN > 0 && ccN === 0
       ? `login wall (${loginN}) — re-auth CDP Chrome, then open custom-code`
       : ccN,

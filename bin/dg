@@ -2,58 +2,16 @@
 # dg — Demigod Control Plane CLI (cohesive front door)
 #
 # Prefer this over inventing one-off paths.
-# Subcommands:
-#   orient | unify | truth | next-canon | cycle-status | demand | pilot | ship | home | …
-#   webflow | matches | review | hygiene | doctor | smoke | freeze | priority | events | events-test
-#   cockpit | usertest | dash | orca | start | tools
-#   full-check [--release] | live | live-attest | audit-100 | lock | mime | evidence | craft | ledger | ship-receipt
-#   demigod:*  → npm run
-# Agents: start with `bin/dg orient`
-# Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
+# Primary: truth | check | events | webflow | ship | demand | inbox | matches | review | lock | hygiene
+# Cold compatibility and internal commands remain discoverable via `bin/dg tools`.
+# Agents: start with bare `bin/dg`.
 # Registry: node demigod-tools-registry.mjs --md
 #
 set -euo pipefail
 cd /home/potter
 export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
 
-# No args or known control verbs → control plane
-if [[ $# -eq 0 ]]; then
-  # Interactive palette if fzf exists and tty; else home
-  if [[ -t 0 ]] && command -v fzf >/dev/null 2>&1; then
-    items=$( {
-      echo 'home::node demigod-control.mjs home'
-      echo 'status::node demigod-control.mjs status --json'
-      echo 'next::node demigod-control.mjs next'
-      echo 'webflow-doctor::node demigod-webflow.mjs doctor'
-      echo 'hygiene-prune::node demigod-laptop-hygiene.mjs --prune'
-      echo 'ponytail::node demigod-ponytail.mjs status'
-      echo 'review::node demigod-review.mjs'
-      echo 'matches::node demigod-match-review.mjs --json'
-      echo 'dash::bin/dg-dash'
-      echo 'linux-status::bin/dg-linux-config status'
-      echo 'tmux-cockpit::dg-tmux-cockpit'
-      echo 'truth::node demigod-truth.mjs'
-      echo 'workspace-cheat::dg-workspace cheat'
-      echo 'workspace-webflow::dg-workspace webflow'
-      echo 'workspace-ops::dg-workspace ops'
-      echo 'busy-rotate::dg-busy-rotate'
-      echo 'start::bin/dg-start'
-      npm run 2>/dev/null | grep -oE 'demigod:[a-z0-9:-]+' \
-        | grep -vE ':(cycle|receipt:mint|sms:sim|ghost:push)$' \
-        | sed 's/^/npm run /' \
-        | head -80
-    } | sort -u )
-    choice=$(echo "$items" | fzf --prompt='demigod> ' --height=50% --reverse --tiebreak=index || true)
-    [ -z "${choice:-}" ] && exit 0
-    if [[ "$choice" == *::* ]]; then
-      eval "${choice#*::}"
-    else
-      eval "$choice"
-    fi
-    exit $?
-  fi
-  exec node demigod-control.mjs home
-fi
+[[ $# -gt 0 ]] || set -- orient
 
 # Known subcommands → control plane / modules
 case "$1" in
@@ -67,7 +25,7 @@ case "$1" in
     shift
     exec bin/dg-linux-config "${@:-status}"
     ;;
-  tmux|tmux-cockpit)
+  tmux)
     shift
     exec dg-tmux-cockpit "${@:-attach}"
     ;;
@@ -87,21 +45,13 @@ case "$1" in
     shift
     exec dg-busy-rotate "$@"
     ;;
-  coord|agent-coord)
-    shift
-    exec bin/dg-agent-coord "${@:-status}"
-    ;;
   orca)
     shift
     exec bin/dg-orca "$@"
     ;;
-  free-ops|freeops|email-check|uptime-smoke)
+  free-ops)
     shift
     exec bin/dg-free-ops "$@"
-    ;;
-  full-check|fullcheck|check-all)
-    shift
-    exec node demigod-full-check.mjs "$@"
     ;;
   check)
     shift
@@ -119,7 +69,7 @@ case "$1" in
     exec node demigod-handoff.mjs --from "${USER:-agent}" --done "$note" --next "$next"
     ;;
 
-  live|live-doctor)
+  live)
     shift
     exec node demigod-truth.mjs "$@"
     ;;
@@ -127,11 +77,11 @@ case "$1" in
     shift
     exec node demigod-truth.mjs "$@"
     ;;
-  lock|foot-lock)
+  lock)
     shift
     exec node demigod-foot-lock.mjs "$@"
     ;;
-  mime|route-mime)
+  mime)
     shift
     exec node demigod-route-mime.mjs "$@"
     ;;
@@ -143,20 +93,12 @@ case "$1" in
     shift
     exec node demigod-review.mjs --fix --dry-run "$@"
     ;;
-  review-self|review-meta)
+  review-self)
     shift
     exec node demigod-review.mjs --include-meta --bug --full --stats \
       --files demigod-review.mjs demigod-review-lib.mjs demigod-review-rules.mjs \
       demigod-review-fix.mjs demigod-review-gates.mjs demigod-review-llm.mjs \
       demigod-review-selftest.mjs bin/dg-review "$@"
-    ;;
-  ship-prep|prep-ship)
-    shift
-    exec node demigod-ship-prep.mjs "$@"
-    ;;
-  ship-help|shiphelp)
-    shift
-    exec node demigod-ship-help.mjs "$@"
     ;;
   ship)
     shift
@@ -166,7 +108,7 @@ case "$1" in
     shift
     exec node demigod-demand.mjs "$@"
     ;;
-  funnel|leads-funnel)
+  funnel)
     shift
     exec node demigod-funnel.mjs "$@"
     ;;
@@ -185,6 +127,10 @@ case "$1" in
   events|events-online)
     # short alias: bin/dg events [status|heal|up|…] — default status
     shift
+    if [[ "${1:-}" == "test" ]]; then
+      shift
+      exec bin/dg events-test "$@"
+    fi
     exec node demigod-events-online.mjs "${@:-status}"
     ;;
   events-reconcile)
@@ -208,11 +154,11 @@ case "$1" in
     # Only "" (full) or "fast" — never pass unknown tokens into node --test (vacuous-green risk).
     mode="${1:-}"
     if [[ -n "$mode" && "$mode" != "fast" ]]; then
-      echo "events-test: unknown argument $mode — try: bin/dg events-test [fast]" >&2
+      echo "events-test: unknown argument $mode — try: bin/dg events test [fast]" >&2
       exit 2
     fi
     if [[ -n "${2:-}" ]]; then
-      echo "events-test: unknown argument $2 — try: bin/dg events-test [fast]" >&2
+      echo "events-test: unknown argument $2 — try: bin/dg events test [fast]" >&2
       exit 2
     fi
     if [[ "$mode" == "fast" ]]; then
@@ -222,7 +168,7 @@ case "$1" in
     node --test --test-concurrency=1 "${events_tests[@]}" || exit
     exec env DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
     ;;
-  lead-collect|leads-collect)
+  lead-collect)
     shift
     exec node demigod-lead-collect.mjs "$@"
     ;;
@@ -230,18 +176,6 @@ case "$1" in
     shift
     [[ "${1:-}" == "status" ]] && set -- tick --stage=status "${@:2}"
     exec node demigod-lead-pipeline.mjs "$@"
-    ;;
-  never-stop)
-    shift
-    exec node demigod-never-stop-loop.mjs "$@"
-    ;;
-  codex-swarm)
-    shift
-    exec bin/dg-codex-swarm "$@"
-    ;;
-  grok-loop|grok-busy)
-    shift
-    exec node demigod-grok-busy-loop.mjs "$@"
     ;;
   pilot|inbound)
     shift
@@ -251,13 +185,9 @@ case "$1" in
     shift
     exec node demigod-referrals.mjs "${@:-status}"
     ;;
-  next-canon|canon-next)
+  next-canon)
     shift
     exec node demigod-next.mjs "$@"
-    ;;
-  cycle-status|cycle)
-    shift
-    exec node demigod-cycle-status.mjs "$@"
     ;;
   evidence)
     shift
@@ -267,15 +197,11 @@ case "$1" in
     shift
     exec node demigod-craft-log.mjs "$@"
     ;;
-  lock-who|who-lock)
-    shift
-    exec node demigod-foot-lock.mjs who "$@"
-    ;;
-  live-attest|attest-live|attest)
+  live-attest|attest)
     shift
     exec node demigod-live-attest.mjs "$@"
     ;;
-  audit-100|audit100|full-audit)
+  audit-100|full-audit)
     shift
     exec node demigod-audit-100.mjs "$@"
     ;;
@@ -283,22 +209,27 @@ case "$1" in
     shift
     exec node demigod-ship-receipt.mjs "$@"
     ;;
-  ledger|truth-delta)
+  ledger)
     shift
     if [[ "${1:-}" == "" || "${1:-}" == "--json" ]]; then
       exec node demigod-version-ledger.mjs delta
     fi
     exec node demigod-version-ledger.mjs "$@"
     ;;
-  tools|registry)
+  tools)
     shift
     exec node demigod-tools-registry.mjs "$@"
     ;;
-  unify|cohesion)
+  dogfood)
+    shift
+    [[ $# -gt 0 && "${1:-}" != --* ]] || set -- status "$@"
+    exec node demigod-tool-dogfood.mjs "$@"
+    ;;
+  unify)
     shift
     exec node demigod-unify.mjs "$@"
     ;;
-  orient|session-start)
+  orient)
     shift
     exec node demigod-orient.mjs "$@"
     ;;
@@ -311,7 +242,7 @@ case "$1" in
       exec npm run "$1" -- "${@:2}"
     fi
     # Unknown verb → control help + try as webflow subcommand hint
-    echo "Unknown: $1 — try: bin/dg orient | cycle-status | demand | pilot | truth | home | tools" >&2
+    echo "Unknown: $1 — try: bin/dg orient | demand | pilot | truth | home | tools" >&2
     node demigod-control.mjs help
     exit 2
     ;;

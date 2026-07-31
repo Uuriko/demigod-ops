@@ -357,6 +357,32 @@ function publicConfigUrls() {
   ];
 }
 
+export async function purgeJsdelivrConfig(fetchImpl = fetch) {
+  const assetPath = `/gh/${CDN_REPO}@main/events-api-latest.json`;
+  const url = `https://purge.jsdelivr.net${assetPath}`;
+  try {
+    const response = await fetchImpl(url, { signal: AbortSignal.timeout(15_000) });
+    const body = await response.json();
+    const state = body?.paths?.[assetPath] || {};
+    const providers = state.providers && typeof state.providers === 'object' ? state.providers : {};
+    const providerResults = Object.values(providers);
+    return {
+      ok:
+        response.ok &&
+        body?.status === 'finished' &&
+        state.throttled !== true &&
+        providerResults.length > 0 &&
+        providerResults.every((result) => result === true),
+      url,
+      status: response.status,
+      throttled: state.throttled ?? null,
+      providers,
+    };
+  } catch (error) {
+    return { ok: false, url, error: String(error?.message || error) };
+  }
+}
+
 export function publicConfigMatches(currentApiBase, publishedApiBases = []) {
   return Boolean(currentApiBase) && publishedApiBases.includes(currentApiBase);
 }
@@ -1303,7 +1329,7 @@ function writeConfig(tunnelUrl) {
   return body;
 }
 
-function publishConfigToCdn(cfg) {
+async function publishConfigToCdn(cfg) {
   assertNotFrozen('events-api-config-publish');
   // Prefer token probe — `gh auth status` can false-negative on keyring while token works
   // (same class of gate that blocked events-api-latest.json publish).
@@ -1333,7 +1359,8 @@ function publishConfigToCdn(cfg) {
     git(['add', 'events-api-latest.json']);
     const st = git(['status', '--porcelain']);
     if (!(st.stdout || '').trim()) {
-      return { ok: true, skipped: true, reason: 'no change' };
+      const purge = await purgeJsdelivrConfig();
+      return { ok: purge.ok, skipped: true, reason: 'no change', purge };
     }
     git(['commit', '-m', `events-api ${cfg.tunnelUrl}`]);
     const push = spawnSync('git', ['push', 'origin', 'HEAD:main'], {
@@ -1346,11 +1373,14 @@ function publishConfigToCdn(cfg) {
     }
     const rev = git(['rev-parse', 'HEAD']);
     const sha = (rev.stdout || '').trim().slice(0, 12) || 'main';
+    const purge = await purgeJsdelivrConfig();
     return {
-      ok: true,
+      ok: purge.ok,
+      pushed: true,
       raw: `https://raw.githubusercontent.com/${CDN_REPO}/main/events-api-latest.json`,
       jsdelivr: `https://cdn.jsdelivr.net/gh/${CDN_REPO}@${sha}/events-api-latest.json`,
       sha,
+      purge,
     };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
@@ -1674,7 +1704,7 @@ const exitWith = (code) => {
     );
     // Publish only on an explicit foreground CLI request; recurring service env cannot opt in.
     if (doPublish) {
-      published = publishConfigToCdn(cfg);
+      published = await publishConfigToCdn(cfg);
       if (published?.ok && published.jsdelivr) {
         cfg.published = published;
         fs.writeFileSync(API_JSON, JSON.stringify(cfg, null, 2) + '\n');
@@ -1706,6 +1736,7 @@ const exitWith = (code) => {
         2,
       ),
     );
+    if (forcePublish && published?.ok !== true) exitWith(1);
     // exit 0 only when public healthy; 2 = local ok public flaky
     exitWith(pub?.ok ? 0 : 2);
   } catch (e) {

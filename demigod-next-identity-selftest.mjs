@@ -2,6 +2,16 @@
 /**
  * Prove buildNext, next CLI, and cockpit.next agree (except allowed overrides).
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-next-identity-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -16,29 +26,49 @@ const ok = (c, m) => (c ? console.log('ok', m) : fails.push(m));
 
 const n1 = buildNext();
 ok(!n1.title.includes(n1.cmd), 'NEXT title does not repeat its command');
+const noShipPrepare = { green: false, pass: false, fresh: false, reason: 'missing' };
 const freshFail = buildNext({
   truth: { fullyShipped: false },
   truthEvidence: { green: false, pass: false, fresh: true, reason: 'fail-fresh' },
+  shipPrepare: noShipPrepare,
 });
 const stale = buildNext({
   truth: { fullyShipped: false },
   truthEvidence: { green: false, pass: false, fresh: false, reason: 'ttl-expired' },
 });
+const prepareOnlyTruth = {
+  fullyShipped: false,
+  prepareOnlyRelease: true,
+  live: { footVer: '802' },
+  summaryLine: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
+};
+const prepareOnlyEvidence = {
+  green: true,
+  pass: true,
+  fresh: true,
+  reason: 'pass-fresh',
+  summary: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
+};
 const prepareOnlyDrift = buildNext({
-  truth: {
-    fullyShipped: false,
-    prepareOnlyRelease: true,
-    live: { footVer: '802' },
-    summaryLine: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
-  },
-  truthEvidence: {
-    green: true,
-    pass: true,
-    fresh: true,
-    reason: 'pass-fresh',
-    summary: 'TRUTH PASS disk=v803 live=v802 shipped=false prepareOnly',
-  },
+  truth: prepareOnlyTruth,
+  truthEvidence: prepareOnlyEvidence,
+  shipPrepare: noShipPrepare,
 });
+const priorPublishAuth = process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH;
+delete process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH;
+const preparedUnauthorized = buildNext({
+  truth: prepareOnlyTruth,
+  truthEvidence: prepareOnlyEvidence,
+  shipPrepare: { green: true, pass: true, fresh: true, reason: 'pass-fresh' },
+});
+process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH = '1';
+const preparedAuthorized = buildNext({
+  truth: prepareOnlyTruth,
+  truthEvidence: prepareOnlyEvidence,
+  shipPrepare: { green: true, pass: true, fresh: true, reason: 'pass-fresh' },
+});
+if (priorPublishAuth === undefined) delete process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH;
+else process.env.DEMIGOD_CURRENT_REQUEST_PUBLISH = priorPublishAuth;
 const orientSource = fs.readFileSync(path.join(ROOT, 'demigod-orient.mjs'), 'utf8');
 ok(
   freezeStatus().frozen
@@ -53,6 +83,17 @@ ok(
     !/disk≠live/.test(prepareOnlyDrift.title) &&
     /publish unauthorized|prepare-only/i.test(prepareOnlyDrift.title),
   'prepare-only version drift is not P1 disk≠live critical',
+);
+ok(
+  preparedUnauthorized.id === 'demand-ops' &&
+    preparedUnauthorized.cmd === 'bin/dg demand status' &&
+    preparedUnauthorized.reason === 'publish-unauthorized-prepared' &&
+    preparedUnauthorized.mutate === false,
+  'fresh hash-sealed preparation stops unauthorized ship-prepare repetition',
+);
+ok(
+  preparedAuthorized.id === 'ship-prepare',
+  'current-request publish authorization keeps the guarded ship path active',
 );
 ok(/if\s*\(!te\.fresh\s*&&\s*!noRefresh\)/.test(orientSource), 'orient refreshes stale evidence only');
 ok(!orientSource.includes('! fix: bin/dg truth &&'), 'orient does not contradict its canonical NEXT command');

@@ -1,0 +1,50 @@
+{
+  "at": "2026-06-30T10:37:08.560Z",
+  "before": {
+    "status": 404,
+    "foot": false,
+    "ok": false
+  },
+  "nav": {
+    "pages": [
+      "",
+      "Demigod • Human-Matched SF Startup Talent",
+      "",
+      "Events",
+      "",
+      "How It Works",
+      "",
+      "Contact",
+      "",
+      "Pricing",
+      "",
+      "[Draft] Style guide",
+      "",
+      "legal",
+      "",
+      "Untitled",
+      "",
+      "partnerships",
+      "",
+      "Insights Template",
+      "",
+      "Password",
+      "",
+      "404"
+    ],
+    "hit": "partnerships",
+    "top": "partnerships"
+  },
+  "publish": {
+    "sel": false,
+    "pub": true,
+    "ago": "Published a few seconds ago",
+    "ok": true
+  },
+  "after": {
+    "status": 200,
+    "foot": true,
+    "ok": true
+  },
+  "pass": true
+}

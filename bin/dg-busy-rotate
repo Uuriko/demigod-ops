@@ -59,14 +59,13 @@ done
 
 # prune old cycle/receipt noise (keep truth, ship, control, lock)
 if (( DRY )); then
-  find "$BUSY" -maxdepth 1 -type f \( -name 'never-stop-cycle-*.json' -o -name 'full-pass-*.log' -o -name 'codex-*.log' -o -name 'claude-*.log' \) -mtime +"$JSON_MAX_AGE_DAYS" 2>/dev/null | while read -r p; do log "dry-run rm $p"; done
+  find "$BUSY" -maxdepth 1 -type f \( -name 'codex-*.log' -o -name 'claude-*.log' \) -mtime +"$JSON_MAX_AGE_DAYS" 2>/dev/null | while read -r p; do log "dry-run rm $p"; done
 else
   n=0
   while IFS= read -r -d '' p; do
     rm -f "$p"
     n=$((n + 1))
   done < <(find "$BUSY" -maxdepth 1 -type f \( \
-    -name 'never-stop-cycle-*.json' -o \
     -name 'cycle-*-receipt.json' -o \
     -name 'codex-*.log' -o \
     -name 'claude-*.log' -o \

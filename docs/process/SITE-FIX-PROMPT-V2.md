@@ -23,7 +23,7 @@ Never both CTAs company-side (FIND TALENT + HIRE TALENT both → hire).
 
 ## Your job (Codex / Fable)
 1. List **remaining P0/P1** after v200 (visual, a11y, forms/WIZ, copy, FOUC, mobile).
-2. Exact **functions** in foot-core to touch (`forceMainVisible`, `wizBuild`, `brandAssets`, `scrubTimeClaims`, modal CSS, etc.).
+2. Exact **functions** in foot-core to touch (`wizBuild`, `brandAssets`, `scrubTimeClaims`, modal CSS, etc.).
 3. Acceptance tests (DOM assertions, labels, modals, contrast, mobile 44px).
 4. Write to `/tmp/dg-busy/swarm-site/<YOUR-ID>.md`. **Plan only if Codex; Grok implements.**
 

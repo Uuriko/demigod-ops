@@ -8,18 +8,13 @@ import {
   buildFindings,
   reportPass,
 } from './demigod-live-lib.mjs';
-import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
 
 const ROOT = '/home/potter';
 const OUT = path.join(ROOT, 'DEMIGOD-VERIFY-LIVE.json');
 
 const { url, html, footerCoreJs, pageScan } = await fetchLiveHtml();
 const htmlScan = scanLiveHtml(html, { footerCoreJs });
-const findings = buildFindings({
-  htmlScan,
-  pageScan,
-  expectedWebhookUrl: resolveWebhookPublicUrl(),
-});
+const findings = buildFindings({ htmlScan, pageScan });
 const metaCounts = {
   description: (html.match(/<meta\b(?=[^>]*\bname=["']description["'])[^>]*>/gi) || []).length,
   ogTitle: (html.match(/<meta\b(?=[^>]*\bproperty=["']og:title["'])[^>]*>/gi) || []).length,

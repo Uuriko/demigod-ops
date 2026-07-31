@@ -14,6 +14,22 @@ import { fileURLToPath, pathToFileURL } from 'url';
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const LEDGER = path.join(ROOT, 'DEMIGOD-VERSION-LEDGER.jsonl');
 const BUSY = '/tmp/dg-busy';
+const STATE_FIELDS = [
+  'diskVer',
+  'liveVer',
+  'manifestVer',
+  'diskSha12',
+  'liveSha12',
+  'freeze',
+  'freezeWhy',
+  'pass',
+  'driftExpected',
+  'fullyShipped',
+];
+
+export function sameState(a, b) {
+  return Boolean(a && b && STATE_FIELDS.every((field) => (a[field] ?? null) === (b[field] ?? null)));
+}
 
 export function appendFromTruth(facts) {
   if (!facts) return null;
@@ -31,6 +47,7 @@ export function appendFromTruth(facts) {
     fullyShipped: Boolean(facts.fullyShipped),
     evidenceRunId: facts.evidenceRunId || null,
   };
+  if (sameState(tail(1)[0], line)) return null;
   fs.appendFileSync(LEDGER, JSON.stringify(line) + '\n');
   try {
     const t = tail(20);

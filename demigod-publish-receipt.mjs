@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Append-only publish receipts (hash chain: disk → CDN → live).
- * Written by dg-publish-foot; readable by claim-verify / ship-status / dashboard.
+ * Written by the canonical ship path; readable by claim-verify / ship-status / dashboard.
  *
  * CLI:
  *   node demigod-publish-receipt.mjs

@@ -59,6 +59,45 @@ test('parseSendLog: a forged agent-auto send can NEVER become confirmed even wit
   assert.equal(r.malformedReasons.prohibited_auto_send, 1);
 });
 
+test('demand status seals with non-empty non-null input hashes (not vacuous-fresh)', (t) => {
+  // Claude F1: empty scope made isFresh green forever. cmdStatus must seal ≥1 real inputs.
+  const src = fs.readFileSync(new URL('./demigod-demand.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(
+    src,
+    /beginRun\(\s*['"]demand['"]\s*,\s*\{\s*scope:\s*\[\s*\]/,
+    'cmdStatus must not beginRun demand with empty scope',
+  );
+  assert.match(
+    src,
+    /beginRun\(\s*['"]demand['"]\s*,\s*\{\s*scope:\s*\[/,
+    'cmdStatus must pass an explicit scope array',
+  );
+
+  const busy = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-demand-scope-'));
+  t.after(() => fs.rmSync(busy, { recursive: true, force: true }));
+  const env = { ...process.env, DEMIGOD_BUSY: busy, DG_BUSY: busy };
+  delete env.NODE_TEST_CONTEXT;
+  const bin = new URL('./demigod-demand.mjs', import.meta.url).pathname;
+  const run = spawnSync(process.execPath, [bin, 'status'], {
+    encoding: 'utf8',
+    cwd: path.dirname(bin),
+    env,
+  });
+  if (run.error?.code === 'EPERM') return t.skip('sandbox forbids nested process creation');
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+
+  const latest = path.join(busy, 'evidence', 'latest-demand.json');
+  assert.equal(fs.existsSync(latest), true, 'status must seal latest-demand under BUSY/evidence');
+  const envelope = JSON.parse(fs.readFileSync(latest, 'utf8'));
+  const files = envelope?.inputsAtSeal?.files || envelope?.inputs?.files || {};
+  const entries = Object.entries(files);
+  assert.ok(entries.length >= 1, 'demand seal must track ≥1 input file');
+  assert.ok(
+    entries.every(([, sha]) => typeof sha === 'string' && /^[a-f0-9]{64}$/.test(sha)),
+    'every sealed demand input hash must be non-null hex',
+  );
+});
+
 test('mark-sent cannot mint delivery truth and keeps attempt telemetry private', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-mark-sent-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -38,7 +38,10 @@ export function countersFragment(counters = []) {
   return `<div role="group" aria-label="Demigod coverage" style="display:flex;flex-wrap:wrap;gap:20px 28px;padding:18px 20px">${cells}</div>`;
 }
 
-if (process.argv.includes('--selftest')) {
+// isMain guard is load-bearing: without it, ANY module that imports this one while '--selftest' is in
+// argv runs this block and process.exit(0)s — silently swallowing the importer's own selftest and
+// printing a green line for the wrong suite. Found exactly that way from demigod-site-health.
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const full = { coverage: { companiesWithOpenRoles: 399, companiesWithYcJobsLink: 614, openRolesAt: '2026-07-24', roleMix: { engineering: 3060, 'ai/data': 1061, other: 168 } } };
   const cs = siteCounters(full);

@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-unify-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -79,16 +89,11 @@ const n = buildNext();
 ok(u.next.id === n.id, `unify next id === buildNext (${u.next.id})`);
 ok(u.next.cmd === n.cmd, 'unify next cmd === buildNext');
 
-const coordSource = fs.readFileSync(path.join(ROOT, 'bin/dg-agent-coord'), 'utf8');
 const usefulSource = fs.readFileSync(path.join(ROOT, 'demigod-useful-loop.mjs'), 'utf8');
 const dashboardSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');
-const websiteTurnSource = fs.readFileSync(path.join(ROOT, 'demigod-website-turn.mjs'), 'utf8');
-ok(/stdbuf -oL -eL grok-ask/.test(coordSource) && !/stdbuf -oL -eL grok -p/.test(coordSource), 'coord Grok always receives shared context through grok-ask');
-ok((coordSource.match(/Production SoRs[^\n]+read-only/g) || []).length >= 4 && /DEMIGOD-EVENTS\.json[^\n]+read-only/.test(coordSource), 'background coordinator workers cannot rewrite production SoRs');
-ok(/bin\/grok-ask/.test(websiteTurnSource) && !/grok -p|Fable\/Heavy authority|CM6 paste\+Publish/.test(websiteTurnSource), 'website turn cannot bypass Grok context or publish authority');
-ok(!/ship prepare\|run|publish needed|CDN events-api pending when freeze ON/.test(coordSource + usefulSource), 'autonomous surfaces never turn drift or freeze state into publish authority');
+ok(!/ship prepare\|run|publish needed|CDN events-api pending when freeze ON/.test(usefulSource), 'autonomous surfaces never turn drift or freeze state into publish authority');
 ok(!/b\.tracks\.grok\s*=\s*\{\s*status:\s*['"]busy['"]/.test(usefulSource) && !/Live sealed — hold-green/.test(usefulSource), 'useful loop cannot invent Grok activity or release truth');
-ok(!/['"](?:foot-cdn|cm6-paste|favicon-ship|cycle-work|events-online-heal)['"]\s*:/.test(dashboardSource), 'dashboard cannot dispatch external publish or public-tunnel jobs');
+ok(!/['"](?:foot-cdn|cm6-paste|favicon-ship|events-online-heal)['"]\s*:/.test(dashboardSource), 'dashboard cannot dispatch external publish or public-tunnel jobs');
 ok(!/cmd:\s*['"]node demigod-cm6-paste-publish\.mjs|npm run demigod:foot:cdn|Disk v\$\{diskVerGreen\} vs live v\$\{liveVerGreen\} — publish needed/.test(dashboardSource), 'dashboard drift actions are preparation-only');
 
 const serialized = JSON.parse(JSON.stringify(u));

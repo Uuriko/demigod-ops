@@ -8,8 +8,9 @@
  * Priority:
  *  1. Refresh truth if evidence is stale/missing
  *  2. If freeze ON + green → demand/human (no ship)
- *  3. If freeze OFF + not shipped → ship prepare/run
- *  4. Else orient home
+ *  3. If publish is unauthorized but current sources are prepared → demand
+ *  4. If not shipped and not prepared → ship prepare
+ *  5. Else orient home
  */
 import fs from 'fs';
 import path from 'path';
@@ -34,9 +35,15 @@ function readJson(p) {
 /**
  * @returns {{ id: string, title: string, cmd: string, pri: number, mutate: boolean, freezeBlocks: boolean, reason: string, freeze: object, truthEvidence: object, versions: object }}
  */
-export function buildNext({ truth = null, demand = null, truthEvidence = null } = {}) {
+export function buildNext({
+  truth = null,
+  demand = null,
+  truthEvidence = null,
+  shipPrepare = null,
+} = {}) {
   const freeze = freezeStatus();
   const te = truthEvidence || refuseIfStale('truth');
+  const prepared = shipPrepare || refuseIfStale('ship-prepare');
   const truthFacts = truth || readJson(path.join(BUSY, 'truth.json'));
   const demandStatus = demand || readJson(path.join(BUSY, 'demand-status.json'));
   const diskVersion = footVerFromJs(readText(path.join(ROOT, 'demigod-foot-core.js'), 2_000_000));
@@ -79,7 +86,12 @@ export function buildNext({ truth = null, demand = null, truthEvidence = null } 
     };
   }
 
-  if (freeze.frozen) {
+  const preparedUnauthorized =
+    !freeze.authorized &&
+    te.pass === true &&
+    te.fresh === true &&
+    prepared?.green === true;
+  if (freeze.frozen || preparedUnauthorized) {
     const pending = demandStatus?.queue?.pending;
     const top = demandStatus?.queue?.top3?.[0];
     const draftHygiene = demandStatus?.drafts?.hygiene?.ok ?? demandStatus?.drafts?.allHygieneOk ?? null;
@@ -134,14 +146,16 @@ export function buildNext({ truth = null, demand = null, truthEvidence = null } 
     return {
       ...base,
       id: 'demand-ops',
-      title: 'Review demand operations · publish freeze holds',
+      title: freeze.frozen
+        ? 'Review demand operations · publish freeze holds'
+        : 'Local release prepared · continue demand operations',
       cmd: 'bin/dg demand status',
-      pri: 0,
+      pri: freeze.frozen ? 0 : 2,
       mutate: false,
       // Freeze holds publish/mutation only. Demand status is read-only and is
       // intentionally the canonical path while frozen.
       freezeBlocks: false,
-      reason: 'freeze-on-demand-first',
+      reason: freeze.frozen ? 'freeze-on-demand-first' : 'publish-unauthorized-prepared',
       demandNext: demandStatus?.next || null,
       demandSignal,
     };

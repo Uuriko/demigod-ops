@@ -44,17 +44,15 @@ export function dashboardMutationIntent(method = 'GET', pathname = '', search = 
   if (verb !== 'GET') return false;
   const query = new URLSearchParams(String(search).replace(/^\?/, ''));
   const refresh = query.get('refresh') === '1' || query.get('run') === '1';
-  return ((pathname === '/api/jobs' || pathname === '/api/job/start')
-      && Boolean(query.get('run') || query.get('id') || query.get('type')))
+  return (pathname === '/api/jobs' && Boolean(query.get('run') || query.get('id') || query.get('type')))
     || (pathname === '/api/review' && refresh)
     || (pathname === '/api/inbox' && query.get('refresh') === '1')
-    || ((pathname === '/api/matches' || pathname === '/api/match-review' || pathname === '/api/webflow') && refresh)
+    || ((pathname === '/api/matches' || pathname === '/api/webflow') && refresh)
     || (pathname === '/api/smoke' && query.get('run') === '1')
-    || (['/api/status', '/api/status.json', '/api/agent-brief', '/api/brief'].includes(pathname)
+    || (['/api/status', '/api/agent-brief'].includes(pathname)
       && query.get('force') === '1')
-    || ((pathname === '/api/control' || pathname === '/api/control-plane')
-      && (refresh || query.get('force') === '1'))
-    || ((pathname === '/api/craft' || pathname === '/api/craft-log') && Boolean(query.get('mint')));
+    || (pathname === '/api/control' && (refresh || query.get('force') === '1'))
+    || (pathname === '/api/craft' && Boolean(query.get('mint')));
 }
 
 export function privateDashboardJsonHeaders(corsOrigin = '', custom = {}) {

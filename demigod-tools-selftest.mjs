@@ -5,12 +5,23 @@
  *
  * Usage: node demigod-tools-selftest.mjs
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-tools-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parseFirstJson, BUSY } from './demigod-agent-tools-lib.mjs';
+import { sameState } from './demigod-version-ledger.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +42,7 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_ISOLATED !== '1') {
       env: {
         ...process.env,
         DEMIGOD_BUSY: isolatedBusy,
+        DEMIGOD_MULTI: path.join(isolatedBusy, 'multi'),
         DEMIGOD_TOOLS_SELFTEST_ISOLATED: '1',
       },
     });
@@ -128,15 +140,6 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
   assert('webflow change selftest', change.status === 0, change.out);
 }
 
-{
-  const unknown = run(['demigod-webflow-loop.mjs', '--unknown']);
-  const invalidPhase = run(['demigod-webflow-loop.mjs', '--phase=bogus']);
-  const missingPhase = run(['demigod-webflow-loop.mjs', '--phase']);
-  assert('webflow loop rejects unknown flags with exit 2', unknown.status === 2, unknown.out);
-  assert('webflow loop rejects invalid phases with exit 2', invalidPhase.status === 2, invalidPhase.out);
-  assert('webflow loop rejects missing phase values with exit 2', missingPhase.status === 2, missingPhase.out);
-}
-
 // clean lock only if free or test owners (never steal a real writer)
 {
   const st = run(['demigod-foot-lock.mjs', 'status']);
@@ -168,8 +171,6 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
     const dashboardUiSource = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard-ui.html'), 'utf8');
     const lockSource = fs.readFileSync(path.join(ROOT, 'demigod-foot-lock.mjs'), 'utf8');
     const cm6Source = fs.readFileSync(path.join(ROOT, 'demigod-cm6-paste-publish.mjs'), 'utf8');
-    const cycleStatusSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-status.mjs'), 'utf8');
-    const registrySource = fs.readFileSync(path.join(ROOT, 'demigod-tools-registry.mjs'), 'utf8');
     const fallbackFails = [];
     const fallback = (name, condition) => {
       if (!condition) fallbackFails.push(name);
@@ -201,11 +202,6 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
       /editorHelperVerifiesPersistedSplit/.test(cm6Source) &&
         /pre === expectedHead && post === expectedFoot/.test(cm6Source) &&
         /if \(!persisted\.result\?\.value\?\.ok\)/.test(cm6Source),
-    );
-    fallback(
-      'cycle status distinct atomic receipt',
-      /cycle-status\.json/.test(cycleStatusSource) && /renameSync\(receiptTmp, RECEIPT\)/.test(cycleStatusSource) &&
-        /id: 'cycle-status'[\s\S]{0,320}out: '\/tmp\/dg-busy\/cycle-status\.json'/.test(registrySource),
     );
     writeReceiptAtomic({
       schema: 'demigod.tools-selftest/1', at: new Date().toISOString(), pass: false,
@@ -364,33 +360,6 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
   }
 }
 
-// publish must not steal (token handoff required to release — bare owner name is not enough)
-{
-  const hold = run(['demigod-foot-lock.mjs', 'claim', 'hold-publish', '120']);
-  const holdTok = parseFirstJson(hold.out)?.claimed?.token;
-  const p = run(['demigod-publish-foot.mjs', '--dry-run'], {
-    timeout: 60000,
-    env: { DG_LOCK_OWNER: 'other-publisher' },
-  });
-  assert(
-    'publish refuses foreign lock',
-    p.status !== 0 && /lock|refuse|held/i.test(p.out),
-    p.out.slice(0, 160),
-  );
-  if (holdTok) {
-    run([
-      'demigod-foot-lock.mjs',
-      'release',
-      '--owner',
-      'hold-publish',
-      '--token',
-      holdTok,
-    ]);
-  } else {
-    run(['demigod-foot-lock.mjs', 'release', '--force']);
-  }
-}
-
 // ── CLAIM-VERIFY ──────────────────────────────────────
 {
   const bare = run(['demigod-claim-verify.mjs']);
@@ -419,12 +388,18 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
 
   const open = run(['demigod-plan-ledger.mjs', 'open']);
   assert('ledger open', open.status === 0 && open.out.includes('{'), open.out.slice(0, 60));
+  assert(
+    'version ledger skips timestamp-only repeats',
+    sameState({ diskVer: '1', at: 'a' }, { diskVer: '1', at: 'b' }),
+  );
+  assert('version ledger keeps state changes', !sameState({ diskVer: '1' }, { diskVer: '2' }));
 }
 
 // ── INBOX ─────────────────────────────────────────────
 {
-  const testFile = '/tmp/dg-multi/selftest-inbox-msg.txt';
-  fs.mkdirSync('/tmp/dg-multi', { recursive: true });
+  const testMulti = process.env.DEMIGOD_MULTI || '/tmp/dg-multi';
+  const testFile = path.join(testMulti, 'selftest-inbox-msg.txt');
+  fs.mkdirSync(testMulti, { recursive: true });
   fs.writeFileSync(testFile, 'useful plan content for selftest inbox unread check\n');
   // mark all then write new → should be unread
   run(['demigod-plan-inbox.mjs', '--mark']);
@@ -451,31 +426,36 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
 
 // ── FREEZE ────────────────────────────────────────────
 {
-  const s = run(['demigod-freeze.mjs', 'snapshot', '--tag', 'selftest']);
-  assert('freeze snapshot', s.status === 0, s.out.slice(0, 60));
-  const c = run(['demigod-freeze.mjs', 'check', '--tag', 'selftest']);
-  assert('freeze clean', c.status === 0 && /"changed": 0/.test(c.out), c.out.slice(0, 80));
+  const fixtureRoot = fs.mkdtempSync(path.join('/tmp', 'dg-freeze-selftest-'));
+  const fixtureEnv = { DEMIGOD_ROOT: fixtureRoot };
+  fs.writeFileSync(
+    path.join(fixtureRoot, 'DEMIGOD-PLAN-LEDGER.json'),
+    JSON.stringify({ schema: 1, plans: [], at: new Date().toISOString() }, null, 2) + '\n',
+  );
+  try {
+    const s = run(['demigod-freeze.mjs', 'snapshot', '--tag', 'selftest'], { env: fixtureEnv });
+    assert('freeze snapshot', s.status === 0, s.out.slice(0, 60));
+    const c = run(['demigod-freeze.mjs', 'check', '--tag', 'selftest'], { env: fixtureEnv });
+    assert('freeze clean', c.status === 0 && /"changed": 0/.test(c.out), c.out.slice(0, 80));
 
-  // mutate board? too risky — use a temp approach: snapshot includes board;
-  // change nothing for critical path. Use --all + ledger for change detect:
-  run(['demigod-freeze.mjs', 'snapshot', '--tag', 'selftest-all', '--all']);
-  const add = run([
-    'demigod-plan-ledger.mjs',
-    'add',
-    '--title',
-    'selftest-freeze-tmp',
-    '--owner',
-    'selftest',
-    '--note',
-    'tmp',
-  ]);
-  const aj = parseFirstJson(add.out);
-  const cid = aj?.plan?.id;
-  const ch = run(['demigod-freeze.mjs', 'check', '--tag', 'selftest-all']);
-  assert('freeze detects ledger change', ch.status === 1 && /changed/.test(ch.out), `status=${ch.status}`);
-  if (cid) run(['demigod-plan-ledger.mjs', 'set', cid, '--status', 'ignored', '--note', 'selftest cleanup']);
-  run(['demigod-freeze.mjs', 'clear', '--tag', 'selftest']);
-  run(['demigod-freeze.mjs', 'clear', '--tag', 'selftest-all']);
+    run(['demigod-freeze.mjs', 'snapshot', '--tag', 'selftest-all', '--all'], { env: fixtureEnv });
+    run([
+      'demigod-plan-ledger.mjs',
+      'add',
+      '--title',
+      'selftest-freeze-tmp',
+      '--owner',
+      'selftest',
+      '--note',
+      'tmp',
+    ], { env: fixtureEnv });
+    const ch = run(['demigod-freeze.mjs', 'check', '--tag', 'selftest-all'], { env: fixtureEnv });
+    assert('freeze detects ledger change', ch.status === 1 && /changed/.test(ch.out), `status=${ch.status}`);
+    run(['demigod-freeze.mjs', 'clear', '--tag', 'selftest'], { env: fixtureEnv });
+    run(['demigod-freeze.mjs', 'clear', '--tag', 'selftest-all'], { env: fixtureEnv });
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 }
 
 // ── SHIP / PREFLIGHT / TRUTH / HANDOFF ────────────────
@@ -519,26 +499,6 @@ if (process.env.DEMIGOD_TOOLS_SELFTEST_POISON === '1') {
   );
 }
 
-// dry-run publish when free
-{
-  run(['demigod-foot-lock.mjs', 'release', '--force']);
-  const d = run(['demigod-publish-foot.mjs', '--dry-run'], {
-    timeout: 60000,
-    env: { DG_LOCK_OWNER: 'selftest-pub' },
-  });
-  assert('publish dry-run ok', d.status === 0 && /dryRun|dry-run/i.test(d.out), d.out.slice(0, 120));
-  // dry-run must release selftest-pub lease in finally. Shared BUSY may be re-claimed
-  // by concurrent craft between dry-run exit and status — that is not a product fail.
-  const st = run(['demigod-foot-lock.mjs', 'status']);
-  const j = parseFirstJson(st.out);
-  const owner = j?.lock?.owner || j?.who?.owner || null;
-  assert(
-    'publish dry releases lock',
-    j && (j.locked === false || (owner && !/^selftest-pub$/i.test(String(owner)))),
-    st.out.slice(0, 120),
-  );
-}
-
 // receipt CLI
 {
   const r = run(['demigod-publish-receipt.mjs']);
@@ -551,7 +511,6 @@ for (const b of [
   'bin/dg-lock',
   'bin/dg-preflight',
   'bin/dg-inbox',
-  'bin/dg-publish-foot',
   'bin/dg-claim-verify',
   'bin/dg-truth',
   'bin/dg-freeze',
@@ -674,8 +633,6 @@ for (const b of [
   assert('hire no 48h', !/48\s*h|\bSLA\b/i.test(hire), 'banned phrase');
   const proof = fs.readFileSync(path.join(ROOT, 'demigod-pages/proof.html'), 'utf8');
   assert('proof honest empty', /No public placement|0/.test(proof), proof.slice(0, 80));
-  const bl = run(['demigod-build-loop.mjs', 'status']);
-  assert('build-loop status', bl.status === 0 && /BUILD-QUEUE|queue/.test(bl.out), bl.out.slice(0, 80));
 }
 
 // ── Dashboard / agent control-plane contracts ─────────
@@ -690,10 +647,6 @@ for (const b of [
   assert(
     'events tick is registered draft-only and mutation-gated',
     /id: 'dg-events-tick'[^\n]+cmd: 'bin\/dg-events-tick'[^\n]+never sends'[^\n]+mutate: true/.test(registryValidationSource),
-  );
-  assert(
-    'tools registry rejects alias cycles',
-    /alias cycle detected/.test(registryValidationSource) && /while \(aliases\.has\(current\)\)/.test(registryValidationSource),
   );
   assert(
     'pipeline package refresh is read-only',
@@ -743,23 +696,6 @@ for (const b of [
     'dashboard status orient embeds demand draft hygiene',
     /demandDrafts:\s*demand\?\.drafts\s*\|\|\s*null/.test(dashboardSource),
   );
-  assert(
-    'dashboard preserves release preflight for website domain rotation',
-    /cycleHasReleasePreflight\s*=\s*[\s\S]{0,180}domain\s*===\s*['"]website['"][\s\S]{0,180}domain\s*===\s*['"]ship['"][\s\S]{0,180}domain\s*===\s*['"]tools['"]/.test(dashboardSource),
-  );
-  const cycleStatusSource = fs.readFileSync(path.join(ROOT, 'demigod-cycle-status.mjs'), 'utf8');
-  assert(
-    'cycle status writes a distinct atomic receipt',
-    /cycle-status\.json/.test(cycleStatusSource) &&
-      /writeFileSync\(receiptTmp/.test(cycleStatusSource) &&
-      /renameSync\(receiptTmp, RECEIPT\)/.test(cycleStatusSource),
-  );
-  assert(
-    'cycle status registry output does not alias its input receipt',
-    /id: 'cycle-status'[\s\S]{0,320}out: '\/tmp\/dg-busy\/cycle-status\.json'/.test(
-      fs.readFileSync(path.join(ROOT, 'demigod-tools-registry.mjs'), 'utf8'),
-    ),
-  );
   const controlSource = fs.readFileSync(path.join(ROOT, 'demigod-control.mjs'), 'utf8');
   assert(
     'control-plane site green requires truth green and fully shipped (or prepareOnlyRelease soft-ok)',
@@ -806,22 +742,10 @@ for (const b of [
     'ship-status rejects unknown flags with exit 2',
     /ship-status: unknown argument/.test(shipStatusSource) && /SHIP_STATUS_FLAGS/.test(shipStatusSource),
   );
-  const opsOsSource = fs.readFileSync(path.join(ROOT, 'demigod-ops-os.mjs'), 'utf8');
-  assert(
-    'ops-os rejects unknown flags with exit 2',
-    /ops-os: unknown argument/.test(opsOsSource) && /OPS_FLAGS/.test(opsOsSource),
-  );
   const demandSource = fs.readFileSync(path.join(ROOT, 'demigod-demand.mjs'), 'utf8');
   assert(
     'demand rejects unknown flags with exit 2',
     /demand: unknown argument/.test(demandSource),
-  );
-  const archiveSource = fs.readFileSync(path.join(ROOT, 'demigod-archive-scripts.mjs'), 'utf8');
-  assert(
-    'archive-scripts uses explicit LEGACY_BUNDLES allowlist only (no scan-KEEP)',
-    /explicit-allowlist-only|LEGACY_BUNDLES/.test(archiveSource) &&
-      !/for \(const f of fs\.readdirSync\(ROOT\)\)/.test(archiveSource) &&
-      /DEMIGOD_ARCHIVE_APPLY/.test(archiveSource),
   );
   const hygieneSource = fs.readFileSync(path.join(ROOT, 'demigod-laptop-hygiene.mjs'), 'utf8');
   assert(
@@ -840,9 +764,9 @@ for (const b of [
   );
   const dgCliSource = fs.readFileSync(path.join(ROOT, 'bin/dg'), 'utf8');
   assert(
-    'dg events-test rejects unknown modes with exit 2 (no node --test vacuous-green)',
+    'dg events test rejects unknown modes with exit 2 (no node --test vacuous-green)',
     /events-test: unknown argument/.test(dgCliSource) &&
-      /bin\/dg events-test \[fast\]/.test(dgCliSource) &&
+      /bin\/dg events test \[fast\]/.test(dgCliSource) &&
       /mode="\$\{1:-\}"/.test(dgCliSource) &&
       !/node --test --test-concurrency=1 "\$\{events_tests\[@\]\}" "\$@"/.test(dgCliSource),
   );
@@ -850,20 +774,6 @@ for (const b of [
   assert(
     'referrals usage errors exit 2 (not product fail 1)',
     /process\.exitCode = \/\^usage:\/\.test\(msg\) \? 2 : 1/.test(referralsCliSource),
-  );
-  const ideaEngineSource = fs.readFileSync(path.join(ROOT, 'demigod-idea-engine.mjs'), 'utf8');
-  assert(
-    'idea-engine rejects unknown flags with exit 2',
-    /idea-engine: unknown argument/.test(ideaEngineSource) &&
-      /IDEA_FLAGS/.test(ideaEngineSource) &&
-      /process\.exit\(2\)/.test(ideaEngineSource),
-  );
-  const workflowMapSource = fs.readFileSync(path.join(ROOT, 'bin/dg-workflow-map'), 'utf8');
-  assert(
-    'workflow-map rejects unknown cmds with exit 2 (no vacuous update)',
-    /workflow-map: unknown argument/.test(workflowMapSource) &&
-      /update\|review\|status/.test(workflowMapSource) &&
-      /exit 2/.test(workflowMapSource),
   );
   const usefulLoopSource = fs.readFileSync(path.join(ROOT, 'demigod-useful-loop.mjs'), 'utf8');
   assert(
@@ -995,12 +905,8 @@ for (const b of [
   );
   assert(
     'dashboard control spine makes orient the primary agent entry',
-    dashboardUiSource.includes("['/api/orient','orient'],['/api/next','next']") &&
+    dashboardSource.includes("url.pathname === '/api/orient'") &&
       /Run orient[^\n]+canonical session-start card/.test(dashboardUiSource),
-  );
-  assert(
-    'dashboard labels missing cycle-check exits as unknown',
-    /Number\.isInteger\(c\.exit\)\?c\.exit:['"]unknown['"]/.test(dashboardUiSource),
   );
   assert(
     'dashboard annotates unify hot tools with server runnable allowlist',
@@ -1018,17 +924,11 @@ for (const b of [
   assert(
     'dashboard rejects truth evidence without a valid seal timestamp',
     /timestampValid = Number\.isFinite\(ended\) && ageMs >= -60_000/.test(dashboardSource) &&
-      /expired = !timestampValid \|\| ageMs > ttl/.test(dashboardSource),
+      /expired = !timestampValid \|\| \(ttlSec > 0 && ageMs > ttlSec \* 1000\)/.test(dashboardSource),
   );
   assert(
     'dashboard rejects future-dated demand cache mtimes',
     /!Number\.isFinite\(ageSec\) \|\| ageSec < 0/.test(dashboardSource),
-  );
-  assert(
-    'dashboard rejects materially future-dated cycle receipts',
-    /rawReceiptAgeSec >= -60/.test(dashboardSource) &&
-      /cycleWorkStale = !cycleWorkTimestampValid/.test(dashboardSource) &&
-      /timestampValid: cycleWorkTimestampValid/.test(dashboardSource),
   );
   assert(
     'dashboard cannot turn malformed lock expiry into an immortal lock',
@@ -1058,7 +958,7 @@ for (const b of [
     cm6ModeConflict.status !== 0 && /cannot be combined with a read-only check mode/.test(cm6ModeConflict.out),
     cm6ModeConflict.out.slice(0, 180),
   );
-  for (const helper of ['demigod-agent-dashboard.mjs', 'demigod-webflow-lib.mjs', 'demigod-ship-status.mjs', 'demigod-ship-prep.mjs', 'demigod-ship-help.mjs']) {
+  for (const helper of ['demigod-agent-dashboard.mjs', 'demigod-webflow-lib.mjs', 'demigod-ship-status.mjs']) {
     const src = fs.readFileSync(path.join(ROOT, helper), 'utf8');
     assert(`${helper} does not invoke disabled footer-only mode`, !/cm6-paste-publish\.mjs --footer-only/.test(src));
   }

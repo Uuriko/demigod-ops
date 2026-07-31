@@ -32,15 +32,6 @@ export function webhookAuthReadiness() {}
 export function webhookAuthSafeToBind() {}
 export function verifyWebflowWebhook() {}
 `,
-  'demigod-form-analytics.mjs': `
-export const MAX_ANALYTICS_BODY = 1;
-export function recordFormEvent() {}
-export function processFormAnalyticsRequest() {}
-export function summarizeFormAnalytics() {}
-export function allowFormAnalyticsWrite() {}
-export function allowTimestampRequest() {}
-export function normalizeFormEvent() {}
-`,
   'demigod-webhook-origin.mjs': `
 export function webhookOriginPolicy() {}
 export function privateCapabilityHeaders() {}
@@ -65,10 +56,11 @@ export function verifyShipLive() {}
     'ROOT = ".";\n' +
     `export function sleep() {}
 export function wlog() {}
+export function loadDemigodState() {}
+export function saveDemigodState() {}
+export const WEBFLOW_DESIGNER_URL = '';
 export async function prepareWebflowDesigner() {}
 export async function captureDemigodScreenshots() {}
-export async function submitWebflowAiPrompt() {}
-export async function waitWebflowTurnComplete() {}
 `,
   'demigod-agent-tools-lib.mjs': `
 export const BUSY = '/tmp';
@@ -214,5 +206,60 @@ test('import-integrity PASSES a minimal green fixture (positive control of DEMIG
     const r = runGate({ DEMIGOD_ROOT: dir });
     assert.equal(r.code, 0, `green fixture must pass: ${r.stdout || r.stderr}`);
     assert.match(r.stdout, /import-integrity OK/);
+  });
+});
+
+// Gate-list: verify-all spawns demigod-*.mjs by path. Default mode reports advisory only so the
+// standing "no git add without request" policy does not red the whole tree; strict env fails.
+test('import-integrity reports untracked verify-all gates as advisory (default non-strict)', () => {
+  const files = {
+    ...GOOD_MODULES,
+    'demigod-verify-all.mjs': `
+const steps = [
+  ['demigod-webhook-auth.mjs'],
+  ['demigod-gate-orphan.test.mjs'],
+];
+`,
+  };
+  withFixture(
+    files,
+    (dir) => {
+      const soft = runGate({ DEMIGOD_ROOT: dir }, ['--json']);
+      assert.equal(soft.code, 0, `default must not fail on gate-untracked: ${soft.stdout}`);
+      const softReport = JSON.parse(soft.stdout);
+      assert.equal(softReport.ok, true);
+      assert.equal(softReport.gatesOk, false);
+      assert.ok(
+        softReport.gateUntracked.some(
+          (m) => m.mod === 'demigod-gate-orphan.test.mjs' && m.reason === 'gate-exists-untracked',
+        ),
+        `expected gate-exists-untracked, got ${JSON.stringify(softReport.gateUntracked)}`,
+      );
+
+      const hard = runGate({ DEMIGOD_ROOT: dir, DEMIGOD_IMPORT_GATES: '1' }, ['--json']);
+      assert.notEqual(hard.code, 0, 'strict mode must fail on untracked gates');
+      const hardReport = JSON.parse(hard.stdout);
+      assert.equal(hardReport.ok, false);
+      assert.equal(hardReport.strictGates, true);
+    },
+    { untracked: { 'demigod-gate-orphan.test.mjs': 'export const x = 1;\n' } },
+  );
+});
+
+test('import-integrity strict mode FAILS when a verify-all gate is missing on disk', () => {
+  const files = {
+    ...GOOD_MODULES,
+    'demigod-verify-all.mjs': `const steps = [['demigod-ghost-gate.mjs']];\n`,
+  };
+  withFixture(files, (dir) => {
+    const r = runGate({ DEMIGOD_ROOT: dir, DEMIGOD_IMPORT_GATES: '1' }, ['--json']);
+    assert.notEqual(r.code, 0, 'strict mode must fail on missing gate');
+    const report = JSON.parse(r.stdout);
+    assert.ok(
+      report.gateMissing.some(
+        (m) => m.mod === 'demigod-ghost-gate.mjs' && m.reason === 'gate-missing-on-disk',
+      ),
+      `expected gate-missing-on-disk, got ${JSON.stringify(report.gateMissing)}`,
+    );
   });
 });

@@ -65,7 +65,7 @@ try {
 
 const copyFromJs = {};
 for (const key of ['heroSub', 'badge', 'ctaFounder', 'ctaEngineer', 'navCta', 'startupH2', 'startupBody',
-  'engineerH2', 'engineerBody', 'feeNote', 'pricingNote', 'footerTag', 'trustKicker']) {
+  'engineerH2', 'engineerBody', 'feeNote', 'pricingNote', 'trustKicker']) {
   const mm = footerCoreJs.match(new RegExp(`${key}:'([^']*)'`));
   if (mm) copyFromJs[key] = mm[1];
 }

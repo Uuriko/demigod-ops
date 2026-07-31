@@ -14,6 +14,7 @@ import {
   createCtaFixHarness,
   markerPresent,
   HEAD_MARKERS,
+  htmlToVisibleText,
   findingStreamKey,
   loadFindingStreamKeys,
   appendNovelFindings,
@@ -31,7 +32,8 @@ describe('scanLiveHtml', () => {
 
   it('passes clean HTML without MCP app scripts', () => {
     const html = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')
-      + '<form name="startup-hire"></form><form id="engineer-join"></form>';
+      + '<form name="startup-hire"></form><form id="engineer-join"></form>'
+      + '<form data-name="partner-apply"><input name="partner-name"><input name="partner-email"><textarea name="referral-plan"></textarea></form>';
     const scan = scanLiveHtml(html);
     assert.equal(scan.mcpScriptsGone, true);
     assert.equal(scan.formsOk, true);
@@ -75,10 +77,23 @@ describe('scanLiveHtml', () => {
 
   it('requires unique startup-hire and engineer-join data-name', () => {
     const html = '<form name="startup-hire" data-name="startup-hire"></form>'
-      + '<form name="engineer-join" data-name="engineer-join"></form>';
+      + '<form name="engineer-join" data-name="engineer-join"></form>'
+      + '<form data-name="partner-apply"><input name="partner-name"><input name="partner-email"><textarea name="referral-plan"></textarea></form>';
     const scan = scanLiveHtml(html);
     assert.equal(scan.formsOk, true);
     assert.equal((html.match(/data-name="email-form"/g) || []).length, 0);
+  });
+
+  it('rejects a partially configured referral form', () => {
+    const html = '<form name="startup-hire"></form><form name="engineer-join"></form>'
+      + '<form data-name="partner-apply"><input name="contact-email"><input name="role-title"><textarea name="stack-needs"></textarea></form>';
+    const scan = scanLiveHtml(html);
+    assert.equal(scan.formsOk, false);
+    assert.deepEqual(scan.forms.find((form) => form.name === 'partner-apply')?.fields, [
+      'contact-email',
+      'role-title',
+      'stack-needs',
+    ]);
   });
 });
 
@@ -102,6 +117,19 @@ describe('evaluatePageScan', () => {
   });
 });
 
+describe('htmlToVisibleText', () => {
+  it('excludes inert blocks, spaced closing tags, and unclosed scripts', () => {
+    assert.equal(
+      htmlToVisibleText(
+        '<p>Visible</p><script>script claim</script ><style>style claim</style>'
+        + '<template>template claim</template><p>Tail</p>',
+      ),
+      'Visible Tail',
+    );
+    assert.equal(htmlToVisibleText('<p>Visible</p><script>unclosed claim'), 'Visible');
+  });
+});
+
 describe('buildFindings + reportPass', () => {
   it('fails on MCP scripts and missing nav CTA', () => {
     const htmlScan = scanLiveHtml('<script src="https://cdn/x/demigodlaunchfixes-1.0.0.js"></script>');
@@ -115,20 +143,9 @@ describe('buildFindings + reportPass', () => {
     assert.ok(findings.some((f) => /FIND TALENT nav/i.test(f.issue)));
   });
 
-  it('flags partner webhook drift when expected URL is set', () => {
-    const html = '<script>window.__dgWebhookUrl="https://old.loca.lt/";</script>';
-    const htmlScan = scanLiveHtml(html);
-    const findings = buildFindings({
-      htmlScan,
-      expectedWebhookUrl: 'https://new.loca.lt/',
-    });
-    assert.equal(reportPass(findings), false);
-    assert.ok(findings.some((f) => /webhook URL drift/i.test(f.issue)));
-  });
-
   it('passes healthy live + designer state', () => {
     const findings = buildFindings({
-      htmlScan: { mcpScriptsGone: true, formsOk: true, headOk: true, tallyConfigured: false, tallyHosts: { startup: true, engineer: true },
+      htmlScan: { mcpScriptsGone: true, formsOk: true, headOk: true,
         headMarkers: HEAD_MARKERS.map((m) => ({ marker: m, present: true })) },
       pageScan: evaluatePageScan({
         bodyText: 'HIRE TALENT JOIN NETWORK FIND TALENT',
@@ -177,14 +194,6 @@ describe('source files', () => {
     assert.ok(head.includes('hide-webflow-badge') || (head.includes('rel="stylesheet"') && css.includes('w-webflow-badge')));
     assert.ok(foot.includes('catbox.moe') || foot.includes('demigod-foot'));
     assert.ok(/dg-foot-v\d+-core/.test(core));
-  });
-
-  it('all wizard forms post to submissions webhook not Webflow API', () => {
-    const core = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-    assert.ok(core.includes('form_submission') || core.includes('formSend') || core.includes('WEBHOOK'));
-    assert.ok(core.includes('startup-hire'));
-    assert.ok(core.includes('engineer-join'));
-    assert.ok(!core.includes('webflow.com/api/v1/form'));
   });
 
   // Removed 'foot-core loads dynamic board ledger from CDN': it asserted fetchBoard/renderBoard/

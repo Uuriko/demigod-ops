@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
-test('unique link → accepted claim → retained paid hire → cash or company credit', async () => {
+test('unique link → accepted claim → retained paid hire → cash or company credit', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-referrals-'));
   const storePath = path.join(dir, 'referrals.json');
   const leadsPath = path.join(dir, 'leads.json');
@@ -16,7 +17,68 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   process.env.DEMIGOD_PAIRS_PATH = pairsPath;
   process.env.DEMIGOD_INBOX_PATH = inboxPath;
   process.env.DEMIGOD_REFERRALS_STATUS_PATH = statusPath;
-  process.env.DEMIGOD_TEST_SCOPE = `referrals-${process.pid}`;
+  const scope = `referrals-${process.pid}`;
+  const testDir = path.join('/tmp/dg-busy/tests', scope);
+  const boardPath = path.join(testDir, 'test-board.json');
+  t.after(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+  process.env.DEMIGOD_TEST_SCOPE = scope;
+
+  const canonicalPairId = (roleId, candId) =>
+    createHash('sha256')
+      .update([roleId, candId].sort().join('|'))
+      .digest('hex')
+      .slice(0, 16);
+  const pairOneId = canonicalPairId('role-1', 'candidate-1');
+  const pairCompanyTwoId = canonicalPairId('role-company-2', 'candidate-company-2');
+  const pairCompanyDuplicateId = canonicalPairId(
+    'role-company-2-duplicate',
+    'candidate-company-2-duplicate',
+  );
+  const pairPartnerHireId = canonicalPairId('role-partner-hire', 'candidate-partner-hire');
+  const eligiblePairSides = [
+    ['role-1', 'candidate-1'],
+    ['role-company-2', 'candidate-company-2'],
+    ['role-company-2-duplicate', 'candidate-company-2-duplicate'],
+    ['role-partner-hire', 'candidate-partner-hire'],
+  ];
+  const eligiblePairItems = eligiblePairSides.flatMap(([roleId, candId]) => [
+    {
+      id: `origin-${roleId}`,
+      featuredId: roleId,
+      status: 'featured',
+      form: 'startup-hire',
+      data: { 'company-name': `Company ${roleId}` },
+    },
+    {
+      id: candId,
+      sample: false,
+      status: 'reviewed',
+      form: 'engineer-join',
+      raw: {
+        'full-name': `Candidate ${candId}`,
+        'seeker-email': `${candId}@fixture.test`,
+        'skills-stack': 'JavaScript',
+        experience: 'Shipped products',
+        'sf-bay': 'yes',
+        availability: 'now',
+        'salary-expectation': '$180k',
+        'resume-url': `https://fixture.test/${candId}.pdf`,
+      },
+    },
+  ]);
+  fs.mkdirSync(testDir, { recursive: true });
+  fs.writeFileSync(boardPath, JSON.stringify({
+    roles: eligiblePairSides.map(([roleId]) => ({
+      id: roleId,
+      sample: false,
+      title: 'Founding Engineer',
+      sourceSubmissionHash: createHash('sha256').update(`origin-${roleId}`).digest('hex'),
+    })),
+    candidates: [],
+  }), { mode: 0o600 });
 
   const referrals = await import(`./demigod-referrals.mjs?test=${Date.now()}`);
   const maxFee = Number.MAX_SAFE_INTEGER;
@@ -56,9 +118,14 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     state: 'mutual_yes',
     mutual: { founder: true, candidate: true },
     sample: false,
+    createdSample: false,
+    history: [
+      { event: 'consent', side: 'founder', evidence: 'fixture founder consent' },
+      { event: 'consent', side: 'candidate', evidence: 'fixture candidate consent' },
+    ],
   });
   writePairs();
-  fs.writeFileSync(inboxPath, JSON.stringify({ items: [] }), { mode: 0o600 });
+  fs.writeFileSync(inboxPath, JSON.stringify({ items: eligiblePairItems }), { mode: 0o600 });
 
   const individual = referrals.createReferral({
     name: 'Alex Rivera',
@@ -80,6 +147,14 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   );
 
   const token = new URL(individual.links.universal).searchParams.get('referral');
+  const selfReferral = referrals.recordReferralSubmission({
+    token,
+    submissionId: 'sub-self-referral',
+    form: 'engineer-join',
+    eligible: true,
+    subjectKey: 'talent:alex@referrals.co',
+  });
+  assert.equal(selfReferral.reason, 'self_referral_forbidden', 'a referrer cannot claim their own talent profile');
   const { ingestSubmission } = await import(`./demigod-submissions-lib.mjs?referral-hook=${Date.now()}`);
   const hookedBody = {
     name: 'engineer-join',
@@ -184,6 +259,13 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     ownerType: 'individual',
   });
   const competingToken = new URL(competing.links.universal).searchParams.get('referral');
+  assert.equal(referrals.recordReferralSubmission({
+    token: competingToken,
+    submissionId: 'sub-self-via-competing-link',
+    form: 'engineer-join',
+    eligible: true,
+    subjectKey: 'talent:alex@referrals.co',
+  }).reason, 'subject_already_direct', 'a blocked self-referral remains unavailable to another referrer');
   assert.equal(referrals.recordReferralSubmission({
     token: competingToken,
     submissionId: 'sub-talent-duplicate',
@@ -291,14 +373,14 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     talent: [{
       id: 'talent-1',
       joinedSubmissionId: 'sub-talent-1',
-      pairIds: ['pair-1'],
+      pairIds: [pairOneId],
       state: 'mutual_yes',
       stateHistory: [],
     }],
     partners: [{
       id: 'company-1',
       companyId: 'company-1',
-      pairIds: ['pair-1'],
+      pairIds: [pairOneId],
       state: 'interviewing',
       stateHistory: [],
     }],
@@ -309,15 +391,15 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   leads.partners[0].state = 'hired';
   leads.partners[0].stateHistory.push({ to: 'hired', pairId: 'wrong-pair', at: '2026-01-01T11:00:00.000Z', evidence: hireProof });
   leads.talent[0].state = 'hired';
-  leads.talent[0].stateHistory.push({ to: 'hired', pairId: 'pair-1', at: '2026-01-01T13:00:00.000Z', evidence: hireProof });
-  pairs.pairs['pair-1'] = mutualPair('pair-1', 'role-1', 'candidate-1');
+  leads.talent[0].stateHistory.push({ to: 'hired', pairId: pairOneId, at: '2026-01-01T13:00:00.000Z', evidence: hireProof });
+  pairs.pairs[pairOneId] = mutualPair(pairOneId, 'role-1', 'candidate-1');
   writePairs();
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.throws(() => referrals.confirmHire(attached.claimId, {
     startDate: '2026-01-01',
     evidence: hireProof,
   }), /canonical_mutual_hire_pair_required/, 'explicit evidence cannot bypass pair-bound canonical hire evidence');
-  leads.partners[0].stateHistory[0].pairId = 'pair-1';
+  leads.partners[0].stateHistory[0].pairId = pairOneId;
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.throws(() => referrals.confirmHire(attached.claimId, {
     startDate: '2026-01-01',
@@ -325,6 +407,33 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   }), /canonical_mutual_hire_pair_required/, 'pair-bound hire history cannot predate the referral');
   leads.partners[0].stateHistory[0].at = '2026-01-01T13:00:00.000Z';
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
+  pairs.pairs[pairOneId].pairId = 'badbadbadbadbad1';
+  writePairs();
+  assert.throws(() => referrals.confirmHire(attached.claimId, {
+    startDate: '2026-01-01',
+    evidence: otherHireProof,
+  }), /canonical_mutual_hire_pair_required/, 'a forged raw pair record cannot validate a reward');
+  pairs.pairs[pairOneId].pairId = pairOneId;
+  writePairs();
+  const eligibleBoard = fs.readFileSync(boardPath, 'utf8');
+  fs.writeFileSync(boardPath, JSON.stringify({
+    roles: JSON.parse(eligibleBoard).roles.filter((role) => role.id !== 'role-1'),
+    candidates: [],
+  }), { mode: 0o600 });
+  assert.throws(() => referrals.confirmHire(attached.claimId, {
+    startDate: '2026-01-01',
+    evidence: otherHireProof,
+  }), /canonical_mutual_hire_pair_required/, 'a revoked role cannot validate a referral reward');
+  fs.writeFileSync(boardPath, eligibleBoard, { mode: 0o600 });
+  const consentReceipts = pairs.pairs[pairOneId].history;
+  pairs.pairs[pairOneId].history = [];
+  writePairs();
+  assert.throws(() => referrals.confirmHire(attached.claimId, {
+    startDate: '2026-01-01',
+    evidence: otherHireProof,
+  }), /canonical_mutual_hire_pair_required/, 'mutual booleans without both consent receipts cannot validate a reward');
+  pairs.pairs[pairOneId].history = consentReceipts;
+  writePairs();
   const hire = referrals.confirmHire(attached.claimId, { startDate: '2026-01-01', evidence: otherHireProof });
   assert.equal(hire.day90, '2026-04-01');
   const linkedStore = referrals.loadReferrals();
@@ -369,12 +478,12 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   leads.partners[0].state = 'paid';
   leads.partners[0].stateHistory.push(
     { to: 'invoiced', pairId: 'wrong-pair', at: '2026-01-02T12:00:00.000Z', evidence: invoiceProof, feeCents: 9_000_000 },
-    { to: 'invoiced', pairId: 'pair-1', at: '2026-01-02T13:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
+    { to: 'invoiced', pairId: pairOneId, at: '2026-01-02T13:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
     { to: 'paid', pairId: 'wrong-pair', at: '2026-01-03T12:00:00.000Z', evidence: paidProof },
   );
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'waiting_for_fee');
-  leads.partners[0].stateHistory.at(-1).pairId = 'pair-1';
+  leads.partners[0].stateHistory.at(-1).pairId = pairOneId;
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'waiting_for_fee');
   leads.partners[0].stateHistory.at(-1).feeCents = 1_000_000;
@@ -385,7 +494,7 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     providerId: 'tr_test_unpriced', beneficiaryId: 'acct_alex',
   }), /reward_not_eligible:waiting_for_fee/);
   leads.partners[0].stateHistory.at(-1).feeCents = 1_500_000;
-  const cashInvoiceForChronology = leads.partners[0].stateHistory.find((row) => row.to === 'invoiced' && row.pairId === 'pair-1');
+  const cashInvoiceForChronology = leads.partners[0].stateHistory.find((row) => row.to === 'invoiced' && row.pairId === pairOneId);
   const cashPaymentForChronology = leads.partners[0].stateHistory.at(-1);
   cashInvoiceForChronology.at = '2026-01-01T12:30:00.000Z';
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
@@ -440,14 +549,14 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   fs.appendFileSync(invoiceProof, 'tampered\n');
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'needs_evidence');
   fs.writeFileSync(invoiceProof, 'invoice\n', { mode: 0o600 });
-  const pairInvoice = leads.partners[0].stateHistory.find((row) => row.to === 'invoiced' && row.pairId === 'pair-1');
+  const pairInvoice = leads.partners[0].stateHistory.find((row) => row.to === 'invoiced' && row.pairId === pairOneId);
   pairInvoice.feeCents = 1_000_000;
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'needs_evidence');
   pairInvoice.feeCents = 1_500_000;
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'paid');
-  const pairPayment = leads.partners[0].stateHistory.find((row) => row.to === 'paid' && row.pairId === 'pair-1');
+  const pairPayment = leads.partners[0].stateHistory.find((row) => row.to === 'paid' && row.pairId === pairOneId);
   pairPayment.feeCents = 1_000_000;
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.equal(referrals.referralStatus().rewards.find((row) => row.rewardId === hire.rewardId).state, 'needs_evidence');
@@ -538,21 +647,21 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     id: 'company-2',
     companyId: 'introduced-startup-1',
     joinedSubmissionId: 'sub-company-1',
-    pairIds: ['pair-company-2'],
+    pairIds: [pairCompanyTwoId],
     state: 'paid',
     stateHistory: [
-      { to: 'hired', pairId: 'pair-company-2', at: '2026-01-03T12:00:00.000Z', evidence: hireProof },
-      { to: 'invoiced', pairId: 'pair-company-2', at: '2026-01-03T13:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
-      { to: 'paid', pairId: 'pair-company-2', at: '2026-01-04T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
+      { to: 'hired', pairId: pairCompanyTwoId, at: '2026-01-03T12:00:00.000Z', evidence: hireProof },
+      { to: 'invoiced', pairId: pairCompanyTwoId, at: '2026-01-03T13:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
+      { to: 'paid', pairId: pairCompanyTwoId, at: '2026-01-04T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
     ],
   });
   leads.talent.push({
     id: 'talent-company-2',
-    pairIds: ['pair-company-2'],
+    pairIds: [pairCompanyTwoId],
     state: 'hired',
-    stateHistory: [{ to: 'hired', pairId: 'pair-company-2', at: '2026-01-03T12:00:00.000Z', evidence: hireProof }],
+    stateHistory: [{ to: 'hired', pairId: pairCompanyTwoId, at: '2026-01-03T12:00:00.000Z', evidence: hireProof }],
   });
-  pairs.pairs['pair-company-2'] = mutualPair('pair-company-2', 'role-company-2', 'candidate-company-2');
+  pairs.pairs[pairCompanyTwoId] = mutualPair(pairCompanyTwoId, 'role-company-2', 'candidate-company-2');
   writePairs();
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.throws(() => referrals.confirmHire(companyClaim.claimId, { startDate: '2026-01-03' }), /first_placement_attestation_required/);
@@ -587,22 +696,22 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     id: 'company-2-duplicate-lead',
     companyId: 'introduced-startup-1',
     joinedSubmissionId: 'sub-company-second-name',
-    pairIds: ['pair-company-2-duplicate'],
+    pairIds: [pairCompanyDuplicateId],
     state: 'paid',
     stateHistory: [
-      { to: 'hired', pairId: 'pair-company-2-duplicate', at: '2026-01-03T14:00:00.000Z', evidence: hireProof },
-      { to: 'invoiced', pairId: 'pair-company-2-duplicate', at: '2026-01-03T15:00:00.000Z', evidence: invoiceProof, feeCents: 2_000_000 },
-      { to: 'paid', pairId: 'pair-company-2-duplicate', at: '2026-01-04T14:00:00.000Z', evidence: paidProof, feeCents: 2_000_000 },
+      { to: 'hired', pairId: pairCompanyDuplicateId, at: '2026-01-03T14:00:00.000Z', evidence: hireProof },
+      { to: 'invoiced', pairId: pairCompanyDuplicateId, at: '2026-01-03T15:00:00.000Z', evidence: invoiceProof, feeCents: 2_000_000 },
+      { to: 'paid', pairId: pairCompanyDuplicateId, at: '2026-01-04T14:00:00.000Z', evidence: paidProof, feeCents: 2_000_000 },
     ],
   });
   leads.talent.push({
     id: 'talent-company-2-duplicate',
-    pairIds: ['pair-company-2-duplicate'],
+    pairIds: [pairCompanyDuplicateId],
     state: 'hired',
-    stateHistory: [{ to: 'hired', pairId: 'pair-company-2-duplicate', at: '2026-01-03T14:00:00.000Z', evidence: hireProof }],
+    stateHistory: [{ to: 'hired', pairId: pairCompanyDuplicateId, at: '2026-01-03T14:00:00.000Z', evidence: hireProof }],
   });
-  pairs.pairs['pair-company-2-duplicate'] = mutualPair(
-    'pair-company-2-duplicate',
+  pairs.pairs[pairCompanyDuplicateId] = mutualPair(
+    pairCompanyDuplicateId,
     'role-company-2-duplicate',
     'candidate-company-2-duplicate',
   );
@@ -671,34 +780,34 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   leads.talent.push({
     id: 'talent-partner-hire',
     joinedSubmissionId: 'sub-partner-talent-1',
-    pairIds: ['pair-partner-hire'],
+    pairIds: [pairPartnerHireId],
     state: 'hired',
-    stateHistory: [{ to: 'hired', pairId: 'pair-partner-hire', at: '2026-01-01T13:00:00.000Z', evidence: hireProof }],
+    stateHistory: [{ to: 'hired', pairId: pairPartnerHireId, at: '2026-01-01T13:00:00.000Z', evidence: hireProof }],
   });
   leads.partners.push({
     id: 'wrong-hiring-company',
     companyId: 'wrong-hiring-company',
-    pairIds: ['pair-partner-hire'],
+    pairIds: [pairPartnerHireId],
     state: 'paid',
     stateHistory: [
-      { to: 'hired', pairId: 'pair-partner-hire', at: '2026-01-01T13:00:00.000Z', evidence: hireProof },
-      { to: 'invoiced', pairId: 'pair-partner-hire', at: '2026-01-02T12:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
-      { to: 'paid', pairId: 'pair-partner-hire', at: '2026-01-03T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
+      { to: 'hired', pairId: pairPartnerHireId, at: '2026-01-01T13:00:00.000Z', evidence: hireProof },
+      { to: 'invoiced', pairId: pairPartnerHireId, at: '2026-01-02T12:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
+      { to: 'paid', pairId: pairPartnerHireId, at: '2026-01-03T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
     ],
   });
-  pairs.pairs['pair-partner-hire'] = mutualPair('pair-partner-hire', 'role-partner-hire', 'candidate-partner-hire');
+  pairs.pairs[pairPartnerHireId] = mutualPair(pairPartnerHireId, 'role-partner-hire', 'candidate-partner-hire');
   writePairs();
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });
   assert.throws(() => referrals.confirmHire(partnerTalentClaim.claimId, { startDate: '2026-01-01' }), /hiring_partner_must_match_billing_company/);
   leads.partners.at(-1).pairIds = [];
   const referrerCompany = leads.partners.find((lead) => lead.id === 'company-referrer');
   Object.assign(referrerCompany, {
-    pairIds: ['pair-partner-hire'],
+    pairIds: [pairPartnerHireId],
     state: 'paid',
     stateHistory: [
-      { to: 'hired', pairId: 'pair-partner-hire', at: '2026-01-01T13:00:00.000Z', evidence: hireProof },
-      { to: 'invoiced', pairId: 'pair-partner-hire', at: '2026-01-02T12:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
-      { to: 'paid', pairId: 'pair-partner-hire', at: '2026-01-03T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
+      { to: 'hired', pairId: pairPartnerHireId, at: '2026-01-01T13:00:00.000Z', evidence: hireProof },
+      { to: 'invoiced', pairId: pairPartnerHireId, at: '2026-01-02T12:00:00.000Z', evidence: invoiceProof, feeCents: 1_500_000 },
+      { to: 'paid', pairId: pairPartnerHireId, at: '2026-01-03T12:00:00.000Z', evidence: paidProof, feeCents: 1_500_000 },
     ],
   });
   fs.writeFileSync(leadsPath, JSON.stringify(leads), { mode: 0o600 });

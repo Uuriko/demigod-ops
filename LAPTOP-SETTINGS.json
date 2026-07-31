@@ -1,0 +1,171 @@
+{
+  "at": "2026-07-23T18:28:40.778Z",
+  "actions": [
+    {
+      "schema": "org.gnome.desktop.a11y.applications",
+      "key": "screen-reader-enabled",
+      "value": false,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.settings-daemon.plugins.media-keys",
+      "key": "screenreader",
+      "value": "[]",
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.applications",
+      "key": "screen-magnifier-enabled",
+      "value": false,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.applications",
+      "key": "screen-keyboard-enabled",
+      "value": false,
+      "ok": true
+    },
+    {
+      "cmd": "killall orca",
+      "status": 1,
+      "stdout": "",
+      "stderr": "orca: no process found"
+    },
+    {
+      "file": "/home/potter/.config/autostart/orca-autostart.desktop",
+      "ok": true
+    },
+    {
+      "file": "/home/potter/.config/autostart/geoclue-demo-agent.desktop",
+      "ok": true
+    },
+    {
+      "file": "/home/potter/.config/autostart/touchegg.desktop",
+      "ok": true
+    },
+    {
+      "file": "/home/potter/.config/autostart/org.gnome.Evolution-alarm-notify.desktop",
+      "ok": true
+    },
+    {
+      "cmd": "systemctl --user mask speech-dispatcher.service",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "cmd": "systemctl --user mask speech-dispatcher.socket",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "cmd": "systemctl --user stop speech-dispatcher.service",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "cmd": "systemctl --user stop speech-dispatcher.socket",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.keyboard",
+      "key": "enable",
+      "value": true,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.keyboard",
+      "key": "bouncekeys-enable",
+      "value": true,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.keyboard",
+      "key": "bouncekeys-delay",
+      "value": 100,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.keyboard",
+      "key": "slowkeys-enable",
+      "value": false,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.a11y.keyboard",
+      "key": "stickykeys-enable",
+      "value": false,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.interface",
+      "key": "enable-animations",
+      "value": false,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.peripherals.keyboard",
+      "key": "repeat",
+      "value": true,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.peripherals.keyboard",
+      "key": "delay",
+      "value": 300,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.desktop.peripherals.keyboard",
+      "key": "repeat-interval",
+      "value": 40,
+      "ok": true
+    },
+    {
+      "cmd": "powerprofilesctl set balanced",
+      "status": null
+    },
+    {
+      "schema": "org.gnome.settings-daemon.plugins.power",
+      "key": "sleep-inactive-ac-type",
+      "value": "nothing",
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.settings-daemon.plugins.power",
+      "key": "sleep-inactive-ac-timeout",
+      "value": 0,
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.settings-daemon.plugins.power",
+      "key": "sleep-inactive-battery-type",
+      "value": "suspend",
+      "ok": true
+    },
+    {
+      "schema": "org.gnome.settings-daemon.plugins.power",
+      "key": "sleep-inactive-battery-timeout",
+      "value": 1800,
+      "ok": true
+    }
+  ],
+  "after": {
+    "screenReader": "false",
+    "screenReaderShortcut": "@as []",
+    "bouncekeys": "true",
+    "animations": "false",
+    "orcaRunning": false,
+    "speechDispatcher": "inactive"
+  },
+  "notes": [
+    "Screen reader was ON via gsettings screen-reader-enabled=true + orca-autostart.desktop",
+    "orca-autostart = GNOME Orca screen reader (speech), NOT orca-linux.AppImage IDE",
+    "Bounce keys kept ON for double-letter fix — does not require screen reader",
+    "Log out/in still recommended for cosmic-comp 6+ day uptime"
+  ]
+}

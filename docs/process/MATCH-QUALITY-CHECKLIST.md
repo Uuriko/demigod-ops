@@ -8,6 +8,8 @@
 - [ ] Brief accepted (INT-01)
 - [ ] Score against **90-day outcome** (capability / motivation / stage)
 - [ ] Must-haves: pass/fail with notes (not vibes only)
+- [ ] Private `companyEvidence` checked: startup-map provenance + exact ATS role observation; ambiguity and `reviewFlags` stay visible
+- [ ] Semantic company research uses only benchmark-accepted fields; unknown pricing stays unknown and source conflicts stay review-flagged
 - [ ] Gaps and risks written (do not hide)
 - [ ] Conflicts of interest / bias check (personal friends, etc.)
 

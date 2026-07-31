@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SF Startup Culture Preview • Demigod</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&amp;family=Cinzel:wght@500;600&amp;display=swap');
+    :root { --gold: #C9A84C; --dark: #0A0A0A; --cream: #F5F0E6; }
+    body { font-family: Manrope, system-ui, sans-serif; background: var(--dark); color: var(--cream); margin:0; padding:0; }
+    .container { max-width: 720px; margin: 40px auto; padding: 20px; }
+    h1 { font-family: Cinzel, serif; color: var(--gold); font-size: 2.2rem; text-align: center; }
+    .sub { text-align:center; opacity:.8; margin-bottom: 2rem; }
+    .q { margin: 1.5rem 0; }
+    label { display:block; margin-bottom:.4rem; font-weight:500; }
+    select, input { width:100%; padding:12px; background:#111; border:1px solid #333; color:var(--cream); border-radius:6px; font-size:1rem; }
+    .result { margin-top:2rem; padding:1.5rem; background:#111; border-left:4px solid var(--gold); display:none; }
+    .cta { display:inline-block; margin-top:1rem; background:var(--gold); color:var(--dark); padding:12px 24px; text-decoration:none; font-weight:600; border-radius:6px; }
+    .note { font-size:.85rem; opacity:.7; margin-top:1rem; }
+    .gold { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SF Culture Fit Preview</h1>
+    <p class="sub">Quick 60s check — how you might fit SF startup life.<br>Real matches via <a href="https://www.trydemigod.com" class="gold">trydemigod.com</a> (human reviewed).</p>
+
+    <div class="q">
+      <label>Preferred company stage?</label>
+      <select id="stage">
+        <option value="pre">Pre-seed / very early</option>
+        <option value="seed" selected>Seed (finding product-market fit)</option>
+        <option value="seriesa">Series A (scaling)</option>
+      </select>
+    </div>
+    <div class="q">
+      <label>Equity vs cash priority?</label>
+      <select id="equity">
+        <option value="high">High equity upside (risk tolerant)</option>
+        <option value="med" selected>Balanced</option>
+        <option value="low">Cash focused</option>
+      </select>
+    </div>
+    <div class="q">
+      <label>Weekly SF in-person tolerance?</label>
+      <select id="sf">
+        <option value="high">3+ days (love the energy)</option>
+        <option value="med" selected>1-2 days hybrid</option>
+        <option value="low">Mostly remote</option>
+      </select>
+    </div>
+    <div class="q">
+      <label>Top skill strength (one word or short)</label>
+      <input id="skill" placeholder="e.g. full-stack React / growth / design systems" />
+    </div>
+
+    <button onclick="preview()" style="background:#C9A84C;color:#0A0A0A;border:none;padding:14px 28px;font-size:1rem;font-weight:600;border-radius:6px;cursor:pointer;">See preview matches</button>
+
+    <div id="result" class="result">
+      <h3 style="margin-top:0;color:#C9A84C;">Your preview fit</h3>
+      <div id="fit"></div>
+      <a href="https://www.trydemigod.com" class="cta">Submit full profile → human match</a>
+      <p class="note">This is a fun demo (client-side only). Real intros are human-reviewed SF Bay matches. 10% on hire only.</p>
+    </div>
+  </div>
+
+  <script>
+    function preview() {
+      const stage = document.getElementById('stage').value;
+      const equity = document.getElementById('equity').value;
+      const sf = document.getElementById('sf').value;
+      const skill = (document.getElementById('skill').value || 'strong generalist').trim();
+
+      let score = 60;
+      let matches = [];
+
+      if (sf === 'high') { score += 15; matches.push('SF-native energy roles'); }
+      if (equity === 'high') { score += 10; matches.push('early equity-heavy'); }
+      if (stage === 'seed') { score += 8; }
+
+      const fitHTML = `
+        <p><strong>Fit score: ${Math.min(95, score)}/100</strong> for SF startup life.</p>
+        <p>Likely strong for: <span style="color:#C9A84C">${skill}</span> at ${stage} companies that value ${equity === 'high' ? 'big ownership' : 'balance'} and ${sf === 'high' ? 'in-person collaboration' : 'flexible presence'}.</p>
+        <p>Example matches (demo): Founding ${skill.includes('design') ? 'Designer' : 'Engineer/PM'} at Seed B2B SaaS or consumer in SF.</p>
+      `;
+      document.getElementById('fit').innerHTML = fitHTML;
+      document.getElementById('result').style.display = 'block';
+    }
+    // Easter: keyboard enter
+    document.addEventListener('keypress', e => { if (e.key === 'Enter') preview(); });
+    console.log('%c[demigod] SF preview standalone loaded — funnels to trydemigod.com', 'color:#C9A84C');
+  </script>
+</body>
+</html>

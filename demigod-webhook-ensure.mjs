@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-/** Ensure local webhook + tunnel are healthy; rewire live footer if URL drifted. */
+/** Ensure the local Webflow form receiver and its public tunnel are healthy. */
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import { resolveWebhookPublicUrl } from './demigod-webhook-url.mjs';
-import { extractLiveWebhookUrl } from './demigod-live-lib.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-WEBHOOK-ENSURE.json');
@@ -38,15 +37,6 @@ async function tunnelHealth(url) {
   }
 }
 
-async function liveWebhook() {
-  try {
-    const r = await fetch(`https://www.trydemigod.com/?v=${Date.now()}`, { signal: AbortSignal.timeout(20000) });
-    return extractLiveWebhookUrl(await r.text());
-  } catch (_) {
-    return '';
-  }
-}
-
 function startTunnel() {
   const proc = spawn('node', ['demigod-tunnel-start.mjs', '--print-only'], {
     cwd: ROOT,
@@ -74,12 +64,12 @@ async function main() {
     process.exit(1);
   }
 
-  let expected = norm(resolveWebhookPublicUrl());
-  if (!expected || !(await tunnelHealth(expected))) {
+  let publicUrl = norm(resolveWebhookPublicUrl());
+  if (!publicUrl || !(await tunnelHealth(publicUrl))) {
     result.actions.push('tunnel_restart');
     startTunnel();
-    expected = await waitForTunnel();
-    if (!expected) {
+    publicUrl = await waitForTunnel();
+    if (!publicUrl) {
       result.actions.push('tunnel_failed');
       writeResult(OUT, result);
       console.error(JSON.stringify({ ok: false, error: 'tunnel not healthy after restart', out: OUT }));
@@ -87,25 +77,11 @@ async function main() {
     }
   }
 
-  const live = norm(await liveWebhook());
-  result.expected = expected;
-  result.live = live || null;
-
-  if (live !== expected) {
-    result.actions.push('rewire');
-    const wire = spawnSync('npm', ['run', 'demigod:webhook:wire'], { cwd: ROOT, stdio: 'inherit', timeout: 180000 });
-    result.rewireExit = wire.status ?? 1;
-    if (wire.status !== 0) {
-      writeResult(OUT, result);
-      process.exit(1);
-    }
-    result.live = norm(await liveWebhook());
-  }
-
-  result.ok = result.live === expected;
+  result.publicUrl = publicUrl;
+  result.ok = true;
   writeResult(OUT, result);
-  console.log(JSON.stringify({ ok: result.ok, expected, live: result.live, actions: result.actions, out: OUT }));
-  process.exit(result.ok ? 0 : 1);
+  console.log(JSON.stringify({ ok: true, publicUrl, actions: result.actions, out: OUT }));
+  process.exit(0);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

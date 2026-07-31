@@ -1,0 +1,98 @@
+{
+  "schema": "demigod.role-packets-store/1",
+  "updatedAt": "2026-07-31T00:17:48.747Z",
+  "packets": {
+    "role-demo-founding-eng": {
+      "schema": "demigod.role-packet/1",
+      "roleId": "role-demo-founding-eng",
+      "demo": true,
+      "companyId": "yc:demo-co",
+      "title": "Founding Engineer",
+      "outcome90d": "Ship a paid pilot with two design partners and a stable onboarding loop within 90 days.",
+      "mustHaves": [
+        {
+          "id": "mh1",
+          "label": "Domain craft for this role",
+          "kind": "skill"
+        },
+        {
+          "id": "mh2",
+          "label": "Evidence of shipping under ambiguity",
+          "kind": "trait"
+        },
+        {
+          "id": "mh3",
+          "label": "Communication clear enough for mutual-yes",
+          "kind": "trait"
+        },
+        {
+          "id": "mh4",
+          "label": "Comfortable owning backend + light infra",
+          "kind": "skill"
+        }
+      ],
+      "dealBreakers": [],
+      "compBand": {
+        "text": "$160-220k + equity",
+        "source": "founder_stated",
+        "evidence": null
+      },
+      "stages": [
+        "brief_ready",
+        "reviewing",
+        "mutual_pending",
+        "intro",
+        "outcome"
+      ],
+      "stage": "brief_ready",
+      "createdAt": "2026-07-31T00:14:19.374Z",
+      "updatedAt": "2026-07-31T00:14:19.423Z"
+    },
+    "role-seed1": {
+      "schema": "demigod.role-packet/1",
+      "roleId": "role-seed1",
+      "demo": true,
+      "companyId": "demo:seed",
+      "title": "Product Manager",
+      "outcome90d": "Define roadmap and ship two validated features with clear metrics within 90 days.",
+      "mustHaves": [
+        {
+          "id": "mh1",
+          "label": "Domain craft for this role",
+          "kind": "skill"
+        },
+        {
+          "id": "mh2",
+          "label": "Evidence of shipping under ambiguity",
+          "kind": "trait"
+        },
+        {
+          "id": "mh3",
+          "label": "Communication clear enough for mutual-yes",
+          "kind": "trait"
+        },
+        {
+          "id": "mh4",
+          "label": "User research and prioritization",
+          "kind": "skill"
+        }
+      ],
+      "dealBreakers": [],
+      "compBand": {
+        "text": "$160-200k + equity",
+        "source": "founder_stated",
+        "evidence": null
+      },
+      "stages": [
+        "brief_ready",
+        "reviewing",
+        "mutual_pending",
+        "intro",
+        "outcome"
+      ],
+      "stage": "brief_ready",
+      "createdAt": "2026-07-31T00:17:48.699Z",
+      "updatedAt": "2026-07-31T00:17:48.747Z"
+    }
+  }
+}

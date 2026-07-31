@@ -12,15 +12,15 @@ LAN="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 PAIR_TXT="${ROOT}/orca-pair-code.txt"
 PAIR_HTML="${ROOT}/orca-pair-code.html"
 KEEP_PID="${ROOT}/.keep-awake.pid"
+KEEP_UNIT="demigod-keep-awake.service"
 HUB_WT="path:${ROOT}"
-SWARM_WT="path:${ROOT}/orca/workspaces/potter/demigod-swarm"
 POTTER_HUB="path:${ROOT}/orca/workspaces/potter/potter-hub"
 
 usage() {
   cat <<EOF
 dg-orca — Orca + Demigod remote ops
 
-  status          Orca runtime + keep-awake + LAN + pair files
+  status          Orca runtime + Claude/Codex channel + keep-awake
   up              Keep-awake + start desktop Orca + refresh pair + wire hubs
   down            Stop keep-awake only (does not quit Orca)
   pair            Refresh pairing URL/HTML for phone (print + files)
@@ -30,9 +30,8 @@ dg-orca — Orca + Demigod remote ops
   ps              worktree ps
   spawn <agent> [prompt…]
                   agent: grok|claude|codex|cursor
-                  default worktree: demigod-swarm (or HUB if missing)
-  swarm [prompt]  Launch grok + claude + codex review terminals
-  send <agent|handle> <text>
+                  default worktree: canonical /home/potter
+  send <handle> <text>
   read [handle]   Tail active/terminal output
   site            Open trydemigod + control plane (:9878) in Orca browser
   doctor          Health checks for phone + agent workflows
@@ -45,8 +44,7 @@ Phone (one-time / re-pair):
 
 Hubs:
   demigod-ops     ${ROOT}  (canonical + github.com/Uuriko/demigod-ops)
-  potter-hub      mobile spawn target
-  demigod-swarm   review / feature branch worktree
+  potter-hub      isolated worktree
 EOF
 }
 
@@ -55,16 +53,19 @@ running() {
 }
 
 ensure_awake() {
+  if systemctl --user is-active --quiet "$KEEP_UNIT"; then
+    return 0
+  fi
   if [[ -f "$KEEP_PID" ]] && kill -0 "$(cat "$KEEP_PID")" 2>/dev/null; then
     return 0
   fi
-  nohup systemd-inhibit \
+  systemd-run --user --unit="${KEEP_UNIT%.service}" --collect --quiet \
+    systemd-inhibit \
     --what=idle:sleep:shutdown:handle-lid-switch \
     --who="demigod-orca-session" \
-    --why="Orca remote + agent swarm; do not sleep" \
+    --why="Orca remote agent session; do not sleep" \
     --mode=block \
-    sleep infinity >>"${ROOT}/keep-awake.log" 2>&1 &
-  echo $! >"$KEEP_PID"
+    sleep infinity
   # GNOME: never suspend while we work
   gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
   gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing' 2>/dev/null || true
@@ -72,7 +73,7 @@ ensure_awake() {
   gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
   xset s off 2>/dev/null || true
   xset -dpms 2>/dev/null || true
-  echo "keep-awake pid $(cat "$KEEP_PID")"
+  echo "keep-awake unit $KEEP_UNIT"
 }
 
 start_orca() {
@@ -100,19 +101,13 @@ refresh_pair() {
 }
 
 cmd_status() {
-  ensure_awake
   echo "LAN: ${LAN:-unknown}"
-  echo "keep-awake: $( [[ -f $KEEP_PID ]] && kill -0 $(cat $KEEP_PID) 2>/dev/null && echo ok pid=$(cat $KEEP_PID) || echo off )"
+  echo "keep-awake: $(systemctl --user is-active --quiet "$KEEP_UNIT" && echo "ok unit=$KEEP_UNIT" || { [[ -f $KEEP_PID ]] && kill -0 "$(cat "$KEEP_PID")" 2>/dev/null && echo "ok pid=$(cat "$KEEP_PID")" || echo off; })"
   echo "CLI: $(command -v $CLI)"
-  if running; then
-    "$CLI" status --json | python3 -m json.tool 2>/dev/null | head -30
-    echo "--- pair ---"
-    [[ -f "$PAIR_TXT" ]] && head -1 "$PAIR_TXT" || echo "(no pair file — run: bin/dg-orca pair)"
-    echo "pair page: http://${LAN}:8767/orca-pair.html  (if pair-http running)"
-  else
-    echo "Orca not reachable. Run: bin/dg-orca up"
-  fi
-  node "${ROOT}/demigod-orca-bridge.mjs" doctor 2>/dev/null || true
+  local rc=0
+  node "${ROOT}/demigod-orca-bridge.mjs" status || rc=$?
+  [[ -f "$PAIR_TXT" ]] && echo "pair file: $PAIR_TXT" || true
+  return "$rc"
 }
 
 cmd_up() {
@@ -147,13 +142,7 @@ cmd_hub() {
   if [[ -d "${ROOT}/orca/workspaces/potter/potter-hub" ]]; then
     "$CLI" worktree set --worktree "$POTTER_HUB" \
       --display-name potter-hub \
-      --comment "Spawn agents here for canonical edits" \
-      --workspace-status in-progress --json >/dev/null || true
-  fi
-  if [[ -d "${ROOT}/orca/workspaces/potter/demigod-swarm" ]]; then
-    "$CLI" worktree set --worktree "$SWARM_WT" \
-      --display-name demigod-swarm \
-      --comment "Swarm review + site features branch" \
+      --comment "Isolated worktree · not canonical /home/potter" \
       --workspace-status in-progress --json >/dev/null || true
   fi
   echo "Hubs labeled."
@@ -166,11 +155,7 @@ for w in json.load(sys.stdin).get('result',{}).get('worktrees',[]):
 }
 
 pick_wt() {
-  if [[ -d "${ROOT}/orca/workspaces/potter/demigod-swarm" ]]; then
-    echo "$SWARM_WT"
-  else
-    echo "$HUB_WT"
-  fi
+  echo "$HUB_WT"
 }
 
 agent_cmd() {
@@ -204,33 +189,16 @@ try:
  print(t.get('handle') or r.get('handle') or r.get('terminalHandle') or '')
 except: print('')" 2>/dev/null || true)
   if [[ -n "$prompt" && -n "$handle" ]]; then
-    sleep 2
+    "$CLI" terminal wait --terminal "$handle" --for tui-idle --timeout-ms 60000 --json >/dev/null
     "$CLI" terminal send --terminal "$handle" --text "$prompt" --enter --json 2>&1 | head -10
   elif [[ -n "$prompt" ]]; then
-    # fallback: send to newest terminal in wt
-    sleep 2
-    "$CLI" terminal send --worktree "$wt" --text "$prompt" --enter --json 2>&1 | head -10 || true
+    echo "Orca did not return a terminal handle; prompt not sent." >&2
+    return 1
   fi
-}
-
-cmd_swarm() {
-  local prompt="${*:-Demigod thorough review: audit control plane, matching, review tools, webflow helpers, foot-core/head honesty, WIZ UX. List P0 bugs + concrete site design improvements. Write findings to /tmp/dg-swarm-\$AGENT.md}"
-  running || start_orca
-  cmd_hub
-  for a in grok claude codex; do
-    if command -v "$a" >/dev/null 2>&1 || [[ "$a" == grok ]] || [[ "$a" == claude ]] || [[ "$a" == codex ]]; then
-      local p
-      p=$(echo "$prompt" | sed "s/\$AGENT/$a/g")
-      cmd_spawn "$a" "$p" || true
-      sleep 1
-    fi
-  done
-  echo "Swarm launched. Check: bin/dg-orca ps && orca-ide terminal list --json"
 }
 
 cmd_doctor() {
   node "${ROOT}/demigod-orca-bridge.mjs" doctor
-  ensure_awake
   running && echo "orca: ok" || echo "orca: DOWN"
   ss -tln 2>/dev/null | grep -q ':6768' && echo "ws:6768 listening" || echo "ws:6768 missing"
   ss -tln 2>/dev/null | grep -q ':9878' && echo "dash:9878 up" || echo "dash:9878 down"
@@ -248,6 +216,7 @@ case "${1:-}" in
   status) cmd_status ;;
   up) cmd_up ;;
   down)
+    systemctl --user stop "$KEEP_UNIT" 2>/dev/null || true
     if [[ -f "$KEEP_PID" ]]; then kill "$(cat "$KEEP_PID")" 2>/dev/null || true; rm -f "$KEEP_PID"; echo "keep-awake stopped"; else echo "keep-awake not running"; fi
     ;;
   pair) ensure_awake; running || start_orca; refresh_pair; cat "$PAIR_TXT"; echo; echo "Also: http://${LAN}:8767/orca-pair.html" ;;
@@ -271,7 +240,6 @@ httpd.serve_forever()
   hub) cmd_hub ;;
   ps) "$CLI" worktree ps --json | python3 -m json.tool 2>/dev/null | head -120 ;;
   spawn) shift; cmd_spawn "$@" ;;
-  swarm) shift; cmd_swarm "$@" ;;
   send)
     shift
     handle="${1:?handle}"; shift

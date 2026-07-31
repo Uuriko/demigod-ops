@@ -3,7 +3,6 @@
 set -euo pipefail
 cd /home/potter
 PORT="${DEMIGOD_DASH_PORT:-9878}"
-COORD_CACHE=/tmp/dg-busy/coord-api-last.json
 # nvm node is not on systemd PATH by default
 export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
 NODE_BIN="$(command -v node || true)"
@@ -14,10 +13,6 @@ fi
 
 host_receipt_fresh() {
   find /tmp/dg-busy/dashboard-server.heartbeat -mmin -2 -print -quit 2>/dev/null | grep -q .
-}
-
-coord_file_fallback() {
-  "$NODE_BIN" -e 'const fs=require("fs"),d="/tmp/dg-busy/coord/",read=n=>{try{return JSON.parse(fs.readFileSync(d+n))}catch{return null}},fresh=j=>{if(!j)return null;const ageSec=Math.round((Date.now()-Date.parse(j.at))/1000),stale=!Number.isFinite(ageSec)||ageSec < -300||ageSec>3600;return {...j,ageSec:Number.isFinite(ageSec)?ageSec:null,stale}},q=read("quality-backlog.json"),items=(q?.items||[]).filter(x=>x?.status==="open"&&["P0","P1"].includes(x?.sev));const out={degraded:true,source:"coord-files",at:new Date().toISOString(),reachability:{"/api/coord":false,observedAt:new Date().toISOString()},board:read("board.json"),quality:q&&{at:q.at,openP0P1:items.length,items},claims:read("claims.json"),claude:fresh(read("claude-last.json")),codex:fresh(read("codex-last.json")),grok:fresh(read("grok-last.json"))};const has=["board","quality","claims","claude","codex","grok"].some(k=>out[k]!=null);process.stdout.write(JSON.stringify(has?{ok:true,...out}:{ok:false,...out,reason:"coord unavailable · namespace blocks dashboard and no fresh cache exists"}));if(!has)process.exit(2)'
 }
 
 if [[ "${1:-}" == "stop" ]]; then
@@ -50,17 +45,7 @@ if [[ "${1:-}" == "brief" ]]; then
 fi
 
 if [[ "${1:-}" == "coord" ]]; then
-  coord_tmp="${COORD_CACHE}.$$"
-  curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/coord" >"$coord_tmp" 2>/dev/null && mv "$coord_tmp" "$COORD_CACHE" && cat "$COORD_CACHE" || {
-    rm -f "$coord_tmp"
-    if grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
-      "$NODE_BIN" -e 'const fs=require("fs"),p=process.argv[1],j=JSON.parse(fs.readFileSync(p)),age=Date.now()-Date.parse(j.at);if(!Number.isFinite(age)||age < -5000||age>120000)process.exit(1);process.stdout.write(JSON.stringify({...j,cached:true,degraded:true,cacheAgeMs:Math.max(0,age),reachability:{"/api/coord":false,observedAt:new Date().toISOString()}}))' "$COORD_CACHE" 2>/dev/null && exit 0
-      coord_file_fallback
-      exit
-    fi
-    coord_file_fallback
-  }
-  exit
+  exec curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/coord"
 fi
 
 if curl --noproxy '*' -fsS --max-time 1 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then

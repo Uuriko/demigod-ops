@@ -216,3 +216,20 @@ demigod-board.json.bak*
 .wine/
 .pki/
 DEMIGOD-ROLE-LEDGER.json
+
+# Personal-contact operational artifacts: call packs, day cards, countdowns, and a Gmail draft
+# that carries a real third-party address. These are untracked siblings of files already tracked
+# here (DOUGLAS-RUN-OF-SHOW.md, PILOT-LOG.md), so a bulk `git add -A` by any agent would sweep
+# them into history. Same private-operational-data rule as demigod-outreach/* above.
+demigod-ops/DOUGLAS-*
+!demigod-ops/DOUGLAS-RUN-OF-SHOW.md
+demigod-ops/SEND-QUEUE-PRIORITIZED.md
+# Inbox triage SoR — small today, grows with real submissions.
+DEMIGOD-INBOX-TRIAGE.json
+
+# Embedded git repo — would land as a broken gitlink, not real content.
+hahahacks-2026/
+
+# Large binaries: GitHub rejects >100MB and these are re-downloadable artifacts.
+*.AppImage
+*.AppImage.v*

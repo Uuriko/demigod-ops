@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily /tmp/dg-busy rotation
+
+[Timer]
+OnCalendar=daily
+OnBootSec=10min
+Persistent=true
+Unit=demigod-busy-rotate.service
+
+[Install]
+WantedBy=timers.target

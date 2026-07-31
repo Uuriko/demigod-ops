@@ -3,10 +3,12 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { firstUsableOutreachEmail } from './demigod-lead-collect.mjs';
+import { projectDraftText } from './demigod-submissions-lib.mjs';
 
-const OUTREACH = path.join(ROOT, 'demigod-outreach');
+const OUTREACH = path.resolve(process.env.DEMIGOD_OUTREACH_DIR || path.join(ROOT, 'demigod-outreach'));
 const CSV = path.join(OUTREACH, 'founders.csv');
 const TEMPLATE = path.join(OUTREACH, 'template-dm.md');
 const READY = path.join(OUTREACH, 'ready-emails');
@@ -28,7 +30,6 @@ function parseArgs(argv) {
     template: TEMPLATE,
     markSent: null,
     prune: false,
-    logPrepared: false,
     help: false,
     send: false,
   };
@@ -38,7 +39,6 @@ function parseArgs(argv) {
       out.dry = false;
     } else if (a === '--dry') out.dry = true;
     else if (a === '--prune') out.prune = true;
-    else if (a === '--log-prepared') out.logPrepared = true;
     else if (a === '--help' || a === '-h') out.help = true;
     else if (a.startsWith('--limit=')) out.limit = Number(a.split('=')[1]) || 50;
     else if (a.startsWith('--csv=')) out.csv = path.resolve(a.split('=')[1]);
@@ -79,21 +79,6 @@ function fill(template, row) {
     .replace(/\{\{why\}\}/g, row.why || 'strong match for your team');
 }
 
-function ensureSamples() {
-  process.umask(0o077);
-  fs.mkdirSync(OUTREACH, { recursive: true });
-  if (!fs.existsSync(CSV)) {
-    fs.writeFileSync(CSV, [
-      'name,company,trigger,email,handle,channel',
-      'Alex,Stealth AI agent co,your backend eng post on X,,@alexseed,dm',
-      'Jordan,Seed fintech,YC WaS founding PM role,,,email',
-    ].join('\n') + '\n');
-  }
-  if (!fs.existsSync(TEMPLATE)) {
-    fs.writeFileSync(TEMPLATE, DEFAULT_TEMPLATE);
-  }
-}
-
 function loadLog() {
   try {
     return JSON.parse(fs.readFileSync(LOG, 'utf8'));
@@ -114,12 +99,10 @@ Options:
   --template=PATH   Custom template with {{name}} {{company}} {{trigger}} {{why}}
   --mark-sent=Name  Refused; a local draft cannot prove external delivery
   --prune           Keep only files from latest batch
-  --log-prepared    After generate, log each to tracker as dm-prepared
   --help            This help
 
 Examples:
   node ... --dry --limit=5
-  node ... --log-prepared
 `);
     return;
   }
@@ -141,7 +124,10 @@ Examples:
     process.exit(2);
   }
 
-  ensureSamples();
+  if (!fs.existsSync(args.csv)) {
+    console.error(`Missing founder CSV: ${args.csv}`);
+    process.exit(1);
+  }
 
   if (args.prune) {
     const log = loadLog();
@@ -162,49 +148,48 @@ Examples:
     : DEFAULT_TEMPLATE;
   const rows = parseCsv(fs.readFileSync(args.csv, 'utf8')).slice(0, args.limit);
 
-  fs.mkdirSync(READY, { recursive: true });
+  fs.mkdirSync(READY, { recursive: true, mode: 0o700 });
+  fs.chmodSync(READY, 0o700);
   const batchId = crypto.randomBytes(4).toString('hex');
   const generated = [];
 
   for (const row of rows) {
-    const body = fill(template, row);
-    const id = `${batchId}-${row.name.toLowerCase().replace(/\W+/g, '').slice(0, 12)}`;
+    const safeRow = {
+      ...row,
+      name: projectDraftText(row.name, 80),
+      company: projectDraftText(row.company, 120),
+      trigger: projectDraftText(row.trigger, 240),
+      why: projectDraftText(row.why, 240),
+    };
+    const email = firstUsableOutreachEmail(row.email);
+    const body = fill(template, safeRow);
+    const id = `${batchId}-${safeRow.name.toLowerCase().replace(/\W+/g, '').slice(0, 12)}`;
     const base = path.join(READY, id);
-    const subject = `SF talent match for ${row.company} — human-curated`;
+    const subject = `SF talent match for ${safeRow.company} — human-curated`;
     const dmPath = `${base}-dm.txt`;
     const emailPath = `${base}-email.txt`;
 
-    fs.writeFileSync(dmPath, body);
-    if (row.email) {
-      fs.writeFileSync(emailPath, `To: ${row.email}\nSubject: ${subject}\n\n${body}`);
+    atomicWrite(dmPath, body, { mode: 0o600 });
+    if (email) {
+      atomicWrite(emailPath, `To: ${email}\nSubject: ${subject}\n\n${body}`, { mode: 0o600 });
     }
 
     generated.push({
       id,
       at: new Date().toISOString(),
-      name: row.name,
-      company: row.company,
-      channel: row.channel || (row.email ? 'email' : 'dm'),
+      name: safeRow.name,
+      company: safeRow.company,
+      channel: row.channel || (email ? 'email' : 'dm'),
       dmFile: path.relative(ROOT, dmPath),
-      emailFile: row.email ? path.relative(ROOT, emailPath) : null,
+      emailFile: email ? path.relative(ROOT, emailPath) : null,
     });
-  }
-
-  if (args.logPrepared) {
-    console.log('Logging prepared to tracker as dm-prepared...');
-    for (const g of generated) {
-      const fakeEmail = g.name.toLowerCase().replace(/\W+/g, '') + '+dm@trydemigod.com';
-      const brief = `DM prepared batch ${batchId} for ${g.company} (${g.channel})`;
-      const res = spawnSync('node', ['demigod-pilot-tracker.mjs', `--founderEmail=${fakeEmail}`, '--status=dm-prepared', `--brief=${brief}`], { encoding: 'utf8' });
-      if (res.stdout) console.log(res.stdout.trim());
-    }
   }
 
   const log = loadLog();
   const run = { batchId, at: new Date().toISOString(), count: generated.length, dry: true, items: generated };
   log.runs = (log.runs || []).slice(-49);
   log.runs.push(run);
-  fs.writeFileSync(LOG, JSON.stringify(log, null, 2));
+  atomicWrite(LOG, JSON.stringify(log, null, 2) + '\n', { mode: 0o600 });
 
   console.log(JSON.stringify({
     ok: true,

@@ -1,0 +1,30 @@
+## Next 30 days: ranked checklist
+
+1. **P0 — Define the sellable promise:** “Founder-caliber shortlist and mutual-fit process; 10% only on successful hire.”
+2. **P0 — Pick one initial niche:** one role, stage, geography, and buyer profile to concentrate learning and liquidity.
+3. **P0 — Build a 100-company target list** with founder names, open roles, funding signals, and warm paths.
+4. **P0 — Conduct 20 founder interviews:** quantify hiring urgency, hours lost, agency dissatisfaction, and willingness to pay.
+5. **P0 — Send 20 highly personalized outreaches daily** using active-role evidence and a specific candidate thesis.
+6. **P0 — Sell three design-partner searches** with written scope, timeline, fee trigger, and no invented marketplace activity.
+7. **P0 — Create the manual search operating system:** intake → sourcing → screening → shortlist → interview → close.
+8. **P0 — Establish candidate consent:** explicit approval before introductions; never expose identities speculatively.
+9. **P0 — Prepare enforceable client terms:** fee, replacement/refund policy, candidate ownership, payment deadline, privacy, and non-circumvention.
+10. **P0 — Enable invoicing and collection now;** do not let pending Stripe block revenue.
+11. **P0 — Track one funnel:** outreach, replies, calls, signed searches, candidates screened, introductions, interviews, offers, hires.
+12. **P1 — Recruit 30 qualified candidates** within the chosen niche through direct sourcing and referrals.
+13. **P1 — Standardize structured intake** around outcomes, constraints, compensation, decision process, and genuine deal-breakers.
+14. **P1 — Build a mutual-fit scorecard** covering capability, motivation, working style, risk, and candidate questions.
+15. **P1 — Deliver the first shortlist within seven days** and collect usefulness ratings from both sides.
+16. **P1 — Capture proof ethically:** anonymized time saved, response speed, interview conversion, testimonials, and objections resolved.
+17. **P1 — Publish one credible case narrative** clearly labeled pilot/sample until based on a real engagement.
+18. **P1 — Add lightweight service operations:** response SLAs, weekly client updates, consent records, and follow-up ownership.
+19. **P2 — Productize only repeated pain:** automate scheduling, status updates, reminders, and scorecard summaries after manual validation.
+20. **P2 — Review unit economics:** acquisition cost, hours per search, fill rate, time-to-hire, expected fee, refunds, and cash timing.
+
+## Five ways to make the first dollar
+
+1. Close a contingency search at **10% of first-year cash compensation**.
+2. Sell a **credited kickoff deposit** applied toward the eventual success fee.
+3. Offer a fixed-price **candidate sourcing sprint** with a qualified shortlist.
+4. Sell a **hiring-process diagnostic**: role calibration, scorecard, funnel, and interview design.
+5. Charge for a **founding-team talent mapping project** covering target companies, candidate profiles, compensation, and outreach strategy.

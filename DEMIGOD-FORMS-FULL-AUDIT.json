@@ -1,0 +1,623 @@
+{
+  "at": "2026-07-28T15:02:39.687Z",
+  "url": "https://www.trydemigod.com",
+  "source": "live",
+  "startup": {
+    "clicked": true,
+    "modalVisible": true,
+    "formId": "startup-hire",
+    "formName": "startup-hire",
+    "fieldCount": 11,
+    "visibleFields": 1,
+    "fields": [
+      {
+        "name": "contact-email",
+        "type": "email",
+        "accept": "",
+        "required": true,
+        "placeholder": "name@company.com",
+        "label": "Contact Email*",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "company-stage",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Company stage *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "company-name",
+        "type": "text",
+        "accept": "",
+        "required": true,
+        "placeholder": "Company name",
+        "label": "Company name?",
+        "visible": true,
+        "value": ""
+      },
+      {
+        "name": "role-title",
+        "type": "text",
+        "accept": "",
+        "required": true,
+        "placeholder": "Role title",
+        "label": "Role title *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "stack-needs",
+        "type": "textarea",
+        "accept": "",
+        "required": true,
+        "placeholder": "Required skills or domain knowledge",
+        "label": "Skills / requirements *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "90day-outcome",
+        "type": "textarea",
+        "accept": "",
+        "required": true,
+        "placeholder": "One measurable first-90-day result",
+        "label": "What should they ship in the first 90 days?",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "work-location",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Where and how can this person work? *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "salary-range",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Target base cash range *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "hiring-urgency",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "How soon do you need someone? *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "",
+        "type": "submit",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": "Submit"
+      },
+      {
+        "name": "form_version",
+        "type": "hidden",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": "v851"
+      }
+    ],
+    "submitText": "Continue",
+    "submitVisible": true,
+    "formScrollable": false,
+    "scrollH": 646,
+    "clientH": 646,
+    "ghosts": [],
+    "trustLines": [
+      "Role + 90-day outcome. Matched with Demigod tech; humans in the loop.",
+      "10% of first-year cash if you hire. Free for talent. Nothing until then.",
+      "A human reads every brief. potter@trydemigod.com follows up.",
+      "Someone reads every submission. We only propose when the fit is real — both sides still have to say ",
+      "• We read the role and 90-day outcome",
+      "• We rank and human-review fits",
+      "• You approve before any intro"
+    ],
+    "turnstile": false,
+    "resumeUpload": {
+      "mode": "missing",
+      "accept": "",
+      "maxBytes": 10485760,
+      "requiredLink": false,
+      "stateCount": 0,
+      "accessibleStates": 0
+    },
+    "screenshot": "/home/potter/audit-shots/forms-audit/startup-desktop-2026-07-28T15-02-26-528Z.png"
+  },
+  "engineer": {
+    "clicked": true,
+    "modalVisible": true,
+    "formId": "engineer-join",
+    "formName": "engineer-join",
+    "fieldCount": 12,
+    "visibleFields": 1,
+    "fields": [
+      {
+        "name": "full-name",
+        "type": "text",
+        "accept": "",
+        "required": true,
+        "placeholder": "Your full name",
+        "label": "",
+        "visible": true,
+        "value": ""
+      },
+      {
+        "name": "seeker-email",
+        "type": "email",
+        "accept": "",
+        "required": true,
+        "placeholder": "you@email.com",
+        "label": "",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "skills-stack",
+        "type": "textarea",
+        "accept": "",
+        "required": true,
+        "placeholder": "Strengths, craft, or domain",
+        "label": "",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "experience",
+        "type": "textarea",
+        "accept": "",
+        "required": true,
+        "placeholder": "Two or three concrete outcomes",
+        "label": "",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "sf-bay",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Open to SF Bay startups?",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "availability",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Availability *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "salary-expectation",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "Target base cash range *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "work-auth",
+        "type": "select-one",
+        "accept": "",
+        "required": true,
+        "placeholder": "",
+        "label": "US work authorization *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "",
+        "type": "submit",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": "Submit"
+      },
+      {
+        "name": "resume",
+        "type": "file",
+        "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "required": false,
+        "placeholder": "",
+        "label": "Upload File",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "resume-url",
+        "type": "url",
+        "accept": "",
+        "required": false,
+        "placeholder": "https://",
+        "label": "Resume file or work link *",
+        "visible": false,
+        "value": ""
+      },
+      {
+        "name": "form_version",
+        "type": "hidden",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": "v851"
+      }
+    ],
+    "submitText": "Continue",
+    "submitVisible": true,
+    "formScrollable": false,
+    "scrollH": 646,
+    "clientH": 646,
+    "ghosts": [],
+    "trustLines": [
+      "One private profile. Evidence match + human review; shared only when you approve.",
+      "Demigod and its form/email providers process these answers for matching. Identifying details move on",
+      "Not shared with startups before mutual approval. Free for candidates.",
+      "PDF/DOCX upload or a shareable https link. Uploaded files are not restored if you refresh mid-form.",
+      "Upload a file or paste one shareable HTTPS link.",
+      "Not shared with startups until you approve an intro. Free for talent. No blasts.",
+      "• Demigod and its form provider process your answers",
+      "• A human proposes only real fits",
+      "• You approve before identifying details move"
+    ],
+    "turnstile": false,
+    "resumeUpload": {
+      "mode": "native-file-or-link",
+      "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "maxBytes": 10485760,
+      "requiredLink": false,
+      "stateCount": 3,
+      "accessibleStates": 1
+    },
+    "screenshot": "/home/potter/audit-shots/forms-audit/engineer-desktop-2026-07-28T15-02-31-011Z.png"
+  },
+  "mobile": {
+    "startup": {
+      "clicked": true,
+      "modalVisible": true,
+      "formId": "startup-hire",
+      "formName": "startup-hire",
+      "fieldCount": 12,
+      "visibleFields": 1,
+      "fields": [
+        {
+          "name": "contact-email",
+          "type": "email",
+          "accept": "",
+          "required": true,
+          "placeholder": "name@company.com",
+          "label": "Contact Email*",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "company-stage",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Company stage *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "company-name",
+          "type": "text",
+          "accept": "",
+          "required": true,
+          "placeholder": "Company name",
+          "label": "Company name?",
+          "visible": true,
+          "value": ""
+        },
+        {
+          "name": "role-title",
+          "type": "text",
+          "accept": "",
+          "required": true,
+          "placeholder": "Role title",
+          "label": "Role title *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "stack-needs",
+          "type": "textarea",
+          "accept": "",
+          "required": true,
+          "placeholder": "Required skills or domain knowledge",
+          "label": "Skills / requirements *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "90day-outcome",
+          "type": "textarea",
+          "accept": "",
+          "required": true,
+          "placeholder": "One measurable first-90-day result",
+          "label": "What should they ship in the first 90 days?",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "work-location",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Where and how can this person work? *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "salary-range",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Target base cash range *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "hiring-urgency",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "How soon do you need someone? *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "",
+          "type": "submit",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": "Submit"
+        },
+        {
+          "name": "form_version",
+          "type": "hidden",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": "v851"
+        },
+        {
+          "name": "cf-turnstile-response",
+          "type": "hidden",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": ""
+        }
+      ],
+      "submitText": "Continue",
+      "submitVisible": true,
+      "formScrollable": false,
+      "scrollH": 608,
+      "clientH": 608,
+      "ghosts": [],
+      "trustLines": [
+        "Role + 90-day outcome. Matched with Demigod tech; humans in the loop.",
+        "10% of first-year cash if you hire. Free for talent. Nothing until then.",
+        "A human reads every brief. potter@trydemigod.com follows up.",
+        "Someone reads every submission. We only propose when the fit is real — both sides still have to say ",
+        "• We read the role and 90-day outcome",
+        "• We rank and human-review fits",
+        "• You approve before any intro"
+      ],
+      "turnstile": true,
+      "resumeUpload": {
+        "mode": "missing",
+        "accept": "",
+        "maxBytes": 10485760,
+        "requiredLink": false,
+        "stateCount": 0,
+        "accessibleStates": 0
+      },
+      "screenshot": "/home/potter/audit-shots/forms-audit/startup-mobile-2026-07-28T15-02-35-146Z.png"
+    },
+    "engineer": {
+      "clicked": true,
+      "modalVisible": true,
+      "formId": "engineer-join",
+      "formName": "engineer-join",
+      "fieldCount": 12,
+      "visibleFields": 1,
+      "fields": [
+        {
+          "name": "full-name",
+          "type": "text",
+          "accept": "",
+          "required": true,
+          "placeholder": "Your full name",
+          "label": "",
+          "visible": true,
+          "value": ""
+        },
+        {
+          "name": "seeker-email",
+          "type": "email",
+          "accept": "",
+          "required": true,
+          "placeholder": "you@email.com",
+          "label": "",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "skills-stack",
+          "type": "textarea",
+          "accept": "",
+          "required": true,
+          "placeholder": "Strengths, craft, or domain",
+          "label": "",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "experience",
+          "type": "textarea",
+          "accept": "",
+          "required": true,
+          "placeholder": "Two or three concrete outcomes",
+          "label": "",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "sf-bay",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Open to SF Bay startups?",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "availability",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Availability *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "salary-expectation",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "Target base cash range *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "work-auth",
+          "type": "select-one",
+          "accept": "",
+          "required": true,
+          "placeholder": "",
+          "label": "US work authorization *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "",
+          "type": "submit",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": "Submit"
+        },
+        {
+          "name": "resume",
+          "type": "file",
+          "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "required": false,
+          "placeholder": "",
+          "label": "Upload File",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "resume-url",
+          "type": "url",
+          "accept": "",
+          "required": false,
+          "placeholder": "https://",
+          "label": "Resume file or work link *",
+          "visible": false,
+          "value": ""
+        },
+        {
+          "name": "form_version",
+          "type": "hidden",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": "v851"
+        }
+      ],
+      "submitText": "Continue",
+      "submitVisible": true,
+      "formScrollable": false,
+      "scrollH": 608,
+      "clientH": 608,
+      "ghosts": [],
+      "trustLines": [
+        "One private profile. Evidence match + human review; shared only when you approve.",
+        "Demigod and its form/email providers process these answers for matching. Identifying details move on",
+        "Not shared with startups before mutual approval. Free for candidates.",
+        "PDF/DOCX upload or a shareable https link. Uploaded files are not restored if you refresh mid-form.",
+        "Upload a file or paste one shareable HTTPS link.",
+        "Not shared with startups until you approve an intro. Free for talent. No blasts.",
+        "• Demigod and its form provider process your answers",
+        "• A human proposes only real fits",
+        "• You approve before identifying details move"
+      ],
+      "turnstile": false,
+      "resumeUpload": {
+        "mode": "native-file-or-link",
+        "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "maxBytes": 10485760,
+        "requiredLink": false,
+        "stateCount": 3,
+        "accessibleStates": 1
+      },
+      "screenshot": "/home/potter/audit-shots/forms-audit/engineer-mobile-2026-07-28T15-02-39-207Z.png"
+    }
+  },
+  "issues": [],
+  "pass": true
+}

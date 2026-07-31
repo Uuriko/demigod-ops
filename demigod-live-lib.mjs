@@ -20,7 +20,7 @@ export const BAD_MCP_SCRIPT_PATTERNS = [
   /ctamodalsfix/i,
 ];
 
-export const EXPECTED_FORM_NAMES = ['startup-hire', 'engineer-join'];
+export const EXPECTED_FORM_NAMES = ['startup-hire', 'engineer-join', 'partner-apply'];
 
 export const HEAD_MARKERS = [
   'hide-webflow-badge',
@@ -30,8 +30,6 @@ export const HEAD_MARKERS = [
   'og:title',
   'demigod-polish',
 ];
-
-export const TALLY_HEAD_MARKERS = ['Demigod forms', 'demigod-tally-embed', 'demigod-core'];
 
 /** Split-architecture: head-minimal (CSS) + footer-core (JS). */
 export function markerPresent(html, marker) {
@@ -49,7 +47,7 @@ export function markerPresent(html, marker) {
   }
   if (marker === 'og:title') return html.includes('og:title');
   if (marker === 'Demigod forms') {
-    return TALLY_HEAD_MARKERS.some((k) => html.includes(k))
+    return html.includes('Demigod forms')
       || (/dg-foot-v\d+-core/.test(html) && /function forms/.test(html));
   }
   if (marker === 'openModal') {
@@ -59,12 +57,6 @@ export function markerPresent(html, marker) {
     return /demigod-polish|function polish\(/.test(html);
   }
   return html.includes(marker);
-}
-
-/** Parse `window.__dgWebhookUrl` from footer loader on live HTML. */
-export function extractLiveWebhookUrl(html = '') {
-  const m = html.match(/__dgWebhookUrl\s*=\s*["']([^"']+)["']/);
-  return m ? m[1].replace(/\/?$/, '/') : '';
 }
 
 /** Extract external footer script URLs from Webflow custom-code loader. */
@@ -100,19 +92,25 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
     scriptRefs.filter((s) => BAD_MCP_SCRIPT_PATTERNS.some((re) => re.test(s))),
   )];
   const allMcpAppScripts = [...new Set(html.match(/demigod[a-z0-9]+-1\.0\.0/gi) || [])];
-  const forms = EXPECTED_FORM_NAMES.map((name) => ({
-    name,
-    present: new RegExp(`name="${name}"|id="${name}"`, 'i').test(html),
-  }));
+  const partnerForm = (html.match(/<form\b(?=[^>]*\bdata-name=["']partner-apply["'])[^>]*>[\s\S]*?<\/form>/i) || [])[0] || '';
+  const partnerFields = [...partnerForm.matchAll(/<(?:input|textarea|select)\b[^>]*>/gi)]
+    .filter(([tag]) => !/\btype=["'](?:hidden|submit|button)["']/i.test(tag))
+    .map(([tag]) => (tag.match(/\bname=["']([^"']+)["']/i) || [])[1])
+    .filter(Boolean);
+  const partnerExpected = ['partner-name', 'partner-email', 'referral-plan'];
+  const partnerContractOk = partnerFields.length === partnerExpected.length
+    && partnerExpected.every((name) => partnerFields.includes(name));
   // Live may still publish legacy ids until next designer publish
   const legacyAliases = {
     'startup-hire': ['startup-form', 'startup-hire'],
     'engineer-join': ['jobseeker-form', 'engineer-join'],
+    'partner-apply': ['partner-apply'],
   };
   const formsResolved = EXPECTED_FORM_NAMES.map((name) => {
     const aliases = legacyAliases[name] || [name];
-    const present = aliases.some((a) => new RegExp(`name="${a}"|id="${a}"`, 'i').test(html));
-    return { name, present, aliases };
+    const found = aliases.some((a) => new RegExp(`name=["'][^"']*${a}|id=["'][^"']*${a}`, 'i').test(html));
+    const present = name === 'partner-apply' ? found && partnerContractOk : found;
+    return { name, present, aliases, ...(name === 'partner-apply' ? { fields: partnerFields } : {}) };
   });
   const headMarkers = HEAD_MARKERS.map((m) => ({
     marker: m,
@@ -168,26 +166,7 @@ export function scanLiveHtml(html, { footerCoreJs = '' } = {}) {
     footerCoreCopy,
     runtimeNavOk,
     badgeHiddenByCss,
-    tallyConfigured: (
-      /FORMS_MODE\s*=\s*['"]hybrid['"]/.test(html)
-      && /var\s+TALLY_ENGINEER\s*=\s*['"]https?:\/\//.test(html)
-    ) || (
-      /var\s+TALLY_STARTUP\s*=\s*['"]https?:\/\//.test(html)
-      && /var\s+TALLY_ENGINEER\s*=\s*['"]https?:\/\//.test(html)
-    ) || (
-      /var\s+TALLY_URL\s*=\s*['"]https?:\/\//.test(html)
-    ) || (
-      (html.includes('demigod-tally-embed') || html.includes('demigod-core'))
-      && (/yPgaDp|zxg6XM/.test(html) && /0QGWP0|QKjQKG/.test(html))
-    ),
-    formsMode: /FORMS_MODE\s*=\s*['"](\w+)['"]/.exec(html)?.[1]
-      || (html.includes('TALLY_STARTUP') ? 'tally-both' : (footerCoreOk ? 'webflow-footer-core' : 'unknown')),
-    tallyHosts: {
-      startup: /tally-startup-embed/.test(html),
-      engineer: /tally-engineer-embed/.test(html),
-    },
     staticDrift,
-    liveWebhookUrl: extractLiveWebhookUrl(html),
   };
 }
 
@@ -202,15 +181,13 @@ export function evaluateFooterCoreCopy(js = '') {
     || (/function scrubTimeClaims/.test(js) && /function scrubStaticLabels/.test(js));
   // navCta: HIRE TALENT (current product) or FIND TALENT (legacy)
   const navOk = /navCta:\s*['"](?:FIND TALENT|HIRE TALENT)['"]/i.test(js);
-  const partnerOk = /function partnerships/.test(js)
-    || /partnerNav:\s*['"]/.test(js)
-    || /\bpartners\s*:\s*\{/.test(js);
+  const referralOk = /\n\s*refer\s*:\s*\{/.test(js);
   return {
     ok: /ctaFounder:\s*['"]HIRE TALENT['"]/i.test(js)
       && navOk
       && /ctaEngineer:\s*['"]JOIN (?:THE TALENT )?NETWORK['"]/i.test(js)
       && /SF STARTUP TALENT/i.test(js)
-      && partnerOk
+      && referralOk
       && noSpeedInCopy
       && noNameInCopy
       && hasScrub,
@@ -256,9 +233,8 @@ export function modalVisible(state) {
 }
 
 /** Build playtest/verify findings from scans. */
-export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues = null, expectedWebhookUrl = '' } = {}) {
+export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues = null } = {}) {
   const findings = [];
-  const normWebhook = (u) => String(u || '').trim().replace(/\/?$/, '/');
 
   if (htmlScan) {
     if (!htmlScan.mcpScriptsGone) {
@@ -271,7 +247,7 @@ export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues 
     if (!htmlScan.formsOk) {
       findings.push({
         severity: 'high',
-        issue: 'Missing expected form names on live HTML',
+        issue: 'Missing or invalid expected form contracts on live HTML',
         detail: htmlScan.forms.filter((f) => !f.present),
       });
     }
@@ -282,12 +258,6 @@ export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues 
         detail: htmlScan.headMarkers.filter((m) => !m.present),
       });
     }
-    if (!htmlScan.tallyConfigured && !htmlScan.footerCoreOk) {
-      findings.push({
-        severity: 'low',
-        issue: 'Tally URLs not configured — set startup + engineer in DEMIGOD-TALLY-URLS.json',
-      });
-    }
     if (htmlScan.staticDrift?.length) {
       const runtimeOk = htmlScan.runtimeNavOk && htmlScan.formsOk && htmlScan.footerCoreCopy?.ok;
       for (const d of htmlScan.staticDrift) {
@@ -295,19 +265,6 @@ export function buildFindings({ pageScan, htmlScan, modals = {}, designerIssues 
         findings.push({
           severity: sev,
           issue: runtimeOk ? `Static HTML drift (runtime OK): ${d.issue}` : `Static HTML drift: ${d.issue}`,
-        });
-      }
-    }
-    if (expectedWebhookUrl) {
-      const live = normWebhook(htmlScan.liveWebhookUrl);
-      const expected = normWebhook(expectedWebhookUrl);
-      if (!live) {
-        findings.push({ severity: 'high', issue: 'Partner webhook URL missing on live footer loader' });
-      } else if (live !== expected) {
-        findings.push({
-          severity: 'high',
-          issue: 'Partner webhook URL drift (republish footer loader)',
-          detail: { live, expected },
         });
       }
     }
@@ -424,8 +381,7 @@ export function appendNovelFindings(filePath, findings, { known = null } = {}) {
 
 export function htmlToVisibleText(html) {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<(script|style|template)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -442,7 +398,7 @@ export async function fetchLiveHtml(cacheBust = true) {
   return { url, html, footerCoreJs, bodyText, pageScan };
 }
 
-/** Minimal DOM harness for unit-testing demigod-live-cta-fix.js click routing. */
+/** Minimal DOM harness for unit-testing canonical CTA click routing. */
 export function createCtaFixHarness() {
   const modals = {
     '#startup-modal': { id: 'startup-modal', style: {}, display: 'none' },

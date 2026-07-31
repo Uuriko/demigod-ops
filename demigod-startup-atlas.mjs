@@ -17,10 +17,11 @@ export function normalizeCompanyName(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
     .replace(/\b(?:incorporated|corporation|company|limited|inc|corp|llc|ltd|pllc|lp|co)\b/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .normalize('NFC');
 }
 
 function exactSfLocation(value) {

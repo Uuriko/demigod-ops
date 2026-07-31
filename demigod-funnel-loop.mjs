@@ -19,7 +19,12 @@ import fs from 'fs';
 import path from 'path';
 import { spawn, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { isUsableOutreachEmail, isUsableOutreachHandle } from './demigod-lead-collect.mjs';
+import {
+  firstUsableOutreachEmail,
+  hasUnresolvedLinkedInConflict,
+  isUsableOutreachHandle,
+} from './demigod-lead-collect.mjs';
+import { normalizeLinkedInProfile } from './demigod-outreach-policy.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = '/tmp/dg-busy';
@@ -170,7 +175,12 @@ export function selectDraftableLeads(leads, n = 3) {
       (l) =>
         (l.state || l.status || 'sourced') === 'sourced' &&
         (l.score || 0) >= 65 &&
-        (isUsableOutreachEmail(l.contactEmail || l.email) || isUsableOutreachHandle(l.handle)),
+        (firstUsableOutreachEmail(l.email, l.contactEmail) ||
+          isUsableOutreachHandle(l.handle) ||
+          (
+            normalizeLinkedInProfile(l.linkedin || l.url) &&
+            !hasUnresolvedLinkedInConflict(l)
+          )),
     )
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, n);
@@ -219,7 +229,7 @@ function spawnHelpers(cycle) {
   const fableOut = path.join(DIR, `fable-c${cycle}.txt`);
   const codexOut = path.join(DIR, `codex-c${cycle}.txt`);
 
-  const fableTask = `Demigod EVENTS BOT / SF nights. Current phase: Events Bot autonomy + SF-only nights.
+  const fableTask = `Demigod EVENTS BOT / SF nights. Task context: Events Bot autonomy + SF-only nights.
 Read /tmp/dg-busy/events-bot/FOCUS.md + EVENTBOT-MASTER-SPEC.md + BRIEF-FOR-AGENTS.md + DEMIGOD-EVENTS.json.
 Rank next 3 implementable P0s (lifecycle, offer match, outreach drafts, selftest, public API). Ponytail/YAGNI. No human task lists.
 Output: numbered plan Grok/Codex can apply. Write also to /tmp/dg-busy/funnel-loop/FABLE-NEXT.md`;
@@ -245,10 +255,6 @@ Write what you did to /tmp/dg-busy/funnel-loop/CODEX-LAST.md`;
     420,
   );
 
-  // Swarm assist wave every 6 cycles (funnel-loop owns cadence; avoid double with swarm _loop)
-  if (cycle % 6 === 0) {
-    spawnBg('swarm', path.join(ROOT, 'bin/dg-codex-swarm'), ['once'], path.join(DIR, `swarm-c${cycle}.log`), 400);
-  }
 }
 
 async function cycleOnce(state) {
@@ -376,7 +382,7 @@ async function cycleOnce(state) {
     owner: 'funnel-loop',
   };
   writeJson(path.join(DIR, 'latest.json'), latest);
-  // Heartbeat so grok-busy can skip duplicate local ticks
+  // Observable loop heartbeat.
   writeJson(path.join(DIR, 'heartbeat.json'), {
     at: state.lastAt,
     cycle,

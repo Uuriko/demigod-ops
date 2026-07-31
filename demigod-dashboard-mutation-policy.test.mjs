@@ -4,7 +4,6 @@ import fs from 'node:fs';
 
 const source = fs.readFileSync(new URL('./demigod-agent-dashboard.mjs', import.meta.url), 'utf8');
 const ui = fs.readFileSync(new URL('./demigod-agent-dashboard-ui.html', import.meta.url), 'utf8');
-const codexSwarm = fs.readFileSync(new URL('./bin/dg-codex-swarm', import.meta.url), 'utf8');
 assert.match(source, /const JOBS = Object\.assign\(Object\.create\(null\), \{/);
 const allowlist = Object.assign(Object.create(null), { smoke: {} });
 for (const query of ['run=toString', 'run=%74%6fString', 'run=constructor', 'run=__proto__']) {
@@ -20,11 +19,5 @@ assert.match(job, /mutate:\s*true/);
 assert.doesNotMatch(job, /safe:\s*true/);
 assert.match(ui, /if\(ba\) ba\.onclick=\(\)=>runJob\('auto-propose',\{mutate:true,btn:ba\}\);/);
 assert.doesNotMatch(ui, /Auto-propose done|await runJob\('auto-propose'\)/);
-
-const codexSwarmJob = source.match(/'codex-swarm-once':\s*\{[^\n]+\}/)?.[0] || '';
-assert.match(codexSwarmJob, /safe:\s*true/);
-assert.doesNotMatch(codexSwarmJob, /mutate:\s*true/);
-assert.match(codexSwarm, /codex exec --sandbox read-only --ephemeral --output-last-message/);
-assert.doesNotMatch(codexSwarm, /--sandbox workspace-write|--full-auto|fix you can apply/);
 
 console.log('demigod dashboard mutation policy: PASS');

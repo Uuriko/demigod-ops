@@ -9,17 +9,13 @@ if [[ ! -f "$BRIEF_FILE" ]] || [[ $(( $(date +%s) - $(stat -c %Y "$BRIEF_FILE" 2
   mkdir -p /tmp/dg-busy
   curl -sS --max-time 20 http://127.0.0.1:9878/api/agent-brief >"$BRIEF_FILE" 2>/dev/null || true
 fi
-tpl="${1:-ship}"; shift || true
-if [[ "$tpl" == "cursor" ]]; then
-  tpl="cursor"
-  # ensure template exists; falls back gracefully
-fi
+tpl="${1:-review}"; shift || true
 export DF_TASK="${*:-review current state, propose next minimal step}"
 reply=$(mktemp)
 trap 'rm -f "$reply"' EXIT
 ver=$(grep -o "__dgFootVer='[0-9]*'" demigod-foot-core.js | grep -o '[0-9]*' || echo '?')
 board=$(node -e 'const b=require("/home/potter/DEMIGOD-BOARD.json");console.log(`roles:${(b.roles||[]).length} receipts:${(b.receipts||[]).length} pilots:${(b.pilots||[]).length} realRoles:${b.signal?.realRoles??"?"} realReceipts:${b.signal?.realReceipts??"?"}`)')
-state=$(sed -n '/^## loop-state/,/^\*\*/p' demigod-keep-going.md | head -12)
+state=$(sed -n '/^## Canonical operator path/,$p' DEMIGOD-COMPRESSED-STATE.md | head -18)
 gates=$(npm run -s demigod:verify:source 2>&1 | tail -3 || true)
 {
   perl -pe 's/\{\{TASK\}\}/$ENV{DF_TASK}/g' "prompts/demigod/${tpl}.txt" 2>/dev/null \
@@ -44,6 +40,3 @@ gates=$(npm run -s demigod:verify:source 2>&1 | tail -3 || true)
   echo "${DF_TASK}"
 } | claude --print --model fable --add-dir /home/potter | tee "$reply"
 grep -q '[^[:space:]]' "$reply" || { echo 'df: Claude returned an empty review' >&2; exit 1; }
-# Cursor best practice reminder: always use Plan Mode (Shift+Tab) for Fable plans before editing.
-# Use: bin/df cursor 'your task here'   # uses prompts/demigod/cursor.txt → Fable emits Plan/S/R/Verify/Stop for Cursor.
-# After: bin/fable-to-cursor ; open in Cursor (Plan Mode); /dg-implement or apply blocks; then Grok verify.

@@ -5,6 +5,16 @@
  *
  *   node demigod-wiz-ownership-selftest.mjs
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-wiz-ownership-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -79,8 +89,9 @@ ok(/var\s+WIZ_CFG\s*=/.test(src), 'WIZ_CFG present');
 ok(/var\s+WIZ_Q\s*=/.test(src), 'WIZ_Q present');
 ok(/role=["']progressbar["']/.test(src), 'WIZ progressbar semantics');
 ok(/setAttribute\(["']aria-valuenow["']/.test(src), 'WIZ progressbar state sync');
-ok(/eErr\.id\s*=\s*eErr\.id\s*\|\|/.test(src) &&
-  /(?:el\.setAttribute\(["']aria-describedby["']\s*,\s*eErr\.id\)|describedAdd\(el\s*,\s*eErr\.id\))/.test(src),
+// wizInlineInvalid (v848+) uses errEl + describedAdd(focusEl, …); older eErr/el forms still accepted.
+ok(/(?:eErr|errEl)\.id\s*=\s*(?:eErr|errEl)\.id\s*\|\|/.test(src) &&
+  /(?:el\.setAttribute\(["']aria-describedby["']\s*,\s*(?:eErr|errEl)\.id\)|describedAdd\((?:el|focusEl)\s*,\s*(?:eErr|errEl)\.id\))/.test(src),
   'WIZ email validation describes its alert');
 ok(/getAttribute\(["']aria-describedby["']\).*removeAttribute\(["']aria-describedby["']\)/.test(src),
   'WIZ cleared validation removes its owned description');
@@ -122,11 +133,9 @@ ok(/'90day-outcome'\s*:\s*\{[^}]*q\s*:/s.test(src) || src.includes("'90day-outco
 // allows \s*. Allow whitespace here too.
 ok(/engineer\s*:\s*\{[^}]*steps\s*:/s.test(src), 'engineer cfg');
 ok(/engineer\s*:\s*\{\s*steps\s*:/s.test(src), 'engineer steps');
-// `partner cfg` retired: there is no partner WIZ, by design. WIZ_CFG holds exactly
-// {startup, welcome, engineer}; foot-core has zero partner-apply/partner-modal refs; and the
-// live /?p=partners page is deliberately email-only (forms:0, inputs:0 — verified in Chrome at
-// v638: "Email potter@trydemigod.com with 'Partner' in the subject"). Asserting a config for an
-// intentionally-retired form is a gate that can only ever cry wolf.
+// `partner cfg` stays retired: the small native partner-apply referral form is not a WIZ.
+// WIZ_CFG still holds only startup, welcome, and engineer; asserting partner wizard steps would
+// couple this gate to an intentionally separate Webflow form.
 
 // Parsed object extras when available
 if (cfg) {

@@ -1,0 +1,1198 @@
+{
+  "version": 1,
+  "researchedAt": "2026-07-28",
+  "selectionSeed": "demigod-die-benchmark-v1",
+  "thresholds": {
+    "usableCoverage": 0.9,
+    "evidenceSupport": 0.95
+  },
+  "companies": [
+    {
+      "id": "yc:commodityai",
+      "mapName": "CommodityAI",
+      "fields": {
+        "canonicalCompany": {
+          "value": "CommodityAI",
+          "status": "supported",
+          "url": "https://www.commodityai.com/",
+          "quote": "CommodityAI"
+        },
+        "productSummary": {
+          "value": "AI agents automate execution across commodity commercial, logistics, and finance workflows.",
+          "status": "supported",
+          "url": "https://www.commodityai.com/",
+          "quote": "Commodity execution powered by agents"
+        },
+        "productCategory": {
+          "value": "agentic AI workflow automation for commodity operations",
+          "status": "supported",
+          "url": "https://www.commodityai.com/",
+          "quote": "Agentic AI for Commodity Companies"
+        },
+        "likelyBuyer": {
+          "value": "physical-commodity trading and operations teams",
+          "status": "supported",
+          "url": "https://www.commodityai.com/",
+          "quote": "Commodity Companies"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.commodityai.com/",
+          "quote": "Book a demo"
+        }
+      },
+      "mapDefects": [
+        "Website host commodityai.io redirects to commodityai.com.",
+        "Mapped open-role count is stale."
+      ]
+    },
+    {
+      "id": "yc:ready",
+      "mapName": "Ready",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Ready (READY.NET, INC.)",
+          "status": "supported",
+          "url": "https://ready.net/careers",
+          "quote": "READY.NET, INC."
+        },
+        "productSummary": {
+          "value": "Applications, hardware, and services for resilient, AI-ready critical-infrastructure programs.",
+          "status": "supported",
+          "url": "https://ready.net/careers",
+          "quote": "Platform-connected applications, hardware, and services for resilient, AI-ready critical infrastructure."
+        },
+        "productCategory": {
+          "value": "critical-infrastructure intelligence platform",
+          "status": "supported",
+          "url": "https://ready.net/pricing",
+          "quote": "CRITICAL INFRASTRUCTURE INTELLIGENCE PLATFORM"
+        },
+        "likelyBuyer": {
+          "value": "public-sector infrastructure programs, utility regulators, funders, and operators",
+          "status": "supported",
+          "url": "https://ready.net/careers",
+          "quote": "utility regulators, funders, and operators"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://ready.net/pricing",
+          "quote": "Every engagement is scoped individually"
+        }
+      },
+      "mapDefects": [
+        "Map description is truncated and narrower than the current critical-infrastructure positioning."
+      ]
+    },
+    {
+      "id": "yc:gridware",
+      "mapName": "Gridware",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Gridware Technologies Inc.",
+          "status": "supported",
+          "url": "https://www.gridware.io/",
+          "quote": "Gridware Technologies Inc."
+        },
+        "productSummary": {
+          "value": "Pole-mounted sensing and grid intelligence detect and localize electrical, physical, and environmental hazards in real time.",
+          "status": "supported",
+          "url": "https://www.gridware.io/",
+          "quote": "constant visibility into real-time electrical, physical, and environmental conditions"
+        },
+        "productCategory": {
+          "value": "electric-grid monitoring hardware and software",
+          "status": "supported",
+          "url": "https://www.ycombinator.com/companies/gridware",
+          "quote": "smart sensors"
+        },
+        "likelyBuyer": {
+          "value": "electric utilities and power companies",
+          "status": "supported",
+          "url": "https://www.gridware.io/",
+          "quote": "Electric utilities"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.gridware.io/",
+          "quote": "Schedule Call"
+        }
+      },
+      "mapDefects": [
+        "Map inception year differs from YC's current record."
+      ]
+    },
+    {
+      "id": "yc:meru-health",
+      "mapName": "Meru Health",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Meru Health",
+          "status": "supported",
+          "url": "https://www.meruhealth.com/",
+          "quote": "Meru Health"
+        },
+        "productSummary": {
+          "value": "Therapist-guided digital mental-health programs combining video care, secure chat, wellness practices, and biofeedback.",
+          "status": "supported",
+          "url": "https://www.meruhealth.com/",
+          "quote": "therapist-guided digital tools"
+        },
+        "productCategory": {
+          "value": "digital mental healthcare and teletherapy",
+          "status": "supported",
+          "url": "https://www.meruhealth.com/",
+          "quote": "licensed therapist"
+        },
+        "likelyBuyer": {
+          "value": "health plans and employers",
+          "status": "supported",
+          "url": "https://www.meruhealth.com/who-we-serve/health-plans",
+          "quote": "trusted health plan partners"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.meruhealth.com/request-a-demo",
+          "quote": "Request a demo"
+        }
+      },
+      "mapDefects": [
+        "Map stores HTTP and has an inception-year conflict with YC."
+      ]
+    },
+    {
+      "id": "yc:netomi",
+      "mapName": "Netomi",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Netomi",
+          "status": "supported",
+          "url": "https://www.netomi.com/",
+          "quote": "Netomi"
+        },
+        "productSummary": {
+          "value": "Managed enterprise platform for building, deploying, monitoring, and improving customer-experience AI agents.",
+          "status": "supported",
+          "url": "https://www.netomi.com/",
+          "quote": "build, test, deploy, monitor, and continuously improve AI agents"
+        },
+        "productCategory": {
+          "value": "enterprise agentic AI for customer experience",
+          "status": "supported",
+          "url": "https://www.netomi.com/",
+          "quote": "Agentic AI for Customer Experience"
+        },
+        "likelyBuyer": {
+          "value": "large-enterprise customer-experience teams",
+          "status": "supported",
+          "url": "https://www.netomi.com/",
+          "quote": "Built for enterprises"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.netomi.com/",
+          "quote": "Talk to sales"
+        }
+      },
+      "mapDefects": [
+        "Website canonicalizes from netomi.com to www.netomi.com."
+      ]
+    },
+    {
+      "id": "yc:dialogus",
+      "mapName": "Dialogus",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Dialogus",
+          "status": "supported",
+          "url": "https://www.dialoguslabs.com/",
+          "quote": "Dialogus"
+        },
+        "productSummary": {
+          "value": "Voice agents resolve enterprise customer calls across phone systems, workflows, and customer systems with audit trails.",
+          "status": "supported",
+          "url": "https://www.dialoguslabs.com/",
+          "quote": "voice agents for enterprises"
+        },
+        "productCategory": {
+          "value": "enterprise AI voice-agent infrastructure",
+          "status": "supported",
+          "url": "https://www.dialoguslabs.com/",
+          "quote": "Infrastructure for enterprise frontier agents"
+        },
+        "likelyBuyer": {
+          "value": "enterprise contact-center and customer-support operators",
+          "status": "supported",
+          "url": "https://www.ycombinator.com/companies/dialogus",
+          "quote": "enterprise looking to transform your customer support with AI"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.dialoguslabs.com/",
+          "quote": "Book a demo"
+        }
+      },
+      "mapDefects": [
+        "Map inception year differs from YC's current record."
+      ]
+    },
+    {
+      "id": "yc:blitz",
+      "mapName": "Blitz",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Blitz",
+          "status": "supported",
+          "url": "https://www.blitznocode.com/",
+          "quote": "Blitz"
+        },
+        "productSummary": {
+          "value": "No-code platform for turning business processes into internal applications.",
+          "status": "supported",
+          "url": "https://www.blitznocode.com/",
+          "quote": "Build apps with zero code"
+        },
+        "productCategory": {
+          "value": "no-code internal-app and workflow builder",
+          "status": "supported",
+          "url": "https://www.blitznocode.com/",
+          "quote": "no-code platform"
+        },
+        "likelyBuyer": {
+          "value": "operations and product teams",
+          "status": "supported",
+          "url": "https://www.blitznocode.com/",
+          "quote": "operations and product teams"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.blitznocode.com/",
+          "quote": "Get a demo"
+        }
+      },
+      "mapDefects": [
+        "Official site still says its beta will be released soon."
+      ]
+    },
+    {
+      "id": "yc:tara-ai",
+      "mapName": "Tara AI",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Tara AI",
+          "status": "conflict",
+          "url": "https://www.ycombinator.com/companies/tara-ai",
+          "quote": "Tara AI"
+        },
+        "productSummary": {
+          "value": "Engineering-efficiency analytics using secure LLMs over source-control and project data.",
+          "status": "supported",
+          "url": "https://www.ycombinator.com/companies/tara-ai",
+          "quote": "engineering efficiency co-pilot"
+        },
+        "productCategory": {
+          "value": "engineering intelligence and DevOps SaaS",
+          "status": "supported",
+          "url": "https://www.ycombinator.com/companies/tara-ai",
+          "quote": "DevOps"
+        },
+        "likelyBuyer": {
+          "value": "engineering leaders",
+          "status": "supported",
+          "url": "https://www.ycombinator.com/companies/tara-ai",
+          "quote": "engineering leaders"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "unresolved"
+        }
+      },
+      "mapDefects": [
+        "Mapped company is marked active while its official domain is parked.",
+        "YC founding facts are internally inconsistent."
+      ]
+    },
+    {
+      "id": "yc:kinro",
+      "mapName": "Kinro",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Kinro",
+          "status": "supported",
+          "url": "https://kinro.com/",
+          "quote": "Kinro"
+        },
+        "productSummary": {
+          "value": "Insurance brokerage helping small businesses identify coverage and compare carrier options with licensed-agent support.",
+          "status": "supported",
+          "url": "https://kinro.com/",
+          "quote": "Small business insurance. Skip the runaround."
+        },
+        "productCategory": {
+          "value": "small-business commercial-insurance brokerage",
+          "status": "supported",
+          "url": "https://kinro.com/",
+          "quote": "insurance agency"
+        },
+        "likelyBuyer": {
+          "value": "U.S. small-business owners",
+          "status": "supported",
+          "url": "https://kinro.com/",
+          "quote": "Built for U.S. small businesses"
+        },
+        "pricingStatus": {
+          "value": "public pricing benchmarks",
+          "status": "supported",
+          "url": "https://kinro.com/",
+          "quote": "Typical starting prices"
+        }
+      },
+      "mapDefects": [
+        "Map calls Kinro autonomous while the current site emphasizes licensed-agent support."
+      ]
+    },
+    {
+      "id": "yc:spherecast",
+      "mapName": "Spherecast",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Spherecast",
+          "status": "supported",
+          "url": "https://www.spherecast.ai/",
+          "quote": "Spherecast"
+        },
+        "productSummary": {
+          "value": "AI supply-chain manager automating planning and execution across purchases, transfers, and production.",
+          "status": "supported",
+          "url": "https://www.spherecast.ai/",
+          "quote": "Turn planning and simulation into autonomous execution"
+        },
+        "productCategory": {
+          "value": "AI supply-chain planning and execution SaaS",
+          "status": "supported",
+          "url": "https://www.spherecast.ai/",
+          "quote": "Supply Chain Planning & Automation"
+        },
+        "likelyBuyer": {
+          "value": "omnichannel CPG brands and supply-chain teams",
+          "status": "supported",
+          "url": "https://www.spherecast.ai/",
+          "quote": "Omni-Channel CPG Brands"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.spherecast.ai/",
+          "quote": "Book a Demo"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "wd:Q15646906",
+      "mapName": "Kabam",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Kabam",
+          "status": "supported",
+          "url": "https://www.kabam.com/",
+          "quote": "Kabam"
+        },
+        "productSummary": {
+          "value": "Develops mobile games.",
+          "status": "supported",
+          "url": "https://www.kabam.com/",
+          "quote": "The best in mobile gaming"
+        },
+        "productCategory": {
+          "value": "mobile games",
+          "status": "supported",
+          "url": "https://www.kabam.com/",
+          "quote": "mobile gaming"
+        },
+        "likelyBuyer": {
+          "value": "mobile gamers",
+          "status": "supported",
+          "url": "https://www.kabam.com/",
+          "quote": "mobile gaming"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_applicable"
+        }
+      },
+      "mapDefects": [
+        "Current first-party footer identifies Kabam as a Netmarble subsidiary.",
+        "Mapped SF location appears legacy."
+      ]
+    },
+    {
+      "id": "wd:Q98081129",
+      "mapName": "Twitch Interactive",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Twitch Interactive, Inc., an Amazon subsidiary operating Twitch",
+          "status": "supported",
+          "url": "https://www.wikidata.org/wiki/Q98081129",
+          "quote": "Amazon subsidiary company that operates Twitch.tv"
+        },
+        "productSummary": {
+          "value": "Live interactive entertainment and community platform.",
+          "status": "supported",
+          "url": "https://www.twitch.tv/p/en/company/",
+          "quote": "Twitch is building the future of live, interactive entertainment one community at a time."
+        },
+        "productCategory": {
+          "value": "live-streaming and interactive entertainment",
+          "status": "supported",
+          "url": "https://www.twitch.tv/p/en/company/",
+          "quote": "the future of live, interactive entertainment"
+        },
+        "likelyBuyer": {
+          "value": "viewers buying creator subscriptions",
+          "status": "supported",
+          "url": "https://www.twitch.tv/p/en/partners",
+          "quote": "Twitch Partners can earn revenue by accepting subscriptions from their viewers."
+        },
+        "pricingStatus": {
+          "value": "subscriptions at $5.99, $9.99, and $24.99; Prime option free",
+          "status": "supported",
+          "url": "https://www.twitch.tv/p/en/partners",
+          "quote": "The subscription options are: $5.99, $9.99, $24.99, or the Prime Gaming free subscription."
+        }
+      },
+      "mapDefects": [
+        "Mapped /p/ website is a poor landing page.",
+        "Mapped role count is stale."
+      ]
+    },
+    {
+      "id": "wd:Q6008783",
+      "mapName": "InMobi",
+      "fields": {
+        "canonicalCompany": {
+          "value": "InMobi",
+          "status": "supported",
+          "url": "https://www.inmobi.com/",
+          "quote": "InMobi"
+        },
+        "productSummary": {
+          "value": "GenAI-powered consumer and advertising platform connecting brands and consumers.",
+          "status": "supported",
+          "url": "https://www.inmobi.com/",
+          "quote": "A GenAI-powered platform enabling brands and consumers to connect, discover, and transact at scale."
+        },
+        "productCategory": {
+          "value": "mobile advertising and consumer-internet platform",
+          "status": "supported",
+          "url": "https://boards.greenhouse.io/inmobi",
+          "quote": "InMobi is the most powerful mobile advertising platform."
+        },
+        "likelyBuyer": {
+          "value": "advertisers, publishers, and app developers",
+          "status": "supported",
+          "url": "https://boards.greenhouse.io/inmobi",
+          "quote": "provides advertisers, publishers and app developers with a global solution for advertising"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_found"
+        }
+      },
+      "mapDefects": [
+        "Map selected a Japanese secondary URL instead of canonical inmobi.com.",
+        "Mapped role count is badly stale."
+      ]
+    },
+    {
+      "id": "wd:Q92546048",
+      "mapName": "Bugcrowd",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Bugcrowd",
+          "status": "supported",
+          "url": "https://www.bugcrowd.com/products/platform/",
+          "quote": "The Bugcrowd Platform"
+        },
+        "productSummary": {
+          "value": "Platform combining trusted hackers, pentesters, and AI for offensive-security testing.",
+          "status": "supported",
+          "url": "https://www.bugcrowd.com/products/platform/",
+          "quote": "unleashes the ingenuity of skilled, trusted hackers and pentesters in combination with AI"
+        },
+        "productCategory": {
+          "value": "crowdsourced offensive-security platform",
+          "status": "supported",
+          "url": "https://www.bugcrowd.com/products/platform/",
+          "quote": "AI-augmented crowdsourcing for multiple offensive security use cases"
+        },
+        "likelyBuyer": {
+          "value": "organizational security teams",
+          "status": "supported",
+          "url": "https://www.bugcrowd.com/products/platform/",
+          "quote": "augment your security team on demand"
+        },
+        "pricingStatus": {
+          "value": "free VDP tier; Basic at $299/$999 per month",
+          "status": "supported",
+          "url": "https://www.bugcrowd.com/bugcrowd-pricing/vulnerability_disclosure/",
+          "quote": "VDP BASIC $299/$999 per month"
+        }
+      },
+      "mapDefects": [
+        "Official founding year conflicts with the map.",
+        "Mapped role count is stale."
+      ]
+    },
+    {
+      "id": "wd:Q50391972",
+      "mapName": "Brave Software",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Brave Software, Inc.",
+          "status": "supported",
+          "url": "https://brave.com/careers/",
+          "quote": "Brave Software, Inc. (Brave)"
+        },
+        "productSummary": {
+          "value": "Brave offers a user-first browser, independent search engine, and related privacy tools.",
+          "status": "supported",
+          "url": "https://brave.com/about/",
+          "quote": "Starting with its core browser and search engine, Brave offers a suite of tools"
+        },
+        "productCategory": {
+          "value": "privacy-focused web browser",
+          "status": "supported",
+          "url": "https://brave.com/about/",
+          "quote": "The Brave browser blocks invasive ads & trackers on every webpage you visit"
+        },
+        "likelyBuyer": {
+          "value": "individual Web users worldwide",
+          "status": "supported",
+          "url": "https://brave.com/about/",
+          "quote": "More than 100 million people worldwide use Brave to upgrade their Web experience."
+        },
+        "pricingStatus": {
+          "value": "freemium with optional paid subscriptions",
+          "status": "supported",
+          "url": "https://brave.com/about/",
+          "quote": "subscription-based ways to unlock additional functionality of otherwise free features"
+        }
+      },
+      "mapDefects": [
+        "Map name omits the official legal suffix.",
+        "Generic map description omits Brave's browser and search products."
+      ]
+    },
+    {
+      "id": "wd:Q116626626",
+      "mapName": "Artifact",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Artifact; acquired by Yahoo and no longer a standalone app",
+          "status": "conflict",
+          "url": "https://www.pymnts.com/partnerships/2024/yahoo-to-add-personalization-features-with-artifact-acquisition/",
+          "quote": "Artifact will no longer operate as a standalone app"
+        },
+        "productSummary": {
+          "value": "AI-driven news aggregation and discovery technology integrated into Yahoo.",
+          "status": "supported",
+          "url": "https://www.pymnts.com/partnerships/2024/yahoo-to-add-personalization-features-with-artifact-acquisition/",
+          "quote": "AI-driven news aggregation and discovery platform"
+        },
+        "productCategory": {
+          "value": "AI news aggregation and personalization",
+          "status": "supported",
+          "url": "https://www.pymnts.com/partnerships/2024/yahoo-to-add-personalization-features-with-artifact-acquisition/",
+          "quote": "discovery engine surfaces content users most want to see"
+        },
+        "likelyBuyer": {
+          "value": "news consumers seeking personalized discovery",
+          "status": "supported",
+          "url": "https://www.pymnts.com/partnerships/2024/yahoo-to-add-personalization-features-with-artifact-acquisition/",
+          "quote": "delivers a personalized feed of news stories"
+        },
+        "pricingStatus": {
+          "value": "no standalone offering",
+          "status": "supported",
+          "url": "https://www.pymnts.com/partnerships/2024/yahoo-to-add-personalization-features-with-artifact-acquisition/",
+          "quote": "Artifact will no longer operate as a standalone app"
+        }
+      },
+      "mapDefects": [
+        "Row represents Artifact as active after Yahoo acquisition and standalone discontinuation.",
+        "Mapped domain returns HTTP 530."
+      ]
+    },
+    {
+      "id": "wd:Q30282519",
+      "mapName": "GigaGen (United States)",
+      "fields": {
+        "canonicalCompany": {
+          "value": "GigaGen, a Grifols subsidiary",
+          "status": "supported",
+          "url": "https://www.gigagen.com/",
+          "quote": "GigaGen, a subsidiary of Grifols"
+        },
+        "productSummary": {
+          "value": "Discovers and develops mono- and polyclonal antibody drugs using single-cell platforms.",
+          "status": "supported",
+          "url": "https://www.gigagen.com/",
+          "quote": "Our single-cell antibody discovery and development platforms recreate complete immune repertoires and find exceptional antibodies with unique properties"
+        },
+        "productCategory": {
+          "value": "biopharmaceutical antibody therapeutics",
+          "status": "supported",
+          "url": "https://www.gigagen.com/",
+          "quote": "GigaGen is a fast-growing biopharmaceutical company"
+        },
+        "likelyBuyer": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_applicable"
+        }
+      },
+      "mapDefects": [
+        "Canonical name retains a Wikidata disambiguator.",
+        "Official location is San Carlos, not San Francisco.",
+        "Subsidiary ownership is omitted."
+      ]
+    },
+    {
+      "id": "wd:Q126898992",
+      "mapName": "IPEVO",
+      "fields": {
+        "canonicalCompany": {
+          "value": "IPEVO",
+          "status": "supported",
+          "url": "https://www.ipevo.com/about-ipevo",
+          "quote": "About IPEVO"
+        },
+        "productSummary": {
+          "value": "Teaching and collaboration tools including document cameras, conference hardware, and software.",
+          "status": "supported",
+          "url": "https://www.ipevo.com/about-ipevo",
+          "quote": "IPEVO makes versatile teaching tools instead of specialized “classroom equipment”."
+        },
+        "productCategory": {
+          "value": "education-technology hardware and software",
+          "status": "supported",
+          "url": "https://www.ipevo.com/about-ipevo",
+          "quote": "interactive teaching tools"
+        },
+        "likelyBuyer": {
+          "value": "educators and teachers",
+          "status": "supported",
+          "url": "https://www.ipevo.com/about-ipevo",
+          "quote": "IPEVO’s interactive teaching tools empower educators and teachers"
+        },
+        "pricingStatus": {
+          "value": "public MSRP; V4K listed at $99",
+          "status": "supported",
+          "url": "https://www.ipevo.com/playbook/",
+          "quote": "MSRP $99"
+        }
+      },
+      "mapDefects": [
+        "Map city classification appears stale; official contact address is Sunnyvale."
+      ]
+    },
+    {
+      "id": "wd:Q121087302",
+      "mapName": "Shorenstein Properties",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Shorenstein; legal entity varies by context",
+          "status": "conflict",
+          "url": "https://shorenstein.com/terms-of-use-and-disclosures/",
+          "quote": "References made to “Shorenstein” on this Site"
+        },
+        "productSummary": {
+          "value": "Integrated real-estate investment and operations for office and mixed-use properties.",
+          "status": "supported",
+          "url": "https://shorenstein.com/",
+          "quote": "fully integrated real estate investment company"
+        },
+        "productCategory": {
+          "value": "real-estate investment, management, and development",
+          "status": "supported",
+          "url": "https://shorenstein.com/about/differentiators/",
+          "quote": "real estate investment, management and development"
+        },
+        "likelyBuyer": {
+          "value": "institutional real-estate buyers",
+          "status": "supported",
+          "url": "https://shorenstein.com/about/strategy/",
+          "quote": "broad appeal to institutional buyers"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_applicable"
+        }
+      },
+      "mapDefects": [
+        "Conventional real-estate company is a startup-map taxonomy false positive.",
+        "Official identity spans multiple context-dependent entities."
+      ]
+    },
+    {
+      "id": "wd:Q139803591",
+      "mapName": "Cosmio",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Cosmio, Inc.",
+          "status": "supported",
+          "url": "https://cosmio.ai/",
+          "quote": "© 2026 Cosmio, Inc. All rights reserved."
+        },
+        "productSummary": {
+          "value": "End-to-end automated data-analysis platform for businesses.",
+          "status": "supported",
+          "url": "https://cosmio.ai/",
+          "quote": "Cosmio is an end-to-end automated data analysis platform for your business."
+        },
+        "productCategory": {
+          "value": "enterprise automated data analysis and decision intelligence",
+          "status": "supported",
+          "url": "https://cosmio.ai/",
+          "quote": "Decision Intelligence"
+        },
+        "likelyBuyer": {
+          "value": "data, analytics, operations, finance, and leadership teams",
+          "status": "supported",
+          "url": "https://cosmio.ai/",
+          "quote": "Operations, finance, and leadership teams use it"
+        },
+        "pricingStatus": {
+          "value": "demo-led",
+          "status": "supported",
+          "url": "https://cosmio.ai/",
+          "quote": "Book a demo"
+        }
+      },
+      "mapDefects": [
+        "No ATS or hiring evidence exists."
+      ]
+    },
+    {
+      "id": "hn:careers.chime.com",
+      "mapName": "Chime",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Chime Financial, Inc.",
+          "status": "supported",
+          "url": "https://investors.chime.com/news-releases/news-release-details/americas-1-choice-banking-expands-its-lead-launch-chime-prime",
+          "quote": "Chime Financial, Inc."
+        },
+        "productSummary": {
+          "value": "Banking and payments products addressing everyday people's critical financial needs.",
+          "status": "supported",
+          "url": "https://investors.chime.com/news-releases/news-release-details/americas-1-choice-banking-expands-its-lead-launch-chime-prime",
+          "quote": "banking and payments products that address the most critical financial needs of everyday people"
+        },
+        "productCategory": {
+          "value": "financial technology company",
+          "status": "supported",
+          "url": "https://investors.chime.com/news-releases/news-release-details/americas-1-choice-banking-expands-its-lead-launch-chime-prime",
+          "quote": "a financial technology company"
+        },
+        "likelyBuyer": {
+          "value": "everyday people",
+          "status": "supported",
+          "url": "https://investors.chime.com/news-releases/news-release-details/americas-1-choice-banking-expands-its-lead-launch-chime-prime",
+          "quote": "the most critical financial needs of everyday people"
+        },
+        "pricingStatus": {
+          "value": "Chime Prime has no monthly fees or subscription costs",
+          "status": "supported",
+          "url": "https://investors.chime.com/news-releases/news-release-details/americas-1-choice-banking-expands-its-lead-launch-chime-prime",
+          "quote": "All with no monthly fees and no subscription costs."
+        }
+      },
+      "mapDefects": [
+        "Website points to a careers subdomain instead of the canonical product homepage."
+      ]
+    },
+    {
+      "id": "hn:mintmcp.com",
+      "mapName": "MintMCP",
+      "fields": {
+        "canonicalCompany": {
+          "value": "MintMCP",
+          "status": "supported",
+          "url": "https://www.mintmcp.com/",
+          "quote": "MintMCP is the management layer for enterprise agents."
+        },
+        "productSummary": {
+          "value": "Governed access layer for enterprise AI tools, connectors, and autonomous agents.",
+          "status": "supported",
+          "url": "https://www.mintmcp.com/",
+          "quote": "MintMCP is the management layer for enterprise agents."
+        },
+        "productCategory": {
+          "value": "enterprise AI-agent governance and MCP gateway",
+          "status": "supported",
+          "url": "https://www.mintmcp.com/",
+          "quote": "The MCP Gateway scopes & audits connections across Claude, Cursor, & MCP servers."
+        },
+        "likelyBuyer": {
+          "value": "enterprise engineering and security teams",
+          "status": "supported",
+          "url": "https://www.mintmcp.com/",
+          "quote": "Built for Engineering and Security"
+        },
+        "pricingStatus": {
+          "value": "custom quote based on team size and requirements",
+          "status": "supported",
+          "url": "https://www.mintmcp.com/pricing",
+          "quote": "pricing is tailored to your team size and specific requirements"
+        }
+      },
+      "mapDefects": [
+        "Website canonicalizes to the www host."
+      ]
+    },
+    {
+      "id": "hn:radai.com",
+      "mapName": "Rad AI",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Rad AI",
+          "status": "supported",
+          "url": "https://www.radai.com/",
+          "quote": "Rad AI Reporting"
+        },
+        "productSummary": {
+          "value": "AI radiology solutions intended to save time, reduce burnout, and improve care.",
+          "status": "supported",
+          "url": "https://www.radai.com/",
+          "quote": "AI radiology solutions to save time, reduce burnout, and improve patient care."
+        },
+        "productCategory": {
+          "value": "radiology AI software",
+          "status": "supported",
+          "url": "https://www.radai.com/",
+          "quote": "Revolutionize Workflows with Powerful Radiology AI"
+        },
+        "likelyBuyer": {
+          "value": "physicians and radiologists",
+          "status": "supported",
+          "url": "https://www.radai.com/",
+          "quote": "Empowering physicians with best-in-class AI radiology solutions"
+        },
+        "pricingStatus": {
+          "value": "request demo",
+          "status": "supported",
+          "url": "https://www.radai.com/",
+          "quote": "REQUEST DEMO"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "hn:authorium.com",
+      "mapName": "Authorium",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Authorium, Inc.",
+          "status": "supported",
+          "url": "https://authorium.com/",
+          "quote": "© 2026 Authorium, Inc. All rights reserved."
+        },
+        "productSummary": {
+          "value": "Transforms government documents and data into operational workflows.",
+          "status": "supported",
+          "url": "https://authorium.com/",
+          "quote": "transform documents and data into operational value and connect the flow of public funds"
+        },
+        "productCategory": {
+          "value": "no-code AI-enabled government operations platform",
+          "status": "supported",
+          "url": "https://authorium.com/",
+          "quote": "Modernize government administrative collaboration"
+        },
+        "likelyBuyer": {
+          "value": "government agencies",
+          "status": "supported",
+          "url": "https://authorium.com/",
+          "quote": "government agencies similar to yours"
+        },
+        "pricingStatus": {
+          "value": "request a demo",
+          "status": "supported",
+          "url": "https://authorium.com/",
+          "quote": "Request a Demo"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "hn:e2b.dev",
+      "mapName": "E2B",
+      "fields": {
+        "canonicalCompany": {
+          "value": "E2B — FoundryLabs, Inc.",
+          "status": "supported",
+          "url": "https://e2b.dev/",
+          "quote": "©2026 ✶ FoundryLabs, Inc."
+        },
+        "productSummary": {
+          "value": "Secure sandboxes with real-world tools for enterprise-grade AI agents.",
+          "status": "supported",
+          "url": "https://e2b.dev/",
+          "quote": "Open-source, secure environment with real-world tools for enterprise-grade agents."
+        },
+        "productCategory": {
+          "value": "AI sandbox and enterprise agent cloud",
+          "status": "supported",
+          "url": "https://e2b.dev/",
+          "quote": "AI Sandboxes"
+        },
+        "likelyBuyer": {
+          "value": "AI startups and large enterprises building agents",
+          "status": "supported",
+          "url": "https://e2b.dev/",
+          "quote": "Used by F100 companies"
+        },
+        "pricingStatus": {
+          "value": "free Hobby tier plus paid upgrades and usage costs",
+          "status": "supported",
+          "url": "https://e2b.dev/pricing",
+          "quote": "Free Hobby tier, and paid upgrades to cover all needs."
+        }
+      },
+      "mapDefects": [
+        "Map stores the product brand rather than legal entity FoundryLabs, Inc."
+      ]
+    },
+    {
+      "id": "hn:frisson-labs.com",
+      "mapName": "Frisson Labs",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Frisson Labs",
+          "status": "supported",
+          "url": "https://www.frisson-labs.com/",
+          "quote": "© 2026 Frisson Labs"
+        },
+        "productSummary": {
+          "value": "Develops full-duplex voice agents that interact inside virtual worlds.",
+          "status": "supported",
+          "url": "https://www.frisson-labs.com/",
+          "quote": "We're developing full-duplex voice agents that can play and interact within virtual worlds."
+        },
+        "productCategory": {
+          "value": "AI voice and gaming lab",
+          "status": "supported",
+          "url": "https://www.frisson-labs.com/",
+          "quote": "Frontier AI x Gaming Lab"
+        },
+        "likelyBuyer": {
+          "value": "gamers using Discord and live-play experiences",
+          "status": "supported",
+          "url": "https://www.frisson-labs.com/",
+          "quote": "Primary Surface Discord calls and live play sessions"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_found"
+        }
+      },
+      "mapDefects": [
+        "Official page embeds open roles while map has no structured jobs evidence."
+      ]
+    },
+    {
+      "id": "hn:hatchet.run",
+      "mapName": "Hatchet",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Hatchet Technologies",
+          "status": "supported",
+          "url": "https://hatchet.run/",
+          "quote": "© 2026 Hatchet Technologies"
+        },
+        "productSummary": {
+          "value": "Orchestrates AI agents, background tasks, and mission-critical workflows.",
+          "status": "supported",
+          "url": "https://hatchet.run/",
+          "quote": "orchestrating AI agents, scheduling background tasks, and running mission-critical workflows"
+        },
+        "productCategory": {
+          "value": "workflow orchestration engine",
+          "status": "supported",
+          "url": "https://hatchet.run/",
+          "quote": "The orchestration engine for teams who ship"
+        },
+        "likelyBuyer": {
+          "value": "software teams shipping production workloads",
+          "status": "supported",
+          "url": "https://hatchet.run/pricing",
+          "quote": "For teams shipping to production."
+        },
+        "pricingStatus": {
+          "value": "developer tier free; $10 per million runs after included usage",
+          "status": "supported",
+          "url": "https://hatchet.run/pricing",
+          "quote": "$10 per 1M task runs First 100,000 runs included"
+        }
+      },
+      "mapDefects": [
+        "Official site exposes Jobs while map has no structured jobs evidence."
+      ]
+    },
+    {
+      "id": "hn:natural.co",
+      "mapName": "Natural",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Natural AI, Inc.",
+          "status": "supported",
+          "url": "https://www.natural.com/",
+          "quote": "© 2025-2026 Natural AI, Inc."
+        },
+        "productSummary": {
+          "value": "Payments primitives for autonomous agents.",
+          "status": "supported",
+          "url": "https://www.natural.com/",
+          "quote": "Natural powers agentic payments. Wallets. Payments. Cards. Processing. Billing. Voice. All the primitives your agent needs"
+        },
+        "productCategory": {
+          "value": "agentic payments infrastructure and API",
+          "status": "supported",
+          "url": "https://www.natural.com/",
+          "quote": "All of Natural’s APIs are designed for and used by agents."
+        },
+        "likelyBuyer": {
+          "value": "developers building agents that transact",
+          "status": "supported",
+          "url": "https://www.natural.com/",
+          "quote": "If you’re building agents that need to transact in the real world"
+        },
+        "pricingStatus": {
+          "value": "public usage pricing; business Pay is 0.1% or 10 bps",
+          "status": "supported",
+          "url": "https://www.natural.com/pricing",
+          "quote": "Business 0.1% or 10 bps"
+        }
+      },
+      "mapDefects": [
+        "Map website natural.co redirects to natural.com.",
+        "Official site exposes Careers without structured map jobs evidence."
+      ]
+    },
+    {
+      "id": "hn:iamquin.ai",
+      "mapName": "Quin",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Quin",
+          "status": "supported",
+          "url": "https://iamquin.ai/",
+          "quote": "QUIN"
+        },
+        "productSummary": {
+          "value": "Personal-finance agent that reviews shared information and suggests possible next steps.",
+          "status": "supported",
+          "url": "https://iamquin.ai/",
+          "quote": "Quin reads what you share and provides insights and potential next steps"
+        },
+        "productCategory": {
+          "value": "personal finance agent",
+          "status": "supported",
+          "url": "https://iamquin.ai/",
+          "quote": "The future of Personal Finance is Autonomous"
+        },
+        "likelyBuyer": {
+          "value": "individuals seeking help with basic financial issues",
+          "status": "supported",
+          "url": "https://iamquin.ai/",
+          "quote": "basic financial issues that can be resolved in minutes or hours"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_found"
+        }
+      },
+      "mapDefects": [
+        "Product is explicitly alpha/waitlist access.",
+        "Map has no structured jobs evidence."
+      ]
+    },
+    {
+      "id": "hn:thisismason.com",
+      "mapName": "Mason",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Mason — Enduring Labs, Inc.",
+          "status": "supported",
+          "url": "https://www.thisismason.com/",
+          "quote": "© 2026 Enduring Labs, Inc. All Rights Reserved."
+        },
+        "productSummary": {
+          "value": "AI maintenance coordinator that handles tenant calls, dispatches vendors, and autonomously closes most work orders.",
+          "status": "supported",
+          "url": "https://www.thisismason.com/",
+          "quote": "Takes calls 24/7, dispatches vendors, and closes 80% of work orders on its own."
+        },
+        "productCategory": {
+          "value": "AI-powered property-management maintenance orchestration",
+          "status": "supported",
+          "url": "https://www.thisismason.com/",
+          "quote": "AI maintenance coordinator"
+        },
+        "likelyBuyer": {
+          "value": "property-management companies managing 300–10,000+ doors",
+          "status": "supported",
+          "url": "https://www.thisismason.com/",
+          "quote": "We work with companies from 300 doors to 10,000+ doors."
+        },
+        "pricingStatus": {
+          "value": "demo-led",
+          "status": "supported",
+          "url": "https://www.thisismason.com/",
+          "quote": "Book a demo"
+        }
+      },
+      "mapDefects": [
+        "Website canonicalizes to the www host.",
+        "Map description is null.",
+        "Map omits legal entity Enduring Labs, Inc.",
+        "HN advertises hiring but map has no structured job evidence."
+      ]
+    }
+  ]
+}

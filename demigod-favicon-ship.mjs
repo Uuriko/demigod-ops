@@ -56,9 +56,9 @@ if (/rel="icon"/.test(head)) {
 // reader -- verify:source, a ship, another swarm agent -- can catch the head torn. Observed live
 // 2026-07-17: a verify run read the head at 96,256 bytes (vs 48,264 settled) with inline scripts that
 // did not parse. rename(2) is atomic on the same filesystem, so readers see the old head or the new
-// one, never a half. Same pattern as writeTextAtomic in demigod-cycle-work.mjs:53.
+// one, never a half.
 // This matters more than a torn gate read: a torn head that reaches Webflow is the "site won't
-// load" class, and dg-autopilot-health currently papers over the whole category by retrying
+// load" class, and a retry-only health check would paper over the whole category
 // verify:source once and calling a transient fail clean.
 {
   const tmp = `${HEAD}.${process.pid}.tmp`;

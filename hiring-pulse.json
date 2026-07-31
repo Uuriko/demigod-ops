@@ -1,0 +1,213 @@
+{
+  "generatedAt": "2026-07-30",
+  "levels": {
+    "tracked": 2737,
+    "hiring": 892,
+    "verifiedBoards": 339,
+    "verifiedRoles": 8124
+  },
+  "byFunction": [
+    {
+      "fn": "engineering",
+      "n": 2359
+    },
+    {
+      "fn": "sales",
+      "n": 1091
+    },
+    {
+      "fn": "ai/data",
+      "n": 839
+    },
+    {
+      "fn": "operations",
+      "n": 539
+    },
+    {
+      "fn": "marketing",
+      "n": 421
+    },
+    {
+      "fn": "product",
+      "n": 373
+    },
+    {
+      "fn": "finance/legal",
+      "n": 369
+    },
+    {
+      "fn": "design",
+      "n": 187
+    },
+    {
+      "fn": "people",
+      "n": 158
+    }
+  ],
+  "finding": {
+    "type": "batch-curve",
+    "freshBatch": "Summer 2026",
+    "freshRate": 9,
+    "matureRate": 46,
+    "multiple": 5.1
+  },
+  "aiInsight": {
+    "roles": 839,
+    "share": 10,
+    "beatsPDM": false,
+    "pdm": 981
+  },
+  "topHirers": [
+    {
+      "name": "OpenAI",
+      "roles": 587,
+      "ats": "Ashby",
+      "url": "https://jobs.ashbyhq.com/openai"
+    },
+    {
+      "name": "Databricks",
+      "roles": 410,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/databricks"
+    },
+    {
+      "name": "Anthropic",
+      "roles": 333,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/anthropic"
+    },
+    {
+      "name": "Snowflake",
+      "roles": 259,
+      "ats": "Ashby",
+      "url": "https://jobs.ashbyhq.com/snowflake"
+    },
+    {
+      "name": "Stripe",
+      "roles": 254,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/stripe"
+    },
+    {
+      "name": "Brex",
+      "roles": 214,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/brex"
+    },
+    {
+      "name": "Samsara",
+      "roles": 202,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/samsara"
+    },
+    {
+      "name": "Okta",
+      "roles": 162,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/okta"
+    },
+    {
+      "name": "Fivetran",
+      "roles": 153,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/fivetran"
+    },
+    {
+      "name": "Reddit",
+      "roles": 137,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/reddit"
+    },
+    {
+      "name": "Pinterest Inc.",
+      "roles": 133,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/pinterest"
+    },
+    {
+      "name": "Figma Inc",
+      "roles": 112,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/figma"
+    }
+  ],
+  "atsLandscape": [
+    {
+      "name": "Ashby",
+      "n": 198
+    },
+    {
+      "name": "Greenhouse",
+      "n": 102
+    },
+    {
+      "name": "Lever",
+      "n": 39
+    }
+  ],
+  "batches": [
+    {
+      "batch": "YC Summer 2026",
+      "n": 108,
+      "hiring": 10,
+      "roles": 1,
+      "rate": 9
+    },
+    {
+      "batch": "YC Spring 2026",
+      "n": 168,
+      "hiring": 44,
+      "roles": 10,
+      "rate": 26
+    },
+    {
+      "batch": "YC Winter 2026",
+      "n": 135,
+      "hiring": 36,
+      "roles": 14,
+      "rate": 27
+    },
+    {
+      "batch": "YC Fall 2025",
+      "n": 92,
+      "hiring": 39,
+      "roles": 6,
+      "rate": 42
+    },
+    {
+      "batch": "YC Summer 2025",
+      "n": 112,
+      "hiring": 49,
+      "roles": 28,
+      "rate": 44
+    },
+    {
+      "batch": "YC Spring 2025",
+      "n": 77,
+      "hiring": 32,
+      "roles": 19,
+      "rate": 42
+    },
+    {
+      "batch": "YC Winter 2025",
+      "n": 102,
+      "hiring": 50,
+      "roles": 90,
+      "rate": 49
+    },
+    {
+      "batch": "YC Fall 2024",
+      "n": 51,
+      "hiring": 24,
+      "roles": 17,
+      "rate": 47
+    }
+  ],
+  "deltas": {
+    "since": "2026-07-24",
+    "startedHiring": 2,
+    "pausedHiring": 69,
+    "netRoles": -3567
+  },
+  "method": "Open-role counts are live US-posted or Remote listings on each company’s own public Greenhouse/Lever/Ashby job board. \"Hiring\" without a count is the company’s own YC/self report. Public data only — no résumés, no estimates, no invented trends."
+}

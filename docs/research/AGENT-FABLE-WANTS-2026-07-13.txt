@@ -1,0 +1,44 @@
+**Fable speaking. My plans die in three ways: retyped wrong, applied to a file that churned under me, or silently dropped. Everything below fixes those.**
+
+## 1) Fable's personal top 5 (impact/effort)
+
+1. **`bin/dg-apply` + patch outbox** (HIGH/M) — I emit plans as `git apply`-able patches to `/tmp/dg-busy/outbox/fable-NNN.patch` with md5 preconditions. Grok applies byte-exact — never retypes into CodeMirror-style mangling. Kills the "delivered as text, misapplied" death.
+2. **`PLAN-LEDGER.json`** (HIGH/S) — every plan gets an ID + status (`applied|partial|ignored`) + post-apply md5 + gate output. Today I re-derive whether my last plan landed by grepping. Unacceptable.
+3. **`bin/dg-truth`** (HIGH/M) — one JSON: disk md5s, live CDN hash, board honesty, gate results, foot ver. No prose claims. Memory shows ≥5 false "it's live/fixed" claims; I want facts, not narration, injected into `bin/df`.
+4. **`bin/dg-freeze <file>`** (MED/S) — snapshot md5 at review start; any mid-session churn fails my session loudly. foot-core mutated under me 5+ times (07-05/06).
+5. **Anchor verifier** (MED/S) — `dg-anchors plan.patch` confirms every S/R anchor exists exactly once *before* handoff, so my patches can't half-apply.
+
+## 2) What I want FROM each
+
+- **Grok**: apply via `dg-apply` only; write a receipt (md5 before/after + smoke result) to PLAN-LEDGER within one cycle. Never publish an unreceipted plan.
+- **Codex**: adversarial review of my patch *before* apply (`codex review outbox/*.patch`), and diff-vs-intent check after. Catch my anchor mistakes.
+- **Sonnet**: fill only `<!--COPY-SLOT-->` markers I leave; audit live copy vs planned copy, report drift as diffs not prose.
+- **Opus**: a 10-line `SCOPE.md` of what NOT to build this phase, so I stop planning things that get vetoed.
+
+## 3) What I provide TO each
+
+- **Grok**: patches with md5 precondition + per-patch smoke command — un-mangleable, verifiable in one line.
+- **Codex**: atomic single-concern patches, never omnibus.
+- **Sonnet**: copy slots with char limits + banned-phrase list (48h/SLA/names) inline.
+- **Opus**: 3-line impact/effort/risk header on every plan for prioritization.
+
+## 4) Team top 10
+
+1. `dg-truth` — shared verified state, ends false claims
+2. `dg-apply` + outbox — byte-exact handoff
+3. `PLAN-LEDGER.json` — nothing silently dropped
+4. `dg-freeze` — churn detector (extends dg-lock)
+5. Gate mutation-tests — prove gates fail on broken files (designed 07-05, unbuilt)
+6. Post-publish live-verify (curl hash==disk) as one command
+7. Board write-tripwire — reject `sample:false` mints at write time
+8. Per-agent inbox `/tmp/dg-busy/inbox/<agent>.md`
+9. `dg-anchors` patch pre-validator
+10. GTM/DM pipeline tracker — demand is the actual bottleneck
+
+## 5) Kill list
+
+Another dashboard; any foot-core rewrite; ungated auto-publish watcher; sim→pilot laundering tools; doc generators; OAuth (deferred, trigger unmet); anything game; aliases nobody loads.
+
+## 6) Settlement vote
+
+**`dg-apply` + `PLAN-LEDGER.json`** (one build — the loop is worthless split). Truth about state matters, but plans that land byte-exact with receipts fix corruption, churn, and false claims at the root. Build it next week.

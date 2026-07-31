@@ -3,6 +3,16 @@
  * Consensus sprint selftest — pairs + intro gate + audit file presence.
  * Usage: node demigod-sprint-selftest.mjs
  */
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-sprint-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -13,6 +23,7 @@ import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const TEST_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-sprint-selftest-'));
 process.env.DEMIGOD_ROOT = TEST_ROOT;
+process.env.DEMIGOD_BUSY = path.join(TEST_ROOT, '.dg-busy');
 process.on('exit', () => fs.rmSync(TEST_ROOT, { recursive: true, force: true }));
 
 const { reviewPair, proposePair, pairId, getPair } = await import('./demigod-pairs-lib.mjs');
@@ -56,15 +67,26 @@ try {
 }
 ok(gateHit, 'intro gate blocks proposed');
 
-const approved = reviewPair(p.pairId, { decision: 'approve', actor: 'selftest' });
-ok(approved.state === 'approved', 'review approve');
+let sampleApprovalRefused = false;
+try {
+  reviewPair(p.pairId, { decision: 'approve', actor: 'selftest' });
+} catch (error) {
+  sampleApprovalRefused = error.message === 'sample_pair_not_eligible';
+}
+ok(sampleApprovalRefused && getPair(p.pairId).state === 'proposed', 'sample approval refuses without mutation');
 
-const draft = execFileSync(
+const forcedSampleDraft = execFileSync(
   'node',
-  [path.join(ROOT, 'demigod-intro-draft.mjs'), p.pairId, '--json'],
+  [path.join(ROOT, 'demigod-intro-draft.mjs'), p.pairId, '--json', '--force'],
   { encoding: 'utf8' },
 );
-ok(JSON.parse(draft).ok === true, 'intro after approve');
+const forcedSampleResult = JSON.parse(forcedSampleDraft);
+ok(
+  forcedSampleResult.ok === true &&
+    forcedSampleResult.sample === true &&
+    /\bSAMPLE\b/.test(fs.readFileSync(forcedSampleResult.path, 'utf8')),
+  'forced sample intro is visibly SAMPLE',
+);
 
 const q = buildQueue({ includeSample: true });
 ok(q.pairs.length >= 1, 'queue non-empty');
@@ -117,11 +139,25 @@ for (const evidence of ['', 'ab', 'two\nlines', 'x'.repeat(501)]) {
   }
   ok(invalidRefused && JSON.stringify(getPair(p3.pairId)) === beforeUnsupported, 'invalid consent evidence refuses without mutation');
 }
-reviewPair(p3.pairId, { decision: 'approve', actor: 'selftest' });
-consentPair(p3.pairId, { side: 'founder', actor: 'selftest', attested: true, evidence: 'fixture founder reply' });
-const both = consentPair(p3.pairId, { side: 'candidate', actor: 'selftest', attested: true, evidence: 'fixture candidate reply' });
-ok(both.state === 'mutual_yes', 'dual consent → mutual_yes');
-ok(both.history.at(-1)?.evidence === 'fixture candidate reply', 'consent evidence recorded');
+const sampleStore = JSON.parse(fs.readFileSync(path.join(TEST_ROOT, 'DEMIGOD-PAIRS.json'), 'utf8'));
+sampleStore.pairs[p3.pairId].state = 'approved';
+fs.writeFileSync(path.join(TEST_ROOT, 'DEMIGOD-PAIRS.json'), JSON.stringify(sampleStore));
+const beforeSampleConsent = JSON.stringify(getPair(p3.pairId));
+let sampleConsentRefused = false;
+try {
+  consentPair(p3.pairId, {
+    side: 'founder',
+    actor: 'selftest',
+    attested: true,
+    evidence: 'fixture founder reply',
+  });
+} catch (error) {
+  sampleConsentRefused = error.message === 'sample_pair_not_eligible';
+}
+ok(
+  sampleConsentRefused && JSON.stringify(getPair(p3.pairId)) === beforeSampleConsent,
+  'sample consent refuses without mutation',
+);
 
 const privateModeFixture = path.join('/tmp/dg-busy', `atomic-private-${process.pid}.txt`);
 fs.writeFileSync(privateModeFixture, 'old', { mode: 0o664 });
@@ -134,15 +170,24 @@ ok((fs.statSync(privateModeFixture).mode & 0o777) === 0o754, 'atomicWrite defaul
 fs.unlinkSync(privateModeFixture);
 
 const cliRoot = fs.mkdtempSync('/tmp/dg-pairs-cli-');
-fs.writeFileSync(path.join(cliRoot, 'DEMIGOD-PAIRS.json'), JSON.stringify({ pairs: {
-  paircli: { pairId: 'paircli', roleId: 'role', candId: 'candidate', state: 'approved', mutual: {}, history: [] },
+const legacyCliPath = path.join(cliRoot, 'DEMIGOD-PAIRS.json');
+fs.writeFileSync(legacyCliPath, JSON.stringify({ pairs: {
+  paircli: { pairId: 'paircli', roleId: 'role', candId: 'candidate', state: 'approved', sample: false, mutual: {}, history: [] },
 } }));
-const cliConsent = JSON.parse(execFileSync('node', [
+const legacyCliBefore = fs.readFileSync(legacyCliPath, 'utf8');
+let legacyCliRefused = false;
+try {
+  execFileSync('node', [
   path.join(ROOT, 'demigod-pairs-lib.mjs'), 'consent', 'paircli', '--side', 'candidate',
   '--i-observed-consent', '--evidence', 'CLI fixture reply',
-], { encoding: 'utf8', env: { ...process.env, DEMIGOD_ROOT: cliRoot } }));
-ok(cliConsent.mutual.candidate === true && cliConsent.history.at(-1)?.evidence === 'CLI fixture reply', 'CLI consent requires and records evidence');
-ok((fs.statSync(path.join(cliRoot, 'DEMIGOD-PAIRS.json')).mode & 0o777) === 0o600, 'CLI pair write is private');
+  ], { encoding: 'utf8', env: { ...process.env, DEMIGOD_ROOT: cliRoot } });
+} catch (error) {
+  legacyCliRefused = String(error.stderr || '').includes('real_pair_id_invalid');
+}
+ok(
+  legacyCliRefused && fs.readFileSync(legacyCliPath, 'utf8') === legacyCliBefore,
+  'legacy forged CLI consent refuses without mutation',
+);
 fs.rmSync(cliRoot, { recursive: true, force: true });
 
 const dashboardServer = fs.readFileSync(path.join(ROOT, 'demigod-agent-dashboard.mjs'), 'utf8');

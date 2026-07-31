@@ -22,6 +22,7 @@ const CTA = FLOW === 'engineer' ? 'looking|join|profile|talent' : 'hire|hiring|s
 const OUT_DIR = `/tmp/audit-wiz-playtest${FLOW === 'engineer' ? '-engineer' : ''}`;
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const CORE = fs.readFileSync('demigod-foot-core.js', 'utf8');
+const HEAD_CSS = USE_LOCAL ? fs.readFileSync('demigod-head-styles.css', 'utf8') : '';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function run() {
@@ -37,11 +38,16 @@ async function run() {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const u = req.url();
+      const isHeadCss =
+        /\/head-latest\.css(?:[?#]|$)/i.test(u) ||
+        /files\.catbox\.moe\/[a-z0-9]+\.css(?:[?#]|$)/i.test(u);
       const isFoot =
         /foot-latest\.js(?:[?#]|$)/i.test(u) ||
         /demigod-foot/i.test(u) ||
         (/catbox/i.test(u) && /\.js(?:[?#]|$)/i.test(u));
-      if (isFoot) {
+      if (isHeadCss) {
+        req.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
+      } else if (isFoot) {
         req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
       } else {
         req.continue().catch(() => {});

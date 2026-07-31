@@ -29,8 +29,6 @@ and any foot-core paste is a separate step that needs potter's explicit authoriz
    - **Route health**: every public pretty-path (`/hire /talent /startups /events /partnerships /legal
      /pricing /about /faq /how /security` …) returns 200, and known-broken bare paths (`/partners /mud
      /referral`) are reported — pure `fetch`, reliable, no CDP.
-   - **Analytics-endpoint sanity**: flag when the served footer points `__dgWebhookUrl` at a
-     `trycloudflare.com` dev tunnel (the CORS-on-every-page bug) instead of a stable host.
    - **Rendered structure/SEO** (needs CDP on :9223, already running — guard for flakiness, retry once):
      meta-description length in 120–160 on content routes, ≥1 `<h2>` on long content pages, `og:title`
      + `canonical` present, no `Untitled`/bare titles, console/CORS error count per route,
@@ -52,7 +50,7 @@ and any foot-core paste is a separate step that needs potter's explicit authoriz
    - **Structured pricing table** fragment — the fee model as a scannable table.
 
 3. **A precise, verified apply-spec for the foot-core fixes** (for when the tree is clean + potter
-   authorizes): analytics fail-silent wrapper, per-page `<h2>` subheads, tightened meta descriptions.
+   authorizes): per-page `<h2>` subheads and tightened meta descriptions.
    Write the exact code and PROVE it parses/boots in an **isolated worktree copy** of foot-core
    (`git worktree add /tmp/dg-foot-<n> HEAD`, edit there, run `demigod-foot-smoke.mjs` there, capture the
    result, then `git worktree remove`). Never apply to the main tree. Deliver the spec + the smoke proof.

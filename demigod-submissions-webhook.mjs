@@ -11,7 +11,6 @@ import {
   publicStatus,
   publicSubmissionStatusUrl,
 } from './demigod-submissions-lib.mjs';
-import { allowFormAnalyticsWrite, allowTimestampRequest, MAX_ANALYTICS_BODY, processFormAnalyticsRequest } from './demigod-form-analytics.mjs';
 import { privateCapabilityHeaders, webhookOriginPolicy } from './demigod-webhook-origin.mjs';
 import { allowWebhookRequest, webhookClientIp } from './demigod-webhook-rate-limit.mjs';
 import { resolveWebflowWebhookSecrets, verifyWebflowWebhook, webhookAuthReadiness, webhookAuthSafeToBind } from './demigod-webhook-auth.mjs';
@@ -30,8 +29,7 @@ const CORS_ORIGINS = (process.env.DEMIGOD_WEBHOOK_CORS
   .map((s) => s.trim())
   .filter(Boolean);
 const hits = new Map();
-const analyticsHits = [];
-const statusHits = [];
+const statusHits = new Map();
 
 function corsHeaders(req) {
   const origin = req.headers.origin || '';
@@ -92,7 +90,10 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: false, error: 'not_found' }));
       return;
     }
-    if (!allowTimestampRequest(statusHits, Date.now(), Math.max(120, RATE_MAX * 4))) {
+    if (!allowWebhookRequest(statusHits, webhookClientIp(req, TRUSTED_PROXIES), {
+      windowMs: RATE_WINDOW_MS,
+      max: Math.max(120, RATE_MAX * 4),
+    })) {
       res.writeHead(429, statusHeaders);
       res.end(JSON.stringify({ ok: false, error: 'rate_limited' }));
       return;
@@ -107,57 +108,6 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ ok: true, ...publicStatus(record) }));
     return;
   }
-  if ((req.url || '').split('?')[0] === '/analytics/forms') {
-    const headers = { 'Cache-Control': 'no-store', ...cors };
-    if (req.method !== 'POST') {
-      req.resume();
-      res.writeHead(405, { ...headers, Allow: 'POST' });
-      res.end();
-      return;
-    }
-    if (String(req.headers.dnt || '') === '1') {
-      req.resume();
-      res.writeHead(204, headers);
-      res.end();
-      return;
-    }
-    if (!allowFormAnalyticsWrite(analyticsHits, Date.now(), RATE_MAX)) {
-      req.resume();
-      res.writeHead(429, headers);
-      res.end();
-      return;
-    }
-    if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || ''))) {
-      req.resume();
-      res.writeHead(415, headers);
-      res.end();
-      return;
-    }
-    const chunks = [];
-    let size = 0;
-    try {
-      for await (const chunk of req) {
-        size += chunk.length;
-        if (size > MAX_ANALYTICS_BODY) {
-          res.writeHead(413, headers);
-          res.end();
-          req.destroy();
-          return;
-        }
-        chunks.push(chunk);
-      }
-    } catch {
-      try { res.writeHead(400, headers); res.end(); } catch { /* client gone */ }
-      return;
-    }
-    const result = processFormAnalyticsRequest(Buffer.concat(chunks), {
-      contentType: req.headers['content-type'] || '',
-    });
-    res.writeHead(result.status, headers);
-    res.end();
-    return;
-  }
-
   if (req.method !== 'POST') {
     res.writeHead(405, cors);
     res.end('Method not allowed');

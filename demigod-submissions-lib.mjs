@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { UNSAFE_INVISIBLE_CLASS, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { recordDirectSubmission, recordReferralSubmission } from './demigod-referrals.mjs';
 
 const ROOT = '/home/potter';
@@ -48,6 +48,33 @@ const ARCHIVE_RETENTION_DAYS = Math.max(
 const ARCHIVE_DAYS = Number(process.env.DEMIGOD_ARCHIVE_DAYS || 14);
 const TEST_RE = /\btest\b/i;
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
+const CANDIDATE_BAY_OPTIONS = new Set(['yes', 'remote-bay', 'no']);
+const CANDIDATE_AVAILABILITY_OPTIONS = new Set(['now', '2-4w', '1-3m', 'passive']);
+const STARTUP_STAGE_OPTIONS = new Set(['pre-seed', 'seed', 'series-a', 'series-b']);
+const STARTUP_LOCATION_OPTIONS = new Set([
+  'sf-onsite', 'sf-hybrid', 'bay-flexible', 'remote-us', 'remote-global',
+  'sf', 'san francisco, ca', 'san francisco, ca (in-person)',
+]);
+const UNSAFE_MATCH_CONTROL = new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']');
+
+function validMatchConstraint(value, max = 120) {
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  return Boolean(
+    text &&
+    text.length <= max &&
+    !UNSAFE_MATCH_CONTROL.test(value) &&
+    !/^(?:select(?: range)?|choose|tbd|unknown|n\/?a|none|-+)$/.test(text.toLowerCase()) &&
+    scrubPII(text) === text
+  );
+}
+
+function validContactEmail(value) {
+  const email = typeof value === 'string' ? value.trim() : '';
+  return email.length <= 254 &&
+    !UNSAFE_MATCH_CONTROL.test(email) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export function extractEmail(data = {}, formName = '') {
   const fn = String(formName).toLowerCase();
@@ -60,17 +87,37 @@ export function startupRoleReadiness(item = {}) {
   const form = String(item.form || item.formName || '');
   if (!/hire|startup|founders/i.test(form)) return { applicable: false, matchReady: true, missing: [], lifecycleReady: true, policyReady: true };
   const raw = item.raw || item.data || {};
+  const company = raw['company-name'] || raw.companyName;
+  const stage = raw['company-stage'] || raw.companyStage;
+  const title = raw['role-title'] || raw.roleTitle;
+  const skills = raw['stack-needs'] || raw.stackNeeds;
+  const outcome = raw['90day-outcome'] || raw.outcome90d;
+  const location = raw['work-location'] || raw.workLocation;
+  const compensation = raw['salary-range'] || raw.salaryRange;
+  const email = extractEmail(raw, form);
   const required = [
-    ['company-name', raw['company-name'] || raw.companyName],
-    ['company-stage', raw['company-stage'] || raw.companyStage],
-    ['role-title', raw['role-title'] || raw.roleTitle],
-    ['stack-needs', raw['stack-needs'] || raw.stackNeeds],
-    ['90day-outcome', raw['90day-outcome'] || raw.outcome90d],
-    ['work-location', raw['work-location'] || raw.workLocation],
-    ['salary-range', raw['salary-range'] || raw.salaryRange],
-    ['contact-email', extractEmail(raw, form)],
+    ['company-name', company],
+    ['company-stage', stage],
+    ['role-title', title],
+    ['stack-needs', skills],
+    ['90day-outcome', outcome],
+    ['work-location', location],
+    ['salary-range', compensation],
+    ['contact-email', email],
   ];
   const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
+  for (const [key, ready] of [
+    ['company-name', validMatchConstraint(company, 160)],
+    ['company-stage', STARTUP_STAGE_OPTIONS.has(String(stage || '').trim().toLowerCase())],
+    ['role-title', validMatchConstraint(title, 160)],
+    ['stack-needs', validMatchConstraint(skills, 500)],
+    ['90day-outcome', validMatchConstraint(outcome, 600)],
+    ['work-location', STARTUP_LOCATION_OPTIONS.has(String(location || '').trim().toLowerCase())],
+    ['salary-range', validMatchConstraint(compensation)],
+    ['contact-email', validContactEmail(email)],
+  ]) {
+    if (!ready && !missing.includes(key)) missing.push(key);
+  }
   const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
   const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
   return { applicable: true, matchReady: lifecycleReady && policyReady && !missing.length, missing, lifecycleReady, policyReady };
@@ -81,18 +128,40 @@ export function candidateProfileReadiness(item = {}) {
   if (!/engineer|jobseeker|candidate/i.test(form)) return { applicable: false, matchReady: true, missing: [], lifecycleReady: true, policyReady: true };
   const raw = item.raw || item.data || {};
   const bayPreference = String(raw['sf-bay'] || raw.sfBay || '').trim().toLowerCase();
-  const preferenceReady = !['no', 'not right now'].includes(bayPreference);
+  const availability = String(raw.availability || '').trim().toLowerCase();
+  const compensation = raw['salary-expectation'] || raw['salary-range'] || raw.compExpect;
+  const fullName = raw['full-name'] || raw.fullName;
+  const email = extractEmail(raw, form);
+  const skills = raw['skills-stack'] || raw.skillsStack;
+  const experience = raw.experience || raw['background & highlights'];
+  const resume = extractResumeReference(raw);
+  const bayOptionReady = CANDIDATE_BAY_OPTIONS.has(bayPreference);
+  const preferenceReady = bayPreference !== 'no';
+  const availabilityReady = CANDIDATE_AVAILABILITY_OPTIONS.has(availability);
+  const compensationReady = validMatchConstraint(compensation);
   const required = [
-    ['full-name', raw['full-name'] || raw.fullName],
-    ['seeker-email', extractEmail(raw, form)],
-    ['skills-stack', raw['skills-stack'] || raw.skillsStack],
-    ['experience', raw.experience || raw['background & highlights']],
+    ['full-name', fullName],
+    ['seeker-email', email],
+    ['skills-stack', skills],
+    ['experience', experience],
     ['sf-bay', raw['sf-bay'] || raw.sfBay],
     ['availability', raw.availability],
-    ['salary-expectation', raw['salary-expectation'] || raw['salary-range'] || raw.compExpect],
-    ['resume', extractResumeReference(raw)],
+    ['salary-expectation', compensation],
+    ['resume', resume],
   ];
   const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
+  for (const [key, ready] of [
+    ['full-name', validMatchConstraint(fullName)],
+    ['seeker-email', validContactEmail(email)],
+    ['skills-stack', validMatchConstraint(skills, 400)],
+    ['experience', validMatchConstraint(experience, 600)],
+    ['sf-bay', bayOptionReady],
+    ['availability', availabilityReady],
+    ['salary-expectation', compensationReady],
+    ['resume', isValidResumeReference(resume)],
+  ]) {
+    if (!ready && !missing.includes(key)) missing.push(key);
+  }
   const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
   const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
   return { applicable: true, matchReady: lifecycleReady && policyReady && preferenceReady && !missing.length, missing, lifecycleReady, policyReady, preferenceReady };
@@ -104,6 +173,17 @@ export function extractResumeReference(data = {}) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return '';
+}
+
+export function isValidResumeReference(value) {
+  const reference = typeof value === 'string' ? value.trim() : '';
+  if (!reference || reference.length > 2048 || UNSAFE_MATCH_CONTROL.test(reference)) return false;
+  try {
+    const parsed = new URL(reference);
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
 }
 
 function sourceSubmissionId(value) {
@@ -439,7 +519,7 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
     if (values.some((value) => value != null && String(value).length > max)) reasons.push(reason);
   }
 
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) reasons.push('invalid_email');
+  if (email && !validContactEmail(email)) reasons.push('invalid_email');
   if (TEST_RE.test(blobSansEmails) && !/^(test@|demo@)/i.test(email)) reasons.push('test_keyword');
   if (/^smoke-(?:intake|startup|engineer)\+/i.test(email)) reasons.push('intake_smoke_probe');
   if (/intake smoke probe/i.test(String(data['partner-org'] || data.partnerOrg || data['stack-needs'] || data['skills-stack'] || ''))) reasons.push('intake_smoke_probe');
@@ -472,14 +552,7 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   const resumeReferences = [data.resume, data.Resume, data['resume-url'], data.resumeUrl];
   if (/engineer|jobseeker|candidate/.test(fn) && !resumeUrl) reasons.push('missing_resume');
   if (resumeReferences.some((value) => value != null && typeof value !== 'string')) reasons.push('resume_url_invalid');
-  if (resumeUrl) {
-    try {
-      const parsed = new URL(resumeUrl);
-      if (parsed.protocol !== 'https:' || parsed.username || parsed.password || resumeUrl.length > 2048) reasons.push('resume_url_invalid');
-    } catch {
-      reasons.push('resume_url_invalid');
-    }
-  }
+  if (resumeUrl && !isValidResumeReference(resumeUrl)) reasons.push('resume_url_invalid');
 
   const cutoff = Date.now() - DEDUPE_DAYS * 86400000;
   const dup = (inbox.items || []).find((item) => {
@@ -534,7 +607,9 @@ export function scrubPII(text = '') {
       const digits = m.replace(/\D/g, '');
       return digits.length >= 8 && digits.length <= 15 ? '[phone removed]' : m;
     })
-    .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]')
+    // NANP: treat (area) as one unit so we never leave a stray "(" before the marker.
+    // Optional `\(?…\)?` matched area digits only and orphaned the open paren (public card leak shape).
+    .replace(/(?:\+?1[-.\s]?)?(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone removed]')
     // Spoken digit phones: "four one five five five five …"
     .replace(
       /\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine|oh)[\s.-]?){7,15}\b/gi,
@@ -583,6 +658,37 @@ export function clip(s, max = 120) {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
+/** Bounded single-line Markdown-safe projection for untrusted private draft fields. */
+export function projectDraftText(text = '', max = 240) {
+  const value = clip(
+    String(text).replace(
+      new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']', 'g'),
+      ' ',
+    ),
+    max,
+  );
+  if (/^https?:\/\/[^\s<>"'`]+$/i.test(value)) return value;
+  return value.replace(/([\\`*_[\]<>#|])/g, '\\$1');
+}
+
+/** Keep one exact, credential-free HTTP(S) URL; discard adjacent draft prose. */
+export function projectDraftUrl(text = '', max = 500) {
+  const value = projectDraftText(
+    String(text).split(
+      new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']'),
+      1,
+    )[0],
+    max,
+  );
+  if (!/^https?:\/\/[^\s<>"'`]+$/i.test(value)) return '';
+  try {
+    const url = new URL(value);
+    return !url.username && !url.password && /^https?:$/.test(url.protocol) ? value : '';
+  } catch {
+    return '';
+  }
+}
+
 /** startup-hire fields → anonymized open role */
 export function anonymizeRole(raw = {}) {
   const title = clip(scrubPII(raw['role-title'] || raw.roleTitle || 'Open role'), 60);
@@ -622,38 +728,39 @@ export function anonymizeCandidate(raw = {}) {
 }
 
 export function loadBoard() {
+  let board;
   try {
-    return JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
-  } catch (_) {
-    // Same guard as loadInbox: a board that EXISTS but won't parse must be copied aside before any
-    // caller saves over the empty default, else the next saveBoard silently WIPES the board SoR
-    // (roles/candidates). A MISSING file is a normal fresh start. Preserve corrupt bytes first.
-    try {
-      if (fs.existsSync(BOARD_PATH)) fs.copyFileSync(BOARD_PATH, `${BOARD_PATH}.corrupt.${Date.now()}`);
-    } catch {
-      /* best-effort preservation; never block the fresh start */
+    board = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return { at: new Date().toISOString(), roles: [], candidates: [], cdnUrl: null };
     }
-    return { at: new Date().toISOString(), roles: [], candidates: [], cdnUrl: null };
+    throw error;
   }
+  if (
+    !board ||
+    typeof board !== 'object' ||
+    Array.isArray(board) ||
+    !Array.isArray(board.roles) ||
+    !Array.isArray(board.candidates)
+  ) throw new Error('invalid board store');
+  return board;
 }
 
 export function loadInbox() {
+  let inbox;
   try {
-    return JSON.parse(fs.readFileSync(INBOX_PATH, 'utf8'));
-  } catch (_) {
-    // A MISSING file is a normal fresh start -> empty. But a file that EXISTS and won't parse must be
-    // preserved before any caller saves over it: otherwise the next ingestSubmission prepends to this
-    // empty default and saveInbox() silently WIPES the entire leads SoR down to one row -- worse than
-    // a crash, which would at least leave the bytes recoverable. Atomic writes (b8897b9) make this
-    // near-impossible now, but a disk error or manual edit could still corrupt it, and the leads file
-    // is the one place total silent loss is unacceptable. Copy the corrupt bytes aside first.
-    try {
-      if (fs.existsSync(INBOX_PATH)) fs.copyFileSync(INBOX_PATH, `${INBOX_PATH}.corrupt.${Date.now()}`);
-    } catch {
-      /* best-effort preservation; never let it block the fresh start */
+    inbox = JSON.parse(fs.readFileSync(INBOX_PATH, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return { at: new Date().toISOString(), items: [] };
     }
-    return { at: new Date().toISOString(), items: [] };
+    throw error;
   }
+  if (!inbox || typeof inbox !== 'object' || Array.isArray(inbox) || !Array.isArray(inbox.items)) {
+    throw new Error('invalid inbox store');
+  }
+  return inbox;
 }
 
 export function findSubmission(id) {
@@ -822,7 +929,9 @@ export function isRealReceipt(r) {
 
 export function isSampleData(item = {}) {
   return item.sample === true || item.selftest === true || item.real === false
-    || item.raw?.sample === true || item.raw?.selftest === true;
+    || item.raw?.sample === true || item.raw?.selftest === true
+    || item.data?.sample === true || item.data?.selftest === true
+    || item.payload?.sample === true || item.payload?.selftest === true;
 }
 
 /** Core persist — call only while holding BOARD_LOCK (via saveBoard/writeBoard). */

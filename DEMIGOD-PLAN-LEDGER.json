@@ -1,0 +1,232 @@
+{
+  "schema": 1,
+  "plans": [
+    {
+      "id": "plan_mriqqqx6_d059b9",
+      "at": "2026-07-13T04:47:22.314Z",
+      "status": "ignored",
+      "title": "adv-noise",
+      "owner": "audit",
+      "paths": [],
+      "verify": [],
+      "stop": "",
+      "source": "",
+      "note": "cleanup",
+      "history": [
+        {
+          "at": "2026-07-13T04:47:22.315Z",
+          "status": "proposed",
+          "by": "agent"
+        },
+        {
+          "at": "2026-07-13T04:47:22.501Z",
+          "status": "ignored",
+          "by": "grok",
+          "note": "cleanup"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:47:22.501Z"
+    },
+    {
+      "id": "plan_mriqf735_2b5c93",
+      "at": "2026-07-13T04:38:23.393Z",
+      "status": "ignored",
+      "title": "audit-tmp",
+      "owner": "audit",
+      "paths": [],
+      "verify": [],
+      "stop": "",
+      "source": "",
+      "note": "audit cleanup",
+      "history": [
+        {
+          "at": "2026-07-13T04:38:23.394Z",
+          "status": "proposed",
+          "by": "agent"
+        },
+        {
+          "at": "2026-07-13T04:38:23.529Z",
+          "status": "ignored",
+          "by": "grok",
+          "note": "audit cleanup"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:38:23.529Z"
+    },
+    {
+      "id": "plan_mriq13hj_d19f07",
+      "at": "2026-07-13T04:27:25.543Z",
+      "status": "ignored",
+      "title": "bugfix temp",
+      "owner": "test",
+      "paths": [
+        "/tmp/x"
+      ],
+      "verify": [
+        "true"
+      ],
+      "stop": "ok",
+      "source": "",
+      "note": "cleanup",
+      "history": [
+        {
+          "at": "2026-07-13T04:27:25.543Z",
+          "status": "proposed",
+          "by": "bugfix"
+        },
+        {
+          "at": "2026-07-13T04:27:25.624Z",
+          "status": "ignored",
+          "by": "bugfix",
+          "note": "cleanup"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:27:25.624Z"
+    },
+    {
+      "id": "plan_mripu79v_8239e7",
+      "at": "2026-07-13T04:22:03.859Z",
+      "status": "partial",
+      "title": "S4 Warm-25 founders + DM pack",
+      "owner": "human",
+      "paths": [
+        "docs/gtm/FOUNDERS-WARM-25.md",
+        "docs/gtm/DM-PACK-TOP.md"
+      ],
+      "verify": [
+        "test -f docs/gtm/FOUNDERS-WARM-25.md"
+      ],
+      "stop": "human sends",
+      "source": "",
+      "note": "FOUNDERS-WARM-25 + DM-PACK written; human send pending",
+      "history": [
+        {
+          "at": "2026-07-13T04:22:03.859Z",
+          "status": "proposed",
+          "by": "settlement"
+        },
+        {
+          "at": "2026-07-13T04:22:03.951Z",
+          "status": "applied",
+          "by": "grok",
+          "note": "tooling shipped 2026-07-13"
+        },
+        {
+          "at": "2026-07-13T04:22:29.204Z",
+          "status": "proposed",
+          "by": "grok",
+          "note": "reopen until FOUNDERS-WARM-25 + DM-PACK exist"
+        },
+        {
+          "at": "2026-07-13T04:23:07.527Z",
+          "status": "partial",
+          "by": "grok",
+          "note": "FOUNDERS-WARM-25 + DM-PACK written; human send pending"
+        },
+        {
+          "at": "2026-07-13T04:38:23.238Z",
+          "status": "banana",
+          "by": "grok",
+          "note": ""
+        }
+      ],
+      "updatedAt": "2026-07-13T04:38:23.238Z",
+      "afterSha": "b7f1497b01649f4578c75350f25bcdf54fa261eaa9654d817d5b49f2bedaa3fc"
+    },
+    {
+      "id": "plan_mripu78o_434c6a",
+      "at": "2026-07-13T04:22:03.816Z",
+      "status": "applied",
+      "title": "S3 Claim-verifier",
+      "owner": "grok",
+      "paths": [
+        "demigod-claim-verify.mjs"
+      ],
+      "verify": [
+        "node demigod-claim-verify.mjs --ship --copy-policy --smoke --board"
+      ],
+      "stop": "PASS",
+      "source": "",
+      "note": "tooling shipped 2026-07-13",
+      "history": [
+        {
+          "at": "2026-07-13T04:22:03.817Z",
+          "status": "proposed",
+          "by": "settlement"
+        },
+        {
+          "at": "2026-07-13T04:22:03.993Z",
+          "status": "applied",
+          "by": "grok",
+          "note": "tooling shipped 2026-07-13"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:22:03.992Z",
+      "afterSha": "b7f1497b01649f4578c75350f25bcdf54fa261eaa9654d817d5b49f2bedaa3fc"
+    },
+    {
+      "id": "plan_mripu776_35792b",
+      "at": "2026-07-13T04:22:03.762Z",
+      "status": "applied",
+      "title": "S2 PLAN-LEDGER protocol",
+      "owner": "grok",
+      "paths": [
+        "demigod-plan-ledger.mjs"
+      ],
+      "verify": [
+        "node demigod-plan-ledger.mjs list"
+      ],
+      "stop": "ledger exists",
+      "source": "",
+      "note": "tooling shipped 2026-07-13",
+      "history": [
+        {
+          "at": "2026-07-13T04:22:03.762Z",
+          "status": "proposed",
+          "by": "settlement"
+        },
+        {
+          "at": "2026-07-13T04:22:04.034Z",
+          "status": "applied",
+          "by": "grok",
+          "note": "tooling shipped 2026-07-13"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:22:04.033Z",
+      "afterSha": "b7f1497b01649f4578c75350f25bcdf54fa261eaa9654d817d5b49f2bedaa3fc"
+    },
+    {
+      "id": "plan_mripu75v_21ec28",
+      "at": "2026-07-13T04:22:03.715Z",
+      "status": "applied",
+      "title": "S1 Hash-gated publish + receipt (dg-publish-foot)",
+      "owner": "grok",
+      "paths": [
+        "demigod-publish-foot.mjs",
+        "demigod-publish-receipt.mjs"
+      ],
+      "verify": [
+        "node demigod-ship-status.mjs --strict"
+      ],
+      "stop": "receipt ok + ship strict",
+      "source": "",
+      "note": "dg-publish-foot + receipts landed; dry-run ok",
+      "history": [
+        {
+          "at": "2026-07-13T04:22:03.715Z",
+          "status": "proposed",
+          "by": "settlement"
+        },
+        {
+          "at": "2026-07-13T04:23:07.621Z",
+          "status": "applied",
+          "by": "grok",
+          "note": "dg-publish-foot + receipts landed; dry-run ok"
+        }
+      ],
+      "updatedAt": "2026-07-13T04:23:07.620Z",
+      "afterSha": "b7f1497b01649f4578c75350f25bcdf54fa261eaa9654d817d5b49f2bedaa3fc"
+    }
+  ],
+  "at": "2026-07-26T23:28:01.240Z"
+}

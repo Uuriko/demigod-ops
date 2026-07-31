@@ -447,7 +447,7 @@ export function toFixPrompt(report) {
   lines.push(`# Agent fix prompt — Demigod review v2 · ${report.at}`);
   lines.push('');
   lines.push(
-    'Demigod (Webflow talent matching). Current phase: GTM + pre-services honesty. Freeze ON unless told otherwise.',
+    'Demigod talent matching review. Freeze ON unless told otherwise.',
   );
   lines.push('Fix blockers first. One canonical file per concern. Verify after.');
   lines.push('');

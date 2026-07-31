@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import { fileURLToPath } from 'url';
+import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const CDP = process.env.CDP_URL || 'http://127.0.0.1:9223';
@@ -77,14 +78,21 @@ async function listRedirects(call) {
   })()`);
 }
 
+// Webflow redirect writes need BOTH CSRF headers (X-CSRF alone → 412). Same as demigod-cm6-paste-publish.
+function csrfHeadersExpr() {
+  return `(() => {
+    const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    if (csrf) { headers['X-CSRF-Token'] = csrf; headers['X-XSRF-TOKEN'] = csrf; }
+    return { csrf, headers };
+  })()`;
+}
+
 async function setRedirect(call, pathName, target) {
-  // Webflow often requires UI-driven POST (session CSRF). Prefer fetch with meta _csrf.
   return evalAsync(
     call,
     `(async () => {
-      const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
-      const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-      if (csrf) headers['X-CSRF-Token'] = csrf;
+      const { csrf, headers } = ${csrfHeadersExpr()};
       const r = await fetch('/api/sites/${SITE}/redirect', {
         method: 'POST',
         credentials: 'include',
@@ -98,15 +106,33 @@ async function setRedirect(call, pathName, target) {
   );
 }
 
+/** Targeted delete by path (UI-equivalent). Prefer this over delete-all. */
+async function deleteRedirect(call, pathName) {
+  return evalAsync(
+    call,
+    `(async () => {
+      const { csrf, headers } = ${csrfHeadersExpr()};
+      const r = await fetch('/api/sites/${SITE}/redirect/delete', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({ path: ${JSON.stringify(pathName)} }),
+      });
+      const text = await r.text();
+      let body; try { body = JSON.parse(text); } catch { body = text; }
+      return { status: r.status, body, csrf: Boolean(csrf) };
+    })()`,
+  );
+}
+
 async function deleteAllRedirects(call) {
   return evalAsync(
     call,
     `(async () => {
-      const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
-      const headers = { Accept: 'application/json' };
-      if (csrf) headers['X-CSRF-Token'] = csrf;
+      const { csrf, headers } = ${csrfHeadersExpr()};
+      delete headers['Content-Type'];
       const r = await fetch('/api/sites/${SITE}/redirects', { method: 'DELETE', credentials: 'include', headers });
-      return { status: r.status, body: (await r.text()).slice(0, 200) };
+      return { status: r.status, body: (await r.text()).slice(0, 200), csrf: Boolean(csrf) };
     })()`,
   );
 }
@@ -118,34 +144,51 @@ function productMap() {
   return j.pages || {};
 }
 
+const WRITE_COMMANDS = new Set(['set', 'delete', 'ensure']);
+
 async function main() {
   const [cmd, a, b] = process.argv.slice(2);
   if (!cmd || cmd === 'help' || cmd === '-h') {
-    console.log('usage: list | ensure | set <path> <targetUrl>');
+    console.log('usage: list | set <path> <targetPath> | delete <path> | ensure');
     process.exit(0);
   }
+  // set/delete/ensure write durable production site config. Every other Webflow writer
+  // (foot-cdn-publish, cm6-paste-publish, board-publish, webhook-setup) already routes through
+  // this guard; this one did not, so a redirect could be rewritten with no current-request
+  // authorization AND while publish freeze was on — the freeze exists to stop exactly that
+  // during an incident. Written config ships on the next publish by anyone, so "it needs a
+  // publish to take effect" is not a safety boundary. `list` stays ungated: it is read-only
+  // and is how an audit inspects the live config.
+  if (WRITE_COMMANDS.has(cmd)) assertNotFrozen(`redirect ${cmd}`);
   const { ws, call } = await connectDashboard();
   try {
     if (cmd === 'list') {
       console.log(JSON.stringify(await listRedirects(call), null, 2));
       return;
     }
+    if (cmd === 'delete') {
+      if (!a) throw new Error('delete needs path');
+      const pathName = a.startsWith('/') ? a : `/${a}`;
+      console.log(JSON.stringify(await deleteRedirect(call, pathName), null, 2));
+      return;
+    }
     if (cmd === 'set') {
       if (!a || !b) throw new Error('set needs path and target');
       const pathName = a.startsWith('/') ? a : `/${a}`;
-      console.log(JSON.stringify(await setRedirect(call, pathName, b), null, 2));
+      // Targeted replace: delete existing then add (UI pattern; no delete-all).
+      // Delete may 404/500 when path is absent — still try add.
+      const del = await deleteRedirect(call, pathName);
+      const add = await setRedirect(call, pathName, b);
+      const ok = add.status >= 200 && add.status < 300;
+      console.log(JSON.stringify({ path: pathName, target: b, delete: del, add, ok }, null, 2));
+      if (!ok) process.exitCode = 1;
       return;
     }
     if (cmd === 'ensure') {
+      // Product-page external redirects only — targeted upsert, never delete-all.
       const pages = productMap();
-      const want = Object.entries(pages); // include pricing → catbox product page
-      const current = await listRedirects(call);
-      const have = new Map((current.siteRedirects || []).map((r) => [r.source, r.target]));
+      const want = Object.entries(pages);
       const results = [];
-      const needsRewrite = want.some(([slug, url]) => have.get(`/${slug}`) !== url);
-      if (needsRewrite && (current.siteRedirects || []).length) {
-        results.push({ action: 'delete_all', ...(await deleteAllRedirects(call)) });
-      }
       for (const [slug, url] of want) {
         const src = `/${slug}`;
         const again = await listRedirects(call);
@@ -154,6 +197,7 @@ async function main() {
           results.push({ src, status: 'ok', target: url });
           continue;
         }
+        if (have2.has(src)) results.push({ src, action: 'delete', ...(await deleteRedirect(call, src)) });
         const r = await setRedirect(call, src, url);
         results.push({ src, status: r.status, target: url, body: r.body });
       }

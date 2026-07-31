@@ -90,13 +90,6 @@ run_one() {
     Q8)
       timeout 90 npm run demigod:verify:source >>"$logf" 2>&1 || ec=$?
       ;;
-    Q9)
-      bin/dg-anti-bloat pick --context=auto >>"$logf" 2>&1 || ec=$?
-      bin/dg-anti-bloat doctrine >>"$logf" 2>&1 || true
-      ;;
-    Q10)
-      bin/dg-workflow-map review >>"$logf" 2>&1 || ec=$?
-      ;;
     *)
       echo "unknown id $id" | tee -a "$logf"
       ec=2
@@ -342,8 +335,8 @@ ctx, full, state_p = sys.argv[1], sys.argv[2] == "1", Path(sys.argv[3])
 pools = {
   "features": [("Q1","sim-user"),("Q2","wiz-playtest"),("Q6","conversion"),("Q3","bug-review")],
   "ship": [("Q7","live-smoke-ship"),("Q1","sim-user"),("Q2","wiz-playtest"),("Q8","verify-source")],
-  "tools": [("Q5","ponytail"),("Q4","full-review"),("Q9","anti-bloat"),("Q10","workflow-map")],
-  "thrash": [("Q3","bug-review"),("Q5","ponytail"),("Q7","live-smoke-ship"),("Q9","anti-bloat")],
+  "tools": [("Q5","ponytail"),("Q4","full-review")],
+  "thrash": [("Q3","bug-review"),("Q5","ponytail"),("Q7","live-smoke-ship")],
   "auto": [("Q1","sim-user"),("Q3","bug-review"),("Q7","live-smoke-ship"),("Q5","ponytail"),("Q2","wiz-playtest"),("Q8","verify-source")],
 }
 # auto smell
@@ -409,9 +402,7 @@ case "$cmd" in
       Q6) run_one Q6 conversion ;;
       Q7) run_one Q7 live-smoke-ship ;;
       Q8) run_one Q8 verify-source ;;
-      Q9) run_one Q9 anti-bloat ;;
-      Q10) run_one Q10 workflow-map ;;
-      *) echo "usage: $0 run Q1|Q2|Q3|Q4|Q5|Q6|Q7|Q8|Q9|Q10" >&2; exit 2 ;;
+      *) echo "usage: $0 run Q1|Q2|Q3|Q4|Q5|Q6|Q7|Q8" >&2; exit 2 ;;
     esac
     ;;
   pick)
@@ -462,12 +453,10 @@ bl = json.loads(Path("$BACKLOG").read_text()) if Path("$BACKLOG").exists() else 
 print("quality wave done id=", last.get("id"), "ok=", last.get("ok"), "open_backlog=", bl.get("open"))
 print("Agents: fix open P0/P1 in /tmp/dg-busy/coord/quality-backlog.json before new features.")
 PY
-    # refresh digest if possible
-    bin/dg-agent-coord brief >/dev/null 2>&1 || true
     exit "$overall"
     ;;
   *)
-    echo "usage: $0 doctrine|status|backlog|run Q1..Q10|pick|once [--full] [--context=auto|features|ship|tools|thrash]"
+    echo "usage: $0 doctrine|status|backlog|run Q1..Q8|pick|once [--full] [--context=auto|features|ship|tools|thrash]"
     exit 2
     ;;
 esac

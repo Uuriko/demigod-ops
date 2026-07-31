@@ -150,7 +150,7 @@ function canonicalPreflight() {
     editorHelperRejectsLoaderOutsideFooter:
       /headLoaderCount===0/.test(GET_VIEW) &&
       /footLoaderCountValue===1/.test(GET_VIEW) &&
-      /!\/dg-unhide-critical\|unhide-v5\//.test(GET_VIEW),
+      /!\/dg-path-redirects\|dg-base-tokens\//.test(GET_VIEW),
     editorHelperVerifiesPersistedSplit:
       /fetch\('\/api\/sites\/talentlink-sf\/code'/.test(SELF_SOURCE) &&
       /pre === expectedHead && post === expectedFoot/.test(SELF_SOURCE) &&
@@ -158,7 +158,10 @@ function canonicalPreflight() {
     editorHelperWaitsForSaveButton:
       /for \(let attempt = 1; attempt <= 20; attempt\+\+\)/.test(SELF_SOURCE) &&
       /return \{ saved: false, attempts: 20 \}/.test(SELF_SOURCE),
-    headHasUnhideV5: HEAD.includes('unhide-v5') && HEAD.includes('dg-unhide-critical'),
+    headHasCanonicalMarkers:
+      HEAD.includes('dg-path-redirects') &&
+      HEAD.includes('dg-base-tokens') &&
+      !/dg-unhide-critical|dg-unhide-main|dg-graceful-unhide|dg-early-unhide|unhide-v5-safe|__dgUnhideV5/.test(HEAD),
     headHasNoFootLoader: footLoaderUrls(HEAD).length === 0,
     // Webflow's head custom-code field caps at 50,000 and truncates SILENTLY (API returns 200). Gate
     // it locally at the paste site too (defense-in-depth vs verify-source), byte-measured like that
@@ -174,7 +177,7 @@ function canonicalPreflight() {
       String(MANIFEST.version).replace(/^v/i, '') === String(MANIFEST.footVer).replace(/^v/i, ''),
     ),
     footerMatchesManifest: Boolean(footerUrl && manifestUrl && footerUrl === manifestUrl),
-    footerHasNoHeadPayload: !/unhide-v5|dg-unhide-critical/i.test(FOOT),
+    footerHasNoHeadPayload: !/dg-path-redirects|dg-base-tokens/i.test(FOOT),
     coreVersionMarkersAgree: Boolean(coreVersions[0] && coreVersions.every((v) => v === coreVersions[0])),
     manifestVersionMatchesCore: Boolean(MANIFEST && String(MANIFEST.version || '').replace(/^v/i, '') === coreVersions[0]),
     manifestShaMatchesCore: Boolean(MANIFEST?.sha256 && MANIFEST.sha256 === coreSha256),
@@ -189,7 +192,7 @@ function canonicalPreflight() {
     'editorHelperRejectsLoaderOutsideFooter',
     'editorHelperVerifiesPersistedSplit',
     'editorHelperWaitsForSaveButton',
-    'headHasUnhideV5',
+    'headHasCanonicalMarkers',
     'headHasNoFootLoader',
     'headUnderWebflowCap',
     'footerHasOneFootLoader',
@@ -495,7 +498,7 @@ function orderedEditors(){
       i: idx,
       view,
       len: t.length,
-      headish: /unhide-v5|dg-unhide-critical|Demigod HEAD/i.test(t),
+      headish: /dg-path-redirects|dg-base-tokens|Demigod HEAD/i.test(t),
       footish: /foot-latest|foot-cdn|footer-lite|jsdelivr\\.net\\/gh\\/.*foot|catbox\\.moe\\/[a-z0-9]+\\.js/i.test(t),
     });
   });
@@ -514,7 +517,7 @@ function setFoot(text){
   const after=hit.view.state.doc.toString();
   const loaderCount=footLoaderCount(after);
   const exact = after===text;
-  const ok = exact && loaderCount===1 && !/dg-unhide-critical|unhide-v5/.test(after);
+  const ok = exact && loaderCount===1 && !/dg-path-redirects|dg-base-tokens/.test(after);
   return {ok, i:hit.i, len:after.length, exact, loaderCount, preview:after.slice(0,100), assertFootOnly:ok, eds:eds.map(c=>({i:c.i,len:c.len,headish:c.headish,footish:c.footish}))};
 }
 function setHead(text){
@@ -525,8 +528,8 @@ function setHead(text){
   try{ hit.view.dom?.dispatchEvent(new InputEvent('input',{bubbles:true})); }catch(e){}
   const after=hit.view.state.doc.toString();
   const exact = after===text;
-  const ok = exact && after.includes('unhide-v5') && after.includes('dg-unhide-critical') && footLoaderCount(after)===0;
-  return {ok, i:hit.i, len:after.length, exact, preview:after.slice(0,80), hasUnhide:/unhide/.test(after), assertHeadOnly:ok, eds:eds.map(c=>({i:c.i,len:c.len}))};
+  const ok = exact && after.includes('dg-path-redirects') && after.includes('dg-base-tokens') && footLoaderCount(after)===0;
+  return {ok, i:hit.i, len:after.length, exact, preview:after.slice(0,80), hasCanonicalMarkers:ok, assertHeadOnly:ok, eds:eds.map(c=>({i:c.i,len:c.len}))};
 }
 function assertHeadFootSplit(expectedHead, expectedFoot){
   const eds=orderedEditors();
@@ -537,8 +540,8 @@ function assertHeadFootSplit(expectedHead, expectedFoot){
   const footLoaderCountValue=footLoaderCount(f);
   const headExact=h===expectedHead;
   const footExact=f===expectedFoot;
-  const headOk=headExact && h.includes('unhide-v5') && h.includes('dg-unhide-critical') && headLoaderCount===0;
-  const footOk=footExact && footLoaderCountValue===1 && !/dg-unhide-critical|unhide-v5/.test(f);
+  const headOk=headExact && h.includes('dg-path-redirects') && h.includes('dg-base-tokens') && headLoaderCount===0;
+  const footOk=footExact && footLoaderCountValue===1 && !/dg-path-redirects|dg-base-tokens/.test(f);
   return {ok: headOk && footOk, headOk, footOk, headExact, footExact, headLoaderCount, footLoaderCount:footLoaderCountValue, headLen:h.length, footLen:f.length, headPreview:h.slice(0,60), footPreview:f.slice(0,60)};
 }
 `;
@@ -1033,7 +1036,10 @@ async function main() {
       if (!liveResponse.ok) throw new Error(`live HTML HTTP ${liveResponse.status}`);
       const live = await liveResponse.text();
       const loaderSrcs = footLoaderUrls(live);
-      const liveHeadOk = live.includes('unhide-v5') && live.includes('dg-unhide-critical');
+      const liveHeadOk =
+        live.includes('dg-path-redirects') &&
+        live.includes('dg-base-tokens') &&
+        !/dg-unhide-critical|dg-unhide-main|dg-graceful-unhide|dg-early-unhide|unhide-v5-safe|__dgUnhideV5/.test(live);
       liveCdn = loaderSrcs[0] || null;
       pub = (live.match(/Last Published: ([^<]+)/) || [])[1] || null;
       if (
@@ -1067,7 +1073,7 @@ async function main() {
         }
       }
       liveError = `attempt ${i + 1}: ${
-        liveHeadOk ? 'loader/version mismatch' : 'canonical unhide-v5 head markers missing'
+        liveHeadOk ? 'loader/version mismatch' : 'canonical head missing or retired IX workaround still live'
       }`;
     } catch (error) {
       liveError = `attempt ${i + 1}: ${error?.message || error}`;

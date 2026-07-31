@@ -17,6 +17,8 @@ const DEVICES = path.join(ORCA_CFG, 'orca-devices.json');
 const E2EE = path.join(ORCA_CFG, 'orca-e2ee-keypair.json');
 const PAIR_TXT = path.join(ROOT, 'orca-pair-code.txt');
 const PAIR_HTML = path.join(ROOT, 'orca-pair-code.html');
+const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
+const STATUS = path.join(BUSY, 'orca-status.json');
 
 function lanIp() {
   try {
@@ -33,6 +35,175 @@ function readJson(p, fallback = null) {
   } catch {
     return fallback;
   }
+}
+
+function orcaJson(args, timeout = 8000) {
+  const run = spawnSync('orca-ide', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout,
+  });
+  if (run.status !== 0) return null;
+  try {
+    return JSON.parse(run.stdout || '{}');
+  } catch {
+    return null;
+  }
+}
+
+// True only when a terminal's tail shows something other than an idle shell prompt.
+// Unreadable/empty tail → false: an unproven agent must never be reported as one.
+export function tailShowsAgent(tail) {
+  if (!Array.isArray(tail)) return false;
+  const last = [...tail].reverse().find((line) => String(line).trim() !== '');
+  return last != null && !/[$#>]\s*$/.test(String(last));
+}
+
+function orchestrationStatus() {
+  const cli = orcaJson(['status', '--json']);
+  const runtime = cli?.result?.runtime || {};
+  const currentRuntimeId = runtime.runtimeId || null;
+  const previous = readJson(STATUS);
+  const terminalProbe = runtime.reachable
+    ? orcaJson(['terminal', 'list', '--worktree', `path:${ROOT}`, '--json'])
+    : null;
+  const terminalList = terminalProbe?.result || {};
+  const terminalRows = terminalList.terminals || [];
+  const terminals = terminalRows.filter(
+    (terminal) => terminal.worktreePath === ROOT && terminal.orphaned !== true,
+  );
+  const tabTitles = new Map();
+  const indexLayout = (node, tabTitle = null) => {
+    if (!node || typeof node !== 'object') return;
+    const title = node.panes && typeof node.title === 'string' ? node.title : tabTitle;
+    if (node.handle && title) tabTitles.set(node.handle, title);
+    for (const value of Object.values(node)) {
+      if (value && typeof value === 'object') indexLayout(value, title);
+    }
+  };
+  for (const layout of terminalList.visualLayouts || []) indexLayout(layout.root);
+  const agentLabel = (terminal) => tabTitles.get(terminal.handle) || terminal.title || '';
+  // A tab title is decoration: it outlives the agent that earned it, and Orca keeps the
+  // pane alive as a bare shell. Claiming that pane is an agent is worse than reporting
+  // none — `terminal send` would type the message into bash, which runs it. So require
+  // evidence the pane is NOT sitting at a shell prompt, and fail closed when unknown.
+  const live = new Map();
+  const hasLiveAgent = (terminal) => {
+    if (live.has(terminal.handle)) return live.get(terminal.handle);
+    const probe = orcaJson(['terminal', 'read', '--terminal', terminal.handle, '--limit', '40', '--json']);
+    const ok = tailShowsAgent(probe?.result?.terminal?.tail);
+    live.set(terminal.handle, ok);
+    return ok;
+  };
+  const findAgent = (name) => {
+    const previousHandle =
+      previous?.runtimeId === currentRuntimeId ? previous?.agents?.[name]?.handle : null;
+    const candidates = [
+      terminals.find((terminal) => terminal.handle === previousHandle),
+      terminals.find((terminal) => new RegExp(`demigod.*${name}`, 'i').test(agentLabel(terminal))),
+      terminals.find((terminal) => new RegExp(name, 'i').test(agentLabel(terminal))),
+    ].filter(Boolean);
+    return candidates.find(hasLiveAgent) || null;
+  };
+  const project = (terminal) =>
+    terminal
+      ? {
+          handle: terminal.handle,
+          title: agentLabel(terminal) || null,
+          connected: terminal.connected === true,
+          writable: terminal.writable === true,
+        }
+      : null;
+  const claude = findAgent('claude');
+  const codex = findAgent('codex');
+  const taskProbe = runtime.reachable
+    ? orcaJson(['orchestration', 'task-list', '--json'])
+    : null;
+  const inboxProbe = runtime.reachable
+    ? orcaJson(['orchestration', 'inbox', '--limit', '50', '--json'])
+    : null;
+  const taskRows = taskProbe?.result?.tasks || [];
+  const messages = inboxProbe?.result?.messages || [];
+  const activeHandles = new Set([claude?.handle, codex?.handle].filter(Boolean));
+  const replies = messages
+    .filter(
+      (message) =>
+        /^Re:\s*/.test(String(message.subject || '')) &&
+        activeHandles.has(message.from_handle) &&
+        activeHandles.has(message.to_handle),
+    )
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  let lastRoundTrip = null;
+  for (const reply of replies) {
+    const subject = String(reply.subject || '').replace(/^Re:\s*/, '');
+    const sent = messages.find(
+      (message) =>
+        message.thread_id === reply.thread_id &&
+        message.subject === subject &&
+        message.from_handle === reply.to_handle &&
+        message.to_handle === reply.from_handle &&
+        Date.parse(message.created_at) <= Date.parse(reply.created_at),
+    );
+    if (!sent) continue;
+    lastRoundTrip = {
+      ok: true,
+      at: reply.created_at,
+      ms: Math.max(0, Date.parse(reply.created_at) - Date.parse(sent.created_at)),
+      threadId: reply.thread_id || null,
+      fromHandle: reply.from_handle,
+      toHandle: reply.to_handle,
+    };
+    break;
+  }
+  if (
+    !lastRoundTrip &&
+    previous?.runtimeId === currentRuntimeId &&
+    activeHandles.has(previous?.lastRoundTrip?.fromHandle) &&
+    activeHandles.has(previous?.lastRoundTrip?.toHandle)
+  ) {
+    lastRoundTrip = previous.lastRoundTrip;
+  }
+  const agents = { claude: project(claude), codex: project(codex) };
+  const probes = {
+    terminals: runtime.reachable ? (terminalProbe?.ok === true ? 'ok' : 'failed') : 'skipped',
+    tasks: runtime.reachable ? (taskProbe?.ok === true ? 'ok' : 'failed') : 'skipped',
+    inbox: runtime.reachable ? (inboxProbe?.ok === true ? 'ok' : 'failed') : 'skipped',
+  };
+  const degraded = Object.values(probes).includes('failed');
+  const receipt = {
+    schema: 'demigod.orca-status/1',
+    at: new Date().toISOString(),
+    reachable: runtime.reachable === true,
+    status:
+      degraded
+        ? 'degraded'
+        : agents.claude?.connected && agents.codex?.connected
+          ? 'connected'
+          : runtime.reachable
+            ? 'runtime-only'
+            : 'down',
+    runtimeId: currentRuntimeId,
+    runtime: {
+      state: runtime.state || 'not_running',
+      reachable: runtime.reachable === true,
+      appVersion: runtime.appVersion || null,
+    },
+    agents,
+    probes,
+    terminalCount: terminalProbe?.ok === true ? terminals.length : null,
+    unreadCount:
+      inboxProbe?.ok === true ? messages.filter((message) => message.read === 0).length : null,
+    pendingTaskCount:
+      taskProbe?.ok === true
+        ? taskRows.filter((task) => !['completed', 'failed'].includes(task.status)).length
+        : null,
+    lastRoundTrip,
+  };
+  fs.mkdirSync(BUSY, { recursive: true });
+  const tmp = `${STATUS}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(receipt, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, STATUS);
+  return receipt;
 }
 
 function buildPairingUrl({ lan, port = 6768 } = {}) {
@@ -205,14 +376,20 @@ function main() {
     console.log(info.url);
     return;
   }
-  if (cmd === 'doctor' || cmd === 'status') {
+  if (cmd === 'doctor') {
     const d = doctor();
     console.log(JSON.stringify(d, null, 2));
     if (d.issues.length) process.exitCode = 1;
+    return;
+  }
+  if (cmd === 'status') {
+    const status = orchestrationStatus();
+    console.log(JSON.stringify(status, null, 2));
+    if (!status.reachable) process.exitCode = 1;
     return;
   }
   console.error('Unknown command', cmd);
   process.exit(1);
 }
 
-main();
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) main();

@@ -1,0 +1,17 @@
+[Unit]
+Description=Demigod session ready (AC profile + ensure dash)
+After=default.target
+Wants=power-ac-auto.service demigod-dash.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+ExecStart=/home/potter/.local/bin/power-ac-auto-profile --once
+ExecStart=/bin/mkdir -p /tmp/dg-busy
+ExecStart=/bin/sh -c 'systemctl --user start demigod-dash.service || true'
+ExecStart=/bin/sh -c 'echo session-ready $(date -Iseconds) >> /tmp/dg-busy/session-ready.log'
+
+[Install]
+WantedBy=default.target

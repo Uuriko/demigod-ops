@@ -1,0 +1,12 @@
+{
+  "at": "2026-07-23T01:06:58.876Z",
+  "url": "https://www.trydemigod.com/?v=verify-1784768818244",
+  "pass": true,
+  "leaks": [],
+  "checks": {
+    "hasVolumeLeak": false,
+    "hasLorem": false,
+    "hasGoodFitSteps": true,
+    "hasInjectedSignalOrSteps": false
+  }
+}

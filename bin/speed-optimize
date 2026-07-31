@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Safe speed helpers for Pop!_OS + Demigod (Fable 2026-07-09).
+# Does NOT: drop_caches, disable screen lock, start autopilot.
+set -euo pipefail
+
+echo "=== CPU (AC work) ==="
+if command -v system76-power >/dev/null 2>&1; then
+  system76-power profile performance 2>/dev/null \
+    && echo "profile → performance" \
+    || echo "set profile manually: system76-power profile performance"
+else
+  echo "system76-power missing"
+fi
+
+echo "=== UI (best-effort; COSMIC may ignore gsettings) ==="
+gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true
+# Keep lock enabled (security). Prefer long idle only when you choose it yourself.
+gsettings set org.gnome.desktop.screensaver lock-enabled true 2>/dev/null || true
+
+echo "=== Hint ==="
+echo "Tab budget: ~/agent-dev.sh tabs-cleanup"
+echo "Metrics:    ~/bin/dg-laptop-metrics"
+echo "Done (no drop_caches, lock stays on)."

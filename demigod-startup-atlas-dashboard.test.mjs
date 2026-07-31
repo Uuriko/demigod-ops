@@ -13,7 +13,7 @@ const route = server.slice(routeStart, routeEnd);
 
 function atlasValidator() {
   const start = server.indexOf("const STARTUP_ATLAS_SCHEMA = 'demigod.sf-startup-atlas/1'");
-  const end = server.indexOf('function freshestGrokReceipt', start);
+  const end = server.indexOf('function writeJsonAtomic', start);
   const context = { URL };
   vm.runInNewContext(`${server.slice(start, end)}\nthis.validate = startupAtlasView;`, context);
   return context.validate;

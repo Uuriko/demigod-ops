@@ -45,7 +45,22 @@ export function buildStaticDirectory(map, generatedAt = '') {
     const hiring = c.openRoles && c.atsSource ? `${c.openRoles} open role${c.openRoles === 1 ? '' : 's'} on ${esc(c.atsSource)}`
       : c.jobsSource === 'YC' ? 'Open jobs on Y Combinator'
         : c.hiring === 'yes' ? 'Hiring' : '';
-    const jobLink = jobs ? ` — <a href="${esc(jobs)}" rel="nofollow noopener">${esc(hiring || 'careers')}</a>` : hiring ? ` — ${esc(hiring)}` : '';
+    const agingBits = [];
+    if (c.openRoles && c.atsSource && typeof c.oldestObservedDays === 'number' && c.oldestObservedDays > 0) {
+      agingBits.push(`longest tracked ${c.oldestObservedDays}d (our first seen)`);
+    }
+    if (c.openRoles && c.atsSource && typeof c.observed30 === 'number' && c.observed30 > 0) {
+      agingBits.push(`${c.observed30} open ≥30d tracked`);
+    } else if (c.openRoles && c.atsSource && typeof c.observed7 === 'number' && c.observed7 > 0) {
+      agingBits.push(`${c.observed7} open ≥7d tracked`);
+    }
+    if (c.openRoles && c.atsSource && typeof c.agingRoles === 'number' && c.agingRoles > 0) {
+      agingBits.push(`${c.agingRoles} posted 90–365d (board date)`);
+    }
+    const agingNote = agingBits.length ? ` · ${esc(agingBits.join(' · '))}` : '';
+    const jobLink = jobs
+      ? ` — <a href="${esc(jobs)}" rel="nofollow noopener">${esc(hiring || 'careers')}</a>${agingNote}`
+      : hiring ? ` — ${esc(hiring)}${agingNote}` : '';
     const name = web ? `<a href="${esc(web)}" rel="nofollow noopener">${esc(c.name)}</a>` : esc(c.name);
     return `<li>${name}${c.description ? ' — ' + esc(String(c.description).slice(0, 140)) : ''}${jobLink}</li>`;
   };
@@ -66,20 +81,31 @@ export function buildStaticDirectory(map, generatedAt = '') {
 <ul>
 ${sorted.map(row).join('\n')}
 </ul>
-<p class="foot"><strong>How this is built:</strong> ${esc(map?.coverage?.caveat || 'City-level only; current status not verified.')} Open-role counts come from each company's own public job board (Greenhouse/Lever/Ashby), US-posted or remote only. Named companies come from public sources (Y Combinator, Wikidata/CC0, Hacker News "Who is hiring?"). No résumés, no private data. A <a href="https://www.trydemigod.com">Demigod</a> project.</p>
+<p class="foot"><strong>How this is built:</strong> ${esc(map?.coverage?.caveat || 'City-level only; current status not verified.')} Open-role counts come from each company's own public job board (Greenhouse/Lever/Ashby), US-posted or remote only. When we re-check a board over days, "tracked Nd (our first seen)" is days since Demigod first observed that open role — not a score and not a ghost-job verdict. Board posting age is shown only when the ATS exposes a real post date. Named companies come from public sources (Y Combinator, Wikidata/CC0, Hacker News "Who is hiring?"). No résumés, no private data. A <a href="https://www.trydemigod.com">Demigod</a> project.</p>
 </body></html>`;
 }
 
 if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.includes('--selftest'))) {
   const assert = (c, m) => { if (!c) throw new Error(m); };
   const fake = { generatedAt: '2026-07-24', coverage: { caveat: 'test caveat' }, companies: [
-    { name: 'Alpha Robotics', website: 'https://alpha.io/', openRoles: 12, atsSource: 'Ashby', jobsUrl: 'https://jobs.ashbyhq.com/alpha', description: 'robots' },
+    {
+      name: 'Alpha Robotics',
+      website: 'https://alpha.io/',
+      openRoles: 12,
+      atsSource: 'Ashby',
+      jobsUrl: 'https://jobs.ashbyhq.com/alpha',
+      description: 'robots',
+      oldestObservedDays: 11,
+      observed7: 4,
+    },
     { name: 'Beta AI', website: 'https://beta.ai/', hiring: 'yes', jobsSource: 'YC', jobsUrl: 'https://www.ycombinator.com/companies/beta/jobs' },
     { name: 'Gamma <script>alert(1)</script>', website: 'https://gamma.com/', hiring: 'unknown' },
   ] };
   const html = buildStaticDirectory(fake);
   // crawlable: real company + job content is in the SERVED HTML (not JS-rendered)
   assert(html.includes('Alpha Robotics') && html.includes('12 open roles on Ashby'), 'verified company + count in served HTML');
+  assert(html.includes('longest tracked 11d (our first seen)'), 'observed open-age is crawlable');
+  assert(html.includes('4 open ≥7d tracked'), 'observed7 is crawlable');
   assert(html.includes('San Francisco startups that are hiring'), 'crawlable heading');
   assert(html.includes('application/ld+json') && html.includes('"@type":"ItemList"'), 'JSON-LD present');
   // honest JSON-LD: only the verified company (Alpha), NOT the YC self-report (Beta)

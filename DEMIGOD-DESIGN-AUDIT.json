@@ -1,0 +1,51 @@
+{
+  "at": "2026-07-04T01:48:40.176Z",
+  "ver": "v60",
+  "views": {
+    "home-hero": {
+      "shot": "/home/potter/audit-shots/design/v60-home-hero.png",
+      "url": "/",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      }
+    },
+    "trust": {
+      "shot": "/home/potter/audit-shots/design/v60-trust.png",
+      "url": "/",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      }
+    },
+    "pricing": {
+      "shot": "/home/potter/audit-shots/design/v60-pricing.png",
+      "url": "/#demigod-pricing",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      }
+    },
+    "partners": {
+      "shot": "/home/potter/audit-shots/design/v60-partners.png",
+      "url": "/#partnerships",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      }
+    },
+    "privacy": {
+      "shot": "/home/potter/audit-shots/design/v60-privacy.png",
+      "url": "/#privacy",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      }
+    }
+  },
+  "summary": {
+    "coolGray": 0,
+    "blueRed": 0
+  },
+  "ok": true
+}

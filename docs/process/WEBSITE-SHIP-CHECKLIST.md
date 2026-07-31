@@ -3,7 +3,7 @@
 # WEB-01 — Website ship
 
 **Owner:** Release · **When:** intentional release only (not thrash)  
-**Tools:** freeze · ship-prep · full-check · live · mime · cm6/CDN
+**Tools:** freeze · `bin/dg ship prepare` · full-check · live · mime · cm6/CDN
 
 ## Ready
 - [ ] Human approves ship window
@@ -13,10 +13,10 @@
 
 ## Execute
 - [ ] `node demigod-publish-freeze.mjs off` (human-authorized)
-- [ ] `bin/dg ship-prep` (or foot-cdn + head-css publish)
+- [ ] `bin/dg ship prepare`
 - [ ] CM6 paste / custom code Save as needed
 - [ ] Webflow Publish to **www.trydemigod.com** (and staging if required)
-- [ ] `bin/dg live --require-match` or `bin/dg full-check --release`
+- [ ] `bin/dg live --require-match` or `bin/dg check release`
 - [ ] `bin/dg mime`
 - [ ] Agent smoke / usertest if WIZ touched
 

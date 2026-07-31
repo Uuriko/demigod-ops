@@ -55,6 +55,22 @@ const combined = `${head}\n${headCss}\n${foot}`;
 const coreJs = cdnFoot ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
 const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined;
 
+{
+  const retired = /(?:\bdgFormAnalytics\b|__dgFormAnalyticsSeen|__dgWebhookUrl|\/analytics\/forms\b|\bformAnalytics\b|demigod-form-analytics\.mjs|\bfunnel-report\b)/;
+  const residues = fs.readdirSync(ROOT)
+    .filter((file) => /^demigod-.*\.(?:mjs|js|html)$/.test(file) && !/\.test\.mjs$/.test(file) && file !== 'demigod-verify-source.mjs')
+    .flatMap((file) => {
+      const match = `${file}\n${fs.readFileSync(path.join(ROOT, file), 'utf8')}`.match(retired);
+      return match ? [`${file}:${match[0]}`] : [];
+    });
+  check('forms:no-dormant-analytics', residues.length === 0, residues.slice(0, 5).join(', ') || null);
+}
+check(
+  'core:wiz-resume-step-sync',
+  /function showStep\(idx\) \{\s*current = Math\.max\(0, Math\.min\(idx, steps\.length - 1\)\);\s*collect\(\);/.test(coreJs),
+  'showStep must persist every forward/back/edit navigation through the existing draft writer',
+);
+
 // Webflow's head custom-code field caps at 50,000 chars and fails SILENTLY: the API returns 200, the
 // UI says "saved", and a readback can even look like it verified -- while the server keeps the OLD
 // head, so every later ship no-ops invisibly. That cost 83min once and nothing has ever gated it.
@@ -80,6 +96,23 @@ check('head:hide-webflow-badge', head.includes('hide-webflow-badge') || (cdnHead
 check('head:no-retired-hero-asset', !(headCss || head).includes('demigod-gold-hero.jpg'));
 check('head:mobile-no-reserved-scrollbar-gutter', /@media\(max-width:480px\)\{\s*html\{scrollbar-gutter:auto\}/.test(headCss));
 check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !head.includes('hello@trydemigod.com') && !head.includes('hello@demigod.com'));
+check(
+  'head:nojs-hero-flow',
+  /<noscript id="dg-path-noscript">[\s\S]*?<style id="dg-nojs-hero">html:not\(\.w-mod-js\) \.hero-section h1,html:not\(\.w-mod-js\) \.header h1,html:not\(\.w-mod-js\) \.hero-title\{height:auto!important;min-height:0!important\}<\/style>/.test(head),
+  'the authored no-JavaScript hero heading must use intrinsic height without affecting the JavaScript-on critical box',
+);
+{
+  const noJs = (head.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
+  check(
+    'head:nojs-native-actions',
+    noJs.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
+      noJs.includes('Hire talent by email') &&
+      noJs.includes('Join the talent network by email') &&
+      (noJs.match(/mailto:potter@trydemigod\.com\?subject=/g) || []).length === 2 &&
+      !/href=["']\/\?(?:p|wiz)=/.test(noJs),
+    'no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs',
+  );
+}
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
 // Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
 check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && (head.includes('curated talent') || head.includes('curated candidates')));
@@ -88,6 +121,25 @@ check(
   'head:hero-font-no-layout-swap',
   /family=Unbounded[^"']*&display=optional/.test(head) && !/family=Unbounded[^"']*&display=swap/.test(head),
   'Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap',
+);
+check(
+  'css:critical-hero-geometry',
+  headCss.includes('dg-critical-hero-geometry') &&
+    [
+      '--dg-night:',
+      '--dg-signal:',
+      '--dg-phosphor:',
+      '--dg-paper:',
+      '--dg-paper-mute:',
+      '--dg-rule:',
+      '--dg-sans:',
+      '--dg-cyber:',
+    ].every((token) => headCss.includes(token)) &&
+    /\.hero-grid-background\{display:none!important\}/.test(headCss) &&
+    /min-height:min\(880px,calc\(100svh - 52px\)\)!important/.test(headCss) &&
+    /\n\s*height:2\.55em!important;/.test(headCss) &&
+    /\.hero-badge\{[\s\S]*?visibility:hidden!important[\s\S]*?height:2\.304rem!important/.test(headCss),
+  'head CSS must reserve the final hero geometry before foot-core loads',
 );
 check(
   'head:preconnect-budget',
@@ -206,6 +258,36 @@ check(
     canHttpsOk,
     canHttpsOk ? null : 'route canonical must use the HTTPS apex and an explicit product-page allowlist',
   );
+  {
+    const aliases = [
+      ['/method', '/?p=how'],
+      ['/founders', '/?p=hire'],
+      ['/candidates', '/?p=talent'],
+      ['/engineers', '/?p=talent'],
+      ['/compare', '/?p=pricing'],
+      ['/status', '/?p=about'],
+    ];
+    const redirectsOk = aliases.every(([from, to]) => head.includes(`'${from}':'${to}'`));
+    const canonicalAliasesOk =
+      /var aliases=\{pilot:['"]hire['"],method:['"]how['"],founders:['"]hire['"],candidates:['"]talent['"],compare:['"]pricing['"],status:['"]about['"]\}/.test(routeCanBody) &&
+      /var allowed=\{[^}]*refer:1/.test(routeCanBody) &&
+      !/var allowed=\{[^}]*(?:method|founders|candidates|compare|status):1/.test(routeCanBody);
+    let navOk = false;
+    try {
+      const navBody = (head.match(/<script\b[^>]*\bid=["']dg-nav-jsonld["'][^>]*>([\s\S]*?)<\/script>/i) || [])[1];
+      const items = JSON.parse(navBody).itemListElement;
+      navOk =
+        Array.isArray(items) &&
+        items.length === 10 &&
+        items.every((item, index) => item.position === index + 1) &&
+        !items.some((item) => /[?&]p=(?:method|founders|candidates|compare|status)\b/.test(item.url || ''));
+    } catch {}
+    check(
+      'head:route-alias-consolidation',
+      redirectsOk && canonicalAliasesOk && navOk,
+      'legacy product paths must target canonical pages, Refer needs its canonical, and nav JSON-LD must list only 10 real surfaces',
+    );
+  }
   // Early head rewrite for Notes surface: crawlers that skip foot openPage() still get /?p=blog
   // canonical + Notes title/desc (Claude c63 urls; c102 share-card title/desc) so previews aren't homepage copy.
   {
@@ -939,287 +1021,49 @@ check(
     /v421\s+readiness\s+guard/i.test(css) && /body:not\(\.dg-ready\)/.test(css);
   const hasHonesty =
     /v449\s+head-only\s+honesty\s+guard/i.test(css) && /body\.dg-head-fallback/.test(css);
-  const hasDecisionGrid = /\.dg-decision-grid\b/.test(css);
+  const hasNoRetiredRouteCss = !/\.dg-(?:decision-grid|p-grid|p-hi)\b/.test(css);
   const hasNoInfiniteGlow =
     /v316:\s*no infinite CTA glow/i.test(css) &&
     !/\.premium-btn[^{]*\{[^}]*animation:\s*dg-gold-glow[^;]*infinite/i.test(css);
   // The hero artwork renders separately; do not fetch a duplicate CSS background.
   const hasHeroBrand =
     !/files\.catbox\.moe\/126k4p\.jpg/.test(css) && !/demigod-hermes-hero-16x9/i.test(css);
+  const hasNoBroadSectionHide =
+    !/main\s*>\s*section:not\([^}]*display\s*:\s*none\s*!important/i.test(css) &&
+    !/body\s*>\s*section:not\([^}]*display\s*:\s*none\s*!important/i.test(css);
   const cssHonestyOk =
-    hasReadiness && hasHonesty && hasDecisionGrid && hasNoInfiniteGlow && hasHeroBrand;
+    hasReadiness && hasHonesty && hasNoRetiredRouteCss && hasNoInfiniteGlow && hasHeroBrand && hasNoBroadSectionHide;
   check(
     'css:disk-honesty-guards',
     cssHonestyOk,
     cssHonestyOk
       ? null
-      : `missing disk CSS guards readiness=${hasReadiness} honesty=${hasHonesty} decisionGrid=${hasDecisionGrid} noInfiniteGlow=${hasNoInfiniteGlow} heroBrand=${hasHeroBrand}`,
+      : `missing disk CSS guards readiness=${hasReadiness} honesty=${hasHonesty} noRetiredRouteCss=${hasNoRetiredRouteCss} noInfiniteGlow=${hasNoInfiniteGlow} heroBrand=${hasHeroBrand} noBroadSectionHide=${hasNoBroadSectionHide}`,
   );
 }
-// Unhide must target named hero shell only — never [class*="hero"] (flattens Webflow IX children).
-// .hero-content-right is intentionally absent: foot-core brandAssets() always sets it
-// display:none!important, so forcing it visible in head would be dead CSS.
-// .hero-content-left is absent from head-minimal unhide (Claude c78); head-styles may still
-// layout-target it (max-width etc) — ban only force-unhide !important + head-minimal selectors.
-{
-  const broadHero = /\[class\*\s*=\s*["'][^"']*hero/i.test(head);
-  const shellNamed = head.includes('.hero-section') && head.includes('.hero-container');
-  const heroContentLeftForced = /\.hero-content-left\b[^{]*\{[^}]*(visibility|opacity|transform)\s*:[^;}]*!important/i.test(
-    headCss || head,
-  );
-  // head-minimal paste must not reintroduce .hero-content-left into unhide CSS/JS (IX flatten).
-  const heroContentLeftInMinimal = /\.hero-content-left\b|hero-content-left/.test(head);
-  // h2/.premium-btn must not be force-unhidden within unhide CSS/JS — flattens
-  // intentionally-hidden headings/CTAs beyond the hero shell (h1/header/main).
-  // Scope = unhide styles + early unhide JS only (copy-scrub walks h2 text nodes).
-  // Strip /* */ comments so explanatory notes cannot trip the ban.
-  const unhideScopeRaw = [
-    /<style\b[^>]*id=["']dg-unhide-critical["'][^>]*>[\s\S]*?<\/style>/i,
-    /<style\b[^>]*id=["']dg-unhide-main["'][^>]*>[\s\S]*?<\/style>/i,
-    /<style\b[^>]*id=["']dg-graceful-unhide["'][^>]*>[\s\S]*?<\/style>/i,
-    /<script\b[^>]*id=["']dg-early-unhide["'][^>]*>[\s\S]*?<\/script>/i,
-    /<noscript>\s*<style>[\s\S]*?<\/style>\s*<\/noscript>/i,
-  ]
-    .map((re) => ((head.match(re) || [])[0] || ''))
-    .join('\n');
-  const unhideScope = unhideScopeRaw.replace(/\/\*[\s\S]*?\*\//g, '');
-  const h2OrPremiumBtnForced =
-    /(^|[,\s])h2\s*[,{]|\.premium-btn\s*[,{']|querySelectorAll\([^)]*(?:h2|\.premium-btn)/i.test(
-      unhideScope,
-    );
-  const heroShellOk = !broadHero && shellNamed && !heroContentLeftForced && !heroContentLeftInMinimal && !h2OrPremiumBtnForced;
-  check(
-    'head:hero-shell-only',
-    heroShellOk,
-    heroShellOk
-      ? null
-      : broadHero
-        ? 'broad [class*="hero"] still present (use named shell selectors)'
-        : heroContentLeftForced
-          ? '.hero-content-left force-unhidden with !important (flattens Webflow IX)'
-          : heroContentLeftInMinimal
-            ? '.hero-content-left in head-minimal unhide (use shell-only; layout stays in head-styles)'
-            : h2OrPremiumBtnForced
-              ? 'h2/.premium-btn force-unhidden (flattens intentionally-hidden headings/CTAs beyond hero shell)'
-              : 'missing named hero shell selectors',
-  );
-}
-// Early unhide must stay v5 finite-tick (v4 MutationObserver thrash froze browsers).
-// Require clearInterval + n>=N bound so setInterval cannot run forever if load never fires.
-{
-  const early = (head.match(/<script\b[^>]*id=["']dg-early-unhide["'][^>]*>[\s\S]*?<\/script>/i) || [])[0] || '';
-  const unhideV5 =
-    /__dgUnhideV5/.test(early) &&
-    /unhide-v5-safe/.test(head) &&
-    /setInterval/.test(early) &&
-    /clearInterval/.test(early) &&
-    /\+\+n\s*>=\s*\d+|n\s*\+\+\s*>=\s*\d+|n\s*>=\s*\d+/.test(early) &&
-    !/MutationObserver/.test(early);
-  check(
-    'head:unhide-v5-safe',
-    unhideV5,
-    unhideV5
-      ? null
-      : !early
-        ? 'missing #dg-early-unhide script'
-        : /MutationObserver/.test(early)
-          ? 'early unhide still uses MutationObserver (v4 thrash)'
-          : !/clearInterval/.test(early) || !/\+\+n\s*>=\s*\d+|n\s*\+\+\s*>=\s*\d+|n\s*>=\s*\d+/.test(early)
-            ? 'early unhide missing clearInterval / finite n>= bound (interval thrash risk)'
-            : 'early unhide missing __dgUnhideV5 / unhide-v5-safe / setInterval finite ticks',
-  );
-  // Positive shell require (not only bans): early tick must target named hero shell +
-  // use setProperty(...,'important') + once:true listeners (sibling of contact-scrub).
-  // Use [\s\S] for load listener (function(){…} has nested parens that break [^)]*).
-  // header *element* required (parity with critical CSS — class .header alone is not enough).
-  const earlyQ = (early.match(/querySelectorAll\s*\(\s*['"]([^'"]+)['"]/i) || [])[1] || '';
-  const earlyHasHeaderEl = /(^|[,])\s*header\s*([,]|$)/i.test(earlyQ);
-  const earlyShell =
-    !!early &&
-    /querySelectorAll\s*\(\s*['"][^'"]*\.hero-section[^'"]*\.hero-container[^'"]*main[^'"]*h1/i.test(early) &&
-    earlyHasHeaderEl &&
-    /setProperty\s*\(\s*['"]visibility['"]\s*,\s*['"]visible['"]\s*,\s*['"]important['"]\s*\)/.test(early) &&
-    /setProperty\s*\(\s*['"]opacity['"]\s*,\s*['"]1['"]\s*,\s*['"]important['"]\s*\)/.test(early) &&
-    /DOMContentLoaded[\s\S]{0,60}once\s*:\s*true/.test(early) &&
-    /['"]load['"][\s\S]{0,120}once\s*:\s*true/.test(early);
-  check(
-    'head:early-unhide-shell',
-    earlyShell,
-    earlyShell
-      ? null
-      : !early
-        ? 'missing #dg-early-unhide script'
-        : !/querySelectorAll\s*\(\s*['"][^'"]*\.hero-section/i.test(early)
-          ? 'early unhide missing shell querySelectorAll (.hero-section…main,h1,header)'
-          : !earlyHasHeaderEl
-            ? 'early unhide shell must include header element (not only .header class)'
-          : !/setProperty\s*\(\s*['"]visibility['"]/.test(early)
-            ? 'early unhide must setProperty visibility/opacity with important'
-            : 'early unhide missing DOMContentLoaded/load {once:true}',
-  );
-  // Swarm P2 / c175/c202: JS transform+translate:none only on hero-section|hero-container (not header/main/h1 IX).
-  const earlyFlat = early.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
-  const transformHeroGated =
-    !!early &&
-    /contains\s*\(\s*['"]hero-section['"]\s*\)/.test(early) &&
-    /contains\s*\(\s*['"]hero-container['"]\s*\)/.test(early) &&
-    /setProperty\s*\(\s*['"]transform['"]\s*,\s*['"]none['"]/.test(early) &&
-    /setProperty\s*\(\s*['"]translate['"]\s*,\s*['"]none['"]/.test(early) &&
-    // reject bare: visibility+opacity then transform without classList gate
-    !/if\s*\(\s*!e\s*\|\|\s*!e\.style\s*\)\s*continue\s*;\s*e\.style\.setProperty\s*\(\s*['"]visibility['"][^;]+;\s*e\.style\.setProperty\s*\(\s*['"]opacity['"][^;]+;\s*e\.style\.setProperty\s*\(\s*['"]transform['"]/.test(
-      earlyFlat,
-    );
-  check(
-    'head:unhide-transform-hero',
-    transformHeroGated,
-    transformHeroGated
-      ? null
-      : !early
-        ? 'missing #dg-early-unhide'
-        : 'early unhide must set transform+translate:none only when classList has hero-section|hero-container',
-  );
-  // c202: noscript shell must include .hero-container (parity with critical CSS shell; was .hero-section-only).
-  const noscriptStyle = (head.match(/<noscript>\s*<style>([\s\S]*?)<\/style>\s*<\/noscript>/i) || [])[1] || '';
-  const noscriptShellOk =
-    !!noscriptStyle &&
-    /\.hero-section\b/.test(noscriptStyle) &&
-    /\.hero-container\b/.test(noscriptStyle) &&
-    !/transform\s*:\s*none/i.test(noscriptStyle) &&
-    !/translate\s*:\s*none/i.test(noscriptStyle);
-  check(
-    'head:noscript-shell',
-    noscriptShellOk,
-    noscriptShellOk
-      ? null
-      : !noscriptStyle
-        ? 'missing noscript unhide style'
-        : !/\.hero-container\b/.test(noscriptStyle)
-          ? 'noscript shell missing .hero-container (parity with critical CSS)'
-          : 'noscript must not force transform/translate:none (IX-safe; visibility only)',
-  );
-  // Swarm P2 / c184/c189: critical CSS transform/translate:none only on hero shell leaves; main/graceful never flatten IX.
-  const critBlock = (head.match(/<style\b[^>]*id=["']dg-unhide-critical["'][^>]*>[\s\S]*?<\/style>/i) || [])[0] || '';
-  const critBody = critBlock.replace(/\/\*[\s\S]*?\*\//g, '');
-  let critHeroTransform = false;
-  let critHeroTranslate = false;
-  let critTransformScoped = !!critBlock;
-  let critTranslateScoped = !!critBlock;
-  {
-    const ruleRe = /([^{}@]+)\{([^}]*)\}/g;
-    let rm;
-    while ((rm = ruleRe.exec(critBody))) {
-      const body = rm[2] || '';
-      const hasTf = /transform\s*:\s*none/i.test(body);
-      const hasTr = /translate\s*:\s*none/i.test(body);
-      if (!hasTf && !hasTr) continue;
-      const parts = String(rm[1] || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      let leavesOk = true;
-      for (const p of parts) {
-        const leaf = p.replace(/^html\.w-mod-js:not\(\.w-mod-ix3\)\s+/i, '').trim();
-        if (leaf !== '.hero-section' && leaf !== '.hero-container') {
-          leavesOk = false;
-          break;
-        }
-      }
-      if (hasTf) {
-        if (!leavesOk) critTransformScoped = false;
-        else critHeroTransform = true;
-      }
-      if (hasTr) {
-        if (!leavesOk) critTranslateScoped = false;
-        else critHeroTranslate = true;
-      }
-      if (!critTransformScoped || !critTranslateScoped) break;
-    }
-  }
-  const mainBlock = (head.match(/<style\b[^>]*id=["']dg-unhide-main["'][^>]*>[\s\S]*?<\/style>/i) || [])[0] || '';
-  const gracefulBlock = (head.match(/<style\b[^>]*id=["']dg-graceful-unhide["'][^>]*>[\s\S]*?<\/style>/i) || [])[0] || '';
-  const mainGraceFlat = (mainBlock + '\n' + gracefulBlock).replace(/\/\*[\s\S]*?\*\//g, '');
-  const mainGraceNoFlatten =
-    !!mainBlock &&
-    !!gracefulBlock &&
-    !/transform\s*:\s*none/i.test(mainGraceFlat) &&
-    !/translate\s*:\s*none/i.test(mainGraceFlat);
-  const criticalTransformOk =
-    critHeroTransform &&
-    critTransformScoped &&
-    critHeroTranslate &&
-    critTranslateScoped &&
-    mainGraceNoFlatten;
-  check(
-    'head:critical-transform-hero',
-    criticalTransformOk,
-    criticalTransformOk
-      ? null
-      : !critBlock
-        ? 'missing #dg-unhide-critical'
-        : !critHeroTransform || !critTransformScoped
-          ? 'dg-unhide-critical must set transform:none only on .hero-section|.hero-container leaves'
-          : !critHeroTranslate || !critTranslateScoped
-            ? 'dg-unhide-critical must set translate:none only on .hero-section|.hero-container leaves (c189 IX-safe)'
-            : 'dg-unhide-main/graceful must not set transform/translate:none (IX/header safe)',
-  );
-  // #dg-unhide-main must include header (c93 visibility parity).
-  // #dg-graceful-unhide: animate hero shell only (swarm P2 / c273); ban main/h1/header
-  // animation selectors. Reduced-motion must kill hero anim.
-  const mainHeaderOk =
-    !!mainBlock &&
-    /html\.w-mod-js:not\(\.w-mod-ix3\)\s+header\s*[,{]/.test(mainBlock);
-  const gracefulNoComment = gracefulBlock.replace(/\/\*[\s\S]*?\*\//g, '');
-  const gracefulOutsideReduce = gracefulNoComment.replace(
-    /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)\s*\{[\s\S]*?\}/gi,
-    '',
-  );
-  let gracefulAnimatesShell = false;
-  {
-    const animBlocks = gracefulOutsideReduce.match(/[^{}]+\{[^}]*animation\s*:[^}]*\}/gi) || [];
-    for (const blk of animBlocks) {
-      const sel = blk.split('{')[0] || '';
-      if (/(^|[,])\s*(header|main|h1)\s*([,{]|$)/i.test(sel)) {
-        gracefulAnimatesShell = true;
-        break;
-      }
-    }
-  }
-  const gracefulHeroAnim =
-    /\.hero-section[\s\S]{0,100}animation\s*:/i.test(gracefulOutsideReduce) ||
-    /\.hero-container[\s\S]{0,100}animation\s*:/i.test(gracefulOutsideReduce);
-  const reduceHeroAnim =
-    /prefers-reduced-motion:reduce[\s\S]{0,220}\.hero-section/.test(gracefulNoComment) &&
-    /prefers-reduced-motion:reduce[\s\S]{0,220}animation\s*:\s*none/i.test(gracefulNoComment);
-  const gracefulHeroOnly =
-    !!gracefulBlock && gracefulHeroAnim && reduceHeroAnim && !gracefulAnimatesShell;
-  const unhideMainHeaderOk = mainHeaderOk && gracefulHeroOnly;
-  check(
-    'head:path-redirects',
-    /id=["']dg-path-redirects["']/.test(head) && /\/fees/.test(head) && /p=pricing/.test(head) && /\/security/.test(head) && /p=legal/.test(head) && /\/p\//.test(head) && /\/apply/.test(head),
-    /id=["']dg-path-redirects["']/.test(head)
-      ? null
-      : 'head must include #dg-path-redirects for /fees→pricing /security→legal /p/* /apply (firecrawl 404 P0)',
-  );
-  check(
-    'head:skip-main-target',
-    /querySelector\(['"]main['"]\)\s*\|\|\s*document\.querySelector\(['"]\.hero-section['"]\)/.test(head) &&
-      /tagName\s*!==\s*['"]MAIN['"][\s\S]{0,100}setAttribute\(['"]role['"],['"]main['"]\)/.test(head),
-    'early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>',
-  );
-  check(
-    'head:unhide-main-header',
-    unhideMainHeaderOk,
-    unhideMainHeaderOk
-      ? null
-      : !mainHeaderOk
-        ? 'dg-unhide-main missing header element selector (parity with critical/early shell)'
-        : !gracefulHeroAnim
-          ? 'dg-graceful-unhide must animate .hero-section|.hero-container (force-show)'
-          : !reduceHeroAnim
-            ? 'dg-graceful-unhide reduced-motion must animation:none hero shell'
-            : 'dg-graceful-unhide must not animate main/h1/header (swarm P2 hero shell only)',
-  );
-}
+check(
+  'head:no-obsolete-ix-unhide',
+  !/dg-(?:unhide-critical|unhide-main|graceful-unhide|early-unhide)|__dgUnhideV5|unhide-v5-safe|w-mod-ix3/.test(head),
+  'head must not restore the retired Webflow IX visibility workaround',
+);
+check(
+  'core:no-obsolete-ix-unhide',
+  !/function\s+forceMainVisible|forceMainVisible\(\)|classList\.add\(['"]w-mod-ix3/.test(coreJs || foot),
+  'foot must not restore the retired Webflow IX visibility workaround',
+);
+check(
+  'head:path-redirects',
+  /id=["']dg-path-redirects["']/.test(head) && /\/fees/.test(head) && /p=pricing/.test(head) && /\/security/.test(head) && /p=legal/.test(head) && /\/p\//.test(head) && /\/apply/.test(head),
+  /id=["']dg-path-redirects["']/.test(head)
+    ? null
+    : 'head must include #dg-path-redirects for /fees→pricing /security→legal /p/* /apply (firecrawl 404 P0)',
+);
+check(
+  'head:skip-main-target',
+  /querySelector\(['"]main['"]\)\s*\|\|\s*document\.querySelector\(['"]\.hero-section['"]\)/.test(head) &&
+    /tagName\s*!==\s*['"]MAIN['"][\s\S]{0,100}setAttribute\(['"]role['"],['"]main['"]\)/.test(head),
+  'early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>',
+);
 // Contact scrub: hello@ → potter@ (static meta alone is not enough if Designer HTML drifts).
 // Finite only: once:true DOMContentLoaded + setTimeouts; ban setInterval thrash.
 // Meta keep-last: Webflow page-settings may emit stale description/og/twitter before our
@@ -1283,7 +1127,7 @@ check(
         : 'contact scrub must keep-last description/og/twitter title+desc+url+image+image:alt+site_name+locale + finite 50/400/1200ms re-scrub (Webflow page-settings race)',
   );
 }
-// Early copy scrub must be finite-tick (sibling of unhide-v5-safe — no eternal TreeWalker interval).
+// Early copy scrub must stay finite — no eternal TreeWalker interval.
 {
   const copy = (head.match(/<script\b[^>]*id=["']dg-early-copy-scrub["'][^>]*>[\s\S]*?<\/script>/i) || [])[0] || '';
   const copyOk =
@@ -1380,7 +1224,7 @@ check('head:cdn-stylesheet', cdnHeadCss || head.includes('<style'));
 // edit most, ~40 bumps/day -- had none. Every other core: check greps SUBSTRINGS of coreJs, so a
 // SyntaxError that leaves those substrings intact passes them all: the exact v150 failure, "grep gates
 // green on a file that does not parse". The ship path catches it (ship-status disk_syntax), but the
-// mandated post-edit set (verify:source + board-honesty + loop-state) did NOT -- an agent editing
+// mandated post-edit source checks did NOT -- an agent editing
 // foot-core saw three green gates on a broken file until the ship failed. Verified before adding:
 // vm.Script parses the real foot-core, throws on broken syntax, no top-level import/export to false-fail.
 if (cdnFoot && coreJs) {
@@ -1422,7 +1266,7 @@ if (cdnFoot) {
   check(
     'footer:path-redirects',
     (/blog\|notes/.test(foot) || /\/\(blog\|notes\)/.test(foot)) &&
-      (/\/method(\\\/\|\$)/.test(foot) || /p=method/.test(foot) || /\/method(\/|\$)/.test(foot)) &&
+      /method[^\n]{0,80}p=how/.test(foot) &&
       /#note-/.test(foot) &&
       /\\\/fees/.test(foot) &&
       /fees[\s\S]{0,80}p=pricing|fees[^\n]{0,60}pricing/.test(foot) &&
@@ -1431,8 +1275,22 @@ if (cdnFoot) {
       /\\\/network/.test(foot) &&
       /network[\s\S]{0,80}p=talent|network[^\n]{0,60}talent/.test(foot) &&
       !/p=network/.test(foot),
-    'need blog|notes + method + #note-slug + /fees→pricing + /security→legal + /network→?p=talent (v28/c201/c247)',
+    'need blog|notes + /method→how + #note-slug + /fees→pricing + /security→legal + /network→talent',
   );
+  {
+    const aliasesOk = (html) =>
+      /method[^\n]{0,80}p=how/.test(html) &&
+      /founders[^\n]{0,80}p=hire/.test(html) &&
+      /candidates\|engineers[^\n]{0,80}p=talent/.test(html) &&
+      /compare[^\n]{0,80}p=pricing/.test(html) &&
+      /status[^\n]{0,80}p=about/.test(html) &&
+      !/p=(?:method|founders|candidates|compare|status)\b/.test(html);
+    check(
+      'footer:route-alias-consolidation',
+      aliasesOk(foot) && aliasesOk(footLoader),
+      'legacy footer routes must preserve inbound URLs without regenerating retired page ids',
+    );
+  }
   // c228: /sample → ?p=sample now that DG_PAGES.sample exists (Claude v505). Early footer
   // redirect works even when live foot lags path-map; pairs with core:sample-page honesty.
   check(
@@ -1441,15 +1299,23 @@ if (cdnFoot) {
     (/\/sample/.test(foot) || /\\\/sample/.test(foot)) && /p=sample/.test(foot),
     'footer-lite must redirect /sample → ?p=sample (pairs with core DG_PAGES.sample)',
   );
-  // c309/v507: /pilot → ?p=pilot so early path hits open Pilot mini-page (now in #dg-legal-links).
-  // c333: also lock demigod-footer-loader.html (mirror thrash often drops loader while lite stays green).
+  // Pilot was phase scaffolding, not a distinct product. Preserve old inbound URLs as a hire alias
+  // while keeping the retired page, footer link, canonical, and structured-data entry deleted.
   {
-    const pilotPath = (s) =>
-      !!(s && (/\/pilot/.test(s) || /\\\/pilot/.test(s)) && /p=pilot/.test(s));
+    const pilotToHire = (s) =>
+      !!(s && (/\/pilot/.test(s) || /\\\/pilot/.test(s)) && /p=hire/.test(s) && !/p=pilot/.test(s));
     check(
-      'footer:pilot-path',
-      pilotPath(foot) && pilotPath(footLoader),
-      'footer-lite + footer-loader must redirect /pilot → ?p=pilot (pairs with DG_PAGES.pilot + legal nav)',
+      'pilot:retired-alias',
+      pilotToHire(foot) &&
+        pilotToHire(footLoader) &&
+        /['"]\/pilot['"]\s*:\s*['"]hire['"]/.test(coreJs) &&
+        /if\s*\(id\)\s*id\s*=\s*DG_PAGE_PATHS\[['"]\/['"]\s*\+\s*id\]\s*\|\|\s*id/.test(coreJs) &&
+        !/pilot:\s*\{/.test(coreJs) &&
+        !/data-dg-page=['"]pilot['"]|>\s*Pilot\s*</.test(coreJs) &&
+        /['"]\/pilot['"]\s*:\s*['"]\/\?p=hire['"]/.test(head) &&
+        /var aliases=\{pilot:['"]hire['"]/.test(head) &&
+        !/\bp=pilot\b|["']name["']\s*:\s*["']Pilot["']/.test(head),
+      'legacy /pilot and ?p=pilot must resolve to hire; the public Pilot page/link/metadata stay retired',
     );
   }
   if (coreJs) {
@@ -1480,44 +1346,82 @@ if (cdnFoot) {
     check('core:run-show', /function run\s*\(/.test(coreJs) && /function show\s*\(/.test(coreJs));
     check('core:no-fake-sms', !/555-DEMO/.test(coreJs));
     check('core:forms-fee-note', coreJs.includes('dg-fee-note') && coreJs.includes('function forms'));
-    // Claude c167/c169: lead-capture autofill — abandon + company + contact-email + engineer name/email/url
+    check(
+      'core:unique-submit-trust',
+      /p\.className=['"]dg-submit-trust['"]/.test(coreJs) &&
+        /f\.querySelector\(['"]\.dg-submit-trust['"]\)/.test(coreJs) &&
+        !/id=['"]dg-submit-trust['"]|p\.id=['"]dg-submit-trust['"]/.test(coreJs),
+      'both wizard trust notes must share a class, never a duplicated document id',
+    );
+    // Claude c167/c169: lead-capture autofill — company + contact-email + engineer name/email/url
     check(
       'core:form-autocomplete',
-      /id="dg-abandon-email"[^>]*autocomplete="email"/.test(coreJs) &&
-        /name="company-name"[^>]*autocomplete="organization"/.test(coreJs) &&
+      /name="company-name"[^>]*autocomplete="organization"/.test(coreJs) &&
         /setAttribute\(\s*['"]autocomplete['"]\s*,\s*['"]email['"]\s*\)/.test(coreJs) &&
         /setAttribute\(\s*['"]autocomplete['"]\s*,\s*n===\s*['"]full-name['"]\s*\?\s*['"]name['"]\s*:\s*['"]email['"]\s*\)/.test(coreJs) &&
         /setAttribute\(\s*['"]autocomplete['"]\s*,\s*['"]url['"]\s*\)/.test(coreJs),
     );
-    // Claude v506: offerAbandon dialog a11y — modal semantics + Escape close + focus email field
+    // v825: an explicit wizard Close closes; the existing same-tab draft preserves progress.
     check(
-      'core:offer-abandon-a11y',
-      /function\s+offerAbandon\s*\(/.test(coreJs) &&
-        /(?:\.id\s*=|id=)['"]dg-abandon['"]/.test(coreJs) &&
-        /setAttribute\(\s*['"]aria-modal['"]\s*,\s*['"]true['"]\s*\)/.test(coreJs) &&
-        /setAttribute\(\s*['"]aria-label['"]\s*,\s*['"]Follow-up email['"]\s*\)/.test(coreJs) &&
-        /e\.key\s*===\s*['"]Escape['"]/.test(coreJs) &&
-        /var\s+inp\s*=\s*box\.querySelector\(['"]#dg-abandon-email['"]\)/.test(coreJs) &&
-        /try\{\s*inp\.focus\(\)/.test(coreJs),
-      'offerAbandon must be dialog (aria-modal + label) with Escape close + focus #dg-abandon-email',
+      'core:no-exit-interstitial',
+      !/\bofferAbandon\b|dg-abandon|Follow-up request/.test(coreJs) &&
+        /sessionStorage\.setItem\(SAVE_KEY/.test(coreJs) &&
+        /sessionStorage\.removeItem\(SAVE_KEY\)/.test(coreJs),
+      'wizard Close must not open a follow-up interstitial; same-tab draft resume stays intact',
     );
-    // Claude c176/v504: path + ?p= aliases — /fees|/security must not soft-404 (map alone was bypassed by id-from-query)
+    // Path and ?p= aliases share one route map so an alias cannot work in only one entry path.
     check(
       'core:route-fees-security',
       /['"]\/fees['"]\s*:\s*['"]pricing['"]/.test(coreJs) &&
         /['"]\/security['"]\s*:\s*['"]legal['"]/.test(coreJs) &&
-        /id\s*===\s*['"]fees['"]\s*\)\s*id\s*=\s*['"]pricing['"]/.test(coreJs) &&
-        /id\s*===\s*['"]security['"]\s*\)\s*id\s*=\s*['"]legal['"]/.test(coreJs),
+        /if\s*\(id\)\s*id\s*=\s*DG_PAGE_PATHS\[['"]\/['"]\s*\+\s*id\]\s*\|\|\s*id/.test(coreJs),
     );
-    // v507: Pilot mini-page was orphan (DG_PAGES+route only) — must appear in #dg-legal-links footer nav
-    check(
-      'core:legal-links-pilot',
-      /id=['"]dg-legal-links['"]/.test(coreJs) &&
-        /data-dg-page=['"]pilot['"]/.test(coreJs) &&
-        /['"]\/pilot['"]\s*:\s*['"]pilot['"]/.test(coreJs) &&
-        /pilot:\s*\{/.test(coreJs),
-      'Pilot must be in #dg-legal-links + path map + DG_PAGES (no orphan /?p=pilot)',
-    );
+    {
+      const pagesBlock = (coreJs.match(/var DG_PAGES\s*=\s*\{([\s\S]*?)\n\};\nfunction pageCss/) || [])[1] || '';
+      const retired = ['method', 'founders', 'candidates', 'compare', 'status', 'partners'];
+      const retained = ['how', 'hire', 'talent', 'pricing', 'about', 'contact', 'refer', 'events', 'sample'];
+      const aliases = {
+        method: 'how',
+        founders: 'hire',
+        candidates: 'talent',
+        engineers: 'talent',
+        compare: 'pricing',
+        status: 'about',
+        partners: 'refer',
+        partnerships: 'refer',
+        partnership: 'refer',
+      };
+      const hasPage = (id) => new RegExp(`\\n\\s*${id}:\\s*\\{`).test(`\n${pagesBlock}`);
+      const aliasesOk = Object.entries(aliases).every(([from, to]) =>
+        new RegExp(`['"]/${from}['"]\\s*:\\s*['"]${to}['"]`).test(coreJs));
+      check(
+        'core:route-alias-consolidation',
+        retired.every((id) => !hasPage(id)) &&
+          retained.every(hasPage) &&
+          aliasesOk &&
+          !/dg-(?:decision-grid|p-grid|p-hi)|__DG_FOOT_VER__/.test(coreJs),
+        'duplicate pages and their dead presentation code must stay deleted while legacy aliases target canonical pages',
+      );
+    }
+    {
+      const pageHtml = (coreJs.match(/function dgMapEventsHtml\(kind\)\{[\s\S]*?\n\}\n\nvar DG_PAGES/) || [''])[0];
+      const community = (coreJs.match(/function communitySubmissionsMount\(root\) \{[\s\S]*?\n\}\n\n\/\* v606/) || [''])[0];
+      check(
+        'core:community-manage-on-demand',
+        (pageHtml.match(/<details hidden><summary>Manage my (?:event|startup) submissions/g) || []).length === 2 &&
+          !/No (?:event|startup) submissions saved|Submit and manage/.test(pageHtml) &&
+          /var pageKind = \(listingsBox && listingsBox\.getAttribute\('data-kind'\)\) \|\| 'both';/.test(community) &&
+          /var rows = credentials\(\)\.filter/.test(community) &&
+          /pageKind === 'events' && startup/.test(community) &&
+          /pageKind === 'startups' && !startup/.test(community) &&
+          /if \(!rows\.length\) return;\s*manage\.parentElement\.hidden = false;/.test(community) &&
+          /if \(memory\) return memory;/.test(community) &&
+          /rows\.push\(row\); memory = rows\.slice\(-20\);/.test(community) &&
+          /if \(remember\(\{ id: imported\[0\], manageToken: imported\[1\] \}\)\) history\.replaceState/.test(community) &&
+          !/return Promise\.resolve\(null\)/.test(community),
+        'submission management stays hidden until relevant, and blocked storage cannot destroy its private credential',
+      );
+    }
     // Claude v505 + c228: Sample matches mini-page (honest labels) so /sample + ?p=sample work.
     // Ban sample→notfound id kill; footer:sample-path covers bare /sample early redirect.
     check(
@@ -1528,15 +1432,39 @@ if (cdnFoot) {
         !/id\s*===\s*['"]sample['"]\s*\)\s*id\s*=\s*['"]notfound['"]/.test(coreJs),
       'DG_PAGES.sample honesty required (Sample matches + no fake placements); ban sample→notfound',
     );
-    // Claude v507: Pilot was a dead mini-page (route existed, zero inbound UI links).
-    // Lock path map + DG_PAGES.pilot + #dg-legal-links Pilot anchor (discoverability).
+    {
+      const sampleBlock = (coreJs.match(/\n  sample: \{[\s\S]*?\n  event: \{/) || [''])[0];
+      check(
+        'core:sample-one-match-one-pass',
+        /A useful match/.test(sampleBlock) &&
+          /A useful pass/.test(sampleBlock) &&
+          !/Founder view|Talent view/.test(sampleBlock) &&
+          (sampleBlock.match(/<ul class="dg-p-list">/g) || []).length === 2,
+        'sample must show one useful match and one useful pass without mirrored audience blocks',
+      );
+    }
     check(
-      'core:pilot-page',
-      /pilot:\s*\{[\s\S]{0,240}?title:\s*['"]Pilot['"]/.test(coreJs) &&
-        /['"]\/pilot['"]\s*:\s*['"]pilot['"]/.test(coreJs) &&
-        /data-dg-page=["']pilot["']/.test(coreJs) &&
-        />\s*Pilot\s*</.test(coreJs),
-      'DG_PAGES.pilot + /pilot path + legal-nav Pilot link required (v507 discoverability)',
+      'core:no-zero-behavior-page-branches',
+      !/var\s+KEEP\s*=\s*\/\^\(\?:\)\$\//.test(coreJs) &&
+        !/id === 'contact' \|\| id === 'legal' \|\| id === 'partners'/.test(coreJs) &&
+        !/\bDG_ART\b|\bDG_STARTUP_MAP_ASSET\b/.test(coreJs) &&
+        !/host\.appendChild\(w\);\s*return a;/.test(coreJs),
+      'remove impossible or unread page branches, one-reader constants, and the ignored mk return',
+    );
+    check(
+      'core:home-proof-links',
+      // hard routes (/sample /map) preferred; soft /?p= still accepted for thrash variants
+      /href=["']\/(?:\?p=)?sample["'][^>]*data-dg-page=["']sample["']/.test(coreJs) &&
+        // /startups is the real Webflow shell for the directory (map page id)
+        /href=["']\/(?:\?p=map|map|startups)["'][^>]*data-dg-page=["']map["']/.test(coreJs) &&
+        /else if\s*\(\/THE PROCESS\|HUMAN-MATCHED STARTUP\|PRICING\|ONE SIMPLE MODEL\/i\.test\(sniff\)\)\s*\{[\s\S]{0,160}?s\.style\.setProperty\(['"]display['"],['"]block['"],['"]important['"]\)/.test(
+          coreJs,
+        ) &&
+        /\.roles-header,\.roles-grid,\[data-dg-hidden=roles-simplify\]\{display:none!important\}/.test(
+          coreJs,
+        ) &&
+        !/injectBlogHome|dg-blog-home|dg-aperture/.test(coreJs),
+      'home must reveal only scrubbed process/pricing, hide sample-role/blog/decorative sections, and expose sample + SF directory',
     );
     // Soft-404 page for unknown paths (not /sample — that redirects via footer-lite).
     check(
@@ -1545,15 +1473,26 @@ if (cdnFoot) {
         /Not found · Demigod/.test(coreJs),
       'DG_PAGES.notfound soft-404 page required (title + doc)',
     );
-    // Claude v507: Pilot mini-page must be inbound-reachable from footer legal nav (was orphan: route worked, zero UI links).
     check(
-      'core:pilot-legal-nav',
-      /pilot:\s*\{[\s\S]{0,400}?White-glove pilot/i.test(coreJs) &&
-        /['"]\/pilot['"]\s*:\s*['"]pilot['"]/.test(coreJs) &&
-        /id=['"]dg-legal-links['"][\s\S]{0,900}?data-dg-page=['"]pilot['"]/.test(coreJs) &&
-        /href=['"]\/\?p=pilot['"]/.test(coreJs) &&
-        />Pilot</.test(coreJs),
-      'DG_PAGES.pilot + path /pilot + #dg-legal-links Pilot link required (v507 orphan fix)',
+      'core:compact-footer',
+      ((coreJs.match(/class=["']dg-footer-group["']/g) || []).length === 2) &&
+        /data-dg-page=["']how["'][\s\S]{0,400}?data-dg-page=["']pricing["'][\s\S]{0,400}?data-dg-page=["']faq["']/.test(coreJs) &&
+        /data-dg-page=["']blog["'][\s\S]{0,400}?data-dg-page=["']about["'][\s\S]{0,400}?data-dg-page=["']legal["']/.test(coreJs) &&
+        /href=["']mailto:potter@trydemigod\.com["']/.test(coreJs) &&
+        !/dg-footer-intro|demigod-footer-tag|footer-email/.test(coreJs),
+      'footer keeps two conversion actions and two short nav groups without the retired intro/id chrome',
+    );
+    check(
+      'core:mobile-footer-action-dedupe',
+      /@media\(max-width:767px\)\{\.dg-footer-actions,\.hero-actions,\.hero-actions\.dg-path-pair\{display:none!important\}/.test(coreJs),
+      'mobile fixed action bar owns conversion; hide the duplicate footer pair below 768px',
+    );
+    const faqBlock = (coreJs.match(/\n  faq: \{[\s\S]*?\n  hire: \{/) || [''])[0];
+    check(
+      'core:faq-lean',
+      (faqBlock.match(/<details\b/g) || []).length === 6 &&
+        /How much does it cost\?[\s\S]*?Is my profile private\?[\s\S]*?What is a 90-day outcome\?[\s\S]*?Who do you work with\?[\s\S]*?How long does it take\?[\s\S]*?What if a match is not right\?/.test(faqBlock),
+      'FAQ must stay at six distinct decision questions; dedicated pages own the repeated process and form copy',
     );
     check('core:no-fake-sms-trust', !/Text \+1 \(415\) 555-DEMO/.test(coreJs));
     check('core:no-fake-sms-hero', !/heroSub:.*555-DEMO/.test(coreJs));
@@ -1639,6 +1578,8 @@ if (cdnFoot) {
         /id="note-'\s*\+/.test(coreJs) &&
         /class="dg-blog-more"/.test(coreJs) &&
         /<summary>Full note · /.test(coreJs);
+      const indexCollapsed =
+        /function\s+blogCardHtml\(p\)/.test(coreJs) && !/\bopenAttr\b/.test(coreJs);
       for (const p of published) {
         if (!p.title || !coreJs.includes(p.title)) missing.push(`${p.slug || '?'}:title`);
         if (!p.summary || !coreJs.includes(p.summary)) missing.push(`${p.slug || '?'}:summary`);
@@ -1660,6 +1601,7 @@ if (cdnFoot) {
         }
       }
       const moreCount = (coreJs.match(/class="dg-blog-more"/g) || []).length;
+      if (!indexCollapsed) missing.push('index-collapsed');
       // Empty published catalog is allowed (wipe / pre-content); dynamic SoR must still exist.
       if (!dynamicSor) {
         if (moreCount < published.length) missing.push(`details=${moreCount}<${published.length}`);
@@ -1791,7 +1733,7 @@ const requiredScripts = [
   'demigod-verify-all.mjs',
   'demigod-import-integrity.mjs',
   'demigod-foot-cdn-publish.mjs',
-  'demigod-fix-custom-code.mjs',
+  'demigod-cm6-paste-publish.mjs',
   'demigod-foot-core.js',
   'demigod-head-minimal.html',
   'demigod-footer-lite.html',
@@ -1802,30 +1744,13 @@ for (const f of requiredScripts) {
 
 try {
   const state = fs.readFileSync(path.join(ROOT, 'DEMIGOD-COMPRESSED-STATE.md'), 'utf8');
-  const version = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json'), 'utf8')).version || '');
-  const diskVersion = (coreJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || '';
-  // Sealed: manifest==disk and state claims that version is live end-to-end.
-  const sealed = version === diskVersion && state.includes(`Foot **live v${version}**`) &&
-    state.includes(`disk v${version} → manifest → CDN → live`);
-  // Staged (pre-prepare): manifest still on older live pin; disk ahead.
-  const staged = version !== diskVersion && !!diskVersion && state.includes(`Foot **live v${version}**`) &&
-    state.includes(`Disk **v${diskVersion}** is staged locally`);
-  // Prepare-only: ship prepare may advance manifest to disk while live CDN still lags.
-  // State must still name the live foot (not the prepared pin) and the staged disk.
-  const liveNamed = (state.match(/Foot \*\*live v(\d+)\*\*/) || [])[1] || '';
-  const prepareOnly =
-    !!diskVersion &&
-    !!liveNamed &&
-    liveNamed !== diskVersion &&
-    version === diskVersion &&
-    state.includes(`Foot **live v${liveNamed}**`) &&
-    state.includes(`Disk **v${diskVersion}** is staged locally`);
+  const delegated = state.includes('Release state comes only from `bin/dg truth`') &&
+    state.includes('this card does not duplicate changing version, hash, freeze, or lock values');
+  const copiedRelease = /(?:Foot \*\*live v|Disk \*\*v\d+|disk v\d+ → manifest → CDN → live)/.test(state);
   check(
     'state:release-version-current',
-    !!version && (sealed || staged || prepareOnly),
-    version
-      ? `state must distinguish live v${liveNamed || '?'} / manifest v${version} from disk v${diskVersion || '?'}`
-      : 'sealed manifest version missing',
+    delegated && !copiedRelease,
+    'state must delegate changing release facts to bin/dg truth without copying a version',
   );
 } catch (error) {
   check('state:release-version-current', false, String(error?.message || error).slice(0, 200));
@@ -1852,6 +1777,18 @@ try {
   });
   const detail = ((r.stdout || '') + (r.stderr || '')).trim().split('\n')[0] || `exit=${r.status}`;
   check('sor:import-integrity', r.status === 0, detail.slice(0, 240));
+}
+
+// Referral attribution controls money and candidate trust; keep its one focused lifecycle check on
+// the same source gate used by the canonical ship path instead of maintaining another wrapper.
+{
+  const r = spawnSync(process.execPath, [
+    '--test',
+    path.join(ROOT, 'demigod-referrals.test.mjs'),
+    path.join(ROOT, 'demigod-referrals-mint.test.mjs'),
+  ], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
+  const detail = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').at(-1) || `exit=${r.status}`;
+  check('referrals:lifecycle', r.status === 0, detail.slice(0, 240));
 }
 
 // length>0 floor: [].every() is vacuously true, so if a refactor ever skipped every check() call

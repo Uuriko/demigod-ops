@@ -119,7 +119,7 @@ async function main() {
   const isolatedWebhook = await startIsolatedWebhook();
   try {
   const liveScan = WEBHOOK_ONLY
-    ? { formsOk: true, forms: [], footerCoreCopy: {}, liveWebhookUrl: null }
+    ? { formsOk: true, forms: [], footerCoreCopy: {} }
     : await fetchLiveHtml(true).then(({ html, footerCoreJs }) => scanLiveHtml(html, { footerCoreJs }));
 
   checks.liveForms = {
@@ -127,7 +127,6 @@ async function main() {
     startup: liveScan.forms.find((f) => f.name === 'startup-hire')?.present,
     engineer: liveScan.forms.find((f) => f.name === 'engineer-join')?.present,
     footVersion: liveScan.footerCoreCopy?.version,
-    webhookUrl: liveScan.liveWebhookUrl || null,
   };
 
   checks.webhookHealth = await webhookHealth();
@@ -203,7 +202,7 @@ async function main() {
       : checks.webflowSubmit.pass
         ? 'Check potter@trydemigod.com / Webflow form notifications for test submission.'
         : 'Webflow submit did not show success — investigate before live traffic.',
-    note: 'All three wizards POST to submissions webhook when window.__dgWebhookUrl is set (v69+).',
+    note: 'Webflow forms and the isolated receiver are verified separately; live delivery uses configured Webflow webhooks.',
   };
 
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2));

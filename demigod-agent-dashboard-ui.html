@@ -501,7 +501,7 @@ pre{
   <div id="panel-handoff" class="panel">
     <div class="card wide hero">
       <h2>Current work <span class="meta">last 24h · auto-refresh</span></h2>
-      <div class="meta" id="coordStrip">Loading coordination…</div>
+      <div class="meta" id="coordStrip">Loading current work…</div>
       <div id="agentWorkLog"><div class="meta">Loading work summary…</div></div>
     </div>
     <div class="card wide">
@@ -519,10 +519,6 @@ pre{
       </div>
       <div class="handoff-list" id="handoffList"></div>
     </div>
-    <details class="card wide" id="workerDetails">
-      <summary>Worker diagnostics</summary>
-      <div class="grid" id="swarmRoot"><div class="meta">Loading…</div></div>
-    </details>
   </div>
   <div id="panel-inbox" class="panel">
     <div class="grid" id="inboxRoot">
@@ -555,8 +551,13 @@ pre{
       <div style="display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin-bottom:.65rem">
         <input id="toolsSearch" type="search" aria-label="Filter tools" placeholder="Filter tools…" style="max-width:20rem;margin:0" autocomplete="off"/>
         <button type="button" id="btnToolsRefresh" class="ghost">Refresh ages</button>
+        <button type="button" id="btnToolsAll" class="ghost" aria-pressed="false">Advanced · all tools (read-only)</button>
       </div>
       <div id="toolsRoot"><div class="skel block"></div></div>
+    </div>
+    <div class="card wide">
+      <h2><span>Recent tool runs</span><span class="meta" id="dogfoodMeta">—</span></h2>
+      <div id="dogfoodRoot"><div class="meta">Loading…</div></div>
     </div>
     <div class="card wide">
       <h2>Workflow reference</h2>
@@ -565,7 +566,6 @@ pre{
         <a class="btn" href="/api/maps/workflow" target="_blank" rel="noopener">Product workflow</a>
         <a class="btn" href="/api/maps/website" target="_blank" rel="noopener">Website</a>
         <a class="btn" href="/api/maps/resources" target="_blank" rel="noopener">Resources</a>
-        <button type="button" id="btnCopy2">Copy agent brief</button>
       </div>
     </div>
   </div>
@@ -595,11 +595,12 @@ pre{
 const $ = (id) => document.getElementById(id);
 function prefGet(key){ try{return localStorage.getItem(key)}catch(_){return null} }
 function prefSet(key,value){ try{localStorage.setItem(key,value);return true}catch(_){return false} }
-let lastBrief = '';
 let lastData = null;
 let lastPulse = '';
 let lastJobStripHtml = '';
 let toolsCache = null;
+let toolsAdvanced = false;
+let toolsLoadGen = 0;
 let startupAtlasCache = null;
 let startupAtlasInflight = null;
 let startupAtlasNeighborhood = '';
@@ -634,7 +635,6 @@ function loadPollPref(){
   if (Number.isFinite(n) && n >= 8000 && n <= 120000) pollMs = n;
 }
 function setTab(name){
-  name=({plane:'overview',system:'tools',brief:'tools',swarm:'handoff',gates:'roadmap'})[name]||name;
   // Query parameters and persisted preferences are untrusted inputs. An
   // unknown tab used to hide every panel and persist a blank dashboard until
   // storage was cleared manually.
@@ -661,7 +661,9 @@ function setTab(name){
     p.classList.toggle('active',on);
   });
   if(lastData) renderActivePanel(lastData);
-  if(name==='tools' && !toolsCache) loadTools();
+  if(name==='tools'){
+    if(!toolsCache) loadTools();
+  }
   if(name==='map' && !startupAtlasCache) loadStartupAtlas();
   persistTab(name);
   try { history.replaceState(null,'','#'+name); } catch(_){}
@@ -723,7 +725,7 @@ function renderWorkLog(d){
   const wl=d?.work||d?.workLog;
   if(!wl){
     strip.textContent='No current work summary';
-    box.innerHTML='<div class="meta">No agent work receipts yet.</div>';
+    box.innerHTML='<div class="meta">No active agent work yet.</div>';
     return;
   }
   const agents=Array.isArray(wl.agents)?wl.agents:[];
@@ -742,6 +744,18 @@ function renderWorkLogDom(box,wl){
   const agents=Array.isArray(wl.agents)?wl.agents:[];
   const recent=Array.isArray(wl.recent)?wl.recent:[];
   const backlog=Array.isArray(wl.backlog)?wl.backlog:[];
+  const channels=wl.channels&&typeof wl.channels==='object'?Object.entries(wl.channels):[];
+  const channelHtml=channels.slice(0,3).map(([name,value])=>{
+    const channel=value&&typeof value==='object'?value:{status:value};
+    const details=[
+      channel.status||channel.health,
+      channel.claude&&channel.codex?'Claude ↔ Codex ready':null,
+      Number.isFinite(channel.unread)?channel.unread+' unread':null,
+      Number.isFinite(channel.pending)?channel.pending+' pending':null,
+      Number.isFinite(channel.roundTripMs)?(channel.roundTripMs/1000).toFixed(1)+'s roundtrip':null,
+    ].filter(Boolean);
+    return '<div class="meta"><strong>'+esc(name)+' · </strong>'+esc(details.join(' · ')||'unknown')+'</div>';
+  }).join('');
   const currentAgents=agents.filter(a=>a.ageSec==null||a.ageSec<3600).slice(0,6);
   const agentHtml=currentAgents.map(a=>{
     const runtime=a.runtime||a.status||'unknown';
@@ -770,7 +784,9 @@ function renderWorkLogDom(box,wl){
   ).join('');
   const open=backlog.slice(0,3).map(item=>'<li>'+esc(String(item).slice(0,160))+'</li>').join('');
   box.innerHTML='<div class="work-log" aria-live="polite">'+
+    (wl.operatingMode?'<div class="work-log-summary"><strong>Operating mode · </strong>'+esc(String(wl.operatingMode).slice(0,240))+'</div>':'')+
     '<div class="work-log-summary"><strong>Now · </strong>'+esc(String(wl.summary||wl.goal||'No active summary').slice(0,360))+'</div>'+
+    channelHtml+
     (agentHtml?'<div class="work-log-agents">'+agentHtml+'</div>':'')+
     (timeline?'<div class="meta">Recent work</div><ul class="work-log-timeline">'+timeline+'</ul>':'')+
     (open?'<details><summary>Backlog</summary><ul class="work-log-backlog">'+open+'</ul></details>':'')+
@@ -919,13 +935,6 @@ function renderHdr(d){
   ].join('');
 }
 
-function fileTable(files){
-  if(!files||!files.length) return '<div class="meta">empty</div>';
-  return '<table><thead><tr><th>Age</th><th>Agent</th><th>File</th><th>Preview</th></tr></thead><tbody>'+
-    files.slice(0,14).map(f=>'<tr><td>'+esc(age(f.ageSec))+'</td><td>'+esc(f.agent)+'</td><td>'+esc(f.name)+'</td><td class="preview">'+esc(f.preview)+'</td></tr>').join('')+
-    '</tbody></table>';
-}
-
 function renderHandoffs(d){
   const notes = d.handoffs || [];
   $('handoffList').innerHTML = notes.length
@@ -935,15 +944,18 @@ function renderHandoffs(d){
 
 function renderTools(reg){
   toolsCache = reg;
-  const aliasN = reg.aliasesHidden||0;
+  const allTools = reg.allTools === true;
+  const dogfoodTools=Array.isArray(reg.dogfood?.tools)
+    ?reg.dogfood.tools.filter(tool=>tool&&typeof tool.tool==='string'):[];
+  const dogfood = new Map(dogfoodTools.map(tool=>[tool.tool,tool]));
   const q = (($('toolsSearch')&&$('toolsSearch').value)||'').toLowerCase().trim();
   const groups = reg.groups || [];
   const all = reg.tools || [];
-  const matches = t => !q || (t.name+t.id+t.purpose+t.cmd+(t.alias||'')).toLowerCase().includes(q);
+  const matches = t => !q || (t.name+t.id+t.purpose+t.cmd).toLowerCase().includes(q);
   const visibleN = all.filter(matches).length;
   $('toolsMeta').textContent = q
     ? visibleN+' of '+(reg.count||all.length)+' tools'
-    : (reg.count||all.length)+' tools'+(aliasN?' · '+aliasN+' aliases hidden':'');
+    : (reg.count||all.length)+' tools';
   $('toolsRoot').innerHTML = groups.map(g=>{
     const items=all.filter(t=>t.group===g && matches(t));
     if(!items.length) return '';
@@ -952,13 +964,15 @@ function renderTools(reg){
         const ageSec=t.evidence&&t.evidence.ageSec;
         const missing=t.evidence&&t.evidence.missing;
         const isMut=!!t.mutate;
+        const use=dogfood.get(t.id);
         // The server owns the executable allowlist. Registry membership alone
         // does not mean a tool can be launched by the dashboard.
-        const canRun = t.runnable === true;
+        const canRun = !allTools && t.runnable === true;
         const authorityPill=!canRun?' <span class="pill">view only</span>':(isMut?' <span class="pill warn">mutate</span>':(t.safe===true?' <span class="pill ok">safe</span>':' <span class="pill warn">restricted</span>'));
-        return '<div class="tool-card" data-tool-id="'+esc(t.id)+'"><h3>'+esc(t.name)+(t.hot?' <span class="pill on">hot</span>':'')+(t.alias?' <span class="pill">alias→'+esc(t.alias)+'</span>':'')+authorityPill+'</h3>'+
+        return '<div class="tool-card" data-tool-id="'+esc(t.id)+'"><h3>'+esc(t.name)+(t.hot?' <span class="pill on">hot</span>':'')+authorityPill+'</h3>'+
           '<div class="meta">'+esc(t.purpose)+'</div><code class="cmd">'+esc(t.cmd)+'</code>'+
           '<div class="meta" style="margin-top:.3rem">'+(missing?'no output':'age <span class="age '+ageClass(ageSec)+'">'+esc(age(ageSec))+'</span>')+'</div>'+
+          (use?'<div class="meta">'+esc(use.executions||0)+' runs · '+esc(use.ok||0)+' ok · '+esc(use.red||0)+' red · '+esc(use.fail||0)+' failed</div>':'')+
           (canRun
             ? '<button type="button" data-run="'+esc(t.id)+'" data-mutate="'+(isMut?'1':'0')+'" style="margin-top:.4rem">'+(isMut?'Run mutate…':'Run')+'</button>'
             : '<button type="button" data-copy-cmd="'+esc(t.cmd)+'" style="margin-top:.4rem">Copy cmd</button>')+'</div>';
@@ -972,21 +986,28 @@ function renderTools(reg){
   });
 }
 
-function renderSwarm(d){
-  const multi=(d.drops&&d.drops.multi)||[];
-  const rep=(d.cockpit&&d.cockpit.swarm&&d.cockpit.swarm.reports)||[];
-  const workers=d.workers||[];
-  $('swarmRoot').innerHTML = [
-    '<div class="card wide"><h2>/tmp/dg-multi</h2>'+fileTable(multi)+'</div>',
-    '<div class="card wide"><h2>Swarm reports</h2>'+(rep.length
-      ? '<table><thead><tr><th>Age</th><th>Report</th><th>Bytes</th></tr></thead><tbody>'+
-        rep.slice(0,16).map(r=>'<tr><td>'+esc(age(r.ageSec))+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.bytes)+'</td></tr>').join('')+'</tbody></table>'
-      : '<div class="meta">No reports</div>')+'</div>',
-    '<div class="card"><h2>Workers</h2>'+(workers.length
-      ? '<table><thead><tr><th>Kind</th><th>PID</th><th>CPU</th></tr></thead><tbody>'+
-        workers.map(w=>'<tr><td>'+esc(w.kind)+'</td><td>'+esc(w.pid)+'</td><td>'+esc(w.pcpu)+'</td></tr>').join('')+'</tbody></table>'
-      : '<div class="meta">Idle</div>')+'</div>',
-  ].join('');
+function renderDogfood(report){
+  if(!report){
+    $('dogfoodMeta').textContent='unavailable';
+    $('dogfoodRoot').innerHTML='<div class="meta">No usage report available.</div>';
+    return;
+  }
+  $('dogfoodMeta').textContent =
+    (report.executionTotal||0)+' real runs · '+(report.annotationTotal||0)+' judgments · '+
+    (report.syntheticWrapTotal||0)+' synthetic · '+(report.unusedRegisteredTools||0)+' without direct runs';
+  const recent=Array.isArray(report.recentExecutions)?report.recentExecutions:[];
+  $('dogfoodRoot').innerHTML=recent.length
+    ? '<table><thead><tr><th>When</th><th>Tool</th><th>Outcome</th><th>Exit</th><th>Evidence</th></tr></thead><tbody>'+
+      recent.map(run=>{
+        const tool=(toolsCache&&toolsCache.tools||[]).find(item=>item.id===run.tool);
+        const evidence=tool&&tool.evidence;
+        const evidenceText=evidence&&evidence.missing?'none':(evidence&&evidence.ageSec!=null?age(evidence.ageSec):'—');
+        const outcomeClass=run.outcome==='ok'?'ok':(run.outcome==='red'?'warn':'bad');
+        return '<tr><td>'+esc(run.at?new Date(run.at).toLocaleString():'—')+'</td><td>'+esc(run.tool)+'</td>'+
+          '<td class="'+outcomeClass+'">'+esc(run.outcome)+'</td><td>'+esc(run.childExit==null?'—':run.childExit)+'</td>'+
+          '<td>'+esc(evidenceText)+'</td></tr>';
+      }).join('')+'</tbody></table>'
+    : '<div class="meta">No real executions in this reporting window.</div>';
 }
 
 function renderGates(d){
@@ -998,7 +1019,6 @@ function renderGates(d){
     '<div class="card wide"><h2>Evidence ages</h2><table><thead><tr><th>Artifact</th><th>Age</th><th>Mtime</th></tr></thead><tbody>'+
     Object.entries(ev).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td class="age '+ageClass(v&&v.ageSec)+'">'+(v&&v.missing?'missing':esc(age(v&&v.ageSec)))+'</td><td class="meta">'+esc(v&&v.mtime||'—')+'</td></tr>').join('')+
     '</tbody></table></div>',
-    '<div class="card wide"><h2>Gate latest</h2><pre>'+esc(d.gates&&d.gates.latestFile||'(none)')+'</pre></div>',
   ].join('');
 }
 
@@ -1014,14 +1034,20 @@ function renderInbox(d){
   const root=document.getElementById('inboxRoot');
   if(!root) return;
   const ib=d.inbox||{};
+  const people=d.peopleIntelligence;
   const rows=ib.operationalRows||(ib.operationalCount===0?[]:ib.rows||[]);
   const age=ib.newestAgeSec!=null?(ib.newestAgeSec<3600?Math.round(ib.newestAgeSec/60)+'m':Math.round(ib.newestAgeSec/3600)+'h'):'—';
-  const analytics=d.formAnalytics||{};
-  const funnel=Object.entries(analytics.forms||{}).map(([name,f])=>{
-    const steps=Object.entries(f.steps||{}).sort((a,b)=>b[1]-a[1]).map(([step,count])=>step+' '+count).join(' · ');
-    const validationSteps=Object.entries(f.validationSteps||{}).sort((a,b)=>b[1]-a[1]).map(([step,count])=>step+' '+count).join(' · ');
-    return '<div class="meta"><strong>'+esc(name)+'</strong> · '+esc(f.starts)+' starts · '+esc(f.completions)+' complete · '+esc(f.completionRate==null?'—':f.completionRate+'%')+' · '+esc(f.validations)+' validation blocks'+(validationSteps?'<br>blocked at · '+esc(validationSteps):'')+(steps?'<br>views · '+esc(steps):'')+'</div>';
-  }).join('');
+  const count=value=>Number.isSafeInteger(value)&&value>=0?value:'—';
+  const peopleReady=people&&!people.error&&people.automation?.autoSend===false&&people.automation?.autoDm===false;
+  const peopleCard=!peopleReady
+    ? '<div class="card wide"><h2>People intelligence (redacted)</h2><div class="meta">Funnel status unavailable.</div></div>'
+    : '<div class="card wide"><h2><span>People intelligence (redacted)</span><span class="meta">'+esc(count(people.total))+' leads · '+esc(count(people.partners))+' partners · '+esc(count(people.talent))+' talent</span></h2>'+
+      '<table><thead><tr><th>Stage</th><th>Count</th><th>Stage</th><th>Count</th></tr></thead><tbody>'+
+      '<tr><td>Enrichment due</td><td>'+esc(count(people.enrichment&&people.enrichment.due))+'</td><td>Local drafts</td><td>'+esc(count(people.drafts&&people.drafts.local))+'</td></tr>'+
+      '<tr><td>Provider capacity</td><td>'+esc(count(people.enrichment&&people.enrichment.providerCapacity))+'</td><td>Review ready</td><td>'+esc(count(people.drafts&&people.drafts.reviewReady))+'</td></tr>'+
+      '<tr><td>Enrichment cooling</td><td>'+esc(count(people.enrichment&&people.enrichment.cooling))+'</td><td>Receipt-backed sent</td><td>'+esc(count(people.outcomes&&people.outcomes.receiptBackedSent))+'</td></tr>'+
+      '<tr><td>Enrichment exhausted</td><td>'+esc(count(people.enrichment&&people.enrichment.exhausted))+'</td><td>Other transport failures</td><td>'+esc(count(people.enrichment&&people.enrichment.otherTransportFailures))+'</td></tr>'+
+      '</tbody></table><div class="meta" style="margin-top:.5rem">Aggregate counts only · auto-send off · auto-DM off</div></div>';
   root.innerHTML=[
     '<div class="card hero wide">',
     '<h2><span>Submissions</span><span class="meta">'+(ib.pendingOperationalReviewCount??ib.pendingReviewCount??ib.newCount??0)+' operational reviews · '+(ib.testCount??0)+' test · '+(ib.spamCount??0)+' spam · '+(ib.incompleteCount??0)+' incomplete</span></h2>',
@@ -1031,7 +1057,7 @@ function renderInbox(d){
     '</div>',
     ib.error?'<div class="bad" style="margin-top:.4rem">'+esc(ib.error)+'</div>':'',
     '</div>',
-    analytics.available?'<div class="card wide"><h2>Form funnel <span class="meta">private · aggregate · 30d</span></h2>'+(funnel||'<div class="meta">No form events yet.</div>')+'</div>':'',
+    peopleCard,
     '<div class="card wide">',
     '<h2>Queue (redacted)</h2>',
     rows.length?'<table><thead><tr><th>Age</th><th>Kind</th><th>Status</th><th>Match</th><th>Email</th><th>Headline</th><th>Source</th><th></th></tr></thead><tbody>'+
@@ -1123,13 +1149,6 @@ function renderOverview(d){
     (d.eventsBot?.active?'<button type="button" data-run-job="events-outbox-status">Check resource drafts</button>':'')+
     '</div></details>';
   const dashboardRuntime=d.dashboardRuntime||{};
-  const cycleHealth=d.cycleWorkHealth||d.cycleWork||{};
-  const cycleChecks=Array.isArray(cycleHealth.checks)?cycleHealth.checks:[];
-  const cycleCheckLines=cycleChecks.slice(0,8).map(c=>{
-    const exitLabel=Number.isInteger(c.exit)?c.exit:'unknown';
-    const name=c.name||c.id||c.check||'check';
-    return esc(name)+' · exit '+esc(exitLabel);
-  });
   const dashboardStatusCard=
     '<div class="card wide'+(dashboardRuntime.restartRequired?' alert':'')+'">'+
     '<h2>Dashboard status</h2>'+
@@ -1138,9 +1157,6 @@ function renderOverview(d){
     (dashboardRuntime.restartRequired
       ? '<div class="bad" style="margin-top:.45rem">Restart required · <code>'+esc(dashboardRuntime.restartCommand)+'</code></div>'
       : '<div class="ok" style="margin-top:.45rem">Running source matches disk</div>')+
-    (cycleCheckLines.length
-      ? '<div class="meta" style="margin-top:.45rem">Cycle checks · '+cycleCheckLines.join(' · ')+'</div>'
-      : '')+
     '</div>';
   // Compact hash chain (always useful, not a second home)
   const chainCard=
@@ -1228,7 +1244,7 @@ function renderMatches(d){
     '<div class="card hero wide">',
     '<h2><span>Match review queue</span><span class="meta">'+esc(String(total))+' visible'+(hiddenSamples?' · '+esc(String(hiddenSamples))+' samples hidden':'')+'</span></h2>',
     '<div class="meta">proposed '+(by.proposed||0)+' · approved '+(by.approved||0)+' · mutual_yes '+(by.mutual_yes||0)+' · rejected '+(by.rejected||0)+' · deferred '+(by.deferred||0)+'</div>',
-    '<div class="meta" style="margin-top:.25rem">Not the public board. Review before intro draft. Freeze-safe local ledger.</div>',
+    '<div class="meta" style="margin-top:.25rem">Private review ledger. Fit signals explain evidence; they never approve, reject, defer, reorder, record consent, or draft an intro.</div>',
     '<div style="margin-top:.55rem;display:flex;gap:.4rem;flex-wrap:wrap">',
     '<button type="button" class="primary" id="btnMatchRefresh">Refresh queue</button>',
     '<button type="button" id="btnAutoPropose">Auto-propose from inbox</button>',
@@ -1236,12 +1252,32 @@ function renderMatches(d){
     m.error?'<div class="bad" style="margin-top:.4rem">'+esc(m.error)+'</div>':'',
     '</div>',
     '<div class="card wide">',
-    '<h2>Pairs</h2>',
-    pairs.length?'<table><thead><tr><th>Score</th><th>State</th><th>Role</th><th>Cand</th><th>Why</th><th></th></tr></thead><tbody>'+
+    '<h2>Pair intelligence</h2>',
+    pairs.length?'<table><thead><tr><th>Fit signal · review only</th><th>State</th><th>Role</th><th>Candidate ID</th><th>Evidence</th><th></th></tr></thead><tbody>'+
       pairs.map(p=>{
         const sc=p.score!=null?Number(p.score).toFixed(2):'—';
         const why=(p.reasons||[]).join('; ')||'—';
         const st=p.state||'?';
+        const evidence=p.companyEvidence;
+        const research=evidence&&evidence.research;
+        const researchFields=research&&research.fields||{};
+        const roleLabel=evidence&&evidence.status==='matched'
+          ?[researchFields.canonicalCompany&&researchFields.canonicalCompany.value||evidence.company&&evidence.company.name,evidence.role&&evidence.role.title].filter(Boolean).join(' · ')
+          :p.roleId;
+        const evidenceLine=evidence?[
+          'company evidence: '+evidence.status,
+          evidence.reason,
+          evidence.provenance&&evidence.provenance.source,
+          evidence.provenance&&evidence.provenance.retrievedAt?'retrieved '+evidence.provenance.retrievedAt:null,
+          Number.isSafeInteger(evidence.hiring&&evidence.hiring.openRoles)?evidence.hiring.openRoles+' public roles':null,
+          evidence.roleEvidenceStatus?'role '+evidence.roleEvidenceStatus.replaceAll('_',' '):null,
+          evidence.roleObservations&&evidence.roleObservations.length?evidence.roleObservations.length+' exact role observation':null,
+          research&&research.status?'research '+research.status.replaceAll('_',' '):null,
+          researchFields.productCategory&&researchFields.productCategory.value?'category '+researchFields.productCategory.value:null,
+          researchFields.likelyBuyer&&researchFields.likelyBuyer.value?'buyer '+researchFields.likelyBuyer.value:null,
+          evidence.reviewFlags&&evidence.reviewFlags.length?'review '+evidence.reviewFlags.join(', '):null,
+          evidence.candidates&&evidence.candidates.length?evidence.candidates.length+' identity candidates':null,
+        ].filter(Boolean).join(' · '):'';
         const pill=st==='approved'||st==='mutual_yes'?'ok':st==='rejected'?'bad':st==='proposed'?'warn':'';
         const mut=p.mutual||{};
         const canConsent=st==='approved'||st==='mutual_yes';
@@ -1249,7 +1285,7 @@ function renderMatches(d){
         return '<tr data-pair="'+esc(p.pairId)+'">'+
           '<td>'+esc(sc)+'</td>'+
           '<td><span class="pill '+pill+'">'+esc(st)+(p.sample?' · sample':'')+'</span> <span class="meta" title="mutual F/C">'+esc(mutLab)+'</span></td>'+
-          '<td class="meta">'+esc(p.roleId)+'</td>'+
+          '<td class="meta">'+esc(roleLabel)+(evidenceLine?'<div>'+esc(evidenceLine)+'</div>':'')+'</td>'+
           '<td class="meta">'+esc(p.candId)+'</td>'+
           '<td class="meta">'+esc(why)+'</td>'+
           '<td style="white-space:nowrap">'+
@@ -1285,12 +1321,14 @@ function renderMatches(d){
       const id=btn.getAttribute('data-id');
       const decision=btn.getAttribute('data-rev');
       if(decision==='reject'&&!window.confirm('Reject this match permanently? This cannot be undone.')) return;
+      const note=window.prompt('Review evidence for '+decision+' (required):','');
+      if(note==null) return;
       toast(decision+' '+id.slice(0,8)+'…');
       try{
         const r=await fetch('/api/matches',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'review',pairId:id,decision,actor:'dashboard'}),
+          body:JSON.stringify({action:'review',pairId:id,decision,reviewed:true,note}),
         });
         const j=await r.json();
         if(!j.ok) throw new Error(j.error||'fail');
@@ -1367,7 +1405,6 @@ function renderActivePanel(d){
   else if(activeTab==='handoff'){
     renderWorkLog(d);
     renderHandoffs(d);
-    if($('workerDetails')?.open) renderSwarm(d);
   }else if(activeTab==='inbox') renderInbox(d);
   else if(activeTab==='matches') renderMatches(d);
   else if(activeTab==='roadmap'){
@@ -1383,8 +1420,6 @@ function render(d){
     pendingActivityEvents=[];
     mergeActivityEvents(queued);
   }
-  if (!d.slim && d.agentBriefMarkdown) lastBrief = d.agentBriefMarkdown;
-  if ($('briefPre') && lastBrief) $('briefPre').textContent = lastBrief || '(empty)';
   // Always cheap chrome
   renderHdr(d);
   renderNextBar(d);
@@ -1441,18 +1476,32 @@ async function load(force){
 }
 
 async function loadTools(){
+  const gen=++toolsLoadGen;
+  const allTools=toolsAdvanced;
   try{
-    const r=await fetch('/api/tools?t='+Date.now());
+    const stamp=Date.now();
+    const [r,d]=await Promise.all([
+      fetch('/api/tools?'+(allTools?'all=1&':'')+'t='+stamp),
+      fetch('/api/dogfood?t='+stamp).catch(()=>null),
+    ]);
     const body=await r.json().catch(()=>null);
     if(!r.ok) throw new Error(body&&body.error||('tools API HTTP '+r.status));
     if(!body||!Array.isArray(body.tools)) throw new Error('tools API returned an invalid catalog');
-    renderTools(body);
+    const dogfood=d?.ok?await d.json().catch(()=>null):null;
+    if(gen!==toolsLoadGen) return;
+    renderTools({...body,allTools,dogfood});
+    renderDogfood(dogfood);
     if ($('toolsSearch') && !$('toolsSearch')._bound) {
       $('toolsSearch')._bound = true;
       $('toolsSearch').addEventListener('input', ()=>{ if (toolsCache) renderTools(toolsCache); });
       if ($('btnToolsRefresh')) $('btnToolsRefresh').onclick=()=>loadTools();
+      if ($('btnToolsAll')) $('btnToolsAll').onclick=()=>{
+        toolsAdvanced=!toolsAdvanced;
+        $('btnToolsAll').setAttribute('aria-pressed',String(toolsAdvanced));
+        loadTools();
+      };
     }
-  }catch(e){ $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
+  }catch(e){ if(gen===toolsLoadGen) $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
 }
 
 function renderStartupAtlasState(title, message, kind){
@@ -1499,12 +1548,6 @@ async function loadStartupAtlas(){
 function atlasDate(value){
   const date=new Date(value);
   return Number.isFinite(date.getTime())?date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'unknown date';
-}
-
-function formatEventWindow(value){
-  const dateOnly=/^\d{4}-\d{2}-\d{2}$/.test(value);
-  const date=new Date(dateOnly?value+'T00:00:00':value);
-  return Number.isFinite(date.getTime())?date.toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',...(dateOnly?{}:{hour:'numeric',minute:'2-digit'})}):value;
 }
 
 function atlasPath(geometry,bounds,width,height){
@@ -1807,8 +1850,6 @@ async function postHandoff(from){
 }
 
 /* palette */
-// Control spine: orient first, then next — keep API path map for agents/dogfood.
-const CONTROL_SPINE=[['/api/orient','orient'],['/api/next','next']];
 const PALETTE=[
   {t:'Refresh', d:'force status', run:()=>load(true)},
   {t:'Run orient', d:'canonical session-start card', run:()=>runJob('orient')},
@@ -1828,7 +1869,6 @@ const PALETTE=[
   {t:'Refresh inbox', d:'safe', run:()=>runJob('inbox')},
   {t:'Refresh matches', d:'safe', run:()=>runJob('match-review')},
   {t:'Copy NEXT cmd', d:'Do this', run:()=>copyText(($('nextCmd').textContent)||'')},
-  {t:'Copy agent brief', d:'c', run:()=>copyText(lastBrief)},
   {t:'Run truth', d:'bin/dg truth', run:()=>runJob('truth')},
   {t:'Run demand', d:'bin/dg demand status', run:()=>runJob('demand')},
   {t:'Run NEXT canon', d:'bin/dg next-canon', run:()=>runJob('next-canon')},
@@ -1837,7 +1877,6 @@ const PALETTE=[
   {t:'Ship prepare', d:'gates only', run:()=>runJob('ship-prepare')},
   {t:'Ledger delta', d:'bin/dg ledger delta', run:()=>runJob('ledger')},
   {t:'Evidence fresh truth', run:()=>runJob('evidence')},
-  {t:'Full check (no smoke)', run:()=>runJob('full-check')},
   {t:'Tools OS selftest', run:()=>runJob('tools-os-selftest')},
   {t:'Copy orient URL', d:'canonical session-start card', run:()=>copyText('http://127.0.0.1:9878/api/orient')},
   {t:'Run preflight', run:()=>runJob('preflight')},
@@ -1910,8 +1949,6 @@ function paintPalette(q){
 }
 
 $('btnRefresh').onclick=()=>load(true);
-if($('btnCopy')) $('btnCopy').onclick=()=>copyText(lastBrief);
-if($('btnCopy2')) $('btnCopy2').onclick=()=>copyText(lastBrief);
 $('btnPalette').onclick=()=>openPalette();
 $('btnDoThis').onclick=()=>copyText($('nextCmd').textContent||'');
 $('btnHandoffAgent').onclick=()=>postHandoff('agent');
@@ -1945,7 +1982,6 @@ document.querySelectorAll('.nav button').forEach(b=>{
     tabs[next].focus();
   });
 });
-$('workerDetails').addEventListener('toggle',()=>{ if($('workerDetails').open&&lastData) renderSwarm(lastData); });
 $('evidenceDetails').addEventListener('toggle',()=>{ if($('evidenceDetails').open&&lastData) renderGates(lastData); });
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-copy]');

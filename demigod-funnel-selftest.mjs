@@ -28,6 +28,7 @@ import {
   countNoContact,
   countReceiptBackedSent,
   draftContactTo,
+  draftTargetsCurrentContact,
   draftEmail,
   refreshTalentDraftGreetings,
   talentGreetingName,
@@ -36,7 +37,9 @@ import {
   draftSubjectPreview,
   hasValidSendReceipt,
   isUnreachable,
+  hasUsableDraftContact,
   hasUsableOutreachContact,
+  hasOnlyConflictedLinkedInContact,
   joinMatchVia,
   legacyToState,
   lifecycleHistoryIssues,
@@ -75,16 +78,20 @@ import { draftHygiene } from './demigod-demand.mjs';
 import {
   checkOutreach,
   isIdentitySuppressedByOther,
+  normalizeLinkedInProfile,
   outreachPolicy,
   suppressedIdentityKeys as outreachSuppressedIdentityKeys,
 } from './demigod-outreach-policy.mjs';
 import { feeCents } from './demigod-revenue.mjs';
 import {
   applyContactEnrich,
+  applyEnrichAttemptStamp,
   attachPublicContact,
   eventsBotLeads,
   extractContactFromPage,
+  fetchWaasPublicJobPage,
   fcScrape,
+  firstUsableOutreachEmail,
   hasAdvancedState,
   isAggregatorUrl,
   isJunkCompanyUrl,
@@ -94,11 +101,13 @@ import {
   isJunkPartnerId,
   demoteJunkLead,
   isOwnSiteUrl,
+  isWaasPublicJobUrl,
   isSfBayLocation,
   runSearchQueries,
   isTalentLead,
   isUsableOutreachEmail,
   isUsableOutreachHandle,
+  hasUnresolvedLinkedInConflict,
   leadId,
   writeEnrichedLead,
   mergeLeadState,
@@ -127,6 +136,7 @@ import {
   readLeadFocus,
   parseCollectLimit,
   previousLeadsById,
+  parseWaasPublicJobPage,
   scrubNoiseContact,
   selectEnrichTargets,
   sessionXLeads,
@@ -155,8 +165,19 @@ import {
   submissionsWithGmailPatches,
 } from './demigod-submissions-lib.mjs';
 import { mayRunFunnelStages, parseCliJson, selectDraftableLeads } from './demigod-funnel-loop.mjs';
+import { buildExport } from './demigod-recruitai-export.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CANONICAL_TRANSITION_LOG = '/tmp/dg-busy/funnel/transitions.jsonl';
+const fileHash = (file) => {
+  try {
+    return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+};
+const canonicalTransitionLogBefore = fileHash(CANONICAL_TRANSITION_LOG);
 let failed = 0;
 let passed = 0;
 let skipped = 0;
@@ -214,12 +235,16 @@ assert(
       partners: [
         { id: 'url-only', state: 'sourced', score: 100, url: 'https://example-startup.test/job' },
         { id: 'email', state: 'sourced', score: 80, contactEmail: 'founder@startup.test' },
+        { id: 'linkedin', state: 'sourced', score: 85, linkedin: 'https://linkedin.com/in/founder' },
       ],
       talent: [{ id: 'handle', state: 'sourced', score: 90, handle: '@realperson' }],
     },
     3,
   );
-  assert(selected.map((lead) => lead.id).join() === 'handle,email', 'draft batch skips URL-only leads without usable contact');
+  assert(
+    selected.map((lead) => lead.id).join() === 'handle,linkedin,email',
+    'draft batch accepts observed LinkedIn for local drafts and skips URL-only leads',
+  );
   const noPlatform = selectDraftableLeads(
     {
       partners: [
@@ -234,6 +259,49 @@ assert(
   assert(
     noPlatform.map((l) => l.id).join() === 'real',
     'draft batch skips noreply/platform mailbox emails (FOCUS usable contact)',
+  );
+  const conflictGuarded = selectDraftableLeads(
+    {
+      partners: [
+        {
+          id: 'conflict-only',
+          state: 'sourced',
+          score: 100,
+          linkedin: 'https://linkedin.com/in/kept-person',
+          contactProvenance: {
+            conflicts: { linkedin: { status: 'conflict' } },
+          },
+        },
+        {
+          id: 'valid-alias',
+          state: 'sourced',
+          score: 90,
+          email: 'potter@trydemigod.com',
+          contactEmail: 'founder@realco.test',
+          linkedin: 'https://linkedin.com/in/kept-person',
+          contactProvenance: {
+            conflicts: { linkedin: { status: 'conflict' } },
+          },
+        },
+        {
+          id: 'valid-handle',
+          state: 'sourced',
+          score: 80,
+          handle: '@realperson',
+          linkedin: 'https://linkedin.com/in/kept-person',
+          contactProvenance: {
+            conflicts: { linkedin: { status: 'conflict' } },
+          },
+        },
+      ],
+      talent: [],
+    },
+    5,
+  );
+  assert(
+    conflictGuarded.map((lead) => lead.id).join() ===
+      'valid-alias,valid-handle',
+    'draft batch abstains on conflict-only LinkedIn without hiding independent email/X',
   );
 }
 
@@ -991,6 +1059,7 @@ assert(placementPairId({ pairIds: ['pair-a'] }, 'pair-b') === '', 'unbound expli
       email: 'founder@startup.test',
       contactEmail: 'founder@startup.test',
       handle: '@founder',
+      linkedin: 'https://www.linkedin.com/in/founder',
       applyUrl: 'https://jobs.startup.test/apply/1',
       provenance,
       contactProvenance,
@@ -1021,6 +1090,30 @@ assert(placementPairId({ pairIds: ['pair-a'] }, 'pair-b') === '', 'unbound expli
   assert(merged.policyHoldReason === 'no-contact-email', 're-collect preserves policy-hold reason');
   assert(merged.contactProvenance === contactProvenance, 're-collect preserves contact provenance');
   assert(merged.provenance === provenance, 're-collect preserves source provenance');
+  const mergeConflict = mergeLeadState(
+    {
+      id: 'conflict-merge',
+      linkedin: 'https://www.linkedin.com/in/new-founder',
+      companyUrl: 'https://new.example/',
+    },
+    {
+      id: 'conflict-merge',
+      linkedin: 'https://www.linkedin.com/in/old-founder',
+      companyUrl: 'https://old.example/',
+      contactProvenance: {
+        conflicts: {
+          linkedin: { status: 'conflict' },
+          companyUrl: { status: 'conflict' },
+        },
+      },
+    },
+  );
+  assert(
+    mergeConflict.linkedin === 'https://www.linkedin.com/in/old-founder' &&
+      mergeConflict.companyUrl === 'https://old.example/' &&
+      mergeConflict.contactProvenance?.conflicts?.linkedin,
+    're-collect preserves stored values while structured conflicts await resolution',
+  );
   assert(
     merged.pairIds?.[0] === 'pair-1' &&
       merged.pilotId === 'pilot-1' &&
@@ -1054,17 +1147,19 @@ assert(placementPairId({ pairIds: ['pair-a'] }, 'pair-b') === '', 'unbound expli
       merged.email === 'founder@startup.test' &&
       merged.contactEmail === 'founder@startup.test' &&
       merged.handle === '@founder' &&
+      merged.linkedin === 'https://www.linkedin.com/in/founder' &&
       merged.applyUrl === 'https://jobs.startup.test/apply/1',
     're-collect preserves join and contact/apply metadata',
   );
   const emptyContact = mergeLeadState(
-    { id: 'empty-contact', email: '', contactEmail: '', handle: '', applyUrl: '' },
-    { id: 'empty-contact', email: 'founder@startup.test', contactEmail: 'founder@startup.test', handle: '@founder', applyUrl: 'https://startup.test/apply' },
+    { id: 'empty-contact', email: '', contactEmail: '', handle: '', linkedin: '', applyUrl: '' },
+    { id: 'empty-contact', email: 'founder@startup.test', contactEmail: 'founder@startup.test', handle: '@founder', linkedin: 'https://www.linkedin.com/in/founder', applyUrl: 'https://startup.test/apply' },
   );
   assert(
     emptyContact.email === 'founder@startup.test' &&
       emptyContact.contactEmail === 'founder@startup.test' &&
       emptyContact.handle === '@founder' &&
+      emptyContact.linkedin === 'https://www.linkedin.com/in/founder' &&
       emptyContact.applyUrl === 'https://startup.test/apply',
     're-collect cannot erase contact metadata with empty strings',
   );
@@ -1417,6 +1512,10 @@ assert(!receiptArgsValid(['--id']), 'receipt rejects missing values');
       },
     });
     assert(fs.readFileSync(receipt, 'utf8') === 'proof\n', 'receipt publishes only after state commit');
+    assert(
+      (fs.statSync(receipt).mode & 0o777) === 0o600,
+      'receipt transaction publishes private evidence mode 0600',
+    );
   } finally {
     fs.rmSync(txDir, { recursive: true, force: true });
   }
@@ -2018,17 +2117,48 @@ Showed Expanding Rapidly We The open roles
       },
       { id: 'has-email', state: 'drafted', email: 'hire@acme.test', company: 'Acme' },
       { id: 'has-handle', state: 'approved', handle: 'realperson1', company: 'Beta' },
+      {
+        id: 'has-linkedin',
+        state: 'drafted',
+        linkedin: 'https://www.linkedin.com/in/real-person',
+        company: 'Gamma',
+      },
+      {
+        id: 'linkedin-conflict',
+        state: 'drafted',
+        linkedin: 'https://www.linkedin.com/in/kept-person',
+        contactProvenance: {
+          conflicts: { linkedin: { status: 'conflict' } },
+        },
+        company: 'Delta',
+      },
     ],
     talent: [],
   };
   const nc = countNoContact(doc);
-  assert(nc.noContact === 1 && nc.ids.includes('url-only'), 'countNoContact finds url-only');
+  assert(
+    nc.noContact === 2 &&
+      nc.ids.includes('url-only') &&
+      nc.ids.includes('linkedin-conflict'),
+    'countNoContact finds url-only and disputed LinkedIn identity',
+  );
   const r = parkNoUsableContact(doc, { actor: 'agent' });
-  assert(r.parked.length === 1 && r.parked[0].id === 'url-only', 'parkNoUsableContact parks url-only');
+  assert(
+    r.parked.length === 2 &&
+      r.parked.some((row) => row.id === 'url-only') &&
+      r.parked.some((row) => row.id === 'linkedin-conflict'),
+    'parkNoUsableContact parks url-only and disputed LinkedIn identity',
+  );
   assert(doc.partners[0].state === 'policy_hold', 'url-only → policy_hold');
   assert(doc.partners[0].policyHoldReason === 'no-usable-contact', 'reason no-usable-contact');
   assert(doc.partners[1].state === 'drafted', 'email kept drafted');
   assert(doc.partners[2].state === 'approved', 'handle kept approved');
+  assert(doc.partners[3].state === 'drafted', 'LinkedIn manual-review draft stays drafted');
+  assert(
+    doc.partners[4].state === 'policy_hold' &&
+      doc.partners[4].policyHoldReason === 'linkedin-identity-conflict',
+    'disputed LinkedIn identity abstains on an explicit hold',
+  );
   const r2 = parkNoUsableContact(doc, { actor: 'agent' });
   assert(r2.parked.length === 0, 'parkNoUsableContact idempotent');
 
@@ -2052,6 +2182,68 @@ Showed Expanding Rapidly We The open roles
   const rel2 = releaseContactableHolds(still, { actor: 'agent' });
   assert(rel2.released.length === 0, 'release skips still-no-contact');
   assert(still.partners[0].state === 'policy_hold', 'no-contact stays hold');
+  const protectedHolds = {
+    partners: [
+      { id: 'no-mx', state: 'policy_hold', policyHoldReason: 'no-mx', email: 'a@b.co' },
+      { id: 'manual', state: 'policy_hold', policyHoldReason: 'manual-review', email: 'a@b.co' },
+      { id: 'policy', state: 'policy_hold', policyHoldReason: 'policy', email: 'a@b.co' },
+      { id: 'unknown', state: 'policy_hold', email: 'a@b.co' },
+      { id: 'opted-out', state: 'opted_out', email: 'a@b.co' },
+    ],
+    talent: [],
+  };
+  const protectedRelease = releaseContactableHolds(protectedHolds, { actor: 'agent' });
+  assert(
+    protectedRelease.released.length === 0 &&
+      protectedHolds.partners.every((lead) => lead.state !== 'drafted'),
+    'releaseContactableHolds preserves no-mx, manual, policy, unknown, and opt-out holds',
+  );
+  const conflictOnly = {
+    partners: [{
+      id: 'conflict-only',
+      state: 'policy_hold',
+      policyHoldReason: 'no-usable-contact',
+      linkedin: 'https://www.linkedin.com/in/kept-person',
+      contactProvenance: {
+        conflicts: { linkedin: { status: 'conflict' } },
+      },
+    }],
+    talent: [],
+  };
+  const conflictRelease = releaseContactableHolds(conflictOnly, { actor: 'agent' });
+  assert(
+    conflictRelease.released.length === 0 &&
+      conflictRelease.skipped[0]?.reason === 'linkedin-identity-conflict' &&
+      conflictOnly.partners[0].policyHoldReason === 'linkedin-identity-conflict',
+    'releaseContactableHolds abstains on disputed LinkedIn identity',
+  );
+  conflictOnly.partners[0].email = 'potter@trydemigod.com';
+  conflictOnly.partners[0].contactEmail = 'verified@delta.test';
+  assert(
+    releaseContactableHolds(conflictOnly, { actor: 'agent' }).released.length === 1,
+    'independent valid email can release a LinkedIn-conflicted hold',
+  );
+  const noMxConflict = {
+    partners: [{
+      id: 'no-mx-conflict',
+      state: 'policy_hold',
+      policyHoldReason: 'no-mx',
+      linkedin: 'https://www.linkedin.com/in/kept-person',
+      contactProvenance: {
+        conflicts: { linkedin: { status: 'conflict' } },
+      },
+    }],
+    talent: [],
+  };
+  releaseContactableHolds(noMxConflict, { actor: 'agent' });
+  noMxConflict.partners[0].contactEmail = 'verified@delta.test';
+  const noMxConflictRelease = releaseContactableHolds(noMxConflict, { actor: 'agent' });
+  assert(
+    noMxConflictRelease.released.length === 0 &&
+      noMxConflict.partners[0].state === 'policy_hold' &&
+      noMxConflict.partners[0].policyHoldReason === 'no-mx',
+    'releaseContactableHolds cannot launder no-mx through a LinkedIn conflict',
+  );
 }
 
 // 14e) planSendReady — approved + contact only; never invents send
@@ -2116,7 +2308,7 @@ Showed Expanding Rapidly We The open roles
     'canTransition human → approved ok',
   );
   assert(
-    canTransition('drafted', 'approved', { evidenceText: 'ok', actor: 'grok-busy-loop' }).ok === false,
+    canTransition('drafted', 'approved', { evidenceText: 'ok', actor: 'automation-worker' }).ok === false,
     'canTransition agent → approved refused',
   );
   assert(
@@ -2294,6 +2486,11 @@ Showed Expanding Rapidly We The open roles
     classifyApproveBlockReason('ATS apply only — open posting; not batch-approvable') ===
       'ats_apply_only',
     'classify: ats_apply_only',
+  );
+  assert(
+    classifyApproveBlockReason('LinkedIn profile only — manual profile review') ===
+      'linkedin_manual_review',
+    'classify: LinkedIn manual review',
   );
   assert(
     Object.keys(summarizeBlockedReasons([])).length === 0,
@@ -2617,6 +2814,12 @@ assert(
     state: 'form_filled',
     title: 'Founding Eng',
     company: 'Gauge',
+    stage: 'seed',
+    skills: 'TypeScript, distributed systems',
+    outcome90d: 'Ship the first reliable customer workflow',
+    locationPref: 'sf-hybrid',
+    comp: '$180k-$220k',
+    sample: false,
   };
   const drafted = {
     id: 'p-dr',
@@ -2624,7 +2827,13 @@ assert(
     title: 'Founding Eng',
     company: 'OtherCo',
   };
-  const pool = funnelRolesFromPartners([formFilled, drafted], boardRoles);
+  const incomplete = {
+    id: 'p-incomplete',
+    state: 'form_filled',
+    title: 'Founding Eng',
+    company: 'IncompleteCo',
+  };
+  const pool = funnelRolesFromPartners([formFilled, drafted, incomplete], boardRoles);
   assert(
     pool.some((r) => r.id === 'funnel:p-ff' && r.source === 'funnel' && r.status === 'Active'),
     'form_filled partner appears in matcher pool with source=funnel',
@@ -2639,6 +2848,22 @@ assert(
   assert(
     empty.some((r) => r.id === 'role-board') && empty.every((r) => r.source !== 'funnel'),
     'empty leads file → no funnel roles added',
+  );
+  const ready = getStartupRoles(
+    { roles: boardRoles },
+    { partners: [formFilled, drafted, incomplete] },
+  );
+  const funnelRole = ready.find((r) => r.id === 'funnel:p-ff');
+  assert(
+    funnelRole?.outcome90d === formFilled.outcome90d &&
+      funnelRole.comp === formFilled.comp &&
+      funnelRole.locationPref === formFilled.locationPref &&
+      funnelRole.sample === false,
+    'complete form_filled partner survives matcher readiness with exact role constraints',
+  );
+  assert(
+    !ready.some((r) => r.id === 'funnel:p-incomplete'),
+    'incomplete form_filled partner remains outside matcher readiness',
   );
   const boardPath = path.join(__dirname, 'DEMIGOD-BOARD.json');
   const before = createHash('sha256').update(fs.readFileSync(boardPath)).digest('hex');
@@ -2890,9 +3115,20 @@ assert(
   // wrong from still refused
   assert(planReceipt('drafted', { messageId: '<x@y>' }).ok === false, 'planReceipt drafted refused');
   assert(planReceipt('replied', { messageId: '<x@y>' }).ok === false, 'planReceipt replied refused');
-  assert(receiptDestinationMatches({ email: 'A@Example.com' }, 'email', 'a@example.com'), 'receipt destination: email match');
-  assert(!receiptDestinationMatches({ email: 'a@example.com' }, 'email', ''), 'receipt destination: missing refused');
-  assert(!receiptDestinationMatches({ email: 'a@example.com' }, 'email', 'b@example.com'), 'receipt destination: mismatch refused');
+  assert(receiptDestinationMatches({ email: 'A@Real.test' }, 'email', 'a@real.test'), 'receipt destination: email match');
+  assert(!receiptDestinationMatches({ email: 'a@real.test' }, 'email', ''), 'receipt destination: missing refused');
+  assert(!receiptDestinationMatches({ email: 'a@real.test' }, 'email', 'b@real.test'), 'receipt destination: mismatch refused');
+  assert(
+    receiptDestinationMatches(
+      {
+        email: 'potter@trydemigod.com',
+        contactEmail: 'verified@real.test',
+      },
+      'email',
+      'verified@real.test',
+    ),
+    'receipt destination: valid alternate email survives noisy alias',
+  );
   assert(receiptDestinationMatches({ handle: '@Demigod' }, 'x', 'demigod'), 'receipt destination: handle match');
 }
 
@@ -3292,7 +3528,491 @@ assert(
   skipReason = '';
 }
 
-// 20b) money-path transitions persist an unambiguous placement pair
+// 20a) workflow-owned identity states cannot be bypassed through generic transition
+{
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-identity-transition-'));
+  const funnelBin = path.join(__dirname, 'demigod-funnel.mjs');
+  const evidence = path.join(tmp, 'evidence.txt');
+  const leadsFile = path.join(tmp, 'DEMIGOD-LEADS.json');
+  fs.writeFileSync(evidence, 'non-empty but not workflow-bound evidence\n');
+  fs.writeFileSync(leadsFile, JSON.stringify({
+    partners: [
+      { id: 'direct-form', state: 'policy_hold', email: 'founder@realco.test' },
+      { id: 'direct-review', state: 'form_filled', email: 'founder@realco.test' },
+    ],
+    talent: [],
+  }, null, 2));
+  const before = fs.readFileSync(leadsFile, 'utf8');
+  const run = (...args) => spawnSync(
+    process.execPath,
+    [funnelBin, 'transition', ...args],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, DEMIGOD_ROOT: tmp },
+      cwd: __dirname,
+      timeout: 15000,
+    },
+  );
+  const form = run('--id=direct-form', '--to=form_filled', `--evidence=${evidence}`);
+  const review = run('--id=direct-review', '--to=in_review', `--evidence=${evidence}`);
+  if (form.error?.code === 'EPERM' || review.error?.code === 'EPERM') {
+    skipReason = 'nested process spawn unavailable';
+    assert(false, 'identity transition checks require nested process spawn');
+  } else {
+    assert(
+      form.status !== 0 && /use join --apply/.test(form.stderr || form.stdout || ''),
+      'generic transition: form_filled requires the identity-bound join workflow',
+    );
+    assert(
+      review.status !== 0 && /use match --apply/.test(review.stderr || review.stdout || ''),
+      'generic transition: in_review requires the subject-bound match workflow',
+    );
+    assert(fs.readFileSync(leadsFile, 'utf8') === before, 'rejected identity transitions do not mutate CRM');
+  }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* */ }
+  skipReason = '';
+}
+
+// 20b) RecruitAI sourcer promotion is one-id, dry-run-first, source-only, and idempotent
+{
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-sourcer-import-'));
+  const funnelBin = path.join(__dirname, 'demigod-funnel.mjs');
+  const leadsFile = path.join(tmp, 'DEMIGOD-LEADS.json');
+  const logFile = path.join(tmp, '.dg-busy', 'funnel', 'transitions.jsonl');
+  const previewFile = path.join(tmp, 'lead-sourcer-latest.json');
+  const targetId = 'yc:importable';
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(today) - 86_400_000).toISOString().slice(0, 10);
+  fs.writeFileSync(
+    path.join(tmp, 'DEMIGOD-ROLE-LEDGER.json'),
+    JSON.stringify({ schema: 'demigod.role-ledger/1', updatedAt: today, roles: {} }),
+  );
+  const makeArtifact = (roleTitle = 'Founding Engineer') => buildExport(
+    {
+      generatedAt: `${today}T00:00:00.000Z`,
+      companies: [
+        {
+          id: targetId,
+          name: 'Importable',
+          website: 'https://importable.test',
+          jobsUrl: 'https://boards.greenhouse.io/importable',
+          atsSource: 'Greenhouse',
+          sourceLicense: 'YC-public',
+          sourceUrl: 'https://www.ycombinator.com/companies/importable',
+          retrievedAt: today,
+        },
+        {
+          id: 'yc:no-agencies',
+          name: 'No Agencies',
+          website: 'https://no-agencies.test',
+          jobsUrl: 'https://boards.greenhouse.io/no-agencies',
+          atsSource: 'Greenhouse',
+          sourceLicense: 'YC-public',
+          sourceUrl: 'https://www.ycombinator.com/companies/no-agencies',
+          retrievedAt: today,
+        },
+      ],
+    },
+    {
+      updatedAt: today,
+      roles: {
+        'Greenhouse|importable|1': {
+          provider: 'Greenhouse',
+          slug: 'importable',
+          jobId: '1',
+          company: 'Importable',
+          title: roleTitle,
+          url: 'https://boards.greenhouse.io/importable/jobs/1',
+          firstSeen: yesterday,
+          lastSeen: today,
+        },
+        'Greenhouse|no-agencies|2': {
+          provider: 'Greenhouse',
+          slug: 'no-agencies',
+          jobId: '2',
+          company: 'No Agencies',
+          title: 'Software Engineer',
+          url: 'https://boards.greenhouse.io/no-agencies/jobs/2',
+          firstSeen: yesterday,
+          lastSeen: today,
+          agencyPolicyEvidence: {
+            status: 'supported',
+            quote: 'No agencies please.',
+            url: 'https://boards.greenhouse.io/no-agencies/jobs/2',
+          },
+        },
+      },
+    },
+    { today },
+  );
+  const writeGeneration = (artifact, generationName) => {
+    const generations = path.join(tmp, 'recruitai-export-generations');
+    const generation = path.join(generations, generationName);
+    const pointer = path.join(tmp, 'recruitai-export');
+    const jsonPath = path.join(generation, 'latest.json');
+    const csvPath = path.join(generation, 'latest.csv');
+    const json = Buffer.from(JSON.stringify(artifact));
+    const csv = Buffer.from('mapCompanyId\n');
+    fs.mkdirSync(generation, { recursive: true, mode: 0o700 });
+    fs.chmodSync(generations, 0o700);
+    fs.chmodSync(generation, 0o700);
+    fs.writeFileSync(jsonPath, json, { mode: 0o600 });
+    fs.writeFileSync(csvPath, csv, { mode: 0o600 });
+    const mapPath = path.join(tmp, 'DEMIGOD-SF-STARTUP-MAP.json');
+    fs.writeFileSync(
+      mapPath,
+      JSON.stringify({ generatedAt: artifact.mapGeneratedAt }),
+      { mode: 0o600 },
+    );
+    fs.utimesSync(mapPath, new Date(artifact.generatedAt), new Date(artifact.generatedAt));
+    fs.writeFileSync(
+      path.join(generation, 'commit.json'),
+      JSON.stringify({
+        schema: 'demigod.recruitai-export-commit/1',
+        at: artifact.generatedAt,
+        generation,
+        rows: artifact.rows.length,
+        rowLimit: artifact.rowLimit,
+        files: {
+          'latest.json': createHash('sha256').update(json).digest('hex'),
+          'latest.csv': createHash('sha256').update(csv).digest('hex'),
+        },
+      }),
+      { mode: 0o600 },
+    );
+    if (fs.existsSync(pointer)) fs.unlinkSync(pointer);
+    fs.symlinkSync(generation, pointer, 'dir');
+    return { jsonPath };
+  };
+  const writeCrm = (doc) => fs.writeFileSync(
+    leadsFile,
+    JSON.stringify(doc, null, 2) + '\n',
+    { mode: 0o600 },
+  );
+  const run = (args, extraEnv = {}) => {
+    const env = {
+      ...process.env,
+      DEMIGOD_ROOT: tmp,
+      DEMIGOD_BUSY: tmp,
+    };
+    delete env.DEMIGOD_RECRUITAI_EXPORT;
+    Object.assign(env, extraEnv);
+    return spawnSync(
+      process.execPath,
+      [funnelBin, 'import-sourcer', ...args],
+      { cwd: __dirname, env, encoding: 'utf8', timeout: 15000 },
+    );
+  };
+  const parse = (result) => {
+    try {
+      return JSON.parse(result.stdout);
+    } catch {
+      return null;
+    }
+  };
+  const sentinelPartner = {
+    id: 'keep-opted-out',
+    company: 'Keep Me',
+    state: 'opted_out',
+    status: 'opted_out',
+    marker: { untouched: true },
+  };
+  const sentinelTalent = {
+    id: 'keep-talent',
+    state: 'in_review',
+    marker: { untouched: true },
+  };
+
+  try {
+    const originalArtifact = makeArtifact();
+    writeGeneration(originalArtifact, '1-original');
+    writeCrm({
+      schema: 'demigod.leads/2+funnel',
+      partners: [sentinelPartner],
+      talent: [sentinelTalent],
+    });
+    const originalCrm = fs.readFileSync(leadsFile, 'utf8');
+    const poisonPreview = JSON.stringify({
+      leads: [{
+        id: targetId,
+        company: 'POISON',
+        email: 'poison@example.test',
+        state: 'approved',
+      }],
+    });
+    fs.writeFileSync(previewFile, poisonPreview, { mode: 0o600 });
+
+    const dry = run([`--id=${targetId}`], {
+      DEMIGOD_RECRUITAI_EXPORT: previewFile,
+    });
+    const dryReport = parse(dry);
+    assert(
+      dry.status === 0 &&
+        dryReport?.dryRun === true &&
+        dryReport?.eligible === true &&
+        dryReport?.written === false,
+      'import-sourcer defaults to an eligible read-only dry run',
+    );
+    assert(
+      fs.readFileSync(leadsFile, 'utf8') === originalCrm &&
+        fs.readFileSync(previewFile, 'utf8') === poisonPreview &&
+        !fs.existsSync(logFile),
+      'import-sourcer dry run preserves CRM/log/preview bytes and ignores the preview override',
+    );
+    const lockFile = `${leadsFile}.lock`;
+    const lockSentinel = `${process.pid} read-only sentinel\n`;
+    fs.writeFileSync(lockFile, lockSentinel, { mode: 0o600 });
+    const lockedDry = run([`--id=${targetId}`]);
+    assert(
+      lockedDry.status === 0 &&
+        fs.readFileSync(lockFile, 'utf8') === lockSentinel &&
+        fs.readFileSync(leadsFile, 'utf8') === originalCrm &&
+        !fs.existsSync(logFile),
+      'import-sourcer dry run neither acquires nor alters the CRM writer lock',
+    );
+    fs.rmSync(lockFile);
+
+    writeCrm({
+      schema: 'demigod.leads/2+funnel',
+      partners: [sentinelPartner],
+      talent: null,
+    });
+    const invalidCrm = fs.readFileSync(leadsFile, 'utf8');
+    const invalidApply = run([`--id=${targetId}`, '--apply']);
+    assert(
+      invalidApply.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === invalidCrm &&
+        !fs.existsSync(logFile),
+      'import-sourcer refuses a malformed talent lane without rewriting CRM or transition log',
+    );
+    fs.writeFileSync(leadsFile, originalCrm, { mode: 0o600 });
+
+    fs.mkdirSync(path.dirname(logFile), { recursive: true, mode: 0o700 });
+    const existingLog = '{"sentinel":"keep"}\n';
+    fs.writeFileSync(logFile, existingLog, { mode: 0o000 });
+    fs.chmodSync(logFile, 0o000);
+    const unreadableLogApply = run([`--id=${targetId}`, '--apply']);
+    const logSurvived = fs.existsSync(logFile);
+    if (logSurvived) fs.chmodSync(logFile, 0o600);
+    assert(
+      unreadableLogApply.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === originalCrm &&
+        logSurvived &&
+        fs.readFileSync(logFile, 'utf8') === existingLog,
+      'import-sourcer preserves CRM and a pre-existing unreadable transition log',
+    );
+    fs.rmSync(logFile);
+
+    fs.mkdirSync(path.dirname(logFile), { recursive: true, mode: 0o500 });
+    fs.chmodSync(path.dirname(logFile), 0o500);
+    const failedApply = run([`--id=${targetId}`, '--apply']);
+    assert(
+      failedApply.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === originalCrm &&
+        !fs.existsSync(logFile),
+      'import-sourcer restores CRM when transition-log append fails',
+    );
+    fs.chmodSync(path.dirname(logFile), 0o700);
+
+    const applied = run([`--id=${targetId}`, '--apply'], {
+      DEMIGOD_RECRUITAI_EXPORT: previewFile,
+    });
+    const appliedReport = parse(applied);
+    const appliedDoc = JSON.parse(fs.readFileSync(leadsFile, 'utf8'));
+    const imported = appliedDoc.partners.find((lead) => lead.id === targetId);
+    assert(
+      applied.status === 0 &&
+        appliedReport?.written === true &&
+        imported?.state === 'sourced' &&
+        imported?.status === 'sourced',
+      'import-sourcer --apply inserts exactly one sourced partner',
+    );
+    assert(
+      imported?.company === 'Importable' &&
+        imported?.url === 'https://boards.greenhouse.io/importable/jobs/1' &&
+        imported?.jobsUrl === 'https://boards.greenhouse.io/importable' &&
+        imported?.sampleRoleTitle === 'Founding Engineer' &&
+        imported?.provenance?.sourceUrl ===
+          'https://www.ycombinator.com/companies/importable',
+      'import-sourcer keeps public company/jobs/role provenance',
+    );
+    const forbidden = new Set([
+      'approval',
+      'approved',
+      'consented',
+      'contactEmail',
+      'draft',
+      'email',
+      'fee',
+      'feeCents',
+      'handle',
+      'linkedin',
+      'phone',
+      'queue',
+      'score',
+      'send',
+    ]);
+    const importedKeys = [];
+    JSON.stringify(imported, (key, value) => {
+      importedKeys.push(key);
+      return value;
+    });
+    assert(
+      !importedKeys.some((key) => forbidden.has(key)),
+      'import-sourcer row has no contact, consent, score, fee, approval, queue, draft, or send fields',
+    );
+    assert(
+      imported?.stateHistory?.length === 1 &&
+        imported.stateHistory[0]?.from === 'sourcer' &&
+        imported.stateHistory[0]?.to === 'sourced' &&
+        imported.stateHistory[0]?.actor === 'agent' &&
+        imported.stateHistory[0]?.note === 'import-sourcer:recruitai-public' &&
+        imported.stateHistory[0]?.at === imported.stateUpdatedAt,
+      'import-sourcer records one local source-to-sourced lifecycle receipt',
+    );
+    assert(
+      JSON.stringify(appliedDoc.partners[0]) === JSON.stringify(sentinelPartner) &&
+        JSON.stringify(appliedDoc.talent) === JSON.stringify([sentinelTalent]),
+      'import-sourcer preserves every existing CRM row',
+    );
+    const logAfterApply = fs.readFileSync(logFile, 'utf8');
+    assert(
+      logAfterApply.trim().split('\n').length === 1 &&
+        JSON.parse(logAfterApply).id === targetId &&
+        JSON.parse(logAfterApply).to === 'sourced',
+      'import-sourcer appends one existing-convention funnel transition log row',
+    );
+    assert(
+      !fs.existsSync(path.join(tmp, 'demigod-outreach')) &&
+        fs.readdirSync(path.join(tmp, '.dg-busy')).join() === 'funnel' &&
+        fs.readdirSync(path.dirname(logFile)).join() === 'transitions.jsonl' &&
+        (fs.statSync(leadsFile).mode & 0o777) === 0o600,
+      'import-sourcer creates no draft/send/package artifacts and keeps CRM private',
+    );
+
+    const crmAfterApply = fs.readFileSync(leadsFile, 'utf8');
+    const repeated = run([`--id=${targetId}`, '--apply']);
+    assert(
+      repeated.status === 0 &&
+        parse(repeated)?.alreadyPresent === true &&
+        fs.readFileSync(leadsFile, 'utf8') === crmAfterApply &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer exact current projection is byte- and log-idempotent',
+    );
+
+    const alteredDoc = JSON.parse(crmAfterApply);
+    alteredDoc.partners.find((lead) => lead.id === targetId).email =
+      'added-after-import@real.test';
+    writeCrm(alteredDoc);
+    const alteredCrm = fs.readFileSync(leadsFile, 'utf8');
+    const altered = run([`--id=${targetId}`, '--apply']);
+    assert(
+      altered.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === alteredCrm &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer refuses a receipt-bearing row altered beyond the allowlisted projection',
+    );
+
+    fs.writeFileSync(leadsFile, crmAfterApply, { mode: 0o600 });
+    writeGeneration(makeArtifact('Senior Founding Engineer'), '2-source-drift');
+    const drifted = run([`--id=${targetId}`, '--apply']);
+    assert(
+      drifted.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === crmAfterApply &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer blocks idempotence when current committed source projection drifted',
+    );
+
+    writeGeneration(originalArtifact, '3-blockers');
+    for (const [state, stateHistory = []] of [
+      ['sourced'],
+      ['policy_hold'],
+      ['opted_out'],
+      ['disqualified', [{
+        at: '2026-07-28T00:00:00.000Z',
+        from: 'sourced',
+        to: 'disqualified',
+        actor: 'human',
+        evidence: null,
+        note: 'manual-disqualification',
+      }]],
+    ]) {
+      writeCrm({
+        partners: [{
+          id: targetId,
+          company: 'Importable',
+          state,
+          status: state,
+          ...(stateHistory.length ? { stateHistory } : {}),
+        }],
+        talent: [],
+      });
+      const blockedCrm = fs.readFileSync(leadsFile, 'utf8');
+      const blocked = run([`--id=${targetId}`, '--apply']);
+      assert(
+        blocked.status !== 0 &&
+          fs.readFileSync(leadsFile, 'utf8') === blockedCrm &&
+          fs.readFileSync(logFile, 'utf8') === logAfterApply,
+        `import-sourcer preserves existing ${state} CRM blocker`,
+      );
+    }
+
+    writeCrm({ partners: [], talent: [] });
+    const noAgencyCrm = fs.readFileSync(leadsFile, 'utf8');
+    const noAgency = run(['--id=yc:no-agencies', '--apply']);
+    assert(
+      noAgency.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === noAgencyCrm &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer preserves the shared positive no-agency evidence abstention',
+    );
+
+    const unsafeArtifact = makeArtifact();
+    unsafeArtifact.rows.find((row) => row.mapCompanyId === targetId).jobsUrl =
+      'file:///etc/passwd';
+    writeGeneration(unsafeArtifact, '4-unsafe');
+    const unsafeCrm = fs.readFileSync(leadsFile, 'utf8');
+    const unsafe = run([`--id=${targetId}`]);
+    assert(
+      unsafe.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === unsafeCrm &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer refuses unsafe committed source evidence without mutation',
+    );
+
+    const poisonedGeneration = writeGeneration(originalArtifact, '5-hash-poison');
+    fs.appendFileSync(poisonedGeneration.jsonPath, ' ');
+    const hashPoisoned = run([`--id=${targetId}`, '--apply']);
+    assert(
+      hashPoisoned.status !== 0 &&
+        fs.readFileSync(leadsFile, 'utf8') === unsafeCrm &&
+        fs.readFileSync(logFile, 'utf8') === logAfterApply,
+      'import-sourcer refuses a hash-poisoned private generation without mutation',
+    );
+
+    writeGeneration(originalArtifact, '6-args');
+    writeCrm({ partners: [], talent: [] });
+    const argsCrm = fs.readFileSync(leadsFile, 'utf8');
+    for (const args of [
+      [],
+      [`--id=${targetId}`, `--id=${targetId}`],
+      ['--id=not-yc'],
+      [`--id=${targetId}`, '--apply', '--dry-run'],
+    ]) {
+      const invalid = run(args);
+      assert(
+        invalid.status === 2 &&
+          fs.readFileSync(leadsFile, 'utf8') === argsCrm &&
+          !fs.existsSync(`${leadsFile}.lock`),
+        `import-sourcer requires exactly one safe id and one mode (${args.join(' ') || 'empty'})`,
+      );
+    }
+  } finally {
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* */ }
+  }
+}
+
+// 20c) money-path transitions persist an unambiguous placement pair
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-pair-transition-'));
   const funnelBin = path.join(__dirname, 'demigod-funnel.mjs');
@@ -3533,6 +4253,13 @@ assert(
     joinMatchVia({ id: 'other', email: 'founder@gauge.test' }, inboxSub) === 'email',
     'joinMatchVia email path',
   );
+  assert(
+    joinMatchVia(
+      { id: 'li', linkedin: 'linkedin.com/in/founder-one' },
+      { id: 'sub-li', raw: { linkedin: 'https://www.linkedin.com/in/Founder-One/?trk=copy' } },
+    ) === 'linkedin',
+    'joinMatchVia canonical LinkedIn identity path',
+  );
   assert(joinMatchVia({ id: 'nope', state: 'sent' }, inboxSub) === null, 'joinMatchVia no false positive');
 
   const holdSub = {
@@ -3599,6 +4326,30 @@ assert(
   );
   assert(!plan.pairs.some((p) => p.submissionId === 'sub-spam'), 'plan: skips synthetic/spam subs');
   assert(plan.eligible.length >= 3, 'plan: at least three eligible joins (incl policy_hold recovery)');
+  const linkedInPlan = planFormFilledJoins(
+    {
+      partners: [{
+        id: 'inbox-sub-li-attach',
+        state: 'sourced',
+        company: 'ProfileCo',
+        title: 'Founding Engineer',
+      }],
+      talent: [],
+    },
+    [{
+      id: 'sub-li-attach',
+      form: 'startup-hire',
+      raw: { linkedin: 'https://www.linkedin.com/in/Profile-Founder/?trk=public' },
+      status: 'new',
+    }],
+  );
+  assert(
+    linkedInPlan.eligible[0]?.via === 'inbox_id' &&
+      linkedInPlan.eligible[0]?.attachLinkedIn === true &&
+      linkedInPlan.eligible[0]?.linkedinFromSub ===
+        'https://www.linkedin.com/in/profile-founder',
+    'plan: self-submitted LinkedIn stays distinct from X and can attach with provenance',
+  );
 
   // vacuous: no identity overlap → zero pairs (not silent green apply)
   const vac = planFormFilledJoins(
@@ -3636,6 +4387,72 @@ assert(
     'contactless reason names no contact',
   );
   assert(contactlessPlan.eligible.length === 0, 'contactless not in eligible set');
+  const conflictJoinDoc = {
+    partners: [{
+      id: 'inbox-sub-conflict',
+      state: 'policy_hold',
+      policyHoldReason: 'linkedin-identity-conflict',
+      linkedin: 'https://www.linkedin.com/in/kept-founder',
+      contactProvenance: {
+        conflicts: { linkedin: { status: 'conflict' } },
+      },
+    }],
+    talent: [],
+  };
+  const conflictJoin = planFormFilledJoins(
+    conflictJoinDoc,
+    [{
+      id: 'sub-conflict',
+      form: 'startup-hire',
+      raw: { 'role-title': 'Founding Engineer' },
+      status: 'new',
+    }],
+  );
+  assert(
+    conflictJoin.pairs[0]?.eligible === false &&
+      conflictJoin.pairs[0]?.reason === 'linkedin_identity_conflict',
+    'form join: disputed LinkedIn cannot prove a contactless structural form fill',
+  );
+  const conflictJoinWithEmail = planFormFilledJoins(
+    conflictJoinDoc,
+    [{
+      id: 'sub-conflict',
+      form: 'startup-hire',
+      raw: {
+        'role-title': 'Founding Engineer',
+        'contact-email': 'verified@realco.test',
+      },
+      status: 'new',
+    }],
+  );
+  assert(
+    conflictJoinWithEmail.eligible[0]?.attachEmail === true,
+    'form join: independent valid submitted email remains eligible',
+  );
+  const conflictJoinReplacingNoise = planFormFilledJoins(
+    {
+      partners: [{
+        ...conflictJoinDoc.partners[0],
+        email: 'potter@trydemigod.com',
+        handle: '@ycombinator',
+      }],
+      talent: [],
+    },
+    [{
+      id: 'sub-conflict',
+      form: 'startup-hire',
+      raw: {
+        'contact-email': 'verified@realco.test',
+        handle: '@verifiedfounder',
+      },
+      status: 'new',
+    }],
+  );
+  assert(
+    conflictJoinReplacingNoise.eligible[0]?.attachEmail === true &&
+      conflictJoinReplacingNoise.eligible[0]?.attachHandle === true,
+    'form join: usable submitted contact replaces stored noise aliases',
+  );
   // joinedSubmissionId path same guard
   const joinedPlan = planFormFilledJoins(
     {
@@ -3703,7 +4520,7 @@ assert(
   assert(!!rehydSelfPair && rehydSelfPair.eligible === false, 'plan: self-domain lead rehyd not eligible');
   assert(/noise contact/i.test(rehydSelfPair.reason || ''), 'plan: self rehyd names noise contact');
 
-  // noise contact (SMS @pending.example / self domain) must not form_filled or attachEmail
+  // Reserved-domain noise / self domains must not form_filled or attachEmail.
   const noiseSub = {
     id: 'sub-sms-noise',
     form: 'engineer-join-sms',
@@ -3712,7 +4529,7 @@ assert(
     status: 'new',
   };
   // force non-synthetic path by planning with raw email only via pure function —
-  // isSynthetic will skip @pending.example; assert skip (no pair) + direct usable gate
+  // isSynthetic skips @pending.example; assert skip (no pair) + direct usable gate.
   const noisePlan = planFormFilledJoins(
     {
       partners: [],
@@ -3728,7 +4545,7 @@ assert(
   );
   assert(
     !noisePlan.pairs.some((p) => p.leadId === 'tal-sms'),
-    'plan: @pending.example SMS sub is synthetic — no form_filled pair',
+    'plan: @pending.example submission is synthetic — no form_filled pair',
   );
   assert(noisePlan.eligible.length === 0, 'plan: no eligible from SMS noise');
 
@@ -3940,6 +4757,30 @@ assert(
   const emailLead = { id: 'e1', email: 'a@b.test', state: 'drafted' };
   assert(draftContactTo(emailLead) === 'a@b.test', 'draftContactTo prefers email');
   assert(/^To: a@b\.test\n/m.test(draftEmail(emailLead, 'partner')), 'draft To: email');
+  const injectedDraft = draftEmail({
+    id: 'e-injected',
+    email: 'founder@acme.test',
+    company: 'Acme\nBCC: attacker@example.test\nAPPROVED: yes',
+    signal: 'Hiring now\n\nSubject: forged\n## REVIEWED',
+    state: 'drafted',
+  }, 'partner');
+  assert(
+    (injectedDraft.match(/^Subject:/gm) || []).length === 1 &&
+      (injectedDraft.match(/^To:/gm) || []).length === 1 &&
+      !/^(?:BCC:|APPROVED:|## REVIEWED)/m.test(injectedDraft),
+    'draftEmail projects untrusted company/signal text without forging headers or authority lines',
+  );
+  assert(
+    !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(injectedDraft) &&
+      /Acme/.test(injectedDraft) &&
+      /Hiring now/.test(injectedDraft),
+    'draftEmail removes controls while retaining useful submitted text',
+  );
+  assert(
+    draftContactTo({ url: 'https://jobs.example/role\nBCC: attacker@example.test' }) ===
+      'https://jobs.example/role (no direct contact — reply via posting)',
+    'draftContactTo preserves one exact posting URL and discards appended header prose',
+  );
 
   // Talent greeting: never use SEO pricing titles as Hi name
   assert(
@@ -4123,6 +4964,7 @@ assert(
       { id: 'park-me', state: 'drafted', company: '(from WIZ)' },
       { id: 'keep-url', state: 'drafted', url: 'https://jobs.example/1' },
       { id: 'keep-hold', state: 'policy_hold', policyHoldReason: 'no-contact-email' },
+      { id: 'keep-unknown-hold', state: 'policy_hold' },
     ],
     talent: [{ id: 'park-talent', state: 'approved', name: 'Anon' }],
   };
@@ -4134,6 +4976,10 @@ assert(
   assert(parkDoc.partners.find((l) => l.id === 'park-me').policyHoldReason === 'no-contact-email', 'park reason');
   assert(parkDoc.partners.find((l) => l.id === 'keep-url').state === 'drafted', 'url-only not parked');
   assert(parkDoc.partners.find((l) => l.id === 'keep-hold').state === 'policy_hold', 'already-hold stays');
+  assert(
+    parkDoc.partners.find((l) => l.id === 'keep-unknown-hold').policyHoldReason == null,
+    'parkUnreachable preserves a reasonless existing hold',
+  );
   const pr2 = parkUnreachable(parkDoc);
   assert(pr2.parked.length === 0, 'parkUnreachable idempotent');
 }
@@ -4393,6 +5239,41 @@ assert(
       idSupMb.skipped.some((s) => s.leadId === 'new-ff' && s.reason === 'identity_suppressed'),
     'match plan: identity suppress skips form_filled twin',
   );
+  const conflictMb = planMatchBridge({
+    partners: [{
+      id: 'conflict-ff',
+      state: 'form_filled',
+      title: 'Founding Engineer',
+      company: 'ConflictCo',
+      linkedin: 'https://linkedin.com/in/disputed-founder',
+      contactProvenance: {
+        conflicts: { linkedin: { status: 'conflict' } },
+      },
+    }],
+    talent: [],
+  });
+  assert(
+    conflictMb.ready.length === 0 &&
+      conflictMb.skipped[0]?.reason === 'linkedin_identity_conflict',
+    'match plan: conflict-only LinkedIn identity cannot enter review',
+  );
+  assert(
+    planMatchBridge({
+      partners: [{
+        id: 'conflict-email-ff',
+        state: 'form_filled',
+        title: 'Founding Engineer',
+        company: 'ConflictCo',
+        email: 'verified@conflictco.test',
+        linkedin: 'https://linkedin.com/in/disputed-founder',
+        contactProvenance: {
+          conflicts: { linkedin: { status: 'conflict' } },
+        },
+      }],
+      talent: [],
+    }).ready[0]?.leadId === 'conflict-email-ff',
+    'match plan: independent valid email keeps conflict-held profile from blocking review',
+  );
   // clean partner still ready
   assert(
     planMatchBridge({
@@ -4430,33 +5311,140 @@ assert(
   );
 
   // intro queue
-  const iq = planIntroQueue({
-    a: { pairId: 'a', roleId: 'r-a', candId: 'c-a', state: 'mutual_yes', mutual: { founder: true, candidate: true }, sample: false },
-    b: { pairId: 'b', roleId: 'r-b', candId: 'c-b', state: 'approved', sample: false },
-    c: { pairId: 'c', roleId: 'r-c', candId: 'c-c', state: 'mutual_yes', mutual: { founder: true, candidate: true }, sample: true },
-    d: { pairId: 'd', state: 'proposed', sample: false },
-    e: { pairId: 'e', state: 'in_review' },
-    f: {
-      pairId: 'f',
-      roleId: 'r-f',
-      candId: 'c-f',
-      state: 'mutual_yes',
-      mutual: { founder: true, candidate: false },
-      sample: false,
+  const fixturePairId = (roleId, candId) =>
+    createHash('sha256')
+      .update([roleId, candId].sort().join('|'))
+      .digest('hex')
+      .slice(0, 16);
+  const fixtureConsentHistory = (state = 'mutual_yes') => [
+    {
+      at: '2026-07-01T10:00:00.000Z',
+      actor: 'fixture',
+      event: 'consent',
+      side: 'founder',
+      evidence: 'founder consent recorded for fixture intro path',
+      state,
     },
-    g: { pairId: 'g', state: 'mutual_yes', mutual: { founder: true, candidate: true }, sample: false },
+    {
+      at: '2026-07-01T10:05:00.000Z',
+      actor: 'fixture',
+      event: 'consent',
+      side: 'candidate',
+      evidence: 'candidate consent recorded for fixture intro path',
+      state,
+    },
+  ];
+  const fixturePair = (roleId, candId, fields = {}) => {
+    const state = fields.state;
+    const needsMutualReceipts =
+      state === 'mutual_yes' &&
+      fields.mutual?.founder === true &&
+      fields.mutual?.candidate === true;
+    return {
+      pairId: fixturePairId(roleId, candId),
+      roleId,
+      candId,
+      sample: false,
+      // Real-pair origin gate (assertCurrentPairEligibility): forged sample→real hand-edits
+      // set createdSample true/undefined; fixtures must opt in as born-real.
+      createdSample: false,
+      // mutual_yes intro-ready path requires assertCurrentMutualPairEligibility receipts.
+      ...(needsMutualReceipts && !fields.history
+        ? { history: fixtureConsentHistory(state) }
+        : {}),
+      ...fields,
+    };
+  };
+  const fixtureEligiblePairs = [
+    ['r-a', 'c-a'],
+    ['r-b', 'c-b'],
+    ['r-c', 'c-c'],
+    ['r-t', 'c-t'],
+    ['r-l', 'c-l'],
+    ['r1', 'c1'],
+    ['r2', 'c2'],
+    ['r3', 'c3'],
+    ['r4', 'c4'],
+    ['r-samp-il', 'c-samp-il'],
+    ['conflict-role', 'conflict-candidate'],
+  ];
+  const fixturePairContext = {
+    board: {
+      roles: fixtureEligiblePairs.map(([roleId]) => ({
+        id: roleId,
+        sample: false,
+        title: 'Founding Engineer',
+        sourceSubmissionHash: createHash('sha256').update(`origin-${roleId}`).digest('hex'),
+      })),
+    },
+    inbox: {
+      items: fixtureEligiblePairs.flatMap(([roleId, candId]) => [
+        {
+          id: `origin-${roleId}`,
+          featuredId: roleId,
+          status: 'featured',
+          form: 'startup-hire',
+          data: { 'company-name': `Company ${roleId}` },
+        },
+        {
+          id: candId,
+          sample: false,
+          status: 'reviewed',
+          form: 'engineer-join',
+          raw: {
+            'full-name': `Candidate ${candId}`,
+            'seeker-email': `${candId}@fixture.test`,
+            'skills-stack': 'JavaScript',
+            experience: 'Shipped products',
+            'sf-bay': 'yes',
+            availability: 'now',
+            'salary-expectation': '$180k',
+            'resume-url': `https://fixture.test/${candId}.pdf`,
+          },
+        },
+      ]),
+    },
+  };
+  const pairA = fixturePair('r-a', 'c-a', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
   });
+  const pairB = fixturePair('r-b', 'c-b', { state: 'approved' });
+  const pairC = fixturePair('r-c', 'c-c', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+    sample: true,
+  });
+  const iq = planIntroQueue(
+    {
+      [pairA.pairId]: pairA,
+      [pairB.pairId]: pairB,
+      [pairC.pairId]: pairC,
+      d: { pairId: 'd', state: 'proposed', sample: false },
+      e: { pairId: 'e', state: 'in_review' },
+      f: {
+        pairId: 'f',
+        roleId: 'r-f',
+        candId: 'c-f',
+        state: 'mutual_yes',
+        mutual: { founder: true, candidate: false },
+        sample: false,
+      },
+      g: { pairId: 'g', state: 'mutual_yes', mutual: { founder: true, candidate: true }, sample: false },
+    },
+    { pairContext: fixturePairContext },
+  );
   assert(iq.items.length === 2 && iq.eligible.length === 2, 'intro plan: approved+mutual_yes only');
-  assert(iq.items.some((i) => i.pairId === 'a') && iq.items.some((i) => i.pairId === 'b'), 'intro plan items');
+  assert(iq.items.some((i) => i.pairId === pairA.pairId) && iq.items.some((i) => i.pairId === pairB.pairId), 'intro plan items');
   assert(
-    iq.items.some((i) => i.pairId === 'a' && i.introReady === true),
+    iq.items.some((i) => i.pairId === pairA.pairId && i.introReady === true),
     'intro plan: mutual_yes + both consents → introReady',
   );
   assert(
-    iq.items.some((i) => i.pairId === 'b' && i.introReady === false),
+    iq.items.some((i) => i.pairId === pairB.pairId && i.introReady === false),
     'intro plan: approved is prep only (not introReady)',
   );
-  assert(iq.skipped.some((s) => s.pairId === 'c' && s.reason === 'sample'), 'intro plan: sample skipped by default');
+  assert(iq.skipped.some((s) => s.pairId === pairC.pairId && s.reason === 'sample'), 'intro plan: sample skipped by default');
   assert(iq.skipped.some((s) => s.pairId === 'd'), 'intro plan: proposed skipped');
   assert(
     iq.skipped.some((s) => s.pairId === 'f' && s.reason === 'mutual_yes_without_both_consents'),
@@ -4467,25 +5455,32 @@ assert(
     'intro plan: missing role/cand denied',
   );
   // Vacuous same-side pair (roleId === candId) never opens intro money path
-  const iqSame = planIntroQueue({
-    same: {
-      pairId: 'same',
-      roleId: 'dup-id',
-      candId: 'dup-id',
-      state: 'mutual_yes',
-      mutual: { founder: true, candidate: true },
+  const iqSame = planIntroQueue(
+    {
+      same: {
+        pairId: 'same',
+        roleId: 'dup-id',
+        candId: 'dup-id',
+        state: 'mutual_yes',
+        mutual: { founder: true, candidate: true },
+      },
     },
-  });
+    { pairContext: fixturePairContext },
+  );
   assert(
     iqSame.items.length === 0 &&
       iqSame.skipped.some((s) => s.pairId === 'same' && s.reason === 'roleId_equals_candId'),
     'intro plan: roleId===candId denied',
   );
   const iqSample = planIntroQueue(
-    { c: { pairId: 'c', roleId: 'r-c', candId: 'c-c', state: 'mutual_yes', mutual: { founder: true, candidate: true }, sample: true } },
-    { includeSample: true },
+    { [pairC.pairId]: pairC },
+    { includeSample: true, pairContext: fixturePairContext },
   );
-  assert(iqSample.items.some((i) => i.pairId === 'c'), 'intro plan: --sample includes sample pairs');
+  assert(
+    iqSample.items.length === 0 &&
+      iqSample.skipped.some((i) => i.pairId === pairC.pairId && i.reason === 'sample_pair_not_eligible'),
+    'intro plan: sample pair cannot pass the real eligibility assertion',
+  );
   assert(planIntroQueue({}).items.length === 0, 'intro plan vacuous: empty map');
   assert(planIntroQueue(null).items.length === 0, 'intro plan null map safe');
   // leadsDoc identity suppress / sample / self-terminal link gates intro money path
@@ -4495,87 +5490,68 @@ assert(
         id: 'lp-twin',
         email: 'twin@co.test',
         state: 'mutual_yes',
-        pairIds: ['a'],
+        pairIds: [pairA.pairId],
       },
       { id: 'old-twin', email: 'twin@co.test', state: 'opted_out' },
       {
         id: 'lp-samp-link',
         state: 'mutual_yes',
-        pairIds: ['b'],
+        pairIds: [pairB.pairId],
         sample: true,
       },
       // Desync: pair still mutual_yes but linked lead is already terminal
       {
         id: 'lp-term',
         state: 'opted_out',
-        pairIds: ['term'],
+        pairIds: [fixturePairId('r-t', 'c-t')],
       },
       // Clean linked lead → eligible item carries leadIds (receipt bridge)
       {
         id: 'lp-linked',
         state: 'mutual_yes',
-        pairIds: ['linked'],
+        pairIds: [fixturePairId('r-l', 'c-l')],
       },
     ],
     talent: [],
   };
+  const pairClean = fixturePair('r-c', 'c-c', { state: 'approved' });
+  const pairTerm = fixturePair('r-t', 'c-t', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+  });
+  const pairLinked = fixturePair('r-l', 'c-l', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+  });
   const iqSup = planIntroQueue(
     {
-      a: {
-        pairId: 'a',
-        roleId: 'r-a',
-        candId: 'c-a',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
-      },
-      b: {
-        pairId: 'b',
-        roleId: 'r-b',
-        candId: 'c-b',
-        state: 'approved',
-      },
-      clean: {
-        pairId: 'clean',
-        roleId: 'r-c',
-        candId: 'c-c',
-        state: 'approved',
-      },
-      term: {
-        pairId: 'term',
-        roleId: 'r-t',
-        candId: 'c-t',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
-      },
-      linked: {
-        pairId: 'linked',
-        roleId: 'r-l',
-        candId: 'c-l',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
-      },
+      [pairA.pairId]: pairA,
+      [pairB.pairId]: pairB,
+      [pairClean.pairId]: pairClean,
+      [pairTerm.pairId]: pairTerm,
+      [pairLinked.pairId]: pairLinked,
     },
-    { leadsDoc: iqLeads },
+    { leadsDoc: iqLeads, pairContext: fixturePairContext },
   );
   assert(
-    !iqSup.items.some((i) => i.pairId === 'a') &&
-      iqSup.skipped.some((s) => s.pairId === 'a' && s.reason === 'identity_suppressed'),
+    !iqSup.items.some((i) => i.pairId === pairA.pairId) &&
+      iqSup.skipped.some((s) => s.pairId === pairA.pairId && s.reason === 'identity_suppressed'),
     'intro plan: leadsDoc identity suppress denies pair',
   );
   assert(
-    !iqSup.items.some((i) => i.pairId === 'b') &&
-      iqSup.skipped.some((s) => s.pairId === 'b' && s.reason === 'linked_sample_or_test_lead'),
+    !iqSup.items.some((i) => i.pairId === pairB.pairId) &&
+      iqSup.skipped.some((s) => s.pairId === pairB.pairId && s.reason === 'linked_sample_or_test_lead'),
     'intro plan: linked sample lead denies pair',
   );
   assert(
-    !iqSup.items.some((i) => i.pairId === 'term') &&
-      iqSup.skipped.some((s) => s.pairId === 'term' && s.reason === 'linked_lead_terminal'),
+    !iqSup.items.some((i) => i.pairId === pairTerm.pairId) &&
+      iqSup.skipped.some((s) => s.pairId === pairTerm.pairId && s.reason === 'linked_lead_terminal'),
     'intro plan: linked self-terminal lead denies pair',
   );
   assert(
     iqSup.items.some(
       (i) =>
-        i.pairId === 'linked' &&
+        i.pairId === pairLinked.pairId &&
         i.introReady === true &&
         Array.isArray(i.leadIds) &&
         i.leadIds.includes('lp-linked'),
@@ -4583,20 +5559,17 @@ assert(
     'intro plan: linked clean pair carries leadIds for receipt bridge',
   );
   assert(
-    iqSup.items.some((i) => i.pairId === 'clean' && !i.leadIds),
+    iqSup.items.some((i) => i.pairId === pairClean.pairId && !i.leadIds),
     'intro plan: unlinked clean pair still eligible (no leadIds)',
   );
   // without leadsDoc, same pair stays eligible (pair-only mode)
   assert(
-    planIntroQueue({
-      a: {
-        pairId: 'a',
-        roleId: 'r-a',
-        candId: 'c-a',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
+    planIntroQueue(
+      {
+        [pairA.pairId]: pairA,
       },
-    }).items.some((i) => i.pairId === 'a'),
+      { pairContext: fixturePairContext },
+    ).items.some((i) => i.pairId === pairA.pairId),
     'intro plan: no leadsDoc → pair-only still works',
   );
   // Ambiguous identity: two pair-linked leads share email → both pairs denied
@@ -4606,85 +5579,117 @@ assert(
         id: 'amb-p1',
         email: 'same@co.test',
         state: 'mutual_yes',
-        pairIds: ['amb-pair-1'],
+        pairIds: [fixturePairId('r1', 'c1')],
       },
       {
         id: 'amb-p2',
         email: 'same@co.test',
         state: 'mutual_yes',
-        pairIds: ['amb-pair-2'],
+        pairIds: [fixturePairId('r2', 'c2')],
       },
     ],
     talent: [],
   };
+  const pairR1 = fixturePair('r1', 'c1', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+  });
+  const pairR2 = fixturePair('r2', 'c2', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+  });
   const iqAmb = planIntroQueue(
     {
-      'amb-pair-1': {
-        pairId: 'amb-pair-1',
-        roleId: 'r1',
-        candId: 'c1',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
-      },
-      'amb-pair-2': {
-        pairId: 'amb-pair-2',
-        roleId: 'r2',
-        candId: 'c2',
-        state: 'mutual_yes',
-        mutual: { founder: true, candidate: true },
-      },
+      [pairR1.pairId]: pairR1,
+      [pairR2.pairId]: pairR2,
     },
-    { leadsDoc: iqAmbDoc },
+    { leadsDoc: iqAmbDoc, pairContext: fixturePairContext },
   );
   assert(
     iqAmb.items.length === 0 &&
       iqAmb.skipped.filter((s) => s.reason === 'ambiguous_identity').length === 2,
     'intro plan: ambiguous linked identity denies both pairs',
   );
+  const conflictPair = fixturePair('conflict-role', 'conflict-candidate', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: true },
+  });
+  const conflictMoneyLead = {
+    id: 'conflict-money-lead',
+    state: 'mutual_yes',
+    pairIds: [conflictPair.pairId],
+    linkedin: 'https://linkedin.com/in/disputed-money',
+    contactProvenance: {
+      conflicts: { linkedin: { status: 'conflict' } },
+    },
+  };
+  const conflictMoneyDoc = { partners: [conflictMoneyLead], talent: [] };
+  const conflictIntroQueue = planIntroQueue(
+    { [conflictPair.pairId]: conflictPair },
+    { leadsDoc: conflictMoneyDoc, pairContext: fixturePairContext },
+  );
+  const conflictIntroLead = planIntroLeadReady(
+    conflictMoneyDoc,
+    { [conflictPair.pairId]: conflictPair },
+    { pairContext: fixturePairContext },
+  );
+  const conflictPairSync = planPairSyncMoves(
+    {
+      partners: [{ ...conflictMoneyLead, state: 'in_review' }],
+      talent: [],
+    },
+    {
+      [conflictPair.pairId]: {
+        ...conflictPair,
+        state: 'approved',
+      },
+    },
+    { pairContext: fixturePairContext },
+  );
+  assert(
+    conflictIntroQueue.items.length === 0 &&
+      conflictIntroQueue.skipped[0]?.reason === 'linkedin_identity_conflict' &&
+      conflictIntroLead.ready.length === 0 &&
+      conflictIntroLead.skipped[0]?.reason === 'linkedin_identity_conflict' &&
+      conflictPairSync.moves.length === 0 &&
+      conflictPairSync.skipped[0]?.reason === 'linkedin_identity_conflict',
+    'pair/intro plans: conflict-only LinkedIn identity cannot advance the money path',
+  );
 
   // pair-sync pure moves (match→mutual bridge)
+  const pairApproved = fixturePair('r1', 'c1', {
+    state: 'approved',
+    reviewedBy: 'human',
+    reviewedAt: '2026-07-17',
+  });
+  const pairMutual = pairR2;
+  const pairHalf = fixturePair('r3', 'c3', {
+    state: 'mutual_yes',
+    mutual: { founder: true, candidate: false },
+  });
+  const pairSample = fixturePair('r4', 'c4', {
+    state: 'approved',
+    sample: true,
+  });
   const pairDoc = {
     partners: [
-      { id: 'lp-a', state: 'in_review', pairIds: ['pair-appr'] },
-      { id: 'lp-m', state: 'proposed', pairIds: ['pair-mut'] },
-      { id: 'lp-half', state: 'proposed', pairIds: ['pair-half'] },
-      { id: 'lp-samp', state: 'in_review', pairIds: ['pair-samp'], sample: true },
+      { id: 'lp-a', state: 'in_review', pairIds: [pairApproved.pairId] },
+      { id: 'lp-m', state: 'proposed', pairIds: [pairMutual.pairId] },
+      { id: 'lp-half', state: 'proposed', pairIds: [pairHalf.pairId] },
+      { id: 'lp-samp', state: 'in_review', pairIds: [pairSample.pairId], sample: true },
       { id: 'lp-miss', state: 'in_review', pairIds: ['gone'] },
     ],
     talent: [],
   };
   const pairMap = {
-    'pair-appr': {
-      pairId: 'pair-appr',
-      state: 'approved',
-      roleId: 'r1',
-      candId: 'c1',
-      reviewedBy: 'human',
-      reviewedAt: '2026-07-17',
-    },
-    'pair-mut': {
-      pairId: 'pair-mut',
-      state: 'mutual_yes',
-      roleId: 'r2',
-      candId: 'c2',
-      mutual: { founder: true, candidate: true },
-    },
-    'pair-half': {
-      pairId: 'pair-half',
-      state: 'mutual_yes',
-      roleId: 'r3',
-      candId: 'c3',
-      mutual: { founder: true, candidate: false },
-    },
-    'pair-samp': {
-      pairId: 'pair-samp',
-      state: 'approved',
-      roleId: 'r4',
-      candId: 'c4',
-      sample: true,
-    },
+    [pairApproved.pairId]: pairApproved,
+    [pairMutual.pairId]: pairMutual,
+    [pairHalf.pairId]: pairHalf,
+    [pairSample.pairId]: pairSample,
   };
-  const ps = planPairSyncMoves(pairDoc, pairMap);
+  const ps = planPairSyncMoves(pairDoc, pairMap, {
+    pairContext: fixturePairContext,
+  });
   assert(
     ps.moves.some((m) => m.leadId === 'lp-a' && m.to === 'proposed' && m.roleId === 'r1' && m.candId === 'c1'),
     'pair-sync: approved → lead proposed (carries role/cand ids)',
@@ -4693,7 +5698,7 @@ assert(
     const apprMove = ps.moves.find((m) => m.leadId === 'lp-a' && m.to === 'proposed');
     const n = apprMove?.note || '';
     assert(
-      /pairId:\s*pair-appr/.test(n) && /roleId:\s*r1/.test(n) && /candId:\s*c1/.test(n),
+      n.includes(`pairId: ${pairApproved.pairId}`) && /roleId:\s*r1/.test(n) && /candId:\s*c1/.test(n),
       'pair-sync: approved evidence binds pairId + roleId + candId',
     );
   }
@@ -4724,6 +5729,7 @@ assert(
         reviewedBy: 'human',
       },
     },
+    { pairContext: fixturePairContext },
   );
   assert(
     psBareAppr.moves.length === 0 &&
@@ -4758,13 +5764,14 @@ assert(
           id: 'lp-sup',
           email: 'sup@co.test',
           state: 'in_review',
-          pairIds: ['pair-appr'],
+          pairIds: [pairApproved.pairId],
         },
         { id: 'old-sup', email: 'sup@co.test', state: 'opted_out' },
       ],
       talent: [],
     },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     psSup.moves.length === 0 &&
@@ -4775,6 +5782,7 @@ assert(
   const vacPs = planPairSyncMoves(
     { partners: [{ id: 'bare', state: 'in_review' }], talent: [] },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(vacPs.moves.length === 0, 'pair-sync vacuous: zero moves');
   assert(planPairSyncMoves(null, null).moves.length === 0, 'pair-sync null safe');
@@ -4783,31 +5791,28 @@ assert(
   // Sample lead uses its own pair so co-linked sample gate does not shadow clean ready.
   const introPairMap = {
     ...pairMap,
-    'pair-sample': {
-      pairId: 'pair-sample',
+    [fixturePairId('r-samp-il', 'c-samp-il')]: fixturePair('r-samp-il', 'c-samp-il', {
       state: 'mutual_yes',
-      roleId: 'r-samp-il',
-      candId: 'c-samp-il',
       mutual: { founder: true, candidate: true },
       sample: true,
-    },
+    }),
   };
   const introLeadDoc = {
     partners: [
       {
         id: 'il-ready',
         state: 'mutual_yes',
-        pairIds: ['pair-mut'],
+        pairIds: [pairMutual.pairId],
       },
       {
         id: 'il-half',
         state: 'mutual_yes',
-        pairIds: ['pair-half'],
+        pairIds: [pairHalf.pairId],
       },
       {
         id: 'il-samp',
         state: 'mutual_yes',
-        pairIds: ['pair-sample'],
+        pairIds: [fixturePairId('r-samp-il', 'c-samp-il')],
         sample: true,
       },
       {
@@ -4817,14 +5822,16 @@ assert(
       {
         id: 'il-wrong',
         state: 'proposed',
-        pairIds: ['pair-mut'],
+        pairIds: [pairMutual.pairId],
       },
     ],
     talent: [],
   };
-  const ilr = planIntroLeadReady(introLeadDoc, introPairMap);
+  const ilr = planIntroLeadReady(introLeadDoc, introPairMap, {
+    pairContext: fixturePairContext,
+  });
   assert(
-    ilr.ready.some((r) => r.leadId === 'il-ready' && r.to === 'intro_made' && r.pairId === 'pair-mut'),
+    ilr.ready.some((r) => r.leadId === 'il-ready' && r.to === 'intro_made' && r.pairId === pairMutual.pairId),
     'intro-lead: mutual_yes + both consents ready',
   );
   {
@@ -4835,7 +5842,7 @@ assert(
         readyRow?.candId === 'c2' &&
         /roleId:\s*r2/.test(ev) &&
         /candId:\s*c2/.test(ev) &&
-        /pair-mut/.test(ev),
+        ev.includes(pairMutual.pairId),
       'intro-lead: ready evidence binds pair + roleId + candId',
     );
   }
@@ -4852,7 +5859,14 @@ assert(
     'intro-lead: no pairIds skipped',
   );
   assert(!ilr.ready.some((r) => r.leadId === 'il-wrong'), 'intro-lead: proposed not ready');
-  assert(planIntroLeadReady({ partners: [], talent: [] }, introPairMap).ready.length === 0, 'intro-lead vacuous');
+  assert(
+    planIntroLeadReady(
+      { partners: [], talent: [] },
+      introPairMap,
+      { pairContext: fixturePairContext },
+    ).ready.length === 0,
+    'intro-lead vacuous',
+  );
   assert(planIntroLeadReady(null, null).ready.length === 0, 'intro-lead null safe');
   // Vacuous same-side pair denied on lead bridge too
   const ilrSame = planIntroLeadReady(
@@ -4875,6 +5889,7 @@ assert(
         mutual: { founder: true, candidate: true },
       },
     },
+    { pairContext: fixturePairContext },
   );
   assert(
     ilrSame.ready.length === 0 &&
@@ -4889,13 +5904,14 @@ assert(
           id: 'il-sup',
           email: 'twin@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
         { id: 'old-out-il', email: 'twin@co.test', state: 'opted_out' },
       ],
       talent: [],
     },
     introPairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     !ilrSup.ready.some((r) => r.leadId === 'il-sup') &&
@@ -4910,18 +5926,19 @@ assert(
           id: 'il-amb-a',
           email: 'same-intro@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
         {
           id: 'il-amb-b',
           email: 'same-intro@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [],
     },
     introPairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     ilrAmb.ready.length === 0 &&
@@ -4936,7 +5953,7 @@ assert(
           id: 'il-alive',
           email: 'alive@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [
@@ -4944,11 +5961,12 @@ assert(
           id: 'il-dead',
           email: 'dead@co.test',
           state: 'opted_out',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
     },
     introPairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     !ilrLinkedTerm.ready.some((r) => r.leadId === 'il-alive') &&
@@ -4965,19 +5983,20 @@ assert(
           id: 'il-with-samp',
           email: 'with-samp@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
         {
           id: 'il-co-samp',
           email: 'co-samp@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
           sample: true,
         },
       ],
       talent: [],
     },
     introPairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     !ilrLinkedSamp.ready.some((r) => r.leadId === 'il-with-samp') &&
@@ -4994,7 +6013,7 @@ assert(
           id: 'il-p-ok',
           email: 'p-ok@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [
@@ -5002,11 +6021,12 @@ assert(
           id: 'il-t-ok',
           email: 't-ok@co.test',
           state: 'mutual_yes',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
     },
     introPairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     ilrLinkedOk.ready.some((r) => r.leadId === 'il-p-ok') &&
@@ -5021,18 +6041,19 @@ assert(
           id: 'ps-amb-a',
           email: 'same-ps@co.test',
           state: 'in_review',
-          pairIds: ['pair-appr'],
+          pairIds: [pairApproved.pairId],
         },
         {
           id: 'ps-amb-b',
           email: 'same-ps@co.test',
           state: 'in_review',
-          pairIds: ['pair-appr'],
+          pairIds: [pairApproved.pairId],
         },
       ],
       talent: [],
     },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     psAmb.moves.length === 0 &&
@@ -5047,7 +6068,7 @@ assert(
           id: 'ps-alive',
           email: 'alive@co.test',
           state: 'proposed',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [
@@ -5055,11 +6076,12 @@ assert(
           id: 'ps-dead',
           email: 'dead@co.test',
           state: 'opted_out',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
     },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     psLinkedTerm.moves.length === 0 &&
@@ -5076,7 +6098,7 @@ assert(
           id: 'ps-clean-p',
           email: 'clean-p@co.test',
           state: 'proposed',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [
@@ -5084,12 +6106,13 @@ assert(
           id: 'ps-samp-t',
           email: 'samp-t@co.test',
           state: 'proposed',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
           sample: true,
         },
       ],
     },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     !psLinkedSamp.moves.some((m) => m.leadId === 'ps-clean-p') &&
@@ -5106,7 +6129,7 @@ assert(
           id: 'ps-ok-p',
           email: 'ok-p@co.test',
           state: 'proposed',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
       talent: [
@@ -5114,11 +6137,12 @@ assert(
           id: 'ps-ok-t',
           email: 'ok-t@co.test',
           state: 'proposed',
-          pairIds: ['pair-mut'],
+          pairIds: [pairMutual.pairId],
         },
       ],
     },
     pairMap,
+    { pairContext: fixturePairContext },
   );
   assert(
     psLinkedOk.moves.some((m) => m.leadId === 'ps-ok-p' && m.to === 'mutual_yes') &&
@@ -5224,11 +6248,28 @@ assert(
 # Founding Engineer at Acme
 Apply: mailto:jobs@acme.com
 Follow us https://x.com/acmehq
+Founder: https://www.linkedin.com/in/Acme-Founder/?trk=public
 Or use https://jobs.ashbyhq.com/acme/abc-123
   `;
   const got = extractContactFromPage(page);
   assert(got.contactEmail === 'jobs@acme.com', 'enrich: jobs@acme.com from page → contactEmail');
   assert(got.handle === '@acmehq', 'enrich: x.com handle from page');
+  assert(
+    got.linkedin === 'https://www.linkedin.com/in/acme-founder',
+    'enrich: canonical public LinkedIn person profile from page',
+  );
+  assert(
+    extractContactFromPage(
+      'Team and testimonials: https://www.linkedin.com/in/unrelated-person',
+    ).linkedin == null,
+    'enrich: unlabeled profile link is not bound to the lead',
+  );
+  assert(
+    extractContactFromPage(
+      'Founder: https://linkedin.com/in/founder-one\nCo-founder: https://linkedin.com/in/founder-two',
+    ).linkedin == null,
+    'enrich: multiple labeled profiles stay ambiguous',
+  );
   assert(/jobs\.ashbyhq\.com/.test(got.applyUrl || ''), 'enrich: applyUrl from ashby jobs link');
   const logoNoise = extractContactFromPage(
     'logo https://app.ashbyhq.com/api/images/org-theme-logo/x.png apply https://jobs.ashbyhq.com/clera/abc',
@@ -5282,6 +6323,163 @@ Follow https://x.com/ycombinator
   assert(isOwnSiteUrl('https://www.trydemigod.com/?p=events') === true, 'own-site: trydemigod true');
   assert(isOwnSiteUrl('https://jobs.ashbyhq.com/acme/1') === false, 'own-site: ashby false');
 
+  const encodeWaasPayload = (payload) =>
+    JSON.stringify(payload)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  const waasPayload = {
+    component: 'jobs/public/pages/JobDetailPage',
+    props: {
+      job: {
+        id: 93359,
+        title: 'Founding Engineer',
+        description: 'Ignore founder@ploy.ai and https://x.com/ploy',
+      },
+      company: {
+        name: 'Ploy',
+        url: 'https://ploy.ai',
+        email: 'ignore@ploy.ai',
+        founders: [{
+          name: 'Bryant Chou',
+          linkedin: 'https://www.linkedin.com/in/Bryant-Chou/?trk=public',
+        }],
+      },
+      applyUrl: 'https://www.workatastartup.com/application',
+    },
+  };
+  const waasHtml = (payload) =>
+    `<main data-page="${encodeWaasPayload(payload)}"></main>`;
+  assert(
+    isWaasPublicJobUrl('https://www.workatastartup.com/jobs/93359') &&
+      isWaasPublicJobUrl('https://www.workatastartup.com/jobs/93359/') &&
+      !isWaasPublicJobUrl('http://www.workatastartup.com/jobs/93359') &&
+      !isWaasPublicJobUrl('https://workatastartup.com/jobs/93359') &&
+      !isWaasPublicJobUrl('https://www.workatastartup.com/jobs/93359?ref=x'),
+    'WaaS structured route is exact HTTPS host/path with no query hop',
+  );
+  const waasStructured = parseWaasPublicJobPage(waasHtml(waasPayload), {
+    jobUrl: 'https://www.workatastartup.com/jobs/93359',
+    company: '  PLOY ',
+  });
+  assert(
+    waasStructured?.companyUrl === 'https://ploy.ai/' &&
+      waasStructured?.linkedin === 'https://www.linkedin.com/in/bryant-chou' &&
+      Object.keys(waasStructured).sort().join() === 'companyUrl,linkedin',
+    'WaaS parser projects only safe company URL and sole named founder LinkedIn',
+  );
+  const ambiguousWaas = parseWaasPublicJobPage(
+    waasHtml({
+      ...waasPayload,
+      props: {
+        ...waasPayload.props,
+        company: {
+          ...waasPayload.props.company,
+          founders: [
+            ...waasPayload.props.company.founders,
+            { name: 'Second Founder', linkedin: 'https://linkedin.com/in/second-founder' },
+          ],
+        },
+      },
+    }),
+    { jobUrl: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+  );
+  assert(
+    ambiguousWaas?.companyUrl === 'https://ploy.ai/' && ambiguousWaas.linkedin == null,
+    'WaaS parser keeps company evidence but refuses ambiguous founder profiles',
+  );
+  assert(
+    parseWaasPublicJobPage(waasHtml(waasPayload), {
+      jobUrl: 'https://www.workatastartup.com/jobs/93358',
+      company: 'Ploy',
+    }) == null &&
+      parseWaasPublicJobPage(waasHtml(waasPayload), {
+        jobUrl: 'https://www.workatastartup.com/jobs/93359',
+        company: 'Other',
+      }) == null &&
+      parseWaasPublicJobPage(
+        waasHtml({
+          ...waasPayload,
+          props: {
+            ...waasPayload.props,
+            company: { ...waasPayload.props.company, url: 'http://127.0.0.1/private' },
+          },
+        }),
+        { jobUrl: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+      ) == null,
+    'WaaS parser fails closed on job/company mismatch and unsafe company URL',
+  );
+  let waasFetchOptions;
+  const fetchedWaas = await fetchWaasPublicJobPage(
+    { url: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+    {
+      maxBytes: 8192,
+      fetchImpl: async (_url, options) => {
+        waasFetchOptions = options;
+        return new Response(waasHtml(waasPayload), {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        });
+      },
+    },
+  );
+  assert(
+    fetchedWaas?.completed === true &&
+      fetchedWaas?.extracted?.linkedin === 'https://www.linkedin.com/in/bryant-chou' &&
+      waasFetchOptions?.redirect === 'manual' &&
+      waasFetchOptions?.headers?.Accept === 'text/html' &&
+      !waasFetchOptions?.headers?.Cookie &&
+      !waasFetchOptions?.headers?.Authorization,
+    'WaaS fetch is manual-redirect, HTML-only, and credential-free',
+  );
+  const redirectWaas = await fetchWaasPublicJobPage(
+    { url: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+    {
+      fetchImpl: async () =>
+        new Response('', { status: 302, headers: { location: 'https://example.com' } }),
+    },
+  );
+  const oversizedWaas = await fetchWaasPublicJobPage(
+    { url: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+    {
+      maxBytes: 16,
+      fetchImpl: async () =>
+        new Response(waasHtml(waasPayload), {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }),
+    },
+  );
+  assert(
+    redirectWaas.completed === false &&
+      redirectWaas.extracted == null &&
+      oversizedWaas.completed === false &&
+      oversizedWaas.extracted == null &&
+      oversizedWaas.error === 'body_too_large',
+    'WaaS fetch refuses redirects and responses over the byte cap',
+  );
+  let cancelledWaasBody = 0;
+  const missingWaas = await fetchWaasPublicJobPage(
+    { url: 'https://www.workatastartup.com/jobs/93359', company: 'Ploy' },
+    {
+      fetchImpl: async () => ({
+        status: 404,
+        headers: { get: () => null },
+        url: '',
+        body: { cancel: async () => { cancelledWaasBody++; } },
+      }),
+    },
+  );
+  assert(
+    missingWaas.completed === true &&
+      missingWaas.extracted == null &&
+      missingWaas.error === 'http_404' &&
+      cancelledWaasBody === 1,
+    'WaaS fetch counts terminal 404 as an empty attempt and cancels its body',
+  );
+
   const selfThenReal = extractContactFromPage(
     'Contact potter@trydemigod.com or mailto:jobs@acme.com — follow https://x.com/ycombinator and https://x.com/acmehq',
   );
@@ -5303,6 +6501,256 @@ Follow https://x.com/ycombinator
   assert(needsContactEnrich({ ...lead, contactEmail: 'a@b.co' }) === false, 'enrich: has email → skip');
   assert(needsContactEnrich({ ...lead, handle: '@realperson' }) === false, 'enrich: has usable handle → skip');
   assert(
+    needsContactEnrich({ ...lead, linkedin: 'linkedin.com/in/real-person' }) === false,
+    'enrich: has canonicalizable LinkedIn person profile → skip',
+  );
+  const linkedInUrlLead = attachPublicContact({
+    ...lead,
+    url: 'https://www.linkedin.com/in/Real-Person/?trk=public',
+  });
+  assert(
+    linkedInUrlLead.linkedin === 'https://www.linkedin.com/in/real-person' &&
+      needsContactEnrich(linkedInUrlLead) === false,
+    'enrich: direct public LinkedIn lead URL is captured without scraping the profile',
+  );
+  assert(
+    normalizeLinkedInProfile('https://notlinkedin.com/in/real-person') === '',
+    'enrich: lookalike LinkedIn host refused',
+  );
+  assert(
+    extractContactFromPage('https://notlinkedin.com/in/real-person').linkedin == null,
+    'enrich: lookalike LinkedIn text cannot become a profile',
+  );
+  assert(
+    extractContactFromPage('Founder: https://notlinkedin.com/in/real-person').linkedin == null,
+    'enrich: labeled lookalike LinkedIn host is still refused',
+  );
+  assert(
+    hasUsableOutreachContact({ linkedin: 'https://linkedin.com/in/real-person' }) === false &&
+      hasUsableDraftContact({ linkedin: 'https://linkedin.com/in/real-person' }) === true &&
+      /manual profile draft; no auto-DM/.test(
+        draftContactTo({ linkedin: 'https://linkedin.com/in/real-person' }),
+      ),
+    'draft: LinkedIn enables a local draft but never approval/send contact',
+  );
+  const disputedLinkedIn = {
+    linkedin: 'https://linkedin.com/in/kept-person',
+    url: 'https://www.workatastartup.com/jobs/96164',
+    contactProvenance: {
+      conflicts: { linkedin: { status: 'conflict' } },
+    },
+  };
+  assert(
+    hasUnresolvedLinkedInConflict(disputedLinkedIn) === true &&
+      hasUsableDraftContact(disputedLinkedIn) === false &&
+      !/linkedin\.com\/in\/kept-person/.test(draftContactTo(disputedLinkedIn)),
+    'draft: disputed LinkedIn identity abstains instead of becoming a draft target',
+  );
+  assert(
+    hasUsableDraftContact({ ...disputedLinkedIn, email: 'verified@acme.test' }) === true,
+    'draft: independent valid email remains usable despite LinkedIn conflict',
+  );
+  assert(
+    firstUsableOutreachEmail(
+      'potter@trydemigod.com',
+      'verified@acme.test',
+    ) === 'verified@acme.test' &&
+      hasUsableDraftContact({
+        ...disputedLinkedIn,
+        email: 'potter@trydemigod.com',
+        contactEmail: 'verified@acme.test',
+      }) === true,
+    'draft: noisy email alias cannot shadow an independent valid email',
+  );
+  assert(
+    draftContactTo({
+      ...disputedLinkedIn,
+      email: 'potter@trydemigod.com',
+      handle: '@realperson',
+    }) === '@realperson',
+    'draft: noisy email cannot become To when a valid X contact exists',
+  );
+  const linkedInApproval = planApproveDrafted(
+    {
+      partners: [{
+        id: 'linkedin-only',
+        state: 'drafted',
+        linkedin: 'https://linkedin.com/in/real-person',
+      }],
+      talent: [],
+    },
+    { note: 'reviewed', actor: 'human' },
+  );
+  assert(
+    linkedInApproval.ready.length === 0 &&
+      linkedInApproval.blocked[0]?.reasonClass === 'linkedin_manual_review' &&
+      /no batch approval or auto-DM/.test(linkedInApproval.blocked[0]?.reason || ''),
+    'approval: LinkedIn local draft gets an honest manual-review block',
+  );
+  const disputedLinkedInApproval = planApproveDrafted(
+    {
+      partners: [{
+        id: 'linkedin-conflict',
+        state: 'drafted',
+        linkedin: disputedLinkedIn.linkedin,
+        applyUrl: 'https://jobs.ashbyhq.com/acme/role',
+        contactProvenance: disputedLinkedIn.contactProvenance,
+      }],
+      talent: [],
+    },
+    { note: 'reviewed', actor: 'human' },
+  );
+  assert(
+    disputedLinkedInApproval.ready.length === 0 &&
+      disputedLinkedInApproval.blocked[0]?.reasonClass ===
+        'linkedin_identity_conflict',
+    'approval: disputed LinkedIn identity is explicit even when an ATS URL exists',
+  );
+  const heldLinkedInApproval = planApproveDrafted(
+    {
+      partners: [{
+        id: 'linkedin-conflict-held',
+        state: 'policy_hold',
+        linkedin: disputedLinkedIn.linkedin,
+        contactProvenance: disputedLinkedIn.contactProvenance,
+      }],
+      talent: [],
+    },
+    { note: 'reviewed', actor: 'human' },
+  );
+  const heldLinkedInPackage = formatApproveBatchPackage(
+    heldLinkedInApproval,
+    { note: 'reviewed' },
+  );
+  assert(
+    heldLinkedInApproval.blocked[0]?.reasonClass ===
+        'linkedin_identity_conflict' &&
+      /linkedin-conflict-held/.test(heldLinkedInPackage) &&
+      /linkedin_identity_conflict:\s*1/.test(heldLinkedInPackage),
+    'approval package: held identity conflict remains privately visible',
+  );
+  const cappedConflictPackage = formatApproveBatchPackage({
+    ready: [],
+    blocked: [
+      ...Array.from({ length: 40 }, (_, index) => ({
+        id: `ordinary-block-${index}`,
+        reason: 'no email/handle — enrich first',
+      })),
+      {
+        id: 'linkedin-conflict-after-cap',
+        reason: 'LinkedIn identity conflict — abstain pending matching public evidence',
+        reasonClass: 'linkedin_identity_conflict',
+      },
+    ],
+  });
+  assert(
+    /linkedin-conflict-after-cap/.test(cappedConflictPackage) &&
+      /linkedin_identity_conflict:\s*1/.test(cappedConflictPackage),
+    'approval package: identity conflicts stay individually visible past ordinary row cap',
+  );
+  assert(
+    planApproveDrafted(
+      {
+        partners: [{
+          id: 'linkedin-conflict-override',
+          state: 'drafted',
+          linkedin: disputedLinkedIn.linkedin,
+          contactProvenance: disputedLinkedIn.contactProvenance,
+        }],
+        talent: [],
+      },
+      { note: 'reviewed', actor: 'human', requireContact: false },
+    ).ready.length === 0,
+    'approval: programmatic requireContact=false cannot bypass identity conflict',
+  );
+  const independentEmailApproval = planApproveDrafted(
+    {
+      partners: [{
+        id: 'linkedin-conflict-valid-email',
+        state: 'drafted',
+        email: 'potter@trydemigod.com',
+        contactEmail: 'verified@acme.test',
+        linkedin: disputedLinkedIn.linkedin,
+        contactProvenance: disputedLinkedIn.contactProvenance,
+      }],
+      talent: [],
+    },
+    { note: 'reviewed', actor: 'human' },
+  );
+  assert(
+    independentEmailApproval.ready[0]?.channel === 'email' &&
+      independentEmailApproval.ready[0]?.to === 'verified@acme.test',
+    'approval: valid alternate email remains ready despite LinkedIn conflict',
+  );
+  assert(
+    planSendReady({
+      partners: [{
+        id: 'linkedin-conflict-valid-email',
+        state: 'approved',
+        email: 'potter@trydemigod.com',
+        contactEmail: 'verified@acme.test',
+        linkedin: disputedLinkedIn.linkedin,
+        contactProvenance: disputedLinkedIn.contactProvenance,
+      }],
+      talent: [],
+    }).ready[0]?.to === 'verified@acme.test',
+    'send plan: valid alternate email is not shadowed by a noisy alias',
+  );
+  const routeLead = {
+    id: 'linkedin-conflict-route',
+    state: 'drafted',
+    company: 'RouteCo',
+    url: 'https://routeco.test/jobs/1',
+    contactEmail: 'verified@routeco.test',
+    linkedin: disputedLinkedIn.linkedin,
+    contactProvenance: disputedLinkedIn.contactProvenance,
+  };
+  const currentRouteDraft = draftEmail(routeLead, 'partner');
+  const staleRouteDraft = currentRouteDraft.replace(
+    /^To:.*$/m,
+    `To: ${disputedLinkedIn.linkedin} (manual profile draft; no auto-DM)`,
+  );
+  assert(
+    draftTargetsCurrentContact(currentRouteDraft, routeLead) === true &&
+      draftTargetsCurrentContact(staleRouteDraft, routeLead) === false,
+    'draft route bind: stale disputed LinkedIn target cannot shadow selected email',
+  );
+  const routeDrafts = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-draft-route-'));
+  fs.writeFileSync(path.join(routeDrafts, `${routeLead.id}.txt`), staleRouteDraft);
+  const staleApproval = planApproveDrafted(
+    { partners: [routeLead], talent: [] },
+    { note: 'reviewed', actor: 'human', draftsDir: routeDrafts },
+  );
+  const staleSend = planSendReady({
+    partners: [{ ...routeLead, state: 'approved' }],
+    talent: [],
+  }, { draftsDir: routeDrafts });
+  assert(
+    staleApproval.ready.length === 0 &&
+      staleApproval.blocked[0]?.reasonClass === 'draft_target' &&
+      staleSend.ready.length === 0 &&
+      /draft target/i.test(staleSend.blocked[0]?.reason || ''),
+    'approval/send: stale draft target is blocked at both package gates',
+  );
+  fs.writeFileSync(path.join(routeDrafts, `${routeLead.id}.txt`), currentRouteDraft);
+  assert(
+    planApproveDrafted(
+      { partners: [routeLead], talent: [] },
+      { note: 'reviewed', actor: 'human', draftsDir: routeDrafts },
+    ).ready[0]?.to === 'verified@routeco.test' &&
+      planSendReady({
+        partners: [{ ...routeLead, state: 'approved' }],
+        talent: [],
+      }, { draftsDir: routeDrafts }).ready[0]?.to === 'verified@routeco.test',
+    'approval/send: current bound route remains ready',
+  );
+  fs.rmSync(routeDrafts, { recursive: true, force: true });
+  assert(
+    hasOnlyConflictedLinkedInContact(disputedLinkedIn) === true &&
+      hasOnlyConflictedLinkedInContact(routeLead) === false,
+    'identity conflict: independent usable email keeps the path open',
+  );
+  assert(
     needsContactEnrich({ ...lead, handle: '@ycombinator' }) === true,
     'enrich: noise-only handle still needs enrich',
   );
@@ -5323,6 +6771,32 @@ Follow https://x.com/ycombinator
   assert(
     needsContactEnrich({ ...lead, contactProvenance: { method: 'scrape' } }) === true,
     'enrich: provenance-only noise stamp still needs enrich',
+  );
+  const companyOnly = scrubNoiseContact({
+    ...lead,
+    companyUrl: 'https://ploy.ai',
+    contactProvenance: {
+      method: 'scrape',
+      fields: { companyUrl: { url: lead.url, method: 'scrape' } },
+    },
+  });
+  assert(
+    companyOnly.contactProvenance && needsContactEnrich(companyOnly) === true,
+    'enrich: safe company-only provenance survives while person contact remains retryable',
+  );
+  const healedTransport = {
+    lastTransportFailedAt: '2026-07-17T10:00:00.000Z',
+    lastTransportError: 'firecrawl_insufficient_credits',
+  };
+  applyEnrichAttemptStamp(healedTransport, {
+    scrapeCompleted: true,
+    at: '2026-07-17T12:00:00.000Z',
+  });
+  assert(
+    healedTransport.enrichAttemptCount === 1 &&
+      healedTransport.lastTransportFailedAt == null &&
+      healedTransport.lastTransportError == null,
+    'enrich: successful structured scrape clears stale transport failure evidence',
   );
   assert(
     needsContactEnrich({
@@ -5417,7 +6891,7 @@ Follow https://x.com/ycombinator
     uniqueUrls.map((lead) => lead.id).join() === 'duplicate-high,unique',
     'enrich: batch spends one scrape per canonical URL',
   );
-  // applyUrl ATS beats aggregator listing url
+  // Exact WaaS jobs stay on their allowlisted structured listing route.
   const viaApply = selectEnrichTargets(
     [
       {
@@ -5434,13 +6908,13 @@ Follow https://x.com/ycombinator
     ],
     { limit: 1 },
   );
-  assert(viaApply[0].id === 'waas-ats', 'enrich: applyUrl ATS prioritizes over company host');
+  assert(viaApply[0].id === 'co-plain', 'enrich: exact WaaS route remains in aggregator band');
   assert(
     enrichScrapeUrl({
       url: 'https://www.workatastartup.com/jobs/9',
       applyUrl: 'https://jobs.ashbyhq.com/co/x',
-    }) === 'https://jobs.ashbyhq.com/co/x',
-    'enrichScrapeUrl prefers ATS applyUrl',
+    }) === 'https://www.workatastartup.com/jobs/9',
+    'enrichScrapeUrl keeps exact WaaS listing over ATS hop',
   );
   assert(
     enrichScrapeUrl({ url: 'https://acme.com/jobs/1' }) === 'https://acme.com/jobs/1',
@@ -5450,8 +6924,8 @@ Follow https://x.com/ycombinator
     enrichScrapeUrl({
       url: 'https://www.workatastartup.com/jobs/9',
       companyUrl: 'https://acme-startup.io',
-    }) === 'https://acme-startup.io',
-    'enrichScrapeUrl: companyUrl preferred over WaaS listing',
+    }) === 'https://www.workatastartup.com/jobs/9',
+    'enrichScrapeUrl: companyUrl never replaces exact WaaS listing',
   );
   assert(
     enrichScrapeUrl({
@@ -5465,8 +6939,8 @@ Follow https://x.com/ycombinator
       url: 'https://www.workatastartup.com/jobs/9',
       applyUrl: 'https://jobs.ashbyhq.com/co/x',
       companyUrl: 'https://acme-startup.io',
-    }) === 'https://jobs.ashbyhq.com/co/x',
-    'enrichScrapeUrl: ATS still beats companyUrl',
+    }) === 'https://www.workatastartup.com/jobs/9',
+    'enrichScrapeUrl: exact WaaS route refuses every second-hop candidate',
   );
   // Cooldown: recently attempted holds skip batch enrich; --id= still selects
   const nowMs = Date.parse('2026-07-17T12:00:00.000Z');
@@ -5507,6 +6981,20 @@ Follow https://x.com/ycombinator
     cooled.length === 1 && cooled[0].id === 'fresh',
     'enrich: cooldown skips recently attempted (prefer never-tried)',
   );
+  const resumable = [
+    { id: 'resume-first', state: 'policy_hold', url: 'https://first.test/jobs/1', score: 100 },
+    { id: 'resume-next', state: 'policy_hold', url: 'https://next.test/jobs/1', score: 90 },
+  ];
+  const [resumeFirst] = selectEnrichTargets(resumable, { limit: 1, now: nowMs });
+  applyEnrichAttemptStamp(resumeFirst, {
+    scrapeCompleted: true,
+    at: '2026-07-17T12:00:00.000Z',
+  });
+  const [resumeNext] = selectEnrichTargets(resumable, { limit: 1, now: nowMs });
+  assert(
+    resumeFirst.id === 'resume-first' && resumeNext.id === 'resume-next',
+    'enrich: capped batches resume past the cooled first row',
+  );
   const forced = selectEnrichTargets(
     [
       {
@@ -5519,6 +7007,47 @@ Follow https://x.com/ycombinator
     { id: 'recent', limit: 5, now: nowMs },
   );
   assert(forced.length === 1 && forced[0].id === 'recent', 'enrich: --id= bypasses cooldown');
+  const forcedWaasReview = selectEnrichTargets(
+    [{
+      id: 'waas-review',
+      state: 'drafted',
+      url: 'https://www.workatastartup.com/jobs/96164',
+      linkedin: 'https://www.linkedin.com/in/stored-founder',
+      contactProvenance: {
+        conflicts: { linkedin: { status: 'conflict' } },
+      },
+    }],
+    { id: 'waas-review' },
+  );
+  assert(
+    forcedWaasReview.length === 1 &&
+      selectEnrichTargets(
+        [{
+          id: 'generic-review',
+          state: 'drafted',
+          url: 'https://example.com/jobs/1',
+          linkedin: 'https://www.linkedin.com/in/stored-founder',
+          contactProvenance: {
+            conflicts: { linkedin: { status: 'conflict' } },
+          },
+        }],
+        { id: 'generic-review' },
+      ).length === 0 &&
+      selectEnrichTargets(
+        [{
+          id: 'suppressed-waas-review',
+          state: 'drafted',
+          status: 'opted_out',
+          url: 'https://www.workatastartup.com/jobs/96164',
+          linkedin: 'https://www.linkedin.com/in/stored-founder',
+          contactProvenance: {
+            conflicts: { linkedin: { status: 'conflict' } },
+          },
+        }],
+        { id: 'suppressed-waas-review' },
+      ).length === 0,
+    'enrich: forced exact WaaS can recheck conflicts without widening generic refresh',
+  );
   assert(ENRICH_MAX_ATTEMPTS === 3, 'ENRICH_MAX_ATTEMPTS is 3');
   assert(
     enrichAttemptsExhausted({ enrichAttemptCount: 3 }) === true,
@@ -5563,6 +7092,7 @@ Follow https://x.com/ycombinator
   assert(forceExhaust.length === 1, 'enrich: --id= bypasses max attempts');
   const stamped = {
     state: 'policy_hold',
+    policyHoldReason: 'no-usable-contact',
     enrichAttemptCount: 3,
     url: 'https://acme.com/x',
   };
@@ -5577,14 +7107,27 @@ Follow https://x.com/ycombinator
     seClear.cleared === true && !stamped.policyHoldReason,
     'stampEnrichExhausted: clears when contact appears',
   );
-  // Second hop: ATS applyUrl only when first scrape had no usable contact
+  const protectedStamp = {
+    state: 'policy_hold',
+    policyHoldReason: 'no-mx',
+    enrichAttemptCount: 3,
+  };
+  const protectedStampResult = stampEnrichExhausted(protectedStamp);
+  assert(
+    protectedStampResult.exhausted === true &&
+      protectedStampResult.preserved === true &&
+      protectedStamp.policyHoldReason === 'no-mx' &&
+      !protectedStamp.enrichExhaustedAt,
+    'stampEnrichExhausted preserves a non-contact hold reason',
+  );
+  // Exact WaaS rows never leave their structured public job route.
   assert(
     shouldEnrichSecondHop(
       { applyUrl: 'https://jobs.ashbyhq.com/co/x' },
       {},
       'https://www.workatastartup.com/jobs/1',
-    ) === 'https://jobs.ashbyhq.com/co/x',
-    'shouldEnrichSecondHop: ATS after WaaS listing',
+    ) === null,
+    'shouldEnrichSecondHop: no ATS hop after WaaS listing',
   );
   assert(
     shouldEnrichSecondHop(
@@ -5623,8 +7166,8 @@ Follow https://x.com/ycombinator
       { companyUrl: 'https://acme-startup.io' },
       {},
       'https://www.workatastartup.com/jobs/99',
-    ) === 'https://acme-startup.io',
-    'shouldEnrichSecondHop: company site after WaaS listing',
+    ) === null,
+    'shouldEnrichSecondHop: exact WaaS listing never hops to company site',
   );
   assert(
     shouldEnrichSecondHop(
@@ -5685,12 +7228,174 @@ Follow https://x.com/ycombinator
     }).released === false,
     'releaseHoldIfContactable: only policy_hold',
   );
+  const protectedHolds = [
+    { state: 'policy_hold', policyHoldReason: 'no-mx', contactEmail: 'a@b.co' },
+    { state: 'policy_hold', policyHoldReason: 'manual-review', contactEmail: 'a@b.co' },
+    { state: 'policy_hold', policyHoldReason: 'policy', contactEmail: 'a@b.co' },
+    { state: 'policy_hold', contactEmail: 'a@b.co' },
+    { state: 'opted_out', contactEmail: 'a@b.co' },
+  ];
+  assert(
+    protectedHolds.every((lead) =>
+      !releaseHoldIfContactable(lead).released && lead.state !== 'drafted'
+    ),
+    'releaseHoldIfContactable preserves no-mx, manual, policy, unknown, and opt-out holds',
+  );
+  const disputedHold = {
+    state: 'policy_hold',
+    policyHoldReason: 'no-usable-contact',
+    linkedin: 'https://www.linkedin.com/in/kept-founder',
+    enrichAttemptCount: 3,
+    contactProvenance: {
+      conflicts: { linkedin: { status: 'conflict' } },
+    },
+  };
+  const disputedRelease = releaseHoldIfContactable(disputedHold);
+  assert(
+    disputedRelease.reason === 'linkedin-identity-conflict' &&
+      disputedHold.state === 'policy_hold' &&
+      disputedHold.policyHoldReason === 'linkedin-identity-conflict',
+    'releaseHoldIfContactable: disputed LinkedIn identity remains held',
+  );
+  assert(
+    stampEnrichExhausted(disputedHold).conflict === true &&
+      disputedHold.policyHoldReason === 'linkedin-identity-conflict',
+    'stampEnrichExhausted: identity conflict is not mislabeled usable or exhausted',
+  );
+  const alternateEmailHold = {
+    ...disputedHold,
+    email: 'potter@trydemigod.com',
+    contactEmail: 'verified@acme.test',
+  };
+  assert(
+    releaseHoldIfContactable(alternateEmailHold).released === true &&
+      alternateEmailHold.state === 'drafted',
+    'releaseHoldIfContactable: valid alternate email outranks a noisy alias',
+  );
+  const noMxConflict = {
+    state: 'policy_hold',
+    policyHoldReason: 'no-mx',
+    linkedin: 'https://www.linkedin.com/in/kept-founder',
+    contactProvenance: {
+      conflicts: { linkedin: { status: 'conflict' } },
+    },
+  };
+  releaseHoldIfContactable(noMxConflict);
+  noMxConflict.contactEmail = 'verified@acme.test';
+  const noMxConflictRelease = releaseHoldIfContactable(noMxConflict);
+  assert(
+    !noMxConflictRelease.released &&
+      noMxConflict.state === 'policy_hold' &&
+      noMxConflict.policyHoldReason === 'no-mx',
+    'releaseHoldIfContactable cannot launder no-mx through a LinkedIn conflict',
+  );
 
   const applied = applyContactEnrich(lead, got, { url: lead.url, at: '2026-07-17T00:00:00.000Z' });
   assert(applied.contactEmail === 'jobs@acme.com', 'enrich: apply sets contactEmail');
   assert(applied.contactProvenance?.method === 'scrape', 'enrich: provenance method=scrape');
   assert(applied.contactProvenance?.url === lead.url, 'enrich: provenance url');
   assert(applied.contactProvenance?.at === '2026-07-17T00:00:00.000Z', 'enrich: provenance at');
+  assert(
+    applied.contactProvenance?.fields?.linkedin?.url === lead.url,
+    'enrich: LinkedIn has field-level public-page provenance',
+  );
+  const stagedProvenance = applyContactEnrich(
+    lead,
+    { linkedin: 'https://linkedin.com/in/acme-founder' },
+    {
+      url: 'https://acme.example/about',
+      at: '2026-07-17T00:00:00.000Z',
+      fieldSources: { linkedin: lead.url },
+    },
+  );
+  assert(
+    stagedProvenance.contactProvenance?.fields?.linkedin?.url === lead.url,
+    'enrich: per-field source survives a multi-hop scrape',
+  );
+  const refusedStructuredProvenance = applyContactEnrich(
+    lead,
+    { companyUrl: 'https://acme.example' },
+    { url: lead.url, method: 'waas-data-page' },
+  );
+  assert(
+    refusedStructuredProvenance.contactProvenance?.method === 'scrape',
+    'enrich: generic pages cannot claim the structured WaaS method',
+  );
+  const structuredProvenance = applyContactEnrich(
+    lead,
+    { companyUrl: 'https://acme.example' },
+    {
+      url: 'https://www.workatastartup.com/jobs/96164',
+      method: 'waas-data-page',
+    },
+  );
+  assert(
+    structuredProvenance.contactProvenance?.method === 'waas-data-page' &&
+      structuredProvenance.contactProvenance?.fields?.companyUrl?.method ===
+        'waas-data-page',
+    'enrich: structured WaaS fields retain their extraction method',
+  );
+  const conflictedStructured = applyContactEnrich(
+    {
+      ...lead,
+      companyUrl: 'https://old.example',
+      linkedin: 'https://www.linkedin.com/in/old-founder',
+      contactProvenance: { conflicts: { arbitrary: { status: 'conflict' } } },
+    },
+    {
+      companyUrl: 'https://new.example',
+      linkedin: 'https://www.linkedin.com/in/new-founder',
+    },
+    {
+      url: 'https://www.workatastartup.com/jobs/96164',
+      method: 'waas-data-page',
+      at: '2026-07-29T00:00:00.000Z',
+    },
+  );
+  assert(
+    conflictedStructured.companyUrl === 'https://old.example' &&
+      conflictedStructured.linkedin === 'https://www.linkedin.com/in/old-founder',
+    'enrich: structured conflicts never overwrite stored values',
+  );
+  assert(
+    conflictedStructured.contactProvenance?.conflicts?.companyUrl?.observed ===
+      'https://new.example/' &&
+      conflictedStructured.contactProvenance?.conflicts?.linkedin?.status ===
+        'conflict' &&
+      conflictedStructured.contactProvenance?.conflicts?.arbitrary == null,
+    'enrich: structured WaaS differences are retained for private review',
+  );
+  const resolvedStructured = applyContactEnrich(
+    {
+      ...conflictedStructured,
+      companyUrl: 'https://new.example/',
+      linkedin: 'https://www.linkedin.com/in/new-founder',
+    },
+    {
+      companyUrl: 'https://new.example',
+      linkedin: 'https://www.linkedin.com/in/new-founder',
+    },
+    {
+      url: 'https://www.workatastartup.com/jobs/96164',
+      method: 'waas-data-page',
+    },
+  );
+  assert(
+    !resolvedStructured.contactProvenance?.conflicts,
+    'enrich: re-observed matching structured values clear stale conflicts',
+  );
+  const resolvedHold = {
+    ...resolvedStructured,
+    state: 'policy_hold',
+    status: 'policy_hold',
+    policyHoldReason: 'linkedin-identity-conflict',
+  };
+  assert(
+    hasUsableDraftContact(resolvedHold) === true &&
+      releaseHoldIfContactable(resolvedHold).released === true &&
+      resolvedHold.state === 'drafted',
+    'enrich: matching re-observation clears conflict and restores local draftability',
+  );
 
   const noHit = applyContactEnrich(lead, {}, { url: lead.url, at: '2026-07-17T00:00:00.000Z' });
   assert(noHit.contactEmail == null, 'enrich: empty extract does not invent contactEmail');
@@ -5801,6 +7506,11 @@ Follow https://x.com/ycombinator
   assert(
     fs.existsSync(isoPkg) && /selftest-isolated-pkg/.test(fs.readFileSync(isoPkg, 'utf8')),
     'isolated package: note stamped',
+  );
+  assert(
+    (fs.statSync(isoPkg).mode & 0o777) === 0o600 &&
+      (fs.statSync(path.dirname(isoPkg)).mode & 0o777) === 0o700,
+    'isolated package: contact board and directory stay private',
   );
   if (liveBefore != null && liveMtime != null) {
     const after = fs.readFileSync(livePkg, 'utf8');
@@ -6205,6 +7915,7 @@ assert(
     pipelineSource.includes("'funnel/approve-email-first-latest.md'") &&
     pipelineSource.includes("'funnel/send-email-first-latest.md'") &&
     pipelineSource.includes("'funnel/l1-snapshot-latest.json'") &&
+    pipelineSource.includes("'events-bot/HUMAN-INVITE-URLS.md'") &&
     pipelineSource.includes("'events-bot/INVITE-DRAIN.md'") &&
     pipelineSource.includes("'events-bot/outbox-purge-latest.json'") &&
     pipelineSource.includes('withFileLock(lock, () => {') &&
@@ -6215,6 +7926,12 @@ assert(
     pipelineSource.includes('completed.push([name, result]);') &&
     pipelineSource.includes('else for (const result of completed) recordPackage(...result);') &&
     pipelineSource.includes('fs.renameSync(staging, generation);') &&
+    pipelineSource.includes("fs.readdirSync(staging, { recursive: true })") &&
+    pipelineSource.includes('const stat = fs.lstatSync(item);') &&
+    pipelineSource.includes('if (stat.isDirectory()) fs.chmodSync(item, 0o700);') &&
+    pipelineSource.includes('else if (stat.isFile()) fs.chmodSync(item, 0o600);') &&
+    pipelineSource.includes("fs.writeFileSync(tmp, body, { mode: 0o600 });") &&
+    funnelSource.includes('(fs.statSync(file).mode & 0o777) === 0o600') &&
     pipelineSource.includes('result.out = result.out.replaceAll(staging, generation)') &&
     pipelineSource.includes('generation,\n              files,') &&
     pipelineSource.includes(".filter((dir) => dir !== generation)") &&
@@ -6255,7 +7972,7 @@ assert(
   'pipeline reports unavailable Events tunnel without healing it',
 );
 assert(
-  pipelineSource.includes("const eventsFocused = /(?:current phase focus:\\s*events bot|^#\\s*events bot\\b)/im.test(focus);") &&
+  pipelineSource.includes("const eventsFocused = /(?:operating mode focus:\\s*events bot|^#\\s*events bot\\b)/im.test(focus);") &&
     pipelineSource.includes("(eventsFocused ? record : recordSoft)('events_tunnel', ensureEventsTunnel());"),
   'pipeline fails closed on Events availability while Events Bot is the declared focus',
 );
@@ -6303,11 +8020,16 @@ assert(
 );
 assert(
   !collectSource.includes('withFileLock(CRM_LOCK, () => cmdEnrichLocked') &&
-    collectSource.indexOf('withFileLock(CRM_LOCK, () => {', collectSource.indexOf('export function cmdEnrich')) >
-      collectSource.indexOf('pending.push(', collectSource.indexOf('export function cmdEnrich')) &&
+    collectSource.indexOf('withFileLock(CRM_LOCK, () => {', collectSource.indexOf('export async function cmdEnrich')) >
+      collectSource.indexOf('pending.push(', collectSource.indexOf('export async function cmdEnrich')) &&
     collectSource.includes("doc = JSON.parse(fs.readFileSync(OUT, 'utf8'));") &&
     collectSource.includes('item.extracted.contactEmail'),
   'enrich scrapes outside the CRM lock and re-reads current rows for one short commit',
+);
+assert(
+  collectSource.indexOf('await fetchWaasPublicJobPage(lead)') <
+    collectSource.indexOf('if (transportAbort && !structuredCompleted)'),
+  'WaaS native fetch runs before a prior Firecrawl capacity abort can skip the row',
 );
 assert(
   collectSource.indexOf('withFileLock(CRM_LOCK, () => {', collectSource.indexOf('function main')) >
@@ -6330,13 +8052,27 @@ assert(
   const report = statusReport({
     partners: [
       { id: 'newer', state: 'drafted', score: 1, stateUpdatedAt: '2026-07-17T12:00:00Z' },
-      { id: 'oldest', state: 'policy_hold', score: 2, stateUpdatedAt: '2026-07-16T12:00:00Z' },
+      {
+        id: 'oldest',
+        state: 'policy_hold',
+        score: 2,
+        stateUpdatedAt: '2026-07-16T12:00:00Z',
+        enrichAttemptedAt: '2026-07-16T13:00:00Z',
+        lastTransportFailedAt: '2026-07-16T13:00:00Z',
+        lastTransportError: 'firecrawl_insufficient_credits',
+      },
       { id: 'terminal', state: 'disqualified', score: 100, stateUpdatedAt: '2026-07-15T12:00:00Z' },
     ],
     talent: [],
   });
   assert(Array.isArray(report.opsNotes) && !('nextHuman' in report), 'status uses neutral opsNotes, not human assignments');
   assert(!report.opsNotes.some((note) => /\bpaste\b|\byou (?:can|need|should)\b/i.test(note)), 'status opsNotes do not assign user work');
+  assert(
+    report.metrics.enrich_transport_failures === 1 &&
+      report.metrics.enrich_provider_capacity === 1 &&
+      report.metrics.enrich_other_transport_failures === 0,
+    'status exposes only aggregate active enrichment transport failures',
+  );
   const eventLeadReport = statusReport(
     {
       partners: [
@@ -6705,6 +8441,11 @@ assert(
     'funnel loop: pipeline owns routine mutations; only post-collect normalize remains',
   );
 }
+
+assert(
+  fileHash(CANONICAL_TRANSITION_LOG) === canonicalTransitionLogBefore,
+  'full funnel selftest preserves the canonical transition log',
+);
 
 console.log(`\n${passed} passed, ${failed} failed, ${skipped} skipped`);
 if (failed > 0 || skipped > 0) {

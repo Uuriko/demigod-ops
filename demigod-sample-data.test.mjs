@@ -15,6 +15,8 @@ test('flags sample/selftest/real:false at top level', () => {
   assert.equal(isSampleData({ real: false }), true, 'real:false is the rolesFromPartnerInbox marker');
   assert.equal(isSampleData({ raw: { sample: true } }), true);
   assert.equal(isSampleData({ raw: { selftest: true } }), true);
+  assert.equal(isSampleData({ data: { sample: true } }), true);
+  assert.equal(isSampleData({ payload: { selftest: true } }), true);
 });
 
 test('default is REAL — absence of a flag is not sample (board/real inbound)', () => {

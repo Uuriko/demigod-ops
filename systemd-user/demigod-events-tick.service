@@ -1,0 +1,18 @@
+[Unit]
+Description=Demigod Events Bot draft-mode autonomy tick (ops secret; no auto-send)
+After=demigod-events-bot.service
+# Draft only — Trust Ladder L1: never auto-approve/send outreach
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.local/bin:%h/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+# bin/dg-events-tick: ensure-ops → POST /agent/tick mode=draft with x-dg-events-ops
+# Logs /tmp/dg-busy/events-bot/tick.log — never prints ops secret
+ExecStart=/home/potter/bin/dg-events-tick
+Nice=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

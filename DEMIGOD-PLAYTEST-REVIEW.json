@@ -1,0 +1,198 @@
+{
+  "at": "2026-07-30T19:59:59.641Z",
+  "url": "https://www.trydemigod.com/?v=playtest-1785441582033",
+  "htmlScan": {
+    "mcpScripts": [],
+    "mcpScriptsGone": true,
+    "allMcpAppScripts": [],
+    "forms": [
+      {
+        "name": "startup-hire",
+        "present": true,
+        "aliases": [
+          "startup-form",
+          "startup-hire"
+        ]
+      },
+      {
+        "name": "engineer-join",
+        "present": true,
+        "aliases": [
+          "jobseeker-form",
+          "engineer-join"
+        ]
+      },
+      {
+        "name": "partner-apply",
+        "present": true,
+        "aliases": [
+          "partner-apply"
+        ],
+        "fields": [
+          "partner-name",
+          "partner-email",
+          "referral-plan"
+        ]
+      }
+    ],
+    "formsOk": true,
+    "headMarkers": [
+      {
+        "marker": "hide-webflow-badge",
+        "present": true
+      },
+      {
+        "marker": "Demigod forms",
+        "present": true
+      },
+      {
+        "marker": "openModal",
+        "present": true
+      },
+      {
+        "marker": "potter@trydemigod.com",
+        "present": true
+      },
+      {
+        "marker": "og:title",
+        "present": true
+      },
+      {
+        "marker": "demigod-polish",
+        "present": true
+      }
+    ],
+    "headOk": true,
+    "footerCoreOk": true,
+    "footerCoreCopy": {
+      "ok": true,
+      "version": "859",
+      "noSpeedInCopy": true,
+      "noNameInCopy": true,
+      "hasScrub": true
+    },
+    "runtimeNavOk": true,
+    "badgeHiddenByCss": true,
+    "staticDrift": []
+  },
+  "pageScan": {
+    "postJob": false,
+    "hireTalent": 0,
+    "findTalent": 0,
+    "joinNetwork": 0,
+    "getJob": 0,
+    "talentLink": false,
+    "footer2026": true,
+    "athena": false,
+    "hephaestus": false,
+    "curated": false,
+    "edtech": false,
+    "webflowBadge": false,
+    "modalsInDom": {
+      "startup": true,
+      "jobseeker": true
+    }
+  },
+  "findings": [
+    {
+      "severity": "high",
+      "issue": "Startup modal does not open on founder CTA",
+      "detail": {
+        "exists": true,
+        "display": "none",
+        "opacity": "1",
+        "visibility": "hidden",
+        "visible": false,
+        "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+      }
+    },
+    {
+      "severity": "high",
+      "issue": "Jobseeker modal does not open on engineer CTA",
+      "detail": {
+        "exists": true,
+        "display": "none",
+        "opacity": "1",
+        "visibility": "hidden",
+        "visible": false,
+        "title": "Talent profileSF STARTUP ROLESOne private profile. Evidence match + human review"
+      }
+    },
+    {
+      "severity": "medium",
+      "issue": "CHOOSE COMMISSION does not open startup modal",
+      "detail": {
+        "exists": true,
+        "display": "none",
+        "opacity": "1",
+        "visibility": "hidden",
+        "visible": false,
+        "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+      }
+    }
+  ],
+  "screenshots": {
+    "landing": "/home/potter/audit-shots/playtest/01-landing-2026-07-30T19-59-46-322Z.png",
+    "startupModal": "/home/potter/audit-shots/playtest/02-after-founder-cta-2026-07-30T19-59-47-694Z.png",
+    "jobseekerModal": "/home/potter/audit-shots/playtest/03-after-get-job-2026-07-30T19-59-50-632Z.png",
+    "pricing": "/home/potter/audit-shots/playtest/04-pricing-2026-07-30T19-59-52-201Z.png",
+    "pricingModal": "/home/potter/audit-shots/playtest/05-after-choose-commission-2026-07-30T19-59-53-138Z.png",
+    "footer": "/home/potter/audit-shots/playtest/06-footer-2026-07-30T19-59-55-382Z.png",
+    "mobileHero": "/home/potter/audit-shots/playtest/07-mobile-landing-2026-07-30T19-59-57-376Z.png",
+    "mobileNav": "/home/potter/audit-shots/playtest/08-mobile-nav-open-2026-07-30T19-59-58-104Z.png",
+    "designer": "/home/potter/audit-shots/webflow/playtest-designer-2026-07-30T19-59-59-326Z.png"
+  },
+  "modals": {
+    "startup": {
+      "exists": true,
+      "display": "none",
+      "opacity": "1",
+      "visibility": "hidden",
+      "visible": false,
+      "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+    },
+    "jobseeker": {
+      "exists": true,
+      "display": "none",
+      "opacity": "1",
+      "visibility": "hidden",
+      "visible": false,
+      "title": "Talent profileSF STARTUP ROLESOne private profile. Evidence match + human review"
+    },
+    "pricingModal": {
+      "exists": true,
+      "display": "none",
+      "opacity": "1",
+      "visibility": "hidden",
+      "visible": false,
+      "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+    }
+  },
+  "clicks": {
+    "startupClick": {
+      "ok": false,
+      "text": "FIND TALENT"
+    },
+    "navHireClick": {
+      "ok": false
+    },
+    "jobClick": {
+      "ok": false,
+      "text": "GET JOB"
+    },
+    "pricingClick": {
+      "ok": false,
+      "text": "START HIRING"
+    },
+    "mobileMenu": {
+      "clicked": false
+    }
+  },
+  "designerIssues": {
+    "postJob": false,
+    "hireTalent": true,
+    "talentLink": false,
+    "footer2026": true
+  },
+  "pass": false
+}

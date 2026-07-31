@@ -5,7 +5,8 @@
  *   node demigod-useful-loop.mjs once
  *   node demigod-useful-loop.mjs run --sleep-sec=90
  *
- * Every cycle: demigod-work-find.mjs (discover NEW work) → execute up to N tasks.
+ * Every cycle: demigod-work-find.mjs → execute up to N evidence-backed tasks.
+ * Healthy no-change cycles are honestly idle.
  * STOP only: touch /tmp/dg-busy/useful-loop.STOP (systemd Restart=always will restart
  * unless unit is stopped; ExecStartPre clears STOP on intentional start).
  *
@@ -151,8 +152,6 @@ function acknowledgeWork(id) {
 /** Run work-find and pull newest open tasks from queue. */
 function discoverWork() {
   let state = loadWorkState();
-  // Compound ambition before evidence scrape
-  run(['demigod-idea-engine.mjs', '--promote'], 60000);
   run(['demigod-work-find.mjs'], 90000);
   state = ingestWorkState(state);
   return state.pending
@@ -160,7 +159,7 @@ function discoverWork() {
     .sort((a, b) => a.pri - b.pri || a.id.localeCompare(b.id));
 }
 
-function planCycle(ctx, cycle = 1) {
+function planCycle(ctx) {
   const tasks = [];
   // P0 reactive
   if (!ctx.events?.local) tasks.push({ id: 'events-app-up', pri: 0, why: 'local events app down' });
@@ -168,39 +167,8 @@ function planCycle(ctx, cycle = 1) {
     tasks.push({ id: 'events-heal', pri: 0, why: 'public tunnel needHeal or public false' });
   if (ctx.events?.nativeRsvpRoutes === false)
     tasks.push({ id: 'events-restart-routes', pri: 0, why: 'native RSVP routes missing' });
-  // Discover NEW work every cycle (never idle)
+  // Execute only work emitted from current evidence.
   for (const t of discoverWork()) tasks.push(t);
-  // Baseline always — at least something product-facing
-  tasks.push({ id: 'public-event-probe', pri: 1, why: 'public-event lifecycle honesty (pre-rsvp redacted / rsvp+ invite)' });
-  tasks.push({ id: 'invite-drain', pri: 1, why: 'invite drain' });
-  // Rotate deeper work so cycles don't only re-probe
-  const deepRot = [
-    'outreach-mx',
-    'truth',
-    'verify-source',
-    'events-selftest',
-    'lifecycle-tests',
-    'demand-draft-hygiene',
-    'warm-review',
-    'foot-smoke',
-    'online-selfcheck',
-    'stage-pending-config',
-    'board-pulse',
-    'outreach-draft-audit',
-    'rewrite-work-found',
-    'loop-state',
-    'demand-status',
-  ];
-  tasks.push({
-    id: deepRot[cycle % deepRot.length],
-    pri: 2,
-    why: 'deep rotate ' + (cycle % deepRot.length),
-  });
-  tasks.push({
-    id: deepRot[(cycle + 5) % deepRot.length],
-    pri: 2,
-    why: 'deep rotate b',
-  });
   tasks.sort((a, b) => a.pri - b.pri || a.id.localeCompare(b.id));
   const seen = new Set();
   return tasks.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true))).slice(0, MAX_TASKS);
@@ -266,9 +234,6 @@ await withEventsStoreLock(async () => {
       // Prepare-only gates — never publishes (current-request auth required for ship).
       // Use process.execPath (not bash bin/dg) so PATH/nvm cannot drop the task.
       return run(['demigod-ship.mjs', 'prepare'], 300000);
-    case 'loop-state':
-      // Craft loops bump foot often; restamp foot_ver_disk to disk so gate stays honest.
-      return run(['demigod-verify-loop-state.mjs', '--restamp'], 30000);
     case 'demand-status': {
       const r = spawnSync('bash', [path.join(ROOT, 'bin/dg'), 'demand', 'status'], {
         cwd: ROOT,
@@ -452,56 +417,6 @@ console.log(JSON.stringify({ ok: true, backlog: b.backlog.length }));
         err: (r.stderr || '').slice(-600),
       };
     }
-    case 'warm-review': {
-      const code = `
-import fs from 'fs';
-const d = JSON.parse(fs.readFileSync('/tmp/dg-busy/demand-status.json','utf8'));
-const w = d.warmInbound || {};
-const lines = [
-  '# Warm inbound pulse · ' + new Date().toISOString(),
-  '',
-  '- count: ' + (w.count ?? '?'),
-  '- overdue: ' + JSON.stringify(w.overdueActionWho || w.overdueActionItems || w.rows || []).slice(0,500),
-  '- pilots: ' + JSON.stringify(d.pilots || {}),
-  '- policy: drafts-only / warm≠pilot / no send',
-  '',
-];
-fs.mkdirSync('/tmp/dg-busy/demand', { recursive: true });
-fs.writeFileSync('/tmp/dg-busy/demand/warm-inbound-pulse.md', lines.join('\\n'));
-console.log(JSON.stringify({ ok: true, path: '/tmp/dg-busy/demand/warm-inbound-pulse.md', count: w.count }));
-`;
-      const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        timeout: 15000,
-      });
-      return { ok: r.status === 0, status: r.status, out: r.stdout || '', err: r.stderr || '' };
-    }
-    case 'demand-draft-hygiene': {
-      const r = spawnSync('bash', [path.join(ROOT, 'bin/dg'), 'demand', 'status'], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        timeout: 60000,
-      });
-      // Prefer structured receipt over stdout string match (review gate-status-or-pass)
-      let hygieneLooksOk = false;
-      try {
-        const receipt = readJson(path.join(BUSY, 'demand-status.json'));
-        hygieneLooksOk =
-          receipt?.drafts?.allHygieneOk === true ||
-          receipt?.drafts?.hygiene?.ok === true ||
-          (Array.isArray(receipt?.drafts?.needFix) && receipt.drafts.needFix.length === 0);
-      } catch {
-        hygieneLooksOk = false;
-      }
-      return {
-        ok: r.status === 0,
-        status: r.status,
-        out: (r.stdout || '').slice(-1200),
-        err: (r.stderr || '').slice(-400),
-        meta: { hygieneLooksOk },
-      };
-    }
     case 'outreach-draft-audit': {
       const code = `
 import fs from 'fs';
@@ -630,7 +545,7 @@ async function once(cycle) {
       log(`cycle=${cycle} auto-heal (needHeal/public)`);
       doTask('events-heal');
     }
-    const plan = planCycle(ctx, cycle);
+    const plan = planCycle(ctx);
     log(
       `cycle=${cycle} plan=${plan.map((p) => p.id).join(',')} events.public=${ctx.events?.public} needHeal=${ctx.events?.needHeal} freeze=${ctx.freezeOn}`,
     );
@@ -649,8 +564,10 @@ async function once(cycle) {
       }
       if (succeeded) acknowledgeWork(t.id);
     }
-    // light gates — restamp foot_ver so concurrent craft does not false-red loopStateOk
-    const src = run(['demigod-verify-loop-state.mjs', '--restamp'], 30000);
+    // Receipt ok derives from the actual work done this cycle: every executed
+    // task succeeded (using the P0 retry result when one was recorded). An
+    // empty plan is vacuously ok, matching the prior always-green idle cycle.
+    const ok = did.every((d) => (d.retryOk !== undefined ? d.retryOk : d.ok));
     const receipt = {
       at: new Date().toISOString(),
       cycle,
@@ -663,10 +580,10 @@ async function once(cycle) {
         apiBase: ctx.events?.apiBase,
       },
       freezeOn: ctx.freezeOn,
-      loopStateOk: src.ok,
+      ok,
       planDoc: PLAN,
     };
-    fs.writeFileSync(LAST, JSON.stringify(receipt, null, 2) + '\n');
+    atomicWrite(LAST, JSON.stringify(receipt, null, 2) + '\n', { mode: 0o600 });
     return receipt;
     // Wait long enough for an in-flight systemd cycle (plan + events heal + gates).
   }, { timeoutMs: 120000, staleMs: 600000 });
@@ -712,7 +629,7 @@ if (cmd === 'task') {
   once(1)
     .then((r) => {
       console.log(JSON.stringify(r, null, 2));
-      process.exit(r.stopped || r.loopStateOk !== false ? 0 : 1);
+      process.exit(r.stopped || r.ok !== false ? 0 : 1);
     })
     .catch((err) => {
       const msg = String(err?.message || err);

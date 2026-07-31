@@ -1,0 +1,3 @@
+# Names that must not appear in site COPY / founder marketing
+# One name per line. Historical leak:
+John

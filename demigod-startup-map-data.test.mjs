@@ -62,6 +62,21 @@ test('buildYcPublicCompanies maps Active SF rows and drops inactive/foreign', ()
   assert.match(companies[0].sourceUrl, /ycombinator\.com\/companies\/active-sf/);
 });
 
+test('two distinct entities sharing a host are NOT merged (false merges are worse than duplicates)', () => {
+  // Wikidata really does carry RockLive (Q7354178) and Shots Podcast Network (Q15977863) as
+  // separate entities both listing shots.com. Cross-source dedupe is a heuristic on a host key,
+  // not an identity claim, so rows inside ONE source list must survive intact. Collapsing them
+  // would poison every downstream claim about both companies. Do not "fix" this into a merge.
+  const wikidata = [
+    { id: 'wd:Q7354178', name: 'RockLive', website: 'https://www.shots.com/', sourceLicense: 'CC0-1.0' },
+    { id: 'wd:Q15977863', name: 'Shots Podcast Network', website: 'https://shots.com/', sourceLicense: 'CC0-1.0' },
+  ];
+  const merged = mergeNamedCompanies([], wikidata);
+  assert.deepEqual(merged.map((row) => row.id).sort(), ['wd:Q15977863', 'wd:Q7354178']);
+  // ...and the same pair inside the PRIMARY list is equally safe.
+  assert.equal(mergeNamedCompanies(wikidata, []).length, 2);
+});
+
 test('mergeNamedCompanies dedupes by website host and keeps YC primary', () => {
   assert.equal(websiteHostKey('https://www.Docker.com/path'), 'docker.com');
   const merged = mergeNamedCompanies(

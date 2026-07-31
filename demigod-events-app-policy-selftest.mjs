@@ -8,6 +8,16 @@ import path from 'node:path';
 import test from 'node:test';
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
+// Fail-closed: unknown flags must not vacuous-green the suite (POSIX usage = exit 2).
+{
+  const argvFlags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+  if (argvFlags.length) {
+    console.error(
+      `usage: node demigod-events-app-policy-selftest.mjs  (no flags; got ${argvFlags.join(' ')})`,
+    );
+    process.exit(2);
+  }
+}
 const agentSource = fs.readFileSync(path.join(ROOT, 'demigod-events-bot-agent.mjs'), 'utf8');
 let appSource = fs.readFileSync(path.join(ROOT, 'demigod-events-app.mjs'), 'utf8');
 const onlineSource = fs.readFileSync(path.join(ROOT, 'demigod-events-online.mjs'), 'utf8');
@@ -561,36 +571,6 @@ test('public calendar and private ideas enforce write policy', async () => {
       assert.equal(limited.status, i < 20 ? 200 : 429, 'leftmost XFF spoof rotated rate-limit bucket');
     }
 
-    const chatJoin = await fetch(base + '/chatroom/join', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Fixture Visitor' }),
-    });
-    assert.equal(chatJoin.status, 201);
-    const chatSession = await chatJoin.json();
-    const reservedJoin = await fetch(base + '/chatroom/join', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Demigod' }),
-    });
-    assert.equal(reservedJoin.status, 400);
-    const takenJoin = await fetch(base + '/chatroom/join', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'fixture visitor' }),
-    });
-    assert.equal(takenJoin.status, 409);
-    assert.match((await takenJoin.json()).error, /already in use/i);
-    const deniedChat = await fetch(base + '/chatroom/send', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'wrong', text: 'hello' }),
-    });
-    assert.equal(deniedChat.status, 401);
-    const chatSend = await fetch(base + '/chatroom/send', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: chatSession.token, text: 'hello SF' }),
-    });
-    assert.equal(chatSend.status, 201);
-    const deniedChatRead = await fetch(base + '/chatroom/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'wrong', since: 0 }),
-    });
-    assert.equal(deniedChatRead.status, 401);
-    const chatRead = await fetch(base + '/chatroom/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: chatSession.token, since: 0 }),
-    });
-    assert.deepEqual((await chatRead.json()).messages.map((row) => [row.name, row.text]), [['Fixture Visitor', 'hello SF']]);
 
     const missingTitle = await fetch(base + '/event-submission', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

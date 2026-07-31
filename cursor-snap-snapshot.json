@@ -1,0 +1,63 @@
+{
+  "title": "Development environment setup | Cursor",
+  "url": "https://cursor.com/agents/bc-6e06da9b-974b-44d8-a204-9d622baa9511?setupSessionId=1b68f626-85b9-40e6-9865-6283e9a7f8b3&app=environment",
+  "body": "New Agent\nAutomations\nBugbot\nDashboard\nToday\nEat the sounds game\n+1163\n-1\n1m\nDevelopment environment setup\n2m\nAlbum breakdown end screen\n+491\n2m\nSound data processing\n+901\n-1\n2m\nFirst-vinyl ghost slice polish\n+19\n3m\nSoul-first principles\n+8\n4m\nEcho onboarding\n+16\n4m\nBird echo orb sarah line\n+3\n4m\nMirror choice album percentage\n4m\nOverworld interaction functions\n+5\n4m\nMcp chrome devtools\n4m\nSarah tint particles mirror\n4m\nGold pad markers vinyl pads\n4m\nProject verification\n4m\nSarah vinyl mutual visibility\n5m\nNinjawhee eat the sounds\n5m\nAgents heavy cursor feedback\n5m\nSingle file pull requests\n5m\nReact bundler multiplayer exclusion\n5m\nP0 backlog heavy-ranked\n5m\nRules definition\n5m\nNinjawhee javascript modules\n5m\nLast 7 days\nWebflow connection status\n1d\nJonathan Potter\nPro+\nDevelopment environment setup\nPlease set up the development environment for this codebase. Run the application(s) and demonstrate that the environment is working.\nSet environment to \nUuriko/crispy-garbanzo\nEnvironment ready\nWorked for 1m 14s\n\nI've thoroughly explored the repository, and there is genuinely nothing to set up. The repo crispy-garbanzo (a GitHub auto-generated name) contains only a single file:\n\nREADME.md with one line: # crispy-garbanzo\n\nThere is no application code, no services, no package manifests (package.json, requirements.txt, go.mod, etc.), no lockfiles, no language version files, no Dockerfiles, no CI config, and no setup scripts. Only main exists locally and on the remote, with a single Initial commit.\n\nBecause there is no product, no language toolchain, and no dependencies, there is nothing to install, no service to run in development mode, and no core functionality to exercise as a \"hello world\" task. Creating a toy application would be a fabricated/contrived artifact, which I won't do.\n\nWhat I did:\n\n✅ Inspected the full working tree and git state (git ls-files, git branch -a) — only README.md is tracked.\n✅ Searched for any setup scripts, devcontainer configs, .cursor/environment.json, manifests, lockfiles, and version files — none exist.\n\nI did not configure an update script because any script would be a meaningless no-op against the current repository state, and I did not add an AGENTS.md section because there are no real, durable run/test/build caveats to capture yet.\n\nSummary\nNo development environment could be set up: the repository contains only README.md and no application code, services, or dependencies.\n\nTesting\n\n⚠️ No lint/test/build/run commands exist to execute — the repository has no code or tooling.\n\nTo proceed, please push the actual project code (or point me at the correct branch/repository). Once a product with a manifest or run instructions is present, I can install dependencies, configure the startup/update script, run the services, and demonstrate a real end-to-end task.\n\nEnvironment is ready to be saved.\nReview\nSave\n\n\n\n\nAdd follow up for setup agent\nEnvironment\nGit\nDesktop\nTerminal\nFiles\nUuriko/crispy-garbanzo\nReady to save\nSave\nUpdate Script\n1\nAdd setup commands for this environment\nSecrets\nManage\nAdd\nValue\nScope\nType\nActions\nNo secrets yet\nNetwork Access Settings\nInherit user settings\n\nBuilds on user network access. Manage in user settings.",
+  "buttons": [
+    "Toggle left sidebar",
+    "Search agents (Ctrl+K)",
+    "New Agent",
+    "Automations",
+    "Bugbot",
+    "Dashboard",
+    "Eat the sounds game\n+1163\n-1\n1m",
+    "Archive",
+    "Development environment setup\n2m",
+    "Archive",
+    "Album breakdown end screen\n+491\n2m",
+    "Archive",
+    "Sound data processing\n+901\n-1\n2m",
+    "Archive",
+    "First-vinyl ghost slice polish\n+19\n3m",
+    "Archive",
+    "Soul-first principles\n+8\n4m",
+    "Archive",
+    "Echo onboarding\n+16\n4m",
+    "Archive",
+    "Bird echo orb sarah line\n+3\n4m",
+    "Archive",
+    "Mirror choice album percentage\n4m",
+    "Archive",
+    "Overworld interaction functions\n+5\n4m",
+    "Archive",
+    "Mcp chrome devtools\n4m",
+    "Archive",
+    "Sarah tint particles mirror\n4m",
+    "Archive",
+    "Gold pad markers vinyl pads\n4m",
+    "Archive",
+    "Project verification\n4m",
+    "Archive",
+    "Sarah vinyl mutual visibility\n5m",
+    "Archive",
+    "Ninjawhee eat the sounds\n5m",
+    "Archive",
+    "Agents heavy cursor feedback\n5m",
+    "Archive"
+  ],
+  "inputs": [
+    {
+      "tag": "DIV",
+      "type": "",
+      "placeholder": "",
+      "value": "",
+      "visible": true
+    },
+    {
+      "tag": "TEXTAREA",
+      "type": "textarea",
+      "placeholder": "",
+      "value": "",
+      "visible": true
+    }
+  ]
+}

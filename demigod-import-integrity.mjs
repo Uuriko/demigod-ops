@@ -12,7 +12,12 @@
  *   npm run demigod:import-integrity
  *   node demigod-import-integrity.mjs --json
  *   DEMIGOD_ROOT=/tmp/fixture node demigod-import-integrity.mjs  # isolated tree
+ *   DEMIGOD_IMPORT_GATES=1 …  # also fail on untracked/missing verify-all gate scripts
  *   git config core.hooksPath .githooks   # enable pre-commit (once per clone)
+ *
+ * Default: static import edges + export contracts. verify-all gate-list is always *reported*
+ * (gateUntracked/gateMissing) but only fails when DEMIGOD_IMPORT_GATES=1 — so "no git add
+ * without request" does not red the tree while still making late clone-breakers visible.
  */
 import fs from 'fs';
 import path from 'path';
@@ -36,15 +41,6 @@ const EXPORT_CONTRACTS = {
     'webhookAuthSafeToBind',
     'verifyWebflowWebhook',
   ],
-  'demigod-form-analytics.mjs': [
-    'MAX_ANALYTICS_BODY',
-    'recordFormEvent',
-    'processFormAnalyticsRequest',
-    'summarizeFormAnalytics',
-    'allowFormAnalyticsWrite',
-    'allowTimestampRequest',
-    'normalizeFormEvent',
-  ],
   'demigod-webhook-origin.mjs': ['webhookOriginPolicy', 'privateCapabilityHeaders'],
   'demigod-webhook-rate-limit.mjs': ['webhookClientIp', 'allowWebhookRequest'],
   'demigod-webflow-token.mjs': ['resolveWebflowApiToken', 'hasWebflowApiToken'],
@@ -54,10 +50,11 @@ const EXPORT_CONTRACTS = {
     'ROOT',
     'sleep',
     'wlog',
+    'loadDemigodState',
+    'saveDemigodState',
+    'WEBFLOW_DESIGNER_URL',
     'prepareWebflowDesigner',
     'captureDemigodScreenshots',
-    'submitWebflowAiPrompt',
-    'waitWebflowTurnComplete',
   ],
   'demigod-agent-tools-lib.mjs': [
     'BUSY',
@@ -98,6 +95,8 @@ const importRe =
 
 const missing = [];
 const untracked = [];
+const gateUntracked = [];
+const gateMissing = [];
 const contractFails = [];
 const checked = new Set();
 
@@ -126,6 +125,34 @@ for (const rel of tracked) {
   }
 }
 
+// demigod-verify-all.mjs spawns gate scripts by path — no static import edge.
+// Untracked gates are late clone-breakers: import-integrity green does not mean gates are
+// clone-safe. Always report; fail only when DEMIGOD_IMPORT_GATES=1 (strict; needs git-add).
+const VERIFY_ALL = path.join(ROOT, 'demigod-verify-all.mjs');
+if (fs.existsSync(VERIFY_ALL)) {
+  let gateSrc = '';
+  try {
+    gateSrc = fs.readFileSync(VERIFY_ALL, 'utf8');
+  } catch {
+    gateSrc = '';
+  }
+  const gateRe = /\[[\s\n]*['"](demigod-[a-zA-Z0-9._-]+\.mjs)['"]/g;
+  const seenGates = new Set();
+  let gm;
+  while ((gm = gateRe.exec(gateSrc))) {
+    const mod = gm[1];
+    if (!mod || seenGates.has(mod)) continue;
+    seenGates.add(mod);
+    const modPath = path.join(ROOT, mod);
+    if (!fs.existsSync(modPath)) {
+      gateMissing.push({ from: 'demigod-verify-all.mjs', mod, reason: 'gate-missing-on-disk' });
+    } else if (!tracked.has(mod)) {
+      gateUntracked.push({ from: 'demigod-verify-all.mjs', mod, reason: 'gate-exists-untracked' });
+    }
+  }
+}
+const strictGates = process.env.DEMIGOD_IMPORT_GATES === '1';
+
 for (const [mod, names] of Object.entries(EXPORT_CONTRACTS)) {
   const modPath = path.join(ROOT, mod);
   if (!fs.existsSync(modPath)) {
@@ -150,7 +177,9 @@ for (const [mod, names] of Object.entries(EXPORT_CONTRACTS)) {
   }
 }
 
-const ok = missing.length === 0 && untracked.length === 0 && contractFails.length === 0;
+const edgesOk = missing.length === 0 && untracked.length === 0 && contractFails.length === 0;
+const gatesOk = gateMissing.length === 0 && gateUntracked.length === 0;
+const ok = edgesOk && (!strictGates || gatesOk);
 const report = {
   ok,
   at: new Date().toISOString(),
@@ -158,16 +187,27 @@ const report = {
   contractsChecked: Object.keys(EXPORT_CONTRACTS).length,
   missing,
   untracked,
+  gateUntracked,
+  gateMissing,
+  gatesOk,
+  strictGates,
   contractFails,
   summary: ok
-    ? `import-integrity OK edges=${checked.size} contracts=${Object.keys(EXPORT_CONTRACTS).length}`
-    : `import-integrity FAIL missing=${missing.length} untracked=${untracked.length} contracts=${contractFails.length}`,
+    ? `import-integrity OK edges=${checked.size} contracts=${Object.keys(EXPORT_CONTRACTS).length}` +
+      (gatesOk ? '' : ` · gate-advisory untracked=${gateUntracked.length} missing=${gateMissing.length}`)
+    : `import-integrity FAIL missing=${missing.length} untracked=${untracked.length} contracts=${contractFails.length}` +
+      (strictGates && !gatesOk
+        ? ` gateUntracked=${gateUntracked.length} gateMissing=${gateMissing.length}`
+        : ''),
 };
 
 if (JSON_OUT) console.log(JSON.stringify(report, null, 2));
 else {
   console.log(report.summary);
   for (const row of [...missing, ...untracked].slice(0, 40)) {
+    console.log(`  ${row.reason}: ${row.from} → ${row.mod}`);
+  }
+  for (const row of [...gateMissing, ...gateUntracked].slice(0, 40)) {
     console.log(`  ${row.reason}: ${row.from} → ${row.mod}`);
   }
   for (const row of contractFails.slice(0, 20)) {

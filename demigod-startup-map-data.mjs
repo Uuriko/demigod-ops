@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { cleanBoundaryFeatures, mergeBounds } from './demigod-startup-atlas.mjs';
 import { FREE_SF_VENUES } from './demigod-events-bot-agent.mjs';
+import { isCompanyWebsiteHost } from './demigod-hn-hiring.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSINESSES = 'https://data.sfgov.org/resource/g8m3-pdis.json';
@@ -44,7 +45,13 @@ const safeUrl = (value) => {
   }
 };
 
-/** Hostname key for cross-source dedupe (two companies cannot own one public website host). */
+/** Hostname key for CROSS-source dedupe: the same company arriving from YC and from Wikidata
+ *  should collapse to one row. The key is a heuristic, not an identity — two distinct entities
+ *  can publish the same host. Live counterexample: Wikidata carries RockLive (Q7354178) and
+ *  Shots Podcast Network (Q15977863) as separate entities, both listing shots.com. Rows inside
+ *  one source list are deliberately NOT deduped against each other, because collapsing them
+ *  would be a false merge — and a false merge poisons every downstream claim about both
+ *  companies, which is far worse than carrying a duplicate. */
 export function websiteHostKey(value) {
   try {
     return new URL(String(value || '')).hostname.replace(/^www\./i, '').toLowerCase();
@@ -342,8 +349,13 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
   // HN "Who is hiring?" companies (map-ready cache written by demigod-hn-hiring.mjs; refresh monthly).
   // Graceful if absent — the directory rebuilds fine without it.
   const hnCompanies = (() => {
-    try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || []; }
-    catch { return []; }
+    try {
+      const rows = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || [];
+      // The cache is written once and reused across rebuilds, so a row captured BEFORE a host
+      // joined BADHOST keeps re-entering the map forever — that is how a company shipped with
+      // website "https://producthunt.com/". Re-apply the ban on read.
+      return rows.filter((row) => isCompanyWebsiteHost(row.website));
+    } catch { return []; }
   })();
   const map = buildPublicStartupMap({
     counts,

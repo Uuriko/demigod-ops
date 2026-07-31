@@ -123,7 +123,7 @@ const report = {
   full,
   steps,
   next: pass
-    ? 'preflight green — edit only under foot-lock; ship via dg-publish-foot when needed'
+    ? 'preflight green — edit only under foot-lock; ship via bin/dg ship when needed'
     : `fix: ${steps
         .filter((s) => !s.ok)
         .map((s) => s.label)

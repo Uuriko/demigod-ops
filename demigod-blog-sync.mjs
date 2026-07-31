@@ -347,8 +347,8 @@ function main() {
   // can catch the file torn. The foot-lock does not help here -- it serialises writers, while the
   // readers are verify:source (every ~90s from the loop), a ship, or another agent. foot-core is the
   // most-read file in the repo and a torn read of it is the "49 grep gates green on a file that does
-  // not parse" class. demigod-favicon-ship.mjs:60 and head-css-publish.mjs:89 already do this after a
-  // torn head was observed live 2026-07-17; reuse the shared helper instead of hand-rolling
+  // not parse" class. demigod-favicon-ship.mjs and the unified site-bundle publisher already do this
+  // after a torn head was observed live 2026-07-17; reuse the shared helper instead of hand-rolling
   // tmp+rename a third time.
   atomicWrite(FOOT, nextFoot);
   atomicWrite(HEAD, nextHead);

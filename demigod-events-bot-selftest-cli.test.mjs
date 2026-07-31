@@ -7,6 +7,8 @@
  */
 import { spawnSync } from 'child_process';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import test from 'node:test';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -35,20 +37,17 @@ test('events-bot-selftest rejects unknown flags (exit 2, no suite)', () => {
 });
 
 test('funnel-loop once fails closed under lead FOCUS pause', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demigod-focus-pause-'));
+  const focusPath = path.join(dir, 'FOCUS.md');
+  fs.writeFileSync(focusPath, '# Current\nLead funnel is **paused** now\n');
   const r = spawnSync(process.execPath, [LOOP, 'once'], {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 60000,
-    env: process.env,
+    env: { ...process.env, DEMIGOD_FOCUS_PATH: focusPath },
   });
+  fs.rmSync(dir, { recursive: true, force: true });
   const out = `${r.stdout || ''}${r.stderr || ''}`;
-  // When focus is paused (current Events Bot lane), once must not draft.
-  // If focus is unpaused in a future session, status 0 with drafted[] is ok —
-  // only assert the pause path when focusPaused is reported.
-  if (/focusPaused|force-paused/i.test(out) || r.status === 2) {
-    assert.equal(r.status, 2, `paused once must exit 2\n${out.slice(0, 400)}`);
-    assert.match(out, /focusPaused|force-paused/i, out.slice(0, 400));
-  } else {
-    assert.equal(r.status, 0, `unpaused once must not crash\n${out.slice(0, 400)}`);
-  }
+  assert.equal(r.status, 2, `paused once must exit 2\n${out.slice(0, 400)}`);
+  assert.match(out, /"focusPaused"\s*:\s*true/);
 });

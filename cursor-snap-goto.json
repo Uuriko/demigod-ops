@@ -1,0 +1,63 @@
+{
+  "title": "Cursor - The best way to code with AI",
+  "url": "https://cursor.com/dashboard/cloud-agents",
+  "body": "Back to Agents\nJonathan Potter\nPro+\nOverview\nSettings\nCloud Agents\nBugbot\nSecurity Agents\nApproval Agents\nPlugins\nIntegrations\nAPI Keys\nShared Canvases\nMembers\nUsage\nSpending\nBilling & Invoices\nCloud Agents\nCreate Agents to edit and run code, asynchronously\nEnvironments\nNew\nName\nScope\nStatus\nLast Updated\nActions\nUuriko/crispy-garbanzo\nUnconfigured\nInactive\nnow\nShowing 1-1 of 1\nPrev\n1 / 1\nNext\nSelf-Hosted\nMonitor and manage your self-hosted cloud machines\nEnable self-hosted pool\nEnable self-hosted pool to create a personal pool of workers.\nMy Machines\nView personal self-hosted workers and CLI commands to connect machines.\nDefaults\nDefault Model\nUsed when no model is specified\nGPT-5.5 High\nDefault Repository\nUsed when no repository is specified\nUuriko/crispy-garbanzo\nBase Branch\nWhen empty, Cloud Agent will use a repository's default branch (recommended)\nBranch Prefix\nPrefix for branch names created by Cloud Agent\nPull Requests\nCreate PRs\nAutomatically create a pull request when Cloud Agent completes.\nFor Single Model Runs\nAllow posting artifacts to GitHub\nAllow cloud agents to embed images directly in PR descriptions using hard-to-guess public URLs. Learn more\nLink Only\nNotifications\nSlack Notifications\nGet notified in Slack when a Cloud Agent completes a task\nSlack routing\nRouting rules to help Cloud Agents pick the right repository or environment.\nAdd Rule\nNo routing rules yet\nAdd Rule\nSecurity\nNetwork Access Settings\nControl which network destinations your cloud agents can access\nAllow all network access\nMy Secrets\nSecurely set environment variables for your Cloud Agents.\nAdd Secrets\nNo secrets yet\nAdd Secrets",
+  "buttons": [
+    "Back to Agents",
+    "User menu",
+    "Overview",
+    "Settings",
+    "Cloud Agents",
+    "Bugbot",
+    "Security Agents",
+    "Approval Agents",
+    "Plugins",
+    "Integrations",
+    "API Keys",
+    "Shared Canvases",
+    "Members",
+    "Usage",
+    "Spending",
+    "Billing & Invoices",
+    "Environments",
+    "New",
+    "Uuriko/crispy-garbanzo\nUnconfigured\nInactive\nnow",
+    "View details for Uuriko/crispy-garbanzo",
+    "Actions for Uuriko/crispy-garbanzo",
+    "Prev",
+    "Next",
+    "Self-Hosted\nMonitor and manage your self-hosted cloud machin",
+    "Defaults",
+    "GPT-5.5 High",
+    "Uuriko/crispy-garbanzo",
+    "Pull Requests",
+    "For Single Model Runs",
+    "Learn more",
+    "Link Only",
+    "Notifications",
+    "Slack routing\nRouting rules to help Cloud Agents pick the ri",
+    "Add Rule",
+    "Add Rule",
+    "Security",
+    "Allow all network access",
+    "My Secrets\nSecurely set environment variables for your Cloud",
+    "Search secrets",
+    "Add Secrets"
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "placeholder": "Branch name...",
+      "value": "",
+      "visible": true
+    },
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "placeholder": "cursor/",
+      "value": "",
+      "visible": true
+    }
+  ]
+}

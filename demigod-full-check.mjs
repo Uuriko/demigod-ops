@@ -2,18 +2,17 @@
 /**
  * demigod-full-check — FULL-CHECK ORCHESTRATOR (freeze-safe, read-only)
  *
- * Atlas: docs/exchange/DEMIGOD-FULL-HISTORY-AND-TOOL-ATLAS.md
- * Order: local gates → live-doctor → route-mime → browser smoke → control plane
+ * Order: local gates → truth → route-mime → browser smoke → control plane
  *
  * Flags:
  *   --json           JSON only
  *   --skip-smoke     skip agent-smoke (browser)
  *   --skip-browser   alias of --skip-smoke
  *   --release        DEMIGOD_REQUIRE_LIVE_MATCH=1 (disk must equal live)
- *   --offline        skip network steps (live-doctor, route-mime, smoke)
+ *   --offline        skip network steps (truth, route-mime, smoke)
  *
  *   node demigod-full-check.mjs [--json] [--skip-smoke] [--release] [--with-review]
- *   bin/dg full-check
+ *   bin/dg check full
  */
 import fs from 'fs';
 import path from 'path';
@@ -39,7 +38,6 @@ function run(label, cmd, timeout = 120000, envExtra = {}) {
   // Prefer known artifact paths over parsing stdout
   const artifactMap = {
     truth: path.join(BUSY, 'truth.json'),
-    'live-doctor': path.join(BUSY, 'live-doctor.json'),
     'route-mime': path.join(BUSY, 'route-mime.json'),
     doctor: path.join(BUSY, 'doctor.json'),
     'agent-smoke': path.join(BUSY, 'agent-smoke.json'),
@@ -123,7 +121,6 @@ function main() {
   steps.push(run('orca-doctor', 'node demigod-orca-bridge.mjs doctor', 15000));
   steps.push(run('verify-source', 'npm run demigod:verify:source', 60000));
   steps.push(run('board-honesty', 'node demigod-verify-board-honesty.mjs', 20000));
-  steps.push(run('loop-state', 'node demigod-verify-loop-state.mjs', 10000));
   steps.push(run('foot-smoke', 'node demigod-foot-smoke.mjs', 15000));
   if (withReview) {
     steps.push(run('code-review', 'node demigod-review.mjs --format summary --fail-on high', 120000));
@@ -132,7 +129,7 @@ function main() {
     steps.push(
       runOrReuse(
         'review',
-        'node demigod-review.mjs --format summary --fail-on never',
+        'node demigod-review.mjs --format summary --fail-on never --no-contract',
         60000,
         {},
         path.join(BUSY, 'review-latest.json'),
@@ -189,7 +186,7 @@ function main() {
   );
 
   const failed = steps.filter((s) => !s.ok).map((s) => s.label);
-  const liveChild = steps.find((s) => s.label === 'truth' || s.label === 'live-doctor')?.child;
+  const liveChild = steps.find((s) => s.label === 'truth')?.child;
   const report = {
     at: new Date().toISOString(),
     schemaVersion: 1,
@@ -210,7 +207,7 @@ function main() {
     details: steps,
     artifacts: {
       fullCheck: OUT,
-      liveDoctor: path.join(BUSY, 'live-doctor.json'),
+      truth: path.join(BUSY, 'truth.json'),
       routeMime: path.join(BUSY, 'route-mime.json'),
     },
   };

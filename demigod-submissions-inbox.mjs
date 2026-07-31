@@ -11,7 +11,17 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadInbox, updateInbox, extractEmail, publicStatus, findSubmission, startupRoleReadiness, candidateProfileReadiness } from './demigod-submissions-lib.mjs';
+import {
+  loadInbox,
+  updateInbox,
+  extractEmail,
+  publicStatus,
+  startupRoleReadiness,
+  candidateProfileReadiness,
+  isSampleData,
+  isSyntheticContact,
+  scrubPII,
+} from './demigod-submissions-lib.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-INBOX-REPORT.json');
@@ -63,10 +73,15 @@ export function pendingReviewCount(items = []) {
 }
 
 export function isTestSubmission(item = {}) {
-  const domain = (extractEmail(item.raw || {}, item.form).split('@')[1] || '').toLowerCase();
-  return item.sample === true || item.raw?.sample === true || item.raw?.test === true || item.raw?.demo === true ||
+  const bags = [item.raw, item.data, item.payload]
+    .filter((bag) => bag && typeof bag === 'object');
+  return isSampleData(item) ||
+    bags.some((bag) => bag.test === true || bag.demo === true) ||
     /^(?:sla-test|test-|demo-)/i.test(String(item.id || '')) ||
-    domain === 'example.com' || domain.endsWith('.example') || domain.endsWith('.invalid');
+    bags.some((bag) => {
+      const email = extractEmail(bag, item.form);
+      return email && isSyntheticContact(email, bag);
+    });
 }
 
 export function queueRank(status) {
@@ -87,10 +102,16 @@ function summarize(items) {
 export function redactItem(item) {
   const email = extractEmail(item.raw || {}, item.form);
   const masked = email ? email.replace(/(^.).*(@.*$)/, '$1***$2') : '';
+  const rejectReasons = Array.isArray(item.rejectReasons)
+    ? item.rejectReasons
+        .filter((reason) => typeof reason === 'string' && reason.trim())
+        .slice(0, 20)
+        .map((reason) => scrubPII(reason).slice(0, 120))
+    : [];
   const attribution = Object.fromEntries(
     ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'referral', 'role_id', 'event_id']
       .map((key) => [key, item.raw?.[key]])
-      .filter(([, value]) => typeof value === 'string' && value.length <= 120 && /^[A-Za-z0-9][A-Za-z0-9._ -]*$/.test(value)),
+      .filter(([, value]) => typeof value === 'string' && value.length <= 120 && /^[A-Za-z0-9][A-Za-z0-9._ -]*$/.test(value) && scrubPII(value) === value),
   );
   const startupReadiness = startupRoleReadiness(item);
   const readiness = startupReadiness.applicable ? startupReadiness : candidateProfileReadiness(item);
@@ -101,7 +122,7 @@ export function redactItem(item) {
     kind: formKind(item.form),
     status: item.status,
     email: masked,
-    rejectReasons: item.rejectReasons || null,
+    rejectReasons: rejectReasons.length ? rejectReasons : null,
     featuredId: item.featuredId || null,
     statusUrl: `https://www.trydemigod.com/#status/${item.id}`,
     headline: publicStatus(item).headline,

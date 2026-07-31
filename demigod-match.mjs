@@ -5,7 +5,7 @@
  *
  * Usage:
  *   node demigod-match.mjs list <pilotId>
- *   node demigod-match.mjs add <pilotId> --name "Ada" --why "…" [--score 1-5] [--consent]
+ *   node demigod-match.mjs add <pilotId> --name "Ada" --why "…" [--score 1-5] [--consent --i-observed-consent --evidence "reply"]
  *   node demigod-match.mjs remove <pilotId> --id <candidateId>
  *   node demigod-match.mjs scorecard <pilotId>
  *   node demigod-match.mjs finalize <pilotId>   # status → shortlist if 1–3 with why
@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { BUSY, ensureBusy, atomicWrite, opt, withFileLock } from './demigod-agent-tools-lib.mjs';
-import { proposePair } from './demigod-pairs-lib.mjs';
+import { isValidConsentEvidence, proposePair } from './demigod-pairs-lib.mjs';
 
 console.error('[DEPRECATED] demigod-match.mjs writes the legacy pilot shortlist. Prefer: bin/dg matches');
 console.error('[dual-write] add writes DEMIGOD-PILOTS.json and mirrors a proposed pair to DEMIGOD-PAIRS.json.');
@@ -110,6 +110,10 @@ if (cmd === 'scorecard') {
   if (!(p.shortlist || []).length) sc.gaps.push('empty_shortlist');
   if ((p.shortlist || []).some((c) => !c.why)) sc.gaps.push('candidate_missing_why');
   if ((p.shortlist || []).some((c) => !c.consent)) sc.gaps.push('candidate_missing_consent');
+  if ((p.shortlist || []).some((c) => c.consent && !isValidConsentEvidence(c.consentEvidence))) {
+    sc.gaps.push('candidate_missing_consent_evidence');
+  }
+  sc.ready = sc.ready && sc.gaps.length === 0;
   console.log(JSON.stringify(sc, null, 2));
   process.exit(sc.ready && !sc.gaps.length ? 0 : 2);
 }
@@ -120,9 +124,19 @@ if (cmd === 'add') {
   const why = opt(args, '--why', '');
   const score = Number(opt(args, '--score', '3')) || 3;
   const consent = args.includes('--consent');
+  const consentAttested = args.includes('--i-observed-consent');
+  const consentEvidence = String(opt(args, '--evidence', '')).trim();
   const links = opt(args, '--links', '');
   if (!name || !why) {
     console.error(JSON.stringify({ ok: false, error: 'name_and_why_required' }));
+    process.exit(2);
+  }
+  if (consent && !consentAttested) {
+    console.error(JSON.stringify({ ok: false, error: 'consent_attestation_required' }));
+    process.exit(2);
+  }
+  if (consent && !isValidConsentEvidence(consentEvidence)) {
+    console.error(JSON.stringify({ ok: false, error: 'consent_evidence_invalid' }));
     process.exit(2);
   }
   let c;
@@ -150,6 +164,7 @@ if (cmd === 'add') {
         why,
         score: Math.min(5, Math.max(1, score)),
         consent: Boolean(consent),
+        consentEvidence: consent ? consentEvidence : null,
         links,
         against90d: p.outcome90d || '',
       };
@@ -240,8 +255,8 @@ if (cmd === 'finalize') {
     console.error(JSON.stringify({ ok: false, error: 'missing_90day_outcome' }));
     process.exit(1);
   }
-  if ((p.shortlist || []).some((c) => !c.why || !c.consent)) {
-    console.error(JSON.stringify({ ok: false, error: 'each_candidate_needs_why_and_consent' }));
+  if ((p.shortlist || []).some((c) => !c.why || !c.consent || !isValidConsentEvidence(c.consentEvidence))) {
+    console.error(JSON.stringify({ ok: false, error: 'each_candidate_needs_why_and_verified_consent' }));
     process.exit(1);
   }
   const allowedFin = new Set(['new', 'matching', 'shortlist', 'active', '']);

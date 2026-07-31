@@ -1,0 +1,14 @@
+DEMIGOD ORCA BRIEF
+
+Project: trydemigod.com — SF talent matching (Webflow + custom foot JS + ops).
+Workspace: /home/potter.
+
+Read current truth at task time:
+- DEMIGOD-SIMPLE.md — operating mode and entry rules
+- DEMIGOD-COMPRESSED-STATE.md — current evidence
+- AGENT-COMMS.md — Claude/Codex/Grok communication
+- AGENTS.md and CLAUDE.md — safety and authorization
+
+Do not embed a standing phase label. Use task-specific facts from current receipts.
+External publish, messages, posts, forms, and money remain current-request-gated.
+Eat the Sounds is archived and out of scope.
