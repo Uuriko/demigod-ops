@@ -75,6 +75,22 @@ export function buildStaticDirectory(map, generatedAt = '') {
     if (c.openRoles && c.atsSource && typeof c.agingRoles === 'number' && c.agingRoles > 0) {
       agingBits.push(`${c.agingRoles} posted 90–365d (board date)`);
     }
+    // Median posting age with its corpus rank. The interactive directory already shows this; the
+    // crawlable page did not, so a crawler saw strictly less than a user. Both fields are stamped
+    // together by enrichMap or not at all, and both are required here — a median with no context
+    // invites the reader to invent a baseline, and a rank without its median hides what was ranked.
+    // Omitted entirely for the ~2,400 companies with too few dated roles to measure: unknown is a
+    // real answer and must not be dressed up as a number.
+    if (
+      c.openRoles && c.atsSource &&
+      typeof c.medianPostedDays === 'number' && typeof c.postedPercentile === 'number'
+    ) {
+      const band = c.postedPercentile >= 95 ? 'among the stalest tracked boards'
+        : c.postedPercentile >= 75 ? 'staler than most tracked boards'
+        : c.postedPercentile <= 25 ? 'fresher than most tracked boards'
+        : 'typical for tracked boards';
+      agingBits.push(`median posting ${c.medianPostedDays}d — ${band}`);
+    }
     const agingNote = agingBits.length ? ` · ${esc(agingBits.join(' · '))}` : '';
     const jobLink = jobs
       ? ` — <a href="${esc(jobs)}" rel="nofollow noopener">${esc(hiring || 'careers')}</a>${agingNote}`
@@ -123,6 +139,21 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   // crawlable: real company + job content is in the SERVED HTML (not JS-rendered)
   assert(html.includes('Alpha Robotics') && html.includes('12 open roles on Ashby'), 'verified company + count in served HTML');
   assert(html.includes('longest tracked 11d (our first seen)'), 'observed open-age is crawlable');
+  // Median posting age must reach crawlers too, and must be omitted — never guessed — when the
+  // company has too few dated roles to rank. Both fields are required together.
+  {
+    const withMap = (extra) => buildStaticDirectory({
+      ...fake,
+      companies: [{ ...fake.companies[0], ...extra }],
+    });
+    const both = withMap({ medianPostedDays: 146, postedPercentile: 96 });
+    assert(both.includes('median posting 146d'), 'median posting age is crawlable');
+    assert(both.includes('among the stalest tracked boards'), 'and carries its corpus band');
+    assert(!withMap({ medianPostedDays: 146 }).includes('median posting'), 'a median without its rank is not published');
+    assert(!withMap({ postedPercentile: 96 }).includes('median posting'), 'a rank without its median is not published');
+    assert(!withMap({}).includes('median posting'), 'an unmeasured company shows no median at all');
+    assert(withMap({ medianPostedDays: 20, postedPercentile: 10 }).includes('fresher than most tracked boards'), 'a fresh board reads as fresh');
+  }
   assert(html.includes('4 open ≥7d tracked'), 'observed7 is crawlable');
   // CH-15 longer thresholds prefer over shorter when present
   const long = buildStaticDirectory({
