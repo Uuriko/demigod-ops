@@ -1,5 +1,5 @@
-/*dg-foot-v859-core*/
-window.dgFootVersion = 'v859'; console.log('[demigod] foot v859-core loaded');
+/*dg-foot-v860-core*/
+window.dgFootVersion = 'v860'; console.log('[demigod] foot v860-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -4224,7 +4224,7 @@ function openPage(id, push) {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
     var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
-    /* An ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
+    /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
        /media are both 'press'. Keying canonical off "is this path declared for this route" made
        every one of them self-canonical, i.e. 9 live indexable URLs each asserting it was the
@@ -4658,7 +4658,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('popstate',
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
 
-window.__dgFootVer='859';console.log('Demigod v859');
+window.__dgFootVer='860';console.log('Demigod v860');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

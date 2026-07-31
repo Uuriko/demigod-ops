@@ -1,35 +1,35 @@
 {
-  "at": "2026-07-31T04:01:41.590Z",
-  "version": "859",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@132003856f77/foot-latest.js",
+  "at": "2026-07-31T04:17:18.242Z",
+  "version": "860",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/foot-latest.js",
   "ok": true,
   "temporary": false,
-  "bytes": 359108,
-  "sha256": "a51abb61a6ba70dd990d7620f367ecb53cccce4c022304fc0f308fd9de369a85",
-  "liveLen": 358466,
+  "bytes": 360071,
+  "sha256": "03e7c5f2e29cf56291e3fce892884ceb41d1b1868a22aa3fedd113a0c213a48b",
+  "liveLen": 359427,
   "loaderLen": 1780,
   "host": "cdn.jsdelivr.net",
-  "footVer": "859",
+  "footVer": "860",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@132003856f77/startup-map-latest.js",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/startup-map-latest.js",
       "sha256": "7efab8b8333669c3d28db393a700d7dccee87b525bd1ef523fe5f5d5c6986d20",
       "bytes": 28143
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@132003856f77/sf-startup-map.json",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/sf-startup-map.json",
       "sha256": "386c1b147e6d5be9c162e6dc3dc5b1c3d34996c03cbcb72cd9e946b88247ffc3",
       "bytes": 1223183
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@132003856f77/head-latest.css",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/head-latest.css",
       "sha256": "6f78881b777fb1eb60b550de982e5d946b607ad41fc7af617e790cbda2e6ffe5",
       "bytes": 82912
     },
     "rolesFeed": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@132003856f77/roles-feed.json",
-      "sha256": "12c597cc62d1c2902639282f63bcdf063a1cad43dab0f76a9ab6347d60ef1df4",
-      "bytes": 28924
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/roles-feed.json",
+      "sha256": "f13e2f40cd8f6f62fd69370eb7bb177799073d6d5366a03cb74c59e67e70104d",
+      "bytes": 15474
     }
   }
 }

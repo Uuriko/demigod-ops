@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T03:15:26.392Z",
+  "at": "2026-07-31T04:17:01.445Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -410,7 +410,7 @@
     {
       "name": "core:version-marker",
       "ok": true,
-      "detail": "v859"
+      "detail": "v860"
     },
     {
       "name": "coreJs:run-defined-if-called",
@@ -630,7 +630,7 @@
     {
       "name": "footer:boot-smoke",
       "ok": true,
-      "detail": "859"
+      "detail": "860"
     },
     {
       "name": "combined:forms-via-footer",
@@ -740,12 +740,12 @@
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=509 contracts=10"
+      "detail": "import-integrity OK edges=515 contracts=10"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 247.487887"
+      "detail": "\u001b[34mℹ duration_ms 256.559528\u001b[39m"
     }
   ],
   "pass": true
