@@ -51,6 +51,13 @@ work:
 tools:
 	@cd "$DEMIGOD_ROOT" && bin/dg tools 2>&1 | head -40
 
+# Product desk spine (Match / Directory / Notes / Desk / DIE)
+desk:
+	@cd "$DEMIGOD_ROOT" && node demigod-product-desk.mjs --md
+
+desk-json:
+	@cd "$DEMIGOD_ROOT" && node demigod-product-desk.mjs
+
 lock-status:
 	@cd "$DEMIGOD_ROOT" && node demigod-foot-lock.mjs status
 

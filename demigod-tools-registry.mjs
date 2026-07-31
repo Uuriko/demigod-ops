@@ -33,6 +33,7 @@ export const TOOLS = [
   { id: 'reseal-queue', name: 'Research reseal queue', group: 'session', cmd: 'node demigod-reseal-queue.mjs status', purpose: 'After map enrich: enqueue/run company-research reseal', out: '/tmp/dg-busy/reseal-queue-last.json', safe: true },
   { id: 'reseal-due', name: 'Research reseal due (CH-13)', group: 'session', cmd: 'node demigod-reseal-queue.mjs due', purpose: 'Multi-day re-verify due check (no network); weekly timer uses run --schedule', out: null, safe: true },
   { id: 'control', name: 'Control plane', group: 'session', cmd: 'bin/dg home', purpose: 'Cohesive map: site/webflow/match/review/hygiene/ship/orca', out: '/tmp/dg-busy/control-plane.json' },
+  { id: 'product-desk', name: 'Product desk', group: 'session', cmd: 'node demigod-product-desk.mjs', purpose: 'Match/Directory/Notes/Desk/DIE surfaces + delivery-loop readiness', out: '/tmp/dg-busy/product-desk.json', hot: true },
   { id: 'ask-claude', name: 'Ask Claude', group: 'session', cmd: 'bin/ask-claude', purpose: 'Synchronous advisory consultation; no external action authority' },
   { id: 'codex-ask', name: 'Ask Codex', group: 'session', cmd: 'bin/codex-ask', purpose: 'Stateless codex exec (read-only sandbox); never dual-write live Codex TUI' },
   { id: 'agent-bus', name: 'Agent peer bus', group: 'orca', cmd: 'bin/dg-bus status', purpose: 'Role-resolved Claude/Codex/Grok Orca bus: roster|send|task|wake|unstick', out: '/tmp/dg-busy/agent-roster.json', hot: true },

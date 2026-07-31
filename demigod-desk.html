@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex"/>
+<title>Demigod · Desk</title>
+<style>
+:root{
+  --bg:#060605;--panel:#12100d;--line:rgba(201,168,76,.22);--gold:#C9A84C;--gold2:#E8D5A3;
+  --text:#F3EDE2;--muted:#8f877c;--ok:#4fd68a;--bad:#f07878;--warn:#e8b84a;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.45}
+a{color:var(--gold)}
+header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between}
+header h1{margin:0;font-size:1.25rem;color:var(--gold2);font-weight:650}
+header .meta{color:var(--muted);font-size:.85rem}
+main{max-width:1100px;margin:0 auto;padding:1.25rem 1.5rem 3rem}
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem}
+.card h2{margin:0 0 .35rem;font-size:1rem;color:var(--gold2)}
+.card .kind{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.card .status{display:inline-block;margin:.4rem 0;padding:.15rem .5rem;border-radius:999px;font-size:.75rem;border:1px solid var(--line)}
+.card .status.live,.card .status.partial{color:var(--ok);border-color:rgba(79,214,138,.35)}
+.card .status.local,.card .status.live_empty_loop{color:var(--warn);border-color:rgba(232,184,74,.35)}
+.card .status.gated_closed,.card .status.missing,.card .status.empty{color:var(--bad);border-color:rgba(240,120,120,.35)}
+.card p{margin:.35rem 0;color:var(--muted);font-size:.9rem}
+.card ul{margin:.4rem 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--text)}
+.banner{margin:0 0 1.25rem;padding:1rem 1.1rem;border-radius:14px;border:1px solid var(--line);background:rgba(201,168,76,.06)}
+.banner strong{color:var(--gold2)}
+.banner code{font-size:.8rem;color:var(--gold)}
+#err{color:var(--bad);white-space:pre-wrap}
+.links a{margin-right:.75rem;font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Demigod Desk</h1>
+    <div class="meta" id="hdrMeta">Loading product surfaces…</div>
+  </div>
+  <div class="links">
+    <a href="/">Control plane</a>
+    <a href="/api/desk">JSON</a>
+    <a href="https://www.trydemigod.com/" rel="noopener">Live site</a>
+  </div>
+</header>
+<main>
+  <div class="banner" id="delivery">
+    <strong>Delivery loop</strong>
+    <div id="deliveryBody">…</div>
+  </div>
+  <div class="grid" id="surfaces"></div>
+  <section class="card" style="margin-top:1.25rem" id="nextCard">
+    <h2>Next unblocked product work</h2>
+    <ul id="nextList"></ul>
+  </section>
+  <p id="err" hidden></p>
+</main>
+<script>
+async function load(){
+  const err=document.getElementById('err');
+  try{
+    const r=await fetch('/api/desk',{headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    document.getElementById('hdrMeta').textContent=
+      (d.at||'')+' · disk '+(d.truth?.diskVer||'?')+' · live '+(d.truth?.liveVer||'?')+
+      (d.truth?.prepareOnly?' · prepare-only':'');
+    const loop=d.deliveryLoop||{};
+    document.getElementById('deliveryBody').innerHTML=
+      '<div>acceptedForDelivery: <strong>'+escapeHtml(String(loop.acceptedForDelivery??0))+'</strong> · '+
+      'realPairs: <strong>'+escapeHtml(String(loop.realPairs??0))+'</strong> · '+
+      'phase2Ready: <strong>'+escapeHtml(String(!!loop.phase2Ready))+'</strong></div>'+
+      '<div style="margin-top:.35rem;color:var(--muted)">blocked: <code>'+
+      escapeHtml(loop.blockedReason||'none')+'</code></div>'+
+      (Array.isArray(loop.nextUnblocked)&&loop.nextUnblocked.length
+        ? '<ul style="margin:.5rem 0 0">'+loop.nextUnblocked.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul>'
+        : '');
+    const grid=document.getElementById('surfaces');
+    grid.innerHTML=(d.surfaces||[]).map(s=>{
+      const urls=Object.entries(s.urls||{}).map(([k,v])=>
+        '<a href="'+escapeAttr(v)+'">'+escapeHtml(k)+'</a>').join(' ');
+      const mods=(s.modules||[]).slice(0,8).map(m=>'<li>'+escapeHtml(m)+'</li>').join('');
+      return '<article class="card" id="surface-'+escapeAttr(s.id)+'">'+
+        '<div class="kind">'+escapeHtml(s.kind||'')+'</div>'+
+        '<h2>'+escapeHtml(s.name||s.id)+'</h2>'+
+        '<span class="status '+escapeAttr(String(s.status||''))+'">'+escapeHtml(s.status||'')+'</span>'+
+        '<p>'+escapeHtml(s.summary||'')+'</p>'+
+        '<p style="font-size:.8rem">'+escapeHtml(s.productize||'')+'</p>'+
+        (mods?'<ul>'+mods+'</ul>':'')+
+        '<div class="links" style="margin-top:.6rem">'+urls+'</div>'+
+        '</article>';
+    }).join('');
+    document.getElementById('nextList').innerHTML=(d.next||[]).map(n=>
+      '<li><strong>P'+escapeHtml(String(n.pri))+'</strong> '+escapeHtml(n.title)+
+      ' <span style="color:var(--muted)">('+escapeHtml(n.surface)+')</span></li>'
+    ).join('')||'<li>None listed</li>';
+  }catch(e){
+    err.hidden=false;
+    err.textContent=String(e.message||e)+'\nIs the dash up? bin/dg-dash or node demigod-agent-dashboard.mjs';
+  }
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeAttr(s){return escapeHtml(s).replace(/`/g,'')}
+load();
+</script>
+</body>
+</html>

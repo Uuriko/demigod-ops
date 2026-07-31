@@ -11,6 +11,7 @@
  * Ponytail: /api/ponytail · jobs ponytail|ponytail-check
  * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Orca: /api/orca · Craft: /api/craft
  * Structured hiring: /api/structured-hiring · /api/structured-hiring?role=ID · Control board: /api/control-board
+ * Product desk: /desk · /api/desk  (Match / Directory / Notes / Desk / DIE spine)
  *
  * Sections in this file:
  *   imports/config · status builders · JOBS allowlist · HTTP API routes · static UI
@@ -30,6 +31,7 @@ import crypto from 'crypto';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { buildNext } from './demigod-next.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { buildProductDesk, productDeskMarkdown } from './demigod-product-desk.mjs';
 import { eventAudienceBrief, hasFutureDateTime, isRealInviteUrl, isRealOutreachEmail, matchOffersToEvent, outreachDraftReadiness, resourceGaps } from './demigod-events-bot-agent.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -5173,6 +5175,33 @@ const server = http.createServer(async (req, res) => {
       res.end(loadHtml());
       return;
     }
+    if (url.pathname === '/api/desk') {
+      const desk = buildProductDesk();
+      try {
+        atomicWrite(path.join(BUSY, 'product-desk.json'), JSON.stringify(desk, null, 2) + '\n');
+      } catch {
+        /* best-effort */
+      }
+      if (url.searchParams.get('md') === '1') {
+        res.writeHead(200, { ...noStore, 'Content-Type': 'text/markdown; charset=utf-8' });
+        res.end(productDeskMarkdown(desk));
+        return;
+      }
+      res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(desk));
+      return;
+    }
+    if (url.pathname === '/desk' || url.pathname === '/desk/') {
+      try {
+        const html = fs.readFileSync(path.join(ROOT, 'demigod-desk.html'), 'utf8');
+        res.writeHead(200, { ...noStore, 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(e.message || e) }));
+      }
+      return;
+    }
     if (url.pathname === '/healthz' || url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
@@ -5195,7 +5224,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('not found — try /  /api/status  /api/agent-brief  /api/actions  /api/health');
+    res.end('not found — try /  /desk  /api/desk  /api/status  /api/agent-brief  /api/actions  /api/health');
   } catch (e) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: String(e.message || e) }));
