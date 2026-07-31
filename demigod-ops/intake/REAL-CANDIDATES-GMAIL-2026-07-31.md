@@ -43,4 +43,12 @@ Ledger live 2026-07-31 (`DEMIGOD_ROLE_LEDGER=/home/potter/DEMIGOD-ROLE-LEDGER.js
 - Gmail MCP OAuth still permanently revoked  
 - No real accepted role gate yet (`acceptedForDelivery=0`, pairs real=0)  
 - Outbound/consent emails not sent (publish/outbound gate)  
-- Live `/startups` fragment stale vs disk (publish-gated)  
+- Live `/startups` fragment stale vs disk (publish-gated)
+
+## Re-extract 2026-07-31 (Gmail MCP live)
+
+Gmail MCP works again. Re-confirmed PDF attachers via `get_message` (attachment metadata).  
+Private detail: `/home/potter/talent-crm/notes/GMAIL-X-EXTRACT-2026-07-31.md`  
+CRM ingest merged 7 + James PDF note + Haroon (2024).  
+**X DMs:** no CV/PDF DMs on visible chat list / search first screen.  
+**PDF bytes:** not downloaded (no Gmail attachment download tool in gateway).
