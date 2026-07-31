@@ -29,6 +29,30 @@ export function servedSeo(html) {
   return { ok: issues.length === 0, title: title.slice(0, 60), issues };
 }
 
+// PURE: how much real content a NON-RENDERING crawler gets from the served body. Googlebot renders
+// JS on a second pass; GPTBot, ClaudeBot and PerplexityBot largely do not, and robots.txt invites them
+// in with no Disallow. Measured 2026-07-31 against the live site: every page serves 0 chars, because
+// <body> holds two <script> tags and nothing else. 2,735 companies of directory content are invisible
+// to them.
+//
+// DELIBERATELY NOT A PASS/FAIL. The empty body is the architecture (Webflow shell + foot-core injects
+// everything), and a gate that reds all 32 pages on every run is a gate somebody switches off. What
+// this is FOR: the moment crawlable body content ships, this proves it reached the SERVED html — the
+// exact failure that already happened once, when a 518KB static directory was generated and never
+// deployed and nothing noticed. Report the number; a human decides what it should be.
+export function servedBodyText(html) {
+  const body = /<body[^>]*>([\s\S]*)<\/body>/i.exec(String(html || ''))?.[1] || '';
+  const text = body
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z#0-9]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { chars: text.length, crawlableWithoutJs: text.length > 0, sample: text.slice(0, 80) };
+}
+
 const nfmt = (n) => Number(n).toLocaleString('en-US');
 
 // PURE: the /startups head strings, DERIVED from the map so a human never retypes a count.
@@ -76,8 +100,11 @@ export async function siteHealth(fetchImpl = fetch, footSrc = null, map = null) 
     try { return await (await fetchImpl(`${SITE}${p}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) })).text(); } catch (e) { return ''; }
   };
   const seo = servedSeo(await get('/'));
-  const counts = startupsSeoDrift(await get('/startups'), mapObj);
-  return { ok: routes.ok && seo.ok && counts.ok, routes, seo, counts };
+  const startupsHtml = await get('/startups');
+  const counts = startupsSeoDrift(startupsHtml, mapObj);
+  // Reported, not gated — see servedBodyText. Rides on the /startups fetch we already make.
+  const crawlable = servedBodyText(startupsHtml);
+  return { ok: routes.ok && seo.ok && counts.ok, routes, seo, counts, crawlable };
 }
 
 if (isMain && process.argv.includes('--selftest')) {
@@ -87,6 +114,18 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(!servedSeo('<title></title>').ok, 'empty title flagged');
   assert(servedSeo('<title>Untitled</title>').issues.some((i) => /Untitled/.test(i)), 'Untitled title flagged');
   assert(servedSeo('<title>Pricing</title>').ok && !servedSeo('').ok, 'title present ok; no title flagged');
+  // servedBodyText: the load-bearing distinction is text-in-markup vs text-only-inside-<script>,
+  // because the live shape is the latter and a naive strip scores it as full of content.
+  assert(servedBodyText('<body><p>Real copy</p></body>').chars === 9, 'markup text is counted');
+  assert(servedBodyText('<body><p>Real copy</p></body>').crawlableWithoutJs, 'and reads as crawlable');
+  const liveShape = '<body><script>var a="lots and lots of javascript text here";</script></body>';
+  assert(servedBodyText(liveShape).chars === 0, 'POSITIVE CONTROL: script-only body (the live shape) is 0 chars');
+  assert(!servedBodyText(liveShape).crawlableWithoutJs, 'script-only body is not crawlable without js');
+  assert(servedBodyText('<body><style>p{content:"x"}</style></body>').chars === 0, 'style text is not content');
+  assert(servedBodyText('<body><!-- a comment --></body>').chars === 0, 'comments are not content');
+  assert(servedBodyText('<html><head><title>T</title></head></html>').chars === 0, 'no body -> 0, not head text');
+  assert(servedBodyText('').chars === 0 && servedBodyText(null).chars === 0, 'empty/null -> 0, no crash');
+
   // startupsSeo: strings are DERIVED, never typed. Same omit-don't-fabricate rule as siteCounters.
   const MAP = { companies: new Array(2737), coverage: { companiesWithOpenRoles: 339, roleMix: { engineering: 8000, other: 124 } } };
   const want = startupsSeo(MAP);
