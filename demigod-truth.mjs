@@ -230,6 +230,32 @@ function runSelftest() {
       sibOk.mapData.status === 'intentional-expand',
     'sibling drift classifies map-free atlas + expanded map-data as intentional',
   );
+  // Realistic prepare-only lag: disk ~1.35× live (not 2×), hiring also up.
+  const sibModestExpand = classifySiblingAssetDrift({
+    diskAtlas: 'map-free Craigslist dg-dir-list No SVG map',
+    liveAtlas: 'map-free Craigslist dg-dir-list No SVG map',
+    diskMapJson: JSON.stringify({
+      companies: Array.from({ length: 3700 }, (_, i) => ({
+        name: 'c' + i,
+        hiring: i < 2300 ? true : null,
+      })),
+    }),
+    liveMapJson: JSON.stringify({
+      companies: Array.from({ length: 2740 }, (_, i) => ({
+        name: 'c' + i,
+        hiring: i < 2100 ? true : null,
+      })),
+    }),
+    diskAtlasSha: 'a1',
+    liveAtlasSha: 'a1',
+    diskMapSha: 'm1',
+    liveMapSha: 'm2',
+  });
+  check(
+    sibModestExpand.intentional === true &&
+      sibModestExpand.mapData.status === 'intentional-expand',
+    'sibling drift treats +35% company growth (hiring not down) as intentional-expand',
+  );
   const sibPrepared = classifySiblingAssetDrift({
     diskAtlasSha: 'disk-atlas',
     liveAtlasSha: 'live-atlas',
@@ -564,11 +590,14 @@ export function classifySiblingAssetDrift({
             : 'atlas body differs without map-free redesign markers',
       };
 
+  // Real map lag is often +15–50% companies (Bay atlas + HN), not a 2× cliff.
+  // Treat clear growth as intentional-expand when hiring-labeled count did not shrink.
   const mapExpanded =
     Number.isFinite(diskCos) &&
     Number.isFinite(liveCos) &&
-    diskCos > liveCos * 2 &&
-    (diskHiring || 0) > (liveHiring || 0);
+    diskCos > liveCos &&
+    (diskHiring || 0) >= (liveHiring || 0) &&
+    (diskCos >= liveCos + 200 || diskCos > liveCos * 1.15);
   // Same company/hiring counts with body hash lag = enrich stamps (roleMix, aging)
   // after offline reclassify — not unexplained corruption (website prepare-only).
   const mapEnrichRefresh =
