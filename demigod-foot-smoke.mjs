@@ -26,7 +26,17 @@ function makeEl() {
   };
 }
 
-export function runFootSmoke(src = '/home/potter/demigod-foot-core.js') {
+function defaultFootPath() {
+  const root = process.env.DEMIGOD_ROOT || process.cwd();
+  const here = fileURLToPath(new URL('./demigod-foot-core.js', import.meta.url));
+  if (fs.existsSync(here)) return here;
+  const fromRoot = `${root.replace(/\/$/, '')}/demigod-foot-core.js`;
+  if (fs.existsSync(fromRoot)) return fromRoot;
+  // Last resort: historical laptop path (split-brain risk — prefer DEMIGOD_ROOT).
+  return '/home/potter/demigod-foot-core.js';
+}
+
+export function runFootSmoke(src = defaultFootPath()) {
 const code = fs.readFileSync(src, 'utf8');
 if (!/window\.__dgPageReturnFocus=document\.activeElement/.test(code)) throw new Error('product pages must remember their opener');
 if (!/returnFocus\.isConnected&&typeof returnFocus\.focus===['"]function['"]/.test(code)) throw new Error('product pages must restore focus to a connected opener');
