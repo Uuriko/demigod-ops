@@ -24,9 +24,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      # No `npm ci`: every tracked test imports only Node builtins and relative paths (verified
-      # 2026-07-30). If a third-party import is ever added, this step starts failing and the fix
-      # is to add the install back — not to silence it.
+          cache: npm
+      # This DID say "no npm ci needed — every tracked test imports only Node builtins". That was
+      # wrong, and the first clean-room run proved it: I checked imports in the test files, but the
+      # tests import local modules that transitively require npm packages, so ~90 of the failures
+      # were `Cannot find package` for undici / ws / puppeteer-core / playwright.
+      # It also surfaced a real bug: undici and ws were imported by production code
+      # (demigod-perf-cache.mjs, demigod-agent-smoke.mjs) but never declared in package.json —
+      # they only resolved locally as transitive dev-dependencies of axe-core and lighthouse.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
       - name: Run tracked tests
         run: |
           files=$(git ls-files '*.test.mjs')
