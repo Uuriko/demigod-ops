@@ -222,7 +222,9 @@ DEMIGOD-ROLE-LEDGER.json
 # here (DOUGLAS-RUN-OF-SHOW.md, PILOT-LOG.md), so a bulk `git add -A` by any agent would sweep
 # them into history. Same private-operational-data rule as demigod-outreach/* above.
 demigod-ops/DOUGLAS-*
-!demigod-ops/DOUGLAS-RUN-OF-SHOW.md
+# No negation re-opening this path: a `!` exception inside a PII-protected directory is a
+# hole the privacy gate rejects, and it bought nothing — DOUGLAS-RUN-OF-SHOW.md was already
+# tracked, and .gitignore never untracks an existing file.
 demigod-ops/SEND-QUEUE-PRIORITIZED.md
 # Inbox triage SoR — small today, grows with real submissions.
 DEMIGOD-INBOX-TRIAGE.json
