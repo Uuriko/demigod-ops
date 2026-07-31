@@ -16,6 +16,50 @@
   // directions: treating unknown as 0 would rank an unmeasured board as the freshest on the page,
   // which is a claim we cannot make — we only know a median where the employer published a date
   // we trust. Ties and unknown-vs-unknown fall back to name so the order stays stable.
+  // Shareable filter state lives in the HASH, not the query string, and that is forced by routing:
+  // foot-core normalises a mini-page URL to its hard path with `hard + hash` and deliberately fires
+  // that rewrite when location.search is non-empty (it is how /?p=map becomes /startups). A ?q=
+  // param would be stripped out from under us; the hash survives untouched, so no foot-core change
+  // is needed for a link to a filtered view to work.
+  //
+  // Values are ALLOW-LISTED rather than trusted. This string comes from whatever a stranger put in
+  // a URL they sent someone, and it is written straight back into control values, so anything not
+  // recognised is dropped rather than echoed.
+  var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
+  var DG_HIRING = ['yes', 'no', 'unknown'];
+  var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations'];
+
+  function dgParseFilterHash(hash, providers) {
+    var out = { query: '', hiring: '', func: '', provider: '', sort: 'roles' };
+    var raw = String(hash || '').replace(/^#/, '');
+    if (!raw) return out;
+    var known = (providers || []).map(function (x) { return String(x).toLowerCase(); });
+    raw.split('&').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i < 0) return;
+      var k = pair.slice(0, i);
+      var v;
+      try { v = decodeURIComponent(pair.slice(i + 1).replace(/\+/g, ' ')); } catch (e) { return; }
+      if (k === 'q') out.query = v.slice(0, 120);
+      else if (k === 'hiring' && DG_HIRING.indexOf(v) >= 0) out.hiring = v;
+      else if (k === 'fn' && DG_FUNCS.indexOf(v) >= 0) out.func = v;
+      else if (k === 'sort' && DG_SORTS.indexOf(v) >= 0) out.sort = v;
+      else if (k === 'ats' && known.indexOf(v.toLowerCase()) >= 0) out.provider = v.toLowerCase();
+    });
+    return out;
+  }
+
+  // Inverse. Defaults are OMITTED so an unfiltered directory keeps a clean shareable URL.
+  function dgFilterHash(st) {
+    var parts = [];
+    if (st.query) parts.push('q=' + encodeURIComponent(st.query));
+    if (st.hiring) parts.push('hiring=' + encodeURIComponent(st.hiring));
+    if (st.func) parts.push('fn=' + encodeURIComponent(st.func));
+    if (st.provider) parts.push('ats=' + encodeURIComponent(st.provider));
+    if (st.sort && st.sort !== 'roles') parts.push('sort=' + encodeURIComponent(st.sort));
+    return parts.length ? '#' + parts.join('&') : '';
+  }
+
   // PURE, hoisted so a test can exercise it directly rather than asserting on a source pattern.
   // The feed carries TWO dates that mean different things and must never be conflated:
   // firstObservedAt is OURS (when we first saw the role on the board) and is on every row;
@@ -282,6 +326,15 @@
     state.funcOf = companies.map(function (c) { return c.roleMix ? Object.keys(c.roleMix) : []; });
     state.providerOf = companies.map(function (c) { return String(c.atsSource || '').toLowerCase(); });
     var providers = Array.from(new Set(companies.map(function (c) { return String(c.atsSource || '').trim(); }).filter(Boolean))).sort();
+    // Restore a shared/bookmarked view. Done before the controls are built so their initial values
+    // ARE the restored state — seeding afterwards would render defaults and then silently disagree
+    // with the rows. Only applied on first render; later renders keep whatever the user has set.
+    if (!state.hashApplied) {
+      state.hashApplied = true;
+      var fromHash = dgParseFilterHash(typeof location !== 'undefined' ? location.hash : '', providers);
+      state.query = fromHash.query; state.hiring = fromHash.hiring; state.func = fromHash.func;
+      state.provider = fromHash.provider; state.sort = fromHash.sort;
+    }
     var sources = (map.sources || []).map(function (item) {
       var url = safeUrl(item.url);
       return url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(item.name) + '</a>' : esc(item.name);
@@ -350,6 +403,12 @@
       state.func = fn;
       state.provider = provider;
       state.sort = sortEl ? sortEl.value : 'roles';
+      // replaceState, not pushState: this fires on every keystroke in the search box, and one
+      // history entry per character would make the back button useless.
+      try {
+        var want = location.pathname + location.search + dgFilterHash(state);
+        if (want !== location.pathname + location.search + location.hash) history.replaceState(history.state, '', want);
+      } catch (e) { /* history unavailable (file://, sandbox) must not break filtering */ }
       var matches = [];
       for (var i = 0; i < companies.length; i++) {
         if ((!q || state.searchText[i].indexOf(q) >= 0) && (!h || state.hiringOf[i] === h) && (!fn || state.funcOf[i].indexOf(fn) >= 0) && (!provider || state.providerOf[i] === provider)) matches.push(i);

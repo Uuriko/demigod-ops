@@ -271,7 +271,7 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   const end = src.indexOf('\n  var state = {');
   const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();
 
-  const feed = (roles) => ({ schema: 'demigod.roles-feed/1', windowDays: 7, roles });
+  const feed = (roles) => ({ schema: 'demigod.roles-feed/7', windowDays: 7, roles });
   const role = (o) => ({ company: 'C', title: 'T', url: 'https://x.example/j', firstObservedAt: '2026-07-30T00:00:00Z', postedAt: null, ...o });
 
   // Newest of OUR observations first.
@@ -301,4 +301,34 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   assert.deepEqual(pick(null, 8), [], 'no feed -> nothing');
   assert.deepEqual(pick({ roles: 'nope' }, 8), [], 'malformed roles -> nothing, no crash');
   assert.deepEqual(pick(feed([]), 8), [], 'empty feed -> nothing');
+});
+
+test('directory filter state round-trips through the hash, and rejects junk', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  const start = src.indexOf('  var DG_SORTS =');
+  const end = src.indexOf('\n  var state = {');
+  const api = new Function(src.slice(start, end) + '; return { parse: dgParseFilterHash, ser: dgFilterHash };')();
+  const providers = ['Greenhouse', 'Lever', 'Ashby'];
+
+  const full = { query: 'ai infra', hiring: 'yes', func: 'engineering', provider: 'lever', sort: 'fresh' };
+  assert.deepEqual(api.parse(api.ser(full), providers), full, 'a filtered view round-trips');
+
+  // Defaults omitted, so an unfiltered directory keeps a clean, shareable URL.
+  assert.equal(api.ser({ query: '', hiring: '', func: '', provider: '', sort: 'roles' }), '');
+  assert.equal(api.ser({ query: '', hiring: '', func: '', provider: '', sort: 'name' }), '#sort=name');
+
+  // THE SECURITY PROPERTY: this string comes from a URL a stranger sent, and lands in control
+  // values. Anything not on the allow-list is dropped, never echoed back.
+  const hostile = api.parse('#sort=<script>&hiring=DROP&fn=../../etc&ats=evil&q=' + encodeURIComponent('<img onerror=x>'), providers);
+  assert.equal(hostile.sort, 'roles', 'unknown sort falls back to the default');
+  assert.equal(hostile.hiring, '', 'unknown hiring value is dropped');
+  assert.equal(hostile.func, '', 'unknown function is dropped');
+  assert.equal(hostile.provider, '', 'a provider not present in the data is dropped');
+  assert.equal(hostile.query, '<img onerror=x>', 'free-text query survives parsing (escaping is the render layer job)');
+
+  assert.equal(api.parse('#q=' + 'x'.repeat(500), providers).query.length, 120, 'query is length-capped');
+  assert.equal(api.parse('#ats=LEVER', providers).provider, 'lever', 'provider match is case-insensitive');
+  assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
+  assert.deepEqual(api.parse('#%E0%A4%A', providers).query, '', 'a malformed escape does not throw');
+  assert.equal(api.parse('#q=a+b', providers).query, 'a b', 'plus decodes to space');
 });
