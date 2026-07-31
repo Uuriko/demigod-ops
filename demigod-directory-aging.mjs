@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardsFromMap, observedOpenDays, postedDaysAgo } from './demigod-role-ledger.mjs';
+import { enqueueReseal } from './demigod-reseal-queue.mjs';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const norm = (s) => String(s || '').toLowerCase().trim();
@@ -18,6 +19,9 @@ const norm = (s) => String(s || '').toLowerCase().trim();
 //  - posted*:   days since the role's own board posting date, ATTRIBUTED (Greenhouse first_published only,
 //               so postedDaysAgo returns null otherwise). Real signal from day one, for the attributed subset.
 // Closed roles and non-US-posted roles are excluded from both.
+// Below this many attributed roles a board is not rankable: one old posting would swing it.
+const MIN_DATED_FOR_RANK = 5;
+
 export function agingByBoard(ledger, today) {
   const byBoard = {};
   for (const r of Object.values(ledger?.roles || {})) {
@@ -27,7 +31,7 @@ export function agingByBoard(ledger, today) {
       openRoles: 0, oldestObservedDays: 0,
       observed7: 0, observed30: 0, observed60: 0, observed90: 0,
       attributed: 0, agingRoles: 0, evergreenRoles: 0, oldestAgingDays: 0,
-      roleMix: {},
+      roleMix: {}, postedAges: [],
     });
     b.openRoles++;
     const fn = String(r.fn || 'other').slice(0, 40) || 'other';
@@ -43,10 +47,22 @@ export function agingByBoard(ledger, today) {
     const pd = postedDaysAgo(r, today); // null unless the board date is attributed (first_published)
     if (pd != null && pd >= 0) {
       b.attributed++;
+      b.postedAges.push(pd);
       // >365d = perennial / talent-pool posting (e.g. "Join our talent community"), not a stuck vacancy.
       if (pd > 365) b.evergreenRoles++;
       else if (pd >= 90) { b.agingRoles++; if (pd > b.oldestAgingDays) b.oldestAgingDays = pd; }
     }
+  }
+  // A board's MEDIAN posting age says something the extremes cannot: oldestAgingDays is one
+  // outlier, while the median describes the board. Derived only from attributed dates, so a board
+  // with no trusted dates gets null rather than a fabricated middle. The raw array is dropped —
+  // this asset ships to the CDN and 973 companies of per-role ages would bloat it for no reader.
+  for (const b of Object.values(byBoard)) {
+    const ages = b.postedAges.sort((x, y) => x - y);
+    const at = (q) => (ages.length ? ages[Math.min(ages.length - 1, Math.max(0, Math.round((ages.length - 1) * q)))] : null);
+    b.medianPostedDays = at(0.5);
+    b.p90PostedDays = at(0.9);
+    delete b.postedAges;
   }
   return byBoard;
 }
@@ -60,6 +76,16 @@ export function directoryAging(map, ledger, today) {
     if (!a || a.openRoles === 0) continue; // only companies with observed open roles
     companies[norm(b.company)] = { name: b.company, board: `${b.provider}|${b.slug}`, ...a };
   }
+  // Corpus context. "median 146d" is unreadable until you know the corpus sits at 51d, so rank each
+  // board against the others. Boards under MIN_DATED_FOR_RANK are excluded from the ranking AND
+  // from the corpus that defines it — otherwise a two-role board both gets a noisy rank and moves
+  // the baseline it is then measured against.
+  const ranked = Object.values(companies)
+    .filter((c) => c.attributed >= MIN_DATED_FOR_RANK && c.medianPostedDays != null)
+    .sort((x, y) => x.medianPostedDays - y.medianPostedDays);
+  ranked.forEach((c, i) => {
+    c.postedPercentile = ranked.length < 2 ? null : Math.round((100 * i) / (ranked.length - 1));
+  });
   return companies;
 }
 
@@ -81,6 +107,7 @@ export function buildAsset(map, ledger, today) {
 // Observed* = our firstSeen (honest, young ledger). agingRoles = attributed board post 90–365d.
 const MAP_AGING_KEYS = [
   'agingRoles', 'oldestAgingDays',
+  'medianPostedDays', 'postedPercentile',
   'oldestObservedDays', 'observed7', 'observed30', 'observed60', 'observed90',
   'ledgerOpenRoles', 'roleMix',
 ];
@@ -109,6 +136,12 @@ export function enrichMap(map, asset) {
     if (a.agingRoles > 0) {
       c.agingRoles = a.agingRoles;
       c.oldestAgingDays = a.oldestAgingDays;
+    }
+    // Median + rank travel together or not at all: a median with no corpus context invites the
+    // reader to invent a baseline, and a rank without its median hides what was ranked.
+    if (a.attributed >= MIN_DATED_FOR_RANK && a.medianPostedDays != null && a.postedPercentile != null) {
+      c.medianPostedDays = a.medianPostedDays;
+      c.postedPercentile = a.postedPercentile;
     }
     // roleMix from ledger fn (US-open only) — public counts, not a quality score.
     if (a.roleMix && typeof a.roleMix === 'object' && !Array.isArray(a.roleMix)) {
@@ -210,6 +243,62 @@ if (isMain && process.argv.includes('--selftest')) {
   const empty = { companies: [{ name: 'Ghost' }], coverage: {} };
   enrichMap(empty, { companies: { ghost: { openRoles: 0, oldestObservedDays: 50 } }, companyCount: 0 });
   assert(!('oldestObservedDays' in empty.companies[0]), 'zero openRoles does not enrich');
+  // --- median posting age + corpus rank ------------------------------------------------------
+  {
+    const fp = (d, extra = {}) => role({ nativePostedAt: d, nativeDateField: 'first_published', ...extra });
+    // Median describes the board; oldestAgingDays is one outlier. Five roles, middle is 2026-04-01.
+    const m = agingByBoard(led([
+      fp('2026-07-01'), fp('2026-06-01'), fp('2026-04-01'), fp('2026-02-01'), fp('2025-01-01'),
+    ]), T)['Lever|acme'];
+    assert(m.attributed === 5, 'all five dated');
+    assert(m.medianPostedDays === 118, `median is the middle posting, got ${m.medianPostedDays}`);
+    assert(m.oldestAgingDays !== m.medianPostedDays, 'median must not collapse to the oldest outlier');
+    assert(!('postedAges' in m), 'raw per-role ages must not ship in the asset');
+
+    // Untrusted date fields cannot contribute to the median.
+    const u = agingByBoard(led([
+      fp('2026-04-01'),
+      role({ nativePostedAt: '2020-01-01', nativeDateField: 'created_at' }),
+      role({ nativePostedAt: null, nativeDateField: null }),
+    ]), T)['Lever|acme'];
+    assert(u.attributed === 1 && u.medianPostedDays === 118, `median from attributed only, got ${u.medianPostedDays}`);
+    assert(u.openRoles === 3, 'but all three still count as open roles');
+
+    // A board with no trusted date gets null, never a fabricated middle.
+    const n = agingByBoard(led([role({ nativeDateField: 'created_at', nativePostedAt: '2020-01-01' })]), T)['Lever|acme'];
+    assert(n.medianPostedDays === null, 'no attributed dates -> null median');
+
+    // Rank: needs >= MIN_DATED_FOR_RANK, and thin boards must not set the baseline they are judged by.
+    const mkMap = (slugs) => ({ companies: slugs.map((sl) => ({ name: sl, jobsUrl: `https://jobs.lever.co/${sl}`, atsSource: 'Lever' })) });
+    const rows = [];
+    for (let i = 0; i < 6; i += 1) rows.push(fp('2026-07-01', { slug: 'fresh', company: 'fresh' }));
+    for (let i = 0; i < 6; i += 1) rows.push(fp('2024-07-01', { slug: 'stale', company: 'stale' }));
+    rows.push(fp('2020-01-01', { slug: 'thin', company: 'thin' })); // 1 dated only
+    const da = directoryAging(mkMap(['fresh', 'stale', 'thin']), led(rows), T);
+    assert(da.fresh.postedPercentile === 0, `fresher board ranks 0, got ${da.fresh.postedPercentile}`);
+    assert(da.stale.postedPercentile === 100, `staler board ranks 100, got ${da.stale.postedPercentile}`);
+    assert(da.thin.postedPercentile === undefined || da.thin.postedPercentile === null,
+      'a board under the rank threshold gets no percentile');
+
+    // enrichMap stamps median and rank together, and only when rankable.
+    const map = mkMap(['fresh', 'stale', 'thin']); // needs >=2 rankable boards: a rank against nothing is null
+    enrichMap(map, buildAsset(map, led(rows), T));
+    const f = map.companies.find((c) => c.name === 'fresh');
+    const t = map.companies.find((c) => c.name === 'thin');
+    assert(Number.isSafeInteger(f.medianPostedDays) && Number.isSafeInteger(f.postedPercentile),
+      'rankable company carries both fields onto the map');
+    assert(!('medianPostedDays' in t) && !('postedPercentile' in t),
+      'thin company carries neither — no median without its context');
+
+    // A LONE rankable board: median exists, but a rank against nothing does not. Neither field may
+    // be stamped — a median with no corpus invites the reader to supply their own baseline.
+    const soloMap = mkMap(['fresh', 'thin']);
+    enrichMap(soloMap, buildAsset(soloMap, led(rows), T));
+    const solo = soloMap.companies.find((c) => c.name === 'fresh');
+    assert(!('medianPostedDays' in solo) && !('postedPercentile' in solo),
+      'a single rankable board carries neither field — no rank means no median either');
+  }
+
   console.log(JSON.stringify({ ok: true, selftest: 'directory-aging' }));
   process.exit(0);
 }
@@ -229,6 +318,13 @@ if (isMain) {
         `${asset.companiesWithAgingRole} with posted 90–365d aging · ` +
         `${asset.companiesWithObserved90} with observed≥90d`,
     );
+    // Map is in research seal scope — enqueue reseal so export doesn't stay red forever.
+    try {
+      const row = enqueueReseal({ why: 'directory-aging --enrich-map' });
+      console.log(`reseal-queue enqueued · ${row.at} · run: node demigod-reseal-queue.mjs run`);
+    } catch (e) {
+      console.log(`reseal-queue skip: ${e.message || e}`);
+    }
   } else {
     const oi = process.argv.indexOf('--out');
     const out = oi >= 0 && process.argv[oi + 1] ? process.argv[oi + 1] : path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');

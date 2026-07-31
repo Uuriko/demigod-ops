@@ -133,6 +133,18 @@
     if (openRoles && typeof company.agingRoles === 'number' && company.agingRoles > 0) {
       bits.push(esc(company.agingRoles) + ' posted 90–365d ago (board date)');
     }
+    // Median posting age with corpus context. The median alone is unreadable — 163d means nothing
+    // until you know most tracked boards sit far lower — so the rank always travels with it, and
+    // both are omitted together when the board has too few dated roles to rank honestly.
+    // Rendered as a phrase, not a raw percentile: the top of the range is "staler than every other
+    // board", never "staler than 100% of boards", which would include itself.
+    if (openRoles && typeof company.medianPostedDays === 'number' && typeof company.postedPercentile === 'number') {
+      var band = company.postedPercentile >= 95 ? 'among the stalest tracked boards'
+        : company.postedPercentile >= 75 ? 'staler than most tracked boards'
+        : company.postedPercentile <= 25 ? 'fresher than most tracked boards'
+        : 'typical for tracked boards';
+      bits.push('median posting ' + esc(company.medianPostedDays) + 'd — ' + band);
+    }
     var nameHtml = website
       ? '<a class="dg-dir-name" href="' + esc(website) + '" target="_blank" rel="' + (community ? 'noopener noreferrer ugc nofollow' : 'noopener noreferrer') + '">' + esc(company.name) + '</a>'
       : '<span class="dg-dir-name is-plain">' + esc(company.name) + '</span>';
