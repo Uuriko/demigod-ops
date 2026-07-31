@@ -113,9 +113,27 @@ If `docs/research/*` shows `??` for days → commit/push same day.
 
 - [x] Document this runbook  
 - [x] talent-crm tarball under `~/.local/share/demigod-private-backups/`  
-- [ ] Commit + push research/intake/process (private demigod-ops)  
-- [ ] `bin/dg ship run` with current-request publish auth  
-- [ ] Confirm `bin/dg truth` PASS after ship  
+- [x] Commit + push research/intake/process → `Uuriko/demigod-ops` branch `snapshot/v567-predisk` (`10f908f`, `d3b1f6e`)  
+- [x] Webflow Custom Code CM6 paste + queue-publish (foot/head loaders)  
+- [x] `/startups` page-scoped static fragment save + publish (exact disk bytes observed on live)  
+- [~] Full `truth` PASS — **map-data seal**: disk `DEMIGOD-SF-STARTUP-MAP.json` (1.7MB) ≠ CDN `sf-startup-map.json` at pinned commit (1.2MB). Foot/head/startups aligned on worktree root; concurrent `codex-final` foot-lock may be resealing map. Re-run `DEMIGOD_ROOT=<worktree> bin/dg ship cdn` + paste when lock free.  
+- [!] Always set `DEMIGOD_ROOT` to the active worktree when home `~/demigod-*` and worktree diverge (split-brain caused false laptop-only / stale truth).  
+
+### GitHub locations (share)
+
+| Content | Where |
+|---------|--------|
+| Research, GTM, DIE, intake, ship scripts | https://github.com/Uuriko/demigod-ops (private) · branch `snapshot/v567-predisk` |
+| Live CDN assets | https://github.com/Uuriko/demigod-site-cdn (public) via ship CDN |
+| Live site | https://www.trydemigod.com |
+
+### Still laptop-only (by design)
+
+| Content | Why |
+|---------|-----|
+| `/home/potter/talent-crm/` | Candidate PII — gitignored; tarball in `~/.local/share/demigod-private-backups/` |
+| `/tmp/dg-busy/*` | Ephemeral receipts — regenerate via `bin/dg truth` / ship |
+| `DEMIGOD-BOARD.json` (gitignored) | Local board SoR — not public |
 
 ---
 
