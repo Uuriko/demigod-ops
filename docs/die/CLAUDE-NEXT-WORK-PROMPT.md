@@ -269,3 +269,33 @@ consume `rolesFeed` from the manifest and surface recently-observed roles on /st
 a live-but-orphaned asset into a feature. Needs the foot lock and a CM6 paste; the paste path DOES
 work — `ship: directory sort control live` (2fa62fe) went out that way this session, so this lane is
 not blocked on the missing Webflow MCP.
+
+### 3.10 — Competitor evidence for the 3.8 decision *(measured 2026-07-31)*
+
+Same measurement used on our own site — served HTML, `<body>` only, scripts and styles stripped, no
+JS execution. This is what a non-rendering crawler actually receives:
+
+| Site | Total bytes | Crawlable body text |
+|---|---|---|
+| ycombinator.com/companies | 35,283 | **0** |
+| **trydemigod.com/startups** | 45,319 | **0** |
+| levels.fyi/companies | 316,761 | 2,890 |
+| news.ycombinator.com/jobs | 22,763 | 2,723 |
+| remoteok.com | 59,208 | 6,214 |
+| wellfound.com/jobs | 1,711 | 43 — **unusable, almost certainly a bot wall** |
+
+**The YC zero was verified, not assumed:** 35,283 bytes, `</body>` present, 4,536 chars after
+`<body>`, 0 after stripping scripts, and no "Airbnb" or "Stripe" anywhere in the served bytes.
+
+**What this changes about 3.8.** Our closest structural comparable — YC's own startup directory —
+has the identical architecture. So a JS-only directory is not an outlier and not self-evidently
+fatal; it is what a site with brand and direct traffic can afford. The two here that compete hardest
+for organic directory queries, RemoteOK and Levels.fyi, both server-render.
+
+**So 3.8 is not "fix the bug", it is a positioning question:** does the directory need to win organic
+search? If yes, the 518KB static snapshot has to reach the served body and the trim/paginate/CDN
+choice matters. If the directory is there to be linked and browsed rather than found cold, the
+current architecture is defensible and the static generator is dead weight worth deleting rather
+than deploying. **Not my call** — recording the evidence so whoever makes it is not guessing.
+
+**Do not re-run this to "check".** It is a stable structural fact about those sites, not a metric.
