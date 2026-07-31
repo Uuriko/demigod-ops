@@ -4224,7 +4224,17 @@ function openPage(id, push) {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
     var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
-    var pagePath = (DG_PAGE_PATHS[pathNow] === id && pathNow !== '/') ? pathNow : (preferred[id] || ('/?p=' + id));
+    /* An ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
+       routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
+       /media are both 'press'. Keying canonical off "is this path declared for this route" made
+       every one of them self-canonical, i.e. 9 live indexable URLs each asserting it was the
+       original. It only looked correct because the paths the head shim redirects (/pilot, /network)
+       lose their pathname before this runs and fell through to `preferred`. Measured 2026-07-31:
+       /how-it-works canonicalised to itself while rendering 708 chars and 0 step cards against
+       /how's 861 and 3. The route's preferred path is the canonical; the current path is only a
+       fallback for routes that have none. All 18 preferred targets verified live 200 first — a
+       canonical pointing at a 404 would be worse than the duplication it fixes. */
+    var pagePath = preferred[id] || ((DG_PAGE_PATHS[pathNow] === id && pathNow !== '/') ? pathNow : ('/?p=' + id));
     var pageUrl = 'https://www.trydemigod.com' + (pagePath.charAt(0) === '/' ? pagePath : '/' + pagePath);
     var can = document.querySelector('link[rel=canonical]');
     if (!can) { can = document.createElement('link'); can.setAttribute('rel','canonical'); document.head.appendChild(can); }

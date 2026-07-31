@@ -50,3 +50,41 @@ test('foot-smoke FAILS a foot-core that throws at boot (runtime, beyond node --c
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('an alias path never claims canonical for itself', () => {
+  const src = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
+  // Pull the REAL declarations and the REAL expression out of foot-core, so this exercises shipped
+  // behaviour instead of a copy of the rule that could drift from it.
+  const decls = src.slice(src.indexOf('var DG_PAGE_PATHS = {'));
+  const DG_PAGE_PATHS = Object.fromEntries(
+    [...decls.slice(0, decls.indexOf('};')).matchAll(/'(\/[a-z0-9-]*)':\s*'([a-z-]+)'/g)].map((m) => [m[1], m[2]]),
+  );
+  const prefSrc = src.slice(src.indexOf('var preferred = {'));
+  const preferred = Object.fromEntries(
+    [...prefSrc.slice(0, prefSrc.indexOf('};')).matchAll(/([a-z]+):'(\/[a-z]*)'/g)].map((m) => [m[1], m[2]]),
+  );
+  const line = /var pagePath = ([^;]+);/.exec(src)?.[1];
+  assert.ok(line, 'found the pagePath expression');
+  const pagePathFor = new Function('DG_PAGE_PATHS', 'preferred', 'pathNow', 'id', `return ${line};`);
+
+  assert.ok(Object.keys(DG_PAGE_PATHS).length > 20 && Object.keys(preferred).length > 10, 'declarations parsed');
+
+  // THE INVARIANT: for any declared path, canonical is the ROUTE's preferred path — never the alias.
+  // Without this, /referral, /referrals and /partners (all route 'refer') each asserted they were
+  // the original, which is precisely the duplication a canonical exists to resolve.
+  const offenders = [];
+  for (const [pathNow, id] of Object.entries(DG_PAGE_PATHS)) {
+    if (!preferred[id]) continue;
+    const got = pagePathFor(DG_PAGE_PATHS, preferred, pathNow, id);
+    if (got !== preferred[id]) offenders.push(`${pathNow} (${id}) -> ${got}, want ${preferred[id]}`);
+  }
+  assert.deepEqual(offenders, [], 'every declared alias must canonicalise to its route preferred path');
+
+  // Named regressions, so a future edit cannot quietly re-break the ones we measured live.
+  assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/how-it-works', 'how'), '/how');
+  assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/referrals', 'refer'), '/refer');
+  assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/media', 'press'), '/press');
+  // The preferred path still canonicalises to itself, and an unknown route still degrades to ?p=.
+  assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/how', 'how'), '/how');
+  assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/', 'nosuchroute'), '/?p=nosuchroute');
+});
