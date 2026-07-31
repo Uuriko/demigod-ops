@@ -39,6 +39,7 @@ Demigod already has the tests. It lacked a single control catalog with fail-clos
 | `structured_hiring_no_score` | SH stores parse; no fitScore/trustScore; batch active ≤3 | DEMIGOD-ROLE-PACKETS / PILOT-BATCHES / touches / intros | med |
 | `export_board_identity_clean` | Export has zero board collisions / duplicate map boards | recruitai-export `counts` | med |
 | `reseal_schedule_ok` | Multi-day reseal not overdue (CH-13 due helper) | `resealDue()` / reseal-queue-last | low |
+| `directory_observed_ages` | Aging asset readable; reports max observed days (CH-15) | DEMIGOD-DIRECTORY-AGING.json | low |
 
 Severities: `high` red fails the board summary; `med`/`low` warn.
 

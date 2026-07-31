@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Enrich DEMIGOD-SF-STARTUP-MAP.json companies with live job-posting counts from public ATS
-// job-board APIs (Greenhouse, Lever, Ashby, Workable). Counts only a nonempty board for a slug derived
-// from the company domain, with reviewed denylist exceptions for proven same-slug collisions.
+// job-board APIs (Greenhouse, Lever, Ashby, Workable, Personio, Recruitee, SmartRecruiters).
+// Counts only a nonempty board for a slug derived from the company domain, with reviewed
+// denylist exceptions for proven same-slug collisions. Secondary providers require owner evidence.
 // Location honesty: count only roles whose posted location looks US (or Remote) when the board
 // exposes locations; unknown/foreign-only boards are dropped rather than mislabeled as SF hiring.
 // Point-in-time: stamps openRolesAt so the listing can say "as of {date}". Run at build time.
@@ -11,7 +12,12 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { websiteHostKey } from './demigod-startup-map-data.mjs';
-import { workable as fetchWorkableRoles } from './demigod-ats-providers.mjs';
+import {
+  workable as fetchWorkableRoles,
+  personio as fetchPersonioRoles,
+  recruitee as fetchRecruiteeRoles,
+  smartrecruiters as fetchSmartrecruitersRoles,
+} from './demigod-ats-providers.mjs';
 
 const MAP = '/home/potter/DEMIGOD-SF-STARTUP-MAP.json';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -275,6 +281,51 @@ export function workableOwnerWebsiteFromLlms(text) {
   return websiteHostKey(raw) ? raw : null;
 }
 
+/** AR-28: SmartRecruiters company profile website (required for discover accept). */
+export function smartrecruitersOwnerWebsiteFromCompanyJson(data) {
+  const raw = data?.websiteUrl || data?.website || data?.companyWebsite;
+  return websiteHostKey(raw) ? String(raw) : null;
+}
+
+/** AR-28: Recruitee careers HTML → non-recruitee company site (og:url or labeled link). */
+export function recruiteeOwnerWebsiteFromHtml(html) {
+  const s = String(html || '');
+  const og =
+    /property=["']og:url["'][^>]*content=["'](https?:\/\/[^"']+)/i.exec(s) ||
+    /content=["'](https?:\/\/[^"']+)["'][^>]*property=["']og:url["']/i.exec(s);
+  if (og?.[1]) {
+    const host = websiteHostKey(og[1]);
+    if (host && !host.endsWith('recruitee.com')) return og[1];
+  }
+  const link = [...s.matchAll(/<a\b[^>]*\bhref=(["'])(https?:\/\/.*?)\1[^>]*>([\s\S]*?)<\/a>/gi)].find(
+    (m) =>
+      /\b(website|home\s*page|company)\b/i.test(m[3].replace(/<[^>]*>/g, ' ')) &&
+      websiteHostKey(m[2]) &&
+      !websiteHostKey(m[2]).endsWith('recruitee.com'),
+  );
+  return link?.[2] || null;
+}
+
+/** AR-28: Personio careers HTML → non-personio company site (config JSON or labeled link). */
+export function personioOwnerWebsiteFromHtml(html) {
+  const s = String(html || '');
+  const conf =
+    /"company_website"\s*:\s*"(https?:\\?\/\\?\/[^"]+)"/i.exec(s) ||
+    /"companyWebsite"\s*:\s*"(https?:\\?\/\\?\/[^"]+)"/i.exec(s);
+  if (conf?.[1]) {
+    const raw = conf[1].replace(/\\\//g, '/');
+    const host = websiteHostKey(raw);
+    if (host && !/personio\./i.test(host)) return raw;
+  }
+  const link = [...s.matchAll(/<a\b[^>]*\bhref=(["'])(https?:\/\/.*?)\1[^>]*>([\s\S]*?)<\/a>/gi)].find(
+    (m) =>
+      /\b(website|home|homepage|company)\b/i.test(m[3].replace(/<[^>]*>/g, ' ')) &&
+      websiteHostKey(m[2]) &&
+      !/personio\./i.test(websiteHostKey(m[2])),
+  );
+  return link?.[2] || null;
+}
+
 export function sameWebsiteOwner(companyWebsite, ownerWebsite) {
   const companyHost = websiteHostKey(companyWebsite);
   const ownerHost = websiteHostKey(ownerWebsite);
@@ -297,36 +348,65 @@ export function boardOwnerMatches(company, board) {
 // AR-08: still PARTIAL taxonomy (honest coarse buckets); expand recall without stealing eng/science titles.
 export function categorizeRole(title) {
   const t = String(title || '').toLowerCase();
+  // PeopleOps: exclude eng/science/design craft titles so "SWE, People Ops" stays non-people.
+  // Also skip bare "architect" (People Technology Solutions Architect → eng).
   if (
-    !/\b(?:engineer|developer|scientist|designer)\b/.test(t) &&
-    /\b(?:recruiters?|recruitment|talent acquisition|people (?:(?:team )?business partner|partner)|human resources|employee relations|total rewards|people experience|people success|learning and development|\bl&d\b|workforce planning|org(?:anizational)? development)\b|(?:^|[^/\w])hrbp\b|^(?:senior\s+)?(?:head|director|vp|vice president)\b.*\bpeople\b|^chief people officer\b/.test(t)
-  ) return 'people';
-  if (/\b(product manager|product management|product owner|\bpm\b|technical product)\b/.test(t)) return 'product';
-  if (/\b(data scientist|machine learning|\bml\b|\bai\b|deep learning|\bnlp\b|computer vision|research scientist|data engineer|analytics engineer|data analyst)\b/.test(t)) return 'ai/data';
-  // DevRel / tech writing before "developer" eng bucket
-  if (/\b(developer advocate|developer relations|\bdevrel\b|technical writer|docs engineer|documentation engineer)\b/.test(t)) {
+    !/\b(?:engineer|developer|scientist|designer|architect)\b/.test(t) &&
+    (/\b(?:recruiters?|recruitment|talent acquisition|people (?:(?:team )?business partner|partner|consultant)|human resources|employee relations|total rewards|people experience|people success|learning and development|\bl&d\b|workforce planning|org(?:anizational)? development)\b|(?:^|[^/\w])hrbp\b|^(?:senior\s+)?(?:head|director|vp|vice president)\b.*\bpeople\b|^chief people officer\b/.test(t) ||
+      /\b(?:compensation|benefits|\bhris\b|people (?:programs?|systems?|analytics|technology|tech)|workplace experience)\b/.test(t) ||
+      /\bsourcers?\b/.test(t))
+  ) {
+    return 'people';
+  }
+  // Product leadership + PM craft (before marketing "product marketer")
+  if (
+    /\b(product manager|product management|product owner|\bpm\b|technical product|head of product|director of product|director, product|vp of product|vp, product|vice president of product|product leader|0\s*[→\->]\s*1 product)\b/.test(
+      t,
+    )
+  ) {
+    return 'product';
+  }
+  if (/\b(data scientist|machine learning|\bml\b|\bai\b|deep learning|\bnlp\b|computer vision|research scientist|data engineer|analytics engineer|data analyst|director of data|head of data)\b/.test(t)) return 'ai/data';
+  // DevRel / tech writing / product marketing before eng bucket
+  if (/\b(developer advocate|developer relations|\bdevrel\b|technical writer|docs engineer|documentation engineer|product market(?:er|ing))\b/.test(t)) {
     return 'marketing';
+  }
+  // Creative/design leadership before eng (avoids "design" false friends on non-design titles)
+  if (/\b(head of design|creative director|head of creative|associate creative director|product creative)\b/.test(t)) {
+    return 'design';
   }
   // Security product eng stays engineering; pure GRC/compliance (no eng title) → finance/legal
   if (
-    /\b(security engineer|application security|appsec|detection engineer|security software|security platform)\b/.test(t)
+    /\b(security engineer|application security|appsec|detection engineer|security software|security platform|product security|security architecture)\b/.test(t)
   ) {
     return 'engineering';
   }
-  if (/\b(engineer|developer|\bswe\b|programmer|software|devops|\bsre\b|infrastructure|backend|frontend|full[\s-]?stack|mobile|\bios\b|android|platform)\b/.test(t)) return 'engineering';
+  // engineering manager / architect / bare "engineering" (title noun) before residual people/sales
+  if (/\b(engineer|developer|\bswe\b|programmer|software|devops|\bsre\b|infrastructure|backend|frontend|full[\s-]?stack|mobile|\bios\b|android|platform|engineering|solutions architect|\barchitect\b|member of technical staff|systems administrator|\bit\b systems)\b/.test(t)) return 'engineering';
   if (/\b(designer|\bux\b|\bui\b|product design|brand|graphic|design systems?)\b/.test(t)) return 'design';
-  if (/\b(sales|account executive|\bae\b|account manager|business development|\bbdr\b|\bsdr\b|revenue|partnerships|solutions engineer|sales engineer|customer engineer)\b/.test(t)) return 'sales';
-  if (/\b(marketing|growth|content|\bseo\b|demand gen|community|social media|communications)\b/.test(t)) return 'marketing';
-  if (/\b(?:recruit(?:er|ers|ing|ment)?|talent|people (?:ops|operations|partner)|human resources)\b|(?:^|[^/\w])hr(?:bp)?\b/.test(t)) return 'people';
+  // Presales/PS consultants + sellers (not bare "consultant" — jewelry/store stays other)
+  if (
+    /\b(sales|account executive|\bae\b|account manager|account management|account director|key accounts?|strategic account|account partner|business development|\bbdr\b|\bsdr\b|revenue|partnerships?|solutions engineer|sales engineer|customer engineer|founding gtm|gtm strategy|gtm planning|gtm presales|specialist seller|solutions? consultant|technical consultant|professional services consultant|partner development|partner manager|strategic partner|client partner|enterprise accounts?|renewals? manager)\b/.test(t) ||
+    /\bregional director\b.*\benterprise\b|\benterprise\b.*\bregional director\b/.test(t)
+  ) {
+    return 'sales';
+  }
+  if (/\b(marketing|growth|content|\bseo\b|demand gen(?:eration)?|community|social media|communications|\bmarketer\b|agency lead|customer advocacy)\b/.test(t)) return 'marketing';
+  if (
+    /\b(?:recruit(?:er|ers|ing|ment)?|talent|people (?:ops|operations|partner)|human resources)\b|(?:^|[^/\w])hr(?:bp)?\b/.test(t) ||
+    /\b(?:director,? learning|workforce strategy)\b/.test(t)
+  ) {
+    return 'people';
+  }
   // Split-ish finance/legal: same bucket key for export stability, broader title recall
   if (
-    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|treasury|payroll|tax)\b/.test(t) ||
+    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|financial reporting|treasury|payroll|tax|accounts receivable|internal audit|credit underwriter|credit (?:&|and) collections|collections analyst|underwriting|credit risk|investor relations|corporate development|contracts manager)\b/.test(t) ||
     /\b(legal|counsel|attorney|paralegal|compliance|privacy counsel|data privacy|grc|governance risk)\b/.test(t)
   ) {
     return 'finance/legal';
   }
   if (
-    /\b(operations|\bops\b|support|customer success|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops)\b/.test(
+    /\b(operations|\bops\b|support|customer success|client success|partner success|customer experience|\bcx\b|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops|gtm enablement|executive assistant|executive business partner|scrum master|deployment strategist|\bbizops\b|business systems analyst|systems analyst|case management|deal desk|engagement manager)\b/.test(
       t,
     )
   ) {
@@ -419,7 +499,7 @@ export function updateJobsCoverage(map, at, collapsed = map?.coverage?.boardDupe
   map.coverage.openRolesAt = at;
   map.coverage.boardDupesCollapsed = collapsed;
   map.coverage.openRolesScope =
-    'US-posted (or Remote) roles on the company public Greenhouse/Lever/Ashby/Workable board when location is listed; foreign-only and location-unknown postings are excluded. YC self-reported-hiring companies with no detected board link their YC jobs page (jobsSource:"YC", no verified count).';
+    'US-posted (or Remote) roles on the company public Greenhouse/Lever/Ashby/Workable/Personio/Recruitee/SmartRecruiters board when location is listed; foreign-only and location-unknown postings are excluded. YC self-reported-hiring companies with no detected board link their YC jobs page (jobsSource:"YC", no verified count).';
   return { hits, totalRoles, ycLinks };
 }
 
@@ -514,15 +594,72 @@ async function workable(slug) {
   return ownerWebsite ? { ...result, ownerWebsite } : null;
 }
 
+// AR-28 secondary providers: fail closed without owner evidence (same honesty as Workable).
+async function personio(slug) {
+  const feed = await fetchPersonioRoles(slug);
+  if (!feed?.ok) return null;
+  const result = hit(
+    feed.roles.filter((job) => isUsPostedLocation(locationBlob(job?.location))),
+    (job) => job?.title,
+    `https://${slug}.jobs.personio.de/`,
+    'Personio',
+  );
+  if (!result) return null;
+  const ownerWebsite = personioOwnerWebsiteFromHtml(await tryFetchText(result.jobsUrl));
+  return ownerWebsite ? { ...result, ownerWebsite } : null;
+}
+
+async function recruitee(slug) {
+  const feed = await fetchRecruiteeRoles(slug);
+  if (!feed?.ok) return null;
+  const result = hit(
+    feed.roles.filter((job) => isUsPostedLocation(locationBlob(job?.location))),
+    (job) => job?.title,
+    `https://${slug}.recruitee.com/`,
+    'Recruitee',
+  );
+  if (!result) return null;
+  const ownerWebsite = recruiteeOwnerWebsiteFromHtml(await tryFetchText(result.jobsUrl));
+  return ownerWebsite ? { ...result, ownerWebsite } : null;
+}
+
+async function smartrecruiters(slug) {
+  const feed = await fetchSmartrecruitersRoles(slug);
+  if (!feed?.ok) return null;
+  const result = hit(
+    feed.roles.filter((job) => isUsPostedLocation(locationBlob(job?.location))),
+    (job) => job?.title,
+    `https://jobs.smartrecruiters.com/${slug}`,
+    'SmartRecruiters',
+  );
+  if (!result) return null;
+  const company = await tryFetch(
+    `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(slug)}`,
+    (j) => j,
+  );
+  const ownerWebsite = smartrecruitersOwnerWebsiteFromCompanyJson(company);
+  return ownerWebsite ? { ...result, ownerWebsite } : null;
+}
+
 async function detect(company) {
   for (const slug of slugs(company)) {
-    for (const probe of [greenhouse, lever, ashby, workable]) {
-      const hit = await probe(slug);
+    for (const probe of [
+      greenhouse,
+      lever,
+      ashby,
+      workable,
+      personio,
+      recruitee,
+      smartrecruiters,
+    ]) {
+      const found = await probe(slug);
       if (
-        hit &&
-        !hasDeniedAtsBoard({ ...company, atsSource: hit.ats, jobsUrl: hit.jobsUrl }) &&
-        boardOwnerMatches(company, hit)
-      ) return hit;
+        found &&
+        !hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl }) &&
+        boardOwnerMatches(company, found)
+      ) {
+        return found;
+      }
     }
   }
   return null;
@@ -627,6 +764,21 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
     workableOwnerWebsiteFromLlms('- [Company website](https://www.doist.com): Doist website') === 'https://www.doist.com',
     'Workable company website parsed',
   );
+  assert(
+    smartrecruitersOwnerWebsiteFromCompanyJson({ websiteUrl: 'https://acme.example/' }) ===
+      'https://acme.example/',
+    'SmartRecruiters company website parsed',
+  );
+  assert(
+    recruiteeOwnerWebsiteFromHtml('<meta property="og:url" content="https://www.owned.example/careers" />') ===
+      'https://www.owned.example/careers',
+    'Recruitee og:url owner parsed',
+  );
+  assert(
+    personioOwnerWebsiteFromHtml('{"companyWebsite":"https://www.owned.example/"}') ===
+      'https://www.owned.example/',
+    'Personio companyWebsite parsed',
+  );
   assert(!boardOwnerMatches(
     { website: 'https://pivotal.io/' },
     { ownerWebsite: 'https://pivotal.aero' },
@@ -674,6 +826,99 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
       globalThis.fetch = originalFetch;
     }
   }
+  // AR-28: Personio / Recruitee / SmartRecruiters discover with required owner evidence
+  {
+    const originalFetch = globalThis.fetch;
+    const usRole = { id: '9', name: 'Backend Engineer', office: 'San Francisco, United States' };
+    const mockSecondary = (provider, ownerWebsite) => async (url) => {
+      const target = String(url);
+      if (provider === 'Personio') {
+        if (target.includes('owned.jobs.personio.de/xml')) {
+          return {
+            ok: true,
+            text: async () =>
+              `<workzag-jobs><position><id>9</id><name>Backend Engineer</name><office>San Francisco, United States</office><createdAt>2026-03-01</createdAt></position></workzag-jobs>`,
+          };
+        }
+        if (target.includes('owned.jobs.personio.de') && ownerWebsite) {
+          return {
+            ok: true,
+            text: async () => JSON.stringify({ companyWebsite: ownerWebsite }),
+          };
+        }
+      }
+      if (provider === 'Recruitee') {
+        if (target.includes('owned.recruitee.com/api/offers')) {
+          return {
+            ok: true,
+            json: async () => ({
+              offers: [{
+                id: 5,
+                title: 'Backend Engineer',
+                city: 'San Francisco',
+                country_code: 'US',
+                careers_url: 'https://owned.recruitee.com/o/backend',
+                published_at: '2026-04-01',
+              }],
+            }),
+          };
+        }
+        if (target.includes('owned.recruitee.com') && ownerWebsite) {
+          return {
+            ok: true,
+            text: async () => `<meta property="og:url" content="${ownerWebsite}" />`,
+          };
+        }
+      }
+      if (provider === 'SmartRecruiters') {
+        if (target.includes('/companies/owned/postings')) {
+          return {
+            ok: true,
+            json: async () => ({
+              totalFound: 1,
+              content: [{
+                id: '1',
+                name: 'Backend Engineer',
+                location: { fullLocation: 'San Francisco, CA, United States' },
+                releasedDate: '2026-06-01',
+              }],
+            }),
+          };
+        }
+        if (target.includes('/companies/owned') && !target.includes('postings') && ownerWebsite) {
+          return {
+            ok: true,
+            json: async () => ({ websiteUrl: ownerWebsite }),
+          };
+        }
+      }
+      return { ok: false };
+    };
+    try {
+      globalThis.fetch = mockSecondary('Personio', 'https://www.owned.example/');
+      let found = await detect({ website: 'https://owned.example/' });
+      assert(found?.ats === 'Personio' && found.count === 1, 'owned Personio board accepted');
+      globalThis.fetch = mockSecondary('Personio', null);
+      assert(await detect({ website: 'https://owned.example/' }) === null, 'Personio without owner rejected');
+      globalThis.fetch = mockSecondary('Personio', 'https://other.example/');
+      assert(await detect({ website: 'https://owned.example/' }) === null, 'Personio owner mismatch rejected');
+
+      globalThis.fetch = mockSecondary('Recruitee', 'https://www.owned.example/jobs');
+      found = await detect({ website: 'https://owned.example/' });
+      assert(found?.ats === 'Recruitee' && found.count === 1, 'owned Recruitee board accepted');
+      globalThis.fetch = mockSecondary('Recruitee', null);
+      assert(await detect({ website: 'https://owned.example/' }) === null, 'Recruitee without owner rejected');
+
+      globalThis.fetch = mockSecondary('SmartRecruiters', 'https://owned.example/');
+      found = await detect({ website: 'https://owned.example/' });
+      assert(found?.ats === 'SmartRecruiters' && found.count === 1, 'owned SmartRecruiters board accepted');
+      globalThis.fetch = mockSecondary('SmartRecruiters', null);
+      assert(await detect({ website: 'https://owned.example/' }) === null, 'SmartRecruiters without owner rejected');
+      void usRole;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
   // YC jobs-page fallback: only YC-hiring companies, only from a validated YC company URL, → /jobs page.
   const yc = { hiring: 'yes', sourceUrl: 'https://www.ycombinator.com/companies/rescale' };
   assert(ycJobsUrl(yc) === 'https://www.ycombinator.com/companies/rescale/jobs', 'YC hiring → /jobs page');
@@ -709,6 +954,83 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(categorizeRole('RevOps Manager') === 'operations', 'revops → operations');
   assert(categorizeRole('Learning and Development Partner') === 'people', 'l&d → people');
   assert(categorizeRole('Financial Analyst') === 'finance/legal', 'fin analyst → finance/legal');
+  // AR-08 recall: compensation/HRIS/sourcer, creative heads, success, finance ops titles
+  assert(categorizeRole('Compensation Lead') === 'people', 'compensation → people');
+  assert(categorizeRole('Sr. Compensation Business Partner') === 'people', 'comp BP → people');
+  assert(categorizeRole('Benefits Consultant (FL)') === 'people', 'benefits → people');
+  assert(categorizeRole('People Programs Lead') === 'people', 'people programs → people');
+  assert(categorizeRole('Senior HRIS Analyst') === 'people', 'hris → people');
+  assert(categorizeRole('People Analytics Manager') === 'people', 'people analytics → people');
+  assert(categorizeRole('Workplace Experience Manager') === 'people', 'workplace exp → people');
+  assert(categorizeRole('Design Sourcer') === 'people', 'sourcer → people (not design craft)');
+  assert(categorizeRole('Head of Design') === 'design', 'head of design → design');
+  assert(categorizeRole('Creative Director') === 'design', 'creative director → design');
+  assert(categorizeRole('Client Success Manager') === 'operations', 'client success → operations');
+  assert(categorizeRole('Partner Success Manager') === 'operations', 'partner success → operations');
+  assert(categorizeRole('Account Director, Strategic') === 'sales', 'account director → sales');
+  assert(categorizeRole('Vice President Key Accounts, North America') === 'sales', 'key accounts → sales');
+  assert(categorizeRole('Founding GTM') === 'sales', 'founding gtm → sales');
+  assert(categorizeRole('Internal Audit Analyst') === 'finance/legal', 'internal audit → finance/legal');
+  assert(categorizeRole('Credit Underwriter') === 'finance/legal', 'credit underwriter → finance/legal');
+  assert(categorizeRole('Executive Assistant') === 'operations', 'EA → operations');
+  assert(categorizeRole('Scrum Master') === 'operations', 'scrum master → operations');
+  assert(categorizeRole('Engineering Manager, Onboarding') === 'engineering', 'eng manager → engineering');
+  assert(categorizeRole('Data Center Design Execution Lead') === 'other', 'non-product design stays other');
+  // AR-08: product leadership, architects, CX, account mgmt, people tech
+  assert(categorizeRole('Director of Product') === 'product', 'director of product → product');
+  assert(categorizeRole('Head of Product') === 'product', 'head of product → product');
+  assert(categorizeRole('0→1 Product Leader') === 'product', '0→1 product leader → product');
+  assert(categorizeRole('Product Marketer') === 'marketing', 'product marketer → marketing');
+  assert(categorizeRole('Solutions Architect') === 'engineering', 'solutions architect → eng');
+  assert(categorizeRole('Solutions Architect, People Technology') === 'engineering', 'people-tech architect stays eng');
+  assert(categorizeRole('People Consultant') === 'people', 'people consultant → people');
+  assert(categorizeRole('Senior People Technology Analyst - Workday') === 'people', 'people technology → people');
+  assert(categorizeRole('Vice President of Customer Experience') === 'operations', 'CX → operations');
+  assert(categorizeRole('Manager, Account Management') === 'sales', 'account management → sales');
+  assert(categorizeRole('Strategic Account Partner') === 'sales', 'strategic account → sales');
+  assert(categorizeRole('Senior Credit & Collections Analyst') === 'finance/legal', 'collections → finance');
+  assert(categorizeRole('Principal Scientist, Cancer Biology') === 'other', 'wet-lab scientist stays other (not ai/data)');
+  // AR-08: residual high-frequency other → coarse buckets (ledger-driven)
+  assert(categorizeRole('Member of Technical Staff') === 'engineering', 'MOTS → engineering');
+  assert(categorizeRole('Solutions Consultant') === 'sales', 'solutions consultant → sales');
+  assert(categorizeRole('Senior Professional Services Consultant') === 'sales', 'PS consultant → sales');
+  assert(categorizeRole('Technical Consultant I') === 'sales', 'technical consultant → sales');
+  assert(categorizeRole('Specialist Seller, Mid-Market') === 'sales', 'specialist seller → sales');
+  assert(categorizeRole('Senior Partner Development Manager') === 'sales', 'partner development → sales');
+  assert(categorizeRole('Regional Client Partner, Ads Solutions') === 'sales', 'client partner → sales');
+  assert(categorizeRole('Enterprise Accounts Associate') === 'sales', 'enterprise accounts → sales');
+  assert(categorizeRole('Director, GTM Strategy & Planning') === 'sales', 'gtm strategy → sales');
+  assert(categorizeRole('Head of Demand Generation') === 'marketing', 'demand generation → marketing');
+  assert(categorizeRole('Agency Lead') === 'marketing', 'agency lead → marketing');
+  assert(categorizeRole('Director, Credit Risk') === 'finance/legal', 'credit risk → finance');
+  assert(categorizeRole('Deployment Strategist') === 'operations', 'deployment strategist → operations');
+  assert(categorizeRole('BizOps Senior Manager (Technical)') === 'operations', 'bizops → operations');
+  assert(categorizeRole('Business Systems Analyst') === 'operations', 'BSA → operations');
+  assert(categorizeRole('Systems Analyst II') === 'operations', 'systems analyst → operations');
+  assert(categorizeRole('Case Management Specialist (Remote Flexible)') === 'operations', 'case management → operations');
+  assert(categorizeRole('Deal Desk Manager') === 'operations', 'deal desk → operations');
+  assert(categorizeRole('Engagement Manager') === 'operations', 'engagement manager → operations');
+  assert(categorizeRole('Curriculum Lead, GTM Enablement') === 'operations', 'gtm enablement → operations');
+  assert(categorizeRole('Jewelry Consultant') === 'other', 'retail consultant stays other');
+  assert(categorizeRole('General Application') === 'other', 'general application stays other');
+  // AR-08: residual batch 2 (enterprise/security/IR/renewals/data lead)
+  assert(categorizeRole('Regional Director, Enterprise') === 'sales', 'regional director enterprise → sales');
+  assert(categorizeRole('Strategic Partner Manager') === 'sales', 'strategic partner → sales');
+  assert(categorizeRole('Senior Renewals Manager') === 'sales', 'renewals → sales');
+  assert(categorizeRole('Principal GTM Presales Enablement Business Partner') === 'sales', 'gtm presales → sales');
+  assert(categorizeRole('Director of Data') === 'ai/data', 'director of data → ai/data');
+  assert(categorizeRole('Senior Manager, Product Security') === 'engineering', 'product security → eng');
+  assert(categorizeRole('IT Systems Administrator') === 'engineering', 'sysadmin → eng');
+  assert(categorizeRole('Vice President, Investor Relations') === 'finance/legal', 'IR → finance');
+  assert(categorizeRole('VP, Corporate Development') === 'finance/legal', 'corp dev → finance');
+  assert(categorizeRole('Contracts Manager') === 'finance/legal', 'contracts → finance');
+  assert(categorizeRole('Senior Manager, Financial Reporting') === 'finance/legal', 'fin reporting → finance');
+  assert(categorizeRole('Director, Learning') === 'people', 'director learning → people');
+  assert(categorizeRole('Workforce Strategy & Transformation Director') === 'people', 'workforce strategy → people');
+  assert(categorizeRole('Lead, Customer Advocacy') === 'marketing', 'customer advocacy → marketing');
+  assert(categorizeRole('Executive Business Partner') === 'operations', 'EBP → operations (not people)');
+  assert(categorizeRole('Part-time Ambassador') === 'other', 'ambassador stays other');
+  assert(categorizeRole('Store Manager, Jewelry') === 'other', 'store manager stays other');
   assert(categorizeRole('') === 'other', 'empty → other');
   assert(
     jobsEnrichCliMode([]) === 'enrich' &&

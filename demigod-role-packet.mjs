@@ -266,6 +266,23 @@ export function addMustHave(packet, label, kind = 'skill') {
   return next;
 }
 
+/** Ashby-shaped deal-breaker (human label only; not a score). */
+export function addDealBreaker(packet, label) {
+  assertPacket(packet);
+  const list = Array.isArray(packet.dealBreakers) ? [...packet.dealBreakers] : [];
+  if (list.length >= 10) throw new Error('dealBreakers_max');
+  const text = String(label || '').trim();
+  if (text.length < 4) throw new Error('dealBreaker_label_short');
+  const n = list.length + 1;
+  const next = {
+    ...packet,
+    dealBreakers: [...list, { id: `db${n}`, label: text.slice(0, 200) }],
+    updatedAt: now(),
+  };
+  assertPacket(next);
+  return next;
+}
+
 export function createNote({
   roleId,
   candId,
@@ -326,6 +343,17 @@ export function debriefRoundup(packet, notes = []) {
       cells,
     };
   });
+  const aidTally = {
+    changed_by_context: 0,
+    missing_question: 0,
+    error_prevented: 0,
+    none: 0,
+  };
+  for (const n of roleNotes) {
+    const a = n.decisionAid || 'none';
+    if (aidTally[a] != null) aidTally[a] += 1;
+    else aidTally.none += 1;
+  }
   return {
     schema: 'demigod.debrief-roundup/1',
     roleId: packet.roleId,
@@ -338,6 +366,7 @@ export function debriefRoundup(packet, notes = []) {
       candId: n.candId,
       decisionAid: n.decisionAid || 'none',
     })),
+    decisionAidTally: aidTally,
     score: null,
     policy: 'Debrief over average — no hire score; disagreement is a feature.',
   };
@@ -515,6 +544,16 @@ function selftest() {
   const round = debriefRoundup(p2, [note]);
   assert(round.schema === 'demigod.debrief-roundup/1' && round.score === null, 'debrief');
   assert(round.byMustHave.length === p2.mustHaves.length && round.noteCount === 1, 'debrief rows');
+  assert(round.decisionAidTally?.changed_by_context === 1, 'decisionAid tally');
+  const withDb = addDealBreaker(p2, 'Requires full remote outside US');
+  assert(withDb.dealBreakers.length === 1 && withDb.dealBreakers[0].id === 'db1', 'deal-breaker');
+  let threwDb = false;
+  try {
+    addDealBreaker(p2, 'x');
+  } catch {
+    threwDb = true;
+  }
+  assert(threwDb, 'short deal-breaker refused');
 
   // temp store
   const tmpP = path.join('/tmp', `dg-packets-${process.pid}.json`);
@@ -550,8 +589,9 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|note|project|stage|set-comp|set-plan|debrief [--role=] …
+    console.log(`usage: node demigod-role-packet.mjs list|show|init|add-must|add-deal|note|project|stage|set-comp|set-plan|debrief [--role=] …
   set-plan  map must-haves → screen|tech|founder|debrief (Ashby interview plan; no scheduling)
+  add-deal  human deal-breaker label (not a score)
   debrief   aggregate review notes per must-have (no hire score)
 Design: docs/die/ROLE-PACKET-DESIGN.md`);
     return;
@@ -614,6 +654,29 @@ Design: docs/die/ROLE-PACKET-DESIGN.md`);
     const next = addMustHave(cur, label, flags.kind || 'skill');
     upsertPacket(next);
     console.log(JSON.stringify({ ok: true, mustHaves: next.mustHaves.length }));
+    return;
+  }
+
+  if (cmd === 'add-deal') {
+    const id = flags.role;
+    const label = flags.label;
+    if (!id || !label) {
+      console.error(JSON.stringify({ ok: false, error: '--role and --label required' }));
+      process.exit(1);
+    }
+    const cur = loadPackets().packets[id];
+    if (!cur) {
+      console.error(JSON.stringify({ ok: false, error: 'packet not found' }));
+      process.exit(1);
+    }
+    try {
+      const next = addDealBreaker(cur, label);
+      upsertPacket(next);
+      console.log(JSON.stringify({ ok: true, dealBreakers: next.dealBreakers }));
+    } catch (e) {
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      process.exit(1);
+    }
     return;
   }
 

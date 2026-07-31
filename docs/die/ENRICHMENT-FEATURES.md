@@ -18,22 +18,57 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 
 ## Execution updates — 2026-07-31
 
-- **OP-08 — BUILT (enrich discovery):** `demigod-work-find.mjs` now surfaces reseal
-  pending, control-board stale/fail, weekly reseal due, missing interview plan/comp
-  bands, and shallow aging ages — without inventing roles or outbound.
+- **OP-08 — work-find always surfaces exit-fail:** control-board exitFailures use
+  `always: true` (hour-seen no longer hides re-broken truth_seal). Live
+  `refuseIfStale('truth')` probe adds truth-reseal when map stamps between board receipts.
+
+- **AR-28 — control ats_secondary_coverage:** low informative control on control-board
+  reuses `buildBoardCoverage` (primary vs Personio/Recruitee/SR open boards). Never exit-fail;
+  yield=0 is honest until enrich (no poll thrash).
+
+- **AR-08 — PARTIAL→improved (ledger residual batch 2):** regional director+enterprise,
+  strategic/partner manager, renewals, gtm presales, director of data, product security /
+  sysadmin, IR/corp-dev/contracts/fin-reporting, director learning / workforce strategy,
+  customer advocacy; EBP → operations. Negatives: ambassador, jewelry store. other 1666→1561.
+
+- **AR-08 — PARTIAL→improved (ledger residual):** categorizeRole recall for MOTS,
+  solutions/PS/technical consultants, specialist seller, partner/client/enterprise
+  accounts, GTM strategy/planning, demand generation, agency lead, credit risk,
+  deployment strategist, bizops, systems/BSA, case management, deal desk,
+  engagement manager, GTM enablement. Negatives hold (jewelry consultant, general
+  application, wet-lab, therapist). Full-ledger other 1971→1666; still coarse PARTIAL.
+
+- **OP-08 — BUILT (enrich discovery):** `demigod-work-find.mjs` queues executable
+  reseal and control-board work; `controlBoardRemediationNote` maps truth_seal →
+  `demigod-truth.mjs` and research seal/export honesty → `reseal-queue run` (not
+  status-only). Demo packet gaps and a healthy young-aging timer remain status, not work.
+  Selftest: `node demigod-work-find.mjs --selftest`.
 - **CH-13 — BUILT (schedule-gated):** `demigod-reseal-queue.mjs due|run --schedule`
   + `systemd-user/demigod-research-reseal.{service,timer}` (weekly, max-age 7d).
 - **OB-07 — BUILT:** control plane modules `enrich` + `hiring` on
   `demigod-control.mjs` / `/api/control` (receipt-backed metrics).
 - **AR-08 — PARTIAL→improved:** categorizeRole recall for L&D, GRC/privacy counsel,
-  support/RevOps, DevRel/tech writer, security-eng stays engineering; still coarse
-  honest buckets (not a fine taxonomy).
+  support/RevOps, DevRel/tech writer, compensation/HRIS/sourcer, creative heads,
+  success/GTM, product leadership (Head/Director/0→1), solutions architect, CX,
+  account management, people consultant/technology, collections; wet-lab scientist
+  stays other; eng canaries hold; ledger other 2293→1655; still coarse (not fine taxonomy).
+- **AR-25 — PARTIAL (timer-owned):** daily role-ledger timer healthy; max oldestObservedDays≈5 — ≥7/30 badges need calendar depth, not poll thrash.
+- **AR-28 — PARTIAL→improved:** jobs-enrich `detect` now probes Personio, Recruitee,
+  SmartRecruiters after GH/Lever/Ashby/Workable; owner evidence required (HTML/JSON
+  parsers + fail closed without match). Hermetic detect canaries; live map still
+  0 secondary boards until next full enrich (no poll thrash this fire).
+- **RA-16 — BUILT:** collapsed registry façade — removed separate `recruitai-pack` /
+  `recruitai-refresh` tools; one `recruitai-desk` (status|pack|refresh) + seed-pack/
+  import integrity edges. Desk is not a second SoR.
+- **OP-07 — BUILT:** export board identity control green (boardCollisions=0) + funnel
+  collision-plan idle (groups=0); apply remains review-gated.
 - **Public-comp fetch:** SSRF-safe `--fetch-url` for operator job pages (https +
   safeResearchUrl); strip HTML; quote-bound apply only.
 - **Control `structured_hiring_no_score`:** med control — SH stores readable, no
   fitScore/trustScore, batch active≤3.
 - **CI-15 identity helpers:** `stableMapCompanyId` + `hiringIdentityKey` (board
-  host+path) with hermetic YC slug stability in map-data selftest.
+  host+path); hn: ATS-only board-slug ids (`host/slug`) accepted; full-disk
+  id scan 2741 stable; multi-path/name-mint refused in selftest.
 - **EP-12 open URL:** demand draft `open` field only via `safeResearchUrl`.
 - **export_board_identity_clean + reseal_schedule_ok** controls on control-board.
 - **structured-hiring audit** CLI + tools registry.
@@ -104,7 +139,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | CI-12 | CRM company name dedupe for partner preview (read-only) | BUILT | existingCrmName/Id abstentions | demigod-lead-sourcer.mjs | lead-sourcer tests CRM | CI |
 | CI-13 | Duplicate export stream identity abstention | BUILT | duplicateSourceIdentity | demigod-lead-sourcer.mjs | lead-sourcer selection receipt | CI |
 | CI-14 | Personio /job/<id> exact route for roles | BUILT | NEXT-WORK Personio route | export relationship validation | export --selftest Personio | CI |
-| CI-15 | Atlas mapCompanyId stability across refresh | PARTIAL | yc:/wd:/hn: stable; hiringIdentityKey board SoR; name-mint forbidden; full regen still can add new Qs | demigod-startup-map-data.mjs stableMapCompanyId | map-data --selftest identity | CI |
+| CI-15 | Atlas mapCompanyId stability across refresh | BUILT | yc:/wd: slug ns + hn: host|host/slug (ATS-only); hiringIdentityKey board SoR; name-mint refused; full-disk id scan in selftest; regen may still add new wd:Qs | demigod-startup-map-data.mjs stableMapCompanyId | map-data --selftest identity | CI |
 | CI-16 | No ATS-board-name → company ownership | BUILT | CONTRACTS §1 | boardFromCompany website/slug | ledger selftest | CI |
 | CI-17 | Ambiguous Atlas Inc vs LLC company evidence | BUILT | match-review-evidence | matching-engine | test ambiguous status | CI |
 | NOW-06 | HN SF-only hiring ingest | BUILT | hn-hiring selftest | demigod-hn-hiring.mjs | --selftest | CI |
@@ -137,7 +172,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-05 | Lever descriptionPlain/additional for agency extract | BUILT | POLLERS.Lever | demigod-role-ledger.mjs | selftest extractAgency | AR |
 | AR-06 | Ashby description fields for agency extract | BUILT | POLLERS.Ashby | demigod-role-ledger.mjs | selftest | AR |
 | AR-07 | nativePostedAt + nativeDateField per provider | BUILT | first_published/createdAt/publishedAt | demigod-role-ledger.mjs | export attributedPosted counts | AR |
-| AR-08 | Role fn categorizeRole taxonomy | PARTIAL | coarse buckets + L&D/GRC/support/DevRel/security-eng canaries; not fine-grained taxonomy | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
+| AR-08 | Role fn categorizeRole taxonomy | PARTIAL | coarse buckets + residual batches (MOTS/PS/seller/GTM/security/IR/renewals/data-lead); jewelry/general-app/wet-lab/therapist/ambassador stay other; not fine taxonomy · ledger other →1561 | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
 | AR-09 | openPeopleOpsReqCount export aggregate | BUILT | fn===people count | demigod-recruitai-export.mjs | export rows people>0 (local ~74) | AR |
 | AR-10 | samplePeopleOpsRole title/URL positive only | BUILT | null when count 0 | export aggregateRoles | assertExportValid people ops pair | AR |
 | AR-11 | noAgencyEvidenceReqCount positive only | BUILT | supported agencyPolicyEvidence | export | local yield 1 board | AR |
@@ -154,10 +189,10 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-22 | Board role bound 2000 roles / char limits | BUILT | shared ATS ingress | ats-providers / ledger | selftest bounds | AR |
 | AR-23 | Duplicate jobId or URL invalidates observation | BUILT | ingress policy | demigod-ats-providers.mjs | selftest dups | AR |
 | AR-24 | usPosted location flag | BUILT | isUsPostedLocation | role-ledger | report usOnly filter | AR |
-| AR-25 | Role-ledger poll cadence deepening ages | NOW | pri1 multi-agent; max observed still young ~4d | demigod-role-ledger.mjs poll | poll then report --posted aging | AR |
+| AR-25 | Role-ledger poll cadence deepening ages | PARTIAL | NOW-01 timer BUILT+healthy; max oldestObservedDays~5 (needs calendar time for ≥7/30); do not thrash poll for badges | role-ledger poll + timer | report --posted aging; timer unit | AR |
 | AR-26 | PeopleOps title recall HRBP/People Partner | BUILT | 179→214 open; positive + negative precedence canaries | categorizeRole | enrich + startup-jobs selftests | AR |
 | AR-27 | Broader no-agency quote patterns without inventing | BUILT | bounded positive-only phrases expanded; live yield remains 1 | extractAgencyPolicyEvidence | ledger selftest + negative control | AR |
-| AR-28 | More ATS boards / preconfig join depth | NOW | current 339/339 fetches after stale Infinite→YC fallback + Gather/Greenhouse discovery; additional provider/preconfig depth remains | map jobsUrl + atsSource | jobs selftest + live poll coverage | AR |
+| AR-28 | More ATS boards / preconfig join depth | PARTIAL | detect wired for Personio/Recruitee/SmartRecruiters (owner-required); map yield still Ashby/GH/Lever until next enrich | map jobsUrl + atsSource + detect probes | jobs selftest + live poll coverage | AR |
 | AR-29 | Relationship graph open_role nodes ≤25/board | BUILT | export bound omissions | demigod-recruitai-export.mjs | export relationships counts | AR |
 | AR-30 | Graph has_claim / research_source when green research | BUILT | export CR nodes | export | export green CR=15 nodes | AR |
 | AR-31 | Greenhouse first_published attribution basis string | BUILT | export attributedPostingBasis | export metadata | export field | AR |
@@ -238,7 +273,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | RA-13 | Seed-pack default must use loadRecruitaiExport | BUILT | committedOnly loader reused; arbitrary --from deleted | seed-pack main | hash poison + --from refusal before output | RA |
 | RA-14 | Upstream pin lalalune v0.1.1 constant | BUILT | RECRUITAI_UPSTREAM | desk + plan doc | desk --selftest pin | RA |
 | RA-15 | Handoff README policy drafts-only | BUILT | pack README text | desk packHandoff | pack produces README | RA |
-| RA-16 | Desk/registry UI façade YAGNI risk | PARTIAL | yagni audit; import edge integrity | desk + dashboard | import-integrity; prefer delete or loadExport | RA |
+| RA-16 | Desk/registry UI façade YAGNI risk | BUILT | single registry tool `recruitai-desk` (status\|pack\|refresh); pack uses loadRecruitaiExport; no separate pack/refresh façade tools | desk + tools-registry | desk --selftest; registry list | RA |
 | RA-17 | Import plan limit N rows | BUILT | strict positive safe-integer limit | demigod-recruitai-import.mjs | import parser selftest + dry-run --limit | RA |
 | RA-18 | Import backup before apply | BUILT | import --apply backup | demigod-recruitai-import.mjs | code path apply | RA |
 | NOW-01 | Scheduled role-ledger poll (systemd/timer) | BUILT | daily persistent timer enabled; all-provider failure is nonzero and cannot advance ledger freshness | role-ledger poll + `systemd-user/demigod-role-ledger.{service,timer}` | timer unit test + live 338/339-board cycle | OP |
@@ -250,7 +285,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | OP-04 | hiring-pulse deltas empty-map fail closed | BUILT | mixed-row history filter + lock keeps map and typed role-signal observations independent | demigod-hiring-pulse.mjs | hiring-pulse --selftest | OP |
 | OP-05 | role-ledger report --posted aging SF | BUILT | CLI report | demigod-role-ledger.mjs | report --posted | OP |
 | OP-06 | CDN re-ship map ages | GATED | pri3 current-request publish auth | foot-cdn-publish + cm6 | only with DEMIGOD_CURRENT_REQUEST_PUBLISH=1 | OP |
-| OP-07 | Map identity / funnel collision dedupe | PARTIAL | export boardCollisions control; funnel collision-plan exists; map hiringIdentityKey | funnel + map | funnel collision tests | OP |
+| OP-07 | Map identity / funnel collision dedupe | BUILT | export_board_identity_clean (boardCollisions=0); funnel collision-plan review/apply (groups=0 idle); hiringIdentityKey board SoR | funnel + map + control-board | control-board + funnel collision-plan | OP |
 | OP-08 | Useful-loop / work-find discovery of enrich tasks | BUILT | reseal/control-board/SH plan/comp/aging keys | demigod-work-find.mjs | work-find --json enrich kinds | OP |
 | OP-09 | Hermetic clay soak 9-gate loop | BUILT | soak design/audit | systemd dg-clay-soak | clay-soak-receipt.jsonl | OP |
 | OP-10 | Tools registry recruitai export/partner jobs | BUILT | tools-registry | demigod-tools-registry.mjs | registry list | OP |

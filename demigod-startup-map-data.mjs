@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { cleanBoundaryFeatures, mergeBounds } from './demigod-startup-atlas.mjs';
 import { FREE_SF_VENUES } from './demigod-events-bot-agent.mjs';
-import { isCompanyWebsiteHost } from './demigod-hn-hiring.mjs';
+import { isCompanyWebsiteHost, isPlausibleHnCompanyName } from './demigod-hn-hiring.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSINESSES = 'https://data.sfgov.org/resource/g8m3-pdis.json';
@@ -49,10 +49,15 @@ const safeUrl = (value) => {
  * CI-15: stable public map company id from known public namespaces only.
  * Never mints identity from free-text name (that is the churn risk).
  * Returns null if the row has no stable id — callers must not invent one.
+ *
+ * hn: accepts host OR host/slug — ATS-only HN posts key identity on board slug
+ * (see demigod-hn-hiring parseHnPost) so two Greenhouse posters do not collide.
  */
 export function stableMapCompanyId(row = {}) {
   const id = String(row?.id || '').trim();
-  if (/^(yc|wd|hn):[a-z0-9][a-z0-9._-]*$/i.test(id)) return id;
+  if (/^(yc|wd):[a-z0-9][a-z0-9._-]*$/i.test(id)) return id;
+  // slash allowed once path segment for board-slug identity; no spaces / query
+  if (/^hn:[a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*)?$/i.test(id)) return id;
   return null;
 }
 
@@ -241,6 +246,9 @@ export function buildPublicStartupMap({ counts = [], total = 0, companies = [], 
   if (!Array.isArray(companies) || companies.some((company) => !ALLOWED_LICENSES.includes(company?.sourceLicense))) {
     throw new Error('public named companies require an attributed public source (CC0-1.0, YC-public, or HN-public)');
   }
+  if (companies.some((company) => company?.sourceLicense === 'HN-public' && !isPlausibleHnCompanyName(company.name))) {
+    throw new Error('public HN company name is not a plausible attributed identity');
+  }
   const boundaries = cleanBoundaryFeatures(neighborhoodGeoJson);
   if (!boundaries.length) throw new Error('DataSF neighborhood boundaries are missing');
   const known = new Set(boundaries.map(({ name }) => name));
@@ -383,10 +391,10 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
   const hnCompanies = (() => {
     try {
       const rows = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || [];
-      // The cache is written once and reused across rebuilds, so a row captured BEFORE a host
-      // joined BADHOST keeps re-entering the map forever — that is how a company shipped with
-      // website "https://producthunt.com/". Re-apply the ban on read.
-      return rows.filter((row) => isCompanyWebsiteHost(row.website));
+      // The cache is reused across rebuilds, so re-apply current identity guards on read.
+      return rows.filter(
+        (row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website),
+      );
     } catch { return []; }
   })();
   const map = buildPublicStartupMap({
@@ -474,6 +482,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       }
       if (stableMapCompanyId(ycA[0]) !== 'yc:acme-co') throw new Error('stableMapCompanyId yc');
       if (stableMapCompanyId({ id: 'not-a-ns' }) !== null) throw new Error('refuse unstable id');
+      if (stableMapCompanyId({ id: 'hn:acme.io' }) !== 'hn:acme.io') throw new Error('hn host id');
+      if (
+        stableMapCompanyId({ id: 'hn:jobs.ashbyhq.com/alembic' }) !== 'hn:jobs.ashbyhq.com/alembic'
+      ) {
+        throw new Error('hn ATS board-slug id must be stable (CI-15)');
+      }
+      if (stableMapCompanyId({ id: 'hn:evil.com/foo/bar' }) !== null) {
+        throw new Error('hn multi-path ids refused');
+      }
+      if (stableMapCompanyId({ id: 'hn:Name Minted' }) !== null) throw new Error('hn space name-mint refused');
       const boardKey1 = hiringIdentityKey({
         id: 'wd:Q1',
         jobsUrl: 'https://jobs.lever.co/Acme/',
@@ -485,12 +503,21 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       // same board host+path after normalize (www strip + lower + trim slash)
       if (boardKey1 !== 'board:jobs.lever.co/acme') throw new Error(`board key1 ${boardKey1}`);
       if (boardKey2 !== 'board:jobs.lever.co/acme') throw new Error(`board key2 ${boardKey2}`);
-      // sample of disk companies: every id must be stable namespace or null-safe
-      for (const c of cos.slice(0, 200)) {
+      if (
+        hiringIdentityKey({ id: 'hn:jobs.ashbyhq.com/alembic' }) !==
+        'map:hn:jobs.ashbyhq.com/alembic'
+      ) {
+        throw new Error('hn board-slug map identity key');
+      }
+      // full disk: every id must be stable namespace (no silent sample skip)
+      let unstableDisk = 0;
+      for (const c of cos) {
         if (c?.id && !stableMapCompanyId(c)) {
-          throw new Error(`unstable map id on disk: ${c.id}`);
+          unstableDisk++;
+          if (unstableDisk <= 3) throw new Error(`unstable map id on disk: ${c.id}`);
         }
       }
+      if (unstableDisk) throw new Error(`unstable map ids on disk: ${unstableDisk}`);
 
       console.log(
         JSON.stringify({
@@ -498,7 +525,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           selftest: 'map-floors',
           jobsEnriched,
           boardsPresent,
-          identity: { ycStable: true, boardKey: boardKey1 },
+          identity: {
+            ycStable: true,
+            boardKey: boardKey1,
+            hnAtsSlugStable: true,
+            diskIdsStable: cos.length,
+          },
           ...floors,
         }),
       );

@@ -62,6 +62,8 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   fs.writeFileSync(path.join(busy, 'control-board.json'), JSON.stringify({ at: now, ok: true }));
   fs.writeFileSync(path.join(busy, 'reseal-queue-last.json'), JSON.stringify({ at: now }));
   fs.writeFileSync(path.join(busy, 'laptop-blue-moon.stamp'), '');
+  fs.writeFileSync(path.join(root, 'DEMIGOD-DIRECTORY-AGING.json'), '{"maxOldestObservedDays":5}\n');
+  fs.writeFileSync(path.join(root, 'DEMIGOD-ROLE-PACKETS.json'), '{"packets":{"demo":{"demo":true}}}\n');
   const queue = path.join(busy, 'work-queue.jsonl');
   const pathEnv = `${fakeBin}:${process.env.PATH}`;
 
@@ -130,6 +132,17 @@ import path from 'node:path';
 
 fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'funnel-collision-plan\\n');
 `);
+  script('demigod-control-board.mjs', `
+import fs from 'node:fs';
+import path from 'node:path';
+fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'control-board\\n');
+`);
+  script('demigod-reseal-queue.mjs', `
+import fs from 'node:fs';
+import path from 'node:path';
+if (process.argv.slice(2).join(' ') !== 'run --schedule --max-age-days=7') process.exit(1);
+fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'reseal-due\\n');
+`);
   fs.mkdirSync(path.join(busy, 'events-online'), { recursive: true });
   fs.writeFileSync(path.join(busy, 'events-online', 'status.json'), '{"local":true,"public":true,"needHeal":false,"nativeRsvpRoutes":true}\n');
 
@@ -160,4 +173,18 @@ fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'funnel-c
   assert.deepEqual(fs.readFileSync(executionLog, 'utf8').trim().split('\n'), ['ship-prepare', 'funnel-collision-plan']);
   assert.equal(fs.statSync(path.join(busy, 'useful-loop-last.json')).mode & 0o777, 0o600);
   assert.equal(fs.statSync(path.join(busy, 'useful-loop-work-state.json')).mode & 0o777, 0o600);
+
+  fs.appendFileSync(queue, [
+    '{"task":"control-board","pri":1,"status":"open"}',
+    '{"task":"reseal-due","pri":2,"status":"open"}',
+    '',
+  ].join('\n'));
+  assert.deepEqual(runUsefulLoop(root, busy).plan, ['control-board']);
+  assert.deepEqual(runUsefulLoop(root, busy).plan, ['reseal-due']);
+  assert.deepEqual(fs.readFileSync(executionLog, 'utf8').trim().split('\n'), [
+    'ship-prepare',
+    'funnel-collision-plan',
+    'control-board',
+    'reseal-due',
+  ]);
 });

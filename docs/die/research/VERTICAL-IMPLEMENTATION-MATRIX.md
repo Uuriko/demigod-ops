@@ -26,3 +26,5 @@ Affinity **connectors** (Gmail/calendar) · Harmonic-scale DB · Metaview **bot-
 - Rank 1–2: allowed without inventing pilots.  
 - Rank 3–5: design + hermetic fixtures only until gate receipts exist.  
 - No publish / outbound / people enrichment.
+| ops | AR-28 secondary ATS honesty | `ats_secondary_coverage` control (coverage facts only) | `demigod-control-board.mjs` + `buildBoardCoverage` | none | `node demigod-control-board.mjs --selftest` | **BUILT** |
+

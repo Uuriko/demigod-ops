@@ -453,10 +453,11 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-structured-hiring.mjs status|desk|shortlist|pack|audit [--role=] [--cand=] [--why=] [--json]
+    console.log(`usage: node demigod-structured-hiring.mjs status|desk|shortlist|pack|audit|doctor [--role=] [--cand=] [--why=] [--json]
   shortlist  add cand to role batch (requires packet); logs touch; hard-caps active=3
   pack       write /tmp/dg-busy/structured-hiring-handoff/
-  audit      validate all SH stores (no fit score; batch caps; assert shapes)`);
+  audit      validate all SH stores (no fit score; batch caps; assert shapes)
+  doctor     audit + debrief decisionAid tallies (no score)`);
     return;
   }
   const json = args.includes('--json');
@@ -499,6 +500,54 @@ function main() {
       for (const e of out.errors.slice(0, 20)) console.log(`  ✗ ${e}`);
       for (const w of out.warnings.slice(0, 10)) console.log(`  ! ${w}`);
       console.log(`  receipt: ${AUDIT_OUT}`);
+    }
+    process.exit(out.ok ? 0 : 1);
+  }
+
+  if (cmd === 'doctor') {
+    const audit = auditStructuredHiring();
+    const st = buildStatus();
+    const debriefs = (st.packets || []).map((p) => {
+      try {
+        return debriefRoundup(
+          loadPackets().packets[p.roleId],
+          Object.values(loadNotes().notes || {}).filter((n) => n.roleId === p.roleId),
+        );
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+    const out = {
+      schema: 'demigod.structured-hiring-doctor/1',
+      at: new Date().toISOString(),
+      ok: audit.ok,
+      audit,
+      counts: st.counts,
+      debriefs: debriefs.map((d) => ({
+        roleId: d.roleId,
+        stage: d.stage,
+        noteCount: d.noteCount,
+        decisionAidTally: d.decisionAidTally,
+        disagreeMusts: (d.byMustHave || []).filter((m) => m.disagree).map((m) => m.mustHaveId),
+        score: null,
+      })),
+      cmds: st.cmds,
+    };
+    atomicWrite(path.join(BUSY, 'structured-hiring-doctor.json'), `${JSON.stringify(out, null, 2)}\n`, {
+      mode: 0o600,
+    });
+    if (json) console.log(JSON.stringify(out, null, 2));
+    else {
+      console.log(`# structured-hiring doctor · ${out.ok ? 'OK' : 'FAIL'}`);
+      console.log(
+        `  packets=${st.counts.packets} notes=${st.counts.reviewNotes} batches=${st.counts.batches} touches=${st.counts.touches} intros=${st.counts.introPaths} calls=${st.counts.callNotes}`,
+      );
+      for (const d of out.debriefs) {
+        console.log(
+          `  debrief ${d.roleId} · stage=${d.stage} · notes=${d.noteCount} · aids=${JSON.stringify(d.decisionAidTally)}`,
+        );
+      }
+      console.log(`  receipt: /tmp/dg-busy/structured-hiring-doctor.json`);
     }
     process.exit(out.ok ? 0 : 1);
   }

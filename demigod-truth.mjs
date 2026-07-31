@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { isFrozen } from './demigod-agent-tools-lib.mjs';
-import { beginRun, sealRun, addArtifact } from './demigod-evidence.mjs';
+import { beginRun, sealRun, addArtifact, refuseIfStale } from './demigod-evidence.mjs';
 import { appendFromTruth } from './demigod-version-ledger.mjs';
 import { cachedFetchText, writeJsonAuto } from './demigod-perf-cache.mjs';
 
@@ -217,6 +217,20 @@ function runSelftest() {
       sibOk.mapData.status === 'intentional-expand',
     'sibling drift classifies map-free atlas + expanded map-data as intentional',
   );
+  const sibPrepared = classifySiblingAssetDrift({
+    diskAtlasSha: 'disk-atlas',
+    liveAtlasSha: 'live-atlas',
+    diskMapSha: 'disk-map',
+    liveMapSha: 'live-map',
+    preparedBy: 'ship-prepare-test',
+  });
+  check(
+    sibPrepared.intentional === true &&
+      sibPrepared.atlas.status === 'prepared' &&
+      sibPrepared.mapData.status === 'prepared' &&
+      sibPrepared.preparedBy === 'ship-prepare-test',
+    'sibling drift accepts a hash-matching ship-prepare receipt',
+  );
 
   if (failures.length) {
     for (const label of failures) console.error(`FAIL ${label}`);
@@ -390,6 +404,7 @@ export function classifySiblingAssetDrift({
   liveAtlasSha = null,
   diskMapSha = null,
   liveMapSha = null,
+  preparedBy = null,
 } = {}) {
   const atlasMatch = Boolean(diskAtlasSha && liveAtlasSha && diskAtlasSha === liveAtlasSha);
   const mapMatch = Boolean(diskMapSha && liveMapSha && diskMapSha === liveMapSha);
@@ -403,6 +418,7 @@ export function classifySiblingAssetDrift({
       summary: 'sibling assets match live/manifest',
     };
   }
+  const prepared = String(preparedBy || '').startsWith('ship-prepare-');
 
   const diskMapFree =
     /\bmap-free\b|dg-dir-|Craigslist|No SVG map/i.test(diskAtlas) &&
@@ -435,7 +451,9 @@ export function classifySiblingAssetDrift({
 
   const atlas = atlasMatch
     ? { status: 'matched' }
-    : {
+    : prepared
+      ? { status: 'prepared', note: `current disk hashes passed ${preparedBy}` }
+      : {
         status: diskMapFree && liveFullAtlas ? 'intentional-redesign' : 'unexplained',
         diskBytes: diskAtlas ? Buffer.byteLength(diskAtlas) : null,
         liveBytes: liveAtlas ? Buffer.byteLength(liveAtlas) : null,
@@ -452,7 +470,9 @@ export function classifySiblingAssetDrift({
     (diskHiring || 0) > (liveHiring || 0);
   const mapData = mapMatch
     ? { status: 'matched' }
-    : {
+    : prepared
+      ? { status: 'prepared', note: `current disk hashes passed ${preparedBy}` }
+      : {
         status: mapExpanded ? 'intentional-expand' : 'unexplained',
         diskCompanies: diskCos,
         liveCompanies: liveCos,
@@ -464,8 +484,8 @@ export function classifySiblingAssetDrift({
       };
 
   const intentional =
-    (atlas.status === 'matched' || atlas.status === 'intentional-redesign') &&
-    (mapData.status === 'matched' || mapData.status === 'intentional-expand');
+    ['matched', 'prepared', 'intentional-redesign'].includes(atlas.status) &&
+    ['matched', 'prepared', 'intentional-expand'].includes(mapData.status);
 
   const bits = [];
   if (atlas.status !== 'matched') bits.push(`atlas:${atlas.status}`);
@@ -475,6 +495,7 @@ export function classifySiblingAssetDrift({
     schema: 'demigod.sibling-drift/1',
     intentional,
     status: intentional ? 'intentional-staged' : 'needs-review',
+    preparedBy: prepared ? preparedBy : null,
     atlas,
     mapData,
     summary: bits.length
@@ -1343,6 +1364,8 @@ async function main() {
   facts.prepareOnlySiblingAssets = prepareOnlySiblingAssets;
 
   // Sibling asset drift classification (startup-map + map-data) — intentional vs unexplained.
+  // A prepare receipt is an identity attestation: exact scoped hashes, not wall time, expire it.
+  const siblingPrepare = refuseIfStale('ship-prepare', { maxAgeSec: 0 });
   const siblingDrift = classifySiblingAssetDrift({
     diskAtlas: mapSource || '',
     liveAtlas: liveMap?.ok ? liveMap.text || liveMap.body || '' : '',
@@ -1352,6 +1375,7 @@ async function main() {
     liveAtlasSha: liveMap?.ok ? liveMap.sha256 : null,
     diskMapSha: mapDataSha,
     liveMapSha: liveMapData?.ok ? liveMapData.sha256 : null,
+    preparedBy: siblingPrepare.green ? siblingPrepare.runId : null,
   });
   facts.siblingDrift = siblingDrift;
   try {

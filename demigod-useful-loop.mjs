@@ -451,6 +451,11 @@ console.log(JSON.stringify({ ok: true, by, n: o.length, externalReady, rejected:
     }
     case 'rewrite-work-found':
       return run(['demigod-work-find.mjs'], 90000);
+    case 'control-board':
+      return run(['demigod-control-board.mjs', '--json'], 60000);
+    case 'reseal-run':
+    case 'reseal-due':
+      return run(['demigod-reseal-queue.mjs', 'run', '--schedule', '--max-age-days=7'], 1800000);
     case 'laptop-blue-moon': {
       const r = spawnSync('bash', [path.join(ROOT, 'bin/dg-laptop-blue-moon')], {
         cwd: ROOT,

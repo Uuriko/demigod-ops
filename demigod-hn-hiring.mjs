@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
@@ -91,6 +92,14 @@ export function isCompanyWebsiteHost(url) {
   return !isBadHost(host);
 }
 
+export function isPlausibleHnCompanyName(value) {
+  const name = String(value ?? '').trim();
+  const normalized = normalizeCompanyName(name);
+  // ponytail: bounded HN-name heuristic; replace with attributed identity extraction if a valid
+  // company name exceeds eight words or 80 characters.
+  return Boolean(normalized) && name.length >= 2 && name.length <= 80 && normalized.split(' ').length <= 8;
+}
+
 // Parse one HN who-is-hiring comment → {name, website, host, atsUrl} or null.
 export function parseHnPost(rawHtml) {
   const text = decodeEntities(rawHtml);
@@ -98,9 +107,8 @@ export function parseHnPost(rawHtml) {
   const name = (text.split('|')[0] || '')
     .trim()
     .replace(/\s*\(.*$/, '')
-    .replace(/\s+(?:multiple|various|several)\s+roles?$/i, '')
-    .slice(0, 120);
-  if (!name || name.length < 2 || /^(remote|http|www\.)/i.test(name)) return null;
+    .replace(/\s+(?:multiple|various|several)\s+roles?$/i, '');
+  if (!isPlausibleHnCompanyName(name) || /^(remote|http|www\.)/i.test(name)) return null;
   if (PLACE_ONLY_NAME.test(name)) return null; // city/region is not a company brand
   const urls = (text.match(/https?:\/\/[^\s"'<>()]+/gi) || []).map((u) => u.replace(/[.,)]+$/, ''));
   let website = '', host = '', atsUrl = '';
@@ -158,6 +166,10 @@ if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes(
   assert(sf && sf.name === 'Acme Robotics' && sf.host === 'acme.io', 'SF post parsed: ' + JSON.stringify(sf));
   const multi = parseHnPost('Rad AI Multiple roles | On-site San Francisco | Full-time | https:&#x2F;&#x2F;www.radai.com&#x2F;');
   assert(multi?.name === 'Rad AI', 'role suffix stripped from company name: ' + JSON.stringify(multi));
+  assert(
+    parseHnPost("I'm Paula, Technical Recruiter @ Modular - Hiring in San Francisco https:&#x2F;&#x2F;jobs.gem.com&#x2F;modular") === null,
+    'prose post must not become a company name',
+  );
   const ats = parseHnPost('Beta Inc | Backend | SF Bay Area | https:&#x2F;&#x2F;boards.greenhouse.io&#x2F;betainc');
   assert(ats && ats.host === 'boards.greenhouse.io/betainc' && /betainc/.test(ats.atsUrl), 'ATS-only post keyed by board slug: ' + JSON.stringify(ats));
   assert(ats.website === null, 'ATS-only post must not invent a company website: ' + JSON.stringify(ats));

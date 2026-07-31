@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T02:25:28.073Z",
+  "at": "2026-07-31T03:10:22.476Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -735,17 +735,17 @@
     {
       "name": "privacy:no-committable-sor",
       "ok": true,
-      "detail": "tracked=1236; privacyRules=56; no committable SoR/PII"
+      "detail": "tracked=1241; privacyRules=56; no committable SoR/PII"
     },
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=500 contracts=10"
+      "detail": "import-integrity OK edges=509 contracts=10"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "\u001b[34mℹ duration_ms 230.103465\u001b[39m"
+      "detail": "\u001b[34mℹ duration_ms 246.488088\u001b[39m"
     }
   ],
   "pass": true

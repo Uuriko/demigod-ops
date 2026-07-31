@@ -19,6 +19,7 @@ import { atomicWrite, isPlainObject } from './demigod-agent-tools-lib.mjs';
 import { resealDue } from './demigod-reseal-queue.mjs';
 import { hiringFreshness } from './demigod-hiring-freshness.mjs';
 import { identityReview } from './demigod-identity-review.mjs';
+import { buildBoardCoverage } from './demigod-enrichment.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -675,6 +676,43 @@ export function evaluateControls(opts = {}) {
     controls.push(control('directory_identity_candidates', 'low', true, `n/a ${e.message || e}`));
   }
 
+  // —— AR-28: secondary ATS yield honesty (informative; never thrash poll / invent boards) ——
+  try {
+    const mapProbe = readJsonProbe(path.join(opts.root || root, 'DEMIGOD-SF-STARTUP-MAP.json'));
+    if (!mapProbe.exists || !mapProbe.value) {
+      controls.push(control('ats_secondary_coverage', 'low', true, 'n/a — no startup map'));
+    } else {
+      const cov = buildBoardCoverage({ map: mapProbe.value });
+      const by = cov.map?.byAtsProvider || {};
+      const secondaryHosts = ['Personio', 'Recruitee', 'SmartRecruiters'];
+      const secondary = secondaryHosts.reduce((n, k) => n + Number(by[k] || 0), 0);
+      const primary = ['Ashby', 'Greenhouse', 'Lever', 'Workable'].reduce(
+        (n, k) => n + Number(by[k] || 0),
+        0,
+      );
+      const open = Number(cov.map?.withOpenRoles || 0);
+      // Always pass: yield=0 is honest until next enrich cycle; never fail exit on calendar wait.
+      controls.push(
+        control(
+          'ats_secondary_coverage',
+          'low',
+          true,
+          secondary > 0
+            ? `secondary ATS open boards=${secondary} · primary=${primary} · openRoles boards=${open}`
+            : `secondary ATS open boards=0 (Personio/Recruitee/SR) · primary=${primary} · open=${open} — detect owner-gated; yield waits enrich (no poll thrash)`,
+          {
+            byAtsProvider: by,
+            secondaryOpenBoards: secondary,
+            primaryOpenBoards: primary,
+            withOpenRoles: open,
+          },
+        ),
+      );
+    }
+  } catch (e) {
+    controls.push(control('ats_secondary_coverage', 'low', true, `n/a ${e.message || e}`));
+  }
+
   const highFail = controls.filter((c) => c.severity === 'high' && !c.ok);
   // Default: research_seal high-fail does not fail board exit (expected after map stamp).
   const exitFailers = highFail.filter((c) => {
@@ -769,9 +807,14 @@ function selftest() {
     'export_board_identity_clean',
     'reseal_schedule_ok',
     'directory_observed_ages',
+    'ats_secondary_coverage',
+    'posting_age_claim_qualified',
+    'directory_identity_candidates',
   ]) {
     assert(ids.has(need), `missing ${need}`);
   }
+  assert(board.controls.find((x) => x.id === 'ats_secondary_coverage')?.severity === 'low', 'ATS secondary low');
+  assert(board.controls.find((x) => x.id === 'ats_secondary_coverage')?.ok === true, 'ATS secondary never exit-fail');
   const shCtrl = board.controls.find((x) => x.id === 'structured_hiring_no_score');
   assert(shCtrl?.severity === 'med', 'SH integrity stays med (non-exit)');
   assert(board.controls.find((x) => x.id === 'export_board_identity_clean')?.severity === 'med', 'export identity med');

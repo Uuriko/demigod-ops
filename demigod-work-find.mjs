@@ -4,6 +4,7 @@
  *
  *   node demigod-work-find.mjs
  *   node demigod-work-find.mjs --json
+ *   node demigod-work-find.mjs --selftest
  *
  * Writes /tmp/dg-busy/work-queue.jsonl (append) + /tmp/dg-busy/WORK-FOUND.md
  * Consumed by demigod-useful-loop (pops oldest unclaimed product tasks).
@@ -11,12 +12,37 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { refuseIfStale } from './demigod-evidence.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || '/home/potter';
 const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 const QUEUE = path.join(BUSY, 'work-queue.jsonl');
 const FOUND = path.join(BUSY, 'WORK-FOUND.md');
 const SEEN = path.join(BUSY, 'work-find-seen.json');
+
+/**
+ * OP-08: map control-board exit/high fails → smallest fix command (no invent roles).
+ * Prefer concrete reseal/truth over status-only when seals are red.
+ */
+export function controlBoardRemediationNote(exitFailures = [], highFailures = []) {
+  const fails = new Set([...(exitFailures || []), ...(highFailures || [])].filter(Boolean));
+  const cmds = [];
+  if (fails.has('truth_seal')) cmds.push('node demigod-truth.mjs');
+  if (
+    fails.has('research_seal') ||
+    fails.has('research_export_honest') ||
+    fails.has('reseal_queue_drained')
+  ) {
+    cmds.push('node demigod-reseal-queue.mjs run');
+  }
+  if (!cmds.length) cmds.push('node demigod-control-board.mjs status');
+  return cmds.join(' && ');
+}
+
+/** Exit-fail integrity items must reappear while red (hour-bucketed seen hid re-broken truth_seal). */
+export function shouldBypassWorkFindSeen(item = {}) {
+  return item.always === true;
+}
 
 function readJson(p, fallback = null) {
   try {
@@ -49,8 +75,9 @@ function saveSeen(set) {
 function pushWork(seen, items, item) {
   const baseKey = item.key || `${item.kind}:${item.title}`;
   const key = item.repeatable ? `${baseKey}@${new Date().toISOString().slice(0, 13)}` : baseKey;
-  if (seen.has(key)) return false;
-  seen.add(key);
+  const bypass = shouldBypassWorkFindSeen(item);
+  if (!bypass && seen.has(key)) return false;
+  if (!bypass) seen.add(key);
   items.push({ ...item, key, at: new Date().toISOString(), status: 'open' });
   return true;
 }
@@ -283,16 +310,47 @@ function main() {
         repeatable: true,
       });
     } else if (cb.ok === false || (cb.exitFailures && cb.exitFailures.length)) {
+      const exitFailures = cb.exitFailures || [];
+      const highFailures = cb.highFailures || [];
       pushWork(seen, found, {
-        key: `enrich:control-board-fail:${(cb.exitFailures || []).join(',') || 'attn'}`,
+        key: `enrich:control-board-fail:${exitFailures.join(',') || 'attn'}`,
         kind: 'enrich',
         pri: 0,
+        always: true,
         title: `Control board ATTENTION · ${cb.summary || 'high exit fail'}`,
         task: 'control-board',
-        detail: { highFailures: cb.highFailures || [], exitFailures: cb.exitFailures || [] },
-        note: 'node demigod-control-board.mjs status',
+        detail: { highFailures, exitFailures },
+        note: controlBoardRemediationNote(exitFailures, highFailures),
         repeatable: true,
       });
+    }
+
+    // Live truth seal (map stamps between board receipts / hour-seen). Never invent work when green.
+    try {
+      const truthSeal = refuseIfStale('truth');
+      if (truthSeal?.reason === 'input-hash-mismatch' || truthSeal?.fresh === false) {
+        const already = found.some(
+          (x) =>
+            x.note?.includes('demigod-truth') ||
+            (x.detail?.exitFailures || []).includes('truth_seal') ||
+            (x.detail?.highFailures || []).includes('truth_seal'),
+        );
+        if (!already) {
+          pushWork(seen, found, {
+            key: 'enrich:truth-seal-live',
+            kind: 'enrich',
+            pri: 0,
+            always: true,
+            title: `Truth seal ${truthSeal.reason || 'stale'} — reseal disk oracle`,
+            task: 'truth-reseal',
+            detail: { reason: truthSeal.reason, mismatches: truthSeal.mismatches || null },
+            note: 'node demigod-truth.mjs',
+            repeatable: true,
+          });
+        }
+      }
+    } catch {
+      /* evidence probe best-effort */
     }
 
     // Multi-day reseal due (CH-13): last successful reseal / research green older than 7d
@@ -315,63 +373,6 @@ function main() {
       }
     }
 
-    // Structured hiring: packets without interview plan or public/founder comp (demo-aware)
-    try {
-      const packets = readJson(path.join(ROOT, 'DEMIGOD-ROLE-PACKETS.json'));
-      const list = Object.values(packets?.packets || {});
-      const missingPlan = list.filter((p) => !Array.isArray(p.interviewPlan) || !p.interviewPlan.length);
-      const missingComp = list.filter((p) => !p.compBand?.text);
-      if (missingPlan.length) {
-        pushWork(seen, found, {
-          key: 'sh:interview-plan',
-          kind: 'structured-hiring',
-          pri: 3,
-          title: `${missingPlan.length} RolePacket(s) missing interview plan`,
-          task: 'role-packet-set-plan',
-          note: 'node demigod-role-packet.mjs set-plan --role=…',
-          detail: { roles: missingPlan.map((p) => p.roleId).slice(0, 8) },
-          repeatable: false,
-        });
-      }
-      if (missingComp.length) {
-        pushWork(seen, found, {
-          key: 'sh:comp-band',
-          kind: 'structured-hiring',
-          pri: 3,
-          title: `${missingComp.length} RolePacket(s) missing comp band`,
-          task: 'public-comp-or-set-comp',
-          note: 'node demigod-public-comp.mjs apply --role=… --url=… --text=…  OR  set-comp --source=founder_stated',
-          detail: { roles: missingComp.map((p) => p.roleId).slice(0, 8) },
-          repeatable: false,
-        });
-      }
-    } catch {
-      /* */
-    }
-
-    // Aging badges still young: surface poll health (AR-25) without inventing roles
-    {
-      const aging = readJson(path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json'));
-      const maxObs = Number(aging?.maxOldestObservedDays ?? aging?.coverage?.maxOldestObservedDays ?? 0);
-      // If asset has per-company, derive max
-      let derivedMax = maxObs;
-      if (!derivedMax && aging?.companies && typeof aging.companies === 'object') {
-        for (const c of Object.values(aging.companies)) {
-          if (Number(c?.oldestObservedDays) > derivedMax) derivedMax = Number(c.oldestObservedDays);
-        }
-      }
-      if (derivedMax > 0 && derivedMax < 7) {
-        pushWork(seen, found, {
-          key: 'enrich:aging-shallow',
-          kind: 'enrich',
-          pri: 3,
-          title: `Directory observed ages still young (max ${derivedMax}d) — role-ledger timer accrues ≥7d badges`,
-          task: 'role-ledger-poll-status',
-          note: 'systemctl --user status demigod-role-ledger.timer; poll is daily (do not force thrash)',
-          repeatable: true,
-        });
-      }
-    }
   }
 
   found.sort((a, b) => a.pri - b.pri || a.task.localeCompare(b.task));
@@ -400,17 +401,75 @@ function main() {
   return out;
 }
 
+function selftest() {
+  const assert = (c, m) => {
+    if (!c) throw new Error(`work-find selftest: ${m}`);
+  };
+  assert(
+    controlBoardRemediationNote(['truth_seal'], ['truth_seal']).includes('demigod-truth'),
+    'truth_seal → truth reseal',
+  );
+  assert(
+    controlBoardRemediationNote(['research_export_honest'], ['research_seal']).includes(
+      'reseal-queue',
+    ),
+    'research fails → reseal-queue run',
+  );
+  assert(
+    controlBoardRemediationNote(['truth_seal', 'research_export_honest'], []).includes(
+      'demigod-truth',
+    ) &&
+      controlBoardRemediationNote(['truth_seal', 'research_export_honest'], []).includes(
+        'reseal-queue',
+      ),
+    'combined seals chain both fixes',
+  );
+  assert(
+    controlBoardRemediationNote([], []).includes('control-board'),
+    'empty fails → status only',
+  );
+  assert(
+    controlBoardRemediationNote(['phase2_has_accepted_role'], []).includes('control-board'),
+    'med delivery gap → no invent-role fix command',
+  );
+  assert(shouldBypassWorkFindSeen({ always: true }) === true, 'always bypasses seen');
+  assert(shouldBypassWorkFindSeen({ pri: 0 }) === false, 'pri0 alone still hour-seen (events heal)');
+  assert(shouldBypassWorkFindSeen({ pri: 2, repeatable: true }) === false, 'pri2 respects seen');
+  // Hour-seen must not hide a re-queued pri0 control-board fail
+  {
+    const seen = new Set(['enrich:control-board-fail:truth_seal@2099-01-01T00']);
+    const items = [];
+    const hourKey = `enrich:control-board-fail:truth_seal@${new Date().toISOString().slice(0, 13)}`;
+    seen.add(hourKey);
+    const pushed = pushWork(seen, items, {
+      key: 'enrich:control-board-fail:truth_seal',
+      kind: 'enrich',
+      pri: 0,
+      always: true,
+      title: 'rebroken',
+      note: 'node demigod-truth.mjs',
+      repeatable: true,
+    });
+    assert(pushed && items.length === 1, 'pri0 always re-surfaces while red');
+  }
+  console.log(JSON.stringify({ ok: true, selftest: 'work-find' }));
+}
+
 const workFindArgs = process.argv.slice(2);
-const WORK_FIND_FLAGS = new Set(['--json', '--help', '-h']);
+const WORK_FIND_FLAGS = new Set(['--json', '--help', '-h', '--selftest']);
 const unknownWorkFind = workFindArgs.find((a) => !WORK_FIND_FLAGS.has(a));
 if (unknownWorkFind) {
-  console.error(`work-find: unknown argument ${unknownWorkFind} — try: node demigod-work-find.mjs [--json]`);
+  console.error(`work-find: unknown argument ${unknownWorkFind} — try: node demigod-work-find.mjs [--json|--selftest]`);
   process.exit(2);
 }
 if (workFindArgs.includes('--help') || workFindArgs.includes('-h')) {
   console.log(`demigod-work-find — discover product work queue
 
-Usage: node demigod-work-find.mjs [--json]`);
+Usage: node demigod-work-find.mjs [--json|--selftest]`);
+  process.exit(0);
+}
+if (workFindArgs.includes('--selftest')) {
+  selftest();
   process.exit(0);
 }
 

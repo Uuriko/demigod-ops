@@ -1,6 +1,6 @@
 {
   "schema": "demigod.role-packets-store/1",
-  "updatedAt": "2026-07-31T01:17:51.543Z",
+  "updatedAt": "2026-07-31T02:57:37.653Z",
   "packets": {
     "role-demo-founding-eng": {
       "schema": "demigod.role-packet/1",
@@ -31,7 +31,12 @@
           "kind": "skill"
         }
       ],
-      "dealBreakers": [],
+      "dealBreakers": [
+        {
+          "id": "db1",
+          "label": "Requires full remote outside US"
+        }
+      ],
       "compBand": {
         "text": "$180k–$220k",
         "source": "public_job_post",
@@ -51,7 +56,7 @@
       ],
       "stage": "reviewing",
       "createdAt": "2026-07-31T00:14:19.374Z",
-      "updatedAt": "2026-07-31T01:02:35.666Z",
+      "updatedAt": "2026-07-31T02:57:37.653Z",
       "interviewPlan": [
         {
           "mustHaveId": "mh1",

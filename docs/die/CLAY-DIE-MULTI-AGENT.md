@@ -120,7 +120,7 @@ DESKTOP (optional, separate process)
 |-------|----------------|
 | RecruitAI desk card | Dash Tools tab |
 | API | `GET /api/recruitai` |
-| Jobs | `recruitai-desk`, `recruitai-pack`, `recruitai-refresh`, `recruitai-export`, `partner-sourcer` |
+| Jobs | `recruitai-desk` (status|pack|refresh), `recruitai-export`, `recruitai-seed-pack`, `partner-sourcer` |
 | Registry | `node demigod-tools-registry.mjs --md` · `bin/dg tools` |
 
 ### 2.5 Integrity properties agents already fixed (do not regress)
