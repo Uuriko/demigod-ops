@@ -1,6 +1,6 @@
 {
   "schema": "demigod.pilot-batches-store/1",
-  "updatedAt": "2026-07-31T00:17:48.971Z",
+  "updatedAt": "2026-07-31T00:27:45.030Z",
   "batches": {
     "role-demo-founding-eng": {
       "schema": "demigod.pilot-batch/1",
@@ -18,10 +18,16 @@
           "why": "Prior founding eng at similar stage company",
           "state": "active",
           "addedAt": "2026-07-31T00:14:19.569Z"
+        },
+        {
+          "candId": "cand-demo-riley",
+          "why": "Public systems blog + relevant open source that maps to must-haves",
+          "state": "active",
+          "addedAt": "2026-07-31T00:27:45.029Z"
         }
       ],
       "openedAt": "2026-07-31T00:14:19.467Z",
-      "updatedAt": "2026-07-31T00:14:19.569Z"
+      "updatedAt": "2026-07-31T00:27:45.029Z"
     },
     "role-seed1": {
       "schema": "demigod.pilot-batch/1",

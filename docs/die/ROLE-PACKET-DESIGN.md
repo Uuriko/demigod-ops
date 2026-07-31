@@ -131,11 +131,15 @@ node demigod-role-packet.mjs --selftest
 | **Kill** | 3 real reviews with empty notes → delete UI, keep free-text pair notes |
 | **Non-goal** | Interview scheduling, multi-stage ATS, AI auto-score |
 
-## 9. Smallest first PR (when gate opens)
+## 9. Shipped CLI (technical product)
 
-1. `demigod-role-packet.mjs` pure validate + selftest fixtures only.  
-2. Wire show into match-review when `roleId` has a packet.  
-3. Stop. No dashboard redesign.
+```bash
+node demigod-role-packet.mjs stage --role=ID --to=reviewing
+node demigod-role-packet.mjs set-comp --role=ID --text='…' --source=public_job_post --url=https://… --quote='…'
+```
+
+Stage transitions: `STAGE_TRANSITIONS` forward graph only.  
+`public_job_post` requires https URL + quote (8–280 chars).
 
 ## 10. Relation to PilotBatch (rank 4)
 

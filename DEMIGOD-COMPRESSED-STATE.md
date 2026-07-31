@@ -18,7 +18,7 @@ This is an orientation card, not a release ledger. Run `bin/dg truth` for fresh 
 - Operator spine: `bin/dg` → `truth` → `check edit|full|release` → guarded `ship status|prepare|verify`.
 - Dashboard: an optional projection of canonical receipts at `http://127.0.0.1:9878/`; it is not a second source of truth.
 - Integrity controls: `demigod-control-board.mjs`; private receipt `/tmp/dg-busy/control-board.json`; compact state is included in `demigod-orient.mjs`.
-- Role observation clock: `demigod-role-ledger.timer` runs the fail-closed public ATS poll daily and persistently, then refreshes the private RecruitAI export and account-change feed; it never enriches or publishes the site.
+- Role observation clock: `demigod-role-ledger.timer` runs the fail-closed public ATS poll daily and persistently, then refreshes the private RecruitAI account-change feed and its exact observed 7/30-day velocity windows; it never enriches or publishes the site.
 - Agent coordination: Orca orchestration first; `ask-claude` and `grok-ask` are stateless fallbacks.
 - Useful work: `demigod-useful-loop.service`.
 

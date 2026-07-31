@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardsFromMap, observedOpenDays, postedDaysAgo } from './demigod-role-ledger.mjs';
-import { enqueueReseal } from './demigod-reseal-queue.mjs';
+import { enqueueReseal, runReseal } from './demigod-reseal-queue.mjs';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const norm = (s) => String(s || '').toLowerCase().trim();
@@ -322,6 +322,13 @@ if (isMain) {
     try {
       const row = enqueueReseal({ why: 'directory-aging --enrich-map' });
       console.log(`reseal-queue enqueued · ${row.at} · run: node demigod-reseal-queue.mjs run`);
+      // Optional: DEMIGOD_RESEAL_AUTO=1 runs reseal immediately (network).
+      if (process.env.DEMIGOD_RESEAL_AUTO === '1') {
+        const ran = runReseal({ force: false });
+        console.log(
+          `reseal-queue auto · ok=${ran.ok} skipped=${!!ran.skipped} green=${!!ran.green} ${ran.reason || ''}`,
+        );
+      }
     } catch (e) {
       console.log(`reseal-queue skip: ${e.message || e}`);
     }

@@ -10,6 +10,7 @@
  * Control: /api/control · Orient: /api/orient · Unify: /api/unify · Truth: /api/truth
  * Ponytail: /api/ponytail · jobs ponytail|ponytail-check
  * Startup atlas: /api/startup-atlas · Maps: /api/maps · /api/maps/:id · Priority: /api/priority · Dogfood: /api/dogfood · Orca: /api/orca · Craft: /api/craft
+ * Structured hiring: /api/structured-hiring · /api/structured-hiring?role=ID · Control board: /api/control-board
  *
  * Sections in this file:
  *   imports/config · status builders · JOBS allowlist · HTTP API routes · static UI
@@ -2333,6 +2334,28 @@ const JOBS = Object.assign(Object.create(null), {
   'cm6-check': { cmd: 'node', args: ['demigod-cm6-paste-publish.mjs', '--check-structural'], timeout: 15000, safe: true },
   inbox: { cmd: 'node', args: ['demigod-submissions-inbox.mjs', '--json'], timeout: 15000, safe: true },
   'match-review': { cmd: 'node', args: ['demigod-match-review.mjs', '--json'], timeout: 15000, safe: true },
+  'structured-hiring': {
+    cmd: 'node',
+    args: ['demigod-structured-hiring.mjs', 'status', '--json'],
+    timeout: 15000,
+    safe: true,
+  },
+  'role-packet': { cmd: 'node', args: ['demigod-role-packet.mjs', 'list'], timeout: 10000, safe: true },
+  'pilot-batch': { cmd: 'node', args: ['demigod-pilot-batch.mjs', 'list'], timeout: 10000, safe: true },
+  'candidate-touch': {
+    cmd: 'node',
+    args: ['demigod-candidate-touch.mjs', 'rediscover', '--limit=10'],
+    timeout: 10000,
+    safe: true,
+  },
+  'control-board': { cmd: 'node', args: ['demigod-control-board.mjs', '--json'], timeout: 30000, safe: true },
+  'reseal-queue': { cmd: 'node', args: ['demigod-reseal-queue.mjs', 'status'], timeout: 10000, safe: true },
+  'reseal-run': {
+    cmd: 'node',
+    args: ['demigod-reseal-queue.mjs', 'run'],
+    timeout: 300000,
+    safe: true,
+  },
   referrals: { cmd: 'node', args: ['demigod-referrals.mjs', 'status'], timeout: 15000, safe: true },
   'recruitai-export': {
     cmd: 'node',
@@ -3233,12 +3256,29 @@ async function enrichStatus(data) {
       } catch {
         /* */
       }
+      let shStatus = null;
+      try {
+        const { buildStatus } = await import('./demigod-structured-hiring.mjs');
+        shStatus = buildStatus();
+      } catch {
+        /* optional */
+      }
       data.matches = {
         at: msnap.at,
         summary: msnap.summary || {},
         pairs: (msnap.pairs || []).slice(0, 40),
         actions: msnap.actions || {},
+        structuredHiring: msnap.structuredHiring || null,
+        structuredHiringStatus: shStatus,
       };
+      // Home Signals also wants SH counts without Tools tab
+      data.structuredHiring = shStatus
+        ? {
+            counts: shStatus.counts,
+            packets: (shStatus.packets || []).length,
+            at: shStatus.at,
+          }
+        : null;
       matchCache = { at: now, data: data.matches };
     }
   } catch (e) {
@@ -4186,7 +4226,14 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         const { buildQueue } = await import('./demigod-match-review.mjs');
-        const q = buildQueue({ state: stateFilter });
+        const includeSample = url.searchParams.get('includeSample') === '1';
+        const q = buildQueue({ state: stateFilter, includeSample });
+        try {
+          const { buildStatus } = await import('./demigod-structured-hiring.mjs');
+          q.structuredHiringStatus = buildStatus();
+        } catch {
+          /* optional */
+        }
         fs.mkdirSync(BUSY, { recursive: true });
         writeJsonAtomic(path.join(BUSY, 'match-review-latest.json'), q);
         res.writeHead(200, { ...noStore, 'Content-Type': 'application/json; charset=utf-8' });
@@ -4453,6 +4500,39 @@ const server = http.createServer(async (req, res) => {
         } else {
           jsonSend(res, 500, { error });
         }
+      }
+      return;
+    }
+    if (url.pathname === '/api/control-board') {
+      try {
+        const pretty = url.searchParams.get('pretty') === '1';
+        const { evaluateControls, writeBoard } = await import('./demigod-control-board.mjs');
+        const board = evaluateControls({
+          strictResearch: url.searchParams.get('strict') === '1',
+        });
+        writeBoard(board);
+        jsonSend(res, board.ok ? 200 : 200, board, { pretty });
+      } catch (e) {
+        jsonSend(res, 500, { ok: false, error: String(e.message || e) });
+      }
+      return;
+    }
+    if (url.pathname === '/api/structured-hiring') {
+      try {
+        const pretty = url.searchParams.get('pretty') === '1';
+        const role = url.searchParams.get('role');
+        const { buildStatus, buildDesk } = await import('./demigod-structured-hiring.mjs');
+        if (role) {
+          jsonSend(res, 200, buildDesk(role), { pretty });
+        } else {
+          const st = buildStatus();
+          atomicWrite(path.join(BUSY, 'structured-hiring-status.json'), JSON.stringify(st, null, 2) + '\n', {
+            mode: 0o600,
+          });
+          jsonSend(res, 200, st, { pretty });
+        }
+      } catch (e) {
+        jsonSend(res, 500, { ok: false, error: String(e.message || e) });
       }
       return;
     }

@@ -90,6 +90,7 @@ test('canonical command and registry surfaces stay consolidated', () => {
       'recruitai-desk',
       'review',
       'ship',
+      'structured-hiring',
       'truth',
       'webflow',
     ],

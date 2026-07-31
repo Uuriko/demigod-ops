@@ -9,6 +9,8 @@
  *   node demigod-role-packet.mjs add-must --role=ID --label=…
  *   node demigod-role-packet.mjs show [--role=ID]
  *   node demigod-role-packet.mjs note --role=ID --cand=ID --ratings='[…]' [--by=…]
+ *   node demigod-role-packet.mjs stage --role=ID --to=reviewing|…
+ *   node demigod-role-packet.mjs set-comp --role=ID --text=… --source=… [--url=] [--quote=]
  *   node demigod-role-packet.mjs list
  *   node demigod-role-packet.mjs --selftest
  *
@@ -27,6 +29,14 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 export const PACKET_SCHEMA = 'demigod.role-packet/1';
 export const NOTE_SCHEMA = 'demigod.review-note/1';
 export const STAGES = ['brief_ready', 'reviewing', 'mutual_pending', 'intro', 'outcome'];
+/** Forward-only stage graph (Ashby interview-plan shaped). */
+export const STAGE_TRANSITIONS = {
+  brief_ready: ['reviewing'],
+  reviewing: ['mutual_pending', 'brief_ready'],
+  mutual_pending: ['intro', 'reviewing'],
+  intro: ['outcome', 'mutual_pending'],
+  outcome: [],
+};
 export const RATINGS = ['strong_no', 'no', 'yes', 'strong_yes'];
 export const DECISION_AIDS = [
   'changed_by_context',
@@ -34,6 +44,7 @@ export const DECISION_AIDS = [
   'error_prevented',
   'none',
 ];
+export const COMP_SOURCES = ['founder_stated', 'public_job_post', 'unknown'];
 
 function now() {
   return new Date().toISOString();
@@ -81,12 +92,48 @@ export function assertPacket(p) {
     if (typeof p.compBand !== 'object' || !String(p.compBand.text || '').trim()) {
       throw new Error('packet_compBand');
     }
-    const src = p.compBand.source;
-    if (src && !['founder_stated', 'public_job_post', 'unknown'].includes(src)) {
-      throw new Error('packet_compBand_source');
+    const src = p.compBand.source || 'unknown';
+    if (!COMP_SOURCES.includes(src)) throw new Error('packet_compBand_source');
+    if (src === 'public_job_post') {
+      const url = String(p.compBand.url || '').trim();
+      const quote = String(p.compBand.quote || '').trim();
+      if (!/^https:\/\//i.test(url) || /@/.test(url) || url.length > 2048) {
+        throw new Error('packet_compBand_url');
+      }
+      if (quote.length < 8 || quote.length > 280) throw new Error('packet_compBand_quote');
     }
   }
   return true;
+}
+
+/** Advance or retreat stage only along STAGE_TRANSITIONS. */
+export function advanceStage(packet, to) {
+  assertPacket(packet);
+  const next = String(to || '').trim();
+  if (!STAGES.includes(next)) throw new Error('stage_unknown');
+  const allowed = STAGE_TRANSITIONS[packet.stage] || [];
+  if (!allowed.includes(next)) {
+    throw new Error(`stage_forbidden:${packet.stage}->${next}`);
+  }
+  return { ...packet, stage: next, updatedAt: now() };
+}
+
+/** Set compensation band; public_job_post requires https URL + quote. */
+export function setCompBand(packet, { text, source = 'founder_stated', url = null, quote = null } = {}) {
+  assertPacket(packet);
+  const band = {
+    text: String(text || '').trim(),
+    source: String(source || 'unknown'),
+    url: url ? String(url).trim() : null,
+    quote: quote ? String(quote).trim() : null,
+    evidence: null,
+  };
+  if (band.source === 'public_job_post') {
+    band.evidence = { url: band.url, quote: band.quote };
+  }
+  const next = { ...packet, compBand: band, updatedAt: now() };
+  assertPacket(next);
+  return next;
 }
 
 /** Pure: note must cover every mustHave with evidence. */
@@ -331,17 +378,36 @@ function selftest() {
   const proj = projectForReview(p2, note);
   assert(proj.score === null && proj.note.candId === 'cand-demo-1', 'project');
 
+  const p3 = advanceStage(p2, 'reviewing');
+  assert(p3.stage === 'reviewing', 'stage forward');
+  let threw2 = false;
+  try {
+    advanceStage(p2, 'outcome');
+  } catch {
+    threw2 = true;
+  }
+  assert(threw2, 'skip stages refused');
+  const withComp = setCompBand(p3, {
+    text: '$180–220k',
+    source: 'public_job_post',
+    url: 'https://boards.greenhouse.io/demo/jobs/1',
+    quote: 'Salary range $180,000 to $220,000 USD',
+  });
+  assert(withComp.compBand.quote.includes('180'), 'public comp');
+  threw2 = false;
+  try {
+    setCompBand(p3, { text: '$1', source: 'public_job_post', url: 'http://insecure.example/', quote: 'short' });
+  } catch {
+    threw2 = true;
+  }
+  assert(threw2, 'bad public comp refused');
+
   // temp store
   const tmpP = path.join('/tmp', `dg-packets-${process.pid}.json`);
-  const tmpN = path.join('/tmp', `dg-notes-${process.pid}.json`);
-  const prevRoot = process.env.DEMIGOD_ROOT;
-  // write via saveStore helpers using explicit paths in test:
   saveStore(tmpP, { schema: 'demigod.role-packets-store/1', packets: { [p2.roleId]: p2 } });
   const loaded = JSON.parse(fs.readFileSync(tmpP, 'utf8'));
   assert(loaded.packets[p2.roleId].title === 'Founding Engineer', 'store');
   fs.unlinkSync(tmpP);
-  if (fs.existsSync(tmpN)) fs.unlinkSync(tmpN);
-  void prevRoot;
 
   console.log(JSON.stringify({ ok: true, selftest: 'role-packet' }));
 }
@@ -481,6 +547,56 @@ Design: docs/die/ROLE-PACKET-DESIGN.md`);
     }
     const note = cand ? loadNotes().notes[`${id}|${cand}`] : null;
     console.log(JSON.stringify(projectForReview(packet, note || null), null, 2));
+    return;
+  }
+
+  if (cmd === 'stage') {
+    const id = flags.role;
+    const to = flags.to;
+    if (!id || !to) {
+      console.error(JSON.stringify({ ok: false, error: '--role and --to required' }));
+      process.exit(1);
+    }
+    const cur = loadPackets().packets[id];
+    if (!cur) {
+      console.error(JSON.stringify({ ok: false, error: 'not found' }));
+      process.exit(1);
+    }
+    try {
+      const next = advanceStage(cur, to);
+      upsertPacket(next);
+      console.log(JSON.stringify({ ok: true, roleId: id, from: cur.stage, to: next.stage }));
+    } catch (e) {
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (cmd === 'set-comp') {
+    const id = flags.role;
+    if (!id || !flags.text) {
+      console.error(JSON.stringify({ ok: false, error: '--role and --text required' }));
+      process.exit(1);
+    }
+    const cur = loadPackets().packets[id];
+    if (!cur) {
+      console.error(JSON.stringify({ ok: false, error: 'not found' }));
+      process.exit(1);
+    }
+    try {
+      const next = setCompBand(cur, {
+        text: flags.text,
+        source: flags.source || 'founder_stated',
+        url: flags.url || null,
+        quote: flags.quote || null,
+      });
+      upsertPacket(next);
+      console.log(JSON.stringify({ ok: true, roleId: id, compBand: next.compBand }));
+    } catch (e) {
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      process.exit(1);
+    }
     return;
   }
 

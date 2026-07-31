@@ -118,7 +118,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-11 | noAgencyEvidenceReqCount positive only | BUILT | supported agencyPolicyEvidence | export | local yield 1 board | AR |
 | AR-12 | extractAgencyPolicyEvidence quote patterns | BUILT | 4 regexes; ≤20 words | demigod-role-ledger.mjs | selftest explicit clause | AR |
 | AR-13 | Agency evidence URL must equal role URL | BUILT | normalize + ownership | upsertLedger | selftest policy cleared on url mismatch | AR |
-| AR-14 | openReqCount / closedToday / firstObservedToday | BUILT | aggregateRoles; exact account deltas projected without a score | export → demigod-signals/2 changes[] | export + seed-pack selftests | AR |
+| AR-14 | openReqCount / closedToday / firstObservedToday | BUILT | aggregateRoles; exact account deltas + observed 7/30d sums without a score/rate | export → demigod-signals/3 changes[] + velocity | export + seed-pack selftests | AR |
 | AR-15 | reopenedOpenReqCount from reopenCount | BUILT | ledger reopen on reappear | export | selftest reopen | AR |
 | AR-16 | staleObservedReqCount from firstSeen age | BUILT | STALE_DAYS threshold | export | export ordering role-aging | AR |
 | AR-17 | maxObservedOpenDays board max | BUILT | daysBetween firstSeen | export | directory aging uses ledger | AR |
@@ -132,7 +132,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-25 | Role-ledger poll cadence deepening ages | NOW | pri1 multi-agent; max observed still young ~4d | demigod-role-ledger.mjs poll | poll then report --posted aging | AR |
 | AR-26 | PeopleOps title recall HRBP/People Partner | BUILT | 179→214 open; positive + negative precedence canaries | categorizeRole | enrich + startup-jobs selftests | AR |
 | AR-27 | Broader no-agency quote patterns without inventing | BUILT | bounded positive-only phrases expanded; live yield remains 1 | extractAgencyPolicyEvidence | ledger selftest + negative control | AR |
-| AR-28 | More ATS boards / preconfig join depth | NOW | pri8 multi-agent | map jobsUrl + atsSource | map selftest + poll coverage | AR |
+| AR-28 | More ATS boards / preconfig join depth | NOW | current 339/339 fetches after stale Infinite→YC fallback + Gather/Greenhouse discovery; additional provider/preconfig depth remains | map jobsUrl + atsSource | jobs selftest + live poll coverage | AR |
 | AR-29 | Relationship graph open_role nodes ≤25/board | BUILT | export bound omissions | demigod-recruitai-export.mjs | export relationships counts | AR |
 | AR-30 | Graph has_claim / research_source when green research | BUILT | export CR nodes | export | export green CR=15 nodes | AR |
 | AR-31 | Greenhouse first_published attribution basis string | BUILT | export attributedPostingBasis | export metadata | export field | AR |
@@ -204,7 +204,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | RA-04 | Partner peopleOpsRoleEvidence projection | BUILT | reviewSignals | lead-sourcer | lead-sourcer test people ops | RA |
 | RA-05 | Partner abstain positive no-agency | BUILT | noAgencyEvidenceReqCount!==0 | lead-sourcer | selection abstentions | RA |
 | RA-06 | Company seed pack CompanySeed shape | BUILT | seed-pack rowToSeedEntry | demigod-recruitai-seed-pack.mjs | seed-pack --selftest | RA |
-| RA-07 | demigod-signals.json by domain/mapCompanyId | BUILT | /2 adds provenance, exact changes[], and aggregate opens/closures | seed-pack + daily post-poll refresh | selftest + live mode-600 artifact | RA |
+| RA-07 | demigod-signals.json by domain/mapCompanyId | BUILT | /3 adds provenance, exact changes[], typed daily history, and observed 7/30d account velocity; unchanged same-day revisions dedupe | seed-pack + daily post-poll refresh | poison/idempotence selftest + live mode-600 artifact | RA |
 | RA-08 | Desk pack handoff directory | BUILT | committed load + exact validated JSON/CSV/commit buffers | demigod-recruitai-desk.mjs | valid pack + hash poison in sourcer test | RA |
 | RA-09 | RecruitAI SQLite company import dry/apply | BUILT | committed export source; strict CLI; dry default | demigod-recruitai-import.mjs | import --selftest / real dry-run | RA |
 | RA-10 | RecruitAI import positive-only has_inhouse_ta | BUILT | people>0 → 1 else null | planCompanyRow | import selftest | RA |
@@ -217,12 +217,12 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | RA-17 | Import plan limit N rows | BUILT | strict positive safe-integer limit | demigod-recruitai-import.mjs | import parser selftest + dry-run --limit | RA |
 | RA-18 | Import backup before apply | BUILT | import --apply backup | demigod-recruitai-import.mjs | code path apply | RA |
 | NOW-01 | Scheduled role-ledger poll (systemd/timer) | BUILT | daily persistent timer enabled; all-provider failure is nonzero and cannot advance ledger freshness | role-ledger poll + `systemd-user/demigod-role-ledger.{service,timer}` | timer unit test + live 338/339-board cycle | OP |
-| NOW-02 | Directory static rebuild after aging | NOW | pri2 after poll | directory-static.mjs | static --selftest + sample HTML age | OP |
+| NOW-02 | Directory static rebuild after aging | BUILT | refreshed jobs → 339/339 poll → aging → static/Pulse on 2026-07-31 | directory-static.mjs | static selftest + Infinite fallback poison check | OP |
 | NOW-20 | Referral ledger redacted no money move | BUILT | referrals status | demigod-referrals.mjs | referrals status | OP |
 | OP-01 | directory-refresh pipeline HN→map→jobs→ledger→static | BUILT | directory-refresh.mjs | demigod-directory-refresh.mjs | refresh --help / dry stages | OP |
 | OP-02 | directory-aging enrich-map oldestObservedDays | BUILT | aging from ledger | demigod-directory-aging.mjs | aging --selftest | OP |
 | OP-03 | directory-static crawlable HTML jobs | BUILT | static generator | demigod-directory-static.mjs | static --selftest | OP |
-| OP-04 | hiring-pulse deltas empty-map fail closed | BUILT | hiring-pulse selftest | demigod-hiring-pulse.mjs | hiring-pulse --selftest | OP |
+| OP-04 | hiring-pulse deltas empty-map fail closed | BUILT | mixed-row history filter + lock keeps map and typed role-signal observations independent | demigod-hiring-pulse.mjs | hiring-pulse --selftest | OP |
 | OP-05 | role-ledger report --posted aging SF | BUILT | CLI report | demigod-role-ledger.mjs | report --posted | OP |
 | OP-06 | CDN re-ship map ages | GATED | pri3 current-request publish auth | foot-cdn-publish + cm6 | only with DEMIGOD_CURRENT_REQUEST_PUBLISH=1 | OP |
 | OP-07 | Map identity / funnel collision dedupe | NOW | pri10 | funnel + map | funnel collision tests | OP |

@@ -2,9 +2,9 @@
 // SF Startup Hiring Pulse — turn the directory's live hiring data into a shareable, honest
 // data-media issue (the "come for the insight → use the tool → join the network" top-of-funnel).
 //
-// Every run: (1) append today's hiring snapshot to an append-only history (starts the trend
-// clock), (2) compute the Pulse from the current map + deltas vs the most recent PRIOR snapshot,
-// (3) emit pulse.json + a rendered pulse.html.
+// Every run: (1) append today's map snapshot to the shared mixed-row append-only history (starts the
+// trend clock), (2) compute the Pulse from the current map + deltas vs the most recent PRIOR map
+// snapshot, (3) emit pulse.json + a rendered pulse.html.
 //
 // Honesty: only counts what was actually fetched. "verified open roles" = live US-posted/Remote
 // rows on a company's own public ATS board; "hiring" without a count = the company's own YC/self
@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { objectEntries } from './demigod-agent-tools-lib.mjs';
+import { objectEntries, withFileLock } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
@@ -136,22 +136,31 @@ export function computePulse(map, prior = null, today = '') {
 
 // Append today's compact snapshot (idempotent per date); return the most recent PRIOR snapshot.
 export function snapshotAndPrior(map, today, historyPath = HISTORY) {
-  const verified = (map.companies || []).filter((c) => c.openRoles && c.atsSource);
-  const lines = fs.existsSync(historyPath)
-    ? fs.readFileSync(historyPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
-    : [];
-  const prior = lines.filter((s) => s.date < today).sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
-  if (!lines.some((s) => s.date === today)) {
-    const snap = {
-      date: today,
-      tracked: map.companies?.length || 0,
-      verifiedBoards: verified.length,
-      totalRoles: verified.reduce((s, c) => s + c.openRoles, 0),
-      roles: Object.fromEntries(verified.map((c) => [c.id, c.openRoles])),
-    };
-    fs.appendFileSync(historyPath, JSON.stringify(snap) + '\n'); // append-only: never rewrite peers' history
-  }
-  return prior;
+  return withFileLock(`${historyPath}.lock`, () => {
+    const verified = (map.companies || []).filter((c) => c.openRoles && c.atsSource);
+    const lines = fs.existsSync(historyPath)
+      ? fs.readFileSync(historyPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
+      : [];
+    const snapshots = lines.filter(
+      (row) => row?.roles && Number.isSafeInteger(row.totalRoles),
+    );
+    const prior =
+      snapshots
+        .filter((snapshot) => snapshot.date < today)
+        .sort((a, b) => (a.date < b.date ? 1 : -1))[0] || null;
+    if (!snapshots.some((snapshot) => snapshot.date === today)) {
+      const snap = {
+        date: today,
+        tracked: map.companies?.length || 0,
+        verifiedBoards: verified.length,
+        totalRoles: verified.reduce((sum, company) => sum + company.openRoles, 0),
+        roles: Object.fromEntries(verified.map((company) => [company.id, company.openRoles])),
+      };
+      fs.appendFileSync(historyPath, `${JSON.stringify(snap)}\n`, { mode: 0o600 });
+    }
+    fs.chmodSync(historyPath, 0o600);
+    return prior;
+  });
 }
 
 // Render the Pulse object → a self-contained, theme-aware HTML issue (data-driven; no hand-numbers).
@@ -270,6 +279,36 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   const prior = { date: '2026-07-17', totalRoles: 20, roles: { a: 8, z: 12 } };
   const p2 = computePulse(fake, prior, '2026-07-24');
   assert(p2.deltas && p2.deltas.startedHiring === 1 && p2.deltas.pausedHiring === 1, 'deltas: 1 started (b), 1 paused (z)');
+  const historyDir = fs.mkdtempSync(path.join('/tmp', 'dg-hiring-history-'));
+  try {
+    const historyPath = path.join(historyDir, 'history.jsonl');
+    fs.writeFileSync(
+      historyPath,
+      `${JSON.stringify({ kind: 'role-ledger-change', date: '2026-07-24' })}\n`,
+    );
+    assert(
+      snapshotAndPrior(fake, '2026-07-24', historyPath) === null,
+      'role-signal row is not a map prior',
+    );
+    const historyRows = fs
+      .readFileSync(historyPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert(
+      historyRows.length === 2 &&
+        historyRows.filter((row) => row.roles).length === 1 &&
+        snapshotAndPrior(fake, '2026-07-25', historyPath)?.date ===
+          '2026-07-24',
+      'shared history keeps map snapshots independently idempotent',
+    );
+    assert(
+      (fs.statSync(historyPath).mode & 0o777) === 0o600,
+      'shared history is private',
+    );
+  } finally {
+    fs.rmSync(historyDir, { recursive: true, force: true });
+  }
   // fail-capable: an empty map must not fabricate a Pulse
   const empty = computePulse({ companies: [] }, null, 'd');
   assert(empty.levels.verifiedBoards === 0 && empty.topHirers.length === 0, 'empty map → empty pulse (no fabrication)');

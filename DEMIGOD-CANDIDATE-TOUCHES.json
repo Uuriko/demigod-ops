@@ -1,6 +1,6 @@
 {
   "schema": "demigod.candidate-touches-store/1",
-  "updatedAt": "2026-07-31T00:17:49.029Z",
+  "updatedAt": "2026-07-31T00:27:45.031Z",
   "touches": [
     {
       "schema": "demigod.candidate-touch/1",
@@ -41,6 +41,16 @@
       "outcome": null,
       "note": "Scorecard note attached via role-packet",
       "at": "2026-07-31T00:17:49.028Z"
+    },
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "30a9a016a82041db",
+      "candId": "cand-demo-riley",
+      "channel": "review",
+      "roleId": "role-demo-founding-eng",
+      "outcome": null,
+      "note": "Public systems blog + relevant open source that maps to must-haves",
+      "at": "2026-07-31T00:27:45.031Z"
     }
   ]
 }

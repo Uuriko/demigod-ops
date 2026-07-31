@@ -264,6 +264,41 @@ export function evaluateControls(opts = {}) {
     ),
   );
 
+  // —— reseal queue (map stamp without reseal) ——
+  try {
+    const qpath = path.join(busy, 'reseal-queue.jsonl');
+    let pending = 0;
+    if (fs.existsSync(qpath)) {
+      pending = fs
+        .readFileSync(qpath, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => {
+          try {
+            return JSON.parse(l);
+          } catch {
+            return null;
+          }
+        })
+        .filter((r) => r && r.pending !== false).length;
+    }
+    controls.push(
+      control(
+        'reseal_queue_drained',
+        'med',
+        pending === 0 || researchGreen,
+        pending === 0
+          ? 'reseal queue empty'
+          : researchGreen
+            ? `pending=${pending} but research green — node demigod-reseal-queue.mjs run`
+            : `pending=${pending} — node demigod-reseal-queue.mjs run`,
+        { pending, researchGreen },
+      ),
+    );
+  } catch (e) {
+    controls.push(control('reseal_queue_drained', 'med', true, `n/a ${e.message || e}`));
+  }
+
   // —— demand drafts-only ——
   const demandPath = path.join(busy, 'demand-status.json');
   const demandProbe = readJsonProbe(demandPath);
@@ -429,9 +464,39 @@ export function evaluateControls(opts = {}) {
   return board;
 }
 
+const HISTORY = path.join(BUSY, 'control-board-history.jsonl');
+
 export function writeBoard(board) {
   fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
   atomicWrite(OUT, `${JSON.stringify(board, null, 2)}\n`, { mode: 0o600 });
+  // Vanta-shaped continuous monitoring: append compact history row
+  try {
+    const hist = {
+      at: board.at,
+      ok: board.ok,
+      summary: board.summary,
+      highFailures: board.highFailures || [],
+      exitFailures: board.exitFailures || [],
+      controls: (board.controls || []).map((c) => ({
+        id: c.id,
+        ok: c.ok,
+        severity: c.severity,
+      })),
+    };
+    fs.appendFileSync(HISTORY, `${JSON.stringify(hist)}\n`, { mode: 0o600 });
+    try {
+      fs.chmodSync(HISTORY, 0o600);
+    } catch {
+      /* */
+    }
+    // keep last ~200 lines
+    const lines = fs.readFileSync(HISTORY, 'utf8').split('\n').filter(Boolean);
+    if (lines.length > 200) {
+      atomicWrite(HISTORY, `${lines.slice(-200).join('\n')}\n`, { mode: 0o600 });
+    }
+  } catch {
+    /* history is best-effort */
+  }
   return OUT;
 }
 
@@ -540,13 +605,49 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-control-board.mjs [status] [--json] [--strict]
+    console.log(`usage: node demigod-control-board.mjs [status|history] [--json] [--strict] [--n=20]
   status   human lines (default)
+  history  last N rows from control-board-history.jsonl
   --json   full receipt JSON
   --strict fail exit when research_seal is red
   --selftest
 Design: docs/die/CONTROL-BOARD-DESIGN.md`);
     process.exit(0);
+  }
+  const cmd = args.find((a) => !a.startsWith('-') && a !== 'status') || 'status';
+  if (cmd === 'history') {
+    let n = 20;
+    for (const a of args) {
+      if (a.startsWith('--n=')) n = Math.max(1, Math.min(200, parseInt(a.slice(4), 10) || 20));
+    }
+    const histPath = path.join(BUSY, 'control-board-history.jsonl');
+    if (!fs.existsSync(histPath)) {
+      console.log(JSON.stringify({ ok: true, rows: [], path: histPath }));
+      return;
+    }
+    const rows = fs
+      .readFileSync(histPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .slice(-n)
+      .map((l) => {
+        try {
+          return JSON.parse(l);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    if (args.includes('--json')) console.log(JSON.stringify({ ok: true, path: histPath, rows }, null, 2));
+    else {
+      console.log(`# control-board history · last ${rows.length}`);
+      for (const r of rows) {
+        console.log(
+          `  ${String(r.at || '').slice(0, 19)} · ${r.ok ? 'OK' : 'ATTN'} · ${r.summary || ''} · highFail=${(r.highFailures || []).join(',') || '—'}`,
+        );
+      }
+    }
+    return;
   }
   const strictResearch = args.includes('--strict');
   const asJson = args.includes('--json');

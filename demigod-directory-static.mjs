@@ -49,7 +49,12 @@ export function buildStaticDirectory(map, generatedAt = '') {
     if (c.openRoles && c.atsSource && typeof c.oldestObservedDays === 'number' && c.oldestObservedDays > 0) {
       agingBits.push(`longest tracked ${c.oldestObservedDays}d (our first seen)`);
     }
-    if (c.openRoles && c.atsSource && typeof c.observed30 === 'number' && c.observed30 > 0) {
+    // Prefer the longest observed threshold that has signal (CH-15).
+    if (c.openRoles && c.atsSource && typeof c.observed90 === 'number' && c.observed90 > 0) {
+      agingBits.push(`${c.observed90} open ≥90d tracked`);
+    } else if (c.openRoles && c.atsSource && typeof c.observed60 === 'number' && c.observed60 > 0) {
+      agingBits.push(`${c.observed60} open ≥60d tracked`);
+    } else if (c.openRoles && c.atsSource && typeof c.observed30 === 'number' && c.observed30 > 0) {
       agingBits.push(`${c.observed30} open ≥30d tracked`);
     } else if (c.openRoles && c.atsSource && typeof c.observed7 === 'number' && c.observed7 > 0) {
       agingBits.push(`${c.observed7} open ≥7d tracked`);

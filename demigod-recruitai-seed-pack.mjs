@@ -7,6 +7,7 @@
  * It does not yet import Demigod's full export. This pack is the honest adapter:
  *   - company-seeds.jsonl  — one seed per line (upstream-shaped)
  *   - demigod-signals.json  — full Demigod hiring signals keyed by domain/mapCompanyId
+ *   - DEMIGOD-HIRING-HISTORY.jsonl — typed daily observations for 7/30d velocity
  *   - seed-pack.json        — envelope for tools/desk
  *
  * Never invents contacts, scores, fees, or send state.
@@ -17,14 +18,236 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { loadRecruitaiExport } from './demigod-lead-sourcer.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
+const HISTORY = path.join(ROOT, 'DEMIGOD-HIRING-HISTORY.jsonl');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 const SCHEMA = 'demigod.recruitai-seed-pack/1';
+const SIGNAL_OBSERVATION_SCHEMA = 'demigod.hiring-signal-observation/1';
+
+const isDay = (value) =>
+  typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
+  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+
+function assertSignalObservation(row) {
+  const counts = row?.counts;
+  if (
+    row?.schema !== SIGNAL_OBSERVATION_SCHEMA ||
+    row.kind !== 'role-ledger-change' ||
+    !isDay(row.date) ||
+    !Number.isFinite(Date.parse(row.at)) ||
+    !Number.isFinite(Date.parse(row.exportGeneratedAt)) ||
+    row.changeBasis !== 'ledger-observation' ||
+    !counts ||
+    !Array.isArray(row.changes) ||
+    ![
+      counts.accounts,
+      counts.changedAccounts,
+      counts.firstObservedTodayReqs,
+      counts.firstObservedTodayOlderPostedReqs,
+      counts.closedTodayReqs,
+    ].every(isCount) ||
+    counts.changedAccounts !== row.changes.length ||
+    counts.changedAccounts > counts.accounts
+  ) {
+    throw new Error('invalid hiring signal observation');
+  }
+  const ids = new Set();
+  let firstObserved = 0;
+  let olderPosted = 0;
+  let closed = 0;
+  for (const change of row.changes) {
+    if (
+      typeof change?.mapCompanyId !== 'string' ||
+      !change.mapCompanyId.trim() ||
+      ids.has(change.mapCompanyId) ||
+      typeof change.name !== 'string' ||
+      !change.name.trim() ||
+      change.name.length > 200 ||
+      (change.domain !== null &&
+        (typeof change.domain !== 'string' || change.domain.length > 253)) ||
+      ![
+        change.firstObservedTodayReqCount,
+        change.firstObservedTodayOlderPostedReqCount,
+        change.closedTodayReqCount,
+      ].every(isCount) ||
+      change.firstObservedTodayOlderPostedReqCount >
+        change.firstObservedTodayReqCount
+    ) {
+      throw new Error('invalid hiring signal account change');
+    }
+    ids.add(change.mapCompanyId);
+    firstObserved += change.firstObservedTodayReqCount;
+    olderPosted += change.firstObservedTodayOlderPostedReqCount;
+    closed += change.closedTodayReqCount;
+  }
+  if (
+    firstObserved !== counts.firstObservedTodayReqs ||
+    olderPosted !== counts.firstObservedTodayOlderPostedReqs ||
+    closed !== counts.closedTodayReqs
+  ) {
+    throw new Error('hiring signal observation counts diverge');
+  }
+}
+
+const signalObservationState = (row) =>
+  JSON.stringify(row, (key, value) =>
+    ['schema', 'kind', 'at', 'exportGeneratedAt'].includes(key) ? undefined : value,
+  );
+
+export function recordSignalObservation(pack, changes, historyPath = HISTORY) {
+  const observation = {
+    schema: SIGNAL_OBSERVATION_SCHEMA,
+    kind: 'role-ledger-change',
+    date: pack.changeDate,
+    at: pack.at,
+    exportGeneratedAt: pack.exportGeneratedAt,
+    changeBasis: pack.changeBasis,
+    counts: {
+      accounts: pack.entries.length,
+      changedAccounts: changes.length,
+      firstObservedTodayReqs: changes.reduce(
+        (sum, row) => sum + row.firstObservedTodayReqCount,
+        0,
+      ),
+      firstObservedTodayOlderPostedReqs: changes.reduce(
+        (sum, row) => sum + row.firstObservedTodayOlderPostedReqCount,
+        0,
+      ),
+      closedTodayReqs: changes.reduce(
+        (sum, row) => sum + row.closedTodayReqCount,
+        0,
+      ),
+    },
+    changes: changes.map((row) => ({
+      mapCompanyId: row.mapCompanyId,
+      name: row.name,
+      domain: row.domain,
+      firstObservedTodayReqCount: row.firstObservedTodayReqCount,
+      firstObservedTodayOlderPostedReqCount:
+        row.firstObservedTodayOlderPostedReqCount,
+      closedTodayReqCount: row.closedTodayReqCount,
+    })),
+  };
+  assertSignalObservation(observation);
+
+  return withFileLock(`${historyPath}.lock`, () => {
+    const rows = fs.existsSync(historyPath)
+      ? fs
+          .readFileSync(historyPath, 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
+      : [];
+    const observations = rows.filter((row) => row?.kind === 'role-ledger-change');
+    observations.forEach(assertSignalObservation);
+    const state = signalObservationState(observation);
+    if (
+      !observations.some(
+        (row) =>
+          row.exportGeneratedAt === observation.exportGeneratedAt ||
+          signalObservationState(row) === state,
+      )
+    ) {
+      fs.appendFileSync(historyPath, `${JSON.stringify(observation)}\n`, {
+        mode: 0o600,
+      });
+      observations.push(observation);
+    }
+    fs.chmodSync(historyPath, 0o600);
+    return observations;
+  });
+}
+
+export function buildObservedVelocity(observations, through, windowDays) {
+  if (!isDay(through) || !Number.isSafeInteger(windowDays) || windowDays < 1) {
+    throw new Error('invalid hiring velocity window');
+  }
+  const latestByDate = new Map();
+  for (const row of observations) {
+    assertSignalObservation(row);
+    const current = latestByDate.get(row.date);
+    if (!current || Date.parse(row.at) > Date.parse(current.at)) {
+      latestByDate.set(row.date, row);
+    }
+  }
+  const throughMs = Date.parse(`${through}T00:00:00Z`);
+  const rows = [...latestByDate.values()]
+    .filter((row) => {
+      const age = (throughMs - Date.parse(`${row.date}T00:00:00Z`)) / 86_400_000;
+      return age >= 0 && age < windowDays;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const accounts = new Map();
+  for (const row of rows) {
+    for (const change of row.changes) {
+      const account = accounts.get(change.mapCompanyId) || {
+        mapCompanyId: change.mapCompanyId,
+        name: change.name,
+        domain: change.domain,
+        changeDays: 0,
+        firstObservedReqs: 0,
+        firstObservedOlderPostedReqs: 0,
+        closedReqs: 0,
+      };
+      account.name = change.name;
+      account.domain = change.domain;
+      account.changeDays++;
+      account.firstObservedReqs += change.firstObservedTodayReqCount;
+      account.firstObservedOlderPostedReqs +=
+        change.firstObservedTodayOlderPostedReqCount;
+      account.closedReqs += change.closedTodayReqCount;
+      accounts.set(change.mapCompanyId, account);
+    }
+  }
+  const accountRows = [...accounts.values()]
+    .map((row) => ({
+      ...row,
+      netObservedReqs: row.firstObservedReqs - row.closedReqs,
+    }))
+    .sort(
+      (a, b) =>
+        b.firstObservedReqs +
+          b.closedReqs -
+          a.firstObservedReqs -
+          a.closedReqs ||
+        a.name.localeCompare(b.name),
+    );
+  const firstObservedReqs = rows.reduce(
+    (sum, row) => sum + row.counts.firstObservedTodayReqs,
+    0,
+  );
+  const closedReqs = rows.reduce(
+    (sum, row) => sum + row.counts.closedTodayReqs,
+    0,
+  );
+  return {
+    windowDays,
+    observedDays: rows.length,
+    from: rows[0]?.date || null,
+    through,
+    changedAccounts: accountRows.length,
+    changedAccountDays: rows.reduce(
+      (sum, row) => sum + row.counts.changedAccounts,
+      0,
+    ),
+    firstObservedReqs,
+    firstObservedOlderPostedReqs: rows.reduce(
+      (sum, row) => sum + row.counts.firstObservedTodayOlderPostedReqs,
+      0,
+    ),
+    closedReqs,
+    netObservedReqs: firstObservedReqs - closedReqs,
+    accounts: accountRows,
+  };
+}
 
 /** @param {string|null|undefined} website */
 export function websiteFromJobsOrSource(row = {}) {
@@ -175,7 +398,7 @@ export function buildSeedPack(exportDoc = {}, meta = {}) {
   };
 }
 
-export function writeSeedPackFiles(pack, outDir) {
+export function writeSeedPackFiles(pack, outDir, historyPath = HISTORY) {
   fs.mkdirSync(outDir, { recursive: true, mode: 0o700 });
   try {
     fs.chmodSync(outDir, 0o700);
@@ -184,7 +407,6 @@ export function writeSeedPackFiles(pack, outDir) {
   }
 
   const jsonl = pack.entries.map((e) => JSON.stringify(e.seed)).join('\n') + (pack.entries.length ? '\n' : '');
-  atomicWrite(path.join(outDir, 'company-seeds.jsonl'), jsonl, { mode: 0o600 });
 
   const changes = pack.entries
     .filter(
@@ -214,8 +436,16 @@ export function writeSeedPackFiles(pack, outDir) {
       closedTodayReqCount: e.demigod.closedTodayReqCount,
       reopenedOpenReqCount: e.demigod.reopenedOpenReqCount,
     }));
+  const observations = recordSignalObservation(pack, changes, historyPath);
+  const velocity = {
+    basis:
+      'exact ledger-observation sums; latest snapshot per observed date; no inferred rate',
+    observed7d: buildObservedVelocity(observations, pack.changeDate, 7),
+    observed30d: buildObservedVelocity(observations, pack.changeDate, 30),
+  };
+  atomicWrite(path.join(outDir, 'company-seeds.jsonl'), jsonl, { mode: 0o600 });
   const signals = {
-    schema: 'demigod.recruitai-signals/2',
+    schema: 'demigod.recruitai-signals/3',
     at: pack.at,
     sourceSchema: pack.sourceSchema,
     exportGeneratedAt: pack.exportGeneratedAt,
@@ -233,8 +463,10 @@ export function writeSeedPackFiles(pack, outDir) {
         0,
       ),
       closedTodayReqs: changes.reduce((sum, row) => sum + row.closedTodayReqCount, 0),
+      observedHistoryDays: new Set(observations.map((row) => row.date)).size,
     },
     changes,
+    velocity,
     byDomain: Object.fromEntries(
       pack.entries
         .filter((e) => e.seed.domain)
@@ -318,27 +550,30 @@ function selftest() {
   assert(rowToSeedEntry({ name: '' }) === null, 'empty name dropped');
   assert(rowToSeedEntry({ name: 'X', domain: 'bad domain' }) === null, 'bad domain dropped');
 
-  const pack = buildSeedPack({
-    schema: 'demigod.recruitai-export/3',
-    generatedAt: '2026-07-30T00:00:00.000Z',
-    changeDate: '2026-07-30',
-    changeBasis: 'ledger-observation',
-    rows: [
-      row,
-      { ...row, mapCompanyId: 'yc:acme2', name: 'Acme Dup', domain: 'acme.test' }, // domain dedupe
-      {
-        ...row,
-        mapCompanyId: 'yc:beta',
-        name: 'Beta',
-        domain: 'beta.test',
-        openReqCount: 99,
-        firstObservedTodayReqCount: 0,
-        firstObservedTodayOlderPostedReqCount: 0,
-        closedTodayReqCount: 4,
-      },
-      { name: '' },
-    ],
-  });
+  const pack = buildSeedPack(
+    {
+      schema: 'demigod.recruitai-export/3',
+      generatedAt: '2026-07-30T00:00:00.000Z',
+      changeDate: '2026-07-30',
+      changeBasis: 'ledger-observation',
+      rows: [
+        row,
+        { ...row, mapCompanyId: 'yc:acme2', name: 'Acme Dup', domain: 'acme.test' }, // domain dedupe
+        {
+          ...row,
+          mapCompanyId: 'yc:beta',
+          name: 'Beta',
+          domain: 'beta.test',
+          openReqCount: 99,
+          firstObservedTodayReqCount: 0,
+          firstObservedTodayOlderPostedReqCount: 0,
+          closedTodayReqCount: 4,
+        },
+        { name: '' },
+      ],
+    },
+    { at: '2026-07-30T12:00:00.000Z' },
+  );
   assert(pack.counts.seeds === 2, `seeds=2 got ${pack.counts.seeds}`);
   assert(pack.counts.deduped === 1, 'domain dedupe');
   assert(pack.entries[0].seed.name === 'Beta', 'sorted by openReqCount');
@@ -346,7 +581,8 @@ function selftest() {
 
   const tmp = fs.mkdtempSync(path.join('/tmp', 'dg-seed-pack-'));
   try {
-    const env = writeSeedPackFiles(pack, tmp);
+    const history = path.join(tmp, 'history.jsonl');
+    const env = writeSeedPackFiles(pack, tmp, history);
     assert(env.counts.seeds === 2, 'write envelope');
     const lines = fs.readFileSync(path.join(tmp, 'company-seeds.jsonl'), 'utf8').trim().split('\n');
     assert(lines.length === 2, 'jsonl lines');
@@ -355,7 +591,7 @@ function selftest() {
     const sig = JSON.parse(fs.readFileSync(path.join(tmp, 'demigod-signals.json'), 'utf8'));
     assert(sig.byDomain['beta.test'].openReqCount === 99, 'signals by domain');
     assert(
-      sig.schema === 'demigod.recruitai-signals/2' &&
+      sig.schema === 'demigod.recruitai-signals/3' &&
         sig.changeDate === '2026-07-30' &&
         sig.changeBasis === 'ledger-observation',
       'signals provenance',
@@ -364,8 +600,72 @@ function selftest() {
       sig.counts.changedAccounts === 2 &&
         sig.counts.firstObservedTodayReqs === 2 &&
         sig.counts.closedTodayReqs === 5 &&
+        sig.counts.observedHistoryDays === 1 &&
         sig.changes[0].name === 'Beta',
       'account change feed',
+    );
+    const nextPack = buildSeedPack(
+      {
+        schema: 'demigod.recruitai-export/3',
+        generatedAt: '2026-07-31T00:00:00.000Z',
+        changeDate: '2026-07-31',
+        changeBasis: 'ledger-observation',
+        rows: [
+          {
+            ...row,
+            firstObservedTodayReqCount: 1,
+            firstObservedTodayOlderPostedReqCount: 0,
+            closedTodayReqCount: 0,
+          },
+        ],
+      },
+      { at: '2026-07-31T12:00:00.000Z' },
+    );
+    writeSeedPackFiles(nextPack, tmp, history);
+    writeSeedPackFiles(
+      {
+        ...nextPack,
+        at: '2026-07-31T13:00:00.000Z',
+        exportGeneratedAt: '2026-07-31T01:00:00.000Z',
+      },
+      tmp,
+      history,
+    );
+    const trended = JSON.parse(
+      fs.readFileSync(path.join(tmp, 'demigod-signals.json'), 'utf8'),
+    );
+    assert(
+      trended.velocity.observed7d.observedDays === 2 &&
+        trended.velocity.observed7d.firstObservedReqs === 3 &&
+        trended.velocity.observed7d.closedReqs === 5 &&
+        trended.velocity.observed7d.netObservedReqs === -2 &&
+        trended.velocity.observed30d.accounts[0].mapCompanyId === 'yc:acme',
+      'observed velocity windows',
+    );
+    assert(
+      fs.readFileSync(history, 'utf8').trim().split('\n').length === 2,
+      'unchanged same-day signal is idempotent across export generations',
+    );
+    const beforePoison = fs.readFileSync(
+      path.join(tmp, 'demigod-signals.json'),
+      'utf8',
+    );
+    const poisoned = JSON.parse(
+      fs.readFileSync(history, 'utf8').trim().split('\n').at(-1),
+    );
+    poisoned.counts.closedTodayReqs++;
+    fs.appendFileSync(history, `${JSON.stringify(poisoned)}\n`);
+    let poisonFailed = false;
+    try {
+      writeSeedPackFiles(nextPack, tmp, history);
+    } catch {
+      poisonFailed = true;
+    }
+    assert(poisonFailed, 'corrupt history fails closed');
+    assert(
+      fs.readFileSync(path.join(tmp, 'demigod-signals.json'), 'utf8') ===
+        beforePoison,
+      'corrupt history preserves the last feed',
     );
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

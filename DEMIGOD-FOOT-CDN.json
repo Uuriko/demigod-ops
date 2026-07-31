@@ -1,7 +1,7 @@
 {
-  "at": "2026-07-30T15:53:07.679Z",
+  "at": "2026-07-31T00:56:23.226Z",
   "version": "859",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@641e3c8c7e90/foot-latest.js",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@e0553d5524c1/foot-latest.js",
   "ok": true,
   "temporary": false,
   "bytes": 359108,
@@ -12,17 +12,17 @@
   "footVer": "859",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@641e3c8c7e90/startup-map-latest.js",
-      "sha256": "cac486289d2a6c9a67b59b80e5990471aa588143b85682776fe705fa7de6543b",
-      "bytes": 17752
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@e0553d5524c1/startup-map-latest.js",
+      "sha256": "15fa37e000875bc98020d5f25a0781a72368a80f1bc4d7d76ec30035f24b21b8",
+      "bytes": 18711
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@641e3c8c7e90/sf-startup-map.json",
-      "sha256": "9704161760e31e88a62616ef94b64315e5d9c17a7f8f411e0fdec23790b77a9f",
-      "bytes": 1220052
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@e0553d5524c1/sf-startup-map.json",
+      "sha256": "7bce00b0d3c9a274288065d71c1f773a75c58f302c2fa8aca31beb500360a970",
+      "bytes": 1223903
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@641e3c8c7e90/head-latest.css",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@e0553d5524c1/head-latest.css",
       "sha256": "6f78881b777fb1eb60b550de982e5d946b607ad41fc7af617e790cbda2e6ffe5",
       "bytes": 82912
     }

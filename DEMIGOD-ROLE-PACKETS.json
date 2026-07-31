@@ -1,6 +1,6 @@
 {
   "schema": "demigod.role-packets-store/1",
-  "updatedAt": "2026-07-31T00:17:48.747Z",
+  "updatedAt": "2026-07-31T00:46:04.471Z",
   "packets": {
     "role-demo-founding-eng": {
       "schema": "demigod.role-packet/1",
@@ -34,8 +34,13 @@
       "dealBreakers": [],
       "compBand": {
         "text": "$160-220k + equity",
-        "source": "founder_stated",
-        "evidence": null
+        "source": "public_job_post",
+        "url": "https://boards.greenhouse.io/demo/jobs/1",
+        "quote": "Compensation range $160,000 to $220,000 base",
+        "evidence": {
+          "url": "https://boards.greenhouse.io/demo/jobs/1",
+          "quote": "Compensation range $160,000 to $220,000 base"
+        }
       },
       "stages": [
         "brief_ready",
@@ -44,9 +49,9 @@
         "intro",
         "outcome"
       ],
-      "stage": "brief_ready",
+      "stage": "reviewing",
       "createdAt": "2026-07-31T00:14:19.374Z",
-      "updatedAt": "2026-07-31T00:14:19.423Z"
+      "updatedAt": "2026-07-31T00:46:04.471Z"
     },
     "role-seed1": {
       "schema": "demigod.role-packet/1",

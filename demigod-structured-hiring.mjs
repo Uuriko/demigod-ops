@@ -11,8 +11,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPackets, loadNotes, projectForReview } from './demigod-role-packet.mjs';
-import { rediscover } from './demigod-candidate-touch.mjs';
+import {
+  loadPackets,
+  loadNotes,
+  projectForReview,
+  advanceStage,
+  upsertPacket,
+} from './demigod-role-packet.mjs';
+import { rediscover, makeTouch, appendTouch } from './demigod-candidate-touch.mjs';
+import {
+  openBatch,
+  addCandidate,
+  upsertBatch,
+  activeCount as batchActive,
+} from './demigod-pilot-batch.mjs';
+import { warmPaths, listPaths as listIntroPaths } from './demigod-intro-path.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +45,12 @@ function loadTouchStore() {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
+function loadIntroStore() {
+  const p = path.join(ROOT, 'DEMIGOD-INTRO-PATHS.json');
+  if (!fs.existsSync(p)) return { paths: [] };
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
 function batchActiveCount(b) {
   return (b?.candidates || []).filter((c) => !c.state || c.state === 'active').length;
 }
@@ -41,21 +60,29 @@ export function buildStatus() {
   const notes = loadNotes();
   const batches = loadBatchStore();
   const touches = loadTouchStore();
+  const intros = loadIntroStore();
   const packetList = Object.values(packets.packets || {});
   const noteList = Object.values(notes.notes || {});
   const batchList = Object.values(batches.batches || {});
   const touchList = touches.touches || [];
+  const pathList = intros.paths || [];
 
   return {
     schema: 'demigod.structured-hiring/1',
     at: new Date().toISOString(),
-    inspiredBy: ['Ashby/Greenhouse scorecards', 'Underdog/Wellfound batch caps', 'Gem rediscovery'],
+    inspiredBy: [
+      'Ashby/Greenhouse scorecards',
+      'Underdog/Wellfound batch caps',
+      'Gem rediscovery',
+      'Affinity intro paths (manual)',
+    ],
     counts: {
       packets: packetList.length,
       reviewNotes: noteList.length,
       batches: batchList.length,
       activeBatchSlots: batchList.reduce((s, b) => s + batchActiveCount(b), 0),
       touches: touchList.length,
+      introPaths: pathList.length,
     },
     packets: packetList.map((p) => ({
       roleId: p.roleId,
@@ -72,14 +99,63 @@ export function buildStatus() {
       total: b.candidates?.length || 0,
     })),
     rediscoverTop: rediscover(touchList, { limit: 8 }),
+    warmPaths: warmPaths(pathList, { limit: 8 }),
     cmds: {
-      packet: 'node demigod-role-packet.mjs list|init|note|project',
+      packet: 'node demigod-role-packet.mjs list|init|note|project|stage|set-comp',
       batch: 'node demigod-pilot-batch.mjs open|add|terminal',
       touch: 'node demigod-candidate-touch.mjs log|rediscover',
+      intro: 'node demigod-intro-path.mjs log|list|warm',
       desk: 'node demigod-structured-hiring.mjs desk --role=ID',
+      shortlist: 'node demigod-structured-hiring.mjs shortlist --role=… --cand=… --why=…',
+      pack: 'node demigod-structured-hiring.mjs pack',
     },
-    policy: 'No fit score. Evidence-required ratings. Batch hard-cap 3 active. Rediscover from owned touches only.',
+    policy:
+      'No fit score. Evidence-required ratings. Batch hard-cap 3 active. Rediscover from owned touches only. Intro paths are human-set (no mail scrape / auto-send).',
   };
+}
+
+/** Pack desk snapshot for multi-agent / desktop handoff (no contacts). */
+export function packHandoff(outDir = path.join(BUSY, 'structured-hiring-handoff')) {
+  const st = buildStatus();
+  fs.mkdirSync(outDir, { recursive: true, mode: 0o700 });
+  try {
+    fs.chmodSync(outDir, 0o700);
+  } catch {
+    /* */
+  }
+  const desks = (st.packets || []).map((p) => buildDesk(p.roleId));
+  const payload = {
+    schema: 'demigod.structured-hiring-handoff/1',
+    at: st.at,
+    status: st,
+    desks,
+    note: 'Technical structured-hiring pack. No contacts, scores, or send authority.',
+  };
+  atomicWrite(path.join(outDir, 'status.json'), `${JSON.stringify(payload, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  const readme = `# Structured hiring handoff
+
+Packed at ${st.at}
+
+| Surface | Count |
+|---------|-------|
+| packets | ${st.counts.packets} |
+| notes | ${st.counts.reviewNotes} |
+| batches | ${st.counts.batches} |
+| touches | ${st.counts.touches} |
+
+## CLI
+\`\`\`bash
+node demigod-structured-hiring.mjs status
+node demigod-structured-hiring.mjs desk --role=ROLE_ID
+node demigod-structured-hiring.mjs shortlist --role=… --cand=… --why="…"
+\`\`\`
+
+Inspired by Ashby scorecards, Underdog batch caps, Gem rediscovery — Demigod-owned, no fit score.
+`;
+  atomicWrite(path.join(outDir, 'README.md'), readme, { mode: 0o600 });
+  return { ok: true, outDir, counts: st.counts, at: st.at };
 }
 
 /** Full desk for one role: packet + notes + batch + rediscover filtered. */
@@ -94,6 +170,12 @@ export function buildDesk(roleId) {
     loadTouchStore().touches || [],
     { roleId: id, limit: 10 },
   );
+  const companyId = packet?.companyId || null;
+  const introWarm = warmPaths(loadIntroStore().paths || [], {
+    company: companyId,
+    limit: 8,
+  });
+  const introRecent = listIntroPaths({ company: companyId, limit: 8 });
   const projections = notes.map((n) =>
     packet ? projectForReview(packet, n) : { candId: n.candId, note: n, packet: null },
   );
@@ -111,11 +193,87 @@ export function buildDesk(roleId) {
     notes,
     projections,
     rediscover: redis,
+    introPaths: { warm: introWarm, recent: introRecent },
     next: !packet
       ? `node demigod-role-packet.mjs init --role=${id} --title=… --outcome="…(≥20 chars)…"`
       : !batch
         ? `node demigod-pilot-batch.mjs open --role=${id}`
         : `node demigod-role-packet.mjs project --role=${id} --cand=…`,
+  };
+}
+
+/**
+ * Shortlist a candidate onto the Underdog-shaped batch for a role that has a packet.
+ * Opens batch if missing. Logs a touch. Does not invent fit scores.
+ */
+export function shortlist({
+  roleId,
+  candId,
+  why,
+  openBatchIfMissing = true,
+  logTouch = true,
+} = {}) {
+  const id = String(roleId || '').trim();
+  const cand = String(candId || '').trim();
+  const reason = String(why || '').trim();
+  if (!id || !cand || reason.length < 4) throw new Error('roleId, candId, why(≥4) required');
+  const packet = loadPackets().packets[id];
+  if (!packet) throw new Error(`no_role_packet:${id} — init packet first`);
+
+  let batch = loadBatchStore().batches[id] || null;
+  if (!batch && openBatchIfMissing) {
+    batch = openBatch(id, { max: 3 });
+  }
+  if (!batch) throw new Error('no_batch');
+  let batchResult = { skipped: false };
+  try {
+    batch = addCandidate(batch, cand, reason);
+    upsertBatch(batch);
+    batchResult = { active: batchActive(batch), max: batch.max };
+  } catch (e) {
+    if (/batch_full/.test(String(e.message))) {
+      batchResult = {
+        error: 'batch_full',
+        active: batchActive(batch),
+        max: batch.max,
+        hint: 'terminal a candidate: node demigod-pilot-batch.mjs terminal --role=… --cand=… --as=decline',
+      };
+    } else throw e;
+  }
+
+  let touch = null;
+  if (logTouch && !batchResult.error) {
+    touch = makeTouch({
+      candId: cand,
+      channel: 'review',
+      roleId: id,
+      note: reason.slice(0, 200),
+    });
+    appendTouch(touch);
+  }
+
+  // First successful shortlist advances brief_ready → reviewing (Ashby-shaped).
+  let stage = { from: packet.stage, to: packet.stage, advanced: false };
+  let packetOut = packet;
+  if (!batchResult.error && packet.stage === 'brief_ready') {
+    try {
+      packetOut = advanceStage(packet, 'reviewing');
+      upsertPacket(packetOut);
+      stage = { from: 'brief_ready', to: 'reviewing', advanced: true };
+    } catch {
+      /* leave stage if transition blocked */
+    }
+  }
+
+  return {
+    ok: !batchResult.error,
+    roleId: id,
+    candId: cand,
+    packetTitle: packetOut.title,
+    batch: batchResult,
+    touchId: touch?.id || null,
+    stage,
+    project: projectForReview(packetOut, null),
   };
 }
 
@@ -127,31 +285,67 @@ function selftest() {
   assert(st.schema === 'demigod.structured-hiring/1', 'schema');
   assert(st.counts && typeof st.counts.packets === 'number', 'counts');
   assert(Array.isArray(st.rediscoverTop), 'rediscover');
+  assert(Array.isArray(st.warmPaths), 'warmPaths');
+  assert(typeof st.counts.introPaths === 'number', 'introPaths count');
   assert(!('score' in st) && st.policy.includes('No fit score'), 'no score');
   // desk for demo if present
   if (st.packets[0]) {
     const d = buildDesk(st.packets[0].roleId);
     assert(d.roleId === st.packets[0].roleId, 'desk');
+    assert(d.introPaths && Array.isArray(d.introPaths.warm), 'desk intro');
   }
-  console.log(JSON.stringify({ ok: true, selftest: 'structured-hiring', packets: st.counts.packets }));
+  console.log(
+    JSON.stringify({
+      ok: true,
+      selftest: 'structured-hiring',
+      packets: st.counts.packets,
+      introPaths: st.counts.introPaths,
+    }),
+  );
 }
 
 function main() {
   const args = process.argv.slice(2);
-  if (args.includes('--selftest')) {
+  if (args.includes('--selftest') || args[0] === 'selftest') {
     selftest();
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('usage: node demigod-structured-hiring.mjs status|desk [--role=] [--json]');
+    console.log(`usage: node demigod-structured-hiring.mjs status|desk|shortlist|pack [--role=] [--cand=] [--why=] [--json]
+  shortlist  add cand to role batch (requires packet); logs touch; hard-caps active=3
+  pack       write /tmp/dg-busy/structured-hiring-handoff/`);
     return;
   }
   const json = args.includes('--json');
   const cmd = args.find((a) => !a.startsWith('-')) || 'status';
   let role = null;
+  let cand = null;
+  let why = null;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--role' && args[i + 1]) role = args[++i];
     else if (args[i].startsWith('--role=')) role = args[i].slice(7);
+    else if (args[i] === '--cand' && args[i + 1]) cand = args[++i];
+    else if (args[i].startsWith('--cand=')) cand = args[i].slice(7);
+    else if (args[i] === '--why' && args[i + 1]) why = args[++i];
+    else if (args[i].startsWith('--why=')) why = args[i].slice(6);
+  }
+
+  if (cmd === 'shortlist') {
+    try {
+      const out = shortlist({ roleId: role, candId: cand, why });
+      console.log(JSON.stringify(out, null, 2));
+      process.exit(out.ok ? 0 : 1);
+    } catch (e) {
+      console.error(JSON.stringify({ ok: false, error: String(e.message || e) }));
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (cmd === 'pack') {
+    const out = packHandoff();
+    console.log(JSON.stringify(out, null, 2));
+    return;
   }
 
   if (cmd === 'desk') {

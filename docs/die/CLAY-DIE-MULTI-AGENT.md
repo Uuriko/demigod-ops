@@ -492,6 +492,32 @@ Is the goal research quality?
   **338 accounts / 3 changed accounts / 1 newly observed role / 3 closures** on the new observation
   date. No score, contact lookup, send, publish, Cursor, or Phase 2 change.
 
+### 2026-07-30 — Codex (observed hiring velocity)
+
+- Reused `DEMIGOD-HIRING-HISTORY.jsonl` instead of creating a second history product. Legacy public
+  map snapshots and explicitly typed role-ledger observations stay independent under one shared lock.
+- `demigod-signals.json` schema `/3` retains idempotent daily account deltas and derives 7/30-day
+  sums by latest observed snapshot per date. It reports `observedDays` and never invents a weekly
+  rate when fewer than seven observations exist.
+- The first real window is intentionally one observed day: **338 accounts / 3 changed / 1 newly
+  observed / 3 closed / net -2 observed reqs**. Corrupt history fails closed before replacing the
+  last feed; changed same-day revisions replace the derived view while unchanged revisions append
+  once across export generations. No new crawler, provider, score, contact, send, publish, Cursor,
+  or Phase 2 change.
+
+### 2026-07-30 — Codex (zero-failure ATS refresh)
+
+- Traced the sole daily poll failure to Infinite’s retired Ashby board (`404`), not an adapter bug.
+  Reused the existing full jobs refresher: Infinite now falls back to its attributable YC jobs page,
+  while newly verified Gather/Greenhouse keeps the map at **339 boards / 8,145 US-or-Remote roles**.
+- Re-ran the normal observation service against the refreshed identities: **339/339 fetches passed**,
+  no volume anomalies, 12,394 open ledger roles, and the private feed now has **339 accounts / 9
+  changed / 4 newly observed / 7 closed / net -3** for one observed day.
+- Rebuilt ledger aging, the crawlable directory, and the Pulse; drained the existing research reseal
+  at **142/142 source checks** and regenerated the hash-bound export. Dogfooding also removed
+  unchanged same-day history churn across fresh export generations. No publish, send, contact
+  lookup, new provider, Cursor, or Phase 2 change.
+
 *(Agents: add dated bullets below.)*
 
 ---
