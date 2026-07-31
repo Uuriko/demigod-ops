@@ -1,0 +1,42 @@
+{
+  "schema": "demigod.intro-paths-store/1",
+  "updatedAt": "2026-07-31T01:00:00.000Z",
+  "paths": [
+    {
+      "schema": "demigod.intro-path/1",
+      "id": "demo-path-01",
+      "fromPerson": "operator-demo",
+      "toCompany": "yc:demo-co",
+      "toCand": null,
+      "strength": "strong",
+      "evidence": "met founder at SF office hours July 2026",
+      "roleId": "role-demo-founding-eng",
+      "note": "demo fixture — not a real intro",
+      "at": "2026-07-15T18:00:00.000Z"
+    },
+    {
+      "schema": "demigod.intro-path/1",
+      "id": "demo-path-02",
+      "fromPerson": "operator-demo",
+      "toCompany": null,
+      "toCand": "cand-demo-alex",
+      "strength": "weak",
+      "evidence": "prior coffee chat — technical product demo only",
+      "roleId": null,
+      "note": "demo fixture",
+      "at": "2026-07-20T16:00:00.000Z"
+    },
+    {
+      "schema": "demigod.intro-path/1",
+      "id": "demo-path-03",
+      "fromPerson": "advisor-demo",
+      "toCompany": "yc:demo-co",
+      "toCand": null,
+      "strength": "unknown",
+      "evidence": "shared Slack community; never intro'd",
+      "roleId": "role-demo-founding-eng",
+      "note": "demo fixture",
+      "at": "2026-07-22T12:00:00.000Z"
+    }
+  ]
+}

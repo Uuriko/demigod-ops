@@ -11,10 +11,11 @@
 | 3 | Structured role + scorecard (**Ashby / Greenhouse**) | `RolePacket` + `ReviewNote` (evidence-required) | `demigod-role-packet.mjs`, `DEMIGOD-ROLE-PACKETS.json`, `DEMIGOD-REVIEW-NOTES.json` | none (technical product) | `node demigod-role-packet.mjs --selftest` | **shipped** |
 | 4 | Batch cap (**Underdog / Wellfound Autopilot**) | `PilotBatch` max 2–3; terminal before add | `demigod-pilot-batch.mjs`, `DEMIGOD-PILOT-BATCHES.json` | none | `node demigod-pilot-batch.mjs --selftest` | **shipped** |
 | 5 | Touch rediscovery (**Gem**) | `CandidateTouch` append-only + rediscover | `demigod-candidate-touch.mjs`, `DEMIGOD-CANDIDATE-TOUCHES.json` | none | `node demigod-candidate-touch.mjs --selftest` | **shipped** |
+| 4b | Intro path memory (**Affinity** phase-0) | Manual `IntroPath` strength+evidence; warm rank | `demigod-intro-path.mjs`, `DEMIGOD-INTRO-PATHS.json` | none (no connectors) | `node demigod-intro-path.mjs --selftest` | **shipped (manual)** |
 
 ## Explicitly not in top 5 (still researched)
 
-Affinity connectors · Harmonic-scale DB · Metaview bot · Levels product · Paraform marketplace software.
+Affinity **connectors** (Gmail/calendar) · Harmonic-scale DB · Metaview bot · Levels product · Paraform marketplace software.
 
 ## Agent policy when implementing
 

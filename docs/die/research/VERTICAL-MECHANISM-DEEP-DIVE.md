@@ -7,7 +7,7 @@
 **Related:** `COMPETITIVE-LANDSCAPE.md`, strategy roundtable memos under `/tmp/dg-busy/*strategy*`  
 **Implementation matrix:** [`VERTICAL-IMPLEMENTATION-MATRIX.md`](VERTICAL-IMPLEMENTATION-MATRIX.md)  
 **Shipped (rank 1):** [`../CONTROL-BOARD-DESIGN.md`](../CONTROL-BOARD-DESIGN.md) + `demigod-control-board.mjs`  
-**Shipped (rank 3–5):** [`../ROLE-PACKET-DESIGN.md`](../ROLE-PACKET-DESIGN.md) + `demigod-role-packet.mjs`, `demigod-pilot-batch.mjs`, `demigod-candidate-touch.mjs`
+**Shipped (rank 3–5 + Affinity phase-0):** [`../ROLE-PACKET-DESIGN.md`](../ROLE-PACKET-DESIGN.md) + `demigod-role-packet.mjs`, `demigod-pilot-batch.mjs`, `demigod-candidate-touch.mjs`, `demigod-intro-path.mjs` (manual strength+evidence only)
 
 This document is not a build order. Each vertical is researched as: **what successful companies sell → the underlying mechanism → what Demigod already has → a thin owned version → gate / kill / non-goals**.
 

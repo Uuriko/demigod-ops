@@ -2348,7 +2348,19 @@ const JOBS = Object.assign(Object.create(null), {
     timeout: 10000,
     safe: true,
   },
+  'intro-path': {
+    cmd: 'node',
+    args: ['demigod-intro-path.mjs', 'warm', '--json'],
+    timeout: 10000,
+    safe: true,
+  },
   'control-board': { cmd: 'node', args: ['demigod-control-board.mjs', '--json'], timeout: 30000, safe: true },
+  'control-board-history': {
+    cmd: 'node',
+    args: ['demigod-control-board.mjs', 'history', '--json', '--n=12'],
+    timeout: 10000,
+    safe: true,
+  },
   'reseal-queue': { cmd: 'node', args: ['demigod-reseal-queue.mjs', 'status'], timeout: 10000, safe: true },
   'reseal-run': {
     cmd: 'node',
@@ -4506,6 +4518,35 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/control-board') {
       try {
         const pretty = url.searchParams.get('pretty') === '1';
+        const wantHist = url.searchParams.get('history') === '1';
+        if (wantHist) {
+          const n = Math.min(50, Math.max(1, Number(url.searchParams.get('n') || 12) || 12));
+          const histPath = path.join(BUSY, 'control-board-history.jsonl');
+          let rows = [];
+          if (fs.existsSync(histPath)) {
+            rows = fs
+              .readFileSync(histPath, 'utf8')
+              .split('\n')
+              .filter(Boolean)
+              .slice(-n)
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter(Boolean)
+              .reverse();
+          }
+          jsonSend(
+            res,
+            200,
+            { schema: 'demigod.control-board-history/1', at: new Date().toISOString(), n: rows.length, rows },
+            { pretty },
+          );
+          return;
+        }
         const { evaluateControls, writeBoard } = await import('./demigod-control-board.mjs');
         const board = evaluateControls({
           strictResearch: url.searchParams.get('strict') === '1',

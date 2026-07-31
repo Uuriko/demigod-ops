@@ -372,15 +372,22 @@ function main() {
   atomicWrite(OUT, `${JSON.stringify(st, null, 2)}\n`, { mode: 0o600 });
   if (json) console.log(JSON.stringify(st, null, 2));
   else {
-    console.log(`# structured-hiring · packets=${st.counts.packets} batches=${st.counts.batches} touches=${st.counts.touches}`);
+    console.log(
+      `# structured-hiring · packets=${st.counts.packets} batches=${st.counts.batches} touches=${st.counts.touches} intros=${st.counts.introPaths}`,
+    );
     for (const p of st.packets) {
-      console.log(`  packet ${p.roleId} · ${p.title} · musts=${p.mustHaves}`);
+      console.log(`  packet ${p.roleId} · ${p.title} · musts=${p.mustHaves}${p.stage ? ` · ${p.stage}` : ''}`);
     }
     for (const b of st.batches) {
       console.log(`  batch  ${b.roleId} · ${b.active}/${b.max}`);
     }
     for (const h of st.rediscoverTop.slice(0, 5)) {
       console.log(`  rediscover ${h.candId} · touches=${h.touches} · roles=${h.roleHits}`);
+    }
+    for (const w of (st.warmPaths || []).slice(0, 5)) {
+      console.log(
+        `  warm ${w.bestStrength} · ${w.toCand || w.toCompany} · paths=${w.paths}`,
+      );
     }
     console.log(`  receipt: ${OUT}`);
   }

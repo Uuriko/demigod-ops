@@ -111,6 +111,13 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   assert(html.includes('Alpha Robotics') && html.includes('12 open roles on Ashby'), 'verified company + count in served HTML');
   assert(html.includes('longest tracked 11d (our first seen)'), 'observed open-age is crawlable');
   assert(html.includes('4 open ≥7d tracked'), 'observed7 is crawlable');
+  // CH-15 longer thresholds prefer over shorter when present
+  const long = buildStaticDirectory({
+    ...fake,
+    companies: [{ ...fake.companies[0], observed90: 2, observed30: 5, observed7: 8 }],
+  });
+  assert(long.includes('2 open ≥90d tracked'), 'observed90 preferred badge');
+  assert(!long.includes('open ≥7d tracked') || long.includes('≥90d'), 'shorter threshold demoted');
   assert(html.includes('San Francisco startups that are hiring'), 'crawlable heading');
   assert(html.includes('application/ld+json') && html.includes('"@type":"ItemList"'), 'JSON-LD present');
   // honest JSON-LD: only the verified company (Alpha), NOT the YC self-report (Beta)

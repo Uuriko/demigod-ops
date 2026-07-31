@@ -546,13 +546,14 @@ pre{
   </div>
   <div id="panel-tools" class="panel">
     <div class="card wide" id="structuredHiringCard">
-      <h2><span>Structured hiring</span><span class="meta" id="shMeta">Ashby · Underdog · Gem</span></h2>
+      <h2><span>Structured hiring</span><span class="meta" id="shMeta">Ashby · Underdog · Gem · Affinity</span></h2>
       <div class="meta" id="shBody">Loading…</div>
       <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem">
         <button type="button" class="ghost" id="btnShRefresh">Refresh</button>
         <button type="button" class="ghost" id="btnShJob" title="Run structured-hiring job">Run status job</button>
+        <button type="button" class="ghost" id="btnCbJob" title="Run control-board job">Control board</button>
       </div>
-      <div class="meta" style="margin-top:.4rem">CLI: <code>node demigod-structured-hiring.mjs status|desk --role=…</code> · API: <code>/api/structured-hiring</code></div>
+      <div class="meta" style="margin-top:.4rem">CLI: <code>node demigod-structured-hiring.mjs status|desk --role=…</code> · intro: <code>node demigod-intro-path.mjs warm</code> · API: <code>/api/structured-hiring</code> · <code>/api/control-board?history=1</code></div>
     </div>
     <div class="card wide">
       <h2><span>Tools registry</span><span class="meta" id="toolsMeta">—</span></h2>
@@ -1198,7 +1199,8 @@ function renderOverview(d){
       const packs=c.packets??sh.packets??0;
       const slots=c.activeBatchSlots??0;
       const touches=c.touches??0;
-      return '<div><strong>'+esc(String(packs))+'</strong> <span class="meta">scorecards</span> · <strong>'+esc(String(slots))+'</strong> <span class="meta">batch slots</span> · <strong>'+esc(String(touches))+'</strong> <span class="meta">touches</span> <button type="button" class="ghost" id="btnGoShTools" style="margin-left:.35rem">Structured hiring</button></div>';
+      const intros=c.introPaths??0;
+      return '<div><strong>'+esc(String(packs))+'</strong> <span class="meta">scorecards</span> · <strong>'+esc(String(slots))+'</strong> <span class="meta">batch slots</span> · <strong>'+esc(String(touches))+'</strong> <span class="meta">touches</span> · <strong>'+esc(String(intros))+'</strong> <span class="meta">intro paths</span> <button type="button" class="ghost" id="btnGoShTools" style="margin-left:.35rem">Structured hiring</button></div>';
     })(),
     '</div><div class="demand-row" id="demandChips" aria-label="Demand status"></div></div>',
 
@@ -1516,18 +1518,21 @@ async function loadStructuredHiring(){
     const j=await r.json().catch(()=>null);
     if(!r.ok||!j) throw new Error(j&&j.error||('HTTP '+r.status));
     const c=j.counts||{};
-    const packs=(j.packets||[]).slice(0,6).map(p=>esc(p.roleId)+' · '+esc(p.title||'')+' · musts='+(p.mustHaves||0)).join('<br>');
+    const packs=(j.packets||[]).slice(0,6).map(p=>esc(p.roleId)+' · '+esc(p.title||'')+' · musts='+(p.mustHaves||0)+(p.stage?' · '+esc(p.stage):'')).join('<br>');
     const batches=(j.batches||[]).map(b=>esc(b.roleId)+' · '+b.active+'/'+b.max+' active').join('<br>');
     const redis=(j.rediscoverTop||[]).slice(0,4).map(h=>esc(h.candId)+' · touches='+h.touches).join('<br>');
+    const warm=(j.warmPaths||[]).slice(0,4).map(w=>esc(w.bestStrength)+' · '+esc(w.toCand||w.toCompany||'?')+' · paths='+w.paths).join('<br>');
     body.innerHTML=
       '<div><strong>packets</strong> '+(c.packets||0)+
       ' · <strong>notes</strong> '+(c.reviewNotes||0)+
       ' · <strong>batches</strong> '+(c.batches||0)+
       ' · <strong>active slots</strong> '+(c.activeBatchSlots||0)+
-      ' · <strong>touches</strong> '+(c.touches||0)+'</div>'+
+      ' · <strong>touches</strong> '+(c.touches||0)+
+      ' · <strong>intro paths</strong> '+(c.introPaths||0)+'</div>'+
       (packs?'<div class="meta" style="margin-top:.4rem"><strong>Packets</strong><br>'+packs+'</div>':'')+
       (batches?'<div class="meta" style="margin-top:.35rem"><strong>Batches</strong><br>'+batches+'</div>':'')+
       (redis?'<div class="meta" style="margin-top:.35rem"><strong>Rediscover</strong><br>'+redis+'</div>':'')+
+      (warm?'<div class="meta" style="margin-top:.35rem"><strong>Warm intro paths</strong><br>'+warm+'</div>':'')+
       '<div class="meta" style="margin-top:.35rem">'+(j.policy?esc(j.policy):'')+'</div>';
     if($('shMeta')) $('shMeta').textContent=(j.at||'').slice(0,19)+'Z · no fit score';
   }catch(e){
@@ -1563,6 +1568,7 @@ async function loadTools(){
       };
       if ($('btnShRefresh')) $('btnShRefresh').onclick=()=>loadStructuredHiring();
       if ($('btnShJob')) $('btnShJob').onclick=()=>runJob('structured-hiring');
+      if ($('btnCbJob')) $('btnCbJob').onclick=()=>runJob('control-board');
     }
   }catch(e){ if(gen===toolsLoadGen) $('toolsRoot').innerHTML='<div class="bad">'+esc(e.message)+'</div>'; }
 }
