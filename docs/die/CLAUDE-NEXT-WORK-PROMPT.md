@@ -218,3 +218,32 @@ rewiring the route.
 
 **Also:** `demigod-tools-registry.mjs:111` describes the generator as emitting "JobPosting/ItemList
 JSON-LD". It emits ItemList only; the JobPosting guard is deliberate (we do not own those roles).
+
+### 3.9 — Producers with no deployer *(the pattern behind 3.8)*
+
+Three separate producers generate correct output that never reaches a user. This is one defect
+class, not three bugs, and it is worth checking for whenever a "we already built that" claim shows up.
+
+1. **`sf-startups-static.html`** — 518KB, generated every refresh, deployed by nothing (3.8).
+2. **`startupsSeo(map)` in `demigod-site-health.mjs`** — derives the exact `/startups` title, og:title
+   and description from the map so no human retypes a count. **It has no caller.** `grep -n
+   'startupsSeo('` outside site-health returns nothing; it exists only for its own selftest.
+   Consequence, measured 2026-07-31: live head claims **2,737 companies / 339 hiring**, disk map
+   holds **2,735 / 338**. `startupsSeoDrift` correctly reds — and will red forever, because the
+   deriver was never wired to a publisher.
+3. **Reporters from 3.7** — `roles-feed` and `source-flakiness` still run on no schedule.
+
+**Do not "fix" #2 by hand-editing the live head.** The map churns on every refresh, so a manual
+correction is stale within hours and the gate goes back to red. The real fix wires `startupsSeo(map)`
+into whatever republishes page SEO. That needs the Webflow MCP, which was **not available in the
+2026-07-31 session** (no webflow tools in the deferred set) — check availability before planning it.
+
+**Design tension to settle first, because it decides the shape of the fix:** exact counts in indexed
+metadata go stale on every refresh by construction. Either the publish is driven by the refresh, or
+the copy stops claiming an exact number. Picking "republish on every refresh" means a Webflow publish
+per refresh — check the rate before committing to it.
+
+**Ruled out, do not re-investigate:** canonical tags. Absent from served HTML *by design*
+(`demigod-site-health.mjs:19-21`); foot-core injects them at runtime and they correctly consolidate
+`/pilot` and `/founders` onto `/hire` and `/network` onto `/talent`. Verified via CDP 2026-07-31.
+The 26-of-32 sitemap URLs that the head shim bounces are already reconciled by those canonicals.
