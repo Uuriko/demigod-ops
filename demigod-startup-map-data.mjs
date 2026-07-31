@@ -217,7 +217,13 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
     }
     out.push({ ...row });
     const idx = out.length - 1;
-    if (host) hostIndex.set(host, idx);
+    // Deliberate asymmetry. The BOARD key is identity: one ATS board belongs to one company, so a
+    // later shell pointing at the same board is the same company and may absorb. A shared HOST is
+    // NOT identity — Wikidata carries RockLive (Q7354178) and Shots Podcast Network (Q15977863) as
+    // separate entities both listing shots.com, and indexing secondary rows by host merged them
+    // into one. That is the false merge this module's own comment warns is worse than carrying a
+    // duplicate, and it poisons every downstream claim about both companies. Secondary rows are
+    // therefore indexed by board only; host matching stays anchored to primary rows.
     if (board?.startsWith('board:')) boardIndex.set(board, idx);
   }
   return out.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));

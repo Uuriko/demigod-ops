@@ -118,3 +118,29 @@ test('mergeNamedCompanies dedupes by website host and keeps YC primary', () => {
   assert.equal(docker.atsSource, 'Greenhouse');
   assert.ok(merged.some((c) => c.id === 'wd:Q2'));
 });
+
+test('an ATS-only HN shell absorbs into the row that owns that board, but a shared host still does not merge', () => {
+  // Board identity: one ATS board belongs to one company, so a shell pointing at the same board is
+  // the same company. This is the fix for HN rows that correctly reject an ATS URL as a website and
+  // are therefore left with no host key at all — without it they inflate the published count.
+  const yc = [{ id: 'yc:middesk', name: 'Middesk', website: 'https://middesk.com/', jobsUrl: 'https://jobs.ashbyhq.com/middesk', atsSource: 'Ashby' }];
+  const shell = [{ id: 'hn:jobs.ashbyhq.com/middesk', name: 'Middesk', website: null, hiring: 'yes' }];
+  const absorbed = mergeNamedCompanies(yc, shell);
+  assert.deepEqual(absorbed.map((r) => r.id), ['yc:middesk'], 'ATS-only shell must absorb, not inflate');
+  assert.equal(absorbed[0].hiring, 'yes', 'and its hiring signal carries over');
+
+  // The asymmetry that must hold at the same time: a shared HOST is not identity. Indexing
+  // secondary rows by host merges two genuinely distinct entities, which is worse than a duplicate.
+  const sameHost = mergeNamedCompanies([], [
+    { id: 'wd:Q7354178', name: 'RockLive', website: 'https://shots.com/' },
+    { id: 'wd:Q15977863', name: 'Shots Podcast Network', website: 'https://shots.com/' },
+  ]);
+  assert.equal(sameHost.length, 2, 'distinct entities sharing a host are never collapsed');
+
+  // A shell whose board nobody owns stays its own row rather than attaching to a same-named company.
+  const orphan = mergeNamedCompanies(
+    [{ id: 'yc:other', name: 'Middesk', website: 'https://other.example/' }],
+    [{ id: 'hn:jobs.ashbyhq.com/middesk', name: 'Middesk', website: null }],
+  );
+  assert.equal(orphan.length, 2, 'a name match alone must never absorb a shell');
+});
