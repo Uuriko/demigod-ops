@@ -17,6 +17,8 @@ import { refuseIfStale } from './demigod-evidence.mjs';
 import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 import { atomicWrite, isPlainObject } from './demigod-agent-tools-lib.mjs';
 import { resealDue } from './demigod-reseal-queue.mjs';
+import { hiringFreshness } from './demigod-hiring-freshness.mjs';
+import { identityReview } from './demigod-identity-review.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -577,6 +579,102 @@ export function evaluateControls(opts = {}) {
     controls.push(control('reseal_schedule_ok', 'low', true, `n/a ${e.message || e}`));
   }
 
+  // —— CH-15 / AR-25: observed ages still shallow (informative; never fail exit) ——
+  {
+    const agingP = path.join(opts.root || root, 'DEMIGOD-DIRECTORY-AGING.json');
+    const agingProbe = readJsonProbe(agingP);
+    if (!agingProbe.exists) {
+      controls.push(
+        control('directory_observed_ages', 'low', true, 'n/a — no directory aging asset', {
+          path: agingP,
+        }),
+      );
+    } else if (agingProbe.error || !isPlainObject(agingProbe.value)) {
+      controls.push(
+        control(
+          'directory_observed_ages',
+          'low',
+          false,
+          `aging asset unreadable: ${agingProbe.error || 'invalid_shape'}`,
+          { path: agingP },
+        ),
+      );
+    } else {
+      let maxObs = 0;
+      const cos = agingProbe.value.companies;
+      if (cos && typeof cos === 'object') {
+        for (const c of Object.values(cos)) {
+          if (Number(c?.oldestObservedDays) > maxObs) maxObs = Number(c.oldestObservedDays);
+        }
+      }
+      const badgesReady = maxObs >= 7;
+      controls.push(
+        control(
+          'directory_observed_ages',
+          'low',
+          true,
+          badgesReady
+            ? `observed ages deep enough for ≥7d badges · max=${maxObs}d`
+            : `observed ages young · max=${maxObs}d · ≥7d badges pending daily role-ledger timer (do not thrash poll)`,
+          { maxOldestObservedDays: maxObs, badges7dReady: badgesReady },
+        ),
+      );
+    }
+  }
+
+  // —— Claude reporters wired in. Four existed and none ran on a schedule; a reporter nobody runs
+  // finds nothing. Both are informative (never fail board exit) and both are wrapped, because a
+  // reporter throwing must not take the board down — that is exactly how this file hard-crashed
+  // on `status` earlier today while its selftest reported all-green.
+  try {
+    const ledgerProbe = readJsonProbe(path.join(opts.root || root, 'DEMIGOD-ROLE-LEDGER.json'));
+    if (!ledgerProbe.exists || !ledgerProbe.value) {
+      controls.push(control('posting_age_claim_qualified', 'low', true, 'n/a — no role ledger'));
+    } else {
+      const c = hiringFreshness(ledgerProbe.value).corpus;
+      // The directory publishes a median posting age per company. It rests on the employer's
+      // first_published date, which ATS platforms recycle on 30-90 day cycles. The threshold was
+      // fixed before the first measurement so the verdict cannot be rationalised after the fact.
+      controls.push(
+        control(
+          'posting_age_claim_qualified',
+          'med',
+          !c.claimQualificationNeeded,
+          c.claimQualificationNeeded
+            ? `posting-date recycling ${c.postedDateRecycledPctOfDated}% > ${c.claimQualificationThresholdPct}% — published median ages are understated, qualify the public copy`
+            : `posting-date recycling ${c.postedDateRecycledPctOfDated}% within tolerance · published ages hold (lower bound)`,
+          { recycledPct: c.postedDateRecycledPctOfDated, thresholdPct: c.claimQualificationThresholdPct, datedRoles: c.datedRoles },
+        ),
+      );
+    }
+  } catch (e) {
+    controls.push(control('posting_age_claim_qualified', 'low', true, `n/a ${e.message || e}`));
+  }
+
+  try {
+    const mapProbe = readJsonProbe(path.join(opts.root || root, 'DEMIGOD-SF-STARTUP-MAP.json'));
+    if (!mapProbe.exists || !mapProbe.value) {
+      controls.push(control('directory_identity_candidates', 'low', true, 'n/a — no startup map'));
+    } else {
+      const r = identityReview(mapProbe.value).counts;
+      // Informative, never a failure: a candidate is a question for a human, not a defect. Merging
+      // on a name match would destroy the genuinely distinct companies that share one.
+      controls.push(
+        control(
+          'directory_identity_candidates',
+          'low',
+          true,
+          r.reviewCandidates
+            ? `${r.reviewCandidates} possible duplicate row(s) — up to ${r.inflationUpperBound} of the published company count; review, never auto-merge`
+            : 'no identity review candidates',
+          { reviewCandidates: r.reviewCandidates, inflationUpperBound: r.inflationUpperBound, distinctWebsites: r.distinctWebsites },
+        ),
+      );
+    }
+  } catch (e) {
+    controls.push(control('directory_identity_candidates', 'low', true, `n/a ${e.message || e}`));
+  }
+
   const highFail = controls.filter((c) => c.severity === 'high' && !c.ok);
   // Default: research_seal high-fail does not fail board exit (expected after map stamp).
   const exitFailers = highFail.filter((c) => {
@@ -670,6 +768,7 @@ function selftest() {
     'structured_hiring_no_score',
     'export_board_identity_clean',
     'reseal_schedule_ok',
+    'directory_observed_ages',
   ]) {
     assert(ids.has(need), `missing ${need}`);
   }

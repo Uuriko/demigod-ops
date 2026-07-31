@@ -146,7 +146,7 @@ two rows might be one company, never auto-merge, queue ambiguity for review.
 
 ---
 
-### 3.7 — Wire the reporters into a continuous surface *(open, needs the control-board owner)*
+### 3.7 — Wire the reporters into a continuous surface — **2 of 4 DONE**
 
 Four reporters exist and NONE run on a schedule: `hiring-freshness`, `roles-feed`,
 `source-flakiness`, `identity-review`. A reporter nobody runs finds nothing, so their real value is
@@ -159,8 +159,10 @@ Two are ready to wire as one-liners today:
 - `identityReview().counts.reviewCandidates` — currently 6; each is a possible duplicate row in a
   directory that publishes a company count.
 
-Not done here because the control board was mid-edit by its owner. Hand it over rather than
-collide.
+**Done 2026-07-31:** posting_age_claim_qualified and directory_identity_candidates are live in
+demigod-control-board.mjs (18 controls). Verified on the  path, not just the selftest.
+Still unwired: roles-feed (an artifact, not an invariant) and source-flakiness (wire when a
+recurring flake actually costs someone time).
 
 ## 4. Explicitly do NOT do
 
