@@ -41,7 +41,7 @@ PUBLIC (CDN / Webflow / foot)
 
 PRIVATE (this laptop)
   map + role ledger + research seal
-    → demigod.recruitai-export/3  (/tmp/dg-busy/recruitai-export/)
+    → demigod.recruitai-export/4  (/tmp/dg-busy/recruitai-export/)
     → partner preview (lead-sourcer)
     → import-sourcer dry-run
     → match-review / pairs / intro drafts
@@ -517,6 +517,8 @@ Is the goal research quality?
   at **142/142 source checks** and regenerated the hash-bound export. Dogfooding also removed
   unchanged same-day history churn across fresh export generations. No publish, send, contact
   lookup, new provider, Cursor, or Phase 2 change.
+
+- **Work-queue duplicate keys (open, owner: work-find/useful-loop).** `demigod-work-queue-dedupe.test.mjs` has been red for hours; root cause is not the test. `pushWork` hour-buckets repeatable keys, but `always: true` bypasses the seen-set entirely, so `enrich:truth-seal-live` re-queues on every discovery run. Reproduced hermetically: two runs in a fresh `DEMIGOD_BUSY` give queue=5 then queue=6 while `seen` stays 4, and the queue ends up holding `2x enrich:truth-seal-live@2026-07-31T03` — two rows, identical key, same hour. Independent of the test, that means the same work is queued twice. The fix is a semantics call I did not want to make in someone else's queue: either `always` items are exempt from the idempotence contract (and the test should say so), or an `always` push should skip when an OPEN row with that key already exists. `control-board-stale` and `reseal-weekly` are only `repeatable`, dedupe correctly, and are NOT the cause.
 
 *(Agents: add dated bullets below.)*
 
