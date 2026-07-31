@@ -43,14 +43,25 @@ export function analyzeRoute(s = {}, opts = {}) {
   return issues;
 }
 
-/** PURE: visible text length of a served HTML document's body, script/style removed. */
+/**
+ * PURE: visible text length of a served HTML document's body, script/style removed.
+ * Single source of truth — demigod-site-health.mjs wraps this rather than keeping a second copy.
+ * The two had already drifted in opposite directions before being merged: this one dropped
+ * <noscript> while the other required a closing </body> and returned a false 0 without one.
+ *
+ * <noscript> is deliberately KEPT. This measures what a non-rendering consumer receives, and
+ * noscript content is precisely what such a consumer displays — stripping it understates crawlable
+ * text and would flag a page as js-only-body when it has a real no-JS fallback.
+ */
 export function staticBodyTextLength(html) {
   const source = String(html || '');
   const start = source.toLowerCase().indexOf('<body');
   if (start < 0) return 0;
   return source
     .slice(start)
-    .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    // Explicit: a comment containing '>' is not fully removed by the generic tag strip below.
+    .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&[a-z#0-9]+;/gi, ' ')
     .replace(/\s+/g, ' ')
@@ -117,7 +128,11 @@ export async function audit() {
   return { ok, results };
 }
 
-if (process.argv.includes('--selftest')) {
+// isMain is load-bearing, not decoration. Without it, ANY module that imports this one and is run
+// with --selftest has its own selftest hijacked: this block runs instead and calls process.exit(0),
+// so the importer reports success having asserted nothing. Found 2026-07-31 when site-health began
+// importing staticBodyTextLength and its selftest started printing {"selftest":"seo-audit"}.
+if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const codes = (s, o) => analyzeRoute(s, o).map((i) => i.code);
   const clean = { title: 'Pricing · Demigod', metaDesc: 'x'.repeat(130), ogTitle: 'Pricing', canonical: 'https://x/pricing', h1Count: 1, ldTypes: [], consoleErrors: 0 };
@@ -142,6 +157,10 @@ if (process.argv.includes('--selftest')) {
   assert(staticBodyTextLength('<html><body> <script>var x=1</script> Hello  world </body></html>') === 11, 'body text length ignores script');
   assert(staticBodyTextLength('<html><body><!-- c --></body></html>') === 0, 'comment-only body is empty');
   assert(staticBodyTextLength('') === 0 && staticBodyTextLength(null) === 0, 'no html -> 0');
+  assert(staticBodyTextLength('<html><body><!-- a > b --></body></html>') === 0, 'a comment containing > is still not content');
+  // Regression on the merge: noscript is crawlable text, so it must COUNT, not be stripped.
+  assert(staticBodyTextLength('<html><body><noscript>Real fallback</noscript></body></html>') === 13, 'noscript content counts as crawlable');
+  assert(staticBodyTextLength('<html><body>Hi</body>') === 2, 'a missing </body> must not read as an empty page');
   assert(hasErrors([{ sev: 'error', code: 'x' }]) && !hasErrors([{ sev: 'warn', code: 'y' }]), 'hasErrors gates on error sev only');
   console.log(JSON.stringify({ ok: true, selftest: 'seo-audit' }));
   process.exit(0);

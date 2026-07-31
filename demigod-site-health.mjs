@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractDeclaredRoutes, auditRoutes } from './demigod-route-audit.mjs';
 import { siteCounters } from './demigod-site-counters.mjs';
+import { staticBodyTextLength } from './demigod-seo-audit.mjs';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SITE = (process.env.DEMIGOD_SITE || 'https://www.trydemigod.com').replace(/\/$/, '');
@@ -41,16 +42,17 @@ export function servedSeo(html) {
 // exact failure that already happened once, when a 518KB static directory was generated and never
 // deployed and nothing noticed. Report the number; a human decides what it should be.
 export function servedBodyText(html) {
-  const body = /<body[^>]*>([\s\S]*)<\/body>/i.exec(String(html || ''))?.[1] || '';
-  const text = body
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  const chars = staticBodyTextLength(html);
+  // Sample is for a human reading the report; the LENGTH is the measured invariant.
+  const body = /<body[^>]*>([\s\S]*)/i.exec(String(html || ''))?.[1] || '';
+  const sample = body
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z#0-9]+;/gi, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
-  return { chars: text.length, crawlableWithoutJs: text.length > 0, sample: text.slice(0, 80) };
+    .trim()
+    .slice(0, 80);
+  return { chars, crawlableWithoutJs: chars > 0, sample };
 }
 
 const nfmt = (n) => Number(n).toLocaleString('en-US');
