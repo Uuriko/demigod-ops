@@ -101,14 +101,18 @@ zero only because no poll has run since it was added.
 **Trap:** the first poll gives *prevalence* (roles currently drifted from our floor), not a *rate*.
 Rate needs two or more polls. Do not report the first census as a rate.
 
-### 3.2 — Evidence scoping and ignore-filters
+### 3.2 — Evidence scoping and ignore-filters — **DONE by Grok (quote-window-v1)**
 
 **Why:** measured 2026-07-29 — 24 of 48 pages changed `sha256` in four hours while all 142 quotes
 still matched. Body hash tracks CSRF tokens, render timestamps, analytics nonces. `textSha256` over
 visible text was the right instinct; changedetection.io's **CSS/xPath scoping + ignore-filters** are
 the mature form. Hash the region the quote lives in, not the page.
 
-**Acceptance:** churn measurably drops on a re-run over the same corpus, with the before/after
+**Superseded 2026-07-31:** Grok shipped a +/-256 char window around the accepted quote
+(evidenceTextSha256, EVIDENCE_TEXT_HASH_VERSION). Better than the CSS/xPath proposal — no selector
+or config system at all. Do not rebuild.
+
+**Original acceptance:** churn measurably drops on a re-run over the same corpus, with the before/after
 numbers recorded. Quote-match behaviour must be unchanged — poison it to prove a moved quote still
 fails.
 
