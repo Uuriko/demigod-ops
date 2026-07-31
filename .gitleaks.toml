@@ -1,0 +1,31 @@
+# Gitleaks config for demigod-ops.
+# Real credentials must never be allowlisted. Only known false positives:
+# test doubles, localStorage key names, archived game bundles.
+
+title = "demigod-ops"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "False positives — not live credentials"
+paths = [
+  '''GAME-CODE-.*''',
+  '''pause-journal\.js''',
+  '''overworld\.js''',
+  '''vinyl-.*\.js''',
+  '''game-progress\.js''',
+  '''pixel-gfx\.js''',
+  '''ninjawhee-eat-the-sounds\.html''',
+  '''eat-the-sounds/.*''',
+]
+
+regexTarget = "match"
+regexes = [
+  # Intentional fake Webflow token used only in privacy unit tests
+  '''wf_live_privacy_sentinel_6472''',
+  # Dogfood test cycle id (not an API key)
+  '''gates-cycle-6573''',
+  # Browser localStorage namespace for archived game
+  '''eat-sounds-journal-v2''',
+]

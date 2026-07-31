@@ -66,6 +66,28 @@ jobs:
       - name: Import integrity
         run: node demigod-import-integrity.mjs
 
+  secrets:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Free OSS scanner (MIT). Personal/account repos need no org license for the binary.
+      # Agents have committed tokens before; this fails the push closed rather than hoping.
+      - name: Install gitleaks
+        run: |
+          VER=$(curl -sS https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r .tag_name | sed 's/^v//')
+          curl -sSL -o /tmp/gitleaks.tgz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tgz -C /tmp
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+      - name: Detect secrets
+        # --exit-code 1 fails the job on any non-allowlisted finding.
+        # Config: .gitleaks.toml (false-positive allowlist only; never real secrets).
+        run: gitleaks detect --source . --verbose --redact --exit-code 1 --config .gitleaks.toml
+
   gate-coverage:
     name: gate coverage (advisory)
     runs-on: ubuntu-latest
