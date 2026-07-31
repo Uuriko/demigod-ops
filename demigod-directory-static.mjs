@@ -185,5 +185,24 @@ if (isMain) {
   const html = buildStaticDirectory(map);
   const outPath = path.join(outDir, 'sf-startups-static.html');
   fs.writeFileSync(outPath, html);
-  console.log(JSON.stringify({ ok: true, outPath, companies: map.companies.length, bytes: html.length }));
+  // Deployability, reported every run. This file exists so crawlers get real company content
+  // without executing JS — but measured 2026-07-31, the live /startups serves ZERO company names
+  // and none of this file's markup, because at ~516KB it is roughly 10x Webflow's ~50k
+  // custom-code ceiling and has never been pasted anywhere. Emitting {ok:true} for output that
+  // cannot be deployed is a vacuous green: the generator succeeded, the purpose did not.
+  // This does not fail the build — trimming or paginating is a product decision, not something a
+  // generator should force — but it can no longer be silent.
+  const DEPLOYABLE_BYTES = 50000;
+  const deployable = html.length <= DEPLOYABLE_BYTES;
+  if (!deployable) {
+    console.error(
+      `directory-static: ${html.length} bytes exceeds the ~${DEPLOYABLE_BYTES} byte embed ceiling — ` +
+      'this snapshot cannot be pasted into the site as-is, so crawlers still see a JS-only page. ' +
+      'Trim, paginate, or serve it from the CDN.',
+    );
+  }
+  console.log(JSON.stringify({
+    ok: true, outPath, companies: map.companies.length, bytes: html.length,
+    deployable, deployableCeilingBytes: DEPLOYABLE_BYTES,
+  }));
 }
