@@ -187,3 +187,34 @@ recurring flake actually costs someone time).
 4. Local suite + `verify-all` green; CI green.
 5. Attribution checked if anything unrelated broke.
 6. Committed with the reasoning, pushed. Peer modules tracked if a tracked file imports them.
+
+---
+
+### 3.8 — The crawlable directory is not crawlable *(found 2026-07-31, needs a product call)*
+
+**Measured, not inferred.** `curl https://www.trydemigod.com/startups` served HTML contains:
+- 0 occurrences of `OpenAI`, `Databricks`, `Anthropic`, `Stripe`, `Neuralink`
+- 0 occurrences of `dg-dir-list`, `median posting`, `open roles on`, `longest tracked`
+
+Rendered DOM has 20 company rows, so **users are fine and crawlers see nothing**. The directory is
+the largest content asset we have (2,735 companies) and it is invisible to any crawler that does not
+execute JS.
+
+`sf-startups-static.html` was built to close this and **nothing deploys it** — grep found only
+producers (`demigod-enrichment.mjs:293`, `demigod-directory-refresh.mjs:26`, a `verify-all`
+selftest). At 518,658 bytes it is ~10x the ~50k embed ceiling, which is the likely reason it never
+shipped. The generator reported `{ok:true}` either way; it now reports `deployable` and warns.
+
+**Not fixed here, deliberately.** The three options trade off against each other and the choice is
+not a generator's to make:
+1. Trim to top N companies — fits, but publishes an arbitrary subset
+2. Paginate into per-letter or per-segment pages — most SEO value, most surface area
+3. Serve from the CDN — cheapest, but off-domain and worth little for SEO
+
+**Trap for whoever takes it:** `bin/dg truth` reporting `live body == disk` proves bytes match, not
+that a crawler sees content. Two redirect layers sit in front of `/startups` (Webflow 301s + the
+`dg-path-redirects` head shim that rewrites even 200 pages to `/?p=`) — read the shim before
+rewiring the route.
+
+**Also:** `demigod-tools-registry.mjs:111` describes the generator as emitting "JobPosting/ItemList
+JSON-LD". It emits ItemList only; the JobPosting guard is deliberate (we do not own those roles).
