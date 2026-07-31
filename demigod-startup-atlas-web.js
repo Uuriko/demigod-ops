@@ -7,8 +7,26 @@
   // community-submission merge, and every honesty label from the prior atlas.
   var source = document.currentScript && document.currentScript.src;
   var dataUrl = source ? new URL('sf-startup-map.json', source).href : '';
+  // Pure ordering rule, hoisted so it can be exercised directly by a test rather than asserted
+  // as a source pattern. A company with NO measured median posting age sorts LAST in both
+  // directions: treating unknown as 0 would rank an unmeasured board as the freshest on the page,
+  // which is a claim we cannot make — we only know a median where the employer published a date
+  // we trust. Ties and unknown-vs-unknown fall back to name so the order stays stable.
+  function dgOrderByMedian(direction) {
+    var newestFirst = direction === 'fresh';
+    return function (aMed, bMed, aName, bName) {
+      var a = (typeof aMed === 'number' && isFinite(aMed)) ? aMed : null;
+      var b = (typeof bMed === 'number' && isFinite(bMed)) ? bMed : null;
+      if (a === null && b === null) return String(aName).localeCompare(String(bName));
+      if (a === null) return 1;
+      if (b === null) return -1;
+      if (a === b) return String(aName).localeCompare(String(bName));
+      return newestFirst ? a - b : b - a;
+    };
+  }
+
   var state = {
-    baseMap: null, root: null, query: '', hiring: '', func: '', provider: '',
+    baseMap: null, root: null, query: '', hiring: '', func: '', provider: '', sort: 'roles',
     communityStartups: Array.isArray(window.dgCommunityStartups) ? window.dgCommunityStartups : [],
   };
 
@@ -62,9 +80,9 @@
     style.textContent =
       '.dg-dir-intro{max-width:72ch;color:#d6d3cc;line-height:1.6;margin:.1rem 0 1rem}' +
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
-      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider{min-height:44px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
+      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:44px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
-      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-row a:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
       '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}' +
@@ -212,7 +230,13 @@
       providers.map(function (provider) {
         var value = provider.toLowerCase();
         return '<option value="' + esc(value) + '"' + (state.provider === value ? ' selected' : '') + '>' + esc(provider) + '</option>';
-      }).join('') + '</select></div>' +
+      }).join('') + '</select>' +
+      '<select class="dg-dir-sort" aria-label="Sort companies">' +
+        '<option value="roles"' + (state.sort === 'roles' ? ' selected' : '') + '>Most open roles</option>' +
+        '<option value="fresh"' + (state.sort === 'fresh' ? ' selected' : '') + '>Freshest postings</option>' +
+        '<option value="stale"' + (state.sort === 'stale' ? ' selected' : '') + '>Longest-posted</option>' +
+        '<option value="name"' + (state.sort === 'name' ? ' selected' : '') + '>Name A–Z</option>' +
+      '</select></div>' +
       '<p class="dg-dir-count" role="status" aria-live="polite">' + companies.length + ' companies · loading job coverage…</p>' +
       '<ul class="dg-dir-list"></ul>' +
       '<p class="dg-dir-foot"><strong>Definition:</strong> ' + esc(map.coverage.definition || 'Companies with a public SF headquarters listing.') +
@@ -224,6 +248,7 @@
     var hiringEl = root.querySelector('.dg-dir-hiring');
     var funcEl = root.querySelector('.dg-dir-func');
     var providerEl = root.querySelector('.dg-dir-provider');
+    var sortEl = root.querySelector('.dg-dir-sort');
     var list = root.querySelector('.dg-dir-list');
     var count = root.querySelector('.dg-dir-count');
     // Search-driven render: with ~2k companies, only paint matching rows (capped) instead of the
@@ -238,12 +263,27 @@
       state.hiring = h;
       state.func = fn;
       state.provider = provider;
+      state.sort = sortEl ? sortEl.value : 'roles';
       var matches = [];
       for (var i = 0; i < companies.length; i++) {
         if ((!q || state.searchText[i].indexOf(q) >= 0) && (!h || state.hiringOf[i] === h) && (!fn || state.funcOf[i].indexOf(fn) >= 0) && (!provider || state.providerOf[i] === provider)) matches.push(i);
       }
-      // hiring / open-role companies first when browsing without a query
-      if (!q) matches.sort(function (a, b) { return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0)); });
+      // Ordering. Default keeps the old behaviour: hiring / open-role companies first when
+      // browsing without a query, so an existing bookmark sees what it saw before.
+      // Posting-age orders deliberately push companies with NO measured median to the END of both
+      // directions. Treating "unknown" as 0 would rank an unmeasured board as the freshest on the
+      // page, which is a fabricated claim — we only know a median where the employer published a
+      // date we trust. Unknown is last whether you asked for freshest or longest-posted.
+      if (state.sort === 'name') {
+        matches.sort(function (a, b) { return String(companies[a].name).localeCompare(String(companies[b].name)); });
+      } else if (state.sort === 'fresh' || state.sort === 'stale') {
+        var order = dgOrderByMedian(state.sort);
+        matches.sort(function (a, b) {
+          return order(companies[a].medianPostedDays, companies[b].medianPostedDays, companies[a].name, companies[b].name);
+        });
+      } else if (!q) {
+        matches.sort(function (a, b) { return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0)); });
+      }
       var slice = matches.slice(0, CAP);
       list.innerHTML = slice.length
         ? slice.map(function (i) { return companyRow(companies[i], i); }).join('')
@@ -260,6 +300,7 @@
     hiringEl.addEventListener('change', renderRows);
     funcEl.addEventListener('change', renderRows);
     providerEl.addEventListener('change', renderRows);
+    if (sortEl) sortEl.addEventListener('change', renderRows);
     renderRows();
   }
 

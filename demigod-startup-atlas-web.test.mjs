@@ -231,3 +231,28 @@ test('website route is discoverable and loads the immutable map asset only on de
   assert.doesNotMatch(foot, /row\.neighborhood \|\| 'San Francisco'/);
   assert.doesNotMatch(foot, /sf-startup-map\.json/);
 });
+
+test('directory sort: an unmeasured company never ranks as freshest', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  // Source-level: the control exists and is labelled for assistive tech like its siblings.
+  assert.match(src, /class="dg-dir-sort" aria-label="Sort companies"/);
+  // Behavioural: pull the pure comparator out and exercise the rule that matters.
+  const start = src.indexOf('function dgOrderByMedian');
+  const end = src.indexOf('\n  var state = {');
+  const order = new Function(src.slice(start, end) + '; return dgOrderByMedian;')();
+
+  const fresh = order('fresh');
+  assert.ok(fresh(10, 200, 'A', 'B') < 0, 'freshest first puts the newer posting ahead');
+  assert.ok(fresh(200, 10, 'A', 'B') > 0, 'and the older one behind');
+  // The honesty rule: unknown is not zero. It must sort LAST in BOTH directions, because
+  // treating it as fresh would publish a claim we cannot support.
+  assert.ok(fresh(null, 500, 'A', 'B') > 0, 'unknown median sorts after a known stale one when asking for freshest');
+  assert.ok(fresh(undefined, 1, 'A', 'B') > 0, 'undefined is unknown too');
+  const stale = order('stale');
+  assert.ok(stale(500, 10, 'A', 'B') < 0, 'longest-posted first puts the older posting ahead');
+  assert.ok(stale(null, 10, 'A', 'B') > 0, 'unknown still sorts LAST when asking for longest-posted');
+  // Stability: equal or both-unknown fall back to name so the list does not jitter.
+  assert.ok(fresh(5, 5, 'Alpha', 'Beta') < 0, 'equal medians fall back to name');
+  assert.ok(fresh(null, null, 'Alpha', 'Beta') < 0, 'both unknown fall back to name');
+  assert.ok(Number.isNaN(NaN) && fresh(NaN, 3, 'A', 'B') > 0, 'NaN is treated as unknown, not as 0');
+});
