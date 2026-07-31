@@ -1,7 +1,7 @@
 {
-  "at": "2026-07-31T04:17:18.242Z",
+  "at": "2026-07-31T04:36:48.390Z",
   "version": "860",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/foot-latest.js",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/foot-latest.js",
   "ok": true,
   "temporary": false,
   "bytes": 360071,
@@ -12,24 +12,24 @@
   "footVer": "860",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/startup-map-latest.js",
-      "sha256": "7efab8b8333669c3d28db393a700d7dccee87b525bd1ef523fe5f5d5c6986d20",
-      "bytes": 28143
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/startup-map-latest.js",
+      "sha256": "9e93df69a764046e942230fb5099f4b9e63fe490b2583ccf5febb245e9e525cb",
+      "bytes": 31666
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/sf-startup-map.json",
-      "sha256": "386c1b147e6d5be9c162e6dc3dc5b1c3d34996c03cbcb72cd9e946b88247ffc3",
-      "bytes": 1223183
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/sf-startup-map.json",
+      "sha256": "b19492e892198913d8e5f82f26e589a8127b700ad64e0b8e4465a0ae4e8051fa",
+      "bytes": 1223235
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/head-latest.css",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/head-latest.css",
       "sha256": "6f78881b777fb1eb60b550de982e5d946b607ad41fc7af617e790cbda2e6ffe5",
       "bytes": 82912
     },
     "rolesFeed": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c4cc0327f845/roles-feed.json",
-      "sha256": "f13e2f40cd8f6f62fd69370eb7bb177799073d6d5366a03cb74c59e67e70104d",
-      "bytes": 15474
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/roles-feed.json",
+      "sha256": "dcc4a74b0835127cdcd86a168286228ab1ad90d209898f2a009018a936f4424d",
+      "bytes": 15714
     }
   }
 }
