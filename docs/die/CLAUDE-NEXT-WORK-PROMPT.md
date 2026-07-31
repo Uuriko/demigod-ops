@@ -247,3 +247,25 @@ per refresh — check the rate before committing to it.
 (`demigod-site-health.mjs:19-21`); foot-core injects them at runtime and they correctly consolidate
 `/pilot` and `/founders` onto `/hire` and `/network` onto `/talent`. Verified via CDP 2026-07-31.
 The 26-of-32 sitemap URLs that the head shim bounces are already reconciled by those canonicals.
+
+**Instance #4, found 2026-07-31 by auditing my own ship:** `roles-feed.json` is genuinely live —
+`https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@8d5a78a017ee/roles-feed.json`, HTTP 200, 54,018
+bytes, sha256 `50fdb73e…` matching the manifest exactly, `demigod.roles-feed/1`, 200 roles. And it is
+**undiscoverable**: `demigod-foot-core.js` has 0 references, no page links it, it is absent from
+robots.txt and sitemap.xml. Only the generator, the publisher, and the tools registry mention it.
+A correct public artifact nobody can reach is the same defect as one that was never uploaded.
+
+**Verification note worth keeping.** My first hash check reported a MISMATCH. It was wrong: `$(curl …)`
+strips trailing newlines, so I hashed 54,017 of 54,018 bytes. `curl -o file` then `sha256sum file`
+matched. Never hash a command substitution — the shell mutates the subject before you measure it.
+
+**Gap this leaves:** the publisher verifies every asset at PUBLISH time (`fetchExact` per asset, and
+it correctly refuses to advertise an asset that does not resolve). Nothing re-verifies afterward, so
+post-publish CDN drift or a dropped asset is invisible until someone checks by hand. And nothing
+checks whether an advertised asset is *referenced* by anything — which is how #4 happened.
+
+**Next action for this lane (not a new check — make one artifact reach users):** wire foot-core to
+consume `rolesFeed` from the manifest and surface recently-observed roles on /startups. That converts
+a live-but-orphaned asset into a feature. Needs the foot lock and a CM6 paste; the paste path DOES
+work — `ship: directory sort control live` (2fa62fe) went out that way this session, so this lane is
+not blocked on the missing Webflow MCP.
