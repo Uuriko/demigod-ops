@@ -2551,6 +2551,18 @@ const JOBS = Object.assign(Object.create(null), {
     timeout: 60000,
     safe: true,
   },
+  'ats-board-coverage': {
+    cmd: 'node',
+    args: ['demigod-enrichment.mjs', 'boards'],
+    timeout: 30000,
+    safe: true,
+  },
+  'structured-hiring-audit': {
+    cmd: 'node',
+    args: ['demigod-structured-hiring.mjs', 'audit', '--json'],
+    timeout: 15000,
+    safe: true,
+  },
   referrals: { cmd: 'node', args: ['demigod-referrals.mjs', 'status'], timeout: 15000, safe: true },
   'recruitai-export': {
     cmd: 'node',

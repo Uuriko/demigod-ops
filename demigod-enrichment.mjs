@@ -5,6 +5,7 @@
  * Exhaustive feature inventory: docs/die/ENRICHMENT-FEATURES.md
  *
  *   node demigod-enrichment.mjs scoreboard
+ *   node demigod-enrichment.mjs boards     # AR-28 coverage receipt (no new scrapers)
  *   node demigod-enrichment.mjs reclassify
  *   node demigod-enrichment.mjs batch [--skip-poll] [--skip-import] [--apply-import]
  *   node demigod-enrichment.mjs --selftest
@@ -26,7 +27,9 @@ const MAP_PATH = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const LEDGER_PATH = path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
 const AGING_PATH = path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');
 const SCOREBOARD_PATH = path.join(BUSY, 'enrichment-scoreboard.json');
+const BOARDS_PATH = path.join(BUSY, 'ats-board-coverage.json');
 const SCHEMA = 'demigod.enrichment-scoreboard/1';
+const BOARDS_SCHEMA = 'demigod.ats-board-coverage/1';
 
 function readJson(p) {
   if (!fs.existsSync(p)) return null;
@@ -132,6 +135,67 @@ export function buildScoreboard({ map, ledger, aging, exportDoc, research } = {}
     research: research || null,
     note:
       'Public-attributable hiring facts only. withAgencyPolicy / peopleFn are positive counts, not scores. observed ages stay low until multi-day poll history grows.',
+  };
+}
+
+/**
+ * AR-28 thin: board coverage from map + export diagnostics (no new ATS scrapers).
+ */
+export function buildBoardCoverage({ map, exportDoc } = {}) {
+  const cos = map?.companies || [];
+  const byAts = {};
+  let withJobsUrl = 0;
+  let withOpenRoles = 0;
+  let jobsUrlNoRoles = 0;
+  let noJobs = 0;
+  const samplesNoRoles = [];
+  for (const c of cos) {
+    const ats = c.atsSource || (c.jobsUrl ? 'url-only' : null);
+    if (c.jobsUrl) {
+      withJobsUrl++;
+      if ((c.openRoles || 0) > 0) {
+        withOpenRoles++;
+        if (ats && ats !== 'url-only') byAts[ats] = (byAts[ats] || 0) + 1;
+      } else {
+        jobsUrlNoRoles++;
+        if (samplesNoRoles.length < 12) {
+          samplesNoRoles.push({
+            id: c.id || null,
+            name: c.name || null,
+            jobsUrl: c.jobsUrl,
+            atsSource: c.atsSource || null,
+          });
+        }
+      }
+    } else {
+      noJobs++;
+    }
+  }
+  const counts = exportDoc?.counts || {};
+  return {
+    schema: BOARDS_SCHEMA,
+    at: new Date().toISOString(),
+    map: {
+      companies: cos.length,
+      withJobsUrl,
+      withOpenRoles,
+      jobsUrlNoOpenRoles: jobsUrlNoRoles,
+      noJobsUrl: noJobs,
+      byAtsProvider: byAts,
+      sampleJobsUrlNoRoles: samplesNoRoles,
+    },
+    export: exportDoc
+      ? {
+          rows: counts.rows ?? exportDoc.rows?.length ?? null,
+          unmatchedAtsCompanies: counts.unmatchedAtsCompanies ?? null,
+          boardCollisions: counts.boardCollisions ?? null,
+          duplicateMapBoards: counts.duplicateMapBoards ?? null,
+          deniedBoards: counts.deniedBoards ?? null,
+          generatedAt: exportDoc.generatedAt || null,
+        }
+      : null,
+    note:
+      'Coverage facts only. Does not add ATS hosts. jobsUrl without openRoles may be YC jobs page or unpollable board.',
   };
 }
 
@@ -287,6 +351,18 @@ function selftest() {
     'batch import defaults to preview',
   );
   assert(recruitaiImportArgs(true).includes('--apply'), 'apply import requires explicit opt-in');
+  const cov = buildBoardCoverage({
+    map: {
+      companies: [
+        { id: 'yc:a', name: 'A', jobsUrl: 'https://jobs.lever.co/a', atsSource: 'Lever', openRoles: 2 },
+        { id: 'yc:b', name: 'B', jobsUrl: 'https://www.ycombinator.com/companies/b/jobs', openRoles: 0 },
+        { id: 'yc:c', name: 'C' },
+      ],
+    },
+    exportDoc: { counts: { rows: 1, unmatchedAtsCompanies: 0, boardCollisions: 0, duplicateMapBoards: 0, deniedBoards: 0 } },
+  });
+  assert(cov.schema === BOARDS_SCHEMA, 'boards schema');
+  assert(cov.map.withOpenRoles === 1 && cov.map.jobsUrlNoOpenRoles === 1 && cov.map.noJobsUrl === 1, 'boards counts');
   console.log(JSON.stringify({ ok: true, selftest: 'enrichment' }));
 }
 
@@ -297,11 +373,32 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-enrichment.mjs scoreboard|reclassify|batch [--skip-poll] [--skip-import] [--apply-import] [--selftest]
+    console.log(`usage: node demigod-enrichment.mjs scoreboard|boards|reclassify|batch [--skip-poll] [--skip-import] [--apply-import] [--selftest]
 See docs/die/ENRICHMENT-FEATURES.md for the exhaustive feature inventory.`);
     process.exit(0);
   }
   const cmd = args.find((a) => !a.startsWith('-')) || 'scoreboard';
+  if (cmd === 'boards') {
+    const cov = buildBoardCoverage({
+      map: readJson(MAP_PATH),
+      exportDoc: readJson(path.join(BUSY, 'recruitai-export/latest.json')),
+    });
+    fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+    atomicWrite(BOARDS_PATH, `${JSON.stringify(cov, null, 2)}\n`, { mode: 0o600 });
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          path: BOARDS_PATH,
+          map: cov.map,
+          export: cov.export,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   if (cmd === 'scoreboard') {
     const board = buildScoreboard({
       map: readJson(MAP_PATH),

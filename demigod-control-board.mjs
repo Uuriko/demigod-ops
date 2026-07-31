@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { refuseIfStale } from './demigod-evidence.mjs';
 import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 import { atomicWrite, isPlainObject } from './demigod-agent-tools-lib.mjs';
+import { resealDue } from './demigod-reseal-queue.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -441,6 +442,141 @@ export function evaluateControls(opts = {}) {
     controls.push(control('map_prepare_only', 'low', true, 'n/a — no truth.json'));
   }
 
+  // —— structured-hiring product integrity (med; never invents readiness) ——
+  {
+    const rootDir = opts.root || root;
+    const packetPath = path.join(rootDir, 'DEMIGOD-ROLE-PACKETS.json');
+    const batchPath = path.join(rootDir, 'DEMIGOD-PILOT-BATCHES.json');
+    const touchPath = path.join(rootDir, 'DEMIGOD-CANDIDATE-TOUCHES.json');
+    const introPath = path.join(rootDir, 'DEMIGOD-INTRO-PATHS.json');
+    const packetProbe = readJsonProbe(packetPath);
+    const batchProbe = readJsonProbe(batchPath);
+    const touchProbe = readJsonProbe(touchPath);
+    const introProbe = readJsonProbe(introPath);
+
+    let shReadable = true;
+    let shReason = 'structured-hiring stores readable';
+    const poison = [];
+    const walkScore = (obj, label) => {
+      if (!obj || typeof obj !== 'object') return;
+      if ('fitScore' in obj || 'trustScore' in obj) poison.push(label);
+      for (const v of Object.values(obj)) {
+        if (v && typeof v === 'object') walkScore(v, label);
+      }
+    };
+
+    if (packetProbe.exists && (packetProbe.error || !isPlainObject(packetProbe.value))) {
+      shReadable = false;
+      shReason = `role-packets unreadable: ${packetProbe.error || 'invalid_shape'}`;
+    } else if (packetProbe.exists) {
+      walkScore(packetProbe.value, 'packets');
+    }
+    if (batchProbe.exists && (batchProbe.error || !isPlainObject(batchProbe.value))) {
+      shReadable = false;
+      shReason = `pilot-batches unreadable: ${batchProbe.error || 'invalid_shape'}`;
+    } else if (batchProbe.exists) {
+      walkScore(batchProbe.value, 'batches');
+      for (const b of Object.values(batchProbe.value.batches || {})) {
+        const max = Number(b?.max ?? 3);
+        const active = (b?.candidates || []).filter((c) => !c.state || c.state === 'active').length;
+        if (max > 3) poison.push(`batch_max>${max}`);
+        if (active > Math.min(max, 3)) poison.push(`batch_active>${active}`);
+      }
+    }
+    if (touchProbe.exists && !touchProbe.error && isPlainObject(touchProbe.value)) {
+      walkScore(touchProbe.value, 'touches');
+    }
+    if (introProbe.exists && !introProbe.error && isPlainObject(introProbe.value)) {
+      walkScore(introProbe.value, 'intros');
+      if (introProbe.value.schema && introProbe.value.schema !== 'demigod.intro-paths-store/1') {
+        poison.push('intro_schema');
+      }
+    }
+
+    const noScore = poison.length === 0;
+    controls.push(
+      control(
+        'structured_hiring_no_score',
+        'med',
+        shReadable && noScore,
+        !shReadable
+          ? shReason
+          : noScore
+            ? 'SH stores ok · no fitScore/trustScore · batch active≤3'
+            : `SH poison: ${poison.slice(0, 4).join(',')}`,
+        {
+          packets: packetProbe.exists,
+          batches: batchProbe.exists,
+          poison: poison.slice(0, 8),
+        },
+      ),
+    );
+  }
+
+  // —— export board identity (OP-07 surface; no invent merges) ——
+  {
+    const exportPath = path.join(busy, 'recruitai-export', 'latest.json');
+    const expProbe = readJsonProbe(exportPath);
+    if (!expProbe.exists) {
+      controls.push(
+        control('export_board_identity_clean', 'med', false, 'export_missing — run export', {
+          path: exportPath,
+        }),
+      );
+    } else if (expProbe.error || !isPlainObject(expProbe.value)) {
+      controls.push(
+        control(
+          'export_board_identity_clean',
+          'med',
+          false,
+          `export unreadable: ${expProbe.error || 'invalid_shape'}`,
+          { path: exportPath },
+        ),
+      );
+    } else {
+      const counts = expProbe.value.counts || {};
+      const collisions = Number(counts.boardCollisions ?? expProbe.value.diagnostics?.collisions?.length ?? 0);
+      const dups = Number(counts.duplicateMapBoards ?? expProbe.value.diagnostics?.duplicateBoards?.length ?? 0);
+      const ok = collisions === 0 && dups === 0;
+      controls.push(
+        control(
+          'export_board_identity_clean',
+          'med',
+          ok,
+          ok
+            ? `export identity clean · boards=${counts.ledgerOpenRoleKeys ?? counts.rows ?? '?'}`
+            : `boardCollisions=${collisions} duplicateMapBoards=${dups}`,
+          { boardCollisions: collisions, duplicateMapBoards: dups, rows: counts.rows ?? null },
+        ),
+      );
+    }
+  }
+
+  // —— CH-13 reseal schedule (low; network not required) ——
+  try {
+    const due = resealDue({ maxAgeDays: 7 });
+    const ok = due.due !== true;
+    controls.push(
+      control(
+        'reseal_schedule_ok',
+        'low',
+        ok,
+        ok
+          ? `reseal not due · ageDays=${due.ageDays ?? '?'} · ${due.reason}`
+          : `reseal due · ${due.reason} · ageDays=${due.ageDays ?? '?'} — node demigod-reseal-queue.mjs run --schedule`,
+        {
+          due: due.due,
+          reason: due.reason,
+          ageDays: due.ageDays,
+          lastAt: due.lastAt,
+          pending: due.pending,
+        },
+      ),
+    );
+  } catch (e) {
+    controls.push(control('reseal_schedule_ok', 'low', true, `n/a ${e.message || e}`));
+  }
+
   const highFail = controls.filter((c) => c.severity === 'high' && !c.ok);
   // Default: research_seal high-fail does not fail board exit (expected after map stamp).
   const exitFailers = highFail.filter((c) => {
@@ -531,9 +667,16 @@ function selftest() {
     'pairs_has_real',
     'demand_drafts_only',
     'role_poll_timer_healthy',
+    'structured_hiring_no_score',
+    'export_board_identity_clean',
+    'reseal_schedule_ok',
   ]) {
     assert(ids.has(need), `missing ${need}`);
   }
+  const shCtrl = board.controls.find((x) => x.id === 'structured_hiring_no_score');
+  assert(shCtrl?.severity === 'med', 'SH integrity stays med (non-exit)');
+  assert(board.controls.find((x) => x.id === 'export_board_identity_clean')?.severity === 'med', 'export identity med');
+  assert(board.controls.find((x) => x.id === 'reseal_schedule_ok')?.severity === 'low', 'reseal schedule low');
   // Current controls retain their declared severity and never collapse into a score.
   const p2 = board.controls.find((x) => x.id === 'phase2_gate_policy');
   assert(p2?.severity === 'high', 'phase2 policy stays high');
@@ -591,6 +734,28 @@ function selftest() {
       rolePollProbe: timerProbe,
     }).controls.find((x) => x.id === 'role_poll_timer_healthy');
     assert(recovered?.ok === true, 'fresh successful timer run is green');
+
+    // SH fitScore poison must surface as med control fail, not high exit
+    fs.writeFileSync(
+      path.join(tmp, 'DEMIGOD-ROLE-PACKETS.json'),
+      JSON.stringify({ schema: 'x', packets: { r1: { roleId: 'r1', fitScore: 99 } } }),
+    );
+    const shPoison = evaluateControls({
+      root: tmp,
+      busy: tmp,
+      nowMs: Date.parse('2026-07-30T12:00:00Z'),
+      rolePollProbe: timerProbe,
+    }).controls.find((x) => x.id === 'structured_hiring_no_score');
+    assert(shPoison?.ok === false && shPoison.severity === 'med', 'SH fitScore poison med-fail');
+    assert(
+      !evaluateControls({
+        root: tmp,
+        busy: tmp,
+        nowMs: Date.parse('2026-07-30T12:00:00Z'),
+        rolePollProbe: timerProbe,
+      }).exitFailures.includes('structured_hiring_no_score'),
+      'SH poison non-exit',
+    );
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -86,7 +86,7 @@ export function buildStaticDirectory(map, generatedAt = '') {
 <ul>
 ${sorted.map(row).join('\n')}
 </ul>
-<p class="foot"><strong>How this is built:</strong> ${esc(map?.coverage?.caveat || 'City-level only; current status not verified.')} Open-role counts come from each company's own public job board (Greenhouse/Lever/Ashby), US-posted or remote only. When we re-check a board over days, "tracked Nd (our first seen)" is days since Demigod first observed that open role — not a score and not a ghost-job verdict. Board posting age is shown only when the ATS exposes a real post date. Named companies come from public sources (Y Combinator, Wikidata/CC0, Hacker News "Who is hiring?"). No résumés, no private data. A <a href="https://www.trydemigod.com">Demigod</a> project.</p>
+<p class="foot"><strong>How this is built:</strong> ${esc(map?.coverage?.caveat || 'City-level only; current status not verified.')} One-line company blurbs are public directory text (YC one-liners / Wikidata labels) — <strong>not</strong> Demigod company-research claims and not pricing/comp evidence. Open-role counts come from each company's own public job board (Greenhouse/Lever/Ashby), US-posted or remote only. When we re-check a board over days, "tracked Nd (our first seen)" is days since Demigod first observed that open role — not a score and not a ghost-job verdict. Board posting age is shown only when the ATS exposes a real post date. Named companies come from public sources (Y Combinator, Wikidata/CC0, Hacker News "Who is hiring?"). No résumés, no private data. A <a href="https://www.trydemigod.com">Demigod</a> project.</p>
 </body></html>`;
 }
 
@@ -119,6 +119,7 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   assert(long.includes('2 open ≥90d tracked'), 'observed90 preferred badge');
   assert(!long.includes('open ≥7d tracked') || long.includes('≥90d'), 'shorter threshold demoted');
   assert(html.includes('San Francisco startups that are hiring'), 'crawlable heading');
+  assert(/not.*company-research claims|public directory text/i.test(html), 'CF-14 description is not research claim');
   assert(html.includes('application/ld+json') && html.includes('"@type":"ItemList"'), 'JSON-LD present');
   // honest JSON-LD: only the verified company (Alpha), NOT the YC self-report (Beta)
   const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);

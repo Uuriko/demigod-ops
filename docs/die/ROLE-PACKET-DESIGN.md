@@ -119,14 +119,19 @@ assertNote(n, packet):
 
 Research **never** writes `ratings[]`.
 
-## 7. CLI (future)
+## 7. CLI (shipped)
 
 ```bash
-node demigod-role-packet.mjs init --role=…   # fails if sample
-node demigod-role-packet.mjs show --role=…
-node demigod-role-packet.mjs note --pair=…   # interactive later; JSON in for tests
+node demigod-role-packet.mjs list|show|init|add-must|note|project|stage|set-comp|set-plan|debrief
 node demigod-role-packet.mjs --selftest
+# compose
+node demigod-structured-hiring.mjs status|desk|shortlist|pack|audit
+node demigod-public-comp.mjs extract|apply [--fetch-url=https://…]
 ```
+
+Stage transitions: `STAGE_TRANSITIONS` forward graph only.  
+`public_job_post` requires https URL + quote (8–280 chars).  
+Demo fixtures allowed; real packets still gate on accepted-for-delivery product policy.
 
 ## 8. Gate / kill
 
@@ -135,16 +140,6 @@ node demigod-role-packet.mjs --selftest
 | **Implement code** | `acceptedForDelivery ≥ 1` **or** hermetic-only fixtures behind `--selftest` |
 | **Kill** | 3 real reviews with empty notes → delete UI, keep free-text pair notes |
 | **Non-goal** | Interview scheduling, multi-stage ATS, AI auto-score |
-
-## 9. Shipped CLI (technical product)
-
-```bash
-node demigod-role-packet.mjs stage --role=ID --to=reviewing
-node demigod-role-packet.mjs set-comp --role=ID --text='…' --source=public_job_post --url=https://… --quote='…'
-```
-
-Stage transitions: `STAGE_TRANSITIONS` forward graph only.  
-`public_job_post` requires https URL + quote (8–280 chars).
 
 ## 10. Relation to PilotBatch (rank 4)
 

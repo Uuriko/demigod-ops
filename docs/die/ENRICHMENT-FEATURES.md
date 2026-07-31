@@ -30,6 +30,16 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
   honest buckets (not a fine taxonomy).
 - **Public-comp fetch:** SSRF-safe `--fetch-url` for operator job pages (https +
   safeResearchUrl); strip HTML; quote-bound apply only.
+- **Control `structured_hiring_no_score`:** med control — SH stores readable, no
+  fitScore/trustScore, batch active≤3.
+- **CI-15 identity helpers:** `stableMapCompanyId` + `hiringIdentityKey` (board
+  host+path) with hermetic YC slug stability in map-data selftest.
+- **EP-12 open URL:** demand draft `open` field only via `safeResearchUrl`.
+- **export_board_identity_clean + reseal_schedule_ok** controls on control-board.
+- **structured-hiring audit** CLI + tools registry.
+- **AR-28 boards receipt:** `node demigod-enrichment.mjs boards` → ats-board-coverage.json.
+- **CF-14:** directory static foot states blurbs ≠ company-research claims.
+- **Match-review:** compact debrief attached per structuredHiring projection.
 
 ## Execution updates — 2026-07-30
 
@@ -94,7 +104,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | CI-12 | CRM company name dedupe for partner preview (read-only) | BUILT | existingCrmName/Id abstentions | demigod-lead-sourcer.mjs | lead-sourcer tests CRM | CI |
 | CI-13 | Duplicate export stream identity abstention | BUILT | duplicateSourceIdentity | demigod-lead-sourcer.mjs | lead-sourcer selection receipt | CI |
 | CI-14 | Personio /job/<id> exact route for roles | BUILT | NEXT-WORK Personio route | export relationship validation | export --selftest Personio | CI |
-| CI-15 | Atlas mapCompanyId stability across refresh | PARTIAL | map regenerate can churn non-board keys | demigod-startup-map-data.mjs | directory-refresh dry + id set diff | CI |
+| CI-15 | Atlas mapCompanyId stability across refresh | PARTIAL | yc:/wd:/hn: stable; hiringIdentityKey board SoR; name-mint forbidden; full regen still can add new Qs | demigod-startup-map-data.mjs stableMapCompanyId | map-data --selftest identity | CI |
 | CI-16 | No ATS-board-name → company ownership | BUILT | CONTRACTS §1 | boardFromCompany website/slug | ledger selftest | CI |
 | CI-17 | Ambiguous Atlas Inc vs LLC company evidence | BUILT | match-review-evidence | matching-engine | test ambiguous status | CI |
 | NOW-06 | HN SF-only hiring ingest | BUILT | hn-hiring selftest | demigod-hn-hiring.mjs | --selftest | CI |
@@ -111,7 +121,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | CF-11 | Quote ≤20 words exact match | BUILT | CONTRACTS claim rules | grader | grade errors on long quote | CF |
 | CF-12 | Deterministic 30-company stratification | BUILT | selectionSeed demigod-die-benchmark-v1 | selectBenchmarkCompanies | selectionMatches in receipt | CF |
 | CF-13 | Export binds companyResearch only when research green | BUILT | export researchGate green | demigod-recruitai-export.mjs | export CR=15 when pass-fresh | CF |
-| CF-14 | Map company description as weak public blurb | PARTIAL | map description field; not research claim | DEMIGOD-SF-STARTUP-MAP.json | map schema selftest | CF |
+| CF-14 | Map company description as weak public blurb | BUILT | static foot + coverage caveat; description never research field | directory-static + map | directory-static --selftest CF-14 | CF |
 | CF-15 | YC sourceUrl + sourceLicense on map rows | BUILT | map provenance | startup-map-data | map selftest YC-public | CF |
 | CF-16 | Wikidata CC0 companies in map | BUILT | map source mix | startup-map-data | map volume floors | CF |
 | CF-17 | Operational one-row catalog for real role company | GATED | Phase2 need OR reviewed packet; catalog empty | DEMIGOD-COMPANY-RESEARCH.json | phase2Ready + catalog length | CF |
@@ -186,7 +196,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | EP-09 | Commit-bound export generation sha256 | BUILT | export-commit/1 | demigod-recruitai-export.mjs | loadRecruitaiExport commit match | EP |
 | EP-10 | Seed-pack / desk handoff use committed load | BUILT | both reuse canonical validator; desk copies validated buffers | seed-pack + desk pack | tamper latest.json fails both before output | EP |
 | EP-11 | Match companyEvidence provenance retrievedAt | BUILT | resolveCompanyEvidence | matching-engine | match-review-evidence.test | EP |
-| EP-12 | Demand draft evidence attach safe URLs | PARTIAL | pri9 multi-agent | demigod-demand / draft hygiene | demand selftest | EP |
+| EP-12 | Demand draft evidence attach safe URLs | BUILT | source + open via safeResearchUrl; localhost refused | demigod-demand draftEvidence + cmdDraft | demand-selftest + open reject | EP |
 | EP-13 | Evidence artifact paths on seal | BUILT | addArtifact benchmark+history | sealRun | receipt artifacts[] | EP |
 | EP-14 | PrivateText scrub on export descriptive fields | BUILT | privateText in export | demigod-recruitai-export.mjs | export --selftest scrub | EP |
 | NOW-08 | Funnel CRM loader fail-closed non-array | BUILT | NEXT-WORK CRM loader | demigod-funnel.mjs | funnel selftest | QA |
@@ -240,7 +250,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | OP-04 | hiring-pulse deltas empty-map fail closed | BUILT | mixed-row history filter + lock keeps map and typed role-signal observations independent | demigod-hiring-pulse.mjs | hiring-pulse --selftest | OP |
 | OP-05 | role-ledger report --posted aging SF | BUILT | CLI report | demigod-role-ledger.mjs | report --posted | OP |
 | OP-06 | CDN re-ship map ages | GATED | pri3 current-request publish auth | foot-cdn-publish + cm6 | only with DEMIGOD_CURRENT_REQUEST_PUBLISH=1 | OP |
-| OP-07 | Map identity / funnel collision dedupe | NOW | pri10 | funnel + map | funnel collision tests | OP |
+| OP-07 | Map identity / funnel collision dedupe | PARTIAL | export boardCollisions control; funnel collision-plan exists; map hiringIdentityKey | funnel + map | funnel collision tests | OP |
 | OP-08 | Useful-loop / work-find discovery of enrich tasks | BUILT | reseal/control-board/SH plan/comp/aging keys | demigod-work-find.mjs | work-find --json enrich kinds | OP |
 | OP-09 | Hermetic clay soak 9-gate loop | BUILT | soak design/audit | systemd dg-clay-soak | clay-soak-receipt.jsonl | OP |
 | OP-10 | Tools registry recruitai export/partner jobs | BUILT | tools-registry | demigod-tools-registry.mjs | registry list | OP |

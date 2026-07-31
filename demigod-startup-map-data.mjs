@@ -45,6 +45,38 @@ const safeUrl = (value) => {
   }
 };
 
+/**
+ * CI-15: stable public map company id from known public namespaces only.
+ * Never mints identity from free-text name (that is the churn risk).
+ * Returns null if the row has no stable id — callers must not invent one.
+ */
+export function stableMapCompanyId(row = {}) {
+  const id = String(row?.id || '').trim();
+  if (/^(yc|wd|hn):[a-z0-9][a-z0-9._-]*$/i.test(id)) return id;
+  return null;
+}
+
+/**
+ * Hiring join identity: when a company has a public ATS board URL, the board
+ * host+path is the stable key (dedupeByBoard SoR). Else fall back to map id.
+ * Pure — does not rewrite the map.
+ */
+export function hiringIdentityKey(row = {}) {
+  const jobs = String(row?.jobsUrl || '').trim();
+  if (jobs) {
+    try {
+      const u = new URL(jobs);
+      const host = u.hostname.replace(/^www\./, '').toLowerCase();
+      const pathPart = u.pathname.replace(/\/+$/, '').toLowerCase();
+      if (host) return `board:${host}${pathPart}`;
+    } catch {
+      /* fall through */
+    }
+  }
+  const id = stableMapCompanyId(row);
+  return id ? `map:${id}` : null;
+}
+
 /** Hostname key for CROSS-source dedupe: the same company arriving from YC and from Wikidata
  *  should collapse to one row. The key is a heuristic, not an identity — two distinct entities
  *  can publish the same host. Live counterexample: Wikidata carries RockLive (Q7354178) and
@@ -433,12 +465,40 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (!jobsFloorThrew) throw new Error('jobs floor did not fire on zero boards');
       // If disk already carries ATS enrich, enforce live board volume too.
       if (jobsEnriched) assertMapFloors(real, { withJobs: true });
+
+      // CI-15: id namespaces stable; YC slug → yc:slug deterministic; no name-minted ids
+      const ycA = buildYcPublicCompanies([{ name: 'Acme', slug: 'acme-co', status: 'Active', all_locations: 'San Francisco, CA', isHiring: true }]);
+      const ycB = buildYcPublicCompanies([{ name: 'Acme Renamed', slug: 'acme-co', status: 'Active', all_locations: 'San Francisco', isHiring: false }]);
+      if (ycA[0]?.id !== 'yc:acme-co' || ycB[0]?.id !== 'yc:acme-co') {
+        throw new Error('YC mapCompanyId not stable on slug (CI-15)');
+      }
+      if (stableMapCompanyId(ycA[0]) !== 'yc:acme-co') throw new Error('stableMapCompanyId yc');
+      if (stableMapCompanyId({ id: 'not-a-ns' }) !== null) throw new Error('refuse unstable id');
+      const boardKey1 = hiringIdentityKey({
+        id: 'wd:Q1',
+        jobsUrl: 'https://jobs.lever.co/Acme/',
+      });
+      const boardKey2 = hiringIdentityKey({
+        id: 'yc:other',
+        jobsUrl: 'https://www.jobs.lever.co/acme',
+      });
+      // same board host+path after normalize (www strip + lower + trim slash)
+      if (boardKey1 !== 'board:jobs.lever.co/acme') throw new Error(`board key1 ${boardKey1}`);
+      if (boardKey2 !== 'board:jobs.lever.co/acme') throw new Error(`board key2 ${boardKey2}`);
+      // sample of disk companies: every id must be stable namespace or null-safe
+      for (const c of cos.slice(0, 200)) {
+        if (c?.id && !stableMapCompanyId(c)) {
+          throw new Error(`unstable map id on disk: ${c.id}`);
+        }
+      }
+
       console.log(
         JSON.stringify({
           ok: true,
           selftest: 'map-floors',
           jobsEnriched,
           boardsPresent,
+          identity: { ycStable: true, boardKey: boardKey1 },
           ...floors,
         }),
       );

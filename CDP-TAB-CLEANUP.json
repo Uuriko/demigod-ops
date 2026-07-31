@@ -1,40 +1,14 @@
 {
-  "at": "2026-07-31T01:36:03.763Z",
+  "at": "2026-07-31T02:21:06.040Z",
   "dryRun": false,
   "before": [
-    "https://github.com/password_reset",
-    "https://talentlink-sf.design.webflow.com/",
-    "https://mail.google.com/mail/u/0/#inbox/FMfcgzQhVhXNRQJnQDLNgFDNMzsmxPlZ",
-    "https://webflow.com/dashboard?workspace=johns-workspace-f42e17",
-    "https://github.com/",
-    "https://github.com/login/device/success"
+    "https://talentlink-sf.design.webflow.com/"
   ],
-  "closed": [
-    {
-      "url": "https://github.com/login/device/success",
-      "reason": "completed GitHub device activation"
-    }
-  ],
+  "closed": [],
   "kept": [
-    {
-      "url": "https://github.com/password_reset",
-      "role": "other"
-    },
     {
       "url": "https://talentlink-sf.design.webflow.com/",
       "role": "designer"
-    },
-    {
-      "url": "https://mail.google.com/mail/u/0/#inbox/FMfcgzQhVhXNRQJnQDLNgFDNMzsmxPlZ",
-      "role": "other"
-    },
-    {
-      "url": "https://webflow.com/dashboard?workspace=johns-workspace-f42e17",
-      "role": "webflow-dashboard"
-    },
-    {
-      "url": "https://github.com/",
-      "role": "other"
     }
   ]
 }

@@ -16,7 +16,12 @@ import {
 import { loadBoard, loadInbox, scrubPII } from './demigod-submissions-lib.mjs';
 import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
-import { loadPackets, loadNotes, projectForReview } from './demigod-role-packet.mjs';
+import {
+  loadPackets,
+  loadNotes,
+  projectForReview,
+  debriefRoundup,
+} from './demigod-role-packet.mjs';
 
 // Prefer DEMIGOD_BUSY (same as evidence/export/pairs consumers); DG_BUSY legacy alias.
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -108,11 +113,39 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
       );
     }
   }
-  // Structured-hiring product surfaces (Ashby packet + evidence notes) — read-only attach.
+  // Structured-hiring product surfaces (Ashby packet + evidence notes + debrief) — read-only attach.
   const packets = loadPackets().packets || {};
   const notes = loadNotes().notes || {};
+  const allNotes = Object.values(notes);
   let packetsAttached = 0;
   let notesAttached = 0;
+  const debriefByRole = new Map();
+  for (const packet of Object.values(packets)) {
+    if (!packet?.roleId) continue;
+    try {
+      const full = debriefRoundup(
+        packet,
+        allNotes.filter((n) => n.roleId === packet.roleId),
+      );
+      debriefByRole.set(packet.roleId, {
+        schema: full.schema,
+        roleId: full.roleId,
+        noteCount: full.noteCount,
+        candidates: full.candidates,
+        score: null,
+        disagreeMusts: (full.byMustHave || []).filter((m) => m.disagree).map((m) => m.mustHaveId),
+        tally: (full.byMustHave || []).map((m) => ({
+          mustHaveId: m.mustHaveId,
+          label: m.label,
+          n: m.n,
+          disagree: m.disagree,
+          tally: m.tally,
+        })),
+      });
+    } catch {
+      /* invalid packet skipped */
+    }
+  }
 
   return {
     at: new Date().toISOString(),
@@ -135,6 +168,7 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
         packetsAttached += 1;
         try {
           structured = projectForReview(packet, note);
+          structured.debrief = debriefByRole.get(packet.roleId) || null;
           if (note) notesAttached += 1;
         } catch {
           structured = { roleId: packet.roleId, title: packet.title, error: 'project_failed' };
@@ -159,9 +193,12 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
     structuredHiring: {
       packetsAttached,
       notesAttached,
+      debriefRoles: debriefByRole.size,
       cmds: {
         status: 'node demigod-structured-hiring.mjs status',
         desk: 'node demigod-structured-hiring.mjs desk --role=ID',
+        debrief: 'node demigod-role-packet.mjs debrief --role=ID',
+        audit: 'node demigod-structured-hiring.mjs audit',
         packet: 'node demigod-role-packet.mjs',
       },
     },

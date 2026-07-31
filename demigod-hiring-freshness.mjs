@@ -49,6 +49,16 @@ const quantile = (sorted, q) => {
  */
 export function hiringFreshness(ledger, { today = new Date().toISOString().slice(0, 10), minDated = 5 } = {}) {
   const rows = Object.values(ledger?.roles || {}).filter((r) => r && typeof r === 'object' && !r.closedAt);
+  // Self-validation. Every age here rests on the employer's first_published date, and ATS
+  // platforms auto-renew listings on 30-90 day cycles, so that field can be recycled under us.
+  // The ledger pins the earliest date it ever saw and never moves it, which makes these ages a
+  // LOWER bound — this number says how much that matters. Measured 2026-07-31: 0.61% of dated
+  // open roles, every gap forward, median 20d. Below 1%, so the published medians are not
+  // materially understated. It travels in the output so the claim carries its own caveat rather
+  // than relying on anyone remembering this paragraph.
+  // Note it is a CENSUS, not a rate: a role recycled before we first observed it is invisible,
+  // so this is itself a floor.
+  const recycled = rows.filter((r) => (r.postedDateChangeCount || 0) > 0).length;
   const byBoard = new Map();
   for (const row of rows) {
     const key = `${row.provider}|${row.slug}`;
@@ -110,6 +120,9 @@ export function hiringFreshness(ledger, { today = new Date().toISOString().slice
       undatedRoles: allUndated,
       medianCompanyPostedDays: quantile(corpusAges, 0.5),
       p90CompanyPostedDays: quantile(corpusAges, 0.9),
+      postedDateRecycledRoles: recycled,
+      postedDateRecycledPctOfDated: allDated ? Math.round((10000 * recycled) / allDated) / 100 : null,
+      agesAreLowerBound: true,
     },
     companies,
   };
@@ -194,30 +207,35 @@ if (isMain && !process.argv.includes('--selftest')) {
   const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
   const res = hiringFreshness(ledger, { today: new Date().toISOString().slice(0, 10) });
   const only = arg('--company');
+  // No process.exit() anywhere below: it discards pending async stdout, which silently truncated
+  // the tail of the ~2,700-line --json payload and made it unparseable to any consumer.
   if (only) {
     const c = res.companies.find((x) => x.slug === only || x.company?.toLowerCase() === only.toLowerCase());
-    if (!c) { console.error(`no board matched ${only}`); process.exit(1); }
-    console.log(JSON.stringify({ ...res, companies: [c] }, null, 2));
-    process.exit(0);
-  }
-  if (process.argv.includes('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(0); }
-  const limit = Number(arg('--limit') || 20);
-  const top = res.companies
-    .filter((c) => c.measurable)
-    .sort((a, b) => b.staleShare - a.staleShare || b.medianPostedDays - a.medianPostedDays)
-    .slice(0, Number.isFinite(limit) ? limit : 20);
-  const c = res.corpus;
-  console.log(
-    `hiring freshness · ${c.companies} boards · ${c.openRoles} open roles · ` +
-    `${c.datedRoles} with an employer posting date, ${c.undatedRoles} undated\n` +
-    `corpus median company posting age ${c.medianCompanyPostedDays}d (p90 ${c.p90CompanyPostedDays}d) ` +
-    `across ${c.measurableCompanies} measurable boards\n`,
-  );
-  for (const x of top) {
+    if (!c) { console.error(`no board matched ${only}`); process.exitCode = 1; }
+    else console.log(JSON.stringify({ ...res, companies: [c] }, null, 2));
+  } else if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(res, null, 2));
+  } else {
+    const limit = Number(arg('--limit') || 20);
+    const top = res.companies
+      .filter((c) => c.measurable)
+      .sort((a, b) => b.staleShare - a.staleShare || b.medianPostedDays - a.medianPostedDays)
+      .slice(0, Number.isFinite(limit) ? limit : 20);
+    const c = res.corpus;
     console.log(
-      `  ${String(x.staleShare).padStart(3)}% >180d  median ${String(x.medianPostedDays).padStart(4)}d  ` +
-      `p${String(x.percentile).padStart(3)}  ${String(x.datedRoles).padStart(3)}/${String(x.openRoles).padEnd(4)} dated  ` +
-      `${x.company}`.slice(0, 120),
+      `hiring freshness · ${c.companies} boards · ${c.openRoles} open roles · ` +
+      `${c.datedRoles} with an employer posting date, ${c.undatedRoles} undated\n` +
+      `corpus median company posting age ${c.medianCompanyPostedDays}d (p90 ${c.p90CompanyPostedDays}d) ` +
+      `across ${c.measurableCompanies} measurable boards\n` +
+      `posting dates recycled by the board on ${c.postedDateRecycledRoles} roles ` +
+      `(${c.postedDateRecycledPctOfDated}% of dated) — ages below are a lower bound\n`,
     );
+    for (const x of top) {
+      console.log(
+        `  ${String(x.staleShare).padStart(3)}% >180d  median ${String(x.medianPostedDays).padStart(4)}d  ` +
+        `p${String(x.percentile).padStart(3)}  ${String(x.datedRoles).padStart(3)}/${String(x.openRoles).padEnd(4)} dated  ` +
+        `${x.company}`.slice(0, 120),
+      );
+    }
   }
 }

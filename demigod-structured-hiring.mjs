@@ -18,21 +18,24 @@ import {
   advanceStage,
   upsertPacket,
   debriefRoundup,
+  assertPacket,
+  assertNote,
 } from './demigod-role-packet.mjs';
-import { rediscover, makeTouch, appendTouch } from './demigod-candidate-touch.mjs';
+import { rediscover, makeTouch, appendTouch, assertTouch } from './demigod-candidate-touch.mjs';
 import {
   openBatch,
   addCandidate,
   upsertBatch,
   activeCount as batchActive,
 } from './demigod-pilot-batch.mjs';
-import { warmPaths, listPaths as listIntroPaths } from './demigod-intro-path.mjs';
-import { listCallNotes } from './demigod-call-note.mjs';
+import { warmPaths, listPaths as listIntroPaths, assertPath as assertIntroPath } from './demigod-intro-path.mjs';
+import { listCallNotes, assertCallNote } from './demigod-call-note.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const OUT = path.join(BUSY, 'structured-hiring-status.json');
+const AUDIT_OUT = path.join(BUSY, 'structured-hiring-audit.json');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 function loadBatchStore() {
@@ -140,11 +143,20 @@ export function packHandoff(outDir = path.join(BUSY, 'structured-hiring-handoff'
     /* */
   }
   const desks = (st.packets || []).map((p) => buildDesk(p.roleId));
+  const debriefs = desks
+    .filter((d) => d.debrief)
+    .map((d) => ({
+      roleId: d.debrief.roleId,
+      noteCount: d.debrief.noteCount,
+      disagreeMusts: (d.debrief.byMustHave || []).filter((m) => m.disagree).map((m) => m.mustHaveId),
+      score: null,
+    }));
   const payload = {
     schema: 'demigod.structured-hiring-handoff/1',
     at: st.at,
     status: st,
     desks,
+    debriefs,
     note: 'Technical structured-hiring pack. No contacts, scores, or send authority.',
   };
   atomicWrite(path.join(outDir, 'status.json'), `${JSON.stringify(payload, null, 2)}\n`, {
@@ -160,18 +172,27 @@ Packed at ${st.at}
 | notes | ${st.counts.reviewNotes} |
 | batches | ${st.counts.batches} |
 | touches | ${st.counts.touches} |
+| intro paths | ${st.counts.introPaths} |
+| call notes | ${st.counts.callNotes} |
 
 ## CLI
 \`\`\`bash
 node demigod-structured-hiring.mjs status
 node demigod-structured-hiring.mjs desk --role=ROLE_ID
 node demigod-structured-hiring.mjs shortlist --role=… --cand=… --why="…"
+node demigod-role-packet.mjs debrief --role=ROLE_ID
+node demigod-role-packet.mjs set-plan --role=ROLE_ID
+node demigod-public-comp.mjs extract|apply --role=… --url=… --text=…   # or --fetch-url=
+node demigod-intro-path.mjs warm
+node demigod-call-note.mjs list
+node demigod-reseal-queue.mjs due
+node demigod-control-board.mjs status
 \`\`\`
 
-Inspired by Ashby scorecards, Underdog batch caps, Gem rediscovery — Demigod-owned, no fit score.
+Inspired by Ashby / Underdog / Gem / Affinity / Metaview / Levels (thin) — Demigod-owned, no fit score.
 `;
   atomicWrite(path.join(outDir, 'README.md'), readme, { mode: 0o600 });
-  return { ok: true, outDir, counts: st.counts, at: st.at };
+  return { ok: true, outDir, counts: st.counts, debriefs: debriefs.length, at: st.at };
 }
 
 /** Full desk for one role: packet + notes + batch + rediscover filtered. */
@@ -296,6 +317,104 @@ export function shortlist({
   };
 }
 
+/** Operator integrity audit over all SH stores (no network). */
+export function auditStructuredHiring() {
+  const errors = [];
+  const warnings = [];
+  const hasScore = (obj, label) => {
+    if (!obj || typeof obj !== 'object') return;
+    if ('fitScore' in obj || 'trustScore' in obj) errors.push(`${label}:forbidden_score_field`);
+    for (const [k, v] of Object.entries(obj)) {
+      if (v && typeof v === 'object') hasScore(v, `${label}.${k}`);
+    }
+  };
+
+  const packets = loadPackets();
+  const notes = loadNotes();
+  hasScore(packets, 'packets');
+  hasScore(notes, 'notes');
+  const packetList = Object.values(packets.packets || {});
+  for (const p of packetList) {
+    try {
+      assertPacket(p);
+    } catch (e) {
+      errors.push(`packet:${p?.roleId || '?'}:${e.message || e}`);
+    }
+  }
+  for (const n of Object.values(notes.notes || {})) {
+    const p = packets.packets?.[n.roleId];
+    if (!p) {
+      warnings.push(`note_orphan:${n.roleId}|${n.candId}`);
+      continue;
+    }
+    try {
+      assertNote(n, p);
+    } catch (e) {
+      errors.push(`note:${n.roleId}|${n.candId}:${e.message || e}`);
+    }
+  }
+
+  const batches = loadBatchStore();
+  hasScore(batches, 'batches');
+  for (const b of Object.values(batches.batches || {})) {
+    const max = Number(b.max ?? 3);
+    const active = batchActiveCount(b);
+    if (max > 3) errors.push(`batch_max:${b.roleId}:${max}`);
+    if (active > Math.min(max, 3)) errors.push(`batch_active:${b.roleId}:${active}>${max}`);
+  }
+
+  const touches = loadTouchStore();
+  hasScore(touches, 'touches');
+  for (const t of touches.touches || []) {
+    try {
+      assertTouch(t);
+    } catch (e) {
+      errors.push(`touch:${t?.id || '?'}:${e.message || e}`);
+    }
+  }
+
+  const intros = loadIntroStore();
+  hasScore(intros, 'intros');
+  for (const p of intros.paths || []) {
+    try {
+      assertIntroPath(p);
+    } catch (e) {
+      errors.push(`intro:${p?.id || '?'}:${e.message || e}`);
+    }
+  }
+
+  const calls = listCallNotes({ limit: 5000 });
+  for (const n of calls) {
+    try {
+      assertCallNote(n);
+    } catch (e) {
+      errors.push(`call:${n?.id || '?'}:${e.message || e}`);
+    }
+  }
+
+  const receipt = {
+    schema: 'demigod.structured-hiring-audit/1',
+    at: new Date().toISOString(),
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    counts: {
+      packets: packetList.length,
+      notes: Object.keys(notes.notes || {}).length,
+      batches: Object.keys(batches.batches || {}).length,
+      touches: (touches.touches || []).length,
+      introPaths: (intros.paths || []).length,
+      callNotes: calls.length,
+      errors: errors.length,
+      warnings: warnings.length,
+    },
+    policy: 'No fit score. Evidence-required notes. Batch active ≤3. Assert all store shapes.',
+  };
+  fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+  atomicWrite(AUDIT_OUT, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
+  return receipt;
+}
+
 function selftest() {
   const assert = (c, m) => {
     if (!c) throw new Error(`structured-hiring selftest: ${m}`);
@@ -313,12 +432,16 @@ function selftest() {
     assert(d.roleId === st.packets[0].roleId, 'desk');
     assert(d.introPaths && Array.isArray(d.introPaths.warm), 'desk intro');
   }
+  const audit = auditStructuredHiring();
+  assert(audit.schema === 'demigod.structured-hiring-audit/1', 'audit schema');
+  assert(audit.ok === true, `audit should pass on demo data: ${audit.errors?.slice(0, 3)}`);
   console.log(
     JSON.stringify({
       ok: true,
       selftest: 'structured-hiring',
       packets: st.counts.packets,
       introPaths: st.counts.introPaths,
+      auditOk: audit.ok,
     }),
   );
 }
@@ -330,9 +453,10 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-structured-hiring.mjs status|desk|shortlist|pack [--role=] [--cand=] [--why=] [--json]
+    console.log(`usage: node demigod-structured-hiring.mjs status|desk|shortlist|pack|audit [--role=] [--cand=] [--why=] [--json]
   shortlist  add cand to role batch (requires packet); logs touch; hard-caps active=3
-  pack       write /tmp/dg-busy/structured-hiring-handoff/`);
+  pack       write /tmp/dg-busy/structured-hiring-handoff/
+  audit      validate all SH stores (no fit score; batch caps; assert shapes)`);
     return;
   }
   const json = args.includes('--json');
@@ -365,6 +489,18 @@ function main() {
     const out = packHandoff();
     console.log(JSON.stringify(out, null, 2));
     return;
+  }
+
+  if (cmd === 'audit') {
+    const out = auditStructuredHiring();
+    if (json) console.log(JSON.stringify(out, null, 2));
+    else {
+      console.log(`# structured-hiring audit · ${out.ok ? 'OK' : 'FAIL'} · errors=${out.errors.length} · warnings=${out.warnings.length}`);
+      for (const e of out.errors.slice(0, 20)) console.log(`  ✗ ${e}`);
+      for (const w of out.warnings.slice(0, 10)) console.log(`  ! ${w}`);
+      console.log(`  receipt: ${AUDIT_OUT}`);
+    }
+    process.exit(out.ok ? 0 : 1);
   }
 
   if (cmd === 'desk') {
@@ -407,6 +543,25 @@ function main() {
       console.log(
         `  warm ${w.bestStrength} · ${w.toCand || w.toCompany} · paths=${w.paths}`,
       );
+    }
+    for (const n of (st.recentCallNotes || []).slice(0, 3)) {
+      console.log(`  call ${n.kind} · ${n.roleId || n.candId || '—'} · ${String(n.summary || '').slice(0, 50)}`);
+    }
+    // Debrief disagree flags (no scores)
+    for (const p of st.packets || []) {
+      try {
+        const desk = buildDesk(p.roleId);
+        const db = desk.debrief;
+        if (!db || !db.noteCount) continue;
+        const disagree = (db.byMustHave || []).filter((m) => m.disagree);
+        console.log(
+          `  debrief ${p.roleId} · notes=${db.noteCount}${
+            disagree.length ? ` · disagree=${disagree.map((m) => m.mustHaveId).join(',')}` : ' · agree-or-single'
+          }`,
+        );
+      } catch {
+        /* */
+      }
     }
     console.log(`  receipt: ${OUT}`);
   }

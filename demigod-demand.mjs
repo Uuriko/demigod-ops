@@ -1500,8 +1500,17 @@ function cmdDraft() {
   }
   const { body, readyFile } = loadDraftBody(row);
   const startupCompanies = readJson(path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'))?.companies || [];
-  const openUrl = (row.open.match(/https?:\/\/[^\s\])]+/) || [])[0] || '';
+  const rawOpen = (row.open.match(/https?:\/\/[^\s\])]+/) || [])[0] || '';
+  // EP-12: open URL on draft pack is evidence-shaped — only safeResearchUrl (https/public).
+  const openUrl = rawOpen ? safeResearchUrl(rawOpen) : null;
   const hygiene = draftHygiene({ name: row.name, company: row.company, handle: row.handle, body });
+  if (rawOpen && !openUrl) {
+    hygiene.flags = [
+      ...(hygiene.flags || []),
+      { sev: 'warn', msg: 'open URL rejected by safeResearchUrl (localhost/private/userinfo/non-http)' },
+    ];
+    hygiene.ok = false;
+  }
   const out = {
     schema: 'demigod.demand.draft/1',
     at: new Date().toISOString(),
@@ -1509,7 +1518,8 @@ function cmdDraft() {
     name: row.name,
     handle: row.handle,
     company: row.company,
-    open: openUrl || row.open,
+    open: openUrl || '',
+    openRawRejected: Boolean(rawOpen && !openUrl),
     afterSend: `node demigod-dm-mark-sent.mjs --name=${row.name} --i-sent-it`,
     readyFile: readyFile || null,
     body: body || null,

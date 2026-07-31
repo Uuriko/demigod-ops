@@ -35,6 +35,10 @@ Demigod already has the tests. It lacked a single control catalog with fail-clos
 | `demand_drafts_only` | Both auto-DM disabled and agent-never-sends flags are explicit | demand-status honesty flags | high |
 | `role_poll_timer_healthy` | Daily role observation is armed and its last run is successful/fresh | systemd timer + oneshot properties | med |
 | `map_prepare_only` | Live map-data not falsely claimed shipped when prepare-only | truth.json prepareOnly / sibling drift | low |
+| `reseal_queue_drained` | Map-stamp reseal queue empty or research already green | `/tmp/dg-busy/reseal-queue.jsonl` + research green | med |
+| `structured_hiring_no_score` | SH stores parse; no fitScore/trustScore; batch active ≤3 | DEMIGOD-ROLE-PACKETS / PILOT-BATCHES / touches / intros | med |
+| `export_board_identity_clean` | Export has zero board collisions / duplicate map boards | recruitai-export `counts` | med |
+| `reseal_schedule_ok` | Multi-day reseal not overdue (CH-13 due helper) | `resealDue()` / reseal-queue-last | low |
 
 Severities: `high` red fails the board summary; `med`/`low` warn.
 
@@ -66,9 +70,12 @@ Path: `/tmp/dg-busy/control-board.json`
 ```bash
 node demigod-control-board.mjs              # evaluate + write receipt
 node demigod-control-board.mjs status       # human lines
+node demigod-control-board.mjs history [--n=20]  # continuous JSONL history
 node demigod-control-board.mjs --json       # full JSON
 node demigod-control-board.mjs --selftest
 ```
+
+History: `/tmp/dg-busy/control-board-history.jsonl` (last ~200 rows). Dash: `/api/control-board` and `?history=1`.
 
 Exit code: `0` if no **high** severity failures; `1` if any high fails (med/low do not fail exit — delivery emptiness is informative red, not a broken laptop).
 
@@ -81,7 +88,7 @@ Exit code: `0` if no **high** severity failures; `1` if any high fails (med/low 
 |---------|-----|
 | Tools registry | `control-board` safe tool |
 | Orient | evaluates the board at session start; compact status in line 5 + structured receipt link in JSON |
-| Dash (later) | `/api/control-board` if useful — YAGNI until used |
+| Dash | `/api/control-board`, `?history=1`, Home integrity chip from receipt |
 
 ## 7. Remediation (human/agent playbook)
 
@@ -94,6 +101,9 @@ Exit code: `0` if no **high** severity failures; `1` if any high fails (med/low 
 | `pairs_has_real` | run real review | seed more sample pairs as “progress” |
 | `demand_drafts_only` | keep drafts-only | enable auto-DM |
 | `role_poll_timer_healthy` | repair/enable the timer or its poll failure | auto-start from the board or hide a failed run |
+| `structured_hiring_no_score` | fix poison store / terminal batch overflow | invent fitScore to “rank” |
+| `export_board_identity_clean` | re-export / fix map board ownership | force merge identities |
+| `reseal_schedule_ok` | `node demigod-reseal-queue.mjs run --schedule` | weaken pin / skip reseal forever |
 
 ## 8. Kill conditions
 
@@ -101,6 +111,12 @@ Exit code: `0` if no **high** severity failures; `1` if any high fails (med/low 
 - If agents greenwash by disabling controls → restore from git + poison test.  
 - Never add a “trust score” aggregate 0–100.
 
-## 9. v1 backlog (not v0)
+## 9. Shipped after v0 (do not re-open as backlog)
 
-- Control history JSONL (pass/fail over time).  
+- Control history JSONL + `history` CLI + dash history API.  
+- `structured_hiring_no_score`, `reseal_queue_drained`, export identity + reseal schedule controls.  
+
+## 10. Residual backlog
+
+- Optional public trust surface (safe controls only — never private pairs).  
+
