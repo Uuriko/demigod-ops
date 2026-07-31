@@ -144,6 +144,7 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   assert.match(source, /state\.providerOf\[i\] === provider/);
   assert.match(source, /providerEl\.addEventListener\('change', renderRows\)/);
   assert.match(source, /\[c\.name, c\.description\]\.concat\(c\.tags/);
+  assert.match(source, /\.dg-dir-links a\{[^}]*min-height:44px/, 'company board and source links keep a 44px mobile target');
   // Output escaping + https-only links.
   assert.match(source, /function esc\(value\)/);
   assert.match(source, /\/\^https\?:\$\/\.test\(url\.protocol\)/);
@@ -157,7 +158,7 @@ test('generated public artifact keeps named companies city-only and strips sensi
   assert.ok(map.companies.length > 0);
   assert.equal(map.companies.every((company) => company.locationPrecision === 'city' && company.neighborhood === null), true);
   assert.equal(map.companies.every((company) => ['CC0-1.0', 'YC-public', 'HN-public'].includes(company.sourceLicense)), true);
-  assert.deepEqual([...new Set(map.sources.map((source) => source.license))].sort(), ['CC0-1.0', 'PDDL-1.0', 'YC-public']);
+  assert.deepEqual([...new Set(map.sources.map((source) => source.license))].sort(), ['CC0-1.0', 'HN-public', 'PDDL-1.0', 'YC-public']);
   const serialized = JSON.stringify(map).toLowerCase();
   // Field names / PII keys only — prose descriptions may say "email security" honestly.
   for (const forbidden of ['full_business_address', 'mailing_address', 'ownership_name', 'companyids']) {
@@ -180,12 +181,35 @@ test('generated public artifact keeps named companies city-only and strips sensi
   assert.equal(map.venues.every((venue) => venue.sourceUrl === null && venue.sourceLicense === null), true);
 });
 
+test('directory role chips reuse the existing function filter', () => {
+  const source = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function companyRow');
+  const end = source.indexOf('\n  // Fills the (initially hidden) section');
+  const companyRow = new Function(
+    'DG_FUNCS', 'esc', 'safeUrl',
+    source.slice(start, end) + '; return companyRow;',
+  )(
+    ['engineering'],
+    (value) => String(value ?? '').replace(/[&<>"']/g, ''),
+    () => '',
+  );
+  const html = companyRow({ name: 'Acme', source: 'Public record', roleMix: { engineering: 3, other: 2 } }, 0);
+
+  assert.match(html, /<button type="button" class="dg-dir-rolechip" data-fn="engineering">engineering 3<\/button>/);
+  assert.match(html, /<span class="dg-dir-rolechip">other 2<\/span>/, 'unsupported other bucket stays non-interactive');
+  assert.doesNotMatch(html, /data-fn="other"/);
+  assert.match(source, /button\.dg-dir-rolechip\{[^}]*min-height:44px/, 'function controls keep a 44px mobile target');
+  assert.match(source, /funcEl\.value = picked;\s*renderRows\(\);\s*funcEl\.focus\(\);/, 'one click reuses the select, render, hash, and live count path');
+});
+
 test('website route is discoverable and loads the immutable map asset only on demand', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
+  const head = fs.readFileSync(new URL('./demigod-head-minimal.html', import.meta.url), 'utf8');
   // v858: hard route /startups; path pill uses COPY.pathStartups ('SF startups'), not the
   // prose "SF startup directory" on the events cross-link. data-dg-page stays "map".
   assert.match(foot, /<a href="\/startups" data-dg-page="map">'\+COPY\.pathStartups\+'<\/a>/);
   assert.doesNotMatch(foot, /<a href="\/\?p=map"/);
+  assert.match(head, /status:'about',startups:'map'/, 'the early /startups canonical must not fall back to home');
   // v805: page-scoped HTML — startups page has directory host + startup form; events page has event form only.
   assert.match(foot, /function dgMapEventsHtml\(kind\)/);
   assert.doesNotMatch(foot, /<strong>A plain directory of San Francisco startups\.<\/strong>/);
@@ -257,6 +281,30 @@ test('directory sort: an unmeasured company never ranks as freshest', () => {
   assert.ok(Number.isNaN(NaN) && fresh(NaN, 3, 'A', 'B') > 0, 'NaN is treated as unknown, not as 0');
 });
 
+test('directory surfaces the guarded global role-title mix without implying demand', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  const start = src.indexOf('function dgRoleMixSummary');
+  const end = src.indexOf('\n  var state = {');
+  const summarize = new Function(src.slice(start, end) + '; return dgRoleMixSummary;')();
+
+  assert.equal(
+    summarize({ engineering: 2690, sales: 1396, 'ai/data': 925, operations: 858, 'finance/legal': 555, product: 439, other: 202 }),
+    'engineering 2,690 · sales 1,396 · ai/data 925 · operations 858 · finance/legal 555',
+    'top five valid title buckets render in count order and exclude other',
+  );
+  assert.equal(summarize('engineering'), '', 'string poison fails closed');
+  assert.equal(summarize([]), '', 'array poison fails closed');
+  assert.equal(summarize({ engineering: -1, sales: 2.5, other: 9 }), '', 'invalid counts cannot create a public claim');
+  assert.match(src, /dgRoleMixSummary\(map\.coverage && map\.coverage\.roleMix\)/, 'summary uses the map already loaded by the directory');
+  assert.match(src, /esc\(roleMixSummary\)/, 'third-party bucket labels are escaped at the render boundary');
+  assert.match(src, /Public-board, title-heuristic counts — not a ranking or demand score\./, 'inference limit travels with the counts');
+  assert.ok(
+    src.indexOf('<strong>Open-role title mix:</strong>') > src.indexOf('roleAgingAt') &&
+      src.indexOf('<strong>Open-role title mix:</strong>') < src.indexOf('<div class="dg-dir-tools">'),
+    'role mix sits beneath the coverage strip and before directory controls',
+  );
+});
+
 test('recent roles: ordered by OUR observation, never by the employer posting date', () => {
   const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   // Source-level: the section exists and starts hidden, so a missing feed shows nothing at all.
@@ -267,9 +315,11 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   // The feed is NOT filtered to US-posted (40 of 200 live rows are not), but the open-role counts
   // on the same page ARE. The page must say so rather than present two scopes as one.
   assert.match(src, /including outside the US/, 'the section must state that its scope differs from the counts');
+  assert.match(src, /days === 1 \? '' : 's'/, 'a one-day feed must render “last 1 day”');
   const start = src.indexOf('function dgRecentRoles');
   const end = src.indexOf('\n  var state = {');
-  const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();
+  const api = new Function(src.slice(start, end) + '; return { pick: dgRecentRoles, activity: dgActivitySummary };')();
+  const pick = api.pick;
 
   const feed = (roles) => ({ schema: 'demigod.roles-feed/8', windowDays: 7, roles });
   const role = (o) => ({ company: 'C', title: 'T', url: 'https://x.example/j', firstObservedAt: '2026-07-30T00:00:00Z', postedAt: null, ...o });
@@ -301,6 +351,23 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   assert.deepEqual(pick(null, 8), [], 'no feed -> nothing');
   assert.deepEqual(pick({ roles: 'nope' }, 8), [], 'malformed roles -> nothing, no crash');
   assert.deepEqual(pick(feed([]), 8), [], 'empty feed -> nothing');
+
+  const activityFeed = {
+    schema: 'demigod.roles-feed/8',
+    windowDays: 1,
+    counts: {
+      inWindow: 361,
+      companiesInWindow: 93,
+      closedInWindow: 1,
+      companiesClosedInWindow: 1,
+      observationSpanDays: 5,
+      closureObservationSpanDays: 2,
+    },
+  };
+  assert.match(api.activity(activityFeed), /361 roles across 93 companies; 1 role left polled boards across 1 company/);
+  assert.match(api.activity(activityFeed), /does not mean filled or hired.*not a hiring rate/);
+  assert.equal(api.activity(activityFeed, { companies: new Set(['stripe']) }), '', 'overall activity hides on a filtered view');
+  assert.equal(api.activity({ ...activityFeed, counts: { ...activityFeed.counts, inWindow: -1 } }), '', 'malformed activity counts fail closed');
 });
 
 test('directory filter state round-trips through the hash, and rejects junk', () => {
@@ -328,6 +395,12 @@ test('directory filter state round-trips through the hash, and rejects junk', ()
 
   assert.equal(api.parse('#q=' + 'x'.repeat(500), providers).query.length, 120, 'query is length-capped');
   assert.equal(api.parse('#ats=LEVER', providers).provider, 'lever', 'provider match is case-insensitive');
+  assert.deepEqual(
+    ['people', 'finance/legal'].map((fn) => api.parse(`#fn=${encodeURIComponent(fn)}`, providers).func),
+    ['people', 'finance/legal'],
+    'every public role bucket is selectable and shareable',
+  );
+  assert.match(src, /DG_FUNCS\.map\(function \(f\)/, 'the selector reuses the URL allowlist');
   assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
   assert.deepEqual(api.parse('#%E0%A4%A', providers).query, '', 'a malformed escape does not throw');
   assert.equal(api.parse('#q=a+b', providers).query, 'a b', 'plus decodes to space');

@@ -203,7 +203,7 @@ test('Home projects a bounded fail-closed company signal inbox', () => {
   const feed = {
     schema: 'demigod.recruitai-signals/3',
     at: '2026-07-30T12:00:00.000Z',
-    sourceSchema: 'demigod.recruitai-export/3',
+    sourceSchema: 'demigod.recruitai-export/6',
     exportGeneratedAt: '2026-07-30T11:59:59.000Z',
     changeDate: '2026-07-30',
     changeBasis: 'ledger-observation',

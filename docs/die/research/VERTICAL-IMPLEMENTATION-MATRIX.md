@@ -27,4 +27,5 @@ Affinity **connectors** (Gmail/calendar) · Harmonic-scale DB · Metaview **bot-
 - Rank 3–5: design + hermetic fixtures only until gate receipts exist.  
 - No publish / outbound / people enrichment.
 | ops | AR-28 secondary ATS honesty | `ats_secondary_coverage` control (coverage facts only) | `demigod-control-board.mjs` + `buildBoardCoverage` | none | `node demigod-control-board.mjs --selftest` | **BUILT** |
+| ops | Board activity honesty (open+exit) | roles-feed v5 + pulse boardActivity + control `board_activity_observation` + scoreboard v2 | `demigod-roles-feed.mjs` · `demigod-hiring-pulse.mjs` · control-board · enrichment scoreboard | none | `node demigod-roles-feed.mjs --selftest` · control-board status | **BUILT** |
 

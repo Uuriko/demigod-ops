@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { withFileLock } from './demigod-agent-tools-lib.mjs';
 import { refuseIfStale } from './demigod-evidence.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || '/home/potter';
@@ -19,6 +20,7 @@ const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
 const QUEUE = path.join(BUSY, 'work-queue.jsonl');
 const FOUND = path.join(BUSY, 'WORK-FOUND.md');
 const SEEN = path.join(BUSY, 'work-find-seen.json');
+const LOCK = path.join(BUSY, 'work-find.lock');
 
 /**
  * OP-08: map control-board exit/high fails → smallest fix command (no invent roles).
@@ -39,9 +41,64 @@ export function controlBoardRemediationNote(exitFailures = [], highFailures = []
   return cmds.join(' && ');
 }
 
-/** Exit-fail integrity items must reappear while red (hour-bucketed seen hid re-broken truth_seal). */
-export function shouldBypassWorkFindSeen(item = {}) {
-  return item.always === true;
+/** Route red controls to a repair the useful loop can execute, not another status-only probe. */
+export function controlBoardRemediationTask(exitFailures = [], highFailures = []) {
+  const fails = new Set([...(exitFailures || []), ...(highFailures || [])].filter(Boolean));
+  if (fails.has('truth_seal')) return 'truth-reseal';
+  if (
+    fails.has('research_seal') ||
+    fails.has('research_export_honest') ||
+    fails.has('reseal_queue_drained')
+  ) return 'reseal-run';
+  return 'control-board';
+}
+
+/** Persistent failures retry each useful-loop minute; ordinary repeatables remain hourly. */
+export function workFindRetryBucket(item = {}, now = new Date().toISOString()) {
+  return now.slice(0, item.always === true ? 16 : 13);
+}
+
+/**
+ * OP-08 / AR-08: offline classify + map roleMix remediations from control-board evidence.
+ * Never invents roles. Empty when drift=0 and roleMix not stale.
+ */
+export function offlineEnrichRemediationFromControls(controls = []) {
+  const list = Array.isArray(controls) ? controls : [];
+  const items = [];
+  const fn = list.find((c) => c?.id === 'ledger_fn_drift');
+  const mix = list.find((c) => c?.id === 'map_role_mix_fresh');
+  const drift = Number(fn?.evidence?.drift);
+  if (Number.isFinite(drift) && drift > 0) {
+    items.push({
+      key: 'enrich:ledger-fn-drift',
+      kind: 'enrich',
+      pri: 1,
+      always: true,
+      title: `Ledger fn drift=${drift}/${fn.evidence?.open ?? '?'} — offline reclassify`,
+      task: 'ledger-reclassify',
+      note: 'node demigod-enrichment.mjs reclassify',
+      detail: { drift, open: fn.evidence?.open ?? null, otherShare: fn.evidence?.otherShare ?? null },
+      repeatable: true,
+    });
+  }
+  if (mix?.evidence?.stale === true) {
+    items.push({
+      key: 'enrich:map-role-mix-stale',
+      kind: 'enrich',
+      pri: 1,
+      always: true,
+      title: `Map roleMix L1=${mix.evidence?.l1 ?? '?'} stale — offline directory-aging --enrich-map`,
+      task: 'map-role-mix-enrich',
+      note: 'node demigod-directory-aging.mjs --enrich-map',
+      detail: {
+        l1: mix.evidence?.l1 ?? null,
+        mapTotal: mix.evidence?.mapTotal ?? null,
+        liveOpen: mix.evidence?.liveOpen ?? null,
+      },
+      repeatable: true,
+    });
+  }
+  return items;
 }
 
 function readJson(p, fallback = null) {
@@ -72,13 +129,12 @@ function saveSeen(set) {
   fs.writeFileSync(SEEN, JSON.stringify({ at: new Date().toISOString(), keys }, null, 2) + '\n');
 }
 
-function pushWork(seen, items, item) {
+function pushWork(seen, items, item, now = new Date().toISOString()) {
   const baseKey = item.key || `${item.kind}:${item.title}`;
-  const key = item.repeatable ? `${baseKey}@${new Date().toISOString().slice(0, 13)}` : baseKey;
-  const bypass = shouldBypassWorkFindSeen(item);
-  if (!bypass && seen.has(key)) return false;
-  if (!bypass) seen.add(key);
-  items.push({ ...item, key, at: new Date().toISOString(), status: 'open' });
+  const key = item.repeatable ? `${baseKey}@${workFindRetryBucket(item, now)}` : baseKey;
+  if (seen.has(key)) return false;
+  seen.add(key);
+  items.push({ ...item, key, at: now, status: 'open' });
   return true;
 }
 
@@ -318,7 +374,7 @@ function main() {
         pri: 0,
         always: true,
         title: `Control board ATTENTION · ${cb.summary || 'high exit fail'}`,
-        task: 'control-board',
+        task: controlBoardRemediationTask(exitFailures, highFailures),
         detail: { highFailures, exitFailures },
         note: controlBoardRemediationNote(exitFailures, highFailures),
         repeatable: true,
@@ -368,6 +424,78 @@ function main() {
           title: `Research re-verify due (last ${ageDays === 999 ? 'unknown' : ageDays.toFixed(0) + 'd'} ago)`,
           task: 'reseal-due',
           note: 'node demigod-reseal-queue.mjs due || node demigod-reseal-queue.mjs run --force',
+          repeatable: true,
+        });
+      }
+    }
+
+    // AR-08 offline classify / map roleMix (from control evidence; empty when aligned)
+    if (cb?.controls) {
+      for (const item of offlineEnrichRemediationFromControls(cb.controls)) {
+        pushWork(seen, found, item);
+      }
+    }
+
+    // Structured-hiring doctor receipt stale → refresh product surface (OP-08 / Ashby desk)
+    {
+      const docPath = path.join(BUSY, 'structured-hiring-doctor.json');
+      const doc = readJson(docPath);
+      const ageMs = doc?.at ? Date.now() - Date.parse(doc.at) : Number.POSITIVE_INFINITY;
+      if (!doc || !Number.isFinite(ageMs) || ageMs > 6 * 3600 * 1000) {
+        pushWork(seen, found, {
+          key: 'sh:doctor-stale',
+          kind: 'structured-hiring',
+          pri: 3,
+          title: 'Structured-hiring doctor receipt missing or >6h',
+          task: 'structured-hiring-doctor',
+          note: 'node demigod-structured-hiring.mjs doctor',
+          repeatable: true,
+        });
+      } else if (doc.ok === false) {
+        pushWork(seen, found, {
+          key: 'sh:doctor-fail',
+          kind: 'structured-hiring',
+          pri: 1,
+          always: true,
+          title: `Structured-hiring doctor FAIL · errors=${doc.audit?.errors?.length ?? '?'}`,
+          task: 'structured-hiring-audit',
+          note: 'node demigod-structured-hiring.mjs audit',
+          detail: { errors: (doc.audit?.errors || []).slice(0, 8) },
+          repeatable: true,
+        });
+      }
+    }
+
+    // Control med: export missing (ops honesty, not invent roles)
+    if (cb?.controls) {
+      const exp = cb.controls.find((c) => c.id === 'export_board_identity_clean' && c.ok === false);
+      if (exp && /export_missing|unreadable/i.test(String(exp.reason || ''))) {
+        pushWork(seen, found, {
+          key: 'enrich:export-missing',
+          kind: 'enrich',
+          pri: 1,
+          always: true,
+          title: 'RecruitAI export missing/unreadable — regenerate local export',
+          task: 'recruitai-export',
+          note: 'node demigod-recruitai-export.mjs',
+          repeatable: true,
+        });
+      }
+    }
+
+    // /startups fragment honesty receipt (site-health) — refresh only; paste is publish-gated
+    {
+      const shPath = path.join(BUSY, 'site-health.json');
+      const sh = readJson(shPath);
+      const ageMs = sh?.at ? Date.now() - Date.parse(sh.at) : Number.POSITIVE_INFINITY;
+      if (!sh || !Number.isFinite(ageMs) || ageMs > 12 * 3600 * 1000) {
+        pushWork(seen, found, {
+          key: 'site:health-stale',
+          kind: 'site',
+          pri: 3,
+          title: 'Site-health receipt missing or >12h — refresh live honesty (no paste)',
+          task: 'site-health-refresh',
+          note: 'node demigod-site-health.mjs  # fragment lag is publish-gated',
           repeatable: true,
         });
       }
@@ -432,16 +560,17 @@ function selftest() {
     controlBoardRemediationNote(['phase2_has_accepted_role'], []).includes('control-board'),
     'med delivery gap → no invent-role fix command',
   );
-  assert(shouldBypassWorkFindSeen({ always: true }) === true, 'always bypasses seen');
-  assert(shouldBypassWorkFindSeen({ pri: 0 }) === false, 'pri0 alone still hour-seen (events heal)');
-  assert(shouldBypassWorkFindSeen({ pri: 2, repeatable: true }) === false, 'pri2 respects seen');
-  // Hour-seen must not hide a re-queued pri0 control-board fail
+  assert(controlBoardRemediationTask(['truth_seal'], []) === 'truth-reseal', 'truth fail → executable reseal');
+  assert(controlBoardRemediationTask(['research_export_honest'], []) === 'reseal-run', 'research fail → executable reseal');
+  assert(controlBoardRemediationTask([], []) === 'control-board', 'unknown control fail → status refresh');
+  assert(workFindRetryBucket({ always: true }, '2099-01-01T00:12:34.000Z') === '2099-01-01T00:12', 'always retries each minute');
+  assert(workFindRetryBucket({ repeatable: true }, '2099-01-01T00:12:34.000Z') === '2099-01-01T00', 'ordinary retry stays hourly');
+  // Doctor stale discovery is covered live via status receipt; remediation helpers stay pure above.
+  // Identical probes coalesce within a retry minute, then retry next minute if still red.
   {
-    const seen = new Set(['enrich:control-board-fail:truth_seal@2099-01-01T00']);
+    const seen = new Set(['enrich:control-board-fail:truth_seal@2099-01-01T00:12']);
     const items = [];
-    const hourKey = `enrich:control-board-fail:truth_seal@${new Date().toISOString().slice(0, 13)}`;
-    seen.add(hourKey);
-    const pushed = pushWork(seen, items, {
+    const item = {
       key: 'enrich:control-board-fail:truth_seal',
       kind: 'enrich',
       pri: 0,
@@ -449,8 +578,39 @@ function selftest() {
       title: 'rebroken',
       note: 'node demigod-truth.mjs',
       repeatable: true,
-    });
-    assert(pushed && items.length === 1, 'pri0 always re-surfaces while red');
+    };
+    assert(!pushWork(seen, items, item, '2099-01-01T00:12:50.000Z'), 'same-minute P0 probe dedupes');
+    assert(pushWork(seen, items, item, '2099-01-01T00:13:00.000Z'), 'next-minute P0 retry surfaces');
+    assert(items.length === 1, 'only the retry was queued');
+  }
+  // AR-08 offline remediations from control evidence only
+  assert(offlineEnrichRemediationFromControls([]).length === 0, 'no controls → no offline enrich work');
+  assert(
+    offlineEnrichRemediationFromControls([
+      { id: 'ledger_fn_drift', evidence: { drift: 0, open: 10 } },
+      { id: 'map_role_mix_fresh', evidence: { stale: false, l1: 0 } },
+    ]).length === 0,
+    'aligned fn + roleMix → no work',
+  );
+  const rem = offlineEnrichRemediationFromControls([
+    { id: 'ledger_fn_drift', evidence: { drift: 12, open: 100, otherShare: 0.2 } },
+    { id: 'map_role_mix_fresh', evidence: { stale: true, l1: 40, mapTotal: 50, liveOpen: 60 } },
+  ]);
+  assert(rem.length === 2, 'drift + stale → two remediations');
+  assert(rem[0].note.includes('reclassify') && rem[0].always === true, 'reclassify always while drift');
+  assert(rem[1].note.includes('enrich-map') && rem[1].always === true, 'enrich-map always while stale');
+  // work-find tasks must have doTask cases in useful-loop (cycle 126: unknown task forever)
+  {
+    const wf = fs.readFileSync(path.join(ROOT, 'demigod-work-find.mjs'), 'utf8');
+    const ul = fs.readFileSync(path.join(ROOT, 'demigod-useful-loop.mjs'), 'utf8');
+    const tasks = new Set(
+      [...wf.matchAll(/task:\s*['"]([a-z0-9-]+)['"]/g)].map((m) => m[1]),
+    );
+    const cases = new Set(
+      [...ul.matchAll(/case\s+['"]([a-z0-9-]+)['"]/g)].map((m) => m[1]),
+    );
+    const missing = [...tasks].filter((t) => !cases.has(t)).sort();
+    assert(missing.length === 0, `useful-loop missing cases for work-find tasks: ${missing.join(', ')}`);
   }
   console.log(JSON.stringify({ ok: true, selftest: 'work-find' }));
 }
@@ -473,4 +633,4 @@ if (workFindArgs.includes('--selftest')) {
   process.exit(0);
 }
 
-main();
+withFileLock(LOCK, main, { timeoutMs: 70000, staleMs: 120000 });

@@ -112,11 +112,61 @@ const MAP_AGING_KEYS = [
   'ledgerOpenRoles', 'roleMix',
 ];
 
+/**
+ * Offline honesty after ledger fn reclassify: compare map.coverage.roleMix to the mix
+ * enrichMap would stamp (board-joined US-open roles only — not entire ledger).
+ * Pure — never mutates. L1>0 means --enrich-map would change coverage.roleMix.
+ */
+export function measureMapRoleMixFreshness(map, ledger, today = null) {
+  const mapMix = map?.coverage?.roleMix && typeof map.coverage.roleMix === 'object'
+    ? map.coverage.roleMix
+    : {};
+  const day = today || new Date().toISOString().slice(0, 10);
+  // Same join as enrichMap: only roles on boards resolvable from the map.
+  const expected = {};
+  let liveOpen = 0;
+  try {
+    const asset = buildAsset(map, ledger, day);
+    for (const a of Object.values(asset.companies || {})) {
+      if (!a?.roleMix || typeof a.roleMix !== 'object') continue;
+      for (const [fn, n] of Object.entries(a.roleMix)) {
+        if (!Number.isSafeInteger(n) || n <= 0) continue;
+        expected[fn] = (expected[fn] || 0) + n;
+        liveOpen += n;
+      }
+    }
+  } catch {
+    // fall through with empty expected
+  }
+  const keys = new Set([...Object.keys(mapMix), ...Object.keys(expected)]);
+  let mapTotal = 0;
+  let l1 = 0;
+  for (const k of keys) {
+    const a = Number(mapMix[k] || 0);
+    const b = Number(expected[k] || 0);
+    mapTotal += a;
+    l1 += Math.abs(a - b);
+  }
+  const mapOther = Number(mapMix.other || 0);
+  const liveOther = Number(expected.other || 0);
+  return {
+    mapTotal,
+    liveOpen,
+    l1,
+    stale: l1 > 0,
+    mapOther,
+    liveOther,
+    mapOtherShare: mapTotal ? Math.round((mapOther / mapTotal) * 1000) / 1000 : 0,
+    liveOtherShare: liveOpen ? Math.round((liveOther / liveOpen) * 1000) / 1000 : 0,
+    mapMix: { ...mapMix },
+    liveMix: expected,
+  };
+}
+
 // Enrich map companies in place. Idempotent: clears stale keys when the company no longer qualifies.
 export function enrichMap(map, asset) {
   const byName = asset.companies || {};
   let enriched = 0;
-  const globalMix = {};
   for (const c of map.companies || []) {
     for (const k of MAP_AGING_KEYS) {
       if (k in c) delete c[k];
@@ -147,14 +197,20 @@ export function enrichMap(map, asset) {
     if (a.roleMix && typeof a.roleMix === 'object' && !Array.isArray(a.roleMix)) {
       const mix = {};
       for (const [fn, n] of Object.entries(a.roleMix)) {
-        if (Number.isSafeInteger(n) && n > 0) {
-          mix[fn] = n;
-          globalMix[fn] = (globalMix[fn] || 0) + n;
-        }
+        if (Number.isSafeInteger(n) && n > 0) mix[fn] = n;
       }
       if (Object.keys(mix).length) c.roleMix = mix;
     }
     enriched++;
+  }
+  // Corpus roleMix from asset board joins only — do NOT sum per map row (same-name siblings
+  // would double-count one board's mix into coverage.roleMix).
+  const globalMix = {};
+  for (const a of Object.values(byName)) {
+    if (!a || !(a.openRoles > 0) || !a.roleMix || typeof a.roleMix !== 'object') continue;
+    for (const [fn, n] of Object.entries(a.roleMix)) {
+      if (Number.isSafeInteger(n) && n > 0) globalMix[fn] = (globalMix[fn] || 0) + n;
+    }
   }
   if (map.coverage && typeof map.coverage === 'object') {
     map.coverage.roleAgingBasis =
@@ -165,7 +221,8 @@ export function enrichMap(map, asset) {
     map.coverage.companiesWithPostedAging = asset.companiesWithAgingRole || 0;
     if (Object.keys(globalMix).length) {
       map.coverage.roleMix = globalMix;
-      map.coverage.roleMixBasis = 'open US-posted ledger roles; title-heuristic fn buckets';
+      map.coverage.roleMixBasis =
+        'open US-posted ledger roles on map-joined boards; title-heuristic fn buckets (one count per board join)';
     }
   }
   return enriched;
@@ -297,6 +354,25 @@ if (isMain && process.argv.includes('--selftest')) {
     const solo = soloMap.companies.find((c) => c.name === 'fresh');
     assert(!('medianPostedDays' in solo) && !('postedPercentile' in solo),
       'a single rankable board carries neither field — no rank means no median either');
+  }
+
+  // roleMix from ledger.fn on enrich + freshness measure
+  {
+    const mixMap = {
+      companies: [{ name: 'Acme', jobsUrl: 'https://jobs.lever.co/acme', atsSource: 'Lever' }],
+      coverage: { roleMix: { other: 2 } },
+    };
+    const mixLed = led([
+      role({ title: 'Senior Software Engineer', fn: 'engineering', firstSeen: '2026-07-01' }),
+      role({ title: 'Account Executive', fn: 'sales', firstSeen: '2026-07-01' }),
+    ]);
+    const before = measureMapRoleMixFreshness(mixMap, mixLed);
+    assert(before.stale === true && before.l1 > 0, 'stale map roleMix vs ledger');
+    enrichMap(mixMap, buildAsset(mixMap, mixLed, T));
+    assert(mixMap.companies[0].roleMix?.engineering === 1 && mixMap.companies[0].roleMix?.sales === 1, 'enrichMap stamps fn mix');
+    assert(mixMap.coverage.roleMix?.engineering === 1 && mixMap.coverage.roleMixBasis, 'coverage roleMix from ledger');
+    const after = measureMapRoleMixFreshness(mixMap, mixLed);
+    assert(after.stale === false && after.l1 === 0, 'fresh after enrichMap');
   }
 
   console.log(JSON.stringify({ ok: true, selftest: 'directory-aging' }));

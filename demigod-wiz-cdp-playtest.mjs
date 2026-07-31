@@ -2,8 +2,8 @@
 /**
  * demigod-wiz-cdp-playtest.mjs
  * WIZ flow audit using CDP. Supports --local (intercepts foot script, injects disk demigod-foot-core.js for testing changes pre-publish).
- * Checks: steps advance, visibleInputs >=1 per real Q, 90day present (startup only), review at submit.
- * Run: node demigod-wiz-cdp-playtest.mjs [--local] [--engineer]
+ * Checks: steps advance, one visible input per real Q (file-or-link pair on talent resume), 90day present (startup only), review at submit.
+ * Run: node demigod-wiz-cdp-playtest.mjs [--local] [--engineer] [--reduced-motion]
  *
  * Stops AT the review step — it never submits, so it creates no lead. Keep it that way:
  * a gate that submits would mint real fake leads in the prod SoR if it ever misfired.
@@ -15,6 +15,7 @@ import path from 'path';
 
 const USE_LOCAL = process.argv.includes('--local');
 const MOBILE = process.argv.includes('--mobile');
+const REDUCED_MOTION = process.argv.includes('--reduced-motion');
 // Engineer/talent is half the marketplace and had no coverage at all.
 const FLOW = process.argv.includes('--engineer') ? 'engineer' : 'startup';
 const MODAL = FLOW === 'engineer' ? '#jobseeker-modal' : '#startup-modal';
@@ -33,6 +34,7 @@ async function run() {
   });
   const page = await browser.newPage();
   if (MOBILE) await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  if (REDUCED_MOTION) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
   if (USE_LOCAL) {
     // Live loaders may be catbox or jsDelivr foot-latest.js — match both.
     await page.setRequestInterception(true);
@@ -204,7 +206,9 @@ async function run() {
   // Require at least one real question -- with none, the gate has not tested its own subject.
   // Checked against REAL runs first so this does not trade a false green for a false red:
   // startup walks 3 real Qs, engineer 3, all vis=1; both still pass.
-  const visGood = realQs.length > 0 && realQs.every((s) => (s.vis || 0) >= 1);
+  const visGood = realQs.length > 0 && realQs.every(
+    (s) => s.vis === 1 || (FLOW === 'engineer' && s.key === 'resume' && s.vis === 2),
+  );
   const announcementsGood = realQs.every((s) => s.announcement === s.q);
   const uniqueQs = new Set(steps.map((s) => s.q).filter(Boolean)).size;
   const has90 = steps.some((s) => s.has90) || final.has90;
@@ -222,7 +226,33 @@ async function run() {
   const requiredA11yGood = FLOW !== 'engineer' || ['availability', 'salary-expectation', 'work-auth', 'resume'].every(
     (key) => requiredA11y[key] && Object.values(requiredA11y[key]).every(Boolean),
   );
-  const engineerReviewGood = FLOW !== 'engineer' || (/When could you start/i.test(final.reviewText) && /base cash range/i.test(final.reviewText));
+  const engineerReviewGood = FLOW !== 'engineer' || (/When could you start/i.test(final.reviewText) && /base salary range/i.test(final.reviewText));
+  const referralParked = await page.evaluate(() => {
+    const source = document.querySelector('#dg-referral-form-source');
+    if (!source) return { present: false };
+    const style = getComputedStyle(source);
+    return {
+      present: true,
+      hidden: source.hidden,
+      ariaHidden: source.getAttribute('aria-hidden'),
+      display: style.display,
+      visibility: style.visibility,
+      insideStartup: Boolean(source.closest('#startup-modal')),
+    };
+  });
+  const referralParkedGood = !referralParked.present || (
+    referralParked.insideStartup &&
+    referralParked.display === 'none' &&
+    referralParked.visibility === 'hidden'
+  );
+  const heroVisibleGood = await page.evaluate(() => {
+    const hero = document.querySelector('.hero-section h1,.hero-title,.header h1');
+    return Boolean(hero && getComputedStyle(hero).visibility === 'visible');
+  });
+  const heroTrustGood = await page.evaluate(
+    () => document.querySelector('#dg-cta-trust')?.textContent.trim() ===
+      '10% of first-year base salary on start · both sides approve · no spam lists',
+  );
   const pass = Boolean(
     (final.hasReview || /review|submit|thanks/i.test(final.q || '')) &&
       advanced &&
@@ -231,7 +261,10 @@ async function run() {
       announcementsGood &&
       engineerSequenceGood &&
       requiredA11yGood &&
-      engineerReviewGood,
+      engineerReviewGood &&
+      referralParkedGood &&
+      heroVisibleGood &&
+      heroTrustGood,
   );
 
   const report = {
@@ -244,6 +277,10 @@ async function run() {
     requiredA11y,
     requiredA11yGood,
     engineerReviewGood,
+    referralParked,
+    referralParkedGood,
+    heroVisibleGood,
+    heroTrustGood,
     has90,
     hasReview: final.hasReview,
     steps: steps.slice(-4),
@@ -252,6 +289,7 @@ async function run() {
     flow: FLOW,
     local: USE_LOCAL,
     mobile: MOBILE,
+    reducedMotion: REDUCED_MOTION,
   };
   fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));

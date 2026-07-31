@@ -8,6 +8,12 @@ test('direct test runs isolate referral side effects', () => {
 });
 
 test('intake rejection cannot be promoted by approval', () => {
+  const candidateRaw = {
+    'full-name': 'Candidate', 'seeker-email': 'candidate@example.com', 'skills-stack': 'Design',
+    experience: 'Shipped onboarding', 'sf-bay': 'yes', availability: 'now',
+    'salary-expectation': '$170–190k base', 'work-auth': 'authorized',
+    'resume-url': 'https://example.com/resume.pdf',
+  };
   assert.equal(submissionApprovalBlocker({ status: 'rejected', rejectReasons: ['missing_resume'] }), 'rejected');
   assert.equal(submissionApprovalBlocker({ status: 'spam' }), 'spam');
   assert.equal(submissionApprovalBlocker({ status: 'new', rejectReasons: ['invalid_email'] }), 'rejected_by_intake');
@@ -15,13 +21,11 @@ test('intake rejection cannot be promoted by approval', () => {
   assert.equal(submissionApprovalBlocker({ status: 'featured', featuredId: 'cand-1', rejectReasons: ['legacy'] }), null);
   assert.equal(submissionApprovalBlocker({ form: 'candidate', status: 'updated', raw: { 'skills-stack': 'Design' } }), 'duplicate_update');
   assert.equal(submissionApprovalBlocker({ form: 'startup-hire', status: 'new', raw: { 'role-title': 'Designer' } }), 'missing_required_evidence');
-  assert.equal(submissionApprovalBlocker({
-    form: 'candidate', status: 'new', raw: {
-      'full-name': 'Candidate', 'seeker-email': 'candidate@example.com', 'skills-stack': 'Design',
-      experience: 'Shipped onboarding', 'sf-bay': 'yes', availability: 'now',
-      'salary-expectation': '$170–190k base', 'resume-url': 'https://example.com/resume.pdf',
-    },
-  }), null);
+  assert.equal(submissionApprovalBlocker({ form: 'candidate', status: 'new', raw: candidateRaw }), null);
+  assert.equal(
+    submissionApprovalBlocker({ form: 'candidate', status: 'new', raw: { ...candidateRaw, 'work-auth': '' } }),
+    'missing_required_evidence',
+  );
 });
 
 test('approveSubmission enforces the shared blocker before board work', async () => {

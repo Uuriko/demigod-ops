@@ -61,11 +61,18 @@ test('public Events page is SF events with reviewed submissions (map is separate
     foot,
     /if \(id === 'events' \|\| id === 'map'\) root\.classList\.add\('dg-page-events',\s*'dg-page-map'\)/,
   );
-  // v810: map directory CTAs are Home only (not dual hire/talent strip)
-  // v859 added `|| id === 'refer'` to the same rule. Pin the behaviour (events AND map
-  // both get the plain back link), not the exact page list, so adding a page is not a RED.
-  const backRule = foot.match(/if \(id === 'events'[^)]*\) return back/)?.[0] || '';
-  assert.match(backRule, /id === 'map'/, 'map must share the plain back link with events');
+  // The directory connects its hiring evidence to both existing intake paths; Events stays neutral.
+  const pageCtasSource = foot.slice(foot.indexOf('function pageCtas'), foot.indexOf('function startupMapAssetUrl'));
+  const renderPageCtas = new Function('COPY', `${pageCtasSource}; return pageCtas;`)({
+    ctaFounder: 'Hire talent', ctaEngineer: 'Join the talent network',
+  });
+  const mapCtas = renderPageCtas('map');
+  const back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
+  assert.match(mapCtas, /href="\/\?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Hire talent<\/a>/);
+  assert.match(mapCtas, /href="\/\?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Join the talent network<\/a>/);
+  assert.ok(mapCtas.endsWith(back), 'the directory retains its Home path');
+  assert.equal(renderPageCtas('events'), back, 'Events stays Home-only');
+  assert.equal(renderPageCtas('refer'), back, 'Refer stays Home-only');
 
   assert.doesNotMatch(
     foot,

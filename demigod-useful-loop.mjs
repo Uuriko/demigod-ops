@@ -206,6 +206,7 @@ await withEventsStoreLock(async () => {
       });
       return { ok: r.status === 0, status: r.status, out: r.stdout || '', err: r.stderr || '' };
     }
+    case 'truth-reseal':
     case 'truth': {
       const r = spawnSync('bash', [path.join(ROOT, 'bin/dg-truth')], {
         cwd: ROOT,
@@ -453,6 +454,43 @@ console.log(JSON.stringify({ ok: true, by, n: o.length, externalReady, rejected:
       return run(['demigod-work-find.mjs'], 90000);
     case 'control-board':
       return run(['demigod-control-board.mjs', '--json'], 60000);
+    case 'structured-hiring-doctor':
+      // work-find sh:doctor-stale — receipt /tmp/dg-busy/structured-hiring-doctor.json
+      return run(['demigod-structured-hiring.mjs', 'doctor'], 120000);
+    case 'structured-hiring-audit':
+      return run(['demigod-structured-hiring.mjs', 'audit'], 60000);
+    case 'recruitai-export':
+      // Local export only — no outbound, no scores
+      return run(['demigod-recruitai-export.mjs'], 300000);
+    case 'site-health-refresh': {
+      // Refresh /tmp/dg-busy/site-health.json. Publish-gated fragment lag only is observational.
+      // Allowlist on receipt.failing (exactly ['freshness']) — denylist fail-opens when new checks appear
+      // (Claude tool-failure audit 2026-07-31).
+      const r = run(['demigod-site-health.mjs'], 120000);
+      let observational = false;
+      try {
+        const sh = JSON.parse(fs.readFileSync(path.join(BUSY, 'site-health.json'), 'utf8'));
+        const failing = Array.isArray(sh?.failing) ? sh.failing : null;
+        observational =
+          r.status !== 0 &&
+          Array.isArray(failing) &&
+          failing.length === 1 &&
+          failing[0] === 'freshness';
+      } catch {
+        /* receipt missing → keep real fail */
+      }
+      return {
+        ok: r.ok || observational,
+        status: r.status,
+        observational: observational || undefined,
+        out: r.out,
+        err: r.err,
+      };
+    }
+    case 'ledger-reclassify':
+      return run(['demigod-enrichment.mjs', 'reclassify'], 300000);
+    case 'map-role-mix-enrich':
+      return run(['demigod-directory-aging.mjs', '--enrich-map'], 300000);
     case 'reseal-run':
     case 'reseal-due':
       return run(['demigod-reseal-queue.mjs', 'run', '--schedule', '--max-age-days=7'], 1800000);

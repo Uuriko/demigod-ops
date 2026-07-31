@@ -217,7 +217,7 @@ Not website content. No contacts, scores, consent, or send authority.
 
 | File | Purpose |
 |------|---------|
-| \`latest.json\` | \`demigod.recruitai-export/3\` table + relationship graph |
+| \`latest.json\` | \`demigod.recruitai-export/6\` table + relationship graph |
 | \`latest.csv\` | Flat rows for spreadsheet / offline review |
 | \`commit.json\` | Hash bind of JSON+CSV generation |
 | \`company-seeds.jsonl\` | One recruitAI \`CompanySeed\` per line \`{name,domain?,website?}\` |
@@ -229,7 +229,8 @@ Not website content. No contacts, scores, consent, or send authority.
 1. Install/run the desktop app from the release (Linux: AppImage on this machine at \`/tmp/dg-busy/recruitai-app/\`).
 2. Use recruitAI's own free discovery for ATS sweeps + Gmail send (its product surface).
 3. Use **this pack** as Demigod-grounded hiring signal when reviewing SF companies:
-   - openReqCount, maxObservedOpenDays, staleAttributedPostedReqCount
+   - openReqCount, seniorityMix, distinctObservedLocationCount
+   - greenhouseStalePostedUpdated7dReqCount, maxObservedOpenDays
    - openPeopleOpsReqCount (positive signal only)
    - noAgency evidence quote/URL when present
    - companyResearch only when export researchGreen is true **and** Demigod research is currently green
@@ -306,7 +307,7 @@ function selftest() {
   assert(st.export && typeof st.export.ok === 'boolean', 'export status shape');
   // Seed pack pure path (no disk export required)
   const mini = buildSeedPack({
-    schema: 'demigod.recruitai-export/3',
+    schema: 'demigod.recruitai-export/6',
     rows: [{ name: 'Zed', domain: 'zed.test', openReqCount: 2, mapCompanyId: 'yc:zed' }],
   });
   assert(mini.counts.seeds === 1 && mini.entries[0].seed.domain === 'zed.test', 'seed pack wire');

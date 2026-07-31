@@ -1,47 +1,47 @@
 {
   "generatedAt": "2026-07-31",
   "levels": {
-    "tracked": 2741,
-    "hiring": 889,
-    "verifiedBoards": 338,
-    "verifiedRoles": 8151
+    "tracked": 3689,
+    "hiring": 887,
+    "verifiedBoards": 506,
+    "verifiedRoles": 13022
   },
   "byFunction": [
     {
       "fn": "engineering",
-      "n": 2344
+      "n": 4251
     },
     {
       "fn": "sales",
-      "n": 1087
+      "n": 1903
     },
     {
       "fn": "ai/data",
-      "n": 838
+      "n": 1283
     },
     {
       "fn": "operations",
-      "n": 566
-    },
-    {
-      "fn": "marketing",
-      "n": 440
+      "n": 1174
     },
     {
       "fn": "finance/legal",
-      "n": 428
+      "n": 705
+    },
+    {
+      "fn": "marketing",
+      "n": 654
     },
     {
       "fn": "product",
-      "n": 376
-    },
-    {
-      "fn": "design",
-      "n": 188
+      "n": 578
     },
     {
       "fn": "people",
-      "n": 158
+      "n": 340
+    },
+    {
+      "fn": "design",
+      "n": 273
     }
   ],
   "finding": {
@@ -52,10 +52,16 @@
     "multiple": 5.1
   },
   "aiInsight": {
-    "roles": 838,
-    "share": 10,
+    "roles": 1283,
+    "share": 11,
     "beatsPDM": false,
-    "pdm": 1004
+    "pdm": 1505
+  },
+  "peopleInsight": {
+    "roles": 340,
+    "share": 3,
+    "engRoles": 4251,
+    "engShare": 36
   },
   "topHirers": [
     {
@@ -63,6 +69,18 @@
       "roles": 597,
       "ats": "Ashby",
       "url": "https://jobs.ashbyhq.com/openai"
+    },
+    {
+      "name": "Veeva Systems",
+      "roles": 476,
+      "ats": "Lever",
+      "url": "https://jobs.lever.co/veeva"
+    },
+    {
+      "name": "Lyra Health, Inc.",
+      "roles": 469,
+      "ats": "Lever",
+      "url": "https://jobs.lever.co/lyrahealth"
     },
     {
       "name": "Databricks",
@@ -95,54 +113,42 @@
       "url": "https://boards.greenhouse.io/brex"
     },
     {
+      "name": "Zoox",
+      "roles": 224,
+      "ats": "Lever",
+      "url": "https://jobs.lever.co/zoox"
+    },
+    {
+      "name": "Verkada Inc.",
+      "roles": 212,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/verkada"
+    },
+    {
       "name": "Samsara",
       "roles": 201,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/samsara"
     },
     {
-      "name": "Okta",
-      "roles": 157,
+      "name": "Roblox",
+      "roles": 194,
       "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/okta"
-    },
-    {
-      "name": "Fivetran",
-      "roles": 147,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/fivetran"
-    },
-    {
-      "name": "Pinterest Inc.",
-      "roles": 142,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/pinterest"
-    },
-    {
-      "name": "Reddit",
-      "roles": 136,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/reddit"
-    },
-    {
-      "name": "Coinbase",
-      "roles": 111,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/coinbase"
+      "url": "https://boards.greenhouse.io/roblox"
     }
   ],
   "atsLandscape": [
     {
       "name": "Ashby",
-      "n": 196
+      "n": 277
     },
     {
       "name": "Greenhouse",
-      "n": 103
+      "n": 169
     },
     {
       "name": "Lever",
-      "n": 39
+      "n": 60
     }
   ],
   "batches": [
@@ -157,7 +163,7 @@
       "batch": "YC Spring 2026",
       "n": 168,
       "hiring": 44,
-      "roles": 10,
+      "roles": 19,
       "rate": 26
     },
     {
@@ -205,9 +211,217 @@
   ],
   "deltas": {
     "since": "2026-07-30",
-    "startedHiring": 1,
-    "pausedHiring": 2,
-    "netRoles": 27
+    "startedHiring": 174,
+    "pausedHiring": 7,
+    "netRoles": 4898
   },
-  "method": "Open-role counts are live US-posted or Remote listings on each company’s own public Greenhouse/Lever/Ashby job board. \"Hiring\" without a count is the company’s own YC/self report. Public data only — no résumés, no estimates, no invented trends."
+  "method": "Open-role counts are live US-posted or Remote listings on each company’s own public Greenhouse/Lever/Ashby/Workable job board (plus owner-gated secondary ATS when joined). Role-function mix uses title heuristics on open US-posted ledger roles joined to map boards. \"Hiring\" without a count is the company’s own YC/self report. Public data only — no résumés, no estimates, no invented trends. Board activity (new open + board-exit) uses the role ledger — exits are not filled/hired claims.",
+  "boardActivityInsight": {
+    "windowDays": 7,
+    "newOpenInWindow": 18145,
+    "companiesWithNewOpen": 512,
+    "closedInWindow": 955,
+    "companiesClosedInWindow": 154,
+    "byCompanyTop": [
+      {
+        "company": "Databricks",
+        "openInWindow": 803
+      },
+      {
+        "company": "OpenAI",
+        "openInWindow": 749
+      },
+      {
+        "company": "Stripe",
+        "openInWindow": 544
+      },
+      {
+        "company": "Snowflake",
+        "openInWindow": 410
+      },
+      {
+        "company": "Anthropic",
+        "openInWindow": 400
+      }
+    ],
+    "byCompanyClosedTop": [
+      {
+        "company": "Okta",
+        "closedInWindow": 75
+      },
+      {
+        "company": "Databricks",
+        "closedInWindow": 50
+      },
+      {
+        "company": "OpenAI",
+        "closedInWindow": 44
+      },
+      {
+        "company": "Stripe",
+        "closedInWindow": 43
+      },
+      {
+        "company": "Notion",
+        "closedInWindow": 40
+      }
+    ],
+    "byProvider": [
+      {
+        "provider": "Greenhouse",
+        "n": 11629
+      },
+      {
+        "provider": "Ashby",
+        "n": 5513
+      },
+      {
+        "provider": "Lever",
+        "n": 1003
+      }
+    ],
+    "byFn": [
+      {
+        "fn": "engineering",
+        "n": 6766
+      },
+      {
+        "fn": "sales",
+        "n": 3417
+      },
+      {
+        "fn": "ai/data",
+        "n": 1817
+      },
+      {
+        "fn": "operations",
+        "n": 1801
+      },
+      {
+        "fn": "finance/legal",
+        "n": 975
+      },
+      {
+        "fn": "marketing",
+        "n": 919
+      },
+      {
+        "fn": "other",
+        "n": 850
+      },
+      {
+        "fn": "product",
+        "n": 761
+      }
+    ],
+    "observationSpanDays": 5,
+    "windowExceedsObservationHistory": true,
+    "closureObservationSpanDays": 2,
+    "windowExceedsClosureHistory": true,
+    "basis": "newOpen = first observation on a public ATS board; closed = left a polled board (not filled/hired); byProvider/byFn/byCompanyTop are in-window open landscape counts (not scores or outreach targets); one or both windows exceed short observation history — not a mature rate"
+  },
+  "boardExitInsight": {
+    "windowDays": 7,
+    "newOpenInWindow": 18145,
+    "companiesWithNewOpen": 512,
+    "closedInWindow": 955,
+    "companiesClosedInWindow": 154,
+    "byCompanyTop": [
+      {
+        "company": "Databricks",
+        "openInWindow": 803
+      },
+      {
+        "company": "OpenAI",
+        "openInWindow": 749
+      },
+      {
+        "company": "Stripe",
+        "openInWindow": 544
+      },
+      {
+        "company": "Snowflake",
+        "openInWindow": 410
+      },
+      {
+        "company": "Anthropic",
+        "openInWindow": 400
+      }
+    ],
+    "byCompanyClosedTop": [
+      {
+        "company": "Okta",
+        "closedInWindow": 75
+      },
+      {
+        "company": "Databricks",
+        "closedInWindow": 50
+      },
+      {
+        "company": "OpenAI",
+        "closedInWindow": 44
+      },
+      {
+        "company": "Stripe",
+        "closedInWindow": 43
+      },
+      {
+        "company": "Notion",
+        "closedInWindow": 40
+      }
+    ],
+    "byProvider": [
+      {
+        "provider": "Greenhouse",
+        "n": 11629
+      },
+      {
+        "provider": "Ashby",
+        "n": 5513
+      },
+      {
+        "provider": "Lever",
+        "n": 1003
+      }
+    ],
+    "byFn": [
+      {
+        "fn": "engineering",
+        "n": 6766
+      },
+      {
+        "fn": "sales",
+        "n": 3417
+      },
+      {
+        "fn": "ai/data",
+        "n": 1817
+      },
+      {
+        "fn": "operations",
+        "n": 1801
+      },
+      {
+        "fn": "finance/legal",
+        "n": 975
+      },
+      {
+        "fn": "marketing",
+        "n": 919
+      },
+      {
+        "fn": "other",
+        "n": 850
+      },
+      {
+        "fn": "product",
+        "n": 761
+      }
+    ],
+    "observationSpanDays": 5,
+    "windowExceedsObservationHistory": true,
+    "closureObservationSpanDays": 2,
+    "windowExceedsClosureHistory": true,
+    "basis": "newOpen = first observation on a public ATS board; closed = left a polled board (not filled/hired); byProvider/byFn/byCompanyTop are in-window open landscape counts (not scores or outreach targets); one or both windows exceed short observation history — not a mature rate"
+  }
 }

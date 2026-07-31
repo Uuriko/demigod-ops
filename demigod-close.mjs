@@ -4,7 +4,7 @@
  *
  * Usage:
  *   node demigod-close.mjs status <pilotId>
- *   node demigod-close.mjs hire <pilotId> --start YYYY-MM-DD [--comp 180000] [--note "…"]
+ *   node demigod-close.mjs hire <pilotId> --start YYYY-MM-DD --base-salary 180000 [--note "…"]
  *   node demigod-close.mjs fee <pilotId> --terms-sent [--invoice-draft]
  *   node demigod-close.mjs followup <pilotId> --day 30|60|90 [--note "…"]
  *   node demigod-close.mjs churn <pilotId> --note "…"
@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWrite, opt, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { CURRENT_FEE_TERMS, feeCents } from './demigod-revenue.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const STORE = path.join(ROOT, 'DEMIGOD-PILOTS.json');
@@ -74,7 +75,13 @@ if (cmd === 'status') {
 if (cmd === 'hire') {
   const pid = args[1];
   const start = opt(args, '--start', '');
-  const comp = Number(opt(args, '--comp', '0')) || 0;
+  const baseSalaryArg = opt(args, '--base-salary', '');
+  const legacyCompArg = opt(args, '--comp', '');
+  if (baseSalaryArg && legacyCompArg) {
+    console.error(JSON.stringify({ ok: false, error: 'pass --base-salary or legacy --comp, not both' }));
+    process.exit(2);
+  }
+  const baseSalary = Number(baseSalaryArg || legacyCompArg || 0);
   const note = opt(args, '--note', '');
   const data = load();
   const p = findPilot(data, pid);
@@ -95,18 +102,34 @@ if (cmd === 'hire') {
     console.error(JSON.stringify({ ok: false, error: 'start_date_invalid', hint: '--start YYYY-MM-DD real calendar date' }));
     process.exit(2);
   }
-  if (!Number.isFinite(comp) || !Number.isSafeInteger(comp) || comp <= 0) {
-    console.error(JSON.stringify({ ok: false, error: 'comp_required_finite_positive_integer', hint: '--comp 180000' }));
+  if (!Number.isFinite(baseSalary) || !Number.isSafeInteger(baseSalary) || baseSalary <= 0) {
+    console.error(JSON.stringify({ ok: false, error: 'base_salary_required_finite_positive_integer', hint: '--base-salary 180000' }));
     process.exit(2);
+  }
+  const calc = feeCents(baseSalary);
+  if (!calc.ok) {
+    console.error(JSON.stringify(calc));
+    process.exit(2);
+  }
+  if (p.status === 'hired') {
+    const priorSalary = p.close?.firstYearBaseSalary ?? p.close?.compAnnual;
+    if (p.close?.startDate === start && priorSalary === baseSalary) {
+      console.log(JSON.stringify({ ok: true, idempotent: true, close: p.close }, null, 2));
+      process.exit(0);
+    }
+    console.error(JSON.stringify({ ok: false, error: 'hired_terms_immutable', startDate: p.close?.startDate || null, firstYearBaseSalary: priorSalary || null }));
+    process.exit(1);
   }
   p.status = 'hired';
   p.close = {
     ...(p.close || {}),
     hiredAt: new Date().toISOString(),
     startDate: start,
-    compAnnual: comp,
-    feeEstimate: Math.round(comp * 0.1),
-    feeNote: '10% first-year cash salary on hire; Stripe pending — invoice manually',
+    firstYearBaseSalary: calc.firstYearBaseSalary,
+    baseSalaryCents: calc.baseSalaryCents,
+    feeCents: calc.feeCents,
+    feeTerms: calc.feeTerms,
+    feeNote: calc.note,
     note,
     followups: p.close?.followups || {},
   };
@@ -126,8 +149,11 @@ if (cmd === 'fee') {
     process.exit(1);
   }
   if (args.includes('--terms-sent')) {
-    p.feeTermsSent = true;
-    p.feeTermsAt = new Date().toISOString();
+    if (!p.feeTermsSent) {
+      p.feeTermsSent = true;
+      p.feeTermsAt = new Date().toISOString();
+      p.feeTerms = { ...CURRENT_FEE_TERMS };
+    }
   }
   if (args.includes('--invoice-draft')) {
     p.close = p.close || {};

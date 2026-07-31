@@ -1868,7 +1868,7 @@ export function draftEmail(lead, side) {
       '',
       opener,
       '',
-      'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
+      'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year base salary only if you hire. Nothing before that.',
       '',
       `If useful: ${wiz} — asks what a great 90-day outcome looks like.`,
       '',
@@ -5831,18 +5831,24 @@ function cmdPilot(args) {
 }
 
 /**
- * hired → invoiced via revenue stub (explicit --cash; never infers; never paid).
+ * hired → invoiced via revenue stub (explicit --base-salary; never infers; never paid).
  * Stub file is the invoiced evidence. Report-only default; --apply writes.
  */
 function cmdInvoice(args) {
   const id = arg(args, '--id');
-  const cashRaw = arg(args, '--cash');
+  const baseSalaryRaw = arg(args, '--base-salary');
+  const legacyCashRaw = arg(args, '--cash');
   const apply = args.includes('--apply');
   const actor = arg(args, '--actor') || 'agent';
   const evidenceArg = arg(args, '--evidence');
   const requestedPairId = arg(args, '--pair');
   const toArg = arg(args, '--to');
 
+  if (baseSalaryRaw != null && legacyCashRaw != null) {
+    console.error(JSON.stringify({ ok: false, error: 'pass --base-salary or legacy --cash, not both' }));
+    process.exit(1);
+  }
+  const salaryRaw = baseSalaryRaw ?? legacyCashRaw;
   if (toArg === 'paid') {
     console.error(
       JSON.stringify({
@@ -5853,7 +5859,7 @@ function cmdInvoice(args) {
     process.exit(1);
   }
   if (!id) {
-    // Report-only: list hired leads ready for human cash + invoice (pipeline tick)
+    // Report-only: list hired leads ready for a human-supplied base salary + invoice (pipeline tick)
     const doc0 = loadLeads();
     normalizeDoc(doc0);
     const hired = allLeads(doc0)
@@ -5872,7 +5878,7 @@ function cmdInvoice(args) {
           apply: false,
           hired: hired.length,
           items: hired,
-          note: 'pass --id=LEAD --cash=INTEGER [--apply] to stub invoice; never paid',
+          note: 'pass --id=LEAD --base-salary=INTEGER [--apply] to stub invoice; never paid',
         },
         null,
         2,
@@ -5880,17 +5886,17 @@ function cmdInvoice(args) {
     );
     return;
   }
-  if (cashRaw == null || String(cashRaw).trim() === '') {
-    console.error(JSON.stringify({ ok: false, error: 'missing --cash (explicit first-year cash; never inferred)' }));
+  if (salaryRaw == null || String(salaryRaw).trim() === '') {
+    console.error(JSON.stringify({ ok: false, error: 'missing --base-salary (explicit first-year base salary; never inferred)' }));
     process.exit(1);
   }
-  if (!/^\d+$/.test(String(cashRaw).trim())) {
-    console.error(JSON.stringify({ ok: false, error: '--cash must be a positive integer (dollars)' }));
+  if (!/^\d+$/.test(String(salaryRaw).trim())) {
+    console.error(JSON.stringify({ ok: false, error: '--base-salary must be a positive integer (dollars)' }));
     process.exit(1);
   }
-  const cash = Number(String(cashRaw).trim());
-  if (!Number.isFinite(cash) || cash <= 0) {
-    console.error(JSON.stringify({ ok: false, error: '--cash must be a positive integer (dollars)' }));
+  const baseSalary = Number(String(salaryRaw).trim());
+  if (!Number.isFinite(baseSalary) || baseSalary <= 0) {
+    console.error(JSON.stringify({ ok: false, error: '--base-salary must be a positive integer (dollars)' }));
     process.exit(1);
   }
 
@@ -5944,7 +5950,7 @@ function cmdInvoice(args) {
     process.exit(1);
   }
 
-  const calc = feeCents(cash);
+  const calc = feeCents(baseSalary);
   if (!calc.ok) {
     console.error(JSON.stringify({ ok: false, id, error: calc.error }));
     process.exit(1);
@@ -5959,9 +5965,10 @@ function cmdInvoice(args) {
           id,
           from,
           would: 'invoiced',
-          cash,
+          baseSalary,
           pairId,
           feeCents: calc.feeCents,
+          feeTerms: calc.feeTerms,
           hireEvidence,
           note: 'report-only; pass --apply to write stub + transition',
         },
@@ -5974,7 +5981,7 @@ function cmdInvoice(args) {
 
   const stub = invoiceStub({
     pairId,
-    cash,
+    baseSalary,
     evidencePath: hireEvidence,
     actor,
   });
@@ -5999,7 +6006,10 @@ function cmdInvoice(args) {
   row.lead.stateUpdatedAt = at;
   row.lead.invoiceId = stub.invoice?.id || null;
   row.lead.invoicePath = stub.path;
+  row.lead.firstYearBaseSalary = calc.firstYearBaseSalary;
+  row.lead.baseSalaryCents = calc.baseSalaryCents;
   row.lead.feeCents = calc.feeCents;
+  row.lead.feeTerms = calc.feeTerms;
   row.lead.stateHistory = row.lead.stateHistory || [];
   row.lead.stateHistory.push({
     at,
@@ -6008,7 +6018,10 @@ function cmdInvoice(args) {
     actor,
     evidence: stub.path,
     pairId,
+    firstYearBaseSalary: calc.firstYearBaseSalary,
+    baseSalaryCents: calc.baseSalaryCents,
     feeCents: calc.feeCents,
+    feeTerms: calc.feeTerms,
     note: `invoice stub feeCents=${calc.feeCents}`,
   });
   saveDoc(doc);
@@ -6020,7 +6033,10 @@ function cmdInvoice(args) {
     actor,
     evidence: stub.path,
     pairId,
+    firstYearBaseSalary: calc.firstYearBaseSalary,
+    baseSalaryCents: calc.baseSalaryCents,
     feeCents: calc.feeCents,
+    feeTerms: calc.feeTerms,
   });
   console.log(
     JSON.stringify(
@@ -6030,9 +6046,10 @@ function cmdInvoice(args) {
         id,
         from,
         to: 'invoiced',
-        cash,
+        baseSalary,
         pairId,
         feeCents: calc.feeCents,
+        feeTerms: calc.feeTerms,
         invoiceId: stub.invoice?.id,
         path: stub.path,
         hireEvidence,

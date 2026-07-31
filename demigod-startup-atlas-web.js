@@ -27,7 +27,7 @@
   // recognised is dropped rather than echoed.
   var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
   var DG_HIRING = ['yes', 'no', 'unknown'];
-  var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations'];
+  var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations', 'people', 'finance/legal'];
 
   function dgParseFilterHash(hash, providers) {
     var out = { query: '', hiring: '', func: '', provider: '', sort: 'roles' };
@@ -98,6 +98,21 @@
       .slice(0, n);
   }
 
+  function dgActivitySummary(feed, view) {
+    var counts = feed && feed.counts;
+    var fields = ['inWindow', 'companiesInWindow', 'closedInWindow', 'companiesClosedInWindow', 'observationSpanDays', 'closureObservationSpanDays'];
+    if ((view && (view.func || view.companies)) || !feed || feed.schema !== 'demigod.roles-feed/8' ||
+        !Number.isSafeInteger(feed.windowDays) || feed.windowDays < 1 || !counts ||
+        fields.some(function (key) { return !Number.isSafeInteger(counts[key]) || counts[key] < 0; })) return '';
+    var n = function (value, noun, plural) { return value + ' ' + (value === 1 ? noun : plural); };
+    return 'Latest ' + feed.windowDays + '-day window: Demigod first observed ' +
+      n(counts.inWindow, 'role', 'roles') + ' across ' + n(counts.companiesInWindow, 'company', 'companies') + '; ' +
+      n(counts.closedInWindow, 'role', 'roles') + ' left polled boards across ' +
+      n(counts.companiesClosedInWindow, 'company', 'companies') + '. A role leaving a board does not mean filled or hired. ' +
+      'Observation history spans ' + n(counts.observationSpanDays, 'day', 'days') + '; closure history spans ' +
+      n(counts.closureObservationSpanDays, 'day', 'days') + '. These are board observations, not a hiring rate.';
+  }
+
   function dgOrderByMedian(direction) {
     var newestFirst = direction === 'fresh';
     return function (aMed, bMed, aName, bName) {
@@ -109,6 +124,17 @@
       if (a === b) return String(aName).localeCompare(String(bName));
       return newestFirst ? a - b : b - a;
     };
+  }
+
+  function dgRoleMixSummary(mix) {
+    if (!mix || typeof mix !== 'object' || Array.isArray(mix)) return '';
+    return Object.keys(mix)
+      .filter(function (fn) { return fn !== 'other' && Number.isSafeInteger(mix[fn]) && mix[fn] > 0; })
+      .map(function (fn) { return { fn: fn, n: mix[fn] }; })
+      .sort(function (a, b) { return b.n - a.n || a.fn.localeCompare(b.fn); })
+      .slice(0, 5)
+      .map(function (row) { return row.fn + ' ' + row.n.toLocaleString('en-US'); })
+      .join(' · ');
   }
 
   var state = {
@@ -168,9 +194,10 @@
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
       '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:44px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
-      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
+      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:44px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
       '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}' +
       '.dg-dir-list{list-style:none;margin:0;padding:0;border-top:1px solid rgba(166,255,203,.12)}' +
       '.dg-dir-row{border-bottom:1px solid rgba(166,255,203,.1);padding:.5rem .1rem}' +
@@ -185,7 +212,7 @@
       '.dg-dir-pulse{margin:.35rem 0 .55rem;color:#9fb8a8;font-size:.78rem;line-height:1.35}' +
       '.dg-dir-desc{color:#c9c6bf;font-size:.82rem;line-height:1.5;margin:.25rem 0 0}' +
       '.dg-dir-links{margin:.25rem 0 0;font-size:.76rem}' +
-      '.dg-dir-links a{color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
+      '.dg-dir-links a{display:inline-flex;align-items:center;min-height:44px;color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
       '.dg-dir-empty{color:#a8a29e;padding:.9rem 0}' +
       '.dg-dir-fresh{margin:1.4rem 0 0;padding-top:1rem;border-top:1px solid rgba(166,255,203,.12)}' +
       '.dg-dir-fresh[hidden]{display:none}' +
@@ -276,7 +303,13 @@
     var roleMixHtml = '';
     if (company.roleMix) {
       var mix = Object.keys(company.roleMix).map(function (k) { return { k: k, n: company.roleMix[k] }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
-      roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) { return '<span class="dg-dir-rolechip">' + esc(m.k) + ' ' + m.n + '</span>'; }).join('') + '</p>';
+      // Only keys accepted by the shared filter become controls; "other" stays evidence, not a dead button.
+      roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) {
+        var label = esc(m.k) + ' ' + esc(m.n);
+        return DG_FUNCS.indexOf(m.k) >= 0
+          ? '<button type="button" class="dg-dir-rolechip" data-fn="' + esc(m.k) + '">' + label + '</button>'
+          : '<span class="dg-dir-rolechip">' + label + '</span>';
+      }).join('') + '</p>';
     }
     return '<li class="dg-dir-row" data-i="' + index + '">' +
       '<div class="dg-dir-line">' + nameHtml +
@@ -296,10 +329,12 @@
     // Must clear, not just return: the section may already be showing rows from a wider view.
     if (!rows.length) { host.hidden = true; host.innerHTML = ''; return; }
     var days = (typeof feed.windowDays === 'number' && feed.windowDays > 0) ? feed.windowDays : null;
+    var activity = dgActivitySummary(feed, view);
     host.innerHTML =
       '<h2 class="dg-fresh-h">Recently observed roles</h2>' +
+      (activity ? '<p class="dg-dir-pulse"><strong>Observed hiring activity:</strong> ' + esc(activity) + '</p>' : '') +
       '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
-      (days ? ' in the last ' + days + ' days' : '') +
+      (days ? ' in the last ' + days + ' day' + (days === 1 ? '' : 's') : '') +
       '. <strong>First observed</strong> is our timestamp, not the employer\'s posting date — most ' +
       'boards do not expose one, so this says when we noticed a role, never how long it has existed. ' +
       // Measured: 40 of 200 feed rows are non-US (Remote Canada/Spain/Poland, São Paulo). The
@@ -370,6 +405,7 @@
     var hiringYc = companies.filter(function (c) { return c.jobsSource === 'YC'; }).length;
     var trackedOpen = companies.filter(function (c) { return typeof c.oldestObservedDays === 'number' && c.oldestObservedDays > 0; }).length;
     var postedAging = companies.filter(function (c) { return typeof c.agingRoles === 'number' && c.agingRoles > 0; }).length;
+    var roleMixSummary = dgRoleMixSummary(map.coverage && map.coverage.roleMix);
     var pulseBits = [];
     if (hiringNow) pulseBits.push(hiringNow + ' boards with verified US open roles');
     if (trackedOpen) pulseBits.push(trackedOpen + ' with observed open-age (our first seen)');
@@ -382,13 +418,16 @@
           (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
           '</p>'
         : '') +
+      (roleMixSummary
+        ? '<p class="dg-dir-pulse"><strong>Open-role title mix:</strong> ' + esc(roleMixSummary) + '. Public-board, title-heuristic counts — not a ranking or demand score.</p>'
+        : '') +
       '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search startups" placeholder="Search startups…" autocomplete="off" value="' + esc(state.query) + '">' +
       '<select class="dg-dir-hiring" aria-label="Filter by hiring status"><option value="">All</option>' +
       '<option value="yes"' + (state.hiring === 'yes' ? ' selected' : '') + '>Hiring / open roles</option>' +
       '<option value="unknown"' + (state.hiring === 'unknown' ? ' selected' : '') + '>Hiring unknown</option>' +
       '<option value="no"' + (state.hiring === 'no' ? ' selected' : '') + '>Not hiring reported</option></select>' +
       '<select class="dg-dir-func" aria-label="Filter by role function"><option value="">Any role</option>' +
-      ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations'].map(function (f) {
+      DG_FUNCS.map(function (f) {
         return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + f.charAt(0).toUpperCase() + f.slice(1) + '</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-provider" aria-label="Filter by ATS provider"><option value="">Any job board</option>' +
@@ -477,6 +516,14 @@
     funcEl.addEventListener('change', renderRows);
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
+    list.addEventListener('click', function (event) {
+      var chip = event.target.closest && event.target.closest('button.dg-dir-rolechip[data-fn]');
+      var picked = chip && chip.getAttribute('data-fn');
+      if (!picked || DG_FUNCS.indexOf(picked) < 0) return;
+      funcEl.value = picked;
+      renderRows();
+      funcEl.focus();
+    });
     renderRows();
   }
 

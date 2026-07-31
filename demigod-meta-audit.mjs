@@ -2,7 +2,7 @@
 // Meta-description validator + proposed fixes for the routes seo-audit flags as too-short (talent/legal/
 // how/security/faq, all <80ch). validateMeta enforces length (120-160) AND honesty (no overclaim phrases).
 // The proposed copy only RESTATES the existing honest model (tech ranks -> humans review -> intro on
-// mutual yes -> 10% on hire, free for talent); it invents no new claims.
+// mutual yes -> 10% of first-year base salary when a hire starts, free for talent); it invents no new claims.
 //   node demigod-meta-audit.mjs [--json]     # print proposed descriptions, all validated
 //   node demigod-meta-audit.mjs --selftest
 import path from 'node:path';
@@ -33,9 +33,9 @@ export function validateMeta(desc) {
 export const PROPOSED = {
   talent: 'Join the Demigod SF Bay talent network with one profile. Free, always. Your profile stays private until you approve an intro, and humans review every match.',
   legal: "Demigod's plain-language privacy policy and terms for SF startup and talent matching: what we collect, how intros work, and how to reach us with questions.",
-  how: 'How Demigod works: share a brief or profile, our software ranks fit, humans review, and we introduce only on mutual interest. 10% on hire, free for talent.',
+  how: 'How Demigod works: submit once, software ranks fit, humans review, and intros require mutual interest. 10% of first-year base salary when a hire starts.',
   security: 'How Demigod protects your data: what we store, who can see your profile, and why nothing is shared or introduced until both sides approve the intro.',
-  faq: 'Answers about Demigod: how SF matching works, what happens after you submit, pricing (10% on hire, free for talent), privacy, and how intros are made.',
+  faq: 'Demigod FAQ: how SF matching works, what happens after you submit, privacy, and intros. Startups pay 10% of first-year base salary when a hire starts.',
 };
 
 export function auditProposed() {
@@ -44,7 +44,7 @@ export function auditProposed() {
 
 if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
-  const good = 'Demigod matches SF Bay startups and tech talent: our software ranks fit, humans review, and we introduce only on mutual interest. Ten percent on hire.';
+  const good = 'Demigod matches SF Bay startups and tech talent: software ranks fit, humans review, and startups pay 10% of first-year base salary when a hire starts.';
   assert(validateMeta(good).ok, `a 120-160ch honest description validates (${good.length}ch)`);
   assert(!validateMeta('too short').ok && validateMeta('too short').issues[0].includes('too-short'), 'flags too short');
   assert(!validateMeta('x'.repeat(200)).ok, 'flags too long');

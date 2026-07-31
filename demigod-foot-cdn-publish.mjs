@@ -48,6 +48,19 @@ const LOADER = path.join(ROOT, 'demigod-footer-loader.html');
 const OUT = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
 const RELEASE_RECEIPT = '/tmp/dg-busy/foot-cdn-publish-latest.json';
 const HEAD_RECEIPT = '/tmp/dg-busy/head-css-cdn.json';
+const NO_JS_FALLBACK = `<noscript id="dg-path-noscript">
+  <section aria-labelledby="dg-nojs-title" style="max-width:40rem;margin:2rem auto;padding:1rem 1.25rem;font:500 1rem/1.5 system-ui,sans-serif;color:#0A0A0A;background:#F5F0E6;border:1px solid rgba(201,168,76,.45);border-radius:8px">
+    <h1 id="dg-nojs-title" style="font:700 1.35rem/1.25 system-ui,sans-serif;margin:0 0 .75rem">Demigod — tech-matched SF startup talent</h1>
+    <p>Demigod helps San Francisco startups hire curated technical talent through structured briefs, direct human review, and transparent 10% success pricing. Candidates can join the curated network without a placement fee.</p>
+    <nav aria-label="No-JavaScript links" style="display:flex;flex-wrap:wrap;gap:.5rem 1rem">
+      <a href="/">Home</a>
+      <a href="/startups">Browse verified startup hiring</a>
+      <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a>
+      <a href="mailto:potter@trydemigod.com?subject=Joining%20the%20Demigod%20talent%20network">Join the talent network by email</a>
+    </nav>
+    <p>JavaScript is unavailable, so interactive forms are replaced with direct email links.</p>
+  </section>
+</noscript>`;
 const sourceJs = fs.readFileSync(SRC, 'utf8');
 const mapJs = fs.readFileSync(MAP_SRC, 'utf8');
 const mapData = fs.readFileSync(MAP_DATA_SRC, 'utf8');
@@ -368,8 +381,14 @@ if (SELFTEST) {
   checkSelf(Number.isSafeInteger(sourceBytes) && sourceBytes > 40000, 'computes canonical UTF-8 byte count');
   checkSelf(headCssSha.length === 64 && headCssBytes > 10000, 'computes canonical head CSS identity');
   checkSelf(
-    !rolesFeed || JSON.parse(rolesFeed).schema === 'demigod.roles-feed/1',
+    !rolesFeed || JSON.parse(rolesFeed).schema === 'demigod.roles-feed/8',
     'roles feed, when present, uses the current schema',
+  );
+  checkSelf(
+    NO_JS_FALLBACK.includes('<noscript id="dg-path-noscript">') &&
+      NO_JS_FALLBACK.includes('Browse verified startup hiring') &&
+      (NO_JS_FALLBACK.match(/mailto:potter@trydemigod\.com\?subject=/g) || []).length === 2,
+    'generated footer keeps a native no-JavaScript fallback',
   );
   checkSelf(
     headWithCdn(
@@ -1026,7 +1045,7 @@ if (!headAsset?.url || headAsset.sha256 !== headCssSha || headAsset.bytes !== he
 const headBefore = fs.readFileSync(HEAD, 'utf8');
 const headAfter = headWithCdn(headBefore, headAsset.url);
 
-// v28: blog|notes|method + #note-{slug} must survive CDN publish (v27 thrash dropped them).
+// v29: v28 routes plus a served-body no-JavaScript fallback.
 const redirect = `<script>(function(){var p=location.pathname,s=location.search||'',h=location.hash||'';function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
 if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))go('/?p=legal');
 else if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
@@ -1053,7 +1072,7 @@ else if(/^\\/status\\/?$/i.test(p))go('/?p=about');
 else if(/^\\/events\\/?$/i.test(p))go('/?p=events');
 })();</script>`;
 const ver = (liveJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || '?';
-const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n<script id="demigod-foot-cdn-loader" src="${cdnUrl}"></script>\n`;
+const loader = `<!-- demigod-foot-cdn-loader v29 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${NO_JS_FALLBACK}\n${redirect}\n<script id="demigod-foot-cdn-loader" src="${cdnUrl}"></script>\n`;
 const manifest = JSON.stringify({
   at: new Date().toISOString(),
   version: ver,

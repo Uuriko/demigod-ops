@@ -110,6 +110,57 @@ async function main() {
     checks.push(check('orca-ide', false, e.message));
   }
 
+  // useful-loop is long-running: new doTask cases need a service bounce (work-find is fresh each cycle)
+  try {
+    const loopSrc = path.join(ROOT, 'demigod-useful-loop.mjs');
+    const srcMtimeMs = fs.statSync(loopSrc).mtimeMs;
+    const show = spawnSync(
+      'systemctl',
+      ['--user', 'show', 'demigod-useful-loop.service', '-p', 'ActiveState', '-p', 'ActiveEnterTimestampMonotonic', '-p', 'MainPID'],
+      { encoding: 'utf8', timeout: 5000 },
+    );
+    const lines = Object.fromEntries(
+      String(show.stdout || '')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => {
+          const i = l.indexOf('=');
+          return i < 0 ? [l, ''] : [l.slice(0, i), l.slice(i + 1)];
+        }),
+    );
+    const state = lines.ActiveState || 'unknown';
+    const pid = Number(lines.MainPID || 0);
+    if (state !== 'active' || !pid) {
+      checks.push(check('useful-loop', false, `service ${state} pid=${pid || 0} — systemctl --user start demigod-useful-loop`));
+    } else {
+      // /proc/<pid> birth ≈ process start; if source is newer, handlers are stale in memory
+      let startMs = 0;
+      try {
+        const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+        const startTicks = Number(stat.split(')')[1]?.trim().split(/\s+/)[19] || 0);
+        const clk = Number(spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).stdout) || 100;
+        const uptimeSec = Number(String(fs.readFileSync('/proc/uptime', 'utf8')).split(/\s+/)[0] || 0);
+        const nowMs = Date.now();
+        startMs = nowMs - (uptimeSec - startTicks / clk) * 1000;
+      } catch {
+        startMs = 0;
+      }
+      if (startMs > 0 && srcMtimeMs > startMs + 2000) {
+        checks.push(
+          check(
+            'useful-loop',
+            false,
+            `code newer than process (pid ${pid}) — systemctl --user restart demigod-useful-loop`,
+          ),
+        );
+      } else {
+        checks.push(check('useful-loop', true, `active pid ${pid}`));
+      }
+    }
+  } catch (e) {
+    checks.push(check('useful-loop', true, `n/a ${e.message}`));
+  }
+
   // Matching / board ops files
   checks.push(check('pairs lib', fs.existsSync(path.join(ROOT, 'demigod-pairs-lib.mjs')), ''));
   checks.push(check('match-review', fs.existsSync(path.join(ROOT, 'demigod-match-review.mjs')), ''));
@@ -148,6 +199,51 @@ async function main() {
       process.env.DEMIGOD_ALLOW_REAL_ROLES === '1' ? 'ALLOW_REAL_ROLES=1' : 'off (sample-only)',
     ),
   );
+
+  // Structured-hiring product stores (Claude advisory: zero coverage was a gap)
+  for (const rel of [
+    'demigod-structured-hiring.mjs',
+    'demigod-role-packet.mjs',
+    'demigod-pilot-batch.mjs',
+    'demigod-candidate-touch.mjs',
+    'demigod-intro-path.mjs',
+    'demigod-call-note.mjs',
+    'DEMIGOD-ROLE-PACKETS.json',
+    'DEMIGOD-PILOT-BATCHES.json',
+    'DEMIGOD-CANDIDATE-TOUCHES.json',
+    'DEMIGOD-INTRO-PATHS.json',
+    'DEMIGOD-CALL-NOTES.json',
+  ]) {
+    checks.push(check(`sh:${path.basename(rel)}`, fs.existsSync(path.join(ROOT, rel)), rel));
+  }
+  try {
+    const { auditStructuredHiring } = await import(path.join(ROOT, 'demigod-structured-hiring.mjs'));
+    const audit = auditStructuredHiring();
+    checks.push(
+      check(
+        'sh:audit',
+        audit.ok === true,
+        audit.ok
+          ? `packets=${audit.counts?.packets ?? 0} notes=${audit.counts?.notes ?? 0}`
+          : (audit.errors || []).slice(0, 3).join('; '),
+      ),
+    );
+  } catch (e) {
+    checks.push(check('sh:audit', false, e.message));
+  }
+  try {
+    const cb = JSON.parse(fs.readFileSync(path.join(BUSY, 'control-board.json'), 'utf8'));
+    const highExit = Array.isArray(cb.exitFailures) ? cb.exitFailures.length : cb.ok === false ? 1 : 0;
+    checks.push(
+      check(
+        'control-board highExitFail',
+        highExit === 0,
+        cb.summary || `exit=${highExit}`,
+      ),
+    );
+  } catch {
+    checks.push(check('control-board highExitFail', false, 'no /tmp/dg-busy/control-board.json — run status'));
+  }
 
   const freeze = (() => {
     try {

@@ -3,14 +3,13 @@
 // release: version/CDN/lock). One fetch-based command, one honest verdict, evidence for each check:
 //   1. every route foot-core declares resolves (reuses demigod-route-audit — no hardcoded list to rot).
 //   2. served-HTML SEO invariant: a real <title> (not empty/Untitled).
-//   3. /startups head counts still match the map (they are hand-set in Webflow and silently drift).
+//   3. /startups head carries no exact counts that routine map refreshes make stale.
 //   node demigod-site-health.mjs [--json] [--selftest]
-//   node demigod-site-health.mjs --startups-seo   # emit the correct strings to apply via Webflow MCP
+//   node demigod-site-health.mjs --startups-seo   # emit stable strings to apply via Webflow MCP
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractDeclaredRoutes, auditRoutes } from './demigod-route-audit.mjs';
-import { siteCounters } from './demigod-site-counters.mjs';
 import { staticBodyTextLength } from './demigod-seo-audit.mjs';
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -32,15 +31,9 @@ export function servedSeo(html) {
 
 // PURE: how much real content a NON-RENDERING crawler gets from the served body. Googlebot renders
 // JS on a second pass; GPTBot, ClaudeBot and PerplexityBot largely do not, and robots.txt invites them
-// in with no Disallow. Measured 2026-07-31 against the live site: every page serves 0 chars, because
-// <body> holds two <script> tags and nothing else. 2,735 companies of directory content are invisible
-// to them.
-//
-// DELIBERATELY NOT A PASS/FAIL. The empty body is the architecture (Webflow shell + foot-core injects
-// everything), and a gate that reds all 32 pages on every run is a gate somebody switches off. What
-// this is FOR: the moment crawlable body content ships, this proves it reached the SERVED html — the
-// exact failure that already happened once, when a 518KB static directory was generated and never
-// deployed and nothing noticed. Report the number; a human decides what it should be.
+// in with no Disallow. Most routes remain script-only (Webflow shell + foot-core) — report only.
+// /startups is different: once sealed ships a <details class=dg-static> fragment, siteHealth gates
+// that the SERVED page still carries the same block (see startupsFragmentFreshness).
 export function servedBodyText(html) {
   const chars = staticBodyTextLength(html);
   // Sample is for a human reading the report; the LENGTH is the measured invariant.
@@ -53,6 +46,64 @@ export function servedBodyText(html) {
     .trim()
     .slice(0, 80);
   return { chars, crawlableWithoutJs: chars > 0, sample };
+}
+
+const DG_STATIC_RE =
+  /<details\b[^>]*\bclass=["'][^"']*\bdg-static\b[^"']*["'][^>]*>[\s\S]*?<\/details>/gi;
+
+/** PURE: count page-scoped directory fragments (crawler may see all of them). */
+export function countDgStaticFragments(html) {
+  const s = String(html || '');
+  const hits = s.match(DG_STATIC_RE);
+  return hits ? hits.length : 0;
+}
+
+/** PURE: first page-scoped directory fragment (live or sealed). */
+export function extractDgStaticFragment(html) {
+  DG_STATIC_RE.lastIndex = 0;
+  const m = DG_STATIC_RE.exec(String(html || ''));
+  return m ? m[0] : '';
+}
+
+/** Strip data-generated-at so sealed regen alone does not couple site-health to a publish. */
+function normalizeFragment(s) {
+  return String(s || '')
+    .replace(/\s*data-generated-at=["'][^"']*["']/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * PURE: live /startups must carry the sealed sf-startups-static.html dg-static block.
+ * Content compare — data-generated-at is stripped (same-day date is blind when sections lag).
+ * Multiple live dg-static blocks fail (first-match extract would false-green a trailing stale).
+ * When sealed has no fragment, freshness is not required (pre-directory pastes).
+ */
+export function startupsFragmentFreshness(liveHtml, sealedHtml) {
+  const sealed = extractDgStaticFragment(sealedHtml);
+  if (!sealed) {
+    return { ok: true, required: false, issues: [], liveLen: 0, sealedLen: 0, liveCount: 0 };
+  }
+  const liveCount = countDgStaticFragments(liveHtml);
+  const live = extractDgStaticFragment(liveHtml);
+  const issues = [];
+  if (liveCount > 1) {
+    issues.push(`live /startups has ${liveCount} dg-static fragments (expected 1)`);
+  }
+  if (!live) issues.push('live /startups missing <details class=dg-static> fragment');
+  else if (normalizeFragment(live) !== normalizeFragment(sealed)) {
+    issues.push(
+      'live dg-static fragment stale vs sealed sf-startups-static.html (content; data-generated-at ignored)',
+    );
+  }
+  return {
+    ok: issues.length === 0,
+    required: true,
+    issues,
+    liveLen: live.length,
+    sealedLen: sealed.length,
+    liveCount,
+  };
 }
 
 // Fabricated event/speaker content that must never ship. These names are not people — they are
@@ -77,46 +128,26 @@ export function fabricatedContent(html) {
   return { ok: found.length === 0, found };
 }
 
-const nfmt = (n) => Number(n).toLocaleString('en-US');
+export const STARTUPS_SEO = Object.freeze({
+  title: 'SF Startups Hiring — Open Roles Directory | Demigod',
+  description: 'Explore San Francisco startups and recently observed open roles, with direct links to apply. A free, open directory built from public data; no signup.',
+  ogTitle: 'SF startups hiring — recently observed open roles',
+});
 
-// PURE: the /startups head strings, DERIVED from the map so a human never retypes a count.
-// Reuses siteCounters so the honesty invariant is shared: a counter with no backing value is
-// omitted, never fabricated. Returns null when the map cannot back the claim at all — callers
-// must then leave the metadata alone rather than publish a partial number.
-export function startupsSeo(map = {}) {
-  const counters = siteCounters(map);
-  const companies = Array.isArray(map?.companies) ? map.companies.length : 0;
-  const hiring = counters.find((c) => c.key === 'companiesHiring')?.value ?? null;
-  const roles = counters.find((c) => c.key === 'rolesTracked')?.value ?? null;
-  if (!companies || !hiring) return null;
-  return {
-    title: `SF Startups Hiring — ${nfmt(companies)} Companies, ${nfmt(hiring)} With Open Roles | Demigod`,
-    description: `A free, open directory of ${nfmt(companies)} San Francisco startups — ${nfmt(hiring)} with verified live open roles${roles ? `, ${nfmt(roles)} roles tracked` : ''}, direct links to apply. Public data, no signup.`,
-    ogTitle: `SF startups that are hiring — ${nfmt(companies)} tracked, ${nfmt(hiring)} with open roles`,
-    counts: { companies, hiring, roles },
-  };
-}
-
-// PURE: does the served /startups head still assert the map's numbers? This is the check that was
-// missing when 2,735/406 sat live for five days against a map saying 2,737/339. Compares parsed
-// integers, not string equality, so a copy reword cannot silently disable it.
-export function startupsSeoDrift(html, map = {}) {
-  const want = startupsSeo(map);
-  if (!want) return { ok: true, skipped: 'map has no verified coverage — no count claim to check' };
+// PURE: exact totals in indexed metadata go stale on every map refresh. Keep the high-intent copy,
+// but fail any volatile count claim instead of coupling routine data refreshes to a site publish.
+export function startupsSeoDrift(html) {
   const head = String(html || '').split(/<\/head>/i)[0];
-  const m = /([\d,]+)\s+Companies,\s+([\d,]+)\s+With Open Roles/i.exec(head);
-  if (!m) return { ok: false, issues: ['no "N Companies, N With Open Roles" claim found in /startups head'], want: want.counts };
-  const int = (s) => Number(String(s).replace(/,/g, ''));
-  const got = { companies: int(m[1]), hiring: int(m[2]) };
-  const issues = [];
-  if (got.companies !== want.counts.companies) issues.push(`companies ${nfmt(got.companies)} ≠ map ${nfmt(want.counts.companies)}`);
-  if (got.hiring !== want.counts.hiring) issues.push(`with-open-roles ${nfmt(got.hiring)} ≠ map ${nfmt(want.counts.hiring)}`);
-  return { ok: issues.length === 0, issues, got, want: want.counts };
+  const claims = head.match(
+    /\b\d[\d,]*\s+(?:San Francisco\s+)?(?:companies|startups|tracked|roles tracked|with(?:\s+verified)?(?:\s+live)?\s+open roles)\b/gi,
+  ) || [];
+  const issues = [...servedSeo(head).issues];
+  if (claims.length) issues.push(`volatile count claim in /startups head: ${claims.join(', ')}`);
+  return { ok: issues.length === 0, issues, claims };
 }
 
-export async function siteHealth(fetchImpl = fetch, footSrc = null, map = null) {
+export async function siteHealth(fetchImpl = fetch, footSrc = null) {
   const src = footSrc ?? fs.readFileSync(process.env.DEMIGOD_FOOT || path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
-  const mapObj = map ?? JSON.parse(fs.readFileSync(process.env.DEMIGOD_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'), 'utf8'));
   const routes = await auditRoutes(extractDeclaredRoutes(src), fetchImpl);
   // stubs: 301→/?p=… still ok for users but not hard-served (must not read as "all resolve").
   routes.fullyServed = routes.ok && (routes.stubs?.length || 0) === 0;
@@ -125,16 +156,41 @@ export async function siteHealth(fetchImpl = fetch, footSrc = null, map = null) 
   };
   const seo = servedSeo(await get('/'));
   const startupsHtml = await get('/startups');
-  const counts = startupsSeoDrift(startupsHtml, mapObj);
-  // Reported, not gated — see servedBodyText. Rides on the /startups fetch we already make.
+  const counts = startupsSeoDrift(startupsHtml);
   const crawlable = servedBodyText(startupsHtml);
+  // Sealed fragment is the SoR for page-scoped directory paste (not foot CDN).
+  const sealedPath = process.env.DEMIGOD_STARTUPS_STATIC || path.join(ROOT, 'sf-startups-static.html');
+  let sealedHtml = '';
+  try {
+    sealedHtml = fs.readFileSync(sealedPath, 'utf8');
+  } catch {
+    sealedHtml = '';
+  }
+  const freshness = startupsFragmentFreshness(startupsHtml, sealedHtml);
+  // When sealed ships dg-static, live must be crawlable and content-fresh (publish-gated fix).
+  const startupsBodyOk = !freshness.required || (crawlable.crawlableWithoutJs && freshness.ok);
   // Honesty gate, and it DOES fail the build. Unlike the empty served body (deliberate
   // architecture), fabricated people presented as speakers is a defect, and it should stay red
   // until the canvas is edited.
   const fabricated = fabricatedContent(await get('/events'));
+  // Named failing checks — single allowlist source for useful-loop observational downgrade
+  // (Claude tool-failure audit: denylist of "other checks green" fail-opens on new gates).
+  const failing = [];
+  if (!routes.ok) failing.push('routes');
+  if (!seo.ok) failing.push('seo');
+  if (!counts.ok) failing.push('counts');
+  if (!fabricated.ok) failing.push('fabricated');
+  if (freshness.required && !crawlable.crawlableWithoutJs) failing.push('crawlable');
+  if (freshness.required && !freshness.ok) failing.push('freshness');
   return {
-    ok: routes.ok && seo.ok && counts.ok && fabricated.ok,
-    routes, seo, counts, crawlable, fabricated,
+    ok: failing.length === 0,
+    failing,
+    routes,
+    seo,
+    counts,
+    crawlable,
+    freshness,
+    fabricated,
   };
 }
 
@@ -165,24 +221,46 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(fabricatedContent('').ok && fabricatedContent(null).ok, 'no html -> pass, not a false red');
   assert(FABRICATED_CANVAS_MARKERS.length >= 3, 'the marker list must not be silently emptied');
 
-  // startupsSeo: strings are DERIVED, never typed. Same omit-don't-fabricate rule as siteCounters.
-  const MAP = { companies: new Array(2737), coverage: { companiesWithOpenRoles: 339, roleMix: { engineering: 8000, other: 124 } } };
-  const want = startupsSeo(MAP);
-  assert(want.title === 'SF Startups Hiring — 2,737 Companies, 339 With Open Roles | Demigod', 'title derived from map with thousands separators');
-  assert(want.ogTitle.includes('2,737 tracked, 339 with open roles'), 'og title derived from map');
-  assert(want.description.includes('8,124 roles tracked'), 'description carries roleMix sum');
-  assert(startupsSeo({ companies: new Array(10), coverage: {} }) === null, 'no verified coverage -> null, never a partial claim');
-  assert(startupsSeo({}) === null, 'no map -> null, no crash');
-  assert(!startupsSeo({ companies: new Array(5), coverage: { companiesWithOpenRoles: 0, roleMix: {} } }), 'zero hiring -> null, not "0 With Open Roles"');
-  // startupsSeoDrift: must PASS on agreement and FAIL on the exact drift that shipped live (2,735/406)
-  assert(startupsSeoDrift(`<title>${want.title}</title></head>`, MAP).ok, 'head matching the map passes');
-  const drifted = startupsSeoDrift('<title>SF Startups Hiring — 2,735 Companies, 406 With Open Roles | Demigod</title></head>', MAP);
-  assert(drifted.ok === false, 'POSITIVE CONTROL: the real 2,735/406 drift must FAIL this gate');
-  assert(drifted.issues.length === 2 && drifted.issues.join(' ').includes('406'), 'drift names both wrong numbers');
-  assert(startupsSeoDrift('<title>SF Startups Hiring — 2,737 Companies, 406 With Open Roles</title></head>', MAP).ok === false, 'one wrong number is still a fail');
-  assert(startupsSeoDrift('<title>Something else</title></head>', MAP).ok === false, 'a head with no count claim fails (not vacuously green)');
-  assert(startupsSeoDrift('', {}).ok === true && startupsSeoDrift('', {}).skipped, 'no coverage -> skipped, not a false red');
-  // siteHealth aggregates: a broken route OR bad SEO OR count drift -> not ok
+  // /startups metadata: stable copy passes; any exact corpus claim fails.
+  const stable = `<title>${STARTUPS_SEO.title}</title><meta name="description" content="${STARTUPS_SEO.description}"></head>`;
+  assert(startupsSeoDrift(stable).ok, 'stable count-free metadata passes');
+  const drifted = startupsSeoDrift('<title>SF Startups Hiring — 2,737 Companies, 339 With Open Roles | Demigod</title></head>');
+  assert(drifted.ok === false, 'POSITIVE CONTROL: the volatile live title must FAIL this gate');
+  assert(drifted.claims.length === 2 && drifted.issues.join(' ').includes('339'), 'the failure names both volatile claims');
+  assert(!startupsSeoDrift('<title>Directory</title><meta name="description" content="8,124 roles tracked"></head>').ok, 'description counts fail too');
+  assert(!startupsSeoDrift('').ok, 'an empty head still fails served SEO');
+
+  // Content freshness: sealed dg-static is SoR; date alone is blind.
+  const sealedOnDisk = fs.readFileSync(path.join(ROOT, 'sf-startups-static.html'), 'utf8');
+  const sealedFrag = extractDgStaticFragment(sealedOnDisk);
+  assert(sealedFrag.length > 0, 'repo sealed fragment present for selftest');
+  assert(startupsFragmentFreshness(sealedOnDisk, sealedOnDisk).ok, 'identical sealed matches');
+  assert(!startupsFragmentFreshness('', sealedOnDisk).ok, 'missing live fragment fails');
+  assert(
+    !startupsFragmentFreshness('<details class="dg-static" data-generated-at="2099">old</details>', sealedOnDisk).ok,
+    'stale content fails even with dg-static present',
+  );
+  // A2: date-only drift must NOT red (directory-static regen must not couple to publish)
+  const dateOnly = sealedFrag.replace(
+    /data-generated-at=["'][^"']*["']/i,
+    'data-generated-at="2099-01-01"',
+  );
+  assert(
+    startupsFragmentFreshness(`<body>${dateOnly}</body>`, sealedOnDisk).ok,
+    'data-generated-at-only drift is not content staleness',
+  );
+  // A3: trailing stale duplicate must not false-green
+  assert(
+    !startupsFragmentFreshness(
+      `<body>${sealedFrag}<details class="dg-static">STALE</details></body>`,
+      sealedOnDisk,
+    ).ok,
+    'multiple live dg-static fragments fail',
+  );
+  assert(!startupsFragmentFreshness('', 'no-fragment').required, 'no sealed fragment → not required');
+  const goodStartups = `${stable}<body>${sealedFrag}</body>`;
+
+  // siteHealth aggregates: a broken route OR bad SEO OR volatile metadata OR stale fragment -> not ok
   const home = '<title>Demigod</title>';
   const mock = (routeStatus, homeHtml, startupsHtml = '') => async (url) => {
     const p = url.slice(SITE.length);
@@ -190,13 +268,19 @@ if (isMain && process.argv.includes('--selftest')) {
     if (p === '/startups') return { status: 200, text: async () => startupsHtml };
     return { status: routeStatus[p] ?? 200, text: async () => '' };
   };
-  const good = await siteHealth(mock({}, home), "'/hire': 'hire'", {});
+  const good = await siteHealth(mock({}, home, goodStartups), "'/hire': 'hire'");
   assert(good.ok === true, 'all-good -> ok');
+  assert(good.freshness?.ok === true, 'freshness green when live matches sealed');
   assert(good.routes.fullyServed === true, 'no stubs -> fullyServed');
-  const badRoute = await siteHealth(mock({ '/privacy': 404 }, home), "'/hire': 'hire', '/privacy': 'legal'", {});
+  const badRoute = await siteHealth(mock({ '/privacy': 404 }, home, goodStartups), "'/hire': 'hire', '/privacy': 'legal'");
   assert(badRoute.ok === false && !badRoute.routes.ok, 'a declared route that 404s fails site-health');
-  const badCounts = await siteHealth(mock({}, home, '<title>SF Startups Hiring — 2,735 Companies, 406 With Open Roles</title></head>'), "'/hire': 'hire'", MAP);
-  assert(badCounts.ok === false && !badCounts.counts.ok, 'stale /startups counts fail site-health');
+  const badCounts = await siteHealth(mock({}, home, '<title>SF Startups Hiring — 2,735 Companies, 406 With Open Roles</title></head>'), "'/hire': 'hire'");
+  assert(badCounts.ok === false && !badCounts.counts.ok, 'volatile /startups counts fail site-health');
+  const staleFrag = await siteHealth(
+    mock({}, home, `${stable}<body><details class="dg-static">stale only</details></body>`),
+    "'/hire': 'hire'",
+  );
+  assert(staleFrag.ok === false && staleFrag.freshness?.ok === false, 'stale dg-static fails site-health');
   // Query-string stub: still site-health ok (users reach content) but not fullyServed.
   const stubFetch = async (url) => {
     const p = url.slice(SITE.length);
@@ -204,44 +288,100 @@ if (isMain && process.argv.includes('--selftest')) {
     if (p === '/press') {
       return { status: 200, url: SITE + '/?p=press', redirected: true, text: async () => home };
     }
+    if (p === '/startups') return { status: 200, text: async () => goodStartups, url: SITE + p };
     return { status: 200, text: async () => '', url: SITE + p };
   };
-  const stubbed = await siteHealth(stubFetch, "'/hire': 'hire', '/press': 'press'", {});
+  const stubbed = await siteHealth(stubFetch, "'/hire': 'hire', '/press': 'press'");
   assert(stubbed.ok === true && stubbed.routes.ok === true, 'query stub is not a broken route');
   assert(stubbed.routes.fullyServed === false, 'query stub must not claim fullyServed');
   assert(stubbed.routes.stubs.some((r) => r.path === '/press'), 'press stub is listed');
+  // A dg-static block inside <script> matches sealed while serving crawlers zero text.
+  const inScript = await siteHealth(
+    mock({}, home, `${stable}<body><script>${sealedFrag}</script></body>`),
+    "'/hire': 'hire'",
+  );
+  assert(inScript.freshness?.ok === true, 'script-wrapped fragment still matches sealed');
+  assert(
+    inScript.ok === false && inScript.failing.includes('crawlable'),
+    'a fragment only inside <script> serves 0 crawlable chars and must fail',
+  );
+  // useful-loop downgrades only this exact single failure.
+  assert(
+    JSON.stringify(staleFrag.failing) === '["freshness"]',
+    'freshness-only red is exactly ["freshness"] (useful-loop observational allowlist)',
+  );
+  for (const r of [good, badRoute, badCounts, staleFrag, stubbed, inScript]) {
+    assert(r.ok === (r.failing.length === 0), 'ok is exactly failing.length === 0');
+  }
   console.log(JSON.stringify({ ok: true, selftest: 'site-health' }));
   process.exit(0);
 }
 
-// Emit-only mode: print the strings the /startups page SHOULD carry, straight from the map.
+// Emit-only mode: print the stable strings the /startups page SHOULD carry.
 // Apply them with the Webflow Pages API (data_pages_tool → update_page_settings, page
 // 6a63b78e2b942a56ab6cccf9) — there is no REST token on this box, so the write stays MCP-driven.
 // Set openGraph.title explicitly; titleCopied:true does NOT clear an existing og title.
 if (isMain && process.argv.includes('--startups-seo')) {
-  const map = JSON.parse(fs.readFileSync(process.env.DEMIGOD_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'), 'utf8'));
-  const seo = startupsSeo(map);
-  if (!seo) { console.error('startups-seo: map has no verified coverage — leave the metadata alone'); process.exit(2); }
-  console.log(JSON.stringify(seo, null, 2));
+  console.log(JSON.stringify(STARTUPS_SEO, null, 2));
   process.exit(0);
 }
 
 if (isMain) {
   const res = await siteHealth();
+  const receipt = {
+    schema: 'demigod.site-health/1',
+    at: new Date().toISOString(),
+    ok: res.ok,
+    failing: res.failing || [],
+    site: SITE,
+    routes: {
+      ok: res.routes?.ok,
+      checked: res.routes?.checked,
+      stubs: res.routes?.stubs?.length || 0,
+      // reported, not folded into ok — control-board/work-find read this receipt, not stdout
+      fullyServed: res.routes?.fullyServed === true,
+    },
+    seo: res.seo,
+    counts: res.counts,
+    crawlable: res.crawlable,
+    freshness: res.freshness,
+    fabricated: res.fabricated,
+  };
+  try {
+    const busy = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
+    fs.mkdirSync(busy, { recursive: true });
+    fs.writeFileSync(path.join(busy, 'site-health.json'), `${JSON.stringify(receipt, null, 2)}\n`);
+  } catch {
+    /* receipt best-effort */
+  }
   if (process.argv.includes('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(res.ok ? 0 : 1); }
   console.log(`site-health ${res.ok ? 'PASS' : 'FAIL'} · ${SITE}`);
   const stubN = res.routes.stubs?.length || 0;
+  // fullyServed is reported, not folded into ok — query stubs still reach users (see selftest).
   if (!res.routes.ok) {
     console.log(`  routes: ${res.routes.broken.length} broken → ` + res.routes.broken.map((r) => `${r.path}(${r.status})`).join(', '));
   } else if (stubN) {
     console.log(
-      `  routes: ${res.routes.checked} declared reachable · ${stubN} query stubs (not hard-served) → ` +
+      `  routes: ${res.routes.checked} declared reachable · ${stubN} query stubs (not hard-served; fullyServed=false, not in ok) → ` +
         res.routes.stubs.map((r) => r.path).join(', '),
     );
   } else {
-    console.log(`  routes: all ${res.routes.checked} declared hard-served`);
+    console.log(`  routes: all ${res.routes.checked} declared hard-served · fullyServed=true`);
   }
   console.log(`  served SEO: ${res.seo.ok ? `ok (title "${res.seo.title}")` : 'FAIL — ' + res.seo.issues.join(', ')}`);
-  console.log(`  /startups counts: ${res.counts.skipped ? `skipped (${res.counts.skipped})` : res.counts.ok ? `match map (${nfmt(res.counts.want.companies)} companies, ${nfmt(res.counts.want.hiring)} hiring)` : 'DRIFT — ' + res.counts.issues.join('; ')}`);
+  console.log(`  /startups metadata: ${res.counts.ok ? 'stable (no volatile count claim)' : 'FAIL — ' + res.counts.issues.join('; ')}`);
+  console.log(
+    `  /startups crawlable: ${res.crawlable?.chars ?? 0} chars · ${res.crawlable?.crawlableWithoutJs ? 'yes' : 'no'}`,
+  );
+  if (res.freshness?.required) {
+    console.log(
+      `  /startups fragment: ${res.freshness.ok ? 'fresh vs sealed' : 'FAIL — ' + (res.freshness.issues || []).join('; ')}` +
+        ` · live=${res.freshness.liveLen} sealed=${res.freshness.sealedLen}`,
+    );
+  }
+  console.log(
+    `  /events fabricated: ${res.fabricated?.ok ? 'clean' : 'FAIL — ' + (res.fabricated?.found || []).join(', ')}`,
+  );
+  console.log(`  receipt: /tmp/dg-busy/site-health.json`);
   process.exit(res.ok ? 0 : 1);
 }

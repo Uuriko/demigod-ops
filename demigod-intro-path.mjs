@@ -98,11 +98,55 @@ export function appendPath(pathRow) {
   });
 }
 
+/** Affinity-thin: relationship rot threshold (days). Not a 0–100 score. */
+export const INTRO_DECAY_DAYS = 90;
+
+/**
+ * Affinity-analytics-thin: strength ordinal counts + decay flags.
+ * Observation tallies only — never a relationship/fit score product.
+ */
+export function introStrengthTally(paths = [], { nowMs = Date.now() } = {}) {
+  const byStrength = Object.fromEntries(STRENGTHS.map((s) => [s, 0]));
+  let total = 0;
+  let decayed = 0;
+  let fresh = 0;
+  const targets = new Set();
+  for (const p of paths || []) {
+    if (!p?.id && !p?.fromPerson) continue;
+    total += 1;
+    if (byStrength[p.strength] != null) byStrength[p.strength] += 1;
+    else byStrength.unknown += 1;
+    const key = p.toCand
+      ? `cand:${p.toCand}`
+      : p.toCompany
+        ? `co:${String(p.toCompany).toLowerCase()}`
+        : null;
+    if (key) targets.add(key);
+    const lastMs = Date.parse(p.at || 0);
+    if (Number.isFinite(lastMs) && lastMs > 0) {
+      const ageDays = (nowMs - lastMs) / 864e5;
+      if (ageDays >= INTRO_DECAY_DAYS) decayed += 1;
+      else fresh += 1;
+    } else {
+      fresh += 1;
+    }
+  }
+  return {
+    total,
+    distinctTargets: targets.size,
+    byStrength,
+    fresh,
+    decayed,
+    decayDays: INTRO_DECAY_DAYS,
+  };
+}
+
 /**
  * Warm paths: group by target (company or cand), rank by strength then recency.
  * Ranking aid only — never exported as a product score.
+ * ageDays + decayed flag = nurture signal (Affinity decay), not strength score.
  */
-export function warmPaths(paths, { company = null, cand = null, limit = 10 } = {}) {
+export function warmPaths(paths, { company = null, cand = null, limit = 10, nowMs = Date.now() } = {}) {
   const co = company ? String(company).trim().toLowerCase() : null;
   const ca = cand ? String(cand).trim() : null;
   const by = new Map();
@@ -138,16 +182,28 @@ export function warmPaths(paths, { company = null, cand = null, limit = 10 } = {
     by.set(key, g);
   }
   return [...by.values()]
-    .map((g) => ({
-      toCompany: g.toCompany,
-      toCand: g.toCand,
-      paths: g.paths,
-      bestStrength: g.bestStrength,
-      lastAt: g.lastAt,
-      fromPeople: [...g.fromPeople].slice(0, 8),
-      lastEvidence: g.lastEvidence,
-    }))
+    .map((g) => {
+      const lastMs = Date.parse(g.lastAt || 0);
+      const ageDays =
+        Number.isFinite(lastMs) && lastMs > 0
+          ? Math.max(0, Math.round(((nowMs - lastMs) / 864e5) * 10) / 10)
+          : null;
+      const decayed = ageDays != null && ageDays >= INTRO_DECAY_DAYS;
+      return {
+        toCompany: g.toCompany,
+        toCand: g.toCand,
+        paths: g.paths,
+        bestStrength: g.bestStrength,
+        lastAt: g.lastAt,
+        ageDays,
+        decayed,
+        fromPeople: [...g.fromPeople].slice(0, 8),
+        lastEvidence: g.lastEvidence,
+      };
+    })
     .sort((a, b) => {
+      // Fresh strong paths first; decayed still listed but deprioritized (not deleted)
+      if (a.decayed !== b.decayed) return a.decayed ? 1 : -1;
       const sw = (STRENGTH_W[b.bestStrength] || 0) - (STRENGTH_W[a.bestStrength] || 0);
       if (sw) return sw;
       return Date.parse(b.lastAt || 0) - Date.parse(a.lastAt || 0);
@@ -212,11 +268,58 @@ function selftest() {
         evidence: 'spoke once at office hours',
       }),
     ],
-    { company: 'Acme', limit: 5 },
+    { company: 'Acme', limit: 5, nowMs: Date.parse('2026-07-31T00:00:00.000Z') },
   );
   assert(warm.length === 1 && warm[0].bestStrength === 'strong', 'warm rank');
   assert(warm[0].fromPeople.includes('founder-a'), 'from people');
   assert(!('score' in warm[0]), 'warm has no score');
+  assert(typeof warm[0].ageDays === 'number' && warm[0].decayed === false, 'fresh ageDays');
+  // Affinity-analytics-thin: strength tallies are counts only (no score).
+  const tall = introStrengthTally(
+    [
+      makePath({
+        fromPerson: 'A',
+        toCompany: 'co-a',
+        strength: 'strong',
+        evidence: 'Met at YC dinner last year',
+        at: new Date().toISOString(),
+      }),
+      makePath({
+        fromPerson: 'B',
+        toCand: 'cand-x',
+        strength: 'weak',
+        evidence: 'One email intro only once',
+        at: new Date(Date.now() - 120 * 864e5).toISOString(),
+      }),
+      makePath({
+        fromPerson: 'C',
+        toCompany: 'co-b',
+        strength: 'unknown',
+        evidence: 'Name dropped in a call',
+        at: new Date().toISOString(),
+      }),
+    ],
+    { nowMs: Date.now() },
+  );
+  assert(tall.total === 3 && tall.byStrength.strong === 1 && tall.byStrength.weak === 1, 'strength tally');
+  assert(tall.byStrength.unknown === 1 && tall.distinctTargets === 3, 'unknown + targets');
+  assert(tall.decayed === 1 && tall.fresh === 2, 'decay counts');
+  assert(tall.decayDays === INTRO_DECAY_DAYS, 'decay threshold');
+  assert(!('score' in tall) && !('relationshipScore' in tall), 'no relationship score');
+
+  const old = warmPaths(
+    [
+      makePath({
+        fromPerson: 'a',
+        toCompany: 'OldCo',
+        strength: 'strong',
+        evidence: 'met once long ago at conference',
+        at: '2025-01-01T00:00:00.000Z',
+      }),
+    ],
+    { company: 'OldCo', nowMs: Date.parse('2026-07-31T00:00:00.000Z') },
+  );
+  assert(old[0].decayed === true && old[0].ageDays >= INTRO_DECAY_DAYS, 'decay after 90d');
   console.log(JSON.stringify({ ok: true, selftest: 'intro-path' }));
 }
 

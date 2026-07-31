@@ -328,7 +328,7 @@ export function rowToSeedEntry(row = {}) {
 }
 
 /**
- * @param {object} exportDoc demigod.recruitai-export/3
+ * @param {object} exportDoc demigod.recruitai-export/3|4|5|6
  * @param {{ at?: string, generation?: string|null }} meta
  */
 export function buildSeedPack(exportDoc = {}, meta = {}) {
@@ -552,7 +552,7 @@ function selftest() {
 
   const pack = buildSeedPack(
     {
-      schema: 'demigod.recruitai-export/3',
+      schema: 'demigod.recruitai-export/6',
       generatedAt: '2026-07-30T00:00:00.000Z',
       changeDate: '2026-07-30',
       changeBasis: 'ledger-observation',
@@ -606,7 +606,7 @@ function selftest() {
     );
     const nextPack = buildSeedPack(
       {
-        schema: 'demigod.recruitai-export/3',
+        schema: 'demigod.recruitai-export/6',
         generatedAt: '2026-07-31T00:00:00.000Z',
         changeDate: '2026-07-31',
         changeBasis: 'ledger-observation',

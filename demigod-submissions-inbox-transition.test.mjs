@@ -55,7 +55,7 @@ assert.doesNotMatch(JSON.stringify(rejected), /person@startup\.com|415-555-1212|
 assert.equal(redactItem({ id: 'partner', form: 'partner-apply', status: 'reviewed', raw: {} }).matchingReady, null);
 const candidate = redactItem({ id: 'candidate', form: 'engineer-join', status: 'updated', raw: { 'skills-stack': 'Design' } });
 assert.equal(candidate.matchingReady, false);
-assert.deepEqual(candidate.matchingBlockers, ['human-review', 'full-name', 'seeker-email', 'experience', 'sf-bay', 'availability', 'salary-expectation', 'resume']);
+assert.deepEqual(candidate.matchingBlockers, ['human-review', 'full-name', 'seeker-email', 'experience', 'sf-bay', 'availability', 'salary-expectation', 'work-auth', 'resume']);
 assert.deepEqual(['spam', 'featured', 'updated', 'reviewed', 'new'].sort((a, b) => queueRank(a) - queueRank(b)), ['updated', 'new', 'reviewed', 'featured', 'spam']);
 
 console.log('demigod inbox reviewed transition: PASS');

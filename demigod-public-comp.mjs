@@ -36,12 +36,12 @@ export function extractPublicCompQuotes(text) {
   const src = String(text || '');
   if (!src.trim()) return [];
   const patterns = [
-    // Salary range $180,000 to $220,000 USD · OTE / total cash / annual (public JD only)
-    /(?:salary|compensation|base(?:\s+pay)?|pay|ote|on[- ]?target earnings|total cash|annual(?:\s+(?:salary|pay|compensation))?)\s*(?:range|band)?\s*[:\-]?\s*(\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?)?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year|per year))?)/gi,
+    // Salary / OTE / total cash / equity cash grant / RSU / target bonus (public JD only; never %)
+    /(?:salary|compensation|base(?:\s+pay)?|pay|ote|on[- ]?target earnings|total cash|annual(?:\s+(?:salary|pay|compensation))?|equity(?:\s+\w+){0,3}|rsus?(?:\s+\w+){0,2}|target bonus|signing bonus|annual bonus)\s*(?:range|band|valued at|of)?\s*[:\-]?\s*(\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?)?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year|per year))?)/gi,
     // $180,000 – $220,000 / $180k-$220k
     /(\$\s*[\d,.]+\s*[kKmM]?\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year|per year))?)/gi,
-    // single: $180,000 USD / $180k base / OTE $200k
-    /(?:salary|compensation|base|ote|total cash)\s*[:\-]?\s*(\$\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year))?)/gi,
+    // single: $180,000 USD / $180k base / OTE $200k / Equity $50k
+    /(?:salary|compensation|base|ote|total cash|equity|rsus?|target bonus|signing bonus)\s*[:\-]?\s*(\$\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year))?)/gi,
   ];
   const seenQuote = new Set();
   const byBand = new Map(); // unit|min|max → best hit (prefer keyword-rich longer quote)
@@ -70,15 +70,38 @@ export function extractPublicCompQuotes(text) {
       if (!prev || quoteScore(hit.quote) > quoteScore(prev.quote)) byBand.set(bandKey, hit);
     }
   }
-  return [...byBand.values()];
+  const hits = [...byBand.values()];
+  // Drop point bands when a wider range shares the same unit+min (e.g. "OTE $200k" under "OTE $200k–$250k").
+  return hits.filter((h) => {
+    const max = h.parsed.max;
+    if (max != null && max !== h.parsed.min) return true;
+    return !hits.some(
+      (o) =>
+        o !== h &&
+        o.parsed.unit === h.parsed.unit &&
+        o.parsed.min === h.parsed.min &&
+        o.parsed.max != null &&
+        o.parsed.max > h.parsed.min,
+    );
+  });
 }
 
-/** Prefer OTE/salary keyword spans over bare $ranges; then longer exact quote. */
+/** Prefer OTE/salary/equity-cash keyword spans over bare $ranges; then longer exact quote. */
 function quoteScore(quote) {
   const q = String(quote || '').toLowerCase();
   let s = q.length;
-  if (/\b(ote|salary|compensation|base|total cash|annual)\b/.test(q)) s += 50;
+  if (/\b(ote|salary|compensation|base|total cash|annual|equity|rsu|bonus)\b/.test(q)) s += 50;
   return s;
+}
+
+/** Prefer annual bands over hourly when operator leaves pick default (JD often lists both). */
+export function pickPublicCompHit(hits, pick = 0) {
+  const list = Array.isArray(hits) ? hits : [];
+  if (!list.length) return null;
+  const annual = list.filter((h) => h?.parsed?.unit === 'annual');
+  const pool = annual.length ? annual : list;
+  const i = Math.max(0, Math.min(pool.length - 1, pick | 0));
+  return pool[i];
 }
 
 function formatBand(parsed) {
@@ -163,12 +186,15 @@ export async function fetchPublicJobText(url, { timeoutMs = FETCH_MS } = {}) {
 export function toPublicCompBand({ text, url, pick = 0 } = {}) {
   const hits = extractPublicCompQuotes(text);
   if (!hits.length) throw new Error('no_public_comp_quote');
-  const i = Math.max(0, Math.min(hits.length - 1, pick | 0));
-  const hit = hits[i];
+  const hit = pickPublicCompHit(hits, pick);
+  if (!hit) throw new Error('no_public_comp_quote');
   const u = assertPublicJobUrl(url);
   // DIE quote for public_job_post: prefer the raw match (≤280, ≥8 already).
   let quote = hit.quote;
   if (quote.length > 280) quote = quote.slice(0, 280);
+  const annual = hits.filter((h) => h?.parsed?.unit === 'annual');
+  const pool = annual.length ? annual : hits;
+  const i = Math.max(0, pool.indexOf(hit));
   return {
     text: hit.bandText || hit.quote,
     source: 'public_job_post',
@@ -241,6 +267,21 @@ function selftest() {
   const tc = extractPublicCompQuotes('Total cash: $145,000 to $175,000 USD per year.');
   assert(tc.length === 1 && tc[0].parsed.min === 145000, 'total cash one band');
   assert(extractPublicCompQuotes('Competitive OTE package').length === 0, 'refuse competitive OTE');
+  const eq = extractPublicCompQuotes('Equity grant valued at $40,000 to $80,000 USD. Base separate.');
+  assert(eq.length >= 1 && eq[0].parsed.min === 40000 && eq[0].parsed.max === 80000, 'equity cash grant');
+  assert(/equity/i.test(eq[0].quote), 'equity keyword in quote');
+  const rsu = extractPublicCompQuotes('RSU award $50k–$100k over 4 years.');
+  assert(rsu.length >= 1 && rsu[0].parsed.min === 50000 && rsu[0].parsed.max === 100000, 'RSU cash range');
+  const bonus = extractPublicCompQuotes('Target bonus $20,000 to $30,000 per year.');
+  assert(bonus.length >= 1 && bonus[0].parsed.min === 20000, 'target bonus');
+  assert(
+    extractPublicCompQuotes('Base $200k + equity').some((h) => h.parsed.min === 200000 && h.parsed.max === 200000),
+    'trailing + equity still strips to base band',
+  );
+  assert(extractPublicCompQuotes('Equity $40k-$80k')[0]?.parsed?.min === 40000, 'leading equity cash parses');
+  const mixed = extractPublicCompQuotes('Pay $75/hr contract. Salary range $150,000 to $180,000 USD full-time.');
+  const preferred = pickPublicCompHit(mixed, 0);
+  assert(preferred?.parsed?.unit === 'annual' && preferred.parsed.min === 150000, 'prefer annual over hourly');
   threw = false;
   try {
     assertPublicJobUrl('http://example.com/job');

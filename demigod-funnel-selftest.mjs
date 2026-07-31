@@ -4123,25 +4123,32 @@ assert(
     return { _raw: out + err };
   };
 
-  // (a) hired + --cash --apply → invoiced, fee 10%
-  const applied = parseOut(runInv(['--id=inv-hired-1', '--cash=145000', '--apply']));
+  // (a) hired + --base-salary --apply → invoiced, fee 10%
+  const applied = parseOut(runInv(['--id=inv-hired-1', '--base-salary=145000', '--apply']));
   assert(applied.ok === true && applied.to === 'invoiced', 'invoice --apply hired → invoiced');
   assert(applied.feeCents === 1450000, 'invoice feeCents = 10% of 145000 in cents');
+  assert(applied.baseSalary === 145000, 'invoice receipt names the base-salary input');
+  assert(applied.feeTerms?.basis === 'first-year base salary', 'invoice receipt snapshots the exact fee basis');
   const leadsA = JSON.parse(fs.readFileSync(path.join(tmp, 'DEMIGOD-LEADS.json'), 'utf8'));
   const hiredLead = (leadsA.partners || []).find((p) => p.id === 'inv-hired-1');
   assert(hiredLead?.state === 'invoiced', 'lead state is invoiced after apply');
   assert(hiredLead?.stateHistory.at(-1)?.pairId === 'pair-inv-hired-1', 'invoice history preserves placement pair');
   assert(hiredLead?.stateHistory.at(-1)?.feeCents === 1450000, 'invoice history binds fee to placement pair');
+  assert(hiredLead?.stateHistory.at(-1)?.feeTerms?.version === '2026-07-31', 'invoice history preserves immutable fee terms');
   assert(applied.pairId === 'pair-inv-hired-1', 'invoice receipt preserves placement pair');
   assert(hiredLead?.feeCents === 1450000, 'lead.feeCents stored');
+  assert(hiredLead?.firstYearBaseSalary === 145000 && hiredLead?.baseSalaryCents === 14500000, 'lead stores the exact fee basis amount');
   assert(!!applied.path && fs.existsSync(applied.path), 'invoice stub file written');
 
-  // (b) missing --cash → exit 1, state unchanged
+  // (b) missing basis or conflicting legacy alias → exit 1, state unchanged
   writeLeads([hiredRow('inv-hired-2', 'NoCashCo')]);
   const noCash = runInv(['--id=inv-hired-2', '--apply']);
-  assert(noCash.status !== 0, 'invoice without --cash exits non-zero');
+  assert(noCash.status !== 0, 'invoice without --base-salary exits non-zero');
   const leadsB = JSON.parse(fs.readFileSync(path.join(tmp, 'DEMIGOD-LEADS.json'), 'utf8'));
-  assert((leadsB.partners || [])[0]?.state === 'hired', 'no --cash leaves state hired');
+  assert((leadsB.partners || [])[0]?.state === 'hired', 'no --base-salary leaves state hired');
+  const bothSalaryFlags = runInv(['--id=inv-hired-2', '--base-salary=100000', '--cash=100000', '--apply']);
+  assert(bothSalaryFlags.status !== 0, 'invoice rejects ambiguous current + legacy salary flags');
+  assert(JSON.parse(fs.readFileSync(path.join(tmp, 'DEMIGOD-LEADS.json'), 'utf8')).partners[0].state === 'hired', 'ambiguous salary flags do not mutate state');
 
   // (c) sent lead refused; no stub for that id
   writeLeads([{ id: 'inv-sent-1', state: 'sent', company: 'SentCo', title: 'IC' }]);
@@ -5399,6 +5406,7 @@ assert(
             'sf-bay': 'yes',
             availability: 'now',
             'salary-expectation': '$180k',
+            'work-auth': 'authorized',
             'resume-url': `https://fixture.test/${candId}.pdf`,
           },
         },
@@ -6175,7 +6183,7 @@ assert(
       '',
       'Saw YC P26 · New York (https://www.workatastartup.com/jobs/98603).',
       '',
-      'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
+      'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year base salary only if you hire. Nothing before that.',
       '',
       'If useful: https://www.trydemigod.com/?wiz=startup&dg_lead=waas-6iwLqId0xZ9cLB — asks what a great 90-day outcome looks like.',
       '',

@@ -101,6 +101,7 @@ try {
       'sf-bay': 'yes',
       availability: 'now',
       'salary-expectation': '$180k',
+      'work-auth': 'authorized',
       'resume-url': `https://acme.test/${candidateId}.pdf`,
     },
   }));
@@ -631,6 +632,7 @@ try {
             'sf-bay': 'yes',
             availability: 'now',
             'salary-expectation': '$180k',
+            'work-auth': 'authorized',
             'resume-url': 'https://fixture.test/forged-context.pdf',
           },
         },

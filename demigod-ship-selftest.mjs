@@ -296,6 +296,7 @@ ok(
 );
 ok(/liveMatchesManifest/.test(fullyShippedBlock), 'truth fullyShipped requires manifest URL match');
 ok(/liveFootMimeOk/.test(fullyShippedBlock), 'truth fullyShipped requires executable CDN MIME');
+ok(/liveStartupsStaticMatchesDisk/.test(fullyShippedBlock), 'truth fullyShipped requires exact live /startups crawlable fragment');
 ok(/diskMatchesManifest/.test(fullyShippedBlock), 'truth fullyShipped requires manifest sha match');
 ok(/manifestBytesMatchDisk/.test(fullyShippedBlock), 'truth fullyShipped requires manifest byte-count match');
 ok(/manifestVersionMatchesDisk/.test(fullyShippedBlock), 'truth fullyShipped requires manifest version match');

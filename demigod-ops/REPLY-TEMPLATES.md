@@ -12,7 +12,7 @@ Happy to do 15 min. Send 2 times that work PT this week, or use the brief link i
 All good — when a role opens, the brief is always there. I’ll stay out of your inbox unless useful.
 
 ## Asked for pricing
-10% of first-year cash **only if you hire**. No retainer. Candidates free. Payments wiring still pending — email confirmation from hello@.
+10% of first-year base salary **only when a hire starts**; equity, discretionary bonus, commission, and benefits are excluded. No retainer. Talent never pays. Payments wiring still pending — email confirmation from potter@trydemigod.com.
 
 ## Asked “how fast?”
-No SLA clock — a human reviews fit. hello@trydemigod.com follows up. Quality over spray.
+No SLA clock — a human reviews fit. potter@trydemigod.com follows up. Quality over spray.

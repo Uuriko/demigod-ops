@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { cleanBoundaryFeatures, mergeBounds } from './demigod-startup-atlas.mjs';
 import { FREE_SF_VENUES } from './demigod-events-bot-agent.mjs';
-import { isCompanyWebsiteHost, isPlausibleHnCompanyName } from './demigod-hn-hiring.mjs';
+import { isCompanyWebsiteHost, isMegaCorp, isPlausibleHnCompanyName } from './demigod-hn-hiring.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSINESSES = 'https://data.sfgov.org/resource/g8m3-pdis.json';
@@ -17,13 +17,22 @@ export const YC_OSS_URL =
   process.env.DEMIGOD_YC_OSS_URL || 'https://yc-oss.github.io/api/companies/all.json';
 const SINCE = '2020-01-01T00:00:00.000';
 const TECH_NAICS = ['3254', '3341', '3344', '3345', '5112', '5132', '5182', '5191', '5415', '5417'];
-const YC_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { { ?company wdt:P1951 wd:Q2616400. } UNION { ?company wdt:P1344 ?batch. ?batch wdt:P664 wd:Q2616400. } ?company wdt:P159 wd:Q62. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
-const STARTUP_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { ?company wdt:P31 wd:Q129238; wdt:P159 wd:Q62. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
+// Wikidata HQ set. Was SF-only (wd:Q62), which made the CC0 half of the directory narrower than the
+// YC half — YC_SF_LOC_RE has always accepted the whole Bay. These are the incorporated places in
+// San Francisco / Alameda / San Mateo / Santa Clara counties that actually carry companies, resolved
+// from Wikidata's own P131 county membership (not by name-matching, which pulled in Newark NJ /
+// Dublin IE / Albany NY). Same four-county footprint as the YC location gate. Kept as a literal
+// VALUES list rather than a `wdt:P131*` path: the transitive path times out WDQS, this runs in ~7s.
+const BAY_HQ =
+  'wd:Q62 wd:Q47265 wd:Q486860 wd:Q16553 wd:Q505549 wd:Q159260 wd:Q169943 wd:Q208459 wd:Q74195 wd:Q484678 wd:Q17042 wd:Q49220 wd:Q927122 wd:Q499178 wd:Q747444 wd:Q927510 wd:Q383234 wd:Q988691 wd:Q189471 wd:Q490744 wd:Q986867 wd:Q491114 wd:Q667738 wd:Q850812 wd:Q864124 wd:Q917671 wd:Q837109 wd:Q927163 wd:Q138901 wd:Q846402 wd:Q851034 wd:Q816099 wd:Q925925 wd:Q983652 wd:Q671480 wd:Q609084 wd:Q370925';
+const BAY_HQ_VALUES = `VALUES ?hq { ${BAY_HQ} }`;
+const YC_QUERY = `SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { ${BAY_HQ_VALUES} { ?company wdt:P1951 wd:Q2616400. } UNION { ?company wdt:P1344 ?batch. ?batch wdt:P664 wd:Q2616400. } ?company wdt:P159 ?hq. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }`;
+const STARTUP_QUERY = `SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { ${BAY_HQ_VALUES} ?company wdt:P31 wd:Q129238; wdt:P159 ?hq. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } OPTIONAL { ?company wdt:P856 ?website. } OPTIONAL { ?company wdt:P571 ?inception. } SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }`;
 // Broadened SF-tech net: any SF-HQ (P159=Q62) company/business/tech-company type WITH an official
 // website (P856), not dissolved, excluding banks/nonprofits, founded 2005+ when dated. Widens coverage
 // beyond the strict "startup" instance (Q129238) to real SF tech companies that carry a website (so they
 // can be job-enriched). Website-required keeps entries useful; QID/host dedupe removes overlaps.
-const BROAD_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { VALUES ?type { wd:Q4830453 wd:Q783794 wd:Q6881511 wd:Q18388277 wd:Q1058914 wd:Q167037 } ?company wdt:P159 wd:Q62; wdt:P31 ?type; wdt:P856 ?website. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } FILTER NOT EXISTS { ?company wdt:P31 ?x. VALUES ?x { wd:Q22687 wd:Q163740 } } OPTIONAL { ?company wdt:P571 ?inception. } FILTER( !BOUND(?inception) || YEAR(?inception) >= 2005 ) SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }';
+const BROAD_QUERY = `SELECT DISTINCT ?company ?companyLabel ?companyDescription ?website ?inception WHERE { ${BAY_HQ_VALUES} VALUES ?type { wd:Q4830453 wd:Q783794 wd:Q6881511 wd:Q18388277 wd:Q1058914 wd:Q167037 } ?company wdt:P159 ?hq; wdt:P31 ?type; wdt:P856 ?website. FILTER NOT EXISTS { ?company wdt:P576 ?dissolved. } FILTER NOT EXISTS { ?company wdt:P31 ?x. VALUES ?x { wd:Q22687 wd:Q163740 } } OPTIONAL { ?company wdt:P571 ?inception. } FILTER( !BOUND(?inception) || YEAR(?inception) >= 2005 ) SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }`;
 // Bay-ish locations on the public YC dump (same spirit as demigod-free-ops yc-oss --sf).
 const YC_SF_LOC_RE =
   /\b(san\s*francisco|oakland|berkeley|palo\s*alto|mountain\s*view|san\s*mateo|redwood\s*city|menlo\s*park|sunnyvale|cupertino|santa\s*clara|san\s*jose|daly\s*city|south\s*san\s*francisco|emeryville|alameda|fremont|hayward|burlingame|san\s*carlos|foster\s*city|milpitas|los\s*altos|los\s*gatos|campbell|saratoga|belmont|san\s*bruno|south\s*bay|east\s*bay|peninsula|silicon\s*valley|bay\s*area)\b/i;
@@ -122,6 +131,29 @@ export function isYcSfBayLocation(locations) {
 }
 
 /**
+ * Sector/topic tags from a yc-oss row: industry, the leaf of "B2B -> Infrastructure", and up to
+ * four of YC's own topical tags. Capped and length-limited so one odd row cannot bloat the public
+ * payload. Pure string passthrough — no inferred categories.
+ */
+export function ycSectorTags(row = {}) {
+  const out = [];
+  const push = (value) => {
+    const tag = String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (tag && tag !== 'Unspecified' && !out.some((t) => t.toLowerCase() === tag.toLowerCase())) out.push(tag);
+  };
+  push(row?.industry);
+  push(String(row?.subindustry ?? '').split('->').pop());
+  for (const tag of Array.isArray(row?.tags) ? row.tags.slice(0, 4) : []) push(tag);
+  return out.slice(0, 6);
+}
+
+/** Public team size, when YC publishes a sane one. Not headcount truth — YC's self-reported number. */
+export function ycTeamSize(value) {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 && n <= 100000 ? n : null;
+}
+
+/**
  * Map yc-oss public directory rows → directory company rows (YC-public license).
  * Active + Bay-area only; acquired/inactive/public-company statuses are excluded.
  */
@@ -143,6 +175,12 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
     const batch = String(row?.batch || '').trim();
     const tags = ['yc'];
     if (batch) tags.push(`YC ${batch}`);
+    // Sector + topic tags YC already publishes on the same dump we fetch for name/website. Free
+    // (no extra request, same YC-public license) and immediately useful: demigod-directory-filter
+    // searches and renders tags[], so this is what makes "fintech" / "developer tools" find anything.
+    // Verbatim YC strings — "AI" and "Artificial Intelligence" both appear and we do not collapse
+    // them, because inventing a taxonomy would be our claim, not YC's.
+    for (const tag of ycSectorTags(row)) if (!tags.includes(tag)) tags.push(tag);
     let inceptionYear = null;
     const launched = Number(row?.launched_at);
     if (Number.isFinite(launched) && launched > 0) {
@@ -160,6 +198,8 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
       website: safeUrl(row?.website),
       inceptionYear,
       tags,
+      teamSize: ycTeamSize(row?.team_size),
+      stage: ['Early', 'Growth'].includes(String(row?.stage || '').trim()) ? String(row.stage).trim() : null,
       locationPrecision: 'city',
       neighborhood: null,
       hiring: row?.isHiring ? 'yes' : 'unknown',
@@ -261,7 +301,12 @@ export function buildWikidataCompanies(groups = [], retrievedAt = new Date().toI
       companies.set(qid, current);
     }
   }
-  return [...companies.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  // Same startup bias the HN source already applies. SF-only kept the mega-corps mostly out by
+  // accident; a Bay-wide HQ set puts Intel/Cisco/Nvidia/Apple in range. The 2005+ inception filter
+  // catches the dated ones — this catches the ones Wikidata has no founding date for.
+  return [...companies.values()]
+    .filter((row) => !isMegaCorp(websiteHostKey(row.website)))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
 export function buildPublicVenues(venues = [], retrievedAt = new Date().toISOString()) {
@@ -325,7 +370,7 @@ export function buildPublicStartupMap({ counts = [], total = 0, companies = [], 
       ycPublicDirectory: companies.filter(({ sourceLicense }) => sourceLicense === 'YC-public').length,
       definition: 'Active San Francisco technology business locations with a business start date on or after January 1, 2020, using selected self-reported software, computing, electronics, pharmaceutical, and R&D NAICS groups.',
       caveat:
-        'This is an open-data proxy for startup activity, not a startup census. Registrations can include consultants, established firms, and home-based businesses; counts are neighborhood aggregates, never address pins. Named-company facts come from the public YC company directory (YC-public, Active + Bay-area locations) and CC0 Wikidata; current operating status is not independently verified.',
+        'This is an open-data proxy for startup activity, not a startup census. Registrations can include consultants, established firms, and home-based businesses; counts are neighborhood aggregates, never address pins. Named-company facts come from the public YC company directory (YC-public, Active + Bay-area locations), CC0 Wikidata (companies whose recorded headquarters is in San Francisco, Alameda, San Mateo, or Santa Clara county), and companies’ own public Hacker News "Who is hiring?" posts (HN-public). Sector tags, team size, and stage are YC self-reported. Current operating status is not independently verified.',
     },
     method: { since: SINCE.slice(0, 10), naicsPrefixes: TECH_NAICS, ycOss: YC_OSS_URL },
     sources: [
@@ -352,6 +397,12 @@ export function buildPublicStartupMap({ counts = [], total = 0, companies = [], 
         url: 'https://www.ycombinator.com/companies',
         retrievedAt: at,
         license: 'YC-public',
+      },
+      {
+        name: 'Hacker News — Ask HN: Who is hiring?',
+        url: 'https://news.ycombinator.com/submitted?id=whoishiring',
+        retrievedAt: at,
+        license: 'HN-public',
       },
     ],
     bounds: mergeBounds(boundaries.map(({ bounds }) => bounds)),
@@ -430,9 +481,14 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
   const hnCompanies = (() => {
     try {
       const rows = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || [];
-      // The cache is reused across rebuilds, so re-apply current identity guards on read.
+      // The cache is reused across rebuilds, so re-apply current identity guards on read. The id
+      // check is not redundant with the parser: a cache written before a parser fix is replayed
+      // verbatim, and one bad id (a %20-encoded ATS segment) breaches the map's id contract.
       return rows.filter(
-        (row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website),
+        (row) =>
+          isPlausibleHnCompanyName(row.name) &&
+          isCompanyWebsiteHost(row.website) &&
+          stableMapCompanyId(row),
       );
     } catch { return []; }
   })();

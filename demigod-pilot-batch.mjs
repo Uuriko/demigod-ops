@@ -90,13 +90,68 @@ export function activeCount(batch) {
 }
 
 /**
+ * Terminal (pass/decline) cand ids — Dover/Underdog hygiene: free seats but stay out of rediscover.
+ * Pure; empty set when batch missing.
+ */
+export function terminalCandIds(batch) {
+  return new Set(
+    (batch?.candidates || [])
+      .filter((c) => c?.candId && (c.state === 'pass' || c.state === 'decline'))
+      .map((c) => String(c.candId)),
+  );
+}
+
+/**
+ * Ashby-analytics-thin: seat state counts only (active/pass/decline).
+ * No conversion rate, time-to-fill, or hire score — observation tallies.
+ */
+export function batchSeatTally(batch) {
+  const t = { active: 0, pass: 0, decline: 0, total: 0 };
+  for (const c of batch?.candidates || []) {
+    if (!c?.candId) continue;
+    t.total += 1;
+    const s = c.state || 'active';
+    if (s === 'pass') t.pass += 1;
+    else if (s === 'decline') t.decline += 1;
+    else t.active += 1;
+  }
+  return t;
+}
+
+/** Aggregate seat tallies across many batches (status/doctor landscape). */
+export function batchSeatLandscape(batches = []) {
+  const all = { active: 0, pass: 0, decline: 0, total: 0, batches: 0 };
+  const byRole = [];
+  for (const b of batches || []) {
+    if (!b) continue;
+    const t = batchSeatTally(b);
+    all.active += t.active;
+    all.pass += t.pass;
+    all.decline += t.decline;
+    all.total += t.total;
+    all.batches += 1;
+    byRole.push({ roleId: b.roleId, max: b.max ?? null, ...t });
+  }
+  return { ...all, byRole };
+}
+
+/**
  * Add candidate. Refuses if active count already at max (must terminal one first).
  */
 export function addCandidate(batch, candId, why) {
   assertBatch(batch);
   const id = String(candId).trim();
   if (!id) throw new Error('candId');
-  if ((batch.candidates || []).some((c) => c.candId === id)) throw new Error('dup');
+  const existing = (batch.candidates || []).find((c) => c.candId === id);
+  if (existing) {
+    // Dover/Underdog hygiene: pass/decline free a seat but must not re-enter the same batch.
+    if (existing.state === 'pass' || existing.state === 'decline') {
+      throw new Error(
+        `terminal_seat:${id}:${existing.state} — declined/passed cand stays out of active batch`,
+      );
+    }
+    throw new Error('dup');
+  }
   if (activeCount(batch) >= batch.max) {
     throw new Error(`batch_full:${batch.max} — terminal a candidate before adding`);
   }
@@ -160,8 +215,21 @@ function selftest() {
   }
   assert(threw, 'cap blocks 4th active');
   b = terminalCandidate(b, 'c2', 'decline');
+  assert(terminalCandIds(b).has('c2') && !terminalCandIds(b).has('c1'), 'terminal set tracks decline');
+  threw = false;
+  try {
+    addCandidate(b, 'c2', 'should refuse re-add of declined');
+  } catch (e) {
+    threw = /terminal_seat/.test(String(e.message));
+  }
+  assert(threw, 'terminal_seat blocks re-add of decline');
   b = addCandidate(b, 'c4', 'Slot freed after decline');
   assert(activeCount(b) === 3, 'active after terminal+add');
+  // Ashby-thin seat tallies (counts only — no rates/scores).
+  const seat = batchSeatTally(b);
+  assert(seat.active === 3 && seat.decline === 1 && seat.pass === 0 && seat.total === 4, 'seat tally after decline+add');
+  const land = batchSeatLandscape([b, openBatch('role-empty', { max: 2 })]);
+  assert(land.batches === 2 && land.decline === 1 && land.byRole.length === 2, 'landscape');
   threw = false;
   try {
     openBatch('x', { max: 5 });

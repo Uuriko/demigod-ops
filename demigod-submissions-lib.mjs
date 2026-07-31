@@ -50,6 +50,7 @@ const TEST_RE = /\btest\b/i;
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 const CANDIDATE_BAY_OPTIONS = new Set(['yes', 'remote-bay', 'no']);
 const CANDIDATE_AVAILABILITY_OPTIONS = new Set(['now', '2-4w', '1-3m', 'passive']);
+const CANDIDATE_WORK_AUTH_OPTIONS = new Set(['authorized', 'sponsorship', 'unsure']);
 const STARTUP_STAGE_OPTIONS = new Set(['pre-seed', 'seed', 'series-a', 'series-b']);
 const STARTUP_LOCATION_OPTIONS = new Set([
   'sf-onsite', 'sf-hybrid', 'bay-flexible', 'remote-us', 'remote-global',
@@ -129,6 +130,7 @@ export function candidateProfileReadiness(item = {}) {
   const raw = item.raw || item.data || {};
   const bayPreference = String(raw['sf-bay'] || raw.sfBay || '').trim().toLowerCase();
   const availability = String(raw.availability || '').trim().toLowerCase();
+  const workAuth = String(raw['work-auth'] || raw.workAuth || '').trim().toLowerCase();
   const compensation = raw['salary-expectation'] || raw['salary-range'] || raw.compExpect;
   const fullName = raw['full-name'] || raw.fullName;
   const email = extractEmail(raw, form);
@@ -147,6 +149,7 @@ export function candidateProfileReadiness(item = {}) {
     ['sf-bay', raw['sf-bay'] || raw.sfBay],
     ['availability', raw.availability],
     ['salary-expectation', compensation],
+    ['work-auth', raw['work-auth'] || raw.workAuth],
     ['resume', resume],
   ];
   const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
@@ -158,6 +161,7 @@ export function candidateProfileReadiness(item = {}) {
     ['sf-bay', bayOptionReady],
     ['availability', availabilityReady],
     ['salary-expectation', compensationReady],
+    ['work-auth', CANDIDATE_WORK_AUTH_OPTIONS.has(workAuth)],
     ['resume', isValidResumeReference(resume)],
   ]) {
     if (!ready && !missing.includes(key)) missing.push(key);

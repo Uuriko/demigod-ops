@@ -39,7 +39,7 @@ Running great SF events is ops-heavy. Events Bot turns a blank or lightly direct
 6. **Public never sees offer emails** — counts + non-contact blurbs only.
 7. **Mutual yes** before post-event intros (same as hiring).
 8. **Identity in outreach drafts** — bot names itself and points to `/?p=events` for product context.
-9. **Talent never pays Demigod**; placement fee only if later hire starts (10% first-year cash).
+9. **Talent never pays Demigod**; placement fee only if a later hire starts (10% of first-year base salary; equity, discretionary bonus, commission, and benefits excluded).
 10. **Contact:** potter@trydemigod.com (not hello@ for public copy).
 
 ### 1.4 Who uses what surface

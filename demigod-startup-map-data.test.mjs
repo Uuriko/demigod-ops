@@ -6,6 +6,8 @@ import {
   isYcSfBayLocation,
   mergeNamedCompanies,
   websiteHostKey,
+  ycSectorTags,
+  ycTeamSize,
 } from './demigod-startup-map-data.mjs';
 
 test('YC Active filter is exact (Inactive is not Active)', () => {
@@ -143,4 +145,59 @@ test('an ATS-only HN shell absorbs into the row that owns that board, but a shar
     [{ id: 'hn:jobs.ashbyhq.com/middesk', name: 'Middesk', website: null }],
   );
   assert.equal(orphan.length, 2, 'a name match alone must never absorb a shell');
+});
+
+test('ycSectorTags passes YC sector strings through, capped and deduped', () => {
+  const tags = ycSectorTags({
+    industry: 'B2B',
+    subindustry: 'B2B -> Infrastructure',
+    tags: ['Artificial Intelligence', 'AI', 'B2B', 'Developer Tools', 'Ignored fifth'],
+  });
+  assert.deepEqual(tags, ['B2B', 'Infrastructure', 'Artificial Intelligence', 'AI', 'Developer Tools']);
+  // 'B2B' from tags[] is dropped as a case-insensitive dupe; the 5th YC tag is past the cap.
+  assert.equal(ycSectorTags({ industry: 'Unspecified' }).length, 0, 'Unspecified is not a sector claim');
+  assert.deepEqual(ycSectorTags({}), [], 'no YC sector data → no tags');
+  assert.ok(ycSectorTags({ industry: 'x'.repeat(200) })[0].length <= 40, 'tag length capped');
+});
+
+test('ycTeamSize only accepts a sane published integer', () => {
+  assert.equal(ycTeamSize(12), 12);
+  assert.equal(ycTeamSize('12'), 12);
+  assert.equal(ycTeamSize(0), null);
+  assert.equal(ycTeamSize(-3), null);
+  assert.equal(ycTeamSize(1e9), null);
+  assert.equal(ycTeamSize(null), null);
+  assert.equal(ycTeamSize('lots'), null);
+});
+
+test('buildYcPublicCompanies carries YC sector tags, team size and stage', () => {
+  const [co] = buildYcPublicCompanies(
+    [
+      {
+        name: 'Sector Co',
+        slug: 'sector-co',
+        status: 'Active',
+        all_locations: 'San Francisco, CA, USA',
+        website: 'https://sector.example',
+        batch: 'Winter 2025',
+        industry: 'Fintech',
+        subindustry: 'Fintech -> Banking as a Service',
+        tags: ['SaaS'],
+        team_size: 9,
+        stage: 'Early',
+      },
+    ],
+    '2026-07-31',
+  );
+  assert.deepEqual(co.tags, ['yc', 'YC Winter 2025', 'Fintech', 'Banking as a Service', 'SaaS']);
+  assert.equal(co.teamSize, 9);
+  assert.equal(co.stage, 'Early');
+  // A row with no YC sector data must not gain invented fields.
+  const [bare] = buildYcPublicCompanies(
+    [{ name: 'Bare', slug: 'bare', status: 'Active', all_locations: 'Oakland, CA, USA', stage: 'Nonsense' }],
+    '2026-07-31',
+  );
+  assert.deepEqual(bare.tags, ['yc']);
+  assert.equal(bare.teamSize, null);
+  assert.equal(bare.stage, null, 'unrecognized stage string is dropped, not echoed');
 });

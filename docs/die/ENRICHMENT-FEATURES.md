@@ -18,6 +18,177 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 
 ## Execution updates — 2026-07-31
 
+- **Control nativeUpdate observation (Greenhouse residual):** `measureNativeUpdateLandscape` → control `ledger_native_update_observation` (low/always ok; withFlag/updatedAfter/withoutFlag — GH updated_at>first_published only; not ghost-job %).
+
+- **Control language observation (Phenom residual):** `measureLanguageLandscape` → control `ledger_language_observation` (low/always ok; withLanguage/bilingual/share + byLanguage — title-heuristic only; silence≠monolingual; not skill graph).
+
+- **Control founding observation (PredictLeads residual):** `measureFoundingLandscape` → control `ledger_founding_observation` (low/always ok; founding/share + byProvider/byFn — title-heuristic early-seat only; not stage/intent score).
+
+- **Control metro observation (Phenom residual):** `measureMetroLandscape` → control `ledger_metro_observation` (low/always ok; withMetro/sfBay/sfBayShare + byMetro — multi-label location-text only; not geo-rank/visa score).
+
+- **Control postedDateRecycle observation (Coresignal residual):** `measurePostedDateRecycleLandscape` → control `ledger_posted_date_recycle_observation` (low/always ok; withRecycle/changeEvents/share — board re-stamp while open; ages lower bound; not fraud score).
+
+- **Control usPosted observation (Deel residual):** `measureUsPostedLandscape` → control `ledger_us_posted_observation` (low/always ok; usPosted/nonUs/share — location-gate only; nonUs includes empty/ambiguous; not EOR/visa score).
+
+- **Control agencyPolicy observation (AR-27 residual):** `measureAgencyPolicyLandscape` → control `ledger_agency_policy_observation` (low/always ok; withPolicy/withoutPolicy/share — positive-only supported evidence; silence≠no-agency).
+
+- **Control seniority observation (Ashby residual):** `measureSeniorityLandscape` → control `ledger_seniority_observation` (low/always ok; specified/unspecified + bySeniority/engBySeniority — title-heuristic only; unspecified≠mid; not leveling score).
+
+- **Control employmentType observation (Rippling residual):** `measureEmploymentTypeLandscape` → control `ledger_employment_type_observation` (low/always ok; intern/partTime/contract/unspecified + specifiedShare — title-heuristic only; not HRIS class).
+
+- **Control closedAge observation (TheirStack residual):** `measureClosedAgeLandscape` → control `ledger_closed_age_observation` (low/always ok; closed/withAge/maxDays/ge3/ge7 + byBucket/byProvider/byCompanyTop — days since closedAt only; closed≠filled; no poll thrash). Scoreboard `ledger.closedAge` already shipped.
+
+- **Closed landscape (TheirStack-thin):** `measureClosedLandscape` → enrichment scoreboard `ledger.closed` (closed/open/share + byProvider/byFn/byCompanyTop; lifetime board-omit tallies — not filled/hired; windowed exits remain on boardActivity).
+
+- **AR-28 control host-class evidence:** `ats_secondary_coverage` now surfaces map ATS host classes (primary/secondary/yc + primaryOpen/secondaryOpen + byHost) from `buildBoardCoverage`/`measureMapAtsLandscape` — still low/never exit-fail; no poll thrash.
+
+- **AR-28-thin map ATS landscape:** `measureMapAtsLandscape` → scoreboard `map.ats` + boards receipt (primary/secondary/yc host classes + primaryOpen/secondaryOpen + byHost/byAtsSource; no new scrapers; secondary yield owner-gated).
+
+- **US-posted landscape (Deel-thin):** `measureUsPostedLandscape` → enrichment scoreboard `ledger.usPosted` (usPosted/nonUs/share + byProviderUs/byProviderNonUs/byFnUs; location-gate geography counts only — not EOR/visa product).
+
+- **Posted-date recycle landscape:** `measurePostedDateRecycleLandscape` → enrichment scoreboard `ledger.postedDateRecycle` (withRecycle/withoutRecycle/changeEvents/share + byProvider/byCompanyTop/byChangeCount; board-reported post date changed while open — stored ages lower bound; not fraud scores).
+
+- **Reopen landscape (TheirStack-thin):** `measureReopenLandscape` → enrichment scoreboard `ledger.reopen` (withReopen/withoutReopen/reopenEvents/share + byProvider/byCompanyTop/byReopenCount; board reappearance after successful omit — not filled/hired scores).
+
+- **Seniority landscape (Ashby-thin):** `measureSeniorityLandscape` → enrichment scoreboard `ledger.seniority` (specified/unspecified + bySeniority + byEngineeringSeniority counts only; title-heuristic buckets via seniorityFromTitle — not leveling scores).
+
+- **Posted-age landscape (Levels/Coresignal-thin):** `measurePostedAgeLandscape` → enrichment scoreboard `ledger.postedAge` (attributable/withoutAttributed/maxDays/agingRoles/evergreenRoles + byBucket 0-6/7-29/30-89/90-365/365d+; first_published only — stamps excluded; not ghost-job %).
+
+- **AR-25-thin observedAge landscape:** `measureObservedAgeLandscape` → enrichment scoreboard `ledger.observedAge` (byBucket 0d/1-2d/3-6d/7-13d/14-29d/30d+ + maxDays/ge7/ge30 counts only; firstSeen observation depth — not board post age or ghost-job score).
+
+- **Apify-thin workplace landscape:** `measureWorkplaceLandscape` → enrichment scoreboard `ledger.workplace` (remote/hybrid/onsite/unspecified/empty + remoteShare + byProviderRemote/byFnRemote counts only; location-text exclusive; city-only=unspecified).
+
+- **AR-27-thin agencyPolicy landscape:** `measureAgencyPolicyLandscape` → enrichment scoreboard `ledger.agencyPolicy` (withoutPolicy/share/byProvider/byCompanyTop counts only; positive-only supported evidence; silence≠no-agency).
+
+- **Gem-thin rediscoverPool landscape:** `rediscoverLandscape` → SH status/doctor `rediscoverPool` (distinctCands/rediscoverable/suppressed/withOutcome/byLastChannel counts only; no match/fit score).
+
+- **Ashby/Lever-thin ratings landscape:** `ratingLandscape` → SH status/doctor `ratings` (notes/cells + byRating strong_yes/yes/no/strong_no counts only; no average/passRate/hire score).
+
+- **Lever/Ashby-thin kits landscape:** `kitLandscape` → SH status/doctor `kits` (mustHaves/dealBreakers/withDealBreakers/byKind counts only; no kit quality score).
+
+- **AR-08 residual batch 23:** customer engagement/guest engagement/TPM intern/ES telematics-install/FR premium support/workforce effectifs/founder intern/sustainability/intel-protective → ops; security&IT + robotics prototyping lab → eng; TAM/education GTM/commercial planning/consulting services/agent strategists/expansion strategy/EBC → sales; field analytics → ai/data; site merchandising/conversion/creator program → marketing; sourcing analysts/FCM/internal analysis/national security/regulatory product/BP analyst → finance; video people lead → people; product line specialist → product. Reclassify 49; open other →303 (otherShare≈0.024). Map + reseal + truth green.
+- **AR-08 residual batch 25:** FPGA associate/intern → eng; QC associate abbrev + production associate + escalations craft → ops; insights manager → marketing; industry principal → sales. Guards: bare analyst/general app/therapist stay other; success insights stays ops. Offline reclassify changed=9; open other →281 (otherShare≈0.023). Scoreboard + SH audit green.
+- **AR-08 residual batch 26:** care team/case manager/call center (non-RN) + translator/linguist + video data collection field officer → ops; medical writing → marketing; CoDesign → design. Guards: RN care manager/therapist/actor stay other. Offline reclassify changed=7; open other →274 (otherShare≈0.022).
+- **AR-08 residual batch 27:** field application scientist → sales; FR soutien premium + non-clinical compassionate care + enrollment specialist + transcriptionist + radiation protection/RSO + limpieza industrial + secure manufacturing/stealth investigator → ops; visual journalist + script supervisor → design. Guards: actor/RN care/bare safety/catering/wet-lab stay other. Offline reclassify changed=12; open other →262 (otherShare≈0.021).
+
+- **Lever-thin decisionAids landscape:** `decisionAidLandscape` → SH status/doctor `decisionAids` (byAid changed_by_context/missing_question/error_prevented/none counts only; no interviewer quality score).
+
+- **Ashby-pipeline-thin stages landscape:** `stageLandscape` → SH status/doctor `stages` (byStage brief_ready/reviewing/mutual_pending/intro/outcome counts only; no conversionRate/timeInStage). HireEZ/SeekOut reaffirmed kill (no talent-graph scrape/fit).
+
+- **Levels/Pave-thin compBands landscape:** `compBandLandscape` → SH status/doctor `compBands` (with/without band + bySource public_job_post|founder_stated|unknown|none + url/quote counts only; no pay percentiles). Reaffirms quote-gated public JD bands only.
+
+- **Ashby-analytics-thin scorecards landscape:** `scorecardLandscape` → SH status/doctor `scorecards` (packets/withPlan/withNotes/complete/withDisagree/withEmptyMoments/unratedMustHaves counts only; no completionRate/hire score). Lattice employee performance + Pave benchmark DB reaffirmed kill; recruiting scorecards only.
+
+- **AR-08 residual batch 22:** engineeer typo/security analysts/tech interns/MES/hardware exploratory/connectivity → eng; SDR early-guard + territory/agency/GSI/adoption/payments strategists/country heads/JP SA/presales(non-eng)/district/field activation → sales; RSI researcher/RL fellows/training-insights/inference/RE-RS search/operating memory → ai/data; analyst relations/consumer insights/ad measurement/editors/reporters/social-experiential producers → marketing; product pricing/packaging analysts/funds recon/credit BA/investment lead/trust&assurance/tech audit → finance; FR office mgr/guest-hosting/merch/client services/physical security/techops(non-eng)/experience coordinator/delivery-supply-escalation → ops; training mgr + head of learning → people; color/motion/photo/user-research co-op → design. Guards: wet-lab frontier other; video editor design; pricing SWE eng; candidate experience people; TechOps Engineer eng. Reclassify 133; open other →351 (otherShare≈0.028). Map + reseal + truth green.
+
+- **AR-08 residual batch 21:** ads solutions/strategic pursuits/deal lead/specialist sellers → sales; market research/UGC/webinar/field events/narrative → marketing; business affairs/IB/public funding/model policy → finance; threat modeler/cyber integration/TLM → eng; performance modeling/data understanding → ai/data; product acceleration/TaaS → product; abuse investigator/customer learning/program&experience/planners/negotiations/performance center/onboarding coordinator/service advisor/DC compute → ops. Reclassify 50; open other →478 (otherShare≈0.039). Map + reseal + truth green.
+
+- **Affinity-thin introStrengths:** `introStrengthTally` → SH status/doctor ordinal strength + fresh/decayed counts (no relationship score; no mail scrape).
+
+- **AR-08 residual batch 20:** acquisitions/partner mgmt/commercial strategy/market lead/alliance partners → sales; demand&campaigns/messaging/events/editorial/addressability → marketing; equity mgr (not PE) → people; originations/gov relations/insurance/licensing/capital cost/BP&F/PE → finance; CS/supply/category/strategic delivery/proposal/success insights/facilities/fab/site/industrial/strategy lead/air pricing/verifications → ops; core development/solution specialist → eng; prototype&design → design; concepteur de produits → product. Reclassify 54; open other →513 (otherShare≈0.041). Map + reseal + truth green.
+
+- **Karat/Gem-thin engagement landscapes:** `touchChannelTally` + `callKindTally` → SH status/doctor `touchChannels`/`callKinds` (counts only; no engagement/quality/fit scores).
+
+- **AR-08 residual batch 19:** sourcing manager (not strategic sourcing)/benefits care/learning&knowledge → people; relationship mgmt/client dev/CRM lead/expansion/velocity enablement/publisher/emerging enterprise → sales; programmatic buying → marketing; game director/creative manager → design; fraud&identity/M&A(non-integration)/mortgage/ventures partner → finance; founder office/strategic project/resolutions/WFM/inventory/shift/intake/end-user/production/montaje → ops. Reclassify 34; open other →564 (otherShare≈0.045). Map + reseal + truth green.
+
+- **Ashby-analytics-thin batchSeats:** pilot-batch `batchSeatTally`/`batchSeatLandscape` → SH status+doctor seat counts (active/pass/decline only; no rates/scores).
+
+- **AR-08 residual batch 18:** reliability design + technical quality → eng; strategy&analytics/statistician/data&insights → ai/data; global equity/absence/member relations → people; field CTOs/pipeline excellence/deal strategy → sales; external affairs/regulatory associate/trade advisory → finance; machine shop/mfg quality/shipping/freight/customs/service delivery/corporate programs/fleet/electrical tech/project controls → ops. Reclassify 43; open other →594 (otherShare≈0.048). Map + reseal + truth green.
+
+- **GoodTime-thin moment coverage:** debriefRoundup momentCoverage/momentsWithoutNotes (plan moments lacking notes; no scheduler); SH doctor + desk next prioritize notes for empty moments.
+
+- **AR-08 residual batch 17:** IAM + non-textile QA + avionics/electrical integration → eng; FP&A long-form + procure-to-pay + T&E → finance; equity admin → people; alliance manager/value consultant/PS manager/strategic customer advisor/FDE/emerging markets lead/SASE specialist → sales; data insights → ai/data; vendor RM/SCM/warehouse/HVAC/mantenimiento/strategy&execution/RE strategic planning/life sciences operator → ops. Textile QA, bare analyst, safety, general app stay other. Reclassify 56; open other →633 (otherShare≈0.051). Map enrich-map + reseal + truth green.
+
+- **BrightHire-thin call→scorecard join:** debriefRoundup optional callNotes → callEvidence per must-have + callKindTally (manual only; no bot/score); desk+doctor pass call notes.
+
+- **Gem-thin rediscover engagement fields:** lastChannel + lastOutcome on rediscover rows (no fit score); SH doctor prints debrief coverage/disagree/plan.
+
+- **Lever/Ashby-thin debrief coverage:** `debriefRoundup` adds unratedMustHaves, disagreeCount, coverage, interviewPlanPresent (no score); SH desk next prioritizes set-plan when interview plan missing.
+
+- **Dover hygiene — terminal_seat on re-shortlist:** pilot-batch `addCandidate` refuses pass/decline re-add with `terminal_seat` (not bare `dup`); SH shortlist returns structured error + hint (pairs with rediscover suppress).
+
+- **Apify-thin native_date_field_mix:** `measureNativeDateFieldLandscape` on enrichment scoreboard + control (first_published attributable posted age; createdAt/publishedAt stamps explicit).
+
+- **Dover/Underdog hygiene — rediscover suppress terminals:** `terminalCandIds` on pilot-batch; SH desk + status rediscover suppress pass/decline cand ids (Gem rediscover keeps no fit score).
+
+- **TheirStack-thin byCompanyClosedTop surface:** roles-feed company board-exit intensity flows through pulse HTML, control `board_activity_observation`, enrichment scoreboard (exits≠filled; not targets).
+
+- **AR-08 residual batch 16:** pricing strategist/quant/economist/claims → finance; RVP/director enterprise/head of solutions/demand engine/tech+field enablement/field CTO → sales (demand generation stays marketing; customer enablement stays ops); skills enablement → people; salesforce admin/cyber/detection researcher → eng; frontier cyber researcher/data automation → ai/data; demand/lifecycle strategist + ad campaign → marketing; video producer/character artist → design; founding operator/founder associate/office of founders/incident mgr/business system analyst/retention/head of manufacturing → ops; chef de produit/manager product (not product security) → product. Reclassify 87; open other →674 (otherShare≈0.054). Map enrich-map + reseal + truth green.
+
+- **PredictLeads-thin byCompanyTop surface:** roles-feed company open-in-window intensity now flows through `boardActivityInsightFromLedger` → pulse HTML, control `board_activity_observation` reason/detail, enrichment scoreboard. Observation counts only (not intent/score/targets).
+
+- **AR-08 residual batch 15:** plural engineers/architects + SDE/developper/neuroengineer/CISO/Director IT/QA lead → eng; data science/annotation/agent post-training/alignment researcher → ai/data; bare GTM/go-to-market (not enablement/ops) + account associate/AVP/country+client mgr/forward deployed → sales; copywriter/PR director/head of social → marketing; AP/AR/bookkeeper/cash application → finance; product strategy/director/generalist → product; manufacturing associate/material handler/customer enablement → ops. Wet-lab scientist, therapist, vacation market manager stay other. Offline reclassify changed=276; open other →736 (otherShare≈0.059). Map `--enrich-map` + reseal + truth resealed (highExitFail=0).
+
+- **Roles feed v7 private facets:** exact case-insensitive `company` / `fn` / `provider` /
+  title-only `seniority` plus `usOnly`; filtered CLI runs are stdout-only and cannot overwrite the
+  canonical feed. Open and board-exit observations share one predicate; zero matching closure
+  history fails closed, and every aggregate states its denominator. No score or ranking.
+
+- **Useful-loop retry idempotency:** persistent red controls coalesce under a cross-process lock
+  and retry once per minute; truth/research failures now schedule their executable reseal task
+  instead of another status-only control-board probe.
+
+- **AR-27 agency expand + AR-08 batch 14:** positive-only no-agency phrases (no agency submissions / unsolicited-from-agencies / referrals not accepted) + partner-with-agencies negative. System admin → eng; solution scientist + expert marketplace → sales; interconnection manager + intelligence production → ops (network strategy intern stays other).
+- **AR-08 batch 13 + export refresh + control topFn:** insights analyst (not marketing) → ai/data; financial crimes → finance (eng stays eng); workforce management → ops; change activation → people. Reclassify 8; open other →945. Recruitai-export regenerated; control-plane enrich metrics `boardActivityTopProvider`/`boardActivityTopFn`.
+- **Pulse/control byFn + AR-08 batch 12:** boardActivityInsight.byFn (eligible landscape) on pulse HTML, scoreboard, and control `board_activity_observation`. TPM/technical program manager before eng infrastructure false-friends → ops; technical staff + release qualification → eng; capacity planning + technical services → ops. Reclassify 40; open other →951.
+- **Roles feed v8 + AR-08 batch 11:** `byFn` now counts full in-window eligible (same as byProvider, not limit-truncated). CFO → finance; territory director/manager → sales; experience/user researcher → design; head of implementations → ops; manager development → people. Reclassify 8; open other →962.
+- **AR-08 residual batch 10 + control byProvider:** pen tester/red teaming → eng; client relationship manager (not vendor) + bare market manager (not hotel/luxe/vacation) → sales; PR/public relations → marketing; regulatory affairs/CMC → finance; product development specialist → product. Reclassify 19; open other →970. Control `board_activity_observation` surfaces byProvider landscape in reason/detail (BambooHR-thin public counts).
+- **AR-08 residual batch 9 + scoreboard byProvider:** technical lead/IT director/hardware team leads → eng; head of channel → sales; events manager/customer advocate → marketing; research economist/pricing strategy/transaction principal → finance; insight analyst/behavioral scientist → ai/data; client delivery/network deployment dir/master scheduler/EMR success/supply category → ops. Reclassify 30; open other →986. Scoreboard `boardActivity.byProvider` pass-through (iCIMS-thin observation counts).
+- **AR-08 residual batch 8 + pulse byProvider:** threat-intel/cyber threat + Claude tech specialist → eng; AE typo/managers/strategic deals/customer business exec/head of business (not bizops)/RVP → sales; settlements/collections associate/consolidations/Anaplan/gov+public affairs/controls assurance/fraud investigations → finance; media manager → marketing; installation specialist + DC manager/design/energy + real-estate construction/program → ops. Reclassify 41; open other →1015. Pulse `boardActivityInsight.byProvider` + HTML ATS landscape line (Workday-thin observation counts).
+- **Roles feed v7 + AR-08 batch 7:** `byProvider` in-window ATS landscape counts; area/production/installation manager + special projects → ops; country director → sales. Reclassify 14; open other →1053.
+
+- **Control plane enrich metrics:** boardActivity from enrichment-scoreboard (newOpen7d / exit7d / histCaveat) on `modules.enrich` detail+metrics.
+
+- **Enrichment scoreboard v2:** `boardActivity` block (7d newOpenInWindow + closedInWindow + history caveats; exits≠filled) via roles-feed SoR.
+
+- **OP board_activity_observation control:** low informative control on control-board — 7d newOpen + boardExit via `boardActivityInsightFromLedger` (roles-feed SoR); never exit-fail; exits≠filled + short-history caveats in reason.
+
+- **Pulse board activity:** `boardActivityInsightFromLedger` = newOpenInWindow + closedInWindow (roles-feed SoR) with open/closure history caveats; boardExitInsight alias kept.
+
+- **Roles feed v5 / pulse caveat:** `closureObservationSpanDays` + `windowExceedsClosureHistory` so short ledger closure history is not read as mature weekly churn; pulse HTML history caveat.
+
+- **Pulse board-exit insight:** `boardExitInsightFromLedger` reuses roles-feed closedInWindow counts; HTML callout states not filled/hired.
+
+- **Roles feed v4:** closedInWindow + byCompanyClosedTop (board-exit observations; not filled/hired) alongside byCompanyTop open intensity; schema demigod.roles-feed/4.
+
+- **Roles feed v3:** `counts.byCompanyTop` (in-window company observation intensity, not a score) + `companiesInWindow`; schema demigod.roles-feed/3.
+
+- **AR-08 residual batch 6:** solution advisor/solutions consulting/field enablement; paid media/integrated campaigns/competitive intelligence; internal auditor/fraud strategy/AML; insider threat/test specialist|technician; technical delivery/business systems/supply chain. Negatives: ambassador, catering. Reclassify 47; open other →1067.
+
+- **Roles feed v2:** live `categorizeRole` for `fn` (ignores stale stored buckets) + `counts.byFn` on returned slice; schema demigod.roles-feed/2.
+
+- **OP tools: ledger reclassify + map roleMix enrich:** registry + dash JOBS for `ledger-reclassify-dry` (safe), `ledger-reclassify` (write), `map-role-mix-enrich` (write; reseal enqueue). Work-find already remediates when control evidence red.
+
+- **OP-08 work-find offline AR-08 remediations:** `offlineEnrichRemediationFromControls` queues reclassify when ledger_fn_drift.drift>0 and directory-aging --enrich-map when map_role_mix_fresh.stale (always while red; no invent roles).
+
+- **AR-08 residual batch 5:** channel/acquisition/industry managers, solution consulting, renewals leader, programming/apps development, red team; art director; media analytics/influencer/copy/comms; measurement science; learning tools; fraud intelligence/policy/governance/order-to-cash; business strategy/transformation. Negatives: hotel market manager, general application. Reclassify + enrich-map; open other →1107.
+
+- **Pulse peopleInsight + export refresh:** hiring-pulse emits PeopleOps share facts (full roleMix denom incl other) + eng share; method notes ledger-joined mix; offline export regen after AR-08 reclassify.
+
+- **OP map_role_mix_fresh + enrich-map after reclassify:** `measureMapRoleMixFreshness` (board-join expected mix) + control-board low control; ran `directory-aging --enrich-map` so coverage.roleMix reflects reclassed ledger fn (otherShare ~0.10); truth resealed.
+
+- **OP ledger_fn_drift + offline reclassify:** `measureLedgerFnDrift` + control-board low control (never exit-fail); `reclassify --dry-run` receipt; applied reclassify drift 1656→0 open (1810 rows incl closed); scoreboard fnDrift/fnOtherShare.
+
+- **EP public-comp equity/RSU/bonus + annual prefer:** extract equity cash grants, RSU awards, target/signing bonus; `parseCompRange` keeps leading Equity $ bands (only strips trailing + equity); `pickPublicCompHit` prefers annual over hourly.
+
+- **AR-08 residual batch 4:** IT/data-center security → eng; fraud/surveillance/security
+  policy → finance; partner+alliances/partner enablement/solutions partner → sales;
+  learning+immigration specialist → people; AI-signal research associate/manager +
+  advanced analytics → ai/data; safeguards/engagement delivery/application analyst → ops.
+  Wet-lab research associate / bare senior analyst / physical safety / delivery driver stay other.
+
+- **AR-08 residual batch 3:** solutions architecture/SDET/threat detection/tech lead;
+  strategic accounts/alliances/partner director/technical+services solutions/pipeline strategy;
+  AP/SOX/SEC/sanctions/fraud/risk/portfolio/subcontracts; BI/product analyst/applied scientist;
+  product lead; video editor/creative producer; workplace engagement / employee experience /
+  technical learning; technical+delivery success, deployment, founder associate, RFP, admin,
+  deal pricing, M&A/strategic programs/initiatives, procurement/sourcing, localization, managed
+  services. Negatives: open/general application, therapist. Ledger other 1534→1308; batch4 →1245.
+
+- **EP public-comp band dedupe + AR-08 residual:** extract prefers one quote per
+  unit|min|max (keyword-rich); public policy / strategic projects / resolutions /
+  SIRT classify canaries.
+
 - **CI mergeNamedCompanies board-absorb HN shells:** ATS-only `hn:jobs.*` rows
   merge into primary rows with matching `jobsUrl` board key (not host-only). Stops
   re-inflation of collapsed HN shells on map rebuild. `hiringIdentityKey` uses board
@@ -110,7 +281,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
   from the committed export, rejects loose/malformed CLI flags, backs up before apply, and has
   a real temp-SQLite insert/update/idempotency check. The live batch remains dry by default.
 - **Map/export batch — BUILT:** ledger role mix, engineering/sales/remote/observed counts,
-  sample location, scoreboard, and fail-fast batch orchestration exist. The latest offline
+  distinct observed-location count, sample location, scoreboard, and fail-fast batch orchestration exist. The latest offline
   nine-step receipt is green and previewed 930 reqs without applying them.
 
 ## Inventory-ranked NOW top 20 (snapshot before execution)
@@ -173,7 +344,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | CF-11 | Quote ≤20 words exact match | BUILT | CONTRACTS claim rules | grader | grade errors on long quote | CF |
 | CF-12 | Deterministic 30-company stratification | BUILT | selectionSeed demigod-die-benchmark-v1 | selectBenchmarkCompanies | selectionMatches in receipt | CF |
 | CF-13 | Export binds companyResearch only when research green | BUILT | export researchGate green | demigod-recruitai-export.mjs | export CR=15 when pass-fresh | CF |
-| CF-14 | Map company description as weak public blurb | BUILT | static foot + coverage caveat; description never research field | directory-static + map | directory-static --selftest CF-14 | CF |
+| CF-14 | Map company description as weak public blurb | BUILT | interactive foot + coverage caveat; description never research field | foot + map | source verification | CF |
 | CF-15 | YC sourceUrl + sourceLicense on map rows | BUILT | map provenance | startup-map-data | map selftest YC-public | CF |
 | CF-16 | Wikidata CC0 companies in map | BUILT | map source mix | startup-map-data | map volume floors | CF |
 | CF-17 | Operational one-row catalog for real role company | GATED | Phase2 need OR reviewed packet; catalog empty | DEMIGOD-COMPANY-RESEARCH.json | phase2Ready + catalog length | CF |
@@ -189,7 +360,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-05 | Lever descriptionPlain/additional for agency extract | BUILT | POLLERS.Lever | demigod-role-ledger.mjs | selftest extractAgency | AR |
 | AR-06 | Ashby description fields for agency extract | BUILT | POLLERS.Ashby | demigod-role-ledger.mjs | selftest | AR |
 | AR-07 | nativePostedAt + nativeDateField per provider | BUILT | first_published/createdAt/publishedAt | demigod-role-ledger.mjs | export attributedPosted counts | AR |
-| AR-08 | Role fn categorizeRole taxonomy | PARTIAL | coarse buckets + residual batches (MOTS/PS/seller/GTM/security/IR/renewals/data-lead); jewelry/general-app/wet-lab/therapist/ambassador stay other; not fine taxonomy · ledger other →1561 | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
+| AR-08 | Role fn categorizeRole taxonomy | PARTIAL |coarse buckets + residual batches 1–27; intentional other (open/general app, therapist, jewelry, safety, medical/wet-lab/RN, textile, bare analyst, retail, drivers, actors, catering); ledger open other →262 (otherShare≈0.021) | demigod-startup-jobs-enrich.mjs categorizeRole | enrich + startup-jobs selftests | AR |
 | AR-09 | openPeopleOpsReqCount export aggregate | BUILT | fn===people count | demigod-recruitai-export.mjs | export rows people>0 (local ~74) | AR |
 | AR-10 | samplePeopleOpsRole title/URL positive only | BUILT | null when count 0 | export aggregateRoles | assertExportValid people ops pair | AR |
 | AR-11 | noAgencyEvidenceReqCount positive only | BUILT | supported agencyPolicyEvidence | export | local yield 1 board | AR |
@@ -208,7 +379,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-24 | usPosted location flag | BUILT | isUsPostedLocation | role-ledger | report usOnly filter | AR |
 | AR-25 | Role-ledger poll cadence deepening ages | PARTIAL | NOW-01 timer BUILT+healthy; max oldestObservedDays~5 (needs calendar time for ≥7/30); do not thrash poll for badges | role-ledger poll + timer | report --posted aging; timer unit | AR |
 | AR-26 | PeopleOps title recall HRBP/People Partner | BUILT | 179→214 open; positive + negative precedence canaries | categorizeRole | enrich + startup-jobs selftests | AR |
-| AR-27 | Broader no-agency quote patterns without inventing | BUILT | bounded positive-only phrases expanded; live yield remains 1 | extractAgencyPolicyEvidence | ledger selftest + negative control | AR |
+| AR-27 | Broader no-agency quote patterns without inventing | BUILT | positive-only phrases expanded again (submissions/referrals/from-agencies); live yield still poll-gated (~1) | extractAgencyPolicyEvidence | ledger selftest + negative control | AR |
 | AR-28 | More ATS boards / preconfig join depth | PARTIAL | detect wired for Personio/Recruitee/SmartRecruiters (owner-required); map yield still Ashby/GH/Lever until next enrich | map jobsUrl + atsSource + detect probes | jobs selftest + live poll coverage | AR |
 | AR-29 | Relationship graph open_role nodes ≤25/board | BUILT | export bound omissions | demigod-recruitai-export.mjs | export relationships counts | AR |
 | AR-30 | Graph has_claim / research_source when green research | BUILT | export CR nodes | export | export green CR=15 nodes | AR |
@@ -216,7 +387,9 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-32 | Observed ageBasis observed-first-seen | BUILT | export ageBasis | export rows | assertExportValid ageBasis | AR |
 | AR-33 | Closed roles retained with closedAt day | BUILT | ledger close on missing poll | role-ledger | selftest close | AR |
 | AR-34 | Export omits roles without jobId | BUILT | rolesWithoutJobId:0 | export relationships | export diagnostics | AR |
-| AR-35 | Title-only seniorityMix export bands | BUILT | closed enum; exact sum=openReqCount; no JD inference | demigod-recruitai-export.mjs JSON+CSV | export selftest + current 7108/12027 classified | AR |
+| AR-35 | Title-only seniorityMix export bands | BUILT | closed enum; exact sum=openReqCount; no JD inference | demigod-recruitai-export.mjs JSON+CSV | export selftest + current 7101/12028 classified | AR |
+| AR-36 | Distinct observed ATS location count | BUILT | case/whitespace-normalized strings; not cities, offices, or headcount | demigod-recruitai-export.mjs JSON+CSV | export selftest + current 209/338 multi-location boards | AR |
+| AR-37 | Stale Greenhouse posts updated within 7d | BUILT | 45–365d `first_published` + exact recent `updated_at`; not a content-edit claim | role ledger + recruitAI export JSON/CSV | live 1514 reqs across 74 Greenhouse boards | AR |
 | NOW-17 | Provider denied boards strip | BUILT | export deniedBoards | export diagnostics | export denied=0 or listed | AR |
 | NOW-18 | Map openRolesAt timestamp | BUILT | map hiring stamp | startup-jobs-enrich | map field present | AR |
 | CH-01 | Evidence seal inputsAtSeal hash bind | BUILT | sealRun + isFresh | demigod-evidence.mjs | evidence-fresh.test | CH |
@@ -276,7 +449,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | QA-16 | Cost-per-accepted-fact metered transport | PARKED | mechanism 1; no cost fields | sourceChecks | park until metered | QA |
 | QA-17 | unknownReason not_applicable vs not_found pricing | BUILT | 7 annotated gold | benchmark JSON | abstention ledger | QA |
 | QA-18 | Non-vacuous live verification expectedClaims>0 | BUILT | EVALUATION §6 | sourceVerificationPass | selftest empty subject fails | QA |
-| RA-01 | Export schema demigod.recruitai-export/3 | BUILT | export writer | demigod-recruitai-export.mjs | export --selftest | RA |
+| RA-01 | Export schema demigod.recruitai-export/6 (strict legacy /3, /4, and /5 accepted) | BUILT | export writer | demigod-recruitai-export.mjs | export --selftest | RA |
 | RA-02 | Export CSV + JSON atomic generation | BUILT | commit bind | export | loadRecruitaiExport | RA |
 | RA-03 | Partner sourcer limit/offset windows | BUILT | selection receipt | demigod-lead-sourcer.mjs | lead-sourcer tests offset | RA |
 | RA-04 | Partner peopleOpsRoleEvidence projection | BUILT | reviewSignals | lead-sourcer | lead-sourcer test people ops | RA |

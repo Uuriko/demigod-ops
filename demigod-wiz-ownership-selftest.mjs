@@ -95,6 +95,10 @@ ok(/(?:eErr|errEl)\.id\s*=\s*(?:eErr|errEl)\.id\s*\|\|/.test(src) &&
   'WIZ email validation describes its alert');
 ok(/getAttribute\(["']aria-describedby["']\).*removeAttribute\(["']aria-describedby["']\)/.test(src),
   'WIZ cleared validation removes its owned description');
+ok(/#startup-modal #dg-referral-form-source\{display:none!important;visibility:hidden!important\}/.test(src),
+  'parked referral form stays out of the hiring dialog');
+ok(!/qa\(['"]form,\.w-form,\.w-file-upload,\.form-field-group,\.dg-field-wrap['"],\s*modal\)/.test(src),
+  'WIZ visibility repair stays scoped to its own form');
 
 // Startup ownership
 ok(/startup\s*:\s*\{[^}]*steps\s*:\s*\[[^\]]*'90day-outcome'/s.test(src) || src.includes("['90day-outcome']"), 'startup step 90day-outcome');

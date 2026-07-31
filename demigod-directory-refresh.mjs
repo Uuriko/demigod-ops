@@ -18,9 +18,13 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const steps = [
-  ['demigod-hn-hiring.mjs', ['--months', '3']],
+  // 12 months, not 3: backfilling a year of threads adds ~220 SF companies the directory does not
+  // otherwise have (~96 with a company-posted ATS board link). Rows from threads older than 120d
+  // carry hiring:'unknown' — see isFreshHnThread — so the extra reach never fakes a live claim.
+  ['demigod-hn-hiring.mjs', ['--months', '12']],
   ['demigod-startup-map-data.mjs', ['--with-jobs']],
   ['demigod-role-ledger.mjs', ['poll']], // accrue per-role open-lifetime (observed age; native posting dates)
+  ['demigod-roles-feed.mjs', []], // rebuild the public recent-role feed from that same fresh ledger
   ['demigod-directory-aging.mjs', ['--enrich-map']], // tag companies with open-role aging (posted 90-365d) for the directory badge
   ['demigod-hiring-pulse.mjs', []],
   ['demigod-directory-static.mjs', []],

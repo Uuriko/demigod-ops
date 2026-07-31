@@ -68,9 +68,9 @@ Treat these as dated expectations to verify, not hard-coded truth:
   thresholds.
 - The live replay ran **142/142** source claims with zero failures; deterministic selection
   matches frozen gold.
-- The private exporter emits `demigod.recruitai-export/3`, currently **339 uncapped rows**,
-  plus a bounded relationship graph. The current receipt has 4,852 nodes, 4,887 edges,
-  12,006 open roles available, 7,917 omitted by the 25-role-per-board bound, and zero roles
+- The private exporter emits `demigod.recruitai-export/6`, currently **338 uncapped rows**,
+  plus a bounded relationship graph. The current receipt has 4,857 nodes, 4,892 edges,
+  12,028 open roles available, 7,932 omitted by the 25-role-per-board bound, and zero roles
   without a job ID.
 - Provider routing now binds all seven supported ATS labels to their exact native HTTPS host
   and board shape before a `(provider, slug)` identity can enter the ledger or export. The
@@ -264,7 +264,7 @@ claims are not table-bound, or a path/mode/hash invariant is bypassable.
 
 Required invariant:
 
-- the exporter publishes one uncapped, deterministic `demigod.recruitai-export/3` generation;
+- the exporter publishes one uncapped, deterministic `demigod.recruitai-export/6` generation;
 - JSON and CSV describe the same selected rows and are hash-bound in one commit;
 - publishing is serialized and atomic;
 - generation directories are private and regular files are mode `0600`;

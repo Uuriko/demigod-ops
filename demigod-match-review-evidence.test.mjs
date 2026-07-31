@@ -324,6 +324,7 @@ try {
         'sf-bay': 'yes',
         availability: 'now',
         'salary-expectation': '$130k',
+        'work-auth': 'authorized',
         'resume-url': 'https://example.test/resume.pdf',
       },
     }],

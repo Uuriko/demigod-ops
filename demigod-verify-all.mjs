@@ -57,6 +57,7 @@ if (ship || wizard) {
     ['demigod-adaptive-talent-form.test.mjs'],
     ['demigod-form-p0.test.mjs'],
     ['demigod-wiz-ownership-selftest.mjs'],
+    ['demigod-pilot-os.test.mjs'],
     ['demigod-outbound-poison.test.mjs'],
     // Matching funnel honesty: readiness gates + pairs CLI sample-by-default / consent fail-closed
     // (orphan tests lock nothing if only run by hand — cold-start quality > quantity)

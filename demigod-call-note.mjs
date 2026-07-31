@@ -111,6 +111,21 @@ export function appendCallNote(note) {
   });
 }
 
+/**
+ * Karat/Metaview-thin: kind counts only (intake / candidate_screen / debrief).
+ * Observation tallies — no interviewer quality score, no outsourced interview product.
+ */
+export function callKindTally(notes = []) {
+  const byKind = Object.fromEntries(KINDS.map((k) => [k, 0]));
+  let total = 0;
+  for (const n of notes || []) {
+    if (!n?.kind) continue;
+    total += 1;
+    if (byKind[n.kind] != null) byKind[n.kind] += 1;
+  }
+  return { total, byKind };
+}
+
 export function listCallNotes({ roleId = null, candId = null, pairId = null, limit = 50 } = {}) {
   let rows = load().notes || [];
   if (roleId) rows = rows.filter((n) => n.roleId === roleId);
@@ -153,6 +168,17 @@ function selftest() {
     threw = true;
   }
   assert(threw, 'needs anchor');
+  const tall = callKindTally([
+    n,
+    makeCallNote({
+      kind: 'intake',
+      roleId: 'role-demo',
+      summary: 'Intake call covering role scope, team size, and timeline for this hire.',
+    }),
+  ]);
+  assert(tall.total === 2 && tall.byKind.candidate_screen === 1 && tall.byKind.intake === 1, 'kind tally');
+  assert(tall.byKind.debrief === 0, 'zero kind stays zero');
+  assert(!('score' in tall) && !('qualityScore' in tall), 'no quality score on tally');
   console.log(JSON.stringify({ ok: true, selftest: 'call-note' }));
 }
 

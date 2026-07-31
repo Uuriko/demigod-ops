@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -60,7 +61,20 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   fs.writeFileSync(path.join(busy, 'demand-status.json'), '{}\n');
   const now = new Date().toISOString();
   fs.writeFileSync(path.join(busy, 'control-board.json'), JSON.stringify({ at: now, ok: true }));
+  fs.writeFileSync(path.join(busy, 'structured-hiring-doctor.json'), JSON.stringify({ at: now, ok: true }));
+  fs.writeFileSync(path.join(busy, 'site-health.json'), JSON.stringify({ at: now, ok: true }));
   fs.writeFileSync(path.join(busy, 'reseal-queue-last.json'), JSON.stringify({ at: now }));
+  const truthInput = fs.readFileSync(path.join(root, 'DEMIGOD-EVENTS-API.json'));
+  const truthReceipt = JSON.stringify({
+    producer: 'truth',
+    runId: 'truth-test',
+    endedAt: now,
+    inputs: { files: { 'DEMIGOD-EVENTS-API.json': createHash('sha256').update(truthInput).digest('hex') } },
+    result: { pass: true },
+  }) + '\n';
+  fs.mkdirSync(path.join(busy, 'evidence'));
+  fs.writeFileSync(path.join(busy, 'evidence', 'truth-test.json'), truthReceipt);
+  fs.writeFileSync(path.join(busy, 'evidence', 'latest-truth.json'), truthReceipt);
   fs.writeFileSync(path.join(busy, 'laptop-blue-moon.stamp'), '');
   fs.writeFileSync(path.join(root, 'DEMIGOD-DIRECTORY-AGING.json'), '{"maxOldestObservedDays":5}\n');
   fs.writeFileSync(path.join(root, 'DEMIGOD-ROLE-PACKETS.json'), '{"packets":{"demo":{"demo":true}}}\n');
@@ -109,6 +123,18 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   assert.equal(invite.length, changed.length + 1);
   assert.equal(invite.at(-1).task, 'invite-drain');
   assert.equal(invite.at(-1).pri, 1);
+
+  fs.writeFileSync(path.join(busy, 'control-board.json'), JSON.stringify({
+    at: new Date().toISOString(),
+    ok: false,
+    summary: 'truth red',
+    exitFailures: ['truth_seal'],
+    highFailures: ['truth_seal'],
+  }));
+  run('demigod-work-find.mjs', root, busy, pathEnv);
+  const integrity = rows(queue);
+  assert.equal(integrity.length, invite.length + 1);
+  assert.equal(integrity.at(-1).task, 'truth-reseal', 'red truth schedules its repair, not another status probe');
 });
 
 test('useful loop executes only work emitted by the current discovery run', (t) => {
@@ -143,6 +169,18 @@ import path from 'node:path';
 if (process.argv.slice(2).join(' ') !== 'run --schedule --max-age-days=7') process.exit(1);
 fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'reseal-due\\n');
 `);
+  script('demigod-enrichment.mjs', `
+import fs from 'node:fs';
+import path from 'node:path';
+if (process.argv[2] !== 'reclassify') process.exit(1);
+fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'ledger-reclassify\\n');
+`);
+  script('demigod-directory-aging.mjs', `
+import fs from 'node:fs';
+import path from 'node:path';
+if (process.argv[2] !== '--enrich-map') process.exit(1);
+fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'map-role-mix-enrich\\n');
+`);
   fs.mkdirSync(path.join(busy, 'events-online'), { recursive: true });
   fs.writeFileSync(path.join(busy, 'events-online', 'status.json'), '{"local":true,"public":true,"needHeal":false,"nativeRsvpRoutes":true}\n');
 
@@ -176,15 +214,21 @@ fs.appendFileSync(path.join(process.env.DEMIGOD_BUSY, 'executed.log'), 'reseal-d
 
   fs.appendFileSync(queue, [
     '{"task":"control-board","pri":1,"status":"open"}',
+    '{"task":"ledger-reclassify","pri":1,"status":"open"}',
+    '{"task":"map-role-mix-enrich","pri":1,"status":"open"}',
     '{"task":"reseal-due","pri":2,"status":"open"}',
     '',
   ].join('\n'));
   assert.deepEqual(runUsefulLoop(root, busy).plan, ['control-board']);
+  assert.deepEqual(runUsefulLoop(root, busy).plan, ['ledger-reclassify']);
+  assert.deepEqual(runUsefulLoop(root, busy).plan, ['map-role-mix-enrich']);
   assert.deepEqual(runUsefulLoop(root, busy).plan, ['reseal-due']);
   assert.deepEqual(fs.readFileSync(executionLog, 'utf8').trim().split('\n'), [
     'ship-prepare',
     'funnel-collision-plan',
     'control-board',
+    'ledger-reclassify',
+    'map-role-mix-enrich',
     'reseal-due',
   ]);
 });

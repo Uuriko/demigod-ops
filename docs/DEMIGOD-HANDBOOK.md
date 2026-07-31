@@ -20,7 +20,7 @@ It is **not** a marketing site, a legal contract, or a novel.
 ## 1. What Demigod is
 
 ### In one paragraph
-Demigod helps **SF startups** hire and **engineers** find fit without application spam. Startups submit a brief (role + 90-day outcome). Talent uploads once. Software ranks signal; **a human reviews**. Contact details move only after **both sides say yes**. Fee: **10% of first-year cash on hire**. Talent is free.
+Demigod helps **SF startups** hire and **engineers** find fit without application spam. Startups submit a brief (role + 90-day outcome). Talent uploads once. Software ranks signal; **a human reviews**. Contact details move only after **both sides say yes**. Fee: **10% of first-year base salary when a hire starts**. Talent is free.
 
 ### Who we serve
 | Side | What they get | What they don’t get |

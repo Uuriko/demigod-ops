@@ -1,5 +1,5 @@
-/*dg-foot-v860-core*/
-window.dgFootVersion = 'v860'; console.log('[demigod] foot v860-core loaded');
+/*dg-foot-v869-core*/
+window.dgFootVersion = 'v869'; console.log('[demigod] foot v869-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -10,7 +10,7 @@ var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 var COPY={
 heroSub:'Start with one role and the result the hire must deliver in 90 days. Software narrows the pool; a human checks the work evidence. Names move only after both sides say yes.',
 badge:'// SF STARTUP TALENT · TECH + HUMANS IN THE LOOP',
-heroTrustLine:'Bay Area · 10% on hire · Free for talent · Mutual interest only',
+heroTrustLine:'Bay Area · 10% of first-year base salary on start · Free for talent · Mutual interest only',
 ctaFounder:'Hire talent',
 ctaEngineer:'Join the talent network',
 navCta:'Hire talent',
@@ -20,8 +20,8 @@ startupH2:'Hiring brief',
 startupBody:'Role + 90-day outcome. Matched with Demigod tech; humans in the loop.',
 engineerH2:'Talent profile',
 engineerBody:'One private profile. Evidence match + human review; shared only when you approve.',
-feeNote:'10% of first-year cash if you hire. Free for talent. Nothing until then.',
-pricingNote:'10% of first-year cash on hire — nothing until then',
+feeNote:'10% of first-year base salary when a hire starts. Free for talent. Nothing until then.',
+pricingNote:'10% of first-year base salary when a hire starts — nothing until then',
 trustKicker:'How it works',
 trustSteps:['You send a brief or profile','Demigod tech ranks · humans review','Both approve → intro'],
 
@@ -39,7 +39,7 @@ var WIZ_THANKS={
   engineer:{head:'You\'re in',lead:'Not shared with startups until you approve an intro. Free for talent. No blasts.',steps:['Demigod and its form provider process your answers','A human proposes only real fits','You approve before identifying details move']}
 };
 /* ==== SECTION: WIZ_CFG (stepper paths) ==== */
-/* Salary bands = USD base cash only (SF-market buckets). Equity is free text later if needed — keep matching numeric. */
+/* Salary bands = USD base salary only (SF-market buckets). Equity is free text later if needed — keep matching numeric. */
 var SALARY_BAND_HTML='<option value="">Select range</option>'
   +'<option value="under-100k">Under $100k base</option>'
   +'<option value="100-130k">$100k – $130k</option>'
@@ -74,7 +74,7 @@ var WIZ_Q={
     'stack-needs':{q:'Must-haves for this role?',h:'3–6 skills or domain strengths. No laundry lists.'},
     '90day-outcome':{q:'What should they own in the first 90 days?',h:'One measurable result. This is how we match — not keyword bingo.'},
     'work-location':{q:'Where can they work?',h:'Only arrangements you can actually support.'},
-    'salary-range':{q:'Target base cash range?',h:'USD base for this role. Equity is separate — ranges keep matching honest.'},
+    'salary-range':{q:'Target base salary range?',h:'USD base salary for this role. Equity is separate — ranges keep matching honest.'},
     'hiring-urgency':{q:'How soon do you need someone?',h:'Sets priority for human review. No SLA promise either way.'},
     '__submit__':{q:'Look good?',h:'Demigod and its form/email providers process these for matching. Names move only after both sides approve.'}
   },
@@ -85,7 +85,7 @@ var WIZ_Q={
     'experience':{q:'Work you are proud of?',h:'2–3 concrete wins with outcomes beat a long bio.'},
     'sf-bay':{q:'Open to SF Bay startups?',h:'Our focus. Remote is fine when the company is Bay-based.'},
     'availability':{q:'When could you start?',h:'Pick the closest window.'},
-    'salary-expectation':{q:'Target base cash range?',h:'Your target — never salary history. USD base only.'},
+    'salary-expectation':{q:'Target base salary range?',h:'Your target — never salary history. USD base salary only.'},
     'work-auth':{q:'US work authorization?',h:'Used only for fit. Never shared as a public label.'},
     'resume':{q:'Resume or work link?',h:'PDF/Word upload or one HTTPS portfolio / resume link. Shared only after both sides approve.'},
     '__submit__':{q:'Ready?',h:'Demigod and its form/email providers process these for matching. Names move only after both sides approve.'}
@@ -697,7 +697,7 @@ function wizBuild(form, kind) {
       form.style.visibility = 'visible';
       var modal = form.closest ? form.closest('#startup-modal,#jobseeker-modal') : null;
       /* never force .w-form-done/.w-form-fail — that fakes success for waitPost */
-      if (modal) qa('form,.w-form,.w-file-upload,.form-field-group,.dg-field-wrap', modal).forEach(function(c){
+      qa('.w-file-upload,.form-field-group,.dg-field-wrap', form).forEach(function(c){
         if (c.classList && (c.classList.contains('w-form-done') || c.classList.contains('w-form-fail'))) return;
         c.style.setProperty('display','block','important'); c.style.visibility='visible';
       });
@@ -1321,7 +1321,7 @@ formAttribution(st);var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.clo
 if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="One measurable first-90-day result"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}
 if(!st.querySelector('[name=work-location]')){var wl=document.createElement('div');wl.className='dg-field-wrap';wl.innerHTML='<label class="w-form-label" for="work-location">Where and how can this person work? *</label><select class="w-select" id="work-location" name="work-location" required><option value="">Select</option><option value="sf-onsite">SF onsite</option><option value="sf-hybrid">SF hybrid</option><option value="bay-flexible">SF Bay Area, flexible</option><option value="remote-us">Remote within the US</option><option value="remote-global">Remote internationally</option></select>';var outcome=st.querySelector('[name="90day-outcome"]');var outcomeWrap=outcome&&(outcome.closest('.form-field-group,.dg-field-wrap')||outcome.parentElement);if(outcomeWrap&&outcomeWrap.parentElement)outcomeWrap.parentElement.insertBefore(wl,outcomeWrap.nextSibling);else st.appendChild(wl);}
 /* salary-range: always a band select (replace free-text if Webflow left one) */
-(function(){var el=st.querySelector('[name=salary-range]');var wrap=document.createElement('div');wrap.id='dg-salary-wrap';wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-range">Target base cash range *</label><select class="w-select" id="salary-range" name="salary-range" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3){el.innerHTML=SALARY_BAND_HTML;}var lab=(el.closest('.form-field-group,.dg-field-wrap')||st).querySelector('label');if(lab)lab.textContent='Target base cash range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else if(sa&&sa.parentElement)sa.parentElement.insertBefore(wrap,sa.nextSibling);else{var sub=st.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(wrap,sub);}})();
+(function(){var el=st.querySelector('[name=salary-range]');var wrap=document.createElement('div');wrap.id='dg-salary-wrap';wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-range">Target base salary range *</label><select class="w-select" id="salary-range" name="salary-range" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3){el.innerHTML=SALARY_BAND_HTML;}var lab=(el.closest('.form-field-group,.dg-field-wrap')||st).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else if(sa&&sa.parentElement)sa.parentElement.insertBefore(wrap,sa.nextSibling);else{var sub=st.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(wrap,sub);}})();
 /* hiring-urgency: competitor-standard timing signal for ops priority */
 if(!st.querySelector('[name=hiring-urgency]')){var hu=document.createElement('div');hu.className='dg-field-wrap';hu.innerHTML='<label class="w-form-label" for="hiring-urgency">How soon do you need someone? *</label><select class="w-select" id="hiring-urgency" name="hiring-urgency" required><option value="">Select</option><option value="now">Actively interviewing now</option><option value="this-month">This month</option><option value="this-quarter">This quarter</option><option value="exploring">Exploring / opportunistic</option></select>';var salW=st.querySelector('[name=salary-range]');var salHost=salW&&(salW.closest('.form-field-group,.dg-field-wrap')||salW.parentElement);if(salHost&&salHost.parentElement)salHost.parentElement.insertBefore(hu,salHost.nextSibling);else st.appendChild(hu);}var huIn=st.querySelector('[name=hiring-urgency]');if(huIn)huIn.required=true;
 st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}['github-url','portfolio-url','linkedin-url','phone','why-startups'].forEach(function(name){rmF(en,name)});var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skills\s*&\s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('input[type=file][name=resume],input[type=file][name=Resume]');
@@ -1363,7 +1363,7 @@ else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;}}
 if(!en.querySelector('[name=availability]')){var av=document.createElement('div');av.className='dg-field-wrap';av.innerHTML='<label class="w-form-label" for="availability">Availability *</label><select class="w-select" id="availability" name="availability" required><option value="">Select</option><option value="now">Ready now</option><option value="2-4w">2–4 weeks</option><option value="1-3m">1–3 months</option><option value="passive">Passively open / flexible</option></select>';var avField=en.querySelector('[name=sf-bay]');var avAfter=avField&&(avField.closest('.form-field-group,.dg-field-wrap')||avField.parentElement);if(avAfter&&avAfter.parentElement)avAfter.parentElement.insertBefore(av,avAfter.nextSibling);else en.appendChild(av);}
 var avIn=en.querySelector('[name=availability]');if(avIn){avIn.required=true;var avLab=(avIn.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(avLab)avLab.textContent='Availability *';}
 /* salary-expectation: band select (replace free-text) */
-(function(){var el=en.querySelector('[name=salary-expectation]');var wrap=document.createElement('div');wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-expectation">Target base cash range *</label><select class="w-select" id="salary-expectation" name="salary-expectation" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3)el.innerHTML=SALARY_BAND_HTML;var lab=(el.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(lab)lab.textContent='Target base cash range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else{var avAfter2=en.querySelector('[name=availability]');var avH=avAfter2&&(avAfter2.closest('.form-field-group,.dg-field-wrap')||avAfter2.parentElement);if(avH&&avH.parentElement)avH.parentElement.insertBefore(wrap,avH.nextSibling);else en.appendChild(wrap);}})();
+(function(){var el=en.querySelector('[name=salary-expectation]');var wrap=document.createElement('div');wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-expectation">Target base salary range *</label><select class="w-select" id="salary-expectation" name="salary-expectation" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3)el.innerHTML=SALARY_BAND_HTML;var lab=(el.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else{var avAfter2=en.querySelector('[name=availability]');var avH=avAfter2&&(avAfter2.closest('.form-field-group,.dg-field-wrap')||avAfter2.parentElement);if(avH&&avH.parentElement)avH.parentElement.insertBefore(wrap,avH.nextSibling);else en.appendChild(wrap);}})();
 var seIn=en.querySelector('[name=salary-expectation]');if(seIn)seIn.required=true;
 /* work-auth: standard marketplace fit signal (Wellfound/Underdog-class); not a public badge */
 if(!en.querySelector('[name=work-auth]')){var wa=document.createElement('div');wa.className='dg-field-wrap';wa.innerHTML='<label class="w-form-label" for="work-auth">US work authorization *</label><select class="w-select" id="work-auth" name="work-auth" required><option value="">Select</option><option value="authorized">Authorized (no sponsorship needed)</option><option value="sponsorship">Need visa sponsorship</option><option value="unsure">Unsure / prefer to discuss</option></select>';var seHost=seIn&&(seIn.closest('.form-field-group,.dg-field-wrap')||seIn.parentElement);if(seHost&&seHost.parentElement)seHost.parentElement.insertBefore(wa,seHost.nextSibling);else en.appendChild(wa);}var waIn=en.querySelector('[name=work-auth]');if(waIn)waIn.required=true;
@@ -1422,6 +1422,7 @@ function paintHeroBrandH1(el) {
   el.classList.remove('dg-hero-morph-in', 'dg-hero-morph-out');
   el.classList.add('dg-hero-hold', 'dg-cyber-host');
   el.style.minHeight = 'clamp(6.63rem,20.4vw,12.24rem)';
+  el.style.visibility = 'visible';
   el.style.opacity = '1';
   el.style.transform = 'none';
   el.style.filter = 'none';
@@ -1445,7 +1446,7 @@ function hero(){
     guardHeroBrandH1(e);
   });
   qa('.hero-section p,.hero-description,.subheading,.header p').forEach(function(e){
-    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
+    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.id==='dg-cta-trust'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
     var t=e.textContent||'';
     if(t.length>4&&t.length<400&&t!==COPY.heroSub)e.textContent=COPY.heroSub;
   });
@@ -1506,7 +1507,7 @@ function hero(){
       if(/^Access to pre-vetted/i.test(tx)||/pre-vetted SF/i.test(tx)) el.textContent='Human-reviewed SF Bay matches';
       if(/Dedicated talent partner/i.test(tx)) el.textContent='Tech match · humans in the loop';
       if(/90-day replacement/i.test(tx)) el.textContent='Replacement policy pending';
-      if(/PLACEMENT FEE/i.test(tx)) el.textContent='OF FIRST-YEAR CASH';
+      if(/PLACEMENT FEE/i.test(tx)) el.textContent='OF FIRST-YEAR BASE SALARY';
     });
   });
   // remove old clutter injects (never kill #dg-faq-jsonld — FAQPage schema for /faq)
@@ -1555,7 +1556,7 @@ function nav(){
   });
   var navCtas=q('#dg-top-nav .dg-nav-ctas'); if(navCtas) navCtas.style.setProperty('display','none','important');
 }
-function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
+function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% of first-year base salary when a hire starts.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
 function mob(){var b=q('#dg-bar');if(!b){b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"></a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"></a>';document.body.appendChild(b)}var h=b.querySelector('.dg-h,[data-dg-cta="hire"]'),t=b.querySelector('.dg-j,[data-dg-cta="talent"]');if(h){h.textContent=COPY.ctaFounder;h.setAttribute('href','/?wiz=startup');h.setAttribute('aria-label','Hire talent — open startup hiring brief')}if(t){t.textContent=COPY.ctaEngineer;t.setAttribute('href','/?wiz=engineer');t.setAttribute('aria-label','Join the talent network — open private talent profile')}}
 function foot(){
   var f=q('footer,.footer');
@@ -1586,7 +1587,7 @@ function foot(){
         '</div>'+
       '</nav>'+
       '<div class="dg-footer-bottom">'+
-        '<p class="dg-footer-fee">Startups pay 10% of first-year cash salary when a hire starts. Nothing upfront. Talent is always free.</p>'+
+        '<p class="dg-footer-fee">Startups pay 10% of first-year base salary when a hire starts. Nothing upfront. Talent is always free.</p>'+
         '<p id="dg-copyright">© 2026 Demigod</p>'+
       '</div>';
     f.appendChild(panel);
@@ -1624,9 +1625,10 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"#startup-modal[aria-hidden=true],#jobseeker-modal[aria-hidden=true]{"
 +"display:none!important;visibility:hidden!important;pointer-events:none!important"
 +"}"
-+"#startup-modal[aria-hidden=false],#jobseeker-modal[aria-hidden=false]{"
-+"display:flex!important;visibility:visible!important;pointer-events:auto!important"
-+"}"
+  +"#startup-modal[aria-hidden=false],#jobseeker-modal[aria-hidden=false]{"
+  +"display:flex!important;visibility:visible!important;pointer-events:auto!important"
+  +"}"
+  +"#startup-modal #dg-referral-form-source{display:none!important;visibility:hidden!important}"
 /* Webflow outer shell → transparent; form is THE card */
 +"#startup-modal .modal-container,#jobseeker-modal .modal-container{"
 +"background:transparent!important;border:0!important;box-shadow:none!important;"
@@ -2087,7 +2089,7 @@ function cta(){/*dg-cta-prefetch*/
       var trustLine = document.createElement('p');
       trustLine.id = 'dg-cta-trust';
       trustLine.className = 'dg-cta-trust';
-      trustLine.textContent = '10% on hire · both sides approve · no spam lists';
+      trustLine.textContent = '10% of first-year base salary on start · both sides approve · no spam lists';
       trustLine.style.cssText = 'margin:.55rem 0 0;color:#9aab9f;font-size:.78rem;line-height:1.35;letter-spacing:.02em';
       host.insertAdjacentElement('afterend', trustLine);
     }
@@ -2436,7 +2438,7 @@ function scrubTimeClaims(){
       return;
     }
     if (bareGuarantee.test(txt) && txt.length < 200) {
-      el.textContent = '10% on hire · 90-day outcome focus (no SLA promise)';
+      el.textContent = '10% of first-year base salary on start · 90-day outcome focus (no SLA promise)';
       return;
     }
     if (/pre-vetted|Dedicated talent partner|90-?\s*day replacement/i.test(txt) && txt.length < 160 && !el.closest('#startup-modal,#jobseeker-modal')) {
@@ -3035,15 +3037,6 @@ try {
     }
   });
 } catch(e){}
-// inject strong override style + direct force to beat Webflow hiding of forms/fields (fixes vis=0 / form none)
-try {
-  if (!document.getElementById('dg-wiz-force-style')) {
-    var st = document.createElement('style'); st.id='dg-wiz-force-style';
-    st.textContent = '#startup-modal form,#jobseeker-modal form,#startup-modal .w-form,#jobseeker-modal .w-form{display:block!important;visibility:visible!important}#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{display:block!important;visibility:visible!important}#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{display:flex!important;visibility:visible!important}#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show{display:block!important;visibility:visible!important}';
-    document.head.appendChild(st);
-  }
-  qa('form,.w-form,.dg-wiz-head,.dg-wiz-nav,.dg-wiz-show', m).forEach(function(c){if(!c)return; var d=c.classList&&c.classList.contains('dg-wiz-nav')?'flex':'block'; c.style.setProperty('display',d,'important');c.style.setProperty('visibility','visible','important');});
-} catch(e){}
 // WIZ init — build once; reopen reuses instance (v194 idempotent)
 try {
   var mf = m.querySelector('form') || (id===S ? q('#startup-hire') : q('#engineer-join'));
@@ -3089,7 +3082,7 @@ try {
 /* === SIMPLE PAGES (?p=) — short secondary screens; home stays a decision screen === */
 /* ==== SECTION: product pages (DG_PAGES + openPage / routePages /?p=) ==== */
 /* Blog SoR embed from demigod-blog-posts.json */
-var DG_BLOG_POSTS=[{"slug":"epicurus-garden-hacker-houses","category":"Market","title":"Epicurus' Garden and the SF hacker house","summary":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","body":"Around 306 BCE, Epicurus bought a house and garden outside the Dipylon gate, on the road toward Plato's Academy. Diogenes Laërtius puts the price at eighty minae, writing centuries later, so treat that number the way you would any figure from one late source. What is better attested is how the place ran. People lived there. They ate at one table, argued over the food, and came back to the same unfinished questions the next week. The Academy up the road was a school you visited. The Garden was one you moved into, which changed what it could ask of the people in it.\n\nThey were after ataraxia: a quieter mind, less fear, fewer pointless wants. Friendship was part of the practice, not a networking bonus. Women studied there. So did people the rest of the city treated as background. That made the Garden unusually open for an Athenian school, but it was not casual about commitment. If you needed public honor more than the shared table, you did not last.\n\nEpicurus's will tried to keep the group going after him. Successors named. Friends' children cared for. Freedom for slaves who had studied. The legal language is dry and that is the point. The house was supposed to outlive one charismatic man.\n\nYou see cousins of this arrangement long before anyone rented a Victorian in the Mission and called it a house for builders. Pythagoras's circle in southern Italy was harsher and weirder: shared property, heavy secrecy, intellectual heat with a mystic edge. Monasteries later made a more durable version of group life. Their purposes were religious, their rules stricter, their days split between prayer, labor, and study. They also copied books.\n\nIn 1417, Poggio Bracciolini found Lucretius' On the Nature of Things in a monastic library. Lucretius was the great Roman carrier of Epicurean thought. A Christian house preserved a poem whose gods, matter, and death sat badly with Christian teaching. Nobody needed to plan that irony. The rule said copy books, so books got copied, including ones the copyists would have disliked if they stopped to argue with every page. That is a boring reason to write shared rules down, and a strong one. Rules keep operating on days when nobody is in the mood to remember the founding pitch.\n\nSan Francisco keeps reinventing a louder cousin of the same pressure. Rent is absurd. Solo technical work is lonely. Hard problems move faster when the people who can help are down the hall instead of three Slack hops and a calendar invite away.\n\nReporting on HF0 describes a selective residency for technical founders in large SF properties. AGI House has been covered as a place for AI builders, researchers, dinners, and events. Those are specific organizations with their own admissions and economics. They are useful because the trade is visible. Residents give up privacy and some control over the room in exchange for people, conversation, and work being close.\n\nProximity helps when the people already share enough. A stuck problem can come up over eggs. Someone can watch a demo fail and still be there when the fix works at midnight. Proximity has no moral quality of its own. If residents disagree about noise, money, ambition, cleanliness, or whether every meal is a pitch session, the hallway becomes another meeting they cannot leave.\n\nFounder mythology likes to skip the boring part. A house full of impressive résumés can be worse than a smaller one where people agree about visitors, quiet hours, chores, and rest. Size photographs well. Norms decide whether anyone wants to stay. Intensity needs a limit too. Epicurus treated modest pleasure, freedom from fear, and time among friends as the point. A modern technical residency may be trying to ship a company in weeks. Different aims. Both get worse when sleep thins, the kitchen turns strange, and small annoyances become politics.\n\nDemigod is not a house, and we will not pretend the lineage is direct. We run a matching service for SF startups and talent: profiles stay private, both sides see evidence before names move, and an introduction happens only after each side approves. What we take from the houses is a working assumption rather than a philosophy. Selection has to be honest before proximity is worth much, because the wrong people in a good room mostly cost each other a month.\n\nWhether any of this works outside one small city is an open question. SF is where we can check our own claims in person, so SF is where we operate.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Gold-on-dark mark for garden, cloister, and group-house pattern essay","publishedAt":"2026-07-17"}];
+var DG_BLOG_POSTS=[{"slug":"both-sides-say-yes","category":"Product","title":"Both sides say yes","summary":"An introduction is not a favor you dump on a founder. It is a two-sided decision after both sides have looked at evidence.","body":"A warm intro used to mean someone spent reputation. Today it often means someone forwarded a résumé and hoped the calendar would sort it out. The receiving founder gets a name without context. The candidate gets a conversation without knowing whether the role is real. Both sides burn time on a coin flip they did not choose.\n\nDemigod treats the introduction as the expensive step, so we put the cheap steps first. A startup writes what must be true in ninety days. Talent keeps one private profile built around work, not just claims. Software ranks fit. A person reviews before any name moves. Then each side sees the match and can pass privately.\n\nOnly when both sides approve does an introduction happen. That is not politeness. It is how you keep social capital from being spent on noise. Profiles stay private until that mutual yes. We do not \"open the floodgates\" to look busy.\n\nThis is slower than spraying a board. It is faster than three weeks of polite interviews that should never have started. If either side is not ready, the correct product behavior is silence, not pressure.\n\nWe are testing this in San Francisco, in person, where a bad intro is easy to hear about. Mutual yes is the rule that makes the rest of the product worth running.","image":"https://files.catbox.moe/wewe5r.jpg","imageAlt":"Gold-on-dark mark for mutual approval before an introduction","publishedAt":"2026-07-31"},{"slug":"human-review-before-names-move","category":"Product","title":"Human review before names move","summary":"Ranking helps. It does not get to spend a founder's hour or a candidate's reputation without a person looking first.","body":"Automated matching is good at surfacing candidates a tired human would miss. It is also good at confidently ranking nonsense. If the only step between a score and a name in someone's inbox is another score, you will ship volume and call it pipeline.\n\nOur stack ranks fit against the role's ninety-day outcome, then someone on our side looks before contact starts. The human is not there to retype the algorithm. They are there to catch category errors: wrong seniority band, location mismatch the model soft-pedaled, a \"yes\" that would waste both sides, a profile that looks strong until you notice the work is not the work the role needs.\n\nOnly after that review can both sides see the match and approve. Introductions stay rare on purpose. Private profiles stay private on purpose.\n\nThis is slower than pure auto-email. It is the reason we can charge only on a start and still stay honest. If we ever drop the human pass to \"scale,\" the product will have changed even if the landing page has not.\n\nSoftware should make careful work cheaper. It should not replace the judgment call that costs reputation when it is wrong.","image":"https://files.catbox.moe/zhxopd.jpg","imageAlt":"Gold-on-dark mark for human review over automated volume","publishedAt":"2026-07-31"},{"slug":"letter-of-introduction","category":"Market","title":"The letter of introduction","summary":"Before institutions, a vouch worked because someone with a reputation to lose spent a little of it. Evidence-first intros try to keep that, minus the closed network.","body":"Cicero wrote a great many letters asking one busy man to receive another. The thirteenth book of his Letters to Friends is close to nothing else: a provincial governor is asked to give a trader a fair hearing, to look kindly on a young man of decent family, to not let an old friend's affairs go unattended. The Romans called it commendatio. Read a handful and the shape repeats. He names the person, says how he knows them, states plainly what he wants done, and then does the load-bearing thing: he stakes his own standing on it. If the man turned out to be a fool or a cheat, some of that stuck to Cicero.\n\nThe form is older and wider than Rome, and it kept being reinvented because it kept being needed. A letter carried a merchant into a city where no one knew his face. A written character from a former employer followed a servant into the next house. Letters of credit let a name stand in for gold across a distance that gold could not safely travel. Different goods, one move: a person who would be embarrassed by a bad recommendation spent a little of their reputation so a stranger could be treated as less of a stranger.\n\nIt is worth being precise about which part did the work, because it is easy to admire the wrong one. The value was never the paper or the seal. A claim a person makes about himself costs him nothing to make, so it carries little. A vouch from someone with standing to lose carries what the self-claim cannot, precisely because it can rebound on the voucher. The information is in the risk, not the ink.\n\nModern hiring mostly runs on the cheap signal. A resume is a claim about oneself, formatted well. A cold message is another. Both are easy to send and easy to inflate, and everyone on the receiving end knows it, which is why so little of either gets read. The expensive signal still exists — the warm intro from someone whose judgment you trust — but it is rationed by who happens to know whom, which is not the same as who is a fit. Talent without the right network sends cheap signals into a void. Founders drown in them.\n\nDemigod is a matching service, not a letter of introduction, and we will not stretch the comparison into costume drama. We try to move weight from who-you-know onto evidence. A startup writes a short brief with a clear ninety-day outcome. Candidates keep a private profile. Fit is ranked against that outcome, a person reviews before any name moves, and contact happens only when both sides have looked and both have said yes. Profiles stay private until then. We charge ten percent of first-year cash only after a hire starts.\n\nThe old letter worked because an intro already carried weight when it landed. We are betting evidence can do more of that work than a closed network, including for people the network never reached. That is a bet we are checking in San Francisco, where a bad intro is hard to hide.","image":"https://files.catbox.moe/fawj6m.jpg","imageAlt":"Gold-on-dark mark for a sealed letter of introduction and evidence-first intros","publishedAt":"2026-07-31"},{"slug":"private-until-you-both-agree","category":"Product","title":"Private until you both agree","summary":"Talent is not a public lead list. Profiles stay private until both sides have approved an introduction.","body":"A lot of \"talent marketplaces\" are distribution channels with a nicer UI. Your profile becomes inventory. Recruiters browse. Founders get partial contact paths. The product wins when more people see more names, whether or not anyone should have.\n\nWe do the opposite. Each person keeps a single private profile. Startups write roles. Matching and review happen without turning either side into a public directory entry. Names and contact paths move only after both sides have looked at the evidence and both have said yes.\n\nThat constraint is product, not policy theater. It forces better briefs and better evidence up front, because you cannot paper over a weak match by spraying visibility. It also means a pass is quiet. No public rejection feed. No accidental leak into someone else's sequence tool.\n\nFounders still get a clear path to hire. Candidates still get a clear path to be found for work they want. What they do not get is becoming a lead the moment they sign up.\n\nIf you need a searchable public network of people who did not opt into being searched that way, we are the wrong tool. If you want introductions that already carry a mutual yes, privacy until then is how we keep the bar.","image":"https://files.catbox.moe/i4j3y0.jpg","imageAlt":"Gold-on-dark mark for private profiles until mutual agreement","publishedAt":"2026-07-31"},{"slug":"ten-percent-when-someone-starts","category":"Product","title":"Ten percent when someone starts","summary":"No retainers. No invoice for a stack of résumés. Fee is ten percent of first-year cash, only if a hire actually starts.","body":"Most recruiting products charge before the hard part is done. A retainer lands whether the search works or not. A software seat renews whether anyone got hired. A contingency firm still bills a large cut of first-year pay, and the candidate pool often looks like whoever answered a blast.\n\nWe bill one way: ten percent of first-year cash compensation, billed only after someone starts. If they do not start, there is no fee. That is not a slogan layered on top of a different business. It is the business.\n\nIt changes what we can afford to send. Cold volume is expensive when you only get paid for a real start. A match that looks good in a spreadsheet but would waste two weeks of a founder's time is not free for us either. So the product has to filter earlier: a clear role brief, private talent profiles, ranked fit against a ninety-day outcome, a human pass before names move, and a mutual yes before an introduction.\n\nFounders sometimes ask why we do not take a smaller cut up front \"to stay engaged.\" Because that is how you end up optimizing for pipeline theater. Talent asks whether private means private until both sides approve. Yes. Until then, you are not a lead in someone else's CRM.\n\nTen percent is not the lowest number in the market. It is the number that still funds careful matching without charging for noise. If we ever change it, we will say so on the site first.","image":"https://files.catbox.moe/eg561c.jpg","imageAlt":"Gold-on-dark mark for a fee that lands only when a hire starts","publishedAt":"2026-07-31"},{"slug":"the-masterpiece","category":"Market","title":"The masterpiece","summary":"Guilds made you make the thing before they called you a master. Modern hiring runs from that test. Evidence-first matching tries to make it cheaper to ask.","body":"To become a master in a medieval guild, you generally had to make a thing. Not describe it, not swear to it, not produce a witness who would swear to it for you — make it, and hand the finished object to men who made such things for a living and would judge it without sentiment. The Germans called the piece a Meisterstück, the French a chef-d'oeuvre. Our word masterpiece is the fossil of the requirement: a piece submitted to prove mastery, before the title was granted, not after.\n\nThe details varied by trade and town, and a fair amount of the surviving rules are as much about protecting incumbents as certifying skill. A guild could rig the test to keep numbers down as easily as to keep quality up. Hold that caution. But the core idea outlived every abuse laid on it, because it answered a question every craft has to answer somehow: can this person actually do the work, or only say so? A locksmith submitted a lock that had to open and hold. A cooper, a barrel that had to not leak. The object did not care about the applicant's family, his charm, or how badly he wanted it. It worked or it did not, in front of people who could tell.\n\nThat is a different kind of evidence from a good word, and worth keeping separate from it. A recommendation transfers someone else's trust. A masterpiece transfers nothing — it is the thing itself, and the judgment is made on the thing. You can inflate a claim about your work almost for free. You cannot inflate the work. The cost of faking is exactly what makes the signal worth reading.\n\nModern technical hiring knows this and mostly runs from it. The resume is the claim; the interview is often theater layered on the claim; and everyone has met a confident talker who could not ship. So the more careful teams reach for the object: a portfolio, a code sample, a scoped take-home, a paid trial. These are masterpieces in the old sense, and they are unpopular for an honest reason. They cost the candidate real time, and they cost the company real time to judge well. The standing temptation is to skip back to the cheap signal and hope.\n\nDemigod does not set the test, and we will not claim to grade anyone's craft for them. The hiring team does that. We try to put evidence in front of the right people early. A startup writes a brief with a concrete ninety-day outcome. Candidates keep a private profile meant to show work, not only claim it. Fit is ranked, a person reviews before names move, and an intro lands only after both sides approve. The aim is to spend the honest signal on the few matches worth it, rather than the cheap one on everybody.\n\nThe guilds were not utopias, and neither is a marketplace. The old instinct had one thing right: when it matters whether someone can do the work, ask to see the work. We are betting a fair amount of San Francisco hiring would go better if that were easier to ask for.","image":"https://files.catbox.moe/najavd.jpg","imageAlt":"Gold-on-dark mark for a guild masterpiece and demonstrated-work-as-evidence","publishedAt":"2026-07-31"},{"slug":"the-trial-year","category":"Market","title":"The trial year","summary":"The monastic novitiate was a bounded, two-sided trial: both sides tested the fit before anyone was bound. A ninety-day outcome borrows the shape.","body":"The Rule that Benedict of Nursia wrote for his monasteries in the sixth century is a short, practical book, and one of its least mystical chapters is about how to let someone in. Do not receive a newcomer easily, it says. Make him wait at the door a few days. Then give him a place among the novices and test him. The tradition settled on a year for the probationary stretch, though the Rule's own timing is looser than the later custom made it. What matters is not the exact length but the shape: a bounded period of living the actual life before either side is bound to it.\n\nThe test ran both ways, and that is the part worth holding onto. The community was watching whether the newcomer could really do this — the hours, the silence, the work, the other people — not whether he could describe wanting to. And the newcomer was finding out the same thing about the place and about himself, in conditions he could not fake his way through for a year. The Rule is blunt that the point is to see whether the novice truly seeks the life, not whether he is eager in week one. Eagerness is cheap. A year of ordinary days is not.\n\nEither side could end it. The novice was free to leave; the community was free to decline him. Nobody had signed anything permanent yet, so ending it early was a correction, not a failure — cheaper for everyone than discovering the mismatch after vows. That gap between a reversible trial and an irreversible commitment is the whole design. The trial exists precisely so the commitment can be made with less fear.\n\nThe instinct outlived the monasteries. Apprenticeships had their terms before mastery. Modern employment has probation periods, though they are often a formality nobody takes seriously in either direction. What tends to get lost is the two-sidedness. The honest version is not the company auditioning the hire while the hire pretends everything is fine. Both are supposed to be finding out, and both are supposed to be able to walk without it being a catastrophe.\n\nDemigod is not a monastery, and a job is not a vocation. We still borrowed the shape. A startup writes a brief around a concrete ninety-day outcome — not a vibe, a thing that will or will not have happened. Fit is ranked against that outcome, a person reviews before names move, and contact starts only when both sides approve. Either side can pass privately before that. The ninety-day outcome is the trial made explicit: something real to test against, on a horizon short enough that a wrong match is a correction and not a year lost.\n\nBenedict was arranging lives, and we are arranging work, which is a smaller thing. The smaller thing goes wrong the same way when nobody builds in a way to find out early. We would rather help two people learn in ninety days what they might otherwise learn in a bad year.","image":"https://files.catbox.moe/sm33cl.jpg","imageAlt":"Gold-on-dark mark for a monastic novitiate threshold and a two-sided trial before commitment","publishedAt":"2026-07-31"},{"slug":"write-the-ninety-day-outcome","category":"Product","title":"Write the ninety-day outcome","summary":"\"Great engineer\" is not a brief. A hire should be judged against something that will either have happened or not in ninety days.","body":"Job posts are full of tools, years, and vibes. Few of them say what will be true if the hire works. That gap is where bad matches hide. Two people can agree they both \"want impact\" and still disagree about what next quarter must produce.\n\nWe ask startups for a concrete ninety-day outcome. Not a mission statement. A thing that will have shipped, stabilized, hired, sold, or been decided — or will not have. The outcome is what ranking runs against. It is also what both sides use when they decide whether an introduction is worth it.\n\nTalent benefits for the same reason. A private profile that shows work against outcomes is easier to place than one that only lists brands. Founders can pass without ghosting. Candidates can pass without reading a three-page JD that never mentions the real job.\n\nNinety days is long enough to matter and short enough that a wrong match is a correction, not a lost year. It does not promise success. It is a shared target so \"fit\" means something measurable.\n\nIf a role cannot state an outcome, it is usually not ready to hire through us. That is fine. Fix the brief first. The map and the matching both get better when the work is named.","image":"https://files.catbox.moe/w6ezv4.jpg","imageAlt":"Gold-on-dark mark for a concrete ninety-day hiring outcome","publishedAt":"2026-07-31"},{"slug":"epicurus-garden-hacker-houses","category":"Market","title":"Epicurus' Garden and the SF hacker house","summary":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","body":"Around 306 BCE, Epicurus bought a house and garden outside the Dipylon gate, on the road toward Plato's Academy. Diogenes Laërtius puts the price at eighty minae, writing centuries later, so treat that number the way you would any figure from one late source. What is better attested is how the place ran. People lived there. They ate at one table, argued over the food, and came back to the same unfinished questions the next week. The Academy up the road was a school you visited. The Garden was one you moved into, which changed what it could ask of the people in it.\n\nThey were after ataraxia: a quieter mind, less fear, fewer pointless wants. Friendship was part of the practice, not a networking bonus. Women studied there. So did people the rest of the city treated as background. That made the Garden unusually open for an Athenian school, but it was not casual about commitment. If you needed public honor more than the shared table, you did not last.\n\nEpicurus's will tried to keep the group going after him. Successors named. Friends' children cared for. Freedom for slaves who had studied. The legal language is dry and that is the point. The house was supposed to outlive one charismatic man.\n\nYou see cousins of this arrangement long before anyone rented a Victorian in the Mission and called it a house for builders. Pythagoras's circle in southern Italy was harsher and weirder: shared property, heavy secrecy, intellectual heat with a mystic edge. Monasteries later made a more durable version of group life. Their purposes were religious, their rules stricter, their days split between prayer, labor, and study. They also copied books.\n\nIn 1417, Poggio Bracciolini found Lucretius' On the Nature of Things in a monastic library. Lucretius was the great Roman carrier of Epicurean thought. A Christian house preserved a poem whose gods, matter, and death sat badly with Christian teaching. Nobody needed to plan that irony. The rule said copy books, so books got copied, including ones the copyists would have disliked if they stopped to argue with every page. That is a boring reason to write shared rules down, and a strong one. Rules keep operating on days when nobody is in the mood to remember the founding pitch.\n\nSan Francisco keeps reinventing a louder cousin of the same pressure. Rent is absurd. Solo technical work is lonely. Hard problems move faster when the people who can help are down the hall instead of three Slack hops and a calendar invite away.\n\nReporting on HF0 describes a selective residency for technical founders in large SF properties. AGI House has been covered as a place for AI builders, researchers, dinners, and events. Those are specific organizations with their own admissions and economics. They are useful because the trade is visible. Residents give up privacy and some control over the room in exchange for people, conversation, and work being close.\n\nProximity helps when the people already share enough. A stuck problem can come up over eggs. Someone can watch a demo fail and still be there when the fix works at midnight. Proximity has no moral quality of its own. If residents disagree about noise, money, ambition, cleanliness, or whether every meal is a pitch session, the hallway becomes another meeting they cannot leave.\n\nFounder mythology likes to skip the boring part. A house full of impressive résumés can be worse than a smaller one where people agree about visitors, quiet hours, chores, and rest. Size photographs well. Norms decide whether anyone wants to stay. Intensity needs a limit too. Epicurus treated modest pleasure, freedom from fear, and time among friends as the point. A modern technical residency may be trying to ship a company in weeks. Different aims. Both get worse when sleep thins, the kitchen turns strange, and small annoyances become politics.\n\nDemigod is not a house, and we will not claim a straight line from the Garden to the Mission. We run matching for SF startups and talent: private profiles, evidence before names, introductions only after both sides approve. What we take from the houses is a working assumption. Selection has to be honest before proximity is worth much, because the wrong people in a good room mostly cost each other a month.\n\nWhether any of this works outside one small city is an open question. SF is where we can check our own claims in person, so SF is where we operate.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Gold-on-dark mark for garden, cloister, and group-house pattern essay","publishedAt":"2026-07-17"}];
 function dgMapEventsHtml(kind){
   var isEvents=kind==='events';
   var eventFormHtml="<details><summary>Submit an event</summary><form id=\"dg-event-submit\" class=\"dg-community-form\"><p class=\"dg-p-note\">* Required. A human reviews every submission before it appears on Demigod.</p><label>Event title *<input class=\"dg-ev-in\" name=\"title\" required maxlength=\"120\"></label><label>Organizer name *<input class=\"dg-ev-in\" name=\"organizerName\" required maxlength=\"120\" autocomplete=\"name\"></label><label>Organizer email *<input class=\"dg-ev-in\" name=\"organizerEmail\" type=\"email\" required maxlength=\"160\" autocomplete=\"email\"></label><label>Date and time (your local timezone) *<input class=\"dg-ev-in\" name=\"startsAt\" type=\"datetime-local\" required></label><label>Format *<select class=\"dg-ev-in\" name=\"format\" required><option value=\"\">Select</option><option value=\"in-person\">In person</option><option value=\"online\">Online</option><option value=\"hybrid\">Hybrid</option></select></label><label>Venue or neighborhood (required for in-person or hybrid)<input class=\"dg-ev-in\" name=\"venue\" maxlength=\"180\"></label><label>Who is it for? *<input class=\"dg-ev-in\" name=\"audience\" required maxlength=\"240\"></label><label>Capacity (optional)<input class=\"dg-ev-in\" name=\"seats\" type=\"number\" min=\"1\" step=\"1\"></label><label>Requested destination *<select class=\"dg-ev-in\" name=\"destination\" required><option value=\"demigod\">trydemigod.com</option><option value=\"luma\">Luma only</option><option value=\"partiful\">Partiful only</option><option value=\"demigod+luma\">trydemigod.com + Luma</option><option value=\"demigod+partiful\">trydemigod.com + Partiful</option></select></label><label>Existing Luma or Partiful link<input class=\"dg-ev-in\" name=\"externalUrl\" type=\"url\" inputmode=\"url\" maxlength=\"500\" placeholder=\"https://\" aria-describedby=\"dg-event-url-help\"></label><p id=\"dg-event-url-help\" class=\"dg-p-note\">Required for a Luma or Partiful destination and must match that platform. Demigod does not create or publish the external listing for you.</p><label>Event details *<textarea class=\"dg-ev-in\" name=\"details\" rows=\"4\" required maxlength=\"2000\"></textarea></label><button class=\"dg-ev-submit\" type=\"submit\">Submit event for review</button><p class=\"dg-submit-msg\" role=\"status\" aria-live=\"polite\"></p></form></details>";
@@ -3122,35 +3115,35 @@ var DG_PAGES = {
   how: {
     title: 'How it works',
     doc: 'How it works · Demigod',
-    desc: 'How Demigod works: share a brief or profile, our software ranks fit, humans review, and we introduce only on mutual interest. 10% on hire, free for talent.',
+    desc: 'How Demigod works: share a brief or profile, our software ranks fit, humans review, and we introduce only on mutual interest. 10% of first-year base salary when a hire starts; free for talent.',
     html:
       '<p class="dg-p-lead">A match has three gates. Nothing reaches the other side until all three pass.</p>' +
       '<ol class="dg-p-list">' +
       '<li><strong>Brief or profile</strong> — startups send a role + one measurable 90-day outcome; talent sends one profile. Real inputs, not keywords.</li>' +
       '<li><strong>Tech ranks, humans review</strong> — Demigod ranks fits against the outcome; a person reviews every proposal and forwards only when the evidence is real. If it\'s thin, we say so instead of manufacturing a shortlist.</li>' +
-      '<li><strong>Both approve → intro</strong> — either side can pass privately. A warm intro email only when both say yes. Fee (10% of first-year cash) only if you hire.</li>' +
+      '<li><strong>Both approve → intro</strong> — either side can pass privately. A warm intro email only when both say yes. Fee is 10% of first-year base salary when a hire starts.</li>' +
       '</ol>' +
-      '<p class="dg-p-note">What it isn\'t: no public job feed, no application blast, no auto-DMs, no SLA theater. <a href="/sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
+      '<p class="dg-p-note">Public hiring data lives in the <a href="/startups" data-dg-page="map">SF startup directory</a>. Matching stays private: no application blast, no auto-DMs, no SLA theater. <a href="/sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
   },
   pricing: {
     title: 'Pricing',
     doc: 'Pricing · Demigod',
-    desc: '10% of first-year cash when a hire starts. Nothing upfront. Talent free. Card tooling pending.',
+    desc: '10% of first-year base salary when a hire starts. Nothing upfront. Talent free. Card tooling pending.',
     html:
-      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year cash salary only when a hire starts — not to post a role.</p>' +
+      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year base salary only when a hire starts — not to post a role.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>No subscription.</strong> No charge to submit a role brief.</li>' +
       '<li><strong>Candidates free.</strong> Always.</li>' +
-      '<li><strong>Typical agencies</strong> often run 15–25%. Demigod is 10% on hire.</li>' +
+      '<li><strong>Typical agencies</strong> often run 15–25%. Demigod is 10% of first-year base salary when a hire starts.</li>' +
       '<li><strong>Payments/SMS pending</strong> — commercial confirmations by email from potter@trydemigod.com.</li>' +
       '</ul>',
   },
   faq: {
     title: 'FAQ',
     doc: 'FAQ · Demigod',
-    desc: 'Answers about Demigod: how SF matching works, what happens after you submit, pricing (10% on hire, free for talent), privacy, and how intros are made.',
+    desc: 'Answers about Demigod: how SF matching works, what happens after you submit, pricing (10% of first-year base salary on start; free for talent), privacy, and how intros are made.',
     html:
-      '<details class="dg-p-det"><summary>How much does it cost?</summary><p><strong>Startups:</strong> 10% of first-year cash salary when someone starts. Nothing upfront. <strong>Talent:</strong> always free. Typical agencies often charge more.</p></details>' +
+      '<details class="dg-p-det"><summary>How much does it cost?</summary><p><strong>Startups:</strong> 10% of first-year base salary when someone starts. Nothing upfront. <strong>Talent:</strong> always free. Typical agencies often charge more.</p></details>' +
       '<details class="dg-p-det"><summary>Is my profile private?</summary><p>Yes. Identity and contact details move only after both sides approve an intro. You can ask us to update or delete data anytime.</p></details>' +
       '<details class="dg-p-det"><summary>What is a 90-day outcome?</summary><p>One measurable result the hire must deliver in their first 90 days. We match against that outcome — not a keyword soup or generic JD.</p></details>' +
       '<details class="dg-p-det"><summary>Who do you work with?</summary><p>SF Bay Area startups (and builders open to those companies). Seed through growth, product and eng-heavy roles first. Remote talent is fine when the company is Bay-focused.</p></details>' +
@@ -3160,13 +3153,13 @@ var DG_PAGES = {
   hire: {
     title: 'Hire talent',
     doc: 'Hire · Demigod',
-    desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year cash only when a hire starts.',
+    desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year base salary only when a hire starts.',
     html:
       '<p class="dg-p-lead">Tell us the role and the one outcome a hire must own in their first 90 days. A person reads every brief — we only propose when the fit is real, and both sides still have to say yes.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>Send a ~2-min brief</strong> — role, must-haves, one 90-day outcome, cash band.</li>' +
       '<li><strong>Tech ranks, a human reviews</strong> — against your outcome, before anything reaches you.</li>' +
-      '<li><strong>You approve before any intro</strong> — 10% of first-year cash only when a hire starts; nothing to post.</li>' +
+      '<li><strong>You approve before any intro</strong> — 10% of first-year base salary only when a hire starts; nothing to post.</li>' +
       '</ul>' +
       '<p class="dg-p-note">No application blast, no résumé black hole, comp bands kept honest. SMS/card payments pending — follow-ups by email from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
   },
@@ -3202,7 +3195,7 @@ var DG_PAGES = {
       '<p>A temporary same-tab draft is kept in your browser session and cleared after confirmed submission.</p>' +
       '<p>We retain submissions while providing matching, handling an introduction, and meeting legitimate operational or recordkeeping needs, then delete or de-identify data when it is no longer needed. Shareable résumé links remain subject to the storage provider you chose.</p>' +
       '<p>Request access, correction, or deletion at <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. We will confirm the action and any data we must retain for legal or transaction records.</p>' +
-      '<h3 class="dg-p-h3">Terms</h3><p>Demigod introduces parties; employment decisions are yours. Placement fee is 10% of first-year cash salary when a hire starts (unless written otherwise). Payments tooling is pending — commercial confirmations by email. SF Bay Area focus. No SLA promises on response time.</p>',
+      '<h3 class="dg-p-h3">Terms</h3><p>Demigod introduces parties; employment decisions are yours. Placement fee is 10% of first-year base salary, excluding equity, discretionary bonus, commission, and benefits, when a hire starts (unless written otherwise). Payments tooling is pending — commercial confirmations by email. SF Bay Area focus. No SLA promises on response time.</p>',
   },
   refer: {
     title: 'Make one strong introduction',
@@ -3227,10 +3220,10 @@ var DG_PAGES = {
   about: {
     title: 'About',
     doc: 'About · Demigod',
-    desc: 'Demigod tech matches SF startup talent, humans in the loop — both sides approve, 10% on hire.',
+    desc: 'Demigod tech matches SF startup talent, humans in the loop — both sides approve; 10% of first-year base salary on start.',
     html:
       '<p class="dg-p-lead">Demigod is tech matching for SF startups and talent, with humans in the loop. Curated intros only — no open feed, no auto-DM blasts.</p>' +
-      '<ul class="dg-p-list"><li>One measurable 90-day outcome first</li><li>Both sides approve before every intro</li><li>10% only when you hire</li></ul>',
+      '<ul class="dg-p-list"><li>One measurable 90-day outcome first</li><li>Both sides approve before every intro</li><li>10% of first-year base salary when a hire starts</li></ul>',
   },
 
   blog: {
@@ -3270,7 +3263,7 @@ var DG_PAGES = {
       '</ul>' +
       '<h3 class="dg-p-h3">A useful pass</h3>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Looks close:</strong> strong onboarding work, the right cash range, and SF availability.</li>' +
+      '<li><strong>Looks close:</strong> strong onboarding work, the right base salary range, and SF availability.</li>' +
       '<li><strong>Why not:</strong> the role needs hands-on event instrumentation now; the evidence shows strategy and rollout ownership, not implementation.</li>' +
       '<li><strong>Decision:</strong> do not force an intro. Keep both profiles private and reconsider only if the role or evidence changes.</li>' +
       '</ul>' +
@@ -3323,9 +3316,9 @@ var DG_PAGES = {
     doc: 'Press kit · Demigod',
     desc: 'One-liner, mark, and contact for Demigod — SF startup talent matching.',
     html:
-      '<p class="dg-p-lead"><strong>Demigod</strong> tech matches SF startup talent, humans in the loop. 10% on hire.</p>' +
+      '<p class="dg-p-lead"><strong>Demigod</strong> tech matches SF startup talent, humans in the loop. 10% of first-year base salary when a hire starts.</p>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>One-liner:</strong> SF startup talent matching — private profiles, mutual yes, 10% only when a hire starts.</li>' +
+      '<li><strong>One-liner:</strong> SF startup talent matching — private profiles, mutual yes, 10% of first-year base salary when a hire starts.</li>' +
       '<li><strong>Site:</strong> <a href="https://www.trydemigod.com">trydemigod.com</a></li>' +
       '<li><strong>Contact:</strong> <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></li>' +
       '<li><strong>Mark:</strong> gold geometric D on dark — same favicon/hero brand on the site.</li>' +
@@ -3359,38 +3352,42 @@ function pageCss() {
     '#dg-page .dg-p-det p{color:#A8A29E;margin:.35rem 0 .25rem;line-height:1.45}' +
     '#dg-page .dg-p-h3{color:#C9A84C;font-size:1rem;margin:1rem 0 .35rem}' +
     '#dg-page .dg-blog-hero{margin:0 0 1.1rem}' +
-    '#dg-page.dg-page-blog .dg-page-card{max-width:76rem;padding:clamp(1rem,3vw,2.25rem)}' +
-    '#dg-page .dg-blog-back{display:none;min-height:44px;align-items:center;font-weight:700;text-decoration:none}' +
-    '#dg-page .dg-blog-filters{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem}' +
-    '#dg-page .dg-blog-chip{min-height:44px;padding:.4rem .85rem;border-radius:999px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font:650 .82rem Manrope,system-ui,sans-serif;cursor:pointer}' +
+    '#dg-page.dg-page-blog{padding:clamp(.75rem,2.5vw,1.5rem);width:100%;box-sizing:border-box}' +
+    '#dg-page.dg-page-blog .dg-page-card{max-width:min(72rem,100%);width:100%;margin:1rem auto;padding:clamp(1rem,3vw,2.5rem);box-sizing:border-box}' +
+    '#dg-page .dg-blog-back{display:none;min-height:44px;align-items:center;font-weight:700;text-decoration:none;color:#E8D5A3}' +
+    '#dg-page .dg-blog-filters{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1.15rem}' +
+    '#dg-page .dg-blog-chip{min-height:44px;padding:.45rem .95rem;border-radius:999px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font:650 .85rem Manrope,system-ui,sans-serif;cursor:pointer}' +
     '#dg-page .dg-blog-chip-n{opacity:.75;font-weight:600;margin-left:.2rem}' +
     '#dg-page .dg-blog-chip.is-on{background:rgba(201,168,76,.18);border-color:#C9A84C;color:#C9A84C}' +
     '#dg-page .dg-blog-body p{margin:.35rem 0;color:#A8A29E;line-height:1.55}' +
-    '#dg-page .dg-blog-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}' +
-    '#dg-page .dg-blog-card{overflow:hidden;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92);display:flex;flex-direction:column}' +
-    '#dg-page .dg-blog-card img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}' +
-    '#dg-page .dg-blog-card .dg-blog-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;margin:.7rem .9rem 0}' +
+    '#dg-page .dg-blog-grid{display:grid;gap:1.15rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,18.5rem),1fr));width:100%}' +
+    '#dg-page .dg-blog-card{overflow:hidden;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92);display:flex;flex-direction:column;min-width:0}' +
+    '#dg-page .dg-blog-card img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#0a0a0c}' +
+    '#dg-page .dg-blog-card .dg-blog-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;margin:.75rem 1rem 0}' +
     '#dg-page .dg-blog-card small{color:#C9A84C;text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;font-weight:700}' +
-    '#dg-page .dg-blog-card time{color:#A8A29E;font-size:.78rem}' +
-    '#dg-page .dg-blog-card h2{color:#E8D5A3;font-size:1.05rem;margin:.4rem .9rem;line-height:1.3;font-family:Cinzel,Georgia,serif}' +
-    '#dg-page .dg-blog-card>p{color:#A8A29E;line-height:1.5;margin:.25rem .9rem .5rem}' +
-    '#dg-page .dg-blog-more{margin:auto .9rem .9rem;border-top:1px solid rgba(201,168,76,.14);padding-top:.4rem}' +
+    '#dg-page .dg-blog-card time{color:#A8A29E;font-size:.8rem}' +
+    '#dg-page .dg-blog-card h2{color:#E8D5A3;font-size:clamp(1.05rem,2.2vw,1.2rem);margin:.45rem 1rem;line-height:1.3;font-family:Cinzel,Georgia,serif}' +
+    '#dg-page .dg-blog-card>p{color:#B8B4AD;line-height:1.55;margin:.3rem 1rem .55rem;font-size:.95rem}' +
+    '#dg-page .dg-blog-more{margin:auto 1rem 1rem;border-top:1px solid rgba(201,168,76,.14);padding-top:.45rem}' +
     '#dg-page .dg-blog-more summary{cursor:pointer;color:#E8D5A3;font-weight:600;min-height:44px;display:flex;align-items:center;list-style:none}' +
     '#dg-page .dg-blog-more summary::-webkit-details-marker{display:none}' +
     '#dg-page .dg-blog-more summary:before{content:"\\25B8 ";color:#C9A84C}' +
     '#dg-page .dg-blog-more[open] summary:before{content:"\\25BE "}' +
     '#dg-page .dg-blog-more p{margin:.35rem 0 .15rem;color:#A8A29E;line-height:1.5}' +
-    '@media(min-width:640px){#dg-page:not(.dg-blog-reading) .dg-blog-card:only-child>.dg-blog-more[open]{max-width:68ch;width:calc(100% - 1.8rem);margin:1rem auto 1.5rem}}' +
+    '@media(min-width:640px){#dg-page:not(.dg-blog-reading) .dg-blog-card:only-child>.dg-blog-more[open]{max-width:min(42rem,100%);width:calc(100% - 2rem);margin:1rem auto 1.5rem}}' +
     '#dg-page.dg-blog-reading .dg-blog-back{display:inline-flex}' +
     '#dg-page.dg-blog-reading .dg-blog-filters,#dg-page.dg-blog-reading .dg-blog-card:not(.is-reading){display:none!important}' +
-    '#dg-page.dg-blog-reading .dg-blog-grid{display:block;max-width:72rem;margin:auto}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading{max-width:48rem;margin:auto;padding:0!important;border:0;background:transparent;overflow:visible}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading h2{font-size:clamp(1.65rem,4vw,2.5rem);margin:.9rem 0 .6rem;line-height:1.16}' +
+    '#dg-page.dg-blog-reading .dg-blog-grid{display:block;max-width:min(48rem,100%);margin:0 auto;width:100%}' +
+    '#dg-page.dg-blog-reading .dg-blog-card.is-reading{max-width:min(42rem,100%);width:100%;margin:0 auto;padding:0!important;border:0;background:transparent;overflow:visible}' +
+    '#dg-page.dg-blog-reading .dg-blog-card.is-reading img{border-radius:12px;margin:0 0 .25rem}' +
+    '#dg-page.dg-blog-reading .dg-blog-card.is-reading h2{font-size:clamp(1.75rem,4.5vw,2.65rem);margin:1rem 0 .65rem;line-height:1.15;max-width:none}' +
     '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-meta,#dg-page.dg-blog-reading .dg-blog-card.is-reading>p{margin-left:0;margin-right:0}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-more{max-width:68ch;width:100%;margin:1.5rem auto 0;padding:0;border:0}' +
+    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>p{font-size:clamp(1.05rem,2vw,1.2rem);line-height:1.55;color:#C9C4BB;max-width:none}' +
+    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-more{max-width:min(40rem,100%);width:100%;margin:1.75rem 0 0;padding:0;border:0}' +
     '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-more>summary{display:none!important}' +
-    '#dg-page.dg-blog-reading .dg-blog-body p{margin:0 0 1.25em;color:#D6D3CC;font-size:clamp(1.05rem,1.6vw,1.18rem);line-height:1.72}' +
-    '#dg-page .dg-blog-empty{color:#A8A29E;font-size:.9rem}' +
+    '#dg-page.dg-blog-reading .dg-blog-body{max-width:min(40rem,100%);width:100%}' +
+    '#dg-page.dg-blog-reading .dg-blog-body p{margin:0 0 1.35em;color:#E4E0D8;font-size:clamp(1.1rem,1.35vw + .9rem,1.25rem);line-height:1.75;letter-spacing:.01em}' +
+    '#dg-page .dg-blog-empty{color:#A8A29E;font-size:.95rem}' +
     '#dg-page .dg-blog-card{opacity:1!important}' +
     '#dg-page .dg-page-ctas{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.15rem}' +
     '#dg-page .dg-page-ctas a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;font-weight:700;text-decoration:none!important}' +
@@ -3402,7 +3399,7 @@ function pageCss() {
     '@keyframes dg-page-in{from{opacity:0}to{opacity:1}}' +
     '@media(prefers-reduced-motion:reduce){#dg-page{animation:none}}' +
     '@media(forced-colors:active){#dg-page{background:Canvas!important;forced-color-adjust:auto}#dg-page .dg-page-card,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;box-shadow:none!important}#dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,#dg-page summary:focus-visible{outline:2px solid Highlight!important}}' +
-    '@media(max-width:639px){#dg-page.dg-page-blog{padding:.5rem}#dg-page.dg-page-blog .dg-page-card{margin:.5rem auto;padding:.75rem}}' +
+    '@media(max-width:639px){#dg-page.dg-page-blog{padding:.65rem max(.75rem,env(safe-area-inset-right,0px)) 1.25rem max(.75rem,env(safe-area-inset-left,0px))}#dg-page.dg-page-blog .dg-page-card{margin:.35rem auto;padding:1rem .9rem 1.25rem;border-radius:12px}#dg-page.dg-blog-reading .dg-blog-card.is-reading h2{font-size:clamp(1.45rem,7vw,1.9rem)}#dg-page.dg-blog-reading .dg-blog-body p{font-size:1.08rem;line-height:1.72}}' +
 
     /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
     '#dg-page.dg-page-events{background:radial-gradient(120% 80% at 80% 0%,rgba(201,168,76,.09),transparent 55%),#060606!important}' +
@@ -4098,7 +4095,7 @@ function pageCtas(id) {
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
   if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
   if (id === 'talent') return '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Create profile</a>' + hire + back;
-  if (id === 'events' || id === 'map' || id === 'refer') return back;
+  if (id === 'events' || id === 'refer') return back;
   return hire + talent + back;
 }
 function startupMapAssetUrl(){
@@ -4222,7 +4219,7 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
-    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press', notfound:'/' };
+    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', press:'/press', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
     /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
@@ -4280,8 +4277,7 @@ function openPage(id, push) {
   });
   /* v859: prefer hard path in history (/startups not /?p=map) so deep links + nav share clean URLs. */
   try {
-    var histPref = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press' };
-    var hard = histPref[id];
+    var hard = preferred[id];
     var hash = location.hash || '';
     if (hard && hard.indexOf('?') < 0) {
       var nowP = (location.pathname || '/').replace(/\/+$/, '') || '/';
@@ -4468,6 +4464,29 @@ function blogPageMount(root) {
     });
   }
   render();
+  /* Index: card title links open reading mode; single-post list opens body for easier reading. */
+  try {
+    if (posts.length === 1) {
+      var only = grid.querySelector('.dg-blog-card');
+      var onlyDet = only && only.querySelector('details');
+      if (onlyDet) onlyDet.open = true;
+    }
+    grid.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      if (t.closest('summary') || t.closest('a') || t.closest('details')) return;
+      var card = t.closest('.dg-blog-card');
+      if (!card || !card.id) return;
+      var slug = card.id.replace(/^note-/, '');
+      if (!slug) return;
+      try {
+        history.replaceState(null, '', (location.pathname || '/blog') + '#note-' + slug);
+      } catch (eH) {
+        location.hash = 'note-' + slug;
+      }
+      focusBlogNoteFromHash(root);
+    });
+  } catch (eIdx) {}
 }
 /** Deep-link Notes: open Full note + title + scroll for #note-{slug} (or bare slug). */
 function focusBlogNoteFromHash(root) {
@@ -4545,6 +4564,7 @@ var DG_PAGE_PATHS = {
   '/network': 'talent',
   '/fees': 'pricing',
   '/security': 'legal',
+  '/sample': 'sample',
   '/about': 'about',
   '/founders': 'hire',
   '/candidates': 'talent',
@@ -4553,7 +4573,6 @@ var DG_PAGE_PATHS = {
   '/events': 'events',
   '/events-bot': 'events',
   '/event-bot': 'events',
-  '/event': 'event',
   '/press': 'press',
   '/press-kit': 'press',
   '/media': 'press',
@@ -4591,7 +4610,7 @@ function deepLink(){
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('refer',false); window.__dgDeepLinked=1; return; }
-    if(/^note-/.test(h)||/^(epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
+    if(/^note-/.test(h)||/^(both-sides-say-yes|human-review-before-names-move|letter-of-introduction|private-until-you-both-agree|ten-percent-when-someone-starts|the-masterpiece|the-trial-year|write-the-ninety-day-outcome|epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
     if(!w)return;
     var open=function(){
       if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
@@ -4607,7 +4626,7 @@ function deepLink(){
 }
 
 function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit';a.textContent='Submit'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit';b.textContent='Submit'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='One measurable first-90-day result';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should they ship in the first 90 days?'}}
-function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://www.trydemigod.com/#org',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Demigod tech matches SF startup talent, humans in the loop. 10% on hire.',areaServed:{'@type':'AdministrativeArea',name:'San Francisco Bay Area'}},{'@type':'WebSite','@id':'https://www.trydemigod.com/#website',url:'https://www.trydemigod.com',name:'Demigod',publisher:{'@id':'https://www.trydemigod.com/#org'},description:'SF startup talent matching — private profiles, mutual yes, 10% on hire.'}]});document.head.appendChild(ld)}
+function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://www.trydemigod.com/#org',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Demigod tech matches SF startup talent, humans in the loop. 10% of first-year base salary when a hire starts.',areaServed:{'@type':'AdministrativeArea',name:'San Francisco Bay Area'}},{'@type':'WebSite','@id':'https://www.trydemigod.com/#website',url:'https://www.trydemigod.com',name:'Demigod',publisher:{'@id':'https://www.trydemigod.com/#org'},description:'SF startup talent matching — private profiles, mutual yes, 10% of first-year base salary when a hire starts.'}]});document.head.appendChild(ld)}
 
 
 function wizResumeToast(modal){
@@ -4658,7 +4677,7 @@ typeof window.addEventListener==='function'&&window.addEventListener('popstate',
 // Notes in-page: hashchange re-focuses Full note when already on /?p=blog
 typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
 
-window.__dgFootVer='860';console.log('Demigod v860');
+window.__dgFootVer='869';console.log('Demigod v869');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

@@ -15,11 +15,74 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { objectEntries, withFileLock } from './demigod-agent-tools-lib.mjs';
+import { rolesFeed } from './demigod-roles-feed.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+const LEDGER = process.env.DEMIGOD_ROLE_LEDGER || path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
 const HISTORY = path.join(ROOT, 'DEMIGOD-HIRING-HISTORY.jsonl');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+/**
+ * Board activity from role ledger (Coresignal/TheirStack-thin observation facts).
+ * newOpen = firstSeen in window; closed = left polled board. Never filled/hired or intent scores.
+ * Reuses rolesFeed so pulse and the public feed stay one SoR.
+ * Null only when ledger missing/empty of both open-in-window and closures.
+ */
+export function boardActivityInsightFromLedger(ledger, { today = '', days = 7 } = {}) {
+  if (!ledger || typeof ledger !== 'object') return null;
+  const day = today || new Date().toISOString().slice(0, 10);
+  const windowDays = Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 7;
+  // limit=1: we only need counts, not the open-role list payload.
+  const feed = rolesFeed(ledger, { today: day, days: windowDays, limit: 1 });
+  const c = feed?.counts || {};
+  const newOpen = c.inWindow || 0;
+  const closed = c.closedInWindow || 0;
+  if (!newOpen && !closed) return null;
+  const exceedsClose = !!c.windowExceedsClosureHistory;
+  const exceedsOpen = !!c.windowExceedsObservationHistory;
+  // In-window landscapes (roles-feed byProvider + byFn) — public observation counts only.
+  // Not a rank score, intent score, or applicant-matching product.
+  const rankCounts = (obj, keyName, cap = 8) =>
+    obj && typeof obj === 'object' && !Array.isArray(obj)
+      ? Object.entries(obj)
+        .filter(([, n]) => Number.isFinite(n) && n > 0)
+        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+        .slice(0, cap)
+        .map(([k, n]) => ({ [keyName]: k, n }))
+      : [];
+  const byProvider = rankCounts(c.byProvider, 'provider');
+  const byFn = rankCounts(c.byFn, 'fn');
+  return {
+    windowDays: feed.windowDays,
+    newOpenInWindow: newOpen,
+    companiesWithNewOpen: c.companiesInWindow || 0,
+    closedInWindow: closed,
+    companiesClosedInWindow: c.companiesClosedInWindow || 0,
+    // PredictLeads-thin: company open-in-window intensity (roles-feed byCompanyTop). Not intent/score.
+    byCompanyTop: (c.byCompanyTop || []).slice(0, 5),
+    byCompanyClosedTop: (c.byCompanyClosedTop || []).slice(0, 5),
+    byProvider,
+    byFn,
+    observationSpanDays: c.observationSpanDays || 0,
+    windowExceedsObservationHistory: exceedsOpen,
+    closureObservationSpanDays: c.closureObservationSpanDays || 0,
+    windowExceedsClosureHistory: exceedsClose,
+    basis:
+      'newOpen = first observation on a public ATS board; closed = left a polled board (not filled/hired); ' +
+      'byProvider/byFn/byCompanyTop are in-window open landscape counts (not scores or outreach targets); ' +
+      (exceedsOpen || exceedsClose
+        ? 'one or both windows exceed short observation history — not a mature rate'
+        : 'observation counts only'),
+  };
+}
+
+/** @deprecated name — prefer boardActivityInsightFromLedger (same payload when closures exist). */
+export function boardExitInsightFromLedger(ledger, opts = {}) {
+  const full = boardActivityInsightFromLedger(ledger, opts);
+  if (!full || !full.closedInWindow) return null;
+  return full;
+}
 
 const batchYear = (b) => {
   const m = /(\d{4})/.exec(b || '');
@@ -111,6 +174,17 @@ export function computePulse(map, prior = null, today = '') {
   const aiN = fnN('ai/data');
   const pdmN = fnN('product') + fnN('design') + fnN('marketing');
   const aiInsight = aiN ? { roles: aiN, share: Math.round((100 * aiN) / (allRoleTags || 1)), beatsPDM: aiN > pdmN, pdm: pdmN } : null;
+  // PeopleOps share (AR-26 surface): facts only — never a "talent quality" claim.
+  const peopleN = fnN('people');
+  const engN = fnN('engineering');
+  const peopleInsight = peopleN
+    ? {
+        roles: peopleN,
+        share: Math.round((100 * peopleN) / (allRoleTags || 1)),
+        engRoles: engN,
+        engShare: Math.round((100 * engN) / (allRoleTags || 1)),
+      }
+    : null;
 
   return {
     generatedAt: today,
@@ -123,14 +197,16 @@ export function computePulse(map, prior = null, today = '') {
     byFunction,
     finding,
     aiInsight,
+    peopleInsight,
     topHirers,
     atsLandscape,
     batches,
     deltas,
     method:
       'Open-role counts are live US-posted or Remote listings on each company’s own public ' +
-      'Greenhouse/Lever/Ashby job board. "Hiring" without a count is the company’s own YC/self ' +
-      'report. Public data only — no résumés, no estimates, no invented trends.',
+      'Greenhouse/Lever/Ashby/Workable job board (plus owner-gated secondary ATS when joined). ' +
+      'Role-function mix uses title heuristics on open US-posted ledger roles joined to map boards. ' +
+      '"Hiring" without a count is the company’s own YC/self report. Public data only — no résumés, no estimates, no invented trends.',
   };
 }
 
@@ -182,9 +258,64 @@ export function renderPulseHtml(pulse, site = 'https://www.trydemigod.com') {
         ? `AI &amp; data is now <b>1 in ${Math.max(2, Math.round(100 / pulse.aiInsight.share))}</b> open roles (${pulse.aiInsight.share}%) — more than product, design, and marketing <em>combined</em>.`
         : `AI &amp; data is <b>${pulse.aiInsight.share}%</b> of open roles.`}</p>`
     : '';
+  // PeopleOps share is a count claim only (never "talent quality" or a score).
+  const peopleCallout = pulse.peopleInsight?.roles > 0 && pulse.peopleInsight.share >= 0
+    ? `<p class="dek">PeopleOps / recruiting titles are <b>${pulse.peopleInsight.share}%</b> of open roles (${num(pulse.peopleInsight.roles)} roles)${
+        pulse.peopleInsight.engShare > 0
+          ? ` — engineering is <b>${pulse.peopleInsight.engShare}%</b> (${num(pulse.peopleInsight.engRoles)})`
+          : ''
+      }.</p>`
+    : '';
+  // Board activity: new first-observations + left polled boards — never filled/hired (Coresignal-thin).
+  const act = pulse.boardActivityInsight || pulse.boardExitInsight;
+  const activityBits = [];
+  if (act?.newOpenInWindow > 0) {
+    activityBits.push(`<b>${num(act.newOpenInWindow)}</b> roles newly first-observed open across <b>${num(act.companiesWithNewOpen)}</b> companies`);
+  }
+  if (act?.closedInWindow > 0) {
+    activityBits.push(`<b>${num(act.closedInWindow)}</b> left boards we poll across <b>${num(act.companiesClosedInWindow)}</b> companies (board-exit — not a filled/hired claim)`);
+  }
+  if (Array.isArray(act?.byProvider) && act.byProvider.length) {
+    const top = act.byProvider.slice(0, 4)
+      .map((p) => `${esc(p.provider)} ${num(p.n)}`)
+      .join(', ');
+    activityBits.push(`new-open ATS landscape: ${top} (observation counts, not a rank)`);
+  }
+  if (Array.isArray(act?.byFn) && act.byFn.length) {
+    const top = act.byFn.slice(0, 4)
+      .map((p) => `${esc(p.fn)} ${num(p.n)}`)
+      .join(', ');
+    activityBits.push(`new-open function mix: ${top} (eligible counts, not a rank)`);
+  }
+  if (Array.isArray(act?.byCompanyTop) && act.byCompanyTop.length) {
+    const top = act.byCompanyTop.slice(0, 4)
+      .map((p) => `${esc(p.company)} ${num(p.openInWindow)}`)
+      .join(', ');
+    activityBits.push(`companies with most new opens: ${top} (observation intensity, not a target list)`);
+  }
+  if (Array.isArray(act?.byCompanyClosedTop) && act.byCompanyClosedTop.length) {
+    const top = act.byCompanyClosedTop.slice(0, 4)
+      .map((p) => `${esc(p.company)} ${num(p.closedInWindow)}`)
+      .join(', ');
+    activityBits.push(`companies with most board-exits: ${top} (left polled boards — not filled/hired)`);
+  }
+  const caveats = [];
+  if (act?.windowExceedsObservationHistory) {
+    caveats.push(`open history spans ${num(act.observationSpanDays)}d`);
+  }
+  if (act?.windowExceedsClosureHistory) {
+    caveats.push(`closure history spans ${num(act.closureObservationSpanDays)}d — not a mature weekly rate`);
+  }
+  const activityCallout = activityBits.length
+    ? `<p class="dek">In the last <b>${num(act.windowDays)}d</b>: ${activityBits.join('; ')}${
+        caveats.length ? `; <b>history caveat:</b> ${caveats.join('; ')}` : ''
+      }.</p>`
+    : '';
   const fnSection = (pulse.byFunction || []).length
     ? `<section><p class="eyebrow">What they're hiring for</p><h2>The functions SF startups are hiring most</h2>
        ${aiCallout}
+       ${peopleCallout}
+       ${activityCallout}
        <div class="bars">${bars(pulse.byFunction.slice(0, 8), fnMax, (r) => r.fn, (r) => r.n)}</div></section>` : '';
   // The lede: one computed, screenshot-able finding. Only rendered when the data actually supports it.
   const findingSection = pulse.finding && pulse.finding.type === 'batch-curve'
@@ -320,12 +451,94 @@ if (isMain && (process.env.DEMIGOD_PULSE_SELFTEST === '1' || process.argv.includ
   assert(pc.finding && pc.finding.type === 'batch-curve', 'finding computed when curve present');
   assert(pc.finding.freshRate === 10 && pc.finding.matureRate === 60 && pc.finding.multiple === 6, `finding numbers: ${JSON.stringify(pc.finding)}`);
   assert(pc.aiInsight.beatsPDM === true && pc.aiInsight.share === 27, `aiInsight share vs full denominator incl 'other': ${JSON.stringify(pc.aiInsight)}`);
+  assert(pc.peopleInsight === null, 'no peopleInsight without people bucket');
   // no false finding: a flat curve (mature not ≥1.8× fresh) must NOT assert the claim
   const flatMap = { companies: [...cohort('YC Summer 2026', 20, 8), ...cohort('YC Spring 2026', 20, 8), ...cohort('YC Summer 2025', 20, 9), ...cohort('YC Spring 2025', 20, 9)] };
   assert(computePulse(flatMap, null, '2026-07-24').finding === null, 'flat curve (4 cohorts, <1.8×) → no fabricated finding');
   // AI insight honesty: when AI does NOT beat product+design+marketing, beatsPDM is false
   const lowAi = { coverage: { roleMix: { 'ai/data': 10, product: 40, design: 30, marketing: 50 } }, companies: [] };
   assert(computePulse(lowAi, null, 'd').aiInsight.beatsPDM === false, 'AI insight honest when AI < PDM');
+  // PeopleOps insight: share uses full denominator incl other; never invents without people count
+  const peop = computePulse(
+    { coverage: { roleMix: { people: 20, engineering: 80, other: 100 } }, companies: [] },
+    null,
+    'd',
+  );
+  assert(peop.peopleInsight?.roles === 20 && peop.peopleInsight.share === 10, 'peopleInsight share vs full denom');
+  assert(peop.peopleInsight.engShare === 40, 'peopleInsight engShare');
+  assert(computePulse({ coverage: { roleMix: { engineering: 5 } }, companies: [] }, null, 'd').peopleInsight === null, 'no people → no peopleInsight');
+  const peopHtml = renderPulseHtml({
+    generatedAt: 'd',
+    levels: {},
+    byFunction: [{ fn: 'engineering', n: 80 }, { fn: 'people', n: 20 }],
+    topHirers: [],
+    atsLandscape: [],
+    batches: [],
+    deltas: null,
+    peopleInsight: { roles: 20, share: 10, engRoles: 80, engShare: 40 },
+    method: 'm',
+  });
+  assert(peopHtml.includes('PeopleOps') && peopHtml.includes('10%') && peopHtml.includes('40%'), 'render peopleInsight facts');
+  // Board activity insight from ledger via rolesFeed counts (open + exit; not filled claim).
+  {
+    const T = '2026-07-31';
+    const role = (o = {}) => ({
+      provider: 'Greenhouse', slug: 'acme', jobId: 'j', company: 'Acme', title: 'Engineer',
+      location: 'SF', url: 'https://boards.greenhouse.io/acme/jobs/1', fn: 'engineering',
+      usPosted: true, firstSeen: '2026-07-20', lastSeen: T, closedAt: null, reopenCount: 0,
+      nativePostedAt: null, nativeDateField: null, ...o,
+    });
+    const led = {
+      roles: {
+        a: role({ closedAt: T, company: 'GoneCo', url: 'https://boards.greenhouse.io/acme/jobs/2' }),
+        b: role({ closedAt: T, company: 'GoneCo', url: 'https://boards.greenhouse.io/acme/jobs/3' }),
+        c: role({ closedAt: '2026-06-01', company: 'OldClose', url: 'https://boards.greenhouse.io/acme/jobs/4' }),
+        d: role({ company: 'OpenCo', firstSeen: T, url: 'https://boards.greenhouse.io/acme/jobs/5' }),
+        e: role({ company: 'OpenCo', firstSeen: T, url: 'https://boards.greenhouse.io/acme/jobs/6' }),
+      },
+    };
+    const act = boardActivityInsightFromLedger(led, { today: T, days: 7 });
+    assert(act && act.newOpenInWindow === 2 && act.companiesWithNewOpen === 1, `newOpen, got ${JSON.stringify(act)}`);
+    assert(act.closedInWindow === 2 && act.companiesClosedInWindow === 1, 'closed counts');
+    assert(act.byCompanyTop?.[0]?.company === 'OpenCo' && act.byCompanyTop[0].openInWindow === 2, 'byCompanyTop new-open intensity');
+    assert(act.byCompanyClosedTop?.[0]?.company === 'GoneCo', 'top closed company');
+    assert(act.byProvider?.[0]?.provider === 'Greenhouse' && act.byProvider[0].n === 2, 'byProvider new-open landscape');
+    assert(act.byFn?.some((x) => x.fn === 'engineering' && x.n === 2), 'byFn new-open landscape');
+    assert(act.windowExceedsClosureHistory === false, 'long closure history not flagged');
+    assert(boardActivityInsightFromLedger(null) === null, 'null ledger → no insight');
+    assert(boardActivityInsightFromLedger({ roles: {} }, { today: T }) === null, 'empty → null');
+    // Legacy alias requires closures.
+    assert(boardExitInsightFromLedger(led, { today: T, days: 7 })?.closedInWindow === 2, 'exit alias keeps closures');
+    const short = boardActivityInsightFromLedger({
+      roles: {
+        x: role({ closedAt: '2026-07-30', company: 'ShortCo', url: 'https://boards.greenhouse.io/acme/jobs/9' }),
+      },
+    }, { today: T, days: 7 });
+    assert(short?.windowExceedsClosureHistory === true && short.closureObservationSpanDays === 1, 'short closure history flagged');
+    const actHtml = renderPulseHtml({
+      generatedAt: T,
+      levels: {},
+      byFunction: [{ fn: 'engineering', n: 5 }],
+      topHirers: [],
+      atsLandscape: [],
+      batches: [],
+      deltas: null,
+      boardActivityInsight: act,
+      method: 'm',
+    });
+    assert(actHtml.includes('newly first-observed') && actHtml.includes('board-exit'), 'render open+exit');
+    assert(actHtml.includes('not a filled/hired claim'), 'honest negation present');
+    assert(actHtml.includes('ATS landscape') && actHtml.includes('Greenhouse'), 'render byProvider landscape');
+    assert(actHtml.includes('function mix') && actHtml.includes('engineering'), 'render byFn landscape');
+    assert(actHtml.includes('most new opens') && actHtml.includes('OpenCo'), 'render byCompanyTop intensity');
+    assert(actHtml.includes('most board-exits') && actHtml.includes('GoneCo'), 'render byCompanyClosedTop intensity');
+    const shortHtml = renderPulseHtml({
+      generatedAt: T, levels: {}, byFunction: [{ fn: 'engineering', n: 1 }],
+      topHirers: [], atsLandscape: [], batches: [], deltas: null,
+      boardActivityInsight: short, method: 'm',
+    });
+    assert(shortHtml.includes('history caveat'), 'render history caveat when short');
+  }
   // Render is data-driven + escapes: produces HTML, reflects the numbers, no injection.
   const html = renderPulseHtml({ generatedAt: '2026-07-24', levels: { tracked: 2739, hiring: 800, verifiedBoards: 400, verifiedRoles: 11500 }, byFunction: [{ fn: 'engineering', n: 900 }, { fn: 'sales', n: 200 }], topHirers: [{ name: '<script>x</script>', roles: 10 }], atsLandscape: [{ name: 'Ashby', n: 180 }], batches: [], deltas: null, method: 'test' });
   assert(html.includes('2,739') && html.includes('SF Startup Hiring Pulse'), 'render includes levels + masthead');
@@ -364,7 +577,29 @@ if (isMain) {
   const today = process.env.DEMIGOD_PULSE_DATE || new Date().toISOString().slice(0, 10);
   const prior = snapshotAndPrior(map, today);
   const pulse = computePulse(map, prior, today);
+  if (fs.existsSync(LEDGER)) {
+    try {
+      const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
+      const act = boardActivityInsightFromLedger(ledger, { today, days: 7 });
+      if (act) {
+        pulse.boardActivityInsight = act;
+        // Keep legacy key for older consumers that only read board-exit counts.
+        if (act.closedInWindow > 0) pulse.boardExitInsight = act;
+        pulse.method = `${pulse.method} Board activity (new open + board-exit) uses the role ledger — exits are not filled/hired claims.`;
+      }
+    } catch {
+      // Ledger unreadable: pulse still emits map-only facts.
+    }
+  }
   fs.writeFileSync(path.join(outDir, 'hiring-pulse.json'), JSON.stringify(pulse, null, 2) + '\n');
   fs.writeFileSync(path.join(outDir, 'hiring-pulse.html'), renderPulseHtml(pulse));
-  console.log(JSON.stringify({ ok: true, today, prior: prior?.date || null, levels: pulse.levels, byFunction: pulse.byFunction, deltas: pulse.deltas }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    today,
+    prior: prior?.date || null,
+    levels: pulse.levels,
+    byFunction: pulse.byFunction,
+    deltas: pulse.deltas,
+    boardActivityInsight: pulse.boardActivityInsight || null,
+  }, null, 2));
 }

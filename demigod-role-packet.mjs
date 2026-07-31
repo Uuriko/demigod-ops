@@ -310,12 +310,32 @@ export function createNote({
 }
 
 /**
- * Ashby-shaped debrief roundup: aggregate review notes per must-have.
+ * Ashby/BrightHire-shaped debrief roundup: aggregate review notes per must-have.
+ * Optional callNotes: join attributesTouched evidence (manual only — no bot, no score).
  * No average hire score — surfaces disagreement + evidence only.
  */
-export function debriefRoundup(packet, notes = []) {
+export function debriefRoundup(packet, notes = [], { callNotes = [] } = {}) {
   assertPacket(packet);
   const roleNotes = (notes || []).filter((n) => n && n.roleId === packet.roleId);
+  const roleCalls = (callNotes || []).filter(
+    (n) => n && (!n.roleId || n.roleId === packet.roleId),
+  );
+  // BrightHire-thin: map call attribute evidence → must-have ids (never ratings/scores).
+  const callByMust = new Map();
+  for (const cn of roleCalls) {
+    for (const a of cn.attributesTouched || []) {
+      if (!a?.mustHaveId) continue;
+      const list = callByMust.get(a.mustHaveId) || [];
+      list.push({
+        callNoteId: cn.id || null,
+        kind: cn.kind || null,
+        candId: cn.candId || null,
+        evidence: String(a.evidence || '').slice(0, 200),
+        at: cn.at || null,
+      });
+      callByMust.set(a.mustHaveId, list);
+    }
+  }
   const byMust = packet.mustHaves.map((m) => {
     const cells = [];
     for (const n of roleNotes) {
@@ -334,6 +354,7 @@ export function debriefRoundup(packet, notes = []) {
       if (tally[c.rating] != null) tally[c.rating] += 1;
     }
     const distinct = new Set(cells.map((c) => c.rating));
+    const callEv = (callByMust.get(m.id) || []).slice(0, 8);
     return {
       mustHaveId: m.id,
       label: m.label,
@@ -341,6 +362,8 @@ export function debriefRoundup(packet, notes = []) {
       tally,
       disagree: distinct.size > 1,
       cells,
+      callEvidenceN: callEv.length,
+      callEvidence: callEv,
     };
   });
   const aidTally = {
@@ -354,21 +377,267 @@ export function debriefRoundup(packet, notes = []) {
     if (aidTally[a] != null) aidTally[a] += 1;
     else aidTally.none += 1;
   }
+  const callKindTally = { intake: 0, candidate_screen: 0, debrief: 0 };
+  for (const cn of roleCalls) {
+    if (callKindTally[cn.kind] != null) callKindTally[cn.kind] += 1;
+  }
+  // Lever/Ashby-thin: coverage of scorecard rows (not a hire score). Unrated must-haves stay visible.
+  const unratedMustHaves = byMust
+    .filter((m) => m.n === 0)
+    .map((m) => ({ mustHaveId: m.mustHaveId, label: m.label }));
+  const disagreeCount = byMust.filter((m) => m.disagree).length;
+  const ratedMustHaves = byMust.filter((m) => m.n > 0).length;
+  const callLinkedMustHaves = byMust.filter((m) => m.callEvidenceN > 0).length;
+  // GoodTime-thin (no scheduler): which planned interview moments still lack any scorecard note.
+  const planRows = Array.isArray(packet.interviewPlan) ? packet.interviewPlan : [];
+  const byMoment = new Map();
+  for (const row of planRows) {
+    if (!row?.moment || !row?.mustHaveId) continue;
+    const list = byMoment.get(row.moment) || [];
+    list.push(row.mustHaveId);
+    byMoment.set(row.moment, list);
+  }
+  const momentCoverage = [];
+  for (const moment of INTERVIEW_MOMENTS) {
+    const ids = byMoment.get(moment);
+    if (!ids?.length) continue;
+    const unratedIds = ids.filter((id) => {
+      const row = byMust.find((m) => m.mustHaveId === id);
+      return !row || row.n === 0;
+    });
+    momentCoverage.push({
+      moment,
+      planned: ids.length,
+      rated: ids.length - unratedIds.length,
+      unratedMustHaveIds: unratedIds,
+    });
+  }
+  const momentsWithoutNotes = momentCoverage.filter((m) => m.rated === 0).map((m) => m.moment);
   return {
     schema: 'demigod.debrief-roundup/1',
     roleId: packet.roleId,
     title: packet.title,
     stage: packet.stage,
     noteCount: roleNotes.length,
+    callNoteCount: roleCalls.length,
+    callKindTally,
     candidates: [...new Set(roleNotes.map((n) => n.candId))],
     byMustHave: byMust,
+    unratedMustHaves,
+    disagreeCount,
+    coverage: {
+      ratedMustHaves,
+      totalMustHaves: byMust.length,
+      callLinkedMustHaves,
+      complete: byMust.length > 0 && unratedMustHaves.length === 0 && roleNotes.length > 0,
+    },
+    interviewPlanPresent: planRows.length > 0,
+    momentCoverage,
+    momentsWithoutNotes,
     decisionAids: roleNotes.map((n) => ({
       candId: n.candId,
       decisionAid: n.decisionAid || 'none',
     })),
     decisionAidTally: aidTally,
     score: null,
-    policy: 'Debrief over average — no hire score; disagreement is a feature.',
+    policy:
+      'Debrief over average — no hire score; disagreement is a feature; unrated must-haves listed; call evidence is manual only (no bot); momentCoverage is plan feedback gaps only (no scheduler).',
+  };
+}
+
+/**
+ * Ashby-analytics-thin: cross-packet scorecard / plan coverage as counts only.
+ * No completion rate, time-to-fill, hire score, or employee performance graph.
+ */
+export function scorecardLandscape(packets = [], notes = [], { callNotes = [] } = {}) {
+  let packetsN = 0;
+  let withPlan = 0;
+  let withNotes = 0;
+  let complete = 0;
+  let withDisagree = 0;
+  let withEmptyMoments = 0;
+  let emptyMomentsTotal = 0;
+  let unratedMustHaves = 0;
+  let ratedMustHaves = 0;
+  let totalMustHaves = 0;
+  let noteCount = 0;
+  for (const p of packets || []) {
+    if (!p?.roleId) continue;
+    packetsN += 1;
+    try {
+      const d = debriefRoundup(p, notes, { callNotes });
+      if (d.interviewPlanPresent) withPlan += 1;
+      if ((d.noteCount || 0) > 0) withNotes += 1;
+      noteCount += d.noteCount || 0;
+      if (d.coverage?.complete) complete += 1;
+      if ((d.disagreeCount || 0) > 0) withDisagree += 1;
+      const empty = d.momentsWithoutNotes || [];
+      if (empty.length > 0) {
+        withEmptyMoments += 1;
+        emptyMomentsTotal += empty.length;
+      }
+      unratedMustHaves += (d.unratedMustHaves || []).length;
+      ratedMustHaves += d.coverage?.ratedMustHaves || 0;
+      totalMustHaves += d.coverage?.totalMustHaves || 0;
+    } catch {
+      /* skip corrupt packets — landscape is observational */
+    }
+  }
+  return {
+    packets: packetsN,
+    withPlan,
+    withNotes,
+    complete,
+    withDisagree,
+    withEmptyMoments,
+    emptyMomentsTotal,
+    unratedMustHaves,
+    ratedMustHaves,
+    totalMustHaves,
+    noteCount,
+  };
+}
+
+/**
+ * Ashby/Lever-thin: cross-note rating-cell landscape as counts only.
+ * Tallies evidence ratings given — never averages, pass rates, or hire scores.
+ */
+export function ratingLandscape(notes = []) {
+  const byRating = Object.fromEntries(RATINGS.map((r) => [r, 0]));
+  let notesN = 0;
+  let cells = 0;
+  let other = 0;
+  for (const n of notes || []) {
+    if (!n || !Array.isArray(n.ratings)) continue;
+    notesN += 1;
+    for (const r of n.ratings) {
+      if (!r) continue;
+      cells += 1;
+      if (byRating[r.rating] != null) byRating[r.rating] += 1;
+      else other += 1;
+    }
+  }
+  return {
+    notes: notesN,
+    cells,
+    byRating,
+    other,
+  };
+}
+
+/**
+ * Lever/Ashby-thin: cross-packet interview-kit landscape (must-haves + deal-breakers).
+ * Counts only — no kit quality score, hire score, or attribute ranking.
+ */
+export function kitLandscape(packets = []) {
+  let packetsN = 0;
+  let mustHaves = 0;
+  let dealBreakers = 0;
+  let withDealBreakers = 0;
+  const byKind = {};
+  for (const p of packets || []) {
+    if (!p?.roleId) continue;
+    packetsN += 1;
+    const mhs = Array.isArray(p.mustHaves) ? p.mustHaves : [];
+    mustHaves += mhs.length;
+    for (const m of mhs) {
+      const k = String(m?.kind || 'skill');
+      byKind[k] = (byKind[k] || 0) + 1;
+    }
+    const dbs = Array.isArray(p.dealBreakers) ? p.dealBreakers : [];
+    dealBreakers += dbs.length;
+    if (dbs.length > 0) withDealBreakers += 1;
+  }
+  return {
+    packets: packetsN,
+    mustHaves,
+    dealBreakers,
+    withDealBreakers,
+    withoutDealBreakers: Math.max(0, packetsN - withDealBreakers),
+    byKind,
+  };
+}
+
+/**
+ * Lever/Ashby-thin: cross-note decision-aid landscape as counts only.
+ * Observes how reviewers tagged aids — never a quality/hire score.
+ */
+export function decisionAidLandscape(notes = []) {
+  const byAid = Object.fromEntries(DECISION_AIDS.map((a) => [a, 0]));
+  let total = 0;
+  let other = 0;
+  for (const n of notes || []) {
+    if (!n || (n.id == null && n.roleId == null && n.candId == null)) continue;
+    total += 1;
+    const aid = n.decisionAid || 'none';
+    if (byAid[aid] != null) byAid[aid] += 1;
+    else other += 1;
+  }
+  return {
+    total,
+    byAid,
+    other,
+  };
+}
+
+/**
+ * Ashby-pipeline-thin: cross-packet stage landscape as counts only.
+ * No time-in-stage, conversion rates, or hire funnel scores.
+ */
+export function stageLandscape(packets = []) {
+  const byStage = Object.fromEntries(STAGES.map((s) => [s, 0]));
+  let packetsN = 0;
+  let unknown = 0;
+  for (const p of packets || []) {
+    if (!p?.roleId) continue;
+    packetsN += 1;
+    const st = p.stage;
+    if (byStage[st] != null) byStage[st] += 1;
+    else unknown += 1;
+  }
+  return {
+    packets: packetsN,
+    byStage,
+    unknown,
+  };
+}
+
+/**
+ * Levels/Pave-thin: cross-packet comp-band source landscape as counts only.
+ * Never pay scores, market percentiles, or inferred bands without quote/source.
+ */
+export function compBandLandscape(packets = []) {
+  const bySource = {
+    public_job_post: 0,
+    founder_stated: 0,
+    unknown: 0,
+    none: 0,
+  };
+  let packetsN = 0;
+  let withBand = 0;
+  let withUrl = 0;
+  let withQuote = 0;
+  for (const p of packets || []) {
+    if (!p?.roleId) continue;
+    packetsN += 1;
+    const b = p.compBand;
+    if (!b || !String(b.text || '').trim()) {
+      bySource.none += 1;
+      continue;
+    }
+    withBand += 1;
+    const src = COMP_SOURCES.includes(b.source) ? b.source : 'unknown';
+    bySource[src] += 1;
+    if (String(b.url || '').trim()) withUrl += 1;
+    if (String(b.quote || '').trim()) withQuote += 1;
+  }
+  return {
+    packets: packetsN,
+    withBand,
+    withoutBand: bySource.none,
+    withUrl,
+    withQuote,
+    bySource,
   };
 }
 
@@ -545,8 +814,121 @@ function selftest() {
   assert(round.schema === 'demigod.debrief-roundup/1' && round.score === null, 'debrief');
   assert(round.byMustHave.length === p2.mustHaves.length && round.noteCount === 1, 'debrief rows');
   assert(round.decisionAidTally?.changed_by_context === 1, 'decisionAid tally');
+  assert(typeof round.disagreeCount === 'number', 'disagreeCount');
+  assert(Array.isArray(round.unratedMustHaves), 'unratedMustHaves list');
+  assert(round.coverage && typeof round.coverage.ratedMustHaves === 'number', 'coverage shape');
+  assert(typeof round.interviewPlanPresent === 'boolean', 'interviewPlanPresent');
+  // Second note missing one must-have rating → unrated stays honest when no cells.
+  const emptyRound = debriefRoundup(p2, []);
+  assert(emptyRound.unratedMustHaves.length === p2.mustHaves.length, 'no notes → all unrated');
+  assert(emptyRound.coverage.complete === false, 'empty debrief not complete');
+  // BrightHire-thin: call attributesTouched join without ratings/scores.
+  const mh0 = p2.mustHaves[0].id;
+  const withCalls = debriefRoundup(p2, [note], {
+    callNotes: [
+      {
+        id: 'cn1',
+        kind: 'candidate_screen',
+        roleId: p2.roleId,
+        candId: 'c-x',
+        at: '2026-07-28T00:00:00.000Z',
+        attributesTouched: [{ mustHaveId: mh0, evidence: 'talked systems design for 20 minutes' }],
+      },
+    ],
+  });
+  assert(withCalls.callNoteCount === 1 && withCalls.callKindTally.candidate_screen === 1, 'call counts');
+  assert(
+    withCalls.byMustHave.some((m) => m.mustHaveId === mh0 && m.callEvidenceN === 1),
+    'call evidence linked to must-have',
+  );
+  assert(withCalls.coverage.callLinkedMustHaves >= 1, 'coverage call-linked');
+  // GoodTime-thin: planned moments with zero notes surface as momentsWithoutNotes (no scheduler).
+  const planned2 = setInterviewPlan(p2); // default plan on must-haves
+  const emptyMoments = debriefRoundup(planned2, []);
+  assert(Array.isArray(emptyMoments.momentCoverage), 'momentCoverage list');
+  assert(emptyMoments.momentCoverage.length >= 1, 'plan → momentCoverage rows');
+  assert(
+    emptyMoments.momentsWithoutNotes.length === emptyMoments.momentCoverage.length,
+    'no notes → every planned moment empty',
+  );
+  const partialMoments = debriefRoundup(planned2, [note]);
+  assert(
+    partialMoments.momentsWithoutNotes.length < emptyMoments.momentsWithoutNotes.length ||
+      partialMoments.momentCoverage.every((m) => m.rated > 0),
+    'notes shrink empty moments or fill all',
+  );
+  assert(withCalls.score === null, 'calls never introduce score');
+  // Ashby-analytics-thin scorecard landscape (counts only; no rates/scores).
+  const landEmpty = scorecardLandscape([planned2], []);
+  assert(landEmpty.packets === 1 && landEmpty.withPlan === 1, 'landscape plan count');
+  assert(landEmpty.withNotes === 0 && landEmpty.complete === 0, 'landscape empty notes');
+  assert(landEmpty.unratedMustHaves >= 1, 'landscape unrated musts');
+  assert(!('completionRate' in landEmpty) && !('score' in landEmpty), 'landscape no rates/score');
+  const landNotes = scorecardLandscape([planned2], [note]);
+  assert(landNotes.withNotes === 1 && landNotes.noteCount === 1, 'landscape note counts');
+  assert(landNotes.ratedMustHaves >= 1, 'landscape rated after note');
+  // Levels/Pave-thin comp band landscape (counts only; no pay scores).
+  const noComp = compBandLandscape([planned2]);
+  assert(noComp.packets === 1 && noComp.withoutBand === 1 && noComp.withBand === 0, 'comp none');
+  assert(noComp.bySource.none === 1, 'comp bySource.none');
+  const withPublic = setCompBand(planned2, {
+    text: '$180–220k + equity',
+    source: 'public_job_post',
+    url: 'https://jobs.ashbyhq.com/demo/role-1',
+    quote: 'Base salary range $180,000 – $220,000 USD',
+  });
+  const landComp = compBandLandscape([withPublic, planned2]);
+  assert(landComp.withBand === 1 && landComp.bySource.public_job_post === 1, 'comp public count');
+  assert(landComp.withUrl === 1 && landComp.withQuote === 1, 'comp url+quote counts');
+  assert(landComp.withoutBand === 1, 'comp mixed without');
+  assert(!('percentile' in landComp) && !('score' in landComp) && !('marketRate' in landComp), 'comp no scores');
+  // Ashby-pipeline-thin stage landscape (counts only; no conversion rates).
+  const stagesLand = stageLandscape([
+    { roleId: 'a', stage: 'brief_ready' },
+    { roleId: 'b', stage: 'reviewing' },
+    { roleId: 'c', stage: 'reviewing' },
+    { roleId: 'd', stage: 'intro' },
+  ]);
+  assert(stagesLand.packets === 4, 'stage packets');
+  assert(stagesLand.byStage.brief_ready === 1 && stagesLand.byStage.reviewing === 2, 'stage byStage');
+  assert(stagesLand.byStage.intro === 1 && stagesLand.byStage.outcome === 0, 'stage intro/outcome');
+  assert(stagesLand.unknown === 0, 'stage unknown');
+  assert(!('conversionRate' in stagesLand) && !('timeInStage' in stagesLand) && !('score' in stagesLand), 'stage no rates');
+  // Lever/Ashby-thin decision-aid landscape (counts only; no quality score).
+  const aidsLand = decisionAidLandscape([
+    note,
+    { id: 'n2', roleId: 'r', candId: 'c2', decisionAid: 'missing_question' },
+    { id: 'n3', roleId: 'r', candId: 'c3', decisionAid: 'none' },
+  ]);
+  assert(aidsLand.total === 3, 'decisionAid total');
+  assert(aidsLand.byAid.changed_by_context === 1, 'decisionAid changed_by_context');
+  assert(aidsLand.byAid.missing_question === 1 && aidsLand.byAid.none === 1, 'decisionAid missing/none');
+  assert(aidsLand.byAid.error_prevented === 0 && aidsLand.other === 0, 'decisionAid empty bins');
+  assert(!('qualityScore' in aidsLand) && !('score' in aidsLand), 'decisionAid no scores');
+  // Lever/Ashby-thin kit landscape (must-have + deal-breaker counts only).
+  const kitBare = kitLandscape([p2]);
+  assert(kitBare.packets === 1 && kitBare.mustHaves >= 3, 'kit mustHaves');
+  assert(kitBare.dealBreakers === 0 && kitBare.withoutDealBreakers === 1, 'kit no db yet');
+  assert(kitBare.byKind && typeof kitBare.byKind.skill === 'number', 'kit byKind');
+  assert(!('score' in kitBare) && !('qualityScore' in kitBare), 'kit no scores');
+  // Ashby/Lever-thin rating landscape (cell counts only; no averages/pass rates).
+  const rateLand = ratingLandscape([note]);
+  assert(rateLand.notes === 1 && rateLand.cells >= 3, 'rating notes/cells');
+  assert(
+    rateLand.byRating.yes + rateLand.byRating.strong_yes + rateLand.byRating.no + rateLand.byRating.strong_no ===
+      rateLand.cells,
+    'rating byRating sums to cells',
+  );
+  assert(rateLand.other === 0, 'rating other empty');
+  assert(
+    !('average' in rateLand) && !('passRate' in rateLand) && !('score' in rateLand),
+    'rating no averages/scores',
+  );
   const withDb = addDealBreaker(p2, 'Requires full remote outside US');
   assert(withDb.dealBreakers.length === 1 && withDb.dealBreakers[0].id === 'db1', 'deal-breaker');
+  const kitDb = kitLandscape([withDb]);
+  assert(kitDb.dealBreakers === 1 && kitDb.withDealBreakers === 1, 'kit with deal-breaker');
+  assert(kitDb.withoutDealBreakers === 0, 'kit all have db');
   let threwDb = false;
   try {
     addDealBreaker(p2, 'x');

@@ -17,7 +17,8 @@ const sha256 = (file) => fs.existsSync(file) ? crypto.createHash('sha256').updat
 const raw = {
   'full-name': 'Candidate', 'seeker-email': 'candidate@example.com', 'skills-stack': 'Product design',
   experience: 'Shipped onboarding', 'sf-bay': 'yes', availability: 'now',
-  'salary-expectation': '$170–190k base', 'resume-url': 'https://example.com/resume.pdf',
+  'salary-expectation': '$170–190k base', 'work-auth': 'authorized',
+  'resume-url': 'https://example.com/resume.pdf',
 };
 assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'new', raw }), false);
 assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'reviewed', raw }), true);
@@ -53,7 +54,7 @@ const optedOut = { id: 'cand-not-open', form: 'candidate', status: 'reviewed', r
 assert.equal(candidateProfileReadiness(optedOut).preferenceReady, false);
 assert.equal(isMatchingReadyCandidate(optedOut), false);
 assert.deepEqual(redactItem(optedOut).matchingBlockers, ['sf-bay-not-open']);
-for (const key of ['availability', 'salary-expectation']) {
+for (const key of ['availability', 'salary-expectation', 'work-auth']) {
   const incomplete = { ...raw, [key]: '' };
   assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', raw: incomplete }), false, key);
   assert.ok(candidateProfileReadiness({ form: 'candidate', status: 'reviewed', raw: incomplete }).missing.includes(key), key);
@@ -66,12 +67,13 @@ const contactConstraints = candidateProfileReadiness({
     'sf-bay': 'victim@example.com',
     availability: 'victim@example.com',
     'salary-expectation': 'victim@example.com',
+    'work-auth': 'victim@example.com',
   },
 });
 assert.equal(contactConstraints.matchReady, false);
 assert.deepEqual(
-  contactConstraints.missing.filter((key) => ['sf-bay', 'availability', 'salary-expectation'].includes(key)),
-  ['sf-bay', 'availability', 'salary-expectation'],
+  contactConstraints.missing.filter((key) => ['sf-bay', 'availability', 'salary-expectation', 'work-auth'].includes(key)),
+  ['sf-bay', 'availability', 'salary-expectation', 'work-auth'],
 );
 const contactProfile = candidateProfileReadiness({
   form: 'candidate',

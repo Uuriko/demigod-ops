@@ -48,6 +48,12 @@ const ANOMALY_GRACE_DAYS = 2;
 const TIMEOUT = 8000;
 const CONCURRENCY = 12;
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const ROLE_FIELDS = new Set([
+  'provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted',
+  'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField',
+  'nativeUpdatedAt', 'nativeUpdatedAfterFirstPublished', 'agencyPolicyEvidence',
+  'postedDateChangeCount', 'lastReportedPostedAt',
+]);
 
 const roleKey = (provider, slug, jobId) => `${provider}|${slug}|${jobId}`;
 const toDate = (x) => { if (x == null) return null; const d = typeof x === 'number' ? new Date(x) : new Date(String(x)); return Number.isNaN(+d) ? null : d.toISOString().slice(0, 10); };
@@ -58,6 +64,62 @@ export const observedOpenDays = (row, today) => daysBetween(row.firstSeen, today
 // Attributed posting age — ONLY where the native field is a real posting date (Greenhouse first_published).
 export const postedDaysAgo = (row, today) => (row.nativePostedAt && row.nativeDateField === 'first_published') ? daysBetween(row.nativePostedAt, today) : null;
 
+function greenhouseDateFields(job = {}) {
+  const nativePostedAt = toDate(job.first_published);
+  const nativeUpdatedAt = toDate(job.updated_at);
+  const postedMs = Date.parse(job.first_published);
+  const updatedMs = Date.parse(job.updated_at);
+  return {
+    nativePostedAt,
+    nativeDateField: 'first_published',
+    nativeUpdatedAt,
+    nativeUpdatedAfterFirstPublished:
+      nativePostedAt && nativeUpdatedAt && Number.isFinite(postedMs) && Number.isFinite(updatedMs)
+        ? updatedMs > postedMs
+        : null,
+  };
+}
+
+function validLedgerRole(key, row) {
+  const hasUpdatedAt = isRecord(row) && Object.hasOwn(row, 'nativeUpdatedAt');
+  const hasUpdatedFlag =
+    isRecord(row) && Object.hasOwn(row, 'nativeUpdatedAfterFirstPublished');
+  return (
+    isRecord(row) &&
+    Object.keys(row).every((field) => ROLE_FIELDS.has(field)) &&
+    Object.hasOwn(POLLERS, row.provider) &&
+    normalizeAtsJobId(row.slug) === row.slug &&
+    normalizeAtsJobId(row.jobId) === row.jobId &&
+    roleKey(row.provider, row.slug, row.jobId) === key &&
+    ['company', 'title', 'location', 'url', 'fn'].every(
+      (field) => typeof row[field] === 'string',
+    ) &&
+    typeof row.usPosted === 'boolean' &&
+    isDay(row.firstSeen) &&
+    isDay(row.lastSeen) &&
+    row.firstSeen <= row.lastSeen &&
+    (row.closedAt === null || (isDay(row.closedAt) && row.closedAt >= row.lastSeen)) &&
+    Number.isSafeInteger(row.reopenCount) &&
+    row.reopenCount >= 0 &&
+    (row.nativePostedAt === null || isDay(row.nativePostedAt)) &&
+    (row.nativeDateField === null || typeof row.nativeDateField === 'string') &&
+    (!Object.hasOwn(row, 'postedDateChangeCount') ||
+      (Number.isSafeInteger(row.postedDateChangeCount) && row.postedDateChangeCount > 0)) &&
+    (!Object.hasOwn(row, 'lastReportedPostedAt') || isDay(row.lastReportedPostedAt)) &&
+    hasUpdatedAt === hasUpdatedFlag &&
+    (!hasUpdatedAt ||
+      (row.provider === 'Greenhouse' &&
+        (row.nativeUpdatedAt === null || isDay(row.nativeUpdatedAt)) &&
+        (row.nativeUpdatedAfterFirstPublished === null ||
+          typeof row.nativeUpdatedAfterFirstPublished === 'boolean') &&
+        (!row.nativeUpdatedAfterFirstPublished ||
+          (row.nativeDateField === 'first_published' &&
+            isDay(row.nativePostedAt) &&
+            isDay(row.nativeUpdatedAt) &&
+            row.nativeUpdatedAt >= row.nativePostedAt))))
+  );
+}
+
 function loadLedger() {
   const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
   const roles = ledger?.roles;
@@ -65,23 +127,7 @@ function loadLedger() {
     ledger?.schema !== SCHEMA ||
     !isDay(ledger.updatedAt) ||
     !isRecord(roles) ||
-    Object.entries(roles).some(([key, row]) =>
-      !isRecord(row) ||
-      !Object.hasOwn(POLLERS, row.provider) ||
-      normalizeAtsJobId(row.slug) !== row.slug ||
-      normalizeAtsJobId(row.jobId) !== row.jobId ||
-      roleKey(row.provider, row.slug, row.jobId) !== key ||
-      ['company', 'title', 'location', 'url', 'fn'].some((field) => typeof row[field] !== 'string') ||
-      typeof row.usPosted !== 'boolean' ||
-      !isDay(row.firstSeen) ||
-      !isDay(row.lastSeen) ||
-      row.firstSeen > row.lastSeen ||
-      (row.closedAt !== null && (!isDay(row.closedAt) || row.closedAt < row.lastSeen)) ||
-      !Number.isSafeInteger(row.reopenCount) ||
-      row.reopenCount < 0 ||
-      (row.nativePostedAt !== null && !isDay(row.nativePostedAt)) ||
-      (row.nativeDateField !== null && typeof row.nativeDateField !== 'string')
-    )
+    Object.entries(roles).some(([key, row]) => !validLedgerRole(key, row))
   ) throw new Error('invalid role ledger');
   return ledger;
 }
@@ -94,17 +140,21 @@ export function extractAgencyPolicyEvidence(raw, url) {
     .trim();
   // Positive-only: only flag when JD text explicitly rejects unsolicited agency submissions.
   // Never treat silence or "we use agencies" as evidence.
+  // AR-27: positive-only no-agency phrases (never invent from silence or "we partner with agencies").
   const match = [
     /\b(?:we\s+)?(?:do|does|will)\s+not\s+accept\s+unsolicited\s+(?:agency|recruiter)\s+(?:resumes?|submissions?|applications?)\b/i,
     /\b(?:we\s+)?(?:do|does|will)\s+not\s+accept\s+unsolicited\s+(?:resumes?|submissions?|applications?)\s+from\s+(?:any\s+)?(?:recruiting|recruitment|staffing|employment|search)\s+(?:agencies|firms|companies|recruiters?)\b/i,
     /\bno\s+(?:third[- ]party\s+)?(?:agencies|agency recruiters?|recruiters?)\s+(?:please|submissions?)\b/i,
-    /\b(?:agency|recruiter)\s+(?:submissions?|resumes?)\s+(?:are|will be)\s+not\s+accepted\b/i,
+    /\b(?:agency|recruiter)\s+(?:submissions?|resumes?|referrals?)\s+(?:are|will be)\s+not\s+accepted\b/i,
     /\bunsolicited\s+(?:agency|recruiter)\s+(?:resumes?|submissions?)\s+(?:are|will be)\s+(?:not\s+)?(?:accepted|considered)\b/i,
+    /\bunsolicited\s+(?:resumes?|submissions?)\s+from\s+(?:agencies|recruiters|staffing)\s+(?:will|are)\s+not\s+(?:be\s+)?(?:accepted|considered)\b/i,
     /\bplease\s+do\s+not\s+contact\s+(?:us\s+)?(?:via|through|with)\s+(?:an?\s+)?(?:agency|recruiter|staffing)\b/i,
     /\bagencies?\s+(?:will\s+not|won't)\s+be\s+(?:paid|compensated|accepted)\b/i,
     /\bno\s+(?:fee|placement)\s+(?:agency|recruiter)\s+(?:calls|emails|submissions?)\b/i,
+    /\bno\s+agency\s+(?:submissions?|referrals?|resumes?)\b/i,
     /\bdirect\s+applicants?\s+only\b[^.!?]{0,40}\b(?:agency|recruiter)\b/i,
-    /\b(?:we\s+)?(?:do|does|will)\s+not\s+work\s+with\s+(?:outside\s+)?(?:agencies|recruiters|staffing firms)\b/i,
+    /\b(?:we\s+)?(?:do|does|will)\s+not\s+work\s+with\s+(?:outside\s+)?(?:agencies|recruiters|staffing firms|recruitment agencies)\b/i,
+    /\b(?:we\s+)?(?:do|does|will)\s+not\s+accept\s+(?:resumes?|submissions?)\s+from\s+(?:agencies|third[- ]party\s+recruiters?)\b/i,
   ].map((pattern) => text.match(pattern)?.[0]).find(Boolean);
   const evidenceUrl = safeResearchUrl(url);
   // Export contract caps evidence quotes at 20 tokens.
@@ -171,6 +221,13 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
       const disp = { title: r.title || '', location: r.location || '', url: roleUrl };
       const policy = normalizeAgencyPolicyEvidence(r.agencyPolicyEvidence);
       const agencyPolicyEvidence = policy?.url === roleUrl ? policy : null;
+      const nativeUpdate = Object.hasOwn(r, 'nativeUpdatedAt')
+        ? {
+            nativeUpdatedAt: r.nativeUpdatedAt ?? null,
+            nativeUpdatedAfterFirstPublished:
+              r.nativeUpdatedAfterFirstPublished ?? null,
+          }
+        : {};
       if (!ex) {
         next[key] = {
           provider, slug, jobId,
@@ -178,6 +235,7 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
           fn: categorizeRole(disp.title), usPosted: isUsPostedLocation(disp.location),
           firstSeen: today, lastSeen: today, closedAt: null, reopenCount: 0,
           nativePostedAt: r.nativePostedAt || null, nativeDateField: r.nativeDateField || null,
+          ...nativeUpdate,
           agencyPolicyEvidence,
         };
       } else {
@@ -202,6 +260,7 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
         // Track the board's current answer so the next poll compares like with like. The gap
         // between this and nativePostedAt IS the renewal evidence: floor vs what the board claims.
         if (r.nativePostedAt && r.nativePostedAt !== ex.nativePostedAt) ex.lastReportedPostedAt = r.nativePostedAt;
+        Object.assign(ex, nativeUpdate);
         if (disp.title) ex.title = disp.title;
         if (disp.location) { ex.location = disp.location; ex.usPosted = isUsPostedLocation(disp.location); }
         if (rawUrl) ex.url = disp.url;
@@ -410,8 +469,7 @@ const POLLERS = {
       title: j.title || '',
       location: j.location?.name || '',
       url: j.absolute_url || '',
-      nativePostedAt: toDate(j.first_published),
-      nativeDateField: 'first_published',
+      ...greenhouseDateFields(j),
       agencyPolicyEvidence: extractAgencyPolicyEvidence(j.content, j.absolute_url),
     }));
     return { ok: Boolean(roles), roles: roles || [] };
@@ -532,6 +590,23 @@ if (isMain && process.argv.includes('--selftest')) {
   const T0 = '2026-07-01', T1 = '2026-07-20';
   const board = (ok, roles) => [{ provider: 'Greenhouse', slug: 'acme', company: 'Acme', ok, roles }];
   const R = (jobId, extra = {}) => ({ jobId, title: 'Senior Backend Engineer', location: 'San Francisco, CA', url: '', ...extra });
+  const sameDayUpdate = greenhouseDateFields({
+    first_published: '2026-07-01T09:00:00-07:00',
+    updated_at: '2026-07-01T10:00:00-07:00',
+  });
+  assert(
+    sameDayUpdate.nativePostedAt === '2026-07-01' &&
+      sameDayUpdate.nativeUpdatedAt === '2026-07-01' &&
+      sameDayUpdate.nativeUpdatedAfterFirstPublished === true,
+    'Greenhouse timestamps preserve a same-day updated-after-published signal',
+  );
+  assert(
+    greenhouseDateFields({
+      first_published: '2026-07-01T09:00:00Z',
+      updated_at: '2026-07-01T09:00:00Z',
+    }).nativeUpdatedAfterFirstPublished === false,
+    'equal Greenhouse timestamps are not an update-after-publish signal',
+  );
   const agencyPolicyEvidence = extractAgencyPolicyEvidence(
     '<p>We do not accept unsolicited resumes from staffing agencies.</p>',
     'https://boards.greenhouse.io/acme/jobs/policy',
@@ -551,6 +626,34 @@ if (isMain && process.argv.includes('--selftest')) {
       'https://boards.greenhouse.io/acme/jobs/p2',
     )?.status === 'supported',
     'broader no-pay-agency phrase is evidence',
+  );
+  assert(
+    extractAgencyPolicyEvidence(
+      'No agency submissions. Apply directly on our careers page.',
+      'https://boards.greenhouse.io/acme/jobs/p3',
+    )?.status === 'supported',
+    'no agency submissions phrase is evidence',
+  );
+  assert(
+    extractAgencyPolicyEvidence(
+      'Unsolicited resumes from agencies will not be considered.',
+      'https://boards.greenhouse.io/acme/jobs/p4',
+    )?.status === 'supported',
+    'unsolicited-from-agencies phrase is evidence',
+  );
+  assert(
+    extractAgencyPolicyEvidence(
+      'Agency referrals are not accepted for this role.',
+      'https://boards.greenhouse.io/acme/jobs/p5',
+    )?.status === 'supported',
+    'agency referrals not accepted is evidence',
+  );
+  assert(
+    extractAgencyPolicyEvidence(
+      'We partner with select staffing agencies for volume hiring.',
+      'https://boards.greenhouse.io/acme/jobs/p6',
+    ) === null,
+    'partner-with-agencies without refusal stays unknown',
   );
 
   // seed one open role
@@ -648,10 +751,24 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(dup.roles[k].closedAt === null && dup.roles[k].reopenCount === 0, 'dup board same poll: empty sibling does not close/flap the populated role');
 
   // no PII / allowed shape only
-  const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField', 'agencyPolicyEvidence',
-    'postedDateChangeCount', 'lastReportedPostedAt']);
   // Same trap on a privacy guard: an empty row would satisfy `.every()` and report "no PII".
-  assert(Object.keys(L.roles[k]).length > 0 && Object.keys(L.roles[k]).every((key) => allowed.has(key)), 'row has no fields outside the allowed (no PII)');
+  assert(Object.keys(L.roles[k]).length > 0 && validLedgerRole(k, L.roles[k]), 'row has no fields outside the allowed (no PII)');
+  assert(
+    !validLedgerRole(k, { ...L.roles[k], email: 'leak@example.com' }),
+    'unknown ledger fields fail the shared loader boundary',
+  );
+  {
+    const updated = upsertLedger(
+      null,
+      board(true, [R('updated', sameDayUpdate)]),
+      T0,
+    ).roles['Greenhouse|acme|updated'];
+    assert(
+      updated.nativeUpdatedAt === '2026-07-01' &&
+        updated.nativeUpdatedAfterFirstPublished === true,
+      'Greenhouse update attribution survives the ledger projection',
+    );
+  }
 
   // --- posting-date renewal detection (ATS auto-renew, 30-90d cycles) -----------------------
   {
@@ -873,6 +990,8 @@ if (isMain && process.argv.includes('--selftest')) {
       ['non-record row purge', ['purge-denied'], withChange((x) => { x.roles[k] = 'bad'; }), false],
       ['bad identity report', ['report', '--json'], withChange((x) => { x.roles[k].jobId = 'other'; }), false],
       ['bad lifecycle poll', ['poll'], withChange((x) => { x.roles[k].firstSeen = 'not-a-day'; }), false],
+      ['unknown row field report', ['report', '--json'], withChange((x) => { x.roles[k].email = 'leak@example.com'; }), false],
+      ['unpaired native update report', ['report', '--json'], withChange((x) => { x.roles[k].nativeUpdatedAt = T0; }), false],
     ];
     try {
       fs.writeFileSync(path.join(tmp, 'DEMIGOD-SF-STARTUP-MAP.json'), '{"companies":[]}\n');

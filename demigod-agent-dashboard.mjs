@@ -906,7 +906,12 @@ function companySignalInboxView(feed) {
     };
     if (
       feed?.schema !== 'demigod.recruitai-signals/3' ||
-      feed.sourceSchema !== 'demigod.recruitai-export/3' ||
+      ![
+        'demigod.recruitai-export/3',
+        'demigod.recruitai-export/4',
+        'demigod.recruitai-export/5',
+        'demigod.recruitai-export/6',
+      ].includes(feed.sourceSchema) ||
       feed.changeBasis !== 'ledger-observation' ||
       feed.velocity?.basis !==
         'exact ledger-observation sums; latest snapshot per observed date; no inferred rate' ||
@@ -2550,6 +2555,26 @@ const JOBS = Object.assign(Object.create(null), {
     args: ['demigod-enrichment.mjs', 'scoreboard'],
     timeout: 60000,
     safe: true,
+  },
+  'ledger-reclassify-dry': {
+    cmd: 'node',
+    args: ['demigod-enrichment.mjs', 'reclassify', '--dry-run'],
+    timeout: 120000,
+    safe: true,
+  },
+  'ledger-reclassify': {
+    cmd: 'node',
+    args: ['demigod-enrichment.mjs', 'reclassify'],
+    timeout: 120000,
+    safe: false,
+    mutate: true,
+  },
+  'map-role-mix-enrich': {
+    cmd: 'node',
+    args: ['demigod-directory-aging.mjs', '--enrich-map'],
+    timeout: 120000,
+    safe: false,
+    mutate: true,
   },
   'ats-board-coverage': {
     cmd: 'node',

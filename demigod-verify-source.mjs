@@ -17,6 +17,8 @@ import { spawnSync } from 'child_process';
 import { scanLiveHtml, markerPresent } from './demigod-live-lib.mjs';
 import { runFootSmoke } from './demigod-foot-smoke.mjs';
 import { verifyNoCommittableSor } from './demigod-no-committable-sor-lib.mjs';
+import { staticBodyTextLength } from './demigod-seo-audit.mjs';
+import { CURRENT_FEE_TERMS } from './demigod-revenue.mjs';
 
 const ROOT = '/home/potter';
 const OUT = path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
@@ -54,6 +56,38 @@ const cdnHeadCss = head.includes('rel="stylesheet"') && /https:\/\/(?:files\.cat
 const combined = `${head}\n${headCss}\n${foot}`;
 const coreJs = cdnFoot ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
 const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined;
+
+{
+  const currentFiles = [
+    'demigod-funnel.mjs',
+    'demigod-intro-draft.mjs',
+    'demigod-meta-audit.mjs',
+    'demigod-pricing-fragment.mjs',
+    'deliverables-demigod-pricing-fragment.html',
+    'demigod-ops/REPLY-TEMPLATES.md',
+    'DEMIGOD-EVENTS-BOT.md',
+    'docs/events/EVENTBOT-MASTER-SPEC.md',
+    'docs/gtm/FEE-ONE-PAGER.md',
+    'docs/process/HIRE-INVOICE-OUTCOME-CHECKLIST.md',
+    'DEMIGOD-REFERRAL-SIMPLE.md',
+    'docs/DEMIGOD-HANDBOOK.md',
+  ];
+  const sources = [
+    ['demigod-head-minimal.html', head],
+    ['demigod-foot-core.js', coreJs],
+    ...currentFiles.map((file) => [file, fs.readFileSync(path.join(ROOT, file), 'utf8')]),
+  ];
+  const legacy = /(?:\bfirst-year cash(?: salary| compensation)?\b|\bbase cash\b)/i;
+  const stale = sources.filter(([, text]) => legacy.test(text)).map(([file]) => file);
+  check(
+    'commercial:fee-basis',
+    head.includes(CURRENT_FEE_TERMS.basis) &&
+      coreJs.includes(`10% of ${CURRENT_FEE_TERMS.basis}`) &&
+      coreJs.includes(CURRENT_FEE_TERMS.exclusions) &&
+      stale.length === 0,
+    stale.length ? `ambiguous fee basis remains in ${stale.join(', ')}` : 'website must carry the canonical fee basis and exclusions',
+  );
+}
 
 {
   const retired = /(?:\bdgFormAnalytics\b|__dgFormAnalyticsSeen|__dgWebhookUrl|\/analytics\/forms\b|\bformAnalytics\b|demigod-form-analytics\.mjs|\bfunnel-report\b)/;
@@ -98,24 +132,32 @@ check('head:mobile-no-reserved-scrollbar-gutter', /@media\(max-width:480px\)\{\s
 check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !head.includes('hello@trydemigod.com') && !head.includes('hello@demigod.com'));
 check(
   'head:nojs-hero-flow',
-  /<noscript id="dg-path-noscript">[\s\S]*?<style id="dg-nojs-hero">html:not\(\.w-mod-js\) \.hero-section h1,html:not\(\.w-mod-js\) \.header h1,html:not\(\.w-mod-js\) \.hero-title\{height:auto!important;min-height:0!important\}<\/style>/.test(head),
+  /<style id="dg-nojs-hero">html:not\(\.w-mod-js\) \.hero-section h1,html:not\(\.w-mod-js\) \.header h1,html:not\(\.w-mod-js\) \.hero-title\{height:auto!important;min-height:0!important\}<\/style>/.test(head),
   'the authored no-JavaScript hero heading must use intrinsic height without affecting the JavaScript-on critical box',
 );
 {
-  const noJs = (head.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
+  const noJs = (foot.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
+  const loaderNoJs = (footLoader.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
   check(
-    'head:nojs-native-actions',
-    noJs.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
-      noJs.includes('Hire talent by email') &&
+    'footer:nojs-native-actions',
+    head.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
+      noJs.includes('Browse verified startup hiring') &&
       noJs.includes('Join the talent network by email') &&
       (noJs.match(/mailto:potter@trydemigod\.com\?subject=/g) || []).length === 2 &&
+      loaderNoJs === noJs &&
       !/href=["']\/\?(?:p|wiz)=/.test(noJs),
-    'no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs',
+    'body fallback must expose native Home/directory/email actions, not script-only routes or inert hash CTAs',
+  );
+  const chars = staticBodyTextLength(`<body>${foot}</body>`);
+  check(
+    'footer:nojs-served-body',
+    !head.includes('<noscript id="dg-path-noscript">') && chars >= 200,
+    `${chars} meaningful served-body characters`,
   );
 }
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
 // Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
-check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && (head.includes('curated talent') || head.includes('curated candidates')));
+check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && head.includes('tech ranks fit; humans review'));
 check('head:og:title', head.includes('og:title'));
 check(
   'head:hero-font-no-layout-swap',
@@ -187,13 +229,12 @@ check(
       ? null
       : `meta/og/tw/ld diverge (${[d, og, tw, ld].map((s) => (s || '').slice(0, 36)).join(' | ')})`,
   );
-  // Share/knowledge-panel fee honesty: first-year cash + talent free (not bare "10% when hire starts").
+  // Share/knowledge-panel fee honesty: exact base-salary basis + trigger + talent free.
   const feeDescOk =
-    /10%\s+of\s+first-year\s+cash\s+on\s+hire/i.test(d || '') &&
-    /free\s+for\s+talent/i.test(d || '') &&
-    !/10%\s+when\s+a\s+hire\s+starts/i.test(d || '');
+    (d || '').includes(`10% of ${CURRENT_FEE_TERMS.basis} when a hire starts`) &&
+    /free\s+for\s+talent/i.test(d || '');
   check(
-    'head:fee-desc-cash',
+    'head:fee-desc-basis',
     feeDescOk,
     feeDescOk ? null : `meta description fee copy incomplete (${(d || '').slice(0, 80)})`,
   );
@@ -258,6 +299,41 @@ check(
     canHttpsOk,
     canHttpsOk ? null : 'route canonical must use the HTTPS apex and an explicit product-page allowlist',
   );
+  let routeContractOk = false;
+  {
+    const allowed = new Set(((routeCanBody.match(/var allowed=\{([^}]*)\}/) || [])[1] || '').match(/[a-z0-9-]+(?=:1)/g) || []);
+    const aliasBody = (routeCanBody.match(/var aliases=\{([^}]*)\}/) || [])[1] || '';
+    const aliases = new Map([...aliasBody.matchAll(/["']?([a-z0-9-]+)["']?:["']([a-z0-9-]+)["']/g)].map((m) => [m[1], m[2]]));
+    const pagesBody = (coreJs.match(/var DG_PAGES = \{([\s\S]*?)\n\};\nfunction pageCss/) || [])[1] || '';
+    const pages = new Set([...pagesBody.matchAll(/^  ([a-z][a-z-]*): \{/gm)].map((m) => m[1]));
+    const pathsBody = (coreJs.match(/var DG_PAGE_PATHS = \{([\s\S]*?)\n\};/) || [])[1] || '';
+    const paths = [...pathsBody.matchAll(/["'](\/[a-z0-9-]+)["']:\s*["']([a-z0-9-]+)["']/g)]
+      .map((m) => [m[1], m[2]]);
+    const pathRoutes = new Map(paths);
+    const preferredBody = (coreJs.match(/var preferred = \{([^}]*)\}/) || [])[1] || '';
+    const preferred = [...preferredBody.matchAll(/([a-z0-9-]+):["']([^"']+)["']/g)]
+      .map((m) => [m[1], m[2]]);
+    const linked = new Set([...coreJs.matchAll(/data-dg-page=["']([a-z0-9-]+)["']/g)].map((m) => m[1]));
+    const missingAllowed = [...pages].filter((id) => id !== 'notfound' && !allowed.has(id));
+    const extraAllowed = [...allowed].filter((id) => !pages.has(id));
+    const missingLinked = [...linked].filter((id) => !allowed.has(id));
+    const badAliases = paths.filter(([p, id]) => (aliases.get(p.slice(1)) || p.slice(1)) !== id);
+    const badPreferred = preferred.filter(([id, p]) =>
+      !pages.has(id) || (p === '/' ? id !== 'notfound' : pathRoutes.get(p) !== id));
+    const eventHardPath = paths.some(([, id]) => id === 'event') || preferred.some(([id]) => id === 'event');
+    const historySharesPreferred = /var hard = preferred\[id\]/.test(coreJs) && !/var histPref\s*=/.test(coreJs);
+    const issues = [
+      missingAllowed.length && `missing allowed: ${missingAllowed.join(',')}`,
+      extraAllowed.length && `extra allowed: ${extraAllowed.join(',')}`,
+      missingLinked.length && `linked missing: ${missingLinked.join(',')}`,
+      badAliases.length && `path aliases: ${badAliases.map(([p, id]) => `${p}→${id}`).join(',')}`,
+      badPreferred.length && `preferred: ${badPreferred.map(([id, p]) => `${id}→${p}`).join(',')}`,
+      eventHardPath && 'event invite must stay query-routed',
+      !historySharesPreferred && 'history must reuse preferred map',
+    ].filter(Boolean);
+    routeContractOk = issues.length === 0;
+    check('head:route-contract-parity', routeContractOk, issues.join('; ') || null);
+  }
   {
     const aliases = [
       ['/method', '/?p=how'],
@@ -268,10 +344,6 @@ check(
       ['/status', '/?p=about'],
     ];
     const redirectsOk = aliases.every(([from, to]) => head.includes(`'${from}':'${to}'`));
-    const canonicalAliasesOk =
-      /var aliases=\{pilot:['"]hire['"],method:['"]how['"],founders:['"]hire['"],candidates:['"]talent['"],compare:['"]pricing['"],status:['"]about['"]\}/.test(routeCanBody) &&
-      /var allowed=\{[^}]*refer:1/.test(routeCanBody) &&
-      !/var allowed=\{[^}]*(?:method|founders|candidates|compare|status):1/.test(routeCanBody);
     let navOk = false;
     try {
       const navBody = (head.match(/<script\b[^>]*\bid=["']dg-nav-jsonld["'][^>]*>([\s\S]*?)<\/script>/i) || [])[1];
@@ -284,8 +356,8 @@ check(
     } catch {}
     check(
       'head:route-alias-consolidation',
-      redirectsOk && canonicalAliasesOk && navOk,
-      'legacy product paths must target canonical pages, Refer needs its canonical, and nav JSON-LD must list only 10 real surfaces',
+      redirectsOk && routeContractOk && navOk,
+      'legacy product paths must target canonical pages and nav JSON-LD must list only 10 real surfaces',
     );
   }
   // Early head rewrite for Notes surface: crawlers that skip foot openPage() still get /?p=blog

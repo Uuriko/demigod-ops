@@ -40,9 +40,17 @@ const MAP_PATH = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const LEDGER_PATH = path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
 const BENCHMARK_PATH = path.join(ROOT, 'DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json');
 const CATALOG_PATH = path.join(ROOT, 'DEMIGOD-COMPANY-RESEARCH.json');
-const SCHEMA = 'demigod.recruitai-export/3';
+const SCHEMA_V3 = 'demigod.recruitai-export/3';
+const SCHEMA_V4 = 'demigod.recruitai-export/4';
+const SCHEMA_V5 = 'demigod.recruitai-export/5';
+const SCHEMA = 'demigod.recruitai-export/6';
 const STALE_DAYS = 45;
 const EVERGREEN_DAYS = 365;
+const SENIORITY_BASIS = 'single-precedence-title-token';
+const LOCATION_FOOTPRINT_BASIS = 'distinct-normalized-ats-location-string';
+const POSTING_UPDATE_DAYS = 7;
+const POSTING_UPDATE_BASIS =
+  'Greenhouse:stale-first_published+updated_at-within-7d';
 const SENIORITY_BANDS = [
   'intern',
   'junior',
@@ -93,7 +101,8 @@ const EXPORTED_COMPANY_RESEARCH_FIELDS = new Set(
 const EXPORT_ROW_KEYS = [
   'mapCompanyId', 'domain', 'name', 'boardKey', 'openReqCount', 'seniorityMix',
   'firstObservedTodayReqCount', 'firstObservedTodayOlderPostedReqCount',
-  'closedTodayReqCount', 'reopenedOpenReqCount', 'attributedPostedReqCount',
+  'closedTodayReqCount', 'reopenedOpenReqCount',
+  'greenhouseStalePostedUpdated7dReqCount', 'attributedPostedReqCount',
   'staleAttributedPostedReqCount', 'evergreenAttributedPostedReqCount',
   'maxAttributedPostedDays', 'sampleAttributedPostedRoleTitle',
   'sampleAttributedPostedRoleUrl', 'maxObservedOpenDays', 'staleObservedReqCount',
@@ -101,10 +110,18 @@ const EXPORT_ROW_KEYS = [
   'samplePeopleOpsRoleTitle', 'samplePeopleOpsRoleUrl', 'noAgencyEvidenceReqCount',
   'sampleNoAgencyPolicyQuote', 'sampleNoAgencyPolicyUrl',
   'openEngReqCount', 'openSalesReqCount', 'openRemoteReqCount', 'openObserved7ReqCount',
+  'distinctObservedLocationCount',
   'sampleLocation',
   'jobsUrl', 'sourceLicense',
   'sourceUrl', 'retrievedAt', 'ageBasis', 'companyResearch',
 ];
+const V5_EXPORT_ROW_KEYS = EXPORT_ROW_KEYS.filter(
+  (key) => key !== 'greenhouseStalePostedUpdated7dReqCount',
+);
+const V4_EXPORT_ROW_KEYS = V5_EXPORT_ROW_KEYS.filter(
+  (key) => key !== 'distinctObservedLocationCount',
+);
+const V3_EXPORT_ROW_KEYS = V4_EXPORT_ROW_KEYS.filter((key) => key !== 'seniorityMix');
 const PATH_OWNED_ROLE_HOSTS = {
   Greenhouse: new Set([
     'boards.greenhouse.io',
@@ -253,6 +270,24 @@ function loadJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
+function obsoleteGenerationDirs(candidates, currentSchema) {
+  const keptSchemas = new Set([currentSchema]);
+  let keptPrevious = false;
+  return candidates.flatMap(({ dir, schema }) => {
+    if (!schema) return [dir];
+    if (!keptPrevious) {
+      keptPrevious = true;
+      keptSchemas.add(schema);
+      return [];
+    }
+    if (!keptSchemas.has(schema)) {
+      keptSchemas.add(schema);
+      return [];
+    }
+    return [dir];
+  });
+}
+
 function publishExport(doc, csv) {
   const generation = path.join(GENERATIONS_DIR, `${Date.now()}-${process.pid}`);
   const staging = `${generation}.tmp`;
@@ -308,14 +343,24 @@ function publishExport(doc, csv) {
       throw error;
     }
     if (legacy) fs.rmSync(legacy, { recursive: true, force: true });
-    const obsolete = fs.readdirSync(GENERATIONS_DIR, { withFileTypes: true })
+    const candidates = fs.readdirSync(GENERATIONS_DIR, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && !entry.name.endsWith('.tmp'))
       .map((entry) => path.join(GENERATIONS_DIR, entry.name))
       .filter((dir) => dir !== generation && dir !== generationReal)
       .map((dir) => ({ dir, mtimeMs: fs.statSync(dir).mtimeMs }))
       .sort((a, b) => b.mtimeMs - a.mtimeMs)
-      .slice(1);
-    for (const { dir } of obsolete) fs.rmSync(dir, { recursive: true, force: true });
+      .map(({ dir }) => {
+        try {
+          const candidate = loadJson(path.join(dir, 'latest.json'));
+          assertExportValid(candidate);
+          return { dir, schema: candidate.schema };
+        } catch {
+          return { dir, schema: null };
+        }
+      });
+    for (const dir of obsoleteGenerationDirs(candidates, doc.schema)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
     return {
       outPath: path.join(OUT_DIR, 'latest.json'),
       csvPath: path.join(OUT_DIR, 'latest.csv'),
@@ -458,13 +503,14 @@ function summarizeRows(rows) {
 
 const isOpenRoleToday = (role, today) => !role.closedAt && role.lastSeen === today;
 
-function seniorityFromTitle(value) {
+export function seniorityFromTitle(value) {
   const title = String(value || '').toLowerCase().replace(/[./_–—-]+/g, ' ');
   if (/\b(?:intern(?:ship)?|co op|apprentice)\b/.test(title)) return 'intern';
+  if (/\bchief of staff\b/.test(title)) return 'leadManager';
+  if (/^staff accountants?\b/.test(title)) return 'unspecified';
   if (
-    /\b(?:director|head|chief|president|vice president|[aes]?vp|ceo|cto|cfo|coo|cpo|cio|ciso|cro|cmo)\b/.test(
-      title,
-    )
+    /\b(?:director|head|chief|president|vice president|[aes]?vp)\b/.test(title) ||
+    /^(?:ceo|cto|cfo|coo|cpo|cio|ciso|cro|cmo)\b/.test(title)
   ) return 'directorPlus';
   if (/\bprincipal\b/.test(title)) return 'principal';
   if (/\bstaff\b/.test(title)) return 'staff';
@@ -508,6 +554,7 @@ function aggregateRoles(rows, today, allRows = rows) {
   let openPeopleOpsReqCount = 0;
   let sampleNoAgencyPolicy = null;
   let noAgencyEvidenceReqCount = 0;
+  let greenhouseStalePostedUpdated7dReqCount = 0;
   let attributedPostedReqCount = 0;
   let staleAttributedPostedReqCount = 0;
   let evergreenAttributedPostedReqCount = 0;
@@ -518,6 +565,7 @@ function aggregateRoles(rows, today, allRows = rows) {
   let openRemoteReqCount = 0;
   let openObserved7ReqCount = 0;
   let sampleLocation = null;
+  const observedLocations = new Set();
   for (const row of rows) {
     seniorityMix[seniorityFromTitle(row.title)]++;
     const fn = categorizeRole(row.title);
@@ -528,6 +576,11 @@ function aggregateRoles(rows, today, allRows = rows) {
     if (fn === 'engineering' || fn === 'ai/data') openEngReqCount++;
     if (fn === 'sales') openSalesReqCount++;
     if (isRemoteLocation(row.location)) openRemoteReqCount++;
+    const normalizedLocation = String(row.location || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+    if (normalizedLocation) observedLocations.add(normalizedLocation);
     if (!sampleLocation && String(row.location || '').trim()) {
       sampleLocation = String(row.location).trim().slice(0, 200);
     }
@@ -541,7 +594,19 @@ function aggregateRoles(rows, today, allRows = rows) {
       if (postedAge > EVERGREEN_DAYS) {
         evergreenAttributedPostedReqCount++;
       } else {
-        if (postedAge >= STALE_DAYS) staleAttributedPostedReqCount++;
+        if (postedAge >= STALE_DAYS) {
+          staleAttributedPostedReqCount++;
+          const updatedAge = daysBetween(row.nativeUpdatedAt, today);
+          if (
+            row.provider === 'Greenhouse' &&
+            row.nativeUpdatedAfterFirstPublished === true &&
+            Number.isFinite(updatedAge) &&
+            updatedAge >= 0 &&
+            updatedAge <= POSTING_UPDATE_DAYS
+          ) {
+            greenhouseStalePostedUpdated7dReqCount++;
+          }
+        }
         if (maxAttributedPostedDays == null || postedAge > maxAttributedPostedDays) {
           maxAttributedPostedDays = postedAge;
           sampleAttributedPostedRole = row;
@@ -568,6 +633,7 @@ function aggregateRoles(rows, today, allRows = rows) {
     ).length,
     closedTodayReqCount: allRows.filter((row) => row.closedAt === today).length,
     reopenedOpenReqCount: rows.filter((row) => Number(row.reopenCount || 0) > 0).length,
+    greenhouseStalePostedUpdated7dReqCount,
     attributedPostedReqCount,
     staleAttributedPostedReqCount,
     evergreenAttributedPostedReqCount,
@@ -588,6 +654,7 @@ function aggregateRoles(rows, today, allRows = rows) {
     openSalesReqCount,
     openRemoteReqCount,
     openObserved7ReqCount,
+    distinctObservedLocationCount: observedLocations.size,
     sampleLocation,
   };
 }
@@ -857,6 +924,8 @@ export function buildExport(
         agg.firstObservedTodayOlderPostedReqCount,
       closedTodayReqCount: agg.closedTodayReqCount,
       reopenedOpenReqCount: agg.reopenedOpenReqCount,
+      greenhouseStalePostedUpdated7dReqCount:
+        agg.greenhouseStalePostedUpdated7dReqCount,
       attributedPostedReqCount: agg.attributedPostedReqCount,
       staleAttributedPostedReqCount: agg.staleAttributedPostedReqCount,
       evergreenAttributedPostedReqCount: agg.evergreenAttributedPostedReqCount,
@@ -877,6 +946,7 @@ export function buildExport(
       openSalesReqCount: agg.openSalesReqCount,
       openRemoteReqCount: agg.openRemoteReqCount,
       openObserved7ReqCount: agg.openObserved7ReqCount,
+      distinctObservedLocationCount: agg.distinctObservedLocationCount,
       sampleLocation: privateText(agg.sampleLocation),
       jobsUrl: company.jobsUrl || null,
       sourceLicense: company.sourceLicense || null,
@@ -975,6 +1045,9 @@ export function buildExport(
     staleDaysThreshold: STALE_DAYS,
     evergreenDaysThreshold: EVERGREEN_DAYS,
     attributedPostingBasis: 'Greenhouse:first_published',
+    seniorityBasis: SENIORITY_BASIS,
+    locationFootprintBasis: LOCATION_FOOTPRINT_BASIS,
+    postingUpdateBasis: POSTING_UPDATE_BASIS,
     researchEvidence: researchGate,
     ordering: EXPORT_ORDERING,
     rowLimit,
@@ -1089,7 +1162,9 @@ function assertNoContactText(value, at = 'export', field = '', parent = null) {
 }
 
 export function assertExportValid(doc) {
-  if (doc.schema !== SCHEMA) throw new Error(`bad schema ${doc.schema}`);
+  if (![SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA].includes(doc.schema)) {
+    throw new Error(`bad schema ${doc.schema}`);
+  }
   if (!Array.isArray(doc.rows) || !doc.rows.length) throw new Error('empty rows');
   if (
     !Number.isSafeInteger(doc.counts?.rows) ||
@@ -1110,6 +1185,15 @@ export function assertExportValid(doc) {
   if (doc.changeBasis !== 'ledger-observation') throw new Error('changeBasis must be ledger-observation');
   if (
     doc.attributedPostingBasis !== 'Greenhouse:first_published' ||
+    (doc.schema === SCHEMA_V3
+      ? Object.hasOwn(doc, 'seniorityBasis')
+      : doc.seniorityBasis !== SENIORITY_BASIS) ||
+    ([SCHEMA_V5, SCHEMA].includes(doc.schema)
+      ? doc.locationFootprintBasis !== LOCATION_FOOTPRINT_BASIS
+      : Object.hasOwn(doc, 'locationFootprintBasis')) ||
+    (doc.schema === SCHEMA
+      ? doc.postingUpdateBasis !== POSTING_UPDATE_BASIS
+      : Object.hasOwn(doc, 'postingUpdateBasis')) ||
     doc.staleDaysThreshold !== STALE_DAYS ||
     doc.evergreenDaysThreshold !== EVERGREEN_DAYS ||
     doc.ordering !== EXPORT_ORDERING ||
@@ -1148,7 +1232,15 @@ export function assertExportValid(doc) {
     throw new Error('invalid research evidence gate');
   }
   for (const row of doc.rows) {
-    if (!row || typeof row !== 'object' || !hasExactKeys(row, EXPORT_ROW_KEYS)) {
+    const expectedRowKeys =
+      doc.schema === SCHEMA
+        ? EXPORT_ROW_KEYS
+        : doc.schema === SCHEMA_V5
+          ? V5_EXPORT_ROW_KEYS
+          : doc.schema === SCHEMA_V4
+            ? V4_EXPORT_ROW_KEYS
+            : V3_EXPORT_ROW_KEYS;
+    if (!row || typeof row !== 'object' || !hasExactKeys(row, expectedRowKeys)) {
       throw new Error('invalid export row shape');
     }
     if (typeof row.mapCompanyId !== 'string' || !row.mapCompanyId.trim()) {
@@ -1203,6 +1295,9 @@ export function assertExportValid(doc) {
       'firstObservedTodayOlderPostedReqCount',
       'closedTodayReqCount',
       'reopenedOpenReqCount',
+      ...(doc.schema === SCHEMA
+        ? ['greenhouseStalePostedUpdated7dReqCount']
+        : []),
       'attributedPostedReqCount',
       'staleAttributedPostedReqCount',
       'evergreenAttributedPostedReqCount',
@@ -1216,6 +1311,8 @@ export function assertExportValid(doc) {
       throw new Error('reopenedOpenReqCount exceeds openReqCount');
     }
     if (
+      doc.schema !== SCHEMA_V3 &&
+      (
       !row.seniorityMix ||
       typeof row.seniorityMix !== 'object' ||
       Array.isArray(row.seniorityMix) ||
@@ -1225,8 +1322,24 @@ export function assertExportValid(doc) {
       ) ||
       Object.values(row.seniorityMix).reduce((sum, count) => sum + count, 0) !==
         row.openReqCount
+      )
     ) {
       throw new Error('invalid seniorityMix');
+    }
+    if (
+      [SCHEMA_V5, SCHEMA].includes(doc.schema) &&
+      (!Number.isSafeInteger(row.distinctObservedLocationCount) ||
+        row.distinctObservedLocationCount < 0 ||
+        row.distinctObservedLocationCount > row.openReqCount)
+    ) {
+      throw new Error('invalid distinctObservedLocationCount');
+    }
+    if (
+      doc.schema === SCHEMA &&
+      row.greenhouseStalePostedUpdated7dReqCount >
+        row.staleAttributedPostedReqCount
+    ) {
+      throw new Error('greenhouseStalePostedUpdated7dReqCount exceeds stale posted roles');
     }
     if (
       row.staleObservedReqCount > row.openReqCount ||
@@ -1724,6 +1837,8 @@ export function exportRowsCsv(rows = []) {
       row.firstObservedTodayOlderPostedReqCount],
     ['closedTodayReqCount', (row) => row.closedTodayReqCount],
     ['reopenedOpenReqCount', (row) => row.reopenedOpenReqCount],
+    ['greenhouseStalePostedUpdated7dReqCount', (row) =>
+      row.greenhouseStalePostedUpdated7dReqCount],
     ['attributedPostedReqCount', (row) => row.attributedPostedReqCount],
     ['staleAttributedPostedReqCount', (row) => row.staleAttributedPostedReqCount],
     ['evergreenAttributedPostedReqCount', (row) => row.evergreenAttributedPostedReqCount],
@@ -1736,6 +1851,7 @@ export function exportRowsCsv(rows = []) {
     ['openSalesReqCount', (row) => row.openSalesReqCount],
     ['openRemoteReqCount', (row) => row.openRemoteReqCount],
     ['openObserved7ReqCount', (row) => row.openObserved7ReqCount],
+    ['distinctObservedLocationCount', (row) => row.distinctObservedLocationCount],
     ['sampleLocation', (row) => row.sampleLocation],
     ['sampleRoleTitle', (row) => row.sampleRoleTitle],
     ['sampleRoleUrl', (row) => row.sampleRoleUrl],
@@ -1769,6 +1885,24 @@ export function exportRowsCsv(rows = []) {
 }
 
 function selftest() {
+  {
+    const obsolete = obsoleteGenerationDirs(
+      [
+        { dir: 'v6-previous', schema: SCHEMA },
+        { dir: 'v6-old', schema: SCHEMA },
+        { dir: 'v5-new', schema: SCHEMA_V5 },
+        { dir: 'v5-old', schema: SCHEMA_V5 },
+        { dir: 'v4-new', schema: SCHEMA_V4 },
+        { dir: 'v4-old', schema: SCHEMA_V4 },
+        { dir: 'invalid', schema: null },
+        { dir: 'v3-new', schema: SCHEMA_V3 },
+      ],
+      SCHEMA,
+    );
+    if (obsolete.join(',') !== 'v6-old,v5-old,v4-old,invalid') {
+      throw new Error('generation retention must keep rollback schemas');
+    }
+  }
   for (const [title, expected] of Object.entries({
     'Software Engineering Intern': 'intern',
     'Junior Developer': 'junior',
@@ -1777,6 +1911,10 @@ function selftest() {
     'Principal Engineer': 'principal',
     'Engineering Manager': 'leadManager',
     'Director of Product': 'directorPlus',
+    'Chief of Staff': 'leadManager',
+    'Staff Accountant': 'unspecified',
+    'Senior CRO Designer, Paywalls and Funnels': 'senior',
+    'Architect, Office of the CTO': 'unspecified',
     'Account Executive': 'unspecified',
   })) {
     if (seniorityFromTitle(title) !== expected) {
@@ -1833,12 +1971,15 @@ function selftest() {
         jobId: '1',
         company: 'Acme',
         title: 'Staff Eng',
+        location: 'San Francisco',
         url: 'https://boards.greenhouse.io/acme/jobs/1',
         firstSeen: '2026-05-01',
         lastSeen: '2026-07-29',
         closedAt: null,
         nativePostedAt: '2026-04-01',
         nativeDateField: 'first_published',
+        nativeUpdatedAt: '2026-07-27',
+        nativeUpdatedAfterFirstPublished: true,
         agencyPolicyEvidence: {
           value: 'no_unsolicited_agency_submissions',
           status: 'supported',
@@ -1852,6 +1993,7 @@ function selftest() {
         jobId: '2',
         company: 'Acme',
         title: 'PM',
+        location: ' san   francisco ',
         url: 'https://boards.greenhouse.io/acme/jobs/2',
         firstSeen: '2026-07-29',
         lastSeen: '2026-07-29',
@@ -1859,6 +2001,8 @@ function selftest() {
         reopenCount: 1,
         nativePostedAt: '2026-07-20',
         nativeDateField: 'first_published',
+        nativeUpdatedAt: '2026-07-28',
+        nativeUpdatedAfterFirstPublished: true,
       },
       'Greenhouse|acme|closed': {
         provider: 'Greenhouse',
@@ -1888,6 +2032,7 @@ function selftest() {
         jobId: 'x',
         company: 'Beta',
         title: 'Talent Partner',
+        location: 'Remote',
         fn: 'other',
         url: 'https://jobs.lever.co/beta/x',
         firstSeen: '2026-06-01',
@@ -1931,6 +2076,32 @@ function selftest() {
     },
   });
   assertExportValid(doc);
+  {
+    const acme = doc.rows.find((row) => row.mapCompanyId === 't:acme');
+    if (acme?.distinctObservedLocationCount !== 1) {
+      throw new Error('location footprint must collapse case and whitespace variants');
+    }
+    if (acme.greenhouseStalePostedUpdated7dReqCount !== 1) {
+      throw new Error('recent Greenhouse update count must stay stale-post attributed');
+    }
+    const v5 = structuredClone(doc);
+    v5.schema = SCHEMA_V5;
+    delete v5.postingUpdateBasis;
+    v5.rows.forEach((row) => {
+      delete row.greenhouseStalePostedUpdated7dReqCount;
+    });
+    assertExportValid(v5);
+    const v4 = structuredClone(v5);
+    v4.schema = SCHEMA_V4;
+    delete v4.locationFootprintBasis;
+    v4.rows.forEach((row) => { delete row.distinctObservedLocationCount; });
+    assertExportValid(v4);
+    const v3 = structuredClone(v4);
+    v3.schema = SCHEMA_V3;
+    delete v3.seniorityBasis;
+    v3.rows.forEach((row) => { delete row.seniorityMix; });
+    assertExportValid(v3);
+  }
   if (doc.changeDate !== ledger.updatedAt) {
     throw new Error('changeDate must follow the ledger observation, not the wall clock');
   }
@@ -2494,6 +2665,55 @@ function selftest() {
   expectInvalid(
     (poison) => { poison.rows[0].seniorityMix.unspecified++; },
     'seniority mix exceeds open roles',
+  );
+  expectInvalid(
+    (poison) => { delete poison.rows[0].seniorityMix.principal; },
+    'seniorityMix missing a band key',
+  );
+  expectInvalid(
+    (poison) => { poison.rows[0].seniorityMix.staffPlus = 0; },
+    'seniorityMix unknown band key',
+  );
+  expectInvalid(
+    (poison) => {
+      const mix = poison.rows[0].seniorityMix;
+      mix.junior--;
+      mix.unspecified++;
+    },
+    'seniorityMix negative band count',
+  );
+  expectInvalid(
+    (poison) => {
+      const mix = poison.rows[0].seniorityMix;
+      mix.senior += 0.5;
+      mix.unspecified -= 0.5;
+    },
+    'seniorityMix non-integer band count',
+  );
+  expectInvalid(
+    (poison) => { poison.seniorityBasis = 'multi-label'; },
+    'seniority basis drift',
+  );
+  expectInvalid(
+    (poison) => {
+      poison.rows[0].distinctObservedLocationCount = poison.rows[0].openReqCount + 1;
+    },
+    'location footprint exceeds open roles',
+  );
+  expectInvalid(
+    (poison) => { poison.locationFootprintBasis = 'inferred-city-count'; },
+    'location footprint basis drift',
+  );
+  expectInvalid(
+    (poison) => {
+      poison.rows[0].greenhouseStalePostedUpdated7dReqCount =
+        poison.rows[0].staleAttributedPostedReqCount + 1;
+    },
+    'recent Greenhouse update count exceeds stale posted roles',
+  );
+  expectInvalid(
+    (poison) => { poison.postingUpdateBasis = 'inferred-content-edit'; },
+    'posting update basis drift',
   );
   for (const [field, value] of [
     ['title', 1],

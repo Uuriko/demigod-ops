@@ -322,7 +322,7 @@ async function main() {
     .join('\n');
   fs.writeFileSync(path.join(BUSY, 'agent-smoke.md'), md + '\n');
   console.log(JSON.stringify(out, null, 2));
-  process.exit(out.corePass ? 0 : 1);
+  process.exit(out.pass ? 0 : 1);
 }
 
 const isMain =

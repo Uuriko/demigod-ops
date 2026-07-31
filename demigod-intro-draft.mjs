@@ -198,7 +198,7 @@ if (kind === 'startup') {
     lines.push(`**Skills / needs:** ${stack}`);
     lines.push('');
   }
-  lines.push('If fit looks real, we only propose intros after mutual yes. Fee is 10% of first-year cash only when you hire (payments still pending — we confirm by email).');
+  lines.push('If fit looks real, we only propose intros after mutual yes. Fee is 10% of first-year base salary when a hire starts (payments still pending — we confirm by email).');
   lines.push('');
   lines.push('Reply to potter@trydemigod.com with any constraints we missed.');
   lines.push('');

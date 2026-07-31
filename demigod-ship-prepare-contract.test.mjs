@@ -7,6 +7,9 @@ assert.ok(prepare, 'prepare block exists');
 
 for (const file of [
   'demigod-foot-core.js',
+  'DEMIGOD-ROLES-FEED.json',
+  'demigod-directory-static.mjs',
+  'sf-startups-static.html',
   'demigod-head-minimal.html',
   'demigod-head-styles.css',
   'demigod-footer-lite.html',
@@ -25,6 +28,7 @@ for (const file of [
 // Clone-breaker + export-contract gate must stay on the canonical prepare path
 // (legacy prep wrappers are insufficient — operators run `bin/dg ship prepare`).
 assert.match(prepare, /run\('import-integrity',\s*\[[\s\S]*demigod-import-integrity\.mjs/);
+assert.match(prepare, /run\('directory-static',\s*\['demigod-directory-static\.mjs'\]\)/);
 assert.match(prepare, /run\('board-honesty'/);
 assert.match(prepare, /run\('foot-smoke'/);
 

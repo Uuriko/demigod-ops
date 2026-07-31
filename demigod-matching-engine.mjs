@@ -291,7 +291,10 @@ export function parseCompRange(value = '') {
   const text = norm(String(value).slice(0, 200)).replace(/,/g, '').replace(/[–—]/g, '-');
   if (!text || /\b(?:negotiable|market|tbd|unknown)\b/.test(text) || /(?:\/\s*mo\b|\bper\s+month\b|\bmonthly\b)/.test(text)) return null;
   const unit = /(?:\/\s*(?:hr|hour)\b|\bper\s+hour\b|\bhourly\b)/.test(text) ? 'hourly' : 'annual';
-  const clean = text.replace(/\d+(?:\.\d+)?\s*%/g, '').replace(/\+?\s*equity.*$/, '');
+  // Strip trailing "+ equity" noise only — do NOT drop leading "Equity $40k–$80k" cash grants.
+  const clean = text
+    .replace(/\d+(?:\.\d+)?\s*%/g, '')
+    .replace(/\s*(?:\+|plus)\s*(?:equity|rsus?)\b.*$/i, '');
   let found = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(k|mm|million|m)?\b/g)].slice(0, 2);
   if (!found.length) return null;
   if (found.length > 1) {

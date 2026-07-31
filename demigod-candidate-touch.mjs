@@ -89,6 +89,74 @@ export function appendTouch(touch) {
 const CHANNEL_W = { intro: 5, review: 4, call: 4, email: 3, dm: 2, note: 1 };
 
 /**
+ * Gem-analytics-thin: owned-touch channel counts only (no engagement score / fit).
+ * Landscape for SH status — observation tallies, never ranking product.
+ */
+export function touchChannelTally(touches = []) {
+  const byChannel = Object.fromEntries(CHANNELS.map((c) => [c, 0]));
+  let total = 0;
+  const candIds = new Set();
+  for (const t of touches || []) {
+    if (!t?.candId) continue;
+    total += 1;
+    candIds.add(String(t.candId));
+    if (byChannel[t.channel] != null) byChannel[t.channel] += 1;
+  }
+  return {
+    total,
+    distinctCands: candIds.size,
+    byChannel,
+  };
+}
+
+/**
+ * Gem-rediscover-thin: owned-history pool landscape as counts only.
+ * How many distinct cands exist, how many are rediscoverable after suppress,
+ * last-channel / last-outcome coverage — never a match/fit score.
+ */
+export function rediscoverLandscape(touches = [], { suppress = new Set() } = {}) {
+  const byLastChannel = Object.fromEntries(CHANNELS.map((c) => [c, 0]));
+  const byCand = new Map();
+  for (const t of touches || []) {
+    if (!t?.candId) continue;
+    const id = String(t.candId);
+    const g = byCand.get(id) || {
+      lastAt: null,
+      lastChannel: null,
+      lastOutcome: null,
+    };
+    if (!g.lastAt || Date.parse(t.at) > Date.parse(g.lastAt || 0)) {
+      g.lastAt = t.at;
+      g.lastChannel = t.channel || g.lastChannel;
+      g.lastOutcome = t.outcome != null ? t.outcome : g.lastOutcome;
+    }
+    byCand.set(id, g);
+  }
+  let rediscoverable = 0;
+  let suppressed = 0;
+  let withOutcome = 0;
+  let withoutOutcome = 0;
+  for (const [id, g] of byCand) {
+    if (suppress.has(id)) {
+      suppressed += 1;
+      continue;
+    }
+    rediscoverable += 1;
+    if (byLastChannel[g.lastChannel] != null) byLastChannel[g.lastChannel] += 1;
+    if (g.lastOutcome != null && String(g.lastOutcome).trim()) withOutcome += 1;
+    else withoutOutcome += 1;
+  }
+  return {
+    distinctCands: byCand.size,
+    rediscoverable,
+    suppressed,
+    withOutcome,
+    withoutOutcome,
+    byLastChannel,
+  };
+}
+
+/**
  * Rediscover: group by candId, rank without a global fit score.
  * Prefer same roleId matches, then recency, then channel weight, then touch count.
  */
@@ -103,6 +171,8 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
       channels: new Set(),
       roleHits: 0,
       lastNote: null,
+      lastChannel: null,
+      lastOutcome: null,
       scoreParts: { recency: 0, channel: 0, role: 0, volume: 0 },
     };
     g.touches += 1;
@@ -111,6 +181,9 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
     if (!g.lastAt || Date.parse(t.at) > Date.parse(g.lastAt)) {
       g.lastAt = t.at;
       g.lastNote = t.note || g.lastNote;
+      // Gem-thin engagement history: last channel/outcome only — never a match score.
+      g.lastChannel = t.channel || g.lastChannel;
+      g.lastOutcome = t.outcome != null ? t.outcome : g.lastOutcome;
     }
     by.set(t.candId, g);
   }
@@ -131,6 +204,8 @@ export function rediscover(touches, { roleId = null, limit = 10, suppress = new 
       roleHits: g.roleHits,
       channels: [...g.channels],
       lastNote: g.lastNote,
+      lastChannel: g.lastChannel,
+      lastOutcome: g.lastOutcome,
       rankKey, // internal sort only
       fitScore: null,
     };
@@ -155,6 +230,7 @@ function selftest() {
     channel: 'intro',
     roleId: 'role-1',
     note: 'intro made',
+    outcome: 'warm',
     at: '2026-07-20T00:00:00.000Z',
   });
   const t3 = makeTouch({
@@ -167,6 +243,13 @@ function selftest() {
   assert(hits[0].candId === 'c-a', 'role hit ranks first');
   assert(hits[0].fitScore === null, 'no fit score');
   assert(hits[0].roleHits === 2, 'role hits');
+  assert(hits[0].lastChannel === 'intro' && hits[0].lastOutcome === 'warm', 'last engagement fields');
+  const suppressed = rediscover([t1, t2, t3], {
+    roleId: 'role-1',
+    limit: 10,
+    suppress: new Set(['c-a']),
+  });
+  assert(suppressed.every((h) => h.candId !== 'c-a'), 'suppress drops terminal/owned-history cand');
   let threw = false;
   try {
     makeTouch({ candId: 'x', channel: 'linkedin' });
@@ -174,6 +257,20 @@ function selftest() {
     threw = true;
   }
   assert(threw, 'bad channel');
+  // Gem-analytics-thin: channel tallies are counts only.
+  const tall = touchChannelTally([t1, t2, t3]);
+  assert(tall.total === 3 && tall.distinctCands === 2, 'channel tally totals');
+  assert(tall.byChannel.dm === 1 && tall.byChannel.intro === 1 && tall.byChannel.note === 1, 'byChannel');
+  assert(tall.byChannel.call === 0, 'zero channels stay zero');
+  assert(!('score' in tall) && !('engagementScore' in tall), 'no engagement score');
+  // Gem-rediscover-thin: pool landscape counts only (no fit score).
+  const land = rediscoverLandscape([t1, t2, t3]);
+  assert(land.distinctCands === 2 && land.rediscoverable === 2 && land.suppressed === 0, 'rediscover land base');
+  assert(land.byLastChannel.intro === 1 || land.byLastChannel.note === 1, 'rediscover byLastChannel');
+  assert(typeof land.withOutcome === 'number' && typeof land.withoutOutcome === 'number', 'outcome bins');
+  assert(!('fitScore' in land) && !('score' in land) && !('matchScore' in land), 'no rediscover scores');
+  const landSup = rediscoverLandscape([t1, t2, t3], { suppress: new Set(['c-a']) });
+  assert(landSup.suppressed === 1 && landSup.rediscoverable === 1, 'rediscover land suppress');
   console.log(JSON.stringify({ ok: true, selftest: 'candidate-touch' }));
 }
 

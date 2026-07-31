@@ -1762,10 +1762,10 @@ ok(
     'verify-source locks meta description length 80–160 (head:desc-len)',
   );
   ok(
-    /head:fee-desc-cash/.test(verifySrc) &&
+    /head:fee-desc-basis/.test(verifySrc) &&
       /first-year\\s\+cash/.test(verifySrc) &&
       /free\\s\+for\\s\+talent/.test(verifySrc),
-    'verify-source locks meta fee copy first-year cash + free for talent (head:fee-desc-cash)',
+    'verify-source locks the exact base-salary fee basis + trigger + free talent',
   );
   ok(
     /head:canonical-https/.test(verifySrc) &&

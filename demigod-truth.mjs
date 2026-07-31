@@ -125,6 +125,19 @@ function runSelftest() {
     ).length === 2,
     'head CSS detection preserves duplicate approved loaders',
   );
+  const staticFragment = '<details class="dg-static">sealed</details>';
+  check(
+    exactCopies(`<main>${staticFragment}</main>`, staticFragment) === 1,
+    '/startups freshness finds one exact sealed fragment',
+  );
+  check(
+    exactCopies('<details class="dg-static">stale</details>', staticFragment) === 0,
+    '/startups freshness rejects a stale fragment',
+  );
+  check(
+    exactCopies(staticFragment + staticFragment, staticFragment) === 2,
+    '/startups freshness exposes duplicate fragments',
+  );
   check(sha256Buf(Buffer.from('demigod')).length === 64, 'SHA-256 identity is complete');
   const combinedBlock = releaseMutationGuards({ leaseHeld: true, transportBlocked: true });
   check(
@@ -230,6 +243,77 @@ function runSelftest() {
       sibPrepared.mapData.status === 'prepared' &&
       sibPrepared.preparedBy === 'ship-prepare-test',
     'sibling drift accepts a hash-matching ship-prepare receipt',
+  );
+
+  const sameCos = Array.from({ length: 20 }, (_, i) => ({
+    id: 'yc:c' + i,
+    name: 'c' + i,
+    hiring: 'yes',
+    roleMix: i === 0 ? { engineering: 2 } : { engineering: 1 },
+  }));
+  const sameCosLive = sameCos.map((c, i) =>
+    i === 0 ? { ...c, roleMix: { engineering: 1, sales: 1 } } : { ...c },
+  );
+  const sibEnrich = classifySiblingAssetDrift({
+    diskAtlasSha: 'atlas-same',
+    liveAtlasSha: 'atlas-same',
+    diskMapSha: 'map-disk',
+    liveMapSha: 'map-live',
+    diskMapJson: JSON.stringify({ companies: sameCos }),
+    liveMapJson: JSON.stringify({ companies: sameCosLive }),
+  });
+  check(
+    sibEnrich.intentional === true && sibEnrich.mapData.status === 'intentional-enrich',
+    'sibling drift: same company counts + body lag = intentional enrich (roleMix/aging)',
+  );
+
+  const sibAtlasEnrich = classifySiblingAssetDrift({
+    diskAtlas: 'radiusMiles: 3 dg-atlas-map layers: { startups: true, venues: true } // disk+enrich',
+    liveAtlas: 'radiusMiles: 3 dg-atlas-map layers: { startups: true, venues: true }',
+    diskAtlasSha: 'atlas-disk',
+    liveAtlasSha: 'atlas-live',
+    diskMapSha: 'map-disk-a',
+    liveMapSha: 'map-live-a',
+    diskMapJson: JSON.stringify({ companies: sameCos }),
+    liveMapJson: JSON.stringify({ companies: sameCosLive }),
+  });
+  check(
+    sibAtlasEnrich.intentional === true &&
+      sibAtlasEnrich.atlas.status === 'intentional-enrich' &&
+      sibAtlasEnrich.mapData.status === 'intentional-enrich',
+    'sibling drift: both full atlas + body lag = intentional enrich (not unexplained)',
+  );
+
+  const sibMapFreeEnrich = classifySiblingAssetDrift({
+    diskAtlas: 'map-free Craigslist dg-dir-list No SVG map // disk enrich slice',
+    liveAtlas: 'map-free Craigslist dg-dir-list No SVG map',
+    diskAtlasSha: 'mf-disk',
+    liveAtlasSha: 'mf-live',
+    diskMapSha: 'map-disk-mf',
+    liveMapSha: 'map-live-mf',
+    diskMapJson: JSON.stringify({ companies: sameCos }),
+    liveMapJson: JSON.stringify({ companies: sameCosLive }),
+  });
+  check(
+    sibMapFreeEnrich.intentional === true && sibMapFreeEnrich.atlas.status === 'intentional-enrich',
+    'sibling drift: both map-free shells + body lag = intentional enrich',
+  );
+
+  const sibCollapse = classifySiblingAssetDrift({
+    diskAtlasSha: 'atlas-same',
+    liveAtlasSha: 'atlas-same',
+    diskMapSha: 'map-disk2',
+    liveMapSha: 'map-live2',
+    diskMapJson: JSON.stringify({
+      companies: Array.from({ length: 18 }, (_, i) => ({ id: 'yc:c' + i, hiring: 'yes' })),
+    }),
+    liveMapJson: JSON.stringify({
+      companies: Array.from({ length: 20 }, (_, i) => ({ id: 'yc:c' + i, hiring: 'yes' })),
+    }),
+  });
+  check(
+    sibCollapse.intentional === true && sibCollapse.mapData.status === 'intentional-collapse',
+    'sibling drift: modest company drop = intentional identity collapse',
   );
 
   if (failures.length) {
@@ -425,6 +509,16 @@ export function classifySiblingAssetDrift({
     !/\bradiusMiles\b|\bdg-atlas-map\b/.test(diskAtlas);
   const liveFullAtlas =
     /\bradiusMiles\b|\bdg-atlas-map\b|\blayers:\s*\{[^}]*venues/i.test(liveAtlas);
+  const liveMapFree =
+    /\bmap-free\b|dg-dir-|Craigslist|No SVG map/i.test(liveAtlas) &&
+    !/\bradiusMiles\b|\bdg-atlas-map\b/.test(liveAtlas);
+  const diskFullAtlas =
+    /\bradiusMiles\b|\bdg-atlas-map\b|\blayers:\s*\{[^}]*venues/i.test(diskAtlas);
+  // Same product family (both full atlas OR both map-free dir shell), body lag only =
+  // prepare-only enrich — not unexplained corruption.
+  const atlasEnrichRefresh =
+    !atlasMatch &&
+    ((diskFullAtlas && liveFullAtlas && !diskMapFree) || (diskMapFree && liveMapFree));
 
   let diskCos = null;
   let liveCos = null;
@@ -454,12 +548,19 @@ export function classifySiblingAssetDrift({
     : prepared
       ? { status: 'prepared', note: `current disk hashes passed ${preparedBy}` }
       : {
-        status: diskMapFree && liveFullAtlas ? 'intentional-redesign' : 'unexplained',
+        status: diskMapFree && liveFullAtlas
+          ? 'intentional-redesign'
+          : atlasEnrichRefresh
+            ? 'intentional-enrich'
+            : 'unexplained',
         diskBytes: diskAtlas ? Buffer.byteLength(diskAtlas) : null,
         liveBytes: liveAtlas ? Buffer.byteLength(liveAtlas) : null,
-        note:
-          diskMapFree && liveFullAtlas
-            ? 'disk=map-free directory (dg-dir); live=SVG atlas+radius+venues'
+        note: diskMapFree && liveFullAtlas
+          ? 'disk=map-free directory (dg-dir); live=SVG atlas+radius+venues'
+          : atlasEnrichRefresh
+            ? diskMapFree && liveMapFree
+              ? 'both sides map-free directory shell; body lag is product enrich (publish unauthorized)'
+              : 'both sides full atlas (radius/dg-atlas-map); body lag is product enrich (publish unauthorized)'
             : 'atlas body differs without map-free redesign markers',
       };
 
@@ -468,24 +569,64 @@ export function classifySiblingAssetDrift({
     Number.isFinite(liveCos) &&
     diskCos > liveCos * 2 &&
     (diskHiring || 0) > (liveHiring || 0);
+  // Same company/hiring counts with body hash lag = enrich stamps (roleMix, aging)
+  // after offline reclassify — not unexplained corruption (website prepare-only).
+  const mapEnrichRefresh =
+    !mapMatch &&
+    Number.isFinite(diskCos) &&
+    Number.isFinite(liveCos) &&
+    diskCos === liveCos &&
+    Number.isFinite(diskHiring) &&
+    Number.isFinite(liveHiring) &&
+    diskHiring === liveHiring;
+  // Modest identity collapse (keyless HN shells) with no count inflation.
+  const mapIdentityCollapse =
+    !mapMatch &&
+    !mapExpanded &&
+    !mapEnrichRefresh &&
+    Number.isFinite(diskCos) &&
+    Number.isFinite(liveCos) &&
+    diskCos < liveCos &&
+    liveCos - diskCos <= 32 &&
+    (diskHiring || 0) <= (liveHiring || 0) + 32;
+  let mapStatus = 'unexplained';
+  let mapNote = 'map-data body differs without clear expansion signal';
+  if (mapMatch) {
+    mapStatus = 'matched';
+    mapNote = null;
+  } else if (prepared) {
+    mapStatus = 'prepared';
+    mapNote = `current disk hashes passed ${preparedBy}`;
+  } else if (mapExpanded) {
+    mapStatus = 'intentional-expand';
+    mapNote = `disk companies ${diskCos} (hiring-labeled ${diskHiring}) vs live ${liveCos}`;
+  } else if (mapEnrichRefresh) {
+    mapStatus = 'intentional-enrich';
+    mapNote = `same ${diskCos} companies / ${diskHiring} hiring-labeled; body lag is roleMix/aging enrich (publish unauthorized)`;
+  } else if (mapIdentityCollapse) {
+    mapStatus = 'intentional-collapse';
+    mapNote = `disk ${diskCos} vs live ${liveCos} companies (≤32 fewer) — identity collapse, not expansion`;
+  }
   const mapData = mapMatch
     ? { status: 'matched' }
-    : prepared
-      ? { status: 'prepared', note: `current disk hashes passed ${preparedBy}` }
-      : {
-        status: mapExpanded ? 'intentional-expand' : 'unexplained',
+    : {
+        status: mapStatus,
         diskCompanies: diskCos,
         liveCompanies: liveCos,
         diskHiringLabeled: diskHiring,
         liveHiringLabeled: liveHiring,
-        note: mapExpanded
-          ? `disk companies ${diskCos} (hiring-labeled ${diskHiring}) vs live ${liveCos}`
-          : 'map-data body differs without clear expansion signal',
+        ...(mapNote ? { note: mapNote } : {}),
       };
 
   const intentional =
-    ['matched', 'prepared', 'intentional-redesign'].includes(atlas.status) &&
-    ['matched', 'prepared', 'intentional-expand'].includes(mapData.status);
+    ['matched', 'prepared', 'intentional-redesign', 'intentional-enrich'].includes(atlas.status) &&
+    [
+      'matched',
+      'prepared',
+      'intentional-expand',
+      'intentional-enrich',
+      'intentional-collapse',
+    ].includes(mapData.status);
 
   const bits = [];
   if (atlas.status !== 'matched') bits.push(`atlas:${atlas.status}`);
@@ -561,6 +702,10 @@ function headCssUrls(html) {
       /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/gi,
     ),
   ].map((match) => match[0]);
+}
+
+function exactCopies(html, fragment) {
+  return fragment ? String(html || '').split(fragment).length - 1 : 0;
 }
 
 function sha256Buf(buf) {
@@ -647,8 +792,9 @@ async function main() {
   const footPath = path.join(ROOT, 'demigod-foot-core.js');
   const mapPath = path.join(ROOT, 'demigod-startup-atlas-web.js');
   const mapDataPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+  const startupsStaticPath = path.join(ROOT, 'sf-startups-static.html');
   const run = beginRun('truth', {
-    scope: [footPath, mapPath, mapDataPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
+    scope: [footPath, mapPath, mapDataPath, startupsStaticPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
   });
   const headCssPath = path.join(ROOT, 'demigod-head-styles.css');
   const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
@@ -670,6 +816,9 @@ async function main() {
   const mapBytes = mapSource ? Buffer.byteLength(mapSource) : null;
   const mapDataSha = sha256File(mapDataPath);
   const mapDataBytes = mapDataSource ? Buffer.byteLength(mapDataSource) : null;
+  const startupsStatic = readText(startupsStaticPath);
+  const startupsStaticSha = sha256File(startupsStaticPath);
+  const startupsStaticBytes = startupsStatic ? Buffer.byteLength(startupsStatic) : null;
   const diskInternalVer = (footJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
   const diskPublicVer =
     (footJs.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
@@ -772,6 +921,16 @@ async function main() {
     }
   }
 
+  // Fetch page-specific static proof alongside the homepage so truth adds no serial network wait.
+  const liveStartupsPromise = fetchText(LIVE + '/startups').catch((e) => ({
+    ok: false,
+    status: 0,
+    text: '',
+    err: errorText(e),
+    sha256: null,
+    bytes: 0,
+  }));
+
   // Live HTML
   let liveHtml;
   try {
@@ -779,6 +938,13 @@ async function main() {
   } catch (e) {
     liveHtml = { ok: false, status: 0, text: '', err: errorText(e), sha256: null, bytes: 0 };
   }
+  const liveStartupsHtml = await liveStartupsPromise;
+  const liveStartupsStaticCopies = liveStartupsHtml.ok
+    ? exactCopies(liveStartupsHtml.text, startupsStatic)
+    : 0;
+  const liveStartupsHasStaticFragment =
+    /<details\b[^>]*\bclass=["'][^"']*\bdg-static\b/i.test(liveStartupsHtml.text || '');
+  const liveStartupsStaticMatchesDisk = liveStartupsStaticCopies === 1;
   const liveFootUrls = footLoaderUrls(liveHtml.text, man.cdnUrl);
   const liveFootUrl = liveFootUrls[0] || null;
   const liveFootLoaderCount = liveFootUrls.length;
@@ -1053,6 +1219,9 @@ async function main() {
       diskVer &&
       liveVer,
   );
+  const startupsStaticPendingRelease = Boolean(
+    prepareOnlyRelease && diskVer && liveVer && diskVer !== liveVer,
+  );
   // Backward-compat alias: sibling-only lag when foot already matches live/manifest.
   const prepareOnlySiblingAssets =
     prepareOnlyRelease &&
@@ -1098,6 +1267,7 @@ async function main() {
       manifestMapDataMatchesDisk &&
       liveMapMatchesDisk &&
       liveMapDataMatchesDisk &&
+      liveStartupsStaticMatchesDisk &&
       manifestHeadCssMatchesDisk &&
       diskHeadCssMatchesManifest &&
       liveHeadCssMatchesManifest &&
@@ -1114,6 +1284,21 @@ async function main() {
   );
   if (liveHtml.ok) ok.push(`live HTML ${liveHtml.status}`);
   else issues.push(`live HTML fail ${liveHtml.err || liveHtml.status}`);
+  if (!startupsStatic) {
+    issues.push('disk /startups static fragment missing');
+  } else if (!liveStartupsHtml.ok) {
+    issues.push(`live /startups HTML fail ${liveStartupsHtml.err || liveStartupsHtml.status}`);
+  } else if (liveStartupsStaticMatchesDisk) {
+    ok.push('live /startups crawlable fragment == disk');
+  } else if (liveStartupsStaticCopies > 1) {
+    issues.push(`live /startups exact crawlable fragment count ${liveStartupsStaticCopies} != 1`);
+  } else if (startupsStaticPendingRelease) {
+    ok.push('live /startups crawlable fragment ≠ disk (prepare-only — publish unauthorized)');
+  } else if (liveStartupsHasStaticFragment) {
+    issues.push('live /startups crawlable fragment is stale versus disk');
+  } else {
+    issues.push('live /startups crawlable fragment missing');
+  }
   if (liveHtml.ok && liveFootLoaderCount === 1) ok.push('live foot loader count == 1');
   else if (liveHtml.ok) issues.push(`live foot loader count ${liveFootLoaderCount} != 1`);
   if (liveHtml.ok && liveCssLoaderCount === 1) ok.push('live head CSS loader count == 1');
@@ -1261,6 +1446,21 @@ async function main() {
       liveContentType: liveHeadCss?.contentType || null,
       liveMatchesDisk: liveHeadCssMatchesDisk,
     },
+    startupsStatic: {
+      path: startupsStaticPath,
+      sha256: startupsStaticSha,
+      bytes: startupsStaticBytes,
+      liveUrl: LIVE + '/startups',
+      liveReachable: Boolean(liveStartupsHtml.ok),
+      liveStatus: liveStartupsHtml.status || 0,
+      liveError: liveStartupsHtml.ok
+        ? null
+        : liveStartupsHtml.err || `HTTP ${liveStartupsHtml.status || 0}`,
+      liveHasFragment: liveStartupsHasStaticFragment,
+      liveExactCopies: liveStartupsStaticCopies,
+      liveMatchesDisk: liveStartupsStaticMatchesDisk,
+      pendingPreparedRelease: startupsStaticPendingRelease,
+    },
     manifest: {
       version: man.version || null,
       cdnUrl: man.cdnUrl || null,
@@ -1337,6 +1537,7 @@ async function main() {
       liveMatchesManifest,
       liveHeadCssMatchesManifest,
       liveHeadCssMatchesDisk,
+      liveStartupsStaticMatchesDisk,
       fullyShipped,
     },
     freeze: { on: freeze.on, why: freeze.why || null, env: freeze.env, file: freeze.file },
@@ -1352,6 +1553,7 @@ async function main() {
     },
     claims: {
       'live==disk': fullyShipped,
+      crawlable_startups: liveStartupsStaticMatchesDisk,
       board_honest: boardOk,
       can_edit_foot: Boolean(canEditFoot),
     },

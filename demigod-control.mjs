@@ -708,10 +708,26 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
   } catch {
     /* */
   }
+  const scoreboard = safeJsonFile(path.join(BUSY, 'enrichment-scoreboard.json'));
+  const ba = scoreboard?.boardActivity || null;
+  // Scoreboard landscapes (observation counts only — not ranks/scores).
+  const topProv = Array.isArray(ba?.byProvider) && ba.byProvider[0]
+    ? `${ba.byProvider[0].provider}=${ba.byProvider[0].n}`
+    : null;
+  const topFn = Array.isArray(ba?.byFn) && ba.byFn[0]
+    ? `${ba.byFn[0].fn}=${ba.byFn[0].n}`
+    : null;
+  const boardActivityDetail =
+    ba && (ba.newOpenInWindow > 0 || ba.closedInWindow > 0)
+      ? ` · board 7d new=${ba.newOpenInWindow} exit=${ba.closedInWindow}` +
+        (topProv ? ` · topATS ${topProv}` : '') +
+        (topFn ? ` · topFn ${topFn}` : '') +
+        (ba.windowExceedsObservationHistory || ba.windowExceedsClosureHistory ? ' (hist caveat)' : '')
+      : '';
   modules.enrich = enrich('enrich', {
     ok: controlBoardFresh ? controlBoard?.ok !== false && resealPending === 0 : null,
     detail: controlBoard
-      ? `controls ${controlBoard.summary || '?'}${resealPending ? ` · reseal pending=${resealPending}` : ''}${
+      ? `controls ${controlBoard.summary || '?'}${resealPending ? ` · reseal pending=${resealPending}` : ''}${boardActivityDetail}${
           controlBoardFresh ? '' : ' · stale — run control-board'
         }`
       : 'node demigod-control-board.mjs status',
@@ -725,6 +741,15 @@ export async function buildControlPlane({ dashStatus: suppliedDashStatus = null 
       resealPending,
       resealLastAt: resealLast?.at || null,
       ageMs: controlBoardAgeMs,
+      // Observation facts from scoreboard (roles-feed SoR); exits≠filled; not scores.
+      boardActivityNewOpen7d: ba?.newOpenInWindow ?? null,
+      boardActivityExit7d: ba?.closedInWindow ?? null,
+      boardActivityTopProvider: topProv,
+      boardActivityTopFn: topFn,
+      boardActivityHistCaveat:
+        ba != null
+          ? !!(ba.windowExceedsObservationHistory || ba.windowExceedsClosureHistory)
+          : null,
     },
   });
   const shCounts = shStatus?.counts || shStatus || {};

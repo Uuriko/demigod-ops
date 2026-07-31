@@ -38,6 +38,14 @@ test('hourly stays hourly and never mixes units with annual', () => {
 
 test('equity/percent noise is stripped; unparseable stays null (fail-safe)', () => {
   assert.deepEqual(parseCompRange('$200k + equity'), { unit: 'annual', min: 200000, max: 200000 });
+  assert.deepEqual(parseCompRange('$200k plus equity'), { unit: 'annual', min: 200000, max: 200000 });
+  // Leading equity cash grants must parse (public JD equity value bands).
+  assert.deepEqual(parseCompRange('Equity $40k-$80k'), { unit: 'annual', min: 40000, max: 80000 });
+  assert.deepEqual(parseCompRange('Equity grant valued at $40,000 to $80,000'), {
+    unit: 'annual',
+    min: 40000,
+    max: 80000,
+  });
   assert.equal(parseCompRange('competitive'), null);
   assert.equal(parseCompRange('market rate'), null);
   assert.equal(parseCompRange('negotiable'), null);

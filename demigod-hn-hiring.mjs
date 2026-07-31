@@ -75,6 +75,21 @@ export function registrableDomain(url) {
   }
 }
 
+export function canonicalHnAtsUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    const host = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:' ||
+      !/^(?:boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com|jobs\.gem\.com)$/.test(host)
+    ) return null;
+    const slug = url.pathname.split('/').filter(Boolean)[0];
+    return /^[a-z0-9._-]+$/i.test(slug || '') ? `https://${host}/${slug.toLowerCase()}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** False only when a website is present AND its host is one we never accept as a company site.
  *  BADHOST is applied at parse time, so rows cached BEFORE a host joined the list keep flowing
  *  into the map on every rebuild (producthunt.com survived exactly this way). Callers that read
@@ -124,7 +139,15 @@ export function parseHnPost(rawHtml) {
     // `hn:boards.greenhouse.io` — first one won, the rest were silently dropped — and
     // published a directory row linking to the ATS root. The board slug is the identity;
     // we simply have no verified website, so say so instead of inventing one.
-    const slug = (() => { try { return new URL(atsUrl).pathname.split('/').filter(Boolean)[0] || ''; } catch { return ''; } })();
+    const slug = (() => {
+      try {
+        // Decode first: HN posts carry URLs with encoded spaces, and %20 in a map id is not a
+        // board slug — it is a broken identity that fails the stable-id contract downstream.
+        // A segment that is not a clean slug means we have no identity, so we say so.
+        const raw = decodeURIComponent(new URL(atsUrl).pathname.split('/').filter(Boolean)[0] || '');
+        return /^[a-z0-9][a-z0-9._-]*$/i.test(raw) ? raw : '';
+      } catch { return ''; }
+    })();
     if (!slug) return null;
     host = `${registrableDomain(atsUrl)}/${slug.toLowerCase()}`;
     website = null;
@@ -154,7 +177,7 @@ export async function collectHnCompanies({ months = 2 } = {}) {
       if (!raw) continue;
       const p = parseHnPost(raw);
       if (!p) continue;
-      if (!byHost.has(p.host)) byHost.set(p.host, { ...p, thread: th.title, threadUrl: `https://news.ycombinator.com/item?id=${th.objectID}` });
+      if (!byHost.has(p.host)) byHost.set(p.host, { ...p, thread: th.title, threadDate: th.created_at || null, threadUrl: `https://news.ycombinator.com/item?id=${th.objectID}` });
     }
   }
   return [...byHost.values()];
@@ -199,12 +222,43 @@ if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes(
   assert(parseHnPost('Charge Robotics | Eng | San Francisco | https:&#x2F;&#x2F;youtu.be&#x2F;abc') === null, 'youtu.be is not a company website');
   assert(parseHnPost('Pomelo Care | Eng | San Francisco | https:&#x2F;&#x2F;grnh.se&#x2F;x') === null, 'grnh.se short-link is not a company website');
   assert(isBadHost('app.deel.com') && isBadHost('youtu.be') && !isBadHost('tinystartup.ai'), 'isBadHost registrable-domain coverage');
+  const atsRow = toCompanyRow({ ...ats, threadDate: '2026-07-01T00:00:00Z' }, '2026-07-31');
+  assert(atsRow.jobsUrl === 'https://boards.greenhouse.io/betainc' && atsRow.jobsSource === 'HN', 'HN ATS evidence survives cache mapping');
+  assert(canonicalHnAtsUrl('https://evil.example/betainc') === null, 'only public ATS hosts survive cache mapping');
+  // A percent-encoded path segment is not a board slug. Live case from the 12-month backfill:
+  // jobs.ashbyhq.com/normal%20computing%20ai minted `hn:jobs.ashbyhq.com/normal%20computing%20ai`,
+  // which fails stableMapCompanyId and breaks the map's id contract.
+  assert(parseHnPost('Normal Computing | Eng | San Francisco | https://jobs.ashbyhq.com/normal%20computing%20ai') === null, 'encoded-space ATS segment is not an identity');
+  assert(parseHnPost('Real Co | Eng | San Francisco | https://jobs.ashbyhq.com/real-co') !== null, 'a clean ATS slug is still an identity');
+  // Backfilled threads must not publish a stale "is hiring" claim.
+  assert(isFreshHnThread('2026-07-01T00:00:00Z', '2026-07-31'), 'recent thread is a live hiring claim');
+  assert(!isFreshHnThread('2025-09-01T00:00:00Z', '2026-07-31'), 'year-old thread is NOT a live hiring claim');
+  assert(!isFreshHnThread(null, '2026-07-31'), 'undated thread is not a live hiring claim');
+  assert(
+    toCompanyRow({ host: 'a.io', name: 'A', website: 'https://a.io/', threadDate: '2025-09-01T00:00:00Z' }, '2026-07-31').hiring === 'unknown' &&
+      toCompanyRow({ host: 'b.io', name: 'B', website: 'https://b.io/', threadDate: '2026-07-01T00:00:00Z' }, '2026-07-31').hiring === 'yes',
+    'row hiring flag follows thread age',
+  );
   console.log(JSON.stringify({ ok: true, selftest: 'hn-hiring' }));
   process.exit(0);
 }
 
+/**
+ * "Is hiring" is only a live claim while the post is recent. Backfilling older threads adds real
+ * companies but a year-old "we're hiring" is not evidence they are hiring today — those rows say
+ * `hiring:'unknown'` and let the ATS jobs-enrich speak for itself. 120d keeps the previous
+ * 3-month window claiming 'yes' exactly as before.
+ */
+export function isFreshHnThread(threadDate, asOf = new Date(), maxDays = 120) {
+  const t = Date.parse(String(threadDate || ''));
+  const now = Date.parse(String(asOf?.toISOString?.() || asOf));
+  if (!Number.isFinite(t) || !Number.isFinite(now)) return false;
+  return now - t <= maxDays * 86400000;
+}
+
 // Map-ready company row from a parsed HN post. Provenance = the company's own public HN posting.
 export function toCompanyRow(c, retrievedAt) {
+  const jobsUrl = canonicalHnAtsUrl(c.atsUrl);
   return {
     id: 'hn:' + c.host,
     name: c.name,
@@ -214,11 +268,12 @@ export function toCompanyRow(c, retrievedAt) {
     tags: ['hn-hiring'],
     locationPrecision: 'city',
     neighborhood: null,
-    hiring: 'yes',
+    hiring: isFreshHnThread(c.threadDate, retrievedAt) ? 'yes' : 'unknown',
     source: 'Hacker News (Who is Hiring)',
     sourceUrl: c.threadUrl,
     sourceLicense: 'HN-public',
     retrievedAt,
+    ...(jobsUrl ? { jobsUrl, jobsSource: 'HN' } : {}),
   };
 }
 

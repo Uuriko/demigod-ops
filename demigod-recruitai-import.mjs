@@ -635,7 +635,7 @@ function selftest() {
   const tmp = fs.mkdtempSync(path.join('/tmp', 'dg-recruitai-import-'));
   const dbPath = path.join(tmp, 'recruitai.db');
   const exportDoc = {
-    schema: 'demigod.recruitai-export/3',
+    schema: 'demigod.recruitai-export/6',
     rows: [
       {
         name: 'Acme',

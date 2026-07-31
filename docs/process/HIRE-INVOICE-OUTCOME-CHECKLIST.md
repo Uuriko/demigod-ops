@@ -6,7 +6,7 @@
 
 ## Hire verify
 - [ ] Start date + role confirmed by founder (not rumor)
-- [ ] Fee basis: **10% first-year base cash** (fee one-pager)
+- [ ] Fee basis: **10% of first-year base salary**, excluding equity, discretionary bonus, commission, and benefits (fee one-pager)
 - [ ] Any guarantee/replacement: only if payments live and stated in writing
 
 ## Invoice (pre-Stripe OK)

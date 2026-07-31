@@ -31,18 +31,8 @@
   }
 }catch(e){}})();</script>
 
-<noscript id="dg-path-noscript">
-  <style id="dg-nojs-hero">html:not(.w-mod-js) .hero-section h1,html:not(.w-mod-js) .header h1,html:not(.w-mod-js) .hero-title{height:auto!important;min-height:0!important}</style>
-  <style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>
-  <div style="max-width:36rem;margin:2rem auto;padding:1rem 1.25rem;font:500 1rem/1.5 system-ui,sans-serif;color:#0A0A0A;background:#F5F0E6;border:1px solid rgba(201,168,76,.45);border-radius:8px">
-    <p style="margin:0 0 .75rem">Continue on Demigod (no JavaScript):</p>
-    <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
-      <a href="/">Home</a>
-      <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a>
-      <a href="mailto:potter@trydemigod.com?subject=Joining%20the%20Demigod%20talent%20network">Join the talent network by email</a>
-    </p>
-  </div>
-</noscript>
+<style id="dg-nojs-hero">html:not(.w-mod-js) .hero-section h1,html:not(.w-mod-js) .header h1,html:not(.w-mod-js) .hero-title{height:auto!important;min-height:0!important}</style>
+<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>
 
 <style id="dg-modal-hide-closed">
 #startup-modal,#jobseeker-modal{display:none!important;visibility:hidden!important;pointer-events:none!important}
@@ -93,7 +83,7 @@ try{(function(){
 try{(function(){
   var BAD=/hello@(?:try)?demigod\.com/ig, GOOD='potter@trydemigod.com';
   var VOL=/\b3[\s–-]5\b(?:\s+(?:highly\s+aligned,?\s+)?(?:pre-vetted\s+)?(?:curated\s+)?(?:SF\s+)?(?:candidates?|finalists?|profiles?))?/ig;
-  var GOOD_DESC='SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.';
+  var GOOD_DESC='SF startups submit a brief. Talent uploads once. Demigod tech ranks fit; humans review. 10% of first-year base salary when a hire starts. Free for talent.';
   var GOOD_TITLE='Demigod • Tech-Matched SF Startup Talent';
   var INTROS=[
     [/Humans send you curated SF candidates\.?/gi,'A human reads every brief and proposes strong fits.'],
@@ -213,7 +203,7 @@ try{(function(){
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Demigod">
 <meta property="og:locale" content="en_US">
-<meta property="og:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
+<meta property="og:description" content="SF startups submit a brief. Talent uploads once. Demigod tech ranks fit; humans review. 10% of first-year base salary when a hire starts. Free for talent.">
 <meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:secure_url" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:type" content="image/jpeg">
@@ -223,7 +213,7 @@ try{(function(){
 <meta property="og:url" content="https://www.trydemigod.com/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Demigod • Tech-Matched SF Startup Talent">
-<meta name="twitter:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
+<meta name="twitter:description" content="SF startups submit a brief. Talent uploads once. Demigod tech ranks fit; humans review. 10% of first-year base salary when a hire starts. Free for talent.">
 <meta name="twitter:url" content="https://www.trydemigod.com/">
 <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta name="twitter:image:alt" content="Demigod — tech-matched SF startup talent">
@@ -236,9 +226,9 @@ try{(function(){
   var id=(p.get('p')||p.get('page')||'').toLowerCase();
   if(!id && (path==='/blog'||path==='/notes'||/^\/(blog|notes)\//.test(path))) id='blog';
   if(!id&&path!=='/')id=path.slice(1);
-  var aliases={pilot:'hire',method:'how',founders:'hire',candidates:'talent',compare:'pricing',status:'about'};
+  var aliases={pilot:'hire',method:'how',founders:'hire',candidates:'talent',compare:'pricing',status:'about',startups:'map','how-it-works':'how',notes:'blog',privacy:'legal',referral:'refer',referrals:'refer',partners:'refer',partnerships:'refer',partnership:'refer',network:'talent',fees:'pricing',security:'legal',engineers:'talent','events-bot':'events','event-bot':'events','press-kit':'press',media:'press'};
   id=aliases[id]||id;
-  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,refer:1,partners:1,about:1,blog:1,map:1,events:1,sample:1};
+  var allowed={how:1,pricing:1,faq:1,hire:1,talent:1,contact:1,legal:1,refer:1,about:1,blog:1,map:1,events:1,event:1,sample:1,press:1};
   var url=allowed[id]?'https://www.trydemigod.com/?p='+encodeURIComponent(id):'https://www.trydemigod.com/';
   var can=document.createElement('link');can.rel='canonical';can.href=url;document.head.appendChild(can);
   var og=document.querySelector('meta[property="og:url"]'); if(og)og.setAttribute('content',url);
@@ -331,7 +321,7 @@ video,iframe{display:block;border:0}
 ::file-selector-button{font:inherit;color:#0A0A0A;background:var(--g);border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}
 @media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#C9A84C;color:#0A0A0A}}
 @media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}</style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@8d5a78a017ee/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@7ce4e16c3fc6/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
 <!-- Demigod forms --><!-- openModal --><!-- demigod-polish -->
 
 <script id="dg-early-copy-scrub">
@@ -414,13 +404,13 @@ try{(function(){
   var n=0,iv=setInterval(function(){scrub();if(++n>=12)clearInterval(iv)},120);
 })();}catch(e){}</script>
 
-<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
+<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startups submit a brief. Talent uploads once. Demigod tech ranks fit; humans review. 10% of first-year base salary when a hire starts. Free for talent.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
 <script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Join the talent network","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/?p=about"}]}</script>
 
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Both sides say yes","description":"An introduction is not a favor you dump on a founder. It is a two-sided decision after both sides have looked at evidence.","url":"https://www.trydemigod.com/?p=blog#note-both-sides-say-yes","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-both-sides-say-yes"},"image":"https://files.catbox.moe/wewe5r.jpg","articleSection":"Product","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Human review before names move","description":"Ranking helps. It does not get to spend a founder's hour or a candidate's reputation without a person looking first.","url":"https://www.trydemigod.com/?p=blog#note-human-review-before-names-move","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-human-review-before-names-move"},"image":"https://files.catbox.moe/zhxopd.jpg","articleSection":"Product","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"The letter of introduction","description":"Before institutions, a vouch worked because someone with a reputation to lose spent a little of it. Evidence-first intros try to keep that, minus the closed network.","url":"https://www.trydemigod.com/?p=blog#note-letter-of-introduction","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-letter-of-introduction"},"image":"https://files.catbox.moe/fawj6m.jpg","articleSection":"Market","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Private until you both agree","description":"Talent is not a public lead list. Profiles stay private until both sides have approved an introduction.","url":"https://www.trydemigod.com/?p=blog#note-private-until-you-both-agree","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-private-until-you-both-agree"},"image":"https://files.catbox.moe/i4j3y0.jpg","articleSection":"Product","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Ten percent when someone starts","description":"No retainers. No invoice for a stack of résumés. Fee is ten percent of first-year cash, only if a hire actually starts.","url":"https://www.trydemigod.com/?p=blog#note-ten-percent-when-someone-starts","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-ten-percent-when-someone-starts"},"image":"https://files.catbox.moe/eg561c.jpg","articleSection":"Product","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"The masterpiece","description":"Guilds made you make the thing before they called you a master. Modern hiring runs from that test. Evidence-first matching tries to make it cheaper to ask.","url":"https://www.trydemigod.com/?p=blog#note-the-masterpiece","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-the-masterpiece"},"image":"https://files.catbox.moe/najavd.jpg","articleSection":"Market","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"The trial year","description":"The monastic novitiate was a bounded, two-sided trial: both sides tested the fit before anyone was bound. A ninety-day outcome borrows the shape.","url":"https://www.trydemigod.com/?p=blog#note-the-trial-year","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-the-trial-year"},"image":"https://files.catbox.moe/sm33cl.jpg","articleSection":"Market","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Write the ninety-day outcome","description":"\"Great engineer\" is not a brief. A hire should be judged against something that will either have happened or not in ninety days.","url":"https://www.trydemigod.com/?p=blog#note-write-the-ninety-day-outcome","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-write-the-ninety-day-outcome"},"image":"https://files.catbox.moe/w6ezv4.jpg","articleSection":"Product","datePublished":"2026-07-31","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"},{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-31","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
 <style id="dg-cta-preboot">
 
