@@ -123,6 +123,14 @@ export function hiringFreshness(ledger, { today = new Date().toISOString().slice
       postedDateRecycledRoles: recycled,
       postedDateRecycledPctOfDated: allDated ? Math.round((10000 * recycled) / allDated) / 100 : null,
       agesAreLowerBound: true,
+      // The decision rule, in code rather than in a commit message. Thresholds were fixed on
+      // 2026-07-31 BEFORE the first measurement, so the verdict cannot be rationalised after the
+      // fact: above 10% the published medians are materially understated and the public copy must
+      // be qualified; 1-10% is worth noting; below 1% the claim stands (measured: 0.61%).
+      // Exposed as a boolean so a continuous control is one line for whoever owns that surface —
+      // a threshold nobody evaluates is a number nobody acts on.
+      claimQualificationThresholdPct: 10,
+      claimQualificationNeeded: allDated ? (100 * recycled) / allDated > 10 : false,
     },
     companies,
   };
@@ -181,6 +189,20 @@ if (isMain && process.argv.includes('--selftest')) {
     const r = hiringFreshness(led(rows), { today: T, minDated: 5 });
     assert(of(r, 'fresh').percentile === 0 && of(r, 'stale').percentile === 100, 'percentile orders fresh→stale');
     assert(of(r, 'stale').evergreen365 === 5, 'roles past a year are counted');
+  }
+
+  // The recycling verdict must be computed, not asserted in prose.
+  {
+    const dated = (n, recycled) => led(Array.from({ length: n }, (_, i) =>
+      role({ slug: 'b', nativePostedAt: '2026-07-01', ...(i < recycled ? { postedDateChangeCount: 1 } : {}) })));
+    const low = hiringFreshness(dated(100, 0), { today: T, minDated: 1 }).corpus;
+    assert(low.postedDateRecycledPctOfDated === 0 && low.claimQualificationNeeded === false,
+      'no recycling -> the published claim stands');
+    const high = hiringFreshness(dated(100, 20), { today: T, minDated: 1 }).corpus;
+    assert(high.postedDateRecycledPctOfDated === 20, `pct is computed, got ${high.postedDateRecycledPctOfDated}`);
+    assert(high.claimQualificationNeeded === true, 'past the threshold the public copy must be qualified');
+    const edge = hiringFreshness(dated(100, 10), { today: T, minDated: 1 }).corpus;
+    assert(edge.claimQualificationNeeded === false, 'exactly at the threshold is not past it');
   }
 
   // Closed roles are not open roles; reposts are surfaced.

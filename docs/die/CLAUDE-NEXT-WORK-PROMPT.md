@@ -146,6 +146,22 @@ two rows might be one company, never auto-merge, queue ambiguity for review.
 
 ---
 
+### 3.7 — Wire the reporters into a continuous surface *(open, needs the control-board owner)*
+
+Four reporters exist and NONE run on a schedule: `hiring-freshness`, `roles-feed`,
+`source-flakiness`, `identity-review`. A reporter nobody runs finds nothing, so their real value is
+currently zero. `demigod-control-board.mjs` (Grok's) is the right home — `control(id, severity, ok,
+reason, evidence)` is a clean seam.
+
+Two are ready to wire as one-liners today:
+- `hiringFreshness().corpus.claimQualificationNeeded` — already a computed boolean against a
+  pre-committed 10% threshold. When it flips true, a live public claim needs qualifying.
+- `identityReview().counts.reviewCandidates` — currently 6; each is a possible duplicate row in a
+  directory that publishes a company count.
+
+Not done here because the control board was mid-edit by its owner. Hand it over rather than
+collide.
+
 ## 4. Explicitly do NOT do
 
 - Do not add a test to raise a count. The dominant defect class here is bad checks, not missing ones.
