@@ -1,24 +1,24 @@
 {
-  "at": "2026-07-31T03:51:38.052Z",
+  "at": "2026-07-31T11:45:50.320Z",
   "dryRun": false,
   "before": [
-    "https://www.trydemigod.com/",
+    "https://webflow.com/dashboard/sites/talentlink-sf/custom-code",
     "https://talentlink-sf.design.webflow.com/",
-    "https://webflow.com/dashboard/sites/talentlink-sf/custom-code"
+    "https://www.trydemigod.com/"
   ],
   "closed": [],
   "kept": [
     {
-      "url": "https://www.trydemigod.com/",
-      "role": "live-prod"
+      "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code",
+      "role": "custom-code"
     },
     {
       "url": "https://talentlink-sf.design.webflow.com/",
       "role": "designer"
     },
     {
-      "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code",
-      "role": "custom-code"
+      "url": "https://www.trydemigod.com/",
+      "role": "live-prod"
     }
   ]
 }

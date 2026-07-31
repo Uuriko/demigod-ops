@@ -1,7 +1,12 @@
 {
-  "at": "2026-07-31T04:44:14.689Z",
+  "at": "2026-07-31T12:22:45.967Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
+    {
+      "name": "commercial:fee-basis",
+      "ok": true,
+      "detail": "website must carry the canonical fee basis and exclusions"
+    },
     {
       "name": "forms:no-dormant-analytics",
       "ok": true,
@@ -15,7 +20,7 @@
     {
       "name": "head:size-under-cap",
       "ok": true,
-      "detail": "40273/50000 (9727 left)"
+      "detail": "39912/50000 (10088 left)"
     },
     {
       "name": "head:hide-webflow-badge",
@@ -43,9 +48,14 @@
       "detail": "the authored no-JavaScript hero heading must use intrinsic height without affecting the JavaScript-on critical box"
     },
     {
-      "name": "head:nojs-native-actions",
+      "name": "footer:nojs-native-actions",
       "ok": true,
-      "detail": "no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs"
+      "detail": "body fallback must expose native Home/directory/email actions, not script-only routes or inert hash CTAs"
+    },
+    {
+      "name": "footer:nojs-served-body",
+      "ok": true,
+      "detail": "433 meaningful served-body characters"
     },
     {
       "name": "head:heavy-meta",
@@ -83,7 +93,7 @@
       "detail": null
     },
     {
-      "name": "head:fee-desc-cash",
+      "name": "head:fee-desc-basis",
       "ok": true,
       "detail": null
     },
@@ -108,9 +118,14 @@
       "detail": null
     },
     {
+      "name": "head:route-contract-parity",
+      "ok": true,
+      "detail": null
+    },
+    {
       "name": "head:route-alias-consolidation",
       "ok": true,
-      "detail": "legacy product paths must target canonical pages, Refer needs its canonical, and nav JSON-LD must list only 10 real surfaces"
+      "detail": "legacy product paths must target canonical pages and nav JSON-LD must list only 10 real surfaces"
     },
     {
       "name": "head:blog-canonical",
@@ -410,7 +425,7 @@
     {
       "name": "core:version-marker",
       "ok": true,
-      "detail": "v860"
+      "detail": "v868"
     },
     {
       "name": "coreJs:run-defined-if-called",
@@ -630,7 +645,7 @@
     {
       "name": "footer:boot-smoke",
       "ok": true,
-      "detail": "860"
+      "detail": "868"
     },
     {
       "name": "combined:forms-via-footer",
@@ -740,12 +755,12 @@
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=518 contracts=10"
+      "detail": "import-integrity OK edges=522 contracts=10"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 232.940509"
+      "detail": "ℹ duration_ms 249.300347"
     }
   ],
   "pass": true

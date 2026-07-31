@@ -117,4 +117,4 @@ DB, accounts, more public forms, auto-send, auto-publish, ticketing, public atte
 
 ## Honesty
 
-No fake RSVP counts. No SLA clocks. Placement fee only if a hire starts later from an intro (10% first-year cash). Talent never pays Demigod.
+No fake RSVP counts. No SLA clocks. Placement fee only if a hire starts later from an intro (10% of first-year base salary; equity, discretionary bonus, commission, and benefits excluded). Talent never pays Demigod.

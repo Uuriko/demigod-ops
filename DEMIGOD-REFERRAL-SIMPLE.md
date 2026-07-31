@@ -18,7 +18,7 @@ Updated 2026-07-27. Product + ops design. Implementation lives in `demigod-refer
 
 **Industry anchors (not Demigod quotes):** employee-referral programs win on quality/speed when the share link is unique and rewards are outcome-tied; recruiting partners often take a cut of placement fees after start/guarantee periods; marketplace job boards (Wellfound, WAAS) rarely run public cash referral-to-pay for strangers—Demigod’s model is closer to **approved network referrers** than an open affiliate program.
 
-**Demigod commercial baseline:** startups pay **10% of first-year cash** on hire (written terms). Candidates never pay. Referral reward is a **share of Demigod’s collected net fee**, not of salary.
+**Demigod commercial baseline:** startups pay **10% of first-year base salary**, excluding equity, discretionary bonus, commission, and benefits, when a hire starts (written terms). Candidates never pay. Referral reward is a **share of Demigod’s collected net fee**, not of salary.
 
 ## Simplified product (talent-first)
 
@@ -124,5 +124,5 @@ Lifecycle after a referred talent submits still uses: `sync` → `qualify` → `
 
 - **Employee-referral software** (ERIN, Drafted, Ashby modules): unique share link + outcome pay (often split hire/retention). We keep one eligibility after day-90 + fee paid.  
 - **Recruiter marketplaces** (e.g. Paraform-style): pay on placement milestones after guarantees — same spirit as retain → settle.  
-- **Contingency recruiting**: 15–25% first-year cash market; Demigod client fee stays **10%**; referrer gets **20% of Demigod’s net fee**, not of salary.  
+- **Contingency recruiting**: 15–25% of first-year base salary is a common market frame; Demigod client fee stays **10%**; referrer gets **20% of Demigod’s net fee**, not of salary.
 - **Open affiliate self-serve** (PartnerStack-style): skipped — approved network only, no multi-level, no auto-DM.
