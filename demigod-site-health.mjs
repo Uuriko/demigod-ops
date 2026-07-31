@@ -55,6 +55,28 @@ export function servedBodyText(html) {
   return { chars, crawlableWithoutJs: chars > 0, sample };
 }
 
+// Fabricated event/speaker content that must never ship. These names are not people — they are
+// placeholder copy sitting in the Webflow Designer canvas of /events, rendered as real event cards
+// with times, titles and "Speaker" labels.
+//
+// WHY A SERVED-HTML CHECK. This was closed as resolved on 2026-07-22 by a repo grep that found zero
+// hits — correct for the repo and wrong about the site, because canvas content is edited outside git
+// and no `grep -r` can see it. Found still live 07-24, and still live 07-31. A rendered-DOM check
+// also misses it: foot-core hides that section, so the CDP innerText is clean while the served bytes
+// a crawler or social scraper receives still carry the fabrication.
+//
+// Names, not markup shape, because the shape is ordinary Webflow markup and pinning it would flag
+// any real event card. If a real speaker ever shares one of these names, narrow the marker — do not
+// delete the check.
+export const FABRICATED_CANVAS_MARKERS = ['Morgan Patel', 'Casey Nguyen', 'Riley Chen'];
+
+/** PURE: fabricated placeholder people present in a served document. */
+export function fabricatedContent(html) {
+  const s = String(html || '');
+  const found = FABRICATED_CANVAS_MARKERS.filter((m) => s.includes(m));
+  return { ok: found.length === 0, found };
+}
+
 const nfmt = (n) => Number(n).toLocaleString('en-US');
 
 // PURE: the /startups head strings, DERIVED from the map so a human never retypes a count.
@@ -106,7 +128,14 @@ export async function siteHealth(fetchImpl = fetch, footSrc = null, map = null) 
   const counts = startupsSeoDrift(startupsHtml, mapObj);
   // Reported, not gated — see servedBodyText. Rides on the /startups fetch we already make.
   const crawlable = servedBodyText(startupsHtml);
-  return { ok: routes.ok && seo.ok && counts.ok, routes, seo, counts, crawlable };
+  // Honesty gate, and it DOES fail the build. Unlike the empty served body (deliberate
+  // architecture), fabricated people presented as speakers is a defect, and it should stay red
+  // until the canvas is edited.
+  const fabricated = fabricatedContent(await get('/events'));
+  return {
+    ok: routes.ok && seo.ok && counts.ok && fabricated.ok,
+    routes, seo, counts, crawlable, fabricated,
+  };
 }
 
 if (isMain && process.argv.includes('--selftest')) {
@@ -127,6 +156,14 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(servedBodyText('<body><!-- a comment --></body>').chars === 0, 'comments are not content');
   assert(servedBodyText('<html><head><title>T</title></head></html>').chars === 0, 'no body -> 0, not head text');
   assert(servedBodyText('').chars === 0 && servedBodyText(null).chars === 0, 'empty/null -> 0, no crash');
+
+  // fabricatedContent: names in the SERVED bytes, which is where this actually lives.
+  assert(fabricatedContent('<p>Morgan Patel</p>').ok === false, 'a fabricated speaker is caught');
+  assert(fabricatedContent('<p>Morgan Patel</p>').found.length === 1, 'and named, so the fix is findable');
+  assert(fabricatedContent('<div>Speaker</div><p>Casey Nguyen</p>').found[0] === 'Casey Nguyen', 'each marker matches independently');
+  assert(fabricatedContent('<p>A real person</p>').ok, 'ordinary copy passes');
+  assert(fabricatedContent('').ok && fabricatedContent(null).ok, 'no html -> pass, not a false red');
+  assert(FABRICATED_CANVAS_MARKERS.length >= 3, 'the marker list must not be silently emptied');
 
   // startupsSeo: strings are DERIVED, never typed. Same omit-don't-fabricate rule as siteCounters.
   const MAP = { companies: new Array(2737), coverage: { companiesWithOpenRoles: 339, roleMix: { engineering: 8000, other: 124 } } };
