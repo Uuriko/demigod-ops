@@ -328,3 +328,29 @@ page ships an ItemList today, it just describes navigation.
 
 Same caveat as trimming the static page: publishing top-N is publishing an arbitrary subset, and
 which N (and whether to do it at all) is the positioning call from 3.10, not a technical one.
+
+### 3.12 — The long-red work-queue test: exact cause, for whoever owns work-find
+
+CI has been red on `unchanged discovery is idempotent while new P0 evidence still queues` for hours
+(466/467 as of 2026-07-31 04:39). It is the ONLY CI failure. Traced to the end:
+
+`demigod-work-find.mjs:330` calls `refuseIfStale('truth')` → `verifyEvidenceChain('truth')` →
+reads `$BUSY/evidence/latest-truth.json`. The test builds a **fresh empty temp BUSY** with no
+`evidence/` directory, so the chain returns `reason:'no-evidence', fresh:false` and the rule
+correctly queues a reseal. The queued item even says so: *"Truth seal no-evidence — reseal disk
+oracle"*.
+
+**So the first assertion (`rows(queue)` empty after run 1) fails on a FIXTURE GAP, not a dedupe
+bug.** The fixture's premise is an all-green world; an absent truth seal is not green. It needs a
+valid `evidence/latest-truth.json`.
+
+**I did not fix it, deliberately, twice.** Fixing the fixture alone would turn CI green while hiding
+the separate real defect underneath — an `always:true` item bypasses the seen-set, so
+`enrich:truth-seal-live` re-queues every run and the queue ends up holding two rows with the
+identical hour-bucketed key. And `demigod-work-find.mjs` has been a peer's uncommitted WIP all
+session (they added an exported `shouldBypassWorkFindSeen` plus `always:true` selftests), so they
+are mid-fix on exactly that semantics and my edit would collide.
+
+**Caution for whoever verifies the fix:** a local full-suite green here is not evidence — the tree
+is shared and `node --test` reads a peer's uncommitted edits. Local read 490/490 while CI read
+466/467 on the same code. Check CI, or `git status`/`git log` the file under test first.
