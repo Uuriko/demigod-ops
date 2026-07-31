@@ -256,3 +256,43 @@ test('directory sort: an unmeasured company never ranks as freshest', () => {
   assert.ok(fresh(null, null, 'Alpha', 'Beta') < 0, 'both unknown fall back to name');
   assert.ok(Number.isNaN(NaN) && fresh(NaN, 3, 'A', 'B') > 0, 'NaN is treated as unknown, not as 0');
 });
+
+test('recent roles: ordered by OUR observation, never by the employer posting date', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  // Source-level: the section exists and starts hidden, so a missing feed shows nothing at all.
+  assert.match(src, /<section class="dg-dir-fresh" hidden><\/section>/);
+  const start = src.indexOf('function dgRecentRoles');
+  const end = src.indexOf('\n  var state = {');
+  const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();
+
+  const feed = (roles) => ({ schema: 'demigod.roles-feed/1', windowDays: 7, roles });
+  const role = (o) => ({ company: 'C', title: 'T', url: 'https://x.example/j', firstObservedAt: '2026-07-30T00:00:00Z', postedAt: null, ...o });
+
+  // Newest of OUR observations first.
+  const ordered = pick(feed([
+    role({ company: 'Older', firstObservedAt: '2026-07-01T00:00:00Z' }),
+    role({ company: 'Newer', firstObservedAt: '2026-07-29T00:00:00Z' }),
+  ]), 8);
+  assert.deepEqual(ordered.map((r) => r.company), ['Newer', 'Older']);
+
+  // THE HONESTY RULE. postedAt is present on only some rows (the ATS-attributed ones). If ordering
+  // ever keys off it, the handful of Greenhouse rows float to the top and the list silently stops
+  // being "recent" — it becomes "boards that expose a date", an editorial claim we never made.
+  // Here postedAt ordering is the exact REVERSE of firstObservedAt ordering.
+  const conflict = pick(feed([
+    role({ company: 'WeSawFirst', firstObservedAt: '2026-07-29T00:00:00Z', postedAt: '2026-01-01' }),
+    role({ company: 'BoardSaysNewer', firstObservedAt: '2026-07-02T00:00:00Z', postedAt: '2026-07-28' }),
+  ]), 8);
+  assert.deepEqual(conflict.map((r) => r.company), ['WeSawFirst', 'BoardSaysNewer'],
+    'our observation decides the order; the board date must not reorder the list');
+
+  // A row we cannot label honestly is dropped, not rendered with a blank.
+  const dropped = pick(feed([role({ company: '' }), role({ title: '' }), role({ firstObservedAt: null }), role({ company: 'Keep' })]), 8);
+  assert.deepEqual(dropped.map((r) => r.company), ['Keep']);
+
+  assert.equal(pick(feed(Array.from({ length: 30 }, (_, i) => role({ company: 'c' + i }))), 3).length, 3, 'limit respected');
+  assert.equal(pick(feed(Array.from({ length: 30 }, (_, i) => role({ company: 'c' + i }))), undefined).length, 8, 'defaults to 8, not to 0');
+  assert.deepEqual(pick(null, 8), [], 'no feed -> nothing');
+  assert.deepEqual(pick({ roles: 'nope' }, 8), [], 'malformed roles -> nothing, no crash');
+  assert.deepEqual(pick(feed([]), 8), [], 'empty feed -> nothing');
+});

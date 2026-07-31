@@ -7,11 +7,35 @@
   // community-submission merge, and every honesty label from the prior atlas.
   var source = document.currentScript && document.currentScript.src;
   var dataUrl = source ? new URL('sf-startup-map.json', source).href : '';
+  // Sibling asset, same commit as this script — no manifest lookup, so it cannot drift from the
+  // build that shipped it. OPTIONAL: roles-feed.json is published only when it verifies live, so a
+  // 404 here is a normal state and must never degrade the directory.
+  var feedUrl = source ? new URL('roles-feed.json', source).href : '';
   // Pure ordering rule, hoisted so it can be exercised directly by a test rather than asserted
   // as a source pattern. A company with NO measured median posting age sorts LAST in both
   // directions: treating unknown as 0 would rank an unmeasured board as the freshest on the page,
   // which is a claim we cannot make — we only know a median where the employer published a date
   // we trust. Ties and unknown-vs-unknown fall back to name so the order stays stable.
+  // PURE, hoisted so a test can exercise it directly rather than asserting on a source pattern.
+  // The feed carries TWO dates that mean different things and must never be conflated:
+  // firstObservedAt is OURS (when we first saw the role on the board) and is on every row;
+  // postedAt is the EMPLOYER'S and is null unless the ATS exposed a real post date. We order by our
+  // own observation because it is the only field present everywhere — ordering by postedAt would
+  // silently rank the Greenhouse-attributed roles above every other board rather than showing the
+  // newest, and would look like an editorial judgement we never made.
+  function dgRecentRoles(feed, limit) {
+    var n = (typeof limit === 'number' && limit > 0) ? limit : 8;
+    var roles = (feed && Array.isArray(feed.roles)) ? feed.roles : [];
+    return roles
+      .filter(function (r) { return r && r.company && r.title && r.firstObservedAt; })
+      .slice()
+      .sort(function (a, b) {
+        if (a.firstObservedAt === b.firstObservedAt) return String(a.company).localeCompare(String(b.company));
+        return a.firstObservedAt < b.firstObservedAt ? 1 : -1;
+      })
+      .slice(0, n);
+  }
+
   function dgOrderByMedian(direction) {
     var newestFirst = direction === 'fresh';
     return function (aMed, bMed, aName, bName) {
@@ -101,6 +125,16 @@
       '.dg-dir-links{margin:.25rem 0 0;font-size:.76rem}' +
       '.dg-dir-links a{color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
       '.dg-dir-empty{color:#a8a29e;padding:.9rem 0}' +
+      '.dg-dir-fresh{margin:1.4rem 0 0;padding-top:1rem;border-top:1px solid rgba(166,255,203,.12)}' +
+      '.dg-dir-fresh[hidden]{display:none}' +
+      '.dg-fresh-h{font-size:.95rem;margin:0 0 .3rem;color:#f3f0e7}' +
+      '.dg-fresh-note{color:#a8a29e;font-size:.78rem;line-height:1.55;margin:0 0 .6rem}' +
+      '.dg-fresh-list{list-style:none;margin:0;padding:0}' +
+      '.dg-fresh-row{padding:.5rem 0;border-bottom:1px solid rgba(166,255,203,.08)}' +
+      '.dg-fresh-row a{color:#a6ffcb}' +
+      '.dg-fresh-row a:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '.dg-fresh-co{color:#f3f0e7}' +
+      '.dg-fresh-meta{display:block;color:#a8a29e;font-size:.76rem;margin-top:.15rem}' +
       '.dg-dir-foot{color:#a8a29e;font-size:.78rem;line-height:1.55;margin:1.1rem 0 0}' +
       '.dg-dir-foot a{color:#a6ffcb}' +
       '.dg-dir-error{padding:1rem;border:1px solid #9f4a4a;border-radius:12px;color:#f6caca}' +
@@ -190,6 +224,46 @@
       '</li>';
   }
 
+  // Fills the (initially hidden) section. Stays hidden when there is nothing to show — an empty
+  // "Recently observed roles" box would imply we looked and found no hiring, which is not what an
+  // absent or stale feed means.
+  function renderRecentRoles(host, feed) {
+    var rows = dgRecentRoles(feed, 8);
+    if (!rows.length) return;
+    var days = (typeof feed.windowDays === 'number' && feed.windowDays > 0) ? feed.windowDays : null;
+    host.innerHTML =
+      '<h2 class="dg-fresh-h">Recently observed roles</h2>' +
+      '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
+      (days ? ' in the last ' + days + ' days' : '') +
+      '. <strong>First observed</strong> is our timestamp, not the employer\'s posting date — most ' +
+      'boards do not expose one, so this says when we noticed a role, never how long it has existed.</p>' +
+      '<ul class="dg-fresh-list">' +
+      rows.map(function (role) {
+        var url = safeUrl(role.url);
+        var title = url
+          ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(role.title) + '</a>'
+          : esc(role.title);
+        var meta = [];
+        if (role.location) meta.push(esc(role.location));
+        meta.push('first observed ' + esc(String(role.firstObservedAt).slice(0, 10)));
+        // Only shown when the ATS actually gave us one, and labelled as THEIR date, not ours.
+        if (role.postedAt) meta.push('board posted ' + esc(String(role.postedAt).slice(0, 10)));
+        return '<li class="dg-fresh-row">' + title + ' · <span class="dg-fresh-co">' + esc(role.company) +
+          '</span><span class="dg-fresh-meta">' + meta.join(' · ') + '</span></li>';
+      }).join('') +
+      '</ul>';
+    host.hidden = false;
+  }
+
+  function mountRecentRoles(root) {
+    var host = root && root.querySelector('.dg-dir-fresh');
+    if (!host || !feedUrl) return;
+    fetch(feedUrl, { cache: 'no-store', credentials: 'omit' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (feed) { if (feed && host.isConnected) renderRecentRoles(host, feed); })
+      .catch(function () { /* optional asset — the directory must never degrade because a feed 404s */ });
+  }
+
   function render(root, map) {
     var companies = map.companies.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
     state.searchText = companies.map(function (c) { return [c.name, c.description].concat(c.tags || []).join(' ').toLowerCase(); });
@@ -239,6 +313,7 @@
       '</select></div>' +
       '<p class="dg-dir-count" role="status" aria-live="polite">' + companies.length + ' companies · loading job coverage…</p>' +
       '<ul class="dg-dir-list"></ul>' +
+      '<section class="dg-dir-fresh" hidden></section>' +
       '<p class="dg-dir-foot"><strong>Definition:</strong> ' + esc(map.coverage.definition || 'Companies with a public SF headquarters listing.') +
       '<br><strong>Important:</strong> ' + esc(map.coverage.caveat || 'City-level only; current status is not verified.') +
       (sources ? '<br>Sources: ' + sources + '.' : '') +
@@ -302,6 +377,7 @@
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
     renderRows();
+    mountRecentRoles(root);
   }
 
   function mount(root) {
