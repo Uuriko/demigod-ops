@@ -4,8 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-const SOURCE = '/home/potter';
+// Derive the repo root from this file, never a hardcoded '/home/potter'. The absolute path made
+// this test pass on one laptop and fail everywhere else: CI checks out to
+// /home/runner/work/demigod-ops, so spawning `${SOURCE}/demigod-useful-loop.mjs` threw
+// MODULE_NOT_FOUND on the first clean-room run even though both modules are tracked.
+const SOURCE = path.dirname(fileURLToPath(import.meta.url));
 
 function run(script, root, busy, pathEnv) {
   const r = spawnSync(process.execPath, [path.join(SOURCE, script)], {
