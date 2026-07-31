@@ -1,7 +1,7 @@
 {
-  "at": "2026-07-31T04:36:48.390Z",
+  "at": "2026-07-31T04:45:48.444Z",
   "version": "860",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/foot-latest.js",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@90d9b4b4b299/foot-latest.js",
   "ok": true,
   "temporary": false,
   "bytes": 360071,
@@ -12,24 +12,24 @@
   "footVer": "860",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/startup-map-latest.js",
-      "sha256": "9e93df69a764046e942230fb5099f4b9e63fe490b2583ccf5febb245e9e525cb",
-      "bytes": 31666
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@90d9b4b4b299/startup-map-latest.js",
+      "sha256": "bac507eb41c74468ec22d2357ad9e5d37b39cc63fc9ec7275f21f5c8ba081bd9",
+      "bytes": 32048
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/sf-startup-map.json",
-      "sha256": "b19492e892198913d8e5f82f26e589a8127b700ad64e0b8e4465a0ae4e8051fa",
-      "bytes": 1223235
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@90d9b4b4b299/sf-startup-map.json",
+      "sha256": "5dfea529770ab2b893dbfc422250370e1071ef181c01250e35801cc0d836006a",
+      "bytes": 1223241
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/head-latest.css",
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@90d9b4b4b299/head-latest.css",
       "sha256": "6f78881b777fb1eb60b550de982e5d946b607ad41fc7af617e790cbda2e6ffe5",
       "bytes": 82912
     },
     "rolesFeed": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@bfc08e540d91/roles-feed.json",
-      "sha256": "dcc4a74b0835127cdcd86a168286228ab1ad90d209898f2a009018a936f4424d",
-      "bytes": 15714
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@90d9b4b4b299/roles-feed.json",
+      "sha256": "1ec990a82496710ee911c616321797ae70b05f630efc1e9d2daba608be915f40",
+      "bytes": 15745
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T04:36:59.761Z",
+  "at": "2026-07-31T04:44:14.689Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -745,7 +745,7 @@
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 247.725516"
+      "detail": "ℹ duration_ms 232.940509"
     }
   ],
   "pass": true
