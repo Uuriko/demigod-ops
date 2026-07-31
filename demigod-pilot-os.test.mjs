@@ -59,6 +59,33 @@ const forcedHire = spawnSync(process.execPath, [new URL('./demigod-close.mjs', i
 assert.equal(forcedHire.status, 1, 'hire must follow the evidence-gated intro path');
 assert.equal(JSON.parse(forcedHire.stderr).error, 'expect_status_intro');
 
+fs.writeFileSync(store, JSON.stringify({ schema: 1, pilots: [{ id: 'pilot_terms', status: 'intro' }] }));
+const closeBin = new URL('./demigod-close.mjs', import.meta.url).pathname;
+const hired = spawnSync(process.execPath, [closeBin, 'hire', 'pilot_terms', '--start', '2026-08-01', '--base-salary', '180000'], {
+  encoding: 'utf8',
+  env: childEnv,
+});
+assert.equal(hired.status, 0, hired.stderr);
+const closed = JSON.parse(fs.readFileSync(store, 'utf8')).pilots[0];
+assert.equal(closed.close.firstYearBaseSalary, 180000);
+assert.equal(closed.close.feeCents, 1800000);
+assert.equal(closed.close.feeTerms.basis, 'first-year base salary');
+const closedBytes = fs.readFileSync(store, 'utf8');
+const sameHire = spawnSync(process.execPath, [closeBin, 'hire', 'pilot_terms', '--start', '2026-08-01', '--base-salary', '180000'], {
+  encoding: 'utf8',
+  env: childEnv,
+});
+assert.equal(sameHire.status, 0, sameHire.stderr);
+assert.equal(JSON.parse(sameHire.stdout).idempotent, true, 'same hire terms are idempotent');
+assert.equal(fs.readFileSync(store, 'utf8'), closedBytes, 'idempotent close does not rewrite the terms snapshot');
+const changedHire = spawnSync(process.execPath, [closeBin, 'hire', 'pilot_terms', '--start', '2026-08-02', '--base-salary', '190000'], {
+  encoding: 'utf8',
+  env: childEnv,
+});
+assert.equal(changedHire.status, 1, 'a recorded hire cannot be rebound to different terms');
+assert.equal(JSON.parse(changedHire.stderr).error, 'hired_terms_immutable');
+assert.equal(fs.readFileSync(store, 'utf8'), closedBytes, 'changed hire terms do not mutate history');
+
 fs.writeFileSync(store, JSON.stringify({ schema: 1, pilots: [] }));
 const lock = store + '.lock';
 fs.writeFileSync(lock, `${process.pid}\n`);

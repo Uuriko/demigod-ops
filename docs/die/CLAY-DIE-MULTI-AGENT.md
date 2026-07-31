@@ -15,6 +15,8 @@
 
 **Exhaustive enrichment feature list:** [`docs/die/ENRICHMENT-FEATURES.md`](ENRICHMENT-FEATURES.md)
 
+**Clay product revisit (2026-07-31):** [`docs/research/CLAY-PRODUCT-REVISIT-2026-07-31.md`](../research/CLAY-PRODUCT-REVISIT-2026-07-31.md) — live Clay surface (Claygent, Account Research Agents, Audiences, pricing). Non-goal remains: Clay clone.
+
 ---
 
 ## 0. Vocabulary
@@ -41,7 +43,7 @@ PUBLIC (CDN / Webflow / foot)
 
 PRIVATE (this laptop)
   map + role ledger + research seal
-    → demigod.recruitai-export/4  (/tmp/dg-busy/recruitai-export/)
+    → demigod.recruitai-export/6  (/tmp/dg-busy/recruitai-export/)
     → partner preview (lead-sourcer)
     → import-sourcer dry-run
     → match-review / pairs / intro drafts

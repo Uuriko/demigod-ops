@@ -10,6 +10,7 @@
 - [ ] Must-haves: pass/fail with notes (not vibes only)
 - [ ] Private `companyEvidence` checked: startup-map provenance + exact ATS role observation; ambiguity and `reviewFlags` stay visible
 - [ ] Semantic company research uses only benchmark-accepted fields; unknown pricing stays unknown and source conflicts stay review-flagged
+- [ ] **AI-native work evidence** (if present on talent profile): resume/work link + experience wins — can you explain what *they* owned vs agent paste? Optional external bars (Builders/Exceptional pass, Promptster case, take-home repo) are signal, not auto-intro. See `docs/gtm/AI-NATIVE-EVIDENCE-ONE-PAGER.md`
 - [ ] Gaps and risks written (do not hide)
 - [ ] Conflicts of interest / bias check (personal friends, etc.)
 

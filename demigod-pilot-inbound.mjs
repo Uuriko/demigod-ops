@@ -425,9 +425,23 @@ function hasObservedPilotTimestamp(pilot) {
   return isObservedTimestamp(pilot.at);
 }
 
+function isFixtureHostIdentity(value) {
+  // RFC 2606 / docs fixtures (example.com) and common test hosts must never
+  // look like replyable founder demand — founder@example.com used to inflate OS open.
+  const plain = String(value || '')
+    .replace(/[*_`~]/g, '')
+    .trim()
+    .toLowerCase();
+  if (!plain) return false;
+  if (/@(?:example\.(?:com|org|net)|test|invalid|localhost)\b/.test(plain)) return true;
+  if (/^(?:https?:\/\/)?(?:www\.)?example\.(?:com|org|net)\b/.test(plain)) return true;
+  if (/^example\.(?:com|org|net)$/.test(plain)) return true;
+  return false;
+}
+
 function isReplyableContact(value) {
   const contact = String(value || '').trim();
-  if (!contact || isPlaceholderIdentity(contact)) return false;
+  if (!contact || isPlaceholderIdentity(contact) || isFixtureHostIdentity(contact)) return false;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return true;
   if (/^@[A-Za-z0-9_]{1,32}$/.test(contact)) return true;
   if (/^https?:\/\/[^\s.]+(?:\.[^\s.]+)+(?:\/\S*)?$/.test(contact)) return true;
@@ -631,6 +645,8 @@ function isOpenPilotOsSignal(pilot) {
   if (!hasObservedPilotTimestamp(pilot)) return false;
   const status = String(pilot.status || '').trim().toLowerCase();
   if (!status || ['hired', 'closed', 'churned'].includes(status)) return false;
+  // Fixture hosts (example.com) never count — sample:false alone was not enough.
+  if ([pilot.company, pilot.contact, pilot.role].some(isFixtureHostIdentity)) return false;
   // Pilot OS is operational state, not a loose note bucket. Require the same
   // identity its writer requires plus a replyable/attributable contact. This
   // quarantines partial legacy JSON and transient objects instead of turning
@@ -1032,11 +1048,14 @@ function appendWarm({ who, channel, status, next }) {
     console.error(JSON.stringify({ error: 'warm_who_unsafe_markup', path: PILOT_LOG }));
     return { ok: false, added: false, duplicate: false };
   }
-  if (!WARM_CHANNELS.has(safe.channel.toLowerCase())) {
+  // Composite channels ("email + Calendly") are one attributable thread in
+  // warmInboundIdentityKey. Writers must accept the same set status readers use.
+  if (!isReadableWarmChannel(safe.channel)) {
     console.error(JSON.stringify({
       error: 'warm_channel_invalid',
       channel: safe.channel,
       allowed: [...WARM_CHANNELS],
+      composites: 'email + calendly (and other allowed +/&/ joins)',
       path: PILOT_LOG,
     }));
     return { ok: false, added: false, duplicate: false };
@@ -1315,6 +1334,10 @@ function cmdSelftest() {
       malformedActive.rawRows === 1 && malformedActive.invalidSchemaRows === 1,
     futureEvidenceRejected: !isObservedDate('2999-01-01'),
     compositeKnownChannelsReadable: isReadableWarmChannel('email + Calendly'),
+    // Writer uses the same gate as readers (appendWarm / isReadableWarmChannel).
+    compositeKnownChannelsWritable: isReadableWarmChannel('email + Calendly') &&
+      isReadableWarmChannel('dm / phone') &&
+      !isReadableWarmChannel('email + carrier-pigeon'),
     repeatedCompositeChannelsDeduplicated: warmInboundIdentityKey({
       who: 'Ada Example', channel: 'email + email + Calendly',
     }) === warmInboundIdentityKey({
@@ -1329,6 +1352,18 @@ function cmdSelftest() {
     unsafeWarmIdentityRejectedBeforeWrite: hasUnsafeEvidenceMarkup('[Ada](https://example.com)') &&
       hasUnsafeEvidenceMarkup('<span>Ada</span>') &&
       !hasUnsafeEvidenceMarkup('Ada Lovelace'),
+    exampleComFixtureNotOpenOs: !isOpenPilotOsSignal({
+      id: 'pilot_fixture_example',
+      at: '2026-07-23T16:58:50.090Z',
+      status: 'new',
+      company: 'example.com',
+      role: 'Founding eng',
+      outcome90d: 'Ship a measurable v1',
+      contact: 'founder@example.com',
+      sample: false,
+    }),
+    realEmailStillReplyable: isReplyableContact('joe@laurelin.tech') === true &&
+      isReplyableContact('founder@example.com') === false,
     unsafeWarmDispositionQuarantined: warmQuarantineReason({
       who: 'Ada Example', channel: 'email', status: 'replied',
       next: '<script>review</script>', date: '2026-01-01',

@@ -137,7 +137,7 @@ function checklist(p) {
       { id: 'shortlist', done: (p.shortlist || []).length >= 1, text: '2–3 defensible matches max' },
       { id: 'consent', done: Boolean(p.candidateConsent), text: 'Candidate consent before share' },
       { id: 'intro', done: Boolean(p.introAt) || p.status === 'intro' || p.status === 'hired', text: 'Mutual yes + intro logged' },
-      { id: 'fee', done: Boolean(p.feeTermsSent) || p.status === 'hired', text: '10% on-hire terms clear' },
+      { id: 'fee', done: Boolean(p.feeTermsSent) || p.status === 'hired', text: '10% base-salary/start terms clear' },
       {
         id: 'no_board_lie',
         done: noBoardLie,

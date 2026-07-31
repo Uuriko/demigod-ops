@@ -53,6 +53,10 @@ The broad market is crowded, but the products do not converge on one identical s
 7. **Wellfound Autopilot, Paraform, Underdog, Dover, Hunt Club, and Mercor** are direct
    substitutes for parts of the recruiting service itself: managed sourcing, curated
    introductions, recruiter marketplaces, executive search, or expert staffing.
+8. **Builders (builders.cv / Exceptional.builders, by Pensive)** is a proof-of-work
+   certification + multi-company placement network (AI-native take-home, managed intros).
+   Not a company-intel DIE peer; it is a **talent marketplace peer**. Deep research:
+   [`../../research/EXCEPTIONAL-BUILDERS-COMPETITIVE-2026-07-31.md`](../../research/EXCEPTIONAL-BUILDERS-COMPETITIVE-2026-07-31.md).
 
 **Inference:** "always-on AI research" is no longer a defensible category by itself. Clay,
 Common Room, Harmonic, Findem, and Firecrawl all publicly describe some form of persistent,
@@ -176,6 +180,13 @@ connected back to the evidence and pair.
 **Category:** account research, enrichment, signals, and GTM execution<br>
 **Competitive proximity:** high on company-research workflow; lower on talent matching
 
+**2026-07-31 product revisit:** full refresh in
+[`../../research/CLAY-PRODUCT-REVISIT-2026-07-31.md`](../../research/CLAY-PRODUCT-REVISIT-2026-07-31.md)
+(homepage “GTM infrastructure”, dual-credit Free/Launch/Growth/Enterprise pricing,
+Claygent vs Account Research Agents, Audiences, MCP/API, ~$100M ARR / $5B tender
+signals). Conclusion unchanged: do not clone Clay; Demigod wedge remains
+role↔candidate consent match + attributable public hiring evidence.
+
 Official sources:
 
 - [Account Research Agents announcement — July 22, 2026](https://www.clay.com/blog/account-research-agents)
@@ -184,6 +195,8 @@ Official sources:
 - [Signals product page — current](https://www.clay.com/signals)
 - [Signals documentation — current docs](https://university.clay.com/docs/signals)
 - [Clay in Claude announcement — January 26, 2026](https://www.clay.com/blog/clay-in-claude)
+- [Clay pricing — current](https://www.clay.com/pricing)
+- [How Clay uses Clay for recruiting — May 2026](https://www.clay.com/blog/how-clay-uses-clay-for-recruiting-top-talent)
 
 Documented facts:
 
