@@ -18,6 +18,11 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 
 ## Execution updates — 2026-07-31
 
+- **CI mergeNamedCompanies board-absorb HN shells:** ATS-only `hn:jobs.*` rows
+  merge into primary rows with matching `jobsUrl` board key (not host-only). Stops
+  re-inflation of collapsed HN shells on map rebuild. `hiringIdentityKey` uses board
+  for those ids.
+
 - **CI identity collapse apply:** `applyWebsiteProposals` collapse (default) drops
   keyless inflation shells when one sibling host exists; refuses if keyless has more
   openRoles. CLI `--apply-websites [--write] [--fill]`. Live 2741→2735, candidates 6→0.
@@ -211,6 +216,7 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | AR-32 | Observed ageBasis observed-first-seen | BUILT | export ageBasis | export rows | assertExportValid ageBasis | AR |
 | AR-33 | Closed roles retained with closedAt day | BUILT | ledger close on missing poll | role-ledger | selftest close | AR |
 | AR-34 | Export omits roles without jobId | BUILT | rolesWithoutJobId:0 | export relationships | export diagnostics | AR |
+| AR-35 | Title-only seniorityMix export bands | BUILT | closed enum; exact sum=openReqCount; no JD inference | demigod-recruitai-export.mjs JSON+CSV | export selftest + current 7108/12027 classified | AR |
 | NOW-17 | Provider denied boards strip | BUILT | export deniedBoards | export diagnostics | export denied=0 or listed | AR |
 | NOW-18 | Map openRolesAt timestamp | BUILT | map hiring stamp | startup-jobs-enrich | map field present | AR |
 | CH-01 | Evidence seal inputsAtSeal hash bind | BUILT | sealRun + isFresh | demigod-evidence.mjs | evidence-fresh.test | CH |

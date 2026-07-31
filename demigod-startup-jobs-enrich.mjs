@@ -400,13 +400,15 @@ export function categorizeRole(title) {
   }
   // Split-ish finance/legal: same bucket key for export stability, broader title recall
   if (
-    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|financial reporting|treasury|payroll|tax|accounts receivable|internal audit|credit underwriter|credit (?:&|and) collections|collections analyst|underwriting|credit risk|investor relations|corporate development|contracts manager)\b/.test(t) ||
+    /\b(finance|accounting|accountant|controller|fp&a|financial analyst|financial reporting|treasury|payroll|tax|accounts receivable|internal audit|credit underwriter|credit (?:&|and) collections|collections analyst|underwriting|credit risk|investor relations|corporate development|contracts manager|public policy)\b/.test(t) ||
     /\b(legal|counsel|attorney|paralegal|compliance|privacy counsel|data privacy|grc|governance risk)\b/.test(t)
   ) {
     return 'finance/legal';
   }
+  // Security IR / SIRT before residual ops
+  if (/\b(?:\bsirt\b|security incident|incident response)\b/.test(t)) return 'engineering';
   if (
-    /\b(operations|\bops\b|support|customer success|client success|partner success|customer experience|\bcx\b|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops|gtm enablement|executive assistant|executive business partner|scrum master|deployment strategist|\bbizops\b|business systems analyst|systems analyst|case management|deal desk|engagement manager)\b/.test(
+    /\b(operations|\bops\b|support|customer success|client success|partner success|customer experience|\bcx\b|\bcsm\b|customer support|technical support|implementation|onboarding specialist|program manager|project manager|chief of staff|office manager|business operations|revops|sales ops|gtm ops|gtm enablement|executive assistant|executive business partner|scrum master|deployment strategist|\bbizops\b|business systems analyst|systems analyst|case management|deal desk|engagement manager|strategic projects|resolutions manager|resolutions lead)\b/.test(
       t,
     )
   ) {
@@ -1031,6 +1033,11 @@ if (isMain && (process.env.DEMIGOD_JOBS_ENRICH_SELFTEST === '1' || cliMode === '
   assert(categorizeRole('Executive Business Partner') === 'operations', 'EBP → operations (not people)');
   assert(categorizeRole('Part-time Ambassador') === 'other', 'ambassador stays other');
   assert(categorizeRole('Store Manager, Jewelry') === 'other', 'store manager stays other');
+  assert(categorizeRole('Public Policy Manager, State and Local') === 'finance/legal', 'public policy → finance/legal');
+  assert(categorizeRole('Strategic Projects Lead') === 'operations', 'strategic projects → operations');
+  assert(categorizeRole('Resolutions Manager') === 'operations', 'resolutions → operations');
+  assert(categorizeRole('Senior Manager, SIRT') === 'engineering', 'SIRT → eng');
+  assert(categorizeRole('Senior Analyst') === 'other', 'bare senior analyst stays other');
   assert(categorizeRole('') === 'other', 'empty → other');
   assert(
     jobsEnrichCliMode([]) === 'enrich' &&

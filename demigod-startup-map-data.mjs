@@ -78,8 +78,23 @@ export function hiringIdentityKey(row = {}) {
       /* fall through */
     }
   }
+  // ATS-only HN ids encode the public board as host/slug — same board as jobsUrl identity.
+  const fromHnId = atsBoardKeyFromHnId(row?.id);
+  if (fromHnId) return fromHnId;
   const id = stableMapCompanyId(row);
   return id ? `map:${id}` : null;
+}
+
+/**
+ * hn:jobs.ashbyhq.com/middesk → board:jobs.ashbyhq.com/middesk
+ * So merge can attach ATS-only HN shells to YC/Wikidata rows that already own that board.
+ */
+export function atsBoardKeyFromHnId(id) {
+  const m =
+    /^hn:((?:jobs\.ashbyhq\.com|boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.workable\.com)\/[a-z0-9._-]+)$/i.exec(
+      String(id || '').trim(),
+    );
+  return m ? `board:${m[1].toLowerCase()}` : null;
 }
 
 /** Hostname key for CROSS-source dedupe: the same company arriving from YC and from Wikidata
@@ -162,30 +177,48 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
  * Merge YC-public + Wikidata/CC0 lists. Same website host → keep YC row (richer public hiring),
  * fill blank description from Wikidata; port openRoles* if the primary lacks them.
  */
+function absorbSecondaryInto(keep, row) {
+  if (!keep.description && row.description) keep.description = row.description;
+  if (!keep.website && row.website) keep.website = row.website;
+  if (!keep.inceptionYear && row.inceptionYear) keep.inceptionYear = row.inceptionYear;
+  if (row.hiring && !keep.hiring) keep.hiring = row.hiring;
+  if (row.openRoles && !keep.openRoles) {
+    keep.openRoles = row.openRoles;
+    keep.jobsUrl = row.jobsUrl;
+    keep.atsSource = row.atsSource;
+    keep.openRolesAt = row.openRolesAt;
+  }
+  // Prefer primary jobsUrl; if secondary only carries board via HN id, leave jobsUrl alone.
+}
+
 export function mergeNamedCompanies(primary = [], secondary = []) {
   const out = [];
   const hostIndex = new Map();
+  const boardIndex = new Map();
   for (const row of primary) {
     out.push({ ...row });
+    const idx = out.length - 1;
     const host = websiteHostKey(row?.website);
-    if (host) hostIndex.set(host, out.length - 1);
+    if (host) hostIndex.set(host, idx);
+    const board = hiringIdentityKey(row);
+    if (board?.startsWith('board:')) boardIndex.set(board, idx);
   }
   for (const row of secondary) {
     const host = websiteHostKey(row?.website);
     if (host && hostIndex.has(host)) {
-      const keep = out[hostIndex.get(host)];
-      if (!keep.description && row.description) keep.description = row.description;
-      if (!keep.website && row.website) keep.website = row.website;
-      if (!keep.inceptionYear && row.inceptionYear) keep.inceptionYear = row.inceptionYear;
-      if (row.openRoles && !keep.openRoles) {
-        keep.openRoles = row.openRoles;
-        keep.jobsUrl = row.jobsUrl;
-        keep.atsSource = row.atsSource;
-        keep.openRolesAt = row.openRolesAt;
-      }
+      absorbSecondaryInto(out[hostIndex.get(host)], row);
+      continue;
+    }
+    // CI identity: ATS-only HN shell whose board already exists on a primary row — absorb, don't inflate.
+    const board = hiringIdentityKey(row);
+    if (board?.startsWith('board:') && boardIndex.has(board)) {
+      absorbSecondaryInto(out[boardIndex.get(board)], row);
       continue;
     }
     out.push({ ...row });
+    const idx = out.length - 1;
+    if (host) hostIndex.set(host, idx);
+    if (board?.startsWith('board:')) boardIndex.set(board, idx);
   }
   return out.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
@@ -505,9 +538,39 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (boardKey2 !== 'board:jobs.lever.co/acme') throw new Error(`board key2 ${boardKey2}`);
       if (
         hiringIdentityKey({ id: 'hn:jobs.ashbyhq.com/alembic' }) !==
-        'map:hn:jobs.ashbyhq.com/alembic'
+        'board:jobs.ashbyhq.com/alembic'
       ) {
-        throw new Error('hn board-slug map identity key');
+        throw new Error('hn board-slug id maps to board identity (prevents re-inflation)');
+      }
+      if (atsBoardKeyFromHnId('hn:jobs.ashbyhq.com/middesk') !== 'board:jobs.ashbyhq.com/middesk') {
+        throw new Error('atsBoardKeyFromHnId');
+      }
+      // mergeNamedCompanies: YC row with jobsUrl absorbs ATS-only HN shell on same board
+      {
+        const merged = mergeNamedCompanies(
+          [
+            {
+              id: 'yc:middesk',
+              name: 'Middesk',
+              website: 'https://middesk.com/',
+              jobsUrl: 'https://jobs.ashbyhq.com/middesk',
+              openRoles: 22,
+            },
+          ],
+          [
+            {
+              id: 'hn:jobs.ashbyhq.com/middesk',
+              name: 'Middesk',
+              website: null,
+              hiring: 'yes',
+              source: 'Hacker News (Who is Hiring)',
+            },
+          ],
+        );
+        if (merged.length !== 1 || merged[0].id !== 'yc:middesk') {
+          throw new Error(`HN ATS shell must absorb into YC board owner, got ${merged.length} ${merged[0]?.id}`);
+        }
+        if (merged[0].hiring !== 'yes') throw new Error('absorb hiring flag from HN shell');
       }
       // full disk: every id must be stable namespace (no silent sample skip)
       let unstableDisk = 0;

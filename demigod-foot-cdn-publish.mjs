@@ -848,7 +848,11 @@ async function uploadJsdelivr() {
       spawnSync('git', args, { cwd: work, encoding: 'utf8', timeout: 60000 });
     git(['config', 'user.email', 'demigod-cdn@local']);
     git(['config', 'user.name', 'demigod-cdn']);
-    git(['add', verName, 'foot-latest.js', 'startup-map-latest.js', 'sf-startup-map.json', 'head-latest.css']);
+    // Explicit add list — a file merely written into the work dir is NOT published. Writing
+    // roles-feed.json without staging it here is exactly why the first two attempts cut a commit
+    // that did not contain it, and why the manifest gate then (correctly) refused to advertise it.
+    git(['add', verName, 'foot-latest.js', 'startup-map-latest.js', 'sf-startup-map.json', 'head-latest.css',
+      ...(rolesFeed ? ['roles-feed.json'] : [])]);
     const st = git(['status', '--porcelain']);
     if ((st.stdout || '').trim()) {
       git(['commit', '-m', `site v${sourceVer}`]);

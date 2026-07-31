@@ -43,6 +43,16 @@ const CATALOG_PATH = path.join(ROOT, 'DEMIGOD-COMPANY-RESEARCH.json');
 const SCHEMA = 'demigod.recruitai-export/3';
 const STALE_DAYS = 45;
 const EVERGREEN_DAYS = 365;
+const SENIORITY_BANDS = [
+  'intern',
+  'junior',
+  'senior',
+  'staff',
+  'principal',
+  'leadManager',
+  'directorPlus',
+  'unspecified',
+];
 const ROLE_LIMIT_PER_BOARD = 25;
 const EXPORT_ORDERING =
   'role-aging: staleObservedReqCount, maxObservedOpenDays, openReqCount; mapCompanyId tie-break';
@@ -81,7 +91,7 @@ const EXPORTED_COMPANY_RESEARCH_FIELDS = new Set(
   COMPANY_RESEARCH_FIELDS.filter((field) => field !== 'pricingStatus'),
 );
 const EXPORT_ROW_KEYS = [
-  'mapCompanyId', 'domain', 'name', 'boardKey', 'openReqCount',
+  'mapCompanyId', 'domain', 'name', 'boardKey', 'openReqCount', 'seniorityMix',
   'firstObservedTodayReqCount', 'firstObservedTodayOlderPostedReqCount',
   'closedTodayReqCount', 'reopenedOpenReqCount', 'attributedPostedReqCount',
   'staleAttributedPostedReqCount', 'evergreenAttributedPostedReqCount',
@@ -448,6 +458,22 @@ function summarizeRows(rows) {
 
 const isOpenRoleToday = (role, today) => !role.closedAt && role.lastSeen === today;
 
+function seniorityFromTitle(value) {
+  const title = String(value || '').toLowerCase().replace(/[./_–—-]+/g, ' ');
+  if (/\b(?:intern(?:ship)?|co op|apprentice)\b/.test(title)) return 'intern';
+  if (
+    /\b(?:director|head|chief|president|vice president|[aes]?vp|ceo|cto|cfo|coo|cpo|cio|ciso|cro|cmo)\b/.test(
+      title,
+    )
+  ) return 'directorPlus';
+  if (/\bprincipal\b/.test(title)) return 'principal';
+  if (/\bstaff\b/.test(title)) return 'staff';
+  if (/\b(?:lead|manager|management)\b/.test(title)) return 'leadManager';
+  if (/\b(?:senior|sr)\b/.test(title)) return 'senior';
+  if (/\b(?:junior|jr|entry level)\b/.test(title)) return 'junior';
+  return 'unspecified';
+}
+
 /** Index open and historical ledger roles by provider|slug. */
 function indexLedger(ledger, today) {
   const byBoard = new Map();
@@ -474,6 +500,7 @@ function indexLedger(ledger, today) {
 }
 
 function aggregateRoles(rows, today, allRows = rows) {
+  const seniorityMix = Object.fromEntries(SENIORITY_BANDS.map((band) => [band, 0]));
   let maxObserved = 0;
   let stale = 0;
   let sample = null;
@@ -492,6 +519,7 @@ function aggregateRoles(rows, today, allRows = rows) {
   let openObserved7ReqCount = 0;
   let sampleLocation = null;
   for (const row of rows) {
+    seniorityMix[seniorityFromTitle(row.title)]++;
     const fn = categorizeRole(row.title);
     if (fn === 'people') {
       openPeopleOpsReqCount++;
@@ -533,6 +561,7 @@ function aggregateRoles(rows, today, allRows = rows) {
   const staleRow = rows.find((r) => (daysBetween(r.firstSeen, today) ?? 0) >= STALE_DAYS) || sample || rows[0];
   return {
     openReqCount: rows.length,
+    seniorityMix,
     firstObservedTodayReqCount: allRows.filter((row) => row.firstSeen === today).length,
     firstObservedTodayOlderPostedReqCount: allRows.filter(
       (row) => row.firstSeen === today && (postedDaysAgo(row, today) ?? 0) > 0,
@@ -822,6 +851,7 @@ export function buildExport(
       ),
       boardKey: { provider: board.provider, slug: board.slug },
       openReqCount: agg.openReqCount,
+      seniorityMix: agg.seniorityMix,
       firstObservedTodayReqCount: agg.firstObservedTodayReqCount,
       firstObservedTodayOlderPostedReqCount:
         agg.firstObservedTodayOlderPostedReqCount,
@@ -1184,6 +1214,19 @@ export function assertExportValid(doc) {
     }
     if (row.reopenedOpenReqCount > row.openReqCount) {
       throw new Error('reopenedOpenReqCount exceeds openReqCount');
+    }
+    if (
+      !row.seniorityMix ||
+      typeof row.seniorityMix !== 'object' ||
+      Array.isArray(row.seniorityMix) ||
+      !hasExactKeys(row.seniorityMix, SENIORITY_BANDS) ||
+      Object.values(row.seniorityMix).some(
+        (count) => !Number.isSafeInteger(count) || count < 0,
+      ) ||
+      Object.values(row.seniorityMix).reduce((sum, count) => sum + count, 0) !==
+        row.openReqCount
+    ) {
+      throw new Error('invalid seniorityMix');
     }
     if (
       row.staleObservedReqCount > row.openReqCount ||
@@ -1668,6 +1711,14 @@ export function exportRowsCsv(rows = []) {
     ['boardSlug', (row) => row.boardKey?.slug],
     ['ageBasis', (row) => row.ageBasis],
     ['openReqCount', (row) => row.openReqCount],
+    ['seniorityInternReqCount', (row) => row.seniorityMix?.intern],
+    ['seniorityJuniorReqCount', (row) => row.seniorityMix?.junior],
+    ['senioritySeniorReqCount', (row) => row.seniorityMix?.senior],
+    ['seniorityStaffReqCount', (row) => row.seniorityMix?.staff],
+    ['seniorityPrincipalReqCount', (row) => row.seniorityMix?.principal],
+    ['seniorityLeadManagerReqCount', (row) => row.seniorityMix?.leadManager],
+    ['seniorityDirectorPlusReqCount', (row) => row.seniorityMix?.directorPlus],
+    ['seniorityUnspecifiedReqCount', (row) => row.seniorityMix?.unspecified],
     ['firstObservedTodayReqCount', (row) => row.firstObservedTodayReqCount],
     ['firstObservedTodayOlderPostedReqCount', (row) =>
       row.firstObservedTodayOlderPostedReqCount],
@@ -1718,6 +1769,20 @@ export function exportRowsCsv(rows = []) {
 }
 
 function selftest() {
+  for (const [title, expected] of Object.entries({
+    'Software Engineering Intern': 'intern',
+    'Junior Developer': 'junior',
+    'Senior Backend Engineer': 'senior',
+    'Staff Platform Engineer': 'staff',
+    'Principal Engineer': 'principal',
+    'Engineering Manager': 'leadManager',
+    'Director of Product': 'directorPlus',
+    'Account Executive': 'unspecified',
+  })) {
+    if (seniorityFromTitle(title) !== expected) {
+      throw new Error(`seniority title parse: ${title}`);
+    }
+  }
   const map = {
     generatedAt: '2026-07-29T00:00:00.000Z',
     companies: [
@@ -1939,6 +2004,20 @@ function selftest() {
   }
   const acme = doc.rows.find((r) => r.mapCompanyId === 't:acme');
   if (!acme || acme.openReqCount !== 2) throw new Error('acme open count');
+  if (
+    !sameCounts(acme.seniorityMix, {
+      intern: 0,
+      junior: 0,
+      senior: 0,
+      staff: 1,
+      principal: 0,
+      leadManager: 0,
+      directorPlus: 0,
+      unspecified: 1,
+    })
+  ) {
+    throw new Error('seniority mix');
+  }
   if (
     acme.firstObservedTodayReqCount !== 1 ||
     acme.firstObservedTodayOlderPostedReqCount !== 1 ||
@@ -2412,6 +2491,10 @@ function selftest() {
     }
     throw new Error(`poison passed: ${message}`);
   };
+  expectInvalid(
+    (poison) => { poison.rows[0].seniorityMix.unspecified++; },
+    'seniority mix exceeds open roles',
+  );
   for (const [field, value] of [
     ['title', 1],
     ['location', {}],

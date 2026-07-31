@@ -43,8 +43,8 @@ export function extractPublicCompQuotes(text) {
     // single: $180,000 USD / $180k base / OTE $200k
     /(?:salary|compensation|base|ote|total cash)\s*[:\-]?\s*(\$\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year))?)/gi,
   ];
-  const seen = new Set();
-  const out = [];
+  const seenQuote = new Set();
+  const byBand = new Map(); // unit|min|max → best hit (prefer keyword-rich longer quote)
   for (const re of patterns) {
     re.lastIndex = 0;
     let m;
@@ -53,24 +53,32 @@ export function extractPublicCompQuotes(text) {
       let quote = (m[0] || '').replace(/\s+/g, ' ').trim();
       if (quote.length > 280) quote = quote.slice(0, 280);
       if (quote.length < 8) continue;
-      const key = quote.toLowerCase();
-      if (seen.has(key)) continue;
+      const qk = quote.toLowerCase();
+      if (seenQuote.has(qk)) continue;
       // Must parse as a real range (refuse "competitive")
       const parsed = parseCompRange(quote);
       if (!parsed || !Number.isFinite(parsed.min)) continue;
-      seen.add(key);
-      out.push({
+      seenQuote.add(qk);
+      const max = Number.isFinite(parsed.max) ? parsed.max : null;
+      const bandKey = `${parsed.unit}|${parsed.min}|${max}`;
+      const hit = {
         quote,
-        parsed: {
-          unit: parsed.unit,
-          min: parsed.min,
-          max: Number.isFinite(parsed.max) ? parsed.max : null,
-        },
+        parsed: { unit: parsed.unit, min: parsed.min, max },
         bandText: formatBand(parsed),
-      });
+      };
+      const prev = byBand.get(bandKey);
+      if (!prev || quoteScore(hit.quote) > quoteScore(prev.quote)) byBand.set(bandKey, hit);
     }
   }
-  return out;
+  return [...byBand.values()];
+}
+
+/** Prefer OTE/salary keyword spans over bare $ranges; then longer exact quote. */
+function quoteScore(quote) {
+  const q = String(quote || '').toLowerCase();
+  let s = q.length;
+  if (/\b(ote|salary|compensation|base|total cash|annual)\b/.test(q)) s += 50;
+  return s;
 }
 
 function formatBand(parsed) {
@@ -228,9 +236,10 @@ function selftest() {
   const k = extractPublicCompQuotes('Base pay $160k–$190k. More text.');
   assert(k.length >= 1 && k[0].parsed.min === 160000, 'k form');
   const ote = extractPublicCompQuotes('Role in SF. OTE $200k–$250k plus equity.');
-  assert(ote.length >= 1 && ote[0].parsed.min === 200000 && ote[0].parsed.max === 250000, 'OTE range');
+  assert(ote.length === 1 && ote[0].parsed.min === 200000 && ote[0].parsed.max === 250000, 'OTE range deduped to one band');
+  assert(/ote/i.test(ote[0].quote), 'prefer keyword OTE quote over bare $ range');
   const tc = extractPublicCompQuotes('Total cash: $145,000 to $175,000 USD per year.');
-  assert(tc.length >= 1 && tc[0].parsed.min === 145000, 'total cash');
+  assert(tc.length === 1 && tc[0].parsed.min === 145000, 'total cash one band');
   assert(extractPublicCompQuotes('Competitive OTE package').length === 0, 'refuse competitive OTE');
   threw = false;
   try {
