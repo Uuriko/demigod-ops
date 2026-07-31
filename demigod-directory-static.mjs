@@ -28,6 +28,19 @@ export function buildStaticDirectory(map, generatedAt = '') {
   const desc = `A free, open-data directory of ${companies.length} San Francisco startups — ${verified.length} with ${totalRoles} live verified open roles and direct links to apply. Public data, no signup.`;
 
   // JSON-LD: ItemList of verified-hiring organizations only (honest — no self-reports).
+  //
+  // DELIBERATELY NOT JobPosting. Every SEO guide calls JobPosting markup "the highest-impact free
+  // action" for getting listings into Google for Jobs, so this is a tempting and plausible-looking
+  // improvement. It would be a mistake here for two reasons:
+  //   1. We are not the posting authority. These roles live on the employers' own ATS boards and we
+  //      link straight to them. Emitting JobPosting for someone else's posting claims an authority
+  //      we do not have and duplicates their markup.
+  //   2. Google increasingly treats a missing `validThrough` as a quality signal against a listing,
+  //      and a site carrying many stale undated jobs can take a MANUAL ACTION that removes all of
+  //      its jobs. Our corpus is deliberately full of long-open roles (407 past a year) and we hold
+  //      no reliable expiry date for any of them — exactly the profile that earns that penalty.
+  // ItemList of Organizations describes what we actually are: a directory of companies. The
+  // selftest below asserts JobPosting never appears; do not "fix" that.
   const jsonld = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -124,7 +137,11 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   // honest JSON-LD: only the verified company (Alpha), NOT the YC self-report (Beta)
   const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
   assert(ld.numberOfItems === 1 && ld.itemListElement[0].item.name === 'Alpha Robotics', 'JSON-LD verified-only (no YC self-report)');
-  assert(!ld.itemListElement.some((e) => /Beta/.test(e.item.name)), 'YC self-report excluded from JobPosting schema');
+  assert(!ld.itemListElement.some((e) => /Beta/.test(e.item.name)), 'YC self-report excluded from the directory schema');
+  // We are not the posting authority and hold no reliable expiry dates, so emitting JobPosting for
+  // employers' own roles risks the stale-undated-jobs manual action. Guard it at the artifact.
+  assert(!/JobPosting/.test(html), 'directory must never emit JobPosting markup for roles it does not own');
+  assert(ld['@type'] === 'ItemList', 'the directory describes a list of organizations, not postings');
   // no injection
   assert(!html.includes('<script>alert(1)</script>') && html.includes('&lt;script&gt;'), 'escapes injection in names');
   console.log(JSON.stringify({ ok: true, selftest: 'directory-static' }));
