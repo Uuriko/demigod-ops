@@ -247,6 +247,9 @@ function prepare() {
       'demigod-foot-core.js',
       'demigod-startup-atlas-web.js',
       'DEMIGOD-SF-STARTUP-MAP.json',
+      'DEMIGOD-ROLES-FEED.json',
+      'demigod-directory-static.mjs',
+      'sf-startups-static.html',
       'demigod-head-minimal.html',
       'demigod-head-styles.css',
       'demigod-footer-lite.html',
@@ -269,6 +272,7 @@ function prepare() {
   steps.push(run('board-honesty', ['demigod-verify-board-honesty.mjs']));
   // Clone-breaker edges + export contracts (poison: demigod-import-integrity.test.mjs)
   steps.push(run('import-integrity', ['demigod-import-integrity.mjs']));
+  steps.push(run('directory-static', ['demigod-directory-static.mjs']));
   steps.push(run('foot-smoke', ['demigod-foot-smoke.mjs']));
   steps.push({
     ...run('truth', ['demigod-truth.mjs'], { allowFail: true }),
@@ -392,6 +396,18 @@ function cdn() {
 function paste() {
   requireMutate('ship-paste');
   return withShipPerf(() => {
+    const staticPage = run(
+      'startups-static-paste',
+      ['demigod-startups-static-paste.mjs', '--save'],
+      { timeout: 720000 },
+    );
+    if (!staticPage.ok) {
+      writeReceipt('paste', false, 'startups static paste failed');
+      if (asJson) console.log(JSON.stringify(staticPage, null, 2));
+      else console.log('✗ /startups static paste\n' + staticPage.out);
+      return 1;
+    }
+    if (!asJson) console.log('✓ /startups static paste');
     const r = run('cm6-paste', ['demigod-cm6-paste-publish.mjs'], { timeout: 300000 });
     writeReceipt('paste', r.ok, r.ok ? 'paste ok' : 'paste failed');
     if (asJson) console.log(JSON.stringify(r, null, 2));
