@@ -36,12 +36,12 @@ export function extractPublicCompQuotes(text) {
   const src = String(text || '');
   if (!src.trim()) return [];
   const patterns = [
-    // Salary range $180,000 to $220,000 USD
-    /(?:salary|compensation|base(?:\s+pay)?|pay)\s*(?:range|band)?\s*[:\-]?\s*(\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?)?(?:\s*(?:USD|usd))?)/gi,
+    // Salary range $180,000 to $220,000 USD · OTE / total cash / annual (public JD only)
+    /(?:salary|compensation|base(?:\s+pay)?|pay|ote|on[- ]?target earnings|total cash|annual(?:\s+(?:salary|pay|compensation))?)\s*(?:range|band)?\s*[:\-]?\s*(\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?)?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year|per year))?)/gi,
     // $180,000 – $220,000 / $180k-$220k
-    /(\$\s*[\d,.]+\s*[kKmM]?\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd))?)/gi,
-    // single: $180,000 USD / $180k base
-    /(?:salary|compensation|base)\s*[:\-]?\s*(\$\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd))?)/gi,
+    /(\$\s*[\d,.]+\s*[kKmM]?\s*(?:to|–|-|—)\s*\$?\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year|per year))?)/gi,
+    // single: $180,000 USD / $180k base / OTE $200k
+    /(?:salary|compensation|base|ote|total cash)\s*[:\-]?\s*(\$\s*[\d,.]+\s*[kKmM]?(?:\s*(?:USD|usd|\/\s*yr|\/\s*year))?)/gi,
   ];
   const seen = new Set();
   const out = [];
@@ -227,6 +227,11 @@ function selftest() {
   assert(threw, 'https only');
   const k = extractPublicCompQuotes('Base pay $160k–$190k. More text.');
   assert(k.length >= 1 && k[0].parsed.min === 160000, 'k form');
+  const ote = extractPublicCompQuotes('Role in SF. OTE $200k–$250k plus equity.');
+  assert(ote.length >= 1 && ote[0].parsed.min === 200000 && ote[0].parsed.max === 250000, 'OTE range');
+  const tc = extractPublicCompQuotes('Total cash: $145,000 to $175,000 USD per year.');
+  assert(tc.length >= 1 && tc[0].parsed.min === 145000, 'total cash');
+  assert(extractPublicCompQuotes('Competitive OTE package').length === 0, 'refuse competitive OTE');
   threw = false;
   try {
     assertPublicJobUrl('http://example.com/job');

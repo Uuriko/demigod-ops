@@ -38,6 +38,9 @@ const SRC = path.join(ROOT, 'demigod-foot-core.js');
 const MAP_SRC = path.join(ROOT, 'demigod-startup-atlas-web.js');
 const MAP_DATA_SRC = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const HEAD_CSS_SRC = path.join(ROOT, 'demigod-head-styles.css');
+// Public machine-readable roles feed. OPTIONAL on purpose: this file publishes the whole site, so
+// a missing or unreadable feed must degrade to "not published this run", never take the ship down.
+const ROLES_FEED_SRC = path.join(ROOT, 'DEMIGOD-ROLES-FEED.json');
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
 const HEAD_OUT = path.join(ROOT, 'DEMIGOD-HEAD-CDN.json');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
@@ -49,6 +52,9 @@ const sourceJs = fs.readFileSync(SRC, 'utf8');
 const mapJs = fs.readFileSync(MAP_SRC, 'utf8');
 const mapData = fs.readFileSync(MAP_DATA_SRC, 'utf8');
 const headCss = fs.readFileSync(HEAD_CSS_SRC, 'utf8');
+const rolesFeed = (() => {
+  try { return fs.readFileSync(ROLES_FEED_SRC, 'utf8'); } catch { return null; }
+})();
 const sourceVer = (sourceJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1];
 const sourcePublicVer = (sourceJs.match(/dgFootVersion\s*=\s*['"]v(\d+)['"]/) || [])[1];
 const sourceSha = crypto.createHash('sha256').update(sourceJs).digest('hex');
@@ -60,6 +66,8 @@ const mapDataBytes = Buffer.byteLength(mapData);
 const headCssSha = crypto.createHash('sha256').update(headCss).digest('hex');
 const headCssMd5 = crypto.createHash('md5').update(headCss).digest('hex');
 const headCssBytes = Buffer.byteLength(headCss);
+const rolesFeedSha = rolesFeed ? crypto.createHash('sha256').update(rolesFeed).digest('hex') : null;
+const rolesFeedBytes = rolesFeed ? Buffer.byteLength(rolesFeed) : 0;
 const uploadAttempts = [];
 
 function recordUploadAttempt(host, ok, detail = '') {
@@ -209,6 +217,7 @@ function assertCanonicalSourceUnchanged() {
     [MAP_SRC, mapSha],
     [MAP_DATA_SRC, mapDataSha],
     [HEAD_CSS_SRC, headCssSha],
+    ...(rolesFeed ? [[ROLES_FEED_SRC, rolesFeedSha]] : []),
   ];
   if (current.some(([file, expected]) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected)) {
     throw new Error(
@@ -358,6 +367,10 @@ if (SELFTEST) {
   checkSelf(sourceSha.length === 64, 'computes canonical SHA-256');
   checkSelf(Number.isSafeInteger(sourceBytes) && sourceBytes > 40000, 'computes canonical UTF-8 byte count');
   checkSelf(headCssSha.length === 64 && headCssBytes > 10000, 'computes canonical head CSS identity');
+  checkSelf(
+    !rolesFeed || JSON.parse(rolesFeed).schema === 'demigod.roles-feed/1',
+    'roles feed, when present, uses the current schema',
+  );
   checkSelf(
     headWithCdn(
       '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@123abc/head-latest.css">',
@@ -830,6 +843,7 @@ async function uploadJsdelivr() {
     fs.writeFileSync(path.join(work, 'startup-map-latest.js'), mapJs);
     fs.writeFileSync(path.join(work, 'sf-startup-map.json'), mapData);
     fs.writeFileSync(path.join(work, 'head-latest.css'), headCss);
+    if (rolesFeed) fs.writeFileSync(path.join(work, 'roles-feed.json'), rolesFeed);
     const git = (args) =>
       spawnSync('git', args, { cwd: work, encoding: 'utf8', timeout: 60000 });
     git(['config', 'user.email', 'demigod-cdn@local']);
@@ -860,6 +874,7 @@ async function uploadJsdelivr() {
       const mapUrl = new URL('startup-map-latest.js', cdnUrl).href;
       const mapDataUrl = new URL('sf-startup-map.json', cdnUrl).href;
       const headCssUrl = new URL('head-latest.css', cdnUrl).href;
+      const rolesFeedUrl = new URL('roles-feed.json', cdnUrl).href;
       const [mapCheck, mapDataCheck, headCssCheck] = check.ok
         ? await Promise.all([
             fetchExact(mapUrl, mapJs, true),
@@ -867,10 +882,18 @@ async function uploadJsdelivr() {
             fetchCssExact(headCssUrl),
           ])
         : [{ ok: false }, { ok: false }, { ok: false }];
+      // The feed is optional, so it must never block the ship — but it must also never be
+      // ADVERTISED unless it actually resolves. Recording a manifest URL for an asset that was
+      // not uploaded publishes a broken promise, which is worse than omitting it. That is exactly
+      // what happened on the first attempt: the publisher refuses same-version rewrites, so no new
+      // CDN commit was cut, the asset never uploaded, and the manifest still listed a 404.
+      const rolesFeedCheck = check.ok && rolesFeed
+        ? await fetchExact(rolesFeedUrl, rolesFeed)
+        : { ok: false };
       console.error(
         `jsdelivr try ${i + 1}: ${cdnUrl} len=${check.liveJs.length} ` +
         `sha=${check.liveSha?.slice(0, 12) || '?'} mime=${check.contentType || '?'} ` +
-          `foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok} head=${headCssCheck.ok}`,
+          `foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok} head=${headCssCheck.ok} feed=${rolesFeedCheck.ok}`,
       );
       if (check.ok && mapCheck.ok && mapDataCheck.ok && headCssCheck.ok) {
         return {
@@ -882,6 +905,9 @@ async function uploadJsdelivr() {
             startupMap: { url: mapUrl, sha256: mapSha, bytes: mapBytes },
             mapData: { url: mapDataUrl, sha256: mapDataSha, bytes: mapDataBytes },
             headCss: { url: headCssUrl, sha256: headCssSha, bytes: headCssBytes },
+            ...(rolesFeedCheck.ok
+              ? { rolesFeed: { url: rolesFeedUrl, sha256: rolesFeedSha, bytes: rolesFeedBytes } }
+              : {}),
           },
         };
       }

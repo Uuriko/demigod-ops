@@ -4,6 +4,7 @@
  *
  *   node demigod-identity-review.mjs
  *   node demigod-identity-review.mjs --json
+ *   node demigod-identity-review.mjs --apply-websites [--write] [--fill]
  *   node demigod-identity-review.mjs --selftest
  *
  * WHY
@@ -27,10 +28,112 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 import { websiteHostKey } from './demigod-startup-map-data.mjs';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+/**
+ * PURE proposal only: when exactly one sibling host exists, suggest that website for keyless rows.
+ * Never applies; name equality is not identity (Atlas×2 etc.) — human confirms.
+ */
+export function proposeWebsiteBackfill(group) {
+  if (!group || group.verdict !== 'unmergeable-missing-website') return null;
+  const evidence = Array.isArray(group.evidence) ? group.evidence : [];
+  const withHost = evidence.filter((e) => e?.hostKey);
+  const uniqueHosts = [...new Set(withHost.map((e) => e.hostKey))];
+  if (uniqueHosts.length !== 1) return null;
+  const donor = withHost.find((e) => e.hostKey === uniqueHosts[0]);
+  const targets = evidence.filter((e) => !e?.hostKey).map((e) => e.id).filter(Boolean);
+  if (!donor?.website || !targets.length) return null;
+  return {
+    action: 'set-website',
+    website: donor.website,
+    hostKey: uniqueHosts[0],
+    fromId: donor.id || null,
+    targetIds: targets,
+    note: 'proposal only until --apply-websites --write; never merges or deletes rows',
+  };
+}
+
+/**
+ * PURE. Act on unambiguous proposals.
+ * mode=collapse (default): drop keyless target rows when a sibling already owns the only host
+ *   (fixes directory inflation without inventing hosts on ATS-only HN shells).
+ * mode=fill: set website on keyless rows, keep both rows (can create same-website-not-merged).
+ * Never invents websites without a donor sibling. Caller writes if wanted.
+ */
+export function applyWebsiteProposals(map, { write = false, mode = 'collapse' } = {}) {
+  const review = identityReview(map);
+  const byId = new Map();
+  for (const g of review.groups) {
+    if (!g.proposal?.targetIds?.length || !g.proposal.website) continue;
+    for (const id of g.proposal.targetIds) {
+      byId.set(id, {
+        website: g.proposal.website,
+        fromId: g.proposal.fromId,
+        name: g.name,
+      });
+    }
+  }
+  const companies = Array.isArray(map?.companies) ? map.companies : [];
+  const applied = [];
+  const skipped = [];
+  const drop = new Set();
+  let nextCompanies;
+  if (mode === 'fill') {
+    nextCompanies = companies.map((c) => {
+      if (!c || typeof c !== 'object' || !c.id) return c;
+      const prop = byId.get(c.id);
+      if (!prop) return c;
+      if (websiteHostKey(c.website)) {
+        skipped.push({ id: c.id, reason: 'already-has-website' });
+        return c;
+      }
+      applied.push({ id: c.id, action: 'fill', website: prop.website, fromId: prop.fromId, name: prop.name });
+      return { ...c, website: prop.website };
+    });
+  } else {
+    // collapse: remove keyless targets that have an unambiguous donor sibling
+    for (const c of companies) {
+      if (!c || typeof c !== 'object' || !c.id) continue;
+      const prop = byId.get(c.id);
+      if (!prop) continue;
+      if (websiteHostKey(c.website)) {
+        skipped.push({ id: c.id, reason: 'already-has-website' });
+        continue;
+      }
+      // Refuse collapse if keyless row carries openRoles the donor lacks (would drop hiring facts).
+      const donor = companies.find((x) => x?.id === prop.fromId);
+      const targetRoles = Number(c.openRoles || 0);
+      const donorRoles = Number(donor?.openRoles || 0);
+      if (targetRoles > 0 && targetRoles > donorRoles) {
+        skipped.push({ id: c.id, reason: 'keyless-has-more-openRoles', targetRoles, donorRoles });
+        continue;
+      }
+      drop.add(c.id);
+      applied.push({
+        id: c.id,
+        action: 'collapse',
+        website: prop.website,
+        fromId: prop.fromId,
+        name: prop.name,
+      });
+    }
+    nextCompanies = companies.filter((c) => c && !drop.has(c.id));
+  }
+  return {
+    schema: 'demigod.identity-apply-websites/1',
+    write: write === true,
+    mode: mode === 'fill' ? 'fill' : 'collapse',
+    applied,
+    skipped,
+    proposals: review.counts.proposals ?? applied.length,
+    reviewCandidates: review.counts.reviewCandidates,
+    map: { ...map, companies: nextCompanies },
+  };
+}
 
 /**
  * PURE. Group companies by normalized name and classify each multi-row group.
@@ -61,7 +164,14 @@ export function identityReview(map) {
     if (hosts.size > 1 && missingWebsite === 0) verdict = 'distinct-websites';
     else if (missingWebsite > 0) verdict = 'unmergeable-missing-website';
     else verdict = 'same-website-not-merged';
-    groups.push({
+    const evidence = rows.map((r) => ({
+      id: r.id,
+      source: r.source || null,
+      website: r.website || null,
+      hostKey: websiteHostKey(r.website) || null,
+      hiring: r.hiring === true || r.hiring === 'yes',
+    }));
+    const group = {
       name,
       rows: rows.length,
       sources: [...sources],
@@ -70,14 +180,10 @@ export function identityReview(map) {
       missingWebsite,
       verdict,
       // Evidence, not a decision. Everything a reviewer needs to judge it themselves.
-      evidence: rows.map((r) => ({
-        id: r.id,
-        source: r.source || null,
-        website: r.website || null,
-        hostKey: websiteHostKey(r.website) || null,
-        hiring: r.hiring === true || r.hiring === 'yes',
-      })),
-    });
+      evidence,
+    };
+    group.proposal = proposeWebsiteBackfill(group);
+    groups.push(group);
   }
   groups.sort((a, b) => (a.verdict < b.verdict ? -1 : a.verdict > b.verdict ? 1 : 0) || (a.name < b.name ? -1 : 1));
   const candidates = groups.filter((g) => g.verdict === 'unmergeable-missing-website');
@@ -91,6 +197,7 @@ export function identityReview(map) {
       sameWebsiteNotMerged: groups.filter((g) => g.verdict === 'same-website-not-merged').length,
       // The directory publishes a company count; this is how many rows a reviewer might collapse.
       inflationUpperBound: candidates.reduce((n, g) => n + (g.rows - 1), 0),
+      proposals: candidates.filter((g) => g.proposal).length,
     },
     groups,
   };
@@ -124,6 +231,60 @@ if (isMain && process.argv.includes('--selftest')) {
     assert(g.missingWebsite === 1, 'the count of keyless rows is evidence too');
     assert(r.counts.reviewCandidates === 1 && r.counts.inflationUpperBound === 1, 'one collapsible row');
     assert(g.evidence.length === 2 && g.evidence.every((e) => 'hostKey' in e), 'evidence carries the key that failed');
+    assert(g.proposal?.action === 'set-website' && g.proposal.targetIds.includes('hn:jobs.ashbyhq.com/middesk'), 'proposal targets keyless row');
+    assert(g.proposal.website.includes('middesk.com'), 'proposal website from donor');
+    assert(r.counts.proposals === 1, 'proposal counted');
+    // Ambiguous: two different hosts + keyless third → no proposal
+    assert(
+      proposeWebsiteBackfill({
+        verdict: 'unmergeable-missing-website',
+        evidence: [
+          { id: 'a', hostKey: 'a.com', website: 'https://a.com/' },
+          { id: 'b', hostKey: 'b.com', website: 'https://b.com/' },
+          { id: 'c', hostKey: null, website: null },
+        ],
+      }) === null,
+      'ambiguous hosts → no proposal',
+    );
+    // collapse mode drops keyless inflation shell when donor owns host
+    const collapsed = applyWebsiteProposals(
+      map([
+        co({ id: 'yc:middesk', name: 'Middesk', website: 'http://www.middesk.com/', openRoles: 22 }),
+        co({
+          id: 'hn:jobs.ashbyhq.com/middesk',
+          name: 'Middesk',
+          website: null,
+          source: 'Hacker News (Who is Hiring)',
+        }),
+      ]),
+      { write: false, mode: 'collapse' },
+    );
+    assert(collapsed.applied.length === 1 && collapsed.applied[0].action === 'collapse', 'collapse one keyless');
+    assert(collapsed.map.companies.length === 1 && collapsed.map.companies[0].id === 'yc:middesk', 'donor kept');
+    // fill mode keeps both rows and sets website
+    const filled = applyWebsiteProposals(
+      map([
+        co({ id: 'yc:middesk', name: 'Middesk', website: 'http://www.middesk.com/' }),
+        co({
+          id: 'hn:jobs.ashbyhq.com/middesk',
+          name: 'Middesk',
+          website: null,
+          source: 'Hacker News (Who is Hiring)',
+        }),
+      ]),
+      { write: false, mode: 'fill' },
+    );
+    assert(filled.map.companies.length === 2, 'fill keeps both rows');
+    assert(filled.map.companies.find((c) => c.id.includes('hn:')).website.includes('middesk.com'), 'fill sets website');
+    // refuse collapse when keyless has more openRoles than donor
+    const refuse = applyWebsiteProposals(
+      map([
+        co({ id: 'yc:x', name: 'X', website: 'https://x.com/', openRoles: 0 }),
+        co({ id: 'hn:jobs.ashbyhq.com/x', name: 'X', website: null, openRoles: 5 }),
+      ]),
+      { mode: 'collapse' },
+    );
+    assert(refuse.applied.length === 0 && refuse.skipped[0]?.reason === 'keyless-has-more-openRoles', 'protect hiring facts');
   }
 
   // Identical host that survived dedupe is a merge defect, not an identity question.
@@ -140,6 +301,30 @@ if (isMain && process.argv.includes('--selftest')) {
 
   console.log(JSON.stringify({ ok: true, selftest: 'identity-review' }));
   process.exitCode = 0;
+} else if (isMain && process.argv.includes('--apply-websites')) {
+  const live = JSON.parse(fs.readFileSync(MAP, 'utf8'));
+  const wantWrite = process.argv.includes('--write');
+  const mode = process.argv.includes('--fill') ? 'fill' : 'collapse';
+  const result = applyWebsiteProposals(live, { write: wantWrite, mode });
+  if (wantWrite && result.applied.length) {
+    atomicWrite(MAP, `${JSON.stringify(result.map, null, 2)}\n`);
+  }
+  const out = {
+    ok: true,
+    write: wantWrite,
+    mode: result.mode,
+    applied: result.applied,
+    skipped: result.skipped,
+    companiesBefore: live.companies?.length ?? null,
+    companiesAfter: result.map.companies?.length ?? null,
+    reviewCandidates: result.reviewCandidates,
+    note: wantWrite
+      ? result.applied.length
+        ? `wrote ${result.mode} ×${result.applied.length} to map`
+        : 'nothing to write'
+      : 'dry-run — pass --write to persist; default --collapse drops keyless shells; --fill keeps rows',
+  };
+  console.log(JSON.stringify(out, null, 2));
 } else if (isMain) {
   const r = identityReview(JSON.parse(fs.readFileSync(MAP, 'utf8')));
   if (process.argv.includes('--json')) {
@@ -151,11 +336,18 @@ if (isMain && process.argv.includes('--selftest')) {
       `  ${c.reviewCandidates} review candidate(s) — a row with no website can never host-dedupe ` +
       `(up to ${c.inflationUpperBound} collapsible row(s))\n` +
       `  ${c.distinctWebsites} group(s) are distinct companies sharing a name — NOT duplicates\n` +
-      `  ${c.sameWebsiteNotMerged} group(s) share a website host and survived dedupe (merge defect)\n`,
+      `  ${c.sameWebsiteNotMerged} group(s) share a website host and survived dedupe (merge defect)\n` +
+      `  ${c.proposals || 0} unambiguous website proposal(s) — dry-run: --apply-websites ; write: --apply-websites --write\n`,
     );
     for (const g of r.groups.filter((x) => x.verdict !== 'distinct-websites')) {
       console.log(`  ${g.verdict}  ${g.name}`);
       for (const e of g.evidence) console.log(`     ${String(e.id).padEnd(40)} ${e.source || '-'} · host=${e.hostKey || 'NONE'}`);
+      if (g.proposal) {
+        console.log(
+          `     proposal: set website=${g.proposal.website} on ${g.proposal.targetIds.join(', ')}` +
+            ` (from ${g.proposal.fromId}) — not auto-applied`,
+        );
+      }
     }
   }
 }

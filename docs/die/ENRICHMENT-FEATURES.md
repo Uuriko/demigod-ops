@@ -18,6 +18,18 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 
 ## Execution updates — 2026-07-31
 
+- **CI identity collapse apply:** `applyWebsiteProposals` collapse (default) drops
+  keyless inflation shells when one sibling host exists; refuses if keyless has more
+  openRoles. CLI `--apply-websites [--write] [--fill]`. Live 2741→2735, candidates 6→0.
+
+- **CI identity-review website proposals:** `proposeWebsiteBackfill` on
+  unmergeable-missing-website groups (exactly one sibling host) — proposal only,
+  never auto-applied. Live 6 candidates with donor website hints.
+
+- **EP public-comp OTE/total-cash extract:** `extractPublicCompQuotes` accepts OTE /
+  on-target earnings / total cash / annual compensation phrasing; still refuses
+  competitive-only and non-parseable quotes (Pave kill: no ML bands).
+
 - **OP-08 — work-find always surfaces exit-fail:** control-board exitFailures use
   `always: true` (hour-seen no longer hides re-broken truth_seal). Live
   `refuseIfStale('truth')` probe adds truth-reseal when map stamps between board receipts.
