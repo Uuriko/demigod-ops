@@ -299,3 +299,32 @@ current architecture is defensible and the static generator is dead weight worth
 than deploying. **Not my call** — recording the evidence so whoever makes it is not guessing.
 
 **Do not re-run this to "check".** It is a stable structural fact about those sites, not a metric.
+
+### 3.11 — Correction to 3.8/3.10: the head is NOT empty *(measured 2026-07-31)*
+
+I framed the site as serving crawlers nothing. That is right about the `<body>` and wrong about the
+document. Served HTML, no JS executed:
+
+| Page | ld+json blocks (all parseable) | Real content? |
+|---|---|---|
+| /faq | FAQPage, Organization, WebSite, ItemList, Blog | **yes** — FAQPage carries all 6 Q&As |
+| /startups | Organization, WebSite, ItemList, Blog | **no** — the ItemList is 10 SITE NAV entries |
+
+So structured data ships server-side and is crawlable without JS. `/faq` is genuinely fine: 6
+`<details>` on the page, 6 questions in the schema, all matching, no empty answers. **The earlier
+"thin pages" list was mostly a measurement artifact** — `innerText` excludes collapsed `<details>`,
+so /faq read as 305 chars while its answers were present all along, and /status is simply an alias
+of /about. Only /contact (77 chars) is genuinely minimal, and plausibly on purpose.
+
+**The directory finding survives intact and is now sharper:** 2,735 companies appear in *no* served
+form — not body HTML, not JSON-LD. The `/startups` ItemList describes the nav menu, not the
+directory.
+
+**Third option for 3.8, cheaper than either previously listed.** A JSON-LD `ItemList` of companies
+is the mechanism structured data actually provides for a directory, and it is an order of magnitude
+smaller than markup: ~100 bytes/company against the 518KB static page. The full set is still ~270KB
+and will not fit the ~50k head budget, but a top-N would, and the plumbing already exists — every
+page ships an ItemList today, it just describes navigation.
+
+Same caveat as trimming the static page: publishing top-N is publishing an arbitrary subset, and
+which N (and whether to do it at all) is the positioning call from 3.10, not a technical one.
