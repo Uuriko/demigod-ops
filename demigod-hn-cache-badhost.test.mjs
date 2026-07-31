@@ -26,8 +26,12 @@ assert.equal(isCompanyWebsiteHost(''), true);
 assert.equal(isCompanyWebsiteHost('not a url'), true);
 
 // The map must actually apply it at the cache-read boundary, not just export it.
+// (Filter may be multi-line; do not require one-line formatting.)
 const mapSrc = fs.readFileSync(new URL('./demigod-startup-map-data.mjs', import.meta.url), 'utf8');
-assert.match(mapSrc, /isPlausibleHnCompanyName\(row\.name\) && isCompanyWebsiteHost\(row\.website\)/);
+assert.match(
+  mapSrc,
+  /isPlausibleHnCompanyName\(row\.name\)\s*&&\s*isCompanyWebsiteHost\(row\.website\)/,
+);
 
 // The four identities Grok's BLOCK review caught passing every targeted selftest.
 for (const url of ['https://app.deel.com/', 'https://tally.so/', 'https://youtu.be/', 'https://grnh.se/']) {
