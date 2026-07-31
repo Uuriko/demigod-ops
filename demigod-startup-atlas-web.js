@@ -131,6 +131,8 @@
       '.dg-fresh-note{color:#a8a29e;font-size:.78rem;line-height:1.55;margin:0 0 .6rem}' +
       '.dg-fresh-list{list-style:none;margin:0;padding:0}' +
       '.dg-fresh-row{padding:.5rem 0;border-bottom:1px solid rgba(166,255,203,.08)}' +
+      '.dg-fresh-title{display:flex;align-items:center;min-height:44px;color:#a6ffcb;text-decoration:none}' +
+      '.dg-fresh-title:hover{text-decoration:underline}' +
       '.dg-fresh-row a{color:#a6ffcb}' +
       '.dg-fresh-row a:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-fresh-co{color:#f3f0e7}' +
@@ -240,16 +242,19 @@
       '<ul class="dg-fresh-list">' +
       rows.map(function (role) {
         var url = safeUrl(role.url);
+        // The link is the tap target, so it gets its own full-width block at 44px. Inline with the
+        // company name it measured 22px tall on a 390px viewport — under WCAG 2.5.8's 24px floor and
+        // half this directory's own 44px control convention. Company moves to the meta line.
         var title = url
-          ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(role.title) + '</a>'
-          : esc(role.title);
-        var meta = [];
+          ? '<a class="dg-fresh-title" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(role.title) + '</a>'
+          : '<span class="dg-fresh-title">' + esc(role.title) + '</span>';
+        var meta = ['<span class="dg-fresh-co">' + esc(role.company) + '</span>'];
         if (role.location) meta.push(esc(role.location));
         meta.push('first observed ' + esc(String(role.firstObservedAt).slice(0, 10)));
         // Only shown when the ATS actually gave us one, and labelled as THEIR date, not ours.
         if (role.postedAt) meta.push('board posted ' + esc(String(role.postedAt).slice(0, 10)));
-        return '<li class="dg-fresh-row">' + title + ' · <span class="dg-fresh-co">' + esc(role.company) +
-          '</span><span class="dg-fresh-meta">' + meta.join(' · ') + '</span></li>';
+        return '<li class="dg-fresh-row">' + title +
+          '<span class="dg-fresh-meta">' + meta.join(' · ') + '</span></li>';
       }).join('') +
       '</ul>';
     host.hidden = false;

@@ -261,6 +261,9 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   // Source-level: the section exists and starts hidden, so a missing feed shows nothing at all.
   assert.match(src, /<section class="dg-dir-fresh" hidden><\/section>/);
+  // The link is the tap target. Inline with the company name it measured 22px tall on a 390px
+  // viewport — under WCAG 2.5.8's 24px floor and half this directory's own 44px control convention.
+  assert.match(src, /\.dg-fresh-title\{[^}]*min-height:44px/, 'the role link must keep a 44px tap target');
   const start = src.indexOf('function dgRecentRoles');
   const end = src.indexOf('\n  var state = {');
   const pick = new Function(src.slice(start, end) + '; return dgRecentRoles;')();
