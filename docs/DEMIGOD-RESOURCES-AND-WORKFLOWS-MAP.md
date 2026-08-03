@@ -14,7 +14,7 @@ Founders / talent  →  trydemigod.com (Webflow + custom code)
                                       └─ demigod-foot-core.js (SoR for site JS)
 
 Submissions / pilots  →  ops (inbox, pairs, demand drafts, pilot log)
-Agents                →  edit demigod-*, verify, prepare ship; current user request authorizes money/messages/publish
+Agents                →  research, edit, verify, and publish; ask only for the narrow exceptions in AGENTS.md
 ```
 
 | Layer | Canonical files | Live |
@@ -22,11 +22,10 @@ Agents                →  edit demigod-*, verify, prepare ship; current user re
 | Foot JS | `demigod-foot-core.js` | CDN (manifest `DEMIGOD-FOOT-CDN.json`) |
 | Footer loader | `demigod-footer-lite.html` | Webflow custom code footer |
 | Head | `demigod-head-minimal.html`, `demigod-head-styles.css` | Webflow head + Catbox CSS |
-| Board | `DEMIGOD-BOARD.json` + `DEMIGOD-BOARD-HONESTY.json` | Catbox JSON URL hardcoded as `BOARD_CDN` in foot-core |
-| Freeze | `publish-freeze` / env | Blocks CDN/Webflow mutate |
+| Board | `DEMIGOD-BOARD.json` + `DEMIGOD-BOARD-HONESTY.json` | Local operations truth |
 | Lock | foot-lock | One writer for foot-core |
 
-**Truth oracle:** `bin/dg truth` → `/tmp/dg-busy/truth.json` (disk == CDN == live, board, freeze, lock).
+**Truth oracle:** `bin/dg truth` → `/tmp/dg-busy/truth.json` (disk == CDN == live, board, lock).
 
 ---
 
@@ -42,7 +41,6 @@ One cohesion layer: `bin/dg home` · dash `#overview` · `/api/control` · `/tmp
 | **match** | Inbox → pairs → intro | `bin/dg matches` | inbox, match-review, auto-propose |
 | **review** | Diff policy scan | `bin/dg review` | review, review-bug |
 | **hygiene** | Tabs + laptop | `bin/dg hygiene --prune` | hygiene, tab-prune |
-| **ponytail** | Lazy-senior coding for agents | `bin/dg ponytail` | ponytail, ponytail-check |
 | **workloop** | Continuous local audits + draft-only checks | `bin/dg-useful-loop status` | — |
 | **ship** | When (not) to mutate CDN/Webflow | freeze status · ship checklist | ship-checklist, verify-source, board-honesty |
 | **plans** | Handoffs + multi-agent plans | `bin/dg-handoff` | plan-inbox |
@@ -70,9 +68,9 @@ bin/dg orient          # 5-line card: green / freeze / NEXT / demand / assertSam
    stop  (or ship path if intentionally releasing)
 ```
 
-**Agent stages (not org chart):** Plan → Execute → Review → Authorize. Current role defaults live in `DEMIGOD-SIMPLE.md`; authorization gates remain freeze/publish/DMs/money.
+**Authority:** [`AGENTS.md`](../AGENTS.md). Stages are optional workflow labels, not permission gates.
 
-**Ponytail:** required for all coding agents — plugin Claude+Codex, rules `docs/PONYTAIL-AGENTS.md`, dash module + `/api/ponytail`.
+**Ponytail:** compact policy at `docs/PONYTAIL-AGENTS.md`; installed agent skills enforce it.
 
 ---
 
@@ -86,14 +84,12 @@ bin/dg ship status|prepare|cdn|paste|verify|run
 |------|------|--------|
 | **status** | Facts + readiness | read-only |
 | **prepare** | verify-source, honesty, foot-smoke, truth | read-only |
-| **cdn** | Upload foot → update manifest/footer | freeze OFF + foot lock |
-| **paste** | CM6 head+foot → Webflow custom code + queue-publish | freeze OFF + lock + CDP |
+| **cdn** | Upload foot → update manifest/footer | foot lock |
+| **paste** | CM6 head+foot → Webflow custom code + queue-publish | foot lock + CDP |
 | **verify** | `truth --require-match` | network |
-| **run** | prepare → cdn → paste → verify | freeze OFF + lock |
+| **run** | prepare → cdn → paste → verify | foot lock |
 
-**Related:** `demigod-foot-cdn-publish.mjs`, `demigod-cm6-paste-publish.mjs`, `demigod-publish-freeze.mjs`, `bin/dg lock`.
-
-**Freeze ON:** disk work OK; **no** CDN/Webflow mutate. Disk ahead of live is expected under freeze.
+**Related:** `demigod-foot-cdn-publish.mjs`, `demigod-cm6-paste-publish.mjs`, `bin/dg lock`.
 
 ---
 
@@ -147,13 +143,13 @@ These are separate today: `DEMIGOD-FOOT-CDN.json` has `webhookUrl: null`, so pro
 | Matches | Pair queue |
 | Work | Agent plans and handoffs |
 | Tools | Registry (hot by default; `?all=1` full) + Run jobs |
-| Ship | Freeze, checklist, release truth |
+| Ship | Checklist and release truth |
 | SF Map | Private startup atlas + map links |
 
-**Jobs:** `POST /api/jobs?run=<id>` (allowlist in dashboard; mutate jobs freeze-gated).  
-**Key APIs:** `/api/status` (includes demand/pilot snapshots), `/api/control`, `/api/truth`, `/api/orient`, `/api/tools`, `/api/jobs`, `/api/ponytail`, `/api/webflow`, `/api/matches`, `/api/inbox`, `/api/handoff`, `/api/ship-checklist`, `/api/events`.
+**Jobs:** `POST /api/jobs?run=<id>` (allowlist in dashboard; mutations require explicit job intent).
+**Key APIs:** `/api/status` (includes demand/pilot snapshots), `/api/control`, `/api/truth`, `/api/orient`, `/api/tools`, `/api/jobs`, `/api/webflow`, `/api/matches`, `/api/inbox`, `/api/handoff`, `/api/ship-checklist`, `/api/events`.
 
-**Busy state:** `/tmp/dg-busy/*` (truth, control-plane, demand-status, ship receipts, ponytail-status, …).
+**Busy state:** `/tmp/dg-busy/*` (truth, control-plane, demand-status, ship receipts, …).
 
 ---
 
@@ -176,7 +172,7 @@ The default API exposes the primary set; `?all=1` exposes the cold catalog. Runn
 | Demand | `demand`, `pilot` |
 | Match | `matches`, `inbox`, `pairs` |
 | Review | `review`, `review-bug`, `review-fix` |
-| Hygiene | `hygiene`, `ponytail` |
+| Hygiene | `hygiene` |
 | Orca | `orca` |
 | Meta | `tools`, `full-check`, `cockpit`, `usertest`, `handoff`, `start` |
 
@@ -190,8 +186,8 @@ Thin wrappers remain only where they protect a distinct runtime or safety bounda
 
 | Resource | Role |
 |----------|------|
-| `AGENTS.md` / `CLAUDE.md` / `DEMIGOD-AGENTS.md` / `DEMIGOD-SIMPLE.md` | Rules (all agents) |
-| `.cursor/rules/demigod.mdc` + `ponytail.mdc` | Cursor always-on |
+| `AGENTS.md` | Sole project policy; compatibility files only point here |
+| `.cursor/rules/demigod.mdc` + `ponytail.mdc` | Cursor pointers |
 | Ponytail plugin | Claude Code + Codex |
 | `bin/df` / Fable | Plan / review with fresh disk truth |
 | Claude / Grok | Advisory review via `ask-claude` / `grok-ask` |
@@ -270,7 +266,7 @@ Thin wrappers remain only where they protect a distinct runtime or safety bounda
 | Edit foot JS | lock claim → `demigod-foot-core.js` → verify → ship path |
 | Publish to live | freeze off + lock → `bin/dg ship run` (or cdn/paste pieces) |
 | Laptop tabs | `bin/dg hygiene --prune` |
-| Agent coding style | Ponytail (`bin/dg ponytail`) |
+| Agent coding style | `docs/PONYTAIL-AGENTS.md` |
 | DM drafts | `bin/dg demand draft` (no send) |
 | Form submissions | dash Inbox / `bin/dg-inbox` |
 | Multi-agent plan | Fable `bin/df` · Work tab · handoff |

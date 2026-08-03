@@ -49,11 +49,23 @@ test('unique link → accepted claim → retained paid hire → cash or company 
       id: `origin-${roleId}`,
       featuredId: roleId,
       status: 'featured',
+      at: new Date().toISOString(),
       form: 'startup-hire',
-      data: { 'company-name': `Company ${roleId}` },
+      data: {
+        'company-name': `Company ${roleId}`,
+        'company-stage': 'seed',
+        'role-title': 'Founding Engineer',
+        'stack-needs': 'JavaScript',
+        '90day-outcome': 'Ship a reliable product milestone',
+        'work-location': 'sf-hybrid',
+        'salary-range': '$180-220k',
+        'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+        'contact-email': `founder+${roleId}@fixture.test`,
+      },
     },
     {
       id: candId,
+      at: new Date().toISOString(),
       sample: false,
       status: 'reviewed',
       form: 'engineer-join',
@@ -80,6 +92,7 @@ test('unique link → accepted claim → retained paid hire → cash or company 
     candidates: [],
   }), { mode: 0o600 });
 
+  const { roleTruthFingerprint } = await import(`./demigod-accepted-role.mjs?test=${Date.now()}`);
   const referrals = await import(`./demigod-referrals.mjs?test=${Date.now()}`);
   const maxFee = Number.MAX_SAFE_INTEGER;
   assert.equal(
@@ -111,19 +124,24 @@ test('unique link → accepted claim → retained paid hire → cash or company 
   fs.writeFileSync(leadsPath, JSON.stringify({ partners: [], talent: [] }), { mode: 0o600 });
   const pairs = { pairs: {} };
   const writePairs = () => fs.writeFileSync(pairsPath, JSON.stringify(pairs), { mode: 0o600 });
-  const mutualPair = (pairId, roleId, candId) => ({
-    pairId,
-    roleId,
-    candId,
-    state: 'mutual_yes',
-    mutual: { founder: true, candidate: true },
-    sample: false,
-    createdSample: false,
-    history: [
-      { event: 'consent', side: 'founder', evidence: 'fixture founder consent' },
-      { event: 'consent', side: 'candidate', evidence: 'fixture candidate consent' },
-    ],
-  });
+  const mutualPair = (pairId, roleId, candId) => {
+    const roleTruthHash = roleTruthFingerprint(
+      eligiblePairItems.find((item) => item.featuredId === roleId),
+    );
+    return {
+      pairId,
+      roleId,
+      candId,
+      state: 'mutual_yes',
+      mutual: { founder: true, candidate: true },
+      sample: false,
+      createdSample: false,
+      history: [
+        { event: 'consent', side: 'founder', evidence: 'fixture founder consent', roleTruthHash },
+        { event: 'consent', side: 'candidate', evidence: 'fixture candidate consent', roleTruthHash },
+      ],
+    };
+  };
   writePairs();
   fs.writeFileSync(inboxPath, JSON.stringify({ items: eligiblePairItems }), { mode: 0o600 });
 

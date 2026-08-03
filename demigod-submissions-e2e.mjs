@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /** Isolated E2E: webhook ingest → inbox → approve → local board. */
 import net from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 import { spawn, spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 
 const SCOPE = `submissions-e2e-${process.pid}-${Date.now()}`;
+const ISOLATED_REPORT = path.join('/tmp/dg-busy/tests', SCOPE, 'DEMIGOD-INBOX-REPORT.json');
 process.env.DEMIGOD_TEST_SCOPE = SCOPE;
 const { loadInbox, loadBoard } = await import('./demigod-submissions-lib.mjs');
+const { listAcceptedRoles } = await import('./demigod-accepted-role.mjs');
 let PORT = 0;
 
 function freePort() {
@@ -97,6 +101,16 @@ async function main() {
   const inbox = loadInbox();
   const partnerRec = inbox.items.find((i) => i.form === 'partner-apply' && i.raw?.['partner-email'] === 'partner@isolated-e2e.vc');
   const subId = postStartup.json?.id || inbox.items.find((i) => i.form === 'startup-hire')?.id;
+  const calibrate = spawnSync(process.execPath, [
+    'demigod-submissions-inbox.mjs',
+    `--mark-reviewed=${subId}`,
+    '--interview-process=Founder chat → work sample → final; target decision in ~2 weeks',
+    '--i-observed-founder-answer',
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, DEMIGOD_TEST_SCOPE: SCOPE },
+  });
   // Child must share DEMIGOD_TEST_SCOPE so approve writes the same isolated board/inbox.
   const approve = spawnSync(process.execPath, ['demigod-submissions-approve.mjs', subId || '--latest'], {
     cwd: ROOT,
@@ -105,21 +119,29 @@ async function main() {
   });
 
   const board = loadBoard();
+  const approvedInbox = loadInbox();
   const approvedRole = board.roles?.find((role) => role.title === 'Founding Engineer');
+  const accepted = listAcceptedRoles(board, approvedInbox);
 
   const ok = postStartup.json?.ok && !postStartup.json?.featured
     && postPartner.json?.ok && partnerRec?.status === 'new' && partnerRec?.form === 'partner-apply'
+    && calibrate.status === 0
+    && fs.existsSync(ISOLATED_REPORT)
     && approve.status === 0
-    && approvedRole?.sample === true;
+    && approvedRole?.sample === false
+    && accepted.counts.acceptedForDelivery === 1;
 
   console.log(JSON.stringify({
     ok,
     postStartup,
     postPartner,
     partnerInbox: partnerRec ? { id: partnerRec.id, status: partnerRec.status } : null,
+    calibrated: calibrate.stdout?.trim(),
+    isolatedReportWritten: fs.existsSync(ISOLATED_REPORT),
     approved: approve.stdout?.trim(),
     boardRoles: board.roles?.length,
     approvedTitle: approvedRole?.title || null,
+    acceptedRoles: accepted.counts.acceptedForDelivery,
     scope: SCOPE,
   }));
   return ok;

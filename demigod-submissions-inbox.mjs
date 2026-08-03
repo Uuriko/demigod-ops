@@ -14,6 +14,9 @@ import { ROOT } from './demigod-turn-lib.mjs';
 import {
   loadInbox,
   updateInbox,
+  writeBoard,
+  anonymizeRole,
+  submissionFingerprint,
   extractEmail,
   publicStatus,
   startupRoleReadiness,
@@ -23,12 +26,15 @@ import {
   scrubPII,
 } from './demigod-submissions-lib.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { gradeOutcomeText } from './demigod-outcome-grammar.mjs';
 
-const OUT = path.join(ROOT, 'DEMIGOD-INBOX-REPORT.json');
-const BUSY_OUT = '/tmp/dg-busy/submissions-inbox-latest.json';
+const TEST_SCOPE = String(process.env.DEMIGOD_TEST_SCOPE || '').replace(/[^A-Za-z0-9_.-]/g, '_');
+const TEST_OUT_DIR = TEST_SCOPE ? path.join('/tmp/dg-busy/tests', TEST_SCOPE) : '';
+const OUT = TEST_SCOPE ? path.join(TEST_OUT_DIR, 'DEMIGOD-INBOX-REPORT.json') : path.join(ROOT, 'DEMIGOD-INBOX-REPORT.json');
+const BUSY_OUT = TEST_SCOPE ? path.join(TEST_OUT_DIR, 'submissions-inbox-latest.json') : '/tmp/dg-busy/submissions-inbox-latest.json';
 
 function parseArgs(argv) {
-  const out = { status: 'all', limit: 40, json: false, markReviewed: null };
+  const out = { status: 'all', limit: 40, json: false, markReviewed: null, interviewProcess: null, availability: null, confirmOpen: false, observedFounderAnswer: false, observedCandidateAnswer: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--new') out.status = 'new';
@@ -40,6 +46,15 @@ function parseArgs(argv) {
     else if (a.startsWith('--mark-reviewed=')) out.markReviewed = a.slice(16);
     else if (a === '--mark-reviewed' && argv[i + 1] && !String(argv[i + 1]).startsWith('-'))
       out.markReviewed = argv[++i];
+    else if (a.startsWith('--interview-process=')) out.interviewProcess = a.slice(20);
+    else if (a === '--interview-process' && argv[i + 1] && !String(argv[i + 1]).startsWith('-'))
+      out.interviewProcess = argv[++i];
+    else if (a.startsWith('--availability=')) out.availability = a.slice(15);
+    else if (a === '--availability' && argv[i + 1] && !String(argv[i + 1]).startsWith('-'))
+      out.availability = argv[++i];
+    else if (a === '--confirm-open') out.confirmOpen = true;
+    else if (a === '--i-observed-founder-answer') out.observedFounderAnswer = true;
+    else if (a === '--i-observed-candidate-answer') out.observedCandidateAnswer = true;
     else if (a === '--mark-reviewed') {
       console.error('submissions-inbox: --mark-reviewed requires a submission id');
       process.exit(2);
@@ -115,6 +130,11 @@ export function redactItem(item) {
   );
   const startupReadiness = startupRoleReadiness(item);
   const readiness = startupReadiness.applicable ? startupReadiness : candidateProfileReadiness(item);
+  const raw = item.raw || item.data || {};
+  const outcome = raw['90day-outcome'] || raw.outcome90d;
+  const outcomeGrade = startupReadiness.applicable && String(outcome || '').trim()
+    ? gradeOutcomeText(outcome)
+    : null;
   return {
     id: item.id,
     at: item.at,
@@ -124,11 +144,14 @@ export function redactItem(item) {
     email: masked,
     rejectReasons: rejectReasons.length ? rejectReasons : null,
     featuredId: item.featuredId || null,
-    statusUrl: `https://www.trydemigod.com/#status/${item.id}`,
     headline: publicStatus(item).headline,
     attribution,
     matchingReady: readiness.applicable ? readiness.matchReady : null,
-    matchingBlockers: readiness.applicable ? [...(readiness.lifecycleReady ? [] : ['human-review']), ...(readiness.policyReady === false ? ['policy-review'] : []), ...(readiness.preferenceReady === false ? ['sf-bay-not-open'] : []), ...readiness.missing] : [],
+    matchingBlockers: readiness.applicable ? [...(readiness.lifecycleReady ? [] : ['human-review']), ...(readiness.policyReady === false ? ['policy-review'] : []), ...(readiness.preferenceReady === false ? ['sf-bay-not-open'] : []), ...(readiness.availabilityCurrent === false && !readiness.missing.includes('availability') ? ['availability-reconfirm'] : []), ...readiness.missing] : [],
+    outcomeCalibration: outcomeGrade ? {
+      clarity: outcomeGrade.clarity,
+      suggestions: outcomeGrade.suggestions,
+    } : null,
   };
 }
 
@@ -137,27 +160,96 @@ function main() {
   if (args.help) {
     console.log(`demigod-submissions-inbox — unified triage view
 
-Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--limit=N] [--mark-reviewed=<id>]`);
+Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--limit=N] [--mark-reviewed=<id>]
+       node demigod-submissions-inbox.mjs --mark-reviewed=<id> --interview-process="Founder chat → final; decide in ~2 weeks" --i-observed-founder-answer
+       node demigod-submissions-inbox.mjs --mark-reviewed=<candidate-id> --availability=now|2-4w|1-3m|passive --i-observed-candidate-answer
+       DEMIGOD_ALLOW_REAL_ROLES=1 node demigod-submissions-inbox.mjs --mark-reviewed=<id> --confirm-open --i-observed-founder-answer`);
     process.exit(0);
+  }
+  if (args.confirmOpen && (!args.markReviewed || !args.observedFounderAnswer)) {
+    console.error('submissions-inbox: --confirm-open requires --mark-reviewed=<id> and --i-observed-founder-answer');
+    process.exit(2);
+  }
+  if (args.availability !== null && (!args.markReviewed || !args.observedCandidateAnswer)) {
+    console.error('submissions-inbox: --availability requires --mark-reviewed=<candidate-id> and --i-observed-candidate-answer');
+    process.exit(2);
+  }
+
+  if (args.interviewProcess !== null && (!args.markReviewed || !args.observedFounderAnswer)) {
+    console.error('submissions-inbox: --interview-process requires --mark-reviewed=<id> and --i-observed-founder-answer');
+    process.exit(2);
   }
 
   if (args.markReviewed) {
-    const item = updateInbox((inbox) => {
+    const result = updateInbox((inbox) => {
       const found = (inbox.items || []).find((i) => i.id === args.markReviewed);
       if (!found) return null;
+      if (args.confirmOpen) {
+        if (!startupRoleReadiness(found).applicable) return { error: 'not_startup_submission' };
+        if (found.status !== 'featured' || !found.featuredId) return { error: 'not_featured_role' };
+        const confirmedAt = new Date().toISOString();
+        const actor = process.env.USER || 'agent';
+        try {
+          writeBoard((board) => {
+            let role = (board.roles || []).find((item) => item.id === found.featuredId);
+            if (!role) {
+              role = {
+                ...anonymizeRole(found.raw || found.data || {}),
+                id: found.featuredId,
+                sample: false,
+                sourceSubmissionHash: submissionFingerprint(found.id),
+              };
+              board.roles = [role, ...(board.roles || [])];
+            }
+            role.featuredAt = confirmedAt;
+            role.status = 'Active';
+            return board;
+          }, { reason: `confirm-open:${found.id}`, actor, allowRealRoles: true });
+        } catch (error) {
+          return { error: `board_refresh_failed:${error.code || error.message}` };
+        }
+        found.openConfirmedAt = confirmedAt;
+        found.openConfirmedBy = actor;
+      }
+      if (args.interviewProcess !== null) {
+        const bagKey = found.raw && typeof found.raw === 'object' ? 'raw' : found.data && typeof found.data === 'object' ? 'data' : 'raw';
+        const nextBag = { ...(found[bagKey] || {}), 'interview-process': args.interviewProcess.trim() };
+        const readiness = startupRoleReadiness({ ...found, [bagKey]: nextBag });
+        if (!readiness.applicable) return { error: 'not_startup_submission' };
+        if (readiness.missing.includes('interview-process')) return { error: 'invalid_interview_process' };
+        found[bagKey] = nextBag;
+        found.interviewProcessObservedAt = new Date().toISOString();
+        found.interviewProcessObservedBy = process.env.USER || 'agent';
+      }
+      if (args.availability !== null) {
+        const bagKey = found.raw && typeof found.raw === 'object' ? 'raw' : found.data && typeof found.data === 'object' ? 'data' : 'raw';
+        const confirmedAt = new Date().toISOString();
+        const nextBag = { ...(found[bagKey] || {}), availability: args.availability.trim().toLowerCase() };
+        const readiness = candidateProfileReadiness({ ...found, [bagKey]: nextBag, availabilityConfirmedAt: confirmedAt });
+        if (!readiness.applicable) return { error: 'not_candidate_submission' };
+        if (readiness.missing.includes('availability')) return { error: 'invalid_candidate_availability' };
+        found[bagKey] = nextBag;
+        found.availabilityConfirmedAt = confirmedAt;
+        found.availabilityConfirmedBy = process.env.USER || 'agent';
+      }
       const nextStatus = reviewedStatus(found.status);
       if (nextStatus !== found.status) {
         found.status = nextStatus;
         found.reviewedAt = new Date().toISOString();
         found.reviewedBy = process.env.USER || 'agent';
       }
-      return found;
+      return { item: found };
     });
-    if (!item) {
+    if (!result) {
       console.error(JSON.stringify({ ok: false, error: 'not_found', id: args.markReviewed }));
       process.exit(1);
     }
-    console.log(JSON.stringify({ ok: true, id: item.id, status: item.status, reviewedAt: item.reviewedAt }, null, 2));
+    if (result.error) {
+      console.error(JSON.stringify({ ok: false, error: result.error, id: args.markReviewed }));
+      process.exit(1);
+    }
+    const item = result.item;
+    console.log(JSON.stringify({ ok: true, id: item.id, status: item.status, reviewedAt: item.reviewedAt, interviewProcessObservedAt: item.interviewProcessObservedAt || null, availabilityConfirmedAt: item.availabilityConfirmedAt || null, openConfirmedAt: item.openConfirmedAt || null }, null, 2));
     // fall through to refresh report
   }
 
@@ -196,7 +288,6 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
     actions: {
       approve: 'node demigod-submissions-approve.mjs <sub-id>',
       triageSpam: 'node demigod-submissions-triage.mjs',
-      status: 'https://www.trydemigod.com/#status/<sub-id>',
     },
   };
 
@@ -209,9 +300,13 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
     ...report.actions,
     draftIntro: 'node demigod-intro-draft.mjs <sub-id>',
     markReviewed: 'node demigod-submissions-inbox.mjs --mark-reviewed=<sub-id>',
+    recordInterviewProcess: 'node demigod-submissions-inbox.mjs --mark-reviewed=<sub-id> --interview-process="Founder chat → final; target decision in ~2 weeks" --i-observed-founder-answer',
+    reconfirmCandidateAvailability: 'node demigod-submissions-inbox.mjs --mark-reviewed=<candidate-id> --availability=now|2-4w|1-3m|passive --i-observed-candidate-answer',
+    reconfirmOpenRole: 'DEMIGOD_ALLOW_REAL_ROLES=1 node demigod-submissions-inbox.mjs --mark-reviewed=<sub-id> --confirm-open --i-observed-founder-answer',
     refresh: 'node demigod-submissions-inbox.mjs --json',
   };
 
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
   atomicWrite(OUT, JSON.stringify(report, null, 2));
   fs.chmodSync(OUT, 0o600);
   try {
@@ -243,7 +338,8 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
     console.log('(no operational rows — featured/spam/test only; use --json for full inventory)');
   } else {
     for (const row of report.operationalRows) {
-      console.log(`${row.id} · ${row.kind} · ${row.status} · ${row.email || '—'} · ${row.headline}`);
+      const outcomeHint = row.outcomeCalibration?.suggestions?.[0];
+      console.log(`${row.id} · ${row.kind} · ${row.status} · ${row.email || '—'} · ${row.headline}${outcomeHint ? ` · First-result check: ${outcomeHint}` : ''}`);
     }
   }
   console.log(`\nWrote ${path.relative(ROOT, OUT)} + ${BUSY_OUT}`);

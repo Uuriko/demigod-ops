@@ -153,11 +153,11 @@ if (cfg) {
     // "Resume or work link?" — one reachable file-or-link step) and foot-core now strips
     // any leftover 'links' field via rmF(en,'links'). There is no dedicated links field left.
     ok(JSON.stringify(es) === JSON.stringify([
-      'welcome', 'full-name', 'seeker-email', 'skills-stack', 'experience',
-      'sf-bay', 'availability', 'salary-expectation', 'work-auth', 'resume', '__submit__', '__thanks__',
+      'welcome', 'sf-bay', 'full-name', 'seeker-email', 'skills-stack', 'experience',
+      'availability', 'salary-expectation', 'resume', '__submit__', '__thanks__',
     ]), 'parsed: engineer matching sequence');
     ok(!es.includes('links') && !(cfg.engineer.optional || []).includes('links'), 'parsed: no separate links step (consolidated into resume)');
-    ok(!cfg.engineer.optional.includes('availability') && !cfg.engineer.optional.includes('salary-expectation') && !cfg.engineer.optional.includes('work-auth') && !cfg.engineer.optional.includes('resume'), 'parsed: engineer constraints and resume required');
+    ok(!(cfg.engineer.optional || []).includes('availability') && !(cfg.engineer.optional || []).includes('salary-expectation') && !(cfg.engineer.optional || []).includes('resume'), 'parsed: engineer constraints and resume required');
   }
 } else {
   ok(true, 'object parse optional (string checks primary)');

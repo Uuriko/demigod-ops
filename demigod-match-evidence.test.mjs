@@ -6,19 +6,32 @@ const evidence = matchEvidence(
   { skills: 'AI, React, product', outcome90d: 'Ship onboarding' },
   { skills: 'React, product research', locationPref: 'SF Bay Area', why: 'I want to ship onboarding' },
 );
-assert.deepEqual(evidence, ['skills: react, product', 'SF Bay Area preference', '90-day outcome motivation provided']);
+assert.deepEqual(evidence, ['self-reported skills: react, product', 'SF Bay Area preference', 'self-reported motivation supplied']);
 assert.equal(matchEvidence({ skills: 'AI' }, { skills: 'retail operations' }).length, 0, 'AI must not substring-match retail');
-assert.ok(decideMatch({ skills: 'React' }, { skills: 'React' }, 1).reasons.includes('skills: react'));
+assert.ok(decideMatch({ skills: 'React' }, { skills: 'React' }, 1).reasons.includes('self-reported skills: react'));
 assert.equal(decideMatch({ skills: 'React', locationPref: 'sf-onsite' }, { skills: 'React', 'sf-bay': 'remote-bay' }, 1).match, false);
 assert.equal(decideMatch({ skills: 'React', locationPref: 'remote-us' }, { skills: 'React', 'sf-bay': 'remote-bay' }, 1).match, true);
 assert.ok(matchEvidence({ locationPref: 'remote-us' }, { 'sf-bay': 'remote-bay' }).includes('work-location preferences align'));
 for (const [availability, expected] of [['now', 'ready now'], ['2-4w', '2–4 weeks'], ['1-3m', '1–3 months'], ['passive', 'passively open']]) {
-  assert.ok(matchEvidence({}, { availability }).includes(`availability: ${expected}`));
+  assert.ok(matchEvidence({}, { availability }).includes(`availability stated: ${expected}`));
 }
 assert.deepEqual(
   matchEvidence({ comp: '$180-220k' }, { 'salary-expectation': '$170–190k base', availability: 'now' }),
-  ['compensation ranges overlap', 'availability: ready now'],
+  ['compensation ranges overlap', 'availability stated: ready now'],
 );
+const freshAvailability = matchEvidence({}, {
+  form: 'engineer-join',
+  at: new Date(Date.now() - 6 * 86400000).toISOString(),
+  raw: { availability: 'now' },
+});
+assert.match(freshAvailability[0], /^availability: ready now · self-reported \d+d ago$/);
+const staleAvailability = matchEvidence({}, {
+  form: 'engineer-join',
+  at: new Date(Date.now() - 31 * 86400000).toISOString(),
+  raw: { availability: 'now' },
+});
+assert.deepEqual(staleAvailability, ['availability unconfirmed · last self-reported 31d ago — reconfirm before introduction']);
+assert.doesNotMatch(staleAvailability.join(' '), /ready now/);
 const privateConstraints = matchEvidence(
   { comp: '$100-120k' },
   { 'salary-expectation': '$180-200k', availability: 'Call private@example.com tomorrow' },
@@ -70,7 +83,7 @@ for (const [label, candidate] of Object.entries({
 })) {
   const result = decideMatch({ skills: 'react node', stageType: 'Seed', outcome: 'ship' }, candidate);
   assert.equal(result.match, false, `${label} text must not supply fit features`);
-  assert.deepEqual(result.reasons, ['skills: react, node']);
+  assert.deepEqual(result.reasons, ['self-reported skills: react, node']);
 }
 assert.equal(
   decideMatch(

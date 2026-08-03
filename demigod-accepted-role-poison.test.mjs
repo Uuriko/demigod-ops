@@ -29,11 +29,13 @@ const goodRaw = () => ({
   '90day-outcome': 'Ship a reliable product milestone',
   'work-location': 'sf-hybrid',
   'salary-range': '$180-220k',
+  'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
   'contact-email': 'founder@acme.test',
 });
 const goodOrigin = () => ({
   id: ORIGIN_ID,
   status: 'featured',
+  at: new Date().toISOString(),
   form: 'startup-hire',
   featuredId: 'role-1',
   raw: goodRaw(),
@@ -103,7 +105,7 @@ for (const [label, mutate] of Object.entries({
   const role = { ...goodRole(), company: 'Board Invented Inc', companyName: 'Board Invented Inc' };
   const out = run(role, origin);
   assert.equal(out.ok, false, 'a board-supplied company must not satisfy the gate');
-  assert.equal(out.why, 'missing_company');
+  assert.equal(out.why, 'origin_not_match_ready');
 }
 {
   // Origin has a company, the board contradicts it — refuse rather than prefer either.
@@ -151,6 +153,18 @@ for (const [label, boardCo, originCo] of [
 }
 
 // --- origin lifecycle states that must block acceptance ----------------------------------
+for (const [label, mutate, why] of [
+  ['missing open confirmation', (o) => { delete o.at; delete o.openConfirmedAt; }, 'open_confirmation_missing'],
+  ['malformed explicit confirmation', (o) => { o.openConfirmedAt = 'not-a-date'; }, 'open_confirmation_missing'],
+  ['far-future confirmation', (o) => { o.openConfirmedAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); }, 'open_confirmation_stale'],
+]) {
+  const origin = goodOrigin();
+  mutate(origin);
+  const out = run(goodRole(), origin);
+  assert.equal(out.ok, false, `${label} must not yield an accepted role`);
+  assert.equal(out.why, why);
+}
+
 for (const [label, mutate] of Object.entries({
   notFeatured: (o) => { o.status = 'pending'; },
   spam: (o) => { o.status = 'spam'; },

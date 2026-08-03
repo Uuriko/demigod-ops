@@ -37,7 +37,6 @@ const stale = items
     at: it.at,
     form: it.form,
     ageHours: Math.round((Date.now() - Date.parse(it.at)) / 3600000),
-    statusUrl: `https://www.trydemigod.com/#status/${it.id}`,
   }))
   .sort((a, b) => b.ageHours - a.ageHours);
 

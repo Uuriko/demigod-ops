@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { listPairs, reviewPair, loadPairs } from './demigod-pairs-lib.mjs';
+import { hasValidPairConsentReceipt, listPairs, reviewPair, loadPairs } from './demigod-pairs-lib.mjs';
 import {
   getStartupRoles,
   loadCompanyEvidenceSources,
@@ -104,7 +104,7 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
     }
     for (const pair of pairs) {
       if (pair.sample !== false || evidenceByRole.has(pair.roleId)) continue;
-      const role = roles.get(String(pair.roleId));
+      const role = acceptedByRole.get(String(pair.roleId)) || roles.get(String(pair.roleId));
       evidenceByRole.set(
         pair.roleId,
         role
@@ -163,6 +163,13 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
     pairs: pairs.map((p) => {
       const packet = packets[String(p.roleId)] || null;
       const note = notes[`${p.roleId}|${p.candId}`] || null;
+      const acceptedRole = p.sample === false ? acceptedByRole.get(String(p.roleId)) || null : null;
+      const mutual = p.sample === false
+        ? {
+            founder: Boolean(acceptedRole && hasValidPairConsentReceipt(p, 'founder', acceptedRole.roleTruthHash)),
+            candidate: Boolean(acceptedRole && hasValidPairConsentReceipt(p, 'candidate', acceptedRole.roleTruthHash)),
+          }
+        : p.mutual || { founder: false, candidate: false };
       let structured = null;
       if (packet) {
         packetsAttached += 1;
@@ -181,12 +188,12 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
         state: p.state,
         score: p.score,
         reasons: Array.isArray(p.reasons) ? p.reasons.map(scrubPII) : [],
-        mutual: p.mutual || { founder: false, candidate: false },
+        mutual,
         sample: p.sample !== false,
         updatedAt: p.updatedAt || p.at,
         reviewedBy: p.reviewedBy || null,
         companyEvidence: p.sample === false ? evidenceByRole.get(p.roleId) : null,
-        acceptedRole: p.sample === false ? acceptedByRole.get(String(p.roleId)) || null : null,
+        acceptedRole,
         structuredHiring: structured,
       };
     }),
@@ -204,6 +211,8 @@ function buildQueue({ state = null, limit = 40, includeSample = false } = {}) {
     },
     actions: {
       review: 'node demigod-match-review.mjs review <pairId> --decision approve|reject|defer --i-reviewed --note "evidence"',
+      candidateReceipt: 'bin/dg-matches receipt <candidateId>   # after founder consent, before candidate consent',
+      decline: 'bin/dg-matches decline <pairId> --side founder|candidate --i-observed-decline --evidence "reply"',
       seed: 'node demigod-pairs-lib.mjs seed   # explicit only — not auto',
       listSamples: 'node demigod-match-review.mjs --include-sample --json',
       introDraftRequires: 'pair.state === approved (and preferably mutual_yes)',

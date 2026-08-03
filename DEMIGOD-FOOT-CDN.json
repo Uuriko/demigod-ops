@@ -1,35 +1,35 @@
 {
-  "at": "2026-07-31T04:49:56.670Z",
-  "version": "860",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c3882e2edf63/foot-latest.js",
+  "at": "2026-08-03T00:14:05.920Z",
+  "version": "903",
+  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/foot-latest.js",
   "ok": true,
   "temporary": false,
-  "bytes": 360071,
-  "sha256": "03e7c5f2e29cf56291e3fce892884ceb41d1b1868a22aa3fedd113a0c213a48b",
-  "liveLen": 359427,
+  "bytes": 351118,
+  "sha256": "d6c242f4b94f76e9568e93115242ec4e2bb30c23ac303fa48b909f33fc77952f",
+  "liveLen": 350457,
   "loaderLen": 1780,
   "host": "cdn.jsdelivr.net",
-  "footVer": "860",
+  "footVer": "903",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c3882e2edf63/startup-map-latest.js",
-      "sha256": "721ba5aa47571e6d50996e2d2947f1acd2039c9d00dadc4754f1f20976b17ec7",
-      "bytes": 33807
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/startup-map-latest.js",
+      "sha256": "54dc177173b714e1661fb8c403e904b796d0dc5b0e2b752f73a04cd5582e2f05",
+      "bytes": 38940
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c3882e2edf63/sf-startup-map.json",
-      "sha256": "332a09b456eb198d4f5f38aa480063074edcb475f8f902717399ca6b76258f7e",
-      "bytes": 1223221
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/sf-startup-map.json",
+      "sha256": "923dcf85562718a9ea446205681dd3c5f6d569ae41ca43f460c500cf8ec03b52",
+      "bytes": 1496642
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c3882e2edf63/head-latest.css",
-      "sha256": "6f78881b777fb1eb60b550de982e5d946b607ad41fc7af617e790cbda2e6ffe5",
-      "bytes": 82912
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/head-latest.css",
+      "sha256": "d4995aede98fce5c85c439517b1e5522b50e0eac3622f0b1f27bc906c2eea70c",
+      "bytes": 82815
     },
     "rolesFeed": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@c3882e2edf63/roles-feed.json",
-      "sha256": "1ec990a82496710ee911c616321797ae70b05f630efc1e9d2daba608be915f40",
-      "bytes": 15745
+      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/roles-feed.json",
+      "sha256": "1a48339541b00e848bd805e24d0f7269ef88c9311fc1cabab7139105ac35dc2c",
+      "bytes": 14105
     }
   }
 }

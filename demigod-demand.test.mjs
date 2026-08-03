@@ -73,9 +73,19 @@ test('demand status seals with non-empty non-null input hashes (not vacuous-fres
     'cmdStatus must pass an explicit scope array',
   );
 
-  const busy = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-demand-scope-'));
-  t.after(() => fs.rmSync(busy, { recursive: true, force: true }));
-  const env = { ...process.env, DEMIGOD_BUSY: busy, DG_BUSY: busy };
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-demand-scope-root-'));
+  const busy = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-demand-scope-busy-'));
+  t.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(busy, { recursive: true, force: true });
+  });
+  fs.mkdirSync(path.join(root, 'demigod-ops'));
+  fs.copyFileSync(new URL('./demigod-demand.mjs', import.meta.url), path.join(root, 'demigod-demand.mjs'));
+  fs.writeFileSync(path.join(root, 'demigod-ops', 'SEND-QUEUE-PRIORITIZED.md'), '# Send queue\n');
+  fs.writeFileSync(path.join(root, 'demigod-ops', 'PILOT-LOG.md'), '# Pilot log\n');
+  fs.writeFileSync(path.join(root, 'DEMIGOD-PILOTS.json'), '{"schema":1,"pilots":[]}\n');
+  fs.writeFileSync(path.join(root, 'DEMIGOD-SF-STARTUP-MAP.json'), '{"companies":[]}\n');
+  const env = { ...process.env, DEMIGOD_ROOT: root, DEMIGOD_BUSY: busy, DG_BUSY: busy };
   delete env.NODE_TEST_CONTEXT;
   const bin = new URL('./demigod-demand.mjs', import.meta.url).pathname;
   const run = spawnSync(process.execPath, [bin, 'status'], {

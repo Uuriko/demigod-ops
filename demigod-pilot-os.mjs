@@ -6,8 +6,9 @@
  * Usage:
  *   node demigod-pilot-os.mjs list
  *   node demigod-pilot-os.mjs open
- *   node demigod-pilot-os.mjs add --company "Acme" --role "Founding eng" --source wiz [--90d "..."]
- *   node demigod-pilot-os.mjs set <id> --status briefed|sourcing|shortlist|intro|hired|closed|churned
+ *   node demigod-pilot-os.mjs add --company "Acme" --role "Founding eng" --source wiz [--outcome "first result"]
+ *   node demigod-pilot-os.mjs add --company "Acme" --role "Founding eng" --source funnel:LEAD --contact founder@acme.com --outcome "first result" --intro-receipt PATH
+ *   node demigod-pilot-os.mjs set <id> --status briefed|sourcing|shortlist|intro|hired|closed|churned [--next-update YYYY-MM-DD]
  *   node demigod-pilot-os.mjs show <id>
  *   node demigod-pilot-os.mjs checklist <id>
  */
@@ -22,6 +23,7 @@ import {
   withFileLock,
 } from './demigod-agent-tools-lib.mjs';
 import { isRealReceipt } from './demigod-submissions-lib.mjs';
+import { receiptLooksValid } from './demigod-funnel.mjs';
 
 function multi(args, name) {
   const out = [];
@@ -47,6 +49,7 @@ const STATUSES = new Set([
   'closed',
   'churned',
 ]);
+const TERMINAL_STATUSES = new Set(['hired', 'closed', 'churned']);
 const EVIDENCE_COMMANDS = {
   shortlist: 'node demigod-match.mjs finalize <pilotId>',
   intro: 'externally observed delivery receipt (no local command yet)',
@@ -85,7 +88,8 @@ function save(data) {
     JSON.stringify(
       {
         at: data.at,
-        open: data.pilots.filter((p) => !['hired', 'closed', 'churned'].includes(p.status)),
+        open: data.pilots.filter((p) =>
+          p.sample !== true && STATUSES.has(p.status) && !TERMINAL_STATUSES.has(p.status)),
       },
       null,
       2,
@@ -107,6 +111,17 @@ function id() {
   return `pilot_${Date.now().toString(36)}_${crypto.randomBytes(2).toString('hex')}`;
 }
 
+function calendarDate(value) {
+  const parsed = new Date(`${value || ''}T00:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(+parsed) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function checkpoint(p) {
+  if (p.sample === true || !STATUSES.has(p.status) || TERMINAL_STATUSES.has(p.status) || !calendarDate(p.nextUpdateAt)) return null;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  return { nextUpdateAt: p.nextUpdateAt, state: p.nextUpdateAt < today ? 'overdue' : p.nextUpdateAt === today ? 'due_today' : 'scheduled' };
+}
+
 function boardHonestyOk() {
   try {
     const board = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-BOARD.json'), 'utf8'));
@@ -122,6 +137,29 @@ function boardHonestyOk() {
   }
 }
 
+function validateIntroReceipt(source, rawPath) {
+  const leadId = String(source || '').startsWith('funnel:') ? String(source).slice(7) : '';
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(leadId)) {
+    return { ok: false, detail: 'intro receipt requires source funnel:LEAD' };
+  }
+  const receiptPath = path.resolve(String(rawPath || ''));
+  const expected = path.join(ROOT, 'demigod-outreach', 'funnel-receipts', `${leadId}-intro_made.txt`);
+  if (receiptPath !== expected) return { ok: false, detail: 'intro receipt path is not bound to source lead' };
+  let text = '';
+  try { text = fs.readFileSync(receiptPath, 'utf8'); } catch { return { ok: false, detail: 'intro receipt missing' }; }
+  const field = (name) => (text.match(new RegExp(`^${name}:\\s*(.+)$`, 'mi'))?.[1] || '').trim();
+  const at = field('at');
+  const pairId = field('pairId');
+  const roleId = field('roleId');
+  const candId = field('candId');
+  const nextUpdateAt = field('nextUpdateAt');
+  if (!receiptLooksValid(text) || field('kind') !== 'intro_made' || !pairId || !roleId || !candId || roleId === candId ||
+      !Number.isFinite(Date.parse(at)) || new Date(at).toISOString() !== at || !calendarDate(nextUpdateAt) || nextUpdateAt < at.slice(0, 10)) {
+    return { ok: false, detail: 'intro receipt content is incomplete or invalid' };
+  }
+  return { ok: true, path: receiptPath, at, pairId, nextUpdateAt };
+}
+
 function checklist(p) {
   const bh = boardHonestyOk();
   // no_board_lie: pilot must not claim boardMinted, AND global board has no unallowed real mints
@@ -130,7 +168,7 @@ function checklist(p) {
     pilotId: p.id,
     items: [
       { id: 'ack', done: Boolean(p.ackedAt), text: 'Personal ack sent (no SLA)' },
-      { id: '90d', done: Boolean(p.outcome90d), text: 'Measurable 90-day outcome captured' },
+      { id: '90d', done: Boolean(p.outcome90d), text: 'Concrete first result captured' },
       { id: 'musts', done: Boolean(p.mustHaves?.length), text: 'Must-haves vs preferences split' },
       { id: 'authority', done: Boolean(p.hiringAuthority), text: 'Hiring authority confirmed' },
       { id: 'scorecard', done: Boolean(p.scorecard), text: 'Written scorecard / search thesis' },
@@ -150,11 +188,21 @@ function checklist(p) {
 
 if (cmd === 'list' || cmd === 'open') {
   const data = load();
-  const pilots =
+  const selected =
     cmd === 'open'
-      ? data.pilots.filter((p) => !['hired', 'closed', 'churned'].includes(p.status))
+      ? data.pilots.filter((p) =>
+        p.sample !== true && STATUSES.has(p.status) && !TERMINAL_STATUSES.has(p.status))
       : data.pilots;
-  console.log(JSON.stringify({ at: data.at, count: pilots.length, pilots }, null, 2));
+  const pilots = selected.map((p) => ({ ...p, checkpoint: checkpoint(p) }));
+  console.log(JSON.stringify({
+    at: data.at,
+    count: pilots.length,
+    checkpoints: {
+      overdue: pilots.filter((p) => p.checkpoint?.state === 'overdue').length,
+      dueToday: pilots.filter((p) => p.checkpoint?.state === 'due_today').length,
+    },
+    pilots,
+  }, null, 2));
   process.exit(0);
 }
 
@@ -163,6 +211,8 @@ if (cmd === 'add') {
   const role = opt(args, '--role', '');
   const source = opt(args, '--source', 'manual');
   const contact = opt(args, '--contact', '');
+  const outcome90d = opt(args, '--outcome', '') || opt(args, '--90d', '');
+  const introReceiptPath = opt(args, '--intro-receipt', '');
   const force = args.includes('--force-test');
   // honesty gate — refuse audit/test/sim pollution
   const badSource = /^(audit|test|sim|smoke|selftest)$/i.test(source);
@@ -180,22 +230,35 @@ if (cmd === 'add') {
     console.error(JSON.stringify({ ok: false, error: 'pilot_honesty', detail: 'company and role required' }));
     process.exit(1);
   }
+  const intro = introReceiptPath || source.startsWith('funnel:')
+    ? validateIntroReceipt(source, introReceiptPath)
+    : null;
+  if (intro && !intro.ok) {
+    console.error(JSON.stringify({ ok: false, error: 'intro_receipt_invalid', detail: intro.detail }));
+    process.exit(1);
+  }
+  if (intro && (!outcome90d.trim() || !(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) || /^@[A-Za-z0-9_]{1,32}$/.test(contact)))) {
+    console.error(JSON.stringify({ ok: false, error: 'intro_identity_incomplete', detail: 'receipt-backed intro requires replyable contact and first result' }));
+    process.exit(1);
+  }
+  const status = intro ? 'intro' : 'new';
   const pilot = {
     id: id(),
     at: new Date().toISOString(),
-    status: 'new',
+    status,
     company,
     role,
     source,
     contact,
-    outcome90d: opt(args, '--90d', '') || opt(args, '--outcome', ''),
+    ...(intro ? { pairId: intro.pairId, introAt: intro.at, introReceipt: intro.path, nextUpdateAt: intro.nextUpdateAt } : {}),
+    outcome90d,
     mustHaves: multi(args, '--must'),
     hiringAuthority: opt(args, '--authority', ''),
     scorecard: opt(args, '--scorecard', ''),
     shortlist: [],
     notes: opt(args, '--note', ''),
     sample: force || badSource,
-    history: [{ at: new Date().toISOString(), status: 'new', by: process.env.USER || 'agent' }],
+    history: [{ at: intro?.at || new Date().toISOString(), status, by: process.env.USER || 'agent', ...(intro ? { evidence: intro.path, pairId: intro.pairId, nextUpdateAt: intro.nextUpdateAt } : {}) }],
   };
   update((data) => data.pilots.unshift(pilot));
   console.log(JSON.stringify({ ok: true, pilot, checklist: checklist(pilot) }, null, 2));
@@ -205,29 +268,38 @@ if (cmd === 'add') {
 if (cmd === 'set') {
   const pid = args[1];
   const status = opt(args, '--status');
+  const nextUpdateAt = opt(args, '--next-update', '');
+  const note = opt(args, '--note', '');
   if (!pid || !status) {
-    console.error('usage: set <id> --status briefed|sourcing|shortlist|intro|hired|closed|churned');
+    console.error('usage: set <id> --status briefed|sourcing|shortlist|intro|hired|closed|churned [--next-update YYYY-MM-DD]');
     process.exit(2);
   }
   if (!STATUSES.has(status)) {
     console.error(JSON.stringify({ ok: false, error: 'invalid_status', allowed: [...STATUSES] }));
     process.exit(2);
   }
+  if (['closed', 'churned'].includes(status) && !/^(?:candidate|company|mutual|role):\s+\S/i.test(note.trim())) {
+    console.error(JSON.stringify({ ok: false, error: 'disposition_reason_required', hint: '--note="candidate|company|mutual|role: reason"' }));
+    process.exit(1);
+  }
   let pilot;
   try {
     pilot = update((data) => {
       const found = data.pilots.find((p) => p.id === pid || p.id.startsWith(pid));
       if (!found) throw Object.assign(new Error('not_found'), { code: 'not_found' });
-      if (EVIDENCE_COMMANDS[status]) {
+      if (EVIDENCE_COMMANDS[status] && !(found.status === status && nextUpdateAt)) {
         throw Object.assign(new Error('evidence_required'), { code: 'evidence_required' });
+      }
+      if (nextUpdateAt && !calendarDate(nextUpdateAt)) {
+        throw Object.assign(new Error('invalid_next_update'), { code: 'invalid_next_update' });
       }
       found.status = status;
       found.updatedAt = new Date().toISOString();
       if (status === 'briefed') found.ackedAt = found.ackedAt || new Date().toISOString();
       if (status === 'intro') found.introAt = found.introAt || new Date().toISOString();
-      const note = opt(args, '--note', '');
       if (note) found.notes = note;
-      const o90 = opt(args, '--90d', '');
+      if (nextUpdateAt) found.nextUpdateAt = nextUpdateAt;
+      const o90 = opt(args, '--outcome', '') || opt(args, '--90d', '');
       if (o90) found.outcome90d = o90;
       found.history = found.history || [];
       found.history.push({
@@ -235,11 +307,12 @@ if (cmd === 'set') {
         status,
         by: process.env.USER || 'agent',
         note,
+        ...(nextUpdateAt ? { nextUpdateAt } : {}),
       });
       return found;
     });
   } catch (error) {
-    if (!['not_found', 'evidence_required'].includes(error.code)) throw error;
+    if (!['not_found', 'evidence_required', 'invalid_next_update'].includes(error.code)) throw error;
     console.error(JSON.stringify({ ok: false, error: error.code, use: EVIDENCE_COMMANDS[status] }));
     process.exit(1);
   }
@@ -258,7 +331,7 @@ if (cmd === 'show' || cmd === 'checklist') {
   if (cmd === 'checklist') {
     console.log(JSON.stringify(checklist(pilot), null, 2));
   } else {
-    console.log(JSON.stringify({ pilot, checklist: checklist(pilot) }, null, 2));
+    console.log(JSON.stringify({ pilot: { ...pilot, checkpoint: checkpoint(pilot) }, checklist: checklist(pilot) }, null, 2));
   }
   process.exit(0);
 }

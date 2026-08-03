@@ -153,7 +153,6 @@ body { background: var(--dk) !important; color: var(--cr) !important; }
 /* Animations new subtle gold theme */
 @keyframes dg-gold-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .dg-step, .dg-row, .dg-cand, .dg-wiz-show { animation: dg-gold-rise .4s ease forwards; }
-.premium-btn, .dg-wiz-next, .dg-wiz-start { transition: all .2s cubic-bezier(0.2,0.8,0.2,1); }
 .premium-btn:hover { box-shadow: 0 6px 25px rgba(201,168,76,.35); }
 
 /* Mobile + desktop perfect */
@@ -287,7 +286,7 @@ a:hover, button:hover { opacity:.95; }
   box-shadow: 0 0 0 1px rgba(201,168,76,.25), 0 8px 28px rgba(0,0,0,.35);
 }
 .dg-wiz-q { letter-spacing: -0.01em; }
-/* 90-day outcome field emphasis (high-signal matching) */
+/* First-result field emphasis (high-signal matching) */
 #startup-modal [name="90day-outcome"], #startup-modal textarea[name*="90day"],
 #jobseeker-modal [name="90day-outcome"], #jobseeker-modal textarea[name*="90day"] {
   border-color: rgba(201,168,76,.55) !important;

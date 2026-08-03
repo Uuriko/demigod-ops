@@ -643,6 +643,19 @@ async function smartrecruiters(slug) {
   return ownerWebsite ? { ...result, ownerWebsite } : null;
 }
 
+/** Exact board repair path: unlike broad discovery, missing owner evidence fails closed. */
+export async function fetchOwnedAtsBoard(company, slug, provider) {
+  const probe = { Greenhouse: greenhouse, Lever: lever, Ashby: ashby, Workable: workable }[provider];
+  if (!probe || !String(slug || '').trim()) return null;
+  const found = await probe(String(slug).trim());
+  if (
+    !found?.ownerWebsite ||
+    !sameWebsiteOwner(company?.website, found.ownerWebsite) ||
+    hasDeniedAtsBoard({ ...company, atsSource: found.ats, jobsUrl: found.jobsUrl })
+  ) return null;
+  return found;
+}
+
 async function detect(company) {
   for (const slug of slugs(company)) {
     for (const probe of [

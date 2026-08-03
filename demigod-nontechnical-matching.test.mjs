@@ -26,9 +26,9 @@ assert.match(publicCard.summary, /GTM operations|HubSpot/i);
 
 const result = decideMatch(role, candidate, 60);
 assert.equal(result.match, true, `nontechnical evidence should clear review threshold: ${result.score}`);
-assert.ok(result.reasons.some((reason) => /work evidence:.*hubspot/i.test(reason)), result.reasons.join('; '));
-assert.ok(result.reasons.includes('90-day outcome motivation provided'));
-assert.ok(matchEvidence(role, candidate).includes('experience evidence provided'));
+assert.ok(result.reasons.some((reason) => /self-reported experience overlap:.*hubspot/i.test(reason)), result.reasons.join('; '));
+assert.ok(result.reasons.includes('self-reported motivation supplied'));
+assert.ok(matchEvidence(role, candidate).includes('self-reported experience supplied'));
 
 const copiedMotivation = decideMatch(role, {
   'skills-stack': 'Brand design and visual identity',
@@ -38,7 +38,7 @@ const copiedMotivation = decideMatch(role, {
 }, 60);
 assert.equal(copiedMotivation.match, false, `motivation must not masquerade as skills: ${copiedMotivation.score}`);
 assert.equal(copiedMotivation.state, 'reviewed');
-assert.doesNotMatch(copiedMotivation.reasons.join('; '), /skills:|work evidence:/i);
+assert.doesNotMatch(copiedMotivation.reasons.join('; '), /self-reported skills:|self-reported experience overlap:/i);
 
 const genericOnly = decideMatch({
   title: 'Founding Operations Lead',
@@ -51,6 +51,6 @@ const genericOnly = decideMatch({
 }, 60);
 assert.equal(genericOnly.match, false, `generic startup language must not clear threshold: ${genericOnly.score}`);
 assert.equal(genericOnly.state, 'reviewed');
-assert.doesNotMatch(genericOnly.reasons.join('; '), /skills:|work evidence:/i);
+assert.doesNotMatch(genericOnly.reasons.join('; '), /self-reported skills:|self-reported experience overlap:/i);
 
 console.log('demigod nontechnical matching integrity: PASS');

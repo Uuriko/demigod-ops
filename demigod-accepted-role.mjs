@@ -14,7 +14,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { isSeedRole } from './demigod-board-lib.mjs';
-import { BOARD_PATH, loadBoard, loadInbox, isSampleData } from './demigod-submissions-lib.mjs';
+import { BOARD_PATH, ROLE_OPEN_DAYS, loadBoard, loadInbox, isSampleData, startupRoleReadiness, submissionFingerprint } from './demigod-submissions-lib.mjs';
 import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 
 // Deliberately NOT `process.env.DEMIGOD_ROOT || ...` — every other module in this lane honors
@@ -24,11 +24,6 @@ import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 // which is how the tests already inject them. Do not "make this consistent."
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-
-function submissionFingerprint(id) {
-  return crypto.createHash('sha256').update(String(id || '')).digest('hex');
-}
-
 /** Company may live only on private inbox (anonymizeRole does not put it on board). */
 function companyFromOrigin(origin = {}) {
   // Merge layers: empty `data:{}` must not hide raw.company-name
@@ -62,10 +57,35 @@ function isStartupRoleForm(origin = {}) {
   return /startup/.test(form) || /^hire$|hire-/.test(form) || form === 'startup-hire';
 }
 
+function roleTruth(origin = {}) {
+  const raw = origin.raw || origin.data || origin.fields || {};
+  return {
+    company: companyFromOrigin(origin),
+    title: String(raw['role-title'] || raw.roleTitle || '').trim(),
+    stageType: String(raw['company-stage'] || raw.companyStage || '').trim(),
+    skills: String(raw['stack-needs'] || raw.stackNeeds || '').trim(),
+    outcome90d: String(raw['90day-outcome'] || raw.outcome90d || '').trim(),
+    locationPref: String(raw['work-location'] || raw.workLocation || '').trim(),
+    comp: String(raw['salary-range'] || raw.salaryRange || '').trim(),
+    interviewProcess: String(raw['interview-process'] || raw.interviewProcess || '').trim(),
+  };
+}
+
+/** Stable version of the exact role facts both sides consent to. */
+export function roleTruthFingerprint(origin = {}) {
+  const normalized = Object.fromEntries(
+    Object.entries(roleTruth(origin)).map(([key, value]) => [
+      key,
+      value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase(),
+    ]),
+  );
+  return crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+}
+
 /**
  * @returns {{ ok: true, receipt: object } | { ok: false, why: string }}
  */
-export function classifyRole(role = {}, inbox = {}) {
+export function classifyRole(role = {}, inbox = {}, { requireOpen = true } = {}) {
   if (!role || typeof role !== 'object') return { ok: false, why: 'missing_role' };
   if (role.sample !== false) return { ok: false, why: 'not_explicit_real' };
   if (isSeedRole(role) || isSampleData(role)) return { ok: false, why: 'seed_or_sample' };
@@ -133,6 +153,16 @@ export function classifyRole(role = {}, inbox = {}) {
   } else if (origin.featuredId !== id) {
     return { ok: false, why: 'no_submission_trace' };
   }
+  if (!startupRoleReadiness(origin).matchReady) return { ok: false, why: 'origin_not_match_ready' };
+  const truth = roleTruth(origin);
+  // The startup brief explicitly says “Sending confirms this role is open now”; later reconfirmation wins.
+  const openConfirmedAt = String(origin.openConfirmedAt || origin.at || '').trim();
+  const openConfirmedMs = Date.parse(openConfirmedAt);
+  if (requireOpen && !Number.isFinite(openConfirmedMs)) return { ok: false, why: 'open_confirmation_missing' };
+  if (requireOpen && (
+    openConfirmedMs < Date.now() - ROLE_OPEN_DAYS * 86400000 ||
+    openConfirmedMs > Date.now() + 5 * 60 * 1000
+  )) return { ok: false, why: 'open_confirmation_stale' };
 
   // Company identity from verified origin only (board cannot invent).
   // Compare via atlas normalizeCompanyName (same as matching/research) so legal
@@ -159,7 +189,15 @@ export function classifyRole(role = {}, inbox = {}) {
       roleId: id,
       company,
       companySource: 'inbox',
-      title: String(role.title || '').trim() || null,
+      title: truth.title,
+      stageType: truth.stageType,
+      skills: truth.skills,
+      outcome90d: truth.outcome90d,
+      locationPref: truth.locationPref,
+      comp: truth.comp,
+      interviewProcess: truth.interviewProcess,
+      openConfirmedAt: Number.isFinite(openConfirmedMs) ? openConfirmedAt : null,
+      roleTruthHash: roleTruthFingerprint(origin),
       sample: false,
       sourceSubmissionHash: hash || expect,
       featuredFromInbox: origin.featuredId === id,
@@ -170,14 +208,14 @@ export function classifyRole(role = {}, inbox = {}) {
   };
 }
 
-export function listAcceptedRoles(board, inbox) {
+export function listAcceptedRoles(board, inbox, { requireOpen = true } = {}) {
   const b = board || loadBoard();
   const box = inbox || loadInbox();
   const roles = Array.isArray(b.roles) ? b.roles : [];
   const acceptedRoles = [];
   const rejectedReasons = [];
   for (const role of roles) {
-    const c = classifyRole(role, box);
+    const c = classifyRole(role, box, { requireOpen });
     if (c.ok) acceptedRoles.push(c.receipt);
     else rejectedReasons.push({ roleId: role?.id || null, why: c.why });
   }
@@ -300,8 +338,19 @@ function selftest() {
           id: subId,
           featuredId: 'role-minted',
           status: 'featured',
+          at: new Date().toISOString(),
           form: 'startup-hire',
-          data: { 'company-name': 'Acme Labs' },
+          data: {
+            'company-name': 'Acme Labs',
+            'company-stage': 'seed',
+            'role-title': 'Founding Eng',
+            'stack-needs': 'JavaScript',
+            '90day-outcome': 'Ship a reliable product milestone',
+            'work-location': 'sf-hybrid',
+            'salary-range': '$180-220k',
+            'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+            'contact-email': 'founder@acme.test',
+          },
         },
       ],
     },

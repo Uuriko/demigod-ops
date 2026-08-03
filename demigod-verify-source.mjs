@@ -105,9 +105,9 @@ check(
   const noJs = (head.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
   check(
     'head:nojs-native-actions',
-    noJs.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
+      noJs.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
       noJs.includes('Hire talent by email') &&
-      noJs.includes('Join the talent network by email') &&
+      noJs.includes('Share what I’d consider by email') &&
       (noJs.match(/mailto:potter@trydemigod\.com\?subject=/g) || []).length === 2 &&
       !/href=["']\/\?(?:p|wiz)=/.test(noJs),
     'no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs',
@@ -115,7 +115,7 @@ check(
 }
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
 // Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
-check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && (head.includes('curated talent') || head.includes('curated candidates')));
+check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && head.includes('one concrete first result') && head.includes('human review'));
 check('head:og:title', head.includes('og:title'));
 check(
   'head:hero-font-no-layout-swap',
@@ -187,10 +187,10 @@ check(
       ? null
       : `meta/og/tw/ld diverge (${[d, og, tw, ld].map((s) => (s || '').slice(0, 36)).join(' | ')})`,
   );
-  // Share/knowledge-panel fee honesty: first-year cash + talent free (not bare "10% when hire starts").
+  // Share/knowledge-panel fee honesty: first-year base salary + talent free.
   const feeDescOk =
-    /10%\s+of\s+first-year\s+cash\s+on\s+hire/i.test(d || '') &&
-    /free\s+for\s+talent/i.test(d || '') &&
+    /10%\s+of\s+first-year\s+base\s+salary\s+on\s+hire/i.test(d || '') &&
+    /talent\s+free/i.test(d || '') &&
     !/10%\s+when\s+a\s+hire\s+starts/i.test(d || '');
   check(
     'head:fee-desc-cash',
@@ -1477,7 +1477,7 @@ if (cdnFoot) {
       'core:compact-footer',
       ((coreJs.match(/class=["']dg-footer-group["']/g) || []).length === 2) &&
         /data-dg-page=["']how["'][\s\S]{0,400}?data-dg-page=["']pricing["'][\s\S]{0,400}?data-dg-page=["']faq["']/.test(coreJs) &&
-        /data-dg-page=["']blog["'][\s\S]{0,400}?data-dg-page=["']about["'][\s\S]{0,400}?data-dg-page=["']legal["']/.test(coreJs) &&
+        /data-dg-page=["']about["'][\s\S]{0,400}?data-dg-page=["']press["'][\s\S]{0,400}?data-dg-page=["']legal["']/.test(coreJs) &&
         /href=["']mailto:potter@trydemigod\.com["']/.test(coreJs) &&
         !/dg-footer-intro|demigod-footer-tag|footer-email/.test(coreJs),
       'footer keeps two conversion actions and two short nav groups without the retired intro/id chrome',
@@ -1487,12 +1487,12 @@ if (cdnFoot) {
       /@media\(max-width:767px\)\{\.dg-footer-actions,\.hero-actions,\.hero-actions\.dg-path-pair\{display:none!important\}/.test(coreJs),
       'mobile fixed action bar owns conversion; hide the duplicate footer pair below 768px',
     );
-    const faqBlock = (coreJs.match(/\n  faq: \{[\s\S]*?\n  hire: \{/) || [''])[0];
+    const faqBlock = (coreJs.match(/\n  faq: \{[\s\S]*?\n  private: \{/) || [''])[0];
     check(
       'core:faq-lean',
       (faqBlock.match(/<details\b/g) || []).length === 6 &&
-        /How much does it cost\?[\s\S]*?Is my profile private\?[\s\S]*?What is a 90-day outcome\?[\s\S]*?Who do you work with\?[\s\S]*?How long does it take\?[\s\S]*?What if a match is not right\?/.test(faqBlock),
-      'FAQ must stay at six distinct decision questions; dedicated pages own the repeated process and form copy',
+        /How much does it cost\?[\s\S]*?Is my profile private\?[\s\S]*?What happens after I send a brief\?[\s\S]*?Does AI decide who gets matched\?[\s\S]*?Who do you work with\?[\s\S]*?What if a match is not right\?/.test(faqBlock),
+      'FAQ must match the six ordered v903 decision questions; dedicated pages own repeated process and form copy',
     );
     check('core:no-fake-sms-trust', !/Text \+1 \(415\) 555-DEMO/.test(coreJs));
     check('core:no-fake-sms-hero', !/heroSub:.*555-DEMO/.test(coreJs));
@@ -1567,88 +1567,21 @@ if (cdnFoot) {
         /orgJsonLd\s*\(/.test(coreJs),
       /function\s+orgJsonLd\s*\(/.test(coreJs) ? null : 'orgJsonLd missing or does not guard on #dg-org-jsonld',
     );
-    // Notes SoR: demigod-blog-posts.json embedded as DG_BLOG_POSTS + runtime card render
-    // (static hand-copied HTML cards are gone; gate accepts embed + template path).
+    // v903 retired the public Notes surface: legacy /blog and /notes routes resolve to How.
+    // Keep validating the dormant post catalog below, but do not require it in the public core.
     try {
       const blogPosts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
-      const published = (blogPosts.posts || []).filter((p) => p && p.published !== false);
-      const missing = [];
-      const dynamicSor =
-        /var\s+DG_BLOG_POSTS\s*=/.test(coreJs) &&
-        /id="note-'\s*\+/.test(coreJs) &&
-        /class="dg-blog-more"/.test(coreJs) &&
-        /<summary>Full note · /.test(coreJs);
-      const indexCollapsed =
-        /function\s+blogCardHtml\(p\)/.test(coreJs) && !/\bopenAttr\b/.test(coreJs);
-      for (const p of published) {
-        if (!p.title || !coreJs.includes(p.title)) missing.push(`${p.slug || '?'}:title`);
-        if (!p.summary || !coreJs.includes(p.summary)) missing.push(`${p.slug || '?'}:summary`);
-        if (p.imageAlt && !coreJs.includes(p.imageAlt)) missing.push(`${p.slug || '?'}:alt`);
-        if (p.body) {
-          const slice = String(p.body).slice(0, 48);
-          // Foot embeds JSON with escaped newlines; raw slice may not match source text.
-          const esc = JSON.stringify(slice).slice(1, -1);
-          if (!coreJs.includes(slice) && !coreJs.includes(esc)) missing.push(`${p.slug || '?'}:body`);
-        }
-        if (p.image && !coreJs.includes(p.image)) missing.push(`${p.slug || '?'}:image`);
-        // Static id= or dynamic embed slug (runtime builds id="note-"+slug)
-        if (
-          p.slug &&
-          !coreJs.includes(`id="note-${p.slug}"`) &&
-          !(dynamicSor && coreJs.includes(`"slug":"${p.slug}"`))
-        ) {
-          missing.push(`${p.slug}:id`);
-        }
-      }
-      const moreCount = (coreJs.match(/class="dg-blog-more"/g) || []).length;
-      if (!indexCollapsed) missing.push('index-collapsed');
-      // Empty published catalog is allowed (wipe / pre-content); dynamic SoR must still exist.
-      if (!dynamicSor) {
-        if (moreCount < published.length) missing.push(`details=${moreCount}<${published.length}`);
-        const labeled = (coreJs.match(/<summary>Full note · /g) || []).length;
-        if (labeled < published.length) missing.push(`labeledSummary=${labeled}<${published.length}`);
-      }
-      // Dropped the 'no-deeplink' sub-check: it asserted coreJs.includes('Deep-link Notes cards'),
-      // and that string exists in foot-core ONLY as a `//` comment (line ~4505). Deleting the comment
-      // failed the gate while the feature worked; deleting the FEATURE and keeping the comment passed
-      // it. 'note-hashchange' below already guards the real deep-link path (focusBlogNoteFromHash +
-      // a hashchange listener), so the comment assert guarded nothing that code doesn't.
-      // Deep-link ship path: title rewrite + hashchange re-focus + reduced-motion scroll (v475–v478)
-      if (!coreJs.includes(' · Notes · Demigod')) missing.push('deep-title');
-      if (!/hashchange/.test(coreJs) || !coreJs.includes('focusBlogNoteFromHash')) missing.push('note-hashchange');
-      if (!/prefers-reduced-motion:\s*reduce/.test(coreJs) || !/matches\)\s*\?\s*['"]auto['"]\s*:\s*['"]smooth['"]/.test(coreJs)) {
-        missing.push('note-reduced-motion');
-      }
-      // Static cards need lazy dims on each id; dynamic template needs one lazy+async+width/height path.
-      if (dynamicSor) {
-        const dynLazy =
-          /loading=["']lazy["']/.test(coreJs) &&
-          /decoding=["']async["']/.test(coreJs) &&
-          /width=["']\d+["']/.test(coreJs) &&
-          /height=["']\d+["']/.test(coreJs);
-        if (!dynLazy) missing.push('lazyDims=dynamic-template');
-      } else {
-        const noteLazyDims = (
-          coreJs.match(
-            /id="note-[^"]+"><img\b[^>]*\bloading="lazy"[^>]*\bdecoding="async"[^>]*\bwidth="\d+"[^>]*\bheight="\d+"/g,
-          ) || []
-        ).length;
-        if (noteLazyDims < published.length) {
-          missing.push(`lazyDims=${noteLazyDims}<${published.length}`);
-        }
-      }
-      // Draft posts must not ship as static Notes cards (e.g. ship-when-ready published:false)
-      for (const p of blogPosts.posts || []) {
-        if (p && p.published === false && p.slug && coreJs.includes(`id="note-${p.slug}"`)) {
-          missing.push(`${p.slug}:draft-in-foot`);
-        }
-      }
+      const blogRetired =
+        /['"]\/blog['"]\s*:\s*['"]how['"]/.test(coreJs) &&
+        /['"]\/notes['"]\s*:\s*['"]how['"]/.test(coreJs) &&
+        !/\n\s*['"]?(?:blog|notes)['"]?\s*:\s*\{/.test(coreJs) &&
+        !/\bDG_BLOG_POSTS\b|\bblogCardHtml\b|id=["']note-|class=["']dg-blog-more["']/.test(coreJs);
       check(
         'core:blog-sor-in-sync',
-        missing.length === 0,
-        missing.length
-          ? missing.slice(0, 8).join(',')
-          : `${published.length}posts+${dynamicSor ? 'dynSoR' : 'static'}+deeplink+hash+rmotion+lazyDims`,
+        blogRetired,
+        blogRetired
+          ? 'v903 retired: /blog + /notes → how; no public Notes page or renderer'
+          : 'retired Notes routes or renderer state drifted',
       );
       // Runtime below-fold path: lazyBelowFold must set decoding=async (parity with static Notes cards).
       const lazyDecodeOk =

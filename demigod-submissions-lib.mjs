@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import { UNSAFE_INVISIBLE_CLASS, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { recordDirectSubmission, recordReferralSubmission } from './demigod-referrals.mjs';
 
@@ -17,11 +18,23 @@ const ROOT = '/home/potter';
 // Tests must never write production SoRs. *.test.mjs polluted the inbox with 115 fixture rows that
 // read as real demand, and the board (which feeds the live site) was corrupted twice the same way.
 // node --test sets NODE_TEST_CONTEXT; the argv check covers direct `node foo.test.mjs` runs.
-const IS_TEST = !!process.env.NODE_TEST_CONTEXT || !!process.env.DEMIGOD_TEST_SCOPE || /\.test\.mjs$/.test(process.argv[1] || '');
+const IS_TEST = !!process.env.NODE_TEST_CONTEXT || !!process.env.DEMIGOD_TEST_SCOPE ||
+  !!process.env.DEMIGOD_TEST_ROOT || /\.test\.mjs$/.test(process.argv[1] || '');
 const TEST_SCOPE = IS_TEST
   ? (process.env.DEMIGOD_TEST_SCOPE ||= String(process.pid)).replace(/[^A-Za-z0-9_.-]/g, '_')
   : '';
-const TEST_DIR = path.join('/tmp/dg-busy/tests', TEST_SCOPE);
+const REAL_TMP = fs.realpathSync(os.tmpdir());
+const explicitTestRoot = process.env.DEMIGOD_TEST_ROOT
+  ? fs.realpathSync(process.env.DEMIGOD_TEST_ROOT)
+  : '';
+if (explicitTestRoot && (path.dirname(explicitTestRoot) !== REAL_TMP || !path.basename(explicitTestRoot).startsWith('dg-'))) {
+  throw new Error('unsafe DEMIGOD_TEST_ROOT');
+}
+const TEST_DIR = explicitTestRoot || path.join(REAL_TMP, 'dg-busy', 'tests', TEST_SCOPE);
+const inboxOverride = process.env.DEMIGOD_INBOX_PATH ? path.resolve(process.env.DEMIGOD_INBOX_PATH) : '';
+if (explicitTestRoot && inboxOverride && path.dirname(inboxOverride) !== explicitTestRoot) {
+  throw new Error('DEMIGOD_INBOX_PATH must be inside DEMIGOD_TEST_ROOT');
+}
 
 export const BOARD_PATH = IS_TEST
   ? path.join(TEST_DIR, 'test-board.json')
@@ -30,7 +43,7 @@ export const BOARD_LOCK = BOARD_PATH + '.lock';
 export const BOARD_AUDIT = IS_TEST
   ? path.join(TEST_DIR, 'test-board-audit.jsonl')
   : path.join(ROOT, 'DEMIGOD-BOARD-AUDIT.jsonl');
-export const INBOX_PATH = process.env.DEMIGOD_INBOX_PATH
+export const INBOX_PATH = inboxOverride
   || (IS_TEST ? path.join(TEST_DIR, 'test-submissions-inbox.json') : path.join(ROOT, 'DEMIGOD-SUBMISSIONS-INBOX.json'));
 // Mirror BOARD_LOCK: the leads inbox needs the same read-modify-write serialization the board has.
 // atomicWrite stops a torn READ but not a LOST UPDATE -- two concurrent ingests both loadInbox() the
@@ -45,7 +58,9 @@ const ARCHIVE_RETENTION_DAYS = Math.max(
   DEDUPE_DAYS,
   Number(process.env.DEMIGOD_ARCHIVE_RETENTION_DAYS) || 365,
 );
-const ARCHIVE_DAYS = Number(process.env.DEMIGOD_ARCHIVE_DAYS || 14);
+export const ARCHIVE_DAYS = Math.max(1, Number(process.env.DEMIGOD_ARCHIVE_DAYS) || 14);
+export const ROLE_OPEN_DAYS = 90;
+export const CANDIDATE_INTENT_DAYS = 30;
 const TEST_RE = /\btest\b/i;
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 const CANDIDATE_BAY_OPTIONS = new Set(['yes', 'remote-bay', 'no']);
@@ -94,6 +109,7 @@ export function startupRoleReadiness(item = {}) {
   const outcome = raw['90day-outcome'] || raw.outcome90d;
   const location = raw['work-location'] || raw.workLocation;
   const compensation = raw['salary-range'] || raw.salaryRange;
+  const interviewProcess = raw['interview-process'] || raw.interviewProcess;
   const email = extractEmail(raw, form);
   const required = [
     ['company-name', company],
@@ -103,6 +119,7 @@ export function startupRoleReadiness(item = {}) {
     ['90day-outcome', outcome],
     ['work-location', location],
     ['salary-range', compensation],
+    ['interview-process', interviewProcess],
     ['contact-email', email],
   ];
   const missing = required.filter(([, value]) => !String(value || '').trim()).map(([key]) => key);
@@ -114,6 +131,7 @@ export function startupRoleReadiness(item = {}) {
     ['90day-outcome', validMatchConstraint(outcome, 600)],
     ['work-location', STARTUP_LOCATION_OPTIONS.has(String(location || '').trim().toLowerCase())],
     ['salary-range', validMatchConstraint(compensation)],
+    ['interview-process', validMatchConstraint(interviewProcess, 300)],
     ['contact-email', validContactEmail(email)],
   ]) {
     if (!ready && !missing.includes(key)) missing.push(key);
@@ -121,6 +139,26 @@ export function startupRoleReadiness(item = {}) {
   const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
   const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
   return { applicable: true, matchReady: lifecycleReady && policyReady && !missing.length, missing, lifecycleReady, policyReady };
+}
+
+export function candidateAvailabilityFreshness(item = {}, now = Date.now()) {
+  const form = String(item.form || item.formName || '');
+  if (!/engineer|jobseeker|candidate/i.test(form)) {
+    return { applicable: false, current: true, at: null, ageDays: null, source: null };
+  }
+  const source = item.availabilityConfirmedAt ? 'reconfirmed' : 'self-reported';
+  const at = String(item.availabilityConfirmedAt || item.at || '').trim();
+  const atMs = Date.parse(at);
+  const ageMs = Number(now) - atMs;
+  const valid = Number.isFinite(atMs) && Number.isFinite(Number(now)) && ageMs >= -5 * 60 * 1000;
+  const ageDays = valid ? Math.max(0, Math.floor(ageMs / 86400000)) : null;
+  return {
+    applicable: true,
+    current: valid && ageMs <= CANDIDATE_INTENT_DAYS * 86400000,
+    at: valid ? at : null,
+    ageDays,
+    source,
+  };
 }
 
 export function candidateProfileReadiness(item = {}) {
@@ -138,6 +176,7 @@ export function candidateProfileReadiness(item = {}) {
   const bayOptionReady = CANDIDATE_BAY_OPTIONS.has(bayPreference);
   const preferenceReady = bayPreference !== 'no';
   const availabilityReady = CANDIDATE_AVAILABILITY_OPTIONS.has(availability);
+  const availabilityFreshness = candidateAvailabilityFreshness(item);
   const compensationReady = validMatchConstraint(compensation);
   const required = [
     ['full-name', fullName],
@@ -164,7 +203,18 @@ export function candidateProfileReadiness(item = {}) {
   }
   const lifecycleReady = item.status === 'reviewed' || item.status === 'featured';
   const policyReady = !['rejected', 'spam'].includes(item.status) && !(item.rejectReasons || []).length;
-  return { applicable: true, matchReady: lifecycleReady && policyReady && preferenceReady && !missing.length, missing, lifecycleReady, policyReady, preferenceReady };
+  return {
+    applicable: true,
+    matchReady: lifecycleReady && policyReady && preferenceReady && availabilityFreshness.current && !missing.length,
+    missing,
+    lifecycleReady,
+    policyReady,
+    preferenceReady,
+    availabilityCurrent: availabilityFreshness.current,
+    availabilityAt: availabilityFreshness.at,
+    availabilityAgeDays: availabilityFreshness.ageDays,
+    availabilitySource: availabilityFreshness.source,
+  };
 }
 
 /** Private resume reference from Webflow's native file field or the URL fallback. */
@@ -330,10 +380,35 @@ function formFamilyMatch(a, b) {
   const fa = String(a || '').toLowerCase();
   const fb = String(b || '').toLowerCase();
   if (!fa || !fb) return true; // unknown form → allow title/company match
-  if (fa === fb) return true;
-  // startup-hire ↔ startup, engineer-join ↔ engineer-join-sms
-  const stem = (s) => s.split(/[-_]/)[0] || s;
-  return stem(fa) === stem(fb) || fa.includes(stem(fb)) || fb.includes(stem(fa));
+  return formFamily(fa) === formFamily(fb);
+}
+
+function formFamily(formName) {
+  const value = String(formName || '').toLowerCase();
+  if (/partner/.test(value)) return 'partner';
+  if (/engineer|jobseeker|seeker|candidate|talent/.test(value)) return 'candidate';
+  if (/startup|founder|^hire(?:-|$)/.test(value)) return 'startup';
+  return value.split(/[-_]/)[0] || value;
+}
+
+/** Immutable submissions, projected to one current reviewed profile per explicit update chain. */
+export function currentCandidateSubmissions(items = []) {
+  const candidates = (Array.isArray(items) ? items : []).filter(
+    (item) => formFamily(item?.form || item?.formName) === 'candidate',
+  );
+  const byId = new Map(candidates.map((item) => [item?.id, item]));
+  const superseded = new Set();
+  for (const next of candidates) {
+    if (!['reviewed', 'featured'].includes(next?.status) || !next?.supersedes) continue;
+    const prior = byId.get(next.supersedes);
+    const nextEmail = extractEmail(next.raw || next.data || {}, next.form || next.formName);
+    const priorEmail = prior && extractEmail(prior.raw || prior.data || {}, prior.form || prior.formName);
+    if (prior && nextEmail && nextEmail === priorEmail &&
+        formFamilyMatch(next.form || next.formName, prior.form || prior.formName)) {
+      superseded.add(prior.id);
+    }
+  }
+  return candidates.filter((item) => !superseded.has(item.id));
 }
 
 /**
@@ -557,10 +632,13 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   const cutoff = Date.now() - DEDUPE_DAYS * 86400000;
   const dup = (inbox.items || []).find((item) => {
     if (item.status === 'rejected' || item.status === 'spam') return false;
+    if (!formFamilyMatch(item.form || item.formName, fn)) return false;
     const itemEmail = extractEmail(item.raw || {}, item.form || '');
     return email && itemEmail && itemEmail === email && new Date(item.at).getTime() > cutoff;
   });
-  const archivedDup = email && recentContacts(inbox).some((item) => item.emailHash === emailFingerprint(email));
+  const family = formFamily(fn);
+  const archivedDup = email && recentContacts(inbox).some((item) =>
+    item.emailHash === emailFingerprint(email) && (!item.family || item.family === family));
   if (dup || archivedDup) reasons.push('duplicate_email');
 
   return {
@@ -572,18 +650,20 @@ export function shouldAutoReject(data = {}, formName = '', inbox = {}) {
   };
 }
 
-/** Drop featured cards older than ARCHIVE_DAYS (board filter stub). */
+/** Drop stale cards; real roles share the 90-day open-confirmation window. */
 export function filterBoard(board = {}) {
-  const cutoff = Date.now() - ARCHIVE_DAYS * 86400000;
-  const fresh = (item) => {
+  const fresh = (item, days) => {
+    const cutoff = Date.now() - days * 86400000;
     const at = item.featuredAt || item.at;
     if (!at) return true;
     return new Date(at).getTime() >= cutoff;
   };
   return {
     ...board,
-    roles: (board.roles || []).filter(fresh).slice(0, 3),
-    candidates: (board.candidates || []).filter(fresh).slice(0, 3),
+    roles: (board.roles || [])
+      .filter((item) => fresh(item, item?.sample === false ? ROLE_OPEN_DAYS : ARCHIVE_DAYS))
+      .slice(0, 3),
+    candidates: (board.candidates || []).filter((item) => fresh(item, ARCHIVE_DAYS)).slice(0, 3),
   };
 }
 
@@ -733,7 +813,7 @@ export function loadBoard() {
     board = JSON.parse(fs.readFileSync(BOARD_PATH, 'utf8'));
   } catch (error) {
     if (error.code === 'ENOENT') {
-      return { at: new Date().toISOString(), roles: [], candidates: [], cdnUrl: null };
+      return { at: new Date().toISOString(), roles: [], candidates: [], receipts: [], cdnUrl: null };
     }
     throw error;
   }
@@ -742,8 +822,10 @@ export function loadBoard() {
     typeof board !== 'object' ||
     Array.isArray(board) ||
     !Array.isArray(board.roles) ||
-    !Array.isArray(board.candidates)
+    !Array.isArray(board.candidates) ||
+    (board.receipts != null && !Array.isArray(board.receipts))
   ) throw new Error('invalid board store');
+  board.receipts ??= [];
   return board;
 }
 
@@ -767,27 +849,6 @@ export function findSubmission(id) {
   const needle = String(id || '').trim();
   if (!needle) return null;
   return (loadInbox().items || []).find((i) => i.id === needle) || null;
-}
-
-/** Classify the public status namespace without throwing or touching the inbox. */
-export function parseSubmissionStatusPath(rawUrl = '') {
-  const pathname = String(rawUrl).split('?', 1)[0];
-  if (pathname !== '/status' && !pathname.startsWith('/status/')) return { matched: false, id: null };
-  const encoded = pathname.slice(8);
-  if (!encoded || encoded.length > 512) return { matched: true, id: null };
-  try {
-    const id = decodeURIComponent(encoded);
-    return /^sub-[A-Za-z0-9._~/-]+$/.test(id) && !/(?:^|\/)\.{1,2}(?:\/|$)/.test(id) && id.length <= 160
-      ? { matched: true, id }
-      : { matched: true, id: null };
-  } catch {
-    return { matched: true, id: null };
-  }
-}
-
-export function publicSubmissionStatusUrl(id) {
-  const safe = String(id || '').trim();
-  return safe ? `https://www.trydemigod.com/#status/${encodeURIComponent(safe)}` : null;
 }
 
 /** Public status payload — no PII (no raw fields, no email). */
@@ -888,7 +949,7 @@ function shaStable(obj) {
   return crypto.createHash('sha256').update(JSON.stringify(obj)).digest('hex').slice(0, 16);
 }
 
-function submissionFingerprint(id) {
+export function submissionFingerprint(id) {
   return crypto.createHash('sha256').update(String(id || '')).digest('hex');
 }
 
@@ -1041,21 +1102,28 @@ export function mintBoardEntry(submission, opts = {}) {
 }
 
 /** Mint at most once, keeping review → board → featured serialized by submission. */
-export function submissionApprovalBlocker(submission = {}) {
+export function submissionApprovalBlocker(submission = {}, items = []) {
   if (submission.featuredId) return null;
   if (submission.status === 'rejected' || submission.status === 'spam') return submission.status;
+  if (formFamily(submission.form || submission.formName) === 'candidate' &&
+      Array.isArray(items) && items.length &&
+      !currentCandidateSubmissions(items).some((item) => item.id === submission.id)) {
+    return 'superseded_candidate_profile';
+  }
   if (submission.status === 'updated' || submission.supersedes) return 'duplicate_update';
   if (Array.isArray(submission.rejectReasons) && submission.rejectReasons.length) return 'rejected_by_intake';
   const startup = startupRoleReadiness(submission);
   const readiness = startup.applicable ? startup : candidateProfileReadiness(submission);
-  return readiness.applicable && readiness.missing.length ? 'missing_required_evidence' : null;
+  if (readiness.applicable && readiness.missing.length) return 'missing_required_evidence';
+  if (readiness.applicable && readiness.availabilityCurrent === false) return 'candidate_availability_reconfirmation_required';
+  return null;
 }
 
 export function approveSubmission(submissionId, opts = {}) {
   return updateInbox((inbox) => {
     const submission = (inbox.items || []).find((item) => item.id === submissionId);
     if (!submission) return null;
-    const blocker = submissionApprovalBlocker(submission);
+    const blocker = submissionApprovalBlocker(submission, inbox.items);
     if (blocker) {
       const err = new Error(`approval_refused: ${blocker}`);
       err.code = 'NOT_APPROVABLE';
@@ -1151,7 +1219,7 @@ export function ingestSubmission(body = {}, opts = {}) {
         evictedContacts = evicted.flatMap((item) => {
           const email = extractEmail(item.raw || {}, item.form || '');
           return email && item.status !== 'rejected' && item.status !== 'spam'
-            ? [{ emailHash: emailFingerprint(email), at: item.at }]
+            ? [{ emailHash: emailFingerprint(email), at: item.at, family: formFamily(item.form) }]
             : [];
         });
       }

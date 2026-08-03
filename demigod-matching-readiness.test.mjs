@@ -7,10 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { candidateProfileReadiness } from './demigod-submissions-lib.mjs';
 import { redactItem } from './demigod-submissions-inbox.mjs';
-import { decideMatch, isMatchingReadyCandidate, isMatchingReadyRole, isSampleCandidate, isSampleRole, logOutcome, markCandidateOptin, markStartupInterest, matchEvidence, proposeIntro } from './demigod-matching-engine.mjs';
-
-/** Drop ANSI colour codes so assertions test what a command reported, not how it rendered. */
-const plainText = (value) => String(value).replace(/\u001B\[[0-9;]*m/g, '');
+import { decideMatch, isMatchingReadyCandidate, isMatchingReadyRole, isSampleCandidate, isSampleRole, matchEvidence, rolesFromPartnerInbox } from './demigod-matching-engine.mjs';
 
 const sha256 = (file) => fs.existsSync(file) ? crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') : null;
 
@@ -19,27 +16,30 @@ const raw = {
   experience: 'Shipped onboarding', 'sf-bay': 'yes', availability: 'now',
   'salary-expectation': '$170–190k base', 'resume-url': 'https://example.com/resume.pdf',
 };
-assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'new', raw }), false);
-assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'reviewed', raw }), true);
+const candidateAt = new Date().toISOString();
+assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'new', at: candidateAt, raw }), false);
+assert.equal(isMatchingReadyCandidate({ form: 'engineer-join', status: 'reviewed', at: candidateAt, raw }), true);
 for (const compensation of ['market', 'flexible']) {
   assert.equal(
     isMatchingReadyCandidate({
       form: 'engineer-join',
       status: 'reviewed',
+      at: candidateAt,
       raw: { ...raw, 'salary-expectation': compensation },
     }),
     true,
     `${compensation} remains a valid reviewable compensation constraint`,
   );
 }
-assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'featured', raw }), true);
+assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'featured', at: candidateAt, raw }), true);
 assert.equal(isMatchingReadyCandidate({ form: 'startup-hire', status: 'reviewed' }), false);
-assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', raw: { ...raw, 'resume-url': '' } }), false);
-assert.equal(candidateProfileReadiness({ form: 'candidate', status: 'reviewed', raw: { ...raw, 'resume-url': '' } }).missing.includes('resume'), true);
+assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', at: candidateAt, raw: { ...raw, 'resume-url': '' } }), false);
+assert.equal(candidateProfileReadiness({ form: 'candidate', status: 'reviewed', at: candidateAt, raw: { ...raw, 'resume-url': '' } }).missing.includes('resume'), true);
 for (const invalidResume of ['victim@example.com', 'x', 'http://example.com/resume.pdf', 'https://user:secret@example.com/resume.pdf', 'https://example.com/\u0085poison.pdf', 'https://example.com/\u202epoison.pdf']) {
   const readiness = candidateProfileReadiness({
     form: 'candidate',
     status: 'reviewed',
+    at: candidateAt,
     raw: { ...raw, 'resume-url': invalidResume },
   });
   assert.equal(readiness.matchReady, false, invalidResume);
@@ -47,20 +47,28 @@ for (const invalidResume of ['victim@example.com', 'x', 'http://example.com/resu
 }
 const nativeResumeRaw = { ...raw, resume: 'https://uploads-ssl.webflow.com/private/resume.pdf' };
 delete nativeResumeRaw['resume-url'];
-assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', raw: nativeResumeRaw }), true);
-assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', rejectReasons: ['missing_resume'], raw }), false);
-const optedOut = { id: 'cand-not-open', form: 'candidate', status: 'reviewed', raw: { ...raw, 'sf-bay': 'no' } };
+assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', at: candidateAt, raw: nativeResumeRaw }), true);
+assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', at: candidateAt, rejectReasons: ['missing_resume'], raw }), false);
+const optedOut = { id: 'cand-not-open', form: 'candidate', status: 'reviewed', at: candidateAt, raw: { ...raw, 'sf-bay': 'no' } };
 assert.equal(candidateProfileReadiness(optedOut).preferenceReady, false);
 assert.equal(isMatchingReadyCandidate(optedOut), false);
 assert.deepEqual(redactItem(optedOut).matchingBlockers, ['sf-bay-not-open']);
+const staleCandidate = { id: 'cand-stale', form: 'candidate', status: 'reviewed', at: new Date(Date.now() - 31 * 86400000).toISOString(), raw };
+const staleReadiness = candidateProfileReadiness(staleCandidate);
+assert.equal(staleReadiness.availabilityCurrent, false);
+assert.equal(isMatchingReadyCandidate(staleCandidate), false);
+assert.deepEqual(redactItem(staleCandidate).matchingBlockers, ['availability-reconfirm']);
+assert.equal(candidateProfileReadiness({ ...staleCandidate, availabilityConfirmedAt: candidateAt }).matchReady, true);
+assert.equal(candidateProfileReadiness({ ...staleCandidate, availabilityConfirmedAt: new Date(Date.now() + 6 * 60000).toISOString() }).availabilityCurrent, false);
 for (const key of ['availability', 'salary-expectation']) {
   const incomplete = { ...raw, [key]: '' };
-  assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', raw: incomplete }), false, key);
-  assert.ok(candidateProfileReadiness({ form: 'candidate', status: 'reviewed', raw: incomplete }).missing.includes(key), key);
+  assert.equal(isMatchingReadyCandidate({ form: 'candidate', status: 'reviewed', at: candidateAt, raw: incomplete }), false, key);
+  assert.ok(candidateProfileReadiness({ form: 'candidate', status: 'reviewed', at: candidateAt, raw: incomplete }).missing.includes(key), key);
 }
 const contactConstraints = candidateProfileReadiness({
   form: 'candidate',
   status: 'reviewed',
+  at: candidateAt,
   raw: {
     ...raw,
     'sf-bay': 'victim@example.com',
@@ -76,6 +84,7 @@ assert.deepEqual(
 const contactProfile = candidateProfileReadiness({
   form: 'candidate',
   status: 'reviewed',
+  at: candidateAt,
   raw: {
     ...raw,
     'full-name': 'victim@example.com',
@@ -93,6 +102,7 @@ assert.deepEqual(
 const controlEmailProfile = candidateProfileReadiness({
   form: 'candidate',
   status: 'reviewed',
+  at: candidateAt,
   raw: { ...raw, 'seeker-email': 'a\u0000@b.com' },
 });
 assert.equal(controlEmailProfile.matchReady, false);
@@ -119,11 +129,19 @@ assert.equal(isSampleRole({ raw: { selftest: true } }), true, 'raw selftest role
 assert.equal(isSampleCandidate({ selftest: true }), true);
 assert.equal(isSampleCandidate({ raw: { sample: true } }), true);
 assert.equal(isSampleCandidate({ sample: false, raw: {} }), false);
-assert.equal(markStartupInterest('', '').ok, false);
-assert.equal(markCandidateOptin('', '').ok, false);
-assert.equal(proposeIntro('', '').error, 'role and candidate are required');
-assert.equal(logOutcome('', '').ok, false);
-assert.ok(matchEvidence(role, { experience: 'Shipped onboarding', why: 'I want this outcome' }).includes('90-day outcome motivation provided'));
+assert.ok(matchEvidence(role, { experience: 'Shipped onboarding', why: 'I want this outcome' }).includes('self-reported motivation supplied'));
+const realRoleSubmission = {
+  id: 'submission-1', featuredId: 'role-1', form: 'startup-hire', status: 'featured',
+  at: new Date().toISOString(),
+  data: {
+    'company-name': 'Acme', 'company-stage': 'seed', 'role-title': 'Founding Engineer',
+    'stack-needs': 'JavaScript', '90day-outcome': 'Ship a reliable product milestone',
+    'work-location': 'sf-hybrid', 'salary-range': '$180-220k',
+    'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+    'contact-email': 'founder@acme.test',
+  },
+};
+assert.equal(rolesFromPartnerInbox({ items: [realRoleSubmission] })[0].id, 'role-1', 'matcher uses the accepted board role id');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-match-sample-'));
 const scope = `match-sample-${process.pid}`;
@@ -140,78 +158,28 @@ const sharedAutoReceipt = '/tmp/dg-busy/auto-propose-latest.json';
 const sharedAutoReceiptHash = sha256(sharedAutoReceipt);
 try {
   fs.mkdirSync(testDir, { recursive: true });
-  const matchesPath = path.join(root, 'DEMIGOD-MATCHES.json');
-  fs.writeFileSync(matchesPath, '{corrupt exact bytes');
-  const corruptMatches = fs.readFileSync(matchesPath, 'utf8');
-  const corruptInterest = spawnSync(
-    process.execPath,
-    [
-      new URL('./demigod-matching-engine.mjs', import.meta.url).pathname,
-      'startup-interest',
-      '--role-id=role-sample',
-      '--candidate-id=cand-test',
-    ],
-    { encoding: 'utf8', env: childEnv },
-  );
-  assert.notEqual(corruptInterest.status, 0);
-  assert.equal(fs.readFileSync(matchesPath, 'utf8'), corruptMatches, 'a corrupt matches store must never be replaced');
-  fs.rmSync(matchesPath);
-  const analyticsStore = {
-    matches: [{ id: 'existing-match' }],
-    events: [{ id: 'existing-event' }],
-    suggestions: [{ id: 'existing-suggestion' }],
-  };
-  fs.writeFileSync(matchesPath, JSON.stringify(analyticsStore));
-  const compatibleInterest = spawnSync(
-    process.execPath,
-    [
-      new URL('./demigod-matching-engine.mjs', import.meta.url).pathname,
-      'startup-interest',
-      '--role-id=role-safe',
-      '--candidate-id=cand-safe',
-    ],
-    { encoding: 'utf8', env: childEnv },
-  );
-  assert.equal(compatibleInterest.status, 0, compatibleInterest.stderr || compatibleInterest.stdout);
-  const compatibleStore = JSON.parse(fs.readFileSync(matchesPath, 'utf8'));
-  assert.deepEqual(compatibleStore.matches, analyticsStore.matches);
-  assert.deepEqual(compatibleStore.events, analyticsStore.events);
-  assert.deepEqual(compatibleStore.suggestions, analyticsStore.suggestions);
-  assert.equal(compatibleStore.interests['role-safe:cand-safe'].startup, true);
-  const compatibleBytes = fs.readFileSync(matchesPath);
-  const oversizedInterest = spawnSync(
-    process.execPath,
-    [
-      new URL('./demigod-matching-engine.mjs', import.meta.url).pathname,
-      'startup-interest',
-      `--role-id=${'x'.repeat(20_000)}`,
-      '--candidate-id=cand-safe',
-    ],
-    { encoding: 'utf8', env: childEnv },
-  );
-  assert.equal(oversizedInterest.status, 0);
-  // util.inspect colorizes when the child believes stdout is a TTY, inserting escape codes
-  // between `ok:` and `false`. Matching the raw string therefore fails on correct behaviour
-  // depending only on how the suite was invoked — green under `node --test`, red under
-  // `node file.test.mjs`, which is exactly how demigod-verify-all.mjs runs it. Assert the
-  // reported refusal, not its rendering.
-  assert.match(plainText(oversizedInterest.stdout), /ok:\s*false/);
-  assert.deepEqual(fs.readFileSync(matchesPath), compatibleBytes, 'oversized interest text must not write');
-  const oversizedOutcome = spawnSync(
-    process.execPath,
-    [
-      new URL('./demigod-matching-engine.mjs', import.meta.url).pathname,
-      'log-outcome',
-      'intro-safe',
-      'x'.repeat(20_000),
-    ],
-    { encoding: 'utf8', env: childEnv },
-  );
-  assert.equal(oversizedOutcome.status, 0);
-  assert.match(plainText(oversizedOutcome.stdout), /ok:\s*false/);
-  assert.deepEqual(fs.readFileSync(matchesPath), compatibleBytes, 'oversized outcome text must not write');
-  fs.rmSync(matchesPath);
   fs.rmSync(path.join(root, 'DEMIGOD-PAIRS.json'), { force: true });
+  const unrelatedRole = { ...role, id: 'role-unrelated', title: 'Unrelated role' };
+  fs.writeFileSync(path.join(testDir, 'test-board.json'), JSON.stringify({ roles: [role, unrelatedRole], candidates: [], receipts: [] }));
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-test', form: 'engineer-join', status: 'reviewed', at: candidateAt, raw }] }));
+  fs.writeFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), JSON.stringify({ pairs: {
+    approved: { pairId: 'pair-approved', roleId: role.id, candId: 'cand-test', state: 'approved', sample: true, at: '2026-08-02T00:00:00.000Z' },
+    proposed: { pairId: 'pair-proposed', roleId: unrelatedRole.id, candId: 'cand-test', state: 'proposed', sample: true, at: '2026-08-02T00:00:00.000Z' },
+  } }));
+  const roleReceipt = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'present-candidate', 'candidate@example.com'], {
+    encoding: 'utf8', env: childEnv,
+  });
+  assert.equal(roleReceipt.status, 0, roleReceipt.stderr || roleReceipt.stdout);
+  assert.match(roleReceipt.stdout, /Role receipts[\s\S]*Pair: pair-approved[\s\S]*First result: Ship onboarding[\s\S]*Must-haves: B2B SaaS[\s\S]*Constraints: work arrangement not supplied · \$180-220k/);
+  assert.match(roleReceipt.stdout, /Why this intro: self-reported first-result overlap: onboarding · compensation ranges overlap · availability: ready now · self-reported 0d ago · self-reported experience supplied/);
+  assert.match(roleReceipt.stdout, /Open question: What important constraint or missing evidence could make this a poor fit\?/);
+  assert.match(roleReceipt.stdout, /Evidence source: role brief \+ your private profile · fictional demonstration/);
+  assert.match(roleReceipt.stdout, /Verification: Brief and profile are submitted by each side and human-reviewed for relevance; claims are not independently verified\./);
+  assert.match(roleReceipt.stdout, /Correction: Something wrong or missing\? Correct it privately before deciding\./);
+  assert.match(roleReceipt.stdout, /FICTIONAL SAMPLE[\s\S]*no consent action/);
+  assert.doesNotMatch(roleReceipt.stdout, /Unrelated role|pair-proposed/);
+  assert.doesNotMatch(roleReceipt.stdout, /(?:candidate|private\.role)@example\.com/);
+  fs.rmSync(path.join(root, 'DEMIGOD-PAIRS.json'));
   fs.writeFileSync(path.join(testDir, 'test-board.json'), JSON.stringify({ roles: [role], candidates: [], receipts: [] }));
   fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [optedOut] }));
   const optedOutRun = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'suggest', '--role=role-sample', '--propose'], {
@@ -224,7 +192,24 @@ try {
   assert.deepEqual(optedOutResult.proposed, []);
   assert.equal(fs.existsSync(path.join(root, 'DEMIGOD-PAIRS.json')), false);
 
-  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-test', form: 'engineer-join', status: 'reviewed', raw }] }));
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [staleCandidate] }));
+  const staleRun = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'suggest', '--role=role-sample', '--propose'], {
+    encoding: 'utf8', env: childEnv,
+  });
+  assert.equal(staleRun.status, 0, staleRun.stderr || staleRun.stdout);
+  assert.deepEqual(JSON.parse(staleRun.stdout).matches, [], 'stale availability leaves active matching until reconfirmed');
+
+  const priorProfile = { id: 'cand-old', form: 'engineer-join', status: 'reviewed', at: candidateAt, raw };
+  const currentProfile = { id: 'cand-new', form: 'engineer-join', status: 'reviewed', at: candidateAt, supersedes: priorProfile.id, raw: { ...raw, 'skills-stack': 'Product design, B2B SaaS' } };
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [currentProfile, priorProfile] }));
+  const updatedRun = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'suggest', '--role=role-sample'], {
+    encoding: 'utf8', env: childEnv,
+  });
+  assert.equal(updatedRun.status, 0, updatedRun.stderr || updatedRun.stdout);
+  const updatedResult = JSON.parse(updatedRun.stdout);
+  assert.deepEqual(updatedResult.matches.map((match) => match.id), ['cand-new']);
+
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-test', form: 'engineer-join', status: 'reviewed', at: candidateAt, raw }] }));
   const run = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'suggest', '--role=role-sample', '--propose'], {
     encoding: 'utf8', env: childEnv,
   });
@@ -234,7 +219,7 @@ try {
   assert.equal(pairs.length, 1);
   assert.equal(pairs[0].sample, true, 'sample role must never mint a real-labeled pair');
   assert.ok(pairs[0].reasons.includes('compensation ranges overlap'));
-  assert.ok(pairs[0].reasons.includes('availability: ready now'));
+  assert.ok(pairs[0].reasons.some((reason) => /^availability: ready now · self-reported \d+d ago$/.test(reason)));
 
   const candidateRun = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'propose-for-candidate', 'cand-test', '--threshold=1', '--propose'], {
     encoding: 'utf8', env: childEnv,
@@ -243,7 +228,7 @@ try {
   assert.equal(JSON.parse(candidateRun.stdout).proposed.length, 1, 'compatible candidate-centric control must propose');
   pairs = Object.values(JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8')).pairs || {});
   assert.ok(pairs[0].reasons.includes('compensation ranges overlap'));
-  assert.ok(pairs[0].reasons.includes('availability: ready now'));
+  assert.ok(pairs[0].reasons.some((reason) => /^availability: ready now · self-reported \d+d ago$/.test(reason)));
 
   const autoRun = spawnSync(process.execPath, [new URL('./demigod-auto-propose.mjs', import.meta.url).pathname, '--allow-sample', '--min-score', '0.5', '--json'], {
     encoding: 'utf8', env: childEnv,
@@ -252,10 +237,10 @@ try {
   assert.equal(JSON.parse(autoRun.stdout).proposed.length, 1, 'compatible auto-propose control must propose');
   pairs = Object.values(JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8')).pairs || {});
   assert.ok(pairs[0].reasons.includes('compensation ranges overlap'));
-  assert.ok(pairs[0].reasons.includes('availability: ready now'));
+  assert.ok(pairs[0].reasons.some((reason) => /^availability: ready now · self-reported \d+d ago$/.test(reason)));
   assert.doesNotMatch(JSON.stringify(pairs[0].reasons), /private\.role@example\.com/, 'raw role title must not enter proposal reasons');
 
-  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-comp-conflict', form: 'engineer-join', status: 'reviewed', raw: conflictRaw }] }));
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-comp-conflict', form: 'engineer-join', status: 'reviewed', at: candidateAt, raw: conflictRaw }] }));
   const conflictSuggest = spawnSync(process.execPath, [new URL('./demigod-matching-engine.mjs', import.meta.url).pathname, 'suggest', '--role=role-sample', '--propose'], {
     encoding: 'utf8', env: childEnv,
   });
@@ -281,7 +266,7 @@ try {
   const genericRole = { ...role, id: 'role-backend', title: 'Founding Backend Engineer', skills: 'AI platform API infrastructure', outcome: 'Ship reliable backend services' };
   const genericCandidate = { ...raw, 'skills-stack': 'AI platform brand marketing', experience: 'Led content campaigns and social media', 'why-startups': 'I want to join a seed startup' };
   fs.writeFileSync(path.join(testDir, 'test-board.json'), JSON.stringify({ roles: [genericRole], candidates: [], receipts: [] }));
-  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-marketing', form: 'engineer-join', status: 'reviewed', raw: genericCandidate }] }));
+  fs.writeFileSync(path.join(testDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{ id: 'cand-marketing', form: 'engineer-join', status: 'reviewed', at: candidateAt, raw: genericCandidate }] }));
   const proposalCounts = {};
   for (const [name, file, args] of [
     ['suggest', './demigod-matching-engine.mjs', ['suggest', '--role=role-backend', '--propose']],

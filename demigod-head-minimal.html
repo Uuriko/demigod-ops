@@ -39,7 +39,7 @@
     <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
       <a href="/">Home</a>
       <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a>
-      <a href="mailto:potter@trydemigod.com?subject=Joining%20the%20Demigod%20talent%20network">Join the talent network by email</a>
+      <a href="mailto:potter@trydemigod.com?subject=Open%20to%20the%20right%20startup">Share what I’d consider by email</a>
     </p>
   </div>
 </noscript>
@@ -93,18 +93,18 @@ try{(function(){
 try{(function(){
   var BAD=/hello@(?:try)?demigod\.com/ig, GOOD='potter@trydemigod.com';
   var VOL=/\b3[\s–-]5\b(?:\s+(?:highly\s+aligned,?\s+)?(?:pre-vetted\s+)?(?:curated\s+)?(?:SF\s+)?(?:candidates?|finalists?|profiles?))?/ig;
-  var GOOD_DESC='SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.';
+  var GOOD_DESC='SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.';
   var GOOD_TITLE='Demigod • Tech-Matched SF Startup Talent';
   var INTROS=[
     [/Humans send you curated SF candidates\.?/gi,'A human reads every brief and proposes strong fits.'],
     [/Humans match you to SF startups that fit\.?/gi,'Humans propose SF startups that fit; intros only after both sides approve.'],
-    [/Share the role, skills, and comp range\./gi,'Share the role, skills, and a 90-day outcome.'],
+    [/Share the role, skills, and comp range\./gi,'Share the role, skills, and one concrete first result.'],
     [/\bFIND TALENT\b/g,'Hire talent'],
     [/\bHIRE TALENT\b/g,'Hire talent'],
-    [/\bJOIN NETWORK\b/g,'Join the talent network'],
+    [/\bJOIN NETWORK\b/g,'Share what I’d consider'],
     [/HIRE SF STARTUP TALENT/gi,'Hire talent'],
-    [/GET MATCHED TO SF STARTUPS/gi,'Join the talent network'],
-    [/90-?\s*day replacement guarantee/gi,'90-day outcome focus (replacement policy pending)'],
+    [/GET MATCHED TO SF STARTUPS/gi,'Share what I’d consider'],
+    [/90-?\s*day replacement guarantee/gi,'Human-reviewed matching'],
     [/SF BAY AREA STARTUP MATCHING/gi,'SF · TECH-MATCHED'],
     [/Access to pre-vetted SF talent/gi,'Human-reviewed SF Bay matches'],
     [/Dedicated talent partner/gi,'A human reads every brief'],
@@ -213,7 +213,7 @@ try{(function(){
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Demigod">
 <meta property="og:locale" content="en_US">
-<meta property="og:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
+<meta property="og:description" content="SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.">
 <meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:secure_url" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:type" content="image/jpeg">
@@ -223,7 +223,7 @@ try{(function(){
 <meta property="og:url" content="https://www.trydemigod.com/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Demigod • Tech-Matched SF Startup Talent">
-<meta name="twitter:description" content="SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.">
+<meta name="twitter:description" content="SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.">
 <meta name="twitter:url" content="https://www.trydemigod.com/">
 <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta name="twitter:image:alt" content="Demigod — tech-matched SF startup talent">
@@ -245,7 +245,7 @@ try{(function(){
   var tw=document.querySelector('meta[name="twitter:url"]'); if(tw)tw.setAttribute('content',url);
   if(id!=='blog')return;
   var title='Demigod Notes — product, pricing, privacy, events';
-  var desc='Short notes on 90-day outcomes, private match packets, and human-reviewed intros.';
+  var desc='Short notes on first-result calibration, private match packets, and human-reviewed intros.';
   var img='https://files.catbox.moe/urbco5.jpg';
   var imgAlt='Demigod Notes — product, pricing, privacy, events';
   var ogt=document.querySelector('meta[property="og:title"]'); if(ogt)ogt.setAttribute('content',title);
@@ -351,7 +351,7 @@ try{(function(){
         if(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/i.test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist');
         if(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/i.test(n.nodeValue))
-          n.nodeValue=n.nodeValue.replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'90-day outcome focus');
+          n.nodeValue=n.nodeValue.replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'Human-reviewed matching');
         var junk=new RegExp(['l','orem',' ipsum'].join('')+'|consectetur adipiscing','i');
         if(junk.test(n.nodeValue)) n.nodeValue=' ';
       }
@@ -362,7 +362,7 @@ try{(function(){
           var v=el.getAttribute(attr)||'';
           v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,'Hire talent').replace(/\bI['’]?m hiring\b/gi,'Hire talent')
             .replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist')
-            .replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'90-day outcome focus');
+            .replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'Human-reviewed matching');
           el.setAttribute(attr,v);
         });
       });
@@ -395,7 +395,7 @@ try{(function(){
       document.querySelectorAll('.btn-label,.button_label').forEach(function(el){
         var t=(el.textContent||'').replace(/\s+/g,' ').trim();
         if(/^(FIND TALENT|HIRE TALENT|I['’]?M HIRING)$/i.test(t)) el.textContent='Hire talent';
-        else if(/^(JOIN NETWORK|GET MATCHED|I['’]?M LOOKING)$/i.test(t)) el.textContent='Join the talent network';
+        else if(/^(JOIN NETWORK|GET MATCHED|I['’]?M LOOKING)$/i.test(t)) el.textContent='Share what I’d consider';
       });
       try{document.documentElement.classList.add('dg-cta-honest')}catch(_){}
       document.querySelectorAll('.pricing-card div,.pricing-card li,.pricing-grid div').forEach(function(el){
@@ -404,7 +404,7 @@ try{(function(){
         if(!t||t.length>120)return;
         if(/^Access to pre-vetted SF talent$/i.test(t)) el.textContent='Human-reviewed SF Bay matches';
         else if(/^Dedicated talent partner$/i.test(t)) el.textContent='A human reads every brief';
-        else if(/90-?\s*day replacement guarantee/i.test(t)) el.textContent='90-day outcome focus (replacement policy pending)';
+        else if(/90-?\s*day replacement guarantee/i.test(t)) el.textContent='Human-reviewed matching';
       });
       try{document.documentElement.classList.add('dg-pricing-honest')}catch(_){}
     }catch(_){}
@@ -414,11 +414,11 @@ try{(function(){
   var n=0,iv=setInterval(function(){scrub();if(++n>=12)clearInterval(iv)},120);
 })();}catch(e){}</script>
 
-<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startups submit a brief. Talent uploads once. Demigod tech matches curated talent, humans in the loop. 10% of first-year cash on hire. Free for talent.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
+<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
-<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Join the talent network","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/?p=about"}]}</script>
+<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Share what I’d consider","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/?p=about"}]}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded',function(){
           }else if(/(?:3\s*(?:[–—-]|to)\s*5|three\s+to\s+five)\s+(?:[\w-]+\s+){0,3}(?:candidates?|matches?|profiles?|finalists?)/i.test(t)){
             el.textContent='Meet curated matches';
           }else if(/(?:90\s*[–—-]?\s*day\s+)?replacement\s+(?:guarantee|promise|warranty|assurance)|90\s*[–—-]?\s*day\s+(?:guarantee|warranty|assurance)/i.test(t)){
-            el.textContent='90-day outcome focus';
+            el.textContent='Human-reviewed matching';
           }
         });
       }
@@ -464,13 +464,13 @@ document.addEventListener('DOMContentLoaded',function(){
         if(!root)return;
         var links=root.querySelectorAll('a');
         // Must match foot COPY.ctaFounder / ctaEngineer (verify head:cta-fallback)
-        ['Hire talent','Join the talent network'].forEach(function(label,i){
+        ['Hire talent','Share what I’d consider'].forEach(function(label,i){
           var link=links[i]; if(!link)return;
           var text=link.querySelector('.btn-label,.button_label')||link;
           text.textContent=label;
           link.setAttribute('data-dg-cta',i===0?'hire':'talent');
           link.setAttribute('href',i===0?'/?wiz=startup':'/?wiz=engineer');
-          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Join the talent network — open private talent profile');
+          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Share what I’d consider — open private candidate form');
         });
       }
       labelPair(document.querySelector('.hero-actions'));

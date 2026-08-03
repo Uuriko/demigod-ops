@@ -1,129 +1,36 @@
 #!/usr/bin/env node
 /**
  * Demigod Matching Engine (ops tool)
- * Organize submissions, compute potential matches, mutual interest tracking,
- * present options for startups and candidates to opt-in/intro/ignore.
- * When mutual, assist "auto" intro (log, receipt, notify stub).
+ * Organize submissions, compute potential matches, and present evidence for human review.
  *
  * Usage examples:
  *   node demigod-matching-engine.mjs suggest --role="Product Manager"
- *   node demigod-matching-engine.mjs startup-interest --role-id=role-xxx --candidate-id=cand-yyy
- *   node demigod-matching-engine.mjs candidate-optin --candidate-id=cand-yyy --role="Founding Designer"
- *   node demigod-matching-engine.mjs mutual-intros
- *   node demigod-matching-engine.mjs propose-intro --startup=... --candidate=...
- *
- * Integrates with submissions-lib, board, pilot-logger, receipts.
- * Honest: human review always; this surfaces + tracks.
+ * Honest: human review always; this surfaces evidence and writes only proposed pairs.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { ROOT } from './demigod-turn-lib.mjs';
-import { loadBoard, saveBoard, loadInbox, saveInbox, extractEmail, scrubPII, clip, startupRoleReadiness, candidateProfileReadiness, isSampleData } from './demigod-submissions-lib.mjs';
-import { appendPilot, computeSignal } from './demigod-board-lib.mjs';
-import { atomicWrite, readJson } from './demigod-agent-tools-lib.mjs';
+import { loadBoard, loadInbox, extractEmail, scrubPII, clip, startupRoleReadiness, candidateProfileReadiness, candidateAvailabilityFreshness, currentCandidateSubmissions, isSampleData } from './demigod-submissions-lib.mjs';
+import { readJson } from './demigod-agent-tools-lib.mjs';
 import { projectCompanyResearch, refuseIfStale } from './demigod-evidence.mjs';
 import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 import { boardsFromMap, observedOpenDays } from './demigod-role-ledger.mjs';
 import {
-  assertCurrentMutualPairEligibility,
+  assertCurrentPairEligibility,
+  hasValidPairConsentReceipt,
   proposePair,
-  reviewPair,
-  pairId as makePairId,
   listPairs,
 } from './demigod-pairs-lib.mjs';
+import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 
-/**
- * Legacy interests file — kept for read-compat / migration.
- * Canonical SoR for pairs is DEMIGOD-PAIRS.json via demigod-pairs-lib.
- */
 const EVIDENCE_ROOT = process.env.DEMIGOD_ROOT || ROOT;
-const MATCHES_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-MATCHES.json');
 const STARTUP_MAP_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const ROLE_LEDGER_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-ROLE-LEDGER.json');
 const COMPANY_RESEARCH_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json');
 const COMPANY_RESEARCH_CATALOG_PATH = path.join(EVIDENCE_ROOT, 'DEMIGOD-COMPANY-RESEARCH.json');
 
-function loadMatches() {
-  try {
-    const stored = JSON.parse(fs.readFileSync(MATCHES_PATH, 'utf8'));
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
-      throw new Error('matches_store_invalid');
-    }
-    const analyticsShape = ['matches', 'events', 'suggestions'].every((key) => Array.isArray(stored[key]));
-    const matches = analyticsShape
-      ? { ...stored, interests: stored.interests ?? {}, intros: stored.intros ?? [] }
-      : stored;
-    if (!matches.interests || typeof matches.interests !== 'object' || Array.isArray(matches.interests) ||
-        !Array.isArray(matches.intros)) {
-      throw new Error('matches_store_invalid');
-    }
-    return matches;
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      return { interests: {}, intros: [], at: new Date().toISOString(), legacy: true };
-    }
-    throw error;
-  }
-}
-function saveMatches(m) {
-  m.at = new Date().toISOString();
-  m.note = m.note || 'legacy mirror — prefer demigod-pairs-lib / DEMIGOD-PAIRS.json';
-  atomicWrite(MATCHES_PATH, JSON.stringify(m, null, 2), { mode: 0o600 });
-}
-
-/** One-shot: copy legacy interests into pair ledger (idempotent). */
-export function migrateLegacyMatchesToPairs() {
-  const m = loadMatches();
-  const out = { migrated: 0, errors: [] };
-  for (const [key, val] of Object.entries(m.interests || {})) {
-    const parts = String(key).split(':');
-    if (parts.length < 2) continue;
-    const [a, b] = parts;
-    try {
-      // keys are either roleId:candId or candId:roleTitle
-      if (val.startup) {
-        mirrorPairInterest(a, b, { reasons: ['migrate-legacy'] });
-        out.migrated++;
-      }
-      if (val.candidate) {
-        // candidate key is candId:roleTitle — reverse
-        mirrorPairInterest(b, a, { reasons: ['migrate-legacy'] });
-        out.migrated++;
-      }
-    } catch (e) {
-      out.errors.push(String(e.message || e));
-    }
-  }
-  m.migratedToPairsAt = new Date().toISOString();
-  saveMatches(m);
-  return out;
-}
-
-/** Dual-write interests into canonical pair ledger (freeze-safe SoR). */
-function mirrorPairInterest(roleId, candId, extra = {}) {
-  try {
-    if (!roleId || !candId) return null;
-    const pair = proposePair({
-      roleId: String(roleId),
-      candId: String(candId),
-      score: extra.score != null ? Number(extra.score) / 100 : null,
-      reasons: extra.reasons || ['matching-engine'],
-      actor: 'matching-engine',
-      sample: true,
-    });
-    return pair;
-  } catch (e) {
-    return { error: String(e.message || e) };
-  }
-}
-
 function norm(s) { return String(s || '').toLowerCase().trim(); }
-
-function boundedStoreText(value, max = 160) {
-  const text = String(value || '').trim();
-  return text && text.length <= max && !/[\r\n\u0000-\u001f\u007f]/.test(text) ? text : '';
-}
 
 const exactTitle = (value) => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
 const projectedText = (value, max = 240) =>
@@ -384,11 +291,17 @@ function candidateMatchText(candidate = {}) {
 }
 
 export function matchEvidence(role = {}, candidate = {}) {
+  const candidateEnvelope = candidate;
+  candidate = candidate.raw || candidate.data || candidate;
   const roleTerms = new Set(skillTerms(role.skills || role['stack-needs']));
   const overlap = candidateFeatureTerms(candidate, candidate.skills || candidate['skills-stack']).filter((x) => roleTerms.has(x));
   const roleWorkTerms = new Set(skillTerms(roleMatchText(role)));
   const experienceTerms = candidateFeatureTerms(candidate, candidate.experience || candidate['background & highlights']);
-  const workOverlap = experienceTerms.filter((x) => roleWorkTerms.has(x) && !overlap.includes(x));
+  const firstResultTerms = new Set(skillTerms(role.outcome90d || role.outcome || role['90day-outcome']));
+  const firstResultOverlap = experienceTerms.filter((x) => firstResultTerms.has(x));
+  const workOverlap = experienceTerms.filter(
+    (x) => roleWorkTerms.has(x) && !overlap.includes(x) && !firstResultOverlap.includes(x),
+  );
   const roleComp = role.comp || role['salary-range'] || role.salaryRange;
   const candidateComp = candidate['salary-expectation'] || candidate['salary-range'] || candidate.compExpect;
   const roleLocation = roleLocationPreference(role);
@@ -401,17 +314,23 @@ export function matchEvidence(role = {}, candidate = {}) {
     passive: 'passively open', 'passive / open': 'passively open', 'passively open / flexible': 'passively open',
   }[availability];
   const evidence = [];
-  if (overlap.length) evidence.push(`skills: ${overlap.slice(0, 4).join(', ')}`);
-  if (workOverlap.length) evidence.push(`work evidence: ${workOverlap.slice(0, 4).join(', ')}`);
+  if (overlap.length) evidence.push(`self-reported skills: ${overlap.slice(0, 4).join(', ')}`);
+  if (firstResultOverlap.length) evidence.push(`self-reported first-result overlap: ${firstResultOverlap.slice(0, 4).join(', ')}`);
+  if (workOverlap.length) evidence.push(`self-reported experience overlap: ${workOverlap.slice(0, 4).join(', ')}`);
   if (/\b(sf|bay area|san francisco)\b/i.test(String(candidate['sf-bay'] || candidate.locationPref || ''))) evidence.push('SF Bay Area preference');
   if (roleLocation && candidateLocation) evidence.push(locationCompatible(role, candidate) ? 'work-location preferences align' : 'work-location alignment needs review');
   if (roleComp && candidateComp) evidence.push(compAligned(roleComp, candidateComp) ? 'compensation ranges overlap' : 'compensation alignment needs review');
-  if (availabilityLabel) evidence.push(`availability: ${availabilityLabel}`);
+  if (availabilityLabel) {
+    const freshness = candidateAvailabilityFreshness(candidateEnvelope);
+    if (!freshness.applicable) evidence.push(`availability stated: ${availabilityLabel}`);
+    else if (freshness.current) evidence.push(`availability: ${availabilityLabel} · ${freshness.source} ${freshness.ageDays}d ago`);
+    else evidence.push(`availability unconfirmed · last ${freshness.source} ${freshness.ageDays == null ? 'date unavailable' : `${freshness.ageDays}d ago`} — reconfirm before introduction`);
+  }
   if (
     (role.outcome || role.outcome90d || role['90day-outcome']) &&
     candidateFeatureTerms(candidate, candidate.why || candidate['why-this-role'] || candidate['why-startups']).length
-  ) evidence.push('90-day outcome motivation provided');
-  if (experienceTerms.length) evidence.push('experience evidence provided');
+  ) evidence.push('self-reported motivation supplied');
+  if (experienceTerms.length) evidence.push('self-reported experience supplied');
   return evidence;
 }
 
@@ -531,7 +450,7 @@ export function rolesFromPartnerInbox(inbox, existing = []) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      id: i.id,
+      id: i.featuredId || i.id,
       title,
       company,
       source: 'inbox',
@@ -586,7 +505,7 @@ export function isMatchingReadyCandidate(item = {}) {
 }
 
 function getCandidates(inbox) {
-  return (inbox.items || []).filter(isMatchingReadyCandidate);
+  return currentCandidateSubmissions(inbox.items).filter(isMatchingReadyCandidate);
 }
 
 export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {}) {
@@ -612,7 +531,7 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   const scored = cands.filter(c => !compensationConflict(role, c.raw || c)).map(c => ({
     candidate: c,
     score: scoreMatch(role, c.raw || c),
-    evidence: matchEvidence(role, c.raw || c),
+    evidence: matchEvidence(role, c),
     id: c.id || extractEmail(c.raw || {}, c.form)
   })).sort((a,b) => b.score - a.score).slice(0, limit);
 
@@ -646,8 +565,8 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
 export function proposeForCandidate(candId, { threshold = 60, propose = true } = {}) {
   const board = loadBoard();
   const inbox = loadInbox ? loadInbox() : { items: [] };
-  const cand = (inbox.items || []).find(
-    (i) => isMatchingReadyCandidate(i) && (i.id === candId || extractEmail(i.raw || {}, i.form) === candId),
+  const cand = getCandidates(inbox).find(
+    (i) => i.id === candId || extractEmail(i.raw || {}, i.form) === candId,
   );
   if (!cand) return { ok: false, error: `submission not found: ${candId}` };
   const roles = getStartupRoles(board);
@@ -660,7 +579,7 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
     if (compensationConflict(role, cand.raw || cand)) continue;
     const score = scoreMatch(role, cand.raw || cand);
     if (score < threshold) continue;
-    const evidence = matchEvidence(role, cand.raw || cand);
+    const evidence = matchEvidence(role, cand);
     ranked.push({
       roleId: role.id || role.title,
       title: role.title,
@@ -695,115 +614,6 @@ export function proposeForCandidate(candId, { threshold = 60, propose = true } =
   return { ok: true, candId, ranked, proposed: propose ? proposed : undefined };
 }
 
-export function markStartupInterest(roleId, candidateId) {
-  roleId = boundedStoreText(roleId); candidateId = boundedStoreText(candidateId);
-  if (!roleId || !candidateId) return { ok: false, error: 'role and candidate are required' };
-  const m = loadMatches();
-  const key = `${roleId}:${candidateId}`;
-  m.interests[key] = { ...(m.interests[key] || {}), startup: true, at: Date.now() };
-  saveMatches(m);
-  const pair = mirrorPairInterest(roleId, candidateId);
-  return { ok: true, key, pairId: pair?.pairId || makePairId(roleId, candidateId), pair };
-}
-
-export function markCandidateOptin(candidateId, roleTitle) {
-  candidateId = boundedStoreText(candidateId); roleTitle = boundedStoreText(roleTitle);
-  if (!candidateId || !roleTitle) return { ok: false, error: 'candidate and role are required' };
-  const m = loadMatches();
-  const key = `${candidateId}:${norm(roleTitle)}`;
-  m.interests[key] = { ...(m.interests[key] || {}), candidate: true, at: Date.now() };
-  saveMatches(m);
-  // roleTitle may be id or title — pairs ledger needs stable ids; use title slug as role key when unknown
-  const pair = mirrorPairInterest(roleTitle, candidateId);
-  return { ok: true, key, pairId: pair?.pairId || null, pair };
-}
-
-function findMutual() {
-  const board = loadBoard();
-  const inbox = loadInbox ? loadInbox() : { items: [] };
-  const mutuals = [];
-
-  // Canonical pair ledger only. Legacy interests have no current eligibility or consent receipt.
-  for (const p of listPairs({ limit: 200 })) {
-    if (p.state !== 'mutual_yes' || p.mutual?.founder !== true || p.mutual?.candidate !== true) continue;
-    try {
-      assertCurrentMutualPairEligibility(p, { pairKey: p.pairId });
-      mutuals.push({ key: p.pairId, role: p.roleId, cand: p.candId, pair: p });
-    } catch {
-      /* stale/forged pairs are not mutual intro inputs */
-    }
-  }
-
-  return mutuals
-    .map((mu) => {
-      const role = (board.roles || []).find((r) => r.id === mu.role || norm(r.title) === norm(mu.role));
-      const cand = (inbox.items || []).find(
-        (i) => (i.id || extractEmail(i.raw || {}, i.form)) === mu.cand,
-      );
-      return { role, candidate: cand, key: mu.key, pair: mu.pair || null };
-    })
-    .filter((x) => x.role || x.candidate || x.pair);
-}
-
-export function proposeIntro(roleOrId, candIdOrEmail) {
-  roleOrId = boundedStoreText(roleOrId); candIdOrEmail = boundedStoreText(candIdOrEmail);
-  if (!roleOrId || !candIdOrEmail) return { error: 'role and candidate are required' };
-  const board = loadBoard();
-  const matches = findMutual();
-  const target = matches.find((mm) =>
-    (mm.pair?.roleId === roleOrId || (mm.role && (mm.role.id === roleOrId || norm(mm.role.title) === norm(roleOrId))))
-    && (mm.pair?.candId === candIdOrEmail || (mm.candidate && (mm.candidate.id === candIdOrEmail || extractEmail(mm.candidate.raw || {}, mm.candidate.form) === candIdOrEmail)))
-  );
-
-  if (!target) return { error: 'no mutual match found' };
-
-  // Fable 2026-07-09: NEVER write board on mere proposal (appendPilot corrupted honesty).
-  // Quarantine intro in matches store only; real receipts go through pilot-logger + honesty gate.
-  const mm = loadMatches();
-  mm.intros = mm.intros || [];
-  const introRec = {
-    at: new Date().toISOString(),
-    role: target.role ? target.role.title : roleOrId,
-    candidate: candIdOrEmail,
-    status: 'proposed_quarantine',
-    boardWrite: false,
-    note: 'Proposal only — no board mutation until human pilot log'
-  };
-  mm.intros.push(introRec);
-  saveMatches(mm);
-
-  // Canonical pair ledger: proposal only. Consent must come from observed founder/candidate actions.
-  let pair = null;
-  try {
-    const rid = target.role?.id || roleOrId;
-    const cid = target.candidate?.id || candIdOrEmail;
-    pair = proposePair({
-      roleId: rid,
-      candId: cid,
-      reasons: ['propose-intro', 'matching-engine'],
-      actor: 'matching-engine',
-      sample: target.pair?.sample === true || isSampleRole(target.role) || isSampleCandidate(target.candidate),
-    });
-  } catch (e) {
-    pair = { error: String(e.message || e) };
-  }
-
-  const notify = `potter@trydemigod.com will follow up with intro details for ${target.role ? target.role.title : ''} + candidate.`;
-
-  return {
-    ok: true,
-    intro: target,
-    receipt: null,
-    notify,
-    boardWrite: false,
-    pairId: pair?.pairId || null,
-    pairState: pair?.state || null,
-    introDraftHint: pair?.pairId
-      ? `node demigod-intro-draft.mjs ${pair.pairId}  # requires approved|mutual_yes or --force`
-      : null,
-  };
-}
-
 export function founderMatchSummary(match = {}) {
   return {
     candidateId: match.id || match.candidate?.id || 'candidate',
@@ -812,39 +622,73 @@ export function founderMatchSummary(match = {}) {
   };
 }
 
-export function logOutcome(introKey, outcome) {
-  introKey = boundedStoreText(introKey); outcome = boundedStoreText(outcome, 240);
-  if (!introKey || !outcome) return { ok: false, error: 'intro key and outcome are required' };
-  // Track outcomes for learning + proof assets (hired? comp? = direct revenue signal)
-  const mm = loadMatches();
-  mm.outcomes = mm.outcomes || {};
-  mm.outcomes[introKey] = { outcome, at: Date.now() };
-  saveMatches(mm);
-  return { ok: true, key: introKey, outcome };
-}
-
 function presentForStartup(roleTitleOrId) {
   const res = suggestMatches(roleTitleOrId);
   if (res.error) return res;
   console.log(`=== Matches for startup role: ${res.role.title} (${res.role.stageType}) ===`);
-  console.log('Use: node demigod-matching-engine.mjs startup-interest --role-id=' + (res.role.id || res.role.title) + ' --candidate-id=CAND-ID');
+  console.log('To queue: rerun suggest with --propose, then review the proposed pair.');
   res.matches.forEach((m,i) => {
     const summary = founderMatchSummary(m);
     console.log(`${i+1}. score=${summary.score} | ${summary.candidateId}`);
     console.log(`   evidence: ${summary.evidence.join(' · ') || 'insufficient structured evidence'}`);
-    console.log(`   To intro: mark interest then propose when mutual`);
+    console.log(`   To intro: human-review the pair, then record both observed consents`);
   });
   return {ok:true};
 }
 
 function presentForCandidate(candidateIdOrEmail) {
   const board = loadBoard();
-  const roles = getStartupRoles(board);
-  console.log(`=== Open roles candidate ${candidateIdOrEmail} may opt into ===`);
-  roles.forEach(r => {
-    const sc = scoreMatch(r, { 'skills-stack': '' }); // placeholder
-    console.log(`- ${r.title} (${r.stageType}) | use: candidate-optin --candidate-id=${candidateIdOrEmail} --role="${r.title}"`);
+  const inbox = loadInbox();
+  const candidate = getCandidates(inbox).find(i =>
+    i.id === candidateIdOrEmail || extractEmail(i.raw || {}, i.form) === candidateIdOrEmail);
+  const candId = candidate?.id || candidateIdOrEmail;
+  const roles = new Map(getStartupRoles(board).map(r => [String(r.id), r]));
+  const acceptedRoles = new Map(
+    listAcceptedRoles(board, inbox).acceptedRoles.map((role) => [String(role.roleId), role]),
+  );
+  const receipts = listPairs({ includeSample: true, limit: Number.MAX_SAFE_INTEGER })
+    .filter(p => p.candId === candId && ['approved', 'mutual_yes'].includes(p.state))
+    .filter(p => {
+      if (p.sample !== false) return true;
+      try { return assertCurrentPairEligibility(p, { pairKey: p.pairId, board, inbox }); }
+      catch { return false; }
+    })
+    .map(p => ({
+      pair: p,
+      role: p.sample === false ? acceptedRoles.get(String(p.roleId)) : roles.get(String(p.roleId)),
+    }))
+    .filter(({ pair, role }) => role && (
+      pair.sample !== false || hasValidPairConsentReceipt(pair, 'founder', role.roleTruthHash)
+    ));
+  console.log(`=== Role receipts for ${scrubPII(candidateIdOrEmail)} ===`);
+  if (!receipts.length) console.log('No founder-authorized role receipt is waiting for this candidate.');
+  receipts.forEach(({ pair, role: r }) => {
+    const sample = pair.sample !== false || isSampleRole(r);
+    const evidence = matchEvidence(r, candidate || {})
+      .map((line) => clip(scrubPII(line), 256))
+      .filter(Boolean);
+    const openQuestions = evidence.filter((line) => /needs review/i.test(line));
+    console.log(`- ${clip(scrubPII(r.title), 160)} (${clip(scrubPII(r.stageType), 80)})${sample ? ' · FICTIONAL SAMPLE' : ''}`);
+    console.log(`  Pair: ${pair.pairId}`);
+    if (!sample) {
+      console.log(`  Company: ${clip(scrubPII(r.company), 160)}`);
+      console.log(`  Role truth: ${r.roleTruthHash}`);
+      console.log(`  Open role: confirmed ${String(r.openConfirmedAt).slice(0, 10)}`);
+    }
+    console.log(`  First result: ${clip(scrubPII(r.outcome90d || r.outcome || r['90day-outcome'] || 'not supplied'), 500)}`);
+    console.log(`  Must-haves: ${clip(scrubPII(r.skills || r.stack || r['stack-needs'] || 'not supplied'), 500)}`);
+    console.log(`  Constraints: ${clip(scrubPII(r.locationPref || r['work-location'] || 'work arrangement not supplied'), 160)} · ${clip(scrubPII(r.comp || r['salary-range'] || 'base salary not supplied'), 120)}`);
+    console.log(`  Interview process: ${clip(scrubPII(r.interviewProcess || r['interview-process'] || 'not supplied'), 300)}`);
+    console.log(`  Why this intro: ${evidence.join(' · ') || 'human review found potential fit; structured evidence is incomplete'}`);
+    console.log(`  Open question: ${openQuestions.join(' · ') || 'What important constraint or missing evidence could make this a poor fit?'}`);
+    console.log(`  Evidence source: role brief + your private profile · ${sample ? 'fictional demonstration' : 'human reviewed'}`);
+    console.log('  Verification: Brief and profile are submitted by each side and human-reviewed for relevance; claims are not independently verified.');
+    console.log('  Correction: Something wrong or missing? Correct it privately before deciding.');
+    console.log(sample
+      ? '  Fictional sample — no consent action.'
+      : `  Candidate choice: YES lets Demigod share your identity and work profile with ${clip(scrubPII(r.company), 160)} for this exact role; PASS closes it privately. No explanation required.`);
   });
+  return { ok: true, receipts: receipts.length };
 }
 
 function main() {
@@ -866,28 +710,6 @@ function main() {
     console.log(JSON.stringify(proposeForCandidate(candId, { threshold: thr, propose: doPropose }), null, 2));
     return;
   }
-  if (cmd === 'startup-interest') {
-    const roleId = (args.find(a=>a.startsWith('--role-id='))||'').split('=')[1] || args[1];
-    const cand = (args.find(a=>a.startsWith('--candidate-id='))||'').split('=')[1] || args[2];
-    console.log(markStartupInterest(roleId, cand));
-    return;
-  }
-  if (cmd === 'candidate-optin') {
-    const cand = (args.find(a=>a.startsWith('--candidate-id='))||'').split('=')[1] || args[1];
-    const role = (args.find(a=>a.startsWith('--role='))||'').split('=')[1] || args[2];
-    console.log(markCandidateOptin(cand, role));
-    return;
-  }
-  if (cmd === 'mutual-intros' || cmd === 'mutuals') {
-    console.log(JSON.stringify(findMutual(), null, 2));
-    return;
-  }
-  if (cmd === 'propose-intro' || cmd === 'intro') {
-    const role = (args.find(a=>a.startsWith('--role='))||'').split('=')[1] || args[1];
-    const cand = (args.find(a=>a.startsWith('--candidate='))||'').split('=')[1] || args[2];
-    console.log(proposeIntro(role, cand));
-    return;
-  }
   if (cmd === 'present-startup') {
     const q = args[1] || '';
     presentForStartup(q);
@@ -898,30 +720,13 @@ function main() {
     presentForCandidate(id);
     return;
   }
-  if (cmd === 'log-outcome') {
-    const key = args[1] || '';
-    const outcome = args[2] || '';
-    console.log(logOutcome(key, outcome));
-    return;
-  }
-  if (cmd === 'migrate-pairs' || cmd === 'migrate') {
-    console.log(JSON.stringify(migrateLegacyMatchesToPairs(), null, 2));
-    return;
-  }
-
-  console.log(`Demigod Matching Engine (for revenue + highest quality matches)
+  console.log(`Demigod Matching Engine
 Commands:
   suggest "Product Manager"          # scored candidates (JSON)
   suggest --role="Product Manager" --propose  # write proposed pairs
   propose-for-candidate CAND-ID [--threshold=60] [--propose]  # rank-only unless explicit
   present-startup "Product Manager"  # rich cards + next actions
-  present-candidate CAND-ID          # roles for opt-in
-  startup-interest --role-id=xxx --candidate-id=yyy
-  candidate-optin --candidate-id=yyy --role="Founding Designer"
-  mutual-intros
-  propose-intro --role=xxx --candidate=yyy
-  migrate-pairs                      # legacy DEMIGOD-MATCHES → DEMIGOD-PAIRS
-  log-outcome INTRO-KEY hired|not|comp-180k   # track for proof & learning
+  present-candidate CAND-ID          # approved role receipt before candidate consent
 `);
 }
 

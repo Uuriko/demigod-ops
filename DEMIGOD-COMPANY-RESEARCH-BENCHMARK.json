@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "researchedAt": "2026-07-28",
+  "researchedAt": "2026-08-01",
   "selectionSeed": "demigod-die-benchmark-v1",
   "thresholds": {
     "usableCoverage": 0.9,
@@ -72,8 +72,8 @@
         "likelyBuyer": {
           "value": "public-sector infrastructure programs, utility regulators, funders, and operators",
           "status": "supported",
-          "url": "https://ready.net/careers",
-          "quote": "utility regulators, funders, and operators"
+          "url": "https://ready.net/blog/agents-for-agencies",
+          "quote": "utility regulators, funders, insurers and operators"
         },
         "pricingStatus": {
           "value": "contact sales",
@@ -427,11 +427,10 @@
           "quote": "mobile gaming"
         },
         "pricingStatus": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null,
-          "unknownReason": "not_applicable"
+          "value": "free-to-play",
+          "status": "supported",
+          "url": "https://kabam.com/wp-json/wp/v2/posts/22705",
+          "quote": "Kabam is focused on providing highly engaging, console-quality games through the free-to-play business model."
         }
       },
       "mapDefects": [
@@ -508,11 +507,10 @@
           "quote": "provides advertisers, publishers and app developers with a global solution for advertising"
         },
         "pricingStatus": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null,
-          "unknownReason": "not_found"
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://support.inmobi.com/dsp/in/inmobi-dsp-india/inmobi-dsp-pricing-model",
+          "quote": "Consult the InMobi team to know more about the pricing."
         }
       },
       "mapDefects": [
@@ -647,20 +645,20 @@
         "canonicalCompany": {
           "value": "GigaGen, a Grifols subsidiary",
           "status": "supported",
-          "url": "https://www.gigagen.com/",
-          "quote": "GigaGen, a subsidiary of Grifols"
+          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
+          "quote": "a subsidiary of Grifols"
         },
         "productSummary": {
-          "value": "Discovers and develops mono- and polyclonal antibody drugs using single-cell platforms.",
+          "value": "Develops antibody drugs for immune deficiencies, infectious diseases, and checkpoint-resistant cancers.",
           "status": "supported",
-          "url": "https://www.gigagen.com/",
-          "quote": "Our single-cell antibody discovery and development platforms recreate complete immune repertoires and find exceptional antibodies with unique properties"
+          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
+          "quote": "advancing transformative antibody drugs for immune deficiencies, infectious diseases and checkpoint resistant cancers"
         },
         "productCategory": {
-          "value": "biopharmaceutical antibody therapeutics",
+          "value": "biotechnology antibody therapeutics",
           "status": "supported",
-          "url": "https://www.gigagen.com/",
-          "quote": "GigaGen is a fast-growing biopharmaceutical company"
+          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
+          "quote": "GigaGen Inc., a biotechnology company"
         },
         "likelyBuyer": {
           "value": null,
@@ -1021,11 +1019,10 @@
           "quote": "Primary Surface Discord calls and live play sessions"
         },
         "pricingStatus": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null,
-          "unknownReason": "not_found"
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.frisson-labs.com/broker",
+          "quote": "Contact Us Tell us what voice data your lab needs."
         }
       },
       "mapDefects": [
@@ -1140,11 +1137,10 @@
           "quote": "basic financial issues that can be resolved in minutes or hours"
         },
         "pricingStatus": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null,
-          "unknownReason": "not_found"
+          "value": "free",
+          "status": "supported",
+          "url": "https://iamquin.ai/terms",
+          "quote": "Charges for the Site: none. The Site is currently provided free of charge."
         }
       },
       "mapDefects": [

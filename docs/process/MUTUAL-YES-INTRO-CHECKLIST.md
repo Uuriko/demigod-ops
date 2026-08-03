@@ -13,7 +13,7 @@
 
 ## Intro email
 - [ ] Both parties on thread (or sequential with explicit handoff)
-- [ ] Context: why this match · 90-day outcome · next step
+- [ ] Context: why this match · first concrete result · next step
 - [ ] No SLA clocks · no fake scarcity
 - [ ] Fee not renegotiated in CC without founder awareness
 
@@ -23,4 +23,4 @@
 - [ ] Soft check-in later — no automated spam
 
 **Done:** one send · logged · pair advanced · not double-intro’d  
-**Tool aid:** `node demigod-intro-draft.mjs <pairId>` (still human send)
+**Tool aid:** `node demigod-intro-draft.mjs <pairId>` (draft only; send needs current authority)

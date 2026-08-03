@@ -11,14 +11,15 @@ case "$cmd" in
   propose) exec node demigod-pairs-lib.mjs propose "$@" ;;
   auto|auto-propose) exec node demigod-auto-propose.mjs --json "$@" ;;
   review) exec node demigod-match-review.mjs review "$@" ;;
+  receipt) exec node demigod-matching-engine.mjs present-candidate "$@" ;;
   consent) exec node demigod-pairs-lib.mjs consent "$@" ;;
+  decline) exec node demigod-pairs-lib.mjs decline "$@" ;;
   draft) exec node demigod-intro-draft.mjs "$@" ;;
-  migrate) exec node demigod-matching-engine.mjs migrate-pairs "$@" ;;
   prune) exec node demigod-pairs-lib.mjs prune "$@" ;;
   api) curl -sS "http://127.0.0.1:9878/api/matches${1:+?$1}" ;;
   *)
     # Unknown verb (incl. mistyped flags like --foo) → exit 2 for agent fail-closed (cont30)
-    echo "Unknown: $cmd — usage: bin/dg-matches list|seed|propose|auto|review|consent|draft|migrate|prune|api" >&2
+    echo "Unknown: $cmd — usage: bin/dg-matches list|seed|propose|auto|review|receipt|consent|decline|draft|prune|api" >&2
     exit 2
     ;;
 esac

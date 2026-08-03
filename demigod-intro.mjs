@@ -169,7 +169,7 @@ if (cmd === 'packet') {
     ``,
     `**Pilot:** ${p.id}`,
     `**Role:** ${role}`,
-    `**90-day outcome:** ${outcome}`,
+    `**First result:** ${outcome}`,
     ``,
     `## Candidate`,
     `- **Name:** ${name}`,

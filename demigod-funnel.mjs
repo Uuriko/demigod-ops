@@ -12,9 +12,9 @@
  *   node demigod-funnel.mjs email-mx          # free DNS MX: bad domains → policy_hold
  *   node demigod-funnel.mjs import-events     # merge consented Events Bot leads (no invent)
  *   node demigod-funnel.mjs release-contactable-holds  # policy_hold + usable contact → drafted
- *   node demigod-funnel.mjs send-package              # approved + contact → human send board (no send)
- *   node demigod-funnel.mjs approve-drafted --note="reviewed batch" [--dry-run]  # human package under /tmp/dg-busy/funnel/
- *   node demigod-funnel.mjs receipt --id=LEAD --channel=email --to=addr --message-id=MID
+ *   node demigod-funnel.mjs send-package              # approved + contact → outbound package (no send)
+ *   node demigod-funnel.mjs approve-drafted --note="reviewed batch" [--dry-run]
+ *   node demigod-funnel.mjs receipt --id=LEAD --channel=email --to=addr --message-id=MID [--next-update=YYYY-MM-DD]
  *   node demigod-funnel.mjs repair-history --id=LEAD [--apply]
  *   node demigod-funnel.mjs join [--apply]
  *
@@ -68,10 +68,12 @@ import {
 import {
   assertCurrentMutualPairEligibility,
   assertCurrentPairEligibility,
+  loadPairs,
 } from './demigod-pairs-lib.mjs';
 import { selectRecruitaiPartners } from './demigod-lead-sourcer.mjs';
 import { feeCents, invoiceStub } from './demigod-revenue.mjs';
 import { draftHygiene, operatingDateKey } from './demigod-demand.mjs';
+import { listAcceptedRoles } from './demigod-accepted-role.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.DEMIGOD_ROOT || __dirname;
@@ -176,12 +178,13 @@ const ALLOWED = {
   stale_form: ['form_filled', 'cold'],
   one_side_no: ['cold', 'disqualified'],
 };
+const REASONED_EXIT = new Set(['rejected', 'one_side_no', 'fell_through']);
 
 /** Evidence required to enter `to` (relative paths or absolute; must exist + non-empty). */
 const EVIDENCE_FOR = {
   enriched: { kind: 'note', hint: 'scrape path or enrichment note' },
   drafted: { kind: 'file', hint: 'draft file under demigod-outreach/funnel-drafts/' },
-  approved: { kind: 'note', hint: 'actor note (human approve)' },
+  approved: { kind: 'note', hint: 'review note' },
   sent: { kind: 'receipt', hint: 'receipt file with Message-ID or SENT-CONFIRMED + channel evidence' },
   nudged: { kind: 'receipt', hint: 'nudge/followup send receipt (SENT-CONFIRMED or Message-ID)' },
   replied: { kind: 'file', hint: 'inbound reply capture path' },
@@ -351,7 +354,7 @@ function resolveEvidence(p) {
  * Pure transition check — no IO side effects except optional evidence read.
  * @returns {{ ok: boolean, error?: string }}
  */
-export function canTransition(from, to, { evidencePath = null, evidenceText = null, actor = 'agent' } = {}) {
+export function canTransition(from, to, { evidencePath = null, evidenceText = null } = {}) {
   if (!STATES.includes(to)) return { ok: false, error: `unknown state: ${to}` };
   if (from === to) return { ok: false, error: 'already in state' };
   if (TERMINAL.has(from)) {
@@ -367,14 +370,9 @@ export function canTransition(from, to, { evidencePath = null, evidenceText = nu
       return { ok: false, error: `no edges from ${from}` };
     }
   }
-  // Trust Ladder L1: approved is human-only (loop-stopper; actor is self-reported)
-  if (to === 'approved' && actor !== 'human') {
-    return {
-      ok: false,
-      error: 'approved requires --actor=human (Trust Ladder L1); agents stop at drafted',
-    };
+  if (REASONED_EXIT.has(to) && !/^(?:candidate|company|mutual|role):\s+\S/i.test(String(evidenceText || '').trim())) {
+    return { ok: false, error: `${to} requires --note="candidate|company|mutual|role: reason"` };
   }
-
   const need = EVIDENCE_FOR[to];
   if (!need) return { ok: true };
 
@@ -1392,7 +1390,7 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
       send_ready: sendReady,
       send_ready_email: sendReadyEmail,
       send_ready_handle: sendReadyHandle,
-      send_ready_human_only: sendReadyHandle,
+      send_ready_handle_only: sendReadyHandle,
       send_ready_email_ids: sendEmailIds,
       send_ready_email_tos: sendEmailTos,
       package_approve_ready: packageHonesty.packageApproveReady,
@@ -1475,16 +1473,16 @@ export function statusReport(doc, { focusPaused = false, activeEventId } = {}) {
         ? `Package evidence stale or drifted — node demigod-lead-pipeline.mjs tick --stage=packages`
         : null,
       !focusPaused && approveReadyEmail
-        ? `Prefer email approve first (${approveReadyEmail}): node demigod-funnel.mjs approve-drafted --note="reviewed email" --actor=human --id=${approveEmailIds.join(',')} · board /tmp/dg-busy/funnel/approve-email-first-latest.md · l1 /tmp/dg-busy/funnel/l1-snapshot-latest.json`
+        ? `Prefer email approve first (${approveReadyEmail}): node demigod-funnel.mjs approve-drafted --note="reviewed email" --id=${approveEmailIds.join(',')} · board /tmp/dg-busy/funnel/approve-email-first-latest.md · l1 /tmp/dg-busy/funnel/l1-snapshot-latest.json`
         : null,
       !focusPaused && approveReady
         ? `Review approve package (${approveReady} ready · email ${approveReadyEmail} · handle ${approveReadyHandle}) — /tmp/dg-busy/funnel/approve-batch-latest.md`
         : focusPaused ? null : 'No drafted contactable batch ready — enrich holds or collect',
       !focusPaused && sendReadyEmail
-        ? `Prefer email send first (${sendReadyEmail}): human transport + receipt · board /tmp/dg-busy/funnel/send-email-first-latest.md`
+        ? `Prefer email send first (${sendReadyEmail}): authorized transport + receipt · board /tmp/dg-busy/funnel/send-email-first-latest.md`
         : null,
       !focusPaused && sendReady
-        ? `Human send package (${sendReady} ready · email ${sendReadyEmail} · handle ${sendReadyHandle}) — /tmp/dg-busy/funnel/send-batch-latest.md`
+        ? `Outbound package (${sendReady} ready · email ${sendReadyEmail} · handle ${sendReadyHandle}) — /tmp/dg-busy/funnel/send-batch-latest.md`
         : focusPaused ? null : 'No approved send-ready leads',
       !focusPaused && holdsScrapeDueRows.length
         ? `Enrich scrape due (${holdsScrapeDueRows.length} holds not cooling) — node demigod-lead-collect.mjs --enrich --limit=4`
@@ -1870,7 +1868,7 @@ export function draftEmail(lead, side) {
       '',
       'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
       '',
-      `If useful: ${wiz} — asks what a great 90-day outcome looks like.`,
+      `If useful: ${wiz} — asks what this hire should accomplish first.`,
       '',
       'Reply "no thanks" and you will not hear from me again.',
       '',
@@ -1952,13 +1950,12 @@ function policyGate(lead, doc, mode, action) {
 }
 
 /**
- * Classify a batch-approve block reason for human histogram (pure).
+ * Classify a batch-approve block reason for the review histogram (pure).
  * Fail-closed: unknown reasons stay 'other' (never silent collapse).
  */
 export function classifyApproveBlockReason(reason) {
   const r = String(reason || '');
   if (/--note is required/i.test(r)) return 'missing_note';
-  if (/actor=human|Trust Ladder L1/i.test(r)) return 'actor';
   if (/sample_or_test/i.test(r)) return 'sample';
   if (/identity_suppressed/i.test(r)) return 'identity_suppressed';
   if (/junk aggregator/i.test(r)) return 'junk';
@@ -2028,11 +2025,11 @@ export function draftTargetsCurrentContact(body, lead) {
 }
 
 /**
- * Pure batch-approve plan (Trust Ladder L1) — no mutations.
- * Ready only when drafted + human actor + note + email|handle (not URL/LinkedIn-only)
+ * Pure batch-approve plan — no mutations.
+ * Ready only when drafted + review note + email|handle (not URL/LinkedIn-only)
  * + not junk aggregator + not sample/selftest + not identity-suppressed twin
  * + optional draft file on disk. Fail-closed (followup/match-bridge parity).
- * Human console: ready rows carry draftPath, subject/preview, sendLane;
+ * Review console: ready rows carry draftPath, subject/preview, sendLane;
  * blocked rows carry reasonClass + applyUrl when present.
  * @returns {{ ready: object[], blocked: object[], noteOk: boolean, actor: string, blockedSummary: object }}
  */
@@ -2040,7 +2037,7 @@ export function planApproveDrafted(
   doc,
   {
     note,
-    actor = 'human',
+    actor = 'agent',
     mode = 'draft-only',
     ids = null,
     requireContact = true,
@@ -2084,14 +2081,6 @@ export function planApproveDrafted(
     }
     if (!noteOk) {
       pushBlocked({ id: lead.id, side, reason: '--note is required' });
-      continue;
-    }
-    if (actor !== 'human') {
-      pushBlocked({
-        id: lead.id,
-        side,
-        reason: 'approved requires actor=human (Trust Ladder L1); agents stop at drafted',
-      });
       continue;
     }
     // Sample/selftest never enter money path (followup / match-bridge parity)
@@ -2194,7 +2183,7 @@ export function planApproveDrafted(
       pushBlocked({ id: lead.id, side, reason: check.error });
       continue;
     }
-    // Human console fields: draft path + who/what so batch review needs no extra greps
+    // Review fields: draft path + who/what so approval needs no extra greps.
     const draftPath = draftsDir ? path.join(draftsDir, `${lead.id}.txt`) : null;
     const greet =
       side === 'talent' || side === 'engineer' ? talentGreetingName(lead) : null;
@@ -2221,11 +2210,11 @@ export function planApproveDrafted(
       draftPath,
       subject,
       preview,
-      // email = commercial path after approve; handle = X/LI human-send only (never auto)
-      sendLane: emailOk ? 'email' : 'x-or-li-human',
+      // email = commercial path after approve; handles remain explicit outbound actions.
+      sendLane: emailOk ? 'email' : 'x-or-li',
     });
   }
-  // Human batch: email lane first (commercial path) before X/LI handle-only
+  // Email lane first (commercial path) before X/LI handle-only.
   ready.sort((a, b) => {
     if (a.channel === 'email' && b.channel !== 'email') return -1;
     if (b.channel === 'email' && a.channel !== 'email') return 1;
@@ -2253,7 +2242,7 @@ export function buildL1Snapshot(rep, { pkgDir = null, busyDir = null } = {}) {
     at: rep?.at || new Date().toISOString(),
     autoSend: false,
     autoDm: false,
-    trustLadder: 'L1-human-approve-send-only',
+    trustLadder: 'local-review-external-send',
     byState: rep?.byState || {},
     total: rep?.total ?? null,
     approve_ready: m.approve_ready ?? 0,
@@ -2299,7 +2288,7 @@ export function buildL1Snapshot(rep, { pkgDir = null, busyDir = null } = {}) {
     human: {
       approve:
         emailIds.length > 0
-          ? `node demigod-funnel.mjs approve-drafted --note="reviewed email" --actor=human --id=${emailIds.join(',')}`
+          ? `node demigod-funnel.mjs approve-drafted --note="reviewed email" --id=${emailIds.join(',')}`
           : null,
       receipt: 'node demigod-funnel.mjs receipt --id=<leadId> --message-id=<real-message-id>',
       eventsHeal: 'node demigod-events-online.mjs status  # exit 2 → heal',
@@ -2308,19 +2297,18 @@ export function buildL1Snapshot(rep, { pkgDir = null, busyDir = null } = {}) {
 }
 
 /**
- * Pure: one-screen L1 email-first approve board (commercial path only).
- * Human-only Trust Ladder — never auto-approves or sends.
+ * Pure: one-screen email-first review board (commercial path only).
  */
 export function formatEmailFirstApprovePackage(plan, { at = new Date().toISOString() } = {}) {
   const ready = (plan?.ready || []).filter((r) => r.channel === 'email');
   const lines = [
-    '# Email-first approve (Trust Ladder L1 — human only)',
+    '# Email-first approve',
     '',
     `at: ${at}`,
     `email_ready: ${ready.length}`,
     '',
     'Commercial path: approve these **email** drafts first (handle/X/LI is secondary).',
-    'Agents never approve or send. Requires `--actor=human` + non-empty `--note`.',
+    'Approval records a non-empty review note. Sending remains a separate external action.',
     '',
   ];
   if (!ready.length) {
@@ -2337,9 +2325,9 @@ export function formatEmailFirstApprovePackage(plan, { at = new Date().toISOStri
     }
     lines.push(
       '',
-      '## Human command',
+      '## Approve',
       '```',
-      `node demigod-funnel.mjs approve-drafted --note="reviewed email" --actor=human --id=${ready.map((r) => r.id).join(',')}`,
+      `node demigod-funnel.mjs approve-drafted --note="reviewed email" --id=${ready.map((r) => r.id).join(',')}`,
       '```',
       '',
     );
@@ -2348,18 +2336,18 @@ export function formatEmailFirstApprovePackage(plan, { at = new Date().toISOStri
 }
 
 /**
- * Pure: one-screen L1 email-first **send** board (after human approve).
- * Never auto-sends — human transport + receipt only.
+ * Pure: one-screen L1 email-first **send** board (after approval).
+ * Never auto-sends — external transport and receipt are separate actions.
  */
 export function formatEmailFirstSendPackage(plan, { at = new Date().toISOString() } = {}) {
   const ready = (plan?.ready || []).filter((r) => r.channel === 'email');
   const lines = [
-    '# Email-first send (Trust Ladder L1 — human only)',
+    '# Email-first outbound package (Trust Ladder L1)',
     '',
     `at: ${at}`,
     `email_send_ready: ${ready.length}`,
     '',
-    'Commercial path: human sends these **email** approved drafts (no agent send).',
+    'Commercial path: an authorized sender sends these **email** approved drafts.',
     'After real send: log receipt with message-id (never invent receipts).',
     '',
   ];
@@ -2373,7 +2361,7 @@ export function formatEmailFirstSendPackage(plan, { at = new Date().toISOString(
       '',
     );
   } else {
-    lines.push('## Ready (email — human send)');
+    lines.push('## Ready (email — authorized send)');
     for (const r of ready) {
       lines.push(
         `- **${r.id}** (${r.side || '?'}) · ${r.displayWho || r.name || r.company || '—'} → \`${r.to}\``,
@@ -2383,7 +2371,7 @@ export function formatEmailFirstSendPackage(plan, { at = new Date().toISOString(
     }
     lines.push(
       '',
-      '## After human send',
+      '## After real send',
       '```',
       'node demigod-funnel.mjs receipt --id=<leadId> --message-id=<real-message-id>',
       '```',
@@ -2457,7 +2445,7 @@ export function packageBoardHonesty({
 }
 
 /**
- * Pure markdown package for human batch-approve console (Trust Ladder L1).
+ * Pure markdown batch-review package.
  * Never sends. Empty ready → explicit "none ready" (vacuous-green guard).
  * Includes blocked-reason histogram + draft subject/preview when present.
  */
@@ -2472,7 +2460,7 @@ export function formatApproveBatchPackage(
       ? plan.blockedSummary
       : summarizeBlockedReasons(blocked);
   const lines = [
-    '# Funnel batch-approve package (human only — Trust Ladder L1)',
+    '# Funnel batch-approve package',
     '',
     `at: ${at}`,
     `note: ${String(note || '').trim() || '(none)'}`,
@@ -2480,7 +2468,7 @@ export function formatApproveBatchPackage(
     `blocked: ${blocked.length}`,
     draftsDir ? `draftsDir: ${draftsDir}` : null,
     '',
-    '## Ready (human may approve → then human sends)',
+    '## Ready (approve locally → external send stays separate)',
     '',
   ].filter((x) => x != null);
   if (!ready.length) {
@@ -2504,12 +2492,12 @@ export function formatApproveBatchPackage(
       lines.push('');
     }
     if (handles.length) {
-      lines.push('### Handle (X/LI human-send only — never auto)');
+      lines.push('### Handle (X/LI — never auto)');
       lines.push('');
       for (const r of handles) {
         const who = r.displayWho || r.company || r.name || r.title || r.id;
         lines.push(
-          `- **${r.id}** (${r.side}) · ${who} · handle → \`${r.to}\` · lane=${r.sendLane || 'x-or-li-human'}`,
+          `- **${r.id}** (${r.side}) · ${who} · handle → \`${r.to}\` · lane=${r.sendLane || 'x-or-li'}`,
         );
         if (r.subject) lines.push(`  - subject: ${r.subject}`);
         if (r.preview) lines.push(`  - preview: ${r.preview}`);
@@ -2558,26 +2546,26 @@ export function formatApproveBatchPackage(
   lines.push('```');
   lines.push('# review only');
   lines.push('node demigod-funnel.mjs approve-drafted --dry-run --package');
-  lines.push('# apply after human review (never auto)');
+  lines.push('# apply reviewed drafts');
   if (ready.length) {
     const emailIds = ready.filter((r) => r.channel === 'email').map((r) => r.id);
     const handleIds = ready.filter((r) => r.channel !== 'email').map((r) => r.id);
     if (emailIds.length) {
       lines.push(`# email first (commercial)`);
       lines.push(
-        `node demigod-funnel.mjs approve-drafted --note="reviewed email batch" --actor=human --id=${emailIds.join(',')}`,
+        `node demigod-funnel.mjs approve-drafted --note="reviewed email batch" --id=${emailIds.join(',')}`,
       );
     }
     if (handleIds.length) {
       lines.push(`# handle X/LI (optional)`);
       lines.push(
-        `node demigod-funnel.mjs approve-drafted --note="reviewed handle batch" --actor=human --id=${handleIds.join(',')}`,
+        `node demigod-funnel.mjs approve-drafted --note="reviewed handle batch" --id=${handleIds.join(',')}`,
       );
     }
   } else {
-    lines.push('node demigod-funnel.mjs approve-drafted --note="reviewed batch" --actor=human');
+    lines.push('node demigod-funnel.mjs approve-drafted --note="reviewed batch"');
   }
-  lines.push('# after human send:');
+  lines.push('# after real send:');
   lines.push('node demigod-funnel.mjs receipt --id=LEAD --channel=email --to=ADDR --message-id=MID');
   lines.push('```');
   lines.push('');
@@ -2585,7 +2573,7 @@ export function formatApproveBatchPackage(
 }
 
 /**
- * Pure plan: approved leads ready for human send (Trust Ladder — never auto-sends).
+ * Pure plan: approved leads ready for an explicitly authorized send; never auto-sends.
  * Requires usable email|handle; includes draft path + receipt command template.
  */
 export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
@@ -2680,7 +2668,7 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
       draftPath,
       subject,
       preview,
-      sendLane: emailOk ? 'email' : 'x-or-li-human',
+      sendLane: emailOk ? 'email' : 'x-or-li',
       receiptCmd: emailOk
         ? `node demigod-funnel.mjs receipt --id=${lead.id} --channel=email --to=${to} --message-id=MID`
         : `node demigod-funnel.mjs receipt --id=${lead.id} --channel=x --to=${to} --message-id=MID`,
@@ -2699,7 +2687,7 @@ export function planSendReady(doc, { draftsDir = null, ids = null } = {}) {
   };
 }
 
-/** Markdown board for human-only send after approve (never auto-sends). */
+/** Markdown package for an authorized send after approval; never auto-sends. */
 export function formatSendBatchPackage(
   plan,
   { note = '', at = new Date().toISOString(), draftsDir = null } = {},
@@ -2711,7 +2699,7 @@ export function formatSendBatchPackage(
       ? plan.blockedSummary
       : summarizeBlockedReasons(blocked);
   const lines = [
-    '# Funnel human-send package (Trust Ladder — NEVER auto-send)',
+    '# Funnel outbound package (Trust Ladder — NEVER auto-send)',
     '',
     `at: ${at}`,
     `note: ${String(note || '').trim() || '(none)'}`,
@@ -2719,7 +2707,7 @@ export function formatSendBatchPackage(
     `blocked: ${blocked.length}`,
     draftsDir ? `draftsDir: ${draftsDir}` : null,
     '',
-    '## Ready (human sends → then receipt)',
+    '## Ready (authorized send → then receipt)',
     '',
   ].filter((x) => x != null);
   if (!ready.length) {
@@ -2745,7 +2733,7 @@ export function formatSendBatchPackage(
       lines.push('');
     }
     if (handles.length) {
-      lines.push('### Handle (X/LI human-send only — never auto)');
+      lines.push('### Handle (X/LI — never auto)');
       lines.push('');
       for (const r of handles) emit(r);
       lines.push('');
@@ -2759,7 +2747,7 @@ export function formatSendBatchPackage(
   lines.push('');
   lines.push('## Rules');
   lines.push('');
-  lines.push('- Human sends only (email or X/LI). Agents never auto-send.');
+  lines.push('- External send requires current authority; this command only packages content.');
   lines.push('- Prefer email commercial path before handle X/LI.');
   lines.push('- Log receipt with real Message-ID before state becomes `sent`.');
   lines.push('- No invent emails / fake receipts.');
@@ -2770,7 +2758,7 @@ export function formatSendBatchPackage(
 /** Approve every eligible drafted lead with one required review note. */
 export function approveDrafted(
   doc,
-  { note, actor = 'human', mode = 'draft-only', ids = null, requireContact = true, draftsDir = null } = {},
+  { note, actor = 'agent', mode = 'draft-only', ids = null, requireContact = true, draftsDir = null } = {},
 ) {
   if (!String(note || '').trim()) {
     return { approved: [], errors: [{ error: '--note is required' }], plan: { ready: [], blocked: [], noteOk: false, actor } };
@@ -2797,7 +2785,7 @@ export function approveDrafted(
 
 export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}) {
   const note = arg(args, '--note');
-  const actor = arg(args, '--actor') || 'human';
+  const actor = arg(args, '--actor') || 'agent';
   const mode = arg(args, '--mode') || 'draft-only';
   const dryRun = args.includes('--dry-run') || args.includes('--plan');
   const wantPackage = dryRun || args.includes('--package');
@@ -2810,9 +2798,9 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
     : null;
   if (!dryRun && !String(note || '').trim()) {
     console.error(
-      'usage: approve-drafted --note=text [--actor=human] [--id=a,b] [--dry-run] [--package]\n' +
-        '  Human-only Trust Ladder L1. Requires email|handle (url-only blocked). Never sends.\n' +
-        '  --dry-run / --package writes human review md under /tmp/dg-busy/funnel/.',
+      'usage: approve-drafted --note=text [--actor=name] [--id=a,b] [--dry-run] [--package]\n' +
+        '  Requires email|handle (url-only blocked). Never sends.\n' +
+        '  --dry-run / --package writes review md under /tmp/dg-busy/funnel/.',
     );
     process.exit(2);
   }
@@ -2824,7 +2812,7 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
     : [];
   const opts = {
     note: note || 'dry-run preview',
-    actor: dryRun ? 'human' : actor,
+    actor,
     mode,
     ids,
     requireContact: true,
@@ -2860,7 +2848,7 @@ export function cmdApproveDrafted(args, { emit = true, busyDir = PKG_BUSY } = {}
           blocked: plan.blocked,
           packagePath,
           greetingRefreshed,
-          note: 'report only — pass --note=… without --dry-run to apply (actor=human)',
+          note: 'report only — pass --note=… without --dry-run to apply',
         };
     if (emit) console.log(JSON.stringify(result, null, 2));
     return result;
@@ -2934,7 +2922,7 @@ export function cmdSendPackage(args, { emit = true, busyDir = PKG_BUSY } = {}) {
         packagePath,
         greetingRefreshed,
         autoSend: false,
-        note: 'human send board only — never auto-sends',
+        note: 'outbound package only — never auto-sends',
       };
   if (emit) console.log(JSON.stringify(result, null, 2));
   return result;
@@ -2962,6 +2950,13 @@ function cmdTransition(args) {
       error: to === 'form_filled'
         ? 'use join --apply so submitted identity/contact evidence is bound'
         : 'use match --apply so engine output is subject-bound',
+    }));
+    process.exit(1);
+  }
+  if (to === 'intro_made') {
+    console.error(JSON.stringify({
+      ok: false,
+      error: 'use receipt --pair=PAIR so current mutual consent and transport evidence are bound',
     }));
     process.exit(1);
   }
@@ -3624,7 +3619,7 @@ function cmdHygiene() {
 }
 
 /**
- * Human-send receipt edges only. Fail-closed map — never invent sends.
+ * Receipt-backed send edges only. Fail closed; never invent sends.
  * approved → sent (outreach) · sent → nudged (followup #1) · mutual_yes → intro_made.
  * Second nudge (already nudged) is record-only via planReceipt (state stays nudged).
  */
@@ -3758,10 +3753,12 @@ function cmdReceipt(args) {
   const note = arg(args, '--note') || '';
   const actor = arg(args, '--actor') || 'human';
   const toStateArg = arg(args, '--to-state') || arg(args, '--toState');
+  const requestedPairId = arg(args, '--pair');
+  const nextUpdateAt = arg(args, '--next-update') || arg(args, '--nextUpdate');
   if (!id) {
     console.error(
-      'usage: receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID\n' +
-        '  approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made (never sends)',
+      'usage: receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID [--pair=PAIR] [--next-update=YYYY-MM-DD]\n' +
+        '  approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made requires --pair and --next-update (never sends)',
     );
     process.exit(2);
   }
@@ -3790,6 +3787,59 @@ function cmdReceipt(args) {
       }),
     );
     process.exit(1);
+  }
+  if (requestedPairId && plan.to !== 'intro_made') {
+    console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'pair is only valid for an intro receipt' }));
+    process.exit(1);
+  }
+  if (nextUpdateAt && plan.to !== 'intro_made') {
+    console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'next_update_is_only_valid_for_intro' }));
+    process.exit(1);
+  }
+  let introBinding = null;
+  if (plan.to === 'intro_made') {
+    const parsed = new Date(`${nextUpdateAt || ''}T00:00:00Z`);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextUpdateAt || '') || Number.isNaN(+parsed) ||
+        parsed.toISOString().slice(0, 10) !== nextUpdateAt || nextUpdateAt < today) {
+      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'intro_next_update_required', hint: '--next-update YYYY-MM-DD today or later' }));
+      process.exit(1);
+    }
+    if (!requestedPairId) {
+      console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'intro_receipt_requires_pair' }));
+      process.exit(1);
+    }
+    if (!placementPairId(row.lead, requestedPairId)) {
+      console.error(JSON.stringify({
+        ok: false,
+        id,
+        from,
+        to: plan.to,
+        pairId: requestedPairId,
+        error: 'pair_not_bound_to_lead',
+      }));
+      process.exit(1);
+    }
+    const readiness = planIntroLeadReady(doc, loadPairs().pairs, {
+      preferredPairId: requestedPairId,
+    });
+    introBinding = readiness.ready.find(
+      (item) => item.leadId === id && item.pairId === requestedPairId,
+    ) || null;
+    if (!introBinding) {
+      const skipped = readiness.skipped.find(
+        (item) => item.leadId === id && (!item.pairId || item.pairId === requestedPairId),
+      );
+      console.error(JSON.stringify({
+        ok: false,
+        id,
+        from,
+        to: plan.to,
+        pairId: requestedPairId,
+        error: skipped?.reason || 'intro_pair_not_ready',
+      }));
+      process.exit(1);
+    }
   }
   if ((plan.to === 'sent' || plan.to === 'nudged' || plan.recordOnly) && !receiptDestinationMatches(row.lead, channel, toAddr)) {
     console.error(JSON.stringify({ ok: false, id, from, to: plan.to, error: 'receipt destination missing or does not match lead' }));
@@ -3835,6 +3885,10 @@ function cmdReceipt(args) {
     messageId ? `Message-ID: ${messageId}` : null,
     `at: ${at}`,
     `actor: ${actor}`,
+    introBinding ? `pairId: ${introBinding.pairId}` : null,
+    introBinding ? `roleId: ${introBinding.roleId}` : null,
+    introBinding ? `candId: ${introBinding.candId}` : null,
+    introBinding ? `nextUpdateAt: ${nextUpdateAt}` : null,
     note ? `note: ${note}` : null,
     '',
   ].filter((x) => x != null);
@@ -3862,6 +3916,7 @@ function cmdReceipt(args) {
         lead.state = plan.to;
         lead.status = plan.to;
         if (plan.to === 'nudged') lead.nudgeCount = Math.max(1, nudgeCount(lead));
+        if (introBinding) lead.pairId = introBinding.pairId;
       }
       lead.stateHistory.push({
         at,
@@ -3871,6 +3926,12 @@ function cmdReceipt(args) {
         actor,
         evidence: out,
         note: note || (plan.recordOnly ? 'nudge_record' : null),
+        ...(introBinding ? {
+          pairId: introBinding.pairId,
+          roleId: introBinding.roleId,
+          candId: introBinding.candId,
+          nextUpdateAt,
+        } : {}),
       });
       saveDoc(doc);
       appendLog({
@@ -3881,6 +3942,12 @@ function cmdReceipt(args) {
         ...(plan.recordOnly ? { kind: 'nudge_record' } : {}),
         actor,
         evidence: out,
+        ...(introBinding ? {
+          pairId: introBinding.pairId,
+          roleId: introBinding.roleId,
+          candId: introBinding.candId,
+          nextUpdateAt,
+        } : {}),
       });
     },
   });
@@ -3917,6 +3984,12 @@ function cmdReceipt(args) {
         receipt: out,
         channel,
         toAddr: toAddr || null,
+        ...(introBinding ? {
+          pairId: introBinding.pairId,
+          roleId: introBinding.roleId,
+          candId: introBinding.candId,
+          nextUpdateAt,
+        } : {}),
       },
       null,
       2,
@@ -3936,6 +4009,9 @@ export function receiptArgsValid(args) {
     ['--actor', '--actor'],
     ['--to-state', '--to-state'],
     ['--toState', '--to-state'],
+    ['--pair', '--pair'],
+    ['--next-update', '--next-update'],
+    ['--nextUpdate', '--next-update'],
   ]);
   const seen = new Set();
   for (let i = 0; i < args.length; i++) {
@@ -4539,7 +4615,7 @@ function cmdFollowup(args) {
         skipped: plan.skipped.slice(0, 20),
         days,
         maxNudges: MAX_NUDGES,
-        note: 'drafts only — human sends; receipt → nudged',
+        note: 'drafts only — real send receipt advances to nudged',
       },
       null,
       2,
@@ -4960,18 +5036,19 @@ export function planIntroQueue(
 export function planIntroLeadReady(
   doc,
   pairsMap,
-  { includeSample = false, pairContext = null } = {},
+  { includeSample = false, pairContext = null, preferredPairId = null } = {},
 ) {
   const ready = [];
   const skipped = [];
   const eligibilityContext = currentPairContext(pairContext);
   const map = pairsMap && typeof pairsMap === 'object' ? pairsMap : {};
   const root = doc || {};
+  const preferred = String(preferredPairId || '').trim();
   // Index co-leads per pairId (money path must not open when the other side is terminal)
   const leadsByPair = new Map();
   for (const { lead } of allLeads(root)) {
     if (!lead?.id) continue;
-    for (const pid of lead.pairIds || []) {
+    for (const pid of new Set([lead.pairId, ...(lead.pairIds || [])].filter(Boolean).map(String))) {
       const k = String(pid);
       if (!leadsByPair.has(k)) leadsByPair.set(k, []);
       leadsByPair.get(k).push(lead);
@@ -4994,7 +5071,8 @@ export function planIntroLeadReady(
       skipped.push({ leadId: lead.id, side, reason: 'identity_suppressed' });
       continue;
     }
-    const ids = lead.pairIds || [];
+    const ids = [...new Set([lead.pairId, ...(lead.pairIds || [])].filter(Boolean).map(String))];
+    if (preferred && ids.includes(preferred)) ids.unshift(...ids.splice(ids.indexOf(preferred), 1));
     if (!ids.length) {
       skipped.push({ leadId: lead.id, side, reason: 'no_pairIds' });
       continue;
@@ -5735,6 +5813,14 @@ function cmdPilot(args) {
   const apply = args.includes('--apply');
   const doc = loadLeads();
   normalizeDoc(doc);
+  let acceptedRoles = new Map();
+  try {
+    acceptedRoles = new Map(
+      listAcceptedRoles(loadBoard(), loadInbox()).acceptedRoles.map((role) => [String(role.roleId), role]),
+    );
+  } catch {
+    // Fail closed per lead below; an unreadable accepted-role source cannot mint Pilot OS truth.
+  }
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const pilotOs = path.join(scriptDir, 'demigod-pilot-os.mjs');
   const all = allLeads(doc);
@@ -5755,27 +5841,46 @@ function cmdPilot(args) {
       });
       continue;
     }
-    eligible++;
-    const company = String(lead.company || '').trim();
-    const role = String(lead.title || lead.role || '').trim();
     const source = `funnel:${lead.id}`;
-    if (!company || !role) {
+    const introHistory = [...(lead.stateHistory || [])].reverse().find(
+      (entry) => entry?.to === 'intro_made' && entry?.pairId && entry?.evidence,
+    );
+    const introReceipt = String(introHistory?.evidence || '');
+    if (!introReceipt || !fs.existsSync(introReceipt)) {
       items.push({
         leadId: lead.id,
         side,
         state: st,
         action: 'error',
-        reason: 'missing_company_or_role',
+        reason: 'missing_intro_receipt',
       });
       continue;
     }
+    const acceptedRole = acceptedRoles.get(String(introHistory.roleId || ''));
+    const company = String(acceptedRole?.company || '').trim();
+    const role = String(acceptedRole?.title || '').trim();
+    const outcome = String(acceptedRole?.outcome90d || '').trim();
+    const handle = String(lead.handle || lead.twitter || lead.x || '').replace(/^@/, '').trim();
+    const contact = firstUsableOutreachEmail(lead.email, lead.contactEmail) ||
+      (isUsableOutreachHandle(handle) ? `@${handle}` : '');
+    if (!company || !role || !outcome || !contact) {
+      items.push({
+        leadId: lead.id,
+        side,
+        state: st,
+        action: 'error',
+        reason: 'missing_accepted_role_or_contact',
+      });
+      continue;
+    }
+    eligible++;
     if (!apply) {
-      items.push({ leadId: lead.id, side, state: st, action: 'would_bridge', company, role, source });
+      items.push({ leadId: lead.id, side, state: st, action: 'would_bridge', company, role, source, pairId: introHistory.pairId });
       continue;
     }
     const r = spawnSync(
       process.execPath,
-      [pilotOs, 'add', '--company', company, '--role', role, '--source', source],
+      [pilotOs, 'add', '--company', company, '--role', role, '--source', source, '--contact', contact, '--outcome', outcome, '--intro-receipt', introReceipt],
       {
         encoding: 'utf8',
         timeout: 30000,
@@ -5801,6 +5906,7 @@ function cmdPilot(args) {
         action: 'bridged',
         pilotId: lead.pilotId,
         source,
+        pairId: introHistory.pairId,
       });
     } else {
       items.push({
@@ -5825,7 +5931,7 @@ function cmdPilot(args) {
         wouldBridge: apply ? 0 : eligible,
         items,
         note: apply
-          ? 'pilot-os add via funnel:<id>; hired stays human'
+          ? 'receipt-backed intro_made → pilot status intro; hired stays human'
           : 'report-only; pass --apply to bridge',
       },
       null,
@@ -5851,7 +5957,7 @@ function cmdInvoice(args) {
     console.error(
       JSON.stringify({
         ok: false,
-        error: 'paid is human-only (bank/Stripe evidence); invoice never advances to paid',
+        error: 'paid requires bank/Stripe evidence; invoice never advances to paid',
       }),
     );
     process.exit(1);
@@ -6161,8 +6267,8 @@ Commands:
   status
   normalize
   transition --id=LEAD --to=STATE [--evidence=path] [--note=text] [--actor=name] [--mode=draft-only] [--pair=PAIR]
-  approve-drafted --note=text [--actor=human] [--id=a,b] [--dry-run] [--package]
-                  # Trust Ladder L1 human-only; email|handle required (not url-only)
+  approve-drafted --note=text [--actor=name] [--id=a,b] [--dry-run] [--package]
+                  # local review; email|handle required (not url-only); never sends
   match [--apply] [--force]
   pair-sync [--apply]
   onboard [--apply]
@@ -6172,7 +6278,7 @@ Commands:
                   # drafted/approved/sourced unreachable → policy_hold
   park-no-usable-contact  # drafted/approved url-only (no email|handle) → policy_hold
   release-contactable-holds  # policy_hold + usable contact → drafted
-  send-package [--note=…]    # approved + contact → human send board (no send)
+  send-package [--note=…]    # approved + contact → outbound package (no send)
   disqualify-junk [--actor=agent] [--note=junk-aggregator-or-fragment]
                   # web-*/AGG SERP noise → disqualified (keeps waas- jobs); prunes no-contact terminal drafts
   prune-terminal-drafts  # archive drafts for DQ/opt-out/quarantine without email|handle
@@ -6180,8 +6286,8 @@ Commands:
   import-events [--dry-run] # merge consented Events Bot leads into DEMIGOD-LEADS
   import-sourcer --id=yc:slug [--apply] # validated RecruitAI partner; dry-run by default
   hygiene                  # scan funnel-drafts/ for copy-policy flags
-  receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID
-                  # approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made
+  receipt --id=LEAD [--to-state=sent|nudged|intro_made] --channel=email --to=addr --message-id=MID [--pair=PAIR] [--next-update=YYYY-MM-DD]
+                  # approved→sent · sent→nudged · nudged→nudge-record · mutual_yes→intro_made requires --pair + --next-update
   repair-history --id=LEAD [--apply]  # quarantine broken history entries with receipt
   collision-plan [--apply]  # review-only plan; --apply merges same-URL partners (evidence kept)
   join [--apply]
@@ -6199,7 +6305,7 @@ Rules:
   • receipt from approved|sent|nudged|mutual_yes (pure planReceipt; never invents send)
   • outreach policy fail-closed (opt-outs suppress re-drafts)
   • no auto-send, no board writes
-  • invoice needs explicit --cash; paid is human/bank only
+  • invoice needs explicit --cash; paid requires bank/Stripe evidence
   • states: ${STATES.filter((s) => !TERMINAL.has(s)).slice(0, 12).join(' → ')} → …
 `);
 }
@@ -6271,7 +6377,7 @@ if (isMain) {
           cmd === 'unpark-contact'
         )
           cmdReleaseContactableHolds(rest);
-        else if (cmd === 'send-package' || cmd === 'send-board' || cmd === 'human-send-package')
+        else if (cmd === 'send-package' || cmd === 'send-board')
           cmdSendPackage(rest);
         else if (cmd === 'disqualify-junk' || cmd === 'dq-junk') cmdDisqualifyJunk(rest);
         else if (cmd === 'prune-terminal-drafts' || cmd === 'prune-drafts') cmdPruneTerminalDrafts();

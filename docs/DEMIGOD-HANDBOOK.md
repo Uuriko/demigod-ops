@@ -20,7 +20,7 @@ It is **not** a marketing site, a legal contract, or a novel.
 ## 1. What Demigod is
 
 ### In one paragraph
-Demigod helps **SF startups** hire and **engineers** find fit without application spam. Startups submit a brief (role + 90-day outcome). Talent uploads once. Software ranks signal; **a human reviews**. Contact details move only after **both sides say yes**. Fee: **10% of first-year cash on hire**. Talent is free.
+Demigod helps **SF startups** hire and **candidates** find fit without application spam. Startups submit a brief with the role, real constraints, and one concrete first result. Candidates share preferences privately. Software compares fit; **a human decides what to propose**. Candidate contact details move only after **both sides say yes**. Fee: **10% of first-year base salary when a hire starts**. Candidates never pay.
 
 ### Who we serve
 | Side | What they get | What they don’t get |
@@ -63,7 +63,7 @@ These apply to agents **and** people.
    “Works on my machine” / “file on disk” / “tool returned 200” is not shipped. **Live** (or the real ops record) is what counts.
 
 4. **Write it down so anyone can run the show**  
-   Process lives in this handbook + short entry cards (`AGENT-SIMPLE.md`). Tribal knowledge is a bug.
+   `AGENTS.md` holds authority; current receipts hold state. Tribal knowledge is a bug.
 
 5. **Smallest complete work**  
    Prefer reuse and delete over new systems. See Ponytail for code (`docs/PONYTAIL-AGENTS.md`). Same spirit for ops: one checklist, not three dashboards that lie.
@@ -81,7 +81,7 @@ These apply to agents **and** people.
    Burned once → row in § Cost of mistakes *same day*. Don’t repay the same incident.
 
 10. **Respect the human authority, don’t assign homework**  
-    Money, real outreach judgment, and account logins that only a person can do stay with people. **Agents** report results and blocks — they do not dump “your turn” checklists on the founder unless asked for advice.
+    Agents own in-scope work and verified publishing. Pause only at the narrow external boundaries in `AGENTS.md`.
 
 ---
 
@@ -93,7 +93,7 @@ These apply to agents **and** people.
 | **Authority** | Money, contracts, real DMs when judgment is personal, account ownership |
 | **GTM** | Warm founder outreach, pilot conversations, proof assets from real work |
 | **Product judgment** | What we promise publicly; when services leave “pending” |
-| **Optional tooling** | Webflow Publish if not automated; Designer canvas cleanup |
+| **Optional tooling** | Designer canvas cleanup |
 
 ### Agents (AI crew)
 | Role | Job | Does not |
@@ -120,8 +120,8 @@ You don’t need every path memorized — you need to know **what is canonical**
 | How JS is delivered | CDN + `demigod-footer-lite.html` | Delivery, not a second SoR |
 | Head / SEO / favicon | `demigod-head-minimal.html` | Webflow head budget is real (~50k) |
 | Roles board data | `DEMIGOD-BOARD.json` | ≤3 seeds until real roles exist |
-| Living status | `AGENT-STATE.md` | Keep short and true |
-| Agent entry card | `AGENT-SIMPLE.md` | Start here every session |
+| Current status | `bin/dg orient` + `bin/dg truth` | Fresh receipts, not copied prose |
+| Agent authority | `AGENTS.md` | One short policy |
 | This playbook | `docs/DEMIGOD-HANDBOOK.md` | Standards + process |
 | Code taste | `docs/PONYTAIL-AGENTS.md` | Lazy-senior / YAGNI ladder |
 | Control plane | `bin/dg home` · http://127.0.0.1:9878 | Modules + next actions |
@@ -235,11 +235,11 @@ After form/site changes: exercise hire + talent paths (playtest / usertest tools
 ## 9. Day one
 
 ### New agent session (~15 min)
-1. Read `AGENT-SIMPLE.md` → skim `AGENT-STATE.md` → this handbook.  
+1. Read `AGENTS.md`; use this handbook only when the task needs detail.
 2. Run orient: `bin/dg orient` (or `bin/dg home`) + `bin/dg truth`.  
 3. Rerun any red item yourself before “fixing” it.  
 4. If editing site JS: check foot lock; one writer only.  
-5. Prefer one small end-to-end change through verify (and ship if authorized) before a large one.  
+5. Prefer one small end-to-end change through verify and ship before a large one.
 
 **Agent standing rules:** Ponytail · no human homework dumps · when told to choose, execute one path · Eat the Sounds game archived unless reopened · keep browser tabs lean.
 
@@ -247,7 +247,7 @@ After form/site changes: exercise hire + talent paths (playtest / usertest tools
 1. Read §1–3 and §6 of this handbook (product + principles + honesty).  
 2. Use the live site as a founder and as talent — note friction.  
 3. Learn the vocabulary (mutual yes, pending, seed).  
-4. Ask where **authority** sits (money, outreach, publish) before changing public promises.  
+4. Use `AGENTS.md` for authority; do not invent public promises.
 5. For technical work, pair with the agent entry path above or an engineer who knows the ship pipeline.  
 6. Don’t invent dashboard numbers; ask what the system of record is.
 
@@ -281,9 +281,9 @@ Add a row the same day something expensive happens.
 
 | Need | Open |
 |------|------|
-| Short agent card | `AGENT-SIMPLE.md` |
-| Living status | `AGENT-STATE.md` |
-| Full agent rules | `AGENTS.md` · `DEMIGOD-AGENTS.md` |
+| Authority | `AGENTS.md` |
+| Current status | `bin/dg orient` · `bin/dg truth` |
+| Detailed reference | `docs/DEMIGOD-HANDBOOK.md` |
 | Code style | `docs/PONYTAIL-AGENTS.md` |
 | Agent comms | `AGENT-COMMS.md` |
 | Orient / modules | `bin/dg home` · dash `:9878` |

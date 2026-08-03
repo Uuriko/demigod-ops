@@ -1,6 +1,6 @@
 # Demigod — Simple (the only card)
 
-**Product:** SF tech-matched talent, humans in the loop · 10% on hire · mutual yes · 90-day outcome · no fake board/SLA  
+**Product:** SF tech-matched talent, humans in the loop · 10% on hire · mutual yes · one concrete first result · no fake board/SLA
 **Site:** foot-core only for JS · Webflow + CDN · release identity comes only from `bin/dg truth`
 **Operating mode:** First Pilot Delivery — complete one real brief → reviewed match → mutual yes → intro → recorded outcome · no Twitter/auto-DM
 

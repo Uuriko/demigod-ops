@@ -4,14 +4,31 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import {
+
+const realTmp = fs.realpathSync(os.tmpdir());
+const fixtureRoot = fs.mkdtempSync(path.join(realTmp, 'dg-match-review-evidence-'));
+process.env.DEMIGOD_TEST_SCOPE = `match-review-evidence-${process.pid}`;
+process.env.DEMIGOD_TEST_ROOT = fixtureRoot;
+process.env.DEMIGOD_ROOT = fixtureRoot;
+process.env.DEMIGOD_BUSY = path.join(fixtureRoot, 'busy');
+process.env.DEMIGOD_INBOX_PATH = path.join(fixtureRoot, 'test-submissions-inbox.json');
+
+function cleanupTemp(root, prefix) {
+  const real = fs.realpathSync(root);
+  if (path.dirname(real) !== realTmp || !path.basename(real).startsWith(prefix)) {
+    throw new Error(`refusing unsafe cleanup: ${real}`);
+  }
+  fs.rmSync(real, { recursive: true, force: true });
+}
+
+const {
   proposeForCandidate,
   resolveCompanyEvidence,
   suggestMatches,
-} from './demigod-matching-engine.mjs';
-import { projectCompanyResearch } from './demigod-evidence.mjs';
-import { BOARD_PATH, INBOX_PATH } from './demigod-submissions-lib.mjs';
-import { planMatchAdvance } from './demigod-funnel.mjs';
+} = await import('./demigod-matching-engine.mjs');
+const { projectCompanyResearch } = await import('./demigod-evidence.mjs');
+const { BOARD_PATH, INBOX_PATH } = await import('./demigod-submissions-lib.mjs');
+const { planMatchAdvance } = await import('./demigod-funnel.mjs');
 
 const map = {
   generatedAt: '2026-07-24T17:20:32.575Z',
@@ -127,15 +144,14 @@ const researchBenchmark = JSON.parse(
     assert.deepEqual(isolated.researchCatalog, {}, 'missing evidence seal withholds catalog research');
     assert.equal(isolated.researchEvidence.reason, 'no-evidence');
   } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+    cleanupTemp(root, 'dg-match-research-');
   }
 }
-const emptyResearchCatalog = JSON.parse(
+const committedResearchCatalog = JSON.parse(
   fs.readFileSync(new URL('./DEMIGOD-COMPANY-RESEARCH.json', import.meta.url), 'utf8'),
 );
-assert.equal(emptyResearchCatalog.version, 1);
-assert.ok(Array.isArray(emptyResearchCatalog.companies), 'catalog companies must be an array');
-assert.deepEqual(emptyResearchCatalog.companies, []);
+assert.equal(committedResearchCatalog.version, 1);
+assert.ok(Array.isArray(committedResearchCatalog.companies), 'catalog companies must be an array');
 const runtimeRow = {
   id: 'yc:abundant',
   researchedAt: '2026-07-29',
@@ -203,12 +219,14 @@ const researchedEvidence = resolveCompanyEvidence(
 );
 assert.equal(researchedEvidence.research.status, 'verified');
 assert.equal(researchedEvidence.research.fields.productCategory.value, 'agentic AI workflow automation for commodity operations');
-assert.equal(researchedEvidence.research.fields.pricingStatus, undefined);
+assert.equal(researchedEvidence.research.fields.pricingStatus.value, 'contact sales');
+assert.equal(researchedEvidence.research.fields.pricingStatus.evidence.url, 'https://www.commodityai.com/');
 assert.deepEqual(researchedEvidence.research.acceptedFields, [
   'canonicalCompany',
   'productSummary',
   'productCategory',
   'likelyBuyer',
+  'pricingStatus',
 ]);
 assert.equal(researchedEvidence.research.source, 'benchmark');
 const runtimeEvidence = resolveCompanyEvidence(
@@ -225,7 +243,7 @@ assert.equal(
   runtimeEvidence.research.fields.productSummary.value,
   'Agent simulation and reinforcement-learning infrastructure for AI researchers.',
 );
-assert.equal(runtimeEvidence.research.fields.pricingStatus, undefined);
+assert.equal(runtimeEvidence.research.fields.pricingStatus.value, 'contact sales');
 const invalidRuntimeEvidence = resolveCompanyEvidence(
   { company: 'Abundant', title: 'Research Product Manager' },
   map,
@@ -295,8 +313,9 @@ assert.match(
   /researchEvidence: verified[\s\S]*researchFields: canonicalCompany,productSummary,productCategory,likelyBuyer/,
 );
 
-const testDir = path.dirname(BOARD_PATH);
-fs.mkdirSync(testDir, { recursive: true });
+const testDir = fixtureRoot;
+assert.equal(BOARD_PATH, path.join(testDir, 'test-board.json'));
+assert.equal(INBOX_PATH, path.join(testDir, 'test-submissions-inbox.json'));
 try {
   fs.writeFileSync(BOARD_PATH, JSON.stringify({
     roles: [{
@@ -316,6 +335,7 @@ try {
       id: 'cand-evidence',
       form: 'engineer-join',
       status: 'reviewed',
+      at: new Date().toISOString(),
       raw: {
         'full-name': 'Fixture Candidate',
         'seeker-email': 'fixture@example.test',
@@ -336,7 +356,7 @@ try {
     'company_missing',
   );
 } finally {
-  fs.rmSync(testDir, { recursive: true, force: true });
+  cleanupTemp(testDir, 'dg-match-review-evidence-');
 }
 
 const dashboard = fs.readFileSync(new URL('./demigod-agent-dashboard-ui.html', import.meta.url), 'utf8');
@@ -365,7 +385,7 @@ assert.match(
   );
   assert.match(
     reviewSrc,
-    /acceptedRole:\s*p\.sample\s*===\s*false\s*\?\s*acceptedByRole\.get\(String\(p\.roleId\)\)\s*\|\|\s*null\s*:\s*null/,
+    /const acceptedRole\s*=\s*p\.sample\s*===\s*false\s*\?\s*acceptedByRole\.get\(String\(p\.roleId\)\)\s*\|\|\s*null\s*:\s*null/,
     'samples force acceptedRole=null (never surface a real acceptance on fixtures)',
   );
   assert.match(

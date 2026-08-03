@@ -185,7 +185,7 @@ export function evaluateFooterCoreCopy(js = '') {
   return {
     ok: /ctaFounder:\s*['"]HIRE TALENT['"]/i.test(js)
       && navOk
-      && /ctaEngineer:\s*['"]JOIN (?:THE TALENT )?NETWORK['"]/i.test(js)
+      && /ctaEngineer:\s*['"]Share what I[’']d consider['"]/i.test(js)
       && /SF STARTUP TALENT/i.test(js)
       && referralOk
       && noSpeedInCopy

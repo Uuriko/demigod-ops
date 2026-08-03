@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { normalizeCompanyName } from './demigod-startup-atlas.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -88,6 +89,22 @@ export function registrableDomain(url) {
   }
 }
 
+export function canonicalHnAtsUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    const host = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:' ||
+      !/^(?:boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com|jobs\.gem\.com)$/.test(host)
+    ) return null;
+    const slug = url.pathname.split('/').filter(Boolean)[0];
+    if (host === 'jobs.ashbyhq.com' && /^(?:pear|pear-vc)$/i.test(slug || '')) return null;
+    return /^[a-z0-9._-]+$/i.test(slug || '') ? `https://${host}/${slug.toLowerCase()}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** False only when a website is present AND its host is one we never accept as a company site.
  *  BADHOST is applied at parse time, so rows cached BEFORE a host joined the list keep flowing
  *  into the map on every rebuild (producthunt.com survived exactly this way). Callers that read
@@ -105,12 +122,34 @@ export function isCompanyWebsiteHost(url) {
   return !isBadHost(host);
 }
 
+// HN's convention is `Company | Role | Location | URL`, but a minority of posts lead with the ROLE,
+// and then split('|')[0] hands us a job title as the company identity. That is how the map came to
+// hold a company called "Engineering Director, Developer Experience" (really Adyen) carrying 90 open
+// roles, which the ledger then ranked 5th by open roles. Sibling of PLACE_ONLY_NAME: a role is not a
+// brand. Word-bounded so real names survive — "kW Engineering, Inc." is not "Engineer,".
+const ROLE_NOUN = /\b(?:engineer|engineers|developer|developers|designer|designers|scientist|manager|director|architect|analyst|recruiter|technician|intern|internship)\b/i;
+const ROLE_TITLE_NAME = [
+  // A seniority or "founding" prefix only signals a JOB when a role noun follows it. Without that
+  // second condition this rejected "Senior Whole Health" — a real healthcare company — and would
+  // have silently dropped any senior-care or "Founding Farmers"-style business from the directory.
+  (n) => /^(?:senior|sr\.?|staff|principal|junior|jr\.?|founding)\s+/i.test(n) && ROLE_NOUN.test(n),
+  // ponytail: "Head of X" / "VP of X" is a title shape with no role noun to key on, so this also
+  // rejects the rare real company named that way (Head of Zeus, a UK publisher). Acceptable in an
+  // SF-startup ATS corpus; if one ever shows up, allowlist that name rather than drop the rule.
+  (n) => /^(?:head of|vp of|vp,|director of)\b/i.test(n),
+  // Role noun in HEAD position — at the end, or immediately before a comma-scope suffix.
+  // "Engineering Director, Developer Experience" — not "kW Engineering, Inc." or "Scientist.com".
+  (n) => new RegExp(`${ROLE_NOUN.source}\\s*(?:,|$)`, 'i').test(n),
+];
+const HN_UI_NAME = /^(?:\d+\s+points?\s+by\b|hacker news post\b)/i;
+
 export function isPlausibleHnCompanyName(value) {
   const name = String(value ?? '').trim();
   const normalized = normalizeCompanyName(name);
   // ponytail: bounded HN-name heuristic; replace with attributed identity extraction if a valid
   // company name exceeds eight words or 80 characters.
-  return Boolean(normalized) && name.length >= 2 && name.length <= 80 && normalized.split(' ').length <= 8;
+  if (!normalized || name.length < 2 || name.length > 80 || normalized.split(' ').length > 8 || /https?:\/\/|(?:^|\s)www\./i.test(name) || HN_UI_NAME.test(name)) return false;
+  return !ROLE_TITLE_NAME.some((looksLikeARole) => looksLikeARole(name));
 }
 
 // Parse one HN who-is-hiring comment → {name, website, host, atsUrl} or null.
@@ -119,6 +158,7 @@ export function parseHnPost(rawHtml) {
   if (!SF_RE.test(text)) return null; // must name an SF/Bay location
   const name = (text.split('|')[0] || '')
     .trim()
+    .replace(/\s+(?:\[\s*)?https?:\/\/.*$/i, '')
     .replace(/\s*\(.*$/, '')
     .replace(/\s+(?:multiple|various|several)\s+roles?$/i, '');
   if (!isPlausibleHnCompanyName(name) || /^(remote|http|www\.)/i.test(name)) return null;
@@ -128,7 +168,7 @@ export function parseHnPost(rawHtml) {
   for (const u of urls) {
     const h = registrableDomain(u);
     if (!h || isBadHost(h) || /\.gov$/i.test(h)) continue;
-    if (/^(boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com|jobs\.gem\.com)$/i.test(h)) { atsUrl = atsUrl || u; continue; }
+    if (/^(boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com|jobs\.gem\.com)$/i.test(h)) { atsUrl = atsUrl || canonicalHnAtsUrl(u) || ''; continue; }
     if (!website) { website = 'https://' + h + '/'; host = h; }
   }
   if (!website && atsUrl) {
@@ -137,7 +177,15 @@ export function parseHnPost(rawHtml) {
     // `hn:boards.greenhouse.io` — first one won, the rest were silently dropped — and
     // published a directory row linking to the ATS root. The board slug is the identity;
     // we simply have no verified website, so say so instead of inventing one.
-    const slug = (() => { try { return new URL(atsUrl).pathname.split('/').filter(Boolean)[0] || ''; } catch { return ''; } })();
+    const slug = (() => {
+      try {
+        // Decode first: HN posts carry URLs with encoded spaces, and %20 in a map id is not a
+        // board slug — it is a broken identity that fails the stable-id contract downstream.
+        // A segment that is not a clean slug means we have no identity, so we say so.
+        const raw = decodeURIComponent(new URL(atsUrl).pathname.split('/').filter(Boolean)[0] || '');
+        return /^[a-z0-9][a-z0-9._-]*$/i.test(raw) ? raw : '';
+      } catch { return ''; }
+    })();
     if (!slug) return null;
     host = `${registrableDomain(atsUrl)}/${slug.toLowerCase()}`;
     website = null;
@@ -153,24 +201,50 @@ async function fetchJson(url) {
   return r.json();
 }
 
+export function assertCommentFetchCoverage({ attempted, succeeded }, min = 0.9) {
+  const ratio = attempted ? succeeded / attempted : 0;
+  if (!Number.isSafeInteger(attempted) || !Number.isSafeInteger(succeeded) || attempted <= 0 || succeeded < 0 || succeeded > attempted || ratio < min) {
+    throw new Error(`HN comment fetch coverage ${succeeded}/${attempted} below ${Math.round(min * 100)}%`);
+  }
+  return { attempted, succeeded, ratio };
+}
+
 export async function collectHnCompanies({ months = 2 } = {}) {
   const search = await fetchJson('https://hn.algolia.com/api/v1/search_by_date?query=%22Ask%20HN%3A%20Who%20is%20hiring%3F%22&tags=story,author_whoishiring&hitsPerPage=' + months);
   const threads = (search.hits || []).slice(0, months);
+  if (threads.length !== months) throw new Error(`HN thread discovery ${threads.length}/${months}`);
   const byHost = new Map();
+  let attempted = 0;
+  let succeeded = 0;
+  const threadsFetched = [];
   for (const th of threads) {
     const item = await fetchJson(`https://hacker-news.firebaseio.com/v0/item/${th.objectID}.json`);
     const kids = (item.kids || []).slice(0, 500);
-    const posts = await Promise.all(kids.map(async (id) => {
-      try { const c = await fetchJson(`https://hacker-news.firebaseio.com/v0/item/${id}.json`); return c && !c.deleted && !c.dead ? c.text : null; } catch { return null; }
-    }));
-    for (const raw of posts) {
-      if (!raw) continue;
-      const p = parseHnPost(raw);
+    const posts = [];
+    let threadSucceeded = 0;
+    for (let i = 0; i < kids.length; i += 20) {
+      posts.push(...await Promise.all(kids.slice(i, i + 20).map(async (id) => {
+        attempted++;
+        try {
+          const c = await fetchJson(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+          succeeded++;
+          threadSucceeded++;
+          return c && !c.deleted && !c.dead ? c : null;
+        } catch { return null; }
+      })));
+    }
+    threadsFetched.push({ threadId: String(th.objectID), ...assertCommentFetchCoverage({ attempted: kids.length, succeeded: threadSucceeded }) });
+    for (const post of posts) {
+      if (!post?.text) continue;
+      const p = parseHnPost(post.text);
       if (!p) continue;
-      if (!byHost.has(p.host)) byHost.set(p.host, { ...p, thread: th.title, threadUrl: `https://news.ycombinator.com/item?id=${th.objectID}` });
+      if (!byHost.has(p.host)) byHost.set(p.host, { ...p, thread: th.title, threadDate: th.created_at || null, threadUrl: `https://news.ycombinator.com/item?id=${post.id}` });
     }
   }
-  return [...byHost.values()];
+  return {
+    companies: [...byHost.values()],
+    commentFetch: { ...assertCommentFetchCoverage({ attempted, succeeded }), threads: threadsFetched },
+  };
 }
 
 if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes('--selftest'))) {
@@ -179,6 +253,11 @@ if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes(
   assert(sf && sf.name === 'Acme Robotics' && sf.host === 'acme.io', 'SF post parsed: ' + JSON.stringify(sf));
   const multi = parseHnPost('Rad AI Multiple roles | On-site San Francisco | Full-time | https:&#x2F;&#x2F;www.radai.com&#x2F;');
   assert(multi?.name === 'Rad AI', 'role suffix stripped from company name: ' + JSON.stringify(multi));
+  const inlineUrl = parseHnPost('Coram.ai https:&#x2F;&#x2F;www.coram.ai | Senior Engineer | Sunnyvale, CA | https:&#x2F;&#x2F;jobs.ashbyhq.com&#x2F;coram-ai');
+  assert(inlineUrl?.name === 'Coram.ai' && inlineUrl.host === 'coram.ai', 'inline website stripped from company name: ' + JSON.stringify(inlineUrl));
+  assert(parseHnPost('Mithril [ https:&#x2F;&#x2F;mithril.ai&#x2F; ] | ONSITE in Palo Alto | Full Time')?.name === 'Mithril', 'bracketed inline website stripped from company name');
+  assert(parseHnPost('1 point by poster 2 days ago | Engineer | San Francisco | https:&#x2F;&#x2F;example.com') === null, 'HN UI metadata is not a company name');
+  assert(parseHnPost('Hacker News Post - Who is hiring? ACME | Engineer | San Francisco | https:&#x2F;&#x2F;acme.example') === null, 'scraper labels are not company names');
   assert(
     parseHnPost("I'm Paula, Technical Recruiter @ Modular - Hiring in San Francisco https:&#x2F;&#x2F;jobs.gem.com&#x2F;modular") === null,
     'prose post must not become a company name',
@@ -212,12 +291,68 @@ if (isMain && (process.env.DEMIGOD_HN_SELFTEST === '1' || process.argv.includes(
   assert(parseHnPost('Charge Robotics | Eng | San Francisco | https:&#x2F;&#x2F;youtu.be&#x2F;abc') === null, 'youtu.be is not a company website');
   assert(parseHnPost('Pomelo Care | Eng | San Francisco | https:&#x2F;&#x2F;grnh.se&#x2F;x') === null, 'grnh.se short-link is not a company website');
   assert(isBadHost('app.deel.com') && isBadHost('youtu.be') && !isBadHost('tinystartup.ai'), 'isBadHost registrable-domain coverage');
+  const atsRow = toCompanyRow({ ...ats, threadDate: '2026-07-01T00:00:00Z' }, '2026-07-31');
+  assert(
+    atsRow.jobsUrl === 'https://boards.greenhouse.io/betainc' &&
+      atsRow.jobsSource === 'HN' && atsRow.hiringEvidenceAt === '2026-07-01',
+    'HN ATS evidence and its date survive cache mapping',
+  );
+  assert(canonicalHnAtsUrl('https://evil.example/betainc') === null, 'only public ATS hosts survive cache mapping');
+  // A percent-encoded path segment is not a board slug. Live case from the 12-month backfill:
+  // jobs.ashbyhq.com/normal%20computing%20ai minted `hn:jobs.ashbyhq.com/normal%20computing%20ai`,
+  // which fails stableMapCompanyId and breaks the map's id contract.
+  assert(parseHnPost('Normal Computing | Eng | San Francisco | https://jobs.ashbyhq.com/normal%20computing%20ai') === null, 'encoded-space ATS segment is not an identity');
+  assert(parseHnPost('Real Co | Eng | San Francisco | https://jobs.ashbyhq.com/real-co') !== null, 'a clean ATS slug is still an identity');
+  assert(parseHnPost('Kato | Eng | San Francisco | https://jobs.ashbyhq.com/pear') === null, 'shared Pear portfolio board is not Kato identity');
+  assert(parseHnPost('Kato | Eng | San Francisco | https://jobs.ashbyhq.com/pear-vc') === null, 'shared Pear VC portfolio board is not Kato identity');
+  // Backfilled threads must not publish a stale "is hiring" claim.
+  assert(isFreshHnThread('2026-07-01T00:00:00Z', '2026-07-31'), 'recent thread is a live hiring claim');
+  assert(!isFreshHnThread('2025-09-01T00:00:00Z', '2026-07-31'), 'year-old thread is NOT a live hiring claim');
+  assert(!isFreshHnThread('2026-08-01T00:00:00Z', '2026-07-31'), 'future evidence is not a live hiring claim');
+  assert(!isFreshHnThread(null, '2026-07-31'), 'undated thread is not a live hiring claim');
+  assert(assertCommentFetchCoverage({ attempted: 100, succeeded: 90 }).ratio === 0.9, '90% comment coverage passes');
+  let coverageThrew = false;
+  try { assertCommentFetchCoverage({ attempted: 100, succeeded: 89 }); } catch { coverageThrew = true; }
+  assert(coverageThrew, 'degraded comment coverage fails cache replacement');
+  let missingThreadThrew = false;
+  try {
+    [{ attempted: 5500, succeeded: 5500 }, { attempted: 500, succeeded: 0 }]
+      .forEach((coverage) => assertCommentFetchCoverage(coverage));
+  } catch { missingThreadThrew = true; }
+  assert(missingThreadThrew, 'one missing current thread fails even when aggregate coverage exceeds 90%');
+  assert(
+    toCompanyRow({ host: 'a.io', name: 'A', website: 'https://a.io/', threadDate: '2025-09-01T00:00:00Z' }, '2026-07-31').hiring === 'unknown' &&
+      toCompanyRow({ host: 'b.io', name: 'B', website: 'https://b.io/', threadDate: '2026-07-01T00:00:00Z' }, '2026-07-31').hiring === 'yes',
+    'row hiring flag follows thread age',
+  );
+  assert(
+    newHnCompanies([ats, sf, ats2], { companies: [
+      { id: 'hn:boards.greenhouse.io/betainc', website: null },
+      { id: 'yc:acme', website: 'https://acme.io/' },
+    ] }).map((row) => row.host).join(',') === 'boards.greenhouse.io/gammacorp',
+    'directory delta recognizes both exact ATS identities and matching company websites',
+  );
   console.log(JSON.stringify({ ok: true, selftest: 'hn-hiring' }));
   process.exit(0);
 }
 
+/**
+ * "Is hiring" is only a live claim while the post is recent. Backfilling older threads adds real
+ * companies but a year-old "we're hiring" is not evidence they are hiring today — those rows say
+ * `hiring:'unknown'` and let the ATS jobs-enrich speak for itself. 120d keeps the previous
+ * 3-month window claiming 'yes' exactly as before.
+ */
+export function isFreshHnThread(threadDate, asOf = new Date(), maxDays = 120) {
+  const t = Date.parse(String(threadDate || ''));
+  const now = Date.parse(String(asOf?.toISOString?.() || asOf));
+  if (!Number.isFinite(t) || !Number.isFinite(now)) return false;
+  const age = now - t;
+  return age >= 0 && age <= maxDays * 86400000;
+}
+
 // Map-ready company row from a parsed HN post. Provenance = the company's own public HN posting.
 export function toCompanyRow(c, retrievedAt) {
+  const jobsUrl = canonicalHnAtsUrl(c.atsUrl);
   return {
     id: 'hn:' + c.host,
     name: c.name,
@@ -227,29 +362,41 @@ export function toCompanyRow(c, retrievedAt) {
     tags: ['hn-hiring'],
     locationPrecision: 'city',
     neighborhood: null,
-    hiring: 'yes',
+    hiring: isFreshHnThread(c.threadDate, retrievedAt) ? 'yes' : 'unknown',
     source: 'Hacker News (Who is Hiring)',
     sourceUrl: c.threadUrl,
     sourceLicense: 'HN-public',
     retrievedAt,
+    hiringEvidenceAt: c.threadDate ? String(c.threadDate).slice(0, 10) : null,
+    ...(jobsUrl ? { jobsUrl, jobsSource: 'HN' } : {}),
   };
+}
+
+/** Exact-id/website delta only; ATS-only rows cannot be compared to website hosts alone. */
+export function newHnCompanies(hn, map) {
+  const ids = new Set((map?.companies || []).map((row) => String(row?.id || '').toLowerCase()).filter(Boolean));
+  const sites = new Set((map?.companies || []).map((row) => registrableDomain(row?.website)).filter(Boolean));
+  return (hn || []).filter((row) =>
+    !ids.has(`hn:${String(row?.host || '').toLowerCase()}`) &&
+    (!row?.website || !sites.has(registrableDomain(row.website))));
 }
 
 if (isMain) {
   const months = (() => { const i = process.argv.indexOf('--months'); return i > 0 ? Number(process.argv[i + 1]) || 2 : 2; })();
   const outPath = (() => { const i = process.argv.indexOf('--out'); return i > 0 ? path.join(process.argv[i + 1], 'DEMIGOD-HN-HIRING.json') : path.join(ROOT, 'DEMIGOD-HN-HIRING.json'); })();
   const today = new Date().toISOString().slice(0, 10);
-  const hn = await collectHnCompanies({ months });
+  const { companies: hn, commentFetch } = await collectHnCompanies({ months });
   const rows = hn.map((c) => toCompanyRow(c, today));
   // cache the map-ready HN companies (map-data.mjs merges this; refresh monthly)
-  fs.writeFileSync(outPath, JSON.stringify({ generatedAt: today, months, source: 'Hacker News Who is Hiring', companies: rows }, null, 2) + '\n');
+  atomicWrite(outPath, JSON.stringify({ generatedAt: today, months, source: 'Hacker News Who is Hiring', companies: rows }, null, 2) + '\n', { mode: 0o644 });
   // report the delta vs the current directory (by website host)
   const map = JSON.parse(fs.readFileSync(MAP, 'utf8'));
-  const have = new Set(map.companies.map((c) => registrableDomain(c.website)).filter(Boolean));
-  const novel = hn.filter((c) => !have.has(c.host));
+  const novel = newHnCompanies(hn, map);
   console.log(JSON.stringify({
-    ok: true, months, outPath, sfCompaniesFound: hn.length, alreadyInDirectory: hn.length - novel.length,
-    NEW: novel.length, newWithDirectAtsLink: novel.filter((c) => c.atsUrl).length,
+    ok: true, months, outPath, commentFetch, sfCompaniesFound: hn.length, alreadyInDirectory: hn.length - novel.length,
+    discoveryCandidates: novel.length,
+    candidatesWithDirectAtsLink: novel.filter((c) => c.atsUrl).length,
+    note: 'discovery only; admission requires current identity, operating-status, and Bay evidence review',
     sample: novel.slice(0, 12).map((c) => c.name + ' (' + c.host + ')'),
   }, null, 2));
 }

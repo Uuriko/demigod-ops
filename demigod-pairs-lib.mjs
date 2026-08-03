@@ -8,6 +8,7 @@
  *   node demigod-pairs-lib.mjs propose --role <id> --cand <id> [--score n] [--why "..."]
  *   node demigod-pairs-lib.mjs review <pairId> --decision approve|reject|defer --i-reviewed --note "evidence"
  *   node demigod-pairs-lib.mjs consent <pairId> --side founder|candidate
+ *   node demigod-pairs-lib.mjs decline <pairId> --side founder|candidate --i-observed-decline --evidence "reply"
  */
 import fs from 'fs';
 import path from 'path';
@@ -15,7 +16,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { UNSAFE_INVISIBLE_CLASS, atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { listAcceptedRoles } from './demigod-accepted-role.mjs';
-import { candidateProfileReadiness, isSampleData, loadBoard, loadInbox } from './demigod-submissions-lib.mjs';
+import { candidateProfileReadiness, currentCandidateSubmissions, isSampleData, loadBoard, loadInbox } from './demigod-submissions-lib.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 export const PAIRS_PATH = path.join(ROOT, 'DEMIGOD-PAIRS.json');
@@ -24,6 +25,7 @@ export const PAIRS_LOCK = path.join(ROOT, 'DEMIGOD-PAIRS.json.lock');
 export function pairId(roleId, candId) {
   const a = String(roleId || '').trim();
   const b = String(candId || '').trim();
+  // ponytail: roleId is one immutable search; add a search/version id before reopening materially changed roles.
   // order-independent
   const [x, y] = [a, b].sort();
   return crypto.createHash('sha256').update(`${x}|${y}`).digest('hex').slice(0, 16);
@@ -69,16 +71,25 @@ export function isValidConsentEvidence(value) {
   return proof.length >= 3 && proof.length <= 500 && !/[\r\n\u0000-\u001f\u007f]/.test(raw);
 }
 
-export function hasValidPairConsentReceipt(pair, side) {
-  return (Array.isArray(pair?.history) ? pair.history : []).some(
-    (row) =>
+export function getValidPairConsentReceiptMeta(pair, side, roleTruthHash = null) {
+  const history = Array.isArray(pair?.history) ? pair.history : [];
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const row = history[i];
+    if (
       row?.event === 'consent' &&
       row.side === side &&
-      isValidConsentEvidence(row.evidence),
-  );
+      isValidConsentEvidence(row.evidence) &&
+      (!roleTruthHash || row.roleTruthHash === roleTruthHash)
+    ) return { at: String(row.at || ''), roleTruthHash: String(row.roleTruthHash || '') };
+  }
+  return null;
 }
 
-export function assertMutualConsentReceipts(pair) {
+export function hasValidPairConsentReceipt(pair, side, roleTruthHash = null) {
+  return Boolean(getValidPairConsentReceiptMeta(pair, side, roleTruthHash));
+}
+
+export function assertMutualConsentReceipts(pair, roleTruthHash = null) {
   if (
     pair?.mutual?.founder !== true ||
     pair?.mutual?.candidate !== true ||
@@ -87,13 +98,20 @@ export function assertMutualConsentReceipts(pair) {
   ) {
     throw new Error('pair_consent_receipt_missing');
   }
+  if (
+    roleTruthHash &&
+    (!hasValidPairConsentReceipt(pair, 'founder', roleTruthHash) ||
+      !hasValidPairConsentReceipt(pair, 'candidate', roleTruthHash))
+  ) {
+    throw new Error('role_changed_reconsent_required');
+  }
   return pair;
 }
 
 /** Current real-pair gate. Samples and stale/forged persisted rows fail closed. */
-export function assertCurrentPairEligibility(
+function currentPairEligibility(
   pair,
-  { pairKey = pair?.pairId, board = null, inbox = null } = {},
+  { pairKey = pair?.pairId, board = null, inbox = null, requireOpen = true } = {},
 ) {
   if (!pair || typeof pair !== 'object') throw new Error('real_pair_invalid');
   if (pair.sample !== false) throw new Error('sample_pair_not_eligible');
@@ -120,19 +138,32 @@ export function assertCurrentPairEligibility(
   if (pair.createdSample !== false) throw new Error('real_pair_origin_invalid');
   const currentBoard = board || loadBoard();
   const currentInbox = inbox || loadInbox();
-  if (!listAcceptedRoles(currentBoard, currentInbox).acceptedRoles.some((role) => role.roleId === roleId)) {
+  const acceptedRole = listAcceptedRoles(currentBoard, currentInbox, { requireOpen }).acceptedRoles
+    .find((role) => role.roleId === roleId);
+  if (!acceptedRole) {
     throw new Error('real_pair_role_not_accepted');
   }
   const candidate = (currentInbox.items || []).find((item) => item?.id === candId);
+  if (candidate && !currentCandidateSubmissions(currentInbox.items).some((item) => item.id === candId)) {
+    throw new Error('candidate_profile_superseded');
+  }
   const readiness = candidateProfileReadiness(candidate);
+  if (candidate && readiness.applicable && readiness.availabilityCurrent === false) {
+    throw new Error('candidate_availability_reconfirmation_required');
+  }
   if (!candidate || isSampleData(candidate) || !readiness.applicable || !readiness.matchReady) {
     throw new Error('real_pair_candidate_not_match_ready');
   }
+  return acceptedRole;
+}
+
+export function assertCurrentPairEligibility(pair, options = {}) {
+  currentPairEligibility(pair, options);
   return pair;
 }
 
 export function assertCurrentMutualPairEligibility(pair, options = {}) {
-  assertCurrentPairEligibility(pair, options);
+  const acceptedRole = currentPairEligibility(pair, options);
   if (
     pair.state !== 'mutual_yes' ||
     pair.mutual?.founder !== true ||
@@ -140,7 +171,7 @@ export function assertCurrentMutualPairEligibility(pair, options = {}) {
   ) {
     throw new Error('mutual_consent_required');
   }
-  return assertMutualConsentReceipts(pair);
+  return assertMutualConsentReceipts(pair, acceptedRole.roleTruthHash);
 }
 
 export function proposePair({
@@ -230,7 +261,7 @@ export function reviewPair(id, { decision, actor = 'agent', note = '', reviewed 
     const now = new Date().toISOString();
     const map = { approve: 'approved', reject: 'rejected', defer: 'deferred' };
     const next = map[d];
-    if ((pair.state === 'rejected' || pair.state === 'mutual_yes') && next !== pair.state) throw new Error('pair_transition_invalid');
+    if (['rejected', 'mutual_yes', 'one_side_no'].includes(pair.state) && next !== pair.state) throw new Error('pair_transition_invalid');
     if (next === 'approved') assertCurrentPairEligibility(pair, { pairKey: id });
     pair.state = next;
     pair.reviewNote = reviewNote || pair.reviewNote;
@@ -258,9 +289,14 @@ export function consentPair(id, { side, actor = 'agent', attested = false, evide
     const pair = store.pairs?.[id];
     if (!pair) throw new Error('pair_not_found');
     if (pair.state !== 'approved' && pair.state !== 'mutual_yes') throw new Error('pair_not_reviewed');
-    assertCurrentPairEligibility(pair, { pairKey: id });
+    const acceptedRole = currentPairEligibility(pair, { pairKey: id });
+    if (
+      s === 'candidate' &&
+      pair.sample === false &&
+      !hasValidPairConsentReceipt(pair, 'founder', acceptedRole.roleTruthHash)
+    ) throw new Error('founder_consent_required_before_candidate_consent');
     pair.mutual = pair.mutual || { founder: false, candidate: false };
-    if (pair.mutual[s] && hasValidPairConsentReceipt(pair, s)) return pair;
+    if (pair.mutual[s] && hasValidPairConsentReceipt(pair, s, acceptedRole.roleTruthHash)) return pair;
     const now = new Date().toISOString();
     pair.mutual[s] = true;
     pair.updatedAt = now;
@@ -269,7 +305,43 @@ export function consentPair(id, { side, actor = 'agent', attested = false, evide
     }
     pair.history = [
       ...(pair.history || []),
-      { at: now, actor, event: 'consent', side: s, evidence: proof, state: pair.state },
+      {
+        at: now,
+        actor,
+        event: 'consent',
+        side: s,
+        evidence: proof,
+        roleTruthHash: acceptedRole.roleTruthHash,
+        state: pair.state,
+      },
+    ].slice(-40);
+    store.pairs[id] = pair;
+    savePairs(store);
+    return pair;
+  });
+}
+
+/** Record either side declining or withdrawing consent; terminal and fail-closed for intros. */
+export function declinePair(id, { side, actor = 'agent', attested = false, evidence = '' } = {}) {
+  const s = String(side || '').toLowerCase();
+  if (s !== 'founder' && s !== 'candidate') throw new Error('side must be founder|candidate');
+  const proof = String(evidence || '').trim();
+  if (attested !== true) throw new Error('decline_attestation_required');
+  if (!isValidConsentEvidence(evidence)) throw new Error('decline_evidence_invalid');
+  return withFileLock(PAIRS_LOCK, () => {
+    const store = loadPairs();
+    const pair = store.pairs?.[id];
+    if (!pair) throw new Error('pair_not_found');
+    if (pair.state === 'one_side_no') return pair;
+    if (pair.state !== 'approved' && pair.state !== 'mutual_yes') throw new Error('pair_not_reviewed');
+    const now = new Date().toISOString();
+    pair.mutual = pair.mutual || { founder: false, candidate: false };
+    pair.mutual[s] = false;
+    pair.state = 'one_side_no';
+    pair.updatedAt = now;
+    pair.history = [
+      ...(pair.history || []),
+      { at: now, actor, event: 'decline', side: s, evidence: proof, state: pair.state },
     ].slice(-40);
     store.pairs[id] = pair;
     savePairs(store);
@@ -378,6 +450,12 @@ if (isMain) {
         attested: rest.includes('--i-observed-consent'),
         evidence: flag('--evidence') || '',
       }), null, 2));
+    } else if (cmd === 'decline') {
+      console.log(JSON.stringify(declinePair(rest[0], {
+        side: flag('--side'),
+        attested: rest.includes('--i-observed-decline'),
+        evidence: flag('--evidence') || '',
+      }), null, 2));
     } else if (cmd === 'prune') {
       console.log(
         JSON.stringify(
@@ -391,7 +469,7 @@ if (isMain) {
         ),
       );
     } else {
-      console.log('usage: list|seed|propose --role ID --cand ID [--real]|review <id> --decision approve|reject|defer --i-reviewed --note "evidence"|consent <id> --side founder|candidate --i-observed-consent --evidence "note"|prune');
+      console.log('usage: list|seed|propose --role ID --cand ID [--real]|review <id> --decision approve|reject|defer --i-reviewed --note "evidence"|consent <id> --side founder|candidate --i-observed-consent --evidence "note"|decline <id> --side founder|candidate --i-observed-decline --evidence "note"|prune');
       process.exit(1);
     }
   } catch (e) {

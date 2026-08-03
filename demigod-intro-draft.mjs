@@ -18,8 +18,18 @@ import {
   projectDraftUrl,
   publicStatus,
   scrubPII,
+  loadBoard,
+  loadInbox,
 } from './demigod-submissions-lib.mjs';
-import { assertCurrentPairEligibility, getPair } from './demigod-pairs-lib.mjs';
+import {
+  assertCurrentPairEligibility,
+  assertCurrentMutualPairEligibility,
+  getValidPairConsentReceiptMeta,
+  getPair,
+  hasValidPairConsentReceipt,
+} from './demigod-pairs-lib.mjs';
+import { listAcceptedRoles } from './demigod-accepted-role.mjs';
+import { getStartupRoles, matchEvidence } from './demigod-matching-engine.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 
 const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
@@ -53,6 +63,8 @@ if (!item && !pair) {
   console.error(JSON.stringify({ ok: false, error: 'not_found', id, hint: 'pass sub-id or pairId' }));
   process.exit(1);
 }
+const pairBoard = pair ? loadBoard() : null;
+const pairInbox = pair ? loadInbox() : null;
 
 // Intro lifecycle gate: if drafting for a pair, must be approved or mutual_yes
 const forced = process.argv.includes('--force');
@@ -62,7 +74,11 @@ const actor = projectDraftText(process.env.USER || 'agent', 80);
 let gateError = pair && !['approved', 'mutual_yes'].includes(pair.state) ? 'pair_not_reviewed' : '';
 if (pair && !forceAllowed && !gateError) {
   try {
-    assertCurrentPairEligibility(pair, { pairKey: id });
+    (pair.state === 'mutual_yes' ? assertCurrentMutualPairEligibility : assertCurrentPairEligibility)(pair, {
+      pairKey: id,
+      board: pairBoard,
+      inbox: pairInbox,
+    });
   } catch (error) {
     gateError = String(error.message || error);
   }
@@ -83,6 +99,30 @@ if (pair && gateError && !forceAllowed) {
 
 if (pair) {
   // pair-only draft
+  const role = pair.sample === false
+    ? listAcceptedRoles(pairBoard, pairInbox).acceptedRoles
+        .find((row) => String(row.roleId) === String(pair.roleId))
+    : getStartupRoles(pairBoard).find((row) => String(row.id) === String(pair.roleId));
+  const candidate = (pairInbox.items || []).find((row) => String(row.id) === String(pair.candId));
+  const evidence = role && candidate
+    ? matchEvidence(role, candidate)
+        .map((line) => projectDraftText(scrubPII(line), 256))
+        .filter(Boolean)
+    : [];
+  const openQuestions = evidence.filter((line) => /needs review/i.test(line));
+  const candidateRaw = candidate?.raw || candidate || {};
+  const candidateConsent = getValidPairConsentReceiptMeta(pair, 'candidate', role?.roleTruthHash);
+  const introReady = !pairSample && pair.state === 'mutual_yes' && Boolean(candidateConsent);
+  const candidateProof = introReady
+    ? projectDraftText(scrubPII(candidateRaw.experience || candidateRaw['background & highlights'] || ''), 500)
+    : '';
+  const workReferenceOnFile = introReady && Boolean(projectDraftUrl(extractResumeReference(candidateRaw)));
+  const candidateConsentDate = Number.isFinite(Date.parse(candidateConsent?.at || ''))
+    ? candidateConsent.at.slice(0, 10)
+    : 'date unavailable';
+  const roleOpenDate = Number.isFinite(Date.parse(role?.openConfirmedAt || ''))
+    ? role.openConfirmedAt.slice(0, 10)
+    : 'not recorded';
   const dir = path.join(BUSY, 'intros');
   fs.mkdirSync(dir, { recursive: true });
   const outPath = path.join(dir, `pair-${pair.pairId}.md`);
@@ -93,13 +133,38 @@ if (pair) {
     `score: ${pair.score ?? '—'}`,
     `reasons: ${projectDraftText(scrubPII(Array.isArray(pair.reasons) ? pair.reasons.slice(0, 8).join('; ') : ''), 500)}`,
     `mutual: founder=${!!pair.mutual?.founder} candidate=${!!pair.mutual?.candidate}`,
+    `role truth: ${role?.roleTruthHash || 'not versioned (sample)'}`,
+    `consent receipts: founder=${hasValidPairConsentReceipt(pair, 'founder', role?.roleTruthHash)} candidate=${hasValidPairConsentReceipt(pair, 'candidate', role?.roleTruthHash)}`,
+    `open role: confirmed ${roleOpenDate}`,
+    `intro intent: ${introReady ? `both sides approved this exact role · candidate ${candidateConsentDate}` : 'mutual yes pending — internal prep only'}`,
+    `First result: ${projectDraftText(scrubPII(role?.outcome90d || role?.outcome || role?.['90day-outcome'] || 'not supplied'), 500)}`,
+    `must-haves: ${projectDraftText(scrubPII(role?.skills || role?.stack || role?.['stack-needs'] || 'not supplied'), 500)}`,
+    `constraints: ${projectDraftText(scrubPII(role?.locationPref || role?.['work-location'] || 'work arrangement not supplied'), 160)} · ${projectDraftText(scrubPII(role?.comp || role?.['salary-range'] || 'base salary not supplied'), 120)}`,
+    `interview process: ${projectDraftText(scrubPII(role?.interviewProcess || role?.['interview-process'] || 'not supplied'), 300)}`,
+    `why this intro: ${evidence.join(' · ') || 'human review found potential fit; structured evidence is incomplete'}`,
+    `open question: ${openQuestions.join(' · ') || 'What important constraint or missing evidence could make this a poor fit?'}`,
     forced ? `FORCED: true · actor: ${actor} · at: ${new Date().toISOString()}` : null,
     '',
     'Hi,',
     '',
-    forced
-      ? 'Draft only — FORCED past review gate. No send from tools.'
-      : 'Draft only — a human approved this pair for consideration. No send from tools.',
+    introReady
+      ? 'Both sides approved this exact role. Identity, contact details, and work links remain withheld from this decision brief.'
+      : forced
+        ? 'INTERNAL PREP — FORCED past review gate. Candidate proof remains withheld. Do not share.'
+        : 'INTERNAL PREP — mutual yes is pending. Candidate proof remains withheld. Do not share.',
+    introReady ? '' : null,
+    introReady ? `**First result:** ${projectDraftText(scrubPII(role?.outcome90d || role?.outcome || role?.['90day-outcome'] || 'not supplied'), 500)}` : null,
+    introReady ? '' : null,
+    introReady ? `**Candidate-reported proof:** ${candidateProof || 'not supplied'}` : null,
+    introReady ? `**Work reference:** ${workReferenceOnFile ? 'on file; withheld from this draft' : 'not supplied'}` : null,
+    introReady ? `**Why this may fit:** ${evidence.join(' · ') || 'human review found potential fit; structured evidence is incomplete'}` : null,
+    introReady ? `**Candidate intent:** Reviewed this exact role and opted in ${candidateConsentDate}.` : null,
+    introReady ? `**Open question:** ${openQuestions.join(' · ') || 'What important constraint or missing evidence could make this a poor fit?'}` : null,
+    introReady ? '**Evidence handshake:** Before any work sample, agree whether AI is allowed, limited, or off. Then spend 10 minutes live on one candidate-chosen artifact: what they personally owned, one tradeoff, and what they would change.' : null,
+    introReady ? '' : null,
+    introReady ? 'Candidate-submitted and human-reviewed for relevance; claims are not independently verified.' : null,
+    '',
+    'Draft only — no send from tools.',
     '',
     '— Demigod',
     '',
@@ -191,7 +256,7 @@ if (kind === 'startup') {
   lines.push(`Thanks for the brief${role ? ` on **${role}**` : ''}. A human on our side reviews every submission — no bots, no blasts.`);
   lines.push('');
   if (outcome) {
-    lines.push(`**90-day outcome you shared:** ${outcome}`);
+    lines.push(`**First result you shared:** ${outcome}`);
     lines.push('');
   }
   if (stack) {

@@ -28,11 +28,9 @@ if (ship || wizard) {
     ['demigod-verify-board-honesty.mjs'] ,
     ['demigod-live-lib.test.mjs'],
     ['demigod-board-lib.test.mjs'],
-    // Honesty poison-tests (c458 vein) — a poison-test that no gate runs locks nothing. These assert the
-    // board-honesty gate, the anti-fake-DM attestation gate, and the public-board scrub stay fail-capable.
+    // Honesty poison-tests must stay fail-capable, not merely green today.
     ['demigod-verify-board-honesty.test.mjs'],
     ['demigod-demand.test.mjs'],
-    ['demigod-board-publish.test.mjs'],
     ['demigod-foot-smoke.test.mjs'], // #40 — locks foot-smoke's parse+boot fail-capability (outage class)
     // Import-integrity poison (Claude/Grok): export contracts + clone-breaker edges must fail-red
     ['demigod-import-integrity.test.mjs'],
@@ -46,8 +44,6 @@ if (ship || wizard) {
     ['demigod-dashboard-clean-ui.test.mjs'],
     // Canonical ship prepare must keep import-integrity + honesty steps.
     ['demigod-ship-prepare-contract.test.mjs'],
-    ['demigod-publish-freeze-coverage.test.mjs'],
-    ['demigod-publish-freeze.test.mjs'],
     ['demigod-webhook-ensure-private-write.test.mjs'],
     // Free-text scrubPII poison (Claude/Grok collab): identity links, phones, addresses — fail-capable
     ['demigod-submissions-lib.test.mjs'],
@@ -57,6 +53,8 @@ if (ship || wizard) {
     ['demigod-adaptive-talent-form.test.mjs'],
     ['demigod-form-p0.test.mjs'],
     ['demigod-wiz-ownership-selftest.mjs'],
+    ['demigod-pilot-os.test.mjs'],
+    ['demigod-intro-receipt-binding.test.mjs'],
     ['demigod-outbound-poison.test.mjs'],
     // Matching funnel honesty: readiness gates + pairs CLI sample-by-default / consent fail-closed
     // (orphan tests lock nothing if only run by hand — cold-start quality > quantity)
@@ -69,7 +67,7 @@ if (ship || wizard) {
     ['demigod-outreach-evidence.test.mjs'],
     // D-005/D-012: research may inform review; never the automated match decision
     ['demigod-score-isolation.test.mjs'],
-    // Phase 2 accepted-role gate: selftest + adversarial poison (null inbox, company atlas norm)
+    // Accepted-role evidence: selftest + adversarial poison (null inbox, company atlas norm)
     ['demigod-accepted-role.mjs', ['--selftest']],
     ['demigod-accepted-role-poison.test.mjs'],
     ['demigod-accepted-role.test.mjs'],
@@ -93,6 +91,10 @@ if (ship || wizard) {
     ['demigod-startup-atlas-web.test.mjs'],
     // Jobs enrich slug honesty — domain-only slugs (blocks Camp/Cedar name→wrong ATS)
     ['demigod-startup-jobs-enrich.mjs', ['--selftest']],
+    // Creative board repair is membership-invariant and requires exact owner evidence.
+    ['demigod-directory-expand-creative.mjs', ['--selftest']],
+    // Net-new Wikidata identity review: current, non-deprecated P31/P159 evidence.
+    ['demigod-identity-review.mjs', ['--selftest']],
     // Directory rebuild-integrity floors — real map clears volume floors; truncation must fail-loud
     ['demigod-startup-map-data.mjs', ['--selftest']],
     // HN Who-is-Hiring source honesty — SF-only gate, mega-corp/subdomain exclusion, no URL injection

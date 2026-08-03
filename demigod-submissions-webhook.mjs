@@ -1,15 +1,10 @@
 #!/usr/bin/env node
-/** Local Webflow form webhook receiver → inbox + anonymized board → publish CDN. */
+/** Local Webflow form webhook receiver → inbox + anonymized board. */
 import http from 'http';
-import { spawnSync } from 'child_process';
-import { ROOT } from './demigod-turn-lib.mjs';
 import {
   ingestSubmission,
   parseWebhookPayload,
-  parseSubmissionStatusPath,
-  findSubmission,
   publicStatus,
-  publicSubmissionStatusUrl,
 } from './demigod-submissions-lib.mjs';
 import { privateCapabilityHeaders, webhookOriginPolicy } from './demigod-webhook-origin.mjs';
 import { allowWebhookRequest, webhookClientIp } from './demigod-webhook-rate-limit.mjs';
@@ -29,7 +24,6 @@ const CORS_ORIGINS = (process.env.DEMIGOD_WEBHOOK_CORS
   .map((s) => s.trim())
   .filter(Boolean);
 const hits = new Map();
-const statusHits = new Map();
 
 function corsHeaders(req) {
   const origin = req.headers.origin || '';
@@ -46,25 +40,11 @@ function rateOk(ip) {
   return allowWebhookRequest(hits, ip, { windowMs: RATE_WINDOW_MS, max: RATE_MAX });
 }
 
-function publishBoard() {
-  spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
-}
-
 const server = http.createServer(async (req, res) => {
   const cors = corsHeaders(req);
   if (!webhookOriginPolicy(req.headers.origin || '', CORS_ORIGINS).allowed) {
     req.resume();
     res.writeHead(403, { 'Cache-Control': 'no-store', ...cors });
-    res.end();
-    return;
-  }
-  const statusPath = parseSubmissionStatusPath(req.url || '');
-  const statusHeaders = {
-    ...privateCapabilityHeaders(cors),
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  };
-  if (statusPath.matched && req.method === 'OPTIONS') {
-    res.writeHead(204, { ...statusHeaders, Allow: 'GET' });
     res.end();
     return;
   }
@@ -76,36 +56,6 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json', ...cors });
     res.end(JSON.stringify({ ok: true, service: 'demigod-submissions-webhook', auth: WEBFLOW_AUTH }));
-    return;
-  }
-  if (statusPath.matched) {
-    if (req.method !== 'GET') {
-      req.resume();
-      res.writeHead(405, { ...statusHeaders, Allow: 'GET' });
-      res.end(JSON.stringify({ ok: false, error: 'method_not_allowed' }));
-      return;
-    }
-    if (!statusPath.id) {
-      res.writeHead(404, statusHeaders);
-      res.end(JSON.stringify({ ok: false, error: 'not_found' }));
-      return;
-    }
-    if (!allowWebhookRequest(statusHits, webhookClientIp(req, TRUSTED_PROXIES), {
-      windowMs: RATE_WINDOW_MS,
-      max: Math.max(120, RATE_MAX * 4),
-    })) {
-      res.writeHead(429, statusHeaders);
-      res.end(JSON.stringify({ ok: false, error: 'rate_limited' }));
-      return;
-    }
-    const record = findSubmission(statusPath.id);
-    if (!record) {
-      res.writeHead(404, statusHeaders);
-      res.end(JSON.stringify({ ok: false, error: 'not_found' }));
-      return;
-    }
-    res.writeHead(200, statusHeaders);
-    res.end(JSON.stringify({ ok: true, ...publicStatus(record) }));
     return;
   }
   if (req.method !== 'POST') {
@@ -159,12 +109,10 @@ const server = http.createServer(async (req, res) => {
     }
     const formName = name || req.headers['x-webflow-form'] || 'unknown';
     const result = ingestSubmission({ ...parsed, name: formName });
-    if (result.featured) publishBoard();
     res.writeHead(200, privateCapabilityHeaders(cors));
     res.end(JSON.stringify({
       ok: true,
       id: result.record.id,
-      statusUrl: publicSubmissionStatusUrl(result.record.id),
       status: publicStatus(result.record).status,
       featured: !!result.featured,
       reviewRequired: !result.featured,

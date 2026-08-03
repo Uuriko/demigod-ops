@@ -67,6 +67,20 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   const queue = path.join(busy, 'work-queue.jsonl');
   const pathEnv = `${fakeBin}:${process.env.PATH}`;
 
+  const evidenceUrl = new URL('./demigod-evidence.mjs', import.meta.url).href;
+  const truthInput = path.join(root, 'truth-fixture.txt');
+  fs.writeFileSync(truthInput, 'stable\n');
+  const seal = spawnSync(process.execPath, ['--input-type=module', '-e',
+    `import {beginRun,sealRun} from ${JSON.stringify(evidenceUrl)};` +
+    `const run=beginRun('truth',{scope:[${JSON.stringify(truthInput)}]});` +
+    `sealRun(run,{pass:true,summary:'fixture truth',ttlSec:600});`,
+  ], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, DEMIGOD_ROOT: root, DEMIGOD_BUSY: busy },
+  });
+  assert.equal(seal.status, 0, seal.stderr || seal.stdout);
+
   run('demigod-work-find.mjs', root, busy, pathEnv);
   assert.deepEqual(rows(queue), []);
   assert.match(fs.readFileSync(path.join(busy, 'WORK-FOUND.md'), 'utf8'), /count=0/);

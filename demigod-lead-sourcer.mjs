@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import {
   candidateProfileReadiness,
+  currentCandidateSubmissions,
   loadInbox,
   scrubPII,
 } from './demigod-submissions-lib.mjs';
@@ -473,8 +474,8 @@ function main() {
   let selectionReceipt = null;
   if (type === 'talent') {
     const inbox = loadInbox();
-    leads = (inbox.items || []).filter(i =>
-      /engineer|candidate|jobseeker/i.test(i.form || '') && candidateProfileReadiness(i).policyReady
+    leads = currentCandidateSubmissions(inbox.items).filter(i =>
+      candidateProfileReadiness(i).matchReady
     ).map(i => ({
       id: i.id,
       type: 'talent',

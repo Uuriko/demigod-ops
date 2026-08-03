@@ -39,9 +39,17 @@ const blocked = redactItem({
   },
 });
 assert.equal(blocked.matchingReady, false);
-// work-location is required for founder match scoring (foot v798+); both blockers stay fail-closed.
-assert.deepEqual(blocked.matchingBlockers, ['work-location', 'salary-range']);
+// Public intake stays short; process is confirmed during human calibration before matching.
+assert.deepEqual(blocked.matchingBlockers, ['work-location', 'salary-range', 'interview-process']);
 assert.equal(blocked.email, 'f***@private.invalid');
+assert.deepEqual(blocked.outcomeCalibration, {
+  clarity: 'medium',
+  suggestions: [
+    'Add one number or measurable result.',
+    'Optional: add a realistic horizon (for example, 30, 60, or 90 days).',
+    'Name the concrete deliverable or system.',
+  ],
+});
 assert.doesNotMatch(JSON.stringify(blocked), /Private Company|Product design|Ship onboarding/);
 const rejected = redactItem({
   id: 'sub-rejected',
@@ -52,9 +60,12 @@ const rejected = redactItem({
 });
 assert.deepEqual(rejected.rejectReasons, ['invalid_email', 'contact [contact removed] or [phone removed]']);
 assert.doesNotMatch(JSON.stringify(rejected), /person@startup\.com|415-555-1212|\[object Object\]/);
-assert.equal(redactItem({ id: 'partner', form: 'partner-apply', status: 'reviewed', raw: {} }).matchingReady, null);
+const partner = redactItem({ id: 'partner', form: 'partner-apply', status: 'reviewed', raw: {} });
+assert.equal(partner.matchingReady, null);
+assert.equal(partner.outcomeCalibration, null);
 const candidate = redactItem({ id: 'candidate', form: 'engineer-join', status: 'updated', raw: { 'skills-stack': 'Design' } });
 assert.equal(candidate.matchingReady, false);
+assert.equal(candidate.outcomeCalibration, null);
 assert.deepEqual(candidate.matchingBlockers, ['human-review', 'full-name', 'seeker-email', 'experience', 'sf-bay', 'availability', 'salary-expectation', 'resume']);
 assert.deepEqual(['spam', 'featured', 'updated', 'reviewed', 'new'].sort((a, b) => queueRank(a) - queueRank(b)), ['updated', 'new', 'reviewed', 'featured', 'spam']);
 

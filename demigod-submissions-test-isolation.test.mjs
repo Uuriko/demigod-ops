@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 function worker(marker) {
@@ -32,9 +34,13 @@ test('parallel test workers use distinct storage while descendants inherit one s
   assert.equal(b.marker, 'worker-b');
   assert.equal(a.childPath, a.path);
   assert.equal(b.childPath, b.path);
+  const testBase = fs.realpathSync(path.join(os.tmpdir(), 'dg-busy', 'tests'));
   for (const item of [a, b]) {
     assert.ok(item.path.includes(`/tests/${item.scope}/`));
-    fs.rmSync(item.path.slice(0, item.path.lastIndexOf('/')), { recursive: true, force: true });
+    const root = fs.realpathSync(path.dirname(item.path));
+    assert.equal(path.dirname(root), testBase);
+    assert.equal(path.basename(root), item.scope);
+    fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(item.result, { force: true });
     fs.rmSync(`${item.result}.child`, { force: true });
   }

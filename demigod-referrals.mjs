@@ -608,7 +608,8 @@ function canonicalHirePair(leadsDoc, outcome, billing, notBefore = '') {
         !pair.mutual?.founder || !pair.mutual?.candidate ||
         !pair.roleId || !pair.candId || String(pair.roleId) === String(pair.candId)) continue;
     try {
-      assertCurrentMutualPairEligibility(pair, { pairKey: id });
+      // A retained-hire audit outlives the original open-role window; role facts and consent still must match.
+      assertCurrentMutualPairEligibility(pair, { pairKey: id, requireOpen: false });
     } catch {
       continue;
     }
@@ -1221,8 +1222,10 @@ export async function syncReferralInbox() {
     const email = extractEmail(raw, item.form);
     const company = clean(raw['company-name'] || raw.companyName, 160).toLowerCase();
     const subjectKey = kind === 'company' ? `company:${company}` : `talent:${email}`;
+    const blocker = submissionApprovalBlocker(item);
     const eligible = !!kind && item.status !== 'updated' && !item.supersedes &&
-      !submissionApprovalBlocker(item) && !isSyntheticContact(email, raw);
+      (!blocker || blocker === 'candidate_availability_reconfirmation_required') &&
+      !isSyntheticContact(email, raw);
     if (!raw.referral) {
       if (eligible) directResults.push(recordDirectSubmission({
         submissionId: item.id,

@@ -74,7 +74,8 @@ import {
   statusReport,
   summarizeBlockedReasons,
 } from './demigod-funnel.mjs';
-import { draftHygiene } from './demigod-demand.mjs';
+import { roleTruthFingerprint } from './demigod-accepted-role.mjs';
+import { countOpenPilotOs, draftHygiene } from './demigod-demand.mjs';
 import {
   checkOutreach,
   isIdentitySuppressedByOther,
@@ -198,6 +199,17 @@ function assert(cond, msg) {
     failed++;
     console.error('  FAIL', msg);
   }
+}
+{
+  assert(canTransition('proposed', 'one_side_no').ok === false, 'negative exit without a reason fails');
+  assert(
+    canTransition('proposed', 'one_side_no', { evidenceText: 'not interested' }).ok === false,
+    'negative exit without a decision-side prefix fails',
+  );
+  assert(
+    canTransition('proposed', 'one_side_no', { evidenceText: 'candidate: scope is not a fit' }).ok === true,
+    'negative exit keeps one private, attributable reason',
+  );
 }
 
 {
@@ -1452,8 +1464,10 @@ assert(!leadCollectionPaused('# Current\nLead funnel is active'), 'lead collect 
 }
 assert(receiptArgsValid(['--id=x', '--message-id=m']), 'receipt accepts documented value flags');
 assert(receiptArgsValid(['--id', 'x', '--messageId', 'm']), 'receipt accepts spaced alias flags');
+assert(receiptArgsValid(['--id=x', '--next-update=2026-08-03']), 'receipt accepts intro checkpoint date');
 assert(!receiptArgsValid(['--id=x', '--id=y']), 'receipt rejects duplicate value flags');
 assert(!receiptArgsValid(['--message-id=x', '--messageId=y']), 'receipt rejects duplicate aliases');
+assert(!receiptArgsValid(['--next-update=2026-08-03', '--nextUpdate=2026-08-04']), 'receipt rejects duplicate checkpoint aliases');
 assert(!receiptArgsValid(['--id=x', '--send']), 'receipt rejects unknown flags');
 assert(!receiptArgsValid(['--id']), 'receipt rejects missing values');
   const txDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-receipt-tx-'));
@@ -2259,7 +2273,7 @@ Showed Expanding Rapidly We The open roles
   const plan = planSendReady(doc, { draftsDir: null });
   assert(plan.ready.length === 2, 'send plan ready = email + handle approved');
   assert(plan.ready.some((r) => r.id === 'ap-ok' && r.sendLane === 'email'), 'email lane');
-  assert(plan.ready.some((r) => r.id === 'ap-h' && r.sendLane === 'x-or-li-human'), 'handle lane');
+  assert(plan.ready.some((r) => r.id === 'ap-h' && r.sendLane === 'x-or-li'), 'handle lane');
   assert(plan.ready[0].channel === 'email', 'send plan: email channel sorted first');
   assert(plan.ready.some((r) => r.id === 'ap-h' && r.displayWho === 'Pat'), 'send plan: displayWho from name');
   assert(plan.blocked.some((b) => b.id === 'ap-url'), 'url-only approved blocked from send');
@@ -2281,7 +2295,7 @@ Showed Expanding Rapidly We The open roles
   assert(/\bPat\b/.test(md), 'send package: displayWho in markdown');
 }
 
-// 15) batch approval: human-only (Trust Ladder L1); agent actors fail closed
+// 15) batch approval: review note + safe contact gates; actor is honest attribution only
 {
   const doc = {
     partners: [{ id: 'draft-1', state: 'drafted', email: 'one@startup.test' }],
@@ -2289,27 +2303,14 @@ Showed Expanding Rapidly We The open roles
   };
   const missing = approveDrafted(doc, {});
   assert(missing.approved.length === 0 && doc.partners[0].state === 'drafted', 'batch approve requires note');
-  const agent = approveDrafted(doc, { note: 'agent try', actor: 'selftest' });
-  assert(
-    agent.approved.length === 0 &&
-      agent.errors.length === 1 &&
-      /actor=human|Trust Ladder/i.test(agent.errors[0].error || '') &&
-      doc.partners[0].state === 'drafted',
-    'batch refuse non-human actor (Trust Ladder L1)',
-  );
-  const result = approveDrafted(doc, { note: 'reviewed copy', actor: 'human' });
+  const result = approveDrafted(doc, { note: 'reviewed copy', actor: 'selftest' });
   assert(result.approved.length === 1 && doc.partners[0].state === 'approved', 'batch approves drafted only');
   assert(doc.talent[0].state === 'sourced', 'batch leaves non-drafted unchanged');
   assert(doc.partners[0].stateHistory.at(-1).note === 'reviewed copy', 'batch records approval note');
-  assert(doc.partners[0].stateHistory.at(-1).actor === 'human', 'batch records human actor');
-  // direct canTransition positive/negative
+  assert(doc.partners[0].stateHistory.at(-1).actor === 'selftest', 'batch records the actual actor');
   assert(
-    canTransition('drafted', 'approved', { evidenceText: 'ok', actor: 'human' }).ok === true,
-    'canTransition human → approved ok',
-  );
-  assert(
-    canTransition('drafted', 'approved', { evidenceText: 'ok', actor: 'automation-worker' }).ok === false,
-    'canTransition agent → approved refused',
+    canTransition('drafted', 'approved', { evidenceText: 'ok', actor: 'automation-worker' }).ok === true,
+    'canTransition accepts a reviewed approval regardless of actor label',
   );
   assert(
     canTransition('approved', 'disqualified', { evidenceText: 'junk-aggregator-or-fragment' }).ok === true,
@@ -2407,7 +2408,7 @@ Showed Expanding Rapidly We The open roles
     withFile.blocked.some((b) => b.id === 'missing-file' && /draft file missing/i.test(b.reason || '')),
     'plan: missing draft file blocked',
   );
-  // Human console helper: ready rows carry draftPath + sendLane + company + subject/preview
+  // Review helper: ready rows carry draftPath + sendLane + company + subject/preview
   const okReady = withFile.ready.find((r) => r.id === 'ok');
   assert(
     okReady &&
@@ -2570,7 +2571,7 @@ Showed Expanding Rapidly We The open roles
     ],
   });
   assert(/email_ready:\s*1/.test(emailFirst) && /e1/.test(emailFirst) && !/h1/.test(emailFirst), 'email-first package: only email channel');
-  assert(/--actor=human/.test(emailFirst) && /approve-drafted/.test(emailFirst), 'email-first package: human approve cmd');
+  assert(!/--actor=human/.test(emailFirst) && /approve-drafted/.test(emailFirst), 'email-first package: direct approve cmd');
   const emailNone = formatEmailFirstApprovePackage({ ready: [{ id: 'h1', channel: 'handle', to: '@x' }] });
   assert(/email_ready:\s*0/.test(emailNone) && /none/i.test(emailNone), 'email-first package: empty when no email');
   const sendFirst = formatEmailFirstSendPackage({
@@ -2601,8 +2602,8 @@ Showed Expanding Rapidly We The open roles
   });
   assert(l1.schema === 'demigod.funnel-l1/1' && l1.autoSend === false && l1.autoDm === false, 'l1 snapshot: hard false auto flags');
   assert(l1.approve_ready_email_ids.join() === 'e1' && /a@co.test/.test(l1.approve_ready_email_tos.join()), 'l1 snapshot: email ids/tos');
-  assert(/--actor=human/.test(l1.human.approve || '') && /e1/.test(l1.human.approve || ''), 'l1 snapshot: human approve cmd');
-  assert(l1.trustLadder === 'L1-human-approve-send-only', 'l1 snapshot: trust ladder label');
+  assert(!/--actor=human/.test(l1.human.approve || '') && /e1/.test(l1.human.approve || ''), 'l1 snapshot: direct approve cmd');
+  assert(l1.trustLadder === 'local-review-external-send', 'l1 snapshot: trust boundary label');
   const l1b = buildL1Snapshot({
     metrics: {
       events_api_base: 'https://x.example/api/events-bot',
@@ -3426,11 +3427,13 @@ assert(
 // 20) pilot bridge: intro_made → pilot-os (CLI, isolated DEMIGOD_ROOT)
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-pilot-bridge-'));
+  const testScope = `funnel-pilot-bridge-${process.pid}`;
+  const submissionsDir = path.join('/tmp/dg-busy/tests', testScope);
   const funnelBin = path.join(__dirname, 'demigod-funnel.mjs');
   const runPilot = (extra = []) =>
     spawnSync(process.execPath, [funnelBin, 'pilot', ...extra], {
       encoding: 'utf8',
-      env: { ...process.env, DEMIGOD_ROOT: tmp },
+      env: { ...process.env, DEMIGOD_ROOT: tmp, DEMIGOD_TEST_SCOPE: testScope },
       cwd: __dirname,
       timeout: 30000,
     });
@@ -3452,6 +3455,7 @@ assert(
             state: 'intro_made',
             company: 'BridgePilotCo',
             title: 'Founding Engineer',
+            contactEmail: 'founder@bridgepilot.co',
           },
           {
             id: 'bridge-mutual-1',
@@ -3471,6 +3475,67 @@ assert(
     path.join(tmp, 'DEMIGOD-PILOTS.json'),
     JSON.stringify({ schema: 1, pilots: [], at: new Date().toISOString() }, null, 2) + '\n',
   );
+  const acceptedAt = new Date().toISOString();
+  fs.mkdirSync(submissionsDir, { recursive: true });
+  fs.writeFileSync(path.join(submissionsDir, 'test-board.json'), JSON.stringify({
+    roles: [{ id: 'bridge-role-1', title: 'Founding Engineer', company: 'BridgePilotCo', sample: false }],
+    candidates: [],
+  }));
+  fs.writeFileSync(path.join(submissionsDir, 'test-submissions-inbox.json'), JSON.stringify({ items: [{
+    id: 'sub-bridge-role-1',
+    at: acceptedAt,
+    status: 'featured',
+    featuredId: 'bridge-role-1',
+    form: 'startup-hire',
+    raw: {
+      'company-name': 'BridgePilotCo',
+      'company-stage': 'seed',
+      'role-title': 'Founding Engineer',
+      'stack-needs': 'TypeScript systems ownership',
+      '90day-outcome': 'Ship the first reliable customer workflow',
+      'work-location': 'sf-hybrid',
+      'salary-range': '$180k–$220k',
+      'interview-process': 'Founder call, work review, team conversation',
+      'contact-email': 'founder@bridgepilot.co',
+    },
+  }] }));
+
+  const missing = parseOut(runPilot());
+  assert(
+    missing.ok === true && missing.eligible === 0 &&
+      (missing.items || []).some((i) => i.leadId === 'bridge-intro-1' && i.reason === 'missing_intro_receipt'),
+    'pilot bridge refuses bare intro_made without its receipt history',
+  );
+  const receiptDir = path.join(tmp, 'demigod-outreach', 'funnel-receipts');
+  const introReceipt = path.join(receiptDir, 'bridge-intro-1-intro_made.txt');
+  const introAt = '2026-08-01T12:00:00.000Z';
+  fs.mkdirSync(receiptDir, { recursive: true });
+  fs.writeFileSync(introReceipt, [
+    'SENT-CONFIRMED',
+    'channel: email',
+    'kind: intro_made',
+    'Message-ID: <bridge-intro-1@real.test>',
+    `at: ${introAt}`,
+    'pairId: pair-bridge',
+    'roleId: bridge-role-1',
+    'candId: bridge-talent-1',
+    'nextUpdateAt: 2099-08-03',
+    '',
+  ].join('\n'));
+  const receiptLeads = JSON.parse(fs.readFileSync(path.join(tmp, 'DEMIGOD-LEADS.json'), 'utf8'));
+  const receiptLead = receiptLeads.partners.find((lead) => lead.id === 'bridge-intro-1');
+  receiptLead.pairId = 'pair-bridge';
+  receiptLead.stateHistory = [{
+    at: introAt,
+    from: 'mutual_yes',
+    to: 'intro_made',
+    actor: 'agent',
+    evidence: introReceipt,
+    pairId: 'pair-bridge',
+    roleId: 'bridge-role-1',
+    candId: 'bridge-talent-1',
+  }];
+  fs.writeFileSync(path.join(tmp, 'DEMIGOD-LEADS.json'), JSON.stringify(receiptLeads, null, 2) + '\n');
 
   const dry = parseOut(runPilot());
   assert(dry.ok === true && dry.scanned === 3 && dry.eligible === 1 && dry.bridged === 0, 'pilot report-only: scanned>0 bridged=0');
@@ -3489,6 +3554,11 @@ assert(
   const pilots1 = JSON.parse(fs.readFileSync(path.join(tmp, 'DEMIGOD-PILOTS.json'), 'utf8'));
   const spawned = (pilots1.pilots || []).find((p) => p.id === introLead.pilotId);
   assert(spawned?.source === 'funnel:bridge-intro-1', 'spawned pilot source is funnel:<id>');
+  assert(spawned?.status === 'intro' && spawned?.introAt === introAt, 'receipt-backed bridge starts at intro');
+  assert(spawned?.pairId === 'pair-bridge' && spawned?.introReceipt === introReceipt, 'pilot retains pair and receipt binding');
+  assert(spawned?.nextUpdateAt === '2099-08-03', 'pilot retains dated intro checkpoint');
+  assert(spawned?.contact === 'founder@bridgepilot.co' && spawned?.outcome90d === 'Ship the first reliable customer workflow', 'bridge retains accepted contact and first result');
+  assert(countOpenPilotOs({ pilots: [spawned] }) === 1, 'receipt-backed bridge is visible to canonical demand truth');
   assert(
     !(pilots1.pilots || []).some((p) => p.source === 'funnel:bridge-mutual-1'),
     'no pilot for mutual_yes lead',
@@ -3522,6 +3592,7 @@ assert(
 
   try {
     fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(submissionsDir, { recursive: true, force: true });
   } catch {
     /* */
   }
@@ -5330,24 +5401,40 @@ assert(
       .update([roleId, candId].sort().join('|'))
       .digest('hex')
       .slice(0, 16);
-  const fixtureConsentHistory = (state = 'mutual_yes') => [
-    {
-      at: '2026-07-01T10:00:00.000Z',
-      actor: 'fixture',
-      event: 'consent',
-      side: 'founder',
-      evidence: 'founder consent recorded for fixture intro path',
-      state,
-    },
-    {
-      at: '2026-07-01T10:05:00.000Z',
-      actor: 'fixture',
-      event: 'consent',
-      side: 'candidate',
-      evidence: 'candidate consent recorded for fixture intro path',
-      state,
-    },
-  ];
+  const fixtureConsentHistory = (roleId, state = 'mutual_yes') => {
+    const roleTruthHash = roleTruthFingerprint({
+      data: {
+        'company-name': `Company ${roleId}`,
+        'company-stage': 'seed',
+        'role-title': 'Founding Engineer',
+        'stack-needs': 'JavaScript',
+        '90day-outcome': 'Ship a reliable product milestone',
+        'work-location': 'sf-hybrid',
+        'salary-range': '$180-220k',
+        'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+      },
+    });
+    return [
+      {
+        at: '2026-07-01T10:00:00.000Z',
+        actor: 'fixture',
+        event: 'consent',
+        side: 'founder',
+        evidence: 'founder consent recorded for fixture intro path',
+        roleTruthHash,
+        state,
+      },
+      {
+        at: '2026-07-01T10:05:00.000Z',
+        actor: 'fixture',
+        event: 'consent',
+        side: 'candidate',
+        evidence: 'candidate consent recorded for fixture intro path',
+        roleTruthHash,
+        state,
+      },
+    ];
+  };
   const fixturePair = (roleId, candId, fields = {}) => {
     const state = fields.state;
     const needsMutualReceipts =
@@ -5364,7 +5451,7 @@ assert(
       createdSample: false,
       // mutual_yes intro-ready path requires assertCurrentMutualPairEligibility receipts.
       ...(needsMutualReceipts && !fields.history
-        ? { history: fixtureConsentHistory(state) }
+        ? { history: fixtureConsentHistory(roleId, state) }
         : {}),
       ...fields,
     };
@@ -5397,11 +5484,23 @@ assert(
           id: `origin-${roleId}`,
           featuredId: roleId,
           status: 'featured',
+          at: new Date().toISOString(),
           form: 'startup-hire',
-          data: { 'company-name': `Company ${roleId}` },
+          data: {
+            'company-name': `Company ${roleId}`,
+            'company-stage': 'seed',
+            'role-title': 'Founding Engineer',
+            'stack-needs': 'JavaScript',
+            '90day-outcome': 'Ship a reliable product milestone',
+            'work-location': 'sf-hybrid',
+            'salary-range': '$180-220k',
+            'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+            'contact-email': `founder-${roleId}@fixture.test`,
+          },
         },
         {
           id: candId,
+          at: new Date().toISOString(),
           sample: false,
           status: 'reviewed',
           form: 'engineer-join',
@@ -6191,7 +6290,7 @@ assert(
       '',
       'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
       '',
-      'If useful: https://www.trydemigod.com/?wiz=startup&dg_lead=waas-6iwLqId0xZ9cLB — asks what a great 90-day outcome looks like.',
+      'If useful: https://www.trydemigod.com/?wiz=startup&dg_lead=waas-6iwLqId0xZ9cLB — asks what this hire should accomplish first.',
       '',
       'Reply "no thanks" and you will not hear from me again.',
       '',
@@ -8358,8 +8457,8 @@ assert(
     'status approval command is not silently truncated',
   );
   assert(
-    report.metrics.send_ready_human_only === report.metrics.send_ready_handle,
-    'status identifies handle-only send readiness as human-only',
+    report.metrics.send_ready_handle_only === report.metrics.send_ready_handle,
+    'status identifies handle-only send readiness',
   );
   assert(Array.isArray(report.metrics.holds_scrape_due_ids), 'status metrics holds_scrape_due_ids array');
   assert(Array.isArray(report.metrics.holds_cooling_ids), 'status metrics holds_cooling_ids array');

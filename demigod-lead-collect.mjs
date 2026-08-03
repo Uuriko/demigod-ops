@@ -16,7 +16,7 @@ import path from 'path';
 import { createHash, randomUUID } from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { loadInbox, extractEmail } from './demigod-submissions-lib.mjs';
+import { currentCandidateSubmissions, loadInbox, extractEmail } from './demigod-submissions-lib.mjs';
 import { atomicWrite, withFileLock } from './demigod-agent-tools-lib.mjs';
 import { normalizeLinkedInProfile } from './demigod-outreach-policy.mjs';
 import { safeResearchUrl } from './demigod-evidence.mjs';
@@ -2106,11 +2106,13 @@ function inboxLeads() {
     return { partners, talent };
   }
   const items = inbox.items || [];
+  const currentCandidateIds = new Set(currentCandidateSubmissions(items).map((item) => item.id));
   for (const i of items) {
     const form = String(i.form || '').toLowerCase();
     const raw = i.raw || {};
     const status = String(i.status || 'new');
     if (/spam|reject|playtest|e2e/i.test(status + JSON.stringify(i.rejectReasons || []))) continue;
+    if (/engineer|talent|seeker|candidate|sms/.test(form) && !currentCandidateIds.has(i.id)) continue;
 
     // Same email helper as funnel join (extractEmail + fallbacks)
     const email =

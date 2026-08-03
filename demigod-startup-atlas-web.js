@@ -1,8 +1,7 @@
 (function () {
   'use strict';
-  // Minimal, text-first SF startup directory ("think Craigslist"): a dense, searchable
-  // list of real companies. No SVG map, no radius search, no venue layer — the startup
-  // page is startups only; event venues live on the separate events page.
+  // Minimal, text-first SF tech company directory ("think Craigslist"): a dense,
+  // searchable list. No SVG map, no radius search, no venue layer; events stay separate.
   // Preserves the public API (mount/addCommunityStartups), schema/3 validation, the
   // community-submission merge, and every honesty label from the prior atlas.
   var source = document.currentScript && document.currentScript.src;
@@ -27,7 +26,7 @@
   // recognised is dropped rather than echoed.
   var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
   var DG_HIRING = ['yes', 'no', 'unknown'];
-  var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations'];
+  var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations', 'people', 'finance/legal'];
 
   function dgParseFilterHash(hash, providers) {
     var out = { query: '', hiring: '', func: '', provider: '', sort: 'roles' };
@@ -98,6 +97,21 @@
       .slice(0, n);
   }
 
+  function dgActivitySummary(feed, view) {
+    var counts = feed && feed.counts;
+    var fields = ['inWindow', 'companiesInWindow', 'closedInWindow', 'companiesClosedInWindow', 'observationSpanDays', 'closureObservationSpanDays'];
+    if ((view && (view.func || view.companies)) || !feed || feed.schema !== 'demigod.roles-feed/8' ||
+        !Number.isSafeInteger(feed.windowDays) || feed.windowDays < 1 || !counts ||
+        fields.some(function (key) { return !Number.isSafeInteger(counts[key]) || counts[key] < 0; })) return '';
+    var n = function (value, noun, plural) { return value + ' ' + (value === 1 ? noun : plural); };
+    return 'Latest ' + feed.windowDays + '-day window: Demigod first observed ' +
+      n(counts.inWindow, 'role', 'roles') + ' across ' + n(counts.companiesInWindow, 'company', 'companies') + '; ' +
+      n(counts.closedInWindow, 'role', 'roles') + ' left polled boards across ' +
+      n(counts.companiesClosedInWindow, 'company', 'companies') + '. A role leaving a board does not mean filled or hired. ' +
+      'Observation history spans ' + n(counts.observationSpanDays, 'day', 'days') + '; closure history spans ' +
+      n(counts.closureObservationSpanDays, 'day', 'days') + '. These are board observations, not a hiring rate.';
+  }
+
   function dgOrderByMedian(direction) {
     var newestFirst = direction === 'fresh';
     return function (aMed, bMed, aName, bName) {
@@ -109,6 +123,17 @@
       if (a === b) return String(aName).localeCompare(String(bName));
       return newestFirst ? a - b : b - a;
     };
+  }
+
+  function dgRoleMixSummary(mix) {
+    if (!mix || typeof mix !== 'object' || Array.isArray(mix)) return '';
+    return Object.keys(mix)
+      .filter(function (fn) { return fn !== 'other' && Number.isSafeInteger(mix[fn]) && mix[fn] > 0; })
+      .map(function (fn) { return { fn: fn, n: mix[fn] }; })
+      .sort(function (a, b) { return b.n - a.n || a.fn.localeCompare(b.fn); })
+      .slice(0, 5)
+      .map(function (row) { return row.fn + ' ' + row.n.toLocaleString('en-US'); })
+      .join(' · ');
   }
 
   var state = {
@@ -168,11 +193,15 @@
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
       '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:44px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
-      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
-      '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}' +
+      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:44px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
+      '.dg-dir-topics{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin:.2rem 0 0}.dg-dir-topic-label{color:#a8a29e;font-size:.68rem}' +
+      '.dg-dir-topic{border:1px solid rgba(166,255,203,.18);border-radius:999px;color:#9fb8a8;padding:.08rem .45rem;font-size:.68rem}' +
+      '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}.dg-dir-count:focus{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-list{list-style:none;margin:0;padding:0;border-top:1px solid rgba(166,255,203,.12)}' +
+      '.dg-dir-more{min-height:44px;margin:.8rem 0 0;border:1px solid rgba(166,255,203,.4);border-radius:9px;background:#07150f;color:#a6ffcb;padding:.55rem .8rem;font:inherit;cursor:pointer}.dg-dir-more:hover{text-decoration:underline}' +
       '.dg-dir-row{border-bottom:1px solid rgba(166,255,203,.1);padding:.5rem .1rem}' +
       '.dg-dir-row[hidden]{display:none}' +
       '.dg-dir-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem .6rem}' +
@@ -185,7 +214,7 @@
       '.dg-dir-pulse{margin:.35rem 0 .55rem;color:#9fb8a8;font-size:.78rem;line-height:1.35}' +
       '.dg-dir-desc{color:#c9c6bf;font-size:.82rem;line-height:1.5;margin:.25rem 0 0}' +
       '.dg-dir-links{margin:.25rem 0 0;font-size:.76rem}' +
-      '.dg-dir-links a{color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
+      '.dg-dir-links a{display:inline-flex;align-items:center;min-height:44px;color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
       '.dg-dir-empty{color:#a8a29e;padding:.9rem 0}' +
       '.dg-dir-fresh{margin:1.4rem 0 0;padding-top:1rem;border-top:1px solid rgba(166,255,203,.12)}' +
       '.dg-dir-fresh[hidden]{display:none}' +
@@ -215,6 +244,7 @@
     // Counts are US-posted (or Remote) board rows only — see jobs enrich openRolesScope.
     var rolesLabel = openRoles ? openRoles + ' US open role' + (openRoles === 1 ? '' : 's') : '';
     var hn = company.sourceLicense === 'HN-public' || company.source === 'Hacker News (Who is Hiring)';
+    var yc = company.sourceLicense === 'YC-public' || company.source === 'Y Combinator';
     var hiring = openRoles ? rolesLabel
       : company.hiring === 'yes'
         ? (community ? 'Hiring reported' : hn ? 'Hiring (per HN post)' : 'Hiring (per YC)')
@@ -223,7 +253,7 @@
           : 'Hiring not verified';
     var flagClass = (openRoles || company.hiring === 'yes') ? ' is-hiring' : '';
     // Provenance label follows sourceLicense/source — YC-public/HN-public are not CC0 evidence.
-    var kind = company.sourceLicense === 'YC-public' || company.source === 'Y Combinator'
+    var kind = yc
       ? 'YC · public directory'
       : hn
         ? 'Hacker News · Who is Hiring'
@@ -233,7 +263,13 @@
             ? 'Wikidata · CC0'
             : (company.source || 'Public record');
     var bits = [kind];
-    if (company.inceptionYear) bits.push('founded ' + esc(company.inceptionYear));
+    if (company.inceptionYear) bits.push((yc ? 'launched ' : 'founded ') + esc(company.inceptionYear));
+    var selfReported = [];
+    if (yc && ['Early', 'Growth'].includes(company.stage)) selfReported.push(esc(company.stage) + ' stage');
+    if (yc && Number.isSafeInteger(company.teamSize) && company.teamSize > 0 && company.teamSize <= 100000) {
+      selfReported.push('team size listed ' + esc(company.teamSize));
+    }
+    if (selfReported.length) bits.push('YC directory: ' + selfReported.join(' · '));
     if (community && company.neighborhood) bits.push(esc(company.neighborhood) + ' (descriptive)');
     if (openRoles) bits.push('US-posted roles as of ' + esc(company.openRolesAt || ''));
     // Observed open age — days since Demigod first saw the role on the public ATS board (not a ghost verdict).
@@ -271,18 +307,33 @@
         : 'careers';
       links.push('<a href="' + esc(jobsUrl) + '" target="_blank" rel="noopener noreferrer">' + jobsText + '</a>');
     }
-    if (sourceUrl) links.push('<a href="' + esc(sourceUrl) + '" target="_blank" rel="noopener noreferrer">' + (community ? 'submission' : hn ? 'HN post' : 'CC0 source') + '</a>');
+    if (sourceUrl) links.push('<a href="' + esc(sourceUrl) + '" target="_blank" rel="noopener noreferrer">' + (community ? 'submission' : hn ? 'HN post' : yc ? 'YC profile' : 'CC0 source') + '</a>');
     if (!website) links.push('<span class="dg-dir-meta">no verified website on record</span>');
     var roleMixHtml = '';
     if (company.roleMix) {
       var mix = Object.keys(company.roleMix).map(function (k) { return { k: k, n: company.roleMix[k] }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
-      roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) { return '<span class="dg-dir-rolechip">' + esc(m.k) + ' ' + m.n + '</span>'; }).join('') + '</p>';
+      // Only keys accepted by the shared filter become controls; "other" stays evidence, not a dead button.
+      roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) {
+        var label = esc(m.k) + ' ' + esc(m.n);
+        return DG_FUNCS.indexOf(m.k) >= 0
+          ? '<button type="button" class="dg-dir-rolechip" data-fn="' + esc(m.k) + '">' + label + '</button>'
+          : '<span class="dg-dir-rolechip">' + label + '</span>';
+      }).join('') + '</p>';
     }
+    var topics = yc && Array.isArray(company.tags)
+      ? company.tags.filter(function (tag) { return tag !== 'yc' && tag !== 'hn-hiring' && !/^YC\s/i.test(tag); }).slice(0, 3)
+      : [];
+    var topicHtml = topics.length
+      ? '<p class="dg-dir-topics"><span class="dg-dir-topic-label">YC directory topics:</span>' + topics.map(function (topic) {
+          return '<span class="dg-dir-topic">' + esc(topic) + '</span>';
+        }).join('') + '</p>'
+      : '';
     return '<li class="dg-dir-row" data-i="' + index + '">' +
       '<div class="dg-dir-line">' + nameHtml +
       '<span class="dg-dir-flag' + flagClass + '">' + hiring + '</span>' +
       '<span class="dg-dir-meta">' + bits.join(' · ') + '</span></div>' +
       (company.description ? '<p class="dg-dir-desc">' + esc(company.description) + '</p>' : '') +
+      topicHtml +
       roleMixHtml +
       (links.length ? '<div class="dg-dir-links">' + links.join('') + '</div>' : '') +
       '</li>';
@@ -296,10 +347,12 @@
     // Must clear, not just return: the section may already be showing rows from a wider view.
     if (!rows.length) { host.hidden = true; host.innerHTML = ''; return; }
     var days = (typeof feed.windowDays === 'number' && feed.windowDays > 0) ? feed.windowDays : null;
+    var activity = dgActivitySummary(feed, view);
     host.innerHTML =
       '<h2 class="dg-fresh-h">Recently observed roles</h2>' +
+      (activity ? '<p class="dg-dir-pulse"><strong>Board observations:</strong> ' + esc(activity) + '</p>' : '') +
       '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
-      (days ? ' in the last ' + days + ' days' : '') +
+      (days ? ' in the last ' + days + ' day' + (days === 1 ? '' : 's') : '') +
       '. <strong>First observed</strong> is our timestamp, not the employer\'s posting date — most ' +
       'boards do not expose one, so this says when we noticed a role, never how long it has existed. ' +
       // Measured: 40 of 200 feed rows are non-US (Remote Canada/Spain/Poland, São Paulo). The
@@ -370,25 +423,29 @@
     var hiringYc = companies.filter(function (c) { return c.jobsSource === 'YC'; }).length;
     var trackedOpen = companies.filter(function (c) { return typeof c.oldestObservedDays === 'number' && c.oldestObservedDays > 0; }).length;
     var postedAging = companies.filter(function (c) { return typeof c.agingRoles === 'number' && c.agingRoles > 0; }).length;
+    var roleMixSummary = dgRoleMixSummary(map.coverage && map.coverage.roleMix);
     var pulseBits = [];
-    if (hiringNow) pulseBits.push(hiringNow + ' boards with verified US open roles');
+    if (hiringNow) pulseBits.push(hiringNow + ' companies with observed US-posted or remote roles');
     if (trackedOpen) pulseBits.push(trackedOpen + ' with observed open-age (our first seen)');
     if (postedAging) pulseBits.push(postedAging + ' with a role posted 90–365d (board date)');
-    if (hiringYc) pulseBits.push(hiringYc + ' YC self-reported careers links');
+    if (hiringYc) pulseBits.push(hiringYc + ' YC directory careers links');
     root.innerHTML =
-      '<p class="dg-dir-intro">A plain directory of San Francisco startups from public open data, plus operator-reviewed community submissions. City-level only — these are companies with a listed SF headquarters, not verified offices or current status. Open-role counts come from each company\'s own public job board (Greenhouse/Lever/Ashby), count only US-posted or Remote listings when the board exposes location, and are point-in-time. Where we track a board over time, we also show how long a role has been open <em>by our first observation</em> (not a score, not a ghost-job verdict). Board posting dates appear only when the ATS exposes a real post date.</p>' +
+      '<p class="dg-dir-intro">A plain directory of San Francisco Bay Area tech companies from public open data, plus operator-reviewed startup submissions. City-level only — these companies have a listed Bay Area location or headquarters, not a verified office or current status. Open-role counts come from each company\'s own public job board (Greenhouse/Lever/Ashby), count only US-posted or Remote listings when the board exposes location, and are point-in-time. Where we track a board over time, we also show how long a role has been open <em>by our first observation</em> (not a score, not a ghost-job verdict). Board posting dates appear only when the ATS exposes a real post date.</p>' +
       (pulseBits.length
         ? '<p class="dg-dir-pulse" role="status">' + pulseBits.map(esc).join(' · ') +
           (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
           '</p>'
         : '') +
-      '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search startups" placeholder="Search startups…" autocomplete="off" value="' + esc(state.query) + '">' +
+      (roleMixSummary
+        ? '<p class="dg-dir-pulse"><strong>Largest open-role title buckets:</strong> ' + esc(roleMixSummary) + '. Top five public-board, title-heuristic counts — not a ranking or demand score.</p>'
+        : '') +
+      '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search companies" placeholder="Search companies…" autocomplete="off" value="' + esc(state.query) + '">' +
       '<select class="dg-dir-hiring" aria-label="Filter by hiring status"><option value="">All</option>' +
       '<option value="yes"' + (state.hiring === 'yes' ? ' selected' : '') + '>Hiring / open roles</option>' +
       '<option value="unknown"' + (state.hiring === 'unknown' ? ' selected' : '') + '>Hiring unknown</option>' +
       '<option value="no"' + (state.hiring === 'no' ? ' selected' : '') + '>Not hiring reported</option></select>' +
       '<select class="dg-dir-func" aria-label="Filter by role function"><option value="">Any role</option>' +
-      ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations'].map(function (f) {
+      DG_FUNCS.map(function (f) {
         return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + f.charAt(0).toUpperCase() + f.slice(1) + '</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-provider" aria-label="Filter by ATS provider"><option value="">Any job board</option>' +
@@ -402,9 +459,10 @@
         '<option value="stale"' + (state.sort === 'stale' ? ' selected' : '') + '>Longest-posted</option>' +
         '<option value="name"' + (state.sort === 'name' ? ' selected' : '') + '>Name A–Z</option>' +
       '</select></div>' +
-      '<p class="dg-dir-count" role="status" aria-live="polite">' + companies.length + ' companies · loading job coverage…</p>' +
+      '<p class="dg-dir-count" role="status" aria-live="polite" tabindex="-1">' + companies.length + ' companies · loading job coverage…</p>' +
       '<ul class="dg-dir-list"></ul>' +
-      '<section class="dg-dir-fresh" hidden></section>' +
+      '<button type="button" class="dg-dir-more" hidden>Load more companies</button>' +
+      '<section class="dg-dir-fresh" role="status" aria-live="polite" hidden></section>' +
       '<p class="dg-dir-foot"><strong>Definition:</strong> ' + esc(map.coverage.definition || 'Companies with a public SF headquarters listing.') +
       '<br><strong>Important:</strong> ' + esc(map.coverage.caveat || 'City-level only; current status is not verified.') +
       (sources ? '<br>Sources: ' + sources + '.' : '') +
@@ -416,11 +474,14 @@
     var providerEl = root.querySelector('.dg-dir-provider');
     var sortEl = root.querySelector('.dg-dir-sort');
     var list = root.querySelector('.dg-dir-list');
+    var more = root.querySelector('.dg-dir-more');
     var count = root.querySelector('.dg-dir-count');
-    // Search-driven render: with ~2k companies, only paint matching rows (capped) instead of the
-    // whole list — keeps the DOM light and the page fast. Search covers ALL companies.
+    // Paint in 20-row batches instead of the whole list — keeps the DOM light while still letting
+    // visitors browse every match. Search covers ALL companies.
     var CAP = 20;
-    function renderRows() {
+    var shown = CAP;
+    function renderRows(loadMore) {
+      if (loadMore !== true) shown = CAP;
       var q = searchEl.value.trim().toLowerCase();
       var h = hiringEl.value;
       var fn = funcEl.value;
@@ -453,10 +514,10 @@
         matches.sort(function (a, b) {
           return order(companies[a].medianPostedDays, companies[b].medianPostedDays, companies[a].name, companies[b].name);
         });
-      } else if (!q) {
+      } else {
         matches.sort(function (a, b) { return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0)); });
       }
-      var slice = matches.slice(0, CAP);
+      var slice = matches.slice(0, shown);
       // Keep the roles panel in the same view as the rows. null = no filter active, so do not
       // narrow; building a 2,735-name Set on every keystroke of an unfiltered page is pure waste.
       var narrowed = (q || h || fn || provider) ? new Set(matches.map(function (i) { return String(companies[i].name || '').toLowerCase(); })) : null;
@@ -464,12 +525,13 @@
       list.innerHTML = slice.length
         ? slice.map(function (i) { return companyRow(companies[i], i); }).join('')
         : '<li class="dg-dir-empty">' + ((h || fn || provider) ? 'No companies match those filters.' : 'No companies match that search.') + '</li>';
+      more.hidden = matches.length <= shown;
       count.textContent = matches.length
         ? matches.length + ' of ' + companies.length + ' compan' + (matches.length === 1 ? 'y' : 'ies') +
           (fn ? ' hiring in ' + fn : '') +
           (provider ? ' on ' + provider : '') +
-          (matches.length > CAP ? ' — showing first ' + CAP + ', narrow your search' : '') +
-          (!q && !h && !fn && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with live US-posted open roles, ' + hiringYc + ' more hiring per YC' : '')
+          (matches.length > shown ? ' — showing ' + shown : '') +
+          (!q && !h && !fn && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
         : ((h || fn || provider) ? 'No companies match those filters.' : 'No companies match that search.');
     }
     searchEl.addEventListener('input', renderRows);
@@ -477,6 +539,19 @@
     funcEl.addEventListener('change', renderRows);
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
+    more.addEventListener('click', function () {
+      shown += CAP;
+      renderRows(true);
+      if (more.hidden) count.focus();
+    });
+    list.addEventListener('click', function (event) {
+      var chip = event.target.closest && event.target.closest('button.dg-dir-rolechip[data-fn]');
+      var picked = chip && chip.getAttribute('data-fn');
+      if (!picked || DG_FUNCS.indexOf(picked) < 0) return;
+      funcEl.value = picked;
+      renderRows();
+      funcEl.focus();
+    });
     renderRows();
   }
 
@@ -484,7 +559,7 @@
     if (!root) return;
     css();
     root.setAttribute('aria-busy', 'true');
-    root.innerHTML = '<p class="dg-dir-intro">Loading the SF startup directory…</p>';
+    root.innerHTML = '<p class="dg-dir-intro">Loading the SF tech company directory…</p>';
     fetch(dataUrl, { cache: 'force-cache', credentials: 'omit' })
       .then(function (r) { if (!r.ok) throw new Error('Map data HTTP ' + r.status); return r.json(); })
       .then(function (map) {
@@ -493,7 +568,7 @@
         render(root, withCommunityStartups(map));
       })
       .catch(function () {
-        root.innerHTML = '<div class="dg-dir-error" role="alert">The startup directory could not load.<br><button type="button" class="dg-dir-retry">Try again</button></div>';
+        root.innerHTML = '<div class="dg-dir-error" role="alert">The tech company directory could not load.<br><button type="button" class="dg-dir-retry">Try again</button></div>';
         root.querySelector('.dg-dir-retry').addEventListener('click', function () { mount(root); });
       })
       .finally(function () { root.removeAttribute('aria-busy'); });

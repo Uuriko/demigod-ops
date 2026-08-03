@@ -75,7 +75,6 @@ function summarizeItem(item) {
     kind: formKind(item.form),
     status: item.status || 'unknown',
     email: maskEmail(item),
-    statusUrl: item.id ? `https://www.trydemigod.com/#status/${item.id}` : null,
   };
 }
 
@@ -167,8 +166,7 @@ const md = [
   '',
   report.freshCount ? '## New / unseen' : '## (none)',
   ...rows.slice(0, 20).map(
-    (r) =>
-      `- **${r.kind}** \`${r.id}\` ${r.at || '?'} ${r.email || ''} status=${r.status}\n  ${r.statusUrl || ''}`,
+    (r) => `- **${r.kind}** \`${r.id}\` ${r.at || '?'} ${r.email || ''} status=${r.status}`,
   ),
   '',
   '## Next (human)',

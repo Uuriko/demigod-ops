@@ -1,9 +1,25 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {
+import os from 'node:os';
+import path from 'node:path';
+
+const realTmp = fs.realpathSync(os.tmpdir());
+const testRoot = fs.mkdtempSync(path.join(realTmp, 'dg-submissions-lib-'));
+process.env.DEMIGOD_TEST_SCOPE = `submissions-lib-${process.pid}`;
+process.env.DEMIGOD_TEST_ROOT = testRoot;
+process.env.DEMIGOD_INBOX_PATH = path.join(testRoot, 'test-submissions-inbox.json');
+after(() => {
+  const real = fs.realpathSync(testRoot);
+  assert.equal(path.dirname(real), realTmp);
+  assert.ok(path.basename(real).startsWith('dg-submissions-lib-'));
+  fs.rmSync(real, { recursive: true, force: true });
+});
+
+const {
   anonymizeRole,
   anonymizeCandidate,
+  currentCandidateSubmissions,
   scrubPII,
   ingestSubmission,
   loadBoard,
@@ -17,7 +33,7 @@ import {
   writeBoard,
   INBOX_PATH,
   BOARD_PATH,
-} from './demigod-submissions-lib.mjs';
+} = await import('./demigod-submissions-lib.mjs');
 
 test('submission IDs carry capability-grade entropy', () => {
   const ids = new Set(Array.from({ length: 32 }, () => slugId('sub')));
@@ -79,6 +95,7 @@ test('ingestSubmission auto-features when opted in', () => {
       '90day-outcome': 'Build a qualified pipeline',
       'work-location': 'remote-us',
       'salary-range': '$170-210k',
+      'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
       'contact-email': 'founder@fixture.invalid',
     },
   }, { autoFeature: true });
@@ -103,6 +120,7 @@ test('auto-feature cannot bypass rejection or required evidence', () => {
       'stack-needs': 'Seed B2B',
       '90day-outcome': 'Ship MVP',
       'salary-range': '$180-220k',
+      'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
       'contact-email': 'noloc@fixture.invalid',
     },
   }, { autoFeature: true });
@@ -172,6 +190,38 @@ test('duplicate email becomes a review-gated update, not a rejection', () => {
   assert.ok(r.reasons.includes('duplicate_email'));
 });
 
+test('the same email may submit on both sides without becoming a duplicate', () => {
+  const inbox = {
+    items: [{
+      at: new Date().toISOString(), form: 'startup-hire', status: 'new',
+      raw: { 'contact-email': 'both@acme.com' },
+    }],
+  };
+  const result = shouldAutoReject({
+    'seeker-email': 'both@acme.com',
+    'skills-stack': 'Product engineering',
+    'resume-url': 'https://example.com/resume.pdf',
+  }, 'engineer-join', inbox);
+  assert.equal(result.duplicate, false);
+  assert.ok(!result.reasons.includes('duplicate_email'));
+});
+
+test('a reviewed same-email update becomes the one current candidate profile', () => {
+  const prior = {
+    id: 'candidate-old', form: 'engineer-join', status: 'reviewed',
+    raw: { 'seeker-email': 'candidate@acme.com' },
+  };
+  const update = {
+    id: 'candidate-new', form: 'candidate', status: 'updated', supersedes: prior.id,
+    raw: { 'seeker-email': 'candidate@acme.com' },
+  };
+  assert.deepEqual(currentCandidateSubmissions([update, prior]).map((item) => item.id), [update.id, prior.id]);
+  update.status = 'reviewed';
+  assert.deepEqual(currentCandidateSubmissions([update, prior]).map((item) => item.id), [update.id]);
+  update.raw['seeker-email'] = 'someone-else@acme.com';
+  assert.deepEqual(currentCandidateSubmissions([update, prior]).map((item) => item.id), [update.id, prior.id]);
+});
+
 test('duplicate detection survives working-inbox eviction', () => {
   const archive = `${INBOX_PATH}.archive.jsonl`;
   try { fs.unlinkSync(archive); } catch {}
@@ -189,7 +239,17 @@ test('duplicate detection survives working-inbox eviction', () => {
     ingestSubmission({ name: 'startup-hire', data: { 'contact-email': 'new@example.com', 'stack-needs': 'Product' } });
     const index = JSON.parse(fs.readFileSync(INBOX_PATH, 'utf8')).recentContacts;
     assert.match(index[0].emailHash, /^[a-f0-9]{64}$/);
+    assert.equal(index[0].family, 'startup');
     assert.ok(!JSON.stringify(index).includes('@'), 'dedupe index must not retain plaintext email');
+    const crossSide = ingestSubmission({
+      name: 'engineer-join',
+      data: {
+        'seeker-email': 'evicted-founder@example.com',
+        'skills-stack': 'Product engineering',
+        'resume-url': 'https://example.com/resume.pdf',
+      },
+    });
+    assert.equal(crossSide.record.status, 'new', 'archived founder identity must not block a candidate profile');
     const { record } = ingestSubmission({
       name: 'startup-hire',
       data: { 'contact-email': 'evicted-founder@example.com', 'stack-needs': 'Product' },
@@ -221,15 +281,21 @@ test('dedupe index repairs malformed and expired metadata', () => {
   }
 });
 
-test('filterBoard drops stale featured cards', () => {
+test('filterBoard retains real roles for the 90-day open window', () => {
   const old = new Date(Date.now() - 20 * 86400000).toISOString();
+  const expired = new Date(Date.now() - 91 * 86400000).toISOString();
   const fresh = new Date().toISOString();
   const b = filterBoard({
-    roles: [{ id: 'r1', featuredAt: old }, { id: 'r2', featuredAt: fresh }],
-    candidates: [{ id: 'c1', featuredAt: fresh }],
+    roles: [
+      { id: 'sample-old', sample: true, featuredAt: old },
+      { id: 'real-open', sample: false, featuredAt: old },
+      { id: 'real-expired', sample: false, featuredAt: expired },
+      { id: 'sample-fresh', sample: true, featuredAt: fresh },
+    ],
+    candidates: [{ id: 'candidate-old', featuredAt: old }, { id: 'candidate-fresh', featuredAt: fresh }],
   });
-  assert.equal(b.roles.length, 1);
-  assert.equal(b.roles[0].id, 'r2');
+  assert.deepEqual(b.roles.map(({ id }) => id), ['real-open', 'sample-fresh']);
+  assert.deepEqual(b.candidates.map(({ id }) => id), ['candidate-fresh']);
 });
 
 test('ingestSubmission stores partner-apply in inbox', () => {
@@ -317,22 +383,16 @@ test('publicStatus reports the latest public workflow update', async () => {
   assert.equal(st.updatedAt, '2026-07-02T12:00:00.000Z');
 });
 
-test('public submission status URL preserves the high-entropy reference safely', async () => {
-  const { publicSubmissionStatusUrl } = await import('./demigod-submissions-lib.mjs');
-  const id = 'sub-0123456789abcdef0123456789abcdef';
-  assert.equal(publicSubmissionStatusUrl(id), `https://www.trydemigod.com/#status/${id}`);
-  assert.equal(publicSubmissionStatusUrl(''), null);
-  assert.equal(publicSubmissionStatusUrl('sub-a/b'), 'https://www.trydemigod.com/#status/sub-a%2Fb');
-});
-
-test('status path parser is exact, bounded, query-safe, and preserves encoded legacy IDs', async () => {
-  const { parseSubmissionStatusPath } = await import('./demigod-submissions-lib.mjs');
-  assert.deepEqual(parseSubmissionStatusPath('/status/sub-0123456789abcdef?fresh=1'), { matched: true, id: 'sub-0123456789abcdef' });
-  assert.deepEqual(parseSubmissionStatusPath('/status/sub-a%2Fb'), { matched: true, id: 'sub-a/b' });
-  for (const path of ['/status/sub-bad%ZZ', `/status/sub-${'a'.repeat(161)}`, '/status/', '/status/sub-ok/../other']) {
-    assert.deepEqual(parseSubmissionStatusPath(path), { matched: true, id: null });
-  }
-  assert.deepEqual(parseSubmissionStatusPath('/statusish/sub-ok'), { matched: false, id: null });
+test('submission tooling does not advertise a nonexistent public status surface', () => {
+  const files = [
+    'demigod-submissions-lib.mjs',
+    'demigod-submissions-webhook.mjs',
+    'demigod-submissions-inbox.mjs',
+    'demigod-watch-submits.mjs',
+    'demigod-submissions-stale.mjs',
+  ];
+  const source = files.map((file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8')).join('\n');
+  assert.doesNotMatch(source, /#status\/|parseSubmissionStatusPath|publicSubmissionStatusUrl|statusHits/);
 });
 
 test('parseWebhookPayload handles Webflow v2 envelope', async () => {
@@ -394,6 +454,7 @@ test('board mutations preserve corrupt and wrong-shape stores but allow a missin
       () => writeBoard((board) => board, { reason: 'recovery-test', actor: 'test' }),
     );
     assert.deepEqual(loadBoard().roles, []);
+    assert.deepEqual(loadBoard().receipts, []);
   } finally {
     if (prior) fs.writeFileSync(BOARD_PATH, prior, { mode: 0o600 });
     else try { fs.unlinkSync(BOARD_PATH); } catch {}

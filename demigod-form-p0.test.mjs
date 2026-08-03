@@ -17,7 +17,7 @@ test('P0 hiring forms collect only match-critical evidence', () => {
   assert.match(foot, /nativeResume&&!en\.querySelector\('\[name=resume-url\]'\)/);
   assert.match(foot, /Upload a file or paste one shareable HTTPS link/);
   assert.match(foot, /\['Source','hiring-model','timeline','team-size','why-this-role','role-jd'\]\.forEach/);
-  assert.match(foot, /\['github-url','portfolio-url','linkedin-url','phone','why-startups'\]\.forEach/);
+  assert.match(foot, /\['github-url','portfolio-url','linkedin-url','phone','why-startups','work-auth'\]\.forEach/);
 });
 
 test('community event intent is validated in browser and server', () => {

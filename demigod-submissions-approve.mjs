@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Approve inbox submission → mintBoardEntry (sample by default) + optional CDN.
- * Routes through mintBoardEntry so sample/review gates stay honest.
+ * Approve inbox submission → mintBoardEntry.
+ * Reviewed startup submissions become locally real; explicit samples stay samples.
  */
 import { spawnSync } from 'child_process';
 import { ROOT } from './demigod-turn-lib.mjs';
 import {
   loadInbox,
   approveSubmission,
+  isSampleData,
   loadBoard,
 } from './demigod-submissions-lib.mjs';
-import { isFrozen } from './demigod-agent-tools-lib.mjs';
 
 function usage() {
   console.log('Usage: node demigod-submissions-approve.mjs <sub-id|--latest|--list>');
@@ -60,8 +60,8 @@ if (!/startup|engineer|jobseeker|candidate/.test(form)) {
   process.exit(1);
 }
 
-const wantReal =
-  process.env.DEMIGOD_FORCE_REAL === '1' || process.env.DEMIGOD_FORCE_REAL === 'true';
+const wantReal = /startup/.test(form) && !isSampleData(item);
+if (wantReal) process.env.DEMIGOD_ALLOW_REAL_ROLES = '1';
 
 let approval;
 try {
@@ -79,24 +79,6 @@ if (!approval) {
   process.exit(1);
 }
 const { featured } = approval;
-
-const freeze = isFrozen();
-let publish = { skipped: true, reason: null };
-if (process.env.DEMIGOD_FORCE_PUBLISH !== '1') {
-  publish = {
-    skipped: true,
-    reason: freeze.on ? 'publish_frozen' : 'explicit_publish_required',
-    why: freeze.on ? freeze.why : undefined,
-    hint: 'board minted locally; CDN publish requires DEMIGOD_FORCE_PUBLISH=1',
-  };
-} else {
-  const pub = spawnSync('node', ['demigod-board-publish.mjs'], { cwd: ROOT, encoding: 'utf8' });
-  publish = {
-    skipped: false,
-    ok: pub.status === 0,
-    out: (pub.stdout || pub.stderr || '').trim().slice(0, 500),
-  };
-}
 
 const honesty = spawnSync('node', ['demigod-verify-board-honesty.mjs'], {
   cwd: ROOT,
@@ -118,7 +100,6 @@ console.log(
         roles: boardNow.roles?.length,
         candidates: boardNow.candidates?.length,
       },
-      publish,
       honesty: honesty.status === 0 ? 'OK' : (honesty.stderr || honesty.stdout || '').slice(0, 300),
     },
     null,

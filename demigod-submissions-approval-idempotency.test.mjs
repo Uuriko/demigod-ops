@@ -1,21 +1,29 @@
-import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { spawnSync } from 'node:child_process';
-import {
+import os from 'node:os';
+import path from 'node:path';
+
+const realTmp = fs.realpathSync(os.tmpdir());
+const testRoot = fs.mkdtempSync(path.join(realTmp, 'dg-submissions-approval-'));
+process.env.DEMIGOD_TEST_SCOPE = `submissions-approval-${process.pid}`;
+process.env.DEMIGOD_TEST_ROOT = testRoot;
+process.env.DEMIGOD_INBOX_PATH = path.join(testRoot, 'test-submissions-inbox.json');
+after(() => {
+  const real = fs.realpathSync(testRoot);
+  assert.equal(path.dirname(real), realTmp);
+  assert.ok(path.basename(real).startsWith('dg-submissions-approval-'));
+  fs.rmSync(real, { recursive: true, force: true });
+});
+
+const {
   approveSubmission,
   mintBoardEntry,
   BOARD_PATH,
   INBOX_PATH,
   saveBoard,
   saveInbox,
-} from './demigod-submissions-lib.mjs';
-import { isFrozen } from './demigod-agent-tools-lib.mjs';
-
-// Derived, never hardcoded: REPO_ROOT exists on one laptop and fails in any clean checkout.
-const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
+} = await import('./demigod-submissions-lib.mjs');
 
 const requiredRoleEvidence = {
   'company-name': 'Fixture Co',
@@ -23,6 +31,7 @@ const requiredRoleEvidence = {
   '90day-outcome': 'Own one measurable launch outcome',
   'work-location': 'San Francisco, CA',
   'salary-range': '$180-220k',
+  'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
   'contact-email': 'founder@fixture.invalid',
 };
 
@@ -69,32 +78,4 @@ test('approval retry repairs a board-success inbox-failure orphan', () => {
   assert.equal(board.roles.length, 1);
   assert.equal(inbox.items[0].status, 'featured');
   assert.equal(inbox.items[0].featuredId, board.roles[0].id);
-});
-
-test('approval stays local unless publishing is explicit', (t) => {
-  saveBoard({ roles: [], candidates: [] }, { reason: 'approval-local-only-test' });
-  saveInbox({ items: [{
-    id: 'sub-approval-local-only',
-    form: 'startup-hire',
-    status: 'new',
-    raw: { ...requiredRoleEvidence, 'role-title': 'Founding Recruiter', 'stack-needs': 'Early hiring' },
-  }] });
-
-  // Keep isolated SoR via DEMIGOD_TEST_SCOPE even if NODE_TEST_CONTEXT is cleared
-  // (CLI path under test must not mint production DEMIGOD-BOARD.json).
-  const env = {
-    ...process.env,
-    DEMIGOD_FORCE_PUBLISH: '',
-    DEMIGOD_TEST_SCOPE: process.env.DEMIGOD_TEST_SCOPE || `approval-local-${process.pid}`,
-  };
-  delete env.NODE_TEST_CONTEXT;
-  const run = spawnSync(process.execPath, ['demigod-submissions-approve.mjs', 'sub-approval-local-only'], {
-    cwd: REPO_ROOT,
-    env,
-    encoding: 'utf8',
-  });
-  if (run.error?.code === 'EPERM') return t.skip('sandbox forbids nested process creation');
-  assert.equal(run.status, 0, run.stderr || run.stdout);
-  assert.ok(run.stdout.trim(), JSON.stringify(run));
-  assert.equal(JSON.parse(run.stdout).publish.reason, isFrozen().on ? 'publish_frozen' : 'explicit_publish_required');
 });

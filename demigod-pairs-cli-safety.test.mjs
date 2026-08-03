@@ -12,7 +12,8 @@ const testDir = path.join('/tmp/dg-busy/tests', scope);
 const bin = new URL('./demigod-pairs-lib.mjs', import.meta.url).pathname;
 const reviewBin = new URL('./demigod-match-review.mjs', import.meta.url).pathname;
 const introBin = new URL('./demigod-intro-draft.mjs', import.meta.url).pathname;
-const introGeneratorBin = new URL('./demigod-intro-generator.mjs', import.meta.url).pathname;
+const matchingBin = new URL('./demigod-matching-engine.mjs', import.meta.url).pathname;
+const matchesBin = new URL('./bin/dg-matches', import.meta.url).pathname;
 const busy = path.join(root, '.dg-busy');
 process.env.DEMIGOD_ROOT = root;
 process.env.DEMIGOD_TEST_SCOPE = scope;
@@ -29,16 +30,16 @@ const runIntro = (...args) => spawnSync(process.execPath, [introBin, ...args], {
   encoding: 'utf8',
   env: process.env,
 });
-const runIntroGenerator = (...args) => spawnSync(process.execPath, [introGeneratorBin, ...args], {
+const runMatching = (...args) => spawnSync(process.execPath, [matchingBin, ...args], {
+  encoding: 'utf8',
+  env: process.env,
+});
+const runMatches = (...args) => spawnSync('bash', [matchesBin, ...args], {
   encoding: 'utf8',
   env: process.env,
 });
 try {
-  assert.equal(
-    runIntroGenerator('--role-id=missing-role', '--cand-id=missing-candidate').status,
-    1,
-    'missing role/candidate cannot produce a fabricated warm intro',
-  );
+  assert.equal(runIntro('missing-pair', '--json').status, 1, 'missing pair cannot produce a fabricated warm intro');
   const pairsPath = path.join(root, 'DEMIGOD-PAIRS.json');
   fs.writeFileSync(pairsPath, '{corrupt exact bytes');
   const corruptBytes = fs.readFileSync(pairsPath, 'utf8');
@@ -85,11 +86,23 @@ try {
     id: submissionId,
     featuredId: roleId,
     status: 'featured',
+    at: new Date().toISOString(),
     form: 'startup-hire',
-    data: { 'company-name': `Acme ${roleId}` },
+    data: {
+      'company-name': `Acme ${roleId}`,
+      'company-stage': 'seed',
+      'role-title': 'Founding Engineer',
+      'stack-needs': 'JavaScript',
+      '90day-outcome': 'Ship a reliable product milestone',
+      'work-location': 'sf-hybrid',
+      'salary-range': '$180-220k',
+      'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+      'contact-email': `founder+${roleId}@acme.test`,
+    },
   }));
   const candidates = cases.map(([, , candidateId]) => ({
     id: candidateId,
+    at: new Date().toISOString(),
     sample: false,
     status: 'reviewed',
     form: 'engineer-join',
@@ -97,7 +110,7 @@ try {
       'full-name': 'Candidate',
       'seeker-email': `${candidateId}@acme.test`,
       'skills-stack': 'JavaScript',
-      experience: 'Shipped products',
+      experience: 'Cut deploy time 40% after rebuilding release automation',
       'sf-bay': 'yes',
       availability: 'now',
       'salary-expectation': '$180k',
@@ -166,6 +179,18 @@ try {
   const real = Object.values(JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8')).pairs).find((pair) => pair.roleId === 'real-role');
   assert.equal(real.sample, false, 'a direct validated real proposal stays explicitly real');
   assert.equal(real.createdSample, false, 'real authority records its creation classification');
+  const priorCandidate = candidates.find((candidate) => candidate.id === 'real-candidate');
+  const replacementCandidate = {
+    ...priorCandidate,
+    id: 'real-candidate-v2',
+    supersedes: priorCandidate.id,
+    raw: { ...priorCandidate.raw },
+  };
+  fs.writeFileSync(inboxPath, JSON.stringify({ items: [...origins, replacementCandidate, ...candidates] }));
+  const supersededReview = run('review', real.pairId, '--decision', 'approve', '--i-reviewed', '--note', 'Reviewed stale candidate pair');
+  assert.equal(supersededReview.status, 1);
+  assert.match(supersededReview.stderr, /candidate_profile_superseded/);
+  fs.writeFileSync(inboxPath, JSON.stringify({ items: [...origins, ...candidates] }));
   assert.equal(run('propose', '--role', 'terminal-sample-role', '--cand', 'terminal-sample-candidate').status, 0);
   const forgedTerminalStore = JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'));
   Object.values(forgedTerminalStore.pairs).find((pair) => pair.roleId === 'terminal-sample-role').state = 'approved';
@@ -201,16 +226,85 @@ try {
     runMatchReview('review', real.pairId, '--decision', 'approve', '--i-reviewed', '--note', 'Reviewed fit evidence').status,
     0,
   );
+  const prepDraft = runIntro(real.pairId, '--json');
+  assert.equal(prepDraft.status, 0, prepDraft.stderr);
+  const prepBody = fs.readFileSync(JSON.parse(prepDraft.stdout).path, 'utf8');
+  assert.match(prepBody, /# Intro draft \(NOT SENT\)/);
+  assert.match(prepBody, /intro intent: mutual yes pending — internal prep only/);
+  assert.match(prepBody, /INTERNAL PREP — mutual yes is pending/);
+  assert.doesNotMatch(prepBody, /Candidate-reported proof:/, 'candidate proof stays withheld before mutual consent');
+  assert.doesNotMatch(prepBody, /Evidence handshake:/, 'interview guidance stays behind mutual consent');
+  const beforeCandidateFirst = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
+  const hiddenReceipt = runMatching('present-candidate', 'real-candidate');
+  assert.equal(hiddenReceipt.status, 0, hiddenReceipt.stderr);
+  assert.doesNotMatch(hiddenReceipt.stdout, /Acme real-role|Founding Engineer/);
+  const candidateFirst = run('consent', real.pairId, '--side', 'candidate', '--i-observed-consent', '--evidence', 'fixture candidate reply');
+  assert.equal(candidateFirst.status, 1);
+  assert.match(candidateFirst.stderr, /founder_consent_required_before_candidate_consent/);
+  assert.equal(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'), beforeCandidateFirst, 'candidate consent before a founder-authorized pitch must not mutate');
   assert.equal(run('consent', real.pairId, '--side', 'founder', '--i-observed-consent', '--evidence', 'fixture founder reply').status, 0);
+  const visibleReceipt = runMatching('present-candidate', 'real-candidate');
+  assert.equal(visibleReceipt.status, 0, visibleReceipt.stderr);
+  assert.match(visibleReceipt.stdout, /Founding Engineer[\s\S]*Company: Acme real-role[\s\S]*Candidate choice: YES lets Demigod share your identity and work profile with Acme real-role for this exact role/);
   const afterFounderConsent = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
   assert.equal(run('consent', real.pairId, '--side', 'founder', '--i-observed-consent', '--evidence', 'duplicate founder reply').status, 0);
   assert.equal(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'), afterFounderConsent, 'repeat consent must be idempotent');
   assert.equal(run('consent', real.pairId, '--side', 'candidate', '--i-observed-consent', '--evidence', 'fixture candidate reply').status, 0);
-  assert.equal(
-    runIntroGenerator('--role-id=real-role', '--cand-id=real-candidate').status,
-    0,
-    'current mutual pair can use the canonical gated draft',
+  const controlDraft = runMatches('draft', real.pairId, '--json');
+  assert.equal(controlDraft.status, 0, 'matches CLI draft reaches the canonical pair draft');
+  const draftBody = fs.readFileSync(JSON.parse(controlDraft.stdout).path, 'utf8');
+  assert.match(draftBody, /First result: Ship a reliable product milestone/);
+  assert.match(draftBody, /constraints: sf-hybrid · \$180-220k/);
+  assert.match(draftBody, /interview process: Founder chat → work sample → final; target decision in ~2 weeks/);
+  assert.match(draftBody, /why this intro:/);
+  assert.match(draftBody, /open question:/);
+  assert.match(draftBody, /consent receipts: founder=true candidate=true/);
+  assert.match(draftBody, /open role: confirmed 20\d\d-\d\d-\d\d/);
+  assert.match(draftBody, /intro intent: both sides approved this exact role · candidate 20\d\d-\d\d-\d\d/);
+  assert.match(draftBody, /Candidate-reported proof:\*\* Cut deploy time 40% after rebuilding release automation/);
+  assert.match(draftBody, /Work reference:\*\* on file; withheld from this draft/);
+  assert.match(draftBody, /Candidate intent:\*\* Reviewed this exact role and opted in 20\d\d-\d\d-\d\d/);
+  assert.match(draftBody, /Evidence handshake:\*\* Before any work sample, agree whether AI is allowed, limited, or off[\s\S]*10 minutes live on one candidate-chosen artifact/);
+  assert.match(draftBody, /claims are not independently verified/);
+  assert.match(draftBody, /role truth: [a-f0-9]{64}/);
+  assert.doesNotMatch(draftBody, /@acme\.test/, 'private draft receipt still excludes contact details');
+  assert.doesNotMatch(draftBody, /real-candidate\.pdf/, 'private draft receipt still excludes the work-link URL');
+  const consentedPair = JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'))
+    .pairs[real.pairId];
+  const consentHashes = consentedPair.history
+    .filter((row) => row.event === 'consent')
+    .map((row) => row.roleTruthHash);
+  assert.equal(consentHashes.length, 2);
+  assert.equal(consentHashes[0], consentHashes[1], 'both sides approve the same role truth');
+
+  origins.find((origin) => origin.featuredId === 'real-role').data['interview-process'] = 'Founder chat → panel → final; target decision in 3 weeks';
+  fs.writeFileSync(inboxPath, JSON.stringify({ items: [...origins, ...candidates] }));
+  const changedDraft = runIntro(real.pairId, '--json');
+  assert.equal(changedDraft.status, 2, 'a material role edit invalidates prior mutual consent');
+  assert.match(changedDraft.stderr, /role_changed_reconsent_required/);
+  const { buildQueue: buildCurrentQueue } = await import('./demigod-match-review.mjs');
+  assert.deepEqual(
+    buildCurrentQueue().pairs.find((pair) => pair.pairId === real.pairId).mutual,
+    { founder: false, candidate: false },
+    'operator controls project current role-bound receipts, not stale consent booleans',
   );
+  assert.equal(
+    run('consent', real.pairId, '--side', 'founder', '--i-observed-consent', '--evidence', 'founder reconfirmed changed interview process').status,
+    0,
+  );
+  assert.deepEqual(
+    buildCurrentQueue().pairs.find((pair) => pair.pairId === real.pairId).mutual,
+    { founder: true, candidate: false },
+    'candidate consent becomes available only after current founder authorization',
+  );
+  assert.match(runIntro(real.pairId, '--json').stderr, /role_changed_reconsent_required/);
+  assert.equal(
+    run('consent', real.pairId, '--side', 'candidate', '--i-observed-consent', '--evidence', 'candidate reconfirmed changed interview process').status,
+    0,
+  );
+  const changedDraftReady = runIntro(real.pairId, '--json');
+  assert.equal(changedDraftReady.status, 0, changedDraftReady.stderr);
+  assert.match(fs.readFileSync(JSON.parse(changedDraftReady.stdout).path, 'utf8'), /Founder chat → panel → final; target decision in 3 weeks/);
   const beforeTerminalReview = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
   assert.equal(
     run('review', real.pairId, '--decision', 'defer', '--i-reviewed', '--note', 'Reviewed terminal pair').status,
@@ -398,13 +492,11 @@ try {
     { planIntroLeadReady, planIntroQueue, planPairSyncMoves },
     submissions,
     { buildQueue },
-    { proposeIntro },
   ] =
     await Promise.all([
       import('./demigod-funnel.mjs'),
       import('./demigod-submissions-lib.mjs'),
       import('./demigod-match-review.mjs'),
-      import('./demigod-matching-engine.mjs'),
     ]);
   const beforeReviewProjection = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
   const reviewQueue = buildQueue({ includeSample: true });
@@ -455,28 +547,13 @@ try {
   const staleIntroStore = JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'));
   staleIntroStore.pairs[stalePair.pairId] = staleMutual;
   fs.writeFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), JSON.stringify(staleIntroStore));
-  assert.equal(
-    proposeIntro(stalePair.roleId, stalePair.candId).error,
-    'no mutual match found',
-    'stale canonical mutual pair cannot create a legacy intro proposal',
-  );
-  assert.equal(
-    fs.existsSync(path.join(root, 'DEMIGOD-MATCHES.json')),
-    false,
-    'stale intro refusal must not write the legacy matches mirror',
-  );
   const prooflessStore = JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'));
   prooflessStore.pairs[real.pairId].history = prooflessStore.pairs[real.pairId].history
     .filter((row) => row.event !== 'consent');
   fs.writeFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), JSON.stringify(prooflessStore));
-  assert.equal(
-    proposeIntro(real.roleId, real.candId).error,
-    'no mutual match found',
-    'mutual booleans without both side receipts cannot authorize an intro',
-  );
-  const prooflessGenerator = runIntroGenerator('--role-id=real-role', '--cand-id=real-candidate');
-  assert.equal(prooflessGenerator.status, 1, 'canonical intro wrapper must recheck consent receipts');
-  assert.match(prooflessGenerator.stderr, /pair_consent_receipt_missing/);
+  const prooflessDraft = runIntro(real.pairId, '--json');
+  assert.equal(prooflessDraft.status, 2, 'canonical intro draft must recheck consent receipts');
+  assert.match(prooflessDraft.stderr, /pair_consent_receipt_missing/);
   const prooflessPair = prooflessStore.pairs[real.pairId];
   const prooflessIntroPlan = planIntroQueue(
     { [real.pairId]: prooflessPair },
@@ -531,11 +608,6 @@ try {
     'idempotent consent stores the missing founder receipt',
   );
   assert.equal(
-    proposeIntro(real.roleId, real.candId).error,
-    'no mutual match found',
-    'one repaired side is still insufficient',
-  );
-  assert.equal(
     run(
       'consent',
       real.pairId,
@@ -555,14 +627,27 @@ try {
     ),
     'idempotent consent stores the missing candidate receipt',
   );
-  const localIntro = proposeIntro(real.roleId, real.candId);
+  const beforeUnattestedDecline = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
+  assert.equal(run('decline', real.pairId, '--side', 'candidate', '--evidence', 'candidate replied PASS').status, 1);
+  assert.equal(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'), beforeUnattestedDecline);
   assert.equal(
-    localIntro.ok,
-    true,
-    'current eligibility plus both valid side receipts authorizes the local intro proposal',
+    run('decline', real.pairId, '--side', 'candidate', '--i-observed-decline', '--evidence', 'candidate replied PASS').status,
+    0,
   );
-  assert.equal(localIntro.boardWrite, false, 'authorized intro remains a local quarantine record');
-  assert.equal(localIntro.receipt, null, 'authorized intro does not manufacture a delivery receipt');
+  const declinedPair = JSON.parse(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8')).pairs[real.pairId];
+  assert.equal(declinedPair.state, 'one_side_no');
+  assert.equal(declinedPair.mutual.candidate, false);
+  assert.ok(declinedPair.history.some((row) => row.event === 'decline' && row.side === 'candidate'));
+  const afterDecline = fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8');
+  assert.equal(run('decline', real.pairId, '--side', 'candidate', '--i-observed-decline', '--evidence', 'duplicate pass').status, 0);
+  assert.equal(fs.readFileSync(path.join(root, 'DEMIGOD-PAIRS.json'), 'utf8'), afterDecline, 'repeat decline is idempotent');
+  assert.equal(runIntro(real.pairId, '--json').status, 2, 'declined pair cannot produce an intro draft');
+  assert.equal(runMatches('draft', real.pairId, '--json').status, 2, 'matches CLI draft preserves the decline gate');
+  assert.equal(
+    runMatchReview('review', real.pairId, '--decision', 'approve', '--i-reviewed', '--note', 'attempted reopen').status,
+    1,
+    'generic review cannot reopen a declined pair',
+  );
   assert.equal(
     planIntroQueue({ [stalePair.pairId]: staleMutual }, { pairContext }).items.length,
     0,

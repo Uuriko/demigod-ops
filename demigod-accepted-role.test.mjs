@@ -4,6 +4,17 @@ import { createHash } from 'node:crypto';
 import { classifyRole, listAcceptedRoles } from './demigod-accepted-role.mjs';
 
 const fp = (id) => createHash('sha256').update(String(id)).digest('hex');
+const completeRoleData = {
+  'company-name': 'Acme Labs',
+  'company-stage': 'seed',
+  'role-title': 'Founding Engineer',
+  'stack-needs': 'JavaScript',
+  '90day-outcome': 'Ship a reliable product milestone',
+  'work-location': 'sf-hybrid',
+  'salary-range': '$180-220k',
+  'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
+  'contact-email': 'founder@acme.test',
+};
 
 test('current-shaped sample board yields zero accepted roles', () => {
   const board = {
@@ -85,8 +96,9 @@ test('canonical mint shape: company from inbox, no board company', () => {
         id: 'sub-1',
         featuredId: 'role-real-1',
         status: 'featured',
+        at: new Date().toISOString(),
         form: 'startup-hire',
-        data: { 'company-name': 'Acme Labs' },
+        data: completeRoleData,
       },
     ],
   };
@@ -189,8 +201,9 @@ test('board company cannot override verified inbox company', () => {
           id: 'sp',
           featuredId: 'role-p',
           status: 'featured',
+          at: new Date().toISOString(),
           form: 'startup-hire',
-          data: { 'company-name': 'Acme Labs' },
+          data: completeRoleData,
         },
       ],
     },

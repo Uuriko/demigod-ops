@@ -112,7 +112,7 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   assert.match(source, /window\.DemigodStartupMap = \{ mount: mount, addCommunityStartups: addCommunityStartups \}/);
   // Honesty labels retained.
   assert.match(source, /Hiring not verified/);
-  assert.match(source, /A plain directory of San Francisco startups from public open data/);
+  assert.match(source, /A plain directory of San Francisco Bay Area tech companies from public open data/);
   assert.match(source, /City-level only/);
   assert.match(source, /coverage\.definition/);
   assert.match(source, /coverage\.caveat/);
@@ -120,7 +120,7 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   // v-jobs: live open-role counts from public ATS boards, honestly labelled point-in-time.
   assert.match(source, /Open-role counts come from each company/);
   assert.match(source, /open role/);
-  assert.match(source, /with live US-posted open roles/);
+  assert.match(source, /with observed US-posted or remote roles/);
   assert.match(source, /US open role/);
   assert.match(source, /US-posted or Remote/);
   assert.match(source, /YC · public directory/);
@@ -135,7 +135,7 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   assert.match(source, /addCommunityStartups/);
   assert.match(source, /names\.has\(name\.toLowerCase\(\)\)/); // dedupe by name
   // Search + hiring filter present and labelled.
-  assert.match(source, /aria-label="Search startups"/);
+  assert.match(source, /aria-label="Search companies"/);
   assert.match(source, /aria-label="Filter by hiring status"/);
   assert.match(source, /aria-label="Filter by ATS provider"/);
   assert.match(source, /var CAP = 20;/);
@@ -157,7 +157,7 @@ test('generated public artifact keeps named companies city-only and strips sensi
   assert.ok(map.companies.length > 0);
   assert.equal(map.companies.every((company) => company.locationPrecision === 'city' && company.neighborhood === null), true);
   assert.equal(map.companies.every((company) => ['CC0-1.0', 'YC-public', 'HN-public'].includes(company.sourceLicense)), true);
-  assert.deepEqual([...new Set(map.sources.map((source) => source.license))].sort(), ['CC0-1.0', 'PDDL-1.0', 'YC-public']);
+  assert.deepEqual([...new Set(map.sources.map((source) => source.license))].sort(), ['CC0-1.0', 'HN-public', 'PDDL-1.0', 'YC-public']);
   const serialized = JSON.stringify(map).toLowerCase();
   // Field names / PII keys only — prose descriptions may say "email security" honestly.
   for (const forbidden of ['full_business_address', 'mailing_address', 'ownership_name', 'companyids']) {
@@ -182,8 +182,7 @@ test('generated public artifact keeps named companies city-only and strips sensi
 
 test('website route is discoverable and loads the immutable map asset only on demand', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
-  // v858: hard route /startups; path pill uses COPY.pathStartups ('SF startups'), not the
-  // prose "SF startup directory" on the events cross-link. data-dg-page stays "map".
+  // v858: hard route /startups; path pill uses COPY.pathStartups, while data-dg-page stays "map".
   assert.match(foot, /<a href="\/startups" data-dg-page="map">'\+COPY\.pathStartups\+'<\/a>/);
   assert.doesNotMatch(foot, /<a href="\/\?p=map"/);
   // v805: page-scoped HTML — startups page has directory host + startup form; events page has event form only.
@@ -212,13 +211,13 @@ test('website route is discoverable and loads the immutable map asset only on de
   assert.match(foot, /var isEvents\s*=\s*kind\s*===\s*'events'/);
   assert.match(foot, /html: dgMapEventsHtml\('startups'\)/);
   assert.match(foot, /html: dgMapEventsHtml\('events'\)/);
-  assert.match(foot, /title: 'SF startup directory'/);
+  assert.match(foot, /title: 'SF tech company directory'/);
   assert.match(foot, /title: 'SF events'/);
   assert.doesNotMatch(foot, /id="dg-startup-map"[^>]*aria-live/);
   assert.match(foot, /demigod-site-cdn@01767fdf70e6\/startup-map-latest\.js/);
   assert.match(foot, /if \(id === 'map'\)[\s\S]*?startupMapMount\(root\)/);
   assert.match(foot, /if \(id === 'map' \|\| id === 'events'\)[\s\S]*?communitySubmissionsMount\(root\)/);
-  assert.match(foot, /The startup directory could not load/);
+  assert.match(foot, /The tech company directory could not load/);
   assert.match(foot, /root\.dataset\.communityBound/);
   assert.match(foot, /if \(eventForm\) \{/);
   assert.match(foot, /if \(startupForm\) \{/);
@@ -260,7 +259,7 @@ test('directory sort: an unmeasured company never ranks as freshest', () => {
 test('recent roles: ordered by OUR observation, never by the employer posting date', () => {
   const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   // Source-level: the section exists and starts hidden, so a missing feed shows nothing at all.
-  assert.match(src, /<section class="dg-dir-fresh" hidden><\/section>/);
+  assert.match(src, /<section class="dg-dir-fresh" role="status" aria-live="polite" hidden><\/section>/);
   // The link is the tap target. Inline with the company name it measured 22px tall on a 390px
   // viewport — under WCAG 2.5.8's 24px floor and half this directory's own 44px control convention.
   assert.match(src, /\.dg-fresh-title\{[^}]*min-height:44px/, 'the role link must keep a 44px tap target');

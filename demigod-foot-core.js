@@ -1,45 +1,46 @@
-/*dg-foot-v860-core*/
-window.dgFootVersion = 'v860'; console.log('[demigod] foot v860-core loaded');
+/*dg-foot-v903-core*/
+window.dgFootVersion = 'v903'; console.log('[demigod] foot v903-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
 
-/* Dual CTAs (competitor-proven): Underdog "I'm Hiring"/"I'm a Candidate"; Wellfound "Find your next hire"/"Find your next job"; Arc "Hire talent"/"Find jobs".
-   Never use both "Hire talent" + "Find talent" — same meaning (company side). Pair = hiring vs job-seeking. */
+/* Dual paths: name the immediate action. Demigod has no public job board, application, or network membership to promise candidates. */
 /* ==== SECTION: COPY (runtime marketing strings) ==== */
+var MATCH_DISCLOSURE='Software compares role goals, skills, location, and compensation. A human decides what to propose. Nothing is sent automatically.';
 var COPY={
-heroSub:'Start with one role and the result the hire must deliver in 90 days. Software narrows the pool; a human checks the work evidence. Names move only after both sides say yes.',
-badge:'// SF STARTUP TALENT · TECH + HUMANS IN THE LOOP',
-heroTrustLine:'Bay Area · 10% on hire · Free for talent · Mutual interest only',
+heroSub:'Start with one role, real constraints, and one concrete first result. '+MATCH_DISCLOSURE+' Candidate identity stays private until both sides say yes.',
+badge:'// SF STARTUP TALENT · SOFTWARE + HUMAN REVIEW',
+heroTrustLine:'No public profiles · Mutual yes only · Free for talent · 10% on hire · Bay Area',
+antiLinkedIn:'No public profiles. No feed. No blasts. Mutual yes only — candidate identity stays private until both sides approve.',
 ctaFounder:'Hire talent',
-ctaEngineer:'Join the talent network',
+ctaEngineer:'Share what I’d consider',
 navCta:'Hire talent',
 ctaHireHint:'For startups',
 ctaTalentHint:'For candidates',
 startupH2:'Hiring brief',
-startupBody:'Role + 90-day outcome. Matched with Demigod tech; humans in the loop.',
-engineerH2:'Talent profile',
-engineerBody:'One private profile. Evidence match + human review; shared only when you approve.',
-feeNote:'10% of first-year cash if you hire. Free for talent. Nothing until then.',
-pricingNote:'10% of first-year cash on hire — nothing until then',
+startupBody:'One role, real constraints, and one concrete first result. '+MATCH_DISCLOSURE,
+engineerH2:'Private candidate details',
+engineerBody:'Your details stay private — this is not a public profile. '+MATCH_DISCLOSURE,
+feeNote:'10% of first-year base salary when a hire starts. Free for talent. Nothing until then.',
+pricingNote:'10% of first-year base salary when a hire starts — nothing until then',
 trustKicker:'How it works',
-trustSteps:['You send a brief or profile','Demigod tech ranks · humans review','Both approve → intro'],
+trustSteps:['You share a brief or preferences','Software compares · a human proposes','Both approve → intro'],
 
 
 
 pathHow:'How it works',
 pathSample:'Sample match',
-pathStartups:'SF startups'
+pathStartups:'SF tech companies'
 };
 /* Frege-night WIZ copy (v597) — natural voice, match-critical only, no draft-save chrome */
 var STARTUP_OK="Got it. A human will read this. potter@trydemigod.com follows up if there's a real fit.";
-var ENGINEER_OK='Profile saved. Not shared with startups until you approve an intro. potter@trydemigod.com only reaches out on real fits.';
+var ENGINEER_OK='Details saved. Not shared with startups until you approve an intro. potter@trydemigod.com only reaches out on real fits.';
 var WIZ_THANKS={
-  startup:{head:'Brief in',lead:'Someone reads every submission. We only propose when the fit is real — both sides still have to say yes.',steps:['We read the role and 90-day outcome','We rank and human-review fits','You approve before any intro']},
-  engineer:{head:'You\'re in',lead:'Not shared with startups until you approve an intro. Free for talent. No blasts.',steps:['Demigod and its form provider process your answers','A human proposes only real fits','You approve before identifying details move']}
+  startup:{head:'Brief in',lead:'Someone reads every submission. We only propose when the fit is real — both sides still have to say yes.',steps:['We calibrate the role, first result, and constraints','You review any proposed fit before we contact the candidate','The candidate sees the exact role; intro only after both approve']},
+  engineer:{head:'Received',lead:'Not shared with startups until you approve an intro. Free for talent. No blasts.',steps:['Demigod and its form provider process your answers','A human proposes only real fits','You approve before identifying details move']}
 };
 /* ==== SECTION: WIZ_CFG (stepper paths) ==== */
-/* Salary bands = USD base cash only (SF-market buckets). Equity is free text later if needed — keep matching numeric. */
+/* Salary bands = USD base salary only (SF-market buckets). Equity is free text later if needed — keep matching numeric. */
 var SALARY_BAND_HTML='<option value="">Select range</option>'
   +'<option value="under-100k">Under $100k base</option>'
   +'<option value="100-130k">$100k – $130k</option>'
@@ -52,16 +53,15 @@ var SALARY_BAND_HTML='<option value="">Select range</option>'
   +'<option value="flexible">Flexible / open</option>';
 var WIZ_CFG={
   startup:{
-    steps:[['welcome'],['company-name'],['company-stage'],['role-title'],['stack-needs'],['90day-outcome'],['work-location'],['salary-range'],['hiring-urgency'],['contact-email'],['__submit__'],['__thanks__']],
-    welcome:{t:'Hiring brief',b:'About 2 minutes. One role, one 90-day outcome, and the constraints that make a match real. Answers stay in this tab until you submit.',btn:'Start the brief'},
+    steps:[['welcome'],['role-title'],['company-name'],['company-stage'],['stack-needs'],['work-location'],['salary-range'],['90day-outcome'],['contact-email'],['__submit__'],['__thanks__']],
+    welcome:{t:'Hiring brief',b:'For permanent direct hires at SF Bay startups. About 2 minutes · 10% of first-year base salary when a hire starts · nothing upfront. Press Enter to continue.',btn:'Start the brief'},
     thanks:STARTUP_OK,
     optional:[]
   },
   engineer:{
-    steps:[['welcome'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['sf-bay'],['availability'],['salary-expectation'],['work-auth'],['resume'],['__submit__'],['__thanks__']],
-    welcome:{t:'Join the talent network',b:'About 2 minutes. One private profile — free forever. Shared with a startup only after you approve an intro. Answers stay in this tab until you submit.',btn:'Start my profile'},
-    thanks:ENGINEER_OK,
-    optional:[]
+    steps:[['welcome'],['sf-bay'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['availability'],['salary-expectation'],['resume'],['__submit__'],['__thanks__']],
+    welcome:{t:'Open to the right startup?',b:'Tell us what would make you consider an SF Bay startup role. About 2 minutes · private · free for candidates · no blasts. Already shared? Submit again with the same email; a human reviews the update. We only contact you when a human sees a credible fit. Your identifying details are shared with a startup only after you approve the exact company and role. Press Enter to continue.',btn:'Start privately'},
+    thanks:ENGINEER_OK
   }
 };
 /* ==== SECTION: WIZ_Q (questions + hints) ==== */
@@ -71,24 +71,22 @@ var WIZ_Q={
     'company-name':{q:'Company name?',h:'Legal or product name is fine.'},
     'company-stage':{q:'Company stage?',h:'Pick the closest stage — we match to reality, not the pitch deck.'},
     'role-title':{q:'Role title?',h:'Be specific: founding engineer, first PM, head of growth…'},
-    'stack-needs':{q:'Must-haves for this role?',h:'3–6 skills or domain strengths. No laundry lists.'},
-    '90day-outcome':{q:'What should they own in the first 90 days?',h:'One measurable result. This is how we match — not keyword bingo.'},
+    'stack-needs':{q:'What are the 2–3 true must-haves?',h:'Skills, domain, or ownership level. Include any genuine deal-breaker; skip nice-to-haves.'},
+    '90day-outcome':{q:'What should this person accomplish first?',h:'One concrete result is enough. A 30–90 day horizon is useful; we can calibrate timing.'},
     'work-location':{q:'Where can they work?',h:'Only arrangements you can actually support.'},
-    'salary-range':{q:'Target base cash range?',h:'USD base for this role. Equity is separate — ranges keep matching honest.'},
-    'hiring-urgency':{q:'How soon do you need someone?',h:'Sets priority for human review. No SLA promise either way.'},
-    '__submit__':{q:'Look good?',h:'Demigod and its form/email providers process these for matching. Names move only after both sides approve.'}
+    'salary-range':{q:'Target base salary range?',h:'USD base salary for this role. Equity is separate — ranges keep matching honest.'},
+    '__submit__':{q:'Look good?',h:'Edit any answer below. Sending confirms this role is open now. If you request an intro, the candidate privately sees the company and exact role before deciding; their identity stays private until both approve.'}
   },
   engineer:{
     'full-name':{q:'Your name?',h:'For intros only — never a public board profile.'},
     'seeker-email':{q:'Best email?',h:'Only potter@trydemigod.com for match notes.'},
-    'skills-stack':{q:'What do you do best?',h:'Craft + domain: engineering, product, design, GTM, ops, recruiting…'},
+    'skills-stack':{q:'What kind of work do you want next?',h:'Name the role or problems, plus the strengths and domain you want to use.'},
     'experience':{q:'Work you are proud of?',h:'2–3 concrete wins with outcomes beat a long bio.'},
-    'sf-bay':{q:'Open to SF Bay startups?',h:'Our focus. Remote is fine when the company is Bay-based.'},
+    'sf-bay':{q:'Which work setup are you open to?',h:'Choose one you would genuinely consider. If neither fits, close the form; nothing is saved.'},
     'availability':{q:'When could you start?',h:'Pick the closest window.'},
-    'salary-expectation':{q:'Target base cash range?',h:'Your target — never salary history. USD base only.'},
-    'work-auth':{q:'US work authorization?',h:'Used only for fit. Never shared as a public label.'},
-    'resume':{q:'Resume or work link?',h:'PDF/Word upload or one HTTPS portfolio / resume link. Shared only after both sides approve.'},
-    '__submit__':{q:'Ready?',h:'Demigod and its form/email providers process these for matching. Names move only after both sides approve.'}
+    'salary-expectation':{q:'Target base salary range?',h:'Your target — never salary history. USD base salary only.'},
+    'resume':{q:'Resume or work link?',h:'PDF/Word upload or one HTTPS portfolio / resume link. Shared only after both sides approve. Not a public profile.'},
+    '__submit__':{q:'Ready?',h:'Edit anything first. Private until you approve an intro. Free for talent — no blasts. No public profile.'}
   }
 };
 function resumeUrlError(value){
@@ -111,12 +109,12 @@ function startupOutcomePrompt(role){
   role=String(role||'').trim().slice(0,60);
   if(!role)return WIZ_Q.startup['90day-outcome'];
   return /\b(engineer(?:ing)?|developer|software|product|designer?|data|ai|ml|security|infrastructure|devops|architect)\b/i.test(role)
-    ? {q:'What should your '+role+' ship in the first 90 days?',h:'One concrete release, migration, reliability, adoption, or delivery result.'}
-    : {q:'What measurable result should your '+role+' own in the first 90 days?',h:'One hiring, pipeline, revenue, retention, launch, or operating result.'};
+    ? {q:'What should your '+role+' own, ship, or improve first?',h:'One concrete result is enough — a release, migration, reliability, adoption, or delivery milestone.'}
+    : {q:'What measurable result should your '+role+' deliver first?',h:'One concrete result is enough — hiring, pipeline, revenue, retention, launch, or operations.'};
 }
 function startupRequirementsPrompt(role, fallback){
   role=String(role||'').trim().slice(0,60);
-  return role?{q:'What must your '+role+' be great at?',h:fallback.h}:fallback;
+  return role?{q:'What are the 2–3 true must-haves for your '+role+'?',h:fallback.h}:fallback;
 }
 function talentExperiencePrompt(skills){
   return talentIsTechnical(skills)
@@ -128,7 +126,7 @@ function talentProofPrompt(skills, canUpload){
 }
 function talentNativeLabel(text){
   if(/^What you shipped\s*\*?$/i.test(text||''))return 'What work are you proud of? *';
-  if(/^Skills\s*&\s*stack\s*\*?$/i.test(text||''))return 'Strengths / craft / domain *';
+  if(/^(?:Skills\s*&\s*stack|Next role & strengths)\s*\*?$/i.test(text||''))return 'Next role & strengths *';
   return text;
 }
 /* Only probe a localhost API when the page is itself served from localhost. Otherwise the probe
@@ -209,7 +207,7 @@ function dgEventsBotFetch(url, opts) {
   );
 }
 /** Load rotating tunnel apiBase from published config (no foot reship when tunnel URL changes).
- *  Fetch all mirrors newest-first; older bases remain sequential fallbacks. */
+ *  Raw GitHub only — jsDelivr @main for this file lags and used to leave dead tunnels in the ladder. */
 function dgEventsBotLoadConfig() {
   if (Date.now() - __dgEvBotCfgAt < 60000 && __dgEvBotExtraBases.length) {
     return Promise.resolve(__dgEvBotExtraBases);
@@ -217,7 +215,6 @@ function dgEventsBotLoadConfig() {
   var bust = Math.floor(Date.now() / 60000);
   var urls = [
     'https://raw.githubusercontent.com/Uuriko/demigod-site-cdn/main/events-api-latest.json?t=' + bust,
-    'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@main/events-api-latest.json?t=' + bust,
   ];
   function loadOne(cfgUrl) {
     return fetch(cfgUrl, { mode: 'cors', cache: 'no-store', signal: AbortSignal.timeout(3500) }).then(
@@ -314,7 +311,7 @@ function dgHide(el){if(!el||dgIsPageShell(el))return;try{el.style.setProperty('d
 function rmF(f,n){if(!f)return;qa('[name="'+n+'"],#'+n,f).forEach(function(i){var w=i.closest('.w-input,.w-select,.w-radio,.w-checkbox,fieldset')||i.parentElement||i;w.remove()});qa('label',f).forEach(function(l){if(new RegExp(n.replace(/-/g,'[- ]'),'i').test(l.textContent||''))l.remove()})}function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
 
 
-function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div,.dg-blog-card,.dg-reveal,.dg-p-det').forEach(function(el){try{el.classList.add('dg-reveal')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){qa('.dg-reveal').forEach(function(el){el.classList.add('dg-reveal-in')});return}try{if(!window.__dgRevealObs){window.__dgRevealObs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-reveal-in');window.__dgRevealObs.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'})}qa('.dg-reveal,.dg-blog-card').forEach(function(el){window.__dgRevealObs.observe(el)})}catch(e){}}
+function addMotion(){qa('#demigod-trust-block .dg-step,#demigod-trust-block .dg-row,#demigod-trust-block .dg-cand,#demigod-trust-block .dg-process-grid > div,.dg-reveal,.dg-p-det').forEach(function(el){try{el.classList.add('dg-reveal')}catch(e){}});if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){qa('.dg-reveal').forEach(function(el){el.classList.add('dg-reveal-in')});return}try{if(!window.__dgRevealObs){window.__dgRevealObs=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('dg-reveal-in');window.__dgRevealObs.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'})}qa('.dg-reveal').forEach(function(el){window.__dgRevealObs.observe(el)})}catch(e){}}
 
 // Consolidated force helper to simplify duplicate !important code across wizBuild/showStep/show
 function forceWizVisible(form, modal) {
@@ -373,7 +370,23 @@ function forceWizVisible(form, modal) {
 
 function heroImgPerf(){qa('.hero-section img,.hero-container img,[class*=hero] img,header img').forEach(function(im){if(im.dataset.dgPerf)return;im.dataset.dgPerf='1';im.setAttribute('fetchpriority','high');im.setAttribute('decoding','async');im.loading='eager';if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','Demigod — SF startup talent matching, San Francisco Bay Area');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
 function lazyBelowFold(){qa('img').forEach(function(im){if(im.dataset.dgPerf||im.dataset.dgLazy)return;if(im.closest('.hero-section,.hero-container,header,[class*=hero]'))return;im.dataset.dgLazy='1';if(!im.getAttribute('loading'))im.loading='lazy';im.setAttribute('decoding','async');if(!im.getAttribute('alt')||!im.getAttribute('alt').trim())im.setAttribute('alt','');var setDims=function(){if(im.naturalWidth&&!im.getAttribute('width'))im.setAttribute('width',im.naturalWidth);if(im.naturalHeight&&!im.getAttribute('height'))im.setAttribute('height',im.naturalHeight)};if(im.complete)setDims();else im.addEventListener('load',setDims,{once:true})})}
-function skipLink(){try{var early=q('#dg-skip-early');if(early)early.remove()}catch(e){}if(q('#dg-skip'))return;var main=q('main');if(main&&!main.id)main.id='main';var a=document.createElement('a');a.id='dg-skip';a.href='#main';a.textContent='Skip to main content';a.setAttribute('aria-label','Skip to main content');a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#dg-page')||q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus({preventScroll:true});var beh=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth';if(t.scrollIntoView)t.scrollIntoView({block:'start',behavior:beh})}catch(err){try{t.focus()}catch(e2){}}});document.body&&document.body.prepend(a)}
+function skipLink(){try{var early=q('#dg-skip-early');if(early)early.remove()}catch(e){}if(q('#dg-skip'))return;var main=q('#main')||q('main')||q('.hero-section');if(main){if(!main.id)main.id='main';if(main.tagName!=='MAIN')main.setAttribute('role','main')}var a=document.createElement('a');a.id='dg-skip';a.href='#'+(main&&main.id||'main');a.textContent='Skip to main content';a.setAttribute('aria-label','Skip to main content');a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000';a.addEventListener('focus',function(){a.style.cssText='position:fixed;left:12px;top:12px;z-index:10000;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600'});a.addEventListener('blur',function(){a.style.cssText='position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10000'});a.addEventListener('click',function(e){e.preventDefault();var t=q('#dg-page')||q('#main,main,.hero-section,h1')||document.body;try{t.setAttribute('tabindex','-1');t.focus({preventScroll:true});var beh=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth';if(t.scrollIntoView)t.scrollIntoView({block:'start',behavior:beh})}catch(err){try{t.focus()}catch(e2){}}});document.body&&document.body.prepend(a)}
+
+
+function ensureWizPremiumCss(){
+  if(q('#dg-wiz-premium-css'))return;
+  var s=document.createElement('style');s.id='dg-wiz-premium-css';
+  s.textContent=''
+    +'#startup-modal .dg-wiz-choice,#jobseeker-modal .dg-wiz-choice{transition:border-color .15s ease,background .15s ease,transform .12s ease;}'
+    +'#startup-modal .dg-wiz-choice:hover,#jobseeker-modal .dg-wiz-choice:hover{border-color:rgba(201,168,76,.55);}'
+    +'#startup-modal .dg-wiz-choice.is-on,#jobseeker-modal .dg-wiz-choice.is-on{border-color:#C9A84C;box-shadow:0 0 0 1px rgba(201,168,76,.35);}'
+    +'#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block;font-size:.62rem;font-weight:500;opacity:.5;letter-spacing:.06em;margin-top:.12rem}'
+    +'@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-choice,#jobseeker-modal .dg-wiz-choice{transition:none}}'
+    +'#startup-modal form.dg-wiz-on .dg-wiz-show,#jobseeker-modal form.dg-wiz-on .dg-wiz-show{animation:dgWizIn .22s ease both}'
+    +'@keyframes dgWizIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
+    +'@media(prefers-reduced-motion:reduce){#startup-modal form.dg-wiz-on .dg-wiz-show,#jobseeker-modal form.dg-wiz-on .dg-wiz-show{animation:none}}';
+  document.head.appendChild(s);
+}
 
 function faqCss(){if(q('#dg-faq-css'))return;var s=document.createElement('style');s.id='dg-faq-css';s.textContent='#dg-faq details{border-bottom:1px solid rgba(201,168,76,.15);padding:.55rem 0}#dg-faq summary{cursor:pointer;font-weight:600;color:#F5F0E6;list-style:none;min-height:44px;display:flex;align-items:center}#dg-faq summary::-webkit-details-marker{display:none}#dg-faq summary:before{content:"\\25B8 ";color:#C9A84C}#dg-faq details[open] summary:before{content:"\\25BE "}#dg-proof-strip a:focus,#dg-contact-strip a:focus,.dg-wiz-next:focus,.dg-wiz-back:focus{outline:2px solid #a6ffcb;outline-offset:2px}@media(prefers-reduced-motion:reduce){#startup-modal *,#jobseeker-modal *,#dg-faq *{transition:none!important;animation:none!important}}';document.head.appendChild(s)}
 function enhanceWIZ() { try{ if(OPEN){ var mm=q(OPEN); if(mm) wizResumeToast(mm);} }catch(e){}
@@ -627,6 +640,7 @@ function wizBuild(form, kind) {
   var nav = document.createElement('div');
   nav.className = 'dg-wiz-nav';
   nav.innerHTML = '<button type="button" class="dg-wiz-back">Back</button><button type="button" class="dg-wiz-next">Continue</button>';
+  try{ nav.querySelector('.dg-wiz-next').setAttribute('data-enter-hint','Enter ↵'); }catch(e){}
   var backBtn = nav.querySelector('.dg-wiz-back');
   var nextBtn = nav.querySelector('.dg-wiz-next');
   // place chrome
@@ -697,7 +711,7 @@ function wizBuild(form, kind) {
       form.style.visibility = 'visible';
       var modal = form.closest ? form.closest('#startup-modal,#jobseeker-modal') : null;
       /* never force .w-form-done/.w-form-fail — that fakes success for waitPost */
-      if (modal) qa('form,.w-form,.w-file-upload,.form-field-group,.dg-field-wrap', modal).forEach(function(c){
+      qa('.w-file-upload,.form-field-group,.dg-field-wrap', form).forEach(function(c){
         if (c.classList && (c.classList.contains('w-form-done') || c.classList.contains('w-form-fail'))) return;
         c.style.setProperty('display','block','important'); c.style.visibility='visible';
       });
@@ -832,19 +846,18 @@ function wizBuild(form, kind) {
       var sq = (qmap.__submit__ || {});
       qEl.textContent = sq.q || 'Ready to submit?';
       hEl.innerHTML = esc(sq.h || 'A human reviews personally.') + ' <a href="/legal" target="_blank" rel="noopener">Privacy</a>.';
-      nextBtn.textContent = kind === 'startup' ? 'Send brief' : 'Submit profile';
+      nextBtn.textContent = kind === 'startup' ? 'Send brief' : 'Send privately';
       // review
       var rev = form.querySelector('.dg-wiz-review');
       if (!rev) { rev = document.createElement('div'); rev.className = 'dg-wiz-review'; form.insertBefore(rev, nav); }
       var html = '';
-      // Prioritize 90day-outcome first (biz: high-signal for precise matching + higher close rates; creative UX for human reviewer + founder reminder)
       var keys = Object.keys(answers);
-      if (keys.indexOf('90day-outcome') > -1) {
-        keys = ['90day-outcome'].concat(keys.filter(function(k){return k !== '90day-outcome';}));
-      }
+      var stepOrder={};steps.forEach(function(s,i){stepOrder[s[0]]=i});
+      keys.sort(function(a,b){return (stepOrder[a.replace(/-url$/,'')]??999)-(stepOrder[b.replace(/-url$/,'')]??999)});
       keys.forEach(function(k) {
         var qd = qmap[k] || (/-url$/.test(k) && qmap[k.replace(/-url$/, '')]); if (!qd) return; // skip turnstile/internal fields
         var lab = (qd.q || k).replace(/\s*\(optional[^)]*\)/i, '').replace(/[?？]+\s*$/, '');
+        if (k === '90day-outcome') lab = 'First result';
         if (k === 'resume-url') lab = 'Resume link';
         var extra = (k === '90day-outcome') ? ' style="font-weight:600;border-left:2px solid #10c674;padding-left:.5rem"' : '';
         // <select> stores the option value ('series-a'); show the label the user actually picked ('Series A').
@@ -878,17 +891,35 @@ function wizBuild(form, kind) {
       return;
     } else {
       nextBtn.textContent = 'Continue';
+      try {
+        var hintEl = form.querySelector('[name="' + key + '"], [id="' + key + '"]');
+        if (hintEl && hintEl.tagName === 'TEXTAREA') {
+          nextBtn.setAttribute('data-enter-hint', /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '') ? '⌘ + Enter' : 'Ctrl + Enter');
+        } else if (hintEl && hintEl.tagName === 'SELECT') {
+          nextBtn.setAttribute('data-enter-hint', '1–9 or click');
+        } else {
+          nextBtn.setAttribute('data-enter-hint', 'Enter ↵');
+        }
+      } catch (eHint) {}
       var qd = qmap[key] || {q: key.replace(/-/g,' '), h: ''};
       if(kind==='engineer'&&key==='seeker-email'&&answers['full-name'])qd={q:'Nice to meet you, '+String(answers['full-name']).trim().split(/\s+/)[0].slice(0,32)+'. Best email?',h:qd.h};
+      /* Typeform recall: echo prior answers so later questions feel conversational */
       if(kind==='startup'&&key==='stack-needs')qd=startupRequirementsPrompt(answers['role-title'],qd);
       if(kind==='startup'&&key==='90day-outcome')qd=startupOutcomePrompt(answers['role-title']);
       if(kind==='engineer'&&key==='experience')qd=talentExperiencePrompt(answers['skills-stack']||(form.querySelector('[name="skills-stack"]')||{}).value);
-      qEl.textContent = qd.q;
-      hEl.textContent = qd.h || '';
       if(kind==='engineer'&&key==='resume'){
         var proof=talentProofPrompt(answers['skills-stack']||(form.querySelector('[name="skills-stack"]')||{}).value,!!fileStep);
-        qEl.textContent=proof.q; hEl.textContent=proof.h;
+        qd={q:proof.q,h:proof.h};
       }
+      qEl.textContent = qd.q;
+      /* almost-done beat on the last real question (Typeform completion psychology) */
+      var lastReal = -1;
+      for (var si = steps.length - 1; si >= 0; si--) {
+        var sk = (steps[si] || [])[0] || '';
+        if (sk && sk !== 'welcome' && sk !== '__submit__' && sk !== '__thanks__') { lastReal = si; break; }
+      }
+      var almost = (current === lastReal) ? ' Almost done — then a quick review.' : '';
+      hEl.textContent = (qd.h || '') + almost;
       // find target input by name/id or by scanning for closest match
       var target = form.querySelector('[name="' + key + '"], [id="' + key + '"]');
       if (!target) {
@@ -1096,6 +1127,20 @@ function wizBuild(form, kind) {
           if (el && el.files && el.files.length && !el.checkValidity()) { wizInlineInvalid(el, el.validationMessage || 'That file cannot be used.', key); return; }
           if (fileUrl && fileUrl.value && !fileUrl.checkValidity()) { wizInlineInvalid(fileUrl, fileUrl.validationMessage || 'Use a full https:// link.', key); return; }
         } else if (key !== 'contact-email' && key !== 'seeker-email' && !el.checkValidity()) { wizInlineInvalid(el, el.validationMessage || 'Please fix this field.', key); return; }
+        /* Quality floors for open-ended match fields (Typeform: short junk answers kill matching) */
+        if (el && !isFileGroup && el.tagName !== 'SELECT') {
+          var minMap = { 'stack-needs': 8, '90day-outcome': 20, 'skills-stack': 5, 'experience': 20 };
+          var minN = minMap[key] || 0;
+          var raw = String(el.value || '').trim();
+          if (minN && raw.length < minN) {
+            wizInlineInvalid(el, key === '90day-outcome'
+              ? 'Add a concrete result (about ' + minN + '+ characters) so we can match honestly.'
+              : key === 'experience'
+              ? 'Give one concrete outcome (about ' + minN + '+ characters).'
+              : 'A bit more detail helps matching (about ' + minN + '+ characters).', key);
+            return;
+          }
+        }
       }
       if (el && (key === 'contact-email' || key === 'seeker-email') && el.value && el.offsetParent !== null) {
         var okMail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(el.value).trim());
@@ -1214,17 +1259,34 @@ function wizBuild(form, kind) {
   form.addEventListener('keydown', function(e) {
     var act = document.activeElement;
     var inText = act && (act.tagName === 'TEXTAREA' || act.isContentEditable);
-    // Typeform: number keys pick a choice chip
-    if (/^[1-9]$/.test(e.key) && !inText && !(act && act.tagName === 'INPUT' && act.type === 'text')) {
-      var chips = form.querySelectorAll('.dg-wiz-choices .dg-wiz-choice');
-      if (chips.length) {
-        var pick = chips[parseInt(e.key, 10) - 1];
+    var onChoice = act && act.classList && act.classList.contains('dg-wiz-choice');
+    // Typeform: number keys pick a choice chip (never while typing free text)
+    if (/^[1-9]$/.test(e.key) && !inText && !(act && act.tagName === 'INPUT' && /^(text|email|url|search|tel)$/i.test(act.type || ''))) {
+      var chipsN = form.querySelectorAll('.dg-wiz-choices .dg-wiz-choice');
+      if (chipsN.length) {
+        var pick = chipsN[parseInt(e.key, 10) - 1];
         if (pick) { e.preventDefault(); pick.click(); return; }
       }
     }
+    // Typeform: arrow keys move between choice chips when one is focused
+    if (onChoice && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      var chipsA = Array.prototype.slice.call(form.querySelectorAll('.dg-wiz-choices .dg-wiz-choice'));
+      var ix = chipsA.indexOf(act);
+      if (ix >= 0 && chipsA.length) {
+        e.preventDefault();
+        var dir = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
+        var next = chipsA[(ix + dir + chipsA.length) % chipsA.length];
+        try { next && next.focus(); } catch (eF) {}
+        return;
+      }
+    }
+    // Enter advances single-line; Ctrl/Cmd+Enter advances textarea (Shift+Enter = newline)
     if (e.key === 'Enter' && !e.shiftKey) {
-      if (act && act.classList && act.classList.contains('dg-wiz-choice')) {
+      if (onChoice) {
         e.preventDefault(); act.click(); return;
+      }
+      if (inText && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault(); nextBtn.click(); return;
       }
       if (act && (act.tagName === 'INPUT' || act.tagName === 'SELECT') && act.type !== 'file' && !inText) {
         e.preventDefault(); nextBtn.click();
@@ -1233,7 +1295,7 @@ function wizBuild(form, kind) {
     if (e.key === 'Escape') {
       if (current > 0) { e.preventDefault(); backBtn.click(); }
     }
-    // Arrows only when not typing in fields (avoid caret theft)
+    // Arrows only when not typing / not on chips (chip arrows handled above)
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       if (act && (act.tagName === 'INPUT' || act.tagName === 'TEXTAREA' || act.tagName === 'SELECT' || act.tagName === 'BUTTON' || act.isContentEditable)) return;
       e.preventDefault(); nextBtn.click();
@@ -1251,7 +1313,7 @@ function wizBuild(form, kind) {
   // reopen helper — show() calls this instead of rebuild (v194)
 
     // v195: ensure configured required fields have required attr
-    ['contact-email','company-name','company-stage','role-title','stack-needs','90day-outcome','salary-range','hiring-urgency','full-name','seeker-email','skills-stack','experience','sf-bay','availability','salary-expectation','work-auth'].forEach(function(n){ var el=form.querySelector('[name="'+n+'"],[id="'+n+'"]'); if(el && (cfg.optional||[]).indexOf(n)<0){ el.required=true; if(el.type==='checkbox') el.setAttribute('required','required'); }});
+    ['contact-email','company-name','company-stage','role-title','stack-needs','90day-outcome','salary-range','full-name','seeker-email','skills-stack','experience','sf-bay','availability','salary-expectation'].forEach(function(n){ var el=form.querySelector('[name="'+n+'"],[id="'+n+'"]'); if(el && (cfg.optional||[]).indexOf(n)<0){ el.required=true; if(el.type==='checkbox') el.setAttribute('required','required'); }});
   form.__dgWizShow = function(){ try{ showStep(current); enhanceWIZ(); forceWizVisible(form, form.closest('#startup-modal,#jobseeker-modal')); }catch(e){} };
 }
 
@@ -1317,14 +1379,12 @@ qa('h3,.w-form-title,[class*=title]',st).forEach(function(h){if(/STARTUP HIRING 
 // ensure company-name field exists for its WIZ step (some Webflow forms may not have it)
 /* company-name */ if(!st.querySelector('[name=company-name]')){var cn=document.createElement('div');cn.className='dg-field-wrap';cn.innerHTML='<label class="w-form-label" for="company-name">Company name?</label><input class="w-input" type="text" id="company-name" name="company-name" autocomplete="organization" required placeholder="Company name">';var ce=st.querySelector('[name=contact-email]');var ceg=ce&&(ce.closest('.form-field-group')||ce.parentElement);if(ceg&&ceg.parentElement&&ceg!==st){ceg.insertAdjacentElement('afterend',cn);}else{(ce&&ce.parentElement||st).appendChild(cn);}}
 formAttribution(st);var sk=st.querySelector('[name=stack-needs]'),sa=sk&&(sk.closest('.w-input')||sk.parentElement);if(!st.querySelector('[name=company-stage]')){var ce=st.querySelector('[name=contact-email]'),cew=ce&&(ce.closest('.w-input')||ce.parentElement);var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="company-stage">Company stage *</label><select class="w-select" id="company-stage" name="company-stage" required><option value="">Select stage</option><option value="pre-seed">Pre-seed</option><option value="seed">Seed</option><option value="series-a">Series A</option><option value="series-b">Series B+</option></select>';var ceg3=ce&&(ce.closest('.form-field-group')||cew);if(ceg3&&ceg3.parentElement&&ceg3!==st)ceg3.parentElement.insertBefore(sw,ceg3.nextSibling);else if(cew&&cew.parentElement)cew.parentElement.insertBefore(sw,cew.nextSibling);else{var rt=st.querySelector('[name=role-title]'),rw=rt&&(rt.closest('.w-input')||rt.parentElement);if(rw&&rw.parentElement)rw.parentElement.insertBefore(sw,rw)}}
-// inject 90day-outcome creative field for high-signal matching data (Fable recommended)
-if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">#1 outcome this hire must deliver in first 90 days? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="One measurable first-90-day result"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}
+// Keep the established field name for stored submissions; present it as a plain success question.
+if(!st.querySelector('[name="90day-outcome"]')){var od=document.createElement('div');od.className='dg-field-wrap';od.innerHTML='<label class="w-form-label" for="90day-outcome">What should this person accomplish first? *</label><textarea class="w-input" id="90day-outcome" name="90day-outcome" rows="2" required placeholder="One concrete result"></textarea>';var skg2=sk&&(sk.closest('.form-field-group')||sk.parentElement);if(skg2&&skg2.parentElement&&skg2!==st){skg2.insertAdjacentElement('afterend',od);}else{(sk&&sk.parentElement||st).appendChild(od);}}
 if(!st.querySelector('[name=work-location]')){var wl=document.createElement('div');wl.className='dg-field-wrap';wl.innerHTML='<label class="w-form-label" for="work-location">Where and how can this person work? *</label><select class="w-select" id="work-location" name="work-location" required><option value="">Select</option><option value="sf-onsite">SF onsite</option><option value="sf-hybrid">SF hybrid</option><option value="bay-flexible">SF Bay Area, flexible</option><option value="remote-us">Remote within the US</option><option value="remote-global">Remote internationally</option></select>';var outcome=st.querySelector('[name="90day-outcome"]');var outcomeWrap=outcome&&(outcome.closest('.form-field-group,.dg-field-wrap')||outcome.parentElement);if(outcomeWrap&&outcomeWrap.parentElement)outcomeWrap.parentElement.insertBefore(wl,outcomeWrap.nextSibling);else st.appendChild(wl);}
 /* salary-range: always a band select (replace free-text if Webflow left one) */
-(function(){var el=st.querySelector('[name=salary-range]');var wrap=document.createElement('div');wrap.id='dg-salary-wrap';wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-range">Target base cash range *</label><select class="w-select" id="salary-range" name="salary-range" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3){el.innerHTML=SALARY_BAND_HTML;}var lab=(el.closest('.form-field-group,.dg-field-wrap')||st).querySelector('label');if(lab)lab.textContent='Target base cash range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else if(sa&&sa.parentElement)sa.parentElement.insertBefore(wrap,sa.nextSibling);else{var sub=st.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(wrap,sub);}})();
-/* hiring-urgency: competitor-standard timing signal for ops priority */
-if(!st.querySelector('[name=hiring-urgency]')){var hu=document.createElement('div');hu.className='dg-field-wrap';hu.innerHTML='<label class="w-form-label" for="hiring-urgency">How soon do you need someone? *</label><select class="w-select" id="hiring-urgency" name="hiring-urgency" required><option value="">Select</option><option value="now">Actively interviewing now</option><option value="this-month">This month</option><option value="this-quarter">This quarter</option><option value="exploring">Exploring / opportunistic</option></select>';var salW=st.querySelector('[name=salary-range]');var salHost=salW&&(salW.closest('.form-field-group,.dg-field-wrap')||salW.parentElement);if(salHost&&salHost.parentElement)salHost.parentElement.insertBefore(hu,salHost.nextSibling);else st.appendChild(hu);}var huIn=st.querySelector('[name=hiring-urgency]');if(huIn)huIn.required=true;
-st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}['github-url','portfolio-url','linkedin-url','phone','why-startups'].forEach(function(name){rmF(en,name)});var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skills\s*&\s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Skills & stack *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('input[type=file][name=resume],input[type=file][name=Resume]');
+(function(){var el=st.querySelector('[name=salary-range]');var wrap=document.createElement('div');wrap.id='dg-salary-wrap';wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-range">Target base salary range *</label><select class="w-select" id="salary-range" name="salary-range" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3){el.innerHTML=SALARY_BAND_HTML;}var lab=(el.closest('.form-field-group,.dg-field-wrap')||st).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else if(sa&&sa.parentElement)sa.parentElement.insertBefore(wrap,sa.nextSibling);else{var sub=st.querySelector('[type=submit],.w-button');sub?.parentElement?.insertBefore(wrap,sub);}})();
+st.setAttribute('enctype','multipart/form-data');if(!st.querySelector('#dg-fee-note')){var n=document.createElement('p');n.id='dg-fee-note';n.style.cssText='color:#9ca3af;font-size:.85rem;margin:.5rem 0 1rem';n.textContent=COPY.feeNote;var b=st.querySelector('[type=submit],.w-button');b?.parentElement?.insertBefore(n,b)}submitTrust(st,'A human reads every brief. potter@trydemigod.com follows up.');charCount(st.querySelector('[name=stack-needs]'),500);charCount(st.querySelector('[name="90day-outcome"]'),500);var sb=st.querySelector('[type=submit],.w-button');if(sb){sb.value='Send brief';sb.textContent='Send brief'; sb.removeAttribute('disabled'); sb.disabled=false;}wizBuild(st,'startup');}var en=formEl('#engineer-join')||formEl('#jobseeker-form')||formEl(J+' form')||formEl(J+' .w-form');if(en&&!en.dataset.dgEngineer){en.dataset.dgEngineer='1';en.classList.add('w-form');en.id='engineer-join';en.name='engineer-join';en.setAttribute('data-name','engineer-join');en.removeAttribute('aria-label');en.removeAttribute('action');en.setAttribute('method','post');if(!en.dataset.dgMailStrip){en.dataset.dgMailStrip='1';en.addEventListener('submit',function(ev){/* keep native Webflow if wired; never open mail client */if(/^mailto:/i.test(en.getAttribute('action')||'')){ev.preventDefault();en.removeAttribute('action');}},true);}['github-url','portfolio-url','linkedin-url','phone','why-startups','work-auth'].forEach(function(name){rmF(en,name)});var ghWrap=en.querySelector('#dg-github-wrap');if(ghWrap)ghWrap.remove();var engChk=en.querySelector('#dg-engineer-check');if(engChk)engChk.remove();qa('label',en).forEach(function(l){if(/Years Experience|Background & highlights|What you have shipped/i.test(l.textContent||''))l.textContent='What you shipped *';if(/Skills\s*&\s*(Stack|experience)/i.test(l.textContent||''))l.textContent='Next role & strengths *'});ph(en.querySelector('[name=full-name]'),'Your full name');ph(en.querySelector('[name=seeker-email]'),'you@email.com');['full-name','seeker-email'].forEach(function(n){var i=en.querySelector('[name='+n+']');if(i){i.required=true;i.setAttribute('autocomplete',n==='full-name'?'name':'email')}});en.setAttribute('enctype','multipart/form-data');en.setAttribute('method','post');var resIn=en.querySelector('input[type=file][name=resume],input[type=file][name=Resume]');
 formAttribution(en);
 var nativeResume=!!(resIn&&resIn.classList.contains('w-file-upload-input'));
 if(nativeResume){
@@ -1355,19 +1415,17 @@ if(nativeResume&&!en.querySelector('[name=resume-url]')){
 }
 qa('label',en).forEach(function(l){if(/resume|résumé|cv/i.test((l.textContent||'').trim())&&!l.querySelector('[type=file]'))l.textContent=nativeResume?'Resume file or work link *':'Resume or work link *'});
 var rUrl=en.querySelector('[name=resume-url]');if(rUrl)rUrl.setAttribute('autocomplete','url');if(resIn){resIn.accept='.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';if(!en.dataset.dgResumeVal){en.dataset.dgResumeVal='1';resIn.addEventListener('change',function(){resIn.setCustomValidity(resumeFileError(resIn.files&&resIn.files[0]))})}}
-ph(en.querySelector('[name=skills-stack]'),'Strengths, craft, or domain');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='Two or three concrete outcomes';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'Two or three concrete outcomes')}charCount(en.querySelector('[name=experience]'),600);rmF(en,'links');var oldLinks=en.querySelector('#dg-links-wrap');if(oldLinks)oldLinks.remove();var sf=en.querySelector('[name=sf-bay]');
-if(sf&&sf.type==='checkbox'){var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var par=sf.closest('.form-field-group,.dg-field-wrap')||sf.closest('label,.w-checkbox')||sf.parentElement;if(par&&par.parentNode)par.parentNode.replaceChild(sw,par);else sf.replaceWith(sw);sf=sw.querySelector('[name=sf-bay]');}
-if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('div');c.className='dg-field-wrap';c.innerHTML='<label class="w-form-label" for="sf-bay">Open to SF Bay startups?</label><select class="w-select" id="sf-bay" name="sf-bay" required><option value="">Select</option><option value="yes">Yes</option><option value="remote-bay">Yes — remote OK if company is Bay-based</option><option value="no">Not right now</option></select>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
-else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;}}
+ph(en.querySelector('[name=skills-stack]'),'Role, problems, and strongest skills');var skIn=en.querySelector('[name=skills-stack]');if(skIn)skIn.required=true;charCount(en.querySelector('[name=skills-stack]'),400);var ex=en.querySelector('[name=experience]');if(ex&&ex.tagName==='SELECT'){var ta=document.createElement('textarea');ta.className='w-input';ta.name='experience';ta.id='experience';ta.rows=3;ta.placeholder='Two or three concrete outcomes';ta.required=true;(ex.closest('.w-select')||ex).replaceWith(ta)}else if(ex){ex.required=true;ph(ex,'Two or three concrete outcomes')}charCount(en.querySelector('[name=experience]'),600);rmF(en,'links');var oldLinks=en.querySelector('#dg-links-wrap');if(oldLinks)oldLinks.remove();var sf=en.querySelector('[name=sf-bay]');var sfOptions='<option value="">Select</option><option value="yes">SF onsite, hybrid, or remote</option><option value="remote-bay">Remote only — company can be Bay-based</option>';
+if(sf&&sf.type==='checkbox'){var sw=document.createElement('div');sw.className='dg-field-wrap';sw.innerHTML='<label class="w-form-label" for="sf-bay">Which work setup are you open to?</label><select class="w-select" id="sf-bay" name="sf-bay" required>'+sfOptions+'</select>';var par=sf.closest('.form-field-group,.dg-field-wrap')||sf.closest('label,.w-checkbox')||sf.parentElement;if(par&&par.parentNode)par.parentNode.replaceChild(sw,par);else sf.replaceWith(sw);sf=sw.querySelector('[name=sf-bay]');}
+if(!en.querySelector('[name=sf-bay]')){var c=document.createElement('div');c.className='dg-field-wrap';c.innerHTML='<label class="w-form-label" for="sf-bay">Which work setup are you open to?</label><select class="w-select" id="sf-bay" name="sf-bay" required>'+sfOptions+'</select>';var b2=en.querySelector('[type=submit],.w-button');b2?.parentElement?.insertBefore(c,b2)}
+else{var sfel=en.querySelector('[name=sf-bay]');if(sfel){sfel.required=true;if(sfel.tagName==='SELECT')sfel.innerHTML=sfOptions;}}
 // inject only match-critical availability and compensation constraints
 if(!en.querySelector('[name=availability]')){var av=document.createElement('div');av.className='dg-field-wrap';av.innerHTML='<label class="w-form-label" for="availability">Availability *</label><select class="w-select" id="availability" name="availability" required><option value="">Select</option><option value="now">Ready now</option><option value="2-4w">2–4 weeks</option><option value="1-3m">1–3 months</option><option value="passive">Passively open / flexible</option></select>';var avField=en.querySelector('[name=sf-bay]');var avAfter=avField&&(avField.closest('.form-field-group,.dg-field-wrap')||avField.parentElement);if(avAfter&&avAfter.parentElement)avAfter.parentElement.insertBefore(av,avAfter.nextSibling);else en.appendChild(av);}
 var avIn=en.querySelector('[name=availability]');if(avIn){avIn.required=true;var avLab=(avIn.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(avLab)avLab.textContent='Availability *';}
 /* salary-expectation: band select (replace free-text) */
-(function(){var el=en.querySelector('[name=salary-expectation]');var wrap=document.createElement('div');wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-expectation">Target base cash range *</label><select class="w-select" id="salary-expectation" name="salary-expectation" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3)el.innerHTML=SALARY_BAND_HTML;var lab=(el.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(lab)lab.textContent='Target base cash range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else{var avAfter2=en.querySelector('[name=availability]');var avH=avAfter2&&(avAfter2.closest('.form-field-group,.dg-field-wrap')||avAfter2.parentElement);if(avH&&avH.parentElement)avH.parentElement.insertBefore(wrap,avH.nextSibling);else en.appendChild(wrap);}})();
+(function(){var el=en.querySelector('[name=salary-expectation]');var wrap=document.createElement('div');wrap.className='dg-field-wrap';wrap.innerHTML='<label class="w-form-label" for="salary-expectation">Target base salary range *</label><select class="w-select" id="salary-expectation" name="salary-expectation" required>'+SALARY_BAND_HTML+'</select>';if(el&&el.tagName==='SELECT'){el.required=true;if(!el.options||el.options.length<3)el.innerHTML=SALARY_BAND_HTML;var lab=(el.closest('.form-field-group,.dg-field-wrap')||en).querySelector('label');if(lab)lab.textContent='Target base salary range *';return;}if(el){var host=el.closest('.dg-field-wrap,.form-field-group')||el;if(host.parentNode)host.parentNode.replaceChild(wrap,host);else el.replaceWith(wrap);}else{var avAfter2=en.querySelector('[name=availability]');var avH=avAfter2&&(avAfter2.closest('.form-field-group,.dg-field-wrap')||avAfter2.parentElement);if(avH&&avH.parentElement)avH.parentElement.insertBefore(wrap,avH.nextSibling);else en.appendChild(wrap);}})();
 var seIn=en.querySelector('[name=salary-expectation]');if(seIn)seIn.required=true;
-/* work-auth: standard marketplace fit signal (Wellfound/Underdog-class); not a public badge */
-if(!en.querySelector('[name=work-auth]')){var wa=document.createElement('div');wa.className='dg-field-wrap';wa.innerHTML='<label class="w-form-label" for="work-auth">US work authorization *</label><select class="w-select" id="work-auth" name="work-auth" required><option value="">Select</option><option value="authorized">Authorized (no sponsorship needed)</option><option value="sponsorship">Need visa sponsorship</option><option value="unsure">Unsure / prefer to discuss</option></select>';var seHost=seIn&&(seIn.closest('.form-field-group,.dg-field-wrap')||seIn.parentElement);if(seHost&&seHost.parentElement)seHost.parentElement.insertBefore(wa,seHost.nextSibling);else en.appendChild(wa);}var waIn=en.querySelector('[name=work-auth]');if(waIn)waIn.required=true;
-if(!en.querySelector('#dg-privacy')){var p=document.createElement('p');p.id='dg-privacy';p.style.cssText='color:#9ca3af;font-size:.8rem;margin:.75rem 0 0';p.textContent='Demigod and its form/email providers process these answers for matching. Identifying details move only after both sides approve.';var b3=en.querySelector('[type=submit],.w-button');b3?.parentElement?.insertBefore(p,b3)}submitTrust(en,'Not shared with startups before mutual approval. Free for candidates.');var sb2=en.querySelector('[type=submit],.w-button');if(sb2){sb2.value='Get matched';sb2.textContent='Get matched'; sb2.removeAttribute('disabled'); sb2.disabled=false;}wizBuild(en,'engineer');qa('#tally-startup-embed,#tally-engineer-embed,iframe[data-tally-embed]').forEach(function(el){el.remove()});var stW=formEl('#startup-hire');if(stW)wizBuild(stW,'startup');var enW=formEl('#engineer-join');if(enW)wizBuild(enW,'engineer');} // ensure WIZ on any open
+if(!en.querySelector('#dg-privacy')){var p=document.createElement('p');p.id='dg-privacy';p.style.cssText='color:#9ca3af;font-size:.8rem;margin:.75rem 0 0';p.textContent='Demigod and its form/email providers process these answers for matching. You see the company and exact role before deciding; your identifying details move only after both sides approve. This is not a public profile or professional network feed.';var b3=en.querySelector('[type=submit],.w-button');b3?.parentElement?.insertBefore(p,b3)}submitTrust(en,'Not shared with startups before mutual approval. Free for candidates. No public profiles.');var sb2=en.querySelector('[type=submit],.w-button');if(sb2){sb2.value='Send privately';sb2.textContent='Send privately'; sb2.removeAttribute('disabled'); sb2.disabled=false;}wizBuild(en,'engineer');qa('#tally-startup-embed,#tally-engineer-embed,iframe[data-tally-embed]').forEach(function(el){el.remove()});var stW=formEl('#startup-hire');if(stW)wizBuild(stW,'startup');var enW=formEl('#engineer-join');if(enW)wizBuild(enW,'engineer');} // ensure WIZ on any open
 // extra label safety for mobile a11y on both forms (build more)
 qa('input,select,textarea', document).forEach(function(i){ if(!i.id) return; var l = document.querySelector('label[for="'+i.id+'"]'); if(l) l.setAttribute('for', i.id); });
 }
@@ -1422,6 +1480,7 @@ function paintHeroBrandH1(el) {
   el.classList.remove('dg-hero-morph-in', 'dg-hero-morph-out');
   el.classList.add('dg-hero-hold', 'dg-cyber-host');
   el.style.minHeight = 'clamp(6.63rem,20.4vw,12.24rem)';
+  el.style.visibility = 'visible';
   el.style.opacity = '1';
   el.style.transform = 'none';
   el.style.filter = 'none';
@@ -1439,13 +1498,14 @@ function guardHeroBrandH1(el) {
 
 /* === HERO / CTA SURFACE — permanent brand H1; dual path remains in the CTAs === */
 function hero(){
+  if(q('#dg-page'))return;
   qa('.hero-section h1,.hero-title,.header h1').forEach(function(e){
     e.setAttribute('data-dg-hero-h1','1');
     if (e.getAttribute('data-dg-hero-phase') !== 'brand' || !/^Demigod$/i.test((e.textContent || '').trim())) paintHeroBrandH1(e);
     guardHeroBrandH1(e);
   });
   qa('.hero-section p,.hero-description,.subheading,.header p').forEach(function(e){
-    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
+    if(e.closest('form,.w-form')||e.id==='dg-cand-kicker'||e.id==='dg-eyebrow'||e.id==='dg-hero-chips'||e.id==='dg-cta-trust'||e.closest('.dg-candidates,#startup-modal,#jobseeker-modal,#dg-path-pills,#dg-hero-chips,#dg-simple-process,#dg-cap-strip,#dg-night-stage'))return;
     var t=e.textContent||'';
     if(t.length>4&&t.length<400&&t!==COPY.heroSub)e.textContent=COPY.heroSub;
   });
@@ -1458,7 +1518,7 @@ function hero(){
     if(s.matches&&s.matches('.hero-section,header,footer,.footer'))return;
     if(s.closest&&s.closest('#startup-modal,#jobseeker-modal,header,footer,.footer,.hero-section'))return;
     var head=((s.querySelector('h1,h2,h3')||{}).textContent||'')+' '+(s.getAttribute('aria-label')||'');
-    var sniff=head+(s.innerText||'').slice(0,160);
+    var sniff=head+(s.textContent||'').slice(0,160);
     if(/LIVE ROLES|Example roles|example role/i.test(sniff) && s.querySelector('.roles-grid,.role-card')){
       s.style.setProperty('display','none','important');
       s.setAttribute('data-dg-hidden','roles-simplify');
@@ -1474,8 +1534,8 @@ function hero(){
     var desc=card.querySelector('.step-desc,p');
     var num=card.querySelector('.step-num');
     var steps=[
-      ['Add the signal','Hiring teams share the role and 90-day outcome. Talent shares work, skills, and constraints.'],
-      ['Rank, then review','Demigod tech surfaces fit. A human checks the evidence and tradeoffs.'],
+      ['Define the role','Hiring teams share the must-haves, constraints, and one concrete first result.'],
+      ['Compare, then review','Software compares role goals and constraints. A human confirms the interview path and decides what to propose.'],
       ['Both say yes','Each side reviews privately. We introduce only with mutual interest.']
     ];
     var st=steps[i]||steps[2];
@@ -1490,7 +1550,7 @@ function hero(){
   });
   qa('.trust-header p,.trust-section .paragraph_large').forEach(function(p){
     if(p.closest('#startup-modal,#jobseeker-modal'))return;
-    if(/spam|profile|Bay Area|theater|steps|form|tech|human/i.test(p.textContent||'')) p.textContent='Software ranks fit. People review. Mutual yes before intro.';
+    if(/spam|profile|Bay Area|theater|steps|form|tech|human/i.test(p.textContent||'')) p.textContent='Software compares the facts. A human decides what to propose. Mutual yes before intro.';
   });
   qa('.badge-text').forEach(function(b){
     var x=(b.textContent||'').trim();
@@ -1504,9 +1564,9 @@ function hero(){
       if(el.children&&el.children.length>2)return;
       var tx=(el.textContent||'').trim();
       if(/^Access to pre-vetted/i.test(tx)||/pre-vetted SF/i.test(tx)) el.textContent='Human-reviewed SF Bay matches';
-      if(/Dedicated talent partner/i.test(tx)) el.textContent='Tech match · humans in the loop';
-      if(/90-day replacement/i.test(tx)) el.textContent='Replacement policy pending';
-      if(/PLACEMENT FEE/i.test(tx)) el.textContent='OF FIRST-YEAR CASH';
+      if(/Dedicated talent partner/i.test(tx)) el.textContent='Software comparison · human review';
+      if(/90-day replacement/i.test(tx)) el.textContent='Human-reviewed matching';
+      if(/PLACEMENT FEE/i.test(tx)) el.textContent='OF FIRST-YEAR BASE SALARY';
     });
   });
   // remove old clutter injects (never kill #dg-faq-jsonld — FAQPage schema for /faq)
@@ -1555,8 +1615,8 @@ function nav(){
   });
   var navCtas=q('#dg-top-nav .dg-nav-ctas'); if(navCtas) navCtas.style.setProperty('display','none','important');
 }
-function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or profile → human match → both sides approve → intro. 10% on hire.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
-function mob(){var b=q('#dg-bar');if(!b){b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"></a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"></a>';document.body.appendChild(b)}var h=b.querySelector('.dg-h,[data-dg-cta="hire"]'),t=b.querySelector('.dg-j,[data-dg-cta="talent"]');if(h){h.textContent=COPY.ctaFounder;h.setAttribute('href','/?wiz=startup');h.setAttribute('aria-label','Hire talent — open startup hiring brief')}if(t){t.textContent=COPY.ctaEngineer;t.setAttribute('href','/?wiz=engineer');t.setAttribute('aria-label','Join the talent network — open private talent profile')}}
+function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or preferences → human review → both sides approve → intro. 10% of first-year base salary when a hire starts.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
+function mob(){var b=q('#dg-bar');if(!b){b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"></a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"></a>';document.body.appendChild(b)}var h=b.querySelector('.dg-h,[data-dg-cta="hire"]'),t=b.querySelector('.dg-j,[data-dg-cta="talent"]');if(h){h.textContent=COPY.ctaFounder;h.setAttribute('href','/?wiz=startup');h.setAttribute('aria-label','Hire talent — open startup hiring brief')}if(t){t.textContent=COPY.ctaEngineer;t.setAttribute('href','/?wiz=engineer');t.setAttribute('aria-label',COPY.ctaEngineer+' — open private candidate form')}}
 function foot(){
   var f=q('footer,.footer');
   if(!f)return;
@@ -1567,7 +1627,7 @@ function foot(){
     panel.innerHTML=
       '<div class="dg-footer-actions" role="group" aria-label="Get started">'+
         '<a href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="Hire talent — open startup hiring brief"><strong>Hire talent</strong><span>For startups</span></a>'+
-        '<a href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="Join the talent network — open private talent profile"><strong>Join the talent network</strong><span>For candidates</span></a>'+
+        '<a href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="'+COPY.ctaEngineer+' — open private candidate form"><strong>'+COPY.ctaEngineer+'</strong><span>For candidates</span></a>'+
       '</div>'+
       '<nav id="dg-legal-links" aria-label="Footer navigation">'+
         '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-product">'+
@@ -1578,7 +1638,6 @@ function foot(){
         '</div>'+
         '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-explore">'+
           '<p class="dg-footer-heading" id="dg-footer-explore">Explore</p>'+
-          '<a href="/blog" data-dg-page="blog">Notes</a>'+
           '<a href="/about" data-dg-page="about">About</a>'+
           '<a href="/press" data-dg-page="press">Press kit</a>'+
           '<a href="/legal" data-dg-page="legal">Privacy &amp; terms</a>'+
@@ -1586,7 +1645,7 @@ function foot(){
         '</div>'+
       '</nav>'+
       '<div class="dg-footer-bottom">'+
-        '<p class="dg-footer-fee">Startups pay 10% of first-year cash salary when a hire starts. Nothing upfront. Talent is always free.</p>'+
+        '<p class="dg-footer-fee">Startups pay 10% of first-year base salary when a hire starts. Nothing upfront. Talent is always free.</p>'+
         '<p id="dg-copyright">© 2026 Demigod</p>'+
       '</div>';
     f.appendChild(panel);
@@ -1624,9 +1683,10 @@ function wizCss(){if(q('#dg-wiz-css'))return;var s=document.createElement('style
 +"#startup-modal[aria-hidden=true],#jobseeker-modal[aria-hidden=true]{"
 +"display:none!important;visibility:hidden!important;pointer-events:none!important"
 +"}"
-+"#startup-modal[aria-hidden=false],#jobseeker-modal[aria-hidden=false]{"
-+"display:flex!important;visibility:visible!important;pointer-events:auto!important"
-+"}"
+  +"#startup-modal[aria-hidden=false],#jobseeker-modal[aria-hidden=false]{"
+  +"display:flex!important;visibility:visible!important;pointer-events:auto!important"
+  +"}"
+  +"#startup-modal #dg-referral-form-source{display:none!important;visibility:hidden!important}"
 /* Webflow outer shell → transparent; form is THE card */
 +"#startup-modal .modal-container,#jobseeker-modal .modal-container{"
 +"background:transparent!important;border:0!important;box-shadow:none!important;"
@@ -2004,7 +2064,7 @@ function cta(){/*dg-cta-prefetch*/
     a.setAttribute('href', hire ? '/?wiz=startup' : '/?wiz=engineer');
     a.setAttribute('data-demigod-modal', hire ? 'startup' : 'jobseeker');
     a.setAttribute('data-dg-cta', hire ? 'hire' : 'talent');
-    a.setAttribute('aria-label', hire ? 'Hire talent — open startup hiring brief' : 'Join the talent network — open private talent profile');
+    a.setAttribute('aria-label', hire ? 'Hire talent — open startup hiring brief' : COPY.ctaEngineer+' — open private candidate form');
     a.classList.toggle('is-talent', hire);
     a.classList.toggle('is-job', !hire);
   }
@@ -2019,7 +2079,7 @@ function cta(){/*dg-cta-prefetch*/
     wireCta(a, 'engineer');
   });
   qa('a,button').forEach(function(a){
-    if (a.closest('#startup-modal,#jobseeker-modal,footer,#dg-faq,.hero-actions')) return;
+    if (a.closest('#startup-modal,#jobseeker-modal,#dg-faq,.hero-actions')) return;
     if (a.getAttribute('data-dg-cta')) return;
     if (a.closest('#dg-path-pills,#dg-bar')) return;
     if (a.classList.contains('is-job')) { wireCta(a, 'engineer'); return; }
@@ -2063,7 +2123,7 @@ function cta(){/*dg-cta-prefetch*/
       a.setAttribute('data-dg-cta', kind);
       a.setAttribute('data-demigod-modal', kind==='hire' ? 'startup' : 'jobseeker');
       a.setAttribute('href', kind==='hire' ? '/?wiz=startup' : '/?wiz=engineer');
-      a.setAttribute('aria-label', kind==='hire' ? 'Hire talent — open startup hiring brief' : 'Join the talent network — open private talent profile');
+      a.setAttribute('aria-label', kind==='hire' ? 'Hire talent — open startup hiring brief' : COPY.ctaEngineer+' — open private candidate form');
       a.dataset.dgHinted = '1';
       a.innerHTML =
         '<span class="dg-cta-label"></span>' +
@@ -2087,13 +2147,42 @@ function cta(){/*dg-cta-prefetch*/
       var trustLine = document.createElement('p');
       trustLine.id = 'dg-cta-trust';
       trustLine.className = 'dg-cta-trust';
-      trustLine.textContent = '10% on hire · both sides approve · no spam lists';
+      trustLine.textContent = '10% of first-year base salary when a hire starts · both sides approve · no spam lists';
       trustLine.style.cssText = 'margin:.55rem 0 0;color:#9aab9f;font-size:.78rem;line-height:1.35;letter-spacing:.02em';
       host.insertAdjacentElement('afterend', trustLine);
     }
   })();
 }
 /* dual-path: equal cards with hint inside — no broken flex wraps */
+
+function fixFooterCtas(){
+  /* Live Webflow footer still ships mailto CTAs; JS path must open wizards, not mail.app. Noscript keeps email. */
+  qa('footer a[href*="mailto"], .footer a[href*="mailto"], a[href*="mailto"][href*="Hiring"], a[href*="mailto"][href*="Joining"]').forEach(function(a){
+    try{
+      var href=String(a.getAttribute('href')||'');
+      var t=String(a.textContent||'').replace(/\s+/g,' ').trim();
+      var blob=(href+' '+t).toLowerCase();
+      var hire=/hiring with demigod|hire talent|subject=hiring|i.?m hiring/.test(blob);
+      var talent=/joining the demigod|talent network|subject=joining|sharing what i|i.?m looking|join network/.test(blob);
+      if(!hire&&!talent) return;
+      if(hire){
+        a.setAttribute('href','/?wiz=startup');
+        a.setAttribute('data-demigod-modal','startup');
+        a.setAttribute('data-dg-cta','hire');
+        a.setAttribute('aria-label','Hire talent — open startup hiring brief');
+        if(/by email/i.test(t)||/^hire talent/i.test(t)) a.textContent='Hire talent';
+      } else {
+        a.setAttribute('href','/?wiz=engineer');
+        a.setAttribute('data-demigod-modal','jobseeker');
+        a.setAttribute('data-dg-cta','talent');
+        a.setAttribute('aria-label',COPY.ctaEngineer+' — open private candidate form');
+        if(/by email/i.test(t)||/join the talent/i.test(t)) a.textContent=COPY.ctaEngineer;
+      }
+      a.removeAttribute('target');
+    }catch(e){}
+  });
+}
+
 function ctaHints(){
   var host=q('.hero-actions');
   if(!host)return;
@@ -2362,7 +2451,7 @@ function ensureForcedColorsCss(){if(q('#dg-forced-colors'))return;var fc=documen
 
 function dgIdle(fn,ms){ms=ms||2000;try{if(window.requestIdleCallback){requestIdleCallback(function(){try{fn()}catch(e){console.error('Demigod idle',e)}},{timeout:ms});return}}catch(e){}setTimeout(function(){try{fn()}catch(e){console.error('Demigod idle',e)}},Math.min(ms,400))}
 /* v855: run critical path first; honesty scrubs after paint to cut main-thread TBT on home. */
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();wizCss();faqCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)')}})})();mob();if(!OPEN)hide();/* v855 critical path ends — mark ready-ish via boot */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss();ensureForcedColorsCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();wizCss();ensureWizPremiumCss();faqCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2').forEach(function(h){if(/Live SF startup roles hiring now/i.test(h.textContent||''))h.textContent='Example roles — labeled samples'});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$/i.test((b.textContent||'').trim()))b.textContent='EXAMPLE ROLES'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#A8A29E;border:1px solid rgba(201,168,76,.35);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.06em;text-transform:uppercase';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();mob();if(!OPEN)hide();/* v855 critical path ends — mark ready-ish via boot */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
   dgIdle(function(){try{
     trust();foot();rmOrphanForms();successCta();
     dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();
@@ -2378,7 +2467,7 @@ function dedupeAll(){
   killExact.forEach(function(needle){
     var matches = [];
     qa('a, button, .button, .premium-btn, [data-demigod-modal], .badge-text, .eyebrow').forEach(function(el){
-      if (el.closest('#dg-bar,#dg-path-pills,.hero-actions')) return;
+      if (el.closest('#dg-bar,#dg-path-pills,.hero-actions,#dg-page')) return;
       if (el.closest && el.closest('a.premium-btn')) return;
       var t = (el.textContent || '').trim().replace(/\s+/g, ' ');
       if (t.toUpperCase() === needle) matches.push(el);
@@ -2436,15 +2525,15 @@ function scrubTimeClaims(){
       return;
     }
     if (bareGuarantee.test(txt) && txt.length < 200) {
-      el.textContent = '10% on hire · 90-day outcome focus (no SLA promise)';
+      el.textContent = '10% of first-year base salary when a hire starts · human-reviewed matching';
       return;
     }
     if (/pre-vetted|Dedicated talent partner|90-?\s*day replacement/i.test(txt) && txt.length < 160 && !el.closest('#startup-modal,#jobseeker-modal')) {
       el.textContent = txt
         .replace(/Access to pre-vetted SF talent/ig,'Human-reviewed SF Bay matches')
         .replace(/pre-vetted/ig,'human-reviewed')
-        .replace(/Dedicated talent partner/ig,'Tech match · humans in the loop')
-        .replace(/90-?\s*day replacement guarantee/ig,'90-day outcome focus (replacement policy pending)');
+        .replace(/Dedicated talent partner/ig,'Software comparison · human review')
+        .replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching');
       return;
     }
     if (bad.test(txt)) {
@@ -2490,8 +2579,8 @@ function scrubBadStaticClaims(){
     nodes.forEach(function(tn){
       var v=tn.nodeValue||'';
       var nv=v
-        .replace(/90-?\s*day\s+replacement\s+guarantee/ig,'90-day outcome focus (no replacement promise)')
-        .replace(/(?<!pending.{0,30})\breplacement guarantee\b/ig,'outcome-focused matching')
+        .replace(/90-?\s*day\s+replacement\s+guarantee/ig,'human-reviewed matching')
+        .replace(/(?<!pending.{0,30})\breplacement guarantee\b/ig,'human-reviewed matching')
         .replace(/guaranteed\s+(?:free\s+)?replacement/ig,'honest matching, humans in the loop')
         .replace(/Meet Your 3-5[^.<]{0,40}/ig,'Meet curated matches')
         .replace(/receive\s+3[\s–-]5\s+highly\s+aligned[^.]{0,100}\.?/ig,'get curated matches — no volume promise.')
@@ -2504,9 +2593,9 @@ function scrubBadStaticClaims(){
     qa('div,li,p,span').forEach(function(el){
       if(el.children&&el.children.length)return;
       var tx=(el.textContent||'').trim();
-      if(/^90-day outcome focus/i.test(tx)||/^outcome-focused matching$/i.test(tx))return;
+      if(/^human-reviewed matching/i.test(tx)||/^human-reviewed matching$/i.test(tx))return;
       if(/replacement guarantee/i.test(tx)&&tx.length<80){
-        el.textContent='90-day outcome focus (no replacement promise)';
+        el.textContent='human-reviewed matching';
       }
     });
   }catch(e){}
@@ -2527,7 +2616,7 @@ function scrubStaticLabels(){
   qa('.modal-title,h2.modal-title,#startup-modal h2,#jobseeker-modal h2').forEach(function(el){
     var t=policyText(el.textContent);
     if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)||/^I.?M HIRING$/i.test(t)) el.textContent='Hire talent';
-    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)||/^I.?M LOOKING$/i.test(t)) el.textContent='Join the talent network';
+    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)||/^I.?M LOOKING$/i.test(t)) el.textContent=COPY.ctaEngineer;
   });
   qa('.modal-subtitle,#startup-modal .modal-subtitle,#jobseeker-modal .modal-subtitle').forEach(function(el){
     var t=policyText(el.textContent);
@@ -2538,7 +2627,7 @@ function scrubStaticLabels(){
     var t=el.textContent||'';
     if(/curated SF candidates|match you to SF startups/i.test(t)){
       el.textContent=/startup|role|comp/i.test(t)
-        ? 'Share the role, skills, and a 90-day outcome. Matched with Demigod tech.'
+        ? 'Share the role, real constraints, and one concrete first result. Software compares the evidence.'
         : 'One private profile. Shared only when both sides approve.';
     }
   });
@@ -2548,8 +2637,8 @@ function scrubStaticLabels(){
     var t=policyText(el.textContent);
     if(!t||t.length>120)return;
     if(/^Access to pre-vetted SF talent$/i.test(t)) el.textContent='Human-reviewed SF Bay matches';
-    else if(/^Dedicated talent partner$/i.test(t)) el.textContent='Tech match · humans in the loop';
-    else if(/90-?\s*day replacement guarantee/i.test(t)) el.textContent='90-day outcome focus (replacement policy pending)';
+    else if(/^Dedicated talent partner$/i.test(t)) el.textContent='Software comparison · human review';
+    else if(/90-?\s*day replacement guarantee/i.test(t)) el.textContent='human-reviewed matching';
     else if(/^pre-vetted$/i.test(t)) el.textContent='human-reviewed';
   });
   var leafRe = /^(STARTUP HIRING FORM|HIRING FORM|ENGINEER APPLICATION|CANDIDATE APPLICATION|Hiring Model|EXAMPLE BRIEFS)$/i;
@@ -2612,11 +2701,11 @@ function scrubStaticLabels(){
     staleSourcedVolume.lastIndex=0;
     if(staleSourcedVolume.test(out)){staleSourcedVolume.lastIndex=0;out=out.replace(staleSourcedVolume,'share curated matches when the evidence supports them');}
     staleCandidateGuarantee.lastIndex=0;
-    if(staleCandidateGuarantee.test(out)){staleCandidateGuarantee.lastIndex=0;out=out.replace(staleCandidateGuarantee,'90-day outcome focus');}
+    if(staleCandidateGuarantee.test(out)){staleCandidateGuarantee.lastIndex=0;out=out.replace(staleCandidateGuarantee,'human-reviewed matching');}
     staleGuaranteedPeriod.lastIndex=0;
-    if(staleGuaranteedPeriod.test(out)){staleGuaranteedPeriod.lastIndex=0;out=out.replace(staleGuaranteedPeriod,'90-day outcome focus');}
+    if(staleGuaranteedPeriod.test(out)){staleGuaranteedPeriod.lastIndex=0;out=out.replace(staleGuaranteedPeriod,'human-reviewed matching');}
     staleIncludedReplacement.lastIndex=0;
-    if(staleIncludedReplacement.test(out)){staleIncludedReplacement.lastIndex=0;out=out.replace(staleIncludedReplacement,'includes a 90-day outcome review');}
+    if(staleIncludedReplacement.test(out)){staleIncludedReplacement.lastIndex=0;out=out.replace(staleIncludedReplacement,'human-reviewed matching');}
     // Attribute-only: do not map bare "Find talent" strings that are the dual-path hero.
     if(staleHire.test(out) && !/^Find talent(?:\.\s*Find startups\.?)?$/i.test(out) && !/^Hire talent\b/i.test(out))return 'Hire talent';
     staleHirePhrase.lastIndex=0;
@@ -2636,55 +2725,55 @@ function scrubStaticLabels(){
     staleChoiceVolume.lastIndex=0;
     if(staleChoiceVolume.test(out)){staleChoiceVolume.lastIndex=0;out=out.replace(staleChoiceVolume,'review curated matches');}
     staleGuarantee.lastIndex=0;
-    if(staleGuarantee.test(out)){staleGuarantee.lastIndex=0;out=out.replace(staleGuarantee,'90-day outcome focus');}
+    if(staleGuarantee.test(out)){staleGuarantee.lastIndex=0;out=out.replace(staleGuarantee,'human-reviewed matching');}
     staleGuaranteePeriod.lastIndex=0;
-    if(staleGuaranteePeriod.test(out)){staleGuaranteePeriod.lastIndex=0;out=out.replace(staleGuaranteePeriod,'90-day outcome focus');}
+    if(staleGuaranteePeriod.test(out)){staleGuaranteePeriod.lastIndex=0;out=out.replace(staleGuaranteePeriod,'human-reviewed matching');}
     staleComplimentaryReplacement.lastIndex=0;
-    if(staleComplimentaryReplacement.test(out)){staleComplimentaryReplacement.lastIndex=0;out=out.replace(staleComplimentaryReplacement,'90-day outcome focus');}
+    if(staleComplimentaryReplacement.test(out)){staleComplimentaryReplacement.lastIndex=0;out=out.replace(staleComplimentaryReplacement,'human-reviewed matching');}
     staleConditionalReplacement.lastIndex=0;
-    if(staleConditionalReplacement.test(out)){staleConditionalReplacement.lastIndex=0;out=out.replace(staleConditionalReplacement,'90-day outcome focus');}
+    if(staleConditionalReplacement.test(out)){staleConditionalReplacement.lastIndex=0;out=out.replace(staleConditionalReplacement,'human-reviewed matching');}
     staleFitReplacement.lastIndex=0;
-    if(staleFitReplacement.test(out)){staleFitReplacement.lastIndex=0;out=out.replace(staleFitReplacement,'90-day outcome focus');}
+    if(staleFitReplacement.test(out)){staleFitReplacement.lastIndex=0;out=out.replace(staleFitReplacement,'human-reviewed matching');}
     staleShouldReplacement.lastIndex=0;
-    if(staleShouldReplacement.test(out)){staleShouldReplacement.lastIndex=0;out=out.replace(staleShouldReplacement,'90-day outcome focus');}
+    if(staleShouldReplacement.test(out)){staleShouldReplacement.lastIndex=0;out=out.replace(staleShouldReplacement,'human-reviewed matching');}
     staleOfferedReplacement.lastIndex=0;
-    if(staleOfferedReplacement.test(out)){staleOfferedReplacement.lastIndex=0;out=out.replace(staleOfferedReplacement,'90-day outcome focus');}
+    if(staleOfferedReplacement.test(out)){staleOfferedReplacement.lastIndex=0;out=out.replace(staleOfferedReplacement,'human-reviewed matching');}
     staleSearchRestart.lastIndex=0;
-    if(staleSearchRestart.test(out)){staleSearchRestart.lastIndex=0;out=out.replace(staleSearchRestart,'90-day outcome focus');}
+    if(staleSearchRestart.test(out)){staleSearchRestart.lastIndex=0;out=out.replace(staleSearchRestart,'human-reviewed matching');}
     staleNextSearchFree.lastIndex=0;
-    if(staleNextSearchFree.test(out)){staleNextSearchFree.lastIndex=0;out=out.replace(staleNextSearchFree,'90-day outcome focus');}
+    if(staleNextSearchFree.test(out)){staleNextSearchFree.lastIndex=0;out=out.replace(staleNextSearchFree,'human-reviewed matching');}
     staleReplacementCredit.lastIndex=0;
-    if(staleReplacementCredit.test(out)){staleReplacementCredit.lastIndex=0;out=out.replace(staleReplacementCredit,'90-day outcome focus');}
+    if(staleReplacementCredit.test(out)){staleReplacementCredit.lastIndex=0;out=out.replace(staleReplacementCredit,'human-reviewed matching');}
     staleFeeWaiver.lastIndex=0;
-    if(staleFeeWaiver.test(out)){staleFeeWaiver.lastIndex=0;out=out.replace(staleFeeWaiver,'90-day outcome focus');}
+    if(staleFeeWaiver.test(out)){staleFeeWaiver.lastIndex=0;out=out.replace(staleFeeWaiver,'human-reviewed matching');}
     staleFeeCarryover.lastIndex=0;
-    if(staleFeeCarryover.test(out)){staleFeeCarryover.lastIndex=0;out=out.replace(staleFeeCarryover,'90-day outcome focus');}
+    if(staleFeeCarryover.test(out)){staleFeeCarryover.lastIndex=0;out=out.replace(staleFeeCarryover,'human-reviewed matching');}
     staleFeeBackGuarantee.lastIndex=0;
-    if(staleFeeBackGuarantee.test(out)){staleFeeBackGuarantee.lastIndex=0;out=out.replace(staleFeeBackGuarantee,'90-day outcome focus');}
+    if(staleFeeBackGuarantee.test(out)){staleFeeBackGuarantee.lastIndex=0;out=out.replace(staleFeeBackGuarantee,'human-reviewed matching');}
     staleMoneyBackGuarantee.lastIndex=0;
-    if(staleMoneyBackGuarantee.test(out)){staleMoneyBackGuarantee.lastIndex=0;out=out.replace(staleMoneyBackGuarantee,'90-day outcome focus');}
+    if(staleMoneyBackGuarantee.test(out)){staleMoneyBackGuarantee.lastIndex=0;out=out.replace(staleMoneyBackGuarantee,'human-reviewed matching');}
     staleReplacementBenefit.lastIndex=0;
-    if(staleReplacementBenefit.test(out)){staleReplacementBenefit.lastIndex=0;out=out.replace(staleReplacementBenefit,'90-day outcome focus');}
+    if(staleReplacementBenefit.test(out)){staleReplacementBenefit.lastIndex=0;out=out.replace(staleReplacementBenefit,'human-reviewed matching');}
     staleReplacementSafetyNet.lastIndex=0;
-    if(staleReplacementSafetyNet.test(out)){staleReplacementSafetyNet.lastIndex=0;out=out.replace(staleReplacementSafetyNet,'90-day outcome focus');}
+    if(staleReplacementSafetyNet.test(out)){staleReplacementSafetyNet.lastIndex=0;out=out.replace(staleReplacementSafetyNet,'human-reviewed matching');}
     staleReplacementInsurance.lastIndex=0;
-    if(staleReplacementInsurance.test(out)){staleReplacementInsurance.lastIndex=0;out=out.replace(staleReplacementInsurance,'90-day outcome focus');}
+    if(staleReplacementInsurance.test(out)){staleReplacementInsurance.lastIndex=0;out=out.replace(staleReplacementInsurance,'human-reviewed matching');}
     staleReplacementReassurance.lastIndex=0;
-    if(staleReplacementReassurance.test(out)){staleReplacementReassurance.lastIndex=0;out=out.replace(staleReplacementReassurance,'90-day outcome focus');}
+    if(staleReplacementReassurance.test(out)){staleReplacementReassurance.lastIndex=0;out=out.replace(staleReplacementReassurance,'human-reviewed matching');}
     staleReplacementService.lastIndex=0;
-    if(staleReplacementService.test(out)){staleReplacementService.lastIndex=0;out=out.replace(staleReplacementService,'90-day outcome focus');}
+    if(staleReplacementService.test(out)){staleReplacementService.lastIndex=0;out=out.replace(staleReplacementService,'human-reviewed matching');}
     staleTalentGuarantee.lastIndex=0;
-    if(staleTalentGuarantee.test(out)){staleTalentGuarantee.lastIndex=0;out=out.replace(staleTalentGuarantee,'90-day outcome focus');}
+    if(staleTalentGuarantee.test(out)){staleTalentGuarantee.lastIndex=0;out=out.replace(staleTalentGuarantee,'human-reviewed matching');}
     staleOutcomeGuarantee.lastIndex=0;
-    if(staleOutcomeGuarantee.test(out)){staleOutcomeGuarantee.lastIndex=0;out=out.replace(staleOutcomeGuarantee,'90-day outcome focus');}
+    if(staleOutcomeGuarantee.test(out)){staleOutcomeGuarantee.lastIndex=0;out=out.replace(staleOutcomeGuarantee,'human-reviewed matching');}
     staleRiskFreeHiring.lastIndex=0;
-    if(staleRiskFreeHiring.test(out)){staleRiskFreeHiring.lastIndex=0;out=out.replace(staleRiskFreeHiring,'90-day outcome focus');}
+    if(staleRiskFreeHiring.test(out)){staleRiskFreeHiring.lastIndex=0;out=out.replace(staleRiskFreeHiring,'human-reviewed matching');}
     staleReversedGuarantee.lastIndex=0;
-    if(staleReversedGuarantee.test(out)){staleReversedGuarantee.lastIndex=0;out=out.replace(staleReversedGuarantee,'90-day outcome focus');}
+    if(staleReversedGuarantee.test(out)){staleReversedGuarantee.lastIndex=0;out=out.replace(staleReversedGuarantee,'human-reviewed matching');}
     staleBackedReplacement.lastIndex=0;
-    if(staleBackedReplacement.test(out)){staleBackedReplacement.lastIndex=0;out=out.replace(staleBackedReplacement,'90-day outcome focus');}
+    if(staleBackedReplacement.test(out)){staleBackedReplacement.lastIndex=0;out=out.replace(staleBackedReplacement,'human-reviewed matching');}
     staleExpenseReplacement.lastIndex=0;
-    if(staleExpenseReplacement.test(out)){staleExpenseReplacement.lastIndex=0;out=out.replace(staleExpenseReplacement,'90-day outcome focus');}
+    if(staleExpenseReplacement.test(out)){staleExpenseReplacement.lastIndex=0;out=out.replace(staleExpenseReplacement,'human-reviewed matching');}
     return out;
   }
   // Include compact Webflow process/nav wrappers: their visible copy is often split
@@ -2726,19 +2815,19 @@ function scrubStaticLabels(){
     staleCandidateGuarantee.lastIndex = 0;
     if (staleCandidateGuarantee.test(t)) {
       staleCandidateGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleCandidateGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleCandidateGuarantee, 'human-reviewed matching');
       return;
     }
     staleGuaranteedPeriod.lastIndex = 0;
     if (staleGuaranteedPeriod.test(t)) {
       staleGuaranteedPeriod.lastIndex = 0;
-      el.textContent = t.replace(staleGuaranteedPeriod, '90-day outcome focus');
+      el.textContent = t.replace(staleGuaranteedPeriod, 'human-reviewed matching');
       return;
     }
     staleIncludedReplacement.lastIndex = 0;
     if (staleIncludedReplacement.test(t)) {
       staleIncludedReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleIncludedReplacement, 'includes a 90-day outcome review');
+      el.textContent = t.replace(staleIncludedReplacement, 'human-reviewed matching');
       return;
     }
     // Never rewrite the dual-path hero H1 ("Find talent / Find startups") to the hire CTA.
@@ -2811,151 +2900,151 @@ function scrubStaticLabels(){
     staleGuarantee.lastIndex = 0;
     if (staleGuarantee.test(t)) {
       staleGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleGuarantee, 'human-reviewed matching');
       return;
     }
     staleGuaranteePeriod.lastIndex = 0;
     if (staleGuaranteePeriod.test(t)) {
       staleGuaranteePeriod.lastIndex = 0;
-      el.textContent = t.replace(staleGuaranteePeriod, '90-day outcome focus');
+      el.textContent = t.replace(staleGuaranteePeriod, 'human-reviewed matching');
       return;
     }
     staleComplimentaryReplacement.lastIndex = 0;
     if (staleComplimentaryReplacement.test(t)) {
       staleComplimentaryReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleComplimentaryReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleComplimentaryReplacement, 'human-reviewed matching');
       return;
     }
     staleConditionalReplacement.lastIndex = 0;
     if (staleConditionalReplacement.test(t)) {
       staleConditionalReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleConditionalReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleConditionalReplacement, 'human-reviewed matching');
       return;
     }
     staleFitReplacement.lastIndex = 0;
     if (staleFitReplacement.test(t)) {
       staleFitReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleFitReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleFitReplacement, 'human-reviewed matching');
       return;
     }
     staleShouldReplacement.lastIndex = 0;
     if (staleShouldReplacement.test(t)) {
       staleShouldReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleShouldReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleShouldReplacement, 'human-reviewed matching');
       return;
     }
     staleOfferedReplacement.lastIndex = 0;
     if (staleOfferedReplacement.test(t)) {
       staleOfferedReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleOfferedReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleOfferedReplacement, 'human-reviewed matching');
       return;
     }
     staleSearchRestart.lastIndex = 0;
     if (staleSearchRestart.test(t)) {
       staleSearchRestart.lastIndex = 0;
-      el.textContent = t.replace(staleSearchRestart, '90-day outcome focus');
+      el.textContent = t.replace(staleSearchRestart, 'human-reviewed matching');
       return;
     }
     staleNextSearchFree.lastIndex = 0;
     if (staleNextSearchFree.test(t)) {
       staleNextSearchFree.lastIndex = 0;
-      el.textContent = t.replace(staleNextSearchFree, '90-day outcome focus');
+      el.textContent = t.replace(staleNextSearchFree, 'human-reviewed matching');
       return;
     }
     staleReplacementCredit.lastIndex = 0;
     if (staleReplacementCredit.test(t)) {
       staleReplacementCredit.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementCredit, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementCredit, 'human-reviewed matching');
       return;
     }
     staleFeeWaiver.lastIndex = 0;
     if (staleFeeWaiver.test(t)) {
       staleFeeWaiver.lastIndex = 0;
-      el.textContent = t.replace(staleFeeWaiver, '90-day outcome focus');
+      el.textContent = t.replace(staleFeeWaiver, 'human-reviewed matching');
       return;
     }
     staleFeeCarryover.lastIndex = 0;
     if (staleFeeCarryover.test(t)) {
       staleFeeCarryover.lastIndex = 0;
-      el.textContent = t.replace(staleFeeCarryover, '90-day outcome focus');
+      el.textContent = t.replace(staleFeeCarryover, 'human-reviewed matching');
       return;
     }
     staleFeeBackGuarantee.lastIndex = 0;
     if (staleFeeBackGuarantee.test(t)) {
       staleFeeBackGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleFeeBackGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleFeeBackGuarantee, 'human-reviewed matching');
       return;
     }
     staleMoneyBackGuarantee.lastIndex = 0;
     if (staleMoneyBackGuarantee.test(t)) {
       staleMoneyBackGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleMoneyBackGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleMoneyBackGuarantee, 'human-reviewed matching');
       return;
     }
     staleReplacementBenefit.lastIndex = 0;
     if (staleReplacementBenefit.test(t)) {
       staleReplacementBenefit.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementBenefit, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementBenefit, 'human-reviewed matching');
       return;
     }
     staleReplacementSafetyNet.lastIndex = 0;
     if (staleReplacementSafetyNet.test(t)) {
       staleReplacementSafetyNet.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementSafetyNet, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementSafetyNet, 'human-reviewed matching');
       return;
     }
     staleReplacementInsurance.lastIndex = 0;
     if (staleReplacementInsurance.test(t)) {
       staleReplacementInsurance.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementInsurance, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementInsurance, 'human-reviewed matching');
       return;
     }
     staleReplacementReassurance.lastIndex = 0;
     if (staleReplacementReassurance.test(t)) {
       staleReplacementReassurance.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementReassurance, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementReassurance, 'human-reviewed matching');
       return;
     }
     staleReplacementService.lastIndex = 0;
     if (staleReplacementService.test(t)) {
       staleReplacementService.lastIndex = 0;
-      el.textContent = t.replace(staleReplacementService, '90-day outcome focus');
+      el.textContent = t.replace(staleReplacementService, 'human-reviewed matching');
       return;
     }
     staleBackedReplacement.lastIndex = 0;
     if (staleBackedReplacement.test(t)) {
       staleBackedReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleBackedReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleBackedReplacement, 'human-reviewed matching');
       return;
     }
     staleExpenseReplacement.lastIndex = 0;
     if (staleExpenseReplacement.test(t)) {
       staleExpenseReplacement.lastIndex = 0;
-      el.textContent = t.replace(staleExpenseReplacement, '90-day outcome focus');
+      el.textContent = t.replace(staleExpenseReplacement, 'human-reviewed matching');
       return;
     }
     staleTalentGuarantee.lastIndex = 0;
     if (staleTalentGuarantee.test(t)) {
       staleTalentGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleTalentGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleTalentGuarantee, 'human-reviewed matching');
       return;
     }
     staleOutcomeGuarantee.lastIndex = 0;
     if (staleOutcomeGuarantee.test(t)) {
       staleOutcomeGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleOutcomeGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleOutcomeGuarantee, 'human-reviewed matching');
       return;
     }
     staleRiskFreeHiring.lastIndex = 0;
     if (staleRiskFreeHiring.test(t)) {
       staleRiskFreeHiring.lastIndex = 0;
-      el.textContent = t.replace(staleRiskFreeHiring, '90-day outcome focus');
+      el.textContent = t.replace(staleRiskFreeHiring, 'human-reviewed matching');
       return;
     }
     staleReversedGuarantee.lastIndex = 0;
     if (staleReversedGuarantee.test(t)) {
       staleReversedGuarantee.lastIndex = 0;
-      el.textContent = t.replace(staleReversedGuarantee, '90-day outcome focus');
+      el.textContent = t.replace(staleReversedGuarantee, 'human-reviewed matching');
     }
   });
   // Webflow can render the same canvas copy in unclassed wrappers, SVG <text>,
@@ -3014,13 +3103,13 @@ function scrubStaticLabels(){
     }
   });
   qa('[data-dg-hero-h1]').forEach(function(el){
-    if (!/^Demigod$/i.test((el.innerText || '').trim())) paintHeroBrandH1(el);
+    if (!/^Demigod$/i.test((el.textContent || '').trim())) paintHeroBrandH1(el);
   });
 }
 
-function show(id, opener){if(!q(id))run();var m=q(id);if(!m)return;/* v847: capture opener before inert isolation steals focus to body */var focusBack=(opener&&opener.nodeType===1)?opener:document.activeElement;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}isolateModalBackground(m);try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Join talent network');}}catch(e){}if(document.body){ if(!('prevOverflow' in document.body.dataset)){ document.body.dataset.prevOverflow = document.body.style.overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){if(!('prevScrollbarGutter' in document.documentElement.dataset))document.documentElement.dataset.prevScrollbarGutter=document.documentElement.style.scrollbarGutter||'';document.documentElement.style.overflow='hidden';document.documentElement.style.scrollbarGutter='auto';} setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
+function show(id, opener){if(!q(id))run();var m=q(id);if(!m)return;/* v847: capture opener before inert isolation steals focus to body */var focusBack=(opener&&opener.nodeType===1)?opener:document.activeElement;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}isolateModalBackground(m);try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Private candidate form');}}catch(e){}if(document.body){ if(!('prevOverflow' in document.body.dataset)){ document.body.dataset.prevOverflow = document.body.style.overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){if(!('prevScrollbarGutter' in document.documentElement.dataset))document.documentElement.dataset.prevScrollbarGutter=document.documentElement.style.scrollbarGutter||'';document.documentElement.style.overflow='hidden';document.documentElement.style.scrollbarGutter='auto';} setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
 // Keep fallback accessible names on the same two paths as every visible CTA.
-if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? 'Hire talent — startup hiring brief' : 'Join the talent network — private talent profile');
+if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? 'Hire talent — startup hiring brief' : COPY.ctaEngineer+' — private candidate form');
 // extra force for form and title scrub to fix blank and bad title on live
 try {
   const f = m.querySelector('form');
@@ -3034,15 +3123,6 @@ try {
       el.textContent = '';
     }
   });
-} catch(e){}
-// inject strong override style + direct force to beat Webflow hiding of forms/fields (fixes vis=0 / form none)
-try {
-  if (!document.getElementById('dg-wiz-force-style')) {
-    var st = document.createElement('style'); st.id='dg-wiz-force-style';
-    st.textContent = '#startup-modal form,#jobseeker-modal form,#startup-modal .w-form,#jobseeker-modal .w-form{display:block!important;visibility:visible!important}#startup-modal .dg-wiz-head,#jobseeker-modal .dg-wiz-head{display:block!important;visibility:visible!important}#startup-modal .dg-wiz-nav,#jobseeker-modal .dg-wiz-nav{display:flex!important;visibility:visible!important}#startup-modal .dg-wiz-show,#jobseeker-modal .dg-wiz-show{display:block!important;visibility:visible!important}';
-    document.head.appendChild(st);
-  }
-  qa('form,.w-form,.dg-wiz-head,.dg-wiz-nav,.dg-wiz-show', m).forEach(function(c){if(!c)return; var d=c.classList&&c.classList.contains('dg-wiz-nav')?'flex':'block'; c.style.setProperty('display',d,'important');c.style.setProperty('visibility','visible','important');});
 } catch(e){}
 // WIZ init — build once; reopen reuses instance (v194 idempotent)
 try {
@@ -3088,14 +3168,12 @@ try {
 /* === DEEP LINK — /?wiz=startup|engineer (+ hash aliases); product /?p= is same-origin shell route === */
 /* === SIMPLE PAGES (?p=) — short secondary screens; home stays a decision screen === */
 /* ==== SECTION: product pages (DG_PAGES + openPage / routePages /?p=) ==== */
-/* Blog SoR embed from demigod-blog-posts.json */
-var DG_BLOG_POSTS=[{"slug":"epicurus-garden-hacker-houses","category":"Market","title":"Epicurus' Garden and the SF hacker house","summary":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","body":"Around 306 BCE, Epicurus bought a house and garden outside the Dipylon gate, on the road toward Plato's Academy. Diogenes Laërtius puts the price at eighty minae, writing centuries later, so treat that number the way you would any figure from one late source. What is better attested is how the place ran. People lived there. They ate at one table, argued over the food, and came back to the same unfinished questions the next week. The Academy up the road was a school you visited. The Garden was one you moved into, which changed what it could ask of the people in it.\n\nThey were after ataraxia: a quieter mind, less fear, fewer pointless wants. Friendship was part of the practice, not a networking bonus. Women studied there. So did people the rest of the city treated as background. That made the Garden unusually open for an Athenian school, but it was not casual about commitment. If you needed public honor more than the shared table, you did not last.\n\nEpicurus's will tried to keep the group going after him. Successors named. Friends' children cared for. Freedom for slaves who had studied. The legal language is dry and that is the point. The house was supposed to outlive one charismatic man.\n\nYou see cousins of this arrangement long before anyone rented a Victorian in the Mission and called it a house for builders. Pythagoras's circle in southern Italy was harsher and weirder: shared property, heavy secrecy, intellectual heat with a mystic edge. Monasteries later made a more durable version of group life. Their purposes were religious, their rules stricter, their days split between prayer, labor, and study. They also copied books.\n\nIn 1417, Poggio Bracciolini found Lucretius' On the Nature of Things in a monastic library. Lucretius was the great Roman carrier of Epicurean thought. A Christian house preserved a poem whose gods, matter, and death sat badly with Christian teaching. Nobody needed to plan that irony. The rule said copy books, so books got copied, including ones the copyists would have disliked if they stopped to argue with every page. That is a boring reason to write shared rules down, and a strong one. Rules keep operating on days when nobody is in the mood to remember the founding pitch.\n\nSan Francisco keeps reinventing a louder cousin of the same pressure. Rent is absurd. Solo technical work is lonely. Hard problems move faster when the people who can help are down the hall instead of three Slack hops and a calendar invite away.\n\nReporting on HF0 describes a selective residency for technical founders in large SF properties. AGI House has been covered as a place for AI builders, researchers, dinners, and events. Those are specific organizations with their own admissions and economics. They are useful because the trade is visible. Residents give up privacy and some control over the room in exchange for people, conversation, and work being close.\n\nProximity helps when the people already share enough. A stuck problem can come up over eggs. Someone can watch a demo fail and still be there when the fix works at midnight. Proximity has no moral quality of its own. If residents disagree about noise, money, ambition, cleanliness, or whether every meal is a pitch session, the hallway becomes another meeting they cannot leave.\n\nFounder mythology likes to skip the boring part. A house full of impressive résumés can be worse than a smaller one where people agree about visitors, quiet hours, chores, and rest. Size photographs well. Norms decide whether anyone wants to stay. Intensity needs a limit too. Epicurus treated modest pleasure, freedom from fear, and time among friends as the point. A modern technical residency may be trying to ship a company in weeks. Different aims. Both get worse when sleep thins, the kitchen turns strange, and small annoyances become politics.\n\nDemigod is not a house, and we will not pretend the lineage is direct. We run a matching service for SF startups and talent: profiles stay private, both sides see evidence before names move, and an introduction happens only after each side approves. What we take from the houses is a working assumption rather than a philosophy. Selection has to be honest before proximity is worth much, because the wrong people in a good room mostly cost each other a month.\n\nWhether any of this works outside one small city is an open question. SF is where we can check our own claims in person, so SF is where we operate.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Gold-on-dark mark for garden, cloister, and group-house pattern essay","publishedAt":"2026-07-17"}];
 function dgMapEventsHtml(kind){
   var isEvents=kind==='events';
   var eventFormHtml="<details><summary>Submit an event</summary><form id=\"dg-event-submit\" class=\"dg-community-form\"><p class=\"dg-p-note\">* Required. A human reviews every submission before it appears on Demigod.</p><label>Event title *<input class=\"dg-ev-in\" name=\"title\" required maxlength=\"120\"></label><label>Organizer name *<input class=\"dg-ev-in\" name=\"organizerName\" required maxlength=\"120\" autocomplete=\"name\"></label><label>Organizer email *<input class=\"dg-ev-in\" name=\"organizerEmail\" type=\"email\" required maxlength=\"160\" autocomplete=\"email\"></label><label>Date and time (your local timezone) *<input class=\"dg-ev-in\" name=\"startsAt\" type=\"datetime-local\" required></label><label>Format *<select class=\"dg-ev-in\" name=\"format\" required><option value=\"\">Select</option><option value=\"in-person\">In person</option><option value=\"online\">Online</option><option value=\"hybrid\">Hybrid</option></select></label><label>Venue or neighborhood (required for in-person or hybrid)<input class=\"dg-ev-in\" name=\"venue\" maxlength=\"180\"></label><label>Who is it for? *<input class=\"dg-ev-in\" name=\"audience\" required maxlength=\"240\"></label><label>Capacity (optional)<input class=\"dg-ev-in\" name=\"seats\" type=\"number\" min=\"1\" step=\"1\"></label><label>Requested destination *<select class=\"dg-ev-in\" name=\"destination\" required><option value=\"demigod\">trydemigod.com</option><option value=\"luma\">Luma only</option><option value=\"partiful\">Partiful only</option><option value=\"demigod+luma\">trydemigod.com + Luma</option><option value=\"demigod+partiful\">trydemigod.com + Partiful</option></select></label><label>Existing Luma or Partiful link<input class=\"dg-ev-in\" name=\"externalUrl\" type=\"url\" inputmode=\"url\" maxlength=\"500\" placeholder=\"https://\" aria-describedby=\"dg-event-url-help\"></label><p id=\"dg-event-url-help\" class=\"dg-p-note\">Required for a Luma or Partiful destination and must match that platform. Demigod does not create or publish the external listing for you.</p><label>Event details *<textarea class=\"dg-ev-in\" name=\"details\" rows=\"4\" required maxlength=\"2000\"></textarea></label><button class=\"dg-ev-submit\" type=\"submit\">Submit event for review</button><p class=\"dg-submit-msg\" role=\"status\" aria-live=\"polite\"></p></form></details>";
   var startupFormHtml="<details open><summary>Add an unlisted startup</summary><form id=\"dg-startup-submit\" class=\"dg-community-form\"><p class=\"dg-p-note\">* Required. Submit factual public information; a human reviews it before listing.</p><label>Startup name *<input class=\"dg-ev-in\" name=\"name\" required maxlength=\"160\"></label><label>Website *<input class=\"dg-ev-in\" name=\"website\" type=\"url\" required placeholder=\"https://\"></label><label>SF neighborhood *<input class=\"dg-ev-in\" name=\"neighborhood\" required maxlength=\"120\"></label><label>What does it do? *<textarea class=\"dg-ev-in\" name=\"description\" rows=\"3\" required maxlength=\"1200\"></textarea></label><label>Hiring?<select class=\"dg-ev-in\" name=\"hiring\"><option value=\"unknown\">Not sure</option><option value=\"yes\">Yes</option><option value=\"no\">No</option></select></label><label>Your name *<input class=\"dg-ev-in\" name=\"submitterName\" required maxlength=\"120\" autocomplete=\"name\"></label><label>Your email *<input class=\"dg-ev-in\" name=\"submitterEmail\" type=\"email\" required maxlength=\"160\" autocomplete=\"email\"></label><button class=\"dg-ev-submit\" type=\"submit\">Submit startup for review</button><p class=\"dg-submit-msg\" role=\"status\" aria-live=\"polite\"></p></form></details>";
   var manageHtml=isEvents
-    ?"<details hidden><summary>Manage my event submissions</summary><p class=\"dg-p-note\">This browser keeps private management keys for event submissions made here. Startup submissions are managed on the SF startup directory page.</p><div id=\"dg-event-manage\" aria-live=\"polite\"></div></details>"
+    ?"<details hidden><summary>Manage my event submissions</summary><p class=\"dg-p-note\">This browser keeps private management keys for event submissions made here. Startup submissions are managed on the SF tech company directory page.</p><div id=\"dg-event-manage\" aria-live=\"polite\"></div></details>"
     :"<details hidden><summary>Manage my startup submissions</summary><p class=\"dg-p-note\">This browser keeps private management keys for startup submissions made here. Event submissions are managed on the SF events page.</p><div id=\"dg-event-manage\" aria-live=\"polite\"></div></details>";
   var lead=isEvents
     ?'<div class="dg-ev-hero" aria-hidden="true"></div>'+
@@ -3105,8 +3183,8 @@ function dgMapEventsHtml(kind){
       '<li><strong>Submit once</strong> — a human checks before it shows</li>'+
       '<li><strong>Optional Luma / Partiful</strong> — link an existing host page</li>'+
       '</ul>'+
-      '<p class="dg-p-note">Companies → <a href="/startups" data-dg-page="map">SF startup directory</a>.</p>'
-    :'<p class="dg-ev-pill" role="note">San Francisco · open data · city-level · current status not verified</p><div id="dg-startup-map"><p class="dg-p-lead">Loading the SF startup directory…</p></div><p class="dg-p-note">Hosting or attending an SF event? Open <a href="/events" data-dg-page="events">SF events</a>.</p>';
+      '<p class="dg-p-note">Companies → <a href="/startups" data-dg-page="map">SF tech company directory</a>.</p>'
+    :'<p class="dg-ev-pill" role="note">San Francisco · open data · city-level · current status not verified</p><div id="dg-startup-map"><p class="dg-p-lead">Loading the SF tech company directory…</p></div><p class="dg-p-note">Hosting or attending an SF event? Open <a href="/events" data-dg-page="events">SF events</a>.</p>';
   var listings='<section id="dg-community-listings" class="dg-community-submit" data-kind="'+(isEvents?'events':'startups')+'" aria-labelledby="dg-community-listings-title"><h2 id="dg-community-listings-title" class="dg-p-h3">'+(isEvents?'Reviewed events':'Reviewed startup submissions')+'</h2><p class="dg-p-note">Loading…</p></section>';
   var submitLead=isEvents
     ?'<p class="dg-p-note">Destinations: Demigod, Luma, Partiful, or Demigod plus one external host. Review first — not auto-publish.</p>'
@@ -3122,87 +3200,106 @@ var DG_PAGES = {
   how: {
     title: 'How it works',
     doc: 'How it works · Demigod',
-    desc: 'How Demigod works: share a brief or profile, our software ranks fit, humans review, and we introduce only on mutual interest. 10% on hire, free for talent.',
+    desc: 'Share one role or private profile. A human calibrates the fit, both sides opt in, and Demigod follows a dated next checkpoint through a hire or clear pass.',
     html:
-      '<p class="dg-p-lead">A match has three gates. Nothing reaches the other side until all three pass.</p>' +
+      '<p class="dg-p-lead">The familiar hiring stages, without an application pile or cold intro.</p>' +
       '<ol class="dg-p-list">' +
-      '<li><strong>Brief or profile</strong> — startups send a role + one measurable 90-day outcome; talent sends one profile. Real inputs, not keywords.</li>' +
-      '<li><strong>Tech ranks, humans review</strong> — Demigod ranks fits against the outcome; a person reviews every proposal and forwards only when the evidence is real. If it\'s thin, we say so instead of manufacturing a shortlist.</li>' +
-      '<li><strong>Both approve → intro</strong> — either side can pass privately. A warm intro email only when both say yes. Fee (10% of first-year cash) only if you hire.</li>' +
+      '<li><strong>Define the role or join privately</strong> — the startup shares the role, must-haves, work mode, cash band, and one concrete first result; talent sends one private profile.</li>' +
+      '<li><strong>Calibrate and review</strong> — software compares role goals, self-reported skills, location, and compensation. A human confirms the interview path and decides what to propose. Nothing is sent automatically.</li>' +
+      '<li><strong>Startup requests; candidate opts in</strong> — the candidate sees the company and exact role receipt, then approves or passes privately. Candidate identity stays private until approval.</li>' +
+      '<li><strong>Interview directly</strong> — after both say yes, a warm intro puts the startup and candidate together. The startup runs its interview; Demigod records a dated next checkpoint and follows it through interview, offer, hire, or a clear pass.</li>' +
+      '<li><strong>Hire and pay once</strong> — the startup pays 10% of first-year base salary when the hire starts. Nothing upfront; talent stays free.</li>' +
       '</ol>' +
-      '<p class="dg-p-note">What it isn\'t: no public job feed, no application blast, no auto-DMs, no SLA theater. <a href="/sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
+      '<p class="dg-p-note"><strong>First result, not a guarantee.</strong> One observable result on roughly a 30–90 day horizon helps calibrate what the role owns. It is not an unpaid trial or a promise that performance can be known by day 90.</p>' +
+      '<p class="dg-p-note">Public hiring data lives in the <a href="/startups" data-dg-page="map">SF tech company directory</a>. Matching stays private: no application blast, no auto-DMs, no SLA theater. <a href="/sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
   },
   pricing: {
     title: 'Pricing',
     doc: 'Pricing · Demigod',
-    desc: '10% of first-year cash when a hire starts. Nothing upfront. Talent free. Card tooling pending.',
+    desc: '10% of first-year base salary when a hire starts. Nothing upfront. Talent free.',
     html:
-      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year cash salary only when a hire starts — not to post a role.</p>' +
+      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year base salary only when a hire starts — not to post a role.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>No subscription.</strong> No charge to submit a role brief.</li>' +
       '<li><strong>Candidates free.</strong> Always.</li>' +
-      '<li><strong>Typical agencies</strong> often run 15–25%. Demigod is 10% on hire.</li>' +
-      '<li><strong>Payments/SMS pending</strong> — commercial confirmations by email from potter@trydemigod.com.</li>' +
+      '<li><strong>Typical agencies</strong> often run 15–25%. Demigod is 10% of first-year base salary when a hire starts.</li>' +
+      '<li><strong>Written confirmation.</strong> Commercial details arrive by email from potter@trydemigod.com.</li>' +
       '</ul>',
   },
   faq: {
     title: 'FAQ',
     doc: 'FAQ · Demigod',
-    desc: 'Answers about Demigod: how SF matching works, what happens after you submit, pricing (10% on hire, free for talent), privacy, and how intros are made.',
+    desc: 'Answers about Demigod’s SF matching, submissions, 10% success fee, free talent profiles, privacy, human review, and mutual intros.',
     html:
-      '<details class="dg-p-det"><summary>How much does it cost?</summary><p><strong>Startups:</strong> 10% of first-year cash salary when someone starts. Nothing upfront. <strong>Talent:</strong> always free. Typical agencies often charge more.</p></details>' +
-      '<details class="dg-p-det"><summary>Is my profile private?</summary><p>Yes. Identity and contact details move only after both sides approve an intro. You can ask us to update or delete data anytime.</p></details>' +
-      '<details class="dg-p-det"><summary>What is a 90-day outcome?</summary><p>One measurable result the hire must deliver in their first 90 days. We match against that outcome — not a keyword soup or generic JD.</p></details>' +
+      '<details class="dg-p-det"><summary>How much does it cost?</summary><p><strong>Startups:</strong> 10% of first-year base salary when someone starts. Nothing upfront. <strong>Talent:</strong> always free. Typical agencies often charge more.</p></details>' +
+      '<details class="dg-p-det"><summary>Is my profile private?</summary><p>Yes. You privately see the company and exact role after it requests an intro. Your identity and contact details move only after you approve that role. You can ask us to update or delete data anytime.</p></details>' +
+      '<details class="dg-p-det"><summary>What happens after I send a brief?</summary><p>A human reviews it and follows up by email to confirm the role and interview path. We propose only when the fit looks real; both sides approve before an intro.</p></details>' +
+      '<details class="dg-p-det"><summary>Does AI decide who gets matched?</summary><p>'+MATCH_DISCLOSURE+' Both sides then approve independently before an intro.</p></details>' +
       '<details class="dg-p-det"><summary>Who do you work with?</summary><p>SF Bay Area startups (and builders open to those companies). Seed through growth, product and eng-heavy roles first. Remote talent is fine when the company is Bay-focused.</p></details>' +
-      '<details class="dg-p-det"><summary>How long does it take?</summary><p>No SLA clock. Timing depends on role difficulty and response pace. Every brief gets careful human review — potter@trydemigod.com follows up.</p></details>' +
-      '<details class="dg-p-det"><summary>What if a match is not right?</summary><p>Pass privately. No pressure, no public rejection trail. If evidence is thin, we say so instead of manufacturing a shortlist.</p></details>',
+      '<details class="dg-p-det"><summary>What if a match is not right?</summary><p>Pass privately. No pressure, no public rejection trail. If evidence is thin, we say so instead of manufacturing a shortlist. This is not LinkedIn: '+COPY.antiLinkedIn+'</p></details>',
+  },
+  private: {
+    title: 'Why private',
+    doc: 'Why private · Demigod',
+    desc: 'Demigod is private by design: no public profiles, no feed, no blasts. Mutual yes only for SF startup matching.',
+    html:
+      '<p class="dg-p-lead"><strong>'+COPY.antiLinkedIn+'</strong></p>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>No public profiles.</strong> Talent is not browsable. Founders do not post a public job wall of applicants.</li>' +
+      '<li><strong>No feed, no graph vanity.</strong> Nothing to like, follow, or farm for InMail.</li>' +
+      '<li><strong>Mutual yes only.</strong> Candidate identifying details move only after both sides approve.</li>' +
+      '<li><strong>Company evidence, not personal brand.</strong> Public company/role facts can inform a match; we do not sell people dossiers.</li>' +
+      '<li><strong>No networking pings.</strong> Talent hears from us only when a human has a real mutual-fit note.</li>' +
+      '</ul>' +
+      '<p class="dg-p-note"><a href="/?wiz=startup" data-demigod-modal="startup">Send a hiring brief →</a> · <a href="/?wiz=engineer" data-demigod-modal="jobseeker">Share privately →</a> · <a href="/how" data-dg-page="how">How it works →</a></p>',
   },
   hire: {
     title: 'Hire talent',
     doc: 'Hire · Demigod',
-    desc: 'Submit a brief. Demigod tech matches, humans in the loop. 10% of first-year cash only when a hire starts.',
+    desc: 'Submit a role brief. Software compares goals and constraints; a human decides what to propose. 10% of first-year base salary only when a hire starts.',
     html:
-      '<p class="dg-p-lead">Tell us the role and the one outcome a hire must own in their first 90 days. A person reads every brief — we only propose when the fit is real, and both sides still have to say yes.</p>' +
+      '<p class="dg-p-lead">Tell us the role, the constraints that matter, and one concrete result this person should deliver first. A person reads every brief — we only propose when the fit is real, and both sides still have to say yes.</p>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Send a ~2-min brief</strong> — role, must-haves, one 90-day outcome, cash band.</li>' +
-      '<li><strong>Tech ranks, a human reviews</strong> — against your outcome, before anything reaches you.</li>' +
-      '<li><strong>You approve before any intro</strong> — 10% of first-year cash only when a hire starts; nothing to post.</li>' +
+      '<li><strong>Send a ~2-min brief</strong> — role, must-haves, work mode, cash band, and one concrete first result.</li>' +
+      '<li><strong>Review a proposed fit</strong> — software compares the role and profile; a human sends context and confirms the interview path.</li>' +
+      '<li><strong>Request the intro</strong> — the candidate sees your company and exact role, then approves or passes privately.</li>' +
+      '<li><strong>Interview and hire</strong> — you run the interview and decide. Pay 10% of first-year base salary only when the hire starts; nothing to post.</li>' +
       '</ul>' +
-      '<p class="dg-p-note">No application blast, no résumé black hole, comp bands kept honest. SMS/card payments pending — follow-ups by email from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
+      '<p class="dg-p-note">No application blast, no résumé black hole, comp bands kept honest. Follow-ups come by email from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
   },
   talent: {
-    title: 'Join the talent network',
+    title: 'Open to the right startup?',
     doc: 'Talent · Demigod',
-    desc: 'Join the Demigod SF Bay talent network with one profile. Free, always. Your profile stays private until you approve an intro, and humans review every match.',
+    desc: 'Tell Demigod what kind of SF Bay startup role you would consider. Free for candidates; your details stay private until you approve an intro.',
     html:
-      '<p class="dg-p-lead">One profile for SF startups. It\'s free, and it\'s private — your name and contact details are never shared with a company until a human sees a real fit and you approve the intro.</p>' +
+      '<p class="dg-p-lead">Tell us what would make you consider an SF Bay startup role. It\'s free, and your details stay private — no public profile or application blast. We only follow up when a human sees a credible fit, and every intro still requires your approval.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>Free for candidates.</strong> Always. No fee, ever.</li>' +
-      '<li><strong>No board spam</strong>, no cold-LinkedIn blasts — outreach only when a real role fits.</li>' +
-      '<li><strong>Both sides approve before any intro.</strong> Pass privately; no rejection trail.</li>' +
+      '<li><strong>One clear next step.</strong> After an intro, Demigod follows the agreed checkpoint through interview, offer, hire, or a clear pass.</li>' +
+      '<li><strong>See the company and exact role first.</strong> Then approve or pass privately; no rejection trail.</li>' +
       '</ul>' +
-      '<p class="dg-p-note">What we ask: strengths, a couple of work highlights, availability, and a cash band — enough to match a real 90-day outcome, not keywords. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
+      '<p class="dg-p-note">No board spam or cold-LinkedIn blasts. What we ask: the work you want next, evidence from work you have done, availability, work setup, and a cash band — enough to compare with the role goal and constraints, not keywords. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
   },
   contact: {
     title: 'Contact',
     doc: 'Contact · Demigod',
     desc: 'Reach Demigod by email — potter@trydemigod.com. A human replies, no bots.',
     html:
-      '<p class="dg-p-lead">Email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. A human replies. SMS/payments pending.</p>',
+      '<p class="dg-p-lead">Email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. A human replies.</p>',
   },
   legal: {
     title: 'Privacy & Terms',
     doc: 'Legal · Demigod',
     desc: 'Demigod’s plain-language privacy policy and terms for SF startup and talent matching: what we collect, how intros work, and how to reach us with questions.',
     html:
-      '<h3 class="dg-p-h3">Privacy</h3>' +
+      '<h2 class="dg-p-h3">Privacy</h2>' +
       '<p><strong>Effective July 20, 2026.</strong> We collect the contact details, company or work background, location and availability, work evidence, and résumé file or link you choose to submit. We use them for human review, matching, mutual-intro decisions, service messages, and service protection.</p>' +
-      '<p>Demigod, Webflow, and our email provider process submissions. Identifying details are not shared with the other side before both approve an intro. We do not sell contact lists or use submissions for unrelated marketing.</p>' +
+      '<p>Demigod, Webflow, and our email provider process submissions. After a startup requests an intro, we may privately show its company identity and role facts to the candidate. Candidate identity, contact details, résumé, and work links are not shared with the startup until the candidate approves that exact role. We do not sell contact lists or use submissions for unrelated marketing.</p>' +
       '<p>A referral link carries an opaque attribution code. The person or company that shared it may receive a financial benefit if an eligible referral leads to a retained hire. Referral status does not change candidate evaluation or candidate cost.</p>' +
       '<p>A temporary same-tab draft is kept in your browser session and cleared after confirmed submission.</p>' +
       '<p>We retain submissions while providing matching, handling an introduction, and meeting legitimate operational or recordkeeping needs, then delete or de-identify data when it is no longer needed. Shareable résumé links remain subject to the storage provider you chose.</p>' +
       '<p>Request access, correction, or deletion at <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. We will confirm the action and any data we must retain for legal or transaction records.</p>' +
-      '<h3 class="dg-p-h3">Terms</h3><p>Demigod introduces parties; employment decisions are yours. Placement fee is 10% of first-year cash salary when a hire starts (unless written otherwise). Payments tooling is pending — commercial confirmations by email. SF Bay Area focus. No SLA promises on response time.</p>',
+      '<h2 class="dg-p-h3">Terms</h2><p>Demigod introduces parties; employment decisions are yours. Placement fee is 10% of first-year base salary, excluding equity, discretionary bonus, commission, and benefits, when a hire starts (unless written otherwise). Commercial confirmations arrive by email. SF Bay Area focus. No SLA promises on response time.</p>',
   },
   refer: {
     title: 'Make one strong introduction',
@@ -3227,31 +3324,16 @@ var DG_PAGES = {
   about: {
     title: 'About',
     doc: 'About · Demigod',
-    desc: 'Demigod tech matches SF startup talent, humans in the loop — both sides approve, 10% on hire.',
+    desc: 'Software compares role and talent evidence; a human decides what to propose. Both sides approve before every intro.',
     html:
-      '<p class="dg-p-lead">Demigod is tech matching for SF startups and talent, with humans in the loop. Curated intros only — no open feed, no auto-DM blasts.</p>' +
-      '<ul class="dg-p-list"><li>One measurable 90-day outcome first</li><li>Both sides approve before every intro</li><li>10% only when you hire</li></ul>',
+      '<p class="dg-p-lead">Demigod compares role and talent evidence for SF startups. A human decides what to propose, and both sides approve before every intro.</p>' +
+      '<ul class="dg-p-list"><li>Define measurable success before requirements</li><li>Both sides approve the same role truth before every intro</li><li>10% of first-year base salary when a hire starts</li></ul>',
   },
 
-  blog: {
-    title: 'Blog',
-    doc: 'Blog · Demigod',
-    desc: 'Essays and product notes from Demigod — SF talent matching, culture, and how we work.',
-    html:
-      '<div class="dg-blog-hero">' +
-      '<p class="dg-ev-pill" role="note">Notes · no spam</p>' +
-      '<a class="dg-blog-back" href="/blog">← All notes</a>' +
-      '<p class="dg-p-lead">Writing from Demigod — matching in SF, and the culture around it.</p>' +
-      '<p class="dg-p-note">Every post has its own shareable link. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p>' +
-      '</div>' +
-      '<div class="dg-blog-filters" id="dg-blog-filters" role="group" aria-label="Blog categories"></div>' +
-      '<div class="dg-blog-grid" id="dg-blog-grid" aria-live="polite"></div>' +
-      '<p class="dg-blog-empty" id="dg-blog-empty" hidden>No posts in this category yet.</p>',
-  },
   map: {
-    title: 'SF startup directory',
-    doc: 'SF startup directory · Demigod',
-    desc: 'A plain, searchable directory of SF startups from public open data plus reviewed community submissions. Add an unlisted startup.',
+    title: 'SF tech company directory',
+    doc: 'SF tech company directory · Demigod',
+    desc: 'A plain, searchable directory of SF Bay tech companies from public open data plus reviewed startup submissions. Add an unlisted startup.',
     html: dgMapEventsHtml('startups'),
   },
   sample: {
@@ -3259,18 +3341,19 @@ var DG_PAGES = {
     doc: 'Sample matches · Demigod',
     desc: 'Fictional match and pass notes show how Demigod weighs evidence, constraints, and risk — no fake placements.',
     html:
-      '<p class="dg-p-lead"><strong>Fictional examples.</strong> These show the private decision note each side would receive — not live people, roles, or placements.</p>' +
-      '<h3 class="dg-p-h3">A useful match</h3>' +
+      '<p class="dg-p-lead"><strong>Fictional examples.</strong> Before deciding, the candidate sees the company and exact role receipt: first result, must-haves, work arrangement, base range, and interview path. These are not live people, roles, or placements.</p>' +
+      '<h2 class="dg-p-h3">A useful match</h2>' +
       '<ul class="dg-p-list">' +
       '<li><strong>Outcome:</strong> ship self-serve onboarding and move activation from 28% to 40%.</li>' +
       '<li><strong>Evidence:</strong> this builder previously led an onboarding redesign that moved activation from 28% to 40%, including instrumentation and rollout.</li>' +
       '<li><strong>Constraints:</strong> SF hybrid · $180–210k cash · available in four weeks.</li>' +
+      '<li><strong>Interview path:</strong> founder chat → paid work sample → final; target decision in two weeks.</li>' +
       '<li><strong>Risk to test:</strong> the prior result came at a later-stage company; confirm ownership in a smaller team.</li>' +
       '<li><strong>Private choice:</strong> approve a conversation or pass. The candidate decides independently.</li>' +
       '</ul>' +
-      '<h3 class="dg-p-h3">A useful pass</h3>' +
+      '<h2 class="dg-p-h3">A useful pass</h2>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>Looks close:</strong> strong onboarding work, the right cash range, and SF availability.</li>' +
+      '<li><strong>Looks close:</strong> strong onboarding work, the right base salary range, and SF availability.</li>' +
       '<li><strong>Why not:</strong> the role needs hands-on event instrumentation now; the evidence shows strategy and rollout ownership, not implementation.</li>' +
       '<li><strong>Decision:</strong> do not force an intro. Keep both profiles private and reconsider only if the role or evidence changes.</li>' +
       '</ul>' +
@@ -3314,7 +3397,7 @@ var DG_PAGES = {
       '<li><a href="/" data-dg-page-home="1">Home</a></li>' +
       '<li><a href="/how" data-dg-page="how">How it works</a></li>' +
       '<li><a href="/hire" data-dg-page="hire">Hire talent</a></li>' +
-      '<li><a href="/talent" data-dg-page="talent">Join the talent network</a></li>' +
+      '<li><a href="/talent" data-dg-page="talent">Open to the right startup?</a></li>' +
       '<li><a href="/events" data-dg-page="events">SF events</a></li>' +
       '</ul>',
   },
@@ -3323,9 +3406,9 @@ var DG_PAGES = {
     doc: 'Press kit · Demigod',
     desc: 'One-liner, mark, and contact for Demigod — SF startup talent matching.',
     html:
-      '<p class="dg-p-lead"><strong>Demigod</strong> tech matches SF startup talent, humans in the loop. 10% on hire.</p>' +
+      '<p class="dg-p-lead"><strong>Demigod</strong> compares role and talent evidence; a human decides what to propose. 10% of first-year base salary when a hire starts.</p>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>One-liner:</strong> SF startup talent matching — private profiles, mutual yes, 10% only when a hire starts.</li>' +
+      '<li><strong>One-liner:</strong> SF startup talent matching — private profiles, mutual yes, 10% of first-year base salary when a hire starts.</li>' +
       '<li><strong>Site:</strong> <a href="https://www.trydemigod.com">trydemigod.com</a></li>' +
       '<li><strong>Contact:</strong> <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a></li>' +
       '<li><strong>Mark:</strong> gold geometric D on dark — same favicon/hero brand on the site.</li>' +
@@ -3358,40 +3441,6 @@ function pageCss() {
     '#dg-page .dg-p-det summary{cursor:pointer;color:#E8D5A3;font-weight:600;min-height:44px;display:flex;align-items:center}' +
     '#dg-page .dg-p-det p{color:#A8A29E;margin:.35rem 0 .25rem;line-height:1.45}' +
     '#dg-page .dg-p-h3{color:#C9A84C;font-size:1rem;margin:1rem 0 .35rem}' +
-    '#dg-page .dg-blog-hero{margin:0 0 1.1rem}' +
-    '#dg-page.dg-page-blog .dg-page-card{max-width:76rem;padding:clamp(1rem,3vw,2.25rem)}' +
-    '#dg-page .dg-blog-back{display:none;min-height:44px;align-items:center;font-weight:700;text-decoration:none}' +
-    '#dg-page .dg-blog-filters{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem}' +
-    '#dg-page .dg-blog-chip{min-height:44px;padding:.4rem .85rem;border-radius:999px;border:1px solid rgba(201,168,76,.35);background:transparent;color:#E8D5A3;font:650 .82rem Manrope,system-ui,sans-serif;cursor:pointer}' +
-    '#dg-page .dg-blog-chip-n{opacity:.75;font-weight:600;margin-left:.2rem}' +
-    '#dg-page .dg-blog-chip.is-on{background:rgba(201,168,76,.18);border-color:#C9A84C;color:#C9A84C}' +
-    '#dg-page .dg-blog-body p{margin:.35rem 0;color:#A8A29E;line-height:1.55}' +
-    '#dg-page .dg-blog-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}' +
-    '#dg-page .dg-blog-card{overflow:hidden;border:1px solid rgba(201,168,76,.22);border-radius:14px;background:rgba(14,14,18,.92);display:flex;flex-direction:column}' +
-    '#dg-page .dg-blog-card img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}' +
-    '#dg-page .dg-blog-card .dg-blog-meta{display:flex;flex-wrap:wrap;gap:.35rem .75rem;align-items:center;margin:.7rem .9rem 0}' +
-    '#dg-page .dg-blog-card small{color:#C9A84C;text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;font-weight:700}' +
-    '#dg-page .dg-blog-card time{color:#A8A29E;font-size:.78rem}' +
-    '#dg-page .dg-blog-card h2{color:#E8D5A3;font-size:1.05rem;margin:.4rem .9rem;line-height:1.3;font-family:Cinzel,Georgia,serif}' +
-    '#dg-page .dg-blog-card>p{color:#A8A29E;line-height:1.5;margin:.25rem .9rem .5rem}' +
-    '#dg-page .dg-blog-more{margin:auto .9rem .9rem;border-top:1px solid rgba(201,168,76,.14);padding-top:.4rem}' +
-    '#dg-page .dg-blog-more summary{cursor:pointer;color:#E8D5A3;font-weight:600;min-height:44px;display:flex;align-items:center;list-style:none}' +
-    '#dg-page .dg-blog-more summary::-webkit-details-marker{display:none}' +
-    '#dg-page .dg-blog-more summary:before{content:"\\25B8 ";color:#C9A84C}' +
-    '#dg-page .dg-blog-more[open] summary:before{content:"\\25BE "}' +
-    '#dg-page .dg-blog-more p{margin:.35rem 0 .15rem;color:#A8A29E;line-height:1.5}' +
-    '@media(min-width:640px){#dg-page:not(.dg-blog-reading) .dg-blog-card:only-child>.dg-blog-more[open]{max-width:68ch;width:calc(100% - 1.8rem);margin:1rem auto 1.5rem}}' +
-    '#dg-page.dg-blog-reading .dg-blog-back{display:inline-flex}' +
-    '#dg-page.dg-blog-reading .dg-blog-filters,#dg-page.dg-blog-reading .dg-blog-card:not(.is-reading){display:none!important}' +
-    '#dg-page.dg-blog-reading .dg-blog-grid{display:block;max-width:72rem;margin:auto}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading{max-width:48rem;margin:auto;padding:0!important;border:0;background:transparent;overflow:visible}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading h2{font-size:clamp(1.65rem,4vw,2.5rem);margin:.9rem 0 .6rem;line-height:1.16}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-meta,#dg-page.dg-blog-reading .dg-blog-card.is-reading>p{margin-left:0;margin-right:0}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-more{max-width:68ch;width:100%;margin:1.5rem auto 0;padding:0;border:0}' +
-    '#dg-page.dg-blog-reading .dg-blog-card.is-reading>.dg-blog-more>summary{display:none!important}' +
-    '#dg-page.dg-blog-reading .dg-blog-body p{margin:0 0 1.25em;color:#D6D3CC;font-size:clamp(1.05rem,1.6vw,1.18rem);line-height:1.72}' +
-    '#dg-page .dg-blog-empty{color:#A8A29E;font-size:.9rem}' +
-    '#dg-page .dg-blog-card{opacity:1!important}' +
     '#dg-page .dg-page-ctas{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.15rem}' +
     '#dg-page .dg-page-ctas a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.7rem 1.15rem;border-radius:12px;font-weight:700;text-decoration:none!important}' +
     '#dg-page .dg-page-ctas a.hire{background:#C9A84C;color:#0A0A0A}' +
@@ -3402,8 +3451,6 @@ function pageCss() {
     '@keyframes dg-page-in{from{opacity:0}to{opacity:1}}' +
     '@media(prefers-reduced-motion:reduce){#dg-page{animation:none}}' +
     '@media(forced-colors:active){#dg-page{background:Canvas!important;forced-color-adjust:auto}#dg-page .dg-page-card,#dg-page .dg-page-x,#dg-page .dg-page-ctas a{border:1px solid CanvasText!important;background:Canvas!important;color:CanvasText!important;box-shadow:none!important}#dg-page .dg-page-x:focus-visible,#dg-page .dg-page-ctas a:focus-visible,#dg-page summary:focus-visible{outline:2px solid Highlight!important}}' +
-    '@media(max-width:639px){#dg-page.dg-page-blog{padding:.5rem}#dg-page.dg-page-blog .dg-page-card{margin:.5rem auto;padding:.75rem}}' +
-
     /* Events Bot — gold Demigod system (FOCUS: never phosphor MUD green) */
     '#dg-page.dg-page-events{background:radial-gradient(120% 80% at 80% 0%,rgba(201,168,76,.09),transparent 55%),#060606!important}' +
     '#dg-page.dg-page-events .dg-page-card{max-width:min(44rem,96vw);border-color:rgba(201,168,76,.38);' +
@@ -4097,8 +4144,8 @@ function pageCtas(id) {
     '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">'+COPY.ctaEngineer+'</a>';
   var back = '<a class="back" href="/" id="dg-page-back">← Home</a>';
   if (id === 'hire') return '<a class="hire" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire">Start brief</a>' + talent + back;
-  if (id === 'talent') return '<a class="talent" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent">Create profile</a>' + hire + back;
-  if (id === 'events' || id === 'map' || id === 'refer') return back;
+  if (id === 'talent') return talent + hire + back;
+  if (id === 'events' || id === 'refer') return back;
   return hire + talent + back;
 }
 function startupMapAssetUrl(){
@@ -4125,7 +4172,7 @@ function startupMapMount(root) {
     dgStartupMapLoading=null;
     var failed=q('#dg-startup-map-loader');if(failed)failed.remove();
     if(!host.isConnected)return;
-    host.innerHTML='<p class="dg-p-lead" role="alert">The startup directory could not load.</p><button type="button" class="dg-page-x" id="dg-startup-map-retry">Retry</button>';
+    host.innerHTML='<p class="dg-p-lead" role="alert">The tech company directory could not load.</p><button type="button" class="dg-page-x" id="dg-startup-map-retry">Retry</button>';
     var retry=host.querySelector('#dg-startup-map-retry');if(retry)retry.onclick=function(){startupMapMount(root);};
   });
 }
@@ -4146,7 +4193,6 @@ function openPage(id, push) {
   root.setAttribute('aria-label', meta.title);
   if (id === 'events') root.classList.add('dg-page-events');
   if (id === 'event') root.classList.add('dg-page-events');
-  if (id === 'blog') root.classList.add('dg-page-blog');
   if (id === 'map') root.classList.add('dg-page-map');
   root.innerHTML =
     '<div class="dg-page-card"><div class="dg-page-top"><h1>' +
@@ -4161,8 +4207,6 @@ function openPage(id, push) {
      inline rather than covering them with a fixed overlay. */
   document.body.classList.add('dg-page-on');
   try {
-    /* Body-hide allowlist: never use blog slugs here (blog-sync used to stomp this and
-       confused hide logic with deep-link routing). #dg-page is appended after this loop. */
     /* openPage can run twice (deepLink on boot, then a nav click). Without this guard the second
        pass captures the ALREADY-HIDDEN display:none as the "prior" value, and closePage then
        faithfully restores none — leaving the homepage blank. Capture once per open. */
@@ -4222,7 +4266,7 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
-    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press', notfound:'/' };
+    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', sample:'/sample', press:'/press', private:'/private', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
     /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
@@ -4280,8 +4324,7 @@ function openPage(id, push) {
   });
   /* v859: prefer hard path in history (/startups not /?p=map) so deep links + nav share clean URLs. */
   try {
-    var histPref = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', partners:'/partners', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', compare:'/compare', status:'/status', event:'/event', press:'/press' };
-    var hard = histPref[id];
+    var hard = preferred[id];
     var hash = location.hash || '';
     if (hard && hard.indexOf('?') < 0) {
       var nowP = (location.pathname || '/').replace(/\/+$/, '') || '/';
@@ -4302,13 +4345,6 @@ function openPage(id, push) {
     if (dgH) { dgH.setAttribute('tabindex', '-1'); dgH.focus({ preventScroll: true }); }
     else root.querySelector('.dg-page-x').focus();
   } catch (e) {}
-  // Deep-link Notes cards: render from DG_BLOG_POSTS + deep-link Full note
-  if (id === 'blog') {
-    try {
-      blogPageMount(root);
-    } catch (eBlog) {}
-    focusBlogNoteFromHash(root);
-  }
   // Atlas directory only on /?p=map (events has no #dg-startup-map host).
   if (id === 'map') {
     try { startupMapMount(root); } catch (eMap) {}
@@ -4335,199 +4371,14 @@ function openPage(id, push) {
   });
   return true;
 }
-/** Published posts newest-first (SoR may already be sorted by bin/dg-blog sync). */
-function blogPostsSorted() {
-  var posts = Array.isArray(DG_BLOG_POSTS) ? DG_BLOG_POSTS.slice() : [];
-  posts.sort(function (a, b) {
-    var da = String((a && a.publishedAt) || '');
-    var db = String((b && b.publishedAt) || '');
-    if (da !== db) return db < da ? -1 : db > da ? 1 : 0;
-    return String((a && a.slug) || '').localeCompare(String((b && b.slug) || ''));
-  });
-  return posts;
-}
-function blogBodyHtml(body) {
-  var raw = String(body || '').trim();
-  if (!raw) return '';
-  return raw
-    .split(/\n\n+/)
-    .map(function (para) {
-      return '<p>' + esc(para.replace(/\n/g, ' ').trim()) + '</p>';
-    })
-    .filter(function (p) {
-      return p !== '<p></p>';
-    })
-    .join('');
-}
-/** Build one full-page blog article card. */
-function blogCardHtml(p) {
-  var slug = esc(p.slug || '');
-  var cat = esc(p.category || 'Note');
-  var title = esc(p.title || '');
-  var sum = esc(p.summary || '');
-  var bodyHtml = blogBodyHtml(p.body || '');
-  var img = esc(p.image || '');
-  var alt = esc(p.imageAlt || p.title || 'Blog post');
-  var date = esc(p.publishedAt || '');
-  return (
-    '<article class="dg-blog-card" id="note-' +
-    slug +
-    '" data-blog-cat="' +
-    cat +
-    '">' +
-    (img
-      ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" decoding="async" width="1200" height="675">'
-      : '') +
-    '<div class="dg-blog-meta"><small>' +
-    cat +
-    '</small>' +
-    (date ? '<time datetime="' + date + '">' + date + '</time>' : '') +
-    '</div>' +
-    '<h2>' +
-    title +
-    '</h2><p>' +
-    sum +
-    '</p>' +
-    '<details class="dg-blog-more"><summary>Full note · ' +
-    title +
-    '</summary><div class="dg-blog-body">' +
-    bodyHtml +
-    '</div></details></article>'
-  );
-}
-/** Full /?p=blog page: category chips + grid from DG_BLOG_POSTS. */
-function blogPageMount(root) {
-  var grid = root && root.querySelector('#dg-blog-grid');
-  var filters = root && root.querySelector('#dg-blog-filters');
-  var empty = root && root.querySelector('#dg-blog-empty');
-  if (!grid || grid.dataset.dgBlog === '1') return;
-  grid.dataset.dgBlog = '1';
-  var posts = blogPostsSorted();
-  var cats = ['All'];
-  var catCount = { All: posts.length };
-  posts.forEach(function (p) {
-    var c = p.category || 'Note';
-    if (cats.indexOf(c) < 0) cats.push(c);
-    catCount[c] = (catCount[c] || 0) + 1;
-  });
-  var active = 'All';
-  function render() {
-    var list = posts.filter(function (p) {
-      return active === 'All' || (p.category || 'Note') === active;
-    });
-    grid.innerHTML = list
-      .map(function (p) {
-        return blogCardHtml(p);
-      })
-      .join('');
-    if (empty) empty.hidden = list.length > 0;
-    if (filters) {
-      filters.querySelectorAll('.dg-blog-chip').forEach(function (btn) {
-        var on = btn.getAttribute('data-cat') === active;
-        btn.classList.toggle('is-on', on);
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
-    }
-    try {
-      /* Cards must be readable even if reveal IO is late/misses inside #dg-page. */
-      qa('.dg-blog-card', grid).forEach(function (el) {
-        el.classList.add('dg-reveal-in');
-        el.style.opacity = '1';
-      });
-      addMotion();
-    } catch (e0) {}
-    /* Chip re-render wipes DOM; re-apply deep-link open/scroll if hash still points at a note. */
-    try {
-      focusBlogNoteFromHash(root);
-    } catch (eH) {}
-  }
-  if (filters) {
-    filters.innerHTML = cats
-      .map(function (c) {
-        var n = catCount[c] || 0;
-        return (
-          '<button type="button" class="dg-blog-chip' +
-          (c === 'All' ? ' is-on' : '') +
-          '" data-cat="' +
-          esc(c) +
-          '" aria-pressed="' +
-          (c === 'All' ? 'true' : 'false') +
-          '">' +
-          esc(c) +
-          ' <span class="dg-blog-chip-n">' +
-          n +
-          '</span></button>'
-        );
-      })
-      .join('');
-    filters.querySelectorAll('.dg-blog-chip').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        active = btn.getAttribute('data-cat') || 'All';
-        render();
-      });
-    });
-  }
-  render();
-}
-/** Deep-link Notes: open Full note + title + scroll for #note-{slug} (or bare slug). */
-function focusBlogNoteFromHash(root) {
-  try {
-    root = root || document.getElementById('dg-page');
-    if (!root) return false;
-    root.classList.remove('dg-blog-reading');
-    qa('.dg-blog-card.is-reading', root).forEach(function (el) { el.classList.remove('is-reading'); });
-    var nh = (location.hash || '').replace(/^#/, '');
-    if (!nh) return false;
-    var nid = /^note-/.test(nh) ? nh : ('note-' + nh);
-    if (!/^[a-z0-9-]+$/i.test(nid)) return false;
-    var card = root.querySelector('#' + nid);
-    if (!card) return false;
-    root.classList.add('dg-blog-reading');
-    card.classList.add('is-reading');
-    var det = card.querySelector('details');
-    if (det) det.open = true;
-    try {
-      var nt = (card.querySelector('h2') && card.querySelector('h2').textContent || '').trim();
-      var nd = (card.querySelector('p') && card.querySelector('p').textContent || '').trim();
-      if (nt) {
-        document.title = nt + ' · Notes · Demigod';
-        var ogT=document.querySelector('meta[property="og:title"]'); if(ogT)ogT.setAttribute('content',nt+' · Demigod Notes');
-        var twT=document.querySelector('meta[name="twitter:title"]'); if(twT)twT.setAttribute('content',nt+' · Demigod Notes');
-      }
-      if (nd) {
-        var mD=document.querySelector('meta[name=description]'); if(mD)mD.setAttribute('content',nd);
-        var ogD=document.querySelector('meta[property="og:description"]'); if(ogD)ogD.setAttribute('content',nd);
-        var twD=document.querySelector('meta[name="twitter:description"]'); if(twD)twD.setAttribute('content',nd);
-      }
-    } catch (eTitle) {}
-    try {
-      var showBlogTop=function(){try{root.scrollIntoView({block:'start',behavior:'auto'})}catch(_){root.scrollIntoView(true)}};
-      showBlogTop();
-      if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){requestAnimationFrame(showBlogTop)});
-    } catch (e2) {}
-    try {
-      var heading = card.querySelector('h2');
-      if (heading) {
-        heading.setAttribute('tabindex', '-1');
-        setTimeout(function () {
-          if (heading.isConnected && card.classList.contains('is-reading')) heading.focus({ preventScroll: true });
-        }, 0);
-      }
-    } catch (e4) {}
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
 var DG_PAGE_PATHS = {
   '/startups': 'map',
   '/how': 'how',
   '/how-it-works': 'how',
   '/pricing': 'pricing',
   '/faq': 'faq',
-  '/blog': 'blog',
-  '/notes': 'blog',
+  '/blog': 'how',
+  '/notes': 'how',
   '/method': 'how',
   '/hire': 'hire',
   '/talent': 'talent',
@@ -4545,6 +4396,7 @@ var DG_PAGE_PATHS = {
   '/network': 'talent',
   '/fees': 'pricing',
   '/security': 'legal',
+  '/sample': 'sample',
   '/about': 'about',
   '/founders': 'hire',
   '/candidates': 'talent',
@@ -4553,10 +4405,10 @@ var DG_PAGE_PATHS = {
   '/events': 'events',
   '/events-bot': 'events',
   '/event-bot': 'events',
-  '/event': 'event',
   '/press': 'press',
   '/press-kit': 'press',
   '/media': 'press',
+  '/private': 'private',
 };
 function routePages() {
   try {
@@ -4591,7 +4443,6 @@ function deepLink(){
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('refer',false); window.__dgDeepLinked=1; return; }
-    if(/^note-/.test(h)||/^(epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); window.__dgDeepLinked=1; return; }
     if(!w)return;
     var open=function(){
       if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
@@ -4606,8 +4457,8 @@ function deepLink(){
   }catch(e){}
 }
 
-function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit';a.textContent='Submit'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit';b.textContent='Submit'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='One measurable first-90-day result';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should they ship in the first 90 days?'}}
-function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://www.trydemigod.com/#org',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Demigod tech matches SF startup talent, humans in the loop. 10% on hire.',areaServed:{'@type':'AdministrativeArea',name:'San Francisco Bay Area'}},{'@type':'WebSite','@id':'https://www.trydemigod.com/#website',url:'https://www.trydemigod.com',name:'Demigod',publisher:{'@id':'https://www.trydemigod.com/#org'},description:'SF startup talent matching — private profiles, mutual yes, 10% on hire.'}]});document.head.appendChild(ld)}
+function finalButtonLabels(){var a=q('#startup-hire [type=submit],#startup-modal form [type=submit]');if(a){a.value='Submit';a.textContent='Submit'}var b=q('#engineer-join [type=submit],#jobseeker-modal form [type=submit]');if(b){b.value='Submit';b.textContent='Submit'}var o=q('#startup-hire [name="90day-outcome"],#startup-modal [name="90day-outcome"]');if(o){o.placeholder='One concrete result';var l=o.id&&q('label[for="'+o.id+'"]');if(l)l.textContent='What should this person accomplish first?'}}
+function orgJsonLd(){if(q('#dg-org-jsonld'))return;var ld=document.createElement('script');ld.type='application/ld+json';ld.id='dg-org-jsonld';ld.textContent=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://www.trydemigod.com/#org',name:'Demigod',url:'https://www.trydemigod.com',email:'potter@trydemigod.com',description:'Software compares role and talent evidence; a human decides what to propose. 10% of first-year base salary when a hire starts.',areaServed:{'@type':'AdministrativeArea',name:'San Francisco Bay Area'}},{'@type':'WebSite','@id':'https://www.trydemigod.com/#website',url:'https://www.trydemigod.com',name:'Demigod',publisher:{'@id':'https://www.trydemigod.com/#org'},description:'SF startup talent matching — private profiles, mutual yes, 10% of first-year base salary when a hire starts.'}]});document.head.appendChild(ld)}
 
 
 function wizResumeToast(modal){
@@ -4619,11 +4470,44 @@ function wizResumeToast(modal){
     var rf=modal.querySelector('form');
     if(!rf||rf.dataset.dgWizResumed!=='1')return;
     delete rf.dataset.dgWizResumed;
-    var t=document.createElement('p');
+    var t=document.createElement('div');
     t.id='dg-wiz-resume';
     t.setAttribute('role','status');
-    t.style.cssText='margin:0 0 .65rem;padding:.5rem .7rem;border-radius:10px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:#E8D5A3;font-size:.85rem;line-height:1.35';
-    t.textContent='Draft restored — continue where you left off.';
+    t.style.cssText='margin:0 0 .65rem;padding:.5rem .7rem;border-radius:10px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:#E8D5A3;font-size:.85rem;line-height:1.35;display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem';
+    var msg=document.createElement('span');
+    msg.textContent='Draft restored — continue where you left off.';
+    var restart=document.createElement('button');
+    restart.type='button';
+    restart.className='dg-wiz-restart';
+    restart.textContent='Start over';
+    restart.style.cssText='margin-left:auto;min-height:36px;padding:.25rem .65rem;border-radius:8px;border:1px solid rgba(201,168,76,.45);background:transparent;color:#E8D5A3;cursor:pointer;font:600 .78rem/1 var(--wiz-sans,system-ui,sans-serif)';
+    restart.addEventListener('click',function(){
+      try{
+        sessionStorage.removeItem('dgWizSave_startup');
+        sessionStorage.removeItem('dgWizSave_engineer');
+        localStorage.removeItem('dgWizSave_startup');
+        localStorage.removeItem('dgWizSave_engineer');
+      }catch(e0){}
+      try{
+        rf.querySelectorAll('input,select,textarea').forEach(function(el){
+          if(el.type==='hidden'||el.name==='form_version'||el.name==='cf-turnstile-response')return;
+          if(el.type==='checkbox'||el.type==='radio')el.checked=false;
+          else if(el.type==='file'){try{el.value='';}catch(e1){}}
+          else el.value='';
+        });
+      }catch(e2){}
+      t.remove();
+      try{
+        /* rebuild stepper from step 0 with empty answers */
+        delete rf.dataset.dgWizBuilt;
+        delete rf.dataset.dgWizResumed;
+        var kind=rf.id==='engineer-join'||rf.closest('#jobseeker-modal')?'engineer':'startup';
+        qa('.dg-wiz-head,.dg-wiz-nav,.dg-wiz-review,.dg-wiz-choices',rf).forEach(function(n){n.remove();});
+        wizBuild(rf,kind);
+      }catch(e3){}
+    });
+    t.appendChild(msg);
+    t.appendChild(restart);
     var head=modal.querySelector('.dg-wiz-head')||modal.querySelector('h2')||modal.firstElementChild;
     if(head&&head.parentNode)head.parentNode.insertBefore(t, head.nextSibling);
     else modal.prepend(t);
@@ -4655,10 +4539,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-// Notes in-page: hashchange re-focuses Full note when already on /?p=blog
-typeof window.addEventListener==='function'&&window.addEventListener('hashchange',function(){/*dg-note-hash*/ try{ var r=document.getElementById('dg-page'); if(r&&r.querySelector('.dg-blog-card')) focusBlogNoteFromHash(r); }catch(e){} });
-
-window.__dgFootVer='860';console.log('Demigod v860');
+window.__dgFootVer='903';console.log('Demigod v903');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

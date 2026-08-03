@@ -17,6 +17,7 @@ test('partial founder briefs stay in inbox but out of matching until compensatio
     '90day-outcome': 'Ship onboarding v1',
     'work-location': 'sf-hybrid',
     'salary-range': '$180-220k',
+    'interview-process': 'Founder chat → work sample → final; target decision in ~2 weeks',
     'contact-email': 'founder@example.com',
   };
   assert.equal(startupRoleReadiness({ ...base, status: 'new', raw: completeRaw }).matchReady, false);
@@ -28,7 +29,7 @@ test('partial founder briefs stay in inbox but out of matching until compensatio
   });
   assert.equal(controlEmail.matchReady, false);
   assert.equal(controlEmail.missing.includes('contact-email'), true);
-  for (const key of ['company-name', 'company-stage', 'role-title', 'stack-needs', '90day-outcome', 'work-location', 'salary-range', 'contact-email']) {
+  for (const key of ['company-name', 'company-stage', 'role-title', 'stack-needs', '90day-outcome', 'work-location', 'salary-range', 'interview-process', 'contact-email']) {
     const raw = { ...completeRaw }; delete raw[key];
     assert.equal(startupRoleReadiness({ ...reviewed, raw }).matchReady, false, key);
   }
@@ -42,13 +43,14 @@ test('partial founder briefs stay in inbox but out of matching until compensatio
       '90day-outcome': 'victim@example.com',
       'work-location': 'victim@example.com',
       'salary-range': 'victim@example.com',
+      'interview-process': 'victim@example.com',
       'contact-email': 'not-an-email',
     },
   });
   assert.equal(contactPoison.matchReady, false);
   assert.deepEqual(contactPoison.missing, [
     'company-name', 'company-stage', 'role-title', 'stack-needs', '90day-outcome',
-    'work-location', 'salary-range', 'contact-email',
+    'work-location', 'salary-range', 'interview-process', 'contact-email',
   ]);
   assert.deepEqual(rolesFromPartnerInbox({ items: [reviewed] }), [{
     id: 'sub-founder', title: 'Founding PM', company: 'Acme', source: 'inbox', real: true,

@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T03:09:17.642Z",
+  "at": "2026-08-03T02:34:14.265Z",
   "pass": true,
   "checks": {
     "v90": true,
@@ -11,5 +11,5 @@
     "mvpForms": true,
     "mvpTrust": true
   },
-  "sampleUrl": "https://www.trydemigod.com/#receipt/demo004"
+  "sampleUrl": null
 }
