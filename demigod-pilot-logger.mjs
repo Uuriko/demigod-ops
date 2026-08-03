@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+/**
+ * demigod-pilot-logger — log a REAL pilot after white-glove delivery
+ *
+ *   node demigod-pilot-logger.mjs --founder=… --brief=… [--outcome=…] [--publish]
+ *
+ * Runs board-honesty first. Default no fake receipts and no CDN publish.
+ * Warm inbound ≠ pilot — use bin/dg pilot warm first.
+ */
+import { execSync, spawnSync } from 'child_process';
+import { createRequire } from 'module';
+import { ROOT } from './demigod-turn-lib.mjs';
+import { writeBoard } from './demigod-submissions-lib.mjs';
+import { appendPilot, computeSignal, latestReceipt } from './demigod-board-lib.mjs';
+
+const require = createRequire(import.meta.url);
+try {
+  const out = execSync('node demigod-verify-board-honesty.mjs', {encoding:'utf8'});
+  if (!out.includes('OK')) { console.error('Board not honest - abort'); process.exit(1); }
+} catch(e){ console.error('board check fail', e.message); process.exit(1); }
+
+function parseArgs(argv) {
+  const out = {
+    founder: '',
+    brief: '',
+    intros: 0,
+    quote: '',
+    outcome: '',
+    stage: 'Active',
+    stageType: 'Pre-seed · SF startup',
+    publish: false,
+    noPublish: false,
+    receipt: true,
+    signal: true,
+    png: false,
+    source: '',
+    report: false,
+  };
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--report') out.report = true;
+    else if (a.startsWith('--founder=')) out.founder = a.slice(10);
+    else if (a.startsWith('--brief=')) out.brief = a.slice(8);
+    else if (a.startsWith('--intros=')) out.intros = Number(a.slice(9)) || 0;
+    else if (a.startsWith('--quote=')) out.quote = a.slice(8);
+    else if (a.startsWith('--outcome=')) out.outcome = a.slice(10);
+    else if (a.startsWith('--stage=')) out.stage = a.slice(8);
+    else if (a.startsWith('--stage-type=')) out.stageType = a.slice(13);
+    else if (a === '--publish') out.publish = true;
+    else if (a === '--no-publish') out.noPublish = true;
+    else if (a === '--no-receipt') out.receipt = false;
+    else if (a === '--no-signal') out.signal = false;
+    else if (a === '--png') out.png = true;
+    else if (a.startsWith('--source=')) out.source = a.slice(9);
+  }
+  return out;
+}
+
+function runNode(script, extraArgs = []) {
+  const pub = spawnSync('node', [script, ...extraArgs], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 120_000,
+  });
+  return { ok: pub.status === 0, status: pub.status, stdout: (pub.stdout || '').trim() };
+}
+
+function main() {
+  const args = parseArgs(process.argv);
+  if (args.report) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const { fileURLToPath } = require('url');
+      const { loadBoard } = require('./demigod-submissions-lib.mjs');
+      // Prefer script-adjacent outreach (worktree), fall back to ROOT home
+      const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+      const outreachCandidates = [
+        path.join(scriptDir, 'demigod-outreach'),
+        path.join(ROOT, 'demigod-outreach'),
+      ];
+      const outreachDir =
+        outreachCandidates.find((d) => fs.existsSync(d)) || outreachCandidates[0];
+
+      const b = loadBoard() || {};
+      const pilots = b.pilots || [];
+      console.log('=== Pilots ===');
+      console.log('Pilots logged:', pilots.length);
+      pilots.slice(-5).forEach((p) =>
+        console.log(' -', p.founder || 'anon', p.brief || '', p.outcome ? '90d:' + String(p.outcome).slice(0, 50) : '')
+      );
+
+      // DM send-log summary (human-confirmed outbound)
+      const sendLogPath = path.join(outreachDir, 'dm-send-log.txt');
+      console.log('\n=== DM send-log ===');
+      console.log('path:', sendLogPath);
+      if (!fs.existsSync(sendLogPath)) {
+        console.log('No dm-send-log.txt yet.');
+        console.log('Format: SENT-CONFIRMED | YYYY-MM-DD | @handle | Company | channel');
+      } else {
+        const lines = fs
+          .readFileSync(sendLogPath, 'utf8')
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l && !l.startsWith('#') && !l.startsWith('//'));
+        const confirmed = lines.filter((l) => /SENT-CONFIRMED/i.test(l));
+        const planned = lines.filter((l) => /Planned:/i.test(l));
+        const other = lines.filter((l) => !/SENT-CONFIRMED/i.test(l) && !/Planned:/i.test(l));
+        console.log('Lines total:', lines.length);
+        console.log('SENT-CONFIRMED:', confirmed.length);
+        console.log('Planned / notes:', planned.length + other.length);
+        if (confirmed.length) {
+          console.log('Recent confirmed:');
+          confirmed.slice(-8).forEach((l) => console.log(' -', l));
+        } else {
+          console.log('(no SENT-CONFIRMED yet — human must send 8 ready DMs then append log lines)');
+        }
+        if (other.length) {
+          console.log('Legacy / freeform (not counted as sent):');
+          other.slice(-5).forEach((l) => console.log(' -', l.slice(0, 100)));
+        }
+      }
+
+      // Ready batch + archive hygiene
+      const readyDir = path.join(outreachDir, 'ready-emails');
+      console.log('\n=== Ready emails ===');
+      console.log('path:', readyDir);
+      if (fs.existsSync(readyDir)) {
+        const files = fs.readdirSync(readyDir).filter((f) => f.endsWith('.txt'));
+        const batch = files.filter((f) => /^dm-\d{4}-\d{2}-\d{2}-/.test(f));
+        console.log('ready-emails/*.txt:', files.length, '| dated dm-YYYY-MM-DD batch:', batch.length);
+        if (batch.length) batch.sort().forEach((f) => console.log(' -', f));
+        else files.slice(0, 8).forEach((f) => console.log(' -', f));
+      } else {
+        console.log('No ready-emails dir');
+      }
+    } catch (e) {
+      console.log('report err', e.message);
+    }
+    process.exit(0);
+  }
+  if (!args.brief?.trim()) {
+    console.error('Usage: npm run demigod:pilot:log -- --brief="Founding PM" --intros=3 [--quote="..."] [--outcome="..."] [--png] [--report]');
+    process.exit(1);
+  }
+
+  // Atomic load-modify-save under BOARD_LOCK: a plain loadBoard()+saveBoard() left a lost-update
+  // window (another writer could commit between the load and the save, and pilot-logger's save would
+  // clobber it). writeBoard runs appendPilot on a freshly-locked board. Capture role/receipt/next via
+  // closure for the response below.
+  let role, receipt, next;
+  writeBoard(
+    (board) => {
+      const r = appendPilot(board, {
+        founder: args.founder,
+        brief: args.brief,
+        intros: args.intros,
+        quote: args.quote,
+        outcome: args.outcome,
+        stage: args.stage,
+        stageType: args.stageType,
+        withReceipt: args.receipt,
+        source: args.source,
+      });
+      role = r.role;
+      receipt = r.receipt;
+      next = r.board;
+      return r.board;
+    },
+    { reason: 'pilot-logger', actor: process.env.USER || 'pilot-logger' },
+  );
+
+  let publishNote = 'skipped';
+  if (!args.noPublish && (args.publish || process.env.DEMIGOD_FORCE_PUBLISH === '1')) {
+    const pub = runNode('demigod-board-publish.mjs');
+    publishNote = pub.ok ? 'ok' : `failed:${pub.status}`;
+  }
+
+  let signalNote = 'skipped';
+  let signalManifest = null;
+  if (args.signal) {
+    const sigArgs = ['demigod-signal-theater.mjs'];
+    if (args.png) sigArgs.push('--png');
+    const sig = runNode(sigArgs[0], sigArgs.slice(1));
+    signalNote = sig.ok ? 'ok' : `failed:${sig.status}`;
+    if (sig.ok && sig.stdout) {
+      try {
+        signalManifest = JSON.parse(sig.stdout);
+      } catch {
+        signalManifest = { raw: sig.stdout.slice(0, 400) };
+      }
+    }
+  }
+
+  const receiptUrl = receipt
+    ? `https://www.trydemigod.com/#receipt/${receipt.hash}`
+    : (latestReceipt(next) ? `https://www.trydemigod.com/#receipt/${latestReceipt(next).hash}` : null);
+
+  console.log(JSON.stringify({
+    ok: true,
+    message: 'Proof logged — ledger + board CDN updated',
+    role: {
+      title: role.title,
+      stageType: role.stageType,
+      outcome: role.outcome,
+      pilot: true,
+    },
+    signal: computeSignal(next),
+    receiptUrl,
+    publish: publishNote,
+    signalTheater: signalNote,
+    share: signalManifest?.pngLatest || signalManifest?.htmlLatest || 'demigod-outreach/signal-theater/signal-card-latest.html',
+    dmSnippets: signalManifest?.dmLatest || 'demigod-outreach/signal-theater/dm-snippets-latest.txt',
+  }, null, 2));
+}
+
+main();

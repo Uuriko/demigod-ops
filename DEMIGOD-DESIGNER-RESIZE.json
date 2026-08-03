@@ -1,0 +1,18 @@
+{
+  "at": "2026-07-21T22:44:58.037Z",
+  "resize": {
+    "innerWidth": 1440,
+    "innerHeight": 900,
+    "tooSmall": false,
+    "ok": true,
+    "before": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "tooSmall": true,
+      "needsResize": true
+    },
+    "windowResized": true
+  },
+  "screenshot": "/home/potter/audit-shots/webflow/designer-resize-2026-07-21T22-44-56-445Z.png",
+  "pass": true
+}

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Periodic CDP tab hygiene — close excess tabs (keep one per role) on a timer so nobody has to ask.
+# Runs via demigod-tab-hygiene.timer. cdp-close-tabs.mjs keeps one tab per role (incl. one Webflow
+# custom-code tab), but a multi-step paste/publish can briefly hold extra custom-code tabs — so this
+# wrapper SKIPS entirely while any ship/paste is in flight, and no-ops cleanly if CDP isn't running.
+# ponytail: coarse in-flight guard (process + freeze). If it ever races a paste, widen the guard.
+set -uo pipefail
+BUSY=/tmp/dg-busy
+ROOT=/home/potter
+
+# node lives under nvm, which is NOT on systemd's minimal service PATH. Resolve the newest install
+# dynamically (survives node upgrades, unlike a hardcoded version).
+if ! command -v node >/dev/null 2>&1; then
+  NVM_NODE="$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)"
+  [ -n "${NVM_NODE:-}" ] && export PATH="$NVM_NODE:$PATH"
+fi
+
+log() { echo "[$(date -Iseconds)] tab-hygiene: $*"; }
+
+# 1) Never run during an active ship/paste/publish — closing a custom-code tab mid-paste is the one
+#    real hazard (memory: "it closes custom-code tabs; check no ship/paste in flight first").
+if pgrep -f 'demigod-ship\.mjs|cm6-paste-publish|foot-cdn-publish|fix-custom-code' >/dev/null 2>&1; then
+  log "ship/paste in flight — skip"; exit 0
+fi
+if [ -f "$BUSY/publish-freeze.json" ] && grep -Eq '"on"[[:space:]]*:[[:space:]]*true' "$BUSY/publish-freeze.json" 2>/dev/null; then
+  log "publish-freeze ON — skip"; exit 0
+fi
+
+# 2) No CDP Chrome → nothing to do (headless/cron-safe).
+if ! curl -sf --max-time 3 --noproxy '*' http://127.0.0.1:9223/json/version >/dev/null 2>&1; then
+  log "CDP not reachable at :9223 — skip"; exit 0
+fi
+
+# 3) Close excess tabs (real). cdp-close-tabs keeps one per role.
+cd "$ROOT" || exit 0
+out=$(timeout 45 node cdp-close-tabs.mjs 2>&1) || { log "cdp-close-tabs failed: $(printf '%s' "$out" | tail -1)"; exit 0; }
+# cdp-close-tabs pretty-prints JSON (space after colon, multiline) amid human lines — flatten first.
+line=$(printf '%s' "$out" | tr '\n' ' ' | grep -oE '"before": *[0-9]+.*"kept": *[0-9]+' | head -1 | tr -s ' ')
+log "${line:-done}"

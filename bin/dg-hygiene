@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# dg-hygiene — laptop + CDP tab hygiene (keep Chrome :9223, keep core Webflow tabs)
+# Prefer: bin/dg-hygiene [--optimize]
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "=== Demigod hygiene $(date -Iseconds) ==="
+if [ "$#" -eq 0 ]; then
+  set -- --prune
+fi
+node "$ROOT/demigod-laptop-hygiene.mjs" "$@"
+echo "=== hygiene complete ==="

@@ -1,0 +1,12 @@
+[Unit]
+Description=Demigod Events Bot draft tick every 6h (lifecycle heartbeat)
+
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=6h
+AccuracySec=2min
+Persistent=true
+Unit=demigod-events-tick.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+{
+  "at": "2026-07-31T03:09:17.819Z",
+  "pass": true,
+  "checks": {
+    "manifestExists": true,
+    "htmlLatest": true,
+    "dmLatest": true,
+    "manifestOk": true,
+    "ledgerInHtml": true,
+    "noSpeedInDm": true
+  }
+}

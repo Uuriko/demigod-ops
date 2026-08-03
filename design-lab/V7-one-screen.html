@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Demigod · One Screen (lab V7)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #F4F1EA; color: #121212;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    padding: 1.5rem;
+  }
+  main { max-width: 40rem; width: 100%; text-align: center; }
+  .word { font-weight: 700; letter-spacing: -0.02em; margin-bottom: 2rem; }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", serif;
+    font-size: clamp(2.2rem, 6vw, 3.2rem); line-height: 1.08;
+    letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 600;
+  }
+  p { color: #5a554c; line-height: 1.5; margin: 0 0 1.75rem; }
+  .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  a {
+    text-decoration: none; color: inherit; border: 1px solid #ddd;
+    background: #fff; border-radius: 14px; padding: 1.15rem 0.75rem;
+  }
+  a.p { background: #1F4B99; color: #fff; border-color: #1F4B99; }
+  a strong { display: block; margin-bottom: 0.25rem; }
+  a span { font-size: 0.85rem; opacity: 0.85; }
+  .line { margin-top: 1.5rem; font-size: 0.82rem; color: #7a746a; }
+  @media (max-width: 520px) { .paths { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <main>
+    <div class="word">Demigod</div>
+    <h1>Three gates to every intro.</h1>
+    <p>Software ranks fit. People review. Both sides approve. SF startups and talent — no theater.</p>
+    <div class="paths">
+      <a class="p" href="#hire"><strong>I'm hiring</strong><span>Share a role</span></a>
+      <a href="#look"><strong>I'm looking</strong><span>Share your profile</span></a>
+    </div>
+    <div class="line">10% on hire · Free for talent · lab V7 one-screen</div>
+  </main>
+</body>
+</html>

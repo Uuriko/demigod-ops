@@ -1,0 +1,68 @@
+{
+  "cycle": 1,
+  "at": "2026-07-16T15:08:00Z",
+  "scorer": "grok-visual+rubric",
+  "weights": {
+    "clarity": 2.0,
+    "dualPath": 1.5,
+    "honesty": 2.0,
+    "novelty": 1.5,
+    "ship": 1.0,
+    "mobile": 1.0,
+    "wiz": 1.0
+  },
+  "variants": {
+    "LIVE": {
+      "note": "baseline dark/gold recruiter read; Human-Matched SEO debt",
+      "clarity": 5,
+      "dualPath": 4,
+      "honesty": 6,
+      "novelty": 2,
+      "ship": 8,
+      "mobile": 6,
+      "wiz": 8,
+      "weighted": 53.5,
+      "blurVsLive": "n/a baseline"
+    },
+    "V1_OperatorCalm": {
+      "clarity": 9,
+      "dualPath": 9,
+      "honesty": 10,
+      "novelty": 9,
+      "ship": 8,
+      "mobile": 8,
+      "wiz": 9,
+      "weighted": 90.5,
+      "blurVsLive": "PASS — paper canvas, dual panels, process artifact",
+      "notes": "Best complete story: process + pricing + dual path. Hiring slightly primary (cobalt) but looking is equal mass."
+    },
+    "V2_SignalSplit": {
+      "clarity": 9,
+      "dualPath": 10,
+      "honesty": 10,
+      "novelty": 9,
+      "ship": 7,
+      "mobile": 7,
+      "wiz": 9,
+      "weighted": 89.5,
+      "blurVsLive": "PASS — split light/dark worlds",
+      "notes": "Strongest dual-path equality. Weaker process education above fold; risk of two-product feel."
+    },
+    "V7_OneScreen": {
+      "clarity": 8,
+      "dualPath": 9,
+      "honesty": 10,
+      "novelty": 7,
+      "ship": 9,
+      "mobile": 9,
+      "wiz": 9,
+      "weighted": 86.5,
+      "blurVsLive": "PASS — empty paper, two CTAs only",
+      "notes": "Fastest ship, least process teaching. Good A/B challenger not full site."
+    }
+  },
+  "ranking": ["V1_OperatorCalm", "V2_SignalSplit", "V7_OneScreen", "LIVE"],
+  "promote": "V1_OperatorCalm",
+  "challenger": "V2_SignalSplit",
+  "codexConceptsQueued": ["Match Table", "Two Doors", "The Brief", "Mutual Yes", "SF Signal Map", "Anti-Job-Board"]
+}

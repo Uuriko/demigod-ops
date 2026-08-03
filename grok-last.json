@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "at": "2026-07-22T20:04:49Z",
+  "did": [
+    "cycle7633 gates: verify:source PASS, board honesty OK, loop-state OK (v754), foot-smoke PASS v754, truth PASS disk=live=v754 freeze=ON",
+    "dogfood /api/coord http=200 ok schema demigod.coord-api/2 loopRunning supervisor.alive activeHoldCount=4 (useful-loop+busy-rotate coord-codex)",
+    "store-SHA pin DEMIGOD-EVENTS.json a0f91b5113d1\u2026 + DEMIGOD-LEADS.json 490ff4723c73\u2026 before/after unchanged; prod SoRs not rewritten",
+    "zero-skip cert 7633: nestedSpawn ok; carried 7631 ALL GREEN 953/0/0 same store SHAs (no thrash re-run); swarm red-skips not reproduced"
+  ],
+  "next": "coord-codex: complete useful-loop/busy-rotate claims; optional claim_hold lane enforce (swarm P0); grok next cycle re-gates+/api/coord",
+  "files": [
+    "/tmp/dg-busy/funnel-zero-skip-cert-7633.json",
+    "/tmp/dg-busy/events-bot/prod-store-sha-7633.txt",
+    "/tmp/dg-busy/coord/api-coord-7633.json",
+    "/tmp/dg-busy/coord/gates-7633.txt"
+  ],
+  "claims": [],
+  "lane": "gates",
+  "cycle": 7633
+}

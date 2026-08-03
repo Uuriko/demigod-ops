@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# GitHub CDP + API agent helper → node demigod-github-agent.mjs
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+exec node "$ROOT/demigod-github-agent.mjs" "$@"

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# dg-inbox — submissions inbox (redacted)
+set -euo pipefail
+cd /home/potter
+if [[ "${1:-}" == "new" ]]; then
+  exec node demigod-submissions-inbox.mjs --new --json
+fi
+if [[ "${1:-}" == "draft" && -n "${2:-}" ]]; then
+  exec node demigod-intro-draft.mjs "$2"
+fi
+if [[ "${1:-}" == "reviewed" && -n "${2:-}" ]]; then
+  exec node demigod-submissions-inbox.mjs --mark-reviewed="$2" --json
+fi
+exec node demigod-submissions-inbox.mjs "$@"

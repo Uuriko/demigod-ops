@@ -1,0 +1,1079 @@
+{
+  "at": "2026-07-27T03:29:33.231Z",
+  "project": "demigod",
+  "system": {
+    "host": "pop-os",
+    "os": "Pop!_OS 24.04 LTS",
+    "lan": "192.168.1.218",
+    "disk": null,
+    "mem": "Mem:            62Gi        17Gi       4.9Gi       339Mi        45Gi        45Gi",
+    "load": "20:29:31 up 4 days,  5:24,  1 user,  load average: 1.47, 2.14, 1.99"
+  },
+  "binaries": {
+    "grok": {
+      "present": true,
+      "path": "/home/potter/.local/bin/grok",
+      "version": "grok 0.2.112 (9bbd559437) [stable]"
+    },
+    "orcaIde": {
+      "present": true,
+      "path": "/home/potter/.local/bin/orca-ide",
+      "version": "orca"
+    },
+    "node": {
+      "present": true,
+      "path": "/home/potter/.nvm/versions/node/v24.17.0/bin/node",
+      "version": "v24.17.0"
+    },
+    "npm": {
+      "present": true,
+      "path": "/home/potter/.nvm/versions/node/v24.17.0/bin/npm",
+      "version": "11.13.0"
+    },
+    "bun": {
+      "present": true,
+      "path": "/home/potter/.bun/bin/bun",
+      "version": "1.3.14"
+    },
+    "cursorAgent": {
+      "present": true,
+      "path": "/home/potter/.local/bin/cursor-agent",
+      "version": "2026.06.24-00-45-58-9f61de7"
+    },
+    "gh": {
+      "present": true,
+      "path": "/home/potter/.local/bin/gh",
+      "version": "gh version 2.63.2 (2024-12-05)"
+    },
+    "python3": {
+      "present": true,
+      "path": "/home/potter/.local/bin/python3",
+      "version": "Python 3.12.3"
+    }
+  },
+  "services": {
+    "cdp": true,
+    "cdpUrl": "http://127.0.0.1:9223",
+    "orcaMobile": true,
+    "gameServer": false
+  },
+  "demigod": {
+    "live": "https://www.trydemigod.com",
+    "designer": "https://talentlink-sf.design.webflow.com/",
+    "footCore": "v820",
+    "verifyLive": {
+      "at": "2026-07-27T03:16:55.824Z",
+      "url": "https://www.trydemigod.com/?v=verify-1785122215064",
+      "htmlScan": {
+        "mcpScripts": [],
+        "mcpScriptsGone": true,
+        "allMcpAppScripts": [],
+        "forms": [
+          {
+            "name": "startup-hire",
+            "present": true,
+            "aliases": [
+              "startup-form",
+              "startup-hire"
+            ]
+          },
+          {
+            "name": "engineer-join",
+            "present": true,
+            "aliases": [
+              "jobseeker-form",
+              "engineer-join"
+            ]
+          }
+        ],
+        "formsOk": true,
+        "headMarkers": [
+          {
+            "marker": "hide-webflow-badge",
+            "present": true
+          },
+          {
+            "marker": "Demigod forms",
+            "present": true
+          },
+          {
+            "marker": "openModal",
+            "present": true
+          },
+          {
+            "marker": "potter@trydemigod.com",
+            "present": true
+          },
+          {
+            "marker": "og:title",
+            "present": true
+          },
+          {
+            "marker": "demigod-polish",
+            "present": true
+          }
+        ],
+        "headOk": true,
+        "footerCoreOk": true,
+        "footerCoreCopy": {
+          "ok": true,
+          "version": "820",
+          "noSpeedInCopy": true,
+          "noNameInCopy": true,
+          "hasScrub": true
+        },
+        "runtimeNavOk": true,
+        "badgeHiddenByCss": true,
+        "tallyConfigured": false,
+        "formsMode": "webflow-footer-core",
+        "tallyHosts": {
+          "startup": false,
+          "engineer": false
+        },
+        "staticDrift": [
+          {
+            "severity": "medium",
+            "issue": "hello@ contact in static HTML (runtime scrubs to potter@)"
+          }
+        ],
+        "liveWebhookUrl": "https://blvd-representation-hide-chris.trycloudflare.com/api/events-bot/"
+      },
+      "metaCounts": {
+        "description": 1,
+        "ogTitle": 1
+      },
+      "pageScan": {
+        "postJob": false,
+        "hireTalent": 2,
+        "findTalent": 1,
+        "joinNetwork": 1,
+        "getJob": 0,
+        "talentLink": false,
+        "footer2026": true,
+        "athena": false,
+        "hephaestus": false,
+        "curated": false,
+        "edtech": false,
+        "webflowBadge": true
+      },
+      "findings": [
+        {
+          "severity": "medium",
+          "issue": "Static HTML drift (runtime OK): hello@ contact in static HTML (runtime scrubs to potter@)"
+        }
+      ],
+      "pass": true
+    },
+    "verifySource": {
+      "at": "2026-07-27T03:29:09.679Z",
+      "architecture": "head-minimal-css + foot-core-cdn",
+      "checks": [
+        {
+          "name": "head:size-under-cap",
+          "ok": true,
+          "detail": "43273/50000 (6727 left)"
+        },
+        {
+          "name": "head:hide-webflow-badge",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:no-retired-hero-asset",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:mobile-no-reserved-scrollbar-gutter",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:public-contact-potter",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:heavy-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og:title",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-font-no-layout-swap",
+          "ok": true,
+          "detail": "Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap"
+        },
+        {
+          "name": "head:preconnect-budget",
+          "ok": true,
+          "detail": "Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr"
+        },
+        {
+          "name": "site:no-internal-leak",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:desc-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:fee-desc-cash",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:desc-len",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:social-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:canonical-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:canonical-https",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-canonical",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-logo-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-logo-square",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-jsonld-id",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-contact-point",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-email-area",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:website-ld",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og-image-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:brand-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:theme-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:app-capable",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:status-bar-style",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:ms-tile-color",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:ms-tile-image",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:referrer-policy",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:format-detection",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:robots-rich-preview",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:favicon-jpeg-sizes",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:apple-touch-sizes",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:author-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og-type-locale",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:twitter-card",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:theme-color-hex",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:color-scheme-dark",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-lcp-preload",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-lcp-fetchpriority",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:preconnect-og-image",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:favicon-svg",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-dates",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-sor",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-publisher",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-author",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-lang",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-mep",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:css-only-no-core-js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hides-webflow-badge-css",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-fouc-guard",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "hero:permanent-demigod-h1",
+          "ok": true,
+          "detail": "hero H1 must stay DEMIGOD permanently; dual-path copy belongs only in CTAs"
+        },
+        {
+          "name": "css:disk-honesty-guards",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-shell-only",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:unhide-v5-safe",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:early-unhide-shell",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:unhide-transform-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:noscript-shell",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:critical-transform-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:path-redirects",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:skip-main-target",
+          "ok": true,
+          "detail": "early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>"
+        },
+        {
+          "name": "head:unhide-main-header",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:contact-scrub",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:meta-dedupe",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:copy-scrub-finite",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:cta-fallback",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:path-pills-not-force-hidden",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:preconnect-foot-cdn",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:cdn-stylesheet",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:inline-scripts-parse",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "core:parses",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "footer:cdn-loader",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "footer:cdn-url",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "footer:inline-scripts-parse",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "footer:path-redirects",
+          "ok": true,
+          "detail": "need blog|notes + method + #note-slug + /fees→pricing + /security→legal + /network→?p=talent (v28/c201/c247)"
+        },
+        {
+          "name": "footer:sample-path",
+          "ok": true,
+          "detail": "footer-lite must redirect /sample → ?p=sample (pairs with core DG_PAGES.sample)"
+        },
+        {
+          "name": "footer:pilot-path",
+          "ok": true,
+          "detail": "footer-lite + footer-loader must redirect /pilot → ?p=pilot (pairs with DG_PAGES.pilot + legal nav)"
+        },
+        {
+          "name": "core:version-marker",
+          "ok": true,
+          "detail": "v820"
+        },
+        {
+          "name": "coreJs:run-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:show-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:hide-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:sched-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:boot-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:run-show",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:no-fake-sms",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:forms-fee-note",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:form-autocomplete",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:offer-abandon-a11y",
+          "ok": true,
+          "detail": "offerAbandon must be dialog (aria-modal + label) with Escape close + focus #dg-abandon-email"
+        },
+        {
+          "name": "core:route-fees-security",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:legal-links-pilot",
+          "ok": true,
+          "detail": "Pilot must be in #dg-legal-links + path map + DG_PAGES (no orphan /?p=pilot)"
+        },
+        {
+          "name": "core:sample-page",
+          "ok": true,
+          "detail": "DG_PAGES.sample honesty required (Sample matches + no fake placements); ban sample→notfound"
+        },
+        {
+          "name": "core:pilot-page",
+          "ok": true,
+          "detail": "DG_PAGES.pilot + /pilot path + legal-nav Pilot link required (v507 discoverability)"
+        },
+        {
+          "name": "core:notfound-page",
+          "ok": true,
+          "detail": "DG_PAGES.notfound soft-404 page required (title + doc)"
+        },
+        {
+          "name": "core:pilot-legal-nav",
+          "ok": true,
+          "detail": "DG_PAGES.pilot + path /pilot + #dg-legal-links Pilot link required (v507 orphan fix)"
+        },
+        {
+          "name": "core:no-fake-sms-trust",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:no-fake-sms-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-defined",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:show-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:enhanceWIZ-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:trust-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:run-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:all-calls-defined",
+          "ok": true,
+          "detail": "info-only; candidates:runtime,WIZ"
+        },
+        {
+          "name": "core:90day-in-wiz",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:90day-required-inject",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wiz-session-draft-privacy",
+          "ok": true,
+          "detail": "same-tab only; hidden excluded; file bytes never serialized; cleared on thanks"
+        },
+        {
+          "name": "core:wiz-submit-review",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:trust-fallback",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:version-150plus",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:org-jsonld-guard",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:blog-sor-in-sync",
+          "ok": true,
+          "detail": "1posts+dynSoR+deeplink+hash+rmotion+lazyDims"
+        },
+        {
+          "name": "core:lazy-decode-async",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "blog:publishedAt",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "blog:draft-ready",
+          "ok": true,
+          "detail": "drafts flip-ready"
+        },
+        {
+          "name": "footer:boot-smoke",
+          "ok": true,
+          "detail": "820"
+        },
+        {
+          "name": "combined:forms-via-footer",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:runtime-nav",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:head-markers",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:no-mcp",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:hide-webflow-badge",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:Demigod forms",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:openModal",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:demigod-polish",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-playtest-review.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-live-lib.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-live-lib.test.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-verify-live.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-verify-all.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-import-integrity.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-foot-cdn-publish.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-cm6-paste-publish.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-foot-core.js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-head-minimal.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-footer-lite.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "state:release-version-current",
+          "ok": true,
+          "detail": "state must delegate changing release facts to bin/dg truth without copying a version"
+        },
+        {
+          "name": "privacy:no-committable-sor",
+          "ok": true,
+          "detail": "tracked=554; privacyRules=56; no committable SoR/PII"
+        },
+        {
+          "name": "sor:import-integrity",
+          "ok": true,
+          "detail": "import-integrity OK edges=389 contracts=11"
+        }
+      ],
+      "pass": true
+    }
+  },
+  "chrome": {
+    "up": true,
+    "count": 23,
+    "purposefulCount": 7,
+    "byRole": {
+      "other": 8,
+      "iframe-noise": 6,
+      "webflow-dash": 2,
+      "live": 1,
+      "chrome-ui": 2,
+      "grok": 4
+    },
+    "urls": [
+      {
+        "role": "other",
+        "url": "https://webflow.com/login?r=https%3A%2F%2Fwebflow.com%2Fexternal%2Fdesigner%2Ftalentlink-sf"
+      },
+      {
+        "role": "other",
+        "url": "about:blank"
+      },
+      {
+        "role": "other",
+        "url": "http://127.0.0.1:9878/#tools"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites"
+      },
+      {
+        "role": "webflow-dash",
+        "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://js.stripe.com/v3/controller-with-preconnect-1dc9f6b2ecfde14a6c95d0334d469629.html#__shared_params__[version]=v3&"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites%2Ftalentlink-sf%2Fcustom-code&titl"
+      },
+      {
+        "role": "live",
+        "url": "https://www.trydemigod.com/startups"
+      },
+      {
+        "role": "chrome-ui",
+        "url": "chrome://omnibox-popup.top-chrome/"
+      },
+      {
+        "role": "other",
+        "url": "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/offscreen.html"
+      },
+      {
+        "role": "other",
+        "url": "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/offscreen.html"
+      },
+      {
+        "role": "grok",
+        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fgrok.com%2F&title=Grok&referrer=&muid=d006d3d1-6edd-4c3b-8bec-75d0"
+      },
+      {
+        "role": "grok",
+        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fgrok.com%2F&title=Grok&referrer"
+      },
+      {
+        "role": "grok",
+        "url": "https://grok.com/"
+      },
+      {
+        "role": "chrome-ui",
+        "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html"
+      },
+      {
+        "role": "other",
+        "url": "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/service-worker-loader.js"
+      },
+      {
+        "role": "other",
+        "url": "chrome-extension://ghmbeldphafepmbegfdlkpapadhbakde/background.js"
+      },
+      {
+        "role": "grok",
+        "url": "blob:https://grok.com/1b31faa1-148a-4ff6-a923-13ebaba46481"
+      },
+      {
+        "role": "other",
+        "url": "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/service-worker.js"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://m.stripe.network/inner.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites%2Ftalentlink-sf%2Fforms&title=Demi"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fwebflow.com%2Fdashboard%2Fsites"
+      },
+      {
+        "role": "iframe-noise",
+        "url": "https://js.stripe.com/v3/controller-with-preconnect-ebbaa08db5b50aeb597a91378898c883.html#__shared_params__[version]=v3&"
+      },
+      {
+        "role": "webflow-dash",
+        "url": "https://webflow.com/dashboard/sites/talentlink-sf/forms"
+      }
+    ]
+  },
+  "git": {
+    "dirtyFiles": 883,
+    "rootArtifacts": 135
+  },
+  "orca": {
+    "reachable": true,
+    "worktrees": [
+      "master",
+      "mobile-grok-hub",
+      "manual-shell",
+      "orca-explore",
+      "demigod-ops",
+      "demigod",
+      "demigod-swarm",
+      "potter-hub"
+    ]
+  },
+  "files": [
+    {
+      "file": "AGENTS.md",
+      "ok": true
+    },
+    {
+      "file": "DEMIGOD-AGENTS.md",
+      "ok": true
+    },
+    {
+      "file": "DEMIGOD-WORKFLOW.md",
+      "ok": true
+    },
+    {
+      "file": "demigod-foot-core.js",
+      "ok": true
+    },
+    {
+      "file": "demigod-head-minimal.html",
+      "ok": true
+    },
+    {
+      "file": "demigod-footer-lite.html",
+      "ok": true
+    },
+    {
+      "file": "demigod-verify-all.mjs",
+      "ok": true
+    },
+    {
+      "file": "demigod-open-workspace.mjs",
+      "ok": true
+    },
+    {
+      "file": "launch-demigod-chrome.sh",
+      "ok": true
+    },
+    {
+      "file": "agent-dev.sh",
+      "ok": true
+    },
+    {
+      "file": "bin/dg-orca",
+      "ok": true
+    },
+    {
+      "file": ".cursor/mcp.json",
+      "ok": true
+    },
+    {
+      "file": ".cursor/rules/demigod.mdc",
+      "ok": true
+    }
+  ],
+  "mcp": {
+    "mcpServers": {
+      "chrome-devtools": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "chrome-devtools-mcp@latest",
+          "--browserUrl=http://127.0.0.1:9223",
+          "--no-performance-crux"
+        ],
+        "env": {
+          "DEBUG": ""
+        }
+      },
+      "webflow": {
+        "url": "https://mcp.webflow.com/mcp"
+      }
+    }
+  },
+  "issues": [],
+  "recommendations": [
+    "Trim browser tabs (7 purposeful): ~/agent-dev.sh tabs-cleanup",
+    "Archive run artifacts: ~/agent-dev.sh archive",
+    "Start of day: ~/agent-dev.sh ready · Before publish: ~/agent-dev.sh ship"
+  ],
+  "score": "green"
+}

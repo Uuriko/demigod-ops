@@ -1,0 +1,98 @@
+{
+  "at": "2026-07-31T03:09:17.439Z",
+  "url": "https://www.trydemigod.com/?v=verify-1785467356779",
+  "htmlScan": {
+    "mcpScripts": [],
+    "mcpScriptsGone": true,
+    "allMcpAppScripts": [],
+    "forms": [
+      {
+        "name": "startup-hire",
+        "present": true,
+        "aliases": [
+          "startup-form",
+          "startup-hire"
+        ]
+      },
+      {
+        "name": "engineer-join",
+        "present": true,
+        "aliases": [
+          "jobseeker-form",
+          "engineer-join"
+        ]
+      },
+      {
+        "name": "partner-apply",
+        "present": true,
+        "aliases": [
+          "partner-apply"
+        ],
+        "fields": [
+          "partner-name",
+          "partner-email",
+          "referral-plan"
+        ]
+      }
+    ],
+    "formsOk": true,
+    "headMarkers": [
+      {
+        "marker": "hide-webflow-badge",
+        "present": true
+      },
+      {
+        "marker": "Demigod forms",
+        "present": true
+      },
+      {
+        "marker": "openModal",
+        "present": true
+      },
+      {
+        "marker": "potter@trydemigod.com",
+        "present": true
+      },
+      {
+        "marker": "og:title",
+        "present": true
+      },
+      {
+        "marker": "demigod-polish",
+        "present": true
+      }
+    ],
+    "headOk": true,
+    "footerCoreOk": true,
+    "footerCoreCopy": {
+      "ok": true,
+      "version": "859",
+      "noSpeedInCopy": true,
+      "noNameInCopy": true,
+      "hasScrub": true
+    },
+    "runtimeNavOk": true,
+    "badgeHiddenByCss": true,
+    "staticDrift": []
+  },
+  "metaCounts": {
+    "description": 1,
+    "ogTitle": 1
+  },
+  "pageScan": {
+    "postJob": false,
+    "hireTalent": 3,
+    "findTalent": 0,
+    "joinNetwork": 1,
+    "getJob": 0,
+    "talentLink": false,
+    "footer2026": true,
+    "athena": false,
+    "hephaestus": false,
+    "curated": false,
+    "edtech": false,
+    "webflowBadge": true
+  },
+  "findings": [],
+  "pass": true
+}

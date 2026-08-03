@@ -1,0 +1,101 @@
+{
+  "at": "2026-07-04T01:52:21.383Z",
+  "home": {
+    "teaser": true,
+    "partnerModal": true,
+    "navPartners": true,
+    "footerPartners": true
+  },
+  "partnersPage": {
+    "wrap": true,
+    "bodyClass": true,
+    "h1": "Demigod Partners",
+    "table": true,
+    "cta": true,
+    "heroHidden": true
+  },
+  "modalOpen": {
+    "open": true,
+    "form": true
+  },
+  "partnerWalk": {
+    "steps": [
+      {
+        "wizOn": true,
+        "step": "0",
+        "welcome": true
+      },
+      {
+        "step": "2",
+        "visible": [
+          "partner-name"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "3",
+        "visible": [
+          "partner-email"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "4",
+        "visible": [
+          "partner-org"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "5",
+        "visible": [
+          "referral-plan"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "6",
+        "visible": [
+          "partner-linkedin"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "7",
+        "visible": [
+          "partner-notes"
+        ],
+        "stray": 0,
+        "submitMode": false
+      },
+      {
+        "step": "8",
+        "visible": [],
+        "stray": 0,
+        "submitMode": true
+      },
+      {
+        "thanks": true,
+        "step": "9"
+      }
+    ],
+    "strayOk": true
+  },
+  "pass": {
+    "homeTeaser": true,
+    "partnerModalInjected": true,
+    "navLink": true,
+    "footerLink": true,
+    "partnersPage": true,
+    "compensationTable": true,
+    "partnerWizard": true,
+    "partnerReview": true,
+    "partnerThanks": true
+  },
+  "ok": true
+}

@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Rotate /tmp/dg-busy logs + prune stale ephemeral JSON (no root needed).
+#   dg-busy-rotate [--dry-run]
+set -euo pipefail
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+DRY=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n) DRY=1 ;;
+    -h|--help)
+      echo "usage: dg-busy-rotate [--dry-run|-n]"
+      exit 0
+      ;;
+    *)
+      echo "busy-rotate: unknown argument $arg — try: dg-busy-rotate [--dry-run|-n]" >&2
+      exit 2
+      ;;
+  esac
+done
+mkdir -p "$BUSY"
+LOG="$BUSY/busy-rotate.log"
+MAX_LOG_BYTES=$((5 * 1024 * 1024))   # 5 MiB
+KEEP_TAIL_BYTES=$((1 * 1024 * 1024)) # keep last 1 MiB
+JSON_MAX_AGE_DAYS="${DG_BUSY_JSON_DAYS:-5}"
+log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG" >/dev/null; echo "$*"; }
+
+rotate_log() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  local sz
+  sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
+  if (( sz <= MAX_LOG_BYTES )); then
+    return 0
+  fi
+  if (( DRY )); then
+    log "dry-run rotate $f ($sz bytes)"
+    return 0
+  fi
+  local bak="${f}.1"
+  # Keep two compressed generations; nested logs are outside the user logrotate glob.
+  [[ -f "$bak" ]] && gzip -f "$bak"
+  [[ -f "${bak}.gz" ]] && mv -f "${bak}.gz" "${f}.2.gz"
+  # tail last KEEP_TAIL into new file via temp
+  tail -c "$KEEP_TAIL_BYTES" "$f" >"${f}.new" 2>/dev/null || true
+  mv -f "$f" "$bak"
+  mv -f "${f}.new" "$f"
+  gzip -f "$bak"
+  log "rotated $f was=${sz} now=$(stat -c%s "$f" 2>/dev/null || echo 0)"
+}
+
+# logs
+shopt -s nullglob
+for f in "$BUSY"/*.log "$BUSY"/**/*.log; do
+  [[ -f "$f" ]] || continue
+  # don't thrash our own log mid-write after 10MB
+  [[ "$(basename "$f")" == "busy-rotate.log" ]] && continue
+  rotate_log "$f"
+done
+
+# prune old cycle/receipt noise (keep truth, ship, control, lock)
+if (( DRY )); then
+  find "$BUSY" -maxdepth 1 -type f \( -name 'codex-*.log' -o -name 'claude-*.log' \) -mtime +"$JSON_MAX_AGE_DAYS" 2>/dev/null | while read -r p; do log "dry-run rm $p"; done
+else
+  n=0
+  while IFS= read -r -d '' p; do
+    rm -f "$p"
+    n=$((n + 1))
+  done < <(find "$BUSY" -maxdepth 1 -type f \( \
+    -name 'cycle-*-receipt.json' -o \
+    -name 'codex-*.log' -o \
+    -name 'claude-*.log' -o \
+    -name 'fable-*.txt' \
+    \) -mtime +"$JSON_MAX_AGE_DAYS" -print0 2>/dev/null)
+  log "pruned ${n} stale files older than ${JSON_MAX_AGE_DAYS}d"
+fi
+
+# cap total busy dir soft warning
+total=$(du -sm "$BUSY" 2>/dev/null | awk '{print $1}')
+log "busy size ${total}M path=$BUSY"
+if [[ -n "${total:-}" ]] && (( total > 500 )); then
+  command -v dg-notify >/dev/null 2>&1 && dg-notify "dg-busy large" "${total}M — check rotation" || true
+fi

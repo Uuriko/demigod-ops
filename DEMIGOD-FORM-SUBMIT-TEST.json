@@ -1,0 +1,30 @@
+{
+  "at": "2026-07-05T17:06:54.604Z",
+  "url": "https://www.trydemigod.com/?v=formtest-1783271202064",
+  "startup": {
+    "mode": "webflow",
+    "formName": null,
+    "dataName": null,
+    "turnstile": false,
+    "turnstileReady": false,
+    "fields": [
+      "contact-email",
+      "role-title",
+      "stack-needs",
+      "salary-range",
+      "submit"
+    ]
+  },
+  "submitResult": {
+    "ok": true,
+    "clicked": true,
+    "after": {
+      "doneVisible": true,
+      "failVisible": false,
+      "customSuccess": false,
+      "failText": "Oops! Something went wrong while submitting the form."
+    },
+    "pass": true
+  },
+  "pass": true
+}

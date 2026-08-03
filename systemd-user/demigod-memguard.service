@@ -1,0 +1,8 @@
+[Unit]
+Description=Demigod soft memory guard
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DG_MEM_WARN_MB=4096
+ExecStart=%h/bin/dg-memguard

@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# dg-dash — Demigod multi-agent dashboard (local, agent-first)
+set -euo pipefail
+cd /home/potter
+PORT="${DEMIGOD_DASH_PORT:-9878}"
+# nvm node is not on systemd PATH by default
+export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"
+NODE_BIN="$(command -v node || true)"
+if [[ -z "$NODE_BIN" ]]; then
+  echo "node not found on PATH" >&2
+  exit 1
+fi
+
+host_receipt_fresh() {
+  find /tmp/dg-busy/dashboard-server.heartbeat -mmin -2 -print -quit 2>/dev/null | grep -q .
+}
+
+if [[ "${1:-}" == "stop" ]]; then
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+  fi
+  pids=$(ss -ltnp 2>/dev/null | grep ":${PORT}" | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+  for p in $pids; do kill -TERM "$p" 2>/dev/null || true; done
+  rm -f /tmp/dg-busy/dashboard.pid
+  echo "stopped dash on :${PORT}"
+  exit 0
+fi
+
+if [[ "${1:-}" == "status" ]]; then
+  if curl --noproxy '*' -fsS --max-time 3 "http://127.0.0.1:${PORT}/healthz" 2>/dev/null; then
+    echo " up :${PORT}"
+  elif grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
+    echo "unobservable :${PORT} · fresh host receipt; namespace blocks local probe"
+  else
+    echo "down :${PORT} · recovery: bin/dg-dash"
+    tail -1 /tmp/dg-busy/dashboard-start.log 2>/dev/null || true
+    exit 1
+  fi
+  exit
+fi
+
+if [[ "${1:-}" == "brief" ]]; then
+  curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/agent-brief" || cat /tmp/dg-busy/AGENT-BRIEF.md 2>/dev/null
+  exit 0
+fi
+
+if [[ "${1:-}" == "coord" ]]; then
+  exec curl --noproxy '*' -fsS --max-time 25 "http://127.0.0.1:${PORT}/api/coord"
+fi
+
+if curl --noproxy '*' -fsS --max-time 1 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+  echo "already running"
+  echo "  UI     http://127.0.0.1:${PORT}/"
+  echo "  brief  http://127.0.0.1:${PORT}/api/agent-brief"
+  echo "  file   /tmp/dg-busy/AGENT-BRIEF.md"
+  if [[ -z "${DEMIGOD_DASH_NO_OPEN:-}" ]] && command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+  exit 0
+fi
+if grep -q '"code":"EPERM"' /tmp/dg-busy/dashboard-start.log 2>/dev/null && host_receipt_fresh; then
+  echo "already running · unobservable here; fresh host receipt"
+  exit 0
+fi
+
+mkdir -p /tmp/dg-busy
+# Prefer systemd unit when available.
+# If the unit is enabled but restart fails, do NOT fall through to nohup —
+# that spawns an unsupervised orphan that steals :PORT and forces the unit
+# into permanent EADDRINUSE restart loops (seen: 5,110 failures / ~8h).
+if systemctl --user is-enabled demigod-dash.service >/dev/null 2>&1; then
+  if systemctl --user restart demigod-dash.service 2>/dev/null; then
+    if curl --noproxy '*' -fsS --retry 20 --retry-all-errors --retry-delay 1 --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+      echo "dashboard → http://127.0.0.1:${PORT}/ (systemd)"
+      exit 0
+    fi
+    echo "systemd dashboard failed health check" >&2
+    exit 1
+  fi
+  echo "dash unit enabled but restart failed — refusing to spawn a competing unsupervised dashboard" >&2
+  echo "  check: systemctl --user status demigod-dash; ss -ltnp | grep ${PORT}" >&2
+  exit 1
+fi
+# nohup fallback only when unit is not enabled at all
+START_LOG=/tmp/dg-busy/dashboard-start.log
+nohup "$NODE_BIN" demigod-agent-dashboard.mjs --port "$PORT" >"$START_LOG" 2>&1 &
+dash_pid=$!
+echo "$dash_pid" >/tmp/dg-busy/dashboard.pid
+if curl --noproxy '*' -fsS --retry 5 --retry-all-errors --retry-delay 1 --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+  echo "dashboard → http://127.0.0.1:${PORT}/"
+  echo "brief     → http://127.0.0.1:${PORT}/api/agent-brief"
+  echo "actions   → http://127.0.0.1:${PORT}/api/actions"
+  echo "file      → /tmp/dg-busy/AGENT-BRIEF.md"
+  if [[ -z "${DEMIGOD_DASH_NO_OPEN:-}" ]] && command -v xdg-open >/dev/null 2>&1; then xdg-open "http://127.0.0.1:${PORT}/" 2>/dev/null || true; fi
+else
+  sleep .1
+  kill "$dash_pid" 2>/dev/null || true
+  wait "$dash_pid" 2>/dev/null || true
+  rm -f /tmp/dg-busy/dashboard.pid
+  echo "failed to start — see $START_LOG" >&2
+  tail -20 "$START_LOG" >&2 || true
+  exit 1
+fi

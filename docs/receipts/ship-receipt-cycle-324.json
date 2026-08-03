@@ -1,0 +1,30 @@
+{
+  "schema": "demigod.ship-receipt/1",
+  "cycle": 324,
+  "domain": "website",
+  "sourceVersion": "423",
+  "sourceSha256": "a18647b6eee7c70ae92d2b4cbded9f0afb75528568fbaa953fddedf0997d15ce",
+  "sourceBytes": 225268,
+  "manifestVersion": "213",
+  "releaseReady": false,
+  "failureKind": "release-transport-unavailable",
+  "canonicalArtifactsChanged": false,
+  "cm6MutationAttempted": false,
+  "autoDmAttempted": false,
+  "verification": {
+    "nodeCheck": "pass",
+    "footSmoke": "pass",
+    "wizOwnership": "pass",
+    "demandContracts": "pass-sandbox-fallback",
+    "nextIdentity": "pass-sandbox-fallback",
+    "shipSelftest": "pass",
+    "toolsContracts": "pass-sandbox-fallback",
+    "truthLock": "pass-sandbox-fallback"
+  },
+  "blockedTransports": [
+    "jsdelivr-github",
+    "catbox",
+    "catbox-cdp",
+    "gist-github"
+  ]
+}

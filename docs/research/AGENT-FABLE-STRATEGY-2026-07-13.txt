@@ -1,0 +1,35 @@
+**Demigod GTM Strategy — Fable, 2026-07-12**
+
+## 1) 90-Day Strategy: Earn Conversations, Prove One Match
+
+Recruiting is many-to-many matchmaking (a16z): the system's job is to earn the human conversation, never to spam it. Demigod's edge is the *mutual-yes*: Kim/Pergler (SMJ 2025) shows firm-driven search fills roles but raises turnover when candidates didn't choose the fit — our 90-day-outcome + candidate opt-in is the direct academic counter, and it becomes the pitch.
+
+- **Days 1–30 — Demand.** 15+ warm SF founder DMs (honest pre-seed framing, zero delivery claims). Convert 2–3 into logged pilots. Require MOC-style role clarity (mission/outcomes/competencies) as the intake bar — it filters unserious demand and *is* the matching signal.
+- **Days 31–60 — Deliver.** One white-glove match end-to-end: sourced, mutual-yes, intro, 90-day outcome logged. Move fast and hard through process (a16z founding-hire). This single real receipt replaces all seed data.
+- **Days 61–90 — Proof loop.** Publish the receipt (with permission), 3 founder testimonials, repeat at 3–5 concurrent roles. Site changes stay minimal; proof assets carry GTM.
+
+## 2) Monetization
+
+Market contingency fees run 15–25%, 20% common. Demigod at **10% on hire** is a credible half-price wedge justified by lower-touch, higher-signal matching. Path: free/white-glove pilot (now) → 10% success fee on first real hires (Stripe pending; invoice manually if needed — don't block revenue on integration) → later, retained tier for repeat founders once ≥3 receipts exist. No fee experiments until the first paid hire clears.
+
+## 3) Ranked 14-Day Checklist
+
+1. Follow up the 5 founders DMed 07-06 (follow-up was due 07-08 — overdue).
+2. Send 10+ new warm DMs from founders.csv; log every touch.
+3. Land 1–2 discovery calls; run MOC intake live.
+4. Begin one white-glove sourcing sprint for the best role.
+5. Log pilots honestly (board ≤3 seeds, real receipts only, honesty gate green).
+6. Draft the proof-asset template (receipt + 90-day-outcome format) so delivery auto-generates GTM material.
+7. Keep gates green after any edit; no site rewrite, copy-honesty only.
+
+## 4) Agent Org Model (orchestrator-worker, per Anthropic)
+
+- **Fable — orchestrator/boss.** Plans, audits, arbitrates. Emits detailed task specs (goal, files, verify command, stop condition) — never vague directives.
+- **Grok — execution worker.** CDP/tools/publish/hygiene. Acts only on a Fable spec; runs verify gates after every change.
+- **Codex — implementation worker.** Scoped code edits (run from dedicated dir; workspace-write blocks network). One canonical file rule holds.
+- **SSOT:** `DEMIGOD-COMPRESSED-STATE.md` + `DEMIGOD-BOARD.json` are shared memory; every agent reads state before acting, writes results back.
+- **No concurrent thrash:** single writer lock on foot-core; one agent edits at a time (the ≥5 corruption incidents all trace to concurrent sessions). Boot-smoke + honesty gate are the arbiter — no publish claim without a passing gate.
+
+Demand first. Everything else waits behind a real conversation.
+
+*(≈470 words)*

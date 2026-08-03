@@ -1,0 +1,21 @@
+[Unit]
+Description=Demigod Events Bot public tunnel
+After=demigod-events-bot.service network-online.target
+Wants=demigod-events-bot.service network-online.target
+
+[Service]
+Type=oneshot
+# No RemainAfterExit: OnUnitActiveSec timers never re-fire while a oneshot stays "active"
+# (stuck tunnel.timer SubState=running / next_elapse=0 for >24h). Heal timer is primary recover.
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.local/bin:%h/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+# Prefer cloudflared on up/heal (see demigod-events-heal.service). Sticky loca still in ladder fallback.
+Environment=DEMIGOD_EVENTS_TUNNEL=cloudflared
+# Starts tunnel if needed and writes local DEMIGOD-EVENTS-API.json. CDN publish stays explicit.
+ExecStart=/home/potter/bin/dg-events-online up
+StandardOutput=append:/tmp/dg-busy/events-online/tunnel-unit.log
+StandardError=append:/tmp/dg-busy/events-online/tunnel-unit.log
+
+[Install]
+WantedBy=default.target

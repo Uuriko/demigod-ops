@@ -1,0 +1,237 @@
+# === Home-as-repo safety ===
+# IMPORTANT: Agent tools (Grok/Cursor) often treat gitignore matches as hard blocks
+# and do NOT honor `!` re-include exceptions. Do NOT use broad globs like DEMIGOD-*
+# or ignore entire trees that agents must read/edit.
+
+# Agent / tool caches (ok to hard-ignore)
+.grok/
+.cache/
+.npm/
+.bun/
+.var/
+.codex/
+.cursor/
+.claude/
+.claude.json
+.claude.json.*
+.gemini/
+.factory/
+.nvm/
+.agents/
+.commandcode/
+.copilot/
+.eliza/
+node_modules/
+
+# Personal local state — but NOT agent CLIs (those live in ~/bin, not only .local)
+.local/
+# If something must live under .local/bin for PATH, also keep a copy in bin/
+
+# Most of .config is personal; agent units are installed FROM repo path systemd-user/
+.config/
+
+# Shell / OS personal
+.bash*
+.profile
+.viminfo
+.gitconfig
+.zshrc
+.wget-hsts
+.sudo_as_admin_successful
+.DS_Store
+*.swp
+.ssh/
+.gnupg/
+
+# Other local agent/editor/runtime state. This repository is rooted at $HOME, so these are private
+# machine configuration, not Demigod source.
+.finch/
+.fzf/
+.hermes/
+.kimi-code/
+.omp/
+.openclaude/
+.orca/
+.pi/
+.pyenv/
+.vscode/
+
+# Desktop folders
+Downloads/
+Pictures/
+Desktop/
+Documents/
+Music/
+Videos/
+Templates/
+Public/
+snap/
+orca/
+
+# Secrets / local only (narrow — do not use DEMIGOD-* blanket)
+HEAVY-*
+CURSOR-*
+DESK.json
+.demigod-ready
+audit-shots/
+archive/
+*.lock
+*.env
+*secret*
+openai*
+**/openai.env
+**/*api_key*
+DEMIGOD-MOBILE-BRIEF.txt
+
+# Logs & temp
+*.log
+/tmp/
+tmp/
+.dg-fixture/
+# Ad-hoc CDP verification/probe scripts (kept in repo root for ./cdp-config.mjs imports,
+# but they are disposable scratch — never commit them).
+.dg-*.mjs
+.aperture-*.mjs
+.check-*.mjs
+.dbg-*.mjs
+.form-html.mjs
+.head-*.mjs
+.inspect-*.mjs
+.live-*
+.mobile-*.mjs
+.orca-run-demigod-sequence.*
+.reveal-*.mjs
+.scroll-*.mjs
+.verify-*.mjs
+
+# Large / generated
+screenshots/
+*.mp4
+*.webm
+playwright-report/
+test-results/
+
+# Orca pairing tokens
+orca-pair-code.txt
+orca-pair-code.html
+.keep-awake.pid
+keep-awake.log
+
+# 375MB binaries — never commit
+orca-linux.AppImage
+orca-linux.AppImage.bak.*
+
+# Private Events Bot ops — EVERY DEMIGOD-EVENTS.* file is a full/partial copy of the events SoR
+# (offer/RSVP/contact PII). Broad wildcard: the earlier .json.* patterns missed the pre-<label>-<ts>
+# snapshots (pre-calpurge/pre-rungate — the suffix is BEFORE .json), which held 12+11 real contact
+# emails and were commit-eligible. DEMIGOD-EVENTS.* catches the main file, atomic-write temps
+# (.json.tmp.<pid>, .json.bak.<pid>), .corrupt/.archive, AND the pre-* snapshots. Never commit any.
+DEMIGOD-EVENTS.json
+DEMIGOD-EVENTS.*
+events-bot-outbox/
+# Leads SoR + its derivatives hold founder/candidate PII -- never commit. Untracked today, so
+# ignoring now keeps it out of history cleanly (no scrub needed). The .archive.jsonl is written by
+# ingestSubmission's cap (46a1c30); .corrupt.* by loadInbox's preserve-on-corruption guard (665d0da).
+DEMIGOD-SUBMISSIONS-INBOX.json
+DEMIGOD-SUBMISSIONS-INBOX.json.archive.jsonl
+DEMIGOD-SUBMISSIONS-INBOX.json.corrupt.*
+DEMIGOD-INBOX-REPORT.json
+# Private local candidate CRM (messages, resumes, contact details); never stage.
+talent-crm/
+# Private YC directory snapshot; public map data is a separate licensed projection.
+DEMIGOD-SF-STARTUPS.json
+# Per-person meeting prep contains private contact/context; keep other demigod-ops sources trackable.
+demigod-ops/*-PREP-*.md
+# Founder/candidate outreach is private operational data: contacts, drafts, trackers, and send
+# history. Only the two generic templates are source; everything else stays local.
+demigod-outreach/*
+!demigod-outreach/template-dm.md
+!demigod-outreach/template-dm-engineer.md
+# Root-level send logs (stray copies outside demigod-outreach/) hold DM transport evidence.
+dm-send-log.txt
+# Generated signal manifest may contain a real receipt capability URL.
+SIGNAL-THEATER.json
+DEMIGOD-PROOF-LOG.json
+DEMIGOD-PROOF-LOG.json.corrupt.*
+# Private matching/outreach state and generated intro/invoice packets.
+DEMIGOD-MATCHES.json*
+DEMIGOD-OUTREACH.json*
+demigod-ops/intros/*
+!demigod-ops/intros/.gitkeep
+demigod-ops/invoices/
+# Board corruption backups (old .bak/.corrupt snapshots hold real founder handles/emails) and grok
+# conversation scratch (contains a personal email). Cruft/scratch, never meant to be committed.
+DEMIGOD-BOARD.corrupt*
+DEMIGOD-BOARD.CORRUPT*
+grok-input.txt
+grok-snapshot.txt
+grok-tail.txt
+
+# Firecrawl secrets
+.env.firecrawl
+.firecrawl-key
+.config/firecrawl/
+
+
+# Agent status scratch with a personal email (ORCA pair status).
+ORCA-PAIR-EMAIL-STATUS.txt
+
+# Board + pairs SoRs and their regenerable runtime outputs — hold candidate/role data (anonymized but
+# identifiable once real inbound starts). Untracked today (0 real, sample-only), so ignoring now keeps
+# them out of history cleanly — same proactive rule as the inbox/leads SoRs above. The tracked symlink
+# demigod-board.json -> DEMIGOD-BOARD.json stays (it is a pointer, no data). NB: DEMIGOD-BOARD.corrupt*
+# above is uppercase and missed the lowercase demigod-board.corrupt-* backups (real data at corrupt-time).
+DEMIGOD-BOARD.json
+DEMIGOD-BOARD.json.*
+DEMIGOD-PAIRS.json
+DEMIGOD-PAIRS.json.*
+DEMIGOD-BOARD-HONESTY.json
+DEMIGOD-BOARD-AUDIT.jsonl
+DEMIGOD-BOARD-CDN.json
+DEMIGOD-BOARD-PUBLIC.json
+demigod-board.corrupt*
+demigod-foot-core.b64
+
+# More SoRs a `git add -A --dry-run` (cycle 415) proved committable — the earlier per-file check missed
+# them. DEMIGOD-LEADS.json holds REAL founder/candidate PII (untracked today = active risk, not latent).
+# DEMIGOD-EVENTS.* (dot) missed hyphenated DEMIGOD-EVENTS-API.json + lowercase demigod-events-data.json;
+# DEMIGOD-BOARD.json.* (uppercase) missed lowercase demigod-board.json.bak-*. All never-tracked -> clean.
+DEMIGOD-LEADS.json
+DEMIGOD-LEADS.json.*
+DEMIGOD-PILOTS.json
+DEMIGOD-PILOTS.json.*
+DEMIGOD-REFERRALS.json
+DEMIGOD-REFERRALS.json.*
+DEMIGOD-EVENTS-API.json
+demigod-events-data.json
+demigod-events-data.json.*
+demigod-board.json.bak*
+*.mjs.bak
+
+# Browser/system dotfile dirs (the repo IS /home/potter, so `git add -A` would stage them). Agent
+# dotfiles (.grok/.codex/.cursor/.claude) were ignored earlier; these hold browser session state/cookies
+# (.mozilla — incl auth for the :9223 Designer), Wine app data, and cert DBs. Defense-in-depth so an
+# accidental `git add -A` of the home dir can't commit session tokens or system cruft. (cycle 421)
+.mozilla/
+.wine/
+.pki/
+DEMIGOD-ROLE-LEDGER.json
+
+# Personal-contact operational artifacts: call packs, day cards, countdowns, and a Gmail draft
+# that carries a real third-party address. These are untracked siblings of files already tracked
+# here (DOUGLAS-RUN-OF-SHOW.md, PILOT-LOG.md), so a bulk `git add -A` by any agent would sweep
+# them into history. Same private-operational-data rule as demigod-outreach/* above.
+demigod-ops/DOUGLAS-*
+# No negation re-opening this path: a `!` exception inside a PII-protected directory is a
+# hole the privacy gate rejects, and it bought nothing — DOUGLAS-RUN-OF-SHOW.md was already
+# tracked, and .gitignore never untracks an existing file.
+demigod-ops/SEND-QUEUE-PRIORITIZED.md
+# Inbox triage SoR — small today, grows with real submissions.
+DEMIGOD-INBOX-TRIAGE.json
+
+# Embedded git repo — would land as a broken gitlink, not real content.
+hahahacks-2026/
+
+# Large binaries: GitHub rejects >100MB and these are re-downloadable artifacts.
+*.AppImage
+*.AppImage.v*

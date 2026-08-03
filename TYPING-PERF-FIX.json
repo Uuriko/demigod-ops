@@ -1,0 +1,94 @@
+{
+  "at": "2026-07-01T04:23:15.486Z",
+  "actions": [
+    {
+      "key": "screen-reader-enabled",
+      "value": false,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "enable",
+      "value": true,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "bouncekeys-enable",
+      "value": true,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "bouncekeys-delay",
+      "value": 100,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "slowkeys-enable",
+      "value": false,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "stickykeys-enable",
+      "value": false,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "repeat",
+      "value": true,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "delay",
+      "value": 300,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "repeat-interval",
+      "value": 40,
+      "ok": true,
+      "err": null
+    },
+    {
+      "key": "enable-animations",
+      "value": false,
+      "ok": true,
+      "err": null
+    },
+    {
+      "step": "close-heavy-tabs",
+      "closed": [
+        {
+          "url": "https://webflow.com/dashboard?workspace=johns-workspace-f42e17",
+          "reason": "heavy-or-stale"
+        },
+        {
+          "url": "https://webflow.com/dashboard/sites/talentlink-sf/forms",
+          "reason": "heavy-or-stale"
+        }
+      ]
+    }
+  ],
+  "system": {
+    "uptime": "21:23:17 up 1 day, 12:58,  1 user,  load average: 3.58, 2.54, 2.45",
+    "cosmicComp": "%CPU     ELAPSED CMD"
+  },
+  "keyboardAfter": {
+    "bouncekeys": "true",
+    "bounceDelay": "100",
+    "repeatInterval": "uint32 40",
+    "animations": "false"
+  },
+  "recommendations": [
+    "REBOOT or log out/in — cosmic-comp has been up 6+ days at high CPU; only a session reset fully fixes lag",
+    "Close Orca when not using it (orca-linux.AppImage uses extra GPU/CPU)",
+    "Keep Chrome to 3 tabs: Grok + Webflow Designer + trydemigod.com",
+    "If double letters persist after reboot, test an external keyboard to rule out hardware"
+  ]
+}

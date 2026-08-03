@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# dg-useful-loop — durable product work loop control
+#   bin/dg-useful-loop start|stop|status|once|log|plan
+set -euo pipefail
+export PATH="$HOME/bin:$HOME/.local/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+UNIT=demigod-useful-loop.service
+cd "$ROOT"
+cmd="${1:-status}"
+shift || true
+case "$cmd" in
+  start|stop|restart|status|once|plan)
+    if [[ -n "${1:-}" ]]; then
+      echo "dg-useful-loop: unknown argument $1 — try: bin/dg-useful-loop $cmd" >&2
+      exit 2
+    fi
+    ;;
+  log)
+    if [[ -n "${1:-}" && ! "${1}" =~ ^[0-9]+$ ]]; then
+      echo "dg-useful-loop: unknown argument $1 — try: bin/dg-useful-loop log [N]" >&2
+      exit 2
+    fi
+    if [[ -n "${2:-}" ]]; then
+      echo "dg-useful-loop: unknown argument $2 — try: bin/dg-useful-loop log [N]" >&2
+      exit 2
+    fi
+    ;;
+  *)
+    echo "usage: bin/dg-useful-loop start|stop|restart|status|once|log|plan" >&2
+    exit 2
+    ;;
+esac
+case "$cmd" in
+  start)
+    rm -f "$BUSY/useful-loop.STOP"
+    systemctl --user daemon-reload
+    systemctl --user enable --now "$UNIT"
+    systemctl --user status "$UNIT" --no-pager -l | head -20
+    ;;
+  stop)
+    # soft stop first (loop honors STOP), then unit stop
+    date -Iseconds >"$BUSY/useful-loop.STOP"
+    systemctl --user stop "$UNIT" 2>/dev/null || true
+    echo "stopped (STOP file + unit)"
+    ;;
+  restart)
+    rm -f "$BUSY/useful-loop.STOP"
+    systemctl --user restart "$UNIT"
+    systemctl --user is-active "$UNIT"
+    ;;
+  status)
+    systemctl --user is-active "$UNIT" 2>/dev/null || true
+    systemctl --user status "$UNIT" --no-pager -l 2>/dev/null | head -18 || true
+    echo "--- last ---"
+    [ -f "$BUSY/useful-loop-last.json" ] && head -c 1200 "$BUSY/useful-loop-last.json" && echo
+    echo "STOP=$( [ -f "$BUSY/useful-loop.STOP" ] && echo yes || echo no )"
+    ;;
+  once)
+    exec node "$ROOT/demigod-useful-loop.mjs" once
+    ;;
+  log)
+    tail -n "${1:-40}" "$BUSY/useful-loop.log" 2>/dev/null || tail -n "${1:-40}" "$BUSY/useful-loop.systemd.log" 2>/dev/null || echo "(no log)"
+    ;;
+  plan)
+    exec cat "$BUSY/USEFUL-LOOP-PLAN.md" 2>/dev/null || cat "$ROOT/tmp/dg-busy/USEFUL-LOOP-PLAN.md" 2>/dev/null
+    ;;
+esac

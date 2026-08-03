@@ -1,0 +1,27 @@
+<!-- demigod-foot-cdn-loader v28 + events + foot v859 -->
+<script>(function(){var p=location.pathname,s=location.search||'',h=location.hash||'';function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
+if(/^\/legal\/?$/i.test(p)&&!/[?&]p=/.test(location.search))go('/?p=legal');
+else if(/^\/(?:blog|notes)\/([a-z0-9-]+)\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\/(?:blog|notes)\/([a-z0-9-]+)\/?$/i)[1]);
+else if(/^\/(blog|notes)\/?$/i.test(p))go('/?p=blog');
+else if(/^\/method\/?$/i.test(p))go('/?p=how');
+else if(/^\/partnerships?\/?$/i.test(p)||/^\/partners\/?$/i.test(p))go('/?p=partners');
+else if(/^\/(?:event-bot|events-bot)\/?$/i.test(p))go('/?p=events');
+else if(/^\/how\/?$/i.test(p))go('/?p=how');
+else if(/^\/pricing\/?$/i.test(p))go('/?p=pricing');
+else if(/^\/faq\/?$/i.test(p))go('/?p=faq');
+else if(/^\/founders\/?$/i.test(p))go('/?p=hire');
+else if(/^\/(?:candidates|engineers)\/?$/i.test(p))go('/?p=talent');
+else if(/^\/fees\/?$/i.test(p))go('/?p=pricing');
+else if(/^\/security\/?$/i.test(p))go('/?p=legal');
+else if(/^\/sample\/?$/i.test(p))go('/?p=sample');
+else if(/^\/network\/?$/i.test(p))go('/?p=talent');
+else if(/^\/hire\/?$/i.test(p))go('/?p=hire');
+else if(/^\/talent\/?$/i.test(p))go('/?p=talent');
+else if(/^\/contact\/?$/i.test(p))go('/?p=contact');
+else if(/^\/compare\/?$/i.test(p))go('/?p=pricing');
+else if(/^\/pilot\/?$/i.test(p))go('/?p=hire');
+else if(/^\/about\/?$/i.test(p))go('/?p=about');
+else if(/^\/status\/?$/i.test(p))go('/?p=about');
+else if(/^\/events\/?$/i.test(p))go('/?p=events');
+})();</script>
+<script id="demigod-foot-cdn-loader" src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@8d5a78a017ee/foot-latest.js"></script>

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "skills": {
+    "computer-use": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/computer-use/SKILL.md",
+      "computedHash": "869b5b9345b7146e2cfb89b0e07768c191d5c3f200ed9e5119935ec9e235aef3"
+    },
+    "orca-cli": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/orca-cli/SKILL.md",
+      "computedHash": "076dfac1465c86e876f4d5bc5d672f41f2a5a7bfcb7cfeb997a9ba68fba7cdb7"
+    },
+    "orchestration": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/orchestration/SKILL.md",
+      "computedHash": "194e6ae1ec1d9e9701958a61c34e41cf566109f4cbe9246d9e48c17063a6fecc"
+    },
+    "stripe-best-practices": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "47b21ed8662be5dbad43239ca99f77326a73c2d0c691fb15dc028871fe4c3569"
+    },
+    "stripe-directory": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "58d8c458beaa92877ed2f0a622af65a0a91e2804efcc4188ac87a35780015361"
+    },
+    "stripe-projects": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "a53a28a78e6561d15dd1aadaf552217bfa2f9dbb2ef57aa9cd7a9caf93ef5eed"
+    },
+    "upgrade-stripe": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "46bb3c16878f93b953ed901b950686d64f04f90c67400bf31e1a0d7790d889df"
+    }
+  }
+}

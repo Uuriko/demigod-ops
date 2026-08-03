@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "owner": "other-publisher",
+  "error": "foot lock held by another owner — refuse publish. {\n  \"ok\": false,\n  \"error\": \"locked\",\n  \"lock\": {\n    \"owner\": \"hold-publish\",\n    \"pid\": 1360616,\n    \"pidScope\": \"claim-command\",\n    \"at\": \"2026-07-26T20:51:19.200Z\",\n    \"expiresAt\": \"2026-07-26T2",
+  "log": [
+    "claim foot lock"
+  ],
+  "pipeline": "dg-publish-foot",
+  "at": "2026-07-26T20:51:19.367Z",
+  "schema": 1
+}

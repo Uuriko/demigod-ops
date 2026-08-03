@@ -1,0 +1,22 @@
+[Unit]
+Description=Demigod Events Bot API (127.0.0.1:3460)
+After=default.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.local/bin:%h/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+Environment=HOST=127.0.0.1
+Environment=PORT=3460
+Environment=DEMIGOD_ROOT=/home/potter
+# Ops secret for draft tick / agent routes (file written by demigod-events-online ensureOpsSecret)
+EnvironmentFile=-/tmp/dg-busy/events-online/ops-secret.env
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-events-app.mjs
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/tmp/dg-busy/events-online/app.log
+StandardError=append:/tmp/dg-busy/events-online/app.log
+
+[Install]
+WantedBy=default.target

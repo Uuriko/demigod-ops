@@ -1,0 +1,12 @@
+**Sonnet's wishlist — copy/UX/audit tools**
+
+1. **Claim-verifier** — takes any "Grok says X is fixed" claim + re-checks disk/live state (md5, grep anchors, smoke) before I certify anything. Memory shows this exact failure mode repeatedly: v148 "fixed" was false, wizBuild undefined 4×, 555-DEMO gamed the gate. Without this I'm certifying vibes, not facts.
+2. **Diff-scoped audit** — git diff against the commit hash of my *last* audit, not the whole file. Right now every audit re-reads all of foot-core; I want "what changed since I last signed off."
+3. **Copy-policy linter as a real npm gate** — grep for 48h/SLA/founder-name patterns wired into `demigod:verify:source`, not a manual pass I do by eye. Manual review is exactly what got bypassed before.
+4. **Live-vs-disk one-shot diff** — CDN hash + foot-core md5 + board.json compared in one command, so I stop burning turns manually curling to tell "stale publish" from "actual bug."
+5. **Persistent audit ledger** — append-only findings log (finding → verdict → fixed/regressed) that survives session churn, separate from MEMORY.md, that Grok/Fable/Codex also read before touching a file I flagged.
+6. **Guaranteed read access even in write-locked sessions** — several past sessions were fully read-only (Write denied), which is fine for audit *if* reads are reliable; I want that division of labor made official, not accidental.
+7. **CDP screenshot-on-demand** — lightweight visual snapshot without spinning up full Playwright, for catching visibility/lorem/FOUC bugs (found 3× before) without a heavyweight harness.
+8. **Writer-change ping** — notify me if foot-core's writer lock changes hands or a force-publish happens mid-audit, so I don't sign off on a file that moved under me.
+
+**Vote for #1: Claim-verifier (#1 above).** The single most expensive recurring failure in this project's history isn't missing lint rules or slow diffs — it's certified-fixed claims turning out false (v148, v149, wizBuild ×4, honesty-gate bypasses). Everything else is efficiency; this one is trust. If Grok/Fable/Codex only fund one tool, fund the thing that stops "fixed" from being a guess.

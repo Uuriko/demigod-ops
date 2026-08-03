@@ -1,0 +1,26 @@
+[Unit]
+Description=Demigod agent dashboard (:9878)
+After=default.target
+# Prefer AC but still useful offline for read-only status
+ConditionPathExists=/home/potter/demigod-agent-dashboard.mjs
+
+[Service]
+Type=simple
+UMask=0077
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DEMIGOD_DASH_PORT=9878
+Environment=NODE_ENV=production
+ExecStartPre=/bin/mkdir -p /tmp/dg-busy
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-agent-dashboard.mjs --port 9878
+Restart=on-failure
+RestartPreventExitStatus=98
+RestartSec=5
+StandardOutput=append:/tmp/dg-busy/dashboard.log
+StandardError=append:/tmp/dg-busy/dashboard.log
+# Soft caps so dash can't eat the machine
+MemoryMax=2G
+CPUQuota=100%
+
+[Install]
+WantedBy=default.target

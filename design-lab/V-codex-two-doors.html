@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Demigod · Codex Two Doors (lab)</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;color:#111}
+  .bar{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1.2rem;border-bottom:1px solid #ddd;background:#fff}
+  .word{font-weight:700}
+  .doors{display:grid;grid-template-columns:1fr 12px 1fr;min-height:calc(100vh - 48px)}
+  .hire{background:#F6EDE6;padding:3rem 2rem;display:flex;flex-direction:column;justify-content:center}
+  .look{background:#2A1830;color:#F6EDE6;padding:3rem 2rem;display:flex;flex-direction:column;justify-content:center}
+  .seam{background:#111;color:#F6EDE6;writing-mode:vertical-rl;text-orientation:mixed;display:flex;align-items:center;justify-content:center;font-size:.72rem;letter-spacing:.14em;font-weight:700;padding:.5rem 0}
+  .eye{font-size:.72rem;letter-spacing:.14em;font-weight:650;opacity:.75;margin-bottom:.8rem}
+  h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.05;margin:0 0 1rem;letter-spacing:-.03em;max-width:10ch}
+  p{max-width:28rem;line-height:1.5;opacity:.85;margin:0 0 1.4rem}
+  a{display:inline-block;text-decoration:none;font-weight:700;padding:1rem 1.2rem;border-radius:0}
+  .hire a{background:#111;color:#fff}
+  .look a{background:#F6EDE6;color:#2A1830}
+  .kick{text-align:center;padding:.7rem;font-size:.85rem;background:#fff;border-top:1px solid #ddd;color:#555}
+  @media(max-width:800px){.doors{grid-template-columns:1fr}.seam{writing-mode:horizontal-tb;padding:.6rem;min-height:auto}}
+</style>
+</head>
+<body>
+  <div class="bar"><div class="word">Demigod</div><div style="font-size:.85rem;color:#666">ONE MATCH. TWO YESes.</div></div>
+  <div class="doors">
+    <section class="hire">
+      <div class="eye">HIRING TEAMS</div>
+      <h1>Build the team.</h1>
+      <p>Share the role and the 90-day outcome. Demigod tech ranks evidence; a human reviews tradeoffs.</p>
+      <a href="#hire">I'm hiring</a>
+    </section>
+    <div class="seam">TECH RANKS → HUMAN REVIEWS → BOTH APPROVE</div>
+    <section class="look">
+      <div class="eye">TALENT</div>
+      <h1>Find the fit.</h1>
+      <p>Share work, skills, and constraints. Identity stays private until mutual interest. Free for talent.</p>
+      <a href="#look">I'm looking</a>
+    </section>
+  </div>
+  <div class="kick">10% when a hire starts · free for talent · lab Codex Two Doors</div>
+</body>
+</html>

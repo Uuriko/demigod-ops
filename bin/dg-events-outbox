@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Print Events Bot outreach queue (human drain). No auto-send.
+#   bin/dg-events-outbox          # readiness only (default; safe for logs)
+#   bin/dg-events-outbox status   # same as default
+#   bin/dg-events-outbox show     # private draft subjects/bodies (intentional drain only)
+set -euo pipefail
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "usage: bin/dg-events-outbox [status|show]"
+  exit 0
+fi
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "status" && "$1" != "show" ) ]]; then
+  echo "usage: bin/dg-events-outbox [status|show]" >&2
+  exit 2
+fi
+cd "${DEMIGOD_ROOT:-$HOME}"
+node -e '
+import { hasFutureDateTime, inviteDrainReport, isRealOutreachEmail, loadStore, outreachDraftReadiness, resourceGaps } from "./demigod-events-bot-agent.mjs";
+const mode = process.argv[1] === "show" ? "show" : "status";
+const s = loadStore();
+console.log("active event", s.activeEvent?.id || "none", "·", s.activeEvent?.title || "none");
+if (!s.activeEvent) process.exit(0);
+if (s.activeEvent) console.log("target", s.activeEvent.seats || "unset", "seats · windows", (s.activeEvent.dateWindows || []).join(", ") || "unset");
+if (s.activeEvent && !hasFutureDateTime(s.activeEvent)) console.log("schedule blocker", "record a future timezone-aware start before RSVP");
+const confirmed = Array.isArray(s.rsvps) ? s.rsvps.filter(r=>r.eventId===s.activeEvent?.id && r.status==="yes").length : Number(s.activeEvent?.outcomes?.confirmed) || 0;
+if (Number.isFinite(s.activeEvent?.seats)) console.log("RSVPs", confirmed, "confirmed ·", confirmed>s.activeEvent.seats ? `${confirmed-s.activeEvent.seats} over capacity` : `${s.activeEvent.seats-confirmed} seats left`);
+if (Number.isFinite(s.activeEvent?.seats) && Number(s.activeEvent?.venue?.capacity) > 0 && s.activeEvent.seats > Number(s.activeEvent.venue.capacity)) console.log("venue capacity blocker", s.activeEvent.venue.capacity, "seats for", s.activeEvent.seats, "target");
+const gaps = resourceGaps(s);
+console.log("resource gaps", gaps.missing.map(k=>k==="venue_alt"?"confirm a venue alternative with evidence":k==="venue_capacity"?"select a venue that fits the seat target":k==="venue_confirmation"?"confirm the selected venue with evidence":`confirm ${k} with evidence`).join(", ") || "none");
+if (gaps.topFreeVenue) console.log("suggested venue lead", gaps.topFreeVenue.name, "·", gaps.topFreeVenue.area, "· capacity", gaps.topFreeVenue.capacity, "· cost", gaps.topFreeVenue.cost);
+const invites = inviteDrainReport(s);
+console.log("invite URLs needed", invites.needsUrl, "recorded", invites.hasUrl, "optional", invites.optional);
+const activeId = s.activeEvent?.id;
+const list = (s.outreach||[]).filter(o=>activeId && (o.status==="queued"||o.status==="drafted") && o.eventId===activeId);
+console.log("outreach queued", list.filter(o=>o.status==="queued").length, "drafted", list.filter(o=>o.status==="drafted").length);
+const resources = list.filter(o=>/venue|sponsor|volunteer/.test(o.kind||""));
+const ready = resources.filter(o=>isRealOutreachEmail(o.toEmail) && !/@trydemigod\.com$/i.test(o.toEmail) && outreachDraftReadiness(o)>=3);
+const internal = resources.filter(o=>/@trydemigod\.com$/i.test(o.toEmail));
+const contactBlocked = resources.filter(o=>!isRealOutreachEmail(o.toEmail) && !/@trydemigod\.com$/i.test(o.toEmail));
+console.log("resource drafts external-ready", ready.length, "internal ops", internal.length, "invalid contact", contactBlocked.length, "content", resources.length-ready.length-internal.length-contactBlocked.length);
+if (internal.length && !ready.length) console.log("outreach blocker", "replace", internal.length, "internal ops contacts with verified external contacts");
+for (const kind of ["venue","sponsor","volunteer"]) console.log(kind, "drafts", resources.filter(o=>o.kind.includes(kind)).length, "external-ready", ready.filter(o=>o.kind.includes(kind)).length);
+for (const o of resources) {
+  const blocker = /@trydemigod\.com$/i.test(o.toEmail)
+    ? "internal ops"
+    : !isRealOutreachEmail(o.toEmail) ? "invalid contact"
+    : outreachDraftReadiness(o) < 3 ? "content incomplete" : "external-ready";
+  console.log("draft", o.id || "unknown", o.kind || "unknown", "·", blocker);
+}
+if (mode !== "show") process.exit(0);
+for (const i of invites.need) console.log("---", i.platform, i.id, i.outboxTxt || "draft export missing");
+for (const o of list.slice(-20)) {
+  console.log("---", o.id, o.kind, o.toEmail);
+  console.log("SUBJ:", o.subject);
+  console.log(String(o.body||"").slice(0,400));
+}
+' -- "$@"

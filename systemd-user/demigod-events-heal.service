@@ -1,0 +1,19 @@
+[Unit]
+Description=Demigod Events public API health check + heal when needHeal
+After=demigod-events-bot.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.local/bin:%h/bin:%h/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+# Prefer cloudflared quick tunnel on heal (loca.lt shared relay thrash / lightly maintained).
+# Ladder still falls back to loca-random then preferred sticky if CF fails.
+Environment=DEMIGOD_EVENTS_TUNNEL=cloudflared
+# status exits 0 when local+public ok, 2 when local ok / public dead, 1 when local down.
+# On any non-zero, run heal (aliases up) so tunnel rotation is unattended.
+ExecStart=/bin/bash -ec 'mkdir -p /tmp/dg-busy/events-bot /tmp/dg-busy/events-online; if /home/potter/bin/dg-events-online status >>/tmp/dg-busy/events-bot/tunnel-watch.log 2>&1; then exit 0; fi; echo "[$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)] heal after status fail" >>/tmp/dg-busy/events-bot/tunnel.log; /home/potter/bin/dg-events-online heal >>/tmp/dg-busy/events-bot/tunnel.log 2>&1'
+Nice=10
+
+[Install]
+WantedBy=default.target

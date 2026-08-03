@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "failOn": "high",
+  "max": 0,
+  "exclude": [],
+  "excludeRules": ["todo-marker"],
+  "onlyRules": [],
+  "bug": false,
+  "full": false,
+  "notes": "Optional project defaults for bin/dg-review. CLI flags override."
+}

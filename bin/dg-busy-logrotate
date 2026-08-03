@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Pass-through only known flags — never mute unknown and rotate anyway.
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n|-h|--help) ;;
+    *)
+      echo "busy-logrotate: unknown argument $arg — try: dg-busy-logrotate [--dry-run|-n]" >&2
+      exit 2
+      ;;
+  esac
+done
+CONF="${HOME}/.config/logrotate.d-user/dg-busy.conf"
+STATE="${HOME}/.local/state/logrotate-dg-busy.status"
+mkdir -p "$(dirname "$STATE")"
+if command -v logrotate >/dev/null 2>&1 && [[ -f "$CONF" ]]; then
+  logrotate -s "$STATE" "$CONF" 2>/dev/null || true
+fi
+exec dg-busy-rotate "$@"

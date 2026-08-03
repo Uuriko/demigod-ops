@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# dg-blog — Demigod custom blog SoR tools
+#   bin/dg-blog sync              # JSON → foot embed + head Blog LD
+#   bin/dg-blog check             # exit 1 if drift
+#   bin/dg-blog status            # counts + issues
+#   bin/dg-blog quality           # prose/release quality report
+#   bin/dg-blog new --slug=x --title="Y" [--category=Product]
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+export PATH="${HOME}/.local/bin:${HOME}/bin:${HOME}/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH}"
+cd "$ROOT"
+cmd="${1:-sync}"
+shift || true
+case "$cmd" in
+  sync)   exec node demigod-blog-sync.mjs "$@" ;;
+  check)  exec node demigod-blog-sync.mjs --check "$@" ;;
+  status) exec node demigod-blog-sync.mjs --status "$@" ;;
+  quality) exec node demigod-blog-quality.mjs "$@" ;;
+  new)    exec node demigod-blog-sync.mjs --new "$@" ;;
+  help|-h|--help)
+    cat <<'EOF'
+dg-blog — custom blog (demigod-blog-posts.json SoR)
+
+  bin/dg-blog sync
+  bin/dg-blog check
+  bin/dg-blog status
+  bin/dg-blog quality
+  bin/dg-blog new --slug=my-post --title="My post" [--category=Product]
+
+After sync: bump foot version if needed, then:
+  DG_LOCK_OWNER=me bin/dg-lock node demigod-ship.mjs cdn
+EOF
+    ;;
+  *)
+    echo "unknown: $cmd (try help)" >&2
+    exit 2
+    ;;
+esac

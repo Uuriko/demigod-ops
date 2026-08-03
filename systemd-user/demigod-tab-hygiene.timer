@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic CDP tab hygiene (every 45 min)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=45min
+Persistent=true
+Unit=demigod-tab-hygiene.service
+
+[Install]
+WantedBy=timers.target

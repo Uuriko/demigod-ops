@@ -1,0 +1,47 @@
+{
+  "cycle": 60,
+  "phase": "paused",
+  "lastRun": "2026-06-23T01:02:23.307Z",
+  "lastPass": true,
+  "pendingHeavy": false,
+  "pendingCursor": false,
+  "errors": [
+    {
+      "at": "2026-06-23T00:55:56.951Z",
+      "phase": "send_heavy",
+      "msg": "send_heavy: no grok tab — open grok.com in CDP Chrome"
+    },
+    {
+      "at": "2026-06-23T00:55:57.371Z",
+      "phase": "collect_heavy",
+      "msg": "collect_heavy: no grok tab"
+    },
+    {
+      "at": "2026-06-23T00:58:23.197Z",
+      "phase": "dispatch_cursor",
+      "msg": "dispatch_cursor: Attempted to use detached Frame '4413404CA382A5B4C66F7093F519B625'."
+    },
+    {
+      "at": "2026-06-23T01:03:07.443Z",
+      "phase": "send_heavy",
+      "msg": "send_heavy: no grok tab — open grok.com in CDP Chrome"
+    },
+    {
+      "at": "2026-06-23T01:03:07.513Z",
+      "phase": "collect_heavy",
+      "msg": "collect_heavy: no grok tab"
+    }
+  ],
+  "lastReport": "NEW-PLAYER-PLAYTEST.md",
+  "resumedAt": "2026-06-22T19:00:00.000Z",
+  "resumedReason": "User requested continuous improve loop restart",
+  "lastCursorRetry": "2026-06-23T01:03:08.114Z",
+  "lastCursorOk": true,
+  "lastCursorWatch": "2026-06-23T00:59:17.053Z",
+  "cursorPaused": true,
+  "cursorPausedAt": "2026-06-23T01:05:43.561Z",
+  "cursorPausedReason": "User requested pause",
+  "automationPaused": true,
+  "automationPausedAt": "2026-06-23T01:05:43.598Z",
+  "automationPausedReason": "User requested full pause"
+}

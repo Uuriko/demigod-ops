@@ -1,0 +1,55 @@
+{
+  "at": "2026-07-31T03:23:04.913Z",
+  "pass": true,
+  "checks": {
+    "liveForms": {
+      "ok": true
+    },
+    "webhookHealth": {
+      "ok": true,
+      "json": {
+        "ok": true,
+        "service": "demigod-submissions-webhook",
+        "auth": {
+          "mode": "compat-unsigned",
+          "keyCount": 0
+        }
+      },
+      "scope": "intake-smoke-1038345-1785468184502"
+    },
+    "partnerPost": {
+      "httpStatus": 200,
+      "ok": true,
+      "id": "sub-f5b8e8ba37051fb177dd46bf494105fa",
+      "inboxStatus": "not_accepted",
+      "featured": false
+    },
+    "startupPost": {
+      "httpStatus": 200,
+      "ok": true,
+      "id": "sub-756acdd0437e465309b0d367ed544240",
+      "inboxStatus": "not_accepted",
+      "featured": false
+    },
+    "engineerPost": {
+      "httpStatus": 200,
+      "ok": true,
+      "id": "sub-49d2f79cd46dc3622dc49461a3208806",
+      "inboxStatus": "not_accepted",
+      "featured": false
+    },
+    "wizard": {
+      "ok": true,
+      "skipped": true,
+      "reason": "webhook-only-check"
+    },
+    "webflowSubmit": {
+      "exitCode": null,
+      "ok": true,
+      "skipped": true,
+      "reason": "explicit_--live-submit_required"
+    }
+  },
+  "humanFollowUp": null,
+  "note": "Webflow forms and the isolated receiver are verified separately; live delivery uses configured Webflow webhooks."
+}

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Consult Codex synchronously from any agent (Claude / Grok / scripts).
+# Mirror of `ask-claude` / `grok-ask`. Prints Codex's reply to stdout and exits.
+#   codex-ask "what are you working on right now?"
+#   echo "summarize DEMIGOD-COMPRESSED-STATE.md" | codex-ask
+# Env:
+#   CODEX_ASK_TIMEOUT  seconds before giving up   (default 600; research prompts blew 300)
+#   CODEX_ASK_SANDBOX  read-only|workspace-write  (default read-only)
+#   CODEX_ASK_MODEL    model                      (default: codex's default)
+#   CODEX_ASK_DIR      dir to run in              (default $HOME)
+#   CODEX_ASK_BIN      codex binary               (default codex; selftest injects a fake)
+# Stateless: a fresh session every call. Never resumes the live interactive session —
+# two writers corrupt it. For async/threaded work use Orca orchestration (~/AGENT-COMMS.md).
+set -euo pipefail
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
+LOG="$BUSY/codex-ask.log"
+TIMEOUT="${CODEX_ASK_TIMEOUT:-600}"
+SANDBOX="${CODEX_ASK_SANDBOX:-read-only}"
+DIR="${CODEX_ASK_DIR:-$HOME}"
+CODEX_BIN="${CODEX_ASK_BIN:-codex}"
+
+selftest() {
+  # Poison-test the two paths that can lie: empty reply must NOT exit 0, and the
+  # reply must come from the -o file (not the noisy event stream).
+  local self root fake out ec
+  self="$(readlink -f "${BASH_SOURCE[0]}")"
+  root="$(mktemp -d)"
+  fake="$root/fake-codex"
+
+  # 1) Fake writes a real reply to the -o file, plus noise on stdout.
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+set -euo pipefail
+echo 'hook: SessionStart'; echo 'tokens used 999'
+while [ "$#" -gt 0 ]; do [ "$1" = "-o" ] && { printf 'FAKE_REPLY_OK\n' >"$2"; }; shift; done
+exit 0
+EOS
+  chmod +x "$fake"
+  set +e
+  out="$(DEMIGOD_BUSY="$root" CODEX_ASK_BIN="$fake" CODEX_ASK_TIMEOUT=5 "$self" 'selftest reply' 2>/dev/null)"
+  ec=$?
+  set -e
+  [[ "$ec" -eq 0 && "$out" == "FAKE_REPLY_OK" ]] || {
+    echo "codex-ask selftest FAIL (reply path) ec=$ec out=$out" >&2; rm -rf "$root"; return 1; }
+
+  # 2) Fake exits 0 but writes nothing → transport failure, exit 4 (never a silent green).
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+echo 'tokens used 0'
+exit 0
+EOS
+  chmod +x "$fake"
+  set +e
+  out="$(DEMIGOD_BUSY="$root" CODEX_ASK_BIN="$fake" CODEX_ASK_TIMEOUT=5 "$self" 'selftest empty' 2>/dev/null)"
+  ec=$?
+  set -e
+  [[ "$ec" -eq 4 ]] || { echo "codex-ask selftest FAIL (empty→4) ec=$ec out=$out" >&2; rm -rf "$root"; return 1; }
+
+  rm -rf "$root"
+  echo "codex-ask selftest PASS"
+}
+[[ "${1:-}" == "--selftest" ]] && { selftest; exit; }
+
+if [ "$#" -gt 0 ]; then prompt="$*"; elif [ ! -t 0 ]; then prompt="$(cat)"; else echo "usage: codex-ask \"prompt\"  (or pipe via stdin)" >&2; exit 2; fi
+[[ -n "${prompt// /}" ]] || { echo "codex-ask: empty prompt" >&2; exit 2; }
+
+echo "[$(date -Iseconds)] ASK (${#prompt}b): ${prompt:0:140}" >>"$LOG"
+reply="$(mktemp "$BUSY/codex-ask.out.XXXXXX")"
+set +e
+timeout --foreground "$TIMEOUT" "$CODEX_BIN" exec \
+  --sandbox "$SANDBOX" \
+  --skip-git-repo-check \
+  --cd "$DIR" \
+  ${CODEX_ASK_MODEL:+--model "$CODEX_ASK_MODEL"} \
+  -o "$reply" \
+  "$prompt" </dev/null >>"$LOG" 2>&1
+ec=$?
+set -e
+out="$(cat "$reply" 2>/dev/null || true)"
+rm -f "$reply"
+printf '%s\n' "$out"
+echo "[$(date -Iseconds)] exit=$ec replylen=${#out}" >>"$LOG"
+# Empty reply is a transport failure even if the CLI lied with exit 0.
+if [ "$ec" -eq 0 ] && [ -z "${out// /}" ]; then
+  echo "codex-ask: empty reply (see $LOG)" >&2
+  exit 4
+fi
+exit "$ec"

@@ -1,0 +1,61 @@
+{
+  "at": "2026-07-09T17:00:46.819Z",
+  "before": {
+    "lorem": 1,
+    "h24": 1,
+    "insights": true,
+    "jnedfl": true,
+    "cwlzkm": false
+  },
+  "steps": [
+    {
+      "nav": "insights-section",
+      "ok": false
+    },
+    {
+      "nav": "Insights & updates",
+      "ok": false
+    },
+    {
+      "nav": "Insights",
+      "ok": true,
+      "text": "Insights"
+    },
+    {
+      "canvas": [
+        "form-done:Thank you! We have received your brief a",
+        "form-done:Thank you! We have received your brief a",
+        "clicked-insights",
+        "clicked-lorem-card"
+      ]
+    },
+    {
+      "formNav": "startup-hire",
+      "ok": false
+    },
+    {
+      "formNav": "startup-form",
+      "ok": false
+    },
+    {
+      "formNav": "Form",
+      "ok": true,
+      "text": "2D & 3D transforms"
+    },
+    {
+      "setMsg": {
+        "hits": [],
+        "count": 0
+      }
+    }
+  ],
+  "publish": "Publish to selected domains",
+  "after": {
+    "lorem": 1,
+    "h24": 1,
+    "insights": true,
+    "jnedfl": true,
+    "cwlzkm": false
+  },
+  "ok": false
+}

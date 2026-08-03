@@ -1,0 +1,5 @@
+{
+  "at": "2026-07-13T00:00:00.000Z",
+  "notes": "Suppress known noise by fingerprint or rule:file:line. Prefer fixing root causes. Use: bin/dg-review --baseline-add (adds low/info only).",
+  "suppress": []
+}

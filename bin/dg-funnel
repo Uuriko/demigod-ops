@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Demigod funnel CLI — lead state machine / status
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec node "$ROOT/demigod-funnel.mjs" "$@"

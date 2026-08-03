@@ -1,0 +1,179 @@
+#!/usr/bin/env node
+// Rendered per-route SEO/structure audit for the LIVE site. Codifies the site-review findings as a
+// fail-capable check. The PURE analyzer is poison-testable; CDP just gathers signals (DOM-level counts,
+// not visibility-filtered — a /faq accordion hides its h2s, so visible counts lie).
+//   node demigod-seo-audit.mjs [--json] [--selftest]     # CDP on :9223 required for a live run
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+const SITE = (process.env.DEMIGOD_SITE || 'https://www.trydemigod.com').replace(/\/$/, '');
+const CDP = process.env.DEMIGOD_CDP || 'http://127.0.0.1:9223';
+// pretty paths that resolve today; expectFaqSchema flags the confirmed missing FAQPage schema.
+const ROUTES = [
+  { p: '', name: '(home)' }, { p: 'hire' }, { p: 'talent' }, { p: 'startups' }, { p: 'events' },
+  { p: 'partnerships' }, { p: 'legal' }, { p: 'pricing' }, { p: 'about' }, { p: 'how' }, { p: 'security' },
+  { p: 'faq', expectFaqSchema: true },
+];
+
+// PURE: route signals -> issues. error = must-fix (breaks SERP/indexing); warn = should-improve.
+export function analyzeRoute(s = {}, opts = {}) {
+  const issues = [];
+  const add = (sev, code, detail) => issues.push(detail === undefined ? { sev, code } : { sev, code, detail });
+  const title = String(s.title || '').trim();
+  if (!title) add('error', 'missing-title');
+  else if (/^untitled$/i.test(title)) add('error', 'untitled-title');
+  const md = String(s.metaDesc || '');
+  if (!md) add('error', 'missing-meta-description');
+  else if (md.length < 80) add('warn', 'meta-description-too-short', `${md.length}ch (<80)`);
+  else if (md.length > 160) add('warn', 'meta-description-too-long', `${md.length}ch (>160)`);
+  if (!s.ogTitle) add('warn', 'missing-og-title');
+  if (!s.canonical) add('warn', 'missing-canonical');
+  if (!(s.h1Count > 0)) add('warn', 'no-h1');
+  else if (s.h1Count > 1) add('warn', 'multiple-h1', String(s.h1Count));
+  if (opts.expectFaqSchema && !(s.ldTypes || []).includes('FAQPage')) add('warn', 'missing-faqpage-schema');
+  if ((s.consoleErrors || 0) > 0) add('warn', 'console-errors', String(s.consoleErrors));
+  // Every signal above is read from the RENDERED DOM, so a page whose <body> ships empty and is
+  // built entirely by foot-core scores identically to one with real served markup. Anything that
+  // does not run JS — link unfurlers, some crawlers, archive tools — gets a blank document. Only
+  // flag it when the rendered page does have content, which is what proves the gap is JS-only.
+  if (s.staticBodyChars != null && s.staticBodyChars < 200 && (s.renderedBodyChars || 0) >= 200) {
+    add('warn', 'js-only-body', `${s.staticBodyChars}ch served → ${s.renderedBodyChars}ch rendered`);
+  }
+  return issues;
+}
+
+/**
+ * PURE: visible text length of a served HTML document's body, script/style removed.
+ * Single source of truth — demigod-site-health.mjs wraps this rather than keeping a second copy.
+ * The two had already drifted in opposite directions before being merged: this one dropped
+ * <noscript> while the other required a closing </body> and returned a false 0 without one.
+ *
+ * <noscript> is deliberately KEPT. This measures what a non-rendering consumer receives, and
+ * noscript content is precisely what such a consumer displays — stripping it understates crawlable
+ * text and would flag a page as js-only-body when it has a real no-JS fallback.
+ */
+export function staticBodyTextLength(html) {
+  const source = String(html || '');
+  const start = source.toLowerCase().indexOf('<body');
+  if (start < 0) return 0;
+  return source
+    .slice(start)
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    // Explicit: a comment containing '>' is not fully removed by the generic tag strip below.
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z#0-9]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim().length;
+}
+
+export const hasErrors = (issues) => issues.some((i) => i.sev === 'error');
+
+async function gather(page, url) {
+  let consoleErrors = 0;
+  // Counting errors without keeping them made "console-errors(2)" unactionable — you had to
+  // re-drive a browser by hand to learn what broke. Keep the first few messages.
+  const errorMessages = [];
+  const note = (text) => { if (errorMessages.length < 5) errorMessages.push(String(text).slice(0, 200)); };
+  const onC = (m) => { if (m.type() === 'error') { consoleErrors++; note(m.text()); } };
+  const onE = (err) => { consoleErrors++; note(err?.message || err); };
+  page.on('console', onC); page.on('pageerror', onE);
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
+  await new Promise((r) => setTimeout(r, 2500));
+  const s = await page.evaluate(() => {
+    const ld = [...document.querySelectorAll('script[type="application/ld+json"]')].flatMap((el) => {
+      try { const j = JSON.parse(el.textContent); return Array.isArray(j) ? j.map((x) => x['@type']) : [j['@type']]; } catch { return ['unparsed']; }
+    });
+    return {
+      title: document.title,
+      metaDesc: document.querySelector('meta[name="description"]')?.content || '',
+      ogTitle: document.querySelector('meta[property="og:title"]')?.content || '',
+      canonical: document.querySelector('link[rel="canonical"]')?.href || '',
+      h1Count: document.querySelectorAll('h1').length,  // DOM-level, not visibility-filtered
+      h2Count: document.querySelectorAll('h2').length,
+      ldTypes: ld.filter(Boolean),
+      renderedBodyChars: (document.body?.innerText || '').replace(/\s+/g, ' ').trim().length,
+    };
+  });
+  page.off('console', onC); page.off('pageerror', onE);
+  // Fetch the document as a non-JS consumer receives it, to expose the served-vs-rendered gap.
+  let staticBodyChars = null;
+  try {
+    const res = await fetch(url, { headers: { 'user-agent': 'demigod-seo-audit' }, signal: AbortSignal.timeout(20000) });
+    staticBodyChars = staticBodyTextLength(await res.text());
+  } catch { /* leave null — unknown is not a finding */ }
+  return { ...s, consoleErrors, errorMessages, staticBodyChars };
+}
+
+export async function audit() {
+  const puppeteer = (await import('puppeteer-core')).default;
+  const browser = await puppeteer.connect({ browserURL: CDP, defaultViewport: { width: 1280, height: 900 } });
+  const results = [];
+  try {
+    for (const r of ROUTES) {
+      const url = `${SITE}/${r.p}`;
+      const page = await browser.newPage();
+      try {
+        const s = await gather(page, url);
+        const issues = analyzeRoute(s, { expectFaqSchema: r.expectFaqSchema });
+        results.push({ route: r.name || r.p, issues, signals: s });
+      } catch (e) {
+        results.push({ route: r.name || r.p, issues: [{ sev: 'error', code: 'render-failed', detail: String(e.message).slice(0, 80) }] });
+      }
+      try { await page.close(); } catch { /* */ }
+    }
+  } finally { try { await browser.disconnect(); } catch { /* */ } }
+  const ok = !results.some((r) => hasErrors(r.issues));
+  return { ok, results };
+}
+
+// isMain is load-bearing, not decoration. Without it, ANY module that imports this one and is run
+// with --selftest has its own selftest hijacked: this block runs instead and calls process.exit(0),
+// so the importer reports success having asserted nothing. Found 2026-07-31 when site-health began
+// importing staticBodyTextLength and its selftest started printing {"selftest":"seo-audit"}.
+if (isMain && process.argv.includes('--selftest')) {
+  const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
+  const codes = (s, o) => analyzeRoute(s, o).map((i) => i.code);
+  const clean = { title: 'Pricing · Demigod', metaDesc: 'x'.repeat(130), ogTitle: 'Pricing', canonical: 'https://x/pricing', h1Count: 1, ldTypes: [], consoleErrors: 0 };
+  assert(analyzeRoute(clean).length === 0, 'clean page -> no issues');
+  assert(codes({ ...clean, title: '' }).includes('missing-title'), 'missing title');
+  assert(codes({ ...clean, title: 'Untitled' }).includes('untitled-title'), 'untitled title');
+  assert(codes({ ...clean, metaDesc: '' }).includes('missing-meta-description'), 'missing meta');
+  assert(codes({ ...clean, metaDesc: 'short' }).includes('meta-description-too-short'), 'meta too short (mud 51/talent 79 class)');
+  assert(codes({ ...clean, metaDesc: 'y'.repeat(200) }).includes('meta-description-too-long'), 'meta too long');
+  assert(codes({ ...clean, ogTitle: '' }).includes('missing-og-title'), 'missing og');
+  assert(codes({ ...clean, canonical: '' }).includes('missing-canonical'), 'missing canonical');
+  assert(codes({ ...clean, h1Count: 0 }).includes('no-h1'), 'no h1');
+  assert(codes({ ...clean, h1Count: 3 }).includes('multiple-h1'), 'multiple h1');
+  assert(codes(clean, { expectFaqSchema: true }).includes('missing-faqpage-schema'), 'faq without FAQPage schema flagged');
+  assert(!codes({ ...clean, ldTypes: ['FAQPage'] }, { expectFaqSchema: true }).includes('missing-faqpage-schema'), 'FAQPage present -> not flagged');
+  assert(codes({ ...clean, consoleErrors: 4 }).includes('console-errors'), 'console errors counted');
+  // js-only-body: an empty served <body> that renders fine is invisible to every other signal here.
+  assert(codes({ ...clean, staticBodyChars: 0, renderedBodyChars: 4000 }).includes('js-only-body'), 'empty served body flagged');
+  assert(!codes({ ...clean, staticBodyChars: 3000, renderedBodyChars: 4000 }).includes('js-only-body'), 'served markup -> not flagged');
+  assert(!codes({ ...clean, staticBodyChars: 0, renderedBodyChars: 0 }).includes('js-only-body'), 'a genuinely empty page is a different defect, not this one');
+  assert(!codes(clean).includes('js-only-body'), 'unknown static size is not a finding');
+  assert(staticBodyTextLength('<html><body> <script>var x=1</script> Hello  world </body></html>') === 11, 'body text length ignores script');
+  assert(staticBodyTextLength('<html><body><!-- c --></body></html>') === 0, 'comment-only body is empty');
+  assert(staticBodyTextLength('') === 0 && staticBodyTextLength(null) === 0, 'no html -> 0');
+  assert(staticBodyTextLength('<html><body><!-- a > b --></body></html>') === 0, 'a comment containing > is still not content');
+  // Regression on the merge: noscript is crawlable text, so it must COUNT, not be stripped.
+  assert(staticBodyTextLength('<html><body><noscript>Real fallback</noscript></body></html>') === 13, 'noscript content counts as crawlable');
+  assert(staticBodyTextLength('<html><body>Hi</body>') === 2, 'a missing </body> must not read as an empty page');
+  assert(hasErrors([{ sev: 'error', code: 'x' }]) && !hasErrors([{ sev: 'warn', code: 'y' }]), 'hasErrors gates on error sev only');
+  console.log(JSON.stringify({ ok: true, selftest: 'seo-audit' }));
+  process.exit(0);
+}
+
+if (isMain) {
+  const res = await audit();
+  if (process.argv.includes('--json')) { console.log(JSON.stringify(res, null, 2)); process.exit(res.ok ? 0 : 1); }
+  console.log(`seo-audit ${res.ok ? 'PASS' : 'FAIL'} (error-sev gates; warns are advisory)`);
+  for (const r of res.results) {
+    if (!r.issues.length) { console.log(`  ✓ ${r.route}`); continue; }
+    console.log(`  ${hasErrors(r.issues) ? '✗' : '·'} ${r.route}: ${r.issues.map((i) => `${i.code}${i.detail ? `(${i.detail})` : ''}`).join(', ')}`);
+    for (const m of r.signals?.errorMessages || []) console.log(`      ↳ ${m}`);
+  }
+  process.exit(res.ok ? 0 : 1);
+}

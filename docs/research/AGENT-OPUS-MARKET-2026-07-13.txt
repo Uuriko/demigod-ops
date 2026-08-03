@@ -1,0 +1,27 @@
+# Demigod Strategy Synthesis
+
+**The wedge.** Every research signal points the same way: hiring the *founding team* is the highest-leverage, highest-risk decision a seed founder makes (a16z's talent-engineering fellowship and founding-team guides exist precisely because founders can't do it well alone). MOC-style structured processes and Ashby's volume tooling serve companies already hiring at scale — not the 2-to-8-person seed company making its first five hires where each mistake is existential. That's our lane.
+
+**Differentiation vs. the field.**
+- **Wellfound/Ashby** = self-serve marketplaces and ATS volume. Great at throughput, absent on judgment. We are the opposite: human-curated, low-volume, high-conviction.
+- **Dover/Paraform/agencies** = contingency at 15–25%, incentivized to *place*, not to *fit*. SMJ 2025's firm-driven-search turnover finding is our best marketing: search-firm economics reward filling the seat, and mis-hires churn. Our 10% + **mutual-yes gate** aligns us with retention, not close-rate.
+- **AI recruiter agents** (the X hype cycle) = infinite unvetted outreach. We sell the scarce thing they commoditize: a curated shortlist a founder can trust in a week, not a firehose.
+
+One line: *half the fee, twice the conviction, aligned on the hire staying.*
+
+**12-month product vision.**
+- **Phase 1 (0–3mo): Concierge.** No product surface beyond the WIZ intake (startup + engineer, 90-day-outcome required). Match by hand. Charge 10% on hire. Prove mutual-yes reduces mis-hires.
+- **Phase 2 (3–6mo): Instrumented concierge.** Pilot logging, honest board of real receipts, structured 90-day outcome tracking → the retention proof no competitor can show.
+- **Phase 3 (6–9mo): Assisted matching.** Internal tooling (not AI-agent theater) that surfaces candidates faster while a human still signs off. Founder-side dashboard.
+- **Phase 4 (9–12mo): Trust flywheel.** Published outcome data ("X% of Demigod hires still there at 12mo") becomes acquisition. Warm engineer network compounds.
+
+**Risks.**
+1. **Supply cold-start** — curated engineers are the scarce side; seed with warm SF network first.
+2. **Non-scaling economics** — concierge margins are thin; resist premature productization (Phase 3 exists to widen, carefully).
+3. **Trust fragility** — one bad placement kills word-of-mouth. Mutual-yes is the moat *and* the throttle.
+4. **AI-agent commoditization** — if "good enough" auto-sourcing arrives, defend on outcomes, not speed.
+
+**Money before Series anything.**
+10% on hire is real revenue from hire #1 — no server, no burn. A single $150k founding-engineer placement = $15k. Ten curated placements over 12 months = ~$150k bootstrapped, plus the outcome dataset that either funds a raise or proves you never needed one. Sell judgment now; build product only where the data demands it.
+
+*(~440 words)*

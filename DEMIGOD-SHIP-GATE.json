@@ -1,0 +1,2122 @@
+{
+  "at": "2026-07-24T14:05:25.596Z",
+  "fast": false,
+  "noPlaytest": false,
+  "tabs": {
+    "ok": true,
+    "ms": 446,
+    "tabs": {
+      "closed": 2,
+      "kept": 4,
+      "details": [
+        {
+          "url": "https://www.trydemigod.com/",
+          "reason": "duplicate trydemigod.com tab"
+        },
+        {
+          "url": "https://grok.com/",
+          "reason": "duplicate grok tab"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "name": "unit",
+      "script": "demigod-live-lib.test.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 105,
+      "stdout": "▶ scanLiveHtml\n  ✔ flags MCP rewrite scripts (2.674059ms)\n  ✔ passes clean HTML without MCP app scripts (3.417958ms)\n  ✔ detects missing form names (0.697383ms)\n  ✔ flags static copy policy leaks (0.399301ms)\n  ✔ resolves split head+footer markers (8.833579ms)\n  ✔ does not flag hireTalent when ensureNav is in footer script (9.125631ms)\n  ✔ requires unique startup-hire and engineer-join data-name (0.212274ms)\n✔ scanLiveHtml (27.640025ms)\n▶ evaluatePageScan\n  ✔ counts CTAs correctly (0.310875ms)\n  ✔ detects legacy branding (0.195641ms)\n✔ evaluatePageScan (0.787425ms)\n▶ buildFindings + reportPass\n  ✔ fails on MCP scripts and missing nav CTA (1.077521ms)\n  ✔ flags partner webhook drift when expected URL is set (0.629366ms)\n  ✔ passes healthy live + designer state (0.502772ms)\n✔ buildFindings + reportPass (2.494068ms)\n▶ modalVisible\n  ✔ rejects hidden modals (0.124597ms)\n✔ modalVisible (0.203084ms)\n▶ CTA routing harness\n  ✔ opens startup modal for FIND TALENT / CHOOSE COMMISSION (0.446283ms)\n✔ CTA routing harness (0.525279ms)\n▶ source files\n  ✔ canonical split architecture files exist (3.601735ms)\n  ✔ all wizard forms post to submissions webhook not Webflow API (3.851772ms)\n  ✔ foot-core keeps pricing, WIZ thanks copy, a version marker, and no 48h claim in COPY (3.886445ms)\n  ✔ appendNovelFindings skips already-logged task+finding pairs (0.87616ms)\n✔ source files (12.406368ms)\nℹ tests 18\nℹ suites 6\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.604087\n",
+      "stderr": ""
+    },
+    {
+      "name": "submissions",
+      "script": "demigod-submissions-lib.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 196,
+      "stdout": "✔ submission IDs carry capability-grade entropy (2.433574ms)\n✔ anonymizeRole strips PII (2.318202ms)\n✔ anonymizeCandidate strips PII (0.562442ms)\n✔ ingestSubmission inbox-only by default (3.228847ms)\n✔ ingestSubmission auto-features when opted in (5.062305ms)\n✔ auto-feature cannot bypass rejection or required evidence (1.573132ms)\n✔ auto-feature patches fresh stores instead of rewriting stale snapshots (0.607036ms)\n✔ shouldAutoReject flags test keyword and zero skills (0.31158ms)\n✔ shouldAutoReject mirrors the browser matching-text caps (0.543883ms)\n✔ duplicate email becomes a review-gated update, not a rejection (0.304861ms)\n✔ duplicate detection survives working-inbox eviction (3.923137ms)\n✔ dedupe index repairs malformed and expired metadata (1.792033ms)\n✔ filterBoard drops stale featured cards (0.196691ms)\n✔ ingestSubmission stores partner-apply in inbox (0.5605ms)\n✔ shouldAutoReject flags incomplete partner application (0.161642ms)\n✔ shouldAutoReject refuses an explicitly unsupported resume type (0.905472ms)\n✔ shouldAutoReject fails closed on invalid resume size metadata (0.230486ms)\n✔ shouldAutoReject accepts only bounded credential-free HTTPS resume links (0.258476ms)\n✔ publicStatus omits PII and shapes steps by form (0.494254ms)\n✔ publicStatus reports the latest public workflow update (0.178005ms)\n✔ public submission status URL preserves the high-entropy reference safely (0.207116ms)\n✔ status path parser is exact, bounded, query-safe, and preserves encoded legacy IDs (0.611089ms)\n✔ parseWebhookPayload handles Webflow v2 envelope (0.288568ms)\n✔ PII SoR writers create files 0600 (0.754908ms)\n✔ saveBoard refuses a real delivered receipt without the allow-real env (2.371976ms)\n✔ anonymize scrubs free-text email/phone (#23 regression) (1.311596ms)\n✔ anonymize scrubs free-text links but keeps plain skills (0.430146ms)\n✔ free-text identity-link scrub is fail-capable (not vacuous-green) (1.021903ms)\n✔ scrubPII redacts shorteners and bare @handles (fail-capable) (0.288743ms)\n✔ scrubPII redacts obfuscated email and spoken-digit phone (fail-capable) (0.502886ms)\n✔ scrubPII redacts international phones (fail-capable) (0.439233ms)\n✔ scrubPII redacts street addresses (fail-capable) (0.335716ms)\nℹ tests 32\nℹ suites 0\nℹ pass 32\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 139.528097\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-board",
+      "script": "demigod-verify-board-honesty.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 377,
+      "stdout": "✔ board-honesty PASSES an honest pre-services board (fail-capable, not vacuous) (51.379634ms)\n✔ board-honesty FAILS a real receipt with signal.realReceipts>0 (39.135471ms)\n✔ board-honesty FAILS a real delivered receipt even when signal is falsified to 0 (independent label check) (49.364743ms)\n✔ board-honesty FAILS a real role (sample:false) contradicting signal.realRoles=0 (45.824195ms)\n✔ board-honesty FAILS an over-cap board (>3 seed roles) (43.098745ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 320.534893\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-demand",
+      "script": "demigod-demand.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 694,
+      "stdout": "✔ demand imports ignore the parent CLI flags (98.215399ms)\n✔ parseSendLog counts only a genuine attested manual send (31.837471ms)\n✔ parseSendLog quarantines every forgery with the correct reason (fail-capable) (2.626705ms)\n✔ parseSendLog: a forged agent-auto send can NEVER become confirmed even with attested=1 (0.527983ms)\n✔ mark-sent cannot mint delivery truth and keeps attempt telemetry private (240.833964ms)\n✔ founder draft tool cannot project a local draft as sent (182.481637ms)\nℹ tests 6\nℹ suites 0\nℹ pass 6\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 647.054061\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-scrub",
+      "script": "demigod-board-publish.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 289,
+      "stdout": "✔ scrubPublicBoard leaves an honest sample-only board intact (not vacuous) (1.628606ms)\n✔ scrubPublicBoard strips real objects + pilots and forces signal 0 (fail-capable) (1.247658ms)\n✔ scrubPublicBoard does not mutate the input (local board keeps its real objects) (0.187447ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 245.491057\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-referrals",
+      "script": "demigod-referrals.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 241,
+      "stdout": "✔ unique link → accepted claim → retained paid hire → cash or company credit (122.85644ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 197.386574\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-referrals-mint",
+      "script": "demigod-referrals-mint.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 132,
+      "stdout": "✔ mint-talent creates unique engineer link and pack with 20% / 90-day honesty (13.522686ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 82.788536\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-outbound-poison",
+      "script": "demigod-outbound-poison.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 1059,
+      "stdout": "✔ dm-auto-send refuses non-dry delivery (no env widens authority) (60.65816ms)\n✔ founder-dm-blast --send is refused and has no delivery path (432.019044ms)\n✔ gtm-blast without --dry refuses and never appends a send log (87.3124ms)\n✔ gtm-log-send refuses inventing sends without attest + receipt (143.403981ms)\n✔ receipt-mint refuses real delivered receipts without DEMIGOD_ALLOW_REAL_RECEIPTS (191.936571ms)\nℹ tests 5\nℹ suites 0\nℹ pass 5\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1005.933209\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-matching-readiness",
+      "script": "demigod-matching-readiness.test.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 2300,
+      "stdout": "demigod matching readiness gate: PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-pairs-cli",
+      "script": "demigod-pairs-cli-safety.test.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 471,
+      "stdout": "demigod pairs CLI sample-by-default: PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "honesty-lead-sourcer",
+      "script": "demigod-lead-sourcer.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 290,
+      "stdout": "✔ limit excludes policy-ineligible leads before ranking (63.183394ms)\n✔ unknown flags fail as CLI usage errors (49.794143ms)\n✔ duplicate flags fail before writing a preview (52.86186ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 245.563353\n",
+      "stderr": ""
+    },
+    {
+      "name": "foot-smoke-poison",
+      "script": "demigod-foot-smoke.test.mjs",
+      "args": [
+        "--test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 336,
+      "stdout": "✔ foot-smoke PASSES the real foot-core (baseline — not vacuous-red) (69.020882ms)\n✔ foot-smoke FAILS a syntactically-broken foot-core (fail-capable) (66.490987ms)\n✔ foot-smoke FAILS a foot-core that throws at boot (runtime, beyond node --check) (74.997095ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 288.481535\n",
+      "stderr": ""
+    },
+    {
+      "name": "grok-ask-selftest",
+      "script": "demigod-grok-ask-selftest.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 281,
+      "stdout": "grok-ask context selftest PASS\ngrok-ask retry selftest PASS\ngrok-ask breaker selftest PASS\ndemigod-grok-ask-selftest PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "grok-out-contract",
+      "script": "demigod-agent-dashboard.mjs",
+      "args": [
+        "--selftest-grok-out"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 101,
+      "stdout": "grok-out projection selftest PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "sor-pii-poison",
+      "script": "demigod-verify-no-committable-sor.mjs",
+      "args": [
+        "--self-test"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 70,
+      "stdout": "SELFTEST PASS: SoRs flagged, poison tracked dm-send-log fails red (not vacuous green)\n",
+      "stderr": ""
+    },
+    {
+      "name": "source",
+      "script": "demigod-verify-source.mjs",
+      "args": [],
+      "code": 1,
+      "ok": false,
+      "timedOut": false,
+      "ms": 794,
+      "stdout": "{\"pass\":false,\"failed\":[\"head:org-logo-aligned\",\"head:org-logo-square\",\"head:ms-tile-image\",\"head:favicon-jpeg-sizes\",\"head:apple-touch-sizes\",\"head:blog-ld-publisher\"],\"out\":\"/home/potter/DEMIGOD-VERIFY-SOURCE.json\"}\n",
+      "stderr": ""
+    },
+    {
+      "name": "live",
+      "script": "demigod-verify-live.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 1525,
+      "stdout": "{\"pass\":true,\"findings\":1,\"mcpGone\":true,\"formsOk\":true,\"out\":\"/home/potter/DEMIGOD-VERIFY-LIVE.json\"}\n",
+      "stderr": ""
+    },
+    {
+      "name": "designSnap",
+      "script": "demigod-design-snap.mjs",
+      "args": [],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 34791,
+      "stdout": "{\"ok\":true,\"shots\":[\"v60-trust.png\",\"v60-privacy.png\"]}\n",
+      "stderr": ""
+    },
+    {
+      "name": "designAudit",
+      "script": "demigod-design-audit.mjs",
+      "args": [
+        "--quick"
+      ],
+      "code": 124,
+      "ok": false,
+      "timedOut": true,
+      "ms": 150015,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "buttonQuick",
+      "script": "demigod-button-audit.mjs",
+      "args": [
+        "--quick"
+      ],
+      "code": 0,
+      "ok": true,
+      "timedOut": false,
+      "ms": 16317,
+      "stdout": "{\"ok\":true,\"summary\":{\"totalBroken\":0,\"bareLegal404\":true,\"barePartnerships404\":true},\"out\":\"/home/potter/DEMIGOD-BUTTON-AUDIT.json\"}\n",
+      "stderr": ""
+    },
+    {
+      "name": "partnerships",
+      "script": "demigod-partnerships-playtest.mjs",
+      "args": [],
+      "code": 1,
+      "ok": false,
+      "timedOut": false,
+      "ms": 42010,
+      "stdout": "",
+      "stderr": "Error [TypeError]: Cannot read properties of null (reading 'querySelectorAll')\n    at evaluate (evaluate at walkPartner (file:///home/potter/demigod-partnerships-playtest.mjs:86:27), <anonymous>:2:28)\n    at #evaluate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/cdp/ExecutionContext.js:388:19)\n    at async ExecutionContext.evaluate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/cdp/ExecutionContext.js:274:16)\n    at async IsolatedWorld.evaluate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/cdp/IsolatedWorld.js:102:16)\n    at async CdpFrame.evaluate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:359:20)\n    at async CdpPage.evaluate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:826:20)\n    at async walkPartner (file:///home/potter/demigod-partnerships-playtest.mjs:86:16)\n    at async main (file:///home/potter/demigod-partnerships-playtest.mjs:148:25)\n"
+    },
+    {
+      "name": "wizard",
+      "script": "demigod-wizard-playtest.mjs",
+      "args": [],
+      "code": 1,
+      "ok": false,
+      "timedOut": false,
+      "ms": 850,
+      "stdout": "",
+      "stderr": "Error: net::ERR_ABORTED at https://www.trydemigod.com/?v=wiz-desktop-1784902192382\n    at navigate (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/cdp/Frame.js:185:27)\n    at async Deferred.race (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/util/Deferred.js:33:20)\n    at async CdpFrame.goto (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/cdp/Frame.js:151:25)\n    at async CdpPage.goto (file:///home/potter/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:576:20)\n    at async loadLive (file:///home/potter/demigod-wizard-playtest.mjs:17:3)\n    at async main (file:///home/potter/demigod-wizard-playtest.mjs:217:5)\n"
+    }
+  ],
+  "artifacts": {
+    "source": {
+      "at": "2026-07-24T14:05:43.612Z",
+      "architecture": "head-minimal-css + foot-core-cdn",
+      "checks": [
+        {
+          "name": "head:size-under-cap",
+          "ok": true,
+          "detail": "42983/50000 (7017 left)"
+        },
+        {
+          "name": "head:hide-webflow-badge",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:no-retired-hero-asset",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:mobile-no-reserved-scrollbar-gutter",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:public-contact-potter",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:heavy-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og:title",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-font-no-layout-swap",
+          "ok": true,
+          "detail": "Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap"
+        },
+        {
+          "name": "head:preconnect-budget",
+          "ok": true,
+          "detail": "Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr"
+        },
+        {
+          "name": "site:no-internal-leak",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:desc-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:fee-desc-cash",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:desc-len",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:social-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:canonical-aligned",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:canonical-https",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-canonical",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-logo-aligned",
+          "ok": false,
+          "detail": "org logo must equal og:image or jpeg favicon (https://files.catbox.moe/ges75q.jpg | https://cdn.jsdelivr.net/gh/Uuriko/demig | )"
+        },
+        {
+          "name": "head:org-logo-square",
+          "ok": false,
+          "detail": "org logo must be square ImageObject matching jpeg favicon (got {\"@type\":\"ImageObject\",\"url\":\"https://files.catbox.moe/ges75q.jpg\",\"width\":1024,\"height\":1024})"
+        },
+        {
+          "name": "head:org-jsonld-id",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-contact-point",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:org-email-area",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:website-ld",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og-image-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:brand-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:theme-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:app-capable",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:status-bar-style",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:ms-tile-color",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:ms-tile-image",
+          "ok": false,
+          "detail": "msapplication-TileImage must equal jpeg favicon href (missing vs no-favicon)"
+        },
+        {
+          "name": "head:referrer-policy",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:format-detection",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:robots-rich-preview",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:favicon-jpeg-sizes",
+          "ok": false,
+          "detail": "ges75q.jpg icon sizes|type not 1024x1024 image/jpeg (no-sizes|no-type)"
+        },
+        {
+          "name": "head:apple-touch-sizes",
+          "ok": false,
+          "detail": "apple-touch-icon must match jpeg favicon href + sizes=1024x1024 type=image/jpeg (no-sizes|no-type|no-href|no-favicon)"
+        },
+        {
+          "name": "head:author-meta",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:og-type-locale",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:twitter-card",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:theme-color-hex",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:color-scheme-dark",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-lcp-preload",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-lcp-fetchpriority",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:preconnect-og-image",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:favicon-svg",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-dates",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-sor",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-publisher",
+          "ok": false,
+          "detail": "publisher={\"@type\":\"Organization\",\"name\":\"Demigod\",\"url\":\"https://www.trydemigod.com\",\"logo\":{\"@type\":\"ImageObject\",\"url\":\"https:/"
+        },
+        {
+          "name": "head:blog-ld-author",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-lang",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:blog-ld-mep",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:css-only-no-core-js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hides-webflow-badge-css",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-fouc-guard",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "hero:permanent-demigod-h1",
+          "ok": true,
+          "detail": "hero H1 must stay DEMIGOD permanently; dual-path copy belongs only in CTAs"
+        },
+        {
+          "name": "css:disk-honesty-guards",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:hero-shell-only",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:unhide-v5-safe",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:early-unhide-shell",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:unhide-transform-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:noscript-shell",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:critical-transform-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:path-redirects",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:skip-main-target",
+          "ok": true,
+          "detail": "early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>"
+        },
+        {
+          "name": "head:unhide-main-header",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:contact-scrub",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:meta-dedupe",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:copy-scrub-finite",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:cta-fallback",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:path-pills-not-force-hidden",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:preconnect-foot-cdn",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:cdn-stylesheet",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "head:inline-scripts-parse",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "core:parses",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "footer:cdn-loader",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "footer:cdn-url",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "footer:inline-scripts-parse",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "footer:path-redirects",
+          "ok": true,
+          "detail": "need blog|notes + method + #note-slug + /fees→pricing + /security→legal + /network→?p=talent (v28/c201/c247)"
+        },
+        {
+          "name": "footer:sample-path",
+          "ok": true,
+          "detail": "footer-lite must redirect /sample → ?p=sample (pairs with core DG_PAGES.sample)"
+        },
+        {
+          "name": "footer:pilot-path",
+          "ok": true,
+          "detail": "footer-lite + footer-loader must redirect /pilot → ?p=pilot (pairs with DG_PAGES.pilot + legal nav)"
+        },
+        {
+          "name": "core:version-marker",
+          "ok": true,
+          "detail": "v818"
+        },
+        {
+          "name": "coreJs:run-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:show-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:hide-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:sched-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:boot-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:run-show",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:no-fake-sms",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:forms-fee-note",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:form-autocomplete",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:offer-abandon-a11y",
+          "ok": true,
+          "detail": "offerAbandon must be dialog (aria-modal + label) with Escape close + focus #dg-abandon-email"
+        },
+        {
+          "name": "core:route-fees-security",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:legal-links-pilot",
+          "ok": true,
+          "detail": "Pilot must be in #dg-legal-links + path map + DG_PAGES (no orphan /?p=pilot)"
+        },
+        {
+          "name": "core:sample-page",
+          "ok": true,
+          "detail": "DG_PAGES.sample honesty required (Sample matches + no fake placements); ban sample→notfound"
+        },
+        {
+          "name": "core:pilot-page",
+          "ok": true,
+          "detail": "DG_PAGES.pilot + /pilot path + legal-nav Pilot link required (v507 discoverability)"
+        },
+        {
+          "name": "core:notfound-page",
+          "ok": true,
+          "detail": "DG_PAGES.notfound soft-404 page required (title + doc)"
+        },
+        {
+          "name": "core:pilot-legal-nav",
+          "ok": true,
+          "detail": "DG_PAGES.pilot + path /pilot + #dg-legal-links Pilot link required (v507 orphan fix)"
+        },
+        {
+          "name": "core:no-fake-sms-trust",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:no-fake-sms-hero",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-defined",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:show-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:enhanceWIZ-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wizBuild-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:trust-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:run-defined-if-called",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "coreJs:all-calls-defined",
+          "ok": true,
+          "detail": "info-only; candidates:runtime,WIZ"
+        },
+        {
+          "name": "core:90day-in-wiz",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:90day-required-inject",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:wiz-session-draft-privacy",
+          "ok": true,
+          "detail": "same-tab only; hidden excluded; file bytes never serialized; cleared on thanks"
+        },
+        {
+          "name": "core:wiz-submit-review",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:trust-fallback",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:version-150plus",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:org-jsonld-guard",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "core:blog-sor-in-sync",
+          "ok": true,
+          "detail": "1posts+dynSoR+deeplink+hash+rmotion+lazyDims"
+        },
+        {
+          "name": "core:lazy-decode-async",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "blog:publishedAt",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "blog:draft-ready",
+          "ok": true,
+          "detail": "drafts flip-ready"
+        },
+        {
+          "name": "footer:boot-smoke",
+          "ok": true,
+          "detail": "818"
+        },
+        {
+          "name": "combined:forms-via-footer",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:runtime-nav",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:head-markers",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "combined:no-mcp",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:hide-webflow-badge",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:Demigod forms",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:openModal",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "marker:demigod-polish",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-playtest-review.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-live-lib.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-live-lib.test.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-verify-live.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-verify-all.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-import-integrity.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-foot-cdn-publish.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-fix-custom-code.mjs",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-foot-core.js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-head-minimal.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "file:demigod-footer-lite.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "state:release-version-current",
+          "ok": true,
+          "detail": "state must distinguish live v802 / manifest v802 from disk v818"
+        },
+        {
+          "name": "privacy:no-committable-sor",
+          "ok": true,
+          "detail": "tracked=573; privacyRules=56; no committable SoR/PII"
+        },
+        {
+          "name": "sor:import-integrity",
+          "ok": true,
+          "detail": "import-integrity OK edges=503 contracts=11"
+        }
+      ],
+      "pass": false
+    },
+    "live": {
+      "at": "2026-07-24T14:05:45.737Z",
+      "url": "https://www.trydemigod.com/?v=verify-1784901944414",
+      "htmlScan": {
+        "mcpScripts": [],
+        "mcpScriptsGone": true,
+        "allMcpAppScripts": [],
+        "forms": [
+          {
+            "name": "startup-hire",
+            "present": true,
+            "aliases": [
+              "startup-form",
+              "startup-hire"
+            ]
+          },
+          {
+            "name": "engineer-join",
+            "present": true,
+            "aliases": [
+              "jobseeker-form",
+              "engineer-join"
+            ]
+          }
+        ],
+        "formsOk": true,
+        "headMarkers": [
+          {
+            "marker": "hide-webflow-badge",
+            "present": true
+          },
+          {
+            "marker": "Demigod forms",
+            "present": true
+          },
+          {
+            "marker": "openModal",
+            "present": true
+          },
+          {
+            "marker": "potter@trydemigod.com",
+            "present": true
+          },
+          {
+            "marker": "og:title",
+            "present": true
+          },
+          {
+            "marker": "demigod-polish",
+            "present": true
+          }
+        ],
+        "headOk": true,
+        "footerCoreOk": true,
+        "footerCoreCopy": {
+          "ok": true,
+          "version": "802",
+          "noSpeedInCopy": true,
+          "noNameInCopy": true,
+          "hasScrub": true
+        },
+        "runtimeNavOk": true,
+        "badgeHiddenByCss": true,
+        "tallyConfigured": false,
+        "formsMode": "webflow-footer-core",
+        "tallyHosts": {
+          "startup": false,
+          "engineer": false
+        },
+        "staticDrift": [
+          {
+            "severity": "medium",
+            "issue": "hello@ contact in static HTML (runtime scrubs to potter@)"
+          }
+        ],
+        "liveWebhookUrl": ""
+      },
+      "metaCounts": {
+        "description": 1,
+        "ogTitle": 1
+      },
+      "pageScan": {
+        "postJob": false,
+        "hireTalent": 2,
+        "findTalent": 1,
+        "joinNetwork": 1,
+        "getJob": 0,
+        "talentLink": false,
+        "footer2026": true,
+        "athena": false,
+        "hephaestus": false,
+        "curated": false,
+        "edtech": false,
+        "webflowBadge": true
+      },
+      "findings": [
+        {
+          "severity": "medium",
+          "issue": "Static HTML drift (runtime OK): hello@ contact in static HTML (runtime scrubs to potter@)"
+        }
+      ],
+      "pass": true
+    },
+    "designAudit": {
+      "at": "2026-07-04T01:48:40.176Z",
+      "ver": "v60",
+      "views": {
+        "home-hero": {
+          "shot": "/home/potter/audit-shots/design/v60-home-hero.png",
+          "url": "/",
+          "colors": {
+            "offPalette": [],
+            "count": 0
+          }
+        },
+        "trust": {
+          "shot": "/home/potter/audit-shots/design/v60-trust.png",
+          "url": "/",
+          "colors": {
+            "offPalette": [],
+            "count": 0
+          }
+        },
+        "pricing": {
+          "shot": "/home/potter/audit-shots/design/v60-pricing.png",
+          "url": "/#demigod-pricing",
+          "colors": {
+            "offPalette": [],
+            "count": 0
+          }
+        },
+        "partners": {
+          "shot": "/home/potter/audit-shots/design/v60-partners.png",
+          "url": "/#partnerships",
+          "colors": {
+            "offPalette": [],
+            "count": 0
+          }
+        },
+        "privacy": {
+          "shot": "/home/potter/audit-shots/design/v60-privacy.png",
+          "url": "/#privacy",
+          "colors": {
+            "offPalette": [],
+            "count": 0
+          }
+        }
+      },
+      "summary": {
+        "coolGray": 0,
+        "blueRed": 0
+      },
+      "ok": true
+    },
+    "buttonQuick": {
+      "at": "2026-07-24T14:08:52.789Z",
+      "quick": true,
+      "routes": {
+        "/": {
+          "meta": {
+            "foot": false,
+            "nav": false,
+            "trust": false,
+            "pricing": false,
+            "partnersWrap": false,
+            "legalWrap": false,
+            "partnersPage": false,
+            "legalPage": false,
+            "status": "Demigod · SF startup talent matching"
+          },
+          "shot": "/home/potter/audit-shots/button-audit/_.png",
+          "interactives": 20,
+          "clicks": [
+            {
+              "tag": "A",
+              "text": "Pricing",
+              "href": "/?p=pricing",
+              "modal": "",
+              "scroll": "",
+              "id": "",
+              "cls": "",
+              "result": "navigate:/?p=pricing",
+              "broken": false,
+              "before": {
+                "hash": "",
+                "path": "/",
+                "search": "?audit=1784902133536",
+                "startupOpen": false,
+                "engineerOpen": false,
+                "partnerOpen": false,
+                "partnersPage": false,
+                "legalPage": false,
+                "trustY": null,
+                "pricingY": null
+              },
+              "after": {
+                "hash": "",
+                "path": "/",
+                "search": "?p=pricing",
+                "startupOpen": false,
+                "engineerOpen": false,
+                "partnerOpen": false,
+                "partnersPage": false,
+                "legalPage": false,
+                "trustY": null,
+                "pricingY": null,
+                "partnersWrap": false,
+                "legalWrap": false
+              }
+            },
+            {
+              "tag": "A",
+              "text": "Partners",
+              "href": "/?p=partners",
+              "modal": "",
+              "scroll": "",
+              "id": "",
+              "cls": "",
+              "result": "element-not-found"
+            },
+            {
+              "tag": "A",
+              "text": "Join the talent networkFor candidates",
+              "href": "/?wiz=engineer",
+              "modal": "jobseeker",
+              "scroll": "",
+              "id": "",
+              "cls": "premium-btn w-button is-job",
+              "result": "element-not-found"
+            },
+            {
+              "tag": "A",
+              "text": "Hire talentFor startups",
+              "href": "/?wiz=startup",
+              "modal": "startup",
+              "scroll": "",
+              "id": "",
+              "cls": "premium-btn w-button is-talent",
+              "result": "element-not-found"
+            },
+            {
+              "tag": "A",
+              "text": "How it works",
+              "href": "/?p=how",
+              "modal": "",
+              "scroll": "",
+              "id": "",
+              "cls": "",
+              "result": "navigate:/",
+              "broken": false,
+              "before": {
+                "hash": "",
+                "path": "/",
+                "search": "?p=pricing",
+                "startupOpen": false,
+                "engineerOpen": false,
+                "partnerOpen": false,
+                "partnersPage": false,
+                "legalPage": false,
+                "trustY": null,
+                "pricingY": null
+              },
+              "after": {
+                "hash": "",
+                "path": "/",
+                "search": "",
+                "startupOpen": false,
+                "engineerOpen": false,
+                "partnerOpen": false,
+                "partnersPage": false,
+                "legalPage": false,
+                "trustY": null,
+                "pricingY": null,
+                "partnersWrap": false,
+                "legalWrap": false
+              }
+            }
+          ],
+          "broken": [],
+          "deadHash": [],
+          "missingPricing": true
+        }
+      },
+      "bareUrls": {
+        "/legal": {
+          "status": 200,
+          "foot": false,
+          "is404": true
+        },
+        "/partnerships": {
+          "status": 200,
+          "foot": false,
+          "is404": true
+        }
+      },
+      "summary": {
+        "totalBroken": 0,
+        "bareLegal404": true,
+        "barePartnerships404": true
+      },
+      "ok": true
+    },
+    "partnerships": {
+      "at": "2026-07-04T01:52:21.383Z",
+      "home": {
+        "teaser": true,
+        "partnerModal": true,
+        "navPartners": true,
+        "footerPartners": true
+      },
+      "partnersPage": {
+        "wrap": true,
+        "bodyClass": true,
+        "h1": "Demigod Partners",
+        "table": true,
+        "cta": true,
+        "heroHidden": true
+      },
+      "modalOpen": {
+        "open": true,
+        "form": true
+      },
+      "partnerWalk": {
+        "steps": [
+          {
+            "wizOn": true,
+            "step": "0",
+            "welcome": true
+          },
+          {
+            "step": "2",
+            "visible": [
+              "partner-name"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "3",
+            "visible": [
+              "partner-email"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "4",
+            "visible": [
+              "partner-org"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "5",
+            "visible": [
+              "referral-plan"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "6",
+            "visible": [
+              "partner-linkedin"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "7",
+            "visible": [
+              "partner-notes"
+            ],
+            "stray": 0,
+            "submitMode": false
+          },
+          {
+            "step": "8",
+            "visible": [],
+            "stray": 0,
+            "submitMode": true
+          },
+          {
+            "thanks": true,
+            "step": "9"
+          }
+        ],
+        "strayOk": true
+      },
+      "pass": {
+        "homeTeaser": true,
+        "partnerModalInjected": true,
+        "navLink": true,
+        "footerLink": true,
+        "partnersPage": true,
+        "compensationTable": true,
+        "partnerWizard": true,
+        "partnerReview": true,
+        "partnerThanks": true
+      },
+      "ok": true
+    },
+    "wizard": {
+      "at": "2026-07-06T06:34:48.967Z",
+      "viewports": {
+        "desktop": {
+          "startup": {
+            "steps": [
+              {
+                "wizOn": true,
+                "step": 0,
+                "welcome": true,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:0% next:Start brief ",
+                "next": "Start brief →",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "0%",
+                "q": "Hire SF startup talent"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:9% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "9%",
+                "q": "Best email for coordination?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:27% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "27%",
+                "q": "What stage is the company?"
+              },
+              {
+                "wizOn": true,
+                "step": 2,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:36% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "role-title",
+                  "salary-range"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "36%",
+                "q": "What role are you hiring for?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:45% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "stack-needs"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "45%",
+                "q": "Key skills or outcomes needed?"
+              },
+              {
+                "wizOn": true,
+                "step": 2,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:55% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email",
+                  "salary-range"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "55%",
+                "q": "Target comp range (cash + equity note)?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:64% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "stack-needs"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "64%",
+                "q": "When do you need the hire?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": true,
+                "meta": "bar:100% next:Send brief",
+                "next": "Send brief",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": true,
+                "bar": "100%",
+                "q": "Ready to submit your brief?"
+              }
+            ],
+            "blockedAtEmail": true,
+            "strayOk": true,
+            "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-35-15-117Z.png"
+          },
+          "engineer": {
+            "steps": [
+              {
+                "wizOn": true,
+                "step": 0,
+                "welcome": true,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:0% next:Create profi",
+                "next": "Create profile →",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "0%",
+                "q": "Get matched to SF startups"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:15% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "seeker-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "15%",
+                "q": "Best email?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:23% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "linkedin-url"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "23%",
+                "q": "LinkedIn profile?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:31% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "resume"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "31%",
+                "q": "Core skills & stack?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:31% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "resume"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "31%",
+                "q": "Core skills & stack?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:38% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "experience"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "38%",
+                "q": "Key things you have shipped?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:46% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "sf-bay"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "46%",
+                "q": "Open to SF Bay Area startups?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:54% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "sf-bay"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "54%",
+                "q": "When are you available?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:62% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "salary-expectation"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "62%",
+                "q": "Comp expectation (optional)?"
+              }
+            ],
+            "strayOk": true,
+            "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-35-40-091Z.png"
+          }
+        },
+        "mobile": {
+          "startup": {
+            "steps": [
+              {
+                "wizOn": true,
+                "step": 0,
+                "welcome": true,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:0% next:Start brief ",
+                "next": "Start brief →",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "0%",
+                "q": "Hire SF startup talent"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:9% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "9%",
+                "q": "Best email for coordination?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:27% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "27%",
+                "q": "What stage is the company?"
+              },
+              {
+                "wizOn": true,
+                "step": 2,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:36% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "role-title",
+                  "salary-range"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "36%",
+                "q": "What role are you hiring for?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:45% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "stack-needs"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "45%",
+                "q": "Key skills or outcomes needed?"
+              },
+              {
+                "wizOn": true,
+                "step": 2,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:55% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "contact-email",
+                  "salary-range"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "55%",
+                "q": "Target comp range (cash + equity note)?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:64% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "stack-needs"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "64%",
+                "q": "When do you need the hire?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": true,
+                "meta": "bar:100% next:Send brief",
+                "next": "Send brief",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": true,
+                "bar": "100%",
+                "q": "Ready to submit your brief?"
+              }
+            ],
+            "blockedAtEmail": true,
+            "strayOk": true,
+            "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-36-06-583Z.png"
+          },
+          "engineer": {
+            "steps": [
+              {
+                "wizOn": true,
+                "step": 0,
+                "welcome": true,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:0% next:Create profi",
+                "next": "Create profile →",
+                "visible": [],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "0%",
+                "q": "Get matched to SF startups"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:15% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "seeker-email"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "15%",
+                "q": "Best email?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:23% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "linkedin-url"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "23%",
+                "q": "LinkedIn profile?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:31% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "resume"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "31%",
+                "q": "Core skills & stack?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:31% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "resume"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "31%",
+                "q": "Core skills & stack?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:38% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "experience"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "38%",
+                "q": "Key things you have shipped?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:46% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "sf-bay"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "46%",
+                "q": "Open to SF Bay Area startups?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:54% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "sf-bay"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "54%",
+                "q": "When are you available?"
+              },
+              {
+                "wizOn": true,
+                "step": 1,
+                "welcome": false,
+                "thanks": false,
+                "submitMode": false,
+                "meta": "bar:62% next:Continue",
+                "next": "Continue",
+                "visible": [
+                  "salary-expectation"
+                ],
+                "strayLabels": [],
+                "chromeHidden": false,
+                "modalActive": true,
+                "hasDrop": true,
+                "hasReview": false,
+                "bar": "62%",
+                "q": "Comp expectation (optional)?"
+              }
+            ],
+            "strayOk": true,
+            "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-36-32-566Z.png"
+          }
+        }
+      },
+      "nav": {
+        "hasNav": false,
+        "links": [],
+        "dupCta": 0,
+        "partners": false,
+        "wfHidden": true,
+        "ctaOk": false
+      },
+      "pass": {
+        "nav": false,
+        "startupDesktop": false,
+        "engineerDesktop": true,
+        "startupMobile": false,
+        "engineerMobile": true,
+        "noStrayDesktop": true
+      },
+      "ok": false
+    }
+  },
+  "pass": {
+    "tabs": true,
+    "allSteps": false,
+    "unit": true,
+    "submissions": true,
+    "source": false,
+    "live": true,
+    "designSnap": true,
+    "designAudit": false,
+    "buttonQuick": true,
+    "partnerships": true,
+    "wizard": false,
+    "barePartnerships404": true,
+    "bareLegal404": true,
+    "brokenButtons": false,
+    "offPalette": false
+  },
+  "ok": false,
+  "summary": {
+    "failedSteps": [
+      "source",
+      "designAudit",
+      "partnerships",
+      "wizard"
+    ],
+    "totalMs": 253690
+  }
+}

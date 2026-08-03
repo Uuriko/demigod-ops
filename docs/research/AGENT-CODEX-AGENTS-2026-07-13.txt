@@ -1,0 +1,18 @@
+Second-pass recommendations:
+
+- Establish one authority ladder: user directive → current `AGENTS.md` → compressed state → collaboration protocol → roadmap. Resolve the conflicting human-only vs autonomous Webflow publish rules.
+- Replace “equal authority” with domain ownership: Heavy recommends GTM, Fable plans, Codex reviews, Grok executes, gates decide release readiness. No model should be universally authoritative.
+- Give every task a compact contract: objective, owner, permitted files/actions, acceptance checks, deadline/stop condition, and expected artifact.
+- Use explicit state transitions: `proposed → claimed → implemented → verified-disk → verified-CDN → verified-live → documented`. This prevents “green source” from being mistaken for shipped.
+- Make writer locking machine-enforced, not advisory: atomic claim, expiry, base hash, owner, and automatic rejection when `demigod-foot-core.js` changed underneath the worker.
+- Separate durable truth from scratch output: decisions and shipped state belong in versioned docs; `/tmp` holds disposable evidence only and must never be required to resume work.
+- Add evidence envelopes to handoffs: commit/base hash, changed files, exact gate results, live timestamp, CDN hash, unresolved risks, and one recommended next action.
+- Replace periodic busy work with event-driven orchestration: dispatch only from a prioritized queue when state changes, a gate fails, or a human request arrives. GTM inactivity should not trigger website churn.
+
+Anti-patterns:
+
+- Multi-model voting or “boss model” deference without evidence, ownership boundaries, and deterministic gates.
+- Concurrent agents editing overlapping canonical files—or repeatedly auditing the same stable surface—to appear productive.
+- Documentation drift: duplicated rules, future/stale timestamps, contradictory publish authority, or claims that disk/CDN/live match without hashes.
+
+No files were changed.

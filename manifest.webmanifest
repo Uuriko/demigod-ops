@@ -1,0 +1,18 @@
+{
+  "name": "eat the sounds",
+  "short_name": "eat sounds",
+  "description": "jazz store minigame — walk, spin vinyl, eat the sounds with @ninjawhee",
+  "start_url": "/ninjawhee-eat-the-sounds.html",
+  "display": "standalone",
+  "background_color": "#0a0812",
+  "theme_color": "#0a0812",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "game-screenshot.png",
+      "sizes": "1400x900",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

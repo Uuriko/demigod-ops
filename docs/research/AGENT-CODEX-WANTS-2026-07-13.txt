@@ -1,0 +1,74 @@
+## Wishlist by category
+
+### Locks and ownership
+
+- Atomic single-writer lock covering foot source, generated bundle, Webflow paste, save, and publish.
+- Lease metadata: agent, task, PID/session, start time, intended files, target version.
+- Heartbeat plus explicit stale-lock recovery; never silently steal.
+- Read-only review mode while Grok owns publication.
+- Content-hash compare before write/publish to detect mid-flight changes.
+- Claim queue with priority, cancellation, and human-readable status.
+- Immutable publish receipt linking source hash → bundle hash → Webflow save → live asset.
+- Separate locks for source editing and publishing, with publishing requiring a verified source claim.
+
+### Tests and verification
+
+- One fast preflight command: syntax, lint, contracts, forbidden claims, generated-artifact drift.
+- Targeted tests mapped from changed files; full verification reserved for ship candidates.
+- Browser smoke tests for critical funnel paths, mutual-yes flow, mobile layout, and graceful failures.
+- Live-versus-disk semantic comparison, not brittle whole-page snapshots.
+- Foot bundle integrity test: expected version, source hash, asset URL, and runtime boot marker.
+- Regression fixtures for previously fixed incidents.
+- Deterministic test environment with captured logs, screenshots only on failure, and no game traversal.
+- Flake detection: retry once for diagnosis, but never convert failure into green.
+- Performance/error budgets for console errors, duplicate initialization, and asset size.
+- Rollback verification against the last known-good publish receipt.
+
+### Contracts
+
+- Machine-readable source-of-truth manifest naming canonical inputs, generated outputs, and publisher.
+- Explicit Grok↔Codex handoff contract: commit/hash, scope, tests run, known risks, publish target.
+- DOM/API contracts for selectors, events, storage keys, analytics, and form payloads.
+- Copy-policy contract banning SLA/48h promises, fake inventory, and misleading service availability.
+- Version monotonicity and compatibility rules.
+- Definition of done by change class: CSS, copy, behavior, instrumentation, publish-only.
+- Structured failure taxonomy: code, environment, Webflow, stale live cache, or contract breach.
+
+### CI and observability
+
+- Local CI equivalent usable without `OPENAI_API_KEY`.
+- Required check ledger stored by source hash and invalidated on edits.
+- CI concurrency cancellation for superseded revisions.
+- Ship dashboard showing lock holder, source/live versions, checks, diff, and rollback candidate.
+- Post-publish probes at immediate and delayed intervals.
+- Append-only audit trail with concise machine-readable events.
+- Notifications only on actionable transitions: ready, blocked, published, rollback recommended.
+
+### Grok should build for Codex
+
+- Reliable publish adapter with dry-run, exact diff preview, idempotency, receipt, and rollback.
+- Live-state fetcher producing normalized artifacts Codex can compare locally.
+- Webflow failure capture: step, screenshot, console/network evidence, and recovery status.
+- A “publish exactly reviewed hash” guard that refuses newer or older content.
+
+### Codex should build for Fable
+
+- Change-risk classifier recommending required checks.
+- Structured review report: invariants, affected contracts, regression surface, unresolved decisions.
+- Plan validator that rejects noncanonical files, conflicting writers, unverifiable acceptance criteria, and scope drift.
+- Compact disk-truth packet so Fable plans from current hashes and failures—not narrative memory.
+
+## Top 10 ranked
+
+1. Reviewed-hash publish gate with atomic ownership and receipt.
+2. Canonical artifact/source manifest.
+3. One-command deterministic preflight.
+4. Live-versus-disk semantic verifier.
+5. Idempotent Grok publisher with rollback.
+6. DOM/event/storage contract tests.
+7. Post-publish critical-path probes.
+8. Hash-keyed verification ledger.
+9. Stale-lock heartbeat and recovery protocol.
+10. Structured Codex review packet for Fable.
+
+**Settlement vote #1:** Require Grok to publish only the exact source hash Codex reviewed and verified. This single invariant prevents the most expensive failure class: approving one artifact and shipping another.

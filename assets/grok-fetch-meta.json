@@ -1,0 +1,28 @@
+{
+  "url": "https://grok.com/c/7b0a6905-65d0-4e8c-b7c3-a62c87277f62?rid=524d29a0-4b6b-451c-ba40-0d1bfa51f8de",
+  "imgs": [
+    {
+      "src": "https://assets.grok.com/users/760886da-b57f-44e4-bd13-87df769aa250/kD86R9ZNoVRrJyQk-profile-picture.webp",
+      "alt": "pfp",
+      "w": 300,
+      "h": 300
+    },
+    {
+      "src": "https://cdn.cookielaw.org/logos/9dab7956-8e3b-4787-bcc5-96b37152bafe/019d4c9b-0b11-79c0-bdbf-24cb5932b0cf/65abc5d8-cd71-4426-9091-d3dd9eb29c86/xAI_Logomark_Light.png",
+      "alt": "Company Logo",
+      "w": 1024,
+      "h": 1024
+    },
+    {
+      "src": "https://cdn.cookielaw.org/logos/static/powered_by_logo.svg",
+      "alt": "Powered by Onetrust",
+      "w": 568,
+      "h": 53
+    }
+  ],
+  "codes": [
+    "function playUndertaleBlip(audioCtx, dest, kind) {\n  const now = audioCtx.currentTime;\n  const osc = audioCtx.createOscillator();\n  const gain = audioCtx.createGain();\n  const filter = audioCtx.createBiquadFilter();\n  osc.connect(filter); filter.connect(gain); gain.connect(dest);\n  gain.gain.setValueAtTime(0.001, now);\n  switch(kind) {\n    case 'talk':\n      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(620 + Math.random()*80, now);\n      filter.type = 'lowpass'; filter.frequency.value = 1",
+    "function playUndertaleBlip(audioCtx, dest, kind) {\n  const now = audioCtx.currentTime;\n  const osc = audioCtx.createOscillator();\n  const gain = audioCtx.createGain();\n  const filter = audioCtx.createBiquadFilter();\n  osc.connect(filter); filter.connect(gain); gain.connect(dest);\n  gain.gain.setValueAtTime(0.001, now);\n  switch(kind) {\n    case 'talk':\n      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(620 + Math.random()*80, now);\n      filter.type = 'lowpass'; filter.frequency.value = 1"
+  ],
+  "bodyTail": "btle crackle\n      const crack = audioCtx.createBufferSource();\n      crack.buffer = audioCtx.createBuffer(1, 800, audioCtx.sampleRate);\n      const cData = crack.buffer.getChannelData(0);\n      for(let i=0;i<cData.length;i+=17) cData[i] = (Math.random()-0.5)*1.8;\n      const cGain = audioCtx.createGain(); cGain.gain.value=0.035;\n      crack.connect(cGain); cGain.connect(dest); crack.start(now+0.1); break;\n  }\n}\n\nfunction drawVinylPickup(ctx, x, y, r, color, spin) {\n  ctx.save();\n  ctx.translate(x, y);\n  ctx.rotate(spin * 0.0174533); // deg to rad\n  // vinyl disc\n  ctx.fillStyle = color;\n  ctx.strokeStyle = '#111';\n  ctx.lineWidth = r*0.08;\n  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();\n  // grooves\n  ctx.strokeStyle = '#222';\n  ctx.lineWidth = r*0.04;\n  for(let i=1;i<5;i++){\n    ctx.beginPath(); ctx.arc(0, 0, r*0.4 + i*r*0.12, 0, Math.PI*2); ctx.stroke();\n  }\n  // center label\n  ctx.fillStyle = '#eee';\n  ctx.beginPath(); ctx.arc(0, 0, r*0.18, 0, Math.PI*2); ctx.fill();\n  ctx.fillStyle = '#c33';\n  ctx.font = `${r*0.22}px sans-serif`;\n  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';\n  ctx.fillText('●', 0, 0);\n  // tone arm / pickup\n  ctx.rotate(-spin*0.6 - 0.8); // counter-spin + offset\n  ctx.strokeStyle = '#555';\n  ctx.lineWidth = r*0.09;\n  ctx.beginPath();\n  ctx.moveTo(r*0.9, -r*0.6);\n  ctx.quadraticCurveTo(r*1.8, -r*1.1, r*2.2, -r*0.4);\n  ctx.stroke();\n  ctx.fillStyle = '#f44';\n  ctx.beginPath(); ctx.arc(r*2.2, -r*0.4, r*0.14, 0, Math.PI*2); ctx.fill();\n  ctx.restore();\n  // highlight glare\n  ctx.save();\n  ctx.translate(x - r*0.3, y - r*0.3);\n  ctx.rotate(0.6);\n  ctx.fillStyle = 'rgba(255,255,255,0.35)';\n  ctx.beginPath(); ctx.ellipse(0, 0, r*0.7, r*0.2, 0, 0, Math.PI*2); ctx.fill();\n  ctx.restore();\n}\n\nHeavy — inspect eat-the-sounds at http://localhost:8765/ninjawhee-eat-the-sounds.html\n\ne function bodies. Canvas only. No prose after code.\n\nNo response.\n\nGrok was unable to finish replying.\nRetry\n\n\n\n\nHeavy\nUpgrade to SuperGrok"
+}

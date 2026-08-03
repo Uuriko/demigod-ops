@@ -1,0 +1,20 @@
+{
+  "schema": "demigod.call-notes-store/1",
+  "updatedAt": "2026-07-31T01:10:00.000Z",
+  "notes": [
+    {
+      "schema": "demigod.call-note/1",
+      "id": "demo-call-01",
+      "kind": "intake",
+      "summary": "Demo intake only — founding eng brief, 90-day ship multi-tenant MVP, equity band open.",
+      "roleId": "role-demo-founding-eng",
+      "candId": null,
+      "pairId": null,
+      "attributesTouched": null,
+      "rawTranscript": null,
+      "by": "operator-demo",
+      "at": "2026-07-18T17:00:00.000Z",
+      "autoChangedPair": false
+    }
+  ]
+}

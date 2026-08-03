@@ -1,0 +1,35 @@
+<meta name="description" content="Human-matched SF AI talent. 3–5 profiles in 48h. 10% if hire.">
+<link rel="canonical" href="https://www.trydemigod.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Demigod — Human-matched SF AI talent">
+<meta property="og:description" content="Humans curate SF AI engineers in 48h. 10% if hire.">
+<meta property="og:image" content="https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg">
+<meta property="og:url" content="https://www.trydemigod.com/">
+<style id="dg-css">:root{--g:#C9A84C;--gl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--card:rgba(14,14,18,.92)}
+body{background:var(--dk)!important;color:var(--cr)!important;font-family:Manrope,sans-serif}
+a.w-webflow-badge,.w-webflow-badge{display:none!important}
+.title-accent-gold{color:var(--g)!important}.title-accent-red{color:var(--gl)!important}.title-accent-blue{color:var(--cr)!important}
+.hero-section h1,.header h1{font-family:Cinzel,serif!important;letter-spacing:-.03em;line-height:1.02;text-shadow:0 2px 40px rgba(0,0,0,.65)}
+.hero-section p,.header p,.subheading,.hero-description{color:var(--mu)!important;font-size:1.125rem!important;max-width:38ch;text-shadow:0 1px 12px rgba(0,0,0,.5)}
+.eyebrow,.eyebrow_block,.badge,[class*="badge"]{color:var(--g)!important}
+.badge-dot{background:var(--g)!important;box-shadow:0 0 10px rgba(201,168,76,.55)}
+.badge-text{letter-spacing:.14em!important;font-size:.7rem!important}
+nav,.w-nav,.nav_container{background:rgba(10,10,10,.97)!important;backdrop-filter:blur(10px);border-bottom:1px solid rgba(201,168,76,.12)!important}
+.nav_logo-icon,.logo-link svg{color:var(--g)!important;filter:drop-shadow(0 0 6px rgba(201,168,76,.25))}
+.button.on-inverse,nav .button.on-inverse{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important;letter-spacing:.05em}
+.button.on-inverse:hover{box-shadow:0 6px 22px rgba(201,168,76,.28)!important}
+.premium-btn.is-talent{background:var(--g)!important;color:var(--dk)!important;border-color:var(--g)!important;font-weight:700!important;animation:dg-p 3s ease-in-out infinite}
+.premium-btn.is-job{background:transparent!important;color:var(--g)!important;border:1px solid rgba(201,168,76,.55)!important;font-weight:600!important}
+.premium-btn.is-talent:hover{box-shadow:0 8px 26px rgba(201,168,76,.22)!important}
+.premium-btn.is-job:hover{background:rgba(201,168,76,.07)!important}
+@keyframes dg-p{0%,100%{box-shadow:0 4px 16px rgba(201,168,76,.12)}50%{box-shadow:0 6px 28px rgba(201,168,76,.32)}}
+.statue-frame,.statue-svg,.statue-wrapper,.statue-coordinates,.hero-content-right{display:none!important}
+.hero-content-left,.hero-section>.container{max-width:640px}
+.hero-section,.header{position:relative;overflow:hidden;min-height:88vh;display:flex;align-items:center;background-image:linear-gradient(105deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.25) 100%),url('https://cdn.prod.website-files.com/6a34c484dcedc18a17408187/6a3be335deaec9bad0878101_demigod-hermes-hero-16x9.jpg')!important;background-size:cover!important;background-position:65% center!important}
+.hero-section::after,.header::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(201,168,76,.08),transparent 70%);z-index:0}
+.hero-section::before,.header::before{content:'';position:absolute;inset:-10% -5% auto -5%;height:60%;pointer-events:none;z-index:0;background:radial-gradient(ellipse 50% 40% at 75% 35%,rgba(201,168,76,.16),transparent 70%);animation:dg-d 18s ease-in-out infinite}
+.hero-section>*,.header>*{position:relative;z-index:1}
+@keyframes dg-d{0%,100%{opacity:.35}50%{opacity:.7}}
+.grid-col-line{background:rgba(201,168,76,.05)!important}
+.section.is-secondary{background:#05050A!important}
+#pantheon,#trust-bullets,section:has(.heading_primary){display:none!important}

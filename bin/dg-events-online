@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# dg-events-online — public Events Bot API (app :3460 + tunnel + config)
+#   bin/dg-events-online           # status
+#   bin/dg-events-online status
+#   bin/dg-events-online stop
+#   bin/dg-events-online up --publish-config
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+export PATH="${HOME}/.local/bin:${HOME}/bin:${HOME}/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH}"
+cd "$ROOT"
+exec node demigod-events-online.mjs "${@:-status}"

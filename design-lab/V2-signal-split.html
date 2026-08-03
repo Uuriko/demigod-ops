@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Demigod · Signal Split (lab V2)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #111; }
+  .top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.9rem 1.25rem; border-bottom: 1px solid #ddd; background: #fff;
+  }
+  .word { font-weight: 700; letter-spacing: -0.02em; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 52px); }
+  .pane { padding: 3rem 2rem; display: flex; flex-direction: column; justify-content: center; }
+  .hire { background: #F7F4EF; }
+  .look { background: #172033; color: #f3f1ea; }
+  .look .muted { color: #a8b0c0; }
+  .eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; font-weight: 600; opacity: 0.7; margin-bottom: 0.75rem; }
+  h1 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 1rem; max-width: 12ch; }
+  .muted { color: #5c574f; max-width: 28rem; line-height: 1.5; margin: 0 0 1.5rem; }
+  .cta {
+    display: inline-block; text-decoration: none; border-radius: 12px; padding: 0.95rem 1.2rem;
+    font-weight: 650; border: 1px solid transparent;
+  }
+  .hire .cta { background: #1F4B99; color: #fff; }
+  .look .cta { background: #f3f1ea; color: #172033; }
+  .fee {
+    grid-column: 1 / -1; text-align: center; padding: 0.85rem;
+    background: #fff; border-top: 1px solid #ddd; font-size: 0.88rem; color: #5c574f;
+  }
+  @media (max-width: 800px) {
+    .split { grid-template-columns: 1fr; min-height: auto; }
+    .pane { min-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="word">Demigod</div>
+    <div style="font-size:0.85rem;color:#666">SF startup talent · tech ranks · humans review</div>
+  </div>
+  <div class="split">
+    <section class="pane hire">
+      <div class="eyebrow">FOR FOUNDERS &amp; HIRING TEAMS</div>
+      <h1>Start a hiring brief.</h1>
+      <p class="muted">Share the role and the 90-day outcome. Demigod tech ranks fit; a person reviews before anything moves.</p>
+      <a class="cta" href="#hire">I'm hiring →</a>
+    </section>
+    <section class="pane look">
+      <div class="eyebrow">FOR ENGINEERS &amp; OPERATORS</div>
+      <h1>Start a profile.</h1>
+      <p class="muted">Share work, skills, and constraints. No intro without your approval. Free for talent.</p>
+      <a class="cta" href="#look">I'm looking →</a>
+    </section>
+    <div class="fee">10% on hire · Free for talent · Mutual interest only · hello@trydemigod.com will follow up · lab V2</div>
+  </div>
+</body>
+</html>

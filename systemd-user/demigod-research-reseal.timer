@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly Demigod research re-verify check (CH-13)
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=2h
+AccuracySec=15min
+Persistent=true
+Unit=demigod-research-reseal.service
+
+[Install]
+WantedBy=timers.target

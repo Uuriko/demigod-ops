@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Desktop notifications for Demigod ops (best-effort).
+#   dg-notify "title" "body"
+#   dg-notify --truth   # run truth and notify
+#   dg-notify --ac      # show AC + profile
+set -euo pipefail
+export PATH="${HOME}/.local/bin:${HOME}/bin:${PATH}"
+
+notify() {
+  local title="${1:-Demigod}"
+  local body="${2:-}"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a Demigod "$title" "$body" 2>/dev/null || true
+  fi
+  printf '%s — %s\n' "$title" "$body"
+  echo "[$(date -Iseconds)] $title | $body" >>"${XDG_STATE_HOME:-$HOME/.local/state}/dg-notify.log" 2>/dev/null || true
+}
+
+case "${1:-}" in
+  --truth)
+    out="$(cd "${DEMIGOD_ROOT:-$HOME}" && node demigod-truth.mjs 2>&1 | tail -5)"
+    if echo "$out" | grep -qi 'TRUTH PASS\|truth PASS\|pass'; then
+      notify "Truth PASS" "$(echo "$out" | tail -1)"
+    else
+      notify "Truth FAIL" "$(echo "$out" | tail -1)"
+    fi
+    ;;
+  --ac)
+    ac="$(cat /sys/class/power_supply/AC/online 2>/dev/null || echo '?')"
+    prof="$(system76-power profile 2>/dev/null | awk -F': ' '/Power Profile/{print $2; exit}')"
+    notify "Power" "AC=$ac profile=$prof"
+    ;;
+  --ship-done)
+    notify "Ship" "${2:-done}"
+    ;;
+  -h|--help)
+    echo "usage: dg-notify [title body] | --truth | --ac | --ship-done [msg]"
+    ;;
+  --*)
+    echo "dg-notify: unknown argument $1 — try: dg-notify [title body] | --truth | --ac | --ship-done" >&2
+    exit 2
+    ;;
+  *)
+    notify "${1:-Demigod}" "${2:-}"
+    ;;
+esac

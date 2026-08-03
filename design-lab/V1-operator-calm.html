@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Demigod · Operator Calm (lab V1)</title>
+<style>
+  :root {
+    --paper: #F7F4EF;
+    --ink: #141414;
+    --muted: #5c574f;
+    --line: #e4ddd3;
+    --cobalt: #1F4B99;
+    --cobalt-soft: #e8eef8;
+    --char: #1a1d24;
+    --ok: #2f6b4f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  .sans { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 1.25rem; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.1rem 0; border-bottom: 1px solid var(--line);
+  }
+  .word { font-weight: 700; letter-spacing: -0.02em; font-size: 1.15rem; }
+  nav { display: flex; gap: 1.25rem; font-size: 0.92rem; color: var(--muted); }
+  nav a { text-decoration: none; }
+  .start {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    background: var(--ink); color: var(--paper);
+    border: 0; border-radius: 999px; padding: 0.45rem 0.9rem; cursor: pointer;
+  }
+  .hero {
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 2.5rem;
+    padding: 3.5rem 0 2.5rem; align-items: center;
+  }
+  .eyebrow {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.72rem; letter-spacing: 0.14em; color: var(--muted); font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    line-height: 1.05; letter-spacing: -0.03em; font-weight: 600; margin: 0.5rem 0 1rem;
+  }
+  .sub { font-size: 1.12rem; color: var(--muted); max-width: 34rem; margin: 0 0 1.5rem; }
+  .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1rem; }
+  .path {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    border: 1px solid var(--line); background: #fff; border-radius: 14px;
+    padding: 1.1rem 1rem; text-decoration: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .path:hover { border-color: var(--cobalt); box-shadow: 0 8px 24px rgba(31,75,153,.08); }
+  .path strong { display: block; font-size: 1.05rem; margin-bottom: 0.2rem; color: var(--ink); }
+  .path span { color: var(--muted); font-size: 0.88rem; }
+  .path.primary { background: var(--cobalt); border-color: var(--cobalt); color: #fff; }
+  .path.primary span { color: rgba(255,255,255,.85); }
+  .trust {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.82rem; color: var(--muted);
+  }
+  .artifact {
+    background: var(--char); color: #f2efe8; border-radius: 18px; padding: 1.25rem 1.2rem;
+    font-family: ui-sans-serif, system-ui, sans-serif; min-height: 280px;
+  }
+  .artifact h2 {
+    margin: 0 0 1rem; font-size: 0.72rem; letter-spacing: 0.12em; color: #9aa3b2; font-weight: 600;
+  }
+  .step {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: center;
+    padding: 0.85rem 0; border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .step:first-of-type { border-top: 0; }
+  .num { color: #7eb6e8; font-weight: 700; font-size: 0.85rem; }
+  .mark { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); opacity: .9; }
+  .section { padding: 3rem 0; border-top: 1px solid var(--line); }
+  .section h2 { font-size: 1.8rem; letter-spacing: -0.02em; margin: 0 0 1.5rem; }
+  .gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .gate {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1.2rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  .gate b { display: block; margin-bottom: 0.4rem; }
+  .gate p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .price {
+    display: grid; grid-template-columns: 1fr 1.2fr; gap: 1.5rem; align-items: center;
+    background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 1.5rem;
+  }
+  .pct { font-size: 4rem; line-height: 1; letter-spacing: -0.04em; color: var(--cobalt); }
+  footer {
+    margin-top: 2rem; padding: 2rem 0; border-top: 1px solid var(--line);
+    font-family: ui-sans-serif, system-ui, sans-serif; color: var(--muted); font-size: 0.88rem;
+  }
+  @media (max-width: 800px) {
+    .hero, .gates, .price, .paths { grid-template-columns: 1fr; }
+    nav { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="word">Demigod</div>
+      <nav class="sans">
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+      </nav>
+      <button class="start" type="button">Start</button>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">SF STARTUP TALENT MATCHING</div>
+        <h1>The right people, with signal.</h1>
+        <p class="sub">Demigod tech ranks the fit. A human reviews every potential match. Both sides approve before an intro.</p>
+        <div class="paths">
+          <a class="path primary" href="#hire"><strong>I'm hiring</strong><span>Share a role</span></a>
+          <a class="path" href="#look"><strong>I'm looking</strong><span>Share your profile</span></a>
+        </div>
+        <p class="trust">SF Bay Area · 10% on hire · Free for talent · No intro without mutual interest</p>
+      </div>
+      <aside class="artifact" aria-label="How a match moves">
+        <h2>HOW A MATCH MOVES</h2>
+        <div class="step"><span class="num">01</span><div>Ranked by fit</div><span class="mark"></span></div>
+        <div class="step"><span class="num">02</span><div>Human reviewed</div><span class="mark"></span></div>
+        <div class="step"><span class="num">03</span><div>Both approve</div><span class="mark"></span></div>
+      </aside>
+    </section>
+
+    <section class="section" id="how">
+      <h2>A match has three gates.</h2>
+      <div class="gates">
+        <div class="gate"><b>01 — Add the signal</b><p>Hiring teams share the role and 90-day outcome. Talent shares work, skills, and constraints.</p></div>
+        <div class="gate"><b>02 — Rank, then review</b><p>Demigod tech surfaces fit. A human checks the evidence and tradeoffs.</p></div>
+        <div class="gate"><b>03 — Both say yes</b><p>Each side reviews privately. We introduce only with mutual interest.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="pricing">
+      <div class="price">
+        <div>
+          <div class="eyebrow">FOR HIRING TEAMS</div>
+          <div class="pct">10%</div>
+        </div>
+        <div class="sans">
+          <p style="margin:0 0 .6rem;font-size:1.1rem"><strong>of first-year cash compensation, only when someone starts.</strong></p>
+          <p style="margin:0;color:var(--muted)">Free for talent. SMS and payments are pending — hello@trydemigod.com will follow up.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Demigod lab V1 · Operator Calm · not live · tech + humans in the loop · no fake metrics
+    </footer>
+  </div>
+</body>
+</html>

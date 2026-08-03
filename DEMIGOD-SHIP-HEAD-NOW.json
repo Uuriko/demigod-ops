@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "last": {
+    "i": 0,
+    "pub": "Fri Jul 17 2026 15:15:46 GMT+0000 (Coord",
+    "v5": true,
+    "critical": true,
+    "singleCanonicalFoot": true,
+    "liveFootMatchesDisk": true,
+    "liveFootVersion": "674",
+    "livePublicFootVersion": "674",
+    "liveFootUrls": [
+      "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@cbc4738e30b1/foot-latest.js"
+    ],
+    "braces": {
+      "o": 13,
+      "c": 13
+    },
+    "bytes": 64740
+  },
+  "headLen": 42265,
+  "at": "2026-07-17T15:26:10.853Z"
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Demigod daily role-market observation (public ATS boards; no outreach)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-role-ledger.mjs poll
+ExecStartPost=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-recruitai-export.mjs
+ExecStartPost=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-recruitai-seed-pack.mjs
+Nice=10
+TimeoutStartSec=15min

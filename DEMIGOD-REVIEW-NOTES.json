@@ -1,0 +1,70 @@
+{
+  "schema": "demigod.review-notes-store/1",
+  "updatedAt": "2026-07-31T00:17:48.872Z",
+  "notes": {
+    "role-demo-founding-eng|cand-demo-alex": {
+      "schema": "demigod.review-note/1",
+      "roleId": "role-demo-founding-eng",
+      "candId": "cand-demo-alex",
+      "pairId": null,
+      "ratings": [
+        {
+          "mustHaveId": "mh1",
+          "rating": "yes",
+          "evidence": "Shipped multi-tenant billing service used by 3 teams."
+        },
+        {
+          "mustHaveId": "mh2",
+          "rating": "strong_yes",
+          "evidence": "Led ambiguous 0-1 infra migration with written RFCs."
+        },
+        {
+          "mustHaveId": "mh3",
+          "rating": "yes",
+          "evidence": "Clear written design docs and async decision trail."
+        },
+        {
+          "mustHaveId": "mh4",
+          "rating": "yes",
+          "evidence": "Owned deploy pipeline and on-call for core API."
+        }
+      ],
+      "decisionAid": "changed_by_context",
+      "companyContextUsed": [],
+      "reviewedAt": "2026-07-31T00:14:19.788Z",
+      "reviewedBy": "operator"
+    },
+    "role-seed1|cand-fake": {
+      "schema": "demigod.review-note/1",
+      "roleId": "role-seed1",
+      "candId": "cand-fake",
+      "pairId": null,
+      "ratings": [
+        {
+          "mustHaveId": "mh1",
+          "rating": "yes",
+          "evidence": "Prioritized backlog with written user interviews at last company."
+        },
+        {
+          "mustHaveId": "mh2",
+          "rating": "yes",
+          "evidence": "Shipped ambiguous 0-1 product with design partners."
+        },
+        {
+          "mustHaveId": "mh3",
+          "rating": "strong_yes",
+          "evidence": "Clear PRDs and stakeholder async communication examples."
+        },
+        {
+          "mustHaveId": "mh4",
+          "rating": "yes",
+          "evidence": "Ran research sprints and turned findings into roadmap cuts."
+        }
+      ],
+      "decisionAid": "none",
+      "companyContextUsed": [],
+      "reviewedAt": "2026-07-31T00:17:48.870Z",
+      "reviewedBy": "operator"
+    }
+  }
+}

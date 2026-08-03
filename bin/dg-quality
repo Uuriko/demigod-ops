@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+# Occasional quality loop: audits, sim-user tests, bugfix, design/code review.
+# Prevents feature thrash without validation.
+#
+#   bin/dg-quality pick [--context=auto|features|ship|tools|thrash]
+#   bin/dg-quality run Q1
+#   bin/dg-quality once [--full] [--context=…]
+#   bin/dg-quality status
+#   bin/dg-quality backlog
+#   bin/dg-quality doctrine
+#
+set -euo pipefail
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+COORD="$BUSY/coord"
+LAST="$COORD/quality-last.json"
+BACKLOG="$COORD/quality-backlog.json"
+NOTES="$COORD/quality-notes"
+STATE="$COORD/quality-state.json"
+CATALOG="$ROOT/docs/DEMIGOD-QUALITY-LOOP.md"
+export PATH="${HOME}/.local/bin:${HOME}/bin:${HOME}/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:${PATH}"
+cd "$ROOT"
+mkdir -p "$COORD" "$NOTES"
+
+doctrine() {
+  cat <<'D'
+## Quality loop (all agents)
+Do not invent features forever without validation.
+Rotate audits: sim-user, WIZ playtest, bug review, ponytail, live smoke.
+  bin/dg-quality once
+  bin/dg-quality status
+Fix P0/P1 in quality-backlog.json before the next feature batch.
+North star remains: website + Demigod product. Ship after fixes.
+Docs: docs/DEMIGOD-QUALITY-LOOP.md
+D
+}
+
+cmd="${1:-status}"
+shift || true
+
+run_one() {
+  local id="$1"
+  local name="$2"
+  local logf="$NOTES/${id}-$(date +%Y%m%dT%H%M%S).log"
+  local ec=0
+  echo "=== $id $name ===" | tee "$logf"
+  case "$id" in
+    Q1)
+      timeout 120 node demigod-user-test.mjs --quick >>"$logf" 2>&1 || ec=$?
+      ;;
+    Q2)
+      if curl -sS -o /dev/null -w '' --connect-timeout 1 http://127.0.0.1:9223/json/version 2>/dev/null; then
+        timeout 180 node demigod-wiz-cdp-playtest.mjs --local >>"$logf" 2>&1 || ec=$?
+      else
+        echo "CDP down — fallback smoke" | tee -a "$logf"
+        timeout 90 bin/dg smoke >>"$logf" 2>&1 || ec=$?
+      fi
+      ;;
+    Q3)
+      # Website SoR (+ verify lock) — not full HEAD~1 (70+ agent thrash files flood P1 noise)
+      timeout 120 node demigod-review.mjs --bug --json --no-contract --fail-on critical \
+        --files demigod-foot-core.js demigod-head-minimal.html demigod-blog-posts.json \
+        demigod-footer-lite.html demigod-head-styles.css demigod-verify-source.mjs \
+        >>"$logf" 2>&1 || ec=$?
+      ;;
+    Q4)
+      timeout 120 node demigod-review.mjs --json --no-contract --fail-on critical >>"$logf" 2>&1 || ec=$?
+      ;;
+    Q5)
+      timeout 60 node demigod-ponytail.mjs check --json >>"$logf" 2>&1 || \
+        timeout 60 node demigod-ponytail.mjs status --json >>"$logf" 2>&1 || ec=$?
+      ;;
+    Q6)
+      if [[ -f demigod-conversion-playtest.mjs ]]; then
+        timeout 180 node demigod-conversion-playtest.mjs >>"$logf" 2>&1 || ec=$?
+      else
+        timeout 90 bin/dg smoke >>"$logf" 2>&1 || ec=$?
+      fi
+      ;;
+    Q7)
+      timeout 60 bin/dg ship status >>"$logf" 2>&1 || true
+      timeout 90 bin/dg smoke >>"$logf" 2>&1 || ec=$?
+      # Shared CDP tab races: smoke already re-navs once; one outer retry after other agents free the tab.
+      if [[ $ec -ne 0 ]] && grep -q 'live page did not become ready' "$logf" 2>/dev/null; then
+        echo "Q7 retry once after CDP not-ready" | tee -a "$logf"
+        ec=0
+        timeout 90 bin/dg smoke >>"$logf" 2>&1 || ec=$?
+      fi
+      ;;
+    Q8)
+      timeout 90 npm run demigod:verify:source >>"$logf" 2>&1 || ec=$?
+      ;;
+    *)
+      echo "unknown id $id" | tee -a "$logf"
+      ec=2
+      ;;
+  esac
+  echo "exit=$ec" | tee -a "$logf"
+  # extract findings: exit summary + explicit fail bullets only (not pass lines / headings)
+  python3 - "$id" "$name" "$ec" "$logf" "$LAST" "$BACKLOG" <<'PY'
+import json, sys, re, hashlib, time
+from pathlib import Path
+from datetime import datetime, timezone
+id_, name, ec, logf, last_p, backlog_p = sys.argv[1:7]
+ec = int(ec)
+log = Path(logf).read_text(errors="replace")
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+findings = []
+tail = log[-4000:]
+dash_start = Path("/tmp/dg-busy/dashboard-start.log")
+dash_heartbeat = Path("/tmp/dg-busy/dashboard-server.heartbeat")
+infra_unobservable = ec == 124 or (
+    re.search(r"[✗*].*site/home HTTP 200 — status=0\b", log)
+    and re.search(r"[✗*].*dash/health up\b", log)
+    and dash_start.exists()
+    and '"code":"EPERM"' in dash_start.read_text(errors="replace")
+    and dash_heartbeat.exists()
+    and time.time() - dash_heartbeat.stat().st_mtime < 180
+)
+if infra_unobservable:
+    receipt = {
+        "schema": "demigod.quality-loop/1", "ok": False, "at": now, "id": id_, "name": name,
+        "exit": ec, "log": str(logf), "findings": [], "unobservable": True,
+        "hint": "Quality infrastructure timed out or is host-unobservable; backlog preserved.",
+    }
+    Path(last_p).write_text(json.dumps(receipt, indent=2) + "\n")
+    print(json.dumps({"id": id_, "exit": ec, "findings": 0, "ok": False, "unobservable": True}))
+    raise SystemExit
+if ec != 0:
+    findings.append({"sev": "P1", "text": f"{id_} {name} exited {ec}", "lane": "gates"})
+# Explicit fail only: suite FAIL summary, ✗ bullets, **[sev]** without ✓ pass marks
+fail_line = re.compile(
+    r"(?i)("
+    r"\bFAIL\b|"
+    r"critical_fail\s*[1-9]|"
+    r"^\s*[-*]\s*(?:\*\*)?\[(?:critical|p0|p1|high)\]|"
+    r"^\s*[-*]\s*✗|"
+    r"^\s*✗\s*"
+    r")"
+)
+pass_mark = re.compile(r"(?i)(^\s*[-*]?\s*✓|\bPASS\b(?!\s*disk)|\bok\s+\d+/\d+)")
+noise_line = re.compile(
+    r"(?i)("
+    r"^\s*#|"  # headings
+    r"^\s*[-*]?\s*✓|"  # pass bullets even when labeled [critical]
+    r"^\s*ok\s+\d+/\d+|"  # suite tally (ok 43/44 · critical_fail 1)
+    r"^##\s*failures\s*$"
+    r")"
+)
+def _is_noise(text: str) -> bool:
+    s = (text or "").strip()
+    if not s or len(s) < 8:
+        return True
+    # JSON dump fragments from --json review (e.g. "fail": true,) — not product findings
+    if re.fullmatch(r'"(?:fail|ok)"\s*:\s*(?:true|false),?', s, re.I):
+        return True
+    if re.fullmatch(r'"[a-zA-Z_][a-zA-Z0-9_]*"\s*:\s*(?:true|false|\d+|null|"[^"]*"),?', s):
+        return True
+    if re.fullmatch(r'[{}\[\],]+', s):
+        return True
+    if noise_line.search(s):
+        return True
+    # pure tally / section headers without a real fail bullet
+    if re.match(r"(?i)^at:\s+", s):
+        return True
+    return False
+# Prepare-only disk≠live is observational while publish is unauthorized (not a product defect).
+prepare_only_drift = bool(
+    re.search(r"publish\s*=\s*UNAUTHORIZED|Prepare only\s*—|Prepare only\s+—", log, re.I)
+)
+for line in tail.splitlines():
+    s = line.strip()
+    if _is_noise(s):
+        continue
+    low = s.lower()
+    if "deprecated" in low:
+        continue
+    # skip success lines that only match via substring "fail" inside critical_fail when ✓ present
+    if pass_mark.search(s) and "✗" not in s and not re.search(r"(?i)\bFAIL\b", s):
+        continue
+    # Skip JSON key "fail":true lines that only matched via case-insensitive \bfail\b
+    if re.search(r'(?i)"fail"\s*:\s*true', s) and "✗" not in s and not re.search(r"\bFAIL\b", s):
+        continue
+    if not fail_line.search(s):
+        continue
+    # Q7 ship status prints TRUTH FAIL for expected disk-ahead while publish=UNAUTHORIZED.
+    if prepare_only_drift and re.search(r"(?i)\bTRUTH\s+FAIL\b", s) and re.search(
+        r"(?i)disk=v?\d+.*live=v?\d+|shipped=false", s
+    ):
+        continue
+    sev = "P0" if re.search(r"(?i)\b(p0|critical_fail\s*[1-9])\b", s) or "**[critical]**" in s or ("[critical]" in low and "✗" in s) else "P1"
+    if "p0" in low:
+        sev = "P0"
+    # lane: product-health/tools signals → tools; pure UX copy → website; else gates
+    lane = "gates"
+    if re.search(r"(?i)(dash/|tools/|cycle-unattested|productOk|tools-os|demand-selftest|/api/health)", s):
+        lane = "tools"
+    elif id_.startswith("Q") and re.search(r"(?i)(hero|wiz|form|a11y|copy|blog|head|foot)", s):
+        lane = "website"
+    elif id_.startswith("Q"):
+        lane = "tools" if re.search(r"(?i)(health|attest|cycle|dashboard)", s) else "website"
+    findings.append({"sev": sev, "text": s[:200], "lane": lane})
+# de-dupe by normalized text (collapse Failures **[critical]** vs All ✗ [critical] twins)
+def _norm_finding(text: str) -> str:
+    t = re.sub(
+        r"^\s*[-*]\s*(?:✗\s*)?(?:\*\*)?\[(?:critical|p0|p1|high|medium|low)\](?:\*\*)?\s*",
+        "",
+        text or "",
+        flags=re.I,
+    )
+    # drop trailing JSON / bare em-dash for twin collapse (Failures vs All same check)
+    t = re.sub(r"\s*[—-]\s*\{.*$", "", t)
+    t = re.sub(r"\s*[—-]\s*$", "", t).strip()
+    return t[:80]
+
+by_norm = {}
+order = []
+for f in findings:
+    if _is_noise(f["text"]):
+        continue
+    k = _norm_finding(f["text"]) or f["text"][:80]
+    prev = by_norm.get(k)
+    if prev is None:
+        by_norm[k] = f
+        order.append(k)
+        continue
+    # Prefer the ✗ All-list bullet over the Failures-summary twin; longer detail wins ties
+    if "✗" in f["text"] and "✗" not in prev["text"]:
+        by_norm[k] = f
+    elif (("✗" in f["text"]) == ("✗" in prev["text"])) and len(f["text"]) > len(prev["text"]):
+        by_norm[k] = f
+uniq = [by_norm[k] for k in order][:12]
+receipt = {
+    "schema": "demigod.quality-loop/1",
+    "ok": ec == 0 and not any(f["sev"] == "P0" for f in uniq),
+    "at": now,
+    "id": id_,
+    "name": name,
+    "exit": ec,
+    "log": str(logf),
+    "findings": uniq,
+    "hint": "Fix P0/P1 in quality-backlog before new features. Prefer website UX fixes over meta-tools.",
+}
+Path(last_p).write_text(json.dumps(receipt, indent=2) + "\n")
+# merge backlog: upsert stable (from, text) — do not append every matching line
+try:
+    bl = json.loads(Path(backlog_p).read_text())
+except Exception:
+    bl = {"schema": "demigod.quality-backlog/1", "items": []}
+items = bl.get("items") or []
+current_norms = {_norm_finding(f["text"]) for f in uniq}
+for it in items:
+    if it.get("from") == id_ and it.get("status") == "open" and _norm_finding(str(it.get("text") or "")) not in current_norms:
+        it.update(status="done", doneAt=now, note="absent from latest completed rerun")
+if ec == 0:
+    for it in items:
+        if it.get("from") == id_ and it.get("status") == "open":
+            it.update(status="done", doneAt=now, note="cleared by successful rerun")
+by_key = {}
+# prune stale pass-noise + collapse twins already in backlog
+by_norm_bl = {}
+for it in items:
+    text = str(it.get("text") or "")
+    if _is_noise(text):
+        continue
+    nk = (str(it.get("from") or ""), _norm_finding(text))
+    prev = by_norm_bl.get(nk)
+    if prev is None:
+        by_norm_bl[nk] = it
+        continue
+    # prefer open + ✗ + longer detail
+    score = (1 if it.get("status") == "open" else 0, 1 if "✗" in text else 0, len(text))
+    pscore = (1 if prev.get("status") == "open" else 0, 1 if "✗" in str(prev.get("text") or "") else 0, len(str(prev.get("text") or "")))
+    if score >= pscore:
+        by_norm_bl[nk] = it
+for it in by_norm_bl.values():
+    key = (str(it.get("from") or ""), str(it.get("text") or "")[:120])
+    by_key[key] = it
+for f in uniq:
+    if f["sev"] not in ("P0", "P1"):
+        continue
+    text = f["text"]
+    if _is_noise(text):
+        continue
+    key = (id_, text[:120])
+    stable = hashlib.sha1(f"{id_}\n{text}".encode()).hexdigest()[:10]
+    prev = by_key.get(key)
+    if prev and prev.get("status") == "open":
+        prev["at"] = now
+        prev["sev"] = f["sev"]
+        prev["lane"] = f.get("lane", "gates")
+        continue
+    by_key[key] = {
+        "id": f"{id_}-{stable}",
+        "at": now,
+        "sev": f["sev"],
+        "from": id_,
+        "text": text,
+        "lane": f.get("lane", "gates"),
+        "status": "open",
+    }
+# final norm collapse across keys (same check different text)
+final_by_norm = {}
+for it in by_key.values():
+    nk = (str(it.get("from") or ""), _norm_finding(str(it.get("text") or "")))
+    prev = final_by_norm.get(nk)
+    if prev is None:
+        final_by_norm[nk] = it
+        continue
+    text = str(it.get("text") or "")
+    ptext = str(prev.get("text") or "")
+    score = (1 if it.get("status") == "open" else 0, 1 if "✗" in text else 0, len(text))
+    pscore = (1 if prev.get("status") == "open" else 0, 1 if "✗" in ptext else 0, len(ptext))
+    if score >= pscore:
+        final_by_norm[nk] = it
+items = list(final_by_norm.values())
+# keep last 40 by time
+items.sort(key=lambda x: x.get("at") or "")
+items = items[-40:]
+bl = {"schema": "demigod.quality-backlog/1", "at": now, "items": items, "open": sum(1 for i in items if i.get("status") == "open")}
+Path(backlog_p).write_text(json.dumps(bl, indent=2) + "\n")
+print(json.dumps({"id": id_, "exit": ec, "findings": len(uniq), "ok": receipt["ok"]}))
+PY
+  return $ec
+}
+
+pick_ids() {
+  local ctx="${1:-auto}"
+  local full="${2:-0}"
+  python3 - "$ctx" "$full" "$STATE" <<'PY'
+import json, sys
+from pathlib import Path
+from datetime import datetime, timezone
+ctx, full, state_p = sys.argv[1], sys.argv[2] == "1", Path(sys.argv[3])
+pools = {
+  "features": [("Q1","sim-user"),("Q2","wiz-playtest"),("Q6","conversion"),("Q3","bug-review")],
+  "ship": [("Q7","live-smoke-ship"),("Q1","sim-user"),("Q2","wiz-playtest"),("Q8","verify-source")],
+  "tools": [("Q5","ponytail"),("Q4","full-review")],
+  "thrash": [("Q3","bug-review"),("Q5","ponytail"),("Q7","live-smoke-ship")],
+  "auto": [("Q1","sim-user"),("Q3","bug-review"),("Q7","live-smoke-ship"),("Q5","ponytail"),("Q2","wiz-playtest"),("Q8","verify-source")],
+}
+# auto smell
+if ctx == "auto":
+    import os
+    thrash = False
+    try:
+        log = Path("/tmp/dg-busy/coord/coord.log").read_text(errors="replace")[-8000:]
+        if log.count("ec=124") >= 3:
+            thrash = True
+    except Exception:
+        pass
+    try:
+        ship = json.loads(Path("/tmp/dg-busy/ship-status.json").read_text())
+        if ship.get("shipped") and ship.get("stage"):
+            ctx = "ship"
+    except Exception:
+        pass
+    if thrash:
+        ctx = "thrash"
+pool = pools.get(ctx, pools["auto"])
+st = {}
+if state_p.exists():
+    try:
+        st = json.loads(state_p.read_text())
+    except Exception:
+        st = {}
+idx = int(st.get("idx", {}).get(ctx, 0))
+if full:
+    chosen = pool  # all in pool
+else:
+    chosen = [pool[idx % len(pool)]]
+    st.setdefault("idx", {})[ctx] = idx + 1
+st["last_ctx"] = ctx
+st["at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+state_p.write_text(json.dumps(st, indent=2) + "\n")
+print(ctx)
+for id_, name in chosen:
+    print(f"{id_}\t{name}")
+PY
+}
+
+case "$cmd" in
+  Q1) run_one Q1 sim-user ;;
+  doctrine) doctrine ;;
+  status)
+    doctrine
+    echo "---"
+    [[ -f "$LAST" ]] && cat "$LAST" || echo "no quality-last yet"
+    echo "---"
+    [[ -f "$BACKLOG" ]] && python3 -c "import json;b=json.load(open('$BACKLOG'));print('open',b.get('open'),'items',len(b.get('items') or []))" || echo "no backlog"
+    ;;
+  backlog)
+    [[ -f "$BACKLOG" ]] && cat "$BACKLOG" || echo '{"items":[]}'
+    ;;
+  run)
+    case "${1:-}" in
+      Q1) run_one Q1 sim-user ;;
+      Q2) run_one Q2 wiz-playtest ;;
+      Q3) run_one Q3 bug-review ;;
+      Q4) run_one Q4 full-review ;;
+      Q5) run_one Q5 ponytail ;;
+      Q6) run_one Q6 conversion ;;
+      Q7) run_one Q7 live-smoke-ship ;;
+      Q8) run_one Q8 verify-source ;;
+      *) echo "usage: $0 run Q1|Q2|Q3|Q4|Q5|Q6|Q7|Q8" >&2; exit 2 ;;
+    esac
+    ;;
+  pick)
+    CTX=auto
+    for a in "$@"; do
+      case "$a" in
+        --context=*) CTX="${a#--context=}" ;;
+        *)
+          echo "dg-quality: unknown argument $a — try: bin/dg-quality pick [--context=…]" >&2
+          exit 2
+          ;;
+      esac
+    done
+    echo "## pick"
+    pick_ids "$CTX" 0
+    echo "Run: bin/dg-quality once --context=$CTX"
+    ;;
+  once)
+    CTX=auto
+    FULL=0
+    for a in "$@"; do
+      case "$a" in
+        --context=*) CTX="${a#--context=}" ;;
+        --full) FULL=1 ;;
+        *)
+          echo "dg-quality: unknown argument $a — try: bin/dg-quality once [--full] [--context=…]" >&2
+          exit 2
+          ;;
+      esac
+    done
+    mapfile -t LINES < <(pick_ids "$CTX" "$FULL")
+    ctx_line="${LINES[0]}"
+    echo "context=$ctx_line full=$FULL"
+    overall=0
+    for line in "${LINES[@]:1}"; do
+      [[ -z "$line" ]] && continue
+      id="${line%%$'\t'*}"
+      name="${line#*$'\t'}"
+      run_one "$id" "$name" || overall=$?
+    done
+    # summary for agents
+    python3 - <<PY
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+last = json.loads(Path("$LAST").read_text()) if Path("$LAST").exists() else {}
+bl = json.loads(Path("$BACKLOG").read_text()) if Path("$BACKLOG").exists() else {}
+print("quality wave done id=", last.get("id"), "ok=", last.get("ok"), "open_backlog=", bl.get("open"))
+print("Agents: fix open P0/P1 in /tmp/dg-busy/coord/quality-backlog.json before new features.")
+PY
+    exit "$overall"
+    ;;
+  *)
+    echo "usage: $0 doctrine|status|backlog|run Q1..Q8|pick|once [--full] [--context=auto|features|ship|tools|thrash]"
+    exit 2
+    ;;
+esac

@@ -1,0 +1,19 @@
+[Unit]
+Description=Demigod Chrome CDP (:9223) via agent-dev
+After=graphical-session.target
+# Chrome requires a graphical session; setup-all additionally checks DISPLAY/Wayland.
+ConditionACPower=true
+ConditionPathExists=/home/potter/agent-dev.sh
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=CDP_PORT=9223
+ExecStart=/home/potter/agent-dev.sh up
+ExecStop=/bin/true
+# Do not kill Chrome on stop — user may need tabs
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical-session.target

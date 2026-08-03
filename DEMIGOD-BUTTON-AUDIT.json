@@ -1,0 +1,148 @@
+{
+  "at": "2026-07-24T14:08:52.789Z",
+  "quick": true,
+  "routes": {
+    "/": {
+      "meta": {
+        "foot": false,
+        "nav": false,
+        "trust": false,
+        "pricing": false,
+        "partnersWrap": false,
+        "legalWrap": false,
+        "partnersPage": false,
+        "legalPage": false,
+        "status": "Demigod · SF startup talent matching"
+      },
+      "shot": "/home/potter/audit-shots/button-audit/_.png",
+      "interactives": 20,
+      "clicks": [
+        {
+          "tag": "A",
+          "text": "Pricing",
+          "href": "/?p=pricing",
+          "modal": "",
+          "scroll": "",
+          "id": "",
+          "cls": "",
+          "result": "navigate:/?p=pricing",
+          "broken": false,
+          "before": {
+            "hash": "",
+            "path": "/",
+            "search": "?audit=1784902133536",
+            "startupOpen": false,
+            "engineerOpen": false,
+            "partnerOpen": false,
+            "partnersPage": false,
+            "legalPage": false,
+            "trustY": null,
+            "pricingY": null
+          },
+          "after": {
+            "hash": "",
+            "path": "/",
+            "search": "?p=pricing",
+            "startupOpen": false,
+            "engineerOpen": false,
+            "partnerOpen": false,
+            "partnersPage": false,
+            "legalPage": false,
+            "trustY": null,
+            "pricingY": null,
+            "partnersWrap": false,
+            "legalWrap": false
+          }
+        },
+        {
+          "tag": "A",
+          "text": "Partners",
+          "href": "/?p=partners",
+          "modal": "",
+          "scroll": "",
+          "id": "",
+          "cls": "",
+          "result": "element-not-found"
+        },
+        {
+          "tag": "A",
+          "text": "Join the talent networkFor candidates",
+          "href": "/?wiz=engineer",
+          "modal": "jobseeker",
+          "scroll": "",
+          "id": "",
+          "cls": "premium-btn w-button is-job",
+          "result": "element-not-found"
+        },
+        {
+          "tag": "A",
+          "text": "Hire talentFor startups",
+          "href": "/?wiz=startup",
+          "modal": "startup",
+          "scroll": "",
+          "id": "",
+          "cls": "premium-btn w-button is-talent",
+          "result": "element-not-found"
+        },
+        {
+          "tag": "A",
+          "text": "How it works",
+          "href": "/?p=how",
+          "modal": "",
+          "scroll": "",
+          "id": "",
+          "cls": "",
+          "result": "navigate:/",
+          "broken": false,
+          "before": {
+            "hash": "",
+            "path": "/",
+            "search": "?p=pricing",
+            "startupOpen": false,
+            "engineerOpen": false,
+            "partnerOpen": false,
+            "partnersPage": false,
+            "legalPage": false,
+            "trustY": null,
+            "pricingY": null
+          },
+          "after": {
+            "hash": "",
+            "path": "/",
+            "search": "",
+            "startupOpen": false,
+            "engineerOpen": false,
+            "partnerOpen": false,
+            "partnersPage": false,
+            "legalPage": false,
+            "trustY": null,
+            "pricingY": null,
+            "partnersWrap": false,
+            "legalWrap": false
+          }
+        }
+      ],
+      "broken": [],
+      "deadHash": [],
+      "missingPricing": true
+    }
+  },
+  "bareUrls": {
+    "/legal": {
+      "status": 200,
+      "foot": false,
+      "is404": true
+    },
+    "/partnerships": {
+      "status": 200,
+      "foot": false,
+      "is404": true
+    }
+  },
+  "summary": {
+    "totalBroken": 0,
+    "bareLegal404": true,
+    "barePartnerships404": true
+  },
+  "ok": true
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "demigod.candidate-touches-store/1",
+  "updatedAt": "2026-07-31T00:27:45.031Z",
+  "touches": [
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "3fe6a9fe0a932df7",
+      "candId": "cand-demo-alex",
+      "channel": "dm",
+      "roleId": "role-demo-founding-eng",
+      "outcome": null,
+      "note": "Outbound draft touch logged",
+      "at": "2026-07-31T00:14:19.615Z"
+    },
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "56aa30877b396d50",
+      "candId": "cand-demo-alex",
+      "channel": "review",
+      "roleId": "role-demo-founding-eng",
+      "outcome": null,
+      "note": "Structured review pending note",
+      "at": "2026-07-31T00:14:19.678Z"
+    },
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "7f87f5a425e80098",
+      "candId": "cand-demo-sam",
+      "channel": "note",
+      "roleId": "role-demo-founding-eng",
+      "outcome": null,
+      "note": "Sourced from public GH",
+      "at": "2026-07-31T00:14:19.726Z"
+    },
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "925add30ff0470d7",
+      "candId": "cand-fake",
+      "channel": "review",
+      "roleId": "role-seed1",
+      "outcome": null,
+      "note": "Scorecard note attached via role-packet",
+      "at": "2026-07-31T00:17:49.028Z"
+    },
+    {
+      "schema": "demigod.candidate-touch/1",
+      "id": "30a9a016a82041db",
+      "candId": "cand-demo-riley",
+      "channel": "review",
+      "roleId": "role-demo-founding-eng",
+      "outcome": null,
+      "note": "Public systems blog + relevant open source that maps to must-haves",
+      "at": "2026-07-31T00:27:45.031Z"
+    }
+  ]
+}

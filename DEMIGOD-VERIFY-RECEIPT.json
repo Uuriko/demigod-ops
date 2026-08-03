@@ -1,0 +1,15 @@
+{
+  "at": "2026-07-31T03:09:17.642Z",
+  "pass": true,
+  "checks": {
+    "v90": true,
+    "formSend": true,
+    "pricingCompare": true,
+    "boardReceipts": true,
+    "boardSignal": true,
+    "noSpeedInFoot": true,
+    "mvpForms": true,
+    "mvpTrust": true
+  },
+  "sampleUrl": "https://www.trydemigod.com/#receipt/demo004"
+}

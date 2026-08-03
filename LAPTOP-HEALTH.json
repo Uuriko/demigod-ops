@@ -1,0 +1,94 @@
+{
+  "at": "2026-07-01T04:23:09.954Z",
+  "actions": [
+    {
+      "path": "/home/potter/.grok/worktrees/potter/2026-06-19-d170bdd8",
+      "skipped": true,
+      "reason": "missing"
+    },
+    {
+      "path": "/home/potter/.grok/worktrees/potter/2026-06-20-a9e21bc0",
+      "skipped": true,
+      "reason": "missing"
+    },
+    {
+      "dir": "/home/potter/.grok/upload_queue",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "dir": "/home/potter/.grok/downloads",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "dir": "/home/potter/.grok/sessions",
+      "removed": 1,
+      "bytes": 4096
+    },
+    {
+      "step": "chrome-cache",
+      "dir": "/home/potter/.grok/chrome-heavy/GrShaderCache",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "step": "chrome-cache",
+      "dir": "/home/potter/.grok/chrome-heavy/ShaderCache",
+      "removed": 0,
+      "bytes": 0
+    },
+    {
+      "cmd": "npm cache clean --force",
+      "status": 0,
+      "stdout": "",
+      "stderr": "npm warn using --force Recommended protections disabled."
+    },
+    {
+      "cmd": "npm run typing:fix",
+      "status": 0,
+      "stdout": "> demigod-dev@1.0.0 typing:fix\n> node typing-perf-fix.mjs\n\n{\n  \"ok\": true,\n  \"out\": \"/home/potter/TYPING-PERF-FIX.json\",\n  \"keyboardAfter\": {\n    \"bouncekeys\": \"true\",\n    \"bounceDelay\": \"100\",\n    \"repeatInterval\": \"uint32 40\",\n    \"animations\": \"false\"\n  },\n  \"recommendations\": [\n    \"REBOOT or log out/in — cosmic-comp has been up 6+ days at high CPU; only a session reset fully fixes lag\",\n    \"Close Orca when not using it (orca-linux.AppImage uses extra GPU/CPU)\",\n    \"Keep Chrome to 3 tabs: Grok + Webflow Designer + trydemigod.com\",\n    \"If double letters persist after reboot, test an external keyboard to rule out hardware\"\n  ]\n}",
+      "stderr": ""
+    },
+    {
+      "step": "power-profile",
+      "cmd": "powerprofilesctl set balanced",
+      "status": null
+    }
+  ],
+  "before": {
+    "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p3  929G   57G  826G   7% /",
+    "mem": "total        used        free      shared  buff/cache   available\nMem:            62Gi        20Gi        27Gi       527Mi        19Gi        41Gi\nSwap:           19Gi          0B        19Gi",
+    "load": "21:23:09 up 1 day, 12:57,  1 user,  load average: 2.85, 2.37, 2.39",
+    "tempC": 99,
+    "grokSize": "3.6G",
+    "worktrees": []
+  },
+  "after": {
+    "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p3  929G   57G  826G   7% /",
+    "mem": "total        used        free      shared  buff/cache   available\nMem:            62Gi        20Gi        28Gi       506Mi        19Gi        42Gi\nSwap:           19Gi          0B        19Gi",
+    "load": "21:23:17 up 1 day, 12:58,  1 user,  load average: 3.58, 2.54, 2.45",
+    "tempC": 96,
+    "grokSize": "3.6G",
+    "worktrees": []
+  },
+  "processes": {
+    "cosmicComp": "%CPU     ELAPSED CMD",
+    "chromeTabs": "8",
+    "orca": "0",
+    "zombies": "4"
+  },
+  "findings": [
+    {
+      "severity": "high",
+      "issue": "CPU package temp 99°C — thermal throttling causes lag"
+    }
+  ],
+  "recommendations": [
+    "Log out/in or reboot (fixes cosmic-comp, zombies, thermals)",
+    "Quit Orca when idle",
+    "Keep Chrome at 3 tabs; avoid Webflow dashboard tabs unless editing",
+    "Run npm run laptop:health weekly",
+    "If hot after reboot: check fan vents, use a laptop stand"
+  ]
+}

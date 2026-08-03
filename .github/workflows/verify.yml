@@ -1,0 +1,95 @@
+name: verify
+
+# Why this exists: three agents (Claude, Grok, Codex) edit one working tree concurrently, so a
+# local `verify-all` run competes with peers rewriting the same files mid-run. On 2026-07-30 it
+# reported failed:0, then 1, then 4 with no code change between two of those runs. CI is the only
+# place a gate result is trustworthy: isolated checkout, no concurrent writer, no TTY.
+#
+# The no-TTY part is not incidental. A test here asserted on colourised `util.inspect` output and
+# so passed under `node --test` but failed under `node file.test.mjs`. CI has no TTY, which makes
+# that whole class fail loudly instead of depending on how someone happened to invoke the suite.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tracked test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      # This DID say "no npm ci needed — every tracked test imports only Node builtins". That was
+      # wrong, and the first clean-room run proved it: I checked imports in the test files, but the
+      # tests import local modules that transitively require npm packages, so ~90 of the failures
+      # were `Cannot find package` for undici / ws / puppeteer-core / playwright.
+      # It also surfaced a real bug: undici and ws were imported by production code
+      # (demigod-perf-cache.mjs, demigod-agent-smoke.mjs) but never declared in package.json —
+      # they only resolved locally as transitive dev-dependencies of axe-core and lighthouse.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Integration tests that require this machine's state and cannot run in a clean checkout:
+      # gitignored PII SoRs (DEMIGOD-SUBMISSIONS-INBOX.json), installed user systemd units, or
+      # local receipts/pause state. They are EXCLUDED, never silently — the names and count are
+      # printed every run. Deleting an entry is a one-line change; hiding one is not possible.
+      # Each was verified to fail only on absent local state, not on a real defect.
+      - name: Run tracked tests
+        run: |
+          cat > /tmp/ci-exclude <<'EOF'
+          demigod-submissions-e2e-isolation.test.mjs      needs gitignored DEMIGOD-SUBMISSIONS-INBOX.json
+          demigod-intake-smoke-isolation.test.mjs         needs gitignored DEMIGOD-SUBMISSIONS-INBOX.json
+          demigod-submissions-approval-idempotency.test.mjs needs local board/inbox SoRs
+          demigod-sprint-selftest-isolation.test.mjs      needs local audit jsonl
+          demigod-demand.test.mjs                         needs local sealed demand receipts
+          demigod-events-bot-selftest-cli.test.mjs        needs local FOCUS pause state
+          demigod-events-public-invite.test.mjs           needs local events fixtures
+          demigod-events-online-config.test.mjs           needs local tunnel/heal config
+          demigod-role-ledger-timer.test.mjs              needs installed user systemd units
+          EOF
+          all=$(git ls-files '*.test.mjs')
+          excluded=$(awk '{print $1}' /tmp/ci-exclude)
+          files=$(echo "$all" | grep -vxF "$excluded" || true)
+          echo "tracked: $(echo "$all" | grep -c .) · excluded (environment-coupled): $(echo "$excluded" | grep -c .)"
+          echo "$excluded" | sed 's/^/  skip: /'
+          count=$(echo "$files" | grep -c . || true)
+          echo "running $count hermetic test files"
+          test "$count" -gt 0 || { echo "::error::no test files found — a vacuous green"; exit 1; }
+          node --test --test-concurrency=4 $files
+
+      - name: Import integrity
+        run: node demigod-import-integrity.mjs
+
+  gate-coverage:
+    name: gate coverage (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # demigod-verify-all.mjs names 72 gates. Locally 26 of them are untracked, so they exist on
+      # one laptop and nowhere else — CI cannot run what was never committed. This job makes that
+      # gap visible on every push instead of leaving it as an advisory line nobody reads.
+      # Advisory for now, because failing from day one would train everyone to ignore it. Flip
+      # `continue-on-error` off once the gates are tracked.
+      - name: Report gates missing from the checkout
+        continue-on-error: true
+        run: |
+          node -e '
+            const fs = require("fs");
+            const src = fs.readFileSync("demigod-verify-all.mjs", "utf8");
+            const block = src.slice(src.indexOf("const steps = ["));
+            const names = [...block.matchAll(/\[\x27([\w.-]+\.mjs)\x27/g)].map((m) => m[1]);
+            const unique = [...new Set(names)];
+            const missing = unique.filter((f) => !fs.existsSync(f));
+            console.log(`verify-all references ${unique.length} gates; ${missing.length} are absent from this checkout`);
+            for (const f of missing) console.log(`::warning file=demigod-verify-all.mjs::gate not committed: ${f}`);
+            if (missing.length) process.exitCode = 1;
+          '

@@ -1,0 +1,24 @@
+{
+  "at": "2026-07-31T03:51:38.052Z",
+  "dryRun": false,
+  "before": [
+    "https://www.trydemigod.com/",
+    "https://talentlink-sf.design.webflow.com/",
+    "https://webflow.com/dashboard/sites/talentlink-sf/custom-code"
+  ],
+  "closed": [],
+  "kept": [
+    {
+      "url": "https://www.trydemigod.com/",
+      "role": "live-prod"
+    },
+    {
+      "url": "https://talentlink-sf.design.webflow.com/",
+      "role": "designer"
+    },
+    {
+      "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code",
+      "role": "custom-code"
+    }
+  ]
+}

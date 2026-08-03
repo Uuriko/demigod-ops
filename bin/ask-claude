@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Consult Claude synchronously from any agent (Codex / Grok / scripts).
+# Mirror of `grok-ask`. Prints Claude's reply to stdout and exits.
+#   ask-claude "run npm run demigod:verify:source and report pass/fail"
+#   echo "summarize DEMIGOD-BOARD.json honesty" | ask-claude
+# Env:
+#   ASK_CLAUDE_TIMEOUT  seconds before giving up   (default 300)
+#   ASK_CLAUDE_MODEL    model                      (default sonnet; use opus for hard tasks)
+#   ASK_CLAUDE_PERM     permission-mode            (default bypassPermissions)
+#   ASK_CLAUDE_DIR      repo/dir to expose         (default $HOME)
+# For fire-and-forget / async instead, use the inbox: see ~/AGENT-COMMS.md.
+set -euo pipefail
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
+LOG="$BUSY/ask-claude.log"
+TIMEOUT="${ASK_CLAUDE_TIMEOUT:-300}"
+MODEL="${ASK_CLAUDE_MODEL:-sonnet}"
+PERM="${ASK_CLAUDE_PERM:-bypassPermissions}"
+DIR="${ASK_CLAUDE_DIR:-$HOME}"
+
+if [ "$#" -gt 0 ]; then prompt="$*"; elif [ ! -t 0 ]; then prompt="$(cat)"; else echo "usage: ask-claude \"prompt\"  (or pipe via stdin)" >&2; exit 2; fi
+[[ -n "${prompt// /}" ]] || { echo "ask-claude: empty prompt" >&2; exit 2; }
+
+echo "[$(date -Iseconds)] ASK (${#prompt}b): ${prompt:0:140}" >>"$LOG"
+set +e
+out=$(timeout "$TIMEOUT" claude -p "$prompt" \
+  --dangerously-skip-permissions \
+  --permission-mode "$PERM" \
+  --model "$MODEL" \
+  --add-dir "$DIR" </dev/null 2>>"$LOG")
+ec=$?
+set -e
+printf '%s\n' "$out"
+echo "[$(date -Iseconds)] exit=$ec replylen=${#out}" >>"$LOG"
+exit "$ec"

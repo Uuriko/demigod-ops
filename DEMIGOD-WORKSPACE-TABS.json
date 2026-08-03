@@ -1,0 +1,28 @@
+{
+  "at": "2026-07-04T22:03:23.950Z",
+  "opened": [
+    {
+      "role": "forms",
+      "url": "https://webflow.com/dashboard/sites/talentlink-sf/forms"
+    },
+    {
+      "role": "custom-code",
+      "url": "https://webflow.com/dashboard/sites/talentlink-sf/custom-code"
+    }
+  ],
+  "kept": [
+    {
+      "role": "designer",
+      "url": "https://talentlink-sf.design.webflow.com/?pageId=6a34c484dcedc18a174081b8"
+    },
+    {
+      "role": "live",
+      "url": "https://www.trydemigod.com/"
+    },
+    {
+      "role": "grok-heavy",
+      "url": "https://grok.com/"
+    }
+  ],
+  "cdp": "http://127.0.0.1:9223"
+}

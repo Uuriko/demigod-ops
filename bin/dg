@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+# dg — Demigod Control Plane CLI (cohesive front door)
+#
+# Prefer this over inventing one-off paths.
+# Primary: truth | check | events | webflow | ship | demand | inbox | matches | review | lock | hygiene
+# Cold compatibility and internal commands remain discoverable via `bin/dg tools`.
+# Agents: start with bare `bin/dg`.
+# Registry: node demigod-tools-registry.mjs --md
+#
+set -euo pipefail
+cd /home/potter
+export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
+
+[[ $# -gt 0 ]] || set -- orient
+
+# Known subcommands → control plane / modules
+case "$1" in
+  home|status|next|plane|modules|help|--help|-h)
+    exec node demigod-control.mjs "$@"
+    ;;
+  webflow|wf|matches|match|pairs|inbox|review|hygiene|ponytail|doctor|smoke|freeze|cockpit|usertest|dash|priority)
+    exec node demigod-control.mjs "$@"
+    ;;
+  linux|laptop|sysctl|power)
+    shift
+    exec bin/dg-linux-config "${@:-status}"
+    ;;
+  tmux)
+    shift
+    exec dg-tmux-cockpit "${@:-attach}"
+    ;;
+  agent-run)
+    shift
+    exec dg-agent-run "$@"
+    ;;
+  notify)
+    shift
+    exec dg-notify "$@"
+    ;;
+  workspace|ws|cosmic)
+    shift
+    exec dg-workspace "${@:-cheat}"
+    ;;
+  busy-rotate)
+    shift
+    exec dg-busy-rotate "$@"
+    ;;
+  orca)
+    shift
+    exec bin/dg-orca "$@"
+    ;;
+  free-ops)
+    shift
+    exec bin/dg-free-ops "$@"
+    ;;
+  check)
+    shift
+    exec node demigod-check.mjs "$@"
+    ;;
+  done|handoff)
+    shift
+    # Structured: bin/dg handoff --from x --done "…" --next "…" --blocked "…"
+    # Legacy: bin/dg handoff "note text"
+    if [[ "${1:-}" == --* ]] || [[ "${1:-}" == "" ]]; then
+      exec node demigod-handoff.mjs "$@"
+    fi
+    note="${1:-}"; shift || true
+    next="${1:-}"
+    exec node demigod-handoff.mjs --from "${USER:-agent}" --done "$note" --next "$next"
+    ;;
+
+  live)
+    shift
+    exec node demigod-truth.mjs "$@"
+    ;;
+  truth)
+    shift
+    exec node demigod-truth.mjs "$@"
+    ;;
+  lock)
+    shift
+    exec node demigod-foot-lock.mjs "$@"
+    ;;
+  mime)
+    shift
+    exec node demigod-route-mime.mjs "$@"
+    ;;
+  review-bug)
+    shift
+    exec node demigod-review.mjs --bug --gates "$@"
+    ;;
+  review-fix)
+    shift
+    exec node demigod-review.mjs --fix --dry-run "$@"
+    ;;
+  review-self)
+    shift
+    exec node demigod-review.mjs --include-meta --bug --full --stats \
+      --files demigod-review.mjs demigod-review-lib.mjs demigod-review-rules.mjs \
+      demigod-review-fix.mjs demigod-review-gates.mjs demigod-review-llm.mjs \
+      demigod-review-selftest.mjs bin/dg-review "$@"
+    ;;
+  ship)
+    shift
+    exec node demigod-ship.mjs "$@"
+    ;;
+  demand|gtm)
+    shift
+    exec node demigod-demand.mjs "$@"
+    ;;
+  funnel)
+    shift
+    exec node demigod-funnel.mjs "$@"
+    ;;
+  funnel-loop)
+    shift
+    exec node demigod-funnel-loop.mjs "$@"
+    ;;
+  events-outbox)
+    shift
+    exec bin/dg-events-outbox "$@"
+    ;;
+  events-invite-drain|invite-drain)
+    shift
+    exec node demigod-events-invite-drain.mjs "$@"
+    ;;
+  events|events-online)
+    # short alias: bin/dg events [status|heal|up|…] — default status
+    shift
+    if [[ "${1:-}" == "test" ]]; then
+      shift
+      exec bin/dg events-test "$@"
+    fi
+    exec node demigod-events-online.mjs "${@:-status}"
+    ;;
+  events-reconcile)
+    shift
+    exec node demigod-events-reconcile.mjs "$@"
+    ;;
+  events-test)
+    shift
+    events_tests=(
+      demigod-events-app-policy-selftest.mjs
+      demigod-events-lifecycle-readiness.test.mjs
+      demigod-events-audience-brief.test.mjs
+      demigod-events-outbox-scope.test.mjs
+      demigod-events-public-invite.test.mjs
+      demigod-events-publish-config.test.mjs
+      demigod-events-online-config.test.mjs
+      demigod-events-venue-ranking.test.mjs
+      demigod-dashboard-events-native-invite.test.mjs
+      demigod-chatroom.test.mjs
+    )
+    # Only "" (full) or "fast" — never pass unknown tokens into node --test (vacuous-green risk).
+    mode="${1:-}"
+    if [[ -n "$mode" && "$mode" != "fast" ]]; then
+      echo "events-test: unknown argument $mode — try: bin/dg events test [fast]" >&2
+      exit 2
+    fi
+    if [[ -n "${2:-}" ]]; then
+      echo "events-test: unknown argument $2 — try: bin/dg events test [fast]" >&2
+      exit 2
+    fi
+    if [[ "$mode" == "fast" ]]; then
+      for events_test in "${events_tests[@]}"; do node --test "$events_test" || exit; done
+      exec env DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
+    fi
+    node --test --test-concurrency=1 "${events_tests[@]}" || exit
+    exec env DEMIGOD_EVENTS_BOT_MOCK=1 node demigod-events-bot-selftest.mjs
+    ;;
+  lead-collect)
+    shift
+    exec node demigod-lead-collect.mjs "$@"
+    ;;
+  lead-pipeline)
+    shift
+    [[ "${1:-}" == "status" ]] && set -- tick --stage=status "${@:2}"
+    exec node demigod-lead-pipeline.mjs "$@"
+    ;;
+  pilot|inbound)
+    shift
+    exec node demigod-pilot-inbound.mjs "$@"
+    ;;
+  referrals|referral)
+    shift
+    exec node demigod-referrals.mjs "${@:-status}"
+    ;;
+  next-canon)
+    shift
+    exec node demigod-next.mjs "$@"
+    ;;
+  evidence)
+    shift
+    exec node demigod-evidence.mjs "$@"
+    ;;
+  craft|craft-log)
+    shift
+    exec node demigod-craft-log.mjs "$@"
+    ;;
+  live-attest|attest)
+    shift
+    exec node demigod-live-attest.mjs "$@"
+    ;;
+  audit-100|full-audit)
+    shift
+    exec node demigod-audit-100.mjs "$@"
+    ;;
+  ship-receipt|receipt)
+    shift
+    exec node demigod-ship-receipt.mjs "$@"
+    ;;
+  ledger)
+    shift
+    if [[ "${1:-}" == "" || "${1:-}" == "--json" ]]; then
+      exec node demigod-version-ledger.mjs delta
+    fi
+    exec node demigod-version-ledger.mjs "$@"
+    ;;
+  tools)
+    shift
+    exec node demigod-tools-registry.mjs "$@"
+    ;;
+  dogfood)
+    shift
+    [[ $# -gt 0 && "${1:-}" != --* ]] || set -- status "$@"
+    exec node demigod-tool-dogfood.mjs "$@"
+    ;;
+  unify)
+    shift
+    exec node demigod-unify.mjs "$@"
+    ;;
+  orient)
+    shift
+    exec node demigod-orient.mjs "$@"
+    ;;
+  start)
+    exec bin/dg-start
+    ;;
+  *)
+    # Fallback: if looks like demigod:script
+    if [[ "$1" == demigod:* ]]; then
+      exec npm run "$1" -- "${@:2}"
+    fi
+    # Unknown verb → control help + try as webflow subcommand hint
+    echo "Unknown: $1 — try: bin/dg orient | demand | pilot | truth | home | tools" >&2
+    node demigod-control.mjs help
+    exit 2
+    ;;
+esac

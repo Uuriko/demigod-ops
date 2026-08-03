@@ -1,0 +1,752 @@
+{
+  "at": "2026-07-31T04:44:14.689Z",
+  "architecture": "head-minimal-css + foot-core-cdn",
+  "checks": [
+    {
+      "name": "forms:no-dormant-analytics",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:wiz-resume-step-sync",
+      "ok": true,
+      "detail": "showStep must persist every forward/back/edit navigation through the existing draft writer"
+    },
+    {
+      "name": "head:size-under-cap",
+      "ok": true,
+      "detail": "40273/50000 (9727 left)"
+    },
+    {
+      "name": "head:hide-webflow-badge",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:no-retired-hero-asset",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:mobile-no-reserved-scrollbar-gutter",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:public-contact-potter",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:nojs-hero-flow",
+      "ok": true,
+      "detail": "the authored no-JavaScript hero heading must use intrinsic height without affecting the JavaScript-on critical box"
+    },
+    {
+      "name": "head:nojs-native-actions",
+      "ok": true,
+      "detail": "no-JavaScript fallback must expose native Home/email actions, not script-only routes or inert hash CTAs"
+    },
+    {
+      "name": "head:heavy-meta",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:og:title",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:hero-font-no-layout-swap",
+      "ok": true,
+      "detail": "Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap"
+    },
+    {
+      "name": "css:critical-hero-geometry",
+      "ok": true,
+      "detail": "head CSS must reserve the final hero geometry before foot-core loads"
+    },
+    {
+      "name": "head:preconnect-budget",
+      "ok": true,
+      "detail": "Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr"
+    },
+    {
+      "name": "site:no-internal-leak",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:desc-aligned",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:fee-desc-cash",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:desc-len",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:social-aligned",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:canonical-aligned",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:canonical-https",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:route-alias-consolidation",
+      "ok": true,
+      "detail": "legacy product paths must target canonical pages, Refer needs its canonical, and nav JSON-LD must list only 10 real surfaces"
+    },
+    {
+      "name": "head:blog-canonical",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:org-logo-aligned",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:org-logo-square",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:org-jsonld-id",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:org-contact-point",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:org-email-area",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:website-ld",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:og-image-meta",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:brand-meta",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:theme-meta",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:app-capable",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:status-bar-style",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:ms-tile-color",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:ms-tile-image",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:referrer-policy",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:format-detection",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:robots-rich-preview",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:favicon-jpeg-sizes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:apple-touch-sizes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:author-meta",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:og-type-locale",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:twitter-card",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:theme-color-hex",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:color-scheme-dark",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:hero-lcp-preload",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:hero-lcp-fetchpriority",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:preconnect-og-image",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:favicon-svg",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-dates",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-sor",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-publisher",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-author",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-lang",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:blog-ld-mep",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:css-only-no-core-js",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:hides-webflow-badge-css",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:hero-fouc-guard",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "hero:permanent-demigod-h1",
+      "ok": true,
+      "detail": "hero H1 must stay DEMIGOD permanently; dual-path copy belongs only in CTAs"
+    },
+    {
+      "name": "css:disk-honesty-guards",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:no-obsolete-ix-unhide",
+      "ok": true,
+      "detail": "head must not restore the retired Webflow IX visibility workaround"
+    },
+    {
+      "name": "core:no-obsolete-ix-unhide",
+      "ok": true,
+      "detail": "foot must not restore the retired Webflow IX visibility workaround"
+    },
+    {
+      "name": "head:path-redirects",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:skip-main-target",
+      "ok": true,
+      "detail": "early skip link must create #main and a main landmark from the existing hero when Webflow has no <main>"
+    },
+    {
+      "name": "head:contact-scrub",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:meta-dedupe",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:copy-scrub-finite",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:cta-fallback",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:path-pills-not-force-hidden",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:preconnect-foot-cdn",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:cdn-stylesheet",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "head:inline-scripts-parse",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "core:parses",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "footer:cdn-loader",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "footer:cdn-url",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "footer:inline-scripts-parse",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "footer:path-redirects",
+      "ok": true,
+      "detail": "need blog|notes + /method→how + #note-slug + /fees→pricing + /security→legal + /network→talent"
+    },
+    {
+      "name": "footer:route-alias-consolidation",
+      "ok": true,
+      "detail": "legacy footer routes must preserve inbound URLs without regenerating retired page ids"
+    },
+    {
+      "name": "footer:sample-path",
+      "ok": true,
+      "detail": "footer-lite must redirect /sample → ?p=sample (pairs with core DG_PAGES.sample)"
+    },
+    {
+      "name": "pilot:retired-alias",
+      "ok": true,
+      "detail": "legacy /pilot and ?p=pilot must resolve to hire; the public Pilot page/link/metadata stay retired"
+    },
+    {
+      "name": "core:version-marker",
+      "ok": true,
+      "detail": "v860"
+    },
+    {
+      "name": "coreJs:run-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "coreJs:show-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "coreJs:hide-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "coreJs:sched-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "coreJs:boot-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:run-show",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:no-fake-sms",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:forms-fee-note",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:unique-submit-trust",
+      "ok": true,
+      "detail": "both wizard trust notes must share a class, never a duplicated document id"
+    },
+    {
+      "name": "core:form-autocomplete",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:no-exit-interstitial",
+      "ok": true,
+      "detail": "wizard Close must not open a follow-up interstitial; same-tab draft resume stays intact"
+    },
+    {
+      "name": "core:route-fees-security",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:route-alias-consolidation",
+      "ok": true,
+      "detail": "duplicate pages and their dead presentation code must stay deleted while legacy aliases target canonical pages"
+    },
+    {
+      "name": "core:community-manage-on-demand",
+      "ok": true,
+      "detail": "submission management stays hidden until relevant, and blocked storage cannot destroy its private credential"
+    },
+    {
+      "name": "core:sample-page",
+      "ok": true,
+      "detail": "DG_PAGES.sample honesty required (Sample matches + no fake placements); ban sample→notfound"
+    },
+    {
+      "name": "core:sample-one-match-one-pass",
+      "ok": true,
+      "detail": "sample must show one useful match and one useful pass without mirrored audience blocks"
+    },
+    {
+      "name": "core:no-zero-behavior-page-branches",
+      "ok": true,
+      "detail": "remove impossible or unread page branches, one-reader constants, and the ignored mk return"
+    },
+    {
+      "name": "core:home-proof-links",
+      "ok": true,
+      "detail": "home must reveal only scrubbed process/pricing, hide sample-role/blog/decorative sections, and expose sample + SF directory"
+    },
+    {
+      "name": "core:notfound-page",
+      "ok": true,
+      "detail": "DG_PAGES.notfound soft-404 page required (title + doc)"
+    },
+    {
+      "name": "core:compact-footer",
+      "ok": true,
+      "detail": "footer keeps two conversion actions and two short nav groups without the retired intro/id chrome"
+    },
+    {
+      "name": "core:mobile-footer-action-dedupe",
+      "ok": true,
+      "detail": "mobile fixed action bar owns conversion; hide the duplicate footer pair below 768px"
+    },
+    {
+      "name": "core:faq-lean",
+      "ok": true,
+      "detail": "FAQ must stay at six distinct decision questions; dedicated pages own the repeated process and form copy"
+    },
+    {
+      "name": "core:no-fake-sms-trust",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:no-fake-sms-hero",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:wizBuild-defined",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:wizBuild-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:enhanceWIZ-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:wizBuild-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:show-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:trust-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:run-defined-if-called",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "coreJs:all-calls-defined",
+      "ok": true,
+      "detail": "info-only; candidates:runtime,WIZ"
+    },
+    {
+      "name": "core:90day-in-wiz",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:90day-required-inject",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:wiz-session-draft-privacy",
+      "ok": true,
+      "detail": "same-tab only; hidden excluded; file bytes never serialized; cleared on thanks"
+    },
+    {
+      "name": "core:wiz-submit-review",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:trust-fallback",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:version-150plus",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:org-jsonld-guard",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "core:blog-sor-in-sync",
+      "ok": true,
+      "detail": "1posts+dynSoR+deeplink+hash+rmotion+lazyDims"
+    },
+    {
+      "name": "core:lazy-decode-async",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "blog:publishedAt",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "blog:draft-ready",
+      "ok": true,
+      "detail": "drafts flip-ready"
+    },
+    {
+      "name": "footer:boot-smoke",
+      "ok": true,
+      "detail": "860"
+    },
+    {
+      "name": "combined:forms-via-footer",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "combined:runtime-nav",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "combined:head-markers",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "combined:no-mcp",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "marker:hide-webflow-badge",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "marker:Demigod forms",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "marker:openModal",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "marker:demigod-polish",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-playtest-review.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-live-lib.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-live-lib.test.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-verify-live.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-verify-all.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-import-integrity.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-foot-cdn-publish.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-cm6-paste-publish.mjs",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-foot-core.js",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-head-minimal.html",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "file:demigod-footer-lite.html",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "state:release-version-current",
+      "ok": true,
+      "detail": "state must delegate changing release facts to bin/dg truth without copying a version"
+    },
+    {
+      "name": "privacy:no-committable-sor",
+      "ok": true,
+      "detail": "tracked=1242; privacyRules=56; no committable SoR/PII"
+    },
+    {
+      "name": "sor:import-integrity",
+      "ok": true,
+      "detail": "import-integrity OK edges=518 contracts=10"
+    },
+    {
+      "name": "referrals:lifecycle",
+      "ok": true,
+      "detail": "ℹ duration_ms 232.940509"
+    }
+  ],
+  "pass": true
+}

@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+# Talk to Grok headlessly from here (Claude -> Grok link), mirror of `claude -p`.
+#   grok-ask "review the failing test"       # prompt as args
+#   echo "summarize board.json" | grok-ask   # prompt from stdin
+# Env:
+#   GROK_ASK_TIMEOUT  seconds before giving up      (default 300)
+#   GROK_ASK_PERM     permission-mode               (default plan)
+#   GROK_ASK_FORMAT   plain | json | streaming-json (default plain)
+#   GROK_ASK_MODEL    model id                       (default: grok's default)
+#   GROK_ASK_RETRIES  extra attempts after flaky fail (default 1; Broken pipe / core / empty)
+#   GROK_ASK_COOLDOWN breaker cooldown after 402     (default 1800)
+#   GROK_ASK_BIN      grok CLI binary                (default grok; tests inject a fake)
+#   GROK_ASK_RETRY_SLEEP seconds between flaky retries (default 1; selftest uses 0)
+# Notes: single-turn / stateless. For a continued conversation add `-r <session>` yourself
+#   (don't resume the session that's open in the interactive tab — two writers corrupt it).
+set -euo pipefail
+export PATH="$HOME/.local/bin:$HOME/bin:$HOME/.nvm/versions/node/v24.17.0/bin:/usr/bin:/bin:$PATH"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"; mkdir -p "$BUSY"
+LOG="$BUSY/grok-ask.log"
+TIMEOUT="${GROK_ASK_TIMEOUT:-300}"
+PERM="${GROK_ASK_PERM:-plan}"
+FMT="${GROK_ASK_FORMAT:-plain}"
+GROK_BIN="${GROK_ASK_BIN:-grok}"
+RETRY_SLEEP="${GROK_ASK_RETRY_SLEEP:-1}"
+
+readonly_prompt() {
+  local task="$1" truth="$BUSY/truth.json" truth_text=''
+  [[ -s "$truth" ]] && truth_text="$(<"$truth")"
+  printf '%s\n\n%s\n%s\n\n%s\n%s\n' \
+    "$task" \
+    '--- READ-ONLY FALLBACK ---' \
+    'Inspect and report only. Do not edit files, publish, send messages, submit forms or applications, move money, or spawn agents. Return only VERDICT, EVIDENCE, FINDINGS, HANDOFF; VERDICT must be PASS or BLOCKED.' \
+    '--- CURRENT TRUTH RECEIPT (optional evidence; may report unpublished drift) ---' "$truth_text"
+}
+
+log_prompt() {
+  local value="$1" digest
+  digest="$(printf '%s' "$value" | sha256sum)"; digest="${digest%% *}"
+  printf '[%s] ASK bytes=%d sha256=%s\n' "$(date -Iseconds)" "${#value}" "$digest" >>"$LOG"
+}
+
+context_selftest() {
+  local real_busy="$BUSY" real_log="$LOG" tmp got log_text
+  tmp="$(mktemp -d)"; BUSY="$tmp"
+  LOG="$tmp/grok-ask.log"
+  printf 'TRUTH_SENTINEL\n' >"$BUSY/truth.json"
+  got="$(readonly_prompt 'TASK_SENTINEL')"
+  log_prompt 'PRIVATE_PROMPT_SENTINEL'
+  log_text="$(<"$LOG")"
+  BUSY="$real_busy"; LOG="$real_log"; rm -rf "$tmp"
+  [[ "$got" == *TASK_SENTINEL*TRUTH_SENTINEL* && "$got" == *'Inspect and report only'* && "$got" == *'VERDICT must be PASS or BLOCKED'* && "$got" != *claims* && "$log_text" != *PRIVATE_PROMPT_SENTINEL* ]] || {
+    echo "grok-ask context selftest FAIL" >&2; return 1;
+  }
+  echo "grok-ask context selftest PASS"
+}
+
+retry_selftest() {
+  # Poison-test the flaky retry path with a fake grok binary (no live network).
+  local real_busy="$BUSY" self root fake state out ec log_text
+  self="$(readlink -f "${BASH_SOURCE[0]}")"
+  root="$(mktemp -d)"
+  fake="$root/fake-grok"
+  state="$root/state"
+  BUSY="$root/busy"; mkdir -p "$BUSY"
+  LOG="$BUSY/grok-ask.log"
+  : >"$BUSY/truth.json"
+
+  # 1) First call: Broken pipe + empty (flaky). Second call: real reply. Retry must recover.
+  printf '0\n' >"$state"
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+set -euo pipefail
+n=$(cat "$GROK_FAKE_STATE")
+n=$((n + 1))
+printf '%s\n' "$n" >"$GROK_FAKE_STATE"
+if [ "$n" -eq 1 ]; then
+  echo 'failed printing to stdout: Broken pipe (os error 32)' >&2
+  echo 'timeout: the monitored command dumped core' >&2
+  exit 141
+fi
+printf 'VERDICT: PASS\nFAKE_OK\n'
+exit 0
+EOS
+  chmod +x "$fake"
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_STATE="$state" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 \
+      "$self" 'retry selftest recover' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  # Note: do not use $(<"$LOG" 2>/dev/null || true) — bash treats redirects inside
+  # $(<file) oddly and yields an empty string for a non-empty file.
+  log_text=$(cat "$LOG" 2>/dev/null || true)
+  [[ "$ec" -eq 0 && "$out" == *FAKE_OK* && "$log_text" == *'flaky'* && "$log_text" == *'attempts=2'* ]] || {
+    echo "grok-ask retry selftest FAIL (recover path) ec=$ec out=$out log=$log_text" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  # 2) Always empty exit 0 → exit 4 after retries (fail-capable empty path).
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+exit 0
+EOS
+  chmod +x "$fake"
+  : >"$LOG"
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 \
+      "$self" 'retry selftest empty' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  log_text=$(cat "$LOG" 2>/dev/null || true)
+  [[ "$ec" -eq 4 && "$log_text" == *'flaky'* && "$log_text" == *'attempts=2'* ]] || {
+    echo "grok-ask retry selftest FAIL (empty→4) ec=$ec log=$log_text" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  # 3) Persistent Broken pipe → non-zero, retried (not silent green).
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+echo 'failed printing to stdout: Broken pipe (os error 32)' >&2
+exit 141
+EOS
+  chmod +x "$fake"
+  : >"$LOG"
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 \
+      "$self" 'retry selftest pipe' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  log_text=$(cat "$LOG" 2>/dev/null || true)
+  [[ "$ec" -ne 0 && "$log_text" == *'flaky'* && "$log_text" == *'attempts=2'* ]] || {
+    echo "grok-ask retry selftest FAIL (pipe) ec=$ec log=$log_text" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  BUSY="$real_busy"; rm -rf "$root"
+  echo "grok-ask retry selftest PASS"
+}
+
+breaker_selftest() {
+  # Poison-test the 402 circuit breaker: trip marker, fail-fast without re-hitting fake grok.
+  local real_busy="$BUSY" self root fake hits out ec log_text
+  self="$(readlink -f "${BASH_SOURCE[0]}")"
+  root="$(mktemp -d)"
+  fake="$root/fake-grok"
+  hits="$root/hits"
+  BUSY="$root/busy"; mkdir -p "$BUSY"
+  LOG="$BUSY/grok-ask.log"
+  : >"$BUSY/truth.json"
+  printf '0\n' >"$hits"
+
+  # Fake always reports 402 and increments hit counter (proves whether we call it).
+  cat >"$fake" <<'EOS'
+#!/usr/bin/env bash
+set -euo pipefail
+n=$(cat "$GROK_FAKE_HITS")
+n=$((n + 1))
+printf '%s\n' "$n" >"$GROK_FAKE_HITS"
+echo 'Error: status 402 Payment Required — balance exhausted' >&2
+exit 1
+EOS
+  chmod +x "$fake"
+
+  # 1) First call trips breaker with production default RETRIES=1.
+  # Empty 402 stdout must NOT be classified flaky (would double-hit balance).
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
+      "$self" 'breaker selftest trip' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  log_text=$(cat "$LOG" 2>/dev/null || true)
+  [[ "$ec" -ne 0 && -f "$BUSY/grok.DISABLED" && "$log_text" == *'BREAKER tripped'* \
+    && "$log_text" != *'flaky'* && "$(cat "$hits")" == "1" && "$log_text" == *'attempts=1'* ]] || {
+    echo "grok-ask breaker selftest FAIL (trip/no-retry) ec=$ec hits=$(cat "$hits") log=$log_text" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  # 2) Immediate second call fail-fasts (exit 3) without invoking fake again (hits stay 1).
+  : >"$LOG"
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=3600 \
+      "$self" 'breaker selftest blocked' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  [[ "$ec" -eq 3 && "$(cat "$hits")" == "1" ]] || {
+    echo "grok-ask breaker selftest FAIL (fail-fast) ec=$ec hits=$(cat "$hits")" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  # 3) Expired cooldown clears marker and allows another call (hits → 2).
+  # Backdate the breaker file older than cooldown.
+  touch -d '2 hours ago' "$BUSY/grok.DISABLED"
+  set +e
+  out="$(
+    DEMIGOD_BUSY="$BUSY" GROK_ASK_BIN="$fake" GROK_FAKE_HITS="$hits" \
+      GROK_ASK_RETRIES=1 GROK_ASK_RETRY_SLEEP=0 GROK_ASK_TIMEOUT=5 GROK_ASK_COOLDOWN=60 \
+      "$self" 'breaker selftest cooldown' 2>/dev/null
+  )"
+  ec=$?
+  set -e
+  # Cooldown elapsed → breaker removed on entry → fake runs once more (hits=2) and re-trips.
+  [[ "$(cat "$hits")" == "2" && -f "$BUSY/grok.DISABLED" ]] || {
+    echo "grok-ask breaker selftest FAIL (cooldown re-trip) hits=$(cat "$hits") disabled=$([[ -f $BUSY/grok.DISABLED ]] && echo y || echo n)" >&2
+    BUSY="$real_busy"; rm -rf "$root"; return 1
+  }
+
+  BUSY="$real_busy"; rm -rf "$root"
+  echo "grok-ask breaker selftest PASS"
+}
+
+[[ "${1:-}" == "--selftest-context" ]] && { context_selftest; exit; }
+[[ "${1:-}" == "--selftest-retry" ]] && { retry_selftest; exit; }
+[[ "${1:-}" == "--selftest-breaker" ]] && { breaker_selftest; exit; }
+[[ "${1:-}" == "--selftest" ]] && { context_selftest && retry_selftest && breaker_selftest; exit; }
+
+if [ "$#" -gt 0 ]; then prompt="$*"; elif [ ! -t 0 ]; then prompt="$(cat)"; else echo "usage: grok-ask \"prompt\"  (or pipe via stdin)" >&2; exit 2; fi
+[[ -n "${prompt// /}" ]] || { echo "grok-ask: empty prompt" >&2; exit 2; }
+prompt="$(readonly_prompt "$prompt")"
+
+# Circuit breaker: a 402 "balance exhausted" trips a marker so subsequent calls fail-fast (no slow
+# grok round-trip) instead of hammering a dead endpoint 1000x. Auto-recovers after the cooldown.
+BREAKER="$BUSY/grok.DISABLED"
+COOLDOWN="${GROK_ASK_COOLDOWN:-1800}"
+if [ -f "$BREAKER" ]; then
+  age=$(( $(date +%s) - $(stat -c %Y "$BREAKER") ))
+  if [ "$age" -lt "$COOLDOWN" ]; then
+    echo "grok-ask: disabled — $(head -1 "$BREAKER" 2>/dev/null) (${age}s ago, cooldown ${COOLDOWN}s). rm $BREAKER to force." >&2
+    exit 3
+  fi
+  rm -f "$BREAKER"  # cooldown elapsed — allow a retry (balance may be topped up)
+fi
+
+args=( -p "$prompt" --permission-mode "$PERM" --no-memory --no-subagents --output-format "$FMT" )
+[[ -n "${GROK_ASK_MODEL:-}" ]] && args+=( --model "$GROK_ASK_MODEL" )
+
+log_prompt "$prompt"
+
+# Run grok with file-backed stdout (avoids command-sub pipe EPIPE races) and per-attempt
+# stderr so concurrent writers on $LOG don't mask this call's panic. Retry once on the
+# known flaky class: Rust "Broken pipe" / timeout core-dump / empty reply.
+# Env: GROK_ASK_RETRIES (default 1 extra attempt after the first).
+RETRIES="${GROK_ASK_RETRIES:-1}"
+out=""
+ec=1
+attempt=0
+max_attempts=$((RETRIES + 1))
+while [ "$attempt" -lt "$max_attempts" ]; do
+  attempt=$((attempt + 1))
+  tmp_out="$(mktemp "$BUSY/grok-ask.out.XXXXXX")"
+  tmp_err="$(mktemp "$BUSY/grok-ask.err.XXXXXX")"
+  set +e
+  # --foreground: kill the whole process group so hung child npx/rust can't orphan.
+  timeout --foreground "$TIMEOUT" "$GROK_BIN" "${args[@]}" </dev/null >"$tmp_out" 2>"$tmp_err"
+  ec=$?
+  set -e
+  out="$(cat "$tmp_out" 2>/dev/null || true)"
+  err="$(cat "$tmp_err" 2>/dev/null || true)"
+  # Keep forensic stderr on the shared log (per-attempt marker).
+  if [ -n "$err" ]; then
+    {
+      printf '[%s] attempt=%d stderr:\n' "$(date -Iseconds)" "$attempt"
+      printf '%s\n' "$err"
+    } >>"$LOG"
+  fi
+  rm -f "$tmp_out" "$tmp_err"
+
+  # Payment/balance is a hard stop — never retry as flaky. Empty stdout alone used to
+  # mark 402 as flaky and double-hit a dead balance under the default RETRIES=1.
+  if printf '%s' "$out$err" | grep -qiE 'status 402|Payment Required|balance exhausted'; then
+    break
+  fi
+
+  # Success: clean exit + non-empty reply.
+  if [ "$ec" -eq 0 ] && [ -n "${out// /}" ]; then
+    break
+  fi
+
+  flaky=0
+  # SIGPIPE(141), SIGSEGV/core(139), timeout(124), SIGKILL(137), or rust broken-pipe panic text.
+  if [ "$ec" -eq 124 ] || [ "$ec" -eq 137 ] || [ "$ec" -eq 139 ] || [ "$ec" -eq 141 ]; then
+    flaky=1
+  fi
+  if printf '%s' "$err" | grep -qiE 'Broken pipe|dumped core|failed printing to stdout'; then
+    flaky=1
+  fi
+  # Empty/whitespace reply is never a useful PASS — retry if attempts remain.
+  if [ -z "${out// /}" ]; then
+    flaky=1
+  fi
+
+  if [ "$flaky" -eq 1 ] && [ "$attempt" -lt "$max_attempts" ]; then
+    echo "[$(date -Iseconds)] attempt=$attempt flaky ec=$ec replylen=${#out} — retry" >>"$LOG"
+    sleep "$RETRY_SLEEP"
+    continue
+  fi
+  break
+done
+
+printf '%s\n' "$out"
+echo "[$(date -Iseconds)] exit=$ec replylen=${#out} attempts=$attempt" >>"$LOG"
+# Trip the breaker on a payment/balance failure (signature may land on stdout or stderr→log tail).
+if [ "$ec" -ne 0 ] && { printf '%s' "$out"; printf '%s' "$err"; tail -8 "$LOG"; } | grep -qiE "status 402|Payment Required|balance exhausted"; then
+  printf 'grok balance exhausted (402) at %s\n' "$(date -Iseconds)" >"$BREAKER"
+  echo "[$(date -Iseconds)] BREAKER tripped (402); subsequent calls fail-fast for ${COOLDOWN}s" >>"$LOG"
+fi
+# Empty reply is a transport failure even if the CLI lied with exit 0.
+if [ "$ec" -eq 0 ] && [ -z "${out// /}" ]; then
+  echo "grok-ask: empty reply after $attempt attempt(s)" >&2
+  exit 4
+fi
+exit "$ec"

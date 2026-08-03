@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Demigod pre-commit: fail-fast clone-breaker + export-contract gate (~0.3s).
+# Full disk architecture: npm run demigod:verify:source (agents / ship prepare).
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+exec node demigod-import-integrity.mjs

@@ -1,0 +1,1775 @@
+{
+  "generatedAt": "2026-07-29",
+  "months": 3,
+  "source": "Hacker News Who is Hiring",
+  "companies": [
+    {
+      "id": "hn:cascadespace.com",
+      "name": "Cascade Space",
+      "description": null,
+      "website": "https://cascadespace.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:column.com",
+      "name": "Column",
+      "description": null,
+      "website": "https://column.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:lumenresearch.ai",
+      "name": "Lumen Labs",
+      "description": null,
+      "website": "https://lumenresearch.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:euphonia.namecoach.ai",
+      "name": "Namecoach/Euphonia",
+      "description": null,
+      "website": "https://euphonia.namecoach.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:typesafe.ai",
+      "name": "TypeSafe AI",
+      "description": null,
+      "website": "https://typesafe.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:withcargo.com",
+      "name": "Cargo Robotics",
+      "description": null,
+      "website": "https://withcargo.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:weave.bio",
+      "name": "Weave Bio",
+      "description": null,
+      "website": "https://weave.bio/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/onecrew",
+      "name": "OneCrew",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/runway-ml",
+      "name": "Runway",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/radical-numerics",
+      "name": "Radical Numerics",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/aureliussystems",
+      "name": "Aurelius Systems",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:cora.ai",
+      "name": "Cora AI",
+      "description": null,
+      "website": "https://cora.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:oklo.com",
+      "name": "Oklo",
+      "description": null,
+      "website": "https://oklo.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:obsidiansecurity.com",
+      "name": "Obsidian Security",
+      "description": null,
+      "website": "https://obsidiansecurity.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:factory.ai",
+      "name": "Factory",
+      "description": null,
+      "website": "https://factory.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:shepherdinsurance.com",
+      "name": "Shepherd",
+      "description": null,
+      "website": "https://shepherdinsurance.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:rivio.ai",
+      "name": "Rivio.ai",
+      "description": null,
+      "website": "https://rivio.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:surgehq.ai",
+      "name": "Surge AI",
+      "description": null,
+      "website": "https://surgehq.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:getartcraft.com",
+      "name": "ArtCraft",
+      "description": null,
+      "website": "https://getartcraft.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:complement.ai",
+      "name": "Complement AI",
+      "description": null,
+      "website": "https://complement.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:kiloforge.com",
+      "name": "Kiloforge",
+      "description": null,
+      "website": "https://kiloforge.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/middesk",
+      "name": "Middesk",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:ensoul.inc",
+      "name": "Ensoul",
+      "description": null,
+      "website": "https://ensoul.inc/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:conductor.build",
+      "name": "Conductor",
+      "description": null,
+      "website": "https://conductor.build/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:usebead.ai",
+      "name": "Bead AI",
+      "description": null,
+      "website": "https://usebead.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:docs.ditto.live",
+      "name": "Ditto",
+      "description": null,
+      "website": "https://docs.ditto.live/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:prairielearn.com",
+      "name": "PrairieLearn",
+      "description": null,
+      "website": "https://prairielearn.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:matterhaul.com",
+      "name": "Matterhaul",
+      "description": null,
+      "website": "https://matterhaul.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:hover.to",
+      "name": "Hover",
+      "description": null,
+      "website": "https://hover.to/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:job-boards.eu.greenhouse.io/prolific",
+      "name": "Prolific",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:awarehealth.io",
+      "name": "Aware Health",
+      "description": null,
+      "website": "https://awarehealth.io/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:antithesis.com",
+      "name": "Antithesis",
+      "description": null,
+      "website": "https://antithesis.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:job-boards.greenhouse.io/kinelo",
+      "name": "Kinelo",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:foxglove.dev",
+      "name": "Foxglove",
+      "description": null,
+      "website": "https://foxglove.dev/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:srcc.stanford.edu",
+      "name": "Stanford Research Computing",
+      "description": null,
+      "website": "https://srcc.stanford.edu/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48747976",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:hatchet.run",
+      "name": "Hatchet",
+      "description": null,
+      "website": "https://hatchet.run/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:runwayml.com",
+      "name": "Runway",
+      "description": null,
+      "website": "https://runwayml.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:tetsuwan.com",
+      "name": "Tetsuwan Scientific",
+      "description": null,
+      "website": "https://tetsuwan.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:aquabyte.ai",
+      "name": "Aquabyte",
+      "description": null,
+      "website": "https://aquabyte.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.lever.co/prolific-machines",
+      "name": "Prolific Machines",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.lever.co/upmetrics",
+      "name": "UpMetrics",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/chestnut",
+      "name": "Chestnut",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:puma.tech",
+      "name": "Puma.tech",
+      "description": null,
+      "website": "https://puma.tech/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:trashlab.com",
+      "name": "TrashLab",
+      "description": null,
+      "website": "https://trashlab.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:frisson-labs.com",
+      "name": "Frisson Labs",
+      "description": null,
+      "website": "https://frisson-labs.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:trytenera.ai",
+      "name": "Tenera",
+      "description": null,
+      "website": "https://trytenera.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/charge-robotics",
+      "name": "Charge Robotics",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:skydio.com",
+      "name": "Skydio",
+      "description": null,
+      "website": "https://skydio.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:paradedb.com",
+      "name": "ParadeDB",
+      "description": null,
+      "website": "https://paradedb.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:joincarma.com",
+      "name": "Carma",
+      "description": null,
+      "website": "https://joincarma.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/kiloforge",
+      "name": "Kiloforge",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.gem.com/piqenergy",
+      "name": "Piq Energy",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.lever.co/apolloresearch",
+      "name": "Apollo Research",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:guild.ai",
+      "name": "Guild.ai",
+      "description": null,
+      "website": "https://guild.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:careers.snowflake.com",
+      "name": "Snowflake",
+      "description": null,
+      "website": "https://careers.snowflake.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/fathom.video",
+      "name": "Fathom – AI Notetaker",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:speakeasy.com",
+      "name": "Speakeasy",
+      "description": null,
+      "website": "https://speakeasy.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/alembic",
+      "name": "Alembic",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.gem.com/modular",
+      "name": "I'm Paula, Technical Recruiter @ Modular - Hiring for the roles below Remote for L5's and above L4's and below hybrid in",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:natural.co",
+      "name": "Natural",
+      "description": null,
+      "website": "https://natural.co/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:hestus.co",
+      "name": "Hestus",
+      "description": null,
+      "website": "https://hestus.co/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:iamquin.ai",
+      "name": "Quin",
+      "description": null,
+      "website": "https://iamquin.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:careers.chime.com",
+      "name": "Chime",
+      "description": null,
+      "website": "https://careers.chime.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:diffusion.io",
+      "name": "Diffusion",
+      "description": null,
+      "website": "https://diffusion.io/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:authorium.com",
+      "name": "Authorium",
+      "description": null,
+      "website": "https://authorium.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/castletontower",
+      "name": "Castleton Tower",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.lever.co/ridezum",
+      "name": "Zūm",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:thisismason.com",
+      "name": "Mason",
+      "description": null,
+      "website": "https://thisismason.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:mechanize.work",
+      "name": "Mechanize",
+      "description": null,
+      "website": "https://mechanize.work/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:tenki.cloud",
+      "name": "Tenki Cloud by Luxor Tech",
+      "description": null,
+      "website": "https://tenki.cloud/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:strobepower.com",
+      "name": "Strobe Power",
+      "description": null,
+      "website": "https://strobepower.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=48357725",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:crawshaw.io",
+      "name": "exe.dev",
+      "description": null,
+      "website": "https://crawshaw.io/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/river",
+      "name": "River",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/hyperspell",
+      "name": "Hyperspell",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:uncountable.com",
+      "name": "Uncountable",
+      "description": null,
+      "website": "https://uncountable.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:job-boards.greenhouse.io/atomicmachines",
+      "name": "Atomic Machines is building a manufacturing platform for a new class of micromachines, here in the Bay Area. We have ope",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:rinse.com",
+      "name": "RINSE",
+      "description": null,
+      "website": "https://rinse.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:engineering.billiontoone.com",
+      "name": "BillionToOne",
+      "description": null,
+      "website": "https://engineering.billiontoone.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:generation-alpha-transistor.com",
+      "name": "Gen-Alpha Transistor",
+      "description": null,
+      "website": "https://generation-alpha-transistor.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:unit.inc",
+      "name": "Unit",
+      "description": null,
+      "website": "https://unit.inc/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:helloeve.co",
+      "name": "Eve",
+      "description": null,
+      "website": "https://helloeve.co/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:mintmcp.com",
+      "name": "MintMCP",
+      "description": null,
+      "website": "https://mintmcp.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:vlm.run",
+      "name": "VLM Run",
+      "description": null,
+      "website": "https://vlm.run/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:radai.com",
+      "name": "Rad AI",
+      "description": null,
+      "website": "https://radai.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:falconer.com",
+      "name": "Falconer",
+      "description": null,
+      "website": "https://falconer.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:job-boards.greenhouse.io/orkes",
+      "name": "Do you want to work on distributed systems? We are building the stack for running agents in production. https://github.c",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/comity",
+      "name": "Comity Inc.",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:gigs.com",
+      "name": "Gigs",
+      "description": null,
+      "website": "https://gigs.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:e2b.dev",
+      "name": "E2B",
+      "description": null,
+      "website": "https://e2b.dev/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:civai.org",
+      "name": "CivAI",
+      "description": null,
+      "website": "https://civai.org/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/sentilink",
+      "name": "At SentiLink, we stop identity fraud at scale. Our products protect banks, fintechs, marketplaces, and leading financial",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:covu.com",
+      "name": "COVU",
+      "description": null,
+      "website": "https://covu.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:krea.ai",
+      "name": "Krea; Fulltime; Onsite, San Francisco, CA, USA. I'm the cofounder of Krea",
+      "description": null,
+      "website": "https://krea.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/parabola-io",
+      "name": "Parabola",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:job-boards.greenhouse.io/vivodyne",
+      "name": "Vivodyne",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:fal.ai",
+      "name": "fal",
+      "description": null,
+      "website": "https://fal.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:nylas.com",
+      "name": "Nylas",
+      "description": null,
+      "website": "https://nylas.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/baseten",
+      "name": "Baseten Labs",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:neonhealth.com",
+      "name": "Neon Health",
+      "description": null,
+      "website": "https://neonhealth.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:lat.ai",
+      "name": "Latitude AI",
+      "description": null,
+      "website": "https://lat.ai/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:markercollective.com",
+      "name": "Marker",
+      "description": null,
+      "website": "https://markercollective.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:saildrone.com",
+      "name": "Saildrone",
+      "description": null,
+      "website": "https://saildrone.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/mercor",
+      "name": "Mercor",
+      "description": null,
+      "website": null,
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    },
+    {
+      "id": "hn:cloudflare.com",
+      "name": "Cloudflare",
+      "description": null,
+      "website": "https://cloudflare.com/",
+      "inceptionYear": null,
+      "tags": [
+        "hn-hiring"
+      ],
+      "locationPrecision": "city",
+      "neighborhood": null,
+      "hiring": "yes",
+      "source": "Hacker News (Who is Hiring)",
+      "sourceUrl": "https://news.ycombinator.com/item?id=47975571",
+      "sourceLicense": "HN-public",
+      "retrievedAt": "2026-07-29"
+    }
+  ]
+}
