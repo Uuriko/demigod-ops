@@ -51,8 +51,12 @@ ok(p.state === 'proposed', 'fresh propose is proposed');
 
 {
   const src = fs.readFileSync(path.join(ROOT, 'demigod-matching-engine.mjs'), 'utf8');
-  const proposal = src.slice(src.indexOf('function proposeIntro('), src.indexOf('function presentMatchCard('));
-  ok(!/consentPair\s*\(/.test(proposal), 'intro proposal never manufactures consent');
+  const start = src.indexOf('function proposeIntro(');
+  const end = src.indexOf('function presentMatchCard(');
+  // Fail-closed: a -1 marker slices to '' and vacuous-greens the consent check below.
+  const found = start >= 0 && end > start;
+  ok(found, 'proposeIntro..presentMatchCard markers present in matching engine');
+  ok(found && !/consentPair\s*\(/.test(src.slice(start, end)), 'intro proposal never manufactures consent');
 }
 
 let gateHit = false;
