@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# dg-backup — restic snapshot of the files git cannot restore.
+#
+# The 2026-08-02 wipe destroyed 37 gitignored files that were never tracked
+# (submissions inbox, pairs, role ledger, events, secrets). Git covers the
+# tracked half; this covers the rest. See docs/RECOVERY-2026-08-02.md.
+#
+# Usage:
+#   dg-backup            # snapshot + retention prune
+#   dg-backup --check    # validate deps/env/repo/file-list; writes nothing
+#
+# Required env (no defaults — a wrong guess here is a silent non-backup):
+#   DG_BACKUP_REPO         restic repo. External disk or object store.
+#   RESTIC_PASSWORD_FILE   path to the repo password file.
+#
+# Out: /tmp/dg-busy/backup.json
+set -euo pipefail
+
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
+LOG="${DG_BACKUP_LOG:-$STATE_DIR/dg-backup.log}"
+KEEP_DAILY="${DG_BACKUP_KEEP_DAILY:-7}"
+KEEP_WEEKLY="${DG_BACKUP_KEEP_WEEKLY:-8}"
+
+mkdir -p "$STATE_DIR" "$BUSY"
+
+log() {
+  local line="[$(date -Iseconds)] $*"
+  printf '%s\n' "$line" >>"$LOG" 2>/dev/null || true
+  if [[ -t 1 ]] || [[ "${DG_BACKUP_VERBOSE:-0}" == 1 ]]; then printf '%s\n' "$line"; fi
+}
+
+die() { log "FAIL: $*"; printf 'dg-backup FAIL: %s\n' "$*" >&2; exit 1; }
+
+mode="${1:-run}"
+case "$mode" in
+  run|--check) ;;
+  *) die "usage: dg-backup [--check]" ;;
+esac
+
+# --- fail closed on config -------------------------------------------------
+command -v restic >/dev/null 2>&1 || die "restic not installed — sudo apt-get install restic"
+[[ -n "${DG_BACKUP_REPO:-}" ]] || die "DG_BACKUP_REPO unset — point it at an external disk or object store"
+[[ -n "${RESTIC_PASSWORD_FILE:-}" ]] || die "RESTIC_PASSWORD_FILE unset"
+[[ -r "${RESTIC_PASSWORD_FILE}" ]] || die "RESTIC_PASSWORD_FILE not readable: $RESTIC_PASSWORD_FILE"
+
+# A second copy on the disk that just lost everything is not a backup. Only
+# checkable for local paths; remote repos (s3:, sftp:, rest:) are off-device by
+# construction.
+if [[ "$DG_BACKUP_REPO" != *:* && -e "$DG_BACKUP_REPO" ]]; then
+  repo_dev="$(stat -c %d "$DG_BACKUP_REPO" 2>/dev/null || echo x)"
+  root_dev="$(stat -c %d "$ROOT" 2>/dev/null || echo y)"
+  [[ "$repo_dev" != "$root_dev" ]] || die "DG_BACKUP_REPO is on the same filesystem as $ROOT — use external storage"
+fi
+
+# --- what to save ----------------------------------------------------------
+# Top-level ignored files are exactly the data class git cannot restore. Derived
+# from .gitignore every run, so a new data file is covered without editing this
+# script. Nested ignores (.cache, node_modules, .local) are excluded by the
+# no-slash filter.
+LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
+( cd "$ROOT" && git ls-files -o -i --exclude-standard 2>/dev/null | grep -v '/' || true ) \
+  | sed "s|^|$ROOT/|" >"$LIST"
+
+for extra in "$ROOT/.config/demigod" "$ROOT/.config/systemd/user" "$ROOT/.gitconfig"; do
+  [[ -e "$extra" ]] && printf '%s\n' "$extra" >>"$LIST"
+done
+
+count="$(wc -l <"$LIST")"
+# An empty snapshot would succeed and read as green while protecting nothing.
+[[ "$count" -gt 0 ]] || die "nothing to back up — file list is empty (wrong DEMIGOD_ROOT?)"
+
+if [[ "$mode" == "--check" ]]; then
+  restic -r "$DG_BACKUP_REPO" snapshots >/dev/null 2>&1 \
+    || die "repo unreachable or uninitialized — restic -r \"\$DG_BACKUP_REPO\" init"
+  printf 'dg-backup CHECK ok · %s paths · repo %s\n' "$count" "$DG_BACKUP_REPO"
+  exit 0
+fi
+
+# --- snapshot --------------------------------------------------------------
+restic -r "$DG_BACKUP_REPO" snapshots >/dev/null 2>&1 \
+  || die "repo unreachable or uninitialized — restic -r \"\$DG_BACKUP_REPO\" init"
+
+log "backup start · $count paths"
+restic -r "$DG_BACKUP_REPO" backup --files-from "$LIST" --tag demigod >>"$LOG" 2>&1 \
+  || die "restic backup failed — see $LOG"
+restic -r "$DG_BACKUP_REPO" forget --tag demigod \
+  --keep-daily "$KEEP_DAILY" --keep-weekly "$KEEP_WEEKLY" --prune >>"$LOG" 2>&1 \
+  || log "warn: retention prune failed (snapshot itself succeeded)"
+
+printf '{"at":"%s","ok":true,"paths":%s,"repo":"%s"}\n' \
+  "$(date -Iseconds)" "$count" "$DG_BACKUP_REPO" >"$BUSY/backup.json"
+log "backup ok · $count paths"
+printf 'dg-backup OK · %s paths · receipt %s\n' "$count" "$BUSY/backup.json"

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Demigod backup daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+Persistent=true
+Unit=demigod-backup.service
+
+[Install]
+WantedBy=timers.target
