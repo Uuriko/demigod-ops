@@ -1,0 +1,16 @@
+[Unit]
+Description=Demigod multi-source roles pipeline (X+HN discover → ATS apply → ledger → public roles → static)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+WorkingDirectory=/home/potter
+Environment=PATH=%h/.nvm/versions/node/v24.17.0/bin:%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=/home/potter
+Environment=DEMIGOD_BUSY=/tmp/dg-busy
+# Skip X if CDP flaky — HN+ledger+feed still refresh
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node /home/potter/demigod-roles-pipeline.mjs
+Nice=10
+TimeoutStartSec=45min

@@ -1,0 +1,200 @@
+{
+  "schema": "demigod.public-roles/1",
+  "generatedAt": "2026-08-05T16:10:12.878Z",
+  "basis": "Recently first-observed open roles on public employer ATS boards (role-ledger). Not Demigod matching inventory; not a fill-rate claim.",
+  "windowDays": 1,
+  "roles": [
+    {
+      "company": "Affirm",
+      "title": "Senior Product Manager, Agent Enablement",
+      "url": "https://job-boards.greenhouse.io/affirm/jobs/7822254003",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote US",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Anaplan",
+      "title": "Social Media Manager",
+      "url": "https://job-boards.greenhouse.io/anaplan/jobs/8654661002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Reston, United States",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Astranis",
+      "title": "Satellite Operator",
+      "url": "https://job-boards.greenhouse.io/astranis/jobs/4363976006",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Baseten Labs",
+      "title": "Immigration and Mobility Lead",
+      "url": "https://jobs.ashbyhq.com/baseten/9d293c95-898b-4dbe-9479-c8f0e0b35688",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Baseten Labs",
+      "title": "Strategic Finance, GTM",
+      "url": "https://jobs.ashbyhq.com/baseten/3677992a-2a97-4a55-98ce-e2719922f263",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Broccoli AI",
+      "title": "Forward Deployed Engineer",
+      "url": "https://jobs.ashbyhq.com/broccoli/c4384846-6f6c-4e36-aaa6-0cc0c361261d",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Certa",
+      "title": "Account Executive",
+      "url": "https://jobs.ashbyhq.com/certa/2a7fb813-a341-4530-84cf-3e6b96a06c5a",
+      "firstObservedAt": "2026-08-01",
+      "location": "North America",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Cloudflare",
+      "title": "Senior Majors Account Executive - Chicago",
+      "url": "https://boards.greenhouse.io/cloudflare/jobs/8099002?gh_jid=8099002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Distributed",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Databricks",
+      "title": "Specialist Solutions Architect - Cloud Platform & Infrastructure",
+      "url": "https://databricks.com/company/careers/open-positions/job?gh_jid=8659539002",
+      "firstObservedAt": "2026-08-01",
+      "location": "United States",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Databricks",
+      "title": "Staff Software Engineer - Streaming",
+      "url": "https://databricks.com/company/careers/open-positions/job?gh_jid=8663972002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Seattle, Washington",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Dataleap",
+      "title": "Founder's Associate",
+      "url": "https://jobs.ashbyhq.com/dataleap/2c838b6c-dfd3-4383-8693-716272b76e3d",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Demandbase",
+      "title": "Strategic Partnerships Director",
+      "url": "https://jobs.ashbyhq.com/demandbase/e0d55d53-d8e3-4018-9450-5bea536daeb9",
+      "firstObservedAt": "2026-08-01",
+      "location": "US - Remote",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Fab2",
+      "title": "Inventory Specialist",
+      "url": "https://jobs.ashbyhq.com/fab2/c3826b63-0ad7-4472-84f5-e19dd5b47fcf",
+      "firstObservedAt": "2026-08-01",
+      "location": "Austin",
+      "provider": "Ashby"
+    },
+    {
+      "company": "Fivetran",
+      "title": "Senior Business Value Engineer",
+      "url": "https://www.fivetran.com/careers/job?gh_jid=7822951003",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote, Washington, United States, AMER",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Instacart",
+      "title": "Customer Experience Specialist: Retail",
+      "url": "https://instacart.careers/job/?gh_jid=8082393",
+      "firstObservedAt": "2026-08-01",
+      "location": "United States - Remote",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Instawork",
+      "title": "Webflow Developer",
+      "url": "https://job-boards.greenhouse.io/instawork/jobs/4701739006",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote, United States",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Lattice",
+      "title": "Senior Manager, IT",
+      "url": "https://lattice.com/job?gh_jid=8618117002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote - US",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Lattice",
+      "title": "Senior Software Engineer, Infrastructure Platform",
+      "url": "https://lattice.com/job?gh_jid=8487540002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote - Canada",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Lyft",
+      "title": "Senior Education Content Producer, Video/Motion Graphics",
+      "url": "https://app.careerpuck.com/job-board/lyft/job/8656822002?gh_jid=8656822002",
+      "firstObservedAt": "2026-08-01",
+      "location": "San Francisco, CA",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Lyft",
+      "title": "Senior Education Content Producer, Video/Motion Graphics",
+      "url": "https://app.careerpuck.com/job-board/lyft/job/8657416002?gh_jid=8657416002",
+      "firstObservedAt": "2026-08-01",
+      "location": "New York, NY",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Modern Health",
+      "title": "Program Manager, Business & Partnership Programs",
+      "url": "https://job-boards.greenhouse.io/modernhealth/jobs/8637390002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote - US",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Modern Health",
+      "title": "Program Manager, Product Operations",
+      "url": "https://job-boards.greenhouse.io/modernhealth/jobs/8637646002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote - US",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "Modern Health",
+      "title": "Strategic Finance and Pricing Lead",
+      "url": "https://job-boards.greenhouse.io/modernhealth/jobs/8662822002",
+      "firstObservedAt": "2026-08-01",
+      "location": "Remote - US",
+      "provider": "Greenhouse"
+    },
+    {
+      "company": "NewsBreak",
+      "title": "Software Engineer, ML Infra (Junior & New Grad)",
+      "url": "https://job-boards.greenhouse.io/newsbreak/jobs/4615879006",
+      "firstObservedAt": "2026-08-01",
+      "location": "Mountain View, California, United States",
+      "provider": "Greenhouse"
+    }
+  ]
+}

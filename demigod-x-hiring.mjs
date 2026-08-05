@@ -23,6 +23,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { CDP_URL } from './cdp-config.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
+import { extractAtsBoards } from './demigod-roles-ats-links.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || '/tmp/dg-busy';
@@ -81,6 +82,7 @@ export function classifyPost(post = {}, now = Date.now()) {
   if (!SF_RE.test(text)) return null;
 
   const fresh = isFreshPost(post.postedAt, now);
+  const atsBoards = extractAtsBoards(text);
   return {
     id: `x:${url.match(/status\/(\d+)/)[1]}`,
     handle,
@@ -94,6 +96,8 @@ export function classifyPost(post = {}, now = Date.now()) {
     sourceUrl: url,
     sourceLicense: 'X-public',
     retrievedAt: new Date(now).toISOString().slice(0, 10),
+    // Public board URLs found in the post (if any). Identity still needs map attach.
+    atsBoards: atsBoards.length ? atsBoards : undefined,
     // Everything below is for the human, not a claim:
     needsReview: true,
     website: null,
@@ -181,6 +185,8 @@ function selftest() {
   assert(row && row.hiring === 'yes', 'fresh SF hiring post is a live claim');
   assert(row.sourceLicense === 'X-public' && row.sourceUrl === ok.url, 'provenance attributed to the post');
   assert(row.name === null && row.website === null, 'never invents company identity from prose');
+  const withBoard = classifyPost({ ...ok, text: ok.text + ' https://jobs.ashbyhq.com/acme/job/1' }, now);
+  assert(withBoard?.atsBoards?.length === 1 && withBoard.atsBoards[0].provider === 'Ashby', 'ATS board extracted from post text');
   assert(row.needsReview === true, 'staged rows are always human-review');
 
   // Freshness must actually gate — proven non-vacuous: same post, older date, different verdict.

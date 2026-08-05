@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh Demigod public roles discovery twice daily
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+OnCalendar=*-*-* 19:30:00
+RandomizedDelaySec=20min
+AccuracySec=5min
+Persistent=true
+Unit=demigod-roles-pipeline.service
+
+[Install]
+WantedBy=timers.target
