@@ -408,3 +408,39 @@ looking is not redundant with the test suite.
 Fixed in both files: `input/textarea/select:focus-visible` now takes the accent outline.
 Verified by keyboard focus rather than click — `:focus-visible` does not paint for mouse
 interaction — and the computed outline colour reads `rgb(200, 182, 255)`, the accent.
+
+---
+
+## 13. Framing correction — this page is the tool, not the landing page
+
+Supersedes the framing used throughout sections 1–12.
+
+This audit has described `dasha-landing.html` as "the landing page" and measured it against
+`DASHA-ROADMAP.md`'s Phase 0 exit gate for "one truthful, directly rendered, accessible
+landing page". **That is the wrong target for this file.**
+
+`DASHA-PRODUCT-BRIEF.md` lines 9–10 assigned the roles before any of this work began:
+
+> 1. **Dasha Desk** — the `$dasha` landing page …
+> 2. **Dasha Thesis Card** — the first useful tool …
+
+Grok and Codex, asked independently on 2026-08-06, both recommended the same thing: the
+Desk ships as the landing page; the Thesis Card is a tool surface folded in afterwards.
+`DASHA-WORKFLOW.md` lines 18–21 records the same split — landing markup, styles and
+behaviour all live under `dasha-desk/src/`.
+
+**What this changes:** nothing about the defects found or the fixes made. The design system,
+the honesty strip, the drift guards, the focus-state gate and the axe coverage all carry
+over to the tool surface unchanged, and every defect in §11 was real regardless of what the
+page is called.
+
+**What it changes going forward:** this file stops being polished as an independent
+destination. Its next job is Phase 1 integration as a module inside the Desk — worked
+examples and a "proves / does not prove" panel — per brief line 24, which sequences Thesis
+Card examples onto the landing page *after* the Desk's purpose is clear.
+
+The Phase 0 exit gate belongs to the Desk. `dasha-landing.test.mjs` remains valid as a gate
+for this file's own correctness; it was never evidence about the Desk.
+
+See `DASHA-SYNC-2026-08-06.md` for the full three-agent sync, ownership map, and the
+divergent-history finding on `dasha-desk`.
