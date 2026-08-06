@@ -334,6 +334,10 @@ test('partner preview reuses validated novel YC evidence without queue or contac
       existingCrmId: 1,
       existingCrmName: 1,
       duplicateSourceIdentity: 1,
+      /* Opt-in --startups screen (companies the map shows are startup-sized). Counted here even
+         when the flag is off, so the receipt shape stays stable and every refusal remains
+         auditable — the same reason the other seven reasons are always present. */
+      notStartupSized: 0,
     },
   });
   assert.deepEqual(output.leads[0].reviewSignals, {

@@ -15,6 +15,8 @@
 
 import fs from 'fs';
 import path from 'path';
+/* Shared 'is this a startup' evidence — same source the public directory and role ledger use. */
+import { startupScore, companyKey as startupKey, loadCompanyProfiles } from './demigod-public-roles.mjs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import {
@@ -62,13 +64,15 @@ function parseArgs() {
   const limit = /^[1-9]\d*$/.test(rawLimit) ? Number(rawLimit) : NaN;
   const offset = /^(?:0|[1-9]\d*)$/.test(rawOffset) ? Number(rawOffset) : NaN;
   if (
-    args.length > 3 ||
+    args.length > 4 ||
     new Set(args.map(a => a.split('=')[0])).size !== args.length ||
     args.some(
       a =>
         !a.startsWith('--type=') &&
         !a.startsWith('--limit=') &&
-        !a.startsWith('--offset='),
+        !a.startsWith('--offset=') &&
+        /* Opt-in startup screen; validated here so an unknown flag still fails closed. */
+        a !== '--startups',
     ) ||
     !['talent', 'partners'].includes(type) ||
     !Number.isInteger(limit) ||
@@ -296,6 +300,11 @@ export function selectRecruitaiPartners(
     [lead.mapCompanyId, lead.companyId, lead.id]
       .filter((id) => typeof id === 'string' && id.startsWith('yc:'))
   ));
+  /* Opt-in: default behaviour is unchanged so existing callers and fixtures keep working.
+     Turning it on by default abstained every test fixture (companies absent from the map score 1,
+     not 2) and took the sourcer from 18/0 to 14/4. */
+  const startupsOnly = process.argv.includes('--startups');
+  const startupProfiles = startupsOnly ? loadCompanyProfiles() : {};
   const leads = [];
   let eligibleBeforeWindow = 0;
   let eligibleBeyondLimit = 0;
@@ -309,6 +318,7 @@ export function selectRecruitaiPartners(
     existingCrmId: 0,
     existingCrmName: 0,
     duplicateSourceIdentity: 0,
+    notStartupSized: 0,
   };
   for (const row of artifact.rows) {
     const domain =
@@ -353,6 +363,16 @@ export function selectRecruitaiPartners(
     }
     if (row.noAgencyEvidenceReqCount !== 0) {
       abstentions.positiveNoAgencyEvidence++;
+      continue;
+    }
+    /* Rank-by-open-reqs puts Stripe (549 reqs) at the top of the outreach list. Demigod places at
+       SF startups; a 549-req employer has an in-house recruiting org and will not hire through a
+       solo operator, so those rows crowd out the companies worth contacting. Third tool needing
+       this same screen (public-roles, role-ledger, now here) — reuse startupScore rather than
+       re-deriving "is this a startup" a fourth time. Recorded as an abstention, not a silent drop,
+       so the count stays auditable like every other refusal above. */
+    if (startupsOnly && startupScore(startupProfiles[startupKey(row.name)]) !== 2) {
+      abstentions.notStartupSized++;
       continue;
     }
     if (existingIds.has(row.mapCompanyId)) {
