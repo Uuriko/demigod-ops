@@ -170,3 +170,61 @@ restored `.git`, and 15 of 15 working files byte-identical.
 
 The fix is `git push`, which needs GitHub authentication the machine does not
 currently have — `gh auth status` reports no logged-in host.
+
+
+---
+
+## 9. `dasha-desk` and the live page — audited 2026-08-06 17:5x UTC
+
+### Truth boundaries: clean
+
+Every boundary word in `dasha-desk` is used as a **refusal**, not a claim:
+
+| Location | Wording |
+|---|---|
+| `README.md:53` | "**Not included:** claiming official endorsement by Dasha Nekrasova, Red Scare, or @dash_eats. Quotes are public posts for the `$dasha` instance." |
+| `CONTRIBUTING.md:8` | "Don't claim official endorsement by Dasha / Red Scare / @dash_eats." |
+| `index.html:44`, `src/body.html:32` | "Linked by @dash_eats · name dash_eats · symbol dasha · association is not endorsement or safety" |
+
+No `t.me/dashacommunity` anywhere. No use of "verified", "endorsed" or "guaranteed"
+as a claim. The candidate mint appears in 6 files, always alongside inspection links
+(Solscan, Rugcheck, Birdeye) rather than presented as established.
+
+**This identifies Dasha as Dasha Nekrasova, of Red Scare — a real public figure.**
+That retrospectively confirms the decision not to source or edit images of her for a
+token page: the repo itself refuses to claim her endorsement, and scraped likeness
+would have implied exactly what it disclaims.
+
+### Links
+
+| URL | Status |
+|---|---|
+| `johns-awesome-project-39b1b5.webflow.io/dasha` | **200 — this is the live landing page** |
+| `files.catbox.moe/cm5fmq.html` | 200 |
+| `github.com/Uuriko/dasha-desk` | 200, but **empty** — consistent with nothing pushed |
+| `x.com/dash_eats` | 200 |
+| `solscan.io/token/53uxQ…` | 403 — bot protection, not a broken link |
+| `uuriko.github.io/dasha-desk/` | **404 — the README presents this as "Live (Pages)"** |
+
+### The live page, measured
+
+`https://johns-awesome-project-39b1b5.webflow.io/dasha`, HTTP 200, at 390px:
+
+- `lang` — **absent**
+- `canonical` — **absent**
+- `og:url` — **absent**
+- `og:image` — points at **dexscreener's** token image, not a purpose-built card
+- `t.me/dashacommunity` — **gone** (the roadmap's stale-deployment defect is resolved)
+- iframes — **0** (the `text/plain` iframe defect is also resolved)
+- indexable text in the top-level document — **1,172 chars**
+- horizontal overflow — none
+- axe — 88 rules evaluated, **2 serious violations: `html-has-lang`, `label`**
+
+Two roadmap defects are already fixed on the deployed page: the Telegram link and
+the iframe. Three remain and are the same three my local page fixes — `lang`,
+canonical, `og:url` — plus a `label` violation the roadmap had not recorded.
+
+**The domain question is answered.** `johns-awesome-project-39b1b5.webflow.io/dasha`
+is the only live Dasha page. My landing page's placeholder `https://dashalabs.xyz/`
+should become that, or whatever custom domain replaces it — but this is a
+deployment decision, so the placeholder stays until someone says which.
