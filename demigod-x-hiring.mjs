@@ -51,9 +51,37 @@ const AGGREGATORS = new Set(
 );
 
 const SF_RE = /\b(san francisco|bay area|\bsf\b|south bay|peninsula|silicon valley)\b/i;
-const HIRING_RE = /\b(we'?re hiring|we are hiring|now hiring|join our team|hiring our first|looking to hire|founding engineer|first engineer)\b/i;
+/* Apostrophes here are a CHARACTER CLASS, not a literal. X renders "we're" with U+2019, so
+   /we'?re hiring/ silently failed on every smart-quoted post — real hiring posts dropped with no
+   trace, which is the worst kind of miss because nobody notices a lead that never appeared. Found
+   while checking why the self-announcement filter removed nothing from real staged rows. */
+const APOS = "['\u2019]";
+const HIRING_RE = new RegExp(`\\b(we${APOS}?re hiring|we are hiring|now hiring|join our team|hiring our first|looking to hire|founding engineer|first engineer)\\b`, 'i');
 // A post that is asking FOR a job is supply, not demand — different pipeline.
 const SEEKING_RE = /\b(looking for (a )?(job|role|work)|open to work|seeking (a )?(role|position)|#opentowork)\b/i;
+
+/* Someone announcing THEIR OWN new job is neither supply nor demand, and HIRING_RE was catching
+   them: "founding engineer" and "first engineer" are titles, so a post reading "after nine years
+   at $BIGCO I've joined $STARTUP as founding engineer" passed on the title plus an SF mention.
+   SEEKING_RE did not help — the author is not seeking, they already landed.
+
+   The blocklist trap this avoids: "joined"/"excited to announce" also appear in real company
+   posts ("excited to announce we're hiring"). So an announcement is only rejected when NO
+   explicit demand phrase is present. Title mentions alone are not demand; "we're hiring" is.
+   Dropped leads are invisible — nobody notices the post that never appeared — so when the two
+   signals collide the row is KEPT and needsReview carries it to a human. */
+const ANNOUNCEMENT_RE = new RegExp(
+  `\\b(i(?:${APOS}m| am|${APOS}ve| have)? ?(?:just |recently )?(?:joined|joining|started|starting)\\b`
+  + `|(?:joining|starting) (?:at|as)\\b|my (?:new|first) (?:role|job|gig)\\b`
+  + `|(?:thrilled|excited|happy|proud) to (?:be )?join(?:ing)?\\b)`, 'i');
+const EXPLICIT_DEMAND_RE = new RegExp(
+  `\\b(we${APOS}?re hiring|we are hiring|now hiring|join our team|hiring our first|looking to hire)\\b`, 'i');
+
+/** PURE: true when the post reads as the author announcing their own move, not a company hiring. */
+export function isSelfAnnouncement(text) {
+  const t = String(text || '');
+  return ANNOUNCEMENT_RE.test(t) && !EXPLICIT_DEMAND_RE.test(t);
+}
 
 /** Post age in days, or null when the timestamp is missing/unparseable. */
 export function ageDays(postedAt, now = Date.now()) {
@@ -82,6 +110,7 @@ export function classifyPost(post = {}, now = Date.now()) {
   if (AGGREGATORS.has(handle)) return null;
   if (SEEKING_RE.test(text)) return null;
   if (!HIRING_RE.test(text)) return null;
+  if (isSelfAnnouncement(text)) return null;
   if (!SF_RE.test(text)) return null;
 
   const fresh = isFreshPost(post.postedAt, now);
