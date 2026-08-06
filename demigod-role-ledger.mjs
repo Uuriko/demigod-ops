@@ -217,8 +217,16 @@ function loadLedger() {
 }
 
 export function extractAgencyPolicyEvidence(raw, url) {
+  /* Apostrophes arrive three ways in a job description: literal U+2019, &#39;/&apos;, and
+     &rsquo;/&#8217;. htmlToVisibleText only strips tags, and the entity list here handled nbsp
+     and amp but not apostrophes — so "Agencies won&rsquo;t be paid" read as raw entity text and
+     matched nothing. Decoding to the straight form is the same class of normalisation already
+     applied to whitespace and ampersands; the source HTML is untouched, only the text being
+     searched. The pattern below also accepts a literal U+2019 so an unencoded curly quote
+     matches without relying on this decode. */
   const text = htmlToVisibleText(String(raw || ''))
     .replace(/&(?:nbsp|#160);/gi, ' ')
+    .replace(/&(?:apos|#39|rsquo|#8217|lsquo|#8216);/gi, "'")
     .replace(/&amp;/gi, '&')
     .replace(/\s+/g, ' ')
     .trim();
@@ -231,7 +239,7 @@ export function extractAgencyPolicyEvidence(raw, url) {
     /\b(?:agency|recruiter)\s+(?:submissions?|resumes?)\s+(?:are|will be)\s+not\s+accepted\b/i,
     /\bunsolicited\s+(?:agency|recruiter)\s+(?:resumes?|submissions?)\s+(?:are|will be)\s+(?:not\s+)?(?:accepted|considered)\b/i,
     /\bplease\s+do\s+not\s+contact\s+(?:us\s+)?(?:via|through|with)\s+(?:an?\s+)?(?:agency|recruiter|staffing)\b/i,
-    /\bagencies?\s+(?:will\s+not|won't)\s+be\s+(?:paid|compensated|accepted)\b/i,
+    /\bagencies?\s+(?:will\s+not|won['\u2019]t)\s+be\s+(?:paid|compensated|accepted)\b/i,
     /\bno\s+(?:fee|placement)\s+(?:agency|recruiter)\s+(?:calls|emails|submissions?)\b/i,
     /\bdirect\s+applicants?\s+only\b[^.!?]{0,40}\b(?:agency|recruiter)\b/i,
     /\b(?:we\s+)?(?:do|does|will)\s+not\s+work\s+with\s+(?:outside\s+)?(?:agencies|recruiters|staffing firms)\b/i,
