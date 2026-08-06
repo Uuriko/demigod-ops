@@ -40,5 +40,12 @@ test('the shout-title scrub it protects still exists', () => {
   // brittle rather than strict.
   const scrub = SRC.split('\n').find((l) => /TECH-MATCHED/.test(l) && /textContent\s*=/.test(l));
   assert(scrub, 'a line must both match TECH-MATCHED and assign textContent');
-  assert.match(scrub, /A match has three gates\./, 'scrub replaces the shout title');
+  /* Assert the MECHANISM, not the replacement copy. This pinned the literal
+     "A match has three gates." and went red when a copy pass changed it to
+     "A match has three clear steps." — the scrub was working the whole time.
+     Same copy-coupled-oracle class this suite has been cleaning up all session:
+     what must hold is that the shout title is replaced with something, not with
+     one exact sentence that marketing is free to revise. */
+  assert.match(scrub, /textContent\s*=\s*'[^']{8,}'/, 'scrub assigns a non-trivial replacement');
+  assert.doesNotMatch(scrub, /textContent\s*=\s*''/, 'scrub must replace the title, not blank it');
 });
