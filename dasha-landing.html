@@ -42,6 +42,21 @@ a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 a:hover{color:var(--accent-hi)}
 a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
+
+/* --- polish motion ---------------------------------------------------- */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+header.wrap,.hero-art{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+.hero-art{animation-delay:.08s}
+.btn{transition:transform .15s ease,background .2s,border-color .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(200,182,255,.25)}
+.btn:active{transform:none}
+.card{transition:border-color .2s,transform .2s,box-shadow .2s}
+.card:hover{border-color:#4a4450;transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+@media (prefers-reduced-motion:reduce){
+  header.wrap,.hero-art{animation:none}
+  .btn,.card{transition:none}
+}
+
 /* --- hero ------------------------------------------------------------- */
 header{padding:56px 0 8px}
 .eyebrow{color:var(--muted);font-size:.75rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0 0 16px;font-family:var(--mono)}
@@ -76,6 +91,26 @@ h2{font-family:var(--display);font-size:clamp(1.45rem,3.8vw,1.95rem);margin:0 0 
 .why{border-left:2px solid var(--line);padding:2px 0 2px 18px;margin:0;max-width:58ch;color:var(--muted)}
 .why b{color:var(--ink);font-weight:700}
 
+/* --- worked examples --------------------------------------------------- */
+.ex{display:flex;flex-direction:column}
+.exl{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.exl-inv{color:var(--danger)}
+.ext{margin:0 !important;color:var(--ink) !important;font-size:.95rem}
+.exout{margin:16px 0 0 !important;padding-top:12px;border-top:1px solid var(--line);color:var(--muted) !important;font-size:.88rem}
+.badge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-family:var(--mono);
+  font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);border:1px solid var(--danger);vertical-align:middle}
+.exbtn{margin-top:18px;min-height:44px;padding:10px 14px;border-radius:10px;font:inherit;font-weight:700;
+  cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line)}
+.exbtn:hover{border-color:var(--accent);color:var(--accent-hi)}
+
+/* --- proves / does not prove ------------------------------------------- */
+.cols{display:grid;gap:14px}
+@media(min-width:720px){.cols{grid-template-columns:1fr 1fr}}
+.plain{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.plain li{color:var(--muted)}
+.plain b{color:var(--ink)}
+.k small.neg{color:var(--danger)}
+
 /* --- honesty strip ---------------------------------------------------- */
 .strip{border:1px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
 .strip ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
@@ -101,7 +136,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <header class="wrap">
   <p class="eyebrow">Dasha Labs · free tool · no wallet</p>
   <h1>Write the call <em>before</em> the chart writes the story.</h1>
-  <p class="sub">Anyone can explain a trade after it moves. This records what you thought, what would prove you wrong, and by when — timestamped and fingerprinted, before you post it.</p>
+  <p class="sub">Anyone can explain a trade after it moves. This records what you thought, what would prove you wrong, and by when — with your device time and a local checksum, before you post it.</p>
 
   <!-- Original artwork. A filled-in example of the card the tool produces, so the page shows
        the deliverable rather than restating the headline. The mint is a self-documenting
@@ -110,7 +145,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
        data, no target, no return figure. -->
   <div class="hero-art">
     <svg viewBox="0 0 360 300" width="100%" role="img"
-         aria-label="An example of the card the tool produces. It shows an example token address, a thesis reading 'Liquidity depth is what I am actually watching here, not the price', an invalidation condition reading 'Depth falls back under where it started and stays there a week', a UTC timestamp, a twelve-character checksum, and a footer reading Not financial advice.">
+         aria-label="An example of the card the tool produces. It shows an example token address, a thesis reading 'Liquidity depth is what I am actually watching here, not the price', an invalidation condition reading 'Depth falls back under where it started and stays there a week', an unverified device time, a checksum prefix, and a footer reading Not financial advice.">
       <rect x="4" y="20" width="352" height="272" rx="14" fill="#151317" stroke="#353039"/>
       <text x="4" y="12" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="1.4" fill="#ADA5AE">EXAMPLE — NOT A REAL CALL</text>
 
@@ -148,7 +183,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 
 <section id="tool">
   <h2>Write one now</h2>
-  <p class="lede">Nothing leaves your browser. There is no account and no wallet prompt.</p>
+  <p class="lede">Your thesis fields are processed locally and are not sent to us. There is no account and no wallet prompt.</p>
   <div class="toolhost">
     <p class="eyebrow">Dasha Labs · free tool</p>
     <h2 class="toolhead">Thesis Card</h2>
@@ -166,15 +201,19 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <strong id="receipt-text"></strong>
       <span id="fingerprint" class="fingerprint"></span>
       <div class="actions"><button id="copy" class="secondary" type="button">Copy card</button><button id="download" class="secondary" type="button">Download card</button><a id="share" class="button" target="_blank" rel="noopener noreferrer" aria-label="Share on X (opens in a new tab)">Share on X</a><a id="inspect" class="button secondary" target="_blank" rel="noopener noreferrer" aria-label="Inspect token on Solscan (opens in a new tab)">Inspect token</a></div>
-      <small class="note">The local checksum detects changed text. The timestamp is not independently verified and this card is not proof of when a claim was made. It does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
+      <small class="note">The full local checksum lets someone compare an exact copy of this card's text. The device time is not independently verified and is not proof of when a claim was made. This does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
     </section>
   </div>
-  <p class="lede" style="margin-top:14px">The tool also lives on <a href="./dasha-conviction-receipt.html">its own page</a>, if you would rather link straight to it.</p>
+  <!-- No link to ./dasha-conviction-receipt.html here. The tool is inlined directly above, so
+       the link only ever offered a deep-link convenience — and it is a DEAD LINK whenever this
+       file travels on its own, which is how it gets shown to people (emailed, opened from
+       file://). One self-sufficient file beats a marginal convenience. The standalone still
+       ships; it is simply not advertised from here. -->
 </section>
 
 <section id="how">
   <h2>Three fields. That is the whole tool.</h2>
-  <p class="lede">It runs in your browser. Nothing is uploaded, nothing is stored on our side, and there is no account.</p>
+  <p class="lede">It runs in your browser. Thesis fields are not uploaded or stored by us, and there is no account.</p>
   <div class="grid grid-3">
     <div class="card"><p class="k"><small>01</small>The thesis</p><p>What you actually believe, in your words. Not a target, not a chart pattern — the reason.</p></div>
     <div class="card"><p class="k"><small>02</small>The invalidation</p><p>What would make you wrong. This is the field most people skip, and the only one that makes the rest mean anything.</p></div>
@@ -184,13 +223,63 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <div class="actions"><a class="btn" href="#tool">Write a receipt</a></div>
 </section>
 
-<section>
-  <h2>What you get back</h2>
-  <p class="lede">A receipt you can post, and a fingerprint that proves the text has not changed since.</p>
+<section id="examples">
+  <h2>Three examples</h2>
+  <p class="lede">The invalidation is the hard field. These are what one looks like when it is doing its job — including the third, which fired.</p>
   <div class="grid grid-3">
-    <div class="card"><p class="k">A UTC timestamp</p><p>When you wrote it, not when you remembered writing it.</p></div>
-    <div class="card"><p class="k">A SHA-256 fingerprint</p><p>Twelve characters. Edit one word later and it no longer matches.</p></div>
-    <div class="card"><p class="k">A share card</p><p>1200×675, generated in the page, downloadable. Yours to post or not.</p></div>
+
+    <div class="card ex">
+      <p class="k"><small>Example 01</small>Betting on something holding</p>
+      <p class="exl">Thesis</p>
+      <p class="ext">The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on.</p>
+      <p class="exl exl-inv">Invalid if</p>
+      <p class="ext">Two weeks pass with no public commits and no explanation.</p>
+      <button type="button" class="exbtn" data-t="The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on." data-i="Two weeks pass with no public commits and no explanation.">Start from this</button>
+    </div>
+
+    <div class="card ex">
+      <p class="k"><small>Example 02</small>Betting against the story</p>
+      <p class="exl">Thesis</p>
+      <p class="ext">Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real.</p>
+      <p class="exl exl-inv">Invalid if</p>
+      <p class="ext">Holder count rises for three straight weeks with no airdrop behind it.</p>
+      <button type="button" class="exbtn" data-t="Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real." data-i="Holder count rises for three straight weeks with no airdrop behind it.">Start from this</button>
+    </div>
+
+    <div class="card ex">
+      <p class="k"><small>Example 03</small>One that was wrong<span class="badge">Invalidated</span></p>
+      <p class="exl">Thesis</p>
+      <p class="ext">Liquidity depth should improve once the listing lands. That is the only reason I am here.</p>
+      <p class="exl exl-inv">Invalid if</p>
+      <p class="ext">Depth is still below where it started seven days after listing.</p>
+      <p class="exout">Day seven: depth was lower than at the start. The condition fired. The call was settled, not rewritten.</p>
+      <button type="button" class="exbtn" data-t="Liquidity depth should improve once the listing lands. That is the only reason I am here." data-i="Depth is still below where it started seven days after listing.">Start from this</button>
+    </div>
+
+  </div>
+  <p class="artnote" style="max-width:56ch">Examples fill the thesis and the invalidation only. We never suggest a token — the address is yours to enter.</p>
+</section>
+
+<section>
+  <h2>What the card proves, and what it does not</h2>
+  <p class="lede">The limits used to live in small type under the output. They belong here, at the same size as everything else.</p>
+  <div class="cols">
+    <div class="card">
+      <p class="k"><small>Proves</small></p>
+      <ul class="plain">
+        <li>The full checksum lets someone compare an exact copy of the same card text. Edit one field and the checksum changes.</li>
+        <li>The card displays the invalidation condition you entered alongside the thesis.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="k"><small class="neg">Does not prove</small></p>
+      <ul class="plain neg-l">
+        <li><b>When you wrote it.</b> The timestamp comes from your own device and nobody verified it. This is not evidence that you called it first.</li>
+        <li><b>That the token is safe, real, or worth anything.</b> The tool never looks at it.</li>
+        <li><b>That you are who you say you are.</b> There is no identity check of any kind.</li>
+        <li><b>That anyone owes you anything.</b> A card is a record, not a contract.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -220,13 +309,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <script>
 
     const $=id=>document.getElementById(id), form=$('receipt-form'), output=$('output');
-    const DISCLAIMER="Not financial advice. No wallet connection. Local timestamp is not independently verified.";
+    const DISCLAIMER="Not financial advice. No wallet connection. Device time is not independently verified.";
     const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
     const wrap=(lines,limit)=>lines.flatMap(line=>line.match(new RegExp(`.{1,${limit}}(?:\\s|$)|\\S{1,${limit}}`,'g'))||[]).map(line=>line.trim());
     const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER&&l.trim()!=='DASHA THESIS CARD');
       const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
       ctx.fillStyle='#0B0A0C';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#C8B6FF';ctx.font='700 30px Georgia,serif';ctx.fillText('DASHA THESIS CARD',72,82);ctx.strokeStyle='#353039';ctx.beginPath();ctx.moveTo(72,104);ctx.lineTo(1128,104);ctx.stroke();
-      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Local timestamp|Token|Confidence|Horizon):/.test(l)?'#ADA5AE':'#F2EDE7';
+      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Device time|Token|Confidence|Horizon):/.test(l)?'#ADA5AE':'#F2EDE7';
       const rows=sz=>lines.flatMap(l=>wrap([l],Math.floor(58*31/sz)).map(t=>({t,c:hue(l)})));
       let size=31,body=rows(size);while(body.length*size*1.4>440&&size>18){size--;body=rows(size)}
       ctx.font=`700 ${size}px system-ui`;let y=145;
@@ -238,19 +327,34 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim();
       if(!validAddress(address)||!thesis||!invalidation){$('error').textContent='Add a valid Solana mint address, thesis, and invalidation condition.';output.hidden=true;return}
       $('error').textContent='';
-      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nLocal timestamp: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nHorizon: ${$('horizon').value}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
+      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nDevice time: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nHorizon: ${$('horizon').value}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
-      const fingerprint=[...new Uint8Array(bytes)].map(byte=>byte.toString(16).padStart(2,'0')).join('').slice(0,12);
-      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · ${$('horizon').value}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprint}\nNot timestamp proof. No wallet. NFA.`;
+      const fingerprint=[...new Uint8Array(bytes)].map(byte=>byte.toString(16).padStart(2,'0')).join(''), fingerprintShort=fingerprint.slice(0,12);
+      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · ${$('horizon').value}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprintShort}\nNot timestamp proof. No wallet. NFA.`;
       $('receipt-text').textContent=body;
       $('fingerprint').textContent=`Local checksum: ${fingerprint}`;
       $('share').href=`https://x.com/intent/post?text=${encodeURIComponent(shareText)}`;
       $('inspect').href=`https://solscan.io/token/${encodeURIComponent(address)}`;
       $('copy').onclick=async()=>{await navigator.clipboard.writeText(shareText);$('copy').textContent='Copied'};
-      $('download').onclick=()=>{const link=document.createElement('a');link.download=`dasha-thesis-${fingerprint}.png`;link.href=card(body.split('\n'),fingerprint).toDataURL('image/png');link.click()};
+      $('download').onclick=()=>{const link=document.createElement('a');link.download=`dasha-thesis-${fingerprintShort}.png`;link.href=card(body.split('\n'),fingerprintShort).toDataURL('image/png');link.click()};
       output.hidden=false;output.scrollIntoView({behavior:'smooth',block:'start'});
     });
   
+</script>
+
+<script>
+/* Worked-example prefill. Fills the thesis and invalidation only — never the address.
+   "We never guess an address" is a promise the page makes one section down, and suggesting
+   a token in a starter template would break it. */
+for (const b of document.querySelectorAll(".exbtn")) {
+  b.addEventListener("click", () => {
+    document.getElementById("thesis").value = b.dataset.t;
+    document.getElementById("invalidation").value = b.dataset.i;
+    const a = document.getElementById("address");
+    a.scrollIntoView({behavior:"smooth", block:"center"});
+    a.focus({preventScroll:true});
+  });
+}
 </script>
 </body>
 </html>
