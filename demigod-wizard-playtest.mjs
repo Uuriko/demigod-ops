@@ -129,14 +129,61 @@ async function walkStartup(page) {
   steps.push(await wizState(page, form));
   await page.evaluate((sel) => {
     const f = document.querySelector(sel);
-    f.querySelector('[name=stack-needs]').value = 'B2B SaaS, GTM, design systems';
+    const sn = f.querySelector('[name=stack-needs]');
+    if (sn) sn.value = 'B2B SaaS, GTM, design systems';
   }, form);
   await clickNext(page, form);
   steps.push(await wizState(page, form));
-  for (let i = 0; i < 4; i++) await clickNext(page, form);
+  /* The tail used to be 4 blind clickNext calls, which assumed a fixed field order and silently
+     stalled the moment the wizard changed: the walk parked on `company-stage` (a card-select the
+     blind clicks cannot satisfy) and never reached review, so passWizard reported the revenue-side
+     flow broken when it was working. Drive whatever step is actually visible instead. */
+  for (let i = 0; i < 14; i++) {
+    const before = await wizState(page, form);
+    if (before.submitMode) break;
+    await fillVisibleStep(page, form);
+    await clickNext(page, form);
+    const after = await wizState(page, form);
+    // No progress and no review => genuinely stuck; record it rather than loop out the clock.
+    if (after.submitMode) break;
+    if (JSON.stringify(after.visible) === JSON.stringify(before.visible) && after.meta === before.meta) break;
+  }
   steps.push(await wizState(page, form));
   await shot(page, 'startup-review');
   return { steps, blockedAtEmail: blocked.step === steps[1]?.step, strayOk: steps.every((s) => !s.strayLabels?.length) };
+}
+
+/* Fill whichever fields the wizard is currently showing, whatever they are. Keeps the walk honest
+   when field order or wording changes: a stale positional script reports a working flow as broken. */
+async function fillVisibleStep(page, formSel) {
+  await page.evaluate((sel) => {
+    const f = document.querySelector(sel);
+    if (!f) return;
+    const wraps = [...f.querySelectorAll('.dg-field-wrap.dg-wiz-show, .form-field-group.dg-wiz-show')];
+    for (const w of wraps) {
+      const card = w.querySelector('.dg-wiz-card, .dg-wiz-cards .dg-wiz-card');
+      if (card) { card.click(); continue; }
+      const el = w.querySelector('input,select,textarea');
+      if (!el || el.type === 'file') continue;
+      if (el.type === 'checkbox' || el.type === 'radio') { if (!el.checked) el.click(); continue; }
+      if (el.tagName === 'SELECT') {
+        const opt = [...el.options].find((o) => o.value && !o.disabled);
+        if (opt) { el.value = opt.value; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        continue;
+      }
+      if (String(el.value || '').trim()) continue; // never overwrite an answer already given
+      const n = el.getAttribute('name') || '';
+      el.value = /email/i.test(n) ? 'founder@test.co'
+        : /salary|comp|band/i.test(n) ? '$180k-$220k'
+        : /url|link|site/i.test(n) ? 'https://example.com'
+        : /company/i.test(n) ? 'Acme Labs'
+        : /title|role/i.test(n) ? 'Founding PM'
+        : 'Playtest synthetic answer';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }, formSel);
+  await sleep(350);
 }
 
 async function fillStep(page, formSel, data) {
@@ -247,7 +294,10 @@ async function main() {
   const passWizard = (r) => {
     const s = r.steps;
     if (!s.length || !s[0]?.welcome || !s[0]?.wizOn) return false;
-    const mid = s.find((x) => /^Question \d+/.test(x.meta || '') && x.visible?.length === 1);
+    /* Was /^Question \d+/ against x.meta — but wizState builds meta as "bar:<width> next:<label>",
+       so this could never match and the condition was dead. What it meant to assert is that the
+       wizard walks one question at a time; assert that structurally. */
+    const mid = s.find((x) => x.visible?.length === 1 && /^bar:\d+%/.test(x.meta || '') && !x.welcome);
     const last = s[s.length - 1];
     return !!mid && last?.submitMode && last?.chromeHidden !== false;
   };
