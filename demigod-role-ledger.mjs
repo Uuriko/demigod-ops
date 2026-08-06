@@ -35,6 +35,7 @@ import {
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const LEDGER = process.env.DEMIGOD_ROLE_LEDGER || path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
+const TARGETS = process.env.DEMIGOD_TARGETS || path.join(ROOT, 'DEMIGOD-TARGETS.json');
 const SCHEMA = 'demigod.role-ledger/1';
 const RETENTION_DAYS = 180;
 // Volume-anomaly guard (data-observability "volume pillar"). A board fetch is rejected today only
@@ -721,6 +722,55 @@ async function pool(items, worker) {
 }
 
 // ---- selftest: each honesty invariant proven fail-capable (broken control must flip the result) ----
+export function loadTargets(file = TARGETS) {
+  try {
+    const d = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return d && typeof d === 'object' && d.companies && typeof d.companies === 'object'
+      ? d : { schema: 'demigod.targets/1', companies: {} };
+  } catch { return { schema: 'demigod.targets/1', companies: {} }; }
+}
+
+/**
+ * PURE. Fold today's aging-startup rows into the durable store.
+ *
+ * Rules that make this safe to re-run:
+ *  - a human's `state` and `note` are NEVER overwritten; only observation fields refresh
+ *  - a company that drops out of the ledger is NOT deleted — it is stamped noLongerAgingAt,
+ *    because disappearing from the list is information, not an absence
+ *  - `state` starts at 'observed' and this function can never set anything else: no outbound has
+ *    happened, and nothing here may imply one has
+ *  - no contact is invented. The ledger has company, title, url and dates — no person, no email.
+ */
+export function mergeTargets(store, rows, today) {
+  const out = { schema: 'demigod.targets/1', updatedAt: today, companies: { ...(store.companies || {}) } };
+  const seen = new Set();
+  for (const r of rows) {
+    const key = String(r.company || '').trim().toLowerCase();
+    if (!key) continue;
+    seen.add(key);
+    const prev = out.companies[key] || {};
+    out.companies[key] = {
+      company: r.company,
+      // Observation — refreshed every run.
+      agingRoleCount: rows.filter((x) => String(x.company || '').trim().toLowerCase() === key).length,
+      oldestRoleDays: Math.max(...rows.filter((x) => String(x.company || '').trim().toLowerCase() === key).map((x) => x.age)),
+      sampleRoleTitle: r.title || null,
+      sampleRoleUrl: r.url || null,
+      provider: r.provider || null,
+      firstSeenOnList: prev.firstSeenOnList || today,
+      lastSeenOnList: today,
+      noLongerAgingAt: null,
+      // Human judgement — preserved across runs, never set by this function.
+      state: prev.state || 'observed',
+      note: prev.note || null,
+    };
+  }
+  for (const [key, c] of Object.entries(out.companies)) {
+    if (!seen.has(key) && !c.noLongerAgingAt) out.companies[key] = { ...c, noLongerAgingAt: today };
+  }
+  return out;
+}
+
 if (isMain && process.argv.includes('--selftest')) {
   const assert = (c, m) => { if (!c) throw new Error('FAIL: ' + m); };
   const T0 = '2026-07-01', T1 = '2026-07-20';
@@ -1206,8 +1256,28 @@ if (isMain) {
       console.log(`SF startup roles ${label} ≥${rep.days}d — ${rep.agingRoles.length} roles${rep.evergreenExcluded ? ` (+${rep.evergreenExcluded} evergreen >365d flagged separately)` : ''} · ghost-rate(observed≥60d) ${rep.ghostRatePct}% of ${rep.openUsRoles} US-posted open · by fn ${JSON.stringify(rep.byFunction)}`);
       for (const r of rep.agingRoles.slice(0, 40)) console.log(`  ${String(r.age).padStart(3)}d ${basis === 'posted' ? 'posted' : 'obs'}  ${r.company} — ${r.title}`.slice(0, 110));
     }
+  } else if (cmd === 'targets') {
+    /* Persist the aging-startup target list so it survives closing a terminal. `report --json` is a
+       snapshot with no state field, so a plain redirect loses any human judgement on the next run.
+       This is private working state: never the board (which feeds the live site), never /tmp
+       (which does not survive a reboot), and gitignored like every other company working file. */
+    const ledger = loadLedger();
+    const rep = report(ledger, { days: 30, today, basis: 'posted' });
+    const { startupScore, companyKey, loadCompanyProfiles } = await import('./demigod-public-roles.mjs');
+    const profiles = loadCompanyProfiles();
+    const rows = rep.agingRoles.filter((r) => startupScore(profiles[companyKey(r.company)]) === 2);
+    const store = mergeTargets(loadTargets(), rows, today);
+    atomicWrite(TARGETS, JSON.stringify(store, null, 2) + '\n', { mode: 0o600 });
+    const active = Object.values(store.companies).filter((c) => !c.noLongerAgingAt);
+    if (process.argv.includes('--json')) console.log(JSON.stringify(store, null, 2));
+    else {
+      console.log(`targets · ${active.length} companies still aging · ${Object.keys(store.companies).length} tracked · ${TARGETS}`);
+      for (const c of active.sort((a, b) => b.oldestRoleDays - a.oldestRoleDays).slice(0, 20)) {
+        console.log(`  ${String(c.oldestRoleDays).padStart(3)}d oldest · ${String(c.agingRoleCount).padStart(2)} roles · ${c.state.padEnd(8)} ${c.company}`);
+      }
+    }
   } else {
-    console.log('usage: demigod-role-ledger.mjs poll | purge-denied | report [--days N] [--fn F] [--json] | --selftest');
+    console.log('usage: demigod-role-ledger.mjs poll | purge-denied | report [--days N] [--fn F] [--json] | targets [--json] | --selftest');
     process.exit(1);
   }
 }

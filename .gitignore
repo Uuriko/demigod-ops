@@ -235,3 +235,7 @@ hahahacks-2026/
 # Large binaries: GitHub rejects >100MB and these are re-downloadable artifacts.
 *.AppImage
 *.AppImage.v*
+
+# Private outreach working state: aging-startup targets derived from the role ledger.
+# Company names + observation dates + human notes. Never committed, same posture as LEADS/BOARD.
+DEMIGOD-TARGETS.json
