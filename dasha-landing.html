@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dasha Labs — write the call before the chart writes the story</title>
+<meta name="description" content="A free tool for recording a token thesis, the condition that would prove it wrong, and a time horizon — before you post it. No wallet connection. Not financial advice.">
+<link rel="canonical" href="https://dashalabs.xyz/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://dashalabs.xyz/">
+<meta property="og:title" content="Dasha Labs — write the call before the chart writes the story">
+<meta property="og:description" content="Record a thesis, an invalidation condition, and a horizon. Timestamped and fingerprinted. No wallet, no trading, no safety score.">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#08090b; --panel:#121419; --panel-2:#0d0f13; --line:#292d36;
+  --ink:#f4f5f7; --muted:#a9afbc; --accent:#d8ff52; --danger:#ffb4a8;
+  --maxw:900px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{width:min(var(--maxw),calc(100% - 32px));margin:0 auto}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+
+/* --- hero ------------------------------------------------------------- */
+header{padding:56px 0 8px}
+.eyebrow{color:var(--accent);font-size:.75rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin:0 0 14px}
+h1{margin:0;font-size:clamp(2.1rem,7vw,3.6rem);line-height:1.04;letter-spacing:-.02em;font-weight:800}
+h1 em{font-style:normal;color:var(--accent)}
+.sub{color:var(--muted);font-size:clamp(1rem,2.6vw,1.18rem);margin:18px 0 0;max-width:52ch}
+.hero-art{margin:30px 0 0;max-width:420px}
+
+/* --- shared ----------------------------------------------------------- */
+section{padding:44px 0}
+h2{font-size:clamp(1.3rem,3.6vw,1.7rem);margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:0 0 22px;max-width:56ch}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:clamp(18px,4vw,26px)}
+.grid{display:grid;gap:14px}
+@media(min-width:720px){.grid-3{grid-template-columns:repeat(3,1fr)}}
+.k{font-weight:800;margin:0 0 4px}
+.k small{display:block;font-weight:600;color:var(--accent);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+.card p{margin:0;color:var(--muted)}
+
+/* --- cta -------------------------------------------------------------- */
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:52px;padding:12px 22px;border-radius:12px;font-weight:800;text-decoration:none;
+  background:var(--accent);color:#101300;border:1px solid var(--accent)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+@media(max-width:520px){.actions>*{width:100%}}
+
+/* --- honesty strip ---------------------------------------------------- */
+.strip{border:1px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
+.strip ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+@media(min-width:720px){.strip ul{grid-template-columns:repeat(2,1fr)}}
+.strip li{color:var(--muted);padding-left:24px;position:relative}
+.strip li::before{content:"—";position:absolute;left:0;color:var(--accent);font-weight:800}
+footer{padding:36px 0 64px;color:var(--muted);border-top:1px solid var(--line);margin-top:36px}
+footer p{margin:.4em 0}
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <p class="eyebrow">Dasha Labs · free tool · no wallet</p>
+  <h1>Write the call <em>before</em> the chart writes the story.</h1>
+  <p class="sub">Anyone can explain a trade after it moves. This records what you thought, what would prove you wrong, and by when — timestamped and fingerprinted, before you post it.</p>
+
+  <!-- Original artwork. Left: a claim made after the fact, fitted to whatever the price did.
+       Right: a claim fixed in place first, with the line that would falsify it drawn in advance.
+       Nothing here depicts real price data — it is a diagram of two habits, not a chart. -->
+  <div class="hero-art">
+    <svg viewBox="0 0 340 286" width="100%" role="img"
+         aria-label="Two panels. Top: a story drawn to fit a price line after it moved. Bottom: a thesis and an invalidation level written down first, before the same line moves.">
+      <title>After the fact versus before the fact</title>
+      <defs>
+        <marker id="d-ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="#a9afbc"/>
+        </marker>
+      </defs>
+      <g font-family="ui-sans-serif,system-ui,sans-serif">
+        <rect x="1" y="1" width="338" height="132" rx="12" fill="#0d0f13" stroke="#292d36"/>
+        <text x="18" y="26" font-size="12" font-weight="800" fill="#a9afbc" letter-spacing="1.4">AFTER</text>
+        <polyline points="20,108 60,98 100,110 140,76 180,84 220,44 260,54 318,26"
+                  fill="none" stroke="#292d36" stroke-width="2.5"/>
+        <path d="M300 38 C 272 62, 246 66, 226 88" fill="none" stroke="#a9afbc"
+              stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#d-ar)"/>
+        <text x="20" y="126" font-size="13" fill="#a9afbc">“I always said this would run.”</text>
+
+        <rect x="1" y="153" width="338" height="132" rx="12" fill="#0d0f13" stroke="#d8ff52"/>
+        <text x="18" y="178" font-size="12" font-weight="800" fill="#d8ff52" letter-spacing="1.4">BEFORE</text>
+        <line x1="18" y1="232" x2="322" y2="232" stroke="#ffb4a8" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="18" y="226" font-size="12" fill="#ffb4a8">invalidation level, written first</text>
+        <polyline points="20,260 60,250 100,262 140,228 180,236 220,196 260,206 318,178"
+                  fill="none" stroke="#f4f5f7" stroke-width="2.5"/>
+        <text x="20" y="278" font-size="13" fill="#f4f5f7">Thesis + horizon, fingerprinted.</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="actions">
+    <a class="btn" href="./dasha-conviction-receipt.html">Write a receipt</a>
+    <a class="btn ghost" href="#how">How it works</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="how">
+  <h2>Three fields. That is the whole tool.</h2>
+  <p class="lede">It runs in your browser. Nothing is uploaded, nothing is stored on our side, and there is no account.</p>
+  <div class="grid grid-3">
+    <div class="card"><p class="k"><small>01</small>The thesis</p><p>What you actually believe, in your words. Not a target, not a chart pattern — the reason.</p></div>
+    <div class="card"><p class="k"><small>02</small>The invalidation</p><p>What would make you wrong. This is the field most people skip, and the only one that makes the rest mean anything.</p></div>
+    <div class="card"><p class="k"><small>03</small>The horizon</p><p>By when. A call without a clock can never be settled, so it never costs anything to have made.</p></div>
+  </div>
+  <div class="actions"><a class="btn" href="./dasha-conviction-receipt.html">Write a receipt</a></div>
+</section>
+
+<section>
+  <h2>What you get back</h2>
+  <p class="lede">A receipt you can post, and a fingerprint that proves the text has not changed since.</p>
+  <div class="grid grid-3">
+    <div class="card"><p class="k">A UTC timestamp</p><p>When you wrote it, not when you remembered writing it.</p></div>
+    <div class="card"><p class="k">A SHA-256 fingerprint</p><p>Twelve characters. Edit one word later and it no longer matches.</p></div>
+    <div class="card"><p class="k">A share card</p><p>1200×675, generated in the page, downloadable. Yours to post or not.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>What this is not</h2>
+  <p class="lede">Written plainly, because a tool about accountability should be accountable about itself.</p>
+  <div class="strip">
+    <ul>
+      <li>No wallet connection. There is nothing to approve and nothing to sign.</li>
+      <li>No trading, no routing, no fees.</li>
+      <li>No safety score. Solana's own guidance is explicit that verification is not endorsement, so we show evidence and let you look.</li>
+      <li>No price prediction and no signal. The tool never has an opinion about your call.</li>
+      <li>Not financial advice, and not a record anyone else is obliged to honour.</li>
+      <li>A token address links out to Solscan so you can inspect it yourself. We never guess an address.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <p><strong>Dasha Labs.</strong> A free tool, not an exchange, not a fund, not an advisor.</p>
+  <p>Nothing here is financial advice. Crypto assets can lose all of their value. You are responsible for your own decisions, which is rather the point of writing them down.</p>
+</footer>
+
+</body>
+</html>
