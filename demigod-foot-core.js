@@ -1,19 +1,19 @@
-/*dg-foot-v971-core*/
-window.dgFootVersion = 'v971'; console.log('[demigod] foot v971-core loaded');
+/*dg-foot-v1021-core*/
+window.dgFootVersion = 'v1021'; console.log('[demigod] foot v1021-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
 
 /* Dual paths: name the immediate action. Demigod has no public job board, application, or network membership to promise candidates. */
 /* ==== SECTION: COPY (runtime marketing strings) ==== */
-var MATCH_DISCLOSURE='Three gates: software compares role goals, skills, location, and compensation; a human decides what to propose; nothing is sent automatically.';
+var MATCH_DISCLOSURE='Software compares role goals, skills, location, and compensation; a human decides what to propose; nothing is sent automatically.';
 var COPY={
-heroSub:'One role. Three gates. Mutual yes before intro.',
-badge:'SF startup talent · software ranks · humans review',
+heroSub:'One SF Bay role. Human review. Mutual yes before any intro.',
+badge:'SF startup talent · software compares · humans review',
 heroTrustLine:'Private · Mutual yes · Free for talent · 10% when a hire starts',
 antiLinkedIn:'No public profiles. No feed. No blasts. Mutual yes only — candidate identity stays private until both sides approve.',
 ctaFounder:'Hire talent',
-ctaEngineer:"I'm looking",
+ctaEngineer:'Share privately',
 navCta:'Hire talent',
 ctaHireHint:'For startups',
 ctaTalentHint:'For candidates',
@@ -33,11 +33,12 @@ pathSample:'Sample match',
 pathStartups:'SF tech companies'
 };
 /* Frege-night WIZ copy (v597) — natural voice, match-critical only, no draft-save chrome */
-var STARTUP_OK="Got it. A human will read this. potter@trydemigod.com follows up if there's a real fit.";
-var ENGINEER_OK='Details saved. Not shared with startups until you approve an intro. potter@trydemigod.com only reaches out on real fits.';
+/* Post-submit: name channel + next step; no SLA clock, no spam sequence (research 2026-08-06). */
+var STARTUP_OK='Brief received. A human reads every submission. potter@trydemigod.com emails only when there is a real fit to discuss — no automated drip.';
+var ENGINEER_OK='Saved privately. Startups do not see you until you approve an intro. potter@trydemigod.com reaches out only on real fits — free for talent, no blasts.';
 var WIZ_THANKS={
-  startup:{head:'Brief in',lead:'Someone reads every submission. We only propose when the fit is real — both sides still have to say yes.',steps:['We calibrate the role, first result, and constraints','You review any proposed fit before we contact the candidate','The candidate sees the exact role; intro only after both approve']},
-  engineer:{head:'Received',lead:'Not shared with startups until you approve an intro. Free for talent. No blasts.',steps:['Demigod and its form provider process your answers','A human proposes only real fits','You approve before identifying details move']}
+  startup:{head:'Brief in',lead:'A human reads this next. You will hear from potter@trydemigod.com only if there is a real fit — not a spam sequence.',steps:['We calibrate the role, first result, and constraints','You review any proposed fit before we contact the candidate','The candidate sees the exact company and role; intro only after both approve']},
+  engineer:{head:'Received',lead:'Not shared with startups until you approve an intro. Free for talent. No public profile, no blasts.',steps:['Demigod and its form provider process your answers for matching only','A human proposes only real fits — potter@trydemigod.com is the contact channel','You approve before any identifying details move']}
 };
 /* ==== SECTION: WIZ_CFG (stepper paths) ==== */
 /* Salary bands = USD base salary only (SF-market buckets). Equity is free text later if needed — keep matching numeric. */
@@ -54,13 +55,13 @@ var SALARY_BAND_HTML='<option value="">Select range</option>'
 var WIZ_CFG={
   startup:{
     steps:[['welcome'],['role-title'],['company-name'],['company-stage'],['stack-needs'],['work-location'],['salary-range'],['90day-outcome'],['contact-email'],['__submit__'],['__thanks__']],
-    welcome:{t:'Hiring brief',b:'SF Bay permanent hires. ~2 min · three gates (software ranks, human proposes, mutual yes) · 10% when a hire starts · nothing upfront. Press Enter to continue.',btn:'Start the brief'},
+    welcome:{t:'Hiring brief',b:'~2 min for one SF Bay permanent role. Software compares, a human proposes, mutual yes before intro. 10% when a hire starts — nothing upfront. Press Enter to continue.',btn:'Start the brief'},
     thanks:STARTUP_OK,
     optional:[]
   },
   engineer:{
     steps:[['welcome'],['sf-bay'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['availability'],['salary-expectation'],['resume'],['__submit__'],['__thanks__']],
-    welcome:{t:'Open to the right startup?',b:'Private SF Bay roles. ~2 min · free · three gates (software ranks, human proposes, you approve every intro). Resubmit with the same email to update. Press Enter to continue.',btn:'Start privately'},
+    welcome:{t:'Open to the right startup?',b:'Private SF Bay roles. ~2 min · free · software compares, a human proposes, you approve every intro. Resubmit with the same email to update. Press Enter to continue.',btn:'Start privately'},
     thanks:ENGINEER_OK
   }
 };
@@ -1434,7 +1435,9 @@ qa('input,select,textarea', document).forEach(function(i){ if(!i.id) return; var
 }
 /* === COPY INJECTION — runtime marketing strings from COPY; honesty scrub separate === */
 function copy(){qa(S+' h2').forEach(function(e){e.textContent=COPY.startupH2});qa(J+' h2').forEach(function(e){e.textContent=COPY.engineerH2});qa(S+' p,'+J+' p').forEach(function(e){var t=e.textContent||'';if(t.length>240||e.closest('form,.w-form'))return;e.textContent=e.closest(J)?COPY.engineerBody:COPY.startupBody});var jm=q(J);if(jm)qa('*',jm).forEach(function(e){if(e.children.length||e.closest('form,.w-form'))return;var t=(e.textContent||'').trim();if(/^ENGINEER APPLICATION$|^CANDIDATE APPLICATION$/i.test(t))e.textContent='SF STARTUP ROLES'})}
-/** Cyber wordmark: split letters for motion. Pure DOM paint. */
+/** Cyber wordmark: split letters for motion. Pure DOM paint.
+ *  inline-block letter spans make AT/innerText read "D E M I G O D" — host aria-label +
+ *  aria-hidden visual keep the spoken/accessible name as one word. */
 function paintCyberWord(el, word) {
   if (!el) return;
   var w = String(word || 'Demigod');
@@ -1442,19 +1445,13 @@ function paintCyberWord(el, word) {
     (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) ||
     document.documentElement.classList.contains('dg-reduce');
   el.classList.add('dg-cyber-host');
+  el.setAttribute('aria-label', w);
   if (reduce) {
-    el.innerHTML =
-      '<span class="dg-cyber-word" aria-label="' +
-      w +
-      '">' +
-      w +
-      '</span>';
+    el.innerHTML = '<span class="dg-cyber-word" aria-hidden="true">' + w + '</span>';
     return;
   }
   el.innerHTML =
-    '<span class="dg-cyber-word" aria-label="' +
-    w +
-    '">' +
+    '<span class="dg-cyber-word" aria-hidden="true">' +
     w
       .split('')
       .map(function (ch, i) {
@@ -1544,13 +1541,13 @@ function hero(){
     }
   });
   var emptyNote=q('#dg-roles-empty'); if(emptyNote) emptyNote.remove();
-  // Three gates (Operator Calm process)
+  // Operator Calm process: software compares · human proposes · mutual yes
   qa('.step-card').forEach(function(card,i){
     var title=card.querySelector('.step-title,h3');
     var desc=card.querySelector('.step-desc,p');
     var num=card.querySelector('.step-num');
     var steps=[
-      ['Software compares the facts','One role brief or private profile — must-haves, constraints, cash band, and a concrete first result. Software ranks fit; nothing is messaged yet.'],
+      ['Software compares the facts','One role brief or private profile — must-haves, constraints, cash band, and a concrete first result. Software compares fit; nothing is messaged yet.'],
       ['A human decides what to propose','A person reviews the rank and interview path. Software never auto-intros.'],
       ['Mutual yes before intro','Each side reviews privately. We introduce only after both approve.']
     ];
@@ -1562,7 +1559,7 @@ function hero(){
   qa('.trust-header h2,.trust-section h2,section h2').forEach(function(h){
     var x=(h.textContent||'').trim();
     /* design-track: Webflow still ships TECH-MATCHED / HUMAN-MATCHED shout titles */
-    if(/HUMAN-MATCHED|TECH-MATCHED|TECH MATCHED|THE PROCESS|How it works|SF STARTUP TALENT/i.test(x) && h.closest('.trust-section,section:has(.steps-grid),section')) h.textContent='A match has three gates.';
+    if(/HUMAN-MATCHED|TECH-MATCHED|TECH MATCHED|THE PROCESS|How it works|SF STARTUP TALENT/i.test(x) && h.closest('.trust-section,section:has(.steps-grid),section')) h.textContent='A match has three clear steps.';
     if(/ONE SIMPLE MODEL|^PRICING$|10%/i.test(x) && h.closest('section') && h.closest('section').querySelector('.pricing-grid,.pricing-card')) h.textContent='Nothing until a hire starts.';
   });
   qa('.trust-header p,.trust-section .paragraph_large').forEach(function(p){
@@ -1623,8 +1620,9 @@ function hero(){
 
 /* ==== SECTION: nav — logo only; dual path lives in hero (no top "I'm hiring") ==== */
 function nav(){
-  var real=q('nav.w-nav,.w-nav');
+  var real=q('nav.w-nav,.w-nav,.nav_container:not(#dg-top-nav)');
   if(real){var inj=q('#dg-top-nav');if(inj)inj.remove();var st=q('#dg-nav-style');if(st)st.remove();document.body.style.paddingTop='';}
+  else if(!q('#dg-top-nav')){var inj=document.createElement('header');inj.id='dg-top-nav';inj.className='nav_container';inj.innerHTML='<div class="nav_left"><a class="nav_logo" href="/" aria-label="Demigod home"></a></div><div class="nav_right"></div>';document.body.prepend(inj)}
   // Hide header/nav primary CTAs — hero dual-path is the only top-of-funnel CTA surface
   qa('nav.w-nav a.button,.w-nav a.button,nav a.button,header a.button,nav a.premium-btn,header a.premium-btn,#dg-nav-hire,#dg-nav-talent,.nav_right a.button,.nav_right a.w-button').forEach(function(a){
     if(a.closest('.hero-actions,#dg-path-pills,#dg-bar,footer,.footer,.pricing-card')) return;
@@ -1636,9 +1634,18 @@ function nav(){
     }
   });
   var navCtas=q('#dg-top-nav .dg-nav-ctas'); if(navCtas) navCtas.style.setProperty('display','none','important');
+  var right=q('.nav_container .nav_right');
+  if(right&&!q('#dg-nav-directory')){
+    var menu=document.createElement('details');menu.id='dg-nav-directory';
+    menu.innerHTML='<summary>Explore</summary><div><a href="/how-it-works" data-dg-page="how">How it works</a><a href="/pricing" data-dg-page="pricing">Pricing</a><a href="/hire" data-dg-page="hire">Hire guide</a><a href="/talent" data-dg-page="talent">Talent guide</a><a href="/blog" data-dg-page="blog">Notes</a><a href="/faq" data-dg-page="faq">FAQ</a><a href="/startups" data-dg-page="map">SF directory</a><a href="/about" data-dg-page="about">About</a><a href="/contact" data-dg-page="contact">Contact</a><a href="/legal" data-dg-page="legal">Privacy & terms</a></div>';
+    qa('a',menu).forEach(function(a){a.style.setProperty('visibility','visible','important');a.style.setProperty('opacity','1','important')});
+    menu.addEventListener('click',function(e){if(e.target.closest('a'))menu.removeAttribute('open')});right.prepend(menu);
+    menu.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.open){e.preventDefault();menu.removeAttribute('open');menu.querySelector('summary').focus()}});
+  }
+  if(!q('#dg-nav-directory-style')){var ns=document.createElement('style');ns.id='dg-nav-directory-style';ns.textContent='.nav_mobile-menu-button.w-nav-button{display:none!important}#dg-nav-directory{position:relative;margin:0!important;padding:0!important;color:var(--dg-paper,#f3f0e7)}#dg-nav-directory summary{display:flex;align-items:center;min-height:48px;padding:.45rem .75rem;border:1px solid rgba(166,255,203,.35);border-radius:9px;cursor:pointer;font:600 .88rem var(--dg-sans,system-ui,sans-serif);list-style:none}#dg-nav-directory summary::-webkit-details-marker{display:none}#dg-nav-directory summary::after{content:"⌄";margin-left:.45rem;color:var(--dg-phosphor,#a6ffcb)}#dg-nav-directory[open] summary::after{content:"⌃"}#dg-nav-directory>div{position:absolute;right:0;top:calc(100% + .45rem);z-index:9999;display:grid;grid-template-columns:repeat(2,minmax(8.5rem,1fr));gap:.15rem;width:min(20rem,calc(100vw - 2rem));padding:.55rem;background:#062219;border:1px solid rgba(166,255,203,.35);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45)}#dg-nav-directory a{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center;min-height:48px;padding:.55rem .7rem;border-radius:7px;color:var(--dg-paper,#f3f0e7)!important;text-decoration:none!important}#dg-nav-directory a:hover,#dg-nav-directory a:focus-visible{background:rgba(166,255,203,.1);color:var(--dg-phosphor,#a6ffcb)!important;outline:2px solid var(--dg-signal,#10c674);outline-offset:-2px}@media(max-width:420px){#dg-nav-directory>div{grid-template-columns:1fr;width:min(15rem,calc(100vw - 2rem));max-height:calc(100svh - 6rem);overflow:auto}}';document.head.appendChild(ns)}
 }
 function trust(){/* v210: no visual wall — sr-only one-liner for a11y */ var old=q('#demigod-trust-block'); if(old)old.remove(); var f=q('footer,.footer'); if(!f||q('#demigod-trust-block'))return; var el=document.createElement('section'); el.id='demigod-trust-block'; el.setAttribute('aria-label','How it works'); el.style.cssText='position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0'; el.innerHTML='<p>Brief or preferences → human review → both sides approve → intro. 10% of first-year base salary when a hire starts.</p>'; if(f.parentNode)f.parentNode.insertBefore(el,f); else document.body.appendChild(el); }
-function mob(){var b=q('#dg-bar');if(!b){b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"></a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"></a>';document.body.appendChild(b)}var h=b.querySelector('.dg-h,[data-dg-cta="hire"]'),t=b.querySelector('.dg-j,[data-dg-cta="talent"]');if(h){h.textContent=COPY.ctaFounder;h.setAttribute('href','/?wiz=startup');h.setAttribute('aria-label','Hire talent — open startup hiring brief')}if(t){t.textContent=COPY.ctaEngineer;t.setAttribute('href','/?wiz=engineer');t.setAttribute('aria-label',COPY.ctaEngineer+' — open private candidate form')}}
+function mob(){var b=q('#dg-bar');if(!b){b=document.createElement('nav');b.id='dg-bar';b.setAttribute('aria-label','Mobile actions');b.innerHTML='<a class="dg-h" href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"></a><a class="dg-j" href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"></a>';document.body.appendChild(b)}var h=b.querySelector('.dg-h,[data-dg-cta="hire"]'),t=b.querySelector('.dg-j,[data-dg-cta="talent"]');if(h){h.textContent=COPY.ctaFounder;h.setAttribute('href','/?wiz=startup');h.removeAttribute('aria-label')}if(t){t.textContent=COPY.ctaEngineer;t.setAttribute('href','/?wiz=engineer');t.removeAttribute('aria-label')}}
 function foot(){
   var f=q('footer,.footer');
   if(!f)return;
@@ -1648,8 +1655,8 @@ function foot(){
     panel.id='dg-footer-panel';
     panel.innerHTML=
       '<div class="dg-footer-actions" role="group" aria-label="Get started">'+
-        '<a href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire" aria-label="Hire talent — open startup hiring brief"><strong>Hire talent</strong><span>For startups</span></a>'+
-        '<a href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent" aria-label="'+COPY.ctaEngineer+' — open private candidate form"><strong>'+COPY.ctaEngineer+'</strong><span>For candidates</span></a>'+
+        '<a href="/?wiz=startup" data-demigod-modal="startup" data-dg-cta="hire"><strong>Hire talent</strong><span>For startups</span></a>'+
+        '<a href="/?wiz=engineer" data-demigod-modal="jobseeker" data-dg-cta="talent"><strong>'+COPY.ctaEngineer+'</strong><span>For candidates</span></a>'+
       '</div>'+
       '<nav id="dg-legal-links" aria-label="Footer navigation">'+
         '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-product">'+
@@ -1658,6 +1665,7 @@ function foot(){
           '<a href="/pricing" data-dg-page="pricing">Pricing</a>'+
           '<a href="/hire" data-dg-page="hire">Hire talent guide</a>'+
           '<a href="/talent" data-dg-page="talent">Talent guide</a>'+
+          '<a href="/blog" data-dg-page="blog">Notes</a>'+
           '<a href="/faq" data-dg-page="faq">FAQ</a>'+
         '</div>'+
         '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-company">'+
@@ -2089,7 +2097,7 @@ function cta(){/*dg-cta-prefetch*/
     a.setAttribute('href', hire ? '/?wiz=startup' : '/?wiz=engineer');
     a.setAttribute('data-demigod-modal', hire ? 'startup' : 'jobseeker');
     a.setAttribute('data-dg-cta', hire ? 'hire' : 'talent');
-    a.setAttribute('aria-label', hire ? 'Hire talent — open startup hiring brief' : COPY.ctaEngineer+' — open private candidate form');
+    a.removeAttribute('aria-label');
     a.classList.toggle('is-talent', hire);
     a.classList.toggle('is-job', !hire);
   }
@@ -2156,7 +2164,7 @@ function cta(){/*dg-cta-prefetch*/
       a.setAttribute('data-dg-cta', kind);
       a.setAttribute('data-demigod-modal', kind==='hire' ? 'startup' : 'jobseeker');
       a.setAttribute('href', kind==='hire' ? '/?wiz=startup' : '/?wiz=engineer');
-      a.setAttribute('aria-label', kind==='hire' ? 'Hire talent — open startup hiring brief' : COPY.ctaEngineer+' — open private candidate form');
+      a.removeAttribute('aria-label');
       a.dataset.dgHinted = '1';
       a.innerHTML =
         '<span class="dg-cta-label"></span>' +
@@ -2198,13 +2206,13 @@ function fixFooterCtas(){
         a.setAttribute('href','/?wiz=startup');
         a.setAttribute('data-demigod-modal','startup');
         a.setAttribute('data-dg-cta','hire');
-        a.setAttribute('aria-label','Hire talent — open startup hiring brief');
+        a.removeAttribute('aria-label');
         if(/by email/i.test(t)||/^hire talent/i.test(t)) a.textContent='Hire talent';
       } else {
         a.setAttribute('href','/?wiz=engineer');
         a.setAttribute('data-demigod-modal','jobseeker');
         a.setAttribute('data-dg-cta','talent');
-        a.setAttribute('aria-label',COPY.ctaEngineer+' — open private candidate form');
+        a.removeAttribute('aria-label');
         if(/by email/i.test(t)||/join the talent/i.test(t)) a.textContent=COPY.ctaEngineer;
       }
       a.removeAttribute('target');
@@ -2502,17 +2510,24 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".pricing-card-border-red,.pricing-card [class*=border-red]{display:none!important;height:0!important;background:transparent!important}"+".pricing-card-divider{height:1px!important;margin:.85rem 0 1rem!important;background:rgba(166,255,203,.18)!important;border:0!important}"+".pricing-card > div:nth-child(3){display:flex!important;flex-direction:column!important;gap:.55rem!important}"+".pricing-card > div > div:not(.pricing-amount){position:relative!important;padding:.15rem 0 .15rem 1rem!important;margin:0!important;color:var(--dg-paper-mute)!important;font-size:.92rem!important;line-height:1.45!important;font-family:var(--dg-sans)!important}"+".pricing-card > div > div:not(.pricing-amount)::before{content:''!important;position:absolute!important;left:0!important;top:.55em!important;width:6px!important;height:6px!important;border-radius:50%!important;background:rgba(16,198,116,.55)!important}"+".pricing-card > div:first-child > div{padding-left:0!important}.pricing-card > div:first-child > div::before{content:none!important}"+".pricing-card .btn-label,.pricing-card .btn-content,.pricing-card .button_label,.pricing-card a .btn-label,.pricing-card a span{font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;letter-spacing:-.01em!important;text-transform:none!important;font-weight:650!important}#startup-modal .modal-title,#jobseeker-modal .modal-title,#startup-modal h2.modal-title,#jobseeker-modal h2.modal-title{font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;color:var(--dg-paper)!important;letter-spacing:-.02em!important;text-transform:none!important}"+"";document.head.appendChild(s)}
 
 
-function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}try{qa('.w-file-upload-error').forEach(function(b){if(!b.getAttribute('role'))b.setAttribute('role','alert');if(!b.getAttribute('aria-live'))b.setAttribute('aria-live','assertive');});}catch(e){}}
+function ensureA11yCss(){try{qa('a.modal-close-btn').forEach(function(a){var b=document.createElement('button');b.type='button';b.className=a.className;b.innerHTML=a.innerHTML;b.setAttribute('aria-label',a.getAttribute('aria-label')||'Close');a.replaceWith(b)});qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close')})}catch(e){}try{qa('.w-file-upload-error').forEach(function(b){if(!b.getAttribute('role'))b.setAttribute('role','alert');if(!b.getAttribute('aria-live'))b.setAttribute('aria-live','assertive');});}catch(e){}}
 
 function dgIdle(fn,ms){ms=ms||2000;try{if(window.requestIdleCallback){requestIdleCallback(function(){try{fn()}catch(e){console.error('Demigod idle',e)}},{timeout:ms});return}}catch(e){}setTimeout(function(){try{fn()}catch(e){console.error('Demigod idle',e)}},Math.min(ms,400))}
 /* v855: run critical path first; honesty scrubs after paint to cut main-thread TBT on home. */
 
 /* design-track v912: calmer WIZ type */
-function ensureWizCalmCss(){if(q('#dg-wiz-calm-css'))return;var s=document.createElement('style');s.id='dg-wiz-calm-css';s.textContent='#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--dg-sans)!important;font-size:clamp(1.25rem,2.8vw,1.65rem)!important;font-weight:600!important;letter-spacing:-.02em!important;text-transform:none!important;color:var(--dg-paper)!important;line-height:1.25!important;text-shadow:none!important}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.92rem!important;line-height:1.45!important;color:var(--dg-paper-mute)!important}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next,#startup-modal .dg-wiz-start,#jobseeker-modal .dg-wiz-start{border-radius:12px!important;min-height:48px!important;font-family:var(--dg-sans)!important;font-weight:700!important;background:linear-gradient(180deg,rgba(16,198,116,.95),rgba(8,160,93,.92))!important;color:#03140d!important;border:0!important}#startup-modal .w-form,#jobseeker-modal .w-form{border-radius:18px!important;padding:1.15rem 1.2rem 1.35rem!important;max-width:min(32rem,100%)!important;margin:0 auto!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:var(--dg-signal)!important;box-shadow:none!important}#startup-modal .dg-wiz-next[data-enter-hint],#jobseeker-modal .dg-wiz-next[data-enter-hint]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.18rem!important;line-height:1.2!important;text-align:center!important}#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block!important;font-size:.62rem!important;font-weight:500!important;opacity:.55!important;letter-spacing:.04em!important;margin:0!important;line-height:1!important}';document.head.appendChild(s);}
+function ensureWizCalmCss(){if(q('#dg-wiz-calm-css'))return;var s=document.createElement('style');s.id='dg-wiz-calm-css';s.textContent='#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--dg-sans)!important;font-size:clamp(1.25rem,2.8vw,1.65rem)!important;font-weight:600!important;letter-spacing:-.02em!important;text-transform:none!important;color:var(--dg-paper)!important;line-height:1.25!important;text-shadow:none!important}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.92rem!important;line-height:1.45!important;color:var(--dg-paper-mute)!important}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next,#startup-modal .dg-wiz-start,#jobseeker-modal .dg-wiz-start{border-radius:12px!important;min-height:48px!important;font-family:var(--dg-sans)!important;font-weight:700!important;background:#a6ffcb!important;color:#03140d!important;border:0!important}#startup-modal .w-form,#jobseeker-modal .w-form{border-radius:18px!important;padding:1.15rem 1.2rem 1.35rem!important;max-width:min(32rem,100%)!important;margin:0 auto!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:var(--dg-signal)!important;box-shadow:none!important}#startup-modal .dg-wiz-next[data-enter-hint],#jobseeker-modal .dg-wiz-next[data-enter-hint]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.18rem!important;line-height:1.2!important;text-align:center!important}#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block!important;font-size:.62rem!important;font-weight:500!important;opacity:.55!important;letter-spacing:.04em!important;margin:0!important;line-height:1!important}';document.head.appendChild(s);}
 
 /* Observed public ATS roles — not matching inventory (not DEMIGOD-BOARD seeds). */
 function injectObservedRoles(){
   try{
+    // Product shells (#dg-page) own the primary H1. Idle inject after openPage was
+    // re-appending this rail as a large H2 and stealing the conversion-audit hero.
+    if(document.body&&document.body.classList.contains('dg-page-on')){
+      var parked=q('#dg-observed-roles');
+      if(parked)parked.style.setProperty('display','none','important');
+      return;
+    }
     var data=window.__dgPublicRoles;
     if(!data||data.schema!=='demigod.public-roles/1'||!Array.isArray(data.roles)||!data.roles.length)return;
     var host=q('#dg-observed-roles');
@@ -2528,11 +2543,20 @@ function injectObservedRoles(){
     var items=data.roles.slice(0,8).map(function(r){
       var url=String(r.url||'');
       if(!/^https:\/\//i.test(url))return '';
+      // Meta line: observation day + optional public employer fields from Clay enrich payload.
+      var metaBits=[];
+      if(r.firstObservedAt)metaBits.push('<time datetime="'+esc(r.firstObservedAt)+'">Observed '+esc(r.firstObservedAt)+'</time>');
+      if(r.employerDepartment)metaBits.push('<span class="dg-obs-dept">'+esc(String(r.employerDepartment).slice(0,80))+'</span>');
+      if(r.employerOffice)metaBits.push('<span class="dg-obs-office">'+esc(String(r.employerOffice).slice(0,80))+'</span>');
+      else if(r.location)metaBits.push('<span class="dg-obs-loc">'+esc(String(r.location).slice(0,80))+'</span>');
+      if(r.workplaceType)metaBits.push('<span class="dg-obs-work">'+esc(String(r.workplaceType).slice(0,40))+'</span>');
+      if(r.employmentType)metaBits.push('<span class="dg-obs-emp">'+esc(String(r.employmentType).slice(0,40))+'</span>');
+      if(r.boardUpdatedAt)metaBits.push('<span class="dg-obs-upd">Board updated '+esc(String(r.boardUpdatedAt).slice(0,10))+'</span>');
+      var meta=metaBits.length?'<p class="dg-obs-meta">'+metaBits.join(' · ')+'</p>':'';
       return '<li><a href="'+esc(url)+'" rel="nofollow noopener" target="_blank">'+
         '<span class="dg-obs-co">'+esc(r.company)+'</span>'+
         '<span class="dg-obs-role">'+esc(r.title)+'</span>'+
-        '<span class="dg-obs-go" aria-hidden="true">&#8599;</span></a>'+
-        (r.firstObservedAt?'<time class="dg-obs-meta" datetime="'+esc(r.firstObservedAt)+'">'+esc(r.firstObservedAt)+'</time>':'')+'</li>';
+        '<span class="dg-obs-go" aria-hidden="true">&#8599;</span></a>'+meta+'</li>';
     }).filter(Boolean).join('');
     if(!items)return;
     host.innerHTML=
@@ -2541,22 +2565,19 @@ function injectObservedRoles(){
          employer"). The same facts are now carried by design: an outbound ↗ on every row says the
          link leaves, and one six-word caption says whose boards these are. Honesty intact, chrome
          cut from ~30 words to 11. */
-      '<h2 id="dg-observed-roles-h">Open roles in SF</h2>'+
-      '<p class="dg-obs-note">From companies’ own public job boards.</p>'+
+      '<h2 id="dg-observed-roles-h">Recently observed SF roles</h2>'+
+      '<p class="dg-obs-note">Public ATS boards we observed — not our matching inventory.</p>'+
       '<ul class="dg-obs-list">'+items+'</ul>'+
       '<p class="dg-obs-more"><a href="/startups" data-dg-page="map">Browse SF startup directory →</a></p>'+
       '</div>';
   }catch(e){}
 }
 
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();wizCss();ensureWizPremiumCss();ensureWizCalmCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){var tx=h.textContent||'';if(/Live SF startup roles hiring now|Examples? of roles|Roles hiring now|Open roles/i.test(tx))h.textContent='Example roles — labeled samples';});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$|^EXAMPLE ROLES$/i.test((b.textContent||'').trim()))b.textContent='Samples'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#bdc9bf;border:1px solid rgba(166,255,203,.28);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.04em;text-transform:none';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();dgIdle(injectObservedRoles,1200);mob();if(!OPEN)hide();/* v970: below-fold observed roles no longer block first paint */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
-  dgIdle(function(){try{
-    trust();foot();rmOrphanForms();successCta();
-    dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();
-    try{hero()}catch(e){}
-    try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest')}catch(e){}
-    qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())});
-  }catch(e){console.error('Demigod idle scrub',e)}},2200);
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){if(h.id==='dg-observed-roles-h'||(h.closest&&h.closest('#dg-observed-roles')))return;var tx=(h.textContent||'').trim();/* exact Webflow sample titles only — never rewrite observed ATS rail */if(/^(Live SF startup roles hiring now|Examples? of roles(?:\s*[—\-].*)?|Roles hiring now|Open roles)$/i.test(tx))h.textContent='Example roles — labeled samples';});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$|^EXAMPLE ROLES$/i.test((b.textContent||'').trim()))b.textContent='Samples'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#bdc9bf;border:1px solid rgba(166,255,203,.28);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.04em;text-transform:none';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();dgIdle(injectObservedRoles,1200);mob();if(!OPEN)hide();/* v970: below-fold observed roles no longer block first paint */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
+  dgIdle(function(){trust();foot();rmOrphanForms();successCta()},2200);
+  dgIdle(dedupeAll,2600);
+  dgIdle(function(){scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims()},3000);
+  dgIdle(function(){try{hero()}catch(e){}try{document.documentElement.classList.add('dg-cta-honest','dg-pricing-honest','dg-volume-honest')}catch(e){}qa('a[target=_blank]').forEach(function(a){var r=a.getAttribute('rel')||'';if(r.indexOf('noopener')<0)a.setAttribute('rel',(r+' noopener noreferrer').trim())})},3400);
 }
 
 function dedupeAll(){
@@ -2699,6 +2720,40 @@ function scrubBadStaticClaims(){
   }catch(e){}
 }
 
+/* Social meta dedupe — scoring mirrors demigod-social-meta-dedupe.mjs */
+function scoreSocialMetaContent(t){
+  t=String(t||'');
+  var n=0;
+  if(/mutual yes/i.test(t)) n+=4;
+  if(/first[- ]?year base|first result|concrete first result/i.test(t)) n+=3;
+  if(/10%/.test(t)) n+=2;
+  if(/human review|humans review|human-reviewed/i.test(t)) n+=1;
+  if(t.length>90) n+=1;
+  if(/tech ranks fit/i.test(t)) n-=2;
+  if(!t.trim()) n-=10;
+  return n;
+}
+function dedupeSocialMeta(){
+  var groups={};
+  qa('meta[name="description"],meta[property^="og:"],meta[name^="twitter:"]').forEach(function(el){
+    var prop=el.getAttribute('property');
+    var name=el.getAttribute('name');
+    var k=prop?('property:'+String(prop).toLowerCase()):(name?('name:'+String(name).toLowerCase()):'');
+    if(!k) return;
+    (groups[k]=groups[k]||[]).push(el);
+  });
+  Object.keys(groups).forEach(function(k){
+    var list=groups[k];
+    if(list.length<2) return;
+    var best=list[0], bestS=scoreSocialMetaContent(best.getAttribute('content'));
+    for(var i=1;i<list.length;i++){
+      var s=scoreSocialMetaContent(list[i].getAttribute('content'));
+      var longer=s===bestS&&String(list[i].getAttribute('content')||'').length>String(best.getAttribute('content')||'').length;
+      if(s>bestS||longer){ best=list[i]; bestS=s; }
+    }
+    list.forEach(function(el){ if(el!==best&&el.parentNode) el.parentNode.removeChild(el); });
+  });
+}
 function scrubStaticLabels(){
   // SAFE scrub: only leaf Webflow title strings. NEVER hide #startup-modal / #jobseeker-modal / form containers.
   try {
@@ -2714,7 +2769,7 @@ function scrubStaticLabels(){
   qa('.modal-title,h2.modal-title,#startup-modal h2,#jobseeker-modal h2').forEach(function(el){
     var t=policyText(el.textContent);
     if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t)||/^I.?M HIRING$/i.test(t)) el.textContent='Hire talent';
-    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)||/^I.?M LOOKING$/i.test(t)) el.textContent=COPY.ctaEngineer;
+    else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^JOIN NETWORK$/i.test(t)||/^I.?M LOOKING$/i.test(t)||/^SHARE PRIVATELY$/i.test(t)) el.textContent=COPY.ctaEngineer;
   });
   qa('.modal-subtitle,#startup-modal .modal-subtitle,#jobseeker-modal .modal-subtitle').forEach(function(el){
     var t=policyText(el.textContent);
@@ -2943,7 +2998,7 @@ function scrubStaticLabels(){
     if (staleHire.test(t) && !/^Hire talent\b/i.test(t)) {
       el.textContent = 'Hire talent';
       if (el.matches('a,button')) {
-        el.setAttribute('aria-label', 'Hire talent — open startup hiring brief');
+        el.removeAttribute('aria-label');
         el.setAttribute('data-demigod-modal', 'startup');
         el.setAttribute('data-dg-cta', 'hire');
       }
@@ -3180,6 +3235,8 @@ function scrubStaticLabels(){
     var before=el.getAttribute('content')||'',after=honestStaticCopy(before);
     if(after!==before.trim().replace(/\s+/g,' '))el.setAttribute('content',after);
   });
+  // Webflow + head paste leave duplicate og/twitter description tags; keep best honest copy.
+  try{dedupeSocialMeta();}catch(e){}
   // Parse JSON-LD before scrubbing string leaves so structured data always remains valid JSON.
   qa('script[type="application/ld+json"]').forEach(function(el){
     try {
@@ -3212,7 +3269,7 @@ function scrubStaticLabels(){
   });
 }
 
-function show(id, opener){if(!q(id))run();var m=q(id);if(!m)return;/* v847: capture opener before inert isolation steals focus to body */var focusBack=(opener&&opener.nodeType===1)?opener:document.activeElement;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}isolateModalBackground(m);try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Private candidate form');}}catch(e){}if(document.body){ if(!('prevOverflow' in document.body.dataset)){ document.body.dataset.prevOverflow = document.body.style.overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){if(!('prevScrollbarGutter' in document.documentElement.dataset))document.documentElement.dataset.prevScrollbarGutter=document.documentElement.style.scrollbarGutter||'';document.documentElement.style.overflow='hidden';document.documentElement.style.scrollbarGutter='auto';} setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
+function show(id, opener){if(!q(id))run();var m=q(id);if(!m)return;try{if(window.__dgTurnstileFlush)window.__dgTurnstileFlush()}catch(e){}wizCss();ensureWizPremiumCss();ensureWizCalmCss();/* v847: capture opener before inert isolation steals focus to body */var focusBack=(opener&&opener.nodeType===1)?opener:document.activeElement;OPEN=id;try{m.inert=false;m.removeAttribute('inert')}catch(e){}isolateModalBackground(m);try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}m.removeAttribute('aria-hidden');m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.style.cssText='display:flex!important;visibility:visible!important;opacity:1!important';m.setAttribute('aria-hidden','false');try{var title=m.querySelector('.dg-wiz-q,h2,h3,[class*=title]');if(title){if(!title.id)title.id='dg-modal-title-'+(id==='#startup-modal'?'startup':'jobseeker');m.setAttribute('aria-labelledby',title.id);}else{m.setAttribute('aria-label',id==='#startup-modal'?'Hire SF startup talent':'Private candidate form');}}catch(e){}if(document.body){ if(!('prevOverflow' in document.body.dataset)){ document.body.dataset.prevOverflow = document.body.style.overflow || ''; document.body.dataset.prevScrollY = '' + (window.scrollY || 0); } document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top = `-${document.body.dataset.prevScrollY}px`; document.body.style.width='100%'; } if(document.documentElement){if(!('prevScrollbarGutter' in document.documentElement.dataset))document.documentElement.dataset.prevScrollbarGutter=document.documentElement.style.scrollbarGutter||'';document.documentElement.style.overflow='hidden';document.documentElement.style.scrollbarGutter='auto';} setTimeout(function(){var dgVis=function(e){return !!e&&e.offsetParent!==null};var nx=m.querySelector('.dg-wiz-next');var fi=[].slice.call(m.querySelectorAll('input:not([type=hidden]),select,textarea')).filter(dgVis)[0]||(dgVis(nx)?nx:null)||focusables(m).filter(dgVis)[0];if(fi)try{fi.focus()}catch(e){}},60); setTimeout(dedupeAll, 120); setTimeout(scrubStaticLabels, 150);
 // Keep fallback accessible names on the same two paths as every visible CTA.
 if (!m.hasAttribute('aria-labelledby')) m.setAttribute('aria-label', id === S ? 'Hire talent — startup hiring brief' : COPY.ctaEngineer+' — private candidate form');
 // extra force for form and title scrub to fix blank and bad title on live
@@ -3301,15 +3358,16 @@ function dgMapEventsHtml(kind){
   return lead+listings+'<section class="dg-community-submit" aria-labelledby="dg-community-title"><h2 id="dg-community-title" class="dg-p-h3">'+(isEvents?'Submit an event':'Submit a startup')+'</h2>'+submitLead+'<div class="dg-submit-grid">'+forms+manageHtml+'</div>'+footNote+'</section>';
 }
 
+var DG_BLOG_POSTS=[{"slug":"epicurus-garden-hacker-houses","category":"Market","title":"Epicurus' Garden and the SF hacker house","summary":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","body":"Around 306 BCE, Epicurus bought a house and garden outside the Dipylon gate, on the road toward Plato's Academy. Diogenes Laërtius puts the price at eighty minae, writing centuries later, so treat that number the way you would any figure from one late source. What is better attested is how the place ran. People lived there. They ate at one table, argued over the food, and came back to the same unfinished questions the next week. The Academy up the road was a school you visited. The Garden was one you moved into, which changed what it could ask of the people in it.\n\nThey were after ataraxia: a quieter mind, less fear, fewer pointless wants. Friendship was part of the practice, not a networking bonus. Women studied there. So did people the rest of the city treated as background. That made the Garden unusually open for an Athenian school, but it was not casual about commitment. If you needed public honor more than the shared table, you did not last.\n\nEpicurus's will tried to keep the group going after him. Successors named. Friends' children cared for. Freedom for slaves who had studied. The legal language is dry and that is the point. The house was supposed to outlive one charismatic man.\n\nYou see cousins of this arrangement long before anyone rented a Victorian in the Mission and called it a house for builders. Pythagoras's circle in southern Italy was harsher and weirder: shared property, heavy secrecy, intellectual heat with a mystic edge. Monasteries later made a more durable version of group life. Their purposes were religious, their rules stricter, their days split between prayer, labor, and study. They also copied books.\n\nIn 1417, Poggio Bracciolini found Lucretius' On the Nature of Things in a monastic library. Lucretius was the great Roman carrier of Epicurean thought. A Christian house preserved a poem whose gods, matter, and death sat badly with Christian teaching. Nobody needed to plan that irony. The rule said copy books, so books got copied, including ones the copyists would have disliked if they stopped to argue with every page. That is a boring reason to write shared rules down, and a strong one. Rules keep operating on days when nobody is in the mood to remember the founding pitch.\n\nSan Francisco keeps reinventing a louder cousin of the same pressure. Rent is absurd. Solo technical work is lonely. Hard problems move faster when the people who can help are down the hall instead of three Slack hops and a calendar invite away.\n\nReporting on HF0 describes a selective residency for technical founders in large SF properties. AGI House has been covered as a place for AI builders, researchers, dinners, and events. Those are specific organizations with their own admissions and economics. They are useful because the trade is visible. Residents give up privacy and some control over the room in exchange for people, conversation, and work being close.\n\nProximity helps when the people already share enough. A stuck problem can come up over eggs. Someone can watch a demo fail and still be there when the fix works at midnight. Proximity has no moral quality of its own. If residents disagree about noise, money, ambition, cleanliness, or whether every meal is a pitch session, the hallway becomes another meeting they cannot leave.\n\nFounder mythology likes to skip the boring part. A house full of impressive résumés can be worse than a smaller one where people agree about visitors, quiet hours, chores, and rest. Size photographs well. Norms decide whether anyone wants to stay. Intensity needs a limit too. Epicurus treated modest pleasure, freedom from fear, and time among friends as the point. A modern technical residency may be trying to ship a company in weeks. Different aims. Both get worse when sleep thins, the kitchen turns strange, and small annoyances become politics.\n\nDemigod is not a house, and we will not pretend the lineage is direct. We run a matching service for SF startups and talent: profiles stay private, both sides see evidence before names move, and an introduction happens only after each side approves. What we take from the houses is a working assumption rather than a philosophy. Selection has to be honest before proximity is worth much, because the wrong people in a good room mostly cost each other a month.\n\nWhether any of this works outside one small city is an open question. SF is where we can check our own claims in person, so SF is where we operate.","image":"https://files.catbox.moe/urbco5.jpg","imageAlt":"Gold-on-dark mark for garden, cloister, and group-house pattern essay","publishedAt":"2026-07-17"}];
 var DG_PAGES = {
   how: {
     title: 'How it works',
     doc: 'How it works · Demigod',
-    desc: 'Three gates: software compares facts, a human decides what to propose, and both sides say yes before an intro. 10% when a hire starts; talent is free.',
+    desc: 'Software compares facts, a human decides what to propose, and both sides say yes before an intro. 10% when a hire starts; talent is free.',
     html:
-      '<p class="dg-p-lead">A match has <strong>three gates</strong> — no application pile, no cold intro, no auto-send.</p>' +
+      '<p class="dg-p-lead">A match has <strong>three clear steps</strong> — no application pile, no cold intro, no auto-send.</p>' +
       '<ol class="dg-p-list">' +
-      '<li><strong>Software compares the facts.</strong> Startup: one role with must-haves, work mode, cash band, and a concrete first result. Talent: one private profile. Software ranks role goals, skills, location, and compensation — nothing is messaged yet.</li>' +
+      '<li><strong>Software compares the facts.</strong> Startup: one role with must-haves, work mode, cash band, and a concrete first result. Talent: one private profile. Software compares role goals, skills, location, and compensation — nothing is messaged yet.</li>' +
       '<li><strong>A human decides what to propose.</strong> A person reviews the rank, confirms the interview path, and chooses whether to propose. Software never auto-intros.</li>' +
       '<li><strong>Mutual yes before intro.</strong> The candidate sees the company and exact role receipt, then approves or passes privately. Identity stays private until both sides say yes. After yes, the startup interviews; Demigod tracks a dated next checkpoint through hire or a clear pass.</li>' +
       '</ol>' +
@@ -3342,12 +3400,22 @@ var DG_PAGES = {
       '<details class="dg-p-det"><summary>Who do you work with?</summary><p>SF Bay Area startups (and builders open to those companies). Seed through growth, product and eng-heavy roles first. Remote talent is fine when the company is Bay-focused.</p></details>' +
       '<details class="dg-p-det"><summary>What if a match is not right?</summary><p>Pass privately. No pressure, no public rejection trail. If evidence is thin, we say so instead of manufacturing a shortlist. This is not LinkedIn: '+COPY.antiLinkedIn+'</p></details>',
   },
+  blog: {
+    title: 'Notes',
+    doc: 'Notes · Demigod',
+    desc: 'Essays and product notes from Demigod about SF talent matching, culture, and how we work.',
+    html:
+      '<div class="dg-blog-hero"><p class="dg-ev-pill" role="note">Notes · no spam</p>' +
+      '<p class="dg-p-lead">Writing from Demigod — matching in SF, and the culture around it.</p>' +
+      '<p class="dg-p-note">Each note has a shareable link. Questions: <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>.</p></div>' +
+      '<div class="dg-blog-grid" id="dg-blog-grid"></div>',
+  },
   private: {
     title: 'Why private',
     doc: 'Why private · Demigod',
     desc: 'Demigod is private by design: no public profiles, no feed, no blasts. Mutual yes only for SF startup matching.',
     html:
-      '<p class="dg-p-lead"><strong>'+COPY.antiLinkedIn+'</strong> Matching has three gates: software compares the facts, a human decides what to propose, mutual yes before intro.</p>' +
+      '<p class="dg-p-lead"><strong>'+COPY.antiLinkedIn+'</strong> Matching works like this: software compares the facts, a human decides what to propose, mutual yes before intro.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>No public profiles.</strong> Talent is not browsable. Founders do not post a public job wall of applicants.</li>' +
       '<li><strong>No feed, no graph vanity.</strong> Nothing to like, follow, or farm for InMail.</li>' +
@@ -3362,12 +3430,13 @@ var DG_PAGES = {
     doc: 'Hire · Demigod',
     desc: 'One role brief. Software compares the facts; a human decides what to propose; mutual yes before intro. 10% of first-year base when a hire starts.',
     html:
-      '<p class="dg-p-lead">One role, real constraints, and a concrete first result. Matching has <strong>three gates</strong> — nothing is auto-sent.</p>' +
+      '<p class="dg-p-lead">One role, real constraints, and a concrete first result. Matching has <strong>three clear steps</strong> — nothing is auto-sent.</p>' +
       '<ol class="dg-p-list">' +
-      '<li><strong>Software compares the facts.</strong> ~2-min brief: role, must-haves, work mode, cash band, and one first result. Software ranks against private talent profiles.</li>' +
+      '<li><strong>Software compares the facts.</strong> ~2-min brief: role, must-haves, work mode, cash band, and one first result. Software compares against private talent profiles.</li>' +
       '<li><strong>A human decides what to propose.</strong> A person reviews the rank and interview path. Software never auto-intros.</li>' +
       '<li><strong>Mutual yes before intro.</strong> The candidate sees your company and exact role, then approves or passes privately. After yes, you interview; pay 10% of first-year base only when the hire starts.</li>' +
       '</ol>' +
+      '<p class="dg-p-note"><strong>Not for:</strong> volume headcount fills, agency-style blast shortlists, or self-serve résumé fishing — one role at a time, human-reviewed.</p>' +
       '<p class="dg-p-note">No application blast, no résumé black hole. Follow-ups from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
   },
   talent: {
@@ -3375,12 +3444,13 @@ var DG_PAGES = {
     doc: 'Talent · Demigod',
     desc: 'One private profile. Free for candidates. Software compares the facts; a human decides what to propose; you approve every intro.',
     html:
-      '<p class="dg-p-lead">One private profile for SF Bay startup roles. Free, no public listing, no application blast — matching has <strong>three gates</strong>.</p>' +
+      '<p class="dg-p-lead">One private profile for SF Bay startup roles. Free, no public listing, no application blast — matching has <strong>three clear steps</strong>.</p>' +
       '<ol class="dg-p-list">' +
       '<li><strong>Software compares the facts.</strong> You share the work you want next, evidence of what you have shipped, availability, setup, and a cash band — enough to compare with a real role, not keywords.</li>' +
       '<li><strong>A human decides what to propose.</strong> We only follow up when a person sees a credible fit. Software never cold-messages companies with your identity.</li>' +
       '<li><strong>Mutual yes before intro.</strong> You see the company and exact role receipt first, then approve or pass privately. After yes, Demigod tracks a dated next checkpoint through interview, offer, hire, or a clear pass.</li>' +
       '</ol>' +
+      '<p class="dg-p-note"><strong>Not for:</strong> public job-board applications, networking blasts, or open résumé marketplaces — you stay private until you approve an intro.</p>' +
       '<p class="dg-p-note"><strong>Always free for talent.</strong> No board spam. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a> · <a href="/private" data-dg-page="private">Why private →</a></p>',
   },
   contact: {
@@ -3398,7 +3468,7 @@ var DG_PAGES = {
       '<h2 class="dg-p-h3">Privacy</h2>' +
       '<p><strong>Effective July 20, 2026.</strong> We collect the contact details, company or work background, location and availability, work evidence, and résumé file or link you choose to submit. We use them for human review, matching, mutual-intro decisions, service messages, and service protection.</p>' +
       '<p>Demigod, Webflow, and our email provider process submissions. After a startup requests an intro, we may privately show its company identity and role facts to the candidate. Candidate identity, contact details, résumé, and work links are not shared with the startup until the candidate approves that exact role. We do not sell contact lists or use submissions for unrelated marketing.</p>' +
-      '<p>A referral link carries an opaque attribution code. The person or company that shared it may receive a financial benefit if an eligible referral leads to a retained hire. Referral status does not change candidate evaluation or candidate cost.</p>' +
+      '<p>A <a href="/refer" data-dg-page="refer">referral link</a> carries an opaque attribution code. The person or company that shared it may receive a financial benefit if an eligible referral leads to a retained hire. Referral status does not change candidate evaluation or candidate cost.</p>' +
       '<p>A temporary same-tab draft is kept in your browser session and cleared after confirmed submission.</p>' +
       '<p>We retain submissions while providing matching, handling an introduction, and meeting legitimate operational or recordkeeping needs, then delete or de-identify data when it is no longer needed. Shareable résumé links remain subject to the storage provider you chose.</p>' +
       '<p>Request access, correction, or deletion at <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. We will confirm the action and any data we must retain for legal or transaction records.</p>' +
@@ -3436,7 +3506,7 @@ var DG_PAGES = {
       '<li><strong>What we take:</strong> real employer searches we can run well · <strong>What we park:</strong> work we cannot staff honestly</li>' +
       '<li>Observed roles on the homepage are public ATS sightings — not our matching inventory</li>' +
       '</ul>' +
-      '<p class="dg-p-note"><a href="/?wiz=startup" data-demigod-modal="startup">Start a hiring brief</a> · <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Fee →</a></p>',
+      '<p class="dg-p-note"><a href="/?wiz=startup" data-demigod-modal="startup">Start a hiring brief</a> · <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Fee →</a> · <a href="/press" data-dg-page="press">Press kit →</a></p>',
   },
 
   map: {
@@ -3536,6 +3606,7 @@ function pageCss() {
   s.setAttribute('data-v', ver);
   s.textContent =
     'body.dg-page-on>[data-dg-hidden="dg-page"]{display:none!important}' +
+    'body.dg-page-on #dg-observed-roles{display:none!important}' +
     '#dg-page{position:relative;z-index:10050;background:var(--dg-night,#03140d);min-height:100vh;overflow:visible;padding:1.15rem;animation:dg-page-in .25s ease both}' +
     '#dg-page .dg-page-card{max-width:min(36rem,100%);margin:2rem auto;background:rgba(166,255,203,.03);border:1px solid rgba(166,255,203,.22);border-radius:16px;padding:clamp(1.35rem,3vw,1.75rem);color:var(--dg-paper,#f3f0e7);box-shadow:0 20px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}'+'#dg-page.dg-page-map .dg-page-card,#dg-page.dg-page-events .dg-page-card{max-width:min(56rem,100%)}' +
     '#dg-page p,#dg-page li{hyphens:none;-webkit-hyphens:none}' +
@@ -4167,6 +4238,13 @@ function injectFaqJsonLd() {
   try {
     var old = q('#dg-faq-jsonld');
     if (old) old.remove();
+    var hasFaq = qa('script[type="application/ld+json"]').some(function (el) {
+      try {
+        var data = JSON.parse(el.textContent || '{}');
+        return data['@type'] === 'FAQPage' || (Array.isArray(data['@graph']) && data['@graph'].some(function (x) { return x && x['@type'] === 'FAQPage'; }));
+      } catch (e) { return false; }
+    });
+    if (hasFaq) return;
     var html = (DG_PAGES.faq && DG_PAGES.faq.html) || '';
     var items = [];
     var re = /<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>\s*<p>([\s\S]*?)<\/p>\s*<\/details>/gi;
@@ -4214,6 +4292,7 @@ function closePage() {
   try { restoreHomeH1s(); } catch (e) {}
   try { removeFaqJsonLd(); } catch (e) {}
   if (document.body) { document.body.classList.remove('dg-page-on'); document.body.style.overflow = ''; }
+  try { var obs = q('#dg-observed-roles'); if (obs) obs.style.removeProperty('display'); } catch (e) {}
   try{var bar=q('#dg-bar');if(bar){bar.style.removeProperty('display');bar.removeAttribute('aria-hidden');}}catch(e){}
   try {
     var u = new URL(location.href);
@@ -4268,6 +4347,8 @@ function pageCtas(id) {
   return hire + talent + back;
 }
 function startupMapAssetUrl(){
+  var pinned=q('meta[name="dg-startup-map-script"]'),pin=pinned&&pinned.content;
+  if(pin&&/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/startup-map-latest)\.js$/i.test(pin))return pin;
   var loader=q('#demigod-foot-cdn-loader'),src=loader&&loader.src;
   return src&&/\/foot-latest\.js(?:[?#]|$)/.test(src)?new URL('startup-map-latest.js',src).href:'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@01767fdf70e6/startup-map-latest.js';
 }
@@ -4295,6 +4376,21 @@ function startupMapMount(root) {
     var retry=host.querySelector('#dg-startup-map-retry');if(retry)retry.onclick=function(){startupMapMount(root);};
   });
 }
+function hardPageHref(hard, hash) {
+  var u = new URL(location.href);
+  u.pathname = hard;
+  u.searchParams.delete('p');
+  u.searchParams.delete('page');
+  u.hash = hash;
+  return u.pathname + u.search + u.hash;
+}
+function wizardFallbackHref(href) {
+  var u = new URL(href, location.href), params = new URLSearchParams(location.search);
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','referral','role_id','event_id'].forEach(function (name) {
+    if (params.has(name) && !u.searchParams.has(name)) u.searchParams.set(name, params.get(name));
+  });
+  return u.pathname + u.search + u.hash;
+}
 function openPage(id, push) {
   var meta = DG_PAGES[id];
   if (!meta) return false;
@@ -4321,7 +4417,10 @@ function openPage(id, push) {
     '<div class="dg-page-ctas">' +
     pageCtas(id) +
     '</div></div>';
-  document.body.appendChild(root);
+  var pageAnchor = q('#dg-top-nav,nav.w-nav,.w-nav,.nav_container');
+  while (pageAnchor && pageAnchor.parentElement !== document.body) pageAnchor = pageAnchor.parentElement;
+  if (pageAnchor) pageAnchor.insertAdjacentElement('afterend', root);
+  else document.body.prepend(root);
   /* v606: no scroll lock — a page scrolls with the document. Hide the Webflow homepage sections
      inline rather than covering them with a fixed overlay. */
   document.body.classList.add('dg-page-on');
@@ -4334,6 +4433,7 @@ function openPage(id, push) {
       var t = el.tagName;
       if (t === 'SCRIPT' || t === 'STYLE' || t === 'LINK' || t === 'NOSCRIPT') return;
       if (el.id === 'dg-page') return;
+      if (el.id === 'dg-top-nav' || el.matches('.nav_container,nav.w-nav,.w-nav') || el.querySelector('.nav_container,nav.w-nav,.w-nav')) return;
       dgPageHidden.push([el, el.style.display, el.style.getPropertyPriority('display')]);
       el.style.setProperty('display', 'none', 'important');
       /* Mark only the homepage nodes this product page owns so CSS and closePage share one hook. */
@@ -4345,7 +4445,15 @@ function openPage(id, push) {
   try { window.scrollTo(0, 0); } catch (e) {}
   /* Mini-pages are injected after boot; run the idempotent reveal observer on their content. */
   try { addMotion(); } catch (e) {}
-  try{var bar=q('#dg-bar');if(bar){bar.style.setProperty('display','none','important');bar.setAttribute('aria-hidden','true');}}catch(e){}
+  /* The mobile action bar STAYS on mini-pages. It used to be hidden here, which left /how with no
+     action anywhere in the 390px fold — the page explains the process and offered no way to start
+     it. show() still hides the bar for modals, which is right: a modal must not compete with a
+     fixed bar. Mini-pages are routes, not modals.
+     Measured with puppeteer at 390x844 before changing this: all three routes scroll (/ 0->600,
+     /how 0->550, /hire 0->352), and with the bar visible each page's own CTA scrolls into view at
+     y~517 and hit-tests to itself — reachable:true on /hire and /talent. An earlier rect-overlap
+     reading at scroll offset 0 suggested a clash; that was an artifact of measuring a
+     position:fixed bar against unscrolled content. */
   /* v848: ensure title/description/canonical/OG exist per mini-page (create if Webflow omitted). */
   try {
     if(!window.__dgPagePrevTitle) window.__dgPagePrevTitle=document.title;
@@ -4385,7 +4493,7 @@ function openPage(id, push) {
   } catch (e) {}
   try {
     /* Prefer hard path (/events) over /?p= when we own a clean route. */
-    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', sample:'/sample', press:'/press', private:'/private', notfound:'/' };
+    var preferred = { how:'/how', pricing:'/pricing', hire:'/hire', talent:'/talent', faq:'/faq', legal:'/legal', refer:'/refer', about:'/about', events:'/events', map:'/startups', contact:'/contact', blog:'/blog', sample:'/sample', press:'/press', private:'/private', notfound:'/' };
     var pathNow = (location.pathname || '/').replace(/\/+$/, '') || '/';
     /* v860: an ALIAS must not claim canonical for itself. DG_PAGE_PATHS declares 36 paths across ~19
        routes, so /referral, /referrals and /partners are all route 'refer', and /press-kit and
@@ -4427,8 +4535,13 @@ function openPage(id, push) {
   });
   qa('[data-demigod-modal]', root).forEach(function (a) {
     a.addEventListener('click', function (e) {
-      e.preventDefault();
       var k = a.getAttribute('data-demigod-modal');
+      var modal = k === 'startup' ? S : k === 'jobseeker' ? J : '';
+      if (!modal || !q(modal)) {
+        a.setAttribute('href', wizardFallbackHref(a.getAttribute('href') || (k === 'startup' ? '/?wiz=startup' : '/?wiz=engineer')));
+        return;
+      }
+      e.preventDefault();
       closePage();
       if (k === 'startup') show(S, a);
       else if (k === 'jobseeker') show(J, a);
@@ -4449,8 +4562,9 @@ function openPage(id, push) {
       var nowP = (location.pathname || '/').replace(/\/+$/, '') || '/';
       var wantP = hard.replace(/\/+$/, '') || '/';
       if (nowP !== wantP || location.search) {
-        if (push !== false) history.pushState({ dgPage: id }, '', hard + hash);
-        else history.replaceState({ dgPage: id }, '', hard + hash);
+        var href = hardPageHref(hard, hash);
+        if (push !== false) history.pushState({ dgPage: id }, '', href);
+        else history.replaceState({ dgPage: id }, '', href);
       }
     } else if (push !== false) {
       var u = new URL(location.href);
@@ -4479,6 +4593,9 @@ function openPage(id, push) {
   if (id === 'refer') {
     try { mountReferralForm(root); } catch (e) {}
   }
+  if (id === 'blog') {
+    try { blogPageMount(root); focusBlogNoteFromHash(root); } catch (e) {}
+  }
   // soft focus trap
   root.addEventListener('keydown', function(ev){
     if(ev.key!=='Tab') return;
@@ -4490,14 +4607,46 @@ function openPage(id, push) {
   });
   return true;
 }
+function blogBodyHtml(body) {
+  return String(body || '').trim().split(/\n\n+/).filter(Boolean).map(function (p) {
+    return '<p>' + esc(p.replace(/\n/g, ' ').trim()) + '</p>';
+  }).join('');
+}
+function blogPageMount(root) {
+  var grid = root && root.querySelector('#dg-blog-grid');
+  if (!grid || grid.dataset.dgBlog === '1') return;
+  grid.dataset.dgBlog = '1';
+  var posts = Array.isArray(DG_BLOG_POSTS) ? DG_BLOG_POSTS.slice() : [];
+  posts.sort(function (a, b) { return String(b.publishedAt || '').localeCompare(String(a.publishedAt || '')); });
+  grid.innerHTML = posts.map(function (p) {
+    return '<article class="dg-blog-card dg-reveal-in" id="note-' + esc(p.slug) + '">' +
+      (p.image ? '<img src="' + esc(p.image) + '" alt="' + esc(p.imageAlt || p.title) + '" loading="lazy" decoding="async" width="1200" height="675">' : '') +
+      '<div class="dg-blog-meta"><small>' + esc(p.category || 'Note') + '</small>' +
+      (p.publishedAt ? ' · <time datetime="' + esc(p.publishedAt) + '">' + esc(p.publishedAt) + '</time>' : '') + '</div>' +
+      '<h2>' + esc(p.title) + '</h2><p>' + esc(p.summary) + '</p>' +
+      '<details class="dg-blog-more"><summary>Full note · ' + esc(p.title) + '</summary><div class="dg-blog-body">' + blogBodyHtml(p.body) + '</div></details></article>';
+  }).join('');
+}
+function focusBlogNoteFromHash(root) {
+  try {
+    var hash=(location.hash||'').replace(/^#/,'');
+    if (!hash) return false;
+    var id=/^note-/.test(hash)?hash:'note-'+hash, card=root.querySelector('#'+id);
+    if (!card) return false;
+    var details=card.querySelector('details'); if(details)details.open=true;
+    var heading=card.querySelector('h2'); if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true})}
+    card.scrollIntoView({block:'start',behavior:'auto'});
+    return true;
+  } catch (e) { return false; }
+}
 var DG_PAGE_PATHS = {
   '/startups': 'map',
   '/how': 'how',
   '/how-it-works': 'how',
   '/pricing': 'pricing',
   '/faq': 'faq',
-  '/blog': 'how',
-  '/notes': 'how',
+  '/blog': 'blog',
+  '/notes': 'blog',
   '/method': 'how',
   '/hire': 'hire',
   '/talent': 'talent',
@@ -4562,6 +4711,7 @@ function deepLink(){
     if(!w&&/^(startup|founder|hire|engineer|talent|join|jobseeker)$/.test(h))w=h;
     if(h==='legal'||h==='privacy'||h==='terms'){ openPage('legal',false); window.__dgDeepLinked=1; return; }
     if(h==='partnerships'||h==='partners'){ openPage('refer',false); window.__dgDeepLinked=1; return; }
+    if(/^note-/.test(h)||/^(epicurus-garden-hacker-houses)$/.test(h)){ openPage('blog',false); focusBlogNoteFromHash(q('#dg-page')); window.__dgDeepLinked=1; return; }
     if(!w)return;
     var open=function(){
       if(/^(startup|founder|hire|brief|company)$/.test(w)){window.__dgDeepLinked=1;show(S);return true}
@@ -4651,13 +4801,13 @@ var el=e.target.closest('[data-demigod-modal],a[href="'+S+'"],a[href="'+J+'"],a[
 if(!el)return;
 if(el.closest('a.dg-logo,.w-nav-brand,#dg-skip'))return;
 var h=(el.getAttribute('href')||'').trim(),k=el.getAttribute('data-demigod-modal');
-if(k==='startup'||h===S||h==='#startup-modal'){e.preventDefault();show(S, el)}
-else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(J, el)}
+if(k==='startup'||h===S||h==='#startup-modal'){if(!q(S))return;e.preventDefault();show(S, el)}
+else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){if(!q(J))return;e.preventDefault();show(J, el)}
 },true);
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='971';console.log('Demigod v971');
+window.__dgFootVer='1021';console.log('Demigod v1021');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 
