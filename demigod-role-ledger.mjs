@@ -22,7 +22,13 @@ import {
   isUsPostedLocation,
   sameWebsiteOwner,
 } from './demigod-startup-jobs-enrich.mjs';
-import { atomicWrite, withFileLock, isPlainObject, objectEntries } from './demigod-agent-tools-lib.mjs';
+import {
+  atomicWrite,
+  withFileLock,
+  isPlainObject,
+  objectEntries,
+  UNSAFE_INVISIBLE_CLASS,
+} from './demigod-agent-tools-lib.mjs';
 import { safeResearchUrl } from './demigod-evidence.mjs';
 import { htmlToVisibleText } from './demigod-live-lib.mjs';
 import {
@@ -722,12 +728,57 @@ async function pool(items, worker) {
 }
 
 // ---- selftest: each honesty invariant proven fail-capable (broken control must flip the result) ----
+export const TARGET_STATES = ['observed', 'reviewing', 'ruled-out', 'contacted'];
+const UNSAFE_NOTE = new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']');
+
+/**
+ * Missing file -> empty store (first run). Present but unparseable -> REFUSE.
+ * Swallowing a parse error would let the next merge overwrite a human's triage with a fresh
+ * derivation and report success. After 2026-08-02 the standing rule is never to silently discard
+ * a file that holds human work.
+ */
 export function loadTargets(file = TARGETS) {
-  try {
-    const d = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return d && typeof d === 'object' && d.companies && typeof d.companies === 'object'
-      ? d : { schema: 'demigod.targets/1', companies: {} };
-  } catch { return { schema: 'demigod.targets/1', companies: {} }; }
+  let raw;
+  try { raw = fs.readFileSync(file, 'utf8'); }
+  catch (e) {
+    if (e.code === 'ENOENT') return { schema: 'demigod.targets/1', companies: {} };
+    throw e;
+  }
+  let d;
+  try { d = JSON.parse(raw); }
+  catch (e) { throw new Error(`targets_store_unreadable: ${file} is present but not valid JSON (${e.message}) — fix or move it; refusing to overwrite human triage`); }
+  if (!d || typeof d !== 'object' || !d.companies || typeof d.companies !== 'object') {
+    throw new Error(`targets_store_invalid: ${file} has no companies object — refusing to overwrite human triage`);
+  }
+  return d;
+}
+
+/**
+ * PURE. Record a human's judgement about one company. Touches state/note/stateSetAt ONLY —
+ * observation fields stay derived, so the store never becomes two sources of truth.
+ * `contacted` is a human asserting something that happened outside this tool; nothing here infers it.
+ */
+export function setTargetState(store, company, { state, note, at }) {
+  const key = String(company || '').trim().toLowerCase();
+  const existing = store.companies && store.companies[key];
+  if (!existing) {
+    const near = Object.keys(store.companies || {}).filter((k) => k.includes(key.slice(0, 4)) && key).slice(0, 3);
+    throw new Error(`target_unknown: no company "${company}" in the store${near.length ? ` — did you mean ${near.join(', ')}?` : ''}`);
+  }
+  if (!TARGET_STATES.includes(state)) {
+    throw new Error(`target_state_invalid: "${state}" — allowed: ${TARGET_STATES.join(', ')}`);
+  }
+  if (note != null) {
+    const t = String(note);
+    if (t.length > 400 || UNSAFE_NOTE.test(t)) throw new Error('target_note_invalid: max 400 chars, no control characters');
+  }
+  return {
+    ...store,
+    companies: {
+      ...store.companies,
+      [key]: { ...existing, state, stateSetAt: at, ...(note != null ? { note: String(note) } : {}) },
+    },
+  };
 }
 
 /**
@@ -763,6 +814,10 @@ export function mergeTargets(store, rows, today) {
       // Human judgement — preserved across runs, never set by this function.
       state: prev.state || 'observed',
       note: prev.note || null,
+      /* stateSetAt must survive too. The merge rebuilds each row from a fixed field list, so
+         omitting this silently dropped the date a human set their verdict — and a "contacted"
+         with no date is exactly the stale claim the field exists to expose. */
+      stateSetAt: prev.stateSetAt || null,
     };
   }
   for (const [key, c] of Object.entries(out.companies)) {
@@ -1255,6 +1310,27 @@ if (isMain) {
       const label = basis === 'posted' ? 'posted per board (attributed, Greenhouse)' : 'observed-open';
       console.log(`SF startup roles ${label} ≥${rep.days}d — ${rep.agingRoles.length} roles${rep.evergreenExcluded ? ` (+${rep.evergreenExcluded} evergreen >365d flagged separately)` : ''} · ghost-rate(observed≥60d) ${rep.ghostRatePct}% of ${rep.openUsRoles} US-posted open · by fn ${JSON.stringify(rep.byFunction)}`);
       for (const r of rep.agingRoles.slice(0, 40)) console.log(`  ${String(r.age).padStart(3)}d ${basis === 'posted' ? 'posted' : 'obs'}  ${r.company} — ${r.title}`.slice(0, 110));
+    }
+  } else if (cmd === 'targets' && process.argv[3] === 'set') {
+    /* Record a human's judgement. Without this the store's whole promise -- that human triage
+       survives a re-run -- was theoretical: nothing could set a state except hand-editing a
+       mode-0600 JSON file, where one typo used to silently reset the store on the next merge. */
+    const arg = (f, d) => { const i = process.argv.indexOf(f); const v = i > 0 ? process.argv[i + 1] : d; return (typeof v === 'string' && v.startsWith('--')) ? d : v; };
+    const company = process.argv[4];
+    const state = arg('--state', '');
+    const note = process.argv.includes('--note') ? arg('--note', '') : null;
+    if (!company || company.startsWith('--')) {
+      console.error(`usage: demigod-role-ledger.mjs targets set <company> --state <${TARGET_STATES.join('|')}> [--note "..."]`);
+      process.exit(2);
+    }
+    try {
+      const next = setTargetState(loadTargets(), company, { state, note, at: today });
+      atomicWrite(TARGETS, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 });
+      const row = next.companies[company.trim().toLowerCase()];
+      console.log(JSON.stringify({ ok: true, company: row.company, state: row.state, stateSetAt: row.stateSetAt, note: row.note }));
+    } catch (e) {
+      console.error(String(e.message || e));
+      process.exit(2);
     }
   } else if (cmd === 'targets') {
     /* Persist the aging-startup target list so it survives closing a terminal. `report --json` is a

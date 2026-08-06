@@ -15,7 +15,7 @@
 //   node --test demigod-targets-merge.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeTargets } from './demigod-role-ledger.mjs';
+import { mergeTargets, setTargetState } from './demigod-role-ledger.mjs';
 
 const row = (company, age, title = 'Staff Engineer') => ({
   company, age, title, url: `https://boards.example.com/${company.toLowerCase()}/1`, provider: 'Greenhouse',
@@ -74,4 +74,38 @@ test('merge cannot invent a state other than observed', () => {
   // Re-merging a store whose only states came from this function must still be observed.
   const again = mergeTargets(out, [row('Alpaca', 241)], '2026-08-07');
   assert.equal(again.companies.alpaca.state, 'observed', 'no path here promotes a company');
+});
+
+test('setTargetState records judgement and only judgement', () => {
+  const store = mergeTargets(empty(), [row('Hightouch', 350)], '2026-08-06');
+  const out = setTargetState(store, 'Hightouch', { state: 'ruled-out', note: 'runs their own recruiting org', at: '2026-08-07' });
+  const h = out.companies.hightouch;
+  assert.equal(h.state, 'ruled-out');
+  assert.equal(h.stateSetAt, '2026-08-07', 'a verdict without a date cannot be judged stale later');
+  assert.equal(h.note, 'runs their own recruiting org');
+  // Observation stays derived — the store must not become two sources of truth.
+  assert.equal(h.oldestRoleDays, 350);
+  assert.equal(h.agingRoleCount, 1);
+  assert.equal(h.sampleRoleUrl, store.companies.hightouch.sampleRoleUrl);
+});
+
+test('stateSetAt survives the next derivation', () => {
+  let out = mergeTargets(empty(), [row('Hightouch', 350)], '2026-08-06');
+  out = setTargetState(out, 'Hightouch', { state: 'contacted', at: '2026-08-07' });
+  const next = mergeTargets(out, [row('Hightouch', 351)], '2026-08-09');
+  assert.equal(next.companies.hightouch.state, 'contacted');
+  assert.equal(next.companies.hightouch.stateSetAt, '2026-08-07', 'a three-week-old contacted must stay visibly three weeks old');
+});
+
+test('setTargetState refuses an unknown company rather than minting a phantom row', () => {
+  const store = mergeTargets(empty(), [row('Hightouch', 350)], '2026-08-06');
+  assert.throws(() => setTargetState(store, 'NotARealCo', { state: 'reviewing', at: '2026-08-07' }), /target_unknown/);
+  assert.equal(Object.keys(store.companies).length, 1, 'store unchanged');
+});
+
+test('setTargetState allow-lists the state and bounds the note', () => {
+  const store = mergeTargets(empty(), [row('Hightouch', 350)], '2026-08-06');
+  assert.throws(() => setTargetState(store, 'Hightouch', { state: 'maybe', at: 'x' }), /target_state_invalid/);
+  assert.throws(() => setTargetState(store, 'Hightouch', { state: 'reviewing', note: 'x'.repeat(401), at: 'x' }), /target_note_invalid/);
+  assert.throws(() => setTargetState(store, 'Hightouch', { state: 'reviewing', note: 'bad\u0007bell', at: 'x' }), /target_note_invalid/);
 });
