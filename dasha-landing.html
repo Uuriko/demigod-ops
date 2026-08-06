@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%2308090b%22%2F%3E%3Cpath%20d%3D%22M5%2022%20L12%2017%20L19%2020%20L27%208%22%20fill%3D%22none%22%20stroke%3D%22%23f4f5f7%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cline%20x1%3D%224%22%20y1%3D%2226%22%20x2%3D%2228%22%20y2%3D%2226%22%20stroke%3D%22%23d8ff52%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-dasharray%3D%225%204%22%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230B0A0C%22%2F%3E%3Cpath%20d%3D%22M5%2022%20L12%2017%20L19%2020%20L27%208%22%20fill%3D%22none%22%20stroke%3D%22%23F2EDE7%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cline%20x1%3D%224%22%20y1%3D%2226%22%20x2%3D%2228%22%20y2%3D%2226%22%20stroke%3D%22%23C8B6FF%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-dasharray%3D%225%204%22%2F%3E%3C%2Fsvg%3E">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dasha Labs — write the call before the chart writes the story</title>
 <meta name="description" content="A free tool for recording a token thesis, the condition that would prove it wrong, and a time horizon — before you post it. No wallet connection. Not financial advice.">
@@ -22,8 +22,13 @@
 <style>
 :root{
   color-scheme:dark;
-  --bg:#08090b; --panel:#121419; --panel-2:#0d0f13; --line:#292d36;
-  --ink:#f4f5f7; --muted:#a9afbc; --accent:#d8ff52; --danger:#ffb4a8;
+  --bg:#0B0A0C; --panel:#151317; --panel-2:#100E12; --line:#353039;
+  --ink:#F2EDE7; --muted:#ADA5AE; --accent:#C8B6FF; --accent-hi:#DACFFF;
+  --danger:#FF9E91; --on-accent:#17141A;
+  /* Display is an editorial serif and data is mono; body stays system sans. Three roles,
+     zero font files — the page must stay self-contained. */
+  --display:Georgia,Cambria,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --maxw:900px;
 }
 *{box-sizing:border-box}
@@ -31,53 +36,62 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 .wrap{width:min(var(--maxw),calc(100% - 32px));margin:0 auto}
-a{color:var(--accent)}
+/* Accent is reserved for primary action, focus and the fingerprint. Links carry an
+   underline so colour is never the only signal. */
+a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+a:hover{color:var(--accent-hi)}
 a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
 /* --- hero ------------------------------------------------------------- */
 header{padding:56px 0 8px}
-.eyebrow{color:var(--accent);font-size:.75rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin:0 0 14px}
-h1{margin:0;font-size:clamp(2.1rem,7vw,3.6rem);line-height:1.04;letter-spacing:-.02em;font-weight:800}
-h1 em{font-style:normal;color:var(--accent)}
-.sub{color:var(--muted);font-size:clamp(1rem,2.6vw,1.18rem);margin:18px 0 0;max-width:52ch}
-.hero-art{margin:30px 0 0;max-width:420px}
+.eyebrow{color:var(--muted);font-size:.75rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0 0 16px;font-family:var(--mono)}
+h1{margin:0;font-family:var(--display);font-size:clamp(2.2rem,7vw,3.7rem);line-height:1.06;letter-spacing:-.02em;font-weight:700}
+h1 em{font-style:italic;color:var(--ink)}
+.sub{color:var(--muted);font-size:clamp(1rem,2.6vw,1.18rem);margin:20px 0 0;max-width:52ch}
+.hero-art{margin:32px 0 0;max-width:430px}
+.artnote{color:var(--muted);font-size:.82rem;margin:10px 0 0;max-width:44ch}
 
 /* --- shared ----------------------------------------------------------- */
 section{padding:44px 0}
-h2{font-size:clamp(1.3rem,3.6vw,1.7rem);margin:0 0 6px;letter-spacing:-.01em}
+h2{font-family:var(--display);font-size:clamp(1.45rem,3.8vw,1.95rem);margin:0 0 8px;letter-spacing:-.01em;font-weight:700}
 .lede{color:var(--muted);margin:0 0 22px;max-width:56ch}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:clamp(18px,4vw,26px)}
 .grid{display:grid;gap:14px}
 @media(min-width:720px){.grid-3{grid-template-columns:repeat(3,1fr)}}
-.k{font-weight:800;margin:0 0 4px}
-.k small{display:block;font-weight:600;color:var(--accent);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+.k{font-weight:700;margin:0 0 4px;font-size:1.05rem}
+.k small{display:block;font-weight:600;color:var(--muted);font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;margin-bottom:8px}
 .card p{margin:0;color:var(--muted)}
 
 /* --- cta -------------------------------------------------------------- */
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  min-height:52px;padding:12px 22px;border-radius:12px;font-weight:800;text-decoration:none;
-  background:var(--accent);color:#101300;border:1px solid var(--accent)}
+  min-height:52px;padding:12px 22px;border-radius:12px;font-weight:700;text-decoration:none;
+  background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
+.btn:hover{background:var(--accent-hi);border-color:var(--accent-hi);color:var(--on-accent)}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{background:transparent;color:var(--ink);border-color:var(--muted)}
 @media(max-width:520px){.actions>*{width:100%}}
+
+/* --- mechanism note --------------------------------------------------- */
+.why{border-left:2px solid var(--line);padding:2px 0 2px 18px;margin:0;max-width:58ch;color:var(--muted)}
+.why b{color:var(--ink);font-weight:700}
 
 /* --- honesty strip ---------------------------------------------------- */
 .strip{border:1px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
 .strip ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
 @media(min-width:720px){.strip ul{grid-template-columns:repeat(2,1fr)}}
 .strip li{color:var(--muted);padding-left:24px;position:relative}
-.strip li::before{content:"—";position:absolute;left:0;color:var(--accent);font-weight:800}
-.toolframe{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel)}
-.toolframe iframe{display:block;width:100%;height:min(1180px,150vh);border:0}
+.strip li::before{content:"—";position:absolute;left:0;color:var(--muted);font-weight:700}
 footer{padding:36px 0 64px;color:var(--muted);border-top:1px solid var(--line);margin-top:36px}
 footer p{margin:.4em 0}
 
 /* --- conviction receipt, inlined natively (see #tool) --------------------- */
 #tool .toolhost{margin-top:8px}
 
-    :root{color-scheme:dark;--bg:#08090b;--panel:#121419;--line:#292d36;--ink:#f4f5f7;--muted:#a9afbc;--accent:#d8ff52;--danger:#ffb4a8}
-    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}#tool .receipt{width:min(760px,calc(100% - 32px));margin:64px auto}#tool .eyebrow{color:var(--accent);font-size:.8rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}#tool h1{margin:.2em 0;font-size:clamp(2.4rem,8vw,5rem);line-height:.95}#tool .intro,#tool .note{color:var(--muted)}#tool form,#tool .output{display:grid;gap:18px;margin-top:32px;padding:clamp(20px,5vw,36px);border:1px solid var(--line);border-radius:20px;background:var(--panel)}#tool label{display:grid;gap:7px;font-weight:700}#tool input,#tool textarea,#tool select,#tool button,#tool a.button{min-height:48px;border:1px solid var(--line);border-radius:10px;background:#0b0d11;color:var(--ink);font:inherit}#tool input,#tool textarea,#tool select{width:100%;padding:12px}#tool textarea{min-height:96px;resize:vertical}#tool button,#tool a.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;font-weight:800;text-decoration:none;cursor:pointer}#tool button{background:var(--accent);color:#101300;border-color:var(--accent)}#tool button:hover{filter:brightness(1.08)}#tool .actions{display:flex;flex-wrap:wrap;gap:10px}#tool .secondary{background:transparent!important;color:var(--ink)!important}#tool .error{min-height:1.5em;color:var(--danger)}#tool .output{white-space:pre-wrap}#tool .output[hidden]{display:none}#tool .fingerprint{font:13px ui-monospace,monospace;color:var(--accent)}@media(max-width:520px){.receipt{margin:32px auto}#tool .actions>*{width:100%}}#tool .output{overflow-wrap:anywhere}#tool button,#tool a.button{min-width:0}
-  
+    /* Scoped to #tool so it no longer overrides the page palette — this block used to
+       re-declare :root after the page's own and silently won every variable. */
+    #tool .receipt{width:min(760px,calc(100% - 32px));margin:64px auto}#tool .eyebrow{color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-family:var(--mono)}#tool h2.toolhead{margin:.2em 0;font-family:var(--display);font-size:clamp(1.6rem,4.5vw,2.3rem);line-height:1.1}#tool .intro,#tool .note{color:var(--muted)}#tool form,#tool .output{display:grid;gap:18px;margin-top:28px;padding:clamp(20px,5vw,36px);border:1px solid var(--line);border-radius:20px;background:var(--panel)}#tool label{display:grid;gap:7px;font-weight:700}#tool input,#tool textarea,#tool select,#tool button,#tool a.button{min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);color:var(--ink);font:inherit}#tool input,#tool textarea,#tool select{width:100%;padding:12px}#tool input,#tool #address{font-family:var(--mono)}#tool textarea{min-height:96px;resize:vertical}#tool button,#tool a.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;font-weight:700;text-decoration:none;cursor:pointer}#tool button{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}#tool button:hover{background:var(--accent-hi);border-color:var(--accent-hi)}#tool .actions{display:flex;flex-wrap:wrap;gap:10px}#tool .secondary{background:transparent!important;color:var(--ink)!important}#tool .error{min-height:1.5em;color:var(--danger)}#tool .output{white-space:pre-wrap}#tool .output[hidden]{display:none}#tool .fingerprint{font:13px var(--mono);color:var(--accent)}@media(max-width:520px){.receipt{margin:32px auto}#tool .actions>*{width:100%}}#tool .output{overflow-wrap:anywhere}#tool button,#tool a.button{min-width:0}
+
 </style>
 </head>
 <body>
@@ -87,40 +101,43 @@ footer p{margin:.4em 0}
   <h1>Write the call <em>before</em> the chart writes the story.</h1>
   <p class="sub">Anyone can explain a trade after it moves. This records what you thought, what would prove you wrong, and by when — timestamped and fingerprinted, before you post it.</p>
 
-  <!-- Original artwork. Left: a claim made after the fact, fitted to whatever the price did.
-       Right: a claim fixed in place first, with the line that would falsify it drawn in advance.
-       Nothing here depicts real price data — it is a diagram of two habits, not a chart. -->
+  <!-- Original artwork. A filled-in example of the card the tool produces, so the page shows
+       the deliverable rather than restating the headline. The mint is a self-documenting
+       placeholder, never the candidate mint: a real address rendered in the product's own
+       voice would read as a call on that token, and control is not established. No price
+       data, no target, no return figure. -->
   <div class="hero-art">
-    <svg viewBox="0 0 340 286" width="100%" role="img"
-         aria-label="Two panels. Top: a story drawn to fit a price line after it moved. Bottom: a thesis and an invalidation level written down first, before the same line moves.">
-      <title>After the fact versus before the fact</title>
-      <defs>
-        <marker id="d-ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0 0 L8 4 L0 8 z" fill="#a9afbc"/>
-        </marker>
-      </defs>
-      <g font-family="ui-sans-serif,system-ui,sans-serif">
-        <rect x="1" y="1" width="338" height="132" rx="12" fill="#0d0f13" stroke="#292d36"/>
-        <text x="18" y="26" font-size="12" font-weight="800" fill="#a9afbc" letter-spacing="1.4">AFTER</text>
-        <polyline points="20,108 60,98 100,110 140,76 180,84 220,44 260,54 318,26"
-                  fill="none" stroke="#292d36" stroke-width="2.5"/>
-        <path d="M300 38 C 272 62, 246 66, 226 88" fill="none" stroke="#a9afbc"
-              stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#d-ar)"/>
-        <text x="20" y="126" font-size="13" fill="#a9afbc">“I always said this would run.”</text>
+    <svg viewBox="0 0 360 300" width="100%" role="img"
+         aria-label="An example of the card the tool produces. It shows an example token address, a thesis reading 'Liquidity depth is what I am actually watching here, not the price', an invalidation condition reading 'Depth falls back under where it started and stays there a week', a UTC timestamp, a twelve-character checksum, and a footer reading Not financial advice.">
+      <rect x="4" y="20" width="352" height="272" rx="14" fill="#151317" stroke="#353039"/>
+      <text x="4" y="12" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="1.4" fill="#ADA5AE">EXAMPLE — NOT A REAL CALL</text>
 
-        <rect x="1" y="153" width="338" height="132" rx="12" fill="#0d0f13" stroke="#d8ff52"/>
-        <text x="18" y="178" font-size="12" font-weight="800" fill="#d8ff52" letter-spacing="1.4">BEFORE</text>
-        <line x1="18" y1="232" x2="322" y2="232" stroke="#ffb4a8" stroke-width="1.4" stroke-dasharray="5 4"/>
-        <text x="18" y="226" font-size="12" fill="#ffb4a8">invalidation level, written first</text>
-        <polyline points="20,260 60,250 100,262 140,228 180,236 220,196 260,206 318,178"
-                  fill="none" stroke="#f4f5f7" stroke-width="2.5"/>
-        <text x="20" y="278" font-size="13" fill="#f4f5f7">Thesis + horizon, fingerprinted.</text>
-      </g>
+      <text x="22" y="48" font-family="ui-monospace,Menlo,monospace" font-size="11" letter-spacing="1.6" fill="#C8B6FF">DASHA THESIS CARD</text>
+      <line x1="22" y1="60" x2="338" y2="60" stroke="#353039"/>
+
+      <text x="22" y="80" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#ADA5AE">TOKEN</text>
+      <text x="22" y="96" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#F2EDE7">EXAMPLEmint…1111pump</text>
+
+      <text x="22" y="122" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#ADA5AE">THESIS</text>
+      <text x="22" y="140" font-size="12" fill="#F2EDE7">Liquidity depth is what I am actually<tspan x="22" dy="16">watching here, not the price.</tspan></text>
+
+      <text x="22" y="184" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#FF9E91">INVALID IF</text>
+      <text x="22" y="202" font-size="12" fill="#F2EDE7">Depth falls back under where it<tspan x="22" dy="16">started and stays there a week.</tspan></text>
+
+      <line x1="22" y1="236" x2="338" y2="236" stroke="#353039"/>
+      <text x="22" y="254" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#ADA5AE">2026-04-02 14:22 UTC</text>
+      <text x="22" y="270" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#C8B6FF">a3f9c1e40b72</text>
+
+      <!-- A full-width bar here poked square corners past the card's rx=14 bottom. A rule
+           reads the same and cannot clip. -->
+      <line x1="22" y1="272" x2="338" y2="272" stroke="#353039"/>
+      <text x="22" y="285" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#ADA5AE">Not financial advice.</text>
     </svg>
   </div>
+  <p class="artnote">What the tool gives back: your own words, the condition that would settle them, and a checksum that changes if either is edited.</p>
 
   <div class="actions">
-    <a class="btn" href="./dasha-conviction-receipt.html">Write a receipt</a>
+    <a class="btn" href="#tool">Write a receipt</a>
     <a class="btn ghost" href="#how">How it works</a>
   </div>
 </header>
@@ -132,7 +149,7 @@ footer p{margin:.4em 0}
   <p class="lede">Nothing leaves your browser. There is no account and no wallet prompt.</p>
   <div class="toolhost">
     <p class="eyebrow">Dasha Labs · free tool</p>
-    <h1>Thesis Card</h1>
+    <h2 class="toolhead">Thesis Card</h2>
     <p class="intro">Write the call before the chart writes the story. Generate a shareable card with the thesis—and the condition that proves it wrong.</p>
     <form id="receipt-form" novalidate>
       <label>Solana token address<input id="address" autocomplete="off" spellcheck="false" required placeholder="32–44 character mint address"></label>
@@ -150,7 +167,7 @@ footer p{margin:.4em 0}
       <small class="note">The local checksum detects changed text. The timestamp is not independently verified and this card is not proof of when a claim was made. It does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
     </section>
   </div>
-  <p class="lede" style="margin-top:14px">Frame blocked or JavaScript off? <a href="./dasha-conviction-receipt.html">Open the tool on its own page</a>.</p>
+  <p class="lede" style="margin-top:14px">The tool also lives on <a href="./dasha-conviction-receipt.html">its own page</a>, if you would rather link straight to it.</p>
 </section>
 
 <section id="how">
@@ -161,7 +178,8 @@ footer p{margin:.4em 0}
     <div class="card"><p class="k"><small>02</small>The invalidation</p><p>What would make you wrong. This is the field most people skip, and the only one that makes the rest mean anything.</p></div>
     <div class="card"><p class="k"><small>03</small>The horizon</p><p>By when. A call without a clock can never be settled, so it never costs anything to have made.</p></div>
   </div>
-  <div class="actions"><a class="btn" href="./dasha-conviction-receipt.html">Write a receipt</a></div>
+  <p class="why" style="margin-top:26px"><b>Not our idea.</b> Decades of research on judgment finds that people reason more carefully when they commit to a position and its disproof condition <em>before</em> the outcome than when they explain themselves after it. Those studies are about forecasting, not tokens, and none of this predicts returns — the habit is the only thing on offer here.</p>
+  <div class="actions"><a class="btn" href="#tool">Write a receipt</a></div>
 </section>
 
 <section>
@@ -189,6 +207,7 @@ footer p{margin:.4em 0}
   </div>
 </section>
 
+
 </main>
 
 <footer class="wrap">
@@ -204,11 +223,13 @@ footer p{margin:.4em 0}
     const wrap=(lines,limit)=>lines.flatMap(line=>line.match(new RegExp(`.{1,${limit}}(?:\\s|$)|\\S{1,${limit}}`,'g'))||[]).map(line=>line.trim());
     const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER&&l.trim()!=='DASHA THESIS CARD');
       const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
-      ctx.fillStyle='#08090b';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#d8ff52';ctx.font='800 28px system-ui';ctx.fillText('DASHA THESIS CARD',72,82);
-      let size=31,wrapped=wrap(lines,58);while(wrapped.length*size*1.4>440&&size>18){size--;wrapped=wrap(lines,Math.floor(58*31/size))}
-      ctx.fillStyle='#f4f5f7';ctx.font=`700 ${size}px system-ui`;let y=135;
-      for(const line of wrapped){ctx.fillText(line,72,y);y+=size*1.4}
-      ctx.fillStyle='#a9afbc';ctx.font='24px ui-monospace';ctx.fillText(`Local checksum: ${fingerprint}`,72,596);ctx.fillStyle='#0d0f13';ctx.fillRect(0,624,1200,51);ctx.fillStyle='#a9afbc';ctx.font='21px system-ui';ctx.fillText(DISCLAIMER,72,655);return canvas;
+      ctx.fillStyle='#0B0A0C';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#C8B6FF';ctx.font='700 30px Georgia,serif';ctx.fillText('DASHA THESIS CARD',72,82);ctx.strokeStyle='#353039';ctx.beginPath();ctx.moveTo(72,104);ctx.lineTo(1128,104);ctx.stroke();
+      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Local timestamp|Token|Confidence|Horizon):/.test(l)?'#ADA5AE':'#F2EDE7';
+      const rows=sz=>lines.flatMap(l=>wrap([l],Math.floor(58*31/sz)).map(t=>({t,c:hue(l)})));
+      let size=31,body=rows(size);while(body.length*size*1.4>440&&size>18){size--;body=rows(size)}
+      ctx.font=`700 ${size}px system-ui`;let y=145;
+      for(const r of body){ctx.fillStyle=r.c;ctx.fillText(r.t,72,y);y+=size*1.4}
+      ctx.fillStyle='#ADA5AE';ctx.font='24px ui-monospace';ctx.fillText(`Local checksum: ${fingerprint}`,72,596);ctx.fillStyle='#100E12';ctx.fillRect(0,624,1200,51);ctx.fillStyle='#ADA5AE';ctx.font='21px system-ui';ctx.fillText(DISCLAIMER,72,655);return canvas;
     };
     form.addEventListener('submit',async event=>{
       event.preventDefault();

@@ -121,24 +121,47 @@ nobody else can copy quickly because it requires the pre-commitment artifact.
 ## 4. The paper that is effectively Dasha's roadmap, written by researchers
 
 *"Credibility Matters: Motivations, Characteristics, and Influence Mechanisms of
-Crypto Key Opinion Leaders"* — **CHI 2026** (ACM DL 10.1145/3772318.3791784).
-[Full text 403s without institutional access — the below is from the indexed
-abstract; **worth buying or requesting from the authors**, it is the single most
-directly relevant citation in this document.]
+Crypto Key Opinion Leaders"* — Kropiunig, Kremer & Haslhofer (Complexity Science Hub
+Vienna / Austrian Institute of Technology), **CHI 2026**, Barcelona, April 2026.
+ACM DL 10.1145/3772318.3791784.
 
-The paper identifies **four community-recognised markers of trustworthiness** in
-crypto KOLs:
+**Provenance: read in full.** The ACM copy is paywalled (403), but a free preprint is
+at **arXiv 2603.12000** and everything below is quoted from it, not from an abstract
+snippet.
 
-1. Self-regulation and voluntary constraint
-2. Bounded epistemic competence
-3. **Accountability through transparent disclosure**
-4. **Reflexive self-correction by learning from past failures**
+Method: 13 semi-structured interviews with crypto KOLs across Europe, the US and Asia;
+hybrid human–LLM thematic analysis guided by self-determination theory; two independent
+human coders, Krippendorff's α = 0.78.
 
-And proposes, as design implications:
+The paper identifies **four community-recognised markers of credibility** — the authors'
+own wording:
 
-- transparent **disclosure badges**
-- longitudinal **accuracy / "track record" indicators**
-- **cross-platform reputation profiles**
+1. **Self-regulation** — "KOLs decline misaligned sponsorships and impose personal rules
+   on promotion"
+2. **Bounded epistemic competence** — "acknowledging the limits of one's expertise and
+   **avoiding prognostication**"
+3. **Accountability** — "cultivating long-term trust through transparent disclosure and
+   community stewardship"
+4. **Reflexive self-correction** — "learning from past failures and continuously
+   reassessing own practices"
+
+Crucially, they find credibility is "a self-determined, **ethically enacted practice**"
+rather than "a set of static credentials" — i.e. it is a *thing you do repeatedly*, which
+is exactly what a per-call artifact records and a credential cannot.
+
+Proposed design implications:
+
+- "badges for verified sponsorships or investment statements"
+- "indicators that track predictive accuracy over time"
+- "automated detection of undisclosed promotions"
+- interoperable **"trust profiles"** consolidating disclosure histories and accuracy scores
+- a community-endorsed **"finfluencer charter"** specifying disclosure formats and risk warnings
+
+**One honest tension.** Their "indicators that track predictive accuracy over time" is an
+*outcome* measure, which sits against §3.3's process-not-outcome argument from Tetlock.
+Marker 2 — "avoiding prognostication" — cuts the other way and supports §3.3. The two
+literatures are not fully aligned here and the roadmap should decide deliberately rather
+than assume they agree.
 
 **Implication.** Marker 1 is the thesis card's constraint fields. Marker 3 is the
 card itself. Marker 4 is the invalidation condition being honoured. The three

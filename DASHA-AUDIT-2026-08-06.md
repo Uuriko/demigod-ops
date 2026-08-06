@@ -1,5 +1,7 @@
 # Dasha — full audit, 2026-08-06
 
+> Historical audit record. Several conditions changed during the same day: the Dasha documents are now tracked, Webflow directly renders the Desk, Telegram and the iframe are gone, the Desk has an interaction test, and generated landing surfaces now have a build gate. Use [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) for current truth. Preserve the sections below as evidence and defect history, not operating instructions.
+
 Everything below was measured today, not summarised from notes. Where a claim could
 not be verified, it says so. Written by Claude; grok leads the project and its
 direction lives in `DASHA-ROADMAP.md`.
@@ -288,3 +290,65 @@ Two caveats, stated rather than implied:
 
 `dasha-landing.test.mjs` still PASS — it asserts all three are absolute https URLs,
 and the drift guards against the standalone were unaffected.
+
+---
+
+## 11. Design overhaul (2026-08-06, with grok and codex)
+
+Five specific design questions were put to both agents independently against the live
+file. They **converged** on: replace the hero diagram with a filled example card; the
+single highest-value change is showing a finished receipt in the hero; one accent doing
+every job flattens hierarchy; the tool stays above the explainer; keep it self-contained
+with display type split from body type.
+
+They split on two, and both splits were resolved with a reason rather than a preference:
+
+- **Display face** — grok said mono, codex said editorial serif. Took *both*, by role:
+  serif for display (contrarian in this category, which is the point), mono for data
+  (fingerprint, timestamp, address, card), system sans for body and controls. Zero font
+  files; the page is still fully self-contained.
+- **Accent** — grok kept acid green, codex moved to lavender. Took codex's, on the
+  argument that an acid trading-terminal palette contradicts the page's own "no wallet,
+  no trading, no price data" claim. A page that looks like the thing it says it isn't is
+  lying with CSS.
+
+### Defects found and fixed
+
+| Defect | Found by | Fix |
+|---|---|---|
+| Hero CTA pointed at `dasha-conviction-receipt.html` — sent visitors **off the page** to a tool already inlined below | grok | both CTAs now `#tool` |
+| "Frame blocked or JavaScript off?" — **dead copy**, the tool has not been iframed for some time | grok | replaced with an honest link to the standalone |
+| Two `<h1>` — the inlined tool brought the standalone's own | me | tool heading demoted to `h2.toolhead`, size reduced |
+| The tool's CSS **re-declared `:root` after the page's own**, so it silently won every colour variable page-wide | me | scoped to `#tool`; palette now has one source |
+| OG card mojibake (`Â·`, `â€"`) | me | the data: URL was decoded as latin-1; now served with an explicit charset. The SVG bytes were always correct |
+| OG card had browser **scrollbars baked into the PNG** | me | `overflow:hidden` on the render host |
+| Example card's disclaimer bar poked square corners past the card's `rx=14` | me | replaced the rect with a rule — same read, cannot clip |
+| Generated canvas card rendered **every field in identical white bold**, so the invalidation — the one field the product exists for — had no more weight than the horizon | me | field-aware colour; each source line wrapped separately so colour survives wrapping |
+
+### Truth boundaries held
+
+- The hero example card uses a **self-documenting placeholder mint** (`EXAMPLEmint…1111pump`),
+  never the candidate mint. A real address rendered in the product's own voice would read
+  as a call on that token, and control is not established.
+- The example thesis carries no price target, no return figure and no implied gain.
+- The mechanism claim added to `#how` names the research and **self-limits in the same
+  breath**: "Those studies are about forecasting, not tokens, and none of this predicts
+  returns." No outcome, accuracy or return claim anywhere on the page.
+- "What this is not" strip retained unchanged.
+
+### Verification
+
+- Contrast computed, not eyeballed: **9 foreground/background pairs, all ≥ 4.5:1**
+  (lowest 7.71, muted-on-panel).
+- `dasha-landing.test.mjs` PASS at 390 and 1440 — axe zero serious/critical with rule
+  count proving the harness ran, >2000 indexable chars, og dimensions against the PNG
+  header bytes, both drift guards.
+- `dasha-conviction-receipt.test.mjs` PASS.
+- Both drift guards green **after** the canvas change, which is the real check: the card
+  colours live inside the compared script, so they had to change identically in both files.
+- Rendered and inspected at 390 and 1440; OG card checked at full size and at thumbnail scale.
+
+### Still open
+
+- Everything remaining is a deploy or a push, both of which need the user.
+- `#dd-share` critical `label` violation in `dasha-desk` — still grok's repo, still unreported upstream.
