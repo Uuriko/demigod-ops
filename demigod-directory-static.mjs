@@ -9,12 +9,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {
+  companyKey,
+  publicRolesFromFeed,
+  startupScore,
+} from './demigod-public-roles.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const MAP = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const FEED = path.join(ROOT, 'DEMIGOD-ROLES-FEED.json');
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
 const DEPLOYABLE_BYTES = 50000;
+// Warn before the ceiling, not at it — a hard failure mid-pipeline is a worse first signal.
+const HEADROOM_WARN_BYTES = 1500;
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 /** Stage paste-ready package for /startups page custom code (publish uses the guarded foreground ship path). */
@@ -44,7 +51,7 @@ export function stageStartupsPastePackage(html, {
     fragmentLen: frag.length,
     markers: {
       boardAging: html.includes('Greenhouse board date'),
-      recentRoles: html.includes('Recently observed roles'),
+      recentRoles: html.includes('<h2 id="dg-static-recent">Open roles</h2>'),
       dataGeneratedAt: (html.match(/data-generated-at=["']([^"']+)["']/) || [])[1] || null,
     },
     authBoundary:
@@ -61,26 +68,49 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const safeUrl = (v) => { try { const u = new URL(String(v || '')); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } };
 const loadFeed = () => { try { return JSON.parse(fs.readFileSync(FEED, 'utf8')); } catch { return null; } };
 
-function recentRoles(feed, limit = 8) {
-  if (feed?.schema !== 'demigod.roles-feed/8' || !Array.isArray(feed.roles)) return [];
-  return feed.roles.map((role) => {
-    const company = String(role?.company || '').trim().slice(0, 160);
-    const title = String(role?.title || '').trim().slice(0, 240);
-    const observed = String(role?.firstObservedAt || '').slice(0, 10);
-    const time = Date.parse(`${observed}T00:00:00Z`);
-    const url = safeUrl(role?.url);
-    if (!company || !title || !url || !/^\d{4}-\d{2}-\d{2}$/.test(observed) ||
-        !Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== observed) return null;
-    return { company, title, observed, url };
-  }).filter(Boolean)
-    .sort((a, b) => b.observed.localeCompare(a.observed) || a.company.localeCompare(b.company) || a.title.localeCompare(b.title))
-    .slice(0, limit);
+/**
+ * Recent crawlable roles — same SF/startup ranking as the homepage public-roles rail.
+ * profiles: companyKey → {teamSize, stage, tags} from the map (optional).
+ */
+function recentRoles(feed, limit = 8, profiles = {}) {
+  if ((feed?.schema !== 'demigod.roles-feed/1' && feed?.schema !== 'demigod.roles-feed/8') || !Array.isArray(feed.roles)) {
+    return [];
+  }
+  const pub = publicRolesFromFeed(feed, { limit, profiles, perCompany: 1 });
+  return (pub.roles || [])
+    .map((r) => {
+      const observed = String(r.firstObservedAt || '').slice(0, 10);
+      const time = Date.parse(`${observed}T00:00:00Z`);
+      const url = safeUrl(r.url);
+      if (
+        !r.company ||
+        !r.title ||
+        !url ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(observed) ||
+        !Number.isFinite(time) ||
+        new Date(time).toISOString().slice(0, 10) !== observed
+      ) {
+        return null;
+      }
+      return {
+        company: r.company,
+        title: r.title,
+        observed,
+        url,
+        department: r.employerDepartment || null,
+        office: r.employerOffice || r.location || null,
+        employmentType: r.employmentType || null,
+        workplaceType: r.workplaceType || null,
+        boardUpdated: r.boardUpdatedAt || null,
+      };
+    })
+    .filter(Boolean);
 }
 
 function activitySummary(feed) {
   const counts = feed?.counts;
   const fields = ['inWindow', 'companiesInWindow', 'closedInWindow', 'companiesClosedInWindow', 'observationSpanDays', 'closureObservationSpanDays'];
-  if (feed?.schema !== 'demigod.roles-feed/8' || !Number.isSafeInteger(feed.windowDays) ||
+  if ((feed?.schema !== 'demigod.roles-feed/1' && feed?.schema !== 'demigod.roles-feed/8') || !Number.isSafeInteger(feed.windowDays) ||
       feed.windowDays < 1 || !counts || fields.some((key) => !Number.isSafeInteger(counts[key]) || counts[key] < 0)) return '';
   const n = (value, noun, plural) => `${value} ${value === 1 ? noun : plural}`;
   return `Latest ${feed.windowDays}-day window: Demigod first observed ${n(counts.inWindow, 'role', 'roles')} across ${n(counts.companiesInWindow, 'company', 'companies')}; ` +
@@ -91,7 +121,7 @@ function activitySummary(feed) {
 // Build the static directory HTML from a map object. Pure → testable.
 // maxBytes: the Webflow footer ceiling this fragment must fit. The directory only grows, so rather
 // than failing the whole refresh once it crosses the line ("paginate the fallback"), render the most
-// rows that fit — highest open-role counts first — and say plainly that the list is partial. The
+// rows that fit — startups first, then open-role count — and say plainly that the list is partial. The
 // totals above the list stay whole-corpus, so nothing under-reports; only the listing is trimmed.
 export function buildStaticDirectory(map, generatedAt = '', feed = null, maxBytes = DEPLOYABLE_BYTES) {
   const companies = Array.isArray(map?.companies) ? map.companies : [];
@@ -99,8 +129,38 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
   const totalRoles = verified.reduce((s, c) => s + c.openRoles, 0);
   const aging = verified.filter((c) => Number.isSafeInteger(c.agingRoles) && c.agingRoles > 0 && c.agingRoles <= c.openRoles);
   const agingRoles = aging.reduce((sum, c) => sum + c.agingRoles, 0);
-  const sorted = verified.slice().sort((a, b) => (b.openRoles || 0) - (a.openRoles || 0) || String(a.name).localeCompare(String(b.name)));
-  const recent = recentRoles(feed);
+  // Startups first (same map signals as homepage public-roles rail), then open-role volume.
+  // Totals stay whole-corpus; only order/truncation of the listing changes.
+  const sorted = verified.slice().sort((a, b) => {
+    const st =
+      startupScore({
+        teamSize: b.teamSize ?? null,
+        stage: b.stage ?? null,
+        tags: b.tags || [],
+        openRoles: b.openRoles ?? null,
+      }) -
+      startupScore({
+        teamSize: a.teamSize ?? null,
+        stage: a.stage ?? null,
+        tags: a.tags || [],
+        openRoles: a.openRoles ?? null,
+      });
+    if (st) return st;
+    return (b.openRoles || 0) - (a.openRoles || 0) || String(a.name).localeCompare(String(b.name));
+  });
+  // Same company signals the homepage rail uses — keep static "recent" list SF-startup shaped.
+  const profiles = Object.fromEntries(
+    companies.map((c) => [
+      companyKey(c.name),
+      {
+        teamSize: c.teamSize ?? null,
+        stage: c.stage ?? null,
+        tags: c.tags || [],
+        openRoles: Number.isFinite(c.openRoles) ? c.openRoles : null,
+      },
+    ]),
+  );
+  const recent = recentRoles(feed, 8, profiles);
   const activity = activitySummary(feed);
 
   // JSON-LD: ItemList of verified-hiring organizations only (honest — no self-reports).
@@ -120,7 +180,7 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
   const jsonld = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'SF startups hiring — verified open roles',
+    name: 'SF startups hiring — public ATS open roles',
     numberOfItems: verified.length,
     // ponytail: 50KB Webflow footer ceiling; paginate when the schema needs every organization.
     itemListElement: sorted.slice(0, 50).map((c, i) => ({
@@ -160,20 +220,20 @@ ${agingTop.map((c) => {
     : '';
   const recentHtml = recent.length
     ? `<section aria-labelledby="dg-static-recent">
-<h2 id="dg-static-recent">Recently observed roles</h2>
-<p>First observed is Demigod's timestamp, not the employer's posting date; this public-board feed can include roles outside the US.</p>
+<h2 id="dg-static-recent">Open roles</h2>
+<p>First observed is Demigod's timestamp, not the employer's posting date. SF Bay / US-leaning locations preferred when boards list them; not matching inventory.</p>
 <ul>
-${recent.map((role) => `<li><a href="${esc(role.url)}" rel="nofollow noopener">${esc(role.company)} — ${esc(role.title)}</a> · first observed ${esc(role.observed)}</li>`).join('\n')}
+${recent.map((role) => (() => { const bits = [`first observed ${esc(role.observed)}`]; if (role.department) bits.push(esc(role.department)); if (role.office) bits.push(esc(role.office)); if (role.workplaceType) bits.push(esc(role.workplaceType)); if (role.employmentType) bits.push(esc(role.employmentType)); if (role.boardUpdated) bits.push(`board updated ${esc(role.boardUpdated)}`); return `<li><a href="${esc(role.url)}" rel="nofollow noopener">${esc(role.company)} — ${esc(role.title)}</a> · ${bits.join(' · ')}</li>`; })()).join('\n')}
 </ul>
 </section>`
     : '';
   const jsonldText = JSON.stringify(jsonld).replace(/</g, '\\u003c');
   const page = (shown) => `<style>.dg-static{max-width:76rem;margin:2rem auto;padding:1rem}.dg-static li{margin:.35rem 0}</style>
 <details class="dg-static" data-generated-at="${esc(at)}">
-<summary>Browse ${verified.length} companies with verified open roles in this ${esc(at)} snapshot</summary>
+<summary>Browse ${verified.length} companies with public ATS open roles in this ${esc(at)} snapshot</summary>
 <p>${totalRoles} open roles observed ${esc(at)}.${agingNote} Counts are a dated snapshot; follow each employer's public job board for current status.</p>
 ${activity ? `<p><strong>Observed hiring activity:</strong> ${esc(activity)}</p>` : ''}
-${shown < sorted.length ? `<p>Listing the ${shown} of these ${verified.length} companies with the most open roles; the counts above cover all ${verified.length}.</p>\n` : ''}<ul>
+${shown < sorted.length ? `<p>Listing the ${shown} of these ${verified.length} companies (startups first when size/stage is known, then by open-role count); the counts above cover all ${verified.length}.</p>\n` : ''}<ul>
 ${sorted.slice(0, shown).map(row).join('\n')}
 </ul>
 ${agingHtml}
@@ -222,7 +282,7 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
     { name: 'Delta unsafe URL', openRoles: 2, atsSource: 'Lever', jobsUrl: 'javascript:alert(1)' },
   ] };
   const fakeFeed = {
-    schema: 'demigod.roles-feed/8',
+    schema: 'demigod.roles-feed/1',
     windowDays: 1,
     counts: {
       inWindow: 2,
@@ -233,7 +293,7 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
       closureObservationSpanDays: 2,
     },
     roles: [
-    { company: 'Alpha Robotics', title: 'Staff Engineer', firstObservedAt: '2026-07-24', url: 'https://jobs.ashbyhq.com/alpha/1' },
+    { company: 'Alpha Robotics', title: 'Staff Engineer', firstObservedAt: '2026-07-24', url: 'https://jobs.ashbyhq.com/alpha/1', employerDepartment: 'Platform', employerOffice: 'SF', workplaceType: 'Hybrid', employmentType: 'FullTime', boardUpdatedAt: '2026-07-23' },
     { company: 'Gamma', title: 'Senior </a><script>alert(2)</script>', firstObservedAt: '2026-07-23', url: 'https://jobs.lever.co/gamma/2' },
     { company: 'Missing title', title: '', firstObservedAt: '2026-07-24', url: 'https://example.com/3' },
     { company: 'Unsafe URL', title: 'Engineer', firstObservedAt: '2026-07-24', url: 'javascript:alert(3)' },
@@ -252,15 +312,46 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   const companyList = html.match(/<summary>[\s\S]*?<ul>\n([\s\S]*?)\n<\/ul>/)?.[1] || '';
   assert((companyList.match(/<li>/g) || []).length === 2, 'only verified hirers with safe job links render');
   assert(!html.includes('Beta AI') && !html.includes('Delta unsafe URL'), 'self-reports and unsafe links are excluded');
-  assert(html.includes('Recently observed roles') && html.includes('Alpha Robotics — Staff Engineer'), 'recent public role titles are crawlable');
-  assert(html.includes("Demigod's timestamp, not the employer's posting date") && html.includes('outside the US'), 'recent-role dates and scope are honest');
+  assert(html.includes('Open roles') && html.includes('Alpha Robotics — Staff Engineer'), 'recent public role titles are crawlable');
+  assert(html.includes('Platform') && html.includes('Hybrid') && html.includes('FullTime') && html.includes('board updated 2026-07-23'), 'employer meta from clay enrich is crawlable when present');
+  assert(
+    html.includes("Demigod's timestamp, not the employer's posting date") &&
+      html.includes('SF Bay / US-leaning') &&
+      html.includes('not matching inventory'),
+    'recent-role dates and SF-prefer scope are honest',
+  );
   assert(html.includes('Observed hiring activity:') && html.includes('1 role left polled boards across 1 company'), 'activity summary uses feed counts with honest singulars');
   assert(html.includes('does not mean filled or hired') && html.includes('not a hiring rate'), 'activity summary states its inference limits');
   assert(!buildStaticDirectory(fake, '', { ...fakeFeed, counts: { ...fakeFeed.counts, closedInWindow: -1 } }).includes('Observed hiring activity:'), 'malformed activity counts fail closed');
   assert(!html.includes('Missing title') && !html.includes('Unsafe URL') && !html.includes('Bad date'), 'malformed recent roles fail closed');
   assert(!html.includes('</a><script>alert(2)</script>') && html.includes('&lt;/a&gt;&lt;script&gt;alert(2)&lt;/script&gt;'), 'recent role text is escaped');
-  assert(!buildStaticDirectory(fake).includes('Recently observed roles'), 'absent feed emits no empty recent-role section');
-  assert(!buildStaticDirectory(fake, '', { schema: 'demigod.roles-feed/7', roles: fakeFeed.roles }).includes('Recently observed roles'), 'unknown feed schema fails closed');
+  assert(!buildStaticDirectory(fake).includes('dg-static-recent'), 'absent feed emits no empty recent-role section');
+  assert(!buildStaticDirectory(fake, '', { schema: 'demigod.roles-feed/7', roles: fakeFeed.roles }).includes('dg-static-recent'), 'unknown feed schema fails closed');
+  // Off-geo-only boards drop when any SF/US/unknown row exists (same rule as homepage rail).
+  {
+    const geoFeed = {
+      ...fakeFeed,
+      roles: [
+        {
+          company: 'OffGeo Co',
+          title: 'SRE Bangalore',
+          firstObservedAt: '2026-07-24',
+          url: 'https://jobs.ashbyhq.com/offgeo/1',
+          location: 'Bangalore, India',
+        },
+        {
+          company: 'Alpha Robotics',
+          title: 'Staff Engineer',
+          firstObservedAt: '2026-07-23',
+          url: 'https://jobs.ashbyhq.com/alpha/1',
+          location: 'San Francisco, CA',
+        },
+      ],
+    };
+    const geoHtml = buildStaticDirectory(fake, '', geoFeed);
+    assert(geoHtml.includes('Alpha Robotics — Staff Engineer'), 'SF-leaning recent role is kept');
+    assert(!geoHtml.includes('OffGeo Co') && !geoHtml.includes('SRE Bangalore'), 'pure off-geo recent roles drop when SF rows exist');
+  }
   assert(html.includes('application/ld+json') && html.includes('"@type":"ItemList"'), 'JSON-LD present');
   const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
   assert(ld.numberOfItems === 2 && ld.itemListElement[0].item.name === 'Alpha Robotics', 'JSON-LD verified-only (no YC self-report)');
@@ -270,6 +361,20 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
   assert(!/JobPosting/.test(html), 'directory must never emit JobPosting markup for roles it does not own');
   assert(ld['@type'] === 'ItemList', 'the directory describes a list of organizations, not postings');
   assert(!html.includes('</script><script>alert(1)</script>') && html.includes('\\u003c/script>'), 'escapes names in markup and JSON-LD');
+
+  // Truncated listing prefers known startups over high-volume established firms.
+  {
+    const mixed = {
+      companies: [
+        { name: 'HugeCo', openRoles: 200, atsSource: 'Greenhouse', jobsUrl: 'https://boards.greenhouse.io/huge', teamSize: 2000, stage: 'Growth' },
+        { name: 'TinyCo', openRoles: 3, atsSource: 'Ashby', jobsUrl: 'https://jobs.ashbyhq.com/tiny', teamSize: 8, stage: 'Early' },
+      ],
+    };
+    const full = buildStaticDirectory(mixed);
+    assert(full.indexOf('TinyCo') < full.indexOf('HugeCo'), 'startup ranks above established in listing order');
+    const ldMixed = JSON.parse(full.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+    assert(ldMixed.itemListElement[0].item.name === 'TinyCo', 'JSON-LD sample also prefers startups');
+  }
 
   // Real-data ceiling: the check fails as soon as growth makes the footer undeployable again.
   const real = JSON.parse(fs.readFileSync(MAP, 'utf8'));
@@ -289,9 +394,9 @@ if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.inclu
     const rows = ((squeezed.match(/<summary>[\s\S]*?<ul>\n([\s\S]*?)\n<\/ul>/)?.[1] || '').match(/<li>/g) || []).length;
     assert(Buffer.byteLength(squeezed) <= 20000, 'squeezed fallback respects the byte budget it was given');
     assert(rows > 0 && rows < expected.length, `squeezed listing is partial but non-empty (got ${rows}/${expected.length})`);
-    assert(squeezed.includes(`Listing the ${rows} of these ${expected.length} companies with the most open roles`),
+    assert(squeezed.includes(`Listing the ${rows} of these ${expected.length} companies (startups first when size/stage is known, then by open-role count)`),
       'a partial listing says so, in the served markup');
-    assert(squeezed.includes(`Browse ${expected.length} companies with verified open roles`),
+    assert(squeezed.includes(`Browse ${expected.length} companies with public ATS open roles`),
       'the whole-corpus total stays honest when the listing is trimmed');
     const unbounded = buildStaticDirectory(real, '', realFeed, 10 ** 9);
     const allRows = ((unbounded.match(/<summary>[\s\S]*?<ul>\n([\s\S]*?)\n<\/ul>/)?.[1] || '').match(/<li>/g) || []).length;
@@ -327,16 +432,25 @@ if (isMain) {
   fs.writeFileSync(outPath, html);
   const bytes = Buffer.byteLength(html);
   const deployable = bytes <= DEPLOYABLE_BYTES;
+  const headroomBytes = DEPLOYABLE_BYTES - bytes;
   if (!deployable) {
     console.error(
       `directory-static: ${bytes} bytes exceeds the ${DEPLOYABLE_BYTES} byte Webflow footer ceiling — paginate the fallback.`,
+    );
+  } else if (headroomBytes <= HEADROOM_WARN_BYTES) {
+    /* This ceiling is a Webflow limit, not ours, and the build only complained AT the wall. The
+       snapshot grows with the directory (2,902 companies and rising), so the first warning an
+       operator got was a hard failure of the roles pipeline on some later refresh. Measured at
+       49,996 of 50,000 — four bytes — while renaming a heading. Warn on the approach instead. */
+    console.error(
+      `directory-static: ${headroomBytes} bytes headroom under the ${DEPLOYABLE_BYTES} byte Webflow ceiling — the snapshot grows with the directory; paginate before it fails closed.`,
     );
   }
   const paste = stageStartupsPastePackage(html, { sourcePath: outPath });
   console.log(JSON.stringify({
     ok: deployable, outPath, companies: map.companies.length, bytes,
     recentRoles: recentRoles(feed).length,
-    deployable, deployableCeilingBytes: DEPLOYABLE_BYTES,
+    deployable, deployableCeilingBytes: DEPLOYABLE_BYTES, headroomBytes,
     pastePackage: paste.packagePath,
     pasteSha256: paste.sha256,
   }));

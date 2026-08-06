@@ -228,6 +228,7 @@
       '@media(max-width:560px){' +
         '.dg-dir-tools>.dg-dir-search{flex:1 0 100%}' +
         '.dg-dir-tools>select{flex:1 1 calc(50% - .3rem);min-width:0;max-width:calc(50% - .3rem)}' +
+        '.dg-dir-tools>.dg-dir-sort{flex-basis:100%;max-width:100%}' +
       '}' +
       '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-size,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
@@ -392,7 +393,7 @@
   }
 
   // Fills the (initially hidden) section. Stays hidden when there is nothing to show — an empty
-  // "Recently observed roles" box would imply we looked and found no hiring, which is not what an
+  // An "Open roles" box would imply we looked and found no hiring, which is not what an
   // absent or stale feed means.
   function renderRecentRoles(host, feed, view) {
     var rows = dgRecentRoles({ roles: dgFilterRoles(feed && feed.roles, view || {}) }, 8);
@@ -401,7 +402,7 @@
     var days = (typeof feed.windowDays === 'number' && feed.windowDays > 0) ? feed.windowDays : null;
     var activity = dgActivitySummary(feed, view);
     host.innerHTML =
-      '<h2 class="dg-fresh-h">Recently observed roles</h2>' +
+      '<h2 class="dg-fresh-h">Open roles</h2>' +
       (activity ? '<p class="dg-dir-pulse"><strong>Board observations:</strong> ' + esc(activity) + '</p>' : '') +
       '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
       (days ? ' in the last ' + days + ' day' + (days === 1 ? '' : 's') : '') +
