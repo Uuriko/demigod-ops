@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# dg-snapshot — local snapshot of the files git cannot restore.
+#
+# This is NOT a backup. It is deliberately a weaker, available thing:
+#
+#   protects against   a destructive command inside $HOME — `git clean -xfd`,
+#                      `rm -rf`, a bad script. That is what actually happened on
+#                      2026-08-02 and destroyed 37 gitignored files.
+#   does NOT protect   disk failure, theft, fire, ransomware, or anything that
+#   against            takes the whole machine. Same disk, same box.
+#
+# bin/dg-backup remains the real backup and still refuses same-filesystem repos.
+# That refusal is correct for the risk IT covers and is not relaxed here. This
+# tool exists because there is currently no second filesystem on this machine,
+# and the incident that motivated backups is one a same-disk copy would have
+# survived completely. Something today beats something better that waits on
+# hardware.
+#
+#   bin/dg-snapshot            write a snapshot, verify it, print the path
+#   bin/dg-snapshot --check    report what WOULD be saved; write nothing
+#   bin/dg-snapshot --verify <dir>   re-verify an existing snapshot
+#
+#   DG_SNAPSHOT_DIR   destination (default /var/tmp/demigod-snapshots).
+#                     Must be outside $ROOT or the snapshot dies with the repo.
+set -euo pipefail
+
+ROOT="${DEMIGOD_ROOT:-$HOME}"
+DEST="${DG_SNAPSHOT_DIR:-/var/tmp/demigod-snapshots}"
+die() { printf 'dg-snapshot: %s\n' "$1" >&2; exit 1; }
+
+mode="${1:-}"
+
+# --- verify an existing snapshot -------------------------------------------
+if [[ "$mode" == "--verify" ]]; then
+  snap="${2:-}"
+  [[ -n "$snap" && -d "$snap" ]] || die "usage: bin/dg-snapshot --verify <snapshot-dir>"
+  [[ -f "$snap/MANIFEST.txt" ]] || die "no MANIFEST.txt in $snap"
+  ( cd "$snap" && sha256sum -c --quiet CHECKSUMS.sha256 ) || die "checksum mismatch in $snap"
+  git bundle verify "$snap/repo.bundle" >/dev/null 2>&1 || die "git bundle failed verification"
+  printf 'dg-snapshot VERIFY ok · %s\n' "$snap"
+  exit 0
+fi
+
+# --- destination must not live inside the thing it protects ----------------
+# A snapshot under $ROOT is destroyed by the same command it exists to survive.
+case "$DEST/" in
+  "$ROOT"/*) die "DG_SNAPSHOT_DIR ($DEST) is inside $ROOT — a snapshot there dies with the repo" ;;
+esac
+
+# --- what to save ----------------------------------------------------------
+# Same derivation as bin/dg-backup: top-level ignored files are exactly the data
+# class git cannot restore. Derived from .gitignore every run, so a new data file
+# is covered without editing this script. The no-slash filter drops nested
+# ignores (node_modules, .cache, .local) that would bloat a timer-driven run.
+LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
+( cd "$ROOT" && git ls-files -o -i --exclude-standard 2>/dev/null | grep -v '/' || true ) >"$LIST"
+for extra in .config/demigod .config/systemd/user .gitconfig; do
+  [[ -e "$ROOT/$extra" ]] && printf '%s\n' "$extra" >>"$LIST"
+done
+count="$(wc -l <"$LIST")"
+# An empty snapshot would succeed and read as green while protecting nothing.
+[[ "$count" -gt 0 ]] || die "nothing to snapshot — file list is empty (wrong DEMIGOD_ROOT?)"
+
+if [[ "$mode" == "--check" ]]; then
+  printf 'dg-snapshot CHECK ok · %s paths · %s · dest %s\n' \
+    "$count" "$(cd "$ROOT" && du -ch $(tr '\n' ' ' <"$LIST") 2>/dev/null | tail -1 | cut -f1)" "$DEST"
+  exit 0
+fi
+
+# --- write -----------------------------------------------------------------
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+snap="$DEST/$stamp"
+mkdir -p "$snap"
+chmod 700 "$DEST" "$snap"
+
+# The repo itself: a bundle is a single verifiable file holding every ref.
+git -C "$ROOT" bundle create "$snap/repo.bundle" --all >/dev/null 2>&1 \
+  || die "git bundle failed"
+
+# The files git cannot restore.
+tar --zstd -cf "$snap/data.tar.zst" -C "$ROOT" --files-from "$LIST" \
+  || die "tar failed"
+
+( cd "$snap" && sha256sum repo.bundle data.tar.zst >CHECKSUMS.sha256 )
+{
+  printf 'snapshot   %s\n' "$stamp"
+  printf 'root       %s\n' "$ROOT"
+  printf 'head       %s\n' "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+  printf 'branch     %s\n' "$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+  printf 'files      %s\n' "$count"
+  printf 'protects   destructive commands inside %s\n' "$ROOT"
+  printf 'does NOT   disk failure, theft, whole-machine loss (same disk)\n'
+  printf '\nfiles saved:\n'
+  sed 's/^/  /' "$LIST"
+} >"$snap/MANIFEST.txt"
+
+# --- prove it, rather than assume it ---------------------------------------
+# An unverified backup is a belief. Verify before reporting success.
+( cd "$snap" && sha256sum -c --quiet CHECKSUMS.sha256 ) || die "checksums failed immediately after write"
+git bundle verify "$snap/repo.bundle" >/dev/null 2>&1 || die "bundle failed verification"
+tar_count="$(tar --zstd -tf "$snap/data.tar.zst" | grep -c . || true)"
+[[ "$tar_count" -ge "$count" ]] || die "archive holds $tar_count entries, expected >= $count"
+
+printf 'dg-snapshot OK · %s · %s files · %s · %s\n' \
+  "$snap" "$count" "$(du -sh "$snap" | cut -f1)" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo -)"
+# ponytail: no pruning — 11MB/run against 843G free. Add retention if it ever matters.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Demigod local snapshot daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=15min
+Persistent=true
+Unit=demigod-snapshot.service
+
+[Install]
+WantedBy=timers.target
