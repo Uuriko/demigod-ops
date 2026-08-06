@@ -16,12 +16,13 @@ try{
   await page.type('#address','9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump');
   await page.type('#thesis','T'.repeat(280));
   await page.type('#invalidation','I'.repeat(180));
+  await page.$eval('#resolution',node=>node.value='2099-12-31');
   await page.click('button[type=submit]');
   await page.waitForSelector('#output:not([hidden])');
   const result=await page.evaluate(()=>{
     const canvas=card(document.querySelector('#receipt-text').textContent.split('\n'),'abcdef123456');
     const ctx=canvas.getContext('2d');const band=ctx.getImageData(0,624,1200,51).data;let ink=0;for(let i=0;i<band.length;i+=4){if(band[i]>60||band[i+1]>60||band[i+2]>60)ink++}
-    return {canvas:[canvas.width,canvas.height],bandInk:ink,body:document.querySelector('#receipt-text').textContent,png:canvas.toDataURL().startsWith('data:image/png'),share:new URL(document.querySelector('#share').href).searchParams.get('text'),overflow:document.documentElement.scrollWidth>innerWidth,controls:[...document.querySelectorAll('button,a.button')].map(node=>node.getBoundingClientRect().height)};
+    return {canvas:[canvas.width,canvas.height],bandInk:ink,body:document.querySelector('#receipt-text').textContent,png:canvas.toDataURL().startsWith('data:image/png'),share:new URL(document.querySelector('#share').href).searchParams.get('text'),calendar:calendar('2099-12-31','9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump','Depth improves','Depth falls'),overflow:document.documentElement.scrollWidth>innerWidth,controls:[...document.querySelectorAll('button,a.button')].map(node=>node.getBoundingClientRect().height)};
   });
   assert.deepEqual(result.canvas,[1200,675]);
   assert.equal(result.png,true);
@@ -32,6 +33,9 @@ try{
   assert.ok(result.share.length<=280,`X text is ${result.share.length} characters`);
   assert.match(result.share,/55% confidence/);
   assert.match(result.share,/Invalid if:/);
+  assert.match(result.share,/resolves 2099-12-31/);
+  assert.match(result.calendar,/DTSTART;VALUE=DATE:20991231/);
+  assert.match(result.calendar,/SUMMARY:Resolve Dasha thesis/);
   assert.equal(result.overflow,false);
   assert.ok(result.controls.every(height=>height>=48));
   assert.match(await page.$eval('.note',node=>node.textContent),/not proof/);
@@ -49,7 +53,7 @@ try{
      Asserting the COLOUR, not merely that an outline exists — the UA default is also an
      outline, so an "outline is non-empty" assertion would have passed on the broken page. */
   const ACCENT='rgb(200, 182, 255)';
-  const wanted=['address','thesis','invalidation','confidence','horizon'];
+  const wanted=['address','thesis','invalidation','confidence','resolution'];
   await page.evaluate(()=>document.activeElement?.blur());
   const seen=new Map();
   for(let i=0;i<20&&seen.size<wanted.length;i++){
@@ -81,6 +85,7 @@ try{
     await p.type('#address','9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump');
     await p.type('#thesis','Depth improves after listing.');
     await p.type('#invalidation','Depth under 50k for three days.');
+    await p.$eval('#resolution',node=>node.value='2099-12-31');
     await p.click('button[type=submit]');
     await p.waitForSelector('#output:not([hidden])',{timeout:8000});
     await p.addScriptTag({content:axeSrc});

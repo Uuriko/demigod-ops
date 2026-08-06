@@ -157,15 +157,22 @@ try {
     await page.type('#address', '9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump');
     await page.type('#thesis', 'Depth improves after listing.');
     await page.type('#invalidation', 'Depth under 50k for three days.');
+    await page.$eval('#resolution', (node) => { node.value = '2099-12-31'; });
     await page.click('#tool button[type=submit]');
     await page.waitForSelector('#output:not([hidden])', { timeout: 8000 });
     const out = await page.evaluate(() => {
       const text = document.getElementById('receipt-text').textContent;
       const c = card(text.split('\n'), 'abc123');
-      return { text, dims: [c.width, c.height] };
+      return { text, fingerprint: document.getElementById('fingerprint').textContent,
+        calendar: calendar('2099-12-31', '9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump', 'Depth improves', 'Depth falls'),
+        dims: [c.width, c.height] };
     });
     assert.match(out.text, /Not financial advice/, `@${width}px: generated receipt has no risk line`);
     assert.match(out.text, /Invalid if:/, `@${width}px: generated receipt has no invalidation`);
+    assert.match(out.text, /Device time:/, `@${width}px: generated receipt mislabels device time`);
+    assert.match(out.text, /Resolve on: 2099-12-31/, `@${width}px: generated receipt has no exact resolution date`);
+    assert.match(out.calendar, /DTSTART;VALUE=DATE:20991231/, `@${width}px: calendar reminder has the wrong date`);
+    assert.match(out.fingerprint, /[0-9a-f]{64}$/, `@${width}px: full SHA-256 checksum is not displayed`);
     assert.deepEqual(out.dims, [1200, 675], `@${width}px: share card is ${out.dims.join('x')}, expected 1200x675`);
     assert.deepEqual(pageErrors, [], `@${width}px: page errors: ${pageErrors[0] || ''}`);
 
