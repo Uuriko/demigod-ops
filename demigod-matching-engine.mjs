@@ -337,9 +337,19 @@ export function matchEvidence(role = {}, candidate = {}) {
 // Events states (human-in-loop per EVENTS-FLOW.md): submitted -> reviewed(human) -> matched(human) -> introduced(human) -> piloted -> receipted -> invoiced(10% on hire) -> paid
 export const MATCH_STATES = ['submitted','reviewed','matched','introduced','piloted','receipted','invoiced','paid'];
 
-function scoreMatch(role, candidate) {
-  // Deeper honest scoring for high-quality matches that drive revenue (better fit = higher close rate = more 10% invoices)
-  let score = 0;
+/* Why a score is what it is, component by component.
+   scoreMatch returned a bare 0-100 and discarded the six terms that produced it, so a human
+   reviewing a proposed pair saw "score=73" with no way to tell whether that was skills overlap
+   or a location bonus — and no way to spot a score carried entirely by a weak proxy. The terms
+   were already computed; only the total survived. Callers of scoreMatch are unchanged: it now
+   sums this breakdown instead of accumulating a local.
+
+   This also happens to be the record an automated-decision-system audit needs, which matters
+   because Demigod scores candidates and California's FEHA ADS rules cover scoring even where a
+   human makes the final call. Recording the basis is worth doing on the review-quality argument
+   alone; the compliance posture is a consequence, not the justification. */
+export function explainMatch(role, candidate) {
+  const terms = [];
   const roleTerms = new Set(skillTerms(roleMatchText(role)));
   const candidateTerms = candidateFeatureTerms(candidate, candidateMatchText(candidate));
   const rStage = norm(String(role.stageType || role.stage || '').slice(0, 120));
@@ -350,32 +360,33 @@ function scoreMatch(role, candidate) {
     candidate,
     candidate['why-this-role'] || candidate['why-startups'] || candidate.why,
   );
+  const add = (name, points, detail) => { if (points > 0) terms.push({ name, points, detail }); };
 
-  // Skills overlap (core for good match)
   if (roleTerms.size && candidateTerms.length) {
-    const overlap = candidateTerms.filter((x) => roleTerms.has(x)).length;
-    score += Math.min(55, overlap * 18);
+    const shared = candidateTerms.filter((x) => roleTerms.has(x));
+    add('skills-overlap', Math.min(55, shared.length * 18), `${shared.length} shared: ${shared.slice(0, 6).join(', ')}`);
   }
-
-  // Stage + location fit (SF early startup focus)
   if (cPref && (rStage.includes('seed') || rStage.includes('pre-seed'))) {
-    score += (cPref.includes('sf') || cPref.includes('bay')) ? 22 : 8;
+    const sf = cPref.includes('sf') || cPref.includes('bay');
+    add('early-stage-location', sf ? 22 : 8, sf ? 'SF/Bay preference on an early-stage role' : 'non-SF preference');
   }
-  if (rLocation && cPref && locationCompatible(role, candidate)) score += 12;
-
-  // Comp alignment (revenue protection — realistic expectations)
+  if (rLocation && cPref && locationCompatible(role, candidate)) add('location-compatible', 12, cPref.slice(0, 60));
   if (rComp && (candidate['salary-range'] || candidate['salary-expectation'] || candidate.compExpect)) {
     const candComp = norm(candidate['salary-range'] || candidate['salary-expectation'] || candidate.compExpect);
-    if (compAligned(rComp, candComp)) score += 12;
+    if (compAligned(rComp, candComp)) add('comp-aligned', 12, candComp.slice(0, 60));
+  }
+  if (cWhy.length && (rStage || roleTerms.size)) add('stated-motivation', 8, `${cWhy.length} terms`);
+  if (candidateFeatureTerms(candidate, candidate.experience || candidate['background & highlights']).length) {
+    add('experience-proxy', 8, 'experience text present');
   }
 
-  // "Why this" signal (deeper motivation = better retention/hire)
-  if (cWhy.length && (rStage || roleTerms.size)) score += 8;
+  const raw = terms.reduce((sum, t) => sum + t.points, 0);
+  const score = Math.min(100, Math.round(raw));
+  return { score, capped: raw > 100, terms };
+}
 
-  // Experience proxy
-  if (candidateFeatureTerms(candidate, candidate.experience || candidate['background & highlights']).length) score += 8;
-
-  return Math.min(100, Math.round(score));
+function scoreMatch(role, candidate) {
+  return explainMatch(role, candidate).score;
 }
 
 const FUNNEL_ROLE_STATES = new Set(['form_filled', 'in_review']);
@@ -562,6 +573,15 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
  * Candidate-centric match: score one inbox submission against all startup roles.
  * Proposes pairs above threshold (sample:true for board seeds / non-real roles).
  */
+/** Fail-closed: blank role/candidate never rank or mint pairs. */
+export function proposeIntro(roleId, candId) {
+  if (!String(roleId ?? '').trim() || !String(candId ?? '').trim()) {
+    return { error: 'role and candidate required' };
+  }
+  // Role-scoped suggest only (no auto-consent). Blank queries already fail closed in suggestMatches.
+  return suggestMatches(roleId, { propose: false });
+}
+
 export function proposeForCandidate(candId, { threshold = 60, propose = true } = {}) {
   const board = loadBoard();
   const inbox = loadInbox ? loadInbox() : { items: [] };
