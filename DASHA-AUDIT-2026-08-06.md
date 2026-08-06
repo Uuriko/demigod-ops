@@ -125,3 +125,48 @@ exists in source would prove the constant exists, not that anything was drawn.
    files.
 3. **Deployment.** Every remaining Phase 0 failure is on the published Webflow
    document, not the local source.
+
+
+---
+
+## 8. Addendum — data-loss exposure, measured 2026-08-06 17:34 UTC
+
+Acting on §4's note rather than leaving it recorded.
+
+**`dasha-desk` is a separate project whose entire history exists only on this disk.**
+73 files, 3 commits, a configured GitHub remote (`Uuriko/dasha-desk`) — and
+`git log --branches --not --remotes` lists **all three commits**, meaning nothing
+has ever been pushed. `main` has no tracking branch. It looks protected because it
+has a repo and a remote; it is not.
+
+**Its README claims a live URL that returns 404.** `https://uuriko.github.io/dasha-desk/`
+is presented as "Live (Pages)" and does not resolve. For a project whose own README
+says "No backend. No wallet connect. No fake roadmap", a false liveness claim is the
+kind of thing it exists to avoid.
+
+### What is now protected
+
+| Asset | Protection |
+|---|---|
+| 7 top-level untracked Dasha docs (~700 lines) | verified by name inside `20260806T173406Z/data.tar.zst` |
+| 6 tracked Dasha files | in the snapshot's git bundle |
+| `dasha-desk` — 73 files **plus its .git** | `20260806T173406Z/dasha-desk.tar.zst`, 72K |
+
+`dasha-desk` needed a separate archive: `bin/dg-snapshot` filters to top-level
+paths, so a nested directory was silently outside its coverage. Found by listing
+the archive by filename instead of trusting the tool's own summary — the snapshot
+reported success while missing the largest thing it was run for.
+
+Restore verified, not assumed: extracted to scratch, all 3 commits present in the
+restored `.git`, and 15 of 15 working files byte-identical.
+
+### Still unprotected
+
+- `dasha-desk`'s 4 modified files and 2 untracked directories (`.github/`, `dist/`)
+  are inside the archive as working files, but they remain uncommitted in its own
+  repo.
+- Nothing is pushed anywhere. Every copy is on this one disk, on a laptop that ran
+  `git clean -xfd` four days ago and lost 37 files.
+
+The fix is `git push`, which needs GitHub authentication the machine does not
+currently have — `gh auth status` reports no logged-in host.
