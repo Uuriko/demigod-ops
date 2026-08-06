@@ -2,6 +2,7 @@
 /** Full-site interactive audit: every visible link/button on key routes. */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer-core';
 import { CDP_URL } from './cdp-config.mjs';
 import { LIVE_ORIGIN } from './demigod-live-lib.mjs';
@@ -17,6 +18,27 @@ const ROUTES = QUICK
   ? ['/']
   : ['/', '/#partnerships', '/#privacy', '/#terms', '/#legal'];
 
+export function is404Response(status, html) {
+  const visible = String(html || '').replace(/<script\b[\s\S]*?<\/script>/gi, ' ').replace(/<style\b[\s\S]*?<\/style>/gi, ' ');
+  return status === 404 || /<title>\s*(?:404|not found|page not found)\s*<\/title>/i.test(visible) || /<h[1-6][^>]*>\s*page not found\s*<\/h[1-6]>/i.test(visible);
+}
+
+/* Gate on isMain. This block read process.argv alone, so importing this module from any process
+   whose own argv carried --selftest ran the selftest AND hit the process.exit(0) below — the
+   importer never reached its next line. Reproduced before the fix: importing it with --selftest
+   printed {"ok":true,"selftest":"button-audit-404"} and killed the importing process.
+   demigod-verify-all.mjs --selftest is exactly that shape of caller. */
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain && process.argv.includes('--selftest')) {
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  assert(!is404Response(200, '<title>Legal · Demigod</title><script>/* 404 not found */</script>'), 'script comments are not soft-404 evidence');
+  assert(is404Response(404, '<title>Anything</title>'), 'HTTP 404 is a 404');
+  assert(is404Response(200, '<title>Not Found</title>'), 'soft-404 title is caught');
+  console.log(JSON.stringify({ ok: true, selftest: 'button-audit-404' }));
+  process.exit(0);
+}
+
 async function injectCore(page) {
   await page.setRequestInterception(true);
   page.removeAllListeners('request');
@@ -27,14 +49,16 @@ async function injectCore(page) {
 }
 
 async function load(page, url) {
+  const target = new URL(url, LIVE_ORIGIN);
+  target.searchParams.set('audit', Date.now());
   if (QUICK) {
-    await page.goto(`${LIVE_ORIGIN}${url}?audit=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForFunction(() => /dg-foot-v\d+-core/.test([...document.scripts].map((s) => s.textContent).join('')), { timeout: 10000 }).catch(() => {});
     await sleep(900);
     return;
   }
   await injectCore(page);
-  await page.goto(`${LIVE_ORIGIN}${url}?audit=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.evaluate((src) => {
     document.querySelectorAll('script[src*="catbox"],script[data-dg-foot]').forEach((s) => s.remove());
     const s = document.createElement('script');
@@ -42,7 +66,7 @@ async function load(page, url) {
     s.textContent = src;
     document.body.appendChild(s);
   }, CORE);
-  await sleep(2200);
+  await sleep(3800);
 }
 
 function isFrameGone(e) {
@@ -82,6 +106,7 @@ async function collectInteractives(page) {
         text,
         href,
         modal: el.getAttribute('data-demigod-modal') || '',
+        page: el.getAttribute('data-dg-page') || '',
         scroll: el.getAttribute('data-dg-nav') || '',
         id: el.id || '',
         cls: (el.className || '').toString().slice(0, 60),
@@ -105,29 +130,29 @@ async function clickAndObserve(page, item, idx) {
     pricingY: document.querySelector('#demigod-pricing')?.getBoundingClientRect?.().top ?? null,
   }));
 
-  const sel = await safeEval(page, (i) => {
+  const sel = await safeEval(page, (want, i) => {
     const all = [...document.querySelectorAll('a,button,[role=button],input[type=submit]')];
-    let n = 0;
     for (const el of all) {
       if (el.closest('#startup-modal,#jobseeker-modal,#partner-modal')) continue;
       const r = el.getBoundingClientRect();
       const st = getComputedStyle(el);
       if (r.width < 2 || r.height < 2) continue;
-      if (st.display === 'none' || st.visibility === 'hidden') continue;
-      const text = (el.textContent || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+      if (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') continue;
+      const text = (el.textContent || el.value || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 80);
       const href = el.getAttribute('href') || '';
-      if (n === i) {
+      if (el.tagName === want.tag && href === want.href && text === want.text) {
+        const details = el.closest('details');
+        if (details) details.open = true;
         el.setAttribute('data-audit-idx', String(i));
         return { ok: true, text, href };
       }
-      n++;
     }
     return { ok: false };
-  }, idx);
+  }, item, idx);
 
   if (!sel.ok) return { ...item, result: 'element-not-found' };
 
-  const willNav = item.href === '/' || /^https?:\/\//i.test(item.href || '') || (item.href && !item.href.startsWith('#') && !item.modal);
+  const willNav = item.href === '/' || /^https?:\/\//i.test(item.href || '') || (item.href && !item.href.startsWith('#') && !item.modal && !item.page);
   try {
     if (willNav) {
       await Promise.all([
@@ -183,7 +208,8 @@ async function clickAndObserve(page, item, idx) {
   else if (before.trustY != null && after.trustY != null && Math.abs(after.trustY - before.trustY) > 80) result = 'scroll-trust';
 
   const broken =
-    (item.text && /^(GET STARTED|LEARN MORE|SUBSCRIBE|CONTACT)$/i.test(item.text)) ||
+    (item.text && /^(GET STARTED|LEARN MORE|SUBSCRIBE|CONTACT)$/i.test(item.text) && result === 'noop') ||
+    /^(?:click-failed|element-not-found|audit-error)$/.test(result) ||
     (item.href === '#' && !item.modal && result === 'noop') ||
     (item.scroll === 'scroll' && result === 'noop') ||
     (item.text === 'Pricing' && result === 'noop');
@@ -195,11 +221,13 @@ async function main() {
   fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 180000 });
   let page = await browser.newPage();
+  await page.setBypassCSP(true);
   await page.setViewport({ width: 1440, height: 900 });
 
   async function ensurePage() {
     if (!page.isClosed()) return page;
     page = await browser.newPage();
+    await page.setBypassCSP(true);
     await page.setViewport({ width: 1440, height: 900 });
     return page;
   }
@@ -213,7 +241,7 @@ async function main() {
       report.bareUrls[`/${slug}`] = {
         status: res.status,
         foot: /catbox\.moe\/[a-z0-9]+\.js/i.test(html) || /dg-foot-v\d+-core/.test(html),
-        is404: /404|not found/i.test(html.slice(0, 8000)),
+        is404: is404Response(res.status, html),
       };
     } catch (e) {
       report.bareUrls[`/${slug}`] = { error: String(e.message || e) };
@@ -250,8 +278,9 @@ async function main() {
     const maxClicks = Math.min(clickItems.length, QUICK ? clickItems.length : 18);
     for (let i = 0; i < maxClicks; i++) {
       if (i > 0) {
-        const cur = await safeEval(page, () => ({ path: location.pathname, hash: location.hash }));
+        const cur = await safeEval(page, () => ({ path: location.pathname, hash: location.hash, search: location.search }));
         const needReload =
+          !new URLSearchParams(cur.search).has('audit') ||
           cur.path !== route.split('#')[0] ||
           (route.includes('#') && cur.hash !== '#' + route.split('#')[1]) ||
           (!route.includes('#') && cur.hash && !['', '#demigod-trust-block', '#demigod-pricing'].includes(cur.hash));
@@ -292,7 +321,7 @@ async function main() {
     bareLegal404: report.bareUrls['/legal']?.is404 === true,
     barePartnerships404: report.bareUrls['/partnerships']?.is404 === true,
   };
-  report.ok = report.summary.totalBroken === 0;
+  report.ok = report.summary.totalBroken === 0 && !report.summary.bareLegal404 && !report.summary.barePartnerships404;
 
   fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ok: report.ok, summary: report.summary, out: OUT }));
@@ -301,7 +330,12 @@ async function main() {
   process.exit(report.ok ? 0 : 1);
 }
 
-main().catch((e) => {
+/* Gate the whole audit on isMain too. Fixing the selftest gate above exposed this: main() was
+   invoked unconditionally at module scope, so ANY import of this file launched a full puppeteer
+   browser audit and then called process.exit() on the importer. The --selftest early-exit had
+   been masking it -- the process died before reaching this line. demigod-selftest-guard only
+   inspects selftest blocks, so it never saw the larger hazard. */
+if (isMain) main().catch((e) => {
   console.error(e);
   try {
     fs.writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), ok: false, crash: String(e.message || e) }, null, 2));
