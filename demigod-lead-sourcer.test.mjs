@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { buildExport } from './demigod-recruitai-export.mjs';
+import { assertExportValid, buildExport } from './demigod-recruitai-export.mjs';
 
 const childEnv = { ...process.env };
 delete childEnv.NODE_TEST_CONTEXT;
@@ -1014,4 +1014,51 @@ test('default partner source requires a private hash-bound export generation', (
   fs.unlinkSync(pointer);
   fs.symlinkSync(dir, pointer, 'dir');
   assert.notEqual(run().status, 0, 'pointer outside generation root');
+});
+
+/* The export declares pricingStatus non-exportable (EXPORTED_COMPANY_RESEARCH_FIELDS) but the
+   projection still returned it, and assertExportValid rejects any acceptedField outside that
+   allow-list — so ONE unexportable field failed the ENTIRE export with "malformed research
+   shape". --top 40 passed only because no benchmarked company landed in the first 40 rows;
+   --top 80 and above threw, and the real pipeline yielded 1 partner lead instead of 100.
+
+   Uses the REAL benchmark on purpose. acceptedFields is decided by grading against that file's
+   thresholds, and a hand-built benchmark grades pricingStatus out before it ever reaches the
+   export — which is why the first version of this test passed with the fix reverted. The
+   fixture has to reproduce the grading, not just the field name. */
+test('a non-exportable research field is stripped, not fatal to the whole export', () => {
+  const benchmark = JSON.parse(fs.readFileSync(new URL('./DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json', import.meta.url)));
+  const graded = benchmark.companies.find((entry) => entry.fields && 'pricingStatus' in entry.fields);
+  assert.ok(graded, 'benchmark must contain a company carrying the unexportable field');
+  const company = {
+    id: graded.id,
+    name: graded.mapName || 'Benchmarked Co',
+    website: 'https://benchmarked.test',
+    jobsUrl: 'https://boards.greenhouse.io/benchmarked',
+    atsSource: 'Greenhouse',
+    sourceLicense: 'CC0-1.0',
+    sourceUrl: 'https://www.wikidata.org/wiki/Q1',
+    retrievedAt: '2026-07-29',
+  };
+  const doc = buildExport(
+    { generatedAt: '2026-07-29T00:00:00.000Z', companies: [company] },
+    { updatedAt: '2026-07-29T01:00:00.000Z', roles: { 'Greenhouse|benchmarked|0': {
+      provider: 'Greenhouse', slug: 'benchmarked', jobId: '0', company: company.name,
+      title: 'Engineer', url: `${company.jobsUrl}/jobs/0`,
+      firstSeen: '2026-07-20', lastSeen: '2026-07-29', closedAt: null,
+    } } },
+    {
+      today: '2026-07-29',
+      benchmark,
+      researchEvidence: { green: true, pass: true, fresh: true, reason: 'pass-fresh', runId: 'lead-sourcer-test', endedAt: '2026-07-29T02:00:00.000Z' },
+    },
+  );
+  const researched = doc.rows.filter((row) => row.companyResearch);
+  assert.equal(researched.length, 1, 'fixture must produce a researched row — otherwise this proves nothing');
+  assert.doesNotThrow(() => assertExportValid(doc), 'one unexportable field must not fail the whole export');
+  const research = researched[0].companyResearch;
+  assert.equal('pricingStatus' in research.fields, false, 'pricingStatus must not be exported');
+  assert.equal(research.acceptedFields.includes('pricingStatus'), false, 'acceptedFields must not advertise it');
+  // status must describe what SURVIVED the filter, or projection and validator disagree again.
+  assert.equal(research.status, 'verified', 'status must match the remaining fields');
 });

@@ -933,10 +933,24 @@ export function buildExport(
           catalog,
         });
       if (!projected) return null;
+      /* pricingStatus is deliberately outside EXPORTED_COMPANY_RESEARCH_FIELDS, but the
+         projection still returns it and the row validator rejects any acceptedField outside
+         that allow-list — so every benchmarked company failed the ENTIRE export with
+         "malformed research shape". The exclusion was declared and never enforced. Drop the
+         field here, and recompute status from what actually survives so the projection and
+         the validator agree by construction rather than by coincidence. */
+      const exportedFields = Object.entries(projected.fields || {})
+        .filter(([field]) => EXPORTED_COMPANY_RESEARCH_FIELDS.has(field));
+      const exportedAccepted = (projected.acceptedFields || [])
+        .filter((field) => EXPORTED_COMPANY_RESEARCH_FIELDS.has(field));
       return {
         ...projected,
+        acceptedFields: exportedAccepted,
+        status: exportedFields.some(([, claim]) => claim?.status === 'conflict')
+          ? 'verified_with_conflict'
+          : exportedFields.length ? 'verified' : 'unknown',
         fields: Object.fromEntries(
-          Object.entries(projected.fields || {}).map(([field, claim]) => [
+          exportedFields.map(([field, claim]) => [
             field,
             {
               ...claim,
