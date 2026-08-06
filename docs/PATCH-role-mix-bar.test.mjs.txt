@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// Guard: the role-mix bar must ENCODE the mix, not decorate it.
+//
+// A bar whose segment widths do not track the data is worse than no bar: it reads as information
+// while being none. This asserts the widths are the real shares, that the bar refuses to draw
+// when it would say nothing, and that it stays labelled for screen readers (axe currently passes
+// clean on 16 routes and must keep doing so).
+//
+// atlas-web is a browser IIFE with no module exports, so the function is extracted from source
+// and evaluated. That is the same slice-between-markers shape that produced two vacuous greens
+// earlier in this codebase, so the extraction FAILS CLOSED: if the markers move, the guard errors
+// instead of quietly testing an empty string.
+//
+//   node --test demigod-dir-mixbar.test.mjs
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const SRC = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+
+function loadBar() {
+  const start = SRC.indexOf('var DG_FN_FILL = {');
+  const end = SRC.indexOf('function dgTeamSizeBucket');
+  assert.ok(start > 0, 'DG_FN_FILL marker missing — extraction is broken, not the subject');
+  assert.ok(end > start, 'dgTeamSizeBucket marker missing or out of order — extraction is broken');
+  const slice = SRC.slice(start, end);
+  // Fail closed: an empty or truncated slice would make every assertion below pass trivially.
+  assert.ok(slice.length > 600, `extracted only ${slice.length} chars — refusing to test a truncated slice`);
+  assert.match(slice, /function dgRoleMixBar/, 'slice does not contain the function under test');
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const dgFunctionLabel = (v) => (v === 'ai/data' ? 'AI / data' : v === 'finance/legal' ? 'Finance / legal' : v.charAt(0).toUpperCase() + v.slice(1));
+  // eslint-disable-next-line no-new-func
+  return new Function('esc', 'dgFunctionLabel', `${slice}\nreturn dgRoleMixBar;`)(esc, dgFunctionLabel);
+}
+
+const widths = (svg) => [...svg.matchAll(/width="([\d.]+)"/g)].map((m) => Number(m[1]));
+
+test('segment widths are the real shares of the mix', () => {
+  const bar = loadBar();
+  const svg = bar([{ k: 'engineering', n: 60 }, { k: 'sales', n: 30 }, { k: 'design', n: 10 }]);
+  assert.match(svg, /<svg/, 'expected an svg for a 3-function mix');
+  assert.deepEqual(widths(svg), [60, 30, 10], 'widths must be the actual percentages');
+  assert.equal(widths(svg).reduce((a, b) => a + b, 0), 100, 'segments must span the bar exactly');
+});
+
+test('a different mix produces a different bar — the proof it is not decorative', () => {
+  const bar = loadBar();
+  const a = bar([{ k: 'engineering', n: 60 }, { k: 'sales', n: 30 }, { k: 'design', n: 10 }]);
+  const b = bar([{ k: 'engineering', n: 10 }, { k: 'sales', n: 30 }, { k: 'design', n: 60 }]);
+  assert.notEqual(a, b, 'reordering the data must change the drawing, or it encodes nothing');
+  assert.deepEqual(widths(b), [10, 30, 60]);
+});
+
+test('refuses to draw when the bar would say nothing', () => {
+  const bar = loadBar();
+  assert.equal(bar([{ k: 'product', n: 1 }]), '', 'a single function is one full block — no information');
+  assert.equal(bar([{ k: 'product', n: 1 }, { k: 'sales', n: 1 }]), '', 'under 3 roles is noise, not a mix');
+  assert.equal(bar([]), '', 'empty mix draws nothing');
+  assert.equal(bar(null), '', 'missing mix draws nothing');
+  // The threshold is the point: 3 roles across 2 functions is the first case worth drawing.
+  assert.match(bar([{ k: 'product', n: 2 }, { k: 'sales', n: 1 }]), /<svg/, 'the first informative case must draw');
+});
+
+test('the bar is labelled with the real numbers, for screen readers', () => {
+  const bar = loadBar();
+  const svg = bar([{ k: 'engineering', n: 43 }, { k: 'ai/data', n: 3 }]);
+  assert.match(svg, /role="img"/, 'an unlabelled graphic is an axe violation waiting to happen');
+  assert.match(svg, /aria-label="Role mix: Engineering 43, AI \/ data 3 of 46 open roles"/,
+    'the label must state the same numbers the bar draws');
+});
+
+test('unknown function keys still render, with a fallback fill', () => {
+  const bar = loadBar();
+  // A new function key appearing in the map must not produce an invisible or broken segment.
+  const svg = bar([{ k: 'engineering', n: 5 }, { k: 'brand-new-function', n: 5 }]);
+  assert.deepEqual(widths(svg), [50, 50]);
+  assert.equal((svg.match(/fill="#/g) || []).length, 2, 'every segment must have a fill');
+});

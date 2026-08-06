@@ -1,0 +1,57 @@
+diff --git a/demigod-startup-atlas-web.js b/demigod-startup-atlas-web.js
+index 93b636b..52cfadb 100644
+--- a/demigod-startup-atlas-web.js
++++ b/demigod-startup-atlas-web.js
+@@ -36,6 +36,35 @@
+     return value === 'ai/data' ? 'AI / data' : value === 'finance/legal' ? 'Finance / legal' : value.charAt(0).toUpperCase() + value.slice(1);
+   }
+ 
++  /* Role-mix bar. Every segment width is the real share of that function's open roles — nothing
++     here is decorative, because a bar whose width is arbitrary reads as information while being
++     none. Drawn only when there are at least 2 distinct functions and 3+ roles: a single-function
++     company renders one full-width block, which is a shape that says nothing and costs a row of
++     visual noise on 489 directory entries. Inline SVG so it needs no host, cannot 404, and does
++     not add a request — the rest of this site's imagery sits on an anonymous free file host. */
++  var DG_FN_FILL = {
++    'engineering': '#a6ffcb', 'ai/data': '#9fb8a8', 'design': '#f6caca', 'product': '#d6d3cc',
++    'sales': '#e7e5e4', 'marketing': '#f3f0e7', 'operations': '#a8a29e', 'people': '#c8c4bb',
++    'finance/legal': '#b5b0a6',
++  };
++  function dgRoleMixBar(mix) {
++    if (!mix || !mix.length) return '';
++    var total = mix.reduce(function (sum, m) { return sum + m.n; }, 0);
++    if (mix.length < 2 || total < 3) return '';
++    var x = 0;
++    var segs = '';
++    for (var i = 0; i < mix.length; i += 1) {
++      var w = (mix[i].n / total) * 100;
++      segs += '<rect x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="6" fill="'
++        + (DG_FN_FILL[mix[i].k] || '#a8a29e') + '"></rect>';
++      x += w;
++    }
++    var label = mix.map(function (m) { return dgFunctionLabel(m.k) + ' ' + m.n; }).join(', ')
++      + ' of ' + total + ' open roles';
++    return '<svg class="dg-dir-mixbar" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="'
++      + esc('Role mix: ' + label) + '">' + segs + '</svg>';
++  }
++
+   function dgTeamSizeBucket(value) {
+     if (!Number.isSafeInteger(value) || value < 1) return 'unknown';
+     if (value <= 10) return '1-10';
+@@ -233,6 +262,7 @@
+       '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-size,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
+       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
+       '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-size:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
++      '.dg-dir-mixbar{display:block;width:100%;height:6px;margin:.4rem 0 .1rem;border-radius:3px;overflow:hidden}' +
+       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
+       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
+       'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-width:48px;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
+@@ -357,7 +387,7 @@
+     if (company.roleMix) {
+       var mix = Object.keys(company.roleMix).map(function (k) { return { k: k, n: company.roleMix[k] }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
+       // Only keys accepted by the shared filter become controls; "other" stays evidence, not a dead button.
+-      roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) {
++      roleMixHtml = dgRoleMixBar(mix) + '<p class="dg-dir-roles">' + mix.map(function (m) {
+         var label = esc(dgFunctionLabel(m.k)) + ' ' + esc(m.n);
+         return DG_FUNCS.indexOf(m.k) >= 0
+           ? '<button type="button" class="dg-dir-rolechip" data-fn="' + esc(m.k) + '">' + label + '</button>'
