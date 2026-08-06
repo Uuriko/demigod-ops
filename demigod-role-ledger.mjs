@@ -57,6 +57,129 @@ const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400
 export const observedOpenDays = (row, today) => daysBetween(row.firstSeen, today);
 // Attributed posting age — ONLY where the native field is a real posting date (Greenhouse first_published).
 export const postedDaysAgo = (row, today) => (row.nativePostedAt && row.nativeDateField === 'first_published') ? daysBetween(row.nativePostedAt, today) : null;
+/** Days since board last reported an update (Greenhouse updated_at). Not open-age. */
+export const editedDaysAgo = (row, today) => (row.nativeUpdatedAt && isDay(row.nativeUpdatedAt) ? daysBetween(row.nativeUpdatedAt, today) : null);
+/** Days from first_published → updated_at when both are real days (board-maintained signal). */
+export const postedVsEditedDays = (row) => {
+  if (!row?.nativePostedAt || !row?.nativeUpdatedAt || !isDay(row.nativePostedAt) || !isDay(row.nativeUpdatedAt)) return null;
+  if (row.nativeDateField !== 'first_published') return null;
+  return daysBetween(row.nativePostedAt, row.nativeUpdatedAt);
+};
+
+
+/** Requisition id is employer-freeform — abstain when not ID-shaped (Airbnb ONE/MULTI trap). */
+export function classifyRequisitionId(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { requisitionId: null, requisitionSignal: null };
+  const clipped = s.slice(0, 80);
+  // Headcount / placeholder tokens — never count as distinct openings.
+  if (/^(ONE|MULTI|MUL|TBD|N\/A|NA|NONE|NULL|UNKNOWN|-|—|–)$/i.test(clipped)) {
+    return { requisitionId: clipped, requisitionSignal: 'abstain' };
+  }
+  if (clipped.length <= 2 && !/\d/.test(clipped)) {
+    return { requisitionId: clipped, requisitionSignal: 'abstain' };
+  }
+  // ID-shaped: digits, or common ATS prefixes with structure.
+  if (/\d/.test(clipped) || /^(JR|REQ|PIP|R-|ID[-_]?|#)/i.test(clipped)) {
+    return { requisitionId: clipped, requisitionSignal: 'id' };
+  }
+  return { requisitionId: clipped, requisitionSignal: 'abstain' };
+}
+
+export function pickEmployerDepartment(job) {
+  const depts = Array.isArray(job?.departments) ? job.departments : [];
+  for (const d of depts) {
+    const n = d?.name != null ? String(d.name).trim() : '';
+    if (n) return n.slice(0, 120);
+  }
+  const meta = Array.isArray(job?.metadata) ? job.metadata : [];
+  for (const m of meta) {
+    if (/department/i.test(String(m?.name || '')) && m?.value != null && String(m.value).trim()) {
+      return String(m.value).trim().slice(0, 120);
+    }
+  }
+  return null;
+}
+
+export function pickEmployerOffice(job) {
+  const offices = Array.isArray(job?.offices) ? job.offices : [];
+  for (const o of offices) {
+    const n = o?.name != null ? String(o.name).trim() : '';
+    if (n) return n.slice(0, 120);
+  }
+  return null;
+}
+
+export function greenhouseEmployerFields(job) {
+  const req = classifyRequisitionId(job?.requisition_id);
+  const deadline = toDate(job?.application_deadline);
+  return {
+    ...req,
+    employerDepartment: pickEmployerDepartment(job),
+    employerOffice: pickEmployerOffice(job),
+    nativeDeadline: deadline || null,
+    employmentType: null,
+    workplaceType: null,
+  };
+}
+
+
+/** Structured employment type from public board fields only (never JD inference). */
+export function pickEmploymentType(job, provider) {
+  if (provider === 'Ashby') {
+    const v = job?.employmentType != null ? String(job.employmentType).trim() : '';
+    return v ? v.slice(0, 60) : null;
+  }
+  if (provider === 'Lever') {
+    const v = job?.categories?.commitment || job?.commitment;
+    const s = v != null ? String(v).trim() : '';
+    return s ? s.slice(0, 60) : null;
+  }
+  return null;
+}
+
+export function pickWorkplaceType(job, provider) {
+  if (provider === 'Ashby') {
+    const v = job?.workplaceType != null ? String(job.workplaceType).trim() : '';
+    if (v) return v.slice(0, 40);
+    if (job?.isRemote === true) return 'Remote';
+    return null;
+  }
+  if (provider === 'Lever') {
+    const v = job?.workplaceType != null ? String(job.workplaceType).trim() : '';
+    return v ? v.slice(0, 40) : null;
+  }
+  return null;
+}
+
+export function ashbyEmployerFields(job) {
+  const dept = job?.department != null ? String(job.department).trim().slice(0, 120) : '';
+  const team = job?.team != null ? String(job.team).trim().slice(0, 120) : '';
+  return {
+    requisitionId: null,
+    requisitionSignal: null,
+    employerDepartment: dept || team || null,
+    employerOffice: typeof job?.location === 'string' ? String(job.location).trim().slice(0, 120) || null : null,
+    nativeDeadline: null,
+    employmentType: pickEmploymentType(job, 'Ashby'),
+    workplaceType: pickWorkplaceType(job, 'Ashby'),
+  };
+}
+
+export function leverEmployerFields(job) {
+  const dept = job?.categories?.department || job?.categories?.team;
+  const loc = job?.categories?.location || '';
+  return {
+    requisitionId: null,
+    requisitionSignal: null,
+    employerDepartment: dept != null && String(dept).trim() ? String(dept).trim().slice(0, 120) : null,
+    employerOffice: loc ? String(loc).trim().slice(0, 120) : null,
+    nativeDeadline: null,
+    employmentType: pickEmploymentType(job, 'Lever'),
+    workplaceType: pickWorkplaceType(job, 'Lever'),
+  };
+}
+
 
 function loadLedger() {
   const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
@@ -178,7 +301,17 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
           fn: categorizeRole(disp.title), usPosted: isUsPostedLocation(disp.location),
           firstSeen: today, lastSeen: today, closedAt: null, reopenCount: 0,
           nativePostedAt: r.nativePostedAt || null, nativeDateField: r.nativeDateField || null,
+          // updated_at is a *current* board claim (refresh each poll); not a firstSeen floor.
+          nativeUpdatedAt: r.nativeUpdatedAt || null,
+          nativeUpdatedField: r.nativeUpdatedAt ? (r.nativeUpdatedField || 'updated_at') : null,
           agencyPolicyEvidence,
+          requisitionId: r.requisitionId || null,
+          requisitionSignal: r.requisitionSignal || null,
+          employerDepartment: r.employerDepartment || null,
+          employerOffice: r.employerOffice || null,
+          nativeDeadline: r.nativeDeadline || null,
+          employmentType: r.employmentType || null,
+          workplaceType: r.workplaceType || null,
         };
       } else {
         if (ex.closedAt) { ex.closedAt = null; ex.reopenCount = (ex.reopenCount || 0) + 1; } // reopened
@@ -202,6 +335,21 @@ export function upsertLedger(prev, polledBoards, today, { onVolumeAnomaly = null
         // Track the board's current answer so the next poll compares like with like. The gap
         // between this and nativePostedAt IS the renewal evidence: floor vs what the board claims.
         if (r.nativePostedAt && r.nativePostedAt !== ex.nativePostedAt) ex.lastReportedPostedAt = r.nativePostedAt;
+        // Refresh board-reported update day every successful poll (not a monotonic floor).
+        if (r.nativeUpdatedAt) {
+          ex.nativeUpdatedAt = r.nativeUpdatedAt;
+          ex.nativeUpdatedField = r.nativeUpdatedField || 'updated_at';
+        }
+        // Employer-declared GH fields refresh each successful poll (current board claim).
+        if (r.requisitionSignal) {
+          ex.requisitionId = r.requisitionId || null;
+          ex.requisitionSignal = r.requisitionSignal;
+        }
+        if (r.employerDepartment) ex.employerDepartment = r.employerDepartment;
+        if (r.employerOffice) ex.employerOffice = r.employerOffice;
+        if (r.nativeDeadline) ex.nativeDeadline = r.nativeDeadline;
+        if (r.employmentType) ex.employmentType = r.employmentType;
+        if (r.workplaceType) ex.workplaceType = r.workplaceType;
         if (disp.title) ex.title = disp.title;
         if (disp.location) { ex.location = disp.location; ex.usPosted = isUsPostedLocation(disp.location); }
         if (rawUrl) ex.url = disp.url;
@@ -268,6 +416,17 @@ export function summarize(ledger, today) {
     // A counter nobody surfaces is invisible, and this one decides whether the public
     // median-posting-age claim needs qualifying.
     postedDateRecycled: open.filter((r) => (r.postedDateChangeCount || 0) > 0).length,
+    // Greenhouse updated_at cohort (board-edit signal; not observed open age).
+    withUpdatedAt: open.filter((r) => r.nativeUpdatedAt).length,
+    editedAfterPost: open.filter((r) => {
+      const d = postedVsEditedDays(r);
+      return d != null && d > 0;
+    }).length,
+    // Employer-declared GH enrich (public board).
+    withEmployerDepartment: open.filter((r) => r.employerDepartment).length,
+    withEmployerOffice: open.filter((r) => r.employerOffice).length,
+    requisitionIdShaped: open.filter((r) => r.requisitionSignal === 'id').length,
+    requisitionAbstain: open.filter((r) => r.requisitionSignal === 'abstain').length,
   };
 }
 
@@ -300,7 +459,14 @@ export function report(ledger, { days = 30, fn = '', usOnly = true, today, basis
     .filter((r) => !r.closedAt)
     .filter((r) => (usOnly ? r.usPosted : true))
     .filter((r) => (fn ? r.fn === fn : true))
-    .map((r) => ({ ...r, observedOpenDays: observedOpenDays(r, today), postedDaysAgo: postedDaysAgo(r, today), age: ageOf(r) }))
+    .map((r) => ({
+      ...r,
+      observedOpenDays: observedOpenDays(r, today),
+      postedDaysAgo: postedDaysAgo(r, today),
+      editedDaysAgo: editedDaysAgo(r, today),
+      postedVsEditedDays: postedVsEditedDays(r),
+      age: ageOf(r),
+    }))
     .filter((r) => r.age != null && r.age >= days);
   let evergreen = 0;
   if (basis === 'posted') { const keep = rows.filter((r) => r.age <= evergreenDays); evergreen = rows.length - keep.length; rows = keep; }
@@ -308,7 +474,28 @@ export function report(ledger, { days = 30, fn = '', usOnly = true, today, basis
   const openAll = Object.values(ledger.roles || {}).filter((r) => !r.closedAt && (usOnly ? r.usPosted : true));
   const ghost = openAll.length ? Math.round((100 * openAll.filter((r) => observedOpenDays(r, today) >= 60).length) / openAll.length) : 0;
   const byFn = {}; for (const r of rows) byFn[r.fn] = (byFn[r.fn] || 0) + 1;
-  return { agingRoles: rows, openUsRoles: openAll.length, ghostRatePct: ghost, byFunction: byFn, days, basis, evergreenExcluded: evergreen };
+  // Long-posted but recently board-edited (maintained stale) — Greenhouse first_published + updated_at only.
+  const maintainedStale = openAll
+    .map((r) => ({
+      company: r.company,
+      title: r.title,
+      postedDaysAgo: postedDaysAgo(r, today),
+      editedDaysAgo: editedDaysAgo(r, today),
+      url: r.url,
+    }))
+    .filter((r) => r.postedDaysAgo != null && r.postedDaysAgo >= 90 && r.editedDaysAgo != null && r.editedDaysAgo <= 14)
+    .sort((a, b) => b.postedDaysAgo - a.postedDaysAgo)
+    .slice(0, 12);
+  return {
+    agingRoles: rows,
+    openUsRoles: openAll.length,
+    ghostRatePct: ghost,
+    byFunction: byFn,
+    days,
+    basis,
+    evergreenExcluded: evergreen,
+    maintainedStale,
+  };
 }
 
 // ---- board fetch (I/O; ok:true ONLY on a valid parsed job array, else ok:false → closes nothing) ----
@@ -400,7 +587,7 @@ function ownedRoleUrl(value, board, jobId) {
   }
 }
 
-const POLLERS = {
+export const POLLERS = {
   ...NEW_PROVIDERS,
   Greenhouse: async (slug) => {
     const d = await fetchJson(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`);
@@ -412,7 +599,12 @@ const POLLERS = {
       url: j.absolute_url || '',
       nativePostedAt: toDate(j.first_published),
       nativeDateField: 'first_published',
+      // Board-edit clock (not open-age). List endpoint includes updated_at when content=true.
+      nativeUpdatedAt: toDate(j.updated_at),
+      nativeUpdatedField: j.updated_at ? 'updated_at' : null,
       agencyPolicyEvidence: extractAgencyPolicyEvidence(j.content, j.absolute_url),
+      // Employer-declared GH fields (public board bytes only).
+      ...greenhouseEmployerFields(j),
     }));
     return { ok: Boolean(roles), roles: roles || [] };
   },
@@ -430,6 +622,7 @@ const POLLERS = {
         [p.descriptionPlain, p.additionalPlain, ...(p.lists || []).map((item) => item?.content)].join(' '),
         p.hostedUrl,
       ),
+      ...leverEmployerFields(p),
     }));
     return { ok: Boolean(roles), roles: roles || [] };
   },
@@ -447,6 +640,7 @@ const POLLERS = {
         j.descriptionPlain || j.descriptionHtml || j.description,
         j.jobUrl,
       ),
+      ...ashbyEmployerFields(j),
     }));
     return { ok: Boolean(roles), roles: roles || [] };
   },
@@ -631,6 +825,12 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(reobs.roles[k].firstSeen === T0 && reobs.roles[k].lastSeen === T1, 'firstSeen monotonic; lastSeen advances');
   assert(observedOpenDays(reobs.roles[k], T1) === 19, 'observedOpenDays from firstSeen (19d), NOT native 2025 date');
   assert(postedDaysAgo(reobs.roles[k], T1) > 500, 'postedDaysAgo separate + attributed (native first_published)');
+  {
+    const ed = { nativePostedAt: '2025-01-01', nativeDateField: 'first_published', nativeUpdatedAt: '2025-06-01' };
+    assert(editedDaysAgo(ed, '2025-06-15') === 14, 'editedDaysAgo from nativeUpdatedAt');
+    assert(postedVsEditedDays(ed) === 151, 'postedVsEditedDays first_published→updated_at');
+    assert(postedVsEditedDays({ ...ed, nativeDateField: 'created_at' }) === null, 'postedVsEditedDays only first_published');
+  }
   const renamed = upsertLedger(
     L,
     [{ provider: 'Greenhouse', slug: 'acme', company: 'Acme Canonical', ok: true, roles: [R('1')] }],
@@ -648,10 +848,52 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(dup.roles[k].closedAt === null && dup.roles[k].reopenCount === 0, 'dup board same poll: empty sibling does not close/flap the populated role');
 
   // no PII / allowed shape only
-  const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField', 'agencyPolicyEvidence',
-    'postedDateChangeCount', 'lastReportedPostedAt']);
+  const allowed = new Set(['provider', 'slug', 'jobId', 'company', 'title', 'location', 'url', 'fn', 'usPosted', 'firstSeen', 'lastSeen', 'closedAt', 'reopenCount', 'nativePostedAt', 'nativeDateField', 'nativeUpdatedAt', 'nativeUpdatedField', 'agencyPolicyEvidence',
+    'postedDateChangeCount', 'lastReportedPostedAt',
+    'requisitionId', 'requisitionSignal', 'employerDepartment', 'employerOffice', 'nativeDeadline', 'employmentType', 'workplaceType']);
   // Same trap on a privacy guard: an empty row would satisfy `.every()` and report "no PII".
   assert(Object.keys(L.roles[k]).length > 0 && Object.keys(L.roles[k]).every((key) => allowed.has(key)), 'row has no fields outside the allowed (no PII)');
+  {
+    const withUpd = upsertLedger(null, board(true, [R('9', { nativeUpdatedAt: '2026-07-01', nativeUpdatedField: 'updated_at' })]), T0);
+    const uk = Object.keys(withUpd.roles).find((x) => x.endsWith('|9'));
+    assert(withUpd.roles[uk].nativeUpdatedAt === '2026-07-01' && withUpd.roles[uk].nativeUpdatedField === 'updated_at', 'upsert stores Greenhouse updated_at');
+    const refreshed = upsertLedger(withUpd, board(true, [R('9', { nativeUpdatedAt: '2026-07-20', nativeUpdatedField: 'updated_at' })]), T1);
+    assert(refreshed.roles[uk].nativeUpdatedAt === '2026-07-20', 'nativeUpdatedAt refreshes each poll (not a floor)');
+  }
+
+  // --- employer fields + requisition gate (Greenhouse public bytes) ---
+  {
+    assert(classifyRequisitionId('JR104169').requisitionSignal === 'id', 'JR id-shaped');
+    assert(classifyRequisitionId('ONE').requisitionSignal === 'abstain', 'Airbnb ONE abstains');
+    assert(classifyRequisitionId('MULTI').requisitionSignal === 'abstain', 'MULTI abstains');
+    assert(classifyRequisitionId('').requisitionSignal === null, 'empty null');
+    const emp = greenhouseEmployerFields({
+      requisition_id: 'REQ #27298',
+      departments: [{ name: 'Engineering' }],
+      offices: [{ name: 'San Francisco' }],
+      application_deadline: '2026-12-01T00:00:00Z',
+      metadata: [{ name: 'External Department', value: 'Finance' }],
+    });
+    assert(emp.requisitionSignal === 'id' && emp.employerDepartment === 'Engineering' && emp.employerOffice === 'San Francisco', 'employer fields');
+    const metaOnly = greenhouseEmployerFields({ metadata: [{ name: 'External Department', value: 'People' }] });
+    assert(metaOnly.employerDepartment === 'People', 'metadata department fallback');
+    const withEmp = upsertLedger(null, board(true, [R('emp1', {
+      requisitionId: 'JR1', requisitionSignal: 'id',
+      employerDepartment: 'Eng', employerOffice: 'SF',
+      nativeDeadline: '2026-12-01',
+    })]), T0);
+    const ek = Object.keys(withEmp.roles).find((x) => x.endsWith('|emp1'));
+    assert(withEmp.roles[ek].employerDepartment === 'Eng' && withEmp.roles[ek].requisitionSignal === 'id', 'upsert stores employer fields');
+    const empRef = upsertLedger(withEmp, board(true, [R('emp1', {
+      requisitionId: 'JR1', requisitionSignal: 'id',
+      employerDepartment: 'Product', employerOffice: 'NYC',
+    })]), T1);
+    assert(empRef.roles[ek].employerDepartment === 'Product' && empRef.roles[ek].employerOffice === 'NYC', 'employer fields refresh');
+    const ash = ashbyEmployerFields({ department: 'Eng', team: 'Platform', location: 'SF', employmentType: 'FullTime', workplaceType: 'Hybrid', isRemote: false });
+    assert(ash.employerDepartment === 'Eng' && ash.employmentType === 'FullTime' && ash.workplaceType === 'Hybrid', 'ashby fields');
+    const lev = leverEmployerFields({ categories: { department: 'R&D', location: 'Remote', commitment: 'Full Time' }, workplaceType: 'remote' });
+    assert(lev.employerDepartment === 'R&D' && lev.employmentType === 'Full Time' && lev.workplaceType === 'remote', 'lever fields');
+  }
 
   // --- posting-date renewal detection (ATS auto-renew, 30-90d cycles) -----------------------
   {
@@ -945,6 +1187,19 @@ if (isMain) {
     const ledger = loadLedger();
     const dv = Number(arg('--days', 30));
     const rep = report(ledger, { days: Number.isFinite(dv) ? dv : 30, fn: arg('--fn', ''), today, basis });
+    /* --startups: keep only companies the map says are actually startups. Without it this report is
+       a targeting list topped by CircleCI, Vercel, Verkada, Instacart, Stripe, Okta, Figma, Brex and
+       Anthropic — none of whom will ever hire through Demigod, so the aging signal is unusable for
+       the one thing it is good for: finding a founder whose role has sat long enough to hurt.
+       Reuses startupScore/loadCompanyProfiles from demigod-public-roles.mjs rather than re-deriving
+       "is this a startup" a second time. */
+    if (process.argv.includes('--startups')) {
+      const { startupScore, companyKey, loadCompanyProfiles } = await import('./demigod-public-roles.mjs');
+      const profiles = loadCompanyProfiles();
+      const before = rep.agingRoles.length;
+      rep.agingRoles = rep.agingRoles.filter((r) => startupScore(profiles[companyKey(r.company)]) === 2);
+      rep.startupFilter = { applied: true, before, after: rep.agingRoles.length };
+    }
     if (process.argv.includes('--json')) { console.log(JSON.stringify(rep, null, 2)); }
     else {
       const label = basis === 'posted' ? 'posted per board (attributed, Greenhouse)' : 'observed-open';
