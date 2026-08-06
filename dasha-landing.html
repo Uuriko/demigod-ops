@@ -116,6 +116,10 @@ h2{font-family:var(--display);font-size:clamp(1.45rem,3.8vw,1.95rem);margin:0 0 
 .k small.neg{color:var(--danger)}
 
 
+.fromlink{margin:0 0 10px;padding:9px 12px;border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:8px;background:var(--panel-2);color:var(--muted);font-size:.86rem}
+.fromlink b{color:var(--ink);font-family:var(--mono);font-size:.82rem}
+
 /* --- your calls (local only) -------------------------------------------- */
 .callrow{display:flex;flex-direction:column;gap:6px;padding:16px 0;border-top:1px solid var(--line)}
 .callrow:first-child{border-top:0}
@@ -197,7 +201,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <p class="artnote">What the tool gives back: your own words, the condition that would settle them, and a checksum that changes if either is edited.</p>
 
   <div class="actions">
-    <a class="btn" href="#tool">Write a receipt</a>
+    <a class="btn" href="#tool">Make a thesis card</a>
     <a class="btn ghost" href="#how">How it works</a>
   </div>
 </header>
@@ -205,11 +209,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <main class="wrap">
 
 <section id="tool">
-  <h2>Write one now</h2>
+  <h2>Make a thesis card</h2>
   <p class="lede">Your thesis fields are processed locally and are not sent to us. There is no account and no wallet prompt.</p>
   <div class="toolhost">
     <p class="eyebrow">Dasha Labs · free tool</p>
     <h2 class="toolhead">Thesis Card</h2>
+    <p class="fromlink" id="fromlink" hidden></p>
     <p class="intro">Write the call before the chart writes the story. Generate a shareable card with the thesis—and the condition that proves it wrong.</p>
     <form id="receipt-form" novalidate>
       <label>Solana token address<input id="address" autocomplete="off" spellcheck="false" required placeholder="32–44 character mint address"></label>
@@ -235,7 +240,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 </section>
 
 <section id="how">
-  <h2>Three fields. That is the whole tool.</h2>
+  <h2>Three decisions. One card.</h2>
   <p class="lede">It runs in your browser. Thesis fields are not uploaded or stored by us, and there is no account.</p>
   <div class="grid grid-3">
     <div class="card"><p class="k"><small>01</small>The thesis</p><p>What you actually believe, in your words. Not a target, not a chart pattern — the reason.</p></div>
@@ -243,7 +248,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <div class="card"><p class="k"><small>03</small>The horizon</p><p>By when. A call without a clock can never be settled, so it never costs anything to have made.</p></div>
   </div>
   <p class="why" style="margin-top:26px"><b>Not our idea.</b> Decades of research on judgment finds that people reason more carefully when they commit to a position and its disproof condition <em>before</em> the outcome than when they explain themselves after it. Those studies are about forecasting, not tokens, and none of this predicts returns — the habit is the only thing on offer here.</p>
-  <div class="actions"><a class="btn" href="#tool">Write a receipt</a></div>
+  <div class="actions"><a class="btn" href="#tool">Make a thesis card</a></div>
 </section>
 
 
@@ -252,7 +257,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <p class="lede">Kept on this device only — never uploaded, and we cannot see them. When a resolution date arrives, come back and say what happened.</p>
   <p class="streak" id="streak" hidden></p>
   <div class="card" id="calllist"></div>
-  <p class="artnote" style="max-width:56ch">This list is for you. It is not evidence of anything — a record only you can see never was. The proof is the card you posted.</p>
+  <p class="artnote" style="max-width:56ch">This list is for you. It is not evidence of when you made a call. If you post the card publicly, that post—not the local checksum—may provide outside context for when others first saw it.</p>
 </section>
 
 <section id="examples">
@@ -325,7 +330,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <li>No safety score. Solana's own guidance is explicit that verification is not endorsement, so we show evidence and let you look.</li>
       <li>No price prediction and no signal. The tool never has an opinion about your call.</li>
       <li>Not financial advice, and not a record anyone else is obliged to honour.</li>
-      <li>A token address links out to Solscan so you can inspect it yourself. We never guess an address.</li>
+      <li>A token address links out to Solscan so you can inspect it yourself. We never guess an address — it is either typed by you or carried by the link you followed.</li>
     </ul>
   </div>
 </section>
@@ -360,7 +365,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     form.addEventListener('submit',async event=>{
       event.preventDefault();
       const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim(), resolution=$('resolution').value;
-      if(!validAddress(address)||!thesis||!invalidation||resolution<localDate()){$('error').textContent='Add a valid Solana mint address, thesis, invalidation condition, and future resolution date.';output.hidden=true;return}
+      const invalid=!validAddress(address)?$('address'):!thesis?$('thesis'):!invalidation?$('invalidation'):resolution<localDate()?$('resolution'):null;
+      for(const field of [$('address'),$('thesis'),$('invalidation'),$('resolution')])field.removeAttribute('aria-invalid');
+      if(invalid){$('error').textContent='Add a valid Solana mint address, thesis, invalidation condition, and future resolution date.';invalid.setAttribute('aria-invalid','true');invalid.focus();output.hidden=true;return}
       $('error').textContent='';
       const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nDevice time: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nResolve on: ${resolution}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
@@ -467,6 +474,21 @@ for (const b of document.querySelectorAll(".exbtn")) {
   }).observe(out,{attributes:true,attributeFilter:["hidden"],childList:true,subtree:true,characterData:true});
 
   render();
+})();
+</script>
+
+<script>
+(function(){
+  var raw=new URLSearchParams(location.search).get("mint")||"";
+  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(raw)) return;
+  var a=document.getElementById("address"); if(!a) return;
+  a.value=raw;
+  var n=document.getElementById("fromlink");
+  if(n){ n.textContent="";
+    n.appendChild(document.createTextNode("Token filled in from the link you followed: "));
+    var b=document.createElement("b"); b.textContent=raw.slice(0,6)+"\u2026"+raw.slice(-6); n.appendChild(b);
+    n.appendChild(document.createTextNode(". Change it if that is not the one you mean."));
+    n.hidden=false; }
 })();
 </script>
 </body>

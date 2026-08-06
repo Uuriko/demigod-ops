@@ -126,6 +126,8 @@ try {
         blankNoName: [...document.querySelectorAll('a[target="_blank"]')]
           .filter((el) => !/new tab|new window/i.test(el.getAttribute('aria-label') || el.textContent || ''))
           .map((el) => el.id || el.textContent.trim().slice(0, 20)),
+        receiptCtas: [...document.querySelectorAll('header a.btn, #how a.btn')]
+          .filter((el) => /receipt/i.test(el.textContent)).map((el) => el.textContent.trim()),
       };
     });
 
@@ -141,6 +143,8 @@ try {
     assert.equal(Number(doc.ogH), ogPng.readUInt32BE(20), `og:image:height disagrees with the PNG header`);
     assert.deepEqual(doc.blankNoName, [],
       `@${width}px: link(s) open a new tab without saying so in the accessible name: ${doc.blankNoName.join(', ')}`);
+    assert.deepEqual(doc.receiptCtas, [],
+      `@${width}px: local-card CTA falsely calls the artifact a receipt: ${doc.receiptCtas.join(', ')}`);
 
     // ---- axe, with proof it actually ran -----------------------------------
     await page.addScriptTag({ content: axeSrc });
@@ -159,7 +163,11 @@ try {
     await page.type('#invalidation', 'Depth under 50k for three days.');
     await page.$eval('#resolution', (node) => { node.value = '2099-12-31'; });
     await page.click('#tool button[type=submit]');
-    await page.waitForSelector('#output:not([hidden])', { timeout: 8000 });
+    await page.waitForSelector('#output:not([hidden])', { timeout: 8000 }).catch(async () => {
+      const state = await page.$eval('#output', (node) => ({ hidden: node.hidden,
+        error: document.getElementById('error')?.textContent || '' }));
+      assert.fail(`@${width}px: receipt stayed hidden; ${JSON.stringify(state)}; page errors: ${pageErrors.join(' | ')}`);
+    });
     const out = await page.evaluate(() => {
       const text = document.getElementById('receipt-text').textContent;
       const c = card(text.split('\n'), 'abc123');
@@ -260,6 +268,47 @@ try {
     await page.close();
   }
 
+  /* ---- mint carried by the link -------------------------------------------
+     The tool demands a 32-44 char base58 mint before it does anything, and nobody being
+     shown this has one to hand. A mint in the URL is supplied, not guessed, so it does not
+     violate the page's "we never guess an address" promise.
+
+     A query parameter is attacker-controlled input. The middle assertion below is the
+     security one: anything that is not a mint must be ignored entirely, never reflected. */
+  {
+    const GOOD = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1000, height: 900 });
+
+    await page.goto(`${base}?mint=${GOOD}`, { waitUntil: 'networkidle2' });
+    const good = await page.evaluate(() => ({
+      addr: document.getElementById('address').value,
+      note: !document.getElementById('fromlink').hidden,
+      autoSubmitted: !document.getElementById('output').hasAttribute('hidden'),
+    }));
+    assert.equal(good.addr, GOOD, 'a valid mint in ?mint= must prefill the address field');
+    assert.equal(good.note, true, 'a link-supplied mint must be disclosed, not filled silently');
+    // Prefilling saves typing; submitting creates a claim the person did not write.
+    assert.equal(good.autoSubmitted, false, 'a link-supplied mint must NEVER auto-generate a card');
+
+    for (const [label, value] of [
+      ['too short', 'abc'],
+      ['markup', '"><img src=x onerror=alert(1)>'],
+      ['base58-illegal', '0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl'],
+    ]) {
+      await page.goto(`${base}?mint=${encodeURIComponent(value)}`, { waitUntil: 'networkidle2' });
+      const bad = await page.evaluate(() => ({
+        addr: document.getElementById('address').value,
+        note: !document.getElementById('fromlink').hidden,
+        injected: !!document.querySelector('#tool img[onerror], #tool script'),
+      }));
+      assert.equal(bad.addr, '', `${label}: a malformed ?mint= must be ignored, got "${bad.addr}"`);
+      assert.equal(bad.note, false, `${label}: no disclosure note should appear for an ignored mint`);
+      assert.equal(bad.injected, false, `${label}: a URL parameter must never reach the DOM as markup`);
+    }
+    await page.close();
+  }
+
   await browser.disconnect();
-  console.log('Dasha landing gate: PASS (390 + 1440, axe, drift, tool, og, calls loop)');
+  console.log('Dasha landing gate: PASS (390 + 1440, axe, drift, tool, og, calls loop, mint link)');
 } finally { server.close(); }
