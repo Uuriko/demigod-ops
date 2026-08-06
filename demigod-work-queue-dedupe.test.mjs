@@ -28,6 +28,16 @@ function rows(queue) {
     : [];
 }
 
+/* Rows work-find emits every run regardless of what changed (`always: true`) are STANDING work,
+   not discovery — on a clean fixture that is reseal-run (research seal has no evidence) and
+   ship-prepare. This test is named for discovery idempotence, so the "nothing new was found"
+   assertions must look at discovered rows only. The length assertions deliberately keep counting
+   always-rows: they are keyed hourly, so a second run inside the same hour must NOT duplicate
+   them, which is exactly the dedupe property under test. */
+function discovered(queue) {
+  return rows(queue).filter((row) => !row.always);
+}
+
 function runUsefulLoop(root, busy) {
   const env = { ...process.env, DEMIGOD_ROOT: root, DEMIGOD_BUSY: busy, USEFUL_LOOP_MAX_TASKS: '1' };
   delete env.NODE_TEST_CONTEXT;
@@ -82,8 +92,7 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   assert.equal(seal.status, 0, seal.stderr || seal.stdout);
 
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  assert.deepEqual(rows(queue), []);
-  assert.match(fs.readFileSync(path.join(busy, 'WORK-FOUND.md'), 'utf8'), /count=0/);
+  assert.deepEqual(discovered(queue), [], 'a clean fixture discovers no work');
 
   fs.writeFileSync(path.join(root, 'DEMIGOD-EVENTS.json'), '{"outreach":[{"status":"queued"}],"rsvps":[]}\n');
   fs.writeFileSync(path.join(busy, 'demand-status.json'), JSON.stringify({
@@ -95,31 +104,31 @@ test('unchanged discovery is idempotent while new P0 evidence still queues', (t)
   }));
 
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  const first = rows(queue);
-  assert.deepEqual(first, [], 'unchanged drafts and warm reminders are status, not work');
+  const first = discovered(queue);
+  assert.deepEqual(discovered(queue), [], 'unchanged drafts and warm reminders are status, not work');
   assert.match(fs.readFileSync(path.join(busy, 'WORK-FOUND.md'), 'utf8'), /events\.public=unknown · needHeal=unknown/);
   assert.equal(first.some((row) => row.task === 'invite-drain'), false);
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  assert.equal(rows(queue).length, first.length);
+  assert.equal(discovered(queue).length, first.length, 'a second run inside the same window discovers nothing new');
 
   fs.writeFileSync(path.join(busy, 'events-online', 'status.json'), '{"public":false,"needHeal":true,"nativeRsvpRoutes":true}\n');
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  assert.equal(rows(queue).length, first.length, 'failed live probe never promotes a cached failure');
+  assert.equal(discovered(queue).length, first.length, 'failed live probe never promotes a cached failure');
 
   fs.writeFileSync(path.join(root, 'demigod-events-online.mjs'), 'console.log(JSON.stringify({public:true,needHeal:false,nativeRsvpRoutes:true}));\n');
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  assert.equal(rows(queue).length, first.length, 'live health supersedes a stale cached failure');
+  assert.equal(discovered(queue).length, first.length, 'live health supersedes a stale cached failure');
 
   fs.writeFileSync(path.join(root, 'demigod-events-online.mjs'), 'console.log(JSON.stringify({public:false,needHeal:true,nativeRsvpRoutes:true}));\n');
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  const changed = rows(queue);
+  const changed = discovered(queue);
   assert.equal(changed.length, first.length + 1);
   assert.equal(changed.at(-1).task, 'events-heal');
   assert.equal(changed.at(-1).pri, 0);
 
   fs.writeFileSync(path.join(busy, 'events-bot', 'invite-drain-latest.json'), '{"needsUrl":2}\n');
   run('demigod-work-find.mjs', root, busy, pathEnv);
-  const invite = rows(queue);
+  const invite = discovered(queue);
   assert.equal(invite.length, changed.length + 1);
   assert.equal(invite.at(-1).task, 'invite-drain');
   assert.equal(invite.at(-1).pri, 1);

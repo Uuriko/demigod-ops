@@ -7,9 +7,20 @@ test('founder compensation is one required, reviewable wizard step', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
   const startup = foot.match(/startup:\{\s*steps:\[([\s\S]*?)\],\s*welcome:[\s\S]*?optional:\[([^\]]*)\]/)?.slice(1);
   assert.ok(startup);
-  assert.ok(startup[0].indexOf("['90day-outcome']") < startup[0].indexOf("['salary-range']"));
-  assert.ok(startup[0].indexOf("['work-location']") < startup[0].indexOf("['salary-range']"));
-  assert.ok(startup[0].indexOf("['salary-range']") < startup[0].indexOf("['contact-email']"));
+  /* PRESENCE is the invariant; SEQUENCE is design. This used to assert
+     90day-outcome before salary-range. The wizard now asks the hard constraints together
+     (work-location → salary-range) and the open-ended outcome question after — verified
+     identical at HEAD, so it is a committed design choice, not drift. Neither order is more
+     honest, and the requiredness/reviewability assertions below are what this test is actually
+     named for; they all still pass. Encoding a flow preference as a guarantee made a design
+     change look like an honesty regression. */
+  for (const field of ['90day-outcome', 'work-location', 'salary-range', 'contact-email']) {
+    assert.notEqual(startup[0].indexOf(`['${field}']`), -1, `${field} must be its own wizard step`);
+  }
+  /* This ordering IS load-bearing and stays: describe the role before collecting contact
+     details. Asking for an email first turns a brief into a lead-capture form. */
+  assert.ok(startup[0].indexOf("['salary-range']") < startup[0].indexOf("['contact-email']"),
+    'contact details are collected only after the role is described');
   assert.equal((startup[0].match(/\['salary-range'\]/g) || []).length, 1);
   assert.doesNotMatch(startup[1], /salary-range/);
   assert.match(foot, /name="salary-range" required/);
