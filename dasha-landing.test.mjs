@@ -78,6 +78,30 @@ try {
     'dasha-landing.html and dasha-conviction-receipt.html hold DIFFERENT tool FORM markup — '
     + 'an attribute, label or field changed in one copy only.');
 
+  /* ---- asset + palette parity across the two copies -------------------------
+     These exist because three of the standalone's edits were String.replace() against
+     remembered markup, and a non-matching pattern returns the original and throws
+     nothing. Nothing in either suite had an opinion on the result. */
+  const iconOf = (h) => (h.match(/<link rel="icon" href="([^"]*)"/) || [])[1] || '';
+  assert.ok(iconOf(landing).startsWith('data:image/svg+xml,'), 'landing page has no inline SVG favicon');
+  assert.equal(iconOf(landing), iconOf(standalone),
+    'the two copies carry DIFFERENT favicons — one was recoloured without the other.');
+
+  // The tool CSS used to re-declare :root AFTER the page's own, silently winning every
+  // variable and making the page immune to its own stylesheet. One block per file or it
+  // can come back.
+  for (const [name, html] of [['landing', landing], ['standalone', standalone]]) {
+    const roots = (html.match(/:root\s*\{/g) || []).length;
+    assert.equal(roots, 1, `${name} declares :root ${roots} times — a later block overrides the palette`);
+  }
+
+  // The 2026-08-06 palette migration was case-sensitive; these are the colours it replaced.
+  for (const [name, html] of [['landing', landing], ['standalone', standalone]]) {
+    const stale = ['08090b', '121419', '292d36', 'f4f5f7', 'a9afbc', 'd8ff52', 'ffb4a8', '0b0d11', '101300', '0d0f13']
+      .filter((c) => new RegExp(c, 'i').test(html));
+    assert.deepEqual(stale, [], `${name} still carries pre-overhaul palette hex: ${stale.join(', ')}`);
+  }
+
   for (const width of [390, 1440]) {
     const page = await browser.newPage();
     const pageErrors = [];
