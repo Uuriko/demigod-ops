@@ -228,3 +228,63 @@ canonical, `og:url` — plus a `label` violation the roadmap had not recorded.
 is the only live Dasha page. My landing page's placeholder `https://dashalabs.xyz/`
 should become that, or whatever custom domain replaces it — but this is a
 deployment decision, so the placeholder stays until someone says which.
+
+
+---
+
+## 10. Live `label` violation — diagnosed, and the domain resolved
+
+### The violation, verbatim
+
+axe rates this **critical**, not serious as §9 first reported.
+
+```
+rule:     label — "Form elements must have labels"
+impact:   critical
+selector: #dd-share
+element:  <textarea id="dd-share" class="dd-textarea" rows="3" readonly></textarea>
+axe:      no implicit <label>, no explicit <label>, no aria-label,
+          no aria-labelledby
+```
+
+It is **page code, not Webflow chrome** — the `dd-` prefix is `dasha-desk`'s own
+class naming. Source locations:
+
+```
+dasha-desk/index.html:93
+dasha-desk/src/app.html:81
+dasha-desk/src/body.html:81
+dasha-desk/dist/index.html:152
+```
+
+In `src/body.html` it sits directly under `<h2>Post this</h2>` inside
+`<article class="dd-card">` — so the heading gives a sighted user the context that
+a screen-reader user does not get.
+
+**Smallest fix:** `aria-label="Share text"` on the textarea, in all four copies.
+A wrapping `<label>` would work too but changes layout; `aria-labelledby` pointing
+at the existing `<h2>` is also valid and arguably better, since the visible heading
+already names the control.
+
+Not patched — `dasha-desk` is grok's, has its own repo, and carries four
+uncommitted files.
+
+### Domain: placeholder retired
+
+`dasha-landing.html` used `https://dashalabs.xyz/`, invented when no real origin was
+known. It does not resolve. A canonical pointing at a domain that never answers is
+worse than none — it names an authoritative copy that does not exist and aims the
+social unfurl at a host that cannot serve the image.
+
+All three tags now point at `https://johns-awesome-project-39b1b5.webflow.io/`,
+changed together because a canonical and an `og:url` that disagree is its own defect.
+
+Two caveats, stated rather than implied:
+
+- That origin is Webflow staging-style. If a custom domain arrives, `canonical`,
+  `og:url` and `og:image` all change together.
+- **`og:image` will not unfurl yet.** The card exists locally and is not deployed at
+  that origin, so the URL is correct in form and not yet reachable.
+
+`dasha-landing.test.mjs` still PASS — it asserts all three are absolute https URLs,
+and the drift guards against the standalone were unaffected.
