@@ -1330,7 +1330,16 @@ export function assertExportValid(doc) {
           (typeof research.researchedAt !== 'string' ||
             !Number.isFinite(Date.parse(research.researchedAt))))
       ) {
-        throw new Error('invalid company research source');
+        /* Name the row and the actual condition. This threw a bare "invalid company research
+           source" for any shape problem, which sent me hunting a corrupt catalog when the real
+           state was an EMPTY one: DEMIGOD-COMPANY-RESEARCH.json holds {companies: []} after the
+           wipe, so --top 40 succeeds and --top 80 throws with no hint that the difference is
+           catalog coverage, not validity. An operator cannot act on "invalid"; they can act on
+           "row 57 (Acme) has no catalog entry — run demigod-company-research-benchmark.mjs". */
+        const detail = fieldNames.length === 0 && !research.researchedAt
+          ? 'no catalog entry — run demigod-company-research-benchmark.mjs to populate DEMIGOD-COMPANY-RESEARCH.json'
+          : 'malformed research shape';
+        throw new Error(`invalid company research source: ${row.name || row.mapCompanyId || 'unknown company'} — ${detail}`);
       }
       const expectedVerification = research.source === 'benchmark'
         ? 'live_replayed'
