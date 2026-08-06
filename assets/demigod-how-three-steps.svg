@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 226" width="100%" role="img"
-     aria-label="Three steps: software compares the facts and nothing is messaged yet; a human decides what to propose and never auto-introduces; both sides approve privately before any introduction. Startups pay 10 percent of first-year base salary only when a hire starts; talent is always free.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 214" width="100%" role="img"
+     aria-label="Three steps: software compares the facts and nothing is messaged yet; a human decides what to propose and never auto-introduces; both sides approve privately before any introduction.">
   <title>How a Demigod match works — three steps, gated on mutual yes</title>
   <defs>
     <marker id="dg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
@@ -42,6 +42,5 @@
          gets its own line rather than being left to the prose. -->
     <text x="1" y="9" font-size="10.5" fill="#7f978c">nothing is sent until step 3</text>
     <text x="339" y="9" text-anchor="end" font-size="10.5" fill="#a6ffcb">identity private until both say yes</text>
-    <text x="1" y="224" font-size="10.5" fill="#7f978c">10% of first-year base salary, only when a hire starts · talent free</text>
   </g>
 </svg>
