@@ -40,7 +40,11 @@ export function feeCents(firstYearCash, rate = FEE_RATE) {
     feeCents: amount,
     feeDisplay: (amount / 100).toFixed(2),
     currency: 'USD',
-    note: '10% of first-year cash only on hire; Stripe pending — invoice is a stub until paid evidence',
+    /* State the rate that was actually applied. This string hardcoded "10%" while the function
+       accepts a rate argument, so unlocking the rate produced an invoice charging 20% whose own
+       note claimed 10%. Latent today because the rate is locked at 0.10 — and it would fire the
+       moment the open pricing decision changes it, on the artifact a customer reads. */
+    note: `${(rate * 100).toFixed(rate * 100 % 1 ? 1 : 0)}% of first-year cash only on hire; Stripe pending — invoice is a stub until paid evidence`,
   };
 }
 
