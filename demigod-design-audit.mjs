@@ -9,28 +9,39 @@ import { ROOT } from './demigod-turn-lib.mjs';
 
 const OUT = path.join(ROOT, 'DEMIGOD-DESIGN-AUDIT.json');
 const SHOTS = path.join(ROOT, 'audit-shots', 'design');
-const VER = process.env.DG_DESIGN_VER || 'v60';
 const QUICK = process.argv.includes('--quick');
+const USE_LOCAL = process.argv.includes('--local');
+const CORE = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
+const HEAD_CSS = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'), 'utf8') : '';
+const ATLAS = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-startup-atlas-web.js'), 'utf8') : '';
+const MAP_DATA = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json'), 'utf8') : '';
+const MANIFEST = USE_LOCAL ? JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json'), 'utf8')) : {};
+const VER = process.env.DG_DESIGN_VER || (USE_LOCAL ? `v${CORE.match(/__dgFootVer='(\d+)'/)?.[1] || 'disk'}` : 'live');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const bounded = (promise, ms, label) => Promise.race([
+  promise,
+  sleep(ms).then(() => { throw new Error(`${label}_timeout_${ms}ms`); }),
+]);
 
 const VIEWS_FULL = [
   { name: 'home-hero', url: '/', clip: { x: 0, y: 0, width: 1440, height: 820 } },
   { name: 'home-full', url: '/', fullPage: true },
-  { name: 'trust', url: '/', target: '#demigod-trust-block', scrollOnly: true, waitSteps: true },
-  { name: 'pricing', url: '/#demigod-pricing', target: '#demigod-pricing' },
-  { name: 'partners', url: '/#partnerships', target: '#demigod-partnerships-wrap', waitClass: 'dg-partners-page' },
-  { name: 'privacy', url: '/#privacy', target: '#demigod-legal-privacy', waitClass: 'dg-legal-page', viewportShot: true },
+  { name: 'trust', url: '/', target: '.trust-section', scrollOnly: true, waitSteps: true },
+  { name: 'pricing', url: '/pricing', target: '#dg-page' },
+  { name: 'partners', url: '/refer', target: '#dg-page' },
+  { name: 'privacy', url: '/legal', target: '#dg-page' },
+  { name: 'startups', url: '/startups', target: '#dg-page' },
   { name: 'mobile-home', url: '/', viewport: { width: 390, height: 844 }, fullPage: true },
-  { name: 'wizard-startup', url: '/#startup-modal', modal: '#startup-modal' },
-  { name: 'wizard-engineer', url: '/#jobseeker-modal', modal: '#jobseeker-modal' },
+  { name: 'wizard-startup', url: '/?wiz=startup', modal: '#startup-modal' },
+  { name: 'wizard-engineer', url: '/?wiz=engineer', modal: '#jobseeker-modal' },
 ];
 
 const VIEWS_QUICK = [
   { name: 'home-hero', url: '/', clip: { x: 0, y: 0, width: 1440, height: 820 } },
-  { name: 'trust', url: '/', target: '#demigod-trust-block', scrollOnly: true, waitSteps: true },
-  { name: 'pricing', url: '/#demigod-pricing', target: '#demigod-pricing' },
-  { name: 'partners', url: '/#partnerships', target: '#demigod-partnerships-wrap', waitClass: 'dg-partners-page' },
-  { name: 'privacy', url: '/#privacy', target: '#demigod-legal-privacy', waitClass: 'dg-legal-page', viewportShot: true },
+  { name: 'trust', url: '/', target: '.trust-section', scrollOnly: true, waitSteps: true },
+  { name: 'pricing', url: '/pricing', target: '#dg-page' },
+  { name: 'partners', url: '/refer', target: '#dg-page' },
+  { name: 'privacy', url: '/legal', target: '#dg-page' },
 ];
 
 const VIEWS = QUICK ? VIEWS_QUICK : VIEWS_FULL;
@@ -39,8 +50,6 @@ async function settleView(page, v) {
   const hash = v.url.includes('#') ? v.url.slice(v.url.indexOf('#')) : '';
   await page.evaluate(({ hash, target, waitClass, modal }) => {
     if (modal) {
-      location.hash = modal.slice(1);
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
       return;
     }
     if (hash) {
@@ -71,7 +80,7 @@ async function settleView(page, v) {
     await sleep(1400);
   }
   if (v.waitSteps) {
-    await page.waitForSelector('#demigod-trust-block .dg-steps', { timeout: 20000 }).catch(() => {});
+    await page.waitForSelector('.trust-section .steps-grid', { timeout: 20000 }).catch(() => {});
   }
   if (v.target && !v.modal) {
     await page.waitForSelector(v.target, { timeout: 20000 }).catch(() => {});
@@ -90,7 +99,12 @@ async function settleView(page, v) {
     await sleep(v.scrollOnly ? 1000 : 600);
   }
   if (v.modal) {
-    await page.waitForSelector(`${v.modal}.dg-wiz-active`, { timeout: 15000 }).catch(() => {});
+    await page.waitForFunction((selector) => {
+      const modal = document.querySelector(selector);
+      if (!modal) return false;
+      const style = getComputedStyle(modal);
+      return style.display !== 'none' && style.visibility !== 'hidden' && modal.offsetWidth > 20 && modal.offsetHeight > 20;
+    }, { timeout: 15000 }, v.modal);
   }
   await sleep(v.modal ? 1400 : 2000);
 }
@@ -112,6 +126,22 @@ async function scanColors(page) {
   });
 }
 
+async function scanLayout(page, view) {
+  if (!view.modal) return {};
+  return page.evaluate((modal) => {
+    const button = document.querySelector(`${modal} .dg-wiz-next[data-enter-hint]`);
+    if (!button) return { wizardHint: { ok: false, reason: 'button_missing' } };
+    const style = getComputedStyle(button);
+    return {
+      wizardHint: {
+        ok: !style.display.includes('flex') || style.flexDirection === 'column',
+        display: style.display,
+        flexDirection: style.flexDirection,
+      },
+    };
+  }, view.modal);
+}
+
 async function capture(page, v, shot) {
   if (v.modal) {
     const clip = await page.evaluate((modal) => {
@@ -126,17 +156,17 @@ async function capture(page, v, shot) {
     return;
   }
   if (v.target) {
-    await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (el) el.scrollIntoView({ block: 'start', behavior: 'instant' });
-    }, v.target);
-    await sleep(700);
-    const clip = await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) return null;
-      return { x: Math.max(0, r.x), y: Math.max(0, r.y), width: Math.min(r.width, 1320), height: Math.min(r.height, 1200) };
+    const clip = await page.evaluate((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return null;
+      return {
+        x: Math.max(0, rect.x + scrollX),
+        y: Math.max(0, rect.y + scrollY),
+        width: Math.min(rect.width, 1320),
+        height: Math.min(rect.height, 2400),
+      };
     }, v.target);
     if (clip) {
       await page.screenshot({ path: shot, clip });
@@ -155,28 +185,48 @@ async function capture(page, v, shot) {
 async function main() {
   fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
-  const report = { at: new Date().toISOString(), ver: VER, views: {}, summary: { coolGray: 0, blueRed: 0 } };
+  const report = { at: new Date().toISOString(), ver: VER, local: USE_LOCAL, views: {}, summary: { coolGray: 0, blueRed: 0, wizardHintCollisions: 0 } };
 
   for (const v of VIEWS) {
     const page = await browser.newPage();
+    if (USE_LOCAL) {
+      await page.setCacheEnabled(false);
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const url = request.url();
+        const clean = url.split(/[?#]/)[0];
+        if (clean === MANIFEST.cdnUrl || /foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url)) {
+          request.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
+        } else if (clean === MANIFEST.assets?.headCss?.url || /head-latest\.css(?:[?#]|$)|demigod-head/i.test(url)) {
+          request.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
+        } else if (clean === MANIFEST.assets?.startupMap?.url || /startup-map-latest\.js(?:[?#]|$)/i.test(url)) {
+          request.respond({ status: 200, contentType: 'application/javascript', body: ATLAS }).catch(() => {});
+        } else if (clean === MANIFEST.assets?.mapData?.url || /sf-startup-map\.json(?:[?#]|$)/i.test(url)) {
+          request.respond({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: MAP_DATA }).catch(() => {});
+        } else request.continue().catch(() => {});
+      });
+    }
     if (v.viewport) await page.setViewport(v.viewport);
     else await page.setViewport({ width: 1440, height: 900 });
-  const base = v.url.split('#')[0] || '/';
-  const hash = v.url.includes('#') ? v.url.slice(v.url.indexOf('#')) : '';
-  await page.goto(`${LIVE_ORIGIN}${base}${hash}?design=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => /dg-foot-v\d+-core/.test([...document.scripts].map((s) => s.textContent).join('')), { timeout: 15000 }).catch(() => {});
+  const target = new URL(v.url, LIVE_ORIGIN);
+  target.searchParams.set('design', Date.now());
+  await page.goto(target.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForFunction(() => window.__dgFootVer, { timeout: 15000 }).catch(() => {});
   await sleep(2800);
   await settleView(page, v);
     const shot = path.join(SHOTS, `${VER}-${v.name}.png`);
-    await capture(page, v, shot);
+    await bounded(capture(page, v, shot), 30000, `capture_${v.name}`);
     const colors = await scanColors(page);
-    report.views[v.name] = { shot, url: v.url, colors };
+    const layout = await scanLayout(page, v);
+    const runtimeVer = await page.evaluate(() => `v${window.__dgFootVer || ''}`);
+    report.views[v.name] = { shot, url: v.url, runtimeVer, colors, layout };
     report.summary.coolGray += colors.offPalette.filter((x) => x.kind === 'cool-gray').length;
     report.summary.blueRed += colors.offPalette.filter((x) => x.kind === 'blue-red').length;
+    if (layout.wizardHint?.ok === false) report.summary.wizardHintCollisions += 1;
     await page.close();
   }
 
-  report.ok = report.summary.blueRed === 0 && report.summary.coolGray < 5;
+  report.ok = report.summary.blueRed === 0 && report.summary.coolGray < 5 && report.summary.wizardHintCollisions === 0 && (!USE_LOCAL || Object.values(report.views).every((view) => view.runtimeVer === VER));
   fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ok: report.ok, ver: VER, summary: report.summary, out: OUT }));
   await browser.disconnect();

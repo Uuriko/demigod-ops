@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Block turn-end while /tmp/dg-busy/KEEP_WORKING exists (max 8/turn built-in).
+# Only gates reason=end_turn. Caps re-prompt spam via stopHookActive counter file.
+set -euo pipefail
+input=$(cat || true)
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+reason=$(printf '%s' "$input" | python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin)
+  print(d.get("reason") or "")
+except Exception:
+  print("")
+' 2>/dev/null || true)
+active=$(printf '%s' "$input" | python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin)
+  print("1" if d.get("stopHookActive") else "0")
+except Exception:
+  print("0")
+' 2>/dev/null || true)
+
+if [[ "$reason" != "end_turn" ]]; then
+  exit 0
+fi
+if [[ ! -f "$BUSY/KEEP_WORKING" ]]; then
+  exit 0
+fi
+# After several blocks this turn, allow stop so scheduler can re-wake next cycle
+# (platform hard-caps at 8; we soft-cap at 4 to leave room)
+count_file="$BUSY/keep-working-stop-count.$$"
+# use session-scoped if available
+sid="${GROK_SESSION_ID:-anon}"
+count_file="$BUSY/keep-working-stop-count.${sid}"
+n=0
+if [[ -f "$count_file" ]]; then n=$(cat "$count_file" 2>/dev/null || echo 0); fi
+if [[ "$active" == "1" ]]; then
+  n=$((n+1))
+else
+  n=1
+fi
+echo "$n" >"$count_file"
+if [[ "$n" -ge 4 ]]; then
+  # allow stop; scheduler / useful-loop will continue work
+  exit 0
+fi
+# Prefer concrete next work
+next="Continue the standing KEEP_WORKING goal: raise trydemigod.com design quality (type, space, dual-path, honest copy, nav clarity). Run bin/dg truth; fix highest-impact disk design defect without publish; leave verify green; do not mark goals complete until user clears KEEP_WORKING."
+printf '%s\n' "{\"decision\":\"block\",\"reason\":$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$next")}"
+exit 0

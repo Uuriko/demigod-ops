@@ -13,9 +13,10 @@ test('P0 hiring forms collect only match-critical evidence', () => {
   assert.doesNotMatch(talentConfig, /\['linkedin-url'\]|phone|why-startups/);
   assert.doesNotMatch(talentConfig, /\['links'\]/);
   assert.match(foot, /Where and how can this person work\?/);
-  assert.match(foot, /Resume or work link\?/);
+  assert.match(foot, /Resume or work link\? \(optional\)/);
   assert.match(foot, /nativeResume&&!en\.querySelector\('\[name=resume-url\]'\)/);
-  assert.match(foot, /Upload a file or paste one shareable HTTPS link/);
+  assert.match(foot, /Upload a file, paste one shareable HTTPS link, or skip/);
+  assert.match(foot, /qa\('\[name=resume\],\[name=Resume\],\[name=resume-url\],#resume,#resume-url',en\)\.forEach[\s\S]{0,180}removeAttribute\('required'\)/);
   assert.match(foot, /\['Source','hiring-model','timeline','team-size','why-this-role','role-jd'\]\.forEach/);
   assert.match(foot, /\['github-url','portfolio-url','linkedin-url','phone','why-startups','work-auth'\]\.forEach/);
 });

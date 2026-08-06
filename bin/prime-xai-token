@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""Print current xAI OIDC access token from ~/.grok/auth.json for prime-agent."""
+import json, sys, time
+from pathlib import Path
+p = Path.home() / ".grok" / "auth.json"
+if not p.exists():
+    print("missing ~/.grok/auth.json", file=sys.stderr)
+    sys.exit(1)
+data = json.loads(p.read_text())
+# pick first auth.x.ai entry
+entry = None
+for k, v in data.items():
+    if "auth.x.ai" in k or (isinstance(v, dict) and "x.ai" in str(v.get("oidc_issuer", ""))):
+        entry = v
+        break
+if entry is None:
+    entry = next(iter(data.values()), None)
+if not isinstance(entry, dict) or not entry.get("key"):
+    print("no xAI token in ~/.grok/auth.json", file=sys.stderr)
+    sys.exit(2)
+# optional expiry warn to stderr only
+exp = entry.get("expires_at")
+if exp:
+    try:
+        # ISO format
+        from datetime import datetime
+        dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+        if dt.timestamp() < time.time():
+            print("xAI token expired — re-login to Grok CLI / grok auth", file=sys.stderr)
+            sys.exit(3)
+    except Exception:
+        pass
+sys.stdout.write(entry["key"])

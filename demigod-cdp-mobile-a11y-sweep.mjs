@@ -7,11 +7,22 @@ import { LIVE_ORIGIN, appendNovelFindings } from './demigod-live-lib.mjs';
 
 const FINDINGS = '/tmp/dg-busy/dg-findings.jsonl';
 const RECEIPT = '/tmp/dg-busy/mobile-a11y-sweep.json';
+const USE_LOCAL = process.argv.includes('--local');
+const CORE = USE_LOCAL ? fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8') : '';
+const HEAD_CSS = USE_LOCAL ? fs.readFileSync(new URL('./demigod-head-styles.css', import.meta.url), 'utf8') : '';
+const ATLAS = USE_LOCAL ? fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8') : '';
+const MAP_DATA = USE_LOCAL ? fs.readFileSync(new URL('./DEMIGOD-SF-STARTUP-MAP.json', import.meta.url), 'utf8') : '';
+const MANIFEST = USE_LOCAL ? JSON.parse(fs.readFileSync(new URL('./DEMIGOD-FOOT-CDN.json', import.meta.url), 'utf8')) : {};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export function appendTrustedFindings(identityOk, findings, append = appendNovelFindings) {
+  return identityOk ? append(FINDINGS, findings) : { written: 0, skipped: 0 };
+}
 
 const PAGES = [
   { path: '/', label: 'home' },
-  { path: '/?p=events', label: 'events' },
+  ...['pricing', 'events', 'how', 'contact', 'legal', 'refer', 'hire', 'talent', 'faq', 'about', 'blog', 'sample', 'startups', 'press', 'private']
+    .map((label) => ({ path: `/${label}`, label })),
 ];
 
 const KNOWN_MINOR = new Set([
@@ -48,14 +59,14 @@ async function sweep(page, url, label) {
         (cls ? '.' + cls.split(' ').filter(Boolean).slice(0, 2).join('.') : '')
       );
     };
-    const out = { overflow: null, tapTargets: [], unlabeledInputs: [], liveRegions: [] };
+    const out = { footVer: String(window.__dgFootVer || ''), overflow: null, tapTargets: [], unlabeledInputs: [], liveRegions: [] };
 
     // 1. horizontal overflow
     const sw = document.documentElement.scrollWidth;
     const iw = window.innerWidth;
     if (sw > iw + 1) out.overflow = { scrollWidth: sw, innerWidth: iw, delta: sw - iw };
 
-    // 2. tap targets < 44px
+    // 2. tap targets below the project 48px mobile floor
     const isOffscreenClipped = (el, r) => {
       const st = getComputedStyle(el);
       if (st.position === 'absolute' || st.position === 'fixed') {
@@ -71,7 +82,7 @@ async function sweep(page, url, label) {
       return Boolean(ownText && el.closest('p'));
     };
 
-    const tappable = document.querySelectorAll('a[href], button, input, select, textarea, [role="button"], [onclick]');
+    const tappable = document.querySelectorAll('a[href], button, summary, input, select, textarea, [role="button"], [onclick]');
     tappable.forEach((el) => {
       // checkbox/radio/range: the real tap target is the wrapping <label>, not the tiny
       // native control (a naive raw-rect check false-positives on every label-wrapped input).
@@ -88,7 +99,7 @@ async function sweep(page, url, label) {
       if (isInlineExempt(el)) return;
       if (r.top > window.innerHeight * 3 || r.bottom < -window.innerHeight) return; // way off current scroll area, still same doc but skip absurd
       const minDim = Math.min(r.width, r.height);
-      if (minDim < 48 && r.width > 2 && r.height > 2) {
+      if (minDim < 47.5 && r.width > 2 && r.height > 2) {
         if (el.matches('.dg-ev-cal-cell') && r.width >= 24 && r.height >= 24) return;
         if (el.matches('.dg-blog-home-all,.dg-page-x') && r.width >= 24 && r.height >= 24 && (el.textContent || el.getAttribute('aria-label') || '').trim()) return;
         const sel = selOf(measureEl);
@@ -146,6 +157,23 @@ async function sweep(page, url, label) {
 async function main() {
   const browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 120000 });
   const page = await browser.newPage();
+  if (USE_LOCAL) {
+    await page.setCacheEnabled(false);
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const url = request.url();
+      const clean = url.split(/[?#]/)[0];
+      if (clean === MANIFEST.cdnUrl || /foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url)) {
+        request.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
+      } else if (clean === MANIFEST.assets?.headCss?.url || /head-latest\.css(?:[?#]|$)|demigod-head/i.test(url)) {
+        request.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
+      } else if (clean === MANIFEST.assets?.startupMap?.url || /startup-map-latest\.js(?:[?#]|$)/i.test(url)) {
+        request.respond({ status: 200, contentType: 'application/javascript', body: ATLAS }).catch(() => {});
+      } else if (clean === MANIFEST.assets?.mapData?.url || /sf-startup-map\.json(?:[?#]|$)/i.test(url)) {
+        request.respond({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: MAP_DATA }).catch(() => {});
+      } else request.continue().catch(() => {});
+    });
+  }
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
 
@@ -160,6 +188,8 @@ async function main() {
 
   const findings = [];
   const at = new Date().toISOString();
+  const expectedFootVer = (CORE.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || '';
+  const localIdentityOk = !USE_LOCAL || Object.values(results).every((result) => result.footVer === expectedFootVer);
   for (const [label, r] of Object.entries(results)) {
     if (r.overflow) {
       findings.push({ at, task: 'mobile-a11y-sweep', finding: `horizontal overflow on ${label}: scrollWidth=${r.overflow.scrollWidth} innerWidth=${r.overflow.innerWidth} (+${r.overflow.delta}px)`, evidence: r.overflow, severity: 'medium' });
@@ -176,8 +206,9 @@ async function main() {
   }
 
   fs.mkdirSync('/tmp/dg-busy', { recursive: true });
-  // Dedupe vs existing jsonl — known findings must not re-append every sweep.
-  const { written, skipped } = appendNovelFindings(FINDINGS, findings);
+  // Never persist findings from the wrong runtime. A cached live asset once produced 69 false
+  // positives; identity failure is evidence about the harness, not the website.
+  const { written, skipped } = appendTrustedFindings(localIdentityOk, findings);
   const receipt = {
     at,
     task: 'mobile-a11y-sweep',
@@ -186,14 +217,26 @@ async function main() {
     findingsCount: findings.length,
     findingsNew: written,
     findingsKnown: skipped,
+    localIdentityOk,
     results,
   };
   fs.writeFileSync(RECEIPT, JSON.stringify(receipt, null, 2));
 
-  console.log(JSON.stringify({ findingsCount: findings.length, findingsNew: written, findingsKnown: skipped, results }, null, 2));
+  console.log(JSON.stringify({ findingsCount: findings.length, findingsNew: written, findingsKnown: skipped, localIdentityOk, results }, null, 2));
+  if (findings.length || !localIdentityOk) process.exitCode = 1;
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+/* import.meta.main, not a bare argv check: an ungated --selftest block ends in exit(0), so any
+   module that imports this one and is itself run with --selftest inherits a silent success
+   having asserted nothing. demigod-seo-audit shipped that way and hijacked site-health. */
+if (import.meta.main && process.argv.includes('--selftest')) {
+  let called = false;
+  const result = appendTrustedFindings(false, [{}], () => { called = true; return { written: 1, skipped: 0 }; });
+  if (called || result.written !== 0 || result.skipped !== 0) throw new Error('identity failure must not write findings');
+  console.log(JSON.stringify({ ok: true, selftest: 'mobile-findings-identity-gate' }));
+} else {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

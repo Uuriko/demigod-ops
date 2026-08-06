@@ -6,11 +6,13 @@ import {
   executionSucceeded,
   parseDogfoodBool,
   parseLogFlags,
+  resolveSpawnCmd,
   rowExecutionOk,
   rowKind,
   summarize,
 } from './demigod-tool-dogfood.mjs';
 import { TOOLS } from './demigod-tools-registry.mjs';
+import path from 'node:path';
 
 test('dogfood derives registry aliases without collapsing registry IDs', () => {
   for (const tool of TOOLS) assert.equal(canonicalTool(tool.id), tool.id);
@@ -26,9 +28,47 @@ test('dogfood derives registry aliases without collapsing registry IDs', () => {
     assert.equal(canonicalTool(alias), 'orca-status');
   }
   assert.equal(canonicalTool('source-verify'), 'source-verify');
+  // lead-pipeline umbrella: stage from argv, else packages (hot path)
+  assert.equal(canonicalTool('lead-pipeline'), 'pipeline-packages');
+  assert.equal(canonicalTool('demigod-lead-pipeline'), 'pipeline-packages');
+  assert.equal(
+    canonicalTool('lead-pipeline', ['node', 'demigod-lead-pipeline.mjs', 'tick', '--stage=status']),
+    'pipeline-status',
+  );
+  assert.equal(
+    canonicalTool('lead-pipeline', ['node', 'demigod-lead-pipeline.mjs', 'tick', '--stage=packages']),
+    'pipeline-packages',
+  );
+  assert.equal(canonicalTool('lead-pipeline-status'), 'pipeline-status');
+  assert.equal(canonicalTool('lead-pipeline-packages'), 'pipeline-packages');
   assert.equal(executionSucceeded(1, 'webflow-doctor'), true);
   assert.equal(executionSucceeded(1, 'ship'), true);
   assert.equal(executionSucceeded(1, 'cm6-check'), false);
+});
+
+test('dogfood rows with lead-pipeline + argv stage attribute to registered tools', () => {
+  const status = summarize([
+    {
+      at: '2026-01-01T00:00:00Z',
+      tool: 'lead-pipeline',
+      source: 'wrap',
+      argv: ['node', 'demigod-lead-pipeline.mjs', 'tick', '--stage=packages'],
+      ok: true,
+      childExit: 0,
+    },
+    {
+      at: '2026-01-01T00:00:01Z',
+      tool: 'lead-pipeline',
+      source: 'wrap',
+      argv: ['node', 'demigod-lead-pipeline.mjs', 'tick', '--stage=status'],
+      ok: true,
+      childExit: 0,
+    },
+  ]);
+  assert.equal(status.tools.find((tool) => tool.tool === 'pipeline-packages')?.executions, 1);
+  assert.equal(status.tools.find((tool) => tool.tool === 'pipeline-status')?.executions, 1);
+  assert.equal(status.tools.find((tool) => tool.tool === 'lead-pipeline'), undefined);
+  assert.equal(status.unregisteredExecutionTools, 0);
 });
 
 test('dogfood repairs stored umbrella rows from a registered raw tool', () => {
@@ -177,6 +217,38 @@ test('dogfood separates red policy outcomes from execution failures', () => {
   assert.equal(status.suggestions.some((suggestion) => suggestion.kind === 'reliability'), false);
   assert.equal(executionSucceeded(1, 'truth'), true);
   assert.equal(executionSucceeded(1, 'bin/dg truth'), true); // alias → truth
+  // Lighthouse exit 1 = under perf budget with receipt — product red, not tool crash.
+  assert.equal(executionSucceeded(1, 'lighthouse'), true);
+  assert.equal(executionSucceeded(2, 'lighthouse'), false); // missing chrome/node
+  assert.equal(executionSucceeded(1, 'navigation-audit'), true);
+  assert.equal(executionSucceeded(1, 'button-audit'), true);
+  assert.equal(executionSucceeded(1, 'mobile-a11y'), true);
+  assert.equal(executionSucceeded(1, 'wiz-a11y-audit'), true);
+  assert.equal(executionSucceeded(1, 'form-e2e'), true);
+  assert.equal(executionSucceeded(2, 'startups-static-paste'), true); // policy/Designer env
+  assert.equal(executionSucceeded(1, 'startups-static-paste'), false); // fragment mismatch stays hard
+  assert.equal(executionSucceeded(1, 'seo-audit'), true);
+  assert.equal(executionSucceeded(1, 'reseal-queue'), true); // coverage/not-green ≠ crash
+  assert.equal(
+    rowExecutionOk({
+      tool: 'startups-static-paste',
+      ok: false,
+      childExit: 1,
+      stderr: 'Error: startups-static-paste blocked: current request did not authorize external publication',
+    }),
+    true,
+  );
+  assert.equal(
+    rowExecutionOk({
+      tool: 'startups-static-paste',
+      ok: false,
+      childExit: 1,
+      stderr: 'persisted startups fragment differs from current sealed source',
+    }),
+    false,
+  );
+  assert.equal(canonicalTool('demigod-mobile-sweep'), 'mobile-a11y');
+
   assert.equal(executionSucceeded(1, 'tools-os-selftest'), false);
   assert.equal(executionSucceeded(1, 'funnel-selftest'), false);
   assert.equal(executionSucceeded(1), false);
@@ -201,6 +273,20 @@ test('dogfood separates red policy outcomes from execution failures', () => {
   const eo = legacy.tools.find((t) => t.tool === 'events-online');
   assert.equal(eo.red, 3);
   assert.equal(eo.fail, 1);
+});
+
+test('dogfood resolveSpawnCmd rewrites missing absolute node pins', () => {
+  const dead = '/home/potter/.local/node24/bin/node';
+  const fixed = resolveSpawnCmd([dead, 'demigod-startup-map-data.mjs', '--with-jobs']);
+  assert.equal(fixed[0], process.execPath);
+  assert.deepEqual(fixed.slice(1), ['demigod-startup-map-data.mjs', '--with-jobs']);
+  // Relative / bare node unchanged (PATH resolution).
+  assert.deepEqual(resolveSpawnCmd(['node', 'x.mjs']), ['node', 'x.mjs']);
+  // Existing absolute node kept.
+  assert.deepEqual(resolveSpawnCmd([process.execPath, 'x.mjs']), [process.execPath, 'x.mjs']);
+  // Non-node absolute binary not rewritten even if missing.
+  const missingBin = path.join('/tmp', 'demigod-missing-bin-xyz');
+  assert.deepEqual(resolveSpawnCmd([missingBin, 'a']), [missingBin, 'a']);
 });
 
 test('dogfood distinguishes timeout pressure from other execution failures', () => {

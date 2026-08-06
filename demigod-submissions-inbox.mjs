@@ -114,6 +114,34 @@ function summarize(items) {
   return { total: items.length, byStatus, byKind };
 }
 
+/** Aggregate non-PII UTM counts for the /startups → brief acquisition wedge (no company names). */
+export function attributionSummary(items) {
+  const bySource = {};
+  const byCampaign = {};
+  let directoryCompanyBriefs = 0;
+  let startupWithAttribution = 0;
+  const tokenOk = (v) => typeof v === 'string' && v.length <= 40 && /^[A-Za-z0-9][A-Za-z0-9._ -]*$/.test(v);
+  for (const item of items || []) {
+    if (formKind(item.form) !== 'startup') continue;
+    const raw = item.raw || item.data || {};
+    const src = String(raw.utm_source || '').trim();
+    const camp = String(raw.utm_campaign || '').trim();
+    if (tokenOk(src)) {
+      bySource[src] = (bySource[src] || 0) + 1;
+      startupWithAttribution += 1;
+    }
+    if (tokenOk(camp)) byCampaign[camp] = (byCampaign[camp] || 0) + 1;
+    if (src === 'directory' && camp === 'company-brief') directoryCompanyBriefs += 1;
+  }
+  return {
+    startupWithAttribution,
+    directoryCompanyBriefs,
+    bySource,
+    byCampaign,
+    note: 'Completed startup submissions only (opens not server-visible). directory+company-brief = /startups row handoff.',
+  };
+}
+
 export function redactItem(item) {
   const email = extractEmail(item.raw || {}, item.form);
   const masked = email ? email.replace(/(^.).*(@.*$)/, '$1***$2') : '';
@@ -260,6 +288,7 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
   }
 
   const summary = summarize(inbox.items || []);
+  const attribution = attributionSummary(inbox.items || []);
   const testItems = (inbox.items || []).filter(isTestSubmission);
   const incompleteItems = (inbox.items || []).filter((item) =>
     !isTestSubmission(item) && item.status !== 'spam' && !extractEmail(item.raw || {}, item.form));
@@ -272,6 +301,7 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
     inboxAt: inbox.at,
     filter: args.status,
     summary,
+    attribution,
     newCount: (inbox.items || []).filter((i) => i.status === 'new').length,
     pendingReviewCount: pendingReviewCount(inbox.items || []),
     operationalCount: operationalItems.length,
@@ -332,6 +362,10 @@ Usage: node demigod-submissions-inbox.mjs [--json] [--status=all|new|spam] [--li
   );
   console.log(`Kinds: startup ${summary.byKind.startup} · engineer ${summary.byKind.engineer} · partner ${summary.byKind.partner} · other ${summary.byKind.other}`);
   console.log(`Status: ${Object.entries(summary.byStatus).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
+  console.log(
+    `Directory wedge: ${attribution.directoryCompanyBriefs} startup briefs with utm_source=directory + utm_campaign=company-brief` +
+      (attribution.startupWithAttribution ? ` · ${attribution.startupWithAttribution} startup with any utm_source` : ''),
+  );
   console.log('---');
   // Default text list is the operational queue only (tests/spam stay in --json).
   if (!report.operationalRows.length) {

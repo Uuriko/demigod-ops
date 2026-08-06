@@ -11,11 +11,19 @@
 
 | Pipe | Use |
 |------|-----|
-| **API** (`gh`, GitHub MCP) | PRs, checks, diffs, comments, notifications — **default multi-agent truth** |
+| **API** (`gh`, GitHub MCP) | PRs, checks, diffs, comments, notifications, **CDN repo commits / Actions** — default multi-agent truth |
 | **CDP tab** | What a human sees right now (UI, Checks paint, merge box) — **optional confirm** |
 
 Do **not** use CDP for password reset, 2FA, or typing secrets.  
 Do **not** merge / force-push / change org billing without **current-request** auth.
+
+### CDN repo when local `gh` is unauthenticated
+
+Ship path: [`docs/SHIP-AND-CDN.md`](../SHIP-AND-CDN.md).
+
+1. Prefer `GITHUB_TOKEN` + `demigod-cdn-actions-publish.mjs` / foot-cdn-publish `uploadViaActions`.
+2. Or: stage catbox URLs (`cdn-catbox-urls.json`) → GitHub MCP `actions_run_trigger` on `Uuriko/demigod-site-cdn` workflow `ingest-site-bundle.yml` → poll until `foot-latest.js` matches disk → finalize loaders / CM6 paste.
+3. Keep the Actions run tab open for visual confirm if useful; API/MCP remains authoritative.
 
 ---
 

@@ -1,6 +1,6 @@
 /**
  * Hero must NOT download Unbounded (CLS / budget). System sans via --dg-cyber.
- * Preconnect budget: only jsDelivr in custom head (Webflow already hits fonts CDN).
+ * Preconnect budget: none. Critical CSS and the desktop hero preload are discovered immediately.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,21 +14,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 test('head-minimal does not load Unbounded webfont', () => {
   const head = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
   assert.equal(/family=Unbounded/.test(head), false, 'no Google Fonts Unbounded download');
-  /* Preconnect is a scarce resource — each one costs a DNS + TCP + TLS handshake the browser may
-     never use — so the contract is an ALLOW-LIST of hosts actually on the critical path, not a
-     bare count. Bumping a count from 1 to 2 would let any future host in silently; naming them
-     means a new preconnect has to be justified here first.
-       cdn.jsdelivr.net  — foot-core JS, the render-blocking dependency
-       files.catbox.moe  — hero image (head-minimal:253), favicon, apple-touch-icon
-     Both are verified fetched from this file. A host with no request on the critical path must
-     not be preconnected. */
-  const ALLOWED_PRECONNECT = ['https://cdn.jsdelivr.net', 'https://files.catbox.moe'];
   const hosts = [...head.matchAll(/rel="preconnect" href="([^"]+)"/g)].map((m) => m[1]);
-  assert.match(head, /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/, 'jsDelivr preconnect required');
-  for (const h of hosts) {
-    assert.ok(ALLOWED_PRECONNECT.includes(h), `unlisted preconnect ${h} — justify it in ALLOWED_PRECONNECT or remove it`);
-  }
-  assert.ok(hosts.length <= ALLOWED_PRECONNECT.length, `${hosts.length} preconnects for ${ALLOWED_PRECONNECT.length} allowed hosts — duplicates waste a handshake`);
+  assert.equal(hosts.length, 0, `redundant preconnects: ${hosts.join(', ')}`);
 });
 
 test('head CSS uses system cyber stack', () => {

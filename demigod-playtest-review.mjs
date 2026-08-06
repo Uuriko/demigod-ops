@@ -34,16 +34,17 @@ async function shot(page, name) {
   }
 }
 
-async function clickByText(page, text, partial = false) {
-  return page.evaluate((t, part) => {
-    const el = [...document.querySelectorAll('a,button')].find((e) => {
-      const v = (e.textContent || '').trim();
-      return part ? v.includes(t) : v === t;
+async function clickFirst(page, selector) {
+  return page.evaluate((sel) => {
+    const el = [...document.querySelectorAll(sel)].find((node) => {
+      const r = node.getBoundingClientRect();
+      const s = getComputedStyle(node);
+      return r.width > 2 && r.height > 2 && s.display !== 'none' && s.visibility !== 'hidden';
     });
-    if (!el) return { ok: false, text: t };
+    if (!el) return { ok: false, selector: sel };
     el.click();
     return { ok: true, text: (el.textContent || '').trim().slice(0, 40), href: el.getAttribute('href') };
-  }, text, partial);
+  }, selector);
 }
 
 async function modalState(page, id) {
@@ -92,9 +93,8 @@ const pageScan = {
   webflowBadge: domSample.webflowBadge,
 };
 
-// HIRE TALENT (hero) → startup modal
-let startupClick = await clickByText(page, 'HIRE TALENT', true);
-if (!startupClick.ok) startupClick = await clickByText(page, 'FIND TALENT');
+// Founder hero → startup modal (behavior attributes survive copy changes).
+const startupClick = await clickFirst(page, '.hero-actions [data-demigod-modal="startup"],.hero-actions [data-dg-cta="hire"]');
 await sleep(800);
 screenshots.startupModal = await shot(page, '02-after-founder-cta');
 const startup = await modalState(page, 'startup-modal');
@@ -104,13 +104,7 @@ await page.evaluate(() => document.querySelector('.modal-close,[class*="close"]'
 await sleep(400);
 
 // Nav FIND TALENT (distinct from hero HIRE TALENT)
-const navHireClick = await page.evaluate(() => {
-  const nav = document.querySelector('nav,.w-nav,.nav_container');
-  const el = nav && [...nav.querySelectorAll('a,button')].find((e) => /^FIND TALENT$/i.test((e.textContent || '').trim()));
-  if (!el) return { ok: false };
-  el.click();
-  return { ok: true, text: el.textContent?.trim(), href: el.getAttribute('href') };
-});
+const navHireClick = await clickFirst(page, 'nav [data-demigod-modal="startup"],nav [data-dg-cta="hire"]');
 await sleep(800);
 const startupFromNav = await modalState(page, 'startup-modal');
 
@@ -118,9 +112,8 @@ await page.keyboard.press('Escape');
 await page.evaluate(() => document.querySelector('.modal-close,[class*="close"]')?.click());
 await sleep(400);
 
-// JOIN NETWORK (engineer)
-let jobClick = await clickByText(page, 'JOIN NETWORK');
-if (!jobClick.ok) jobClick = await clickByText(page, 'GET JOB');
+// Candidate hero → private candidate modal.
+const jobClick = await clickFirst(page, '.hero-actions [data-demigod-modal="jobseeker"],.hero-actions [data-dg-cta="talent"]');
 await sleep(800);
 screenshots.jobseekerModal = await shot(page, '03-after-get-job');
 const jobseeker = await modalState(page, 'jobseeker-modal');
@@ -128,17 +121,12 @@ const jobseeker = await modalState(page, 'jobseeker-modal');
 await page.keyboard.press('Escape');
 await sleep(400);
 
-// Pricing
-await page.evaluate(() => {
-  const el = [...document.querySelectorAll('h2,h3')].find((e) => /PRICING/i.test(e.textContent || ''));
-  el?.scrollIntoView({ block: 'center' });
-});
-await sleep(600);
+// Canonical pricing page → startup brief.
+await page.goto(`${LIVE_ORIGIN}/pricing?v=playtest-${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+await sleep(1200);
 screenshots.pricing = await shot(page, '04-pricing');
 
-let pricingClick = await clickByText(page, 'CHOOSE COMMISSION');
-if (!pricingClick.ok) pricingClick = await clickByText(page, 'FIND TALENT');
-if (!pricingClick.ok) pricingClick = await clickByText(page, 'START HIRING');
+const pricingClick = await clickFirst(page, '#dg-page [data-demigod-modal="startup"],#dg-page [data-dg-cta="hire"]');
 await sleep(700);
 screenshots.pricingModal = await shot(page, '05-after-choose-commission');
 const pricingModal = await modalState(page, 'startup-modal');

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * demigod-favicon-ship — write favicon links into demigod-head-minimal.html
- * Prefers catbox URL from /tmp/dg-busy/asset-upload-receipt.json, else local SVG data URI.
+ *
+ * Brand SoR is the square jpeg (ges75q.jpg) — required by verify:source for
+ * org LD logo, ms tile, apple-touch, and blog publisher. SVG is progressive only.
+ * Optional receipt fields: favicon / apple (https jpeg) · faviconSvg (https svg).
  */
 import fs from 'fs';
 import path from 'path';
@@ -11,6 +14,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
 const RECEIPT = '/tmp/dg-busy/asset-upload-receipt.json';
 const SVG = path.join(ROOT, 'assets/brand/favicon.svg');
+/** Square brand mark used by Organization LD + tile honesty gates. */
+const BRAND_JPEG = 'https://files.catbox.moe/ges75q.jpg';
 
 function dataUriSvg(svg) {
   const compact = svg.replace(/\s+/g, ' ').trim();
@@ -28,38 +33,42 @@ try {
 } catch {
   /* */
 }
-const svg = fs.readFileSync(SVG, 'utf8');
-const dataUri = dataUriSvg(svg);
-if (!fav || !/^https:\/\//.test(fav)) fav = dataUri;
-if (!apple || !/^https:\/\//.test(apple)) apple = fav;
+
+// Never demote jpeg SoR to SVG — receipt may only supply alternate https jpeg or svg.
+const isHttpsJpeg = (u) => typeof u === 'string' && /^https:\/\/.+\.jpe?g(\?|$)/i.test(u);
+if (!isHttpsJpeg(fav)) fav = BRAND_JPEG;
+if (!isHttpsJpeg(apple)) apple = fav;
 
 const remoteSvg = favSvg && /^https:\/\//.test(favSvg) ? favSvg : null;
-const jpegType = /^data:image\/svg/.test(fav) || /\.svg(\?|$)/i.test(fav) ? 'image/svg+xml' : 'image/jpeg';
+let dataUri = null;
+try {
+  dataUri = dataUriSvg(fs.readFileSync(SVG, 'utf8'));
+} catch {
+  /* local svg optional */
+}
 
-const iconBlock = `<!-- demigod favicon (shipped) -->
-<link rel="icon" href="${dataUri}" type="image/svg+xml">
-${remoteSvg ? `<link rel="icon" href="${remoteSvg}" type="image/svg+xml" sizes="any">\n` : ''}<link rel="icon" href="${fav}" type="${jpegType}" sizes="32x32">
-<link rel="apple-touch-icon" href="${apple}">`;
+const iconBlock =
+  `<!-- demigod favicon: jpeg brand mark is SoR for org/tile/apple (verify:source); SVG is progressive -->\n` +
+  `<link rel="icon" href="${fav}" type="image/jpeg" sizes="1024x1024">\n` +
+  `<link rel="apple-touch-icon" href="${apple}" type="image/jpeg" sizes="1024x1024">\n` +
+  (remoteSvg
+    ? `<link rel="icon" href="${remoteSvg}" type="image/svg+xml" sizes="any">\n`
+    : dataUri
+      ? `<link rel="icon" href="${dataUri}" type="image/svg+xml" sizes="any">\n`
+      : '');
 
 let head = fs.readFileSync(HEAD, 'utf8');
-if (/rel="icon"/.test(head)) {
-  head = head.replace(
-    /(?:<!--[^\n]*favicon[^\n]*-->\n)?(?:<link rel="icon"[^>]*>\n?)+(?:<link rel="apple-touch-icon"[^>]*>\n?)?/i,
-    iconBlock + '\n',
-  );
+// One run of comment + any order of icon/apple-touch links (prior regex left trailing SVGs).
+const iconRun =
+  /(?:<!--[^\n]*favicon[^\n]*-->\s*)?(?:<link\b[^>]*\brel=["'](?:shortcut icon|icon|apple-touch-icon)["'][^>]*>\s*)+/i;
+if (iconRun.test(head)) {
+  head = head.replace(iconRun, iconBlock);
 } else if (head.includes('</head>')) {
-  head = head.replace('</head>', iconBlock + '\n</head>');
+  head = head.replace('</head>', iconBlock + '</head>');
 } else {
-  head = iconBlock + '\n' + head;
+  head = iconBlock + head;
 }
-// Atomic: write a temp then rename. A plain writeFileSync truncates-then-writes, so any concurrent
-// reader -- verify:source, a ship, another swarm agent -- can catch the head torn. Observed live
-// 2026-07-17: a verify run read the head at 96,256 bytes (vs 48,264 settled) with inline scripts that
-// did not parse. rename(2) is atomic on the same filesystem, so readers see the old head or the new
-// one, never a half.
-// This matters more than a torn gate read: a torn head that reaches Webflow is the "site won't
-// load" class, and a retry-only health check would paper over the whole category
-// verify:source once and calling a transient fail clean.
+// Atomic rename so concurrent verify/ship never reads a torn head.
 {
   const tmp = `${HEAD}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, head);

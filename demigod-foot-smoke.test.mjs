@@ -88,3 +88,26 @@ test('an alias path never claims canonical for itself', () => {
   assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/how', 'how'), '/how');
   assert.equal(pagePathFor(DG_PAGE_PATHS, preferred, '/', 'nosuchroute'), '/?p=nosuchroute');
 });
+
+test('clean page history preserves attribution while removing routing parameters', () => {
+  const src = fs.readFileSync(REAL_FOOT, 'utf8');
+  const body = /function hardPageHref\(hard, hash\) \{([\s\S]*?)\n\}/.exec(src)?.[1];
+  assert.ok(body, 'found shipped hardPageHref');
+  const href = new Function('location', 'hard', 'hash', `${body}`)(
+    { href: 'https://www.trydemigod.com/?p=hire&referral=rf_demo&utm_source=referral' },
+    '/hire',
+    '',
+  );
+  assert.equal(href, '/hire?referral=rf_demo&utm_source=referral');
+
+  const fallbackBody = /function wizardFallbackHref\(href\) \{([\s\S]*?)\n\}/.exec(src)?.[1];
+  assert.ok(fallbackBody, 'found shipped wizardFallbackHref');
+  const fallback = new Function('location', 'href', `${fallbackBody}`)(
+    {
+      href: 'https://www.trydemigod.com/hire?referral=rf_demo&utm_campaign=partner-network',
+      search: '?referral=rf_demo&utm_campaign=partner-network',
+    },
+    '/?wiz=startup',
+  );
+  assert.equal(fallback, '/?wiz=startup&utm_campaign=partner-network&referral=rf_demo');
+});

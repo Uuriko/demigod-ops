@@ -111,6 +111,21 @@ const realMap = JSON.parse(fs.readFileSync(new URL('./DEMIGOD-SF-STARTUP-MAP.jso
 const researchBenchmark = JSON.parse(
   fs.readFileSync(new URL('./DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json', import.meta.url), 'utf8'),
 );
+// Projection behavior needs a stable threshold-passing fixture; the real benchmark is allowed to
+// fall below 90% while a newly selected cohort is still unresolved, in which case production
+// correctly withholds every field. Keep the real artifact above for evidence-seal tests.
+const projectionBenchmark = structuredClone(researchBenchmark);
+for (const row of projectionBenchmark.companies) {
+  for (const [name, field] of Object.entries(row.fields || {})) {
+    if (field.status !== 'unknown') continue;
+    row.fields[name] = {
+      value: `fixture ${name}`,
+      status: 'supported',
+      url: 'https://example.com/',
+      quote: `fixture evidence for ${name}`,
+    };
+  }
+}
 {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-match-research-'));
   try {
@@ -185,7 +200,7 @@ const researchCatalog = {
   assert.equal(
     projectCompanyResearch({
       companyId: runtimeRow.id,
-      benchmark: researchBenchmark,
+      benchmark: projectionBenchmark,
       catalog: objectShaped,
     }),
     null,
@@ -194,7 +209,7 @@ const researchCatalog = {
   assert.equal(
     projectCompanyResearch({
       companyId: runtimeRow.id,
-      benchmark: researchBenchmark,
+      benchmark: projectionBenchmark,
       catalog: { version: 1, companies: 'not-an-array' },
     }),
     null,
@@ -203,7 +218,7 @@ const researchCatalog = {
   assert.equal(
     projectCompanyResearch({
       companyId: runtimeRow.id,
-      benchmark: researchBenchmark,
+      benchmark: projectionBenchmark,
       catalog: { version: 1, companies: [runtimeRow] },
     })?.source,
     'catalog',
@@ -215,7 +230,7 @@ const researchedEvidence = resolveCompanyEvidence(
   realMap,
   {},
   '2026-07-28',
-  researchBenchmark,
+  projectionBenchmark,
 );
 assert.equal(researchedEvidence.research.status, 'verified');
 assert.equal(researchedEvidence.research.fields.productCategory.value, 'agentic AI workflow automation for commodity operations');
@@ -234,7 +249,7 @@ const runtimeEvidence = resolveCompanyEvidence(
   map,
   ledger,
   '2026-07-29',
-  researchBenchmark,
+  projectionBenchmark,
   researchCatalog,
 );
 assert.equal(runtimeEvidence.research.status, 'verified');
@@ -249,7 +264,7 @@ const invalidRuntimeEvidence = resolveCompanyEvidence(
   map,
   ledger,
   '2026-07-29',
-  researchBenchmark,
+  projectionBenchmark,
   {
     companies: [{
       ...runtimeRow,
@@ -270,7 +285,7 @@ assert.equal(
     map,
     ledger,
     '2026-07-29',
-    researchBenchmark,
+    projectionBenchmark,
     { companies: [runtimeRow, { ...runtimeRow }] },
   ).research,
   null,
@@ -280,7 +295,7 @@ const conflictEvidence = resolveCompanyEvidence(
   realMap,
   {},
   '2026-07-28',
-  researchBenchmark,
+  projectionBenchmark,
 );
 assert.equal(conflictEvidence.research.status, 'verified_with_conflict');
 assert.ok(conflictEvidence.reviewFlags.includes('company_research_conflict'));
@@ -293,7 +308,7 @@ const quarantinedEvidence = resolveCompanyEvidence(
   realMap,
   {},
   '2026-07-28',
-  researchBenchmark,
+  projectionBenchmark,
   { companies: [commodityRuntimeRow] },
 );
 assert.equal(quarantinedEvidence.research.quarantineHiring, true);
@@ -409,7 +424,7 @@ assert.match(
     realMap,
     {},
     '2026-07-28',
-    researchBenchmark,
+    projectionBenchmark,
   );
   assert.equal(gold.research?.status, 'verified', 'real role maps research when sources green');
   assert.ok((gold.research?.acceptedFields || []).length >= 1);
@@ -418,7 +433,7 @@ assert.match(
     realMap,
     {},
     '2026-07-28',
-    researchBenchmark,
+    projectionBenchmark,
   );
   assert.equal(sampleShaped.research?.status, 'verified');
   // Queue would still null this when pair.sample !== false (source canary above).

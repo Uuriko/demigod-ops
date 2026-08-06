@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildHnPublicCompanies,
   buildYcPublicCompanies,
   isYcActiveStatus,
   isYcSfBayLocation,
+  mapRebuildWritePath,
   mergeNamedCompanies,
   websiteHostKey,
 } from './demigod-startup-map-data.mjs';
@@ -33,6 +35,10 @@ test('buildYcPublicCompanies maps Active SF rows and drops inactive/foreign', ()
       website: 'https://activesf.example',
       one_liner: 'Does SF things',
       batch: 'Winter 2024',
+      industries: ['B2B', 'Legal'],
+      tags: ['SaaS', 'B2B'],
+      team_size: 12,
+      stage: 'Early',
       isHiring: true,
       launched_at: 1700000000,
     },
@@ -59,7 +65,28 @@ test('buildYcPublicCompanies maps Active SF rows and drops inactive/foreign', ()
   assert.equal(companies[0].hiring, 'yes');
   assert.ok(companies[0].tags.includes('yc'));
   assert.ok(companies[0].tags.includes('YC Winter 2024'));
+  assert.deepEqual(companies[0].tags.slice(2), ['B2B', 'Legal', 'SaaS']);
+  assert.equal(companies[0].teamSize, 12);
+  assert.equal(companies[0].stage, 'Early');
   assert.match(companies[0].sourceUrl, /ycombinator\.com\/companies\/active-sf/);
+});
+
+test('known-dead company websites are omitted without dropping their attributed company row', () => {
+  const [company] = buildYcPublicCompanies([{
+    name: 'Dead Website Co', slug: 'dead-website-co', status: 'Active',
+    all_locations: 'San Francisco, CA, USA', website: 'https://www.airware.com/',
+  }], '2026-08-06');
+  assert.equal(company.website, null);
+  assert.match(company.sourceUrl, /ycombinator\.com\/companies\/dead-website-co/);
+  const [assembly] = buildYcPublicCompanies([{
+    name: 'Assembly', slug: 'assembly', status: 'Active',
+    all_locations: 'San Francisco, CA, USA', website: 'https://asm.co/',
+  }], '2026-08-06');
+  assert.equal(assembly.website, null);
+  assert.match(assembly.sourceUrl, /ycombinator\.com\/companies\/assembly/);
+  const [onton] = buildHnPublicCompanies([{ name: 'Onton.com', website: 'https://careers.onton.com/', jobsUrl: 'https://jobs.ashbyhq.com/onton' }]);
+  assert.equal(onton.website, null);
+  assert.equal(onton.jobsUrl, 'https://jobs.ashbyhq.com/onton');
 });
 
 test('two distinct entities sharing a host are NOT merged (false merges are worse than duplicates)', () => {
@@ -143,4 +170,14 @@ test('an ATS-only HN shell absorbs into the row that owns that board, but a shar
     [{ id: 'hn:jobs.ashbyhq.com/middesk', name: 'Middesk', website: null }],
   );
   assert.equal(orphan.length, 2, 'a name match alone must never absorb a shell');
+});
+
+test('with-jobs rebuild stages beside the live map so a killed enrich cannot board-wipe production', () => {
+  const finalPath = '/home/potter/DEMIGOD-SF-STARTUP-MAP.json';
+  assert.equal(mapRebuildWritePath(finalPath, false), finalPath, 'bare rebuild may write in place');
+  assert.equal(
+    mapRebuildWritePath(finalPath, true),
+    `${finalPath}.staging`,
+    'jobs rebuild must stage first',
+  );
 });

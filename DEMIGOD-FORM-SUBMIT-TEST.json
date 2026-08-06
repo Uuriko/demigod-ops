@@ -1,30 +1,27 @@
 {
-  "at": "2026-07-05T17:06:54.604Z",
-  "url": "https://www.trydemigod.com/?v=formtest-1783271202064",
+  "at": "2026-08-04T17:51:18.284Z",
+  "url": "https://www.trydemigod.com/?v=formtest-1785865873264",
   "startup": {
     "mode": "webflow",
-    "formName": null,
-    "dataName": null,
-    "turnstile": false,
+    "formName": "startup-hire",
+    "dataName": "startup-hire",
+    "turnstile": true,
     "turnstileReady": false,
     "fields": [
       "contact-email",
+      "company-stage",
+      "company-name",
       "role-title",
       "stack-needs",
+      "90day-outcome",
+      "work-location",
       "salary-range",
       "submit"
     ]
   },
   "submitResult": {
-    "ok": true,
-    "clicked": true,
-    "after": {
-      "doneVisible": true,
-      "failVisible": false,
-      "customSuccess": false,
-      "failText": "Oops! Something went wrong while submitting the form."
-    },
-    "pass": true
+    "skipped": true,
+    "reason": "explicit-submit-required"
   },
-  "pass": true
+  "pass": null
 }

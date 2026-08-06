@@ -56,8 +56,10 @@
 
 | Surface | Command / path |
 |---------|----------------|
-| Connect doctor | `bin/dg-webflow connect` |
+| Connect doctor / setup | `bin/dg-webflow connect` · `connect setup` · `docs/WEBFLOW-MCP-SETUP.md` |
 | Open Designer Bridge | `bin/dg-webflow connect bridge` |
+| Grok MCP OAuth | `/mcps` → webflow → `i` (once) |
+| chrome-devtools MCP | CDP `:9223` · live proof |
 | Site token (REST) | `~/.config/demigod/webflow.env` → `WEBFLOW_API_TOKEN=` |
 | Token check | `node demigod-webflow-token.mjs` |
 | Webhooks | public URL + `npm run demigod:webhook:setup` or MCP `data_webhook_tool` |

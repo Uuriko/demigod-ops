@@ -1,6 +1,6 @@
 {
-  "at": "2026-07-30T19:59:59.641Z",
-  "url": "https://www.trydemigod.com/?v=playtest-1785441582033",
+  "at": "2026-08-06T04:43:52.890Z",
+  "url": "https://www.trydemigod.com/?v=playtest-1785991415168",
   "htmlScan": {
     "mcpScripts": [],
     "mcpScriptsGone": true,
@@ -66,7 +66,7 @@
     "footerCoreOk": true,
     "footerCoreCopy": {
       "ok": true,
-      "version": "859",
+      "version": "995",
       "noSpeedInCopy": true,
       "noNameInCopy": true,
       "hasScrub": true
@@ -93,106 +93,67 @@
       "jobseeker": true
     }
   },
-  "findings": [
-    {
-      "severity": "high",
-      "issue": "Startup modal does not open on founder CTA",
-      "detail": {
-        "exists": true,
-        "display": "none",
-        "opacity": "1",
-        "visibility": "hidden",
-        "visible": false,
-        "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
-      }
-    },
-    {
-      "severity": "high",
-      "issue": "Jobseeker modal does not open on engineer CTA",
-      "detail": {
-        "exists": true,
-        "display": "none",
-        "opacity": "1",
-        "visibility": "hidden",
-        "visible": false,
-        "title": "Talent profileSF STARTUP ROLESOne private profile. Evidence match + human review"
-      }
-    },
-    {
-      "severity": "medium",
-      "issue": "CHOOSE COMMISSION does not open startup modal",
-      "detail": {
-        "exists": true,
-        "display": "none",
-        "opacity": "1",
-        "visibility": "hidden",
-        "visible": false,
-        "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
-      }
-    }
-  ],
+  "findings": [],
   "screenshots": {
-    "landing": "/home/potter/audit-shots/playtest/01-landing-2026-07-30T19-59-46-322Z.png",
-    "startupModal": "/home/potter/audit-shots/playtest/02-after-founder-cta-2026-07-30T19-59-47-694Z.png",
-    "jobseekerModal": "/home/potter/audit-shots/playtest/03-after-get-job-2026-07-30T19-59-50-632Z.png",
-    "pricing": "/home/potter/audit-shots/playtest/04-pricing-2026-07-30T19-59-52-201Z.png",
-    "pricingModal": "/home/potter/audit-shots/playtest/05-after-choose-commission-2026-07-30T19-59-53-138Z.png",
-    "footer": "/home/potter/audit-shots/playtest/06-footer-2026-07-30T19-59-55-382Z.png",
-    "mobileHero": "/home/potter/audit-shots/playtest/07-mobile-landing-2026-07-30T19-59-57-376Z.png",
-    "mobileNav": "/home/potter/audit-shots/playtest/08-mobile-nav-open-2026-07-30T19-59-58-104Z.png",
-    "designer": "/home/potter/audit-shots/webflow/playtest-designer-2026-07-30T19-59-59-326Z.png"
+    "landing": "/home/potter/audit-shots/playtest/01-landing-2026-08-06T04-43-40-052Z.png",
+    "startupModal": "/home/potter/audit-shots/playtest/02-after-founder-cta-2026-08-06T04-43-41-398Z.png",
+    "jobseekerModal": "/home/potter/audit-shots/playtest/03-after-get-job-2026-08-06T04-43-44-178Z.png",
+    "pricing": "/home/potter/audit-shots/playtest/04-pricing-2026-08-06T04-43-46-517Z.png",
+    "pricingModal": "/home/potter/audit-shots/playtest/05-after-choose-commission-2026-08-06T04-43-47-460Z.png",
+    "footer": "/home/potter/audit-shots/playtest/06-footer-2026-08-06T04-43-49-754Z.png",
+    "mobileHero": "/home/potter/audit-shots/playtest/07-mobile-landing-2026-08-06T04-43-51-833Z.png",
+    "mobileNav": "/home/potter/audit-shots/playtest/08-mobile-nav-open-2026-08-06T04-43-52-558Z.png"
   },
   "modals": {
     "startup": {
       "exists": true,
-      "display": "none",
+      "display": "flex",
       "opacity": "1",
-      "visibility": "hidden",
-      "visible": false,
-      "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+      "visibility": "visible",
+      "visible": true,
+      "title": "Hiring brief\n~2 min for one SF Bay permanent role. Three gates: software ranks, "
     },
     "jobseeker": {
       "exists": true,
-      "display": "none",
+      "display": "flex",
       "opacity": "1",
-      "visibility": "hidden",
-      "visible": false,
-      "title": "Talent profileSF STARTUP ROLESOne private profile. Evidence match + human review"
+      "visibility": "visible",
+      "visible": true,
+      "title": "Open to the right startup?\nPrivate SF Bay roles. ~2 min · free · three gates (so"
     },
     "pricingModal": {
       "exists": true,
-      "display": "none",
+      "display": "flex",
       "opacity": "1",
-      "visibility": "hidden",
-      "visible": false,
-      "title": "Hiring briefStartup briefRole + 90-day outcome. Matched with Demigod tech; human"
+      "visibility": "visible",
+      "visible": true,
+      "title": "Hiring brief\n~2 min for one SF Bay permanent role. Three gates: software ranks, "
     }
   },
   "clicks": {
     "startupClick": {
-      "ok": false,
-      "text": "FIND TALENT"
+      "ok": true,
+      "text": "Hire talentFor startups",
+      "href": "/?wiz=startup"
     },
     "navHireClick": {
-      "ok": false
+      "ok": false,
+      "selector": "nav [data-demigod-modal=\"startup\"],nav [data-dg-cta=\"hire\"]"
     },
     "jobClick": {
-      "ok": false,
-      "text": "GET JOB"
+      "ok": true,
+      "text": "Share privatelyFor candidates",
+      "href": "/?wiz=engineer"
     },
     "pricingClick": {
-      "ok": false,
-      "text": "START HIRING"
+      "ok": true,
+      "text": "Hire talent",
+      "href": "/?wiz=startup"
     },
     "mobileMenu": {
       "clicked": false
     }
   },
-  "designerIssues": {
-    "postJob": false,
-    "hireTalent": true,
-    "talentLink": false,
-    "footer2026": true
-  },
-  "pass": false
+  "designerIssues": null,
+  "pass": true
 }

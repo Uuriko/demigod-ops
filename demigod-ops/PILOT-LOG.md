@@ -41,7 +41,9 @@ Website-first: **no auto-DM / Twitter blast**. Pilots come from inbound site (WI
 ## Warm inbound (not a pilot yet)
 | Who | Channel | Status | Next | Date |
 |-----|---------|--------|------|------|
-| Douglas Green (Alpha High / 1517) | email + Calendly | Jul 14 meeting missed · reschedule welcomed · Gmail verified 2026-07-30: no later reply, hiring brief, or real role | local follow-up draft ready (DOUGLAS-GMAIL-DRAFT), not sent · Gmail's Jul 9 pre-meeting draft is obsolete · warm ≠ pilot | 2026-07-30 |
+| Douglas Green (Alpha High / 1517) | email | Gmail re-check 2026-08-06: no Doug reply after Aug 5 re-engagement (potter@trydemigod.com Re: Meeting?) · last Doug mail 2026-07-14 · no hiring brief · warm ≠ pilot | wait for Doug reply · no chase · re-check after 2026-08-13 if silent · warm ≠ pilot | 2026-08-06 |
+| Douglas Green (Alpha High / 1517) | email | resolved — superseded by 2026-08-06 Gmail re-check (draft was sent 2026-08-05 from potter@trydemigod.com) · warm ≠ pilot | no follow-up — superseded · see 2026-08-06 email row | 2026-08-05 |
+| Douglas Green (Alpha High / 1517) | calendly | resolved — superseded 2026-08-04 by email-channel re-check (Jul 14 miss history retained in email row) | no follow-up — see email row + DOUGLAS-GMAIL-DRAFT.md | 2026-08-04 |
 | Webflow forms Acme/Alex | form | **test noise only** | ignore | 2026-06-30..07-04 |
 | hello@trydemigod.com | inbox | 0 threads (14d) | forms land on personal Gmail | 2026-07-09 |
 

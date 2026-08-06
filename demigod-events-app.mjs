@@ -309,7 +309,15 @@ function publicOfferCounts(store) {
 }
 
 function publicData() {
-  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-events-data.json'), 'utf8'));
+  // demigod-events-data.json is local/gitignored SoR — never hard-fail the public
+  // calendar when the static file is absent (selftests and fresh hosts).
+  let raw = {};
+  try {
+    raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-events-data.json'), 'utf8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
+  } catch {
+    raw = {};
+  }
   raw.matchesPublic = [];
   raw.note = 'Public payload only. Internal MATCHES.json is not exposed.';
   // Never re-export the automation playbook from the static public JSON (cont53).

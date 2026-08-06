@@ -95,6 +95,61 @@ ok(
   preparedAuthorized.id === 'ship-prepare',
   'current-request publish authorization keeps the guarded ship path active',
 );
+const holdGreenIdle = buildNext({
+  truth: { fullyShipped: true, live: { footVer: '1005' } },
+  truthEvidence: { green: true, pass: true, fresh: true, reason: 'pass-fresh' },
+  shipPrepare: noShipPrepare,
+  demand: {
+    at: new Date().toISOString(),
+    next: 'Queue empty · drafts-only · no pending handles · warm inbound / accepted brief only',
+    queue: { pending: 0, top3: [] },
+    drafts: { hygiene: { ok: true, flagged: 0 }, needFix: [] },
+    warmInbound: {
+      count: 1,
+      freshness: {
+        overdueActionCount: 0,
+        dueTodayActionCount: 0,
+        overdueActionWho: [],
+        dueTodayActionWho: [],
+      },
+    },
+  },
+});
+ok(
+  holdGreenIdle.id === 'hold-green' &&
+    holdGreenIdle.cmd === 'bin/dg demand status' &&
+    holdGreenIdle.mutate === false &&
+    holdGreenIdle.freezeBlocks === false &&
+    holdGreenIdle.pri >= 3 &&
+    !/Review demand operations$/.test(holdGreenIdle.title),
+  'fully-shipped empty demand is hold-green calm, not false P1 critical',
+);
+const holdGreenWarm = buildNext({
+  truth: { fullyShipped: true },
+  truthEvidence: { green: true, pass: true, fresh: true, reason: 'pass-fresh' },
+  shipPrepare: noShipPrepare,
+  demand: {
+    at: new Date().toISOString(),
+    next: 'Inbound review due today: 1 signal · Ada · warm ≠ pilot',
+    queue: { pending: 0, top3: [] },
+    drafts: { hygiene: { ok: true, flagged: 0 } },
+    warmInbound: {
+      count: 1,
+      freshness: {
+        overdueActionCount: 0,
+        dueTodayActionCount: 1,
+        overdueActionWho: [],
+        dueTodayActionWho: ['Ada'],
+      },
+    },
+  },
+});
+ok(
+  holdGreenWarm.id === 'hold-green' &&
+    holdGreenWarm.pri <= 1 &&
+    /warm inbound due today/i.test(holdGreenWarm.title),
+  'fully-shipped warm-due remains hold-green P1 pressure',
+);
 ok(/if\s*\(!te\.fresh\s*&&\s*!noRefresh\)/.test(orientSource), 'orient refreshes stale evidence only');
 ok(!orientSource.includes('! fix: bin/dg truth &&'), 'orient does not contradict its canonical NEXT command');
 const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-next.mjs'), '--json'], {

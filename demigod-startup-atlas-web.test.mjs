@@ -31,6 +31,9 @@ test('public startup map contains aggregates and open geometry only', () => {
     venueLeads: 0,
     ycIndependentlyEvidenced: 0,
     ycPublicDirectory: 0,
+    companiesWithTeamSize: 0,
+    companiesWithStage: 0,
+    companiesWithSectorTags: 0,
     definition: map.coverage.definition,
     caveat: map.coverage.caveat,
   });
@@ -103,6 +106,8 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   const source = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   // Lazy, same-origin-safe fetch of the immutable data asset only on mount.
   assert.match(source, /new URL\('sf-startup-map\.json', source\)/);
+  assert.match(source, /meta\[name=["']dg-startup-roles-feed["']\]/, 'roles feed uses its attested head marker');
+  assert.match(source, /\/startup-map-latest\\\.js/, 'only directory-shaped CDN scripts may resolve a sibling feed');
   assert.match(source, /credentials: 'omit'/);
   assert.match(source, /cache: 'force-cache'/);
   assert.match(source, /fetch\(dataUrl/);
@@ -187,6 +192,15 @@ test('generated public artifact keeps named companies city-only and strips sensi
   assert.equal(map.venues.every((venue) => venue.sourceUrl === null && venue.sourceLicense === null), true);
 });
 
+test('renderer suppresses a known-dead company hostname without hiding its jobs link', () => {
+  const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
+  const start = src.indexOf('  function safeUrl');
+  const end = src.indexOf('\n\n  function withCommunityStartups', start);
+  const safe = new Function(src.slice(start, end) + '; return safeUrl;')();
+  assert.equal(safe('https://careers.onton.com/'), '');
+  assert.equal(safe('https://jobs.ashbyhq.com/onton'), 'https://jobs.ashbyhq.com/onton');
+});
+
 test('website route is discoverable and loads the immutable map asset only on demand', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
   // Hard route stays discoverable even though the obsolete hero path pills are intentionally gone.
@@ -242,6 +256,7 @@ test('directory sort: an unmeasured company never ranks as freshest', () => {
   const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   // Source-level: the control exists and is labelled for assistive tech like its siblings.
   assert.match(src, /class="dg-dir-sort" aria-label="Sort companies"/);
+  assert.match(src, /\.dg-dir-tools>\.dg-dir-sort\{flex-basis:100%;max-width:100%\}/);
   // Behavioural: pull the pure comparator out and exercise the rule that matters.
   const start = src.indexOf('function dgOrderByMedian');
   const end = src.indexOf('\n  var state = {');
@@ -313,30 +328,51 @@ test('directory filter state round-trips through the hash, and rejects junk', ()
   const src = fs.readFileSync(new URL('./demigod-startup-atlas-web.js', import.meta.url), 'utf8');
   const start = src.indexOf('  var DG_SORTS =');
   const end = src.indexOf('\n  var state = {');
-  const api = new Function(src.slice(start, end) + '; return { parse: dgParseFilterHash, ser: dgFilterHash };')();
+  const api = new Function(src.slice(start, end) + '; return { parse: dgParseFilterHash, ser: dgFilterHash, bucket: dgTeamSizeBucket, label: dgFunctionLabel };')();
   const providers = ['Greenhouse', 'Lever', 'Ashby'];
 
-  const full = { query: 'ai infra', hiring: 'yes', func: 'engineering', provider: 'lever', sort: 'fresh' };
+  const full = { query: 'ai infra', hiring: 'yes', func: 'engineering', size: '11-50', provider: 'lever', sort: 'fresh' };
   assert.deepEqual(api.parse(api.ser(full), providers), full, 'a filtered view round-trips');
 
   // Defaults omitted, so an unfiltered directory keeps a clean, shareable URL.
-  assert.equal(api.ser({ query: '', hiring: '', func: '', provider: '', sort: 'roles' }), '');
-  assert.equal(api.ser({ query: '', hiring: '', func: '', provider: '', sort: 'name' }), '#sort=name');
+  assert.equal(api.ser({ query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles' }), '');
+  assert.equal(api.ser({ query: '', hiring: '', func: '', size: '', provider: '', sort: 'name' }), '#sort=name');
 
   // THE SECURITY PROPERTY: this string comes from a URL a stranger sent, and lands in control
   // values. Anything not on the allow-list is dropped, never echoed back.
-  const hostile = api.parse('#sort=<script>&hiring=DROP&fn=../../etc&ats=evil&q=' + encodeURIComponent('<img onerror=x>'), providers);
+  const hostile = api.parse('#sort=<script>&hiring=DROP&fn=../../etc&size=huge&ats=evil&q=' + encodeURIComponent('<img onerror=x>'), providers);
   assert.equal(hostile.sort, 'roles', 'unknown sort falls back to the default');
   assert.equal(hostile.hiring, '', 'unknown hiring value is dropped');
+  assert.equal(api.parse('#hiring=no', providers).hiring, '', 'absence of hiring evidence is not a not-hiring claim');
   assert.equal(hostile.func, '', 'unknown function is dropped');
+  assert.equal(hostile.size, '', 'junk team-size bucket is dropped');
   assert.equal(hostile.provider, '', 'a provider not present in the data is dropped');
   assert.equal(hostile.query, '<img onerror=x>', 'free-text query survives parsing (escaping is the render layer job)');
 
   assert.equal(api.parse('#q=' + 'x'.repeat(500), providers).query.length, 120, 'query is length-capped');
   assert.equal(api.parse('#ats=LEVER', providers).provider, 'lever', 'provider match is case-insensitive');
-  assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
+  assert.deepEqual(api.parse('', providers), { query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles' }, 'no hash -> defaults');
   assert.deepEqual(api.parse('#%E0%A4%A', providers).query, '', 'a malformed escape does not throw');
   assert.equal(api.parse('#q=a+b', providers).query, 'a b', 'plus decodes to space');
+  assert.equal(api.parse('#size=unknown', providers).size, 'unknown', 'unknown team-size is a real filter value');
+  assert.equal(api.ser({ query: '', hiring: '', func: '', size: 'unknown', provider: '', sort: 'roles' }), '#size=unknown');
+  assert.equal(api.label('ai/data'), 'AI / data');
+  assert.equal(api.label('finance/legal'), 'Finance / legal');
+
+  const currentMap = JSON.parse(fs.readFileSync(new URL('./DEMIGOD-SF-STARTUP-MAP.json', import.meta.url), 'utf8'));
+  const companies = currentMap.companies;
+  const known = companies.filter((company) => Number.isSafeInteger(company.teamSize) && company.teamSize > 0);
+  assert.equal(known.length, currentMap.coverage.companiesWithTeamSize, 'declared team-size coverage matches the artifact');
+  const buckets = known.reduce((counts, company) => {
+    counts[api.bucket(company.teamSize)] += 1;
+    return counts;
+  }, { '1-10': 0, '11-50': 0, '51-200': 0, '201+': 0, unknown: 0 });
+  assert.equal(Object.values(buckets).reduce((sum, count) => sum + count, 0), known.length);
+  assert.equal(buckets.unknown, 0, 'known positive sizes always map to a visible bucket');
+  assert.equal(api.bucket(null), 'unknown', 'missing team size is the unknown bucket');
+  assert.equal(api.bucket(0), 'unknown', 'non-positive team size is unknown');
+  const unknownN = companies.filter((c) => api.bucket(c.teamSize) === 'unknown').length;
+  assert.ok(unknownN > 0, 'map has an unknown-size cohort to filter');
 });
 
 test('recent roles follow the filters, and null is not an empty set', () => {

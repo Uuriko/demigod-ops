@@ -2,6 +2,8 @@
 
 _Living map of the system (agents + CLI + dash + ship/demand). Live commands win._
 
+**Document navigation and authority:** [`DOCS.md`](../DOCS.md). This file maps systems and workflows; `DOCS.md` maps the documentation corpus.
+
 ---
 
 ## 1. Product spine
@@ -76,6 +78,8 @@ bin/dg orient          # 5-line card: green / freeze / NEXT / demand / assertSam
 
 ## 4. Ship workflow
 
+Full guide: [`SHIP-AND-CDN.md`](SHIP-AND-CDN.md).
+
 ```
 bin/dg ship status|prepare|cdn|paste|verify|run
 ```
@@ -84,12 +88,14 @@ bin/dg ship status|prepare|cdn|paste|verify|run
 |------|------|--------|
 | **status** | Facts + readiness | read-only |
 | **prepare** | verify-source, honesty, foot-smoke, truth | read-only |
-| **cdn** | Upload foot → update manifest/footer | foot lock |
-| **paste** | CM6 head+foot → Webflow custom code + queue-publish | foot lock + CDP |
+| **cdn** | Upload foot + siblings → manifest/footer pin | foot lock + **current-request publish env** |
+| **paste** | CM6 head+foot → Webflow custom code + queue-publish | foot lock + CDP + publish env |
 | **verify** | `truth --require-match` | network |
-| **run** | prepare → cdn → paste → verify | foot lock |
+| **run** | prepare → cdn → paste → verify | foot lock + publish env |
 
-**Related:** `demigod-foot-cdn-publish.mjs`, `demigod-cm6-paste-publish.mjs`, `bin/dg lock`.
+**Related:** `demigod-foot-cdn-publish.mjs`, `demigod-cdn-actions-publish.mjs` (catbox + Actions when `gh` unauth), `demigod-cm6-paste-publish.mjs`, `bin/dg lock`.
+
+**Roles surface (disk):** `node demigod-roles-pipeline.mjs` — see [`ROLES-PIPELINE.md`](ROLES-PIPELINE.md). Live embed needs ship/paste.
 
 ---
 
@@ -215,6 +221,7 @@ Thin wrappers remain only where they protect a distinct runtime or safety bounda
 
 | Doc | Use |
 |-----|-----|
+| `DOCS.md` | Documentation authority, task routing, lifecycle, and archives |
 | `DEMIGOD-SIMPLE.md` | Day card |
 | `DEMIGOD-COMPRESSED-STATE.md` | Living state |
 | `DEMIGOD-AGENTS.md` | Full agent rules |

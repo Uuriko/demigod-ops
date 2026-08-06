@@ -206,11 +206,15 @@ await withEventsStoreLock(async () => {
       });
       return { ok: r.status === 0, status: r.status, out: r.stdout || '', err: r.stderr || '' };
     }
-    case 'truth': {
-      const r = spawnSync('bash', [path.join(ROOT, 'bin/dg-truth')], {
+    case 'truth':
+    case 'truth-reseal': {
+      // work-find emits truth-reseal when evidence seal is stale; same oracle reseal as truth.
+      // process.execPath (not bare `node` via bin/dg-truth) so PATH without nvm cannot drop to Node 18.
+      const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-truth.mjs')], {
         cwd: ROOT,
         encoding: 'utf8',
         timeout: 120000,
+        env: process.env,
       });
       const out = (r.stdout || '') + (r.stderr || '');
       // Same honesty as ship prepare: disk≠live + freeze OFF + board ok is expected
@@ -234,6 +238,12 @@ await withEventsStoreLock(async () => {
       // Prepare-only gates — never publishes (current-request auth required for ship).
       // Use process.execPath (not bash bin/dg) so PATH/nvm cannot drop the task.
       return run(['demigod-ship.mjs', 'prepare'], 300000);
+    case 'map-checkpoint-restore':
+      // Heal board-wipe regressions from killed --with-jobs rebuilds. Local only; no publish.
+      return run(['demigod-map-checkpoint.mjs', 'restore', '--if-worse'], 60000);
+    case 'directory-static':
+      // Rebuild the local crawlable fragment; Webflow paste remains request-gated.
+      return run(['demigod-directory-static.mjs'], 60000);
     case 'demand-status': {
       const r = spawnSync('bash', [path.join(ROOT, 'bin/dg'), 'demand', 'status'], {
         cwd: ROOT,
@@ -510,6 +520,8 @@ console.log(JSON.stringify({ ok: true, by, n: o.length, externalReady, rejected:
         err: (r.stderr || '').slice(-400),
       };
     }
+    case 'funnel-packages':
+      return run(['demigod-lead-pipeline.mjs', 'tick', '--stage=packages'], 120000);
     default:
       return { ok: false, status: 1, out: '', err: 'unknown task ' + id };
   }
@@ -540,9 +552,13 @@ function orient() {
 
 async function once(cycle) {
   return withFileLock(WORK_LOCK, async () => {
-    if (fs.existsSync(STOP)) {
+    if (fs.existsSync(STOP) && !fs.existsSync(path.join(BUSY, 'KEEP_WORKING'))) {
       log('STOP present — skip');
       return { ok: true, stopped: true };
+    }
+    if (fs.existsSync(STOP) && fs.existsSync(path.join(BUSY, 'KEEP_WORKING'))) {
+      try { fs.unlinkSync(STOP); } catch {}
+      log('KEEP_WORKING set — cleared STOP and continuing');
     }
     const ctx = orient();
     // Auto-heal P0 inside orient path when public is down (don't wait for plan only)
@@ -662,9 +678,13 @@ if (cmd === 'task') {
     /* */
   }
   const tick = async () => {
-    if (fs.existsSync(STOP)) {
+    if (fs.existsSync(STOP) && !fs.existsSync(path.join(BUSY, 'KEEP_WORKING'))) {
       log('STOP — exit run');
       process.exit(0);
+    }
+    if (fs.existsSync(STOP) && fs.existsSync(path.join(BUSY, 'KEEP_WORKING'))) {
+      try { fs.unlinkSync(STOP); } catch {}
+      log('KEEP_WORKING set — cleared STOP, staying in run');
     }
     cycle += 1;
     try {

@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   companyKey,
@@ -23,6 +24,20 @@ const DEPLOYABLE_BYTES = 50000;
 // Warn before the ceiling, not at it — a hard failure mid-pipeline is a worse first signal.
 const HEADROOM_WARN_BYTES = 1500;
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  const args = process.argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: node demigod-directory-static.mjs [--out <dir>] | --selftest');
+    process.exit(0);
+  }
+  const unknown = args.find((arg, i) => arg !== '--selftest' && arg !== '--out' && args[i - 1] !== '--out');
+  const outAt = args.indexOf('--out');
+  if (unknown || (outAt >= 0 && (!args[outAt + 1] || args[outAt + 1].startsWith('-')))) {
+    console.error(`directory-static: invalid argument ${unknown || '--out requires a directory'}`);
+    process.exit(2);
+  }
+}
 
 /** Stage paste-ready package for /startups page custom code (publish uses the guarded foreground ship path). */
 export function stageStartupsPastePackage(html, {
@@ -160,7 +175,7 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
       },
     ]),
   );
-  const recent = recentRoles(feed, 8, profiles);
+  const recent = recentRoles(feed, 6, profiles);
   const activity = activitySummary(feed);
 
   // JSON-LD: ItemList of verified-hiring organizations only (honest — no self-reports).
@@ -203,11 +218,11 @@ export function buildStaticDirectory(map, generatedAt = '', feed = null, maxByte
   const agingTop = aging
     .slice()
     .sort((a, b) => (b.agingRoles || 0) - (a.agingRoles || 0) || String(a.name).localeCompare(String(b.name)))
-    .slice(0, 12);
+    .slice(0, 8);
   const agingHtml = agingTop.length
     ? `<section aria-labelledby="dg-static-aging">
 <h2 id="dg-static-aging">Posted 90–365 days ago (board date)</h2>
-<p>Attributed first-published dates from public Greenhouse boards when present. Long-open is not a fill rate or ghost-job score — follow each employer's board.</p>
+<p>Public Greenhouse first-published dates when present. Long-open is not a fill rate or ghost-job score — check the employer's board.</p>
 <ul>
 ${agingTop.map((c) => {
       const jobs = safeUrl(c.jobsUrl);
@@ -238,7 +253,7 @@ ${sorted.slice(0, shown).map(row).join('\n')}
 </ul>
 ${agingHtml}
 ${recentHtml}
-<p>Company counts above cover US-posted or remote roles from public employer job boards. No signup or private data.</p>
+<p>Counts cover US-posted or remote roles from public boards. No signup.</p>
 </details>
 <script type="application/ld+json">${jsonldText}</script>`;
 
@@ -262,6 +277,11 @@ ${recentHtml}
 
 if (isMain && (process.env.DEMIGOD_STATIC_SELFTEST === '1' || process.argv.includes('--selftest'))) {
   const assert = (c, m) => { if (!c) throw new Error(m); };
+  const cli = fileURLToPath(import.meta.url);
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' });
+  const bad = spawnSync(process.execPath, [cli, '--wat'], { encoding: 'utf8' });
+  assert(help.status === 0 && /^Usage:/.test(help.stdout), '--help is read-only usage');
+  assert(bad.status === 2, 'unknown arguments fail closed with exit 2');
   const fake = { generatedAt: '2026-07-24', companies: [
     {
       name: 'Alpha Robotics',
@@ -438,12 +458,14 @@ if (isMain) {
       `directory-static: ${bytes} bytes exceeds the ${DEPLOYABLE_BYTES} byte Webflow footer ceiling — paginate the fallback.`,
     );
   } else if (headroomBytes <= HEADROOM_WARN_BYTES) {
-    /* This ceiling is a Webflow limit, not ours, and the build only complained AT the wall. The
-       snapshot grows with the directory (2,902 companies and rising), so the first warning an
-       operator got was a hard failure of the roles pipeline on some later refresh. Measured at
-       49,996 of 50,000 — four bytes — while renaming a heading. Warn on the approach instead. */
+    /* Reports that the LISTING IS BEING TRIMMED, not that a failure is coming. buildStaticDirectory
+       binary-searches the largest row count that fits and discloses "Listing the N of these M";
+       whole-corpus totals are unaffected. An earlier version of this warning said "paginate before
+       it fails closed", which described a failure mode that does not exist and would have sent an
+       operator to do pagination work the builder already handles. Small headroom is the fitter
+       working, not a wall being approached. */
     console.error(
-      `directory-static: ${headroomBytes} bytes headroom under the ${DEPLOYABLE_BYTES} byte Webflow ceiling — the snapshot grows with the directory; paginate before it fails closed.`,
+      `directory-static: ${headroomBytes} bytes headroom under the ${DEPLOYABLE_BYTES} byte Webflow ceiling — the listing is being trimmed to fit (totals stay whole-corpus). Trim page copy to list more companies.`,
     );
   }
   const paste = stageStartupsPastePackage(html, { sourcePath: outPath });

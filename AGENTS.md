@@ -1,7 +1,8 @@
 # Demigod — Agent entry
 
-**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) (`AGENT-SIMPLE.md` is a compatibility pointer) · state: `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` is a compatibility pointer) · rules: `AGENT-RULES.md` · workflow: `DEMIGOD-WORKFLOW.md`
+**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) (`AGENT-SIMPLE.md` is a compatibility pointer) · docs: [`DOCS.md`](DOCS.md) · state: `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` is a compatibility pointer) · rules: `AGENT-RULES.md` · workflow: `DEMIGOD-WORKFLOW.md`
 **Ponytail required (all agents):** lean code — see § Ponytail below + `docs/PONYTAIL-AGENTS.md`.
+**Reasoning default (all agents):** prefer the weakest sufficient hypothesis: explain all observed evidence and satisfy hard constraints while making the fewest unsupported commitments. Weakest means least restrictive, not shortest, vague, or less safe. Use `$maximize-weakness` for nontrivial planning, diagnosis, research synthesis, and ambiguous requirements.
 
 **Website truth:** run `bin/dg truth`; never copy a release version into this entry card · [state](DEMIGOD-COMPRESSED-STATE.md) · website+startup only (no auto-DM)
 
@@ -70,6 +71,7 @@ Do **not** auto-spawn cloud agents, `continuous-improve-loop.mjs`, or `demigod:c
 ## Keep working (durable + nonstop)
 
 Standing order: **do not stop after reporting.** Always find and do the next unblocked task.  
+Procedure: [`DEMIGOD-KEEP-WORKING-PROMPT.md`](DEMIGOD-KEEP-WORKING-PROMPT.md) — evidence-driven discovery, weakest sufficient hypothesis, scoped execution, verification, and honest stop conditions.
 Durable loop: `systemctl --user enable --now demigod-useful-loop.service` · `bin/dg-useful-loop status`  
 Discover: `node demigod-work-find.mjs`
 
@@ -106,30 +108,18 @@ JSON: `/tmp/dg-busy/control-plane.json` · API: `GET /api/control`
 - Keep ~**4–8** CDP pages: 1 Ops `:9878`, 1 live, 1 Designer, 1 Custom Code.
 - `node demigod-laptop-hygiene.mjs --prune` or `bin/dg-hygiene` or `bin/dg-webflow hygiene --prune`
 - If load is high or free mem is low: prune tabs, avoid parallel `claude --print` swarms, skip extra dash restarts.
-- `--kill-hung` only for stuck `claude --print` / playtests ≥25m (never kill CDP Chrome :9223).## Workflow best practices (simple, from research)
-- Fable via df for plans.
-- Cursor Plan Mode before edits.
-- Verify after every change.
-- tmux cockpit + entr for auto.
-- popOS: system76-power balanced.
+- `--kill-hung` only for stuck `claude --print` / playtests ≥25m (never kill CDP Chrome :9223).
 
-## Latest (2026-07-09 Info Exchange)
-See DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09.md for full notes from Grok <-> Fable/Claude/Heavy/Cursor.
-Current: v4 head ready (disk/pastes), live stale 17:32 v3, publish pending (human gate), fallback ready for phone.
+## Workflow best practices (simple)
 
+- Fable via `bin/df` for plans when useful.
+- Verify after every change (`npm run demigod:verify:source` / targeted).
+- Doc map: [`DOCS.md`](DOCS.md) · ship: [`docs/SHIP-AND-CDN.md`](docs/SHIP-AND-CDN.md) · roles: [`docs/ROLES-PIPELINE.md`](docs/ROLES-PIPELINE.md).
+- Historical notes: `docs/exchange/` — do not treat as current release state.
 
+## Standing autonomy (local, no outbound)
 
-## 2026-07-09T04:05:46.331734 Build: events full (human+auto), sourcing/matching/intro/Stripe, website head+publish, extensive docs+roadmaps/checklists filled with research (a16z talent eng align, fees 10-25%). Gates green, CDP. Nonstop per directive.
-
-
-
-## Autonomy Update 2026-07-09T04:05:57.291975
-Historical autonomy note: agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions.
-Fable/Claude are advisory collaborators, never authority equal to the user. Use `bin/df` for plans and verify recommendations against current source.
-Webflow publish and every outbound message/post/form are current-request-gated; old blanket-authority wording does not authorize a later task.
-Gates always run post change. Board honest <=2-3 seeds, real=0.
-Foot-core is the disk SoR; use `bin/dg truth` for its current version and release identity.
-Head: research comments added.
+Agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions. Fable/Claude are advisory; verify against disk. **Publish / outbound / money still need current-request authorization.**
 
 ## Ponytail — REQUIRED for ALL agents (Grok, Claude, Fable, Codex, Cursor, Heavy)
 

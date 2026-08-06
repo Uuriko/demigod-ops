@@ -33,20 +33,36 @@ test('button carries the company and an accessible name', () => {
 test('handoff reuses the existing wizard and never sends', () => {
   const handler = SRC.slice(SRC.indexOf('button.dg-dir-brief[data-company]'), SRC.indexOf('dg-dir-rolechip[data-fn]'));
   assert.ok(handler.length > 200, 'click handler located');
+  // In-page open only when #startup-modal exists — bare [data-demigod-modal] triggers navigate and drop data-company.
+  assert.match(handler, /querySelector\('#startup-modal'\)/, 'gates in-page open on real modal presence');
   assert.match(handler, /data-demigod-modal="startup"|#startup-modal/, 'opens the existing startup wizard');
-  assert.match(handler, /\[name="company-name"\]/, 'prefills the company field');
-  assert.match(handler, /location\.href = '\/hire'/, 'falls back to /hire so the control is never dead');
+  assert.match(handler, /\[name="company-name"\]/, 'prefills the company field in-page');
+  assert.match(handler, /dgWizSave_startup/, 'seeds foot session draft for cross-page prefill');
+  assert.match(handler, /new URL\('\/\?wiz=startup', location\.origin\)/, 'falls back to home wizard deep-link when modal is absent');
+  assert.doesNotMatch(handler, /location\.href = '\/hire'/, 'must not use /hire fallback (no modal there either)');
   // The whole point is that this is a form handoff, not an outbound action.
   assert.doesNotMatch(handler, /fetch\(|XMLHttpRequest|sendBeacon|mailto:/, 'must not send anything');
 });
 
+test('handoff preserves existing attribution and defaults direct directory intent', () => {
+  const handler = SRC.slice(SRC.indexOf('button.dg-dir-brief[data-company]'), SRC.indexOf('dg-dir-rolechip[data-fn]'));
+  assert.match(handler, /\['utm_source', 'directory'\]/, 'in-page form records directory source');
+  assert.match(handler, /\['utm_campaign', 'company-brief'\]/, 'in-page form records the company-brief campaign');
+  // Empty Webflow utm_* hiddens must be filled, not skipped by create-only logic.
+  assert.match(handler, /if \(!String\(hid\.value \|\| ''\)\.trim\(\)\) hid\.value = pair\[1\]/, 'fills blank existing utm fields');
+  assert.match(handler, /\['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'referral'\]/, 'cross-page handoff preserves allowlisted attribution');
+  assert.match(handler, /if \(!next\.searchParams\.has\('utm_source'\)\)/, 'directory source is only a default');
+  assert.match(handler, /if \(!next\.searchParams\.has\('utm_campaign'\)\)/, 'directory campaign is only a default');
+});
+
 test('button meets the touch target and focus contract the rest of the site holds', () => {
   const css = SRC.slice(SRC.indexOf('button.dg-dir-brief{'), SRC.indexOf('button.dg-dir-brief{') + 600);
-  assert.match(css, /min-height:44px/, '44px touch target');
+  assert.match(css, /min-height:48px/, '48px project touch target');
   assert.match(SRC, /button\.dg-dir-brief:focus-visible\{outline:2px solid #a6ffcb/, 'visible focus ring');
   assert.match(SRC, /prefers-reduced-motion:reduce\)\{button\.dg-dir-brief\{transition:none/, 'honours reduced motion');
 });
 
 test('prefill never overwrites an answer the founder already typed', () => {
-  assert.match(SRC, /if \(input && !String\(input\.value \|\| ''\)\.trim\(\)\)/, 'only fills an empty field');
+  assert.match(SRC, /if \(input && !String\(input\.value \|\| ''\)\.trim\(\) && co\)/, 'only fills an empty in-page field');
+  assert.match(SRC, /if \(!String\(draft\.answers\['company-name'\] \|\| ''\)\.trim\(\)\)/, 'only seeds an empty saved answer');
 });

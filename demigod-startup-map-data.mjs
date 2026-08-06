@@ -27,6 +27,68 @@ const BROAD_QUERY = 'SELECT DISTINCT ?company ?companyLabel ?companyDescription 
 // Bay-ish locations on the public YC dump (same spirit as demigod-free-ops yc-oss --sf).
 const YC_SF_LOC_RE =
   /\b(san\s*francisco|oakland|berkeley|palo\s*alto|mountain\s*view|san\s*mateo|redwood\s*city|menlo\s*park|sunnyvale|cupertino|santa\s*clara|san\s*jose|daly\s*city|south\s*san\s*francisco|emeryville|alameda|fremont|hayward|burlingame|san\s*carlos|foster\s*city|milpitas|los\s*altos|los\s*gatos|campbell|saratoga|belmont|san\s*bruno|south\s*bay|east\s*bay|peninsula|silicon\s*valley|bay\s*area)\b/i;
+const DEAD_PUBLIC_WEBSITE_HOSTS = new Set([
+  // NXDOMAIN / known-dead public marketing hosts (company rows retained; sourceUrl kept)
+  'afriexapp.com',
+  'airware.com',
+  'asm.co',
+  'baseframe.co',
+  'blippy.com',
+  'brandless.com',
+  'btcjam.com',
+  'carbic.com',
+  'careers.onton.com',
+  'cloudkick.com',
+  'cnettv.com',
+  'crittercism.com',
+  'discoverydn.com',
+  'doctorbase.com',
+  'firstbio.org',
+  'futureadvisor.com',
+  'gethybrid.io',
+  'getspectrum.io',
+  'getwillcall.com',
+  'giveaway.mobi',
+  'globalpressinstitute.org',
+  'glu.com',
+  'gocheetah.com',
+  'humane.com',
+  'iamaze.com',
+  'insightfellows.com',
+  'instaedu.com',
+  'jelly.co',
+  'magicode.ai',
+  'misfit.com',
+  'mixamo.com',
+  'modalup.com',
+  'netsil.com',
+  'nobellfoods.com',
+  'notehall.com',
+  'readyforzero.com',
+  'recommender.strands.com',
+  'refinetrain.ai',
+  'relcy.com',
+  'sage-ai.dev',
+  'scaledbiolabs.com',
+  'scitok.com',
+  'smartbase.so',
+  'soldsie.com',
+  'solrepublic.jp',
+  'stipple.com',
+  'tambua.health',
+  'teetimetommy.com',
+  'ticketfly.com',
+  'trypartnerhq.com',
+  'usepolymorph.com',
+  'usepromi.com',
+  'vibrantdata.io',
+  'wakemate.com',
+  'wearehunted.com',
+  'withblaze.app',
+  'xobni.com',
+  'yearend.com',
+  'zolient.com',
+]);
 
 export const PUBLIC_STARTUP_MAP_PATH = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 
@@ -39,7 +101,8 @@ const asCount = (value) => {
 const safeUrl = (value) => {
   try {
     const url = new URL(String(value || ''));
-    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+    const host = url.hostname.replace(/^www\./i, '').toLowerCase();
+    return ['http:', 'https:'].includes(url.protocol) && !DEAD_PUBLIC_WEBSITE_HOSTS.has(host) ? url.href : null;
   } catch {
     return null;
   }
@@ -66,6 +129,27 @@ export function stableMapCompanyId(row = {}) {
  * host+path is the stable key (dedupeByBoard SoR). Else fall back to map id.
  * Pure — does not rewrite the map.
  */
+/** Greenhouse hosts the same board on boards., job-boards., and job-boards.eu. */
+export function canonicalGreenhouseBoardKey(host, slug) {
+  const h = String(host || '')
+    .toLowerCase()
+    .replace(/^www\./, '');
+  const s = String(slug || '')
+    .toLowerCase()
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')[0];
+  if (!s) return null;
+  if (/^(?:boards|job-boards(?:\.eu)?)\.greenhouse\.io$/.test(h)) {
+    return `board:boards.greenhouse.io/${s}`;
+  }
+  return null;
+}
+
+/**
+ * Hiring join identity: when a company has a public ATS board URL, the board
+ * host+path is the stable key (dedupeByBoard SoR). Else fall back to map id.
+ * Pure — does not rewrite the map.
+ */
 export function hiringIdentityKey(row = {}) {
   const jobs = String(row?.jobsUrl || '').trim();
   if (jobs) {
@@ -73,6 +157,9 @@ export function hiringIdentityKey(row = {}) {
       const u = new URL(jobs);
       const host = u.hostname.replace(/^www\./, '').toLowerCase();
       const pathPart = u.pathname.replace(/\/+$/, '').toLowerCase();
+      const slug = pathPart.split('/').filter(Boolean)[0] || '';
+      const gh = canonicalGreenhouseBoardKey(host, slug);
+      if (gh) return gh;
       if (host) return `board:${host}${pathPart}`;
     } catch {
       /* fall through */
@@ -87,6 +174,8 @@ export function hiringIdentityKey(row = {}) {
 
 /**
  * hn:jobs.ashbyhq.com/middesk → board:jobs.ashbyhq.com/middesk
+ * Greenhouse aliases collapse to boards.greenhouse.io/<slug> so job-boards(.eu)
+ * and boards. forms of the same board absorb instead of re-inflating.
  * So merge can attach ATS-only HN shells to YC/Wikidata rows that already own that board.
  */
 export function atsBoardKeyFromHnId(id) {
@@ -94,7 +183,11 @@ export function atsBoardKeyFromHnId(id) {
     /^hn:((?:jobs\.ashbyhq\.com|boards\.greenhouse\.io|job-boards(?:\.eu)?\.greenhouse\.io|jobs\.lever\.co|jobs\.workable\.com)\/[a-z0-9._-]+)$/i.exec(
       String(id || '').trim(),
     );
-  return m ? `board:${m[1].toLowerCase()}` : null;
+  if (!m) return null;
+  const raw = m[1].toLowerCase();
+  const gh = /^((?:boards|job-boards(?:\.eu)?)\.greenhouse\.io)\/([a-z0-9._-]+)$/.exec(raw);
+  if (gh) return canonicalGreenhouseBoardKey(gh[1], gh[2]);
+  return `board:${raw}`;
 }
 
 /** Hostname key for CROSS-source dedupe: the same company arriving from YC and from Wikidata
@@ -143,6 +236,12 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
     const batch = String(row?.batch || '').trim();
     const tags = ['yc'];
     if (batch) tags.push(`YC ${batch}`);
+    for (const tag of [...(Array.isArray(row?.industries) ? row.industries : []), ...(Array.isArray(row?.tags) ? row.tags : [])]) {
+      const clean = String(tag || '').trim().slice(0, 120);
+      if (clean && !tags.includes(clean)) tags.push(clean);
+    }
+    const teamSize = Math.round(Number(row?.team_size));
+    const stage = ['Early', 'Growth'].includes(row?.stage) ? row.stage : null;
     let inceptionYear = null;
     const launched = Number(row?.launched_at);
     if (Number.isFinite(launched) && launched > 0) {
@@ -168,9 +267,17 @@ export function buildYcPublicCompanies(rows = [], retrievedAt = new Date().toISO
         safeUrl(row?.url) || `https://www.ycombinator.com/companies/${slug}`,
       sourceLicense: 'YC-public',
       retrievedAt,
+      teamSize: Number.isSafeInteger(teamSize) && teamSize > 0 ? teamSize : null,
+      stage,
     });
   }
   return companies.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+}
+
+export function buildHnPublicCompanies(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website))
+    .map((row) => ({ ...row, website: safeUrl(row.website) }));
 }
 
 /**
@@ -181,7 +288,9 @@ function absorbSecondaryInto(keep, row) {
   if (!keep.description && row.description) keep.description = row.description;
   if (!keep.website && row.website) keep.website = row.website;
   if (!keep.inceptionYear && row.inceptionYear) keep.inceptionYear = row.inceptionYear;
-  if (row.hiring && !keep.hiring) keep.hiring = row.hiring;
+  // HN "hiring:yes" is direct evidence; promote over missing/unknown.
+  if (row.hiring === 'yes') keep.hiring = 'yes';
+  else if (row.hiring && !keep.hiring) keep.hiring = row.hiring;
   if (row.openRoles && !keep.openRoles) {
     keep.openRoles = row.openRoles;
     keep.jobsUrl = row.jobsUrl;
@@ -195,6 +304,7 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
   const out = [];
   const hostIndex = new Map();
   const boardIndex = new Map();
+  const idIndex = new Map();
   for (const row of primary) {
     out.push({ ...row });
     const idx = out.length - 1;
@@ -202,6 +312,8 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
     if (host) hostIndex.set(host, idx);
     const board = hiringIdentityKey(row);
     if (board?.startsWith('board:')) boardIndex.set(board, idx);
+    const sid = stableMapCompanyId(row);
+    if (sid) idIndex.set(sid, idx);
   }
   for (const row of secondary) {
     const host = websiteHostKey(row?.website);
@@ -215,6 +327,12 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
       absorbSecondaryInto(out[boardIndex.get(board)], row);
       continue;
     }
+    // Same stable map id already present (e.g. re-admit of hn:job-boards…/slug) — absorb.
+    const sid = stableMapCompanyId(row);
+    if (sid && idIndex.has(sid)) {
+      absorbSecondaryInto(out[idIndex.get(sid)], row);
+      continue;
+    }
     out.push({ ...row });
     const idx = out.length - 1;
     // Deliberate asymmetry. The BOARD key is identity: one ATS board belongs to one company, so a
@@ -225,6 +343,7 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
     // duplicate, and it poisons every downstream claim about both companies. Secondary rows are
     // therefore indexed by board only; host matching stays anchored to primary rows.
     if (board?.startsWith('board:')) boardIndex.set(board, idx);
+    if (sid) idIndex.set(sid, idx);
   }
   return out.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
@@ -323,9 +442,13 @@ export function buildPublicStartupMap({ counts = [], total = 0, companies = [], 
       venueLeads: venues.length,
       ycIndependentlyEvidenced: companies.filter(({ tags }) => tags?.includes('yc')).length,
       ycPublicDirectory: companies.filter(({ sourceLicense }) => sourceLicense === 'YC-public').length,
+      companiesWithTeamSize: companies.filter(({ teamSize }) => Number.isSafeInteger(teamSize) && teamSize > 0).length,
+      companiesWithStage: companies.filter(({ stage }) => ['Early', 'Growth'].includes(stage)).length,
+      companiesWithSectorTags: companies.filter(({ sourceLicense, tags }) =>
+        sourceLicense === 'YC-public' && tags.some((tag) => tag !== 'yc' && !/^YC\s/.test(tag))).length,
       definition: 'Active San Francisco technology business locations with a business start date on or after January 1, 2020, using selected self-reported software, computing, electronics, pharmaceutical, and R&D NAICS groups.',
       caveat:
-        'This is an open-data proxy for startup activity, not a startup census. Registrations can include consultants, established firms, and home-based businesses; counts are neighborhood aggregates, never address pins. Named-company facts come from the public YC company directory (YC-public, Active + Bay-area locations) and CC0 Wikidata; current operating status is not independently verified.',
+        'This is an open-data proxy for startup activity, not a startup census. Registrations can include consultants, established firms, and home-based businesses; counts are neighborhood aggregates, never address pins. Named-company facts come from the public YC company directory, CC0 Wikidata, and companies\u2019 public Hacker News Who is Hiring posts; current operating status is not independently verified.',
     },
     method: { since: SINCE.slice(0, 10), naicsPrefixes: TECH_NAICS, ycOss: YC_OSS_URL },
     sources: [
@@ -353,6 +476,12 @@ export function buildPublicStartupMap({ counts = [], total = 0, companies = [], 
         retrievedAt: at,
         license: 'YC-public',
       },
+      ...(companies.some(({ sourceLicense }) => sourceLicense === 'HN-public') ? [{
+        name: 'Hacker News \u2014 Who is Hiring?',
+        url: 'https://news.ycombinator.com/submitted?id=whoishiring',
+        retrievedAt: at,
+        license: 'HN-public',
+      }] : []),
     ],
     bounds: mergeBounds(boundaries.map(({ bounds }) => bounds)),
     neighborhoods,
@@ -431,9 +560,7 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
     try {
       const rows = JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-HN-HIRING.json'), 'utf8')).companies || [];
       // The cache is reused across rebuilds, so re-apply current identity guards on read.
-      return rows.filter(
-        (row) => isPlausibleHnCompanyName(row.name) && isCompanyWebsiteHost(row.website),
-      );
+      return buildHnPublicCompanies(rows);
     } catch { return []; }
   })();
   const map = buildPublicStartupMap({
@@ -447,6 +574,16 @@ export async function refreshPublicStartupMap({ fetchImpl = fetch, outPath = PUB
   // Compact JSON: public CDN asset is ~1MB pretty-printed; minify for ship/load without data loss.
   atomicWrite(outPath, `${JSON.stringify(map)}\n`, { mode: 0o644 });
   return { map, outPath };
+}
+
+/**
+ * Where the rebuild may write. With jobs, stage beside the live map so a killed enrich cannot
+ * replace production open-role counts with a bare rebuild (2026-08-06 KEEP_WORKING incident).
+ * @param {string} finalPath
+ * @param {boolean} withJobs
+ */
+export function mapRebuildWritePath(finalPath, withJobs) {
+  return withJobs ? `${finalPath}.staging` : finalPath;
 }
 
 // Rebuild-integrity floors: a deterministic rebuild must not silently produce a truncated directory
@@ -551,6 +688,49 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (atsBoardKeyFromHnId('hn:jobs.ashbyhq.com/middesk') !== 'board:jobs.ashbyhq.com/middesk') {
         throw new Error('atsBoardKeyFromHnId');
       }
+      // Greenhouse host aliases are one board identity (boards vs job-boards vs job-boards.eu).
+      if (
+        hiringIdentityKey({ jobsUrl: 'https://job-boards.greenhouse.io/kinelo' }) !==
+        'board:boards.greenhouse.io/kinelo'
+      ) {
+        throw new Error('job-boards.greenhouse must canonicalize to boards.greenhouse');
+      }
+      if (
+        hiringIdentityKey({ jobsUrl: 'https://boards.greenhouse.io/kinelo' }) !==
+        hiringIdentityKey({ jobsUrl: 'https://job-boards.eu.greenhouse.io/kinelo' })
+      ) {
+        throw new Error('EU job-boards.greenhouse must match boards.greenhouse board key');
+      }
+      if (
+        atsBoardKeyFromHnId('hn:job-boards.greenhouse.io/kinelo') !==
+        'board:boards.greenhouse.io/kinelo'
+      ) {
+        throw new Error('hn job-boards id must canonicalize to boards.greenhouse board key');
+      }
+      {
+        const mergedGh = mergeNamedCompanies(
+          [
+            {
+              id: 'hn:job-boards.greenhouse.io/kinelo',
+              name: 'Kinelo',
+              website: 'https://www.kinelo.com/',
+              jobsUrl: 'https://boards.greenhouse.io/kinelo',
+            },
+          ],
+          [
+            {
+              id: 'hn:job-boards.greenhouse.io/kinelo',
+              name: 'Kinelo',
+              website: null,
+              jobsUrl: 'https://job-boards.greenhouse.io/kinelo',
+              hiring: 'yes',
+            },
+          ],
+        );
+        if (mergedGh.length !== 1) {
+          throw new Error(`Greenhouse alias re-admit must not duplicate, got ${mergedGh.length}`);
+        }
+      }
       // mergeNamedCompanies: YC row with jobsUrl absorbs ATS-only HN shell on same board
       {
         const merged = mergeNamedCompanies(
@@ -610,14 +790,32 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(0);
   }
   const withJobs = process.argv.includes('--with-jobs');
-  refreshPublicStartupMap()
+  // --with-jobs must not write a bare (zero-board) rebuild over the live map. Stage first; promote
+  // only after jobs-enrich + floors succeed. A killed enrich leaves production open-role counts intact.
+  const finalPath = PUBLIC_STARTUP_MAP_PATH;
+  const writePath = mapRebuildWritePath(finalPath, withJobs);
+  if (withJobs && writePath !== finalPath && fs.existsSync(writePath)) {
+    try { fs.unlinkSync(writePath); } catch { /* stale staging from a prior kill */ }
+  }
+  refreshPublicStartupMap({ outPath: writePath })
     .then(({ map, outPath }) => {
       if (withJobs) {
-        const r = spawnSync('node', [path.join(ROOT, 'demigod-startup-jobs-enrich.mjs')], { stdio: 'inherit' });
-        if (r.status !== 0) throw new Error(`jobs-enrich failed (exit ${r.status})`);
+        const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-startup-jobs-enrich.mjs')], {
+          stdio: 'inherit',
+          env: { ...process.env, DEMIGOD_STARTUP_MAP: outPath },
+        });
+        if (r.status !== 0) {
+          try { fs.unlinkSync(outPath); } catch { /* staging only */ }
+          throw new Error(`jobs-enrich failed (exit ${r.status}) — production map left unchanged`);
+        }
         map = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        const floors = assertMapFloors(map, { withJobs: true });
+        atomicWrite(finalPath, `${JSON.stringify(map)}\n`, { mode: 0o644 });
+        try { fs.unlinkSync(outPath); } catch { /* */ }
+        console.log(JSON.stringify({ ok: true, outPath: finalPath, withJobs, staged: true, floors }));
+        return;
       }
-      const floors = assertMapFloors(map, { withJobs });
+      const floors = assertMapFloors(map, { withJobs: false });
       console.log(JSON.stringify({ ok: true, outPath, withJobs, floors }));
     })
     .catch((error) => {

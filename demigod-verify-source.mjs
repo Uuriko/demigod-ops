@@ -14,11 +14,13 @@ import fs from 'fs';
 import path from 'path';
 import vm from 'vm';
 import { spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { scanLiveHtml, markerPresent } from './demigod-live-lib.mjs';
 import { runFootSmoke } from './demigod-foot-smoke.mjs';
 import { verifyNoCommittableSor } from './demigod-no-committable-sor-lib.mjs';
 
-const ROOT = '/home/potter';
+// Product root = this file's directory (worktree-safe). DEMIGOD_ROOT may override for fixtures.
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(ROOT, 'DEMIGOD-VERIFY-SOURCE.json');
 
 const sourceArgs = process.argv.slice(2);
@@ -53,6 +55,7 @@ const cdnFoot = foot.includes('demigod-foot-cdn-loader');
 const cdnHeadCss = head.includes('rel="stylesheet"') && /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/i.test(head);
 const combined = `${head}\n${headCss}\n${foot}`;
 const coreJs = cdnFoot ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
+const startupMapJs = fs.readFileSync(path.join(ROOT, 'demigod-startup-atlas-web.js'), 'utf8');
 const combinedForMarkers = cdnFoot ? `${head}\n${headCss}\n${coreJs}` : combined;
 
 {
@@ -93,6 +96,19 @@ check(
   );
 }
 check('head:hide-webflow-badge', head.includes('hide-webflow-badge') || (cdnHeadCss && headCss.includes('w-webflow-badge')));
+check(
+  'head:turnstile-modal-defer',
+  head.includes('id="dg-turnstile-defer"') && head.includes('window.__dgTurnstileFlush=flush') &&
+    head.includes('proto.appendChild=add') && head.includes('challenges\\.cloudflare\\.com\\/turnstile\\/v0\\/api\\.js'),
+  'Turnstile must defer until a form opens while preserving Webflow script initialization',
+);
+// Raw <title>…</title> inside head custom code (even in comments) is matched by crawlers and
+// shows up as a second title in the served HTML string. Keep path notes without angle-bracket tags.
+check(
+  'head:no-raw-title-tag-in-source',
+  !/<title\b[^>]*>/i.test(head),
+  'head-minimal must not contain a raw HTML title tag (leaks into live HTML / soft SEO noise)',
+);
 check('head:no-retired-hero-asset', !(headCss || head).includes('demigod-gold-hero.jpg'));
 check('head:mobile-no-reserved-scrollbar-gutter', /@media\(max-width:480px\)\{\s*html\{scrollbar-gutter:auto\}/.test(headCss));
 check('head:public-contact-potter', head.includes('potter@trydemigod.com') && !head.includes('hello@trydemigod.com') && !head.includes('hello@demigod.com'));
@@ -103,9 +119,14 @@ check(
 );
 {
   const noJs = (head.match(/<noscript id="dg-path-noscript">[\s\S]*?<\/noscript>/) || [])[0] || '';
+  const noJsText = noJs.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
   check(
     'head:nojs-native-actions',
       noJs.includes('<style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>') &&
+      noJsText.length >= 300 &&
+      ['/', '/hire', '/talent', '/how', '/pricing', '/faq', '/blog', '/startups', '/about', '/contact', '/legal'].every((href) => noJs.includes(`href="${href}"`)) &&
+      noJs.includes('JavaScript is required for the private submission forms') &&
+      noJs.includes('Talent pays nothing') &&
       noJs.includes('Hire talent by email') &&
       noJs.includes('Share what I’d consider by email') &&
       (noJs.match(/mailto:potter@trydemigod\.com\?subject=/g) || []).length === 2 &&
@@ -114,13 +135,13 @@ check(
   );
 }
 // Positioning 07-16: Demigod tech + humans in the loop — NOT matched by hand.
-// Brand line moved Human-Matched → Tech-Matched; gate asserts the current line, not the retired one.
-check('head:heavy-meta', head.includes('Tech-Matched SF Startup Talent') && head.includes('one concrete first result') && head.includes('human review'));
+// Brand line: mutual yes / human review (not black-box "tech-matched"); gate asserts current line.
+check('head:heavy-meta', head.includes('SF Startup Talent') && head.includes('Mutual Yes') && head.includes('one concrete first result') && head.includes('human review'));
 check('head:og:title', head.includes('og:title'));
 check(
   'head:hero-font-no-layout-swap',
-  /family=Unbounded[^"']*&display=optional/.test(head) && !/family=Unbounded[^"']*&display=swap/.test(head),
-  'Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap',
+  !/family=Unbounded/.test(head) && /--dg-cyber:ui-sans-serif,system-ui,sans-serif/.test(headCss),
+  'hero must use the system sans stack instead of downloading the decorative Unbounded font',
 );
 check(
   'css:critical-hero-geometry',
@@ -143,8 +164,8 @@ check(
 );
 check(
   'head:preconnect-budget',
-  (head.match(/rel="preconnect"/g) || []).length === 1 && /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(head),
-  'Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr',
+  (head.match(/rel="preconnect"/g) || []).length === 0,
+  'custom head has no redundant preconnects; critical CSS and hero preload are discovered immediately',
 );
 // No internal identifiers on the customer-facing site: an env-var NAME (18da2af leaked
 // DEMIGOD_EVENTS_OPS_SECRET into a user message), the dev home dir, or the ops path must never
@@ -547,13 +568,13 @@ check(
   // Windows tile: match theme-color brand token (install chrome honesty).
   {
     const tile = metaDesc('name', 'msapplication-TileColor');
-    const tileOk = /^#0A0A0A$/i.test(tile);
+    const tileOk = /^#03140[dD]$/i.test(tile) || /^#0A0A0A$/i.test(tile);
     check(
       'head:ms-tile-color',
       tileOk,
       tileOk
         ? null
-        : `msapplication-TileColor not #0A0A0A (${tile || 'missing'})`,
+        : `msapplication-TileColor not frege night #03140d (${tile || 'missing'})`,
     );
   }
   // Windows tile image: square brand mark same absolute URL as jpeg favicon (sibling of TileColor).
@@ -716,11 +737,11 @@ check(
   // Brand chrome hex: theme-color must stay exact dark token (not mere presence; sibling of theme-meta).
   {
     const themeColor = metaDesc('name', 'theme-color');
-    const hexOk = /^#0A0A0A$/i.test(themeColor);
+    const hexOk = /^#03140[dD]$/i.test(themeColor) || /^#0A0A0A$/i.test(themeColor);
     check(
       'head:theme-color-hex',
       hexOk,
-      hexOk ? null : `theme-color not #0A0A0A (${themeColor || 'missing'})`,
+      hexOk ? null : `theme-color not frege night #03140d (${themeColor || 'missing'})`,
     );
   }
   // color-scheme exact dark (theme-meta only checks /dark/i presence; lock sole value).
@@ -769,26 +790,6 @@ check(
         : `hero preload missing fetchpriority=high (${tag ? tag.slice(0, 90) : 'no preload tag'})`;
     }
     check('head:hero-lcp-fetchpriority', fpOk, fpDetail);
-  }
-  // Cold-path DNS/TLS for hero host: preconnect og:image origin (sibling of preconnect-foot-cdn).
-  {
-    const ogImg = metaDesc('property', 'og:image');
-    let preOk = false;
-    let preDetail = 'no og:image';
-    if (ogImg) {
-      try {
-        const origin = new URL(ogImg).origin;
-        const esc = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        preOk = new RegExp(
-          `<link\\b[^>]*rel=["']preconnect["'][^>]*href=["']${esc}["']|<link\\b[^>]*href=["']${esc}["'][^>]*rel=["']preconnect["']`,
-          'i',
-        ).test(head);
-        preDetail = preOk ? null : `missing preconnect for og:image origin ${origin}`;
-      } catch (e) {
-        preDetail = String(e.message || e).slice(0, 60);
-      }
-    }
-    check('head:preconnect-og-image', preOk, preDetail);
   }
   // Scalable brand mark: SVG favicon with sizes=any (modern UA pick; sibling of jpeg 1024 sizes).
   {
@@ -1177,32 +1178,6 @@ check(
   'head:path-pills-not-force-hidden',
   !/(?:^|,)\s*#dg-path-pills(?:\s*,|\s*\{)[^{]*\{[^}]*display\s*:\s*none\s*!important/im.test(headCss),
 );
-// Foot CDN loader origin must be preconnected (cold DNS+TLS on primary foot script — Claude c38).
-{
-  const srcM =
-    foot.match(
-      /<script\b(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])(?=[^>]*\bsrc=["']([^"']+)["'])[^>]*>/i,
-    ) ||
-    foot.match(
-      /<script\b(?=[^>]*\bsrc=["']([^"']+)["'])(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])[^>]*>/i,
-    );
-  let preOk = false;
-  let preDetail = 'no demigod-foot-cdn-loader src in footer-lite';
-  if (srcM && srcM[1]) {
-    try {
-      const origin = new URL(srcM[1]).origin;
-      const esc = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      preOk = new RegExp(
-        `<link\\b[^>]*rel=["']preconnect["'][^>]*href=["']${esc}["']|<link\\b[^>]*href=["']${esc}["'][^>]*rel=["']preconnect["']`,
-        'i',
-      ).test(head);
-      preDetail = preOk ? null : `missing preconnect for foot CDN ${origin}`;
-    } catch (e) {
-      preDetail = String(e.message || e).slice(0, 60);
-    }
-  }
-  check('head:preconnect-foot-cdn', preOk, preDetail);
-}
 check('head:cdn-stylesheet', cdnHeadCss || head.includes('<style'));
 // Parse every inline <script> in the head exactly as a browser would (vm.Script).
 // Closes the blind spot that shipped a SyntaxError'd unhide script (page stays hidden).
@@ -1242,6 +1217,29 @@ if (cdnFoot) {
   // attribute-order-independent; the id itself is load-bearing for cm6 paste-publish.
   check('footer:cdn-loader', /<script\b(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])(?=[^>]*\bsrc=["']https?:\/\/[^"']+["'])[^>]*><\/script>/i.test(foot));
   check('footer:cdn-url', foot.includes('catbox.moe') || foot.includes('cdn.jsdelivr.net') || foot.includes('website-files.com'));
+  // Footer pin must match attested manifest so CM6 paste does not reintroduce a stale sha.
+  {
+    const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
+    let manUrl = '';
+    try {
+      manUrl = String(JSON.parse(fs.readFileSync(manPath, 'utf8')).cdnUrl || '');
+    } catch {
+      manUrl = '';
+    }
+    const srcM =
+      foot.match(
+        /<script\b(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])(?=[^>]*\bsrc=["']([^"']+)["'])[^>]*>/i,
+      ) ||
+      foot.match(
+        /<script\b(?=[^>]*\bsrc=["']([^"']+)["'])(?=[^>]*\bid=["']demigod-foot-cdn-loader["'])[^>]*>/i,
+      );
+    const footSrc = srcM?.[1] || '';
+    check(
+      'footer:cdn-matches-manifest',
+      Boolean(manUrl && footSrc && footSrc === manUrl),
+      manUrl ? `footer=${footSrc || '(missing)'} manifest=${manUrl}` : 'DEMIGOD-FOOT-CDN.json missing cdnUrl',
+    );
+  }
   // Parse footer-lite's own inline scripts (vm.Script, compile-only). This file IS the footer custom
   // code pasted into Webflow -- a THIRD executable surface after the head and foot-core, both of which
   // are now parse-gated. Its inline redirect map (/events -> ?p=events etc.) is generated, so a
@@ -1369,6 +1367,34 @@ if (cdnFoot) {
         /sessionStorage\.removeItem\(SAVE_KEY\)/.test(coreJs),
       'wizard Close must not open a follow-up interstitial; same-tab draft resume stays intact',
     );
+    check(
+      'core:turnstile-modal-flush',
+      /function show\(id, opener\)\{[^\n]*__dgTurnstileFlush/.test(coreJs),
+      'opening either form modal must load the deferred Turnstile protection',
+    );
+    // design-track: brandAssets() must inject full frege cascade (truncated concat blanked mobile hero)
+    {
+      const baStart = coreJs.indexOf('function brandAssets');
+      const baEnd = baStart >= 0 ? coreJs.indexOf('\nfunction ', baStart + 10) : -1;
+      const ba = baStart >= 0 ? coreJs.slice(baStart, baEnd > baStart ? baEnd : baStart + 60000) : '';
+      const markers = [
+        '#dg-night-stage{position:absolute',
+        '#dg-bar{position:fixed',
+        '.hero-actions.dg-path-pair',
+        'data-dg-cta=hire',
+      ];
+      const missing = markers.filter((m) => !ba.includes(m));
+      const plusN = (ba.match(/\+"/g) || []).length;
+      const ok = missing.length === 0 && ba.length >= 20000 && plusN >= 100;
+      check(
+        'core:brandAssets-cascade',
+        ok,
+        ok
+          ? `brandAssets ${ba.length}b plus=${plusN}`
+          : `truncated/missing brandAssets missing=[${missing.join(',')}] len=${ba.length} plus=${plusN}`,
+      );
+    }
+
     // Path and ?p= aliases share one route map so an alias cannot work in only one entry path.
     check(
       'core:route-fees-security',
@@ -1404,7 +1430,7 @@ if (cdnFoot) {
       );
     }
     {
-      const pageHtml = (coreJs.match(/function dgMapEventsHtml\(kind\)\{[\s\S]*?\n\}\n\nvar DG_PAGES/) || [''])[0];
+      const pageHtml = (coreJs.match(/function dgMapEventsHtml\(kind\)\{[\s\S]*?\n\}\n\n(?:var DG_BLOG_POSTS[^\n]*\n)?var DG_PAGES/) || [''])[0];
       const community = (coreJs.match(/function communitySubmissionsMount\(root\) \{[\s\S]*?\n\}\n\n\/\* v606/) || [''])[0];
       check(
         'core:community-manage-on-demand',
@@ -1476,23 +1502,89 @@ if (cdnFoot) {
     check(
       'core:compact-footer',
       ((coreJs.match(/class=["']dg-footer-group["']/g) || []).length === 2) &&
-        /data-dg-page=["']how["'][\s\S]{0,400}?data-dg-page=["']pricing["'][\s\S]{0,400}?data-dg-page=["']faq["']/.test(coreJs) &&
-        /data-dg-page=["']about["'][\s\S]{0,400}?data-dg-page=["']press["'][\s\S]{0,400}?data-dg-page=["']legal["']/.test(coreJs) &&
+        /id=["']dg-footer-product["'][\s\S]{0,500}?data-dg-page=["']how["'][\s\S]{0,400}?data-dg-page=["']pricing["'][\s\S]{0,400}?data-dg-page=["']faq["']/.test(coreJs) &&
+        /id=["']dg-footer-company["'][\s\S]{0,500}?data-dg-page=["']about["'][\s\S]{0,400}?data-dg-page=["']map["'][\s\S]{0,400}?data-dg-page=["']contact["'][\s\S]{0,400}?data-dg-page=["']legal["']/.test(coreJs) &&
         /href=["']mailto:potter@trydemigod\.com["']/.test(coreJs) &&
-        !/dg-footer-intro|demigod-footer-tag|footer-email/.test(coreJs),
-      'footer keeps two conversion actions and two short nav groups without the retired intro/id chrome',
+        !/dg-footer-intro|demigod-footer-tag|footer-email|dg-footer-explore/.test(coreJs) &&
+        !/id=["']dg-legal-links["'][\s\S]{0,1200}?data-dg-page=["'](?:press|events|refer|private)["']/.test(coreJs),
+      'footer: Product (how/pricing/hire/talent/faq) + Company (about/map/contact/legal/email); no explore link-farm',
+    );
+    check(
+      'core:header-site-directory',
+      /menu\.id=['"]dg-nav-directory['"]/.test(coreJs) &&
+        /nav\.w-nav,\.w-nav,\.nav_container:not\(#dg-top-nav\)/.test(coreJs) &&
+        /else if\(!q\(['"]#dg-top-nav['"]\)\)[^\n]*className=['"]nav_container['"][^\n]*nav_left[^\n]*nav_right/.test(coreJs) &&
+        /el\.id === ['"]dg-top-nav['"] \|\| el\.matches\(['"]\.nav_container,nav\.w-nav,\.w-nav['"]\) \|\| el\.querySelector\(['"]\.nav_container,nav\.w-nav,\.w-nav['"]\)/.test(coreJs) &&
+        /<summary>Explore<\/summary>/.test(coreJs) &&
+        ['how', 'pricing', 'hire', 'talent', 'blog', 'faq', 'map', 'about', 'contact', 'legal'].every((page) =>
+          coreJs.includes(`data-dg-page="${page}"`),
+        ) &&
+        /#dg-nav-directory summary\{[^}]*min-height:48px/.test(coreJs) &&
+        /#dg-nav-directory\{[^}]*margin:0!important;padding:0!important/.test(coreJs) &&
+        /#dg-nav-directory a\{[^}]*min-height:48px/.test(coreJs) &&
+        /qa\(['"]a['"],menu\)\.forEach\([^\n]*visibility['"],['"]visible['"],['"]important['"]\)[^\n]*opacity['"],['"]1['"],['"]important['"]\)/.test(coreJs) &&
+        /e\.key===['"]Escape['"]&&menu\.open[^\n]*removeAttribute\(['"]open['"]\)[^\n]*querySelector\(['"]summary['"]\)\.focus\(\)/.test(coreJs) &&
+        /#dg-nav-directory a:hover,#dg-nav-directory a:focus-visible/.test(coreJs),
+      'logo-only header must expose a native, keyboard-visible directory to every canonical public area',
+    );
+    check(
+      'core:product-page-stable-insertion',
+      /var pageAnchor = q\(['"]#dg-top-nav,nav\.w-nav,\.w-nav,\.nav_container['"]\)/.test(coreJs) &&
+        /while \(pageAnchor && pageAnchor\.parentElement !== document\.body\) pageAnchor = pageAnchor\.parentElement/.test(coreJs) &&
+        /pageAnchor\.insertAdjacentElement\(['"]afterend['"], root\)/.test(coreJs) &&
+        !/document\.body\.appendChild\(root\)/.test(coreJs),
+      'product pages must enter before the homepage shell is hidden, preventing a full-body layout shift',
+    );
+    check(
+      'head:routed-shell-out-of-flow-before-ready',
+      /html\.dg-route-boot:not\(:has\(body\.dg-ready\)\):not\(:has\(body\[data-dg-ready=["']1["']\]\)\) body>\*\{display:none!important\}/.test(head),
+      'deep routes must keep the Webflow shell out of layout until the routed page is ready',
+    );
+    const footPreloads = [...head.matchAll(/<link[^>]+data-dg-foot-preload[^>]*>/g)];
+    check(
+      'head:single-attested-foot-preload',
+      footPreloads.length === 1 &&
+        /rel=["']preload["']/.test(footPreloads[0][0]) &&
+        /as=["']script["']/.test(footPreloads[0][0]) &&
+        /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/foot-latest)\.js/.test(footPreloads[0][0]),
+      'head must discover exactly one approved foot runtime before the footer loader',
+    );
+    const mapScriptMarkers = [...head.matchAll(/<meta name=["']dg-startup-map-script["'][^>]*>/g)];
+    const mapDataMarkers = [...head.matchAll(/<meta name=["']dg-startup-map-data["'][^>]*>/g)];
+    const rolesFeedMarkers = [...head.matchAll(/<meta name=["']dg-startup-roles-feed["'][^>]*>/g)];
+    check(
+      'head:attested-startup-directory-assets',
+      mapScriptMarkers.length === 1 && mapDataMarkers.length === 1 && rolesFeedMarkers.length === 1 &&
+        /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/startup-map-latest)\.js/.test(mapScriptMarkers[0][0]) &&
+        /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/sf-startup-map)\.json/.test(mapDataMarkers[0][0]) &&
+        /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/roles-feed)\.json/.test(rolesFeedMarkers[0][0]) &&
+        /meta\[name=["']dg-startup-map-script["']\]/.test(coreJs) &&
+        /meta\[name=["']dg-startup-map-data["']\]/.test(startupMapJs) &&
+        /meta\[name=["']dg-startup-roles-feed["']\]/.test(startupMapJs),
+      'runtime directory script, data, and roles feed must use the exact release-attested asset URLs',
     );
     check(
       'core:mobile-footer-action-dedupe',
-      /@media\(max-width:767px\)\{\.dg-footer-actions,\.hero-actions,\.hero-actions\.dg-path-pair\{display:none!important\}/.test(coreJs),
-      'mobile fixed action bar owns conversion; hide the duplicate footer pair below 768px',
+      /@media\(max-width:767px\)\{[^"]*\.dg-footer-actions\{display:none!important\}/.test(coreJs) &&
+        /@media\(max-width:767px\)\{[^"]*\.hero-actions,\.hero-actions\.dg-path-pair\{display:grid!important/.test(coreJs) &&
+        !/@media\(max-width:767px\)\{\.dg-footer-actions,\.hero-actions,\.hero-actions\.dg-path-pair\{display:none!important\}/.test(coreJs),
+      'mobile keeps stacked dual-path panels; hide only footer action pair (sticky bar covers scroll depth)',
+    );
+    check(
+      'core:cta-visible-name-match',
+      !/aria-label=["'][^"']*(?:open startup hiring brief|open private candidate form)/.test(coreJs) &&
+        !/setAttribute\(['"]aria-label['"],[^\n]*(?:open startup hiring brief|open private candidate form)/.test(coreJs) &&
+        /a\.removeAttribute\(['"]aria-label['"]\)/.test(coreJs),
+      'CTA accessible names must come from their visible labels so speech input and screen readers agree',
     );
     const faqBlock = (coreJs.match(/\n  faq: \{[\s\S]*?\n  private: \{/) || [''])[0];
     check(
       'core:faq-lean',
-      (faqBlock.match(/<details\b/g) || []).length === 6 &&
-        /How much does it cost\?[\s\S]*?Is my profile private\?[\s\S]*?What happens after I send a brief\?[\s\S]*?Does AI decide who gets matched\?[\s\S]*?Who do you work with\?[\s\S]*?What if a match is not right\?/.test(faqBlock),
-      'FAQ must match the six ordered v903 decision questions; dedicated pages own repeated process and form copy',
+      (faqBlock.match(/<details\b/g) || []).length === 17 &&
+        /What is Demigod\?[\s\S]*?What happens after I submit\?[\s\S]*?How is matching different from open listing sites\?[\s\S]*?How much does it cost\?[\s\S]*?Is my profile private\?[\s\S]*?What is a concrete first result\?[\s\S]*?Who do you work with\?[\s\S]*?How long does it take\?[\s\S]*?Are payments and SMS live\?[\s\S]*?Do you auto-message founders or candidates\?[\s\S]*?What if a match is not right\?[\s\S]*?Can I partner or refer talent\?[\s\S]*?What roles do you cover first\?[\s\S]*?What do I need to submit as a founder\?[\s\S]*?What do I need as talent\?[\s\S]*?How do intros work\?[\s\S]*?Where can I read updates\?/.test(
+          faqBlock,
+        ),
+      'FAQ must match the 17 ordered FAQPage schema questions (visible == schema for /faq SEO)',
     );
     check('core:no-fake-sms-trust', !/Text \+1 \(415\) 555-DEMO/.test(coreJs));
     check('core:no-fake-sms-hero', !/heroSub:.*555-DEMO/.test(coreJs));
@@ -1527,7 +1619,7 @@ if (cdnFoot) {
       sessionDraftPrivacy,
       sessionDraftPrivacy ? 'same-tab only; hidden excluded; file bytes never serialized; cleared on thanks' : 'WIZ draft crossed privacy boundary',
     );
-    // Explicit review step before thanks — frege UX (Look good?/Ready?) + dg-wiz-review UI.
+    // Explicit review step before thanks — intent-named review Q + dg-wiz-review UI.
     // Parse only var WIZ_CFG block so WIZ_THANKS / other strings cannot steal the regex.
     {
       const cfg = (coreJs.match(/var\s+WIZ_CFG\s*=\s*\{[\s\S]*?\n\};/) || [])[0] || '';
@@ -1538,8 +1630,12 @@ if (cdnFoot) {
       const engOrder =
         /engineer:\s*\{[\s\S]*?steps:\s*\[[\s\S]*?\['__submit__'\][\s\S]*?\['__thanks__'\]/.test(cfg);
       const reviewCopy =
-        (/Look good\?/.test(coreJs) || /Review and submit your brief/.test(coreJs)) &&
-        (/Ready\?/.test(coreJs) || /Review and submit your profile/.test(coreJs));
+        (/Ready to send this brief\?/.test(coreJs) ||
+          /Look good\?/.test(coreJs) ||
+          /Review and submit your brief/.test(coreJs)) &&
+        (/Ready to send privately\?/.test(coreJs) ||
+          /Ready\?/.test(coreJs) ||
+          /Review and submit your profile/.test(coreJs));
       const wizSubmitReview = !!cfg && startupOrder && engOrder && reviewCopy && /dg-wiz-review/.test(coreJs);
       check(
         'core:wiz-submit-review',
@@ -1552,13 +1648,13 @@ if (cdnFoot) {
               ? 'startup steps must order 90day-outcome → __submit__ → __thanks__'
               : !engOrder
                 ? 'engineer steps must include __submit__ before __thanks__'
-                : 'WIZ review copy (Look good?/Ready? or legacy Review…) + dg-wiz-review required',
+                : 'WIZ review copy (Ready to send… / legacy Look good?/Ready?) + dg-wiz-review required',
       );
     }
     check('core:trust-fallback', /appendChild\(el\)|insertBefore\(el,f\)/.test(coreJs));
     // Removed core:board-cdn-current: it matched /catbox\.moe/ anywhere in foot-core, so it stayed
     // green on unrelated art assets (catbox.moe/eg561c.jpg) even after BOARD_CDN was deleted outright.
-    check('core:version-150plus', /__dgFootVer='(?:1[5-9][0-9]|[2-9][0-9]{2,})'/.test(coreJs));
+    check('core:version-150plus', Number((coreJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1]) >= 150);
     // Foot orgJsonLd must no-op when head already has #dg-org-jsonld (Claude c48 duplicate-LD fix).
     check(
       'core:org-jsonld-guard',
@@ -1567,21 +1663,24 @@ if (cdnFoot) {
         /orgJsonLd\s*\(/.test(coreJs),
       /function\s+orgJsonLd\s*\(/.test(coreJs) ? null : 'orgJsonLd missing or does not guard on #dg-org-jsonld',
     );
-    // v903 retired the public Notes surface: legacy /blog and /notes routes resolve to How.
-    // Keep validating the dormant post catalog below, but do not require it in the public core.
+    // Public Notes is generated from demigod-blog-posts.json; routes, embed, renderer, and deep link move together.
     try {
       const blogPosts = JSON.parse(fs.readFileSync(path.join(ROOT, 'demigod-blog-posts.json'), 'utf8'));
-      const blogRetired =
-        /['"]\/blog['"]\s*:\s*['"]how['"]/.test(coreJs) &&
-        /['"]\/notes['"]\s*:\s*['"]how['"]/.test(coreJs) &&
-        !/\n\s*['"]?(?:blog|notes)['"]?\s*:\s*\{/.test(coreJs) &&
-        !/\bDG_BLOG_POSTS\b|\bblogCardHtml\b|id=["']note-|class=["']dg-blog-more["']/.test(coreJs);
+      const published = (blogPosts.posts || []).filter((p) => p && p.published !== false);
+      const embedMatch = coreJs.match(/var\s+DG_BLOG_POSTS\s*=\s*(\[[\s\S]*?\]);\nvar DG_PAGES/);
+      let embedded = null;
+      try { embedded = embedMatch ? JSON.parse(embedMatch[1]) : null; } catch {}
+      const noteLazyDims = /<img[^>]*loading=["']lazy["'][^>]*decoding=["']async["'][^>]*width=["']\d+["'][^>]*height=["']\d+["']/.test(coreJs);
+      const blogLive = Array.isArray(embedded) && embedded.length === published.length &&
+        published.every((post) => embedded.some((item) => item.slug === post.slug && item.title === post.title && item.summary === post.summary && item.body === post.body)) &&
+        /['"]\/blog['"]\s*:\s*['"]blog['"]/.test(coreJs) && /['"]\/notes['"]\s*:\s*['"]blog['"]/.test(coreJs) &&
+        /\n\s*blog\s*:\s*\{/.test(coreJs) && /function\s+blogPageMount\s*\(/.test(coreJs) &&
+        /class=["']dg-blog-more["']/.test(coreJs) && noteLazyDims &&
+        /if\(\/\^note-\/\.test\(h\)\|\|\/\^\([^)]*\)\$\/\.test\(h\)\)/.test(coreJs);
       check(
         'core:blog-sor-in-sync',
-        blogRetired,
-        blogRetired
-          ? 'v903 retired: /blog + /notes → how; no public Notes page or renderer'
-          : 'retired Notes routes or renderer state drifted',
+        blogLive,
+        blogLive ? `${published.length} published post(s), routes+renderer+deep-link aligned` : 'Notes SoR, routes, renderer, or deep-link drifted',
       );
       // Runtime below-fold path: lazyBelowFold must set decoding=async (parity with static Notes cards).
       const lazyDecodeOk =

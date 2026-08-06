@@ -25,19 +25,25 @@ Demand → Intake → Match → Mutual yes → Intro → Hire → Proof
 - [ ] Founder yes · candidate consent · one intro email · log under `demigod-ops/intros/`  
 
 ### Ship site
-- [ ] Human unfreeze · CDN/paste · Publish www · `bin/dg live --require-match` · freeze back on  
+- [ ] Freeze OFF · current request authorizes publish · `bin/dg lock claim`
+- [ ] `DEMIGOD_CURRENT_REQUEST_PUBLISH=1 bin/dg ship run` (CDN + paste + verify) — detail [`docs/SHIP-AND-CDN.md`](../SHIP-AND-CDN.md)
+- [ ] `bin/dg truth` shows shipped / disk==live · release lock
+
+### Observed roles refresh (disk)
+- [ ] `node demigod-roles-pipeline.mjs` · ship/paste if live footer must update — [`docs/ROLES-PIPELINE.md`](../ROLES-PIPELINE.md)
 
 ### Incident (live wrong / dishonest claim / PII)
-- [ ] `bin/dg live` first · fix or rollback · no fake “PASS” · note in `demigod-ops/incidents/`  
+- [ ] `bin/dg truth` first · fix or rollback · no fake “PASS” · note in `demigod-ops/incidents/`
 
 ### Agent task (nontrivial only)
 - [ ] Goal · touch[] · forbid · verify cmd · raw output · 1 writer on foot  
 
 ## RACI (blast radius)
 
-| Action | Human must |
-|--------|------------|
-| Freeze / Publish / real DM / fee / real board claim | **Yes** |
+| Action | Who |
+|--------|-----|
+| Freeze / real DM / fee / real board claim as inventory | **Human judgment** (or explicit current-request agent authority) |
+| CDN + Webflow publish | **Agent when current request authorizes**; else prepare-only |
 
 ## Anti-process
 

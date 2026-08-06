@@ -478,11 +478,14 @@ function warmInboundFreshness(rows, now = new Date()) {
 }
 
 function latestWarmInboundSignals(rows) {
+  // Writer inserts newest rows at the top of the warm table. On equal Date
+  // cells, keep the first seen row so a same-day re-check is not shadowed by
+  // an older disposition further down the table (`>=` would prefer the tail).
   const latestByWho = new Map();
   for (const row of rows) {
     const key = warmInboundIdentityKey(row);
     const previous = latestByWho.get(key);
-    if (!previous || String(row.date) >= String(previous.date)) latestByWho.set(key, row);
+    if (!previous || String(row.date) > String(previous.date)) latestByWho.set(key, row);
   }
   return [...latestByWho.values()];
 }
@@ -1341,6 +1344,21 @@ function cmdSelftest() {
       return health.overdueActionCount === 0 &&
         health.scheduledActionCount === 1 &&
         health.nextActionDate === '2026-01-20';
+    })(),
+    // Newest warm rows are inserted at the table top. Same-day re-checks must
+    // not lose to an older disposition lower in the file.
+    sameDayLatestKeepsFirst: (() => {
+      const rows = latestWarmInboundSignals([
+        {
+          who: 'Ada Example', channel: 'email',
+          status: 're-check done', next: 'wait until 2026-01-20', date: '2026-01-10',
+        },
+        {
+          who: 'Ada Example', channel: 'email',
+          status: 'older note', next: 'reply pending', date: '2026-01-10',
+        },
+      ]);
+      return rows.length === 1 && rows[0].status === 're-check done';
     })(),
   };
   const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => name);

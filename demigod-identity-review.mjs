@@ -136,6 +136,83 @@ export function applyWebsiteProposals(map, { write = false, mode = 'collapse' } 
 }
 
 /**
+ * Keep-score for same-website collapse. Prefer YC/Wikidata rows with team/stage/openRoles
+ * over HN shells that only restate the same host (Hestus Inc. vs Hestus, 2026-08-06).
+ */
+export function sameWebsiteKeepScore(c) {
+  if (!c || typeof c !== 'object') return -1;
+  let s = 0;
+  const id = String(c.id || '');
+  if (id.startsWith('yc:')) s += 100;
+  if (id.startsWith('wd:')) s += 40;
+  if (id.startsWith('hn:')) s += 5;
+  if (Number(c.openRoles) > 0) s += Math.min(50, Number(c.openRoles));
+  if (Number.isFinite(c.teamSize) && c.teamSize > 0) s += 15;
+  if (String(c.stage || '').trim()) s += 10;
+  if (c.jobsUrl) s += 5;
+  if (c.description) s += 3;
+  return s;
+}
+
+/**
+ * PURE. Collapse same-website-not-merged defects: one host, multiple rows under one name.
+ * Keeps the highest-scored row; drops the rest. Transfers hiring=yes and openRoles when
+ * the survivor lacks them. Never invents websites or roles.
+ */
+export function collapseSameWebsiteDefects(map) {
+  const review = identityReview(map);
+  const companies = Array.isArray(map?.companies) ? map.companies : [];
+  const byId = new Map(companies.filter((c) => c?.id).map((c) => [c.id, c]));
+  const drop = new Set();
+  const applied = [];
+  const keepMut = new Map(); // id -> patch
+  for (const g of review.groups) {
+    if (g.verdict !== 'same-website-not-merged') continue;
+    const rows = (g.evidence || []).map((e) => byId.get(e.id)).filter(Boolean);
+    if (rows.length < 2) continue;
+    rows.sort((a, b) => sameWebsiteKeepScore(b) - sameWebsiteKeepScore(a) || String(a.id).localeCompare(String(b.id)));
+    const keep = rows[0];
+    let patch = keepMut.get(keep.id) || {};
+    for (const r of rows.slice(1)) {
+      drop.add(r.id);
+      if ((r.hiring === 'yes' || r.hiring === true) && keep.hiring !== 'yes' && keep.hiring !== true) {
+        patch = { ...patch, hiring: 'yes' };
+      }
+      const rRoles = Number(r.openRoles || 0);
+      const kRoles = Number(patch.openRoles ?? keep.openRoles ?? 0);
+      if (rRoles > kRoles) {
+        patch = {
+          ...patch,
+          openRoles: rRoles,
+          atsSource: r.atsSource || keep.atsSource,
+          jobsUrl: r.jobsUrl || keep.jobsUrl,
+          openRolesAt: r.openRolesAt || keep.openRolesAt,
+        };
+      }
+      const tags = new Set([...(keep.tags || []), ...(r.tags || []), ...((patch.tags) || [])]);
+      if (tags.size) patch = { ...patch, tags: [...tags] };
+      applied.push({
+        action: 'collapse-same-host',
+        dropId: r.id,
+        keepId: keep.id,
+        hostKey: websiteHostKey(keep.website) || websiteHostKey(r.website),
+        name: g.name,
+      });
+    }
+    if (Object.keys(patch).length) keepMut.set(keep.id, patch);
+  }
+  const next = companies
+    .filter((c) => c && !drop.has(c.id))
+    .map((c) => (keepMut.has(c.id) ? { ...c, ...keepMut.get(c.id) } : c));
+  return {
+    schema: 'demigod.identity-collapse-same-host/1',
+    applied,
+    dropped: [...drop],
+    map: { ...map, companies: next },
+  };
+}
+
+/**
  * PURE. Group companies by normalized name and classify each multi-row group.
  * Never mutates, never merges.
  */
@@ -292,6 +369,16 @@ if (isMain && process.argv.includes('--selftest')) {
     const r = identityReview(map([co({ id: 'a' }), co({ id: 'b' })]));
     assert(r.groups[0].verdict === 'same-website-not-merged', 'same host is a merge defect');
     assert(r.counts.reviewCandidates === 0, 'and is not a review candidate');
+    const collapsed = collapseSameWebsiteDefects(
+      map([
+        co({ id: 'yc:hestus-inc', name: 'Hestus, Inc.', website: 'https://www.hestus.co/', teamSize: 3, stage: 'Early' }),
+        co({ id: 'hn:hestus.co', name: 'Hestus', website: 'https://hestus.co/', source: 'Hacker News (Who is Hiring)', hiring: 'yes', tags: ['hn-hiring'] }),
+      ]),
+    );
+    assert(collapsed.applied.length === 1 && collapsed.applied[0].dropId === 'hn:hestus.co', 'drop HN shell');
+    assert(collapsed.map.companies.length === 1 && collapsed.map.companies[0].id === 'yc:hestus-inc', 'keep YC');
+    assert(collapsed.map.companies[0].hiring === 'yes', 'hiring signal preserved');
+    assert((collapsed.map.companies[0].tags || []).includes('hn-hiring'), 'hn tag carried over');
   }
 
   // Single-row names and degenerate input produce nothing.
@@ -301,6 +388,34 @@ if (isMain && process.argv.includes('--selftest')) {
 
   console.log(JSON.stringify({ ok: true, selftest: 'identity-review' }));
   process.exitCode = 0;
+} else if (isMain && process.argv.includes('--collapse-same-host')) {
+  const live = JSON.parse(fs.readFileSync(MAP, 'utf8'));
+  const wantWrite = process.argv.includes('--write');
+  const result = collapseSameWebsiteDefects(live);
+  if (wantWrite && result.applied.length) {
+    if (result.map.coverage && typeof result.map.coverage === 'object') {
+      result.map.coverage.namedCompanies = result.map.companies.length;
+    }
+    atomicWrite(MAP, `${JSON.stringify(result.map)}\n`, { mode: 0o644 });
+  }
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        write: wantWrite,
+        applied: result.applied,
+        companiesBefore: live.companies?.length ?? null,
+        companiesAfter: result.map.companies?.length ?? null,
+        note: wantWrite
+          ? result.applied.length
+            ? `collapsed ${result.applied.length} same-host shell(s)`
+            : 'nothing to collapse'
+          : 'dry-run — pass --write to persist',
+      },
+      null,
+      2,
+    ),
+  );
 } else if (isMain && process.argv.includes('--apply-websites')) {
   const live = JSON.parse(fs.readFileSync(MAP, 'utf8'));
   const wantWrite = process.argv.includes('--write');

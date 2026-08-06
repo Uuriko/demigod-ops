@@ -19,7 +19,9 @@ import {
   smartrecruiters as fetchSmartrecruitersRoles,
 } from './demigod-ats-providers.mjs';
 
-const MAP = '/home/potter/DEMIGOD-SF-STARTUP-MAP.json';
+const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
+// Staging rebuilds set DEMIGOD_STARTUP_MAP so a killed enrich cannot leave the live map boardless.
+const MAP = process.env.DEMIGOD_STARTUP_MAP || path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 export const jobsEnrichCliMode = (args) =>
   args.length === 0
@@ -1166,6 +1168,11 @@ if (isMain) {
   const beforeDedup = map.companies.length;
   map.companies = dedupeByBoard(map.companies);
   const collapsed = beforeDedup - map.companies.length;
+  map.coverage.namedCompanies = map.companies.length;
+  map.coverage.companiesWithTeamSize = map.companies.filter(({ teamSize }) => Number.isSafeInteger(teamSize) && teamSize > 0).length;
+  map.coverage.companiesWithStage = map.companies.filter(({ stage }) => ['Early', 'Growth'].includes(stage)).length;
+  map.coverage.companiesWithSectorTags = map.companies.filter(({ sourceLicense, tags }) =>
+    sourceLicense === 'YC-public' && tags?.some((tag) => tag !== 'yc' && !/^YC\s/.test(tag))).length;
   // Coverage tallied from the DEDUPED list — the honest numbers every consumer reads.
   const { hits, totalRoles, ycLinks } = updateJobsCoverage(map, at, collapsed);
   // Compact JSON — same bytes the CDN publisher seals; pretty-print only for console summary.

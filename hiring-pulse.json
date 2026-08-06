@@ -1,47 +1,47 @@
 {
-  "generatedAt": "2026-07-31",
+  "generatedAt": "2026-08-06",
   "levels": {
-    "tracked": 2741,
-    "hiring": 889,
-    "verifiedBoards": 338,
-    "verifiedRoles": 8151
+    "tracked": 2902,
+    "hiring": 978,
+    "verifiedBoards": 505,
+    "verifiedRoles": 11482
   },
   "byFunction": [
     {
       "fn": "engineering",
-      "n": 2344
+      "n": 3898
     },
     {
       "fn": "sales",
-      "n": 1087
+      "n": 1525
     },
     {
       "fn": "ai/data",
-      "n": 838
+      "n": 1098
     },
     {
       "fn": "operations",
-      "n": 566
+      "n": 888
     },
     {
       "fn": "marketing",
-      "n": 440
+      "n": 629
     },
     {
       "fn": "finance/legal",
-      "n": 428
+      "n": 558
     },
     {
       "fn": "product",
-      "n": 376
-    },
-    {
-      "fn": "design",
-      "n": 188
+      "n": 496
     },
     {
       "fn": "people",
-      "n": 158
+      "n": 328
+    },
+    {
+      "fn": "design",
+      "n": 265
     }
   ],
   "finding": {
@@ -52,21 +52,21 @@
     "multiple": 5.1
   },
   "aiInsight": {
-    "roles": 838,
+    "roles": 1098,
     "share": 10,
     "beatsPDM": false,
-    "pdm": 1004
+    "pdm": 1390
   },
   "topHirers": [
     {
       "name": "OpenAI",
-      "roles": 597,
+      "roles": 603,
       "ats": "Ashby",
       "url": "https://jobs.ashbyhq.com/openai"
     },
     {
       "name": "Databricks",
-      "roles": 412,
+      "roles": 415,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/databricks"
     },
@@ -78,71 +78,75 @@
     },
     {
       "name": "Stripe",
-      "roles": 263,
+      "roles": 265,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/stripe"
     },
     {
       "name": "Snowflake",
-      "roles": 260,
+      "roles": 251,
       "ats": "Ashby",
       "url": "https://jobs.ashbyhq.com/snowflake"
     },
     {
       "name": "Brex",
-      "roles": 231,
+      "roles": 241,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/brex"
     },
     {
+      "name": "Palantir Technologies",
+      "roles": 230,
+      "ats": "Lever",
+      "url": "https://jobs.lever.co/palantir"
+    },
+    {
+      "name": "Verkada",
+      "roles": 214,
+      "ats": "Greenhouse",
+      "url": "https://boards.greenhouse.io/verkada"
+    },
+    {
       "name": "Samsara",
-      "roles": 201,
+      "roles": 200,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/samsara"
     },
     {
       "name": "Okta",
-      "roles": 157,
+      "roles": 153,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/okta"
     },
     {
       "name": "Fivetran",
-      "roles": 147,
+      "roles": 146,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/fivetran"
     },
     {
       "name": "Pinterest Inc.",
-      "roles": 142,
+      "roles": 144,
       "ats": "Greenhouse",
       "url": "https://boards.greenhouse.io/pinterest"
-    },
-    {
-      "name": "Reddit",
-      "roles": 136,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/reddit"
-    },
-    {
-      "name": "Coinbase",
-      "roles": 111,
-      "ats": "Greenhouse",
-      "url": "https://boards.greenhouse.io/coinbase"
     }
   ],
   "atsLandscape": [
     {
       "name": "Ashby",
-      "n": 196
+      "n": 322
     },
     {
       "name": "Greenhouse",
-      "n": 103
+      "n": 136
     },
     {
       "name": "Lever",
-      "n": 39
+      "n": 46
+    },
+    {
+      "name": "Gem",
+      "n": 1
     }
   ],
   "batches": [
@@ -156,15 +160,15 @@
     {
       "batch": "YC Spring 2026",
       "n": 168,
-      "hiring": 44,
-      "roles": 10,
-      "rate": 26
+      "hiring": 45,
+      "roles": 31,
+      "rate": 27
     },
     {
       "batch": "YC Winter 2026",
       "n": 135,
       "hiring": 36,
-      "roles": 14,
+      "roles": 24,
       "rate": 27
     },
     {
@@ -178,21 +182,21 @@
       "batch": "YC Summer 2025",
       "n": 111,
       "hiring": 48,
-      "roles": 25,
+      "roles": 36,
       "rate": 43
     },
     {
       "batch": "YC Spring 2025",
       "n": 77,
       "hiring": 32,
-      "roles": 19,
+      "roles": 27,
       "rate": 42
     },
     {
       "batch": "YC Winter 2025",
       "n": 102,
       "hiring": 50,
-      "roles": 88,
+      "roles": 125,
       "rate": 49
     },
     {
@@ -204,10 +208,10 @@
     }
   ],
   "deltas": {
-    "since": "2026-07-30",
-    "startedHiring": 1,
-    "pausedHiring": 2,
-    "netRoles": 27
+    "since": "2026-08-04",
+    "startedHiring": 4,
+    "pausedHiring": 0,
+    "netRoles": 40
   },
   "method": "Open-role counts are live US-posted or Remote listings on each company’s own public Greenhouse/Lever/Ashby job board. \"Hiring\" without a count is the company’s own YC/self report. Public data only — no résumés, no estimates, no invented trends."
 }

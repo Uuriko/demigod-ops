@@ -20,11 +20,10 @@ If Chrome has >10 tabs: `npm run dev:tabs-cleanup`
 
 1. **Edit** one file: usually `demigod-foot-core.js`, head CSS, or a `demigod-*-pass.mjs` script.
 2. **During development, run the smallest targeted check.** Do not repeat a full audit immediately before release; the ship command reruns its own release gates.
-3. **Publish only when explicitly authorized in the current request.** With the freeze intentionally off and a fresh foot lock/token, run exactly `bin/dg ship run`. It owns the sequence: blog/source/honesty/smoke/review gates → CDN → Webflow save/publish → strict truth + live attestation.
+3. **Publish only when explicitly authorized in the current request.** With freeze OFF and a fresh foot lock/token, set `DEMIGOD_CURRENT_REQUEST_PUBLISH=1` and run `bin/dg ship run`. Sequence: prepare gates → CDN → Webflow CM6 paste/publish → strict truth + live attestation. Detail: [`docs/SHIP-AND-CDN.md`](docs/SHIP-AND-CDN.md).
 4. **Treat `truth --require-match` plus `live-attest` as completion.** Do not rerun the same gates or republish after a successful attestation.
 5. **Visual smoke is optional and separate.** Reuse the existing CDP browser and cap it at 20 seconds. A timeout after strict SHA attestation means “visual unverified,” never “publish again.”
-
-Reference: v754 shipped in 28.4 seconds. A later 13-minute delay was a browser-tool approval wait; the actual visual probe took 2.6 seconds.
+6. **If CDN git push fails** (no local `gh` auth): catbox + Actions path or GitHub MCP dispatch — same guide.
 
 ### Load / publish failure modes (2026-07-09)
 

@@ -188,7 +188,7 @@ ok(
   'head CSS preserves the 48px product-page control floor before runtime CSS',
 );
 ok(
-  /#dg-page \.dg-page-ctas a:focus-visible,[\s\S]*#dg-page \.dg-page-x:focus-visible\{[\s\S]*outline:2px solid var\(--g,#C9A84C\)!important/.test(headStylesSource) &&
+  /#dg-page \.dg-page-ctas a:focus-visible,[\s\S]*#dg-page \.dg-page-x:focus-visible\{[\s\S]*outline:2px solid var\(--g,#10c674\)!important/.test(headStylesSource) &&
     /@media\(forced-colors:active\)\{[\s\S]*#dg-page \.dg-page-x:focus-visible\{[\s\S]*outline:2px solid Highlight!important/.test(headStylesSource),
   'head CSS exposes product-page keyboard focus before runtime CSS, including forced colors',
 );

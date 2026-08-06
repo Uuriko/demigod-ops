@@ -21,11 +21,11 @@ test('talent experience adapts to skills while the proof ask stays uniform acros
   const context = {};
   vm.runInNewContext(`${helpers};base={q:'What are the 2–3 true must-haves?',h:'A few must-haves.'};result=[talentExperiencePrompt('React, systems, product'),talentProofPrompt('React, systems, product',true),talentExperiencePrompt('growth marketing'),talentProofPrompt('growth marketing',false),['TypeScript','Python','Kubernetes','product design','design systems','product operations','Recruiting operations, people analytics, data','Data engineering, Python, pipelines'].map(talentIsTechnical),talentNativeLabel('Skills & stack *'),talentNativeLabel('What you shipped *'),startupRequirementsPrompt('Founding designer',base),startupRequirementsPrompt('',base)]`, context);
   assert.match(context.result[0].q, /built or shipped/);
-  assert.equal(context.result[1].q, 'Resume or work link?');
-  assert.match(context.result[1].h, /^Upload a PDF\/Word resume or paste a shareable HTTPS resume, portfolio, or work link\./);
+  assert.equal(context.result[1].q, 'Resume or work link? (optional)');
+  assert.match(context.result[1].h, /^Skip if you prefer\. Upload a PDF\/Word resume or paste a shareable HTTPS resume, portfolio, or work link\./);
   assert.match(context.result[2].h, /campaign, hire/);
-  assert.equal(context.result[3].q, 'Resume or work link?');
-  assert.match(context.result[3].h, /^Paste a shareable HTTPS resume, portfolio, or work link\./);
+  assert.equal(context.result[3].q, 'Resume or work link? (optional)');
+  assert.match(context.result[3].h, /^Skip if you prefer\. Paste a shareable HTTPS resume, portfolio, or work link\./);
   // The uniformity rule itself, asserted directly rather than implied by two literals: a technical
   // and a non-technical candidate must be asked for proof in the same words.
   assert.equal(context.result[1].q, context.result[3].q, 'technical and non-technical paths must ask the same proof question');
@@ -37,7 +37,7 @@ test('talent experience adapts to skills while the proof ask stays uniform acros
   assert.equal(context.result[6], 'What work are you proud of? *');
   assert.equal(context.result[7].q, 'What are the 2–3 true must-haves for your Founding designer?');
   assert.equal(context.result[8].q, 'What are the 2–3 true must-haves?');
-  assert.match(source, /'resume':\{q:'Resume or work link\?',h:'PDF\/Word upload or one HTTPS portfolio \/ resume link\. Shared only after both sides approve\./);
+  assert.match(source, /'resume':\{q:'Resume or work link\? \(optional\)',h:'Skip if you prefer\./);
   for (const stale of ['Resume or profile link', 'Resume or profile file', 'Resume or technical work sample', 'Resume or work sample', 'shareable work link']) {
     assert.ok(!source.includes(stale), `stale resume alternative: ${stale}`);
   }

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Usage: prime-use [claude|gpt|grok] [args...]
+# Defaults: claude. Passes remaining args to prime-agent.
+set -euo pipefail
+export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${PATH}"
+prov="${1:-claude}"
+shift || true
+case "$prov" in
+  claude|anthropic)
+    exec prime-agent --provider anthropic --model claude-sonnet-4-5 "$@"
+    ;;
+  gpt|chatgpt|codex|openai)
+    exec prime-agent --provider openai-codex --model gpt-5.4 "$@"
+    ;;
+  grok|xai)
+    exec prime-agent --provider xai --model grok-4.5 "$@"
+    ;;
+  *)
+    echo "usage: prime-use claude|gpt|grok [prime-agent args...]" >&2
+    exit 2
+    ;;
+esac

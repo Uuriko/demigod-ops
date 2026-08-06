@@ -240,6 +240,7 @@ export async function cachedFetchText(url, {
   ttlMs = DEFAULT_LIVE_TTL,
   headers = {},
   timeoutMs = 22000,
+  retries = 0,
   bust = false,
   lookup = dns.lookup,
   fetchImpl = undiciFetch,
@@ -251,12 +252,21 @@ export async function cachedFetchText(url, {
   }
   const target = new URL(url);
   target.searchParams.append('v', Date.now());
-  const response = await publicGet(target, {
-    headers: { 'User-Agent': 'demigod-perf-cache', ...headers },
-    timeoutMs,
-    lookupImpl: lookup,
-    fetchImpl,
-  });
+  let response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await publicGet(target, {
+        headers: { 'User-Agent': 'demigod-perf-cache', ...headers },
+        timeoutMs,
+        lookupImpl: lookup,
+        fetchImpl,
+      });
+      break;
+    } catch (error) {
+      const detail = `${error?.message || ''} ${error?.cause?.message || ''}`;
+      if (attempt >= retries || /invalid_public_url|non_public_network_address/.test(detail)) throw error;
+    }
+  }
   const { buf } = response;
   const value = {
     ok: response.status >= 200 && response.status < 300,

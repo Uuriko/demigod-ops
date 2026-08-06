@@ -1,10 +1,11 @@
 {
-  "at": "2026-07-28T15:02:39.687Z",
+  "at": "2026-08-06T14:56:51.611Z",
   "url": "https://www.trydemigod.com",
-  "source": "live",
+  "source": "local-core",
   "startup": {
     "clicked": true,
     "modalVisible": true,
+    "footVer": "1070",
     "formId": "startup-hire",
     "formName": "startup-hire",
     "fieldCount": 11,
@@ -37,7 +38,7 @@
         "required": true,
         "placeholder": "Company name",
         "label": "Company name?",
-        "visible": true,
+        "visible": false,
         "value": ""
       },
       {
@@ -47,7 +48,7 @@
         "required": true,
         "placeholder": "Role title",
         "label": "Role title *",
-        "visible": false,
+        "visible": true,
         "value": ""
       },
       {
@@ -65,8 +66,8 @@
         "type": "textarea",
         "accept": "",
         "required": true,
-        "placeholder": "One measurable first-90-day result",
-        "label": "What should they ship in the first 90 days?",
+        "placeholder": "One concrete result",
+        "label": "What should this person accomplish first?",
         "visible": false,
         "value": ""
       },
@@ -86,17 +87,7 @@
         "accept": "",
         "required": true,
         "placeholder": "",
-        "label": "Target base cash range *",
-        "visible": false,
-        "value": ""
-      },
-      {
-        "name": "hiring-urgency",
-        "type": "select-one",
-        "accept": "",
-        "required": true,
-        "placeholder": "",
-        "label": "How soon do you need someone? *",
+        "label": "Target base salary range *",
         "visible": false,
         "value": ""
       },
@@ -108,7 +99,7 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "Submit"
+        "value": "Send brief"
       },
       {
         "name": "form_version",
@@ -118,7 +109,17 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "v851"
+        "value": "v1070"
+      },
+      {
+        "name": "cf-turnstile-response",
+        "type": "hidden",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": ""
       }
     ],
     "submitText": "Continue",
@@ -128,15 +129,19 @@
     "clientH": 646,
     "ghosts": [],
     "trustLines": [
-      "Role + 90-day outcome. Matched with Demigod tech; humans in the loop.",
-      "10% of first-year cash if you hire. Free for talent. Nothing until then.",
-      "A human reads every brief. potter@trydemigod.com follows up.",
-      "Someone reads every submission. We only propose when the fit is real — both sides still have to say ",
-      "• We read the role and 90-day outcome",
-      "• We rank and human-review fits",
-      "• You approve before any intro"
+      "One role, real constraints, and one concrete first result. Software compares role goals, skills, loc",
+      "10% of first-year base salary when a hire starts. Free for talent. Nothing until then.",
+      "Nothing until a hire starts. A human reads every brief. potter@trydemigod.com emails only when there",
+      "A human reads this next. You will hear from potter@trydemigod.com only if there is a real fit — not ",
+      "• We calibrate the role, first result, and constraints",
+      "• You review any proposed fit before we contact the candidate",
+      "• The candidate sees company, exact role, and base cash band; intro only after both approve",
+      "A human reads this next. You will hear from potter@trydemigod.com only if there is a real fit — not ",
+      "• We calibrate the role, first result, and constraints",
+      "• You review any proposed fit before we contact the candidate",
+      "• The candidate sees company, exact role, and base cash band; intro only after both approve"
     ],
-    "turnstile": false,
+    "turnstile": true,
     "resumeUpload": {
       "mode": "missing",
       "accept": "",
@@ -145,11 +150,12 @@
       "stateCount": 0,
       "accessibleStates": 0
     },
-    "screenshot": "/home/potter/audit-shots/forms-audit/startup-desktop-2026-07-28T15-02-26-528Z.png"
+    "screenshot": "/home/potter/audit-shots/forms-audit/startup-desktop-2026-08-06T14-56-32-712Z.png"
   },
   "engineer": {
     "clicked": true,
     "modalVisible": true,
+    "footVer": "1070",
     "formId": "engineer-join",
     "formName": "engineer-join",
     "fieldCount": 12,
@@ -162,7 +168,7 @@
         "required": true,
         "placeholder": "Your full name",
         "label": "",
-        "visible": true,
+        "visible": false,
         "value": ""
       },
       {
@@ -180,7 +186,7 @@
         "type": "textarea",
         "accept": "",
         "required": true,
-        "placeholder": "Strengths, craft, or domain",
+        "placeholder": "Role, problems, and strongest skills",
         "label": "",
         "visible": false,
         "value": ""
@@ -201,8 +207,8 @@
         "accept": "",
         "required": true,
         "placeholder": "",
-        "label": "Open to SF Bay startups?",
-        "visible": false,
+        "label": "Which work setup are you open to?",
+        "visible": true,
         "value": ""
       },
       {
@@ -221,17 +227,7 @@
         "accept": "",
         "required": true,
         "placeholder": "",
-        "label": "Target base cash range *",
-        "visible": false,
-        "value": ""
-      },
-      {
-        "name": "work-auth",
-        "type": "select-one",
-        "accept": "",
-        "required": true,
-        "placeholder": "",
-        "label": "US work authorization *",
+        "label": "Target base salary range *",
         "visible": false,
         "value": ""
       },
@@ -243,7 +239,7 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "Submit"
+        "value": "Send privately"
       },
       {
         "name": "resume",
@@ -261,7 +257,7 @@
         "accept": "",
         "required": false,
         "placeholder": "https://",
-        "label": "Resume file or work link *",
+        "label": "Resume file or work link (optional)",
         "visible": false,
         "value": ""
       },
@@ -273,7 +269,17 @@
         "placeholder": "",
         "label": "",
         "visible": false,
-        "value": "v851"
+        "value": "v1070"
+      },
+      {
+        "name": "cf-turnstile-response",
+        "type": "hidden",
+        "accept": "",
+        "required": false,
+        "placeholder": "",
+        "label": "",
+        "visible": false,
+        "value": ""
       }
     ],
     "submitText": "Continue",
@@ -283,17 +289,17 @@
     "clientH": 646,
     "ghosts": [],
     "trustLines": [
-      "One private profile. Evidence match + human review; shared only when you approve.",
-      "Demigod and its form/email providers process these answers for matching. Identifying details move on",
-      "Not shared with startups before mutual approval. Free for candidates.",
-      "PDF/DOCX upload or a shareable https link. Uploaded files are not restored if you refresh mid-form.",
-      "Upload a file or paste one shareable HTTPS link.",
-      "Not shared with startups until you approve an intro. Free for talent. No blasts.",
-      "• Demigod and its form provider process your answers",
-      "• A human proposes only real fits",
-      "• You approve before identifying details move"
+      "Your details stay private — this is not a public profile. Software compares role goals, skills, loca",
+      "Demigod and its form/email providers process these answers for matching. You see the company, exact ",
+      "Private until you approve an intro. Resume optional. potter@trydemigod.com only on real fits — free ",
+      "Optional. PDF/DOCX upload or a shareable https link — or skip. Uploaded files are not restored if yo",
+      "Optional. Upload a file, paste one shareable HTTPS link, or skip.",
+      "Not shared with startups until you approve an intro. Free for talent. No public profile, no blasts.",
+      "• Demigod and its form provider process your answers for matching only",
+      "• A human proposes only real fits — potter@trydemigod.com is the contact channel",
+      "• You approve before any identifying details move"
     ],
-    "turnstile": false,
+    "turnstile": true,
     "resumeUpload": {
       "mode": "native-file-or-link",
       "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -302,15 +308,16 @@
       "stateCount": 3,
       "accessibleStates": 1
     },
-    "screenshot": "/home/potter/audit-shots/forms-audit/engineer-desktop-2026-07-28T15-02-31-011Z.png"
+    "screenshot": "/home/potter/audit-shots/forms-audit/engineer-desktop-2026-08-06T14-56-38-408Z.png"
   },
   "mobile": {
     "startup": {
       "clicked": true,
       "modalVisible": true,
+      "footVer": "1070",
       "formId": "startup-hire",
       "formName": "startup-hire",
-      "fieldCount": 12,
+      "fieldCount": 11,
       "visibleFields": 1,
       "fields": [
         {
@@ -340,7 +347,7 @@
           "required": true,
           "placeholder": "Company name",
           "label": "Company name?",
-          "visible": true,
+          "visible": false,
           "value": ""
         },
         {
@@ -350,7 +357,7 @@
           "required": true,
           "placeholder": "Role title",
           "label": "Role title *",
-          "visible": false,
+          "visible": true,
           "value": ""
         },
         {
@@ -368,8 +375,8 @@
           "type": "textarea",
           "accept": "",
           "required": true,
-          "placeholder": "One measurable first-90-day result",
-          "label": "What should they ship in the first 90 days?",
+          "placeholder": "One concrete result",
+          "label": "What should this person accomplish first?",
           "visible": false,
           "value": ""
         },
@@ -389,17 +396,7 @@
           "accept": "",
           "required": true,
           "placeholder": "",
-          "label": "Target base cash range *",
-          "visible": false,
-          "value": ""
-        },
-        {
-          "name": "hiring-urgency",
-          "type": "select-one",
-          "accept": "",
-          "required": true,
-          "placeholder": "",
-          "label": "How soon do you need someone? *",
+          "label": "Target base salary range *",
           "visible": false,
           "value": ""
         },
@@ -411,7 +408,7 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "Submit"
+          "value": "Send brief"
         },
         {
           "name": "form_version",
@@ -421,7 +418,7 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "v851"
+          "value": "v1070"
         },
         {
           "name": "cf-turnstile-response",
@@ -441,13 +438,17 @@
       "clientH": 608,
       "ghosts": [],
       "trustLines": [
-        "Role + 90-day outcome. Matched with Demigod tech; humans in the loop.",
-        "10% of first-year cash if you hire. Free for talent. Nothing until then.",
-        "A human reads every brief. potter@trydemigod.com follows up.",
-        "Someone reads every submission. We only propose when the fit is real — both sides still have to say ",
-        "• We read the role and 90-day outcome",
-        "• We rank and human-review fits",
-        "• You approve before any intro"
+        "One role, real constraints, and one concrete first result. Software compares role goals, skills, loc",
+        "10% of first-year base salary when a hire starts. Free for talent. Nothing until then.",
+        "Nothing until a hire starts. A human reads every brief. potter@trydemigod.com emails only when there",
+        "A human reads this next. You will hear from potter@trydemigod.com only if there is a real fit — not ",
+        "• We calibrate the role, first result, and constraints",
+        "• You review any proposed fit before we contact the candidate",
+        "• The candidate sees company, exact role, and base cash band; intro only after both approve",
+        "A human reads this next. You will hear from potter@trydemigod.com only if there is a real fit — not ",
+        "• We calibrate the role, first result, and constraints",
+        "• You review any proposed fit before we contact the candidate",
+        "• The candidate sees company, exact role, and base cash band; intro only after both approve"
       ],
       "turnstile": true,
       "resumeUpload": {
@@ -458,11 +459,12 @@
         "stateCount": 0,
         "accessibleStates": 0
       },
-      "screenshot": "/home/potter/audit-shots/forms-audit/startup-mobile-2026-07-28T15-02-35-146Z.png"
+      "screenshot": "/home/potter/audit-shots/forms-audit/startup-mobile-2026-08-06T14-56-44-260Z.png"
     },
     "engineer": {
       "clicked": true,
       "modalVisible": true,
+      "footVer": "1070",
       "formId": "engineer-join",
       "formName": "engineer-join",
       "fieldCount": 12,
@@ -475,7 +477,7 @@
           "required": true,
           "placeholder": "Your full name",
           "label": "",
-          "visible": true,
+          "visible": false,
           "value": ""
         },
         {
@@ -493,7 +495,7 @@
           "type": "textarea",
           "accept": "",
           "required": true,
-          "placeholder": "Strengths, craft, or domain",
+          "placeholder": "Role, problems, and strongest skills",
           "label": "",
           "visible": false,
           "value": ""
@@ -514,8 +516,8 @@
           "accept": "",
           "required": true,
           "placeholder": "",
-          "label": "Open to SF Bay startups?",
-          "visible": false,
+          "label": "Which work setup are you open to?",
+          "visible": true,
           "value": ""
         },
         {
@@ -534,17 +536,7 @@
           "accept": "",
           "required": true,
           "placeholder": "",
-          "label": "Target base cash range *",
-          "visible": false,
-          "value": ""
-        },
-        {
-          "name": "work-auth",
-          "type": "select-one",
-          "accept": "",
-          "required": true,
-          "placeholder": "",
-          "label": "US work authorization *",
+          "label": "Target base salary range *",
           "visible": false,
           "value": ""
         },
@@ -556,7 +548,7 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "Submit"
+          "value": "Send privately"
         },
         {
           "name": "resume",
@@ -574,7 +566,7 @@
           "accept": "",
           "required": false,
           "placeholder": "https://",
-          "label": "Resume file or work link *",
+          "label": "Resume file or work link (optional)",
           "visible": false,
           "value": ""
         },
@@ -586,7 +578,17 @@
           "placeholder": "",
           "label": "",
           "visible": false,
-          "value": "v851"
+          "value": "v1070"
+        },
+        {
+          "name": "cf-turnstile-response",
+          "type": "hidden",
+          "accept": "",
+          "required": false,
+          "placeholder": "",
+          "label": "",
+          "visible": false,
+          "value": ""
         }
       ],
       "submitText": "Continue",
@@ -596,17 +598,17 @@
       "clientH": 608,
       "ghosts": [],
       "trustLines": [
-        "One private profile. Evidence match + human review; shared only when you approve.",
-        "Demigod and its form/email providers process these answers for matching. Identifying details move on",
-        "Not shared with startups before mutual approval. Free for candidates.",
-        "PDF/DOCX upload or a shareable https link. Uploaded files are not restored if you refresh mid-form.",
-        "Upload a file or paste one shareable HTTPS link.",
-        "Not shared with startups until you approve an intro. Free for talent. No blasts.",
-        "• Demigod and its form provider process your answers",
-        "• A human proposes only real fits",
-        "• You approve before identifying details move"
+        "Your details stay private — this is not a public profile. Software compares role goals, skills, loca",
+        "Demigod and its form/email providers process these answers for matching. You see the company, exact ",
+        "Private until you approve an intro. Resume optional. potter@trydemigod.com only on real fits — free ",
+        "Optional. PDF/DOCX upload or a shareable https link — or skip. Uploaded files are not restored if yo",
+        "Optional. Upload a file, paste one shareable HTTPS link, or skip.",
+        "Not shared with startups until you approve an intro. Free for talent. No public profile, no blasts.",
+        "• Demigod and its form provider process your answers for matching only",
+        "• A human proposes only real fits — potter@trydemigod.com is the contact channel",
+        "• You approve before any identifying details move"
       ],
-      "turnstile": false,
+      "turnstile": true,
       "resumeUpload": {
         "mode": "native-file-or-link",
         "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -615,7 +617,7 @@
         "stateCount": 3,
         "accessibleStates": 1
       },
-      "screenshot": "/home/potter/audit-shots/forms-audit/engineer-mobile-2026-07-28T15-02-39-207Z.png"
+      "screenshot": "/home/potter/audit-shots/forms-audit/engineer-mobile-2026-08-06T14-56-51-031Z.png"
     }
   },
   "issues": [],

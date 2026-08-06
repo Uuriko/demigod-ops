@@ -18,7 +18,7 @@
  *   bin/dg-webflow tools
  *   bin/dg-webflow brief          # markdown for agents
  *   bin/dg-webflow hygiene [--prune]  # tabs + load (laptop snappy)
- *   bin/dg-webflow connect [status|bridge|all]  # MCP/Bridge/token/webhook spine
+ *   bin/dg-webflow connect [status|bridge|all|setup]  # MCP/Bridge/token/webhook spine
  *
  * Out: /tmp/dg-busy/webflow-status.json · connect → webflow-connect.json
  */
@@ -61,7 +61,7 @@ function argsValid() {
   if (['status', 'doctor', 'tabs', 'truth', 'freeze', 'paste-check', 'tools', 'brief'].includes(cmd)) {
     return values.length === 0 && onlyFlags('--json');
   }
-  if (cmd === 'connect') return values.length <= 1 && (!values[0] || ['status', 'bridge', 'all'].includes(values[0])) && onlyFlags('--json');
+  if (cmd === 'connect') return values.length <= 1 && (!values[0] || ['status', 'bridge', 'all', 'setup'].includes(values[0])) && onlyFlags('--json');
   if (cmd === 'open') return values.length <= 1 && onlyFlags('--json');
   if (cmd === 'change') return values.length > 0 && onlyFlags('--json');
   if (cmd === 'playbook') return values.length <= 1 && onlyFlags('--json');

@@ -1,51 +1,125 @@
 {
-  "at": "2026-07-04T01:48:40.176Z",
-  "ver": "v60",
+  "at": "2026-08-06T17:05:36.594Z",
+  "ver": "live",
+  "local": false,
   "views": {
     "home-hero": {
-      "shot": "/home/potter/audit-shots/design/v60-home-hero.png",
+      "shot": "/home/potter/audit-shots/design/live-home-hero.png",
       "url": "/",
+      "runtimeVer": "v1070",
       "colors": {
         "offPalette": [],
         "count": 0
-      }
+      },
+      "layout": {}
+    },
+    "home-full": {
+      "shot": "/home/potter/audit-shots/design/live-home-full.png",
+      "url": "/",
+      "runtimeVer": "v1070",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      },
+      "layout": {}
     },
     "trust": {
-      "shot": "/home/potter/audit-shots/design/v60-trust.png",
+      "shot": "/home/potter/audit-shots/design/live-trust.png",
       "url": "/",
+      "runtimeVer": "v1070",
       "colors": {
         "offPalette": [],
         "count": 0
-      }
+      },
+      "layout": {}
     },
     "pricing": {
-      "shot": "/home/potter/audit-shots/design/v60-pricing.png",
-      "url": "/#demigod-pricing",
+      "shot": "/home/potter/audit-shots/design/live-pricing.png",
+      "url": "/pricing",
+      "runtimeVer": "v1070",
       "colors": {
         "offPalette": [],
         "count": 0
-      }
+      },
+      "layout": {}
     },
     "partners": {
-      "shot": "/home/potter/audit-shots/design/v60-partners.png",
-      "url": "/#partnerships",
+      "shot": "/home/potter/audit-shots/design/live-partners.png",
+      "url": "/refer",
+      "runtimeVer": "v1070",
       "colors": {
         "offPalette": [],
         "count": 0
-      }
+      },
+      "layout": {}
     },
     "privacy": {
-      "shot": "/home/potter/audit-shots/design/v60-privacy.png",
-      "url": "/#privacy",
+      "shot": "/home/potter/audit-shots/design/live-privacy.png",
+      "url": "/legal",
+      "runtimeVer": "v1070",
       "colors": {
         "offPalette": [],
         "count": 0
+      },
+      "layout": {}
+    },
+    "startups": {
+      "shot": "/home/potter/audit-shots/design/live-startups.png",
+      "url": "/startups",
+      "runtimeVer": "v1070",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      },
+      "layout": {}
+    },
+    "mobile-home": {
+      "shot": "/home/potter/audit-shots/design/live-mobile-home.png",
+      "url": "/",
+      "runtimeVer": "v1070",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      },
+      "layout": {}
+    },
+    "wizard-startup": {
+      "shot": "/home/potter/audit-shots/design/live-wizard-startup.png",
+      "url": "/?wiz=startup",
+      "runtimeVer": "v1070",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      },
+      "layout": {
+        "wizardHint": {
+          "ok": true,
+          "display": "flex",
+          "flexDirection": "column"
+        }
+      }
+    },
+    "wizard-engineer": {
+      "shot": "/home/potter/audit-shots/design/live-wizard-engineer.png",
+      "url": "/?wiz=engineer",
+      "runtimeVer": "v1070",
+      "colors": {
+        "offPalette": [],
+        "count": 0
+      },
+      "layout": {
+        "wizardHint": {
+          "ok": true,
+          "display": "flex",
+          "flexDirection": "column"
+        }
       }
     }
   },
   "summary": {
     "coolGray": 0,
-    "blueRed": 0
+    "blueRed": 0,
+    "wizardHintCollisions": 0
   },
   "ok": true
 }

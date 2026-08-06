@@ -139,17 +139,22 @@ function selftest() {
   console.log(JSON.stringify({ ok: true, selftest: 'outcome-grammar', sample: a }));
 }
 
-function main() {
-  if (process.argv.includes('--selftest')) return selftest();
-  const eq = process.argv.find((a) => a.startsWith('--text='));
-  const text = eq ? eq.slice('--text='.length) : process.argv.slice(2).filter((a) => !a.startsWith('--')).join(' ');
-  if (!text) {
-    console.error('usage: --text="…" | --selftest');
-    process.exit(2);
-  }
-  console.log(JSON.stringify(gradeOutcomeText(text), null, 2));
-}
-
 if (isMain) {
-  try { main(); } catch (e) { console.error(e); process.exit(1); }
+  try {
+    // Nest --selftest under isMain so importers cannot inherit a silent exit(0).
+    if (process.argv.includes('--selftest')) {
+      selftest();
+    } else {
+      const eq = process.argv.find((a) => a.startsWith('--text='));
+      const text = eq ? eq.slice('--text='.length) : process.argv.slice(2).filter((a) => !a.startsWith('--')).join(' ');
+      if (!text) {
+        console.error('usage: --text="…" | --selftest');
+        process.exit(2);
+      }
+      console.log(JSON.stringify(gradeOutcomeText(text), null, 2));
+    }
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
 }

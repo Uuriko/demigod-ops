@@ -1,5 +1,5 @@
 {
-  "at": "2026-08-03T02:54:52.796Z",
+  "at": "2026-08-06T17:38:26.252Z",
   "architecture": "head-minimal-css + foot-core-cdn",
   "checks": [
     {
@@ -15,12 +15,22 @@
     {
       "name": "head:size-under-cap",
       "ok": true,
-      "detail": "40221/50000 (9779 left)"
+      "detail": "44577/50000 (5423 left)"
     },
     {
       "name": "head:hide-webflow-badge",
       "ok": true,
       "detail": null
+    },
+    {
+      "name": "head:turnstile-modal-defer",
+      "ok": true,
+      "detail": "Turnstile must defer until a form opens while preserving Webflow script initialization"
+    },
+    {
+      "name": "head:no-raw-title-tag-in-source",
+      "ok": true,
+      "detail": "head-minimal must not contain a raw HTML title tag (leaks into live HTML / soft SEO noise)"
     },
     {
       "name": "head:no-retired-hero-asset",
@@ -60,7 +70,7 @@
     {
       "name": "head:hero-font-no-layout-swap",
       "ok": true,
-      "detail": "Unbounded must use display=optional; Lighthouse traced the live hero CLS to its late swap"
+      "detail": "hero must use the system sans stack instead of downloading the decorative Unbounded font"
     },
     {
       "name": "css:critical-hero-geometry",
@@ -70,7 +80,7 @@
     {
       "name": "head:preconnect-budget",
       "ok": true,
-      "detail": "Webflow already preconnects its CDN and Google Fonts; custom head should add only critical jsDelivr"
+      "detail": "custom head has no redundant preconnects; critical CSS and hero preload are discovered immediately"
     },
     {
       "name": "site:no-internal-leak",
@@ -243,11 +253,6 @@
       "detail": null
     },
     {
-      "name": "head:preconnect-og-image",
-      "ok": true,
-      "detail": null
-    },
-    {
       "name": "head:favicon-svg",
       "ok": true,
       "detail": null
@@ -353,11 +358,6 @@
       "detail": null
     },
     {
-      "name": "head:preconnect-foot-cdn",
-      "ok": true,
-      "detail": null
-    },
-    {
       "name": "head:cdn-stylesheet",
       "ok": true,
       "detail": null
@@ -381,6 +381,11 @@
       "name": "footer:cdn-url",
       "ok": true,
       "detail": null
+    },
+    {
+      "name": "footer:cdn-matches-manifest",
+      "ok": true,
+      "detail": "footer=https://files.catbox.moe/n0iqho.js manifest=https://files.catbox.moe/n0iqho.js"
     },
     {
       "name": "footer:inline-scripts-parse",
@@ -410,7 +415,7 @@
     {
       "name": "core:version-marker",
       "ok": true,
-      "detail": "v903"
+      "detail": "v1071"
     },
     {
       "name": "coreJs:run-defined-if-called",
@@ -468,6 +473,16 @@
       "detail": "wizard Close must not open a follow-up interstitial; same-tab draft resume stays intact"
     },
     {
+      "name": "core:turnstile-modal-flush",
+      "ok": true,
+      "detail": "opening either form modal must load the deferred Turnstile protection"
+    },
+    {
+      "name": "core:brandAssets-cascade",
+      "ok": true,
+      "detail": "brandAssets 32765b plus=170"
+    },
+    {
       "name": "core:route-fees-security",
       "ok": true,
       "detail": null
@@ -510,17 +525,47 @@
     {
       "name": "core:compact-footer",
       "ok": true,
-      "detail": "footer keeps two conversion actions and two short nav groups without the retired intro/id chrome"
+      "detail": "footer: Product (how/pricing/hire/talent/faq) + Company (about/map/contact/legal/email); no explore link-farm"
+    },
+    {
+      "name": "core:header-site-directory",
+      "ok": true,
+      "detail": "logo-only header must expose a native, keyboard-visible directory to every canonical public area"
+    },
+    {
+      "name": "core:product-page-stable-insertion",
+      "ok": true,
+      "detail": "product pages must enter before the homepage shell is hidden, preventing a full-body layout shift"
+    },
+    {
+      "name": "head:routed-shell-out-of-flow-before-ready",
+      "ok": true,
+      "detail": "deep routes must keep the Webflow shell out of layout until the routed page is ready"
+    },
+    {
+      "name": "head:single-attested-foot-preload",
+      "ok": true,
+      "detail": "head must discover exactly one approved foot runtime before the footer loader"
+    },
+    {
+      "name": "head:attested-startup-directory-assets",
+      "ok": true,
+      "detail": "runtime directory script, data, and roles feed must use the exact release-attested asset URLs"
     },
     {
       "name": "core:mobile-footer-action-dedupe",
       "ok": true,
-      "detail": "mobile fixed action bar owns conversion; hide the duplicate footer pair below 768px"
+      "detail": "mobile keeps stacked dual-path panels; hide only footer action pair (sticky bar covers scroll depth)"
+    },
+    {
+      "name": "core:cta-visible-name-match",
+      "ok": true,
+      "detail": "CTA accessible names must come from their visible labels so speech input and screen readers agree"
     },
     {
       "name": "core:faq-lean",
       "ok": true,
-      "detail": "FAQ must match the six ordered v903 decision questions; dedicated pages own repeated process and form copy"
+      "detail": "FAQ must match the 17 ordered FAQPage schema questions (visible == schema for /faq SEO)"
     },
     {
       "name": "core:no-fake-sms-trust",
@@ -610,7 +655,7 @@
     {
       "name": "core:blog-sor-in-sync",
       "ok": true,
-      "detail": "v903 retired: /blog + /notes → how; no public Notes page or renderer"
+      "detail": "1 published post(s), routes+renderer+deep-link aligned"
     },
     {
       "name": "core:lazy-decode-async",
@@ -630,7 +675,7 @@
     {
       "name": "footer:boot-smoke",
       "ok": true,
-      "detail": "903"
+      "detail": "1071"
     },
     {
       "name": "combined:forms-via-footer",
@@ -735,17 +780,17 @@
     {
       "name": "privacy:no-committable-sor",
       "ok": true,
-      "detail": "tracked=1246; privacyRules=56; no committable SoR/PII"
+      "detail": "tracked=1303; privacyRules=56; no committable SoR/PII"
     },
     {
       "name": "sor:import-integrity",
       "ok": true,
-      "detail": "import-integrity OK edges=524 contracts=10"
+      "detail": "import-integrity OK edges=549 contracts=10"
     },
     {
       "name": "referrals:lifecycle",
       "ok": true,
-      "detail": "ℹ duration_ms 403.90371"
+      "detail": "ℹ duration_ms 1777.550779"
     }
   ],
   "pass": true

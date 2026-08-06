@@ -28,6 +28,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { UNSAFE_INVISIBLE_CLASS, atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { postedDaysAgo } from './demigod-role-ledger.mjs';
+import {
+  cleanPublicRoleTitle,
+  companyKey,
+  loadCompanyProfiles,
+  sfPublicRoleScore,
+  startupScore,
+} from './demigod-public-roles.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const LEDGER = process.env.DEMIGOD_ROLE_LEDGER || path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
@@ -59,9 +66,27 @@ function publicRoleUrl(url) {
  * PURE. Roles first observed within `days`, newest first.
  * @param {object} ledger role-ledger shape
  */
-export function rolesFeed(ledger, { today = new Date().toISOString().slice(0, 10), days = 7, limit = 200 } = {}) {
+export function rolesFeed(
+  ledger,
+  {
+    today = new Date().toISOString().slice(0, 10),
+    days = 7,
+    limit = 200,
+    perCompany = 5,
+    /** Wall-clock build stamp for RSS lastBuildDate / consumers. Defaults to now. */
+    generatedAt = null,
+  } = {},
+) {
   const windowDays = Number.isFinite(days) && days > 0 ? Math.min(days, 90) : 7;
   const cap = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 1000) : 200;
+  // Cap per employer so one prolific board cannot monopolise the feed (measured: Brilliant Earth
+  // took 26/120 slots under pure recency). 0 disables the cap. Not a ranking — still newest first.
+  const companyCap =
+    perCompany === 0 || perCompany === false
+      ? 0
+      : Number.isFinite(perCompany) && perCompany > 0
+        ? Math.min(perCompany, 50)
+        : 5;
   const all = Object.values(ledger?.roles || {}).filter((r) => r && typeof r === 'object');
   const open = all.filter((r) => !r.closedAt);
   const eligible = [];
@@ -86,12 +111,37 @@ export function rolesFeed(ledger, { today = new Date().toISOString().slice(0, 10
       firstObservedAt: r.firstSeen,
       // Theirs, and only where the attribution is trusted. Null is a real answer here.
       postedAt: postedDaysAgo(r, today) == null ? null : r.nativePostedAt,
+      // Board last-updated day when present (Greenhouse updated_at) — not open-age.
+      boardUpdatedAt: r.nativeUpdatedAt && typeof r.nativeUpdatedAt === 'string' ? r.nativeUpdatedAt : null,
+      // Employer-declared public GH fields when captured on poll.
+      employerDepartment: publicText(r.employerDepartment, 120),
+      employerOffice: publicText(r.employerOffice, 120),
+      employmentType: publicText(r.employmentType, 60),
+      workplaceType: publicText(r.workplaceType, 40),
     });
   }
   eligible.sort((a, b) =>
     (a.firstObservedAt < b.firstObservedAt ? 1 : a.firstObservedAt > b.firstObservedAt ? -1 : 0) ||
     (a.company < b.company ? -1 : a.company > b.company ? 1 : 0));
-  const roles = eligible.slice(0, cap);
+  const roles = [];
+  const usedByCompany = new Map();
+  let omittedByCompanyCap = 0;
+  for (const r of eligible) {
+    if (roles.length >= cap) break;
+    const ck = String(r.company).toLowerCase();
+    const n = usedByCompany.get(ck) || 0;
+    if (companyCap && n >= companyCap) {
+      omittedByCompanyCap += 1;
+      continue;
+    }
+    usedByCompany.set(ck, n + 1);
+    // Keep raw title through eligibility/cap; clean only the published surface (site/RSS).
+    const cleaned = cleanPublicRoleTitle(r.title);
+    roles.push(cleaned && cleaned !== r.title ? { ...r, title: cleaned } : r);
+  }
+  // Rows skipped for the company cap are not "omitted by limit" — they could still fit if
+  // other employers had no more recent rows. Report both so truncation is never silent.
+  const omittedByLimit = Math.max(0, eligible.length - roles.length - omittedByCompanyCap);
   // How far back our observations actually go. The ledger began on a specific day, and every role
   // open at that moment shares that firstSeen — so a window WIDER than our history sweeps in the
   // inception spike and "newly observed" silently becomes "everything we track". Measured
@@ -101,17 +151,24 @@ export function rolesFeed(ledger, { today = new Date().toISOString().slice(0, 10
   const observationSpanDays = spans.length ? Math.max(...spans) : 0;
   return {
     schema: 'demigod.roles-feed/1',
-    generatedAt: `${today}T00:00:00.000Z`,
+    // Real build time (not day-midnight) so RSS lastBuildDate and downstream caches are honest.
+    generatedAt: generatedAt || new Date().toISOString(),
     windowDays,
-    basis: 'first observation on a public ATS board by Demigod; postedAt is the employer date where attributed (Greenhouse first_published), else null',
+    perCompany: companyCap,
+    basis:
+      'first observation on a public ATS board by Demigod; postedAt is the employer date where attributed (Greenhouse first_published), else null; boardUpdatedAt/employerDepartment/employerOffice are public board fields when captured; at most perCompany roles per employer so one board cannot monopolise the feed',
     counts: {
       openRoles: open.length,
       inWindow: eligible.length,
       returned: roles.length,
       // No silent caps: a reader can tell the window was truncated and by how much.
-      omittedByLimit: Math.max(0, eligible.length - roles.length),
+      omittedByLimit,
+      omittedByCompanyCap,
       droppedUnsafeUrl,
       withEmployerPostedDate: roles.filter((r) => r.postedAt).length,
+      withBoardUpdatedAt: roles.filter((r) => r.boardUpdatedAt).length,
+      withEmployerDepartment: roles.filter((r) => r.employerDepartment).length,
+      withEmployerOffice: roles.filter((r) => r.employerOffice).length,
       observationSpanDays,
       // True when the requested window reaches past our own history, i.e. the result includes the
       // ledger's inception spike and should not be read as "newly posted".
@@ -119,6 +176,98 @@ export function rolesFeed(ledger, { today = new Date().toISOString().slice(0, 10
     },
     roles,
   };
+}
+
+
+/**
+ * PURE. RSS item title: "Company — Role", but skip re-prefix when the employer
+ * title already embeds the company ("… at Acme" or "Acme — …").
+ */
+export function rolesFeedItemTitle(company, title) {
+  const c = String(company || '').trim() || 'Company';
+  const t = String(title || '').trim() || 'Role';
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp('^' + escRe(c) + '\\s*[—\\-–:|]', 'i').test(t)) return t;
+  if (new RegExp('\\bat\\s+' + escRe(c) + '\\b', 'i').test(t)) return t;
+  return c + ' — ' + t;
+}
+
+/**
+ * PURE. Prefer startups + SF/US for the public RSS surface (channel title says SF-area).
+ * Machine JSON feed stays full-window recency; RSS is the human-facing slice.
+ * profiles: companyKey → map profile (optional; same signals as homepage public-roles).
+ */
+export function rolesForRss(roles, { limit = 100, profiles = {} } = {}) {
+  const list = Array.isArray(roles) ? roles : [];
+  // Same title-noise signal as homepage public-roles rail ($comp / +equity paste).
+  const titleNoise = (title) =>
+    /\$|\b\d{2,3}\s*[–-]\s*\d{2,3}\s*k\b|\+\s*equity\b/i.test(String(title || '')) ? 1 : 0;
+  const scored = list.map((r) => ({
+    r,
+    geo: sfPublicRoleScore(r?.location || r?.employerOffice || ''),
+    startup: startupScore(profiles[companyKey(r?.company)]),
+    noise: titleNoise(r?.title),
+  }));
+  const nonOff = scored.filter((x) => x.geo > 0);
+  const pool = (nonOff.length ? nonOff : scored).slice();
+  pool.sort(
+    (a, b) =>
+      b.startup - a.startup ||
+      b.geo - a.geo ||
+      a.noise - b.noise ||
+      String(b.r?.firstObservedAt || '').localeCompare(String(a.r?.firstObservedAt || '')) ||
+      String(a.r?.company || '').localeCompare(String(b.r?.company || '')),
+  );
+  const cap = Math.min(Math.max(1, limit | 0), 200);
+  const quietEnough = pool.filter((x) => x.noise === 0).length >= Math.min(cap, 24);
+  const ordered = quietEnough ? pool.filter((x) => x.noise === 0).concat(pool.filter((x) => x.noise)) : pool;
+  return ordered.slice(0, cap).map((x) => x.r);
+}
+
+/** PURE. RSS 2.0 string for a roles-feed document (public ATS observation only). */
+export function rolesFeedToRss(
+  feed,
+  {
+    siteOrigin = 'https://www.trydemigod.com',
+    channelTitle = 'Demigod — newly observed SF-area open roles',
+    profiles = {},
+  } = {},
+) {
+  const roles = rolesForRss(Array.isArray(feed?.roles) ? feed.roles : [], { limit: 100, profiles });
+  const esc = (s) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const items = roles
+    .map((r) => {
+      const title = rolesFeedItemTitle(r.company, r.title);
+      const day = String(r.firstObservedAt || '').slice(0, 10);
+      const pub = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00Z`).toUTCString() : new Date().toUTCString();
+      const descParts = [];
+      if (r.employerDepartment) descParts.push(r.employerDepartment);
+      if (r.location) descParts.push(r.location);
+      if (r.workplaceType) descParts.push(r.workplaceType);
+      if (r.employmentType) descParts.push(r.employmentType);
+      descParts.push(`First observed ${day || 'unknown'} by Demigod on a public employer ATS board. Not matching inventory.`);
+      return (
+        `<item><title>${esc(title)}</title><link>${esc(r.url)}</link><guid isPermaLink="true">${esc(r.url)}</guid>` +
+        `<pubDate>${esc(pub)}</pubDate><description>${esc(descParts.join(' · '))}</description></item>`
+      );
+    })
+    .join('');
+  const build = feed?.generatedAt || new Date().toISOString();
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<rss version="2.0"><channel>` +
+    `<title>${esc(channelTitle)}</title>` +
+    `<link>${esc(siteOrigin)}/startups</link>` +
+    `<description>Public ATS roles Demigod first observed recently. SF Bay / US-leaning locations preferred when boards list them. Not matching inventory. firstObservedAt is our clock; employer post dates only when attributed.</description>` +
+    `<lastBuildDate>${esc(new Date(build).toUTCString())}</lastBuildDate>` +
+    items +
+    `</channel></rss>\n`
+  );
 }
 
 if (isMain && process.argv.includes('--selftest')) {
@@ -180,9 +329,25 @@ if (isMain && process.argv.includes('--selftest')) {
   // Truncation is reported, never silent.
   {
     const many = Array.from({ length: 12 }, (_, i) => role({ company: `C${i}` }));
-    const f = rolesFeed(led(many), { today: T, days: 7, limit: 5 });
+    const f = rolesFeed(led(many), { today: T, days: 7, limit: 5, perCompany: 0 });
     assert(f.counts.returned === 5 && f.counts.omittedByLimit === 7, 'omissions are reported');
     assert(f.counts.returned + f.counts.omittedByLimit === f.counts.inWindow, 'counts reconcile');
+  }
+
+  // Per-company cap: one prolific employer cannot monopolise the feed under pure recency.
+  {
+    const flood = Array.from({ length: 10 }, (_, i) =>
+      role({ company: 'FloodCo', title: `Role ${i}`, jobId: `f${i}`, firstSeen: T }),
+    );
+    const others = Array.from({ length: 4 }, (_, i) =>
+      role({ company: `Other${i}`, title: 'X', jobId: `o${i}`, firstSeen: T }),
+    );
+    const f = rolesFeed(led([...flood, ...others]), { today: T, days: 7, limit: 10, perCompany: 2 });
+    const floodN = f.roles.filter((r) => r.company === 'FloodCo').length;
+    assert(floodN === 2, `FloodCo capped at 2, got ${floodN}`);
+    assert(f.roles.length === 6, `cap leaves room for others, got ${f.roles.length}`);
+    assert(f.counts.omittedByCompanyCap >= 8, 'company-cap skips are counted');
+    assert(f.perCompany === 2, 'perCompany is reported on the document');
   }
 
   // A window wider than our observation history sweeps in the ledger inception spike.
@@ -200,6 +365,71 @@ if (isMain && process.argv.includes('--selftest')) {
   assert(rolesFeed(null).roles.length === 0, 'null ledger -> empty feed');
   assert(rolesFeed({ roles: { a: 'junk' } }).roles.length === 0, 'malformed rows ignored');
 
+    {
+    const rss = rolesFeedToRss({ roles: [{ company: 'A', title: 'E', url: 'https://x.test/j', firstObservedAt: '2026-08-01', employerDepartment: 'Eng', location: 'San Francisco' }], generatedAt: '2026-08-01T00:00:00.000Z' });
+    assert(rss.includes('<rss') && rss.includes('A — E') && rss.includes('https://x.test/j') && rss.includes('Eng'), 'rss carries public facts');
+    assert(rss.includes('Not matching inventory'), 'rss honesty');
+    assert(rss.includes('SF Bay / US-leaning'), 'rss states geo preference honestly');
+    const geoRss = rolesFeedToRss({
+      roles: [
+        { company: 'OffGeo', title: 'SRE', url: 'https://x.test/off', firstObservedAt: '2026-08-01', location: 'Bangalore, India' },
+        { company: 'BayCo', title: 'Engineer', url: 'https://x.test/bay', firstObservedAt: '2026-08-01', location: 'San Francisco, CA' },
+      ],
+      generatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    assert(geoRss.includes('BayCo') && !geoRss.includes('OffGeo'), 'rss drops pure off-geo when SF/US rows exist');
+    const startupRss = rolesFeedToRss(
+      {
+        roles: [
+          {
+            company: 'HugeCo',
+            title: 'SRE',
+            url: 'https://x.test/huge',
+            firstObservedAt: '2026-08-01',
+            location: 'San Francisco',
+          },
+          {
+            company: 'TinyCo',
+            title: 'Engineer',
+            url: 'https://x.test/tiny',
+            firstObservedAt: '2026-08-01',
+            location: 'San Francisco',
+          },
+        ],
+        generatedAt: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        profiles: {
+          [companyKey('HugeCo')]: { teamSize: 2000, stage: 'Growth' },
+          [companyKey('TinyCo')]: { teamSize: 12, stage: 'Early' },
+        },
+      },
+    );
+    assert(
+      startupRss.indexOf('TinyCo') < startupRss.indexOf('HugeCo'),
+      'rss prefers known startups over established high-volume employers',
+    );
+    assert(rolesFeedItemTitle('Acme', 'Engineer') === 'Acme — Engineer', 'default company — title');
+    assert(
+      rolesFeedItemTitle('AIOS', 'Head of AI Engineering at AIOS — Remote') ===
+        'Head of AI Engineering at AIOS — Remote',
+      'do not double company when title already says at Company',
+    );
+    assert(
+      cleanPublicRoleTitle('Head of AI Engineering at AIOS — Remote, $200-$400k/yr + equity') ===
+        'Head of AI Engineering at AIOS — Remote',
+      'feed cleans trailing comp paste before publish',
+    );
+    assert(
+      rolesFeedItemTitle('Acme', 'Acme — Staff Engineer') === 'Acme — Staff Engineer',
+      'title already company-prefixed',
+    );
+    assert(
+      rolesFeedItemTitle('Gusto', 'Principal Product Manager, Gusto Pro Workflows') ===
+        'Gusto — Principal Product Manager, Gusto Pro Workflows',
+      'product-name substring is not company embed',
+    );
+  }
   console.log(JSON.stringify({ ok: true, selftest: 'roles-feed' }));
   process.exitCode = 0;
 } else if (isMain) {
@@ -209,18 +439,28 @@ if (isMain && process.argv.includes('--selftest')) {
     today: new Date().toISOString().slice(0, 10),
     days: arg('--days', 7),
     limit: arg('--limit', 200),
+    perCompany: process.argv.includes('--per-company') ? arg('--per-company', 5) : 5,
   });
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(feed, null, 2));
   } else {
     atomicWrite(OUT, JSON.stringify(feed) + '\n', { mode: 0o644 });
+    const rssPath = path.join(ROOT, 'DEMIGOD-ROLES-FEED.rss');
+    const profiles = loadCompanyProfiles();
+    atomicWrite(rssPath, rolesFeedToRss(feed, { profiles }), { mode: 0o644 });
     const c = feed.counts;
+    const truncBits = [];
+    if (c.omittedByCompanyCap) truncBits.push(`${c.omittedByCompanyCap} skipped by per-company cap${feed.perCompany ? ` (≤${feed.perCompany}/employer)` : ''}`);
+    if (c.omittedByLimit) truncBits.push(`${c.omittedByLimit} omitted by limit`);
     console.log(
       `roles feed → ${OUT}\n` +
       `  ${c.returned} roles first observed in the last ${feed.windowDays}d ` +
-      `(of ${c.inWindow} in window, ${c.omittedByLimit} omitted by limit)\n` +
+      `(of ${c.inWindow} in window` +
+      (truncBits.length ? `, ${truncBits.join(', ')}` : '') +
+      `)\n` +
       `  ${c.withEmployerPostedDate} carry an attributed employer posting date; ` +
-      `${c.droppedUnsafeUrl} dropped for an unusable link`,
+      `${c.droppedUnsafeUrl} dropped for an unusable link` +
+      `\n  rss → ${rssPath}`,
     );
   }
 }

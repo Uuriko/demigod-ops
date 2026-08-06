@@ -27,12 +27,14 @@ const report = {
   local: LOCAL,
   steps: [],
   posts: [],
+  formPosts: [],
   pass: false,
   destination: null,
   error: null,
   hire: null,
   join: null,
   wiz: [],
+  joinWiz: [],
   foot: null,
 };
 
@@ -54,7 +56,7 @@ async function main() {
     if (LOCAL && CORE) {
       await page.route('**/*', async (route) => {
         const u = route.request().url();
-        if (/files\.catbox\.moe\/.*\.js$/i.test(u) || /demigod-foot/i.test(u)) {
+        if (/files\.catbox\.moe\/.*\.js$/i.test(u) || /foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(u)) {
           return route.fulfill({ status: 200, contentType: 'application/javascript', body: CORE });
         }
         return route.continue();
@@ -70,9 +72,7 @@ async function main() {
 
     // Open hire
     const hireBtn = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('a,button')].find((el) =>
-        /HIRE TALENT|HIRE SF|Start brief|FIND TALENT/i.test((el.textContent || '').trim())
-      );
+      const btn = document.querySelector('[data-demigod-modal="startup"],a[href*="wiz=startup"]');
       if (btn) {
         btn.click();
         return (btn.textContent || '').trim().slice(0, 40);
@@ -93,7 +93,7 @@ async function main() {
         wizQ: (m.querySelector('.dg-wiz-q')?.textContent || '').slice(0, 100),
         hasNext: !!m.querySelector('.dg-wiz-next'),
         fieldNames: [...m.querySelectorAll('input,select,textarea')].map((el) => el.name || el.id).filter(Boolean).slice(0, 40),
-        has90dayInDom: !!m.querySelector('[name="90day-outcome"],#90day-outcome'),
+        has90dayInDom: !!m.querySelector('[name="90day-outcome"],[id="90day-outcome"]'),
       };
     });
 
@@ -129,7 +129,8 @@ async function main() {
           el.dispatchEvent(new Event('change', { bubbles: true }));
         }
         const isSubmit = /submit|send|finish/i.test(nextText) || /ready to submit/i.test(q);
-        const isThanks = /thank/i.test(q) || modal.querySelector('.dg-thanks, .w-form-done');
+        const thanks = modal.querySelector('.dg-thanks, .w-form-done');
+        const isThanks = /thank/i.test(q) || !!(thanks && thanks.getBoundingClientRect().height > 0);
         return {
           i: undefined,
           q: q.slice(0, 90),
@@ -170,9 +171,7 @@ async function main() {
     });
     await sleep(300);
     const joinBtn = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('a,button')].find((el) =>
-        /JOIN NETWORK|GET MATCHED/i.test((el.textContent || '').trim())
-      );
+      const btn = document.querySelector('[data-demigod-modal="jobseeker"],a[href*="wiz=engineer"]');
       if (btn) {
         btn.click();
         return (btn.textContent || '').trim().slice(0, 40);
@@ -192,13 +191,58 @@ async function main() {
     });
     report.steps.push({ joinBtn });
 
-    report.destination = report.posts.find((p) => /webflow|form|webhook|trydemigod/i.test(p.url))?.url || null;
+    // Drive the candidate wizard to its guarded submit step without sending.
+    for (let i = 0; i < 12; i++) {
+      const st = await page.evaluate((tag) => {
+        const modal = document.querySelector('#jobseeker-modal');
+        if (!modal) return { err: 'no modal' };
+        const q = (modal.querySelector('.dg-wiz-q')?.textContent || '').trim();
+        const next = modal.querySelector('.dg-wiz-next');
+        const nextText = (next?.textContent || '').trim();
+        const vis = [...modal.querySelectorAll('input,textarea,select')].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && el.type !== 'hidden' && el.type !== 'file';
+        });
+        for (const el of vis) {
+          const n = (el.name || el.id || '').toLowerCase();
+          if (el.type === 'email') el.value = tag;
+          else if (el.tagName === 'SELECT' && el.options.length > 1) el.selectedIndex = 1;
+          else if (el.type === 'checkbox' || el.type === 'radio') el.checked = true;
+          else if (/resume-url/.test(n)) el.value = ''; // prove the optional proof step can be skipped
+          else if (/full-name/.test(n)) el.value = 'E2E Candidate';
+          else if (/experience/.test(n)) el.value = 'Shipped measurable product and reliability improvements for customers.';
+          else if (!el.value) el.value = 'Product engineering, systems, and customer-facing work';
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return {
+          q: q.slice(0, 90),
+          vis: vis.length,
+          nextText,
+          isSubmit: /submit|send|finish/i.test(nextText) || /^ready\??$/i.test(q),
+          names: vis.map((el) => el.name || el.id).slice(0, 8),
+        };
+      }, TAG);
+      st.i = i;
+      report.joinWiz.push(st);
+      if (st.err || st.isSubmit) break;
+      await page.evaluate(() => document.querySelector('#jobseeker-modal .dg-wiz-next')?.click());
+      await sleep(650);
+    }
+
+    report.formPosts = report.posts.filter((p) => !/^https:\/\/challenges\.cloudflare\.com\//i.test(p.url));
+    report.destination = report.formPosts[0]?.url || null;
     report.pass = !!(
       report.hire?.found &&
       report.hire?.hasNext &&
       report.wiz.length >= 2 &&
       report.wiz.some((w) => w.vis > 0) &&
-      report.join?.found
+      report.wiz.some((w) => w.isSubmit) &&
+      report.join?.found &&
+      report.joinWiz.length >= 2 &&
+      report.joinWiz.some((w) => w.vis > 0) &&
+      report.joinWiz.some((w) => w.isSubmit) &&
+      (SUBMIT || report.formPosts.length === 0)
     );
     if (!report.pass && !report.error) {
       report.error = 'flow incomplete: hire/wiz/join checks failed';
@@ -211,7 +255,7 @@ async function main() {
   await page.screenshot({ path: '/tmp/dg-ux-pack/shots/e2e-pw-final.png', fullPage: false }).catch(() => {});
   await browser.close();
   fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ pass: report.pass, foot: report.foot, hire: report.hire?.found, join: report.join?.found, wizSteps: report.wiz.length, posts: report.posts.length, destination: report.destination, error: report.error, out: OUT }, null, 2));
+  console.log(JSON.stringify({ pass: report.pass, foot: report.foot, hire: report.hire?.found, join: report.join?.found, wizSteps: report.wiz.length, joinWizSteps: report.joinWiz.length, telemetryPosts: report.posts.length, formPosts: report.formPosts.length, destination: report.destination, error: report.error, out: OUT }, null, 2));
   process.exit(report.pass ? 0 : 1);
 }
 

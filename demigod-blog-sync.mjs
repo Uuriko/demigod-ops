@@ -182,13 +182,22 @@ function extractBlogLd(head) {
   return null;
 }
 
+function blogRetired(foot) {
+  return (
+    /['"]\/blog['"]\s*:\s*['"]how['"]/.test(foot) &&
+    /['"]\/notes['"]\s*:\s*['"]how['"]/.test(foot) &&
+    !/\bDG_BLOG_POSTS\b|\bblogCardHtml\b|id=["']note-|class=["']dg-blog-more["']/.test(foot)
+  );
+}
+
 function driftReport(pub, foot, head) {
   const want = embedPosts(pub);
   const got = extractEmbed(foot);
   const ld = extractBlogLd(head);
   const issues = [];
-  if (!got) issues.push('foot:missing-DG_BLOG_POSTS');
-  else {
+  if (!got) {
+    if (!blogRetired(foot)) issues.push('foot:missing-DG_BLOG_POSTS');
+  } else {
     if (got.length !== want.length) issues.push(`foot:count ${got.length}!=${want.length}`);
     const gSlugs = new Set(got.map((p) => p.slug));
     for (const p of want) {
@@ -341,7 +350,7 @@ function main() {
   }
 
   // write
-  const nextFoot = applyFoot(foot, pub);
+  const nextFoot = blogRetired(foot) ? foot : applyFoot(foot, pub);
   const nextHead = applyHead(head, pub);
   // atomicWrite, not writeFileSync: a plain write truncates-then-writes, so any concurrent READER
   // can catch the file torn. The foot-lock does not help here -- it serialises writers, while the

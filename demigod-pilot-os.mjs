@@ -212,6 +212,11 @@ if (cmd === 'add') {
   const source = opt(args, '--source', 'manual');
   const contact = opt(args, '--contact', '');
   const outcome90d = opt(args, '--outcome', '') || opt(args, '--90d', '');
+  const companyStage = opt(args, '--company-stage', '');
+  const requirements = opt(args, '--requirements', '');
+  const workLocation = opt(args, '--work-location', '');
+  const salaryRange = opt(args, '--salary-range', '');
+  const interviewProcess = opt(args, '--interview-process', '');
   const introReceiptPath = opt(args, '--intro-receipt', '');
   const force = args.includes('--force-test');
   // honesty gate — refuse audit/test/sim pollution
@@ -250,6 +255,11 @@ if (cmd === 'add') {
     role,
     source,
     contact,
+    companyStage,
+    requirements,
+    workLocation,
+    salaryRange,
+    interviewProcess,
     ...(intro ? { pairId: intro.pairId, introAt: intro.at, introReceipt: intro.path, nextUpdateAt: intro.nextUpdateAt } : {}),
     outcome90d,
     mustHaves: multi(args, '--must'),

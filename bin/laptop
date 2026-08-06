@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cdp=http://127.0.0.1:9223
+
+tabs() {
+  python3 - "$cdp" <<'PY'
+import json,sys,urllib.request
+try: targets=json.load(urllib.request.urlopen(sys.argv[1]+'/json',timeout=1))
+except Exception as error: raise SystemExit('CDP unavailable: '+str(error))
+pages=[p for p in targets if p.get('type')=='page']
+print(f'{len(pages)} automation page(s)')
+for page in pages: print('•',page.get('title') or '(untitled)','—',page.get('url'))
+PY
+}
+
+tabs_prune() {
+  python3 - "$cdp" <<'PY'
+import json,sys,urllib.parse,urllib.request
+base=sys.argv[1]
+try: pages=[p for p in json.load(urllib.request.urlopen(base+'/json',timeout=1)) if p.get('type')=='page']
+except Exception as error: raise SystemExit('CDP unavailable: '+str(error))
+seen=set(); closed=[]
+for page in pages:
+    url=page.get('url',''); parsed=urllib.parse.urlparse(url)
+    disposable=parsed.hostname in {'127.0.0.1','localhost'} or url.startswith('chrome://newtab') or 'google.com/chrome/next-steps' in url
+    duplicate=url in seen
+    if disposable or duplicate:
+        urllib.request.urlopen(base+'/json/close/'+page['id'],timeout=1).read(); closed.append(url)
+    else: seen.add(url)
+print(f'closed {len(closed)} disposable/duplicate automation tab(s)')
+PY
+}
+
+status() {
+  local battery=/org/freedesktop/UPower/devices/battery_BAT0
+  printf 'Pop!_OS %s · %s · %s\n' "$(. /etc/os-release; printf %s "$VERSION_ID")" "${XDG_CURRENT_DESKTOP:-unknown}" "${XDG_SESSION_TYPE:-unknown}"
+  printf 'Uptime: %s\n' "$(uptime -p)"
+  system76-power profile 2>/dev/null || true
+  free -h | awk '/Mem:/{print "Memory: "$3" used / "$2" total · "$7" available"} /Swap:/{print "Swap: "$3" used / "$2" total"}'
+  read -r block blocks available < <(stat -f -c '%S %b %a' /)
+  local total=$((block*blocks)) free=$((block*available))
+  printf 'Disk: %s used / %s total · %s free\n' "$(numfmt --to=iec $((total-free)))" "$(numfmt --to=iec "$total")" "$(numfmt --to=iec "$free")"
+  if command -v upower >/dev/null && timeout 2 upower -i "$battery" >/dev/null 2>&1; then
+    timeout 2 upower -i "$battery" | awk '/percentage:|capacity:|state:/{gsub(/^ +/,""); print "Battery " $0}'
+  fi
+  tabs 2>/dev/null || true
+  local active
+  active=$(systemctl --user --no-legend --state=running --type=service 2>/dev/null | awk '$1 ~ /^demigod-/{print $1}' | paste -sd, -)
+  printf 'Paused-project services: %s\n' "${active:-none running}"
+  command -v restic >/dev/null || command -v borg >/dev/null || command -v deja-dup >/dev/null || printf 'Backup: no dedicated backup tool detected\n'
+}
+
+case "${1:-status}" in
+  status) status ;;
+  tabs) tabs ;;
+  tabs-prune) tabs_prune ;;
+  focus) tabs_prune; system76-power profile balanced; status ;;
+  battery|balanced|performance) system76-power profile "$1" ;;
+  snapshot)
+    mkdir -p ~/.local/state/laptop-audit
+    status | tee ~/.local/state/laptop-audit/latest.txt
+    ;;
+  *) printf 'usage: laptop [status|tabs|tabs-prune|focus|battery|balanced|performance|snapshot]\n' >&2; exit 2 ;;
+esac

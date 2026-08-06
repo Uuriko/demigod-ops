@@ -243,16 +243,20 @@ async function walkEngineer(page) {
 
 async function testNav(page) {
   return page.evaluate(() => {
-    const nav = document.querySelector('#dg-site-nav');
-    const links = nav ? [...nav.querySelectorAll('a')].map((a) => ({
+    const hero = document.querySelector('.hero-actions');
+    const footer = document.querySelector('#dg-legal-links');
+    const links = [...document.querySelectorAll('.hero-actions a,#dg-legal-links a')].map((a) => ({
       text: (a.textContent || '').trim().split('\n')[0],
       href: a.getAttribute('href'),
       modal: a.getAttribute('data-demigod-modal'),
-    })) : [];
-    const dupCta = links.filter((l) => /^(FIND TALENT|HIRE TALENT)$/i.test(l.text)).length;
-    const partners = links.some((l) => /partners/i.test(l.text) && /partnerships/.test(l.href || ''));
-    const wfHidden = document.querySelector('nav.w-nav,.w-nav') ? getComputedStyle(document.querySelector('nav.w-nav,.w-nav')).display === 'none' : true;
-    return { hasNav: !!nav, links, dupCta, partners, wfHidden, ctaOk: dupCta === 1 };
+    }));
+    const heroCtas = [...(hero?.querySelectorAll('[data-dg-cta]') || [])];
+    const ctaOk = heroCtas.filter((a) => a.dataset.dgCta === 'hire').length === 1 &&
+      heroCtas.filter((a) => a.dataset.dgCta === 'talent').length === 1;
+    const directory = ['/how','/pricing','/hire','/talent','/blog','/faq','/about','/startups','/contact','/legal']
+      .every((href) => !!footer?.querySelector(`a[href="${href}"]`));
+    const logoHome = document.querySelector('a.nav_logo[href="/"]') !== null;
+    return { hasNav: logoHome && !!hero && !!footer, links, directory, ctaOk };
   });
 }
 
@@ -307,7 +311,7 @@ async function main() {
     return s.length > 5 && s.some((x) => x.visible?.includes('sf-bay') || x.submitMode);
   };
   results.pass = {
-    nav: results.nav?.hasNav && results.nav?.ctaOk && results.nav?.wfHidden && results.nav?.partners,
+    nav: results.nav?.hasNav && results.nav?.ctaOk && results.nav?.directory,
     startupDesktop: passWizard(results.viewports.desktop?.startup) && results.viewports.desktop?.startup?.strayOk,
     engineerDesktop: engOk(results.viewports.desktop?.engineer) && results.viewports.desktop?.engineer?.strayOk !== false,
     startupMobile: DESKTOP_ONLY ? true : passWizard(results.viewports.mobile?.startup) && results.viewports.mobile?.startup?.strayOk,
@@ -343,4 +347,3 @@ function checkWizA11y(f) {
 
 // More steps to reach 90day
 for (let i = 5; i < 12; i++) { /* extend in real */ }
-

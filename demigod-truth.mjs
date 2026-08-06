@@ -125,6 +125,11 @@ function runSelftest() {
     ).length === 2,
     'head CSS detection preserves duplicate approved loaders',
   );
+  check(
+    metaContent('<meta name="dg-startup-roles-feed" content="https://files.catbox.moe/feed.json">', 'dg-startup-roles-feed') ===
+      'https://files.catbox.moe/feed.json',
+    'roles-feed metadata exposes its exact attested URL',
+  );
   check(sha256Buf(Buffer.from('demigod')).length === 64, 'SHA-256 identity is complete');
   const combinedBlock = releaseMutationGuards({ leaseHeld: true, transportBlocked: true });
   check(
@@ -563,6 +568,11 @@ function headCssUrls(html) {
   ].map((match) => match[0]);
 }
 
+function metaContent(html, name) {
+  const tag = String(html || '').match(new RegExp(`<meta\\s+[^>]*name=["']${name}["'][^>]*>`, 'i'))?.[0] || '';
+  return (tag.match(/content=["']([^"']+)["']/i) || [])[1] || null;
+}
+
 function sha256Buf(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
 }
@@ -611,6 +621,7 @@ async function fetchText(url, { timeoutMs = 22000 } = {}) {
     ttlMs: Number(process.env.DEMIGOD_LIVE_CACHE_TTL_MS) || 15000,
     headers: { 'User-Agent': 'demigod-truth' },
     timeoutMs,
+    retries: 1,
     bust: force,
   });
 }
@@ -647,8 +658,9 @@ async function main() {
   const footPath = path.join(ROOT, 'demigod-foot-core.js');
   const mapPath = path.join(ROOT, 'demigod-startup-atlas-web.js');
   const mapDataPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+  const rolesFeedPath = path.join(ROOT, 'DEMIGOD-ROLES-FEED.json');
   const run = beginRun('truth', {
-    scope: [footPath, mapPath, mapDataPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
+    scope: [footPath, mapPath, mapDataPath, rolesFeedPath, path.join(ROOT, 'demigod-head-styles.css'), path.join(ROOT, 'demigod-footer-lite.html')],
   });
   const headCssPath = path.join(ROOT, 'demigod-head-styles.css');
   const manPath = path.join(ROOT, 'DEMIGOD-FOOT-CDN.json');
@@ -670,6 +682,9 @@ async function main() {
   const mapBytes = mapSource ? Buffer.byteLength(mapSource) : null;
   const mapDataSha = sha256File(mapDataPath);
   const mapDataBytes = mapDataSource ? Buffer.byteLength(mapDataSource) : null;
+  const rolesFeedSource = readText(rolesFeedPath);
+  const rolesFeedSha = sha256File(rolesFeedPath);
+  const rolesFeedBytes = rolesFeedSource ? Buffer.byteLength(rolesFeedSource) : null;
   const diskInternalVer = (footJs.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || null;
   const diskPublicVer =
     (footJs.match(/dgFootVersion\s*=\s*['"]v?(\d+)/) || [])[1] || null;
@@ -692,6 +707,7 @@ async function main() {
   const footerCdn = footLoaderUrls(footer, man.cdnUrl)[0] || null;
   const headCssDiskUrls = headCssUrls(headMin);
   const headCssDiskUrl = headCssDiskUrls[0] || null;
+  const rolesFeedDiskUrl = metaContent(headMin, 'dg-startup-roles-feed');
 
   const syn = runNode(['--check', footPath]);
   const syntaxOk = syn.status === 0;
@@ -785,6 +801,7 @@ async function main() {
   const liveCssUrls = headCssUrls(liveHtml.text);
   const liveCssUrl = liveCssUrls[0] || null;
   const liveCssLoaderCount = liveCssUrls.length;
+  const rolesFeedLiveUrl = metaContent(liveHtml.text, 'dg-startup-roles-feed');
 
   let liveJs = null;
   let liveVer = null;
@@ -833,6 +850,7 @@ async function main() {
   );
   const manifestMap = man.assets?.startupMap || {};
   const manifestMapData = man.assets?.mapData || {};
+  const manifestRolesFeed = man.assets?.rolesFeed || {};
   const manifestHeadCss = man.assets?.headCss || {};
   const manifestMapMatchesDisk = Boolean(
     manifestMap.sha256 === mapSha && manifestMap.bytes === mapBytes && canonicalAssetUrl(manifestMap.url),
@@ -841,6 +859,17 @@ async function main() {
     manifestMapData.sha256 === mapDataSha &&
       manifestMapData.bytes === mapDataBytes &&
       canonicalAssetUrl(manifestMapData.url),
+  );
+  const manifestRolesFeedMatchesDisk = Boolean(
+    manifestRolesFeed.sha256 === rolesFeedSha &&
+      manifestRolesFeed.bytes === rolesFeedBytes &&
+      canonicalAssetUrl(manifestRolesFeed.url),
+  );
+  const rolesFeedDiskUrlMatchesManifest = Boolean(
+    canonicalAssetUrl(rolesFeedDiskUrl) === canonicalAssetUrl(manifestRolesFeed.url),
+  );
+  const rolesFeedLiveUrlMatchesManifest = Boolean(
+    canonicalAssetUrl(rolesFeedLiveUrl) === canonicalAssetUrl(manifestRolesFeed.url),
   );
   const manifestHeadCssMatchesDisk = Boolean(
     manifestHeadCss.sha256 === headCssSha &&
@@ -856,9 +885,10 @@ async function main() {
     canonicalManifestHeadCssUrl &&
       canonicalAssetUrl(liveCssUrl) === canonicalManifestHeadCssUrl,
   );
-  const [liveMap, liveMapData, liveHeadCss] = await Promise.all([
+  const [liveMap, liveMapData, liveRolesFeed, liveHeadCss] = await Promise.all([
     manifestMap.url ? fetchText(manifestMap.url, { timeoutMs: 30000 }) : null,
     manifestMapData.url ? fetchText(manifestMapData.url, { timeoutMs: 30000 }) : null,
+    manifestRolesFeed.url ? fetchText(manifestRolesFeed.url, { timeoutMs: 30000 }) : null,
     liveCssUrl ? fetchText(liveCssUrl, { timeoutMs: 30000 }) : null,
   ]);
   const liveMapMatchesDisk = Boolean(
@@ -868,6 +898,11 @@ async function main() {
     liveMapData?.ok &&
       liveMapData.sha256 === mapDataSha &&
       /^application\/json(?:;|$)/i.test(liveMapData.contentType || ''),
+  );
+  const liveRolesFeedMatchesDisk = Boolean(
+    liveRolesFeed?.ok &&
+      liveRolesFeed.sha256 === rolesFeedSha &&
+      /^application\/json(?:;|$)/i.test(liveRolesFeed.contentType || ''),
   );
   const liveHeadCssMatchesDisk = Boolean(
     liveHeadCss?.ok &&
@@ -936,6 +971,8 @@ async function main() {
       manifestVersionMarkersAgree &&
       manifestMapMatchesDisk &&
       manifestMapDataMatchesDisk &&
+      manifestRolesFeedMatchesDisk &&
+      rolesFeedDiskUrlMatchesManifest &&
       manifestHeadCssMatchesDisk &&
       diskHeadCssMatchesManifest &&
       headCssDiskUrls.length === 1,
@@ -1096,8 +1133,12 @@ async function main() {
       manifestVersionMarkersAgree &&
       manifestMapMatchesDisk &&
       manifestMapDataMatchesDisk &&
+      manifestRolesFeedMatchesDisk &&
       liveMapMatchesDisk &&
       liveMapDataMatchesDisk &&
+      liveRolesFeedMatchesDisk &&
+      rolesFeedDiskUrlMatchesManifest &&
+      rolesFeedLiveUrlMatchesManifest &&
       manifestHeadCssMatchesDisk &&
       diskHeadCssMatchesManifest &&
       liveHeadCssMatchesManifest &&
@@ -1168,6 +1209,9 @@ async function main() {
   else if (prepareOnlyRelease) {
     ok.push('manifest map-data identity ≠ disk (prepare-only — publish unauthorized)');
   } else issues.push('manifest map-data identity missing or stale');
+  if (manifestRolesFeedMatchesDisk) ok.push('manifest roles-feed identity == disk');
+  else if (prepareOnlyRelease) ok.push('manifest roles-feed identity ≠ disk (prepare-only — publish unauthorized)');
+  else issues.push('manifest roles-feed identity missing or stale');
   if (liveMapMatchesDisk) ok.push('live startup-map body == disk with executable MIME');
   else if (manifestMap.url && prepareOnlyRelease) {
     ok.push('live startup-map body ≠ disk (prepare-only — publish unauthorized)');
@@ -1176,6 +1220,15 @@ async function main() {
   else if (manifestMapData.url && prepareOnlyRelease) {
     ok.push('live map-data body ≠ disk (prepare-only — publish unauthorized)');
   } else if (manifestMapData.url) issues.push('live map-data body or MIME does not match disk');
+  if (liveRolesFeedMatchesDisk) ok.push('live roles-feed body == disk with JSON MIME');
+  else if (manifestRolesFeed.url && prepareOnlyRelease) ok.push('live roles-feed body ≠ disk (prepare-only — publish unauthorized)');
+  else if (manifestRolesFeed.url) issues.push('live roles-feed body or MIME does not match disk');
+  if (rolesFeedDiskUrlMatchesManifest) ok.push('disk roles-feed URL == manifest');
+  else if (prepareOnlyRelease) ok.push('disk roles-feed URL ≠ manifest (prepare-only — publish unauthorized)');
+  else issues.push('disk roles-feed URL ≠ manifest');
+  if (rolesFeedLiveUrlMatchesManifest) ok.push('live roles-feed URL == manifest');
+  else if (prepareOnlyRelease) ok.push('live roles-feed URL ≠ manifest (prepare-only — publish unauthorized)');
+  else issues.push('live roles-feed URL ≠ manifest');
   if (manifestHeadCssMatchesDisk) ok.push('manifest head-CSS identity == disk');
   else if (prepareOnlyRelease) {
     ok.push('manifest head-CSS identity ≠ disk (prepare-only — publish unauthorized)');
@@ -1275,6 +1328,15 @@ async function main() {
       assets: {
         startupMap: { ...manifestMap, matchesDisk: manifestMapMatchesDisk, liveMatchesDisk: liveMapMatchesDisk },
         mapData: { ...manifestMapData, matchesDisk: manifestMapDataMatchesDisk, liveMatchesDisk: liveMapDataMatchesDisk },
+        rolesFeed: {
+          ...manifestRolesFeed,
+          matchesDisk: manifestRolesFeedMatchesDisk,
+          liveMatchesDisk: liveRolesFeedMatchesDisk,
+          diskUrl: rolesFeedDiskUrl,
+          diskUrlMatchesManifest: rolesFeedDiskUrlMatchesManifest,
+          liveUrl: rolesFeedLiveUrl,
+          liveUrlMatchesManifest: rolesFeedLiveUrlMatchesManifest,
+        },
         headCss: {
           ...manifestHeadCss,
           matchesDisk: manifestHeadCssMatchesDisk,

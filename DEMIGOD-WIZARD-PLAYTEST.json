@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-06T06:34:48.967Z",
+  "at": "2026-08-06T14:51:31.309Z",
   "viewports": {
     "desktop": {
       "startup": {
@@ -10,16 +10,16 @@
             "welcome": true,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:0% next:Start brief ",
-            "next": "Start brief →",
+            "meta": "bar:0% next:Start the br",
+            "next": "Start the brief",
             "visible": [],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
             "bar": "0%",
-            "q": "Hire SF startup talent"
+            "q": "Hiring brief"
           },
           {
             "wizOn": true,
@@ -27,18 +27,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:9% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "contact-email"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "9%",
-            "q": "Best email for coordination?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -46,38 +46,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:27% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "contact-email"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "27%",
-            "q": "What stage is the company?"
-          },
-          {
-            "wizOn": true,
-            "step": 2,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:36% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "role-title",
-              "salary-range"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "36%",
-            "q": "What role are you hiring for?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -85,38 +65,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:45% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "stack-needs"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "45%",
-            "q": "Key skills or outcomes needed?"
-          },
-          {
-            "wizOn": true,
-            "step": 2,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:55% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "contact-email",
-              "salary-range"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "55%",
-            "q": "Target comp range (cash + equity note)?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -124,18 +84,56 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:64% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "stack-needs"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "64%",
-            "q": "When do you need the hire?"
+            "bar": "13%",
+            "q": "Role title?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:25% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "company-name"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": false,
+            "hasReview": false,
+            "bar": "25%",
+            "q": "Company name?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:38% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "company-stage"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": false,
+            "hasReview": false,
+            "bar": "38%",
+            "q": "Company stage?"
           },
           {
             "wizOn": true,
@@ -147,17 +145,17 @@
             "next": "Send brief",
             "visible": [],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": true,
             "bar": "100%",
-            "q": "Ready to submit your brief?"
+            "q": "Look good?"
           }
         ],
         "blockedAtEmail": true,
         "strayOk": true,
-        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-35-15-117Z.png"
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-08-06T14-52-07-322Z.png"
       },
       "engineer": {
         "steps": [
@@ -167,16 +165,16 @@
             "welcome": true,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:0% next:Create profi",
-            "next": "Create profile →",
+            "meta": "bar:0% next:Start privat",
+            "next": "Start privately",
             "visible": [],
             "strayLabels": [],
             "chromeHidden": false,
-            "modalActive": true,
+            "modalActive": false,
             "hasDrop": true,
             "hasReview": false,
             "bar": "0%",
-            "q": "Get matched to SF startups"
+            "q": "Open to the right startup?"
           },
           {
             "wizOn": true,
@@ -184,113 +182,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:15% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "seeker-email"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "15%",
-            "q": "Best email?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:23% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "linkedin-url"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "23%",
-            "q": "LinkedIn profile?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:31% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "resume"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "31%",
-            "q": "Core skills & stack?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:31% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "resume"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "31%",
-            "q": "Core skills & stack?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:38% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "experience"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "38%",
-            "q": "Key things you have shipped?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:46% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
               "sf-bay"
             ],
             "strayLabels": [],
             "chromeHidden": false,
-            "modalActive": true,
+            "modalActive": false,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "46%",
-            "q": "Open to SF Bay Area startups?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           },
           {
             "wizOn": true,
@@ -298,18 +201,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:54% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
               "sf-bay"
             ],
             "strayLabels": [],
             "chromeHidden": false,
-            "modalActive": true,
+            "modalActive": false,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "54%",
-            "q": "When are you available?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           },
           {
             "wizOn": true,
@@ -317,22 +220,117 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:62% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "salary-expectation"
+              "sf-bay"
             ],
             "strayLabels": [],
             "chromeHidden": false,
-            "modalActive": true,
+            "modalActive": false,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "62%",
-            "q": "Comp expectation (optional)?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": false,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": false,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": false,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": false,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": false,
+            "modalActive": false,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           }
         ],
         "strayOk": true,
-        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-35-40-091Z.png"
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-08-06T14-52-36-524Z.png"
       }
     },
     "mobile": {
@@ -344,16 +342,16 @@
             "welcome": true,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:0% next:Start brief ",
-            "next": "Start brief →",
+            "meta": "bar:0% next:Start the br",
+            "next": "Start the brief",
             "visible": [],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
             "bar": "0%",
-            "q": "Hire SF startup talent"
+            "q": "Hiring brief"
           },
           {
             "wizOn": true,
@@ -361,18 +359,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:9% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "contact-email"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "9%",
-            "q": "Best email for coordination?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -380,38 +378,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:27% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "contact-email"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "27%",
-            "q": "What stage is the company?"
-          },
-          {
-            "wizOn": true,
-            "step": 2,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:36% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "role-title",
-              "salary-range"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "36%",
-            "q": "What role are you hiring for?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -419,38 +397,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:45% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "stack-needs"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "45%",
-            "q": "Key skills or outcomes needed?"
-          },
-          {
-            "wizOn": true,
-            "step": 2,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:55% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "contact-email",
-              "salary-range"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "55%",
-            "q": "Target comp range (cash + equity note)?"
+            "bar": "13%",
+            "q": "Role title?"
           },
           {
             "wizOn": true,
@@ -458,18 +416,56 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:64% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "stack-needs"
+              "role-title"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": false,
-            "bar": "64%",
-            "q": "When do you need the hire?"
+            "bar": "13%",
+            "q": "Role title?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:25% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "company-name"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": false,
+            "hasReview": false,
+            "bar": "25%",
+            "q": "Company name?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:38% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "company-stage"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": false,
+            "hasReview": false,
+            "bar": "38%",
+            "q": "Company stage?"
           },
           {
             "wizOn": true,
@@ -481,17 +477,17 @@
             "next": "Send brief",
             "visible": [],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
-            "hasDrop": true,
+            "hasDrop": false,
             "hasReview": true,
             "bar": "100%",
-            "q": "Ready to submit your brief?"
+            "q": "Look good?"
           }
         ],
         "blockedAtEmail": true,
         "strayOk": true,
-        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-07-06T06-36-06-583Z.png"
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/startup-final-2026-08-06T14-53-09-536Z.png"
       },
       "engineer": {
         "steps": [
@@ -501,16 +497,16 @@
             "welcome": true,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:0% next:Create profi",
-            "next": "Create profile →",
+            "meta": "bar:0% next:Start privat",
+            "next": "Start privately",
             "visible": [],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
             "hasDrop": true,
             "hasReview": false,
             "bar": "0%",
-            "q": "Get matched to SF startups"
+            "q": "Open to the right startup?"
           },
           {
             "wizOn": true,
@@ -518,113 +514,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:15% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "seeker-email"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "15%",
-            "q": "Best email?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:23% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "linkedin-url"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "23%",
-            "q": "LinkedIn profile?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:31% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "resume"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "31%",
-            "q": "Core skills & stack?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:31% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "resume"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "31%",
-            "q": "Core skills & stack?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:38% next:Continue",
-            "next": "Continue",
-            "visible": [
-              "experience"
-            ],
-            "strayLabels": [],
-            "chromeHidden": false,
-            "modalActive": true,
-            "hasDrop": true,
-            "hasReview": false,
-            "bar": "38%",
-            "q": "Key things you have shipped?"
-          },
-          {
-            "wizOn": true,
-            "step": 1,
-            "welcome": false,
-            "thanks": false,
-            "submitMode": false,
-            "meta": "bar:46% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
               "sf-bay"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "46%",
-            "q": "Open to SF Bay Area startups?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           },
           {
             "wizOn": true,
@@ -632,18 +533,18 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:54% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
               "sf-bay"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "54%",
-            "q": "When are you available?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           },
           {
             "wizOn": true,
@@ -651,40 +552,199 @@
             "welcome": false,
             "thanks": false,
             "submitMode": false,
-            "meta": "bar:62% next:Continue",
+            "meta": "bar:13% next:Continue",
             "next": "Continue",
             "visible": [
-              "salary-expectation"
+              "sf-bay"
             ],
             "strayLabels": [],
-            "chromeHidden": false,
+            "chromeHidden": true,
             "modalActive": true,
             "hasDrop": true,
             "hasReview": false,
-            "bar": "62%",
-            "q": "Comp expectation (optional)?"
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
+          },
+          {
+            "wizOn": true,
+            "step": 1,
+            "welcome": false,
+            "thanks": false,
+            "submitMode": false,
+            "meta": "bar:13% next:Continue",
+            "next": "Continue",
+            "visible": [
+              "sf-bay"
+            ],
+            "strayLabels": [],
+            "chromeHidden": true,
+            "modalActive": true,
+            "hasDrop": true,
+            "hasReview": false,
+            "bar": "13%",
+            "q": "Which work setup are you open to?"
           }
         ],
         "strayOk": true,
-        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-07-06T06-36-32-566Z.png"
+        "screenshot": "/home/potter/audit-shots/wizard-playtest/engineer-final-2026-08-06T14-53-37-221Z.png"
       }
     }
   },
   "nav": {
-    "hasNav": false,
-    "links": [],
-    "dupCta": 0,
-    "partners": false,
-    "wfHidden": true,
-    "ctaOk": false
+    "hasNav": true,
+    "links": [
+      {
+        "text": "Hire talentFor startups",
+        "href": "/?wiz=startup",
+        "modal": "startup"
+      },
+      {
+        "text": "Share privatelyFor candidates",
+        "href": "/?wiz=engineer",
+        "modal": "jobseeker"
+      },
+      {
+        "text": "How it works",
+        "href": "/how",
+        "modal": null
+      },
+      {
+        "text": "Pricing",
+        "href": "/pricing",
+        "modal": null
+      },
+      {
+        "text": "Hire talent guide",
+        "href": "/hire",
+        "modal": null
+      },
+      {
+        "text": "Talent guide",
+        "href": "/talent",
+        "modal": null
+      },
+      {
+        "text": "Notes",
+        "href": "/blog",
+        "modal": null
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq",
+        "modal": null
+      },
+      {
+        "text": "About",
+        "href": "/about",
+        "modal": null
+      },
+      {
+        "text": "SF directory",
+        "href": "/startups",
+        "modal": null
+      },
+      {
+        "text": "Contact",
+        "href": "/contact",
+        "modal": null
+      },
+      {
+        "text": "Privacy & terms",
+        "href": "/legal",
+        "modal": null
+      },
+      {
+        "text": "potter@trydemigod.com",
+        "href": "mailto:potter@trydemigod.com",
+        "modal": null
+      }
+    ],
+    "directory": true,
+    "ctaOk": true
   },
   "pass": {
-    "nav": false,
-    "startupDesktop": false,
+    "nav": true,
+    "startupDesktop": true,
     "engineerDesktop": true,
-    "startupMobile": false,
+    "startupMobile": true,
     "engineerMobile": true,
     "noStrayDesktop": true
   },
-  "ok": false
+  "ok": true
 }

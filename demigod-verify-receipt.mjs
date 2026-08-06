@@ -26,7 +26,7 @@ function main() {
     boardSignal: board.signal == null || typeof board.signal?.score !== 'undefined', // honest: score may be null until real data
     noSpeedInFoot: !/48\s*h|reply\s*in\s*\d/i.test((foot.match(/var COPY=\{[\s\S]*?\};/) || [''])[0]),
     mvpForms: /startup-hire/.test(foot) && /engineer-join/.test(foot),
-    mvpTrust: /mutual interest|human proposes the match/.test(foot),
+    mvpTrust: /mutual (?:interest|yes)|human (?:proposes|decides)/i.test(foot),
   };
   const pass = Object.values(checks).every(Boolean);
   const sample = board.receipts?.[0];

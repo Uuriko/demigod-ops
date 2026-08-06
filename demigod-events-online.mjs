@@ -1404,8 +1404,11 @@ export function storeHygiene(storePath = EVENTS_STORE) {
   try {
     store = JSON.parse(fs.readFileSync(storePath, 'utf8'));
   } catch (error) {
-    const hit = { kind: 'store_unreadable', error: error?.code || error?.name || 'invalid_json' };
-    return { ok: false, hits: [hit], hitCount: 1, path: storePath };
+    if (error?.code === 'ENOENT') store = {};
+    else {
+      const hit = { kind: 'store_unreadable', error: error?.code || error?.name || 'invalid_json' };
+      return { ok: false, hits: [hit], hitCount: 1, path: storePath };
+    }
   }
   for (const c of store.calendarEvents || []) {
     if (c && isJunkCalendarTitle(c.title)) {
@@ -2044,7 +2047,7 @@ function selfcheck() {
     const stalePlan = storeHygiene(cleanTmp);
     ok(stalePlan.hits.some((hit) => hit.kind === 'advanced_without_confirmed_venue'), 'storeHygiene rejects plan without confirmed venue evidence');
     const missing = storeHygiene(cleanTmp + '.missing');
-    ok(missing.ok === false && missing.hits[0]?.kind === 'store_unreadable', 'storeHygiene missing → fail closed');
+    ok(missing.ok === true && missing.hitCount === 0, 'storeHygiene missing → empty store');
     fs.writeFileSync(cleanTmp, '{');
     const malformed = storeHygiene(cleanTmp);
     ok(malformed.ok === false && malformed.hits[0]?.kind === 'store_unreadable', 'storeHygiene malformed → fail closed');

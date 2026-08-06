@@ -1049,10 +1049,11 @@ ok(
   'head exposes #dg-nav-jsonld ItemList for mini-page discovery (no sitemap.xml)',
 );
 ok(
-  /wiz=startup/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
-    /wiz=engineer/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
-    /p=contact/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head ItemList includes wiz CTAs + contact for discovery without sitemap',
+  // ItemList uses clean product routes (not ?wiz= / ?p=); hire+talent open wizards via those pages.
+  /trydemigod\.com\/hire/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    /trydemigod\.com\/talent/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    /trydemigod\.com\/contact/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  'head ItemList includes hire + talent + contact clean routes for discovery',
 );
 ok(
   /dg-volume-step-hide/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
@@ -1077,8 +1078,11 @@ ok(
   'head early skip respects reduced-motion + scrollIntoView',
 );
 ok(
-  /Cinzel/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head headings use Cinzel display face (Webflow-loaded)',
+  // Design track 2026-08-05: head uses Georgia/system for headings; Cinzel remains
+  // only as a Webflow kill-target in head-styles (not a display face for body Hn).
+  /font-family:Georgia,ui-serif,serif/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    /Cinzel/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'), 'utf8')),
+  'head headings use calm Georgia display face (Cinzel killed to styles only)',
 );
 ok(
   /focus-visible/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
@@ -1086,9 +1090,11 @@ ok(
   'head focus-visible + selection brand chrome',
 );
 ok(
-  /dns-prefetch/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
-    /cdn\.jsdelivr\.net/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head dns-prefetch jsDelivr for foot CDN',
+  // Custom dns-prefetch/preconnect removed (Lighthouse over-four-preconnect); Webflow +
+  // immediate CSS/hero preload discover critical origins without head hints.
+  !/rel=["']dns-prefetch["']/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')) &&
+    !/rel=["']preconnect["']/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  'head omits custom dns-prefetch and preconnect (budget zero)',
 );
 ok(
   /#dg-skip-early:focus-visible/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
@@ -1127,8 +1133,8 @@ ok(
   'foot reduced-motion disables CTA hover transform',
 );
 ok(
-  /#dg-legal-links\{display:flex/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
-  'foot #dg-legal-links flex-wrap footer chrome',
+  /#dg-legal-links\{display:grid/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
+  'foot #dg-legal-links grid footer chrome',
 );
 ok(
   /href=["']mailto:potter@trydemigod\.com["']/.test(
@@ -1298,16 +1304,17 @@ ok(
   'head a:visited gold-light',
 );
 ok(
-  /\.pricing-card h3\{[^}]*text-transform:uppercase/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
-  'foot pricing-card h3 uppercase',
+  // Uppercase Cinzel shout retired; keep pricing h3 paper-mute calm type.
+  /\.pricing-card h3\{[^}]*color:var\(--dg-paper-mute\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8')),
+  'foot pricing-card h3 calm paper-mute type',
 );
 ok(
   /a:hover\{color:var\(--gl\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
   'head a:hover gold-light',
 );
 ok(
-  /mark\{background:rgba\(201,168,76/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head mark gold highlight',
+  /mark\{background:rgba\(16,198,116/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  'head mark phosphor highlight',
 );
 ok(
   /strong,b\{color:var\(--cr\)/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
@@ -1318,8 +1325,8 @@ ok(
   'head code/kbd mono gold',
 );
 ok(
-  /hr\{border:0;border-top:1px solid rgba\(201,168,76/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
-  'head hr gold-tint rule',
+  /hr\{border:0;border-top:1px solid rgba\(166,255,203/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
+  'head hr phosphor-tint rule',
 );
 ok(
   /blockquote\{margin:1rem auto/.test(fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8')),
@@ -1361,9 +1368,9 @@ ok(
 
 const headMinimalSource = fs.readFileSync(path.join(ROOT, 'demigod-head-minimal.html'), 'utf8');
 ok(
-  (headMinimalSource.match(/rel="preconnect"/g) || []).length === 1 &&
-    /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/.test(headMinimalSource),
-  'head preconnect budget keeps only critical jsDelivr',
+  // Matches verify-source head:preconnect-budget — zero custom preconnects.
+  (headMinimalSource.match(/rel=["']preconnect["']/g) || []).length === 0,
+  'head preconnect budget is zero (no redundant custom hints)',
 );
 
 
@@ -1763,9 +1770,9 @@ ok(
   );
   ok(
     /head:fee-desc-cash/.test(verifySrc) &&
-      /first-year\\s\+cash/.test(verifySrc) &&
-      /free\\s\+for\\s\+talent/.test(verifySrc),
-    'verify-source locks meta fee copy first-year cash + free for talent (head:fee-desc-cash)',
+      /first-year\\s\+base\\s\+salary/.test(verifySrc) &&
+      /talent\\s\+free/i.test(verifySrc),
+    'verify-source locks meta fee copy first-year base salary + talent free (head:fee-desc-cash)',
   );
   ok(
     /head:canonical-https/.test(verifySrc) &&
@@ -1817,11 +1824,10 @@ ok(
     'verify-source locks hero preload fetchpriority=high (head:hero-lcp-fetchpriority)',
   );
   ok(
-    /head:preconnect-og-image/.test(verifySrc) &&
-      /og:image/.test(verifySrc) &&
-      /preconnect/.test(verifySrc) &&
-      /new URL\(ogImg\)\.origin/.test(verifySrc),
-    'verify-source locks preconnect for og:image origin (head:preconnect-og-image)',
+    /head:preconnect-budget/.test(verifySrc) &&
+      /\.length === 0/.test(verifySrc) &&
+      /no redundant preconnects/.test(verifySrc),
+    'verify-source locks zero custom preconnects (head:preconnect-budget)',
   );
   ok(
     /head:favicon-svg/.test(verifySrc) &&
@@ -1983,8 +1989,8 @@ ok(
   );
   ok(
     /core:blog-sor-in-sync/.test(verifySrc) &&
-      /loading="lazy"/.test(verifySrc) &&
-      /decoding="async"/.test(verifySrc) &&
+      /loading=[^\n]{0,30}lazy/.test(verifySrc) &&
+      /decoding=[^\n]{0,30}async/.test(verifySrc) &&
       /noteLazyDims|lazyDims/.test(verifySrc) &&
       /width=/.test(verifySrc) &&
       /height=/.test(verifySrc),
@@ -2111,10 +2117,11 @@ ok(
     );
   }
   ok(
-    /head:preconnect-foot-cdn/.test(verifySrc) &&
-      /demigod-foot-cdn-loader/.test(verifySrc) &&
-      /preconnect/.test(verifySrc),
-    'verify-source locks head preconnect to footer foot-cdn-loader origin (head:preconnect-foot-cdn)',
+    // Foot CDN identity is locked elsewhere; head no longer preconnects the loader origin.
+    /demigod-foot-cdn-loader/.test(verifySrc) ||
+      /footer:cdn-url/.test(verifySrc) ||
+      /foot-cdn/.test(verifySrc),
+    'verify-source still covers footer CDN / loader identity without head preconnect',
   );
   ok(
     /head:brand-meta/.test(verifySrc) &&

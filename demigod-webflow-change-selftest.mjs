@@ -45,7 +45,8 @@ const cdnPublisher = fs.readFileSync(new URL('./demigod-foot-cdn-publish.mjs', i
 const webflowCli = fs.readFileSync(new URL('./demigod-webflow.mjs', import.meta.url), 'utf8');
 const webflowLib = fs.readFileSync(new URL('./demigod-webflow-lib.mjs', import.meta.url), 'utf8');
 const webflowConnect = fs.readFileSync(new URL('./demigod-webflow-connect.mjs', import.meta.url), 'utf8');
-assert.match(cdnPublisher, /\\\/partners\\\/?/);
+assert.match(cdnPublisher, /partnerships\?/);
+assert.match(cdnPublisher, /p=partners/);
 assert.match(cdnPublisher, /events-bot/);
 assert.match(webflowCli, /tool\.mutate && \(freeze\.frozen \|\| !freeze\.authorized\)/);
 assert.match(webflowCli, /'custom-code tab',\s*ccN > 0,/);
@@ -77,6 +78,16 @@ try {
   const live = await liveTruth();
   assert.equal(live.robots.hasSitemap, true);
   assert.equal(live.sitemap.valid, true);
+  let homeAttempts = 0;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/?wf=') && ++homeAttempts === 1) throw new Error('transient home fetch');
+    if (href.endsWith('/robots.txt')) return new Response('Sitemap: https://www.trydemigod.com/sitemap.xml');
+    if (href.endsWith('/sitemap.xml')) return new Response('<urlset/>');
+    return new Response('<html></html>');
+  };
+  assert.equal((await liveTruth()).ok, true);
+  assert.equal(homeAttempts, 2);
   globalThis.fetch = async (url) =>
     String(url).endsWith('/robots.txt')
       ? new Response('Sitemap: https://www.trydemigod.com/sitemap.xml', { status: 404 })

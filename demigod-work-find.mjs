@@ -44,6 +44,67 @@ export function shouldBypassWorkFindSeen(item = {}) {
   return item.always === true;
 }
 
+/**
+ * Funnel packages: drift is real integrity; age-only stale is low urgency when drafts-only
+ * (KEEP_WORKING used to thrash packages every fire). Retro 2026-08-06.
+ * @returns {null | { pri: number, title: string }}
+ */
+export function packageWorkPriority(metrics = {}) {
+  const drift = Number(metrics.package_drift) === 1;
+  const stale = Number(metrics.package_stale) === 1;
+  if (!drift && !stale) return null;
+  if (drift) {
+    return {
+      pri: 1,
+      title: 'Funnel package drift — rebuild packages + missing drafts',
+    };
+  }
+  const age = Number(metrics.package_age_sec) || 0;
+  const ready =
+    Number(metrics.send_ready || 0) +
+    Number(metrics.approve_ready || 0) +
+    Number(metrics.package_send_ready || 0) +
+    Number(metrics.package_approve_ready || 0);
+  // Stale alone: only when packages actually matter and age is material (>1h).
+  if (stale && ready > 0 && age >= 3600) {
+    return {
+      pri: 2,
+      title: 'Funnel packages stale (>1h) — rebuild for drafted/approved leads',
+    };
+  }
+  return null;
+}
+
+/**
+ * When site is shipped and control-board only has delivery-empty / host-gated backup reds,
+ * surface honest empty demand as P3 (do not invent roles). Day-bucketed.
+ */
+export function deliveryEmptyHonestItem(truth = {}, cb = {}) {
+  if (!truth?.fullyShipped && !truth?.pass) return null;
+  if (truth?.fullyShipped === false && truth?.publishLag?.overdue) return null;
+  const ids = new Set(
+    (cb.controls || []).filter((c) => c && c.ok === false).map((c) => c.id),
+  );
+  const allowed = new Set([
+    'phase2_has_accepted_role',
+    'board_has_real_role',
+    'pairs_has_real',
+    'backup_capability',
+  ]);
+  if (![...ids].every((id) => allowed.has(id))) return null;
+  if (!ids.has('phase2_has_accepted_role') && !ids.has('board_has_real_role')) return null;
+  return {
+    key: 'delivery:empty-honest',
+    kind: 'delivery',
+    pri: 3,
+    title:
+      'Delivery loop empty (honest) — no accepted role / sample board only; do not invent inventory',
+    task: 'demand-status',
+    note: 'bin/dg demand status · bin/dg pilot status · warm≠pilot · wait for real brief',
+    repeatable: true,
+  };
+}
+
 function readJson(p, fallback = null) {
   try {
     return JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -353,6 +414,138 @@ function main() {
       /* evidence probe best-effort */
     }
 
+    // Live ship-prepare seal (map/atlas/foot hash drift after prepare). Local prepare only — never auto-ship.
+    try {
+      const prepSeal = refuseIfStale('ship-prepare');
+      if (prepSeal?.green !== true || prepSeal?.fresh === false) {
+        const already = found.some((x) => x.task === 'ship-prepare' || x.note?.includes('ship prepare'));
+        if (!already) {
+          pushWork(seen, found, {
+            key: 'enrich:ship-prepare-live',
+            kind: 'enrich',
+            pri: 1,
+            always: true,
+            title: `Ship prepare ${prepSeal?.reason || 'not-green'} — restage sibling assets (no publish)`,
+            task: 'ship-prepare',
+            detail: { reason: prepSeal?.reason || null, mismatches: prepSeal?.mismatches || null },
+            note: 'bin/dg ship prepare',
+            repeatable: true,
+          });
+        }
+      }
+    } catch {
+      /* */
+    }
+
+    // Map open-role board wipe (killed --with-jobs / thin rebuild). Restore last-good checkpoint; never invent roles.
+    try {
+      const mapPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+      const metaPath = path.join(BUSY, 'map-last-good.json');
+      if (fs.existsSync(mapPath) && fs.existsSync(metaPath)) {
+        const map = readJson(mapPath, null);
+        const meta = readJson(metaPath, null);
+        const cos = Array.isArray(map?.companies) ? map.companies : [];
+        const boards = cos.filter((c) => Number(c?.openRoles) > 0).length;
+        const checkpointBoards = Number(meta?.boards) || 0;
+        if (checkpointBoards >= 100 && boards < checkpointBoards * 0.8) {
+          pushWork(seen, found, {
+            key: 'heal:map-boards-worse',
+            kind: 'heal',
+            pri: 0,
+            always: true,
+            title: `Map boards ${boards} << checkpoint ${checkpointBoards} — restore last-good`,
+            task: 'map-checkpoint-restore',
+            detail: {
+              boards,
+              companies: cos.length,
+              checkpointBoards,
+              checkpointCompanies: meta?.companies ?? null,
+              checkpointAt: meta?.at ?? null,
+            },
+            note: 'node demigod-map-checkpoint.mjs restore --if-worse',
+            repeatable: true,
+          });
+        }
+      }
+    } catch {
+      /* */
+    }
+
+    // Directory static fragment lagging map (dead-host / company edits). Local rebuild only — Webflow paste still gated.
+    try {
+      const mapPath = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json');
+      const staticPath = path.join(ROOT, 'sf-startups-static.html');
+      if (fs.existsSync(mapPath) && fs.existsSync(staticPath)) {
+        const mapM = fs.statSync(mapPath).mtimeMs;
+        const staticM = fs.statSync(staticPath).mtimeMs;
+        if (mapM > staticM + 60_000) {
+          pushWork(seen, found, {
+            key: 'enrich:directory-static-stale',
+            kind: 'enrich',
+            pri: 2,
+            title: 'Directory static older than startup map — rebuild local fragment',
+            task: 'directory-static',
+            detail: {
+              mapMtime: new Date(mapM).toISOString(),
+              staticMtime: new Date(staticM).toISOString(),
+            },
+            note: 'node demigod-directory-static.mjs  # paste to Webflow still needs current-request auth',
+            repeatable: true,
+          });
+        }
+      }
+    } catch {
+      /* */
+    }
+
+    // Live research seal (map/gold stamps). Prefer reseal over thrash when selection still matches.
+    try {
+      const researchSeal = refuseIfStale('company-research-benchmark');
+      const summary = String(researchSeal?.summary || '');
+      const m = summary.match(/(\d+)\s*\/\s*5\s*fields accepted/i);
+      const accepted = m ? Number(m[1]) : null;
+      if (researchSeal?.green !== true || researchSeal?.fresh === false) {
+        const already = found.some(
+          (x) =>
+            x.task === 'reseal-run' ||
+            x.note?.includes('company-research-benchmark') ||
+            x.note?.includes('reseal-queue') ||
+            (x.detail?.highFailures || []).includes('research_seal'),
+        );
+        if (!already) {
+          pushWork(seen, found, {
+            key: 'enrich:research-seal-live',
+            kind: 'enrich',
+            pri: 0,
+            always: true,
+            title: `Research seal ${researchSeal?.reason || 'not-green'} — reseal after map/gold change`,
+            task: 'reseal-run',
+            detail: {
+              reason: researchSeal?.reason || null,
+              mismatches: researchSeal?.mismatches || null,
+              accepted,
+            },
+            note: 'PATH=~/.nvm/versions/node/v24.17.0/bin:$PATH node demigod-company-research-benchmark.mjs',
+            repeatable: true,
+          });
+        }
+      } else if (Number.isFinite(accepted) && accepted < 5) {
+        // Green but incomplete gold (pricing/coverage) — fix gold, do not thrash reseal.
+        pushWork(seen, found, {
+          key: 'enrich:research-gold-coverage',
+          kind: 'enrich',
+          pri: 2,
+          title: `Research gold coverage ${accepted}/5 fields — research honest pricing/unknowns`,
+          task: 'research-gold',
+          detail: { accepted, summary },
+          note: 'edit DEMIGOD-COMPANY-RESEARCH-BENCHMARK.json with quote-backed claims; node demigod-company-research-benchmark.mjs (Node 24)',
+          repeatable: true,
+        });
+      }
+    } catch {
+      /* */
+    }
+
     // Multi-day reseal due (CH-13): last successful reseal / research green older than 7d
     {
       const resealLast = readJson(path.join(BUSY, 'reseal-queue-last.json'));
@@ -369,6 +562,58 @@ function main() {
           task: 'reseal-due',
           note: 'node demigod-reseal-queue.mjs due || node demigod-reseal-queue.mjs run --force',
           repeatable: true,
+        });
+      }
+    }
+
+    // Backup capability (low control): surface missing restic/env without inventing a second backup.
+    {
+      const backup = (cb?.controls || []).find((c) => c.id === 'backup_capability');
+      if (backup && backup.ok === false) {
+        pushWork(seen, found, {
+          key: 'ops:backup-capability',
+          kind: 'ops',
+          pri: 3,
+          title: `Backup not capable — ${backup.reason || 'restic/env missing'}`,
+          task: 'backup-check',
+          note: 'bin/dg-backup --check · install restic + set DG_BACKUP_REPO + RESTIC_PASSWORD_FILE (off-device)',
+          detail: backup.evidence || null,
+          repeatable: true,
+        });
+      }
+    }
+
+    // Funnel package honesty: drift is P1; age-only stale is quieter (anti thrash).
+    {
+      const fMetrics = funnel?.metrics || {};
+      const pack = packageWorkPriority(fMetrics);
+      if (pack) {
+        pushWork(seen, found, {
+          key: 'funnel:package-drift',
+          kind: 'funnel',
+          pri: pack.pri,
+          title: pack.title,
+          task: 'funnel-packages',
+          note: 'node demigod-funnel.mjs draft --id=… ; node demigod-lead-pipeline.mjs tick --stage=packages',
+          detail: {
+            package_drift: fMetrics.package_drift,
+            package_stale: fMetrics.package_stale,
+            package_age_sec: fMetrics.package_age_sec,
+            send_ready: fMetrics.send_ready,
+            package_send_ready: fMetrics.package_send_ready,
+          },
+          repeatable: true,
+        });
+      }
+    }
+
+    // Honest empty delivery (post-ship): do not invent pilots/board rows.
+    {
+      const empty = deliveryEmptyHonestItem(truth || {}, cb || {});
+      if (empty) {
+        pushWork(seen, found, {
+          ...empty,
+          key: `${empty.key}@${new Date().toISOString().slice(0, 10)}`,
         });
       }
     }
@@ -435,6 +680,37 @@ function selftest() {
   assert(shouldBypassWorkFindSeen({ always: true }) === true, 'always bypasses seen');
   assert(shouldBypassWorkFindSeen({ pri: 0 }) === false, 'pri0 alone still hour-seen (events heal)');
   assert(shouldBypassWorkFindSeen({ pri: 2, repeatable: true }) === false, 'pri2 respects seen');
+  assert(packageWorkPriority({}) === null, 'clean packages → no work');
+  assert(packageWorkPriority({ package_drift: 1, package_stale: 1 }).pri === 1, 'drift is P1');
+  assert(
+    packageWorkPriority({ package_stale: 1, package_age_sec: 100, send_ready: 2 }) === null,
+    'fresh stale flag alone is not work',
+  );
+  assert(
+    packageWorkPriority({ package_stale: 1, package_age_sec: 7200, send_ready: 2 }).pri === 2,
+    'old stale with ready leads is P2',
+  );
+  assert(
+    deliveryEmptyHonestItem(
+      { fullyShipped: true, pass: true },
+      {
+        controls: [
+          { id: 'phase2_has_accepted_role', ok: false },
+          { id: 'board_has_real_role', ok: false },
+          { id: 'pairs_has_real', ok: false },
+          { id: 'backup_capability', ok: false },
+        ],
+      },
+    )?.pri === 3,
+    'honest empty delivery surfaces P3',
+  );
+  assert(
+    deliveryEmptyHonestItem(
+      { fullyShipped: true },
+      { controls: [{ id: 'truth_seal', ok: false }, { id: 'phase2_has_accepted_role', ok: false }] },
+    ) === null,
+    'integrity reds suppress delivery-empty note',
+  );
   // Hour-seen must not hide a re-queued pri0 control-board fail
   {
     const seen = new Set(['enrich:control-board-fail:truth_seal@2099-01-01T00']);

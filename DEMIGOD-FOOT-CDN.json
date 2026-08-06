@@ -1,35 +1,35 @@
 {
-  "at": "2026-08-03T00:14:05.920Z",
-  "version": "903",
-  "cdnUrl": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/foot-latest.js",
+  "at": "2026-08-06T15:00:21.574Z",
+  "version": "1070",
+  "cdnUrl": "https://files.catbox.moe/n0iqho.js",
   "ok": true,
   "temporary": false,
-  "bytes": 351118,
-  "sha256": "d6c242f4b94f76e9568e93115242ec4e2bb30c23ac303fa48b909f33fc77952f",
-  "liveLen": 350457,
-  "loaderLen": 1780,
-  "host": "cdn.jsdelivr.net",
-  "footVer": "903",
+  "bytes": 401598,
+  "sha256": "d90d207e14223394afd5f7949c850a6f6a0dfeea50c1bd6ada107b1652e2e688",
+  "liveLen": 400753,
+  "loaderLen": 11059,
+  "host": "catbox.moe",
+  "footVer": "1070",
   "assets": {
     "startupMap": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/startup-map-latest.js",
-      "sha256": "54dc177173b714e1661fb8c403e904b796d0dc5b0e2b752f73a04cd5582e2f05",
-      "bytes": 38940
+      "url": "https://files.catbox.moe/xik8zi.js",
+      "sha256": "e2c952f3ddf9235bc4a7cd81a8529f96e241866905ab901c538b552154ef862a",
+      "bytes": 48983
     },
     "mapData": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/sf-startup-map.json",
-      "sha256": "923dcf85562718a9ea446205681dd3c5f6d569ae41ca43f460c500cf8ec03b52",
-      "bytes": 1496642
+      "url": "https://files.catbox.moe/i7txgf.json",
+      "sha256": "ae9945b93e8aef99113d1fe4e59c5976d7ab9ebf820d9173f5379b99d5c504fa",
+      "bytes": 1497196
     },
     "headCss": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/head-latest.css",
-      "sha256": "d4995aede98fce5c85c439517b1e5522b50e0eac3622f0b1f27bc906c2eea70c",
-      "bytes": 82815
+      "url": "https://files.catbox.moe/ua6eev.css",
+      "sha256": "a72a2ea53fbae13e4602caaa28c1ef03ec6136146e41bc0d349359c8d6bbadb3",
+      "bytes": 123213
     },
     "rolesFeed": {
-      "url": "https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@a0acc96b92f2/roles-feed.json",
-      "sha256": "1a48339541b00e848bd805e24d0f7269ef88c9311fc1cabab7139105ac35dc2c",
-      "bytes": 14105
+      "url": "https://files.catbox.moe/z3rx1a.json",
+      "sha256": "8530d71a3555b17350439b99cb00423b0b94f42e8c38be511c05dadf2b2b666b",
+      "bytes": 49972
     }
   }
 }

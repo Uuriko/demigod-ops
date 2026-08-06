@@ -32,6 +32,8 @@ import {
   draftEmail,
   refreshTalentDraftGreetings,
   talentGreetingName,
+  talentLaneCopy,
+  partnerDraftSubject,
   talentDraftNeedsGreetingRefresh,
   isSeoDisplayJunk,
   draftSubjectPreview,
@@ -4876,6 +4878,31 @@ assert(
     'talentGreetingName: email local over SEO title',
   );
   assert(talentGreetingName({ name: 'Kevin', handle: '@x' }) === 'Kevin', 'talentGreetingName: real name');
+  assert(
+    talentLaneCopy({ skills: 'designer + founder', signal: 'Bay Area designer building in public' }).subject ===
+      'SF startup matching, free for talent',
+    'talentLaneCopy: design lane subject',
+  );
+  assert(
+    /designers and builders/.test(
+      talentLaneCopy({ skills: 'designer', signal: 'product design' }).body,
+    ),
+    'talentLaneCopy: design lane body',
+  );
+  assert(
+    talentLaneCopy({ skills: 'founding eng; full-stack', signal: 'seeking Founding Engineer' }).subject ===
+      'SF startup matching, free for engineers',
+    'talentLaneCopy: eng default subject',
+  );
+  assert(
+    partnerDraftSubject('Paddox Technologies', { title: 'Product Designer' }) ===
+      'Product Designer at Paddox Technologies',
+    'partnerDraftSubject: uses observed title',
+  );
+  assert(
+    partnerDraftSubject('Acme', {}) === 'hiring at Acme',
+    'partnerDraftSubject: no title fallback',
+  );
   assert(
     isSeoDisplayJunk('Fractional CTO in San Francisco From $60/hr') === true,
     'isSeoDisplayJunk: pricing SEO title',

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Prefer Node 24 for Demigod tools (system /usr/bin/node is v18; undici@7 needs File).
+# Only wins when ~/bin is ahead of /usr/bin on PATH (already true for useful-loop + agents).
+set -euo pipefail
+NODE24="${HOME}/.nvm/versions/node/v24.17.0/bin/node"
+if [[ -x "$NODE24" ]]; then
+  exec "$NODE24" "$@"
+fi
+exec /usr/bin/node "$@"

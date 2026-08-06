@@ -8,6 +8,9 @@
 # Registry: node demigod-tools-registry.mjs --md
 #
 set -euo pipefail
+# Prefer Node 24 (system node 18 breaks undici File / modern deps)
+_NODE24="${HOME}/.nvm/versions/node/v24.17.0/bin"
+[[ -d "$_NODE24" ]] && export PATH="${_NODE24}:${PATH}"
 cd /home/potter
 export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
 
@@ -15,6 +18,20 @@ export DEMIGOD_ROOT="${DEMIGOD_ROOT:-/home/potter}"
 
 # Known subcommands → control plane / modules
 case "$1" in
+  session|start)
+    # One-shot session card: orient + NEXT + truth summary (workflow 2026-08-04)
+    shift || true
+    echo "# demigod session · $(date -u +%Y-%m-%dT%H:%MZ)"
+    echo
+    node demigod-orient.mjs 2>/dev/null || true
+    echo
+    echo "## NEXT"
+    node demigod-control.mjs next 2>/dev/null || true
+    echo
+    echo "## truth"
+    node demigod-truth.mjs 2>/dev/null | tail -14 || true
+    exit 0
+    ;;
   home|status|next|plane|modules|help|--help|-h)
     exec node demigod-control.mjs "$@"
     ;;
@@ -180,6 +197,10 @@ case "$1" in
   pilot|inbound)
     shift
     exec node demigod-pilot-inbound.mjs "$@"
+    ;;
+  phase2|die-phase2)
+    shift
+    exec node demigod-phase2.mjs "${@:-status}"
     ;;
   referrals|referral)
     shift

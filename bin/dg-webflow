@@ -9,5 +9,7 @@
 #   bin/dg-webflow playbook prep-footer-paste
 #   bin/dg-webflow run paste-footer --dry-run
 set -euo pipefail
+_NODE24="${HOME}/.nvm/versions/node/v24.17.0/bin"
+[[ -d "$_NODE24" ]] && export PATH="${_NODE24}:${PATH}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 exec node "$ROOT/demigod-webflow.mjs" "$@"

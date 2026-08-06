@@ -32,6 +32,61 @@ function readJson(p) {
   }
 }
 
+
+function buildDemandSignal(demandStatus) {
+  const pending = demandStatus?.queue?.pending;
+  const top = demandStatus?.queue?.top3?.[0];
+  const draftHygiene = demandStatus?.drafts?.hygiene?.ok ?? demandStatus?.drafts?.allHygieneOk ?? null;
+  const draftFlagged = Number(demandStatus?.drafts?.hygiene?.flagged ?? demandStatus?.drafts?.needFix?.length ?? 0);
+  const warmFreshness = demandStatus?.warmInbound?.freshness || null;
+  const warmOverdue = Number(warmFreshness?.overdueActionCount ?? 0);
+  const warmDueToday = Number(warmFreshness?.dueTodayActionCount ?? 0);
+  const demandStatusAtMs = Date.parse(demandStatus?.at || '');
+  const demandStatusRawAgeMs = Number.isFinite(demandStatusAtMs)
+    ? Date.now() - demandStatusAtMs
+    : null;
+  const demandStatusFutureDated =
+    demandStatusRawAgeMs != null && demandStatusRawAgeMs < -DEMAND_STATUS_FUTURE_TOLERANCE_MS;
+  const demandStatusAgeMs = demandStatusRawAgeMs != null
+    ? Math.max(0, demandStatusRawAgeMs)
+    : null;
+  const demandStatusFresh =
+    demandStatusAgeMs != null &&
+    !demandStatusFutureDated &&
+    demandStatusAgeMs <= DEMAND_STATUS_TTL_MS;
+  return {
+    pending: pending ?? null,
+    head: top?.name || null,
+    // Hygiene is operational evidence only while its status snapshot is
+    // fresh. Preserve the recorded value separately for diagnostics, but do
+    // not let a cached "clean" result masquerade as current demand truth.
+    draftHygieneOk: demandStatusFresh && typeof draftHygiene === 'boolean' ? draftHygiene : null,
+    recordedDraftHygieneOk: typeof draftHygiene === 'boolean' ? draftHygiene : null,
+    draftFlagged: Number.isFinite(draftFlagged) ? draftFlagged : null,
+    warmInbound: {
+      // Warm inbound is attributable demand, but never a pilot. Expose only
+      // action-health telemetry from the fresh demand snapshot so control
+      // and dashboard surfaces can preserve demand's priority ordering.
+      count: demandStatusFresh ? Number(demandStatus?.warmInbound?.count ?? 0) : null,
+      overdueActionCount: demandStatusFresh && Number.isFinite(warmOverdue) ? warmOverdue : null,
+      dueTodayActionCount: demandStatusFresh && Number.isFinite(warmDueToday) ? warmDueToday : null,
+      overdueActionWho: demandStatusFresh && Array.isArray(warmFreshness?.overdueActionWho)
+        ? warmFreshness.overdueActionWho
+        : [],
+      dueTodayActionWho: demandStatusFresh && Array.isArray(warmFreshness?.dueTodayActionWho)
+        ? warmFreshness.dueTodayActionWho
+        : [],
+      isPilot: false,
+    },
+    statusAt: demandStatus?.at || null,
+    statusAgeMs: demandStatusAgeMs,
+    statusFutureDated: demandStatusFutureDated,
+    statusFresh: demandStatusFresh,
+    statusTtlMs: DEMAND_STATUS_TTL_MS,
+    statusFutureToleranceMs: DEMAND_STATUS_FUTURE_TOLERANCE_MS,
+  };
+}
+
 /**
  * @returns {{ id: string, title: string, cmd: string, pri: number, mutate: boolean, freezeBlocks: boolean, reason: string, freeze: object, truthEvidence: object, versions: object }}
  */
@@ -92,57 +147,7 @@ export function buildNext({
     te.fresh === true &&
     prepared?.green === true;
   if (freeze.frozen || preparedUnauthorized) {
-    const pending = demandStatus?.queue?.pending;
-    const top = demandStatus?.queue?.top3?.[0];
-    const draftHygiene = demandStatus?.drafts?.hygiene?.ok ?? demandStatus?.drafts?.allHygieneOk ?? null;
-    const draftFlagged = Number(demandStatus?.drafts?.hygiene?.flagged ?? demandStatus?.drafts?.needFix?.length ?? 0);
-    const warmFreshness = demandStatus?.warmInbound?.freshness || null;
-    const warmOverdue = Number(warmFreshness?.overdueActionCount ?? 0);
-    const warmDueToday = Number(warmFreshness?.dueTodayActionCount ?? 0);
-    const demandStatusAtMs = Date.parse(demandStatus?.at || '');
-    const demandStatusRawAgeMs = Number.isFinite(demandStatusAtMs)
-      ? Date.now() - demandStatusAtMs
-      : null;
-    const demandStatusFutureDated =
-      demandStatusRawAgeMs != null && demandStatusRawAgeMs < -DEMAND_STATUS_FUTURE_TOLERANCE_MS;
-    const demandStatusAgeMs = demandStatusRawAgeMs != null
-      ? Math.max(0, demandStatusRawAgeMs)
-      : null;
-    const demandStatusFresh =
-      demandStatusAgeMs != null &&
-      !demandStatusFutureDated &&
-      demandStatusAgeMs <= DEMAND_STATUS_TTL_MS;
-    const demandSignal = {
-      pending: pending ?? null,
-      head: top?.name || null,
-      // Hygiene is operational evidence only while its status snapshot is
-      // fresh. Preserve the recorded value separately for diagnostics, but do
-      // not let a cached "clean" result masquerade as current demand truth.
-      draftHygieneOk: demandStatusFresh && typeof draftHygiene === 'boolean' ? draftHygiene : null,
-      recordedDraftHygieneOk: typeof draftHygiene === 'boolean' ? draftHygiene : null,
-      draftFlagged: Number.isFinite(draftFlagged) ? draftFlagged : null,
-      warmInbound: {
-        // Warm inbound is attributable demand, but never a pilot. Expose only
-        // action-health telemetry from the fresh demand snapshot so control
-        // and dashboard surfaces can preserve demand's priority ordering.
-        count: demandStatusFresh ? Number(demandStatus?.warmInbound?.count ?? 0) : null,
-        overdueActionCount: demandStatusFresh && Number.isFinite(warmOverdue) ? warmOverdue : null,
-        dueTodayActionCount: demandStatusFresh && Number.isFinite(warmDueToday) ? warmDueToday : null,
-        overdueActionWho: demandStatusFresh && Array.isArray(warmFreshness?.overdueActionWho)
-          ? warmFreshness.overdueActionWho
-          : [],
-        dueTodayActionWho: demandStatusFresh && Array.isArray(warmFreshness?.dueTodayActionWho)
-          ? warmFreshness.dueTodayActionWho
-          : [],
-        isPilot: false,
-      },
-      statusAt: demandStatus?.at || null,
-      statusAgeMs: demandStatusAgeMs,
-      statusFutureDated: demandStatusFutureDated,
-      statusFresh: demandStatusFresh,
-      statusTtlMs: DEMAND_STATUS_TTL_MS,
-      statusFutureToleranceMs: DEMAND_STATUS_FUTURE_TOLERANCE_MS,
-    };
+    const demandSignal = buildDemandSignal(demandStatus);
     return {
       ...base,
       id: 'demand-ops',
@@ -162,15 +167,44 @@ export function buildNext({
   }
 
   if (truthFacts?.fullyShipped) {
+    // Fully shipped is not automatically a demand P1. Surface real warm/queue
+    // pressure when the demand snapshot is fresh; otherwise keep a calm hold.
+    const demandSignal = buildDemandSignal(demandStatus);
+    const demandNext = demandStatus?.next || null;
+    const warmOverdue = Number(demandSignal.warmInbound?.overdueActionCount ?? 0);
+    const warmDueToday = Number(demandSignal.warmInbound?.dueTodayActionCount ?? 0);
+    const pending = Number(demandSignal.pending ?? 0);
+    let title = 'Review demand operations';
+    let pri = 3;
+    if (demandSignal.statusFresh && warmOverdue > 0) {
+      title = `Review overdue warm inbound · ${warmOverdue} signal${warmOverdue === 1 ? '' : 's'} · warm ≠ pilot`;
+      pri = 1;
+    } else if (demandSignal.statusFresh && warmDueToday > 0) {
+      title = `Review warm inbound due today · ${warmDueToday} signal${warmDueToday === 1 ? '' : 's'} · warm ≠ pilot`;
+      pri = 1;
+    } else if (demandSignal.statusFresh && pending > 0) {
+      title = `Review demand queue · ${pending} pending draft${pending === 1 ? '' : 's'} · drafts-only`;
+      pri = 2;
+    } else if (demandSignal.statusFresh) {
+      title = demandNext
+        ? String(demandNext).slice(0, 96)
+        : 'Site shipped green · demand idle (drafts-only)';
+      pri = 3;
+    } else {
+      title = 'Refresh demand status · site shipped green';
+      pri = 2;
+    }
     return {
       ...base,
       id: 'hold-green',
-      title: 'Review demand operations',
+      title,
       cmd: 'bin/dg demand status',
-      pri: 1,
+      pri,
       mutate: false,
       freezeBlocks: false,
       reason: 'fully-shipped',
+      demandNext,
+      demandSignal,
     };
   }
 

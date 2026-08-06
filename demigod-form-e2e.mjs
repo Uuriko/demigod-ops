@@ -87,7 +87,7 @@ async function main() {
       report.steps.push({ networkCaptureDisabled: e.message });
     }
 
-    await page.goto(LIVE + '?e2e=' + Date.now(), { waitUntil: 'commit', timeout: 60000 });
+    await page.goto(LIVE + '?e2e=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForSelector('body', { timeout: 20000 });
     await sleep(4000);
     report.steps.push('loaded');

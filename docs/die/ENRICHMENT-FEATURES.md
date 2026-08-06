@@ -16,6 +16,20 @@ no-agency boards=1, research correctly quarantined after map change, phase2Ready
 | PARKED | Kill condition unmeasurable or deferred |
 | KILLED | Explicitly rejected by data or non-goals |
 
+## Execution updates — 2026-08-06b (coverage + multi-ATS)
+
+- **coverageFreshness** (`enrichment coverage|clay`): field-fill % on open roles + maintained-stale dual clock (first_published ≥90d & updated_at ≤14d) + observation age median/max — not quality scores.
+- **Lever/Ashby employer fields**: department/team, employmentType/commitment, workplaceType/isRemote → ledger → feed/public strip.
+- **RSS**: `DEMIGOD-ROLES-FEED.rss` from roles-feed (public observation honesty).
+- **Website**: obs inject + directory recent-role meta show workplace/employment when present.
+
+## Execution updates — 2026-08-06 (website Clay)
+
+- **Greenhouse employer fields (ledger):** `requisitionId` + `requisitionSignal` (`id`|`abstain` for ONE/MULTI trap), `employerDepartment`, `employerOffice`, `nativeDeadline`; refresh each GH poll.
+- **roles-feed / public-roles:** pass `boardUpdatedAt`, `employerDepartment`, `employerOffice` for observed-roles strip + `DEMIGOD-ROLES-FEED.json`.
+- **enrichment CLI:** `feed` · `velocity` · `requisitions` · `clay` (one-shot website receipt under `/tmp/dg-busy/enrichment-clay-website.json`).
+- **Sample backfill:** 10 Greenhouse boards merged → ~1.3k open rows with department/office on disk (full fill on next full poll).
+
 ## Execution updates — 2026-07-31
 
 - **CI mergeNamedCompanies board-absorb HN shells:** ATS-only `hn:jobs.*` rows

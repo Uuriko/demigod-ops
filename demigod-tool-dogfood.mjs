@@ -27,6 +27,42 @@ const explicitAliases = new Map([
   ['orca-dispatch', 'orca-status'],
   ['orca-task', 'orca-status'],
   ['api-orca', 'orca-status'],
+  // wrap labels used before registry ids existed
+  ['cdp-mobile-a11y-sweep', 'mobile-a11y'],
+  ['demigod-cdp-mobile-a11y-sweep', 'mobile-a11y'],
+  ['mobile-sweep', 'mobile-a11y'],
+  ['demigod-mobile-sweep', 'mobile-a11y'],
+  ['wiz-cdp-playtest', 'wiz-playtest'],
+  ['dg-ship', 'ship'],
+  ['dg-session', 'orient'],
+  ['session', 'orient'],
+  ['wizard-a11y', 'wiz-a11y-audit'],
+  ['wiz-a11y', 'wiz-a11y-audit'],
+  ['verify-all', 'verify-source'],
+  ['wiz-playtest-engineer', 'wiz-playtest'],
+  ['wiz-playtest-startup', 'wiz-playtest'],
+  ['wizard-startup', 'wizard-playtest'],
+  ['wizard-engineer-mobile', 'wizard-playtest'],
+  ['wizard-a11y-local', 'wiz-a11y-audit'],
+  ['dg-webflow', 'webflow'],
+  ['button-audit-quick', 'button-audit'],
+  ['button-audit-full', 'button-audit'],
+  ['design-audit-quick', 'design-audit'],
+  // ad-hoc inline “history” runners were retired — point wraps at the real audit
+  ['history-audit', 'navigation-audit'],
+  ['navigation-audit-live', 'navigation-audit'],
+  ['navigation-click-audit', 'navigation-audit'],
+  // forms-full-audit is its own registry id — do not collapse onto form-e2e
+  ['dg-forms-audit', 'forms-full-audit'],
+  ['blog-check', 'blog-sync'],
+  // one-off inline CDP probes — map to nearest durable gate
+  ['keyboard-audit', 'mobile-a11y'],
+  ['nojs-audit', 'seo-audit'],
+  ['live-turnstile', 'form-e2e'],
+  ['conversion-audit', 'conversion-audit'],
+  // umbrella wrap labels for demigod-lead-pipeline.mjs (stage resolves further)
+  ['lead-pipeline', 'pipeline-packages'],
+  ['demigod-lead-pipeline', 'pipeline-packages'],
 ]);
 
 function isRetiredLabel(value) {
@@ -35,6 +71,30 @@ function isRetiredLabel(value) {
     !toolIds.has(value) &&
     (retiredLabels.has(value) || /-\d{3,}$/.test(value) || /-c\d{2,}$/i.test(value))
   );
+}
+
+/** --stage= from wrap argv; used when an umbrella label covers multiple registry tools. */
+function stageFromArgv(argv) {
+  if (!Array.isArray(argv)) return '';
+  for (const part of argv) {
+    const s = String(part);
+    if (s.startsWith('--stage=')) return s.slice('--stage='.length).trim();
+  }
+  return '';
+}
+
+function isLeadPipelineLabel(value) {
+  const k = String(value || '').trim().toLowerCase();
+  return k === 'lead-pipeline' || k === 'demigod-lead-pipeline';
+}
+
+/** Map lead-pipeline umbrella (+ optional stage) onto pipeline-status / pipeline-packages. */
+function resolveLeadPipeline(argv) {
+  const stage = stageFromArgv(argv);
+  if (stage === 'status') return 'pipeline-status';
+  if (stage === 'packages' || !stage) return 'pipeline-packages';
+  // Unknown stages stay as evidence labels (size-1 stage aliases still work via toolAliases).
+  return '';
 }
 
 const toolAliases = new Map();
@@ -49,7 +109,10 @@ for (const tool of TOOLS) {
   }
   if (command[0] === 'bin/dg' && command[1]) {
     const subcommand = command.slice(1).join(' ');
-    aliases.push(command[1], `dg-${command[1]}`, `dg-${subcommand.replace(/\s+/g, '-')}`, `bin/dg ${subcommand}`);
+    // Full argv always. Bare subcommand (`truth`) only when no extra flags — otherwise
+    // `bin/dg truth --require-match` (truth-final) steals the `truth` / `dg-truth` keys.
+    aliases.push(`dg-${subcommand.replace(/\s+/g, '-')}`, `bin/dg ${subcommand}`);
+    if (command.length === 2) aliases.push(command[1], `dg-${command[1]}`);
   }
   for (const alias of aliases.filter(Boolean)) {
     const key = alias.toLowerCase();
@@ -59,17 +122,28 @@ for (const tool of TOOLS) {
   }
 }
 
-export function canonicalTool(value) {
+export function canonicalTool(value, argv) {
   const raw = String(value || 'unknown').trim() || 'unknown';
   const key = raw.toLowerCase();
+  // Exact registry id always wins (never collapse a real tool onto another).
+  if (toolIds.has(raw) || toolIds.has(key)) {
+    return toolIds.has(raw) ? raw : key;
+  }
+  // Stage-aware before static aliases so --stage=status is not forced onto packages.
+  if (isLeadPipelineLabel(key)) {
+    const resolved = resolveLeadPipeline(argv);
+    if (resolved) return resolved;
+    // Unknown --stage= keeps the raw label as diagnostic evidence.
+    return raw;
+  }
   if (explicitAliases.has(key)) return explicitAliases.get(key);
   const ids = toolAliases.get(key);
   return ids?.size === 1 ? [...ids][0] : raw;
 }
 
 function canonicalRowTool(row) {
-  const rawTool = canonicalTool(row?.rawTool);
-  return toolIds.has(rawTool) ? rawTool : canonicalTool(row?.tool);
+  const rawTool = canonicalTool(row?.rawTool, row?.argv);
+  return toolIds.has(rawTool) ? rawTool : canonicalTool(row?.tool, row?.argv);
 }
 
 /**
@@ -93,6 +167,22 @@ const EXIT1_OK_TOOLS = new Set([
   'next-canon',
   'dash',
   'events-online',
+  // Lighthouse exit 1 = route under perf budget (receipt written); missing chrome/node is exit 2.
+  'lighthouse',
+  // Navigation audit exit 1 = product findings with receipt (broken/unnamed/clicks), not tool crash.
+  'navigation-audit',
+  // Button audit exit 1 = broken controls with receipt; crash paths also use 1 (stderr distinguishes).
+  'button-audit',
+  // Mobile a11y exit 1 = findings / local-identity miss with receipt.
+  'mobile-a11y',
+  // Wizard a11y exit 1 = audit findings with receipt.
+  'wiz-a11y-audit',
+  // Form e2e exit 1 = path findings with receipt (no live submit by default).
+  'form-e2e',
+  // SEO audit exit 1 = route findings with receipt.
+  'seo-audit',
+  // Reseal-queue exit 1 = research coverage/not-green after a real run, not crash.
+  'reseal-queue',
 ]);
 
 /** Exit 2 = observational product amber (local ok / public flaky), not tool crash. */
@@ -108,6 +198,8 @@ const EXIT2_OK_TOOLS = new Set([
   'wiz-a11y-audit',
   'priority',
   'work-find',
+  // Designer auth / publish-policy / narrow-viewport — not sealed-fragment bugs.
+  'startups-static-paste',
 ]);
 
 export function executionSucceeded(status, tool) {
@@ -118,6 +210,19 @@ export function executionSucceeded(status, tool) {
   // Exit 2 = soft product red (e.g. events local ok / public flaky) — not tool failure.
   if (status === 2 && EXIT2_OK_TOOLS.has(id)) return true;
   return false;
+}
+
+/**
+ * Rewrite a dead absolute Node pin to the current runtime so wraps survive
+ * moved nvm paths / retired ~/.local/node24 pins (spawn ENOENT thrash).
+ */
+export function resolveSpawnCmd(cmd) {
+  if (!Array.isArray(cmd) || !cmd.length) return cmd;
+  const bin = String(cmd[0] || '');
+  if (!bin || !path.isAbsolute(bin)) return cmd;
+  if (!/(?:^|\/)node(?:\d*)?$/.test(bin)) return cmd;
+  if (fs.existsSync(bin)) return cmd;
+  return [process.execPath, ...cmd.slice(1)];
 }
 
 export function executionFailure(r) {
@@ -160,7 +265,22 @@ export function rowExecutionOk(r) {
   if (!r || typeof r !== 'object') return false;
   if (r.ok === true) return true;
   const exit = r.childExit ?? r.status;
-  if (exit != null && exit !== '') return executionSucceeded(Number(exit), r.tool);
+  if (exit != null && exit !== '') {
+    if (executionSucceeded(Number(exit), r.tool)) return true;
+    // Historical startups-static-paste wraps threw policy/Designer env as exit 1
+    // before exit-2 classification; stderr is the ground truth for those rows.
+    if (canonicalTool(r.tool) === 'startups-static-paste' && Number(exit) === 1) {
+      const err = String(r.stderr || r.why || '');
+      if (
+        /did not authorize|publish freeze|Pages button not ready|authentication unavailable|TimeoutError|Waiting failed/i.test(
+          err,
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
   if (r.executionOk === true) return true;
   return false;
 }
@@ -399,13 +519,19 @@ function wrap(args) {
   const pre = dash >= 0 ? args.slice(0, dash) : args;
   const cmd = dash >= 0 ? args.slice(dash + 1) : [];
   const rawTool = (pre.find((a) => a.startsWith('--tool=')) || '--tool=unknown').split('=')[1];
-  const tool = canonicalTool(rawTool);
   if (!cmd.length) {
     console.error('usage: dogfood wrap --tool=NAME -- <command...>');
     process.exit(2);
   }
+  const runCmd = resolveSpawnCmd(cmd);
+  // Pass argv so umbrella labels (lead-pipeline) resolve by --stage=
+  const tool = canonicalTool(rawTool, runCmd);
   const t0 = Date.now();
-  const r = spawnSync(cmd[0], cmd.slice(1), { cwd: ROOT, stdio: ['inherit', 'inherit', 'pipe'], env: process.env });
+  const r = spawnSync(runCmd[0], runCmd.slice(1), {
+    cwd: ROOT,
+    stdio: ['inherit', 'inherit', 'pipe'],
+    env: process.env,
+  });
   if (r.stderr) process.stderr.write(r.stderr);
   const ms = Date.now() - t0;
   const ok = r.status === 0;
@@ -422,7 +548,7 @@ function wrap(args) {
     why: 'wrap-exec',
     ms,
     source: 'wrap',
-    argv: cmd.slice(0, 6),
+    argv: runCmd.slice(0, 6),
   });
   const status = summarize(readLog());
   fs.writeFileSync(STATUS, JSON.stringify(status, null, 2) + '\n');

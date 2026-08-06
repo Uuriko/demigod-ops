@@ -180,6 +180,54 @@ matches how this market actually hires."
 
 ---
 
+## 2026-08-06 website-first market refresh
+
+Current disk evidence is broader than the original brief: the directory contains
+2,902 named companies, 505 companies with public ATS openings, and 16,062 open
+ledger roles across 501 employers. This is observation coverage, not evidence that
+an employer has asked Demigod to recruit.
+
+The current competitor set occupies four larger product shapes:
+
+- YC Work at a Startup and Wellfound are scaled job/talent marketplaces.
+- Juicebox is a cross-source candidate search and automated-outreach product.
+- Dover is an ATS plus fractional-recruiter marketplace.
+- Paraform is a recruiter marketplace with AI-assisted sourcing; its strongest
+  intent label, “Qualified Role,” requires a recent employer check-in rather than
+  merely observing a public posting.
+
+Primary sources: [YC jobs](https://www.ycombinator.com/jobs/),
+[Wellfound](https://wellfound.com/about), [Juicebox](https://juicebox.ai/),
+[Dover](https://www.dover.com/), [Paraform](https://www.paraform.com/for-companies),
+[Paraform qualified roles](https://www.paraform.com/blog/qualified-roles), and
+[Ashby startup hiring report](https://www.ashbyhq.com/talent-trends-report/reports/startup-hiring).
+
+The weakest sufficient product conclusion is **not** “build another marketplace.”
+The present website already has the useful narrow loop: searchable startup and
+role evidence → honest provenance/date labels → an existing human-reviewed hiring
+brief. The next website work is therefore reliability and comprehension of that
+loop, not a new ATS, profile database, automated outreach layer, or unverified
+“active hiring” badge.
+
+Ranked website work:
+
+1. Ship and live-attest the prepared navigation, FAQ, schema, and mobile-action
+   repairs when publication is authorized.
+2. Re-run the whole sitemap/control/form harness against that exact live release;
+   repair only demonstrated failures.
+3. Measure whether directory visitors can understand “observed role” versus
+   “employer engaged” and reach the existing hiring brief. Improve the current row
+   CTA/copy only if the bounded check finds confusion or a dead path.
+4. Add employer-confirmed intent only after a real employer check-in exists; keep
+   public-board observations explicitly separate.
+
+Skipped: sector filters, candidate databases, recruiter marketplaces, ATS features,
+and automated outreach. The existing search already indexes company descriptions
+and tags, and none of those larger systems addresses the verified empty-delivery
+loop more directly than the brief path already on the site.
+
+---
+
 # Part 2 — the precedent set
 
 ## 6. The graveyard: both direct precedents were absorbed

@@ -74,6 +74,9 @@ test('mint-talent creates unique engineer link and pack with 20% / 90-day honest
   assert.match(referralMount, /type\.name = 'partner-type'/);
   assert.match(referralMount, /type\.value = 'refer-talent'/);
   assert.match(referralMount, /Request a referral link/);
+  assert.match(referralMount, /submit\.classList\.remove\('w-form-loading'\)/);
+  assert.match(referralMount, /submit\.disabled = false/);
+  assert.match(referralMount, /setTimeout\(function \(\) \{[\s\S]*?submit\.disabled = false;[\s\S]*?\}, 1000\)/);
   assert.match(referralMount, /A human reviews every request/);
   assert.match(referralMount, /done\.setAttribute\('role', 'status'\)/);
   assert.match(referralMount, /fail\.setAttribute\('role', 'alert'\)/);

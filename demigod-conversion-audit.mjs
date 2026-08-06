@@ -5,6 +5,7 @@
 // bugs. Read-only: navigates + evaluates, never clicks-submit or publishes.
 //
 //   node demigod-conversion-audit.mjs
+import WebSocket from 'ws';
 import { CDP_URL } from './cdp-config.mjs';
 
 const FUNNEL = [
@@ -19,8 +20,18 @@ const FUNNEL = [
 const AUDIT_FN = `(() => {
   const vis = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden' && +s.opacity !== 0; };
+  // textContent for brand (letter-spacing can space glyphs in innerText); innerText for visible copy.
   const txt = (el) => (el && el.innerText || '').trim().replace(/\\s+/g, ' ');
-  // biggest visible heading = the de-facto hero line
+  const rawTxt = (el) => (el && (el.textContent || el.innerText) || '').trim().replace(/\\s+/g, ' ');
+  // Brand hero is the marked H1; size-ranked h1/h2 can be a roles rail on shells.
+  const brandEl = document.querySelector('[data-dg-hero-h1],.hero-section h1,.header h1,h1.hero-title');
+  const brandHero = vis(brandEl) ? rawTxt(brandEl).slice(0, 90) : null;
+  // Per-letter cyber spans make AT/innerText "D E M I G O D"; host aria-label is the spoken name (disk v1020+).
+  const brandAria = brandEl ? (brandEl.getAttribute('aria-label') || '').trim() : '';
+  const hasLetterSpans = !!(brandEl && brandEl.querySelectorAll('.dg-cyber-ch').length > 1);
+  const brandA11yOk = !brandEl || !vis(brandEl)
+    || /^demigod$/i.test(brandAria)
+    || (!hasLetterSpans && /^demigod$/i.test(brandHero || ''));
   const heads = [...document.querySelectorAll('h1,h2')].filter(vis)
     .map((el) => ({ t: txt(el), size: parseFloat(getComputedStyle(el).fontSize) || 0 })).filter((h) => h.t);
   heads.sort((a, b) => b.size - a.size);
@@ -35,7 +46,11 @@ const AUDIT_FN = `(() => {
   return {
     title: document.title,
     footVer: (window.__dgFootVer || null),
-    heroTop: heads[0] ? heads[0].t.slice(0, 90) : null,
+    heroTop: brandHero || (heads[0] ? heads[0].t.slice(0, 90) : null),
+    brandHero,
+    brandAria: brandAria || null,
+    brandA11yOk,
+    largestHeading: heads[0] ? heads[0].t.slice(0, 90) : null,
     heroCount: heads.length,
     ctas,
     renderedDishonesty,
@@ -45,13 +60,26 @@ const AUDIT_FN = `(() => {
   };
 })()`;
 
-// --- tiny CDP client over the global WebSocket (Node 22+) ---
-async function pickTarget() {
-  const list = await (await fetch(CDP_URL + '/json/list')).json();
-  const t = list.find((x) => x.type === 'page' && /trydemigod\.com/.test(x.url))
-    || list.find((x) => x.type === 'page' && !/webflow|grok/.test(x.url));
-  if (!t) throw new Error('no usable page target on ' + CDP_URL);
-  return t;
+// --- tiny CDP client (ws package — works on Node 18+) ---
+// Always open a private tab: shared live tabs race with nav-audit/hygiene (empty body / wrong URL).
+async function openPrivateTab() {
+  const boot = `https://www.trydemigod.com/?cv-audit=${Date.now()}`;
+  const r = await fetch(`${CDP_URL}/json/new?${encodeURIComponent(boot)}`, {
+    method: 'PUT',
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!r.ok) throw new Error(`CDP /json/new HTTP ${r.status}`);
+  const tab = await r.json();
+  if (!tab?.webSocketDebuggerUrl) throw new Error('no usable private page target on ' + CDP_URL);
+  return tab;
+}
+async function closeTab(tab) {
+  if (!tab?.id) return;
+  try {
+    await fetch(`${CDP_URL}/json/close/${tab.id}`, { signal: AbortSignal.timeout(3000) });
+  } catch {
+    /* best-effort */
+  }
 }
 function connect(wsUrl) {
   const ws = new WebSocket(wsUrl);
@@ -69,17 +97,113 @@ function connect(wsUrl) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const target = await pickTarget();
-const c = connect(target.webSocketDebuggerUrl);
-await c.ready;
-await c.send('Page.enable'); await c.send('Runtime.enable');
-const results = [];
-for (const [name, url] of FUNNEL) {
-  await c.send('Page.navigate', { url });
-  await c.onceEvent('Page.loadEventFired', 12000);
-  await sleep(3000); // let foot-core render (it rewrites the page async)
-  const r = await c.send('Runtime.evaluate', { expression: AUDIT_FN, returnByValue: true, awaitPromise: true });
-  results.push({ name, ...(r.result?.result?.value || { error: r.result?.exceptionDetails?.text || 'eval failed' }) });
+function expectedPath(url) {
+  try {
+    const u = new URL(url);
+    return (u.pathname.replace(/\/+$/, '') || '/');
+  } catch {
+    return '/';
+  }
 }
-c.ws.close();
-console.log(JSON.stringify({ auditedAt: new Date().toISOString(), target: target.url, results }, null, 2));
+
+async function evalJson(c, expression) {
+  const r = await c.send('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  return r.result?.result?.value;
+}
+
+/** Navigate and wait until this tab's location matches the target path (anti-hijack). */
+async function navigateSettled(c, url, { loadMs = 12000, settleMs = 3500, matchTries = 8 } = {}) {
+  const want = expectedPath(url);
+  await c.send('Page.navigate', { url });
+  await c.onceEvent('Page.loadEventFired', loadMs);
+  await sleep(settleMs); // foot-core rewrites async
+  for (let i = 0; i < matchTries; i++) {
+    const href = await evalJson(c, 'location.href');
+    let got = '/';
+    try {
+      got = new URL(String(href || '')).pathname.replace(/\/+$/, '') || '/';
+    } catch {
+      /* */
+    }
+    if (got === want) return { ok: true, href, want };
+    // Another agent stole the tab — re-assert navigation.
+    await c.send('Page.navigate', { url });
+    await c.onceEvent('Page.loadEventFired', loadMs);
+    await sleep(1500);
+  }
+  const href = await evalJson(c, 'location.href');
+  return { ok: false, href, want };
+}
+
+function routeOk(row, name) {
+  if (row.error) return false;
+  if (row.urlMismatch) return false;
+  if ((row.bodyChars || 0) < 200) return false;
+  if ((row.renderedDishonesty || []).length) return false;
+  if ((row.glitches || []).length) return false;
+  if (!row.footVer) return false;
+  // v1020+ ships host aria-label so AT does not speak "D E M I G O D". Pre-1020 live is soft.
+  if (name === 'home' && row.brandA11yOk === false && Number(row.footVer) >= 1020) return false;
+  return true;
+}
+
+async function main() {
+  const tab = await openPrivateTab();
+  await sleep(600);
+  const c = connect(tab.webSocketDebuggerUrl);
+  await c.ready;
+  await c.send('Page.enable');
+  await c.send('Runtime.enable');
+  const results = [];
+  try {
+    for (const [name, url] of FUNNEL) {
+      const nav = await navigateSettled(c, url);
+      if (!nav.ok) {
+        results.push({
+          name,
+          error: 'url_mismatch_after_navigate',
+          urlMismatch: true,
+          wantPath: nav.want,
+          url: nav.href || null,
+          bodyChars: 0,
+        });
+        continue;
+      }
+      const value = await evalJson(c, AUDIT_FN);
+      results.push({
+        name,
+        ...(value || { error: 'eval failed' }),
+      });
+    }
+  } finally {
+    try { c.ws.close(); } catch { /* */ }
+    await closeTab(tab);
+  }
+
+  const ok = results.length === FUNNEL.length && results.every((row) => routeOk(row, row.name));
+  const report = {
+    auditedAt: new Date().toISOString(),
+    target: tab.url,
+    privateTab: true,
+    ok,
+    results,
+  };
+  try {
+    const fs = await import('node:fs');
+    fs.mkdirSync('/tmp/dg-busy', { recursive: true });
+    fs.writeFileSync('/tmp/dg-busy/conversion-audit.json', JSON.stringify(report, null, 2) + '\n');
+  } catch {
+    /* receipt best-effort */
+  }
+  console.log(JSON.stringify(report, null, 2));
+  if (!ok) process.exitCode = 1;
+}
+
+main().catch((err) => {
+  console.error(String(err?.stack || err));
+  process.exitCode = 1;
+});

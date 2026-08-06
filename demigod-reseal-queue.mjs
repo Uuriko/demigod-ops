@@ -77,7 +77,8 @@ export function resealDue({ maxAgeDays = 7 } = {}) {
     const evPath = path.join(BUSY, 'evidence', 'latest-company-research-benchmark.json');
     if (fs.existsSync(evPath)) {
       const ev = JSON.parse(fs.readFileSync(evPath, 'utf8'));
-      if (ev?.at && (!lastAt || Date.parse(ev.at) > Date.parse(lastAt))) lastAt = ev.at;
+      const evidenceAt = ev?.endedAt || ev?.at || ev?.startedAt;
+      if (evidenceAt && (!lastAt || Date.parse(evidenceAt) > Date.parse(lastAt))) lastAt = evidenceAt;
     }
   } catch {
     /* */
@@ -88,7 +89,21 @@ export function resealDue({ maxAgeDays = 7 } = {}) {
   const pending = pendingCount();
   const notGreen = !(research?.green === true && research?.fresh === true);
   const agedOut = ageDays == null || ageDays >= maxD;
-  const due = notGreen || pending > 0 || agedOut;
+  // Failed reseals are still attempts. A schedule loop that re-runs live
+  // network reseal every few minutes cannot lift gold usableCoverage; cool
+  // down so KEEP_WORKING / timers do not thrash reseal while research is red.
+  const COOL_DOWN_H = 12;
+  const lastAttemptAt = last?.at && Number.isFinite(Date.parse(last.at)) ? last.at : null;
+  const lastAttemptAgeH = lastAttemptAt
+    ? (Date.now() - Date.parse(lastAttemptAt)) / 36e5
+    : null;
+  const recentFailedAttempt =
+    notGreen &&
+    lastAttemptAt &&
+    lastAttemptAgeH != null &&
+    lastAttemptAgeH < COOL_DOWN_H &&
+    !(last?.green === true || last?.verificationPass === true);
+  const due = pending > 0 || (!recentFailedAttempt && (notGreen || agedOut));
   return {
     schema: 'demigod.reseal-due/1',
     at: new Date().toISOString(),
@@ -96,6 +111,10 @@ export function resealDue({ maxAgeDays = 7 } = {}) {
     maxAgeDays: maxD,
     ageDays: ageDays == null ? null : Math.round(ageDays * 10) / 10,
     lastAt,
+    lastAttemptAt,
+    lastAttemptAgeH: lastAttemptAgeH == null ? null : Math.round(lastAttemptAgeH * 10) / 10,
+    coolDownHours: COOL_DOWN_H,
+    recentFailedAttempt,
     pending,
     research: {
       green: research?.green === true,
@@ -103,13 +122,15 @@ export function resealDue({ maxAgeDays = 7 } = {}) {
       reason: research?.reason || null,
       runId: research?.runId || null,
     },
-    reason: notGreen
-      ? 'research_not_green'
-      : pending > 0
-        ? 'queue_pending'
-        : agedOut
-          ? 'max_age_exceeded'
-          : 'fresh',
+    reason: pending > 0
+      ? 'queue_pending'
+      : recentFailedAttempt
+        ? 'research_red_recent_attempt'
+        : notGreen
+          ? 'research_not_green'
+          : agedOut
+            ? 'max_age_exceeded'
+            : 'fresh',
   };
 }
 
@@ -140,7 +161,11 @@ export function runReseal({ force = false, schedule = false, maxAgeDays = 7 } = 
     return { ok: true, skipped: true, reason: 'already-green-drained-queue' };
   }
 
-  const r = spawnSync(process.execPath, [path.join(ROOT, 'demigod-company-research-benchmark.mjs')], {
+  // Benchmark needs File/fetch undici APIs (Node ≥20). Prefer the studio Node 24 pin when the
+  // parent process is still system Node 18 — otherwise reseal false-fails with File is not defined.
+  const node24 = path.join(process.env.HOME || '', '.nvm/versions/node/v24.17.0/bin/node');
+  const nodeBin = fs.existsSync(node24) ? node24 : process.execPath;
+  const r = spawnSync(nodeBin, [path.join(ROOT, 'demigod-company-research-benchmark.mjs')], {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 8 * 1024 * 1024,
@@ -216,7 +241,11 @@ function selftest() {
   const d = resealDue({ maxAgeDays: 7 });
   assert(d.schema === 'demigod.reseal-due/1', 'due schema');
   assert(typeof d.due === 'boolean' && d.reason, 'due fields');
-  console.log(JSON.stringify({ ok: true, selftest: 'reseal-queue', due: d.due, reason: d.reason }));
+  assert(typeof d.coolDownHours === 'number' && d.coolDownHours > 0, 'cool-down hours present');
+  if (d.research.green && d.research.fresh) assert(d.lastAt, 'fresh evidence timestamp');
+  // When a failed reseal just ran, schedule must not thrash another live run.
+  if (d.reason === 'research_red_recent_attempt') assert(d.due === false, 'cool-down holds schedule');
+  console.log(JSON.stringify({ ok: true, selftest: 'reseal-queue', due: d.due, reason: d.reason, coolDownHours: d.coolDownHours }));
 }
 
 function main() {

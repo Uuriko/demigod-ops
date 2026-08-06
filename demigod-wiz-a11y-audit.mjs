@@ -7,6 +7,7 @@ const USE_LOCAL = process.argv.includes('--local');
 const THROTTLE = process.argv.includes('--throttle');
 const CORE = USE_LOCAL ? fs.readFileSync(process.env.DEMIGOD_A11Y_CORE || 'demigod-foot-core.js', 'utf8') : '';
 const HEAD_CSS = USE_LOCAL ? fs.readFileSync('demigod-head-styles.css', 'utf8') : '';
+const MANIFEST = USE_LOCAL ? JSON.parse(fs.readFileSync('DEMIGOD-FOOT-CDN.json', 'utf8')) : {};
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
 const rgb = (s) => (s.match(/\d+(\.\d+)?/g) || [0, 0, 0]).slice(0, 3).map(Number);
@@ -28,9 +29,10 @@ if (USE_LOCAL) {
   await page.setRequestInterception(true);
   page.on('request', (req) => {
     const url = req.url();
+    const clean = url.split(/[?#]/)[0];
     if (/\/head-latest\.css(?:[?#]|$)|files\.catbox\.moe\/[a-z0-9]+\.css(?:[?#]|$)/i.test(url)) {
       req.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
-    } else if (/foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url) || (/catbox|jsdelivr/i.test(url) && /foot.*\.js(?:[?#]|$)/i.test(url))) {
+    } else if (clean === MANIFEST.cdnUrl || /foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url)) {
       req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
     } else req.continue().catch(() => {});
   });
@@ -39,6 +41,7 @@ await page.setViewport({ width: 390, height: 844 });
 await page.evaluateOnNewDocument(() => { const name = (n) => n ? n.id ? '#'+n.id : n.className ? '.'+String(n.className).trim().split(/\s+/).join('.') : n.tagName : null; const rect = (r) => ({ x: r.x, y: r.y, width: r.width, height: r.height }); window.__lcp = 0; window.__lcpNode = null; window.__cls = 0; window.__clsEntries = []; new PerformanceObserver((l) => { for (const e of l.getEntries()) { window.__lcp = e.startTime; window.__lcpNode = name(e.element); } }).observe({ type: 'largest-contentful-paint', buffered: true }); new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) { window.__cls += e.value; window.__clsEntries.push({ value: e.value, at: e.startTime, sources: e.sources.map((s) => { const n=s.node; return n ? { node: name(n), previousRect: rect(s.previousRect), currentRect: rect(s.currentRect) } : null; }).filter(Boolean) }); } }).observe({ type: 'layout-shift', buffered: true }); });
 await page.goto(`https://www.trydemigod.com/?a11y=${USE_LOCAL ? 'local-' : ''}${Date.now()}`, { waitUntil: 'networkidle2', timeout: 60000 });
 await wait(1500);
+const runtimeFootVer = await page.evaluate(() => String(window.__dgFootVer || ''));
 const perf = await page.evaluate(() => ({ lcpMs: Math.round(window.__lcp), lcpNode: window.__lcpNode, cls: +window.__cls.toFixed(3), clsEntries: window.__clsEntries }));
 await page.evaluate(() => { document.querySelector('a[href*="wiz=startup"],[data-demigod-modal="startup"]')?.click(); });
 await wait(800);
@@ -69,13 +72,15 @@ if (validation.invalid !== 'true') a.issues.push('required-field: aria-invalid m
 if (!validation.focused) a.issues.push('required-field: focus not returned');
 if (!validation.announced) a.issues.push('required-field: error not announced');
 const contrast = a.colors.map((c) => ({ ...c, ratio: +ratio(rgb(c.fg), rgb(c.bg)).toFixed(2) }));
+const expectedFootVer = (CORE.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] || '';
+if (USE_LOCAL && runtimeFootVer !== expectedFootVer) a.issues.push(`local-version-mismatch: runtime ${runtimeFootVer || 'missing'} disk ${expectedFootVer}`);
 contrast.filter((c) => c.ratio < 4.5).forEach((c) => a.issues.push(`low-contrast ${c.sel}: ${c.ratio}:1 (< 4.5)`));
 if (perf.lcpMs > 2500) a.issues.push(`lcp-slow: ${perf.lcpMs}ms (> 2500)`);
 if (perf.cls > 0.1) a.issues.push(`cls-high: ${perf.cls} (> 0.1)`);
 if (heroArtRequests.length) a.issues.push('mobile downloaded hidden desktop hero art');
 perf.heroArtRequests = heroArtRequests;
 const pass = a.issues.length === 0;
-console.log(JSON.stringify({ pass, issues: a.issues, contrast, perf }, null, 2));
+console.log(JSON.stringify({ pass, runtimeFootVer, issues: a.issues, contrast, perf }, null, 2));
 try { await page.close(); } catch {}
 await browser.disconnect();
 process.exit(pass ? 0 : 1);

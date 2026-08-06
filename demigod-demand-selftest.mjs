@@ -1080,7 +1080,8 @@ const nowIso = new Date().toISOString();
 const startupRaw = {
   'company-name': 'Acme', 'company-stage': 'seed', 'role-title': 'Founding Eng',
   'stack-needs': 'ts node', '90day-outcome': 'Ship v1', 'work-location': 'SF',
-  'salary-range': '150-180k', 'contact-email': 'founder@acme.co',
+  'salary-range': '150-180k', 'interview-process': '2 screens + onsite',
+  'contact-email': 'founder@acme.co',
 };
 const readyInbox = path.join(canaryDir, 'inbox-ready-startup.json');
 fs.writeFileSync(readyInbox, JSON.stringify({ at: nowIso, items: [

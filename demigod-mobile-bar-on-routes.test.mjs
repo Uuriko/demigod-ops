@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const SRC = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
+const HEAD = fs.readFileSync(new URL('./demigod-head-styles.css', import.meta.url), 'utf8');
 const HIDES_BAR = /#dg-bar[\s\S]{0,140}setProperty\('display','none'/;
 
 /* Slice from a function to the NEXT top-level `function` declaration. An earlier version passed an
@@ -47,6 +48,7 @@ test('openPage does NOT hide the mobile bar — routes keep their action', () =>
     HIDES_BAR,
     'openPage must not hide #dg-bar: /how then has no action in the 390px fold',
   );
+  assert.match(body, /if \(el\.id === 'dg-bar'\) return;/, 'generic page-shell hiding loop must skip #dg-bar');
 });
 
 test('show() DOES hide the mobile bar — a modal must not compete with it', () => {
@@ -63,4 +65,7 @@ test('the bar still carries both paths', () => {
   const mob = fn('function mob()');
   assert.match(mob, /data-dg-cta="hire"/, 'founder path present');
   assert.match(mob, /data-dg-cta="talent"/, 'candidate path present');
+  assert.match(SRC, /#dg-bar\{position:fixed!important;[^}]*z-index:10060/, 'bar paints above #dg-page z-index 10050');
+  assert.match(HEAD, /#dg-bar\s*\{[^}]*z-index:10060!important/s, 'head cascade cannot pin bar below #dg-page');
+  assert.match(HEAD, /\.nav_container\s*\{[^}]*z-index:10070!important/s, 'persistent navigation paints above #dg-page and the mobile bar');
 });

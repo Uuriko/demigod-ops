@@ -30,3 +30,33 @@ test('private inbox report exposes only allowlisted attribution', () => {
   assert.equal(JSON.stringify(row.attribution).includes('Private Person'), false);
   assert.equal(Object.hasOwn(row.attribution, 'company'), false);
 });
+
+import { attributionSummary } from './demigod-submissions-inbox.mjs';
+
+test('attribution summary counts directory company-brief startups without PII', () => {
+  const s = attributionSummary([
+    {
+      form: 'startup-hire',
+      raw: { utm_source: 'directory', utm_campaign: 'company-brief', 'contact-email': 'a@b.com', 'company-name': 'Secret Co' },
+    },
+    {
+      form: 'startup-hire',
+      raw: { utm_source: 'linkedin', utm_campaign: 'founder launch' },
+    },
+    {
+      form: 'engineer-join',
+      raw: { utm_source: 'directory', utm_campaign: 'company-brief' },
+    },
+    {
+      form: 'startup-hire',
+      raw: { utm_source: 'directory', utm_campaign: 'company-brief' },
+    },
+  ]);
+  assert.equal(s.directoryCompanyBriefs, 2);
+  assert.equal(s.bySource.directory, 2);
+  assert.equal(s.bySource.linkedin, 1);
+  assert.equal(s.byCampaign['company-brief'], 2);
+  assert.equal(s.startupWithAttribution, 3);
+  assert.equal(JSON.stringify(s).includes('Secret Co'), false);
+  assert.equal(JSON.stringify(s).includes('a@b.com'), false);
+});

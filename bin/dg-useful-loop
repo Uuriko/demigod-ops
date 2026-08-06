@@ -39,6 +39,12 @@ case "$cmd" in
     systemctl --user status "$UNIT" --no-pager -l | head -20
     ;;
   stop)
+    # Refuse stop while KEEP_WORKING (user never-stop policy)
+    if [[ -f "$BUSY/KEEP_WORKING" ]]; then
+      echo "dg-useful-loop: KEEP_WORKING is set at $BUSY/KEEP_WORKING — not stopping." >&2
+      echo "Remove that file first if stop is intentional." >&2
+      exit 1
+    fi
     # soft stop first (loop honors STOP), then unit stop
     date -Iseconds >"$BUSY/useful-loop.STOP"
     systemctl --user stop "$UNIT" 2>/dev/null || true

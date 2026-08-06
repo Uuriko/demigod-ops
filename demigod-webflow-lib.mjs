@@ -150,11 +150,21 @@ export function diskTruth() {
 
 export async function liveTruth() {
   try {
+    let home;
+    let homeError;
+    for (let attempt = 0; attempt < 2 && !home; attempt++) {
+      try {
+        home = await fetch(`${LIVE}/?wf=${Date.now()}`, {
+          signal: AbortSignal.timeout(12000),
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+      } catch (e) {
+        homeError = e;
+      }
+    }
+    if (!home) throw homeError;
     const [r, robots, sitemap] = await Promise.all([
-      fetch(`${LIVE}/?wf=${Date.now()}`, {
-        signal: AbortSignal.timeout(12000),
-        headers: { 'Cache-Control': 'no-cache' },
-      }),
+      home,
       ...['/robots.txt', '/sitemap.xml'].map(async (pathname) => {
         try {
           const response = await fetch(`${LIVE}${pathname}`, { signal: AbortSignal.timeout(12000) });

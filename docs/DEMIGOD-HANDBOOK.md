@@ -1,5 +1,7 @@
 # Demigod Handbook
 
+**Documentation map:** [`DOCS.md`](../DOCS.md) routes canonical rules, workflows, research, archives, source files, and verification receipts. This handbook owns studio standards and onboarding; it does not replace release truth or the documentation map.
+
 **Who this is for**
 
 | Reader | Use this for |
@@ -119,7 +121,10 @@ You don’t need every path memorized — you need to know **what is canonical**
 | Site JavaScript | `demigod-foot-core.js` on disk | **Only** source of truth for behavior |
 | How JS is delivered | CDN + `demigod-footer-lite.html` | Delivery, not a second SoR |
 | Head / SEO / favicon | `demigod-head-minimal.html` | Webflow head budget is real (~50k) |
-| Roles board data | `DEMIGOD-BOARD.json` | ≤3 seeds until real roles exist |
+| Matching board samples | `DEMIGOD-BOARD.json` | ≤3 seeds; honesty-gated; not inventory |
+| Observed public roles | Roles pipeline → `DEMIGOD-PUBLIC-ROLES.json` + footer embed | ATS first-seen; not fill claims ([`ROLES-PIPELINE.md`](ROLES-PIPELINE.md)) |
+| Ship path | [`SHIP-AND-CDN.md`](SHIP-AND-CDN.md) | CDN + CM6 paste; current-request auth |
+| Doc map | [`DOCS.md`](../DOCS.md) | Where to find every living guide |
 | Current status | `bin/dg orient` + `bin/dg truth` | Fresh receipts, not copied prose |
 | Agent authority | `AGENTS.md` | One short policy |
 | This playbook | `docs/DEMIGOD-HANDBOOK.md` | Standards + process |
@@ -137,9 +142,10 @@ You don’t need every path memorized — you need to know **what is canonical**
 | **Freeze** | When ON: disk work OK, no live CDN/Webflow mutate unless lifted |
 | **Mutual yes** | Both sides approved before intro |
 | **Seed / sample** | Fake or example data — must be labeled |
+| **Observed role** | Public ATS job Demigod first saw (not a match claim) |
 | **Pending** | Service not live yet — say so publicly |
 | **Ponytail** | Minimum code that works; no unsolicited complexity |
-| **CM6 / CDN ship** | How custom code and JS reach production (agents) |
+| **CM6 / CDN ship** | How custom code and JS reach production ([`SHIP-AND-CDN.md`](SHIP-AND-CDN.md)) |
 
 ---
 

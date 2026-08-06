@@ -89,6 +89,7 @@ test('canonical command and registry surfaces stay consolidated', () => {
       'orient',
       'recruitai-desk',
       'review',
+      'roles-pipeline',
       'ship',
       'structured-hiring',
       'truth',

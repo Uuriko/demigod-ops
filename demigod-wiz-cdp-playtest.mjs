@@ -23,6 +23,8 @@ const OUT_DIR = `/tmp/audit-wiz-playtest${FLOW === 'engineer' ? '-engineer' : ''
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const CORE = fs.readFileSync('demigod-foot-core.js', 'utf8');
 const HEAD_CSS = USE_LOCAL ? fs.readFileSync('demigod-head-styles.css', 'utf8') : '';
+const MANIFEST = USE_LOCAL ? JSON.parse(fs.readFileSync('DEMIGOD-FOOT-CDN.json', 'utf8')) : {};
+const EXPECTED_FOOT_VER = USE_LOCAL ? (CORE.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] : '';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function run() {
@@ -34,17 +36,17 @@ async function run() {
   const page = await browser.newPage();
   if (MOBILE) await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   if (USE_LOCAL) {
-    // Live loaders may be catbox or jsDelivr foot-latest.js — match both.
+    await page.setCacheEnabled(false);
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      const u = req.url();
+      const u = req.url().replace(/[?#].*$/, '');
       const isHeadCss =
         /\/head-latest\.css(?:[?#]|$)/i.test(u) ||
-        /files\.catbox\.moe\/[a-z0-9]+\.css(?:[?#]|$)/i.test(u);
+        u === MANIFEST.assets?.headCss?.url;
       const isFoot =
         /foot-latest\.js(?:[?#]|$)/i.test(u) ||
         /demigod-foot/i.test(u) ||
-        (/catbox/i.test(u) && /\.js(?:[?#]|$)/i.test(u));
+        u === MANIFEST.cdnUrl;
       if (isHeadCss) {
         req.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
       } else if (isFoot) {
@@ -61,6 +63,10 @@ async function run() {
   });
   await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
   if (USE_LOCAL) await wait(1200);
+  const footVer = await page.evaluate(() => String(window.__dgFootVer || ''));
+  if (USE_LOCAL && footVer !== EXPECTED_FOOT_VER) {
+    throw new Error(`local foot identity ${footVer || 'missing'} != ${EXPECTED_FOOT_VER}`);
+  }
 
   // Ensure the WIZ is open (deep-link or CTA).
   await page.evaluate(
@@ -134,7 +140,7 @@ async function run() {
         } else if (inp.type === 'url' || /linkedin|url/i.test(inp.name || '')) {
           inp.value = 'https://example.com';
         } else {
-          inp.value = `Test value ${idx + 1}`;
+          inp.value = `Test outcome ${idx + 1} with enough concrete detail`;
         }
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
@@ -216,13 +222,13 @@ async function run() {
   const need90 = FLOW === 'startup';
   const stepKeys = steps.map((step) => step.key).filter(Boolean);
   const engineerSequenceGood = FLOW !== 'engineer' || JSON.stringify(stepKeys) === JSON.stringify([
-    'welcome', 'full-name', 'seeker-email', 'skills-stack', 'experience',
-    'sf-bay', 'availability', 'salary-expectation', 'work-auth', 'resume', '__submit__',
+    'welcome', 'sf-bay', 'full-name', 'seeker-email', 'skills-stack',
+    'experience', 'availability', 'salary-expectation', 'resume', '__submit__',
   ]);
-  const requiredA11yGood = FLOW !== 'engineer' || ['availability', 'salary-expectation', 'work-auth', 'resume'].every(
+  const requiredA11yGood = FLOW !== 'engineer' || ['availability', 'salary-expectation', 'resume'].every(
     (key) => requiredA11y[key] && Object.values(requiredA11y[key]).every(Boolean),
   );
-  const engineerReviewGood = FLOW !== 'engineer' || (/When could you start/i.test(final.reviewText) && /base cash range/i.test(final.reviewText));
+  const engineerReviewGood = FLOW !== 'engineer' || (/When could you start/i.test(final.reviewText) && /base salary range/i.test(final.reviewText));
   const pass = Boolean(
     (final.hasReview || /review|submit|thanks/i.test(final.q || '')) &&
       advanced &&
@@ -252,6 +258,7 @@ async function run() {
     flow: FLOW,
     local: USE_LOCAL,
     mobile: MOBILE,
+    footVer,
   };
   fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));

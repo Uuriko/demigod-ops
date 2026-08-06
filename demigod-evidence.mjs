@@ -22,7 +22,8 @@ export const EVIDENCE_DIR = path.join(BUSY, 'evidence');
 const CHAIN_SCHEMA = 'demigod.evidence-chain-link/1';
 const SAFE_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,240}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
-const MAX_CHAIN_DEPTH = 1000;
+// ponytail: keep the full chain until verification cost is material; add signed checkpoints before 10k.
+const MAX_CHAIN_DEPTH = 10_000;
 
 export const COMPANY_RESEARCH_FIELDS = [
   'canonicalCompany',

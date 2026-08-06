@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Prevent accidental useful-loop stop while KEEP_WORKING is set.
+set -euo pipefail
+BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
+if [[ -f "$BUSY/KEEP_WORKING" ]]; then
+  echo "dg-loop-guard: KEEP_WORKING is set — refusing useful-loop STOP."
+  echo "Clear $BUSY/KEEP_WORKING first if you really want to stop."
+  exit 1
+fi
+exit 0

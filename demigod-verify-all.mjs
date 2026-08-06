@@ -11,12 +11,12 @@ const ship = process.argv.includes('--ship');
 if (ship || wizard) {
   const args = ['demigod-ship-gate.mjs'];
   if (browser && !wizard) args.push('--fast');
-  const child = spawn('node', args, { cwd: ROOT, stdio: 'inherit' });
+  const child = spawn(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
   child.on('close', (code) => process.exit(code ?? 1));
 } else {
   function run(script, args = []) {
     return new Promise((resolve) => {
-      const child = spawn('node', [path.join(ROOT, script), ...args], {
+      const child = spawn(process.execPath, [path.join(ROOT, script), ...args], {
         cwd: ROOT,
         stdio: 'inherit',
       });

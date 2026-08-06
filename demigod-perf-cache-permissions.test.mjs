@@ -54,6 +54,22 @@ test('cache entries never outlive the caller freshness limit', async (t) => {
   assert.equal(reader.getCached('long-lived', 1000).hit, false);
 });
 
+test('cachedFetchText retries one transient transport failure when requested', async () => {
+  const { cachedFetchText } = await import(`./demigod-perf-cache.mjs?retry=${Date.now()}`);
+  let attempts = 0;
+  const fetchImpl = async () => {
+    if (++attempts === 1) throw Object.assign(new Error('temporary DNS failure'), { code: 'ENOTFOUND' });
+    return new Response('ok', { headers: { 'content-type': 'text/plain' } });
+  };
+  const result = await cachedFetchText('https://public.example/retry', {
+    bust: true,
+    retries: 1,
+    fetchImpl,
+  });
+  assert.equal(result.text, 'ok');
+  assert.equal(attempts, 2);
+});
+
 test('cachedFetchText rejects DNS-to-loopback before connecting', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-perf-network-'));
   const previousBusy = process.env.DG_BUSY;
@@ -74,8 +90,11 @@ test('cachedFetchText rejects DNS-to-loopback before connecting', async (t) => {
   const { cachedFetchText } =
     await import(`./demigod-perf-cache.mjs?network=${Date.now()}`);
   const { port } = server.address();
-  const lookup = (_hostname, _options, callback) =>
+  let lookups = 0;
+  const lookup = (_hostname, _options, callback) => {
+    lookups++;
     callback(null, [{ address: '127.0.0.1', family: 4 }]);
+  };
   await assert.rejects(
     cachedFetchText(`http://public.test:${port}/secret`, {
       bust: true,
@@ -94,6 +113,7 @@ test('cachedFetchText rejects DNS-to-loopback before connecting', async (t) => {
     /invalid_public_url/,
   );
   assert.equal(hits, 0);
+  assert.equal(lookups, 1, 'security-policy failures must not retry');
 });
 
 test('cachedFetchText rejects private IP URL hosts without egress', async () => {

@@ -41,6 +41,7 @@ const HEAD_CSS_SRC = path.join(ROOT, 'demigod-head-styles.css');
 // Public machine-readable roles feed. OPTIONAL on purpose: this file publishes the whole site, so
 // a missing or unreadable feed must degrade to "not published this run", never take the ship down.
 const ROLES_FEED_SRC = path.join(ROOT, 'DEMIGOD-ROLES-FEED.json');
+const PUBLIC_ROLES_SRC = path.join(ROOT, 'DEMIGOD-PUBLIC-ROLES.json');
 const HEAD = path.join(ROOT, 'demigod-head-minimal.html');
 const HEAD_OUT = path.join(ROOT, 'DEMIGOD-HEAD-CDN.json');
 const FOOT = path.join(ROOT, 'demigod-footer-lite.html');
@@ -55,6 +56,7 @@ const headCss = fs.readFileSync(HEAD_CSS_SRC, 'utf8');
 const rolesFeed = (() => {
   try { return fs.readFileSync(ROLES_FEED_SRC, 'utf8'); } catch { return null; }
 })();
+const publicRoles = fs.readFileSync(PUBLIC_ROLES_SRC, 'utf8');
 const sourceVer = (sourceJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1];
 const sourcePublicVer = (sourceJs.match(/dgFootVersion\s*=\s*['"]v(\d+)['"]/) || [])[1];
 const sourceSha = crypto.createHash('sha256').update(sourceJs).digest('hex');
@@ -173,6 +175,17 @@ function isCssMime(contentType) {
   return String(contentType || '').split(';', 1)[0].trim().toLowerCase() === 'text/css';
 }
 
+function publicRolesDataBlock(raw) {
+  const data = JSON.parse(raw);
+  if (data?.schema !== 'demigod.public-roles/1' || !Array.isArray(data.roles) ||
+      data.roles.length < 1 || data.roles.length > 24 ||
+      data.roles.some((role) => !role?.company || !role?.title || !/^https:\/\//.test(role?.url || ''))) {
+    throw new Error('invalid public roles payload');
+  }
+  return '<!-- demigod-public-roles-data: generated; not matching inventory -->\n' +
+    `<script id="demigod-public-roles-data">window.__dgPublicRoles=${JSON.stringify(data).replace(/</g, '\\u003c')};</script>\n`;
+}
+
 // temp+rename so concurrent verify:source never reads a torn footer-lite/loader/manifest
 // mid-ship (same class as gate OUTPUT atomicity: verify-source/board-honesty c20/c21).
 function writeFileAtomic(file, contents) {
@@ -191,13 +204,53 @@ function writeFileAtomic(file, contents) {
 }
 
 function headWithCdn(html, cdnUrl) {
-  if (!/^https:\/\/cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest\.css$/i.test(cdnUrl)) {
+  if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css$/i.test(cdnUrl)) {
     throw new Error(`unapproved head CSS URL: ${cdnUrl}`);
   }
   const old = /https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/head-latest)\.css/gi;
   const matches = String(html || '').match(old) || [];
   if (matches.length !== 1) throw new Error(`expected one canonical head CSS URL, found ${matches.length}`);
-  return html.replace(old, cdnUrl);
+  let next = html.replace(old, cdnUrl);
+  const origin = new URL(cdnUrl).origin;
+  if (!next.includes(`rel="preconnect" href="${origin}"`)) {
+    next = next.replace(/(<link rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net" crossorigin>)/, `$1\n<link rel="preconnect" href="${origin}" crossorigin>`);
+  }
+  return next;
+}
+
+function headWithFootPreload(html, cdnUrl) {
+  if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/foot-latest)\.js$/i.test(cdnUrl)) {
+    throw new Error(`unapproved foot preload URL: ${cdnUrl}`);
+  }
+  const tag = `<link rel="preload" as="script" href="${cdnUrl}" data-dg-foot-preload>`;
+  if (/^<link[^>]+data-dg-foot-preload[^>]*>$/m.test(html)) {
+    return html.replace(/^<link[^>]+data-dg-foot-preload[^>]*>$/m, tag);
+  }
+  return html.replace(/(<link rel="preconnect" href="https:\/\/files\.catbox\.moe"[^>]*>)/, `$1\n${tag}`);
+}
+
+function headWithDirectoryAssets(html, scriptUrl, dataUrl, feedUrl) {
+  if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/startup-map-latest)\.js$/i.test(scriptUrl)) {
+    throw new Error(`unapproved startup map script URL: ${scriptUrl}`);
+  }
+  if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/sf-startup-map)\.json$/i.test(dataUrl)) {
+    throw new Error(`unapproved startup map data URL: ${dataUrl}`);
+  }
+  if (!/^https:\/\/(?:files\.catbox\.moe\/[a-z0-9]+|cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]+\/roles-feed)\.json$/i.test(feedUrl)) {
+    throw new Error(`unapproved startup roles feed URL: ${feedUrl}`);
+  }
+  const scriptTag = `<meta name="dg-startup-map-script" content="${scriptUrl}">`;
+  const dataTag = `<meta name="dg-startup-map-data" content="${dataUrl}">`;
+  const feedTag = `<meta name="dg-startup-roles-feed" content="${feedUrl}">`;
+  if ((html.match(/<meta name="dg-startup-map-script"[^>]*>/g) || []).length !== 1 ||
+      (html.match(/<meta name="dg-startup-map-data"[^>]*>/g) || []).length !== 1 ||
+      (html.match(/<meta name="dg-startup-roles-feed"[^>]*>/g) || []).length !== 1) {
+    throw new Error('expected one canonical startup directory script, data, and roles-feed marker');
+  }
+  return html
+    .replace(/<meta name="dg-startup-map-script"[^>]*>/, scriptTag)
+    .replace(/<meta name="dg-startup-map-data"[^>]*>/, dataTag)
+    .replace(/<meta name="dg-startup-roles-feed"[^>]*>/, feedTag);
 }
 
 function writeReleaseReceipt(payload) {
@@ -372,11 +425,25 @@ if (SELFTEST) {
     'roles feed, when present, uses the current schema',
   );
   checkSelf(
+    publicRolesDataBlock(JSON.stringify({ schema: 'demigod.public-roles/1', roles: [{ company: 'A', title: 'Engineer', url: 'https://example.com/job' }] }))
+      .includes('window.__dgPublicRoles='),
+    'builds a bounded public-roles footer payload',
+  );
+  checkSelf(
     headWithCdn(
       '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@123abc/head-latest.css">',
       'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@456def/head-latest.css',
     ).includes('@456def/head-latest.css'),
     'patches exactly one approved immutable head CSS URL',
+  );
+  checkSelf(
+    headWithDirectoryAssets(
+      '<meta name="dg-startup-map-script" content="https://files.catbox.moe/old.js">\n<meta name="dg-startup-map-data" content="https://files.catbox.moe/old.json">\n<meta name="dg-startup-roles-feed" content="https://files.catbox.moe/old-feed.json">',
+      'https://files.catbox.moe/new.js',
+      'https://files.catbox.moe/new.json',
+      'https://files.catbox.moe/feed.json',
+    ).includes('content="https://files.catbox.moe/new.json"'),
+    'binds startup directory script and data URLs into the canonical head',
   );
   checkSelf(RELEASE_RECEIPT.startsWith('/tmp/dg-busy/'), 'failure receipt stays outside canonical release artifacts');
   checkSelf(
@@ -732,7 +799,26 @@ async function uploadPermanent() {
     await new Promise((r) => setTimeout(r, 2000));
     const { ok, liveJs } = await fetchOk(cdnUrl);
     console.error(`catbox try ${i}: ${cdnUrl} len=${liveJs.length} ok=${ok}`);
-    if (ok) return { cdnUrl, liveJs, host: 'catbox.moe', temporary: false };
+    if (ok) {
+      let staged = {};
+      try { staged = JSON.parse(fs.readFileSync('/tmp/dg-busy/cdn-catbox-urls.json', 'utf8')); } catch {}
+      const [mapCheck, mapDataCheck, headCssCheck, rolesFeedCheck] = await Promise.all([
+        fetchExact(staged.mapjs || '', mapJs, true),
+        fetchExact(staged.map || '', mapData),
+        fetchCssExact(staged.head || ''),
+        rolesFeed ? fetchExact(staged.feed || '', rolesFeed) : { ok: false },
+      ]);
+      if (mapCheck.ok && mapDataCheck.ok && headCssCheck.ok) return {
+        cdnUrl, liveJs, host: 'catbox.moe', temporary: false,
+        assets: {
+          startupMap: { url: staged.mapjs, sha256: mapSha, bytes: mapBytes },
+          mapData: { url: staged.map, sha256: mapDataSha, bytes: mapDataBytes },
+          headCss: { url: staged.head, sha256: headCssSha, bytes: headCssBytes },
+          ...(rolesFeedCheck.ok ? { rolesFeed: { url: staged.feed, sha256: rolesFeedSha, bytes: rolesFeedBytes } } : {}),
+        },
+      };
+      recordUploadAttempt('catbox', false, 'staged sibling bundle failed SHA/MIME attestation');
+    }
     recordUploadAttempt('catbox', false, 'uploaded asset failed SHA/version/MIME attestation');
     await new Promise((r) => setTimeout(r, 2000 * i));
   }
@@ -997,10 +1083,101 @@ async function uploadGist() {
   };
 }
 
+/**
+ * When local `gh` cannot push demigod-site-cdn, stage via catbox + GitHub Actions
+ * ingest-site-bundle (needs GITHUB_TOKEN / GH_TOKEN / DEMIGOD_GITHUB_TOKEN).
+ * Same immutable jsDelivr pin shape as uploadJsdelivr.
+ */
+async function uploadViaActions() {
+  if (process.env.DEMIGOD_ALLOW_CDN_ACTIONS === '0') return null;
+  const helper = path.join(ROOT, 'demigod-cdn-actions-publish.mjs');
+  if (!fs.existsSync(helper)) {
+    recordUploadAttempt('cdn-actions', false, 'demigod-cdn-actions-publish.mjs missing');
+    return null;
+  }
+  if (!(process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.DEMIGOD_GITHUB_TOKEN)) {
+    // Still stage catbox so agents can MCP-dispatch the workflow without re-upload.
+    const stage = spawnSync(process.execPath, [helper, '--stage-only'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 300000,
+      maxBuffer: 8 * 1024 * 1024,
+      env: process.env,
+    });
+    recordUploadAttempt(
+      'cdn-actions',
+      false,
+      'no GITHUB_TOKEN — catbox staged; set token or MCP-dispatch ingest-site-bundle (see /tmp/dg-busy/cdn-catbox-urls.json)',
+    );
+    console.error((stage.stderr || '').slice(-400));
+    return null;
+  }
+  console.error('→ cdn-actions (catbox + ingest-site-bundle)');
+  const run = spawnSync(process.execPath, [helper], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 600000,
+    maxBuffer: 8 * 1024 * 1024,
+    env: process.env,
+  });
+  console.error((run.stderr || '').slice(-800));
+  let receipt = null;
+  try {
+    receipt = JSON.parse((run.stdout || '').trim().split('\n').filter(Boolean).pop() || '{}');
+  } catch {
+    receipt = null;
+  }
+  if (!receipt?.ok || !receipt.cdnUrl) {
+    recordUploadAttempt('cdn-actions', false, (receipt && (receipt.error || receipt.need)) || run.stderr || 'actions publish failed');
+    return null;
+  }
+  const cdnUrl = receipt.cdnUrl;
+  for (let i = 0; i < 7; i++) {
+    const check = await fetchOk(cdnUrl);
+    const mapUrl = new URL('startup-map-latest.js', cdnUrl).href;
+    const mapDataUrl = new URL('sf-startup-map.json', cdnUrl).href;
+    const headCssUrl = new URL('head-latest.css', cdnUrl).href;
+    const rolesFeedUrl = new URL('roles-feed.json', cdnUrl).href;
+    const [mapCheck, mapDataCheck, headCssCheck] = check.ok
+      ? await Promise.all([
+          fetchExact(mapUrl, mapJs, true),
+          fetchExact(mapDataUrl, mapData),
+          fetchCssExact(headCssUrl),
+        ])
+      : [{ ok: false }, { ok: false }, { ok: false }];
+    const rolesFeedCheck = check.ok && rolesFeed ? await fetchExact(rolesFeedUrl, rolesFeed) : { ok: false };
+    console.error(
+      `cdn-actions try ${i + 1}: foot=${check.ok} map=${mapCheck.ok} data=${mapDataCheck.ok} head=${headCssCheck.ok} feed=${rolesFeedCheck.ok}`,
+    );
+    if (check.ok && mapCheck.ok && mapDataCheck.ok && headCssCheck.ok) {
+      recordUploadAttempt('cdn-actions', true, receipt.shortSha || receipt.commitSha || '');
+      return {
+        cdnUrl,
+        liveJs: check.liveJs,
+        host: 'cdn.jsdelivr.net',
+        temporary: false,
+        assets: {
+          startupMap: { url: mapUrl, sha256: mapSha, bytes: mapBytes },
+          mapData: { url: mapDataUrl, sha256: mapDataSha, bytes: mapDataBytes },
+          headCss: { url: headCssUrl, sha256: headCssSha, bytes: headCssBytes },
+          ...(rolesFeedCheck.ok
+            ? { rolesFeed: { url: rolesFeedUrl, sha256: rolesFeedSha, bytes: rolesFeedBytes } }
+            : {}),
+        },
+      };
+    }
+    await new Promise((r) => setTimeout(r, i === 0 ? 3000 : 2500 * i));
+  }
+  recordUploadAttempt('cdn-actions', false, 'jsdelivr attestation lag after actions commit');
+  return null;
+}
+
 // The CM6/live contract is easiest to audit with the immutable, commit-pinned
 // foot-latest.js URL. Keep one-off hosts as verified fallbacks, not the primary
 // path; otherwise a successful CDN publish can immediately fail CM6 preflight.
 let result = await uploadJsdelivr();
+if (!result) result = await uploadViaActions();
+if (!result) result = await uploadPermanent();
 if (!result) {
   const failureKind = classifyUploadFailure(uploadAttempts);
   const recovery = uploadFailureRecovery(failureKind, uploadAttempts);
@@ -1023,37 +1200,43 @@ const headAsset = assets?.headCss;
 if (!headAsset?.url || headAsset.sha256 !== headCssSha || headAsset.bytes !== headCssBytes) {
   throw new Error('attested CDN bundle is missing the canonical head CSS identity');
 }
+const mapAsset = assets?.startupMap;
+const mapDataAsset = assets?.mapData;
+const rolesFeedAsset = assets?.rolesFeed;
+if (!mapAsset?.url || mapAsset.sha256 !== mapSha || mapAsset.bytes !== mapBytes ||
+    !mapDataAsset?.url || mapDataAsset.sha256 !== mapDataSha || mapDataAsset.bytes !== mapDataBytes) {
+  throw new Error('attested CDN bundle is missing the canonical startup directory identity');
+}
+if (rolesFeed && (!rolesFeedAsset?.url || rolesFeedAsset.sha256 !== rolesFeedSha || rolesFeedAsset.bytes !== rolesFeedBytes)) {
+  throw new Error('attested CDN bundle is missing the canonical startup roles-feed identity');
+}
 const headBefore = fs.readFileSync(HEAD, 'utf8');
-const headAfter = headWithCdn(headBefore, headAsset.url);
+const headAfter = headWithDirectoryAssets(
+  headWithFootPreload(headWithCdn(headBefore, headAsset.url), cdnUrl),
+  mapAsset.url,
+  mapDataAsset.url,
+  rolesFeedAsset.url,
+);
 
 // v28: blog|notes|method + #note-{slug} must survive CDN publish (v27 thrash dropped them).
 const redirect = `<script>(function(){var p=location.pathname,s=location.search||'',h=location.hash||'';function go(u){var i=u.indexOf('#'),f=i<0?'':u.slice(i);if(i>=0)u=u.slice(0,i);if(s)u+=(u.indexOf('?')<0?'?':'&')+s.slice(1);location.replace(u+(h||f))}
-if(/^\\/legal\\/?$/i.test(p)&&!/[?&]p=/.test(location.search))go('/?p=legal');
-else if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
-else if(/^\\/(blog|notes)\\/?$/i.test(p))go('/?p=blog');
+if(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i.test(p))go('/?p=blog#note-'+p.match(/^\\/(?:blog|notes)\\/([a-z0-9-]+)\\/?$/i)[1]);
+else if(/^\\/notes\\/?$/i.test(p))go('/?p=blog');
 else if(/^\\/method\\/?$/i.test(p))go('/?p=how');
-else if(/^\\/partnerships?\\/?$/i.test(p)||/^\\/partners\\/?$/i.test(p))go('/?p=partners');
+else if(/^\\/partnerships?\\/?$/i.test(p))go('/?p=partners');
 else if(/^\\/(?:event-bot|events-bot)\\/?$/i.test(p))go('/?p=events');
-else if(/^\\/how\\/?$/i.test(p))go('/?p=how');
-else if(/^\\/pricing\\/?$/i.test(p))go('/?p=pricing');
-else if(/^\\/faq\\/?$/i.test(p))go('/?p=faq');
 else if(/^\\/founders\\/?$/i.test(p))go('/?p=hire');
 else if(/^\\/(?:candidates|engineers)\\/?$/i.test(p))go('/?p=talent');
 else if(/^\\/fees\\/?$/i.test(p))go('/?p=pricing');
 else if(/^\\/security\\/?$/i.test(p))go('/?p=legal');
 else if(/^\\/sample\\/?$/i.test(p))go('/?p=sample');
 else if(/^\\/network\\/?$/i.test(p))go('/?p=talent');
-else if(/^\\/hire\\/?$/i.test(p))go('/?p=hire');
-else if(/^\\/talent\\/?$/i.test(p))go('/?p=talent');
-else if(/^\\/contact\\/?$/i.test(p))go('/?p=contact');
 else if(/^\\/compare\\/?$/i.test(p))go('/?p=pricing');
 else if(/^\\/pilot\\/?$/i.test(p))go('/?p=hire');
-else if(/^\\/about\\/?$/i.test(p))go('/?p=about');
 else if(/^\\/status\\/?$/i.test(p))go('/?p=about');
-else if(/^\\/events\\/?$/i.test(p))go('/?p=events');
 })();</script>`;
 const ver = (liveJs.match(/__dgFootVer\s*=\s*['"](\d+)['"]/) || [])[1] || '?';
-const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n<script id="demigod-foot-cdn-loader" src="${cdnUrl}"></script>\n`;
+const loader = `<!-- demigod-foot-cdn-loader v28 + events + foot v${ver}${temporary ? ' TEMP-litterbox-72h' : ''} -->\n${redirect}\n${publicRolesDataBlock(publicRoles)}<script id="demigod-foot-cdn-loader" src="${cdnUrl}" defer></script>\n`;
 const manifest = JSON.stringify({
   at: new Date().toISOString(),
   version: ver,

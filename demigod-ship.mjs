@@ -281,6 +281,20 @@ function prepare() {
     ]),
   );
   const ok = steps.filter((s) => s.label !== 'truth').every((s) => s.ok);
+  // Best-effort last-good map snapshot when prepare is green (recovery after rebuild wipes).
+  if (ok) {
+    const cp = spawnSync(process.execPath, [path.join(ROOT, 'demigod-map-checkpoint.mjs'), 'save'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 60000,
+    });
+    steps.push({
+      label: 'map-checkpoint',
+      ok: cp.status === 0,
+      status: cp.status,
+      out: ((cp.stdout || '') + (cp.stderr || '')).slice(-300),
+    });
+  }
   const report = { at: new Date().toISOString(), ok, steps, freeze: freezeStatus() };
   sealRun(runEv, { pass: ok, summary: ok ? 'ship-prepare ok' : 'ship-prepare fail' });
   atomicWrite(

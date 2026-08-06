@@ -157,7 +157,8 @@ if (cfg) {
       'availability', 'salary-expectation', 'resume', '__submit__', '__thanks__',
     ]), 'parsed: engineer matching sequence');
     ok(!es.includes('links') && !(cfg.engineer.optional || []).includes('links'), 'parsed: no separate links step (consolidated into resume)');
-    ok(!(cfg.engineer.optional || []).includes('availability') && !(cfg.engineer.optional || []).includes('salary-expectation') && !(cfg.engineer.optional || []).includes('resume'), 'parsed: engineer constraints and resume required');
+    ok(!(cfg.engineer.optional || []).includes('availability') && !(cfg.engineer.optional || []).includes('salary-expectation'), 'parsed: engineer availability and compensation required');
+    ok((cfg.engineer.optional || []).includes('resume'), 'parsed: engineer resume optional');
   }
 } else {
   ok(true, 'object parse optional (string checks primary)');

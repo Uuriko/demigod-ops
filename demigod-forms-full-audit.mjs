@@ -11,6 +11,9 @@ const OUT = path.join(ROOT, 'DEMIGOD-FORMS-FULL-AUDIT.json');
 const SHOTS = path.join(ROOT, 'audit-shots', 'forms-audit');
 const USE_LOCAL = process.argv.includes('--local');
 const CORE = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8') : '';
+const HEAD_CSS = USE_LOCAL ? fs.readFileSync(path.join(ROOT, 'demigod-head-styles.css'), 'utf8') : '';
+const MANIFEST = USE_LOCAL ? JSON.parse(fs.readFileSync(path.join(ROOT, 'DEMIGOD-FOOT-CDN.json'), 'utf8')) : {};
+const EXPECTED_FOOT_VER = USE_LOCAL ? (CORE.match(/__dgFootVer=['"](\d+)['"]/) || [])[1] : '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 function bounded(promise, ms, label) {
@@ -29,11 +32,12 @@ async function auditForm(page, modalSel, openTexts, name) {
   await page.goto(`${LIVE_ORIGIN}/?v=forms-audit-${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await sleep(1500);
   const opened = await page.evaluate((texts, sel) => {
-    const btn = [...document.querySelectorAll('a,button')].find((el) =>
+    const kind = sel === '#startup-modal' ? 'startup' : 'jobseeker';
+    const btn = document.querySelector(`[data-demigod-modal="${kind}"]`) || [...document.querySelectorAll('a,button')].find((el) =>
       texts.some((t) => new RegExp(`^${t}$`, 'i').test((el.textContent || '').trim().split('\n')[0])));
     btn?.click();
     const m = document.querySelector(sel);
-    return { clicked: !!btn, modalVisible: !!(m && getComputedStyle(m).display !== 'none') };
+    return { clicked: !!btn, modalVisible: !!(m && getComputedStyle(m).display !== 'none'), footVer: String(window.__dgFootVer || '') };
   }, openTexts, modalSel);
   await sleep(800);
   await page.evaluate((sel) => {
@@ -112,11 +116,14 @@ async function main() {
     browser = await puppeteer.connect({ browserURL: CDP_URL, protocolTimeout: 30000 });
     page = await browser.newPage();
     if (USE_LOCAL) {
+      await page.setCacheEnabled(false);
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-        const url = req.url();
-        if (/foot-latest\.js(?:[?#]|$)|demigod-foot/i.test(url) || (/catbox|jsdelivr/i.test(url) && /foot.*\.js(?:[?#]|$)/i.test(url))) {
+        const url = req.url(), clean = url.replace(/[?#].*$/, '');
+        if (clean === MANIFEST.cdnUrl || /foot-latest\.js$|demigod-foot/i.test(clean)) {
           req.respond({ status: 200, contentType: 'application/javascript', body: CORE }).catch(() => {});
+        } else if (clean === MANIFEST.assets?.headCss?.url || /head-latest\.css$|demigod-head/i.test(clean)) {
+          req.respond({ status: 200, contentType: 'text/css', body: HEAD_CSS }).catch(() => {});
         } else req.continue().catch(() => {});
       });
     }
@@ -137,6 +144,11 @@ async function main() {
   }
 
   const issues = [];
+  if (USE_LOCAL) {
+    for (const [side, audit] of [['startup', startup], ['engineer', engineer], ['startup-mobile', startupMobile], ['engineer-mobile', engineerMobile]]) {
+      if (audit.footVer !== EXPECTED_FOOT_VER) issues.push({ severity: 'high', side, issue: 'local_foot_identity_mismatch', actual: audit.footVer || 'missing', expected: EXPECTED_FOOT_VER });
+    }
+  }
   for (const [side, audit] of [['startup', startup], ['engineer', engineer]]) {
     if (audit.ghosts?.length) issues.push({ severity: 'high', side, issue: 'ghost_messages_on_open', count: audit.ghosts.length });
     if (audit.formScrollable) issues.push({ severity: 'medium', side, issue: 'form_requires_scroll', scrollH: audit.scrollH });

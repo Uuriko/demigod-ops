@@ -113,13 +113,23 @@ export function evaluateControls(opts = {}) {
   try {
     const r = refuseIfStale('company-research-benchmark');
     researchGreen = r.green === true && r.fresh === true;
+    // When red, surface summary so agents fix gold/coverage instead of thrashing reseal.
+    const detail = researchGreen
+      ? (r.reason || 'pass-fresh')
+      : [r.reason || 'not-green', r.summary || null].filter(Boolean).join(' · ');
     controls.push(
       control(
         'research_seal',
         'high',
         researchGreen,
-        r.reason || (researchGreen ? 'pass-fresh' : 'not-green'),
-        { green: r.green, fresh: r.fresh, pass: r.pass, runId: r.runId || null },
+        detail,
+        {
+          green: r.green,
+          fresh: r.fresh,
+          pass: r.pass,
+          runId: r.runId || null,
+          summary: r.summary || null,
+        },
       ),
     );
   } catch (e) {
@@ -347,7 +357,20 @@ export function evaluateControls(opts = {}) {
   const nowMs = opts.nowMs ?? Date.now();
   const lastExitMs = Date.parse(service.ExecMainExitTimestamp || '');
   const timerStartMs = Date.parse(timer.ActiveEnterTimestamp || '');
-  const ageMs = nowMs - lastExitMs;
+  // Pipeline / manual `role-ledger poll` writes the ledger without always advancing the
+  // systemd unit's ExecMainExitTimestamp. When no injected probe, honor ledger mtime too.
+  let ledgerMtimeMs = Number.NaN;
+  if (Object.prototype.hasOwnProperty.call(opts, 'ledgerPollMtimeMs')) {
+    ledgerMtimeMs = Number(opts.ledgerPollMtimeMs);
+  } else if (!opts.rolePollProbe) {
+    try {
+      ledgerMtimeMs = fs.statSync(path.join(opts.root || root, 'DEMIGOD-ROLE-LEDGER.json')).mtimeMs;
+    } catch {
+      ledgerMtimeMs = Number.NaN;
+    }
+  }
+  const systemdAgeMs = nowMs - lastExitMs;
+  const ledgerAgeMs = nowMs - ledgerMtimeMs;
   const timerAgeMs = nowMs - timerStartMs;
   const timerReady =
     timer.LoadState === 'loaded' &&
@@ -362,10 +385,23 @@ export function evaluateControls(opts = {}) {
     service.ExecMainStatus === '0' &&
     Number.isFinite(lastExitMs);
   // ponytail: 36h allows the daily timer's random delay plus one sleep/wake catch-up window.
-  const fresh = lastSucceeded && ageMs >= 0 && ageMs <= ROLE_POLL_MAX_AGE_MS;
+  const systemdFresh = lastSucceeded && systemdAgeMs >= 0 && systemdAgeMs <= ROLE_POLL_MAX_AGE_MS;
+  const ledgerFresh =
+    Number.isFinite(ledgerMtimeMs) && ledgerAgeMs >= 0 && ledgerAgeMs <= ROLE_POLL_MAX_AGE_MS;
+  const fresh = systemdFresh || ledgerFresh;
+  const ageMs = systemdFresh && ledgerFresh
+    ? Math.min(systemdAgeMs, ledgerAgeMs)
+    : systemdFresh
+      ? systemdAgeMs
+      : ledgerFresh
+        ? ledgerAgeMs
+        : Number.isFinite(systemdAgeMs)
+          ? systemdAgeMs
+          : ledgerAgeMs;
   const firstRunPending =
     serviceLoaded &&
     !Number.isFinite(lastExitMs) &&
+    !ledgerFresh &&
     Number.isFinite(timerStartMs) &&
     timerAgeMs >= 0 &&
     timerAgeMs <= ROLE_POLL_MAX_AGE_MS;
@@ -384,11 +420,12 @@ export function evaluateControls(opts = {}) {
           ? `poll currently ${service.ActiveState}`
           : firstRunPending
             ? 'timer armed; first poll pending'
-            : service.Result !== 'success' || service.ExecMainStatus !== '0'
+            : !lastSucceeded && !ledgerFresh
               ? `last poll failed: result=${service.Result || '?'} status=${service.ExecMainStatus || '?'}`
               : !fresh
                 ? `last successful poll stale: ${Number.isFinite(ageMs) ? Math.round(ageMs / 3600000) : '?'}h`
-                : `last poll succeeded ${Math.round(ageMs / 60000)}m ago`;
+                : `last poll succeeded ${Math.round(ageMs / 60000)}m ago` +
+                  (ledgerFresh && !systemdFresh ? ' (ledger mtime; pipeline/manual)' : '');
   controls.push(
     control('role_poll_timer_healthy', 'med', pollHealthy, reason, {
       timerUnit: ROLE_TIMER,
@@ -403,6 +440,8 @@ export function evaluateControls(opts = {}) {
       lastExitAt: service.ExecMainExitTimestamp || null,
       nextElapseAt: timer.NextElapseUSecRealtime || null,
       ageSec: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
+      ledgerMtimeMs: Number.isFinite(ledgerMtimeMs) ? ledgerMtimeMs : null,
+      source: ledgerFresh && (!systemdFresh || ledgerAgeMs <= systemdAgeMs) ? 'ledger-mtime' : systemdFresh ? 'systemd' : null,
     }),
   );
 
@@ -713,6 +752,71 @@ export function evaluateControls(opts = {}) {
     controls.push(control('ats_secondary_coverage', 'low', true, `n/a ${e.message || e}`));
   }
 
+  // —— backup capability (gitignored ops data; low, never exit-fail) ——
+  // Honest surface for the restic path in bin/dg-backup. Missing restic/env is
+  // not inventable here; do not spawn apt or write secrets.
+  try {
+    const restic = spawnSync('/usr/bin/which', ['restic'], { encoding: 'utf8', timeout: 2000 });
+    const resticPath = (restic.status === 0 && restic.stdout.trim()) || null;
+    const repo = String(process.env.DG_BACKUP_REPO || '').trim();
+    const pwFile = String(process.env.RESTIC_PASSWORD_FILE || '').trim();
+    let pwReadable = false;
+    if (pwFile) {
+      try {
+        fs.accessSync(pwFile, fs.constants.R_OK);
+        pwReadable = true;
+      } catch {
+        pwReadable = false;
+      }
+    }
+    const blockers = [];
+    if (!resticPath) blockers.push('restic not installed');
+    if (!repo) blockers.push('DG_BACKUP_REPO unset');
+    if (!pwFile) blockers.push('RESTIC_PASSWORD_FILE unset');
+    else if (!pwReadable) blockers.push('RESTIC_PASSWORD_FILE not readable');
+    const capable = blockers.length === 0;
+    // Persist a tiny receipt so agents can read without re-probing env.
+    try {
+      atomicWrite(
+        path.join(busy, 'backup-capability.json'),
+        `${JSON.stringify({
+          schema: 'demigod.backup-capability/1',
+          at: new Date().toISOString(),
+          capable,
+          resticInstalled: Boolean(resticPath),
+          resticPath,
+          DG_BACKUP_REPO: Boolean(repo),
+          RESTIC_PASSWORD_FILE: Boolean(pwFile),
+          passwordFileReadable: pwReadable,
+          blockers,
+        })}\n`,
+        { mode: 0o600 },
+      );
+    } catch {
+      /* receipt best-effort */
+    }
+    controls.push(
+      control(
+        'backup_capability',
+        'low',
+        capable,
+        capable
+          ? `restic ready · repo configured`
+          : `not capable · ${blockers.join('; ')}`,
+        {
+          capable,
+          resticInstalled: Boolean(resticPath),
+          hasRepo: Boolean(repo),
+          hasPasswordFile: Boolean(pwFile),
+          passwordFileReadable: pwReadable,
+          blockers,
+        },
+      ),
+    );
+  } catch (e) {
+    controls.push(control('backup_capability', 'low', false, `probe failed: ${e.message || e}`));
+  }
+
   const highFail = controls.filter((c) => c.severity === 'high' && !c.ok);
   // Default: research_seal high-fail does not fail board exit (expected after map stamp).
   const exitFailers = highFail.filter((c) => {
@@ -810,11 +914,17 @@ function selftest() {
     'ats_secondary_coverage',
     'posting_age_claim_qualified',
     'directory_identity_candidates',
+    'backup_capability',
   ]) {
     assert(ids.has(need), `missing ${need}`);
   }
   assert(board.controls.find((x) => x.id === 'ats_secondary_coverage')?.severity === 'low', 'ATS secondary low');
   assert(board.controls.find((x) => x.id === 'ats_secondary_coverage')?.ok === true, 'ATS secondary never exit-fail');
+  assert(board.controls.find((x) => x.id === 'backup_capability')?.severity === 'low', 'backup capability low');
+  assert(
+    !board.exitFailures.includes('backup_capability'),
+    'backup capability never exit-fails board',
+  );
   const shCtrl = board.controls.find((x) => x.id === 'structured_hiring_no_score');
   assert(shCtrl?.severity === 'med', 'SH integrity stays med (non-exit)');
   assert(board.controls.find((x) => x.id === 'export_board_identity_clean')?.severity === 'med', 'export identity med');

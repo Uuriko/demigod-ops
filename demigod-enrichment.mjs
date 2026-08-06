@@ -7,10 +7,15 @@
  *   node demigod-enrichment.mjs scoreboard
  *   node demigod-enrichment.mjs boards     # AR-28 coverage receipt (no new scrapers)
  *   node demigod-enrichment.mjs reclassify
+ *   node demigod-enrichment.mjs feed [--days N] [--limit N]   # public roles feed (website data)
+ *   node demigod-enrichment.mjs velocity [--days N]          # hiring open/close velocity (ledger)
+ *   node demigod-enrichment.mjs requisitions                 # gated distinct-req stats
+ *   node demigod-enrichment.mjs clay                         # website-facing clay summary receipt
  *   node demigod-enrichment.mjs batch [--skip-poll] [--skip-import] [--apply-import]
  *   node demigod-enrichment.mjs --selftest
  *
  * Never invents contacts, scores, fees, or Phase 2 product.
+ * Clay = public company/role facts for directory + observed-roles — not people-data.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +23,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { categorizeRole } from './demigod-startup-jobs-enrich.mjs';
+import { rolesFeed, rolesFeedToRss } from './demigod-roles-feed.mjs';
+import { publicRolesFromFeed, writeFooterPublicRoles, embedScript, loadCompanyProfiles } from './demigod-public-roles.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const BUSY = process.env.DEMIGOD_BUSY || process.env.DG_BUSY || '/tmp/dg-busy';
@@ -28,6 +35,13 @@ const LEDGER_PATH = path.join(ROOT, 'DEMIGOD-ROLE-LEDGER.json');
 const AGING_PATH = path.join(ROOT, 'DEMIGOD-DIRECTORY-AGING.json');
 const SCOREBOARD_PATH = path.join(BUSY, 'enrichment-scoreboard.json');
 const BOARDS_PATH = path.join(BUSY, 'ats-board-coverage.json');
+const FEED_PATH = path.join(ROOT, 'DEMIGOD-ROLES-FEED.json');
+const VELOCITY_PATH = path.join(BUSY, 'enrichment-velocity.json');
+const REQUISITIONS_PATH = path.join(BUSY, 'enrichment-requisitions.json');
+const CLAY_PATH = path.join(BUSY, 'enrichment-clay-website.json');
+const COVERAGE_PATH = path.join(BUSY, 'enrichment-coverage.json');
+const RSS_PATH = path.join(ROOT, 'DEMIGOD-ROLES-FEED.rss');
+const PUBLIC_ROLES_PATH = path.join(ROOT, 'DEMIGOD-PUBLIC-ROLES.json');
 const SCHEMA = 'demigod.enrichment-scoreboard/1';
 const BOARDS_SCHEMA = 'demigod.ats-board-coverage/1';
 
@@ -99,6 +113,11 @@ export function buildScoreboard({ map, ledger, aging, exportDoc, research } = {}
       openUs: openUs.length,
       withAgencyPolicy: withPolicy,
       withNativePostedAt: withNative,
+      withUpdatedAt: open.filter((r) => r.nativeUpdatedAt).length,
+      withEmployerDepartment: open.filter((r) => r.employerDepartment).length,
+      withEmployerOffice: open.filter((r) => r.employerOffice).length,
+      requisitionIdShaped: open.filter((r) => r.requisitionSignal === 'id').length,
+      requisitionAbstain: open.filter((r) => r.requisitionSignal === 'abstain').length,
       peopleFn: people,
       byFn,
       updatedAt: ledger?.updatedAt || null,
@@ -196,6 +215,244 @@ export function buildBoardCoverage({ map, exportDoc } = {}) {
       : null,
     note:
       'Coverage facts only. Does not add ATS hosts. jobsUrl without openRoles may be YC jobs page or unpollable board.',
+  };
+}
+
+
+/** Days between YYYY-MM-DD strings (UTC day). */
+function dayDiff(a, b) {
+  return Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+}
+
+/**
+ * PURE. Open/close velocity from ledger firstSeen / closedAt (our observation clock).
+ * Website-safe: no people data, no scores.
+ */
+export function hiringVelocity(ledger, { today = new Date().toISOString().slice(0, 10), days = 7 } = {}) {
+  const windowDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 90) : 7;
+  const roles = Object.values(ledger?.roles || {}).filter((r) => r && typeof r === 'object');
+  const opened = [];
+  const closed = [];
+  for (const r of roles) {
+    if (r.firstSeen && dayDiff(r.firstSeen, today) >= 0 && dayDiff(r.firstSeen, today) <= windowDays) {
+      opened.push(r);
+    }
+    if (r.closedAt && dayDiff(r.closedAt, today) >= 0 && dayDiff(r.closedAt, today) <= windowDays) {
+      closed.push(r);
+    }
+  }
+  const byBoard = {};
+  const bump = (r, kind) => {
+    const key = `${r.provider}|${r.slug}`;
+    const row = (byBoard[key] ||= {
+      provider: r.provider,
+      slug: r.slug,
+      company: r.company || null,
+      opened: 0,
+      closed: 0,
+    });
+    row[kind] += 1;
+    if (r.company) row.company = r.company;
+  };
+  for (const r of opened) bump(r, 'opened');
+  for (const r of closed) bump(r, 'closed');
+  const boards = Object.values(byBoard).sort(
+    (a, b) => b.opened + b.closed - (a.opened + a.closed) || String(a.company).localeCompare(String(b.company)),
+  );
+  return {
+    schema: 'demigod.enrichment-velocity/1',
+    at: new Date().toISOString(),
+    today,
+    windowDays,
+    basis: 'firstSeen/closedAt on Demigod role-ledger (observation clock), not employer post dates',
+    counts: {
+      openedInWindow: opened.length,
+      closedInWindow: closed.length,
+      net: opened.length - closed.length,
+      boardsActive: boards.length,
+    },
+    topBoards: boards.slice(0, 40),
+  };
+}
+
+/**
+ * PURE. Gated distinct-requisition stats — never silently replace posting counts.
+ * Abstains when requisitionSignal !== 'id' (Airbnb ONE/MULTI trap).
+ */
+export function requisitionStats(ledger) {
+  const open = Object.values(ledger?.roles || {}).filter((r) => r && !r.closedAt);
+  const byBoard = {};
+  let idShaped = 0;
+  let abstain = 0;
+  let missing = 0;
+  for (const r of open) {
+    const key = `${r.provider}|${r.slug}`;
+    const row = (byBoard[key] ||= {
+      provider: r.provider,
+      slug: r.slug,
+      company: r.company || null,
+      postings: 0,
+      requisitionIdDistinct: 0,
+      requisitionAbstain: 0,
+      requisitionMissing: 0,
+      _ids: new Set(),
+    });
+    row.postings += 1;
+    if (r.requisitionSignal === 'id' && r.requisitionId) {
+      idShaped += 1;
+      row._ids.add(r.requisitionId);
+    } else if (r.requisitionSignal === 'abstain') {
+      abstain += 1;
+      row.requisitionAbstain += 1;
+    } else {
+      missing += 1;
+      row.requisitionMissing += 1;
+    }
+  }
+  const boards = Object.values(byBoard).map((b) => {
+    const { _ids, ...rest } = b;
+    return {
+      ...rest,
+      requisitionIdDistinct: _ids.size,
+      // Honest dual count: postings always; distinct only when ID-shaped.
+      note:
+        _ids.size > 0 && _ids.size < b.postings
+          ? 'distinct ID-shaped requisitions < postings (employer reuses req ids or mixed signals)'
+          : b.requisitionAbstain > 0
+            ? 'some requisition_id values abstained (not ID-shaped)'
+            : null,
+    };
+  });
+  boards.sort((a, b) => b.postings - a.postings);
+  return {
+    schema: 'demigod.enrichment-requisitions/1',
+    at: new Date().toISOString(),
+    basis:
+      'requisitionSignal=id only counts toward distinct openings; ONE/MULTI/TBD abstain. Postings always reported separately.',
+    counts: {
+      openPostings: open.length,
+      requisitionIdShaped: idShaped,
+      requisitionAbstain: abstain,
+      requisitionMissing: missing,
+      boards: boards.length,
+    },
+    topBoards: boards.slice(0, 50),
+  };
+}
+
+/**
+ * Website-facing Clay summary: feed + velocity + employer-field coverage + public roles slice.
+ */
+
+/**
+ * PURE. Coverage + freshness of public employer fields and dual clocks.
+ * Fail-closed: empty evidence → 0 counts, never invented fill rates as quality scores.
+ */
+export function coverageFreshness(ledger, { today = new Date().toISOString().slice(0, 10) } = {}) {
+  const open = Object.values(ledger?.roles || {}).filter((r) => r && !r.closedAt);
+  const n = open.length;
+  const pct = (k) => (n ? Math.round((1000 * k) / n) / 10 : 0);
+  const withDept = open.filter((r) => r.employerDepartment).length;
+  const withOffice = open.filter((r) => r.employerOffice).length;
+  const withUpdated = open.filter((r) => r.nativeUpdatedAt).length;
+  const withEmpType = open.filter((r) => r.employmentType).length;
+  const withWorkplace = open.filter((r) => r.workplaceType).length;
+  const withPosted = open.filter((r) => r.nativePostedAt && r.nativeDateField === 'first_published').length;
+  const withReqId = open.filter((r) => r.requisitionSignal === 'id').length;
+  const withReqAbs = open.filter((r) => r.requisitionSignal === 'abstain').length;
+  let maintainedStale = 0;
+  let editedNewerThanFirstSeen = 0;
+  const ages = [];
+  for (const r of open) {
+    const obs = dayDiff(r.firstSeen, today);
+    if (Number.isFinite(obs) && obs >= 0) ages.push(obs);
+    const posted = r.nativePostedAt && r.nativeDateField === 'first_published' ? dayDiff(r.nativePostedAt, today) : null;
+    const edited = r.nativeUpdatedAt ? dayDiff(r.nativeUpdatedAt, today) : null;
+    if (posted != null && posted >= 90 && edited != null && edited <= 14) maintainedStale += 1;
+    if (r.nativeUpdatedAt && r.firstSeen && r.nativeUpdatedAt > r.firstSeen) editedNewerThanFirstSeen += 1;
+  }
+  ages.sort((a, b) => a - b);
+  const medianAge = ages.length ? ages[Math.floor(ages.length / 2)] : null;
+  const maxAge = ages.length ? ages[ages.length - 1] : null;
+  return {
+    schema: 'demigod.enrichment-coverage/1',
+    at: new Date().toISOString(),
+    today,
+    basis:
+      'Field fill is presence of public board/ledger facts on open roles. Percentages are coverage of open postings, not quality scores. maintainedStale = Greenhouse first_published ≥90d and updated_at within 14d.',
+    openRoles: n,
+    fieldFill: {
+      employerDepartment: { n: withDept, pct: pct(withDept) },
+      employerOffice: { n: withOffice, pct: pct(withOffice) },
+      nativeUpdatedAt: { n: withUpdated, pct: pct(withUpdated) },
+      employmentType: { n: withEmpType, pct: pct(withEmpType) },
+      workplaceType: { n: withWorkplace, pct: pct(withWorkplace) },
+      attributedFirstPublished: { n: withPosted, pct: pct(withPosted) },
+      requisitionIdShaped: { n: withReqId, pct: pct(withReqId) },
+      requisitionAbstain: { n: withReqAbs, pct: pct(withReqAbs) },
+    },
+    dualClocks: {
+      maintainedStale,
+      boardUpdatedAfterFirstSeen: editedNewerThanFirstSeen,
+      note: 'firstSeen is our observation; first_published/updated_at are employer clocks when present',
+    },
+    observationAges: {
+      medianDays: medianAge,
+      maxDays: maxAge,
+      note: 'Observed open age from Demigod firstSeen only',
+    },
+  };
+}
+
+export function clayWebsiteSummary({ ledger, map, aging, feed, velocity, requisitions, publicRoles, coverage } = {}) {
+  const open = Object.values(ledger?.roles || {}).filter((r) => r && !r.closedAt);
+  return {
+    schema: 'demigod.enrichment-clay-website/1',
+    at: new Date().toISOString(),
+    note:
+      'Public company/role facts for directory + observed-roles. Not people enrichment, not matching inventory, not Clay.com clone.',
+    ledger: {
+      open: open.length,
+      withEmployerDepartment: open.filter((r) => r.employerDepartment).length,
+      withEmployerOffice: open.filter((r) => r.employerOffice).length,
+      withUpdatedAt: open.filter((r) => r.nativeUpdatedAt).length,
+      requisitionIdShaped: open.filter((r) => r.requisitionSignal === 'id').length,
+      requisitionAbstain: open.filter((r) => r.requisitionSignal === 'abstain').length,
+      updatedAt: ledger?.updatedAt || null,
+    },
+    map: map
+      ? {
+          companies: (map.companies || []).length,
+          withLedgerOpen: (map.companies || []).filter((c) => (c.ledgerOpenRoles || 0) > 0).length,
+          withRoleMix: (map.companies || []).filter((c) => c.roleMix && Object.keys(c.roleMix).length).length,
+        }
+      : null,
+    aging: aging
+      ? { companyCount: aging.companyCount ?? null, companiesWithAgingRole: aging.companiesWithAgingRole ?? null, today: aging.today ?? null }
+      : null,
+    feed: feed
+      ? {
+          schema: feed.schema,
+          windowDays: feed.windowDays,
+          returned: feed.counts?.returned ?? feed.roles?.length ?? 0,
+          inWindow: feed.counts?.inWindow ?? null,
+          withEmployerDepartment: feed.counts?.withEmployerDepartment ?? null,
+          withBoardUpdatedAt: feed.counts?.withBoardUpdatedAt ?? null,
+        }
+      : null,
+    velocity: velocity?.counts || null,
+    requisitions: requisitions?.counts || null,
+    publicRoles: publicRoles
+      ? { count: publicRoles.roles?.length ?? 0, generatedAt: publicRoles.generatedAt ?? null }
+      : null,
+    coverage: coverage
+      ? {
+          openRoles: coverage.openRoles,
+          fieldFill: coverage.fieldFill,
+          dualClocks: coverage.dualClocks,
+          observationAges: coverage.observationAges,
+        }
+      : null,
   };
 }
 
@@ -363,6 +620,49 @@ function selftest() {
   });
   assert(cov.schema === BOARDS_SCHEMA, 'boards schema');
   assert(cov.map.withOpenRoles === 1 && cov.map.jobsUrlNoOpenRoles === 1 && cov.map.noJobsUrl === 1, 'boards counts');
+
+  const vel = hiringVelocity(
+    {
+      roles: {
+        a: { provider: 'Greenhouse', slug: 'a', company: 'A', firstSeen: '2026-07-28', closedAt: null },
+        b: { provider: 'Greenhouse', slug: 'a', company: 'A', firstSeen: '2026-07-01', closedAt: '2026-07-29' },
+        c: { provider: 'Lever', slug: 'b', company: 'B', firstSeen: '2026-07-30', closedAt: null },
+      },
+    },
+    { today: '2026-07-31', days: 7 },
+  );
+  assert(vel.counts.openedInWindow === 2 && vel.counts.closedInWindow === 1, 'velocity window');
+  assert(vel.topBoards.some((b) => b.slug === 'a' && b.opened === 1 && b.closed === 1), 'velocity board');
+
+  const rq = requisitionStats({
+    roles: {
+      x: { closedAt: null, provider: 'Greenhouse', slug: 's', company: 'S', requisitionId: 'JR1', requisitionSignal: 'id' },
+      y: { closedAt: null, provider: 'Greenhouse', slug: 's', company: 'S', requisitionId: 'JR1', requisitionSignal: 'id' },
+      z: { closedAt: null, provider: 'Greenhouse', slug: 's', company: 'S', requisitionId: 'ONE', requisitionSignal: 'abstain' },
+      w: { closedAt: null, provider: 'Greenhouse', slug: 's', company: 'S' },
+    },
+  });
+  assert(rq.counts.openPostings === 4 && rq.counts.requisitionIdShaped === 2 && rq.counts.requisitionAbstain === 1, 'req counts');
+  assert(rq.topBoards[0].requisitionIdDistinct === 1, 'distinct JR1 once');
+
+  const clay = clayWebsiteSummary({
+    ledger: { updatedAt: '2026-07-31', roles: { a: { closedAt: null, employerDepartment: 'Eng', nativeUpdatedAt: '2026-07-30' } } },
+    feed: { schema: 'demigod.roles-feed/1', windowDays: 1, counts: { returned: 1 }, roles: [{}] },
+    velocity: vel,
+    requisitions: rq,
+    publicRoles: { roles: [{}, {}], generatedAt: '2026-07-31T00:00:00.000Z' },
+  });
+  assert(clay.schema === 'demigod.enrichment-clay-website/1' && clay.publicRoles.count === 2, 'clay summary');
+  const covFresh = coverageFreshness({
+    roles: {
+      a: { closedAt: null, firstSeen: '2026-01-01', employerDepartment: 'E', nativeUpdatedAt: '2026-07-20', nativePostedAt: '2026-01-01', nativeDateField: 'first_published', requisitionSignal: 'id' },
+      b: { closedAt: null, firstSeen: '2026-07-01', requisitionSignal: 'abstain', requisitionId: 'ONE' },
+    },
+  }, { today: '2026-07-31' });
+  assert(covFresh.schema === 'demigod.enrichment-coverage/1' && covFresh.openRoles === 2, 'coverage schema');
+  assert(covFresh.fieldFill.employerDepartment.n === 1 && covFresh.fieldFill.requisitionAbstain.n === 1, 'coverage fill');
+  assert(covFresh.dualClocks.maintainedStale === 1, 'maintained stale dual clock');
+
   console.log(JSON.stringify({ ok: true, selftest: 'enrichment' }));
 }
 
@@ -373,11 +673,17 @@ function main() {
     return;
   }
   if (args.includes('--help') || args.includes('-h')) {
-    console.log(`usage: node demigod-enrichment.mjs scoreboard|boards|reclassify|batch [--skip-poll] [--skip-import] [--apply-import] [--selftest]
+    console.log(`usage: node demigod-enrichment.mjs scoreboard|boards|reclassify|feed|velocity|requisitions|coverage|clay|batch [--skip-poll] [--skip-import] [--apply-import] [--selftest]
 See docs/die/ENRICHMENT-FEATURES.md for the exhaustive feature inventory.`);
     process.exit(0);
   }
   const cmd = args.find((a) => !a.startsWith('-')) || 'scoreboard';
+  const argNum = (flag, d) => {
+    const i = args.indexOf(flag);
+    if (i < 0) return d;
+    const v = Number(args[i + 1]);
+    return Number.isFinite(v) ? v : d;
+  };
   if (cmd === 'boards') {
     const cov = buildBoardCoverage({
       map: readJson(MAP_PATH),
@@ -392,6 +698,128 @@ See docs/die/ENRICHMENT-FEATURES.md for the exhaustive feature inventory.`);
           path: BOARDS_PATH,
           map: cov.map,
           export: cov.export,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  if (cmd === 'feed') {
+    const ledger = readJson(LEDGER_PATH);
+    if (!ledger) {
+      console.error(JSON.stringify({ ok: false, error: 'missing ledger' }));
+      process.exit(1);
+    }
+    const today = process.env.DEMIGOD_LEDGER_DATE || new Date().toISOString().slice(0, 10);
+    const feed = rolesFeed(ledger, { today, days: argNum('--days', 1), limit: argNum('--limit', 120) });
+    atomicWrite(FEED_PATH, `${JSON.stringify(feed, null, 2)}\n`, { mode: 0o600 });
+    atomicWrite(RSS_PATH, rolesFeedToRss(feed), { mode: 0o644 });
+    const pub = publicRolesFromFeed(feed, { limit: argNum('--public-limit', 8), profiles: loadCompanyProfiles() });
+    atomicWrite(PUBLIC_ROLES_PATH, `${JSON.stringify(pub, null, 2)}\n`, { mode: 0o600 });
+    const embedPath = path.join(ROOT, 'demigod-public-roles-embed.js');
+    atomicWrite(embedPath, embedScript(pub), { mode: 0o600 });
+    const footer = writeFooterPublicRoles(pub);
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          feed: FEED_PATH,
+          publicRoles: PUBLIC_ROLES_PATH,
+          embed: embedPath,
+          footer,
+          counts: feed.counts,
+          publicCount: pub.roles.length,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  if (cmd === 'velocity') {
+    const ledger = readJson(LEDGER_PATH);
+    if (!ledger) {
+      console.error(JSON.stringify({ ok: false, error: 'missing ledger' }));
+      process.exit(1);
+    }
+    const today = process.env.DEMIGOD_LEDGER_DATE || new Date().toISOString().slice(0, 10);
+    const vel = hiringVelocity(ledger, { today, days: argNum('--days', 7) });
+    fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+    atomicWrite(VELOCITY_PATH, `${JSON.stringify(vel, null, 2)}\n`, { mode: 0o600 });
+    console.log(JSON.stringify({ ok: true, path: VELOCITY_PATH, counts: vel.counts }, null, 2));
+    return;
+  }
+  if (cmd === 'requisitions') {
+    const ledger = readJson(LEDGER_PATH);
+    if (!ledger) {
+      console.error(JSON.stringify({ ok: false, error: 'missing ledger' }));
+      process.exit(1);
+    }
+    const rq = requisitionStats(ledger);
+    fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+    atomicWrite(REQUISITIONS_PATH, `${JSON.stringify(rq, null, 2)}\n`, { mode: 0o600 });
+    console.log(JSON.stringify({ ok: true, path: REQUISITIONS_PATH, counts: rq.counts }, null, 2));
+    return;
+  }
+  if (cmd === 'coverage') {
+    const ledger = readJson(LEDGER_PATH);
+    if (!ledger) {
+      console.error(JSON.stringify({ ok: false, error: 'missing ledger' }));
+      process.exit(1);
+    }
+    const today = process.env.DEMIGOD_LEDGER_DATE || new Date().toISOString().slice(0, 10);
+    const cov = coverageFreshness(ledger, { today });
+    fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+    atomicWrite(COVERAGE_PATH, `${JSON.stringify(cov, null, 2)}\n`, { mode: 0o600 });
+    console.log(JSON.stringify({ ok: true, path: COVERAGE_PATH, openRoles: cov.openRoles, fieldFill: cov.fieldFill, dualClocks: cov.dualClocks }, null, 2));
+    return;
+  }
+  if (cmd === 'clay') {
+    const ledger = readJson(LEDGER_PATH);
+    if (!ledger) {
+      console.error(JSON.stringify({ ok: false, error: 'missing ledger' }));
+      process.exit(1);
+    }
+    const today = process.env.DEMIGOD_LEDGER_DATE || new Date().toISOString().slice(0, 10);
+    const feed = rolesFeed(ledger, { today, days: argNum('--days', 1), limit: argNum('--limit', 120) });
+    atomicWrite(FEED_PATH, `${JSON.stringify(feed, null, 2)}\n`, { mode: 0o600 });
+    const pub = publicRolesFromFeed(feed, { limit: argNum('--public-limit', 8), profiles: loadCompanyProfiles() });
+    atomicWrite(PUBLIC_ROLES_PATH, `${JSON.stringify(pub, null, 2)}\n`, { mode: 0o600 });
+    atomicWrite(path.join(ROOT, 'demigod-public-roles-embed.js'), embedScript(pub), { mode: 0o600 });
+    const footer = writeFooterPublicRoles(pub);
+    const velocity = hiringVelocity(ledger, { today, days: argNum('--velocity-days', 7) });
+    atomicWrite(VELOCITY_PATH, `${JSON.stringify(velocity, null, 2)}\n`, { mode: 0o600 });
+    const requisitions = requisitionStats(ledger);
+    atomicWrite(REQUISITIONS_PATH, `${JSON.stringify(requisitions, null, 2)}\n`, { mode: 0o600 });
+    const coverage = coverageFreshness(ledger, { today });
+    atomicWrite(COVERAGE_PATH, `${JSON.stringify(coverage, null, 2)}\n`, { mode: 0o600 });
+    atomicWrite(RSS_PATH, rolesFeedToRss(feed), { mode: 0o644 });
+    const clay = clayWebsiteSummary({
+      ledger,
+      map: readJson(MAP_PATH),
+      aging: readJson(AGING_PATH),
+      feed,
+      velocity,
+      requisitions,
+      publicRoles: pub,
+      coverage,
+    });
+    fs.mkdirSync(BUSY, { recursive: true, mode: 0o700 });
+    atomicWrite(CLAY_PATH, `${JSON.stringify(clay, null, 2)}\n`, { mode: 0o600 });
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          clay: CLAY_PATH,
+          feed: FEED_PATH,
+          velocity: VELOCITY_PATH,
+          requisitions: REQUISITIONS_PATH,
+          coverage: COVERAGE_PATH,
+          rss: RSS_PATH,
+          publicRoles: PUBLIC_ROLES_PATH,
+          footer,
+          summary: clay,
         },
         null,
         2,

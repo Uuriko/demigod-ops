@@ -924,7 +924,9 @@ export function buildStatus() {
       ? `Agent: draft packs ready for ${top3.map((t) => t.name).join(' → ')} · hygiene ok · mark-sent only after real send`
       : sendLog.count
         ? 'Queue handles all marked SENT-CONFIRMED — refresh queue or pilot inbound'
-        : 'No queue rows parsed — check demigod-ops/SEND-QUEUE-PRIORITIZED.md';
+        : !String(queueMd || '').trim()
+          ? 'No queue file — restore demigod-ops/SEND-QUEUE-PRIORITIZED.md (gitignored local ops)'
+          : 'Queue empty · drafts-only · no pending handles · warm inbound / accepted brief only'
 
   // Progress: only attested SENT; queue names never invented from ghost log handles
   const ghostHandles = [...sendLog.handles].filter(

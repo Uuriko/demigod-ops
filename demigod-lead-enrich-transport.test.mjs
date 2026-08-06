@@ -99,3 +99,34 @@ test('unsafe provider lookalikes never invoke Firecrawl', (t) => {
   assert.equal(fcScrape('https://jobs.ashbyhq.com/acme/1'), 'public provider page');
   assert.equal(fs.readFileSync(calls, 'utf8').trim(), 'https://jobs.ashbyhq.com/acme/1');
 });
+
+test('fcScrape falls back to HTTPS curl when firecrawl CLI is missing', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-fc-http-'));
+  const curl = path.join(dir, 'curl');
+  const calls = path.join(dir, 'curl-calls');
+  // No firecrawl on PATH; curl writes a body long enough for extractContactFromPage.
+  fs.writeFileSync(
+    curl,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "$DG_TEST_CURL_CALLS"\nprintf '%s\\n' 'Contact us at mailto:founder@example.com for this public Ashby role listing and more context about the company hiring process.'\n`,
+    { mode: 0o700 },
+  );
+  const priorPath = process.env.PATH;
+  const priorCalls = process.env.DG_TEST_CURL_CALLS;
+  // Empty PATH prefix so firecrawl is ENOENT; only our curl is found.
+  process.env.PATH = dir;
+  process.env.DG_TEST_CURL_CALLS = calls;
+  try {
+    const body = fcScrape('https://jobs.ashbyhq.com/acme/1');
+    assert.match(String(body || ''), /founder@example\.com/);
+    assert.equal(lastFcScrapeError, null);
+    assert.match(fs.readFileSync(calls, 'utf8'), /jobs\.ashbyhq\.com\/acme\/1/);
+    assert.equal(fcScrape('http://localhost/jobs.ashbyhq.com/private'), null);
+    assert.equal(lastFcScrapeError, 'unsafe_url');
+  } finally {
+    if (priorPath === undefined) delete process.env.PATH;
+    else process.env.PATH = priorPath;
+    if (priorCalls === undefined) delete process.env.DG_TEST_CURL_CALLS;
+    else process.env.DG_TEST_CURL_CALLS = priorCalls;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

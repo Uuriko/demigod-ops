@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Refresh Claude + ChatGPT OAuth into ~/.prime/agent/auth.json; wire xAI via Grok CLI token.
+set -euo pipefail
+export PATH="${HOME}/.nvm/versions/node/v24.17.0/bin:${PATH}"
+PI_AI="${HOME}/.nvm/versions/node/v24.17.0/lib/node_modules/prime-agent/node_modules/@earendil-works/pi-ai/dist/utils/oauth"
+node --input-type=module - <<JS
+import { readFileSync, writeFileSync, chmodSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { refreshAnthropicToken } from '${PI_AI}/anthropic.js';
+import { refreshOpenAICodexToken } from '${PI_AI}/openai-codex.js';
+
+const home = homedir();
+const authPath = join(home, '.prime/agent/auth.json');
+const claudePath = join(home, '.claude/.credentials.json');
+const codexPath = join(home, '.codex/auth.json');
+const auth = existsSync(authPath) ? JSON.parse(readFileSync(authPath, 'utf8') || '{}') : {};
+const status = { ok: true, providers: {}, errors: {} };
+const now = Date.now();
+
+async function ensureAnthropic() {
+  const candidates = [];
+  if (auth?.anthropic?.type === 'oauth' && auth.anthropic.refresh) candidates.push(auth.anthropic.refresh);
+  if (existsSync(claudePath)) {
+    const claude = JSON.parse(readFileSync(claudePath, 'utf8'));
+    if (claude?.claudeAiOauth?.refreshToken) candidates.push(claude.claudeAiOauth.refreshToken);
+  }
+  let lastErr;
+  for (const refresh of candidates) {
+    try {
+      const r = await refreshAnthropicToken(refresh);
+      auth.anthropic = { type: 'oauth', refresh: r.refresh || refresh, access: r.access, expires: r.expires };
+      status.providers.anthropic = { type: 'oauth', expires: new Date(r.expires).toISOString(), refreshed: true };
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  // keep existing access if still valid
+  if (auth?.anthropic?.type === 'oauth' && auth.anthropic.access && auth.anthropic.expires > now + 60_000) {
+    status.providers.anthropic = {
+      type: 'oauth',
+      expires: new Date(auth.anthropic.expires).toISOString(),
+      refreshed: false,
+      note: 'kept existing access (refresh failed)',
+    };
+    status.errors.anthropic_refresh = String(lastErr?.message || lastErr || 'refresh failed');
+    return;
+  }
+  throw lastErr || new Error('no anthropic credentials');
+}
+
+async function ensureCodex() {
+  const candidates = [];
+  if (auth?.['openai-codex']?.type === 'oauth' && auth['openai-codex'].refresh) {
+    candidates.push(auth['openai-codex'].refresh);
+  }
+  if (existsSync(codexPath)) {
+    const codex = JSON.parse(readFileSync(codexPath, 'utf8'));
+    if (codex?.tokens?.refresh_token) candidates.push(codex.tokens.refresh_token);
+  }
+  let lastErr;
+  for (const refresh of candidates) {
+    try {
+      const r = await refreshOpenAICodexToken(refresh);
+      auth['openai-codex'] = {
+        type: 'oauth',
+        access: r.access,
+        refresh: r.refresh,
+        expires: r.expires,
+        accountId: r.accountId,
+      };
+      status.providers['openai-codex'] = {
+        type: 'oauth',
+        expires: new Date(r.expires).toISOString(),
+        accountId: r.accountId,
+        refreshed: true,
+      };
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (auth?.['openai-codex']?.type === 'oauth' && auth['openai-codex'].access && auth['openai-codex'].expires > now + 60_000) {
+    status.providers['openai-codex'] = {
+      type: 'oauth',
+      expires: new Date(auth['openai-codex'].expires).toISOString(),
+      refreshed: false,
+      note: 'kept existing access (refresh failed)',
+    };
+    status.errors.codex_refresh = String(lastErr?.message || lastErr || 'refresh failed');
+    return;
+  }
+  throw lastErr || new Error('no openai-codex credentials');
+}
+
+try {
+  await ensureAnthropic();
+} catch (e) {
+  status.ok = false;
+  status.errors.anthropic = String(e.message || e);
+}
+
+try {
+  await ensureCodex();
+} catch (e) {
+  status.ok = false;
+  status.errors['openai-codex'] = String(e.message || e);
+}
+
+auth.xai = { type: 'api_key', key: '!' + join(home, 'bin/prime-xai-token') };
+try {
+  const r = spawnSync(join(home, 'bin/prime-xai-token'), { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error((r.stderr || r.stdout || 'token helper failed').trim());
+  status.providers.xai = { type: 'api_key_via_grok_cli', tokenChars: (r.stdout || '').length };
+} catch (e) {
+  status.ok = false;
+  status.errors.xai = String(e.message || e);
+}
+
+writeFileSync(authPath, JSON.stringify(auth, null, 2) + '\n', { mode: 0o600 });
+chmodSync(authPath, 0o600);
+console.log(JSON.stringify(status, null, 2));
+process.exit(status.ok ? 0 : 1);
+JS

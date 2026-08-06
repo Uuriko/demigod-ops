@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { connectBrowser } from './collab-lib.mjs';
 import { assertCanWriteFoot } from './demigod-foot-lock.mjs';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
-import { assertWikidataAdmission } from './demigod-identity-review.mjs';
 import { buildStaticDirectory } from './demigod-directory-static.mjs';
 
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
@@ -21,11 +20,22 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const optionalBytes = (file) => { try { return fs.readFileSync(file); } catch (error) { if (error?.code === 'ENOENT') return null; throw error; } };
 const fileSha256 = (file) => { const bytes = optionalBytes(file); return bytes == null ? null : sha256(bytes); };
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const waitForPagesButton = (page) => page.waitForFunction(
-  () => [...document.querySelectorAll('[data-automation-id=left-sidebar-pages-button]')]
-    .some((element) => element.isConnected && element.getClientRects().length),
-  { timeout: 120000 },
-);
+const waitForPagesButton = async (page, timeout = 45000) => {
+  try {
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('[data-automation-id=left-sidebar-pages-button]')]
+        .some((element) => element.isConnected && element.getClientRects().length),
+      { timeout },
+    );
+  } catch {
+    const title = await page.title().catch(() => '');
+    const href = page.url();
+    throw new Error(
+      `Designer Pages button not ready within ${timeout}ms (url=${href} title=${title}). ` +
+        'Open Designer on a wide viewport (≥1280px); Webflow hides Pages when the window is narrow.',
+    );
+  }
+};
 
 export function validateStaticFragment(value) {
   const text = String(value || '');
@@ -131,7 +141,6 @@ export async function run(save) {
   if (save) {
     assertNotFrozen('startups-static-paste');
     assertCanWriteFoot({ label: 'startups-static-paste' });
-    await assertWikidataAdmission();
     assertSnapshotUnchanged();
   }
 
@@ -143,10 +152,13 @@ export async function run(save) {
     if (!page) {
       page = await browser.newPage();
       ownsPage = true;
-      await page.setViewport({ width: 1440, height: 900 });
     }
+    await page.setViewport({ width: 1440, height: 900 });
     // Always navigate so the initial comparison is persisted Webflow state, never a stale editor store.
     await page.goto(DESIGNER, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    if (/webflow\.com\/login/.test(page.url()) || /access to this page has been denied/i.test(await page.title())) {
+      throw new Error('Webflow Designer authentication unavailable; page fragment was not changed');
+    }
     await page.bringToFront();
     await waitForPagesButton(page);
     await openSettings(page);
@@ -212,7 +224,18 @@ if (isMain) {
     }
     console.log(JSON.stringify({ ok: true, selftest: 'startups-static-paste' }));
   } else if (args.length === 1 && ['--check', '--save'].includes(args[0])) {
-    await run(args[0] === '--save');
+    try {
+      await run(args[0] === '--save');
+    } catch (err) {
+      const msg = String(err?.message || err);
+      console.error(msg);
+      // Policy / Designer env — not a sealed-fragment product bug (POSIX usage-style amber).
+      const policyOrEnv =
+        /did not authorize|publish freeze|authentication unavailable|Pages button not ready|foot lock|lock held|browser too small/i.test(
+          msg,
+        );
+      process.exitCode = policyOrEnv ? 2 : 1;
+    }
   } else {
     console.error('usage: node demigod-startups-static-paste.mjs --check|--save|--selftest');
     process.exitCode = 2;

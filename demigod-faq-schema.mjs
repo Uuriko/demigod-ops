@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// FAQPage JSON-LD generator for /faq. The live /faq already renders a 17-item <details> accordion, but
-// ships Organization/WebSite/ItemList/Blog schema and NO FAQPage — so it misses Google's expandable-Q&A
-// rich result. This turns the real Q&A into valid schema.org/FAQPage JSON-LD, ready to embed.
+// FAQPage JSON-LD generator for /faq. Schema must contain the same questions and answers visitors
+// can read on the page; hidden or stale FAQ entities are dishonest even when the JSON is valid.
 //
 //   node demigod-faq-schema.mjs --items faq.json   # {items:[{q,a}]} or [{q,a}] -> <script> tag
 //   node demigod-faq-schema.mjs --selftest

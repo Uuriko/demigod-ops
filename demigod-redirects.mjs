@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import { fileURLToPath } from 'url';
+import WebSocket from 'ws';
 import { assertNotFrozen } from './demigod-publish-freeze.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));

@@ -5,6 +5,7 @@
 **Related:** `docs/exchange/DEMIGOD-WEBSITE-WEBFLOW-TROUBLESHOOTING-2026-07-13.md`, `demigod-webflow-lib.mjs`, `demigod-cm6-paste-publish.mjs`, `demigod-ship.mjs`.
 
 **Deep expertise:** `docs/WEBFLOW-EXPERT-GUIDE.md` (platform map, MCP limits, decision tree, curriculum).
+**This machine setup:** `docs/WEBFLOW-MCP-SETUP.md` · `bin/dg-webflow connect setup`
 **Research date:** 2026-07-16 · Sources: Webflow Help/University, developers.webflow.com Data API docs, Demigod postmortems + ship tooling.
 
 ---

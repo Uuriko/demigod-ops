@@ -14,66 +14,65 @@
 
 **How the studio runs:** [`docs/DEMIGOD-HANDBOOK.md`](docs/DEMIGOD-HANDBOOK.md) — standards, roles, ship loop, honesty, checklists, onboarding.
 
+**Find any document or related source:** [`DOCS.md`](DOCS.md) — authority, task routing, lifecycle, archives, commands, and receipts.
+
+**Complete open-work register:** [`docs/DEMIGOD-TASKS.md`](docs/DEMIGOD-TASKS.md) — current, gated, lifecycle-triggered, and explicitly rejected work.
+
 ## Ponytail (all agents)
 
 **Required:** write code like a lazy senior (YAGNI → reuse → stdlib → native → min). Rules: `docs/PONYTAIL-AGENTS.md`, plugin `ponytail@ponytail`. Keep safety checks.
 
-## Every session (4 steps)
+## Every session
 
-1. `bin/dg orient` → 5-line card (green / freeze / NEXT / demand / assertSame)
-2. One goal. One writer if touching `demigod-foot-core.js`
-3. Do the smallest change. Verify: `npm run demigod:verify:source` (+ honesty if board)
-4. Stop. (Freeze / Publish / real DMs / fees are human-owned when *they* choose — agents don’t prompt them.)
+```bash
+bin/dg session            # orient + NEXT + truth tail (preferred start)
+# or: bin/dg orient → one goal → npm run demigod:verify:source → stop
+```
 
-## Who does what (no org chart)
+1. Orient (`bin/dg session` or `bin/dg orient`).
+2. **One goal.** One writer for `demigod-foot-core.js`.
+3. Smallest change. Verify source (+ honesty if board).
+4. Stop. Don’t assign Publish / DMs / fees to the human unless they ask.
 
-| Stage | Model | May |
-|-------|--------|-----|
-| Plan | Fable/Claude | Spec, touch list, risks — no “I shipped” |
-| Execute | Grok/Cursor | Only listed files + paste real gate output |
-| Review | Codex | PASS/BLOCK vs plan — don’t silent-rewrite |
-| Authorize | **Current user request** | Publish · messages/posts/forms · money |
+## Who does what
 
-**Default: 1 agent.** Use 2–3 only if ambiguous or high-risk mutate.
+| Stage | Default | When |
+|-------|---------|------|
+| Execute | **This agent** | Almost always |
+| Plan / second opinion | Claude or Codex | Ambiguous design or high-risk mutate — **opt-in, not automatic** |
+| Authorize publish/send/money | **Current user request only** | Never from old autonomy notes |
 
-## Tools worth knowing
+## Tools (short)
 
 ```
-bin/dg orient             # session start: truth+demand+NEXT card (agents: do this first)
-bin/dg truth              # THE oracle: disk/live/freeze/lock/board (+ evidence seal)
-node demigod-evidence.mjs fresh truth   # refuse stale green
-bin/dg lock claim|require|release|status   # hard foot-core mutex
-bin/dg ship status|prepare|cdn|paste|verify|run   # single ship path
-bin/dg demand status|queue|draft|log|templates  # GTM drafts only; delivery is permanently disabled
-bin/dg unify                                    # deep snapshot (orient is short path)
-bin/dg next-canon                                 # single NEXT builder
-bin/dg mime | full-check | home | tools
-bin/dg-usertest --quick   # when WIZ/UX
-# /api/tools defaults hideAliases+hotOnly; ?all=1 for full catalog
+bin/dg session | orient | truth | next
+bin/dg ship prepare|…     # publish still request-gated
+bin/dg demand status      # drafts only
+bin/dg lock claim|release # before foot-core edits
+bin/dg webflow connect setup
+node demigod-roles-pipeline.mjs   # observed roles → disk + footer embed
 ```
-Before editing foot-core: `bin/dg lock claim --owner "$USER" --why "…"` then `export DG_LOCK_TOKEN=…`  
-Or fail hard: `bin/dg lock require`  
-Ship mutators (`cdn`/`paste`/`run`) need freeze OFF + lock.
-
 
 ## Hard stops
 
-- No game work · no concurrent foot writers · no inventing pilots/receipts  
-- No external publish, message, post, application, or form submission unless the current request explicitly asks for it
-- Disk ahead of live is expected until an intentional, authorized release
-- Release mutations still require the foot lock and fresh verification
+- No game · no concurrent foot writers · no inventing pilots
+- No publish / outbound message / money without **current** user request
+- Disk ahead of live is normal until authorized ship
+- Observed roles ≠ matching inventory (samples stay honesty-gated)
 
 ## Deeper only if needed
 
 | Need | Open |
 |------|------|
-| Live truth | `DEMIGOD-COMPRESSED-STATE.md` |
-| Website session 2026-07-15 | `docs/exchange/DEMIGOD-SESSION-STATUS-2026-07-15-WEBSITE.md` |
-| Website backlog | `docs/process/WEBSITE-BACKLOG-MEGA.md` |
-| Rules detail | `DEMIGOD-AGENTS.md` |
-| Business stage checklists | `docs/process/OPS.md` (one file) |
-| DIE intelligence build | `DEMIGOD-DIE-SPEC.md` + `docs/die/` · multi-agent atlas: [`docs/die/CLAY-DIE-MULTI-AGENT.md`](docs/die/CLAY-DIE-MULTI-AGENT.md) |
-| History / debates | `docs/exchange/` (archive — don’t re-read by default) |
+| Doc map | [`DOCS.md`](DOCS.md) |
+| Handbook | `docs/DEMIGOD-HANDBOOK.md` |
+| Ship / CDN | `docs/SHIP-AND-CDN.md` |
+| Public roles pipeline | `docs/ROLES-PIPELINE.md` |
+| Rules | `DEMIGOD-AGENTS.md` / `AGENTS.md` |
+| Workflow detail | `docs/DEMIGOD-AGENT-WORKFLOW.md` |
+| Outside research brief | `docs/exchange/DEMIGOD-RESEARCH-IMPROVEMENTS-2026-08-04.md` |
+| DIE / Clay-like ops | `docs/die/CLAY-DIE-MULTI-AGENT.md` (not a second product) |
+| History | `docs/exchange/` — archive; don’t re-read by default |
 
 ---
-*If this page and `bin/dg live` disagree with a long essay, trust live + this page.*
+*If this card and `bin/dg truth` disagree with a long essay, trust truth + this card.*

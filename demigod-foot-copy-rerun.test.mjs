@@ -13,7 +13,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
 const ROOT = process.env.DEMIGOD_ROOT || path.dirname(fileURLToPath(import.meta.url));
 const SRC = fs.readFileSync(path.join(ROOT, 'demigod-foot-core.js'), 'utf8');
 
@@ -48,4 +47,27 @@ test('the shout-title scrub it protects still exists', () => {
      one exact sentence that marketing is free to revise. */
   assert.match(scrub, /textContent\s*=\s*'[^']{8,}'/, 'scrub assigns a non-trivial replacement');
   assert.doesNotMatch(scrub, /textContent\s*=\s*''/, 'scrub must replace the title, not blank it');
+});
+
+test('sample-role title scrub leaves the observed ATS rail alone', () => {
+  // Regression: substring /Open roles/i rewrote #dg-observed-roles-h ("Open roles in SF" /
+  // "Recently observed SF roles") into "Example roles — labeled samples", which is a false
+  // sample claim for real public-ATS observations.
+  const rolesFn = SRC.match(/\(function roles\(\)\{[\s\S]*?\}\)\(\)/);
+  assert(rolesFn, 'roles() scrub IIFE present');
+  const body = rolesFn[0];
+  assert.match(body, /dg-observed-roles-h/, 'must name the observed heading id');
+  assert.match(body, /closest\(['"]#dg-observed-roles['"]\)/, 'must skip nodes inside #dg-observed-roles');
+  assert.match(
+    body,
+    /\^\(Live SF startup roles hiring now/,
+    'Webflow sample titles must be exact-anchored, not open-ended Open roles substring',
+  );
+  assert.doesNotMatch(
+    body,
+    /if\(\/Live SF startup roles hiring now\|Examples\? of roles\|Roles hiring now\|Open roles\/i\.test/,
+    'old loose Open roles substring scrub must stay gone',
+  );
+  assert.match(SRC, /Recently observed SF roles/, 'observed rail heading stays observation-language');
+  assert.match(SRC, /not our matching inventory/, 'observed rail keeps inventory non-claim');
 });

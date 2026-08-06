@@ -26,16 +26,22 @@ const steps = [
   ['demigod-public-roles.mjs', ['--limit', '24']],
   ['demigod-hiring-pulse.mjs', []],
   ['demigod-directory-static.mjs', []],
+  // Durable last-good map after a successful refresh (restore-if-worse after killed rebuilds).
+  ['demigod-map-checkpoint.mjs', ['save']],
 ];
 
 if (process.argv.includes('--dry')) {
-  for (const [s, a] of steps) console.log('→ node', s, a.join(' '));
+  for (const [s, a] of steps) console.log('→', process.execPath, s, a.join(' '));
   process.exit(0);
 }
 
 for (const [script, args] of steps) {
-  console.log(`\n→ node ${script} ${args.join(' ')}`);
-  const r = spawnSync('node', [path.join(ROOT, script), ...args], { cwd: ROOT, stdio: 'inherit' });
+  // process.execPath: never bare `node` (PATH/nvm can drop to Node 18 or a missing pin).
+  console.log(`\n→ ${process.execPath} ${script} ${args.join(' ')}`);
+  const r = spawnSync(process.execPath, [path.join(ROOT, script), ...args], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
   if (r.status !== 0) {
     console.error(`FAILED at ${script} (exit ${r.status}) — directory NOT fully refreshed`);
     process.exit(1);

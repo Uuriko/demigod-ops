@@ -1835,6 +1835,44 @@ export function talentGreetingName(lead) {
   return 'there';
 }
 
+/**
+ * Pure: talent outreach subject/body from observed skills/signal/title.
+ * Avoids calling a designer "engineer" when the public note says design.
+ */
+export function talentLaneCopy(lead) {
+  const blob = `${lead?.skills || ''} ${lead?.signal || ''} ${lead?.title || ''} ${lead?.role || ''}`.toLowerCase();
+  // Skills/outcomes first; resume optional (2026 skills-based hiring). Cash band + mutual yes before identity moves.
+  const close =
+    'Free for you, always — resume optional; we match on the work you want next and outcomes. You see company, role, and base cash band before any intro. Startups pay 10% of first-year base only when a hire starts.';
+  if (/\b(design|designer|ux|ui|product design)\b/.test(blob)) {
+    return {
+      subject: 'SF startup matching, free for talent',
+      body: `Demigod matches SF designers and builders with startups. ${close}`,
+      fallbackSignal: 'saw your public SF design signal',
+    };
+  }
+  if (/\b(product manager|\bpm\b|gtm|growth|sales|marketing|founder)\b/.test(blob)) {
+    return {
+      subject: 'SF startup matching, free for talent',
+      body: `Demigod matches SF product and GTM talent with startups. ${close}`,
+      fallbackSignal: 'saw your public SF product signal',
+    };
+  }
+  return {
+    subject: 'SF startup matching, free for engineers',
+    body: `Demigod matches SF engineers with startups. ${close}`,
+    fallbackSignal: 'saw your public SF eng signal',
+  };
+}
+
+/** Pure: partner subject line from observed title (no invented eng claim). */
+export function partnerDraftSubject(company, lead) {
+  const co = projectDraftText(scrubPII(company || ''), 80) || 'your company';
+  const title = projectDraftText(scrubPII(lead?.title || lead?.role || ''), 60);
+  if (title) return `${title} at ${co}`;
+  return `hiring at ${co}`;
+}
+
 export function draftEmail(lead, side) {
   attachPublicContact(lead);
   const toLine = `To: ${draftContactTo(lead)}`;
@@ -1861,14 +1899,14 @@ export function draftEmail(lead, side) {
     return [
       toLine,
       `Lead-Id: ${lead.id || ''}`,
-      `Subject: eng hiring at ${company}`,
+      `Subject: ${partnerDraftSubject(company, lead)}`,
       ...meta,
       '',
       opener,
       '',
-      'I run Demigod — SF-only matching between startups and engineers. A human reviews every match, both sides approve before any intro, and it costs 10% of first-year cash only if you hire. Nothing before that.',
+      'I run Demigod — SF-only matching between startups and talent. A human reviews every match; candidates see company, role, and base cash band before they approve; intros only after mutual yes. 10% of first-year base only if you hire — nothing before that.',
       '',
-      `If useful: ${wiz} — asks what this hire should accomplish first.`,
+      `If useful: ${wiz} — free brief; asks what this hire should accomplish first.`,
       '',
       'Reply "no thanks" and you will not hear from me again.',
       '',
@@ -1877,6 +1915,7 @@ export function draftEmail(lead, side) {
     ].join('\n');
   }
   const who = talentGreetingName(lead);
+  const lane = talentLaneCopy(lead);
   // If signal already narrates the person, don't glue "Hi Name — Name has been…"
   // Drop job-board SERP spam / bare URLs; keep short human signals (not isSeoDisplayJunk —
   // that length cap is for package display names and was over-stripping real notes).
@@ -1886,15 +1925,15 @@ export function draftEmail(lead, side) {
   const opener =
     factStr && whoRe.test(factStr)
       ? `Hi ${who} — saw your public profile note.`
-      : `Hi ${who} — ${factStr || 'saw your public SF eng signal'}.`;
+      : `Hi ${who} — ${factStr || lane.fallbackSignal}.`;
   return [
     toLine,
     `Lead-Id: ${lead.id || ''}`,
-    `Subject: SF startup matching, free for engineers`,
+    `Subject: ${lane.subject}`,
     '',
     opener,
     '',
-    'Demigod matches SF engineers with startups. Free for you, always — startups pay only when a hire happens. You approve before your name is ever shared.',
+    lane.body,
     '',
     `If open: ${wiz}`,
     '',

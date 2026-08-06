@@ -18,15 +18,12 @@ function resolver(newestHealthy) {
     AbortSignal,
     Headers,
     Response,
-    window: {},
+    window: { DG_EVENTS_BOT_API: oldBase },
     dgLocalOk: (url) => !/^http:\/\/(?:127\.0\.0\.1|localhost)/.test(url),
     fetch: async (url) => {
       const href = String(url);
       if (href.includes('raw.githubusercontent.com')) {
-        return Response.json({ apiBase: oldBase, publishedAt: '2026-07-01T00:00:00Z' });
-      }
-      if (href.includes('cdn.jsdelivr.net')) {
-        return Response.json({ apiBase: newBase, publishedAt: '2026-07-02T00:00:00Z' });
+        return Response.json({ apiBase: newBase, publishedAt: new Date().toISOString() });
       }
       healthRequests.push(href);
       const ok = href === `${newBase}/health` ? newestHealthy : true;
@@ -92,6 +89,32 @@ test('browser probes the newest Events config first and uses stale mirrors only 
     `${fallback.newBase}/health`,
     `${fallback.oldBase}/health`,
   ]);
+});
+
+test('browser skips stale ephemeral Events config without probing its dead hostname', async () => {
+  const healthRequests = [];
+  const context = {
+    AbortSignal,
+    Headers,
+    Response,
+    URL,
+    window: {},
+    dgLocalOk: (url) => !/^http:\/\/(?:127\.0\.0\.1|localhost)/.test(url),
+    fetch: async (url) => {
+      const href = String(url);
+      if (href.includes('raw.githubusercontent.com')) {
+        return Response.json({
+          apiBase: 'https://expired-example.trycloudflare.com/api/events-bot',
+          publishedAt: '2026-08-01T00:00:00Z',
+        });
+      }
+      healthRequests.push(href);
+      return Response.json({ ok: true });
+    },
+  };
+  vm.runInNewContext(resolverSource, context);
+  assert.equal((await context.dgEventsBotPickBase(100)).base, '');
+  assert.deepEqual(healthRequests, []);
 });
 
 // Units force CF to stop loca thrash; sticky demigod-events-bot.loca.lt remains pure-ladder fallback when not forced.

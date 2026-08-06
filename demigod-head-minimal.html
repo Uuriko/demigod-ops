@@ -7,14 +7,14 @@
   if(pp){ go('/?p='+pp[1].toLowerCase()); return; }
   var map={
     '/fees':'/?p=pricing','/security':'/?p=legal','/sample':'/?p=sample','/pilot':'/?p=hire',
-    '/network':'/?p=talent','/hire':'/?p=hire','/talent':'/?p=talent','/contact':'/?p=contact',
-    '/legal':'/?p=legal','/blog':'/?p=blog','/notes':'/?p=blog','/method':'/?p=how',
-    '/how':'/?p=how','/pricing':'/?p=pricing','/faq':'/?p=faq','/founders':'/?p=hire',
-    '/candidates':'/?p=talent','/compare':'/?p=pricing','/about':'/?p=about','/status':'/?p=about',
+    '/network':'/?p=talent','/notes':'/?p=blog','/method':'/?p=how','/founders':'/?p=hire',
+    '/candidates':'/?p=talent','/compare':'/?p=pricing','/status':'/?p=about',
+    /* Sitemap still lists /how-it-works (older Webflow shell). Canonical surface is /how. */
+    '/how-it-works':'/how',
     '/partnerships':'/?p=partners','/partnership':'/?p=partners',
-    /* /untitled is a stray Webflow page: 200 + <title>Untitled</title> + index,follow, and foot
-       renders "Page not found" into it — a textbook soft-404. Webflow will not 404 a page that
-       exists, so redirect it. */
+    /* /untitled is a stray Webflow page (HTTP 200, document title "Untitled", indexable soft-404).
+       Do not put raw title tags in this comment — they leak into the served HTML string.
+       Webflow will not 404 a published page, so redirect here. */
     '/untitled':'/',
     /* INVARIANT: every key here must be a REAL published Webflow page. This script lives in the
        site head, and Webflow serves its utility 404 (which is excluded from site-wide custom code)
@@ -34,15 +34,20 @@
 <noscript id="dg-path-noscript">
   <style id="dg-nojs-hero">html:not(.w-mod-js) .hero-section h1,html:not(.w-mod-js) .header h1,html:not(.w-mod-js) .hero-title{height:auto!important;min-height:0!important}</style>
   <style id="dg-nojs-actions">html:not(.w-mod-js) a[href="#"],html:not(.w-mod-js) a[href^="/?p="],html:not(.w-mod-js) a[href^="/?wiz="]{display:none!important}</style>
-  <div style="max-width:36rem;margin:2rem auto;padding:1rem 1.25rem;font:500 1rem/1.5 system-ui,sans-serif;color:#0A0A0A;background:#F5F0E6;border:1px solid rgba(201,168,76,.45);border-radius:8px">
-    <p style="margin:0 0 .75rem">Continue on Demigod (no JavaScript):</p>
-    <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">
-      <a href="/">Home</a>
-      <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a>
-      <a href="mailto:potter@trydemigod.com?subject=Open%20to%20the%20right%20startup">Share what I’d consider by email</a>
-    </p>
+  <div style="max-width:36rem;margin:2rem auto;padding:1rem 1.25rem;font:500 1rem/1.5 system-ui,sans-serif;color:#03140d;background:#F5F0E6;border:1px solid rgba(16,198,116,.35);border-radius:8px">
+    <p style="margin:0 0 .75rem"><strong>Demigod</strong> matches SF Bay startups and talent for permanent roles. Software compares the facts, a human decides what to propose and can explain why, and both sides approve before an introduction. Talent pays nothing; startups pay 10% of first-year base salary only when a hire starts. Not a public job board, volume agency, or self-serve résumé marketplace.</p>
+    <p style="margin:0 0 .75rem;display:flex;flex-wrap:wrap;gap:.5rem 1rem"><a href="/">Home</a><a href="/hire">Hire talent</a><a href="/talent">Share privately</a><a href="/how">How it works</a><a href="/pricing">Pricing</a><a href="/faq">FAQ</a><a href="/blog">Notes</a><a href="/startups">SF directory</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/legal">Privacy &amp; terms</a></p>
+    <p style="margin:0;display:flex;flex-wrap:wrap;gap:.5rem 1rem">JavaScript is required for the private submission forms. <a href="mailto:potter@trydemigod.com?subject=Hiring%20with%20Demigod">Hire talent by email</a><a href="mailto:potter@trydemigod.com?subject=Open%20to%20the%20right%20startup">Share what I’d consider by email</a></p>
   </div>
 </noscript>
+
+<script id="dg-route-paint-class">try{if(location.pathname!=='/'||/[?&](?:p|wiz)=/.test(location.search))document.documentElement.classList.add('dg-route-boot')}catch(e){}</script>
+<script id="dg-turnstile-defer">try{(function(){var proto=HTMLHeadElement.prototype,add=proto.appendChild,pending=null,wanted=false;function flush(){wanted=true;if(!pending)return false;var script=pending;pending=null;add.call(document.head,script);return true}window.__dgTurnstileFlush=flush;proto.appendChild=function(node){if(node&&node.tagName==='SCRIPT'&&/^https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js(?:[?#]|$)/i.test(node.src||'')){proto.appendChild=add;if(wanted)return add.call(this,node);pending=node;return node}return add.call(this,node)}})()}catch(e){}</script>
+<style id="dg-route-paint-shell">
+html.dg-route-boot::before{content:'Demigod';position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#03140d;color:#a6ffcb;font:600 clamp(1.25rem,4vw,2rem)/1 system-ui,sans-serif;letter-spacing:.04em}
+html.dg-route-boot:not(:has(body.dg-ready)):not(:has(body[data-dg-ready="1"])) body>*{display:none!important}
+html.dg-route-boot:has(body.dg-ready)::before,html.dg-route-boot:has(body[data-dg-ready="1"])::before{display:none}
+</style>
 
 <style id="dg-modal-hide-closed">
 #startup-modal,#jobseeker-modal{display:none!important;visibility:hidden!important;pointer-events:none!important}
@@ -64,7 +69,7 @@ html.dg-cta-honest .btn-label,html.dg-cta-honest .button_label{opacity:1;transit
 html.dg-pricing-honest .pricing-card{opacity:1;animation:none;transition:opacity .12s ease}
 </style>
 
-<style id="dg-early-skip-css">#dg-skip-early{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}#dg-skip-early:focus,#dg-skip-early:focus-visible{position:fixed;left:12px;top:12px;width:auto;height:auto;overflow:visible;background:#C9A84C;color:#0A0A0A;padding:8px 12px;border-radius:6px;font-weight:600;text-decoration:none;outline:2px solid #E8D5A3;outline-offset:2px}</style>
+<style id="dg-early-skip-css">#dg-skip-early{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}#dg-skip-early:focus,#dg-skip-early:focus-visible{position:fixed;left:12px;top:12px;width:auto;height:auto;overflow:visible;background:#10c674;color:#03140d;padding:8px 12px;border-radius:6px;font-weight:600;text-decoration:none;outline:2px solid #a6ffcb;outline-offset:2px}</style>
 <script id="dg-early-skip">
 try{(function(){
   function ensure(){
@@ -93,17 +98,17 @@ try{(function(){
 try{(function(){
   var BAD=/hello@(?:try)?demigod\.com/ig, GOOD='potter@trydemigod.com';
   var VOL=/\b3[\s–-]5\b(?:\s+(?:highly\s+aligned,?\s+)?(?:pre-vetted\s+)?(?:curated\s+)?(?:SF\s+)?(?:candidates?|finalists?|profiles?))?/ig;
-  var GOOD_DESC='SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.';
-  var GOOD_TITLE='Demigod • Tech-Matched SF Startup Talent';
+  var GOOD_DESC='SF startup talent matching: one role, one first result, human-reviewed fits, mutual yes. 10% of first-year base salary on hire. Talent free.';
+  var GOOD_TITLE='Demigod · SF Startup Talent · Mutual Yes';
   var INTROS=[
     [/Humans send you curated SF candidates\.?/gi,'A human reads every brief and proposes strong fits.'],
     [/Humans match you to SF startups that fit\.?/gi,'Humans propose SF startups that fit; intros only after both sides approve.'],
     [/Share the role, skills, and comp range\./gi,'Share the role, skills, and one concrete first result.'],
     [/\bFIND TALENT\b/g,'Hire talent'],
     [/\bHIRE TALENT\b/g,'Hire talent'],
-    [/\bJOIN NETWORK\b/g,'Share what I’d consider'],
+    [/\bJOIN NETWORK\b/g,"Share privately"],
     [/HIRE SF STARTUP TALENT/gi,'Hire talent'],
-    [/GET MATCHED TO SF STARTUPS/gi,'Share what I’d consider'],
+    [/GET MATCHED TO SF STARTUPS/gi,"Share privately"],
     [/90-?\s*day replacement guarantee/gi,'Human-reviewed matching'],
     [/SF BAY AREA STARTUP MATCHING/gi,'SF · TECH-MATCHED'],
     [/Access to pre-vetted SF talent/gi,'Human-reviewed SF Bay matches'],
@@ -116,7 +121,7 @@ try{(function(){
   function fixText(s){
     s=(s||'').replace(BAD,GOOD);
     BAD.lastIndex=0;
-    s=s.replace(VOL,'curated matches');
+    s=s.replace(VOL,'matches after human review');
     VOL.lastIndex=0;
     for(var i=0;i<INTROS.length;i++){ s=s.replace(INTROS[i][0],INTROS[i][1]); INTROS[i][0].lastIndex=0; }
     return s;
@@ -181,10 +186,10 @@ try{(function(){
       });
       try{
         var t=document.title||'';
-        if(/Human-Matched|hello@/i.test(t) || !t) document.title=GOOD_TITLE;
+        if(/Human-Matched|Tech-Matched|hello@/i.test(t) || !t) document.title=GOOD_TITLE;
         document.querySelectorAll('meta[property="og:title"],meta[name="twitter:title"]').forEach(function(m){
           var c=m.getAttribute('content')||'';
-          if(/Human-Matched|hello@/i.test(c)) m.setAttribute('content',GOOD_TITLE);
+          if(/Human-Matched|Tech-Matched|hello@/i.test(c)) m.setAttribute('content',GOOD_TITLE);
         });
       }catch(e2){}
     }catch(e){}
@@ -194,7 +199,7 @@ try{(function(){
   setTimeout(scrub,50); setTimeout(scrub,400); setTimeout(scrub,1200);
 })();}catch(e){}</script>
 
-<meta name="theme-color" content="#0A0A0A">
+<meta name="theme-color" content="#03140d">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="dark">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
@@ -204,31 +209,72 @@ try{(function(){
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="msapplication-TileColor" content="#0A0A0A">
+<meta name="msapplication-TileColor" content="#03140d">
 <meta name="msapplication-TileImage" content="https://files.catbox.moe/ges75q.jpg">
 <meta name="format-detection" content="telephone=no">
+<!-- demigod favicon: jpeg brand mark is SoR for org/tile/apple (verify:source); SVG is progressive -->
 <link rel="icon" href="https://files.catbox.moe/ges75q.jpg" type="image/jpeg" sizes="1024x1024">
 <link rel="apple-touch-icon" href="https://files.catbox.moe/ges75q.jpg" type="image/jpeg" sizes="1024x1024">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%2303140d%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2211%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%221.25%22%20opacity%3D%220.55%22/%3E%3Cpath%20d%3D%22M10.5%2016a5.5%205.5%200%200%201%205.5-5.5%22%20fill%3D%22none%22%20stroke%3D%22%23a6ffcb%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M21.5%2016a5.5%205.5%200%200%201-5.5%205.5%22%20fill%3D%22none%22%20stroke%3D%22%2310c674%22%20stroke-width%3D%222.25%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%222.35%22%20fill%3D%22%23a6ffcb%22/%3E%3C/svg%3E" type="image/svg+xml" sizes="any">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%20%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230A0A0A%22%2F%3E%20%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2212.2%22%20fill%3D%22none%22%20stroke%3D%22%23C9A84C%22%20stroke-width%3D%221.5%22%2F%3E%20%3Cpath%20d%3D%22M11.2%208.8h5.1c4.1%200%206.7%202.4%206.7%207.2s-2.6%207.2-6.7%207.2h-5.1V8.8zm2.4%202.2v10h2.7c2.7%200%204.3-1.6%204.3-5s-1.6-5-4.3-5H13.6z%22%20fill%3D%22%23C9A84C%22%2F%3E%20%3C%2Fsvg%3E" type="image/svg+xml" sizes="any">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Demigod">
 <meta property="og:locale" content="en_US">
-<meta property="og:description" content="SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.">
+<meta property="og:description" content="SF startup talent matching: one role, one first result, human-reviewed fits, mutual yes. 10% of first-year base salary on hire. Talent free.">
 <meta property="og:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:secure_url" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="720">
-<meta property="og:image:alt" content="Demigod — tech-matched SF startup talent">
+<meta property="og:image:alt" content="Demigod — SF startup talent, human review, mutual yes">
 <meta property="og:url" content="https://www.trydemigod.com/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Demigod • Tech-Matched SF Startup Talent">
-<meta name="twitter:description" content="SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.">
+<meta name="twitter:title" content="Demigod · SF Startup Talent · Mutual Yes">
+<meta name="twitter:description" content="SF startup talent matching: one role, one first result, human-reviewed fits, mutual yes. 10% of first-year base salary on hire. Talent free.">
 <meta name="twitter:url" content="https://www.trydemigod.com/">
 <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg">
-<meta name="twitter:image:alt" content="Demigod — tech-matched SF startup talent">
+<meta name="twitter:image:alt" content="Demigod — SF startup talent, human review, mutual yes">
 <meta name="twitter:image:width" content="1280">
 <meta name="twitter:image:height" content="720">
+<!-- Keep scoring in sync with demigod-social-meta-dedupe.mjs (tests drive the module). -->
+<script id="dg-meta-dedupe">
+try{(function(){
+  function score(t){
+    t=String(t||'');
+    var n=0;
+    if(/mutual yes/i.test(t)) n+=4;
+    if(/first[- ]?year base|first result|concrete first result/i.test(t)) n+=3;
+    if(/10%/.test(t)) n+=2;
+    if(/human review|humans review|human-reviewed/i.test(t)) n+=1;
+    if(t.length>90) n+=1;
+    if(/tech ranks fit/i.test(t)) n-=2;
+    if(!t.trim()) n-=10;
+    return n;
+  }
+  function keyOf(el){
+    var p=el.getAttribute('property');
+    if(p) return 'property:'+String(p).toLowerCase();
+    var n=el.getAttribute('name');
+    if(n) return 'name:'+String(n).toLowerCase();
+    return '';
+  }
+  var groups={};
+  [].forEach.call(document.querySelectorAll('meta[name="description"],meta[property^="og:"],meta[name^="twitter:"]'),function(el){
+    var k=keyOf(el); if(!k) return;
+    (groups[k]=groups[k]||[]).push(el);
+  });
+  Object.keys(groups).forEach(function(k){
+    var list=groups[k];
+    if(list.length<2) return;
+    var best=list[0], bestS=score(best.getAttribute('content'));
+    for(var i=1;i<list.length;i++){
+      var s=score(list[i].getAttribute('content'));
+      var longer=s===bestS&&String(list[i].getAttribute('content')||'').length>String(best.getAttribute('content')||'').length;
+      if(s>bestS||longer){ best=list[i]; bestS=s; }
+    }
+    list.forEach(function(el){ if(el!==best&&el.parentNode) el.parentNode.removeChild(el); });
+  });
+})();}catch(e){}
+</script>
 <script id="dg-blog-canonical">
 try{(function(){
   var path=((location.pathname||'/').replace(/\/+$/,'')||'/').toLowerCase();
@@ -263,29 +309,30 @@ try{(function(){
 <style id="dg-hide-insights">#insights-section,.insights-section{display:none!important}</style>
 <style id="hide-webflow-badge">a.w-webflow-badge,.w-webflow-badge{display:none!important}</style>
 <style id="dg-simplify">.w-nav .w-dropdown,.w-nav .w-dropdown-toggle,.w-mega-menu,.mega-menu,[class*="mega-menu"]{display:none!important}footer .w-layout-grid,.footer .w-layout-grid{display:none!important}</style>
-<link rel="dns-prefetch" href="https://files.catbox.moe">
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Unbounded:wght@600;700&display=optional">
+<link rel="preload" as="script" href="https://files.catbox.moe/n0iqho.js" data-dg-foot-preload>
+<meta name="dg-startup-map-script" content="https://files.catbox.moe/xik8zi.js">
+<meta name="dg-startup-map-data" content="https://files.catbox.moe/i7txgf.json">
+<meta name="dg-startup-roles-feed" content="https://files.catbox.moe/z3rx1a.json">
 <link rel="preload" as="image" media="(min-width:901px)" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@b22473c0bd8f/art/frege-hero.jpg" fetchpriority="high">
 
 <style id="dg-hero-ar">.hero-section img,.hero-content-right img,.statue-frame,.statue-wrapper{aspect-ratio:16/9;max-width:100%;height:auto}.statue-svg{aspect-ratio:2/3;width:100%;height:auto}</style>
-<style id="dg-base-tokens">:root{--g:#C9A84C;--gl:#E8D5A3;--cr:#F5F0E6;--dk:#0A0A0A;--mu:#A8A29E;--card:rgba(14,14,18,.92)}html{color-scheme:dark only;scrollbar-gutter:stable both-edges;scroll-behavior:smooth;overscroll-behavior-y:none;scroll-padding-top:4.5rem}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}body{isolation:isolate;overscroll-behavior-y:none}abbr[title]{text-decoration:underline dotted rgba(201,168,76,.55);text-underline-offset:.15em;cursor:help}#main,main,h1.hero-title,.hero-section h1{scroll-margin-top:4.5rem}html,body{background:var(--dk)!important;color:var(--cr)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:rgba(201,168,76,.2);-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;overflow-x:clip;padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0)}
-body{-webkit-overflow-scrolling:touch}h1,h2,h3,.hero-title,.heading_tertiary,.heading_primary{font-family:Cinzel,ui-serif,Georgia,serif!important;text-wrap:balance}a{color:var(--g)}a:visited{color:var(--gl)}a:hover{color:var(--gl);filter:brightness(1.08)}mark{background:rgba(201,168,76,.28);color:var(--cr);padding:0 .15em;border-radius:2px}strong,b{color:var(--cr);font-weight:650}code,kbd,samp{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;background:rgba(201,168,76,.12);color:var(--gl);padding:.1em .35em;border-radius:4px}hr{border:0;border-top:1px solid rgba(201,168,76,.25);margin:1.5rem auto;max-width:36rem}blockquote{margin:1rem auto;max-width:36rem;padding:.75rem 1rem;border-left:3px solid rgba(201,168,76,.55);color:var(--mu);font-style:italic;line-height:1.5}table{width:100%;max-width:40rem;margin:1rem auto;border-collapse:collapse;font-size:.9rem}img{max-width:100%;height:auto;display:block}svg{max-width:100%;height:auto}th,td{border:1px solid rgba(201,168,76,.2);padding:.45rem .6rem;text-align:left}th{color:var(--gl);font-weight:650}
+<style id="dg-base-tokens">:root{--g:#10c674;--gl:#a6ffcb;--cr:#f3f0e7;--dk:#03140d;--mu:#bdc9bf;--card:rgba(3,20,13,.92);--dg-night:#03140d;--dg-phosphor:#a6ffcb;--dg-signal:#10c674;--dg-paper:#f3f0e7;--dg-paper-mute:#bdc9bf}html{color-scheme:dark only;scrollbar-gutter:stable both-edges;scroll-behavior:smooth;overscroll-behavior-y:none;scroll-padding-top:4.5rem}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}body{isolation:isolate;overscroll-behavior-y:none}abbr[title]{text-decoration:underline dotted rgba(16,198,116,.45);text-underline-offset:.15em;cursor:help}#main,main,h1.hero-title,.hero-section h1{scroll-margin-top:4.5rem}html,body{background:var(--dk)!important;color:var(--cr)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:rgba(166,255,203,.18);-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;overflow-x:clip;padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0)}
+body{-webkit-overflow-scrolling:touch}h2,h3,.heading_tertiary,.heading_primary{font-family:Georgia,ui-serif,serif!important;font-weight:500;text-wrap:balance}.hero-section h1,.header h1,h1.hero-title{font-family:system-ui,-apple-system,"Segoe UI",sans-serif!important;text-transform:none!important;letter-spacing:-.03em!important;font-weight:650!important;text-wrap:balance}a{color:var(--g)}a:visited{color:var(--gl)}a:hover{color:var(--gl);filter:brightness(1.08)}mark{background:rgba(16,198,116,.28);color:var(--cr);padding:0 .15em;border-radius:2px}strong,b{color:var(--cr);font-weight:650}code,kbd,samp{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;background:rgba(166,255,203,.12);color:var(--gl);padding:.1em .35em;border-radius:4px}hr{border:0;border-top:1px solid rgba(166,255,203,.2);margin:1.5rem auto;max-width:36rem}blockquote{margin:1rem auto;max-width:36rem;padding:.75rem 1rem;border-left:3px solid rgba(16,198,116,.45);color:var(--mu);font-style:italic;line-height:1.5}table{width:100%;max-width:40rem;margin:1rem auto;border-collapse:collapse;font-size:.9rem}img{max-width:100%;height:auto;display:block}svg{max-width:100%;height:auto}th,td{border:1px solid rgba(166,255,203,.18);padding:.45rem .6rem;text-align:left}th{color:var(--gl);font-weight:650}
 p,li,.paragraph_large{text-wrap:pretty;line-height:1.55;orphans:3;widows:3;hyphens:auto;-webkit-hyphens:auto}caption,figcaption{color:var(--mu);font-size:.85rem;line-height:1.4;margin:.4rem 0}
 h1,h2,h3{hanging-punctuation:first last;orphans:2;widows:2}
 ul,ol{padding-inline-start:1.2rem}li::marker{color:var(--g)}sub,sup{font-size:.75em;line-height:0;position:relative;vertical-align:baseline}sup{top:-.4em}sub{bottom:-.2em}
-html{scrollbar-color:rgba(201,168,76,.35) #0A0A0A}
-::selection{background:rgba(201,168,76,.35);color:#F5F0E6}
-::-moz-selection{background:rgba(201,168,76,.35);color:#F5F0E6}
-html,body{caret-color:#C9A84C;text-rendering:optimizeLegibility}
-details{margin:.75rem auto;max-width:36rem;border:1px solid rgba(201,168,76,.22);border-radius:10px;padding:.55rem .85rem;background:rgba(14,14,18,.6)}
+html{scrollbar-color:rgba(16,198,116,.32) #03140d}
+::selection{background:rgba(16,198,116,.32);color:#F5F0E6}
+::-moz-selection{background:rgba(16,198,116,.32);color:#F5F0E6}
+html,body{caret-color:#10c674;text-rendering:optimizeLegibility}
+details{margin:.75rem auto;max-width:36rem;border:1px solid rgba(166,255,203,.18);border-radius:10px;padding:.55rem .85rem;background:rgba(14,14,18,.6)}
 summary{cursor:pointer;color:var(--gl);font-weight:650;list-style-position:outside}
 details[open] summary{margin-bottom:.4rem;color:var(--g)}
-dialog{border:1px solid rgba(201,168,76,.35);border-radius:14px;padding:1.1rem 1.25rem;background:rgba(12,12,14,.98);color:var(--cr);max-width:min(28rem,92vw)}
+dialog{border:1px solid rgba(16,198,116,.32);border-radius:14px;padding:1.1rem 1.25rem;background:rgba(12,12,14,.98);color:var(--cr);max-width:min(28rem,92vw)}
 dialog::backdrop{background:rgba(0,0,0,.62)}
 progress{accent-color:var(--g);width:100%;max-width:36rem;height:.55rem}meter{accent-color:var(--g)}
 input,textarea,select{caret-color:var(--g)}
-fieldset{border:1px solid rgba(201,168,76,.25);border-radius:10px;padding:.75rem 1rem;margin:1rem auto;max-width:36rem}
+fieldset{border:1px solid rgba(166,255,203,.2);border-radius:10px;padding:.75rem 1rem;margin:1rem auto;max-width:36rem}
 legend{color:var(--gl);font-weight:650;padding:0 .35rem}
 html{scrollbar-width:thin}
 a,button,.premium-btn,summary{touch-action:manipulation}
@@ -293,14 +340,14 @@ a:focus:not(:focus-visible),button:focus:not(:focus-visible),summary:focus:not(:
 table caption{caption-side:bottom;text-align:left;color:var(--mu);font-size:.85rem;padding:.35rem .15rem}
 a[href^="http"]{overflow-wrap:anywhere;word-break:break-word}
 @media(prefers-reduced-motion:reduce){.hero-section h1,.hero-section p,.hero-actions{animation:none!important;transition:none!important}}
-a:focus-visible,button:focus-visible,summary:focus-visible,.premium-btn:focus-visible{outline:2px solid #C9A84C;outline-offset:3px}
+a:focus-visible,button:focus-visible,summary:focus-visible,.premium-btn:focus-visible{outline:2px solid #10c674;outline-offset:3px}
 img{object-fit:cover}img[loading=lazy]{content-visibility:auto}
-dfn{font-style:italic;color:var(--gl);border-bottom:1px dotted rgba(201,168,76,.45)}
+dfn{font-style:italic;color:var(--gl);border-bottom:1px dotted rgba(16,198,116,.35)}
 @media(hover:hover) and (pointer:fine), (any-hover:hover) and (any-pointer:fine){a:hover{text-decoration-thickness:from-font}}
 html{font-optical-sizing:auto;tab-size:2}
 @supports not (text-wrap:pretty){p,li,.paragraph_large{line-height:1.6}}
 img,svg{user-select:none;-webkit-user-drag:none}
-:target{outline:2px solid rgba(201,168,76,.55);outline-offset:4px;border-radius:4px}
+:target{outline:2px solid rgba(16,198,116,.45);outline-offset:4px;border-radius:4px}
 @media(forced-colors:active){a,button,.premium-btn{forced-color-adjust:auto}a:focus-visible,button:focus-visible{outline:2px solid Highlight;outline-offset:3px}}
 @media(prefers-reduced-data:reduce){.hero-section,.header{background-image:none!important}img[loading=lazy]{content-visibility:auto;background:rgba(14,14,18,.5)}}
 html{font-synthesis:none}
@@ -311,7 +358,7 @@ button,input,select,textarea{font:inherit}
 @media(max-width:360px){html{font-size:93.75%}h1,h2,h3,.hero-title{letter-spacing:-.015em}}
 @media(pointer:coarse){a.premium-btn,a.button,a.w-button,button,.premium-btn{min-height:48px}}
 @media(hover:none){a:hover{filter:none}}
-img:not([alt]){outline:1px dashed rgba(201,168,76,.45)}
+img:not([alt]){outline:1px dashed rgba(16,198,116,.35)}
 ::placeholder{color:var(--mu);opacity:.85}
 input[type=search]{appearance:none;-webkit-appearance:none;border-radius:8px}
 input[type=number]{-moz-appearance:textfield}
@@ -322,16 +369,16 @@ img,video,iframe{contain:layout paint style;max-width:100%;height:auto}
 video,iframe{display:block;border:0}
 @media(prefers-reduced-transparency:reduce){*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}}
 @media(update:slow),(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-.role-card:focus-within,.step-card:focus-within,.pricing-card:focus-within{outline:2px solid rgba(201,168,76,.4);outline-offset:2px}
+.role-card:focus-within,.step-card:focus-within,.pricing-card:focus-within{outline:2px solid rgba(16,198,116,.35);outline-offset:2px}
 .role-card,.step-card,.pricing-card,details,blockquote,table,tr,figure{break-inside:avoid}
 @media print{html{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 @supports (height:100dvh){.hero-section,.header{min-height:calc(100dvh - 5.5rem)}}
 @media(display-mode:standalone){body{padding-top:env(safe-area-inset-top,0)}}
 @media(orientation:landscape) and (max-height:500px){.hero-section,.header{min-height:auto!important;padding:2rem 1rem!important}}
 ::file-selector-button{font:inherit;color:#0A0A0A;background:var(--g);border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}
-@media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#C9A84C;color:#0A0A0A}}
+@media(prefers-contrast:more){a{text-decoration:underline}::selection{background:#10c674;color:#03140d}}
 @media print{html,body{background:#fff!important;color:#111!important}#dg-bar,.nav_right,a[data-dg-cta]{display:none!important}a{color:#000!important}}</style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@8d5a78a017ee/head-latest.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
+<link rel="stylesheet" href="https://files.catbox.moe/ua6eev.css" onerror="var s=document.getElementById('dg-base-tokens');if(s)s.textContent+=';/*catbox-css-failed*/'">
 <!-- Demigod forms --><!-- openModal --><!-- demigod-polish -->
 
 <script id="dg-early-copy-scrub">
@@ -349,7 +396,7 @@ try{(function(){
         if(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/i.test(n.nodeValue)||/\bI['’]?m hiring\b/i.test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,'Hire talent').replace(/\bI['’]?m hiring\b/gi,'Hire talent');
         if(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/i.test(n.nodeValue))
-          n.nodeValue=n.nodeValue.replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist');
+          n.nodeValue=n.nodeValue.replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a shortlist after human review');
         if(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/i.test(n.nodeValue))
           n.nodeValue=n.nodeValue.replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'Human-reviewed matching');
         var junk=new RegExp(['l','orem',' ipsum'].join('')+'|consectetur adipiscing','i');
@@ -361,7 +408,7 @@ try{(function(){
           if(!el.hasAttribute(attr))return;
           var v=el.getAttribute(attr)||'';
           v=v.replace(/(?:find|hire)\s+(?:sf\s+)?talent(?:\s+now)?/gi,'Hire talent').replace(/\bI['’]?m hiring\b/gi,'Hire talent')
-            .replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a curated shortlist')
+            .replace(/(?:meet\s+(?:your\s+)?)?(?:(?:shortlist|slate|set|batch)\s+of\s+)?(?:3\s*(?:[\s/–—-]|to)\s*5|three\s+to\s+five)\s+(?:highly\s+aligned\s+|hand[\s-]?picked\s+|best[\s-]?fit\s+|vetted\s+|top\s+|qualified\s+|strong\s+)?(?:candidates?|matches?|introductions?|profiles?|finalists?)/gi,'a shortlist after human review')
             .replace(/(?:90\s*[–—-]?\s*day\s+)?(?:free\s+)?replacement\s+(?:policy\s+)?(?:guarantee(?:d)?|promise|warranty|assurance)|guaranteed\s+(?:free\s+)?replacement/gi,'Human-reviewed matching');
           el.setAttribute(attr,v);
         });
@@ -373,11 +420,11 @@ try{(function(){
           c.style.setProperty('display','none','important');
       });
       document.querySelectorAll('h3.step-title,.step-title').forEach(function(h){
-        if(/Meet Your\s*3|3[\s–-]5\s+Candidates/i.test(h.textContent||'')) h.textContent='Meet curated matches';
+        if(/Meet Your\s*3|3[\s–-]5\s+Candidates/i.test(h.textContent||'')) h.textContent='Meet matches after human review';
       });
       document.querySelectorAll('p.step-desc,.step-desc').forEach(function(p){
         if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))
-          p.textContent='Startups get curated matches — no volume promise.';
+          p.textContent='Startups get matches after human review — no volume promise.';
       });
       try{document.documentElement.classList.add('dg-volume-honest')}catch(_){}
       document.querySelectorAll('.w-form-done div,.w-form-done p').forEach(function(el){
@@ -395,7 +442,16 @@ try{(function(){
       document.querySelectorAll('.btn-label,.button_label').forEach(function(el){
         var t=(el.textContent||'').replace(/\s+/g,' ').trim();
         if(/^(FIND TALENT|HIRE TALENT|I['’]?M HIRING)$/i.test(t)) el.textContent='Hire talent';
-        else if(/^(JOIN NETWORK|GET MATCHED|I['’]?M LOOKING)$/i.test(t)) el.textContent='Share what I’d consider';
+        else if(/^(JOIN NETWORK|GET MATCHED)$/i.test(t)) el.textContent="Share privately";
+        else if(/^(I['’]?M LOOKING)$/i.test(t)) el.textContent="Share privately";
+      });
+      // Webflow modal chrome still ships legacy titles; rewrite so open-modals stay honest.
+      document.querySelectorAll('h2.modal-title,.modal-title').forEach(function(el){
+        var t=(el.textContent||'').replace(/\s+/g,' ').trim();
+        if(/^HIRE SF STARTUP TALENT$/i.test(t)||/^FIND TALENT$/i.test(t)||/^HIRE TALENT$/i.test(t))
+          el.textContent='Hire talent';
+        else if(/^GET MATCHED TO SF STARTUPS$/i.test(t)||/^GET MATCHED$/i.test(t)||/^JOIN NETWORK$/i.test(t))
+          el.textContent='Share privately';
       });
       try{document.documentElement.classList.add('dg-cta-honest')}catch(_){}
       document.querySelectorAll('.pricing-card div,.pricing-card li,.pricing-grid div').forEach(function(el){
@@ -414,11 +470,11 @@ try{(function(){
   var n=0,iv=setInterval(function(){scrub();if(++n>=12)clearInterval(iv)},120);
 })();}catch(e){}</script>
 
-<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startup talent matching: one role, one concrete first result, human review, and mutual yes. 10% of first-year base salary on hire. Talent free.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
+<script type="application/ld+json" id="dg-org-jsonld">{"@context":"https://schema.org","@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","email":"potter@trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024},"description":"SF startup talent matching: one role, one first result, human-reviewed fits, mutual yes. 10% of first-year base salary on hire. Talent free.","areaServed":"San Francisco Bay Area","contactPoint":{"@type":"ContactPoint","email":"potter@trydemigod.com","contactType":"customer service"}}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Demigod","url":"https://www.trydemigod.com","inLanguage":"en","potentialAction":{"@type":"CommunicateAction","target":"mailto:potter@trydemigod.com"}}</script>
 
-<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/?wiz=startup"},{"@type":"ListItem","position":3,"name":"Share what I’d consider","url":"https://www.trydemigod.com/?wiz=engineer"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/?p=how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/?p=pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/?p=faq"},{"@type":"ListItem","position":7,"name":"Blog","url":"https://www.trydemigod.com/?p=blog"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/?p=contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/?p=legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/?p=about"}]}</script>
+<script type="application/ld+json" id="dg-nav-jsonld">{"@context":"https://schema.org","@type":"ItemList","name":"Demigod site pages","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","url":"https://www.trydemigod.com/"},{"@type":"ListItem","position":2,"name":"Hire talent","url":"https://www.trydemigod.com/hire"},{"@type":"ListItem","position":3,"name":"Share privately","url":"https://www.trydemigod.com/talent"},{"@type":"ListItem","position":4,"name":"How it works","url":"https://www.trydemigod.com/how"},{"@type":"ListItem","position":5,"name":"Pricing","url":"https://www.trydemigod.com/pricing"},{"@type":"ListItem","position":6,"name":"FAQ","url":"https://www.trydemigod.com/faq"},{"@type":"ListItem","position":7,"name":"SF tech companies","url":"https://www.trydemigod.com/startups"},{"@type":"ListItem","position":8,"name":"Contact","url":"https://www.trydemigod.com/contact"},{"@type":"ListItem","position":9,"name":"Legal","url":"https://www.trydemigod.com/legal"},{"@type":"ListItem","position":10,"name":"About","url":"https://www.trydemigod.com/about"}]}</script>
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Blog","name":"Demigod Blog","url":"https://www.trydemigod.com/?p=blog","inLanguage":"en","publisher":{"@type":"Organization","name":"Demigod","url":"https://www.trydemigod.com","logo":{"@type":"ImageObject","url":"https://files.catbox.moe/ges75q.jpg","width":1024,"height":1024}},"blogPost":[{"@type":"BlogPosting","headline":"Epicurus' Garden and the SF hacker house","description":"Epicurus wanted friendship and a quiet mind. SF hacker houses want speed. The useful overlap is smaller: choose the room carefully, write the norms down, and leave room to recover.","url":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.trydemigod.com/?p=blog#note-epicurus-garden-hacker-houses"},"image":"https://files.catbox.moe/urbco5.jpg","articleSection":"Market","datePublished":"2026-07-17","dateModified":"2026-07-17","author":{"@type":"Organization","name":"Demigod"},"inLanguage":"en"}]}</script>
 
@@ -454,7 +510,7 @@ document.addEventListener('DOMContentLoaded',function(){
             el.textContent='Hire talent';
             if(el.matches('a'))el.setAttribute('href','/?wiz=startup');
           }else if(/(?:3\s*(?:[–—-]|to)\s*5|three\s+to\s+five)\s+(?:[\w-]+\s+){0,3}(?:candidates?|matches?|profiles?|finalists?)/i.test(t)){
-            el.textContent='Meet curated matches';
+            el.textContent='Meet matches after human review';
           }else if(/(?:90\s*[–—-]?\s*day\s+)?replacement\s+(?:guarantee|promise|warranty|assurance)|90\s*[–—-]?\s*day\s+(?:guarantee|warranty|assurance)/i.test(t)){
             el.textContent='Human-reviewed matching';
           }
@@ -464,13 +520,13 @@ document.addEventListener('DOMContentLoaded',function(){
         if(!root)return;
         var links=root.querySelectorAll('a');
         // Must match foot COPY.ctaFounder / ctaEngineer (verify head:cta-fallback)
-        ['Hire talent','Share what I’d consider'].forEach(function(label,i){
+        ['Hire talent','Share privately'].forEach(function(label,i){
           var link=links[i]; if(!link)return;
           var text=link.querySelector('.btn-label,.button_label')||link;
           text.textContent=label;
           link.setAttribute('data-dg-cta',i===0?'hire':'talent');
           link.setAttribute('href',i===0?'/?wiz=startup':'/?wiz=engineer');
-          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Share what I’d consider — open private candidate form');
+          link.setAttribute('aria-label',i===0?'Hire talent — open startup hiring brief':'Share privately — open private candidate form');
         });
       }
       labelPair(document.querySelector('.hero-actions'));

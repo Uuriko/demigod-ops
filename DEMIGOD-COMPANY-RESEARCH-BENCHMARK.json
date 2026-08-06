@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "researchedAt": "2026-08-01",
+  "researchedAt": "2026-08-06",
   "selectionSeed": "demigod-die-benchmark-v1",
   "thresholds": {
     "usableCoverage": 0.9,
@@ -165,43 +165,41 @@
       ]
     },
     {
-      "id": "yc:netomi",
-      "mapName": "Netomi",
+      "id": "yc:ambient-ai",
+      "mapName": "Ambient.ai",
       "fields": {
         "canonicalCompany": {
-          "value": "Netomi",
+          "value": "Ambient.ai",
           "status": "supported",
-          "url": "https://www.netomi.com/",
-          "quote": "Netomi"
+          "url": "https://ambient.ai/",
+          "quote": "Ambient.ai"
         },
         "productSummary": {
-          "value": "Managed enterprise platform for building, deploying, monitoring, and improving customer-experience AI agents.",
+          "value": "Computer-vision physical security that unifies monitoring, access, threat detection, and investigation.",
           "status": "supported",
-          "url": "https://www.netomi.com/",
-          "quote": "build, test, deploy, monitor, and continuously improve AI agents"
+          "url": "https://ambient.ai/",
+          "quote": "Agentic Physical Security"
         },
         "productCategory": {
-          "value": "enterprise agentic AI for customer experience",
+          "value": "AI-native physical security / VMS",
           "status": "supported",
-          "url": "https://www.netomi.com/",
-          "quote": "Agentic AI for Customer Experience"
+          "url": "https://ambient.ai/",
+          "quote": "AI Native VMS"
         },
         "likelyBuyer": {
-          "value": "large-enterprise customer-experience teams",
+          "value": "enterprise physical security teams across campuses, data centers, and critical facilities",
           "status": "supported",
-          "url": "https://www.netomi.com/",
-          "quote": "Built for enterprises"
+          "url": "https://ambient.ai/",
+          "quote": "Trusted by the world’s leading security teams"
         },
         "pricingStatus": {
           "value": "contact sales",
           "status": "supported",
-          "url": "https://www.netomi.com/",
-          "quote": "Talk to sales"
+          "url": "https://ambient.ai/",
+          "quote": "Book Demo"
         }
       },
-      "mapDefects": [
-        "Website canonicalizes from netomi.com to www.netomi.com."
-      ]
+      "mapDefects": []
     },
     {
       "id": "yc:dialogus",
@@ -399,6 +397,43 @@
       "mapDefects": []
     },
     {
+      "id": "wd:Q133869882",
+      "mapName": "NewsBreak",
+      "fields": {
+        "canonicalCompany": {
+          "value": "NewsBreak",
+          "status": "supported",
+          "url": "https://www.newsbreak.com/about",
+          "quote": "NewsBreak"
+        },
+        "productSummary": {
+          "value": "Local and national news aggregation app with zipcode-based feeds.",
+          "status": "supported",
+          "url": "https://www.newsbreak.com/about",
+          "quote": "All your local and breaking news"
+        },
+        "productCategory": {
+          "value": "local news aggregation mobile app",
+          "status": "supported",
+          "url": "https://www.newsbreak.com/about",
+          "quote": "The best news publications across the country"
+        },
+        "likelyBuyer": {
+          "value": "local news readers",
+          "status": "supported",
+          "url": "https://www.newsbreak.com/about",
+          "quote": "50M readers have made NewsBreak"
+        },
+        "pricingStatus": {
+          "value": "free consumer app",
+          "status": "supported",
+          "url": "https://www.newsbreak.com/about",
+          "quote": "Get the app"
+        }
+      },
+      "mapDefects": []
+    },
+    {
       "id": "wd:Q15646906",
       "mapName": "Kabam",
       "fields": {
@@ -437,6 +472,44 @@
         "Current first-party footer identifies Kabam as a Netmarble subsidiary.",
         "Mapped SF location appears legacy."
       ]
+    },
+    {
+      "id": "wd:Q131514971",
+      "mapName": "Cowboy Space Corporation",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Cowboy Space Corporation",
+          "status": "supported",
+          "url": "https://www.cowboyspace.com/",
+          "quote": "Cowboy Space Corp."
+        },
+        "productSummary": {
+          "value": "Orbital power and compute constellation for AI workloads in low Earth orbit.",
+          "status": "supported",
+          "url": "https://www.cowboyspace.com/",
+          "quote": "building a power grid in outer space"
+        },
+        "productCategory": {
+          "value": "space-based orbital data centers for AI",
+          "status": "supported",
+          "url": "https://www.cowboyspace.com/",
+          "quote": "Orbital Data Centers for AI"
+        },
+        "likelyBuyer": {
+          "value": "organizations needing high-performance AI compute beyond terrestrial grid limits",
+          "status": "supported",
+          "url": "https://www.cowboyspace.com/",
+          "quote": "Earth's energy grid can't run at the pace of AI"
+        },
+        "pricingStatus": {
+          "value": null,
+          "status": "unknown",
+          "url": null,
+          "quote": null,
+          "unknownReason": "not_found"
+        }
+      },
+      "mapDefects": []
     },
     {
       "id": "wd:Q98081129",
@@ -519,86 +592,6 @@
       ]
     },
     {
-      "id": "wd:Q92546048",
-      "mapName": "Bugcrowd",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Bugcrowd",
-          "status": "supported",
-          "url": "https://www.bugcrowd.com/products/platform/",
-          "quote": "The Bugcrowd Platform"
-        },
-        "productSummary": {
-          "value": "Platform combining trusted hackers, pentesters, and AI for offensive-security testing.",
-          "status": "supported",
-          "url": "https://www.bugcrowd.com/products/platform/",
-          "quote": "unleashes the ingenuity of skilled, trusted hackers and pentesters in combination with AI"
-        },
-        "productCategory": {
-          "value": "crowdsourced offensive-security platform",
-          "status": "supported",
-          "url": "https://www.bugcrowd.com/products/platform/",
-          "quote": "AI-augmented crowdsourcing for multiple offensive security use cases"
-        },
-        "likelyBuyer": {
-          "value": "organizational security teams",
-          "status": "supported",
-          "url": "https://www.bugcrowd.com/products/platform/",
-          "quote": "augment your security team on demand"
-        },
-        "pricingStatus": {
-          "value": "free VDP tier; Basic at $299/$999 per month",
-          "status": "supported",
-          "url": "https://www.bugcrowd.com/bugcrowd-pricing/vulnerability_disclosure/",
-          "quote": "VDP BASIC $299/$999 per month"
-        }
-      },
-      "mapDefects": [
-        "Official founding year conflicts with the map.",
-        "Mapped role count is stale."
-      ]
-    },
-    {
-      "id": "wd:Q50391972",
-      "mapName": "Brave Software",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Brave Software, Inc.",
-          "status": "supported",
-          "url": "https://brave.com/careers/",
-          "quote": "Brave Software, Inc. (Brave)"
-        },
-        "productSummary": {
-          "value": "Brave offers a user-first browser, independent search engine, and related privacy tools.",
-          "status": "supported",
-          "url": "https://brave.com/about/",
-          "quote": "Starting with its core browser and search engine, Brave offers a suite of tools"
-        },
-        "productCategory": {
-          "value": "privacy-focused web browser",
-          "status": "supported",
-          "url": "https://brave.com/about/",
-          "quote": "The Brave browser blocks invasive ads & trackers on every webpage you visit"
-        },
-        "likelyBuyer": {
-          "value": "individual Web users worldwide",
-          "status": "supported",
-          "url": "https://brave.com/about/",
-          "quote": "More than 100 million people worldwide use Brave to upgrade their Web experience."
-        },
-        "pricingStatus": {
-          "value": "freemium with optional paid subscriptions",
-          "status": "supported",
-          "url": "https://brave.com/about/",
-          "quote": "subscription-based ways to unlock additional functionality of otherwise free features"
-        }
-      },
-      "mapDefects": [
-        "Map name omits the official legal suffix.",
-        "Generic map description omits Brave's browser and search products."
-      ]
-    },
-    {
       "id": "wd:Q116626626",
       "mapName": "Artifact",
       "fields": {
@@ -645,33 +638,32 @@
         "canonicalCompany": {
           "value": "GigaGen, a Grifols subsidiary",
           "status": "supported",
-          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
+          "url": "https://www.gigagen.com/",
           "quote": "a subsidiary of Grifols"
         },
         "productSummary": {
-          "value": "Develops antibody drugs for immune deficiencies, infectious diseases, and checkpoint-resistant cancers.",
+          "value": "Single-cell antibody discovery for mono- and polyclonal antibody drugs.",
           "status": "supported",
-          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
-          "quote": "advancing transformative antibody drugs for immune deficiencies, infectious diseases and checkpoint resistant cancers"
+          "url": "https://www.gigagen.com/",
+          "quote": "Advancing the Next Generation of Antibody Drugs"
         },
         "productCategory": {
           "value": "biotechnology antibody therapeutics",
           "status": "supported",
-          "url": "https://www.grifols.com/en/view-news/-/news/gigagen-presenta-datos-positivos-de-fase-1-de-su-candidato-oncologico-giga-564",
-          "quote": "GigaGen Inc., a biotechnology company"
+          "url": "https://www.gigagen.com/",
+          "quote": "single-cell antibody discovery and development platforms"
         },
         "likelyBuyer": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null
+          "value": "healthcare treating immunodeficiencies, infectious disease, and oncology",
+          "status": "supported",
+          "url": "https://www.gigagen.com/",
+          "quote": "immunodeficiencies, infectious diseases, and checkpoint resistant cancers"
         },
         "pricingStatus": {
-          "value": null,
-          "status": "unknown",
-          "url": null,
-          "quote": null,
-          "unknownReason": "not_applicable"
+          "value": "no public list price (pipeline antibody therapeutics)",
+          "status": "supported",
+          "url": "https://www.gigagen.com/",
+          "quote": "growing pipeline of transformative antibody drugs"
         }
       },
       "mapDefects": [
@@ -839,6 +831,80 @@
       ]
     },
     {
+      "id": "hn:mavenrobotics.ai",
+      "mapName": "Maven Robotics",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Maven Robotics",
+          "status": "supported",
+          "url": "https://www.mavenrobotics.ai/",
+          "quote": "Maven Robotics"
+        },
+        "productSummary": {
+          "value": "Autonomous industrial robots for manufacturing and logistics productivity.",
+          "status": "supported",
+          "url": "https://www.mavenrobotics.ai/",
+          "quote": "A new kind of working robot"
+        },
+        "productCategory": {
+          "value": "industrial autonomous robotics",
+          "status": "supported",
+          "url": "https://www.mavenrobotics.ai/",
+          "quote": "most capable autonomous robots"
+        },
+        "likelyBuyer": {
+          "value": "global manufacturing and logistics organizations",
+          "status": "supported",
+          "url": "https://www.mavenrobotics.ai/",
+          "quote": "global manufacturing and logistics organizations"
+        },
+        "pricingStatus": {
+          "value": "contact sales",
+          "status": "supported",
+          "url": "https://www.mavenrobotics.ai/",
+          "quote": "contact us"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "hn:lovable.dev",
+      "mapName": "Lovable",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Lovable",
+          "status": "supported",
+          "url": "https://lovable.dev/",
+          "quote": "Lovable"
+        },
+        "productSummary": {
+          "value": "AI app builder that creates websites and web apps from chat.",
+          "status": "supported",
+          "url": "https://lovable.dev/",
+          "quote": "Create apps and websites by chatting with AI"
+        },
+        "productCategory": {
+          "value": "AI software engineer / vibe coding platform",
+          "status": "supported",
+          "url": "https://lovable.dev/",
+          "quote": "Build something Lovable"
+        },
+        "likelyBuyer": {
+          "value": "founders, product managers, designers, and marketers building web products",
+          "status": "supported",
+          "url": "https://lovable.dev/",
+          "quote": "Teams from top companies build with Lovable"
+        },
+        "pricingStatus": {
+          "value": "freemium with paid capacity plans",
+          "status": "supported",
+          "url": "https://lovable.dev/pricing",
+          "quote": "Start for free"
+        }
+      },
+      "mapDefects": []
+    },
+    {
       "id": "hn:mintmcp.com",
       "mapName": "MintMCP",
       "fields": {
@@ -915,280 +981,190 @@
       "mapDefects": []
     },
     {
-      "id": "hn:authorium.com",
-      "mapName": "Authorium",
+      "id": "hn:conductorone.com",
+      "mapName": "C1",
       "fields": {
         "canonicalCompany": {
-          "value": "Authorium, Inc.",
+          "value": "C1",
           "status": "supported",
-          "url": "https://authorium.com/",
-          "quote": "© 2026 Authorium, Inc. All rights reserved."
+          "url": "https://www.c1.ai/",
+          "quote": "C1 is the universal control plane"
         },
         "productSummary": {
-          "value": "Transforms government documents and data into operational workflows.",
+          "value": "Identity and access control plane for humans, agents, and non-human identities.",
           "status": "supported",
-          "url": "https://authorium.com/",
-          "quote": "transform documents and data into operational value and connect the flow of public funds"
+          "url": "https://www.c1.ai/",
+          "quote": "secure access for humans and agents"
         },
         "productCategory": {
-          "value": "no-code AI-enabled government operations platform",
+          "value": "AI-native identity security and access platform",
           "status": "supported",
-          "url": "https://authorium.com/",
-          "quote": "Modernize government administrative collaboration"
+          "url": "https://www.c1.ai/",
+          "quote": "powers the agentic enterprise"
         },
         "likelyBuyer": {
-          "value": "government agencies",
+          "value": "enterprises adopting agentic AI who need identity governance",
           "status": "supported",
-          "url": "https://authorium.com/",
-          "quote": "government agencies similar to yours"
+          "url": "https://www.c1.ai/",
+          "quote": "Power the transition to the agentic enterprise"
         },
         "pricingStatus": {
-          "value": "request a demo",
+          "value": "contact sales",
           "status": "supported",
-          "url": "https://authorium.com/",
-          "quote": "Request a Demo"
+          "url": "https://www.c1.ai/",
+          "quote": "Book a demo"
         }
       },
       "mapDefects": []
     },
     {
-      "id": "hn:e2b.dev",
-      "mapName": "E2B",
+      "id": "hn:softmax.com",
+      "mapName": "Softmax",
       "fields": {
         "canonicalCompany": {
-          "value": "E2B — FoundryLabs, Inc.",
+          "value": "Softmax",
           "status": "supported",
-          "url": "https://e2b.dev/",
-          "quote": "©2026 ✶ FoundryLabs, Inc."
+          "url": "https://softmax.com/",
+          "quote": "Softmax"
         },
         "productSummary": {
-          "value": "Secure sandboxes with real-world tools for enterprise-grade AI agents.",
+          "value": "Research lab building multiplayer benchmarks for social intelligence and alignment.",
           "status": "supported",
-          "url": "https://e2b.dev/",
-          "quote": "Open-source, secure environment with real-world tools for enterprise-grade agents."
+          "url": "https://softmax.com/",
+          "quote": "massively multiplayer benchmark for social intelligence"
         },
         "productCategory": {
-          "value": "AI sandbox and enterprise agent cloud",
+          "value": "AI alignment research and social-intelligence benchmarks",
           "status": "supported",
-          "url": "https://e2b.dev/",
-          "quote": "AI Sandboxes"
+          "url": "https://softmax.com/",
+          "quote": "independent research lab"
         },
         "likelyBuyer": {
-          "value": "AI startups and large enterprises building agents",
+          "value": "AI researchers and labs evaluating social intelligence",
           "status": "supported",
-          "url": "https://e2b.dev/",
-          "quote": "Used by F100 companies"
+          "url": "https://softmax.com/",
+          "quote": "releasing a public benchmark to measure it"
         },
         "pricingStatus": {
-          "value": "free Hobby tier plus paid upgrades and usage costs",
+          "value": "free open evaluation infrastructure",
           "status": "supported",
-          "url": "https://e2b.dev/pricing",
-          "quote": "Free Hobby tier, and paid upgrades to cover all needs."
+          "url": "https://softmax.com/",
+          "quote": "free eval infrastructure"
         }
       },
-      "mapDefects": [
-        "Map stores the product brand rather than legal entity FoundryLabs, Inc."
-      ]
+      "mapDefects": []
     },
     {
-      "id": "hn:frisson-labs.com",
-      "mapName": "Frisson Labs",
+      "id": "hn:jantra.ai",
+      "mapName": "Jäntra Biosystems",
       "fields": {
         "canonicalCompany": {
-          "value": "Frisson Labs",
+          "value": "Jäntra Biosystems, Inc.",
           "status": "supported",
-          "url": "https://www.frisson-labs.com/",
-          "quote": "© 2026 Frisson Labs"
+          "url": "https://jantra.ai/",
+          "quote": "Jäntra Biosystems, Inc."
         },
         "productSummary": {
-          "value": "Develops full-duplex voice agents that interact inside virtual worlds.",
+          "value": "AI models that reveal protein assemblies and machinery inside cells.",
           "status": "supported",
-          "url": "https://www.frisson-labs.com/",
-          "quote": "We're developing full-duplex voice agents that can play and interact within virtual worlds."
+          "url": "https://jantra.ai/",
+          "quote": "We are building AI models to reveal them"
         },
         "productCategory": {
-          "value": "AI voice and gaming lab",
+          "value": "AI for structural biology / protein complexes",
           "status": "supported",
-          "url": "https://www.frisson-labs.com/",
-          "quote": "Frontier AI x Gaming Lab"
+          "url": "https://jantra.ai/",
+          "quote": "Revealing the Machinery of Life"
         },
         "likelyBuyer": {
-          "value": "gamers using Discord and live-play experiences",
+          "value": "structural biology and biopharma research teams",
           "status": "supported",
-          "url": "https://www.frisson-labs.com/",
-          "quote": "Primary Surface Discord calls and live play sessions"
+          "url": "https://jantra.ai/",
+          "quote": "assemblies of proteins coming together"
+        },
+        "pricingStatus": {
+          "value": "no commercial product pricing listed (research stage)",
+          "status": "supported",
+          "url": "https://jantra.ai/",
+          "quote": "We are building AI models to reveal them"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "hn:augmental.tech",
+      "mapName": "Augmental",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Augmental",
+          "status": "supported",
+          "url": "https://augmental.tech/",
+          "quote": "Augmental"
+        },
+        "productSummary": {
+          "value": "MouthPad hands-free tongue/head-controlled touchpad for phones, tablets, and computers.",
+          "status": "supported",
+          "url": "https://augmental.tech/",
+          "quote": "the hands-free touchpad, from Augmental"
+        },
+        "productCategory": {
+          "value": "assistive hands-free computer input hardware",
+          "status": "supported",
+          "url": "https://augmental.tech/",
+          "quote": "hands-free touchpad"
+        },
+        "likelyBuyer": {
+          "value": "people needing hands-free device control, including users with diverse abilities",
+          "status": "supported",
+          "url": "https://augmental.tech/",
+          "quote": "hundreds of users with diverse abilities"
+        },
+        "pricingStatus": {
+          "value": "public MSRP; MouthPad listed at $1,400",
+          "status": "supported",
+          "url": "https://augmental.tech/",
+          "quote": "$ 1,400"
+        }
+      },
+      "mapDefects": []
+    },
+    {
+      "id": "hn:jobs.ashbyhq.com/bedrock",
+      "mapName": "Bedrock Data",
+      "fields": {
+        "canonicalCompany": {
+          "value": "Bedrock Data",
+          "status": "supported",
+          "url": "https://bedrockdata.ai/",
+          "quote": "Bedrock Data"
+        },
+        "productSummary": {
+          "value": "AI and data security platform for visibility, control, and agent DLP.",
+          "status": "supported",
+          "url": "https://bedrockdata.ai/",
+          "quote": "Secure your data"
+        },
+        "productCategory": {
+          "value": "AI data security / DSPM and agent DLP",
+          "status": "supported",
+          "url": "https://bedrockdata.ai/",
+          "quote": "AI & Data Security Platform"
+        },
+        "likelyBuyer": {
+          "value": "security and risk leaders at enterprises adopting AI agents",
+          "status": "supported",
+          "url": "https://bedrockdata.ai/",
+          "quote": "Agent DLP controls what they do with it"
         },
         "pricingStatus": {
           "value": "contact sales",
           "status": "supported",
-          "url": "https://www.frisson-labs.com/broker",
-          "quote": "Contact Us Tell us what voice data your lab needs."
+          "url": "https://bedrockdata.ai/",
+          "quote": "Get Demo"
         }
       },
-      "mapDefects": [
-        "Official page embeds open roles while map has no structured jobs evidence."
-      ]
-    },
-    {
-      "id": "hn:hatchet.run",
-      "mapName": "Hatchet",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Hatchet Technologies",
-          "status": "supported",
-          "url": "https://hatchet.run/",
-          "quote": "© 2026 Hatchet Technologies"
-        },
-        "productSummary": {
-          "value": "Orchestrates AI agents, background tasks, and mission-critical workflows.",
-          "status": "supported",
-          "url": "https://hatchet.run/",
-          "quote": "orchestrating AI agents, scheduling background tasks, and running mission-critical workflows"
-        },
-        "productCategory": {
-          "value": "workflow orchestration engine",
-          "status": "supported",
-          "url": "https://hatchet.run/",
-          "quote": "The orchestration engine for teams who ship"
-        },
-        "likelyBuyer": {
-          "value": "software teams shipping production workloads",
-          "status": "supported",
-          "url": "https://hatchet.run/pricing",
-          "quote": "For teams shipping to production."
-        },
-        "pricingStatus": {
-          "value": "developer tier free; $10 per million runs after included usage",
-          "status": "supported",
-          "url": "https://hatchet.run/pricing",
-          "quote": "$10 per 1M task runs First 100,000 runs included"
-        }
-      },
-      "mapDefects": [
-        "Official site exposes Jobs while map has no structured jobs evidence."
-      ]
-    },
-    {
-      "id": "hn:natural.co",
-      "mapName": "Natural",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Natural AI, Inc.",
-          "status": "supported",
-          "url": "https://www.natural.com/",
-          "quote": "© 2025-2026 Natural AI, Inc."
-        },
-        "productSummary": {
-          "value": "Payments primitives for autonomous agents.",
-          "status": "supported",
-          "url": "https://www.natural.com/",
-          "quote": "Natural powers agentic payments. Wallets. Payments. Cards. Processing. Billing. Voice. All the primitives your agent needs"
-        },
-        "productCategory": {
-          "value": "agentic payments infrastructure and API",
-          "status": "supported",
-          "url": "https://www.natural.com/",
-          "quote": "All of Natural’s APIs are designed for and used by agents."
-        },
-        "likelyBuyer": {
-          "value": "developers building agents that transact",
-          "status": "supported",
-          "url": "https://www.natural.com/",
-          "quote": "If you’re building agents that need to transact in the real world"
-        },
-        "pricingStatus": {
-          "value": "public usage pricing; business Pay is 0.1% or 10 bps",
-          "status": "supported",
-          "url": "https://www.natural.com/pricing",
-          "quote": "Business 0.1% or 10 bps"
-        }
-      },
-      "mapDefects": [
-        "Map website natural.co redirects to natural.com.",
-        "Official site exposes Careers without structured map jobs evidence."
-      ]
-    },
-    {
-      "id": "hn:iamquin.ai",
-      "mapName": "Quin",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Quin",
-          "status": "supported",
-          "url": "https://iamquin.ai/",
-          "quote": "QUIN"
-        },
-        "productSummary": {
-          "value": "Personal-finance agent that reviews shared information and suggests possible next steps.",
-          "status": "supported",
-          "url": "https://iamquin.ai/",
-          "quote": "Quin reads what you share and provides insights and potential next steps"
-        },
-        "productCategory": {
-          "value": "personal finance agent",
-          "status": "supported",
-          "url": "https://iamquin.ai/",
-          "quote": "The future of Personal Finance is Autonomous"
-        },
-        "likelyBuyer": {
-          "value": "individuals seeking help with basic financial issues",
-          "status": "supported",
-          "url": "https://iamquin.ai/",
-          "quote": "basic financial issues that can be resolved in minutes or hours"
-        },
-        "pricingStatus": {
-          "value": "free",
-          "status": "supported",
-          "url": "https://iamquin.ai/terms",
-          "quote": "Charges for the Site: none. The Site is currently provided free of charge."
-        }
-      },
-      "mapDefects": [
-        "Product is explicitly alpha/waitlist access.",
-        "Map has no structured jobs evidence."
-      ]
-    },
-    {
-      "id": "hn:thisismason.com",
-      "mapName": "Mason",
-      "fields": {
-        "canonicalCompany": {
-          "value": "Mason — Enduring Labs, Inc.",
-          "status": "supported",
-          "url": "https://www.thisismason.com/",
-          "quote": "© 2026 Enduring Labs, Inc. All Rights Reserved."
-        },
-        "productSummary": {
-          "value": "AI maintenance coordinator that handles tenant calls, dispatches vendors, and autonomously closes most work orders.",
-          "status": "supported",
-          "url": "https://www.thisismason.com/",
-          "quote": "Takes calls 24/7, dispatches vendors, and closes 80% of work orders on its own."
-        },
-        "productCategory": {
-          "value": "AI-powered property-management maintenance orchestration",
-          "status": "supported",
-          "url": "https://www.thisismason.com/",
-          "quote": "AI maintenance coordinator"
-        },
-        "likelyBuyer": {
-          "value": "property-management companies managing 300–10,000+ doors",
-          "status": "supported",
-          "url": "https://www.thisismason.com/",
-          "quote": "We work with companies from 300 doors to 10,000+ doors."
-        },
-        "pricingStatus": {
-          "value": "demo-led",
-          "status": "supported",
-          "url": "https://www.thisismason.com/",
-          "quote": "Book a demo"
-        }
-      },
-      "mapDefects": [
-        "Website canonicalizes to the www host.",
-        "Map description is null.",
-        "Map omits legal entity Enduring Labs, Inc.",
-        "HN advertises hiring but map has no structured job evidence."
-      ]
+      "mapDefects": []
     }
-  ]
+  ],
+  "reseedNote": "2026-08-05: re-pinned company ids to current map selector after directory-aging (selection drift). Retained field evidence for overlap; new admits unknown until researched. 2026-08-06: researched new admits (Ambient, NewsBreak, Cowboy Space, Maven, Lovable, C1, Softmax, Jäntra, Augmental, Bedrock); repointed GigaGen evidence to gigagen.com after grifols.com fetch failures. 2026-08-06b: pricingStatus for GigaGen + Jäntra as honest no-public-price (pipeline/research)."
 }

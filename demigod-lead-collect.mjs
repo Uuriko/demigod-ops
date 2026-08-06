@@ -1245,7 +1245,57 @@ export function runSearchQueries(queries, search = fcSearch, onAllFailed = () =>
 /** Last firecrawl scrape transport error (credits, spawn, etc.) — for enrich abort honesty. */
 export let lastFcScrapeError = null;
 
-/** Scrape one URL → markdown text (CLI). Null means transport failure. */
+/**
+ * Plain HTTPS GET for allowlisted public pages when Firecrawl CLI is missing.
+ * Same honesty contract as fcScrape: body text only; extractContactFromPage owns parsing.
+ * Only call with a URL already passed through safeResearchUrl.
+ */
+export function httpScrape(safeUrl) {
+  if (!safeUrl) {
+    lastFcScrapeError = 'unsafe_url';
+    return null;
+  }
+  const r = spawnSync(
+    'curl',
+    [
+      '-fsSL',
+      '--max-time',
+      '25',
+      '-L',
+      '--max-redirs',
+      '3',
+      '--proto-redir',
+      '=https',
+      '-A',
+      'demigod-public-enrichment/1 (+https://www.trydemigod.com)',
+      '-H',
+      'Accept: text/html,text/plain,*/*;q=0.8',
+      safeUrl,
+    ],
+    { encoding: 'utf8', timeout: 35000, maxBuffer: 8 * 1024 * 1024 },
+  );
+  if (r.error) {
+    lastFcScrapeError = `http_spawn:${r.error.message}`.slice(0, 240);
+    return null;
+  }
+  if (r.status !== 0) {
+    lastFcScrapeError = `http_exit_${r.status ?? 'unknown'}`;
+    return null;
+  }
+  const body = String(r.stdout || '');
+  if (body.length < 40) {
+    lastFcScrapeError = 'http_empty';
+    return null;
+  }
+  lastFcScrapeError = null;
+  return body;
+}
+
+function firecrawlMissing(r) {
+  return r?.error?.code === 'ENOENT' || /ENOENT|not found/i.test(String(r?.error?.message || ''));
+}
+
+/** Scrape one URL → text (Firecrawl CLI, else curl HTTPS). Null means transport failure. */
 export function fcScrape(url) {
   lastFcScrapeError = null;
   if (!url) return null;
@@ -1283,10 +1333,21 @@ export function fcScrape(url) {
     /* */
   }
   const errText = String(r.stderr || r.stdout || r.error?.message || '').trim();
-  if (/Insufficient credits/i.test(errText)) lastFcScrapeError = 'firecrawl_insufficient_credits';
-  else if (r.error) lastFcScrapeError = `firecrawl_spawn:${r.error.message}`;
-  else if (errText) lastFcScrapeError = errText.slice(0, 240);
-  else lastFcScrapeError = `firecrawl_exit_${r.status ?? 'unknown'}`;
+  if (/Insufficient credits/i.test(errText)) {
+    lastFcScrapeError = 'firecrawl_insufficient_credits';
+  } else if (firecrawlMissing(r)) {
+    // CLI absent — try public HTTPS fetch (still safeResearchUrl-gated).
+    const viaHttp = httpScrape(safeUrl);
+    if (viaHttp != null) return viaHttp;
+    if (!lastFcScrapeError) lastFcScrapeError = 'firecrawl_spawn:spawnSync firecrawl ENOENT';
+    return null;
+  } else if (r.error) {
+    lastFcScrapeError = `firecrawl_spawn:${r.error.message}`;
+  } else if (errText) {
+    lastFcScrapeError = errText.slice(0, 240);
+  } else {
+    lastFcScrapeError = `firecrawl_exit_${r.status ?? 'unknown'}`;
+  }
   try {
     if (fs.existsSync(out)) fs.unlinkSync(out);
   } catch {

@@ -234,7 +234,14 @@
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
       '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-size:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
-      '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
+      /* display+align on the BASE rule, not button-only. .dg-dir-roles is display:flex, so a
+         non-interactive <span> chip — any function outside DG_FUNCS, e.g. "Other 6" — is a flex
+         item that stretches to the 48px tap-target height of its button siblings while keeping
+         display:block/align-items:normal, which pins its text to the TOP of that box. Measured on
+         live: buttons resolve display:flex/align:center, the span resolved block/normal, and the
+         text renders outside the visible pill. min-width/min-height/cursor stay button-only — a
+         span is not a tap target. */
+      '.dg-dir-rolechip{display:inline-flex;align-items:center;color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
       'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-width:48px;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
       '.dg-dir-topics{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin:.2rem 0 0}.dg-dir-topic-label{color:#a8a29e;font-size:.68rem}' +
       '.dg-dir-topic{border:1px solid rgba(166,255,203,.18);border-radius:999px;color:#9fb8a8;padding:.08rem .45rem;font-size:.68rem}' +
@@ -404,16 +411,12 @@
     host.innerHTML =
       '<h2 class="dg-fresh-h">Open roles</h2>' +
       (activity ? '<p class="dg-dir-pulse"><strong>Board observations:</strong> ' + esc(activity) + '</p>' : '') +
-      '<p class="dg-fresh-note">Roles we first saw on a company\'s own public job board' +
-      (days ? ' in the last ' + days + ' day' + (days === 1 ? '' : 's') : '') +
-      '. <strong>First observed</strong> is our timestamp, not the employer\'s posting date — most ' +
-      'boards do not expose one, so this says when we noticed a role, never how long it has existed. ' +
-      // Measured: 40 of 200 feed rows are non-US (Remote Canada/Spain/Poland, São Paulo). The
-      // open-role counts above DO filter to US-posted or Remote, so without this sentence the page
-      // contradicts itself — two different scopes presented as one. Stating the scope is honest;
-      // quietly filtering here would invent a third rule that matches neither the feed nor the counts.
-      'Locations are wherever the company posted the role, including outside the US — unlike the ' +
-      'open-role counts above, which include only US-posted or Remote listings.</p>' +
+      /* Short honesty, not a lecture: notice-date ≠ post date; geo scope ≠ company counts. */
+      '<p class="dg-fresh-note">Public employer boards' +
+      (days ? ' · last ' + days + ' day' + (days === 1 ? '' : 's') + ' we tracked' : '') +
+      '. <strong>First observed</strong> is our notice date, not the board post date. ' +
+      // Counts above filter US-posted/Remote; this list does not (many feed rows are non-US).
+      'Locations are wherever the company posted, including outside the US — open-role counts above are US-posted or Remote only. Not matching inventory.</p>' +
       '<ul class="dg-fresh-list">' +
       rows.map(function (role) {
         var url = safeUrl(role.url);
@@ -494,7 +497,7 @@
          source and city-level scope, so the paragraph only has to carry what it doesn't: where the
          counts come from, that they are point-in-time, and that open-age is an observation rather
          than a verdict. Every honesty claim survives; the restatement does not. */
-      '<p class="dg-dir-intro">City-level only — a listed Bay Area location, not a verified office or current status. Open-role counts come from each company\'s own public job board, point-in-time — our first observation, not a verdict.</p>' +
+      '<p class="dg-dir-intro">City-level only — a listed Bay Area location, not a verified office. Open-role counts come from each company\'s own public job board, point-in-time — an observation, not a hiring verdict. Listed companies are not engaged Demigod clients; use <strong>Hiring here? Start a brief</strong> to work with us.</p>' +
       /* Coverage stats and role buckets moved BELOW the list. On a 390px screen they pushed the
          first company past ~1,700px, so the entire mobile fold was chrome, a disclaimer and
          aggregates — zero product. They are orientation for someone already browsing, not for
@@ -644,16 +647,31 @@
               try { modal.setAttribute('aria-hidden', 'false'); modal.style.display = 'flex'; } catch (e0) {}
             }
           } catch (e) { /* open is best-effort */ }
-          // Prefill after the wizard mounts; the input is created by foot-core on open.
+          // Keep non-empty campaign/referral attribution; fill blanks only.
+          // Webflow often ships empty utm_* hiddens — create-only would no-op and leave source/campaign blank.
+          // Prefill after the wizard mounts; company-name may be created by foot-core on open.
           setTimeout(function () {
             try {
+              var form = document.querySelector('#startup-hire');
+              if (form) {
+                [['utm_source', 'directory'], ['utm_campaign', 'company-brief']].forEach(function (pair) {
+                  var hid = form.querySelector('input[name="' + pair[0] + '"]');
+                  if (hid) {
+                    if (!String(hid.value || '').trim()) hid.value = pair[1];
+                    return;
+                  }
+                  hid = document.createElement('input');
+                  hid.type = 'hidden'; hid.name = pair[0]; hid.value = pair[1];
+                  form.appendChild(hid);
+                });
+              }
               var input = document.querySelector('#startup-hire [name="company-name"]');
               if (input && !String(input.value || '').trim() && co) {
                 input.value = co;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
               }
-            } catch (e2) { /* prefill is a convenience, never a requirement */ }
+            } catch (e2) { /* prefill/attribution is a convenience, never a requirement */ }
           }, 350);
         } else {
           // Preserve company across navigation via foot-core's same-session draft key.
@@ -671,7 +689,15 @@
               }
             }
           } catch (e4) { /* draft seed is optional */ }
-          location.href = '/?wiz=startup';
+          var next = new URL('/?wiz=startup', location.origin);
+          var current = new URLSearchParams(location.search);
+          ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'referral'].forEach(function (name) {
+            var value = current.get(name);
+            if (value) next.searchParams.set(name, value);
+          });
+          if (!next.searchParams.has('utm_source')) next.searchParams.set('utm_source', 'directory');
+          if (!next.searchParams.has('utm_campaign')) next.searchParams.set('utm_campaign', 'company-brief');
+          location.href = next.pathname + next.search;
         }
         return;
       }
