@@ -165,6 +165,49 @@ async function main() {
   })();
   checks.push(check('freeze readable', true, freeze.on ? `ON ${freeze.why || ''}` : 'OFF'));
 
+  /* Integration CONFIGURATION — deliberately not reachability.
+     This reports whether a credential or endpoint is present, never whether the far side
+     receives. That distinction is the whole point: the Webflow form → inbox handoff was dead
+     for five weeks while every gate here stayed green, because nothing checked arrival AND
+     nothing reported that the config was missing either. This closes the second half only.
+     A green line below means "configured", not "working".
+
+     Empty string counts as absent. WEBFLOW_API_TOKEN= is a key that EXISTS with no value, so
+     any presence check answers yes while every consumer correctly treats it as missing. */
+  await (async () => {
+    const nonEmpty = (v) => Boolean(String(v ?? '').trim());
+    const fix = (what) => `absent — ${what}`;
+    try {
+      const { resolveWebflowApiToken } = await import('./demigod-webflow-token.mjs');
+      const t = resolveWebflowApiToken();
+      checks.push(check('cfg webflow api token', nonEmpty(t?.token),
+        t?.token ? `configured (${t.source})` : fix('set WEBFLOW_API_TOKEN in ~/.config/demigod/webflow.env')));
+    } catch (e) {
+      checks.push(check('cfg webflow api token', false, `resolver failed: ${e.message}`));
+    }
+    try {
+      const { resolveWebflowWebhookSecrets } = await import('./demigod-webhook-auth.mjs');
+      const secrets = resolveWebflowWebhookSecrets();
+      checks.push(check('cfg webhook signing secret', secrets.length > 0,
+        secrets.length ? `${secrets.length} key(s)` : fix('write a 32-256 char hex secret to ~/.config/demigod/webhook.env, chmod 600')));
+    } catch (e) {
+      checks.push(check('cfg webhook signing secret', false, `resolver failed: ${e.message}`));
+    }
+    try {
+      const { resolveWebhookPublicUrl } = await import('./demigod-webhook-url.mjs');
+      const url = resolveWebhookPublicUrl();
+      checks.push(check('cfg webhook public url', nonEmpty(url),
+        url ? String(url) : fix('no DEMIGOD_WEBHOOK_PUBLIC_URL, no tunnel webhookUrl, no DEMIGOD-WEBHOOK-SETUP.json')));
+    } catch (e) {
+      checks.push(check('cfg webhook public url', false, `resolver failed: ${e.message}`));
+    }
+    // The receiver is the one process whose absence loses customer submissions.
+    const unit = spawnSync('systemctl', ['--user', 'is-enabled', 'demigod-submissions-webhook.service'], { encoding: 'utf8' });
+    const enabled = String(unit.stdout || '').trim() === 'enabled';
+    checks.push(check('cfg submissions receiver', enabled,
+      enabled ? 'unit enabled' : fix('unit present but not enabled — needs a secret and a public URL first')));
+  })();
+
   const pass = checks.every((c) => c.ok);
   const out = { at: new Date().toISOString(), pass, checks };
   fs.mkdirSync(BUSY, { recursive: true });
