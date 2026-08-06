@@ -74,3 +74,55 @@ Stated as a specification, not a recommendation:
 
 Steps 1, 3 and 4 need credentials or accounts only the user holds. Step 2 is
 mechanical and can be done here once a URL exists.
+
+
+---
+
+## Verified 2026-08-06 — everything downstream of the URL works
+
+The four-step spec above was written without any step verified. Three of them are
+now settled, so the remaining ask is smaller than it looked.
+
+**Receiver: proven working**, end to end, in isolation:
+
+| Check | Result |
+|---|---|
+| Binds on localhost | yes, `auth: webflow-hmac-sha256, keyCount 1` with a key present |
+| Valid HMAC signature | `200`, submission ingested with correct shape (`id, at, form, raw, status, rejectReasons`) |
+| Bad signature | `401 unauthorized` |
+| No signature | `401 unauthorized` |
+| Real inbox touched | **no** — 200 bytes, same mtime, same sha256 before and after |
+
+Run under `DEMIGOD_TEST_SCOPE`, which redirects every store into
+`/tmp/dg-busy/tests/<scope>/`. That mechanism exists because tests once polluted
+the real inbox with 115 fixture rows that read as real demand, and corrupted the
+board twice. No process was left listening.
+
+**Bind policy: correct and fail-closed.** `webhookAuthSafeToBind` allows
+`127.0.0.1`/`::1` without a secret and refuses `0.0.0.0` without one. The receiver
+throws on startup rather than exposing an unsigned endpoint. With no secrets it
+runs in `compat-unsigned` mode where `verifyWebflowWebhook` returns
+`allowed: true` for everything — which is exactly why the public-bind refusal
+matters and why it should stay.
+
+**Supervision: written, deliberately NOT enabled.**
+`systemd-user/demigod-submissions-webhook.service` now exists, matching the
+pattern every other recurring job here already had. It is not enabled because
+there is no signing secret and no public URL; a receiver nothing can reach, in a
+mode that accepts anything, is noise that trains people to ignore the service list.
+
+### What is actually left
+
+1. **Look in Webflow → Forms.** Still the only place the "were there submissions"
+   answer exists. Unchanged, and still the first thing worth doing.
+2. **Create `~/.config/demigod/webhook.env`, chmod 600.** Needs a hex secret of
+   32–256 chars — `validSecret` rejects anything else, silently, which cost me one
+   test run. `readSecretFile` also ignores the file entirely if group or other can
+   read it. Keys: `DEMIGOD_WEBFLOW_WEBHOOK_SECRET_STARTUP`,
+   `..._ENGINEER`, or `DEMIGOD_WEBFLOW_WEBHOOK_SECRET`.
+3. **A stable public URL**, and register it in Webflow —
+   `demigod-webflow-webhook-setup.mjs` writes the missing
+   `DEMIGOD-WEBHOOK-SETUP.json`.
+
+Once 2 and 3 exist, `systemctl --user enable --now
+demigod-submissions-webhook.service` is the whole of the remaining mechanical work.

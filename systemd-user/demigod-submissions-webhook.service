@@ -1,0 +1,23 @@
+[Unit]
+Description=Demigod submissions webhook — Webflow form receiver → inbox
+Documentation=file:%h/docs/INTAKE-PATH-2026-08-06.md
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+Environment=PATH=%h/.local/bin:%h/bin:/usr/bin:/bin
+Environment=DEMIGOD_ROOT=%h
+Environment=DEMIGOD_BUSY=/tmp/dg-busy
+Environment=DEMIGOD_WEBHOOK_HOST=127.0.0.1
+Environment=DEMIGOD_WEBHOOK_PORT=9877
+# Secrets are read from %h/.config/demigod/webhook.env, which must be chmod 600 —
+# readSecretFile() ignores the file outright if group or other can read it.
+# That file does NOT exist yet. Until it does, this service binds only on
+# localhost and runs in compat-unsigned mode; webhookAuthSafeToBind refuses any
+# public bind without a signing secret, so it cannot be exposed unsigned.
+ExecStart=/home/potter/.nvm/versions/node/v24.17.0/bin/node %h/demigod-submissions-webhook.mjs
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
