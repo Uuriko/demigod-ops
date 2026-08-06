@@ -37,7 +37,7 @@
     const DISCLAIMER="Not financial advice. No wallet connection. Local timestamp is not independently verified.";
     const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
     const wrap=(lines,limit)=>lines.flatMap(line=>line.match(new RegExp(`.{1,${limit}}(?:\\s|$)|\\S{1,${limit}}`,'g'))||[]).map(line=>line.trim());
-    const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER);
+    const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER&&l.trim()!=='DASHA THESIS CARD');
       const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
       ctx.fillStyle='#08090b';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#d8ff52';ctx.font='800 28px system-ui';ctx.fillText('DASHA THESIS CARD',72,82);
       let size=31,wrapped=wrap(lines,58);while(wrapped.length*size*1.4>440&&size>18){size--;wrapped=wrap(lines,Math.floor(58*31/size))}
