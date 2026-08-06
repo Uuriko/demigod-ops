@@ -737,6 +737,26 @@ const UNSAFE_NOTE = new RegExp('[\\u0000-\\u001f' + UNSAFE_INVISIBLE_CLASS + ']'
  * derivation and report success. After 2026-08-02 the standing rule is never to silently discard
  * a file that holds human work.
  */
+/** Company context for display only, from the public startup map. Never persisted into the store. */
+export function companyContext(mapFile = path.join(ROOT, 'DEMIGOD-SF-STARTUP-MAP.json')) {
+  try {
+    const map = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
+    const out = {};
+    for (const c of map.companies || []) {
+      const k = companyKeyFor(c.name);
+      if (!k || out[k]) continue;
+      out[k] = { description: c.description || null, website: c.website || null, teamSize: c.teamSize ?? null,
+                 stage: c.stage || null, jobsUrl: c.jobsUrl || null, sourceLicense: c.sourceLicense || null };
+    }
+    return out;
+  } catch { return {}; }
+}
+
+/** Same normalisation the startup screen uses, so a target row and a map row agree on identity. */
+export function companyKeyFor(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
 export function loadTargets(file = TARGETS) {
   let raw;
   try { raw = fs.readFileSync(file, 'utf8'); }
@@ -750,7 +770,18 @@ export function loadTargets(file = TARGETS) {
   if (!d || typeof d !== 'object' || !d.companies || typeof d.companies !== 'object') {
     throw new Error(`targets_store_invalid: ${file} has no companies object — refusing to overwrite human triage`);
   }
-  return d;
+  /* Migrate legacy keys. The store was first written with `trim().toLowerCase()`, which keeps
+     spaces, while companyContext keys on alphanumerics only — so "general proximity" and
+     "generalproximity" were two identities for one company and --detail could not join them.
+     Rekey in place, preserving any human state/note, rather than orphaning triage. */
+  const migrated = {};
+  let changed = false;
+  for (const [k, v] of Object.entries(d.companies)) {
+    const canon = companyKeyFor(v.company || k);
+    if (canon !== k) changed = true;
+    migrated[canon] = migrated[canon] ? { ...migrated[canon], ...v } : v;
+  }
+  return changed ? { ...d, companies: migrated } : d;
 }
 
 /**
@@ -759,7 +790,7 @@ export function loadTargets(file = TARGETS) {
  * `contacted` is a human asserting something that happened outside this tool; nothing here infers it.
  */
 export function setTargetState(store, company, { state, note, at }) {
-  const key = String(company || '').trim().toLowerCase();
+  const key = companyKeyFor(company);
   const existing = store.companies && store.companies[key];
   if (!existing) {
     const near = Object.keys(store.companies || {}).filter((k) => k.includes(key.slice(0, 4)) && key).slice(0, 3);
@@ -796,15 +827,15 @@ export function mergeTargets(store, rows, today) {
   const out = { schema: 'demigod.targets/1', updatedAt: today, companies: { ...(store.companies || {}) } };
   const seen = new Set();
   for (const r of rows) {
-    const key = String(r.company || '').trim().toLowerCase();
+    const key = companyKeyFor(r.company);
     if (!key) continue;
     seen.add(key);
     const prev = out.companies[key] || {};
     out.companies[key] = {
       company: r.company,
       // Observation — refreshed every run.
-      agingRoleCount: rows.filter((x) => String(x.company || '').trim().toLowerCase() === key).length,
-      oldestRoleDays: Math.max(...rows.filter((x) => String(x.company || '').trim().toLowerCase() === key).map((x) => x.age)),
+      agingRoleCount: rows.filter((x) => companyKeyFor(x.company) === key).length,
+      oldestRoleDays: Math.max(...rows.filter((x) => companyKeyFor(x.company) === key).map((x) => x.age)),
       sampleRoleTitle: r.title || null,
       sampleRoleUrl: r.url || null,
       provider: r.provider || null,
@@ -1347,9 +1378,28 @@ if (isMain) {
     const active = Object.values(store.companies).filter((c) => !c.noLongerAgingAt);
     if (process.argv.includes('--json')) console.log(JSON.stringify(store, null, 2));
     else {
+      /* --detail joins company context from the startup map at DISPLAY time only. Deliberately not
+         persisted into the store: iteration O's rule is that the store holds judgement plus the
+         ledger's own observations, so copying map columns in would create a third source of truth
+         that goes stale silently. A company missing from the map renders without context rather
+         than crashing — that happens the moment the map is regenerated without a company the
+         ledger still sees. */
+      const detail = process.argv.includes('--detail');
+      const ctx = detail ? companyContext() : null;
       console.log(`targets · ${active.length} companies still aging · ${Object.keys(store.companies).length} tracked · ${TARGETS}`);
+      if (detail) console.log('  context (description/size/stage/website) from DEMIGOD-SF-STARTUP-MAP.json — public open data, not Demigod claims');
       for (const c of active.sort((a, b) => b.oldestRoleDays - a.oldestRoleDays).slice(0, 20)) {
-        console.log(`  ${String(c.oldestRoleDays).padStart(3)}d oldest · ${String(c.agingRoleCount).padStart(2)} roles · ${c.state.padEnd(8)} ${c.company}`);
+        console.log(`  ${String(c.oldestRoleDays).padStart(3)}d oldest · ${String(c.agingRoleCount).padStart(2)} roles · ${c.state.padEnd(9)} ${c.company}`);
+        if (!detail) continue;
+        const m = ctx[companyKeyFor(c.company)];
+        if (!m) { console.log('       (no map row — context unavailable)'); continue; }
+        const bits = [];
+        if (Number.isSafeInteger(m.teamSize)) bits.push(`team ${m.teamSize}`);
+        if (m.stage) bits.push(String(m.stage));
+        if (m.website) bits.push(m.website);
+        if (bits.length) console.log(`       ${bits.join(' · ')}`);
+        if (m.description) console.log(`       ${String(m.description).replace(/\s+/g, ' ').slice(0, 96)}`);
+        if (m.jobsUrl) console.log(`       board: ${m.jobsUrl}`);
       }
     }
   } else {
