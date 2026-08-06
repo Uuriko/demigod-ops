@@ -262,7 +262,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <p class="ext">The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on.</p>
       <p class="exl exl-inv">Invalid if</p>
       <p class="ext">Two weeks pass with no public commits and no explanation.</p>
-      <button type="button" class="exbtn" data-t="The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on." data-i="Two weeks pass with no public commits and no explanation.">Start from this</button>
+      <button type="button" class="exbtn" data-days="21" data-t="The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on." data-i="Two weeks pass with no public commits and no explanation.">Start from this</button>
     </div>
 
     <div class="card ex">
@@ -271,7 +271,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <p class="ext">Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real.</p>
       <p class="exl exl-inv">Invalid if</p>
       <p class="ext">Holder count rises for three straight weeks with no airdrop behind it.</p>
-      <button type="button" class="exbtn" data-t="Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real." data-i="Holder count rises for three straight weeks with no airdrop behind it.">Start from this</button>
+      <button type="button" class="exbtn" data-days="30" data-t="Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real." data-i="Holder count rises for three straight weeks with no airdrop behind it.">Start from this</button>
     </div>
 
     <div class="card ex">
@@ -281,7 +281,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <p class="exl exl-inv">Invalid if</p>
       <p class="ext">Depth is still below where it started seven days after listing.</p>
       <p class="exout">Day seven: depth was lower than at the start. The condition fired. The call was settled, not rewritten.</p>
-      <button type="button" class="exbtn" data-t="Liquidity depth should improve once the listing lands. That is the only reason I am here." data-i="Depth is still below where it started seven days after listing.">Start from this</button>
+      <button type="button" class="exbtn" data-days="14" data-t="Liquidity depth should improve once the listing lands. That is the only reason I am here." data-i="Depth is still below where it started seven days after listing.">Start from this</button>
     </div>
 
   </div>
@@ -382,6 +382,9 @@ for (const b of document.querySelectorAll(".exbtn")) {
   b.addEventListener("click", () => {
     document.getElementById("thesis").value = b.dataset.t;
     document.getElementById("invalidation").value = b.dataset.i;
+    var r = document.getElementById("resolution");
+    if (r) { var d = new Date(); d.setDate(d.getDate() + (+b.dataset.days || 21));
+             r.value = d.toISOString().slice(0,10); }
     const a = document.getElementById("address");
     a.scrollIntoView({behavior:"smooth", block:"center"});
     a.focus({preventScroll:true});
