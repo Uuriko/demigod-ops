@@ -5,7 +5,8 @@
   // Preserves the public API (mount/addCommunityStartups), schema/3 validation, the
   // community-submission merge, and every honesty label from the prior atlas.
   var source = document.currentScript && document.currentScript.src;
-  var dataUrl = source ? new URL('sf-startup-map.json', source).href : '';
+  var dataUrl = document.querySelector('meta[name="dg-startup-map-data"]')?.content ||
+    (source ? new URL('sf-startup-map.json', source).href : '');
   // Sibling asset, same commit as this script — no manifest lookup, so it cannot drift from the
   // build that shipped it. OPTIONAL: roles-feed.json is published only when it verifies live, so a
   // 404 here is a normal state and must never degrade the directory.
@@ -191,21 +192,21 @@
     style.textContent =
       '.dg-dir-intro{max-width:72ch;color:#d6d3cc;line-height:1.6;margin:.1rem 0 1rem}' +
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
-      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:44px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
+      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
       '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
-      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:44px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
+      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
       '.dg-dir-topics{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin:.2rem 0 0}.dg-dir-topic-label{color:#a8a29e;font-size:.68rem}' +
       '.dg-dir-topic{border:1px solid rgba(166,255,203,.18);border-radius:999px;color:#9fb8a8;padding:.08rem .45rem;font-size:.68rem}' +
       '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}.dg-dir-count:focus{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-list{list-style:none;margin:0;padding:0;border-top:1px solid rgba(166,255,203,.12)}' +
-      '.dg-dir-more{min-height:44px;margin:.8rem 0 0;border:1px solid rgba(166,255,203,.4);border-radius:9px;background:#07150f;color:#a6ffcb;padding:.55rem .8rem;font:inherit;cursor:pointer}.dg-dir-more:hover{text-decoration:underline}' +
+      '.dg-dir-more{min-height:48px;margin:.8rem 0 0;border:1px solid rgba(166,255,203,.4);border-radius:9px;background:#07150f;color:#a6ffcb;padding:.55rem .8rem;font:inherit;cursor:pointer}.dg-dir-more:hover{text-decoration:underline}' +
       '.dg-dir-row{border-bottom:1px solid rgba(166,255,203,.1);padding:.5rem .1rem}' +
       '.dg-dir-row[hidden]{display:none}' +
       '.dg-dir-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem .6rem}' +
-      '.dg-dir-name{color:#a6ffcb;font-weight:700;text-decoration:none;overflow-wrap:anywhere}' +
+      '.dg-dir-row a{display:inline-flex;align-items:center;min-width:48px;min-height:48px}.dg-dir-name{color:#a6ffcb;font-weight:700;text-decoration:none;overflow-wrap:anywhere}' +
       '.dg-dir-name:hover{text-decoration:underline}' +
       '.dg-dir-name.is-plain{color:#e7e5e4}' +
       '.dg-dir-meta{color:#a8a29e;font-size:.78rem}' +
@@ -214,7 +215,7 @@
       '.dg-dir-pulse{margin:.35rem 0 .55rem;color:#9fb8a8;font-size:.78rem;line-height:1.35}' +
       '.dg-dir-desc{color:#c9c6bf;font-size:.82rem;line-height:1.5;margin:.25rem 0 0}' +
       '.dg-dir-links{margin:.25rem 0 0;font-size:.76rem}' +
-      '.dg-dir-links a{display:inline-flex;align-items:center;min-height:44px;color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
+      '.dg-dir-links a{display:inline-flex;align-items:center;min-height:48px;color:#a6ffcb;text-decoration:none;margin-right:.8rem}.dg-dir-links a:hover{text-decoration:underline}' +
       '.dg-dir-empty{color:#a8a29e;padding:.9rem 0}' +
       '.dg-dir-fresh{margin:1.4rem 0 0;padding-top:1rem;border-top:1px solid rgba(166,255,203,.12)}' +
       '.dg-dir-fresh[hidden]{display:none}' +
@@ -222,7 +223,7 @@
       '.dg-fresh-note{color:#a8a29e;font-size:.78rem;line-height:1.55;margin:0 0 .6rem}' +
       '.dg-fresh-list{list-style:none;margin:0;padding:0}' +
       '.dg-fresh-row{padding:.5rem 0;border-bottom:1px solid rgba(166,255,203,.08)}' +
-      '.dg-fresh-title{display:flex;align-items:center;min-height:44px;color:#a6ffcb;text-decoration:none}' +
+      '.dg-fresh-title{display:flex;align-items:center;min-height:48px;color:#a6ffcb;text-decoration:none}' +
       '.dg-fresh-title:hover{text-decoration:underline}' +
       '.dg-fresh-row a{color:#a6ffcb}' +
       '.dg-fresh-row a:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
@@ -231,7 +232,7 @@
       '.dg-dir-foot{color:#a8a29e;font-size:.78rem;line-height:1.55;margin:1.1rem 0 0}' +
       '.dg-dir-foot a{color:#a6ffcb}' +
       '.dg-dir-error{padding:1rem;border:1px solid #9f4a4a;border-radius:12px;color:#f6caca}' +
-      '.dg-dir-retry{min-height:44px;margin-top:.7rem;border:1px solid #a6ffcb;border-radius:8px;background:transparent;color:#a6ffcb;padding:.45rem .8rem;cursor:pointer}';
+      '.dg-dir-retry{min-height:48px;margin-top:.7rem;border:1px solid #a6ffcb;border-radius:8px;background:transparent;color:#a6ffcb;padding:.45rem .8rem;cursor:pointer}';
     document.head.appendChild(style);
   }
 
@@ -371,10 +372,15 @@
           ? '<a class="dg-fresh-title" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(role.title) + '</a>'
           : '<span class="dg-fresh-title">' + esc(role.title) + '</span>';
         var meta = ['<span class="dg-fresh-co">' + esc(role.company) + '</span>'];
-        if (role.location) meta.push(esc(role.location));
+        if (role.employerDepartment) meta.push(esc(String(role.employerDepartment).slice(0, 80)));
+        if (role.employerOffice) meta.push(esc(String(role.employerOffice).slice(0, 80)));
+        else if (role.location) meta.push(esc(role.location));
         meta.push('first observed ' + esc(String(role.firstObservedAt).slice(0, 10)));
         // Only shown when the ATS actually gave us one, and labelled as THEIR date, not ours.
         if (role.postedAt) meta.push('board posted ' + esc(String(role.postedAt).slice(0, 10)));
+        if (role.workplaceType) meta.push(esc(String(role.workplaceType).slice(0, 40)));
+        if (role.employmentType) meta.push(esc(String(role.employmentType).slice(0, 40)));
+        if (role.boardUpdatedAt) meta.push('board updated ' + esc(String(role.boardUpdatedAt).slice(0, 10)));
         return '<li class="dg-fresh-row">' + title +
           '<span class="dg-fresh-meta">' + meta.join(' · ') + '</span></li>';
       }).join('') +
@@ -430,14 +436,19 @@
     if (postedAging) pulseBits.push(postedAging + ' with a role posted 90–365d (board date)');
     if (hiringYc) pulseBits.push(hiringYc + ' YC directory careers links');
     root.innerHTML =
-      '<p class="dg-dir-intro">A plain directory of San Francisco Bay Area tech companies from public open data, plus operator-reviewed startup submissions. City-level only — these companies have a listed Bay Area location or headquarters, not a verified office or current status. Open-role counts come from each company\'s own public job board (Greenhouse/Lever/Ashby), count only US-posted or Remote listings when the board exposes location, and are point-in-time. Where we track a board over time, we also show how long a role has been open <em>by our first observation</em> (not a score, not a ghost-job verdict). Board posting dates appear only when the ATS exposes a real post date.</p>' +
+      /* Was ~110 words restating the eyebrow chip directly above it ("SAN FRANCISCO · OPEN DATA ·
+         CITY-LEVEL · CURRENT STATUS NOT VERIFIED", authored in Webflow). That chip already carries
+         source and city-level scope, so the paragraph only has to carry what it doesn't: where the
+         counts come from, that they are point-in-time, and that open-age is an observation rather
+         than a verdict. Every honesty claim survives; the restatement does not. */
+      '<p class="dg-dir-intro">City-level only — a listed Bay Area location, not a verified office or current status. Open-role counts come from each company\'s own public job board, point-in-time — our first observation, not a verdict.</p>' +
       (pulseBits.length
         ? '<p class="dg-dir-pulse" role="status">' + pulseBits.map(esc).join(' · ') +
           (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
           '</p>'
         : '') +
       (roleMixSummary
-        ? '<p class="dg-dir-pulse"><strong>Largest open-role title buckets:</strong> ' + esc(roleMixSummary) + '. Top five public-board, title-heuristic counts — not a ranking or demand score.</p>'
+        ? '<p class="dg-dir-pulse"><strong>Largest role buckets:</strong> ' + esc(roleMixSummary) + '. Not a ranking.</p>'
         : '') +
       '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search companies" placeholder="Search companies…" autocomplete="off" value="' + esc(state.query) + '">' +
       '<select class="dg-dir-hiring" aria-label="Filter by hiring status"><option value="">All</option>' +

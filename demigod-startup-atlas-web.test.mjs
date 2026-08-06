@@ -112,13 +112,20 @@ test('minimal directory renderer is lazy, accessible, honest, and map-free', () 
   assert.match(source, /window\.DemigodStartupMap = \{ mount: mount, addCommunityStartups: addCommunityStartups \}/);
   // Honesty labels retained.
   assert.match(source, /Hiring not verified/);
-  assert.match(source, /A plain directory of San Francisco Bay Area tech companies from public open data/);
+  /* Assert the CLAIM, not the sentence. This previously pinned the exact marketing prose
+     ("A plain directory of San Francisco Bay Area tech companies from public open data"), so a
+     copy edit failed the honesty guard even though every guarantee survived. What must hold is
+     that the disk copy still states city-level precision and disclaims a verified office —
+     the Webflow eyebrow is not in this file and cannot be relied on to carry it. */
   assert.match(source, /City-level only/);
+  assert.match(source, /not a verified office/);
   assert.match(source, /coverage\.definition/);
   assert.match(source, /coverage\.caveat/);
   assert.match(source, /No companies match those filters\./);
   // v-jobs: live open-role counts from public ATS boards, honestly labelled point-in-time.
   assert.match(source, /Open-role counts come from each company/);
+  assert.match(source, /point-in-time/, 'counts must stay labelled point-in-time');
+  assert.match(source, /not a verdict/, 'observed age must never read as a ghost-job judgement');
   assert.match(source, /open role/);
   assert.match(source, /with observed US-posted or remote roles/);
   assert.match(source, /US open role/);
@@ -182,8 +189,8 @@ test('generated public artifact keeps named companies city-only and strips sensi
 
 test('website route is discoverable and loads the immutable map asset only on demand', () => {
   const foot = fs.readFileSync(new URL('./demigod-foot-core.js', import.meta.url), 'utf8');
-  // v858: hard route /startups; path pill uses COPY.pathStartups, while data-dg-page stays "map".
-  assert.match(foot, /<a href="\/startups" data-dg-page="map">'\+COPY\.pathStartups\+'<\/a>/);
+  // Hard route stays discoverable even though the obsolete hero path pills are intentionally gone.
+  assert.match(foot, /<a href="\/startups" data-dg-page="map">[^<]+<\/a>/);
   assert.doesNotMatch(foot, /<a href="\/\?p=map"/);
   // v805: page-scoped HTML — startups page has directory host + startup form; events page has event form only.
   assert.match(foot, /function dgMapEventsHtml\(kind\)/);
@@ -261,8 +268,8 @@ test('recent roles: ordered by OUR observation, never by the employer posting da
   // Source-level: the section exists and starts hidden, so a missing feed shows nothing at all.
   assert.match(src, /<section class="dg-dir-fresh" role="status" aria-live="polite" hidden><\/section>/);
   // The link is the tap target. Inline with the company name it measured 22px tall on a 390px
-  // viewport — under WCAG 2.5.8's 24px floor and half this directory's own 44px control convention.
-  assert.match(src, /\.dg-fresh-title\{[^}]*min-height:44px/, 'the role link must keep a 44px tap target');
+  // viewport — under WCAG 2.5.8's 24px floor and below this site's 48px mobile target convention.
+  assert.match(src, /\.dg-fresh-title\{[^}]*min-height:48px/, 'the role link must keep a 48px tap target');
   // The feed is NOT filtered to US-posted (40 of 200 live rows are not), but the open-role counts
   // on the same page ARE. The page must say so rather than present two scopes as one.
   assert.match(src, /including outside the US/, 'the section must state that its scope differs from the counts');
