@@ -5,12 +5,12 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230B0A0C%22%2F%3E%3Cpath%20d%3D%22M5%2022%20L12%2017%20L19%2020%20L27%208%22%20fill%3D%22none%22%20stroke%3D%22%23F2EDE7%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cline%20x1%3D%224%22%20y1%3D%2226%22%20x2%3D%2228%22%20y2%3D%2226%22%20stroke%3D%22%23C8B6FF%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-dasharray%3D%225%204%22%2F%3E%3C%2Fsvg%3E">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dasha Labs — write the call before the chart writes the story</title>
-<meta name="description" content="A free tool for recording a token thesis, the condition that would prove it wrong, and a time horizon — before you post it. No wallet connection. Not financial advice.">
+<meta name="description" content="A free tool for recording a token thesis, the condition that would prove it wrong, and an exact resolution date. No wallet connection. Not financial advice.">
 <link rel="canonical" href="https://johns-awesome-project-39b1b5.webflow.io/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://johns-awesome-project-39b1b5.webflow.io/">
 <meta property="og:title" content="Dasha Labs — write the call before the chart writes the story">
-<meta property="og:description" content="Record a thesis, an invalidation condition, and a horizon. Timestamped and fingerprinted. No wallet, no trading, no safety score.">
+<meta property="og:description" content="Record a thesis, an invalidation condition, and an exact resolution date. Device-timed and fingerprinted. No wallet, no trading, no safety score.">
 <meta property="og:image" content="https://johns-awesome-project-39b1b5.webflow.io/dasha-og-card.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -111,6 +111,25 @@ h2{font-family:var(--display);font-size:clamp(1.45rem,3.8vw,1.95rem);margin:0 0 
 .plain b{color:var(--ink)}
 .k small.neg{color:var(--danger)}
 
+
+/* --- your calls (local only) -------------------------------------------- */
+.callrow{display:flex;flex-direction:column;gap:6px;padding:16px 0;border-top:1px solid var(--line)}
+.callrow:first-child{border-top:0}
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono);font-size:.6rem;
+  letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
+.chip.due{color:var(--accent);border-color:var(--accent)}
+.chip.wrong{color:var(--danger);border-color:var(--danger)}
+.calltop{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.callth{margin:0;color:var(--ink);font-size:.98rem}
+.callmeta{margin:0;color:var(--muted);font-size:.82rem;font-family:var(--mono)}
+.callacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.callacts button{min-height:40px;padding:8px 12px;border-radius:9px;font:inherit;font-size:.86rem;font-weight:700;
+  cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line)}
+.callacts button:hover{border-color:var(--accent);color:var(--accent-hi)}
+.callacts button.del{color:var(--muted);border-style:dashed}
+.streak{font-family:var(--mono);font-size:.82rem;color:var(--muted);margin:0 0 18px}
+.streak b{color:var(--ink)}
+
 /* --- honesty strip ---------------------------------------------------- */
 .strip{border:1px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
 .strip ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
@@ -193,14 +212,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
       <label>Thesis<textarea id="thesis" maxlength="280" required placeholder="What does the market misunderstand?"></textarea></label>
       <label>Invalidation<textarea id="invalidation" maxlength="180" required placeholder="What evidence would prove this thesis wrong?"></textarea></label>
       <label>Confidence<select id="confidence"><option>55%</option><option>65%</option><option>75%</option><option>85%</option><option>95%</option></select></label>
-      <label>Time horizon<select id="horizon"><option>24 hours</option><option>7 days</option><option>30 days</option><option>Long term</option></select></label>
+      <label>Resolution date<input id="resolution" type="date" required></label>
       <div class="actions"><button type="submit">Generate card</button></div>
       <div id="error" class="error" role="alert"></div>
     </form>
     <section id="output" class="output" aria-live="polite" hidden>
       <strong id="receipt-text"></strong>
       <span id="fingerprint" class="fingerprint"></span>
-      <div class="actions"><button id="copy" class="secondary" type="button">Copy card</button><button id="download" class="secondary" type="button">Download card</button><a id="share" class="button" target="_blank" rel="noopener noreferrer" aria-label="Share on X (opens in a new tab)">Share on X</a><a id="inspect" class="button secondary" target="_blank" rel="noopener noreferrer" aria-label="Inspect token on Solscan (opens in a new tab)">Inspect token</a></div>
+      <div class="actions"><button id="copy" class="secondary" type="button">Copy card</button><button id="download" class="secondary" type="button">Download card</button><button id="remind" class="secondary" type="button">Add resolution reminder</button><a id="share" class="button" target="_blank" rel="noopener noreferrer" aria-label="Share on X (opens in a new tab)">Share on X</a><a id="inspect" class="button secondary" target="_blank" rel="noopener noreferrer" aria-label="Inspect token on Solscan (opens in a new tab)">Inspect token</a></div>
       <small class="note">The full local checksum lets someone compare an exact copy of this card's text. The device time is not independently verified and is not proof of when a claim was made. This does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
     </section>
   </div>
@@ -221,6 +240,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   </div>
   <p class="why" style="margin-top:26px"><b>Not our idea.</b> Decades of research on judgment finds that people reason more carefully when they commit to a position and its disproof condition <em>before</em> the outcome than when they explain themselves after it. Those studies are about forecasting, not tokens, and none of this predicts returns — the habit is the only thing on offer here.</p>
   <div class="actions"><a class="btn" href="#tool">Write a receipt</a></div>
+</section>
+
+
+<section id="calls">
+  <h2>Your calls</h2>
+  <p class="lede">Kept on this device only — never uploaded, and we cannot see them. When a resolution date arrives, come back and say what happened.</p>
+  <p class="streak" id="streak" hidden></p>
+  <div class="card" id="calllist"></div>
+  <p class="artnote" style="max-width:56ch">This list is for you. It is not evidence of anything — a record only you can see never was. The proof is the card you posted.</p>
 </section>
 
 <section id="examples">
@@ -315,28 +343,32 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER&&l.trim()!=='DASHA THESIS CARD');
       const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
       ctx.fillStyle='#0B0A0C';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#C8B6FF';ctx.font='700 30px Georgia,serif';ctx.fillText('DASHA THESIS CARD',72,82);ctx.strokeStyle='#353039';ctx.beginPath();ctx.moveTo(72,104);ctx.lineTo(1128,104);ctx.stroke();
-      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Device time|Token|Confidence|Horizon):/.test(l)?'#ADA5AE':'#F2EDE7';
+      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Device time|Token|Confidence|Resolve on):/.test(l)?'#ADA5AE':'#F2EDE7';
       const rows=sz=>lines.flatMap(l=>wrap([l],Math.floor(58*31/sz)).map(t=>({t,c:hue(l)})));
       let size=31,body=rows(size);while(body.length*size*1.4>440&&size>18){size--;body=rows(size)}
       ctx.font=`700 ${size}px system-ui`;let y=145;
       for(const r of body){ctx.fillStyle=r.c;ctx.fillText(r.t,72,y);y+=size*1.4}
       ctx.fillStyle='#ADA5AE';ctx.font='24px ui-monospace';ctx.fillText(`Local checksum: ${fingerprint}`,72,596);ctx.fillStyle='#100E12';ctx.fillRect(0,624,1200,51);ctx.fillStyle='#ADA5AE';ctx.font='21px system-ui';ctx.fillText(DISCLAIMER,72,655);return canvas;
     };
+    const localDate=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+    $('resolution').min=localDate();
+    const calendar=(date,address,thesis,invalidation)=>`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Dasha//Thesis Resolution//EN\r\nBEGIN:VEVENT\r\nUID:${crypto.randomUUID()}@getdasha.com\r\nDTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}\r\nDTSTART;VALUE=DATE:${date.replaceAll('-','')}\r\nSUMMARY:Resolve Dasha thesis · ${address.slice(0,6)}…${address.slice(-6)}\r\nDESCRIPTION:${`Thesis: ${thesis}\\nInvalid if: ${invalidation}`.replace(/([,;])/g,'\\$1')}\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
     form.addEventListener('submit',async event=>{
       event.preventDefault();
-      const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim();
-      if(!validAddress(address)||!thesis||!invalidation){$('error').textContent='Add a valid Solana mint address, thesis, and invalidation condition.';output.hidden=true;return}
+      const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim(), resolution=$('resolution').value;
+      if(!validAddress(address)||!thesis||!invalidation||resolution<localDate()){$('error').textContent='Add a valid Solana mint address, thesis, invalidation condition, and future resolution date.';output.hidden=true;return}
       $('error').textContent='';
-      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nDevice time: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nHorizon: ${$('horizon').value}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
+      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nDevice time: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nResolve on: ${resolution}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
       const fingerprint=[...new Uint8Array(bytes)].map(byte=>byte.toString(16).padStart(2,'0')).join(''), fingerprintShort=fingerprint.slice(0,12);
-      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · ${$('horizon').value}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprintShort}\nNot timestamp proof. No wallet. NFA.`;
+      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · resolves ${resolution}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprintShort}\nNot timestamp proof. No wallet. NFA.`;
       $('receipt-text').textContent=body;
       $('fingerprint').textContent=`Local checksum: ${fingerprint}`;
       $('share').href=`https://x.com/intent/post?text=${encodeURIComponent(shareText)}`;
       $('inspect').href=`https://solscan.io/token/${encodeURIComponent(address)}`;
       $('copy').onclick=async()=>{await navigator.clipboard.writeText(shareText);$('copy').textContent='Copied'};
       $('download').onclick=()=>{const link=document.createElement('a');link.download=`dasha-thesis-${fingerprintShort}.png`;link.href=card(body.split('\n'),fingerprintShort).toDataURL('image/png');link.click()};
+      $('remind').onclick=()=>{const link=document.createElement('a');link.download=`dasha-resolution-${resolution}.ics`;link.href=URL.createObjectURL(new Blob([calendar(resolution,address,thesis,invalidation)],{type:'text/calendar'}));link.click();URL.revokeObjectURL(link.href)};
       output.hidden=false;output.scrollIntoView({behavior:'smooth',block:'start'});
     });
   
@@ -355,6 +387,78 @@ for (const b of document.querySelectorAll(".exbtn")) {
     a.focus({preventScroll:true});
   });
 }
+</script>
+
+<script>
+(function(){
+  var KEY="dasha.calls", list=document.getElementById("calllist"), streakEl=document.getElementById("streak");
+  var store={ok:true};
+  try{ localStorage.setItem(KEY+".t","1"); localStorage.removeItem(KEY+".t"); }catch(e){ store.ok=false; }
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } }
+  function save(v){ try{ localStorage.setItem(KEY, JSON.stringify(v)); }catch(e){} }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function due(c){ return c.status==="open" && c.resolve && c.resolve <= today(); }
+
+  /* Counts SETTLED calls, back from the most recent, stopping at the first ghosted one.
+     Never counts calls merely written — rewarding volume is the documented way this breaks. */
+  function streak(cs){
+    var done=cs.filter(function(c){return c.status!=="open"||due(c)})
+              .sort(function(a,b){return (a.resolve||"").localeCompare(b.resolve||"")});
+    var n=0;
+    for(var i=done.length-1;i>=0;i--){ if(done[i].status==="open") break; n++; }
+    return n;
+  }
+
+  function esc(t){ var d=document.createElement("div"); d.textContent=t==null?"":t; return d.innerHTML; }
+
+  function render(){
+    var cs=load();
+    if(!store.ok){ list.innerHTML="<p class=\"callmeta\">This browser is blocking local storage, so calls cannot be kept here.</p>"; return; }
+    if(!cs.length){ list.innerHTML="<p class=\"callmeta\">Nothing yet. Write one above and it will appear here.</p>"; streakEl.hidden=true; return; }
+    var n=streak(cs);
+    streakEl.hidden=false;
+    streakEl.innerHTML = n>0 ? "You settle your calls. <b>"+n+"</b> in a row." : "Settle a call to start a run.";
+    list.innerHTML = cs.slice().reverse().map(function(c,i){
+      var idx=cs.length-1-i, chip, acts="";
+      if(c.status==="wrong") chip="<span class=\"chip wrong\">Called it wrong. Said so.</span>";
+      else if(c.status==="held") chip="<span class=\"chip\">Held</span>";
+      else if(due(c)) chip="<span class=\"chip due\">Due &mdash; settle it</span>";
+      else chip="<span class=\"chip\">Open</span>";
+      if(c.status==="open" && due(c))
+        acts="<div class=\"callacts\"><button data-s=\"held\" data-i=\""+idx+"\">It held</button>"+
+             "<button data-s=\"wrong\" data-i=\""+idx+"\">It fired &mdash; I was wrong</button></div>";
+      return "<div class=\"callrow\"><div class=\"calltop\">"+chip+
+        "<span class=\"callmeta\">resolves "+esc(c.resolve||"?")+"</span></div>"+
+        "<p class=\"callth\">"+esc(c.thesis)+"</p>"+
+        "<p class=\"callmeta\">Invalid if: "+esc(c.inval)+"</p>"+ acts +
+        "<div class=\"callacts\"><button class=\"del\" data-d=\""+idx+"\">Delete</button></div></div>";
+    }).join("");
+  }
+
+  list.addEventListener("click", function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    var cs=load();
+    if(b.dataset.d!=null){ cs.splice(+b.dataset.d,1); }
+    else if(b.dataset.s){ cs[+b.dataset.i].status=b.dataset.s; }
+    save(cs); render();
+  });
+
+  var out=document.getElementById("output"), seen="";
+  new MutationObserver(function(){
+    if(out.hasAttribute("hidden")) return;
+    var v=function(id){ var el=document.getElementById(id); return el?el.value:""; };
+    var fp=(document.getElementById("fingerprint")||{}).textContent||"";
+    if(!fp || fp===seen) return;
+    seen=fp;
+    var cs=load();
+    cs.push({thesis:v("thesis"), inval:v("invalidation"), resolve:v("resolution"),
+             fp:fp, created:new Date().toISOString(), status:"open"});
+    save(cs); render();
+  }).observe(out,{attributes:true,attributeFilter:["hidden"],childList:true,subtree:true,characterData:true});
+
+  render();
+})();
 </script>
 </body>
 </html>
