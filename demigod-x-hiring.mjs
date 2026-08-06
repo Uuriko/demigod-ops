@@ -14,6 +14,8 @@
 //   node demigod-x-hiring.mjs                # collect → staging file
 //   node demigod-x-hiring.mjs --queries      # print the search queries, no network
 //   node demigod-x-hiring.mjs --selftest     # parser + freshness tests, no network
+//   node demigod-x-hiring.mjs --review       # read the staged rows for triage (no network)
+//   node demigod-x-hiring.mjs --review --hiring   # only rows classified hiring=yes
 //
 // Out: /tmp/dg-busy/x-hiring.json — staging for human triage. Never auto-merged into
 // DEMIGOD-SF-STARTUP-MAP.json and never published: the board honesty gate owns that boundary.
@@ -21,6 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import WebSocket from 'ws';
 import { CDP_URL } from './cdp-config.mjs';
 import { atomicWrite } from './demigod-agent-tools-lib.mjs';
 import { extractAtsBoards } from './demigod-roles-ats-links.mjs';
@@ -105,9 +108,22 @@ export function classifyPost(post = {}, now = Date.now()) {
   };
 }
 
+/* Dedupe on id AND on handle+text. Keying on id alone let one account's reposts of the same
+   opening through three times as three separate leads — visible the moment --review printed
+   them side by side, invisible while the rows sat in a staging JSON. Different status ids,
+   identical post: for triage purposes that is one opening, not three. */
 export function dedupe(rows) {
-  const seen = new Set();
-  return rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
+  const seenIds = new Set();
+  const seenPosts = new Set();
+  return rows.filter((r) => {
+    if (seenIds.has(r.id)) return false;
+    const body = String(r.text || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 300);
+    const postKey = `${String(r.handle || '').toLowerCase()}|${body}`;
+    if (body && seenPosts.has(postKey)) return false;
+    seenIds.add(r.id);
+    if (body) seenPosts.add(postKey);
+    return true;
+  });
 }
 
 // Runs IN the page. Reads only what a person scrolling the public search page would see.
@@ -131,9 +147,26 @@ const EXTRACT_FN = `(() => {
 // demigod-agent-tools-lib.mjs if a third caller appears; not worth touching a tested file for two.
 async function pickTarget() {
   const list = await (await fetch(CDP_URL + '/json/list')).json();
-  const t = list.find((x) => x.type === 'page' && /(x|twitter)\.com/.test(x.url))
-    || list.find((x) => x.type === 'page' && !/webflow|grok/.test(x.url));
-  if (!t) throw new Error('no usable page target on ' + CDP_URL + ' — run ~/agent-dev.sh up');
+  const pages = (Array.isArray(list) ? list : []).filter((x) => x && x.type === 'page' && x.webSocketDebuggerUrl);
+  let t =
+    pages.find((x) => /(x|twitter)\.com/i.test(x.url || '')) ||
+    pages.find((x) => !/webflow|grok\.com|chrome:\/\//i.test(x.url || '')) ||
+    pages.find((x) => /^about:blank$/i.test(x.url || ''));
+  if (!t) {
+    // CDP often has only Designer tabs; open a blank page we can navigate (PUT only).
+    try {
+      const created = await (
+        await fetch(CDP_URL + '/json/new?' + encodeURIComponent('about:blank'), { method: 'PUT' })
+      ).json();
+      if (created?.webSocketDebuggerUrl) t = created;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (!t) t = pages[0];
+  if (!t?.webSocketDebuggerUrl) {
+    throw new Error('no usable page target on ' + CDP_URL + ' — run ~/agent-dev.sh up');
+  }
   return t;
 }
 function connect(wsUrl) {
@@ -210,22 +243,72 @@ if (isMain) {
   const args = process.argv.slice(2);
   if (args.includes('--selftest')) { selftest(); }
   else if (args.includes('--queries')) { console.log(QUERIES.join('\n')); }
+  /* The collector worked and nothing could read it. Rows land in a staging file under /tmp and
+     the only flags were --selftest and --queries, so triaging 13 captured posts meant catting
+     JSON by hand — which is why none of this has ever reached the site. Staging-only is the
+     right policy for unverified social claims; having no way to review the staging is not.
+     Read-only: prints what was captured, merges nothing, publishes nothing. */
+  else if (args.includes('--review')) {
+    let doc;
+    try {
+      doc = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    } catch {
+      console.error(`x-hiring: no staging file at ${OUT} — run: node demigod-x-hiring.mjs`);
+      process.exitCode = 1;
+      doc = null;
+    }
+    if (doc) {
+      const rows = Array.isArray(doc.rows) ? doc.rows : [];
+      const onlyLive = args.includes('--hiring');
+      const shown = onlyLive ? rows.filter((r) => r.hiring === 'yes') : rows;
+      console.log(`x-hiring staging · captured ${doc.captured ?? '?'} · kept ${rows.length} · showing ${shown.length}`);
+      console.log(`collected ${doc.at || '?'} · ${doc.note || ''}`);
+      if (!shown.length) console.log('\n(nothing staged — the collector kept no rows on its last run)');
+      for (const [i, r] of shown.entries()) {
+        // One line of the post, whitespace collapsed. The raw text carries the rendered tweet
+        // including the author block, so it is trimmed rather than printed whole.
+        const snippet = String(r.text || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+        const age = Number.isFinite(r.ageDays) ? `${Math.round(r.ageDays)}d` : '?';
+        console.log(`\n${i + 1}. @${r.handle || '?'} · ${age} old · hiring=${r.hiring || '?'}${r.needsReview ? ' · NEEDS REVIEW' : ''}`);
+        console.log(`   ${snippet}`);
+        console.log(`   ${r.url || r.sourceUrl || '(no url)'}  [${r.sourceLicense || 'unknown license'}]`);
+      }
+      console.log('\nNothing here is merged or published. Promotion to the site is a human decision.');
+    }
+  }
   else {
     fs.mkdirSync(BUSY, { recursive: true });
-    const { captured, perQuery, target } = await collect();
-    const rows = dedupe(captured.map((p) => classifyPost(p)).filter(Boolean));
-    const out = {
-      schema: 'demigod.x-hiring/1',
-      at: new Date().toISOString(),
-      target,
-      perQuery,
-      captured: captured.length,
-      kept: rows.length,
-      freshDays: FRESH_DAYS,
-      note: 'Staging only. Human triage before any map merge or publish.',
-      rows,
-    };
-    atomicWrite(OUT, JSON.stringify(out, null, 2));
-    console.log(`x-hiring · captured=${captured.length} kept=${rows.length} live=${rows.filter((r) => r.hiring === 'yes').length} · ${OUT}`);
+    const errPath = path.join(BUSY, 'x-hiring-last-error.json');
+    try {
+      const { captured, perQuery, target } = await collect();
+      const rows = dedupe(captured.map((p) => classifyPost(p)).filter(Boolean));
+      const out = {
+        schema: 'demigod.x-hiring/1',
+        at: new Date().toISOString(),
+        ok: true,
+        target,
+        perQuery,
+        captured: captured.length,
+        kept: rows.length,
+        freshDays: FRESH_DAYS,
+        note: 'Staging only. Human triage before any map merge or publish.',
+        rows,
+      };
+      atomicWrite(OUT, JSON.stringify(out, null, 2));
+      try { fs.unlinkSync(errPath); } catch { /* no prior error */ }
+      console.log(`x-hiring · captured=${captured.length} kept=${rows.length} live=${rows.filter((r) => r.hiring === 'yes').length} · ${OUT}`);
+    } catch (e) {
+      // Keep prior x-hiring.json staging; record failure for status/pipeline honesty.
+      const fail = {
+        schema: 'demigod.x-hiring-error/1',
+        at: new Date().toISOString(),
+        ok: false,
+        error: String(e?.message || e),
+        note: 'Collect failed; prior staging left intact. Staging only — no map merge.',
+      };
+      atomicWrite(errPath, JSON.stringify(fail, null, 2));
+      console.error(`x-hiring · fail · ${fail.error} · ${errPath}`);
+      process.exit(1);
+    }
   }
 }
