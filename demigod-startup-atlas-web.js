@@ -7,10 +7,10 @@
   var source = document.currentScript && document.currentScript.src;
   var dataUrl = document.querySelector('meta[name="dg-startup-map-data"]')?.content ||
     (source ? new URL('sf-startup-map.json', source).href : '');
-  // Sibling asset, same commit as this script — no manifest lookup, so it cannot drift from the
-  // build that shipped it. OPTIONAL: roles-feed.json is published only when it verifies live, so a
-  // 404 here is a normal state and must never degrade the directory.
-  var feedUrl = source ? new URL('roles-feed.json', source).href : '';
+  // Catbox URLs are opaque single files, so resolving roles-feed.json beside one produces a dead
+  // URL. The publisher binds the exact attested feed; directory-shaped jsDelivr remains a fallback.
+  var feedUrl = document.querySelector('meta[name="dg-startup-roles-feed"]')?.content ||
+    (source && /\/startup-map-latest\.js(?:[?#]|$)/.test(source) ? new URL('roles-feed.json', source).href : '');
   // Pure ordering rule, hoisted so it can be exercised directly by a test rather than asserted
   // as a source pattern. A company with NO measured median posting age sorts LAST in both
   // directions: treating unknown as 0 would rank an unmeasured board as the freshest on the page,
@@ -28,9 +28,18 @@
   var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
   var DG_HIRING = ['yes', 'no', 'unknown'];
   var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations', 'people', 'finance/legal'];
+  var DG_SIZES = ['1-10', '11-50', '51-200', '201+'];
+
+  function dgTeamSizeBucket(value) {
+    if (!Number.isSafeInteger(value) || value < 1) return '';
+    if (value <= 10) return '1-10';
+    if (value <= 50) return '11-50';
+    if (value <= 200) return '51-200';
+    return '201+';
+  }
 
   function dgParseFilterHash(hash, providers) {
-    var out = { query: '', hiring: '', func: '', provider: '', sort: 'roles' };
+    var out = { query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles' };
     var raw = String(hash || '').replace(/^#/, '');
     if (!raw) return out;
     var known = (providers || []).map(function (x) { return String(x).toLowerCase(); });
@@ -43,6 +52,7 @@
       if (k === 'q') out.query = v.slice(0, 120);
       else if (k === 'hiring' && DG_HIRING.indexOf(v) >= 0) out.hiring = v;
       else if (k === 'fn' && DG_FUNCS.indexOf(v) >= 0) out.func = v;
+      else if (k === 'size' && DG_SIZES.indexOf(v) >= 0) out.size = v;
       else if (k === 'sort' && DG_SORTS.indexOf(v) >= 0) out.sort = v;
       else if (k === 'ats' && known.indexOf(v.toLowerCase()) >= 0) out.provider = v.toLowerCase();
     });
@@ -55,6 +65,7 @@
     if (st.query) parts.push('q=' + encodeURIComponent(st.query));
     if (st.hiring) parts.push('hiring=' + encodeURIComponent(st.hiring));
     if (st.func) parts.push('fn=' + encodeURIComponent(st.func));
+    if (st.size) parts.push('size=' + encodeURIComponent(st.size));
     if (st.provider) parts.push('ats=' + encodeURIComponent(st.provider));
     if (st.sort && st.sort !== 'roles') parts.push('sort=' + encodeURIComponent(st.sort));
     return parts.length ? '#' + parts.join('&') : '';
@@ -138,7 +149,7 @@
   }
 
   var state = {
-    baseMap: null, root: null, query: '', hiring: '', func: '', provider: '', sort: 'roles',
+    baseMap: null, root: null, query: '', hiring: '', func: '', size: '', provider: '', sort: 'roles',
     communityStartups: Array.isArray(window.dgCommunityStartups) ? window.dgCommunityStartups : [],
   };
 
@@ -192,9 +203,9 @@
     style.textContent =
       '.dg-dir-intro{max-width:72ch;color:#d6d3cc;line-height:1.6;margin:.1rem 0 1rem}' +
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
-      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
+      '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-size,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
-      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-size:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
       'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
@@ -204,6 +215,11 @@
       '.dg-dir-list{list-style:none;margin:0;padding:0;border-top:1px solid rgba(166,255,203,.12)}' +
       '.dg-dir-more{min-height:48px;margin:.8rem 0 0;border:1px solid rgba(166,255,203,.4);border-radius:9px;background:#07150f;color:#a6ffcb;padding:.55rem .8rem;font:inherit;cursor:pointer}.dg-dir-more:hover{text-decoration:underline}' +
       '.dg-dir-row{border-bottom:1px solid rgba(166,255,203,.1);padding:.5rem .1rem}' +
+      '.dg-dir-act{margin:.4rem 0 .1rem}' +
+      'button.dg-dir-brief{min-height:44px;padding:.4rem .8rem;border:1px solid rgba(166,255,203,.35);border-radius:6px;background:transparent;color:#a6ffcb;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:background .18s ease,border-color .18s ease}' +
+      'button.dg-dir-brief:hover{background:rgba(166,255,203,.1);border-color:rgba(166,255,203,.6)}' +
+      'button.dg-dir-brief:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
+      '@media(prefers-reduced-motion:reduce){button.dg-dir-brief{transition:none}}' +
       '.dg-dir-row[hidden]{display:none}' +
       '.dg-dir-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem .6rem}' +
       '.dg-dir-row a{display:inline-flex;align-items:center;min-width:48px;min-height:48px}.dg-dir-name{color:#a6ffcb;font-weight:700;text-decoration:none;overflow-wrap:anywhere}' +
@@ -337,6 +353,15 @@
       topicHtml +
       roleMixHtml +
       (links.length ? '<div class="dg-dir-links">' + links.join('') + '</div>' : '') +
+      /* Intent capture at the highest-signal moment: a founder looking at their own company's row,
+         or filtering the function they are hiring for, has already told us the company and the
+         function. Only offered where the board shows live roles. It opens the EXISTING brief
+         wizard (no second form system) prefilled with the company — it never sends anything, and
+         it must not imply Demigod represents this company or can place there. */
+      (openRoles
+        ? '<div class="dg-dir-act"><button type="button" class="dg-dir-brief" data-company="' + esc(company.name) +
+          '" aria-label="Hiring at ' + esc(company.name) + '? Start a hiring brief with Demigod">Hiring here? Start a brief</button></div>'
+        : '') +
       '</li>';
   }
 
@@ -410,6 +435,7 @@
     state.searchText = companies.map(function (c) { return [c.name, c.description].concat(c.tags || []).join(' ').toLowerCase(); });
     state.hiringOf = companies.map(function (c) { return ((c.openRoles && c.atsSource) || c.hiring === 'yes') ? 'yes' : c.source === 'Community submission' ? c.hiring : 'unknown'; });
     state.funcOf = companies.map(function (c) { return c.roleMix ? Object.keys(c.roleMix) : []; });
+    state.sizeOf = companies.map(function (c) { return dgTeamSizeBucket(c.teamSize); });
     state.providerOf = companies.map(function (c) { return String(c.atsSource || '').toLowerCase(); });
     var providers = Array.from(new Set(companies.map(function (c) { return String(c.atsSource || '').trim(); }).filter(Boolean))).sort();
     // Restore a shared/bookmarked view. Done before the controls are built so their initial values
@@ -418,7 +444,7 @@
     if (!state.hashApplied) {
       state.hashApplied = true;
       var fromHash = dgParseFilterHash(typeof location !== 'undefined' ? location.hash : '', providers);
-      state.query = fromHash.query; state.hiring = fromHash.hiring; state.func = fromHash.func;
+      state.query = fromHash.query; state.hiring = fromHash.hiring; state.func = fromHash.func; state.size = fromHash.size;
       state.provider = fromHash.provider; state.sort = fromHash.sort;
     }
     var sources = (map.sources || []).map(function (item) {
@@ -459,6 +485,10 @@
       DG_FUNCS.map(function (f) {
         return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + f.charAt(0).toUpperCase() + f.slice(1) + '</option>';
       }).join('') + '</select>' +
+      '<select class="dg-dir-size" aria-label="Filter by team size"><option value="">Any team size</option>' +
+      DG_SIZES.map(function (size) {
+        return '<option value="' + size + '"' + (state.size === size ? ' selected' : '') + '>' + size + (size === '201+' ? '' : ' people') + '</option>';
+      }).join('') + '</select>' +
       '<select class="dg-dir-provider" aria-label="Filter by ATS provider"><option value="">Any job board</option>' +
       providers.map(function (provider) {
         var value = provider.toLowerCase();
@@ -482,6 +512,7 @@
     var searchEl = root.querySelector('.dg-dir-search');
     var hiringEl = root.querySelector('.dg-dir-hiring');
     var funcEl = root.querySelector('.dg-dir-func');
+    var sizeEl = root.querySelector('.dg-dir-size');
     var providerEl = root.querySelector('.dg-dir-provider');
     var sortEl = root.querySelector('.dg-dir-sort');
     var list = root.querySelector('.dg-dir-list');
@@ -496,10 +527,12 @@
       var q = searchEl.value.trim().toLowerCase();
       var h = hiringEl.value;
       var fn = funcEl.value;
+      var size = sizeEl.value;
       var provider = providerEl.value;
       state.query = searchEl.value.trim();
       state.hiring = h;
       state.func = fn;
+      state.size = size;
       state.provider = provider;
       state.sort = sortEl ? sortEl.value : 'roles';
       // replaceState, not pushState: this fires on every keystroke in the search box, and one
@@ -510,7 +543,7 @@
       } catch (e) { /* history unavailable (file://, sandbox) must not break filtering */ }
       var matches = [];
       for (var i = 0; i < companies.length; i++) {
-        if ((!q || state.searchText[i].indexOf(q) >= 0) && (!h || state.hiringOf[i] === h) && (!fn || state.funcOf[i].indexOf(fn) >= 0) && (!provider || state.providerOf[i] === provider)) matches.push(i);
+        if ((!q || state.searchText[i].indexOf(q) >= 0) && (!h || state.hiringOf[i] === h) && (!fn || state.funcOf[i].indexOf(fn) >= 0) && (!size || state.sizeOf[i] === size) && (!provider || state.providerOf[i] === provider)) matches.push(i);
       }
       // Ordering. Default keeps the old behaviour: hiring / open-role companies first when
       // browsing without a query, so an existing bookmark sees what it saw before.
@@ -531,23 +564,25 @@
       var slice = matches.slice(0, shown);
       // Keep the roles panel in the same view as the rows. null = no filter active, so do not
       // narrow; building a 2,735-name Set on every keystroke of an unfiltered page is pure waste.
-      var narrowed = (q || h || fn || provider) ? new Set(matches.map(function (i) { return String(companies[i].name || '').toLowerCase(); })) : null;
+      var narrowed = (q || h || fn || size || provider) ? new Set(matches.map(function (i) { return String(companies[i].name || '').toLowerCase(); })) : null;
       mountRecentRoles(root, { func: fn, companies: narrowed });
       list.innerHTML = slice.length
         ? slice.map(function (i) { return companyRow(companies[i], i); }).join('')
-        : '<li class="dg-dir-empty">' + ((h || fn || provider) ? 'No companies match those filters.' : 'No companies match that search.') + '</li>';
+        : '<li class="dg-dir-empty">' + ((h || fn || size || provider) ? 'No companies match those filters.' : 'No companies match that search.') + '</li>';
       more.hidden = matches.length <= shown;
       count.textContent = matches.length
         ? matches.length + ' of ' + companies.length + ' compan' + (matches.length === 1 ? 'y' : 'ies') +
           (fn ? ' hiring in ' + fn : '') +
+          (size ? ' · team size ' + size : '') +
           (provider ? ' on ' + provider : '') +
           (matches.length > shown ? ' — showing ' + shown : '') +
-          (!q && !h && !fn && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
-        : ((h || fn || provider) ? 'No companies match those filters.' : 'No companies match that search.');
+          (!q && !h && !fn && !size && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
+        : ((h || fn || size || provider) ? 'No companies match those filters.' : 'No companies match that search.');
     }
     searchEl.addEventListener('input', renderRows);
     hiringEl.addEventListener('change', renderRows);
     funcEl.addEventListener('change', renderRows);
+    sizeEl.addEventListener('change', renderRows);
     providerEl.addEventListener('change', renderRows);
     if (sortEl) sortEl.addEventListener('change', renderRows);
     more.addEventListener('click', function () {
@@ -556,6 +591,33 @@
       if (more.hidden) count.focus();
     });
     list.addEventListener('click', function (event) {
+      /* Brief button: hand off to the existing wizard, prefilled. Falls back to /hire when
+         foot-core is not present so the control is never dead. */
+      var brief = event.target.closest && event.target.closest('button.dg-dir-brief[data-company]');
+      if (brief) {
+        var co = brief.getAttribute('data-company') || '';
+        var opened = false;
+        try {
+          var trigger = document.querySelector('[data-demigod-modal="startup"],a[href="#startup-modal"]');
+          if (trigger) { trigger.click(); opened = true; }
+        } catch (e) { opened = false; }
+        if (opened) {
+          // Prefill after the wizard mounts; the input is created by foot-core on open.
+          setTimeout(function () {
+            try {
+              var input = document.querySelector('#startup-hire [name="company-name"]');
+              if (input && !String(input.value || '').trim()) {
+                input.value = co;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            } catch (e2) { /* prefill is a convenience, never a requirement */ }
+          }, 350);
+        } else {
+          location.href = '/hire';
+        }
+        return;
+      }
       var chip = event.target.closest && event.target.closest('button.dg-dir-rolechip[data-fn]');
       var picked = chip && chip.getAttribute('data-fn');
       if (!picked || DG_FUNCS.indexOf(picked) < 0) return;
