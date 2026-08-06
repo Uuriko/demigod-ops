@@ -1,0 +1,1156 @@
+{
+  "schema": "demigod.match-score-golden/1",
+  "scores": {
+    "r0-s0-l0-c0": {
+      "score": 88,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 22,
+        "comp-aligned": 12
+      }
+    },
+    "r0-s0-l0-c1": {
+      "score": 76,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 22
+      }
+    },
+    "r0-s0-l1-c0": {
+      "score": 82,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s0-l1-c1": {
+      "score": 70,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s0-l2-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r0-s0-l2-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8
+      }
+    },
+    "r0-s0-l3-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s0-l3-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s0-l4-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r0-s0-l4-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8
+      }
+    },
+    "r0-s1-l0-c0": {
+      "score": 42,
+      "terms": {
+        "early-stage-location": 22,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s1-l0-c1": {
+      "score": 30,
+      "terms": {
+        "early-stage-location": 22,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s1-l1-c0": {
+      "score": 36,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s1-l1-c1": {
+      "score": 24,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s1-l2-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s1-l2-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s1-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s1-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s1-l4-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s1-l4-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s2-l0-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r0-s2-l0-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r0-s2-l1-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s2-l1-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r0-s2-l2-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r0-s2-l2-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r0-s2-l3-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s2-l3-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r0-s2-l4-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r0-s2-l4-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r0-s3-l0-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s3-l0-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r0-s3-l1-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s3-l1-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s3-l2-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s3-l2-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r0-s3-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s3-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r0-s3-l4-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r0-s3-l4-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r1-s0-l0-c0": {
+      "score": 88,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 22,
+        "comp-aligned": 12
+      }
+    },
+    "r1-s0-l0-c1": {
+      "score": 76,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 22
+      }
+    },
+    "r1-s0-l1-c0": {
+      "score": 82,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s0-l1-c1": {
+      "score": 70,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s0-l2-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r1-s0-l2-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8
+      }
+    },
+    "r1-s0-l3-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s0-l3-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s0-l4-c0": {
+      "score": 74,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r1-s0-l4-c1": {
+      "score": 62,
+      "terms": {
+        "skills-overlap": 54,
+        "early-stage-location": 8
+      }
+    },
+    "r1-s1-l0-c0": {
+      "score": 42,
+      "terms": {
+        "early-stage-location": 22,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s1-l0-c1": {
+      "score": 30,
+      "terms": {
+        "early-stage-location": 22,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s1-l1-c0": {
+      "score": 36,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s1-l1-c1": {
+      "score": 24,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s1-l2-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s1-l2-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s1-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s1-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s1-l4-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s1-l4-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s2-l0-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r1-s2-l0-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r1-s2-l1-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s2-l1-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r1-s2-l2-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r1-s2-l2-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r1-s2-l3-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s2-l3-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r1-s2-l4-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r1-s2-l4-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r1-s3-l0-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s3-l0-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r1-s3-l1-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s3-l1-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s3-l2-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s3-l2-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r1-s3-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s3-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r1-s3-l4-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r1-s3-l4-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r2-s0-l0-c0": {
+      "score": 89,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 22,
+        "comp-aligned": 12
+      }
+    },
+    "r2-s0-l0-c1": {
+      "score": 77,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 22
+      }
+    },
+    "r2-s0-l1-c0": {
+      "score": 83,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s0-l1-c1": {
+      "score": 71,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s0-l2-c0": {
+      "score": 75,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r2-s0-l2-c1": {
+      "score": 63,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8
+      }
+    },
+    "r2-s0-l3-c0": {
+      "score": 75,
+      "terms": {
+        "skills-overlap": 55,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s0-l3-c1": {
+      "score": 63,
+      "terms": {
+        "skills-overlap": 55,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s0-l4-c0": {
+      "score": 75,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r2-s0-l4-c1": {
+      "score": 63,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8
+      }
+    },
+    "r2-s1-l0-c0": {
+      "score": 42,
+      "terms": {
+        "early-stage-location": 22,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s1-l0-c1": {
+      "score": 30,
+      "terms": {
+        "early-stage-location": 22,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s1-l1-c0": {
+      "score": 54,
+      "terms": {
+        "skills-overlap": 18,
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s1-l1-c1": {
+      "score": 42,
+      "terms": {
+        "skills-overlap": 18,
+        "early-stage-location": 8,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s1-l2-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s1-l2-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s1-l3-c0": {
+      "score": 46,
+      "terms": {
+        "skills-overlap": 18,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s1-l3-c1": {
+      "score": 34,
+      "terms": {
+        "skills-overlap": 18,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s1-l4-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s1-l4-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s2-l0-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r2-s2-l0-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r2-s2-l1-c0": {
+      "score": 38,
+      "terms": {
+        "skills-overlap": 18,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s2-l1-c1": {
+      "score": 26,
+      "terms": {
+        "skills-overlap": 18,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s2-l2-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r2-s2-l2-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r2-s2-l3-c0": {
+      "score": 38,
+      "terms": {
+        "skills-overlap": 18,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s2-l3-c1": {
+      "score": 26,
+      "terms": {
+        "skills-overlap": 18,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s2-l4-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r2-s2-l4-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r2-s3-l0-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s3-l0-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r2-s3-l1-c0": {
+      "score": 46,
+      "terms": {
+        "skills-overlap": 18,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s3-l1-c1": {
+      "score": 34,
+      "terms": {
+        "skills-overlap": 18,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s3-l2-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s3-l2-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r2-s3-l3-c0": {
+      "score": 46,
+      "terms": {
+        "skills-overlap": 18,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s3-l3-c1": {
+      "score": 34,
+      "terms": {
+        "skills-overlap": 18,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r2-s3-l4-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r2-s3-l4-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r3-s0-l0-c0": {
+      "score": 70,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 22,
+        "comp-aligned": 12
+      }
+    },
+    "r3-s0-l0-c1": {
+      "score": 58,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 22
+      }
+    },
+    "r3-s0-l1-c0": {
+      "score": 64,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s0-l1-c1": {
+      "score": 52,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s0-l2-c0": {
+      "score": 56,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r3-s0-l2-c1": {
+      "score": 44,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8
+      }
+    },
+    "r3-s0-l3-c0": {
+      "score": 56,
+      "terms": {
+        "skills-overlap": 36,
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s0-l3-c1": {
+      "score": 44,
+      "terms": {
+        "skills-overlap": 36,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s0-l4-c0": {
+      "score": 56,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8,
+        "comp-aligned": 12
+      }
+    },
+    "r3-s0-l4-c1": {
+      "score": 44,
+      "terms": {
+        "skills-overlap": 36,
+        "early-stage-location": 8
+      }
+    },
+    "r3-s1-l0-c0": {
+      "score": 42,
+      "terms": {
+        "early-stage-location": 22,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s1-l0-c1": {
+      "score": 30,
+      "terms": {
+        "early-stage-location": 22,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s1-l1-c0": {
+      "score": 36,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s1-l1-c1": {
+      "score": 24,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s1-l2-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s1-l2-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s1-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s1-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s1-l4-c0": {
+      "score": 28,
+      "terms": {
+        "early-stage-location": 8,
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s1-l4-c1": {
+      "score": 16,
+      "terms": {
+        "early-stage-location": 8,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s2-l0-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r3-s2-l0-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r3-s2-l1-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s2-l1-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r3-s2-l2-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r3-s2-l2-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r3-s2-l3-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s2-l3-c1": {
+      "score": 8,
+      "terms": {
+        "experience-proxy": 8
+      }
+    },
+    "r3-s2-l4-c0": {
+      "score": 12,
+      "terms": {
+        "comp-aligned": 12
+      }
+    },
+    "r3-s2-l4-c1": {
+      "score": 0,
+      "terms": {}
+    },
+    "r3-s3-l0-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s3-l0-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r3-s3-l1-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s3-l1-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s3-l2-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s3-l2-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "r3-s3-l3-c0": {
+      "score": 28,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s3-l3-c1": {
+      "score": 16,
+      "terms": {
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    },
+    "r3-s3-l4-c0": {
+      "score": 20,
+      "terms": {
+        "comp-aligned": 12,
+        "stated-motivation": 8
+      }
+    },
+    "r3-s3-l4-c1": {
+      "score": 8,
+      "terms": {
+        "stated-motivation": 8
+      }
+    },
+    "empty-both": {
+      "score": 0,
+      "terms": {}
+    },
+    "empty-role": {
+      "score": 0,
+      "terms": {}
+    },
+    "empty-candidate": {
+      "score": 0,
+      "terms": {}
+    },
+    "capped": {
+      "score": 100,
+      "terms": {
+        "skills-overlap": 55,
+        "early-stage-location": 8,
+        "location-compatible": 12,
+        "comp-aligned": 12,
+        "stated-motivation": 8,
+        "experience-proxy": 8
+      }
+    }
+  }
+}

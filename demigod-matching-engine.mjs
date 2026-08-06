@@ -539,12 +539,16 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
   if (!role) return { error: 'no role', query: roleTitleOrId };
   const companyEvidence = companyEvidenceForRole(role);
 
-  const scored = cands.filter(c => !compensationConflict(role, c.raw || c)).map(c => ({
-    candidate: c,
-    score: scoreMatch(role, c.raw || c),
-    evidence: matchEvidence(role, c),
-    id: c.id || extractEmail(c.raw || {}, c.form)
-  })).sort((a,b) => b.score - a.score).slice(0, limit);
+  const scored = cands.filter(c => !compensationConflict(role, c.raw || c)).map((c) => {
+    const basis = explainMatch(role, c.raw || c);
+    return {
+      candidate: c,
+      score: basis.score,
+      basis,
+      evidence: matchEvidence(role, c),
+      id: c.id || extractEmail(c.raw || {}, c.form),
+    };
+  }).sort((a,b) => b.score - a.score).slice(0, limit);
 
   const proposed = [];
   if (propose) {
@@ -555,7 +559,18 @@ export function suggestMatches(roleTitleOrId, { propose = false, limit = 5 } = {
           roleId: role.id || role.title,
           candId: m.id,
           score: Math.min(1, (m.score || 0) / 100),
-          reasons: ['suggest-matches', `score=${m.score}`, ...m.evidence],
+          /* Persist the BASIS, not just the total. A pair kept only `score=82`, so a match
+             reviewed next month could not be explained, and any later weight change silently
+             reinterpreted every historical score. reasons already exists and is bounded at 20
+             entries, so this needs no schema change and nothing for a validator to reject.
+             Terms are emitted as name=points only — the detail field carries shared skill names
+             and a comp string, and none of that belongs in a stored reason. */
+          reasons: [
+            'suggest-matches',
+            `score=${m.score}`,
+            ...m.basis.terms.map((t) => `${t.name}=${t.points}`),
+            ...m.evidence,
+          ].slice(0, 20),
           actor: 'matching-engine',
           sample: isSampleRole(role) || isSampleCandidate(m.candidate),
         });
