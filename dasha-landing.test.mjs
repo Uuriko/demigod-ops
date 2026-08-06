@@ -26,6 +26,25 @@ let axeSrc;
 try { axeSrc = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8'); }
 catch { axeSrc = await readFile(require.resolve('@axe-core/cli/node_modules/axe-core/axe.min.js'), 'utf8'); }
 
+/* PURE: the tool's FORM markup, normalised. The script check below missed a real divergence —
+   I fixed two link aria-labels in the landing copy and left the standalone unlabelled, and
+   nothing noticed because that is markup, not script. Scoped to the form region because the two
+   files legitimately differ everywhere else: one has its own <head>, the other a hero and footer. */
+export function toolForm(html) {
+  // The whole inlined region, not just <form>. First attempt compared form-to-/form and did NOT
+  // catch the divergence it was written for: #share and #inspect live in the #output section,
+  // outside the form. Proved by breaking it. Standalone wraps this in <main class="receipt">;
+  // the landing page wraps the identical content in <div class="toolhost">.
+  // Anchor on the form, not the eyebrow: the landing page has its OWN <p class="eyebrow"> in the
+  // hero, so indexOf found that one and extracted the whole hero-to-tool span. Caught by the test
+  // failing on an unmodified pair. <form id="receipt-form"> is unambiguous in both files, and the
+  // range still covers #output where the share/inspect links live.
+  const start = html.indexOf('<form id="receipt-form"');
+  const end = html.indexOf('</section>', html.indexOf('id="output"'));
+  if (start < 0 || end < 0) return '';
+  return html.slice(start, end + 10).replace(/\s+/g, ' ').trim();
+}
+
 /** PURE: the tool's script, normalised, so the two copies can be compared. */
 export function toolScript(html) {
   const m = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
@@ -51,6 +70,13 @@ try {
   assert.equal(a, b,
     'dasha-landing.html and dasha-conviction-receipt.html hold DIFFERENT tool scripts — '
     + 'one was edited without the other. Re-inline from the standalone.');
+
+  const fa = toolForm(landing);
+  const fb = toolForm(standalone);
+  assert.ok(fa.length > 200, `landing page has no inlined tool form (got ${fa.length} chars)`);
+  assert.equal(fa, fb,
+    'dasha-landing.html and dasha-conviction-receipt.html hold DIFFERENT tool FORM markup — '
+    + 'an attribute, label or field changed in one copy only.');
 
   for (const width of [390, 1440]) {
     const page = await browser.newPage();
