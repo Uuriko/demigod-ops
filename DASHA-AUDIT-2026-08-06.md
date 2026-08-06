@@ -352,3 +352,59 @@ They split on two, and both splits were resolved with a reason rather than a pre
 
 - Everything remaining is a deploy or a push, both of which need the user.
 - `#dd-share` critical `label` violation in `dasha-desk` — still grok's repo, still unreported upstream.
+
+---
+
+## 12. Verification pass, and a correction
+
+### Correction: the `#dd-share` label violation is CLOSED
+
+Sections 9 and 10 record `#dd-share` as an open critical `label` violation across four
+`dasha-desk` files and on the live page. **That is no longer true and this supersedes
+those entries.** It was fixed in `dasha-desk` commit `ef09e85`; my finding described the
+pre-`ef09e85` state and I reported it upstream without re-checking first.
+
+Verified directly rather than taken on report:
+
+- Source — `aria-labelledby="dd-share-label"` present in `index.html`, `src/app.html`,
+  `src/body.html` and `dist/index.html`, with `<h2 id="dd-share-label">Post this</h2>` above it.
+- Live — `https://johns-awesome-project-39b1b5.webflow.io/dasha` returns HTTP 200 and the
+  element carries `aria-labelledby="dd-share-label"`.
+- axe on live: 88 rules, **one** serious violation remaining — `html-has-lang` on the
+  outer `<html>`, which is Webflow chrome, not page code.
+
+Two further corrections to §10: the roadmap **does** track this (root roadmap line 31),
+so "nobody is tracking it" was wrong; and the roadmap's own line still says live lacks
+the label, which is now also out of date.
+
+The fix that shipped is the same one I would have proposed — `h2` id plus
+`aria-labelledby` — which is convergent, not causal. It predates the report.
+
+### Verification of the design overhaul
+
+Re-checked because three of the standalone's edits were regex replacements against
+remembered markup, and `String.replace()` with a non-matching pattern **fails silently
+and returns the original**. The gates assert nothing about the standalone's typography,
+so nothing would have caught a no-op.
+
+| Check | Result |
+|---|---|
+| serif heading / mono eyebrow / mono address in standalone | all three **landed** |
+| old-palette hexes surviving in either file (case-insensitive) | **none** |
+| favicon identical across both files, new palette | identical, `#0B0A0C #F2EDE7 #C8B6FF` |
+| favicon legibility at 16px | holds |
+| standalone axe at 390 and 1440 | 89 rules, **zero** serious/critical |
+| standalone horizontal overflow at 390 with a full 44-char mint | none |
+| both gates after all changes | PASS |
+
+### One defect found by looking
+
+The five form fields — the actual product — had **no designed focus state**. The only
+`:focus-visible` rule covered `a` and `button`, so inputs, textareas and selects fell
+back to the browser's default ring. axe passes either way, because a visible indicator
+does exist; that is precisely why the gate never surfaced it, and why rendering and
+looking is not redundant with the test suite.
+
+Fixed in both files: `input/textarea/select:focus-visible` now takes the accent outline.
+Verified by keyboard focus rather than click — `:focus-visible` does not paint for mouse
+interaction — and the computed outline colour reads `rgb(200, 182, 255)`, the accent.
