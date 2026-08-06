@@ -26,16 +26,30 @@
   // a URL they sent someone, and it is written straight back into control values, so anything not
   // recognised is dropped rather than echoed.
   var DG_SORTS = ['roles', 'fresh', 'stale', 'name'];
-  var DG_HIRING = ['yes', 'no', 'unknown'];
+  var DG_HIRING = ['yes', 'unknown'];
   var DG_FUNCS = ['engineering', 'ai/data', 'design', 'product', 'sales', 'marketing', 'operations', 'people', 'finance/legal'];
-  var DG_SIZES = ['1-10', '11-50', '51-200', '201+'];
+  // 'unknown' is a real filter value (≈⅓ of the map has no attributed headcount). Empty
+  // string is only the unfiltered control state — never a bucket label.
+  var DG_SIZES = ['1-10', '11-50', '51-200', '201+', 'unknown'];
+
+  function dgFunctionLabel(value) {
+    return value === 'ai/data' ? 'AI / data' : value === 'finance/legal' ? 'Finance / legal' : value.charAt(0).toUpperCase() + value.slice(1);
+  }
 
   function dgTeamSizeBucket(value) {
-    if (!Number.isSafeInteger(value) || value < 1) return '';
+    if (!Number.isSafeInteger(value) || value < 1) return 'unknown';
     if (value <= 10) return '1-10';
     if (value <= 50) return '11-50';
     if (value <= 200) return '51-200';
     return '201+';
+  }
+
+  // Directory default sort: prefer YC-shaped headcount (≤200) so OpenAI-scale boards do not
+  // monopolise "Most open roles". Unknown size stays mid — missing data is not a demotion.
+  function dgStartupBand(teamSize) {
+    if (!Number.isSafeInteger(teamSize) || teamSize < 1) return 1;
+    if (teamSize <= 200) return 2;
+    return 0;
   }
 
   function dgParseFilterHash(hash, providers) {
@@ -159,7 +173,7 @@
     });
   }
   function safeUrl(value) {
-    try { var url = new URL(String(value || '')); return /^https?:$/.test(url.protocol) ? url.href : ''; }
+    try { var url = new URL(String(value || '')); return /^https?:$/.test(url.protocol) && url.hostname !== 'careers.onton.com' ? url.href : ''; }
     catch (_) { return ''; }
   }
 
@@ -203,12 +217,24 @@
     style.textContent =
       '.dg-dir-intro{max-width:72ch;color:#d6d3cc;line-height:1.6;margin:.1rem 0 1rem}' +
       '.dg-dir-tools{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.9rem 0}' +
+      /* On a phone the five selects wrapped to five stacked rows (~550px) and pushed the first
+         company off the fold entirely. Scroll them horizontally instead: same controls, same
+         order, same touch targets, one row. Search keeps its own full-width row above because it
+         is the control people actually reach for. */
+      /* Two selects per row instead of one. A horizontal-scroll row was tried first and was worse:
+         it pushed all five selects off-screen right, so the filters were unreachable — a lower
+         fold is not worth hiding the controls. This keeps every control visible and tappable,
+         just denser. */
+      '@media(max-width:560px){' +
+        '.dg-dir-tools>.dg-dir-search{flex:1 0 100%}' +
+        '.dg-dir-tools>select{flex:1 1 calc(50% - .3rem);min-width:0;max-width:calc(50% - .3rem)}' +
+      '}' +
       '.dg-dir-search,.dg-dir-hiring,.dg-dir-func,.dg-dir-size,.dg-dir-provider,.dg-dir-sort{min-height:48px;border:1px solid rgba(166,255,203,.3);border-radius:9px;background:#07150f;color:#f3f0e7;padding:.55rem .7rem;font:inherit}' +
       '.dg-dir-search{flex:1 1 18rem;width:min(100%,28rem)}' +
       '.dg-dir-search:focus-visible,.dg-dir-hiring:focus-visible,.dg-dir-func:focus-visible,.dg-dir-size:focus-visible,.dg-dir-provider:focus-visible,.dg-dir-sort:focus-visible,.dg-dir-row a:focus-visible,button.dg-dir-rolechip:focus-visible,.dg-dir-more:focus-visible,.dg-dir-toggle:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '.dg-dir-roles{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 0}' +
       '.dg-dir-rolechip{color:#9fb8a8;font-size:.68rem;border:1px solid rgba(166,255,203,.18);border-radius:999px;padding:.02rem .45rem;white-space:nowrap}' +
-      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
+      'button.dg-dir-rolechip{display:inline-flex;align-items:center;min-width:48px;min-height:48px;background:transparent;font:inherit;font-size:.68rem;cursor:pointer}button.dg-dir-rolechip:hover{text-decoration:underline}' +
       '.dg-dir-topics{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin:.2rem 0 0}.dg-dir-topic-label{color:#a8a29e;font-size:.68rem}' +
       '.dg-dir-topic{border:1px solid rgba(166,255,203,.18);border-radius:999px;color:#9fb8a8;padding:.08rem .45rem;font-size:.68rem}' +
       '.dg-dir-count{color:#a8a29e;font-size:.8rem;margin:.2rem 0 .8rem}.dg-dir-count:focus{outline:2px solid #a6ffcb;outline-offset:2px}' +
@@ -216,7 +242,7 @@
       '.dg-dir-more{min-height:48px;margin:.8rem 0 0;border:1px solid rgba(166,255,203,.4);border-radius:9px;background:#07150f;color:#a6ffcb;padding:.55rem .8rem;font:inherit;cursor:pointer}.dg-dir-more:hover{text-decoration:underline}' +
       '.dg-dir-row{border-bottom:1px solid rgba(166,255,203,.1);padding:.5rem .1rem}' +
       '.dg-dir-act{margin:.4rem 0 .1rem}' +
-      'button.dg-dir-brief{min-height:44px;padding:.4rem .8rem;border:1px solid rgba(166,255,203,.35);border-radius:6px;background:transparent;color:#a6ffcb;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:background .18s ease,border-color .18s ease}' +
+      'button.dg-dir-brief{min-height:48px;padding:.4rem .8rem;border:1px solid rgba(166,255,203,.35);border-radius:6px;background:transparent;color:#a6ffcb;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:background .18s ease,border-color .18s ease}' +
       'button.dg-dir-brief:hover{background:rgba(166,255,203,.1);border-color:rgba(166,255,203,.6)}' +
       'button.dg-dir-brief:focus-visible{outline:2px solid #a6ffcb;outline-offset:2px}' +
       '@media(prefers-reduced-motion:reduce){button.dg-dir-brief{transition:none}}' +
@@ -331,7 +357,7 @@
       var mix = Object.keys(company.roleMix).map(function (k) { return { k: k, n: company.roleMix[k] }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
       // Only keys accepted by the shared filter become controls; "other" stays evidence, not a dead button.
       roleMixHtml = '<p class="dg-dir-roles">' + mix.map(function (m) {
-        var label = esc(m.k) + ' ' + esc(m.n);
+        var label = esc(dgFunctionLabel(m.k)) + ' ' + esc(m.n);
         return DG_FUNCS.indexOf(m.k) >= 0
           ? '<button type="button" class="dg-dir-rolechip" data-fn="' + esc(m.k) + '">' + label + '</button>'
           : '<span class="dg-dir-rolechip">' + label + '</span>';
@@ -468,26 +494,24 @@
          counts come from, that they are point-in-time, and that open-age is an observation rather
          than a verdict. Every honesty claim survives; the restatement does not. */
       '<p class="dg-dir-intro">City-level only — a listed Bay Area location, not a verified office or current status. Open-role counts come from each company\'s own public job board, point-in-time — our first observation, not a verdict.</p>' +
-      (pulseBits.length
-        ? '<p class="dg-dir-pulse" role="status">' + pulseBits.map(esc).join(' · ') +
-          (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
-          '</p>'
-        : '') +
-      (roleMixSummary
-        ? '<p class="dg-dir-pulse"><strong>Largest role buckets:</strong> ' + esc(roleMixSummary) + '. Not a ranking.</p>'
-        : '') +
+      /* Coverage stats and role buckets moved BELOW the list. On a 390px screen they pushed the
+         first company past ~1,700px, so the entire mobile fold was chrome, a disclaimer and
+         aggregates — zero product. They are orientation for someone already browsing, not for
+         someone deciding whether to browse, and nothing in them is an honesty claim: they are
+         counts, equally accurate wherever they sit. Every honesty claim (city-level, not a
+         verified office, point-in-time, not a verdict) stays above the fold in dg-dir-intro. */
       '<div class="dg-dir-tools"><input class="dg-dir-search" type="search" aria-label="Search companies" placeholder="Search companies…" autocomplete="off" value="' + esc(state.query) + '">' +
       '<select class="dg-dir-hiring" aria-label="Filter by hiring status"><option value="">All</option>' +
       '<option value="yes"' + (state.hiring === 'yes' ? ' selected' : '') + '>Hiring / open roles</option>' +
-      '<option value="unknown"' + (state.hiring === 'unknown' ? ' selected' : '') + '>Hiring unknown</option>' +
-      '<option value="no"' + (state.hiring === 'no' ? ' selected' : '') + '>Not hiring reported</option></select>' +
+      '<option value="unknown"' + (state.hiring === 'unknown' ? ' selected' : '') + '>Hiring unknown</option></select>' +
       '<select class="dg-dir-func" aria-label="Filter by role function"><option value="">Any role</option>' +
       DG_FUNCS.map(function (f) {
-        return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + f.charAt(0).toUpperCase() + f.slice(1) + '</option>';
+        return '<option value="' + f + '"' + (state.func === f ? ' selected' : '') + '>' + dgFunctionLabel(f) + '</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-size" aria-label="Filter by team size"><option value="">Any team size</option>' +
       DG_SIZES.map(function (size) {
-        return '<option value="' + size + '"' + (state.size === size ? ' selected' : '') + '>' + size + (size === '201+' ? '' : ' people') + '</option>';
+        var label = size === 'unknown' ? 'Unknown team size' : size === '201+' ? '201+' : size + ' people';
+        return '<option value="' + size + '"' + (state.size === size ? ' selected' : '') + '>' + label + '</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-provider" aria-label="Filter by ATS provider"><option value="">Any job board</option>' +
       providers.map(function (provider) {
@@ -495,7 +519,7 @@
         return '<option value="' + esc(value) + '"' + (state.provider === value ? ' selected' : '') + '>' + esc(provider) + '</option>';
       }).join('') + '</select>' +
       '<select class="dg-dir-sort" aria-label="Sort companies">' +
-        '<option value="roles"' + (state.sort === 'roles' ? ' selected' : '') + '>Most open roles</option>' +
+        '<option value="roles"' + (state.sort === 'roles' ? ' selected' : '') + '>Open roles · startups first</option>' +
         '<option value="fresh"' + (state.sort === 'fresh' ? ' selected' : '') + '>Freshest postings</option>' +
         '<option value="stale"' + (state.sort === 'stale' ? ' selected' : '') + '>Longest-posted</option>' +
         '<option value="name"' + (state.sort === 'name' ? ' selected' : '') + '>Name A–Z</option>' +
@@ -504,6 +528,14 @@
       '<ul class="dg-dir-list"></ul>' +
       '<button type="button" class="dg-dir-more" hidden>Load more companies</button>' +
       '<section class="dg-dir-fresh" role="status" aria-live="polite" hidden></section>' +
+      (pulseBits.length
+        ? '<p class="dg-dir-pulse" role="status">' + pulseBits.map(esc).join(' · ') +
+          (map.coverage && map.coverage.roleAgingAt ? ' · aging as of ' + esc(map.coverage.roleAgingAt) : '') +
+          '</p>'
+        : '') +
+      (roleMixSummary
+        ? '<p class="dg-dir-pulse"><strong>Largest role buckets:</strong> ' + esc(roleMixSummary) + '. Not a ranking.</p>'
+        : '') +
       '<p class="dg-dir-foot"><strong>Definition:</strong> ' + esc(map.coverage.definition || 'Companies with a public SF headquarters listing.') +
       '<br><strong>Important:</strong> ' + esc(map.coverage.caveat || 'City-level only; current status is not verified.') +
       (sources ? '<br>Sources: ' + sources + '.' : '') +
@@ -559,7 +591,11 @@
           return order(companies[a].medianPostedDays, companies[b].medianPostedDays, companies[a].name, companies[b].name);
         });
       } else {
-        matches.sort(function (a, b) { return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0)); });
+        matches.sort(function (a, b) {
+          var band = dgStartupBand(companies[b].teamSize) - dgStartupBand(companies[a].teamSize);
+          if (band) return band;
+          return (companies[b].openRoles || (state.hiringOf[b] === 'yes' ? 1 : 0)) - (companies[a].openRoles || (state.hiringOf[a] === 'yes' ? 1 : 0));
+        });
       }
       var slice = matches.slice(0, shown);
       // Keep the roles panel in the same view as the rows. null = no filter active, so do not
@@ -572,8 +608,8 @@
       more.hidden = matches.length <= shown;
       count.textContent = matches.length
         ? matches.length + ' of ' + companies.length + ' compan' + (matches.length === 1 ? 'y' : 'ies') +
-          (fn ? ' hiring in ' + fn : '') +
-          (size ? ' · team size ' + size : '') +
+          (fn ? ' hiring in ' + dgFunctionLabel(fn) : '') +
+          (size ? ' · team size ' + (size === 'unknown' ? 'unknown' : size) : '') +
           (provider ? ' on ' + provider : '') +
           (matches.length > shown ? ' — showing ' + shown : '') +
           (!q && !h && !fn && !size && !provider ? ' · ' + (hiringNow + hiringYc) + ' with job links: ' + hiringNow + ' with observed US-posted or remote roles, ' + hiringYc + ' more hiring per YC' : '')
@@ -591,22 +627,27 @@
       if (more.hidden) count.focus();
     });
     list.addEventListener('click', function (event) {
-      /* Brief button: hand off to the existing wizard, prefilled. Falls back to /hire when
-         foot-core is not present so the control is never dead. */
+      /* Brief button: hand off to the existing wizard, prefilled.
+         Live /startups has no #startup-modal; generic [data-demigod-modal=startup] triggers
+         navigate to /?wiz=startup and would drop data-company. Only claim in-page open when
+         the modal exists; otherwise seed foot's session draft and deep-link. */
       var brief = event.target.closest && event.target.closest('button.dg-dir-brief[data-company]');
       if (brief) {
         var co = brief.getAttribute('data-company') || '';
-        var opened = false;
-        try {
-          var trigger = document.querySelector('[data-demigod-modal="startup"],a[href="#startup-modal"]');
-          if (trigger) { trigger.click(); opened = true; }
-        } catch (e) { opened = false; }
-        if (opened) {
+        var modal = document.querySelector('#startup-modal');
+        if (modal) {
+          try {
+            var trigger = document.querySelector('[data-demigod-modal="startup"],a[href="#startup-modal"]');
+            if (trigger) trigger.click();
+            else {
+              try { modal.setAttribute('aria-hidden', 'false'); modal.style.display = 'flex'; } catch (e0) {}
+            }
+          } catch (e) { /* open is best-effort */ }
           // Prefill after the wizard mounts; the input is created by foot-core on open.
           setTimeout(function () {
             try {
               var input = document.querySelector('#startup-hire [name="company-name"]');
-              if (input && !String(input.value || '').trim()) {
+              if (input && !String(input.value || '').trim() && co) {
                 input.value = co;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -614,7 +655,22 @@
             } catch (e2) { /* prefill is a convenience, never a requirement */ }
           }, 350);
         } else {
-          location.href = '/hire';
+          // Preserve company across navigation via foot-core's same-session draft key.
+          try {
+            if (co && typeof sessionStorage !== 'undefined') {
+              var key = 'dgWizSave_startup';
+              var draft = null;
+              try { draft = JSON.parse(sessionStorage.getItem(key) || 'null'); } catch (e3) { draft = null; }
+              if (!draft || typeof draft !== 'object') draft = { answers: {}, step: 0 };
+              if (!draft.answers || typeof draft.answers !== 'object') draft.answers = {};
+              if (!String(draft.answers['company-name'] || '').trim()) {
+                draft.answers['company-name'] = co;
+                if (typeof draft.step !== 'number') draft.step = 0;
+                sessionStorage.setItem(key, JSON.stringify(draft));
+              }
+            }
+          } catch (e4) { /* draft seed is optional */ }
+          location.href = '/?wiz=startup';
         }
         return;
       }
