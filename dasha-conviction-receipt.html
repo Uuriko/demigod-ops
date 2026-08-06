@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dasha Thesis Card</title>
+  <meta name="description" content="Write a crypto thesis before the chart writes the story. No wallet connection.">
+  <style>
+    :root{color-scheme:dark;--bg:#08090b;--panel:#121419;--line:#292d36;--ink:#f4f5f7;--muted:#a9afbc;--accent:#d8ff52;--danger:#ffb4a8}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}.receipt{width:min(760px,calc(100% - 32px));margin:64px auto}.eyebrow{color:var(--accent);font-size:.8rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}h1{margin:.2em 0;font-size:clamp(2.4rem,8vw,5rem);line-height:.95}.intro,.note{color:var(--muted)}form,.output{display:grid;gap:18px;margin-top:32px;padding:clamp(20px,5vw,36px);border:1px solid var(--line);border-radius:20px;background:var(--panel)}label{display:grid;gap:7px;font-weight:700}input,textarea,select,button,a.button{min-height:48px;border:1px solid var(--line);border-radius:10px;background:#0b0d11;color:var(--ink);font:inherit}input,textarea,select{width:100%;padding:12px}textarea{min-height:96px;resize:vertical}button,a.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;font-weight:800;text-decoration:none;cursor:pointer}button{background:var(--accent);color:#101300;border-color:var(--accent)}button:hover{filter:brightness(1.08)}.actions{display:flex;flex-wrap:wrap;gap:10px}.secondary{background:transparent!important;color:var(--ink)!important}.error{min-height:1.5em;color:var(--danger)}.output{white-space:pre-wrap}.output[hidden]{display:none}.fingerprint{font:13px ui-monospace,monospace;color:var(--accent)}@media(max-width:520px){.receipt{margin:32px auto}.actions>*{width:100%}}
+    .output{overflow-wrap:anywhere}button,a.button{min-width:0}
+  </style>
+</head>
+<body>
+  <main class="receipt">
+    <p class="eyebrow">Dasha Labs · free tool</p>
+    <h1>Thesis Card</h1>
+    <p class="intro">Write the call before the chart writes the story. Generate a shareable card with the thesis—and the condition that proves it wrong.</p>
+    <form id="receipt-form" novalidate>
+      <label>Solana token address<input id="address" autocomplete="off" spellcheck="false" required placeholder="32–44 character mint address"></label>
+      <label>Thesis<textarea id="thesis" maxlength="280" required placeholder="What does the market misunderstand?"></textarea></label>
+      <label>Invalidation<textarea id="invalidation" maxlength="180" required placeholder="What evidence would prove this thesis wrong?"></textarea></label>
+      <label>Confidence<select id="confidence"><option>55%</option><option>65%</option><option>75%</option><option>85%</option><option>95%</option></select></label>
+      <label>Time horizon<select id="horizon"><option>24 hours</option><option>7 days</option><option>30 days</option><option>Long term</option></select></label>
+      <div class="actions"><button type="submit">Generate card</button></div>
+      <div id="error" class="error" role="alert"></div>
+    </form>
+    <section id="output" class="output" aria-live="polite" hidden>
+      <strong id="receipt-text"></strong>
+      <span id="fingerprint" class="fingerprint"></span>
+      <div class="actions"><button id="copy" class="secondary" type="button">Copy card</button><button id="download" class="secondary" type="button">Download card</button><a id="share" class="button" target="_blank" rel="noopener noreferrer">Share on X</a><a id="inspect" class="button secondary" target="_blank" rel="noopener noreferrer">Inspect token</a></div>
+      <small class="note">The local checksum detects changed text. The timestamp is not independently verified and this card is not proof of when a claim was made. It does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id), form=$('receipt-form'), output=$('output');
+    const DISCLAIMER="Not financial advice. No wallet connection. Local timestamp is not independently verified.";
+    const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
+    const wrap=(lines,limit)=>lines.flatMap(line=>line.match(new RegExp(`.{1,${limit}}(?:\\s|$)|\\S{1,${limit}}`,'g'))||[]).map(line=>line.trim());
+    const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER);
+      const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
+      ctx.fillStyle='#08090b';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#d8ff52';ctx.font='800 28px system-ui';ctx.fillText('DASHA THESIS CARD',72,82);
+      let size=31,wrapped=wrap(lines,58);while(wrapped.length*size*1.4>440&&size>18){size--;wrapped=wrap(lines,Math.floor(58*31/size))}
+      ctx.fillStyle='#f4f5f7';ctx.font=`700 ${size}px system-ui`;let y=135;
+      for(const line of wrapped){ctx.fillText(line,72,y);y+=size*1.4}
+      ctx.fillStyle='#a9afbc';ctx.font='24px ui-monospace';ctx.fillText(`Local checksum: ${fingerprint}`,72,596);ctx.fillStyle='#0d0f13';ctx.fillRect(0,624,1200,51);ctx.fillStyle='#a9afbc';ctx.font='21px system-ui';ctx.fillText(DISCLAIMER,72,655);return canvas;
+    };
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim();
+      if(!validAddress(address)||!thesis||!invalidation){$('error').textContent='Add a valid Solana mint address, thesis, and invalidation condition.';output.hidden=true;return}
+      $('error').textContent='';
+      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nLocal timestamp: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nHorizon: ${$('horizon').value}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
+      const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
+      const fingerprint=[...new Uint8Array(bytes)].map(byte=>byte.toString(16).padStart(2,'0')).join('').slice(0,12);
+      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · ${$('horizon').value}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprint}\nNot timestamp proof. No wallet. NFA.`;
+      $('receipt-text').textContent=body;
+      $('fingerprint').textContent=`Local checksum: ${fingerprint}`;
+      $('share').href=`https://x.com/intent/post?text=${encodeURIComponent(shareText)}`;
+      $('inspect').href=`https://solscan.io/token/${encodeURIComponent(address)}`;
+      $('copy').onclick=async()=>{await navigator.clipboard.writeText(shareText);$('copy').textContent='Copied'};
+      $('download').onclick=()=>{const link=document.createElement('a');link.download=`dasha-thesis-${fingerprint}.png`;link.href=card(body.split('\n'),fingerprint).toDataURL('image/png');link.click()};
+      output.hidden=false;output.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  </script>
+</body>
+</html>
