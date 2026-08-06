@@ -30,7 +30,13 @@ test('startupScore separates YC-shaped startups from established big tech', () =
   assert.equal(startupScore(PROFILES.anthropic), 0, 'wikidata-listed, no team/stage => established');
   assert.equal(startupScore(PROFILES.airbnb), 0, 'a YC tag alone does not make a 7000-person company a startup');
   assert.equal(startupScore(undefined), 1, 'unknown company is never punished for missing data');
-  assert.equal(startupScore({ teamSize: 5000, stage: null, tags: [] }), 1, 'big team without the wikidata tag stays unknown, not demoted');
+  // Known headcount over the ceiling is established evidence — stage labels like "Growth" must not
+  // promote Gusto/Faire-class firms onto the startup rail (pre-fix they scored 2 via stage alone).
+  assert.equal(startupScore({ teamSize: 2400, stage: 'Growth', tags: ['yc'] }), 0, '2400 + Growth is not a startup');
+  assert.equal(startupScore({ teamSize: 750, stage: 'Growth', tags: ['yc'] }), 0, '750 + Growth is over the ceiling');
+  assert.equal(startupScore({ teamSize: 65, stage: 'Growth', tags: ['yc'] }), 2, '65 + Growth is still startup-sized');
+  assert.equal(startupScore({ teamSize: null, stage: 'Early', tags: ['yc'] }), 2, 'stage without headcount still counts');
+  assert.equal(startupScore({ teamSize: 5000, stage: null, tags: [] }), 0, 'known large headcount demotes even without wikidata');
 });
 
 test('startups outrank big tech even when big tech posts far more roles', () => {
@@ -63,14 +69,44 @@ test('no company may take more than two slots', () => {
   assert.equal(roles.length, 6, 'a short feed still fills the list via overflow');
 });
 
+test('salary-stuffed titles yield to quieter ones at equal startup/geo rank', () => {
+  const feed = { roles: [
+    row('Coram AI', 'Head of Eng — Remote, $200-$400k/yr + equity'),
+    row('Astro Mechanica', 'Chief Engineer, Defense'),
+  ] };
+  const { roles } = publicRolesFromFeed(feed, { limit: 2, profiles: PROFILES });
+  assert.equal(roles[0].company, 'Astro Mechanica', 'quiet title leads when both are startups');
+  assert.equal(roles[1].company, 'Coram AI', 'comp-in-title still eligible, just deprioritized');
+});
+
+test('when enough quiet titles exist, salary-stuffed rows leave the primary rail', () => {
+  const feed = { roles: [
+    row('Astro Mechanica', 'Chief Engineer, Defense'),
+    row('Coram AI', 'GTM Recruiter'),
+    row('AIOS', 'Head of Eng — Remote, $200-$400k/yr + equity'),
+  ] };
+  // limit 2 + two quiet startups → AIOS must not take a primary slot
+  const { roles } = publicRolesFromFeed(feed, { limit: 2, profiles: {
+    ...PROFILES,
+    aios: { teamSize: 100, stage: 'Early', tags: ['yc'] },
+  } });
+  assert.deepEqual(roles.map((r) => r.company).sort(), ['Astro Mechanica', 'Coram AI']);
+  assert.equal(roles.some((r) => r.company === 'AIOS'), false, 'noise title dropped when quiet fill exists');
+});
+
 test('proven non-vacuous: without profiles, big tech wins again', () => {
   // If this passed with and without the profile join, the join would be doing nothing.
   const feed = { roles: [
     ...Array.from({ length: 6 }, (_, i) => row('Anthropic', `Big Tech Role ${i}`)),
     row('Coram AI', 'GTM Recruiter'),
   ] };
+  /* Assert ORDER, not membership. This originally checked that Coram AI was ABSENT without
+     profiles — true when PER_COMPANY_MAX was 2, because Anthropic filled both slots. Another
+     change lowered the cap to 1, so the spread alone surfaces a second company and both lists
+     contained Coram AI: the fixture stopped distinguishing the two behaviours and the "proof"
+     could no longer fail. Order survives cap changes — with the join, the startup LEADS. */
   const withProfiles = publicRolesFromFeed(feed, { limit: 2, profiles: PROFILES }).roles.map((r) => r.company);
   const without = publicRolesFromFeed(feed, { limit: 2, profiles: {} }).roles.map((r) => r.company);
-  assert.ok(withProfiles.includes('Coram AI'), 'with profiles: startup surfaces');
-  assert.equal(without.includes('Coram AI'), false, 'without profiles: big tech dominates — proves the join is load-bearing');
+  assert.equal(withProfiles[0], 'Coram AI', `with profiles the startup must lead, got ${withProfiles.join(', ')}`);
+  assert.equal(without[0], 'Anthropic', `without profiles big tech leads, got ${without.join(', ')} — if this changes the join is no longer load-bearing`);
 });
