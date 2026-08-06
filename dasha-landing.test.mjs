@@ -179,6 +179,87 @@ try {
     await page.close();
   }
 
+  /* ---- the calls loop -------------------------------------------------------
+     Shipped 2026-08-06 verified entirely by hand. This is that hand check made durable.
+
+     Harness rules learned by getting them wrong today, both of which produced FALSE bug
+     reports: never sleep a fixed number of ms waiting on the card (the digest is async —
+     550ms failed where 700ms passed), and dispatch clicks in-page rather than through
+     element handles (a puppeteer click on an off-screen example button behaved differently).
+
+     Elapsed time is simulated by backdating stored data. The tool REFUSES to create an
+     already-due call because resolution dates must be in the future — that is correct, and
+     my first attempt at this test concluded the module was broken when the tool was right. */
+  {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1000, height: 900 });
+    await page.goto(base, { waitUntil: 'networkidle2' });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle2' });
+
+    assert.equal(await page.evaluate(() => document.getElementById('calls').hidden), true,
+      'the calls section must be hidden for a visitor with no calls — an empty heading is dead space');
+
+    const write = async (i) => {
+      await page.evaluate((n) => {
+        document.querySelectorAll('.exbtn')[n].click();
+        document.getElementById('address').value = '9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump';
+      }, i);
+      await page.evaluate(() => document.querySelector('#tool button[type=submit]').click());
+      await page.waitForFunction(
+        (want) => JSON.parse(localStorage.getItem('dasha.calls') || '[]').length >= want,
+        { timeout: 8000 }, i + 1);
+    };
+    await write(0);
+    await write(1);
+
+    const written = await page.evaluate(() => ({
+      stored: JSON.parse(localStorage.getItem('dasha.calls') || '[]').length,
+      hidden: document.getElementById('calls').hidden,
+      streak: document.getElementById('streak').textContent,
+      settleButtons: [...document.querySelectorAll('#calllist button')].filter((b) => !/Delete/.test(b.textContent)).length,
+    }));
+    assert.equal(written.stored, 2, `two generated cards should be captured, got ${written.stored}`);
+    assert.equal(written.hidden, false, 'the calls section must appear once a call exists');
+    // THE assertion that protects the design. Rewarding volume is the documented way this
+    // gets ruined; if a future change makes writing count, this is what catches it.
+    assert.doesNotMatch(written.streak, /\d+ in a row/,
+      `writing calls MUST NOT move the streak — only settling does. Got: "${written.streak.trim()}"`);
+    assert.equal(written.settleButtons, 0, 'a call with a future resolution date must not offer settle actions');
+
+    // simulate the resolution date arriving
+    await page.evaluate(() => {
+      const c = JSON.parse(localStorage.getItem('dasha.calls'));
+      c[0].resolve = '2020-01-01';
+      localStorage.setItem('dasha.calls', JSON.stringify(c));
+    });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => document.querySelectorAll('#calllist .chip').length === 2, { timeout: 8000 });
+
+    const dueChips = await page.evaluate(() => [...document.querySelectorAll('#calllist .chip')].map((c) => c.textContent.trim()));
+    assert.ok(dueChips.some((t) => /Due/i.test(t)), `a past resolution date must read as due, got: ${dueChips.join(' / ')}`);
+
+    await page.evaluate(() => {
+      [...document.querySelectorAll('#calllist button')].find((b) => /I was wrong/.test(b.textContent)).click();
+    });
+    await page.waitForFunction(() => /in a row/.test(document.getElementById('streak').textContent), { timeout: 8000 });
+
+    const settled = await page.evaluate(() => ({
+      chips: [...document.querySelectorAll('#calllist .chip')].map((c) => c.textContent.trim()),
+      streak: document.getElementById('streak').textContent,
+    }));
+    assert.ok(settled.chips.some((t) => /Called it wrong\. Said so\./.test(t)),
+      `settling as wrong must apply the marker, got: ${settled.chips.join(' / ')}`);
+    assert.match(settled.streak, /1 in a row/, `settling one call should read as 1 in a row, got "${settled.streak.trim()}"`);
+
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.waitForFunction(() => document.querySelectorAll('#calllist .chip').length === 2, { timeout: 8000 });
+    const persisted = await page.evaluate(() => [...document.querySelectorAll('#calllist .chip')].map((c) => c.textContent.trim()));
+    assert.ok(persisted.some((t) => /Called it wrong/.test(t)), 'the settled state must survive a reload');
+
+    await page.close();
+  }
+
   await browser.disconnect();
-  console.log('Dasha landing gate: PASS (390 + 1440, axe, drift, tool, og)');
+  console.log('Dasha landing gate: PASS (390 + 1440, axe, drift, tool, og, calls loop)');
 } finally { server.close(); }

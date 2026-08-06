@@ -243,7 +243,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 </section>
 
 
-<section id="calls">
+<section id="calls" hidden>
   <h2>Your calls</h2>
   <p class="lede">Kept on this device only — never uploaded, and we cannot see them. When a resolution date arrives, come back and say what happened.</p>
   <p class="streak" id="streak" hidden></p>
@@ -418,7 +418,9 @@ for (const b of document.querySelectorAll(".exbtn")) {
   function render(){
     var cs=load();
     if(!store.ok){ list.innerHTML="<p class=\"callmeta\">This browser is blocking local storage, so calls cannot be kept here.</p>"; return; }
-    if(!cs.length){ list.innerHTML="<p class=\"callmeta\">Nothing yet. Write one above and it will appear here.</p>"; streakEl.hidden=true; return; }
+    var sec=document.getElementById("calls");
+    if(!cs.length){ sec.hidden=true; streakEl.hidden=true; list.innerHTML=""; return; }
+    sec.hidden=false;
     var n=streak(cs);
     streakEl.hidden=false;
     streakEl.innerHTML = n>0 ? "You settle your calls. <b>"+n+"</b> in a row." : "Settle a call to start a run.";
