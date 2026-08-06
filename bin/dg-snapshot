@@ -3,11 +3,22 @@
 #
 # This is NOT a backup. It is deliberately a weaker, available thing:
 #
-#   protects against   a destructive command inside $HOME — `git clean -xfd`,
-#                      `rm -rf`, a bad script. That is what actually happened on
-#                      2026-08-02 and destroyed 37 gitignored files.
+#   protects against   a destructive command inside $HOME. Three artifacts:
+#                        repo.bundle       every committed ref
+#                        data.tar.zst      gitignored data + top-level untracked
+#                        uncommitted.patch modified TRACKED files (git diff HEAD)
+#                      Covers `git clean -xfd` (the 2026-08-02 loss), `rm -rf`,
+#                      and — since the patch was added — `git reset --hard` and
+#                      `git checkout -- .`, which destroy modified tracked files
+#                      that `git clean` leaves alone.
 #   does NOT protect   disk failure, theft, fire, ransomware, or anything that
 #   against            takes the whole machine. Same disk, same box.
+#
+#   Scope note: the first version of this tool shipped WITHOUT uncommitted.patch.
+#   It restored 39 files byte-identical and was reported as working, but every
+#   modified tracked file was out of scope — 129 files and 7,847 insertions at the
+#   time it was found, including an entire in-flight site redesign. The mechanism
+#   was verified and the scope never was.
 #
 # bin/dg-backup remains the real backup and still refuses same-filesystem repos.
 # That refusal is correct for the risk IT covers and is not relaxed here. This
@@ -37,6 +48,14 @@ if [[ "$mode" == "--verify" ]]; then
   [[ -f "$snap/MANIFEST.txt" ]] || die "no MANIFEST.txt in $snap"
   ( cd "$snap" && sha256sum -c --quiet CHECKSUMS.sha256 ) || die "checksum mismatch in $snap"
   git bundle verify "$snap/repo.bundle" >/dev/null 2>&1 || die "git bundle failed verification"
+  if [[ -s "$snap/uncommitted.patch" ]]; then
+    probe="$(mktemp -d)"
+    git clone -q "$snap/repo.bundle" "$probe/repo" 2>/dev/null \
+      || { rm -rf "$probe"; die "bundle would not clone"; }
+    git -C "$probe/repo" apply --check "$snap/uncommitted.patch" 2>/dev/null \
+      || { rm -rf "$probe"; die "uncommitted.patch does NOT apply"; }
+    rm -rf "$probe"
+  fi
   printf 'dg-snapshot VERIFY ok · %s\n' "$snap"
   exit 0
 fi
@@ -54,6 +73,12 @@ esac
 # ignores (node_modules, .cache, .local) that would bloat a timer-driven run.
 LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
 ( cd "$ROOT" && git ls-files -o -i --exclude-standard 2>/dev/null | grep -v '/' || true ) >"$LIST"
+# Untracked and NOT ignored: a new file that has never been `git add`ed matches neither the
+# ignored set above nor the tracked set the patch covers. Top-level only — nested untracked is
+# agent runtime (.prime/agent holds binaries, .ipython holds a sqlite history) and sweeping it
+# daily is how a backup becomes something someone turns off.
+( cd "$ROOT" && git ls-files --others --exclude-standard 2>/dev/null | grep -v '/' || true ) >>"$LIST"
+sort -u -o "$LIST" "$LIST"
 for extra in .config/demigod .config/systemd/user .gitconfig; do
   [[ -e "$ROOT/$extra" ]] && printf '%s\n' "$extra" >>"$LIST"
 done
@@ -77,17 +102,23 @@ chmod 700 "$DEST" "$snap"
 git -C "$ROOT" bundle create "$snap/repo.bundle" --all >/dev/null 2>&1 \
   || die "git bundle failed"
 
+# Modified TRACKED files. The bundle holds commits and the archive holds ignored data; without
+# this, everything between the last commit and now is unprotected.
+git -C "$ROOT" diff HEAD >"$snap/uncommitted.patch" || die "git diff failed"
+
 # The files git cannot restore.
 tar --zstd -cf "$snap/data.tar.zst" -C "$ROOT" --files-from "$LIST" \
   || die "tar failed"
 
-( cd "$snap" && sha256sum repo.bundle data.tar.zst >CHECKSUMS.sha256 )
+( cd "$snap" && sha256sum repo.bundle data.tar.zst uncommitted.patch >CHECKSUMS.sha256 )
 {
   printf 'snapshot   %s\n' "$stamp"
   printf 'root       %s\n' "$ROOT"
   printf 'head       %s\n' "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
   printf 'branch     %s\n' "$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
   printf 'files      %s\n' "$count"
+  printf 'patched    %s tracked files (%s bytes)\n' \
+    "$(git -C "$ROOT" diff HEAD --name-only | grep -c . || echo 0)" "$(wc -c <"$snap/uncommitted.patch")"
   printf 'protects   destructive commands inside %s\n' "$ROOT"
   printf 'does NOT   disk failure, theft, whole-machine loss (same disk)\n'
   printf '\nfiles saved:\n'
@@ -100,6 +131,16 @@ tar --zstd -cf "$snap/data.tar.zst" -C "$ROOT" --files-from "$LIST" \
 git bundle verify "$snap/repo.bundle" >/dev/null 2>&1 || die "bundle failed verification"
 tar_count="$(tar --zstd -tf "$snap/data.tar.zst" | grep -c . || true)"
 [[ "$tar_count" -ge "$count" ]] || die "archive holds $tar_count entries, expected >= $count"
+# An unapplied patch is a belief, not a backup — the exact error that shipped the first version
+# of this tool. Restore the bundle to a scratch clone and check the patch actually applies to it.
+if [[ -s "$snap/uncommitted.patch" ]]; then
+  probe="$(mktemp -d)"
+  git clone -q "$snap/repo.bundle" "$probe/repo" 2>/dev/null \
+    || { rm -rf "$probe"; die "bundle would not clone — patch cannot be verified"; }
+  git -C "$probe/repo" apply --check "$snap/uncommitted.patch" 2>/dev/null \
+    || { rm -rf "$probe"; die "uncommitted.patch does NOT apply to the bundled HEAD"; }
+  rm -rf "$probe"
+fi
 
 printf 'dg-snapshot OK · %s · %s files · %s · %s\n' \
   "$snap" "$count" "$(du -sh "$snap" | cut -f1)" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo -)"
