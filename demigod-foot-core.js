@@ -1,14 +1,14 @@
-/*dg-foot-v941-core*/
-window.dgFootVersion = 'v941'; console.log('[demigod] foot v941-core loaded');
+/*dg-foot-v971-core*/
+window.dgFootVersion = 'v971'; console.log('[demigod] foot v971-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
 
 /* Dual paths: name the immediate action. Demigod has no public job board, application, or network membership to promise candidates. */
 /* ==== SECTION: COPY (runtime marketing strings) ==== */
-var MATCH_DISCLOSURE='Software compares role goals, skills, location, and compensation. A human decides what to propose. Nothing is sent automatically.';
+var MATCH_DISCLOSURE='Three gates: software compares role goals, skills, location, and compensation; a human decides what to propose; nothing is sent automatically.';
 var COPY={
-heroSub:'One role. Real constraints. Mutual yes before intro.',
+heroSub:'One role. Three gates. Mutual yes before intro.',
 badge:'SF startup talent · software ranks · humans review',
 heroTrustLine:'Private · Mutual yes · Free for talent · 10% when a hire starts',
 antiLinkedIn:'No public profiles. No feed. No blasts. Mutual yes only — candidate identity stays private until both sides approve.',
@@ -54,13 +54,13 @@ var SALARY_BAND_HTML='<option value="">Select range</option>'
 var WIZ_CFG={
   startup:{
     steps:[['welcome'],['role-title'],['company-name'],['company-stage'],['stack-needs'],['work-location'],['salary-range'],['90day-outcome'],['contact-email'],['__submit__'],['__thanks__']],
-    welcome:{t:'Hiring brief',b:'For permanent direct hires at SF Bay startups. About 2 minutes · 10% of first-year base salary when a hire starts · nothing upfront. Press Enter to continue.',btn:'Start the brief'},
+    welcome:{t:'Hiring brief',b:'SF Bay permanent hires. ~2 min · three gates (software ranks, human proposes, mutual yes) · 10% when a hire starts · nothing upfront. Press Enter to continue.',btn:'Start the brief'},
     thanks:STARTUP_OK,
     optional:[]
   },
   engineer:{
     steps:[['welcome'],['sf-bay'],['full-name'],['seeker-email'],['skills-stack'],['experience'],['availability'],['salary-expectation'],['resume'],['__submit__'],['__thanks__']],
-    welcome:{t:'Open to the right startup?',b:'Tell us what would make you consider an SF Bay startup role. About 2 minutes · private · free for candidates · no blasts. Already shared? Submit again with the same email; a human reviews the update. We only contact you when a human sees a credible fit. Your identifying details are shared with a startup only after you approve the exact company and role. Press Enter to continue.',btn:'Start privately'},
+    welcome:{t:'Open to the right startup?',b:'Private SF Bay roles. ~2 min · free · three gates (software ranks, human proposes, you approve every intro). Resubmit with the same email to update. Press Enter to continue.',btn:'Start privately'},
     thanks:ENGINEER_OK
   }
 };
@@ -384,7 +384,7 @@ function ensureWizPremiumCss(){
     +'#startup-modal .dg-wiz-choice,#jobseeker-modal .dg-wiz-choice{transition:border-color .15s ease,background .15s ease,transform .12s ease;}'
     +'#startup-modal .dg-wiz-choice:hover,#jobseeker-modal .dg-wiz-choice:hover{border-color:rgba(16,198,116,.55);}'
     +'#startup-modal .dg-wiz-choice.is-on,#jobseeker-modal .dg-wiz-choice.is-on{border-color:var(--dg-signal,#10c674);box-shadow:0 0 0 1px rgba(16,198,116,.35);}'
-    +'#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block;font-size:.62rem;font-weight:500;opacity:.5;letter-spacing:.06em;margin-top:.12rem}'
+    +'#startup-modal .dg-wiz-next[data-enter-hint],#jobseeker-modal .dg-wiz-next[data-enter-hint]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.18rem!important;line-height:1.2!important;text-align:center!important}#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block!important;font-size:.62rem!important;font-weight:500!important;opacity:.55!important;letter-spacing:.04em!important;margin:0!important;line-height:1!important;font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;color:inherit!important}'
     +'@media(prefers-reduced-motion:reduce){#startup-modal .dg-wiz-choice,#jobseeker-modal .dg-wiz-choice{transition:none}}'
     +'#startup-modal form.dg-wiz-on .dg-wiz-show,#jobseeker-modal form.dg-wiz-on .dg-wiz-show{animation:dgWizIn .22s ease both}'
     +'@keyframes dgWizIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}'
@@ -1511,7 +1511,7 @@ function hero(){
       var out = document.createElement('p');
       out.id = 'dg-hero-outcome';
       out.className = 'dg-hero-outcome';
-      out.textContent = 'Software ranks fit. Humans review. Mutual yes only.';
+      out.textContent = COPY.heroSub;
       e.insertAdjacentElement('afterend', out);
     }
   });
@@ -1550,9 +1550,9 @@ function hero(){
     var desc=card.querySelector('.step-desc,p');
     var num=card.querySelector('.step-num');
     var steps=[
-      ['Define the role','Hiring teams share the must-haves, constraints, and one concrete first result.'],
-      ['Compare, then review','Software compares role goals and constraints. A human confirms the interview path and decides what to propose.'],
-      ['Both say yes','Each side reviews privately. We introduce only with mutual interest.']
+      ['Software compares the facts','One role brief or private profile — must-haves, constraints, cash band, and a concrete first result. Software ranks fit; nothing is messaged yet.'],
+      ['A human decides what to propose','A person reviews the rank and interview path. Software never auto-intros.'],
+      ['Mutual yes before intro','Each side reviews privately. We introduce only after both approve.']
     ];
     var st=steps[i]||steps[2];
     if(title) title.textContent=st[0];
@@ -1563,7 +1563,7 @@ function hero(){
     var x=(h.textContent||'').trim();
     /* design-track: Webflow still ships TECH-MATCHED / HUMAN-MATCHED shout titles */
     if(/HUMAN-MATCHED|TECH-MATCHED|TECH MATCHED|THE PROCESS|How it works|SF STARTUP TALENT/i.test(x) && h.closest('.trust-section,section:has(.steps-grid),section')) h.textContent='A match has three gates.';
-    if(/ONE SIMPLE MODEL|PRICING|10%/i.test(x) && h.closest('section')) h.textContent='Pricing';
+    if(/ONE SIMPLE MODEL|^PRICING$|10%/i.test(x) && h.closest('section') && h.closest('section').querySelector('.pricing-grid,.pricing-card')) h.textContent='Nothing until a hire starts.';
   });
   qa('.trust-header p,.trust-section .paragraph_large').forEach(function(p){
     if(p.closest('#startup-modal,#jobseeker-modal'))return;
@@ -1654,20 +1654,16 @@ function foot(){
       '<nav id="dg-legal-links" aria-label="Footer navigation">'+
         '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-product">'+
           '<p class="dg-footer-heading" id="dg-footer-product">Product</p>'+
-          '<a href="/hire" data-dg-page="hire">Hire talent guide</a>'+
-          '<a href="/talent" data-dg-page="talent">Talent guide</a>'+
           '<a href="/how" data-dg-page="how">How it works</a>'+
           '<a href="/pricing" data-dg-page="pricing">Pricing</a>'+
+          '<a href="/hire" data-dg-page="hire">Hire talent guide</a>'+
+          '<a href="/talent" data-dg-page="talent">Talent guide</a>'+
           '<a href="/faq" data-dg-page="faq">FAQ</a>'+
-          '<a href="/private" data-dg-page="private">Why private</a>'+
         '</div>'+
-        '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-explore">'+
-          '<p class="dg-footer-heading" id="dg-footer-explore">Explore</p>'+
-          '<a href="/startups" data-dg-page="map">Startup directory</a>'+
-          '<a href="/events" data-dg-page="events">SF events</a>'+
-          '<a href="/refer" data-dg-page="refer">Referrals</a>'+
+        '<div class="dg-footer-group" role="group" aria-labelledby="dg-footer-company">'+
+          '<p class="dg-footer-heading" id="dg-footer-company">Company</p>'+
           '<a href="/about" data-dg-page="about">About</a>'+
-          '<a href="/press" data-dg-page="press">Press kit</a>'+
+          '<a href="/startups" data-dg-page="map">SF directory</a>'+
           '<a href="/contact" data-dg-page="contact">Contact</a>'+
           '<a href="/legal" data-dg-page="legal">Privacy &amp; terms</a>'+
           '<a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>'+
@@ -2357,7 +2353,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"@keyframes dgCyberPulseSoft{0%,100%{opacity:1}50%{opacity:.96}}"
 +"@keyframes dgCyberScan{0%,72%{transform:scaleX(0);opacity:0}78%{opacity:.48}88%{transform:scaleX(1);opacity:.22}94%,100%{transform:scaleX(1);opacity:0}}"
 +".hero-section h1,.header h1,.hero-title,.hero-section h1:not(:has(.title-accent-gold)),.header h1:not(:has(.title-accent-gold)){min-height:0!important;height:auto!important;max-height:none!important;line-height:.95!important;margin:0 0 .4rem!important;padding:0!important;visibility:visible!important;animation:none!important}"
-+".dg-cyber-host,.dg-cyber-word{font-family:var(--dg-cyber)!important;font-weight:650!important;letter-spacing:.07em!important;text-transform:uppercase!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;text-shadow:0 0 10px rgba(166,255,203,.45),0 0 22px rgba(16,198,116,.22),0 1px 12px rgba(0,0,0,.35)!important}"
++".dg-cyber-host,.dg-cyber-word{font-family:var(--dg-cyber)!important;font-weight:650!important;letter-spacing:.03em!important;text-transform:uppercase!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;text-shadow:0 0 8px rgba(166,255,203,.28),0 1px 14px rgba(0,0,0,.35)!important}"
 /* dynamic reveal + paper-span rules */
 +".hero-section h1.dg-hero-hold.dg-reveal,.header h1.dg-hero-hold.dg-reveal,.hero-section h1.dg-cyber-host.dg-reveal{opacity:1!important;transform:none!important;transition:none!important}"
 +".hero-section h1.dg-cyber-host .dg-cyber-ch,.header h1.dg-cyber-host .dg-cyber-ch,.hero-section h1.dg-cyber-host span{color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;background:none!important}"
@@ -2421,14 +2417,14 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 /* dual path frege-bracket cards */
 +".hero-actions,.hero-actions.dg-path-pair{position:relative;z-index:5;display:grid!important;grid-template-columns:1fr 1fr!important;gap:1rem!important;max-width:min(44rem,100%)!important;width:100%!important;margin:1rem 0 0!important}"
 +".hero-actions .dg-cta-wrap{display:block!important;min-width:0!important}"
-+".hero-actions .dg-cta-wrap a,.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,.hero-actions a[data-dg-cta]{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:.2rem!important;width:100%!important;height:100%!important;min-height:6.5rem!important;padding:1.35rem 1.4rem!important;border-radius:14px!important;font-weight:600!important;font-size:1.08rem!important;line-height:1.25!important;text-decoration:none!important;font-family:var(--dg-sans)!important;cursor:pointer!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease!important}"
++".hero-actions .dg-cta-wrap a,.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,.hero-actions a[data-dg-cta]{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:.2rem!important;width:100%!important;height:100%!important;min-height:5.75rem!important;padding:1.15rem 1.25rem!important;border-radius:14px!important;font-weight:600!important;font-size:1.08rem!important;line-height:1.25!important;text-decoration:none!important;font-family:var(--dg-sans)!important;cursor:pointer!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease!important}"
 +".hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:linear-gradient(180deg,rgba(16,198,116,.22),rgba(16,198,116,.10))!important;color:var(--dg-phosphor)!important;border:1px solid rgba(16,198,116,.55)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important}"
 +".hero-actions a[data-dg-cta=hire]:hover,.hero-actions a.is-talent:hover{transform:translateY(-2px)!important;box-shadow:0 10px 28px rgba(0,0,0,.28)!important;border-color:rgba(166,255,203,.55)!important}"
 +".hero-actions a[data-dg-cta=hire] .dg-cta-label,.hero-actions a[data-dg-cta=hire] .dg-cta-hint,.hero-actions a.is-talent .dg-cta-label,.hero-actions a.is-talent .dg-cta-hint{color:var(--dg-phosphor)!important}"
 +".hero-actions a[data-dg-cta] .dg-cta-label{display:block!important;line-height:1.2!important;font-size:1.08rem!important;font-weight:700!important;margin:0!important}"+".hero-actions a[data-dg-cta] .dg-cta-hint{display:block!important;line-height:1.3!important;font-size:.78rem!important;font-weight:500!important;margin:.2rem 0 0!important;opacity:.82!important}"
 +".hero-actions a[data-dg-cta=hire] .dg-cta-label:before,.hero-actions a.is-talent .dg-cta-label:before{content:none!important}"
 +".hero-actions a[data-dg-cta=hire] .dg-cta-label:after,.hero-actions a.is-talent .dg-cta-label:after{content:none!important}"
-+".hero-actions a[data-dg-cta=talent],.hero-actions a.is-job{background:rgba(243,240,231,.04)!important;color:var(--dg-paper)!important;border:1px solid rgba(243,240,231,.28)!important}"
++".hero-actions a[data-dg-cta=talent],.hero-actions a.is-job{background:rgba(166,255,203,.035)!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.42)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important}"
 +".hero-actions a[data-dg-cta=talent]:hover,.hero-actions a.is-job:hover{transform:translateY(-2px)!important;border-color:rgba(166,255,203,.55)!important;box-shadow:0 10px 28px rgba(0,0,0,.28)!important}"
 +".hero-actions a[data-dg-cta=talent] .dg-cta-label,.hero-actions a[data-dg-cta=talent] .dg-cta-hint,.hero-actions a.is-job .dg-cta-label{color:var(--dg-paper)!important}"
 +".hero-actions a[data-dg-cta=talent] .dg-cta-label:before{content:none!important}"
@@ -2438,7 +2434,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".hero-actions a .btn-arrow,.hero-actions a svg{display:none!important}"
 +"#dg-bar{background:rgba(3,20,13,.96)!important;border-top:1px solid var(--dg-rule)!important}"
 +"#dg-bar a.dg-h{background:rgba(8,160,93,.35)!important;color:var(--dg-phosphor)!important;border:1px solid rgba(166,255,203,.4)!important}"
-+"#dg-bar a.dg-j{background:transparent!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.28)!important}"
++"#dg-bar a.dg-j{background:rgba(166,255,203,.05)!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.42)!important}"
 +"#dg-path-pills{display:none!important}" /* design-track: nav owns those links */
 +"#dg-path-pills a{color:var(--dg-paper-mute)!important;font-size:.82rem!important;letter-spacing:.06em!important;text-transform:lowercase!important;text-decoration:none!important;background:transparent!important;border:0!important;min-width:48px!important;min-height:48px!important;padding:0 .25rem!important;display:inline-flex!important;align-items:center!important;transition:color .2s ease!important}"
 +"#dg-path-pills a:hover{color:var(--dg-phosphor)!important}"
@@ -2448,18 +2444,18 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"#demigod-trust-block,#dg-faq,#dg-proof-strip,#dg-pipeline-note,#dg-contact-strip,#dg-hero-trust,#insights-section,.insights-section{display:none!important}"
 /* process/pricing hierarchy — editorial sequence, not identical SaaS cards */
 +"section.trust-section,section:has(.steps-grid),section:has(.pricing-grid){display:block!important;visibility:visible!important;opacity:1!important;color:var(--dg-paper)!important;background-image:none!important;border-top:1px solid var(--dg-rule)!important}"
-+"section.trust-section,section:has(.steps-grid){background:linear-gradient(180deg,rgba(166,255,203,.03) 0%,var(--dg-night) 28%)!important;padding:clamp(2.75rem,7vh,4.5rem) 1.25rem clamp(3rem,7vh,5rem)!important}"
-+"section:has(.pricing-grid){background:var(--dg-night)!important;padding:clamp(3.75rem,9vh,6rem) 1.25rem clamp(4.5rem,10vh,7rem)!important}"
++"section.trust-section,section:has(.steps-grid){background:linear-gradient(180deg,rgba(166,255,203,.03) 0%,var(--dg-night) 28%)!important;padding:clamp(1.35rem,3.2vh,2.25rem) 1.25rem clamp(2rem,5vh,3.25rem)!important}"
++"section:has(.pricing-grid){background:var(--dg-night)!important;padding:clamp(2rem,4.5vh,3rem) 1.25rem clamp(2.15rem,5vh,3.25rem)!important}"
 +".roles-header,.roles-grid,[data-dg-hidden=roles-simplify]{display:none!important}"
 +".trust-header,.pricing-grid{max-width:56rem!important;margin-left:auto!important;margin-right:auto!important}"
-+".trust-header{box-sizing:border-box!important;display:block!important;width:100%!important;max-width:56rem!important;margin:0 auto 2.25rem!important;text-align:left!important}"
++".trust-header{box-sizing:border-box!important;display:block!important;width:100%!important;max-width:56rem!important;margin:0 auto 1.35rem!important;text-align:left!important}"
 +".trust-header h2,section:has(.steps-grid) h2,section.trust-section h2{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(1.85rem,3.8vw,2.6rem)!important;font-weight:480!important;letter-spacing:-.03em!important;margin:0 0 .65rem!important;text-align:left!important;text-transform:none!important;max-width:22ch!important}"
-+"section:has(.pricing-grid) h2,.heading_tertiary{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(1.65rem,3.2vw,2.25rem)!important;font-weight:450!important;letter-spacing:-.03em!important;margin:0 0 .55rem!important;text-align:center!important;text-transform:none!important}"
++"section:has(.pricing-grid) h2{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(1.65rem,3.2vw,2.25rem)!important;font-weight:480!important;letter-spacing:-.03em!important;margin:0 0 .55rem!important;text-align:left!important;text-transform:none!important;max-width:28ch!important}"
 +".trust-header p,.paragraph_large,section:has(.steps-grid) .paragraph_large{color:var(--dg-paper-mute)!important;font-size:1rem!important;max-width:40ch!important;font-family:var(--dg-sans)!important;line-height:1.55!important;margin:0!important;text-align:left!important}"
 +".steps-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:clamp(1.25rem,3vw,2rem)!important;max-width:56rem;margin:0 auto!important;align-items:start!important}"
-+".step-card{background:transparent!important;border:0!important;border-top:1px solid rgba(166,255,203,.22)!important;border-radius:0!important;padding:1.35rem .15rem 0!important;color:var(--dg-paper)!important;box-shadow:none!important;transition:border-color .25s ease!important}"
++".step-card{background:transparent!important;border:0!important;border-top:1px solid rgba(166,255,203,.22)!important;border-radius:0!important;padding:.95rem .15rem 0!important;color:var(--dg-paper)!important;box-shadow:none!important;transition:border-color .25s ease!important;min-height:9.25rem!important}"
 +".step-card:hover{transform:none!important;border-top-color:rgba(166,255,203,.55)!important;box-shadow:none!important}"
-+".step-num{display:block!important;color:var(--dg-phosphor)!important;font-size:clamp(2rem,3.6vw,2.75rem)!important;font-weight:500!important;letter-spacing:-.04em!important;line-height:1!important;font-family:var(--dg-serif)!important;margin:0 0 .85rem!important;opacity:.92}"
++".step-num{display:block!important;color:var(--dg-phosphor)!important;font-size:clamp(1.85rem,3.4vw,2.5rem)!important;font-weight:500!important;letter-spacing:-.04em!important;line-height:1!important;font-family:var(--dg-serif)!important;margin:0 0 .55rem!important;opacity:.92}"
 +".step-title{font-size:1.12rem!important;font-weight:600!important;margin:0 0 .45rem!important;color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;letter-spacing:-.02em!important}"
 +".step-desc{color:var(--dg-paper-mute)!important;font-size:.92rem!important;max-width:28ch!important;font-family:var(--dg-sans)!important;line-height:1.55!important;margin:0!important}"
 +".pricing-grid,.pricing-grid.is-single{display:block!important;box-sizing:border-box!important;width:100%!important;max-width:56rem!important;margin:1.5rem auto 0!important}.pricing-card{max-width:26rem!important;margin-left:0!important;margin-right:auto!important;width:100%!important}"
@@ -2468,11 +2464,11 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".pricing-card .pricing-amount,.pricing-card .price,.pricing-card h3 + div{color:var(--dg-paper)!important;font-family:var(--dg-serif)!important;font-size:clamp(2.4rem,5vw,3.1rem)!important;font-weight:480!important;letter-spacing:-.03em!important;line-height:1!important;margin:.15rem 0 .5rem!important}"
 +".pricing-card > div > div{color:var(--dg-paper-mute)!important;font-family:var(--dg-sans)!important;font-size:.92rem!important;line-height:1.5!important}.pricing-card h3 + div + div{font-size:.95rem!important;color:var(--dg-paper-mute)!important;margin:0 0 1rem!important}"
 +".pricing-card a.premium-btn,.pricing-card a.button,.pricing-card a.is-talent,.pricing-card a.on-inverse,.pricing-card a.w-button,.pricing-card a[data-dg-cta]{margin-top:1.25rem!important;min-height:48px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:14px!important;background:linear-gradient(180deg,rgba(16,198,116,.28),rgba(16,198,116,.12))!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;border:1px solid rgba(16,198,116,.5)!important;padding:.85rem 1.2rem!important;font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;font-weight:650!important;width:100%!important;text-shadow:none!important;letter-spacing:-.01em!important;text-transform:none!important}"
-+"footer,.footer{box-sizing:border-box!important;width:100%!important;max-width:none!important;margin:0!important;padding:clamp(2.5rem,5vw,3.75rem) 1.25rem!important;text-align:left!important;border-top:1px solid var(--dg-rule)!important;background:var(--dg-night)!important}"
-+"#dg-footer-panel{box-sizing:border-box;width:min(72rem,100%);margin:0 auto;display:grid;gap:clamp(2rem,4vw,3rem);font-family:var(--dg-sans);color:var(--dg-paper)}"
-+".dg-footer-actions{width:100%;max-width:min(42rem,100%);display:grid;grid-template-columns:1fr 1fr;gap:1rem}.dg-footer-actions a{box-sizing:border-box;min-width:0;min-height:5.25rem;padding:1.15rem 1.25rem;display:flex;flex-direction:column;justify-content:center;gap:.25rem;border:1px solid rgba(243,240,231,.28);border-radius:14px;color:var(--dg-paper)!important;text-decoration:none!important;font-family:var(--dg-sans)!important;background:rgba(243,240,231,.04)}.dg-footer-actions a:first-child{background:linear-gradient(180deg,rgba(16,198,116,.22),rgba(16,198,116,.10));border-color:rgba(16,198,116,.55);color:var(--dg-phosphor)!important}.dg-footer-actions strong{font-size:1.02rem;line-height:1.25;font-weight:700}.dg-footer-actions span{color:var(--dg-paper-mute);font-size:.78rem;line-height:1.35;font-weight:500}.dg-footer-actions a:hover{border-color:rgba(166,255,203,.55)!important;transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.28)}"
-+"#dg-legal-links{display:grid!important;grid-template-columns:1fr 1fr!important;align-items:start!important;gap:clamp(1.25rem,3vw,2rem) clamp(2rem,6vw,4rem)!important;margin:0!important;padding:clamp(1.15rem,2.5vw,1.75rem) 0!important;border-top:1px solid var(--dg-rule);border-bottom:1px solid var(--dg-rule)}"
-+".dg-footer-group{flex:1 1 14rem;display:grid!important;grid-template-columns:1fr 1fr!important;column-gap:1.25rem!important;row-gap:.15rem!important;align-content:start!important;align-items:start!important;opacity:1!important;visibility:visible!important}.dg-footer-heading{grid-column:1/-1!important;margin:0 0 .55rem!important;color:var(--dg-signal)!important;font-family:var(--dg-mono)!important;font-size:.68rem!important;font-weight:750!important;letter-spacing:.14em!important;text-transform:uppercase!important}"
++"footer,.footer{box-sizing:border-box!important;width:100%!important;max-width:none!important;margin:0!important;padding:clamp(1.75rem,3.5vw,2.75rem) 1.25rem!important;text-align:left!important;border-top:1px solid var(--dg-rule)!important;background:var(--dg-night)!important}"
++"#dg-footer-panel{box-sizing:border-box;width:min(72rem,100%);margin:0 auto;display:grid;gap:clamp(1.15rem,2.5vw,1.75rem);font-family:var(--dg-sans);color:var(--dg-paper)}"
++".dg-footer-actions{width:100%;max-width:min(42rem,100%);display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.dg-footer-actions a{box-sizing:border-box;min-width:0;min-height:4.25rem;padding:.85rem 1.1rem;display:flex;flex-direction:column;justify-content:center;gap:.2rem;border:1px solid rgba(166,255,203,.42);border-radius:12px;color:var(--dg-paper)!important;text-decoration:none!important;font-family:var(--dg-sans)!important;background:rgba(166,255,203,.035)}.dg-footer-actions a:first-child{background:linear-gradient(180deg,rgba(16,198,116,.22),rgba(16,198,116,.10));border-color:rgba(16,198,116,.55);color:var(--dg-phosphor)!important}.dg-footer-actions strong{font-size:.98rem;line-height:1.25;font-weight:700}.dg-footer-actions span{color:var(--dg-paper-mute);font-size:.74rem;line-height:1.3;font-weight:500}.dg-footer-actions a:hover{border-color:rgba(166,255,203,.55)!important;transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.26)}"
++"#dg-legal-links{display:grid!important;grid-template-columns:1fr 1fr!important;align-items:start!important;gap:clamp(.85rem,2vw,1.25rem) clamp(1.25rem,4vw,2.5rem)!important;margin:0!important;padding:clamp(.65rem,1.5vw,1rem) 0!important;border-top:1px solid var(--dg-rule);border-bottom:1px solid var(--dg-rule)}"
++".dg-footer-group{flex:1 1 14rem;display:grid!important;grid-template-columns:1fr 1fr!important;column-gap:1rem!important;row-gap:0!important;align-content:start!important;align-items:start!important;opacity:1!important;visibility:visible!important}.dg-footer-heading{grid-column:1/-1!important;margin:0 0 .55rem!important;color:var(--dg-signal)!important;font-family:var(--dg-mono)!important;font-size:.68rem!important;font-weight:750!important;letter-spacing:.14em!important;text-transform:uppercase!important}"
 +"#dg-legal-links a{box-sizing:border-box;min-width:44px;min-height:36px!important;padding:.2rem 0!important;display:inline-flex!important;align-items:center;color:var(--dg-paper-mute)!important;font-size:.88rem!important;line-height:1.35;text-decoration:none!important}"
 +"#dg-legal-links a:hover{color:var(--dg-phosphor)!important}"
 +".dg-footer-bottom{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:1.25rem 3rem}.dg-footer-fee{max-width:52rem;margin:0;color:var(--dg-paper-mute);font-size:.85rem;line-height:1.6}"
@@ -2488,12 +2484,22 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +"body.dg-ready .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-label,body[data-dg-ready=\"1\"] .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-label{animation:none!important}"
 +"body.dg-ready .hero-actions .dg-cta-wrap.dg-in a[data-dg-cta=hire] .dg-cta-cyber .dg-cyber-ch{text-shadow:none!important}"
 +".dg-reduce .dg-reveal{opacity:1!important;transform:none!important;transition:none!important}"
-+"#dg-observed-roles{position:relative;z-index:2;padding:clamp(2.5rem,6vh,4rem) 1.25rem;border-top:1px solid var(--dg-rule);background:var(--dg-night);color:var(--dg-paper)}"+"#dg-observed-roles .dg-obs-inner{max-width:56rem;margin:0 auto}"+"#dg-observed-roles .dg-obs-kicker{margin:0 0 .35rem;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dg-signal);font-weight:700}"+"#dg-observed-roles h2{margin:0 0 .65rem;font-family:var(--dg-serif);font-size:clamp(1.45rem,2.8vw,1.9rem);font-weight:500;letter-spacing:-.02em;color:var(--dg-paper);text-transform:none}"+"#dg-observed-roles .dg-obs-note{margin:0 0 1.1rem;max-width:46rem;color:var(--dg-paper-mute);font-size:.92rem;line-height:1.5}"+"#dg-observed-roles .dg-obs-list{margin:0;padding:0;list-style:none;display:grid;gap:.55rem}"+"#dg-observed-roles .dg-obs-list a{color:var(--dg-phosphor);text-decoration:none;font-weight:600}"+"#dg-observed-roles .dg-obs-list a:hover{text-decoration:underline}"+"#dg-observed-roles .dg-obs-meta{color:var(--dg-paper-mute);font-size:.78rem;font-weight:500}"+"#dg-observed-roles .dg-obs-more{margin:1.15rem 0 0}"+"#dg-observed-roles .dg-obs-more a{color:var(--dg-phosphor);font-weight:600}"
++"#dg-observed-roles{position:relative;z-index:2;padding:clamp(1.1rem,2.5vh,1.75rem) 1.25rem;border-top:1px solid var(--dg-rule);background:var(--dg-night);color:var(--dg-paper)}"+"#dg-observed-roles .dg-obs-inner{max-width:56rem;margin:0 auto}"+"#dg-observed-roles .dg-obs-kicker{margin:0 0 .35rem;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dg-signal);font-weight:700}"+"#dg-observed-roles h2{margin:0 0 .4rem;font-family:var(--dg-serif);font-size:clamp(1.35rem,2.6vw,1.75rem);font-weight:500;letter-spacing:-.02em;color:var(--dg-paper);text-transform:none}"+"#dg-observed-roles .dg-obs-note{margin:0 0 .5rem;max-width:42rem;color:var(--dg-paper-mute);font-size:.82rem;line-height:1.4}"+"#dg-observed-roles .dg-obs-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr;gap:.28rem .75rem}@media(min-width:700px){#dg-observed-roles .dg-obs-list{grid-template-columns:1fr 1fr}}"+"#dg-observed-roles .dg-obs-list a{color:var(--dg-phosphor);text-decoration:none;font-weight:600;min-height:0;display:inline;line-height:1.3}@media(max-width:699px){#dg-observed-roles .dg-obs-list a{display:flex;align-items:center;min-height:48px}}"+"#dg-observed-roles .dg-obs-list a:hover{text-decoration:underline}"+"#dg-observed-roles .dg-obs-list li{display:flex;flex-direction:column;gap:.08rem;padding:.22rem 0;border-bottom:1px solid rgba(166,255,203,.08)}#dg-observed-roles .dg-obs-meta{color:var(--dg-paper-mute);font-size:.68rem;font-weight:500;opacity:.75;letter-spacing:.01em}"+"#dg-observed-roles .dg-obs-more{margin:1.15rem 0 0}"+"#dg-observed-roles .dg-obs-more a{color:var(--dg-phosphor);font-weight:600}"
+/* Row layout: company leads, role is secondary, the outbound arrow replaces a sentence. */
++"#dg-observed-roles .dg-obs-list li{padding:0;border-bottom:1px solid rgba(166,255,203,.08)}"
++"#dg-observed-roles .dg-obs-list a{display:grid!important;grid-template-columns:1fr auto;align-items:baseline;column-gap:.6rem;padding:.55rem .5rem .55rem 0;min-height:44px;border-radius:6px;transition:background .18s ease,padding-left .18s ease}"
++"#dg-observed-roles .dg-obs-list a:hover{background:rgba(166,255,203,.06);padding-left:.5rem;text-decoration:none}"
++"#dg-observed-roles .dg-obs-co{color:var(--dg-paper);font-weight:600;letter-spacing:-.01em}"
++"#dg-observed-roles .dg-obs-role{grid-column:1;color:var(--dg-paper-mute);font-weight:400;font-size:.86rem;line-height:1.35}"
++"#dg-observed-roles .dg-obs-go{grid-row:1;grid-column:2;color:var(--dg-phosphor);opacity:.45;font-size:.85rem;transition:opacity .18s ease,transform .18s ease}"
++"#dg-observed-roles .dg-obs-list a:hover .dg-obs-go{opacity:1;transform:translate(2px,-2px)}"
++"#dg-observed-roles .dg-obs-meta{display:block;padding:0 0 .5rem}"
++"@media(prefers-reduced-motion:reduce){#dg-observed-roles .dg-obs-list a,#dg-observed-roles .dg-obs-go{transition:none}}"
 +".dg-reduce body::before,.dg-reduce #dg-night-stage .dg-grain,.dg-reduce #dg-night-stage .dg-stars,.dg-reduce #dg-night-stage .dg-art-panel,.dg-reduce .nav_logo-icon,.dg-reduce .pricing-card{animation:none!important}"
-+"@media(max-width:767px){.dg-footer-actions{display:none!important}.hero-actions,.hero-actions.dg-path-pair{display:grid!important;grid-template-columns:1fr!important;gap:.75rem!important;max-width:100%!important;margin:1rem 0 0!important}.hero-actions a[data-dg-cta],.hero-actions a.premium-btn{min-height:4.75rem!important;width:100%!important}#dg-bar{position:fixed!important;left:0;right:0;bottom:0;z-index:9998;display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;background:rgba(3,20,13,.97)!important;border-top:1px solid var(--dg-rule)!important}#dg-bar a{min-height:52px!important;border-radius:12px!important;font-size:.9rem!important;font-weight:650!important;display:flex!important;align-items:center!important;justify-content:center!important;text-decoration:none!important;font-family:var(--dg-sans)!important}#dg-bar a.dg-h{background:linear-gradient(180deg,rgba(16,198,116,.28),rgba(16,198,116,.12))!important;color:var(--dg-phosphor)!important;border:1px solid rgba(16,198,116,.5)!important}#dg-bar a.dg-j{background:rgba(243,240,231,.05)!important;color:var(--dg-paper)!important;border:1px solid rgba(243,240,231,.28)!important}body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))!important}.steps-grid{grid-template-columns:1fr!important}#dg-night-stage .dg-art-caption,.dg-art-caption{display:none!important}.dg-eyebrow,#dg-eyebrow{display:none!important}}"
++"@media(max-width:767px){.step-card{min-height:0!important;padding-top:1rem!important}.dg-footer-actions{display:none!important}.hero-actions,.hero-actions.dg-path-pair{display:grid!important;grid-template-columns:1fr!important;gap:.75rem!important;max-width:100%!important;margin:1rem 0 0!important}.hero-actions a[data-dg-cta],.hero-actions a.premium-btn{min-height:4.75rem!important;width:100%!important}#dg-bar{position:fixed!important;left:0;right:0;bottom:0;z-index:9998;display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;background:rgba(3,20,13,.97)!important;border-top:1px solid var(--dg-rule)!important}#dg-bar a{min-height:52px!important;border-radius:12px!important;font-size:.9rem!important;font-weight:650!important;display:flex!important;align-items:center!important;justify-content:center!important;text-decoration:none!important;font-family:var(--dg-sans)!important}#dg-bar a.dg-h{background:linear-gradient(180deg,rgba(16,198,116,.28),rgba(16,198,116,.12))!important;color:var(--dg-phosphor)!important;border:1px solid rgba(16,198,116,.5)!important}#dg-bar a.dg-j{background:rgba(166,255,203,.05)!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.42)!important}body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))!important}.steps-grid{grid-template-columns:1fr!important}#dg-night-stage .dg-art-caption,.dg-art-caption{display:none!important}.dg-eyebrow,#dg-eyebrow{display:none!important}}"
 +"@media(min-width:768px){#dg-bar{display:none!important}body{padding-bottom:0!important}}"
 +"@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}"
-+".pricing-card-border-red,.pricing-card [class*=border-red]{display:none!important;height:0!important;background:transparent!important}"+".pricing-card-divider{height:1px!important;margin:.85rem 0 1rem!important;background:rgba(166,255,203,.18)!important;border:0!important}"+".pricing-card > div:nth-child(3){display:flex!important;flex-direction:column!important;gap:.55rem!important}"+".pricing-card > div > div:not(.pricing-amount){position:relative!important;padding:.15rem 0 .15rem 1rem!important;margin:0!important;color:var(--dg-paper-mute)!important;font-size:.92rem!important;line-height:1.45!important;font-family:var(--dg-sans)!important}"+".pricing-card > div > div:not(.pricing-amount)::before{content:''!important;position:absolute!important;left:0!important;top:.55em!important;width:6px!important;height:6px!important;border-radius:50%!important;background:rgba(16,198,116,.55)!important}"+".pricing-card > div:first-child > div{padding-left:0!important}.pricing-card > div:first-child > div::before{content:none!important}"+"";document.head.appendChild(s)}
++".pricing-card-border-red,.pricing-card [class*=border-red]{display:none!important;height:0!important;background:transparent!important}"+".pricing-card-divider{height:1px!important;margin:.85rem 0 1rem!important;background:rgba(166,255,203,.18)!important;border:0!important}"+".pricing-card > div:nth-child(3){display:flex!important;flex-direction:column!important;gap:.55rem!important}"+".pricing-card > div > div:not(.pricing-amount){position:relative!important;padding:.15rem 0 .15rem 1rem!important;margin:0!important;color:var(--dg-paper-mute)!important;font-size:.92rem!important;line-height:1.45!important;font-family:var(--dg-sans)!important}"+".pricing-card > div > div:not(.pricing-amount)::before{content:''!important;position:absolute!important;left:0!important;top:.55em!important;width:6px!important;height:6px!important;border-radius:50%!important;background:rgba(16,198,116,.55)!important}"+".pricing-card > div:first-child > div{padding-left:0!important}.pricing-card > div:first-child > div::before{content:none!important}"+".pricing-card .btn-label,.pricing-card .btn-content,.pricing-card .button_label,.pricing-card a .btn-label,.pricing-card a span{font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;color:var(--dg-phosphor)!important;-webkit-text-fill-color:var(--dg-phosphor)!important;letter-spacing:-.01em!important;text-transform:none!important;font-weight:650!important}#startup-modal .modal-title,#jobseeker-modal .modal-title,#startup-modal h2.modal-title,#jobseeker-modal h2.modal-title{font-family:var(--dg-sans),Manrope,system-ui,sans-serif!important;color:var(--dg-paper)!important;letter-spacing:-.02em!important;text-transform:none!important}"+"";document.head.appendChild(s)}
 
 
 function ensureA11yCss(){try{qa('.modal-close-btn').forEach(function(b){if(!b.getAttribute('aria-label'))b.setAttribute('aria-label','Close');});}catch(e){}try{qa('.w-file-upload-error').forEach(function(b){if(!b.getAttribute('role'))b.setAttribute('role','alert');if(!b.getAttribute('aria-live'))b.setAttribute('aria-live','assertive');});}catch(e){}}
@@ -2502,7 +2508,7 @@ function dgIdle(fn,ms){ms=ms||2000;try{if(window.requestIdleCallback){requestIdl
 /* v855: run critical path first; honesty scrubs after paint to cut main-thread TBT on home. */
 
 /* design-track v912: calmer WIZ type */
-function ensureWizCalmCss(){if(q('#dg-wiz-calm-css'))return;var s=document.createElement('style');s.id='dg-wiz-calm-css';s.textContent='#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--dg-sans)!important;font-size:clamp(1.25rem,2.8vw,1.65rem)!important;font-weight:600!important;letter-spacing:-.02em!important;text-transform:none!important;color:var(--dg-paper)!important;line-height:1.25!important;text-shadow:none!important}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.92rem!important;line-height:1.45!important;color:var(--dg-paper-mute)!important}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next,#startup-modal .dg-wiz-start,#jobseeker-modal .dg-wiz-start{border-radius:12px!important;min-height:48px!important;font-family:var(--dg-sans)!important;font-weight:700!important;background:linear-gradient(180deg,rgba(16,198,116,.95),rgba(8,160,93,.92))!important;color:#03140d!important;border:0!important}#startup-modal .w-form,#jobseeker-modal .w-form{border-radius:18px!important;padding:1.15rem 1.2rem 1.35rem!important;max-width:min(32rem,100%)!important;margin:0 auto!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:var(--dg-signal)!important;box-shadow:none!important}';document.head.appendChild(s);}
+function ensureWizCalmCss(){if(q('#dg-wiz-calm-css'))return;var s=document.createElement('style');s.id='dg-wiz-calm-css';s.textContent='#startup-modal .dg-wiz-q,#jobseeker-modal .dg-wiz-q{font-family:var(--dg-sans)!important;font-size:clamp(1.25rem,2.8vw,1.65rem)!important;font-weight:600!important;letter-spacing:-.02em!important;text-transform:none!important;color:var(--dg-paper)!important;line-height:1.25!important;text-shadow:none!important}#startup-modal .dg-wiz-hint,#jobseeker-modal .dg-wiz-hint{font-size:.92rem!important;line-height:1.45!important;color:var(--dg-paper-mute)!important}#startup-modal .dg-wiz-next,#jobseeker-modal .dg-wiz-next,#startup-modal .dg-wiz-start,#jobseeker-modal .dg-wiz-start{border-radius:12px!important;min-height:48px!important;font-family:var(--dg-sans)!important;font-weight:700!important;background:linear-gradient(180deg,rgba(16,198,116,.95),rgba(8,160,93,.92))!important;color:#03140d!important;border:0!important}#startup-modal .w-form,#jobseeker-modal .w-form{border-radius:18px!important;padding:1.15rem 1.2rem 1.35rem!important;max-width:min(32rem,100%)!important;margin:0 auto!important}#startup-modal .dg-wiz-bar>i,#jobseeker-modal .dg-wiz-bar>i{background:var(--dg-signal)!important;box-shadow:none!important}#startup-modal .dg-wiz-next[data-enter-hint],#jobseeker-modal .dg-wiz-next[data-enter-hint]{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:.18rem!important;line-height:1.2!important;text-align:center!important}#startup-modal .dg-wiz-next[data-enter-hint]::after,#jobseeker-modal .dg-wiz-next[data-enter-hint]::after{content:attr(data-enter-hint);display:block!important;font-size:.62rem!important;font-weight:500!important;opacity:.55!important;letter-spacing:.04em!important;margin:0!important;line-height:1!important}';document.head.appendChild(s);}
 
 /* Observed public ATS roles — not matching inventory (not DEMIGOD-BOARD seeds). */
 function injectObservedRoles(){
@@ -2519,26 +2525,31 @@ function injectObservedRoles(){
       else document.body.appendChild(host);
     }
     var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-    var items=data.roles.slice(0,12).map(function(r){
+    var items=data.roles.slice(0,8).map(function(r){
       var url=String(r.url||'');
       if(!/^https:\/\//i.test(url))return '';
-      return '<li><a href="'+esc(url)+'" rel="nofollow noopener" target="_blank">'+esc(r.company)+' — '+esc(r.title)+'</a>'+
-        (r.firstObservedAt?' <span class="dg-obs-meta">first observed '+esc(r.firstObservedAt)+'</span>':'')+'</li>';
+      return '<li><a href="'+esc(url)+'" rel="nofollow noopener" target="_blank">'+
+        '<span class="dg-obs-co">'+esc(r.company)+'</span>'+
+        '<span class="dg-obs-role">'+esc(r.title)+'</span>'+
+        '<span class="dg-obs-go" aria-hidden="true">&#8599;</span></a>'+
+        (r.firstObservedAt?'<time class="dg-obs-meta" datetime="'+esc(r.firstObservedAt)+'">'+esc(r.firstObservedAt)+'</time>':'')+'</li>';
     }).filter(Boolean).join('');
     if(!items)return;
     host.innerHTML=
       '<div class="dg-obs-inner">'+
-      '<p class="dg-obs-kicker">Public boards</p>'+
-      '<h2 id="dg-observed-roles-h">Recently observed roles</h2>'+
-      '<p class="dg-obs-note">Roles Demigod first saw on employers\' public job boards (Greenhouse, Lever, Ashby, …). '+
-      'Not our matching inventory. Links go to the employer. First observed is our timestamp, not always the posting date.</p>'+
+      /* Provenance used to be a 15-word disclaimer ("not our matching inventory… links go to the
+         employer"). The same facts are now carried by design: an outbound ↗ on every row says the
+         link leaves, and one six-word caption says whose boards these are. Honesty intact, chrome
+         cut from ~30 words to 11. */
+      '<h2 id="dg-observed-roles-h">Open roles in SF</h2>'+
+      '<p class="dg-obs-note">From companies’ own public job boards.</p>'+
       '<ul class="dg-obs-list">'+items+'</ul>'+
       '<p class="dg-obs-more"><a href="/startups" data-dg-page="map">Browse SF startup directory →</a></p>'+
       '</div>';
   }catch(e){}
 }
 
-function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();wizCss();ensureWizPremiumCss();ensureWizCalmCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){var tx=h.textContent||'';if(/Live SF startup roles hiring now|Examples? of roles|Roles hiring now|Open roles/i.test(tx))h.textContent='Example roles — labeled samples';});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$|^EXAMPLE ROLES$/i.test((b.textContent||'').trim()))b.textContent='Samples'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#bdc9bf;border:1px solid rgba(166,255,203,.28);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.04em;text-transform:none';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();injectObservedRoles();mob();if(!OPEN)hide();/* v855 critical path ends — mark ready-ish via boot */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
+function run(){if(busy)return;busy=true;try{brandAssets();ensureA11yCss()}catch(e){}try{skipLink();heroImgPerf();lazyBelowFold();wizCss();ensureWizPremiumCss();ensureWizCalmCss();hero();injectNightHero();copy();forms();referralNotice();fileUploadHonest();cta();fixFooterCtas();ctaHints();nav();ensureMotion();try{wireLogoHome();ensureLogo()}catch(e){}(function roles(){qa('h2,h3,.heading_primary,.heading_tertiary').forEach(function(h){var tx=h.textContent||'';if(/Live SF startup roles hiring now|Examples? of roles|Roles hiring now|Open roles/i.test(tx))h.textContent='Example roles — labeled samples';});qa('.badge-text').forEach(function(b){if(/^LIVE ROLES$|^EXAMPLE ROLES$/i.test((b.textContent||'').trim()))b.textContent='Samples'});qa('.role-card').forEach(function(c){if(c.querySelector('.dg-sample-tag'))return;var tag=document.createElement('span');tag.className='dg-sample-tag';tag.textContent='Sample';tag.style.cssText='display:inline-block;font-size:.68rem;font-weight:600;color:#bdc9bf;border:1px solid rgba(166,255,203,.28);border-radius:4px;padding:1px 6px;margin:0 0 .35rem;letter-spacing:.04em;text-transform:none';var title=c.querySelector('h3,.role-title-text');if(title)c.insertBefore(tag,title);else c.prepend(tag)});var junk=new RegExp(['l','orem'].join('')+'|consectetur','i');qa('section,div,[class*=role]').forEach(function(c){if(c!==document.body&&c!==document.documentElement&&!c.matches?.('main,.hero-section,header,footer')&&junk.test(c.textContent||'')&&(c.textContent||'').length<2000)c.style.setProperty('display','none','important')});var ins=q('#insights-section');if(ins)ins.style.setProperty('display','none','important');qa('h3.step-title,.step-title,h2,h3').forEach(function(h){if(/Meet Your 3-5|Lightning Fast|100% Vetted/i.test(h.textContent||'')){var card=h.closest('.step-card,div,section')||h;if(/Meet Your 3-5|Meet Your\s*3/i.test(h.textContent||'')){h.textContent='Meet curated matches';var d=card.querySelector&&card.querySelector('.step-desc,p');if(d&&/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(d.textContent||''))d.textContent='Startups get curated matches — no volume promise.';}if(/Lightning Fast/i.test(h.textContent||''))h.textContent='Human-paced matching';if(/^100% Vetted/i.test(h.textContent||''))h.textContent='Human-reviewed'}});qa('p.step-desc,.step-desc').forEach(function(p){if(/3[\s–-]5|pre-vetted candidates|highly aligned/i.test(p.textContent||''))p.textContent='Startups get curated matches — no volume promise.';});qa('p,li,span,div').forEach(function(el){if(el.children&&el.children.length>2)return;var tx=el.textContent||'';if(tx.length>200)return;if(/90-?\s*day replacement guarantee/i.test(tx)&&!el.closest('#startup-modal,#jobseeker-modal')){el.textContent=tx.replace(/90-?\s*day replacement guarantee/ig,'human-reviewed matching')}})})();dgIdle(injectObservedRoles,1200);mob();if(!OPEN)hide();/* v970: below-fold observed roles no longer block first paint */}catch(e){console.error('Demigod foot fail',e)}finally{busy=false}
   dgIdle(function(){try{
     trust();foot();rmOrphanForms();successCta();
     dedupeAll();scrubTimeClaims();scrubStaticLabels();scrubBadStaticClaims();
@@ -3294,31 +3305,30 @@ var DG_PAGES = {
   how: {
     title: 'How it works',
     doc: 'How it works · Demigod',
-    desc: 'Share one role or private profile. A human calibrates the fit, both sides opt in, and Demigod follows a dated next checkpoint through a hire or clear pass.',
+    desc: 'Three gates: software compares facts, a human decides what to propose, and both sides say yes before an intro. 10% when a hire starts; talent is free.',
     html:
-      '<p class="dg-p-lead">The familiar hiring stages, without an application pile or cold intro.</p>' +
+      '<p class="dg-p-lead">A match has <strong>three gates</strong> — no application pile, no cold intro, no auto-send.</p>' +
       '<ol class="dg-p-list">' +
-      '<li><strong>Define the role or join privately</strong> — the startup shares the role, must-haves, work mode, cash band, and one concrete first result; talent sends one private profile.</li>' +
-      '<li><strong>Calibrate and review</strong> — software compares role goals, self-reported skills, location, and compensation. A human confirms the interview path and decides what to propose. Nothing is sent automatically.</li>' +
-      '<li><strong>Startup requests; candidate opts in</strong> — the candidate sees the company and exact role receipt, then approves or passes privately. Candidate identity stays private until approval.</li>' +
-      '<li><strong>Interview directly</strong> — after both say yes, a warm intro puts the startup and candidate together. The startup runs its interview; Demigod records a dated next checkpoint and follows it through interview, offer, hire, or a clear pass.</li>' +
-      '<li><strong>Hire and pay once</strong> — the startup pays 10% of first-year base salary when the hire starts. Nothing upfront; talent stays free.</li>' +
+      '<li><strong>Software compares the facts.</strong> Startup: one role with must-haves, work mode, cash band, and a concrete first result. Talent: one private profile. Software ranks role goals, skills, location, and compensation — nothing is messaged yet.</li>' +
+      '<li><strong>A human decides what to propose.</strong> A person reviews the rank, confirms the interview path, and chooses whether to propose. Software never auto-intros.</li>' +
+      '<li><strong>Mutual yes before intro.</strong> The candidate sees the company and exact role receipt, then approves or passes privately. Identity stays private until both sides say yes. After yes, the startup interviews; Demigod tracks a dated next checkpoint through hire or a clear pass.</li>' +
       '</ol>' +
-      '<p class="dg-p-note"><strong>First result, not a guarantee.</strong> One observable result on roughly a 30–90 day horizon helps calibrate what the role owns. It is not an unpaid trial or a promise that performance can be known by day 90.</p>' +
-      '<p class="dg-p-note">Public hiring data lives in the <a href="/startups" data-dg-page="map">SF tech company directory</a>. Matching stays private: no application blast, no auto-DMs, no SLA theater. <a href="/sample" data-dg-page="sample">See a fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
+      '<p class="dg-p-note"><strong>Fee.</strong> Startups pay 10% of first-year base salary when a hire starts. Nothing upfront. Talent is always free.</p>' +
+      '<p class="dg-p-note"><strong>First result, not a guarantee.</strong> One observable result on roughly a 30–90 day horizon helps calibrate what the role owns — not an unpaid trial or a promise of day-90 certainty.</p>' +
+      '<p class="dg-p-note">Public hiring data: <a href="/startups" data-dg-page="map">SF tech company directory</a>. Matching stays private. <a href="/sample" data-dg-page="sample">Fictional match note →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
   },
   pricing: {
     title: 'Pricing',
     doc: 'Pricing · Demigod',
-    desc: '10% of first-year base salary when a hire starts. Nothing upfront. Talent is always free. No retainer or subscription.',
+    desc: 'Nothing until a hire starts. 10% of first-year base salary for startups; talent always free. No retainer or subscription.',
     html:
-      '<p class="dg-p-lead">Startups pay <strong>10%</strong> of first-year base salary only when a hire starts — not to post a role.</p>' +
+      '<p class="dg-p-lead"><strong>Nothing until a hire starts.</strong> Startups pay <strong>10%</strong> of first-year base salary when someone starts — not to post a role. Talent is always free.</p>' +
       '<ul class="dg-p-list">' +
-      '<li><strong>No subscription.</strong> No charge to submit a role brief.</li>' +
-      '<li><strong>Candidates free.</strong> Always.</li>' +
-      '<li><strong>Typical agencies</strong> often run 15–25%. Demigod is 10% of first-year base salary when a hire starts.</li>' +
-      '<li><strong>Written confirmation.</strong> Commercial details arrive by email from potter@trydemigod.com.</li>' +
-      '</ul>',
+      '<li><strong>No subscription or retainer.</strong> Submitting a role brief is free.</li>' +
+      '<li><strong>10% vs typical 15–25% agencies.</strong> Fee is first-year base only (not equity, bonus, or benefits) unless written otherwise.</li>' +
+      '<li><strong>Written confirmation.</strong> Commercial details come by email from potter@trydemigod.com before any fee is owed.</li>' +
+      '</ul>' +
+      '<p class="dg-p-note"><a href="/how" data-dg-page="how">How matching works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
   },
   faq: {
     title: 'FAQ',
@@ -3337,7 +3347,7 @@ var DG_PAGES = {
     doc: 'Why private · Demigod',
     desc: 'Demigod is private by design: no public profiles, no feed, no blasts. Mutual yes only for SF startup matching.',
     html:
-      '<p class="dg-p-lead"><strong>'+COPY.antiLinkedIn+'</strong></p>' +
+      '<p class="dg-p-lead"><strong>'+COPY.antiLinkedIn+'</strong> Matching has three gates: software compares the facts, a human decides what to propose, mutual yes before intro.</p>' +
       '<ul class="dg-p-list">' +
       '<li><strong>No public profiles.</strong> Talent is not browsable. Founders do not post a public job wall of applicants.</li>' +
       '<li><strong>No feed, no graph vanity.</strong> Nothing to like, follow, or farm for InMail.</li>' +
@@ -3350,29 +3360,28 @@ var DG_PAGES = {
   hire: {
     title: 'Hire talent',
     doc: 'Hire · Demigod',
-    desc: 'Submit a role brief. Software compares goals and constraints; a human decides what to propose. 10% of first-year base salary only when a hire starts.',
+    desc: 'One role brief. Software compares the facts; a human decides what to propose; mutual yes before intro. 10% of first-year base when a hire starts.',
     html:
-      '<p class="dg-p-lead">Tell us the role, the constraints that matter, and one concrete result this person should deliver first. A person reads every brief — we only propose when the fit is real, and both sides still have to say yes.</p>' +
-      '<ul class="dg-p-list">' +
-      '<li><strong>Send a ~2-min brief</strong> — role, must-haves, work mode, cash band, and one concrete first result.</li>' +
-      '<li><strong>Review a proposed fit</strong> — software compares the role and profile; a human sends context and confirms the interview path.</li>' +
-      '<li><strong>Request the intro</strong> — the candidate sees your company and exact role, then approves or passes privately.</li>' +
-      '<li><strong>Interview and hire</strong> — you run the interview and decide. Pay 10% of first-year base salary only when the hire starts; nothing to post.</li>' +
-      '</ul>' +
-      '<p class="dg-p-note">No application blast, no résumé black hole, comp bands kept honest. Follow-ups come by email from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
+      '<p class="dg-p-lead">One role, real constraints, and a concrete first result. Matching has <strong>three gates</strong> — nothing is auto-sent.</p>' +
+      '<ol class="dg-p-list">' +
+      '<li><strong>Software compares the facts.</strong> ~2-min brief: role, must-haves, work mode, cash band, and one first result. Software ranks against private talent profiles.</li>' +
+      '<li><strong>A human decides what to propose.</strong> A person reviews the rank and interview path. Software never auto-intros.</li>' +
+      '<li><strong>Mutual yes before intro.</strong> The candidate sees your company and exact role, then approves or passes privately. After yes, you interview; pay 10% of first-year base only when the hire starts.</li>' +
+      '</ol>' +
+      '<p class="dg-p-note">No application blast, no résumé black hole. Follow-ups from potter@trydemigod.com. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Pricing →</a></p>',
   },
   talent: {
     title: 'Open to the right startup?',
     doc: 'Talent · Demigod',
-    desc: 'Tell Demigod what kind of SF Bay startup role you would consider. Free for candidates; your details stay private until you approve an intro.',
+    desc: 'One private profile. Free for candidates. Software compares the facts; a human decides what to propose; you approve every intro.',
     html:
-      '<p class="dg-p-lead">Tell us what would make you consider an SF Bay startup role. It\'s free, and your details stay private — no public profile or application blast. We only follow up when a human sees a credible fit, and every intro still requires your approval.</p>' +
-      '<ul class="dg-p-list">' +
-      '<li><strong>Free for candidates.</strong> Always. No fee, ever.</li>' +
-      '<li><strong>One clear next step.</strong> After an intro, Demigod follows the agreed checkpoint through interview, offer, hire, or a clear pass.</li>' +
-      '<li><strong>See the company and exact role first.</strong> Then approve or pass privately; no rejection trail.</li>' +
-      '</ul>' +
-      '<p class="dg-p-note">No board spam or cold-LinkedIn blasts. What we ask: the work you want next, evidence from work you have done, availability, work setup, and a cash band — enough to compare with the role goal and constraints, not keywords. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a></p>',
+      '<p class="dg-p-lead">One private profile for SF Bay startup roles. Free, no public listing, no application blast — matching has <strong>three gates</strong>.</p>' +
+      '<ol class="dg-p-list">' +
+      '<li><strong>Software compares the facts.</strong> You share the work you want next, evidence of what you have shipped, availability, setup, and a cash band — enough to compare with a real role, not keywords.</li>' +
+      '<li><strong>A human decides what to propose.</strong> We only follow up when a person sees a credible fit. Software never cold-messages companies with your identity.</li>' +
+      '<li><strong>Mutual yes before intro.</strong> You see the company and exact role receipt first, then approve or pass privately. After yes, Demigod tracks a dated next checkpoint through interview, offer, hire, or a clear pass.</li>' +
+      '</ol>' +
+      '<p class="dg-p-note"><strong>Always free for talent.</strong> No board spam. <a href="/how" data-dg-page="how">How it works →</a> · <a href="/faq" data-dg-page="faq">FAQ →</a> · <a href="/private" data-dg-page="private">Why private →</a></p>',
   },
   contact: {
     title: 'Contact',
@@ -3418,10 +3427,16 @@ var DG_PAGES = {
   about: {
     title: 'About',
     doc: 'About · Demigod',
-    desc: 'Software compares role and talent evidence; a human decides what to propose. Both sides approve before every intro.',
+    desc: 'SF Bay permanent hires only — private brief, human proposal, mutual yes, 10% when a hire starts. Not a job board.',
     html:
-      '<p class="dg-p-lead">Demigod compares role and talent evidence for SF startups. A human decides what to propose, and both sides approve before every intro.</p>' +
-      '<ul class="dg-p-list"><li>Define measurable success before requirements</li><li>Both sides approve the same role truth before every intro</li><li>10% of first-year base salary when a hire starts</li></ul>',
+      '<p class="dg-p-lead">Demigod is private, human-reviewed matching for <strong>SF Bay permanent hires</strong>. Software compares role and talent evidence; a human decides what to propose; both sides approve before every intro.</p>' +
+      '<ul class="dg-p-list">' +
+      '<li><strong>What we are:</strong> selective search — one concrete first result, mutual yes, talent free, 10% of first-year base when a hire starts (nothing upfront)</li>' +
+      '<li><strong>What we are not:</strong> a public job board, SLA clock, volume blast shop, or self-serve marketplace of résumés</li>' +
+      '<li><strong>What we take:</strong> real employer searches we can run well · <strong>What we park:</strong> work we cannot staff honestly</li>' +
+      '<li>Observed roles on the homepage are public ATS sightings — not our matching inventory</li>' +
+      '</ul>' +
+      '<p class="dg-p-note"><a href="/?wiz=startup" data-demigod-modal="startup">Start a hiring brief</a> · <a href="/how" data-dg-page="how">How it works →</a> · <a href="/pricing" data-dg-page="pricing">Fee →</a></p>',
   },
 
   map: {
@@ -3522,7 +3537,7 @@ function pageCss() {
   s.textContent =
     'body.dg-page-on>[data-dg-hidden="dg-page"]{display:none!important}' +
     '#dg-page{position:relative;z-index:10050;background:var(--dg-night,#03140d);min-height:100vh;overflow:visible;padding:1.15rem;animation:dg-page-in .25s ease both}' +
-    '#dg-page .dg-page-card{max-width:min(36rem,100%);margin:2rem auto;background:rgba(166,255,203,.03);border:1px solid rgba(166,255,203,.22);border-radius:16px;padding:clamp(1.35rem,3vw,1.75rem);color:var(--dg-paper,#f3f0e7);box-shadow:0 20px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}' +
+    '#dg-page .dg-page-card{max-width:min(36rem,100%);margin:2rem auto;background:rgba(166,255,203,.03);border:1px solid rgba(166,255,203,.22);border-radius:16px;padding:clamp(1.35rem,3vw,1.75rem);color:var(--dg-paper,#f3f0e7);box-shadow:0 20px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}'+'#dg-page.dg-page-map .dg-page-card,#dg-page.dg-page-events .dg-page-card{max-width:min(56rem,100%)}' +
     '#dg-page p,#dg-page li{hyphens:none;-webkit-hyphens:none}' +
     '#dg-page .dg-page-top{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.85rem}' +
     '#dg-page h1{font-family:var(--dg-serif,Georgia,serif);font-size:clamp(1.45rem,3.2vw,1.85rem);color:var(--dg-paper,#f3f0e7);margin:0;letter-spacing:-.02em;font-weight:500;line-height:1.2}' +
@@ -4642,7 +4657,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){e.preventDefault();show(
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='941';console.log('Demigod v941');
+window.__dgFootVer='971';console.log('Demigod v971');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

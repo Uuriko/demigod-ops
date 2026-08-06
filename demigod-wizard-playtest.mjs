@@ -42,7 +42,13 @@ async function wizState(page, formSel) {
     }).map((w) => w.querySelector('[name]')?.name || (w.textContent||'').trim().slice(0,30));
     const chromeHidden = modal ? [...modal.querySelectorAll('.modal-title,.modal-subtitle,.modal-intro,.modal-container>h2,.modal-container>h3,.modal-container>p,.modal-container>div>p')].every((el) => getComputedStyle(el).display === 'none') : true;
     const qText = q ? q.textContent.trim() : '';
-    const isWelcome = /hire sf startup talent|get matched to sf startups/i.test(qText);
+    /* Detect the welcome step structurally, not by headline copy. The copy-reduction passes renamed
+       this question ("HIRE SF STARTUP TALENT" -> "Hiring brief"), which silently made passWizard bail
+       at its first condition and report the startup wizard as broken when it was working. The start
+       button + 0% bar are what actually define the welcome step; the old strings stay as a fallback. */
+    const startish = nextBtn && (nextBtn.classList.contains('dg-wiz-start') || /^start\b/i.test((nextBtn.textContent || '').trim()));
+    const barAtZero = !!bar && (bar.style.width === '' || bar.style.width === '0%');
+    const isWelcome = !!(startish && barAtZero) || /hire sf startup talent|get matched to sf startups/i.test(qText);
     const isThanks = /brief received|profile saved|application received/i.test(qText) || (modal && modal.querySelector('.w-form-done') && getComputedStyle(modal.querySelector('.w-form-done')).display !== 'none');
     return {
       wizOn: f.classList.contains('dg-wiz-on'),
