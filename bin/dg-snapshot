@@ -144,4 +144,7 @@ fi
 
 printf 'dg-snapshot OK · %s · %s files · %s · %s\n' \
   "$snap" "$count" "$(du -sh "$snap" | cut -f1)" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo -)"
-# ponytail: no pruning — 11MB/run against 843G free. Add retention if it ever matters.
+# ponytail: no pruning. 47MB/run measured 2026-08-06 — the 11MB figure written here
+# originally predated uncommitted.patch, which is most of the size. 4 runs = 176MB; the daily
+# timer is ~17GB/year against 841G free (5% disk used), so retention still is not worth the
+# risk of a policy that could delete the only good copy. Revisit if free space drops below 10%.
