@@ -201,12 +201,26 @@ the embed comment, so "what is actually live" is answerable by reading the page 
 | `dasha-release-contract.json` via `dasha-ship.mjs` | raw HTML (`fetch`, no JS) | yes | **no** — the text lives in the `.js` |
 | [`dasha-live.test.mjs`](dasha-live.test.mjs) | the rendered page and shadow root | yes | yes |
 
-So the contract markers are necessary but not sufficient. Run the rendering gate after every
-publish regardless of mechanism:
+So the contract markers are necessary but not sufficient. Two commands, and the split matters:
 
 ```bash
-node dasha-live.test.mjs
+npm run dasha:test:all     # BEFORE publishing — 15 local gates, nothing touches the network
+npm run dasha:test:live     # AFTER publishing — renders the live routes and the Pages copy
 ```
+
+`dasha-live.test.mjs` is deliberately **not** in `dasha:test:all`. It reads production, which is
+older than local by definition before a publish, so including it would make the pre-publish suite
+fail for the wrong reason and teach people to skip it.
+
+Publish one surface without touching the others, and keep the verification:
+
+```bash
+node dasha-ship.mjs --ship --only=studio
+```
+
+`--only` exists because the script used to be all-or-nothing: fixing the Studio meant publishing the
+homepage too, so people published through direct MCP instead and `verifyLive()` never ran. That is
+how `/studio` lost its CC0 dedication three times in one day.
 
 Then verify all three custom-domain routes at 390px and desktop:
 
