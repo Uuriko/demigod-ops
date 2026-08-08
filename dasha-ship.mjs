@@ -250,8 +250,15 @@ function fastGate(changed, receipt) {
     if (/t\.me\/dashacommunity/i.test(html)) fail(`${name} has banned telegram`);
     if (/official Dasha|safe token|verified mint/i.test(html)) fail(`${name} forbidden claim`);
   }
-  if (landing.includes('/how-to-buy')) fail('landing links unpublished how-to-buy');
-  if (desk.includes('/how-to-buy')) fail('desk links unpublished how-to-buy');
+  /* /how-to-buy is NOT unpublished, which is what this guard used to say. It is live, served by a
+     Cloudflare edge worker (x-dasha-edge: howto) that no publish path in this repo touches — it is
+     not in the Webflow page list at all, and staging 404s it. The guard is still right, for a
+     different reason: on 2026-08-08 that page was serving four pieces of copy the operator had
+     removed everywhere else, including the "not affiliated" line that is now plainly false. Linking
+     to it from the homepage would send people from a corrected page to a stale one.
+     Lift this once dasha-desk/watch.mjs is green on /how-to-buy. */
+  if (landing.includes('/how-to-buy')) fail('landing links how-to-buy, whose live copy is still stale');
+  if (desk.includes('/how-to-buy')) fail('desk links how-to-buy, whose live copy is still stale');
   if (!landing.includes('jup.ag/swap') || !landing.includes('plugin.jup.ag')) fail('landing lost Jupiter paths');
   if (!landing.includes('https://x.com/dash_eats')) fail('landing missing @dash_eats');
   if (!landing.includes('/studio') || !landing.includes('/dasha')) fail('landing missing dual-path routes');
