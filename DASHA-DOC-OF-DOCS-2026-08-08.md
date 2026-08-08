@@ -24,6 +24,7 @@
 |----------|------|
 | [`DASHA-DOCS.md`](DASHA-DOCS.md) | Entry map (must stay accurate) |
 | [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) | Comprehensive linked orientation across product, website, operations, research, OSS, safety and history; summarizes but owns no mutable truth |
+| [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Current Codex × Claude × Grok decision record for the smallest next product test |
 | [`DASHA-DOC-OF-DOCS-2026-08-08.md`](DASHA-DOC-OF-DOCS-2026-08-08.md) | This file — role taxonomy |
 | [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) | Work loop, SoT table, gates |
 | [`DASHA-SIMPLIFY.md`](DASHA-SIMPLIFY.md) | Keep/freeze routes + kill list |

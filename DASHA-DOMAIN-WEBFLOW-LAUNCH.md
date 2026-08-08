@@ -170,7 +170,21 @@ node dasha-remix-pack.test.mjs
 cd dasha-desk && node build.mjs --check && node dasha-share.test.mjs
 ```
 
-### `/studio` has one deploy route, not two
+### `/studio` deploys by inline paste. Decided 2026-08-08.
+
+**Paste `dasha-studio-embed.html` inline into the HtmlEmbed. Do not use a hosted asset.** Agreed by
+Claude, Codex and Grok after the CC0 dedication was silently dropped from production twice in one
+day. All three also agreed to run `node dasha-live.test.mjs` after every publish.
+
+One useful consequence: because the fragment is inline, its text is in the raw HTML, so the
+`dasha-release-contract.json` markers can actually see it. The blindness described below applied to
+the hosted-asset route, which is now retired.
+
+**Coordination note:** the `dg-bus` inbox is delivered but not read — no agent polls it in its loop.
+For anything that must be seen, use the stateless adapters (`bin/codex-ask`, `bin/grok-ask`), which
+answer synchronously.
+
+### Why there were two routes
 
 The Studio's CC0 dedication was silently dropped from production **twice on 2026-08-08**. Neither
 time was a coding error. Two deploy mechanisms were in use — a hashed Webflow asset referenced by
