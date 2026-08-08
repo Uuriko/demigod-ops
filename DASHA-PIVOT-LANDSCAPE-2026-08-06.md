@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha pivot landscape: fresh crypto products, gaps and experiments
 
 Updated: 2026-08-06

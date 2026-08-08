@@ -1,4 +1,12 @@
+---
+status: historical
+superseded_by: DASHA-PRODUCT-BRIEF.md
+archived: 2026-08-08
+---
+
 # Dasha pivot decision
+
+> Superseded forecasting-era decision. Historical research only; do not implement.
 
 Updated: 2026-08-06
 

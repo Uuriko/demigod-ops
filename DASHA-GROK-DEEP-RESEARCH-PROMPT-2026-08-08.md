@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Grok assignment — Dasha deep research
 
 Act as lead researcher for Dasha in `/home/potter`. Work only on Dasha; Demigod and Eat the Sounds are out of scope.

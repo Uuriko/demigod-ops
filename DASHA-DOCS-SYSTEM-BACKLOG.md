@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha documentation system backlog
 
 **Updated:** 2026-08-08  
@@ -15,18 +19,18 @@ Make it possible for a person or agent to answer five questions quickly:
 
 ## P0 — stop contradiction and drift
 
-- [ ] Reduce “Current” strategy owners to one brief, one roadmap, one possibility map and one evidence index.
-- [ ] Make `DASHA-DOCS.md` the only entry page and `DASHA-DOC-OF-DOCS-2026-08-08.md` the exhaustive registry.
-- [ ] Add an explicit `Status`, `Owner`, `Updated`, `Supersedes` and `Superseded by` header to every strategic document.
+- [x] Reduce active product ownership to one brief and one roadmap; strategy alternatives are historical or gated.
+- [x] Make `DASHA-DOCS.md` the only active entry page; the dated Doc-of-Docs is an exhaustive snapshot.
+- [x] Add machine-readable lifecycle metadata to canonical owners and the highest-risk superseded directions.
 - [ ] Define one controlled status vocabulary and remove synonyms such as prepared/current/active/checkpoint when they mean the same thing.
 - [x] Remove the mutable publication matrix from the workflow; manifest/live commands now own current state.
 - [ ] Move deployment facts out of product strategy and into the deployment runbook.
 - [ ] Move voice and palette facts out of strategy documents and into the Bible/art-direction owners.
 - [ ] Move metrics and gates out of brainstorm documents and into the roadmap owner.
 - [ ] Mark every dated research file as evidence, decision record, review or history—never simply “current.”
-- [ ] Add a visible warning to scrapped documents or move them under an archive index.
+- [x] Add visible warnings and lifecycle metadata to the highest-risk scrapped documents.
 - [ ] Remove links in current docs to deleted public-repo research files.
-- [ ] Resolve contradictory claims about whether Discord is current, gated or nonexistent.
+- [x] Resolve Discord as historical; Lobby is the current community surface.
 - [ ] Resolve contradictory claims about whether Simp Board is live, prepared or merely specified.
 - [ ] Keep public repository docs scoped to the Desk; do not leak private product speculation into its roadmap.
 
@@ -82,7 +86,7 @@ Make it possible for a person or agent to answer five questions quickly:
 
 - [ ] Add a small machine-readable manifest mapping public routes to sources, tests and owners.
 - [x] Test that every local file linked from `DASHA-DOCS.md` exists.
-- [ ] Test that every owner document has required metadata fields.
+- [x] Test that every canonical owner has required metadata and unique ownership.
 - [ ] Test that no current document links to known scrapped surfaces.
 - [ ] Test that forbidden claims and retired product terms stay out of live-copy sources.
 - [ ] Check mint consistency across every public and operational source.

@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # The Dasha cherry
 
 **Status: drawn and shipped, 2026-08-07.** Source: [`dasha-character.svg`](dasha-character.svg).

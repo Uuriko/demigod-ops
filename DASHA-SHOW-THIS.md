@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Showing Dasha to people — right now
 
 ## The website (already live, nothing needed)

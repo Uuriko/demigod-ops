@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha complete guide
 
 **Updated:** 2026-08-08  

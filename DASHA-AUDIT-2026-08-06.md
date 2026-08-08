@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha — full audit, 2026-08-06
 
 > Historical audit record. Several conditions changed during the same day: the Dasha documents are now tracked, Webflow directly renders the Desk, Telegram and the iframe are gone, the Desk has an interaction test, and generated landing surfaces now have a build gate. Use [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) for current truth. Preserve the sections below as evidence and defect history, not operating instructions.

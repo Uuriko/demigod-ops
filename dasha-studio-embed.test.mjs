@@ -108,9 +108,9 @@ assert.equal(host.status, 'HOST-OWNED', "the host's own #status was written to â
 const tool = await shadow(`(root, $) => {
   const css = (el, prop) => getComputedStyle(el)[prop];
   return { canvas: css($('canvas'), 'display'), textarea: css($('line'), 'display'),
-    looks: css(root.querySelector('.looks'), 'visibility'),
+    looks: css($('looks'), 'visibility'),
     wrap: css(root.querySelector('.wrap'), 'width'),
-    lookCount: root.querySelectorAll('.look').length };
+    lookCount: $('looks').options.length };
 }`);
 assert.notEqual(tool.canvas, 'none', "the host's canvas{display:none} reached into the Studio");
 assert.notEqual(tool.textarea, 'none', "the host's textarea{display:none} reached into the Studio");
@@ -120,7 +120,8 @@ assert.ok(tool.lookCount >= 3, `only ${tool.lookCount} looks survived into the f
 
 // ---- it draws a real image --------------------------------------------------
 const drawn = await shadow(`async (root, $) => {
-  root.querySelectorAll('.look')[1].click();
+  $('looks').selectedIndex = 1;
+  $('looks').dispatchEvent(new Event('change', { bubbles: true }));
   $('line').value = 'Embedded and still weird.';
   $('line').dispatchEvent(new Event('input', { bubbles: true }));
   const blob = await new Promise((r) => $('canvas').toBlob(r, 'image/png'));

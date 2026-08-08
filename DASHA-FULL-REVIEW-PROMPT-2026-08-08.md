@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha full multi-agent review prompt
 
 **Date:** 2026-08-08  

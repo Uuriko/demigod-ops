@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Discovery prompt — what should we build next
 
 Reusable. Run it when the question is "what else could exist", not "how do we ship X". Output is a

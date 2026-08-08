@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Getting the Thesis Card live as a usable webapp
 
 Verified 2026-08-06. Every number below comes from a fetch or a test in this session.

@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # The Dasha kit is CC0
 
 **Updated: 2026-08-07.**

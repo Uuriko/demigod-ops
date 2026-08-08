@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha code review + design review
 
 **Date:** 2026-08-08  

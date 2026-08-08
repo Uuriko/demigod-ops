@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha tasks — rethought with outside research
 
 **Updated:** 2026-08-08  

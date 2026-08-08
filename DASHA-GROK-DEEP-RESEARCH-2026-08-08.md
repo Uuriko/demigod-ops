@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Grok deep research dossier — raw receipt
 
 **Completed:** 2026-08-08T07:24:42.312Z  

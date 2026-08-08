@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha domains — actual state
 
 Verified 2026-08-06 ~19:40 UTC from RDAP, DNS, HTTP and the user's email. Nothing purchased

@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Discovery — 2026-08-07
 
 Run of [`DASHA-DISCOVERY-PROMPT.md`](DASHA-DISCOVERY-PROMPT.md). Everything in

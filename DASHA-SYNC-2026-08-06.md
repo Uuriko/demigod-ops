@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha three-agent sync — 2026-08-06
 
 Claude, Grok and Codex were each asked the same six questions. Every claim below was

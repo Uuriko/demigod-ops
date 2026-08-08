@@ -1,3 +1,9 @@
+---
+status: canonical
+canonical_for: operations
+last_verified: 2026-08-08
+---
+
 # Dasha operating workflow
 
 Updated: 2026-08-07
@@ -11,17 +17,20 @@ Dasha is the active project. A one-off action on another project does not switch
 | Concern | Canonical source | Generated or observed surfaces |
 |---|---|---|
 | Plain product definition | [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) | Landing copy must not contradict it |
-| Strategy and trust contract | [`DASHA-PRODUCT-STRATEGY.md`](DASHA-PRODUCT-STRATEGY.md) | Roadmap and Discord inherit these boundaries |
+| Product and trust boundaries | [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) | Roadmap and public copy must not contradict it |
+| Threat controls | [`DASHA-THREAT-MODEL.md`](DASHA-THREAT-MODEL.md) | Every listed risk names a runnable check |
+| Public claims | [`DASHA-CLAIMS.md`](DASHA-CLAIMS.md) | Copy uses the narrowest supported wording |
 | Work order and gates | [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) | Current phase only |
-| Discord setup | [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md) | Controlled invite does not exist yet |
 | Market research | [`DASHA-CRYPTO-LANDSCAPE.md`](DASHA-CRYPTO-LANDSCAPE.md) | Revisit only when a decision needs new evidence |
 | Public homepage | `dasha-landing.html` | Webflow `/` embed |
-| Meme Studio | `dasha-meme-studio.html` | Webflow `/studio` embed |
+| Meme Studio | `dasha-meme-studio.html` | `dasha-studio-embed.html`, public-repo `studio/`, Webflow `/studio`; worktree copies are observed legacy snapshots |
+| Studio gallery rights | `dasha-studio-media.json` | Every remote gallery URL must be registered and tested |
 | Lobby + X OAuth | `.grok/worktrees/potter/dasha/dasha-lobby-{worker,mod,x}.mjs` | `https://lobby.getdasha.com` |
 | Simp Board | `.grok/worktrees/potter/dasha/dasha-simp-{score,actions}.mjs` + `dasha-simp-board-client.js` | Homepage `#simp` + Lobby `/simp/*` |
+| Simp Board data contract | `dasha-simp-board.schema.json` + `dasha-simp-board.json` | Opt-in, automatic-event and public-field boundaries |
 | Lobby/Board operations | `.grok/worktrees/potter/dasha/DASHA-LOBBY.md` | Wrangler, moderation CLI and live audit |
 | Remix Wall experiment | `dasha-remix-pack.html` | Prepared locally; no live route yet |
-| Landing markup | `dasha-desk/src/body.html` | `src/app.html`, `index.html`, `dist/index.html` |
+| Landing markup | `dasha-desk/src/body.html` | `src/app.html`, `index.html`, `dist/index.html`, root publish-ready Desk embed; Webflow is an observed output |
 | Landing styles | `dasha-desk/src/styles.css` | Same generated surfaces |
 | Landing behavior | `dasha-desk/src/app.js` | Same generated surfaces |
 | Token-facing runtime facts | `dasha-desk/src/body.html` + `src/app.js` | Generated Desk surfaces |
@@ -40,7 +49,7 @@ Never edit generated landing files as independent sources. Run `node dasha-desk/
    - Verify the live Webflow page rather than trusting an old receipt.
 2. **Choose one lane**
    - Landing and mint desk
-   - Discord and community operations
+   - Lobby, Board and community operations
    - Meme Studio and culture products
    - Research and trust
    - Documentation and workflow
@@ -48,11 +57,12 @@ Never edit generated landing files as independent sources. Run `node dasha-desk/
    - Name the user-visible result and its proof.
    - Do not expand a one-off action into a project switch.
 4. **Edit canonical sources**
-   - Reuse native browser, Webflow and Discord capabilities.
+   - Reuse native browser, Webflow and Cloudflare capabilities.
    - Do not introduce wallet, trading or custom-bot scope by accident.
 5. **Build and verify**
 
    ```bash
+   npm run dasha:test:docs
    node dasha-desk/build.mjs --write
    node dasha-desk/build.mjs --check
    node dasha-desk.test.mjs
@@ -112,7 +122,7 @@ The manifest owns expected artifact identity; the live verifier owns observed pu
 
 | Date | Decision | Reason |
 |---|---|---|
-| 2026-08-06 | The unassociated Telegram was rejected; Discord remains a gated blueprint | Control and provenance |
+| 2026-08-06 | The unassociated Telegram and Discord-as-HQ proposal were rejected | Control and provenance |
 | 2026-08-08 | Lobby, X OAuth and the opt-in measured Simp Board shipped | Community conversation and reviewed recognition |
 | 2026-08-08 | All publication became current-request-gated | Prevent stale authorization from causing external changes |
 | 2026-08-06 | Dasha Desk became the primary live product | Establish one truthful token surface |
@@ -123,6 +133,5 @@ The manifest owns expected artifact identity; the live verifier owns observed pu
 ## Next workflow improvements
 
 1. Keep the dependency-free public tests and workspace browser test aligned.
-2. Add a controlled Discord invite only after the server exists; wire the runtime source first, then update the reference snapshot.
-3. Keep GitHub Pages as the standalone preview and `getdasha.com/dasha` canonical.
-4. Use `dasha-live-verify.mjs` for live identity and publication drift.
+2. Keep GitHub Pages as the standalone preview and `getdasha.com/dasha` canonical.
+3. Use `dasha-live-verify.mjs` for live identity and publication drift.

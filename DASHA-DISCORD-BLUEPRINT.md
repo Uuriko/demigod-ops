@@ -1,4 +1,13 @@
+---
+status: historical
+superseded_by: DASHA-PRODUCT-BRIEF.md
+archived: 2026-08-08
+---
+
 # Dasha Discord blueprint
+
+> Superseded proposal. Dasha uses the on-site Lobby; this file is preserved only as historical
+> community-operations research. It is not a setup specification or backlog.
 
 Updated: 2026-08-06
 
@@ -120,6 +129,6 @@ The server should not open empty. Prepare:
 
 X remains the public distribution surface. Discord is the intended durable home for discussion, support, builders and creative events. Every Discord link shown on the website must be created and controlled by the Dasha operators; never import a link merely because a DEX profile lists it.
 
-## Creation gate
+## Historical disposition
 
-The user has decided that Dasha will have a Discord server. Actual creation remains pending because no Discord connector or authenticated server-management surface is available in this session. The blueprint is the authoritative setup specification when that surface is available.
+The on-site Lobby replaced this proposal. No Discord work is active.

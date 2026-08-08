@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # DexScreener token profile — submission payload
 
 Prepared 2026-08-08. Everything the form asks for, written out, so ordering is copy-paste.

@@ -1,3 +1,9 @@
+---
+status: canonical
+canonical_for: culture-and-claims
+last_verified: 2026-08-08
+---
+
 # Dasha bible — culture, design, product truth
 
 **Updated:** 2026-08-08  
@@ -140,7 +146,8 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 1. Prefer **hotlinkable** `pbs.twimg.com` media with `referrerpolicy="no-referrer"` and honest alts.
 2. Prefer **Dex CMS** for token glyph.
 3. Avoid banned hero assets: `files.catbox.moe/gpjyb0.jpg`, weserv, etc. (landing test).
-4. Every person-photo strip: caption “public web / X media · not endorsement.”
+4. Record the source and usage boundary for every person-photo asset; project licensing cannot
+   grant rights over a real person's name or likeness.
 5. Link image rows to **@dash_eats** or specific status URLs when known.
 
 ### Working image library (HTTP 200 checked 2026-08-08)
@@ -183,7 +190,7 @@ Use these as **aesthetic references**, not product pledges:
 | Catholic aesthetic turn | Public self-description | Optional deep lore; not homepage |
 | Succession / Materialists | Mainstream credit | Bio depth in this bible only |
 
-**Politics:** Public record includes Sanders → Trump votes, controversy around platforming far-right guests (2025 agency drop). Product site **does not campaign**. Keep getdasha about mint, memes, verification, NFA.
+**Politics:** Public record includes Sanders → Trump votes, controversy around platforming far-right guests (2025 agency drop). Product site **does not campaign**. Keep getdasha about culture, creation, the mint and independent verification.
 
 ---
 
@@ -191,9 +198,9 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | Remix studio entry + mint + buy | `@dash_eats` nav, text voice quotes, source post; **no remote image tape** (gate: brittle hotlinks) |
-| Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
-| Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
+| Home `/` | Studio, Lobby, Board, mint and buy entry | Sparse culture imagery; every remote asset keeps source context |
+| Studio `/studio` | Meme and image editor | Procedural looks plus local upload and a sourced Dasha image gallery |
+| Desk `/dasha` | Mint, chart, neutral share pack | Source-linked culture stills and token references |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
 
 ---
@@ -206,7 +213,7 @@ Use these as **aesthetic references**, not product pledges:
 - [x] No catbox casino hero on home  
 - [x] No thesis/receipt language on home  
 - [x] No telegram community  
-- [x] Association ≠ endorsement in footer  
+- [x] No blanket footer disclaimer; exact source and rights context stays where needed
 - [x] Buy CTAs = exact Jupiter + mint  
 - [ ] **Published** on live Webflow (blocked without current-request re-auth)  
 

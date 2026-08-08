@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha next-product decision debate
 
 **Date:** 2026-08-08  

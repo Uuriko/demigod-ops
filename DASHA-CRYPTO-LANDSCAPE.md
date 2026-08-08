@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha crypto landscape
 
 Updated: 2026-08-07

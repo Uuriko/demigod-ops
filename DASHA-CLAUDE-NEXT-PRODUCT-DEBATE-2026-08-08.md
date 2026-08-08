@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 <!-- agent-task: 20260808092511372-2134625-3i0naj; role: claude; completed: 2026-08-08T09:27:56.622Z; raw model output, verify before promotion -->
 ## What I found before answering
 

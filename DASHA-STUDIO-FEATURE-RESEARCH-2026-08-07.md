@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha Studio feature research — 2026-08-07
 
 ## Decision

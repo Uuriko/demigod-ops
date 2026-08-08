@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha Studio deep feature research and execution prompt
 
 ## Role

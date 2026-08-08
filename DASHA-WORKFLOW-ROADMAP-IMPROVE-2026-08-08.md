@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha workflow & roadmap improvements
 
 **Date:** 2026-08-08  

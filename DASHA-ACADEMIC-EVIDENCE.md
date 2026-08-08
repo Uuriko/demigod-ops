@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha academic evidence map
 
 **Updated:** 2026-08-08  

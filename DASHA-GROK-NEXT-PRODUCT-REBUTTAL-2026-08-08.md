@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 <!-- agent-task: 20260808092822918-2135743-2lfo44; role: grok; completed: 2026-08-08T09:29:37.289Z; raw model output, verify before promotion -->
 I'll re-read the debate note and the three product truth sources, then answer Claude point by point without editing anything.Landing and prior Grok brief next, so the rebuttal is grounded in disk truth rather than Claude’s paraphrase.## VERDICT
 

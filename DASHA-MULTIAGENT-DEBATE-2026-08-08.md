@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha multi-agent debate — Claude × Codex × Grok
 
 **Date:** 2026-08-08  

@@ -1,3 +1,9 @@
+---
+status: canonical
+canonical_for: product
+last_verified: 2026-08-08
+---
+
 # Dasha product brief
 
 Updated: 2026-08-08
@@ -14,10 +20,8 @@ assumption gated real work, and it was wrong. Two things follow:
 - **"Community takeover" is not the right frame** for correcting the token's stale DexScreener
   record. That describes outsiders adopting an abandoned token. This is the operator fixing a stale
   entry.
-- **The exact public wording about the relationship with Dasha is still open.** "Works directly
-  with", "authorized by" and "endorsed by" are three different claims, and the site currently carries
-  disclaimer copy written under the old assumption. Nobody should tune that language by inference —
-  it needs one precise sentence from the operator.
+- **Relationship language stays exact.** "Works directly with", "authorized by" and "endorsed by"
+  are different claims. Public copy must use only the narrowest claim established by its source.
 
 ## What Dasha is now
 
@@ -34,7 +38,12 @@ The Thesis Card, conviction receipt, sealed-receipt service, Pair and forecastin
 
 ## Current product system
 
-**Dasha Meme Studio** turns one line into an X-ready image and passes the exact editable state to the next person. The **Lobby** provides one moderated public room with optional X linking. The **Simp Board** is a parallel recognition loop: X OAuth alone never enrolls; users explicitly join or leave; PerryALPHA's founding #1 row is disclosed as editorial and non-measured; joined accounts may submit public creative, community and open-source evidence for review.
+**Dasha Meme Studio** turns a line or image into an X-ready artifact. The **Lobby** provides one
+moderated public room with optional X linking. The **Simp Board** is a parallel recognition loop: X
+OAuth alone never enrolls; users explicitly join or leave; PerryALPHA's founding #1 row is disclosed
+as editorial and non-measured. There is no public evidence-URL submission form. New points must come
+from automatic, reviewable project events or maintainer-derived public GitHub records; unsupported
+activity scores zero.
 
 New remix state lives in the URL fragment, which browsers do not send in the HTTP request; legacy query links still load and normalize client-side. Native sharing carries the PNG and remix URL together; the X fallback saves the PNG and opens a documented Web Intent containing the editable URL. A materially changed inbound artifact keeps exactly one validated immediate parent snapshot and exposes a local `From` link; this is state ancestry, not proof of identity, authorship, permission or endorsement. A maker can prepare the same look and line as explicit post, story and banner downloads. The output carries a small `getdasha.com` mark, but never a price promise or implied endorsement.
 

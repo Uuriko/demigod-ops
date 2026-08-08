@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Claude challenge: Dasha next product
 
 Read these files in `/home/potter` before answering:

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getdasha.com/schemas/dasha-simp-board-v1.json",
+  "title": "Dasha Simp Board contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "mode", "title", "enrollment", "manual_evidence_submission", "season", "lanes", "entries", "rules"],
+  "properties": {
+    "schema": { "const": "dasha-simp-board/v1" },
+    "mode": { "const": "opt-in" },
+    "title": { "type": "string" },
+    "enrollment": { "const": "explicit-x-oauth" },
+    "manual_evidence_submission": { "const": false },
+    "season": { "type": ["string", "null"] },
+    "lanes": {
+      "type": "object",
+      "required": ["x_link", "creative", "community", "holder", "oss"],
+      "properties": {
+        "x_link": { "type": "object" },
+        "creative": { "type": "object" },
+        "community": { "type": "object" },
+        "holder": { "type": "object" },
+        "oss": {
+          "type": "object",
+          "required": ["schema", "status", "source", "season", "repos", "base_branches", "operator_logins", "impact_points", "required_approvals", "caps", "disqualifying_labels"],
+          "properties": {
+            "schema": { "const": "dasha-simp-oss/v0" },
+            "status": { "enum": ["prepared", "live", "paused"] },
+            "source": { "const": "merged-reviewed-public-github-pr" }
+          }
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["position", "handle", "x_url", "placement", "badge", "points", "linked", "holder", "basis", "evidence_urls"],
+        "properties": {
+          "position": { "type": "integer", "minimum": 1 },
+          "handle": { "type": "string", "pattern": "^[A-Za-z0-9_]{1,15}$" },
+          "x_url": { "type": "string", "pattern": "^https://x\\.com/" },
+          "placement": { "const": "editorial-founding" },
+          "badge": { "type": "string" },
+          "points": { "type": "null" },
+          "linked": { "const": false },
+          "holder": { "type": "null" },
+          "basis": { "type": "string" },
+          "evidence_urls": { "type": "array", "items": { "type": "string", "pattern": "^https://x\\.com/" } }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automatic_only", "zero_score", "forbidden"],
+      "properties": {
+        "automatic_only": { "type": "string" },
+        "zero_score": { "type": "array", "items": { "type": "string" } },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

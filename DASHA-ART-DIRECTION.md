@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha art direction
 
 Written: 2026-08-07. Owner of the visual system. Landing, Desk, Studio and every exported image

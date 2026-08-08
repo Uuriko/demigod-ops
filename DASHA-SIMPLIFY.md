@@ -1,3 +1,9 @@
+---
+status: reference
+canonical_for: public-surface-kill-list
+last_verified: 2026-08-08
+---
+
 # Dasha simplify map
 
 Updated: 2026-08-08  
@@ -7,9 +13,9 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 
 | Route | Job | Notes |
 |-------|-----|--------|
-| `/` | Studio entry + Lobby + opt-in Simp Board + mint + buy + risk + public lines + `@dash_eats` | Board rows are measured only after explicit X-linked join; PerryALPHA remains a disclosed non-measured editorial #1. No standalone leaderboard route. No `/how-to-buy` until that page is live. |
-| `/studio` | Create / remix / export | Main product bet. Palette-only canvas; no third-party photo strip. |
-| `/dasha` | Desk: verify, chart, sources, culture stills | Primary photo surface (pbs + Dex CMS). |
+| `/` | Studio entry + Lobby + opt-in Simp Board + mint + buy | Board rows are measured only after explicit X-linked join; PerryALPHA remains a disclosed non-measured editorial #1. No standalone leaderboard route. No `/how-to-buy` until that page is live. |
+| `/studio` | Create / edit / export | Procedural looks, local upload and a sourced Dasha image gallery in one simple tool. |
+| `/dasha` | Desk: verify, chart, sources, culture stills | Source-linked token and culture reference surface. |
 
 **Outbound culture:** `https://x.com/dash_eats` primary · `$dasha` live search secondary.
 
@@ -20,9 +26,9 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 - How-to-buy (404 live) — ship as a Webflow route **or** leave unlinked forever  
 - Relay lab, remix-pack / capsules, logo lab  
 - Conviction receipts / thesis / forecasting  
-- Discord invite until a real server exists  
+- Discord; Lobby is the current community surface
 - Telegram (`t.me/dashacommunity`)  
-- Gallery / social feed / standalone leaderboard route. The live in-page opt-in Simp Board is the bounded exception.
+- Social feed or standalone leaderboard route. The Studio image gallery and live in-page opt-in Simp Board are bounded parts of existing surfaces.
 
 ## Feature add order (evidence-gated)
 

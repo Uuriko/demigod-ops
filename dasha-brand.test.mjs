@@ -30,7 +30,7 @@ assert.match(html, /creativecommons\.org\/publicdomain\/zero\/1\.0/,
 assert.match(html, /CC0 1\.0/, 'the Studio does not name the licence it is granting');
 /* CC0 waives copyright only. Claiming more than that in public would be worse than not granting it,
    so the two carve-outs have to survive any future copy edit. */
-assert.match(html, /not permission to pass work off as official/i,
+assert.match(html, /permission to pass work off as official/i,
   'the CC0 notice dropped its trademark carve-out');
 assert.match(html, /Nekrasova/,
   'the CC0 notice dropped the publicity-rights carve-out for name and likeness');

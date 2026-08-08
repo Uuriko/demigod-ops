@@ -1,48 +1,69 @@
 {
-  "schema": "dasha-simp-board/v0",
-  "mode": "editorial",
+  "schema": "dasha-simp-board/v1",
+  "mode": "opt-in",
   "title": "Dasha Simp Board",
-  "scoring": "editorial",
-  "social_scoring": "deferred-until-x-oauth",
+  "enrollment": "explicit-x-oauth",
+  "manual_evidence_submission": false,
   "season": null,
-  "oss_points": {
-    "schema": "dasha-simp-oss/v0",
-    "status": "prepared",
-    "season": {
-      "id": "oss-s0",
-      "duration_days": 28,
-      "starts_at": null,
-      "ends_at": null
+  "lanes": {
+    "x_link": {
+      "status": "live",
+      "points": 10,
+      "source": "signed-x-session-after-explicit-join"
     },
-    "repos": ["Uuriko/dasha-desk"],
-    "base_branches": ["main"],
-    "operator_logins": ["Uuriko"],
-    "impact_points": {
-      "impact:tiny": 5,
-      "impact:small": 15,
-      "impact:medium": 40,
-      "impact:large": 100,
-      "impact:critical": 200
+    "creative": {
+      "status": "inactive",
+      "points": 25,
+      "cap_28_days": 100,
+      "source": "server-derived-project-event"
     },
-    "required_approvals": 1,
-    "caps": {
-      "points_per_season": 300,
-      "merges_per_season": 8,
-      "merges_per_rolling_7_days": 3
+    "community": {
+      "status": "inactive",
+      "points": 10,
+      "cap_28_days": 40,
+      "source": "server-derived-project-event"
     },
-    "disqualifying_labels": ["invalid", "duplicate", "wontfix", "simp:no-score", "spam"],
-    "rules": [
-      "Only merged, non-draft pull requests with exactly one maintainer-applied impact label score.",
-      "Every scored pull request requires a non-author human approval.",
-      "Operators, bots, direct pushes, unmerged work, line counts, stars and self-approval score zero.",
-      "Points are public recognition only: not money, an airdrop, token utility or a claim on $dasha."
-    ]
+    "holder": {
+      "status": "live",
+      "points": 0,
+      "source": "signed-wallet-balance-check",
+      "public_fields": ["checked_at", "expires_at"]
+    },
+    "oss": {
+      "schema": "dasha-simp-oss/v0",
+      "status": "prepared",
+      "source": "merged-reviewed-public-github-pr",
+      "season": {
+        "id": "oss-s0",
+        "duration_days": 28,
+        "starts_at": null,
+        "ends_at": null
+      },
+      "repos": ["Uuriko/dasha-desk"],
+      "base_branches": ["main"],
+      "operator_logins": ["Uuriko"],
+      "impact_points": {
+        "impact:tiny": 5,
+        "impact:small": 15,
+        "impact:medium": 40,
+        "impact:large": 100,
+        "impact:critical": 200
+      },
+      "required_approvals": 1,
+      "caps": {
+        "points_per_season": 300,
+        "merges_per_season": 8,
+        "merges_per_rolling_7_days": 3
+      },
+      "disqualifying_labels": ["invalid", "duplicate", "wontfix", "simp:no-score", "spam"]
+    }
   },
   "entries": [
     {
       "position": 1,
       "handle": "PerryALPHA",
       "x_url": "https://x.com/PerryALPHA",
+      "placement": "editorial-founding",
       "badge": "founding_simp",
       "points": null,
       "linked": false,
@@ -55,14 +76,8 @@
     }
   ],
   "rules": {
-    "x_linking": "Requires X OAuth; a typed handle is not a linked account.",
-    "selection": "Editorial v0 requires public Dasha work and at least one public X evidence URL. A nomination is not entry.",
-    "nomination": {
-      "required": ["public_x_post_url"],
-      "encouraged": ["studio_remix_url"],
-      "disqualifies": ["bought placement", "referral spam", "nomination without public work"]
-    },
-    "holder_credit": "Deferred. If added, wallet ownership must be signed and public output is a capped opt-in badge, never balance or bag-size ranking.",
-    "forbidden": ["purchased rank", "balance ranking", "referral points", "airdrop promise"]
+    "automatic_only": "Users never submit evidence URLs. New measured points come from authenticated project events or maintainer-derived public GitHub records.",
+    "zero_score": ["followers", "verification", "likes", "reposts", "replies", "chat volume", "referrals", "purchases", "balances", "bag size", "payments"],
+    "forbidden": ["public evidence form", "purchased rank", "balance ranking", "referral points", "airdrop promise"]
   }
 }

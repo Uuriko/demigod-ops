@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Implement OAuth-linked Dasha Simp Board v1
 
 Work only in `/home/potter/.grok/worktrees/potter/dasha`, which currently owns the uncommitted Lobby OAuth implementation. Do not publish or deploy. Preserve unrelated dirty work.

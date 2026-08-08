@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Grok rebuttal: Dasha next product
 
 Read `DASHA-CLAUDE-NEXT-PRODUCT-DEBATE-2026-08-08.md` and re-check `dasha-landing.html`, `DASHA-ROADMAP.md`, and `dasha-release-contract.json`.

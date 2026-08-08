@@ -14,6 +14,7 @@ const env = {
   DASHA_SHIP_SKIP_BROWSER: '1',
   DASHA_SHIP_STATE: path.join(tmp, 'state.json'),
   DASHA_SHIP_MANIFEST: path.join(tmp, 'manifest.json'),
+  DASHA_NOW_DOC: path.join(tmp, 'DASHA-NOW.md'),
 };
 
 function ship() {
@@ -35,7 +36,7 @@ try {
 
   const second = ship();
   assert.match(second, /"step":"resume"/);
-  assert.match(second, /"step":"push:skip"/);
+  assert.match(second, /"step":"push:start"/);
   assert.match(second, /"step":"publish:skip"/);
   assert.doesNotMatch(second, /"step":"preflight:start"/);
 
@@ -48,7 +49,20 @@ try {
     Array(3).fill(['skipped', 'fixture-only browser skip']),
   );
   assert.equal(manifest.status, 'verified');
+  assert.equal(manifest.schema, 'dasha.ship-manifest/2');
+  assert.equal(manifest.release.lobby.assets, 'fixture-assets');
+  assert.match(manifest.release.workspaceCommit, /^[0-9a-f]{40}$/);
+  assert.match(manifest.release.publicRepoCommit, /^[0-9a-f]{40}$/);
+  assert.equal(manifest.release.studioCanonical.file, 'dasha-meme-studio.html');
+  assert.equal(manifest.release.publicStudio.file, 'dasha-desk/studio/index.html');
+  assert.equal(manifest.release.deskCanonical.file, 'dasha-desk/src/app.html');
   assert.deepEqual(Object.keys(manifest.hashes).sort(), ['desk', 'home', 'studio']);
+
+  const now = spawnSync(process.execPath, ['dasha-ship.mjs', '--status', '--write-now'], {
+    cwd: root, env, encoding: 'utf8', timeout: 30_000,
+  });
+  assert.equal(now.status, 0, now.stderr || now.stdout);
+  assert.match(fs.readFileSync(env.DASHA_NOW_DOC, 'utf8'), /Local release alignment: aligned/);
   console.log('dasha-ship incremental/resume PASS');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

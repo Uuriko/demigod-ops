@@ -1,4 +1,12 @@
+---
+status: historical
+superseded_by: DASHA-PRODUCT-BRIEF.md
+archived: 2026-08-08
+---
+
 # Spec — gamification that cannot be farmed
+
+> Scrapped Thesis Card/settlement direction. Historical research only; do not implement.
 
 2026-08-06. Research-backed. Sources at the end.
 

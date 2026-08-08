@@ -18,6 +18,20 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const SKIP_DIRS = new Set(['node_modules', '.git', '.tmp-dasha-ship', 'dist', 'archive']);
+const CANONICAL_FILES = [
+  'DASHA-DOCS.md',
+  'DASHA-WORKFLOW.md',
+  'DASHA-PRODUCT-BRIEF.md',
+  'DASHA-ROADMAP.md',
+  'DASHA-BIBLE.md',
+];
+const HISTORICAL_FILES = [
+  'DASHA-PRODUCT-STRATEGY.md',
+  'DASHA-DISCORD-BLUEPRINT.md',
+  'DASHA-SPEC-GAMIFICATION.md',
+  'DASHA-SPEC-SETTLEMENT.md',
+  'DASHA-PIVOT-DECISION-2026-08-06.md',
+];
 /* Templates for a generated tree. Their relative links resolve where the file LANDS, not where it
    lives — dasha-studio-readme.md links to LICENSE, which exists beside its published copy in
    dasha-desk/studio/ and not beside the template. The generated copy is scanned normally, so the
@@ -39,6 +53,36 @@ const files = await markdownFiles(root);
 const broken = [];
 let checked = 0;
 
+function metadata(text) {
+  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!match) return {};
+  return Object.fromEntries(match[1].split('\n').map((line) => {
+    const split = line.indexOf(':');
+    return [line.slice(0, split).trim(), line.slice(split + 1).trim()];
+  }).filter(([key]) => key));
+}
+
+const owners = new Map();
+for (const name of CANONICAL_FILES) {
+  const meta = metadata(await readFile(join(root, name), 'utf8'));
+  if (meta.status !== 'canonical') broken.push(`${name} → status must be canonical`);
+  if (!meta.canonical_for) broken.push(`${name} → canonical_for is required`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(meta.last_verified || '')) broken.push(`${name} → last_verified must be YYYY-MM-DD`);
+  if (owners.has(meta.canonical_for)) broken.push(`${name} → duplicates canonical_for owned by ${owners.get(meta.canonical_for)}`);
+  if (meta.canonical_for) owners.set(meta.canonical_for, name);
+}
+for (const name of HISTORICAL_FILES) {
+  const meta = metadata(await readFile(join(root, name), 'utf8'));
+  if (meta.status !== 'historical') broken.push(`${name} → retired direction must be historical`);
+  if (!meta.superseded_by) broken.push(`${name} → superseded_by is required`);
+}
+
+const map = await readFile(join(root, 'DASHA-DOCS.md'), 'utf8');
+for (const name of CANONICAL_FILES) {
+  if (name === 'DASHA-DOCS.md') continue;
+  if (!map.includes(`](${name})`)) broken.push(`DASHA-DOCS.md → missing canonical owner ${name}`);
+}
+
 for (const file of files) {
   const text = await readFile(file, 'utf8');
   for (const [, label, target] of text.matchAll(/\[([^\]]*)\]\(([^)\s]+)\)/g)) {
@@ -53,10 +97,10 @@ for (const file of files) {
   }
 }
 
-console.log(`Dasha docs links: ${files.length} markdown files, ${checked} local links`);
+console.log(`Dasha docs: ${files.length} markdown files, ${checked} local links, ${owners.size} canonical owners`);
 if (broken.length) {
   console.error(`\n${broken.length} broken local link(s):\n`);
   for (const b of broken) console.error('  · ' + b);
   process.exit(1);
 }
-console.log('Dasha docs links: PASS (every local link resolves)');
+console.log('Dasha docs: PASS (links, lifecycle metadata and canonical ownership)');

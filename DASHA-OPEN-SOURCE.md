@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Making Dasha properly open source
 
 **Updated:** 2026-08-08  

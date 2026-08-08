@@ -1,3 +1,9 @@
+---
+status: canonical
+canonical_for: roadmap
+last_verified: 2026-08-08
+---
+
 # Dasha product roadmap
 
 Updated: 2026-08-08
@@ -15,7 +21,10 @@ The Thesis Card and every receipt/forecasting descendant are scrapped. Do not te
 - The live homepage already offers the verified mint, Jupiter, chart, source links, X discovery and `/dasha` desk.
 - The official Jupiter modal begins the buy flow without leaving the site and preserves a direct fallback.
 - Meme Studio is live and creates/exports square posts, vertical stories and wide banners. Remix URLs preserve the exact editable look, format and line.
-- The live homepage includes an opt-in Simp Board with PerryALPHA's disclosed editorial founding spot. X-linked members can separately join, claim reviewed contribution evidence, earn fixed creative/community/OSS points and badges, save a personal score card, view frozen season snapshots and optionally prove a zero-point holder badge.
+- The live homepage includes an opt-in Simp Board with PerryALPHA's disclosed editorial founding
+  spot. X-linked members can separately join or leave, save a personal score card and view supported
+  badges. The public evidence-URL form is retired; new awards require automatic project events or
+  maintainer-derived public GitHub records.
 - Current memecoin research consistently describes narrative, social diffusion and participatory culture as primary behavior, alongside severe volatility and concentration risk.
 - Zora makes creation and trading one loop; Guild combines community identity and campaigns; quest products reward participation. Dasha should learn from the loop, not copy their infrastructure.
 - Grok's independent 30-track review converged with the academic evidence: first-contribution acknowledgement, bounded prompts and remix continuity are better-supported next tests than ranks, accounts, token gates or another feature suite. Raw receipt: [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md).
@@ -24,9 +33,16 @@ The Thesis Card and every receipt/forecasting descendant are scrapped. Do not te
 
 The live Board combines one editorial row with measured opt-in rows. PerryALPHA's founding #1 remains explicitly non-measured. OAuth or Lobby use alone never enrolls anyone; join and leave are explicit, and leave removes the public profile and its claims.
 
-Linking earns a fixed 10-point eligibility credit; reviewed creative work is 25 points each capped at 100 per rolling 28 days; reviewed community work is 10 each capped at 40; and OSS points accept only `dasha-simp-oss/v0` tiers capped at 300. Followers, verification, likes, reposts, replies, chat volume, referrals, purchases, balances, bag size and payments score zero. Holder proof signs a short-lived message, checks the associated mint at finalized commitment, stores only the check time and a 28-day badge expiry, publishes no wallet or balance, sends no transaction and scores zero. The date proves a positive balance at that check, not continuous holding. Season snapshots are frozen by ID and retained up to 24; they are operator-held views, not immutable records or promises of rewards.
+Linking earns a fixed 10-point eligibility credit. The existing creative/community award schema is
+retained for compatibility, but the removed public evidence form is not an award path. OSS points
+accept only `dasha-simp-oss/v0` records derived from merged, reviewed public work. Followers,
+verification, likes, reposts, replies, chat volume, referrals, purchases, balances, bag size and
+payments score zero. Holder proof signs a short-lived message, checks the associated mint at
+finalized commitment, stores only the check time plus expiry, publishes no wallet or balance, sends
+no transaction and scores zero. It proves a positive balance at that check, not continuous holding.
 
-Live verification on 2026-08-08 established homepage/client parity, public seasons and claims routes, authenticated review rejection, anonymous holder rejection and hostile-origin rejection. Mutable Worker identities belong in deployment receipts and `dasha-audit-live.mjs` output, not this roadmap. Real participation and demand remain unproven.
+Mutable Worker identities and live endpoint inventories belong in deployment receipts and
+`dasha-audit-live.mjs` output, not this roadmap. Real participation and demand remain unproven.
 
 Prepared OSS lane: `dasha-simp-oss/v0` scores only merged, reviewed pull requests to allowlisted public Dasha repos. Exactly one impact label maps to 5/15/40/100/200 points, capped at 300 points, eight merges per 28-day season and three merges per rolling seven days. Operators and bots score zero; direct commits are not backfilled. `dasha-simp-oss-scorer.mjs` recomputes the lane from public GitHub evidence, and its current authoritative result is empty because `Uuriko/dasha-desk` has no merged PRs. Activate only after the impact labels, season timestamps and first non-operator reviewed PR exist.
 
@@ -54,7 +70,10 @@ Falsification: after enough traffic for a useful comparison, plugin opens do not
 
 Goal: provide the creation and editable-handoff instrument for the Transmission experiment.
 
-Status: prepared checkpoint. The live Studio v3 asset already has five procedural looks, individual post/story/banner output, explicit three-size preparation links, fragment remix URLs and one-hop lineage. It differs from the generated source only in the latest navigation/accessibility cleanup: the prepared top bar restores the verified mint and Buy paths, gives controls 44px targets and hides the lower-priority X link on narrow screens. PNG export, combined image+remix sharing, inbound-remix state and matched image-only sharing remain intact. Parent state is bounded to one generation and makes no identity, authorship or endorsement claim. Old query links remain readable and immediately normalize to fragment state. Publication and demand remain unproven. Webflow Analyze reports are unavailable because this site lacks the Analyze entitlement; absence of reports is not evidence of zero use.
+Status: live instrument. The Studio supports procedural looks, local image upload, a sourced Dasha
+gallery and post/story/banner output. Exact deployed features and artifact identity belong in the
+release contract and live verifier, not this roadmap. Publication is proven; demand remains
+unproven.
 
 Prototype:
 

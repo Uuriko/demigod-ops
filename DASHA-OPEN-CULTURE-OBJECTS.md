@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Open Culture Objects — ambitious Dasha product horizon
 
 Updated: 2026-08-07

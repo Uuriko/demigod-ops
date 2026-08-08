@@ -1,0 +1,16 @@
+{
+  "schema": "dasha-simp-board/v1",
+  "mode": "opt-in",
+  "title": "Invalid manual evidence board",
+  "enrollment": "explicit-x-oauth",
+  "manual_evidence_submission": true,
+  "season": null,
+  "lanes": {},
+  "entries": [],
+  "rules": {
+    "automatic_only": "",
+    "zero_score": [],
+    "forbidden": []
+  },
+  "nomination": { "required": ["public_evidence_url"] }
+}

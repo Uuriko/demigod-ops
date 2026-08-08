@@ -1,14 +1,26 @@
+---
+status: canonical
+canonical_for: documentation-map
+last_verified: 2026-08-08
+---
+
 # Dasha documentation map
 
 Start here for all Dasha work. Demigod is out of scope until the user explicitly reopens it.
 
 ## Read path
 
-For complete orientation, read [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md). For active work:
+For active work, read only these owners first:
 
 1. [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) — what Dasha is now.
 2. [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) — what evidence activates the next build.
 3. [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) — where truth lives and how work is verified.
+4. [`DASHA-BIBLE.md`](DASHA-BIBLE.md) — voice, culture and claims.
+
+[`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) is a linked orientation snapshot, not an
+owner of mutable truth. Dated audits, debates and research are evidence, not instructions.
+The exhaustive machine-generated lifecycle inventory is
+[`DASHA-DOC-REGISTRY.md`](DASHA-DOC-REGISTRY.md).
 
 Open [`DASHA-BIBLE.md`](DASHA-BIBLE.md) for voice/culture, [`DASHA-ART-DIRECTION.md`](DASHA-ART-DIRECTION.md) for visual rules, and [`DASHA-DOC-OF-DOCS-2026-08-08.md`](DASHA-DOC-OF-DOCS-2026-08-08.md) only when locating historical or experimental material.
 
@@ -22,6 +34,8 @@ Open [`DASHA-BIBLE.md`](DASHA-BIBLE.md) for voice/culture, [`DASHA-ART-DIRECTION
 | What could exist someday? | `DASHA-HORIZON.md` |
 | How does Dasha sound and what claims are allowed? | `DASHA-BIBLE.md` |
 | How does Dasha look? | `DASHA-ART-DIRECTION.md` |
+| What security failures must releases prevent? | `DASHA-THREAT-MODEL.md` |
+| Which public claims are supported? | `DASHA-CLAIMS.md` |
 | How is work edited, verified and published? | `DASHA-WORKFLOW.md` |
 | Where does every document belong? | `DASHA-DOC-OF-DOCS-2026-08-08.md` |
 | How should the documentation system improve? | `DASHA-DOCS-SYSTEM-BACKLOG.md` |
@@ -33,7 +47,7 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) | Whole-project and website orientation with links and evidence footnotes | Current summary; does not own mutable facts |
 | [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) | Sources of truth, work loop, status vocabulary and publication matrix | Current; operational entry after this map |
 | [`.grok/worktrees/potter/dasha/DASHA-LOBBY.md`](.grok/worktrees/potter/dasha/DASHA-LOBBY.md) | Lobby, X OAuth, Simp Board, claims/review, seasons and holder-proof operations | Current implementation runbook |
-| [`DASHA-BIBLE.md`](DASHA-BIBLE.md) | Culture, design voice, image library, X sources, agent checklist | Current bible |
+| [`DASHA-BIBLE.md`](DASHA-BIBLE.md) | Culture, design voice, image sources and claims | Current bible; product behavior stays in Brief |
 | [`DASHA-HORIZON.md`](DASHA-HORIZON.md) | The possibility space: products and features that could exist, sized S–XL, plus the hard lines | Current; owns "what could exist". `DASHA-ROADMAP.md` owns "what we are doing"; `dasha-desk/docs/ROADMAP.md` owns the Desk repo's own scope |
 | [`DASHA-DISCOVERY-PROMPT.md`](DASHA-DISCOVERY-PROMPT.md) · [`DASHA-DISCOVERY-2026-08-07.md`](DASHA-DISCOVERY-2026-08-07.md) | Reusable "what should we build next" research prompt, and its first run | Prompt current; the run found the discovery layer broken in four places and that $dasha fits the community-takeover pattern |
 | [`DASHA-IDENTITY-DEBATE-2026-08-07.md`](DASHA-IDENTITY-DEBATE-2026-08-07.md) | Claude × Codex × Grok debate on moving the identity from the person's name to the cherry | Current decision record. Outcome: cherry is a visual system, not a fix for the name collision or publicity risk. Provenance before listings. **Open: on what basis do we speak for the token?** |
@@ -46,6 +60,8 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Codex × Claude × Grok debate resolving the next smallest product test | Dated selection rationale; current product truth belongs to the brief, guide and roadmap |
 | [`DASHA-DOCS-SYSTEM-BACKLOG.md`](DASHA-DOCS-SYSTEM-BACKLOG.md) | Ranked backlog for reducing doc contradiction, duplication and maintenance cost | Current operational backlog; owns docs-system improvements only |
 | [`DASHA-KIT-LICENSE.md`](DASHA-KIT-LICENSE.md) · [`LICENSE-KIT`](LICENSE-KIT) | CC0 dedication over the mark, the looks and every Studio export, with the trademark and likeness carve-outs | Current; stated in the Studio, gated |
+| [`DASHA-THREAT-MODEL.md`](DASHA-THREAT-MODEL.md) | Credible cross-surface failures mapped to controls and runnable release checks | Current trust reference |
+| [`DASHA-CLAIMS.md`](DASHA-CLAIMS.md) | Evidence status, allowed wording and forbidden inferences for sensitive public claims | Current claims reference |
 | [`dasha-brand.test.mjs`](dasha-brand.test.mjs) | Makes the art direction binding: every look must carry the mark, it must survive GIF scale, the CC0 notice must keep both carve-outs | Current gate |
 | [`DASHA-SIMPLIFY.md`](DASHA-SIMPLIFY.md) | Keep/freeze routes and repo kill-list; evidence-gated feature order | Current |
 | [`DASHA-OPEN-SOURCE.md`](DASHA-OPEN-SOURCE.md) | How to open-source desk/studio properly; scrap thesis forever | Current |
@@ -70,9 +86,9 @@ Dated research supports these owners. It does not replace them.
 | [`dasha-relay-lab.html`](dasha-relay-lab.html) / [`dasha-relay-lab.test.mjs`](dasha-relay-lab.test.mjs) | Matched relay arms, local observation record, safe comparison, semantic reconstruction and browser gate | Verified experiment; not public |
 | [`DASHA-PIVOT-LANDSCAPE-2026-08-06.md`](DASHA-PIVOT-LANDSCAPE-2026-08-06.md) | Pre-scrap market scan; product recommendations include retired concepts | Historical research only |
 | [`DASHA-PIVOT-DECISION-2026-08-06.md`](DASHA-PIVOT-DECISION-2026-08-06.md) | Superseded forecasting-era pivot decision | Historical snapshot |
-| [`DASHA-PRODUCT-STRATEGY.md`](DASHA-PRODUCT-STRATEGY.md) | Positioning, personas, hypotheses, trust contract and business model | Current |
+| [`DASHA-PRODUCT-STRATEGY.md`](DASHA-PRODUCT-STRATEGY.md) | Earlier culture-platform strategy and option map | Historical; Brief and Roadmap supersede it |
 | [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) | Exact phase gates, metrics, kill criteria and next build order | Current |
-| [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md) | Proposed server structure, roles, safety controls and launch content | Blueprint only; no controlled live server established |
+| [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md) | Superseded server proposal | Historical; Lobby is the current community surface |
 | [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) | Plain-language product definition and immediate scope | Current |
 | [`dasha-landing.html`](dasha-landing.html) | Canonical Webflow homepage embed | Current; live at `/` |
 | [`dasha-simp-board.json`](dasha-simp-board.json) / [worktree Board sources](.grok/worktrees/potter/dasha/dasha-simp-score.mjs) | Historical editorial seed plus live measured Board implementation; Perry remains non-measured | Live in-page Board; explicit opt-in and reviewed scoring |
@@ -82,6 +98,9 @@ Dated research supports these owners. It does not replace them.
 | [`dasha-landing.test.mjs`](dasha-landing.test.mjs) | Homepage responsive, accessibility, interaction and Jupiter-modal check | Current |
 | [`dasha-product-coherence.test.mjs`](dasha-product-coherence.test.mjs) | Cross-owner gate for the active experiment, retired prompts and Board boundary | Current gate |
 | [`dasha-release-contract.json`](dasha-release-contract.json) / [`DASHA-SHIP-MANIFEST.json`](DASHA-SHIP-MANIFEST.json) | Exact live required/forbidden markers and last independently verified artifact hashes | Current release contract and persistent receipt |
+| [`DASHA-NOW.md`](DASHA-NOW.md) / [`dasha-ship.mjs`](dasha-ship.mjs) | Generated source/live alignment, repository identities and Lobby asset identity | Generated; never edit by hand |
+| [`dasha-studio-media.json`](dasha-studio-media.json) / [`dasha-studio-media.test.mjs`](dasha-studio-media.test.mjs) | Registered Studio gallery media and shared rights boundary | Executable media contract |
+| [`dasha-simp-board.schema.json`](dasha-simp-board.schema.json) / [`dasha-simp-board-contract.test.mjs`](dasha-simp-board-contract.test.mjs) | Opt-in Board data contract; rejects public evidence submission and unknown fields | Executable Board contract |
 | [`dasha-social-card.test.mjs`](dasha-social-card.test.mjs) | Social-card dimensions, product/trust copy and self-contained-asset check | Current |
 | [`dasha-meme-studio.test.mjs`](dasha-meme-studio.test.mjs) | Studio formats, canvas, private remix state, export, share and responsive check | Current |
 | [`dasha-desk/docs/DEPLOY.md`](dasha-desk/docs/DEPLOY.md) | Landing build and deployment procedure | Current |
@@ -129,41 +148,14 @@ remain correct and are not superseded by the project being official.
 
 ## Current live truth
 
-- Home: `https://www.getdasha.com/` — culture landing, verified mint and Jupiter modal.
-- Studio: `https://www.getdasha.com/studio` — canvas generator with PNG export and native-share/X fallback.
-- Desk: `https://www.getdasha.com/dasha` — mint, independent sources, risk, one Jupiter route.
-- Lobby: `https://lobby.getdasha.com` — public chat, optional X OAuth and the Simp Board API/client.
-- Webflow site ID: `5f1458122ba25e70a3ff2bd0`.
-
-**Do not copy live state into this file again.** Everything below was verified on **2026-08-08** by
-rendering the served pages, and it will start rotting the moment it is written. The previous version
-of this section described a "live drift" that had already shipped — casino headline, Desk raid link,
-Studio without formats, publication blocked by a 401 — and every agent that read it inherited a
-false picture and re-planned around it. Run the gate instead of trusting the paragraph:
+The stable route map is Home `/`, Studio `/studio`, Desk `/dasha`, and Lobby
+`https://lobby.getdasha.com`. Do not copy feature versions, deployment hashes, authentication state
+or audit results into this file. Read generated release truth instead:
 
 ```bash
-node dasha-live.test.mjs      # renders all three routes; the only check that reads what is served
+npm run dasha:ship:status
+npm run dasha:verify:live
 ```
-
-Verified live 2026-08-08:
-
-- **Home** — `Make the timeline stranger`. The casino headline and `JOIN THE CHAOS` are gone.
-- **Studio** — v4: six looks including Cherry, three formats, GIF export, remix links, the CC0
-  dedication and the cherries mark. It regressed twice on 2026-08-08 when two deploy mechanisms
-  overwrote each other; `/studio` now deploys by inline paste only.
-- **Desk** — clean. No preset amounts, referral parameter, buy-pressure copy or raid link.
-- **All three** — 200, no console errors, no horizontal overflow at 390px, zero serious or critical
-  axe violations at mobile and desktop, favicon present, no retired product language.
-- **Lobby/Board** — live with explicit Board join/leave, reviewed claims, score cards, badges,
-  frozen season snapshots (newest 24 retained) and a zero-point dated holder badge. PerryALPHA's founding #1 is
-  disclosed editorial placement, not a measured rank.
-- **Publication works.** The Webflow token authenticates; asset upload, custom-code writes and
-  publish all succeed. The 2026-08-07 `401` record is stale — do not re-derive "we cannot publish"
-  from it.
-
-Still true and still open on Webflow: `robots.txt` is empty and `/sitemap.xml` returns 404. The
-Lobby-hosted crawl files return 200. Run current gates for metadata rather than preserving another
-mutable prose snapshot.
 
 ## Verification
 

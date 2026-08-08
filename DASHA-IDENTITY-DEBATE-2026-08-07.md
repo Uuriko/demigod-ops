@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Debate — should the identity move from the name to the cherry?
 
 2026-08-07. Claude proposed, Codex and Grok were asked to attack it. Both returned "half-right" and

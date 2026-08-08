@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha task backlog
 
 Status: working backlog · Owner: operator · Updated: 2026-08-08

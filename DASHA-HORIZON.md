@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Horizon — things that could exist
 
 **Nothing here is assigned, promised or scheduled.** This is the possibility space for the whole

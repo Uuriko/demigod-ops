@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha — crypto psychology, persuasion and group dynamics: what the literature says
 
 Compiled 2026-08-06. Every claim below is sourced; where I'm extrapolating to Dasha

@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha fast ship
 
 **Updated:** 2026-08-08

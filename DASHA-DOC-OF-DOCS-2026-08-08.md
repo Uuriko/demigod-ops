@@ -1,3 +1,8 @@
+---
+status: historical
+archived: 2026-08-08
+---
+
 # Dasha — doc of docs
 
 **Updated:** 2026-08-08  

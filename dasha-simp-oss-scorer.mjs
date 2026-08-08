@@ -46,7 +46,7 @@ async function github(path) {
 
 async function main() {
   const board = JSON.parse(await readFile(new URL('./dasha-simp-board.json', import.meta.url), 'utf8'));
-  const config = board.oss_points, pulls = [], reviewsByNumber = {};
+  const config = board.lanes.oss, pulls = [], reviewsByNumber = {};
   for (const fullName of config.repos) {
     const repoPulls = await github(`/repos/${fullName}/pulls?state=closed&per_page=100`);
     pulls.push(...repoPulls);

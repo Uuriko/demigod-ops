@@ -36,7 +36,7 @@ await page.goto(base, { waitUntil: 'networkidle2' });
 
 /* Marquee is the strictest case for the encoder: flat brand colour only, so the palette must come
    out exact, and every frame differs from the last because the whole field is sliding. */
-await page.$$eval('.look', (buttons) => buttons.find((b) => b.textContent === 'Marquee').click());
+await page.select('#looks', 'marquee');
 
 const result = await page.evaluate(async () => {
   const blob = await captureGIF();

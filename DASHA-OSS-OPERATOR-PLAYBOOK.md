@@ -1,3 +1,7 @@
+---
+status: reference
+---
+
 # Dasha open-source operator playbook
 
 **Updated:** 2026-08-08  

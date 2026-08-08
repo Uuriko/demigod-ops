@@ -11,8 +11,20 @@ const rendered = html.replace('</head>', '<style>h1,label,.eyebrow{color:#4f70df
 // Word-bounded: the bare substring also matched "hypothesis" and "synthesis" in ordinary prose,
 // which fails the gate for a leak that is not there. Still catches "Thesis Card"/"receipt".
 assert(!/\b(thesis|receipt|telegram)\b/i.test(html), 'scrapped or unofficial product leaked into studio');
-assert(!/<img\b|pbs\.twimg\.com|cdn\.dexscreener\.com/.test(html), 'Studio gained a brittle remote image strip');
-for (const text of ['Dasha Meme Studio', 'Change one thing', 'Pass it on', 'Make it. Save it.', 'Save PNG', 'Prepare 3 sizes', 'Share image + remix', 'Copy remix link', 'no wallet', 'getdasha.com', 'Format', 'Story', 'Banner', 'Verify mint', 'Buy $dasha']) assert(html.includes(text), `missing ${text}`);
+/* Remote images used to be banned outright, because a strip of hotlinked thumbnails is brittle and
+   was never worth the dependency. The operator decided on 2026-08-08 to keep a photo gallery and
+   narrow the CC0 claim instead, so the rule became an allowlist rather than a prohibition: the hosts
+   the gallery uses are named, and anything else still fails. dexscreener stays banned outright — a
+   live chart image is a different thing from a picture, and it rots on someone else's schedule. */
+const PHOTO_HOSTS = /^https:\/\/(pbs\.twimg\.com|static1\.squarespace\.com|www\.moviemaker\.com|m\.media-amazon\.com|br\.web\.img2\.acsta\.net|avatars\.mds\.yandex\.net|upload\.wikimedia\.org)\//;
+assert(!/cdn\.dexscreener\.com/.test(html), 'Studio gained a live chart image, which rots on someone else\u2019s schedule');
+const remoteImages = [...html.matchAll(/https?:\/\/[^\s"'`)<>]+\.(?:jpe?g|png|gif|webp)(?:\?[^\s"'`)<>]*)?/gi)].map((m) => m[0]);
+const strangers = [...new Set(remoteImages.filter((u) => !PHOTO_HOSTS.test(u)))];
+assert.deepEqual(strangers, [], `Studio pulls images from a host nobody approved: ${strangers.join(', ')}`);
+/* And the drawn looks must not depend on any of it. A photo failing to load is normal — the host can
+   block us or delete the post — and when it does, every other look still has to work. */
+assert(/crossOrigin/.test(html), 'gallery images must be loaded with crossOrigin, or export taints the canvas');
+for (const text of ['Dasha Meme Studio', '$dasha', 'Studio.', 'Save PNG', 'Prepare 3 sizes', '>Share<', 'no wallet', 'getdasha.com', 'Format', 'Story', 'Banner', 'Verify mint', 'Buy $dasha']) assert(html.includes(text), `missing ${text}`);
 assert(!/MAKE SOMETHING|keep it or change the look|Everything happens in this browser|What you write is yours/.test(html), 'deleted generic or explanatory Studio copy returned');
 for (const line of ['It’s time $dasha', 'You’re not gonna believe this', 'Well Im still alive', 'Go ahead and doubt me see what happens', 'Cmon', 'They are angels actually']) assert(html.includes(`line: '${line}'`), `Studio lost sourced default: ${line}`);
 assert(webflowHelper.includes('.dgnav a:focus-visible{outline:3px solid #c4a5ff'), 'Webflow Studio nav lost visible keyboard focus');
@@ -43,12 +55,31 @@ for (const width of [320, 390, 1440]) {
   assert.ok(axeRun.rules > 30, `axe evaluated only ${axeRun.rules} rules — it did not really run`);
   assert.deepEqual(axeRun.bad, [], `${width}px serious/critical axe violations: ${axeRun.bad.join(', ')}`);
   assert.deepEqual(await page.$eval('#canvas', canvas => ({ width: canvas.width, height: canvas.height, png: canvas.toDataURL().startsWith('data:image/png;base64,') })), { width: 1080, height: 1080, png: true });
-  await page.$$eval('.look', buttons => buttons.find(button => button.textContent === 'Ticket').click());
-  assert.equal(await page.$$eval('.look', buttons => buttons.find(button => button.textContent === 'Ticket').getAttribute('aria-pressed')), 'true');
-  await page.$$eval('.format', buttons => buttons.find(button => button.textContent === 'Story').click());
+  /* Format, GIF, the remix link and the three-size kit now live inside a collapsed <details>
+     ("More options"), so none of them are clickable until it is opened. Puppeteer reports that as
+     "Node is either not clickable or not an Element", which reads like a broken selector rather than
+     progressive disclosure. Open every details block first and test what a user can actually reach. */
+  await page.$$eval('details', (blocks) => blocks.forEach((d) => { d.open = true; }));
+
+  /* Look and format are <select> now, not button groups. Driving them means setting value and
+     firing 'change' — a click does nothing to a select, which is how this read as "buttons.find(...)
+     is undefined" rather than as a UI change. */
+  const choose = async (id, label) => {
+    const ok = await page.$eval(`#${id}`, (el, want) => {
+      const option = [...el.options].find((o) => o.textContent.trim() === want);
+      if (!option) return false;
+      el.value = option.value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, label);
+    assert.ok(ok, `#${id} has no "${label}" option`);
+  };
+  await choose('looks', 'Ticket');
+  assert.equal(await page.$eval('#looks', el => el.selectedOptions[0].textContent.trim()), 'Ticket');
+  await choose('formats', 'Story');
   assert.deepEqual(await page.$eval('#canvas', canvas => ({ width: canvas.width, height: canvas.height })), { width: 1080, height: 1920 }, 'story dimensions');
   assert.equal(await page.evaluate(() => new URLSearchParams(new URL(remixURL()).hash.slice(1)).get('format')), 'story');
-  await page.$$eval('.format', buttons => buttons.find(button => button.textContent === 'Banner').click());
+  await choose('formats', 'Banner');
   assert.deepEqual(await page.$eval('#canvas', canvas => ({ width: canvas.width, height: canvas.height })), { width: 1200, height: 628 }, 'banner dimensions');
   await page.$eval('#line', input => { input.value = 'A'.repeat(120); input.dispatchEvent(new Event('input', { bubbles: true })); });
   assert((await page.$eval('#canvas', canvas => canvas.toDataURL())).length > 10000, 'rendered PNG is unexpectedly empty');
@@ -65,11 +96,15 @@ for (const width of [320, 390, 1440]) {
   ], 'three-size kit links drifted');
   assert.deepEqual(await page.$eval('#canvas', canvas => ({ width:canvas.width, height:canvas.height })), { width:1200, height:628 }, 'three-size export did not restore the selected format');
   assert.equal(await page.$eval('#status', status => status.textContent), 'Three sizes ready.');
-  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: value => { window.__remix = value; return Promise.resolve(); } } }); });
-  await page.click('#remix');
-  await page.waitForFunction(() => document.querySelector('#status').textContent.includes('Remix link copied'));
-  assert.equal(await page.evaluate(() => window.__remix), await page.evaluate(() => remixURL()), 'copied remix state differs from current image');
-  assert.equal(await page.$eval('#remix-note', note => note.hidden), true, 'blank Studio should not pretend it received a remix');
+  await page.click('summary');
+  /* The standalone copy-link button is gone by operator decision on 2026-08-08 — the objection was
+     the word "remix", not the behaviour. So what has to be protected now is that the editable link
+     still travels: it rides along with the image in Share (asserted below), and nothing may quietly
+     reintroduce a control that copies state under a name nobody chose. */
+  assert.equal(await page.$('#remix'), null, 'the standalone copy-link control came back');
+  assert.ok(!/remix/i.test(await page.$eval('main', el => el.innerText)),
+    'the word "remix" is back in visible Studio copy');
+  assert.equal(await page.$eval('#remix-note', note => note.hidden), true, 'blank Studio should not pretend it received a handoff');
   // An unspaced run once measured 12825px inside a 904px box. A non-empty PNG passes straight
   // through that, so the wrapped lines have to be measured: this is the defect, not the symptom.
   assert(await page.evaluate(() => { ctx.font = '900 148px Arial,Helvetica,sans-serif';
@@ -98,8 +133,8 @@ const inbound = await browser.newPage();
 await inbound.setRequestInterception(true);
 inbound.once('request', request => request.respond({ status: 200, contentType: 'text/html', body: rendered }));
 await inbound.goto('https://www.getdasha.com/studio#look=signal&line=pass%20it%20on', { waitUntil: 'domcontentloaded' });
-assert.deepEqual(await inbound.evaluate(() => ({ line: $('line').value, look: [...$('looks').children].find(button => button.getAttribute('aria-pressed') === 'true').textContent, format: [...$('formats').children].find(button => button.getAttribute('aria-pressed') === 'true').textContent, hidden: $('remix-note').hidden })), { line: 'pass it on', look: 'Signal', format: 'Post', hidden: false });
-assert.equal(await inbound.$eval('#remix-note', note => note.textContent), 'Make it yours. Pass it on.');
+assert.deepEqual(await inbound.evaluate(() => ({ line: $('line').value, look: $('looks').selectedOptions[0].textContent.trim(), format: $('formats').selectedOptions[0].textContent.trim(), hidden: $('remix-note').hidden })), { line: 'pass it on', look: 'Signal', format: 'Post', hidden: false });
+assert.equal(await inbound.$eval('#remix-note', note => note.textContent), 'Your turn.');
 await inbound.$eval('#line', input => { input.value = 'pass it forward'; input.dispatchEvent(new Event('input', { bubbles: true })); });
 assert.deepEqual(await inbound.evaluate(() => { const p = new URLSearchParams(new URL(remixURL()).hash.slice(1)); return { look:p.get('pLook'), format:p.get('pFormat'), line:p.get('pLine') }; }), { look:'signal', format:'square', line:'pass it on' }, 'material edit did not preserve its immediate parent');
 await inbound.close();
@@ -129,7 +164,7 @@ const flat = await browser.newPage();
 await flat.setRequestInterception(true);
 flat.once('request', request => request.respond({ status: 200, contentType: 'text/html', body: rendered }));
 await flat.goto('https://www.getdasha.com/studio#look=poster&format=square&line=image%20only&arm=flat', { waitUntil: 'domcontentloaded' });
-assert.match(await flat.$eval('#remix-note', note => note.textContent), /Image-only test/);
+assert.equal(await flat.$eval('#remix-note', note => note.textContent), 'Image only.');
 await flat.evaluate(() => {
   Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
   Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__flatShare = { text: data.text, hasUrl: 'url' in data }; } });

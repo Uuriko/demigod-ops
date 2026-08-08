@@ -1,4 +1,13 @@
+---
+status: historical
+superseded_by: DASHA-PRODUCT-BRIEF.md
+archived: 2026-08-08
+---
+
 # Dasha product strategy
+
+> Historical option map. It does not describe current product behavior or authorize work. See
+> [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) and [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md).
 
 Updated: 2026-08-07
 

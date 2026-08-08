@@ -1,4 +1,12 @@
+---
+status: historical
+superseded_by: DASHA-PRODUCT-BRIEF.md
+archived: 2026-08-08
+---
+
 # Spec — automatic settlement, and how the two products become one
+
+> Scrapped Thesis Card/settlement direction. Historical research only; do not implement.
 
 Written 2026-08-06. Every data claim below comes from a live fetch made while writing this,
 not from documentation.
