@@ -121,7 +121,7 @@
     "dasha:build:desk": "node dasha-desk/build.mjs --write",
     "dasha:check:desk": "node dasha-desk/build.mjs --check",
     "dasha:test:docs": "node dasha-doc-registry.mjs --check && node dasha-docs-links.test.mjs && node dasha-product-coherence.test.mjs",
-    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-discovery.test.mjs --local && npm run dasha:test:docs && node dasha-studio-publish.mjs --check && node dasha-studio-media.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && npm run dasha:test:simp && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs && node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs && node dasha-studio-embed.test.mjs && node dasha-desk/dasha-desk-resilience.test.mjs",
+    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-discovery.test.mjs --local && npm run dasha:test:docs && node dasha-studio-publish.mjs --check && node dasha-studio-media.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && npm run dasha:test:simp && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs && node dasha-loop.test.mjs --local && node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs && node dasha-studio-embed.test.mjs && node dasha-desk/dasha-desk-resilience.test.mjs",
     "dasha:verify:live": "node dasha-live-verify.mjs",
     "dasha:prep": "node dasha-ship.mjs --prep",
     "dasha:gate:fast": "node dasha-ship.mjs --prep --gate",
@@ -139,7 +139,8 @@
     "dasha:test:discovery": "node dasha-discovery.test.mjs",
     "dasha:studio:publish": "node dasha-studio-publish.mjs",
     "dasha:test:speed": "node dasha-time-to-export.test.mjs",
-    "dasha:test:surfaces": "node dasha-surfaces.test.mjs"
+    "dasha:test:surfaces": "node dasha-surfaces.test.mjs",
+    "dasha:test:loop": "node dasha-loop.test.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",
