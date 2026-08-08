@@ -26,6 +26,7 @@ assert.equal(embed, buildStudioEmbed(await readFile(here('dasha-meme-studio.html
   'dasha-studio-embed.html is stale or was hand-edited — run: node dasha-studio-embed-build.mjs');
 assert.equal(externalScript, embedScript(embed),
   'dasha-studio-embed.js drifted from the pasteable embed — run: node dasha-studio-embed-build.mjs');
+assert.ok(embed.length < 50_000, `Webflow rejects the ${embed.length}-character Studio embed`);
 
 // ---- it is a fragment, not a page ------------------------------------------
 for (const banned of ['<!doctype', '<html', '<body', ':root']) {

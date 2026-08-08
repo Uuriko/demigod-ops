@@ -1,18 +1,16 @@
 {
   "schema": "dasha.ship-manifest/2",
   "site": "5f1458122ba25e70a3ff2bd0",
-  "status": "drifted",
+  "status": "verified",
   "hashes": {
-    "home": "9776878e2c6838956d59984f1672c0e0b4e772589d46cbfea771e11159170367",
-    "studio": "50608365ba22b3fea94e2a7069dcab05bb889b610af25f7b9823298132062d92",
-    "desk": "0f6d9538330b62ca394d55567602df76635715ff9c4bb3eddca8f93ea4c25cbc"
+    "home": "6a942776d58ff48dace20a0513faac483c049696018ee44d21a6f881aa4244e2",
+    "studio": "ad8ef65512455825a1e00f710f19f154bb5bda595ea311a61a7074f979ca7de9",
+    "desk": "5fd3bada545472b8dcaf1ef21ca378294a61ab95561f10a9512a8cafc7121686"
   },
-  "verifiedAt": "2026-08-08T14:23:40.768Z",
-  "driftDetectedAt": "2026-08-08T16:54:41.060Z",
   "release": {
-    "observedAt": "2026-08-08T16:55:09.164Z",
-    "workspaceCommit": "39f78f5fbc27c30a65e86c0a58ca6e7a46ee0557",
-    "publicRepoCommit": "1c9f2740fd824f593f84f4148714c4174c80c422",
+    "observedAt": "2026-08-08T17:12:47.975Z",
+    "workspaceCommit": "bb34e8a002840a3f9accd48710c1187a1ada5e06",
+    "publicRepoCommit": "cb6d711ecc41bfa46536e6adda8856ffefc781b4",
     "studioCanonical": {
       "file": "dasha-meme-studio.html",
       "sha256": "184a84abfcca4c507b582ad5cc3bbf001a67c37aaadc3d4977934a1e2abdd093"
@@ -37,5 +35,7 @@
       "status": "observed",
       "assets": "53b3918b36b1bdff"
     }
-  }
+  },
+  "verifiedAt": "2026-08-08T17:12:47.800Z",
+  "driftDetectedAt": null
 }

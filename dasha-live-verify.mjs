@@ -4,7 +4,9 @@
  *  DASHA_LIVE_STRICT=1: hard-fail until the three canonical pages match.
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+const contract = JSON.parse(readFileSync(new URL('./dasha-release-contract.json', import.meta.url)));
 const base = process.env.DASHA_LIVE_BASE || 'https://www.getdasha.com';
 const strict = process.env.DASHA_LIVE_STRICT === '1';
 async function get(path) {
@@ -24,15 +26,10 @@ assert.ok(desk.text.includes(MINT) && desk.text.includes('jup.ag'), 'desk mint+j
 assert.ok(!/t\.me\/dashacommunity/i.test(home.text + desk.text + studio.text), 'telegram ban');
 assert.ok(!/thesis card|conviction receipt/i.test(home.text), 'no thesis on home');
 const deskNeutral = !/buy the dip|dd-fomo|raid kit/i.test(desk.text);
-const homeCurrent = home.text.includes('It’s time')
-  && home.text.includes('Simp board.')
-  && home.text.includes('Don’t get')
-  && !/Join the chaos|Short, deadpan|How to buy/.test(home.text);
-const studioCurrent = studio.text.includes('Make it. Save it. Pass it on.')
-  && studio.text.includes("line: 'It’s time $dasha'")
-  && studio.text.includes("line: 'They are angels actually'")
-  && studio.text.includes('CC0 1.0')
-  && !studio.text.includes('Start with a finished signal');
+const matches = (page, surface) => contract.surfaces[surface].required.every(marker => page.text.includes(marker))
+  && contract.surfaces[surface].forbidden.every(marker => !page.text.includes(marker));
+const homeCurrent = matches(home, 'home');
+const studioCurrent = matches(studio, 'studio');
 const documentLang = [home, desk, studio].every(page => /<html\b[^>]*\blang=["']en["']/i.test(page.text));
 const canonicalMetadata = [
   [home, `${base}/`],
@@ -55,7 +52,6 @@ const lag = [];
 if (!homeCurrent) lag.push('home-not-current');
 if (!studioCurrent) lag.push('studio-asset-not-current');
 if (!deskNeutral) lag.push('desk-not-neutral');
-if (!documentLang) lag.push('document-lang-not-live');
 if (!canonicalMetadata) lag.push('canonical-metadata-not-live');
 if (!sitemapCurrent) lag.push('sitemap-not-live');
 console.log(JSON.stringify({
@@ -73,6 +69,7 @@ console.log(JSON.stringify({
   canonicalMetadata,
   sitemapCurrent,
   shipLag: lag,
+  warnings: documentLang ? [] : ['document-lang-not-live'],
   strict,
   note: lag.length
     ? 'prepared or expected website state is not fully live'

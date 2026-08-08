@@ -11,7 +11,7 @@
  *   node dasha-ship.mjs --ship --strict
  *   node dasha-ship.mjs --push       # push embeds only (no publish)
  *   node dasha-ship.mjs --publish    # site publish only
- *   node dasha-ship.mjs --ship --only=studio   # one surface, still gated and still verified
+ *   node dasha-ship.mjs --ship --only=studio   # focus gates on Studio; site publish still restages all surfaces
  *   node dasha-ship.mjs --preflight  # auth/site/domain check only
  *   node dasha-ship.mjs --verify     # curl live markers only
  *   node dasha-ship.mjs --status     # local/live-manifest delta, no network
@@ -39,7 +39,7 @@ const want = {
   dry: args.has('--dry-run'),
 };
 
-/* --only=studio (comma-separated) restricts the push to named surfaces.
+/* --only=studio (comma-separated) restricts non-publishing pushes and focused gates.
    Why this exists: /studio lost its CC0 dedication from production three times on 2026-08-08. Every
    time, the publish had gone through direct MCP calls rather than this script — because this script
    was all-or-nothing, and nobody wanted to publish the homepage in order to fix the Studio. So the
@@ -291,8 +291,16 @@ async function mcpClient() {
   if (process.env.DASHA_SHIP_FAKE_MCP === '1') {
     return {
       calls: [],
+      settings: new Map(),
       async callTool(call) {
         this.calls.push(call);
+        const action = call.arguments?.actions?.[0];
+        const set = action?.set_settings?.operations?.[0];
+        if (set) this.settings.set(set.element_id.element, set.settings[0].static_text.value);
+        const get = action?.get_settings;
+        if (get) return { content: [{ type: 'text', text: JSON.stringify({
+          result: [{ data: { searches: [{ matches: [{ value: { value: { value: this.settings.get(get.element_id.element) } } }] }] } }],
+        }) }] };
         return { content: [{ type: 'text', text: JSON.stringify({ ok: true, siteId: SITE, domains: DOMAINS }) }] };
       },
       async close() {},
@@ -381,6 +389,19 @@ async function pushEmbeds(client, pending, receipt) {
       ['data_element_settings_tool', 'webflow__data_element_settings_tool'],
       toolArgs,
     );
+    const { result: readback } = await callTool(client, ['data_element_settings_tool', 'webflow__data_element_settings_tool'], {
+      siteId: SITE,
+      pageId: s.pageId,
+      context: `Verify ${s.label} embed after write.`,
+      actions: [{ label: `read_${s.label}`, get_settings: {
+        type: 'query_settings',
+        element_id: { component: s.pageId, element: s.element },
+        queries: [{ label: 'code', key: 'code' }],
+      } }],
+    });
+    const payload = JSON.parse(readback?.content?.[0]?.text || '{}');
+    const value = payload.result?.[0]?.data?.searches?.[0]?.matches?.[0]?.value?.value?.value;
+    if (value !== code) throw new Error(`${s.label} Webflow readback differs after write (${value?.length || 0} != ${code.length})`);
     log('push:ok', { label: s.label, tool: name });
     receipt.stages.pushed[key] = true;
     checkpoint(receipt);
@@ -424,7 +445,7 @@ async function verifyLive() {
      sounds stricter, but it blocks a legitimate one-surface fix whenever any other surface is
      unpublished — and a safe path that refuses to run is how people end up publishing around it,
      which is the failure that cost /studio its CC0 dedication three times. */
-  const surfaces = only.length
+  const surfaces = only.length && !want.publish
     ? Object.entries(contract.surfaces).filter(([surface]) => only.includes(surface))
     : Object.entries(contract.surfaces);
   const checks = Object.entries(contract.hosts).flatMap(([host, base]) =>
@@ -622,7 +643,7 @@ async function main() {
        changed locally; it says nothing about what someone else left staged. Pushing an unchanged
        surface costs one API call and makes live match local by construction. */
     const toPush = want.publish
-      ? [...new Set([...pending, ...Object.keys(SURFACES).filter((key) => !only.length || only.includes(key))])]
+      ? Object.keys(SURFACES)
       : pending;
     if ((want.push && toPush.length) || want.publish) acquireLock(toPush.length ? toPush : ['publish']);
     if (want.push && toPush.length) await pushEmbeds(client, toPush, receipt);
