@@ -32,6 +32,7 @@ Dated research supports these owners. It does not replace them.
 |---|---|---|
 | [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) | Whole-project and website orientation with links and evidence footnotes | Current summary; does not own mutable facts |
 | [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) | Sources of truth, work loop, status vocabulary and publication matrix | Current; operational entry after this map |
+| [`.grok/worktrees/potter/dasha/DASHA-LOBBY.md`](.grok/worktrees/potter/dasha/DASHA-LOBBY.md) | Lobby, X OAuth, Simp Board, claims/review, seasons and holder-proof operations | Current implementation runbook |
 | [`DASHA-BIBLE.md`](DASHA-BIBLE.md) | Culture, design voice, image library, X sources, agent checklist | Current bible |
 | [`DASHA-HORIZON.md`](DASHA-HORIZON.md) | The possibility space: products and features that could exist, sized S–XL, plus the hard lines | Current; owns "what could exist". `DASHA-ROADMAP.md` owns "what we are doing"; `dasha-desk/docs/ROADMAP.md` owns the Desk repo's own scope |
 | [`DASHA-DISCOVERY-PROMPT.md`](DASHA-DISCOVERY-PROMPT.md) · [`DASHA-DISCOVERY-2026-08-07.md`](DASHA-DISCOVERY-2026-08-07.md) | Reusable "what should we build next" research prompt, and its first run | Prompt current; the run found the discovery layer broken in four places and that $dasha fits the community-takeover pattern |
@@ -42,7 +43,7 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md`](DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md) | Live/product/security/OSS/legal unknown-unknowns audit and conditional roadmap | Current evidence audit; owns risks, not product decisions |
 | [`DASHA-ACADEMIC-EVIDENCE.md`](DASHA-ACADEMIC-EVIDENCE.md) | Grouped, design-labeled academic bibliography for creativity, community, recognition, fandom, crypto manipulation and identity boundaries | Current research reference; evidence support, not product authority |
 | [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md) | Raw 30-track Grok research dossier preserved with its evidence labels and uncertainties | Research receipt; verify claims before promoting them into product truth |
-| [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Codex × Claude × Grok debate resolving the next smallest product test | Current decision record; evidence test, not permanent product truth |
+| [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Codex × Claude × Grok debate resolving the next smallest product test | Dated selection rationale; current product truth belongs to the brief, guide and roadmap |
 | [`DASHA-DOCS-SYSTEM-BACKLOG.md`](DASHA-DOCS-SYSTEM-BACKLOG.md) | Ranked backlog for reducing doc contradiction, duplication and maintenance cost | Current operational backlog; owns docs-system improvements only |
 | [`DASHA-KIT-LICENSE.md`](DASHA-KIT-LICENSE.md) · [`LICENSE-KIT`](LICENSE-KIT) | CC0 dedication over the mark, the looks and every Studio export, with the trademark and likeness carve-outs | Current; stated in the Studio, gated |
 | [`dasha-brand.test.mjs`](dasha-brand.test.mjs) | Makes the art direction binding: every look must carry the mark, it must survive GIF scale, the CC0 notice must keep both carve-outs | Current gate |
@@ -58,7 +59,7 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-CODE-DESIGN-REVIEW-2026-08-08.md`](DASHA-CODE-DESIGN-REVIEW-2026-08-08.md) | Code + design review of all surfaces | Current review |
 | [`DASHA-WORKFLOW-ROADMAP-IMPROVE-2026-08-08.md`](DASHA-WORKFLOW-ROADMAP-IMPROVE-2026-08-08.md) | Workflow and roadmap improvement proposals | Current review |
 | [`DASHA-DOMAIN-WEBFLOW-LAUNCH.md`](DASHA-DOMAIN-WEBFLOW-LAUNCH.md) | Current domain IDs, route sources, metadata and live publication gate | Current deployment runbook |
-| [`dasha-sitemap.xml`](dasha-sitemap.xml) | Bounded custom sitemap for Home, Studio and Desk | Prepared; not live |
+| [`dasha-sitemap.xml`](dasha-sitemap.xml) | Bounded custom sitemap for Home, Studio and Desk | Webflow copy not live; Lobby-hosted copy is live |
 | [`dasha-how-to-buy.html`](dasha-how-to-buy.html) | Four-step wallet, mint, Jupiter quote and confirmation guide | Prepared source only; unlinked until a Webflow route exists |
 | [`DASHA-CRYPTO-LANDSCAPE.md`](DASHA-CRYPTO-LANDSCAPE.md) | Current crypto culture-product landscape and pivot tests | Active research map |
 | [`DASHA-PRODUCT-OPTIONS-2026-08-07.md`](DASHA-PRODUCT-OPTIONS-2026-08-07.md) | Ranked product families, falsification tests and current decision | Current product options map |
@@ -71,10 +72,10 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-PIVOT-DECISION-2026-08-06.md`](DASHA-PIVOT-DECISION-2026-08-06.md) | Superseded forecasting-era pivot decision | Historical snapshot |
 | [`DASHA-PRODUCT-STRATEGY.md`](DASHA-PRODUCT-STRATEGY.md) | Positioning, personas, hypotheses, trust contract and business model | Current |
 | [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) | Exact phase gates, metrics, kill criteria and next build order | Current |
-| [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md) | Official server structure, roles, safety controls and launch content | Current |
+| [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md) | Proposed server structure, roles, safety controls and launch content | Blueprint only; no controlled live server established |
 | [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) | Plain-language product definition and immediate scope | Current |
 | [`dasha-landing.html`](dasha-landing.html) | Canonical Webflow homepage embed | Current; live at `/` |
-| [`dasha-simp-board.json`](dasha-simp-board.json) / [`dasha-simp-board.test.mjs`](dasha-simp-board.test.mjs) | Editorial Simp Board contract, Perry founding evidence and anti-fake-scoring/privacy gate; its separate Season Zero experiment is retired | Prepared presentation surface; does not own the next experiment |
+| [`dasha-simp-board.json`](dasha-simp-board.json) / [worktree Board sources](.grok/worktrees/potter/dasha/dasha-simp-score.mjs) | Historical editorial seed plus live measured Board implementation; Perry remains non-measured | Live in-page Board; explicit opt-in and reviewed scoring |
 | [`dasha-simp-oss-scorer.mjs`](dasha-simp-oss-scorer.mjs) / [`dasha-simp-oss-scorer.test.mjs`](dasha-simp-oss-scorer.test.mjs) | Public-GitHub OSS Simp Points scorer and offline abuse/cap fixtures | Prepared; current awards empty |
 | [`dasha-social-card.svg`](dasha-social-card.svg) / [`dasha-social-card.png`](dasha-social-card.png) | Editable source and 1200×630 PNG for home/Desk social previews | Verified checkpoint; not live |
 | [`dasha-meme-studio.html`](dasha-meme-studio.html) / [`dasha-studio-embed.html`](dasha-studio-embed.html) | Canonical Meme Studio authoring page and generated isolated Webflow payload | Current and live. Edit the authoring page, regenerate, paste the embed inline — never the whole document, and no hosted asset |
@@ -90,7 +91,8 @@ Dated research supports these owners. It does not replace them.
 
 ## Current product language
 
-- Product experiment: **Dasha Transmissions**
+- Product system: **Home + Meme Studio + Desk + Lobby + optional X OAuth + opt-in Simp Board**
+- Creative experiment: **Dasha Transmissions / alibi** (unproven; not the whole product)
 - Creation instrument: **Dasha Meme Studio**
 - Critical observed behavior: **portable editable remix handoff**
 - Platform direction: **culture production and portable remix artifacts, earned only after recurrence**
@@ -103,14 +105,12 @@ Avoid “immutable,” “verified track record,” “official Dasha coin,” �
 
 Neither of these is visible from any single agent's view, which is why they are recorded here.
 
-**1. There is a second, divergent homepage in a Grok worktree.**
-`/home/potter/.grok/worktrees/potter/dasha/` holds `dasha-landing.html` at **31,146 bytes** against
-the live source's **14,885**, plus `dasha-simp-board-client.js` and 110 dirty files. It is an
-incomplete OAuth Simp Board attempt whose own receipt stops mid-narration. Grok's words: it "looks
-like a finished task; it is not a clean home merge."
-
-**`/home/potter` is the source of truth.** Merging that worktree wholesale would replace the current
-homepage with unfinished work. Merge or discard it deliberately, file by file, never in bulk.
+**1. Implementation and main-root release truth diverged.**
+`/home/potter/.grok/worktrees/potter/dasha/` now contains the deployed Lobby, OAuth, measured Board,
+claims, score cards, badges, seasons, holder proof and current live audit. The main-root release
+manifest still describes an older Transmission-oriented checkpoint and therefore reports drift.
+Do not merge the worktree wholesale, but do not call it unfinished: use its source and live audit for
+the deployed community stack, and reconcile canonical files deliberately, one owner at a time.
 
 **2. "Official" is one word doing four jobs.**
 The project is official — developed by John Potter with @perryalpha, working directly with Dasha.
@@ -132,6 +132,7 @@ remain correct and are not superseded by the project being official.
 - Home: `https://www.getdasha.com/` — culture landing, verified mint and Jupiter modal.
 - Studio: `https://www.getdasha.com/studio` — canvas generator with PNG export and native-share/X fallback.
 - Desk: `https://www.getdasha.com/dasha` — mint, independent sources, risk, one Jupiter route.
+- Lobby: `https://lobby.getdasha.com` — public chat, optional X OAuth and the Simp Board API/client.
 - Webflow site ID: `5f1458122ba25e70a3ff2bd0`.
 
 **Do not copy live state into this file again.** Everything below was verified on **2026-08-08** by
@@ -153,13 +154,16 @@ Verified live 2026-08-08:
 - **Desk** — clean. No preset amounts, referral parameter, buy-pressure copy or raid link.
 - **All three** — 200, no console errors, no horizontal overflow at 390px, zero serious or critical
   axe violations at mobile and desktop, favicon present, no retired product language.
+- **Lobby/Board** — live with explicit Board join/leave, reviewed claims, score cards, badges,
+  frozen season snapshots (newest 24 retained) and a zero-point dated holder badge. PerryALPHA's founding #1 is
+  disclosed editorial placement, not a measured rank.
 - **Publication works.** The Webflow token authenticates; asset upload, custom-code writes and
   publish all succeed. The 2026-08-07 `401` record is stale — do not re-derive "we cannot publish"
   from it.
 
-Still true and still open: `robots.txt` is empty, `/sitemap.xml` returns 404, and the routes emit no
-canonical or `og:url`. The bounded map is prepared in [`dasha-sitemap.xml`](dasha-sitemap.xml); the
-page-metadata settings are a separate authenticated step from the route bodies, which are current.
+Still true and still open on Webflow: `robots.txt` is empty and `/sitemap.xml` returns 404. The
+Lobby-hosted crawl files return 200. Run current gates for metadata rather than preserving another
+mutable prose snapshot.
 
 ## Verification
 

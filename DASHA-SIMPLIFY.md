@@ -7,7 +7,7 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 
 | Route | Job | Notes |
 |-------|-----|--------|
-| `/` | Transmission entry + seeds + founding Simp acknowledgment + mint + buy + risk + public lines + `@dash_eats` | Transmission 001 is the only participation experiment. The Simp Board remains an in-page editorial presentation surface and has no separate Season Zero, measured identity or score. No remote image tape (brittle hotlinks). No `/how-to-buy` until that page is live. |
+| `/` | Studio entry + Lobby + opt-in Simp Board + mint + buy + risk + public lines + `@dash_eats` | Board rows are measured only after explicit X-linked join; PerryALPHA remains a disclosed non-measured editorial #1. No standalone leaderboard route. No `/how-to-buy` until that page is live. |
 | `/studio` | Create / remix / export | Main product bet. Palette-only canvas; no third-party photo strip. |
 | `/dasha` | Desk: verify, chart, sources, culture stills | Primary photo surface (pbs + Dex CMS). |
 
@@ -22,12 +22,12 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 - Conviction receipts / thesis / forecasting  
 - Discord invite until a real server exists  
 - Telegram (`t.me/dashacommunity`)  
-- Gallery / social feed / accounts / standalone leaderboard route. The explicitly approved in-page Simp Board is the bounded exception.  
+- Gallery / social feed / standalone leaderboard route. The live in-page opt-in Simp Board is the bounded exception.
 
 ## Feature add order (evidence-gated)
 
-1. **Publish disk Studio + home + desk** so live matches verified source.  
-2. Measure export + remix-link reuse + buy handoff (no wallet telemetry required).  
+1. Keep the live Home + Studio + Desk + Lobby + Board system coherent and verifiable.
+2. Measure export + remix-link reuse + Lobby/Board participation + buy handoff without wallet telemetry.
 3. **Remix Relay only** if strangers produce second-generation edits.  
 4. Capsules / kits only if group behavior appears.  
 5. Never revive receipts/thesis.

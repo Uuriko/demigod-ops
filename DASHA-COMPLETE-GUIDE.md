@@ -7,7 +7,7 @@
 
 ## In one minute
 
-Dasha is an open, browser-based cultural project adjacent to the Solana token `$dasha`. Its public website is [getdasha.com](https://www.getdasha.com/). The current product hypothesis is **Dasha Transmissions**: small creative situations made with the **Dasha Meme Studio**, beginning with `make me an alibi.`[^product]
+Dasha is an open, browser-based cultural project adjacent to the Solana token `$dasha`. Its live system is Home + Meme Studio + Desk + public Lobby + optional X OAuth + an opt-in measured Simp Board. [getdasha.com](https://www.getdasha.com/) is the front door; `lobby.getdasha.com` hosts conversation, identity and Board services. **Dasha Transmissions** remains an unproven creative experiment within that system, not the product definition.[^product]
 
 The project has two public jobs:
 
@@ -16,7 +16,7 @@ The project has two public jobs:
 
 The long-term possibility is larger: Dasha could become the first living world built from **open culture objects**—portable, editable media with explicit reuse terms and bounded source context. That is a falsifiable horizon, not a current platform claim.[^horizon]
 
-The live website currently responds on Home, Studio and Desk, but the release manifest is marked **drifted**: production Home and Studio do not match the intended verified artifacts; the sitemap is not live; and document-language verification fails.[^live]
+Fresh 2026-08-08 checks establish Home, Studio and Desk at HTTP 200, plus a live Lobby, OAuth and Board. The Webflow host still has soft crawl lag (`/sitemap.xml` is 404 and `robots.txt` is empty); Lobby-hosted versions return 200. The main-root ship manifest describes an older Transmission checkpoint and therefore reports drift against the newer implementation worktree; it is not current Lobby/Board release truth.[^live]
 
 ## Read this next
 
@@ -30,11 +30,11 @@ The live website currently responds on Home, Studio and Desk, but the release ma
 
 ## What the project is
 
-### Current product
+### Current product system
 
-The current experiment is **Dasha Transmissions**. Each Transmission is intended to provide one bounded situation, one small creative act and a way to preserve editability when the result is passed to someone else.[^transmission]
+The current system has three visitor paths: make/remix in Studio, talk/link X in the Lobby, and opt into reviewed recognition on the Simp Board. Desk and Home provide associated-mint verification, risk context and external Jupiter/market routes. Transmissions proposes bounded creative situations that use Studio; it remains evidence-gated.[^transmission]
 
-Transmission 001 is:
+The first proposed Transmission is:
 
 > make me an alibi.
 
@@ -100,16 +100,12 @@ npm run dasha:ship:status
 npm run dasha:verify:live
 ```
 
-Observed during this guide's preparation on 2026-08-08:
+Observed after the Lobby/Board hardening deployment on 2026-08-08:
 
-- Home returned 200 but failed the current Home contract.
-- Studio returned 200 but failed the current Studio contract.
-- Desk returned 200 and passed its neutral-desk check.
-- `/sitemap.xml` returned 404.
-- Canonical metadata passed the project verifier.
-- Document language did not pass the live verifier.
-- The ship manifest status was `drifted`.
-- The last ship attempt passed local/browser gates and failed post-publish live verification across production and staging Home/Studio.[^live]
+- Home, Studio and Desk returned 200; the current worktree audit was announce-ready with no hard failures.
+- Lobby health, X linking, Board, claims and seasons were live; unauthenticated review, anonymous holder proof and hostile-origin mutations failed closed.
+- Webflow `/sitemap.xml` remained 404 and `robots.txt` empty; Lobby-hosted crawl files returned 200.
+- The main-root ship manifest remained drifted because its contract describes an older Transmission checkpoint. Use the implementation-worktree audit for the current Lobby/Board release and treat mutable identities as receipts.[^live]
 
 No publish is part of this document update.
 
@@ -210,9 +206,9 @@ The visual rules, source-media policy and forbidden patterns live in [DASHA-ART-
 
 ## Simp Board and recognition
 
-The live Simp Board keeps Perry/@PerryALPHA's disclosed founding position as a non-measured editorial row and now supports separately opt-in measured rows through the Lobby's X OAuth session. Members can join or self-remove, submit public evidence for creative, community and open-source contributions, receive fixed reviewed awards, display earned badges, download a browser-rendered score card and view immutable season snapshots.[^simp]
+The live Simp Board keeps Perry/@PerryALPHA's disclosed founding position as a non-measured editorial row and now supports separately opt-in measured rows through the Lobby's X OAuth session. Members can join or self-remove, submit public evidence for creative, community and open-source contributions, receive fixed reviewed awards, display earned badges, download a browser-rendered score card and view frozen season snapshots. Snapshot IDs cannot be overwritten, but only the newest 24 are retained; these are not immutable external records.[^simp]
 
-The optional holder badge uses a short-lived signed Solana message and a current associated-mint check. It sends no transaction, stores only a 28-day badge expiry, publishes no wallet or balance and scores zero. It is status evidence, not identity uniqueness or Sybil resistance.
+The optional holder badge uses a short-lived signed Solana message and an associated-mint check. It sends no transaction, stores only the check time and a 28-day badge expiry, publishes no wallet or balance and scores zero. The displayed date means the wallet held a positive raw token amount at that check—not continuously afterward. It is status evidence, not identity uniqueness or Sybil resistance.
 
 An OSS scoring lane is prepared but inactive. It is designed to recognize reviewed, merged contributions from non-operators using public GitHub evidence and maintainer-applied impact labels. Its authoritative result is empty because no qualifying merged contribution exists.
 

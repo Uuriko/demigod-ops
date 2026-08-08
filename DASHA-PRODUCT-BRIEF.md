@@ -21,24 +21,24 @@ assumption gated real work, and it was wrong. Two things follow:
 
 ## What Dasha is now
 
-Dasha is a Solana culture coin with one product experiment: a recurring participatory culture show powered by the browser-based Studio. The public product has two jobs:
+Dasha is a live Solana culture project with six connected surfaces: Home, Meme Studio, Desk, public Lobby, optional X OAuth and an opt-in measured Simp Board. The public product has two jobs:
 
 1. make `$dasha` easy to understand, verify and buy without deceptive claims;
 2. give people a fun reason to create, return and bring others into the culture.
 
-The live home at `https://www.getdasha.com/` is the front door. It leads to the community conversation, a verified contract, Jupiter, market sources and the deeper `/dasha` desk.
+The live home at `https://www.getdasha.com/` is the front door. It leads to creation/remixing, the Lobby and Board, the associated mint, Jupiter, market sources and the deeper `/dasha` desk. Transmissions/alibi remains one unproven creative experiment inside this system; it is not the definition of the whole product.
 
 ## Scrapped direction
 
 The Thesis Card, conviction receipt, sealed-receipt service, Pair and forecasting/rounds direction are permanently scrapped. They are not secondary features, future fallbacks or active tests. Old files and dated research may remain as archived history only; agents must not integrate, deploy, test or revive them.
 
-## Current product decision
+## Current product system
 
-The product under test is **Dasha Transmissions**: short, bounded situations that invite one creative response, guarantee that a valid first contribution is witnessed and close with a small editorial result. **Dasha Meme Studio is the instrument**, not the whole product. It turns one line into an X-ready image and passes the exact editable state to the next person.
+**Dasha Meme Studio** turns one line into an X-ready image and passes the exact editable state to the next person. The **Lobby** provides one moderated public room with optional X linking. The **Simp Board** is a parallel recognition loop: X OAuth alone never enrolls; users explicitly join or leave; PerryALPHA's founding #1 row is disclosed as editorial and non-measured; joined accounts may submit public creative, community and open-source evidence for review.
 
 New remix state lives in the URL fragment, which browsers do not send in the HTTP request; legacy query links still load and normalize client-side. Native sharing carries the PNG and remix URL together; the X fallback saves the PNG and opens a documented Web Intent containing the editable URL. A materially changed inbound artifact keeps exactly one validated immediate parent snapshot and exposes a local `From` link; this is state ancestry, not proof of identity, authorship, permission or endorsement. A maker can prepare the same look and line as explicit post, story and banner downloads. The output carries a small `getdasha.com` mark, but never a price promise or implied endorsement.
 
-The homepage cold-starts that loop with five curated, editable seed links—one for every Studio look—so a visitor begins from a finished cultural object rather than an empty editor. The prepared **Dasha Simp Board** retains PerryALPHA's disclosed editorial founding spot, but it does not own a separate Season Zero acquisition loop. Transmission 001 is the only next participation experiment. The Board may later present evidenced recognition if the experiment produces real contributions; no account is represented as linked or scored.
+The live Board gives fixed, capped points for recognized creative/community work and the existing OSS schema; follower count, verification, reactions, chat volume, referrals, purchases, balances, bag size and payments score zero. It also provides personal score-card PNGs, earned badges and frozen operator-created season snapshots; IDs cannot be overwritten and only the newest 24 are retained. The optional signed holder badge scores zero. Its dated check proves only that the signing wallet held a positive raw amount of the associated mint at finalized commitment; the 28-day display is not continuous-holding proof or Sybil resistance. The flow sends no transaction and stores or publishes no wallet address or balance.
 
 A separate prepared open-source lane can award honor-only Simp Points for merged work in `Uuriko/dasha-desk`. GitHub supplies public authorship, merge and review evidence; one maintainer-applied impact label supplies a fixed 5/15/40/100/200-point award. Operators, bots, direct pushes, self-approved work and unmerged activity score zero. No current PR qualifies, so the public score remains empty rather than backfilled from commits.
 
@@ -79,12 +79,12 @@ The website may embed Jupiter's official swap plugin with `$dasha` fixed as the 
 
 ## Immediate work
 
-1. Prepare Transmission 001 using the existing Studio and no new platform infrastructure.
+1. Observe the live Studio, Lobby and opt-in Board as separate paths; do not manufacture demand by adding another system.
 2. Use one original, deliberately incomplete starter and one concise instruction: `make me an alibi.`
 3. Observe whether it produces distinct non-operator artifacts, editable handoffs, acknowledgement and a return/remix signal.
 4. Measure view, Studio start, material edit, export, submission, acknowledgement and voluntary return without wallet or position data.
 5. Close the seven-day window with a small static editorial record only if real participation exists; do not manufacture an archive.
-6. Keep accounts, feeds, automated ranking, holder scoring and Discord automation gated on demonstrated activity.
+6. Keep feeds, automated social-engagement ranking, holder scoring and Discord automation gated on demonstrated activity.
 
 ## Truth boundaries
 

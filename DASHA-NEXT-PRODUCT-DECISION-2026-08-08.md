@@ -8,7 +8,7 @@
 
 After this debate, the user disclosed that X OAuth had been configured for the new Lobby and explicitly asked to reuse it for the Simp Board. Live verification on 2026-08-08 confirmed the Lobby reports `xLink: true`. The earlier conclusion that accounts/ranking would require speculative authentication infrastructure is therefore no longer true.
 
-An opt-in measured Board v1 is now prepared in the Lobby worktree. It reuses the same signed session, requires a separate explicit join, gives no points for follower count, verification, social reactions, chat volume, referrals, purchases, balances or bag size, and never stores OAuth tokens in Board state. This is a parallel recognition experiment; it does not replace the finished-seed plus alibi creative test.
+The opt-in measured Board is now live. It reuses the same signed session, requires a separate explicit join, gives no points for follower count, verification, social reactions, chat volume, referrals, purchases, balances or bag size, and never stores OAuth tokens in Board state. Public evidence enters an authenticated review queue; score cards, badges, season snapshots and a zero-point dated holder proof have shipped. This is a parallel recognition experiment; it does not replace the finished-seed plus alibi creative test.
 
 ## Decision
 
@@ -62,8 +62,8 @@ If people edit but consistently discard the editable link, treat image generatio
 
 | Component | Decision |
 |---|---|
-| Simp Board | Not part of acquisition or the creative gate; Perry's disclosed founding acknowledgement may remain editorially separate |
-| Formal submission queue | Not required to learn edit/export demand |
+| Simp Board | Live parallel recognition path; not a prerequisite for creation. Perry's disclosed founding row remains editorially separate from measured ranks |
+| Formal submission queue | Live for Board contribution evidence; still not required to learn edit/export demand |
 | Optional X share intent | May remain, but creates no promise of entry, review or response |
 | Next-day acknowledgement SLA | Do not promise or operationalize before real work exists |
 | Curated closing record | Create only if real contributions independently justify it |

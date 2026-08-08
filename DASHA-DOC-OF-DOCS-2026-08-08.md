@@ -24,7 +24,7 @@
 |----------|------|
 | [`DASHA-DOCS.md`](DASHA-DOCS.md) | Entry map (must stay accurate) |
 | [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) | Comprehensive linked orientation across product, website, operations, research, OSS, safety and history; summarizes but owns no mutable truth |
-| [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Current Codex × Claude × Grok decision record for the smallest next product test |
+| [`DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md`](DASHA-NEXT-PRODUCT-DECISION-2026-08-08.md) | Dated Codex × Claude × Grok selection rationale; current product truth remains in the owner docs |
 | [`DASHA-DOC-OF-DOCS-2026-08-08.md`](DASHA-DOC-OF-DOCS-2026-08-08.md) | This file — role taxonomy |
 | [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) | Work loop, SoT table, gates |
 | [`DASHA-SIMPLIFY.md`](DASHA-SIMPLIFY.md) | Keep/freeze routes + kill list |
@@ -39,6 +39,7 @@
 | [`DASHA-DOCS-SYSTEM-BACKLOG.md`](DASHA-DOCS-SYSTEM-BACKLOG.md) | Documentation-system improvement backlog; no product ownership |
 | [`DASHA-DOMAIN-WEBFLOW-LAUNCH.md`](DASHA-DOMAIN-WEBFLOW-LAUNCH.md) | Domain IDs, routes, publish procedure |
 | [`dasha-desk/docs/DEPLOY.md`](dasha-desk/docs/DEPLOY.md) | Desk build/deploy notes |
+| [`.grok/worktrees/potter/dasha/DASHA-LOBBY.md`](.grok/worktrees/potter/dasha/DASHA-LOBBY.md) | Current Lobby, OAuth, Board, claims, seasons and holder-proof operations |
 
 ## Review pack (2026-08-08)
 
@@ -50,6 +51,8 @@
 | [`DASHA-CODE-DESIGN-REVIEW-2026-08-08.md`](DASHA-CODE-DESIGN-REVIEW-2026-08-08.md) | Code + design review |
 | [`DASHA-WORKFLOW-ROADMAP-IMPROVE-2026-08-08.md`](DASHA-WORKFLOW-ROADMAP-IMPROVE-2026-08-08.md) | Workflow & roadmap proposals |
 | [`docs/dasha-review-2026-08-08/`](docs/dasha-review-2026-08-08/) | Raw Claude/Codex transcripts |
+| [`docs/exchange/DASHA-GROK-DOC-RECONCILIATION-2026-08-08.md`](docs/exchange/DASHA-GROK-DOC-RECONCILIATION-2026-08-08.md) | Raw bounded Grok reconciliation receipt; verify before promotion |
+| [`docs/exchange/DASHA-CLAUDE-DOC-RECONCILIATION-2026-08-08.md`](docs/exchange/DASHA-CLAUDE-DOC-RECONCILIATION-2026-08-08.md) | Raw bounded Claude reconciliation receipt; verify before promotion |
 
 ## Experiment (local only — freeze)
 

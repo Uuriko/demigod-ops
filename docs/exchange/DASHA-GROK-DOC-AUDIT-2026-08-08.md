@@ -1,0 +1,2 @@
+<!-- agent-task: 20260808102926387-2165713-t29rbd; role: grok; completed: 2026-08-08T10:30:13.307Z; raw model output, verify before promotion -->
+I'll run a read-only documentation audit against the worktree, live receipts, and owner docs—no edits or publishes.Continuing through the remaining owner docs and the implementation worktree.Probing live surfaces and comparing owner-doc claims against worktree and production evidence.

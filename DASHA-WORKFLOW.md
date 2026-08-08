@@ -17,6 +17,9 @@ Dasha is the active project. A one-off action on another project does not switch
 | Market research | [`DASHA-CRYPTO-LANDSCAPE.md`](DASHA-CRYPTO-LANDSCAPE.md) | Revisit only when a decision needs new evidence |
 | Public homepage | `dasha-landing.html` | Webflow `/` embed |
 | Meme Studio | `dasha-meme-studio.html` | Webflow `/studio` embed |
+| Lobby + X OAuth | `.grok/worktrees/potter/dasha/dasha-lobby-{worker,mod,x}.mjs` | `https://lobby.getdasha.com` |
+| Simp Board | `.grok/worktrees/potter/dasha/dasha-simp-{score,actions}.mjs` + `dasha-simp-board-client.js` | Homepage `#simp` + Lobby `/simp/*` |
+| Lobby/Board operations | `.grok/worktrees/potter/dasha/DASHA-LOBBY.md` | Wrangler, moderation CLI and live audit |
 | Remix Wall experiment | `dasha-remix-pack.html` | Prepared locally; no live route yet |
 | Landing markup | `dasha-desk/src/body.html` | `src/app.html`, `index.html`, `dist/index.html` |
 | Landing styles | `dasha-desk/src/styles.css` | Same generated surfaces |
@@ -60,14 +63,14 @@ Never edit generated landing files as independent sources. Run `node dasha-desk/
    ```
 
    Run only the checks relevant to the changed lane. The Desk test requires Chrome CDP on `127.0.0.1:9223`.
-6. **Publish verified website checkpoints under standing authorization**
+6. **Publish only when the current request authorizes it**
    - Build first.
    - Record the exact target and artifact.
    - Never substitute an unverified community link.
-   - Publish completed Dasha website changes periodically during long work and at a clean stopping point; include every configured production domain and staging target.
+   - Prepare, gate and read back changes by default. Publish only when the current user request explicitly asks for publication.
    - Do not ship a failing, misleading, security-sensitive or partially migrated state merely because publication is authorized.
    - Verify the public response after publishing.
-   - This standing authority does not cover posts, messages, forms, Discord changes, payments or another project's website.
+   - Prior publication requests do not carry forward. Posts, messages, forms, Discord changes, payments and wallet actions require their own current authorization.
 7. **Handoff**
    - Report what is live, what is only local, verification results and the next unblocked Dasha task.
    - Close disposable automation tabs.
@@ -109,7 +112,9 @@ The manifest owns expected artifact identity; the live verifier owns observed pu
 
 | Date | Decision | Reason |
 |---|---|---|
-| 2026-08-06 | Discord replaces unassociated Telegram as the intended community home | Control and provenance |
+| 2026-08-06 | The unassociated Telegram was rejected; Discord remains a gated blueprint | Control and provenance |
+| 2026-08-08 | Lobby, X OAuth and the opt-in measured Simp Board shipped | Community conversation and reviewed recognition |
+| 2026-08-08 | All publication became current-request-gated | Prevent stale authorization from causing external changes |
 | 2026-08-06 | Dasha Desk became the primary live product | Establish one truthful token surface |
 | 2026-08-07 | Thesis/receipt direction permanently scrapped; culture-production platform selected | Build a repeatable creative and sharing loop instead of forecasting artifacts |
 | 2026-08-06 | Canonical landing source split into body, CSS and JS | One reproducible build serves Webflow, standalone and Pages |

@@ -11,6 +11,7 @@
  *   node dasha-ship.mjs --ship --strict
  *   node dasha-ship.mjs --push       # push embeds only (no publish)
  *   node dasha-ship.mjs --publish    # site publish only
+ *   node dasha-ship.mjs --ship --only=studio   # one surface, still gated and still verified
  *   node dasha-ship.mjs --preflight  # auth/site/domain check only
  *   node dasha-ship.mjs --verify     # curl live markers only
  *   node dasha-ship.mjs --status     # local/live-manifest delta, no network
@@ -36,6 +37,16 @@ const want = {
   strict: args.has('--strict'),
   dry: args.has('--dry-run'),
 };
+
+/* --only=studio (comma-separated) restricts the push to named surfaces.
+   Why this exists: /studio lost its CC0 dedication from production three times on 2026-08-08. Every
+   time, the publish had gone through direct MCP calls rather than this script — because this script
+   was all-or-nothing, and nobody wanted to publish the homepage in order to fix the Studio. So the
+   verified path was the inconvenient one and got bypassed, taking verifyLive() with it.
+   Scoping it means there is no longer a reason to publish around the checks. */
+const only = [...args]
+  .filter((a) => a.startsWith('--only='))
+  .flatMap((a) => a.slice('--only='.length).split(',').map((s) => s.trim()).filter(Boolean));
 
 const SITE = '5f1458122ba25e70a3ff2bd0';
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
@@ -360,8 +371,15 @@ async function verifyLive() {
   log('verify:start');
   const contract = json(join(root, 'dasha-release-contract.json'));
   if (contract?.schema !== 'dasha.release-contract/1') throw new Error('invalid dasha-release-contract.json');
+  /* With --only, verify the surfaces being shipped rather than the whole site. Verifying everything
+     sounds stricter, but it blocks a legitimate one-surface fix whenever any other surface is
+     unpublished — and a safe path that refuses to run is how people end up publishing around it,
+     which is the failure that cost /studio its CC0 dedication three times. */
+  const surfaces = only.length
+    ? Object.entries(contract.surfaces).filter(([surface]) => only.includes(surface))
+    : Object.entries(contract.surfaces);
   const checks = Object.entries(contract.hosts).flatMap(([host, base]) =>
-    Object.entries(contract.surfaces).map(([surface, rule]) => ({ host, surface, url: new URL(rule.path, base).href, ...rule })),
+    surfaces.map(([surface, rule]) => ({ host, surface, url: new URL(rule.path, base).href, ...rule })),
   );
   const out = {};
   if (process.env.DASHA_SHIP_FAKE_LIVE === '1') {
@@ -417,9 +435,14 @@ async function main() {
     if (want.prep) prep();
     const hashes = artifactHashes();
     const published = json(MANIFEST, { hashes: {} });
-    const changed = published.status === 'verified'
+    const detected = published.status === 'verified'
       ? Object.keys(SURFACES).filter((key) => hashes[key] !== published.hashes?.[key])
       : Object.keys(SURFACES);
+    for (const name of only) {
+      if (!SURFACES[name]) throw new Error(`--only=${name} is not a surface. Known: ${Object.keys(SURFACES).join(', ')}`);
+    }
+    const changed = only.length ? detected.filter((key) => only.includes(key)) : detected;
+    if (only.length) log('scope:only', { requested: only, pushing: changed, skipped: detected.filter((k) => !only.includes(k)) });
     if (want.status) {
       const contract = json(join(root, 'dasha-release-contract.json'));
       console.log(JSON.stringify({
@@ -483,7 +506,27 @@ async function main() {
       await publishSite(client);
       receipt.stages.published = true;
       checkpoint(receipt);
-    } else if (want.publish) log('publish:skip', { reason: changed.length ? 'matching successful receipt' : 'no changed surfaces' });
+    } else if (want.publish) {
+      /* An explicit --publish that silently does nothing is how a broken live surface stays broken:
+         the operator believes they published, the exit code is 0, and nobody looks again. If the
+         caller asked for a publish and the receipt says one already happened, that receipt is the
+         thing to distrust — Webflow may hold pushed-but-unpublished content, which is exactly the
+         state /studio was in when its CC0 dedication was missing for the third time. */
+      const reason = changed.length ? 'a previous run recorded publish=true' : 'no surface hash changed';
+      log('publish:skip', { reason, hint: 'pass --force-publish to publish anyway' });
+      /* Only raise when the caller ASKED for --publish explicitly AND there was something to publish
+         that a stale receipt blocked. Nothing-changed is a legitimate no-op, and --ship implies
+         publish, so neither should fail. The dangerous case is narrow: an operator types --publish,
+         gets exit 0, and believes live changed when Webflow still holds unpublished content. */
+      if (args.has('--publish') && changed.length && !args.has('--force-publish') && !want.dry) {
+        throw new Error(`--publish did nothing: ${reason}. Live state was NOT changed. Re-run with --force-publish if you meant it.`);
+      }
+      if (args.has('--force-publish')) {
+        await publishSite(client);
+        receipt.stages.published = true;
+        checkpoint(receipt);
+      }
+    }
     if (want.verify) {
       await verifyLive();
       receipt.stages.verified = true;

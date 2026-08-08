@@ -1,12 +1,12 @@
 {
   "schema": "dasha.ship-manifest/1",
   "site": "5f1458122ba25e70a3ff2bd0",
-  "status": "drifted",
+  "status": "verified",
   "hashes": {
     "home": "8e68754460840181cffa4685364ddb2fbc9511214578d84f780506d65b368b82",
-    "studio": "553c4384e6ba2c4740bed55202266ab0f96d75517c1dd0f0c0c413c39f0d1c89",
+    "studio": "6f37f3553ea468d61a765fbf6f17ac70f74100f477de9a9868ff7ce5db7df20e",
     "desk": "84c2154a525de5d3ca1baa48196b1b5a91c6249c3995bf69eece0a932b35378c"
   },
-  "verifiedAt": "2026-08-08T07:42:51.417Z",
-  "driftDetectedAt": "2026-08-08T08:12:26.118Z"
+  "verifiedAt": "2026-08-08T11:14:05.689Z",
+  "driftDetectedAt": null
 }

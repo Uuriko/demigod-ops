@@ -26,6 +26,12 @@ const ORIGIN = process.argv.includes('--staging')
   ? 'https://johns-awesome-project-39b1b5.webflow.io'
   : 'https://www.getdasha.com';
 
+/* GitHub Pages serves a second live public copy of the Desk, deployed by CI on every push to main.
+   Nothing was watching it: dasha-release-contract.json lists only the Webflow hosts, so this surface
+   could drift or lose its risk disclosures and no gate would notice. It is checked here because it
+   is public, not because it is primary. */
+const PAGES = 'https://uuriko.github.io/dasha-desk/';
+
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 /* The scrapped product. If any of these resurface on a live route, something republished an
    archived source — the same class of accident that caused the CC0 regression. */
@@ -92,6 +98,29 @@ for (const route of ['/', '/studio', '/dasha']) {
     check(seen.text.includes(MINT), `${route}: the mint is not shown`);
   }
 
+  await page.close();
+}
+
+/* The Pages copy of the Desk. Same standard as the Webflow one: the mint must be right and the risk
+   language must be present, because a visitor cannot tell which deployment they landed on. */
+{
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e).slice(0, 90)));
+  await page.setViewport({ width: 1280, height: 900 });
+  const response = await page.goto(PAGES, { waitUntil: 'networkidle2', timeout: 45000 });
+  check([200, 304].includes(response.status()), `pages: HTTP ${response.status()}`);
+  await new Promise((r) => setTimeout(r, 1200));
+  const seen = await page.evaluate(() => document.body.innerText);
+  check(seen.includes(MINT), 'pages: the mint is not shown');
+  check(/can go to zero|lose all/i.test(seen), 'pages: no total-loss disclosure');
+  check(/not financial advice/i.test(seen), 'pages: no "not financial advice"');
+  check(!RETIRED.test(seen), 'pages: the retired product reappeared');
+  const foreign = [...seen.matchAll(/[1-9A-HJ-NP-Za-km-z]{32,44}pump/g)]
+    .map((m) => m[0]).filter((a) => a !== MINT);
+  check(foreign.length === 0, `pages: shows a mint that is not ours — ${foreign[0] || ''}`);
+  check(errors.length === 0, `pages: console errors — ${errors[0] || ''}`);
+  console.log(`pages    served, mint ${seen.includes(MINT) ? 'ok' : 'MISSING'}`);
   await page.close();
 }
 
