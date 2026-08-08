@@ -64,6 +64,15 @@ const SURFACES = {
     file: 'dasha-studio-embed.html',
     label: 'studio',
   },
+  /* The lobby chat, moved off the homepage onto its own page on 2026-08-08. It is a managed surface
+     from the first minute rather than after someone finds it in a census — which is the lesson
+     /how-to-buy taught at some cost. */
+  lobby: {
+    pageId: '6a77870a95e3872a95ef7337',
+    element: 'b1681188-19dd-6175-7472-68887d3c6e10',
+    file: 'dasha-lobby-page.html',
+    label: 'lobby',
+  },
   desk: {
     pageId: '6a74b59530c70741b1c574c4',
     element: 'f4239e35-08c6-0874-27bc-8ce5b8ca547f',
@@ -286,11 +295,41 @@ function strictGate() {
   log('gate:strict:pass');
 }
 
+/* Webflow's OAuth access tokens expire in well under a day, and /tmp/dasha-wf-token.txt is a
+   snapshot of one. On 2026-08-08 that expired four times mid-session, and each time a publish failed
+   with "invalid_token" and had to be rescued by hand — which is exactly the friction that gets a
+   verified path abandoned for a direct API call.
+
+   So the file is treated as a cache, not a source. When an agent's MCP credential store is present
+   and holds a live Webflow token, that wins and the cache is refreshed from it. Nothing is read
+   unless it is there, and nothing is logged — the token never leaves this process except as a
+   Bearer header. */
+function credentialStoreToken() {
+  const store = `${process.env.HOME}/.claude/.credentials.json`;
+  if (!existsSync(store)) return null;
+  try {
+    const oauth = JSON.parse(readFileSync(store, 'utf8'))?.mcpOAuth || {};
+    const entry = Object.entries(oauth).find(([key]) => key.startsWith('webflow'))?.[1];
+    if (!entry?.accessToken) return null;
+    // An expired one is worse than none: it fails after the push, mid-run.
+    if (entry.expiresAt && Date.now() > entry.expiresAt) return null;
+    return entry.accessToken;
+  } catch { return null; }
+}
+
 function token() {
   const env = process.env.DASHA_WF_TOKEN || process.env.WEBFLOW_TOKEN;
   if (env?.trim()) return env.trim();
+
   const p = '/tmp/dasha-wf-token.txt';
-  if (existsSync(p)) return readFileSync(p, 'utf8').trim();
+  const cached = existsSync(p) ? readFileSync(p, 'utf8').trim() : null;
+  const live = credentialStoreToken();
+  if (live && live !== cached) {
+    writeFileSync(p, live, { mode: 0o600 });
+    log('token:refreshed', { from: 'agent credential store' });
+  }
+  if (live) return live;
+  if (cached) return cached;
   throw new Error('No Webflow token. Set DASHA_WF_TOKEN or write /tmp/dasha-wf-token.txt');
 }
 

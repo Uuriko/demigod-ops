@@ -50,6 +50,22 @@
         "Buy pressure",
         "t.me/dashacommunity"
       ]
+    },
+    "lobby": {
+      "path": "/lobby",
+      "required": [
+        "dasha-lobby",
+        "lobby.getdasha.com",
+        "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
+        "jup.ag"
+      ],
+      "forbidden": [
+        "t.me/dashacommunity",
+        "Not affiliated with Dasha",
+        "Can go to zero",
+        "Not financial advice"
+      ],
+      "note": "The enlarge control cannot be checked here: the chat client is fetched from lobby.getdasha.com and injects its own DOM, so it never appears in this page HTML. dasha-lobby-page.test.mjs checks it in a browser, where it is actually observable."
     }
   }
 }

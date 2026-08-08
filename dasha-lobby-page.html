@@ -1,0 +1,195 @@
+<style>
+  /* The lobby, on its own page and at full size.
+
+     It used to be a section on the homepage with a button to enlarge it, which is a tell: a chat
+     that needs an expand button is a chat that was never given enough room. On its own page there is
+     nothing to expand into, so the button is gone rather than hidden — see the note by .lobby-expand-btn.
+
+     Shaped after Phantom's token chats, where the useful idea is that buying is *inside* the
+     conversation rather than a page away: you are talking about the coin, so the thing to do about
+     the coin should be within reach. Hence the buy control in the header, sticky, at every size. */
+  #dasha-lobby-page{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;
+    --line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);
+    display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+    background:var(--ink);color:var(--paper);font:16px/1.5 Arial,Helvetica,sans-serif;
+    background-image:radial-gradient(circle at 84% 2%,rgba(124,77,255,.28),transparent 30rem),
+                     radial-gradient(circle at 4% 78%,rgba(255,59,129,.16),transparent 26rem)}
+  #dasha-lobby-page *{box-sizing:border-box}
+  #dasha-lobby-page a{color:inherit}
+
+  /* Header: who you are talking about, and the one thing you might want to do about it. */
+  .lp-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px clamp(14px,3vw,26px);border-bottom:1px solid var(--line);
+    background:rgba(7,6,8,.92);backdrop-filter:blur(8px)}
+  .lp-back{font-size:14px;font-weight:900;text-decoration:none;min-height:44px;display:inline-flex;align-items:center;gap:7px}
+  .lp-id{display:flex;align-items:baseline;gap:9px;margin-right:auto;min-width:0}
+  .lp-id b{font-size:19px;font-weight:950;letter-spacing:-.03em}
+  .lp-id b span{color:var(--acid)}
+  .lp-id em{font-style:normal;font-size:13px;color:var(--muted);white-space:nowrap}
+  .lp-buy{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;
+    padding:0 20px;border-radius:999px;background:var(--acid);color:var(--ink)!important;
+    font-size:14px;font-weight:950;letter-spacing:.04em;text-transform:uppercase;
+    text-decoration:none!important;box-shadow:3px 3px 0 var(--hot);transition:transform .16s,box-shadow .16s}
+  .lp-buy:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--hot)}
+  /* break-all belongs to the address, not the sentence around it — applied to the whole line it
+     split "check it" into "check i / t". Only the mint needs to break anywhere. */
+  .lp-mint{width:100%;order:9;font:700 11px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
+  .lp-mint a{color:var(--muted);text-underline-offset:3px;word-break:break-all}
+
+  /* The composer, on a page where it is the only thing to type into. The counters sit inline with
+     their fields rather than claiming their own rows: three rows of chrome under a chat is the
+     homepage layout leaking onto a page that has room to be simpler. */
+  #dasha-lobby .lobby-field{gap:2px}
+  #dasha-lobby .lobby-count{font-size:11px;color:var(--muted);text-align:right}
+
+  /* The client ships unstyled on purpose: its host supplies the CSS. On the homepage that host was
+     dasha-landing.html, so lifting the chat onto its own page without these rules produced raw
+     browser inputs under a finished header — which is what the first render looked like, and is why
+     this is copied rather than reinvented. The two section-level rules (.lobby-sec, .lobby-lede)
+     are deliberately left behind: they position a chat inside a homepage section, and this page is
+     not one. Everything below is the client's own vocabulary and belongs with the client; if it ever
+     starts shipping its own stylesheet, delete this block. */
+  .lobby-pin{font-size:13px;line-height:1.5;color:var(--muted)}
+  .lobby-pin strong{color:var(--acid);letter-spacing:.08em;text-transform:uppercase}
+  .lobby-mint{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--paper)}
+  .lobby-status{margin:0;font-size:14px;font-weight:700;color:var(--muted)}
+  .lobby-status[data-kind=ok]{color:var(--acid)}
+  .lobby-status[data-kind=bad]{color:var(--hot)}
+  .lobby-status[data-kind=warn]{color:#ffc857}
+  .lobby-log{min-height:200px;max-height:320px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
+  .lobby-line{display:grid;gap:2px;font-size:15px;line-height:1.4}
+  .lobby-meta{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .lobby-chat .lobby-meta{color:var(--acid)}
+  .lobby-pin .lobby-meta,.lobby-line.lobby-pin .lobby-meta{color:var(--hot)}
+  .lobby-body{overflow-wrap:anywhere;color:var(--paper)}
+  .lobby-form{display:grid;grid-template-columns:minmax(100px,120px) 1fr auto;gap:8px;align-items:start}
+  .lobby-field{display:grid;gap:4px;min-width:0}
+  .lobby-field-text{min-width:0}
+  .lobby-form input,.lobby-form button,.lobby-copy-mint{min-height:48px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);font:inherit;padding:0 12px}
+  .lobby-form button,.lobby-copy-mint{background:var(--acid);color:var(--ink);border-color:var(--acid);font-weight:950;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
+  .lobby-form button:hover,.lobby-copy-mint:hover{filter:brightness(1.05)}
+  .lobby-form button:disabled{opacity:.55;cursor:not-allowed;filter:none}
+  .lobby-copy-mint{min-height:28px;padding:4px 10px;font-size:11px;margin:0 2px;vertical-align:middle}
+  .lobby-count{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.04em}
+  .lobby-body a{color:var(--acid);font-weight:800;text-underline-offset:3px}
+  .lobby-note{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+  .lobby-xbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+  .lobby-x-status{flex:1;min-width:12rem;line-height:1.4;color:var(--muted)}
+  .lobby-x-btn,.lobby-x-unlink{min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:rgba(29,155,240,.2);color:var(--paper);font:inherit;font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  .lobby-x-btn:hover,.lobby-x-unlink:hover{filter:brightness(1.1)}
+  .lobby-x-btn:disabled{opacity:.5;cursor:not-allowed}
+  .lobby-linked .lobby-meta{color:#7ec8ff}
+  .lobby-nick[readonly]{opacity:.9;border-color:rgba(29,155,240,.45)}
+  .lobby-line{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:start}
+  .lobby-line .lobby-meta{grid-column:1/-1}
+  .lobby-presence{margin:0;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acid)}
+  .lobby-nfa{margin:0;font-size:12px;line-height:1.45;color:var(--muted)}
+  .lobby-tools{display:flex;justify-content:flex-end;gap:8px;margin:0}
+  .lobby-expand-btn{min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.06);color:var(--paper);font:inherit;font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  .lobby-expand-btn:hover{border-color:var(--acid);color:var(--acid)}
+  .lobby-expand-btn:focus-visible{outline:3px solid var(--acid);outline-offset:2px}
+  .dasha-lobby.lobby-expanded{position:fixed;inset:12px;z-index:80;max-width:none;width:auto;height:auto;margin:0;padding:16px;border-radius:16px;background:rgba(7,6,8,.97);border:2px solid var(--acid);box-shadow:0 20px 60px rgba(0,0,0,.55);display:grid;grid-template-rows:auto auto auto auto auto auto minmax(0,1fr) auto;gap:10px}
+  .dasha-lobby.lobby-expanded .lobby-log{max-height:none;min-height:0;height:100%}
+  .dasha-lobby.lobby-expanded .lobby-form{margin-top:0}
+  html.lobby-expanded-open,body.lobby-expanded-open{overflow:hidden}
+  .dasha-lobby.lobby-expanded{inset:0;border-radius:0;border-width:0 0 0 0;padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .lobby-pin-body{margin:0;font-size:14px;line-height:1.45;color:var(--paper);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25)}
+  .lobby-empty{margin:auto;padding:24px 12px;text-align:center;color:var(--muted);font-size:15px;line-height:1.5;max-width:28ch}
+  .lobby-line-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .lobby-copy-line,.lobby-remix,.lobby-report{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--acid);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;font:inherit}
+  .lobby-report{color:var(--muted)}
+  .lobby-avatar{width:16px;height:16px;border-radius:999px;vertical-align:middle;margin-right:6px;object-fit:cover}
+  .lobby-handle{color:inherit;text-decoration:none}
+  .lobby-handle:hover{text-decoration:underline;text-underline-offset:3px}
+  .lobby-form{grid-template-columns:1fr}
+  .lobby-form button{width:100%}
+  .lobby-copy-mint{min-height:44px}
+  .micro,.seed-intro,.buy-warning,.buy-plugin-note,.simp-privacy,.oss-lede,.lobby-lede{color:var(--paper)}
+  .lobby-mint{user-select:all}
+  .lobby-log{max-height:340px;padding:14px;gap:12px;scroll-behavior:smooth}
+  .lobby-line{grid-template-columns:1fr;gap:3px;line-height:1.4}
+  .lobby-line .lobby-meta{grid-column:auto}
+  .lobby-form{grid-template-columns:minmax(100px,120px) minmax(0,1fr) auto}
+  .lobby-status{min-height:1.3em;padding:0 2px}
+  .micro,.seed-intro,.source-note,.ca-hint,.buy-warning,.lobby-status,.lobby-meta,.lobby-count,.lobby-note,.lobby-xbar,.lobby-nfa,.lobby-empty,.simp-status,.simp-privacy,.simp-basis,.simp-pts,.simp-me,.simp-season,.lede-mini,.oss-lede,.endband p,footer,footer p{color:var(--muted)}
+  .lobby-form{grid-template-columns:minmax(0,1fr) auto}
+  .lobby-form .lobby-field:first-child{grid-column:1/-1}
+  .lobby-form button{width:auto}
+
+  /* The chat fills whatever is left. */
+  .lp-hold{flex:1 1 auto;display:flex;min-height:0;padding:0 clamp(0px,2vw,26px) 0}
+  #dasha-lobby{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;width:100%;
+    max-width:920px;margin:0 auto}
+  #dasha-lobby .lobby-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+  /* The message list is the page's scroller, not a box inside a page that also scrolls. */
+  #dasha-lobby .lobby-log{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;
+    padding:16px 14px;scrollbar-width:thin}
+  #dasha-lobby .lobby-form{position:sticky;bottom:0;background:rgba(7,6,8,.94);
+    backdrop-filter:blur(8px);padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line)}
+  #dasha-lobby .lobby-text{min-height:48px}
+  #dasha-lobby .lobby-send{min-height:48px}
+
+  /* Gone, not hidden-and-forgotten: there is nothing to expand into on a page that is already the
+     chat. If the client ever stops shipping this button, nothing here breaks. */
+  #dasha-lobby .lobby-expand-btn{display:none!important}
+
+  /* The client renders a strip reading "Can go to zero. Not financial advice. Association is not
+     endorsement. Verify the mint before any swap." Three of those four sentences are copy the
+     operator removed from every other surface on 2026-08-08; the sweep never reached this client
+     because it lives in another tree and deploys through a Cloudflare worker. The fourth is the
+     anti-scam guidance we deliberately kept — and this page already carries it, in the header, next
+     to the mint it refers to. So the strip is redundant here and stale everywhere else; Grok has
+     been asked to reword it at the source. Worth 48px of chat, which is the smaller reason. */
+  #dasha-lobby .lobby-nfa{display:none!important}
+
+  /* Chrome around the conversation, tightened. Every row here was sized for a chat sitting in a
+     homepage section; on a page that is only the chat, they were spending a third of the viewport
+     on furniture. */
+  #dasha-lobby .lobby-pin,#dasha-lobby .lobby-xbar{padding:8px 14px;font-size:13px}
+  #dasha-lobby .lobby-presence,#dasha-lobby .lobby-status{padding:2px 14px;font-size:12px;line-height:1.35}
+  #dasha-lobby .lobby-form{padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+  #dasha-lobby .lobby-tools{gap:8px}
+
+  @media (max-width:600px){
+    .lp-id em{display:none}
+    .lp-buy{padding:0 15px;font-size:13px}
+    .lp-hold{padding:0}
+  }
+  @media (prefers-reduced-motion:reduce){.lp-buy{transition:none}}
+</style>
+
+<div id="dasha-lobby-page">
+  <header class="lp-top">
+    <a class="lp-back" href="/">← $dasha</a>
+    <span class="lp-id"><b>$<span>dasha</span> lobby</b><em>Public. No wallet, no account.</em></span>
+    <a class="lp-buy buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a>
+    <span class="lp-mint">Mint <a href="/dasha#dd-mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</a> — check it before you buy.</span>
+  </header>
+
+  <div class="lp-hold">
+    <div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
+  </div>
+</div>
+
+<script src="https://lobby.getdasha.com/client/lobby.js" defer></script>
+<script>
+/* The buy control, wired the same way the homepage does it: the Jupiter plugin is a megabyte, so it
+   loads only once someone shows intent, and the anchor is a real jup.ag link the whole time. If the
+   plugin never loads, is blocked, or errors, the button still buys — it just leaves the page, which
+   is the honest fallback rather than a dead click. */
+(()=>{const mint='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+let asked=false;const load=()=>{if(asked)return;asked=true;
+  const s=document.createElement('script');s.src='https://plugin.jup.ag/plugin-v1.js';s.async=true;document.head.appendChild(s)};
+for(const el of document.querySelectorAll('.buy-dasha'))
+  for(const ev of ['pointerenter','focus','touchstart'])el.addEventListener(ev,load,{once:true,passive:true});
+/* Someone reading a chat about a coin is already showing intent, so start fetching once they have
+   been here a moment. Late enough to cost nothing on arrival, early enough to be ready on tap. */
+setTimeout(load,4000);
+for(const el of document.querySelectorAll('.buy-dasha'))el.addEventListener('click',e=>{
+  if(!window.Jupiter?.init)return;
+  try{window.Jupiter.init({formProps:{initialInputMint:'So11111111111111111111111111111111111111112',
+    initialOutputMint:mint,fixedMint:mint},branding:{name:'Dasha'},defaultExplorer:'Solana Explorer'});
+    e.preventDefault()}catch{}});
+})()
+</script>
