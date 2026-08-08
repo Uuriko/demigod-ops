@@ -7,16 +7,42 @@
  * gradients and images entirely, which is the single most common way a design fails contrast. Every
  * Dasha surface puts type over radial gradients, so the one number nobody had was the real one.
  *
- * Method: for each visible text element, read its computed colour, make the text transparent so the
- * background is exposed, screenshot that element's box, then compute contrast against the WORST
- * pixel under it — not the average, because WCAG is a floor, not a mean.
+ * Method, and the three things it took to make the number trustworthy:
+ *
+ *   1. Tag every candidate with a unique attribute, and address it by that. The first version of
+ *      this file found elements by matching their text, which is ambiguous — a wrapper and its
+ *      child often share the same first 34 characters. It regularly blanked the wrong node, left
+ *      the real glyphs in the screenshot, and then measured the text against itself. That is what
+ *      "cream on cream, 1.25:1" means when you see it: an instrument fault, not a design fault.
+ *
+ *   2. Mask the glyphs on the ENTIRE page, once, then capture. Masking only the target's subtree is
+ *      not enough: the home headline runs at line-height .86, so its own lines overlap, and the
+ *      cream line above bled into the acid line below and was measured as its background — acid on
+ *      cream, 1.03:1, on type that is actually acid on near-black. With every glyph on the page
+ *      hidden, whatever is left in the capture is by definition background. Backgrounds, borders and
+ *      images are untouched, because those ARE what sits behind the text.
+ *
+ *   3. Composite alpha. Type set in rgba(...,.78) is not that colour; it is that colour blended
+ *      over whatever is behind it. Measuring the declared value reports a contrast nobody sees.
+ *
+ *   4. Let the browser do the geometry. Two earlier versions hand-computed a clip rect for
+ *      page.screenshot() and both were wrong in ways that produced confident, plausible, entirely
+ *      fictional failures — a nav button that is ink on acid (16:1) was reported at 1.10:1 because
+ *      the clip landed somewhere else on the page. ElementHandle.screenshot() scrolls the element in
+ *      and clips to its own box, so there is no coordinate convention left to get wrong.
+ *
+ * Then: crop a 1px border off the capture so a neighbour's edge cannot leak in, and take the WORST
+ * sampled pixel, because WCAG is a floor, not a mean.
+ *
+ * The instrument checks itself: on every page at least one node must measure above 8:1. Dasha is
+ * ink-on-acid somewhere on all three routes, so if nothing clears 8:1 the clip is misaligned again
+ * and the whole run is noise rather than a design report.
  *
  * Thresholds are WCAG AA: 4.5:1 for body text, 3:1 for large text (>=24px, or >=18.66px bold).
  *
  *   node dasha-contrast.test.mjs             # live routes
  *   node dasha-contrast.test.mjs --local     # local sources instead
  */
-import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
@@ -28,7 +54,12 @@ const ratio = (a, b) => {
   const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (l1 + 0.05) / (l2 + 0.05);
 };
-const parseRGB = (s) => (s.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+const rgba = (s) => {
+  const n = (s.match(/[\d.]+/g) || []).map(Number);
+  return { rgb: n.slice(0, 3), a: n.length > 3 ? n[3] : 1 };
+};
+// Semi-transparent type is its declared colour composited over the pixel behind it.
+const over = (fg, alpha, bg) => fg.map((c, i) => c * alpha + bg[i] * (1 - alpha));
 
 let servers = [];
 async function serve(file) {
@@ -43,6 +74,7 @@ const targets = local
   ? [['home', await serve('dasha-landing.html')], ['studio', await serve('dasha-meme-studio.html')]]
   : [['home', 'https://www.getdasha.com/'], ['studio', 'https://www.getdasha.com/studio'], ['desk', 'https://www.getdasha.com/dasha']];
 
+const ATTR = 'data-dasha-contrast';
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
 const findings = [];
 
@@ -53,78 +85,176 @@ for (const [name, url] of targets) {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
     await new Promise((r) => setTimeout(r, 1500));
 
-    const items = await page.evaluate(() => {
+    // Every element that renders its own text, tagged so it can be addressed unambiguously later.
+    const items = await page.evaluate((attr) => {
       const out = [];
+      let n = 0;
       const walk = (root) => {
         for (const el of root.querySelectorAll('*')) {
           if (el.shadowRoot) walk(el.shadowRoot);
-          const direct = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 1);
+          const direct = [...el.childNodes].some((x) => x.nodeType === 3 && x.textContent.trim().length > 1);
           if (!direct) continue;
           const cs = getComputedStyle(el);
           if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > innerHeight * 3) continue;
           const size = parseFloat(cs.fontSize);
           const bold = Number(cs.fontWeight) >= 700;
+          el.setAttribute(attr, String(n));
           out.push({
-            text: el.textContent.trim().slice(0, 34),
+            id: n++,
+            text: el.textContent.trim().replace(/\s+/g, ' ').slice(0, 34),
+            sel: el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/).join('.') : ''),
             color: cs.color,
             size, bold,
             large: size >= 24 || (bold && size >= 18.66),
-            box: { x: Math.max(0, r.x), y: Math.max(0, r.y), w: Math.min(r.width, 1600), h: Math.min(r.height, 400) },
           });
         }
       };
       walk(document);
-      return out.slice(0, 60);
+      return out;
+    }, ATTR);
+
+    /* Every glyph on the page goes transparent — including pseudo-element text and the outlined
+       -webkit-text-stroke type, which text-fill-color alone does not hide. Colour only, so layout and
+       the Range rects measured below are unchanged. */
+    await page.evaluate(() => {
+      /* The landing sets html{scroll-behavior:smooth}, which makes scrollIntoView animate — every
+         rect read straight afterwards is the pre-scroll position, and the viewport clamp below then
+         throws the element away. Two thirds of the page went unmeasured until this line existed. */
+      const css = `html{scroll-behavior:auto!important}
+        *,*::before,*::after{color:transparent!important;-webkit-text-fill-color:transparent!important;
+        -webkit-text-stroke-color:transparent!important;text-shadow:none!important;caret-color:transparent!important}`;
+      const inject = (root) => {
+        const style = document.createElement('style');
+        style.textContent = css;
+        (root === document ? document.head : root).appendChild(style);
+      };
+      inject(document);
+      const walk = (root) => {
+        for (const el of root.querySelectorAll('*')) if (el.shadowRoot) { inject(el.shadowRoot); walk(el.shadowRoot); }
+      };
+      walk(document);
     });
 
+    // A shadow root is not reachable by document.querySelector, so resolve through the same walk.
+    const resolve = `(id) => {
+      const hit = [];
+      const walk = (root) => {
+        const found = root.querySelector('[${ATTR}="' + id + '"]');
+        if (found) hit.push(found);
+        for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+      };
+      walk(document);
+      return hit[0] || null;
+    }`;
+
+    let measured = 0, best = 0;
+    const oversize = [];
     for (const item of items) {
-      // Expose the background: hide the glyphs, keep the layout.
-      await page.evaluate((t) => {
-        const all = [...document.querySelectorAll('*')].flatMap((e) => (e.shadowRoot ? [e, ...e.shadowRoot.querySelectorAll('*')] : [e]));
-        const el = all.find((e) => e.textContent.trim().slice(0, 34) === t);
-        if (el) { el.dataset.dashaPrev = el.style.color; el.style.color = 'transparent'; }
-      }, item.text);
+      const handle = (await page.evaluateHandle(`(${resolve})(${item.id})`)).asElement();
+      if (!handle) continue;
+      /* Where the glyphs actually are, in the capture's own coordinates. The element BOX is not the
+         answer: Dasha's buttons are pills, so the corners of their bounding box are page background
+         that no text is ever drawn over. Measuring the box reported the ink-on-acid CTA — a genuine
+         16:1 — as 1.10:1, because the worst pixel in the box was a rounded corner. Range rects give
+         the line boxes of this element's own direct text and nothing else. */
+      const lines = await handle.evaluate((el) => {
+        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });  // same scroll state as the capture
+        const b = el.getBoundingClientRect();
+        // Parked offscreen (skip links live at x:-9999) or too small to read: nobody sees it.
+        if (b.width < 6 || b.height < 6 || b.right <= 0 || b.left >= document.documentElement.scrollWidth) return [];
+        /* Wider or taller than the viewport: ElementHandle.screenshot() expands the viewport to fit,
+           which reflows the page, so the capture no longer matches the rects measured here. The home
+           ticker's scrolling track is 1454px in a 1440px viewport and produced a confident 1.00:1 on
+           text that is ink on an acid strip. Not measurable this way; counted and reported, not hidden. */
+        if (b.width > innerWidth || b.height > innerHeight) return 'oversize';
+        /* Clip to every ancestor that hides overflow. A text node reports client rects for text that
+           an ancestor has clipped away — the home ticker's track is twice its container's width and
+           scrolls under overflow:hidden, so half its rects describe pixels that are never painted.
+           Sampling those found page background under the text and called it ink on ink, 1.00:1. */
+        /* The viewport is a clip too. The ticker's track runs from x:-84 to x:1370 mid-animation, and
+           there is no page left of zero to photograph — those pixels come back black and read as ink
+           on ink. Safe to clamp here only because we scrolled the element in just above. */
+        let clip = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+        for (let p = el.parentElement; p; p = p.parentElement) {
+          const cs = getComputedStyle(p);
+          if (cs.overflow === 'visible' && cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+          const pr = p.getBoundingClientRect();
+          clip = { l: Math.max(clip.l, pr.left), t: Math.max(clip.t, pr.top),
+                   r: Math.min(clip.r, pr.right), b: Math.min(clip.b, pr.bottom) };
+        }
+        /* Rects for short character spans, not whole lines. A line rect is the axis-aligned box of
+           its text, and Dasha rotates things — the ticker sits at -1deg, so across 1440px its line
+           box overshoots the acid strip by ~25px at each corner, and those corners are page
+           background. That read as ink on ink, 1.00:1, on text that is ink on acid everywhere. A
+           short span's box hugs the glyphs: over ~30px the same rotation drifts half a pixel. */
+        const out = [];
+        for (const node of el.childNodes) {
+          if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+          const len = node.textContent.length;
+          const chunk = Math.max(3, Math.ceil(len / 40));
+          for (let i = 0; i < len; i += chunk) {
+            const range = document.createRange();
+            range.setStart(node, i);
+            range.setEnd(node, Math.min(len, i + chunk));
+            if (!range.toString().trim()) continue;
+            for (const r of range.getClientRects()) {
+              const l = Math.max(r.left, clip.l), t = Math.max(r.top, clip.t);
+              const w = Math.min(r.right, clip.r) - l, hh = Math.min(r.bottom, clip.b) - t;
+              if (w < 3 || hh < 3) continue;
+              out.push({ x: l - b.x, y: t - b.y, w, h: hh });
+            }
+          }
+        }
+        return out;
+      });
+      if (lines === 'oversize') { oversize.push(item.text); await handle.dispose(); continue; }
+      if (!lines.length) { await handle.dispose(); continue; }
 
       let worst = Infinity, worstPx = null;
       try {
-        const shot = await page.screenshot({
-          clip: { x: item.box.x, y: item.box.y, width: Math.max(4, item.box.w), height: Math.max(4, item.box.h) },
-          encoding: 'base64',
-        });
-        const px = await page.evaluate(async (b64) => {
+        const shot = await handle.screenshot({ encoding: 'base64' });
+        const px = await page.evaluate(async (b64, rects) => {
           const img = new Image();
           img.src = 'data:image/png;base64,' + b64;
           await img.decode();
           const c = document.createElement('canvas');
           c.width = img.width; c.height = img.height;
-          c.getContext('2d').drawImage(img, 0, 0);
-          const d = c.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
           const out = [];
-          const step = Math.max(4, Math.floor(d.length / 4 / 400)) * 4;
-          for (let i = 0; i < d.length; i += step) out.push([d[i], d[i + 1], d[i + 2]]);
+          for (const r of rects) {
+            // Inset 1px: a line box's own edge picks up the neighbouring element's antialiasing.
+            const x = Math.max(0, Math.round(r.x) + 1), y = Math.max(0, Math.round(r.y) + 1);
+            const w = Math.min(img.width - x, Math.round(r.w) - 2), h = Math.min(img.height - y, Math.round(r.h) - 2);
+            if (w < 1 || h < 1) continue;
+            const d = ctx.getImageData(x, y, w, h).data;
+            const step = Math.max(1, Math.floor(d.length / 4 / 400)) * 4;
+            for (let i = 0; i < d.length; i += step) if (d[i + 3] > 8) out.push([d[i], d[i + 1], d[i + 2]]);
+          }
           return out;
-        }, shot);
-        const fg = parseRGB(item.color);
+        }, shot, lines);
+        const { rgb, a } = rgba(item.color);
         for (const bg of px) {
-          const r = ratio(fg, bg);
+          const r = ratio(a < 1 ? over(rgb, a, bg) : rgb, bg);
           if (r < worst) { worst = r; worstPx = bg; }
         }
+        if (px.length) measured++; else worst = Infinity;
       } catch { worst = Infinity; }
+      await handle.dispose();
 
-      await page.evaluate((t) => {
-        const all = [...document.querySelectorAll('*')].flatMap((e) => (e.shadowRoot ? [e, ...e.shadowRoot.querySelectorAll('*')] : [e]));
-        const el = all.find((e) => e.textContent.trim().slice(0, 34) === t);
-        if (el) el.style.color = el.dataset.dashaPrev || '';
-      }, item.text);
-
+      if (worst !== Infinity && worst > best) best = worst;
       const need = item.large ? 3 : 4.5;
       if (worst < need) {
-        findings.push({ route: name, device, text: item.text, color: item.color, size: Math.round(item.size), need, got: worst, bg: worstPx });
+        findings.push({ route: name, device, text: item.text, color: item.color, sel: item.sel,
+          size: Math.round(item.size), need, got: worst, bg: worstPx });
       }
     }
-    console.log(`${name.padEnd(7)} ${device.padEnd(8)} checked ${items.length} text nodes`);
+    console.log(`${name.padEnd(7)} ${device.padEnd(8)} measured ${measured}/${items.length} text nodes, best ${best.toFixed(1)}:1`
+      + (oversize.length ? `  [${oversize.length} wider than the viewport, not measurable: ${oversize.map((t) => JSON.stringify(t.slice(0, 18))).join(', ')}]` : ''));
+    if (measured < 5) { console.error(`${name}/${device}: only ${measured} nodes measured — the harness did not really run`); process.exitCode = 1; }
+    /* Self-check. Dasha puts ink on acid on every route, so something must clear 8:1. If nothing
+       does, the clip is landing on the wrong pixels and every finding below is fiction. */
+    if (best < 8) { console.error(`${name}/${device}: nothing cleared 8:1 (best ${best.toFixed(2)}) — the clip is misaligned, findings are not trustworthy`); process.exitCode = 1; }
     await page.close();
   }
 }
@@ -135,7 +265,7 @@ for (const s of servers) { s.closeAllConnections?.(); s.close(); }
 if (findings.length) {
   console.error(`\n${findings.length} text element(s) below WCAG AA against the worst pixel behind them:\n`);
   for (const f of findings.sort((a, b) => a.got - b.got)) {
-    console.error(`  ${f.got.toFixed(2)}:1 (needs ${f.need}:1)  ${f.route}/${f.device}  ${f.size}px  ${f.color} on rgb(${f.bg})\n      "${f.text}"`);
+    console.error(`  ${f.got.toFixed(2)}:1 (needs ${f.need}:1)  ${f.route}/${f.device}  ${f.size}px  ${f.color} on rgb(${f.bg})\n      ${f.sel}\n      "${f.text}"`);
   }
   process.exit(1);
 }

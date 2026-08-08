@@ -490,7 +490,7 @@ async function main() {
     const needsWebflow =
       !want.dry &&
       (want.preflight ||
-        (want.push && pending.length > 0) ||
+        (want.push && (pending.length > 0 || want.publish)) ||  // publish re-pushes every surface
         (want.publish && changed.length > 0 && !receipt.stages.published));
     if (needsWebflow) {
       client = await mcpClient();
@@ -500,7 +500,16 @@ async function main() {
         checkpoint(receipt);
       }
     }
-    if (want.push && pending.length) await pushEmbeds(client, pending, receipt);
+    /* Before a site-wide publish, push EVERY surface in scope — not just the changed ones.
+       publish_site publishes whatever is staged in Webflow, including drafts this script never wrote.
+       On 2026-08-08 a --ship that legitimately skipped /studio (hash unchanged) published a stale
+       Designer draft of it instead: different CSS, and no CC0 dedication. The hash delta says what
+       changed locally; it says nothing about what someone else left staged. Pushing an unchanged
+       surface costs one API call and makes live match local by construction. */
+    const toPush = want.publish
+      ? [...new Set([...pending, ...Object.keys(SURFACES).filter((key) => !only.length || only.includes(key))])]
+      : pending;
+    if (want.push && toPush.length) await pushEmbeds(client, toPush, receipt);
     else if (want.push) log('push:skip', { reason: 'no changed surfaces' });
     if (want.publish && changed.length && !receipt.stages.published) {
       await publishSite(client);

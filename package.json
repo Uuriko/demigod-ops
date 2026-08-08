@@ -131,7 +131,8 @@
     "dasha:ship:verify": "node dasha-ship.mjs --verify",
     "dasha:ship:test": "node dasha-ship.test.mjs && node dasha-product-coherence.test.mjs",
     "dasha:test:live": "node dasha-live.test.mjs",
-    "dasha:test:brand": "node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs"
+    "dasha:test:brand": "node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs",
+    "dasha:test:contrast": "node dasha-contrast.test.mjs --local"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",
