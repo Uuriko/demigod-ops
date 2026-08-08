@@ -6,7 +6,15 @@
 
 **Website truth:** run `bin/dg truth`; never copy a release version into this entry card · [state](DEMIGOD-COMPRESSED-STATE.md) · website+startup only (no auto-DM)
 
-**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** Orca orchestration is primary for ongoing work (Linux: `orca-ide`, never `/usr/bin/orca`). `ask-claude` / `grok-ask` are stateless fallbacks; the old swarm drainers are gone. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
+**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** `bin/dg-bus` is the primary local task bus, built on the stateless `ask-claude`, `grok-ask` and `codex-ask` adapters with filesystem receipts. No external orchestration runtime. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
+
+## Dasha standing publish authority (2026-08-07)
+
+- Dasha is the active project until the user explicitly switches projects; start with [`DASHA-DOCS.md`](DASHA-DOCS.md) and [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md).
+- The Dasha Thesis Card, receipts, Pair and forecasting/rounds direction are permanently scrapped. Old files are archived evidence only: do not test, deploy, integrate, rename or revive them.
+- Completed Dasha website changes are standing-authorized for publication. After relevant checks pass, publish coherent checkpoints to every configured Dasha production domain and staging, then verify the live result.
+- Publish periodically during longer Dasha website work and once more at a clean stopping point. Do not publish knowingly broken, misleading, security-sensitive, or partially migrated states.
+- This authority covers Dasha website deployment only. Outbound messages, posts, forms, community-server changes, payments, and Demigod publishing keep their existing request gates.
 
 ## User communication (standing — 2026-07-15)
 
@@ -56,7 +64,7 @@ Game sources remain on disk; they are **archived from agent work**, not deleted.
 1. Read `DEMIGOD-AGENTS.md` before multi-file Demigod work.
 2. One canonical file per task (`demigod-*` sources).
 3. Run `npm run demigod:verify:all` (or targeted `demigod:verify:live` / `demigod:verify:source`).
-4. External publish is current-request-gated: prepare and verify by default; publish only when the current user request explicitly asks for it.
+4. Demigod external publish is current-request-gated: prepare and verify by default; publish only when the current user request explicitly asks for it. Dasha uses the standing rule above.
 5. Close extra CDP tabs when done; keep Designer + live + Grok within tab budget.
 
 ## MCP
@@ -119,7 +127,7 @@ JSON: `/tmp/dg-busy/control-plane.json` · API: `GET /api/control`
 
 ## Standing autonomy (local, no outbound)
 
-Agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions. Fable/Claude are advisory; verify against disk. **Publish / outbound / money still need current-request authorization.**
+Agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions. Fable/Claude are advisory; verify against disk. **Dasha website publication follows its standing rule above; other publishing, outbound actions, and money still need current-request authorization.**
 
 ## Ponytail — REQUIRED for ALL agents (Grok, Claude, Fable, Codex, Cursor, Heavy)
 

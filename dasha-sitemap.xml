@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bounded sitemap for getdasha.com. Paste these exact contents into Webflow's custom sitemap field
+  (Site settings -> SEO); leave auto-generation OFF until the old project's published-page inventory
+  is proven clean, or it will advertise legacy routes nobody has reviewed.
+
+  Only the three real routes. No /capsule: the Culture Capsule has no public route. No staging URLs.
+  No modification dates: there is no independently maintained timestamp, and inventing one is a
+  claim we cannot support. A sitemap is a discovery hint, not a ranking promise, and it does not
+  remove old URLs — inventory, unpublish or noindex those separately.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.getdasha.com/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/studio</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/dasha</loc>
+    <priority>0.8</priority>
+  </url>
+</urlset>

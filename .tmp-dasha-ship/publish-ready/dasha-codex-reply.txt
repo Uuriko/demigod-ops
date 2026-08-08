@@ -1,0 +1,7 @@
+1. **Grok:** Finalize one atomic, publish-ready disk checkpoint for Home, Studio, Desk, and `/how-to-buy`, including intended cross-links and exact Webflow insertion order. Keep `/how-to-buy` links out of any separately publishable artifact until that route exists.
+
+2. **Claude:** Red-team the checkpoint for product-scope and trust-copy violations: retired Pair/Rounds/receipts, unsupported safety or affiliation claims, Telegram, referral/FOMO language, and dead-link exposure.
+
+3. **Codex:** Own deterministic verification: run relevant build/tests, inspect every outbound URL and mint value, confirm generated Desk files match canonical sources, and produce a concise pass/fail deployment manifest. No feature work.
+
+4. **Risk if wrong:** The team may polish deployment readiness while the higher-value move is another Studio/remix experiment. More seriously, non-atomic publication could expose `/how-to-buy` links before the route exists or reintroduce misleading token claims.

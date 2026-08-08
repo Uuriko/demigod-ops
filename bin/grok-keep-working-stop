@@ -1,34 +1,82 @@
 #!/usr/bin/env bash
 # Block turn-end while /tmp/dg-busy/KEEP_WORKING exists (max 8/turn built-in).
 # Only gates reason=end_turn. Caps re-prompt spam via stopHookActive counter file.
+#
+# Scope: Demigod / trydemigod.com only. Never hijack Dasha (or other non-Demigod)
+# sessions — those products share the monorepo worktree layout but are not this goal.
 set -euo pipefail
 input=$(cat || true)
 BUSY="${DEMIGOD_BUSY:-/tmp/dg-busy}"
-reason=$(printf '%s' "$input" | python3 -c 'import sys,json
-try:
-  d=json.load(sys.stdin)
-  print(d.get("reason") or "")
-except Exception:
-  print("")
-' 2>/dev/null || true)
-active=$(printf '%s' "$input" | python3 -c 'import sys,json
-try:
-  d=json.load(sys.stdin)
-  print("1" if d.get("stopHookActive") else "0")
-except Exception:
-  print("0")
-' 2>/dev/null || true)
 
-if [[ "$reason" != "end_turn" ]]; then
+# Parse stop-hook payload fields we care about
+eval "$(printf '%s' "$input" | python3 -c '
+import sys, json, shlex
+reason, active, cwd, workspace = "", "0", "", ""
+try:
+    d = json.load(sys.stdin)
+    reason = str(d.get("reason") or "")
+    active = "1" if d.get("stopHookActive") else "0"
+    cwd = str(d.get("cwd") or d.get("working_directory") or "")
+    workspace = str(
+        d.get("workspace")
+        or d.get("workspace_root")
+        or (d.get("session") or {}).get("cwd")
+        or ""
+    )
+except Exception:
+    pass
+print("reason=" + shlex.quote(reason))
+print("active=" + shlex.quote(active))
+print("cwd=" + shlex.quote(cwd))
+print("workspace=" + shlex.quote(workspace))
+' 2>/dev/null || true)"
+
+if [[ "${reason:-}" != "end_turn" ]]; then
   exit 0
 fi
 if [[ ! -f "$BUSY/KEEP_WORKING" ]]; then
   exit 0
 fi
+
+# Hard off-switch without deleting the goal flag
+if [[ -f "$BUSY/KEEP_WORKING.skip" ]] || [[ -f "$BUSY/SKIP_DEMIGOD_KEEP_WORKING" ]]; then
+  exit 0
+fi
+
+# Resolve session path: payload cwd/workspace, else process PWD
+path="${cwd:-}"
+[[ -z "$path" ]] && path="${workspace:-}"
+[[ -z "$path" ]] && path="${PWD:-}"
+path_lc=$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')
+
+# Dasha / non-Demigod product sessions: never inject trydemigod design work
+is_dasha=0
+case "$path_lc" in
+  *dasha*|*getdasha*) is_dasha=1 ;;
+esac
+if [[ "$is_dasha" -eq 0 && -n "$path" ]]; then
+  if [[ -f "$path/DASHA-BIBLE.md" || -f "$path/DASHA-TASKS-PRIORITIZED.md" || -f "$path/dasha-landing.html" ]]; then
+    # Only treat as Dasha-scoped when not clearly the home Demigod SoR root alone.
+    # Worktrees named */dasha* already matched above; this catches flat Dasha roots.
+    if [[ ! -f "$path/DEMIGOD-KEEP-WORKING-PROMPT.md" ]] || [[ -f "$path/.dasha-scope" ]]; then
+      is_dasha=1
+    fi
+  fi
+fi
+# Explicit per-checkout opt-out / opt-in
+if [[ -n "$path" && -f "$path/.dasha-scope" ]]; then
+  is_dasha=1
+fi
+if [[ -n "$path" && -f "$path/.demigod-keep-working" ]]; then
+  is_dasha=0
+fi
+
+if [[ "$is_dasha" -eq 1 ]]; then
+  exit 0
+fi
+
 # After several blocks this turn, allow stop so scheduler can re-wake next cycle
 # (platform hard-caps at 8; we soft-cap at 4 to leave room)
-count_file="$BUSY/keep-working-stop-count.$$"
-# use session-scoped if available
 sid="${GROK_SESSION_ID:-anon}"
 count_file="$BUSY/keep-working-stop-count.${sid}"
 n=0
@@ -40,10 +88,9 @@ else
 fi
 echo "$n" >"$count_file"
 if [[ "$n" -ge 4 ]]; then
-  # allow stop; scheduler / useful-loop will continue work
   exit 0
 fi
-# Prefer concrete next work
-next="Continue the standing KEEP_WORKING goal: raise trydemigod.com design quality (type, space, dual-path, honest copy, nav clarity). Run bin/dg truth; fix highest-impact disk design defect without publish; leave verify green; do not mark goals complete until user clears KEEP_WORKING."
+
+next="Continue the standing KEEP_WORKING goal: raise trydemigod.com design quality (type, space, dual-path, honest copy, nav clarity). Run bin/dg truth; fix highest-impact disk design defect without publish; leave verify green; do not mark goals complete until user clears KEEP_WORKING. Skip entirely if this session is Dasha/getdasha work."
 printf '%s\n' "{\"decision\":\"block\",\"reason\":$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$next")}"
 exit 0

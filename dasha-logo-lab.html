@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dasha mark — candidates</title>
+<style>
+  :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.18)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif}
+  .wrap{width:min(1180px,calc(100% - 40px));margin:0 auto;padding:32px 0 64px}
+  h1{margin:0 0 6px;font-size:44px;line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:900}
+  .lede{margin:0 0 30px;color:rgba(244,237,219,.7);font-size:15px;max-width:70ch;line-height:1.5}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(244,237,219,.55);
+    padding:0 0 10px;font-weight:900}
+  td{padding:14px 10px 14px 0;border-top:1px solid var(--line);vertical-align:middle}
+  .name{font-weight:900;font-size:15px;text-transform:uppercase;letter-spacing:.02em;width:120px}
+  .note{color:rgba(244,237,219,.55);font-size:12px;line-height:1.45;max-width:34ch}
+  .swatch{display:flex;align-items:center;gap:16px}
+  .onlight{background:var(--paper);padding:6px;display:inline-flex}
+  .zoom{image-rendering:pixelated;width:64px;height:64px;border:1px solid var(--line)}
+  .cap{font-size:10px;color:rgba(244,237,219,.45);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+  figure{margin:0;text-align:center}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Dasha mark — five candidates</h1>
+  <p class="lede">Each drawn as flat vector, no gradients, no thin hairlines. The 16px column is the real
+  test: it is the favicon size, rendered at 16 and then blown up with pixelation so you can see what
+  the browser actually gets. None of these depict a person.</p>
+
+  <table>
+    <thead><tr><th class="name">Mark</th><th>16px</th><th>32</th><th>64</th><th>160</th><th>On light</th><th>Idea</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+
+<script>
+/* One viewBox (64) for every mark so weights stay comparable. Everything is a filled path or a
+   thick round-capped stroke: hairlines disappear at favicon size, so there are none. */
+const MARKS = {
+  cherries: (fg) => `
+    <path d="M20 30 C21 17 29 9 39 7" fill="none" stroke="${fg}" stroke-width="7" stroke-linecap="round"/>
+    <path d="M46 36 C47 25 42 14 39 7" fill="none" stroke="${fg}" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="19" cy="45" r="14" fill="${fg}"/>
+    <circle cx="47" cy="48" r="12" fill="${fg}"/>`,
+
+  slot: (fg) => `
+    <rect x="5" y="15" width="54" height="34" rx="9" fill="${fg}"/>
+    <circle cx="18" cy="32" r="6.5" fill="var(--bg)"/>
+    <circle cx="32" cy="32" r="6.5" fill="var(--bg)"/>
+    <circle cx="46" cy="32" r="6.5" fill="var(--bg)"/>`,
+
+  chip: (fg) => `
+    <circle cx="32" cy="32" r="28" fill="${fg}"/>
+    <g fill="var(--bg)">
+      <rect x="27" y="2" width="10" height="11" rx="2"/>
+      <rect x="27" y="51" width="10" height="11" rx="2"/>
+      <rect x="2" y="27" width="11" height="10" rx="2"/>
+      <rect x="51" y="27" width="11" height="10" rx="2"/>
+    </g>
+    <circle cx="32" cy="32" r="13" fill="var(--bg)"/>
+    <circle cx="32" cy="32" r="6" fill="${fg}"/>`,
+
+  kiss: (fg) => `
+    <path d="M32 20 C36 10 50 8 55 16 C59 22 54 27 48 28 C56 29 60 34 57 41
+             C52 53 40 58 32 58 C24 58 12 53 7 41 C4 34 8 29 16 28
+             C10 27 5 22 9 16 C14 8 28 10 32 20 Z" fill="${fg}"/>`,
+
+  bend: (fg) => `
+    <path d="M4 44 L26 44 L40 20 L60 20" fill="none" stroke="${fg}"
+          stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`,
+};
+
+const NOTES = {
+  cherries: 'Slot-machine cherries. Reads instantly, and 🍒 already exists as an emoji, so holders can put the mark in a display name the day it ships.',
+  slot: 'The reel window. Most abstract, most logo-like, closest to the site\'s existing hard-edged blocks.',
+  chip: 'A casino chip. Circular, so it survives any crop or round avatar mask.',
+  kiss: 'A kiss print. Downtown rather than crypto — the only candidate that looks nothing like a token logo.',
+  bend: 'The timeline, bent. Literal read of "make the timeline stranger", but closest to a generic chart arrow.',
+};
+
+/* xmlns is required: inline SVG in HTML inherits it, but the magnified column loads the same
+   string through <img src="data:image/svg+xml,...">, where it is a standalone document and fails
+   to parse without it. */
+const svg = (id, size, fg, bg) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 64 64" style="--bg:${bg}" role="img" aria-label="${id} mark at ${size} pixels">
+     <rect width="64" height="64" fill="${bg}"/>${MARKS[id](fg)}</svg>`;
+
+const INK = '#070608', ACID = '#dfff00', PAPER = '#f4eddb';
+
+document.getElementById('rows').innerHTML = Object.keys(MARKS).map((id) => {
+  const raster = encodeURIComponent(svg(id, 16, ACID, INK));
+  return `<tr>
+    <td class="name">${id}</td>
+    <td><figure>${svg(id, 16, ACID, INK)}<figcaption class="cap">actual</figcaption></figure></td>
+    <td><figure><img class="zoom" src="data:image/svg+xml,${raster}" alt="${id} at 16px, magnified">
+        <figcaption class="cap">16px ×4</figcaption></figure></td>
+    <td>${svg(id, 64, ACID, INK)}</td>
+    <td>${svg(id, 160, ACID, INK)}</td>
+    <td><span class="onlight">${svg(id, 48, INK, PAPER)}</span></td>
+    <td class="note">${NOTES[id]}</td>
+  </tr>`;
+}).join('');
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dg-bus — multi-agent Orca bus (Claude ⇄ Grok ⇄ Codex)
+# dg-bus — local task bus (Claude ⇄ Grok ⇄ Codex)
 # See demigod-agent-bus.mjs and AGENT-COMMS.md
 set -euo pipefail
 export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/bin:/bin:${PATH}"

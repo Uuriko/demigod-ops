@@ -1,0 +1,82 @@
+<style>
+  .dasha-pack{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;min-height:100vh;background:var(--ink);color:var(--paper);font-family:Arial,sans-serif;padding:32px 0 64px}.dasha-pack *{box-sizing:border-box}.dp-wrap{width:min(1080px,calc(100% - 28px));margin:auto}.dp-top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:56px}.dp-top a{color:var(--paper);font-weight:900;text-decoration:none}.dp-top nav{display:flex;gap:18px}.dp-kicker{color:var(--acid);font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.dasha-pack h1{font-size:clamp(48px,8vw,94px);line-height:.84;letter-spacing:-.06em;margin:14px 0 22px;max-width:850px}.dp-lede{color:#cfc6d9;font-size:18px;line-height:1.55;max-width:720px}.dp-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;margin-top:42px;align-items:start}.dp-panel{border:1px solid #51495e;background:#141119;padding:22px}.dp-panel label{display:block;font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:9px}.dp-panel textarea{width:100%;min-height:230px;resize:vertical;background:#09070c;color:var(--paper);border:1px solid #62586f;padding:14px;font:14px/1.5 ui-monospace,monospace}.dp-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.dp-btn{min-height:46px;padding:0 17px;border:1px solid var(--paper);background:transparent;color:var(--paper);font-weight:900;text-transform:uppercase;cursor:pointer}.dp-btn.primary{background:var(--acid);color:var(--ink);border-color:var(--acid);box-shadow:4px 4px 0 var(--hot)}.dp-status{min-height:21px;color:#bbb1c7;font-size:13px;line-height:1.45}.dp-slots{display:grid;gap:8px;margin:14px 0}.dp-slots:empty{display:none}.dp-slot{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:8px;padding:9px 10px;background:#09070c;border:1px solid #42394b;font-size:12px}.dp-slot span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dp-slot a,.dp-remove{color:var(--acid);font:900 11px Arial;text-transform:uppercase;background:none;border:0;padding:6px;text-decoration:none;cursor:pointer}.dp-remove{color:#ff91b7}.dp-note{font-size:12px;line-height:1.5;color:#978ca5}.dp-canvas{width:100%;height:auto;display:block;border:1px solid var(--paper);background:#110d17}.dp-footer{margin-top:48px;padding-top:22px;border-top:1px solid #393240;color:#978ca5;font-size:12px;line-height:1.6}.dp-footer a{color:var(--paper)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}@media(max-width:760px){.dp-top{margin-bottom:38px}.dp-top nav a:first-child{display:none}.dp-grid{grid-template-columns:1fr}.dasha-pack h1{font-size:54px}.dp-panel{padding:16px}}
+  .dp-panel input{width:100%;margin:0 0 16px;background:#09070c;color:var(--paper);border:1px solid #62586f;padding:12px;font:14px/1.5 ui-monospace,monospace}.dp-context{display:inline-block;color:var(--acid);font-size:12px;font-weight:900;text-transform:uppercase;margin:0 0 8px}
+</style>
+<main class="dasha-pack">
+  <div class="dp-wrap">
+    <header class="dp-top"><a href="/">$DASHA</a><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/#token">Buy / verify →</a></nav></header>
+    <p class="dp-kicker">One shared moment · local only</p>
+    <h1>Close the moment.<br>Keep it editable.</h1>
+    <p class="dp-lede">Give one crypto moment a title and public context, then assemble up to nine Dasha Studio remixes into a downloadable group zine without an account, wallet, upload or public gallery.</p>
+
+    <div class="dp-grid">
+      <section class="dp-panel" aria-labelledby="links-label">
+        <label for="title">Moment title</label>
+        <input id="title" maxlength="36" value="Dasha culture capsule" spellcheck="false">
+        <label for="source">Public context link · optional</label>
+        <input id="source" type="url" maxlength="500" inputmode="url" placeholder="https://x.com/...">
+        <label id="links-label" for="links">Optional name | one remix link per line</label>
+        <textarea id="links" maxlength="12000" spellcheck="false" placeholder="night shift | https://www.getdasha.com/studio#look=poster&amp;line=..."></textarea>
+        <div class="dp-actions"><button class="dp-btn primary" id="build" type="button">Build capsule</button><button class="dp-btn" id="examples" type="button">Load examples</button><button class="dp-btn primary" id="share" type="button">Share capsule</button><button class="dp-btn" id="save" type="button">Save PNG</button><button class="dp-btn" id="copy" type="button">Copy capsule link</button></div>
+        <p class="dp-status" id="status" role="status">Paste 2–9 remix links to start.</p>
+        <a class="dp-context" id="context" target="_blank" rel="noopener noreferrer" hidden>Open public context ↗</a>
+        <div class="dp-slots" id="slots" aria-label="Remixes in this capsule"></div>
+        <p class="dp-note">Add, replace or remove lines, then rebuild. Only getdasha.com Studio links and relative Studio links are accepted. The title, context and remixes stay in this browser and in the editable link.</p>
+      </section>
+      <canvas class="dp-canvas" id="pack" width="1080" height="1080" role="img" aria-label="Preview of the Dasha culture capsule"></canvas>
+    </div>
+    <footer class="dp-footer">$dasha is a high-risk culture coin and can lose all value. This tool makes images; it does not promise returns or verify contributor labels or the public context supplied by the capsule maker. Labels and links are not proof of authorship, consent, permission or endorsement. <a href="/studio">Make a remix</a>.</footer>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id),canvas=$('pack'),ctx=canvas.getContext('2d');
+const LOOKS=new Set(['poster','ticket','print','marquee','signal']);
+const FORMATS=new Set(['square','story','banner']);
+const COLORS={poster:['#7c4dff','#f4eddb'],ticket:['#dfff00','#070608'],print:['#f4eddb','#070608'],marquee:['#ff3b81','#f4eddb'],signal:['#141119','#dfff00']};
+const EXAMPLES=[
+  'night shift | /studio#look=poster&line=The%20timeline%20needs%20adult%20supervision.',
+  'floor manager | /studio#look=ticket&line=I%20came%20for%20the%20chart.%20I%20stayed%20for%20the%20bit.',
+  'the pit | /studio#look=print&line=No%20roadmap.%20Just%20a%20signal.',
+  'marquee desk | /studio#look=marquee&line=Stay%20weird.%20Verify%20the%20mint.',
+  'signal relay | /studio#look=signal&line=Nobody%20is%20coming%20to%20save%20the%20timeline.'
+];
+
+function parse(raw){
+  try{
+    const divider=raw.indexOf('|'),by=(divider<0?'':raw.slice(0,divider).trim()).slice(0,24),link=divider<0?raw:raw.slice(divider+1).trim(),url=new URL(link,'https://www.getdasha.com');
+    if(!['getdasha.com','www.getdasha.com'].includes(url.hostname)||url.pathname!='/studio')return null;
+    const state=new URLSearchParams(url.hash.slice(1)),look=state.get('look'),format=FORMATS.has(state.get('format'))?state.get('format'):'square',line=(state.get('line')||'').trim().slice(0,120);
+    return LOOKS.has(look)&&line?{look,format,line,by}:null;
+  }catch{return null}
+}
+function entries(){const found=[];for(const raw of $('links').value.slice(0,12000).split(/\n+/)){const item=parse(raw.trim());if(item)found.push(item);if(found.length===9)break}return found}
+function capsuleTitle(){return ($('title').value.trim()||'Dasha culture capsule').slice(0,36)}
+function sourceURL(){try{const url=new URL($('source').value.trim());return ['http:','https:'].includes(url.protocol)?url.href.slice(0,500):''}catch{return ''}}
+function packURL(items=entries()){const url=new URL(location.href),state=new URLSearchParams({t:capsuleTitle()});url.search='';const source=sourceURL();if(source)state.set('s',source);for(const item of items){state.append('r',`${item.look}:${item.line}`);state.append('f',item.format);state.append('a',item.by)}url.hash=state.toString();return url.href}
+function packState(){const found=[],state=new URLSearchParams(location.hash.slice(1)),authors=state.getAll('a'),formats=state.getAll('f');for(const [i,raw] of state.getAll('r').entries()){const split=raw.indexOf(':'),look=raw.slice(0,split),format=FORMATS.has(formats[i])?formats[i]:'square',line=raw.slice(split+1).trim().slice(0,120),by=(authors[i]||'').trim().slice(0,24);if(split>0&&LOOKS.has(look)&&line)found.push({look,format,line,by});if(found.length===9)break}return found}
+function remixHref(item){return `/studio#${new URLSearchParams({look:item.look,format:item.format,line:item.line})}`}
+function studioLink(item){return `${item.by?item.by+' | ':''}${remixHref(item)}`}
+function renderContext(){const source=sourceURL(),link=$('context');link.hidden=!source;if(source)link.href=source;else link.removeAttribute('href')}
+function renderSlots(items){$('slots').replaceChildren(...items.map((item,index)=>{const row=document.createElement('div'),name=document.createElement('span'),open=document.createElement('a'),remove=document.createElement('button');row.className='dp-slot';name.textContent=`${item.by||'Anonymous'} · ${item.look} · ${item.format} · ${item.line}`;open.textContent='Open remix';open.href=remixHref(item);open.target='_blank';open.rel='noopener noreferrer';remove.type='button';remove.className='dp-remove';remove.textContent='Remove';remove.setAttribute('aria-label',`Remove ${item.by||'anonymous'} remix`);remove.addEventListener('click',()=>{const next=entries();next.splice(index,1);$('links').value=next.map(studioLink).join('\n');build()});row.append(name,open,remove);return row}))}
+function wrap(text,max,width){
+  const words=text.split(/\s+/),lines=[];let line='';
+  for(const word of words){const next=line?line+' '+word:word;if(ctx.measureText(next).width<=width)line=next;else{if(line)lines.push(line);line=word}}
+  if(line)lines.push(line);return lines.slice(0,max);
+}
+function render(items=entries()){
+  const title=capsuleTitle().toUpperCase();ctx.fillStyle='#070608';ctx.fillRect(0,0,1080,1080);ctx.fillStyle='#f4eddb';ctx.font=`900 ${title.length>26?40:64}px Arial`;ctx.fillText(title,54,86);ctx.fillStyle='#dfff00';ctx.font='900 20px Arial';ctx.fillText(`${items.length} SIGNAL${items.length===1?'':'S'} · MADE TOGETHER`,56,122);
+  if(!items.length){ctx.strokeStyle='#4f4659';ctx.strokeRect(54,170,972,800);ctx.fillStyle='#9e93aa';ctx.font='700 30px Arial';ctx.fillText('PASTE REMIX LINKS TO BUILD THE CAPSULE',105,570);return}
+  const cols=items.length<3?1:items.length<7?2:3,rows=Math.ceil(items.length/cols),gap=18,w=(972-gap*(cols-1))/cols,h=(820-gap*(rows-1))/rows;
+  items.forEach((item,i)=>{const x=54+(i%cols)*(w+gap),y=166+Math.floor(i/cols)*(h+gap),[bg,fg]=COLORS[item.look];ctx.fillStyle=bg;ctx.fillRect(x,y,w,h);ctx.strokeStyle='#f4eddb';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);ctx.fillStyle=fg;ctx.font='900 15px Arial';ctx.fillText(`${item.look.toUpperCase()} · ${item.by?item.by.toUpperCase():'ANON'}`,x+20,y+30);ctx.font=`900 ${cols===1?52:cols===2?36:26}px Arial`;const lines=wrap(item.line,cols===3?6:5,w-40),lh=cols===1?58:cols===2?42:32;let ty=y+Math.max(76,(h-lines.length*lh)/2+25);for(const line of lines){ctx.fillText(line,x+20,ty);ty+=lh}});
+  ctx.fillStyle='#f4eddb';ctx.font='700 18px Arial';const source=sourceURL();ctx.fillText(source?`CONTEXT: ${new URL(source).hostname} · getdasha.com/studio`:'getdasha.com/studio · remix the signal',54,1046)
+}
+function build(){const items=entries(),total=$('links').value.slice(0,12000).split(/\n+/).filter(s=>s.trim()).length;render(items);renderSlots(items);renderContext();if(location.protocol.startsWith('http'))history.replaceState(null,'',packURL(items));$('status').textContent=items.length?`Built a ${items.length}-remix capsule${total>items.length?' · invalid or extra links ignored':''}.`:'No valid remix links found.'}
+const fileName='dasha-culture-capsule.png',png=()=>new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+function save(blob){const a=document.createElement('a');a.download=fileName;a.href=URL.createObjectURL(blob);a.click();URL.revokeObjectURL(a.href)}
+$('build').addEventListener('click',build);
+$('examples').addEventListener('click',()=>{$('links').value=EXAMPLES.join('\n');build()});
+$('share').addEventListener('click',async()=>{if(!entries().length){$('status').textContent='Build a capsule before sharing it.';return}build();const blob=await png(),file=new File([blob],fileName,{type:'image/png'}),text=`${capsuleTitle()}\n\n$dasha`,url=packURL();if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],text,url});$('status').textContent='Shared the PNG and its editable capsule link.';return}catch(error){if(error.name==='AbortError'){$('status').textContent='';return}}}save(blob);const intent=new URL('https://x.com/intent/post');intent.searchParams.set('text',text);intent.searchParams.set('url',url);window.open(intent,'_blank','noopener');$('status').textContent='PNG saved — attach it in the X tab. Editable capsule link is already in the post.'});
+$('save').addEventListener('click',async()=>{build();save(await png());$('status').textContent=`Saved ${fileName}.`});
+$('copy').addEventListener('click',async()=>{const items=entries();if(!items.length){$('status').textContent='Build a capsule before copying its link.';return}try{await navigator.clipboard.writeText(packURL(items));$('status').textContent='Editable capsule link copied.'}catch{$('status').textContent='Copy the current page address to pass on this capsule.'}});
+const initial=new URLSearchParams(location.hash.slice(1));$('title').value=(initial.get('t')||$('title').value).slice(0,36);$('source').value=(initial.get('s')||'').slice(0,500);const inbound=packState();if(inbound.length){$('links').value=inbound.map(studioLink).join('\n');render(inbound);renderSlots(inbound);renderContext();$('status').textContent=`Opened an editable ${inbound.length}-remix capsule.`}else{render([]);renderSlots([]);renderContext()}
+</script>

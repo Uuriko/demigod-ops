@@ -1,0 +1,101 @@
+The soft consensus is wrong because it treats every prepared prototype as a product option. Evidence supports one bet: Studio. Everything else should either serve that loop, measure it, or get frozen.
+
+1. Coin vs Studio identity on home
+
+Home should be Studio-first, coin-explicit—not an uneasy 50/50 split. The primary promise is “make/remix something”; the secondary path is “verify and buy `$dasha`.” Hiding the coin would be dishonest, but leading with trading would erase the only differentiated behavior.
+
+Keep one adjacent trust block: exact mint, public `@dash_eats` source, association ≠ endorsement, Jupiter, NFA/can go to zero. No invented bridge claiming the coin powers, unlocks, or officially sponsors Studio.
+
+2. Desk keep vs merge
+
+Keep `/dasha`, but demote it to a compact verification utility. Do not merge it into home: the Desk’s source density, chart, culture stills, and risk context would turn the homepage back into a trading dashboard.
+
+Its continued existence is conditional: it must receive meaningful verification/chart/buy visits. If almost nobody uses it after 14 days, fold its essential trust links into home and redirect `/dasha`. Three routes are a ceiling, not a quota.
+
+3. How-to-buy: ship, fold, or delete
+
+Delete the standalone route and source. The home already contains bounded buying guidance; Desk supplies verification and Jupiter. A fourth page adds SEO and maintenance surface without adding a new job.
+
+The current `dasha-growth.test.mjs` is especially revealing: it calls the 404 page a “primary conversion education surface” while simultaneously asserting that public pages must not link it. That is policy schizophrenia encoded as a test. Remove the HTML, its test, and the growth-test section.
+
+4. Photo policy
+
+Keep home free of `<img>`, `pbs.twimg.com`, and remote tape. Its HTML/CSS Studio previews demonstrate the product better and cannot disappear when an external image URL changes.
+
+Desk may use a small number of attributed culture stills because its job includes context and public-source inspection. “Desk allows photos” is not permission for a feed: cap the stills, require honest alt/caption/source links, and tolerate graceful disappearance. Do not proxy or cache media merely to preserve decoration.
+
+5. Relay kill criteria
+
+Do not confuse the implemented relay grammar with validated relay behavior. Run the existing instrument only after ordinary Studio sharing produces enough real handoffs.
+
+Pass requires at least 10 non-operator handoffs and at least two materially changed second-generation remixes. Kill Relay if fewer than two result, if recipients consistently retain PNGs but discard editable links, or if operator prompting is required. Parser success, clicks, compliments, and agent-made examples count as zero. On failure, remove lineage/`arm=flat` experiment complexity from Studio rather than building a gallery to rescue it.
+
+6. Capsules timing
+
+Freeze indefinitely until repeated multi-person behavior appears outside the capsule prototype. The prepared `dasha-remix-pack.html` proves that code can concatenate fragment state; it does not prove anybody wants a collaborative zine.
+
+Only reopen after at least three independently observed group moments already involve multiple Studio artifacts. Then run one manual/static collage first. Shipping a Capsule product before that is feature cosplay.
+
+7. Chat rooms
+
+No chat rooms, Discord product surface, live presence, accounts, moderation system, or real-time backend. A room is an operational event before it is software: use the existing Studio, one scheduled prompt, and manual collation.
+
+Build room technology only after three sessions show repeat attendance and participants pass remixes without operator chasing. Otherwise “community” merely hides the absence of product pull.
+
+8. Docs debt kill list
+
+The documentation currently preserves too many abandoned futures as active intellectual property. Archive or delete:
+
+- `DASHA-DISCORD-BLUEPRINT.md`
+- `DASHA-OPEN-CULTURE-OBJECTS.md`
+- `DASHA-STUDIO-DEEP-FEATURE-PROMPT.md`
+- `DASHA-STUDIO-FEATURE-RESEARCH-2026-08-07.md`
+- dated product-options, pivot, psychology, sync, audit, and Webapp-plan documents
+- gamification and settlement specifications
+- obsolete domain setup and one-off Webflow call scripts
+- all FOMO/raid/referral evidence under `dasha-desk/receipts/`
+
+Keep six owners: Docs, Workflow, Simplify, Bible, Product Brief, Roadmap. Strategy should either shrink into Product Brief or disappear. Historical research belongs under one archive index, not beside current truth.
+
+9. Hosting if Webflow is dead
+
+Use static GitHub Pages from the existing repository and point `getdasha.com` at it. Home, Studio, and Desk require no server. Do not introduce React, a CMS, server rendering, a database, or a deployment platform abstraction.
+
+The migration should produce three static paths and one asset directory. Cloudflare Pages is a reasonable fallback only if GitHub Pages cannot meet the domain/deployment requirement—not a parallel stack “for resilience.”
+
+10. Fourteen-day metrics
+
+Measure behavior, not vanity traffic:
+
+- Home qualified visits → Studio opens
+- Studio starts → PNG exports; target ≥20%
+- Exports → share intent; target ≥10%
+- Remix-link copies/shares and inbound fragment visits
+- Distinct non-operator creators; minimum five
+- Second-generation materially changed remixes; Relay threshold two from ten handoffs
+- Returning creators on another day
+- Home/Desk → Jupiter handoffs, reported separately from purchases
+- Desk engagement with mint/source/chart links
+- Guardrails: zero false endorsement, unofficial community links, wallet custody, or broken formats
+
+Do not use price, impressions, X likes, parser checks, or operator-generated remixes as product success.
+
+Architecture review
+
+The 492-line single-file Studio is acceptable for a dependency-free embed, but it is already carrying product, renderer, URL grammar, lineage, A/B relay state, export kit, native sharing, and legacy migration. Do not “solve” this with a framework. Delete unvalidated relay/lineage branches if the experiment fails; extract code only when two live consumers genuinely need the same implementation. The separate Studio embed files already suggest premature duplication.
+
+`dasha-desk/build.mjs` is simple enough, but generating `src/app.html`, `index.html`, `dist/index.html`, and `/tmp` embed variants creates four representations of one page. Keep canonical source plus the one deployment artifact actually consumed. Generated files should not masquerade as independent architecture.
+
+The tests overreach. Landing and growth tests freeze headlines, nav visibility, exact seed arrays, deleted phrases, route inventory, and business strategy. Tests should protect security, accessibility, exact mint/Jupiter routing, fragment round-tripping, canvas dimensions, export, and absence of forbidden claims. Copy and campaign decisions are not APIs. Delete `dasha-growth.test.mjs`; move only its unique trust invariant into the relevant surface test.
+
+Experiment HTML sprawl—how-to-buy, relay, remix pack, logo lab, duplicate Studio embed—is backlog disguised as software. Freeze it outside the active tree or delete it. Prepared code exerts political pressure to ship.
+
+Ranked next moves:
+
+1. Delete/freeze how-to-buy, Relay, Capsule, logo-lab, duplicate embed, and FOMO receipt surfaces.
+2. Reduce tests to functional and trust-boundary invariants.
+3. Make home unequivocally Studio-first with the compact coin trust path.
+4. Instrument the 14-day Studio/export/share/remix funnel without wallet telemetry.
+5. Decide Desk’s survival and Relay’s reopening strictly from those results.
+
+Weakest sufficient hypothesis: a tiny static Studio plus truthful coin discovery may create a repeatable remix loop. Nothing observed yet justifies a platform, community system, protocol, or fourth route.

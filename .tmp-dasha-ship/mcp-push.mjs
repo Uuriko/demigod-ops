@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+import fs from 'fs';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+const batchNum = process.argv[2];
+const batchPath = `/tmp/gh-mcp-batches/batch-${batchNum}.json`;
+const payload = JSON.parse(fs.readFileSync(batchPath, 'utf8'));
+
+const auth = JSON.parse(fs.readFileSync(`${process.env.HOME}/.grok/auth.json`, 'utf8'));
+const entry = Object.values(auth)[0];
+const token = entry?.key;
+if (!token) { console.error('NO_TOKEN'); process.exit(2); }
+
+for (const f of payload.files) {
+  if (!f.content || f.content.length < 10) {
+    console.error(JSON.stringify({ ok: false, error: 'invalid content', path: f.path, len: f.content?.length }));
+    process.exit(3);
+  }
+}
+
+const transport = new StreamableHTTPClientTransport(new URL('https://api.githubcopilot.com/mcp/x/all'), {
+  requestInit: { headers: { Authorization: `Bearer ${token}` } },
+});
+const client = new Client({ name: 'dasha-mcp-push', version: '1.0.0' });
+await client.connect(transport);
+const result = await client.callTool({
+  name: 'push_files',
+  arguments: {
+    owner: payload.owner,
+    repo: payload.repo,
+    branch: payload.branch,
+    message: payload.message,
+    files: payload.files,
+  },
+});
+await client.close();
+const text = result?.content?.[0]?.text || JSON.stringify(result);
+if (result?.isError) {
+  console.error(JSON.stringify({ ok: false, batch: batchNum, error: String(text).slice(0, 1200) }));
+  process.exit(1);
+}
+console.log(JSON.stringify({
+  ok: true,
+  batch: batchNum,
+  paths: payload.files.map((f) => ({ path: f.path, len: f.content.length })),
+  text: String(text).slice(0, 400),
+}));

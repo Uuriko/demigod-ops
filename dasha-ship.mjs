@@ -1,0 +1,446 @@
+#!/usr/bin/env node
+/**
+ * Dasha fast ship — one command for prepare → gate → Webflow push → publish → live check.
+ *
+ * Default is FAST: no Puppeteer/CDP (those gates take 2–4 minutes). Use --strict for full suite.
+ *
+ *   node dasha-ship.mjs              # prep + fast gate (default)
+ *   node dasha-ship.mjs --prep       # build embeds only
+ *   node dasha-ship.mjs --gate       # fast static gate only
+ *   node dasha-ship.mjs --ship       # prep + fast gate + push all embeds + publish
+ *   node dasha-ship.mjs --ship --strict
+ *   node dasha-ship.mjs --push       # push embeds only (no publish)
+ *   node dasha-ship.mjs --publish    # site publish only
+ *   node dasha-ship.mjs --preflight  # auth/site/domain check only
+ *   node dasha-ship.mjs --verify     # curl live markers only
+ *
+ * Token: env DASHA_WF_TOKEN or file /tmp/dasha-wf-token.txt (MCP Bearer).
+ */
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const root = dirname(fileURLToPath(import.meta.url));
+const args = new Set(process.argv.slice(2));
+const want = {
+  prep: args.has('--prep') || args.has('--ship') || args.has('--push') || args.size === 0,
+  gate: args.has('--gate') || args.has('--ship') || args.size === 0,
+  push: args.has('--push') || args.has('--ship'),
+  publish: args.has('--publish') || args.has('--ship'),
+  verify: args.has('--verify') || args.has('--ship'),
+  preflight: args.has('--preflight'),
+  strict: args.has('--strict'),
+  dry: args.has('--dry-run'),
+};
+
+const SITE = '5f1458122ba25e70a3ff2bd0';
+const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+const SURFACES = {
+  home: {
+    pageId: '5f1458136c15aa41639b8538',
+    element: 'b1681188-19dd-6175-7472-68887d3c6e10',
+    file: 'dasha-landing.html',
+    label: 'home',
+  },
+  studio: {
+    pageId: '6a763858748c216defe621b9',
+    element: 'b1681188-19dd-6175-7472-68887d3c6e10',
+    file: 'dasha-studio-embed.html',
+    label: 'studio',
+  },
+  desk: {
+    pageId: '6a74b59530c70741b1c574c4',
+    element: 'f4239e35-08c6-0874-27bc-8ce5b8ca547f',
+    file: join('.tmp-dasha-ship', 'publish-ready', 'dasha-desk-embed.html'),
+    label: 'desk',
+  },
+};
+const DOMAINS = ['6a762e813cfcf91448a83e3b', '6a762e833cfcf91448a83e58'];
+const STATE = process.env.DASHA_SHIP_STATE || '/tmp/dasha-ship-state.json';
+const MANIFEST = process.env.DASHA_SHIP_MANIFEST || '/tmp/dasha-ship-manifest.json';
+
+const t0 = Date.now();
+const log = (step, extra = {}) =>
+  console.log(JSON.stringify({ ms: Date.now() - t0, step, ...extra }));
+
+function read(rel) {
+  return readFileSync(join(root, rel), 'utf8');
+}
+
+function json(file, fallback = null) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(file, value) {
+  mkdirSync(dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  renameSync(tmp, file);
+}
+
+const digest = (value) => createHash('sha256').update(value).digest('hex');
+const artifactHashes = () =>
+  Object.fromEntries(Object.entries(SURFACES).map(([key, surface]) => [key, digest(read(surface.file))]));
+
+function sameHashes(a, b) {
+  return Object.keys(SURFACES).every((key) => a?.[key] === b?.[key]);
+}
+
+function startReceipt(hashes) {
+  const previous = json(STATE);
+  if (!args.has('--fresh') && previous?.site === SITE && sameHashes(previous.hashes, hashes)) {
+    previous.resumedAt = new Date().toISOString();
+    previous.error = null;
+    writeJson(STATE, previous);
+    log('resume', { runId: previous.runId, stages: previous.stages });
+    return previous;
+  }
+  const receipt = {
+    schema: 'dasha.ship-state/1',
+    runId: `${Date.now()}-${process.pid}`,
+    site: SITE,
+    hashes,
+    stages: { prepared: false, gated: false, preflight: false, pushed: {}, published: false, verified: false },
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    error: null,
+  };
+  writeJson(STATE, receipt);
+  return receipt;
+}
+
+function checkpoint(receipt, patch = {}) {
+  Object.assign(receipt, patch);
+  writeJson(STATE, receipt);
+}
+
+function run(cmd, cmdArgs, opts = {}) {
+  const r = spawnSync(cmd, cmdArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 8 * 1024 * 1024,
+    ...opts,
+  });
+  if (r.status !== 0) {
+    const err = (r.stderr || r.stdout || '').slice(-2000);
+    throw new Error(`${cmd} ${cmdArgs.join(' ')} failed (${r.status}): ${err}`);
+  }
+  return r.stdout;
+}
+
+function prep() {
+  log('prep:start');
+  run('node', ['dasha-desk/build.mjs', '--write']);
+  run('node', ['dasha-studio-embed-build.mjs']);
+  const shipDir = join(root, '.tmp-dasha-ship', 'publish-ready');
+  mkdirSync(shipDir, { recursive: true });
+  // desk embed shell from build.mjs
+  const deskEmbed = existsSync('/tmp/dasha-webflow-embed.html')
+    ? readFileSync('/tmp/dasha-webflow-embed.html', 'utf8')
+    : `<div style="min-height:100vh;background:#07060a;padding:8px 0 28px">${read('dasha-desk/src/app.html')}</div>`;
+  writeFileSync(join(shipDir, 'dasha-desk-embed.html'), deskEmbed);
+  writeFileSync(join(shipDir, 'dasha-landing.html'), read('dasha-landing.html'));
+  writeFileSync(join(shipDir, 'dasha-meme-studio.html'), read('dasha-meme-studio.html'));
+  writeFileSync(join(shipDir, 'dasha-studio-embed.html'), read('dasha-studio-embed.html'));
+  writeFileSync(join(shipDir, 'dasha-desk-dist.html'), read('dasha-desk/dist/index.html'));
+  log('prep:done', {
+    deskEmbed: deskEmbed.length,
+    landing: read('dasha-landing.html').length,
+    studioEmbed: read('dasha-studio-embed.html').length,
+  });
+}
+
+/** Static trust gates only — no CDP, no browser (~milliseconds). */
+function fastGate() {
+  log('gate:fast:start');
+  const landing = read('dasha-landing.html');
+  const studio = read('dasha-meme-studio.html');
+  const desk = read('dasha-desk/src/body.html');
+  const embed = read('dasha-studio-embed.html');
+  const fail = (m) => {
+    throw new Error(`fast gate: ${m}`);
+  };
+
+  for (const [name, html] of [
+    ['landing', landing],
+    ['studio', studio],
+    ['desk', desk],
+  ]) {
+    if (!html.includes(MINT)) fail(`${name} missing mint`);
+    if (/t\.me\/dashacommunity/i.test(html)) fail(`${name} has banned telegram`);
+    if (/official Dasha|safe token|verified mint/i.test(html)) fail(`${name} forbidden claim`);
+  }
+  if (landing.includes('/how-to-buy')) fail('landing links unpublished how-to-buy');
+  if (desk.includes('/how-to-buy')) fail('desk links unpublished how-to-buy');
+  if (!landing.includes('jup.ag/swap') || !landing.includes('plugin.jup.ag')) fail('landing lost Jupiter paths');
+  if (!landing.includes('https://x.com/dash_eats')) fail('landing missing @dash_eats');
+  if (!landing.includes('/studio') || !landing.includes('/dasha')) fail('landing missing dual-path routes');
+  if (/thesis card|conviction receipt|receipt-form/i.test(landing)) fail('landing thesis/receipt copy');
+  if (!studio.includes("id: 'square'") || !studio.includes("id: 'story'") || !studio.includes("id: 'banner'"))
+    fail('studio missing formats');
+  if (!embed.includes('attachShadow') || !embed.includes('dasha-studio-embed')) fail('studio embed not shadow-isolated');
+  // embed must be fresh
+  run('node', ['dasha-studio-embed-build.mjs', '--check']);
+  run('node', ['dasha-desk/build.mjs', '--check']);
+  // pure share pack unit (no browser)
+  run('node', ['dasha-growth.test.mjs']);
+  log('gate:fast:pass');
+}
+
+function strictGate() {
+  log('gate:strict:start');
+  run('npm', ['run', 'dasha:test:all'], { shell: false });
+  run('node', ['dasha-studio-embed-build.mjs', '--check']);
+  log('gate:strict:pass');
+}
+
+function token() {
+  const env = process.env.DASHA_WF_TOKEN || process.env.WEBFLOW_TOKEN;
+  if (env?.trim()) return env.trim();
+  const p = '/tmp/dasha-wf-token.txt';
+  if (existsSync(p)) return readFileSync(p, 'utf8').trim();
+  throw new Error('No Webflow token. Set DASHA_WF_TOKEN or write /tmp/dasha-wf-token.txt');
+}
+
+async function mcpClient() {
+  if (process.env.DASHA_SHIP_FAKE_MCP === '1') {
+    return {
+      calls: [],
+      async callTool(call) {
+        this.calls.push(call);
+        return { content: [{ type: 'text', text: JSON.stringify({ ok: true, siteId: SITE, domains: DOMAINS }) }] };
+      },
+      async close() {},
+    };
+  }
+  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+  const { StreamableHTTPClientTransport } = await import(
+    '@modelcontextprotocol/sdk/client/streamableHttp.js'
+  );
+  const transport = new StreamableHTTPClientTransport(new URL('https://mcp.webflow.com/mcp'), {
+    requestInit: {
+      headers: {
+        Authorization: `Bearer ${token()}`,
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/event-stream',
+      },
+    },
+  });
+  const client = new Client({ name: 'dasha-ship', version: '1.0.0' });
+  await client.connect(transport);
+  return client;
+}
+
+async function preflight(client) {
+  log('preflight:start');
+  const { name, result } = await callTool(client, ['data_sites_tool', 'webflow__data_sites_tool'], {
+    actions: [{ label: 'dasha_preflight', list_sites: {} }],
+  });
+  const payload = JSON.stringify(result);
+  if (!payload.includes(SITE)) throw new Error(`Webflow preflight cannot access site ${SITE}`);
+  for (const domain of DOMAINS) {
+    if (!payload.includes(domain)) throw new Error(`Webflow preflight missing domain ${domain}`);
+  }
+  log('preflight:pass', { tool: name });
+}
+
+async function callTool(client, names, toolArgs) {
+  let last;
+  for (const name of names) {
+    try {
+      const result = await client.callTool({ name, arguments: toolArgs });
+      if (result?.isError) {
+        last = new Error(`${name}: ${result?.content?.[0]?.text || 'isError'}`);
+        continue;
+      }
+      return { name, result };
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last || new Error('all tool names failed');
+}
+
+async function pushEmbeds(client, pending, receipt) {
+  log('push:start', { surfaces: pending });
+  if (want.dry) {
+    log('push:dry-run', { surfaces: pending });
+    return;
+  }
+  for (const key of pending) {
+    const s = SURFACES[key];
+    const code = read(s.file);
+    log('push:surface', { label: s.label, bytes: code.length });
+    const toolArgs = {
+      siteId: SITE,
+      pageId: s.pageId,
+      context: `Ship ${s.label} embed from dasha-ship.mjs (fast path).`,
+      actions: [
+        {
+          label: `set_${s.label}`,
+          set_settings: {
+            operations: [
+              {
+                label: `${s.label}_code`,
+                element_id: { component: s.pageId, element: s.element },
+                settings: [{ key: 'code', static_text: { value: code } }],
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const { name } = await callTool(
+      client,
+      ['data_element_settings_tool', 'webflow__data_element_settings_tool'],
+      toolArgs,
+    );
+    log('push:ok', { label: s.label, tool: name });
+    receipt.stages.pushed[key] = true;
+    checkpoint(receipt);
+  }
+  log('push:done');
+}
+
+async function publishSite(client) {
+  log('publish:start');
+  if (want.dry) {
+    log('publish:dry-run');
+    return;
+  }
+  const toolArgs = {
+    context: 'Publish getdasha three-route checkpoint (home, studio, desk).',
+    actions: [
+      {
+        label: 'publish_dasha',
+        publish_site: {
+          site_id: SITE,
+          publishToWebflowSubdomain: true,
+          customDomains: DOMAINS,
+        },
+      },
+    ],
+  };
+  const { name, result } = await callTool(
+    client,
+    ['data_sites_tool', 'webflow__data_sites_tool'],
+    toolArgs,
+  );
+  writeFileSync('/tmp/dasha-ship-publish.json', JSON.stringify(result, null, 2));
+  log('publish:ok', { tool: name, text: result?.content?.[0]?.text?.slice?.(0, 400) });
+}
+
+async function verifyLive() {
+  log('verify:start');
+  const checks = [
+    ['home', 'https://www.getdasha.com/', [MINT, 'jup.ag']],
+    ['desk', 'https://www.getdasha.com/dasha', [MINT, 'jup.ag']],
+    ['studio', 'https://www.getdasha.com/studio', ['dasha', 'studio']],
+  ];
+  const out = {};
+  if (process.env.DASHA_SHIP_FAKE_LIVE === '1') {
+    for (const [label, , needles] of checks) {
+      out[label] = { status: 200, bytes: 1, hits: Object.fromEntries(needles.map((n) => [n, true])) };
+    }
+    writeJson('/tmp/dasha-ship-verify.json', out);
+    log('verify:done', out);
+    return out;
+  }
+  for (const [label, url, needles] of checks) {
+    const r = await fetch(url, {
+      headers: { 'user-agent': 'dasha-ship/1' },
+      redirect: 'follow',
+    });
+    const body = await r.text();
+    out[label] = {
+      status: r.status,
+      bytes: body.length,
+      hits: Object.fromEntries(needles.map((n) => [n, body.toLowerCase().includes(n.toLowerCase())])),
+    };
+  }
+  writeFileSync('/tmp/dasha-ship-verify.json', JSON.stringify(out, null, 2));
+  const failed = Object.entries(out).filter(([, value]) => value.status !== 200 || Object.values(value.hits).includes(false));
+  if (failed.length) throw new Error(`live verification failed: ${failed.map(([label]) => label).join(', ')}`);
+  log('verify:done', out);
+  return out;
+}
+
+async function main() {
+  log('start', {
+    prep: want.prep,
+    gate: want.gate,
+    push: want.push,
+    publish: want.publish,
+    verify: want.verify,
+    strict: want.strict,
+    dry: want.dry,
+  });
+  let receipt;
+  let client;
+  try {
+    if (want.prep) prep();
+    const hashes = artifactHashes();
+    receipt = startReceipt(hashes);
+    if (want.prep && !receipt.stages.prepared) {
+      receipt.stages.prepared = true;
+      checkpoint(receipt);
+    }
+    if (want.gate) {
+      if (!receipt.stages.gated) {
+        if (want.strict) strictGate();
+        else fastGate();
+        receipt.stages.gated = true;
+        checkpoint(receipt);
+      } else log('gate:skip', { reason: 'matching successful receipt' });
+    }
+    const published = json(MANIFEST, { hashes: {} });
+    const changed = Object.keys(SURFACES).filter((key) => hashes[key] !== published.hashes?.[key]);
+    const pending = changed.filter((key) => !receipt.stages.pushed[key]);
+    log('delta', { changed, pending });
+    const needsWebflow =
+      !want.dry &&
+      (want.preflight ||
+        (want.push && pending.length > 0) ||
+        (want.publish && changed.length > 0 && !receipt.stages.published));
+    if (needsWebflow) {
+      client = await mcpClient();
+      if (want.preflight || !receipt.stages.preflight) {
+        await preflight(client);
+        receipt.stages.preflight = true;
+        checkpoint(receipt);
+      }
+    }
+    if (want.push && pending.length) await pushEmbeds(client, pending, receipt);
+    else if (want.push) log('push:skip', { reason: 'no changed surfaces' });
+    if (want.publish && changed.length && !receipt.stages.published) {
+      await publishSite(client);
+      receipt.stages.published = true;
+      checkpoint(receipt);
+    } else if (want.publish) log('publish:skip', { reason: changed.length ? 'matching successful receipt' : 'no changed surfaces' });
+    if (want.verify) {
+      await verifyLive();
+      receipt.stages.verified = true;
+      receipt.finishedAt = new Date().toISOString();
+      checkpoint(receipt);
+      if (!want.dry && (!changed.length || receipt.stages.published)) {
+        writeJson(MANIFEST, { schema: 'dasha.ship-manifest/1', site: SITE, hashes, verifiedAt: receipt.finishedAt });
+      }
+    }
+    log('done', { ok: true, totalMs: Date.now() - t0 });
+  } catch (e) {
+    if (receipt) checkpoint(receipt, { error: String(e?.stack || e).slice(0, 4000) });
+    log('fail', { ok: false, error: String(e?.stack || e).slice(0, 2000) });
+    process.exit(1);
+  } finally {
+    await client?.close?.().catch(() => {});
+  }
+}
+
+main();

@@ -1,0 +1,31 @@
+# Dasha custom domain — DNS worksheet
+# Fill after purchase; values in [BRACKETS] come from Webflow Site settings → Publishing.
+
+Domain purchased: getdasha.com
+Registrar: Cloudflare Registrar
+Date: 2026-08-07
+
+## Records (Webflow)
+
+# Confirm exact A record IP and CNAME target inside Webflow UI — they can change.
+
+Type    Name    Value
+A       @       [WEBFLOW_A_IP from Site settings]
+CNAME   www     proxy-ssl.webflow.com
+# If using Cloudflare proxy (orange cloud): often set to DNS-only (grey) first until SSL issues,
+# then orange-cloud once Webflow SSL is green.
+
+## Webflow UI steps
+
+1. Site settings → Publishing → Custom domains → Add domain
+2. Add apex + www
+3. Copy the DNS values Webflow shows into the registrar
+4. Wait until Webflow shows domain as connected
+5. Set default domain
+6. Publish → select custom domains
+
+## After go-live (agent will update)
+
+- config/dasha.json links.desk (reference only)
+- dasha-landing.html canonical + og:url
+- DASHA-DOMAIN-WEBFLOW-LAUNCH.md status table

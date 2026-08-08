@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dasha Relay Lab — test whether editability travels</title>
+<style>
+  :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:#51495e}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,sans-serif}.wrap{width:min(1050px,calc(100% - 28px));margin:auto;padding:34px 0 64px}a{color:inherit}h1{font-size:clamp(48px,8vw,92px);line-height:.84;letter-spacing:-.06em;margin:44px 0 18px;text-transform:uppercase}.lede{max-width:720px;color:#cfc6d9;font-size:18px;line-height:1.55}.seeds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:38px 0 64px}.seed,.check{border:1px solid var(--line);padding:20px;background:#141119}.seed h2{margin:0 0 8px;font-size:24px}.seed p{min-height:48px;color:#cfc6d9}.actions{display:flex;flex-wrap:wrap;gap:9px}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--paper);color:var(--paper);background:transparent;text-decoration:none;font-size:12px;font-weight:900;text-transform:uppercase;cursor:pointer}.btn.primary{background:var(--acid);border-color:var(--acid);color:var(--ink)}.check{margin-top:14px}.check h2{font-size:32px;margin:0 0 8px}.check label{display:block;margin:18px 0 8px;font-size:12px;font-weight:900;text-transform:uppercase}.check input{width:100%;padding:12px;background:#09070c;border:1px solid var(--line);color:var(--paper);font:14px ui-monospace,monospace}.result{min-height:24px;color:var(--acid);font-weight:900;margin:16px 0 0}.object{display:grid;grid-template-columns:minmax(180px,340px) 1fr;gap:18px;margin-top:18px}.preview{display:grid;place-items:center;aspect-ratio:1;background:var(--acid);color:var(--ink);padding:22px;text-align:center;font-size:clamp(20px,4vw,42px);font-weight:900;text-transform:uppercase;overflow-wrap:anywhere}.preview[data-format=story]{aspect-ratio:9/16}.preview[data-format=banner]{aspect-ratio:1200/628}.preview[data-look=ticket]{background:var(--paper)}.preview[data-look=print]{background:var(--paper);font-family:ui-monospace,monospace}.preview[data-look=marquee]{background:var(--hot);color:var(--paper)}.preview[data-look=signal]{background:#7c4dff;color:var(--paper)}pre{margin:0;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere;background:#09070c;border:1px solid var(--line);color:#cfc6d9}.note{color:#9d92a9;font-size:12px;line-height:1.5}.back{font-weight:900;text-decoration:none}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}@media(max-width:700px){.seeds,.object{grid-template-columns:1fr}.seed p{min-height:0}}
+</style>
+</head>
+<body><main class="wrap">
+  <a class="back" href="/studio">← Dasha Studio</a>
+  <h1>Does editability<br>travel?</h1>
+  <p class="lede">Five matched starters test one thing: whether a shared editable remix produces more real second-generation changes than the same image without its edit link. No account, wallet, tracking or public leaderboard.</p>
+  <section class="seeds" id="seeds" aria-label="Matched relay starters"></section>
+  <section class="check" aria-labelledby="check-title">
+    <h2 id="check-title">Check a handoff</h2>
+    <p class="note">Paste the parent and returned Dasha Studio links. This checks only whether the look, format or line materially changed; it does not identify a person or prove authorship.</p>
+    <label for="parent">Parent Studio link</label><input id="parent" type="url" inputmode="url">
+    <label for="child">Returned Studio link</label><input id="child" type="url" inputmode="url">
+    <button class="btn primary" id="compare" type="button" style="margin-top:16px">Compare handoff</button>
+    <p class="result" id="result" role="status"></p>
+    <div id="observation" hidden><p class="note">Local observation record</p><pre id="observation-json"></pre></div>
+  </section>
+  <section class="check" aria-labelledby="object-title">
+    <h2 id="object-title">Open the recipe elsewhere</h2>
+    <p class="note">This page is a separate consumer of the Studio link grammar. It validates and reconstructs the bounded meaning without using Studio code. The preview is semantic, not a claim of pixel-identical rendering.</p>
+    <label for="object-url">Studio link</label><input id="object-url" type="url" inputmode="url">
+    <button class="btn primary" id="open-object" type="button" style="margin-top:16px">Reconstruct object</button>
+    <p class="result" id="object-result" role="status"></p>
+    <div class="object" id="object" hidden><div class="preview" id="preview"></div><pre id="recipe"></pre></div>
+  </section>
+  <p class="note">Decision rule: stop expanding Relay and Capsule if fewer than 2 of 10 real non-operator handoffs produce a second-generation material edit within seven days, or if recipients consistently keep the PNG and discard editability. This lab never submits or stores a result.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id),LOOKS=new Set(['poster','ticket','print','marquee','signal']),FORMATS=new Set(['square','story','banner']);
+const SEEDS=[['Poster','poster','square','The timeline needs adult supervision.'],['Ticket','ticket','story','I came for the chart. I stayed for the bit.'],['Printout','print','square','No roadmap. Just a signal.'],['Marquee','marquee','banner','Stay weird. Verify the mint.'],['Signal','signal','story','Nobody is coming to save the timeline.']];
+function link(look,format,line,arm){const state=new URLSearchParams({look,format,line});if(arm==='flat')state.set('arm','flat');return `/studio#${state}`}
+$('seeds').append(...SEEDS.map(([name,look,format,line])=>{const card=document.createElement('article');card.className='seed';const title=document.createElement('h2'),copy=document.createElement('p'),actions=document.createElement('div'),editable=document.createElement('a'),flat=document.createElement('a');title.textContent=name;copy.textContent=line;actions.className='actions';editable.className='btn primary';editable.textContent='Pass editable';editable.href=link(look,format,line,'editable');flat.className='btn';flat.textContent='Pass image only';flat.href=link(look,format,line,'flat');actions.append(editable,flat);card.append(title,copy,actions);return card}));
+function state(raw){try{const url=new URL(raw),p=new URLSearchParams(url.hash.slice(1)),look=p.get('look'),format=p.get('format'),line=(p.get('line')||'').trim();return ['getdasha.com','www.getdasha.com'].includes(url.hostname)&&url.pathname==='/studio'&&LOOKS.has(look)&&FORMATS.has(format)&&line&&line.length<=120?{v:0,renderer:'dasha-studio',look,format,line}:null}catch{return null}}
+$('compare').addEventListener('click',()=>{const parentURL=$('parent').value.trim(),childURL=$('child').value.trim(),parent=state(parentURL),child=state(childURL);if(!parent||!child){$('observation').hidden=true;$('result').textContent='Use two valid getdasha.com Studio links.';return}const changed=['look','format','line'].filter(key=>parent[key]!==child[key]),arm=new URLSearchParams(new URL(parentURL).hash.slice(1)).get('arm')==='flat'?'image_only':'editable';$('result').textContent=changed.length?`Material edit: yes · changed ${changed.join(', ')}`:'Material edit: no · the Studio state is unchanged.';$('observation-json').textContent=JSON.stringify({schema:'dasha-relay-observation/v0',arm,material_edit:Boolean(changed.length),changed,parent_url:parentURL,child_url:childURL},null,2);$('observation').hidden=false});
+$('open-object').addEventListener('click',()=>{const object=state($('object-url').value.trim());if(!object){$('object').hidden=true;$('object-result').textContent='Use a valid getdasha.com Studio link with a bounded look, format and line.';return}$('preview').textContent=object.line;$('preview').dataset.look=object.look;$('preview').dataset.format=object.format;$('recipe').textContent=JSON.stringify(object,null,2);$('object').hidden=false;$('object-result').textContent='Semantic reconstruction: passed.'});
+</script></body></html>

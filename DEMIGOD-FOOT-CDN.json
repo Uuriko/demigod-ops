@@ -1,15 +1,15 @@
 {
-  "at": "2026-08-06T15:00:21.574Z",
-  "version": "1070",
-  "cdnUrl": "https://files.catbox.moe/n0iqho.js",
+  "at": "2026-08-06T17:55:53.971Z",
+  "version": "1071",
+  "cdnUrl": "https://files.catbox.moe/7o703k.js",
   "ok": true,
   "temporary": false,
-  "bytes": 401598,
-  "sha256": "d90d207e14223394afd5f7949c850a6f6a0dfeea50c1bd6ada107b1652e2e688",
-  "liveLen": 400753,
+  "bytes": 403963,
+  "sha256": "c4926dbb481b167379234f91285f78e7ed44710670dec51ad14ba6f23a5c0e9d",
+  "liveLen": 403112,
   "loaderLen": 11059,
   "host": "catbox.moe",
-  "footVer": "1070",
+  "footVer": "1071",
   "assets": {
     "startupMap": {
       "url": "https://files.catbox.moe/xik8zi.js",

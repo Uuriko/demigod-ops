@@ -1,252 +1,178 @@
-# Dasha exact product roadmap
+# Dasha product roadmap
 
-Updated: 2026-08-06
+Updated: 2026-08-08
 
 ## North star
 
-Create the easiest credible way to show what someone believed before a crypto-market outcome, then preserve and resolve the original without becoming a trading venue, shill network or fake safety oracle.
+Learn whether one recurring, witnessed creative ritual can turn attention into voluntary return—while keeping `$dasha` adjacent, optional and honestly disclosed.
 
-## Current state
+## Permanent exclusions
 
-### Built locally
+The Thesis Card and every receipt/forecasting descendant are scrapped. Do not test, deploy, integrate or rename them. Archived code is evidence of abandoned work, not backlog.
 
-- A no-wallet Dasha Thesis Card generator
-- Asset address validation
-- Thesis, invalidation, confidence and horizon fields
-- X Web Intent text within 280 characters
-- 1200×675 PNG export
-- Explicit disclaimer that the local timestamp and checksum are not proof
-- Browser regression test covering boundary input, PNG output, X length, 48px controls and mobile overflow
+## Current evidence
 
-### Live landing page
+- The live homepage already offers the verified mint, Jupiter, chart, source links, X discovery and `/dasha` desk.
+- The official Jupiter modal begins the buy flow without leaving the site and preserves a direct fallback.
+- Meme Studio creates and exports square posts, vertical stories and wide banners. Remix URLs preserve the exact editable look, format and line; the three-format checkpoint is verified locally and awaits Webflow publication.
+- The prepared homepage includes an editorial Simp Board with PerryALPHA at the founding #1 spot, a Studio-first entry path and an evidence-shaped X nomination intent. A nomination is not entry; the board does not yet link accounts or measure interactions.
+- Current memecoin research consistently describes narrative, social diffusion and participatory culture as primary behavior, alongside severe volatility and concentration risk.
+- Zora makes creation and trading one loop; Guild combines community identity and campaigns; quest products reward participation. Dasha should learn from the loop, not copy their infrastructure.
+- Grok's independent 30-track review converged with the academic evidence: first-contribution acknowledgement, bounded prompts and remix continuity are better-supported next tests than ranks, accounts, token gates or another feature suite. Raw receipt: [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md).
 
-The latest Webflow publish uses an iframe loading `https://files.catbox.moe/rj3ask.html`.
+## Simp Board boundary
 
-Verified current defects:
+Current v0 is a public hall of fame, not an automated ranking system. `dasha-simp-board.json` records PerryALPHA's founding spot with public X evidence and null values for points, linked identity and holder status.
 
-- The deployed iframe still contains `https://t.me/dashacommunity`, an unassociated Telegram the user explicitly asked to remove. It has been removed from the local source, generated app and configuration; deployment is stale.
-- The outer Webflow document contains almost no indexable page content beyond the iframe.
-- The outer `<html>` still lacks `lang="en"`.
-- Canonical URL and `og:url` are absent.
-- The iframe is served as `text/plain; charset=utf-8`, even though browsers may still render it in this context.
-- A fixed 1520px iframe height is fragile across content and mobile viewport changes.
-- The Thesis Card is not live.
+The separate **Season Zero / Riding for Dasha** experiment is retired before launch because it duplicates the Transmission test and makes ranking compete with creation. Transmission 001 is the only participation experiment. The Board retains PerryALPHA's disclosed founding spot as an editorial acknowledgment; it does not promise measured rank, entry or a season. If Transmission 001 produces real work, a later Board presentation may cite specific contributions without converting them into one total score.
 
-These are P0 alongside preparing the official Discord from the reviewed blueprint.
+Measured mode is gated on X OAuth with PKCE/state, an exact registered redirect URI, a backend identity store and a bounded scoring job. If holder credit is tested, wallet ownership must be proven with a signed challenge; the public signal stays opt-in and flat/capped. Never publish balances, weight rank by bag size, sell placement, add referral points or imply an airdrop.
 
-## Phase 0 — trust and landing repair
+Prepared OSS lane: `dasha-simp-oss/v0` scores only merged, reviewed pull requests to allowlisted public Dasha repos. Exactly one impact label maps to 5/15/40/100/200 points, capped at 300 points, eight merges per 28-day season and three merges per rolling seven days. Operators and bots score zero; direct commits are not backfilled. `dasha-simp-oss-scorer.mjs` recomputes the lane from public GitHub evidence, and its current authoritative result is empty because `Uuriko/dasha-desk` has no merged PRs. Activate only after the impact labels, season timestamps and first non-operator reviewed PR exist.
 
-Goal: one truthful, directly rendered, accessible landing page.
+## Phase 0 — coherent conversion path
 
-Tasks:
-
-1. Deploy the completed source-level Telegram removal and verify the anchor and associated language are absent from loaded content.
-2. Replace the iframe with native Webflow content or a directly hosted page with the correct `text/html` MIME type.
-3. Add `lang="en"`, canonical URL and `og:url`.
-4. Confirm all external links have accurate labels and intentional new-tab behavior.
-5. Preserve precise mint language: associated/published source is not safety or endorsement.
-6. Run desktop/mobile screenshots, link checks, axe and overflow checks.
-
-Exit gate:
-
-- No `t.me/dashacommunity` in outer or loaded content.
-- Primary content is indexable in the top-level document.
-- Zero serious axe violations attributable to page code.
-- No broken links or horizontal overflow at 390px and 1440px.
-
-## Phase 1 — 48-hour artifact test
-
-Goal: test whether the social object is understandable and desirable before persistence.
+Goal: let a qualified visitor verify and begin buying with less context switching.
 
 Build:
 
-- Rename the public experiment **Dasha Thesis Card**.
-- Keep it asset-neutral and blank by default.
-- Create three polished examples:
-  - a bullish liquid-asset thesis;
-  - an opposing/bearish thesis on the same prompt;
-  - an honest failed or invalidated thesis.
-- Add a short “what this proves / does not prove” panel.
-- Integrate the generator into the Dasha landing page after Phase 0.
-- Add aggregate-only event instrumentation for start, valid generation, PNG download and X-intent open. Do not collect wallet or position data.
+- official Jupiter Plugin modal with `$dasha` fixed as output;
+- direct `jup.ag` fallback on every buy surface, retained when the Jupiter plugin is absent **or loads but fails during initialization**;
+- adjacent mint and risk disclosure;
+- event markers for buy-modal open and direct-Jupiter fallback when Webflow analytics supports them.
 
-Target test cohort: at least 30 relevant crypto users or realistic moderated sessions.
+Gate:
 
-Pass gates:
+- modal loads on desktop and mobile without page errors;
+- wallet and swap execution remain entirely inside Jupiter;
+- direct fallback works when the plugin is blocked;
+- no material Core Web Vitals regression from loading the plugin before intent.
 
-- At least 40% correctly explain the artifact without coaching.
-- Median valid card creation under 45 seconds.
-- At least 25% say they would share a real call without payment.
-- At least 20% of generated cards open the X share intent.
-- At least five users create a second card within 14 days in any live beta.
+Falsification: after enough traffic for a useful comparison, plugin opens do not improve qualified Jupiter handoff or visitors abandon more often than the outbound-only baseline.
 
-Failure action: simplify or kill the public-call thesis. Do not compensate with rewards, Discord or a leaderboard.
+## Phase 1 — Dasha Meme Studio instrument
 
-## Community track — official Discord
+Goal: provide the creation and editable-handoff instrument for the Transmission experiment.
 
-The user has decided to create a Dasha Discord. It runs beside the product roadmap, not as a substitute for product demand.
+Status: prepared checkpoint. The live Studio v3 asset already has five procedural looks, individual post/story/banner output, explicit three-size preparation links, fragment remix URLs and one-hop lineage. It differs from the generated source only in the latest navigation/accessibility cleanup: the prepared top bar restores the verified mint and Buy paths, gives controls 44px targets and hides the lower-priority X link on narrow screens. PNG export, combined image+remix sharing, inbound-remix state and matched image-only sharing remain intact. Parent state is bounded to one generation and makes no identity, authorship or endorsement claim. Old query links remain readable and immediately normalize to fragment state. Publication and demand remain unproven. Webflow Analyze reports are unavailable because this site lacks the Analyze entitlement; absence of reports is not evidence of zero use.
 
-Before opening:
+Prototype:
 
-- implement [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md);
-- establish canonical official links;
-- assign named admin/moderation coverage;
-- enable native verification, Rules Screening and AutoMod;
-- preload safety copy, three Thesis Card examples and one community prompt;
-- ensure the server contains no wallet verification, trading commands or unassociated Telegram references.
+- five original procedural layouts with no third-party image dependency;
+- editable one-line caption and live preview;
+- PNG export first; GIF/video only after PNG demand;
+- optional X share intent and optional verified-mint caption;
+- portable remix URLs carrying the editable look, format and line without an account or upload;
+- small removable `getdasha.com` attribution, never a fake endorsement mark.
 
-After opening, measure meaningful contributors, support resolution and repeated Round participation—not raw member count.
+Gate:
 
-## Phase 2 — sealed receipts beta
+- a first-time mobile visitor exports within 60 seconds;
+- at least 20% of studio starters export;
+- at least 10% of exporters voluntarily open X share intent;
+- at least five distinct people create without operator coaching.
 
-Only begin after Phase 1 passes.
+Failure action: improve the asset pack and templates once. If sharing remains absent, stop building editor features and test Lore Vault.
 
-Goal: provide real pre-outcome evidence rather than a local checksum.
+## Phase 1.5 — Transmission 001
 
-Build:
+Goal: determine whether a recurring character situation creates more participation and return interest than a standalone editor.
 
-- Server-issued ID and received-at timestamp
-- Canonical serialized payload and content hash
-- Stable public URL
-- Append-only original
-- Corrections as new versions
-- Deletion as a visible tombstone
-- Author-controlled public/private state
-- Asset identity stored by chain and contract address, not symbol alone
-- Optional RFC 3161 or OpenTimestamps anchoring after basic server receipts are reliable
+Run one bounded experiment titled **make me an alibi**:
 
-Do not call a receipt immutable unless the storage and verification path actually make that claim true.
+- one concise instruction: `make me an alibi.`;
+- one original, deliberately incomplete Studio starter carrying `transmission-001`;
+- one task designed to take minutes;
+- the existing PNG-plus-editable-link share path and one manually reviewed submission path;
+- acknowledgement for every distinct person's first valid submission by the end of the next calendar day;
+- a seven-day contribution window;
+- one small, explicitly curated closing record only if real contributions exist;
+- a second Transmission only if participation pulls it into existence.
 
-Pass gates:
+Gate:
 
-- At least 100 activated creators
-- At least 20% voluntary X share rate
-- Receipt click-to-new-card conversion at least 5%
-- Fourteen-day repeat creation at least 20%
-- Zero lost or silently mutated originals
+- at least five distinct non-operator submissions;
+- at least three materially changed artifacts;
+- at least one repeat, remix or explicit request for the next prompt;
+- every valid first submission receives acknowledgement;
+- at least one valid submission preserves an editable link; treat a cross-person second-generation remix as stronger evidence, not a required first-test threshold;
+- source, permission and non-endorsement boundaries remain intact.
 
-## Phase 3 — deterministic resolution
+Measure the path from view → material edit → export → submission → acknowledgement → return/remix. Keep operator examples separate. Token price, market cap, trade volume, follower count and raw reactions do not count toward the gate.
 
-Only begin after sealed receipts show repeat use.
+Adapt once if credible participants consistently fail at the same shared step. Stop if fewer than two credible non-operator artifacts appear after real distribution, or if people consistently view/save without editing. Do not add points, token rewards, accounts or automated ingestion to rescue a failed creative loop.
 
-Goal: create a second useful social event at the declared horizon.
+Research and full boundary: [`DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md`](DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md). Academic map: [`DASHA-ACADEMIC-EVIDENCE.md`](DASHA-ACADEMIC-EVIDENCE.md).
 
-Start with liquid BTC, ETH and SOL or binary prompts with unambiguous public sources. Do not start by ranking illiquid memecoins.
+## Phase 2 — choose one expansion
 
-Build:
+Only one branch proceeds based on observed behavior:
 
-- Resolution-source declaration at creation
-- Reference value/time and timezone normalization
-- HIT / INVALIDATED / EXPIRED / DISPUTED states
-- Outcome card linking to the original
-- Required short postmortem
-- Dispute and correction log
+### A. Remix Relay
 
-Pass gates:
+Trigger: at least ten non-operator chains reach a second remix generation. Add the smallest portable artifact format and optional parent lineage. Do not add accounts, a token or social graph just to label this a network.
 
-- At least 30% of creators return for resolution.
-- Fewer than 2% unresolved oracle disputes.
-- Resolution produces measurable return visits or new cards.
+Immediate experiment: [`dasha-relay-lab.html`](dasha-relay-lab.html) gives five matched image-only and editable-fragment starters using the existing Studio, then locally compares parent and returned Studio links for changes to look, format or line. A valid comparison renders a machine-readable `dasha-relay-observation/v0` record containing only the experiment arm, material-change result, changed fields and the two supplied URLs; it is neither submitted nor stored. Its separately implemented parser also validates and semantically reconstructs the bounded Studio recipe without importing Studio code; this is a dual-implementation grammar smoke test, not pixel-renderer conformance, cultural portability or demand evidence. Over seven days, count materially changed second-generation remixes—not clicks, parser results, compliments or operator examples. Kill further editor work if fewer than two of at least ten real handoffs produce a non-operator second-generation edit, or if recipients consistently keep the PNG and discard editability. Do not publish the Wall, gallery or lineage layer to rescue a failed relay.
 
-Immediate stop: a material coordination/pump incident, a product-caused impersonation/scam incident or systemic resolution ambiguity.
+### B. Moment Capsules
 
-## Phase 4 — creator-neutral rounds
+Trigger: recurring group moments produce more participation than solitary creation. Open a bounded contribution window and export the result as a static collage or zine; no attendance token or permanent identity.
 
-Only begin after individual receipt and resolution loops work.
+Prepared experiment: **Culture Capsule** ([`dasha-remix-pack.html`](dasha-remix-pack.html)) accepts a bounded moment title, one validated public context URL and 2–9 existing Studio remix links with optional contributor labels, then exports one local 1080×1080 group zine. Native share keeps that PNG and its editable Capsule link together; the X fallback saves the PNG and opens a post containing the same link. The link carries the title, context, every entry, format and label in the URL fragment, so another person can reopen, add, replace or remove remixes without sending state in the HTTP request. Each rendered slot exposes its exact Studio source and a remove control; the PNG is an export, not the editable source. Context and contributor labels are maker-supplied and explicitly unverified. It has no backend or public collection surface. Publish only as an experiment; kill it after three distributed capsules if no non-operator contributes or reopens and changes one.
 
-Goal: let a host turn a Space, stream or show into a recurring forecast segment.
+Trust boundary: contributor names are unverified labels entered by the wall maker. They are not proof of authorship, consent, licensing or permission. Do not add onchain attribution or ownership claims without a real approval workflow.
 
-Build:
+### C. Portable Culture Kits
 
-- One prompt and cutoff
-- 5–10 audience hypotheses
-- Optional sealed/private-until-cutoff mode
-- Reveal mosaic
-- Resolution recap
-- Host embed/export
+Trigger: an outside community publishes with a Dasha-derived kit and reuses it without agent help. Extract only the proven renderer and format boundary; do not build a marketplace or SDK first.
 
-The mode may be useful to Ansem, Market Bubble or any community, but must not imply affiliation or require them.
+### D. Live Remix Rooms
 
-Pass gates:
+Trigger: scheduled prompts draw repeat attendance. Run the first room with the existing Studio and manual collation; add real-time state only after repeated sessions justify it.
 
-- Two independent hosts each run three rounds.
-- Host setup stays under ten minutes.
-- Fewer than half of rounds require Dasha operator intervention.
-- More than half of submitted hypotheses reach resolution.
+### E. Transaction Preflight pivot
 
-## Phase 5 — histories and calibration
+Trigger: the cultural loop fails and active Solana users repeatedly bring real unsigned requests they can obtain without assistance. Treat this as a product pivot, not an adjacent feature, because its trust/security identity conflicts with the current cultural surface.
 
-Only begin after enough resolved observations exist.
+### F. Generic Living Objects — rejected
 
-Build:
+Rezona, Sekai, Variant and Pops already offer interactive/playable content with creation, remixing and sharing. Do not build tap-reveal toys, AI games, levels, a runtime marketplace or an app store under a new name. Reconsider only if Dasha discovers a materially different interaction job that those products do not serve.
 
-- Public Dasha call history, never “complete trader record”
-- Private browser-local or account workspace
-- Calibration by confidence bucket
-- Brier/proper scoring only where questions are well-defined
-- Setup-level review
-- Export/API
+### G. Agent products — deferred or rejected
 
-Do not build a global P&L leaderboard. Do not score thin-token calls in a way that rewards coordinated promotion.
+The existing Studio fragment is already a deterministic, free machine interface. Defer a static agent skill until human Remix Relay works or an external agent consumer asks for a stable grammar. Reject autonomous Dasha posting bots: they are crowded, make engagement evidence less trustworthy, and create endorsement/moderation risk. Reject a paid x402 Culture Compiler while the same output can be constructed locally for free; reconsider only when a proven server-side capability and independent demand both exist.
 
-## Deferred until evidence changes
+### H. In-feed Dasha — distribution option, not a pivot
 
-- Dasha token utility or gating
-- Wallet connection
-- Position-size proof
-- Trading/execution
-- Copy trading
-- Referral revenue
-- Paid promotion marketplace
-- AI trade advice
-- Global leaderboard
-- Automatic X posting
-- Scraped Ansem call feed
+[Farcaster Mini Apps](https://miniapps.farcaster.xyz/) provide feed discovery, signed-in social context, notifications and wallet rails for ordinary web apps. A later Dasha Mini App could open an exact remix, edit it and pass the result on without leaving the feed. Do not build the wrapper before Relay proves that people pass editable state: the SDK can improve distribution, but it cannot create the underlying behavior. Trigger: repeated non-operator chains plus identifiable Farcaster demand. First version reuses the existing Studio and adds only the required manifest/SDK boundary—no feed, token gate or separate editor.
 
-## Metrics hierarchy
+### I. Open Creative Briefs — earned market branch
 
-### Activation
+Trigger: Relay proves editable artifacts survive real handoffs and one community brings a real creative request, a legitimate starter and a budget. Run the first cycle manually: brief, reuse terms, starter object, editable fork submissions and external payment. Productize only if at least three forks are usable, one is adopted without re-briefing, rights stay clear and the buyer requests a second cycle without operator coaching. Otherwise drop the branch. Do not build escrow, voting, profiles, reputation, a marketplace or `$dasha` payment rails.
 
-- Valid cards / landing visitors
-- Median time to valid card
-- Concrete invalidation completion rate
+### J. Lore Vault — bounded fallback, not CultureGraph
 
-### Distribution
+Trigger: Studio/Relay sharing fails and real users repeatedly ask for sourced contract, origin or disputed-claim context. Use the existing Dasha evidence ledger plus two unrelated tokens to test three static pages manually under the time and return-use gates in [`DASHA-PRODUCT-OPTIONS-2026-08-07.md`](DASHA-PRODUCT-OPTIONS-2026-08-07.md). Do not build a multi-token graph, scraper, crowdsourced wiki, sentiment feed, safety score or price layer. If the static test fails, archive the direction.
 
-- X intent opens / valid cards
-- Verified public shares
-- Shared-card click-through
-- Reader-to-new-card conversion
-- Cards created per shared card
+## Ambitious platform horizon
 
-### Retention
+If remix chains and creator attribution recur, Dasha can become a crypto-native creative network: culture packs, collaborative canvases, remix lineage, creator profiles, community commissioning and portable artifacts. `$dasha` may remain the cultural sponsor and discovery asset; utility or gating is not assumed and requires separate legal, technical and demand evidence.
 
-- Second card within 14 days
-- Return for resolution
-- Four-week retained creators
+## Growth and safety metrics
 
-### Trust
+Primary:
 
-- Mutation/loss incidents
-- Resolution disputes
-- Tombstone/edit rate
-- Scam/impersonation reports
-- Misunderstanding of what the artifact proves
+- verified buy-flow starts per qualified landing visitor;
+- Meme Studio start → export → voluntary share-intent conversion;
+- returning creators and distinct remixers;
+- inbound visits carrying a studio/remix attribution.
 
-### Host viability
+Guardrails:
 
-- Independent recurring hosts
-- Setup time
-- Operator intervention rate
+- zero invented association or endorsement claims;
+- zero unofficial Telegram/Discord links;
+- zero wallet custody or custom swap execution;
+- prominent loss-risk disclosure;
+- no rewards for deceptive promotion or coordinated spam.
 
-Token price, holder growth, impressions and Discord members are not product-success metrics.
-
-## Exact next build order
-
-1. Repair the live iframe/Telegram/accessibility defects.
-2. Reconcile the local Thesis Card naming across code and docs.
-3. Produce the three example cards.
-4. Add the proof/non-proof explanation to the tool.
-5. Integrate the local tool into the landing page.
-6. Run the 30-user artifact test.
-7. Decide go/kill before writing any persistence backend.
+Raw price movement is not proof that the website or product caused demand.

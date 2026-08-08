@@ -1,0 +1,48 @@
+Grounded this in the actual disk state rather than the docs' self-description (several docs disagree with each other). Findings below feed the debate.
+
+## Debate
+
+**1) Coin-with-studio vs studio-with-coin homepage framing — Disagree with the crypto-default (coin-first).**
+Disk truth already picked a side: DASHA-SIMPLIFY.md calls `/studio` the "Main product bet," and DASHA-DOCS.md's public promise is "Start with a finished signal. Change one thing. Pass it on." — a studio pitch. But the root `index.html` on disk right now is actually desk-flavored copy (`<title>$dasha desk — mint, sources, risk`, H1 "Verify. Then enter.") — that's coin-first drift back toward exactly what SIMPLIFY was written to stop. Home should lead studio, with mint/buy as a trust/proof-of-life strip, not the hero.
+
+**2) Keep /dasha desk separate — Agree.**
+Desk's job (verify/chart/sources/photos) is distinct and carries the Jupiter modal + full trust copy + the only sanctioned remote photos. Merging would force home to either duplicate that weight or violate its own "no remote image tape" rule. Link hard to desk from home instead of merging.
+
+**3) how-to-buy: fold, not ship or delete.**
+It's fully built (`dasha-how-to-buy.html`) and correct, but shipping it as a 4th public route contradicts the explicit 3-route decision. Deleting wastes finished, accurate content. Fold its steps into desk's existing buy-guide (`dasha-landing.html` already has a 3-step "How to buy" block) — reuse, don't add a surface.
+
+**4) Photos: desk-only — Agree, strongly.**
+Not just style preference: DASHA-DOCS.md's own live-drift log names "stale casino title/image" and "remote casino raster" as repeat defects — remote image tape has already broken things in production. Desk safely contains it (lazy-load, `referrerpolicy="no-referrer"`, three pbs links). Keep the risk on one surface.
+
+**5) Remix Relay: kill now, gallery premature.**
+SIMPLIFY's own feature-gate is explicit: publish disk Studio+home+desk → measure export/remix-link reuse → *then* relay only if strangers produce second-gen edits. There's no live measurement loop yet (see move #5 below), so relay is one gate ahead of where evidence supports it. Gallery is two gates ahead — don't build it.
+
+**6) Capsules/Open Culture Objects: later.**
+Same gate, explicitly step 4 (after relay validates). Flag a doc contradiction: DASHA-DOCS.md lists `DASHA-OPEN-CULTURE-OBJECTS.md` as "Active product specification," which reads as green-lit when SIMPLIFY says it's gated behind relay. Relabel it "future, gated," not "active."
+
+**7) Discord/Telegram: neither.**
+Both are on SIMPLIFY's do-not-grow list. There's no community substrate yet (three no-account routes) for Discord to aggregate. `DASHA-DISCORD-BLUEPRINT.md` marked "Current" in the docs map overstates readiness — it's a prepared blueprint, not a live need.
+
+**8) Docs: archive aggressively.**
+Concrete evidence, not a vibe: `docs/` holds 76 `LOOP-PROMPT-2026-08-06-*.md` files from one day plus unrelated Demigod docs mixed into the same tree. Worse, at the Dasha level: `DASHA-ROADMAP.md` is marked "Current" in DASHA-DOCS.md but its content is the pre-pivot Thesis Card / receipts era — directly contradicting "Scrapped: Thesis Card, receipts... forever" stated two lines below it in the same doc. An agent trusting that status column would resurrect dead scope. Fix ROADMAP's status today; keep only SIMPLIFY/BIBLE/DOCS/WORKFLOW/PRODUCT-BRIEF/DOMAIN-WEBFLOW-LAUNCH as "current."
+
+**9) Static host if Webflow stays broken — yes, but not today as-is.**
+Webflow's API returns 401 and the dashboard is auth-walled per DASHA-DOCS.md's own observation, so GitHub Pages is the right fallback. But root `index.html` right now is desk content, not `dasha-landing.html`. DASHA-WORKFLOW.md's own surface table says `index.html`/`app.html` at root should be *generated duplicates* of `dasha-desk/src/*`, not the site entry point. Flipping on Pages today would silently publish desk-as-homepage.
+
+**10) Three 14-day Studio metrics:** exports per unique session (proves the canvas alone is worth using); remix-link (`#fragment`) reuse rate — opened vs. re-exported (proves "pass it on" loops instead of dead-ending); studio→desk/Jupiter clickthrough (proves studio drives the coin). All three are countable client-side, no wallet telemetry — consistent with SIMPLIFY's own constraint.
+
+## Top 5 code/design risks
+
+1. Root `index.html`/`app.html`/`app.js`/`body.html`/`styles.css` are untracked and sit outside the canonical build path (`dasha-desk/src/*` → `dist/`). Unclear if they're intentional build output or a stray copy; a careless static-host flip or `git add .` risks shipping the wrong thing as site root.
+2. The Jupiter buy handler (`window.Jupiter?.init`, `preventDefault` only when ready) is duplicated across landing/desk/app.html with the same hardcoded mint string in each — three copies to keep in sync, already visible as the "casino-era vs. prepared checkpoint" mismatch DASHA-DOCS.md documents.
+3. Mint address `53uxQtB9...pump` is a hardcoded literal in multiple files, no single source of truth — a correction under pressure (e.g. disputed association) means a multi-file grep-and-replace.
+4. DASHA-DOCS.md's status column is unreliable (ROADMAP.md marked "Current" contains scrapped content) — a documentation-correctness bug with real code consequences, since agents route on that column.
+5. `robots.txt` is empty and `/sitemap.xml` 404s live (per DASHA-DOCS' 2026-08-07 observation) even though `dasha-sitemap.xml` exists on disk unlinked — SEO surface undefined in prod despite the fix already being written.
+
+## Ranked next moves (disk/publish-gated only)
+
+1. Correct `DASHA-ROADMAP.md`'s status — rewrite or stamp "superseded" in DASHA-DOCS.md, closing the scrapped-content landmine.
+2. Resolve the root-level `index.html`/`app.html`/`body.html`/`app.js`/`styles.css`: confirm intentional-generated-and-gitignored vs. accidental stray, and fix accordingly.
+3. Extract the mint address to one shared constant referenced by landing/desk/app.html.
+4. Make the GitHub Pages fallback actually serve `dasha-landing.html` at `/`, not the current stray desk-flavored root file.
+5. Wire the three 14-day Studio metrics as disk-side counters now, so measurement exists the moment publish is authorized.

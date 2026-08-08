@@ -1,134 +1,92 @@
 # Dasha product strategy
 
-Updated: 2026-08-06
+Updated: 2026-08-07
 
 ## Position
 
-**Dasha is the pre-outcome reasoning layer for public crypto calls.**
+Dasha is a culture-production platform around `$dasha`, not a prediction product, trading terminal or generic “utility token” project.
 
-It helps someone state a market thesis before the result, preserve what would invalidate it, share a legible card on X and later resolve the original without rewriting history.
+The immediate wedge is a Dasha Meme Studio: create something visually good in under a minute, export it, and optionally share it. The coin landing and official Jupiter integration turn cultural discovery into a transparent buy path; the creative output gives the community a reason to distribute the site voluntarily.
 
-Public promise:
+## Strategic model
 
-> Say it before the move. Show what would prove you wrong.
+```text
+discover culture → make/remix artifact → export/share → new visitor
+                                      ↘ verify mint → Jupiter buy
+```
 
-Internal distinction:
+The loop must remain useful without requiring a wallet. Token ownership, gates, rewards, accounts and leaderboards are not assumed.
 
-- User-facing job: “prove I said it before the move.”
-- Integrity property: complete, non-deletable history once server-backed receipts exist.
-- Educational benefit: better thesis formation and calibration.
-- Not the pitch: moral accountability, guaranteed alpha or safety.
+## Why this direction
 
-## Initial personas
+- Memecoin value and fragility are both strongly tied to narrative and social diffusion.
+- Creator-coin and quest platforms show that repeatable participation outlives a static landing page.
+- Dasha already has a distinctive visual world but no owned activity or portable output.
+- Building a full social network first would multiply cold-start and moderation risk; a useful creation tool can earn the right to expand.
 
-### Alpha broadcaster
+## Competitive boundary
 
-Wants timestamped social proof without exposing wallet, size or complete strategy. Values a recognizable X card and low friction.
+- Jupiter owns swap execution; embed or link it rather than rebuilding it.
+- Dexscreener, Solscan and Rugcheck own market/explorer signals; link discrete sources rather than inventing a safety score.
+- Zora owns generalized creator/post coins; Dasha should not issue a new coin for every artifact.
+- Guild and quest platforms own broad campaign infrastructure; Dasha should reward cultural quality only after a real contribution loop exists.
+- Pawprint already combines AI generation, recurring characters, prompt forks, feeds and weekly challenges; copying that feature stack would erase Dasha's simpler portable-remix wedge.
+- ChainGPT Buzz already operates tracked, rewarded campaign infrastructure; Dasha should not become points-for-promotion machinery.
+- OKX Orbit places conversation, creator activity and execution inside a trading app; Dasha's credible advantage is an open cultural object that travels outside a closed exchange.
+- Canva and meme generators own generic editing; Dasha wins only through a strong, opinionated visual kit and crypto-native sharing loop.
+- ElizaOS, Virtuals and Bair already cover autonomous social agents, agent commerce/tokenization and agentic meme creation. Dasha's URL-native Studio may become a free agent interoperability surface only after human Relay demand or a concrete external request; it is not a reason to build a bot or paid API now.
+- [Farcaster Mini Apps](https://miniapps.farcaster.xyz/) already supply in-feed discovery, social identity, notifications and wallet rails. Reuse that distribution layer only after editable relays work; do not build another network or confuse an SDK integration with product demand.
+- [Zora](https://mkt.zora.co/) makes profiles and posts tradable. Dasha's differentiator should remain the mutation of an editable cultural object, not another tradeable post or creator coin.
+- [Uplink](https://uplink.wtf/) already combines multiplayer mintboards, contests, onchain participation and creator earnings. Dasha should not wrap its artifacts in another gallery or contest system.
+- [Meme Agent Studio](https://memeagentstudio.com/whitepaper/), [Kaplex](https://www.usekaplex.com/) and YC's [Remix](https://www.ycombinator.com/companies/remix-3) crowd AI campaign and content production. Exact reconstructability and deliberate mutation—not generation volume—must be Dasha's distinction.
 
-### Reputation climber
+## Decision rules
 
-Wants to be early and noticed. Will game leaderboards and rewards, so the first product should avoid global ranking and token incentives.
+1. Ship the embedded-buy experiment separately from the product experiment so conversion and product demand are not confused.
+2. Build PNG creation before video, accounts, feeds or collaboration.
+3. Use exports and voluntary shares as evidence; likes, operator-created examples and token price are not enough.
+4. Choose Remix Relay, Moment Capsules, Culture Kits, Live Remix Rooms or a true pivot only from observed behavior described in [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md).
+5. Treat old thesis/receipt files as archived abandoned work. Never revive them.
+6. Do not infer product demand from agent posts or x402 settlement counts. Human second-generation edits remain the current discriminating behavior.
 
-### Quiet serious trader
+## Pivot map
 
-Wants private decision hygiene and review. May never share publicly. Browser-local drafts can serve this user without changing the public product.
+These are different user jobs, not a backlog to build in parallel.
 
-### Spectator
+| Direction | Core loop | Why Dasha could win | Cheapest proof |
+|---|---|---|---|
+| **Remix Relay** | See a cultural object → change one thing → pass the editable version on | The current Studio and fragment links already supply the first half; open-web portability avoids a cold-start feed | Ten non-operator remix chains with at least two generations |
+| **Moment Capsules** | Open a short-lived event capsule → contribute once → receive a permanent shared artifact | Builds community memory without NFTs, wallets, rankings or permanent identity | Three real capsules; a participant starts the next one |
+| **Culture Kit** | A community forks Dasha's visual formats, phrases and remix seeds into its own portable kit | Turns the renderer into infrastructure for many communities while keeping artifacts editable | One outside community ships and reuses a kit without agent help |
+| **Open Creative Briefs** | Publish a bounded brief and licensed starter → receive editable forks → select and pay elsewhere | Could make portable editability and clear reuse terms the deliverable instead of another generic bounty | One manual cycle yields three usable forks, an adopted asset and an uncoached repeat buyer |
+| **Transaction Preflight** | Paste an unsigned request → inspect permissions and unknowns → decide elsewhere | Portable second-opinion UX can be more legible and private than wallet-only simulation | Manual tests show repeated use before signing; payload acquisition stays easy |
+| **Live Remix Room** | A host starts a prompt → participants make variants → room exports a static zine | Produces an event rather than another passive gallery; the result survives outside Dasha | One room gets ten real submissions and voluntary resharing |
 
-Wants fast context: thesis, horizon, confidence, invalidation and evidence the wording was not rewritten after outcome.
+Current weakest-sufficient choice: keep **Remix Relay** as the main hypothesis because it reuses verified behavior and makes the fewest new commitments. The next proof is behavior, not infrastructure. Importable artifact files, lineage hashes, accounts, feeds and onchain publishing wait until real multi-generation remixing exists.
 
-### Host or producer
+Strategic convergence: **Open Culture Objects is the only current ambitious thesis that remains distinct after comparison with hosted lineage, onchain galleries, creative bounties and AI operator suites.** The Studio is its authoring wedge, exact fragment links are its first carrier, and the verified mint/Jupiter path is an optional Dasha-specific discovery route. These are not separate products to bundle. Schema governance, royalties, object minting and `$dasha` utility remain unsupported and excluded.
 
-Wants a repeatable segment for a Space, stream or podcast: one prompt, a cutoff, divergent calls and a resolution recap.
+Ambitious horizon: if Relay proves that editable state travels, formalize the render-plus-recipe pair as **Open Culture Objects**. “Open” requires a documented schema, golden fixtures and a second independent consumer; a Dasha URL that only Dasha understands is not a protocol. Full contract and kill rules: [`DASHA-OPEN-CULTURE-OBJECTS.md`](DASHA-OPEN-CULTURE-OBJECTS.md).
 
-## Product hypotheses
+Prepared falsifier: [`dasha-relay-lab.html`](dasha-relay-lab.html) supplies five matched editable-link and image-only starters plus a local parent/child material-diff check. It measures the one unresolved behavior without analytics, identity, storage or a new product layer.
 
-| Rank | Hypothesis | What must be true | Cheapest test | Kill criterion |
-|---:|---|---|---|---|
-| 1 | Thesis Card | Target users understand and voluntarily share a pre-outcome call artifact. | Current no-wallet generator plus three realistic examples. | Under 40% comprehension or under 25% stated real-call share intent across 30 target users. |
-| 2 | Sealed receipt | Users value credible time/order proof enough to return to a stable URL. | Server-stamp a small invited beta; originals append-only. | Fewer than 20% return or share; frequent demands to edit/delete misses. |
-| 3 | Automatic resolution | A resolved card creates a second discussion and retention event. | Resolve liquid BTC/SOL/ETH examples with explicit oracle rules. | Under 30% creator return-to-resolution or disputes above 2%. |
-| 4 | Community rounds | Hosts can turn receipts into recurring content without Dasha operation. | One creator-neutral session with 5–10 hypotheses. | Fewer than five submissions, host setup over ten minutes or fewer than half resolve. |
-| 5 | Evidence snapshot | Users need context at creation time but do not mistake it for safety. | A/B a discrete facts panel against link-only version. | No comprehension gain or over 20% interpret it as endorsement in five interviews. |
-| 6 | Calibration profile | Repeat users value process quality over raw P&L. | Show calibration only after enough resolved binary forecasts. | Users optimize easy questions, lack sufficient samples or treat score as investment advice. |
+## Product proof ladder
 
-## The product loop
+These are successive hypotheses, not features to build in parallel:
 
-1. A market moment or host prompt creates intent.
-2. A user enters asset, claim/direction, confidence, horizon, invalidation and short rationale.
-3. Dasha shows an exact preview.
-4. In the local MVP, Dasha generates an explicitly non-proving card and checksum.
-5. In the persisted product, Dasha seals an append-only original and returns a canonical URL.
-6. The user shares to X using a standard Web Intent.
-7. A reader opens the receipt and can create a counter-thesis from the same prompt without copying the rationale.
-8. At the horizon, the receipt resolves through a published rule.
-9. The outcome card links to the unchanged original and prompts a postmortem.
+| Stage | Question | Cheapest convincing evidence |
+|---|---|---|
+| **Culture compiler** | Can someone turn one phrase into a postable square, story or banner in under three minutes? | Four of six people export a usable artifact; median first export under 150 seconds |
+| **Source-aware remix** | Does visible context make the artifact more worth remixing than a generic template? | Most participants choose the sourced version and retain honest attribution |
+| **Culture Capsule** | Does a titled, source-aware group artifact cause contribution and second-person editing rather than passive browsing? | A non-operator contributes to and later reopens one of three distributed capsules |
+| **Open artifact format** | Is editability outside Dasha more valuable than a flattened image? | Two complete handoffs preserve rendering, context and parent lineage without hosted state |
+
+Stop at the first failed stage. A feed, wallet, token gate, public upload system, identity layer, live room or onchain registry is not justified by page views or first-party demos.
 
 ## Trust contract
 
-Dasha must say exactly what it proves.
-
-### Local prototype proves
-
-- The card text produced the displayed checksum.
-- Nothing about when the content was written.
-- Nothing about token identity, safety, ownership, wallet position or investment quality.
-
-### Server-backed receipt may prove
-
-- The server received an exact canonical payload no later than a recorded time.
-- Later versions differ from the preserved original.
-- The resolution rule and data source used.
-
-### It still cannot prove
-
-- The caller's full portfolio or all opinions
-- That the caller acted on the thesis
-- That the asset is safe
-- That the caller is unbiased
-- That a public history includes private or alternate-account calls
-
-Therefore use “public Dasha call history,” never “complete verified trader record.”
-
-## Anti-gaming and safety
-
-- Blank asset by default; never prefill Dasha or ANSEM.
-- No wallet connection, size, buy button, referral link or execution in the initial product.
-- Original receipts are append-only; corrections create a version; deletion becomes a tombstone.
-- Standardized horizons and resolution rules.
-- Expired and invalidated calls remain visible.
-- Contract-address disambiguation for tokens with the same name.
-- Strip arbitrary links from public rationale.
-- Add conflict/sponsorship disclosure before public beta.
-- No global leaderboard for illiquid assets.
-- Rate limits, reporting and a documented appeal path before open creation.
-- Do not auto-mention Ansem, Dasha or any community.
-
-## Discord role
-
-The user has decided Dasha will have a Discord server. It is the official community and product home, while X remains the acquisition and status surface.
-
-The initial server stays intentionally small: official links, safety, announcements, general community, memes, Dasha Desk, Thesis Cards, Rounds, feedback and moderation. It must not become a trading-signals room, wallet-support surface or token-gated investment club. See [`DASHA-DISCORD-BLUEPRINT.md`](DASHA-DISCORD-BLUEPRINT.md).
-
-## Business model sequence
-
-Do not monetize before the sharing and return loops work.
-
-Potential later models, in order of fit:
-
-1. Free public receipts; paid private workspaces or exports for serious users.
-2. Host tools for recurring community rounds and branded recaps.
-3. API access for receipts/resolutions with precise provenance.
-4. Team/media subscriptions for private forecast sets.
-
-Avoid token-gated access, paid shills, order flow, referral-based trading revenue and pay-to-rank mechanics. Each corrupts the product's neutrality before it earns trust.
-
-## Brand architecture
-
-- **Dasha Desk**: the `$dasha` landing page, mint/source desk and product launcher.
-- **Dasha Thesis Card**: current creator-neutral experiment inside the Desk.
-- **Sealed Call**: candidate persisted product behavior, not yet a truth claim.
-- **Rounds**: creator-neutral host format.
-- **Dasha Discord**: official community, support and recurring-round home.
-
-Never describe Dasha as official to Dasha Nekrasova or affiliated with Ansem without direct, current evidence and permission.
+- Association is not authorization or endorsement.
+- The mint must be visible and independently checkable.
+- Dasha never calls a token safe, promises returns or presents attention as investment research.
+- Wallet connections and swaps remain inside established third-party infrastructure.
+- Creative submissions require provenance, reporting and moderation before a public gallery exists.

@@ -68,6 +68,7 @@ test('sample-role title scrub leaves the observed ATS rail alone', () => {
     /if\(\/Live SF startup roles hiring now\|Examples\? of roles\|Roles hiring now\|Open roles\/i\.test/,
     'old loose Open roles substring scrub must stay gone',
   );
-  assert.match(SRC, /Recently observed SF roles/, 'observed rail heading stays observation-language');
-  assert.match(SRC, /not our matching inventory/, 'observed rail keeps inventory non-claim');
+  /* Heading is "Open roles" (observation rail, not "recently observed" marketing). */
+  assert.match(SRC, /id=['"]dg-observed-roles-h['"]>Open roles</, 'observed rail heading stays Open roles');
+  assert.match(SRC, /not our matching inventory|not matching inventory/, 'observed rail keeps inventory non-claim');
 });

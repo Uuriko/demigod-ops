@@ -8,8 +8,8 @@ The Dasha Discord will be the official community and product home for:
 
 - `$dasha` culture and memes
 - Dasha Desk support and source verification
-- Dasha Thesis Card testing
-- Future community Rounds and resolution recaps
+- Dasha Meme Studio testing and remix jams
+- Community lore and creative events
 - Builder coordination
 
 It is not a trading-signals server, wallet-support desk, token-gated investment club or substitute for X distribution.
@@ -28,8 +28,8 @@ It is not a trading-signals server, wallet-support desk, token-gated investment 
 - `#general`
 - `#memes`
 - `#dasha-desk` — site feedback and verification questions
-- `#thesis-cards` — cards, counter-theses and resolved examples
-- `#spaces-and-rounds` — scheduled X Spaces and community forecast rounds
+- `#meme-studio` — Dasha remixes, templates and creator feedback
+- `#lore-vault` — sourced artifacts and community history
 
 ### BUILDERS
 
@@ -90,9 +90,9 @@ The first server does not need a custom bot.
 
 A future Dasha bot may:
 
-- post new public Thesis Card rounds;
-- announce cutoff, reveal and resolution;
-- link to canonical Dasha receipts;
+- announce remix jams and creative prompts;
+- surface approved Meme Studio exports;
+- link to canonical Dasha sources;
 - surface server status.
 
 It must never:
@@ -111,16 +111,15 @@ The server should not open empty. Prepare:
 1. Canonical project explanation
 2. Official-link registry with observation date
 3. Scam-prevention guide
-4. Three Thesis Card examples: bull, bear and invalidated
+4. Three strong Meme Studio examples with credited source assets
 5. Current build log
 6. One first community prompt
 7. Named moderation coverage and incident owner
 
 ## Relationship to X
 
-X remains the public distribution surface. Discord is the durable home for discussion, support, builders and recurring Rounds. Every Discord link shown on the website must be created and controlled by the Dasha operators; never import a link merely because a DEX profile lists it.
+X remains the public distribution surface. Discord is the intended durable home for discussion, support, builders and creative events. Every Discord link shown on the website must be created and controlled by the Dasha operators; never import a link merely because a DEX profile lists it.
 
 ## Creation gate
 
 The user has decided that Dasha will have a Discord server. Actual creation remains pending because no Discord connector or authenticated server-management surface is available in this session. The blueprint is the authoritative setup specification when that surface is available.
-

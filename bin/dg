@@ -62,9 +62,9 @@ case "$1" in
     shift
     exec dg-busy-rotate "$@"
     ;;
-  orca)
+  agents|bus|orca)
     shift
-    exec bin/dg-orca "$@"
+    exec bin/dg-bus "$@"
     ;;
   free-ops)
     shift

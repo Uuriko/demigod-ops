@@ -21,7 +21,7 @@ This is an orientation card, not a release ledger. Run `bin/dg truth` for fresh 
 - Dashboard: optional projection of receipts at `http://127.0.0.1:9878/`; not a second source of truth.
 - Integrity: `demigod-control-board.mjs`; orient via `demigod-orient.mjs` / `bin/dg session`.
 - Role observation: `demigod-role-ledger.timer` (ATS poll) + `demigod-roles-pipeline.timer` (discover → public embed); guide [`docs/ROLES-PIPELINE.md`](docs/ROLES-PIPELINE.md).
-- Agent coordination: Orca first; `ask-claude` / `grok-ask` stateless fallbacks.
+- Agent coordination: `bin/dg-bus` local tracked tasks; `ask-claude`, `grok-ask` and `codex-ask` direct stateless adapters.
 - Useful work: `demigod-useful-loop.service`; standing nonstop flag `/tmp/dg-busy/KEEP_WORKING` when the user has ordered continuous work.
 
 ## Operating rules
