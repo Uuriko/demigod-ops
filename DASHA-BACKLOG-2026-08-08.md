@@ -12,22 +12,28 @@ money). Nothing here grants it.
 
 ---
 
-## Blocked on the operator — nothing else here waits on these
+## Blocked on the operator — two things, both Webflow UI toggles
 
-Everything in this list is built, gated and committed. Each needs one action only you can take.
-`node dasha-discovery.test.mjs` reports the first four as live failures until they are done.
+Everything else in the P-list is done. `node dasha-discovery.test.mjs` is down from nine live
+failures to these two, and neither is reachable from the Webflow Data API.
 
-| # | Action | Where | Why it is blocked |
-| --- | --- | --- | --- |
-| **P1** | Publish the site | `node dasha-ship.mjs --ship` | Structured data, the Studio embed header and the roadmap fixes are committed and gated but not live. Publishing is an outward-facing action and needs saying so in the moment. |
-| **P2** | Re-upload the share card | Webflow assets → replace `dasha-social-card-v2.png` with `dasha-social-card.png` | The live card is a stale upload still showing `HIGH RISK · VERIFY THE MINT · NO ENDORSEMENT IMPLIED`. It is the only surface where the removed copy survives, and it is the one most people see. |
-| **P3** | Paste robots.txt | Webflow → Site settings → SEO → robots.txt | Exact text is in [`dasha-robots.txt`](dasha-robots.txt). Live file is 200 with an empty body. |
-| **P4** | Paste the sitemap | Webflow → Site settings → SEO → custom sitemap | Exact text is in [`dasha-sitemap.xml`](dasha-sitemap.xml). `/sitemap.xml` is currently a 404. |
-| **P5** | Push the Desk repo | `cd dasha-desk && git push origin main` | `ARCHITECTURE.md` and the README fix are committed locally. Pushing publishes and redeploys Pages. |
-| **P6** | Create the starter issues | GitHub | Three open issues is not a funnel. Writing them is done-able; creating them posts publicly. |
-| **P7** | Move the Studio into the public repo | GitHub | The highest-leverage open-source change: the public repo currently holds only the Desk, and the Studio is the interesting artifact. This is a decision, not a task. |
-| **P8** | The aggregator submissions | DexScreener, CoinGecko, CMC, Jupiter | Section C. Money and outbound forms. |
-| **P9** | Run Transmission 001 | — | Section F56. It is a public prompt and a promise to acknowledge every first submission. |
+| # | Action | Where |
+| --- | --- | --- |
+| **P3** | Paste the robots.txt | Webflow → Site settings → SEO → robots.txt. Exact text: [`dasha-robots.txt`](dasha-robots.txt). Live file is 200 with an empty body. |
+| **P4** | Turn on the sitemap | Webflow → Site settings → SEO. `/sitemap.xml` is a 404 today. All three real pages are already flagged `includeInSitemap: true` and both retired drafts are correctly excluded, so this is one toggle. Use [`dasha-sitemap.xml`](dasha-sitemap.xml) if you prefer a custom one. |
+
+Still needing a decision rather than a keystroke:
+
+| # | Action | Why it waits |
+| --- | --- | --- |
+| **P8** | DexScreener / CoinGecko / CMC / Jupiter submissions | Section C. Money and outbound forms. Jupiter Express burns 1,000 JUP. |
+| **P9** | Run Transmission 001 | Section F56. A public prompt and a promise to acknowledge every first submission by the next day. |
+
+Done this session: **P1** site published and verified on all nine surfaces · **P2** share card
+re-uploaded and byte-matched, plus the Webflow SEO/OG descriptions that still carried the removed
+disclaimer copy · **P5** Desk repo pushed · **P6** five new starter issues with file pointers and
+verify commands · **P7** the Studio is in the public repo, generated and drift-gated, with CI
+running its checks on every pull request.
 
 ---
 
