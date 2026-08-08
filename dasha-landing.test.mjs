@@ -14,7 +14,11 @@ assert(!/images\.weserv\.nl|files\.catbox\.moe|gpjyb0\.jpg/.test(html), 'old thi
 assert(!/<img\b|pbs\.twimg\.com|cdn\.dexscreener\.com|Public tape|Stills from the timeline|Culture tape/.test(html), 'homepage gained a brittle or implied-curation image tape');
 assert(!/<img\b[^>]*(?:PerryALPHA|Perry)/i.test(html), 'Perry founding spot must not revive the retired image tape');
 for (const required of ['$dasha', mint, '/dasha', '/studio', 'Make something', 'Simp board', 'Contribute', 'jup.ag/swap', 'plugin.jup.ag/plugin-v1.js', 'dexscreener.com']) assert(html.includes(required), `missing ${required}`);
-assert(/<script src="https:\/\/plugin\.jup\.ag\/plugin-v1\.js" data-preload defer><\/script>/.test(html), 'Jupiter Plugin lost its documented preload/defer path');
+/* The plugin is loaded on intent, not on page load. It is 1,017 KB and it used to be 54% of this
+   page's weight on mobile, downloaded for every visitor including the ones who came to make a meme.
+   What must hold is that it is never fetched eagerly and that intent still triggers it. */
+assert(!/<script[^>]+src="https:\/\/plugin\.jup\.ag/.test(html), 'the Jupiter plugin is being fetched on page load again — it is 1 MB before anyone has shown intent');
+assert(/pointerenter|touchstart/.test(html) && /IntersectionObserver/.test(html), 'the Jupiter plugin lost its on-intent loader');
 assert(!/poster:after|MAKE IT STRANGER/.test(html), 'hero collage regained its redundant text overlay');
 assert(!/A culture coin on Solana|culture coin with an open remix studio|Jupiter swap opens here|The point|A coin is boring|Come make|House rules|exit liquidity for your own brain/i.test(html), 'deleted explanatory copy returned');
 assert(!/culture coin (?:behind|powering|required for|unlocks) (?:an |the )?open remix studio/i.test(html), 'homepage implied unsupported Studio token utility');
@@ -76,6 +80,10 @@ for (const width of [320, 390, 1440]) {
   await page.click('.copy');
   await page.waitForFunction(() => window.__copied);
   assert.equal(await page.evaluate(() => window.__copied), mint, 'copy contract button failed');
+  /* Intent first, then the click. The plugin is not on the page until something asks for it, so a
+     bare click would test the fallback and quietly stop testing the modal at all. */
+  await page.hover('.buy-dasha');
+  await page.waitForFunction(() => !!window.Jupiter?.init, { timeout: 10000 });
   await page.click('.buy-dasha');
   assert.deepEqual(await page.evaluate(() => ({
     input: window.__jupiterConfig?.formProps.initialInputMint,
