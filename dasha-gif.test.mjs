@@ -59,15 +59,40 @@ assert.ok(netscape > 0, 'no NETSCAPE2.0 block — the GIF would play once and st
 assert.equal(bytes[netscape + 12], 1, 'NETSCAPE sub-block is not the looping sub-block');
 assert.deepEqual([bytes[netscape + 13], bytes[netscape + 14]], [0, 0], 'loop count is not infinite');
 
-/* Frame count comes from the Graphic Control Extensions (0x21 0xF9), which is unambiguous —
-   the 0x2C image-separator byte also occurs inside compressed data and colour tables. */
-let frames = 0, delay = null;
-for (let i = 0; i < bytes.length - 8; i++) {
-  if (bytes[i] === 0x21 && bytes[i + 1] === 0xF9 && bytes[i + 2] === 4) {
-    frames++;
-    if (delay === null) delay = bytes[i + 4] | (bytes[i + 5] << 8);
+/* Frames are counted by walking the block structure, not by scanning for a byte signature.
+   Scanning was the first approach and it over-counted: 0x21 0xF9 0x04 occurs by chance inside LZW
+   data, so one clip reported 17 frames in a 16-frame file. A counter that can over-count can also
+   pass a file whose real frames are broken, which is the opposite of what a gate is for. */
+function walkGIF(b) {
+  let p = 6;                                             // header
+  const packed = b[p + 4];
+  p += 7;                                                // logical screen descriptor
+  if (packed & 0x80) p += 3 * (1 << ((packed & 7) + 1)); // global colour table
+  const skipSubBlocks = () => { while (b[p]) p += b[p] + 1; p++; };
+  let frames = 0, delay = null;
+  while (p < b.length) {
+    const marker = b[p];
+    if (marker === 0x3B) return { frames, delay, clean: true };   // trailer
+    if (marker === 0x21) {                                        // extension
+      const label = b[p + 1];
+      p += 2;
+      if (label === 0xF9 && delay === null) delay = b[p + 2] | (b[p + 3] << 8);
+      skipSubBlocks();
+    } else if (marker === 0x2C) {                                 // image descriptor
+      frames++;
+      const lp = b[p + 9];
+      p += 10;
+      if (lp & 0x80) p += 3 * (1 << ((lp & 7) + 1));              // local colour table
+      p += 1;                                                     // LZW minimum code size
+      skipSubBlocks();
+    } else return { frames, delay, clean: false };                // unknown byte — malformed
   }
+  return { frames, delay, clean: false };                          // ran off the end
 }
+
+const walked = walkGIF(bytes);
+assert.ok(walked.clean, 'the GIF block structure is malformed — parsing did not reach the trailer');
+const { frames, delay } = walked;
 assert.ok(frames >= 8, `only ${frames} frames — not an animation`);
 assert.ok(delay > 0, 'frame delay is 0, which browsers clamp unpredictably');
 

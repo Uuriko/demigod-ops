@@ -6,6 +6,7 @@ const read = (file) => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
 const brief = read('./DASHA-PRODUCT-BRIEF.md');
 const roadmap = read('./DASHA-ROADMAP.md');
 const docs = read('./DASHA-DOCS.md');
+const guide = read('./DASHA-COMPLETE-GUIDE.md');
 const simplify = read('./DASHA-SIMPLIFY.md');
 const landing = read('./dasha-landing.html');
 const board = JSON.parse(read('./dasha-simp-board.json'));
@@ -25,10 +26,12 @@ assert.match(simplify, /Transmission 001 is the only participation experiment/);
 assert.match(brief, /Studio is the instrument/);
 assert.match(roadmap, /### A\. Remix Relay/);
 
-for (const [, target] of docs.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
-  if (/^(?:https?:|#)/.test(target)) continue;
-  const path = decodeURIComponent(target.split('#')[0]);
-  assert(fs.existsSync(new URL(path, import.meta.url)), `DASHA-DOCS.md links to missing ${path}`);
+for (const [file, text] of [['DASHA-DOCS.md', docs], ['DASHA-COMPLETE-GUIDE.md', guide]]) {
+  for (const [, target] of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+    if (/^(?:https?:|#)/.test(target)) continue;
+    const path = decodeURIComponent(target.split('#')[0]);
+    assert(fs.existsSync(new URL(path, import.meta.url)), `${file} links to missing ${path}`);
+  }
 }
 for (const file of ['./DASHA-DOCS.md', './DASHA-PRODUCT-BRIEF.md', './DASHA-ROADMAP.md', './DASHA-WORKFLOW.md']) {
   for (const [, script] of read(file).matchAll(/npm run ([\w:-]+)/g)) {

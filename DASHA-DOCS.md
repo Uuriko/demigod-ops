@@ -4,6 +4,8 @@ Start here for all Dasha work. Demigod is out of scope until the user explicitly
 
 ## Read path
 
+For complete orientation, read [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md). For active work:
+
 1. [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md) — what Dasha is now.
 2. [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) — what evidence activates the next build.
 3. [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) — where truth lives and how work is verified.
@@ -14,6 +16,7 @@ Open [`DASHA-BIBLE.md`](DASHA-BIBLE.md) for voice/culture, [`DASHA-ART-DIRECTION
 
 | Question | Owner |
 |---|---|
+| Where is the complete linked orientation? | `DASHA-COMPLETE-GUIDE.md` |
 | What is the product? | `DASHA-PRODUCT-BRIEF.md` |
 | What happens next, and under what gate? | `DASHA-ROADMAP.md` |
 | What could exist someday? | `DASHA-HORIZON.md` |
@@ -27,6 +30,7 @@ Dated research supports these owners. It does not replace them.
 
 | Document | Purpose | Status |
 |---|---|---|
+| [`DASHA-COMPLETE-GUIDE.md`](DASHA-COMPLETE-GUIDE.md) | Whole-project and website orientation with links and evidence footnotes | Current summary; does not own mutable facts |
 | [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md) | Sources of truth, work loop, status vocabulary and publication matrix | Current; operational entry after this map |
 | [`DASHA-BIBLE.md`](DASHA-BIBLE.md) | Culture, design voice, image library, X sources, agent checklist | Current bible |
 | [`DASHA-HORIZON.md`](DASHA-HORIZON.md) | The possibility space: products and features that could exist, sized S–XL, plus the hard lines | Current; owns "what could exist". `DASHA-ROADMAP.md` owns "what we are doing"; `dasha-desk/docs/ROADMAP.md` owns the Desk repo's own scope |
