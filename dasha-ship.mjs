@@ -644,7 +644,11 @@ async function main() {
       !want.dry &&
       (want.preflight ||
         (want.push && (pending.length > 0 || want.publish)) ||  // publish re-pushes every surface
-        (want.publish && changed.length > 0 && !receipt.stages.published));
+        (want.publish && changed.length > 0 && !receipt.stages.published) ||
+        /* --force-publish exists precisely for the case where nothing local changed — a Webflow-side
+           edit like page settings, which this script cannot see in its hashes. Without this clause
+           the client is never built and the forced publish dereferences undefined. */
+        (want.publish && args.has('--force-publish')));
     if (needsWebflow) {
       client = await mcpClient();
       if (want.preflight || !receipt.stages.preflight) {

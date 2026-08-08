@@ -96,6 +96,14 @@ for (const row of rows) {
     failures.push(`${row.path} serves 200 and nothing in this repo owns it`
       + `${row.edge ? ` (x-dasha-edge: ${row.edge})` : ''} — it cannot be updated, gated or swept`);
   }
+  /* /checkout, /paypal-checkout and /order-confirmation are Webflow ECOMMERCE SYSTEM pages, and the
+     Data API cannot retire them. Setting draft:true returns success and changes nothing; changing
+     the slug returns the new title and keeps the old slug. Both were tried on 2026-08-08 — recorded
+     so the next person does not spend the same half hour discovering it.
+     What did work: titles and SEO, so they now say "Not in use" rather than "John's Awesome Project".
+     What actually removes them: disabling Ecommerce in the Webflow Designer (UI only), or a block at
+     the lobby edge worker, which already intercepts these hosts. Until then this stays red, because
+     a page collecting card details on this domain is worth staying red about. */
   /* HEAD and GET disagreeing is not cosmetic: crawlers and link unfurlers commonly send HEAD first
      and treat a 404 as a missing page, so the surface can be live and invisible at the same time. */
   if (row.get === 200 && row.head !== 200 && row.head !== 0) {
