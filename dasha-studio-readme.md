@@ -2,10 +2,13 @@
 
 Make a `$dasha` image in your browser. Six looks, three formats, PNG and animated GIF out.
 
-**[Use it →](https://www.getdasha.com/studio)**
+**[Use this edition →](https://uuriko.github.io/dasha-desk/studio/)** ·
+[deployed extended Studio](https://www.getdasha.com/studio)
 
-No account. No wallet. No upload. Nothing you type or make leaves your machine — every image is
-drawn on a canvas in your own browser, which is also why it works with the wifi off.
+This repository edition has no account, wallet or upload. Nothing you type or make leaves your
+machine: every image is drawn on a canvas in your browser, so it works with the wifi off. The
+deployed extended Studio also supports local uploads and a sourced image gallery; those images are
+not bundled here and are not covered by this folder's CC0 dedication.
 
 ## Run it
 
@@ -64,7 +67,7 @@ These are not style preferences; each one is load-bearing.
 
 ## Licence
 
-Everything in this folder — the code, the mark, the character, and every image the Studio exports —
+Everything in this folder — the code, mark, character and procedural images this edition exports —
 is [CC0 1.0](LICENSE). Copy it, change it, sell it, no credit needed.
 
 The carve-out is not a licence term so much as a fact about what a licence can do: it covers our

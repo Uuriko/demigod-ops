@@ -27,16 +27,35 @@ const check = process.argv.includes('--check');
 
 const read = (rel) => readFile(join(root, rel), 'utf8');
 
-/* The Studio is one self-contained file: no scripts, no stylesheets, no fonts, no images. That is
-   what makes it safe to hand to someone else, and it is the property most likely to be lost by a
-   well-meaning change, so it is asserted rather than assumed. */
+/* What the Studio is allowed to reach for. Every host here is a decision, not an accident.
+
+   This used to scan only src=/href= attributes, which is why it waved through fifteen photographs:
+   they are URLs inside a JavaScript array, loaded with new Image(), and an attribute-shaped regex
+   cannot see them. A dependency check that only looks at markup does not check a canvas app.
+
+   The photo gallery is deliberate — the operator chose on 2026-08-08 to keep it and narrow the CC0
+   claim instead. What that costs is stated plainly rather than hidden: the drawn looks still work
+   with no network, but the gallery does not, and a photo host can rot or start refusing us at any
+   time. The footer must therefore never claim the photos are ours to give away. */
+const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com)/;
+const PHOTO_HOSTS = /^https:\/\/(pbs\.twimg\.com|static1\.squarespace\.com|www\.moviemaker\.com|m\.media-amazon\.com|br\.web\.img2\.acsta\.net|avatars\.mds\.yandex\.net|upload\.wikimedia\.org)\//;
 const studio = await read('dasha-meme-studio.html');
-const external = [...studio.matchAll(/(?:src|href)="(https?:\/\/[^"]+)"/g)].map((m) => m[1]);
-const allowed = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com)/;
-const loaded = external.filter((url) => !allowed.test(url));
+// Every absolute URL anywhere in the file — markup, CSS, or a string literal in the script.
+const external = [...studio.matchAll(/https?:\/\/[^\s"'`)<>]+/g)].map((m) => m[0]);
+const loaded = external.filter((url) => !LINKS.test(url) && !PHOTO_HOSTS.test(url));
 if (loaded.length) {
-  console.error(`The Studio gained an external dependency: ${loaded.join(', ')}`);
-  console.error('It must render with no network at all. Inline it or drop it.');
+  console.error(`The Studio reaches a host nobody approved: ${[...new Set(loaded)].join(', ')}`);
+  console.error('Add it to LINKS or PHOTO_HOSTS on purpose, or drop it.');
+  process.exit(1);
+}
+
+/* The licence claim has to match what the tool can actually put in an export. Only a build that can
+   put a PHOTO in an export overclaims by saying "exports are CC0" — a fully drawn build says it
+   truthfully, so this fires on the combination, not on the wording alone. */
+const hasGallery = external.some((url) => PHOTO_HOSTS.test(url));
+if (hasGallery && /exports are\s*<a[^>]*>CC0/i.test(studio)) {
+  console.error('The footer still dedicates EXPORTS to the public domain while a photo gallery exists.');
+  console.error('Narrow it to what the Studio draws, or remove the gallery.');
   process.exit(1);
 }
 
