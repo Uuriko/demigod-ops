@@ -106,10 +106,16 @@ for (const row of rows) {
      Data API cannot retire them. Setting draft:true returns success and changes nothing; changing
      the slug returns the new title and keeps the old slug. Both were tried on 2026-08-08 — recorded
      so the next person does not spend the same half hour discovering it.
-     What did work: titles and SEO, so they now say "Not in use" rather than "John's Awesome Project".
-     What actually removes them: disabling Ecommerce in the Webflow Designer (UI only), or a block at
-     the lobby edge worker, which already intercepts these hosts. Until then this stays red, because
-     a page collecting card details on this domain is worth staying red about. */
+     What did work, and this is the part worth remembering: the pages cannot be unpublished, but their
+     CONTENTS can be hidden. Each is a single top-level commerce container — CommerceCheckoutFormContainer,
+     CommercePaypalCheckoutFormContainer, CommerceOrderConfirmationContainer — and set_visibility false
+     on that one element empties the page. They went from 28-58 KB of card-entry form to about 5 KB
+     with zero payment fields. Reversible, and it needed no Designer session.
+
+     The route still answers 200 and still has no owner, so this stays red — that is the real defect
+     and it is unchanged. But it is now a stale empty page rather than a form asking strangers for
+     card numbers on a domain whose whole pitch is not getting scammed. Removing them outright still
+     wants Ecommerce disabled in the Designer, which also clears the leftover CMS collections. */
   /* HEAD and GET disagreeing is not cosmetic: crawlers and link unfurlers commonly send HEAD first
      and treat a 404 as a missing page, so the surface can be live and invisible at the same time. */
   if (row.get === 200 && row.head !== 200 && row.head !== 0) {
