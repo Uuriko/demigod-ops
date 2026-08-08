@@ -13,7 +13,15 @@ the deployer wallet**. Five minutes, and it decides between:
 | [Enhanced Token Info](https://marketplace.dexscreener.com/product/token-info) | $299 (from $499) | You can prove control of the token / deployer wallet |
 | [Community Takeover Claim](https://marketplace.dexscreener.com/product/token-community-takeover) | $199 (from $499) | You cannot, and are claiming stewardship of an existing profile |
 
-The project is official, so the first is the right frame if control can be shown.
+**Use Enhanced Token Info.** The project is official — developed by John Potter with @perryalpha — so
+a "community takeover" claim would be the wrong description of what is happening and $199 spent
+saying something untrue about the project's own relationship to its token. A takeover means outsiders
+adopting an abandoned token; this is the operator correcting a stale record.
+
+The row above is kept only so nobody re-derives the takeover route from an older document. If
+DexScreener's support says the takeover product is the only one available without deployer-wallet
+control, come back and decide with that fact in hand — do not buy it on the assumption that it is
+the cheaper equivalent.
 
 ## What is wrong today
 

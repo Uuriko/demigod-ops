@@ -4,13 +4,19 @@
 **Status:** Current decision record; evidence test, not permanent product truth  
 **Participants:** Codex, Claude and Grok
 
+## Update: OAuth changes the option set
+
+After this debate, the user disclosed that X OAuth had been configured for the new Lobby and explicitly asked to reuse it for the Simp Board. Live verification on 2026-08-08 confirmed the Lobby reports `xLink: true`. The earlier conclusion that accounts/ranking would require speculative authentication infrastructure is therefore no longer true.
+
+An opt-in measured Board v1 is now prepared in the Lobby worktree. It reuses the same signed session, requires a separate explicit join, gives no points for follower count, verification, social reactions, chat volume, referrals, purchases, balances or bag size, and never stores OAuth tokens in Board state. This is a parallel recognition experiment; it does not replace the finished-seed plus alibi creative test.
+
 ## Decision
 
 Do not build another feature system yet. Test the existing **finished-seed wall plus one-action alibi** as two entrances into the same bare creative funnel:
 
 > finished object or `make me an alibi.` → material edit → export → optional share
 
-The homepage's primary creative story should be **finished object first**. The alibi is one named seed, not a separate institution. The test does not require a Simp Board acquisition loop, formal submission/review queue, next-day acknowledgement promise, curated closing record, accounts, points, token rewards, Discord automation or new platform infrastructure.
+The homepage's primary creative story should be **finished object first**. The alibi is one named seed, not a separate institution. The creative test does not require the Simp Board, formal submission/review queue, next-day acknowledgement promise, curated closing record, token rewards, Discord automation or new platform infrastructure. The separately authorized OAuth-linked Board may run beside it without becoming a prerequisite for creation.
 
 This is the weakest sufficient decision because no non-operator demand currently distinguishes the seed entrance from the alibi entrance. Both already exist in the prepared homepage and Studio. Measuring both preserves that uncertainty without adding machinery.
 

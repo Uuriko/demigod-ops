@@ -210,7 +210,9 @@ The visual rules, source-media policy and forbidden patterns live in [DASHA-ART-
 
 ## Simp Board and recognition
 
-The current Simp Board is an editorial presentation, not an automated ranking system. Perry/@PerryALPHA holds a disclosed founding position with public evidence. No account is represented as OAuth-linked, scored or holder-verified.[^simp]
+The live Simp Board keeps Perry/@PerryALPHA's disclosed founding position as a non-measured editorial row and now supports separately opt-in measured rows through the Lobby's X OAuth session. Members can join or self-remove, submit public evidence for creative, community and open-source contributions, receive fixed reviewed awards, display earned badges, download a browser-rendered score card and view immutable season snapshots.[^simp]
+
+The optional holder badge uses a short-lived signed Solana message and a current associated-mint check. It sends no transaction, stores only a 28-day badge expiry, publishes no wallet or balance and scores zero. It is status evidence, not identity uniqueness or Sybil resistance.
 
 An OSS scoring lane is prepared but inactive. It is designed to recognize reviewed, merged contributions from non-operators using public GitHub evidence and maintainer-applied impact labels. Its authoritative result is empty because no qualifying merged contribution exists.
 
@@ -382,7 +384,7 @@ Frozen experiments:
 - logo lab;
 - how-to-buy route;
 - Discord blueprint;
-- automated or seasonal Simp systems.
+- social-engagement scraping or token-weighted Simp ranking.
 
 Evidence-gated possibilities include Remix Relay, static editorial capsules, portable culture kits, live remix rooms, independent renderers, physical artifacts and eventual outside reuse. The complete possibility map is [DASHA-HORIZON.md](DASHA-HORIZON.md); the kill list is [DASHA-SIMPLIFY.md](DASHA-SIMPLIFY.md).
 
@@ -392,7 +394,7 @@ Evidence-gated possibilities include Remix Relay, static editorial capsules, por
 - The thesis/receipt/forecasting product was permanently scrapped.
 - Studio became the creation instrument.
 - Dasha Transmissions became the current participatory experiment.
-- Season Zero was retired so ranking would not compete with creation.
+- A minimal Simp Board shipped with explicit opt-in, reviewed evidence, fixed caps and zero-point holder status; participation remains the evidence gate.
 - Portable editable state became the critical behavior under test.
 - Open culture objects became the ambitious conditional horizon.
 - Release state moved out of prose and into the manifest/live verifier.
