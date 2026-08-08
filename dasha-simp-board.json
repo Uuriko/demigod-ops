@@ -11,6 +11,14 @@
       "points": 10,
       "source": "signed-x-session-after-explicit-join"
     },
+    "quiz": {
+      "schema": "dasha-simp-quiz/v1",
+      "status": "prepared",
+      "points_per_correct": 5,
+      "max_points": 40,
+      "attempts_per_x": 1,
+      "source": "server-scored-x-session-quiz"
+    },
     "creative": {
       "status": "inactive",
       "points": 25,

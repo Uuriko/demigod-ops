@@ -40,10 +40,15 @@ The Thesis Card, conviction receipt, sealed-receipt service, Pair and forecastin
 
 **Dasha Meme Studio** turns a line or image into an X-ready artifact. The **Lobby** provides one
 moderated public room with optional X linking. The **Simp Board** is a parallel recognition loop: X
-OAuth alone never enrolls; users explicitly join or leave; PerryALPHA's founding #1 row is disclosed
+OAuth alone never enrolls; users explicitly join, submit the X-linked Simp Quiz, or leave; PerryALPHA's founding #1 row is disclosed
 as editorial and non-measured. There is no public evidence-URL submission form. New points must come
 from automatic, reviewable project events or maintainer-derived public GitHub records; unsupported
 activity scores zero.
+
+The prepared eight-question “How big of a Dasha simp are you?” quiz requires the signed X session. Its submit
+button explicitly joins the Board, the Worker scores five points per correct answer (40 maximum),
+and each X account receives one scored attempt per quiz version. The browser never receives the
+answer key. Results can be shared through an explicit X Web Intent; the site never posts for the user.
 
 New remix state lives in the URL fragment, which browsers do not send in the HTTP request; legacy query links still load and normalize client-side. Native sharing carries the PNG and remix URL together; the X fallback saves the PNG and opens a documented Web Intent containing the editable URL. A materially changed inbound artifact keeps exactly one validated immediate parent snapshot and exposes a local `From` link; this is state ancestry, not proof of identity, authorship, permission or endorsement. A maker can prepare the same look and line as explicit post, story and banner downloads. The output carries a small `getdasha.com` mark, but never a price promise or implied endorsement.
 

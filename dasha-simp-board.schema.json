@@ -14,9 +14,21 @@
     "season": { "type": ["string", "null"] },
     "lanes": {
       "type": "object",
-      "required": ["x_link", "creative", "community", "holder", "oss"],
+      "required": ["x_link", "quiz", "creative", "community", "holder", "oss"],
       "properties": {
         "x_link": { "type": "object" },
+        "quiz": {
+          "type": "object",
+          "required": ["schema", "status", "points_per_correct", "max_points", "attempts_per_x", "source"],
+          "properties": {
+            "schema": { "const": "dasha-simp-quiz/v1" },
+            "status": { "enum": ["prepared", "live", "paused"] },
+            "points_per_correct": { "const": 5 },
+            "max_points": { "const": 40 },
+            "attempts_per_x": { "const": 1 },
+            "source": { "const": "server-scored-x-session-quiz" }
+          }
+        },
         "creative": { "type": "object" },
         "community": { "type": "object" },
         "holder": { "type": "object" },
