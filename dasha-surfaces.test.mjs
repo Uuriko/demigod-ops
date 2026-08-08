@@ -39,9 +39,18 @@ const OWNERS = {
 };
 
 /* Paths we have built at some point, whether or not they are live. A 404 here is a fine answer and
-   is reported as such; the point is to notice when one of them quietly starts answering 200. */
+   is reported as such; the point is to notice when one of them quietly starts answering 200.
+
+   The /my-projects and /digital-illustrations entries are CMS item pages from the 2020 template this
+   site was built on. Ten items are still published in the CMS — logo mockups and lorem-ipsum
+   illustrations, "Voluptatum Distinctio" and friends — and their collection templates still exist.
+   Their URLs 404 today, which is the answer we want, and it is worth checking rather than assuming:
+   the items are one template publish away from being live pages on a crypto domain, and a sitemap
+   cannot warn about a URL that does not exist yet. */
 const HISTORICAL = ['/capsule', '/relay-lab', '/remix-pack', '/desk-rc', '/retired-dasha-draft',
-  '/checkout', '/paypal-checkout', '/order-confirmation', '/simp', '/lobby'];
+  '/checkout', '/paypal-checkout', '/order-confirmation', '/simp', '/lobby',
+  '/my-projects/earth-energy-concept-logo', '/digital-illustrations/omnis-dolor-adipisci',
+  '/projects/optio', '/category/uncategorized', '/product/example'];
 
 const failures = [];
 const warnings = [];
