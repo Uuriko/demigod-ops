@@ -105,14 +105,28 @@ function sameHashes(a, b) {
   return Object.keys(SURFACES).every((key) => a?.[key] === b?.[key]);
 }
 
+/* A resumed receipt is only useful for finishing an interrupted run within the same few minutes.
+   Beyond that it is a liability: on 2026-08-08 a --ship resumed a receipt whose `published` flag was
+   already true, skipped the publish, and reported a clean run while the site was still serving the
+   old content. The receipt said the work was done because an earlier attempt had done it — before a
+   later push replaced what it had published. Anything older than this is not a resume, it is a
+   memory of a different situation. */
+const RESUME_WINDOW_MS = 30 * 60 * 1000;
+
 function startReceipt(hashes) {
   const previous = json(STATE);
+  const age = previous?.startedAt ? Date.now() - Date.parse(previous.startedAt) : Infinity;
   if (!args.has('--fresh') && previous?.site === SITE && sameHashes(previous.hashes, hashes)) {
-    previous.resumedAt = new Date().toISOString();
-    previous.error = null;
-    writeJson(STATE, previous);
-    log('resume', { runId: previous.runId, stages: previous.stages });
-    return previous;
+    if (Number.isFinite(age) && age > RESUME_WINDOW_MS) {
+      log('resume:expired', { runId: previous.runId, ageMinutes: Math.round(age / 60000),
+        note: 'starting a fresh receipt; a stale one silently skips publish' });
+    } else {
+      previous.resumedAt = new Date().toISOString();
+      previous.error = null;
+      writeJson(STATE, previous);
+      log('resume', { runId: previous.runId, stages: previous.stages });
+      return previous;
+    }
   }
   const receipt = {
     schema: 'dasha.ship-state/1',

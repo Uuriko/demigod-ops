@@ -9,7 +9,7 @@
  *
  * So this asserts only things that would be quietly damaging if they disappeared:
  *   - the mint, which is the one string where being wrong costs someone money;
- *   - the promises we make in public (public domain, total-loss risk, no likeness permission);
+ *   - the promises we make in public (public domain, no likeness or official-status permission);
  *   - the absence of the permanently retired product;
  *   - that the Studio actually mounts and can still export an image.
  *
@@ -28,8 +28,8 @@ const ORIGIN = process.argv.includes('--staging')
 
 /* GitHub Pages serves a second live public copy of the Desk, deployed by CI on every push to main.
    Nothing was watching it: dasha-release-contract.json lists only the Webflow hosts, so this surface
-   could drift or lose its risk disclosures and no gate would notice. It is checked here because it
-   is public, not because it is primary. */
+   could drift or show the wrong mint and no gate would notice. It is checked here because it is
+   public, not because it is primary. */
 const PAGES = 'https://uuriko.github.io/dasha-desk/';
 
 const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';

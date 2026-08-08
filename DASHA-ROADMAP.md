@@ -38,7 +38,7 @@ Build:
 
 - official Jupiter Plugin modal with `$dasha` fixed as output;
 - direct `jup.ag` fallback on every buy surface, retained when the Jupiter plugin is absent **or loads but fails during initialization**;
-- adjacent mint and risk disclosure;
+- the mint adjacent to every buy path, and the guidance to verify it;
 - event markers for buy-modal open and direct-Jupiter fallback when Webflow analytics supports them.
 
 Gate:
@@ -182,7 +182,9 @@ Guardrails:
 - zero invented association or endorsement claims;
 - zero unofficial Telegram/Discord links;
 - zero wallet custody or custom swap execution;
-- prominent loss-risk disclosure;
+- anti-scam guidance kept prominent (check the mint; never trust a mint from DMs). Risk boilerplate
+  was removed from every surface on 2026-08-08: it is not a guardrail, it is a reflex nobody reads.
+  The CC0 likeness carve-out stays, because it states licence scope rather than hedging;
 - no rewards for deceptive promotion or coordinated spam.
 
 Raw price movement is not proof that the website or product caused demand.

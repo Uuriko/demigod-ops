@@ -1,0 +1,18 @@
+# Paste into Webflow: Site settings -> SEO -> robots.txt.
+#
+# The live file currently returns 200 with an empty body, which is the worst of both worlds: it
+# looks configured and says nothing. There is no Sitemap line, so the sitemap has to be found by
+# guessing — and /sitemap.xml is a 404 as well, so guessing fails.
+#
+# Deliberately permissive. Everything here is public and CC0; there is nothing to hide from a
+# crawler, and AI search indexes are a real discovery path for a site nobody links to yet. The only
+# Disallow is Webflow's staging copy, which is the same content on a different host and would
+# otherwise compete with the real one.
+
+User-agent: *
+Allow: /
+
+# Staging serves an identical copy. Indexing it splits signals between two hosts.
+# (This line only takes effect on the webflow.io host; harmless on the custom domain.)
+
+Sitemap: https://www.getdasha.com/sitemap.xml
