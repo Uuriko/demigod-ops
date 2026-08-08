@@ -8,7 +8,7 @@ Prompts and replies travel to external model providers. Never include secrets or
 
 ```bash
 bin/dg-bus status
-bin/dg-bus task grok --title "research" --spec-file PROMPT.md
+bin/dg-bus task grok --title "research" --spec-file PROMPT.md --out docs/research/grok-report.md
 bin/dg-bus task claude --title "review" --spec "Review FILE and report findings" --detach
 bin/dg-bus show TASK_ID
 bin/dg-bus wait --task TASK_ID --timeout-ms 300000
@@ -17,7 +17,7 @@ bin/dg-bus inbox codex --unread
 bin/dg-bus selftest
 ```
 
-Roles are `claude`, `codex` and `grok`. `task` runs synchronously unless `--detach` is present. `--spec-file` is preferred for long prompts because it avoids quoting and shell-length failures.
+Roles are `claude`, `codex` and `grok`. `task` runs synchronously unless `--detach` is present. `--spec-file` is preferred for long prompts because it avoids quoting and shell-length failures. `--out` atomically preserves a successful raw reply inside the workspace with its task ID, role and completion time; it refuses paths outside `/home/potter`.
 
 ## Storage and receipts
 

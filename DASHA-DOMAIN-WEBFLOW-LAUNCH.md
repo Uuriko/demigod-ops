@@ -50,13 +50,27 @@ Prepared and verified locally:
 - Studio exports post, story and banner, teaches the receiver to pass editability on, and exposes Home, mint verification and the exact Jupiter route in its top bar;
 - Desk trust reset: one buy route, no referrals, preset amounts, raid link, pressure metrics or pressure copy.
 
-Observed live drift on 2026-08-07:
+Observed live on **2026-08-08**, by rendering each route rather than reading the sources. The
+2026-08-07 drift list is retired: every item on it had already shipped, and leaving it would send
+someone to redo finished work.
 
-- home still says `THE CASINO IS OPEN`, keeps `JOIN THE CHAOS` in mobile navigation and omits format state/source provenance;
-- Studio v3 has post/story/banner output, lineage and explicit three-size downloads, but predates the prepared mint/Buy navigation and mobile-target cleanup;
-- Desk still has preset amounts, referral parameters, buy-pressure/net-buy language and a hash-only `Raid` link.
+- **Home** — the prepared headline is live (`Make the timeline stranger`). `THE CASINO IS OPEN` and
+  `JOIN THE CHAOS` are gone.
+- **Studio** — v4: six looks, three formats, GIF export, remix links, the CC0 dedication and the
+  cherries mark. *This route regressed earlier the same day* — an inline republish silently dropped
+  the CC0 dedication, the mark and the Cherry look, and nothing detected it because every gate read
+  local files. Restored and now covered by `dasha-live.test.mjs`.
+- **Desk** — clean. No preset amounts, referral parameters, buy-pressure copy or raid link; the only
+  occurrences of "raid" and "referral" are inside a code comment stating the fact pack contains
+  none of them.
 
-No active route contains the retired product, forecasting language or unofficial Telegram link.
+Still local-only: the homepage footer attribution to John Potter and @perryalpha.
+
+No active route contains the retired product, forecasting language or the disclaimed Telegram link.
+
+**Run [`dasha-live.test.mjs`](dasha-live.test.mjs) after every publish.** It is the only check that
+looks at what is served rather than what is committed, which is precisely where the CC0 regression
+lived.
 
 ## Publication access
 
@@ -156,7 +170,31 @@ node dasha-remix-pack.test.mjs
 cd dasha-desk && node build.mjs --check && node dasha-share.test.mjs
 ```
 
-After publication verify all three custom-domain routes at 390px and desktop:
+### `/studio` has one deploy route, not two
+
+The Studio's CC0 dedication was silently dropped from production **twice on 2026-08-08**. Neither
+time was a coding error. Two deploy mechanisms were in use — a hashed Webflow asset referenced by
+the embed, and an inline paste of the fragment — and each publish overwrote the other. Last writer
+wins, and the public promise about people's rights to their own exports is what fell out.
+
+Pick one and keep it. The hashed asset is preferred for one concrete reason: its md5 is stamped in
+the embed comment, so "what is actually live" is answerable by reading the page instead of guessing.
+
+**Know which check applies to which mechanism**, because they are not interchangeable:
+
+| Check | Reads | Catches an inline-paste regression | Catches an asset regression |
+|---|---|---|---|
+| `dasha-release-contract.json` via `dasha-ship.mjs` | raw HTML (`fetch`, no JS) | yes | **no** — the text lives in the `.js` |
+| [`dasha-live.test.mjs`](dasha-live.test.mjs) | the rendered page and shadow root | yes | yes |
+
+So the contract markers are necessary but not sufficient. Run the rendering gate after every
+publish regardless of mechanism:
+
+```bash
+node dasha-live.test.mjs
+```
+
+Then verify all three custom-domain routes at 390px and desktop:
 
 - expected headline/controls/copy are actually rendered;
 - internal and external destinations are non-empty and correct;

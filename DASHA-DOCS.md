@@ -35,6 +35,7 @@ Dated research supports these owners. It does not replace them.
 | [`DASHA-ART-DIRECTION.md`](DASHA-ART-DIRECTION.md) | Visual system rules: palette roles, type, motifs, the forbidden list, and which act is allowed with third-party images | Current; owns the rules. Palette values are the bible's §5 — do not restate them elsewhere |
 | [`DASHA-CHARACTER.md`](DASHA-CHARACTER.md) · [`dasha-character.svg`](dasha-character.svg) | The Dasha cherry: construction geometry, five expressions, what must survive a redraw | Current; shipped as the Studio's Cherry look, deliberately replaceable |
 | [`DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md`](DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md) | Evidence, hypotheses and first-test contract for Dasha Transmissions | Current research decision; informs Brief and Roadmap without authorizing build |
+| [`DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md`](DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md) | Live/product/security/OSS/legal unknown-unknowns audit and conditional roadmap | Current evidence audit; owns risks, not product decisions |
 | [`DASHA-ACADEMIC-EVIDENCE.md`](DASHA-ACADEMIC-EVIDENCE.md) | Grouped, design-labeled academic bibliography for creativity, community, recognition, fandom, crypto manipulation and identity boundaries | Current research reference; evidence support, not product authority |
 | [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md) | Raw 30-track Grok research dossier preserved with its evidence labels and uncertainties | Research receipt; verify claims before promoting them into product truth |
 | [`DASHA-DOCS-SYSTEM-BACKLOG.md`](DASHA-DOCS-SYSTEM-BACKLOG.md) | Ranked backlog for reducing doc contradiction, duplication and maintenance cost | Current operational backlog; owns docs-system improvements only |
@@ -73,6 +74,8 @@ Dated research supports these owners. It does not replace them.
 | [`dasha-social-card.svg`](dasha-social-card.svg) / [`dasha-social-card.png`](dasha-social-card.png) | Editable source and 1200×630 PNG for home/Desk social previews | Verified checkpoint; not live |
 | [`dasha-meme-studio.html`](dasha-meme-studio.html) / [`dasha-studio-embed.html`](dasha-studio-embed.html) | Canonical Meme Studio authoring page and generated isolated Webflow payload | Verified checkpoint; live `/studio` awaits format update |
 | [`dasha-landing.test.mjs`](dasha-landing.test.mjs) | Homepage responsive, accessibility, interaction and Jupiter-modal check | Current |
+| [`dasha-product-coherence.test.mjs`](dasha-product-coherence.test.mjs) | Cross-owner gate for the active experiment, retired prompts and Board boundary | Current gate |
+| [`dasha-release-contract.json`](dasha-release-contract.json) / [`DASHA-SHIP-MANIFEST.json`](DASHA-SHIP-MANIFEST.json) | Exact live required/forbidden markers and last independently verified artifact hashes | Current release contract and persistent receipt |
 | [`dasha-social-card.test.mjs`](dasha-social-card.test.mjs) | Social-card dimensions, product/trust copy and self-contained-asset check | Current |
 | [`dasha-meme-studio.test.mjs`](dasha-meme-studio.test.mjs) | Studio formats, canvas, private remix state, export, share and responsive check | Current |
 | [`dasha-desk/docs/DEPLOY.md`](dasha-desk/docs/DEPLOY.md) | Landing build and deployment procedure | Current |

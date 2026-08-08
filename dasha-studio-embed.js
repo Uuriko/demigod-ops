@@ -89,7 +89,7 @@
   </div>
 
   <footer>
-    <p>High risk. Not financial advice. Can go to zero. Not affiliated with Dasha Nekrasova.</p>
+    <p>High risk. Not financial advice. Can go to zero.</p>
     <p>🍒 Original Studio assets and exports are <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer">CC0 1.0</a>: copy, change, sell. This is not permission to pass work off as official or use Dasha Nekrasova’s name or likeness.</p>
     <p><a href="/">Home</a> · <a href="/dasha#dd-mint">Desk</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p>
   </footer>

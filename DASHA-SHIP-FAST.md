@@ -20,6 +20,9 @@ npm run dasha:ship:push
 # Read-only token, site and custom-domain access check
 npm run dasha:ship:preflight
 
+# Disk vs last verified release, changed surfaces, gates and token availability
+npm run dasha:ship:status
+
 # Slow path: full Puppeteer suite before ship
 npm run dasha:ship:strict
 ```
@@ -40,12 +43,15 @@ npm run dasha:ship:strict
 
 ## Incremental and resumable behavior
 
-- Verified artifact hashes live at `/tmp/dasha-ship-manifest.json`.
+- Verified artifact hashes persist in `DASHA-SHIP-MANIFEST.json`, so a reboot does not force three redundant writes.
 - The current resumable run lives at `/tmp/dasha-ship-state.json`.
 - A matching rerun skips gates, surface writes and publication stages that already succeeded.
 - A fully unchanged ship performs live verification but makes no Webflow connection or publication call.
 - Use `node dasha-ship.mjs --ship --fresh` to discard a matching incomplete receipt and deliberately replay the deployment.
-- The manifest advances only after Home, Studio and Desk return `200` with their required live markers.
+- `dasha-release-contract.json` owns exact required and forbidden live markers for Home, Studio and Desk.
+- The manifest advances only after all three routes satisfy that contract on `www`, apex and staging.
+- `dasha-product-coherence.test.mjs` prevents the Brief, Roadmap, Docs map, Simplify rules, Board data and homepage from naming competing experiments.
+- The fast gate runs browser coverage only for surfaces whose verified artifact hash changed and records why every browser gate ran or skipped.
 
 Webflow MCP 2.0 data tools run headlessly; routine shipping does not require an open Designer. Canvas navigation and visual snapshots remain separate Designer-session capabilities.
 

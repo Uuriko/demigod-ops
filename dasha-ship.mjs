@@ -13,6 +13,7 @@
  *   node dasha-ship.mjs --publish    # site publish only
  *   node dasha-ship.mjs --preflight  # auth/site/domain check only
  *   node dasha-ship.mjs --verify     # curl live markers only
+ *   node dasha-ship.mjs --status     # local/live-manifest delta, no network
  *
  * Token: env DASHA_WF_TOKEN or file /tmp/dasha-wf-token.txt (MCP Bearer).
  */
@@ -31,6 +32,7 @@ const want = {
   publish: args.has('--publish') || args.has('--ship'),
   verify: args.has('--verify') || args.has('--ship'),
   preflight: args.has('--preflight'),
+  status: args.has('--status'),
   strict: args.has('--strict'),
   dry: args.has('--dry-run'),
 };
@@ -59,7 +61,7 @@ const SURFACES = {
 };
 const DOMAINS = ['6a762e813cfcf91448a83e3b', '6a762e833cfcf91448a83e58'];
 const STATE = process.env.DASHA_SHIP_STATE || '/tmp/dasha-ship-state.json';
-const MANIFEST = process.env.DASHA_SHIP_MANIFEST || '/tmp/dasha-ship-manifest.json';
+const MANIFEST = process.env.DASHA_SHIP_MANIFEST || join(root, 'DASHA-SHIP-MANIFEST.json');
 
 const t0 = Date.now();
 const log = (step, extra = {}) =>
@@ -107,6 +109,7 @@ function startReceipt(hashes) {
     site: SITE,
     hashes,
     stages: { prepared: false, gated: false, preflight: false, pushed: {}, published: false, verified: false },
+    gates: {},
     startedAt: new Date().toISOString(),
     finishedAt: null,
     error: null,
@@ -156,8 +159,19 @@ function prep() {
   });
 }
 
-/** Static trust gates only — no CDP, no browser (~milliseconds). */
-function fastGate() {
+function gate(receipt, name, command, commandArgs, reason, enabled = true) {
+  if (!enabled) {
+    receipt.gates[name] = { status: 'skipped', reason };
+    checkpoint(receipt);
+    return;
+  }
+  run(command, commandArgs);
+  receipt.gates[name] = { status: 'passed', reason };
+  checkpoint(receipt);
+}
+
+/** Static trust gates plus browser coverage only for changed public surfaces. */
+function fastGate(changed, receipt) {
   log('gate:fast:start');
   const landing = read('dasha-landing.html');
   const studio = read('dasha-meme-studio.html');
@@ -188,8 +202,13 @@ function fastGate() {
   // embed must be fresh
   run('node', ['dasha-studio-embed-build.mjs', '--check']);
   run('node', ['dasha-desk/build.mjs', '--check']);
-  // pure share pack unit (no browser)
-  run('node', ['dasha-growth.test.mjs']);
+  gate(receipt, 'productCoherence', 'node', ['dasha-product-coherence.test.mjs'], 'required for every product release');
+  gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
+  const browser = process.env.DASHA_SHIP_SKIP_BROWSER !== '1';
+  const why = (surface) => !browser ? 'fixture-only browser skip' : changed.includes(surface) ? `${surface} artifact changed` : `${surface} hash unchanged`;
+  gate(receipt, 'landingBrowser', 'node', ['dasha-landing.test.mjs'], why('home'), browser && changed.includes('home'));
+  gate(receipt, 'studioBrowser', 'node', ['dasha-meme-studio.test.mjs'], why('studio'), browser && changed.includes('studio'));
+  gate(receipt, 'deskBrowser', 'node', ['dasha-desk.test.mjs'], why('desk'), browser && changed.includes('desk'));
   log('gate:fast:pass');
 }
 
@@ -339,69 +358,110 @@ async function publishSite(client) {
 
 async function verifyLive() {
   log('verify:start');
-  const checks = [
-    ['home', 'https://www.getdasha.com/', [MINT, 'jup.ag']],
-    ['desk', 'https://www.getdasha.com/dasha', [MINT, 'jup.ag']],
-    ['studio', 'https://www.getdasha.com/studio', ['dasha', 'studio']],
-  ];
+  const contract = json(join(root, 'dasha-release-contract.json'));
+  if (contract?.schema !== 'dasha.release-contract/1') throw new Error('invalid dasha-release-contract.json');
+  const checks = Object.entries(contract.hosts).flatMap(([host, base]) =>
+    Object.entries(contract.surfaces).map(([surface, rule]) => ({ host, surface, url: new URL(rule.path, base).href, ...rule })),
+  );
   const out = {};
   if (process.env.DASHA_SHIP_FAKE_LIVE === '1') {
-    for (const [label, , needles] of checks) {
-      out[label] = { status: 200, bytes: 1, hits: Object.fromEntries(needles.map((n) => [n, true])) };
+    for (const check of checks) {
+      out[`${check.host}:${check.surface}`] = {
+        status: 200, bytes: 1,
+        required: Object.fromEntries(check.required.map((marker) => [marker, true])),
+        forbidden: Object.fromEntries(check.forbidden.map((marker) => [marker, false])),
+      };
     }
     writeJson('/tmp/dasha-ship-verify.json', out);
     log('verify:done', out);
     return out;
   }
-  for (const [label, url, needles] of checks) {
-    const r = await fetch(url, {
+  for (const check of checks) {
+    const r = await fetch(check.url, {
       headers: { 'user-agent': 'dasha-ship/1' },
       redirect: 'follow',
     });
     const body = await r.text();
-    out[label] = {
+    const lower = body.toLowerCase();
+    out[`${check.host}:${check.surface}`] = {
       status: r.status,
+      finalUrl: r.url,
       bytes: body.length,
-      hits: Object.fromEntries(needles.map((n) => [n, body.toLowerCase().includes(n.toLowerCase())])),
+      required: Object.fromEntries(check.required.map((marker) => [marker, lower.includes(marker.toLowerCase())])),
+      forbidden: Object.fromEntries(check.forbidden.map((marker) => [marker, lower.includes(marker.toLowerCase())])),
     };
   }
   writeFileSync('/tmp/dasha-ship-verify.json', JSON.stringify(out, null, 2));
-  const failed = Object.entries(out).filter(([, value]) => value.status !== 200 || Object.values(value.hits).includes(false));
+  const failed = Object.entries(out).filter(([, value]) =>
+    value.status !== 200 || Object.values(value.required).includes(false) || Object.values(value.forbidden).includes(true));
   if (failed.length) throw new Error(`live verification failed: ${failed.map(([label]) => label).join(', ')}`);
   log('verify:done', out);
   return out;
 }
 
 async function main() {
-  log('start', {
-    prep: want.prep,
-    gate: want.gate,
-    push: want.push,
-    publish: want.publish,
-    verify: want.verify,
-    strict: want.strict,
-    dry: want.dry,
-  });
+  if (!want.status) {
+    log('start', {
+      prep: want.prep,
+      gate: want.gate,
+      push: want.push,
+      publish: want.publish,
+      verify: want.verify,
+      strict: want.strict,
+      dry: want.dry,
+    });
+  }
   let receipt;
   let client;
   try {
     if (want.prep) prep();
     const hashes = artifactHashes();
+    const published = json(MANIFEST, { hashes: {} });
+    const changed = published.status === 'verified'
+      ? Object.keys(SURFACES).filter((key) => hashes[key] !== published.hashes?.[key])
+      : Object.keys(SURFACES);
+    if (want.status) {
+      const contract = json(join(root, 'dasha-release-contract.json'));
+      console.log(JSON.stringify({
+        ok: true,
+        site: SITE,
+        manifest: MANIFEST,
+        lastVerifiedAt: published.verifiedAt || null,
+        liveStatus: published.status || 'unknown',
+        driftDetectedAt: published.driftDetectedAt || null,
+        hashes: { local: hashes, verified: published.hashes || {} },
+        changed,
+        publicationWouldChange: changed.length > 0,
+        plannedGates: {
+          productCoherence: 'required',
+          growthTrust: 'required',
+          landingBrowser: changed.includes('home') ? 'required because home changed' : 'skipped because home hash is unchanged',
+          studioBrowser: changed.includes('studio') ? 'required because Studio changed' : 'skipped because Studio hash is unchanged',
+          deskBrowser: changed.includes('desk') ? 'required because Desk changed' : 'skipped because Desk hash is unchanged',
+        },
+        webflowTokenAvailable: Boolean(process.env.DASHA_WF_TOKEN?.trim() || process.env.WEBFLOW_TOKEN?.trim() || existsSync('/tmp/dasha-wf-token.txt')),
+        activeRun: json(STATE),
+        releaseContract: join(root, 'dasha-release-contract.json'),
+        currentHomeMarkers: contract?.surfaces?.home?.required || [],
+      }, null, 2));
+      return;
+    }
     receipt = startReceipt(hashes);
+    receipt.gates ||= {};
     if (want.prep && !receipt.stages.prepared) {
       receipt.stages.prepared = true;
       checkpoint(receipt);
     }
     if (want.gate) {
       if (!receipt.stages.gated) {
-        if (want.strict) strictGate();
-        else fastGate();
+        if (want.strict) {
+          strictGate();
+          receipt.gates.strictSuite = { status: 'passed', reason: 'explicit --strict release' };
+        } else fastGate(changed, receipt);
         receipt.stages.gated = true;
         checkpoint(receipt);
       } else log('gate:skip', { reason: 'matching successful receipt' });
     }
-    const published = json(MANIFEST, { hashes: {} });
-    const changed = Object.keys(SURFACES).filter((key) => hashes[key] !== published.hashes?.[key]);
     const pending = changed.filter((key) => !receipt.stages.pushed[key]);
     log('delta', { changed, pending });
     const needsWebflow =
@@ -430,12 +490,16 @@ async function main() {
       receipt.finishedAt = new Date().toISOString();
       checkpoint(receipt);
       if (!want.dry && (!changed.length || receipt.stages.published)) {
-        writeJson(MANIFEST, { schema: 'dasha.ship-manifest/1', site: SITE, hashes, verifiedAt: receipt.finishedAt });
+        writeJson(MANIFEST, { schema: 'dasha.ship-manifest/1', site: SITE, status: 'verified', hashes, verifiedAt: receipt.finishedAt, driftDetectedAt: null });
       }
     }
     log('done', { ok: true, totalMs: Date.now() - t0 });
   } catch (e) {
     if (receipt) checkpoint(receipt, { error: String(e?.stack || e).slice(0, 4000) });
+    if (want.verify) {
+      const manifest = json(MANIFEST);
+      if (manifest) writeJson(MANIFEST, { ...manifest, status: 'drifted', driftDetectedAt: new Date().toISOString() });
+    }
     log('fail', { ok: false, error: String(e?.stack || e).slice(0, 2000) });
     process.exit(1);
   } finally {

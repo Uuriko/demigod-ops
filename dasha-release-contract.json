@@ -1,0 +1,57 @@
+{
+  "schema": "dasha.release-contract/1",
+  "hosts": {
+    "www": "https://www.getdasha.com",
+    "apex": "https://getdasha.com",
+    "staging": "https://johns-awesome-project-39b1b5.webflow.io"
+  },
+  "surfaces": {
+    "home": {
+      "path": "/",
+      "required": [
+        "Transmission 001",
+        "Make me an alibi.",
+        "Submit work",
+        "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
+        "jup.ag"
+      ],
+      "forbidden": [
+        "Season zero",
+        "Riding for Dasha",
+        "Thesis Card",
+        "t.me/dashacommunity"
+      ]
+    },
+    "studio": {
+      "path": "/studio",
+      "required": [
+        "Dasha Meme Studio",
+        "square",
+        "story",
+        "banner",
+        "Can go to zero",
+        "CC0",
+        "name or likeness"
+      ],
+      "forbidden": [
+        "Thesis Card",
+        "t.me/dashacommunity",
+        "Not affiliated with Dasha"
+      ]
+    },
+    "desk": {
+      "path": "/dasha",
+      "required": [
+        "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
+        "jup.ag",
+        "Can go to zero"
+      ],
+      "forbidden": [
+        "Referral bonus",
+        ">Raid<",
+        "Buy pressure",
+        "t.me/dashacommunity"
+      ]
+    }
+  }
+}

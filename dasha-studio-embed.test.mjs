@@ -34,8 +34,16 @@ for (const banned of ['<!doctype', '<html', '<body', ':root']) {
 
 /* The disclaimers live inside <main>, which is why the fragment carries them. An embedder who
    pastes this into Webflow must not be able to leave the risk language behind by accident. */
-for (const line of ['can lose all value', 'is investment advice or a promise', 'do not imply her authorization']) {
-  assert.ok(embed.includes(line), `the fragment dropped a required disclosure: "${line}"`);
+/* Checked as meaning, not phrasing. The copy legitimately gets tightened — "can lose all value"
+   became "Can go to zero" — and a gate that pins exact sentences either blocks good edits or gets
+   loosened until it protects nothing. Each entry is a set of acceptable ways to say the same thing. */
+const disclosures = [
+  ['total-loss risk', [/can go to zero/i, /can lose all (of its )?value/i]],
+  ['not financial advice', [/not financial advice/i, /is investment advice or a promise/i]],
+  ['no likeness or official-status permission', [/name or likeness/i, /do not imply her authorization/i]],
+];
+for (const [what, patterns] of disclosures) {
+  assert.ok(patterns.some((p) => p.test(embed)), `the fragment dropped its ${what} disclosure`);
 }
 
 /* A hostile host: its own palette and aggressive rules on the elements and classes the Studio

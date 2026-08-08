@@ -156,7 +156,17 @@ Trigger: Studio/Relay sharing fails and real users repeatedly ask for sourced co
 
 ## Ambitious platform horizon
 
-If remix chains and creator attribution recur, Dasha can become a crypto-native creative network: culture packs, collaborative canvases, remix lineage, creator profiles, community commissioning and portable artifacts. `$dasha` may remain the cultural sponsor and discovery asset; utility or gating is not assumed and requires separate legal, technical and demand evidence.
+If real cross-person remix chains recur, Dasha can become the first living world built from **open culture objects**: portable editable artifacts with explicit reuse terms and bounded source context. The ambition is an open media format and renderer, not another captive feed.
+
+Graduation order:
+
+1. one exported object;
+2. one cross-person material remix;
+3. one useful, consented lineage;
+4. one independent renderer passing shared fixtures;
+5. one outside community reusing the format without operator help.
+
+Only then consider discovery, federation, profiles, collaborative canvases, commissioning or provenance standards such as C2PA. `$dasha` may remain the cultural sponsor and discovery asset; utility, gating and financial rewards are not assumed and require separate legal, technical and demand evidence.
 
 ## Growth and safety metrics
 

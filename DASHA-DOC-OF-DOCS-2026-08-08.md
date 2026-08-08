@@ -31,6 +31,7 @@
 | [`DASHA-BIBLE.md`](DASHA-BIBLE.md) | Culture, design, X sources, agent checklist |
 | [`DASHA-PRODUCT-STRATEGY.md`](DASHA-PRODUCT-STRATEGY.md) | Positioning / trust contract (shrink into brief if redundant) |
 | [`DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md`](DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md) | Current research decision and first-test contract for Dasha Transmissions |
+| [`DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md`](DASHA-UNKNOWN-UNKNOWNS-RESEARCH-2026-08-08.md) | Cross-system evidence audit: live drift, product uncertainty, risk register, and conditional roadmap; owns no product decision |
 | [`DASHA-ACADEMIC-EVIDENCE.md`](DASHA-ACADEMIC-EVIDENCE.md) | Supporting academic evidence map; grouped by design, limitation and transfer; owns no product decision |
 | [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md) | Raw external-model research receipt; supports review but owns no decision |
 | [`DASHA-DOCS-SYSTEM-BACKLOG.md`](DASHA-DOCS-SYSTEM-BACKLOG.md) | Documentation-system improvement backlog; no product ownership |

@@ -84,20 +84,16 @@ Use these words consistently:
 
 Do not call a local commit, upload receipt or Webflow save “published.”
 
-## Current publication matrix
+## Current publication state
 
-Observed 2026-08-07:
+Do not copy mutable release status into this document. Read it from the release truth:
 
-| Surface | State | Truth |
-|---|---|---|
-| Webflow home | Published | Culture landing with verified mint and official Jupiter modal |
-| Webflow Studio | Published | Canvas generator, PNG export and native-share/X fallback at `/studio` |
-| Webflow Desk | Disk trust-reset; publish blocked | Neutral mint/Jupiter/sources/risk at `/dasha` (no FOMO/raid/referral). Live update needs Webflow token. |
-| Standalone Catbox | Published | `https://files.catbox.moe/aughx9.html`; `text/html`; framing denied by host |
-| GitHub Pages | Blocked | `https://uuriko.github.io/dasha-desk/` returns 404 until Pages is enabled and a push succeeds |
-| GitHub repository | Local commits ahead | Push authentication unavailable in the current session |
-| Discord | Proposed/prepared | Blueprint exists; no controlled invite yet |
-| Old thesis/receipt work | Archived | Permanently scrapped; never test, deploy, integrate or revive |
+```bash
+npm run dasha:ship:status
+npm run dasha:verify:live
+```
+
+The manifest owns expected artifact identity; the live verifier owns observed public behavior. A dated audit is never current release state.
 
 ## Documentation rules
 

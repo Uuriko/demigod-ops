@@ -16,6 +16,8 @@ Evidence is labeled by design. A field experiment can support a causal claim in 
 4. **Preserve sources and lineage.** Remix communities negotiate originality, attribution and authorship socially as well as technically. Provenance should travel with the artifact.
 5. **Measure cultural recurrence, not financial attention.** Crypto engagement, follower activity and volume are manipulable. Authored artifacts, distinct creators, acknowledged newcomers and voluntary return are more defensible product measures.
 6. **Treat a real person's identity as a separate risk boundary.** Expressive works, commercial use, false endorsement, privacy and synthetic likeness raise different questions. CC0 project assets cannot grant rights in a person's identity.
+7. **Design ritual without manufacturing an in-group.** Repetition, shared focus and recognizable symbols can support belonging, but ritual competence can also police insiders and outsiders. Keep observation and low-intensity participation legitimate.
+8. **Do not convert fandom into invisible promotional labor.** Automated creation, ranks and rewards can quantify affection, narrow interpretation and make participation serve the platform or token rather than the participant.
 
 ## Creative constraints, examples and remix
 
@@ -60,6 +62,20 @@ Evidence is labeled by design. A field experiment can support a causal claim in 
 - **“Reviews Matter.”** Observational analysis involving 1.5 million FanFiction.net authors relates distributed mentoring to lexical diversity. It is a preprint and cannot isolate feedback from author selection. [arXiv preprint](https://arxiv.org/abs/1809.10268)
 - **Collaborative fanfiction and hyperdiegesis.** Humanities scholarship explains how communities can sustain a believable shared world without one rigid official canon. For Dasha, project continuity and community fiction should remain visibly distinct from sourced facts about a real person. [Humanities](https://www.mdpi.com/2076-0787/11/4/87)
 - **Digital ritual and authentic interaction.** Research on repeated social-media encounters emphasizes reciprocity, shared symbols and recognition. A posting schedule alone is not a ritual; participants need a role and a witnessed consequence. [British Journal of Criminology](https://academic.oup.com/bjc/article/64/2/452/7249112)
+- **Secular rituals and social bonding.** A field study of Sunday Assemblies found increases in social bonding comparable to religious ritual, associated with changes in affect. This is evidence about co-present group ritual, not proof that an asynchronous website prompt will transfer the effect. [Royal Society Open Science](https://pmc.ncbi.nlm.nih.gov/articles/PMC7840012/)
+- **Repeated participatory arts rituals.** A retrospective qualitative study reports durable memories of group identity and stability around repeated structured openings, collective storytelling and presentations. Its child/school/emergency context sharply limits Dasha transfer, but supports consistency of form over feature volume. [PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12651656/)
+- **Ritual participation and group boundaries.** Experimental work with children found ritual participation increased in-group display and out-group monitoring. The result warns that recognizable Dasha practices can create exclusion as well as belonging. [Philosophical Transactions B](https://pmc.ncbi.nlm.nih.gov/articles/PMC7423253/)
+- **Character reinterpretation across fandoms.** A computational working paper finds different communities elevate and semantically reconstruct different parts of the same characters. Dasha implication: plural branches are more realistic than one automatically inferred canon. [arXiv preprint](https://arxiv.org/abs/2409.11170)
+- **AI-mediated gamification of fan labor.** A 2026 walkthrough/interview study of one Chinese fandom platform describes template replication, quantified emotional investment and simulated reciprocal parasociality. It is a single-platform qualitative account, but directly cautions against automated Dasha voice, engagement scoring and rewards for affection. [International Journal of Cultural Studies](https://journals.sagepub.com/doi/abs/10.1177/13678779261448882)
+- **Serial versus episodic narrative.** A small randomized study with 44 children found a serial plot supported more sustained physical activity than matched episodic presentation. It does not establish adult creative return, but justifies testing continuity against self-contained prompts rather than assuming either structure wins. [Communication Research](https://pmc.ncbi.nlm.nih.gov/articles/PMC12192482/)
+- **Fan-labor co-option.** Media scholarship describes how sanctioned participation can commercialize fan production and privilege interpretations aligned with an industry's interests. Dasha should state reuse terms, selection power and token/operator interests before asking for recurring cultural work. [NYU Press](https://academic.oup.com/nyu-press-scholarship-online/book/31055/chapter-abstract/264042614)
+
+## Collecting, materiality and financialization
+
+- **NFT rarity and prices.** Analysis of 3.7 million transactions finds rarity patterns associated with price, trade frequency, returns and risk in the studied collections. This describes financial markets; it is a warning that introducing artificial scarcity can move attention from meaning to price. [Scientific Reports](https://pmc.ncbi.nlm.nih.gov/articles/PMC9381539/)
+- **Visual affinity across NFT collections.** Wallet-level analysis reports that visual similarity affects exploration between collections, with substantial behavioral heterogeneity. It supports coherent visual grammar as a discovery hypothesis, not tokenization. [Scientific Reports](https://pmc.ncbi.nlm.nih.gov/articles/PMC11569189/)
+- **Fragile digital permanence.** A 2025 consumer-research paper reports that NFT artworks were perceived as less permanent and less able to capture artistic identity than canvas works in its studies. Onchain registration alone therefore does not create felt durability; exportability, local possession and physical forms may matter more. [Journal of the Association for Consumer Research](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5064286)
+- **Material connection in vinyl collecting.** Ethnographic work with 26 collectors describes how physicality supports relationships with music, objects and other people. Dasha implication: a printable card or zine may test cultural attachment more directly than an NFT wrapper. [European Journal of Marketing manuscript](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3986524)
 
 ## Crypto attention, coordination and manipulation
 
@@ -101,6 +117,9 @@ Do not use token price, market capitalization, trading volume, follower count, r
 - Ritual scholarship identifies shared symbols, roles and reciprocity, but offers limited causal evidence for small crypto communities. One Transmission is a probe, not validation.
 - Token or status rewards can attract activity while corrupting the metric they reward. No points system is justified until non-financial contribution exists and manipulation can be audited.
 - Fan communities can build shared worlds, but Dasha's reference to a living person makes “community canon” more constrained than fictional-IP examples.
+- Ritual can create return and recognizable identity while also producing exclusion and conformity. Dasha needs an open edge for spectators, newcomers and dissenting interpretations.
+- Serialization can support continued engagement in some settings, while unresolved cliffhangers can also become manipulative retention machinery. Test continuity without urgency, paywalls or manufactured anxiety.
+- Collectibility can deepen attachment, but scarcity and tokenization rapidly make price the organizing signal. Test printable/local artifacts before financial ownership layers.
 
 ## Ten-paper reading path
 

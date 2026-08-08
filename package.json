@@ -119,16 +119,17 @@
     "dasha:test:share": "node dasha-desk/dasha-share.test.mjs",
     "dasha:build:desk": "node dasha-desk/build.mjs --write",
     "dasha:check:desk": "node dasha-desk/build.mjs --check",
-    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && node dasha-simp-board.test.mjs && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs",
+    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-product-coherence.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && node dasha-simp-board.test.mjs && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs",
     "dasha:verify:live": "node dasha-live-verify.mjs",
     "dasha:prep": "node dasha-ship.mjs --prep",
     "dasha:gate:fast": "node dasha-ship.mjs --prep --gate",
     "dasha:ship": "node dasha-ship.mjs --ship",
     "dasha:ship:strict": "node dasha-ship.mjs --ship --strict",
     "dasha:ship:preflight": "node dasha-ship.mjs --preflight",
+    "dasha:ship:status": "node dasha-ship.mjs --status",
     "dasha:ship:push": "node dasha-ship.mjs --prep --gate --push",
     "dasha:ship:verify": "node dasha-ship.mjs --verify",
-    "dasha:ship:test": "node dasha-ship.test.mjs"
+    "dasha:ship:test": "node dasha-ship.test.mjs && node dasha-product-coherence.test.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

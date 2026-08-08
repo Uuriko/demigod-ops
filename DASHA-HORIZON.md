@@ -14,6 +14,22 @@ Three roadmaps, three jobs, no overlap:
 Difficulty is a hint, not a gate: **S** an afternoon · **M** a weekend · **L** a real project ·
 **XL** would change what Dasha is.
 
+## Ambitious north-star possibility
+
+**Open culture objects:** portable, editable media that render immediately, preserve a bounded source/parent relationship, state their reuse terms and remain usable without an account or original host. Dasha could become the first coherent living world made from them; the open renderer/format could later support other communities.
+
+This is a possibility, not a platform commitment. The sequence is evidence-bound:
+
+1. one person edits and exports one object;
+2. another person opens its state and materially changes it;
+3. a real lineage remains useful and consensual;
+4. a second independent renderer passes shared fixtures;
+5. only then consider discovery, federation, identity or economics.
+
+The world stays porous: spectatorship is legitimate, newcomers do not need insider vocabulary, branches may disagree, and editorial continuity is never represented as approval by the real person. Do not use streaks, compulsory cadence, simulated Dasha replies or financial scarcity to manufacture ritual.
+
+Reuse standards instead of inventing them: ordinary URLs/files for transport, explicit licenses for reuse, C2PA where durable media provenance is actually needed, and W3C social/annotation protocols only if cross-host interaction becomes real. A parent link is not proof of authorship, identity, permission or endorsement.
+
 ---
 
 ## Making things
@@ -25,6 +41,7 @@ Difficulty is a hint, not a gate: **S** an afternoon · **M** a weekend · **L**
 - **MP4/WebM export** for platforms that prefer video. **M**
 - **Sound** — a two-second sting with the video. Slot reels, a coin drop, silence as a joke. **M**
 - **Print export**: CMYK, bleed, 300dpi. Stickers are how a coin leaves the timeline. **M**
+- **A one-page printable artifact** from a proven Transmission. Test keeping and physical sharing before NFTs or artificial rarity. **S**
 - **Sticker packs** for Telegram and iMessage from one session. **M**
 - **ASCII/plain-text looks** that go where images cannot — bios, commit messages, MOTDs. **S**
 - **Comic strips and quote cards**, multi-panel. **M**
@@ -81,6 +98,10 @@ Difficulty is a hint, not a gate: **S** an afternoon · **M** a weekend · **L**
 - **A headless renderer** for server-side images. **L**
 - **A culture-coin starter** — all of this, genericised, so the next project begins with an honest
   desk and a working studio instead of a hero image and a promise. **XL**
+- **A culture-object fixture set** — a tiny documented JSON recipe plus expected renders that a
+  second implementation can open. No protocol before real cross-person remixing. **M**
+- **A host-independent culture-object renderer** — open, deterministic and compatible with the
+  fixture set; Dasha remains the flagship world rather than becoming generic templates. **XL**
 
 ## Teaching
 

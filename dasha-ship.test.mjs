@@ -11,6 +11,7 @@ const env = {
   ...process.env,
   DASHA_SHIP_FAKE_MCP: '1',
   DASHA_SHIP_FAKE_LIVE: '1',
+  DASHA_SHIP_SKIP_BROWSER: '1',
   DASHA_SHIP_STATE: path.join(tmp, 'state.json'),
   DASHA_SHIP_MANIFEST: path.join(tmp, 'manifest.json'),
 };
@@ -41,6 +42,12 @@ try {
   const state = JSON.parse(fs.readFileSync(env.DASHA_SHIP_STATE, 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(env.DASHA_SHIP_MANIFEST, 'utf8'));
   assert.equal(state.stages.verified, true);
+  assert.equal(state.gates.productCoherence.status, 'passed');
+  assert.deepEqual(
+    [state.gates.landingBrowser, state.gates.studioBrowser, state.gates.deskBrowser].map((gate) => [gate.status, gate.reason]),
+    Array(3).fill(['skipped', 'fixture-only browser skip']),
+  );
+  assert.equal(manifest.status, 'verified');
   assert.deepEqual(Object.keys(manifest.hashes).sort(), ['desk', 'home', 'studio']);
   console.log('dasha-ship incremental/resume PASS');
 } finally {

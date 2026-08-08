@@ -54,6 +54,23 @@ function writeJson(file, value) {
   fs.renameSync(tmp, file);
 }
 
+function outputPath(value) {
+  if (!value) return null;
+  const resolved = path.resolve(ROOT, value);
+  const relative = path.relative(ROOT, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('--out must stay inside the workspace');
+  return resolved;
+}
+
+function writeOutput(task) {
+  if (!task.outputPath || task.status !== 'completed') return;
+  fs.mkdirSync(path.dirname(task.outputPath), { recursive: true });
+  const tmp = `${task.outputPath}.${process.pid}.tmp`;
+  const header = `<!-- agent-task: ${task.id}; role: ${task.role}; completed: ${task.finishedAt}; raw model output, verify before promotion -->\n`;
+  fs.writeFileSync(tmp, `${header}${task.reply.trim()}\n`, { mode: 0o600 });
+  fs.renameSync(tmp, task.outputPath);
+}
+
 function appendMessage(value) {
   fs.appendFileSync(MESSAGES, `${JSON.stringify(value)}\n`, { mode: 0o600 });
 }
@@ -98,6 +115,7 @@ function runTask(taskId) {
   task.reply = result.stdout || '';
   task.error = result.error?.message || result.stderr || null;
   task.status = result.status === 0 && task.reply.trim() ? 'completed' : 'failed';
+  writeOutput(task);
   writeJson(file, task);
   appendMessage({
     id: id(), type: task.status === 'completed' ? 'worker_done' : 'escalation',
@@ -118,6 +136,7 @@ function cmdTask(argv) {
   const task = {
     schema: 'local.agent-task/1', id: id(), title, role: target,
     from: arg(argv, '--from', 'codex'), spec, status: 'queued',
+    outputPath: outputPath(arg(argv, '--out')),
     createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
     exitCode: null, signal: null, reply: '', error: null,
   };
@@ -206,13 +225,17 @@ function selftest() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-bus-test-'));
   const fake = path.join(root, 'fake');
   fs.writeFileSync(fake, '#!/bin/sh\nsed "s/^/reply: /"\n', { mode: 0o700 });
-  const env = { ...process.env, DEMIGOD_BUSY: path.join(root, 'busy'), DEMIGOD_ROOT: ROOT,
+  const env = { ...process.env, DEMIGOD_BUSY: path.join(root, 'busy'), DEMIGOD_ROOT: root,
     DG_BUS_CLAUDE_BIN: fake, DG_BUS_CODEX_BIN: fake, DG_BUS_GROK_BIN: fake };
-  const r = spawnSync(process.execPath, [import.meta.filename, 'task', 'grok', '--title', 'test', '--spec', 'hello'], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [import.meta.filename, 'task', 'grok', '--title', 'test', '--spec', 'hello', '--out', 'agent-output.md'], { encoding: 'utf8', env });
   const parsed = JSON.parse(r.stdout);
   if (r.status !== 0 || parsed.status !== 'completed' || !parsed.reply.includes('reply: hello')) throw new Error('task receipt failed');
+  const saved = fs.readFileSync(path.join(root, 'agent-output.md'), 'utf8');
+  if (!saved.includes(`agent-task: ${parsed.id}`) || !saved.includes('reply: hello')) throw new Error('--out failed');
   const s = spawnSync(process.execPath, [import.meta.filename, 'status'], { encoding: 'utf8', env });
   if (s.status !== 0 || JSON.parse(s.stdout).counts.completed !== 1) throw new Error('status failed');
+  const escape = spawnSync(process.execPath, [import.meta.filename, 'task', 'grok', '--spec', 'hello', '--out', '../escape.md'], { encoding: 'utf8', env });
+  if (escape.status === 0 || fs.existsSync(path.join(root, '..', 'escape.md'))) throw new Error('--out escape guard failed');
   fs.rmSync(root, { recursive: true, force: true });
   console.log('agent-bus selftest PASS');
   return 0;
@@ -222,7 +245,7 @@ function usage() {
   console.log(`dg-bus — local Claude/Codex/Grok task bus
 
   status
-  task <role> --title T (--spec TEXT | --spec-file PATH) [--detach]
+  task <role> --title T (--spec TEXT | --spec-file PATH) [--out FILE] [--detach]
   show <task-id>
   wait --task ID [--timeout-ms N]
   send <role> --subject S --body B [--type status] [--from codex]

@@ -19,7 +19,7 @@ Make it possible for a person or agent to answer five questions quickly:
 - [ ] Make `DASHA-DOCS.md` the only entry page and `DASHA-DOC-OF-DOCS-2026-08-08.md` the exhaustive registry.
 - [ ] Add an explicit `Status`, `Owner`, `Updated`, `Supersedes` and `Superseded by` header to every strategic document.
 - [ ] Define one controlled status vocabulary and remove synonyms such as prepared/current/active/checkpoint when they mean the same thing.
-- [ ] Reconcile live-state claims against current verification receipts; dated observations must not appear as timeless truth.
+- [x] Remove the mutable publication matrix from the workflow; manifest/live commands now own current state.
 - [ ] Move deployment facts out of product strategy and into the deployment runbook.
 - [ ] Move voice and palette facts out of strategy documents and into the Bible/art-direction owners.
 - [ ] Move metrics and gates out of brainstorm documents and into the roadmap owner.
@@ -81,7 +81,7 @@ Make it possible for a person or agent to answer five questions quickly:
 ## P1 — connect docs to verification
 
 - [ ] Add a small machine-readable manifest mapping public routes to sources, tests and owners.
-- [ ] Test that every file linked from `DASHA-DOCS.md` exists.
+- [x] Test that every local file linked from `DASHA-DOCS.md` exists.
 - [ ] Test that every owner document has required metadata fields.
 - [ ] Test that no current document links to known scrapped surfaces.
 - [ ] Test that forbidden claims and retired product terms stay out of live-copy sources.
@@ -89,7 +89,7 @@ Make it possible for a person or agent to answer five questions quickly:
 - [ ] Check that live-state sections carry a verification timestamp.
 - [ ] Generate link-check output as a report, not by rewriting documentation.
 - [ ] Verify headings and anchors used by cross-document links.
-- [ ] Add a docs-only check to the existing Dasha verification command instead of inventing a second test framework.
+- [x] Add docs checks to the existing product-coherence test and `dasha:test:all`; no second framework.
 - [ ] Keep generated status data visibly generated and prohibit hand edits.
 - [ ] Store current verification receipts separately from narrative docs.
 
