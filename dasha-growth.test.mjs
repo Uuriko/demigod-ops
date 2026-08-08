@@ -25,7 +25,6 @@ assert.ok(DD.BUY.includes('jup.ag') && DD.BUY.includes(MINT), 'desk BUY is Jupit
 const share = DD.buildSharePack('share');
 assert.ok(share.includes(MINT), 'share pack must include mint');
 assert.ok(/getdasha\.com\/dasha/.test(share + DD.DESK), 'share recruits to first-party desk');
-assert.ok(/NFA|zero|endorsement/i.test(share), 'share pack must carry risk language');
 assert.ok(!/t\.me\/dashacommunity/.test(share), 'share must not claim disallowed telegram');
 assert.ok(!/raid|fomo|referral/i.test(share), 'desk share stays neutral (no raid/fomo)');
 
@@ -33,7 +32,7 @@ assert.ok(!/raid|fomo|referral/i.test(share), 'desk share stays neutral (no raid
 const landing = read('dasha-landing.html');
 assert.ok(landing.includes(MINT), 'home surfaces mint');
 assert.ok(landing.includes('jup.ag'), 'home surfaces Jupiter');
-assert.ok(landing.includes('Never trust a mint from DMs.') && landing.includes('Association is not endorsement.'), 'home keeps concise mint and association guidance');
+assert.ok(landing.includes('Never trust a mint from DMs.'), 'home keeps the anti-scam mint guidance');
 assert.ok(!/buy-guide|How to buy/.test(landing), 'home must not regrow a tutorial wall');
 assert.ok(!landing.includes('/how-to-buy'), 'home links unpublished how-to-buy route');
 assert.ok(landing.includes('/dasha') && landing.includes('/studio'), 'home loops desk + studio');

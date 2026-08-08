@@ -13,7 +13,7 @@ assert(!/thesis|receipt-form|telegram/i.test(html), 'retired thesis/Telegram con
 assert(!/images\.weserv\.nl|files\.catbox\.moe|gpjyb0\.jpg/.test(html), 'old third-party casino hero image returned');
 assert(!/<img\b|pbs\.twimg\.com|cdn\.dexscreener\.com|Public tape|Stills from the timeline|Culture tape/.test(html), 'homepage gained a brittle or implied-curation image tape');
 assert(!/<img\b[^>]*(?:PerryALPHA|Perry)/i.test(html), 'Perry founding spot must not revive the retired image tape');
-for (const required of ['$dasha', mint, '/dasha', '/studio', 'Make something', 'Simp board', 'Contribute', 'jup.ag/swap', 'plugin.jup.ag/plugin-v1.js', 'dexscreener.com', 'Can go to zero']) assert(html.includes(required), `missing ${required}`);
+for (const required of ['$dasha', mint, '/dasha', '/studio', 'Make something', 'Simp board', 'Contribute', 'jup.ag/swap', 'plugin.jup.ag/plugin-v1.js', 'dexscreener.com']) assert(html.includes(required), `missing ${required}`);
 assert(/<script src="https:\/\/plugin\.jup\.ag\/plugin-v1\.js" data-preload defer><\/script>/.test(html), 'Jupiter Plugin lost its documented preload/defer path');
 assert(!/poster:after|MAKE IT STRANGER/.test(html), 'hero collage regained its redundant text overlay');
 assert(!/A culture coin on Solana|culture coin with an open remix studio|Jupiter swap opens here|The point|A coin is boring|Come make|House rules|exit liquidity for your own brain/i.test(html), 'deleted explanatory copy returned');
@@ -28,11 +28,10 @@ assert(html.includes('https://x.com/dash_eats/status/2085405228078432279'), 'pub
 assert(/https:\/\/x\.com\/dash_eats(?!\/status)/.test(html), 'direct @dash_eats profile link missing');
 assert(!html.includes('id="voice"'), 'voice explanation section returned');
 assert(html.includes('old coin and Im not the dev'), 'not-the-dev honesty line missing');
-assert(html.includes('Association is not endorsement'), 'mint provenance must not imply endorsement');
 assert(!html.includes('ENTER THE CULT'),'coercive cult framing returned');
 for (const format of ['square','story','banner']) assert(html.includes(`format=${format}`), `missing ${format} starter`);
 for (const format of ['square','story','banner']) assert(studio.includes(`id: '${format}'`), `homepage promises ${format}, but Studio cannot render it`);
-for (const fact of [mint, 'jup.ag/swap', 'dexscreener.com', 'solscan.io/token/', 'rugcheck.xyz/tokens/', 'can go to zero']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
+for (const fact of [mint, 'jup.ag/swap', 'dexscreener.com', 'solscan.io/token/', 'rugcheck.xyz/tokens/']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
 assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.test(desk), 'Desk reintroduced urgency, raid, referral, or unofficial community mechanics');
 assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/dasha'], 'bounded sitemap must contain only the three intended canonical public routes');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');

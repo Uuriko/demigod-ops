@@ -528,7 +528,17 @@ async function main() {
       }
     }
     if (want.verify) {
-      await verifyLive();
+      /* Webflow's CDN needs a moment. Verifying ~2s after publish_site reported six false failures on
+         a publish that was in fact correct — and a ship tool that cries wolf is a ship tool people
+         start bypassing, which is exactly how /studio lost its CC0 three times. Retry, don't guess. */
+      for (let attempt = 1; ; attempt++) {
+        try { await verifyLive(); break; }
+        catch (e) {
+          if (attempt >= 4) throw e;
+          log('verify:retry', { attempt, waitMs: attempt * 15000, error: String(e.message || e) });
+          await new Promise((r) => setTimeout(r, attempt * 15000));
+        }
+      }
       receipt.stages.verified = true;
       receipt.finishedAt = new Date().toISOString();
       checkpoint(receipt);

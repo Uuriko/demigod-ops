@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-core';
 const html=await readFile(new URL('./dasha-remix-pack.html',import.meta.url),'utf8');
 assert(!/thesis|receipt|telegram/i.test(html),'retired product or Telegram leaked into Remix Pack');
 for(const text of ['Close the moment','Build capsule','Load examples','Share capsule','Save PNG','Copy capsule link','without an account, wallet, upload or public gallery'])assert(html.includes(text),`missing ${text}`);
-assert(html.includes('not proof of authorship, consent, permission or endorsement'),'unverified capsule context is presented as proof');
+assert(html.includes('typed by whoever made the capsule'),'capsule labels are presented as if verified');
 
 const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'}),page=await browser.newPage();
 await page.setViewport({width:390,height:844});await page.setContent(html,{waitUntil:'load'});

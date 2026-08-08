@@ -89,7 +89,7 @@
   </div>
 
   <footer>
-    <p>High risk. Not financial advice. Can go to zero.</p>
+    <p></p>
     <p>🍒 Original Studio assets and exports are <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer">CC0 1.0</a>: copy, change, sell. This is not permission to pass work off as official or use Dasha Nekrasova’s name or likeness.</p>
     <p><a href="/">Home</a> · <a href="/dasha#dd-mint">Desk</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p>
   </footer>
@@ -439,7 +439,7 @@ const draw = {
     ctx.fillStyle = 'rgba(244,237,219,.6)'; ctx.font = '700 24px ui-monospace,Menlo,Consolas,monospace';
     ctx.fillText(MARK, 120, 940);
     ctx.fillStyle = HOT; ctx.textAlign = 'right';
-    ctx.fillText('NFA · CAN GO TO ZERO', 960, 940); ctx.textAlign = 'left';
+    ctx.fillText('GETDASHA.COM', 960, 940); ctx.textAlign = 'left';
     drawMark(896, 112, 58, ACID);
   },
 };

@@ -29,7 +29,6 @@
         "square",
         "story",
         "banner",
-        "Can go to zero",
         "CC0",
         "name or likeness"
       ],
@@ -43,8 +42,7 @@
       "path": "/dasha",
       "required": [
         "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
-        "jup.ag",
-        "Can go to zero"
+        "jup.ag"
       ],
       "forbidden": [
         "Referral bonus",

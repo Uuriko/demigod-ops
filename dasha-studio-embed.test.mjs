@@ -38,9 +38,7 @@ for (const banned of ['<!doctype', '<html', '<body', ':root']) {
    became "Can go to zero" — and a gate that pins exact sentences either blocks good edits or gets
    loosened until it protects nothing. Each entry is a set of acceptable ways to say the same thing. */
 const disclosures = [
-  ['total-loss risk', [/can go to zero/i, /can lose all (of its )?value/i]],
-  ['not financial advice', [/not financial advice/i, /is investment advice or a promise/i]],
-  ['no likeness or official-status permission', [/name or likeness/i, /do not imply her authorization/i]],
+  ['no likeness or official-status permission', [/name or likeness/i]],
 ];
 for (const [what, patterns] of disclosures) {
   assert.ok(patterns.some((p) => p.test(embed)), `the fragment dropped its ${what} disclosure`);

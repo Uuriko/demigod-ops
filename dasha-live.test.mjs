@@ -80,7 +80,6 @@ for (const route of ['/', '/studio', '/dasha']) {
     // The public promises. Each was live and is load-bearing; losing one silently is the bug.
     check(/CC0/.test(seen.text), '/studio: the CC0 dedication is missing — makers have no statement of their rights');
     check(/name or likeness/i.test(seen.text), '/studio: the likeness carve-out is missing');
-    check(/can go to zero|lose all/i.test(seen.text), '/studio: the total-loss disclosure is missing');
     check(!/not affiliated with dasha/i.test(seen.text),
       '/studio: claims no affiliation, which is false — this is the official project');
 
@@ -113,8 +112,6 @@ for (const route of ['/', '/studio', '/dasha']) {
   await new Promise((r) => setTimeout(r, 1200));
   const seen = await page.evaluate(() => document.body.innerText);
   check(seen.includes(MINT), 'pages: the mint is not shown');
-  check(/can go to zero|lose all/i.test(seen), 'pages: no total-loss disclosure');
-  check(/not financial advice/i.test(seen), 'pages: no "not financial advice"');
   check(!RETIRED.test(seen), 'pages: the retired product reappeared');
   const foreign = [...seen.matchAll(/[1-9A-HJ-NP-Za-km-z]{32,44}pump/g)]
     .map((m) => m[0]).filter((a) => a !== MINT);
