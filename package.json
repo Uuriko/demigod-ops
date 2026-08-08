@@ -119,7 +119,7 @@
     "dasha:test:share": "node dasha-desk/dasha-share.test.mjs",
     "dasha:build:desk": "node dasha-desk/build.mjs --write",
     "dasha:check:desk": "node dasha-desk/build.mjs --check",
-    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-discovery.test.mjs --local && node dasha-docs-links.test.mjs && node dasha-product-coherence.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && node dasha-simp-board.test.mjs && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs && node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs && node dasha-studio-embed.test.mjs && node dasha-desk/dasha-desk-resilience.test.mjs",
+    "dasha:test:all": "node dasha-desk/build.mjs --check && node dasha-discovery.test.mjs --local && node dasha-docs-links.test.mjs && node dasha-studio-publish.mjs --check && node dasha-product-coherence.test.mjs && node dasha-desk/dasha-share.test.mjs && node dasha-growth.test.mjs && node dasha-how-to-buy.test.mjs && node dasha-simp-board.test.mjs && node dasha-simp-oss-scorer.test.mjs && node dasha-landing.test.mjs && node dasha-desk.test.mjs && node dasha-meme-studio.test.mjs && node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs && node dasha-studio-embed.test.mjs && node dasha-desk/dasha-desk-resilience.test.mjs",
     "dasha:verify:live": "node dasha-live-verify.mjs",
     "dasha:prep": "node dasha-ship.mjs --prep",
     "dasha:gate:fast": "node dasha-ship.mjs --prep --gate",
@@ -133,7 +133,8 @@
     "dasha:test:live": "node dasha-live.test.mjs",
     "dasha:test:brand": "node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs",
     "dasha:test:contrast": "node dasha-contrast.test.mjs --local",
-    "dasha:test:discovery": "node dasha-discovery.test.mjs"
+    "dasha:test:discovery": "node dasha-discovery.test.mjs",
+    "dasha:studio:publish": "node dasha-studio-publish.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

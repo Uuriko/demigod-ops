@@ -18,6 +18,11 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const SKIP_DIRS = new Set(['node_modules', '.git', '.tmp-dasha-ship', 'dist', 'archive']);
+/* Templates for a generated tree. Their relative links resolve where the file LANDS, not where it
+   lives — dasha-studio-readme.md links to LICENSE, which exists beside its published copy in
+   dasha-desk/studio/ and not beside the template. The generated copy is scanned normally, so the
+   link is still checked; it is just checked in the only place the answer is meaningful. */
+const SKIP_FILES = new Set(['dasha-studio-readme.md']);
 
 async function markdownFiles(dir) {
   const out = [];
@@ -25,7 +30,7 @@ async function markdownFiles(dir) {
     if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...await markdownFiles(full));
-    else if (entry.name.endsWith('.md')) out.push(full);
+    else if (entry.name.endsWith('.md') && !SKIP_FILES.has(entry.name)) out.push(full);
   }
   return out;
 }
