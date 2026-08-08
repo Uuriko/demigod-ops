@@ -19,7 +19,7 @@
  *
  * Token: env DASHA_WF_TOKEN or file /tmp/dasha-wf-token.txt (MCP Bearer).
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -466,6 +466,64 @@ async function verifyLive() {
   return out;
 }
 
+
+/* ---- the publish lock ------------------------------------------------------
+   Two agents publish this site from two source trees. On 2026-08-08 that cost the Studio its CC0
+   dedication five separate times, and then reverted the operator's own no-disclaimers decision on
+   the live homepage — each time because a publish landed on top of a good one and whoever went last
+   won. Everyone agreed in writing that /studio has exactly one publish path. Nothing enforced it,
+   and an agreement nobody can accidentally break is the only kind worth having.
+
+   The path is absolute and outside the repo ON PURPOSE. A lock inside the working tree is a lock
+   per worktree, which is no lock at all — that is precisely the shape of the problem. /tmp is
+   machine-wide, so every copy of this script contends for the same file.
+
+   It is exclusive-create (wx), so acquiring is atomic: no read-then-write window for two processes
+   to both pass. A held lock fails the run loudly and says who holds it and for how long, rather
+   than queueing — waiting silently for another agent is how you end up publishing something stale
+   ten minutes later. */
+const LOCK = process.env.DASHA_PUBLISH_LOCK || '/tmp/dasha-publish.lock';
+const LOCK_STALE_MS = 10 * 60 * 1000;
+
+function acquireLock(surfaces) {
+  const mine = {
+    pid: process.pid,
+    agent: process.env.DASHA_AGENT || process.env.CLAUDECODE ? 'claude' : (process.env.USER || 'unknown'),
+    tree: root,
+    surfaces,
+    startedAt: new Date().toISOString(),
+  };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      writeFileSync(LOCK, JSON.stringify(mine, null, 2), { flag: 'wx', mode: 0o600 });
+      log('lock:acquired', { path: LOCK, surfaces });
+      return true;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      const held = json(LOCK);
+      const age = held?.startedAt ? Date.now() - Date.parse(held.startedAt) : Infinity;
+      /* A crashed run must not block publishing forever, but "stale" has to be long enough that a
+         slow-but-alive publish is never stolen from underneath itself. */
+      if (age > LOCK_STALE_MS) {
+        log('lock:stale', { heldBy: held?.agent, ageMinutes: Math.round(age / 60000), action: 'taking over' });
+        try { unlinkSync(LOCK); } catch {}
+        continue;
+      }
+      throw new Error(
+        `publish lock held by ${held?.agent || 'someone'} (pid ${held?.pid}) from ${held?.tree}`
+        + ` since ${held?.startedAt} for [${(held?.surfaces || []).join(', ')}].`
+        + ` Wait, or clear ${LOCK} if that run is dead.`);
+    }
+  }
+  return false;
+}
+
+function releaseLock() {
+  const held = json(LOCK);
+  if (held?.pid !== process.pid) return;   // never release someone else's lock
+  try { unlinkSync(LOCK); log('lock:released'); } catch {}
+}
+
 async function main() {
   if (!want.status) {
     log('start', {
@@ -566,6 +624,7 @@ async function main() {
     const toPush = want.publish
       ? [...new Set([...pending, ...Object.keys(SURFACES).filter((key) => !only.length || only.includes(key))])]
       : pending;
+    if ((want.push && toPush.length) || want.publish) acquireLock(toPush.length ? toPush : ['publish']);
     if (want.push && toPush.length) await pushEmbeds(client, toPush, receipt);
     else if (want.push) log('push:skip', { reason: 'no changed surfaces' });
     if (want.publish && changed.length && !receipt.stages.published) {
@@ -622,6 +681,7 @@ async function main() {
     log('fail', { ok: false, error: String(e?.stack || e).slice(0, 2000) });
     process.exit(1);
   } finally {
+    releaseLock();
     await client?.close?.().catch(() => {});
   }
 }
