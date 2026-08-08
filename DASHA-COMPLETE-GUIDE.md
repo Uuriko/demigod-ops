@@ -71,7 +71,7 @@ Public association and a mint-source post do not independently establish legal c
 
 ## Who makes it and who it references
 
-The canonical product brief records the project as the official project developed by John Potter, working directly with Dasha and with Perry/@PerryALPHA. It also records that the exact public relationship sentence remains unresolved: “working directly with,” “authorized by” and “endorsed by” are different claims.[^authority]
+The canonical product brief records the project as the official project developed by the operator, working directly with Dasha and with Perry/@PerryALPHA. It also records that the exact public relationship sentence remains unresolved: “working directly with,” “authorized by” and “endorsed by” are different claims.[^authority]
 
 The project references Daria “Dasha” Nekrasova, an actress, filmmaker and podcaster whose public account is [@dash_eats](https://x.com/dash_eats). Cultural and biographical research lives in the [Dasha Bible](DASHA-BIBLE.md). A public post, quotation or cultural reference is not automatically permission to commercially use a person's name, likeness, voice or identity.[^identity]
 

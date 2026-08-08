@@ -132,12 +132,12 @@ Do not merge the worktree wholesale, but do not call it unfinished: use its sour
 the deployed community stack, and reconcile canonical files deliberately, one owner at a time.
 
 **2. "Official" is one word doing four jobs.**
-The project is official — developed by John Potter with @perryalpha, working directly with Dasha.
+The project is official — developed by the operator with @perryalpha, working directly with Dasha.
 That is *project* authority. It is not the same as any of:
 
 | Claim | Status |
 |---|---|
-| The project is official | **True.** John Potter with @perryalpha |
+| The project is official | **True.** the operator with @perryalpha |
 | We control the token / deployer wallet | **Unestablished.** Do not assert it |
 | We control @dash_eats or other public accounts | **Unestablished.** Do not assert it |
 | Dasha Nekrasova endorses the token | **Do not claim.** Exact wording is still pending from the operator |

@@ -68,7 +68,7 @@ someone to redo finished work.
   occurrences of "raid" and "referral" are inside a code comment stating the fact pack contains
   none of them.
 
-Still local-only: the homepage footer attribution to John Potter and @perryalpha.
+Removed 2026-08-08 at the operator's request: the homepage footer attribution.
 
 No active route contains the retired product, forecasting language or the disclaimed Telegram link.
 

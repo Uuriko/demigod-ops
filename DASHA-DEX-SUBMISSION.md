@@ -17,7 +17,7 @@ the deployer wallet**. Five minutes, and it decides between:
 | [Enhanced Token Info](https://marketplace.dexscreener.com/product/token-info) | $299 (from $499) | You can prove control of the token / deployer wallet |
 | [Community Takeover Claim](https://marketplace.dexscreener.com/product/token-community-takeover) | $199 (from $499) | You cannot, and are claiming stewardship of an existing profile |
 
-**Use Enhanced Token Info.** The project is official — developed by John Potter with @perryalpha — so
+**Use Enhanced Token Info.** The project is official — developed by the operator with @perryalpha — so
 a "community takeover" claim would be the wrong description of what is happening and $199 spent
 saying something untrue about the project's own relationship to its token. A takeover means outsiders
 adopting an abandoned token; this is the operator correcting a stale record.
@@ -60,7 +60,7 @@ they want more than 512.
 > the desk links independent explorers and a single neutral Jupiter route. Verify the mint before you
 > swap.
 
-**Team:** John Potter — `https://x.com/potterlab`. Add @perryalpha if the form allows a second name.
+**Team:** the operator — . Add @perryalpha if the form allows a second name.
 
 **Locked supply wallets:** none to declare. Note that mint and freeze authority are both renounced
 (verifiable on-chain) — worth stating if there is a field for it, since it is a real and checkable

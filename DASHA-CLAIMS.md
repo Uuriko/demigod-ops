@@ -9,7 +9,7 @@ Public copy uses the narrowest supported statement. “Project authority,” tok
 
 | ID | Claim status and evidence owner | Allowed public wording | Do not infer |
 |---|---|---|---|
-| **C1 PROJECT_AUTHORITY** | Operator-provided project fact: developed by John Potter with @perryalpha, working directly with Dasha. Owner: `DASHA-PRODUCT-BRIEF.md` | That exact relationship, when the context needs it | Token control, account control, endorsement of a token purchase |
+| **C1 PROJECT_AUTHORITY** | Operator-provided project fact: developed by the operator with @perryalpha, working directly with Dasha. Owner: `DASHA-PRODUCT-BRIEF.md` | That exact relationship, when the context needs it | Token control, account control, endorsement of a token purchase |
 | **C2 ASSOCIATED_MINT** | Associated Solana mint: `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`. Owners: release contract and mint consistency gates | Show the full address; “associated mint” | “Safe,” “guaranteed,” or control of the deployer wallet |
 | **C3 TOKEN_CONTROL** | Unestablished | No public claim | Ownership, deployer access, supply control or authority to promise outcomes |
 | **C4 ACCOUNT_CONTROL** | `@dash_eats` is a public source used for links and media discovery; project control is unestablished | Link or attribute a specific public post | That the project controls the account |

@@ -32,6 +32,9 @@ const check = (ok, message) => { if (!ok) failures.push(message); };
 const ROUTES = [
   ['/', 'dasha-landing.html', 'WebSite', 'dasha-social-card.png'],
   ['/studio', 'dasha-studio-embed.html', 'SoftwareApplication', 'dasha-social-card-studio.png'],
+  /* The lobby has no structured data of its own yet and shares the homepage card; it is listed so
+     the sitemap count stays honest and so a missing/rotted card there is still caught. */
+  ['/lobby', 'dasha-lobby-page.html', null, 'dasha-social-card.png'],
   ['/dasha', 'dasha-desk/index.html', 'WebApplication', 'dasha-social-card-desk.png'],
 ];
 
@@ -88,7 +91,7 @@ if (local) {
     if (!res) continue;
     const html = await res.text();
     check(res.ok, `${route}: HTTP ${res.status}`);
-    checkJsonLd(`live ${route}`, html, type);
+    if (type) checkJsonLd(`live ${route}`, html, type);
 
     // Canonical must be absolute and point at the route it is on, or duplicates get indexed.
     const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];

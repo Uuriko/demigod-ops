@@ -26,7 +26,7 @@ Desk README and CONTRIBUTING already state: open source, MIT, thesis retired, st
 endorsement implied by association.
 
 **Corrected 2026-08-07:** these previously said the project was *unofficial*. It is not — it is the
-official project, developed by John Potter (x.com/potterlab) with @perryalpha. See
+official project. See
 [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md).
 
 **Blockers for “properly open source” today**

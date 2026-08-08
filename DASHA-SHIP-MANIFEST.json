@@ -1,16 +1,16 @@
 {
   "schema": "dasha.ship-manifest/2",
   "site": "5f1458122ba25e70a3ff2bd0",
-  "status": "verified",
+  "status": "drifted",
   "hashes": {
-    "home": "6a942776d58ff48dace20a0513faac483c049696018ee44d21a6f881aa4244e2",
+    "home": "9f6c7ddafcd3cc8496c2deb48813cedf9209c8063c51d9192eccc4e832d11ce1",
     "studio": "ad8ef65512455825a1e00f710f19f154bb5bda595ea311a61a7074f979ca7de9",
     "desk": "5fd3bada545472b8dcaf1ef21ca378294a61ab95561f10a9512a8cafc7121686"
   },
   "release": {
-    "observedAt": "2026-08-08T17:12:47.975Z",
-    "workspaceCommit": "bb34e8a002840a3f9accd48710c1187a1ada5e06",
-    "publicRepoCommit": "cb6d711ecc41bfa46536e6adda8856ffefc781b4",
+    "observedAt": "2026-08-08T18:59:25.219Z",
+    "workspaceCommit": "5676948474b7cc02c7e8fa27ea5cb2bc019c55df",
+    "publicRepoCommit": "95df6bb28a9a319b8cf97a29926ccaf2948aa030",
     "studioCanonical": {
       "file": "dasha-meme-studio.html",
       "sha256": "184a84abfcca4c507b582ad5cc3bbf001a67c37aaadc3d4977934a1e2abdd093"
@@ -21,7 +21,7 @@
     },
     "legacyWorktreeStudio": {
       "file": ".grok/worktrees/potter/dasha/dasha-meme-studio.html",
-      "sha256": "6e27814870ac519e143655716cfd6f132979397d638be241ee612f57ae9b4890"
+      "sha256": "48aa10c9f28ec74febeed1da4a4ea54ecf0e281b78edf47a63c830ef7f821eb6"
     },
     "deskCanonical": {
       "file": "dasha-desk/src/app.html",
@@ -33,9 +33,9 @@
     },
     "lobby": {
       "status": "observed",
-      "assets": "53b3918b36b1bdff"
+      "assets": "d2a3f3e670b61375"
     }
   },
-  "verifiedAt": "2026-08-08T17:12:47.800Z",
-  "driftDetectedAt": null
+  "verifiedAt": "2026-08-08T18:59:25.118Z",
+  "driftDetectedAt": "2026-08-08T20:20:57.073Z"
 }

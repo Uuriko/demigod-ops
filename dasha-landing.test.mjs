@@ -37,7 +37,7 @@ for (const format of ['square','story','banner']) assert(html.includes(`format=$
 for (const format of ['square','story','banner']) assert(studio.includes(`id: '${format}'`), `homepage promises ${format}, but Studio cannot render it`);
 for (const fact of [mint, 'jup.ag/swap', 'dexscreener.com', 'solscan.io/token/', 'rugcheck.xyz/tokens/']) assert(desk.toLowerCase().includes(fact.toLowerCase()), `neutral Desk lost required buyer fact: ${fact}`);
 assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.test(desk), 'Desk reintroduced urgency, raid, referral, or unofficial community mechanics');
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/dasha'], 'bounded sitemap must contain only the three intended canonical public routes');
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha'], 'bounded sitemap must contain only the three intended canonical public routes');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert.equal([...html.matchAll(/class="poster-tile"/g)].length, 3, 'homepage must stay to three concise editable lines');
 for (const tag of html.matchAll(/<a\b[^>]*target="_blank"[^>]*>/g)) assert(/rel="noopener noreferrer"/.test(tag[0]), `unsafe external link: ${tag[0]}`);

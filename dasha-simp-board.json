@@ -12,10 +12,11 @@
       "source": "signed-x-session-after-explicit-join"
     },
     "quiz": {
-      "schema": "dasha-simp-quiz/v1",
+      "schema": "dasha-simp-quiz/v2",
       "status": "prepared",
-      "points_per_correct": 5,
-      "max_points": 40,
+      "path_length": 12,
+      "practice_path_length": 20,
+      "max_points": 60,
       "attempts_per_x": 1,
       "source": "server-scored-x-session-quiz"
     },

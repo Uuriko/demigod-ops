@@ -55,6 +55,7 @@ generated_from: top-level DASHA-*.md metadata
 | [DASHA-PRODUCT-BRIEF.md](DASHA-PRODUCT-BRIEF.md) | canonical | product |
 | [DASHA-PRODUCT-OPTIONS-2026-08-07.md](DASHA-PRODUCT-OPTIONS-2026-08-07.md) | historical | — |
 | [DASHA-PRODUCT-STRATEGY.md](DASHA-PRODUCT-STRATEGY.md) | historical | DASHA-PRODUCT-BRIEF.md |
+| [DASHA-QUIZ-RESEARCH-2026-08-08.md](DASHA-QUIZ-RESEARCH-2026-08-08.md) | reference | — |
 | [DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md](DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md) | historical | — |
 | [DASHA-ROADMAP.md](DASHA-ROADMAP.md) | canonical | roadmap |
 | [DASHA-SHIP-FAST.md](DASHA-SHIP-FAST.md) | reference | — |

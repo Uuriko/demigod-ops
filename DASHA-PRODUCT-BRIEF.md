@@ -10,7 +10,7 @@ Updated: 2026-08-08
 
 ## Who makes it
 
-**This is the official project.** Developed by John Potter ([x.com/potterlab](https://x.com/potterlab)),
+**This is the official project.** Developed by the operator (the operator),
 working directly with Dasha and with [@perryalpha](https://x.com/perryalpha).
 
 Recorded 2026-08-07 because several documents and agent decisions had assumed the opposite — that
@@ -45,10 +45,13 @@ as editorial and non-measured. There is no public evidence-URL submission form. 
 from automatic, reviewable project events or maintainer-derived public GitHub records; unsupported
 activity scores zero.
 
-The prepared eight-question “How big of a Dasha simp are you?” quiz requires the signed X session. Its submit
-button explicitly joins the Board, the Worker scores five points per correct answer (40 maximum),
-and each X account receives one scored attempt per quiz version. The browser never receives the
-answer key. Results can be shared through an explicit X Web Intent; the site never posts for the user.
+The prepared 12-step scored “How big of a Dasha simp are you?” quiz lets a player begin anonymously, then requires
+the signed X session only to reveal and save the result. Its first answer
+selects a cinema, podcast/internet, public-post, or project path; each path rejoins a shared final section.
+Finishing explicitly joins the Board and awards up to 60 normalized points. Each X account receives one scored
+attempt per quiz version; a 20-step practice replay never changes that score. The Worker retains the active branch
+and answer key; the browser receives one question at a time. Results have privacy-safe permanent challenge URLs and
+can be shared explicitly; the site never posts for the user.
 
 New remix state lives in the URL fragment, which browsers do not send in the HTTP request; legacy query links still load and normalize client-side. Native sharing carries the PNG and remix URL together; the X fallback saves the PNG and opens a documented Web Intent containing the editable URL. A materially changed inbound artifact keeps exactly one validated immediate parent snapshot and exposes a local `From` link; this is state ancestry, not proof of identity, authorship, permission or endorsement. A maker can prepare the same look and line as explicit post, story and banner downloads. The output carries a small `getdasha.com` mark, but never a price promise or implied endorsement.
 
