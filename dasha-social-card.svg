@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="title desc">
   <title id="title">Dasha — it’s time</title>
-  <desc id="desc">A dark Dasha remix Studio card with three colorful editable artifact previews.</desc>
+  <desc id="desc">A dark Dasha Studio card with three colorful editable artifact previews.</desc>
   <defs>
     <radialGradient id="glow" cx="80%" cy="4%" r="82%"><stop stop-color="#7c4dff" stop-opacity=".5"/><stop offset="1" stop-color="#070608" stop-opacity="0"/></radialGradient>
     <linearGradient id="violet" x2="1" y2="1"><stop stop-color="#351b62"/><stop offset="1" stop-color="#100a18"/></linearGradient>
@@ -18,9 +18,9 @@
 
     <g transform="translate(730 44) rotate(2 200 270)">
       <rect x="13" y="14" width="420" height="542" fill="#ff3b81"/><rect width="420" height="542" fill="#141119" stroke="#f4eddb" stroke-width="3"/>
-      <rect x="0" width="420" height="188" fill="url(#violet)"/><text x="24" y="34" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">REMIX</text><text x="24" y="92" fill="#f4eddb" font-size="28" font-weight="900">HOW U CRYING AT THE</text><text x="24" y="126" fill="#f4eddb" font-size="28" font-weight="900">CASINO AND U CAN’T</text><text x="24" y="160" fill="#f4eddb" font-size="28" font-weight="900">EVEN GET IN</text>
-      <rect y="188" width="420" height="158" fill="url(#pink)"/><text x="24" y="222" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">REMIX</text><text x="24" y="286" fill="#f4eddb" font-size="34" font-weight="900">IT’S TIME $DASHA</text>
-      <rect y="346" width="420" height="196" fill="url(#signal)"/><text x="24" y="380" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">REMIX</text><text x="24" y="438" fill="#f4eddb" font-size="29" font-weight="900">IT’S AN OLD COIN</text><text x="24" y="474" fill="#f4eddb" font-size="29" font-weight="900">AND IM NOT THE DEV</text>
+      <rect x="0" width="420" height="188" fill="url(#violet)"/><text x="24" y="34" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">EDIT THIS</text><text x="24" y="92" fill="#f4eddb" font-size="28" font-weight="900">HOW U CRYING AT THE</text><text x="24" y="126" fill="#f4eddb" font-size="28" font-weight="900">CASINO AND U CAN’T</text><text x="24" y="160" fill="#f4eddb" font-size="28" font-weight="900">EVEN GET IN</text>
+      <rect y="188" width="420" height="158" fill="url(#pink)"/><text x="24" y="222" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">EDIT THIS</text><text x="24" y="286" fill="#f4eddb" font-size="34" font-weight="900">IT’S TIME $DASHA</text>
+      <rect y="346" width="420" height="196" fill="url(#signal)"/><text x="24" y="380" fill="#f4eddb" font-size="13" font-weight="900" letter-spacing="2">EDIT THIS</text><text x="24" y="438" fill="#f4eddb" font-size="29" font-weight="900">IT’S AN OLD COIN</text><text x="24" y="474" fill="#f4eddb" font-size="29" font-weight="900">AND IM NOT THE DEV</text>
       <rect x="300" y="28" width="140" height="50" fill="#dfff00" stroke="#070608" stroke-width="3" transform="rotate(6 370 53)"/><text x="332" y="60" fill="#070608" font-size="17" font-weight="900" transform="rotate(6 370 53)">CMON</text>
     </g>
   </g>

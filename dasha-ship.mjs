@@ -523,10 +523,20 @@ function acquireLock(surfaces) {
       if (e.code !== 'EEXIST') throw e;
       const held = json(LOCK);
       const age = held?.startedAt ? Date.now() - Date.parse(held.startedAt) : Infinity;
+      /* Is the holder still alive? signal 0 checks for the process without touching it. A run killed
+         mid-publish leaves its lock behind, and waiting ten minutes for a process that no longer
+         exists is a lock protecting nothing — which is how a safety measure turns into the thing
+         people work around. Every contender is on this machine, since the lock file is local. */
+      let alive = true;
+      /* ESRCH means no such process — dead. EPERM means it exists but belongs to another user, so
+         we cannot signal it and must assume alive. Reading those the wrong way round means either
+         never taking over a dead lock, or stealing a live one. */
+      if (held?.pid) { try { process.kill(held.pid, 0); } catch (e) { alive = e.code === 'EPERM'; } }
       /* A crashed run must not block publishing forever, but "stale" has to be long enough that a
          slow-but-alive publish is never stolen from underneath itself. */
-      if (age > LOCK_STALE_MS) {
-        log('lock:stale', { heldBy: held?.agent, ageMinutes: Math.round(age / 60000), action: 'taking over' });
+      if (!alive || age > LOCK_STALE_MS) {
+        log('lock:stale', { heldBy: held?.agent, pid: held?.pid, alive,
+          ageMinutes: Math.round(age / 60000), action: 'taking over' });
         try { unlinkSync(LOCK); } catch {}
         continue;
       }

@@ -137,7 +137,8 @@
     "dasha:test:brand": "node dasha-brand.test.mjs && node dasha-mark.test.mjs && node dasha-gif.test.mjs",
     "dasha:test:contrast": "node dasha-contrast.test.mjs --local",
     "dasha:test:discovery": "node dasha-discovery.test.mjs",
-    "dasha:studio:publish": "node dasha-studio-publish.mjs"
+    "dasha:studio:publish": "node dasha-studio-publish.mjs",
+    "dasha:test:speed": "node dasha-time-to-export.test.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

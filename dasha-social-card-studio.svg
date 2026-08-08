@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="title desc">
+  <title id="title">Dasha Meme Studio — make one, pass it on</title>
+  <desc id="desc">A dark card for the Dasha Meme Studio showing the three export formats it produces.</desc>
+  <defs>
+    <radialGradient id="glow" cx="80%" cy="4%" r="82%"><stop stop-color="#7c4dff" stop-opacity=".5"/><stop offset="1" stop-color="#070608" stop-opacity="0"/></radialGradient>
+    <linearGradient id="violet" x2="1" y2="1"><stop stop-color="#351b62"/><stop offset="1" stop-color="#100a18"/></linearGradient>
+    <linearGradient id="pink" x2="1" y2="1"><stop stop-color="#c21f5a"/><stop offset="1" stop-color="#31101e"/></linearGradient>
+    <linearGradient id="signal" x2="1" y2="1"><stop stop-color="#20204c"/><stop offset="1" stop-color="#070608"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#070608"/><rect width="1200" height="630" fill="url(#glow)"/>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="60" y="76" fill="#f4eddb" font-size="27" font-weight="900">$<tspan fill="#dfff00">DASHA</tspan> <tspan fill="#978ca5" font-size="20">STUDIO</tspan></text>
+    <text x="56" y="244" fill="#f4eddb" font-size="94" font-weight="900" letter-spacing="-6">MAKE ONE.</text>
+    <text x="56" y="344" fill="#dfff00" font-size="94" font-weight="900" letter-spacing="-6">PASS IT ON.</text>
+    <text x="60" y="424" fill="#cfc6d9" font-size="25">Six looks. Three sizes. PNG and GIF.</text>
+    <rect x="60" y="468" width="330" height="64" rx="32" fill="#dfff00"/><text x="88" y="509" fill="#070608" font-size="20" font-weight="900">OPEN THE STUDIO →</text>
+    <text x="60" y="594" fill="#978ca5" font-size="16">NO ACCOUNT · NO WALLET · NOTHING UPLOADED</text>
+
+    <!-- The three formats the tool exports, at their real aspect ratios. The card shows what you get
+         rather than describing it; the shapes are the product. -->
+    <g transform="translate(700 60)">
+      <rect x="13" y="14" width="240" height="240" fill="#c21f5a"/>
+      <rect width="240" height="240" fill="url(#violet)" stroke="#f4eddb" stroke-width="3"/>
+      <text x="20" y="34" fill="#dfff00" font-size="13" font-weight="900" letter-spacing="2">POST</text>
+      <text x="20" y="132" fill="#f4eddb" font-size="30" font-weight="900">IT’S TIME</text>
+      <text x="20" y="168" fill="#f4eddb" font-size="30" font-weight="900">$DASHA</text>
+
+      <rect x="288" y="0" width="152" height="270" fill="url(#pink)" stroke="#f4eddb" stroke-width="3"/>
+      <text x="306" y="34" fill="#dfff00" font-size="13" font-weight="900" letter-spacing="2">STORY</text>
+      <text x="306" y="140" fill="#f4eddb" font-size="22" font-weight="900">WELL IM</text>
+      <text x="306" y="166" fill="#f4eddb" font-size="22" font-weight="900">STILL</text>
+      <text x="306" y="192" fill="#f4eddb" font-size="22" font-weight="900">ALIVE</text>
+
+      <rect x="0" y="300" width="440" height="212" fill="url(#signal)" stroke="#f4eddb" stroke-width="3"/>
+      <text x="20" y="334" fill="#dfff00" font-size="13" font-weight="900" letter-spacing="2">BANNER</text>
+      <text x="20" y="420" fill="#f4eddb" font-size="34" font-weight="900">IT’S AN OLD COIN</text>
+      <text x="20" y="462" fill="#f4eddb" font-size="34" font-weight="900">AND IM NOT THE DEV</text>
+
+      <!-- Slapped over the post card's corner rather than the story card's, where it was covering
+           the STORY label — the labels are what make the three shapes read as formats. -->
+      <rect x="120" y="-30" width="150" height="50" fill="#dfff00" stroke="#070608" stroke-width="3" transform="rotate(-5 195 -5)"/>
+      <text x="146" y="2" fill="#070608" font-size="17" font-weight="900" transform="rotate(-5 195 -5)">CC0</text>
+    </g>
+  </g>
+</svg>

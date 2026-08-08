@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="title desc">
+  <title id="title">$dasha desk — check the mint</title>
+  <desc id="desc">A dark card for the Dasha desk showing the mint address and the independent sources it links.</desc>
+  <defs>
+    <radialGradient id="glow" cx="82%" cy="6%" r="80%"><stop stop-color="#7c3aed" stop-opacity=".5"/><stop offset="1" stop-color="#070608" stop-opacity="0"/></radialGradient>
+    <linearGradient id="card" x2="1" y2="1"><stop stop-color="#1a1526"/><stop offset="1" stop-color="#0b0910"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#070608"/><rect width="1200" height="630" fill="url(#glow)"/>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="60" y="76" fill="#f4eddb" font-size="27" font-weight="900">$<tspan fill="#dfff00">DASHA</tspan> <tspan fill="#978ca5" font-size="20">DESK</tspan></text>
+    <text x="56" y="244" fill="#f4eddb" font-size="94" font-weight="900" letter-spacing="-6">CHECK THE</text>
+    <text x="56" y="344" fill="#dfff00" font-size="94" font-weight="900" letter-spacing="-6">MINT.</text>
+    <text x="60" y="424" fill="#cfc6d9" font-size="25">Independent sources. One neutral Jupiter route.</text>
+    <rect x="60" y="468" width="300" height="64" rx="32" fill="#dfff00"/><text x="88" y="509" fill="#070608" font-size="20" font-weight="900">OPEN THE DESK →</text>
+    <text x="60" y="594" fill="#978ca5" font-size="16">NO WALLET CONNECTION · NO CUSTODY</text>
+
+    <!-- The mint itself, because it is the whole job of this page. Split across two lines at a fixed
+         width so it stays legible in a timeline preview rather than shrinking to fit one line. -->
+    <g transform="translate(690 96)">
+      <rect x="13" y="14" width="452" height="200" fill="#7c3aed"/>
+      <rect width="452" height="200" fill="url(#card)" stroke="#f4eddb" stroke-width="3"/>
+      <text x="24" y="42" fill="#dfff00" font-size="13" font-weight="900" letter-spacing="2">THE MINT</text>
+      <text x="24" y="98" fill="#f4eddb" font-size="27" font-weight="700" font-family="'DejaVu Sans Mono',Consolas,monospace">53uxQtB9pcjWvCHguz</text>
+      <text x="24" y="136" fill="#f4eddb" font-size="27" font-weight="700" font-family="'DejaVu Sans Mono',Consolas,monospace">3JTTndvuKqGxhrD37</text>
+      <text x="24" y="174" fill="#f4eddb" font-size="27" font-weight="700" font-family="'DejaVu Sans Mono',Consolas,monospace">EetnCpump</text>
+
+      <g transform="translate(0 244)">
+        <text x="0" y="0" fill="#978ca5" font-size="15" font-weight="900" letter-spacing="2">VERIFY IT YOURSELF</text>
+        <text x="0" y="44" fill="#f4eddb" font-size="26" font-weight="900">Solscan · Rugcheck</text>
+        <text x="0" y="82" fill="#f4eddb" font-size="26" font-weight="900">DexScreener · Jupiter</text>
+      </g>
+    </g>
+  </g>
+</svg>

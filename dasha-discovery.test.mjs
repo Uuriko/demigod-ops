@@ -25,10 +25,14 @@ const here = (f) => new URL(`./${f}`, import.meta.url);
 const failures = [];
 const check = (ok, message) => { if (!ok) failures.push(message); };
 
+/* Each route has its own share card now. They used to share the homepage one, which meant a link to
+   the Studio unfurled as an ad for the site rather than for the tool — and the two pages people
+   actually share are the ones that were wrong. The local file is named per route so drift is caught
+   per route: a card can rot independently, and one comparison against one file would hide that. */
 const ROUTES = [
-  ['/', 'dasha-landing.html', 'WebSite'],
-  ['/studio', 'dasha-studio-embed.html', 'SoftwareApplication'],
-  ['/dasha', 'dasha-desk/index.html', 'WebApplication'],
+  ['/', 'dasha-landing.html', 'WebSite', 'dasha-social-card.png'],
+  ['/studio', 'dasha-studio-embed.html', 'SoftwareApplication', 'dasha-social-card-studio.png'],
+  ['/dasha', 'dasha-desk/index.html', 'WebApplication', 'dasha-social-card-desk.png'],
 ];
 
 /** Structured data must parse, be the right thing, and not claim anything we cannot support. */
@@ -75,7 +79,7 @@ if (local) {
     catch (e) { check(false, `${url}: request failed — ${e.message}`); return null; }
   };
 
-  for (const [route, file, type] of ROUTES) {
+  for (const [route, file, type, card] of ROUTES) {
     const res = await get(ORIGIN + route);
     if (!res) continue;
     const html = await res.text();
@@ -92,10 +96,10 @@ if (local) {
       || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/)?.[1];
     check(!!image, `${route}: no og:image — shared links unfurl bare`);
     if (image) {
-      const card = await get(image);
-      if (card) {
-        check(card.ok, `${route}: og:image is HTTP ${card.status} — every shared link unfurls broken`);
-        const bytes = Buffer.from(await card.arrayBuffer());
+      const cardRes = await get(image);   // not `card` — that name holds the expected filename
+      if (cardRes) {
+        check(cardRes.ok, `${route}: og:image is HTTP ${cardRes.status} — every shared link unfurls broken`);
+        const bytes = Buffer.from(await cardRes.arrayBuffer());
         check(bytes.subarray(1, 4).toString() === 'PNG', `${route}: og:image is not a PNG`);
         if (bytes.subarray(1, 4).toString() === 'PNG') {
           const [w, h] = [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
@@ -104,9 +108,9 @@ if (local) {
         /* And it must be the card we actually built. An uploaded asset does not change when the
            source does: on 2026-08-08 the live card still carried copy that had been removed from
            every page, and nothing anywhere would have said so. */
-        const localCard = await readFile(here('dasha-social-card.png'));
+        const localCard = await readFile(here(card));
         check(createHash('sha256').update(bytes).digest('hex') === createHash('sha256').update(localCard).digest('hex'),
-          `${route}: the live og:image is not the current dasha-social-card.png — re-upload it to Webflow`);
+          `${route}: the live og:image is not the current ${card} — re-upload it to Webflow`);
       }
     }
   }
@@ -130,6 +134,12 @@ if (local) {
       }
     }
   }
+
+  /* Three distinct cards. If two routes resolve to the same bytes, a repoint has silently fallen
+     back to the shared card and the per-route work is gone with nothing else showing it. */
+  const seen = new Map();
+  for (const [route, , , card] of ROUTES) seen.set(card, (seen.get(card) || 0) + 1);
+  check(seen.size === ROUTES.length, 'two routes share a card file — the per-route cards collapsed');
 
   report();
 }
