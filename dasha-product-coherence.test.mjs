@@ -11,20 +11,17 @@ const simplify = read('./DASHA-SIMPLIFY.md');
 const landing = read('./dasha-landing.html');
 const board = JSON.parse(read('./dasha-simp-board.json'));
 const pkg = JSON.parse(read('./package.json'));
-const current = ['Dasha Transmissions', 'Transmission 001', 'make me an alibi'];
-
-for (const marker of current) {
-  const owners = marker === 'Dasha Transmissions' ? [brief, docs] : [brief, roadmap, landing];
-  assert(owners.every((text) => text.toLowerCase().includes(marker.toLowerCase())), `${marker} is not coherent across its owners`);
+for (const marker of ['Home', 'Studio', 'Desk', 'Lobby', 'Simp Board']) {
+  assert([brief, docs, roadmap].every((text) => text.toLowerCase().includes(marker.toLowerCase())), `${marker} is not coherent across its owners`);
 }
 for (const retired of ['Riding for Dasha', 'Season zero']) {
   assert(!landing.toLowerCase().includes(retired.toLowerCase()), `${retired} returned to the homepage`);
   assert(!JSON.stringify(board).toLowerCase().includes(retired.toLowerCase()), `${retired} returned to the Board contract`);
 }
 assert.equal(board.season, null, 'the retired Board season returned');
-assert.match(simplify, /Transmission 001 is the only participation experiment/);
-assert.match(brief, /Studio is the instrument/);
-assert.match(roadmap, /### A\. Remix Relay/);
+assert.match(simplify, /live Home \+ Studio \+ Desk \+ Lobby \+ Board system/);
+assert.match(brief, /Transmissions\/alibi remains one unproven creative experiment/);
+assert.match(roadmap, /live Board combines one editorial row with measured opt-in rows/);
 
 for (const [file, text] of [['DASHA-DOCS.md', docs], ['DASHA-COMPLETE-GUIDE.md', guide]]) {
   for (const [, target] of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
