@@ -32,7 +32,7 @@ Same 64-unit grid as `dasha-mark.svg`, so the two are interchangeable at any siz
 | **Blink** | Animation only — a short window of the loop. An eye is open or shut; a fading eyelid reads as a rendering bug, not a blink. |
 | **Wide** | Surprise. Use sparingly; it is the least on-voice. |
 | **Smug** | Half-lidded eyes, small curved mouth. |
-| **Zeroed** | X eyes. Exists because the site says out loud that the coin can go to zero, and a character that can only be happy would be lying. |
+| **Zeroed** | X eyes. Exists because a character that can only be happy would be lying. The site dropped its risk boilerplate; this is the honesty that survived, because it is a face rather than a sentence nobody reads. |
 
 ## Provenance
 

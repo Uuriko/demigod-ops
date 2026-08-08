@@ -108,7 +108,6 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 - Make culture, not promises
 - Verify the mint yourself
 - No fake endorsement / no fake certainty
-- Can go to zero · NFA
 - Studio: change one thing, pass it on · no wallet · nothing uploaded
 
 ### Third-party tape (label clearly)

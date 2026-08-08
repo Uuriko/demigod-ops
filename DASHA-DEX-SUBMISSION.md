@@ -53,8 +53,8 @@ they want more than 512.
 
 > $dasha is a Solana culture coin with an open studio attached. Make an image, pass it on — the
 > tools, the mark and everything they export are public domain. Verify the mint before you swap;
-> the desk links independent explorers and a single neutral Jupiter route. High risk, can go to
-> zero, not financial advice.
+> the desk links independent explorers and a single neutral Jupiter route. Verify the mint before you
+> swap.
 
 **Team:** John Potter — `https://x.com/potterlab`. Add @perryalpha if the form allows a second name.
 

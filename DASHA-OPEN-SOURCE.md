@@ -139,11 +139,10 @@ One root `LICENSE` + `NOTICE` per public repo is enough. Do not invent a custom 
 
 - ~~Unofficial~~ — **removed: false.** This is the official project (see
   [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md)). Do not reintroduce it.
-- **association ≠ endorsement** — *wording pending.* Kept as-is for now because it was written when
-  the project was believed unaffiliated. "Works directly with", "authorized by" and "endorsed by"
-  are three different public claims; the operator supplies the exact sentence. Do not tune it by
-  inference.  
-- Culture coin; **can go to zero**; NFA  
+- ~~association ≠ endorsement~~ — **removed with the rest of the disclaimer copy, 2026-08-08.** If a
+  relationship claim is ever wanted on the site, the operator supplies the exact sentence: "works
+  directly with", "authorized by" and "endorsed by" are three different public claims. Do not tune it
+  by inference.  
 - Exact mint string + public source post link  
 - One Jupiter path; no custody  
 - Thesis/receipts **not part of this project**

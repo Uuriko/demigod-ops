@@ -92,4 +92,7 @@ The website may embed Jupiter's official swap plugin with `$dasha` fixed as the 
 - Public association does not establish legal control, celebrity authorization, safety or endorsement.
 - `https://t.me/dashacommunity` is not controlled evidence and must never return.
 - No price targets, return promises, fake holder/community counts or invented partnerships.
-- Culture coin. Can go to zero. Not financial advice.
+- No disclaimers. Risk boilerplate is off the surfaces by decision of 2026-08-08: nobody reads
+  "not financial advice" on a page that already says "culture coin", and one of the hedges had gone
+  false. What stays is the guidance a reader can lose money by not having — check the mint, never
+  trust a mint from DMs — and the CC0 likeness carve-out, which is licence scope, not a hedge.
