@@ -138,7 +138,8 @@
     "dasha:test:contrast": "node dasha-contrast.test.mjs --local",
     "dasha:test:discovery": "node dasha-discovery.test.mjs",
     "dasha:studio:publish": "node dasha-studio-publish.mjs",
-    "dasha:test:speed": "node dasha-time-to-export.test.mjs"
+    "dasha:test:speed": "node dasha-time-to-export.test.mjs",
+    "dasha:test:surfaces": "node dasha-surfaces.test.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",
