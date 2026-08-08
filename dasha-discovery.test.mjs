@@ -174,6 +174,7 @@ function report() {
     process.exit(1);
   }
   console.log(local
-    ? 'Dasha discovery: PASS (sources — structured data on every route, sitemap well-formed)'
+    ? 'Dasha discovery: PASS (sources — the pasteable embed carries structured data, sitemap well-formed). '
+      + 'Route structured data lives in Webflow page settings and is only verifiable live.'
     : `Dasha discovery: PASS (${ORIGIN} — structured data, canonicals, share cards resolve and match, robots, sitemap)`);
 }

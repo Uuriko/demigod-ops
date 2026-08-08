@@ -516,7 +516,10 @@ const LOCK_STALE_MS = 10 * 60 * 1000;
 function acquireLock(surfaces) {
   const mine = {
     pid: process.pid,
-    agent: process.env.DASHA_AGENT || process.env.CLAUDECODE ? 'claude' : (process.env.USER || 'unknown'),
+    /* Parenthesised deliberately. Written without them, `a || b ? x : y` groups as `(a || b) ? x : y`,
+       so DASHA_AGENT=codex reported itself as claude — the lock's entire job is saying who holds it,
+       and it was lying about exactly that. Caught by Codex in review. */
+    agent: process.env.DASHA_AGENT || (process.env.CLAUDECODE ? 'claude' : (process.env.USER || 'unknown')),
     tree: root,
     surfaces,
     startedAt: new Date().toISOString(),
@@ -541,7 +544,11 @@ function acquireLock(surfaces) {
       if (held?.pid) { try { process.kill(held.pid, 0); } catch (e) { alive = e.code === 'EPERM'; } }
       /* A crashed run must not block publishing forever, but "stale" has to be long enough that a
          slow-but-alive publish is never stolen from underneath itself. */
-      if (!alive || age > LOCK_STALE_MS) {
+      /* Age only decides for a holder we cannot see. A process that is demonstrably alive keeps its
+         lock however long it takes — a big publish can exceed ten minutes, and stealing from a live
+         publisher is precisely the collision this lock exists to prevent. The age check is the
+         fallback for when liveness is unknowable (no pid recorded, or another user's process). */
+      if (!alive || (held?.pid == null && age > LOCK_STALE_MS)) {
         log('lock:stale', { heldBy: held?.agent, pid: held?.pid, alive,
           ageMinutes: Math.round(age / 60000), action: 'taking over' });
         try { unlinkSync(LOCK); } catch {}

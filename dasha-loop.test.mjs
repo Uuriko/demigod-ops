@@ -34,6 +34,10 @@ if (local) {
 }
 
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
+/* Cleanup has to run on failure too, or a failing assertion leaks a browser page and a listening
+   socket into every subsequent run of the suite. */
+const open = [];
+process.on('exit', () => { try { server?.close(); } catch {} });
 
 /* Both trees put the Studio in a shadow root on the live site and in the document locally, so every
    lookup goes through the same resolver rather than assuming one shape. */
@@ -41,7 +45,7 @@ const inside = (page, fn, ...args) => page.evaluate(
   new Function('args', `const root = document.querySelector('.dasha-studio-embed')?.shadowRoot || document;
     const $ = (id) => root.querySelector('#' + id); return (${fn})(root, $, ...args);`), args);
 
-const maker = await browser.newPage();
+const maker = await browser.newPage(); open.push(maker);
 await maker.setViewport({ width: 1280, height: 900 });
 await maker.goto(target, { waitUntil: 'networkidle2', timeout: 45000 });
 await new Promise((r) => setTimeout(r, 2500));
@@ -95,7 +99,7 @@ assert.ok(link, `no editable link was handed off. Controls tried: ${controls.joi
 assert.ok(!new URL(link).search, 'the handoff link puts state in the query string, where the server sees it');
 
 // ---- the other side of the handoff -----------------------------------------
-const receiver = await browser.newPage();
+const receiver = await browser.newPage(); open.push(receiver);
 await receiver.setViewport({ width: 1280, height: 900 });
 const openAs = local ? target + new URL(link).hash : link;
 await receiver.goto(openAs, { waitUntil: 'networkidle2', timeout: 45000 });
@@ -114,14 +118,27 @@ const receivedBytes = await inside(receiver, `async (root, $) => {
 }`);
 assert.ok(receivedBytes > 5000, `the receiver rendered nothing usable (${receivedBytes} bytes)`);
 
-/* And the receiver can change it and pass it on again. One generation proves a link; two prove a
-   loop, which is the thing actually being tested. */
-await inside(receiver, `(root, $) => {
+/* And the receiver can change it AND pass it on again. Editing is not enough: a tool where the
+   second person can change the image but cannot hand it to a third has a link, not a chain, and the
+   chain is the whole hypothesis. So the receiver's own handoff control is used and its link checked
+   — Codex's review caught that this stopped one step short. */
+await receiver.evaluate(() => {
+  window.__handoff = [];
+  const remember = (v) => { if (typeof v === 'string') window.__handoff.push(v); };
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true, value: { writeText: (v) => { remember(v); return Promise.resolve(); } },
+  });
+  navigator.share = (d) => { remember(d?.url); remember(d?.text); return Promise.resolve(); };
+  navigator.canShare = () => true;
+});
+const SECOND = ' — and on again';
+await inside(receiver, `(root, $, suffix) => {
   const box = $('line');
-  box.value = box.value + ' — and again';
+  box.value = box.value + suffix;
   box.dispatchEvent(new Event('input', { bubbles: true }));
-}`);
-await new Promise((r) => setTimeout(r, 500));
+}`, SECOND);
+await new Promise((r) => setTimeout(r, 600));
+
 const secondGen = await inside(receiver, `async (root, $) => {
   const blob = await new Promise((r) => $('canvas').toBlob(r, 'image/png'));
   return blob.size;
@@ -129,8 +146,25 @@ const secondGen = await inside(receiver, `async (root, $) => {
 assert.ok(secondGen > 5000 && secondGen !== receivedBytes,
   'the receiver could not materially change what it received — the chain stops at one generation');
 
-await maker.close();
-await receiver.close();
+const secondControls = await inside(receiver, `(root, $) => ['remix', 'share', 'copy']
+  .filter((id) => $(id) && $(id).offsetParent !== null)`);
+for (const id of secondControls) {
+  await inside(receiver, `(root, $, id) => $(id).click()`, id);
+  await new Promise((r) => setTimeout(r, 900));
+}
+const secondLink = (await receiver.evaluate(() => window.__handoff))
+  .find((v) => /#.*look=|#.*line=/.test(v || ''));
+assert.ok(secondLink, 'the receiver could change the image but could not hand it on — a link, not a chain');
+/* Parsed, not string-matched. URLSearchParams encodes a space as "+", which decodeURIComponent
+   leaves alone — so a substring check against the decoded hash fails on a link that is perfectly
+   correct. The first version of this assertion did exactly that and accused the product. */
+const secondState = new URLSearchParams(new URL(secondLink).hash.slice(1));
+assert.ok(secondState.get('line')?.includes(SECOND.trim()),
+  `the second-generation link does not carry the second person's edit: ${secondState.get('line')}`);
+assert.equal(secondState.get('pLine'), LINE,
+  'the second-generation link lost its parent, so the chain cannot be followed back one step');
+
+await Promise.all(open.map((p) => p.close().catch(() => {})));
 await browser.disconnect();
 server?.close();
 

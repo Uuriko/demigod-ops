@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Every public URL that answers, and who owns it.
+ * The public URLs we know how to look for, and who owns each one.
  *
  * On 2026-08-08 getdasha.com/how-to-buy was found by accident. It is a real page with the mint on
  * it, served by a Cloudflare edge worker, absent from the Webflow page list, 404 on staging, touched
@@ -9,9 +9,15 @@
  * The page simply was not in any of their lists, and a list is only as good as the thing that
  * questions it.
  *
- * So this does not check a list of surfaces. It goes and finds them, from the places a surface can
- * announce itself — the sitemap we publish, the robots file, the paths Webflow knows about, and the
- * ones we have historically built — and then asks of each live one: does anything here own you?
+ * So this widens the list rather than trusting one: it seeds from the paths we have historically
+ * built and adds whatever the live sitemap and robots file announce, then asks of each live one:
+ * does anything here own you?
+ *
+ * It is a bounded inventory audit, not true discovery, and the distinction matters — it queries no
+ * Webflow or Cloudflare inventory, so a surface that is in none of those places and that nobody
+ * thought to seed here is still invisible to it. That is exactly how /how-to-buy hid, and adding
+ * those two APIs is the only thing that would close it properly. Calling this "every surface" would
+ * recreate the false confidence it was written to remove.
  *
  * A 200 with no owner is the failure. It means content is being served to the public that no source
  * in this repo can update, no gate reads, and no sweep will ever reach.
