@@ -12,15 +12,34 @@ money). Nothing here grants it.
 
 ---
 
+## Blocked on the operator — nothing else here waits on these
+
+Everything in this list is built, gated and committed. Each needs one action only you can take.
+`node dasha-discovery.test.mjs` reports the first four as live failures until they are done.
+
+| # | Action | Where | Why it is blocked |
+| --- | --- | --- | --- |
+| **P1** | Publish the site | `node dasha-ship.mjs --ship` | Structured data, the Studio embed header and the roadmap fixes are committed and gated but not live. Publishing is an outward-facing action and needs saying so in the moment. |
+| **P2** | Re-upload the share card | Webflow assets → replace `dasha-social-card-v2.png` with `dasha-social-card.png` | The live card is a stale upload still showing `HIGH RISK · VERIFY THE MINT · NO ENDORSEMENT IMPLIED`. It is the only surface where the removed copy survives, and it is the one most people see. |
+| **P3** | Paste robots.txt | Webflow → Site settings → SEO → robots.txt | Exact text is in [`dasha-robots.txt`](dasha-robots.txt). Live file is 200 with an empty body. |
+| **P4** | Paste the sitemap | Webflow → Site settings → SEO → custom sitemap | Exact text is in [`dasha-sitemap.xml`](dasha-sitemap.xml). `/sitemap.xml` is currently a 404. |
+| **P5** | Push the Desk repo | `cd dasha-desk && git push origin main` | `ARCHITECTURE.md` and the README fix are committed locally. Pushing publishes and redeploys Pages. |
+| **P6** | Create the starter issues | GitHub | Three open issues is not a funnel. Writing them is done-able; creating them posts publicly. |
+| **P7** | Move the Studio into the public repo | GitHub | The highest-leverage open-source change: the public repo currently holds only the Desk, and the Studio is the interesting artifact. This is a decision, not a task. |
+| **P8** | The aggregator submissions | DexScreener, CoinGecko, CMC, Jupiter | Section C. Money and outbound forms. |
+| **P9** | Run Transmission 001 | — | Section F56. It is a public prompt and a promise to acknowledge every first submission. |
+
+---
+
 ## A. Contradictions and stale rules — cheapest, do first
 
 These are places where the repo currently tells the next person to do something we no longer do.
 
-1. **S** `DASHA-ROADMAP.md` guardrail still requires "prominent loss-risk disclosure". Contradicts the
+1. ✅ **done** `DASHA-ROADMAP.md` guardrail required "prominent loss-risk disclosure". Contradicts the
    2026-08-08 no-disclaimers decision. Same file, "Phase 0 → adjacent mint and risk disclosure".
-2. **S** `dasha-studio-embed.test.mjs` header comment still says "the risk disclaimers are inside this
+2. ✅ **done** the generated embed header said "the risk disclaimers are inside this
    fragment and must not be removed" — the generated embed repeats it into every pasted copy.
-3. **S** `dasha-live.test.mjs` header still lists "total-loss risk" among the promises it protects.
+3. ✅ **done** `dasha-live.test.mjs` header listed "total-loss risk" among the promises it protects.
 4. **S** `DASHA-DEX-SUBMISSION.md` team/description copy predates the official-project decision; re-read
    end to end for other unaffiliated-era phrasing.
 5. **S** `docs/LOOP-PROMPT-2026-08-06-*.md` and `DASHA-CODE-DESIGN-REVIEW-2026-08-08.md` still quote the
@@ -34,14 +53,14 @@ These are places where the repo currently tells the next person to do something 
 
 Measured live on 2026-08-08.
 
-8. **S** `https://www.getdasha.com/sitemap.xml` returns **404**. `dasha-sitemap.xml` exists in the repo
+8. 🔒 **P4** `https://www.getdasha.com/sitemap.xml` returns **404**. `dasha-sitemap.xml` exists in the repo
    and is not served. Webflow can generate one, or upload ours.
-9. **S** `robots.txt` returns 200 with an **empty body**. No `Sitemap:` line, no rules.
-10. **M** No `application/ld+json` on any route. Add `WebSite` + `SoftwareApplication` (Studio) +
+9. 🔒 **P3** `robots.txt` returns 200 with an **empty body**. Exact text ready in `dasha-robots.txt`. No `Sitemap:` line, no rules.
+10. ✅ **done, pending publish** structured data on all three routes; the Studio's sits in the light DOM because its shadow root is invisible to crawlers. Was: Add `WebSite` + `SoftwareApplication` (Studio) +
     `Organization`. Cheap, and it is what AI search surfaces read.
-11. **S** Verify OG images actually render in the wild — cards exist on all three routes but nothing
+11. ✅ **done** — and it found the live card is a stale upload (**P2**). Was: — cards exist on all three routes but nothing
     checks the image resolves and is 1200×630 at the CDN.
-12. **M** Add a gate that fetches each route's `og:image` URL and asserts 200 + dimensions. The card
+12. ✅ **done** `dasha-discovery.test.mjs` fetches each card, checks 200/PNG/1200×630 **and** byte-compares it against `dasha-social-card.png`. Was: The card
     silently 404-ing is invisible until someone posts a link.
 13. **M** Per-route OG images. All three currently share one card; a Studio-specific and Desk-specific
     card would make shared links legible.
@@ -85,7 +104,7 @@ From [`DASHA-DISCOVERY-2026-08-07.md`](DASHA-DISCOVERY-2026-08-07.md); still ope
 30. **M** Resolve the contradictory claims about Discord (current vs gated vs nonexistent).
 31. **M** Resolve contradictory claims about whether Simp Board is live, prepared, or specified.
 32. **S** Visible warning banner on scrapped docs, or move them under `archive/`.
-33. **M** A gate that fails when a doc links to a file that does not exist. Link rot is already present.
+33. ✅ **done** `dasha-docs-links.test.mjs` — 499 local links across 423 files, all resolving. Was: Link rot is already present.
 34. **M** A gate that fails when two "current" docs disagree on a fact in a controlled list (mint,
     official status, live routes).
 
@@ -93,7 +112,7 @@ From [`DASHA-DISCOVERY-2026-08-07.md`](DASHA-DISCOVERY-2026-08-07.md); still ope
 
 Live state: 0 stars, 0 forks, 3 open issues, 0 merged non-operator PRs. Topics and license are set.
 
-35. **S** More `good first issue` items. Three is not a funnel. Research is consistent that structured
+35. 🔒 **P6** More `good first issue` items. Three is not a funnel. Research is consistent that structured
     starter issues plus responsive review are what convert first-timers.
 36. **M** Each starter issue needs: the file, the exact change, how to verify, and how long it takes.
     "docs: improve README" is not actionable enough to convert a stranger.
@@ -104,10 +123,10 @@ Live state: 0 stars, 0 forks, 3 open issues, 0 merged non-operator PRs. Topics a
 39. **S** Repo description + topics are good; add `memecoin`, `meme-generator`, `canvas`, `cc0`.
 40. **M** A `good-first-issue` aggregator presence (goodfirstissue.dev, up-for-grabs.net) — free
     inbound. **AUTH** (outbound submission).
-41. **L** Move the **Studio** into the public repo. It is the interesting artifact and it is currently
+41. 🔒 **P7** Move the **Studio** into the public repo. It is the interesting artifact and it is currently
     private; the public repo only has the Desk. This is the single biggest change to what the project
     *is* to an outsider.
-42. **M** A `docs/ARCHITECTURE.md` for the Desk: how build.mjs works, why the embed is generated, what
+42. ✅ **done (pending P5 push)** `dasha-desk/docs/ARCHITECTURE.md`. Was:: how build.mjs works, why the embed is generated, what
     the gates protect. Contributors cannot help with what they cannot see the shape of.
 43. **S** Pin an issue explaining what the project is and what help is wanted.
 44. **M** Enable and seed Discussions with 3–4 real threads (Discussions is on, and empty).
@@ -187,7 +206,7 @@ Live state: 0 stars, 0 forks, 3 open issues, 0 merged non-operator PRs. Topics a
     measurable rather than skipped.
 81. **M** No visual regression testing. Given how often a republish has silently changed the Studio,
     screenshot diffing the three routes would have caught it four times.
-82. **M** The stale-receipt problem in `dasha-ship.mjs`: a failed run's receipt made a later `--ship`
+82. ✅ **done** receipts now expire after 30 minutes; verified both paths. Was:: a failed run's receipt made a later `--ship`
     skip publishing and report success-shaped output. `--fresh` works around it; the resume logic
     should expire instead.
 83. **M** A scheduled live check. `dasha-live.test.mjs` only runs when someone runs it — and the CC0
