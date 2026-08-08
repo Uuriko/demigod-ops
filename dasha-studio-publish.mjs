@@ -91,6 +91,7 @@ for (const svg of ['mark', 'favicon', 'character']) {
 }
 
 files.set('LICENSE', await read('LICENSE-KIT'));
+files.set('media.json', await read('dasha-studio-media.json'));
 
 files.set('README.md', await read('dasha-studio-readme.md'));
 files.set('studio.test.mjs', await read('dasha-studio-static.test.mjs'));
