@@ -55,10 +55,14 @@ function checkJsonLd(where, html, expectedType) {
   check(types.includes(expectedType), `${where}: expected ${expectedType} structured data, got ${types.join(', ') || 'none'}`);
 }
 
-// ---- sources ---------------------------------------------------------------
-for (const [route, file, type] of ROUTES) {
-  checkJsonLd(`${file} (${route})`, await readFile(here(file), 'utf8'), type);
-}
+/* ---- sources ---------------------------------------------------------------
+   Structured data for our own pages now lives in Webflow page settings, not in the embeds. That is
+   deliberate and it is not tidiness: page settings survive a publish from another source tree, and
+   embeds do not — this site is published from two trees, and the embed-borne JSON-LD was overwritten
+   three times in a day. The one place it still belongs in a file is the pasteable embed, because
+   that travels to pages we do not own, where nothing else describes the tool. */
+checkJsonLd('dasha-studio-embed.html (pasteable)',
+  await readFile(here('dasha-studio-embed.html'), 'utf8'), 'SoftwareApplication');
 
 /* The sitemap is a file in this repo that has to be pasted into Webflow's SEO settings. Checking it
    here at least guarantees the thing we would paste is well-formed and lists exactly the real routes. */
@@ -132,6 +136,25 @@ if (local) {
       for (const [route] of ROUTES) {
         check(body.includes(`${ORIGIN}${route}`), `live sitemap.xml is missing ${route}`);
       }
+    }
+  }
+
+  /* The embed we invite other people to paste. Two lines on their page, one script on GitHub Pages,
+     and from that moment their site's Studio is whatever that URL serves. If CI stops deploying it,
+     or it drifts from what this repo tests, every site that took us up on the offer breaks or runs
+     something nobody gated — and we would never see it, because it is not our page. Byte-comparing
+     against the local file is the whole guarantee: the local one is already proven to mount inside
+     a hostile host, and identical bytes mount identically. */
+  const hosted = await get('https://uuriko.github.io/dasha-desk/studio/embed.js');
+  if (hosted) {
+    check(hosted.ok, `the pasteable embed is HTTP ${hosted.status} — every site that embedded us is broken`);
+    if (hosted.ok) {
+      const type = hosted.headers.get('content-type') || '';
+      check(/javascript/i.test(type), `the pasteable embed is served as "${type}" — browsers with nosniff will refuse it`);
+      const served = await hosted.text();
+      const localEmbed = await readFile(here('dasha-studio-embed.js'), 'utf8');
+      check(served === localEmbed,
+        'the hosted embed has drifted from dasha-studio-embed.js — other people\'s sites are running something this repo did not gate');
     }
   }
 
