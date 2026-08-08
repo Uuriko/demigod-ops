@@ -64,6 +64,16 @@ const SURFACES = {
     file: 'dasha-studio-embed.html',
     label: 'studio',
   },
+  /* The homepage's second, previously-unused embed element. It carries the /lobby entry points as
+     an injected bridge, because the homepage source itself is published from another tree and every
+     copy reachable from here is behind live. Separate element, separate surface: writing it cannot
+     revert their work, and their ship cannot revert this. Retire it when the source patch lands. */
+  homeLobbyLink: {
+    pageId: '5f1458136c15aa41639b8538',
+    element: '111587a0-9244-9044-dd65-d53ad8cd314e',
+    file: 'dasha-home-lobby-link.html',
+    label: 'homeLobbyLink',
+  },
   /* The lobby chat, moved off the homepage onto its own page on 2026-08-08. It is a managed surface
      from the first minute rather than after someone finds it in a census — which is the lesson
      /how-to-buy taught at some cost. */

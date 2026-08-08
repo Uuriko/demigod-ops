@@ -1,0 +1,13 @@
+<!-- Intentionally empty.
+
+     This element briefly carried injected /lobby entry points, as a bridge: the homepage source is
+     published from another tree, every copy reachable from here was behind live, and rebuilding it
+     from a stale base had already cost that agent's work once. Writing a separate element added the
+     links without touching anything they owned.
+
+     It is empty again because the bridge is no longer needed — the homepage source now carries the
+     links properly, in the hero, a section and the footer. Injected navigation is worse than served
+     navigation: a crawler that does not run JavaScript never sees it. Keeping it would also have
+     made a fourth link to one page, which is clutter rather than wayfinding.
+
+     A workaround that outlives its problem is just debt. -->
