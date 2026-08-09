@@ -29,14 +29,34 @@ endorsement implied by association.
 official project. See
 [`DASHA-PRODUCT-BRIEF.md`](DASHA-PRODUCT-BRIEF.md).
 
-**Blockers for “properly open source” today**
+**Blockers for “properly open source” — re-checked 2026-08-09**
 
-1. **Studio + home are not in the public repo** — only desk is structured as OSS.  
-2. **GitHub auth / push** from this machine is unreliable; local desk is **ahead** of remote with the clean neutral desk.  
-3. **`receipts/`** (~40 FOMO/raid experiment JSON files) must never be pushed — now gitignored.  
-4. **Git history** on desk still has old FOMO ship commits (`V55`–`V57` style). Fine for transparency if README is clear; optional later: orphan `main` or `v1.0.0` tag from a clean tree.  
-5. **Third-party media** is not MIT (ATTRIBUTION already says so).  
-6. **GitHub Pages** workflow exists but Pages may not be enabled (404).
+1. ~~**Studio + home are not in the public repo**~~ — **resolved for the Studio.** `studio/` ships
+   source and build together with its own `LICENSE`, `README.md`, `media.json`, `embed-build.mjs`
+   and `studio.test.mjs`. Home is a separate question, below.
+2. ~~**GitHub auth / push is unreliable**~~ — **resolved.** Pushed three times on 2026-08-09 with
+   `gh` auth as `Uuriko`.
+3. **`receipts/`** must never be pushed. Verified 2026-08-09: gitignored and **zero tracked files**.
+   Checked rather than assumed, and worth re-checking whenever the ignore file changes.
+4. **Git history** on desk still has old FOMO ship commits (`V55`–`V57` style). Fine for transparency
+   if README is clear; optional later: orphan `main` or `v1.0.0` tag from a clean tree.
+5. **Third-party media** is not MIT (ATTRIBUTION already says so). This is permanent, not a blocker
+   to clear — gallery photos and Dasha Nekrasova's name and likeness are carved out of every grant.
+6. ~~**GitHub Pages may not be enabled**~~ — **resolved.** Pages serves
+   `uuriko.github.io/dasha-desk/studio/embed.js`, verified byte-identical to source on 2026-08-09,
+   and `dasha-discovery.test.mjs` fails if the hosted copy drifts.
+
+**Deliberately not open source, so nobody re-opens it as unfinished business:**
+
+- **Home** (`dasha-landing.html`) and **how-to-buy** stay in the ops monorepo. They are site copy
+  for one domain rather than a tool anyone could host, and the parts worth reusing — the Studio and
+  its embed — are already published. Revisit only if someone actually asks to run their own.
+
+**The real remaining gap is not code.** It was that the OSS contribution scoring in
+`dasha-simp-oss-scorer.mjs` — merged PRs scoring public Simp Board points by `impact:` label — was
+implemented, gated and label-wired while being documented nowhere a contributor could see. Fixed
+2026-08-09 in the public `CONTRIBUTING.md` and `README.md`. The lesson generalises: an unadvertised
+reciprocity mechanism is worth nothing, exactly like an unstated licence.
 
 ---
 
