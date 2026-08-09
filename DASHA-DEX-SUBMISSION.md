@@ -60,6 +60,38 @@ Resolve the pending request first; `jupiterVerified` reads `false` today, so not
 Nine competing mints share the name or symbol in Jupiter's search results. Verification is the thing
 that separates the real mint from those nine at the moment of the swap.
 
+**Correction, same day:** request 15201 sits on Jupiter's *legacy* workflow — `dasha-onchain-check.mjs`
+marks that endpoint `legacyWorkflow: true`, and `DASHA-DISCOVERY-2026-08-07.md` records that Jupiter
+retired the application route altogether. Verification now follows organic score plus community
+"smart likes", with an express path that burns 1,000 JUP. So 15201 is a stale artifact of a retired
+system, not a queue about to approve. It is still worth voiding — it names a handle the project does
+not control and claims official status — but it is not an emergency, and the real path to
+`jupiterVerified: true` is community and money, not a form.
+
+### Two messages to send — drafted, not sent
+
+Both need the operator's own accounts. Neither is an agent action.
+
+**To Jupiter support** (about the legacy record):
+
+> Hi — regarding mint `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`. There is a pending verification
+> request, id 15201, created 2026-08-07, filed by X user `radbrilio` and naming the handle
+> `Dashaonsol`. I operate this project and neither that handle nor that submitter is associated with
+> it; the request also describes the token as official, which we do not claim. Could you void or
+> correct that record? The canonical website is `https://www.getdasha.com`. I understand verification
+> itself now follows organic score and smart likes — this is only about the stale legacy request.
+
+**To DexScreener support** (before paying anything):
+
+> Hi — for mint `53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump`, the profile currently lists
+> `https://dasha.cam`, which is dead. I operate the project and control the domain
+> `getdasha.com`, but I do **not** hold the deployer wallet — the token launched on pump.fun, its
+> metadata is immutable, and update authority is `TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM`.
+> Which product applies: Enhanced Token Info, or Community Takeover? Is domain control accepted as
+> proof where deployer-wallet control does not exist? I would rather buy the correct one once.
+
+Ask DexScreener **before** paying. The answer decides $299 versus $199 versus neither.
+
 | Product | Price | Use when |
 |---|---|---|
 | [Enhanced Token Info](https://marketplace.dexscreener.com/product/token-info) | $299 (from $499) | You can prove control of the token / deployer wallet |
