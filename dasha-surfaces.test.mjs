@@ -37,9 +37,20 @@ const OWNERS = {
   '/': { source: 'dasha-landing.html', via: 'dasha-ship.mjs --only=home' },
   '/studio': { source: 'dasha-studio-embed.html', via: 'dasha-ship.mjs --only=studio' },
   '/dasha': { source: 'dasha-desk/src/body.html', via: 'dasha-ship.mjs --only=desk' },
+  '/lobby': { source: 'dasha-lobby-page.html', via: 'dasha-ship.mjs --only=lobby' },
+  /* Source moved here on 2026-08-09. The worker tree used to read its own copy of this page, so the
+     conversion page shipped from a file no gate in this repo had ever seen — live had a stale card
+     and no structured data while the main root believed it had both. The build now reads this file;
+     the deploy still executes in the worker tree, which is why `foreign` stays true until the worker
+     itself moves. Claude holds that deploy. */
   '/how-to-buy': {
     source: 'dasha-how-to-buy.html',
-    via: 'lobby edge worker — NOT in this repo; owner must rebuild and redeploy',
+    via: 'dasha-lobby-assets-build.mjs --write, then dasha:lobby:deploy in the worker tree',
+    foreign: true,
+  },
+  '/rally': {
+    source: '.grok/worktrees/potter/dasha/dasha-rally.html',
+    via: 'worktree dasha-lobby-static-gen.mjs + dasha:lobby:deploy',
     foreign: true,
   },
 };

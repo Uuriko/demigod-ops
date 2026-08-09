@@ -29,10 +29,13 @@ Dasha is the active project. A one-off action on another project does not switch
 | Simp Board | `.grok/worktrees/potter/dasha/dasha-simp-{score,actions}.mjs` + `dasha-simp-board-client.js` | Homepage `#simp` + Lobby `/simp/*` |
 | Simp Board data contract | `dasha-simp-board.schema.json` + `dasha-simp-board.json` | Opt-in, automatic-event and public-field boundaries |
 | Lobby/Board operations | `.grok/worktrees/potter/dasha/DASHA-LOBBY.md` | Wrangler, moderation CLI and live audit |
+| How to buy | `dasha-how-to-buy.html` | `https://www.getdasha.com/how-to-buy`, served by the Lobby worker |
 | Remix Wall experiment | `dasha-remix-pack.html` | Prepared locally; no live route yet |
 | Landing markup | `dasha-desk/src/body.html` | `src/app.html`, `index.html`, `dist/index.html`, root publish-ready Desk embed; Webflow is an observed output |
 | Landing styles | `dasha-desk/src/styles.css` | Same generated surfaces |
 | Landing behavior | `dasha-desk/src/app.js` | Same generated surfaces |
+| Desk Webflow shell/nav | `dasha-desk-shell.html` | Exact Webflow element `bbf324ae-76a0-f4f7-f61b-5882cce71a93` |
+| Retired Desk sticky repair | `dasha-desk-retired-repair.html` | Exact Webflow element `bc1be3d0-bf73-7ba8-b662-70ea1f1519bd`; managed empty placeholder |
 | Token-facing runtime facts | `dasha-desk/src/body.html` + `src/app.js` | Generated Desk surfaces |
 | Machine-readable reference | `dasha-desk/config/dasha.json` | Reference only; not a build input |
 | Audit history | [`DASHA-AUDIT-2026-08-06.md`](DASHA-AUDIT-2026-08-06.md) | Historical measurements; not current state |
@@ -75,12 +78,24 @@ Never edit generated landing files as independent sources. Run `node dasha-desk/
    Run only the checks relevant to the changed lane. The Desk test requires Chrome CDP on `127.0.0.1:9223`.
 6. **Publish only when the current request authorizes it**
    - Build first.
+   - The canonical root shipper must confirm the live Lobby `/health.assets` hash matches the
+     prepared Worker bundle before any site-wide Webflow publish. Deploy and read back the Worker
+     first when they differ; never knowingly create a split client/server release.
    - Record the exact target and artifact.
    - Never substitute an unverified community link.
    - Prepare, gate and read back changes by default. Publish only when the current user request explicitly asks for publication.
    - Do not ship a failing, misleading, security-sensitive or partially migrated state merely because publication is authorized.
-   - Verify the public response after publishing.
+   - Verify the public response after publishing. The root ship path requires both its host/marker
+     readback and the canonical Worker/site live audit before advancing the verified manifest.
    - Prior publication requests do not carry forward. Posts, messages, forms, Discord changes, payments and wallet actions require their own current authorization.
+   - **Who runs which deploy.** Recorded 2026-08-09 because Grok's usage ran out and two publish
+     paths had no other named owner. Claude holds the `/how-to-buy` worker deploy
+     (`dasha-lobby-assets-build.mjs --write`, then `dasha:lobby:deploy` in the worker tree) and the
+     public Studio embed push to `Uuriko/dasha-desk`. Both still require authorization in the current
+     request like any other publish; holding a path is not standing permission to use it. If Grok
+     returns, hand them back explicitly rather than letting two owners accumulate.
+   - The worker tree runs on Node 22+; the main root's default Node is 18, so prefix worker commands
+     with the nvm path (`/home/potter/.nvm/versions/node/v24.17.0/bin`) or wrangler refuses to start.
 7. **Handoff**
    - Report what is live, what is only local, verification results and the next unblocked Dasha task.
    - Close disposable automation tabs.
