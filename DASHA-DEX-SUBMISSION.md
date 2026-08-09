@@ -92,6 +92,19 @@ Both need the operator's own accounts. Neither is an agent action.
 
 Ask DexScreener **before** paying. The answer decides $299 versus $199 versus neither.
 
+**Profile state re-verified 2026-08-09** against the DexScreener API, so the message above is accurate
+as written — nothing has been fixed since it was first recorded:
+
+| Field | Live value | Should be |
+|---|---|---|
+| Website | `https://dasha.cam` — dead | `https://www.getdasha.com` |
+| Telegram | `t.me/dashacommunity` | removed; the project disclaims it |
+| X | a single post, `…/status/1886436372569027054` | the profile, `https://x.com/dash_eats` |
+
+Channels are the ones on their support pages — Discord, Telegram or X — reached from
+[marketplace.dexscreener.com](https://marketplace.dexscreener.com/product/token-info). Both messages
+need the operator's own accounts; an agent cannot send either, so they sit here until someone does.
+
 | Product | Price | Use when |
 |---|---|---|
 | [Enhanced Token Info](https://marketplace.dexscreener.com/product/token-info) | $299 (from $499) | You can prove control of the token / deployer wallet |
