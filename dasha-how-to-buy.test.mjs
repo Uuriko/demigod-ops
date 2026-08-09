@@ -4,7 +4,7 @@
  * Does not hang: puppeteer is hard-timeouted; vm fallback always works.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import vm from 'node:vm';
 import { dirname, join } from 'node:path';
@@ -20,6 +20,19 @@ assert.ok(html.includes('/dasha') && html.includes('/studio'), 'nav loops to pro
 for (const step of ['01 · Wallet', '02 · Mint', '03 · Quote', '04 · Confirm', 'review the quote', 'Read the wallet request']) assert.ok(html.includes(step), `missing buyer step: ${step}`);
 assert.ok(!/04 · Share|Copy share pack|Draft on X|buildSharePack/.test(html), 'promotion leaked into the four-step buy path');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
+
+/* The worker tree keeps its own copy of this page and the deploy reads THAT one, so whenever the two
+   differ the live page is whatever the copy says and every check above is testing a file nobody
+   serves. It has bitten twice on 2026-08-09: once shipping a stale card and no structured data while
+   this repo believed it had both, and once silently reverting the search description and the HowTo
+   block minutes after they went live. The copy is allowed to exist — the worker tree deploys
+   standalone — it is just not allowed to drift. Skipped when the tree is absent so this still runs
+   on a clean checkout. */
+const workerCopy = join(__dirname, '.grok/worktrees/potter/dasha/dasha-how-to-buy.html');
+if (existsSync(workerCopy)) {
+  assert.equal(readFileSync(workerCopy, 'utf8'), html,
+    'the worker tree copy of dasha-how-to-buy.html has drifted from this one — it is the copy that actually ships, so fix it before deploying: cp dasha-how-to-buy.html .grok/worktrees/potter/dasha/');
+}
 for (const bad of ['official Dasha', 'safe token', 'verified mint', 'endorsed by']) {
   assert.ok(!html.toLowerCase().includes(bad.toLowerCase()), `howto must not claim: ${bad}`);
 }
