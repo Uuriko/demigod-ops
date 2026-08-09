@@ -29,13 +29,26 @@ const check = (ok, message) => { if (!ok) failures.push(message); };
    the Studio unfurled as an ad for the site rather than for the tool — and the two pages people
    actually share are the ones that were wrong. The local file is named per route so drift is caught
    per route: a card can rot independently, and one comparison against one file would hide that. */
+/* The general site card, used by any route that has not earned art of its own. Named because the
+   distinctness check below has to tell "these two share on purpose" apart from "a repoint collapsed
+   two routes onto one file", and a bare filename repeated in the table cannot say which it is. */
+const SITE_CARD = 'dasha-social-card.png';
+
 const ROUTES = [
-  ['/', 'dasha-landing.html', 'WebSite', 'dasha-social-card.png'],
-  ['/studio', 'dasha-studio-embed.html', 'SoftwareApplication', 'dasha-social-card-studio.png'],
+  ['/', 'dasha-landing.html', 'WebSite', SITE_CARD],
+  /* Hidden route-level app schema was deliberately retired; the pasteable Studio embed remains the
+     context where the application description travels with visible content. */
+  ['/studio', 'dasha-studio-embed.html', null, 'dasha-social-card-studio.png'],
   /* The lobby has no structured data of its own yet and shares the homepage card; it is listed so
      the sitemap count stays honest and so a missing/rotted card there is still caught. */
-  ['/lobby', 'dasha-lobby-page.html', null, 'dasha-social-card.png'],
-  ['/dasha', 'dasha-desk/index.html', 'WebApplication', 'dasha-social-card-desk.png'],
+  ['/lobby', 'dasha-lobby-page.html', null, SITE_CARD],
+  ['/dasha', 'dasha-desk/index.html', null, 'dasha-social-card-desk.png'],
+  /* The conversion page. It was in dasha-sitemap.xml but not in this table, so the one route whose
+     whole job is turning a reader into a holder was the only one nothing watched — and it is still
+     the only route with no card of its own, so it borrows the site card. Its head is authoritative
+     (an edge worker serves the file whole, unlike the Webflow routes), which is why the structured
+     data for it lives in the source rather than in page settings. */
+  ['/how-to-buy', 'dasha-how-to-buy.html', 'HowTo', SITE_CARD],
 ];
 
 /** Structured data must parse, be the right thing, and not claim anything we cannot support. */
@@ -99,9 +112,11 @@ if (local) {
       `${route}: canonical is ${canonical || 'missing'}`);
 
     // The share card: a separate binary on a CDN that can rot with nothing in this repo changing.
-    const image = html.match(/<meta[^>]*property="og:image"[^>]*>/)?.[0]?.match(/content="([^"]+)"/)?.[1]
-      || html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/)?.[1];
+    const imageTags = (html.match(/<meta\b[^>]*>/gi) || []).filter((tag) => /property=["']og:image["']/i.test(tag));
+    const images = imageTags.map((tag) => tag.match(/content=["']([^"']+)["']/i)?.[1]).filter(Boolean);
+    const image = images[0];
     check(!!image, `${route}: no og:image — shared links unfurl bare`);
+    check(images.length === 1, `${route}: expected one og:image, found ${images.length} (${[...new Set(images)].join(', ')})`);
     if (image) {
       const cardRes = await get(image);   // not `card` — that name holds the expected filename
       if (cardRes) {
@@ -161,11 +176,12 @@ if (local) {
     }
   }
 
-  /* Three distinct cards. If two routes resolve to the same bytes, a repoint has silently fallen
-     back to the shared card and the per-route work is gone with nothing else showing it. */
-  const seen = new Map();
-  for (const [route, , , card] of ROUTES) seen.set(card, (seen.get(card) || 0) + 1);
-  check(seen.size === ROUTES.length, 'two routes share a card file — the per-route cards collapsed');
+  /* Every route that claims art of its own must actually have a distinct file: a repoint that fell
+     back would otherwise leave two routes on one card with nothing else showing it. Routes on
+     SITE_CARD share by decision, so they are excluded — counting them made this check unsatisfiable
+     (four routes, three files) and it sat red for long enough to stop meaning anything. */
+  const own = ROUTES.map(([, , , card]) => card).filter((card) => card !== SITE_CARD);
+  check(new Set(own).size === own.length, 'two routes share a card file — the per-route cards collapsed');
 
   report();
 }

@@ -10,8 +10,15 @@ Updated: 2026-08-08
 
 ## Who makes it
 
-**This is the official project.** Developed by the operator (the operator),
+**This is the operator's own project, not a fan site.** Developed by the operator (the operator),
 working directly with Dasha and with [@perryalpha](https://x.com/perryalpha).
+
+That sentence is about who builds `getdasha.com`. It is not a claim to control the token, to control
+`@dash_eats`, or to carry Dasha's endorsement — none of which are established; see `DASHA-CLAIMS.md`
+C3, C4 and C5. Until 2026-08-09 this line called the project official without naming what it was
+official *of*, which invited a reader to finish the word with any of those three — two lines above
+the rule that says relationship language stays exact. `dasha-product-coherence.test.mjs` now fails
+if the bare phrase comes back.
 
 Recorded 2026-08-07 because several documents and agent decisions had assumed the opposite — that
 `getdasha.com` was an unaffiliated community site with no mandate to speak for the token. That
@@ -45,13 +52,13 @@ as editorial and non-measured. There is no public evidence-URL submission form. 
 from automatic, reviewable project events or maintainer-derived public GitHub records; unsupported
 activity scores zero.
 
-The prepared 12-step scored “How big of a Dasha simp are you?” quiz lets a player begin anonymously, then requires
-the signed X session only to reveal and save the result. Its first answer
-selects a cinema, podcast/internet, public-post, or project path; each path rejoins a shared final section.
-Finishing explicitly joins the Board and awards up to 60 normalized points. Each X account receives one scored
-attempt per quiz version; a 20-step practice replay never changes that score. The Worker retains the active branch
-and answer key; the browser receives one question at a time. Results have privacy-safe permanent challenge URLs and
-can be shared explicitly; the site never posts for the user.
+The prepared v7 “How big of a Dasha simp are you?” quiz has a 10-question quick mode and a
+20-question deep mode. A player may begin anonymously, then links X only to reveal and save the
+result. Finishing explicitly joins the Board and awards up to 60 accuracy-only points. Scored retakes
+replace the prior quiz score with the latest finish; the small random vibe remains share copy and
+never changes rank. The Worker retains the active attempt and answer key while the browser receives
+one question at a time. Results have privacy-safe permanent challenge URLs and can be shared
+explicitly; the site never posts for the user.
 
 New remix state lives in the URL fragment, which browsers do not send in the HTTP request; legacy query links still load and normalize client-side. Native sharing carries the PNG and remix URL together; the X fallback saves the PNG and opens a documented Web Intent containing the editable URL. A materially changed inbound artifact keeps exactly one validated immediate parent snapshot and exposes a local `From` link; this is state ancestry, not proof of identity, authorship, permission or endorsement. A maker can prepare the same look and line as explicit post, story and banner downloads. The output carries a small `getdasha.com` mark, but never a price promise or implied endorsement.
 
@@ -92,16 +99,34 @@ Culture Capsules remain a prepared group-assembly experiment, not the platform d
 
 ## Conversion layer
 
-The website may embed Jupiter's official swap plugin with `$dasha` fixed as the output mint. It must retain a direct Jupiter fallback, make the mint visible and keep the high-risk disclosure adjacent. Dasha does not custody wallets, route swaps itself or call any token safe.
+The website uses a plain Jupiter swap link with SOL and the exact `$dasha` mint selected. It does not
+embed wallet or swap execution code. Dasha does not custody wallets, route swaps itself or call any
+token safe.
 
 ## Immediate work
 
-1. Observe the live Studio, Lobby and opt-in Board as separate paths; do not manufacture demand by adding another system.
+1. Observe the live lean Home integration that mounts the existing quiz/Board, links Lobby
+   crawlably, suppresses the unrelated first-visit OAuth modal and uses plain exact-mint Jupiter
+   links; do not add another system.
 2. Use one original, deliberately incomplete starter and one concise instruction: `make me an alibi.`
 3. Observe whether it produces distinct non-operator artifacts, editable handoffs, acknowledgement and a return/remix signal.
 4. Measure view, Studio start, material edit, export, submission, acknowledgement and voluntary return without wallet or position data.
 5. Close the seven-day window with a small static editorial record only if real participation exists; do not manufacture an archive.
 6. Keep feeds, automated social-engagement ranking, holder scoring and Discord automation gated on demonstrated activity.
+
+As of 2026-08-09, X's pay-per-use filtered stream changes the cost of *finding* candidate public
+posts, not the evidence needed to score them. A stream match can support a review inbox after real
+share volume exists; it cannot automatically establish originality, authorship quality or points.
+Solana Actions/Blinks similarly remain a transaction/wallet primitive and do not improve the current
+walletless create–quiz–lobby loop. Neither justifies a product pivot.
+
+The latest authenticated aggregate read sharpens the current experiment: 24 quiz starts produced 19
+completions and three share intents, but zero quiz-attributed Studio opens. Studio separately observed
+13 opens, eight first edits and four exports, all classified direct. The live Home restores the real
+quiz client and changes the unclear result action from `Make one` to `Open Studio`; the existing
+tailored URL already carries `src=quiz`. After ten additional quiz completions, inspect
+`studio.sources.quiz`; until that handoff records use, quiz → Studio is a product hypothesis rather
+than an observed loop.
 
 ## Truth boundaries
 
