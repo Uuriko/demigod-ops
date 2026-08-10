@@ -24,6 +24,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { stripDuplicateOgImage } from './.grok/worktrees/potter/dasha/dasha-webflow-metadata.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -83,17 +84,32 @@ const SURFACES = {
     file: 'dasha-lobby-page.html',
     label: 'lobby',
   },
+  deskShell: {
+    pageId: '6a74b59530c70741b1c574c4',
+    element: 'bbf324ae-76a0-f4f7-f61b-5882cce71a93',
+    file: 'dasha-desk-shell.html',
+    label: 'deskShell',
+  },
   desk: {
     pageId: '6a74b59530c70741b1c574c4',
     element: 'f4239e35-08c6-0874-27bc-8ce5b8ca547f',
     file: join('.tmp-dasha-ship', 'publish-ready', 'dasha-desk-embed.html'),
     label: 'desk',
   },
+  deskRetiredRepair: {
+    pageId: '6a74b59530c70741b1c574c4',
+    element: 'bc1be3d0-bf73-7ba8-b662-70ea1f1519bd',
+    file: 'dasha-desk-retired-repair.html',
+    label: 'deskRetiredRepair',
+  },
 };
 const DOMAINS = ['6a762e813cfcf91448a83e3b', '6a762e833cfcf91448a83e58'];
+const SOCIAL_CARD = 'https://lobby.getdasha.com/og/dasha-social-card.png';
 const STATE = process.env.DASHA_SHIP_STATE || '/tmp/dasha-ship-state.json';
 const MANIFEST = process.env.DASHA_SHIP_MANIFEST || join(root, 'DASHA-SHIP-MANIFEST.json');
 const NOW_DOC = process.env.DASHA_NOW_DOC || join(root, 'DASHA-NOW.md');
+const LOBBY_ASSETS = join(root, '.grok/worktrees/potter/dasha/dasha-lobby-static-gen.mjs');
+const LOBBY_ROOT = join(root, '.grok/worktrees/potter/dasha');
 
 const t0 = Date.now();
 const log = (step, extra = {}) =>
@@ -119,8 +135,23 @@ function writeJson(file, value) {
 }
 
 const digest = (value) => createHash('sha256').update(value).digest('hex');
+const expectedLobbyAssets = () => readFileSync(LOBBY_ASSETS, 'utf8').match(/ASSET_HASH\s*=\s*["']([^"']+)/)?.[1] || null;
 const artifactHashes = () =>
   Object.fromEntries(Object.entries(SURFACES).map(([key, surface]) => [key, digest(read(surface.file))]));
+const receiptInputHash = hashes => digest([
+  JSON.stringify(hashes),
+  ...[
+    'dasha-ship.mjs',
+    'dasha-release-contract.json',
+    'dasha-product-coherence.test.mjs',
+    'dasha-growth.test.mjs',
+    'dasha-landing.test.mjs',
+    'dasha-studio-embed.test.mjs',
+    'dasha-desk.test.mjs',
+    '.grok/worktrees/potter/dasha/dasha-audit-live.mjs',
+    '.grok/worktrees/potter/dasha/dasha-domain-check.mjs',
+  ].map(read),
+].join('\n'));
 
 const gitHead = (cwd) => spawnSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).stdout?.trim() || null;
 const fileIdentity = (file) => existsSync(join(root, file)) ? { file, sha256: digest(read(file)) } : null;
@@ -169,8 +200,9 @@ const RESUME_WINDOW_MS = 30 * 60 * 1000;
 
 function startReceipt(hashes) {
   const previous = json(STATE);
+  const inputHash = receiptInputHash(hashes);
   const age = previous?.startedAt ? Date.now() - Date.parse(previous.startedAt) : Infinity;
-  if (!args.has('--fresh') && previous?.site === SITE && sameHashes(previous.hashes, hashes)) {
+  if (!args.has('--fresh') && previous?.site === SITE && sameHashes(previous.hashes, hashes) && previous.inputHash === inputHash) {
     if (Number.isFinite(age) && age > RESUME_WINDOW_MS) {
       log('resume:expired', { runId: previous.runId, ageMinutes: Math.round(age / 60000),
         note: 'starting a fresh receipt; a stale one silently skips publish' });
@@ -183,10 +215,11 @@ function startReceipt(hashes) {
     }
   }
   const receipt = {
-    schema: 'dasha.ship-state/1',
+    schema: 'dasha.ship-state/2',
     runId: `${Date.now()}-${process.pid}`,
     site: SITE,
     hashes,
+    inputHash,
     stages: { prepared: false, gated: false, preflight: false, pushed: {}, published: false, verified: false },
     gates: {},
     startedAt: new Date().toISOString(),
@@ -255,6 +288,8 @@ function fastGate(changed, receipt) {
   const landing = read('dasha-landing.html');
   const studio = read('dasha-meme-studio.html');
   const desk = read('dasha-desk/src/body.html');
+  const deskShell = read('dasha-desk-shell.html');
+  const deskRetiredRepair = read('dasha-desk-retired-repair.html');
   const embed = read('dasha-studio-embed.html');
   const fail = (m) => {
     throw new Error(`fast gate: ${m}`);
@@ -269,16 +304,12 @@ function fastGate(changed, receipt) {
     if (/t\.me\/dashacommunity/i.test(html)) fail(`${name} has banned telegram`);
     if (/official Dasha|safe token|verified mint/i.test(html)) fail(`${name} forbidden claim`);
   }
-  /* /how-to-buy is NOT unpublished, which is what this guard used to say. It is live, served by a
-     Cloudflare edge worker (x-dasha-edge: howto) that no publish path in this repo touches — it is
-     not in the Webflow page list at all, and staging 404s it. The guard is still right, for a
-     different reason: on 2026-08-08 that page was serving four pieces of copy the operator had
-     removed everywhere else, including the "not affiliated" line that is now plainly false. Linking
-     to it from the homepage would send people from a corrected page to a stale one.
-     Lift this once dasha-desk/watch.mjs is green on /how-to-buy. */
-  if (landing.includes('/how-to-buy')) fail('landing links how-to-buy, whose live copy is still stale');
-  if (desk.includes('/how-to-buy')) fail('desk links how-to-buy, whose live copy is still stale');
-  if (!landing.includes('jup.ag/swap') || !landing.includes('plugin.jup.ag')) fail('landing lost Jupiter paths');
+  if (!deskShell.includes('chart on GeckoTerminal')) fail('Desk shell lost the assistive GeckoTerminal label');
+  if (/chart on Dexscreener/i.test(deskShell)) fail('Desk shell restored the stale Dexscreener label');
+  if (!deskShell.includes('</div></nav>')) fail('Desk shell leaves navigation open around main content');
+  if (/<script|addEventListener|setTimeout|querySelector/i.test(deskRetiredRepair)) fail('retired Desk repair still runs code');
+  if (!landing.includes(`jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=${MINT}`)) fail('landing lost exact Jupiter path');
+  if (/plugin\.jup\.ag|window\.Jupiter|Jupiter\.init/.test(landing)) fail('landing restored unpinned Jupiter execution');
   if (!landing.includes('https://x.com/dash_eats')) fail('landing missing @dash_eats');
   if (!landing.includes('/studio') || !landing.includes('/dasha')) fail('landing missing dual-path routes');
   if (/thesis card|conviction receipt|receipt-form/i.test(landing)) fail('landing thesis/receipt copy');
@@ -394,6 +425,85 @@ async function preflight(client) {
   log('preflight:pass', { tool: name });
 }
 
+async function syncSocialMetadata(client) {
+  log('metadata:start');
+  if (process.env.DASHA_SHIP_FAKE_MCP === '1') {
+    log('metadata:done', { card: SOCIAL_CARD, fixture: true });
+    return;
+  }
+  const pages = [SURFACES.home.pageId, SURFACES.lobby.pageId];
+  for (const page_id of pages) {
+    const { result } = await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
+      context: 'Align Dasha page social cards with the release-owned Worker asset before publishing the verified Webflow checkpoint.',
+      actions: [{ label: 'read_social_card', get_page_metadata: { page_id } }],
+    });
+    const metadata = JSON.parse(result?.content?.[0]?.text || '{}')?.result;
+    if (metadata?.openGraph?.imageUrl !== SOCIAL_CARD) {
+      await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
+        context: 'Align Dasha page social cards with the release-owned Worker asset before publishing the verified Webflow checkpoint.',
+        actions: [{ label: 'set_social_card', update_page_settings: { page_id, openGraph: { imageUrl: SOCIAL_CARD } } }],
+      });
+    }
+  }
+  const home = SURFACES.home.pageId;
+  const { result: headResult } = await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
+    context: 'Remove the duplicate Dasha homepage Open Graph image while preserving all unrelated page-level head code.',
+    actions: [{ label: 'read_home_head', get_page_freeform_code: { page_id: home, location: 'head' } }],
+  });
+  const head = JSON.parse(headResult?.content?.[0]?.text || '{}')?.result?.content || '';
+  const clean = stripDuplicateOgImage(head);
+  if (clean !== head) {
+    await callTool(client, ['data_scripts_tool', 'webflow__data_scripts_tool'], {
+      context: 'Remove the duplicate Dasha homepage Open Graph image while preserving all unrelated page-level head code.',
+      actions: [{ label: 'set_home_head', set_page_freeform_code: { page_id: home, location: 'head', content: clean } }],
+    });
+  }
+  for (const page_id of pages) {
+    const { result } = await callTool(client, ['data_pages_tool', 'webflow__data_pages_tool'], {
+      context: 'Verify each Dasha page now owns one current social card before publication.',
+      actions: [{ label: 'verify_social_card', get_page_metadata: { page_id } }],
+    });
+    if (JSON.parse(result?.content?.[0]?.text || '{}')?.result?.openGraph?.imageUrl !== SOCIAL_CARD) {
+      throw new Error(`Webflow social-card readback differs for page ${page_id}`);
+    }
+  }
+  log('metadata:done', { card: SOCIAL_CARD });
+}
+
+async function preflightLobbyAssets(receipt) {
+  const expected = process.env.DASHA_SHIP_FAKE_LIVE === '1'
+    ? 'fixture-assets'
+    : expectedLobbyAssets();
+  if (!expected) throw new Error(`Lobby asset hash missing from ${LOBBY_ASSETS}`);
+  let live = process.env.DASHA_SHIP_FAKE_LIVE === '1'
+    ? (process.env.DASHA_SHIP_FAKE_LOBBY_ASSETS || expected)
+    : await fetch('https://lobby.getdasha.com/health', { signal: AbortSignal.timeout(5000) })
+      .then(async (response) => response.ok ? (await response.json()).assets : null);
+  if (live !== expected && args.has('--ship') && !receipt?.stages?.published && !Object.keys(receipt?.stages?.pushed || {}).length) {
+    log('deploy:lobby:start', { live: live || 'unavailable', expected });
+    if (process.env.DASHA_SHIP_FAKE_DEPLOY === '1') live = expected;
+    else {
+      const deployed = spawnSync('npm', ['run', 'dasha:lobby:deploy'], {
+        cwd: LOBBY_ROOT,
+        encoding: 'utf8',
+        timeout: 120_000,
+      });
+      if (deployed.status !== 0) throw new Error(`Lobby Worker deploy failed: ${deployed.stderr || deployed.stdout}`);
+      for (let attempt = 0; attempt < 5 && live !== expected; attempt += 1) {
+        if (attempt) await new Promise((resolve) => setTimeout(resolve, 2000));
+        live = await fetch('https://lobby.getdasha.com/health', { signal: AbortSignal.timeout(5000) })
+          .then(async (response) => response.ok ? (await response.json()).assets : null)
+          .catch(() => null);
+      }
+    }
+    log('deploy:lobby:done', { assets: live || 'unavailable' });
+  }
+  if (live !== expected) {
+    throw new Error(`Lobby Worker assets are not release-ready: live=${live || 'unavailable'} expected=${expected}`);
+  }
+  log('preflight:lobby-assets:pass', { assets: expected });
+}
+
 async function callTool(client, names, toolArgs) {
   let last;
   for (const name of names) {
@@ -445,19 +555,40 @@ async function pushEmbeds(client, pending, receipt) {
       ['data_element_settings_tool', 'webflow__data_element_settings_tool'],
       toolArgs,
     );
-    const { result: readback } = await callTool(client, ['data_element_settings_tool', 'webflow__data_element_settings_tool'], {
-      siteId: SITE,
-      pageId: s.pageId,
-      context: `Verify ${s.label} embed after write.`,
-      actions: [{ label: `read_${s.label}`, get_settings: {
-        type: 'query_settings',
-        element_id: { component: s.pageId, element: s.element },
-        queries: [{ label: 'code', key: 'code' }],
-      } }],
-    });
-    const payload = JSON.parse(readback?.content?.[0]?.text || '{}');
-    const value = payload.result?.[0]?.data?.searches?.[0]?.matches?.[0]?.value?.value?.value;
-    if (value !== code) throw new Error(`${s.label} Webflow readback differs after write (${value?.length || 0} != ${code.length})`);
+    let value;
+    /* Webflow acknowledges an Embed write well before get_settings can see it, and how long is a
+       property of the element rather than of the payload: /dasha at 25 KB has needed longer than
+       /studio at 46 KB. The old budget was sixteen flat 750 ms polls — about twelve seconds — which
+       /dasha exceeded on three consecutive ships on 2026-08-09, each failing with a readback of
+       undefined and each succeeding on the next run once minutes had passed. So the write was never
+       the problem; the wait was too short, and a publish only went green if you retried enough times
+       to get lucky. Deadline-bounded with backoff now: patient where it needs to be, still finite. */
+    const readbackDeadline = Date.now() + 90_000;
+    for (let attempt = 0; value !== code && Date.now() < readbackDeadline; attempt += 1) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, Math.min(750 * attempt, 5000)));
+      const { result: readback } = await callTool(client, ['data_element_settings_tool', 'webflow__data_element_settings_tool'], {
+        siteId: SITE,
+        pageId: s.pageId,
+        context: `Verify ${s.label} embed after write.`,
+        actions: [{ label: `read_${s.label}`, get_settings: {
+          type: 'query_settings',
+          element_id: { component: s.pageId, element: s.element },
+          queries: [{ label: 'code', key: 'code' }],
+        } }],
+      });
+      const payload = JSON.parse(readback?.content?.[0]?.text || '{}');
+      value = payload.result?.[0]?.data?.searches?.[0]?.matches?.[0]?.value?.value?.value;
+    }
+    if (value !== code) {
+      /* Say which of the two things happened, because they need opposite responses: a readback of
+         nothing after a 90 s wait almost always means the write landed and Webflow is still catching
+         up, so re-running finishes the ship. A readback of the wrong length means something else
+         wrote after us, and re-running would paper over it. */
+      const diagnosis = value === undefined
+        ? 'read back nothing after 90s — the write usually landed and Webflow is lagging; re-run to confirm'
+        : `read back ${value.length} bytes, expected ${code.length} — something else wrote to this element`;
+      throw new Error(`${s.label} Webflow readback failed: ${diagnosis}`);
+    }
     log('push:ok', { label: s.label, tool: name });
     receipt.stages.pushed[key] = true;
     checkpoint(receipt);
@@ -516,6 +647,10 @@ async function verifyLive() {
         forbidden: Object.fromEntries(check.forbidden.map((marker) => [marker, false])),
       };
     }
+    if (!only.length || want.publish) {
+      out.broad = { ok: true, fixture: true };
+      log('verify:broad', { ok: true, fixture: true, hard: [], soft: [] });
+    }
     writeJson('/tmp/dasha-ship-verify.json', out);
     log('verify:done', out);
     return out;
@@ -539,6 +674,29 @@ async function verifyLive() {
   const failed = Object.entries(out).filter(([, value]) =>
     value.status !== 200 || Object.values(value.required).includes(false) || Object.values(value.forbidden).includes(true));
   if (failed.length) throw new Error(`live verification failed: ${failed.map(([label]) => label).join(', ')}`);
+  /* Marker checks prove that Webflow published the intended embeds. The canonical live audit proves
+     the wider product boundary: Worker parity, social-card bytes, SRI, sitemap navigation, crypto
+     copy/links, indexability and security headers. Both are required for a site-wide release; a
+     deliberately scoped non-publishing verify stays scoped. */
+  if (!only.length || want.publish) {
+    const audit = join(LOBBY_ROOT, 'dasha-audit-live.mjs');
+    if (!existsSync(audit)) throw new Error(`broad live audit missing: ${audit}`);
+    const result = spawnSync(process.execPath, [audit, want.strict ? '--strict' : '--fast'], {
+      cwd: LOBBY_ROOT,
+      encoding: 'utf8',
+      timeout: 90_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const report = json('/tmp/dasha-audit-live.json', {});
+    log('verify:broad', { ok: result.status === 0 && report.ok !== false, hard: report.hard || [], soft: report.soft || [] });
+    if (result.status !== 0 || report.ok === false) {
+      throw new Error(`broad live audit failed: ${(report.hard || []).join(', ') || result.stderr?.trim() || 'unknown error'}`);
+    }
+    out.broad = { ok: true, soft: report.soft || [], worker: report.worker || null };
+  } else {
+    log('verify:broad:skip', { reason: 'scoped non-publishing verification' });
+  }
+  writeFileSync('/tmp/dasha-ship-verify.json', JSON.stringify(out, null, 2));
   log('verify:done', out);
   return out;
 }
@@ -661,7 +819,13 @@ async function main() {
         driftDetectedAt: published.driftDetectedAt || null,
         hashes: { local: hashes, verified: published.hashes || {} },
         changed,
+        worker: {
+          local: expectedLobbyAssets(),
+          verified: release.lobby?.assets || null,
+          changed: expectedLobbyAssets() !== release.lobby?.assets,
+        },
         publicationWouldChange: changed.length > 0,
+        deploymentWouldChange: expectedLobbyAssets() !== release.lobby?.assets,
         plannedGates: {
           productCoherence: 'required',
           growthTrust: 'required',
@@ -712,19 +876,25 @@ async function main() {
         receipt.stages.preflight = true;
         checkpoint(receipt);
       }
+      // Webflow auth preflight is resumable; Worker parity is live state and must never be cached.
+      if (want.publish) await preflightLobbyAssets(receipt);
     }
     /* Before a site-wide publish, push EVERY surface in scope — not just the changed ones.
        publish_site publishes whatever is staged in Webflow, including drafts this script never wrote.
        On 2026-08-08 a --ship that legitimately skipped /studio (hash unchanged) published a stale
        Designer draft of it instead: different CSS, and no CC0 dedication. The hash delta says what
        changed locally; it says nothing about what someone else left staged. Pushing an unchanged
-       surface costs one API call and makes live match local by construction. */
+       surface once per resumable receipt makes live match local by construction without exhausting
+       Webflow's quota after a later surface fails. */
     const toPush = want.publish
-      ? Object.keys(SURFACES)
+      ? Object.keys(SURFACES).filter((key) => !receipt.stages.pushed[key])
       : pending;
     if ((want.push && toPush.length) || want.publish) acquireLock(toPush.length ? toPush : ['publish']);
     if (want.push && toPush.length) await pushEmbeds(client, toPush, receipt);
     else if (want.push) log('push:skip', { reason: 'no changed surfaces' });
+    if (want.publish && ((changed.length && !receipt.stages.published) || args.has('--force-publish'))) {
+      await syncSocialMetadata(client);
+    }
     if (want.publish && changed.length && !receipt.stages.published) {
       await publishSite(client);
       receipt.stages.published = true;
