@@ -52,7 +52,32 @@ official project. See
   for one domain rather than a tool anyone could host, and the parts worth reusing — the Studio and
   its embed — are already published. Revisit only if someone actually asks to run their own.
 
-## Open defect: live `/studio` states no licence at all — 2026-08-09
+## RESOLVED 2026-08-10 — and the diagnosis below was wrong
+
+The Studio was not missing its licence because the Worker tree was a generation behind. It was
+missing it because **the Studio was not loading at all**, and I had broken it.
+
+Rebuilding the Worker's client changed its SHA-384. Webflow's `/studio` still pinned the previous
+hash in the `<script integrity=…>` tag, so browsers refused the script outright and rendered only the
+"Loading studio…" shell. No script meant no rights notice, which the live gate correctly reported as
+a missing dedication — a real symptom, traced to the wrong cause. Every "stale copy" observation
+below was true and none of it was why.
+
+Fixed by pinning the page to the hash the Worker actually serves
+(`sha384-JTGENbmm…`) and publishing. `dasha-live.test.mjs` passes, discovery passes, surfaces reports
+0 failures, and the served client carries `CC0 1.0` with both carve-outs.
+
+**The lesson worth keeping:** the client's hash and the page's pin are one atomic unit split across
+two systems, and a Worker deploy silently breaks that pair. Nothing gated it — the deploy succeeded,
+every content check passed, and the page returned 200 while the product on it was dead. A route can
+be live, correct in every string, and still not work. Worth a gate: compare the served client's
+SHA-384 against the pin on the live page, which is a two-line check that would have caught this in
+seconds instead of a day.
+
+The history below is kept because the two-tree drift it describes is genuine and still worth fixing —
+it just was not this.
+
+## Original entry: live `/studio` states no licence at all — 2026-08-09
 
 `dasha-live.test.mjs` fails on it: *"the CC0 dedication is missing — makers have no statement of their
 rights"* and *"the likeness carve-out is missing"*. `curl https://www.getdasha.com/studio | grep CC0`

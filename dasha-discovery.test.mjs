@@ -181,6 +181,30 @@ if (local) {
     }
   }
 
+  /* The Studio on /studio is not inline: the page ships a shell and pulls its client from the Worker
+     to clear Webflow's ~50 KB embed cap, pinning the client's SHA-384 in the script tag. That makes
+     the pin and the client one atomic unit split across two systems, and a Worker deploy changes the
+     client without touching the pin. On 2026-08-10 exactly that happened: the deploy succeeded, the
+     page returned 200, every content assertion passed, and browsers refused the script for a day
+     while /studio rendered nothing but "Loading studio…". A live page can be correct in every string
+     and still be dead. This is the check that says so — recompute the hash, compare it to the pin. */
+  const studioPage = await get(`${ORIGIN}/studio`);
+  if (studioPage?.ok) {
+    const studioHtml = await studioPage.text();
+    const tag = studioHtml.match(/<script[^>]*src="([^"]*client\/studio\.js)"[^>]*integrity="([^"]+)"/);
+    check(!!tag, '/studio does not pin the integrity of the client it loads — a swapped client would run unchallenged');
+    if (tag) {
+      const [, clientUrl, pinned] = tag;
+      const clientRes = await get(clientUrl);
+      if (clientRes?.ok) {
+        const body = Buffer.from(await clientRes.arrayBuffer());
+        const actual = `sha384-${createHash('sha384').update(body).digest('base64')}`;
+        check(actual === pinned,
+          `/studio pins ${pinned} but ${clientUrl} is ${actual} — the browser refuses the script and the Studio does not load at all`);
+      }
+    }
+  }
+
   /* Every route that claims art of its own must actually have a distinct file: a repoint that fell
      back would otherwise leave two routes on one card with nothing else showing it. Routes on
      SITE_CARD share by decision, so they are excluded — counting them made this check unsatisfiable
