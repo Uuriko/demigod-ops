@@ -48,6 +48,14 @@ const OWNERS = {
     via: 'dasha-lobby-assets-build.mjs --write, then dasha:lobby:deploy in the worker tree',
     foreign: true,
   },
+  /* Chess went live from the worker tree without an entry here, so a public route with games,
+     ratings and shareable challenge links was answering 200 while nothing in this repo could
+     update, gate or sweep it — which is the precise failure this table exists to make loud. */
+  '/chess': {
+    source: '.grok/worktrees/potter/dasha/dasha-chess-page.html',
+    via: 'dasha-lobby-assets-build.mjs --write, then dasha:lobby:deploy in the worker tree',
+    foreign: true,
+  },
   '/rally': {
     source: '.grok/worktrees/potter/dasha/dasha-rally.html',
     via: 'worktree dasha-lobby-static-gen.mjs + dasha:lobby:deploy',
