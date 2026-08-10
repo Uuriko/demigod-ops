@@ -52,6 +52,41 @@ official project. See
   for one domain rather than a tool anyone could host, and the parts worth reusing — the Studio and
   its embed — are already published. Revisit only if someone actually asks to run their own.
 
+## Open defect: live `/studio` states no licence at all — 2026-08-09
+
+`dasha-live.test.mjs` fails on it: *"the CC0 dedication is missing — makers have no statement of their
+rights"* and *"the likeness carve-out is missing"*. `curl https://www.getdasha.com/studio | grep CC0`
+returns nothing. Every artifact in the main root is correct and `dasha-brand.test.mjs` passes, so this
+is not a source problem.
+
+The chain, traced:
+
+1. Live `/studio` loads `https://lobby.getdasha.com/client/studio.js`, not an inline embed — the
+   homepage and Studio pull their clients from the Worker to dodge Webflow's ~50 KB embed cap.
+2. The Worker builds that client from **its own tree's** `dasha-studio-embed.js`.
+3. Which its own tree generates from **its own** `dasha-meme-studio.html` — and that copy is a
+   generation behind, predating the restored rights notice.
+
+**Why this is not a one-line sync.** The two trees run different Studio pipelines that happen to share
+filenames. The main root builds a self-contained pasteable embed with no SRI; the Worker builds a thin
+loader that pins the client's SHA-384. And the Worker's `dasha-studio-embed-build.mjs` asserts the
+Studio has 13–17 buttons, while the reduced Studio in the main root has 7 — the guard encodes the
+pre-reduction design. Copying the source across trips that assertion, which is the guard doing its job.
+
+**Why it was not fixed on the spot.** Regenerating the Worker's client changes its hash, and Webflow's
+`/studio` pins the old one. Publishing the client without simultaneously updating that pin makes the
+browser refuse the script and takes the Studio down completely — strictly worse than a missing licence
+line. Which publish path owns the Worker's loader in Webflow could not be established, so the change
+was reverted before deploy. Live is exactly as it was; nothing was made worse.
+
+**What it needs:** decide that the Worker tree adopts the reduced Studio, bump its button bound to
+match, regenerate loader and client together, and push the new SRI to Webflow in the same operation as
+the Worker deploy. One person, one sitting, with the Studio watched while it lands.
+
+**Why it matters more than a missing sentence.** CC0 is the permission that lets these images be
+copied, and the Studio is the only compounding loop this project has. An unstated licence produces no
+remixes — the brand gate says so in its own words, and right now the live Studio states nothing.
+
 **The real remaining gap is not code.** It was that the OSS contribution scoring in
 `dasha-simp-oss-scorer.mjs` — merged PRs scoring public Simp Board points by `impact:` label — was
 implemented, gated and label-wired while being documented nowhere a contributor could see. Fixed
