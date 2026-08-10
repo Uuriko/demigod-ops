@@ -4,7 +4,7 @@
  *
  * Almost nothing on this page is in this page. The chat client is fetched from lobby.getdasha.com
  * and injects its own DOM, so the things worth protecting — that the chat mounts, that it fills the
- * screen, that the enlarge control is gone, that buying is reachable from inside the conversation —
+ * screen, and that the enlarge and transactional controls are gone —
  * are invisible to any check that reads the HTML. The release contract tried to forbid the enlarge
  * button by string and was testing something that could never appear either way.
  *
@@ -19,14 +19,17 @@ import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
 
 const live = process.argv.includes('--live');
-const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+const source = await readFile(new URL('./dasha-lobby-page.html', import.meta.url), 'utf8');
+assert.match(source, /lobby\.js';s\.integrity='sha384-[A-Za-z0-9+/=]+';s\.crossOrigin='anonymous'/,
+  'Lobby client must be cross-origin pinned');
+assert.doesNotMatch(source, /plugin\.jup\.ag|window\.Jupiter|Jupiter\.init/,
+  'Lobby must keep the exact Jupiter link instead of executing a mutable swap plugin');
 
 let server, target = 'https://www.getdasha.com/lobby';
 if (!live) {
-  const frag = await readFile(new URL('./dasha-lobby-page.html', import.meta.url), 'utf8');
   const page = `<!doctype html><html lang="en"><head><meta charset="utf-8">`
     + `<meta name="viewport" content="width=device-width,initial-scale=1"><title>$dasha lobby</title>`
-    + `<style>body{margin:0}</style></head><body>${frag}</body></html>`;
+    + `<style>body{margin:0}</style></head><body>${source}</body></html>`;
   server = createServer((_, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(page); });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   target = `http://127.0.0.1:${server.address().port}/`;
@@ -51,7 +54,6 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
     const root = document.getElementById('dasha-lobby');
     const log = root?.querySelector('.lobby-log');
     const form = root?.querySelector('.lobby-form');
-    const buy = document.querySelector('.lp-buy');
     const vis = (el) => !!el && !!el.offsetParent;
     return {
       mounted: !!root?.children.length,
@@ -60,10 +62,8 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
       composer: vis(form),
       enlarge: vis(root?.querySelector('.lobby-expand-btn')),
       nfa: vis(root?.querySelector('.lobby-nfa')),
-      buyVisible: vis(buy),
-      buyHeight: buy ? Math.round(buy.getBoundingClientRect().height) : 0,
-      buyHref: buy?.getAttribute('href') || '',
-      buyAboveFold: buy ? buy.getBoundingClientRect().top < innerHeight : false,
+      buyVisible: vis(document.querySelector('.lp-buy')),
+      mintVisible: vis(document.querySelector('.lp-mint')),
       horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
       text: document.body.innerText,
     };
@@ -81,14 +81,8 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
 
   assert.ok(!seen.enlarge, `${device}: the enlarge control is back on a page that is already the chat`);
 
-  /* Buying from inside the conversation is the Phantom idea this page borrows: you are already
-     talking about the coin, so the thing to do about it should not be a page away. It must be
-     visible without scrolling, a real touch target, and a genuine link even before any script runs. */
-  assert.ok(seen.buyVisible, `${device}: no buy control in the chat`);
-  assert.ok(seen.buyAboveFold, `${device}: the buy control is below the fold`);
-  assert.ok(seen.buyHeight >= 44, `${device}: the buy control is ${seen.buyHeight}px, under the 44px touch target`);
-  assert.ok(seen.buyHref.includes('jup.ag/swap') && seen.buyHref.includes(MINT),
-    `${device}: the buy control is not a real Jupiter link carrying our mint — a dead click if the plugin fails`);
+  assert.ok(!seen.buyVisible, `${device}: a buy control is competing with the chat`);
+  assert.ok(!seen.mintVisible, `${device}: duplicated mint chrome is competing with the chat`);
 
   assert.ok(!seen.horizontalScroll, `${device}: the page scrolls sideways`);
 
@@ -96,15 +90,21 @@ for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 9
   for (const gone of [/can go to zero/i, /not financial advice/i, /association is not endorsement/i]) {
     assert.ok(!gone.test(seen.text), `${device}: removed copy is visible on the lobby — ${gone.source}`);
   }
-  assert.ok(seen.text.includes('check it before you buy') || /verify/i.test(seen.text),
-    `${device}: the anti-scam guidance is gone — that one we keep`);
-
   assert.deepEqual(errors, [], `${device}: page errors — ${errors[0] || ''}`);
   console.log(`  ${device.padEnd(8)} chat ${seen.logHeight}px of ${seen.viewport}px `
-    + `(${Math.round(share * 100)}%) · buy ${seen.buyHeight}px above the fold · enlarge:${seen.enlarge} nfa:${seen.nfa}`);
+    + `(${Math.round(share * 100)}%) · buy:${seen.buyVisible} mint:${seen.mintVisible} · enlarge:${seen.enlarge} nfa:${seen.nfa}`);
 }
 
 await Promise.all(pages.map((p) => p.close().catch(() => {})));
 await browser.disconnect();
-server?.close();
-console.log(`Dasha lobby page: PASS (${live ? 'live' : 'local'} — mounts, fills the screen, no enlarge control, buy reachable in-chat)`);
+if (server) {
+  server.closeAllConnections();
+  await new Promise((resolve) => server.close(resolve));
+}
+
+// The release contract scans shipped HTML, not rendered text. Removed phrases in comments still
+// poison live verification, so keep the source clean as well as the visible page.
+for (const gone of [/can go to zero/i, /not financial advice/i, /association is not endorsement/i]) {
+  assert.ok(!gone.test(source), `removed copy remains in shipped Lobby HTML — ${gone.source}`);
+}
+console.log(`Dasha lobby page: PASS (${live ? 'live' : 'local'} — mounts, fills the screen, no transactional chrome)`);

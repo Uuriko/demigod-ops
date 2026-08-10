@@ -57,6 +57,7 @@ for (const route of ['/', '/studio', '/dasha']) {
     return {
       text,
       icons: [...document.querySelectorAll('link[rel~="icon"]')].map((l) => l.href),
+      touchIcons: [...document.querySelectorAll('link[rel="apple-touch-icon"]')].map((l) => l.href),
       studioMounted: !!root,
       wrongMint: [...text.matchAll(/[1-9A-HJ-NP-Za-km-z]{32,44}pump/g)].map((m) => m[0]),
     };
@@ -72,6 +73,10 @@ for (const route of ['/', '/studio', '/dasha']) {
   check(!seen.icons.some((h) => h.includes('0%2032%2032')),
     `${route}: the retired favicon is live again`);
   check(seen.icons.length > 0, `${route}: no favicon at all`);
+  check(seen.icons.some((h) => h.includes('dasha-icon-32.png') || (h.startsWith('data:image/svg+xml,') && h.includes('dfff00'))),
+    `${route}: the Dasha favicon is missing`);
+  check(seen.touchIcons.some((h) => h.includes('dasha-icon-180.png')),
+    `${route}: the Dasha touch icon is missing`);
 
   check(errors.length === 0, `${route}: console errors — ${errors[0] || ''}`);
 

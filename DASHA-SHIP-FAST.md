@@ -49,11 +49,23 @@ npm run dasha:ship:strict
 
 - Verified artifact hashes persist in `DASHA-SHIP-MANIFEST.json`, so a reboot does not force three redundant writes.
 - The current resumable run lives at `/tmp/dasha-ship-state.json`.
-- A matching rerun skips gates, surface writes and publication stages that already succeeded.
+- A matching rerun skips gates, surface writes and publication stages that already succeeded. The
+  receipt identity covers surface bytes, the shipper, release contract, focused gates and broad
+  live/domain audits; changing verification logic invalidates the receipt and reruns gates.
+- A full `--ship` deploys the canonical Lobby Worker when its live asset hash is stale, but only
+  before any Webflow surface has been written. A partial release still fails closed instead of
+  changing the Worker underneath staged Webflow content.
+- The Worker release hash covers both executable Worker source and static clients/assets. Worker-only
+  route changes therefore cannot hide behind an unchanged client bundle hash.
 - A fully unchanged ship performs live verification but makes no Webflow connection or publication call.
+- Embed writes use bounded readback polling because Webflow can acknowledge a large write several seconds before `get_settings` reflects it; publication still fails closed if exact bytes never appear.
 - Use `node dasha-ship.mjs --ship --fresh` to discard a matching incomplete receipt and deliberately replay the deployment.
 - `dasha-release-contract.json` owns exact required and forbidden live markers for Home, Studio and Desk.
-- The manifest advances only after all three routes satisfy that contract on `www`, apex and staging.
+- Site-wide verification then runs the canonical worktree `dasha-audit-live.mjs --fast`, covering
+  Worker parity, SRI, social-card bytes, sitemap navigation, crypto copy/links, indexing and headers.
+  A narrow `--only` verification remains narrow when it is not publishing the site.
+- The manifest advances only after all routes satisfy the marker contract on `www`, apex and staging
+  and the broader live audit has no hard failures.
 - `dasha-product-coherence.test.mjs` prevents the Brief, Roadmap, Docs map, Simplify rules, Board data and homepage from naming competing experiments.
 - The fast gate runs browser coverage only for surfaces whose verified artifact hash changed and records why every browser gate ran or skipped.
 

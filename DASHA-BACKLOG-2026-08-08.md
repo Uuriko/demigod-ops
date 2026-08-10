@@ -60,13 +60,12 @@ These are places where the repo currently tells the next person to do something 
 7. **S** `DASHA-CHARACTER.md` Zeroed expression rationale rewritten; check the rest of the file for other
    references to copy that no longer exists.
 
-## B. Discoverability — the site is invisible to machines
+## B. Discoverability
 
-Measured live on 2026-08-08.
+Measured live again on 2026-08-09.
 
-8. 🔒 **P4** `https://www.getdasha.com/sitemap.xml` returns **404**. `dasha-sitemap.xml` exists in the repo
-   and is not served. Webflow can generate one, or upload ours.
-9. 🔒 **P3** `robots.txt` returns 200 with an **empty body**. Exact text ready in `dasha-robots.txt`. No `Sitemap:` line, no rules.
+8. ✅ **done** `https://www.getdasha.com/sitemap.xml` serves the bounded five-route sitemap from the edge.
+9. ✅ **done** `robots.txt` serves explicit public/retired route rules and sitemap links from the edge.
 10. ✅ **done, pending publish** structured data on all three routes; the Studio's sits in the light DOM because its shadow root is invisible to crawlers. Was: Add `WebSite` + `SoftwareApplication` (Studio) +
     `Organization`. Cheap, and it is what AI search surfaces read.
 11. ✅ **done** — and it found the live card is a stale upload (**P2**). Was: — cards exist on all three routes but nothing
@@ -203,6 +202,10 @@ Live state: 0 stars, 0 forks, 3 open issues, 0 merged non-operator PRs. Topics a
 74. **M** Mobile nav hides links below 800px with no replacement. There is no menu — the links are just
     gone.
 75. **S** Focus-visible styling exists; tab through all three routes once and confirm order is sane.
+75a. ✅ **source ready, deploy pending** The product-domain Worker adds `lang="en"` to Webflow HTML
+     that omits a language, while preserving any explicit upstream language. Direct and end-to-end
+     Worker tests cover the transform; live Home, Studio, Desk and Lobby still lack it until the next
+     authorized Worker deployment.
 76. **M** Empty and error states in the Studio (unsupported browser, canvas blocked, share cancelled).
 
 ## I. Engineering quality
@@ -211,8 +214,10 @@ Live state: 0 stars, 0 forks, 3 open issues, 0 merged non-operator PRs. Topics a
     220ms, so this is not urgent — but the weight is almost entirely Webflow + jQuery + the Jupiter
     plugin, and the Jupiter plugin loads before intent. Defer it to first interaction.
 78. **M** Nothing gates page weight. A budget test that fails over N KB would keep it honest.
-79. **M** `dasha-contrast.test.mjs` is not in `dasha:test:all` (it is ~4 minutes). Decide where it runs —
-    pre-publish hook is the natural home.
+79. ✅ **done** Keep the browser-dependent pixel audit explicit rather than slowing `dasha:test:all`:
+    local mode covers canonical Home + Studio sources; live mode covers all five public routes on
+    mobile and desktop. `dasha-product-coherence.test.mjs` prevents its route set and corrected
+    viewport-coordinate instrumentation from silently regressing.
 80. **M** The Studio's oversized ticker cannot be contrast-measured. A narrower wrapper would make it
     measurable rather than skipped.
 81. **M** No visual regression testing. Given how often a republish has silently changed the Studio,

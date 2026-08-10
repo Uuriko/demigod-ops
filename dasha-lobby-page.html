@@ -1,13 +1,5 @@
 <style>
-  /* The lobby, on its own page and at full size.
-
-     It used to be a section on the homepage with a button to enlarge it, which is a tell: a chat
-     that needs an expand button is a chat that was never given enough room. On its own page there is
-     nothing to expand into, so the button is gone rather than hidden — see the note by .lobby-expand-btn.
-
-     Shaped after Phantom's token chats, where the useful idea is that buying is *inside* the
-     conversation rather than a page away: you are talking about the coin, so the thing to do about
-     the coin should be within reach. Hence the buy control in the header, sticky, at every size. */
+  /* The lobby, on its own page and at full size. */
   #dasha-lobby-page{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;
     --line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);
     display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
@@ -17,7 +9,7 @@
   #dasha-lobby-page *{box-sizing:border-box}
   #dasha-lobby-page a{color:inherit}
 
-  /* Header: who you are talking about, and the one thing you might want to do about it. */
+  /* Header: one way back, one room name. */
   .lp-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
     padding:12px clamp(14px,3vw,26px);border-bottom:1px solid var(--line);
     background:rgba(7,6,8,.92);backdrop-filter:blur(8px)}
@@ -25,16 +17,6 @@
   .lp-id{display:flex;align-items:baseline;gap:9px;margin-right:auto;min-width:0}
   .lp-id b{font-size:19px;font-weight:950;letter-spacing:-.03em}
   .lp-id b span{color:var(--acid)}
-  .lp-id em{font-style:normal;font-size:13px;color:var(--muted);white-space:nowrap}
-  .lp-buy{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;
-    padding:0 20px;border-radius:999px;background:var(--acid);color:var(--ink)!important;
-    font-size:14px;font-weight:950;letter-spacing:.04em;text-transform:uppercase;
-    text-decoration:none!important;box-shadow:3px 3px 0 var(--hot);transition:transform .16s,box-shadow .16s}
-  .lp-buy:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--hot)}
-  /* break-all belongs to the address, not the sentence around it — applied to the whole line it
-     split "check it" into "check i / t". Only the mint needs to break anywhere. */
-  .lp-mint{width:100%;order:9;font:700 11px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--muted)}
-  .lp-mint a{color:var(--muted);text-underline-offset:3px;word-break:break-all}
 
   /* The composer, on a page where it is the only thing to type into. The counters sit inline with
      their fields rather than claiming their own rows: three rows of chrome under a chat is the
@@ -134,13 +116,8 @@
      chat. If the client ever stops shipping this button, nothing here breaks. */
   #dasha-lobby .lobby-expand-btn{display:none!important}
 
-  /* The client renders a strip reading "Can go to zero. Not financial advice. Association is not
-     endorsement. Verify the mint before any swap." Three of those four sentences are copy the
-     operator removed from every other surface on 2026-08-08; the sweep never reached this client
-     because it lives in another tree and deploys through a Cloudflare worker. The fourth is the
-     anti-scam guidance we deliberately kept — and this page already carries it, in the header, next
-     to the mint it refers to. So the strip is redundant here and stale everywhere else; Grok has
-     been asked to reword it at the source. Worth 48px of chat, which is the smaller reason. */
+  /* The client still renders an obsolete disclaimer strip. Remove it at the client source when
+     that tree is next changed; hiding it here also returns 48px to the conversation. */
   #dasha-lobby .lobby-nfa{display:none!important}
 
   /* Chrome around the conversation, tightened. Every row here was sized for a chat sitting in a
@@ -151,20 +128,13 @@
   #dasha-lobby .lobby-form{padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
   #dasha-lobby .lobby-tools{gap:8px}
 
-  @media (max-width:600px){
-    .lp-id em{display:none}
-    .lp-buy{padding:0 15px;font-size:13px}
-    .lp-hold{padding:0}
-  }
-  @media (prefers-reduced-motion:reduce){.lp-buy{transition:none}}
+  @media (max-width:600px){.lp-hold{padding:0}}
 </style>
 
 <div id="dasha-lobby-page">
   <header class="lp-top">
     <a class="lp-back" href="/">← $dasha</a>
-    <span class="lp-id"><b>$<span>dasha</span> lobby</b><em>Public. No wallet, no account.</em></span>
-    <a class="lp-buy buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a>
-    <span class="lp-mint">Mint <a href="/dasha#dd-mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</a> — check it before you buy.</span>
+    <span class="lp-id"><b>$<span>dasha</span> lobby</b></span>
   </header>
 
   <div class="lp-hold">
@@ -172,24 +142,4 @@
   </div>
 </div>
 
-<script src="https://lobby.getdasha.com/client/lobby.js" defer></script>
-<script>
-/* The buy control, wired the same way the homepage does it: the Jupiter plugin is a megabyte, so it
-   loads only once someone shows intent, and the anchor is a real jup.ag link the whole time. If the
-   plugin never loads, is blocked, or errors, the button still buys — it just leaves the page, which
-   is the honest fallback rather than a dead click. */
-(()=>{const mint='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
-let asked=false;const load=()=>{if(asked)return;asked=true;
-  const s=document.createElement('script');s.src='https://plugin.jup.ag/plugin-v1.js';s.async=true;document.head.appendChild(s)};
-for(const el of document.querySelectorAll('.buy-dasha'))
-  for(const ev of ['pointerenter','focus','touchstart'])el.addEventListener(ev,load,{once:true,passive:true});
-/* Someone reading a chat about a coin is already showing intent, so start fetching once they have
-   been here a moment. Late enough to cost nothing on arrival, early enough to be ready on tap. */
-setTimeout(load,4000);
-for(const el of document.querySelectorAll('.buy-dasha'))el.addEventListener('click',e=>{
-  if(!window.Jupiter?.init)return;
-  try{window.Jupiter.init({formProps:{initialInputMint:'So11111111111111111111111111111111111111112',
-    initialOutputMint:mint,fixedMint:mint},branding:{name:'Dasha'},defaultExplorer:'Solana Explorer'});
-    e.preventDefault()}catch{}});
-})()
-</script>
+<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>

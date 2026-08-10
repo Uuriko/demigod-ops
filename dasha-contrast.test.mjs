@@ -2,7 +2,7 @@
 /**
  * Real contrast, measured against the pixels actually behind the text.
  *
- * axe reports zero colour-contrast violations on all three routes — and that is not the same as the
+ * axe reports zero colour-contrast violations on all five routes — and that is not the same as the
  * text being readable. Automated checkers compare two declared colours; they skip text over
  * gradients and images entirely, which is the single most common way a design fails contrast. Every
  * Dasha surface puts type over radial gradients, so the one number nobody had was the real one.
@@ -25,17 +25,17 @@
  *   3. Composite alpha. Type set in rgba(...,.78) is not that colour; it is that colour blended
  *      over whatever is behind it. Measuring the declared value reports a contrast nobody sees.
  *
- *   4. Let the browser do the geometry. Two earlier versions hand-computed a clip rect for
- *      page.screenshot() and both were wrong in ways that produced confident, plausible, entirely
- *      fictional failures — a nav button that is ink on acid (16:1) was reported at 1.10:1 because
- *      the clip landed somewhere else on the page. ElementHandle.screenshot() scrolls the element in
- *      and clips to its own box, so there is no coordinate convention left to get wrong.
+ *   4. Sample viewport screenshots in viewport coordinates. Element-relative screenshots are not
+ *      reliable for transformed ancestors: their clipped image and DOM Range coordinates use
+ *      different transformed origins, which once reported white type on a dark rotated card as
+ *      1.04:1 against its cream border. The viewport has one coordinate system for both pixels and
+ *      Range rectangles.
  *
  * Then: crop a 1px border off the capture so a neighbour's edge cannot leak in, and take the WORST
  * sampled pixel, because WCAG is a floor, not a mean.
  *
  * The instrument checks itself: on every page at least one node must measure above 8:1. Dasha is
- * ink-on-acid somewhere on all three routes, so if nothing clears 8:1 the clip is misaligned again
+ * ink-on-acid somewhere on all five routes, so if nothing clears 8:1 the clip is misaligned again
  * and the whole run is noise rather than a design report.
  *
  * Thresholds are WCAG AA: 4.5:1 for body text, 3:1 for large text (>=24px, or >=18.66px bold).
@@ -72,7 +72,9 @@ async function serve(file) {
 
 const targets = local
   ? [['home', await serve('dasha-landing.html')], ['studio', await serve('dasha-meme-studio.html')]]
-  : [['home', 'https://www.getdasha.com/'], ['studio', 'https://www.getdasha.com/studio'], ['desk', 'https://www.getdasha.com/dasha']];
+  : [['home', 'https://www.getdasha.com/'], ['studio', 'https://www.getdasha.com/studio'],
+    ['desk', 'https://www.getdasha.com/dasha'], ['lobby', 'https://www.getdasha.com/lobby'],
+    ['howto', 'https://www.getdasha.com/how-to-buy']];
 
 const ATTR = 'data-dasha-contrast';
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
@@ -175,7 +177,7 @@ for (const [name, url] of targets) {
            there is no page left of zero to photograph — those pixels come back black and read as ink
            on ink. Safe to clamp here only because we scrolled the element in just above. */
         let clip = { l: 0, t: 0, r: innerWidth, b: innerHeight };
-        for (let p = el.parentElement; p; p = p.parentElement) {
+        for (let p = el; p; p = p.parentElement) {
           const cs = getComputedStyle(p);
           if (cs.overflow === 'visible' && cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
           const pr = p.getBoundingClientRect();
@@ -201,7 +203,7 @@ for (const [name, url] of targets) {
               const l = Math.max(r.left, clip.l), t = Math.max(r.top, clip.t);
               const w = Math.min(r.right, clip.r) - l, hh = Math.min(r.bottom, clip.b) - t;
               if (w < 3 || hh < 3) continue;
-              out.push({ x: l - b.x, y: t - b.y, w, h: hh });
+              out.push({ x: l, y: t, w, h: hh });
             }
           }
         }
@@ -212,7 +214,7 @@ for (const [name, url] of targets) {
 
       let worst = Infinity, worstPx = null;
       try {
-        const shot = await handle.screenshot({ encoding: 'base64' });
+        const shot = await page.screenshot({ encoding: 'base64' });
         const px = await page.evaluate(async (b64, rects) => {
           const img = new Image();
           img.src = 'data:image/png;base64,' + b64;

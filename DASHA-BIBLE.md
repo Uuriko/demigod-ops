@@ -44,7 +44,8 @@ This doc is the shared design + culture spine for agents and humans shipping get
 | [@dash_eats](https://x.com/dash_eats) | **Primary** public CA / culture posts | Nav “@dash_eats”, mint source links, quotes |
 | [@PerryALPHA](https://x.com/PerryALPHA) (Pericles) | Third-party tape / Red Scare adjacent | Labeled third-party only; never “official” |
 | [$dasha live search](https://x.com/search?q=%24dasha&src=typed_query&f=live) | Community firehose | Secondary to her profile |
-| Mint CA post | [2085405228078432279](https://x.com/dash_eats/status/2085405228078432279) | **Only mint source line on product** |
+| Mint CA post | [2085405228078432279](https://x.com/dash_eats/status/2085405228078432279) | **Only mint source line on product; contains the full CA** |
+| Immutable metadata lore post | [1886425751458877863](https://x.com/dash_eats/status/1886425751458877863) | Original “crypto currency as a funny bit” link; does not contain the CA |
 | Casino line | [2085405075686801789](https://x.com/dash_eats/status/2085405075686801789) | “How u crying at the casino…” |
 | Hold post 2025 | [1901740102289854513](https://x.com/dash_eats/status/1901740102289854513) | “make it right by holding some $dasha” |
 | Perry still holding | [2085370284400328784](https://x.com/PerryALPHA/status/2085370284400328784) | Third-party |
@@ -201,7 +202,7 @@ Use these as **aesthetic references**, not product pledges:
 | Home `/` | Studio, Lobby, Board, mint and buy entry | Sparse culture imagery; every remote asset keeps source context |
 | Studio `/studio` | Meme and image editor | Procedural looks plus local upload and a sourced Dasha image gallery |
 | Desk `/dasha` | Mint, chart, neutral share pack | Source-linked culture stills and token references |
-| How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
+| How-to-buy `/how-to-buy` | Live edge-served buy ladder | Source post + @dash_eats footer/nav |
 
 ---
 

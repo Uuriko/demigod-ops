@@ -4,7 +4,7 @@ status: reference
 
 # Dasha crypto landscape
 
-Updated: 2026-08-07
+Updated: 2026-08-09
 
 ## Executive conclusion
 
@@ -43,6 +43,12 @@ Open-source work is a stronger honor-point signal than promotion volume because 
 | Mobile discovery | Solana Mobile reports more than 1,000 dApps plus ratings, reviews and app discovery | Treat a mobile package as a distribution option after repeat use, not as the product itself |
 | Token discovery | Jupiter, Dexscreener, Solscan and Rugcheck already cover execution, charts, identity and risk signals | Keep the verified mint and direct links; never invent a Dasha safety score or trading terminal |
 | Live token media | Token-linked streaming can create intense participation but also severe moderation and incentive failures | Test bounded creative events before live video, chat, rewards or real-time infrastructure |
+| Creator-fee infrastructure | Pump and Bags now expose configurable creator recipients, fee shares and collection paths | Existing `$dasha` economic control is unresolved and legacy-migrated; document the boundary rather than promising or rebuilding fee sharing |
+
+The exact-mint creator-record and fee-control audit is in
+[`DASHA-CRYPTO-ECONOMIC-CONTROL-2026-08-09.md`](DASHA-CRYPTO-ECONOMIC-CONTROL-2026-08-09.md).
+The search-index and third-party narrative audit is in
+[`DASHA-DISCOVERY-CONTAMINATION-2026-08-09.md`](DASHA-DISCOVERY-CONTAMINATION-2026-08-09.md).
 
 ## Product options
 
@@ -105,6 +111,11 @@ Proof: active Solana users can obtain payloads without assistance and return unp
 ### 7. Agent culture compiler — deferred, not a current product
 
 The Studio fragment already acts as a free deterministic machine interface: a tool can construct `look`, `format` and `line`, then hand the same editable object to a person. Turning that pure URL operation into a paid API adds no user value. A static agent skill may document the grammar later if an external agent team requests it or human Relay proves that editability travels; it is interoperability, not a new product.
+
+The fresh x402/MCP/wallet-agent fit test, current fragment boundary and exact reconsideration contract
+are recorded in [`DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md`](DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md).
+It found a real documentation-discovery gap but no demonstrated consumer, so no runtime or schema was
+added.
 
 Do not build an autonomous Dasha social character. [ElizaOS](https://www.elizaos.ai/) already supplies social/content actions through a large plugin ecosystem, [Virtuals](https://app.virtuals.io/build) combines agents, X access, commerce and tokenization, and [Bair](https://bair.ai/) explicitly sells agentic meme, narrative and tokenomics creation. Another posting bot is undifferentiated and would create endorsement, moderation and manufactured-engagement risk.
 

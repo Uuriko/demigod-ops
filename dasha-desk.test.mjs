@@ -30,7 +30,7 @@ try{
   });
   await page.goto(origin);
   await page.waitForFunction(()=>document.querySelector('#s-price').textContent==='$1.00');
-  const focusable=await page.$$eval('a[href],button,input,textarea',nodes=>nodes.filter(node=>{const box=node.getBoundingClientRect();return box.width>0&&box.height>0}).length);
+  const focusable=await page.$$eval('a[href],button,input,textarea,summary',nodes=>nodes.filter(node=>{const box=node.getBoundingClientRect();return box.width>0&&box.height>0}).length);
   for(let i=0;i<focusable;i++){
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(()=>parseFloat(getComputedStyle(document.activeElement).outlineWidth)>=3),true,`keyboard target ${i+1} has no visible focus ring`);
@@ -49,6 +49,7 @@ try{
   await page.click('#dd-copy');
   await page.waitForFunction(()=>document.querySelector('#dd-copy').textContent==='Copied');
   assert.equal(await page.$eval('#dd-copy',node=>node.textContent),'Copied');
+  await page.$$eval('.dd-disclosure', blocks => blocks.forEach(block => { block.open = true; }));
   await page.click('#dd-copy-share');
   await page.waitForFunction(()=>document.querySelector('#dd-copy-share').textContent==='Copied');
   assert.equal(await page.$eval('#dd-copy-share',node=>node.textContent),'Copied');

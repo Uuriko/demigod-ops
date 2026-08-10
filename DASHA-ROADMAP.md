@@ -19,7 +19,7 @@ The Thesis Card and every receipt/forecasting descendant are scrapped. Do not te
 ## Current evidence
 
 - The live homepage already offers the verified mint, Jupiter, chart, source links, X discovery and `/dasha` desk.
-- The official Jupiter modal begins the buy flow without leaving the site and preserves a direct fallback.
+- A plain exact-mint Jupiter link hands the buy flow to Jupiter without executing wallet-capable code on Dasha's origin.
 - Meme Studio is live and creates/exports square posts, vertical stories and wide banners. Remix URLs preserve the exact editable look, format and line.
 - The live homepage includes an opt-in Simp Board with PerryALPHA's disclosed editorial founding
   spot. X-linked members can separately join or leave, save a personal score card and view supported
@@ -52,10 +52,9 @@ Goal: let a qualified visitor verify and begin buying with less context switchin
 
 Build:
 
-- official Jupiter Plugin modal with `$dasha` fixed as output;
-- direct `jup.ag` fallback on every buy surface, retained when the Jupiter plugin is absent **or loads but fails during initialization**;
+- direct `jup.ag` links on every buy surface with SOL input and the exact `$dasha` output mint;
 - the mint adjacent to every buy path, and the guidance to verify it;
-- event markers for buy-modal open and direct-Jupiter fallback when Webflow analytics supports them.
+- an aggregate outbound-buy intent marker only if it becomes decision-relevant without adding cross-site analytics.
 
 Gate:
 
@@ -64,7 +63,7 @@ Gate:
 - direct fallback works when the plugin is blocked;
 - no material Core Web Vitals regression from loading the plugin before intent.
 
-Falsification: after enough traffic for a useful comparison, plugin opens do not improve qualified Jupiter handoff or visitors abandon more often than the outbound-only baseline.
+Falsification: repeated support evidence shows the exact external route is materially harder to complete than an embedded flow, and a maintained, integrity-controlled embed becomes available.
 
 ## Phase 1 — Dasha Meme Studio instrument
 
@@ -161,6 +160,11 @@ Rezona, Sekai, Variant and Pops already offer interactive/playable content with 
 
 The existing Studio fragment is already a deterministic, free machine interface. Defer a static agent skill until human Remix Relay works or an external agent consumer asks for a stable grammar. Reject autonomous Dasha posting bots: they are crowded, make engagement evidence less trustworthy, and create endorsement/moderation risk. Reject a paid x402 Culture Compiler while the same output can be constructed locally for free; reconsider only when a proven server-side capability and independent demand both exist.
 
+Current decision detail: [`DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md`](DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md).
+The first allowed artifact is one static schema only after a named external consumer and a reproducible
+construction failure; MCP additionally requires a genuinely remote operation and two independent
+clients, while x402 requires a scarce paid resource and independent buyers.
+
 ### H. In-feed Dasha — distribution option, not a pivot
 
 [Farcaster Mini Apps](https://miniapps.farcaster.xyz/) provide feed discovery, signed-in social context, notifications and wallet rails for ordinary web apps. A later Dasha Mini App could open an exact remix, edit it and pass the result on without leaving the feed. Do not build the wrapper before Relay proves that people pass editable state: the SDK can improve distribution, but it cannot create the underlying behavior. Trigger: repeated non-operator chains plus identifiable Farcaster demand. First version reuses the existing Studio and adds only the required manifest/SDK boundary—no feed, token gate or separate editor.
@@ -205,5 +209,6 @@ Guardrails:
   was removed from every surface on 2026-08-08: it is not a guardrail, it is a reflex nobody reads.
   The CC0 likeness carve-out stays, because it states licence scope rather than hedging;
 - no rewards for deceptive promotion or coordinated spam.
+- no points, rank, access, prizes or status for buying, balances, payments, referrals, favorable token posts, likes, reposts or reviews; optional sharing stays score-neutral.
 
 Raw price movement is not proof that the website or product caused demand.

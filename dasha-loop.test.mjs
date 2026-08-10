@@ -166,7 +166,11 @@ assert.equal(secondState.get('pLine'), LINE,
 
 await Promise.all(open.map((p) => p.close().catch(() => {})));
 await browser.disconnect();
-server?.close();
+if (server) {
+  server.closeAllConnections();
+  await new Promise((resolve) => server.close(resolve));
+}
 
 console.log(`Dasha loop: PASS (${local ? 'local' : 'live'} — made, handed off via ${controls.join('/')}, `
   + `reopened cold with the line intact, and changed again)`);
+process.exit(0);

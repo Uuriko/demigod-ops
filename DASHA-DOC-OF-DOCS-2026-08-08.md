@@ -70,7 +70,7 @@ archived: 2026-08-08
 | `dasha-relay-lab.html` + test | Relay instrument |
 | `dasha-remix-pack.html` + test | Culture capsule prototype |
 | `dasha-logo-lab.html` | Mark experiments |
-| `dasha-how-to-buy.html` + test | Built ladder; **404 live**; unlinked |
+| `dasha-how-to-buy.html` + test | Source for the live edge-served `/how-to-buy` guide |
 
 ## Historical research (read if needed; never treat as backlog)
 

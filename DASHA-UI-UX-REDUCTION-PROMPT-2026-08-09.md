@@ -30,6 +30,31 @@ Begin with current truth: `DASHA-NOW.md`, `DASHA-PRODUCT-BRIEF.md`, `DASHA-ROADM
 `DASHA-CLAIMS.md`, `DASHA-THREAT-MODEL.md`, the live pages and each route's canonical source. Treat
 rendered behavior and current release receipts as stronger evidence than historical design notes.
 
+## Research cadence
+
+Search before inventory, again before selecting the batch, and once more before verification. Prefer
+primary standards and platform guidance over inspiration galleries: W3C/WAI for accessibility,
+web.dev for responsive interaction, Apple and Material for platform behavior, and public design
+systems with tested component guidance. Use visual references only to study hierarchy, rhythm and
+composition; never copy their brand language or ornamental surface treatment.
+
+Each search must answer a live design question. Record the rule it supports, the exact element it
+changes, and whether it justifies deletion, demotion or preservation. If research does not change a
+decision, do not turn it into new copy or a new feature. Re-check current sources when guidance may
+have changed, and retain links so the reasoning can be audited later.
+
+Use these questions repeatedly:
+
+1. Is this action discoverable without being repeated?
+2. Does the control meet keyboard, focus, contrast and touch-target requirements?
+3. Does a phone viewport preserve the same job without duplicating desktop chrome?
+4. Is feedback singular, local and announced accessibly?
+5. Does this element earn its visual weight?
+
+Do not search indefinitely. Stop researching a decision when two authoritative sources agree and the
+rendered interface supplies enough evidence to act. The purpose of browsing is a smaller, sounder
+interface—not a larger design document.
+
 ## Desired feeling
 
 The site should be:
@@ -258,6 +283,43 @@ Rank by:
 
 Implement one cohesive batch. Do not scatter unrelated cosmetic tweaks across every source simply to
 claim broad coverage.
+
+## Current execution brief — 2026-08-09
+
+Run this prompt against the current rendered sources, not an imagined redesign. The initial mobile
+and desktop inventory found a narrower, evidence-backed batch:
+
+1. **Home:** keep the hero, exact mint, Studio, Board, contribution path and bounded footer sitemap.
+   Remove the ticker, campaign-like Board preamble and repeated “Edit this” labels. Keep the three
+   starter tiles visually and programmatically clickable. Replace token-section throat-clearing with
+   a direct `$dasha` heading. Reduce vertical gaps after deletions rather than leaving empty stages.
+2. **Studio:** make the generated image the first substantial object. Remove the eyebrow that merely
+   repeats the page title and remove sitewide buying/Desk actions from the editor header. Retain the
+   short CA link because it is a persistent identity check. Keep one primary Share action, Save as
+   secondary, and Edit as the single instant variation action. Keep specialist exports under one
+   disclosure. Tighten the rights line without changing its meaning.
+3. **How to Buy:** keep the three-step sequence and the full copyable mint. Remove the portrait/source
+   card and one-line explanations that restate each heading. Attach the source link to the mint step,
+   where provenance matters. Flatten decorative cards into a calm numbered sequence.
+4. **Navigation:** Home remains the bounded directory. Task pages show only Home/brand plus controls
+   relevant to that task; the footer remains the second route-finding mechanism. Repeated functions
+   use the same names: Studio, Lobby, Desk, How to buy, Copy mint, Share and Save.
+5. **Quiz result:** keep one adaptive Share action: native image sharing when supported and the
+   existing X intent fallback otherwise. Do not show separate Post-on-X or copy-invite controls that
+   duplicate that action and its challenge URL. Keep errors and user-triggered outcomes in the polite
+   status region, but clear routine board-load success text once the board itself is visible.
+
+Measure the batch by visible decision count and word count, not by the number of CSS edits. At 390px,
+the Home hero must still expose its primary creation action and contribution path; Studio must expose
+canvas, caption, image, look and output actions without horizontal scrolling; How to Buy must expose
+the full sequence without decorative duplication. At 1440px, preserve deliberate negative space and
+do not stretch compact controls merely because room exists.
+
+Before stopping, run route-specific browser tests at 320, 390 and 1440 pixels, serious/critical axe
+checks, contrast tests, interaction tests for every retained control, and a fresh screenshot review.
+If a deletion breaks route discovery, mint provenance, the creation flow or rights clarity, revert
+that deletion—not the entire reduction pass. Prepare only; publishing remains a separate explicit
+request.
 
 ## Phase 6 — implementation constraints
 

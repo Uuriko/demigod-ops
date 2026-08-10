@@ -30,7 +30,7 @@ Verify each with the command given; do not trust this list, it ages.
 - **The Studio** — six looks, three formats, PNG + animated GIF, remix links carrying editable state,
   a photo gallery. Open source at `dasha-desk/studio/`, pasteable into any site in two lines.
 - **The Desk** — mint verification against independent explorers, one neutral Jupiter route.
-- **The Lobby** — public chat, buy button inside the conversation.
+- **The Lobby** — public chat with no transactional chrome competing with the conversation.
 - **Simp Board + quiz** — 64 questions, lanes, X-linked scoring.
 - **Gates** — 20+, including live ones. `npm run dasha:test:all`. Read `dasha-surfaces.test.mjs`,
   `dasha-loop.test.mjs`, `dasha-contrast.test.mjs` and `dasha-desk/watch.mjs` before building; they

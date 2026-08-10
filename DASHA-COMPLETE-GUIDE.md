@@ -87,13 +87,17 @@ Webflow site ID: `5f1458122ba25e70a3ff2bd0`[^domain]
 
 | Route | Public job | Canonical source | Primary verification |
 |---|---|---|---|
-| `/` | Front door, current Transmission, Studio entry, mint and risk | [`dasha-landing.html`](dasha-landing.html) | [`dasha-landing.test.mjs`](dasha-landing.test.mjs) |
+| `/` | Front door, current Transmission, Studio entry, mint and buy | [`dasha-landing.html`](dasha-landing.html) | [`dasha-landing.test.mjs`](dasha-landing.test.mjs) |
 | `/studio` | Create, remix, export and pass editable state | [`dasha-meme-studio.html`](dasha-meme-studio.html) | [`dasha-meme-studio.test.mjs`](dasha-meme-studio.test.mjs) |
 | `/dasha` | Neutral Desk: mint, chart, sources, copy and buy route | [`dasha-desk/src/`](dasha-desk/src/) | [`dasha-desk.test.mjs`](dasha-desk.test.mjs) |
+| `/lobby` | Public chat | [`dasha-lobby-page.html`](dasha-lobby-page.html) | [`dasha-lobby-page.test.mjs`](dasha-lobby-page.test.mjs) |
+| `/how-to-buy` | Four-step exact-mint buy guide | [`dasha-how-to-buy.html`](dasha-how-to-buy.html) | [`dasha-how-to-buy.test.mjs`](dasha-how-to-buy.test.mjs) |
 
-`/how-to-buy` is prepared locally but is not a valid public route and must remain unlinked until it returns the intended page. Relay, Capsule and logo-lab files are experiments without public routes.[^routes]
+`/lobby` and `/how-to-buy` are Worker-owned custom-domain routes; Webflow staging does not own them.
+Relay, Capsule and logo-lab files remain experiments without public routes.[^routes]
 
-Every intended public route should remain clearly navigable from Home. The public surface is deliberately limited to three jobs; experiments do not become navigation merely because their source exists.
+Every intended public route remains navigable from Home. The public surface is deliberately limited
+to one coherent system; experiments do not become navigation merely because their source exists.
 
 ## Current live state
 
@@ -317,7 +321,9 @@ Working target: WCAG 2.2 AA.[^accessibility]
 
 Required evidence includes keyboard completion, visible/unobscured focus, target size, contrast, zoom/reflow, reduced motion, screen-reader state, canvas alternatives, modal focus behavior, error/offline states and cross-browser/mobile testing.
 
-Production discovery work includes a bounded three-route sitemap, canonical `www` URLs, staging de-indexing, route-specific metadata, useful 404 behavior and social cards. Current live verification reports the sitemap missing.
+Production discovery includes a bounded five-route sitemap, canonical `www` URLs, staging de-indexing,
+route-specific metadata, useful 404 behavior and social cards. The Worker-served sitemap is live and
+covered by the current release audit.
 
 Performance must measure LCP, INP and CLS rather than assuming a visually small page is fast. Jupiter, Webflow runtime, fonts, remote media and canvas export are the important candidate costs.
 

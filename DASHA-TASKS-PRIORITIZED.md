@@ -12,6 +12,33 @@ status: reference
 
 ## How to read this list
 
+> **Current release override (2026-08-09 05:45 PDT):** Worker assets `bb009443b06e8e7d` and all seven
+> managed Webflow surfaces are verified live on www, apex and staging. Home restores the real
+> quiz/Board and crawlable Lobby path and now uses only exact-mint Jupiter links—no embedded Jupiter
+> runtime. Desk removes retired disclaimer copy hidden inside its X intent; the Worker retires three
+> commerce shells and its release identity covers executable source. `DASHA-NOW.md` is the release
+> receipt. The canonical shipper performs Worker-first deployment automatically when needed.
+
+> A considered sRFC-35
+> record was rejected before deployment: immutable token metadata does not point to getdasha.com and
+> DNSSEC is off, so the one-way record would be association theater rather than valid corroboration.
+
+> **Live buy-boundary hardening:** Home removes the unpinned 1 MB `plugin.jup.ag` loader and
+> modal interceptor. Jupiter's current plugin documentation says its Ultra Swap foundation is no
+> longer actively maintained and has been superseded by Swap V2; all Buy controls already carry the
+> exact SOL→DASHA Jupiter URL. The release contract now forbids the plugin from live Home.
+
+Current public evidence is asymmetric: quiz starts/completions are disclosed (24/19), but Studio
+exports/shares and every non-quiz Board lane remain below five. Current X pay-per-use filtered stream
+can cheaply discover candidate public posts, but cannot establish originality or award points by
+itself. Solana Actions/Blinks remain wallet-signing transaction infrastructure, not a reason to add
+wallet friction to the culture loop. The weakest sufficient product direction is therefore to make
+the existing quiz, Studio and Lobby discoverable and measurable before adding another crypto layer.
+
+Official Webflow documentation confirms enabled Ecommerce cannot be removed and its checkout utility
+slugs cannot be changed. The Worker edge now returns noindex 404s for `/checkout`,
+`/paypal-checkout`, and `/order-confirmation`; live readback verifies all three.
+
 Research keeps saying the same things:
 
 1. **Memecoins win on culture + trust signals, not feature count.** Differentiator is narrative and participation, not more chrome.  
@@ -28,7 +55,7 @@ So the old 80+ list is still a **backlog inventory**. Below is a **decision orde
 
 | Job | Why research agrees |
 |-----|---------------------|
-| **A. Truthful buy path** | Culture coins are high-scam environments; mint + Jupiter + NFA is table stakes, not “utility.” |
+| **A. Truthful buy path** | Culture coins are high-scam environments; exact mint + external Jupiter route is table stakes, not “utility.” |
 | **B. Repeatable culture loop** | Memes spread by making/sharing; Studio remix is the only non-generic wedge. |
 | **C. Inspectable OSS** | Builders trust what they can clone; Shaw-style “OSS or ngmi” applies to *dev tools*, not to inventing token utility. |
 
@@ -38,7 +65,7 @@ Everything else is supporting cast.
 
 ## Tier 0 — Until this is done, almost nothing else matters
 
-Live is still behind disk (`home-not-current`, `desk-not-neutral`, studio asset stale). Shipping code users never see is inventory, not product.
+The 2026-08-09 release aligns disk and live. Treat this tier as a regression gate, not active backlog.
 
 | # | Task | Owner type | Done when |
 |---|------|------------|-----------|
@@ -62,13 +89,12 @@ Memecoin research: value is social/cultural; sites that over-promise utility loo
 | 1.3 | Manual X loop: demo export + link OSS repo in same post | Shaw pattern: demo → GitHub in one breath |
 | 1.4 | Seed/copy refresh only from bible + public posts | Culture fluency without endorsement claims |
 | 1.5 | Simp board: stay editorial season-zero; no fake points/airdrop | “Points” without rules = scam-adjacent |
-| 1.6 | Decide how-to-buy once: ship route **or** fold **or** delete | 404 + tests calling it “primary” is process debt |
+| 1.6 | Keep the shipped edge-owned how-to-buy route verified | Avoid duplicate Webflow ownership; exact mint + Jupiter remain the contract |
+| 1.7 | Keep creator wallet, fee recipient and project authority separate | Legacy curve cannot corroborate Pump's frontend creator record; no fee-sharing or revenue claim without signed control evidence |
+| 1.8 | Monitor canonical indexing without SEO theater | Crawl surface is healthy but sampled search has no getdasha.com result yet; correct factual provider drift, not every cached/generated mention |
 
-**How-to-buy decision rule (pick one):**
-
-- **Ship** if support load shows “how do I buy?” repeatedly after live desk is clean.  
-- **Fold** if three steps on home are enough (current lean path).  
-- **Delete** if the file only confuses agents and never gets a route.
+**How-to-buy decision:** shipped at the custom-domain edge. Keep the route only while it stays concise,
+mint-locked, reachable from Home and covered by the live audit. Webflow staging parity is not required.
 
 ---
 
@@ -99,7 +125,9 @@ GitHub community standards + pre-launch checklists: LICENSE, README, SECURITY, C
 |---|------|-------|
 | 2.8 | Extract `dasha-studio` public repo | Don’t monorepo-with-Demigod |
 | 2.9 | MIT + NOTICE + README + embed build CI | Same bar as desk |
+| 2.10 | Sync the gated Studio embed to GitHub Pages | Public embed hash differs from local source; push only in an explicitly authorized release |
 | 2.10 | Footer Source → studio repo when public | Desk stays desk source |
+| 2.11 | Give Studio embeds immutable hashed URLs | Only after a real outside embed or second reviewed release; current SRI pin fails closed but a changed mutable URL requires adopters to update their hash |
 
 ### Deliberately later / never for OSS
 
@@ -120,7 +148,7 @@ Research: Cloudflare Pages / GitHub Pages excel at **static + git push**; Webflo
 |---|------|----------------|
 | 3.1 | Keep Webflow as primary if publish unblocks | Prefer least change |
 | 3.2 | GitHub Pages for **desk** standalone mirror | After 2.4; docs currently 404 risk |
-| 3.3 | Cloudflare Pages for full three-route site | Only if Webflow stays blocked weeks |
+| 3.3 | Cloudflare Pages for the full public site | Only if Webflow stays blocked weeks |
 | 3.4 | DNS already on Cloudflare — Pages attach is cheap | Don’t re-buy domains |
 
 **Decision rule:** If Webflow auth is flaky **and** ship is P0, stand up Cloudflare Pages for home/studio/desk as **fallback origin**, not a second product.

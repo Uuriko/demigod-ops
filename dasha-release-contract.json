@@ -9,17 +9,24 @@
     "home": {
       "path": "/",
       "required": [
-        "Transmission 001",
-        "Make me an alibi.",
-        "Submit work",
+        "It’s time",
+        "Make something",
+        "dasha-simp-board",
+        "href=\"/lobby\"",
+        "href=\"/how-to-buy\"",
         "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
+        "https://x.com/dash_eats/status/2085405228078432279",
         "jup.ag"
       ],
       "forbidden": [
         "Season zero",
         "Riding for Dasha",
         "Thesis Card",
-        "t.me/dashacommunity"
+        "t.me/dashacommunity",
+        "plugin.jup.ag",
+        "href=\"/rally\"",
+        "wrong one",
+        "Never trust"
       ]
     },
     "studio": {
@@ -35,20 +42,30 @@
       "forbidden": [
         "Thesis Card",
         "t.me/dashacommunity",
-        "Not affiliated with Dasha"
+        "Not affiliated with Dasha",
+        "old coin",
+        "not the dev"
       ]
     },
     "desk": {
       "path": "/dasha",
       "required": [
         "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
-        "jup.ag"
+        "jup.ag",
+        "chart on GeckoTerminal"
       ],
       "forbidden": [
         "Referral bonus",
         ">Raid<",
         "Buy pressure",
-        "t.me/dashacommunity"
+        "t.me/dashacommunity",
+        "chart on Dexscreener",
+        "document.querySelector('.dd-sticky')",
+        "Can%20go%20to%20zero",
+        "Not%20financial%20advice",
+        "Association%20is%20not%20endorsement",
+        "%20NFA.",
+        "Fakes exist"
       ]
     },
     "lobby": {
@@ -56,8 +73,7 @@
       "required": [
         "dasha-lobby",
         "lobby.getdasha.com",
-        "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump",
-        "jup.ag"
+        "sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb"
       ],
       "forbidden": [
         "t.me/dashacommunity",

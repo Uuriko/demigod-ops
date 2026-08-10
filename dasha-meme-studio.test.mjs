@@ -24,13 +24,12 @@ assert.deepEqual(strangers, [], `Studio pulls images from a host nobody approved
 /* And the drawn looks must not depend on any of it. A photo failing to load is normal — the host can
    block us or delete the post — and when it does, every other look still has to work. */
 assert(/crossOrigin/.test(html), 'gallery images must be loaded with crossOrigin, or export taints the canvas');
-for (const text of ['Dasha Meme Studio', '$dasha', 'Studio.', 'Save PNG', 'Prepare 3 sizes', '>Share<', 'no wallet', 'getdasha.com', 'Format', 'Story', 'Banner', 'Verify mint', 'Buy $dasha']) assert(html.includes(text), `missing ${text}`);
+for (const text of ['$dasha', 'Studio.', 'Save PNG', 'Prepare 3 sizes', '>Share<', 'getdasha.com', 'Format', 'Story', 'Banner', 'Contract address 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump']) assert(html.includes(text), `missing ${text}`);
+for (const removed of ['Dasha Meme Studio · free · no wallet', '>Desk<', 'Buy $dasha ↗']) assert(!html.includes(removed), `removed Studio chrome returned: ${removed}`);
 assert(!/MAKE SOMETHING|keep it or change the look|Everything happens in this browser|What you write is yours/.test(html), 'deleted generic or explanatory Studio copy returned');
 for (const line of ['It’s time $dasha', 'You’re not gonna believe this', 'Well Im still alive', 'Go ahead and doubt me see what happens', 'Cmon', 'They are angels actually']) assert(html.includes(`line: '${line}'`), `Studio lost sourced default: ${line}`);
 assert(webflowHelper.includes('.dgnav a:focus-visible{outline:3px solid #c4a5ff'), 'Webflow Studio nav lost visible keyboard focus');
-const buyURL = new URL(html.match(/<a class="buy" href="([^"]+)"/)[1].replaceAll('&amp;', '&'));
-assert.equal(buyURL.origin + buyURL.pathname, 'https://jup.ag/swap', 'Studio buy route is not Jupiter');
-assert.equal(buyURL.searchParams.get('buy'), '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump', 'Studio buy route has wrong mint');
+assert.match(html, /href="\/#token" aria-label="Contract address 53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">CA 53ux…pump<\/a>/, 'Studio lost its compact exact-mint identity link');
 
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
 for (const width of [320, 390, 1440]) {

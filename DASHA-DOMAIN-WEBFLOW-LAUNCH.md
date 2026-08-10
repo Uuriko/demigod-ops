@@ -28,9 +28,13 @@ Both custom-domain routes currently respond. Domain registration and DNS attachm
 |---|---|---|---|
 | `/` | `5f1458136c15aa41639b8538` | `dasha-landing.html` | Product identity, remix entry, exact mint and Jupiter handoff |
 | `/studio` | `6a763858748c216defe621b9` | edit `dasha-meme-studio.html`, **paste `dasha-studio-embed.html`** | Post/story/banner creation and editable remix links |
-| `/dasha` | `6a74b59530c70741b1c574c4` | `dasha-desk/src/` built by `dasha-desk/build.mjs` | Source, risk, chart and the single buy route |
+| `/lobby` | edge route | `.grok/worktrees/potter/dasha/dasha-lobby-page.html` | Public chat |
+| `/dasha` | `6a74b59530c70741b1c574c4` | `dasha-desk/src/` built by `dasha-desk/build.mjs` | Exact mint, source, chart and the single buy route |
+| `/how-to-buy` | edge route | `dasha-how-to-buy.html` | Four-step exact-mint buy guide |
 
-`dasha-how-to-buy.html` is a prepared standalone buyer guide, not a public route. As of 2026-08-07, `/how-to-buy` returns the same Webflow 404 as an arbitrary missing path and has no recorded page ID. Home and Desk therefore must not link to it. Create and verify the Webflow page first; only after the custom-domain route returns the intended 200 should the route be added here, to the sitemap, and back into public navigation.
+The Dasha Worker owns `/lobby` and `/how-to-buy` on the custom domains. `/how-to-buy` returns the
+canonical guide with `x-dasha-edge: howto`; the Webflow staging subdomain returns 404 because it does
+not traverse that edge. The sitemap, Home navigation and live audit intentionally use the custom-domain route.
 
 `dasha-meme-studio.html` is a whole document — `<!doctype>`, a `:root` palette, global `body`/`h1`/`label` rules and generic ids like `#canvas` and `#line`. Pasting it into a Webflow HtmlEmbed makes it fight the page in both directions. Paste the generated `dasha-studio-embed.html` instead: same Studio, isolated in a shadow root, ids that cannot collide. Regenerate with `node dasha-studio-embed-build.mjs` after every Studio edit — the embed is never hand-edited, and its gate fails if it is stale. The updater's `--studio` path reads this generated embed, never the whole document.
 

@@ -155,8 +155,8 @@
     "sharp": "^0.35.3"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "undici": "^7.29.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.3"
   }
 }

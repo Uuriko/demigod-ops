@@ -32,9 +32,9 @@ assert.ok(!/raid|fomo|referral/i.test(share), 'desk share stays neutral (no raid
 const landing = read('dasha-landing.html');
 assert.ok(landing.includes(MINT), 'home surfaces mint');
 assert.ok(landing.includes('jup.ag'), 'home surfaces Jupiter');
-assert.ok(landing.includes('Never trust a mint from DMs.'), 'home keeps the anti-scam mint guidance');
-assert.ok(!/buy-guide|How to buy/.test(landing), 'home must not regrow a tutorial wall');
-assert.ok(!landing.includes('/how-to-buy'), 'home links unpublished how-to-buy route');
+assert.ok(!/wrong one|never trust|fakes exist|old coin|not the dev/i.test(landing), 'home keeps coin copy affirmative');
+assert.ok(!/buy-guide|self-custody wallet|Confirm the mint/.test(landing), 'home must not regrow a tutorial wall');
+assert.ok(landing.includes('href="/how-to-buy"') && !landing.includes('href="/rally"'), 'home links the buy guide and keeps retired Rally absent');
 assert.ok(landing.includes('/dasha') && landing.includes('/studio'), 'home loops desk + studio');
 assert.ok(!landing.includes('t.me/dashacommunity'));
 assert.ok(!/thesis card|conviction receipt/i.test(landing), 'home stays culture product');
@@ -43,7 +43,7 @@ assert.ok(!/thesis card|conviction receipt/i.test(landing), 'home stays culture 
 const howto = read('dasha-how-to-buy.html');
 assert.ok(howto.includes(MINT));
 assert.ok(howto.includes('jup.ag/swap'));
-for (const step of ['01 · Wallet', '02 · Mint', '03 · Quote', '04 · Confirm']) assert.ok(howto.includes(step), `howto missing ${step}`);
+for (const step of ['data-n="01"', 'data-n="02"', 'data-n="03"']) assert.ok(howto.includes(step), `missing buy step: ${step}`);
 assert.ok(!/04 · Share|Copy share pack|Draft on X|buildSharePack/.test(howto), 'howto conversion ladder contains promotion');
 assert.ok(!howto.includes('t.me/dashacommunity'));
 for (const bad of ['official Dasha', 'safe token', 'verified mint', 'endorsed by']) {

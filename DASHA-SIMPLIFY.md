@@ -7,15 +7,17 @@ last_verified: 2026-08-08
 # Dasha simplify map
 
 Updated: 2026-08-08  
-Purpose: kill-list and keep-list so agents do not re-expand a three-route culture coin into five products.
+Purpose: kill-list and keep-list so agents do not mistake five focused routes for five products.
 
 ## Public website (keep)
 
 | Route | Job | Notes |
 |-------|-----|--------|
-| `/` | Studio entry + Lobby + opt-in Simp Board + mint + buy | Board rows are measured only after explicit X-linked join; PerryALPHA remains a disclosed non-measured editorial #1. No standalone leaderboard route. No `/how-to-buy` until that page is live. |
+| `/` | Studio entry + Lobby + opt-in Simp Board + mint + buy | Board rows are measured only after explicit X-linked join; PerryALPHA remains a disclosed non-measured editorial #1. No standalone leaderboard route. |
 | `/studio` | Create / edit / export | Procedural looks, local upload and a sourced Dasha image gallery in one simple tool. |
+| `/lobby` | Public chat | Separate, deliberately sparse community room. |
 | `/dasha` | Desk: verify, chart, sources, culture stills | Source-linked token and culture reference surface. |
+| `/how-to-buy` | Four-step buy guide | Edge-served from the canonical source; custom domains return 200 while Webflow staging intentionally does not own the route. |
 
 **Outbound culture:** `https://x.com/dash_eats` primary · `$dasha` live search secondary.
 
@@ -23,7 +25,6 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 
 ## Do not grow onto the public nav
 
-- How-to-buy (404 live) — ship as a Webflow route **or** leave unlinked forever  
 - Relay lab, remix-pack / capsules, logo lab  
 - Conviction receipts / thesis / forecasting  
 - Discord; Lobby is the current community surface
@@ -56,7 +57,9 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 - `dasha-relay-lab.html` · `dasha-remix-pack.html` · `dasha-logo-lab.html` until a named experiment needs them  
 
 ### How-to-buy rule
-`dasha-how-to-buy.html` may stay on disk for a future route. **Home and desk must not link `/how-to-buy` while live is 404.**
+`dasha-how-to-buy.html` owns the live custom-domain route through the Dasha Worker. Keep it linked,
+mint-locked and covered by the live audit; do not invent a duplicate Webflow page solely to make the
+staging subdomain match.
 
 ## Agent checklist
 
@@ -68,4 +71,4 @@ Purpose: kill-list and keep-list so agents do not re-expand a three-route cultur
 
 ## One-line spine
 
-**Make something weird, or verify and buy. Everything else is archive or experiment.**
+**Create, gather, verify, buy. Everything else is archive or experiment.**
