@@ -43,12 +43,7 @@ const ROUTES = [
      the sitemap count stays honest and so a missing/rotted card there is still caught. */
   ['/lobby', 'dasha-lobby-page.html', null, SITE_CARD],
   ['/dasha', 'dasha-desk/index.html', null, 'dasha-social-card-desk.png'],
-  /* The conversion page. It was in dasha-sitemap.xml but not in this table, so the one route whose
-     whole job is turning a reader into a holder was the only one nothing watched — and it is still
-     the only route with no card of its own, so it borrows the site card. Its head is authoritative
-     (an edge worker serves the file whole, unlike the Webflow routes), which is why the structured
-     data for it lives in the source rather than in page settings. */
-  ['/how-to-buy', 'dasha-how-to-buy.html', 'HowTo', SITE_CARD],
+  ['/how-to-buy', 'dasha-how-to-buy.html', null, SITE_CARD],
 ];
 
 /** Structured data must parse, be the right thing, and not claim anything we cannot support. */
@@ -87,8 +82,18 @@ for (const [route] of ROUTES) {
   check(sitemap.includes(`${ORIGIN}${route}`), `dasha-sitemap.xml is missing ${route}`);
 }
 check(!/webflow\.io/.test(sitemap), 'dasha-sitemap.xml advertises a staging URL');
-check((sitemap.match(/<loc>/g) || []).length === ROUTES.length,
-  `dasha-sitemap.xml lists ${(sitemap.match(/<loc>/g) || []).length} URLs; there are ${ROUTES.length} real routes`);
+/* Chess is a real public route that lives on the lobby host and declares that host canonical, so it
+   belongs in the sitemap while sitting outside the www ROUTES table above — which checks canonicals
+   against ORIGIN and would demand chess claim a URL it deliberately does not. Listed here so the
+   count stays exact: the point of that assertion is to catch a route quietly added or dropped, and
+   it can only do that if every legitimate entry is accounted for somewhere. */
+const OFF_ORIGIN_SITEMAP_URLS = ['https://lobby.getdasha.com/chess'];
+for (const url of OFF_ORIGIN_SITEMAP_URLS) {
+  check(sitemap.includes(url), `dasha-sitemap.xml is missing ${url}`);
+}
+const expectedLocs = ROUTES.length + OFF_ORIGIN_SITEMAP_URLS.length;
+check((sitemap.match(/<loc>/g) || []).length === expectedLocs,
+  `dasha-sitemap.xml lists ${(sitemap.match(/<loc>/g) || []).length} URLs; there are ${expectedLocs} real routes`);
 
 if (local) {
   report();
