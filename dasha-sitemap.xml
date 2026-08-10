@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bounded sitemap for getdasha.com. Paste these exact contents into Webflow's custom sitemap field
+  (Site settings -> SEO); leave auto-generation OFF until the old project's published-page inventory
+  is proven clean, or it will advertise legacy routes nobody has reviewed.
+
+  Public routes on www (Webflow pages + Worker edge routes). No /capsule. No staging URLs.
+  No invented modification dates. Google ignores priority and change-frequency hints, so omit them.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.getdasha.com/</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/studio</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/lobby</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/dasha</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/how-to-buy</loc>
+  </url>
+  <!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL
+       listed: a sitemap entry that disagrees with the page's own canonical asks a crawler to pick,
+       and it will not pick ours. The live sitemap has carried this route since chess shipped; this
+       file did not, which is the same two-copies problem the worker tree keeps producing. -->
+  <url>
+    <loc>https://lobby.getdasha.com/chess</loc>
+  </url>
+</urlset>
