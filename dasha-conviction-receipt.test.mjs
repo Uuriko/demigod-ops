@@ -12,7 +12,9 @@ try{
   await page.setViewport({width:390,height:844});
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.click('button[type=submit]');
-  assert.match(await page.$eval('#error',node=>node.textContent),/valid Solana/);
+  assert.match(await page.$eval('#error',node=>node.textContent),/not verified/);
+  assert.equal(await page.$eval('#address',node=>node===document.activeElement&&node.getAttribute('aria-invalid')==='true'),true,
+    'invalid submit must identify and focus the first failing field');
   await page.type('#address','9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump');
   await page.type('#thesis','T'.repeat(280));
   await page.type('#invalidation','I'.repeat(180));
@@ -26,19 +28,20 @@ try{
   });
   assert.deepEqual(result.canvas,[1200,675]);
   assert.equal(result.png,true);
-  assert.match(result.body,/Not financial advice\. No wallet connection\./,'receipt body carries the risk line');
-  assert.match(result.share,/NFA/,'X share text carries a disclaimer substring');
-  assert.match(result.share,/No wallet/,'X share text names the no-wallet boundary');
-  assert.ok(result.bandInk>2000,`canvas disclaimer band is drawn (ink px: ${result.bandInk})`);
+  assert.match(result.body,/Saved locally on this device\./,'receipt body carries its storage note');
+  assert.doesNotMatch(result.share,/NFA|not financial advice/i,'X share text stays clean');
+  assert.ok(result.bandInk>1000,`canvas note band is drawn (ink px: ${result.bandInk})`);
   assert.ok(result.share.length<=280,`X text is ${result.share.length} characters`);
-  assert.match(result.share,/55% confidence/);
-  assert.match(result.share,/Invalid if:/);
+  assert.match(result.share,/Unspecified confidence/);
+  assert.match(result.share,/Invalidation excerpt:/);
+  assert.match(result.share,/Full-card checksum prefix:/);
   assert.match(result.share,/resolves 2099-12-31/);
   assert.match(result.calendar,/DTSTART;VALUE=DATE:20991231/);
   assert.match(result.calendar,/SUMMARY:Resolve Dasha thesis/);
+  assert.doesNotMatch(result.calendar,/Depth improves|Depth falls/,'calendar export must not copy private thesis text into syncing calendar apps');
   assert.equal(result.overflow,false);
   assert.ok(result.controls.every(height=>height>=48));
-  assert.match(await page.$eval('.note',node=>node.textContent),/not proof/);
+  assert.match(await page.$eval('.note',node=>node.textContent),/local checksum/i);
 
   /* ---- focus state on the five controls -----------------------------------
      The form is the product and it had NO designed focus state until 2026-08-06 — the

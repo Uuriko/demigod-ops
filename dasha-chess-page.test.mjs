@@ -34,14 +34,20 @@ assert.match(source, /trackEvent\('buy_intent','dasha-chess-buy-intent'\)/, 'buy
 for (const event of ['link_intent', 'enrollment_intent', 'holder_proof_intent', 'queue_intent']) assert.match(source, new RegExp("trackEvent\\('" + event), `Chess must measure ${event} without adding identity payload`);
 assert.match(source, /Dasha's challenge/);
 assert.match(source, /challenge_share/);
+assert.match(source, /function openX\(text,done\).*tab\.opener=null.*else location\.href=href.*if\(done\)done\(!tab\)/, 'X fallback must sever opener, recover blocked popups in the current tab, and identify navigation-bound handoff intent');
+assert.match(source, /handoff=function\(keepalive\)\{trackEvent\('replay_share_handoff',[^}]*keepalive\)\}/, 'same-tab replay handoff must survive immediate X navigation');
+assert.doesNotMatch(source, /window\.open\([^\n]*noopener,noreferrer/, 'share handoff must not infer popup success from noopener returning null');
 assert.equal((source.match(/\$\('share'\)\.addEventListener\('click',shareGame\)/g) || []).length, 1, 'Share must have exactly one click handler');
 assert.match(source, /id="pgn"[^>]*hidden>PGN</, 'portable game record must stay out of live play');
 assert.match(source, /navigator\.onLine/, 'polling must respect explicit offline state');
 assert.match(source, /url\.search='\?game='\+encodeURIComponent\(replay\.id\)/, 'replay state must discard unrelated query parameters');
+assert.match(source, /location\.pathname\+'\?challenge='\+encodeURIComponent\(challenge\.id\)/, 'challenge state must discard conflicting route parameters');
+assert.match(source, /function routeId\(query,name\).*\^\[A-Za-z0-9_\-\]\{6,24\}\$/, 'client route IDs must match the Worker trust boundary');
 assert.match(source, /expired&&!replay&&!clockExpiryPending&&navigator\.onLine/, 'offline clock expiry must wait for reconnect adjudication');
 assert.match(source, /id="gate-invite"[^>]*hidden>Invite someone</, 'cold matchmaking must expose one bounded invite escape hatch');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:hover/, 'only interactive boards may advertise hover feedback');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:active/, 'read-only replay and opponent-turn squares must not animate on press');
+assert.equal((source.match(/\.catch\(recoverGame\)/g) || []).length, 4, 'move, resign, draw, and rematch must reconcile ambiguous POST results');
 
 const startBoard = 'rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR';
 const game = {
@@ -62,6 +68,14 @@ const replay = {
   moves: finished.moves,
   frames: [{ board: startBoard, turn: 'w', move: null }, { board: 'rnbqkbnrpppppppp....................P...........PPPP.PPPRNBQKBNR', turn: 'b', move: finished.moves[0] }],
   tournamentId: 'cup12345',
+  finishedAt: Date.UTC(2025, 0, 2),
+};
+const afterE5 = [...replay.frames[1].board]; afterE5[12] = '.'; afterE5[28] = 'p';
+const afterNf3 = [...afterE5]; afterNf3[62] = '.'; afterNf3[45] = 'N';
+const positionReplay = {
+  ...replay,
+  moves: [...replay.moves, { from: 'e7', to: 'e5', san: 'e5' }, { from: 'g1', to: 'f3', san: 'Nf3' }],
+  frames: [...replay.frames, { board: afterE5.join(''), turn: 'w', move: { from: 'e7', to: 'e5', san: 'e5' } }, { board: afterNf3.join(''), turn: 'b', move: { from: 'g1', to: 'f3', san: 'Nf3' } }],
 };
 const tournament = {
   id: 'cup12345', name: 'First Dasha Cup', status: 'registration', organizer: '@dasha_player', organizerIsMe: false, joined: false,
@@ -74,8 +88,11 @@ try {
   for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 1440, height: 900 }]) {
     const context = await browser.newContext({ viewport });
     if (viewport.width === 390) await context.addInitScript(() => {
+      const fillText = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (value, ...rest) { (window.__chessCardText ||= []).push(String(value)); return fillText.call(this, value, ...rest); };
       Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data?.files?.[0]?.type === 'image/png') });
       Object.defineProperty(navigator, 'share', { configurable: true, value: async data => {
+        window.__nativeChessShareCalls = (window.__nativeChessShareCalls || 0) + 1;
         const activation = navigator.userActivation.isActive, file = data.files[0], bitmap = await createImageBitmap(file), canvas = document.createElement('canvas');
         canvas.width = bitmap.width; canvas.height = bitmap.height;
         const context = canvas.getContext('2d'); context.drawImage(bitmap, 0, 0);
@@ -89,13 +106,13 @@ try {
       HTMLAnchorElement.prototype.click = function () { window.__pgnDownload = this.download; };
     });
     let state = { ok: true, linked: false, enrolled: false, holder: false, rating: null, queued: false, game: null };
-    let meRequests = 0, gameReply = game, ratingsFail = false;
+    let meRequests = 0, gameReply = game, ratingsFail = false, tournamentsFail = false;
     await context.route('https://lobby.getdasha.com/**', async route => {
       const url = new URL(route.request().url());
       const headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
       if (url.pathname === '/chess/me') { meRequests++; return route.fulfill({ status: 200, headers, body: JSON.stringify(state) }); }
       if (url.pathname === '/chess/ratings') return route.fulfill({ status: ratingsFail ? 503 : 200, headers, body: ratingsFail ? '{"error":"unavailable"}' : JSON.stringify({ ok: true, ratings: [] }) });
-      if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+      if (url.pathname === '/chess/tournaments') return route.fulfill({ status: tournamentsFail ? 503 : 200, headers, body: tournamentsFail ? '{"error":"unavailable"}' : JSON.stringify({ ok: true, tournaments: [] }) });
       if (url.pathname === `/chess/replay/${game.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, replay }) });
       if (url.pathname.startsWith('/chess/game/')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, game: gameReply }) });
       return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
@@ -140,6 +157,10 @@ try {
     assert.equal(await page.locator('#pgn').isHidden(), true, 'active games must not add export clutter');
     assert.match(await page.locator('#white-clock').textContent(), /^9:5\d|10:00$/);
     assert.equal(await page.locator('#black-clock').textContent(), '10:00');
+    await page.evaluate(() => { window.__realDateNow = Date.now; Date.now = () => window.__realDateNow() + 86_400_000; });
+    await page.waitForTimeout(300);
+    assert.notEqual(await page.locator('#white-clock').textContent(), '0:00', 'device wall-clock skew must not create a false flag');
+    await page.evaluate(() => { Date.now = window.__realDateNow; delete window.__realDateNow; });
     assert.equal(await page.locator('[data-square="e2"]').getAttribute('aria-label'), 'e2 Dasha pawn');
     let expiryRefreshes = 0;
     page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'GET') expiryRefreshes++; });
@@ -242,9 +263,14 @@ try {
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#again')?.textContent === 'Rematch');
     if (viewport.width === 390) {
-      await page.locator('#share').click();
+      state = { ...state, game: { ...finished, moves: [{ from: 'e2', to: 'e4', san: 'e4' }, { from: 'e7', to: 'e5', san: 'e5' }] } };
+      await page.reload();
+      await page.waitForFunction(() => document.querySelector('#share')?.offsetParent);
+      await page.evaluate(() => { document.querySelector('#share').click(); document.querySelector('#share').click(); });
       await page.waitForFunction(() => window.__nativeChessShare?.size > 1000);
       const nativeShare = await page.evaluate(() => window.__nativeChessShare);
+      assert.equal(await page.evaluate(() => window.__nativeChessShareCalls), 1, 'rapid double share must open one native sheet');
+      await page.waitForFunction(() => !document.querySelector('#share').disabled);
       assert.equal(nativeShare.activation, true, 'native share must be invoked during the original user activation');
       assert.equal(nativeShare.type, 'image/png');
       assert.equal(nativeShare.name, 'dasha-chess-game12345.png');
@@ -253,15 +279,28 @@ try {
       assert.deepEqual(nativeShare.dark, [108, 89, 109], 'share card must contain the dark board squares');
       assert.ok(nativeShare.colors > 20, `share card appears blank (${nativeShare.colors} sampled colors)`);
       assert.match(nativeShare.text, /Dasha vs Anna/);
+      assert.ok(await page.evaluate(() => window.__chessCardText.includes('checkmate · 1 move')), 'share card must count one white/black pair as one chess move');
+      assert.equal(await page.evaluate(() => window.__chessCardText.includes('checkmate · 2 moves')), false, 'share card must not label plies as full moves');
       assert.equal(nativeShare.url, 'https://lobby.getdasha.com/chess?game=game12345');
+      assert.doesNotMatch(nativeShare.text, /https:\/\/lobby\.getdasha\.com/, 'native share text must not duplicate its separate URL field');
       await page.locator('#pgn').click();
       assert.equal(await page.evaluate(() => window.__pgnDownload), 'dasha-vs-anna-game12345.pgn');
       const pgn = await page.evaluate(() => window.__pgnBlob.text());
       assert.match(pgn, /\[Event "Dasha Chess"\]/);
+      assert.match(pgn, /^\[Event .*\n\[Site .*\n\[Date .*\n\[Round "\?"\]\n\[White .*\n\[Black .*\n\[Result /, 'PGN must emit the required Seven Tag Roster in order');
       assert.match(pgn, /\[White "@dasha_player \(Dasha\)"\]/);
       assert.match(pgn, /\[Black "@anna_player \(Anna\)"\]/);
       assert.match(pgn, /\[Result "1-0"\]/);
-      assert.match(pgn, /\n\n1\. e4 1-0\n$/, 'PGN movetext must be numbered and terminate with the result');
+      assert.match(pgn, /\n\n1\. e4 e5 1-0\n$/, 'PGN movetext must be numbered and terminate with the result');
+      state = { ...state, game: { ...finished, moves: Array.from({ length: 80 }, (_, index) => ({ from: index % 2 ? 'e7' : 'e2', to: index % 2 ? 'e5' : 'e4', san: index % 2 ? 'e5' : 'e4' })) } };
+      await page.reload();
+      await page.waitForFunction(() => !document.querySelector('#pgn')?.hidden);
+      await page.locator('#pgn').click();
+      const longPgn = await page.evaluate(() => window.__pgnBlob.text());
+      const movetext = longPgn.split('\n\n')[1].trim().split('\n');
+      assert.ok(movetext.length > 1, 'long PGN movetext must wrap across lines');
+      assert.ok(movetext.every(line => line.length < 80), `PGN movetext line exceeds export limit: ${Math.max(...movetext.map(line => line.length))}`);
+      state = { ...state, game: finished };
     }
     state = { ...state, game: { ...finished, rematchOffer: 'theirs' } };
     await page.reload();
@@ -290,13 +329,43 @@ try {
     assert.deepEqual(errors, []);
     if (viewport.width === 320) {
       ratingsFail = true;
+      tournamentsFail = true;
       await page.reload();
       await page.getByText('Table unavailable', { exact: true }).waitFor();
+      await page.getByText('Tournaments unavailable.', { exact: true }).waitFor();
       assert.equal(await page.locator('#recent-panel').isHidden(), true, 'failed discovery must not retain a stale recent shelf');
       assert.equal(await page.getByText('No rated games yet', { exact: true }).count(), 0, 'an outage must not masquerade as an empty ladder');
+      assert.equal(await page.getByRole('button', { name: 'Create', exact: true }).count(), 0, 'an outage must not masquerade as an empty tournament system');
     }
     await context.close();
   }
+
+  const holderRetryContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let holder = false, holderChallenges = 0, holderVerifies = 0, holderSignatures = 0;
+  await holderRetryContext.addInitScript(() => {
+    window.solana = {
+      publicKey: { toString: () => '11111111111111111111111111111111' },
+      connect: async function () { return { publicKey: this.publicKey }; },
+      signMessage: async () => { window.__holderSignatures = (window.__holderSignatures || 0) + 1; return { signature: new Uint8Array([1, 2, 3]) }; },
+    };
+  });
+  await holderRetryContext.route('https://lobby.getdasha.com/**', route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder, queued: false, game: null, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/simp/wallet/challenge') { holderChallenges++; return route.fulfill({ status: 200, headers, body: '{"ok":true,"message":"prove holder","challenge":"signed-challenge"}' }); }
+    if (url.pathname === '/simp/wallet/verify') { holderVerifies++; if (holderVerifies === 1) return route.fulfill({ status: 503, headers, body: '{"error":"Solana holder check unavailable — try again"}' }); holder = true; return route.fulfill({ status: 200, headers, body: '{"ok":true,"holder":true}' }); }
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: '{"ok":true,"ratings":[]}' });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: '{"ok":true,"tournaments":[]}' });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const holderRetryPage = await holderRetryContext.newPage();
+  await holderRetryPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await holderRetryPage.getByRole('button', { name: 'Prove $dasha' }).click();
+  await holderRetryPage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Ready to play');
+  holderSignatures = await holderRetryPage.evaluate(() => window.__holderSignatures || 0);
+  assert.deepEqual([holderChallenges, holderSignatures, holderVerifies], [1, 1, 2], 'transient RPC failure must reuse one signed challenge for one bounded verify retry');
+  await holderRetryContext.close();
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let replayShareEvents = 0;
@@ -315,7 +384,12 @@ try {
   });
   const page = await context.newPage();
   let shared = '';
-  await page.addInitScript(() => { window.open = url => { window.__shared = url; return {}; }; });
+  await page.addInitScript(() => {
+    window.open = url => { window.__shared = url; return {}; };
+    URL.createObjectURL = blob => { window.__pgnBlob = blob; return 'blob:dasha-pgn'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function () {};
+  });
   await page.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=stale123&tournament=stale456&utm_source=x&game=${game.id}`);
   await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
   assert.equal(new URL(page.url()).search, `?game=${game.id}`, 'loaded replay must collapse mixed inbound state to one canonical object');
@@ -330,6 +404,9 @@ try {
   assert.equal(await page.locator('#tournament-link').getAttribute('href'), '/chess?tournament=cup12345');
   assert.equal(await page.locator('#replay-play').isVisible(), true, 'public replay must offer a direct Play handoff');
   assert.equal(await page.locator('#replay-play').getAttribute('href'), '/chess');
+  await page.locator('#pgn').click();
+  const replayPgn = await page.evaluate(() => window.__pgnBlob.text());
+  assert.match(replayPgn, /\[Date "2025\.01\.02"\]/, 'historic replay PGN must retain its authoritative server timestamp');
   await page.locator('#replay-play').evaluate(node => node.addEventListener('click', event => event.preventDefault()));
   await page.locator('#replay-play').click();
   await page.waitForTimeout(20);
@@ -376,6 +453,7 @@ try {
   await page.waitForFunction(() => Boolean(window.__nativeShare));
   const urlOnlyShare = await page.evaluate(() => window.__nativeShare);
   assert.equal(urlOnlyShare.url, `https://lobby.getdasha.com/chess?game=${game.id}&ply=0`, 'native URL sharing must survive browsers without file-sharing detection');
+  assert.doesNotMatch(urlOnlyShare.text, /https:\/\/lobby\.getdasha\.com/, 'exact-ply native share text must not duplicate its separate URL field');
   assert.equal(urlOnlyShare.files, undefined, 'unsupported file sharing must not block the native share sheet');
   await page.evaluate(() => {
     window.__nativeShare = null;
@@ -396,7 +474,63 @@ try {
   assert.equal(replayShareHandoffs, 1, 'share destination handoff must be session-deduplicated across native and X paths');
   assert.ok(await page.locator('#share').isVisible());
   assert.ok((await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
+  await context.route('https://x.com/**', route => route.abort());
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    window.open = () => null;
+  });
+  const blockedShare = page.waitForRequest(request => request.url().startsWith('https://x.com/intent/tweet?text='));
+  await page.locator('#share').click();
+  const blockedShareUrl = decodeURIComponent((await blockedShare).url());
+  assert.match(blockedShareUrl, /Replay from the start: https:\/\/lobby\.getdasha\.com\/chess\?game=game12345&ply=0/, 'blocked popup must recover through an exact same-tab X intent');
   await context.close();
+
+  const startCardContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await startCardContext.addInitScript(() => {
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (value, ...rest) { (window.__cardText ||= []).push(String(value)); return fillText.call(this, value, ...rest); };
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data?.files?.length) });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => {} });
+  });
+  await startCardContext.route('https://lobby.getdasha.com/**', route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === `/chess/replay/${game.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, replay }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: '{"ok":true,"ratings":[]}' });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const startCardPage = await startCardContext.newPage();
+  await startCardPage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=${game.id}&ply=0`);
+  await startCardPage.waitForFunction(() => document.querySelector('#replay-output')?.textContent === 'Start');
+  await startCardPage.locator('#share').click();
+  await startCardPage.waitForFunction(() => window.__cardText?.some(value => value.includes('replay')));
+  const startCardText = await startCardPage.evaluate(() => window.__cardText);
+  assert.ok(startCardText.includes('$dasha · replay start'), 'initial-position card must use the same Start language as replay controls');
+  assert.equal(startCardText.includes('$dasha · replay move 0'), false, 'initial-position card must never expose implementation-oriented move zero');
+  await startCardContext.close();
+
+  const positionContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await positionContext.addInitScript(() => {
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (value, ...rest) { (window.__positionCardText ||= []).push(String(value)); return fillText.call(this, value, ...rest); };
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: data => Boolean(data?.files?.length) });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__positionShare = { text: data.text, url: data.url }; } });
+  });
+  await positionContext.route('https://lobby.getdasha.com/**', route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === `/chess/replay/${game.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, replay: positionReplay }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: '{"ok":true,"ratings":[]}' });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const positionPage = await positionContext.newPage();
+  await positionPage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=${game.id}&ply=2`);
+  await positionPage.waitForFunction(() => document.querySelector('#replay-output')?.textContent === '1... e5');
+  await positionPage.locator('#share').click();
+  await positionPage.waitForFunction(() => Boolean(window.__positionShare));
+  const positionShare = await positionPage.evaluate(() => window.__positionShare);
+  assert.match(positionShare.text, /Replay after 1\.\.\. e5/, 'Black replay position must use exact chess notation, not the raw ply number');
+  assert.equal(positionShare.url, `https://lobby.getdasha.com/chess?game=${game.id}&ply=2`, 'shared mid-game position must retain its exact durable state');
+  assert.ok(await positionPage.evaluate(() => window.__positionCardText.includes('$dasha · after 1... e5')), 'share card must match the exact Black-move notation');
+  await positionContext.close();
 
   const tournamentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   let tournamentView = tournament;
@@ -449,11 +583,72 @@ try {
   assert.equal(await missingTournamentPage.getByText('Tournament unavailable.', { exact: true }).isVisible(), true, 'late identity state must not erase an unavailable tournament deep link');
   await missingTournamentContext.close();
 
+  const unavailableChallengeContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await unavailableChallengeContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@holder' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/challenge/missing1') return route.fulfill({ status: 503, headers, body: JSON.stringify({ error: 'Challenge unavailable.' }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
+  });
+  const unavailableChallengePage = await unavailableChallengeContext.newPage();
+  await unavailableChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=missing1`);
+  await unavailableChallengePage.getByText('Challenge unavailable.', { exact: true }).waitFor();
+  assert.equal(await unavailableChallengePage.getByRole('button', { name: 'Create', exact: true }).count(), 0, 'a failed shared challenge must not expose an unrelated tournament action');
+  assert.equal(await unavailableChallengePage.getByRole('button', { name: 'Challenge', exact: true }).count(), 0, 'a failed shared challenge must not expose another challenge action beneath the error');
+  assert.ok((await unavailableChallengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'challenge failure must fit mobile');
+  await unavailableChallengeContext.close();
+
+  const lostCreateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let tournamentCommitted = false, tournamentCreatePosts = 0;
+  const ownedTournament = { ...tournament, organizerIsMe: true, joined: true };
+  await lostCreateContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === '/chess/tournaments' && route.request().method() === 'POST') { tournamentCreatePosts++; tournamentCommitted = true; return route.abort('connectionfailed'); }
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: tournamentCommitted ? [ownedTournament] : [] }) });
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
+  });
+  const lostCreatePage = await lostCreateContext.newPage();
+  await lostCreatePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostCreatePage.getByPlaceholder('Cup name').fill('First Dasha Cup');
+  await lostCreatePage.getByRole('button', { name: 'Create', exact: true }).click();
+  await lostCreatePage.getByText('First Dasha Cup', { exact: true }).waitFor();
+  assert.equal(tournamentCreatePosts, 1, 'ambiguous Create recovery must never replay the tournament POST');
+  assert.equal(await lostCreatePage.locator('#tournament-status').count(), 0, 'a recovered tournament must not retain a false network error');
+  assert.ok((await lostCreatePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'recovered tournament must fit mobile');
+  await lostCreateContext.close();
+
+  const lostStartContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let tournamentStarted = false, tournamentStartPosts = 0;
+  const readyTournament = { ...tournament, organizerIsMe: true, joined: true, entrants: [...tournament.entrants, { handle: 'anna_player', display: '@anna_player', href: 'https://x.com/anna_player', rating: 1200 }] };
+  await lostStartContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === `/chess/tournament/${tournament.id}` && route.request().method() === 'POST') { tournamentStartPosts++; tournamentStarted = true; return route.abort('connectionfailed'); }
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [{ ...readyTournament, status: tournamentStarted ? 'active' : 'registration' }] }) });
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
+  });
+  const lostStartPage = await lostStartContext.newPage();
+  await lostStartPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostStartPage.getByRole('button', { name: 'Start', exact: true }).click();
+  await lostStartPage.getByText(/Playing · 2\/16/).waitFor();
+  assert.equal(tournamentStartPosts, 1, 'ambiguous Start recovery must never replay the tournament POST');
+  assert.equal(await lostStartPage.locator('#tournament-status').count(), 0, 'a recovered active bracket must not retain a false network error');
+  await lostStartContext.close();
+
   const holderTournamentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let holderTournamentView = tournament;
   await holderTournamentContext.route('https://lobby.getdasha.com/**', async route => {
     const url = new URL(route.request().url());
-    const headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
-    if (url.pathname === `/chess/tournament/${tournament.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournament }) });
+    const headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === `/chess/tournament/${tournament.id}` && route.request().method() === 'POST') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournament: { ...holderTournamentView, status: 'cancelled' } }) });
+    if (url.pathname === `/chess/tournament/${tournament.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournament: holderTournamentView }) });
     if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@holder' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
     if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
     return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
@@ -462,19 +657,33 @@ try {
   await holderTournamentPage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?tournament=${tournament.id}`);
   await holderTournamentPage.getByRole('button', { name: 'Join', exact: true }).waitFor();
   assert.equal(await holderTournamentPage.getByRole('button', { name: 'Join', exact: true }).isEnabled(), true, 'verified holder must retain tournament Join');
+  holderTournamentView = { ...tournament, organizerIsMe: true, joined: true };
+  await holderTournamentPage.reload();
+  await holderTournamentPage.getByRole('button', { name: 'Start', exact: true }).waitFor();
+  assert.equal(await holderTournamentPage.getByRole('button', { name: 'Start', exact: true }).isDisabled(), true, 'organizer cannot start a one-player cup');
+  holderTournamentView = { ...holderTournamentView, entrants: [...tournament.entrants, { handle: 'anna_player', display: '@anna_player', href: 'https://x.com/anna_player', rating: 1200 }] };
+  await holderTournamentPage.reload();
+  assert.equal(await holderTournamentPage.getByRole('button', { name: 'Start', exact: true }).isEnabled(), true, 'two-player cup must expose the valid Start action');
+  assert.ok((await holderTournamentPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'organizer actions must not overflow mobile');
+  await holderTournamentPage.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await holderTournamentPage.getByText('Open a table for up to 16 holders.', { exact: true }).waitFor();
+  assert.equal(new URL(holderTournamentPage.url()).search, '', 'cancelled tournament must clear its obsolete deep link');
+  assert.equal(await holderTournamentPage.getByText('Tournament unavailable.', { exact: true }).count(), 0, 'successful cancellation must not become an unavailable-tournament state');
   await holderTournamentContext.close();
 
   const challengeContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const challenge = { id: 'invite123', status: 'open', creator: '@dasha_player', creatorRating: 1240, creatorIsMe: false, canAccept: true, expiresAt: Date.now() + 30 * 60_000 };
   await challengeContext.route('https://lobby.getdasha.com/**', async route => {
-    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === '/chess/challenge/invite123' && route.request().method() === 'POST') return route.fulfill({ status: 201, headers, body: JSON.stringify({ ok: true, challenge: { ...challenge, status: 'accepted' }, game }) });
     if (url.pathname === '/chess/challenge/invite123') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, challenge }) });
     if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@holder' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
     if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
     return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
   });
   const challengePage = await challengeContext.newPage();
-  await challengePage.addInitScript(() => { window.open = url => { window.__shared = url; return {}; }; });
+  await challengePage.addInitScript(() => { window.open = url => { window.__shared = url; return {}; }; history.replaceState = function() {}; });
   await challengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=invite123`);
   await challengePage.getByRole('button', { name: 'Accept', exact: true }).waitFor();
   assert.equal(await challengePage.locator('#gate-title').textContent(), '@dasha_player challenges you', 'exact challenge must lead the first screen');
@@ -486,6 +695,10 @@ try {
   assert.match(await challengePage.locator('#tournament-body').textContent(), /Open · 30m/, 'temporary challenge must disclose its remaining lifetime');
   await challengePage.getByRole('button', { name: 'Share', exact: true }).click();
   assert.match(decodeURIComponent(await challengePage.evaluate(() => window.__shared)), /Dasha has white\. Take Anna\./);
+  await challengePage.getByRole('button', { name: 'Accept', exact: true }).click();
+  await challengePage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  assert.doesNotMatch(await challengePage.locator('#tournament-body').textContent(), /Dasha's challenge/, 'accepted challenge card must leave the Play panel when its game starts');
+  assert.match(await challengePage.locator('#tournament-body').textContent(), /Open a table for up to 16 holders\./, 'accepted challenge must restore the ordinary Play panel');
   assert.ok((await challengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
   await challengeContext.close();
 
@@ -498,12 +711,17 @@ try {
     return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
   });
   const anonymousChallengePage = await anonymousChallengeContext.newPage();
-  await anonymousChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=invite123`);
+  await anonymousChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=x&tournament=cup12345&challenge=invite123&utm_source=x`);
   await anonymousChallengePage.getByRole('button', { name: 'Link X', exact: true }).waitFor();
+  await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === '@dasha_player challenges you');
+  assert.equal(new URL(anonymousChallengePage.url()).search, '?challenge=invite123', 'loaded challenge must collapse mixed inbound state to one canonical object');
   assert.equal(await anonymousChallengePage.locator('#gate-title').textContent(), '@dasha_player challenges you', 'anonymous invite must preserve its context above the fold');
   assert.equal(await anonymousChallengePage.locator('#gate-copy').textContent(), 'Dasha has white. Take Anna.');
   assert.equal(await anonymousChallengePage.getByRole('button', { name: 'Accept', exact: true }).count(), 0, 'anonymous invite must not expose an impossible Accept');
   assert.ok((await anonymousChallengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
+  await anonymousChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=x&utm_source=x`);
+  await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Link X');
+  assert.equal(new URL(anonymousChallengePage.url()).search, '?utm_source=x', 'invalid object state must be removed without discarding unrelated attribution');
   await anonymousChallengeContext.close();
 
   const queueContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -534,6 +752,31 @@ try {
   assert.ok((await queuePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
   await queueContext.close();
 
+  const lostChallengeCreateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let challengeCreatePosts = 0;
+  const recoveredChallenge = { id: 'recover123', status: 'open', creator: '@holder', creatorRating: 1200, creatorIsMe: true, canAccept: false, expiresAt: Date.now() + 30 * 60_000 };
+  await lostChallengeCreateContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Content-Type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body: '' });
+    if (url.pathname === '/chess/challenges' && route.request().method() === 'POST') { challengeCreatePosts++; return challengeCreatePosts === 1 ? route.abort('connectionfailed') : route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, challenge: recoveredChallenge }) }); }
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@holder' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
+  });
+  const lostChallengeCreatePage = await lostChallengeCreateContext.newPage();
+  await lostChallengeCreatePage.addInitScript(() => { history.replaceState = function (_state, _title, url) { window.__recoveredChallengeUrl = String(url); }; });
+  await lostChallengeCreatePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostChallengeCreatePage.getByRole('button', { name: 'Invite someone' }).click();
+  await lostChallengeCreatePage.waitForTimeout(1200);
+  assert.equal(challengeCreatePosts, 2, `challenge recovery request count; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
+  assert.equal(await lostChallengeCreatePage.locator('#gate-title').textContent(), 'Your table is open', `challenge recovery gate; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
+  await lostChallengeCreatePage.getByText('Your table is open', { exact: true }).waitFor();
+  assert.equal(challengeCreatePosts, 2, 'challenge creation may retry once only after a transport failure');
+  assert.equal(await lostChallengeCreatePage.evaluate(() => window.__recoveredChallengeUrl), '/chess?challenge=recover123', 'bounded recovery must retain the authoritative challenge ID');
+  assert.equal(await lostChallengeCreatePage.getByText('Network unavailable', { exact: true }).count(), 0, 'successful recovery must not retain a false network error');
+  await lostChallengeCreateContext.close();
+
   const creatorContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let challengeReads = 0;
   await creatorContext.route('https://lobby.getdasha.com/**', async route => {
@@ -558,7 +801,87 @@ try {
   await creatorPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64, null, { timeout: 4500 });
   assert.ok(challengeReads > 1, 'open challenge must poll for acceptance');
   assert.equal(await creatorPage.locator('#game').isVisible(), true, 'creator must enter the accepted game without refreshing');
+  assert.doesNotMatch(await creatorPage.locator('#tournament-body').textContent(), /Dasha's challenge|Table claimed/, 'creator must not retain a claimed challenge card after its game appears');
+  assert.match(await creatorPage.locator('#tournament-body').textContent(), /Open a table for up to 16 holders\./, 'creator must return to the ordinary Play panel');
+  assert.equal(new URL(creatorPage.url()).search, '', 'accepted challenge URL state must clear after the creator enters its game');
   await creatorContext.close();
+
+  const lostMoveContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const committedBoard = [...startBoard]; committedBoard[52] = '.'; committedBoard[36] = 'P';
+  const committedGame = { ...game, board: committedBoard.join(''), turn: 'b', version: 1, legal: [], moves: [{ from: 'e2', to: 'e4', san: 'e4' }] };
+  let movePosts = 0, moveCommitted = false, recoveryReads = 0;
+  await lostMoveContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') {
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: moveCommitted ? committedGame : game, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    }
+    if (url.pathname.startsWith('/chess/game/') && route.request().method() === 'POST') { movePosts++; moveCommitted = true; return route.abort('connectionfailed'); }
+    if (url.pathname.startsWith('/chess/game/')) { recoveryReads++; await new Promise(resolve => setTimeout(resolve, 250)); return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, game: committedGame }) }); }
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const lostMovePage = await lostMoveContext.newPage();
+  await lostMovePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostMovePage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await lostMovePage.locator('[data-square="e2"]').click();
+  await lostMovePage.locator('[data-square="e4"]').click();
+  await lostMovePage.waitForFunction(() => document.querySelector('#game-status')?.textContent === 'Network unavailable');
+  await lostMovePage.locator('[data-square="e4"]').click();
+  await lostMovePage.waitForFunction(() => document.querySelector('#turn')?.textContent === 'Anna to move');
+  assert.equal(movePosts, 1, 'a lost move response must reconcile before another tap can submit');
+  assert.equal(recoveryReads, 1, 'an ambiguous POST result must perform one authoritative recovery read');
+  assert.match(await lostMovePage.locator('[data-square="e4"]').getAttribute('aria-label'), /Dasha pawn/);
+  await lostMoveContext.close();
+
+  const lostResignContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let resignPosts = 0, resignCommitted = false;
+  await lostResignContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' }, authoritative = resignCommitted ? finished : game;
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: authoritative, x: { display: '@dasha_player' }, rating: { rating: 1212, games: 1, wins: 1, losses: 0, draws: 0 } }) });
+    if (url.pathname.startsWith('/chess/game/') && route.request().method() === 'POST') { resignPosts++; resignCommitted = true; return route.abort('connectionfailed'); }
+    if (url.pathname.startsWith('/chess/game/')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, game: authoritative }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const lostResignPage = await lostResignContext.newPage();
+  await lostResignPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await lostResignPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  lostResignPage.once('dialog', dialog => dialog.accept());
+  await lostResignPage.getByRole('button', { name: 'Resign' }).click();
+  await lostResignPage.waitForFunction(() => document.querySelector('#turn')?.textContent.includes('checkmate'));
+  assert.equal(resignPosts, 1, 'a committed resignation with a lost response must not be submitted twice');
+  assert.equal(await lostResignPage.getByRole('button', { name: 'Resign' }).isHidden(), true, 'reconciliation must replace the apparently live board with the finished result');
+  await lostResignContext.close();
+
+  const outageActionContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let outage = false, outageCommitted = false, outageMeReads = 0, outageGameReads = 0, outageActionPosts = 0;
+  await outageActionContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') { outageMeReads++; return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: outageCommitted ? finished : game, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) }); }
+    if (url.pathname.startsWith('/chess/game/') && route.request().method() === 'POST') { outageActionPosts++; outage = true; outageCommitted = true; return route.abort('connectionfailed'); }
+    if (url.pathname.startsWith('/chess/game/')) { outageGameReads++; if (outage) return route.abort('internetdisconnected'); return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, game: finished }) }); }
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const outageActionPage = await outageActionContext.newPage();
+  await outageActionPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await outageActionPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  const meReadsBeforeOutage = outageMeReads;
+  outageActionPage.once('dialog', dialog => dialog.accept());
+  await outageActionPage.getByRole('button', { name: 'Resign' }).click();
+  await outageActionPage.waitForFunction(() => document.querySelector('#game-status')?.textContent === 'Network unavailable');
+  assert.equal(await outageActionPage.locator('#game').isVisible(), true, 'a failed reconciliation read must preserve the last known board');
+  assert.equal(await outageActionPage.getByRole('button', { name: 'Resign' }).isVisible(), true, 'transport failure must not invent an unverified result');
+  assert.equal(outageMeReads, meReadsBeforeOutage, 'transport failure must not replace the board through a second failing identity read');
+  outage = false;
+  await outageActionPage.waitForFunction(() => document.querySelector('#turn')?.textContent.includes('checkmate'), null, { timeout: 4500 });
+  assert.ok(outageGameReads >= 2, 'a failed reconciliation GET must retry automatically while the browser remains online');
+  assert.equal(outageActionPosts, 1, 'automatic reconciliation must never replay the ambiguous action POST');
+  assert.ok(outageMeReads > meReadsBeforeOutage, 'successful reconciliation must refresh authoritative identity state');
+  await outageActionContext.close();
 
   const recoveryContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let offline = true;

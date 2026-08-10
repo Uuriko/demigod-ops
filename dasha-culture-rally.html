@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Culture Rally — $dasha</title>
+<meta name="description" content="Quiz, make, talk, buy. The $dasha culture loop in one page.">
+<link rel="canonical" href="https://www.getdasha.com/rally">
+<meta name="theme-color" content="#070608">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.getdasha.com/rally">
+<meta property="og:title" content="Culture Rally — $dasha">
+<meta property="og:description" content="Quiz, make, talk, buy. Share the loop.">
+<meta property="og:image" content="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a77fe9db067d20182a0995a_dasha-social-card-current.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a77fe9db067d20182a0995a_dasha-social-card-current.png">
+<style>
+:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.32);--muted:#e6dcc4;--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.5 Arial,Helvetica,sans-serif;
+  background-image:radial-gradient(circle at 82% 4%,rgba(124,77,255,.32),transparent 28rem),radial-gradient(circle at 6% 70%,rgba(255,59,129,.16),transparent 24rem)}
+.wrap{width:min(880px,calc(100% - 32px));margin:0 auto;padding:28px 0 96px}
+nav{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:28px}
+nav a{color:var(--paper);text-decoration:none;font-weight:900;text-transform:uppercase;letter-spacing:.06em;font-size:12px;min-height:44px;display:inline-flex;align-items:center}
+.brand span{color:var(--acid)}
+.nav-buy{background:var(--acid);color:var(--ink)!important;padding:0 16px;border-radius:999px;box-shadow:3px 3px 0 var(--hot)}
+.kicker{margin:0;font-size:12px;font-weight:950;letter-spacing:.14em;text-transform:uppercase;color:var(--acid)}
+h1{margin:10px 0 12px;font-size:clamp(2.4rem,9vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}
+.lede{margin:0 0 22px;max-width:42ch;color:var(--muted);font-size:1.05rem}
+.grid{display:grid;gap:12px}
+@media(min-width:720px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:10px;align-content:start}
+.card .step{font-size:11px;font-weight:950;letter-spacing:.12em;text-transform:uppercase;color:var(--acid)}
+.card h2{margin:0;font-size:clamp(1.25rem,3vw,1.55rem);line-height:1.05;letter-spacing:-.03em;text-transform:uppercase}
+.card p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+.card a.cta{justify-self:start;min-height:48px;padding:0 18px;border-radius:999px;background:var(--acid);color:var(--ink);font:950 12px Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;display:inline-flex;align-items:center;box-shadow:3px 3px 0 var(--hot)}
+.card a.cta.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
+.buy-strip{margin-top:18px;padding:16px;border:2px solid var(--acid);border-radius:16px;background:rgba(223,255,0,.06);display:grid;gap:10px}
+.buy-strip h2{margin:0;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--acid)}
+.ca{margin:0;padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);font-family:var(--mono);font-size:13px;word-break:break-all;user-select:all;cursor:pointer;text-align:left;color:inherit;width:100%}
+.ca.is-copied{border-color:var(--acid);color:var(--acid)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.btn{min-height:48px;padding:0 18px;border-radius:999px;border:0;background:var(--acid);color:var(--ink);font:950 12px Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:3px 3px 0 var(--hot);text-decoration:none;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
+.status{min-height:1.2em;margin:0;font-size:13px;font-weight:800;color:var(--acid)}
+footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+footer a{color:var(--paper);font-weight:800}
+:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav aria-label="Rally">
+    <a class="brand" href="/">$<span>DASHA</span></a>
+    <a class="nav-buy" id="nav-buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>
+  </nav>
+  <p class="kicker">Culture Rally</p>
+  <h1>One loop.<br>Four moves.</h1>
+  <p class="lede">Know the lore. Make something. Talk on-site. Verify the mint, then swap. Share this page so others start the same loop.</p>
+  <div class="grid" id="loops"></div>
+  <section class="buy-strip" aria-labelledby="buy-title">
+    <h2 id="buy-title">Buy path</h2>
+    <p class="status" id="status" role="status"></p>
+    <button type="button" class="ca" id="mint" aria-label="Copy mint address">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</button>
+    <div class="actions">
+      <a class="btn" id="buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy on Jupiter ↗</a>
+      <a class="btn ghost" href="/dasha#dd-mint">Desk / verify</a>
+      <button type="button" class="btn ghost" id="share">Share Rally</button>
+    </div>
+  </section>
+  <footer>
+    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="/?quiz=1#simp">Quiz</a> · <a href="/lobby">Lobby</a> · <a href="/how-to-buy">How to buy</a></p>
+    <p>Association is not endorsement. No price promises.</p>
+  </footer>
+</div>
+<script>
+(function () {
+  var MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  var RALLY_URL = 'https://www.getdasha.com/rally';
+  var JUP =
+    'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=' + MINT;
+  var loops = [
+    {
+      kicker: '01 · Lore',
+      title: 'Take the simp quiz',
+      body: 'Quick 10Q to share. Deep 20Q if you live here.',
+      href: 'https://www.getdasha.com/?quiz=1#simp',
+      cta: 'Start quiz',
+    },
+    {
+      kicker: '02 · Make',
+      title: 'Make one, pass it on',
+      body: 'Six looks. PNG + GIF. No wallet to create.',
+      href:
+        'https://www.getdasha.com/studio#look=ticket&format=story&line=' +
+        encodeURIComponent('It’s time $dasha') +
+        '&src=rally',
+      cta: 'Open Studio',
+    },
+    {
+      kicker: '03 · Talk',
+      title: 'Join the lobby',
+      body: 'Public chat on-site. Not Discord HQ.',
+      href: 'https://www.getdasha.com/lobby',
+      cta: 'Open lobby',
+    },
+    {
+      kicker: '04 · Buy',
+      title: 'Verify mint, then swap',
+      body: 'Exact CA only. Jupiter is the primary path.',
+      href: JUP,
+      cta: 'Buy on Jupiter',
+      external: true,
+    },
+  ];
+  var grid = document.getElementById('loops');
+  var status = document.getElementById('status');
+  var mintEl = document.getElementById('mint');
+  document.getElementById('buy').href = JUP;
+  document.getElementById('nav-buy').href = JUP;
+  mintEl.textContent = MINT;
+  loops.forEach(function (step) {
+    var card = document.createElement('article');
+    card.className = 'card';
+    var stepEl = document.createElement('div');
+    stepEl.className = 'step';
+    stepEl.textContent = step.kicker;
+    var h2 = document.createElement('h2');
+    h2.textContent = step.title;
+    var p = document.createElement('p');
+    p.textContent = step.body;
+    var a = document.createElement('a');
+    a.className = 'cta' + (step.external ? ' ghost' : '');
+    a.href = step.href;
+    a.textContent = step.cta;
+    if (step.external) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+    card.appendChild(stepEl);
+    card.appendChild(h2);
+    card.appendChild(p);
+    card.appendChild(a);
+    grid.appendChild(card);
+  });
+  function setStatus(t) {
+    status.textContent = t || '';
+  }
+  function shareText() {
+    return (
+      'Culture Rally for $dasha — quiz, make, talk, buy.\n' +
+      RALLY_URL +
+      '\nMint: ' +
+      MINT +
+      '\n' +
+      JUP
+    );
+  }
+  mintEl.addEventListener('click', function () {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(MINT).then(
+        function () {
+          mintEl.classList.add('is-copied');
+          setStatus('Mint copied');
+          setTimeout(function () {
+            mintEl.classList.remove('is-copied');
+          }, 1200);
+        },
+        function () {
+          setStatus('Select the mint to copy');
+        },
+      );
+    } else setStatus('Select the mint to copy');
+  });
+  document.getElementById('share').addEventListener('click', function () {
+    var text = shareText();
+    if (navigator.share) {
+      navigator.share({ text: text, url: RALLY_URL }).then(
+        function () {
+          setStatus('Shared');
+        },
+        function (err) {
+          if (err && err.name === 'AbortError') setStatus('');
+          else copyFallback(text);
+        },
+      );
+      return;
+    }
+    copyFallback(text);
+  });
+  function copyFallback(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () {
+          setStatus('Rally text copied');
+        },
+        function () {
+          openX(text);
+        },
+      );
+    } else openX(text);
+  }
+  function openX(text) {
+    var intent = new URL('https://x.com/intent/post');
+    intent.searchParams.set('text', text);
+    window.open(intent, '_blank', 'noopener');
+    setStatus('X compose opened');
+  }
+})();
+</script>
+</body>
+</html>

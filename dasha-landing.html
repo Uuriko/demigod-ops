@@ -1,495 +1,178 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230B0A0C%22%2F%3E%3Cpath%20d%3D%22M5%2022%20L12%2017%20L19%2020%20L27%208%22%20fill%3D%22none%22%20stroke%3D%22%23F2EDE7%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cline%20x1%3D%224%22%20y1%3D%2226%22%20x2%3D%2228%22%20y2%3D%2226%22%20stroke%3D%22%23C8B6FF%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-dasharray%3D%225%204%22%2F%3E%3C%2Fsvg%3E">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Dasha%20Thesis%20Card%22%2C%22short_name%22%3A%22Thesis%20Card%22%2C%22description%22%3A%22Record%20a%20thesis%2C%20the%20condition%20that%20would%20prove%20it%20wrong%2C%20and%20a%20resolution%20date%20%E2%80%94%20before%20you%20post%20it.%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230B0A0C%22%2C%22theme_color%22%3A%22%230B0A0C%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2522http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2522%2520viewBox%253D%25220%25200%252032%252032%2522%253E%253Crect%2520width%253D%252232%2522%2520height%253D%252232%2522%2520rx%253D%25227%2522%2520fill%253D%2522%25230B0A0C%2522%252F%253E%253Cpath%2520d%253D%2522M5%252022%2520L12%252017%2520L19%252020%2520L27%25208%2522%2520fill%253D%2522none%2522%2520stroke%253D%2522%2523F2EDE7%2522%2520stroke-width%253D%25223%2522%2520stroke-linecap%253D%2522round%2522%2520stroke-linejoin%253D%2522round%2522%252F%253E%253Cline%2520x1%253D%25224%2522%2520y1%253D%252226%2522%2520x2%253D%252228%2522%2520y2%253D%252226%2522%2520stroke%253D%2522%2523C8B6FF%2522%2520stroke-width%253D%25223%2522%2520stroke-linecap%253D%2522round%2522%2520stroke-dasharray%253D%25225%25204%2522%252F%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
-<meta name="theme-color" content="#0B0A0C">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Thesis Card">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dasha Labs — write the call before the chart writes the story</title>
-<meta name="description" content="A free tool for recording a token thesis, the condition that would prove it wrong, and an exact resolution date. No wallet connection. Not financial advice.">
-<link rel="canonical" href="https://johns-awesome-project-39b1b5.webflow.io/">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://johns-awesome-project-39b1b5.webflow.io/">
-<meta property="og:title" content="Dasha Labs — write the call before the chart writes the story">
-<meta property="og:description" content="Record a thesis, an invalidation condition, and an exact resolution date. Device-timed and fingerprinted. No wallet, no trading, no safety score.">
-<meta property="og:image" content="https://johns-awesome-project-39b1b5.webflow.io/dasha-og-card.png">
-<meta property="og:image:type" content="image/png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Dasha Labs — write the call before the chart writes the story. A free tool, no wallet connection.">
-<meta name="twitter:image" content="https://johns-awesome-project-39b1b5.webflow.io/dasha-og-card.png">
-<meta name="twitter:image:alt" content="Dasha Labs — write the call before the chart writes the story.">
-<meta name="twitter:card" content="summary_large_image">
-<style>
-:root{
-  color-scheme:dark;
-  --bg:#0B0A0C; --panel:#151317; --panel-2:#100E12; --line:#353039;
-  --ink:#F2EDE7; --muted:#ADA5AE; --accent:#C8B6FF; --accent-hi:#DACFFF;
-  --danger:#FF9E91; --on-accent:#17141A;
-  /* Display is an editorial serif and data is mono; body stays system sans. Three roles,
-     zero font files — the page must stay self-contained. */
-  --display:Georgia,Cambria,"Times New Roman",serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --maxw:900px;
-}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{width:min(var(--maxw),calc(100% - 32px));margin:0 auto}
-/* Accent is reserved for primary action, focus and the fingerprint. Links carry an
-   underline so colour is never the only signal. */
-a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
-a:hover{color:var(--accent-hi)}
-a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
-
-
-/* --- polish motion ---------------------------------------------------- */
-@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-header.wrap,.hero-art{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
-.hero-art{animation-delay:.08s}
-.btn{transition:transform .15s ease,background .2s,border-color .2s,box-shadow .2s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(200,182,255,.25)}
-.btn:active{transform:none}
-.card{transition:border-color .2s,transform .2s,box-shadow .2s}
-.card:hover{border-color:#4a4450;transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
-@media (prefers-reduced-motion:reduce){
-  header.wrap,.hero-art{animation:none}
-  .btn,.card{transition:none}
-}
-
-/* --- hero ------------------------------------------------------------- */
-header{padding:56px 0 8px}
-.eyebrow{color:var(--muted);font-size:.75rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0 0 16px;font-family:var(--mono)}
-h1{margin:0;font-family:var(--display);font-size:clamp(2.2rem,7vw,3.7rem);line-height:1.06;letter-spacing:-.02em;font-weight:700}
-h1 em{font-style:italic;color:var(--ink)}
-.sub{color:var(--muted);font-size:clamp(1rem,2.6vw,1.18rem);margin:20px 0 0;max-width:52ch}
-.hero-art{margin:32px 0 0;max-width:430px}
-.artnote{color:var(--muted);font-size:.82rem;margin:10px 0 0;max-width:44ch}
-
-/* --- shared ----------------------------------------------------------- */
-section{padding:44px 0}
-h2{font-family:var(--display);font-size:clamp(1.45rem,3.8vw,1.95rem);margin:0 0 8px;letter-spacing:-.01em;font-weight:700}
-.lede{color:var(--muted);margin:0 0 22px;max-width:56ch}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:clamp(18px,4vw,26px)}
-.grid{display:grid;gap:14px}
-@media(min-width:720px){.grid-3{grid-template-columns:repeat(3,1fr)}}
-.k{font-weight:700;margin:0 0 4px;font-size:1.05rem}
-.k small{display:block;font-weight:600;color:var(--muted);font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;margin-bottom:8px}
-.card p{margin:0;color:var(--muted)}
-
-/* --- cta -------------------------------------------------------------- */
-.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  min-height:52px;padding:12px 22px;border-radius:12px;font-weight:700;text-decoration:none;
-  background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
-.btn:hover{background:var(--accent-hi);border-color:var(--accent-hi);color:var(--on-accent)}
-.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
-.btn.ghost:hover{background:transparent;color:var(--ink);border-color:var(--muted)}
-@media(max-width:520px){.actions>*{width:100%}}
-
-/* --- mechanism note --------------------------------------------------- */
-.why{border-left:2px solid var(--line);padding:2px 0 2px 18px;margin:0;max-width:58ch;color:var(--muted)}
-.why b{color:var(--ink);font-weight:700}
-
-/* --- worked examples --------------------------------------------------- */
-.ex{display:flex;flex-direction:column}
-.exl{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
-.exl-inv{color:var(--danger)}
-.ext{margin:0 !important;color:var(--ink) !important;font-size:.95rem}
-.exout{margin:16px 0 0 !important;padding-top:12px;border-top:1px solid var(--line);color:var(--muted) !important;font-size:.88rem}
-.badge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-family:var(--mono);
-  font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);border:1px solid var(--danger);vertical-align:middle}
-.exbtn{margin-top:18px;min-height:44px;padding:10px 14px;border-radius:10px;font:inherit;font-weight:700;
-  cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line)}
-.exbtn:hover{border-color:var(--accent);color:var(--accent-hi)}
-
-/* --- proves / does not prove ------------------------------------------- */
-.cols{display:grid;gap:14px}
-@media(min-width:720px){.cols{grid-template-columns:1fr 1fr}}
-.plain{margin:0;padding:0;list-style:none;display:grid;gap:12px}
-.plain li{color:var(--muted)}
-.plain b{color:var(--ink)}
-.k small.neg{color:var(--danger)}
-
-
-.fromlink{margin:0 0 10px;padding:9px 12px;border:1px solid var(--line);border-left:3px solid var(--accent);
-  border-radius:8px;background:var(--panel-2);color:var(--muted);font-size:.86rem}
-.fromlink b{color:var(--ink);font-family:var(--mono);font-size:.82rem}
-
-/* --- your calls (local only) -------------------------------------------- */
-.callrow{display:flex;flex-direction:column;gap:6px;padding:16px 0;border-top:1px solid var(--line)}
-.callrow:first-child{border-top:0}
-.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono);font-size:.6rem;
-  letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted)}
-.chip.due{color:var(--accent);border-color:var(--accent)}
-.chip.wrong{color:var(--danger);border-color:var(--danger)}
-.calltop{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.callth{margin:0;color:var(--ink);font-size:.98rem}
-.callmeta{margin:0;color:var(--muted);font-size:.82rem;font-family:var(--mono)}
-.callacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.callacts button{min-height:40px;padding:8px 12px;border-radius:9px;font:inherit;font-size:.86rem;font-weight:700;
-  cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line)}
-.callacts button:hover{border-color:var(--accent);color:var(--accent-hi)}
-.callacts button.del{color:var(--muted);border-style:dashed}
-.streak{font-family:var(--mono);font-size:.82rem;color:var(--muted);margin:0 0 18px}
-.streak b{color:var(--ink)}
-
-/* --- honesty strip ---------------------------------------------------- */
-.strip{border:1px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
-.strip ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-@media(min-width:720px){.strip ul{grid-template-columns:repeat(2,1fr)}}
-.strip li{color:var(--muted);padding-left:24px;position:relative}
-.strip li::before{content:"—";position:absolute;left:0;color:var(--muted);font-weight:700}
-footer{padding:36px 0 64px;color:var(--muted);border-top:1px solid var(--line);margin-top:36px}
-footer p{margin:.4em 0}
-
-/* --- conviction receipt, inlined natively (see #tool) --------------------- */
-#tool .toolhost{margin-top:8px}
-
-    /* Scoped to #tool so it no longer overrides the page palette — this block used to
-       re-declare :root after the page's own and silently won every variable. */
-    #tool .receipt{width:min(760px,calc(100% - 32px));margin:64px auto}#tool .eyebrow{color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-family:var(--mono)}#tool h2.toolhead{margin:.2em 0;font-family:var(--display);font-size:clamp(1.6rem,4.5vw,2.3rem);line-height:1.1}#tool .intro,#tool .note{color:var(--muted)}#tool form,#tool .output{display:grid;gap:18px;margin-top:28px;padding:clamp(20px,5vw,36px);border:1px solid var(--line);border-radius:20px;background:var(--panel)}#tool label{display:grid;gap:7px;font-weight:700}#tool input,#tool textarea,#tool select,#tool button,#tool a.button{min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);color:var(--ink);font:inherit}#tool input,#tool textarea,#tool select{width:100%;padding:12px}#tool input,#tool #address{font-family:var(--mono)}#tool textarea{min-height:96px;resize:vertical}#tool button,#tool a.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;font-weight:700;text-decoration:none;cursor:pointer}#tool button{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}#tool button:hover{background:var(--accent-hi);border-color:var(--accent-hi)}#tool .actions{display:flex;flex-wrap:wrap;gap:10px}#tool .secondary{background:transparent!important;color:var(--ink)!important}#tool .error{min-height:1.5em;color:var(--danger)}#tool .output{white-space:pre-wrap}#tool .output[hidden]{display:none}#tool .fingerprint{font:13px var(--mono);color:var(--accent)}@media(max-width:520px){.receipt{margin:32px auto}#tool .actions>*{width:100%}}#tool .output{overflow-wrap:anywhere}#tool button,#tool a.button{min-width:0}
-
-
-input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
-</style>
-</head>
-<body>
-
-<header class="wrap">
-  <p class="eyebrow">Dasha Labs · free tool · no wallet</p>
-  <h1>Write the call <em>before</em> the chart writes the story.</h1>
-  <p class="sub">Anyone can explain a trade after it moves. This records what you thought, what would prove you wrong, and by when — with your device time and a local checksum, before you post it.</p>
-
-  <!-- Original artwork. A filled-in example of the card the tool produces, so the page shows
-       the deliverable rather than restating the headline. The mint is a self-documenting
-       placeholder, never the candidate mint: a real address rendered in the product's own
-       voice would read as a call on that token, and control is not established. No price
-       data, no target, no return figure. -->
-  <div class="hero-art">
-    <svg viewBox="0 0 360 300" width="100%" role="img"
-         aria-label="An example of the card the tool produces. It shows an example token address, a thesis reading 'Liquidity depth is what I am actually watching here, not the price', an invalidation condition reading 'Depth falls back under where it started and stays there a week', an unverified device time, a checksum prefix, and a footer reading Not financial advice.">
-      <rect x="4" y="20" width="352" height="272" rx="14" fill="#151317" stroke="#353039"/>
-      <text x="4" y="12" font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="1.4" fill="#ADA5AE">EXAMPLE — NOT A REAL CALL</text>
-
-      <text x="22" y="48" font-family="ui-monospace,Menlo,monospace" font-size="11" letter-spacing="1.6" fill="#C8B6FF">DASHA THESIS CARD</text>
-      <line x1="22" y1="60" x2="338" y2="60" stroke="#353039"/>
-
-      <text x="22" y="80" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#ADA5AE">TOKEN</text>
-      <text x="22" y="96" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#F2EDE7">EXAMPLEmint…1111pump</text>
-
-      <text x="22" y="122" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#ADA5AE">THESIS</text>
-      <text x="22" y="140" font-size="12" fill="#F2EDE7">Liquidity depth is what I am actually<tspan x="22" dy="16">watching here, not the price.</tspan></text>
-
-      <text x="22" y="184" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.2" fill="#FF9E91">INVALID IF</text>
-      <text x="22" y="202" font-size="12" fill="#F2EDE7">Depth falls back under where it<tspan x="22" dy="16">started and stays there a week.</tspan></text>
-
-      <line x1="22" y1="236" x2="338" y2="236" stroke="#353039"/>
-      <text x="22" y="254" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#ADA5AE">2026-04-02 14:22 UTC</text>
-      <text x="22" y="270" font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#C8B6FF">a3f9c1e40b72</text>
-
-      <!-- A full-width bar here poked square corners past the card's rx=14 bottom. A rule
-           reads the same and cannot clip. -->
-      <line x1="22" y1="272" x2="338" y2="272" stroke="#353039"/>
-      <text x="22" y="285" font-family="ui-monospace,Menlo,monospace" font-size="9" fill="#ADA5AE">Not financial advice.</text>
-    </svg>
-  </div>
-  <p class="artnote">What the tool gives back: your own words, the condition that would settle them, and a checksum that changes if either is edited.</p>
-
-  <div class="actions">
-    <a class="btn" href="#tool">Make a thesis card</a>
-    <a class="btn ghost" href="#how">How it works</a>
-  </div>
-</header>
-
-<main class="wrap">
-
-<section id="tool">
-  <h2>Make a thesis card</h2>
-  <p class="lede">Your thesis fields are processed locally and are not sent to us. There is no account and no wallet prompt.</p>
-  <div class="toolhost">
-    <p class="eyebrow">Dasha Labs · free tool</p>
-    <h2 class="toolhead">Thesis Card</h2>
-    <p class="fromlink" id="fromlink" hidden></p>
-    <p class="intro">Write the call before the chart writes the story. Generate a shareable card with the thesis—and the condition that proves it wrong.</p>
-    <form id="receipt-form" novalidate>
-      <label>Solana token address<input id="address" autocomplete="off" spellcheck="false" required placeholder="32–44 character mint address"></label>
-      <label>Thesis<textarea id="thesis" maxlength="280" required placeholder="What does the market misunderstand?"></textarea></label>
-      <label>Invalidation<textarea id="invalidation" maxlength="180" required placeholder="What evidence would prove this thesis wrong?"></textarea></label>
-      <label>Confidence<select id="confidence"><option>55%</option><option>65%</option><option>75%</option><option>85%</option><option>95%</option></select></label>
-      <label>Resolution date<input id="resolution" type="date" required></label>
-      <div class="actions"><button type="submit">Generate card</button></div>
-      <div id="error" class="error" role="alert"></div>
-    </form>
-    <section id="output" class="output" aria-live="polite" hidden>
-      <strong id="receipt-text"></strong>
-      <span id="fingerprint" class="fingerprint"></span>
-      <div class="actions"><button id="copy" class="secondary" type="button">Copy card</button><button id="download" class="secondary" type="button">Download card</button><button id="remind" class="secondary" type="button">Add resolution reminder</button><a id="share" class="button" target="_blank" rel="noopener noreferrer" aria-label="Share on X (opens in a new tab)">Share on X</a><a id="inspect" class="button secondary" target="_blank" rel="noopener noreferrer" aria-label="Inspect token on Solscan (opens in a new tab)">Inspect token</a></div>
-      <small class="note">The full local checksum lets someone compare an exact copy of this card's text. The device time is not independently verified and is not proof of when a claim was made. This does not verify identity, token safety, or investment quality. No wallet connection. Not financial advice.</small>
-    </section>
-  </div>
-  <!-- No link to ./dasha-conviction-receipt.html here. The tool is inlined directly above, so
-       the link only ever offered a deep-link convenience — and it is a DEAD LINK whenever this
-       file travels on its own, which is how it gets shown to people (emailed, opened from
-       file://). One self-sufficient file beats a marginal convenience. The standalone still
-       ships; it is simply not advertised from here. -->
-</section>
-
-<section id="how">
-  <h2>Three decisions. One card.</h2>
-  <p class="lede">It runs in your browser. Thesis fields are not uploaded or stored by us, and there is no account.</p>
-  <div class="grid grid-3">
-    <div class="card"><p class="k"><small>01</small>The thesis</p><p>What you actually believe, in your words. Not a target, not a chart pattern — the reason.</p></div>
-    <div class="card"><p class="k"><small>02</small>The invalidation</p><p>What would make you wrong. This is the field most people skip, and the only one that makes the rest mean anything.</p></div>
-    <div class="card"><p class="k"><small>03</small>The horizon</p><p>By when. A call without a clock can never be settled, so it never costs anything to have made.</p></div>
-  </div>
-  <p class="why" style="margin-top:26px"><b>Not our idea.</b> Decades of research on judgment finds that people reason more carefully when they commit to a position and its disproof condition <em>before</em> the outcome than when they explain themselves after it. Those studies are about forecasting, not tokens, and none of this predicts returns — the habit is the only thing on offer here.</p>
-  <div class="actions"><a class="btn" href="#tool">Make a thesis card</a></div>
-</section>
-
-
-<section id="calls" hidden>
-  <h2>Your calls</h2>
-  <p class="lede">Kept on this device only — never uploaded, and we cannot see them. When a resolution date arrives, come back and say what happened.</p>
-  <p class="streak" id="streak" hidden></p>
-  <div class="card" id="calllist"></div>
-  <p class="artnote" style="max-width:56ch">This list is for you. It is not evidence of when you made a call. If you post the card publicly, that post—not the local checksum—may provide outside context for when others first saw it.</p>
-</section>
-
-<section id="examples">
-  <h2>Three examples</h2>
-  <p class="lede">The invalidation is the hard field. These are what one looks like when it is doing its job — including the third, which fired.</p>
-  <div class="grid grid-3">
-
-    <div class="card ex">
-      <p class="k"><small>Example 01</small>Betting on something holding</p>
-      <p class="exl">Thesis</p>
-      <p class="ext">The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on.</p>
-      <p class="exl exl-inv">Invalid if</p>
-      <p class="ext">Two weeks pass with no public commits and no explanation.</p>
-      <button type="button" class="exbtn" data-days="21" data-t="The team ships in public and the commit history backs it up. I think that keeps holding once attention moves on." data-i="Two weeks pass with no public commits and no explanation.">Start from this</button>
-    </div>
-
-    <div class="card ex">
-      <p class="k"><small>Example 02</small>Betting against the story</p>
-      <p class="exl">Thesis</p>
-      <p class="ext">Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real.</p>
-      <p class="exl exl-inv">Invalid if</p>
-      <p class="ext">Holder count rises for three straight weeks with no airdrop behind it.</p>
-      <button type="button" class="exbtn" data-days="30" data-t="Most of the volume looks like the same few wallets trading with each other. I do not think the interest is real." data-i="Holder count rises for three straight weeks with no airdrop behind it.">Start from this</button>
-    </div>
-
-    <div class="card ex">
-      <p class="k"><small>Example 03</small>One that was wrong<span class="badge">Invalidated</span></p>
-      <p class="exl">Thesis</p>
-      <p class="ext">Liquidity depth should improve once the listing lands. That is the only reason I am here.</p>
-      <p class="exl exl-inv">Invalid if</p>
-      <p class="ext">Depth is still below where it started seven days after listing.</p>
-      <p class="exout">Day seven: depth was lower than at the start. The condition fired. The call was settled, not rewritten.</p>
-      <button type="button" class="exbtn" data-days="14" data-t="Liquidity depth should improve once the listing lands. That is the only reason I am here." data-i="Depth is still below where it started seven days after listing.">Start from this</button>
-    </div>
-
-  </div>
-  <p class="artnote" style="max-width:56ch">Examples fill the thesis and the invalidation only. We never suggest a token — the address is yours to enter.</p>
-</section>
-
-<section>
-  <h2>What the card proves, and what it does not</h2>
-  <p class="lede">The limits used to live in small type under the output. They belong here, at the same size as everything else.</p>
-  <div class="cols">
-    <div class="card">
-      <p class="k"><small>Proves</small></p>
-      <ul class="plain">
-        <li>The full checksum lets someone compare an exact copy of the same card text. Edit one field and the checksum changes.</li>
-        <li>The card displays the invalidation condition you entered alongside the thesis.</li>
-      </ul>
-    </div>
-    <div class="card">
-      <p class="k"><small class="neg">Does not prove</small></p>
-      <ul class="plain neg-l">
-        <li><b>When you wrote it.</b> The timestamp comes from your own device and nobody verified it. This is not evidence that you called it first.</li>
-        <li><b>That the token is safe, real, or worth anything.</b> The tool never looks at it.</li>
-        <li><b>That you are who you say you are.</b> There is no identity check of any kind.</li>
-        <li><b>That anyone owes you anything.</b> A card is a record, not a contract.</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section>
-  <h2>What this is not</h2>
-  <p class="lede">Written plainly, because a tool about accountability should be accountable about itself.</p>
-  <div class="strip">
-    <ul>
-      <li>No wallet connection. There is nothing to approve and nothing to sign.</li>
-      <li>No trading, no routing, no fees.</li>
-      <li>No safety score. Solana's own guidance is explicit that verification is not endorsement, so we show evidence and let you look.</li>
-      <li>No price prediction and no signal. The tool never has an opinion about your call.</li>
-      <li>Not financial advice, and not a record anyone else is obliged to honour.</li>
-      <li>A token address links out to Solscan so you can inspect it yourself. We never guess an address — it is either typed by you or carried by the link you followed.</li>
-    </ul>
-  </div>
-</section>
-
-
-</main>
-
-<footer class="wrap">
-  <p><strong>Dasha Labs.</strong> A free tool, not an exchange, not a fund, not an advisor.</p>
-  <p>Nothing here is financial advice. Crypto assets can lose all of their value. You are responsible for your own decisions, which is rather the point of writing them down.</p>
-</footer>
-
+<link rel="sitemap" type="application/xml" title="Sitemap" href="https://lobby.getdasha.com/sitemap.xml">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://www.getdasha.com/#website","name":"getdasha","alternateName":"$dasha","url":"https://www.getdasha.com/","description":"$dasha. Mint, Studio, quiz, Chess, and lobby.","sameAs":"https://x.com/dash_eats","about":{"@type":"Thing","name":"$dasha","url":"https://www.getdasha.com/dasha","identifier":{"@type":"PropertyValue","propertyID":"Solana mint address","value":"53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"},"sameAs":["https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump","https://x.com/dash_eats/status/2085405228078432279"]}}</script>
 <script>
-
-    const $=id=>document.getElementById(id), form=$('receipt-form'), output=$('output');
-    const DISCLAIMER="Not financial advice. No wallet connection. Device time is not independently verified.";
-    const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
-    const wrap=(lines,limit)=>lines.flatMap(line=>line.match(new RegExp(`.{1,${limit}}(?:\\s|$)|\\S{1,${limit}}`,'g'))||[]).map(line=>line.trim());
-    const card=(lines,fingerprint)=>{lines=lines.filter(l=>l.trim()!==DISCLAIMER&&l.trim()!=='DASHA THESIS CARD');
-      const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');canvas.width=1200;canvas.height=675;
-      ctx.fillStyle='#0B0A0C';ctx.fillRect(0,0,1200,675);ctx.fillStyle='#C8B6FF';ctx.font='700 30px Georgia,serif';ctx.fillText('DASHA THESIS CARD',72,82);ctx.strokeStyle='#353039';ctx.beginPath();ctx.moveTo(72,104);ctx.lineTo(1128,104);ctx.stroke();
-      const hue=l=>/^Invalid if:/.test(l)?'#FF9E91':/^(Device time|Token|Confidence|Resolve on):/.test(l)?'#ADA5AE':'#F2EDE7';
-      const rows=sz=>lines.flatMap(l=>wrap([l],Math.floor(58*31/sz)).map(t=>({t,c:hue(l)})));
-      let size=31,body=rows(size);while(body.length*size*1.4>440&&size>18){size--;body=rows(size)}
-      ctx.font=`700 ${size}px system-ui`;let y=145;
-      for(const r of body){ctx.fillStyle=r.c;ctx.fillText(r.t,72,y);y+=size*1.4}
-      ctx.fillStyle='#ADA5AE';ctx.font='24px ui-monospace';ctx.fillText(`Local checksum: ${fingerprint}`,72,596);ctx.fillStyle='#100E12';ctx.fillRect(0,624,1200,51);ctx.fillStyle='#ADA5AE';ctx.font='21px system-ui';ctx.fillText(DISCLAIMER,72,655);return canvas;
-    };
-    const localDate=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
-    $('resolution').min=localDate();
-    const calendar=(date,address,thesis,invalidation)=>`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Dasha//Thesis Resolution//EN\r\nBEGIN:VEVENT\r\nUID:${crypto.randomUUID()}@getdasha.com\r\nDTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}\r\nDTSTART;VALUE=DATE:${date.replaceAll('-','')}\r\nSUMMARY:Resolve Dasha thesis · ${address.slice(0,6)}…${address.slice(-6)}\r\nDESCRIPTION:${`Thesis: ${thesis}\\nInvalid if: ${invalidation}`.replace(/([,;])/g,'\\$1')}\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
-    form.addEventListener('submit',async event=>{
-      event.preventDefault();
-      const address=$('address').value.trim(), thesis=$('thesis').value.trim(), invalidation=$('invalidation').value.trim(), resolution=$('resolution').value;
-      const invalid=!validAddress(address)?$('address'):!thesis?$('thesis'):!invalidation?$('invalidation'):resolution<localDate()?$('resolution'):null;
-      for(const field of [$('address'),$('thesis'),$('invalidation'),$('resolution')])field.removeAttribute('aria-invalid');
-      if(invalid){$('error').textContent='Add a valid Solana mint address, thesis, invalidation condition, and future resolution date.';invalid.setAttribute('aria-invalid','true');invalid.focus();output.hidden=true;return}
-      $('error').textContent='';
-      const stamp=new Date().toISOString(), body=`DASHA THESIS CARD\nDevice time: ${stamp}\nToken: ${address}\nConfidence: ${$('confidence').value}\nResolve on: ${resolution}\nThesis: ${thesis}\nInvalid if: ${invalidation}\n${DISCLAIMER}`;
-      const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
-      const fingerprint=[...new Uint8Array(bytes)].map(byte=>byte.toString(16).padStart(2,'0')).join(''), fingerprintShort=fingerprint.slice(0,12);
-      const shareText=`DASHA THESIS CARD\nToken: ${address.slice(0,6)}…${address.slice(-6)}\n${$('confidence').value} confidence · resolves ${resolution}\nThesis: ${thesis.slice(0,75)}\nInvalid if: ${invalidation.slice(0,45)}\nChecksum: ${fingerprintShort}\nNot timestamp proof. No wallet. NFA.`;
-      $('receipt-text').textContent=body;
-      $('fingerprint').textContent=`Local checksum: ${fingerprint}`;
-      $('share').href=`https://x.com/intent/post?text=${encodeURIComponent(shareText)}`;
-      $('inspect').href=`https://solscan.io/token/${encodeURIComponent(address)}`;
-      $('copy').onclick=async()=>{await navigator.clipboard.writeText(shareText);$('copy').textContent='Copied'};
-      $('download').onclick=()=>{const link=document.createElement('a');link.download=`dasha-thesis-${fingerprintShort}.png`;link.href=card(body.split('\n'),fingerprintShort).toDataURL('image/png');link.click()};
-      $('remind').onclick=()=>{const link=document.createElement('a');link.download=`dasha-resolution-${resolution}.ics`;link.href=URL.createObjectURL(new Blob([calendar(resolution,address,thesis,invalidation)],{type:'text/calendar'}));link.click();URL.revokeObjectURL(link.href)};
-      output.hidden=false;output.scrollIntoView({behavior:'smooth',block:'start'});
+/* Drop non-product personal publisher JSON-LD if a host page still injects it. */
+(function () {
+  try {
+    var re = new RegExp(['pot','ter','lab'].join('') + '|John\\s*Potter', 'i');
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(function (s) {
+      var t = s.textContent || '';
+      if (re.test(t)) s.remove();
     });
-  
+  } catch (e) {}
+})();
 </script>
 
-<script>
-/* Worked-example prefill. Fills the thesis and invalidation only — never the address.
-   "We never guess an address" is a promise the page makes one section down, and suggesting
-   a token in a starter template would break it. */
-for (const b of document.querySelectorAll(".exbtn")) {
-  b.addEventListener("click", () => {
-    document.getElementById("thesis").value = b.dataset.t;
-    document.getElementById("invalidation").value = b.dataset.i;
-    var r = document.getElementById("resolution");
-    if (r) { var d = new Date(); d.setDate(d.getDate() + (+b.dataset.days || 21));
-             r.value = d.toISOString().slice(0,10); }
-    const a = document.getElementById("address");
-    a.scrollIntoView({behavior:"smooth", block:"center"});
-    a.focus({preventScroll:true});
-  });
+<style>
+ :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.32);--muted:#e6dcc4}
+ *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:12px}body{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif}
+ section[id],#token,#lobby,#simp,#remix,#stills,#oss,#voice,#top{scroll-margin-top:16px}
+ .dasha{min-height:100vh;overflow-x:hidden;background:radial-gradient(circle at 80% 5%,rgba(124,77,255,.35),transparent 32rem),radial-gradient(circle at 5% 65%,rgba(255,59,129,.2),transparent 28rem),var(--ink)}
+ .dasha a{color:inherit!important}.dasha h1,.dasha h2,.dasha h3{font-family:Arial,Helvetica,sans-serif!important}.dasha h1,.dasha h2,.dasha h3{color:var(--paper)!important}.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.nav{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+ .skip{position:absolute;left:12px;top:12px;z-index:50;padding:10px 14px;background:var(--acid);color:var(--ink)!important;font-weight:950;text-transform:uppercase;letter-spacing:.06em;text-decoration:none!important;border-radius:999px;transform:translateY(-160%);transition:transform .15s}.skip:focus,.skip:focus-visible{transform:translateY(0);outline:3px solid var(--paper);outline-offset:3px}
+ .brand{font-weight:950;font-size:22px;letter-spacing:-1px;text-decoration:none}.brand span{color:var(--acid)}.navlinks{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}.navlinks a{text-decoration:none;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.navlinks a:hover{text-decoration:underline;text-underline-offset:5px}.navlinks .pill{text-decoration:none!important}.navlinks .pill:hover{text-decoration:none}
+ .pill{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border:1px solid var(--paper);border-radius:999px;text-decoration:none!important;font-weight:950!important;text-transform:uppercase;letter-spacing:.06em;box-shadow:4px 4px 0 var(--paper);transition:transform .18s,box-shadow .18s}.pill:hover{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--paper)}.pill.primary{background:var(--acid);border-color:var(--acid);color:var(--ink)!important;box-shadow:4px 4px 0 var(--hot)}.pill.lobby{background:rgba(124,77,255,.35);border-color:var(--paper);box-shadow:4px 4px 0 var(--violet)}
+ .dasha-hero{min-height:640px;display:grid;grid-template-columns:1.05fr .55fr .85fr;gap:28px;align-items:center;padding:56px 0 64px}.dasha-hero>*{min-width:0}.dasha-hero .actions{max-width:100%;box-sizing:border-box}
+ h1{margin:18px 0 20px;font-size:clamp(68px,11vw,148px);line-height:.76;letter-spacing:-.075em;text-transform:uppercase;font-weight:950}.stroke{color:var(--acid);-webkit-text-stroke:0}.hero-ca{display:flex;align-items:center;gap:10px;width:min(100%,650px);padding:11px 13px;border:1px solid var(--acid);background:rgba(223,255,0,.1);color:var(--paper)!important;text-decoration:none!important}.hero-ca span{flex:0 0 auto;color:var(--acid);font-size:12px;font-weight:950;letter-spacing:.12em}.hero-ca code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--paper)}.actions{display:flex;flex-wrap:wrap;gap:16px;margin:24px 0}.micro{font-size:14px;line-height:1.55;color:var(--muted);max-width:570px}.micro a{color:var(--paper);font-weight:800;text-underline-offset:3px}
+ .hero-still{position:relative;aspect-ratio:3/4;border:2px solid var(--paper);box-shadow:12px 12px 0 var(--violet);overflow:hidden;transform:rotate(-1.6deg);background:#120c18}.hero-still img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.05) contrast(1.04)}
+ .poster{position:relative;aspect-ratio:4/5;transform:rotate(2.2deg);border:2px solid var(--paper);box-shadow:16px 16px 0 var(--hot);background:#1a1026;overflow:hidden}.poster-grid{height:100%;display:grid;grid-template-rows:1.15fr .85fr 1fr}.poster-tile{padding:24px;display:flex;flex-direction:column;justify-content:space-between;text-decoration:none!important;border-bottom:2px solid var(--paper);transition:filter .18s}.poster-tile:hover{filter:brightness(1.18)}.poster-tile:nth-child(1){background:linear-gradient(145deg,#351b62,#100a18)}.poster-tile:nth-child(2){background:linear-gradient(145deg,var(--hot),#31101e)}.poster-tile:nth-child(3){background:linear-gradient(145deg,#141119,#27235f)}.poster-tile small{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.poster-tile strong{max-width:88%;font-size:clamp(22px,3vw,40px);line-height:.92;letter-spacing:-.04em;text-transform:uppercase}.sticker{pointer-events:none;position:absolute;top:22px;right:-3px;z-index:2;background:var(--acid);color:var(--ink);padding:12px 16px;font-size:14px;font-weight:950;transform:rotate(7deg);border:2px solid var(--ink)}
+ .stills-sec{padding:72px 0;border-top:1px solid var(--line)}.stills-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.still{margin:0;aspect-ratio:4/5;border:1px solid var(--line);overflow:hidden;background:#100d15}.still img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s,filter .25s}.still:hover img{transform:scale(1.04);filter:brightness(1.08)}
+ .ticker{border-block:1px solid var(--line);overflow:hidden;background:var(--acid);color:var(--ink);transform:rotate(-1deg);width:102%;margin-left:-1%}.ticker div{white-space:nowrap;padding:13px 0;font-weight:950;letter-spacing:.08em;text-transform:uppercase;animation:scroll 18s linear infinite}@keyframes scroll{to{transform:translateX(-50%)}}
+ section{padding:88px 0}.section-kicker{color:var(--acid);text-transform:uppercase;font-size:12px;font-weight:900;letter-spacing:.16em}.section-title{max-width:900px;margin:12px 0 36px;font-size:clamp(42px,7vw,86px);line-height:.92;letter-spacing:-.055em;text-transform:uppercase}
+ .seed-intro{max-width:650px;margin:0 0 28px;color:var(--muted);font-size:17px;line-height:1.5}.seeds{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.seed{min-height:196px;padding:20px;border:1px solid var(--line);color:var(--paper);text-decoration:none!important;display:flex;flex-direction:column;justify-content:space-between;transition:transform .18s}.seed:hover{transform:translateY(-5px)}.seed small{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--acid);opacity:1}.seed strong{font-size:clamp(20px,2.2vw,30px);line-height:1.02;letter-spacing:-.035em;text-transform:uppercase;color:var(--paper)}.seed span{font-size:12px;font-weight:950;text-transform:uppercase;text-decoration:underline;text-underline-offset:4px;color:var(--paper)}.seed:nth-child(1){background:linear-gradient(145deg,#351b62,#100a18)}.seed:nth-child(2){background:linear-gradient(145deg,#ff3b81,#31101e)}.seed:nth-child(3){background:linear-gradient(145deg,#19171c,#070608)}.seed:nth-child(4){background:var(--acid);color:var(--ink)!important}.seed:nth-child(4) small,.seed:nth-child(4) strong,.seed:nth-child(4) span{color:var(--ink)!important}.seed:nth-child(5){background:linear-gradient(145deg,#20204c,#070608)}
+ .contract{border:1px solid var(--line);padding:38px;background:linear-gradient(135deg,rgba(124,77,255,.2),rgba(255,59,129,.12));display:grid;grid-template-columns:1fr auto;gap:28px;align-items:end}.contract h2{margin:8px 0 20px;font-size:clamp(42px,7vw,88px);line-height:.86;text-transform:uppercase;letter-spacing:-.05em}.ca{display:flex;align-items:center;gap:12px;max-width:690px;padding:15px 17px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;overflow:hidden}.ca code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all}.copy{flex:0 0 auto;margin-left:auto;border:0;background:var(--acid);color:var(--ink);font-weight:900;min-height:44px;padding:9px 14px;cursor:pointer;border-radius:8px}.copy:hover{filter:brightness(1.05)}.source-note{margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.5}.source-note a{color:var(--paper);font-weight:800;text-underline-offset:3px}.linkrow{display:flex;flex-wrap:wrap;gap:18px;margin-top:20px}.linkrow a{font-size:13px;font-weight:900;text-transform:uppercase;text-underline-offset:4px;color:var(--paper)}.buy-guide{grid-column:1/-1;min-width:0;border-top:1px solid var(--line);padding-top:24px;overflow-wrap:anywhere}.buy-guide h3{margin:0 0 16px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper)}.buy-guide ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0;padding:0;list-style:none;counter-reset:buy}.buy-guide li{min-width:0;counter-increment:buy;color:var(--muted);font-size:15px;line-height:1.5}.buy-guide li:before{content:'0' counter(buy);display:block;margin-bottom:5px;color:var(--acid);font-weight:950}.buy-guide strong{color:var(--paper)}.token-buy-col{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:0;max-width:100%}.token-buy-col .buy-dasha{max-width:100%}.buy-plugin-note{margin:0;font-size:12px;color:var(--muted);line-height:1.4;max-width:22ch;text-align:right}.buy-sticky{display:none}@media(max-width:800px){.buy-sticky:not([hidden]){display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(7,6,8,.94);border-top:1px solid var(--line);backdrop-filter:blur(10px);align-items:center;justify-content:center}.buy-sticky .buy-sticky-copy{flex:0 0 auto;min-height:48px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.4);color:var(--paper);font:inherit;font-weight:950;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}.buy-sticky .buy-dasha{flex:1 1 auto;min-height:48px;max-width:16rem;margin:0;box-shadow:none}.dasha{padding-bottom:72px}}
+ .mint-check{grid-column:1/-1;margin-top:22px;padding-top:22px;border-top:1px solid var(--line)}.mint-check label{display:block;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--acid);margin:0 0 10px}.mint-check input{width:100%;box-sizing:border-box;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);font:14px/1.4 ui-monospace,Menlo,Consolas,monospace}.mint-check input:focus{outline:2px solid var(--acid);outline-offset:2px}.mint-check-out{margin:12px 0 0;min-height:1.4em;font-size:14px;font-weight:700;color:var(--muted)}.mint-check-out.ok{color:var(--acid)}.mint-check-out.bad{color:var(--hot)}.mint-check-out.warn{color:#ffc857}
+ .voice{padding:64px 0 20px;border-top:1px solid var(--line)}.voice .section-title{margin-bottom:18px}.voice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.voice-grid blockquote{margin:0;padding:18px;border:1px solid var(--line);background:rgba(255,255,255,.03);min-height:0;display:flex;flex-direction:column;justify-content:space-between;gap:12px}.voice-grid p{margin:0;font-size:clamp(15px,1.7vw,19px);line-height:1.25;font-weight:800}.voice-grid cite{margin-top:14px;font-style:normal;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--acid)}.voice-grid a{color:inherit!important;text-decoration:none!important}.voice .lede-mini{margin:-8px 0 22px;max-width:46ch;color:var(--muted);font-size:15px;line-height:1.5}
+ .oss-sec{padding:56px 0 48px;border-top:1px solid var(--line)}.oss-sec .section-title{margin:10px 0 12px;font-size:clamp(34px,5.5vw,58px)}.oss-lede{margin:0 0 18px;max-width:48ch;font-size:16px;line-height:1.5;color:var(--muted)}.oss-sec .actions{margin:0}
+.simp-sec{padding:56px 0 48px;border-top:1px solid var(--line)}.simp-sec .section-title{margin:10px 0 12px;font-size:clamp(34px,5.5vw,58px)}.simp-board-root{max-width:720px;display:grid;gap:10px}.simp-status{margin:0;font-size:14px;font-weight:700;color:var(--muted)}.simp-status[data-kind=ok]{color:var(--acid)}.simp-status[data-kind=bad]{color:var(--hot)}.simp-status[data-kind=warn]{color:#ffc857}.simp-privacy{margin:0;font-size:14px;line-height:1.5;color:var(--muted);max-width:48ch}.simp-board{display:grid;gap:8px}.simp-row{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04)}.simp-rank{font-size:22px;font-weight:950;color:var(--acid)}.dasha .simp-handle{color:var(--paper)!important;font-size:clamp(16px,2.2vw,22px);font-weight:950;text-decoration:none!important}.simp-badge{display:inline-block;margin-left:8px;padding:4px 8px;background:var(--hot);color:var(--ink);font-size:10px;font-weight:950;letter-spacing:.05em;text-transform:uppercase;border-radius:6px}.simp-basis,.simp-pts,.simp-badges{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:var(--muted)}.simp-badges{color:var(--acid);text-transform:uppercase}.dasha .simp-evidence{color:var(--paper)!important;font-size:13px;font-weight:900;text-underline-offset:3px}.simp-open{grid-template-columns:52px 1fr}.simp-actions,.simp-tool-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.simp-action,.simp-tool{min-height:44px;padding:0 16px;border:1px solid var(--acid);border-radius:999px;background:var(--acid);color:var(--ink);font:inherit;font-weight:950;font-size:12px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}.simp-action:hover,.simp-tool:hover{filter:brightness(1.05)}.simp-action:disabled,.simp-tool:disabled{opacity:.55;cursor:not-allowed;filter:none}.simp-me,.simp-season.simp-tools{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:10px;background:rgba(124,77,255,.09)}.simp-season{color:var(--muted)}@media(max-width:600px){.simp-row{grid-template-columns:44px 1fr}.simp-evidence{grid-column:2}.simp-tool{width:100%}}
+ footer{padding:34px 0 44px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}footer p{max-width:700px;margin:0;line-height:1.55;color:var(--muted)}footer a{font-weight:800;color:var(--paper);text-underline-offset:3px}footer a:hover{text-decoration:underline}
+ .brand,.navlinks a,.micro a,.linkrow a,.simp-evidence{display:inline-flex;align-items:center;min-height:44px}.brand,.navlinks a,.simp-evidence{min-width:44px}.navlinks a{justify-content:center}.linkrow{gap:8px 18px}
+ :focus-visible{outline:3px solid var(--acid);outline-offset:4px}@media(max-width:1000px){.seeds{grid-template-columns:repeat(3,1fr)}.stills-grid{grid-template-columns:repeat(3,1fr)}.dasha-hero{grid-template-columns:1fr 1fr;gap:22px}.hero-still{grid-column:1/-1;max-width:280px;margin:0 auto;aspect-ratio:4/5}}@media(max-width:800px){.navlinks>a:not(.pill){display:none}.navlinks{gap:8px}.voice-grid{grid-template-columns:1fr}.dasha-hero{grid-template-columns:1fr;padding-top:45px}.hero-still{max-width:100%;width:72%;transform:rotate(0)}.poster{width:90%;margin:20px auto 0}.stills-grid{grid-template-columns:repeat(2,1fr)}.contract{grid-template-columns:1fr}.token-buy-col{align-items:stretch;width:100%}.token-buy-col .buy-dasha{width:100%;justify-content:center}.buy-plugin-note{max-width:none;text-align:left}.buy-guide ol{grid-template-columns:1fr}.dasha-hero{overflow:hidden}.section-title{margin-bottom:32px}.seed-intro{margin-top:0}.seeds{grid-template-columns:1fr 1fr}section{padding:76px 0}}@media(max-width:480px){.wrap{width:min(100% - 22px,1180px)}.nav{height:68px}.pill{padding:0 14px}.dasha-hero{min-height:auto}.hero-still{width:86%}.poster{width:94%;box-shadow:9px 9px 0 var(--hot)}.contract{padding:24px}.ca{font-size:12px;flex-wrap:wrap;align-items:stretch;gap:10px}.ca code{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-all;line-height:1.35}.copy{margin-left:0;width:100%}.linkrow{gap:6px 12px}.linkrow a{font-size:12px}.nav .pill{min-height:44px;font-size:11px;padding:0 12px}.seeds{grid-template-columns:1fr}.seed{min-height:180px}.stills-grid{gap:8px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.ticker div{animation:none}.pill,.seed,.poster-tile,.skip,.still img{transition:none}.seed:hover{transform:none}.poster-tile:hover{filter:none}.still:hover img{transform:none;filter:none}}
+@media(prefers-contrast:more){.stroke{color:var(--paper);-webkit-text-stroke:0}.micro,.seed-intro,.buy-plugin-note,.simp-privacy,.oss-lede{color:var(--paper)}}
+.buy-plugin-note{display:none}
+@media(forced-colors:active){.stroke{color:CanvasText;-webkit-text-stroke:0}.pill{border:2px solid ButtonText}.pill.primary{background:Highlight;color:HighlightText}}
+ .simp-board-root{max-width:780px}.simp-board-root>.simp-quiz{order:-10}.simp-breakdown{margin-top:5px;color:var(--muted);font-size:12px}.simp-breakdown summary,.simp-tools>summary{width:max-content;cursor:pointer;text-decoration:underline;text-underline-offset:3px}.simp-quiz-active{max-width:900px}.simp-sec:has(.simp-quiz-active)>.wrap>.section-kicker,.simp-sec:has(.simp-quiz-active)>.wrap>.section-title,.simp-sec:has(.simp-quiz-active)>.wrap>.simp-privacy{display:none}.simp-sec:has(.simp-quiz-active){padding-block:12px}.simp-row{padding-block:11px}.simp-row .simp-pts{font-weight:800;color:var(--paper)}
+ @media(max-width:600px){.simp-sec{padding-bottom:calc(48px + env(safe-area-inset-bottom,0px))}.simp-quiz-title{max-width:12ch;line-height:1}.simp-row{padding:11px 12px}.simp-row .simp-badge{display:block;width:max-content;margin:5px 0 0}.simp-quiz-open body{padding-bottom:0}}
+</style>
+<main class="dasha" id="top">
+  <a class="skip" href="#simp">Skip to board</a><a class="skip" href="#token" style="left:148px">Skip to mint</a><a class="skip" href="#remix" style="left:280px">Skip to Studio</a>
+  <nav class="nav wrap" aria-label="Main navigation"><a class="brand" href="#top" aria-label="getdasha home">$<span>DASHA</span></a><div class="navlinks"><a href="/studio" aria-label="Open Dasha meme Studio">Studio</a><a href="https://lobby.getdasha.com/chess" aria-label="Play holder chess">Chess</a><a class="pill lobby" href="/lobby">Lobby</a><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter">Buy $dasha ↗</a></div></nav>
+  <header class="dasha-hero wrap">
+    <div><h1>Make the<br><span class="stroke">timeline stranger.</span></h1><a class="hero-ca" href="#token" aria-label="Verify the Dasha contract address"><span>CA</span><code>53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code></a><div class="actions"><a class="pill primary" href="/studio#look=ticket&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha">Open Studio →</a><a class="pill" href="#simp" aria-label="Take the Dasha quiz and open the board">Take quiz →</a><a class="pill lobby" href="/lobby">Open lobby →</a><a class="pill buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter">Buy $dasha ↗</a></div><p class="micro"><a href="#token" aria-label="Jump to mint verify">Verify CA ↓</a> · <a href="#simp" aria-label="Jump to quiz and board">Quiz ↓</a> · <a href="https://lobby.getdasha.com/chess" aria-label="Play holder chess">Chess →</a> · <a href="/lobby" aria-label="Open public lobby">Lobby →</a> · <a href="https://x.com/search?q=%24dasha&amp;src=typed_query&amp;f=live" target="_blank" rel="noopener noreferrer">$dasha live ↗</a></p></div>
+    <figure class="hero-still"><img src="https://pbs.twimg.com/media/Gkoqvc4WIAAYPJM?format=jpg&amp;name=small" alt="Dasha Nekrasova portrait still" width="480" height="640" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer"></figure>
+    <div class="poster"><span class="sticker">NO BORING ALLOWED</span><div class="poster-grid" aria-label="Editable Dasha Studio examples"><a class="poster-tile" href="/studio#look=poster&amp;format=square&amp;line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in"><small>Post · Poster</small><strong>How u crying at the casino and u can’t even get in</strong></a><a class="poster-tile" href="/studio#look=ticket&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha"><small>Story · Ticket</small><strong>It’s time $dasha</strong></a><a class="poster-tile" href="/studio#look=print&amp;format=square&amp;line=All%20I%20want%20is%20free%20healthcare%2C%20honey"><small>Post · Printout</small><strong>All I want is free healthcare, honey</strong></a></div></div>
+  </header>
+  <div class="ticker" aria-hidden="true"><div>$DASHA · IT’S TIME · MAKE MEMES · VERIFY THE MINT · STAY WEIRD · MAKE THE TIMELINE STRANGER · $DASHA · IT’S TIME · MAKE MEMES · VERIFY THE MINT · STAY WEIRD · MAKE THE TIMELINE STRANGER · </div></div>
+  <section class="simp-sec" id="simp" aria-labelledby="simp-title">
+    <div class="wrap">
+      <div class="section-kicker">Dasha simp quiz</div>
+      <h2 class="section-title" id="simp-title">Simp board.</h2>
+      <p class="simp-privacy">Quick 10Q to share · Deep 20Q on the board · ranked by lore and contributions. <a href="https://www.getdasha.com/?quiz=1#simp">Share the quiz invite →</a></p>
+      <div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"></div>
+    </div>
+  </section>
+  <section class="stills-sec" id="stills" aria-label="Stills">
+    <div class="wrap">
+      <div class="section-kicker">Stills</div>
+      <h2 class="section-title">Look.</h2>
+      <div class="stills-grid">
+        <figure class="still"><img src="https://pbs.twimg.com/profile_images/556455602331742208/KWkVe0TV.jpeg" alt="Dasha Nekrasova public portrait" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+        <figure class="still"><img src="https://pbs.twimg.com/media/HOpfTEyaIAAOVPy?format=jpg&amp;name=small" alt="Dasha Nekrasova editorial still" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+        <figure class="still"><img src="https://pbs.twimg.com/media/HLDbupNXkAAzfhI?format=jpg&amp;name=small" alt="Dasha Nekrasova archive still" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+        <figure class="still"><img src="https://pbs.twimg.com/media/HJvwn-6XAAAORhZ?format=jpg&amp;name=small" alt="Dasha Nekrasova media still" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+        <figure class="still"><img src="https://pbs.twimg.com/media/HPFHt5FXQAAlwld?format=jpg&amp;name=small" alt="Dasha Nekrasova portrait still" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+        <figure class="still"><img src="https://pbs.twimg.com/media/Gud7XuWWoAA2SvH?format=jpg&amp;name=small" alt="Dasha Nekrasova public image" width="400" height="500" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>
+      </div>
+    </div>
+  </section>
+  <section id="remix"><div class="wrap"><div class="section-kicker">Dasha Studio</div><h2 class="section-title">Start here.</h2><div class="seeds">
+    <a class="seed" href="/studio#look=poster&amp;format=square&amp;line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in" aria-label="Open line in Dasha Studio"><small>Post · Poster</small><strong>How u crying at the casino and u can’t even get in</strong><span>Open →</span></a>
+    <a class="seed" href="/studio#look=ticket&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha" aria-label="Open line in Dasha Studio"><small>Story · Ticket</small><strong>It’s time $dasha</strong><span>Open →</span></a>
+    <a class="seed" href="/studio#look=print&amp;format=square&amp;line=All%20I%20want%20is%20free%20healthcare%2C%20honey" aria-label="Open line in Dasha Studio"><small>Post · Printout</small><strong>All I want is free healthcare, honey</strong><span>Open →</span></a>
+    <a class="seed" href="/studio#look=marquee&amp;format=banner&amp;line=Friday%20in%20the%204HL%20you%20can%20really%20feel%20the%20pull%20of%20the%20weekend" aria-label="Open line in Dasha Studio"><small>Banner · Marquee</small><strong>Friday in the 4HL you can really feel the pull of the weekend</strong><span>Open →</span></a>
+    <a class="seed" href="/studio#look=signal&amp;format=story&amp;line=Nobody%20is%20coming%20to%20save%20the%20timeline." aria-label="Open line in Dasha Studio"><small>Story · Signal</small><strong>Nobody is coming to save the timeline.</strong><span>Open →</span></a>
+  </div></div></section>
+  <section class="voice" id="voice" aria-label="Public lines">
+  <div class="wrap">
+    <div class="voice-grid">
+      <blockquote><p>“Friday in the 4HL you can really feel the pull of the weekend”</p><cite><a href="https://x.com/PerryALPHA/status/1938653816548712548" target="_blank" rel="noopener noreferrer">@PerryALPHA</a></cite></blockquote>
+      <blockquote><p>“What if we kissed at 102k mc”</p><cite><a href="https://x.com/dash_eats/status/2085923569029242921" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+      <blockquote><p>“It’s time $dasha”</p><cite><a href="https://x.com/dash_eats/status/2085544531739754651" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+      <blockquote><p>“Bull call”</p><cite><a href="https://x.com/dash_eats/status/2085905967426986334" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+      <blockquote><p>“Brevity is the soul of wit you stupid fucking bitch”</p><cite><a href="https://x.com/dash_eats/status/1743055416169304246" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+      <blockquote><p>“The pain of my entire life lifted at Erewhon Pasadena”</p><cite><a href="https://x.com/dash_eats/status/2084021854386454629" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+      <blockquote><p>“How u crying at the casino and u can’t even get in”</p><cite><a href="https://x.com/dash_eats/status/2085405075686801789" target="_blank" rel="noopener noreferrer">@dash_eats</a></cite></blockquote>
+    </div>
+    <p class="lede-mini" style="margin-top:18px"><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">Open @dash_eats ↗</a> · <a href="https://x.com/PerryALPHA" target="_blank" rel="noopener noreferrer">@PerryALPHA ↗</a> · <a href="https://x.com/search?q=%24dasha&amp;src=typed_query&amp;f=live" target="_blank" rel="noopener noreferrer">Live $dasha search ↗</a></p>
+  </div>
+</section>
+  <section id="token"><div class="wrap contract"><div><div class="section-kicker">The only address that matters</div><h2>Verify.<br>Then enter.</h2><div class="ca"><code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code><button class="copy" type="button" aria-label="Copy contract address">COPY</button></div><p class="source-note">Mint from a public <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats source post ↗</a>.</p><div class="linkrow"><a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer" aria-label="Public mint source post on X">Mint source post ↗</a><a href="https://www.geckoterminal.com/solana/pools/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7" target="_blank" rel="noopener noreferrer" aria-label="$dasha GeckoTerminal chart">GeckoTerminal chart ↗</a><a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="$dasha on Solscan">Solscan explorer ↗</a><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Jupiter swap for $dasha">Open Jupiter swap ↗</a><a href="https://github.com/Uuriko/dasha-desk/contribute" target="_blank" rel="noopener noreferrer" aria-label="Contribute on GitHub">Contribute on GitHub ↗</a></div></div><div class="token-buy-col"><a class="pill primary buy-dasha" id="token-buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter">Buy $dasha ↗</a><p class="buy-plugin-note">Opens Jupiter with SOL and $dasha selected.</p></div><div class="buy-guide"><h3>How to buy</h3><ol><li>Get <strong>SOL</strong> in a wallet you control.</li><li>Match the <strong>full mint</strong> on this page.</li><li>Swap on <strong>Jupiter</strong>.</li></ol></div><div class="mint-check"><label for="mint-check">Is this the mint?</label><input id="mint-check" type="text" spellcheck="false" autocomplete="off" placeholder="Paste a mint or explorer URL…" inputmode="text"/><p class="mint-check-out" id="mint-check-out" role="status" aria-live="polite">Paste any address to compare.</p></div></div></section>
+  <section class="oss-sec" id="oss" aria-labelledby="oss-title">
+    <div class="wrap">
+      <div class="section-kicker">Open source</div>
+      <h2 class="section-title" id="oss-title">Contribute code.</h2>
+      <p class="oss-lede">The mint desk is MIT on GitHub. Become an open-source project contributor with a PR or idea.</p>
+      <div class="actions">
+        <a class="pill primary" href="https://github.com/Uuriko/dasha-desk/contribute" target="_blank" rel="noopener noreferrer" aria-label="Contribute on GitHub">Start with a good first issue ↗</a>
+        <a class="pill" href="https://github.com/Uuriko/dasha-desk/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">How to contribute ↗</a>
+        <a class="pill" href="https://github.com/Uuriko/dasha-desk/issues/new/choose" target="_blank" rel="noopener noreferrer">Propose an idea ↗</a>
+      </div>
+    </div>
+  </section>
+<footer><div class="wrap"><p><a href="#token" aria-label="Verify mint address">Mint</a> · <a href="/how-to-buy">How to buy</a> · <a href="/studio" aria-label="Open Dasha Studio">Studio</a> · <a href="https://lobby.getdasha.com/chess" aria-label="Play holder chess">Chess</a> · <a href="#stills" aria-label="Culture stills">Stills</a> · <a href="/lobby" aria-label="Public lobby chat">Lobby</a> · <a href="/dasha" aria-label="Mint desk">Desk</a> · <a href="#oss" aria-label="Open source contribute">Open source</a> · <a href="https://github.com/Uuriko/dasha-desk/contribute" target="_blank" rel="noopener noreferrer" aria-label="Contribute on GitHub">Contribute on GitHub ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p></div></footer>
+<div class="buy-sticky" id="buy-sticky" hidden><button type="button" class="buy-sticky-copy" id="sticky-copy" aria-label="Copy contract address">Copy mint</button><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter">Buy $dasha ↗</a></div>
+</main>
+<script>(()=>{
+const mint='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+const SIMP_SRC='https://lobby.getdasha.com/client/simp-board.js';
+const SIMP_SRI='sha384-KG1eCKsalnwQjgNZ3J3CCwG4he0oBofoBSM9KQaLFod973FwyEF9d8Br9L/nUG8Z';
+function normalizeMint(raw){
+  var s=String(raw||'').trim().replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,'');
+  var u=s.match(/(?:token\/|coin\/|buy=|mint=|outputMint=)([1-9A-HJ-NP-Za-km-z]{32,50})/i);
+  if(u)return u[1];
+  var m=s.match(/[1-9A-HJ-NP-Za-km-z]{32,50}/);
+  return m?m[0]:s;
 }
-</script>
-
-<script>
-(function(){
-  var KEY="dasha.calls", list=document.getElementById("calllist"), streakEl=document.getElementById("streak");
-  var store={ok:true};
-  try{ localStorage.setItem(KEY+".t","1"); localStorage.removeItem(KEY+".t"); }catch(e){ store.ok=false; }
-
-  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } }
-  function save(v){ try{ localStorage.setItem(KEY, JSON.stringify(v)); }catch(e){} }
-  function today(){ return new Date().toISOString().slice(0,10); }
-  function due(c){ return c.status==="open" && c.resolve && c.resolve <= today(); }
-
-  /* Counts SETTLED calls, back from the most recent, stopping at the first ghosted one.
-     Never counts calls merely written — rewarding volume is the documented way this breaks. */
-  function streak(cs){
-    var done=cs.filter(function(c){return c.status!=="open"||due(c)})
-              .sort(function(a,b){return (a.resolve||"").localeCompare(b.resolve||"")});
-    var n=0;
-    for(var i=done.length-1;i>=0;i--){ if(done[i].status==="open") break; n++; }
-    return n;
+function checkMint(raw, expected){
+  expected=expected||mint;
+  var n=normalizeMint(raw);
+  if(!n)return{state:'empty',message:'Paste any address to compare.'};
+  if(n===expected)return{state:'ok',message:'Exact match — this is the associated mint.'};
+  if(n.length>=32&&n.length<=50&&/^[1-9A-HJ-NP-Za-km-z]+$/.test(n))return{state:'bad',message:'Does not match the associated mint.'};
+  return{state:'warn',message:'Not a Solana mint format.'};
+}
+globalThis.DashaLanding={mint:mint,normalizeMint:normalizeMint,checkMint:checkMint};
+if(typeof document==='undefined')return;
+(function(){var d=0;function go(){if(d)return;d=1;var s=document.createElement('script');s.src=SIMP_SRC;s.integrity=SIMP_SRI;s.crossOrigin='anonymous';s.defer=1;s.setAttribute('data-dasha-simp-board-client','');document.head.appendChild(s)}var t=document.getElementById('dasha-simp-board')||document.getElementById('simp');if(t&&window.IntersectionObserver)new IntersectionObserver(function(es,o){if(es.some(function(e){return e.isIntersecting})){o.disconnect();go()}},{rootMargin:'480px 0px'}).observe(t);else setTimeout(go,1400)})();
+const b=document.querySelector('.copy'),m=document.querySelector('#mint');
+b?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(m.textContent);b.textContent='COPIED'}catch{b.textContent='SELECT';const s=getSelection(),r=document.createRange();r.selectNodeContents(m);s.removeAllRanges();s.addRange(r)}setTimeout(()=>b.textContent='COPY',1800)});
+function copyMint(btn){
+  var text=mint;
+  var el=document.getElementById('mint');
+  if(el&&el.textContent)text=el.textContent.trim();
+  function done(){if(btn){var prev=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=prev},1400);}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){fallback()});}
+  else fallback();
+  function fallback(){try{var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();}catch(e){}}
+}
+const inp=document.getElementById('mint-check'),out=document.getElementById('mint-check-out');
+function paintCheck(){
+  if(!inp||!out)return;
+  var r=checkMint(inp.value,mint);
+  out.className='mint-check-out'+(r.state==='empty'?'':' '+r.state);
+  out.textContent=r.message;
+}
+if(inp){inp.addEventListener('input',paintCheck);inp.addEventListener('paste',function(){setTimeout(paintCheck,0)});}
+var sticky=document.getElementById('buy-sticky');
+var stickyCopy=document.getElementById('sticky-copy');
+if(stickyCopy)stickyCopy.addEventListener('click',function(){copyMint(stickyCopy);});
+var tokenBuy=document.getElementById('token-buy');
+var lobbyRoot=document.getElementById('dasha-lobby')||document.getElementById('lobby');
+var tokenBuyVisible=false, lobbyVisible=false;
+function paintSticky(){
+  if(!sticky)return;
+  // Never cover the lobby composer — chat Send must stay tappable.
+  sticky.hidden=!(!tokenBuyVisible && !lobbyVisible);
+}
+if(sticky&&typeof IntersectionObserver==='function'){
+  if(tokenBuy){
+    new IntersectionObserver(function(entries){var e=entries[0];tokenBuyVisible=!!(e&&e.isIntersecting);paintSticky();},{threshold:0.15,rootMargin:'0px 0px -8% 0px'}).observe(tokenBuy);
   }
-
-  function esc(t){ var d=document.createElement("div"); d.textContent=t==null?"":t; return d.innerHTML; }
-
-  function render(){
-    var cs=load();
-    if(!store.ok){ list.innerHTML="<p class=\"callmeta\">This browser is blocking local storage, so calls cannot be kept here.</p>"; return; }
-    var sec=document.getElementById("calls");
-    if(!cs.length){ sec.hidden=true; streakEl.hidden=true; list.innerHTML=""; return; }
-    sec.hidden=false;
-    var n=streak(cs);
-    streakEl.hidden=false;
-    streakEl.innerHTML = n>0 ? "You settle your calls. <b>"+n+"</b> in a row." : "Settle a call to start a run.";
-    list.innerHTML = cs.slice().reverse().map(function(c,i){
-      var idx=cs.length-1-i, chip, acts="";
-      if(c.status==="wrong") chip="<span class=\"chip wrong\">Called it wrong. Said so.</span>";
-      else if(c.status==="held") chip="<span class=\"chip\">Held</span>";
-      else if(due(c)) chip="<span class=\"chip due\">Due &mdash; settle it</span>";
-      else chip="<span class=\"chip\">Open</span>";
-      if(c.status==="open" && due(c))
-        acts="<div class=\"callacts\"><button data-s=\"held\" data-i=\""+idx+"\">It held</button>"+
-             "<button data-s=\"wrong\" data-i=\""+idx+"\">It fired &mdash; I was wrong</button></div>";
-      return "<div class=\"callrow\"><div class=\"calltop\">"+chip+
-        "<span class=\"callmeta\">resolves "+esc(c.resolve||"?")+"</span></div>"+
-        "<p class=\"callth\">"+esc(c.thesis)+"</p>"+
-        "<p class=\"callmeta\">Invalid if: "+esc(c.inval)+"</p>"+ acts +
-        "<div class=\"callacts\"><button class=\"del\" data-d=\""+idx+"\">Delete</button></div></div>";
-    }).join("");
+  if(lobbyRoot){
+    new IntersectionObserver(function(entries){var e=entries[0];lobbyVisible=!!(e&&e.isIntersecting);paintSticky();},{threshold:0.08,rootMargin:'0px 0px -12% 0px'}).observe(lobbyRoot);
   }
-
-  list.addEventListener("click", function(e){
-    var b=e.target.closest("button"); if(!b) return;
-    var cs=load();
-    if(b.dataset.d!=null){ cs.splice(+b.dataset.d,1); }
-    else if(b.dataset.s){ cs[+b.dataset.i].status=b.dataset.s; }
-    save(cs); render();
-  });
-
-  var out=document.getElementById("output"), seen="";
-  new MutationObserver(function(){
-    if(out.hasAttribute("hidden")) return;
-    var v=function(id){ var el=document.getElementById(id); return el?el.value:""; };
-    var fp=(document.getElementById("fingerprint")||{}).textContent||"";
-    if(!fp || fp===seen) return;
-    seen=fp;
-    var cs=load();
-    cs.push({thesis:v("thesis"), inval:v("invalidation"), resolve:v("resolution"),
-             fp:fp, created:new Date().toISOString(), status:"open"});
-    save(cs); render();
-  }).observe(out,{attributes:true,attributeFilter:["hidden"],childList:true,subtree:true,characterData:true});
-
-  render();
-})();
-</script>
-
-<script>
-(function(){
-  var raw=new URLSearchParams(location.search).get("mint")||"";
-  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(raw)) return;
-  var a=document.getElementById("address"); if(!a) return;
-  a.value=raw;
-  var n=document.getElementById("fromlink");
-  if(n){ n.textContent="";
-    n.appendChild(document.createTextNode("Token filled in from the link you followed: "));
-    var b=document.createElement("b"); b.textContent=raw.slice(0,6)+"\u2026"+raw.slice(-6); n.appendChild(b);
-    n.appendChild(document.createTextNode(". Change it if that is not the one you mean."));
-    n.hidden=false; }
-})();
-</script>
-</body>
-</html>
+  paintSticky();
+}else if(sticky){sticky.hidden=false;}
+globalThis.DashaLanding.copyMint=copyMint;
+})()</script>

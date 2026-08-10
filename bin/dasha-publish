@@ -1,41 +1,9 @@
 #!/usr/bin/env bash
-# Prepare-and-publish the Thesis Card page. Everything runs EXCEPT the upload unless
-# --confirm is passed. Publishing is outbound and needs authorization in the user's request;
-# preparing is not publishing, and that distinction holds even when we are in a hurry.
+# OBSOLETE (2026-08-08). Dasha ships via Webflow + dasha-ship.mjs, not catbox/Thesis.
+# Kept as a hard stop so agents never re-upload landing to catbox or gate on conviction receipts.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-FILE=dasha-landing.html
-say(){ printf '%-42s %s\n' "$1" "$2"; }
-
-[ -f "$FILE" ] || { echo "ABORT: $FILE missing"; exit 1; }
-say "file" "$FILE ($(du -h "$FILE" | cut -f1))"
-
-# Chained greps under `set -o pipefail` abort the script when they match nothing — which is
-# the PASSING case for both checks below. node avoids the whole class.
-node -e '
-const fs=require("fs"); const s=fs.readFileSync(process.argv[1],"utf8");
-const refs=[...s.matchAll(/(?:src|href)="([^"#]*)"/g)].map(m=>m[1])
-  .filter(u=>!u.startsWith("data:")&&!u.startsWith("#"));
-const external=refs.filter(u=>/^https?:\/\//.test(u)&&!/webflow\.io/.test(u));
-const relative=refs.filter(u=>u.startsWith("./")||u.startsWith("/"));
-const pad=(k,v)=>console.log(k.padEnd(42)+v);
-pad("external fetches (must be 0)", external.length + (external.length?" -> "+external.join(", "):""));
-pad("relative links (dead if sent alone)", relative.length + (relative.length?" -> "+relative.join(", "):""));
-if(external.length||relative.length){console.error("ABORT: page is not self-sufficient");process.exit(1)}
-' "$FILE"
-
-say "landing gate" "$(node dasha-landing.test.mjs >/dev/null 2>&1 && echo PASS || echo FAIL)"
-say "standalone gate" "$(node dasha-conviction-receipt.test.mjs >/dev/null 2>&1 && echo PASS || echo FAIL)"
-node dasha-landing.test.mjs >/dev/null 2>&1 || { echo "ABORT: landing gate failed"; exit 1; }
-
-if [ "${1:-}" != "--confirm" ]; then
-  printf '\nPREPARED — nothing has been sent.\nAll checks passed. When the user asks to publish, run:\n    bin/dasha-publish --confirm\n'
-  exit 0
-fi
-
-printf '\nUploading to catbox...\n'
-URL=$(curl -sS -F "reqtype=fileupload" -F "fileToUpload=@$FILE" https://catbox.moe/user/api.php)
-case "$URL" in
-  https://*) echo "$URL"; echo "$URL" > /tmp/dg-busy/dasha-published-url.txt;;
-  *) echo "upload did not return a URL: $URL"; exit 1;;
-esac
+echo "ABORT: bin/dasha-publish is retired."
+echo "Use:  node dasha-ship.mjs --ship"
+echo "  or: npm run dasha:ship"
+echo "Do not upload dasha-landing.html to catbox; do not run conviction-receipt gates for publish."
+exit 2

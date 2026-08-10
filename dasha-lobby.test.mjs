@@ -1,0 +1,556 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+
+const root = new URL('./', import.meta.url);
+const landing = await readFile(new URL('./dasha-landing.html', root), 'utf8');
+const page = await readFile(new URL('./dasha-lobby-page.html', root), 'utf8');
+const client = await readFile(new URL('./dasha-lobby-client.js', root), 'utf8');
+const worker = await readFile(new URL('./dasha-lobby-worker.mjs', root), 'utf8');
+const chessPage = await readFile(new URL('./dasha-chess-page.html', root), 'utf8');
+const wrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
+const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+
+assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
+assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
+assert(page.includes('wss://lobby.getdasha.com/ws'), 'dedicated lobby must use permanent WS host');
+assert(!landing.includes('spiny-helmet'), 'temporary workers host must not remain');
+assert(!landing.includes('On-site, not Discord'), 'removed Lobby framing returned');
+assert(!/(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|association is not endorsement|no price promises|old coin and Im not the dev|high risk|rugcheck|never trust|lose (?:your )?money|lose it all|worthless|dead coin/i.test(landing), 'negative coin disclaimer returned');
+assert(!landing.includes('Public lobby.</h2>'), 'removed Lobby title returned');
+assert(page.includes('lobby.getdasha.com/client/lobby.js'), 'dedicated page must load lobby client');
+assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
+assert(landing.includes('href="/lobby"'), 'landing discovery link to lobby missing');
+assert(!/lobby-copy-(?:mint|line)|Copy mint|Copy line/.test(client), 'Lobby copy controls returned');
+assert(!/discord\.gg|discord\.com\/invite|t\.me\//i.test(landing), 'landing must not promote Discord/Telegram invite links');
+assert(!/official chat|verified community|safe mint/i.test(landing), 'lobby must not claim official/safe status');
+
+assert(client.includes(mint), 'client pins mint');
+assert(client.includes('DashaLobby'), 'client exports DashaLobby');
+assert(client.includes('type === \'ready\'') || client.includes("data.type === 'ready'"), 'client handles ready frame');
+assert(client.includes('waitMs') || client.includes('Wait '), 'client handles rate wait');
+// UI nodes must be mounted (regression: pin/xbar/presence were built but never appended)
+assert(client.includes("root.appendChild(pin)"), 'client must append pin chrome');
+assert(client.includes("root.appendChild(xBar)") || client.includes('root.appendChild(xBar)'), 'client must append X bar');
+assert(client.includes("root.appendChild(presenceStrip)"), 'client must append presence');
+assert(client.includes('lobby-expand') || client.includes('Expand chat'), 'client offers expand chat');
+assert(client.includes('pendingText') || client.includes('message queued'), 'client queues messages during join cooldown');
+
+assert(worker.includes('export class DashaLobby'), 'worker exports Durable Object');
+assert(worker.includes('acceptWebSocket'), 'worker uses hibernation WebSockets');
+assert(worker.includes("idFromName('public')"), 'worker is single public room');
+assert(worker.includes("type: 'ready'"), 'worker sends ready not double hello_ok');
+assert(worker.includes('nickTaken'), 'worker enforces nick uniqueness');
+assert(worker.includes('checkRepeat'), 'worker enforces duplicate filter');
+assert(worker.includes('MAX_SOCKETS'), 'worker has connection cap');
+assert(worker.includes('4001') || worker.includes('lobby full'), 'worker rejects over-cap joins');
+assert(worker.includes('/capacity'), 'worker exposes capacity probe');
+assert(worker.includes("url.pathname === '/lobby'"), 'worker exposes dedicated /lobby page');
+assert(worker.includes('LOBBY_PAGE_HTML'), 'worker serves the generated lobby page');
+assert(!landing.includes('One room · max 80.'), 'removed Lobby explainer returned');
+assert(worker.includes('/oauth/x/start'), 'worker has X OAuth start');
+assert.match(worker, /\['https:\/\/www\.getdasha\.com','https:\/\/getdasha\.com','https:\/\/lobby\.getdasha\.com'\]\.forEach/, 'OAuth popup completion must target every first-party opener origin exactly');
+assert(!worker.includes('return to the lobby'), 'shared OAuth completion must not force every product back to Lobby');
+assert(!worker.includes('Perks unlocked: longer messages'), 'shared OAuth completion must not claim Lobby-only perks');
+assert(worker.includes("url.pathname === '/privacy'") && worker.includes('PRIVACY_HTML'), 'worker serves privacy policy');
+assert(worker.includes("url.searchParams.get('continue') !== '1'") && worker.includes('Continue with X'), 'OAuth must show privacy notice before redirect');
+assert(!/offline\.access/.test(await readFile(new URL('./dasha-lobby-x.mjs', root), 'utf8')), 'OAuth must not request unused persistent X access');
+assert(worker.includes('sessionFromRequest'), 'worker reads optional X session');
+assert(client.includes('Link X') || client.includes('link X'), 'client has optional X link control');
+assert(client.includes('/oauth/x/'), 'client talks to X oauth routes');
+assert(client.includes("document.createTextNode('X · ')") && client.includes('linkedAvatar'), 'linked identity must show X attribution and avatar');
+// Header chrome must be mounted (was once stripped and left chat looking empty/broken).
+assert(client.includes('root.appendChild(pin)'), 'Lobby pin chrome must mount');
+assert(
+  client.includes('verify mint') && client.includes('getdasha.com/#token'),
+  'verify mint must deep-link Home CA when not already on Home',
+);
+assert(!client.includes('nfaStrip'), 'Lobby warning strip must stay removed');
+assert(client.includes('root.appendChild(xBar)'), 'Lobby X toolbar must mount');
+assert(client.includes('root.appendChild(presenceStrip)'), 'Lobby presence must mount');
+assert(!client.includes("'lobby-note'"), 'Lobby footnote returned');
+assert(!/lobby-(?:remix|report)|Remix as (?:story|post)|Report to host/.test(client), 'message action controls returned');
+assert(worker.includes('MAX_PER_IP') || worker.includes('checkIpJoin'), 'worker enforces per-IP join limits');
+assert(worker.includes('schedulePresence') || worker.includes('quiet'), 'worker quiets join spam');
+assert(worker.includes('SLOW_MODE') || worker.includes('roomSlowLimits') || worker.includes('slow mode'), 'worker has busy slow mode');
+assert(worker.includes('/stats') || worker.includes('roomStats'), 'worker exposes /stats');
+assert(worker.includes("path === '/studio/event'") && worker.includes("path === '/studio/metrics'"), 'worker exposes Studio funnel routes');
+assert(worker.includes("open: 'opens'") && worker.includes("first_edit: 'firstEdits'") && worker.includes("completion: 'completions'") && worker.includes("share_intent: 'shareIntents'"), 'Studio event vocabulary must stay bounded');
+assert(worker.includes("modAllowed(request, this.env)"), 'Studio metrics readout must remain operator-authenticated');
+assert(!/studioMetrics\s*\[[^\]]*(?:xId|wallet|caption|photo|draft|ip)/i.test(worker), 'Studio metrics must remain aggregate-only');
+assert(client.includes('lobby-presence') || client.includes('paintPresence') || client.includes(' linked'), 'client shows presence strip');
+assert(client.includes('lobby-empty') && client.includes('Be first.'), 'client empty state title');
+assert(client.includes('makeEmptyState') && client.includes("'Be first.'"), 'empty state must invite the first message');
+assert(!client.includes('lobby-empty-cta') && !client.includes('lobby-empty-actions'), 'empty chat must not compete with the composer');
+assert(client.includes('exactParams({ sell: WSOL, buy: MINT })') && client.includes("exactParams({ inputMint: 'sol', outputMint: MINT })") && client.includes("'/solana/pools/' + PAIR"), 'Lobby client must render only exact-mint/pair crypto links');
+assert(worker.includes('setAlarm'), 'worker schedules history prune');
+assert(worker.includes("'Content-Security-Policy': \"frame-ancestors 'none'; base-uri 'none'; object-src 'none'\""), 'Worker HTML security policy missing');
+assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'proxied Webflow HTML must receive Worker security headers');
+assert(worker.includes('escapeHtml(err)') && worker.includes('escapeHtml(String(e.message || e)'), 'OAuth error HTML must escape upstream text');
+
+// Simp Board reuses Lobby DO + session; never auto-enrolls on OAuth
+assert(worker.includes("'/simp/board'") || worker.includes('"/simp/board"') || worker.includes('/simp/board'), 'worker exposes /simp/board');
+assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
+assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
+assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
+assert(worker.includes('scrubSeasonSnapshots') && worker.includes('delete this.simpQuizAttempts') && worker.includes('storage.delete(`simpHolder:'), 'leave must delete linked Board state');
+assert(worker.includes('joinBoard') && worker.includes('leaveBoard') && worker.includes('buildPublicBoard'), 'worker uses pure scoring helpers');
+assert(worker.includes('handleSimp') || worker.includes('persistSimp'), 'worker persists simp profiles in DO');
+assert(worker.includes("method !== 'POST'") || worker.includes('method not allowed'), 'worker rejects non-POST mutations');
+assert(worker.includes("error: 'origin not allowed'") && worker.includes("request.method !== 'GET'"), 'worker rejects cross-origin board mutations');
+// Callback HTML path mints a session cookie only — no joinBoard between createSessionToken and response.
+{
+  const cb = worker.indexOf("pathname === '/oauth/x/callback'");
+  assert.ok(cb > 0, 'oauth callback route missing');
+  const slice = worker.slice(cb, cb + 2500);
+  assert(slice.includes('createSessionToken'), 'callback mints session');
+  assert(!slice.includes('joinBoard'), 'OAuth callback must not auto-enroll on Simp Board');
+  assert(!slice.includes('simpProfiles'), 'OAuth callback must not touch board storage');
+}
+assert(landing.includes('id="simp"') && landing.includes('id="dasha-simp-board"'), 'landing mounts simp board');
+assert(landing.includes('DashaSimpBoard') || landing.includes('dasha-simp-board-client'), 'landing inlines simp board client');
+
+assert(wrangler.includes('"class_name": "DashaLobby"'), 'wrangler binds DO class');
+assert(wrangler.includes('new_sqlite_classes'), 'wrangler has DO sqlite migration');
+assert(wrangler.includes('lobby.getdasha.com'), 'wrangler routes custom domain');
+assert(wrangler.includes('www.getdasha.com'), 'wrangler allows site origin');
+
+// Aggregate Studio funnel: bounded events in, authenticated counters out.
+globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
+const workerModule = await import('./dasha-lobby-worker.mjs');
+const { DashaLobby, ensureHtmlLang, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints } = workerModule;
+const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
+assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
+assert.match(personalized, /12 moves &amp; mate/);
+assert.doesNotMatch(personalized, /<winner>/);
+assert.match(personalized, /<meta name="robots" content="index,follow">/);
+assert.match(personalizeChessPage(chessPage, { robots: 'noindex,follow' }), /<meta name="robots" content="noindex,follow">/);
+assert.match(personalizeChessPage(chessPage, { robots: 'unsafe' }), /<meta name="robots" content="index,follow">/, 'robots directives must be allowlisted');
+const dynamicChessEnv = {
+  LOBBY: {
+    idFromName: () => 'room',
+    get: () => ({ fetch: async request => {
+      const path = new URL(request.url).pathname;
+      if (path.endsWith('/game123')) return new Response(JSON.stringify({ ok: true, replay: { id: 'game123', result: '1-0', reason: 'checkmate', white: { handle: 'white' }, black: { handle: 'black' }, moves: [{}, {}] } }), { status: 200 });
+      if (path.endsWith('/cup123')) return new Response(JSON.stringify({ ok: true, tournament: { id: 'cup123', name: 'First Dasha Cup', status: 'registration', entrants: [{}, {}], maxPlayers: 16 } }), { status: 200 });
+      if (path.endsWith('/open123')) return new Response(JSON.stringify({ ok: true, challenge: { id: 'open123', status: 'open', creator: '@dasha_player' } }), { status: 200 });
+      if (path.endsWith('/claimed1')) return new Response(JSON.stringify({ ok: true, challenge: { id: 'claimed1', status: 'accepted', creator: '@dasha_player' } }), { status: 200 });
+      if (path.endsWith('/expired1')) return new Response(JSON.stringify({ ok: true, challenge: { id: 'expired1', status: 'expired', creator: '@dasha_player' } }), { status: 200 });
+      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
+    } }),
+  },
+};
+const dynamicChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=game123'), dynamicChessEnv);
+const dynamicChessHtml = await dynamicChess.text();
+assert.match(dynamicChessHtml, /<title>@white 1-0 @black — Dasha Chess<\/title>/);
+assert.match(dynamicChessHtml, /2 moves · checkmate · Replay every move\./);
+assert.match(dynamicChessHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?game=game123"/);
+assert.match(dynamicChessHtml, /og:image:type" content="image\/png"/);
+assert.match(dynamicChessHtml, /og:image:width" content="1200"/);
+assert.match(dynamicChessHtml, /og:image:height" content="630"/);
+assert.match(dynamicChessHtml, /twitter:image:alt" content="Dasha Chess"/);
+assert.match(dynamicChessHtml, /<meta name="robots" content="index,follow">/);
+assert.equal(dynamicChess.headers.get('cache-control'), 'public, max-age=120');
+const positionedChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=game123&ply=1'), dynamicChessEnv);
+const positionedChessHtml = await positionedChess.text();
+assert.match(positionedChessHtml, /<link rel="canonical" href="https:\/\/lobby\.getdasha\.com\/chess\?game=game123">/, 'position links must consolidate on the durable replay');
+assert.match(positionedChessHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?game=game123"/);
+assert.doesNotMatch(positionedChessHtml, /[?&]ply=1/, 'temporary replay position must not fragment metadata');
+const dynamicTournament = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?tournament=cup123'), dynamicChessEnv);
+const dynamicTournamentHtml = await dynamicTournament.text();
+assert.match(dynamicTournamentHtml, /<title>First Dasha Cup — Dasha Chess<\/title>/);
+assert.match(dynamicTournamentHtml, /Open tournament · 2\/16 players\./);
+assert.match(dynamicTournamentHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?tournament=cup123"/);
+assert.match(dynamicTournamentHtml, /<meta name="robots" content="index,follow">/);
+assert.doesNotMatch(dynamicTournamentHtml, /game123|@white/, 'tournament card must not reuse replay metadata');
+const openChallenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?challenge=open123'), dynamicChessEnv);
+const openChallengeHtml = await openChallenge.text();
+assert.match(openChallengeHtml, /<title>@dasha_player challenges you — Dasha Chess<\/title>/);
+assert.match(openChallengeHtml, /Take Anna\. Dasha has white\./);
+assert.match(openChallengeHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?challenge=open123"/);
+assert.match(openChallengeHtml, /<meta name="robots" content="noindex,follow">/);
+const mixedChallenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?tournament=cup123&challenge=open123'), dynamicChessEnv);
+const mixedChallengeHtml = await mixedChallenge.text();
+assert.match(mixedChallengeHtml, /<title>@dasha_player challenges you — Dasha Chess<\/title>/, 'server metadata must choose the same mixed-link object as the browser');
+assert.match(mixedChallengeHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?challenge=open123"/);
+assert.doesNotMatch(mixedChallengeHtml, /First Dasha Cup/, 'mixed challenge links must not preview a different tournament');
+const claimedChallenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?challenge=claimed1'), dynamicChessEnv);
+const claimedChallengeHtml = await claimedChallenge.text();
+assert.match(claimedChallengeHtml, /<title>@dasha_player&#39;s table is claimed — Dasha Chess<\/title>/);
+assert.match(claimedChallengeHtml, /The table is claimed\./);
+assert.match(claimedChallengeHtml, /<meta name="robots" content="noindex,follow">/);
+const expiredChallengeCard = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?challenge=expired1'), dynamicChessEnv);
+const expiredChallengeCardHtml = await expiredChallengeCard.text();
+assert.match(expiredChallengeCardHtml, /<title>@dasha_player&#39;s table is closed — Dasha Chess<\/title>/);
+assert.match(expiredChallengeCardHtml, /This table is closed\./);
+assert.match(expiredChallengeCardHtml, /<meta name="robots" content="noindex,follow">/);
+const missingChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=missing1'), dynamicChessEnv);
+const missingChessHtml = await missingChess.text();
+assert.match(missingChessHtml, /<title>Dasha Chess — holders play<\/title>/);
+assert.match(missingChessHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess"/);
+assert.doesNotMatch(missingChessHtml, /missing1/, 'invalid replay id must fall back to generic canonical metadata');
+assert.match(missingChessHtml, /<meta name="robots" content="index,follow">/);
+for (const path of ['/checkout', '/paypal-checkout', '/order-confirmation']) {
+  const retired = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`), {});
+  assert.equal(retired.status, 404, `${path} must not expose Webflow's retired commerce shell`);
+  assert.equal(retired.headers.get('x-dasha-edge'), 'retired-commerce');
+}
+for (const method of ['GET', 'HEAD']) {
+  const rally = await workerModule.default.fetch(new Request('https://www.getdasha.com/rally', { method }), {});
+  assert.equal(rally.status, 308, `retired Rally ${method} must redirect permanently`);
+  assert.equal(rally.headers.get('location'), 'https://www.getdasha.com/');
+}
+const canonicalSchema = '<script type="application/ld+json">{"@type":"WebSite","@id":"https://www.getdasha.com/#website"}</script>';
+const staleSchemas = '<script type="application/ld+json">{"@type":"WebSite"}</script><script type="application/ld+json">{"@type":"SoftwareApplication","license":"https://creativecommons.org/publicdomain/zero/1.0/"}</script>';
+assert.equal(sanitizePublicJsonLd(staleSchemas + canonicalSchema), canonicalSchema);
+assert.match(sanitizePublicJsonLd('<script type="application/ld+json">{bad}</script>'), /\{bad\}/, 'invalid JSON-LD remains visible to the audit instead of being silently rewritten');
+assert.equal(ensureHtmlLang('<!doctype html><html class="w-mod-js"><head>'), '<!doctype html><html lang="en" class="w-mod-js"><head>');
+assert.equal(ensureHtmlLang('<html lang="fr"><head>'), '<html lang="fr"><head>', 'preserve an explicit upstream language');
+assert.deepEqual(solanaRpcEndpoints({}), ['https://api.mainnet-beta.solana.com']);
+assert.deepEqual(solanaRpcEndpoints({ SOLANA_RPC_URLS: 'https://primary.example, https://backup.example, https://ignored.example' }), ['https://primary.example', 'https://backup.example']);
+assert.deepEqual(solanaRpcEndpoints({ SOLANA_RPC_URL: 'https://primary.example' }), ['https://primary.example']);
+assert.throws(() => solanaRpcEndpoints({ SOLANA_RPC_URL: 'http://unsafe.example' }), /HTTPS/);
+const suppressed = publicFunnelSummary({ since: 1, opens: 4, firstEdits: 3 }, { starts: 4, completions: 2 }, { pageOpens: 4, buyIntents: 4 });
+assert.equal(suppressed.studio.opens, null);
+assert.equal(suppressed.quiz.starts, null);
+assert.equal(suppressed.chess.gamesStarted, null);
+assert.equal(suppressed.chess.pageOpens, null);
+assert.equal(suppressed.chess.linkIntents, null);
+assert.equal(suppressed.chess.pageOpenToLinkIntent, null);
+assert.equal(suppressed.chess.buyIntents, null);
+assert.equal(suppressed.chess.pageOpenToBuyIntent, null);
+assert.equal(suppressed.studio.openToEdit, null);
+assert.ok(Number.isFinite(Date.parse(suppressed.completionSince)));
+assert.doesNotMatch(JSON.stringify(suppressed), /sources|answers|lanes|tiers|elapsed/);
+const publicSummary = publicFunnelSummary({ since: 1, opens: 10, firstEdits: 5, completions: 5, exports: 5, shareSuccesses: 5 }, { starts: 10, completions: 5, shares: 5 }, { pageOpens: 10, linkIntents: 8, enrollmentIntents: 7, holderProofIntents: 6, queueIntents: 5, buyIntents: 5, gamesStarted: 10, gamesCompleted: 5, rematchesOffered: 10, rematchesAccepted: 5, replayOpens: 10, replayPlayIntents: 5, replayShareIntents: 5, tournamentsCreated: 5, tournamentShareIntents: 5 });
+assert.equal(publicSummary.studio.openToEdit, 0.5);
+assert.equal(publicSummary.studio.editToCompletion, 1);
+assert.equal(publicSummary.studio.shareApiResolutions, 5);
+assert.ok(!('confirmedShares' in publicSummary.studio));
+assert.equal(publicSummary.quiz.completeToShareIntent, 1);
+assert.equal(publicSummary.chess.pageOpens, 10);
+assert.equal(publicSummary.chess.buyIntents, 5);
+assert.equal(publicSummary.chess.pageOpenToBuyIntent, 0.5);
+assert.equal(publicSummary.chess.pageOpenToLinkIntent, 0.8);
+assert.equal(publicSummary.chess.linkToEnrollmentIntent, 0.875);
+assert.equal(publicSummary.chess.enrollmentToHolderProofIntent, 0.857);
+assert.equal(publicSummary.chess.holderProofToQueueIntent, 0.833);
+assert.equal(publicSummary.chess.gameStartToComplete, 0.5);
+assert.equal(publicSummary.chess.rematchOfferToAccept, 0.5);
+assert.equal(publicSummary.chess.replayOpenToPlay, 0.5);
+assert.equal(publicSummary.chess.completionToReplayShare, 1);
+const crossSessionSummary = publicFunnelSummary(
+  { since: 1, opens: 5, firstEdits: 6 },
+  { starts: 5, completions: 6 },
+  { gamesCompleted: 5, replayShareIntents: 6, replayShareHandoffs: 5 },
+);
+assert.equal(crossSessionSummary.studio.openToEdit, null, 'cross-session event ratios above one are not comparable cohorts');
+assert.equal(crossSessionSummary.quiz.startToComplete, null, 'aggregate quiz events must not masquerade as conversion above one');
+assert.equal(crossSessionSummary.chess.completionToReplayShare, null, 'repeat replay shares must not break or inflate the public funnel');
+assert.equal(crossSessionSummary.chess.replayShareIntentToHandoff, 0.833, 'a bounded intent-to-handoff ratio remains useful');
+const { createSessionToken, signPayload } = await import('./dasha-lobby-x.mjs');
+
+for (const path of ['/', '/lobby', '/oauth/x/start?return=%2Flobby', '/client/studio.js']) {
+  const redirected = await workerModule.default.fetch(new Request(`http://lobby.getdasha.com${path}`), {});
+  assert.equal(redirected.status, 308, `${path} must redirect to HTTPS`);
+  assert.equal(redirected.headers.get('location'), `https://lobby.getdasha.com${path}`);
+}
+for (const path of ['/robots.txt', '/sitemap.xml']) {
+  const response = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`, { method: 'HEAD' }), {});
+  assert.equal(response.status, 200, `${path} HEAD must match GET status`);
+  assert.equal(await response.text(), '', `${path} HEAD must not return a body`);
+}
+
+// Adversarial OAuth error text stays text, never markup; private pages are hardened and noindexed.
+const hostile = '<img src=x onerror=alert(1)>';
+const oauthError = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com/oauth/x/callback?error=${encodeURIComponent(hostile)}`), {
+  X_CLIENT_ID: 'test', X_CLIENT_SECRET: 'test', LOBBY_SESSION_SECRET: 'test-secret', ALLOWED_ORIGINS: 'https://www.getdasha.com',
+});
+assert.equal(oauthError.status, 400);
+const oauthHtml = await oauthError.text();
+assert(!oauthHtml.includes(hostile) && oauthHtml.includes('&lt;img'), 'OAuth error reflected executable HTML');
+assert.equal(oauthError.headers.get('x-frame-options'), 'DENY');
+assert.equal(oauthError.headers.get('strict-transport-security'), 'max-age=31536000');
+assert.match(oauthError.headers.get('content-security-policy') || '', /frame-ancestors 'none'.*base-uri 'none'.*object-src 'none'/);
+assert.match(oauthError.headers.get('content-security-policy') || '', /default-src 'none'.*script-src 'none'.*form-action 'none'/);
+assert.match(oauthError.headers.get('permissions-policy') || '', /camera=\(\).*microphone=\(\)/);
+assert.equal(oauthError.headers.get('x-robots-tag'), 'noindex, nofollow');
+assert.match(oauthError.headers.get('set-cookie') || '', /^__Host-dasha_x_oauth=;.*Max-Age=0.*HttpOnly.*Secure.*SameSite=Lax/i, 'callback must invalidate OAuth state cookie');
+
+const oauthEnv = { X_CLIENT_ID: 'test-client', X_CLIENT_SECRET: 'test-secret', LOBBY_SESSION_SECRET: 'test-session', ALLOWED_ORIGINS: 'https://www.getdasha.com' };
+const oauthStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start'), oauthEnv);
+assert.equal(oauthStart.status, 200);
+assert.match(await oauthStart.text(), /\/privacy[\s\S]*Continue with X/);
+const oauthContinue = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?continue=1'), oauthEnv);
+assert.equal(oauthContinue.status, 302);
+assert.match(oauthContinue.headers.get('set-cookie') || '', /^__Host-dasha_x_oauth=.+Path=\/.*HttpOnly.*Secure.*SameSite=Lax/i);
+assert.match(oauthContinue.headers.get('location') || '', /code_challenge_method=S256/);
+assert.match(worker, /<script nonce="\$\{scriptNonce\}">/);
+assert.match(worker, /privateHtmlHeaders\(\{[\s\S]*?'Content-Type': 'text\/html; charset=utf-8'[\s\S]*?\}, scriptNonce\)/);
+
+const privacy = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/privacy'), {});
+assert.equal(privacy.status, 200);
+const privacyText = await privacy.text();
+assert.match(privacyText, /does not store the X access token[\s\S]*Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time/);
+assert.match(privacyText, /Leave Board removes[\s\S]*chess rating, games and tournaments involving you[\s\S]*private report/);
+assert.equal(privacy.headers.get('x-robots-tag'), null);
+for (const host of ['lobby.getdasha.com', 'www.getdasha.com']) {
+  const response = await workerModule.default.fetch(new Request(`https://${host}/.well-known/security.txt`), {});
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') || '', /^text\/plain/);
+  const body = await response.text();
+  assert.match(body, /^Contact: https:\/\/github\.com\/Uuriko\/dasha-desk\/security\/advisories\/new/m);
+  assert.match(body, /^Expires: 2027-08-01T00:00:00Z$/m);
+  assert.match(body, new RegExp(`^Canonical: https://${host.replaceAll('.', '\\.')}\/\\.well-known\/security\\.txt$`, 'm'));
+}
+
+const logout = (method, origin) => workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/logout', { method, ...(origin ? { headers: { Origin: origin } } : {}) }), oauthEnv);
+assert.equal((await logout('GET')).status, 405, 'logout must not mutate on GET');
+const hostileLogout = await logout('POST', 'https://evil.example');
+assert.equal(hostileLogout.status, 403);
+assert.equal(hostileLogout.headers.get('set-cookie'), null);
+const siteLogout = await logout('POST', 'https://www.getdasha.com');
+assert.equal(siteLogout.status, 200);
+assert.equal(siteLogout.headers.get('access-control-allow-origin'), 'https://www.getdasha.com');
+assert.match(siteLogout.headers.get('set-cookie') || '', /__Host-dasha_x=;.*Max-Age=0/);
+assert.match(siteLogout.headers.get('set-cookie') || '', /(?:^|, )dasha_x=;.*Max-Age=0/, 'logout must retire the legacy session cookie');
+
+// Public HTML gets the browser hardening but must remain indexable.
+const publicLobby = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/lobby'), {});
+assert.equal(publicLobby.status, 200);
+assert.equal(publicLobby.headers.get('x-frame-options'), 'DENY');
+assert.equal(publicLobby.headers.get('strict-transport-security'), 'max-age=31536000');
+assert.equal(publicLobby.headers.get('x-robots-tag'), null);
+const publicLobbyHead = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/lobby', { method: 'HEAD' }), {});
+assert.equal(publicLobbyHead.status, 200);
+assert.equal(await publicLobbyHead.text(), '');
+
+const ogAsset = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/og/dasha-social-card.png'), {
+  ASSETS: { fetch: async () => new Response('png', { headers: { 'Content-Type': 'image/png' } }) },
+});
+assert.equal(ogAsset.status, 200);
+assert.equal(ogAsset.headers.get('content-type'), 'image/png');
+assert.equal(ogAsset.headers.get('access-control-allow-origin'), '*');
+assert.equal(ogAsset.headers.get('cross-origin-resource-policy'), 'cross-origin');
+
+const corsEnv = { ALLOWED_ORIGINS: 'https://www.getdasha.com' };
+const preflight = origin => workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/join', { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST' } }), corsEnv);
+const evilPreflight = await preflight('https://evil.example');
+assert.equal(evilPreflight.status, 403);
+assert.equal(evilPreflight.headers.get('access-control-allow-origin'), null);
+const sitePreflight = await preflight('https://www.getdasha.com');
+assert.equal(sitePreflight.status, 204);
+assert.equal(sitePreflight.headers.get('access-control-allow-origin'), 'https://www.getdasha.com');
+assert.equal(sitePreflight.headers.get('access-control-allow-credentials'), 'true');
+
+const nativeFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async () => new Response('<!doctype html><html class="w-mod-js"><title>Dasha</title>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  const proxiedHome = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});
+  assert.equal(proxiedHome.status, 200);
+  assert.equal(proxiedHome.headers.get('x-frame-options'), 'DENY');
+  assert.match(proxiedHome.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);
+  assert.equal(proxiedHome.headers.get('x-robots-tag'), null);
+  assert.equal(proxiedHome.headers.get('x-dasha-edge'), 'html-security');
+  assert.match(await proxiedHome.text(), /<html lang="en" class="w-mod-js">/);
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+const rows = new Map();
+const storage = {
+  async get(key) { return rows.get(key); },
+  async put(key, value) {
+    if (typeof key === 'object') for (const [name, item] of Object.entries(key)) rows.set(name, item);
+    else rows.set(key, value);
+  },
+  async delete(key) { return rows.delete(key); },
+  async getAlarm() { return 1; },
+  async setAlarm() {},
+};
+const state = {
+  storage,
+  setWebSocketAutoResponse() {},
+  blockConcurrencyWhile(fn) { this.ready = fn(); },
+};
+rows.set('studioMetrics', { since: 1, opens: 3, firstEdits: 2, sources: { direct: 3 } });
+const migrationDo = new DashaLobby(state, { ALLOWED_ORIGINS: 'https://www.getdasha.com' });
+await state.ready;
+const migratedCompletionSince = migrationDo.studioMetrics.completionSince;
+assert.ok(Number.isFinite(migratedCompletionSince));
+assert.equal(rows.get('studioMetrics').completionSince, migratedCompletionSince, 'completion migration boundary must persist immediately');
+const reloadedMigrationDo = new DashaLobby(state, { ALLOWED_ORIGINS: 'https://www.getdasha.com' });
+await state.ready;
+assert.equal(reloadedMigrationDo.studioMetrics.completionSince, migratedCompletionSince, 'completion migration boundary must survive a cold start without an event');
+rows.set('chessState', {
+  games: { legacy: { state: { status: 'active' } } }, ratings: {}, current: {}, queue: [], tournaments: {}, metrics: {},
+});
+const chessMigrationDo = new DashaLobby(state, { ALLOWED_ORIGINS: 'https://www.getdasha.com' });
+await state.ready;
+const migratedClockSince = chessMigrationDo.chessGames.legacy.clock.activeSince;
+assert.equal(rows.get('chessState').games.legacy.clock.activeSince, migratedClockSince, 'legacy active-game clock must persist immediately');
+const reloadedChessMigrationDo = new DashaLobby(state, { ALLOWED_ORIGINS: 'https://www.getdasha.com' });
+await state.ready;
+assert.equal(reloadedChessMigrationDo.chessGames.legacy.clock.activeSince, migratedClockSince, 'legacy active-game clock must not reset on cold start');
+rows.clear();
+const studioDo = new DashaLobby(state, { ALLOWED_ORIGINS: 'https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com', LOBBY_MOD_SECRET: 'test-secret' });
+await state.ready;
+studioDo.simpQuizResults.sharetest = { correct: 9, total: 10, title: 'Dasha scholar', lane: 'Cinema obsessive' };
+const shareResultHead = await studioDo.fetch(new Request('https://lobby.getdasha.com/simp/r/sharetest', { method: 'HEAD' }));
+assert.equal(shareResultHead.status, 200);
+assert.equal(await shareResultHead.text(), '');
+const shareResult = await studioDo.fetch(new Request('https://lobby.getdasha.com/simp/r/sharetest'));
+const shareResultHtml = await shareResult.text();
+assert.match(shareResultHtml, /twitter:card[^>]+summary_large_image/);
+assert.match(shareResultHtml, /twitter:image[^>]+\/simp\/card\/quiz\.png/);
+assert.match(shareResultHtml, /og:image:width[^>]+1200[\s\S]*og:image:height[^>]+628/);
+const studioEvent = (body) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/event', {
+  method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+}));
+assert.equal((await studioEvent({ event: 'open', source: 'quiz' })).status, 200);
+assert.equal((await studioEvent({ event: 'first_edit', caption: 'must not persist' })).status, 200);
+assert.equal((await studioEvent({ event: 'anything_else' })).status, 400);
+const publicMetrics = await (await studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics/public'))).json();
+assert.equal(publicMetrics.ok, true);
+assert.equal(publicMetrics.studio.opens, null);
+assert.equal(publicMetrics.threshold, 5);
+assert.doesNotMatch(JSON.stringify(publicMetrics), /sources|answers|wallet|xId|caption/);
+assert.equal((await studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics'))).status, 401);
+const metricsResponse = await studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics', { headers: { Authorization: 'Bearer test-secret' } }));
+const metrics = await metricsResponse.json();
+assert.equal(metrics.metrics.opens, 1);
+assert.equal(metrics.metrics.firstEdits, 1);
+assert.equal(metrics.metrics.sources.quiz, 1);
+assert.equal(metrics.quizMetrics.starts, 0);
+assert.equal(Number.isInteger(metrics.chessStorage.bytes), true);
+assert.equal(metrics.chessStorage.migrateAtBytes, 1_000_000);
+assert.equal(JSON.stringify(studioDo.chessSnapshot()).length > 0, true);
+assert.equal(Number.isFinite(metrics.metrics.since), true);
+assert.doesNotMatch(JSON.stringify(rows.get('studioMetrics')), /caption|must not persist|wallet|xId|draft/i);
+
+// Decision-grade quiz metrics come from validated quiz transitions; the event endpoint is share-only.
+const quizPost = (body, path = '/simp/quiz') => studioDo.fetch(new Request(`https://lobby.getdasha.com${path}`, {
+  method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+}));
+assert.equal((await quizPost({ event: 'start' }, '/simp/quiz/event')).status, 400);
+let quizResponse = await quizPost({ action: 'start', mode: 'quick' });
+let quizData = await quizResponse.json();
+const quizAttemptId = quizData.attemptId;
+assert.equal(quizResponse.status, 200);
+for (let i = 0; i < 10; i++) {
+  quizResponse = await quizPost({ action: 'answer', answer: 0, attemptId: quizAttemptId });
+  quizData = await quizResponse.json();
+}
+assert.equal(quizData.done, true);
+assert.equal(quizData.linkRequired, true);
+assert.equal(studioDo.simpQuizMetrics.starts, 1);
+assert.equal(studioDo.simpQuizMetrics.completions, 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 10);
+assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 10);
+assert.equal((await quizPost({ event: 'share' }, '/simp/quiz/event')).status, 200);
+assert.equal(studioDo.simpQuizMetrics.shares, 1);
+const resetMetrics = (auth) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics', {
+  method: 'POST', headers: { ...(auth ? { Authorization: 'Bearer test-secret' } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset' }),
+}));
+assert.equal((await resetMetrics(false)).status, 401);
+const resetResponse = await resetMetrics(true);
+const resetData = await resetResponse.json();
+assert.equal(resetResponse.status, 200);
+assert.equal(resetData.reset, true);
+assert.equal(studioDo.studioMetrics.opens, 0);
+assert.equal(studioDo.simpQuizMetrics.starts, 0);
+assert.equal(studioDo.studioMetrics.since, studioDo.simpQuizMetrics.since);
+assert.deepEqual(rows.get('studioMetrics'), studioDo.studioMetrics);
+assert.deepEqual(rows.get('simpQuizMetrics'), studioDo.simpQuizMetrics);
+
+// Holder challenges are issued only after a wallet is known and are bound to that address.
+studioDo.env.LOBBY_SESSION_SECRET = 'holder-test-secret';
+studioDo.simpProfiles.x1 = { xId: 'x1', handle: 'ava', enrolledAt: Date.now(), awards: [] };
+const sessionToken = await createSessionToken(studioDo.env, { xId: 'x1', handle: 'ava' });
+const holderRequestFrom = (origin, path, body) => studioDo.fetch(new Request(`https://lobby.getdasha.com${path}`, {
+  method: 'POST',
+  headers: { Origin: origin, Cookie: `__Host-dasha_x=${sessionToken}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+}));
+const holderRequest = (path, body) => holderRequestFrom('https://www.getdasha.com', path, body);
+const holderRequestWithoutOrigin = (path, body) => studioDo.fetch(new Request(`https://lobby.getdasha.com${path}`, {
+  method: 'POST',
+  headers: { Cookie: `__Host-dasha_x=${sessionToken}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+}));
+assert.equal((await holderRequestWithoutOrigin('/simp/wallet/challenge', { publicKey: '11111111111111111111111111111111' })).status, 403);
+assert.equal((await holderRequestWithoutOrigin('/simp/wallet/verify', {})).status, 403);
+const finalizedQuiz = await holderRequest('/simp/quiz', { action: 'finalize', attemptId: quizAttemptId });
+assert.equal(finalizedQuiz.status, 200);
+assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
+assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
+assert.equal((await holderRequest('/simp/wallet/challenge', {})).status, 400);
+assert.equal((await holderRequest('/simp/wallet/challenge', { publicKey: '1'.repeat(44) })).status, 400, 'Base58-looking non-32-byte address must be rejected');
+const proofAddress = '11111111111111111111111111111111';
+const holderChallengeResponse = await holderRequest('/simp/wallet/challenge', { publicKey: proofAddress });
+assert.equal(holderChallengeResponse.status, 200);
+const holderChallenge = await holderChallengeResponse.json();
+assert.match(holderChallenge.message, new RegExp(proofAddress));
+assert.match(holderChallenge.message, /^www\.getdasha\.com wants you to sign in/, 'holder proof must bind the exact requesting product host');
+assert.match(holderChallenge.message, /\nNonce: [A-Za-z0-9]{8,}\n/, 'holder nonce must satisfy the SIWS alphanumeric grammar');
+const lobbyHolderChallenge = await (await holderRequestFrom('https://lobby.getdasha.com', '/simp/wallet/challenge', { publicKey: proofAddress })).json();
+assert.match(lobbyHolderChallenge.message, /^lobby\.getdasha\.com wants you to sign in/, 'Chess holder proof must identify its actual requesting host');
+assert.match(lobbyHolderChallenge.message, /\nURI: https:\/\/lobby\.getdasha\.com\/\n/, 'Chess holder proof URI must match its requesting origin');
+assert.equal(rows.has('simpHolder:x1'), true, 'holder challenge nonce must survive Worker restarts');
+assert.equal((await holderRequest('/simp/wallet/verify', { challenge: holderChallenge.challenge, publicKey: mint, signature: '1'.repeat(64) })).status, 401, 'challenge must reject a different wallet before signature/RPC work');
+assert.equal(rows.has('simpHolder:x1'), true, 'invalid wallet must not consume the holder challenge');
+
+// A valid challenge survives transient RPC failure, then is consumed by a definitive check.
+const holderKeys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
+const holderPublic = new Uint8Array(await crypto.subtle.exportKey('raw', holderKeys.publicKey));
+const toBase58 = (bytes) => {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let value = BigInt(`0x${Buffer.from(bytes).toString('hex')}`), out = '';
+  while (value) { out = alphabet[Number(value % 58n)] + out; value /= 58n; }
+  for (const byte of bytes) { if (byte) break; out = `1${out}`; }
+  return out || '1';
+};
+const signedAddress = toBase58(holderPublic);
+const expiredMessage = 'expired holder proof';
+const expiredChallenge = await signPayload(studioDo.env.LOBBY_SESSION_SECRET, {
+  kind: 'simp_holder', xId: 'x1', publicKey: signedAddress, nonce: 'expired1', message: expiredMessage, exp: Date.now() - 1,
+});
+const expiredSignature = new Uint8Array(await crypto.subtle.sign('Ed25519', holderKeys.privateKey, new TextEncoder().encode(expiredMessage)));
+assert.equal((await holderRequest('/simp/wallet/verify', { challenge: expiredChallenge, publicKey: signedAddress, signature: toBase58(expiredSignature) })).status, 401, 'expired holder challenge must fail at the endpoint');
+const signedChallenge = await (await holderRequest('/simp/wallet/challenge', { publicKey: signedAddress })).json();
+const signedBytes = new Uint8Array(await crypto.subtle.sign('Ed25519', holderKeys.privateKey, new TextEncoder().encode(signedChallenge.message)));
+const verifyBody = { challenge: signedChallenge.challenge, publicKey: signedAddress, signature: toBase58(signedBytes) };
+let rpcCalls = 0;
+studioDo.env.SOLANA_RPC_URLS = 'https://primary.example,https://backup.example';
+globalThis.fetch = async () => { rpcCalls += 1; return Response.json({ error: { message: 'temporary failure' } }, { status: 503 }); };
+try {
+  assert.equal((await holderRequestFrom('https://lobby.getdasha.com', '/simp/wallet/verify', verifyBody)).status, 401, 'holder challenge must not cross first-party origins');
+  studioDo.simpRates.delete('holder-verify:x1');
+  assert.equal((await holderRequest('/simp/wallet/verify', verifyBody)).status, 503, 'total RPC failure must remain retryable');
+  assert.equal(rows.has('simpHolder:x1'), true, 'transient RPC failure must not force another wallet signature');
+  globalThis.fetch = async () => { rpcCalls += 1; return Response.json({ result: { value: [{ account: { data: { parsed: { info: { owner: signedAddress, mint, tokenAmount: { amount: '1' } } } } } }] } }); };
+  assert.equal((await holderRequest('/simp/wallet/verify', verifyBody)).status, 200);
+  assert.equal((await holderRequest('/simp/wallet/verify', verifyBody)).status, 409);
+  assert.equal(rpcCalls, 3, 'holder proof must try both configured RPCs before a bounded same-signature retry');
+  assert.equal(rows.has('simpHolder:x1'), false, 'valid holder challenge must be consumed');
+} finally {
+  globalThis.fetch = nativeFetch;
+}
+for (let i = 0; i < 3; i++) assert.equal((await holderRequest('/simp/wallet/challenge', { publicKey: proofAddress })).status, 200);
+const holderRateLimited = await holderRequest('/simp/wallet/challenge', { publicKey: proofAddress });
+assert.equal(holderRateLimited.status, 429);
+assert.equal(Number.isFinite((await holderRateLimited.json()).waitMs), true, 'holder rate limit must tell the client when to retry');
+
+const check = spawnSync(process.execPath, ['dasha-lobby-embed-build.mjs', '--check'], {
+  cwd: new URL('.', import.meta.url).pathname,
+  encoding: 'utf8',
+});
+assert.equal(check.status, 0, check.stderr || check.stdout || 'embed check failed');
+
+const simpCheck = spawnSync(process.execPath, ['dasha-simp-board-embed-build.mjs', '--check'], {
+  cwd: new URL('.', import.meta.url).pathname,
+  encoding: 'utf8',
+});
+assert.equal(simpCheck.status, 0, simpCheck.stderr || simpCheck.stdout || 'simp embed check failed');
+
+console.log('dasha-lobby: PASS');

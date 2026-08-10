@@ -1,12 +1,16 @@
 # Dasha crypto landscape
 
-Updated: 2026-08-06
+Updated: 2026-08-06 · **Refresh / supersession pointer: 2026-08-08**
+
+> **Current research (2026-08-08):** [`DASHA-CRYPTO-COMMUNITY-RESEARCH-2026-08-08.md`](DASHA-CRYPTO-COMMUNITY-RESEARCH-2026-08-08.md)  
+> That note refreshes **markets + Solana tooling stack + CT/community behavior** with dated sources, and states **current** Dasha implications for Home / Studio / Desk / Lobby / Simp / X.  
+> **Product supersession:** The “reasoning-and-receipts / forecasting” opening below is **historical**. Thesis Card, conviction receipts, Pair, and forecasting rounds are **scrapped** — do not revive them from this landscape. Stack-layer observations (Pump, Jupiter, Kaito, Bullpen, X intents, verification ≠ safety) remain useful and are reaffirmed with newer evidence in the 2026-08-08 note.
 
 ## Executive conclusion
 
 Crypto tooling is crowded at every layer from token creation through execution and P&L. The relatively open job is narrower: preserve what someone claimed, why, with what confidence, and what would prove it wrong **before** the market outcome; then resolve the claim without deleting misses.
 
-Dasha should become a lightweight reasoning-and-receipts layer between discovery and execution. It should link to incumbent data and trading products instead of rebuilding them. Dasha is the cultural sponsor and first case study, not a required asset, an implied celebrity endorsement, or an Ansem product.
+~~Dasha should become a lightweight reasoning-and-receipts layer between discovery and execution.~~ **(Superseded 2026-08-08 — product is culture production + honest mint rails + Lobby/Simp, not receipts.)** It should link to incumbent data and trading products instead of rebuilding them. Dasha is the cultural sponsor and first case study, not a required asset, an implied celebrity endorsement, or an Ansem product.
 
 ## Market stack
 
@@ -19,7 +23,7 @@ Dasha should become a lightweight reasoning-and-receipts layer between discovery
 | Execution and social trading | Bullpen combines execution, public performance, following, leaderboards and one-tap X sharing. Jupiter covers swaps, perps, prediction markets and wallet tooling. | Very high | No wallet, custody, swaps, copy trading or P&L leaderboard. |
 | Trading journals | SolJournal, TradeRift and conventional journals cover imports, P&L, psychology, AI review and trade history. | High | Avoid an auto-import journal. Focus on pre-outcome reasoning without an account or wallet. |
 | Forecasting and prediction markets | Polymarket, Kalshi, Jupiter and Metaculus support markets, public positions, probabilities, scoring and track records. | High | Do not offer wagering. Borrow disciplined resolution and calibration patterns for non-monetary research notes. |
-| Community | X drives narrative/status; Discord and Telegram provide retention but introduce moderation, impersonation and phishing costs. | High | Keep X as distribution. Use the user-selected Discord as the controlled community home, with native moderation and no wallet tooling. |
+| Community | X drives narrative/status; Discord and Telegram provide retention but introduce moderation, impersonation and phishing costs. | High | Keep **X as distribution**. Live community default is **on-site Lobby** (not TG HQ). Discord remains blueprint-only. See 2026-08-08 community research. |
 
 ## Primary evidence
 
@@ -66,7 +70,7 @@ Conclusion: later Dasha history can borrow append-only records, explicit resolut
 - [X Web Intents](https://docs.x.com/x-for-websites/web-intents/overview) allow user-authorized prefilled posts without application credentials.
 - X requires the author to see and choose the final action. Dasha should not auto-post, scrape users into a call feed or manufacture endorsements.
 
-Conclusion: the card and canonical receipt URL are the distribution primitive. X remains acquisition; the user-selected Discord supports community and Rounds but is not a substitute for product demand.
+Conclusion: **(updated 2026-08-08)** portable culture artifacts (Studio/share intents, board row, quiz card) plus a stable product URL are the distribution primitive — not receipt URLs. X remains acquisition; Lobby is the controlled on-site chat surface. Discord/TG are not product HQ.
 
 ## Dasha and Ansem ecosystem boundaries
 

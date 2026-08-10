@@ -1,5 +1,5 @@
-/*dg-foot-v1071-core*/
-window.dgFootVersion = 'v1071'; console.log('[demigod] foot v1071-core loaded');
+/*dg-foot-v1073-core*/
+window.dgFootVersion = 'v1073'; console.log('[demigod] foot v1073-core loaded');
 (function(){
 var S='#startup-modal',J='#jobseeker-modal',OPEN=null;
 /* Use product route (same-origin /?p=) — never raw catbox .html (text/plain MIME) */
@@ -10,7 +10,7 @@ var MATCH_DISCLOSURE='Software compares role goals, skills, location, and compen
 var COPY={
 heroSub:'One SF Bay role. One concrete first result. Mutual yes before any intro.',
 badge:'SF startup talent · software compares · humans review',
-heroTrustLine:'Private · Mutual yes · Free for talent · 10% of first-year base when a hire starts',
+heroTrustLine:'Private intros · Mutual yes · Free for talent · 10% when a hire starts',
 antiLinkedIn:'No public profiles. No feed. No blasts. Mutual yes only — candidate identity stays private until both sides approve.',
 ctaFounder:'Hire talent',
 ctaEngineer:'Share privately',
@@ -1570,7 +1570,7 @@ function hero(){
   qa('.trust-header h2,.trust-section h2,section h2').forEach(function(h){
     var x=(h.textContent||'').trim();
     /* design-track: Webflow still ships TECH-MATCHED / HUMAN-MATCHED shout titles */
-    if(/HUMAN-MATCHED|TECH-MATCHED|TECH MATCHED|THE PROCESS|How it works|SF STARTUP TALENT/i.test(x) && h.closest('.trust-section,section:has(.steps-grid),section')) h.textContent='A match has three clear steps.';
+    if(/HUMAN-MATCHED|TECH-MATCHED|TECH MATCHED|THE PROCESS|How it works|SF STARTUP TALENT/i.test(x) && h.closest('.trust-section,section:has(.steps-grid),section')) h.textContent='Brief → human review → mutual yes.';
     if(/ONE SIMPLE MODEL|^PRICING$|10%/i.test(x) && h.closest('section') && h.closest('section').querySelector('.pricing-grid,.pricing-card')) h.textContent='Nothing until a hire starts.';
   });
   qa('.trust-header p,.trust-section .paragraph_large').forEach(function(p){
@@ -2438,9 +2438,11 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".hero-actions,.hero-actions.dg-path-pair{position:relative;z-index:5;display:grid!important;grid-template-columns:1fr 1fr!important;gap:1rem!important;max-width:min(44rem,100%)!important;width:100%!important;margin:1rem 0 0!important}"
 +".hero-actions .dg-cta-wrap{display:block!important;min-width:0!important}"
 +".hero-actions .dg-cta-wrap a,.hero-actions a.premium-btn,.hero-actions a.button,.hero-actions a.w-button,.hero-actions a[data-dg-cta]{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:.2rem!important;width:100%!important;height:100%!important;min-height:5.75rem!important;padding:1.15rem 1.25rem!important;border-radius:14px!important;font-weight:600!important;font-size:1.08rem!important;line-height:1.25!important;text-decoration:none!important;font-family:var(--dg-sans)!important;cursor:pointer!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease!important}"
-+".hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:linear-gradient(180deg,rgba(16,198,116,.22),rgba(16,198,116,.10))!important;color:var(--dg-phosphor)!important;border:1px solid rgba(16,198,116,.55)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important}"
-+".hero-actions a[data-dg-cta=hire]:hover,.hero-actions a.is-talent:hover{transform:translateY(-2px)!important;box-shadow:0 10px 28px rgba(0,0,0,.28)!important;border-color:rgba(166,255,203,.55)!important}"
-+".hero-actions a[data-dg-cta=hire] .dg-cta-label,.hero-actions a[data-dg-cta=hire] .dg-cta-hint,.hero-actions a.is-talent .dg-cta-label,.hero-actions a.is-talent .dg-cta-hint{color:var(--dg-phosphor)!important}"
++".hero-actions a[data-dg-cta=hire],.hero-actions a.is-talent{background:linear-gradient(180deg,#34d399,#10c674)!important;color:#03140d!important;border:1px solid rgba(16,198,116,.9)!important;box-shadow:0 10px 28px rgba(16,198,116,.22),inset 0 1px 0 rgba(255,255,255,.18)!important}"
++".hero-actions a[data-dg-cta=hire]:hover,.hero-actions a.is-talent:hover{transform:translateY(-2px)!important;box-shadow:0 14px 32px rgba(16,198,116,.28)!important;border-color:rgba(166,255,203,.65)!important;filter:brightness(1.03)}"
+
++".hero-actions a[data-dg-cta=hire] .dg-cta-label,.hero-actions a.is-talent .dg-cta-label{color:#03140d!important}"
++".hero-actions a[data-dg-cta=hire] .dg-cta-hint,.hero-actions a.is-talent .dg-cta-hint{color:rgba(3,20,13,.72)!important}"
 +".hero-actions a[data-dg-cta] .dg-cta-label{display:block!important;line-height:1.2!important;font-size:1.08rem!important;font-weight:700!important;margin:0!important}"+".hero-actions a[data-dg-cta] .dg-cta-hint{display:block!important;line-height:1.3!important;font-size:.78rem!important;font-weight:500!important;margin:.2rem 0 0!important;opacity:.82!important}"
 +".hero-actions a[data-dg-cta=hire] .dg-cta-label:before,.hero-actions a.is-talent .dg-cta-label:before{content:none!important}"
 +".hero-actions a[data-dg-cta=hire] .dg-cta-label:after,.hero-actions a.is-talent .dg-cta-label:after{content:none!important}"
@@ -2453,7 +2455,7 @@ function brandAssets(){if(q('#dg-brand-assets'))return;var s=document.createElem
 +".hero-actions a[data-dg-cta=hire] .dg-cta-hint{opacity:.85!important;font-size:.78rem!important;font-weight:500!important}"
 +".hero-actions a .btn-arrow,.hero-actions a svg{display:none!important}"
 +"#dg-bar{background:rgba(3,20,13,.96)!important;border-top:1px solid var(--dg-rule)!important}"
-+"#dg-bar a.dg-h{background:rgba(8,160,93,.35)!important;color:var(--dg-phosphor)!important;border:1px solid rgba(166,255,203,.4)!important}"
++"#dg-bar a.dg-h{background:linear-gradient(180deg,#34d399,#10c674)!important;color:#03140d!important;border:1px solid rgba(16,198,116,.9)!important;font-weight:700!important}"
 +"#dg-bar a.dg-j{background:rgba(166,255,203,.05)!important;color:var(--dg-paper)!important;border:1px solid rgba(166,255,203,.42)!important}"
 +"#dg-path-pills{display:none!important}" /* design-track: nav owns those links */
 +"#dg-path-pills a{color:var(--dg-paper-mute)!important;font-size:.82rem!important;letter-spacing:.06em!important;text-transform:lowercase!important;text-decoration:none!important;background:transparent!important;border:0!important;min-width:48px!important;min-height:48px!important;padding:0 .25rem!important;display:inline-flex!important;align-items:center!important;transition:color .2s ease!important}"
@@ -4901,7 +4903,7 @@ else if(k==='jobseeker'||h===J||h==='#jobseeker-modal'){if(!q(J))return;e.preven
 document.addEventListener('input',function(e){if(OPEN&&e.target&&e.target.closest&&e.target.closest(S+','+J)){/*dg-wiz-err-clear*/try{var f=e.target.closest('form');var er=f&&f.querySelector('.dg-wiz-err,.dg-wiz-req-err'),eid=er&&er.id;if(er)er.remove();e.target.style.borderColor='';e.target.removeAttribute('aria-invalid');if(eid){var ids=(e.target.getAttribute('aria-describedby')||'').split(/\s+/).filter(function(id){return id&&id!==eid});if(ids.length)e.target.setAttribute('aria-describedby',ids.join(' '));else e.target.removeAttribute('aria-describedby')}}catch(err){}}},true);
 document.addEventListener('keydown',function(e){if(e.defaultPrevented)return;if(e.key==='Escape'&&q('#dg-page')){closePage();return}if(e.key==='Escape'&&OPEN){OPEN=null;hide(true)}});
 typeof window.addEventListener==='function'&&window.addEventListener('popstate',function(){/*dg-page-popstate*/ try{ if(!routePages()) closePage(); }catch(e){} });
-window.__dgFootVer='1071';console.log('Demigod v1071');
+window.__dgFootVer='1073';console.log('Demigod v1073');
 window.__dgDedupe = dedupeAll;
 window.__dgScrub = scrubStaticLabels;
 

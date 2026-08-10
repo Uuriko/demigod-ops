@@ -3,10 +3,20 @@
 Compiled 2026-08-06. Every claim below is sourced; where I'm extrapolating to Dasha
 rather than reporting a finding, the line starts with **Implication**.
 
+> **2026-08-08 delta (read first):** Companion market/stack/community research is in  
+> [`DASHA-CRYPTO-COMMUNITY-RESEARCH-2026-08-08.md`](DASHA-CRYPTO-COMMUNITY-RESEARCH-2026-08-08.md).  
+> - **Still valid:** FOMO/heuristic/herding mechanisms; post-burn audience prefers honesty over hype; information overload → influencer shortcuts. Reinforced by 2026 retail P&L and ~100s median hold times (Galaxy).  
+> - **Product delta:** Implications that assume Thesis Card / pre-outcome public forecasting / “accountability product” as the live wedge are **historical**. Those surfaces are scrapped. Do not revive them from this memo alone. Current culture-product implications live in the 2026-08-08 note §5.  
+> - **Stats hygiene:** Prefer dated primary/official docs and Galaxy over undated blog aggregates for mcap/Pump volume claims.
+
 The short version: **the academic literature independently describes Dasha's product
 as the intervention.** That is unusual and it is the most valuable thing in this
 document. The strongest distribution asset here is not a persuasion tactic — it is
 that the mechanism has research behind it and no competitor is citing any.
+
+*(Note 2026-08-08: “the product” in the sentence above referred to forecasting/receipts-era
+Dasha. Literature on accountability remains interesting; it is not a license to ship
+scrapped surfaces.)*
 
 ---
 

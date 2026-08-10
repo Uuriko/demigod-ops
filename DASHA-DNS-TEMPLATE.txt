@@ -1,0 +1,47 @@
+# Dasha custom domain — current external-change worksheet
+# The Webflow domain is already live. Historical bracketed setup values below are not
+# current paste instructions; read live DNS/Webflow state before changing web records.
+
+Domain purchased: getdasha.com
+Registrar: Cloudflare Registrar
+Date: 2026-08-07
+
+## Historical Webflow setup shape — live now; do not reapply blindly
+
+# Confirm exact A record IP and CNAME target inside Webflow UI — they can change.
+
+Type    Name    Value
+A       @       [WEBFLOW_A_IP from Site settings]
+CNAME   www     proxy-ssl.webflow.com
+# If using Cloudflare proxy (orange cloud): often set to DNS-only (grey) first until SSL issues,
+# then orange-cloud once Webflow SSL is green.
+
+## Historical Webflow setup steps — completed
+
+1. Site settings → Publishing → Custom domains → Add domain
+2. Add apex + www
+3. Copy the DNS values Webflow shows into the registrar
+4. Wait until Webflow shows domain as connected
+5. Set default domain
+6. Publish → select custom domains
+
+## After go-live (agent will update)
+
+- config/dasha.json links.webflow
+- dasha-landing.html canonical + og:url
+- DASHA-DOMAIN-WEBFLOW-LAUNCH.md status table
+
+## No-mail anti-impersonation profile
+
+# Current repository and public product expose no @getdasha.com mailbox or mail workflow.
+# While that remains true, publish these records together:
+
+Type    Name       Priority    Value
+MX      @          0           .
+TXT     @                      v=spf1 -all
+TXT     _dmarc                 v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s
+
+# Null MX: the domain accepts no mail. SPF: no server may send mail for it.
+# DMARC: reject non-aligned apex and subdomain mail. No rua address is invented.
+# Before any legitimate @getdasha.com mail is introduced, replace all three as one
+# reviewed mail-provider migration and add that provider's DKIM records.

@@ -1,29 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img"
-     aria-label="Dasha Labs. Write the call before the chart writes the story. A free tool, no wallet connection.">
-  <title>Dasha Labs — write the call before the chart writes the story</title>
-
-  <!-- Deliberately carries no ticker, no price, no mint address and nothing resembling real market
-       data. A social card is the most screenshot-and-decontextualised artifact a site produces, so
-       it must not make a claim the page itself would not make. The brief withholds token claims
-       until project identity is confirmed. -->
-
-  <rect width="1200" height="630" fill="#0B0A0C"/>
-  <rect x="0" y="0" width="1200" height="6" fill="#C8B6FF"/>
-
-  <g font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif">
-    <text x="80" y="112" font-size="26" font-weight="800" fill="#C8B6FF" letter-spacing="4">DASHA LABS</text>
-
-    <!-- Type sized for a thumbnail: X renders these small, so the headline is the only thing that
-         has to survive at 30% scale. -->
-    <text x="80" y="232" font-size="76" font-family="Georgia,serif" font-weight="700" fill="#F2EDE7">Write the call</text>
-    <text x="80" y="322" font-size="76" font-family="Georgia,serif" font-weight="700" fill="#F2EDE7"><tspan fill="#C8B6FF">before</tspan> the chart</text>
-    <text x="80" y="412" font-size="76" font-family="Georgia,serif" font-weight="700" fill="#F2EDE7">writes the story.</text>
-
-    <!-- The invalidation line: the one idea the product is about, drawn rather than described. -->
-    <line x1="80" y1="486" x2="1120" y2="486" stroke="#FF9E91" stroke-width="2" stroke-dasharray="9 7"/>
-    <text x="80" y="474" font-size="22" fill="#FF9E91">invalidation, written first</text>
-
-    <text x="80" y="536" font-size="30" font-weight="700" fill="#ADA5AE">Thesis · invalidation · horizon — timestamped and fingerprinted.</text>
-    <text x="80" y="580" font-size="26" fill="#ADA5AE">Free tool · no wallet connection · not financial advice</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="$dasha. It’s time. Make something.">
+  <title>$dasha — it’s time</title>
+  <rect width="1200" height="630" fill="#070608"/>
+  <circle cx="1050" cy="50" r="390" fill="#7c4dff" opacity=".34"/>
+  <circle cx="1120" cy="650" r="330" fill="#ff3b81" opacity=".22"/>
+  <g font-family="Arial,Helvetica,sans-serif" font-weight="900">
+    <text x="64" y="90" font-size="29" fill="#dfff00" letter-spacing="2">$DASHA</text>
+    <text x="58" y="275" font-size="116" fill="#f4eddb" letter-spacing="-7">IT’S TIME</text>
+    <text x="58" y="390" font-size="116" fill="#dfff00" letter-spacing="-7">$DASHA.</text>
+    <text x="64" y="475" font-size="32" fill="#f4eddb">MAKE SOMETHING.</text>
   </g>
+  <g transform="translate(775 85) rotate(3)">
+    <rect width="350" height="430" fill="#120c18" stroke="#f4eddb" stroke-width="3"/>
+    <rect x="18" y="18" width="314" height="118" fill="#2b1850"/>
+    <rect x="18" y="154" width="314" height="118" fill="#b51f58"/>
+    <rect x="18" y="290" width="314" height="122" fill="#1b183b"/>
+    <g font-family="Arial,Helvetica,sans-serif" font-weight="900" fill="#f4eddb">
+      <text x="38" y="68" font-size="18" letter-spacing="2">EDIT THIS</text>
+      <text x="38" y="112" font-size="31">IT’S TIME</text>
+      <text x="38" y="204" font-size="18" letter-spacing="2">MAKE THIS</text>
+      <text x="38" y="249" font-size="31">YOURS</text>
+      <text x="38" y="340" font-size="18" letter-spacing="2">POST THIS</text>
+      <text x="38" y="384" font-size="31">$DASHA</text>
+    </g>
+    <rect x="252" y="49" width="118" height="58" fill="#dfff00" stroke="#070608" stroke-width="4" transform="rotate(7)"/>
+    <text x="279" y="84" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="900" fill="#070608" transform="rotate(7)">CMON</text>
+  </g>
+  <text x="64" y="590" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#c9c0d0" letter-spacing="1">GETDASHA.COM</text>
 </svg>
