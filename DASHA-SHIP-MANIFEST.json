@@ -12,9 +12,9 @@
     "deskRetiredRepair": "b786f02445ba6c09211b1f200b508cf084e8ef144aa40dd2ba5f6fd410afcca3"
   },
   "release": {
-    "observedAt": "2026-08-10T05:34:57.190Z",
-    "workspaceCommit": "89d30e36aa5313dc5bcd29860ed1627acfd8c1e2",
-    "publicRepoCommit": "78ef0db99ae1867defd57af6b5ab614fd7b7a61d",
+    "observedAt": "2026-08-10T08:31:40.554Z",
+    "workspaceCommit": "cf01bed72d69663c38bf3f65d49344887ce2ad08",
+    "publicRepoCommit": "379dab965ff67d0708af3781268e13c2411f0184",
     "studioCanonical": {
       "file": "dasha-meme-studio.html",
       "sha256": "d2a8b2a578aac232ff9b5db501d4b54d8ab697b27484b3fa685b58bf9265c356"
@@ -25,7 +25,7 @@
     },
     "legacyWorktreeStudio": {
       "file": ".grok/worktrees/potter/dasha/dasha-meme-studio.html",
-      "sha256": "9d44af403ea77e2fcccf1b4ef226e99668d31ef63b319b0a0085ed1e7cab6d5b"
+      "sha256": "f788aa46cc40c8c904f844f5702202a45d72d2b39fda2eda7855873bd0c0ccb2"
     },
     "deskCanonical": {
       "file": "dasha-desk/src/app.html",
@@ -37,9 +37,9 @@
     },
     "lobby": {
       "status": "observed",
-      "assets": "72ac18b168d00b6e"
+      "assets": "e8494218a3447ada"
     }
   },
-  "verifiedAt": "2026-08-10T05:34:57.102Z",
+  "verifiedAt": "2026-08-10T08:31:28.859Z",
   "driftDetectedAt": null
 }

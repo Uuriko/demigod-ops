@@ -191,14 +191,28 @@ if (local) {
   const studioPage = await get(`${ORIGIN}/studio`);
   if (studioPage?.ok) {
     const studioHtml = await studioPage.text();
+    /* /studio has shipped two ways: a self-contained inline embed, and a shell that pulls its client
+       from the Worker. Only the second can suffer this failure, and demanding a pin unconditionally
+       would fail the safer arrangement for being safe. So require the pin only when an external
+       client is actually loaded, and say so loudly if one is loaded without a pin. */
+    const external = studioHtml.match(/<script[^>]*src="([^"]*client\/studio\.js)"[^>]*>/);
     const tag = studioHtml.match(/<script[^>]*src="([^"]*client\/studio\.js)"[^>]*integrity="([^"]+)"/);
-    check(!!tag, '/studio does not pin the integrity of the client it loads — a swapped client would run unchallenged');
+    check(!external || !!tag,
+      '/studio loads an external client with no integrity pin — a swapped client would run unchallenged');
     if (tag) {
       const [, clientUrl, pinned] = tag;
+      /* Read the algorithm out of the pin rather than assuming sha384. Assuming it is how the first
+         sweep for this bug reported every page's jQuery as dead — that pin is sha256, and comparing
+         it against a sha384 digest fails every time while the site is perfectly healthy. A check that
+         cries wolf about a working page is worse than no check, because the next real one gets
+         waved through. */
+      const [algorithm] = pinned.split('-');
+      check(['sha256', 'sha384', 'sha512'].includes(algorithm),
+        `/studio pins an unrecognised integrity algorithm (${algorithm}) — this check cannot verify it`);
       const clientRes = await get(clientUrl);
-      if (clientRes?.ok) {
+      if (clientRes?.ok && ['sha256', 'sha384', 'sha512'].includes(algorithm)) {
         const body = Buffer.from(await clientRes.arrayBuffer());
-        const actual = `sha384-${createHash('sha384').update(body).digest('base64')}`;
+        const actual = `${algorithm}-${createHash(algorithm).update(body).digest('base64')}`;
         check(actual === pinned,
           `/studio pins ${pinned} but ${clientUrl} is ${actual} — the browser refuses the script and the Studio does not load at all`);
       }

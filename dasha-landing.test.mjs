@@ -37,7 +37,13 @@ assert(!/href="https:\/\/dexscreener\.com/i.test(desk), 'Desk exposes the editab
 const tape = desk.match(/<section class="dd-tape[\s\S]*?<\/section>/)?.[0] || '';
 assert.equal([...tape.matchAll(/<a\b[^>]*aria-label=/g)].length, 6, 'every clickable Desk still needs an accessible name');
 assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.test(desk), 'Desk reintroduced urgency, raid, referral, or unofficial community mechanics');
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy'], 'bounded sitemap must contain the intended canonical public routes');
+/* Chess joined this list on 2026-08-10. It is a real public route — games, ratings, shareable
+   challenges — and it had been in the live sitemap for a while before this file's copy caught up.
+   It is listed on lobby.getdasha.com because that is the host its page declares canonical, and a
+   sitemap entry that disagrees with a page's own canonical only asks a crawler to pick between them.
+   The list stays exact rather than becoming a length check: the point is that adding or dropping a
+   public route is a deliberate edit here, not something that happens quietly somewhere else. */
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://lobby.getdasha.com/chess'], 'bounded sitemap must contain the intended canonical public routes');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert(!/<priority>|<changefreq>/.test(sitemap), 'sitemap restored crawler hints Google ignores');
 assert.equal([...html.matchAll(/class="poster-tile"/g)].length, 3, 'homepage must stay to three concise editable lines');
