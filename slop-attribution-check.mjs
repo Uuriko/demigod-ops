@@ -100,9 +100,17 @@ if (markers.length === 1) {
    contributions. The visible footer ends with one bracketed lane signature line, e.g. — [codex-name-26].
    More than one, or none, and the marker is refused. */
 const beforeMarker = markers.length ? body.slice(0, markers[0].index) : body;
-const signatures = [...beforeMarker.matchAll(/^—\s*\[[^\]\n]+\]\s*$/gm)];
-if (markers.length && signatures.length !== 1) {
-  fail.push(`expected exactly one terminal lane signature line (— [lane-name]), found ${signatures.length} — this is the most common rejection, 20 contributions`);
+const LANE = /^(?:—|-)\s*\[([a-z0-9][a-z0-9-]{1,48})\]\s*$/i;
+const declarationLines = beforeMarker.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+const signatures = declarationLines.filter((l) => LANE.test(l));
+if (markers.length) {
+  /* Stricter than "one signature exists". The real validator in army requires the signature to be
+     the LAST non-empty line before the marker, with nothing between them — an approximation that
+     only counted signatures passed a body the platform would reject, so it is checked properly. */
+  const terminal = declarationLines.at(-1);
+  if (signatures.length !== 1 || terminal === undefined || !LANE.test(terminal)) {
+    fail.push(`the lane signature (— [lane-name]) must be the last line before the marker; found ${signatures.length} signature(s), last line was ${JSON.stringify((terminal || '').slice(0, 40))} — the most expensive rule, 20 contributions`);
+  }
 }
 
 /* "marker requires exactly one complete visible attribution footer" — fired 8 times. The human
