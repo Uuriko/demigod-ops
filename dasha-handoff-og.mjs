@@ -184,19 +184,20 @@ export async function handoffOgPng(state = {}) {
   // acid bottom bar
   fillRect(px, 0, H - 40, W, 40, 223, 255, 0);
   // kicker
-  drawText(px, 'YOUR TURN  ·  $DASHA', 24, 20, 2, 223, 255, 0, 560);
+  drawText(px, 'YOUR TURN  ·  $DASHA', 24, 18, 3, 223, 255, 0, 560);
   const look = String(state.look || 'poster').toUpperCase();
   const format = String(state.format || 'square').toUpperCase();
-  drawText(px, `${look}  ·  ${format}`, 24, 48, 2, 230, 220, 196, 560);
+  const sticker = state.sticker ? `  ${String(state.sticker)}` : '';
+  drawText(px, `${look}  ·  ${format}${sticker}`.slice(0, 40), 24, 52, 2, 230, 220, 196, 560);
   // line
-  const lines = wrapWords(state.line || 'MAKE ONE', 18);
-  let ly = 90;
+  const lines = wrapWords(state.line || 'MAKE ONE', 16);
+  let ly = 96;
   for (const line of lines) {
     drawText(px, line, 24, ly, 5, 244, 237, 219, 560);
-    ly += 5 * 8 + 10;
+    ly += 5 * 8 + 8;
   }
   // footer on acid bar
-  drawText(px, 'GETDASHA.COM  ·  OPEN  ·  CHANGE ONE THING', 24, H - 28, 2, 7, 6, 8, 560);
+  drawText(px, 'GETDASHA.COM  ·  OPEN STUDIO  ·  CHANGE ONE THING', 20, H - 28, 2, 7, 6, 8, 560);
 
   // PNG scanlines: filter 0 + RGB
   const raw = new Uint8Array((W * 3 + 1) * H);

@@ -50,9 +50,10 @@ const FIXTURES = {
   },
 };
 
-// L1 Instant competence — cold open has Poster default + canvas text
-assert.match(studio, /id: 'poster'/, 'L1: Poster look missing');
-assert.match(studio, /line: 'It’s time \$dasha'/, 'L1: default poster line missing');
+// L1 Instant competence — cold open applies today’s ritual (postable without typing)
+assert.match(studio, /function todaysRitual/, 'L1: Today ritual missing');
+assert.match(studio, /Today’s \$\{lookName\}|Today’s /, 'L1: cold-open Today starter copy missing');
+assert.match(studio, /applyLookFormatEffect\(ritual\.look/, 'L1: cold open must land on ritual look');
 assert.match(studio, /<canvas|getContext\(['"]2d['"]\)/, 'L1: canvas path missing');
 assert.doesNotMatch(studio, /connect wallet|wallet required/i, 'L1: wallet gate on create');
 

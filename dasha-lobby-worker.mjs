@@ -551,11 +551,27 @@ export function publicFunnelSummary(studio = {}, quiz = {}, chess = {}, threshol
   };
 }
 
+/** Public pool when no dedicated key — multi-endpoint so chess holder checks degrade less. */
+const PUBLIC_SOLANA_RPCS = [
+  'https://api.mainnet-beta.solana.com',
+  'https://rpc.ankr.com/solana',
+  'https://solana-rpc.publicnode.com',
+];
+
 export function solanaRpcEndpoints(env = {}) {
-  const configured = String(env.SOLANA_RPC_URLS || env.SOLANA_RPC_URL || '').split(',').map(value => value.trim()).filter(Boolean);
-  const endpoints = configured.length ? [...new Set(configured)].slice(0, 2) : ['https://api.mainnet-beta.solana.com'];
-  if (endpoints.some(endpoint => !endpoint.startsWith('https://'))) throw new Error('Solana RPC must use HTTPS');
+  const configured = String(env.SOLANA_RPC_URLS || env.SOLANA_RPC_URL || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const endpoints = configured.length
+    ? [...new Set(configured)].slice(0, 3)
+    : PUBLIC_SOLANA_RPCS.slice();
+  if (endpoints.some((endpoint) => !endpoint.startsWith('https://'))) throw new Error('Solana RPC must use HTTPS');
   return endpoints;
+}
+
+export function holderRpcMode(env = {}) {
+  return env.SOLANA_RPC_URLS || env.SOLANA_RPC_URL ? 'dedicated' : 'public-pool';
 }
 
 async function walletHoldsDasha(env, owner) {
@@ -3021,7 +3037,7 @@ export default {
           maxSockets: MAX_SOCKETS,
           softCapAnon: ANON_SOFT_CAP,
           xLink: xConfigured(env),
-          holderRpc: env.SOLANA_RPC_URLS || env.SOLANA_RPC_URL ? 'dedicated' : 'public-fallback',
+          holderRpc: holderRpcMode(env),
           assets: ASSET_HASH,
         },
         200,

@@ -101,14 +101,14 @@ async function main() {
       handoffMintsDelta: delta.handoffMints.d,
     },
     read: !baseline
-      ? 'No baseline file — run once with traffic later after saving a baseline.'
+      ? 'No baseline file — save with --save then compare again later.'
       : openToEdit.d == null
-        ? 'openToEdit missing on baseline or live (still under threshold or not exposed).'
+        ? 'openToEdit missing on baseline or live (suppressed or not exposed).'
         : openToEdit.d > 0.02
-          ? 'openToEdit rose — cold-open invite may be working.'
+          ? 'openToEdit rose vs baseline.'
           : openToEdit.d < -0.02
-            ? 'openToEdit fell — investigate cold open or traffic mix.'
-            : 'openToEdit roughly flat vs baseline (need more time/traffic).',
+            ? 'openToEdit fell vs baseline.'
+            : 'openToEdit flat vs baseline.',
     delta,
   };
 

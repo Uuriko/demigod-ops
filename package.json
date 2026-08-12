@@ -169,7 +169,8 @@
     "dasha:radar:live": "node dasha-radar.mjs --live",
     "dasha:radar:full": "node dasha-radar.mjs --full",
     "dasha:funnel": "node dasha-funnel-delta.mjs",
-    "dasha:funnel:save": "node dasha-funnel-delta.mjs --save"
+    "dasha:funnel:save": "node dasha-funnel-delta.mjs --save",
+    "dasha:stranger": "node dasha-stranger-loop.mjs"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",

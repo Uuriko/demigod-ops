@@ -47,7 +47,7 @@ const FETCH_MS = Number(process.env.DASHA_AUDIT_FETCH_MS) || 12_000;
 export const SOFT_LAG = new Set([
   'howto-404',
   'health-assets-mixed',
-  'holder-rpc-public',
+  'holder-rpc-public', // legacy label only if health still reports public-fallback
   'desk-shell-stale-chart-label',
   'sitemap-404',
   'robots-empty',
@@ -370,9 +370,14 @@ async function auditWorker() {
     softCapAnon: hj?.softCapAnon,
     expect: ANON_SOFT_CAP,
   });
+  // public-pool is intentional multi-endpoint default; only legacy public-fallback is soft-noted.
   if (hj?.holderRpc === 'public-fallback') {
     checks.push({ layer: 'worker', id: 'holder-rpc-public', ok: false, soft: true });
     if (!soft.includes('holder-rpc-public')) soft.push('holder-rpc-public');
+  } else {
+    note('worker', 'holder-rpc', hj?.holderRpc === 'dedicated' || hj?.holderRpc === 'public-pool', {
+      holderRpc: hj?.holderRpc || null,
+    });
   }
   // Soft: mixed versions during CF rollout (informational).
   if (assetSet.size > 1) {

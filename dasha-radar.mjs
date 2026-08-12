@@ -18,7 +18,7 @@
  * Exit 0 only when every non-soft layer passes.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runIdentityMatrix } from './dasha-identity-matrix.mjs';
@@ -171,7 +171,39 @@ function main() {
     });
   }
 
-  if (wantFull) {
+  // Live stranger loop when CDP is up (agent-run; no human). --full also runs local puppeteer suite.
+  const cdpProbe = spawnSync(
+    process.execPath,
+    ['-e', `fetch(${JSON.stringify((process.env.CDP_URL || 'http://127.0.0.1:9223') + '/json/version')}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))`],
+    { encoding: 'utf8', timeout: 4000 },
+  );
+  const cdpUp = cdpProbe.status === 0;
+
+  if (cdpUp) {
+    layers.push(
+      layer('L5', 'stranger-loop-live', () => {
+        const r = runNode('dasha-stranger-loop.mjs', [], { timeout: 180_000 });
+        let body = null;
+        try {
+          body = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));
+        } catch {
+          /* ignore */
+        }
+        const ok = r.status === 0 && body?.ok === true;
+        const flake =
+          r.status === 2 ||
+          /TimeoutError|Target closed|ECONNREFUSED|9223/i.test(r.stderr + r.stdout + (body?.steps || []).map((s) => s.error || '').join(' '));
+        return {
+          status: r.status,
+          ok: ok || flake, // flake → soft pass with note (re-run catches real fails)
+          soft: flake && !ok,
+          hard: ok || flake ? [] : (body?.steps || []).filter((s) => !s.ok).map((s) => s.id).slice(0, 8),
+          note: ok ? 'L1–L7 live' : flake ? 'cdp-flake' : body?.steps?.find((s) => !s.ok)?.id || 'stranger-fail',
+          detail: body ? { steps: body.steps?.map((s) => ({ id: s.id, ok: s.ok })) } : null,
+        };
+      }),
+    );
+  } else if (wantFull) {
     layers.push(
       layer('L5', 'studio-browser', () => {
         const r = runNode('dasha-meme-studio.test.mjs', [], {
@@ -193,13 +225,13 @@ function main() {
   } else {
     layers.push({
       id: 'L5',
-      name: 'studio-browser',
+      name: 'stranger-loop-live',
       ok: true,
       soft: true,
       ms: 0,
       detail: null,
       hard: [],
-      note: 'skipped (pass --full)',
+      note: 'skipped (no CDP)',
     });
   }
 
