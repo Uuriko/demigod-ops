@@ -87,7 +87,11 @@ check(!/webflow\.io/.test(sitemap), 'dasha-sitemap.xml advertises a staging URL'
    against ORIGIN and would demand chess claim a URL it deliberately does not. Listed here so the
    count stays exact: the point of that assertion is to catch a route quietly added or dropped, and
    it can only do that if every legitimate entry is accounted for somewhere. */
-const OFF_ORIGIN_SITEMAP_URLS = ['https://lobby.getdasha.com/chess'];
+/* Forum joined chess here on 2026-08-12, on the same terms: a real public route, served from the
+   Worker, declaring lobby.getdasha.com canonical, so that is the URL listed. It was held out of the
+   sitemap while it was unreachable — listing a route nothing links to is how a crawler finds a page
+   no visitor can — and it goes in now that the homepage links it and the page carries social meta. */
+const OFF_ORIGIN_SITEMAP_URLS = ['https://lobby.getdasha.com/chess', 'https://lobby.getdasha.com/forum'];
 for (const url of OFF_ORIGIN_SITEMAP_URLS) {
   check(sitemap.includes(url), `dasha-sitemap.xml is missing ${url}`);
 }

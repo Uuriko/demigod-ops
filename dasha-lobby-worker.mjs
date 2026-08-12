@@ -140,6 +140,15 @@ const FORUM_PAGE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf
 <meta name="description" content="Long-form threads for $dasha. Link X to post.">
 <link rel="canonical" href="https://lobby.getdasha.com/forum">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://lobby.getdasha.com/forum">
+<meta property="og:title" content="Forum — $dasha">
+<meta property="og:description" content="Longer than chat. Same rules as chat.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Forum — $dasha">
+<meta name="twitter:description" content="Longer than chat. Same rules as chat.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta property="og:type" content="website">
 <meta property="og:site_name" content="getdasha">
 <meta property="og:url" content="https://lobby.getdasha.com/forum">
 <meta property="og:title" content="Forum — $dasha">

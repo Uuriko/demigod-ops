@@ -43,7 +43,7 @@ assert(!/\braid\b|buy pressure|buys\/hr|buy the dip|referral|telegram|t\.me/i.te
    sitemap entry that disagrees with a page's own canonical only asks a crawler to pick between them.
    The list stays exact rather than becoming a length check: the point is that adding or dropping a
    public route is a deliberate edit here, not something that happens quietly somewhere else. */
-assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://lobby.getdasha.com/chess'], 'bounded sitemap must contain the intended canonical public routes');
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]), ['https://www.getdasha.com/','https://www.getdasha.com/studio','https://www.getdasha.com/lobby','https://www.getdasha.com/dasha','https://www.getdasha.com/how-to-buy','https://lobby.getdasha.com/chess','https://lobby.getdasha.com/forum'], 'bounded sitemap must contain the intended canonical public routes');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert(!/<priority>|<changefreq>/.test(sitemap), 'sitemap restored crawler hints Google ignores');
 assert.equal([...html.matchAll(/class="poster-tile"/g)].length, 3, 'homepage must stay to three concise editable lines');
@@ -60,7 +60,19 @@ for (const width of [320, 390, 1440]) {
   assert.equal(await page.$eval('#simp h2', el => getComputedStyle(el).fontFamily), 'Arial, Helvetica, sans-serif', 'legacy Webflow font overrides homepage h2');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px overflows horizontally`);
   assert.deepEqual(await page.$eval('h1', heading => ({ text: heading.innerText.replace(/\s+/g, ' ').trim(), stroke: heading.querySelector('.stroke')?.textContent })), { text: 'It’s time $dasha.', stroke: '$dasha.' }, 'hero lost its sourced voice or emphasis');
-  assert.deepEqual(await page.$$eval('.dasha-hero .actions a', links => links.map(link => [link.textContent.trim(), link.classList.contains('primary')])), [['Make something →', true], ['Contribute ↗', false]], 'hero must keep one primary product action and the open-source contribution path');
+  /* Shape pinned, wording not. This asserted the literal 'Contribute ↗' until the label was
+     qualified to 'Contribute to open source ↗' — on a page with a Buy button in the same nav, a bare
+     "Contribute" reads as a request for money, which is the one thing this site must never imply by
+     accident. The structure is what protects the hero: exactly two actions, the product one primary,
+     the contribution one not, and the second must still say what it is. Same reasoning as the
+     meaning-not-phrasing check in dasha-studio-embed.test.mjs. */
+  const heroActions = await page.$$eval('.dasha-hero .actions a', links => links.map(link => ({ text: link.textContent.trim(), primary: link.classList.contains('primary'), href: link.getAttribute('href') || '' })));
+  assert.equal(heroActions.length, 2, `hero must keep exactly two actions, found ${heroActions.length}`);
+  assert.deepEqual([heroActions[0].text, heroActions[0].primary], ['Make something →', true], 'hero lost its one primary product action');
+  assert.equal(heroActions[1].primary, false, 'the contribution link must not compete with the product action');
+  assert.match(heroActions[1].text, /contribute/i, 'hero lost its contribution path');
+  assert.match(heroActions[1].text, /open source|code|github/i, `the hero contribution label must say what is being contributed — got "${heroActions[1].text}"`);
+  assert.match(heroActions[1].href, /^https:\/\/github\.com\//, 'the contribution link must point at the public repo');
   assert.equal(await page.$eval('body', el => parseFloat(getComputedStyle(el).fontSize) >= 16), true, 'body copy fell below readable size');
   assert.equal(await page.$eval('footer', el => parseFloat(getComputedStyle(el).fontSize) >= 14), true, 'footer risk copy fell below readable size');
   for (const selector of ['.ca code', '.linkrow a', 'footer a']) assert.equal(await page.$eval(selector, el => getComputedStyle(el).color), 'rgb(244, 237, 219)', `${selector} lost contrast under legacy Webflow styles`);
