@@ -46,6 +46,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
+import { settleMotion } from './dasha-motion-settle.mjs';
 
 const local = process.argv.includes('--local');
 const srgb = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -83,9 +84,27 @@ const findings = [];
 for (const [name, url] of targets) {
   for (const [device, w, h] of [['mobile', 390, 844], ['desktop', 1440, 900]]) {
     const page = await browser.newPage();
+  await settleMotion(page);
     await page.setViewport({ width: w, height: h });
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
     await new Promise((r) => setTimeout(r, 1500));
+
+    /* Dismiss the first-visit X gate before measuring. It is a modal with a dimming scrim over the
+       whole page, and every element behind it then samples through that scrim: acid reads as dark
+       olive, cream reads as grey, and the run fills with impossible ~1.0:1 ratios for text that is
+       fine to look at. It produced 96 phantom findings on home and none of them were real — the
+       self-check never caught it, because the modal's own text is undimmed and clears 8:1 on its
+       own. Local mode was unaffected only because the gate needs the network to appear, which is
+       why this stayed hidden while --local was the only wired-up form.
+       A returning visitor has the key set, so this measures what almost everyone actually sees. */
+    await page.evaluate(() => {
+      try { localStorage.setItem('dasha_x_gate_v1', '1'); } catch { /* storage may be blocked */ }
+    });
+    await page.reload({ waitUntil: 'networkidle2', timeout: 45000 });
+    await new Promise((r) => setTimeout(r, 1500));
+    const gated = await page.evaluate(() =>
+      document.documentElement.classList.contains('simp-gate-open'));
+    if (gated) { console.error(`${name}/${device}: the X gate is still open — readings would be taken through its scrim`); process.exitCode = 1; }
 
     // Every element that renders its own text, tagged so it can be addressed unambiguously later.
     const items = await page.evaluate((attr) => {
@@ -96,6 +115,8 @@ for (const [name, url] of targets) {
           if (el.shadowRoot) walk(el.shadowRoot);
           const direct = [...el.childNodes].some((x) => x.nodeType === 3 && x.textContent.trim().length > 1);
           if (!direct) continue;
+          const closed = el.closest('details:not([open])');
+          if (closed && !closed.querySelector('summary')?.contains(el)) continue;
           const cs = getComputedStyle(el);
           if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
           const size = parseFloat(cs.fontSize);
@@ -160,6 +181,8 @@ for (const [name, url] of targets) {
          16:1 — as 1.10:1, because the worst pixel in the box was a rounded corner. Range rects give
          the line boxes of this element's own direct text and nothing else. */
       const lines = await handle.evaluate((el) => {
+        const closed = el.closest('details:not([open])');
+        if (closed && !closed.querySelector('summary')?.contains(el)) return [];
         el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });  // same scroll state as the capture
         const b = el.getBoundingClientRect();
         // Parked offscreen (skip links live at x:-9999) or too small to read: nobody sees it.
@@ -176,7 +199,16 @@ for (const [name, url] of targets) {
         /* The viewport is a clip too. The ticker's track runs from x:-84 to x:1370 mid-animation, and
            there is no page left of zero to photograph — those pixels come back black and read as ink
            on ink. Safe to clamp here only because we scrolled the element in just above. */
-        let clip = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+        /* Start from the element's own box. A text node's background cannot be a sibling that
+           merely sits next to it: on the Studio at 390px the "Tilt" label ends a few pixels above an
+           acid .btn.primary, the Range rect bled into that button, and "worst pixel" duly reported
+           cream on acid at 1.03:1 for text that is cream on #070608. The 1px inset below was already
+           there for the same reason and was not enough at this spacing.
+           This still catches a real overlay — a modal scrim covers the element's own box too, so the
+           gate-scrim case is unaffected. */
+        const own = el.getBoundingClientRect();
+        let clip = { l: Math.max(0, own.left), t: Math.max(0, own.top),
+                     r: Math.min(innerWidth, own.right), b: Math.min(innerHeight, own.bottom) };
         for (let p = el; p; p = p.parentElement) {
           const cs = getComputedStyle(p);
           if (cs.overflow === 'visible' && cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
@@ -190,6 +222,7 @@ for (const [name, url] of targets) {
            background. That read as ink on ink, 1.00:1, on text that is ink on acid everywhere. A
            short span's box hugs the glyphs: over ~30px the same rotation drifts half a pixel. */
         const out = [];
+        out.scrollY = Math.round(window.scrollY);
         for (const node of el.childNodes) {
           if (node.nodeType !== 3 || !node.textContent.trim()) continue;
           const len = node.textContent.length;
@@ -225,6 +258,12 @@ for (const [name, url] of targets) {
           ctx.drawImage(img, 0, 0);
           const out = [];
           for (const r of rects) {
+            /* Only sample what the capture actually contains. A rect that lies outside the
+               screenshot means the element was never scrolled into view, and clamping it back into
+               the viewport samples a completely different part of the page — which is how the
+               Studio's "Tilt" label, cream on #070608, got reported as cream on acid at 1.03:1.
+               Out of frame is unmeasured, never a finding. */
+            if (r.y < 0 || r.x < 0 || r.y + r.h > img.height || r.x + r.w > img.width) continue;
             // Inset 1px: a line box's own edge picks up the neighbouring element's antialiasing.
             const x = Math.max(0, Math.round(r.x) + 1), y = Math.max(0, Math.round(r.y) + 1);
             const w = Math.min(img.width - x, Math.round(r.w) - 2), h = Math.min(img.height - y, Math.round(r.h) - 2);
@@ -248,7 +287,13 @@ for (const [name, url] of targets) {
       const need = item.large ? 3 : 4.5;
       if (worst < need) {
         findings.push({ route: name, device, text: item.text, color: item.color, sel: item.sel,
-          size: Math.round(item.size), need, got: worst, bg: worstPx });
+          size: Math.round(item.size), need, got: worst, bg: worstPx,
+          /* --explain keeps the evidence for a finding, not just its verdict. Twice this file has
+             reported a ratio that turned out to be an instrument fault, and both times the only way
+             to tell was to know WHICH pixels it sampled and where. Carrying the rects costs nothing
+             and makes the next false positive a two-minute question instead of an afternoon. */
+          rects: lines.map((r) => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) })),
+          scrollY: item.scrollY });
       }
     }
     console.log(`${name.padEnd(7)} ${device.padEnd(8)} measured ${measured}/${items.length} text nodes, best ${best.toFixed(1)}:1`
@@ -266,8 +311,12 @@ for (const s of servers) { s.closeAllConnections?.(); s.close(); }
 
 if (findings.length) {
   console.error(`\n${findings.length} text element(s) below WCAG AA against the worst pixel behind them:\n`);
+  const explain = process.argv.includes('--explain');
   for (const f of findings.sort((a, b) => a.got - b.got)) {
     console.error(`  ${f.got.toFixed(2)}:1 (needs ${f.need}:1)  ${f.route}/${f.device}  ${f.size}px  ${f.color} on rgb(${f.bg})\n      ${f.sel}\n      "${f.text}"`);
+    if (explain) {
+      console.error(`      sampled at scrollY ${f.scrollY}: ${f.rects.map((r) => `${r.w}x${r.h} @ ${r.x},${r.y}`).join('  ')}`);
+    }
   }
   process.exit(1);
 }

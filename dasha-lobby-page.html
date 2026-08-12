@@ -181,6 +181,16 @@
   #dasha-lobby .lobby-tools{gap:8px}
 
   @media (max-width:600px){.lp-hold{padding:0}}
+
+  /* Reduced motion. The other two surfaces carry this and the lobby did not, which was a real gap
+     before any of it moved: a sticky header and a scrolling chat are motion whether or not anyone
+     wrote a keyframe, and smooth scrolling is the part that actually makes people ill. */
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    #dasha-lobby-page *,#dasha-lobby-page *::before,#dasha-lobby-page *::after{
+      animation-duration:.01ms!important;animation-iteration-count:1!important;
+      transition-duration:.01ms!important;scroll-behavior:auto!important}
+  }
 </style>
 
 <div id="dasha-lobby-page">

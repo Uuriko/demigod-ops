@@ -153,6 +153,7 @@
     "dasha:test:lobby": "node dasha-lobby-page.test.mjs",
     "dasha:gate:all": "node dasha-browser-gate.mjs node dasha-gate-all.mjs",
     "dasha:gate:list": "node dasha-gate-all.mjs --list",
+    "dasha:test:motion": "node dasha-motion.test.mjs",
     "dasha:test:price": "node dasha-price.test.mjs",
     "dasha:test:embed-origins": "node dasha-embed-origins.test.mjs",
     "dasha:test:forum": "node dasha-forum.test.mjs && node dasha-forum-worker.test.mjs && node dasha-forum-live.test.mjs",

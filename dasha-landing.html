@@ -15,6 +15,38 @@
   footer{padding:34px 0 44px;border-top:1px solid var(--line);font-size:14px;color:rgba(244,237,219,.78)}footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}footer p{max-width:60ch;margin:0;line-height:1.55}.dasha footer a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper)!important;font-weight:800;text-underline-offset:3px}.dasha footer a:hover{text-decoration:underline}
   :focus-visible{outline:3px solid var(--acid);outline-offset:4px}@media(max-width:800px){.navlinks>a:not(.pill){display:none}.dasha-hero{grid-template-columns:1fr;padding-top:45px}.poster{width:90%;margin:20px auto 0}.contract{grid-template-columns:1fr}.section-title{margin-bottom:28px}section{padding:58px 0}}@media(max-width:600px){.simp-row{grid-template-columns:54px 1fr}.simp-rank{font-size:30px}.simp-evidence{grid-column:2}.simp-badge{display:table;margin:8px 0 0}}@media(max-width:480px){.wrap{width:min(100% - 22px,1180px)}.nav{height:68px}.pill{padding:0 17px}.dasha-hero{min-height:auto}.poster{width:94%;box-shadow:9px 9px 0 var(--hot)}.contract{padding:24px}.ca{font-size:12px}.nav .pill{min-height:42px;font-size:12px}}
 .price{margin:22px 0 0;max-width:520px;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"main spark" "note note";gap:6px 16px;align-items:center;padding:14px 16px;border:1px solid var(--line);background:rgba(255,255,255,.04)}.price[hidden]{display:none}.price-main{grid-area:main;display:inline-flex;align-items:baseline;gap:10px;min-height:44px;text-decoration:none!important}.price-now{font-size:clamp(20px,3vw,26px);font-weight:950;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.price-chg{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}.price-chg.up{color:var(--acid)}.price-chg.down{color:#ff9db8}.spark{grid-area:spark;width:100%;height:44px;display:block}.price-note{grid-area:note;margin:0;font-size:14px;color:rgba(244,237,219,.82);line-height:1.45}@media(max-width:600px){.price{grid-template-columns:1fr;grid-template-areas:"main" "spark" "note"}}
+
+  /* Motion, added as enhancement only.
+     The finished state above is the default, so a browser that does not know animation-timeline
+     ignores every line below and shows the page exactly as it is now — no fallback branch, no
+     flash of hidden content, nothing to keep in sync. That is the whole reason this is CSS and not
+     a scroll library: it runs on the compositor, ships no JavaScript, and cannot fail open.
+     Only transform and opacity are animated. Anything touching width, height, top or left would
+     run layout on every frame, which is the thing that actually costs INP on a scrolling page. */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes dasha-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+      /* Sections arrive as they come into view. `both` matters: it holds the start state before
+         entry and the end state after, so nothing is left half-faded once the range is past. */
+      .dasha section,.contract{
+        animation:dasha-rise linear both;
+        animation-timeline:view();
+        animation-range:entry 10% cover 28%}
+      /* The collage lands one tile at a time, in reading order. Each tile is its own subject so the
+         stagger comes from the scroll range rather than a delay, which keeps it correct at any
+         scroll speed and when someone jumps mid-page. */
+      .poster-tile{animation:dasha-rise linear both;animation-timeline:view();}
+      .poster-tile:nth-child(1){animation-range:entry 0% cover 20%}
+      .poster-tile:nth-child(2){animation-range:entry 6% cover 26%}
+      .poster-tile:nth-child(3){animation-range:entry 12% cover 32%}
+      /* The sparkline draws itself once on load. stroke-dashoffset is not compositor-friendly, so
+         it is deliberately one short pass on one small path rather than anything scroll-linked. */
+      @keyframes dasha-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+      #spark-line{stroke-dasharray:1;animation:dasha-draw .9s ease-out both}
+      #spark-fill{animation:dasha-rise .6s ease-out both}
+    }
+  }
+
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.ticker div{animation:none}.pill,.poster-tile{transition:none}.poster-tile:hover{filter:none}}
 @media(prefers-contrast:more){.stroke{color:var(--paper);-webkit-text-stroke:0}}
 @media(forced-colors:active){.stroke{color:CanvasText;-webkit-text-stroke:0}.pill{border:2px solid ButtonText}.pill.primary{background:Highlight;color:HighlightText}}
@@ -23,7 +55,7 @@
 <main class="dasha" id="top">
   <nav class="nav wrap" aria-label="Main navigation"><a class="brand" href="#top">$<span>DASHA</span></a><div class="navlinks"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="#token">CA 53ux…pump</a><a class="pill primary buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></div></nav>
   <header class="dasha-hero wrap" id="content">
-    <div><h1>It’s time<br><span class="stroke">$dasha.</span></h1><div class="actions"><a class="pill primary" href="/studio#look=signal&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha">Make something →</a><a class="pill" href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer" aria-label="Contribute code on GitHub — the Dasha tools are open source">Contribute to open source ↗</a></div><div class="price" id="price" hidden><a class="price-main" href="#token"><span class="price-now" id="price-now">—</span><span class="price-chg" id="price-chg"></span></a><svg class="spark" id="spark" viewBox="0 0 300 44" preserveAspectRatio="none" role="img" aria-hidden="true"><path id="spark-fill" fill="rgba(223,255,0,.14)" d=""></path><path id="spark-line" fill="none" stroke="#dfff00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d=""></path></svg><p class="price-note" id="price-note"></p></div></div>
+    <div><h1>It’s time<br><span class="stroke">$dasha.</span></h1><div class="actions"><a class="pill primary" href="/studio#look=signal&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha">Make something →</a><a class="pill" href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer" aria-label="Contribute code on GitHub — the Dasha tools are open source">Contribute to open source ↗</a></div><div class="price" id="price" hidden><a class="price-main" href="#token"><span class="price-now" id="price-now">—</span><span class="price-chg" id="price-chg"></span></a><svg class="spark" id="spark" viewBox="0 0 300 44" preserveAspectRatio="none" role="img" aria-hidden="true"><path id="spark-fill" fill="rgba(223,255,0,.14)" d=""></path><path id="spark-line" pathLength="1" fill="none" stroke="#dfff00" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d=""></path></svg><p class="price-note" id="price-note"></p></div></div>
     <div class="poster"><span class="sticker">CMON</span><div class="poster-grid" aria-label="Open an editable Dasha Studio starter"><a class="poster-tile" aria-label="Edit ‘How u crying at the casino and u can’t even get in’" href="/studio#look=poster&amp;format=square&amp;line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in&amp;src=home"><strong>How u crying at the casino and u can’t even get in</strong></a><a class="poster-tile" aria-label="Edit ‘It’s time $dasha’" href="/studio#look=ticket&amp;format=story&amp;line=It%E2%80%99s%20time%20%24dasha&amp;src=home"><strong>It’s time $dasha</strong></a><a class="poster-tile" aria-label="Edit ‘Well im still alive’" href="/studio#look=signal&amp;format=banner&amp;line=Well%20im%20still%20alive&amp;src=home"><strong>Well im still alive</strong></a></div></div>
   </header>
   <section id="simp" aria-labelledby="simp-title"><div class="wrap">

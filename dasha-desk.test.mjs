@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
+import { settleMotion } from './dasha-motion-settle.mjs';
 
 const files={
   '/':await readFile(new URL('./dasha-desk/index.html',import.meta.url)),
@@ -18,6 +19,7 @@ try{
   const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9223'}),origin=`http://127.0.0.1:${server.address().port}`;
   await browser.defaultBrowserContext().overridePermissions(origin,['clipboard-read','clipboard-write']);
   const page=await browser.newPage();
+  await settleMotion(page);
   await page.setViewport({width:390,height:844});
   await page.setRequestInterception(true);
   let dexRequests=0;

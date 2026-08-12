@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
+import { settleMotion } from './dasha-motion-settle.mjs';
 
 const live = process.argv.includes('--live');
 const source = await readFile(new URL('./dasha-lobby-page.html', import.meta.url), 'utf8');
@@ -41,6 +42,7 @@ process.on('exit', () => { try { server?.close(); } catch {} });
 
 for (const [device, width, height] of [['mobile', 390, 844], ['desktop', 1440, 900]]) {
   const page = await browser.newPage();
+  await settleMotion(page);
   pages.push(page);
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 100)));

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
+import { settleMotion } from './dasha-motion-settle.mjs';
 
 const html = await readFile(new URL('./dasha-landing.html', import.meta.url), 'utf8');
 const rendered = '<style>h1,h2,h3{font-family:Exo,sans-serif!important}a,strong,code{color:#10051d!important}</style>' + html;
@@ -52,6 +53,7 @@ for (const tag of html.matchAll(/<a\b[^>]*target="_blank"[^>]*>/g)) assert(/rel=
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9223' });
 for (const width of [320, 390, 1440]) {
   const page = await browser.newPage();
+  await settleMotion(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewport({ width, height: 900 });
@@ -103,6 +105,7 @@ for (const width of [320, 390, 1440]) {
 // Every Buy CTA is a plain exact-mint Jupiter link; no wallet-capable script runs in Dasha's origin.
 {
   const page = await browser.newPage();
+  await settleMotion(page);
   await page.setViewport({ width: 390, height: 900 });
   await page.setContent(rendered, { waitUntil: 'domcontentloaded' });
   const buys = await page.$$eval('a.buy-dasha', links => links.map(a => a.href));
