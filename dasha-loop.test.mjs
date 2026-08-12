@@ -93,9 +93,28 @@ for (const id of controls) {
 }
 
 const handoffs = await maker.evaluate(() => window.__handoff);
-const link = handoffs.find((v) => /#.*look=|#.*line=/.test(v || ''));
+
+/* Two shapes count, because the loop is about state surviving the trip, not about URL length.
+   The build used to hand over the whole state in the fragment; it now hands over a short
+   /h/<id> link that expands to the same fragment, which unfurls as a card and survives being
+   pasted somewhere that mangles long URLs. Insisting on the literal `#look=` failed this gate
+   against a loop that works — so a short link is followed to where it actually goes, and the
+   assertion stays on what matters: what the recipient opens carries the editable state. */
+/** The editable URL a handoff actually arrives at, whichever shape the build hands over. */
+async function resolveHandoff(captured) {
+  const direct = captured.find((v) => /#.*look=|#.*line=/.test(v || ''));
+  if (direct) return { link: direct, via: 'direct' };
+  const short = captured.find((v) => /^https:\/\/lobby\.getdasha\.com\/h\/[A-Za-z0-9_-]+$/.test(v || ''));
+  if (!short) return { link: null, via: 'none' };
+  const page = await fetch(short, { redirect: 'follow' }).then((r) => (r.ok ? r.text() : ''));
+  /* The expander is a page that replaces itself; read the destination it names. */
+  return { link: (page.match(/location\.replace\(\s*["']([^"']+)["']/) || [])[1] || null, via: `short link ${short}` };
+}
+
+const { link, via } = await resolveHandoff(handoffs);
 assert.ok(link, `no editable link was handed off. Controls tried: ${controls.join(', ')}. `
   + `Captured: ${JSON.stringify(handoffs).slice(0, 200)}`);
+assert.match(link, /#.*(look=|line=)/, `the handoff (${via}) does not arrive at editable state: ${link}`);
 assert.ok(!new URL(link).search, 'the handoff link puts state in the query string, where the server sees it');
 
 // ---- the other side of the handoff -----------------------------------------
@@ -152,9 +171,9 @@ for (const id of secondControls) {
   await inside(receiver, `(root, $, id) => $(id).click()`, id);
   await new Promise((r) => setTimeout(r, 900));
 }
-const secondLink = (await receiver.evaluate(() => window.__handoff))
-  .find((v) => /#.*look=|#.*line=/.test(v || ''));
+const { link: secondLink, via: secondVia } = await resolveHandoff(await receiver.evaluate(() => window.__handoff));
 assert.ok(secondLink, 'the receiver could change the image but could not hand it on — a link, not a chain');
+assert.match(secondLink, /#.*(look=|line=)/, `the second handoff (${secondVia}) does not arrive at editable state: ${secondLink}`);
 /* Parsed, not string-matched. URLSearchParams encodes a space as "+", which decodeURIComponent
    leaves alone — so a substring check against the decoded hash fails on a link that is perfectly
    correct. The first version of this assertion did exactly that and accused the product. */
