@@ -153,7 +153,7 @@
     "dasha:test:lobby": "node dasha-lobby-page.test.mjs",
     "dasha:gate:all": "node dasha-browser-gate.mjs node dasha-gate-all.mjs",
     "dasha:gate:list": "node dasha-gate-all.mjs --list",
-    "dasha:test:forum": "node dasha-forum.test.mjs && node dasha-forum-worker.test.mjs",
+    "dasha:test:forum": "node dasha-forum.test.mjs && node dasha-forum-worker.test.mjs && node dasha-forum-live.test.mjs",
     "dasha:test:mint": "node dasha-desk/dasha-mint-consistency.test.mjs",
     "dasha:test:oss-docs": "node dasha-desk/dasha-oss-docs.test.mjs",
     "dasha:test:relay": "node dasha-relay-lab.test.mjs",

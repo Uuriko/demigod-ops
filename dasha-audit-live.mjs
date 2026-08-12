@@ -19,6 +19,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JOIN_COOLDOWN_MS } from './dasha-lobby-mod.mjs';
 import { ANON_SOFT_CAP } from './dasha-lobby-x.mjs';
 import { MISLEADING_COIN_COPY, NEGATIVE_COIN_COPY, publicCopyFromHtml } from './dasha-public-copy.mjs';
+import { publicMetricsViolations } from './dasha-public-metrics-schema.mjs';
+export { publicMetricsViolations } from './dasha-public-metrics-schema.mjs';
 import { extractWebMetadata, metadataMismatches, WEBFLOW_METADATA } from './dasha-webflow-metadata.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -279,37 +281,7 @@ export function cryptoLinkViolations(html) {
   return violations;
 }
 
-/** Public funnel is aggregate, thresholded, and deliberately identity-free. */
-export function publicMetricsViolations(value) {
-  if (!value || typeof value !== 'object') return ['not-object'];
-  const violations = [];
-  const allowed = {
-    root: new Set(['ok', 'since', 'completionSince', 'threshold', 'studio', 'quiz', 'chess', 'limits']),
-    studio: new Set(['opens', 'firstEdits', 'openToEdit', 'completions', 'editToCompletion', 'exports', 'editToExport', 'shareIntents', 'shareApiResolutions', 'copyEditableLinks']),
-    quiz: new Set(['starts', 'completions', 'startToComplete', 'replays', 'shareIntents', 'completeToShareIntent']),
-    chess: new Set(['pageOpens', 'linkIntents', 'enrollmentIntents', 'holderProofIntents', 'queueIntents', 'pageOpenToLinkIntent', 'linkToEnrollmentIntent', 'enrollmentToHolderProofIntent', 'holderProofToQueueIntent', 'buyIntents', 'pageOpenToBuyIntent', 'gamesStarted', 'gamesCompleted', 'gameStartToComplete', 'rematchesOffered', 'rematchesAccepted', 'rematchOfferToAccept', 'replayOpens', 'replayPlayIntents', 'replayOpenToPlay', 'replayShareIntents', 'replayShareHandoffs', 'replayShareIntentToHandoff', 'completionToReplayShare', 'challengesCreated', 'challengesAccepted', 'challengeCreateToAccept', 'challengeShareIntents', 'tournamentsCreated', 'tournamentJoins', 'tournamentsStarted', 'tournamentsCompleted', 'tournamentShareIntents']),
-  };
-  for (const key of Object.keys(value)) if (!allowed.root.has(key)) violations.push(`root:${key}`);
-  for (const group of ['studio', 'quiz', 'chess']) {
-    if (!value[group] || typeof value[group] !== 'object' || Array.isArray(value[group])) {
-      violations.push(`${group}:missing`);
-      continue;
-    }
-    for (const key of Object.keys(value[group])) if (!allowed[group].has(key)) violations.push(`${group}:${key}`);
-    for (const [key, cell] of Object.entries(value[group])) {
-      if (cell === null) continue;
-      if (!Number.isFinite(cell) || cell < 0) violations.push(`${group}:${key}:value`);
-      else if (/To/.test(key) && cell > 1) violations.push(`${group}:${key}:ratio`);
-      else if (!/To/.test(key) && cell < value.threshold) violations.push(`${group}:${key}:unsuppressed`);
-    }
-  }
-  if (value.ok !== true) violations.push('ok');
-  if (!Number.isInteger(value.threshold) || value.threshold < 5) violations.push('threshold');
-  if (!Number.isFinite(Date.parse(value.since))) violations.push('since');
-  if ('completions' in (value.studio || {}) && !Number.isFinite(Date.parse(value.completionSince))) violations.push('completionSince');
-  if (!/aggregate/i.test(value.limits || '') || !/not unique-user/i.test(value.limits || '')) violations.push('limits');
-  return violations;
-}
+// publicMetricsViolations — shared schema (dasha-public-metrics-schema.mjs)
 
 export function pngDimensions(bytes) {
   if (!Buffer.isBuffer(bytes) || bytes.length < 24 || bytes.toString('hex', 0, 8) !== '89504e470d0a1a0a') return null;
@@ -455,6 +427,20 @@ async function auditWorker() {
     { status: studioJs.status, bytes: studioJs.text.length, error: studioJs.error },
   );
   note('worker', 'client-studio-mobile-scroll', studioJs.text.includes('touch-action:pan-y'));
+  // Love path must be in the Worker-served client, not only on disk HTML.
+  note(
+    'worker',
+    'client-studio-handoff',
+    studioJs.text.includes('ensureHandoffUrl') &&
+      studioJs.text.includes('studio/handoff') &&
+      studioJs.text.includes('handoff_mint'),
+    { bytes: studioJs.text.length },
+  );
+  note(
+    'worker',
+    'client-studio-after-share',
+    studioJs.text.includes('after-share') && /Pass-it-on|Make another/.test(studioJs.text),
+  );
 
   const publicMetrics = await get(`${LOBBY}/studio/metrics/public`);
   let publicMetricsJson = null;
@@ -465,6 +451,130 @@ async function auditWorker() {
     violations: metricsViolations,
     since: publicMetricsJson?.since || null,
   });
+
+  // Love-path smoke: reject bad input, block evil origin, mint, GET card + OG PNG.
+  try {
+    const badMint = await fetch(`${LOBBY}/studio/handoff`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: ORIGIN,
+        referer: `${ORIGIN}/studio`,
+      },
+      body: JSON.stringify({ look: 'nope', format: 'square', line: 'x' }),
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+    const badText = await badMint.text();
+    note(
+      'worker',
+      'handoff-reject-invalid',
+      badMint.status === 400 && /invalid/i.test(badText),
+      { status: badMint.status, body: badText.slice(0, 120) },
+    );
+
+    const evilMint = await fetch(`${LOBBY}/studio/handoff`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+        referer: 'https://evil.example/',
+      },
+      body: JSON.stringify({
+        look: 'poster',
+        format: 'square',
+        line: 'evil origin',
+        effect: 'clean',
+      }),
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+    note(
+      'worker',
+      'handoff-origin-block',
+      evilMint.status === 403 || evilMint.status === 400,
+      { status: evilMint.status },
+    );
+
+    const mintBody = {
+      look: 'poster',
+      format: 'square',
+      line: 'audit radar handoff',
+      effect: 'clean',
+      src: 'home',
+    };
+    const mintRes = await fetch(`${LOBBY}/studio/handoff`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: ORIGIN,
+        referer: `${ORIGIN}/studio`,
+      },
+      body: JSON.stringify(mintBody),
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+    const mintText = await mintRes.text();
+    let mintJson = null;
+    try {
+      mintJson = JSON.parse(mintText);
+    } catch {
+      /* ignore */
+    }
+    const mintOk =
+      mintRes.status === 200 &&
+      mintJson?.ok === true &&
+      typeof mintJson?.id === 'string' &&
+      /^https:\/\/lobby\.getdasha\.com\/h\//.test(mintJson?.url || '');
+    note('worker', 'handoff-mint', mintOk, {
+      status: mintRes.status,
+      handoffId: mintJson?.id || null,
+      body: mintOk ? undefined : mintText.slice(0, 160),
+    });
+
+    if (mintOk) {
+      const id = mintJson.id;
+      const card = await get(`${LOBBY}/h/${id}`, {
+        extraHeaders: { 'user-agent': 'Twitterbot/1.0' },
+      });
+      note(
+        'worker',
+        'handoff-card',
+        card.status === 200 &&
+          /og:title/i.test(card.text) &&
+          /twitter:card/i.test(card.text) &&
+          card.text.includes(`/h/${id}/og.png`) &&
+          /getdasha\.com\/studio#/i.test(card.text),
+        { status: card.status, bytes: card.text.length },
+      );
+      const og = await get(`${LOBBY}/h/${id}/og.png`, {
+        asBytes: true,
+        extraHeaders: { 'user-agent': 'Twitterbot/1.0' },
+      });
+      const dims = pngDimensions(og.bytes);
+      note(
+        'worker',
+        'handoff-og',
+        og.status === 200 &&
+          og.contentType === 'image/png' &&
+          og.bytes?.length > 800 &&
+          og.bytes?.length <= 500_000 &&
+          Boolean(dims),
+        {
+          status: og.status,
+          contentType: og.contentType,
+          bytes: og.bytes?.length || 0,
+          dimensions: dims,
+        },
+      );
+    } else {
+      note('worker', 'handoff-card', false, { skipped: 'mint-failed' });
+      note('worker', 'handoff-og', false, { skipped: 'mint-failed' });
+    }
+  } catch (e) {
+    note('worker', 'handoff-mint', false, {
+      error: String(e?.message || e).slice(0, 120),
+    });
+    note('worker', 'handoff-card', false, { skipped: 'mint-error' });
+    note('worker', 'handoff-og', false, { skipped: 'mint-error' });
+  }
 
   const simpJs = await get(`${LOBBY}/client/simp-board.js`);
   note(

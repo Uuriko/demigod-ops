@@ -7,10 +7,10 @@ p0_status: shipped
 p0_notes: handoff mint + /h/:id live; Studio prefers handoff URL
 p1_status: shipped
 p1_notes: Surprise rolls sticker+line; Today ritual; richer handoff OG
-p1b_status: disk-ready
-p1b_notes: mini look thumbs; pure-JS /h/:id/og.png (async CompressionStream); puppeteer handoff mock; surprise bias; after-share handoff cue; mint rate limit; funnel handoffMints/Opens. Lobby deploy blocked — CF OAuth invalid_grant (bin/dasha-cf-ready).
-p1c_status: disk-ready
-p1c_notes: look-strip thumbs; photo empty cue; cold-open Today/Surprise invite; keyboard R/T
+p1b_status: shipped
+p1b_notes: mini look thumbs; pure-JS /h/:id/og.png; puppeteer handoff mock; after-share handoff cue; mint rate limit; funnel handoffMints/Opens. Lobby assets live 5c2bdd71 (2026-08-12). Studio thin loader SRI sha384-RSbHuY6… on live Webflow.
+p1c_status: shipped
+p1c_notes: look-strip thumbs; photo empty cue; cold-open Today/Surprise invite; keyboard R/T — in Worker studio.js + disk HTML
 related:
   - DASHA-PRODUCT-BRIEF.md
   - DASHA-CULTURE-STUDIO-PRODUCT.md

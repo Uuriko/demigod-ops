@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Dasha radar scoreboard — see dasha-radar.mjs
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec node "$ROOT/dasha-radar.mjs" "$@"

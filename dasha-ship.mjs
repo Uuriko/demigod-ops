@@ -329,6 +329,8 @@ function fastGate(changed, receipt) {
   run('node', ['dasha-desk/build.mjs', '--check']);
   gate(receipt, 'productCoherence', 'node', ['dasha-product-coherence.test.mjs'], 'required for every product release');
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
+  // Disk love/identity radar (no network) — catches handoff/schema/mint drift before push.
+  gate(receipt, 'loveRadar', 'node', ['dasha-radar.mjs'], 'identity + L1–L7 love-paths + handoff unit');
   const browser = process.env.DASHA_SHIP_SKIP_BROWSER !== '1';
   const why = (surface) => !browser ? 'fixture-only browser skip' : changed.includes(surface) ? `${surface} artifact changed` : `${surface} hash unchanged`;
   // landing.test covers home+studio+desk invariants — do not skip when only studio/desk drifted
