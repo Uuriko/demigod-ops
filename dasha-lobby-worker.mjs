@@ -4,6 +4,7 @@
  */
 import {
   MINT,
+  PAIR,
   PIN,
   MAX_HISTORY,
   MAX_SOCKETS,
@@ -130,6 +131,15 @@ const privateHtmlHeaders = (extra = {}, nonce = '') => ({
   ...extra,
 });
 const OAUTH_COOKIE = '__Host-dasha_x_oauth';
+
+/* One upstream call per TTL for the whole site, held in module scope so every isolate that has it
+   warm answers without touching GeckoTerminal. PRICE_STALE_MS is the grace window: past the TTL but
+   inside it, an upstream failure serves the last good numbers flagged stale rather than nothing;
+   past it, nothing at all. A chart that quietly keeps showing yesterday's price is worse than a
+   chart that admits it is missing. */
+const PRICE_TTL_MS = 30_000;
+const PRICE_STALE_MS = 10 * 60_000;
+let PRICE_CACHE = { at: 0, body: null };
 
 /* Served from the worker rather than pushed to Webflow: the forum is all API, so a Webflow surface
    would add a seventh embed and an SRI pin to keep in step for a page with no pinned client at all.
@@ -340,13 +350,17 @@ function corsHeaders(origin, { credentials = false } = {}) {
   };
 }
 
-function json(body, status, origin, { credentials = false } = {}) {
+function json(body, status, origin, { credentials = false, headers = {} } = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...SECURITY,
       ...corsHeaders(origin, { credentials }),
       'Content-Type': 'application/json; charset=utf-8',
+      /* Last, so a caller may relax SECURITY's no-store for a response that is safe to cache —
+         the price is public and identical for everyone, and caching it is what keeps the upstream
+         free tier from being the thing that takes the chart down. */
+      ...headers,
     },
   });
 }
@@ -1131,6 +1145,12 @@ export class DashaLobby {
         return json({ error: 'origin required' }, 403, null);
       }
       const input = await requestJson(request);
+      /* handoff_mint / handoff_open are counted only on POST /studio/handoff and GET /h/:id.
+         Client still emits handoff_mint for local telemetry; counting here double-counted mints
+         and made mintToOpen look ~0.5–0.8 forever. */
+      if (input?.event === 'handoff_mint' || input?.event === 'handoff_open') {
+        return json({ ok: true, counted: false, reason: 'server-authoritative' }, 200, allowedOrigin);
+      }
       const key = {
         open: 'opens',
         first_edit: 'firstEdits',
@@ -1139,8 +1159,6 @@ export class DashaLobby {
         share_intent: 'shareIntents',
         share_success: 'shareSuccesses',
         copy_editable_link: 'copyEditableLinks',
-        handoff_mint: 'handoffMints',
-        handoff_open: 'handoffOpens',
       }[input?.event];
       if (!key) return json({ error: 'invalid event' }, 400, allowedOrigin);
       if (this.studioMetrics[key] == null) this.studioMetrics[key] = 0;
@@ -1212,12 +1230,14 @@ export class DashaLobby {
           },
         });
       }
-      /* Count human opens only — crawlers/unfurl bots inflate mintToOpen. */
+      /* Count human opens once per handoff — bots/unfurlers and refreshes must not inflate. */
       const ua = request.headers.get('user-agent') || '';
       const bot = /bot|crawl|spider|slurp|facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|WhatsApp|TelegramBot|Preview/i.test(ua);
-      if (!headOnly && !bot) {
+      if (!headOnly && !bot && !row.opened) {
+        row.opened = Date.now();
+        this.studioHandoffs[id] = row;
         this.studioMetrics.handoffOpens = (this.studioMetrics.handoffOpens || 0) + 1;
-        await this.state.storage.put('studioMetrics', this.studioMetrics);
+        await this.state.storage.put({ studioHandoffs: this.studioHandoffs, studioMetrics: this.studioMetrics });
       }
       /* Bots keep the static OG card (no location.replace); humans auto-open Studio. */
       const html = handoffCardHtml(id, row.state, { autoRedirect: !bot });
@@ -1638,6 +1658,69 @@ export class DashaLobby {
     }
     seen[origin] = 1;
     return true;
+  }
+
+  /**
+   * The pool price, fetched once for everybody.
+   *
+   * This lives on the Durable Object because there is exactly one of it. The same code in the
+   * worker's module scope 503'd roughly six requests in ten: module scope is per isolate, requests
+   * spread across many, and each cold isolate called the upstream itself until the free API started
+   * refusing. Every direct probe of GeckoTerminal answered 200 throughout — we were rate-limiting
+   * ourselves. One instance means one call per TTL no matter how much traffic arrives.
+   *
+   * Failure never invents a number. Past the TTL but inside the stale window the last good reading
+   * is served flagged `stale` so the page can say so; past that, 503 and no price at all. A wrong
+   * price presented as current is worse than a missing chart.
+   */
+  async handlePrice(request, allowedOrigin) {
+    const now = Date.now();
+    if (!this.priceCache) this.priceCache = await this.state.storage.get('priceCache') || { at: 0, body: null };
+
+    if (!this.priceCache.body || now - this.priceCache.at > PRICE_TTL_MS) {
+      try {
+        const base = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${PAIR}`;
+        const opts = { signal: AbortSignal.timeout(6000), headers: { accept: 'application/json' } };
+        const [snap, ohlcv] = await Promise.all([
+          fetch(base, opts).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${base}/ohlcv/minute?aggregate=5&limit=288`, opts).then((r) => (r.ok ? r.json() : null)),
+        ]);
+        const a = snap?.data?.attributes;
+        const rows = ohlcv?.data?.attributes?.ohlcv_list;
+        if (!a?.base_token_price_usd || !Array.isArray(rows) || !rows.length) throw new Error('incomplete upstream');
+        this.priceCache = {
+          at: now,
+          body: {
+            ok: true,
+            mint: MINT,
+            pair: PAIR,
+            priceUsd: Number(a.base_token_price_usd),
+            fdvUsd: Number(a.fdv_usd) || null,
+            volume24hUsd: Number(a.volume_usd?.h24) || null,
+            liquidityUsd: Number(a.reserve_in_usd) || null,
+            change: { h1: Number(a.price_change_percentage?.h1), h24: Number(a.price_change_percentage?.h24) },
+            /* Six significant figures, oldest first, close only. The upstream sends twenty digits
+               and five columns; a 300px line can express neither, and the full shape tripled the
+               payload. The headline price above keeps full precision — people read that one. */
+            series: rows
+              .map((row) => [Number(row[0]), Number(Number(row[4]).toPrecision(6))])
+              .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
+              .sort((x, y) => x[0] - y[0]),
+            source: 'geckoterminal',
+            asOf: new Date(now).toISOString(),
+          },
+        };
+        await this.state.storage.put('priceCache', this.priceCache);
+      } catch {
+        if (!this.priceCache.body || now - this.priceCache.at > PRICE_STALE_MS) {
+          return json({ ok: false, error: 'price unavailable' }, 503, allowedOrigin || '*');
+        }
+        this.priceCache.body = { ...this.priceCache.body, stale: true };
+      }
+    }
+    return json(this.priceCache.body, 200, allowedOrigin || '*', {
+      headers: { 'Cache-Control': `public, max-age=${Math.floor(PRICE_TTL_MS / 1000)}` },
+    });
   }
 
   forumKey(id) {
@@ -2431,6 +2514,10 @@ export class DashaLobby {
     if (request.method === 'GET' && url.pathname === '/stats') {
       return json(this.roomStats(), 200, null);
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/price') {
+      const origin = request.headers.get('Origin');
+      return this.handlePrice(request, origin && originAllowed(origin, this.env.ALLOWED_ORIGINS || '') ? origin : null);
+    }
 
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/') || url.pathname.startsWith('/forum/') || url.pathname.startsWith('/h/')) {
       // Origin already checked by worker entry; pass through for CORS on stub responses.
@@ -3078,6 +3165,16 @@ export default {
           'Cache-Control': 'public, max-age=120',
         }),
       });
+    }
+
+    /* Pool price. Forwarded to the Durable Object, which is a single instance for the whole site,
+       so the upstream is called once per TTL globally. The first attempt kept this cache in module
+       scope and it 503'd about six times in ten: module scope is per isolate, Cloudflare spreads
+       requests across many, and every cold one made its own call until the free API refused them.
+       GeckoTerminal answered 200 to every direct probe the whole time — the rate limit was ours. */
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/price') {
+      const room = env.LOBBY.idFromName('public');
+      return env.LOBBY.get(room).fetch(request);
     }
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
