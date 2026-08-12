@@ -2981,7 +2981,14 @@ export default {
     }
 
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/h/') || (url.pathname.startsWith('/forum/') && url.pathname !== '/forum/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
-      if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+      /* /studio/event is let through to the Durable Object even from an origin we do not allow, and
+         is refused there instead. That is the only place the pasted embed announces itself, so
+         refusing it out here threw away the one signal saying anyone had adopted it — the counter
+         inside handleStudio was unreachable, which a live probe caught after it shipped. Letting it
+         reach the DO does not make it work: handleStudio still checks allowedOrigin and still
+         returns 403 without touching the funnel, it just writes the origin down on the way past. */
+      const countableEmbedPing = url.pathname === '/studio/event' && request.method === 'POST';
+      if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN && !countableEmbedPing) {
         return json({ error: 'origin not allowed' }, 403, null);
       }
       const room = env.LOBBY.idFromName('public');
