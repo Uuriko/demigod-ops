@@ -5,7 +5,7 @@ status: reference
 # Making Dasha properly open source
 
 **Updated:** 2026-08-08  
-**Operator playbook (checklists + Shaw research):** [`DASHA-OSS-OPERATOR-PLAYBOOK.md`](DASHA-OSS-OPERATOR-PLAYBOOK.md)
+**Operator playbook (checklists + Shaw research):** [`DASHA-OSS-OPERATOR-PLAYBOOK.md`](archive/dasha-docs/DASHA-OSS-OPERATOR-PLAYBOOK.md)
 
 **Hard rule:** Thesis Card, conviction receipts, forecasting, and Pair are **permanently scrapped**. They are not open-source product surfaces and must not be reintroduced under a new name.
 

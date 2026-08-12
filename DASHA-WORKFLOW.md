@@ -21,9 +21,10 @@ Dasha is the active project. A one-off action on another project does not switch
 | Threat controls | [`DASHA-THREAT-MODEL.md`](DASHA-THREAT-MODEL.md) | Every listed risk names a runnable check |
 | Public claims | [`DASHA-CLAIMS.md`](DASHA-CLAIMS.md) | Copy uses the narrowest supported wording |
 | Work order and gates | [`DASHA-ROADMAP.md`](DASHA-ROADMAP.md) | Current phase only |
-| Market research | [`DASHA-CRYPTO-LANDSCAPE.md`](DASHA-CRYPTO-LANDSCAPE.md) | Revisit only when a decision needs new evidence |
+| Market research | [`DASHA-CRYPTO-LANDSCAPE.md`](archive/dasha-docs/DASHA-CRYPTO-LANDSCAPE.md) | Revisit only when a decision needs new evidence |
 | Public homepage | `dasha-landing.html` | Webflow `/` embed |
-| Meme Studio | `dasha-meme-studio.html` | `dasha-studio-embed.html`, public-repo `studio/`, Webflow `/studio`; worktree copies are observed legacy snapshots |
+| Meme Studio product source | `dasha-meme-studio.html` | Root standalone/embed and public-repo `studio/`; do not publish the full root embed over the live thin loader |
+| Meme Studio live runtime | `.grok/worktrees/potter/dasha/dasha-meme-studio.html` | Worker `/client/studio.js` + thin `dasha-studio-embed.html` on Webflow `/studio`; reconcile root changes here deliberately before release |
 | Studio gallery rights | `dasha-studio-media.json` | Every remote gallery URL must be registered and tested |
 | Lobby + X OAuth | `.grok/worktrees/potter/dasha/dasha-lobby-{worker,mod,x}.mjs` | `https://lobby.getdasha.com` |
 | Simp Board | `.grok/worktrees/potter/dasha/dasha-simp-{score,actions}.mjs` + `dasha-simp-board-client.js` | Homepage `#simp` + Lobby `/simp/*` |
@@ -38,8 +39,8 @@ Dasha is the active project. A one-off action on another project does not switch
 | Retired Desk sticky repair | `dasha-desk-retired-repair.html` | Exact Webflow element `bc1be3d0-bf73-7ba8-b662-70ea1f1519bd`; managed empty placeholder |
 | Token-facing runtime facts | `dasha-desk/src/body.html` + `src/app.js` | Generated Desk surfaces |
 | Machine-readable reference | `dasha-desk/config/dasha.json` | Reference only; not a build input |
-| Audit history | [`DASHA-AUDIT-2026-08-06.md`](DASHA-AUDIT-2026-08-06.md) | Historical measurements; not current state |
-| Psychology research | [`DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md`](DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md) | Candidate evidence; primary-source validation required before public claims |
+| Audit history | [`DASHA-AUDIT-2026-08-06.md`](archive/dasha-docs/DASHA-AUDIT-2026-08-06.md) | Historical measurements; not current state |
+| Psychology research | [`DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md`](archive/dasha-docs/DASHA-RESEARCH-CRYPTO-PSYCHOLOGY-2026-08-06.md) | Candidate evidence; primary-source validation required before public claims |
 | Deployment procedure | `dasha-desk/docs/DEPLOY.md` | Webflow, standalone and future Pages |
 
 Never edit generated landing files as independent sources. Run `node dasha-desk/build.mjs --write` after changing body, styles or behavior.

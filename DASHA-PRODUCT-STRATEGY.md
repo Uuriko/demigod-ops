@@ -75,7 +75,7 @@ Current weakest-sufficient choice: keep **Remix Relay** as the main hypothesis b
 
 Strategic convergence: **Open Culture Objects is the only current ambitious thesis that remains distinct after comparison with hosted lineage, onchain galleries, creative bounties and AI operator suites.** The Studio is its authoring wedge, exact fragment links are its first carrier, and the verified mint/Jupiter path is an optional Dasha-specific discovery route. These are not separate products to bundle. Schema governance, royalties, object minting and `$dasha` utility remain unsupported and excluded.
 
-Ambitious horizon: if Relay proves that editable state travels, formalize the render-plus-recipe pair as **Open Culture Objects**. “Open” requires a documented schema, golden fixtures and a second independent consumer; a Dasha URL that only Dasha understands is not a protocol. Full contract and kill rules: [`DASHA-OPEN-CULTURE-OBJECTS.md`](DASHA-OPEN-CULTURE-OBJECTS.md).
+Ambitious horizon: if Relay proves that editable state travels, formalize the render-plus-recipe pair as **Open Culture Objects**. “Open” requires a documented schema, golden fixtures and a second independent consumer; a Dasha URL that only Dasha understands is not a protocol. Full contract and kill rules: [`DASHA-OPEN-CULTURE-OBJECTS.md`](archive/dasha-docs/DASHA-OPEN-CULTURE-OBJECTS.md).
 
 Prepared falsifier: [`dasha-relay-lab.html`](dasha-relay-lab.html) supplies five matched editable-link and image-only starters plus a local parent/child material-diff check. It measures the one unresolved behavior without analytics, identity, storage or a new product layer.
 

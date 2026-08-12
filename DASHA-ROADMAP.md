@@ -1,16 +1,19 @@
 ---
 status: canonical
 canonical_for: roadmap
-last_verified: 2026-08-08
+last_verified: 2026-08-11
 ---
 
 # Dasha product roadmap
 
-Updated: 2026-08-08
+Updated: 2026-08-11
 
 ## North star
 
-Learn whether one recurring, witnessed creative ritual can turn attention into voluntary return—while keeping `$dasha` adjacent, optional and honestly disclosed.
+Ship a fast, coherent and trustworthy place to understand `$dasha`, verify the mint, create media and reach the community.
+
+Real-visitor conversion, participation, retention and elapsed-time experiments are optional product
+research. They are not release, completion or feature-unlock requirements.
 
 ## Permanent exclusions
 
@@ -27,7 +30,7 @@ The Thesis Card and every receipt/forecasting descendant are scrapped. Do not te
   maintainer-derived public GitHub records.
 - Current memecoin research consistently describes narrative, social diffusion and participatory culture as primary behavior, alongside severe volatility and concentration risk.
 - Zora makes creation and trading one loop; Guild combines community identity and campaigns; quest products reward participation. Dasha should learn from the loop, not copy their infrastructure.
-- Grok's independent 30-track review converged with the academic evidence: first-contribution acknowledgement, bounded prompts and remix continuity are better-supported next tests than ranks, accounts, token gates or another feature suite. Raw receipt: [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](DASHA-GROK-DEEP-RESEARCH-2026-08-08.md).
+- Grok's independent 30-track review converged with the academic evidence: first-contribution acknowledgement, bounded prompts and remix continuity are better-supported next tests than ranks, accounts, token gates or another feature suite. Raw receipt: [`DASHA-GROK-DEEP-RESEARCH-2026-08-08.md`](archive/dasha-docs/DASHA-GROK-DEEP-RESEARCH-2026-08-08.md).
 
 ## Simp Board boundary
 
@@ -36,13 +39,22 @@ The live Board combines one editorial row with measured opt-in rows. PerryALPHA'
 Linking earns a fixed 10-point eligibility credit. The existing creative/community award schema is
 retained for compatibility, but the removed public evidence form is not an award path. OSS points
 accept only `dasha-simp-oss/v0` records derived from merged, reviewed public work. Followers,
-verification, likes, reposts, replies, chat volume, referrals, purchases, balances, bag size and
+verification, likes, reposts, replies, chat volume, raw referral clicks/joins, purchases, balances, bag size and
 payments score zero. Holder proof signs a short-lived message, checks the associated mint at
 finalized commitment, stores only the check time plus expiry, publishes no wallet or balance, sends
 no transaction and scores zero. It proves a positive balance at that check, not continuous holding.
 
 Mutable Worker identities and live endpoint inventories belong in deployment receipts and
 `dasha-audit-live.mjs` output, not this roadmap. Real participation and demand remain unproven.
+
+Prepared connector pilot: an opaque personal invite records first attribution for seven days. Clicks,
+links and joins score zero. A not-currently-enrolled X-linked member must finish the quiz and make an
+authenticated visit at least 24 hours later before both people receive two connector points; a first reviewed creative,
+community or OSS contribution adds eight points to each. One inviter can score at most five activated
+referrals per rolling 28 days. Leaving removes the referral identity and recomputes both scores. The
+pilot is prepared locally, not published, and is retained only if referred members return at least as
+often as organic members without material abuse. Leaving removes referral identity, so the system
+deliberately keeps no hidden prior-enrollment tombstone.
 
 Prepared OSS lane: `dasha-simp-oss/v0` scores only merged, reviewed pull requests to allowlisted public Dasha repos. Exactly one impact label maps to 5/15/40/100/200 points, capped at 300 points, eight merges per 28-day season and three merges per rolling seven days. Operators and bots score zero; direct commits are not backfilled. `dasha-simp-oss-scorer.mjs` recomputes the lane from public GitHub evidence, and its current authoritative result is empty because `Uuriko/dasha-desk` has no merged PRs. Activate only after the impact labels, season timestamps and first non-operator reviewed PR exist.
 
@@ -67,12 +79,12 @@ Falsification: repeated support evidence shows the exact external route is mater
 
 ## Phase 1 — Dasha Meme Studio instrument
 
-Goal: provide the creation and editable-handoff instrument for the Transmission experiment.
+Goal: provide a reliable creation and editable-handoff tool.
 
-Status: live instrument. The Studio supports procedural looks, local image upload, a sourced Dasha
-gallery and post/story/banner output. Exact deployed features and artifact identity belong in the
-release contract and live verifier, not this roadmap. Publication is proven; demand remains
-unproven.
+Status: live instrument **and lead product bet**. Full factory + growth + social ambition:
+[`DASHA-CULTURE-STUDIO-PRODUCT.md`](DASHA-CULTURE-STUDIO-PRODUCT.md). Phase A adds first-export
+checklist, copy-remix-link, material-change note on lineage; core remix/URL/kit/share already live.
+Exact deployed features and artifact identity belong in the release contract and live verifier.
 
 Prototype:
 
@@ -85,16 +97,13 @@ Prototype:
 
 Gate:
 
-- a first-time mobile visitor exports within 60 seconds;
-- at least 20% of studio starters export;
-- at least 10% of exporters voluntarily open X share intent;
-- at least five distinct people create without operator coaching.
+- mobile and desktop edit, export, remix and share-fallback checks pass;
+- accessibility, security, claims and release-integrity checks pass;
+- the live Studio matches its verified release artifact.
 
-Failure action: improve the asset pack and templates once. If sharing remains absent, stop building editor features and test Lore Vault.
+## Optional experiment — Transmission 001
 
-## Phase 1.5 — Transmission 001
-
-Goal: determine whether a recurring character situation creates more participation and return interest than a standalone editor.
+Transmission 001 is a prepared research option, not a roadmap phase or completion requirement.
 
 Run one bounded experiment titled **make me an alibi**:
 
@@ -107,7 +116,7 @@ Run one bounded experiment titled **make me an alibi**:
 - one small, explicitly curated closing record only if real contributions exist;
 - a second Transmission only if participation pulls it into existence.
 
-Gate:
+Optional evaluation criteria, if it is ever run:
 
 - at least five distinct non-operator submissions;
 - at least three materially changed artifacts;
@@ -120,11 +129,13 @@ Measure the path from view → material edit → export → submission → ackno
 
 Adapt once if credible participants consistently fail at the same shared step. Stop if fewer than two credible non-operator artifacts appear after real distribution, or if people consistently view/save without editing. Do not add points, token rewards, accounts or automated ingestion to rescue a failed creative loop.
 
-Research and full boundary: [`DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md`](DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md). Academic map: [`DASHA-ACADEMIC-EVIDENCE.md`](DASHA-ACADEMIC-EVIDENCE.md).
+Research and full boundary: [`DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md`](archive/dasha-docs/DASHA-PARTICIPATORY-CULTURE-RESEARCH-2026-08-08.md). Academic map: [`DASHA-ACADEMIC-EVIDENCE.md`](archive/dasha-docs/DASHA-ACADEMIC-EVIDENCE.md).
 
-## Phase 2 — choose one expansion
+## Optional future expansions
 
-Only one branch proceeds based on observed behavior:
+These are ideas, not requirements or automatic unlocks. Build one only after an explicit product
+decision authorizes it; no visitor count, seven-day window or participation threshold is required to
+finish the current Dasha product.
 
 ### A. Remix Relay
 
@@ -160,7 +171,7 @@ Rezona, Sekai, Variant and Pops already offer interactive/playable content with 
 
 The existing Studio fragment is already a deterministic, free machine interface. Defer a static agent skill until human Remix Relay works or an external agent consumer asks for a stable grammar. Reject autonomous Dasha posting bots: they are crowded, make engagement evidence less trustworthy, and create endorsement/moderation risk. Reject a paid x402 Culture Compiler while the same output can be constructed locally for free; reconsider only when a proven server-side capability and independent demand both exist.
 
-Current decision detail: [`DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md`](DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md).
+Current decision detail: [`DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md`](archive/dasha-docs/DASHA-AGENTIC-CRYPTO-INTERFACES-2026-08-09.md).
 The first allowed artifact is one static schema only after a named external consumer and a reproducible
 construction failure; MCP additionally requires a genuinely remote operation and two independent
 clients, while x402 requires a scarce paid resource and independent buyers.
@@ -175,7 +186,7 @@ Trigger: Relay proves editable artifacts survive real handoffs and one community
 
 ### J. Lore Vault — bounded fallback, not CultureGraph
 
-Trigger: Studio/Relay sharing fails and real users repeatedly ask for sourced contract, origin or disputed-claim context. Use the existing Dasha evidence ledger plus two unrelated tokens to test three static pages manually under the time and return-use gates in [`DASHA-PRODUCT-OPTIONS-2026-08-07.md`](DASHA-PRODUCT-OPTIONS-2026-08-07.md). Do not build a multi-token graph, scraper, crowdsourced wiki, sentiment feed, safety score or price layer. If the static test fails, archive the direction.
+Trigger: Studio/Relay sharing fails and real users repeatedly ask for sourced contract, origin or disputed-claim context. Use the existing Dasha evidence ledger plus two unrelated tokens to test three static pages manually under the time and return-use gates in [`DASHA-PRODUCT-OPTIONS-2026-08-07.md`](archive/dasha-docs/DASHA-PRODUCT-OPTIONS-2026-08-07.md). Do not build a multi-token graph, scraper, crowdsourced wiki, sentiment feed, safety score or price layer. If the static test fails, archive the direction.
 
 ## Ambitious platform horizon
 
@@ -209,6 +220,6 @@ Guardrails:
   was removed from every surface on 2026-08-08: it is not a guardrail, it is a reflex nobody reads.
   The CC0 likeness carve-out stays, because it states licence scope rather than hedging;
 - no rewards for deceptive promotion or coordinated spam.
-- no points, rank, access, prizes or status for buying, balances, payments, referrals, favorable token posts, likes, reposts or reviews; optional sharing stays score-neutral.
+- no points, rank, access, prizes or status for buying, balances, payments, raw referral traffic, favorable token posts, likes, reposts or reviews; the bounded connector pilot scores delayed independent participation, and optional sharing stays score-neutral.
 
 Raw price movement is not proof that the website or product caused demand.

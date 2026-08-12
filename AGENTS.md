@@ -1,168 +1,78 @@
-# Demigod — Agent entry
+# Agent entry (machine-wide)
 
-**Start here:** [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) (`AGENT-SIMPLE.md` is a compatibility pointer) · docs: [`DOCS.md`](DOCS.md) · state: `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` is a compatibility pointer) · rules: `AGENT-RULES.md` · workflow: `DEMIGOD-WORKFLOW.md`
-**Ponytail required (all agents):** lean code — see § Ponytail below + `docs/PONYTAIL-AGENTS.md`.
-**Reasoning default (all agents):** prefer the weakest sufficient hypothesis: explain all observed evidence and satisfy hard constraints while making the fewest unsupported commitments. Weakest means least restrictive, not shortest, vague, or less safe. Use `$maximize-weakness` for nontrivial planning, diagnosis, research synthesis, and ambiguous requirements.
+Short door only. Project runbooks live elsewhere — do not restate them here.
 
-**Website truth:** run `bin/dg truth`; never copy a release version into this entry card · [state](DEMIGOD-COMPRESSED-STATE.md) · website+startup only (no auto-DM)
+## Active project
 
-**Cross-agent comms (Claude ⇄ Grok ⇄ Codex):** `bin/dg-bus` is the primary local task bus, built on the stateless `ask-claude`, `grok-ask` and `codex-ask` adapters with filesystem receipts. No external orchestration runtime. Full protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md).
+| State | Project | Open first |
+|-------|---------|------------|
+| **Current** | **Dasha** (getdasha.com) | [`DASHA-RULES.md`](DASHA-RULES.md) · [`DASHA-DOCS.md`](DASHA-DOCS.md) |
+| Paused | Demigod (trydemigod.com + startup ops) | [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) when the user reopens Demigod |
+| Hard-stop | Eat the Sounds game | Only if the user says reopen or names a game file |
 
-## Dasha scope and publication gate (2026-08-08)
+- Until the user explicitly switches projects, do **Dasha** work. Do not pull Demigod useful-loop / foot / board chores into a Dasha session.
+- Dasha scrap (do not revive): Thesis Card, receipts, Pair, forecasting/rounds. Old files are archived evidence only.
+- Demigod day card when active: [`DEMIGOD-SIMPLE.md`](DEMIGOD-SIMPLE.md) (`AGENT-SIMPLE.md` is a pointer). Expanded: [`DEMIGOD-AGENTS.md`](DEMIGOD-AGENTS.md) · workflow [`DEMIGOD-WORKFLOW.md`](DEMIGOD-WORKFLOW.md).
+- Doc map: [`DOCS.md`](DOCS.md). State orientation: [`DEMIGOD-COMPRESSED-STATE.md`](DEMIGOD-COMPRESSED-STATE.md) (no release versions copied into cards).
 
-- Dasha is the active project until the user explicitly switches projects; start with [`DASHA-DOCS.md`](DASHA-DOCS.md) and [`DASHA-WORKFLOW.md`](DASHA-WORKFLOW.md).
-- The Dasha Thesis Card, receipts, Pair and forecasting/rounds direction are permanently scrapped. Old files are archived evidence only: do not test, deploy, integrate, rename or revive them.
-- Dasha publication is current-request-gated. Prepare and verify by default; publish only when the current user request explicitly asks for publication.
-- A prior request to publish periodically does not authorize publication in a later task. Never publish a broken, misleading, security-sensitive, or partially migrated state.
-- Outbound messages, posts, forms, community-server changes, payments, wallet actions, and every other external side effect remain separately request-gated.
+## Hard gates (all projects)
 
-## User communication (standing — 2026-07-15)
+- **Publish / outbound / money / wallet / forms / posts / community-server changes:** only when the **current** user request explicitly authorizes that action. Prior “publish periodically” or old autonomy notes grant nothing. Prepare and verify by default.
+- Never publish a broken, misleading, security-sensitive, or partially migrated state.
+- **Prepared ≠ published.** Dirty disk and drifted manifests are normal until an authorized ship.
+- **Verify PASS ≠ product OK.** Gates must cover user-visible embeds (e.g. SRI pin vs asset hash). If users see an empty board/widget, do not stop at green markers alone.
+- **Truth by project** — never invent live state; never copy release versions into this file:
 
-- **Do not tell the user what they should do** (DMs, calls, Publish clicks, “your turn”, checklists for the human, “recommended next for you”).
-- **Do agent work** and report what *you* did / blocked on. No advice on human actions unless the user **explicitly asks** for advice on what they should do.
-- Same for “you can still…” / “you need to…” / “human next:” framing — omit unless asked.
+  | Project | Truth / verify |
+  |---------|----------------|
+  | Dasha | `npm run dasha:check` · `dasha:gate:fast` · `dasha:ship` (only with publish auth); product SRI via `dasha-live-verify` · `dasha:where` for SoR paths · see `DASHA-WORKFLOW.md` |
+  | Demigod | `bin/dg truth` (+ `npm run demigod:verify:source` / targeted) |
 
-# Demigod — Agent Rules (default project)
+- **Workspace SoR for ship-bound sources:** `/home/potter`. Worktrees are for isolated edits; promote before ship.
+- Local research, audits, screenshots, verification, and scoped code edits are fine without mid-cycle questions. Fable/Claude/Codex opinions are advisory; verify against disk.
 
-**Active projects:** trydemigod.com (Webflow) + Demigod startup ops.  
-**Paused / out of scope:** Eat the Sounds game — do not edit, verify, playtest, or discuss unless the user explicitly reopens it.
+## User communication
 
-**Workspace:** `/home/potter`  
-**Detail:** `DEMIGOD-AGENTS.md` + `DEMIGOD-WORKFLOW.md`  
-**Cursor rule:** `.cursor/rules/demigod.mdc`
+- **Do not assign the user work** (DMs, calls, Publish clicks, “your turn”, human checklists, “recommended next for you”).
+- **Do agent work** and report what *you* did or blocked on.
+- Human-action advice only if the user **explicitly** asks (e.g. “what should I do?”).
+- Omit “you can still…”, “you need to…”, “human next:” framing unless asked.
 
-**Docs & Exchange:** **Start here:** `DEMIGOD-COMPRESSED-STATE.md` (`AGENT-STATE.md` points there for compatibility). Then `docs/exchange/DEMIGOD-PUBLISH-LOAD-POSTMORTEM-2026-07-09.md`, `DEMIGOD-WORKFLOW.md`, `docs/exchange/DEMIGOD-AGENT-INFO-EXCHANGE-2026-07-09*.md`. Prompts use task-specific facts from current receipts; never prepend a standing phase label.
+## Multi-agent (Claude ⇄ Grok ⇄ Codex)
 
-## Hard stops (game)
+Protocol: [`AGENT-COMMS.md`](AGENT-COMMS.md). Bus: `bin/dg-bus`.
 
-Never touch these unless the user says "reopen the game" or names a specific game file:
+- Always pass **`--from <claude|codex|grok>`** on `send` and `task` (required; no default).
+- **One writer per file.** Claim via `dg-bus send` before editing shared sources when other agents may be live.
+- Interactive TUIs do **not** auto-read the bus — use `dg-bus task` / `send`, or a durable handoff file path.
+- `/tmp/dg-busy/**` is operational, not product truth; promote conclusions into project docs.
+- Prefer read-only research/review tasks; grant write scope narrowly. Verify worker claims before accepting them.
+- No agent is authority equal to the user.
+
+## Code defaults
+
+- **Ponytail (required):** YAGNI → reuse → stdlib → native → dep → one line → minimum. Keep security, a11y, validation, data-loss handling. Rules: [`docs/PONYTAIL-AGENTS.md`](docs/PONYTAIL-AGENTS.md).
+- **Reasoning:** weakest sufficient hypothesis (least restrictive that fits evidence + hard constraints). Use `$maximize-weakness` for nontrivial planning, diagnosis, research synthesis, ambiguous requirements.
+- **Keep working** only **inside the active project**. Do not stop after reporting if unblocked Dasha (or Demigod, when active) work remains. Stop when blocked on user auth, true ambiguity, or a safety gate — not by inventing out-of-scope chores. Procedure when Demigod is active: [`DEMIGOD-KEEP-WORKING-PROMPT.md`](DEMIGOD-KEEP-WORKING-PROMPT.md).
+- **Dogfood** ship gates and new/flaky tools (`demigod-tool-dogfood.mjs`); not every trivial command.
+- Do **not** put agent-owned sources only under `.local/` or `.config/` (tool-blocked). Prefer `bin/`, `demigod-*.mjs`, project `*.md`, `systemd-user/`. Broad `DEMIGOD-*` gitignore is forbidden.
+- Do **not** auto-spawn cloud agents, `continuous-improve-loop.mjs`, or `demigod:continuous` unless the user asks.
+
+## Game hard stop
+
+Unless the user says “reopen the game” or names a specific game file, do not edit, verify, playtest, or discuss:
 
 - `ninjawhee-eat-the-sounds.html`, `overworld.js`, `vinyl-*.js`, `game-progress.js`, `pause-journal.js`, `pixel-gfx.js`
-- `npm run verify:all`, `npm run verify`, game HTTP server `:8765`
-- Game P0 backlog, playtest MCP on game URLs, `eat-the-sounds/` mirror sync
+- `npm run verify:all` / `verify` (game), game HTTP `:8765`, game P0 backlog, playtest MCP on game URLs, `eat-the-sounds/` mirror sync
 
-Game sources remain on disk; they are **archived from agent work**, not deleted.
+Sources stay on disk; archived from agent work, not deleted.
 
-## Demigod quick reference
+## Where to go next
 
-| What | Where |
-|------|--------|
-| Live site | https://www.trydemigod.com |
-| Designer | https://talentlink-sf.design.webflow.com/ |
-| Custom code dashboard | Webflow → talentlink-sf → Custom Code |
-| Foot JS truth | `demigod-foot-core.js`; current disk/CDN/live identity comes only from `bin/dg truth` |
-| Head CSS truth | `demigod-head-styles.css` / `demigod-head-minimal.html` |
-| Footer loader | `demigod-footer-lite.html` |
-| Verify gate | `npm run demigod:verify:source` (or :all / targeted); also board-honesty |
-| Fresh Fable | `bin/df review "..."` — always fresh disk truth |
-| Tools | `bin/dg`, `bin/dgsnap` (checkpoint + verify + commit), `bin/dg-cockpit`, `demigod-wiz-cdp-playtest.mjs --local` |
-| Open workspace | `npm run demigod:workspace` |
-| CDP | `http://127.0.0.1:9223` |
-
-## Workflow
-
-1. Read `DEMIGOD-AGENTS.md` before multi-file Demigod work.
-2. One canonical file per task (`demigod-*` sources).
-3. Run `npm run demigod:verify:all` (or targeted `demigod:verify:live` / `demigod:verify:source`).
-4. External publication is current-request-gated for every project: prepare and verify by default; publish only when the current user request explicitly asks for it.
-5. Close extra CDP tabs when done; keep Designer + live + Grok within tab budget.
-
-## MCP
-
-- **webflow** — Designer changes when user wants Webflow edits
-- **chrome-devtools** — live audit @ `--browserUrl=http://127.0.0.1:9223`
-
-## Automation
-
-Do **not** auto-spawn cloud agents, `continuous-improve-loop.mjs`, or `demigod:continuous` unless the user asks.
-
-## Keep working (durable + nonstop)
-
-Standing order: **do not stop after reporting.** Always find and do the next unblocked task.  
-Procedure: [`DEMIGOD-KEEP-WORKING-PROMPT.md`](DEMIGOD-KEEP-WORKING-PROMPT.md) — evidence-driven discovery, weakest sufficient hypothesis, scoped execution, verification, and honest stop conditions.
-Durable loop: `systemctl --user enable --now demigod-useful-loop.service` · `bin/dg-useful-loop status`  
-Discover: `node demigod-work-find.mjs`
-
-## Session start
-
-```bash
-~/agent-dev.sh status
-~/agent-dev.sh up          # Chrome CDP — no game server needed
-bin/dg home                # Control Plane — cohesive module map
-bin/dg hygiene --prune     # occasionally: tabs + load
-# Dash: http://127.0.0.1:9878  ·  /api/control
-```
-
-## Control Plane (how everything connects)
-
-One spine, many modules — prefer these over inventing paths:
-
-| Module | CLI | Dash |
-|--------|-----|------|
-| Orient / Home | `bin/dg home` / `next` | Dash **Home** (control plane + ops merged) |
-| Site | `bin/dg smoke` | Home spine / Check site |
-| Webflow | `bin/dg webflow …` | Home module · `/api/webflow` |
-| Match | `bin/dg matches` | Matches tab |
-| Review | `bin/dg review` | Home action · Tools job |
-| Hygiene | `bin/dg hygiene --prune` | Home action |
-| Ship | freeze + ship-checklist | Ship tab |
-
-JSON: `/tmp/dg-busy/control-plane.json` · API: `GET /api/control`
-
-## Laptop / tab hygiene (do occasionally)
-
-**Blue moon (~14d):** `bin/dg-laptop-blue-moon` · doc [`DEMIGOD-LAPTOP-BLUE-MOON.md`](DEMIGOD-LAPTOP-BLUE-MOON.md) · weekly timer `demigod-laptop-blue-moon.timer`
-
-- Keep ~**4–8** CDP pages: 1 Ops `:9878`, 1 live, 1 Designer, 1 Custom Code.
-- `node demigod-laptop-hygiene.mjs --prune` or `bin/dg-hygiene` or `bin/dg-webflow hygiene --prune`
-- If load is high or free mem is low: prune tabs, avoid parallel `claude --print` swarms, skip extra dash restarts.
-- `--kill-hung` only for stuck `claude --print` / playtests ≥25m (never kill CDP Chrome :9223).
-
-## Workflow best practices (simple)
-
-- Fable via `bin/df` for plans when useful.
-- Verify after every change (`npm run demigod:verify:source` / targeted).
-- Doc map: [`DOCS.md`](DOCS.md) · ship: [`docs/SHIP-AND-CDN.md`](docs/SHIP-AND-CDN.md) · roles: [`docs/ROLES-PIPELINE.md`](docs/ROLES-PIPELINE.md).
-- Historical notes: `docs/exchange/` — do not treat as current release state.
-
-## Standing autonomy (local, no outbound)
-
-Agents may do local research, audits, screenshots, board prep, verification, and scoped code edits without mid-cycle questions. Fable/Claude are advisory; verify against disk. **Publishing, outbound actions, wallet actions, and money always need current-request authorization.**
-
-## Ponytail — REQUIRED for ALL agents (Grok, Claude, Fable, Codex, Cursor, Heavy)
-
-**Standing order:** Every coding agent on this machine **must** follow Ponytail (lazy senior) when writing or editing code.
-
-- **Plugin/skill:** installed for Claude Code + Codex (`ponytail@ponytail` v4.8.4, enabled)
-- **Cursor rule (always):** `~/.cursor/rules/ponytail.mdc` (also project `.cursor/rules/`)
-- **Ruleset:** `docs/PONYTAIL-AGENTS.md` · setup: `docs/PONYTAIL-SETUP.md` · upstream: https://github.com/DietrichGebert/ponytail
-- **Default mode:** `full` (`~/.config/ponytail/config.json`)
-
-**Before writing code, stop at the first rung that holds:**
-1. Does this need to exist? (YAGNI) → skip
-2. Already in this codebase? → reuse
-3. Stdlib? → use it
-4. Native platform feature? → use it
-5. Installed dependency? → use it
-6. One line? → one line
-7. Only then: minimum that works
-
-**Never cut:** trust-boundary validation, data-loss handling, security, accessibility, problem understanding.  
-**Prefer:** shortest working diff, fewer files, no unsolicited abstractions/deps.  
-**Commands (where supported):** `/ponytail`, `/ponytail-review`, `/ponytail-audit`, levels `lite|full|ultra|off`.
-
-## Tool dogfood (standing)
-
-Every agent **must** dogfood tools when using CLI/dash jobs:
-
-- Wrap: `node demigod-tool-dogfood.mjs wrap --tool=NAME -- <cmd…>`
-- Log judgment: `node demigod-tool-dogfood.mjs log --tool=NAME --ok=1 --useful=1 --why="…"`
-- Review: `node demigod-tool-dogfood.mjs status` or dash `/api/dogfood`
-- Improve tools that fail often or score not-useful; demote unused hot tools.
-
-Priority board: `node demigod-priority-board.mjs` · dash top cards · `/api/priority`.
-Maps: dash **Map** tab · `/api/maps`.
-
-## Agent file access (anti-block)
-
-Do **not** put agent-owned sources only under `.local/` or `.config/` (often tool-blocked). Prefer `bin/`, `demigod-*.mjs`, `DEMIGOD-*.md`, `systemd-user/`. Broad `DEMIGOD-*` gitignore is **forbidden** — tools fail on it.
+| Need | Open |
+|------|------|
+| Dasha work | `DASHA-RULES.md` → `DASHA-DOCS.md` → `DASHA-WORKFLOW.md` |
+| Demigod work (when reopened) | `DEMIGOD-SIMPLE.md` → `DEMIGOD-AGENTS.md` |
+| Cross-agent bus | `AGENT-COMMS.md` · `bin/dg-bus status` |
+| Doc map | `DOCS.md` |
+| Ponytail | `docs/PONYTAIL-AGENTS.md` |

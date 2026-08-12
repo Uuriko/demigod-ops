@@ -1,4 +1,6 @@
-# Demigod — Simple (the only card)
+# Demigod — Simple (day card when Demigod is active)
+
+Machine-wide entry and **which project is active**: [`AGENTS.md`](AGENTS.md). Use this card only when the user has reopened Demigod (or switched away from Dasha).
 
 **Product:** SF tech-matched talent, humans in the loop · 10% on hire · mutual yes · one concrete first result · no fake board/SLA
 **Site:** foot-core only for JS · Webflow + CDN · release identity comes only from `bin/dg truth`
