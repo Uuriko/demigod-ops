@@ -18,6 +18,7 @@
  *   node dasha-studio-publish.mjs --check    # exit 1 if the public copy is stale
  */
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,7 +38,7 @@ const read = (rel) => readFile(join(root, rel), 'utf8');
    claim instead. What that costs is stated plainly rather than hidden: the drawn looks still work
    with no network, but the gallery does not, and a photo host can rot or start refusing us at any
    time. The footer must therefore never claim the photos are ours to give away. */
-const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com)/;
+const LINKS = /^https:\/\/(creativecommons\.org|github\.com\/Uuriko|jup\.ag|x\.com|lobby\.getdasha\.com)/;
 const PHOTO_HOSTS = /^https:\/\/(pbs\.twimg\.com|static1\.squarespace\.com|www\.moviemaker\.com|m\.media-amazon\.com|br\.web\.img2\.acsta\.net|avatars\.mds\.yandex\.net|upload\.wikimedia\.org)\//;
 const studio = await read('dasha-meme-studio.html');
 // Every absolute URL anywhere in the file — markup, CSS, or a string literal in the script.
@@ -70,7 +71,23 @@ const builder = (await read('dasha-studio-embed-build.mjs'))
   .replace(/dasha-meme-studio\.html/g, 'index.html')
   .replace(/dasha-studio-embed\.html/g, 'embed.html')
   .replace(/dasha-studio-embed\.js/g, 'embed.js')
-  .replace(/dasha-studio-embed-build\.mjs/g, 'embed-build.mjs');
+  .replace(/dasha-studio-embed-build\.mjs/g, 'embed-build.mjs')
+  // Public pack has no lobby static-gen; SRI is only for the live thin loader path.
+  .replace(
+    /import \{ STUDIO_CLIENT_SRI \} from '\.\/dasha-lobby-static-gen\.mjs';/,
+    "const STUDIO_CLIENT_SRI = 'sha384-public-studio-pack';",
+  )
+  /* Public pack must ship the self-contained fragment as embed.html (pasteable offline).
+     The private builder CLI writes a thin Worker loader instead; rewrite the outputs so
+     `node embed-build.mjs --check` and studio.test.mjs agree with what publish writes. */
+  .replace(
+    "const outputs = [['embed.html', loader], ['embed.js', script]];",
+    "const outputs = [['embed.html', embed], ['embed.js', script]];",
+  )
+  .replace(
+    "console.log('studio loader + Worker client generated');",
+    "console.log('studio embed + script generated');",
+  );
 files.set('embed-build.mjs', builder);
 
 /* embed.html is produced by running THAT script, not by copying ours. The two differ: the generated
@@ -93,7 +110,20 @@ for (const svg of ['mark', 'favicon', 'character']) {
 files.set('LICENSE', await read('LICENSE-KIT'));
 files.set('media.json', await read('dasha-studio-media.json'));
 
-files.set('README.md', await read('dasha-studio-readme.md'));
+/* The README's copy-paste snippet pins embed.js by SHA-384, and studio.test.mjs asserts the pin
+   equals the bytes actually shipped. That pin used to be hand-maintained, so it went stale the
+   moment the embed changed — and because the published test fails closed, the GitHub Pages deploy
+   workflow failed with it. Pages then stopped publishing entirely: the hosted embed sat frozen at
+   65 KB against a 114 KB source, and every site that pasted the snippet kept loading the old bytes.
+   Nobody saw it, because it is not our page — exactly the failure dasha-discovery.test.mjs warns
+   about. Computed from the embed being published, so it cannot drift from it again. */
+const publishedSri = `sha384-${createHash('sha384').update(files.get('embed.js')).digest('base64')}`;
+const readmeSource = await read('dasha-studio-readme.md');
+const readme = readmeSource.replace(/integrity="sha384-[A-Za-z0-9+/=]+"/g, `integrity="${publishedSri}"`);
+if (!readme.includes(publishedSri)) {
+  throw new Error('dasha-studio-readme.md has no integrity="sha384-…" to update — the snippet lost its pin');
+}
+files.set('README.md', readme);
 files.set('studio.test.mjs', await read('dasha-studio-static.test.mjs'));
 
 if (check) {
