@@ -139,6 +139,9 @@ const OAUTH_COOKIE = '__Host-dasha_x_oauth';
    chart that admits it is missing. */
 const PRICE_TTL_MS = 30_000;
 const PRICE_STALE_MS = 10 * 60_000;
+/* Candles are the expensive call and the slowest-moving data; refreshing them every thirty seconds
+   is what got our egress rate-limited in the first place. */
+const PRICE_SERIES_TTL_MS = 5 * 60_000;
 let PRICE_CACHE = { at: 0, body: null };
 
 /* Served from the worker rather than pushed to Webflow: the forum is all API, so a Webflow surface
@@ -1677,17 +1680,55 @@ export class DashaLobby {
     const now = Date.now();
     if (!this.priceCache) this.priceCache = await this.state.storage.get('priceCache') || { at: 0, body: null };
 
-    if (!this.priceCache.body || now - this.priceCache.at > PRICE_TTL_MS) {
+    /* Back off on failure, not just on success.
+       The first version only advanced `at` when a fetch worked, so once the upstream started
+       refusing us every single request tried again — a rate limit turned into a retry storm that
+       guaranteed it would keep refusing. `attemptAt` moves whether or not the call succeeds, so a
+       failing upstream is retried once per TTL like a healthy one, and the page keeps serving the
+       last good reading in the meantime. */
+    const dueForRefresh = !this.priceCache.body || now - this.priceCache.at > PRICE_TTL_MS;
+    const mayAttempt = now - (this.priceAttemptAt || 0) > PRICE_TTL_MS;
+    if (dueForRefresh && mayAttempt) {
+      this.priceAttemptAt = now;
       try {
         const base = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${PAIR}`;
-        const opts = { signal: AbortSignal.timeout(6000), headers: { accept: 'application/json' } };
-        const [snap, ohlcv] = await Promise.all([
-          fetch(base, opts).then((r) => (r.ok ? r.json() : null)),
-          fetch(`${base}/ohlcv/minute?aggregate=5&limit=288`, opts).then((r) => (r.ok ? r.json() : null)),
-        ]);
-        const a = snap?.data?.attributes;
-        const rows = ohlcv?.data?.attributes?.ohlcv_list;
-        if (!a?.base_token_price_usd || !Array.isArray(rows) || !rows.length) throw new Error('incomplete upstream');
+        const opts = { signal: AbortSignal.timeout(6000), headers: { accept: 'application/json', 'user-agent': 'dasha-lobby' } };
+        const previous = this.priceCache.body;
+
+        /* The two calls are separated on purpose. They used to be one Promise.all, so a refused
+           OHLCV response threw the whole refresh away and the headline price went stale with it —
+           which is what "incomplete upstream" was: the free API rate-limits our egress, and the
+           heavier candles call is the one it drops first. The price is what people read; the
+           sparkline can be a few minutes behind without lying about anything. */
+        const snapRes = await fetch(base, opts);
+        if (!snapRes.ok) throw new Error(`pool ${snapRes.status}`);
+        const a = (await snapRes.json())?.data?.attributes;
+        if (!a?.base_token_price_usd) throw new Error('pool payload missing price');
+
+        /* Candles move slowly and cost the most, so they refresh on their own longer clock. */
+        let series = previous?.series || [];
+        if (!series.length || now - (this.seriesAt || 0) > PRICE_SERIES_TTL_MS) {
+          try {
+            const ohlcvRes = await fetch(`${base}/ohlcv/minute?aggregate=5&limit=288`, opts);
+            if (ohlcvRes.ok) {
+              const rows = (await ohlcvRes.json())?.data?.attributes?.ohlcv_list;
+              if (Array.isArray(rows) && rows.length) {
+                /* Six significant figures, oldest first, close only. The upstream sends twenty
+                   digits across five columns; a 300px line can express neither. */
+                series = rows
+                  .map((row) => [Number(row[0]), Number(Number(row[4]).toPrecision(6))])
+                  .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
+                  .sort((x, y) => x[0] - y[0]);
+                this.seriesAt = now;
+              }
+            }
+          } catch {
+            /* Keep the previous series. A stale line under a current price is honest; no price
+               because the line could not be refreshed is not. */
+          }
+        }
+        if (!series.length) throw new Error('no series yet');
+
         this.priceCache = {
           at: now,
           body: {
@@ -1699,24 +1740,29 @@ export class DashaLobby {
             volume24hUsd: Number(a.volume_usd?.h24) || null,
             liquidityUsd: Number(a.reserve_in_usd) || null,
             change: { h1: Number(a.price_change_percentage?.h1), h24: Number(a.price_change_percentage?.h24) },
-            /* Six significant figures, oldest first, close only. The upstream sends twenty digits
-               and five columns; a 300px line can express neither, and the full shape tripled the
-               payload. The headline price above keeps full precision — people read that one. */
-            series: rows
-              .map((row) => [Number(row[0]), Number(Number(row[4]).toPrecision(6))])
-              .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]) && point[1] > 0)
-              .sort((x, y) => x[0] - y[0]),
+            series,
+            seriesAsOf: new Date(this.seriesAt || now).toISOString(),
             source: 'geckoterminal',
             asOf: new Date(now).toISOString(),
           },
         };
+        this.priceError = null;
         await this.state.storage.put('priceCache', this.priceCache);
-      } catch {
+      } catch (err) {
+        /* Kept, because a swallowed reason is how this stayed a mystery: the endpoint served a
+           stale reading for ten minutes while every direct probe of the upstream answered 200, and
+           there was nothing anywhere saying why. Short and bounded — it is a symptom, not a log. */
+        this.priceError = String(err?.message || err).slice(0, 120);
         if (!this.priceCache.body || now - this.priceCache.at > PRICE_STALE_MS) {
-          return json({ ok: false, error: 'price unavailable' }, 503, allowedOrigin || '*');
+          return json({ ok: false, error: 'price unavailable', reason: this.priceError }, 503, allowedOrigin || '*');
         }
-        this.priceCache.body = { ...this.priceCache.body, stale: true };
       }
+    }
+    if (this.priceCache.body) {
+      const age = now - this.priceCache.at;
+      this.priceCache.body = age > PRICE_TTL_MS
+        ? { ...this.priceCache.body, stale: true, staleForMs: age, reason: this.priceError || null }
+        : { ...this.priceCache.body, stale: false, staleForMs: undefined, reason: undefined };
     }
     return json(this.priceCache.body, 200, allowedOrigin || '*', {
       headers: { 'Cache-Control': `public, max-age=${Math.floor(PRICE_TTL_MS / 1000)}` },

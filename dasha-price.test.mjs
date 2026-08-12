@@ -17,6 +17,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { MISLEADING_COIN_COPY, NEGATIVE_COIN_COPY, publicCopyFromHtml } from './dasha-public-copy.mjs';
+
 const root = dirname(fileURLToPath(import.meta.url));
 const worker = readFileSync(join(root, 'dasha-lobby-worker.mjs'), 'utf8');
 const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
@@ -67,9 +69,8 @@ const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
 
 // ---- the page tells the truth about what it is showing ---------------------------
 {
-  /* Scoped to the strip's own script. Checking the whole page passed for the wrong reason: the
-     footer already carries "can go to zero", so deleting the line from the price strip left the
-     assertion green. A guarantee about this element has to be read from this element. */
+  /* Scoped to the strip's own script: a guarantee about this element has to be read from this
+     element, or it passes on the strength of copy somewhere else on the page. */
   const at = landing.indexOf("lobby.getdasha.com/price");
   assert.ok(at > 0, 'the price script must exist to be checked');
   const strip = landing.slice(landing.lastIndexOf('<script', at), landing.indexOf('</script>', at));
@@ -77,8 +78,17 @@ const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
   assert.ok(/price-note/.test(strip), 'the strip carries a note line');
   assert.ok(/Last good reading/.test(strip), 'a stale reading is labelled on the page, not silently drawn');
   assert.ok(/asOf/.test(strip), 'the reading is shown with the time it was taken');
-  assert.ok(/can go to zero/.test(strip), 'the risk line rides with the price, not somewhere further down');
   assert.ok(/GeckoTerminal/.test(strip), 'the source is named next to the number');
+
+  /* No risk disclaimer here, and that is deliberate. The first draft appended "can go to zero" to
+     the price note on the assumption that a number about money needs a warning beside it. This site
+     removed that copy from its public surfaces on purpose: NEGATIVE_COIN_COPY forbids it,
+     dasha-identity-matrix rejects the landing page for carrying it, and watch.mjs fails the build if
+     it returns. Honesty here is the timestamp and the named source, not a hedge. */
+  assert.ok(!NEGATIVE_COIN_COPY.test(publicCopyFromHtml(landing)),
+    'the price strip must not reintroduce the negative coin copy the operator removed');
+  assert.ok(!MISLEADING_COIN_COPY.test(publicCopyFromHtml(landing)),
+    'the price strip must not add a promotional claim');
 
   /* No urgency. watch.mjs fails the build if this copy ever appears anywhere on the site, and a
      price ticker is exactly where it would creep in. */
@@ -95,4 +105,4 @@ const landing = readFileSync(join(root, 'dasha-landing.html'), 'utf8');
   assert.ok(/role="img"/.test(landing), 'the svg is exposed as an image rather than a pile of paths');
 }
 
-console.log('dasha price: PASS (own code only, one upstream call per TTL from the Durable Object, stale is labelled and dead is absent, source and risk shown, sparkline described)');
+console.log('dasha price: PASS (own code only, one upstream call per TTL from the Durable Object, stale is labelled and dead is absent, source and timestamp shown, no disclaimer copy reintroduced, sparkline described)');
