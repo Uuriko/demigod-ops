@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+/**
+ * Report whether Cloudflare auth can deploy dasha-lobby.
+ * Does not print secrets. Exit 0 if deploy should work.
+ */
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+
+const envToken = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
+const toml = `${process.env.HOME}/.config/.wrangler/config/default.toml`;
+let oauthExp = null;
+if (existsSync(toml)) {
+  const text = readFileSync(toml, 'utf8');
+  oauthExp = text.match(/^expiration_time\s*=\s*"([^"]+)"/m)?.[1] || null;
+}
+
+let ok = false;
+let via = null;
+if (envToken) {
+  const res = await fetch('https://api.cloudflare.com/client/v4/accounts?per_page=1', {
+    headers: { Authorization: `Bearer ${envToken}` },
+  });
+  ok = res.ok;
+  via = 'CLOUDFLARE_API_TOKEN';
+  console.log(JSON.stringify({ ok, via, http: res.status, oauthExp }, null, 2));
+  process.exit(ok ? 0 : 1);
+}
+
+const who = spawnSync('npx', ['--yes', 'wrangler@4.120.1', 'whoami'], {
+  encoding: 'utf8',
+  env: { ...process.env, CLOUDFLARE_API_TOKEN: undefined },
+  timeout: 30_000,
+});
+const out = `${who.stdout || ''}${who.stderr || ''}`;
+ok = who.status === 0 && /logged in|Account ID/i.test(out) && !/not logged in|expired/i.test(out);
+via = 'wrangler-oauth';
+console.log(JSON.stringify({
+  ok,
+  via,
+  oauthExp,
+  hint: ok ? 'ready to npm run dasha:lobby:deploy' : 'set CLOUDFLARE_API_TOKEN or run wrangler login interactively',
+}, null, 2));
+process.exit(ok ? 0 : 1);

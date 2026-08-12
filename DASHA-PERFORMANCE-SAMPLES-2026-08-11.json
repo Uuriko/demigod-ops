@@ -1,0 +1,18 @@
+{
+  "schema": "dasha.performance-samples/1",
+  "url": "https://www.getdasha.com/",
+  "harness": "demigod-lighthouse.mjs mobile Lighthouse 13.4.1",
+  "samples": [
+    { "at": "2026-08-11T15:47:45.563Z", "performance": 76, "accessibility": 100, "bestPractices": 100, "seo": 100, "fcpMs": 3847.6162, "lcpMs": 4008.7846, "tbtMs": 96.3368, "cls": 0 },
+    { "at": "2026-08-11T15:47:58.829Z", "performance": 76, "accessibility": 100, "bestPractices": 100, "seo": 100, "fcpMs": 4022.1683, "lcpMs": 4192.7183, "tbtMs": 0, "cls": 0 },
+    { "at": "2026-08-11T15:48:12.221Z", "performance": 77, "accessibility": 100, "bestPractices": 100, "seo": 100, "fcpMs": 4132.4487, "lcpMs": 4132.4487, "tbtMs": 0, "cls": 0 }
+  ],
+  "medianLcpMs": 4132.4487,
+  "gateLcpMsExclusive": 2500,
+  "pass": false,
+  "factorIsolation": [
+    { "at": "2026-08-11T16:09:27.214Z", "blocked": "generated jQuery, Webflow JS and WebFont loader", "performance": 94, "fcpMs": 2113.161, "lcpMs": 2667.668, "tbtMs": 0, "cls": 0, "pass": false },
+    { "at": "2026-08-11T16:11:23.696Z", "blocked": "same generated scripts plus Webflow shared CSS", "performance": 99, "fcpMs": 1742.938, "lcpMs": 1742.938, "tbtMs": 0, "cls": 0, "pass": true }
+  ],
+  "note": "Each value is copied from the corresponding instrumented command result; the harness retained only the latest full Lighthouse report. Future A/B samples must use distinct output directories."
+}
