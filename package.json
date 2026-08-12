@@ -160,14 +160,16 @@
     "dasha:test:remix": "node dasha-remix-pack.test.mjs",
     "dasha:test:card": "node dasha-social-card.test.mjs",
     "dasha:test:buy": "node dasha-buy-path.test.mjs",
-    "dasha:test:chess": "node dasha-chess-rules.test.mjs && node dasha-chess-server.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess-page.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess-worker.test.mjs && node dasha-chess-local-build.mjs --check && node dasha-chess-local.test.mjs && node dasha-chess-push.test.mjs",
+    "dasha:test:chess": "node dasha-chess-rules.test.mjs && node dasha-chess-server.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess-page.test.mjs && node .grok/worktrees/potter/dasha/dasha-chess-worker.test.mjs && node dasha-chess-local-build.mjs --check && node dasha-chess-local.test.mjs && node dasha-chess-push.test.mjs && node dasha-chess-checks.test.mjs",
     "dasha:build:chess-local": "node dasha-chess-local-build.mjs",
     "dasha:test:handoff": "node dasha-studio-handoff.test.mjs",
     "dasha:test:love": "node dasha-love-paths.test.mjs",
     "dasha:identity": "node dasha-identity-matrix.mjs",
     "dasha:radar": "node dasha-radar.mjs",
     "dasha:radar:live": "node dasha-radar.mjs --live",
-    "dasha:radar:full": "node dasha-radar.mjs --full"
+    "dasha:radar:full": "node dasha-radar.mjs --full",
+    "dasha:funnel": "node dasha-funnel-delta.mjs",
+    "dasha:funnel:save": "node dasha-funnel-delta.mjs --save"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.12.1",
