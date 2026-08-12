@@ -157,12 +157,11 @@ export async function runStrangerLoop() {
           ogTitle: document.querySelector('meta[property="og:title"]')?.content || '',
           onStudio: /getdasha\.com\/studio/i.test(location.href),
         }));
-        // Humans auto-redirect into Studio; success is landing with DNA (or staying on OG card).
-        step(
-          'L4-handoff',
-          Boolean(res?.ok()) && (snap.onStudio || snap.ogTitle || /your turn/i.test(snap.url || '')),
-          snap,
-        );
+        // Humans auto-redirect into Studio; success is Studio+DNA (HTTP status may be 304/null after replace).
+        step('L4-handoff', Boolean(snap.onStudio || snap.ogTitle), {
+          ...snap,
+          http: res?.status?.(),
+        });
 
         if (!snap.onStudio) {
           await hp
