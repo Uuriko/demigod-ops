@@ -139,6 +139,16 @@ const FORUM_PAGE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf
 <title>Forum — $dasha</title>
 <meta name="description" content="Long-form threads for $dasha. Link X to post.">
 <link rel="canonical" href="https://lobby.getdasha.com/forum">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="getdasha">
+<meta property="og:url" content="https://lobby.getdasha.com/forum">
+<meta property="og:title" content="Forum — $dasha">
+<meta property="og:description" content="Long-form threads for $dasha. Link X to post.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Forum — $dasha">
+<meta name="twitter:description" content="Long-form threads for $dasha. Link X to post.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
 <link rel="icon" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48e1dd29d210f01235_dasha-icon-32.png">
 <style>
 :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--muted:#e6dcc4;--line:rgba(244,237,219,.32)}
@@ -454,6 +464,11 @@ export function publicFunnelSummary(studio = {}, quiz = {}, chess = {}, threshol
   const ratio = (part, whole) => Number(part) >= threshold && Number(whole) >= threshold && Number(part) <= Number(whole)
     ? Number((Number(part) / Number(whole)).toFixed(3))
     : null;
+  /* Opens can exceed mints (re-opens, previews). Cap at 1 so the cell is still meaningful. */
+  const ratioCap = (part, whole) => {
+    if (!(Number(part) >= threshold && Number(whole) >= threshold)) return null;
+    return Number(Math.min(1, Number(part) / Number(whole)).toFixed(3));
+  };
   return {
     ok: true,
     since: Number.isFinite(studio.since) ? new Date(studio.since).toISOString() : null,
@@ -469,10 +484,12 @@ export function publicFunnelSummary(studio = {}, quiz = {}, chess = {}, threshol
       editToExport: ratio(studio.exports, studio.firstEdits),
       shareIntents: cell(studio.shareIntents),
       shareApiResolutions: cell(studio.shareSuccesses),
+      editToShareIntent: ratio(studio.shareIntents, studio.firstEdits),
+      intentToShareSuccess: ratio(studio.shareSuccesses, studio.shareIntents),
       copyEditableLinks: cell(studio.copyEditableLinks),
       handoffMints: cell(studio.handoffMints),
       handoffOpens: cell(studio.handoffOpens),
-      mintToOpen: ratio(studio.handoffOpens, studio.handoffMints),
+      mintToOpen: ratioCap(studio.handoffOpens, studio.handoffMints),
     },
     quiz: {
       starts: cell(quiz.starts),
@@ -1160,8 +1177,13 @@ export class DashaLobby {
           },
         });
       }
-      this.studioMetrics.handoffOpens = (this.studioMetrics.handoffOpens || 0) + 1;
-      await this.state.storage.put('studioMetrics', this.studioMetrics);
+      /* Count human opens only — crawlers/unfurl bots inflate mintToOpen. */
+      const ua = request.headers.get('user-agent') || '';
+      const bot = /bot|crawl|spider|slurp|facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|WhatsApp|TelegramBot|Preview/i.test(ua);
+      if (!headOnly && !bot) {
+        this.studioMetrics.handoffOpens = (this.studioMetrics.handoffOpens || 0) + 1;
+        await this.state.storage.put('studioMetrics', this.studioMetrics);
+      }
       const html = handoffCardHtml(id, row.state);
       return new Response(headOnly ? null : html, {
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=120' }),

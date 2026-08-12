@@ -25,6 +25,8 @@ export const PUBLIC_METRICS_KEYS = {
     'editToExport',
     'shareIntents',
     'shareApiResolutions',
+    'editToShareIntent',
+    'intentToShareSuccess',
     'copyEditableLinks',
     'handoffMints',
     'handoffOpens',

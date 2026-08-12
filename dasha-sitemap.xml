@@ -30,4 +30,6 @@
   <url>
     <loc>https://lobby.getdasha.com/chess</loc>
   </url>
+  <!-- Forum stays off the public sitemap until a first-class home/lobby link exists and the page
+       carries social meta. Listing an unlinked route fails home-sitemap-navigation audit. -->
 </urlset>

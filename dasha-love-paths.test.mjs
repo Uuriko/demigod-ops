@@ -153,6 +153,21 @@ const fat = publicFunnelSummary(
 );
 assert.equal(fat.studio.handoffMints, 9);
 assert.equal(fat.studio.mintToOpen, Number((6 / 9).toFixed(3)));
+assert.equal(fat.studio.editToShareIntent, Number((6 / 10).toFixed(3)));
+assert.equal(fat.studio.intentToShareSuccess, Number((5 / 6).toFixed(3)));
+/* Opens can exceed mints (re-opens); public ratio is capped at 1. */
+const overOpen = publicFunnelSummary(
+  {
+    since: sinceMs,
+    completionSince: sinceMs,
+    handoffMints: 10,
+    handoffOpens: 25,
+  },
+  {},
+  {},
+  5,
+);
+assert.equal(overOpen.studio.mintToOpen, 1);
 assert.equal(publicMetricsViolations(fat).length, 0, publicMetricsViolations(fat).join(','));
 
 const leak = { ...empty, studio: { ...empty.studio, wallet: 'x' } };
