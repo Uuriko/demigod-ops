@@ -11,7 +11,7 @@
  *   node dasha-ship.mjs --ship --strict
  *   node dasha-ship.mjs --push       # push embeds only (no publish)
  *   node dasha-ship.mjs --publish    # site publish only
- *   node dasha-ship.mjs --ship --only=studio   # focus gates on Studio; site publish still restages all surfaces
+ *   node dasha-ship.mjs --ship --only=studio   # focus gates + push only Studio (publish is still site-wide CDN)
  *   node dasha-ship.mjs --preflight  # auth/site/domain check only
  *   node dasha-ship.mjs --verify     # curl live markers only
  *   node dasha-ship.mjs --status     # local/live-manifest delta, no network
@@ -39,6 +39,7 @@ const want = {
   strict: args.has('--strict'),
   dry: args.has('--dry-run'),
 };
+if (args.has('--no-prep')) want.prep = false;
 
 /* --only=studio (comma-separated) restricts non-publishing pushes and focused gates.
    Why this exists: /studio lost its CC0 dedication from production three times on 2026-08-08. Every
@@ -108,8 +109,8 @@ const SOCIAL_CARD = 'https://lobby.getdasha.com/og/dasha-social-card.png';
 const STATE = process.env.DASHA_SHIP_STATE || '/tmp/dasha-ship-state.json';
 const MANIFEST = process.env.DASHA_SHIP_MANIFEST || join(root, 'DASHA-SHIP-MANIFEST.json');
 const NOW_DOC = process.env.DASHA_NOW_DOC || join(root, 'DASHA-NOW.md');
-const LOBBY_ASSETS = join(root, '.grok/worktrees/potter/dasha/dasha-lobby-static-gen.mjs');
-const LOBBY_ROOT = join(root, '.grok/worktrees/potter/dasha');
+const LOBBY_ASSETS = join(root, 'dasha-lobby-static-gen.mjs');
+const LOBBY_ROOT = root;
 
 const t0 = Date.now();
 const log = (step, extra = {}) =>
@@ -253,6 +254,11 @@ function prep() {
   log('prep:start');
   run('node', ['dasha-desk/build.mjs', '--write']);
   run('node', ['dasha-studio-embed-build.mjs']);
+  run('node', ['dasha-lobby-assets-build.mjs', '--write']);
+  run('node', ['dasha-studio-embed-build.mjs']);
+  run('node', ['dasha-lobby-embed-build.mjs', '--write']);
+  run('node', ['dasha-simp-board-embed-build.mjs', '--write']);
+  run('node', ['dasha-lobby-assets-build.mjs', '--write']);
   const shipDir = join(root, '.tmp-dasha-ship', 'publish-ready');
   mkdirSync(shipDir, { recursive: true });
   // desk embed shell from build.mjs
@@ -290,7 +296,7 @@ function fastGate(changed, receipt) {
   const desk = read('dasha-desk/src/body.html');
   const deskShell = read('dasha-desk-shell.html');
   const deskRetiredRepair = read('dasha-desk-retired-repair.html');
-  const embed = read('dasha-studio-embed.html');
+  const embed = read(SURFACES.studio.file);
   const fail = (m) => {
     throw new Error(`fast gate: ${m}`);
   };
@@ -315,17 +321,28 @@ function fastGate(changed, receipt) {
   if (/thesis card|conviction receipt|receipt-form/i.test(landing)) fail('landing thesis/receipt copy');
   if (!studio.includes("id: 'square'") || !studio.includes("id: 'story'") || !studio.includes("id: 'banner'"))
     fail('studio missing formats');
-  if (!embed.includes('attachShadow') || !embed.includes('dasha-studio-embed')) fail('studio embed not shadow-isolated');
-  // embed must be fresh
+  if (!embed.includes('dasha-studio-embed') || !(/attachShadow/.test(embed) || /client\/studio\.js[^>]+integrity="sha384-/.test(embed)))
+    fail('studio embed is neither an isolated full embed nor the integrity-pinned thin loader');
+  // Both product source and deployed thin loader must be fresh.
   run('node', ['dasha-studio-embed-build.mjs', '--check']);
+  run('node', ['dasha-lobby-assets-build.mjs', '--check']);
   run('node', ['dasha-desk/build.mjs', '--check']);
   gate(receipt, 'productCoherence', 'node', ['dasha-product-coherence.test.mjs'], 'required for every product release');
   gate(receipt, 'growthTrust', 'node', ['dasha-growth.test.mjs'], 'required for every product release');
   const browser = process.env.DASHA_SHIP_SKIP_BROWSER !== '1';
   const why = (surface) => !browser ? 'fixture-only browser skip' : changed.includes(surface) ? `${surface} artifact changed` : `${surface} hash unchanged`;
-  gate(receipt, 'landingBrowser', 'node', ['dasha-landing.test.mjs'], why('home'), browser && changed.includes('home'));
-  gate(receipt, 'studioBrowser', 'node', ['dasha-meme-studio.test.mjs'], why('studio'), browser && changed.includes('studio'));
-  gate(receipt, 'deskBrowser', 'node', ['dasha-desk.test.mjs'], why('desk'), browser && changed.includes('desk'));
+  // landing.test covers home+studio+desk invariants — do not skip when only studio/desk drifted
+  const landingBrowserNeeded = browser && (changed.includes('home') || changed.includes('studio') || changed.includes('desk') || changed.includes('deskShell'));
+  const landingWhy = !browser
+    ? 'fixture-only browser skip'
+    : landingBrowserNeeded
+      ? 'home/studio/desk surface changed (cross-surface landing.test)'
+      : 'home/studio/desk hashes unchanged';
+  // CDP fallback: dasha-browser-gate.mjs attaches to :9223 or launches headless Chromium
+  const bg = (script) => ['dasha-browser-gate.mjs', 'node', script];
+  gate(receipt, 'landingBrowser', 'node', bg('dasha-landing.test.mjs'), landingWhy, landingBrowserNeeded);
+  gate(receipt, 'studioBrowser', 'node', bg('dasha-meme-studio.test.mjs'), why('studio'), browser && changed.includes('studio'));
+  gate(receipt, 'deskBrowser', 'node', bg('dasha-desk.test.mjs'), why('desk'), browser && (changed.includes('desk') || changed.includes('deskShell')));
   log('gate:fast:pass');
 }
 
@@ -479,6 +496,53 @@ async function preflightLobbyAssets(receipt) {
     ? (process.env.DASHA_SHIP_FAKE_LOBBY_ASSETS || expected)
     : await fetch('https://lobby.getdasha.com/health', { signal: AbortSignal.timeout(5000) })
       .then(async (response) => response.ok ? (await response.json()).assets : null);
+  /* Publish the Webflow surfaces while the Worker stays behind. The bundle hash above is coarse: it
+     moves for any Worker change, including server-only ones no page can observe. What can actually
+     break a published page is narrower — a surface SRI-pins a Worker-served script, we publish the
+     new pin, and the Worker still serves the old bytes, so the browser refuses to execute it.
+     So this checks that instead of trusting the bundle hash, and still throws when a pin has drifted.
+     Anything depending on undeployed Worker routes stays dark until someone runs the deploy. */
+  if (live !== expected && args.has('--worker-behind')) {
+    const drifted = [];
+    /* Only surfaces actually being pushed. A pin that stays on disk cannot break a published page,
+       so an out-of-scope surface must not block the ones in scope — that is exactly the Studio case
+       this flag exists to work around: its embed is pinned ahead to a Worker build that is not live. */
+    for (const [key, surface] of Object.entries(SURFACES)) {
+      if (only.length && !only.includes(key)) continue;
+      const path = join(root, surface.file);
+      if (!existsSync(path)) continue;
+      const html = readFileSync(path, 'utf8');
+      for (const url of new Set(html.match(/https:\/\/lobby\.getdasha\.com\/[^"'\s)]+\.js/g) || [])) {
+        const at = html.indexOf(url);
+        /* Nearest pin in EITHER direction, capped. Loaders here spell it `integrity=` or bind it to a
+           const, so keying on a keyword picks up the wrong hash — position is the reliable link. And
+           scanning only backwards silently missed the real layout: the pin sits 49 chars AFTER its own
+           URL, and a miss reads as "no pin, nothing to check", so a drifted pin published clean. The
+           cap stops a far-off unrelated hash from being adopted when a script carries no pin at all. */
+        let pin = null;
+        let nearest = Infinity;
+        for (const m of html.matchAll(/sha384-[A-Za-z0-9+/=]+/g)) {
+          const distance = Math.abs(m.index - at);
+          if (distance < nearest) { nearest = distance; pin = m[0]; }
+        }
+        if (!pin || nearest > 2000) continue;
+        const body = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+          .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+        if (!body) { drifted.push(`${surface.label}: ${url} unreachable`); continue; }
+        const served = `sha384-${createHash('sha384').update(Buffer.from(body)).digest('base64')}`;
+        if (served !== pin) drifted.push(`${surface.label}: ${url} pinned ${pin.slice(0, 24)}… serves ${served.slice(0, 24)}…`);
+      }
+    }
+    if (drifted.length) {
+      throw new Error(`--worker-behind refused: published pins would not match live Worker bytes:\n  ${drifted.join('\n  ')}`);
+    }
+    log('preflight:lobby-assets:worker-behind', {
+      live: live || 'unavailable',
+      expected,
+      note: 'Webflow published against the live Worker; Worker-side changes remain undeployed',
+    });
+    return;
+  }
   if (live !== expected && args.has('--ship') && !receipt?.stages?.published && !Object.keys(receipt?.stages?.pushed || {}).length) {
     log('deploy:lobby:start', { live: live || 'unavailable', expected });
     if (process.env.DASHA_SHIP_FAKE_DEPLOY === '1') live = expected;
@@ -628,12 +692,18 @@ async function verifyLive() {
   log('verify:start');
   const contract = json(join(root, 'dasha-release-contract.json'));
   if (contract?.schema !== 'dasha.release-contract/1') throw new Error('invalid dasha-release-contract.json');
-  /* With --only, verify the surfaces being shipped rather than the whole site. Verifying everything
-     sounds stricter, but it blocks a legitimate one-surface fix whenever any other surface is
-     unpublished — and a safe path that refuses to run is how people end up publishing around it,
-     which is the failure that cost /studio its CC0 dedication three times. */
-  const surfaces = only.length && !want.publish
-    ? Object.entries(contract.surfaces).filter(([surface]) => only.includes(surface))
+  /* With --only, verify only the surfaces in scope — even when publishing. Verifying the whole site
+     on every --only=deskShell ship blocks legitimate one-surface fixes whenever Studio/home markers
+     lag (e.g. thin loader shell missing shadow-era strings). Map deskShell → desk for the contract. */
+  const onlyForVerify = new Set(
+    only.flatMap((key) => (key === 'deskShell' || key === 'desk' || key === 'deskRetiredRepair'
+      ? ['desk']
+      : key === 'homeLobbyLink'
+        ? ['home']
+        : [key])),
+  );
+  const surfaces = only.length
+    ? Object.entries(contract.surfaces).filter(([surface]) => onlyForVerify.has(surface))
     : Object.entries(contract.surfaces);
   const checks = Object.entries(contract.hosts).flatMap(([host, base]) =>
     surfaces.map(([surface, rule]) => ({ host, surface, url: new URL(rule.path, base).href, ...rule })),
@@ -647,7 +717,7 @@ async function verifyLive() {
         forbidden: Object.fromEntries(check.forbidden.map((marker) => [marker, false])),
       };
     }
-    if (!only.length || want.publish) {
+    if (!only.length && want.publish) {
       out.broad = { ok: true, fixture: true };
       log('verify:broad', { ok: true, fixture: true, hard: [], soft: [] });
     }
@@ -678,7 +748,8 @@ async function verifyLive() {
      the wider product boundary: Worker parity, social-card bytes, SRI, sitemap navigation, crypto
      copy/links, indexability and security headers. Both are required for a site-wide release; a
      deliberately scoped non-publishing verify stays scoped. */
-  if (!only.length || want.publish) {
+  // Broad live audit only on full-site ships. Scoped --only= pushes stay on marker checks.
+  if (!only.length && want.publish) {
     const audit = join(LOBBY_ROOT, 'dasha-audit-live.mjs');
     if (!existsSync(audit)) throw new Error(`broad live audit missing: ${audit}`);
     const result = spawnSync(process.execPath, [audit, want.strict ? '--strict' : '--fast'], {
@@ -694,7 +765,7 @@ async function verifyLive() {
     }
     out.broad = { ok: true, soft: report.soft || [], worker: report.worker || null };
   } else {
-    log('verify:broad:skip', { reason: 'scoped non-publishing verification' });
+    log('verify:broad:skip', { reason: only.length ? 'scoped --only= verification' : 'no publish' });
   }
   writeFileSync('/tmp/dasha-ship-verify.json', JSON.stringify(out, null, 2));
   log('verify:done', out);
@@ -829,9 +900,9 @@ async function main() {
         plannedGates: {
           productCoherence: 'required',
           growthTrust: 'required',
-          landingBrowser: changed.includes('home') ? 'required because home changed' : 'skipped because home hash is unchanged',
+          landingBrowser: (changed.includes('home') || changed.includes('studio') || changed.includes('desk') || changed.includes('deskShell')) ? 'required because home/studio/desk shell changed' : 'skipped because home/studio/desk shell hashes unchanged',
           studioBrowser: changed.includes('studio') ? 'required because Studio changed' : 'skipped because Studio hash is unchanged',
-          deskBrowser: changed.includes('desk') ? 'required because Desk changed' : 'skipped because Desk hash is unchanged',
+          deskBrowser: (changed.includes('desk') || changed.includes('deskShell')) ? 'required because Desk or its shell changed' : 'skipped because Desk hashes are unchanged',
         },
         webflowTokenAvailable: Boolean(process.env.DASHA_WF_TOKEN?.trim() || process.env.WEBFLOW_TOKEN?.trim() || existsSync('/tmp/dasha-wf-token.txt')),
         activeRun: json(STATE),
@@ -879,15 +950,17 @@ async function main() {
       // Webflow auth preflight is resumable; Worker parity is live state and must never be cached.
       if (want.publish) await preflightLobbyAssets(receipt);
     }
-    /* Before a site-wide publish, push EVERY surface in scope — not just the changed ones.
+    /* Before a site-wide publish, push every surface in scope — not just the changed ones.
        publish_site publishes whatever is staged in Webflow, including drafts this script never wrote.
        On 2026-08-08 a --ship that legitimately skipped /studio (hash unchanged) published a stale
-       Designer draft of it instead: different CSS, and no CC0 dedication. The hash delta says what
-       changed locally; it says nothing about what someone else left staged. Pushing an unchanged
-       surface once per resumable receipt makes live match local by construction without exhausting
-       Webflow's quota after a later surface fails. */
+       Designer draft of it instead: different CSS, and no CC0 dedication.
+
+       Scope: when --only= is set, "in scope" means ONLY those surfaces. Restaging the whole site
+       on every --only=home ship is what re-published shadow Studio over a live thin loader on
+       2026-08-11. Full --ship (no --only) still restages every surface by construction. */
+    const scopeKeys = only.length ? only.filter((key) => SURFACES[key]) : Object.keys(SURFACES);
     const toPush = want.publish
-      ? Object.keys(SURFACES).filter((key) => !receipt.stages.pushed[key])
+      ? scopeKeys.filter((key) => !receipt.stages.pushed[key])
       : pending;
     if ((want.push && toPush.length) || want.publish) acquireLock(toPush.length ? toPush : ['publish']);
     if (want.push && toPush.length) await pushEmbeds(client, toPush, receipt);
@@ -936,7 +1009,15 @@ async function main() {
       receipt.finishedAt = new Date().toISOString();
       checkpoint(receipt);
       if (!want.dry && (!changed.length || receipt.stages.published)) {
-        writeJson(MANIFEST, { schema: 'dasha.ship-manifest/2', site: SITE, status: 'verified', hashes, release: await releaseIdentity(), verifiedAt: receipt.finishedAt, driftDetectedAt: null });
+        /* With --only, keep the previously recorded hash for every surface out of scope. `hashes` is
+           computed from local files, so stamping it wholesale records surfaces that were never pushed
+           as verified-live — which then reads as "nothing to do" on the next ship and strands them.
+           That is exactly how Studio went stale here: a six-surface publish claimed it too, and the
+           embed sat undeployed while the manifest insisted it had shipped. */
+        const stamped = only.length
+          ? { ...(json(MANIFEST, { hashes: {} }).hashes || {}), ...Object.fromEntries(only.filter((k) => k in hashes).map((k) => [k, hashes[k]])) }
+          : hashes;
+        writeJson(MANIFEST, { schema: 'dasha.ship-manifest/2', site: SITE, status: 'verified', hashes: stamped, release: await releaseIdentity(), verifiedAt: receipt.finishedAt, driftDetectedAt: null });
       }
     }
     log('done', { ok: true, totalMs: Date.now() - t0 });
@@ -954,4 +1035,7 @@ async function main() {
   }
 }
 
-main();
+/* Only ship when run as a command. Importing this file must not publish anything — that is what
+   lets the preflight guards below be tested directly instead of through a full pipeline run. */
+export { preflightLobbyAssets };
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();
