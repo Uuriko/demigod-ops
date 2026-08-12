@@ -55,8 +55,22 @@ Two lines. It works on any page, including ones you do not control.
 
 That is the whole thing. No build step, no key, no account, nothing to sign up for, and no request
 back to us — the script is the tool, and everything it draws happens in your visitor's browser.
-The integrity value pins the reviewed script: if the hosted file changes unexpectedly, the browser
-refuses to execute it. Copy both attributes with the script tag.
+
+The filename carries a hash of its own contents, so that URL will always serve exactly the bytes
+the `integrity` value pins. We cannot change it under you: a new version is a new filename, and the
+one you pasted keeps working. If the hosted file were ever altered, the browser would refuse to run
+it. Copy both attributes with the script tag.
+
+The trade is that you will not receive updates. If you would rather track the current version and
+accept that it changes without notice, drop the `integrity` line and point at the unversioned file:
+
+```html
+<script src="https://uuriko.github.io/dasha-desk/studio/embed.js" crossorigin="anonymous"></script>
+```
+
+Do not combine the two — an `integrity` pin on the unversioned URL is the one arrangement that
+cannot hold, because the file it names is allowed to change, and the day it does your page stops
+loading the Studio with no warning. Pick the pinned filename or the moving one.
 
 It cannot break your page and your page cannot break it. Everything lives in a shadow root, so your
 CSS does not reach in and its CSS does not reach out; the ids it uses cannot collide with yours.

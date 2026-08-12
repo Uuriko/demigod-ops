@@ -1123,7 +1123,13 @@ export class DashaLobby {
     const cred = { credentials: true };
 
     if (path === '/studio/event' && request.method === 'POST') {
-      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      if (!allowedOrigin) {
+        /* Still refused — this only writes down who asked. See noteEmbedOrigin. */
+        if (this.noteEmbedOrigin(request.headers.get('Origin'))) {
+          await this.state.storage.put('studioMetrics', this.studioMetrics);
+        }
+        return json({ error: 'origin required' }, 403, null);
+      }
       const input = await requestJson(request);
       const key = {
         open: 'opens',
@@ -1591,6 +1597,47 @@ export class DashaLobby {
     }
 
     return json({ error: 'not found' }, 404, allowedOrigin, cred);
+  }
+
+  /**
+   * Count the sites running the pasted Studio embed.
+   *
+   * The embed calls /studio/event from whatever page it was pasted into, and that origin is not in
+   * ALLOWED_ORIGINS, so it is refused — which means the one signal telling us anyone adopted the
+   * thing was being thrown away at the door. "How many sites embedded us" was unknowable, and that
+   * is a bad thing not to know about a surface whose whole promise is that other people can take it.
+   *
+   * Counted at the refusal rather than by opening CORS: an allowed cross-origin POST would let
+   * anyone inflate the real funnel numbers. These counts sit in their own map, are never mixed into
+   * the first-party metrics, and are a sighting log rather than analytics.
+   *
+   * Returns true when the origin is new, which is the only case worth a storage write — otherwise a
+   * script pointed at this endpoint could drive a disk write per request.
+   */
+  noteEmbedOrigin(rawOrigin) {
+    let origin;
+    try {
+      const url = new URL(String(rawOrigin || ''));
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+      origin = url.origin;
+    } catch {
+      return false;
+    }
+    // Our own surfaces are not adopters.
+    if (/(^|\.)getdasha\.com$/.test(new URL(origin).hostname)) return false;
+    if (!this.studioMetrics.embedOrigins || typeof this.studioMetrics.embedOrigins !== 'object') {
+      this.studioMetrics.embedOrigins = {};
+    }
+    const seen = this.studioMetrics.embedOrigins;
+    if (seen[origin] != null) { seen[origin]++; return false; }
+    /* Bounded: this map shares the studioMetrics value, and a Durable Object value stops at
+       128 KiB. Past the cap the count still moves, it just stops naming names. */
+    if (Object.keys(seen).length >= 50) {
+      this.studioMetrics.embedOriginsOverflow = (this.studioMetrics.embedOriginsOverflow || 0) + 1;
+      return false;
+    }
+    seen[origin] = 1;
+    return true;
   }
 
   forumKey(id) {
