@@ -131,6 +131,131 @@ const privateHtmlHeaders = (extra = {}, nonce = '') => ({
 });
 const OAUTH_COOKIE = '__Host-dasha_x_oauth';
 
+/* Served from the worker rather than pushed to Webflow: the forum is all API, so a Webflow surface
+   would add a seventh embed and an SRI pin to keep in step for a page with no pinned client at all.
+   Same shape as /chess — public HTML headers, inline script, no build step to drift out of sync. */
+const FORUM_PAGE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forum — $dasha</title>
+<meta name="description" content="Long-form threads for $dasha. Link X to post.">
+<link rel="canonical" href="https://lobby.getdasha.com/forum">
+<link rel="icon" href="https://cdn.prod.website-files.com/5f1458122ba25e70a3ff2bd0/6a767a48e1dd29d210f01235_dasha-icon-32.png">
+<style>
+:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--muted:#e6dcc4;--line:rgba(244,237,219,.32)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif;line-height:1.5}
+.wrap{width:min(760px,calc(100% - 32px));margin:0 auto;padding:20px 0 64px}
+a{color:var(--paper)}
+.top{display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding:8px 0;flex-wrap:wrap}
+.brand{margin-right:auto;min-height:44px;display:inline-flex;align-items:center;font-weight:900;font-size:17px;letter-spacing:-.03em;text-transform:uppercase;text-decoration:none}
+.brand span{color:var(--acid)}
+.top a:not(.brand){min-height:44px;display:inline-flex;align-items:center;font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}
+h1{font-size:clamp(28px,6vw,44px);line-height:.9;letter-spacing:-.04em;text-transform:uppercase;margin:18px 0 4px}
+.lede{color:var(--muted);margin:0 0 20px}
+button{font:inherit;font-weight:900;min-height:44px;padding:0 16px;border:1px solid var(--paper);background:transparent;color:var(--paper);cursor:pointer;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+button.primary{background:var(--acid);color:var(--ink);border-color:var(--acid)}
+button[disabled]{opacity:.55;cursor:not-allowed}
+input,textarea{font:inherit;width:100%;background:#0d0b0f;color:var(--paper);border:1px solid var(--line);padding:10px;min-height:44px}
+textarea{min-height:120px;resize:vertical}
+label{display:block;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.thread{display:block;width:100%;text-align:left;border:1px solid var(--line);padding:12px;margin:0 0 8px;background:transparent;min-height:44px;text-transform:none;letter-spacing:0;font-size:16px}
+.thread .meta{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:4px;text-transform:none;letter-spacing:0}
+.post{border-left:3px solid var(--line);padding:8px 0 8px 12px;margin:0 0 14px}
+.post .who{font-weight:900;font-size:13px}
+.post .when{color:var(--muted);font-size:12px}
+.post p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.note{border-left:4px solid var(--acid);background:rgba(223,255,0,.1);padding:10px 12px;margin:14px 0;font-weight:800}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style></head><body>
+<div class="wrap">
+<div class="top"><a class="brand" href="https://www.getdasha.com/">$<span>dasha</span></a>
+<a href="https://www.getdasha.com/lobby">Lobby</a><a href="https://lobby.getdasha.com/chess">Chess</a>
+<a href="https://www.getdasha.com/">Home</a></div>
+<h1>Forum</h1>
+<p class="lede">Longer than chat. Same rules as chat.</p>
+<div id="say" class="note" role="status" aria-live="polite" hidden></div>
+
+<main id="list-view">
+  <button class="primary" id="new-toggle" aria-expanded="false" aria-controls="new-form">Start a thread</button>
+  <form id="new-form" hidden>
+    <label for="new-title">Title</label><input id="new-title" maxlength="80" required>
+    <label for="new-text">Opening post</label><textarea id="new-text" maxlength="2000" required></textarea>
+    <p><button class="primary" type="submit" id="new-submit">Post thread</button>
+    <button type="button" id="new-cancel">Cancel</button></p>
+  </form>
+  <h2 class="sr">Threads</h2>
+  <div id="threads" aria-busy="true">Loading threads…</div>
+</main>
+
+<main id="thread-view" hidden>
+  <button id="back">← All threads</button>
+  <h2 id="thread-title"></h2>
+  <div id="posts"></div>
+  <form id="reply-form">
+    <label for="reply-text">Reply</label><textarea id="reply-text" maxlength="2000" required></textarea>
+    <p><button class="primary" type="submit" id="reply-submit">Post reply</button></p>
+  </form>
+</main>
+</div>
+<script>
+(function(){
+var API='https://lobby.getdasha.com';
+var $=function(id){return document.getElementById(id)};
+var openId=null;
+function say(msg,ok){var s=$('say');if(!msg){s.hidden=true;return}s.hidden=false;s.textContent=msg;s.style.borderLeftColor=ok?'#dfff00':'#ff3b81'}
+function api(path,opts){return fetch(API+path,Object.assign({credentials:'include',headers:{'Content-Type':'application/json'}},opts||{}))
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d}})})}
+function when(ts){var d=new Date(Number(ts));return isNaN(d)?'':d.toISOString().slice(0,16).replace('T',' ')+' UTC'}
+function esc(s){var n=document.createElement('div');n.textContent=String(s==null?'':s);return n.innerHTML}
+function fail(res){ if(res.status===401){say('Link X in the lobby before posting.');return} say((res.data&&res.data.error)||'That did not go through.') }
+
+function renderThreads(list){
+  var box=$('threads');box.setAttribute('aria-busy','false');
+  if(!list.length){box.textContent='No threads yet. Start the first one.';return}
+  box.innerHTML=list.map(function(t){
+    return '<button class="thread" data-id="'+esc(t.id)+'">'+esc(t.title)+
+      '<span class="meta">@'+esc(t.handle)+' · '+t.replies+' repl'+(t.replies===1?'y':'ies')+' · '+when(t.lastTs)+'</span></button>'}).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.thread'),function(b){
+    b.addEventListener('click',function(){openThread(b.dataset.id)})});
+}
+function loadThreads(){say('');return api('/forum/threads').then(function(res){
+  if(!res.ok)return fail(res); renderThreads(res.data.threads||[])}).catch(function(){$('threads').textContent='Could not reach the forum.'})}
+
+function openThread(id){
+  return api('/forum/thread/'+encodeURIComponent(id)).then(function(res){
+    if(!res.ok)return fail(res);
+    openId=id;
+    $('list-view').hidden=true;$('thread-view').hidden=false;
+    $('thread-title').textContent=res.data.thread.title;
+    $('posts').innerHTML=(res.data.posts||[]).map(function(p){
+      return '<div class="post"><div class="who">@'+esc(p.handle)+' <span class="when">'+when(p.ts)+'</span></div><p>'+esc(p.text)+'</p></div>'}).join('');
+    $('thread-title').focus();
+  })
+}
+$('back').addEventListener('click',function(){openId=null;$('thread-view').hidden=true;$('list-view').hidden=false;loadThreads()});
+$('new-toggle').addEventListener('click',function(){
+  var open=$('new-form').hidden; $('new-form').hidden=!open; this.setAttribute('aria-expanded',String(open));
+  if(open)$('new-title').focus()});
+$('new-cancel').addEventListener('click',function(){$('new-form').hidden=true;$('new-toggle').setAttribute('aria-expanded','false');$('new-toggle').focus()});
+$('new-form').addEventListener('submit',function(e){e.preventDefault();
+  var b=$('new-submit');b.disabled=true;
+  api('/forum/threads',{method:'POST',body:JSON.stringify({title:$('new-title').value,text:$('new-text').value})})
+    .then(function(res){ if(!res.ok)return fail(res);
+      $('new-title').value='';$('new-text').value='';$('new-form').hidden=true;
+      $('new-toggle').setAttribute('aria-expanded','false'); say('Thread posted.',true); return loadThreads()})
+    .catch(function(){say('That did not go through.')})
+    .then(function(){b.disabled=false})});
+$('reply-form').addEventListener('submit',function(e){e.preventDefault();
+  if(!openId)return; var b=$('reply-submit');b.disabled=true;
+  api('/forum/thread/'+encodeURIComponent(openId),{method:'POST',body:JSON.stringify({text:$('reply-text').value})})
+    .then(function(res){ if(!res.ok)return fail(res); $('reply-text').value='';say('Reply posted.',true); return openThread(openId)})
+    .catch(function(){say('That did not go through.')})
+    .then(function(){b.disabled=false})});
+loadThreads();
+})();
+</script></body></html>`;
+
 /** Keep crawler markup to the single, visible product identity owned by the embeds. */
 export function sanitizePublicJsonLd(html) {
   return String(html || '').replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi, (block) => {
@@ -563,10 +688,10 @@ export class DashaLobby {
     this.simpReferralMetrics = { since: Date.now(), claims: 0, claimRejects: 0, expirations: 0, activations: 0, cappedActivations: 0, contributions: 0, invalidations: 0, organicEnrollments: 0, referredEnrollments: 0, organicReturns: 0, referredReturns: 0 };
     this.simpSeasons = {};
     this.chessGames = {};
-    /* Forum index is a bounded list of summaries; posts live under one key per thread so reading a
-       thread never loads the whole board. */
+    /* Only the index lives in memory — a bounded list of summaries. A thread's posts are read from
+       their own key when that thread is opened, so no request ever loads the whole board and no
+       single value can grow past the storage ceiling. */
     this.forumIndex = [];
-    this.forumPosts = {};
     this.chessRatings = {};
     this.chessCurrent = {};
     this.chessQueue = [];
@@ -594,14 +719,15 @@ export class DashaLobby {
           if (row?.key && row.until > now) this.mutes.set(row.key, row.until);
         }
       }
-      const forum = await this.state.storage.get('forum');
-      if (forum && typeof forum === 'object') {
-        if (Array.isArray(forum.index)) this.forumIndex = pruneIndex(forum.index, Date.now());
-        if (forum.posts && typeof forum.posts === 'object') this.forumPosts = forum.posts;
-        /* Drop post bodies for threads the prune just aged out, or storage grows without bound
-           while the index that referenced them is gone. */
+      const forumIndex = await this.state.storage.get('forum:index');
+      if (Array.isArray(forumIndex)) {
+        this.forumIndex = pruneIndex(forumIndex, Date.now());
+        /* Drop post keys the prune just orphaned. Without this, storage keeps every thread that
+           ever aged out while the index that referenced them is gone. */
         const live = new Set(this.forumIndex.map((t) => t.id));
-        for (const id of Object.keys(this.forumPosts)) if (!live.has(id)) delete this.forumPosts[id];
+        for (const key of (await this.state.storage.list({ prefix: 'forum:t:' })).keys()) {
+          if (!live.has(key.slice('forum:t:'.length))) await this.state.storage.delete(key);
+        }
       }
       const flags = await this.state.storage.get('flags');
       if (flags && typeof flags === 'object') {
@@ -1415,8 +1541,27 @@ export class DashaLobby {
     return json({ error: 'not found' }, 404, allowedOrigin, cred);
   }
 
-  async persistForum() {
-    await this.state.storage.put('forum', { index: this.forumIndex, posts: this.forumPosts });
+  forumKey(id) {
+    return `forum:t:${id}`;
+  }
+
+  async forumThreadPosts(id) {
+    const posts = await this.state.storage.get(this.forumKey(id));
+    return Array.isArray(posts) ? posts : null;
+  }
+
+  /** Write the index, and delete the post keys the prune orphaned in the same breath. */
+  async persistForumIndex(evicted = []) {
+    await this.state.storage.put('forum:index', this.forumIndex);
+    for (const id of evicted) await this.state.storage.delete(this.forumKey(id));
+  }
+
+  /** Ids dropped from the index by a prune, so their posts can go too. */
+  forumPrune(next, now) {
+    const before = new Set(this.forumIndex.map((t) => t.id));
+    this.forumIndex = pruneIndex(next, now);
+    const after = new Set(this.forumIndex.map((t) => t.id));
+    return [...before].filter((id) => !after.has(id));
   }
 
   /**
@@ -1437,7 +1582,8 @@ export class DashaLobby {
     if (request.method !== 'GET' && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
 
     if (path === '/forum/threads' && request.method === 'GET') {
-      this.forumIndex = pruneIndex(this.forumIndex, now);
+      const evicted = this.forumPrune(this.forumIndex, now);
+      if (evicted.length) await this.persistForumIndex(evicted);
       return json({ ok: true, threads: this.forumIndex.map(publicThread) }, 200, allowedOrigin, cred);
     }
 
@@ -1449,12 +1595,9 @@ export class DashaLobby {
       const id = `t${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
       const created = newThread({ title: input?.title, text: input?.text, handle, avatar, now, id });
       if (!created.ok) return json({ error: created.error }, 400, allowedOrigin, cred);
-      this.forumIndex = pruneIndex([created.summary, ...this.forumIndex], now);
-      this.forumPosts[id] = created.posts;
-      /* The prune can evict the oldest thread; drop its bodies in the same breath. */
-      const live = new Set(this.forumIndex.map((t) => t.id));
-      for (const key of Object.keys(this.forumPosts)) if (!live.has(key)) delete this.forumPosts[key];
-      await this.persistForum();
+      const evicted = this.forumPrune([created.summary, ...this.forumIndex], now);
+      await this.state.storage.put(this.forumKey(id), created.posts);
+      await this.persistForumIndex(evicted);
       return json({ ok: true, thread: publicThread(created.summary) }, 200, allowedOrigin, cred);
     }
 
@@ -1462,8 +1605,8 @@ export class DashaLobby {
     if (threadMatch) {
       const id = threadMatch[1];
       const summary = this.forumIndex.find((t) => t.id === id);
-      const posts = this.forumPosts[id];
-      if (!summary || !Array.isArray(posts)) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+      const posts = summary ? await this.forumThreadPosts(id) : null;
+      if (!summary || !posts) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
 
       if (request.method === 'GET') {
         return json({ ok: true, thread: publicThread(summary), posts: posts.map(publicPost) }, 200, allowedOrigin, cred);
@@ -1478,8 +1621,11 @@ export class DashaLobby {
         posts.push(replied.post);
         summary.replies = posts.length - 1;
         summary.lastTs = now;
-        this.forumIndex = pruneIndex(this.forumIndex, now);
-        await this.persistForum();
+        /* Posts first: if the index write fails the thread still has the reply, which is recoverable.
+           The other order can acknowledge a post that was never stored. */
+        await this.state.storage.put(this.forumKey(id), posts);
+        const evicted = this.forumPrune(this.forumIndex, now);
+        await this.persistForumIndex(evicted);
         return json({ ok: true, post: publicPost(replied.post) }, 200, allowedOrigin, cred);
       }
     }
@@ -2056,22 +2202,24 @@ export class DashaLobby {
     }
   }
 
-  /* Chess updates go out per socket, not as one shared frame. publicChessGame is viewer-relative:
-     it returns null for anyone who is not one of the two players, and side/legal/drawOffer answer
-     "what can I do" rather than stating a fact about the game. A single broadcast object would tell
-     both players they were the same colour and show a spectator a draw offer meant for someone else.
-     Without this, a player only saw their opponent's move on their next poll — the board sat still
-     while the opponent's clock ran. */
+  /* A nudge, not the game. dasha-chess-page.html already defines this contract: it ignores anything
+     that is not {type:'chess'} carrying the id of the game it is showing, and responds by calling
+     loadGame() to fetch its own view. That is the right split — publicChessGame is viewer-relative,
+     so side/legal/drawOffer are answers to "what can I do" rather than facts, and pushing one shared
+     frame would tell both players they were the same colour. Letting each client re-fetch keeps the
+     socket carrying no per-viewer state at all.
+     Sent only to the two players: publicChessGame returns null for everyone else, which doubles as
+     the membership test, so a game id never goes to a socket with no business seeing it.
+     Without this the board sat still until the next poll while the opponent's clock ran. */
   broadcastChess(game) {
     if (!game?.id) return;
     const ts = Date.now();
+    const frame = JSON.stringify({ type: 'chess', id: game.id, ts });
     for (const ws of this.state.getWebSockets()) {
       try {
         const att = ws.deserializeAttachment() || {};
-        if (!att.xId) continue;
-        const view = publicChessGame(game, att.xId, ts);
-        if (!view) continue;
-        ws.send(JSON.stringify({ type: 'chess_game', game: view, ts }));
+        if (!att.xId || !publicChessGame(game, att.xId, ts)) continue;
+        ws.send(frame);
       } catch {
         /* one dead socket must not stop the other player being told */
       }
@@ -2733,7 +2881,7 @@ export default {
       return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
     }
 
-    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/h/') || url.pathname.startsWith('/forum/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
+    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/h/') || (url.pathname.startsWith('/forum/') && url.pathname !== '/forum/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
       if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
         return json({ error: 'origin not allowed' }, 403, null);
       }
@@ -2790,6 +2938,16 @@ export default {
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=120',
+        }),
+      });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
+      return new Response(request.method === 'HEAD' ? null : FORUM_PAGE_HTML, {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'forum',
         }),
       });
     }

@@ -1506,4 +1506,4 @@ export const LOBBY_PAGE_HTML = `<style>
 
 <script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
 `;
-export const ASSET_HASH = "c6642e2a08eba198";
+export const ASSET_HASH = "5c2bdd71e052c65b";

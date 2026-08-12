@@ -19,7 +19,15 @@ export const MAX_TITLE = 80;
 /* Long-form, but still one screen of reading. The test asserts this exceeds chat's cap — if it
    ever stops doing so the forum has no reason to exist as a separate surface. */
 export const MAX_POST = 2000;
-export const MAX_POSTS = 200;
+/* A Durable Object storage value caps at 128 KiB, and a thread is stored as one value. At the
+   2000-character post cap a post serialises to roughly 2.2 KB once handle, avatar URL and JSON
+   overhead are counted, so 50 is the largest round number that still fits a thread of entirely
+   maximum-length posts inside one key with headroom. THREAD_BYTES_MAX below enforces it for real
+   rather than trusting this arithmetic. */
+export const MAX_POSTS = 50;
+/* Refuse a write before it reaches storage. The per-post cap bounds text but not handle or avatar
+   length, so the arithmetic above is a design target, not a guarantee. */
+export const THREAD_BYTES_MAX = 120 * 1024;
 export const MAX_THREADS = 100;
 export const THREAD_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -77,7 +85,17 @@ export function addReply(posts, { text, handle, avatar = null, now, id }) {
   if (posts.length >= MAX_POSTS) return { ok: false, error: 'thread is full' };
   const b = validateBody(text);
   if (!b.ok) return b;
-  return { ok: true, post: { id, handle, avatar, text: b.text, ts: now } };
+  const post = { id, handle, avatar, text: b.text, ts: now };
+  /* Measured, not assumed. A thread is one storage value with a hard 128 KiB ceiling, and a write
+     that crosses it fails at the platform — which would lose the post and leave the reply count
+     disagreeing with the posts. Refusing here keeps the thread consistent. */
+  if (threadBytes([...posts, post]) > THREAD_BYTES_MAX) return { ok: false, error: 'thread is full' };
+  return { ok: true, post };
+}
+
+/** Serialised size of a thread's posts, as storage will see it. */
+export function threadBytes(posts) {
+  return new TextEncoder().encode(JSON.stringify(posts)).length;
 }
 
 /** Newest activity first, stale threads dropped, length bounded. */
