@@ -98,10 +98,62 @@
   .lobby-form .lobby-field:first-child{grid-column:1/-1}
   .lobby-form button{width:auto}
 
-  /* The chat fills whatever is left. */
-  .lp-hold{flex:1 1 auto;display:flex;min-height:0;padding:0 clamp(0px,2vw,26px) 0}
+  /* Forum first, chat beside it. The forum is the reason to come back — it keeps what was said —
+     and the chat is the reason to stay, so the forum takes the reading width and the chat takes a
+     column. Below 960px they stack, forum on top: a live chat pinned above a thread list would put
+     the disposable surface in front of the durable one on the smaller screen. */
+  .lp-hold{flex:1 1 auto;display:grid;min-height:0;gap:clamp(12px,2vw,22px);
+    grid-template-columns:minmax(0,1.45fr) minmax(320px,.85fr);
+    padding:0 clamp(0px,2vw,26px) 0;max-width:1400px;width:100%;margin:0 auto}
+  @media (max-width:960px){.lp-hold{grid-template-columns:minmax(0,1fr)}}
+
+  /* Forum */
+  #dasha-forum{min-width:0;display:flex;flex-direction:column;min-height:0;overflow-y:auto;
+    padding:18px 4px 40px;scrollbar-width:thin}
+  .df-status{margin:0 0 10px;min-height:1.3em;font-size:13px;font-weight:700;color:var(--muted)}
+  .df-head{margin:0 0 18px}
+  .df-title{margin:0 0 6px;font-size:clamp(26px,4vw,40px);line-height:1.05;letter-spacing:-.04em;font-weight:950}
+  .df-note{margin:0;font-size:14px;line-height:1.5;color:var(--muted);max-width:56ch}
+  .df-list{display:flex;flex-direction:column;gap:10px}
+  .df-row{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.045)}
+  .df-row:hover{border-color:var(--acid)}
+  .df-open{display:block;width:100%;min-height:44px;padding:0;border:0;background:none;color:var(--paper);
+    font:inherit;font-size:17px;font-weight:900;line-height:1.3;letter-spacing:-.01em;text-align:left;cursor:pointer}
+  .df-open:hover{color:var(--acid)}
+  .df-meta{margin:4px 0 0;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .df-empty{margin:0;padding:26px 4px;color:var(--muted);font-size:15px}
+  .df-posts{display:flex;flex-direction:column;gap:12px;margin:16px 0 20px}
+  .df-post{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.28)}
+  .df-body{margin:6px 0 0;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+  .df-body a{color:var(--acid);font-weight:800;text-underline-offset:3px}
+  .df-back{min-height:44px;padding:0 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:999px;
+    background:rgba(255,255,255,.06);color:var(--paper);font:inherit;font-weight:800;font-size:12px;
+    letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+  .df-back:hover{border-color:var(--acid);color:var(--acid)}
+  .df-composer{display:grid;gap:10px;margin:0 0 22px;padding:16px;border:1px solid var(--line);
+    border-radius:12px;background:rgba(124,77,255,.09)}
+  .df-field{display:grid;gap:5px;min-width:0}
+  .df-label{font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .df-composer input,.df-composer textarea{min-height:48px;padding:12px;border:1px solid var(--line);
+    border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);font:inherit;resize:vertical}
+  .df-send{min-height:48px;justify-self:start;padding:0 22px;border:1px solid var(--acid);border-radius:999px;
+    background:var(--acid);color:var(--ink);font:inherit;font-weight:950;text-transform:uppercase;
+    letter-spacing:.06em;cursor:pointer}
+  .df-send:hover{filter:brightness(1.05)}
+  .df-send:disabled{opacity:.55;cursor:not-allowed;filter:none}
+  #dasha-forum :focus-visible{outline:3px solid var(--acid);outline-offset:3px}
+
+  /* The chat keeps its column. */
   #dasha-lobby{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;width:100%;
-    max-width:920px;margin:0 auto}
+    max-width:920px;margin:0 auto;border-left:1px solid var(--line)}
+  /* Stacked, the chat gets a full screen of its own rather than a bounded strip under the forum.
+     Capping it to ~60vh was the first attempt and it rebuilt the cramped box the chat was moved off
+     the homepage to escape — dasha-lobby-page.test.mjs measures the log against the viewport and
+     caught it at 29%. This has to sit after the #dasha-lobby rule above, which sets min-height:0 at
+     equal specificity; declared before it, the override silently lost the cascade. */
+  @media (max-width:960px){
+    #dasha-lobby{border-left:0;border-top:1px solid var(--line);min-height:100dvh}
+  }
   #dasha-lobby .lobby-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
   /* The message list is the page's scroller, not a box inside a page that also scrolls. */
   #dasha-lobby .lobby-log{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;
@@ -134,10 +186,12 @@
 <div id="dasha-lobby-page">
   <header class="lp-top">
     <a class="lp-back" href="/">← $dasha</a>
+    <a class="lp-back" href="https://lobby.getdasha.com/forum" style="margin-left:auto">Forum</a>
     <span class="lp-id"><b>$<span>dasha</span> lobby</b></span>
   </header>
 
   <div class="lp-hold">
+    <div id="dasha-forum"></div>
     <div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
   </div>
 </div>

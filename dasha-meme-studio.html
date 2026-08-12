@@ -94,6 +94,12 @@
     color:var(--paper);font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
   .moods button:hover,.moods button:focus-visible,.tool-row button.ghost-chip:hover{border-color:var(--acid);color:var(--acid)}
   .moods button[aria-pressed=true]{border-color:var(--acid);background:rgba(223,255,0,.12);color:var(--acid)}
+  /* Cold-open: pull the eye to one-tap craft before Share. */
+  .tool-row button.ghost-chip.invite{border-color:var(--acid);color:var(--acid);box-shadow:0 0 0 1px rgba(223,255,0,.35)}
+  @media (prefers-reduced-motion:no-preference){
+    .tool-row button.ghost-chip.invite{animation:invite-pulse 1.6s ease-in-out 2}
+  }
+  @keyframes invite-pulse{0%,100%{box-shadow:0 0 0 1px rgba(223,255,0,.25)}50%{box-shadow:0 0 0 4px rgba(223,255,0,.18)}}
   .tool-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .line-meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-top:6px}
   .line-count{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
@@ -581,7 +587,7 @@ function setStatus(message, { craft = false } = {}) {
   el.textContent = craft ? craftStatus() : message;
 }
 function isBusyStatus(text) {
-  return /attach it|Rendering|Could not|Couldn’t|Saved |Shared|copied|sizes ready|Object loaded|editable link copied|Link copied|Image only|Choose |need a dasha|Surprise|mood ·|Restored|Long for Story|Cooked|Shipped|Pasted|Caps |Line shuffled|Showing before|Cooking|Keyboard list|Image copied|Post text|Make another/i.test(text || '');
+  return /attach it|Rendering|Could not|Couldn’t|Saved |Shared|copied|sizes ready|Object loaded|editable link copied|Link copied|Image only|Choose |need a dasha|Surprise|mood ·|Restored|Long for Story|Cooked|Shipped|Pasted|Caps |Line shuffled|Showing before|Cooking|Keyboard list|Image copied|Post text|Make another|Change one thing|try Today|tap Surprise/i.test(text || '');
 }
 function exportAlt() {
   const line = ($('line').value.trim() || look.line).replace(/\s+/g, ' ').trim();
@@ -2405,11 +2411,27 @@ document.addEventListener('keydown', (event) => {
 if ($('stage-frame')) $('stage-frame').dataset.format = format.id;
 refreshPhotoUi();
 
-/* Cold open: invite play without a tutorial when this is a blank session. */
+/* Cold open: invite one material change before Share (open→edit lever). */
 if (!inbound && !fragmentHasState && !imageOnly) {
   const el = $('status');
-  if (el && (!el.textContent || / · ready$/.test(el.textContent))) {
-    el.textContent = `${craftStatus()} · try Today or Surprise`;
+  if (el && (!el.textContent || / · ready$/.test(el.textContent) || /try Today or Surprise/i.test(el.textContent))) {
+    el.textContent = 'Change one thing — tap Surprise or Today, or rewrite the line';
+  }
+  for (const id of ['surprise', 'ritual-today']) {
+    const chip = $(id);
+    if (chip) {
+      chip.classList.add('invite');
+      const clear = () => {
+        chip.classList.remove('invite');
+        chip.removeEventListener('click', clear);
+      };
+      chip.addEventListener('click', clear, { once: true });
+    }
+  }
+  /* Soft spotlight on the line field without forcing the mobile keyboard. */
+  const line = $('line');
+  if (line && !line.value.trim()) {
+    line.setAttribute('aria-description', 'Edit this line or use Surprise / Today above');
   }
 }
 

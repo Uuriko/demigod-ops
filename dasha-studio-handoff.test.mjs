@@ -42,8 +42,12 @@ assert.match(html, /Your turn/);
 assert.match(html, /poster · square/i);
 assert.match(html, /getdasha\.com\/studio#/);
 assert.match(html, /\/h\/abc123XYZ\/og\.png/, 'handoff card lost dynamic OG PNG URL');
+assert.match(html, /location\.replace/, 'human handoff card must auto-open Studio');
 assert.doesNotMatch(html, /<script>.*eval/i);
 assert.ok(!html.includes('<script src='));
+const botHtml = handoffCardHtml('abc123XYZ', ok, { autoRedirect: false });
+assert.doesNotMatch(botHtml, /location\.replace/, 'bot card must stay on OG page');
+assert.match(botHtml, /Open Studio/);
 
 const png = await handoffOgPng(ok);
 assert.ok(png.byteLength > 800, 'OG PNG too small');
