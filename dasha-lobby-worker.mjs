@@ -103,6 +103,7 @@ import {
   resignChess,
   settleChessRatings,
 } from './dasha-chess.mjs';
+import { addReply, newThread, pruneIndex, publicPost, publicThread } from './dasha-forum.mjs';
 
 const SECURITY = {
   'Cache-Control': 'no-store',
@@ -562,6 +563,10 @@ export class DashaLobby {
     this.simpReferralMetrics = { since: Date.now(), claims: 0, claimRejects: 0, expirations: 0, activations: 0, cappedActivations: 0, contributions: 0, invalidations: 0, organicEnrollments: 0, referredEnrollments: 0, organicReturns: 0, referredReturns: 0 };
     this.simpSeasons = {};
     this.chessGames = {};
+    /* Forum index is a bounded list of summaries; posts live under one key per thread so reading a
+       thread never loads the whole board. */
+    this.forumIndex = [];
+    this.forumPosts = {};
     this.chessRatings = {};
     this.chessCurrent = {};
     this.chessQueue = [];
@@ -588,6 +593,15 @@ export class DashaLobby {
         for (const row of muteRows) {
           if (row?.key && row.until > now) this.mutes.set(row.key, row.until);
         }
+      }
+      const forum = await this.state.storage.get('forum');
+      if (forum && typeof forum === 'object') {
+        if (Array.isArray(forum.index)) this.forumIndex = pruneIndex(forum.index, Date.now());
+        if (forum.posts && typeof forum.posts === 'object') this.forumPosts = forum.posts;
+        /* Drop post bodies for threads the prune just aged out, or storage grows without bound
+           while the index that referenced them is gone. */
+        const live = new Set(this.forumIndex.map((t) => t.id));
+        for (const id of Object.keys(this.forumPosts)) if (!live.has(id)) delete this.forumPosts[id];
       }
       const flags = await this.state.storage.get('flags');
       if (flags && typeof flags === 'object') {
@@ -1401,6 +1415,78 @@ export class DashaLobby {
     return json({ error: 'not found' }, 404, allowedOrigin, cred);
   }
 
+  async persistForum() {
+    await this.state.storage.put('forum', { index: this.forumIndex, posts: this.forumPosts });
+  }
+
+  /**
+   * Threads and replies. Every rule the chat enforces applies here — validateTitle/validateBody in
+   * dasha-forum.mjs delegate to the same validateMessage the socket path uses, so the forum cannot
+   * become the door around the automod. Identity comes from the session cookie, never the body.
+   */
+  async handleForum(request, allowedOrigin) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/$/, '');
+    const cred = { credentials: true };
+    const session = await sessionFromRequest(this.env, request);
+    const xId = session?.xId ? String(session.xId) : '';
+    const handle = session?.handle || '';
+    const avatar = session?.avatar || null;
+    const now = Date.now();
+
+    if (request.method !== 'GET' && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
+
+    if (path === '/forum/threads' && request.method === 'GET') {
+      this.forumIndex = pruneIndex(this.forumIndex, now);
+      return json({ ok: true, threads: this.forumIndex.map(publicThread) }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/forum/threads' && request.method === 'POST') {
+      if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+      if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+      const input = await requestJson(request);
+      const id = `t${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      const created = newThread({ title: input?.title, text: input?.text, handle, avatar, now, id });
+      if (!created.ok) return json({ error: created.error }, 400, allowedOrigin, cred);
+      this.forumIndex = pruneIndex([created.summary, ...this.forumIndex], now);
+      this.forumPosts[id] = created.posts;
+      /* The prune can evict the oldest thread; drop its bodies in the same breath. */
+      const live = new Set(this.forumIndex.map((t) => t.id));
+      for (const key of Object.keys(this.forumPosts)) if (!live.has(key)) delete this.forumPosts[key];
+      await this.persistForum();
+      return json({ ok: true, thread: publicThread(created.summary) }, 200, allowedOrigin, cred);
+    }
+
+    const threadMatch = path.match(/^\/forum\/thread\/([A-Za-z0-9_-]{1,40})$/);
+    if (threadMatch) {
+      const id = threadMatch[1];
+      const summary = this.forumIndex.find((t) => t.id === id);
+      const posts = this.forumPosts[id];
+      if (!summary || !Array.isArray(posts)) return json({ error: 'thread not found' }, 404, allowedOrigin, cred);
+
+      if (request.method === 'GET') {
+        return json({ ok: true, thread: publicThread(summary), posts: posts.map(publicPost) }, 200, allowedOrigin, cred);
+      }
+      if (request.method === 'POST') {
+        if (!xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+        const rate = simpRate(this.simpRates, `forum-post:x:${xId}`, 20);
+        if (!rate.ok) return json({ error: 'posting too fast', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+        const input = await requestJson(request);
+        const replied = addReply(posts, { text: input?.text, handle, avatar, now, id: `${id}-${posts.length}` });
+        if (!replied.ok) return json({ error: replied.error }, 400, allowedOrigin, cred);
+        posts.push(replied.post);
+        summary.replies = posts.length - 1;
+        summary.lastTs = now;
+        this.forumIndex = pruneIndex(this.forumIndex, now);
+        await this.persistForum();
+        return json({ ok: true, post: publicPost(replied.post) }, 200, allowedOrigin, cred);
+      }
+    }
+
+    return json({ error: 'not found' }, 404, allowedOrigin, cred);
+  }
+
   async handleChess(request, allowedOrigin) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '');
@@ -1744,6 +1830,8 @@ export class DashaLobby {
           game.updatedAt = Date.now();
           this.chessGames[game.id] = game;
           await this.persistChess();
+          /* The offer is the whole point — the opponent has to see it without reloading. */
+          this.broadcastChess(game);
           return json({ ok: true, game: publicChessGame(game, xId) }, 200, allowedOrigin, cred);
         }
       }
@@ -1756,6 +1844,7 @@ export class DashaLobby {
       const timed = input?.action === 'resign' || input?.action === 'offer_draw' ? game : { ...game, drawOfferBy: null, clock: this.clockAfterMove(game, side, now) };
       const next = this.chessFinish(timed, result.state);
       await this.persistChess();
+      this.broadcastChess(next);
       return json({ ok: true, game: publicChessGame(next, xId) }, 200, allowedOrigin, cred);
     }
 
@@ -1772,7 +1861,9 @@ export class DashaLobby {
     if (this.expireChessChallenges(now)) chessChanged = true;
     for (const game of Object.values(this.chessGames)) {
       const result = this.expireChessClock(game, now);
-      if (result.expired) chessChanged = true;
+      /* Flag-fall has no request behind it, so the alarm is the only chance to tell either player
+         the game is over. Broadcast the settled game, not the one that was passed in. */
+      if (result.expired) { chessChanged = true; this.broadcastChess(result.game); }
     }
     if (chessChanged) await this.persistChess();
     for (const [k, until] of [...this.mutes.entries()]) {
@@ -1965,6 +2056,28 @@ export class DashaLobby {
     }
   }
 
+  /* Chess updates go out per socket, not as one shared frame. publicChessGame is viewer-relative:
+     it returns null for anyone who is not one of the two players, and side/legal/drawOffer answer
+     "what can I do" rather than stating a fact about the game. A single broadcast object would tell
+     both players they were the same colour and show a spectator a draw offer meant for someone else.
+     Without this, a player only saw their opponent's move on their next poll — the board sat still
+     while the opponent's clock ran. */
+  broadcastChess(game) {
+    if (!game?.id) return;
+    const ts = Date.now();
+    for (const ws of this.state.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment() || {};
+        if (!att.xId) continue;
+        const view = publicChessGame(game, att.xId, ts);
+        if (!view) continue;
+        ws.send(JSON.stringify({ type: 'chess_game', game: view, ts }));
+      } catch {
+        /* one dead socket must not stop the other player being told */
+      }
+    }
+  }
+
   schedulePresence() {
     if (this.presenceTimer) return;
     this.presenceTimer = setTimeout(() => {
@@ -2072,7 +2185,7 @@ export class DashaLobby {
       return json(this.roomStats(), 200, null);
     }
 
-    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/') || url.pathname.startsWith('/h/')) {
+    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/') || url.pathname.startsWith('/forum/') || url.pathname.startsWith('/h/')) {
       // Origin already checked by worker entry; pass through for CORS on stub responses.
       const origin = request.headers.get('Origin');
       const allowedOrigin =
@@ -2081,7 +2194,9 @@ export class DashaLobby {
           : this.env.ALLOW_ANY_ORIGIN
             ? origin || '*'
             : null;
-      return url.pathname.startsWith('/chess/') ? this.handleChess(request, allowedOrigin) : this.handleSimp(request, allowedOrigin);
+      if (url.pathname.startsWith('/chess/')) return this.handleChess(request, allowedOrigin);
+      if (url.pathname.startsWith('/forum/')) return this.handleForum(request, allowedOrigin);
+      return this.handleSimp(request, allowedOrigin);
     }
 
     const upgrade = request.headers.get('Upgrade') || '';
@@ -2618,7 +2733,7 @@ export default {
       return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
     }
 
-    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/h/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
+    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/h/') || url.pathname.startsWith('/forum/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
       if (request.method !== 'GET' && request.method !== 'HEAD' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
         return json({ error: 'origin not allowed' }, 403, null);
       }
