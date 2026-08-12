@@ -1700,10 +1700,49 @@ export class DashaLobby {
            which is what "incomplete upstream" was: the free API rate-limits our egress, and the
            heavier candles call is the one it drops first. The price is what people read; the
            sparkline can be a few minutes behind without lying about anything. */
-        const snapRes = await fetch(base, opts);
-        if (!snapRes.ok) throw new Error(`pool ${snapRes.status}`);
-        const a = (await snapRes.json())?.data?.attributes;
-        if (!a?.base_token_price_usd) throw new Error('pool payload missing price');
+        /* Two sources, tried in order. GeckoTerminal is preferred because the candles come from
+           there too, but it rate-limits Cloudflare's shared egress and answers 429 often enough
+           that a single source left the price ten minutes behind. Dexscreener reports the same pool
+           and was already trusted by dasha-onchain-check; the two agreed to within 0.2% when this
+           was written. Whichever answers is named on the page, so a reader can see which one this
+           number came from rather than being told "the price" by an anonymous oracle. */
+        let a = null;
+        let snapSource = null;
+        let snapError = '';
+        try {
+          const snapRes = await fetch(base, opts);
+          if (snapRes.ok) {
+            const attrs = (await snapRes.json())?.data?.attributes;
+            if (attrs?.base_token_price_usd) {
+              a = {
+                priceUsd: Number(attrs.base_token_price_usd),
+                fdvUsd: Number(attrs.fdv_usd) || null,
+                volume24hUsd: Number(attrs.volume_usd?.h24) || null,
+                liquidityUsd: Number(attrs.reserve_in_usd) || null,
+                change: { h1: Number(attrs.price_change_percentage?.h1), h24: Number(attrs.price_change_percentage?.h24) },
+              };
+              snapSource = 'geckoterminal';
+            }
+          } else snapError = `pool ${snapRes.status}`;
+        } catch (e) { snapError = `pool ${String(e?.message || e).slice(0, 40)}`; }
+
+        if (!a) {
+          const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MINT}`, opts);
+          if (!dexRes.ok) throw new Error(`${snapError || 'pool unavailable'}; dex ${dexRes.status}`);
+          /* Match the pool explicitly. Dexscreener returns every pair for the token, and taking the
+             first would quietly price a different pool than the one this site names. */
+          const pair = ((await dexRes.json())?.pairs || []).find((row) => row?.pairAddress === PAIR);
+          if (!pair?.priceUsd) throw new Error(`${snapError || 'pool unavailable'}; dex has no ${PAIR}`);
+          a = {
+            priceUsd: Number(pair.priceUsd),
+            fdvUsd: Number(pair.fdv) || null,
+            volume24hUsd: Number(pair.volume?.h24) || null,
+            liquidityUsd: Number(pair.liquidity?.usd) || null,
+            change: { h1: Number(pair.priceChange?.h1), h24: Number(pair.priceChange?.h24) },
+          };
+          snapSource = 'dexscreener';
+        }
+        if (!Number.isFinite(a.priceUsd) || a.priceUsd <= 0) throw new Error('no usable price');
 
         /* Candles move slowly and cost the most, so they refresh on their own longer clock. */
         let series = previous?.series || [];
@@ -1735,14 +1774,14 @@ export class DashaLobby {
             ok: true,
             mint: MINT,
             pair: PAIR,
-            priceUsd: Number(a.base_token_price_usd),
-            fdvUsd: Number(a.fdv_usd) || null,
-            volume24hUsd: Number(a.volume_usd?.h24) || null,
-            liquidityUsd: Number(a.reserve_in_usd) || null,
-            change: { h1: Number(a.price_change_percentage?.h1), h24: Number(a.price_change_percentage?.h24) },
+            priceUsd: a.priceUsd,
+            fdvUsd: a.fdvUsd,
+            volume24hUsd: a.volume24hUsd,
+            liquidityUsd: a.liquidityUsd,
+            change: a.change,
             series,
             seriesAsOf: new Date(this.seriesAt || now).toISOString(),
-            source: 'geckoterminal',
+            source: snapSource,
             asOf: new Date(now).toISOString(),
           },
         };

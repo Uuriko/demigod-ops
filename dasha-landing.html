@@ -69,7 +69,7 @@ async function tick(){
     draw(p.series);
     const spark=el('spark');
     if(spark&&Number.isFinite(c))spark.setAttribute('aria-label','$dasha price, '+(c>=0?'up':'down')+' '+Math.abs(c).toFixed(2)+' percent over 24 hours');
-    el('price-note').textContent=((p.stale&&Number(p.staleForMs)>120000)?'Last good reading ':'Pool price ')+fmtWhen(p.asOf)+' \u00B7 '+(p.source==='geckoterminal'?'GeckoTerminal':'pool');
+    el('price-note').textContent=((p.stale&&Number(p.staleForMs)>120000)?'Last good reading ':'Pool price ')+fmtWhen(p.asOf)+' \u00B7 '+({geckoterminal:'GeckoTerminal',dexscreener:'Dexscreener'}[p.source]||'pool');
     box.hidden=false;
   }catch(e){/* leave the strip as it was; never break the hero over a price */}
 }
