@@ -489,6 +489,45 @@ async function syncSocialMetadata(client) {
   log('metadata:done', { card: SOCIAL_CARD });
 }
 
+/**
+ * Surfaces whose SRI pin would not match the bytes the Worker actually serves.
+ *
+ * This is the check that matters, and it used to run only behind --worker-behind. The release
+ * contract tried to cover the same ground by listing one literal sha384 as a required marker, which
+ * is the wrong invariant twice over: it goes stale the moment the client is rebuilt — failing a
+ * perfectly healthy site, which is exactly what it just did — and it never once compared the pin to
+ * the bytes, so real drift could pass while a rebuild failed.
+ */
+async function driftedPins(keys) {
+  const drifted = [];
+  for (const [key, surface] of Object.entries(SURFACES)) {
+    if (keys?.length && !keys.includes(key)) continue;
+    const path = join(root, surface.file);
+    if (!existsSync(path)) continue;
+    const html = readFileSync(path, 'utf8');
+    for (const url of new Set(html.match(/https:\/\/lobby\.getdasha\.com\/[^"'\s)]+\.js/g) || [])) {
+      const at = html.indexOf(url);
+      /* Nearest pin in EITHER direction, capped. Loaders here spell it `integrity=` or bind it to a
+         const, so keying on a keyword picks up the wrong hash — position is the reliable link. And
+         scanning only backwards silently missed the real layout: the pin sits 49 chars AFTER its own
+         URL, and a miss reads as "no pin, nothing to check", so a drifted pin published clean. */
+      let pin = null;
+      let nearest = Infinity;
+      for (const m of html.matchAll(/sha384-[A-Za-z0-9+/=]+/g)) {
+        const distance = Math.abs(m.index - at);
+        if (distance < nearest) { nearest = distance; pin = m[0]; }
+      }
+      if (!pin || nearest > 2000) continue;
+      const body = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+        .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+      if (!body) { drifted.push(`${surface.label}: ${url} unreachable`); continue; }
+      const served = `sha384-${createHash('sha384').update(Buffer.from(body)).digest('base64')}`;
+      if (served !== pin) drifted.push(`${surface.label}: ${url} pinned ${pin.slice(0, 24)}… serves ${served.slice(0, 24)}…`);
+    }
+  }
+  return drifted;
+}
+
 async function preflightLobbyAssets(receipt) {
   const expected = process.env.DASHA_SHIP_FAKE_LIVE === '1'
     ? 'fixture-assets'
@@ -505,36 +544,10 @@ async function preflightLobbyAssets(receipt) {
      So this checks that instead of trusting the bundle hash, and still throws when a pin has drifted.
      Anything depending on undeployed Worker routes stays dark until someone runs the deploy. */
   if (live !== expected && args.has('--worker-behind')) {
-    const drifted = [];
-    /* Only surfaces actually being pushed. A pin that stays on disk cannot break a published page,
-       so an out-of-scope surface must not block the ones in scope — that is exactly the Studio case
-       this flag exists to work around: its embed is pinned ahead to a Worker build that is not live. */
-    for (const [key, surface] of Object.entries(SURFACES)) {
-      if (only.length && !only.includes(key)) continue;
-      const path = join(root, surface.file);
-      if (!existsSync(path)) continue;
-      const html = readFileSync(path, 'utf8');
-      for (const url of new Set(html.match(/https:\/\/lobby\.getdasha\.com\/[^"'\s)]+\.js/g) || [])) {
-        const at = html.indexOf(url);
-        /* Nearest pin in EITHER direction, capped. Loaders here spell it `integrity=` or bind it to a
-           const, so keying on a keyword picks up the wrong hash — position is the reliable link. And
-           scanning only backwards silently missed the real layout: the pin sits 49 chars AFTER its own
-           URL, and a miss reads as "no pin, nothing to check", so a drifted pin published clean. The
-           cap stops a far-off unrelated hash from being adopted when a script carries no pin at all. */
-        let pin = null;
-        let nearest = Infinity;
-        for (const m of html.matchAll(/sha384-[A-Za-z0-9+/=]+/g)) {
-          const distance = Math.abs(m.index - at);
-          if (distance < nearest) { nearest = distance; pin = m[0]; }
-        }
-        if (!pin || nearest > 2000) continue;
-        const body = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-          .then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
-        if (!body) { drifted.push(`${surface.label}: ${url} unreachable`); continue; }
-        const served = `sha384-${createHash('sha384').update(Buffer.from(body)).digest('base64')}`;
-        if (served !== pin) drifted.push(`${surface.label}: ${url} pinned ${pin.slice(0, 24)}… serves ${served.slice(0, 24)}…`);
-      }
-    }
+    /* Publish the Webflow surfaces while the Worker stays behind. The bundle hash above is coarse:
+       it moves for any Worker change, including server-only ones no page can observe. What can
+       actually break a published page is narrower, and driftedPins checks exactly that. */
+    const drifted = await driftedPins(only);
     if (drifted.length) {
       throw new Error(`--worker-behind refused: published pins would not match live Worker bytes:\n  ${drifted.join('\n  ')}`);
     }
@@ -545,6 +558,7 @@ async function preflightLobbyAssets(receipt) {
     });
     return;
   }
+
   if (live !== expected && args.has('--ship') && !receipt?.stages?.published && !Object.keys(receipt?.stages?.pushed || {}).length) {
     log('deploy:lobby:start', { live: live || 'unavailable', expected });
     if (process.env.DASHA_SHIP_FAKE_DEPLOY === '1') live = expected;
@@ -567,7 +581,15 @@ async function preflightLobbyAssets(receipt) {
   if (live !== expected) {
     throw new Error(`Lobby Worker assets are not release-ready: live=${live || 'unavailable'} expected=${expected}`);
   }
-  log('preflight:lobby-assets:pass', { assets: expected });
+  /* Always, not only behind a flag. This is the check that catches a published page pinning bytes
+     the Worker does not serve — the failure that blanks a surface with no console error and no
+     failing gate. It ran only under --worker-behind until a stale literal in the release contract
+     failed a healthy lobby and showed the contract had never been checking this at all. */
+  const drifted = await driftedPins(only);
+  if (drifted.length) {
+    throw new Error(`published pins would not match live Worker bytes:\n  ${drifted.join('\n  ')}`);
+  }
+  log('preflight:lobby-assets:pass', { assets: expected, pins: 'match served bytes' });
 }
 
 async function callTool(client, names, toolArgs) {

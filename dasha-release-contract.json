@@ -9,7 +9,7 @@
     "home": {
       "path": "/",
       "required": [
-        "It’s time",
+        "It\u2019s time",
         "Make something",
         "dasha-simp-board",
         "href=\"/lobby\"",
@@ -73,7 +73,7 @@
       "required": [
         "dasha-lobby",
         "lobby.getdasha.com",
-        "sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb"
+        "client/lobby.js"
       ],
       "forbidden": [
         "t.me/dashacommunity",
