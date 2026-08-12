@@ -567,6 +567,9 @@ async function preflightLobbyAssets(receipt) {
         cwd: LOBBY_ROOT,
         encoding: 'utf8',
         timeout: 120_000,
+        /* Tells dasha-deploy-guard the caller already holds the publish lock and has already run
+           driftedPins. Without it the guard blocks on a lock this process is itself holding. */
+        env: { ...process.env, DASHA_DEPLOY_FROM_SHIP: '1' },
       });
       if (deployed.status !== 0) throw new Error(`Lobby Worker deploy failed: ${deployed.stderr || deployed.stdout}`);
       for (let attempt = 0; attempt < 5 && live !== expected; attempt += 1) {
