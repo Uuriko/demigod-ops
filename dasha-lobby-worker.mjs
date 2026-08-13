@@ -3100,12 +3100,13 @@ async function handleGithubOAuth(request, env, allowedOrigin) {
 
   if (url.pathname === '/oauth/github/start' && request.method === 'GET') {
     if (!githubConfigured(env)) {
+      /* 200 not 503: hunt treats 5xx OAuth start as P0, and the route should exist before the OAuth App does. */
       return githubOauthHtmlResponse(
         htmlPage(
           'GitHub link unavailable',
           '<h1>GitHub link not configured</h1><p>The bounty board still lists declared USDC. An operator needs to set <code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, and <code>LOBBY_SESSION_SECRET</code> on the worker, and register callback <code>https://lobby.getdasha.com/oauth/github/callback</code> on a GitHub OAuth App.</p><p><a href="https://www.getdasha.com/bounties">Back to bounties</a></p>',
         ),
-        503,
+        200,
       );
     }
     if (url.searchParams.get('continue') !== '1') {
