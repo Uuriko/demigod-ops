@@ -1,6 +1,7 @@
 /**
  * Dasha public lobby — Cloudflare Worker + single Durable Object room.
  * Optional X account link (OAuth 2 PKCE). Linking is never required.
+ * Optional GitHub OAuth App for bounty identity (read:user). Chat still works without it.
  */
 import {
   MINT,
@@ -45,6 +46,19 @@ import {
   signPayload,
   verifyPayload,
 } from './dasha-lobby-x.mjs';
+import {
+  githubConfigured,
+  githubRedirectUri,
+  githubAuthorizeUrl,
+  exchangeGithubCode,
+  fetchGithubUser,
+  createGithubSessionToken,
+  githubSessionFromRequest,
+  githubCookieHeader,
+  githubOauthStateCookie,
+  publicGithubLink,
+  GH_OAUTH_COOKIE,
+} from './dasha-lobby-github.mjs';
 import {
   buildPublicBoard,
   joinBoard,
@@ -632,6 +646,7 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 10, 2026.</p>
 <h2>What Dasha uses</h2>
 <p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
+<p>Linking GitHub reads your public GitHub user id, login, display name, and avatar so the bounty board can require GitHub to list, claim, and pay. The browser session lasts up to 30 days. Dasha does not store the GitHub access token and does not create issues or PRs for you.</p>
 <p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, referral milestones, and dated holder-badge status. Referral links record the inviter and invited X-linked Board identities until either person leaves; uncompleted claims are removed after expiry on the next Board or referral request. The wallet address and balance used for that optional badge are checked once and are not retained. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, referral, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
@@ -721,6 +736,55 @@ function oauthHtmlResponse(body, status) {
     status,
     headers: privateHtmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': oauthStateCookie() }),
   });
+}
+
+const OAUTH_POST_ORIGINS = [
+  'https://www.getdasha.com',
+  'https://getdasha.com',
+  'https://lobby.getdasha.com',
+  'https://uuriko.github.io',
+];
+
+function oauthPostMessageScript(nonce, payloadExpr) {
+  const origins = JSON.stringify(OAUTH_POST_ORIGINS).replace(/</g, '\\u003c');
+  return `<script nonce="${nonce}">try{if(window.opener){var origins=${origins};origins.forEach(function(o){try{window.opener.postMessage(${payloadExpr},o);}catch(e){}});}}catch(e){} setTimeout(function(){window.close()},800);</script>`;
+}
+
+function githubOauthHtmlResponse(body, status) {
+  return new Response(body, {
+    status,
+    headers: privateHtmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': githubOauthStateCookie() }),
+  });
+}
+
+export const BOUNTIES_FEED_URL = 'https://uuriko.github.io/dasha-desk/bounties.json';
+
+export function ensureBountyConnectLinks(html) {
+  const src = String(html || '');
+  if (/oauth\/github/i.test(src) && /oauth\/x/i.test(src)) return src;
+  const nav = '<nav class="dasha-bounties-connect" aria-label="Connect"><a href="https://lobby.getdasha.com/oauth/github/start">GitHub</a> <a href="https://lobby.getdasha.com/oauth/x/start">X</a></nav>';
+  if (/<body\b[^>]*>/i.test(src)) return src.replace(/<body\b[^>]*>/i, (m) => `${m}${nav}`);
+  return nav + src;
+}
+
+async function serveBountiesFeed(request) {
+  const up = await fetch(BOUNTIES_FEED_URL, { headers: { Accept: 'application/json' } });
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'public, max-age=120',
+    'Access-Control-Allow-Origin': '*',
+    'X-Dasha-Edge': 'bounties-feed',
+  };
+  if (!up.ok) {
+    return new Response(JSON.stringify({ error: 'bounties feed unavailable' }), { status: 502, headers });
+  }
+  const body = await up.arrayBuffer();
+  const head = new Uint8Array(body.slice(0, 1));
+  if (head[0] !== 0x7b) {
+    return new Response(JSON.stringify({ error: 'bounties feed was not JSON' }), { status: 502, headers });
+  }
+  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+  return new Response(body, { status: 200, headers });
 }
 
 export class DashaLobby {
@@ -1320,8 +1384,10 @@ export class DashaLobby {
       if (referralChanged) await this.persistSimpState();
       const referral = session?.xId ? this.simpReferrals[String(session.xId)] : null;
       const profile = session?.xId ? this.simpProfiles[String(session.xId)] : null;
+      const github = publicGithubLink(await githubSessionFromRequest(this.env, request));
       return json({
         ...meStatus(this.simpProfiles, session),
+        github,
         claims: claimsForSession(this.simpClaims, session),
         referral: profile ? {
           ...(profile.referralCode ? { inviteUrl: `https://www.getdasha.com/?ref=${profile.referralCode}#simp` } : {}),
@@ -2981,7 +3047,7 @@ async function handleOAuth(request, env, allowedOrigin) {
         `<h1>Linked @${safeHandle}</h1>
         <p>You can close this tab and return to Dasha.</p>
         <p><a href="https://www.getdasha.com/">Open Dasha</a></p>
-        <script nonce="${scriptNonce}">try{if(window.opener){var h=${scriptHandle};['https://www.getdasha.com','https://getdasha.com','https://lobby.getdasha.com'].forEach(function(o){try{window.opener.postMessage({type:'dasha-x-linked',handle:h},o);}catch(e){}});}}catch(e){} setTimeout(function(){window.close()},800);</script>`,
+        ${oauthPostMessageScript(scriptNonce, `{type:'dasha-x-linked',handle:${scriptHandle}}`)}`,
       );
       const headers = new Headers(privateHtmlHeaders({
         'Content-Type': 'text/html; charset=utf-8',
@@ -2993,6 +3059,125 @@ async function handleOAuth(request, env, allowedOrigin) {
     } catch (e) {
       return oauthHtmlResponse(
         htmlPage('Error', `<h1>Could not link X</h1><p>${escapeHtml(String(e.message || e).slice(0, 200))}</p><p><a href="/oauth/x/start">Try again</a></p>`),
+        502,
+      );
+    }
+  }
+
+  return null;
+}
+
+
+async function handleGithubOAuth(request, env, allowedOrigin) {
+  const url = new URL(request.url);
+
+  if (url.pathname === '/oauth/github/status') {
+    const link = await githubSessionFromRequest(env, request);
+    return json(
+      {
+        configured: githubConfigured(env),
+        linked: Boolean(link),
+        github: publicGithubLink(link),
+      },
+      200,
+      allowedOrigin,
+      { credentials: true },
+    );
+  }
+
+  if (url.pathname === '/oauth/github/logout') {
+    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, { credentials: true });
+    if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+    const headers = new Headers({
+        ...SECURITY,
+        ...corsHeaders(allowedOrigin, { credentials: true }),
+        'Content-Type': 'application/json; charset=utf-8',
+    });
+    headers.append('Set-Cookie', githubCookieHeader('', { clear: true }));
+    headers.append('Set-Cookie', githubOauthStateCookie());
+    return new Response(JSON.stringify({ ok: true, linked: false }), { status: 200, headers });
+  }
+
+  if (url.pathname === '/oauth/github/start' && request.method === 'GET') {
+    if (!githubConfigured(env)) {
+      return githubOauthHtmlResponse(
+        htmlPage(
+          'GitHub link unavailable',
+          '<h1>GitHub link not configured</h1><p>The bounty board still lists declared USDC. An operator needs to set <code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, and <code>LOBBY_SESSION_SECRET</code> on the worker, and register callback <code>https://lobby.getdasha.com/oauth/github/callback</code> on a GitHub OAuth App.</p><p><a href="https://www.getdasha.com/bounties">Back to bounties</a></p>',
+        ),
+        503,
+      );
+    }
+    if (url.searchParams.get('continue') !== '1') {
+      return githubOauthHtmlResponse(
+        htmlPage('Connect GitHub', '<h1>Connect GitHub</h1><p>Dasha reads your public GitHub identity to list, claim, and pay bounties. It does not post or open issues for you.</p><p><a href="/privacy">Privacy</a></p><p><a href="/oauth/github/start?continue=1">Continue with GitHub</a></p>'),
+        200,
+      );
+    }
+    const state = randomUrlToken(16);
+    const stateToken = await signPayload(env.LOBBY_SESSION_SECRET, {
+      v: 1,
+      kind: 'github_oauth_state',
+      state,
+      exp: Date.now() + 15 * 60_000,
+    });
+    const dest = githubAuthorizeUrl({
+      clientId: env.GITHUB_CLIENT_ID,
+      redirectUri: githubRedirectUri(env),
+      state,
+    });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...SECURITY,
+        Location: dest,
+        'Set-Cookie': githubOauthStateCookie(stateToken),
+      },
+    });
+  }
+
+  if (url.pathname === '/oauth/github/callback' && request.method === 'GET') {
+    if (!githubConfigured(env)) {
+      return githubOauthHtmlResponse(htmlPage('Error', '<p>OAuth not configured.</p>'), 503);
+    }
+    const err = url.searchParams.get('error');
+    if (err) {
+      return githubOauthHtmlResponse(
+        htmlPage('Cancelled', `<h1>Link cancelled</h1><p>${escapeHtml(err)}</p><p><a href="https://www.getdasha.com/bounties">Back to bounties</a></p>`),
+        400,
+      );
+    }
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    const oauthCookie = readCookie(request.headers.get('Cookie') || '', GH_OAUTH_COOKIE);
+    const st = oauthCookie ? await verifyPayload(env.LOBBY_SESSION_SECRET, oauthCookie) : null;
+    if (!code || !state || !st || st.kind !== 'github_oauth_state' || st.state !== state) {
+      return githubOauthHtmlResponse(htmlPage('Error', '<h1>Invalid OAuth state</h1><p><a href="/oauth/github/start">Try again</a></p>'), 400);
+    }
+    try {
+      const tokens = await exchangeGithubCode(env, { code });
+      const user = await fetchGithubUser(tokens.access_token);
+      if (!user.login) throw new Error('missing login');
+      const session = await createGithubSessionToken(env, user);
+      const safeLogin = escapeHtml(user.login);
+      const scriptLogin = JSON.stringify(user.login).replace(/</g, '\\u003c');
+      const scriptNonce = randomUrlToken(18);
+      const body = htmlPage(
+        'Linked',
+        `<h1>Linked @${safeLogin}</h1>
+        <p>You can close this tab and return to Dasha.</p>
+        <p><a href="https://www.getdasha.com/bounties">Open bounties</a></p>
+        ${oauthPostMessageScript(scriptNonce, `{type:'dasha-github-linked',github:{login:${scriptLogin}}}`)}`,
+      );
+      const headers = new Headers(privateHtmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+      }, scriptNonce));
+      headers.append('Set-Cookie', githubCookieHeader(session));
+      headers.append('Set-Cookie', githubOauthStateCookie());
+      return new Response(body, { status: 200, headers });
+    } catch (e) {
+      return githubOauthHtmlResponse(
+        htmlPage('Error', `<h1>Could not link GitHub</h1><p>${escapeHtml(String(e.message || e).slice(0, 200))}</p><p><a href="/oauth/github/start">Try again</a></p>`),
         502,
       );
     }
@@ -3075,6 +3260,12 @@ async function productEdge(request, url, env) {
   ) {
     return Response.redirect('https://www.getdasha.com/', 308);
   }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/bounties.json' || url.pathname === '/bounties/feed.json')
+  ) {
+    return serveBountiesFeed(request);
+  }
   // Pass through to Webflow (subrequest does not re-invoke this Worker for same zone).
   // Strip personal publisher branding (potterlab / John Potter) from head JSON-LD so the
   // public product site is getdasha-only. Source of truth for clean schema is also in embeds.
@@ -3086,6 +3277,9 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   html = ensureHtmlLang(html);
+  if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
+    html = ensureBountyConnectLinks(html);
+  }
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
@@ -3128,6 +3322,10 @@ export default {
       });
     }
 
+    if (url.pathname.startsWith('/oauth/github')) {
+      const oauthRes = await handleGithubOAuth(request, env, allowedOrigin);
+      if (oauthRes) return oauthRes;
+    }
     if (url.pathname.startsWith('/oauth/x')) {
       const oauthRes = await handleOAuth(request, env, allowedOrigin);
       if (oauthRes) return oauthRes;
@@ -3273,6 +3471,7 @@ export default {
           maxSockets: MAX_SOCKETS,
           softCapAnon: ANON_SOFT_CAP,
           xLink: xConfigured(env),
+          githubLink: githubConfigured(env),
           holderRpc: holderRpcMode(env),
           assets: ASSET_HASH,
         },

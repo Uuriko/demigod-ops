@@ -26,7 +26,7 @@
     }
   ],
   "vars": {
-    "ALLOWED_ORIGINS": "https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com,http://127.0.0.1:8765,http://localhost:8765,http://127.0.0.1:8787,http://localhost:8787",
+    "ALLOWED_ORIGINS": "https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com,https://uuriko.github.io,http://127.0.0.1:8765,http://localhost:8765,http://127.0.0.1:8787,http://localhost:8787",
     "MINT": "53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"
   }
 }

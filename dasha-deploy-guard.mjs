@@ -52,6 +52,7 @@ const WORKER_INPUTS = [
   'dasha-forum.mjs',
   'dasha-lobby-mod.mjs',
   'dasha-lobby-x.mjs',
+  'dasha-lobby-github.mjs',
 ];
 
 const say = (line) => console.log(`deploy-guard: ${line}`);
