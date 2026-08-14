@@ -408,6 +408,48 @@ const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
 const LOBBY_PAGE = ensurePrivacyLink(injectLobbySimpQuiz(LOBBY_PAGE_HTML));
 
+/** Same-origin gallery stills already hosted for quiz cards. First five match Studio PHOTO. */
+const STUDIO_STARTER_PHOTOS = [
+  ['hero', '/simp/photo/hero.jpg'],
+  ['portrait', '/simp/photo/profile.jpg'],
+  ['weekend', '/simp/photo/weekend.jpg'],
+  ['bull', '/simp/photo/bull.jpg'],
+  ['chart', '/simp/photo/chart.jpg'],
+];
+const STUDIO_PHOTO_LINE = 'How u crying at the casino and u can’t even get in';
+
+/** Finished PHOTO stage for first HTML. Tokens + Arial only. No violet. */
+export function studioFirstPaintHtml({ effect = '', sticker = '' } = {}) {
+  const xerox = String(effect || '').toLowerCase() === 'xerox';
+  const cherry = String(sticker || '') === '🍒';
+  const thumbs = STUDIO_STARTER_PHOTOS.map(([, src], i) =>
+    `<img src="${src}" alt="" width="74" height="74"${i ? '' : ' fetchpriority="high"'}>`).join('');
+  const filter = xerox ? 'filter:grayscale(1) contrast(2.4);' : '';
+  const cherryHtml = cherry ? '<span class="sticker" aria-hidden="true">🍒</span>' : '';
+  return `<section id="dasha-studio-paint" aria-label="Dasha Studio"><style>#dasha-studio-paint{box-sizing:border-box;margin:0 auto;padding:1rem;max-width:40rem;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-studio-paint .stage{position:relative;aspect-ratio:1;overflow:hidden;background:#070608}#dasha-studio-paint .stage img{width:100%;height:100%;object-fit:cover;display:block;${filter}}#dasha-studio-paint .line{position:absolute;left:1rem;right:1rem;bottom:1rem;margin:0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;line-height:.95}#dasha-studio-paint .sticker{position:absolute;top:1rem;right:1rem;font-size:3rem}#dasha-studio-paint .thumbs{display:grid;grid-auto-flow:column;grid-auto-columns:74px;gap:8px;overflow-x:auto;margin-top:8px}#dasha-studio-paint .thumbs img{width:74px;height:74px;object-fit:cover;display:block;background:#070608}</style><div class="stage"><img src="${STUDIO_STARTER_PHOTOS[0][1]}" alt="" width="1080" height="1080" fetchpriority="high"><p class="line">${escapeHtml(STUDIO_PHOTO_LINE)}</p>${cherryHtml}</div><div class="thumbs" aria-label="Choose a Dasha image">${thumbs}</div></section>`;
+}
+
+/** /studio PHOTO first paint: real img src in HTML, not an empty canvas waiting on JS. */
+export function rewriteStudioFirstPaint(html, search = '') {
+  const page = String(html || '');
+  if (/id=["']dasha-studio-paint["']/i.test(page)) return page;
+  const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));
+  const look = String(params.get('look') || '').toLowerCase();
+  if (look && look !== 'photo') return page;
+  const paint = studioFirstPaintHtml({ effect: params.get('effect') || '', sticker: params.get('sticker') || '' });
+  const dropLoading = (next) => next.replace(/<p\b[^>]*>\s*Loading studio…\s*<\/p>/gi, '');
+  const embed = page.match(/<div\b[^>]*\bclass=["'][^"']*\bdasha-studio-embed\b[^"']*["'][^>]*>/i);
+  if (embed) {
+    const at = page.indexOf(embed[0]) + embed[0].length;
+    return dropLoading(page.slice(0, at) + paint + page.slice(at));
+  }
+  const loading = page.match(/<p\b[^>]*>\s*Loading studio…\s*<\/p>/i);
+  if (loading) return page.replace(loading[0], paint);
+  const script = page.search(/<script\b[^>]*\/client\/studio\.js/i);
+  if (script >= 0) return dropLoading(page.slice(0, script) + paint + page.slice(script));
+  return page;
+}
+
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
   return String(html || '').replace(/<script\b[^>]*>\s*<\/script>/gi, (tag) => {
@@ -2797,7 +2839,7 @@ async function staticAssetResponse(request, env) {
 
 /** Product hosts (www/apex) serve SEO/howto plus a few footer aliases; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
-  if (url.pathname.startsWith('/og/')) {
+  if (url.pathname.startsWith('/og/') || url.pathname.startsWith('/simp/photo/')) {
     return staticAssetResponse(request, env);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {
@@ -2947,6 +2989,7 @@ async function productEdge(request, url, env) {
   } else {
     html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
     if (isExactPath(url.pathname, '/lobby')) html = injectLobbySimpQuiz(html);
+    if (isExactPath(url.pathname, '/studio')) html = rewriteStudioFirstPaint(html, url.search);
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);

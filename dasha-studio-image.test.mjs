@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 
@@ -18,6 +17,11 @@ assert.match(studioSource, /<summary>More options<\/summary>/);
 assert.match(studioSource, /type: 'file', accept: 'image\/\*'/);
 assert.match(studioSource, /let photoLoadVersion = 0/);
 assert.ok((studioSource.match(/version !== photoLoadVersion|version === photoLoadVersion/g) || []).length >= 2, 'stale photo completion must be ignored');
+assert.match(studioSource, /else if \(look\.id === 'photo'\) photoId = PHOTOS\[0\]\[0\]/, 'PHOTO look must select a starter still before first paint');
+assert.match(studioSource, /starterPhoto\) loadPhoto\(\.\.\.starterPhoto/, 'PHOTO look must load the starter still without a click');
+assert.match(studioSource, /params\.get\('effect'\)/, 'Studio must honor effect= from the URL');
+assert.match(studioSource, /params\.get\('sticker'\)/, 'Studio must honor sticker= from the URL');
+assert.match(studioSource, /loading: index < 5 \? 'eager' : 'lazy'/, 'known thumbs must not start as empty lazy tiles');
 assert.match(studioSource, /blob\.size <= 5_000_000/);
 assert.match(studioSource, /'image\/jpeg', 0\.9/);
 assert.match(studioSource, /if \(shareBusy\) return/);
@@ -35,6 +39,14 @@ async function instrument(context) {
     await context.route(pattern, route => route.fulfill({ contentType: 'image/png', body: fallbackImage }));
   }
   return events;
+}
+
+let chromium;
+try {
+  ({ chromium } = await import('playwright'));
+} catch {
+  console.log('dasha-studio-image: source PASS (playwright not installed)');
+  process.exit(0);
 }
 
 const browser = await chromium.launch({ headless: true });
