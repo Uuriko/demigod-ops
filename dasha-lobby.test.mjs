@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
@@ -89,6 +90,7 @@ assert(worker.includes('setAlarm'), 'worker schedules history prune');
 assert(worker.includes("'Content-Security-Policy': \"frame-ancestors 'none'; base-uri 'none'; object-src 'none'\""), 'Worker HTML security policy missing');
 assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'proxied Webflow HTML must receive Worker security headers');
 assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must gain a Privacy link in the rewrite pass');
+assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
 assert(worker.includes('escapeHtml(err)') && worker.includes('escapeHtml(String(e.message || e)'), 'OAuth error HTML must escape upstream text');
 
 // Simp Board reuses Lobby DO + session; never auto-enrolls on OAuth
@@ -124,7 +126,9 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
+const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -802,6 +806,33 @@ ${liveHomeFooter}
   assert.match(deskLinked, /href="\/studio"/);
   assert.equal(ensurePrivacyLink(deskLinked), deskLinked);
   assert.equal(ensurePrivacyLink('<html><title>x</title></html>'), '<html><title>x</title></html>', 'no footer/nav needle must not invent chrome');
+  const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
+  const jquerySri = 'sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=';
+  const webflowCssSri = 'sha384-webflowCssMustStay';
+  const webflowJsSri = 'sha384-webflowJsMustStay';
+  const studioFixture = `<!doctype html><html class="w-mod-js"><title>Dasha Studio — make one, pass it on</title>
+<script type="application/ld+json">{"@type":"Person","name":"John Potter","url":"https://x.com/potterlab"}</script>
+<link href="https://cdn.prod.website-files.com/css/webflow.css" rel="stylesheet" integrity="${webflowCssSri}" crossorigin="anonymous">
+<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a href="/privacy">Privacy</a></div></nav>
+<p>Loading studio…</p>
+<script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js" integrity="${jquerySri}" crossorigin="anonymous"></script>
+<script src="https://cdn.prod.website-files.com/js/webflow.js" integrity="${webflowJsSri}" crossorigin="anonymous"></script>
+<script src="https://lobby.getdasha.com/client/studio.js" integrity="${staleStudioSri}" crossorigin="anonymous"></script>
+</html>`;
+  const studioFixed = rewriteStudioScriptIntegrity(studioFixture);
+  assert.equal(studioFixed.includes(staleStudioSri), false, 'stale studio.js SRI must be gone');
+  assert.match(studioFixed, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"/);
+  assert.ok(studioFixed.includes(`integrity="${STUDIO_SRI}"`), 'studio.js integrity must match served bytes');
+  assert.match(studioFixed, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"[^>]*crossorigin="anonymous"/);
+  assert.equal(rewriteStudioScriptIntegrity(studioFixed), studioFixed, 'studio SRI rewrite must be idempotent');
+  assert.ok(studioFixed.includes(`integrity="${jquerySri}"`), 'jquery SRI must stay');
+  assert.ok(studioFixed.includes(`integrity="${webflowCssSri}"`), 'Webflow CSS SRI must stay');
+  assert.ok(studioFixed.includes(`integrity="${webflowJsSri}"`), 'webflow.js SRI must stay');
+  assert.equal(
+    rewriteStudioScriptIntegrity('<script src="https://lobby.getdasha.com/client/studio.js"></script>'),
+    '<script src="https://lobby.getdasha.com/client/studio.js"></script>',
+    'studio tag with no integrity must stay',
+  );
   const lobbyLeftover = `<!doctype html><html><title>$dasha lobby</title>
 <style>
 .lobby-lede{margin:0}
@@ -850,6 +881,39 @@ ${liveHomeFooter}
   } finally {
     globalThis.fetch = nativeFetch;
   }
+}
+{
+  const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
+  const studioOrigin = `<!doctype html><html class="w-mod-js"><title>Dasha Studio — make one, pass it on</title>
+<script type="application/ld+json">{"@type":"Person","name":"John Potter","url":"https://x.com/potterlab"}</script>
+<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a href="/privacy">Privacy</a></div></nav>
+<p>Loading studio…</p>
+<script src="https://lobby.getdasha.com/client/studio.js" integrity="${staleStudioSri}" crossorigin="anonymous"></script>
+</html>`;
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(studioOrigin, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const page = await workerModule.default.fetch(new Request(`https://${host}/studio`), {});
+      assert.equal(page.status, 200, `${host}/studio must stay 200`);
+      assert.equal(page.headers.get('x-dasha-edge'), 'html-strip-personal-brand');
+      const html = await page.text();
+      assert.match(html, /<title>[^<]*Dasha Studio/);
+      assert.match(html, /href="\/privacy"/);
+      assert.equal(html.includes(staleStudioSri), false, `${host}/studio must drop the leftover studio.js pin`);
+      assert.match(html, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"/);
+      assert.ok(html.includes(`integrity="${STUDIO_SRI}"`), `${host}/studio integrity must match served studio.js`);
+      assert.match(html, /Loading studio…/);
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+  const studioJs = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/client/studio.js'), {});
+  assert.equal(studioJs.status, 200);
+  assert.match(studioJs.headers.get('content-type') || '', /javascript/);
+  const studioBytes = await studioJs.text();
+  assert.equal(`sha384-${createHash('sha384').update(studioBytes).digest('base64')}`, STUDIO_SRI);
+  assert.equal(studioBytes, STUDIO_CLIENT_JS);
 }
 {
   const bountiesFixture = `<!doctype html><html class="w-mod-js"><title>Bounties</title>
