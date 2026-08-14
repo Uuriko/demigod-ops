@@ -1,0 +1,12 @@
+{
+  // Demigod product HTML edge. Separate zone/brand from dasha-lobby.
+  // Do not deploy from this PR. Do not add these routes to dasha-lobby-wrangler.jsonc.
+  "name": "demigod-html",
+  "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "www.trydemigod.com/*", "zone_name": "trydemigod.com" }
+  ],
+  "main": "demigod-html-worker.mjs",
+  "compatibility_date": "2026-08-14"
+}
