@@ -114,11 +114,14 @@ assert(wrangler.includes('"class_name": "DashaLobby"'), 'wrangler binds DO class
 assert(wrangler.includes('new_sqlite_classes'), 'wrangler has DO sqlite migration');
 assert(wrangler.includes('lobby.getdasha.com'), 'wrangler routes custom domain');
 assert(wrangler.includes('www.getdasha.com'), 'wrangler allows site origin');
+assert(worker.includes("pathname === '/bounties.json'") || worker.includes('isBountiesJsonPath'), 'worker exposes /bounties.json');
+assert(worker.includes('bounties-feed'), 'worker marks the listings feed');
+assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no-custody note');
 
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints } = workerModule;
+const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripHomeSimpBoard } = workerModule;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -238,6 +241,89 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
     assert.equal(deskPassedThrough, true, 'www /desk must remain a Webflow pass-through');
     assert.equal(desk.status, 404, 'www /desk must not become a worker-owned desk');
     assert.notEqual(desk.headers.get('x-dasha-edge'), 'privacy');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
+  const emptyPay = normalizeBountiesFeed({
+    schema: 'dasha-bounties-feed/v1',
+    note: 'stale note',
+    listings: [{ kind: 'item', name: 'docs', payTo: '' }, { kind: 'project', name: 'desk', payTo: '   ' }],
+  });
+  assert.equal(emptyPay.schema, 'dasha-bounties-feed/v1');
+  assert.equal(emptyPay.note, "USDC on Solana. We don't hold it.");
+  assert.equal(emptyPay.listings[0].payTo, null);
+  assert.equal(emptyPay.listings[0].payoutStatus, 'not_implemented');
+  assert.equal(emptyPay.listings[1].payTo, null);
+  assert.equal(emptyPay.listings[1].payoutStatus, 'not_implemented');
+  assert.doesNotMatch(JSON.stringify(emptyPay), /"payTo":""/);
+  const dest = '11111111111111111111111111111111';
+  const funded = normalizeBountiesFeed({ listings: [{ kind: 'item', name: 'docs', payTo: ` ${dest} ` }] });
+  assert.equal(funded.listings[0].payTo, dest);
+  assert.notEqual(funded.listings[0].payoutStatus, 'not_implemented');
+}
+{
+  const nativeFetch = globalThis.fetch;
+  const sample = {
+    name: 'dasha bounties',
+    schema: 'dasha-bounties-feed/v1',
+    note: "USDC on Solana. We don't hold it.",
+    url: 'https://www.getdasha.com/bounties',
+    listings: [
+      { kind: 'item', name: 'docs', payTo: '', amount: 25, currency: 'USDC', chain: 'solana' },
+      { kind: 'project', name: 'dasha desk', payTo: '11111111111111111111111111111111', amount: 50, currency: 'USDC', chain: 'solana' },
+    ],
+  };
+  try {
+    let webflowHit = false;
+    const fetched = [];
+    globalThis.fetch = async (input) => {
+      const u = String(input?.url || input);
+      fetched.push(u);
+      if (/getdasha\.com\/bounties\.json/.test(u)) webflowHit = true;
+      if (u.includes('dasha-desk') && u.includes('bounties.json')) {
+        return new Response(JSON.stringify(sample), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ pageId: '6a7dba6b14a729ed4d121341' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+    for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
+      for (const method of ['GET', 'HEAD']) {
+        const res = await workerModule.default.fetch(new Request(`https://${host}/bounties.json`, { method }), {});
+        assert.equal(res.status, 200, `${host} /bounties.json ${method} must be the listings feed`);
+        assert.equal(res.headers.get('x-dasha-edge'), 'bounties-feed');
+        assert.match(res.headers.get('content-type') || '', /application\/json/);
+        assert.equal(res.headers.get('cache-control'), 'public, max-age=120');
+        assert.equal(res.headers.get('access-control-allow-origin'), '*');
+        if (method === 'HEAD') {
+          assert.equal(await res.text(), '');
+          continue;
+        }
+        const text = await res.text();
+        assert.doesNotMatch(text, /"payTo":""/);
+        assert.doesNotMatch(text, /pageId/);
+        const body = JSON.parse(text);
+        assert.equal(body.schema, 'dasha-bounties-feed/v1');
+        assert.equal(body.note, "USDC on Solana. We don't hold it.");
+        assert.equal(body.listings[0].payTo, null);
+        assert.equal(body.listings[0].payoutStatus, 'not_implemented');
+        assert.equal(body.listings[1].payTo, '11111111111111111111111111111111');
+      }
+    }
+    assert.equal(webflowHit, false, '/bounties.json must not fetch Webflow page JSON');
+    assert.ok(fetched.some((u) => u.includes('dasha-desk') && u.includes('bounties.json')), 'feed must pin dasha-desk');
+    globalThis.fetch = async () => { throw new Error('offline'); };
+    const fallback = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties.json'), {});
+    assert.equal(fallback.status, 200);
+    assert.equal(fallback.headers.get('x-dasha-edge'), 'bounties-feed');
+    const fallbackBody = await fallback.json();
+    assert.equal(fallbackBody.schema, 'dasha-bounties-feed/v1');
+    assert.equal(fallbackBody.note, "USDC on Solana. We don't hold it.");
+    assert.doesNotMatch(JSON.stringify(fallbackBody), /"payTo":""/);
+    assert.ok(Array.isArray(fallbackBody.listings));
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -397,6 +483,42 @@ try {
   assert.match(await proxiedHome.text(), /<html lang="en" class="w-mod-js">/);
 } finally {
   globalThis.fetch = nativeFetch;
+}
+{
+  const homeFixture = `<!doctype html><html class="w-mod-js"><title>Dasha</title>
+<section id="token"><h2>$dasha.</h2></section>
+<section id="simp" aria-labelledby="simp-title"><div class="wrap">
+<h2 class="section-title" id="simp-title">Simp board.</h2>
+<div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"></div>
+</div></section>
+<script>(()=>{const root=document.getElementById('dasha-simp-board');const s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';document.head.appendChild(s)})()</script>
+</html>`;
+  const cleaned = stripHomeSimpBoard(homeFixture);
+  assert.doesNotMatch(cleaned, /simp-board\.js/);
+  assert.doesNotMatch(cleaned, /dasha-simp-board/);
+  assert.doesNotMatch(cleaned, /Simp board\./);
+  assert.match(cleaned, /id="token"/);
+  assert.equal(stripHomeSimpBoard(homeFixture), cleaned);
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(homeFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+      const html = await home.text();
+      assert.doesNotMatch(html, /simp-board\.js/, `${host} / must drop the Simp client`);
+      assert.doesNotMatch(html, /dasha-simp-board/, `${host} / must drop the Simp mount`);
+      assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
+      assert.match(html, /id="token"/);
+      assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
+    }
+    const lobby = await workerModule.default.fetch(new Request('https://www.getdasha.com/lobby'), {});
+    const lobbyHtml = await lobby.text();
+    assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, 'www /lobby must not strip Simp');
+    assert.match(lobbyHtml, /id="dasha-simp-board"/);
+    assert.match(lobbyHtml, /Simp board\./);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
 }
 const rows = new Map();
 const storage = {
