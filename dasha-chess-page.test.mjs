@@ -34,7 +34,11 @@ assert.match(source, /id="board"[^>]*>[\s\S]*Anna rook[\s\S]*Dasha king/);
 assert.match(source, /id="rating-panel"[^>]*hidden/, 'first HTML must not flash a personal rating');
 assert.match(source, /id="rating">—</);
 assert.match(source, /id="record">—</);
+assert.match(source, /id="white-rating">—</);
+assert.match(source, /id="black-rating">—</);
 assert.doesNotMatch(source, /id="rating">1200</);
+assert.doesNotMatch(source, /id="white-rating">1200</);
+assert.doesNotMatch(source, /id="black-rating">1200</);
 assert.match(source, /id="tournament-form"[^>]*>[\s\S]*?>Link X</, 'first HTML Create must already be a next step');
 assert.match(source, /function linkX\(\).*else location\.href=href/, 'blocked X popup must continue in the same tab');
 assert.match(source, /max-width:1150px/, 'right rail must stack before TOP TABLE / CREATE clip');
@@ -65,7 +69,17 @@ assert.match(source, /function openX\(text,done\).*tab\.opener=null.*else locati
 assert.match(source, /handoff=function\(keepalive\)\{trackEvent\('replay_share_handoff',[^}]*keepalive\)\}/, 'same-tab replay handoff must survive immediate X navigation');
 assert.doesNotMatch(source, /window\.open\([^\n]*noopener,noreferrer/, 'share handoff must not infer popup success from noopener returning null');
 assert.equal((source.match(/\$\('share'\)\.addEventListener\('click',shareGame\)/g) || []).length, 1, 'Share must have exactly one click handler');
-assert.match(source, /id="pgn"[^>]*hidden>PGN</, 'portable game record must stay out of live play');
+assert.match(source, /id="pgn"[^>]*hidden>PGN</, 'first HTML PGN stays hidden until a move exists');
+assert.match(source, /id="copy-pgn"[^>]*hidden>Copy PGN</, 'Copy PGN must sit next to download');
+assert.match(source, /id="flip"[^>]*>Flip</, 'Flip must exist as a first-class board control');
+assert.match(source, /id="abort"[^>]*>Abort</, 'opening abort must exist');
+assert.match(source, /id="mute"/, 'move sound must have a mute toggle');
+assert.match(source, /dasha-chess-mute/, 'mute must persist in localStorage');
+assert.match(source, /prefers-reduced-motion: reduce/, 'reduced motion must default mute on');
+assert.match(source, /WWW\+'\/chess\?game='/, 'finished-game share and replay URLs must use www');
+assert.match(source, /WWW\+'\/chess\?tournament='/, 'tournament share URLs must use www');
+assert.doesNotMatch(source, /https:\/\/lobby\.getdasha\.com\/chess\?game=/);
+assert.doesNotMatch(source, /https:\/\/lobby\.getdasha\.com\/chess\?tournament=/);
 assert.match(source, /navigator\.onLine/, 'polling must respect explicit offline state');
 assert.match(source, /url\.search='\?game='\+encodeURIComponent\(replay\.id\)/, 'replay state must discard unrelated query parameters');
 assert.match(source, /location\.pathname\+'\?challenge='\+encodeURIComponent\(challenge\.id\)/, 'challenge state must discard conflicting route parameters');
@@ -74,7 +88,7 @@ assert.match(source, /expired&&!replay&&!clockExpiryPending&&navigator\.onLine/,
 assert.match(source, /id="gate-invite"[^>]*hidden[^>]*>Invite \/ 1v1</, 'cold matchmaking must expose one bounded Invite / 1v1 action');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:hover/, 'only interactive boards may advertise hover feedback');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:active/, 'read-only replay and opponent-turn squares must not animate on press');
-assert.equal((source.match(/\.catch\(recoverGame\)/g) || []).length, 4, 'move, resign, draw, and rematch must reconcile ambiguous POST results');
+assert.equal((source.match(/\.catch\(recoverGame\)/g) || []).length, 5, 'move, resign, draw, rematch, and abort must reconcile ambiguous POST results');
 
 const startBoard = 'rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR';
 const game = {
@@ -131,6 +145,7 @@ try {
       URL.createObjectURL = blob => { window.__pgnBlob = blob; return 'blob:dasha-pgn'; };
       URL.revokeObjectURL = () => {};
       HTMLAnchorElement.prototype.click = function () { window.__pgnDownload = this.download; };
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__copiedPgn = text; } } });
     });
     let state = { ok: true, linked: false, enrolled: false, holder: false, rating: null, queued: false, game: null };
     let meRequests = 0, gameReply = game, ratingsFail = false, tournamentsFail = false;
@@ -156,6 +171,8 @@ try {
     assert.equal(await page.getByRole('link', { name: 'Buy $dasha on Jupiter using the exact mint' }).getAttribute('target'), '_blank');
     assert.equal(await page.locator('#rating-panel').isHidden(), true, 'anonymous chess home must not invent a personal rating');
     assert.equal(await page.locator('#rating').textContent(), '—', 'identity-less rating must stay a dash, not 1200');
+    assert.equal(await page.locator('#white-rating').textContent(), '—', 'first HTML white rating must not invent 1200');
+    assert.equal(await page.locator('#black-rating').textContent(), '—', 'first HTML black rating must not invent 1200');
     assert.equal(await page.locator('#recent-panel').isHidden(), true, 'an empty replay shelf must add no interface clutter');
     assert.equal(await page.locator('#tournament-name').isVisible(), true);
     assert.equal(await page.locator('#tournament-form button').textContent(), 'Link X');
@@ -189,7 +206,24 @@ try {
     assert.equal(await page.locator('.sq[tabindex="0"]').count(), 1, 'board must be one Tab stop');
     assert.deepEqual(await page.locator('.sq[data-file]').evaluateAll(nodes => nodes.map(node => node.dataset.file)), [...'abcdefgh'], 'white orientation must label files from a through h');
     assert.deepEqual(await page.locator('.sq[data-rank]').evaluateAll(nodes => nodes.map(node => node.dataset.rank)), [...'87654321'], 'white orientation must label ranks from eight through one');
-    assert.equal(await page.locator('#pgn').isHidden(), true, 'active games must not add export clutter');
+    assert.equal(await page.locator('#pgn').isHidden(), true, 'PGN stays hidden until a move exists');
+    assert.equal(await page.locator('#copy-pgn').isHidden(), true, 'Copy PGN stays hidden until a move exists');
+    assert.equal(await page.locator('#flip').isVisible(), true, 'Flip must be available on a live board');
+    assert.equal(await page.locator('#abort').isVisible(), true, 'opening with no moves must offer Abort');
+    assert.equal(await page.locator('#mute').isVisible(), true, 'move sound mute must be available during a game');
+    assert.equal(await page.locator('#white-rating').textContent(), '1200', 'player ratings fill only from a real game payload');
+    assert.equal(await page.locator('#black-rating').textContent(), '1200');
+    await page.locator('#mute').click();
+    assert.equal(await page.evaluate(() => localStorage.getItem('dasha-chess-mute')), '1');
+    assert.equal(await page.locator('#mute').textContent(), 'Muted');
+    await page.locator('#mute').click();
+    assert.equal(await page.evaluate(() => localStorage.getItem('dasha-chess-mute')), '0');
+    assert.equal(await page.locator('#mute').textContent(), 'Mute');
+    let abortRequests = 0;
+    page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'abort') abortRequests++; });
+    await page.locator('#abort').click();
+    await page.waitForFunction(() => !document.querySelector('#abort').disabled);
+    assert.equal(abortRequests, 1, 'opening Abort must post action abort');
     assert.match(await page.locator('#white-clock').textContent(), /^9:5\d|10:00$/);
     assert.equal(await page.locator('#black-clock').textContent(), '10:00');
     await page.evaluate(() => { window.__realDateNow = Date.now; Date.now = () => window.__realDateNow() + 86_400_000; });
@@ -249,20 +283,46 @@ try {
     await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     assert.deepEqual(await page.locator('.sq[data-file]').evaluateAll(nodes => nodes.map(node => node.dataset.file)), [...'hgfedcba'], 'Anna orientation must reverse file labels');
     assert.deepEqual(await page.locator('.sq[data-rank]').evaluateAll(nodes => nodes.map(node => node.dataset.rank)), [...'12345678'], 'Anna orientation must reverse rank labels');
+    await page.locator('#flip').click();
+    assert.deepEqual(await page.locator('.sq[data-file]').evaluateAll(nodes => nodes.map(node => node.dataset.file)), [...'abcdefgh'], 'Flip must invert the auto-oriented board');
+    await page.locator('#flip').click();
+    assert.deepEqual(await page.locator('.sq[data-file]').evaluateAll(nodes => nodes.map(node => node.dataset.file)), [...'hgfedcba'], 'a second Flip must restore the auto orientation');
     state = { ...state, game: { ...game, turn: 'b', moves: [{ from: 'e2', to: 'e4', san: 'e4' }] } };
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#game-status')?.textContent.includes('Dasha played e4'));
     assert.equal(await page.locator('#board').getAttribute('data-readonly'), 'true', 'opponent turn must expose a read-only board');
     assert.equal(await page.locator('.sq').first().getAttribute('aria-disabled'), 'true');
     assert.match(await page.locator('#game-status').textContent(), /Waiting for opponent… · Dasha played e4/, 'move status must identify the themed side and SAN');
+    assert.equal(await page.locator('#pgn').isVisible(), true, 'PGN export appears after the first move');
+    assert.equal(await page.locator('#copy-pgn').isVisible(), true, 'Copy PGN appears after the first move');
+    assert.equal(await page.locator('#abort').isVisible(), true, 'Abort remains available before both sides have moved');
     state = { ...state, game: { ...game, moves: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }], drawOffer: 'theirs' } };
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#draw')?.textContent === 'Accept draw');
     assert.match(await page.locator('#game-status').textContent(), /offered a draw/);
+    assert.equal(await page.locator('#abort').isHidden(), true, 'Abort must disappear after two moves');
+    let acceptDrawPosts = 0;
+    page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'offer_draw') acceptDrawPosts++; });
+    const acceptDraw = page.waitForRequest(request => request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'offer_draw');
+    await page.locator('#draw').click();
+    await acceptDraw;
+    assert.equal(acceptDrawPosts, 1, 'Accept draw must not ask for a second confirmation');
     state = { ...state, game: { ...game, moves: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }], drawOffer: null } };
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     assert.equal(await page.locator('#draw').isDisabled(), true, 'player to move cannot offer before moving');
+    state = { ...state, game: { ...game, turn: 'b', moves: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }], drawOffer: null } };
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#draw') && !document.querySelector('#draw').disabled);
+    let offerDrawPosts = 0;
+    page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'offer_draw') offerDrawPosts++; });
+    page.once('dialog', dialog => { assert.equal(dialog.message(), 'Offer a draw?'); dialog.dismiss(); });
+    await page.locator('#draw').click();
+    assert.equal(offerDrawPosts, 0, 'cancelled draw offer must not send a request');
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#draw').click();
+    await page.waitForFunction(() => !document.querySelector('#draw').disabled || document.querySelector('#draw').textContent !== 'Offer draw');
+    assert.equal(offerDrawPosts, 1, 'confirmed draw offer must send one request');
     state = { ...state, game: { ...game, check: true } };
     await page.reload();
     await page.waitForFunction(() => document.querySelector('.sq.check'));
@@ -316,7 +376,7 @@ try {
       assert.match(nativeShare.text, /Dasha vs Anna/);
       assert.ok(await page.evaluate(() => window.__chessCardText.includes('checkmate · 1 move')), 'share card must count one white/black pair as one chess move');
       assert.equal(await page.evaluate(() => window.__chessCardText.includes('checkmate · 2 moves')), false, 'share card must not label plies as full moves');
-      assert.equal(nativeShare.url, 'https://lobby.getdasha.com/chess?game=game12345');
+      assert.equal(nativeShare.url, 'https://www.getdasha.com/chess?game=game12345');
       assert.doesNotMatch(nativeShare.text, /https:\/\/lobby\.getdasha\.com/, 'native share text must not duplicate its separate URL field');
       await page.locator('#pgn').click();
       assert.equal(await page.evaluate(() => window.__pgnDownload), 'dasha-vs-anna-game12345.pgn');
@@ -326,7 +386,10 @@ try {
       assert.match(pgn, /\[White "@dasha_player \(Dasha\)"\]/);
       assert.match(pgn, /\[Black "@anna_player \(Anna\)"\]/);
       assert.match(pgn, /\[Result "1-0"\]/);
+      assert.match(pgn, /\[Site "https:\/\/www\.getdasha\.com\/chess\?game=game12345"\]/);
       assert.match(pgn, /\n\n1\. e4 e5 1-0\n$/, 'PGN movetext must be numbered and terminate with the result');
+      await page.locator('#copy-pgn').click();
+      assert.equal(await page.evaluate(() => window.__copiedPgn), pgn, 'Copy PGN must write the same string as download');
       state = { ...state, game: { ...finished, moves: Array.from({ length: 80 }, (_, index) => ({ from: index % 2 ? 'e7' : 'e2', to: index % 2 ? 'e5' : 'e4', san: index % 2 ? 'e5' : 'e4' })) } };
       await page.reload();
       await page.waitForFunction(() => !document.querySelector('#pgn')?.hidden);
@@ -468,6 +531,8 @@ try {
   await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   assert.equal(new URL(page.url()).search, `?game=${game.id}`, 'loaded replay must collapse mixed inbound state to one canonical object');
   assert.equal(await page.locator('#replay-controls').isVisible(), true);
+  assert.equal(await page.locator('#flip').isVisible(), true, 'Flip must remain available on a finished replay');
+  assert.equal(await page.locator('#abort').isHidden(), true, 'Abort must not appear on a finished replay');
   assert.equal(await page.locator('#recent-panel').isVisible(), true, 'rated completed games must be discoverable without a preexisting exact link');
   assert.equal(await page.locator('#recent a').getAttribute('href'), '/chess?game=game12345');
   assert.equal(await page.locator('#recent a').textContent(), '@dasha_player vs @anna_player1-0');
@@ -515,7 +580,7 @@ try {
   await page.waitForTimeout(20);
   shared = await page.evaluate(() => window.__shared);
   assert.match(shared, /^https:\/\/x\.com\/intent\/tweet\?text=/);
-  assert.match(decodeURIComponent(shared), /Replay from the start: https:\/\/lobby\.getdasha\.com\/chess\?game=game12345&ply=0/);
+  assert.match(decodeURIComponent(shared), /Replay from the start: https:\/\/www\.getdasha\.com\/chess\?game=game12345&ply=0/);
   assert.equal(replayShareEvents, 1, 'a failed share event must retry once, then deduplicate after success');
   assert.equal(pageOpenEvents, 1, 'page open must be deduplicated per browser session');
   await page.evaluate(() => {
@@ -526,7 +591,7 @@ try {
   await page.locator('#share').click();
   await page.waitForFunction(() => Boolean(window.__nativeShare));
   const urlOnlyShare = await page.evaluate(() => window.__nativeShare);
-  assert.equal(urlOnlyShare.url, `https://lobby.getdasha.com/chess?game=${game.id}&ply=0`, 'native URL sharing must survive browsers without file-sharing detection');
+  assert.equal(urlOnlyShare.url, `https://www.getdasha.com/chess?game=${game.id}&ply=0`, 'native URL sharing must survive browsers without file-sharing detection');
   assert.doesNotMatch(urlOnlyShare.text, /https:\/\/lobby\.getdasha\.com/, 'exact-ply native share text must not duplicate its separate URL field');
   assert.equal(urlOnlyShare.files, undefined, 'unsupported file sharing must not block the native share sheet');
   await page.evaluate(() => {
@@ -556,7 +621,7 @@ try {
   const blockedShare = page.waitForRequest(request => request.url().startsWith('https://x.com/intent/tweet?text='));
   await page.locator('#share').click();
   const blockedShareUrl = decodeURIComponent((await blockedShare).url());
-  assert.match(blockedShareUrl, /Replay from the start: https:\/\/lobby\.getdasha\.com\/chess\?game=game12345&ply=0/, 'blocked popup must recover through an exact same-tab X intent');
+  assert.match(blockedShareUrl, /Replay from the start: https:\/\/www\.getdasha\.com\/chess\?game=game12345&ply=0/, 'blocked popup must recover through an exact same-tab X intent');
   await context.close();
 
   const startCardContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -602,7 +667,7 @@ try {
   await positionPage.waitForFunction(() => Boolean(window.__positionShare));
   const positionShare = await positionPage.evaluate(() => window.__positionShare);
   assert.match(positionShare.text, /Replay after 1\.\.\. e5/, 'Black replay position must use exact chess notation, not the raw ply number');
-  assert.equal(positionShare.url, `https://lobby.getdasha.com/chess?game=${game.id}&ply=2`, 'shared mid-game position must retain its exact durable state');
+  assert.equal(positionShare.url, `https://www.getdasha.com/chess?game=${game.id}&ply=2`, 'shared mid-game position must retain its exact durable state');
   assert.ok(await positionPage.evaluate(() => window.__positionCardText.includes('$dasha · after 1... e5')), 'share card must match the exact Black-move notation');
   await positionContext.close();
 
@@ -627,7 +692,7 @@ try {
   assert.equal(await tournamentPage.getByRole('link', { name: 'Replay', exact: true }).getAttribute('href'), '/chess?game=draw12345', 'public bracket must link a completed draw while its rematch is live');
   await tournamentPage.getByRole('button', { name: 'Share' }).click();
   const tournamentShare = decodeURIComponent(await tournamentPage.evaluate(() => window.__shared));
-  assert.match(tournamentShare, /Join the tournament: https:\/\/lobby\.getdasha\.com\/chess\?tournament=cup12345/);
+  assert.match(tournamentShare, /Join the tournament: https:\/\/www\.getdasha\.com\/chess\?tournament=cup12345/);
   tournamentView = { ...tournament, status: 'finished', champion: '@dasha_player' };
   await tournamentPage.addInitScript(() => { Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__tournamentNativeShare = data; } }); });
   await tournamentPage.reload();
@@ -636,7 +701,7 @@ try {
   await tournamentPage.waitForFunction(() => window.__tournamentNativeShare?.url);
   const completedShare = await tournamentPage.evaluate(() => window.__tournamentNativeShare);
   assert.equal(completedShare.title, 'First Dasha Cup — Dasha Chess');
-  assert.equal(completedShare.url, 'https://lobby.getdasha.com/chess?tournament=cup12345');
+  assert.equal(completedShare.url, 'https://www.getdasha.com/chess?tournament=cup12345');
   assert.match(completedShare.text, /See the bracket · 1\/16 players/);
   assert.doesNotMatch(completedShare.text, /Join the tournament/);
   assert.ok((await tournamentPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);

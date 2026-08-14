@@ -160,6 +160,52 @@ delete room.chessGames[voidGame.id];
 delete room.chessCurrent[players[0].xId]; delete room.chessCurrent[players[1].xId];
 room.chessMetrics = beforeVoidMetrics;
 
+const beforeAbortMetrics = { ...room.chessMetrics };
+const beforeAbortRatings = structuredClone(room.chessRatings);
+const abortOpen = room.makeChessGame(players[0], players[1]);
+response = await room.handleChess(request(abortOpen.players.b.xId, `/chess/game/${abortOpen.id}`, { action: 'abort', version: 0 }), 'https://www.getdasha.com');
+payload = await response.json();
+assert.equal(response.status, 200, 'either seat may abort before a move');
+assert.equal(payload.game.status, 'finished');
+assert.equal(payload.game.result, '*');
+assert.equal(payload.game.reason, 'aborted');
+assert.equal(payload.game.rated, false, 'an abort must never invent a rated result');
+assert.equal(room.chessCurrent[players[0].xId], undefined, 'abort must release white back to ready');
+assert.equal(room.chessCurrent[players[1].xId], undefined, 'abort must release black back to ready');
+assert.deepEqual(room.chessRatings, beforeAbortRatings, 'an abort must not change ratings');
+delete room.chessGames[abortOpen.id];
+
+const abortAfterWhite = room.makeChessGame(players[0], players[1]);
+response = await room.handleChess(request(abortAfterWhite.players.w.xId, `/chess/game/${abortAfterWhite.id}`, { from: 'e2', to: 'e4', version: 0 }), 'https://www.getdasha.com');
+assert.equal(response.status, 200);
+response = await room.handleChess(request(abortAfterWhite.players.w.xId, `/chess/game/${abortAfterWhite.id}`, { action: 'abort', version: 1 }), 'https://www.getdasha.com');
+assert.equal(response.status, 409, 'after a move only the player to move may abort');
+response = await room.handleChess(request(abortAfterWhite.players.b.xId, `/chess/game/${abortAfterWhite.id}`, { action: 'abort', version: 1 }), 'https://www.getdasha.com');
+payload = await response.json();
+assert.equal(payload.game.reason, 'aborted');
+assert.equal(payload.game.rated, false);
+assert.equal(room.chessCurrent[players[0].xId], undefined);
+assert.equal(room.chessCurrent[players[1].xId], undefined);
+delete room.chessGames[abortAfterWhite.id];
+
+const abortTooLate = room.makeChessGame(players[0], players[1]);
+response = await room.handleChess(request(abortTooLate.players.w.xId, `/chess/game/${abortTooLate.id}`, { from: 'e2', to: 'e4', version: 0 }), 'https://www.getdasha.com');
+response = await room.handleChess(request(abortTooLate.players.b.xId, `/chess/game/${abortTooLate.id}`, { from: 'e7', to: 'e5', version: 1 }), 'https://www.getdasha.com');
+response = await room.handleChess(request(abortTooLate.players.w.xId, `/chess/game/${abortTooLate.id}`, { action: 'abort', version: 2 }), 'https://www.getdasha.com');
+assert.equal(response.status, 409, 'two moves must close the abort window');
+assert.equal(room.chessGames[abortTooLate.id].state.status, 'active');
+delete room.chessGames[abortTooLate.id];
+delete room.chessCurrent[players[0].xId]; delete room.chessCurrent[players[1].xId];
+
+const abortCup = room.makeChessGame(players[0], players[1], { tournamentId: 'abortcup', matchId: 'abortmatch' });
+response = await room.handleChess(request(abortCup.players.w.xId, `/chess/game/${abortCup.id}`, { action: 'abort', version: 0 }), 'https://www.getdasha.com');
+assert.equal(response.status, 409, 'tournament games cannot be aborted');
+assert.equal(room.chessGames[abortCup.id].state.status, 'active');
+delete room.chessGames[abortCup.id];
+delete room.chessCurrent[players[0].xId]; delete room.chessCurrent[players[1].xId];
+room.chessRatings = beforeAbortRatings;
+room.chessMetrics = beforeAbortMetrics;
+
 const beforeClockMetrics = { ...room.chessMetrics };
 const clockRace = room.makeChessGame(players[0], players[1]);
 clockRace.clock.w = 40; clockRace.clock.activeSince = Date.now();

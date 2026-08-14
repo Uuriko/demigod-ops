@@ -96,6 +96,7 @@ import {
   playMove,
   publicChessGame,
   publicChessReplay,
+  abortChess,
   resignChess,
   settleChessRatings,
 } from './dasha-chess.mjs';
@@ -841,7 +842,7 @@ async function chessPageForRequest(request, env) {
       return personalizeChessPage(CHESS_PAGE, {
         title: `@${replay.white.handle} ${replay.result} @${replay.black.handle} — Dasha Chess`,
         description: `${replay.moves.length} moves · ${replay.reason} · Replay every move.`,
-        url: `https://lobby.getdasha.com/chess?game=${encodeURIComponent(replay.id)}`,
+        url: `${WWW_CHESS}?game=${encodeURIComponent(replay.id)}`,
       });
     }
     if (data.tournament) {
@@ -850,7 +851,7 @@ async function chessPageForRequest(request, env) {
       return personalizeChessPage(CHESS_PAGE, {
         title: `${tournament.name} — Dasha Chess`,
         description: `${state} · ${tournament.entrants.length}/${tournament.maxPlayers} players.`,
-        url: `https://lobby.getdasha.com/chess?tournament=${encodeURIComponent(tournament.id)}`,
+        url: `${WWW_CHESS}?tournament=${encodeURIComponent(tournament.id)}`,
       });
     }
     if (data.challenge) {
@@ -1974,7 +1975,12 @@ export class DashaLobby {
         return json({ ok: true, game: publicChessGame(rematch, xId) }, 201, allowedOrigin, cred);
       }
       let result;
-      if (input?.action === 'resign') result = resignChess(game.state, side);
+      if (input?.action === 'abort') {
+        if (game.tournamentId) return json({ error: 'tournament games cannot be aborted' }, 409, allowedOrigin, cred);
+        if (game.state.moves.length && game.state.turn !== side) return json({ error: 'only the player to move can abort' }, 409, allowedOrigin, cred);
+        result = abortChess(game.state);
+      }
+      else if (input?.action === 'resign') result = resignChess(game.state, side);
       else if (input?.action === 'offer_draw') {
         if (game.state.moves.length < 2) return json({ error: 'play one move each before offering a draw' }, 409, allowedOrigin, cred);
         if (game.drawOfferBy && game.drawOfferBy !== xId) {
@@ -1994,8 +2000,12 @@ export class DashaLobby {
       }
       if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
       const now = Date.now();
-      const timed = input?.action === 'resign' || input?.action === 'offer_draw' ? game : { ...game, drawOfferBy: null, clock: this.clockAfterMove(game, side, now) };
+      const timed = input?.action === 'resign' || input?.action === 'offer_draw' || input?.action === 'abort' ? game : { ...game, drawOfferBy: null, clock: this.clockAfterMove(game, side, now) };
       const next = this.chessFinish(timed, result.state);
+      if (input?.action === 'abort') {
+        delete this.chessCurrent[next.players.w.xId];
+        delete this.chessCurrent[next.players.b.xId];
+      }
       await this.persistChess();
       return json({ ok: true, game: publicChessGame(next, xId) }, 200, allowedOrigin, cred);
     }

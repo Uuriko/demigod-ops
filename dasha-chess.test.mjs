@@ -10,6 +10,7 @@ import {
   positionKey,
   publicChessGame,
   publicChessReplay,
+  abortChess,
   resignChess,
   settleChessRatings,
   squareIndex,
@@ -111,6 +112,13 @@ assert.equal(canMate(position({ e1: 'K', c1: 'B', e8: 'k', c8: 'b' }), 'w'), tru
 
 const resigned = resignChess(newChessState(), 'w');
 assert.equal(resigned.state.result, '0-1');
+const aborted = abortChess(newChessState());
+assert.equal(aborted.state.result, '*');
+assert.equal(aborted.state.reason, 'aborted');
+assert.equal(aborted.state.status, 'finished');
+assert.equal(abortChess({ ...newChessState(), status: 'finished' }).ok, false);
+assert.equal(abortChess({ ...newChessState(), moves: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }] }).ok, false, 'two plies is too late to abort');
+assert.equal(abortChess({ ...newChessState(), moves: [{ from: 'e2', to: 'e4' }] }).ok, true, 'one ply remains abortable');
 const bareKingResignation = resignChess(position({ e1: 'K', a2: 'P', e8: 'k' }), 'w');
 assert.equal(bareKingResignation.state.result, '1/2-1/2', 'resignation is drawn when the opponent cannot possibly checkmate');
 const ratings = settleChessRatings({ rating: 1200 }, { rating: 1200 }, '1-0');
