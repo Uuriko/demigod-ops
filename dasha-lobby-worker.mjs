@@ -76,6 +76,7 @@ import {
 } from './dasha-simp-actions.mjs';
 import {
   LOBBY_CLIENT_JS,
+  LOBBY_CLIENT_SRI,
   SIMP_BOARD_JS,
   SIMP_BOARD_SRI,
   STUDIO_CLIENT_JS,
@@ -288,7 +289,36 @@ export function injectLobbySimpQuiz(html) {
       /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
     page = insertBeforeClose(page, simpBoardClientScript());
   }
-  return page;
+  return rewriteLobbyScriptIntegrity(page);
+}
+
+/** Replace leftover Webflow SRI on lobby.js tags and injectors. Pin is the hash of served client/lobby.js. */
+export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
+  let page = String(html || '');
+  page = page.replace(/<script\b[^>]*>\s*<\/script>/gi, (tag) => {
+    const src = tag.match(/\bsrc\s*=\s*(["'])([^"']*)\1/i);
+    if (!src || !/(?:lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js/i.test(src[2])) return tag;
+    const pin = tag.match(/\bintegrity\s*=\s*(["'])([^"']*)\1/i);
+    if (!pin || pin[2] === sri) return tag;
+    return tag.replace(pin[0], `integrity=${pin[1]}${sri}${pin[1]}`);
+  });
+  return page.replace(
+    /(s\.src\s*=\s*(['"])(?:https:\/\/lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js\2\s*;\s*s\.integrity\s*=\s*)(['"])[^'"]*\3/gi,
+    `$1$3${sri}$3`,
+  );
+}
+
+/** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
+export function stripDeadLobbyForum(html) {
+  let page = String(html || '');
+  page = page
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+  page = page.replace(/<div\b[^>]*\bid=["']dasha-forum["'][^>]*>\s*<\/div>/gi, '');
+  page = page.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+    /\/client\/forum\.js/i.test(block) ? '' : block);
+  return page.replace(/<script\b[^>]*\bsrc=["'][^"']*\/client\/forum\.js[^"']*["'][^>]*>\s*<\/script>/gi, '');
 }
 
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
@@ -313,20 +343,34 @@ function bountyItemHref(value) {
   }
 }
 
+function listingHasPayTo(row) {
+  return typeof row?.payTo === 'string' && Boolean(row.payTo.trim());
+}
+
+/** True when unpaid /bounties HTML still paints a USDC or $ payout amount. $DASHA / Buy $dasha are not payouts. */
+export function unpaidBountiesHtmlHasPayoutAmounts(html) {
+  const page = String(html || '');
+  return /\bUSDC\b/i.test(page) || /\$\s*\d|\d+\s*\$/.test(page);
+}
+
 function bountiesBoardHtml(feed) {
   const data = normalizeBountiesFeed(feed);
-  const work = data.listings.length
-    ? `<ul>${data.listings.map((row) => {
+  const unpaid = data.listings.every((row) => !listingHasPayTo(row));
+  const visible = unpaid
+    ? data.listings.filter((row) => bountyItemHref(row.itemUrl))
+    : data.listings;
+  const work = visible.length
+    ? `<ul>${visible.map((row) => {
         const name = escapeHtml(typeof row.name === 'string' ? row.name.trim() : '');
         const href = bountyItemHref(row.itemUrl);
         const title = href ? `<a href="${escapeHtml(href)}">${name}</a>` : name;
+        if (unpaid) return `<li><p>${title}</p></li>`;
         const amount = row.amount == null || row.amount === '' ? '' : String(row.amount);
         const currency = typeof row.currency === 'string' ? row.currency.trim() : '';
         const label = escapeHtml([amount, currency].filter(Boolean).join(' '));
         return `<li><p>${title}</p>${label ? `<p class="amt">${label}</p>` : ''}</li>`;
       }).join('')}</ul>`
     : '<p>No open bounties</p>';
-  const unpaid = data.listings.length > 0 && data.listings.every((row) => !(typeof row.payTo === 'string' && row.payTo.trim()));
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
   return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer></section>`;
@@ -2950,7 +2994,9 @@ async function productEdge(request, url, env) {
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
+  if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
   html = rewriteStudioScriptIntegrity(html);
+  html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
