@@ -610,6 +610,97 @@ async function simpPageResponse(request, env) {
   });
 }
 
+const SIMP_SHARE_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const SIMP_SHARE_IMAGE = 'https://lobby.getdasha.com/simp/card/quiz.png';
+const SIMP_SHARE_JS = `(function(){var b=document.querySelector('.dasha-share');if(!b)return;b.addEventListener('click',function(){var title=b.getAttribute('data-title')||'';var text=b.getAttribute('data-text')||title;var url=b.getAttribute('data-url')||location.href;var go=function(){location.href='https://x.com/intent/post?text='+encodeURIComponent(text+(url?'\\n'+url:''));};if(navigator.share){navigator.share({title:title,text:text,url:url}).catch(function(err){if(!err||err.name!=='AbortError')go();});}else go();});}());`;
+
+function simpShareId(pathname) {
+  const m = String(pathname || '').match(/^\/simp\/r\/([^/]+)\/?$/);
+  return m && SIMP_SHARE_ID_RE.test(m[1]) ? m[1] : '';
+}
+
+function simpShareWww(id) {
+  return `https://www.getdasha.com/simp/r/${id}`;
+}
+
+/** Worker-owned www share page. Type name leads; score is supporting text only. */
+export function simpSharePageHtml(result, id) {
+  const rawType = String(result?.title || '').trim().slice(0, 80);
+  const rawVibe = typeof result?.vibeNote === 'string' ? result.vibeNote.trim().slice(0, 160) : '';
+  const typeName = escapeHtml(rawType);
+  const vibe = escapeHtml(rawVibe);
+  const lane = result?.lane ? escapeHtml(String(result.lane).slice(0, 40)) : '';
+  const correct = Number(result?.correct);
+  const total = Number(result?.total);
+  const score = Number.isFinite(correct) && Number.isFinite(total) ? `${correct}/${total}` : '';
+  const url = simpShareWww(id);
+  const description = vibe || `${typeName} on the Dasha simp quiz.`;
+  const shareText = escapeHtml(rawVibe ? `${rawType} · ${rawVibe}` : rawType);
+  const support = [score, lane].filter(Boolean).join(' · ');
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${typeName}</title>
+<link rel="canonical" href="${url}">
+<meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${url}">
+<meta property="og:title" content="${typeName}"><meta property="og:description" content="${description}">
+<meta property="og:image" content="${SIMP_SHARE_IMAGE}"><meta property="og:image:alt" content="${typeName}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${typeName}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${SIMP_SHARE_IMAGE}"><meta name="twitter:image:alt" content="${typeName}">
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
+<body>
+<h1>${typeName}</h1>
+${support ? `<p>${support}</p>` : ''}
+<button type="button" class="dasha-share" data-title="${typeName}" data-text="${shareText}" data-url="${url}">Share</button>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
+<script>${SIMP_SHARE_JS}</script>
+</body></html>`;
+}
+
+function simpShareMissingHtml() {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Result not found</title>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
+<body>
+<h1>Result not found</h1>
+<p>No saved quiz result for this link.</p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a></p>
+</body></html>`;
+}
+
+async function loadSimpShareResult(env, id) {
+  try {
+    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
+    if (!stub) return { unseen: true };
+    const res = await stub.fetch(new Request(`https://lobby.getdasha.com/simp/result/${id}`));
+    if (res.status === 404) return { missing: true };
+    if (!res.ok) return { unseen: true };
+    const data = await res.json();
+    const title = String(data?.result?.title || '').trim();
+    return title ? { result: data.result } : { missing: true };
+  } catch {
+    return { unseen: true };
+  }
+}
+
+async function simpSharePageResponse(request, env, id) {
+  const loaded = await loadSimpShareResult(env, id);
+  if (loaded.unseen) return Response.redirect(`https://lobby.getdasha.com/simp/r/${id}`, 308);
+  if (loaded.missing) {
+    return new Response(request.method === 'HEAD' ? null : simpShareMissingHtml(), {
+      status: 404,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=60',
+        'X-Dasha-Edge': 'html-404',
+      }),
+    });
+  }
+  return new Response(request.method === 'HEAD' ? null : simpSharePageHtml(loaded.result, id), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'simp-share',
+    }),
+  });
+}
+
 function simpHoldResponse(origin) {
   return json({ configured: false, error: 'not_configured' }, 501, origin);
 }
@@ -1168,7 +1259,7 @@ export class DashaLobby {
 
     if (path.startsWith('/simp/result/') && request.method === 'GET') {
       const result = this.simpQuizResults[path.slice('/simp/result/'.length)];
-      return result ? json({ ok: true, result: { correct: result.correct, total: result.total, title: result.title, lane: result.lane } }, 200, allowedOrigin) : json({ error: 'result not found' }, 404, allowedOrigin);
+      return result ? json({ ok: true, result: { correct: result.correct, total: result.total, title: result.title, lane: result.lane, ...(result.vibeNote ? { vibeNote: result.vibeNote } : {}) } }, 200, allowedOrigin) : json({ error: 'result not found' }, 404, allowedOrigin);
     }
 
     if (path.startsWith('/simp/r/') && (request.method === 'GET' || request.method === 'HEAD')) {
@@ -1243,7 +1334,7 @@ export class DashaLobby {
         const attempt = this.simpQuizAttempts[anonKey];
         const result = submitQuiz(this.simpProfiles, session, attempt);
         if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
-        const resultId = randomUrlToken(9); result.quiz.resultUrl = `https://lobby.getdasha.com/simp/r/${resultId}`; this.simpQuizResults[resultId] = result.quiz;
+        const resultId = randomUrlToken(9); result.quiz.resultUrl = simpShareWww(resultId); this.simpQuizResults[resultId] = result.quiz;
         this.simpProfiles = result.store;
         this.simpProfiles[xId] = { ...this.simpProfiles[xId], quiz: { ...result.quiz, resultUrl: result.quiz.resultUrl } };
         countQuizResult(this.simpQuizMetrics, attempt, result.quiz);
@@ -1280,7 +1371,7 @@ export class DashaLobby {
       this.simpProfiles = result.store;
       this.simpQuizMetrics.completions++;
       countQuizResult(this.simpQuizMetrics, advanced.attempt, result.quiz);
-      const resultId = randomUrlToken(9); result.quiz.resultUrl = `https://lobby.getdasha.com/simp/r/${resultId}`; this.simpQuizResults[resultId] = result.quiz;
+      const resultId = randomUrlToken(9); result.quiz.resultUrl = simpShareWww(resultId); this.simpQuizResults[resultId] = result.quiz;
       // Keep resultUrl on stored profile so Share always has a permanent link (incl. retakes / Perry).
       this.simpProfiles[xId] = { ...this.simpProfiles[xId], quiz: { ...result.quiz, resultUrl: result.quiz.resultUrl } };
       delete this.simpQuizAttempts[attemptKey];
@@ -2650,6 +2741,10 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
+  }
+  const shareId = simpShareId(url.pathname);
+  if ((request.method === 'GET' || request.method === 'HEAD') && shareId) {
+    return simpSharePageResponse(request, env, shareId);
   }
   if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
     return simpHoldResponse(request.headers.get('Origin'));

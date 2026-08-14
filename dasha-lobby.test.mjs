@@ -104,6 +104,7 @@ assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(worker.includes('SIMP_QUIZ_JS') && worker.includes('https://lobby.getdasha.com/simp/quiz'), 'www /simp ships a worker-owned quiz script');
+assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
 assert(!/\/simp\/hold[\s\S]{0,180}verify/i.test(worker), 'hold must not be called a verify');
@@ -135,7 +136,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -437,6 +438,84 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assertSimpFirstHtml(fetchedHtml, 'www /simp via GET /simp/board');
   assert.match(fetchedHtml, /No measured simps yet\./);
   assert.doesNotMatch(fetchedHtml, /leak-/);
+}
+{
+  const SHARE_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  const fixture = {
+    correct: 9,
+    total: 10,
+    title: 'Dasha scholar',
+    lane: 'Cinema obsessive',
+    vibeNote: 'Main-character energy (+3).',
+  };
+  const shareHtml = simpSharePageHtml(fixture, 'sharetest');
+  assert.match(shareHtml, /<h1>Dasha scholar<\/h1>/);
+  assert.match(shareHtml, /property="og:title" content="Dasha scholar"/);
+  assert.match(shareHtml, /property="og:description" content="Main-character energy \(\+3\)\."/);
+  assert.match(shareHtml, /property="og:image:alt" content="Dasha scholar"/);
+  assert.match(shareHtml, /twitter:image:alt" content="Dasha scholar"/);
+  assert.doesNotMatch(shareHtml, /<h1>[^<]*9\/10/);
+  assert.doesNotMatch(shareHtml, /property="og:title" content="[^"]*9\/10/);
+  assert.doesNotMatch(shareHtml, /property="og:description" content="9\/10/);
+  assert.doesNotMatch(shareHtml, /property="og:image:alt" content="[^"]*9\/10/);
+  assert.match(shareHtml, /9\/10/);
+  assert.match(shareHtml, /class="dasha-share"/);
+  assert.match(shareHtml, /navigator\.share/);
+  assert.match(shareHtml, /x\.com\/intent\/post/);
+  assert.doesNotMatch(shareHtml, /\.simp-/);
+  assert.doesNotMatch(shareHtml, /class="simp-/);
+  assert.doesNotMatch(shareHtml, /score=/);
+  assert.doesNotMatch(shareHtml, /oauth\/x\/start|Connect X|type="email"/);
+  for (const hex of shareHtml.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+    assert.ok(SHARE_TOKENS.includes(hex.toLowerCase()), `share page must stay tokens-only (saw ${hex})`);
+  }
+  const shareEnv = {
+    LOBBY: {
+      idFromName: () => 'room',
+      get: () => ({
+        fetch: async (req) => {
+          const path = new URL(req.url).pathname;
+          if (path === '/simp/result/sharetest') {
+            return new Response(JSON.stringify({ ok: true, result: fixture }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return new Response(JSON.stringify({ error: 'result not found' }), { status: 404 });
+        },
+      }),
+    },
+  };
+  for (const host of ['www.getdasha.com', 'getdasha.com']) {
+    for (const method of ['GET', 'HEAD']) {
+      const page = await workerModule.default.fetch(new Request(`https://${host}/simp/r/sharetest`, { method }), shareEnv);
+      assert.equal(page.status, 200, `${host} /simp/r/sharetest ${method} must be worker-owned 200`);
+      assert.equal(page.headers.get('x-dasha-edge'), 'simp-share');
+      const html = await page.text();
+      if (method === 'HEAD') {
+        assert.equal(html, '', `${host} /simp/r/sharetest HEAD must return an empty body`);
+      } else {
+        assert.match(html, /<h1>Dasha scholar<\/h1>/);
+        assert.match(html, /property="og:title" content="Dasha scholar"/);
+        assert.match(html, /property="og:image:alt" content="Dasha scholar"/);
+        assert.doesNotMatch(html, /<h1>[^<]*9\/10/);
+      }
+      const missing = await workerModule.default.fetch(new Request(`https://${host}/simp/r/missingid`, { method }), shareEnv);
+      assert.equal(missing.status, 404, `${host} /simp/r/missingid ${method} must be honest 404`);
+      assert.equal(missing.headers.get('x-dasha-edge'), 'html-404');
+      const missingHtml = await missing.text();
+      if (method === 'HEAD') {
+        assert.equal(missingHtml, '');
+      } else {
+        assert.match(missingHtml, /<h1>Result not found<\/h1>/);
+        assert.doesNotMatch(missingHtml, /9\/10|Dasha scholar|0\/0/);
+        assert.doesNotMatch(missingHtml, /score=/);
+      }
+    }
+  }
+  const unseen = await workerModule.default.fetch(new Request('https://www.getdasha.com/simp/r/sharetest'), {});
+  assert.equal(unseen.status, 308, 'www share page hops to lobby only when the store is unseen');
+  assert.equal(unseen.headers.get('location'), 'https://lobby.getdasha.com/simp/r/sharetest');
 }
 {
   const metricsEnv = {
