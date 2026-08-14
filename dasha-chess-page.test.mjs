@@ -17,7 +17,12 @@ assert.match(source, /id="tournament"><h2>Play<\/h2>/, 'challenge and tournament
    entry point sat in the queued state, so playing a specific friend meant first asking to be
    matched with a stranger. A feature nobody can find is indistinguishable from one nobody built. */
 assert.match(source, /textContent='Find match';b\.dataset\.action='queue';invite\.hidden=false/,
-  'the ready-to-play state must offer Invite someone alongside Find match');
+  'the ready-to-play state must offer Invite / 1v1 alongside Find match');
+assert.match(source, /WWW='https:\/\/www\.getdasha\.com'/);
+assert.match(source, /WWW\+'\/chess\?challenge='/, 'invite share must use the www challenge URL');
+assert.match(source, /id="dasha-lobby"/, 'chess must embed the existing lobby chat');
+assert.match(source, /lobby\.getdasha\.com\/client\/lobby\.js/, 'chess chat must load the existing lobby client');
+assert.match(source, /Ask the lobby/, 'invite must be able to ask the public room');
 assert.match(source, /Holder chess · 10\+5/);
 assert.match(source, /og:image:width" content="1200"/);
 assert.match(source, /og:image:height" content="630"/);
@@ -44,7 +49,7 @@ assert.match(source, /url\.search='\?game='\+encodeURIComponent\(replay\.id\)/, 
 assert.match(source, /location\.pathname\+'\?challenge='\+encodeURIComponent\(challenge\.id\)/, 'challenge state must discard conflicting route parameters');
 assert.match(source, /function routeId\(query,name\).*\^\[A-Za-z0-9_\-\]\{6,24\}\$/, 'client route IDs must match the Worker trust boundary');
 assert.match(source, /expired&&!replay&&!clockExpiryPending&&navigator\.onLine/, 'offline clock expiry must wait for reconnect adjudication');
-assert.match(source, /id="gate-invite"[^>]*hidden>Invite someone</, 'cold matchmaking must expose one bounded invite escape hatch');
+assert.match(source, /id="gate-invite"[^>]*hidden[^>]*>Invite \/ 1v1</, 'cold matchmaking must expose one bounded Invite / 1v1 action');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:hover/, 'only interactive boards may advertise hover feedback');
 assert.match(source, /\.board\[data-readonly=false\] \.sq:active/, 'read-only replay and opponent-turn squares must not animate on press');
 assert.equal((source.match(/\.catch\(recoverGame\)/g) || []).length, 4, 'move, resign, draw, and rematch must reconcile ambiguous POST results');
@@ -363,6 +368,9 @@ try {
   await holderRetryPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
   await holderRetryPage.getByRole('button', { name: 'Prove $dasha' }).click();
   await holderRetryPage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Ready to play');
+  assert.equal(await holderRetryPage.locator('#gate-action').textContent(), 'Find match');
+  assert.equal(await holderRetryPage.getByRole('button', { name: 'Invite / 1v1' }).isVisible(), true, 'ready state must show Invite / 1v1 as an equal play action');
+  assert.equal(await holderRetryPage.locator('#gate-invite').getAttribute('class'), 'btn', 'Invite / 1v1 must not be a ghost button when ready');
   holderSignatures = await holderRetryPage.evaluate(() => window.__holderSignatures || 0);
   assert.deepEqual([holderChallenges, holderSignatures, holderVerifies], [1, 1, 2], 'transient RPC failure must reuse one signed challenge for one bounded verify retry');
   await holderRetryContext.close();
@@ -594,10 +602,27 @@ try {
   const unavailableChallengePage = await unavailableChallengeContext.newPage();
   await unavailableChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=missing1`);
   await unavailableChallengePage.getByText('Challenge unavailable.', { exact: true }).waitFor();
+  assert.equal(await unavailableChallengePage.locator('#gate-title').textContent(), 'Challenge unavailable');
   assert.equal(await unavailableChallengePage.getByRole('button', { name: 'Create', exact: true }).count(), 0, 'a failed shared challenge must not expose an unrelated tournament action');
   assert.equal(await unavailableChallengePage.getByRole('button', { name: 'Challenge', exact: true }).count(), 0, 'a failed shared challenge must not expose another challenge action beneath the error');
   assert.ok((await unavailableChallengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, 'challenge failure must fit mobile');
   await unavailableChallengeContext.close();
+
+  const missingChallengeContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await missingChallengeContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@holder' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/challenge/missing1') return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'This challenge was not found or has expired.' }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [] }) });
+    return route.fulfill({ status: 404, headers, body: JSON.stringify({ error: 'not found' }) });
+  });
+  const missingChallengePage = await missingChallengeContext.newPage();
+  await missingChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=missing1`);
+  await missingChallengePage.getByText('This challenge was not found or has expired.', { exact: true }).waitFor();
+  assert.equal(await missingChallengePage.locator('#gate-title').textContent(), 'This challenge was not found', 'unknown challenge must use honest copy, not a branded 404');
+  assert.equal(await missingChallengePage.locator('#gate-action').textContent(), 'Find match');
+  assert.equal(await missingChallengePage.getByRole('button', { name: 'Invite / 1v1' }).isVisible(), true);
+  await missingChallengeContext.close();
 
   const lostCreateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let tournamentCommitted = false, tournamentCreatePosts = 0;
@@ -737,18 +762,19 @@ try {
   const queuePage = await queueContext.newPage();
   await queuePage.addInitScript(() => { Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__queueShare = data; } }); window.open = url => { window.__queueFallback = url; return {}; }; });
   await queuePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await queuePage.getByRole('button', { name: 'Invite someone' }).waitFor();
+  await queuePage.getByRole('button', { name: 'Invite / 1v1' }).waitFor();
   assert.equal(await queuePage.locator('#gate-action').textContent(), 'Cancel', 'queue remains the primary state until the user chooses an invite');
-  await queuePage.getByRole('button', { name: 'Invite someone' }).click();
+  await queuePage.getByRole('button', { name: 'Invite / 1v1' }).click();
   await queuePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Your table is open');
   await queuePage.getByRole('button', { name: 'Share', exact: true }).click();
   await queuePage.waitForFunction(() => window.__queueShare?.url || window.__queueFallback);
   assert.equal(challengeCreates, 1, 'one invite action must create one challenge');
   const queueShare = await queuePage.evaluate(() => window.__queueShare?.url || decodeURIComponent(window.__queueFallback || ''));
-  assert.match(queueShare, /https:\/\/lobby\.getdasha\.com\/chess\?challenge=queueinvite1/, 'invite share must carry the exact challenge link');
+  assert.match(queueShare, /https:\/\/www\.getdasha\.com\/chess\?challenge=queueinvite1/, 'invite share must carry the exact www challenge link');
   assert.equal(await queuePage.locator('#gate-title').textContent(), 'Your table is open');
   assert.equal(await queuePage.locator('#gate-action').textContent(), 'Share');
-  assert.equal(await queuePage.getByRole('button', { name: 'Invite someone' }).isHidden(), true, 'accepted escape hatch must not remain duplicated');
+  assert.equal(await queuePage.locator('#challenge-url').inputValue(), 'https://www.getdasha.com/chess?challenge=queueinvite1');
+  assert.equal(await queuePage.getByRole('button', { name: 'Invite / 1v1' }).isHidden(), true, 'accepted escape hatch must not remain duplicated');
   assert.ok((await queuePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
   await queueContext.close();
 
@@ -767,7 +793,7 @@ try {
   const lostChallengeCreatePage = await lostChallengeCreateContext.newPage();
   await lostChallengeCreatePage.addInitScript(() => { history.replaceState = function (_state, _title, url) { window.__recoveredChallengeUrl = String(url); }; });
   await lostChallengeCreatePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await lostChallengeCreatePage.getByRole('button', { name: 'Invite someone' }).click();
+  await lostChallengeCreatePage.getByRole('button', { name: 'Invite / 1v1' }).click();
   await lostChallengeCreatePage.waitForTimeout(1200);
   assert.equal(challengeCreatePosts, 2, `challenge recovery request count; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
   assert.equal(await lostChallengeCreatePage.locator('#gate-title').textContent(), 'Your table is open', `challenge recovery gate; panel: ${await lostChallengeCreatePage.locator('#tournament-body').textContent()}`);
@@ -796,7 +822,7 @@ try {
   await creatorPage.waitForFunction(() => window.__challengeNativeShare?.url);
   const challengeNativeShare = await creatorPage.evaluate(() => window.__challengeNativeShare);
   assert.equal(challengeNativeShare.title, 'Dasha Chess');
-  assert.equal(challengeNativeShare.url, 'https://lobby.getdasha.com/chess?challenge=invite123');
+  assert.equal(challengeNativeShare.url, 'https://www.getdasha.com/chess?challenge=invite123');
   assert.match(challengeNativeShare.text, /Dasha has white\. Take Anna\./);
   await creatorPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64, null, { timeout: 4500 });
   assert.ok(challengeReads > 1, 'open challenge must poll for acceptance');
