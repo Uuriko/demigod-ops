@@ -357,7 +357,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.match(html, /id="dasha-quiz"[\s\S]*Quick 10Q[\s\S]*Deep 20Q/);
     assert.match(html, /id="dasha-quiz"[\s\S]*Pick your strongest lane/);
     assert.match(html, /<noscript>[\s\S]*Pick your strongest lane[\s\S]*<\/noscript>/);
-    assert.match(html, /<noscript>[\s\S]*Her feature directorial debut[\s\S]*<\/noscript>/);
+    assert.match(html, /<noscript>[\s\S]*What is her feature directorial debut\?[\s\S]*<\/noscript>/);
     assert.doesNotMatch(html, /questions are not in this HTML/);
     assert.match(html, /class="dasha-quiz"/);
     assert.match(html, /id="dasha-quiz"/);
