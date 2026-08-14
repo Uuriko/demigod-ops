@@ -734,6 +734,21 @@ assert.equal(ogAsset.status, 200);
 assert.equal(ogAsset.headers.get('content-type'), 'image/png');
 assert.equal(ogAsset.headers.get('access-control-allow-origin'), '*');
 assert.equal(ogAsset.headers.get('cross-origin-resource-policy'), 'cross-origin');
+assert.equal(ogAsset.headers.get('cache-control'), 'public, max-age=86400');
+
+for (const host of ['www.getdasha.com', 'getdasha.com']) {
+  for (const method of ['GET', 'HEAD']) {
+    const res = await workerModule.default.fetch(new Request(`https://${host}/og/dasha-social-card.png`, { method }), {
+      ASSETS: { fetch: async (req) => new Response(req.method === 'HEAD' ? null : 'png', { status: 200, headers: { 'Content-Type': 'image/png' } }) },
+    });
+    assert.equal(res.status, 200, `${host} ${method} /og/dasha-social-card.png must serve ASSETS PNG`);
+    assert.equal(res.headers.get('content-type'), 'image/png');
+    assert.equal(res.headers.get('access-control-allow-origin'), '*');
+    assert.equal(res.headers.get('cross-origin-resource-policy'), 'cross-origin');
+    assert.equal(res.headers.get('cache-control'), 'public, max-age=86400');
+    assert.equal(await res.text(), method === 'HEAD' ? '' : 'png');
+  }
+}
 
 const corsEnv = { ALLOWED_ORIGINS: 'https://www.getdasha.com' };
 const preflight = origin => workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/join', { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST' } }), corsEnv);
