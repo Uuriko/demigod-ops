@@ -102,6 +102,9 @@ assert(worker.includes("'/simp/board'") || worker.includes('"/simp/board"') || w
 assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
 assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
+assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
+assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
+assert(!/\/simp\/hold[\s\S]{0,180}verify/i.test(worker), 'hold must not be called a verify');
 assert(worker.includes('scrubSeasonSnapshots') && worker.includes('delete this.simpQuizAttempts') && worker.includes('storage.delete(`simpHolder:'), 'leave must delete linked Board state');
 assert(worker.includes('joinBoard') && worker.includes('leaveBoard') && worker.includes('buildPublicBoard'), 'worker uses pure scoring helpers');
 assert(worker.includes('handleSimp') || worker.includes('persistSimp'), 'worker persists simp profiles in DO');
@@ -130,7 +133,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -288,7 +291,7 @@ for (const path of ['/forum', '/forum/']) {
     assert.equal(lobbyRootBody.service, 'dasha-lobby');
   }
 }
-for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page-253', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page-253', '/no-such-page/', '/studio/', '/studio']) {
   for (const method of ['GET', 'HEAD']) {
     const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
     assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
@@ -307,6 +310,116 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
       assert.doesNotMatch(body, /<title>Dasha forum<\/title>/);
     }
   }
+}
+{
+  const SIMP_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  const assertSimpFirstHtml = (html, label) => {
+    assert.match(html, /<h1>Simp<\/h1>/, `${label} must use h1 Simp`);
+    assert.match(html, /PerryALPHA founding #1 is editorial and non-measured/);
+    assert.match(html, /editorial #1 · not measured/);
+    assert.match(html, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
+    assert.match(html, /class="dasha-quiz"/);
+    assert.match(html, /class="dasha-board"/);
+    assert.doesNotMatch(html, /\.simp-/);
+    assert.doesNotMatch(html, /class="simp-/);
+    assert.doesNotMatch(html, /score=/);
+    assert.doesNotMatch(html, /"answer"\s*:/);
+    for (const token of SIMP_TOKENS) assert.match(html, new RegExp(token));
+    for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+      assert.ok(SIMP_TOKENS.includes(hex.toLowerCase()), `${label} must stay tokens-only (saw ${hex})`);
+    }
+  };
+  const emptyHtml = simpPageHtml(null);
+  assertSimpFirstHtml(emptyHtml, 'empty board helper');
+  assert.match(emptyHtml, /No measured simps yet\./);
+  assert.doesNotMatch(emptyHtml, /<ol\b/);
+  const leakHtml = simpPageHtml({
+    schema: 'dasha-simp-board/v1',
+    editorial: [{ rank: 1, display: '@PerryALPHA', handle: 'perryalpha', measured: false }],
+    measured: [{
+      rank: 2,
+      handle: 'a',
+      display: '@a',
+      href: 'https://x.com/a',
+      xId: 'leak-xid-must-not-render',
+      wallet: 'leak-wallet-must-not-render',
+      balance: 'leak-balance-must-not-render',
+    }],
+    xId: 'leak-board-xid',
+    wallet: 'leak-board-wallet',
+    balance: 'leak-board-balance',
+  });
+  assertSimpFirstHtml(leakHtml, 'measured helper');
+  assert.match(leakHtml, /<ol class="dasha-board">/);
+  assert.match(leakHtml, /href="https:\/\/x\.com\/a"/);
+  assert.doesNotMatch(leakHtml, /leak-/);
+  assert.doesNotMatch(leakHtml, /xId|wallet|balance/);
+  for (const host of ['www.getdasha.com', 'getdasha.com']) {
+    for (const method of ['GET', 'HEAD']) {
+      for (const path of ['/simp', '/simp/']) {
+        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+        assert.equal(page.status, 200, `${host}${path} ${method} must be worker-owned 200`);
+        assert.equal(page.headers.get('x-dasha-edge'), 'simp');
+        assert.match(page.headers.get('content-type') || '', /text\/html/);
+        const html = await page.text();
+        if (method === 'HEAD') {
+          assert.equal(html, '', `${host}${path} HEAD must return an empty body`);
+        } else {
+          assertSimpFirstHtml(html, `${host}${path}`);
+          assert.match(html, /No measured simps yet\./);
+        }
+      }
+      for (const path of ['/quiz', '/quiz/']) {
+        const quiz = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+        assert.equal(quiz.status, 308, `${host}${path} ${method} must permanently send quiz to /simp`);
+        assert.equal(quiz.headers.get('location'), 'https://www.getdasha.com/simp');
+      }
+    }
+  }
+  for (const method of ['GET', 'HEAD']) {
+    for (const path of ['/simp', '/simp/']) {
+      const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+      assert.equal(page.status, 308, `lobby ${path} ${method} must permanently send exact /simp to www`);
+      assert.equal(page.headers.get('location'), 'https://www.getdasha.com/simp');
+    }
+  }
+  for (const method of ['GET', 'POST']) {
+    const hold = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/hold', { method }), {});
+    assert.equal(hold.status, 501, `lobby ${method} /simp/hold must stay 501`);
+    const body = await hold.json();
+    assert.equal(body.configured, false);
+    assert.equal(body.error, 'not_configured');
+    assert.notEqual(body.error, 'verify');
+    assert.equal(body.ok, undefined);
+  }
+  const lobbyQuiz = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/quiz'), {});
+  assert.equal(lobbyQuiz.status, 404, 'lobby /quiz must not invent a quiz page');
+  assert.equal(lobbyQuiz.headers.get('x-dasha-edge'), 'html-404');
+  for (const path of ['/dasha', '/desk', '/bounties']) {
+    const invented = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`), {});
+    assert.equal(invented.status, 404, `lobby ${path} must not invent a product page`);
+    assert.equal(invented.headers.get('x-dasha-edge'), 'html-404');
+  }
+  const boardEnv = {
+    LOBBY: {
+      idFromName: () => 'room',
+      get: () => ({
+        fetch: async () => new Response(JSON.stringify({
+          schema: 'dasha-simp-board/v1',
+          editorial: [{ rank: 1, display: '@PerryALPHA', handle: 'perryalpha', measured: false }],
+          measured: [],
+          xId: 'leak-xid-must-not-render',
+          wallet: 'leak-wallet-must-not-render',
+          balance: 'leak-balance-must-not-render',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      }),
+    },
+  };
+  const fetched = await workerModule.default.fetch(new Request('https://www.getdasha.com/simp'), boardEnv);
+  const fetchedHtml = await fetched.text();
+  assertSimpFirstHtml(fetchedHtml, 'www /simp via GET /simp/board');
+  assert.match(fetchedHtml, /No measured simps yet\./);
+  assert.doesNotMatch(fetchedHtml, /leak-/);
 }
 {
   const metricsEnv = {
