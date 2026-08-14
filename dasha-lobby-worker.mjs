@@ -446,6 +446,10 @@ const FORUM_HTML = htmlPage('Dasha forum', `<h1>Forum</h1>
 <p>The Dasha forum is not here. This path is linked from the site, but there is no forum yet.</p>
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/lobby">Lobby</a></p>`);
 
+const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
+<p>This path is not a Dasha page.</p>
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/lobby">Lobby</a></p>`);
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
@@ -2445,6 +2449,20 @@ async function productEdge(request, url, env) {
   // public product site is getdasha-only. Source of truth for clean schema is also in embeds.
   const upstream = await fetch(request);
   const ct = String(upstream.headers.get('content-type') || '');
+  if (
+    upstream.status === 404 &&
+    ct.includes('text/html') &&
+    (request.method === 'GET' || request.method === 'HEAD')
+  ) {
+    return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
+      status: 404,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'html-404',
+      }),
+    });
+  }
   if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
   let html = await upstream.text();
   const originalHtml = html;

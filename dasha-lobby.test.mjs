@@ -250,6 +250,69 @@ for (const path of ['/forum', '/forum/']) {
   assert.equal(await unknown.text(), '{"error":"not found"}');
 }
 {
+  const webflow404 = `<!doctype html><html><head><title>404 - Page not found</title>
+<link rel="stylesheet" href="https://cdn.prod.website-files.com/css/webflow-https-errors.webflow.css">
+</head><body>Page not found</body></html>`;
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const u = new URL(typeof input === 'string' ? input : input.url);
+      const known = new Map([
+        ['/', '$dasha — make the timeline stranger'],
+        ['/lobby', '$dasha lobby'],
+        ['/lobby/', '$dasha lobby'],
+        ['/bounties', 'Bounties'],
+        ['/bounties/', 'Bounties'],
+        ['/dasha', 'Dasha'],
+        ['/dasha/', 'Dasha'],
+      ]);
+      if (u.hostname.endsWith('getdasha.com') && known.has(u.pathname)) {
+        return new Response(`<!doctype html><html><title>${known.get(u.pathname)}</title></html>`, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+      return new Response(webflow404, {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    };
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      for (const path of ['/no-such-page', '/no-such-page-241']) {
+        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(page.status, 404, `${host}${path} must stay 404`);
+        assert.match(page.headers.get('content-type') || '', /text\/html/);
+        const html = await page.text();
+        assert.match(html, /<title>/);
+        assert.match(html, /Dasha|\$dasha/);
+        assert.doesNotMatch(html, /webflow-https-errors/);
+        assert.doesNotMatch(html, /<title>404 - Page not found<\/title>/);
+        const head = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method: 'HEAD' }), {});
+        assert.equal(head.status, 404, `${host}${path} HEAD must stay 404`);
+        assert.match(head.headers.get('content-type') || '', /text\/html/);
+        assert.equal(await head.text(), '', `${host}${path} HEAD must return an empty body`);
+      }
+      for (const [path, title, edge] of [
+        ['/', '$dasha — make the timeline stranger', 'html-security'],
+        ['/lobby', '$dasha lobby', 'html-security'],
+        ['/bounties', 'Bounties', 'html-security'],
+        ['/dasha', 'Dasha', 'html-security'],
+      ]) {
+        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(page.status, 200, `${host}${path} must stay 200`);
+        assert.equal(page.headers.get('x-dasha-edge'), edge);
+        assert.ok((await page.text()).includes(`<title>${title}</title>`), `${host}${path} must keep its origin title`);
+      }
+      const privacy = await workerModule.default.fetch(new Request(`https://${host}/privacy`), {});
+      assert.equal(privacy.status, 200, `${host}/privacy must stay worker-served 200`);
+      assert.equal(privacy.headers.get('x-dasha-edge'), 'privacy');
+      assert.match(await privacy.text(), /<title>Dasha privacy<\/title>/);
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
   const nativeFetch = globalThis.fetch;
   let deskPassedThrough = false;
   try {
