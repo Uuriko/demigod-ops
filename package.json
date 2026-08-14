@@ -109,6 +109,7 @@
     "demigod:tools:status": "node demigod-tools-status.mjs",
     "demigod:accepted-role": "node demigod-accepted-role.mjs status",
     "demigod:accepted-role:test": "node demigod-accepted-role.mjs --selftest && node demigod-accepted-role-poison.test.mjs && node --test demigod-accepted-role.test.mjs",
+    "demigod:test:html-worker": "node demigod-html-worker.test.mjs",
     "dasha:test:landing": "node dasha-landing.test.mjs",
     "dasha:test:growth": "node dasha-growth.test.mjs",
     "dasha:test:desk": "node dasha-desk.test.mjs",
