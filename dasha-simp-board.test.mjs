@@ -124,7 +124,7 @@ assert(client.includes("setStatus('', 'ok')"), 'successful board load should not
 assert(!client.includes('Open — link X and join'), 'empty ranking placeholder duplicates the join action');
 assert(client.includes('quiz=1') && client.includes('wantsQuizInvite') && client.includes('runQuizInvite'), 'shareable quiz deep link missing');
 assert.match(client, /q\.get\('challenge'\)[\s\S]{0,120}\^\[A-Za-z0-9_\-\]\{6,20\}\$[\s\S]{0,80}return true/, 'permanent score challenges must enter the same quick quiz flow');
-assert(client.includes('QUIZ_INVITE_URL') || client.includes('getdasha.com/?quiz=1'), 'canonical quiz invite URL missing');
+assert(client.includes("QUIZ_INVITE_URL = 'https://www.getdasha.com/simp'"), 'canonical quiz invite URL missing');
 assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt missing');
 assert(!client.includes("var inviteCopyBtn") && !client.includes("var inviteShareBtn"), 'quiz start must not expose redundant invite controls');
 assert(client.includes("var inviteToolBtn") && client.includes("'Invite on X'"), 'secondary invite controls must remain contextual');

@@ -103,7 +103,8 @@ assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
 assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
-assert(worker.includes('SIMP_QUIZ_JS') && worker.includes('https://lobby.getdasha.com/simp/quiz'), 'www /simp ships a worker-owned quiz script');
+assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
+assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
@@ -137,7 +138,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
 const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
-const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
+const { STUDIO_CLIENT_JS, SIMP_BOARD_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
@@ -322,18 +323,18 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.match(html, /editorial #1 · not measured/);
     assert.match(html, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
     assert.match(html, /class="dasha-quiz"/);
-    assert.match(html, /data-mode="quick"/);
-    assert.match(html, /data-mode="deep"/);
-    assert.match(html, />Quick<\/button>/);
-    assert.match(html, /lobby\.getdasha\.com\/simp\/quiz/);
-    assert.match(html, /action:'start'/);
-    assert.match(html, /action:'answer'/);
+    assert.match(html, /id="dasha-simp-board"/);
+    assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/);
+    assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
+    assert.match(html, /s\.crossOrigin='anonymous'/);
+    assert.doesNotMatch(html, /<script>[^<]*action:'start'/);
     assert.match(html, /class="dasha-board"/);
     assert.doesNotMatch(html, /\.simp-/);
     assert.doesNotMatch(html, /class="simp-/);
     assert.doesNotMatch(html, /score=/);
     assert.doesNotMatch(html, /"answer"\s*:/);
     assert.doesNotMatch(html, /oauth\/x\/start|Connect X/);
+    assert.doesNotMatch(html, /payTo|X_CLIENT_SECRET|X_CLIENT_ID|LOBBY_SESSION_SECRET/);
     assert.doesNotMatch(html, /Pick your strongest lane|Her feature directorial debut|Sailor Socialism/);
     for (const token of SIMP_TOKENS) assert.match(html, new RegExp(token));
     for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
@@ -469,21 +470,26 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   for (const hex of shareHtml.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
     assert.ok(SHARE_TOKENS.includes(hex.toLowerCase()), `share page must stay tokens-only (saw ${hex})`);
   }
+  const shareRows = new Map();
+  const shareState = {
+    storage: {
+      get: async (key) => shareRows.get(key),
+      put: async (key, value) => { if (key && typeof key === 'object') { for (const [k, v] of Object.entries(key)) shareRows.set(k, v); return; } shareRows.set(key, value); },
+      delete: async (key) => shareRows.delete(key),
+      list: async () => ({ keys: [...shareRows.keys()].map((name) => ({ name })) }),
+      getAlarm: async () => 1,
+      setAlarm: async () => {},
+    },
+    setWebSocketAutoResponse() {},
+    blockConcurrencyWhile(fn) { this.ready = fn(); },
+  };
+  const shareDo = new DashaLobby(shareState, { ALLOWED_ORIGINS: 'https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com' });
+  await shareState.ready;
+  shareDo.simpQuizResults.sharetest = fixture;
   const shareEnv = {
     LOBBY: {
       idFromName: () => 'room',
-      get: () => ({
-        fetch: async (req) => {
-          const path = new URL(req.url).pathname;
-          if (path === '/simp/result/sharetest') {
-            return new Response(JSON.stringify({ ok: true, result: fixture }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          }
-          return new Response(JSON.stringify({ error: 'result not found' }), { status: 404 });
-        },
-      }),
+      get: () => shareDo,
     },
   };
   for (const host of ['www.getdasha.com', 'getdasha.com']) {
@@ -500,16 +506,15 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
         assert.match(html, /property="og:image:alt" content="Dasha scholar"/);
         assert.doesNotMatch(html, /<h1>[^<]*9\/10/);
       }
-      const missing = await workerModule.default.fetch(new Request(`https://${host}/simp/r/missingid`, { method }), shareEnv);
-      assert.equal(missing.status, 404, `${host} /simp/r/missingid ${method} must be honest 404`);
-      assert.equal(missing.headers.get('x-dasha-edge'), 'html-404');
-      const missingHtml = await missing.text();
+      const missing = await workerModule.default.fetch(new Request(`https://${host}/simp/r/unknown`, { method }), shareEnv);
+      assert.equal(missing.status, 404, `${host} /simp/r/unknown ${method} must be the result 404`);
+      assert.notEqual(missing.headers.get('x-dasha-edge'), 'html-404', `${host} /simp/r/unknown must not use the generic branded 404`);
+      const missingBody = await missing.text();
       if (method === 'HEAD') {
-        assert.equal(missingHtml, '');
+        assert.equal(missingBody, '');
       } else {
-        assert.match(missingHtml, /<h1>Result not found<\/h1>/);
-        assert.doesNotMatch(missingHtml, /9\/10|Dasha scholar|0\/0/);
-        assert.doesNotMatch(missingHtml, /score=/);
+        assert.equal(missingBody, 'Result not found');
+        assert.doesNotMatch(missingBody, /Page not found — \$dasha|9\/10|Dasha scholar|0\/0/);
       }
     }
   }
@@ -897,6 +902,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/how-to-buy',
     'https://www.getdasha.com/privacy',
     'https://www.getdasha.com/bounties',
+    'https://www.getdasha.com/simp',
     'https://lobby.getdasha.com/chess',
   ]) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
