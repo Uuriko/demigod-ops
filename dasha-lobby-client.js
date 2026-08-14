@@ -134,17 +134,8 @@
     pin.appendChild(mintSpan);
     pin.appendChild(document.createTextNode(' · '));
     var verifyA = el('a', null, 'verify mint');
-    // #token only exists on Home; /lobby and embeds need an absolute trust surface.
-    try {
-      var onHome =
-        typeof location !== 'undefined' &&
-        /getdasha\.com$/i.test(location.hostname) &&
-        (location.pathname === '/' || location.pathname === '');
-      verifyA.href = onHome ? '#token' : 'https://www.getdasha.com/#token';
-    } catch (e) {
-      verifyA.href = 'https://www.getdasha.com/#token';
-    }
-    verifyA.setAttribute('aria-label', 'Verify $dasha mint on getdasha');
+    verifyA.href = '/how-to-buy';
+    verifyA.setAttribute('aria-label', 'How to buy $dasha');
     pin.appendChild(verifyA);
 
     var pinBody = el('p', 'lobby-pin-body', '');
