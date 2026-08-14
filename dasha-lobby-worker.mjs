@@ -172,7 +172,6 @@ const HOME_POSTERS = [
   ['It’s time $dasha', '/studio#look=ticket&format=story&line=It%E2%80%99s%20time%20%24dasha&src=home'],
   ['Well im still alive', '/studio#look=signal&format=banner&line=Well%20im%20still%20alive&src=home'],
 ];
-
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
 }
