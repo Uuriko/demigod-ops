@@ -10,6 +10,7 @@ const client = await readFile(new URL('./dasha-lobby-client.js', root), 'utf8');
 const worker = await readFile(new URL('./dasha-lobby-worker.mjs', root), 'utf8');
 const chessPage = await readFile(new URL('./dasha-chess-page.html', root), 'utf8');
 const wrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
+const studioPage = await readFile(new URL('./dasha-meme-studio.html', root), 'utf8');
 const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
@@ -102,6 +103,11 @@ assert(worker.includes("'Content-Security-Policy': \"frame-ancestors 'none'; bas
 assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'proxied Webflow HTML must receive Worker security headers');
 assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must gain a Privacy link in the rewrite pass');
 assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
+assert(worker.includes('rewriteStudioFirstPaint(html, url.search)'), 'www/apex /studio must inject PHOTO first paint');
+assert(worker.includes('id="dasha-studio-paint"') && worker.includes('/simp/photo/hero.jpg'), 'studio first paint must put a same-origin starter photo in HTML');
+assert.match(studioPage, /else if \(look\.id === 'photo'\) photoId = PHOTOS\[0\]\[0\]/, 'PHOTO look must select a starter still');
+assert.match(studioPage, /starterPhoto\) loadPhoto\(\.\.\.starterPhoto/, 'PHOTO look must load the starter still without a click');
+assert.match(studioPage, /loading: index < 5 \? 'eager' : 'lazy'/, 'known thumbs must not start as empty lazy tiles');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('id="dasha-lock"') && worker.includes('dasha-band'), 'home first viewport must be #dasha-lock with an acid band');
@@ -154,7 +160,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioFirstPaint, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -1050,6 +1056,11 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
     assert.equal(res.headers.get('cache-control'), 'public, max-age=86400');
     assert.equal(await res.text(), method === 'HEAD' ? '' : 'png');
   }
+  const photo = await workerModule.default.fetch(new Request(`https://${host}/simp/photo/hero.jpg`), {
+    ASSETS: { fetch: async () => new Response('jpg', { status: 200, headers: { 'Content-Type': 'image/jpeg' } }) },
+  });
+  assert.equal(photo.status, 200, `${host} /simp/photo/hero.jpg must be same-origin for Studio first paint`);
+  assert.equal(photo.headers.get('content-type'), 'image/jpeg');
 }
 
 const corsEnv = { ALLOWED_ORIGINS: 'https://www.getdasha.com' };
@@ -1494,6 +1505,48 @@ ${liveHomeFooter}
     '<script src="https://lobby.getdasha.com/client/studio.js"></script>',
     'studio tag with no integrity must stay',
   );
+  {
+    const STUDIO_HEXES = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+    const styleHexes = html => [...String(html).matchAll(/(?:background|color|box-shadow|fill|stroke)\s*:[^;{}]*?(#[0-9a-fA-F]{3,8})\b/gi)].map(m => m[1].toLowerCase());
+    const paintFixture = `<!doctype html><html><title>Dasha Studio — make one, pass it on</title>
+<div class="dasha-studio-embed"><p>Loading studio…</p></div>
+<script src="https://lobby.getdasha.com/client/studio.js" integrity="${STUDIO_SRI}" crossorigin="anonymous"></script>
+</html>`;
+    const painted = rewriteStudioFirstPaint(paintFixture);
+    assert.match(painted, /id="dasha-studio-paint"/);
+    assert.match(painted, /src="\/simp\/photo\/hero\.jpg"/, 'PHOTO first HTML must include the starter still');
+    assert.match(painted, /src="\/simp\/photo\/profile\.jpg"/);
+    assert.match(painted, /src="\/simp\/photo\/weekend\.jpg"/);
+    assert.match(painted, /src="\/simp\/photo\/bull\.jpg"/);
+    assert.match(painted, /src="\/simp\/photo\/chart\.jpg"/);
+    assert.equal((painted.match(/src="\/simp\/photo\/[^"]+"/g) || []).length >= 6, true, 'stage + five thumbs must have src in first HTML');
+    assert.doesNotMatch(painted, /Loading studio…/);
+    assert.doesNotMatch(painted, /#7c4dff|violet|Forum|#dasha-home-cta/i);
+    const paintSection = painted.match(/<section\b[^>]*\bid=["']dasha-studio-paint["'][^>]*>[\s\S]*?<\/section>/i)[0];
+    for (const hex of styleHexes(paintSection)) {
+      assert.ok(STUDIO_HEXES.includes(hex), `studio first paint must stay tokens-only (saw ${hex})`);
+    }
+    assert.equal(rewriteStudioFirstPaint(painted), painted, 'studio first paint rewrite must be idempotent');
+    assert.doesNotMatch(rewriteStudioFirstPaint(paintFixture, '?look=poster'), /id="dasha-studio-paint"/, 'non-PHOTO looks must not get the PHOTO stage');
+    const xerox = rewriteStudioFirstPaint(paintFixture, '?look=photo&effect=xerox&sticker=' + encodeURIComponent('🍒'));
+    assert.match(xerox, /src="\/simp\/photo\/hero\.jpg"/);
+    assert.match(xerox, /filter:grayscale\(1\) contrast\(2\.4\)/);
+    assert.match(xerox, /🍒/);
+    const nativeFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => new Response(paintFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      for (const path of ['/studio', '/studio?look=photo', '/studio?look=photo&effect=xerox&sticker=%F0%9F%8D%92']) {
+        const page = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`), {});
+        const html = await page.text();
+        assert.match(html, /src="\/simp\/photo\/hero\.jpg"/, `${path} first HTML must include the starter still`);
+        assert.match(html, /id="dasha-studio-paint"/, `${path} first HTML must be a finished PHOTO stage`);
+      }
+      const poster = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio?look=poster'), {});
+      assert.doesNotMatch(await poster.text(), /id="dasha-studio-paint"/);
+    } finally {
+      globalThis.fetch = nativeFetch;
+    }
+  }
   const lobbyLeftover = `<!doctype html><html><title>$dasha lobby</title>
 <style>
 .lobby-lede{margin:0}
@@ -1571,7 +1624,9 @@ ${liveHomeFooter}
       assert.equal(html.includes(staleStudioSri), false, `${host}/studio must drop the leftover studio.js pin`);
       assert.match(html, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"/);
       assert.ok(html.includes(`integrity="${STUDIO_SRI}"`), `${host}/studio integrity must match served studio.js`);
-      assert.match(html, /Loading studio…/);
+      assert.match(html, /id="dasha-studio-paint"/);
+      assert.match(html, /src="\/simp\/photo\/hero\.jpg"/);
+      assert.doesNotMatch(html, /Loading studio…/);
     }
   } finally {
     globalThis.fetch = nativeFetch;

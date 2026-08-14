@@ -182,15 +182,20 @@ let undoState = null, undoTimer;
 
 const fragmentParams = new URLSearchParams(location.hash.slice(1));
 const queryParams = new URLSearchParams(location.search);
-const fragmentHasState = fragmentParams.has('look') || fragmentParams.has('line') || fragmentParams.has('format') || fragmentParams.has('photo');
+const fragmentHasState = fragmentParams.has('look') || fragmentParams.has('line') || fragmentParams.has('format') || fragmentParams.has('photo') || fragmentParams.has('effect') || fragmentParams.has('sticker');
 const params = fragmentHasState ? fragmentParams : queryParams;
 const imageOnly = params.get('arm') === 'flat';
 const requestedLook = LOOKS.find((option) => option.id === params.get('look'));
 const requestedFormat = FORMATS.find((option) => option.id === params.get('format'));
 const requestedPhoto = PHOTOS.find(([id]) => id === params.get('photo'));
+const requestedEffect = EFFECTS.find(([id]) => id === params.get('effect'));
+const requestedSticker = STICKERS.find(([mark]) => mark && mark === params.get('sticker'));
 if (requestedLook) look = requestedLook;
 if (requestedFormat) format = requestedFormat;
+if (requestedEffect) effect = requestedEffect;
+if (requestedSticker) sticker = requestedSticker[0];
 if (requestedPhoto) photoId = requestedPhoto[0];
+else if (look.id === 'photo') photoId = PHOTOS[0][0];
 if (params.has('line')) $('line').value = params.get('line').slice(0, 120);
 const inbound = Boolean(requestedLook || requestedFormat || params.has('line'));
 if (inbound) $('remix-note').hidden = false;
@@ -225,6 +230,8 @@ function remixURL() {
   const line = $('line').value.trim();
   if (line) state.set('line', line);
   if (photoId) state.set('photo', photoId);
+  if (effect[0] !== 'clean') state.set('effect', effect[0]);
+  if (sticker) state.set('sticker', sticker);
   if (imageOnly) state.set('arm', 'flat');
   const changed = sourceState && ['look', 'format', 'line'].some((key) => sourceState[key] !== current[key]);
   const parent = changed ? sourceState : parentState;
@@ -839,6 +846,8 @@ fillSelect('looks', LOOKS, look);
 fillSelect('formats', FORMATS, format);
 for (const option of EFFECTS) $('effects').add(new Option(option[1], option[0]));
 for (const option of STICKERS) $('stickers').add(new Option(option[1], option[0]));
+$('effects').value = effect[0];
+$('stickers').value = sticker;
 
 const snapshot = () => ({
   effect, sticker, zoom, tilt, offsetX, offsetY,
@@ -920,7 +929,7 @@ function loadPhoto(id, src, local = false, opts = {}) {
 $('gallery').append(...PHOTOS.map(([id, src], index) => {
   const label = document.createElement('label');
   const input = Object.assign(document.createElement('input'), { type: 'radio', name: 'photo', value: id, checked: id === photoId });
-  const image = Object.assign(document.createElement('img'), { src, alt: `Dasha image ${index + 1}`, loading: 'lazy', crossOrigin: 'anonymous' });
+  const image = Object.assign(document.createElement('img'), { src, alt: `Dasha image ${index + 1}`, loading: index < 5 ? 'eager' : 'lazy', crossOrigin: 'anonymous' });
   input.addEventListener('change', () => { trackStudio('first_edit'); loadPhoto(id, src); });
   label.append(input, image); return label;
 }));
@@ -934,7 +943,8 @@ upload.addEventListener('change', () => {
   trackStudio('first_edit'); const url = URL.createObjectURL(file); loadPhoto('local', url, true);
 });
 uploadLabel.append(upload); $('gallery').append(uploadLabel);
-if (requestedPhoto) loadPhoto(...requestedPhoto);
+const starterPhoto = requestedPhoto || (look.id === 'photo' ? PHOTOS[0] : null);
+if (starterPhoto) loadPhoto(...starterPhoto, false, { keepLook: true });
 
 $('effects').addEventListener('change', () => { trackStudio('first_edit'); remember(); effect = EFFECTS.find(([id]) => id === $('effects').value); render(); });
 $('stickers').addEventListener('change', () => { trackStudio('first_edit'); remember(); sticker = $('stickers').value; render(); });
