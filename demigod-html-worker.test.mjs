@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import workerModule, {
+  companiesIndexHtml,
+  companyPageHtml,
   injectBountiesBoard,
+  isCompaniesPath,
+  isCompanyPath,
   normalizeBountiesFeed,
   rewriteCdnPin,
   rewriteStaleSnapshotDates,
@@ -88,7 +92,10 @@ assert.doesNotMatch(workerSrc, /\/oauth\/|createSessionToken|mintReceipt|eliza/i
 assert.doesNotMatch(workerSrc, /trydemigod\.com\/bounties\.json/);
 assert.match(workerSrc, /demigod-bounties-feed\/v1/);
 assert.match(workerSrc, /bounties-feed\.json/);
+assert.match(workerSrc, /sf-startup-map\.json/);
+assert.match(workerSrc, /roles-feed\.json/);
 assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
+assert.doesNotMatch(workerSrc, /cdn\.jsdelivr\.net\/gh\/Uuriko\/demigod-site-cdn@[a-f0-9]{40}\/(sf-startup-map|roles-feed)/);
 
 {
   const out = stripGoldAccent(HOME_FIXTURE);
@@ -316,6 +323,269 @@ function urlOf(input) {
     assert.match(section, /25 USDC/);
     assert.doesNotMatch(section, /payTo:""/);
     assert.doesNotMatch(section, /\bClaim\b|\bPay\b|log\s*in/i);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+{
+  assert.equal(isCompaniesPath('/companies'), true);
+  assert.equal(isCompaniesPath('/companies/'), true);
+  assert.equal(isCompaniesPath('/company'), false);
+  assert.equal(isCompaniesPath('/c/yc:abundant'), false);
+  assert.equal(isCompaniesPath('/startups'), false);
+  assert.equal(isCompanyPath('/c/yc:abundant'), true);
+  assert.equal(isCompanyPath('/c/yc:abundant/'), true);
+  assert.equal(isCompanyPath('/c/wd:Q16153666'), true);
+  assert.equal(isCompanyPath('/c/hn:job-boards.greenhouse.io/verkada'), true);
+  assert.equal(isCompanyPath('/c/unknown'), true);
+  assert.equal(isCompanyPath('/c/'), false);
+  assert.equal(isCompanyPath('/c'), false);
+  assert.equal(isCompanyPath('/companies'), false);
+  assert.equal(isCompanyPath('/companies/yc:abundant'), false);
+}
+
+const TINY_MAP = {
+  generatedAt: '2026-08-14T15:20:31.483Z',
+  companies: [
+    {
+      id: 'yc:abundant',
+      name: 'Abundant',
+      description: 'Agent simulation and RL for researchers',
+      website: 'https://www.abundant.ai/',
+      source: 'Y Combinator',
+      sourceUrl: 'https://www.ycombinator.com/companies/abundant',
+      jobsUrl: 'https://jobs.ashbyhq.com/abundant',
+      openRoles: 4,
+      atsSource: 'Ashby',
+      openRolesAt: '2026-08-14',
+      roleMix: { operations: 1, product: 1, engineering: 2 },
+    },
+    {
+      id: 'yc:zero',
+      name: 'ZeroCorp',
+      website: 'https://zero.example/',
+      openRoles: 0,
+      roleMix: { engineering: 1 },
+    },
+    {
+      id: 'yc:peer-eng',
+      name: 'Peer Eng',
+      openRoles: 6,
+      roleMix: { engineering: 3 },
+    },
+    {
+      id: 'yc:peer-both',
+      name: 'Peer Both',
+      openRoles: 2,
+      roleMix: { engineering: 1, product: 1 },
+    },
+    {
+      id: 'yc:sales-only',
+      name: 'Sales Only',
+      openRoles: 9,
+      roleMix: { sales: 4 },
+    },
+    {
+      id: 'yc:closed-eng',
+      name: 'Closed Eng',
+      openRoles: 0,
+      roleMix: { engineering: 2 },
+    },
+  ],
+};
+
+{
+  const html = companiesIndexHtml(TINY_MAP);
+  assert.match(html, /Abundant/);
+  assert.match(html, /\/c\/yc:abundant/);
+  assert.match(html, /Ashby/);
+  assert.match(html, /engineering/);
+  assert.match(html, /2026-08-14/);
+  assert.match(html, /4 hiring companies/);
+  assert.doesNotMatch(html, /ZeroCorp/);
+  assert.doesNotMatch(html, /Closed Eng/);
+  assert.doesNotMatch(html, /we recommend/i);
+  assert.doesNotMatch(html, /\bscore\b/i);
+  assert.doesNotMatch(html, /#dfff00|#ff3b81|#dasha-bounties/);
+  assert.match(html, /Public company facts\. Not a recommendation\./);
+}
+
+{
+  const many = {
+    generatedAt: '2026-08-14T00:00:00.000Z',
+    companies: Array.from({ length: 402 }, (_, i) => ({
+      id: `yc:co-${String(i).padStart(3, '0')}`,
+      name: `Co ${String(i).padStart(3, '0')}`,
+      openRoles: i === 0 ? 50 : 1,
+      atsSource: 'Ashby',
+      roleMix: { engineering: 1 },
+    })),
+  };
+  const html = companiesIndexHtml(many);
+  assert.match(html, /Showing 400 of 402 hiring companies/);
+  assert.match(html, /Co 000/);
+  assert.doesNotMatch(html, /Co 401/);
+}
+
+{
+  const html = companyPageHtml(TINY_MAP, 'yc:abundant', {
+    roles: [
+      {
+        company: 'Abundant',
+        title: 'Founding Engineer',
+        location: 'San Francisco',
+        url: 'https://jobs.ashbyhq.com/abundant/role-1',
+      },
+      { company: 'Other Co', title: 'Invented Title', url: 'https://jobs.ashbyhq.com/other/role' },
+    ],
+  });
+  assert.match(html, /<h1>Abundant<\/h1>/);
+  assert.match(html, /abundant\.ai/);
+  assert.match(html, /https:\/\/www\.abundant\.ai\//);
+  assert.match(html, /Y Combinator/);
+  assert.match(html, /Ashby/);
+  assert.match(html, /https:\/\/jobs\.ashbyhq\.com\/abundant/);
+  assert.match(html, /Founding Engineer/);
+  assert.doesNotMatch(html, /Invented Title/);
+  assert.match(html, /sf-map \+ roleMix overlap/);
+  assert.match(html, /Peer Both/);
+  assert.match(html, /Peer Eng/);
+  assert.doesNotMatch(html, /Sales Only/);
+  assert.doesNotMatch(html, /Closed Eng/);
+  assert.doesNotMatch(html, /ZeroCorp/);
+  const bothAt = html.indexOf('Peer Both');
+  const engAt = html.indexOf('Peer Eng');
+  assert.ok(bothAt >= 0 && engAt >= 0 && bothAt < engAt);
+  assert.doesNotMatch(html, /we recommend/i);
+  assert.doesNotMatch(html, /\bscore\b/i);
+  assert.match(html, /href="\/companies"/);
+  assert.match(html, /href="\/startups"/);
+}
+
+{
+  const missing = companyPageHtml(TINY_MAP, 'unknown');
+  assert.match(missing, /Company not found/);
+  assert.doesNotMatch(missing, /abundant\.ai|ycombinator|ashbyhq|invent/i);
+  assert.doesNotMatch(missing, /<a href="https?:\/\/(?!www\.trydemigod)/);
+  const noMap = companyPageHtml(null, 'yc:abundant');
+  assert.match(noMap, /Company not found/);
+  assert.doesNotMatch(noMap, /abundant\.ai/);
+}
+
+{
+  const httpSite = companyPageHtml({
+    generatedAt: '2026-08-14T00:00:00.000Z',
+    companies: [{
+      id: 'wd:Q1',
+      name: 'Http Co',
+      website: 'http://www.httpco.example/',
+      sourceUrl: 'http://example.com/source',
+      jobsUrl: 'http://jobs.example.com/httpco',
+      openRoles: 1,
+      roleMix: { product: 1 },
+    }],
+  }, 'wd:Q1');
+  assert.match(httpSite, /httpco\.example/);
+  assert.match(httpSite, /http:\/\/www\.httpco\.example\//);
+  assert.doesNotMatch(httpSite, /href="http:/);
+}
+
+{
+  const noJoin = companyPageHtml(TINY_MAP, 'yc:abundant', {
+    roles: [
+      { company: 'abundant', title: 'Case Mismatch', url: 'https://jobs.ashbyhq.com/abundant/1' },
+      { companyId: 'yc:abundant', company: 'Other', title: 'Id Only', url: 'https://jobs.ashbyhq.com/abundant/2' },
+      { company: 'Unrelated', title: 'Ghost Role', url: 'https://jobs.ashbyhq.com/abundant/3' },
+    ],
+  });
+  assert.doesNotMatch(noJoin, /Case Mismatch|Id Only|Ghost Role/);
+  assert.match(noJoin, /Roles are on/);
+  assert.match(noJoin, /Open roles 4/);
+  assert.match(noJoin, /Role mix/);
+  assert.match(noJoin, /engineering/);
+  assert.match(noJoin, /https:\/\/jobs\.ashbyhq\.com\/abundant/);
+}
+
+{
+  const xssMap = {
+    generatedAt: '2026-08-14T00:00:00.000Z',
+    companies: [{
+      id: 'yc:xss',
+      name: '<script>alert(1)</script>',
+      description: '<img src=x onerror=alert(2)>',
+      website: 'https://xss.example/',
+      openRoles: 3,
+      atsSource: '<svg onload=alert(3)>',
+      roleMix: { 'engineering<script>': 1 },
+    }],
+  };
+  const index = companiesIndexHtml(xssMap);
+  const page = companyPageHtml(xssMap, 'yc:xss');
+  for (const html of [index, page]) {
+    assert.doesNotMatch(html, /<script>alert/);
+    assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  }
+  assert.doesNotMatch(page, /<img src=x/);
+  assert.match(page, /&lt;img src=x onerror=alert\(2\)&gt;/);
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  const fetched = [];
+  try {
+    globalThis.fetch = async (input) => {
+      const u = urlOf(input);
+      fetched.push(u);
+      if (u.includes('sf-startup-map.json')) {
+        assert.match(u, new RegExp(CDN_PIN_TO));
+        return new Response(JSON.stringify(TINY_MAP), { headers: { 'Content-Type': 'application/json' } });
+      }
+      if (u.includes('roles-feed.json')) {
+        assert.match(u, new RegExp(CDN_PIN_TO));
+        return new Response(JSON.stringify({
+          roles: [{ company: 'Abundant', title: 'Founding Engineer', url: 'https://jobs.ashbyhq.com/abundant/role-1' }],
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('webflow miss', { status: 404, headers: { 'Content-Type': 'text/html' } });
+    };
+
+    for (const path of ['/companies', '/companies/']) {
+      const page = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      const html = await page.text();
+      assert.equal(page.status, 200, path);
+      assert.equal(page.headers.get('x-demigod-edge'), 'companies');
+      assert.match(html, /Abundant/);
+      assert.doesNotMatch(html, /ZeroCorp/);
+      assert.doesNotMatch(html, /webflow miss/);
+    }
+
+    for (const host of ['www.trydemigod.com', 'trydemigod.com']) {
+      const found = await workerModule.fetch(new Request(`https://${host}/c/yc:abundant`), {});
+      const foundHtml = await found.text();
+      assert.equal(found.status, 200, host);
+      assert.equal(found.headers.get('x-demigod-edge'), 'company');
+      assert.match(foundHtml, /<h1>Abundant<\/h1>/);
+      assert.match(foundHtml, /Founding Engineer/);
+      assert.doesNotMatch(foundHtml, /webflow miss/);
+    }
+
+    const encoded = await workerModule.fetch(new Request('https://www.trydemigod.com/c/yc%3Aabundant'), {});
+    assert.equal(encoded.status, 200);
+    assert.match(await encoded.text(), /<h1>Abundant<\/h1>/);
+
+    const missing = await workerModule.fetch(new Request('https://www.trydemigod.com/c/unknown'), {});
+    const missingHtml = await missing.text();
+    assert.equal(missing.status, 404);
+    assert.match(missingHtml, /Company not found/);
+    assert.doesNotMatch(missingHtml, /abundant\.ai|ycombinator|ashbyhq/i);
+    assert.doesNotMatch(missingHtml, /webflow miss/);
+
+    const slashId = await workerModule.fetch(new Request('https://www.trydemigod.com/c/hn:job-boards.greenhouse.io/verkada'), {});
+    assert.equal(slashId.headers.get('x-demigod-edge'), 'company');
+    assert.doesNotMatch(await slashId.text(), /webflow miss/);
+
+    assert.equal(fetched.every((u) => u.includes('cdn.jsdelivr.net') && !/trydemigod\.com/.test(u)), true);
   } finally {
     globalThis.fetch = nativeFetch;
   }
