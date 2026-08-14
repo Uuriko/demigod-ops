@@ -6,8 +6,8 @@
   'use strict';
 
   var DEFAULT_API = 'https://lobby.getdasha.com';
-  /** Canonical shareable deep link — starts quiz + invites X connect. */
-  var QUIZ_INVITE_URL = 'https://www.getdasha.com/?quiz=1#simp';
+  /** Canonical shareable deep link — www /simp mounts this client. */
+  var QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
   /** First-visit optional Connect X (homepage only). Not mandatory. */
   var GATE_LS = 'dasha_x_gate_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
