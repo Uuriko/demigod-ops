@@ -94,6 +94,7 @@ assert(worker.includes("'Content-Security-Policy': \"frame-ancestors 'none'; bas
 assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'proxied Webflow HTML must receive Worker security headers');
 assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must gain a Privacy link in the rewrite pass');
 assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
+assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('escapeHtml(err)') && worker.includes('escapeHtml(String(e.message || e)'), 'OAuth error HTML must escape upstream text');
 
 // Simp Board reuses Lobby DO + session; never auto-enrolls on OAuth
@@ -129,7 +130,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -1062,6 +1063,81 @@ ${liveHomeFooter}
   const studioBytes = await studioJs.text();
   assert.equal(`sha384-${createHash('sha384').update(studioBytes).digest('base64')}`, STUDIO_SRI);
   assert.equal(studioBytes, STUDIO_CLIENT_JS);
+}
+{
+  const cherriesDataUri = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%20role%3D%22img%22%20aria-label%3D%22Dasha%22%3E%3Ctitle%3EDasha%3C%2Ftitle%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23070608%22%2F%3E%3Cg%20transform%3D%22translate(32%2033)%20scale(0.82)%20translate(-32%20-32)%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23dfff00%22%20stroke-width%3D%227%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M18%2031%20C19%2019%2026%2010%2036%206%22%2F%3E%3Cpath%20d%3D%22M46%2037%20C48%2026%2042%2014%2036%206%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%2217%22%20cy%3D%2245%22%20r%3D%2214%22%20fill%3D%22%23dfff00%22%2F%3E%3Ccircle%20cx%3D%2246%22%20cy%3D%2247%22%20r%3D%2212%22%20fill%3D%22%23dfff00%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+  const laterPng = 'https://cdn.prod.website-files.com/686c27624add10d53ab44923/dasha-icon-512.png';
+  const liveShortcut = '<link href="https://cdn.prod.website-files.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon"/>';
+  const laterIcons = `<link rel="icon" href="${cherriesDataUri}"><link rel="icon" href="${laterPng}">`;
+  const faviconFixture = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
+${liveShortcut}
+${laterIcons}
+<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a href="/privacy">Privacy</a></div></nav>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}.dasha{min-height:100vh}</style>
+</html>`;
+  const firstShortcutHref = (html) => {
+    const tags = String(html).match(/<link\b[^>]*>/gi) || [];
+    for (const tag of tags) {
+      if (!/\brel\s*=\s*(["'])[^"']*\bicon\b/i.test(tag)) continue;
+      const href = tag.match(/\bhref\s*=\s*(["'])([^"']*)\1/i);
+      return href ? href[2] : '';
+    }
+    return '';
+  };
+  const faviconFixed = rewriteStaleCdnFavicon(faviconFixture);
+  assert.equal(firstShortcutHref(faviconFixed), '/favicon.ico', 'first shortcut icon must point at first-party cherries');
+  assert.match(faviconFixed, /<link href="\/favicon\.ico" rel="shortcut icon" type="image\/x-icon"\/>/);
+  assert.equal(faviconFixed.includes('cdn.prod.website-files.com/img/favicon.ico'), false, 'stale CDN favicon.ico must be gone');
+  assert.ok(faviconFixed.includes(`href="${cherriesDataUri}"`), 'later cherries data-URI icon must stay');
+  assert.ok(faviconFixed.includes(`href="${laterPng}"`), 'later dasha-icon-512.png must stay');
+  assert.equal(rewriteStaleCdnFavicon(faviconFixed), faviconFixed, 'CDN favicon rewrite must be idempotent');
+  const reversed = '<link rel="shortcut icon" type="image/x-icon" href="https://cdn.prod.website-files.com/img/favicon.ico"/>';
+  assert.match(rewriteStaleCdnFavicon(reversed), /<link rel="shortcut icon" type="image\/x-icon" href="\/favicon\.ico"\/>/);
+  const already = '<link href="/favicon.ico" rel="shortcut icon" type="image/x-icon"/>';
+  assert.equal(rewriteStaleCdnFavicon(already), already, 'already-first-party shortcut must stay');
+  const clean = `<!doctype html><html><title>x</title>${laterIcons}</html>`;
+  assert.equal(rewriteStaleCdnFavicon(clean), clean, 'HTML without the stale CDN favicon must be a no-op');
+  const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
+  const studioFaviconOrigin = `<!doctype html><html class="w-mod-js"><title>Dasha Studio — make one, pass it on</title>
+${liveShortcut}
+${laterIcons}
+<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a href="/privacy">Privacy</a></div></nav>
+<p>Loading studio…</p>
+<script src="https://lobby.getdasha.com/client/studio.js" integrity="${staleStudioSri}" crossorigin="anonymous"></script>
+</html>`;
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const path = new URL(typeof input === 'string' ? input : input.url).pathname;
+      const body = path === '/studio' || path === '/studio/' ? studioFaviconOrigin : faviconFixture;
+      return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+      assert.equal(home.status, 200, `${host}/ must stay 200`);
+      const homeHtml = await home.text();
+      assert.equal(firstShortcutHref(homeHtml), '/favicon.ico', `${host}/ first shortcut icon must be /favicon.ico`);
+      assert.equal(homeHtml.includes('cdn.prod.website-files.com/img/favicon.ico'), false, `${host}/ must drop the stale CDN favicon`);
+      assert.ok(homeHtml.includes(`href="${cherriesDataUri}"`), `${host}/ must keep the later cherries data-URI`);
+      assert.ok(homeHtml.includes(`href="${laterPng}"`), `${host}/ must keep dasha-icon-512.png`);
+      assert.match(homeHtml, /href="\/privacy"/);
+      assert.doesNotMatch(homeHtml, /\.simp-/);
+      const studio = await workerModule.default.fetch(new Request(`https://${host}/studio`), {});
+      assert.equal(studio.status, 200, `${host}/studio must stay 200`);
+      const studioHtml = await studio.text();
+      assert.match(studioHtml, /<title>[^<]*Dasha Studio/);
+      assert.equal(firstShortcutHref(studioHtml), '/favicon.ico', `${host}/studio first shortcut icon must be /favicon.ico`);
+      assert.equal(studioHtml.includes('cdn.prod.website-files.com/img/favicon.ico'), false, `${host}/studio must drop the stale CDN favicon`);
+      assert.ok(studioHtml.includes(`href="${cherriesDataUri}"`), `${host}/studio must keep the later cherries data-URI`);
+      assert.ok(studioHtml.includes(`href="${laterPng}"`), `${host}/studio must keep dasha-icon-512.png`);
+      assert.match(studioHtml, /href="\/privacy"/);
+      assert.doesNotMatch(studioHtml, /\.simp-/);
+      assert.equal(studioHtml.includes(staleStudioSri), false, `${host}/studio must drop the leftover studio.js pin`);
+      assert.ok(studioHtml.includes(`integrity="${STUDIO_SRI}"`), `${host}/studio integrity must match served studio.js`);
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
 }
 {
   const bountiesFixture = `<!doctype html><html class="w-mod-js"><title>Bounties</title>
