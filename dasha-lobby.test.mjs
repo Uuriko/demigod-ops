@@ -1387,6 +1387,7 @@ try {
     assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
     assert.match(section, /href="\/how-to-buy">How to buy</, `${label} nav must include How to buy`);
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
+    assert.match(section, /class="dasha-x"[^>]*href="https:\/\/x\.com\/dash_eats"/, `${label} lock must pin @dash_eats under the headline`);
     assert.doesNotMatch(section, /href=["']\/simp["']/, `${label} must not send the hero CTA to \/simp`);
     assert.doesNotMatch(section, /53ux|buy-dasha|#token|jup\.ag|Buy \$dasha|Buy \/ verify/, `${label} must keep CA and Jupiter Buy out of the first-viewport nav`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
