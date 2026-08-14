@@ -54,6 +54,7 @@ import {
   PUBLIC_BOARD_LIMIT,
   publicPerryRow,
   quizPublic,
+  QUIZ_QUESTIONS,
   startQuizAttempt,
   questionForAttempt,
   answerQuizAttempt,
@@ -692,11 +693,27 @@ function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
 }
 
+function publicQuestionHtml(question) {
+  const prompt = escapeHtml(String(question?.prompt || ''));
+  const choices = (question?.choices || []).map((choice) => `<li>${escapeHtml(choice)}</li>`).join('');
+  return `<p>${prompt}</p><ul>${choices}</ul>`;
+}
+
+/** First-paint quiz chrome: Quick/Deep + first question, plus noscript bank (no answers). */
+export function simpQuizFirstPaintHtml() {
+  const first = questionForAttempt(startQuizAttempt({ mode: 'quick' }))?.question;
+  const firstBlock = first ? `<div id="dasha-quiz-q">${publicQuestionHtml(first)}</div>` : '';
+  const bank = QUIZ_QUESTIONS.map((question) => `<li>${publicQuestionHtml(question)}</li>`).join('');
+  return `<p><a class="dasha-go" href="#dasha-quiz-q">Quick 10Q</a> <a class="dasha-go" href="#dasha-quiz-q">Deep 20Q</a></p>
+${firstBlock}
+<noscript><p>Scored attempts need JavaScript. Public questions (no answers):</p><ul>${bank}</ul></noscript>`;
+}
+
 /** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 system-ui,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:950;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 system-ui,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:950;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
@@ -704,7 +721,7 @@ export function simpPageHtml() {
 <p><a class="dasha-go" href="#dasha-quiz">Take Simp</a></p>
 <p>${SIMP_RULES_LINE}</p>
 <p>${perryDisplay} · editorial #1 · not measured</p>
-<div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div>
+<div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
@@ -726,7 +743,7 @@ const SIMP_SHARE_IMAGE = 'https://lobby.getdasha.com/simp/card/quiz.png';
 const SIMP_SHARE_JS = `(function(){var b=document.querySelector('.dasha-share');if(!b)return;b.addEventListener('click',function(){var title=b.getAttribute('data-title')||'';var text=b.getAttribute('data-text')||title;var url=b.getAttribute('data-url')||location.href;var go=function(){location.href='https://x.com/intent/post?text='+encodeURIComponent(text+(url?'\\n'+url:''));};if(navigator.share){navigator.share({title:title,text:text,url:url}).catch(function(err){if(!err||err.name!=='AbortError')go();});}else go();});}());`;
 
 function simpShareId(pathname) {
-  const m = String(pathname || '').match(/^\/simp\/r\/([^/]+)\/?$/);
+  const m = String(pathname || '').match(/^\/simp\/(?:r|result)\/([^/]+)\/?$/);
   return m && SIMP_SHARE_ID_RE.test(m[1]) ? m[1] : '';
 }
 
@@ -761,6 +778,17 @@ ${support ? `<p>${support}</p>` : ''}
 <button type="button" class="dasha-share" data-title="${typeName}" data-text="${shareText}" data-url="${url}">Share</button>
 <p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 <script>${SIMP_SHARE_JS}</script>
+</body></html>`;
+}
+
+/** Honest empty result page. No invented score. */
+export function simpResultMissingHtml() {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Result not found</title>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
+<body>
+<h1>Result not found</h1>
+<p>No quiz result for this id.</p>
+<p><a href="/simp">Simp</a> · <a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
 }
 
@@ -1400,7 +1428,16 @@ export class DashaLobby {
       const id = path.slice('/simp/r/'.length);
       const result = this.simpQuizResults[id];
       const headOnly = request.method === 'HEAD';
-      if (!result) return new Response(headOnly ? null : 'Result not found', { status: 404, headers: SECURITY });
+      if (!result) {
+        return new Response(headOnly ? null : simpResultMissingHtml(), {
+          status: 404,
+          headers: htmlHeaders({
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60',
+            'X-Dasha-Edge': 'simp-result',
+          }),
+        });
+      }
       if (isProductHost(new URL(request.url).hostname)) {
         return new Response(headOnly ? null : simpSharePageHtml(result, id), {
           status: 200,
