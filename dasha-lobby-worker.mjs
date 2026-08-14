@@ -269,11 +269,10 @@ function bountiesBoardHtml(feed) {
         const amount = row.amount == null || row.amount === '' ? '' : String(row.amount);
         const currency = typeof row.currency === 'string' ? row.currency.trim() : '';
         const label = escapeHtml([amount, currency].filter(Boolean).join(' '));
-        const payout = honestPayTo(row.payTo) && row.payoutStatus !== 'not_implemented' ? '' : '<p class="quiet">Payout not live</p>';
-        return `<li><p>${title}</p>${label ? `<p class="amt">${label}</p>` : ''}${payout}</li>`;
+        return `<li><p>${title}</p>${label ? `<p class="amt">${label}</p>` : ''}</li>`;
       }).join('')}</ul>`
     : '<p>No open bounties</p>';
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 0 .5rem}#dasha-bounties h1{margin-top:0}#dasha-bounties a{color:#dfff00}#dasha-bounties a.go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties .quiet{font-size:.9em}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties button{min-height:48px;padding:0 1.25rem;background:#dfff00;color:#070608;border:0;font:inherit;font-weight:950}</style><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label></p><p><button type="submit">Post a project</button></p></form><p>We'll add it to the board.</p><h2>Work</h2>${work}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 0 .5rem}#dasha-bounties h1{margin-top:0}#dasha-bounties a{color:#dfff00}#dasha-bounties a.go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties button{min-height:48px;padding:0 1.25rem;background:#dfff00;color:#070608;border:0;font:inherit;font-weight:950}</style><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label></p><p><button type="submit">Post a project</button></p></form><p>We'll add it to the board.</p><h2>Work</h2>${work}</section>`;
 }
 
 /** /bounties-only: no-JS post+work board after the leftover w-embed. Same feed as /bounties.json. */
@@ -568,62 +567,31 @@ function htmlPage(title, body) {
 
 const SIMP_WWW = 'https://www.getdasha.com/simp';
 const SIMP_RULES_LINE = 'PerryALPHA founding #1 is editorial and non-measured.';
-const SIMP_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
 
 function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
 }
 
-function measuredBoardItems(measured) {
-  const items = [];
-  for (const row of Array.isArray(measured) ? measured : []) {
-    const handle = String(row?.handle || '').replace(/^@/, '');
-    if (!SIMP_HANDLE_RE.test(handle)) continue;
-    const display = escapeHtml(String(row.display || `@${handle}`).slice(0, 20));
-    const rank = Number(row.rank);
-    const label = Number.isFinite(rank) && rank > 0 ? `#${rank} ${display}` : display;
-    items.push(`<li><a href="https://x.com/${handle}">${label}</a></li>`);
-  }
-  return items;
-}
-
-/** Worker-owned first HTML for www /simp. Tokens only. No leftover .simp-* chrome. */
-export function simpPageHtml(board) {
-  const data = board?.schema === SCHEMA ? board : buildPublicBoard([]);
-  const perry = data.editorial?.[0] && data.editorial[0].measured === false ? data.editorial[0] : publicPerryRow();
-  const perryDisplay = escapeHtml(String(perry.display || '@PerryALPHA').slice(0, 20));
-  const items = measuredBoardItems(data.measured);
-  const boardBody = items.length
-    ? `<ol class="dasha-board">${items.join('')}</ol>`
-    : '<p class="dasha-board">No measured simps yet.</p>';
+/** Worker-owned first HTML for /simp. Quiz is the page. Tokens only. No handle list. */
+export function simpPageHtml() {
+  const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}.dasha-board{margin:1rem 0}.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 system-ui,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:950;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
 <body>
 <h1>Simp</h1>
+<p>How big of a Dasha simp are you?</p>
+<p>Quick 10Q to share · Deep 20Q on the board.</p>
+<p><a class="dasha-go" href="#dasha-quiz">Take Simp</a></p>
 <p>${SIMP_RULES_LINE}</p>
 <p>${perryDisplay} · editorial #1 · not measured</p>
-${boardBody}
-<div id="dasha-simp-board" class="dasha-quiz"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div>
+<div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div>
 ${simpBoardClientScript()}
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
 }
 
-async function loadPublicSimpBoard(env) {
-  try {
-    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
-    if (!stub) return buildPublicBoard([]);
-    const res = await stub.fetch(new Request('https://lobby.getdasha.com/simp/board'));
-    if (!res.ok) return buildPublicBoard([]);
-    const board = await res.json();
-    return board?.schema === SCHEMA && Array.isArray(board.measured) ? board : buildPublicBoard([]);
-  } catch {
-    return buildPublicBoard([]);
-  }
-}
-
-async function simpPageResponse(request, env) {
-  return new Response(request.method === 'HEAD' ? null : simpPageHtml(await loadPublicSimpBoard(env)), {
+async function simpPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : simpPageHtml(), {
     status: 200,
     headers: htmlHeaders({
       'Content-Type': 'text/html; charset=utf-8',
@@ -2733,7 +2701,7 @@ async function productEdge(request, url, env) {
     });
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
-    return simpPageResponse(request, env);
+    return simpPageResponse(request);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
@@ -2908,7 +2876,7 @@ export default {
     }
 
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
-      return Response.redirect(SIMP_WWW, 308);
+      return simpPageResponse(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
       return Response.redirect(BOUNTIES_FEED_PAGE, 308);

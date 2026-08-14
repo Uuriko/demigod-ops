@@ -475,4 +475,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "b1765d2d2d185015";
+export const ASSET_HASH = "112a3edfc68e4660";

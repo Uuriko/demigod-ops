@@ -321,53 +321,39 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   const SIMP_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
   const assertSimpFirstHtml = (html, label) => {
     assert.match(html, /<h1>Simp<\/h1>/, `${label} must use h1 Simp`);
+    assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
+    assert.match(html, /Quick 10Q to share · Deep 20Q on the board\./);
+    assert.match(html, /<a class="dasha-go" href="#dasha-quiz">Take Simp<\/a>/);
     assert.match(html, /PerryALPHA founding #1 is editorial and non-measured/);
     assert.match(html, /editorial #1 · not measured/);
     assert.match(html, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
     assert.match(html, /class="dasha-quiz"/);
+    assert.match(html, /id="dasha-quiz"/);
     assert.match(html, /id="dasha-simp-board"/);
     assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/);
     assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
     assert.match(html, /s\.crossOrigin='anonymous'/);
+    assert.match(html, /system-ui,sans-serif/);
+    assert.match(html, /a\{color:var\(--acid\)\}/);
+    assert.doesNotMatch(html, /Arial/);
     assert.doesNotMatch(html, /<script>[^<]*action:'start'/);
-    assert.match(html, /class="dasha-board"/);
+    assert.doesNotMatch(html, /class="dasha-board"|<ol\b|No measured simps yet/);
+    assert.doesNotMatch(html, /x\.com\/|#2 @|#3 @/);
     assert.doesNotMatch(html, /\.simp-/);
     assert.doesNotMatch(html, /class="simp-/);
     assert.doesNotMatch(html, /score=/);
     assert.doesNotMatch(html, /"answer"\s*:/);
     assert.doesNotMatch(html, /oauth\/x\/start|Connect X/);
     assert.doesNotMatch(html, /payTo|X_CLIENT_SECRET|X_CLIENT_ID|LOBBY_SESSION_SECRET/);
+    assert.doesNotMatch(html, /Payout not live/);
     assert.doesNotMatch(html, /Pick your strongest lane|Her feature directorial debut|Sailor Socialism/);
     for (const token of SIMP_TOKENS) assert.match(html, new RegExp(token));
     for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
       assert.ok(SIMP_TOKENS.includes(hex.toLowerCase()), `${label} must stay tokens-only (saw ${hex})`);
     }
   };
-  const emptyHtml = simpPageHtml(null);
-  assertSimpFirstHtml(emptyHtml, 'empty board helper');
-  assert.match(emptyHtml, /No measured simps yet\./);
-  assert.doesNotMatch(emptyHtml, /<ol\b/);
-  const leakHtml = simpPageHtml({
-    schema: 'dasha-simp-board/v1',
-    editorial: [{ rank: 1, display: '@PerryALPHA', handle: 'perryalpha', measured: false }],
-    measured: [{
-      rank: 2,
-      handle: 'a',
-      display: '@a',
-      href: 'https://x.com/a',
-      xId: 'leak-xid-must-not-render',
-      wallet: 'leak-wallet-must-not-render',
-      balance: 'leak-balance-must-not-render',
-    }],
-    xId: 'leak-board-xid',
-    wallet: 'leak-board-wallet',
-    balance: 'leak-board-balance',
-  });
-  assertSimpFirstHtml(leakHtml, 'measured helper');
-  assert.match(leakHtml, /<ol class="dasha-board">/);
-  assert.match(leakHtml, /href="https:\/\/x\.com\/a"/);
-  assert.doesNotMatch(leakHtml, /leak-/);
-  assert.doesNotMatch(leakHtml, /xId|wallet|balance/);
+  const emptyHtml = simpPageHtml();
+  assertSimpFirstHtml(emptyHtml, 'quiz page helper');
   for (const host of ['www.getdasha.com', 'getdasha.com']) {
     for (const method of ['GET', 'HEAD']) {
       for (const path of ['/simp', '/simp/']) {
@@ -380,7 +366,6 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
           assert.equal(html, '', `${host}${path} HEAD must return an empty body`);
         } else {
           assertSimpFirstHtml(html, `${host}${path}`);
-          assert.match(html, /No measured simps yet\./);
         }
       }
       for (const path of ['/quiz', '/quiz/']) {
@@ -393,8 +378,14 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   for (const method of ['GET', 'HEAD']) {
     for (const path of ['/simp', '/simp/']) {
       const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-      assert.equal(page.status, 308, `lobby ${path} ${method} must permanently send exact /simp to www`);
-      assert.equal(page.headers.get('location'), 'https://www.getdasha.com/simp');
+      assert.equal(page.status, 200, `lobby ${path} ${method} must be the playable quiz`);
+      assert.equal(page.headers.get('x-dasha-edge'), 'simp');
+      const html = await page.text();
+      if (method === 'HEAD') {
+        assert.equal(html, '', `lobby ${path} HEAD must return an empty body`);
+      } else {
+        assertSimpFirstHtml(html, `lobby ${path}`);
+      }
     }
   }
   for (const method of ['GET', 'POST']) {
@@ -438,8 +429,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   };
   const fetched = await workerModule.default.fetch(new Request('https://www.getdasha.com/simp'), boardEnv);
   const fetchedHtml = await fetched.text();
-  assertSimpFirstHtml(fetchedHtml, 'www /simp via GET /simp/board');
-  assert.match(fetchedHtml, /No measured simps yet\./);
+  assertSimpFirstHtml(fetchedHtml, 'www /simp first HTML');
   assert.doesNotMatch(fetchedHtml, /leak-/);
 }
 {
@@ -723,7 +713,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listedSection, /25 USDC/);
   assert.match(listedSection, /50 USDC/);
   assert.doesNotMatch(listedSection, /not implemented/i);
-  assert.match(listedSection, /Payout not live/);
+  assert.doesNotMatch(listedSection, /Payout not live/);
   const firstListing = listedSection.match(/<li\b[\s\S]*?<\/li>/i)?.[0] || '';
   assert.match(firstListing, /docs/);
   assert.doesNotMatch(firstListing, /not implemented/i);
@@ -751,11 +741,11 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.doesNotMatch(empty, /payTo:""/);
   }
   const nullPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: null }] });
-  assert.match(nullPay, /Payout not live/);
+  assert.doesNotMatch(nullPay, /Payout not live/);
   assert.doesNotMatch(nullPay, /not implemented/i);
   assert.doesNotMatch(nullPay, /payTo:""/);
   const blankPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: '' }, { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', payTo: '   ' }] });
-  assert.match(blankPay, /Payout not live/);
+  assert.doesNotMatch(blankPay, /Payout not live/);
   assert.doesNotMatch(blankPay, /not implemented/i);
   assert.doesNotMatch(blankPay, /payTo:""/);
   const dest = '11111111111111111111111111111111';
