@@ -432,7 +432,7 @@ try {
   });
   const holderRetryPage = await holderRetryContext.newPage();
   await holderRetryPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await holderRetryPage.getByRole('button', { name: 'Prove $dasha' }).click();
+  await holderRetryPage.locator('#gate-action').click();
   await holderRetryPage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Ready to play');
   assert.equal(await holderRetryPage.locator('#gate-action').textContent(), 'Find match');
   assert.equal(await holderRetryPage.getByRole('button', { name: 'Invite / 1v1' }).isVisible(), true, 'ready state must show Invite / 1v1 as an equal play action');
