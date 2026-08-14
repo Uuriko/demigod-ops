@@ -893,7 +893,7 @@ ${liveHomeFooter}
   assert.match(deskLinked, /href="\/studio"/);
   assert.equal(ensurePrivacyLink(deskLinked), deskLinked);
   assert.equal(ensurePrivacyLink('<html><title>x</title></html>'), '<html><title>x</title></html>', 'no footer/nav needle must not invent chrome');
-  const liveHowtoFooter = '<footer>\n    <p><a href="https://www.getdasha.com/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>\n  </footer>';
+  const liveHowtoFooter = '<footer>\n    <p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="https://www.getdasha.com/dasha">Desk</a></p>\n  </footer>';
   const howtoLinked = ensurePrivacyLink(liveHowtoFooter);
   assert.match(howtoLinked, /Desk<\/a> · <a href="\/privacy">Privacy<\/a><\/p>/);
   assert.equal([...howtoLinked.matchAll(/href=["']\/privacy["']/g)].length, 1);
@@ -915,9 +915,9 @@ ${liveHomeFooter}
     assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
     assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">Home<\/a>/);
     assert.doesNotMatch(howtoHtml, /href="\/">(?:\$dasha|Home)</);
-    assert.match(howtoHtml, /<a href="\/studio">Studio<\/a>/);
+    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/studio">Studio<\/a>/);
     assert.match(howtoHtml, /<a href="https:\/\/lobby\.getdasha\.com\/chess">Chess<\/a>/);
-    assert.match(howtoHtml, /<a href="\/dasha">Desk<\/a>/);
+    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/dasha">Desk<\/a>/);
     assert.equal((howtoHtml.match(/<footer\b/gi) || []).length, 1, `${host} /how-to-buy must keep one footer`);
     assert.equal((howtoHtml.match(/<nav\b/gi) || []).length, 1, `${host} /how-to-buy must keep its existing nav`);
     const chess = await workerModule.default.fetch(new Request(`https://${host}/chess`), {});
