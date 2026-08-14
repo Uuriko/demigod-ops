@@ -173,6 +173,10 @@ const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest(
 assert.equal(LOBBY_SRI, LOBBY_CLIENT_SRI, 'LOBBY_CLIENT_SRI must be the hash of served client/lobby.js');
 const SIMP_SRI_FROM_BYTES = `sha384-${createHash('sha384').update(SIMP_BOARD_JS).digest('base64')}`;
 assert.equal(SIMP_BOARD_SRI, SIMP_SRI_FROM_BYTES, 'SIMP_BOARD_SRI must be the hash of served client/simp-board.js bytes');
+assert.match(STUDIO_CLIENT_JS, /const LOOKS=\[\{id:'poster'/, 'served studio.js LOOKS[0] must be type-first poster');
+assert.match(STUDIO_CLIENT_JS, /id:'photo'/, 'photo remains an optional look in served studio.js');
+assert.match(STUDIO_CLIENT_JS, /function syncPhotoPick/, 'served studio.js must keep face thumbs off first paint');
+assert.match(STUDIO_CLIENT_JS, /LOOKS.find\(\(option\)=>option.id==='photo'\)/, 'served studio.js must select Photo by id, not LOOKS[0]');
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);

@@ -42,7 +42,10 @@ assert.ok(res.includes('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), 'researc
 
 // The compact Studio keeps the two canonical public seeds while allowing the rest of its rotation
 // to evolve independently from the larger homepage quote shelf.
+assert.equal(studio.match(/const LOOKS = \[[\s\S]*?id: '(\w+)'/)?.[1], 'poster', 'default Studio look must stay type-first');
 assert.match(studio, /id: 'photo'[\s\S]*?crying at the casino/);
 assert.match(studio, /id: 'poster'[\s\S]*?It’s time \$dasha/);
+assert.match(studio, /<div hidden>\s*<label>Image<\/label>/, 'face gallery must stay off first paint');
+assert.match(studio, /LOOKS\.find\(\(option\) => option\.id === 'photo'\)/, 'picking a photo must select Photo, not LOOKS[0]');
 
 console.log('dasha-culture-seeds: PASS');
