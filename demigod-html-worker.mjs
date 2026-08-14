@@ -12,7 +12,7 @@ const FEED_SOURCES = [
 ];
 
 const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
-const CDN_PIN_TO = '94d25aa3d6351c58980c03103dd7b3276e0c40fa';
+const CDN_PIN_TO = 'd3cce0d74a24ba5d2bacb984e710dcb27e260d3e';
 
 const HTML_SECURITY = {
   'Strict-Transport-Security': 'max-age=31536000',
