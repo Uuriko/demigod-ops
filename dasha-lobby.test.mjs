@@ -121,7 +121,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -262,6 +262,48 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
   const funded = normalizeBountiesFeed({ listings: [{ kind: 'item', name: 'docs', payTo: ` ${dest} ` }] });
   assert.equal(funded.listings[0].payTo, dest);
   assert.notEqual(funded.listings[0].payoutStatus, 'not_implemented');
+}
+{
+  const shell = `<!doctype html><html><body><div class="w-embed"><style>html, body { margin: 0; padding: 0; height: 100%; }</style></div><script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js"></script><script src="https://cdn.prod.website-files.com/webflow.js"></script></body></html>`;
+  const liveFeed = {
+    schema: 'dasha-bounties-feed/v1',
+    listings: [
+      { kind: 'item', name: 'docs', itemUrl: 'https://github.com/Uuriko/dasha-desk/issues/8', amount: 25, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
+      { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
+    ],
+  };
+  const listed = injectBountiesBoard(shell, liveFeed);
+  const listedSection = listed.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
+  assert.match(listed, /id="dasha-bounties"/);
+  assert.match(listed, /aria-label="Bounties"/);
+  assert.match(listed, /w-embed[\s\S]*id="dasha-bounties"[\s\S]*(?:jquery|webflow\.js)/);
+  assert.match(listed, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
+  assert.match(listedSection, /docs/);
+  assert.match(listedSection, /desk/);
+  assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.match(listedSection, /25 USDC/);
+  assert.match(listedSection, /50 USDC/);
+  assert.equal([...listedSection.matchAll(/not implemented/g)].length, 2);
+  assert.doesNotMatch(listedSection, /<script\b/i);
+  assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
+  assert.doesNotMatch(listed, /<iframe/i);
+  assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255|t\.me\//i);
+  assert.doesNotMatch(listed, /payTo:""/);
+  const emptyListed = injectBountiesBoard(shell, { listings: [] });
+  const emptyFallback = injectBountiesBoard(shell, normalizeBountiesFeed(null));
+  for (const empty of [emptyListed, emptyFallback]) {
+    assert.match(empty, /No bounties listed/);
+    assert.doesNotMatch(empty, /<li\b/);
+    assert.doesNotMatch(empty, /25 USDC|50 USDC/);
+    assert.doesNotMatch(empty, /payTo:""/);
+  }
+  const nullPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: null }] });
+  assert.match(nullPay, /not implemented/);
+  assert.doesNotMatch(nullPay, /payTo:""/);
+  const blankPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: '' }, { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', payTo: '   ' }] });
+  assert.match(blankPay, /not implemented/);
+  assert.doesNotMatch(blankPay, /payTo:""/);
+  assert.doesNotMatch(JSON.stringify(normalizeBountiesFeed({ listings: [{ payTo: '' }] })), /payTo:""/);
 }
 {
   const nativeFetch = globalThis.fetch;
@@ -558,12 +600,25 @@ try {
         assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
         assert.doesNotMatch(html, /dasha-bounties-frame/, `${host} ${path} must drop leftover frame CSS`);
         assert.match(html, /html, body \{ margin: 0; padding: 0; height: 100%; \}/, `${host} ${path} must keep the rest of the embed CSS`);
+        assert.match(html, /id="dasha-bounties"/, `${host} ${path} must inject the no-JS board`);
+        assert.match(html, /No bounties listed/, `${host} ${path} must stay honest when the feed source is not JSON`);
       }
     }
     const home = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});
     const homeHtml = await home.text();
     assert.match(homeHtml, /uuriko\.github\.io\/dasha-desk\/bounties/, 'home must not use the bounties iframe strip');
     assert.match(homeHtml, /dasha-bounties-frame/, 'home must not strip bounties-frame CSS');
+    assert.doesNotMatch(homeHtml, /id="dasha-bounties"/, 'home must not inject the bounties board');
+    globalThis.fetch = async (input) => {
+      const u = String(input?.url || input);
+      if (u.includes('bounties.json')) throw new Error('offline');
+      return new Response(bountiesFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    const thrown = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
+    const thrownHtml = await thrown.text();
+    assert.match(thrownHtml, /id="dasha-bounties"/);
+    assert.match(thrownHtml, /No bounties listed/);
+    assert.doesNotMatch(thrownHtml, /<iframe/i);
   } finally {
     globalThis.fetch = nativeFetch;
   }
