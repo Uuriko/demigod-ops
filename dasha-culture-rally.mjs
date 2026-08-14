@@ -5,7 +5,7 @@
 export const MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 export const RALLY_PATH = '/rally';
 export const RALLY_URL = 'https://www.getdasha.com/rally';
-export const QUIZ_INVITE_URL = 'https://www.getdasha.com/?quiz=1#simp';
+export const QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
 export const STUDIO_URL = 'https://www.getdasha.com/studio';
 export const LOBBY_URL = 'https://www.getdasha.com/lobby';
 export const DESK_URL = 'https://www.getdasha.com/dasha#dd-mint';

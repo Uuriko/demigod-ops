@@ -152,7 +152,7 @@ function stripLeftoverStyleRules(html, leftoverRe) {
     block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
 }
 
-/** Home-only: Simp/quiz lives on /lobby. Drop the leftover board mount, client inject, and board CSS. */
+/** Home-only: drop leftover Webflow .simp-* board chrome. Quiz remounts after this via injectHomeSimpCta. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -166,12 +166,16 @@ export function stripHomeSimpBoard(html) {
 const HOME_CTA_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_CTA_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
 
+function simpBoardClientScript() {
+  return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
+}
+
 function homeSimpCtaHtml() {
   const title = escapeHtml('$dasha');
   const line = escapeHtml('Take Simp.');
   const primary = escapeHtml('Simp');
   const buy = escapeHtml('How to buy');
-  return `<section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{box-sizing:border-box;min-height:100vh;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-home-cta h1{margin:0 0 .5rem;color:#f4eddb;font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}#dasha-home-cta a[href="/simp"]{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-home-cta a[href="/how-to-buy"]{color:#ff3b81}</style><h1>${title}</h1><p>${line}</p><p><a href="/simp">${primary}</a></p><p><a href="/how-to-buy">${buy}</a></p></section>`;
+  return `<section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{box-sizing:border-box;min-height:100vh;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-home-cta h1{margin:0 0 .5rem;color:#f4eddb;font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}#dasha-home-cta a[href="#dasha-quiz"]{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-home-cta a[href="/how-to-buy"]{color:#ff3b81}#dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid #dfff00}</style><h1>${title}</h1><p>${line}</p><p><a href="#dasha-quiz">${primary}</a></p><p><a href="/how-to-buy">${buy}</a></p><div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div></section>${simpBoardClientScript()}`;
 }
 
 function homeCtaInsertAt(page) {
@@ -192,7 +196,7 @@ function homeCtaInsertAt(page) {
   return close >= 0 ? close : page.length;
 }
 
-/** www/apex / only: first-paint Simp CTA before the Webflow hero. Idempotent. */
+/** www/apex / only: first-paint Simp CTA + playable quiz. No leftover .simp-* chrome. Idempotent. */
 export function injectHomeSimpCta(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-cta["']/i.test(page)) return page;
@@ -568,7 +572,7 @@ export function simpPageHtml(board) {
 <p>${perryDisplay} · editorial #1 · not measured</p>
 ${boardBody}
 <div id="dasha-simp-board" class="dasha-quiz"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div>
-<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
+${simpBoardClientScript()}
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
 }

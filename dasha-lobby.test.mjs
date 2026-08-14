@@ -104,6 +104,7 @@ assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
+assert(worker.includes('href="#dasha-quiz"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
@@ -1076,11 +1077,17 @@ try {
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
       const html = await home.text();
-      assert.doesNotMatch(html, /simp-board\.js/, `${host} / must drop the Simp client`);
-      assert.doesNotMatch(html, /dasha-simp-board/, `${host} / must drop the Simp mount`);
+      assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} / must mount the existing quiz client`);
+      assert.match(html, /id="dasha-simp-board"/, `${host} / must keep the quiz mount`);
+      assert.match(html, /id="dasha-quiz"/, `${host} / must expose the quiz jump target`);
+      assert.match(html, /class="dasha-quiz"/, `${host} / must use the dasha-quiz mount`);
+      assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} / must pin simp-board SRI`);
+      assert.match(html, /s\.crossOrigin='anonymous'/, `${host} / must load simp-board CORS`);
       assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
+      assert.doesNotMatch(html, /id=["']simp["']/, `${host} / must not remount leftover #simp chrome`);
       assert.doesNotMatch(html, /\.simp-board/, `${host} / must drop leftover Simp CSS`);
       assert.doesNotMatch(html, leftoverSimpCss, `${host} / must drop the 16 leftover Simp selectors`);
+      assert.doesNotMatch(html, /score=|"answer"\s*:/, `${host} / must not leak answers`);
       assert.match(html, /id="token"/);
       assert.match(html, /\.dasha\{min-height:100vh/, `${host} / must keep .dasha`);
       assert.match(html, /\.contract\{border:1px solid red\}/, `${host} / must keep unrelated CSS`);
@@ -1139,8 +1146,12 @@ try {
   assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a><section id="dasha-home-cta"/);
   assert.match(section, /<h1>\$dasha<\/h1>/);
   assert.match(section, /Take Simp\./);
-  assert.match(section, /<a href="\/simp">Simp<\/a>/);
+  assert.match(section, /<a href="#dasha-quiz">Simp<\/a>/);
   assert.match(section, /<a href="\/how-to-buy">How to buy<\/a>/);
+  assert.match(section, /id="dasha-quiz"/);
+  assert.match(section, /class="dasha-quiz"/);
+  assert.match(section, /id="dasha-simp-board"/);
+  assert.match(section, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
   assert.doesNotMatch(section, /<form\b/i);
   assert.doesNotMatch(section, /wallet-connect/i);
   assert.doesNotMatch(section, /payTo/);
@@ -1153,6 +1164,9 @@ try {
   }
   assert.match(injected, /It's time \$dasha/);
   assert.match(injected, /Make something →/);
+  assert.match(injected, /lobby\.getdasha\.com\/client\/simp-board\.js/);
+  assert.match(injected, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
+  assert.match(injected, /s\.crossOrigin='anonymous'/);
   assert.match(injected, new RegExp(mint));
   assert.doesNotMatch(injected, /#dasha-home-cta[\s\S]{0,200}display:\s*none|#content[\s\S]{0,80}display:\s*none|\.dasha-hero[\s\S]{0,80}display:\s*none/);
   assert.equal(injectHomeSimpCta(injected), injected, 'second pass must not duplicate #dasha-home-cta');
@@ -1165,9 +1179,16 @@ try {
       const html = await home.text();
       const cta = homeCtaSection(html);
       assert.equal(firstSectionAt(html), html.search(/<section\b[^>]*\bid=["']dasha-home-cta["']/i), `${host} / first section must be #dasha-home-cta`);
-      assert.match(cta, /<a href="\/simp">Simp<\/a>/, `${host} / primary CTA must be Simp`);
+      assert.match(cta, /<a href="#dasha-quiz">Simp<\/a>/, `${host} / primary CTA must jump to the quiz`);
+      assert.match(cta, /id="dasha-quiz"/, `${host} / must mount the playable quiz`);
+      assert.match(cta, /id="dasha-simp-board"/, `${host} / must keep the existing client mount`);
+      assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} / must load the existing quiz client`);
+      assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} / must pin simp-board SRI`);
+      assert.match(html, /s\.crossOrigin='anonymous'/, `${host} / must load simp-board CORS`);
       assert.match(cta, /<a href="\/how-to-buy">How to buy<\/a>/, `${host} / How to buy must be secondary`);
       assert.doesNotMatch(cta, /<form\b|wallet-connect|payTo|\/oauth|<script\b/i);
+      assert.doesNotMatch(html, /id=["']simp["']/, `${host} / must not remount leftover #simp chrome`);
+      assert.doesNotMatch(html, /score=|"answer"\s*:/, `${host} / must not leak answers`);
       assert.doesNotMatch(cta, /--violet|--hot-deep|#c8b6ff|rgba\(124,77,255/);
       for (const hex of cta.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
         assert.ok(HOME_CTA_TOKENS.includes(hex.toLowerCase()), `${host} / inject must stay tokens-only (saw ${hex})`);
