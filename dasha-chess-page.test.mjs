@@ -803,7 +803,7 @@ try {
   });
   const anonymousChallengePage = await anonymousChallengeContext.newPage();
   await anonymousChallengePage.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?game=x&tournament=cup12345&challenge=invite123&utm_source=x`);
-  await anonymousChallengePage.getByRole('button', { name: 'Link X', exact: true }).waitFor();
+  await anonymousChallengePage.locator('#gate-action').waitFor();
   await anonymousChallengePage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === '@dasha_player challenges you');
   assert.equal(new URL(anonymousChallengePage.url()).search, '?challenge=invite123', 'loaded challenge must collapse mixed inbound state to one canonical object');
   assert.equal(await anonymousChallengePage.locator('#gate-title').textContent(), '@dasha_player challenges you', 'anonymous invite must preserve its context above the fold');
