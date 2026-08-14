@@ -113,10 +113,41 @@ function bountiesBoardHtml(feed) {
   return `<section id="demigod-bounties" aria-label="Bounties"><style>#demigod-bounties{box-sizing:border-box;margin:0;padding:1.25rem;background:#03140d;color:#f3f0e7;font:16px/1.45 system-ui,sans-serif}#demigod-bounties a{color:#10c674}#demigod-bounties .amt{color:#bdc9bf}#demigod-bounties ul{list-style:none;margin:0;padding:0}#demigod-bounties li{border-top:1px solid rgba(189,201,191,.28);padding:.75rem 0}#demigod-bounties li:first-child{border-top:0}</style>${rows}</section>`;
 }
 
+function isHirePath(pathname) {
+  return pathname === '/hire' || pathname === '/hire/';
+}
+
+const HIRE_MAILTO = 'mailto:potter@trydemigod.com?subject=Hiring%20ticket';
+
+/** Hardcoded honest empty state — tickets are private, nothing to list, no client data read. */
+function hireTicketHtml() {
+  return '<section id="demigod-hire" aria-label="Hiring tickets"><style>#demigod-hire{box-sizing:border-box;margin:0;padding:1.25rem;background:#03140d;color:#f3f0e7;font:16px/1.45 system-ui,sans-serif}#demigod-hire a{color:#10c674}#demigod-hire label{display:block;margin:.5rem 0}#demigod-hire input{display:block;width:100%;max-width:22rem;padding:.4rem;border:1px solid rgba(243,240,231,.28);border-radius:4px;background:#03140d;color:#f3f0e7;font:inherit}#demigod-hire button{margin-top:.75rem;padding:.5rem 1rem;border:0;border-radius:4px;background:#10c674;color:#03140d;font:inherit;cursor:pointer}</style>' +
+    '<h2>Hiring tickets</h2>' +
+    '<p>No hiring tickets listed</p>' +
+    '<p>Tickets are opened privately between a company and Demigod — this is not a public job board. Open one below.</p>' +
+    '<form action="mailto:potter@trydemigod.com" method="post" enctype="text/plain">' +
+    '<label>Email <input type="email" name="email" required></label>' +
+    '<label>Role <input type="text" name="role" required></label>' +
+    '<label>Stack <input type="text" name="stack" required></label>' +
+    '<label>Salary (optional) <input type="text" name="salary"></label>' +
+    '<button type="submit">Open a hiring ticket</button>' +
+    '</form>' +
+    `<p>Mail client not opening? <a href="${HIRE_MAILTO}">Email potter@trydemigod.com</a></p>` +
+    '</section>';
+}
+
+/** /hire-only: visible no-JS ticket section into first HTML. */
+export function injectHireTicket(html) {
+  return placeSection(String(html || ''), hireTicketHtml());
+}
+
 /** /bounties-only: no-JS listings into first HTML. Same feed as CDN bounties-feed.json. */
 export function injectBountiesBoard(html, feed) {
-  const page = String(html || '');
-  const board = bountiesBoardHtml(feed);
+  return placeSection(String(html || ''), bountiesBoardHtml(feed));
+}
+
+/** Insert after the first Webflow embed, else before jquery/webflow.js, else before </body>. */
+function placeSection(page, board) {
   const embed = page.match(/<div\b[^>]*\bclass=["'][^"']*\bw-embed\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i);
   if (embed) {
     const at = page.indexOf(embed[0]) + embed[0].length;
@@ -161,11 +192,16 @@ async function productEdge(request, url) {
   html = stripGoldAccent(html);
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
+  } else if (isHirePath(url.pathname)) {
+    html = injectHireTicket(html);
   }
   html = ensureHtmlLang(html);
   const headers = applyHtmlSecurity(new Headers(upstream.headers));
   headers.delete('content-length');
-  headers.set('X-Demigod-Edge', isBountiesPath(url.pathname) ? 'bounties-board' : 'html-rewrite');
+  const edge = isBountiesPath(url.pathname)
+    ? 'bounties-board'
+    : isHirePath(url.pathname) ? 'hire-ticket' : 'html-rewrite';
+  headers.set('X-Demigod-Edge', edge);
   return new Response(html, { status: upstream.status, statusText: upstream.statusText, headers });
 }
 
