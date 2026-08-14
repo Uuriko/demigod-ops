@@ -442,6 +442,10 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>For access or deletion requests, use the repository's <a href="https://github.com/Uuriko/dasha-desk/security/advisories/new">private report</a>. Do not include wallet keys or seed phrases.</p>
 <p><a href="https://www.getdasha.com/">Back to Dasha</a></p>`);
 
+const FORUM_HTML = htmlPage('Dasha forum', `<h1>Forum</h1>
+<p>The Dasha forum is not here. This path is linked from the site, but there is no forum yet.</p>
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/lobby">Lobby</a></p>`);
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
@@ -2515,6 +2519,16 @@ export default {
       return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
         status: 200,
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }),
+      });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
+      return new Response(request.method === 'HEAD' ? null : FORUM_HTML, {
+        status: 404,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'forum',
+        }),
       });
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
