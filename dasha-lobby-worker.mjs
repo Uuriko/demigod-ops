@@ -76,6 +76,7 @@ import {
 } from './dasha-simp-actions.mjs';
 import {
   LOBBY_CLIENT_JS,
+  LOBBY_CLIENT_SRI,
   SIMP_BOARD_JS,
   SIMP_BOARD_SRI,
   STUDIO_CLIENT_JS,
@@ -288,7 +289,36 @@ export function injectLobbySimpQuiz(html) {
       /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
     page = insertBeforeClose(page, simpBoardClientScript());
   }
-  return page;
+  return rewriteLobbyScriptIntegrity(page);
+}
+
+/** Replace leftover Webflow SRI on lobby.js tags and injectors. Pin is the hash of served client/lobby.js. */
+export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
+  let page = String(html || '');
+  page = page.replace(/<script\b[^>]*>\s*<\/script>/gi, (tag) => {
+    const src = tag.match(/\bsrc\s*=\s*(["'])([^"']*)\1/i);
+    if (!src || !/(?:lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js/i.test(src[2])) return tag;
+    const pin = tag.match(/\bintegrity\s*=\s*(["'])([^"']*)\1/i);
+    if (!pin || pin[2] === sri) return tag;
+    return tag.replace(pin[0], `integrity=${pin[1]}${sri}${pin[1]}`);
+  });
+  return page.replace(
+    /(s\.src\s*=\s*(['"])(?:https:\/\/lobby\.getdasha\.com)?\/client\/lobby(?:-client)?\.js\2\s*;\s*s\.integrity\s*=\s*)(['"])[^'"]*\3/gi,
+    `$1$3${sri}$3`,
+  );
+}
+
+/** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
+export function stripDeadLobbyForum(html) {
+  let page = String(html || '');
+  page = page
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+  page = page.replace(/<div\b[^>]*\bid=["']dasha-forum["'][^>]*>\s*<\/div>/gi, '');
+  page = page.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+    /\/client\/forum\.js/i.test(block) ? '' : block);
+  return page.replace(/<script\b[^>]*\bsrc=["'][^"']*\/client\/forum\.js[^"']*["'][^>]*>\s*<\/script>/gi, '');
 }
 
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
@@ -2964,7 +2994,9 @@ async function productEdge(request, url, env) {
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
+  if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
   html = rewriteStudioScriptIntegrity(html);
+  html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
