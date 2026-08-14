@@ -121,7 +121,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -519,6 +519,44 @@ try {
   } finally {
     globalThis.fetch = nativeFetch;
   }
+}
+{
+  const bountiesFixture = `<!doctype html><html class="w-mod-js"><title>Bounties</title>
+<div class="w-embed"><style>.dasha-bounties-frame{position:fixed;inset:0}</style>
+<iframe class="dasha-bounties-frame" title="dasha bounties" src="https://uuriko.github.io/dasha-desk/bounties/"></iframe>
+</div></html>`;
+  const cleaned = stripBountiesIframe(bountiesFixture);
+  assert.doesNotMatch(cleaned, /<iframe/i);
+  assert.doesNotMatch(cleaned, /uuriko\.github\.io\/dasha-desk\/bounties/);
+  assert.match(cleaned, /w-embed/);
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(bountiesFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const page = await workerModule.default.fetch(new Request(`https://${host}/bounties`), {});
+      const html = await page.text();
+      assert.doesNotMatch(html, /<iframe/i, `${host} /bounties must drop the Pages iframe`);
+      assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
+    }
+    const home = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});
+    assert.match(await home.text(), /uuriko\.github\.io\/dasha-desk\/bounties/, 'home must not use the bounties iframe strip');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
+  const githubStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/github/start'), {});
+  assert.equal(githubStart.status, 501);
+  const githubStartBody = await githubStart.json();
+  assert.equal(githubStartBody.configured, false);
+  assert.equal(githubStartBody.error, 'not_configured');
+  assert.notEqual(githubStartBody.error, 'not found');
+  const githubStatus = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/github/status'), {});
+  assert.equal(githubStatus.status, 200);
+  const githubStatusBody = await githubStatus.json();
+  assert.equal(githubStatusBody.configured, false);
+  assert.equal(githubStatusBody.linked, false);
+  assert.equal(githubStatusBody.github, null);
 }
 const rows = new Map();
 const storage = {
