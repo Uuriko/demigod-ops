@@ -117,6 +117,7 @@ assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
+assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('href="#simp"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz in the hero');
@@ -154,7 +155,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard, unpaidBountiesHtmlHasPayoutAmounts } = workerModule;
 const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -762,10 +763,10 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.doesNotMatch(listedSection, /writes?\s+\/bounties\.json|saved to \/bounties/i);
   assert.doesNotMatch(listedSection, /uuriko\.github\.io\/dasha-desk\/bounties|issues\/new\?template=bounty-project/i);
   assert.match(listedSection, /docs/);
-  assert.match(listedSection, /desk/);
   assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
-  assert.match(listedSection, /25 USDC/);
-  assert.match(listedSection, /50 USDC/);
+  assert.doesNotMatch(listedSection, />dasha desk<|>desk</);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts(listedSection), false, 'unpaid Work list must not print USDC or $ payout amounts');
+  assert.doesNotMatch(listedSection, /<p class="amt">/);
   assert.match(listedSection, /Payouts are not configured yet\./);
   assert.ok(listedSection.indexOf('<h1>Bounties</h1>') < listedSection.indexOf('Payouts are not configured yet.'), 'payout note must not be first-paint copy');
   assert.doesNotMatch(listedSection, /not implemented/i);
@@ -773,6 +774,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(firstListing, /docs/);
   assert.doesNotMatch(firstListing, /not implemented/i);
   assert.doesNotMatch(firstListing, /Payout not live|Payouts are not configured yet/);
+  assert.doesNotMatch(firstListing, /USDC|\$\s*\d/);
   assert.doesNotMatch(listedSection, /<script\b/i);
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
@@ -788,18 +790,22 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.match(emptySection, /I have excess compute/);
     assert.match(emptySection, /mailto:potter@trydemigod\.com/);
     assert.match(emptySection, /No open bounties/);
-    assert.doesNotMatch(emptySection, /Payouts are not configured yet/);
+    assert.match(emptySection, /Payouts are not configured yet\./);
     assert.doesNotMatch(empty, /<li\b/);
-    assert.doesNotMatch(empty, /25 USDC|50 USDC/);
+    assert.equal(unpaidBountiesHtmlHasPayoutAmounts(emptySection), false, 'empty Work list must not invent USDC or $ payout amounts');
     assert.doesNotMatch(empty, /payTo:""/);
   }
   const nullPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: null }] });
   assert.match(nullPay, /Payouts are not configured yet\./);
+  assert.match(nullPay, /No open bounties/);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts(nullPay), false);
   assert.doesNotMatch(nullPay, /Payout not live/);
   assert.doesNotMatch(nullPay, /not implemented/i);
   assert.doesNotMatch(nullPay, /payTo:""/);
   const blankPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: '' }, { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', payTo: '   ' }] });
   assert.match(blankPay, /Payouts are not configured yet\./);
+  assert.match(blankPay, /No open bounties/);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts(blankPay), false);
   assert.doesNotMatch(blankPay, /Payout not live/);
   assert.doesNotMatch(blankPay, /not implemented/i);
   assert.doesNotMatch(blankPay, /payTo:""/);
@@ -807,6 +813,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   const fundedHtml = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: dest }] });
   const fundedSection = fundedHtml.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
   assertBountiesChrome(fundedSection, 'funded board');
+  assert.match(fundedSection, /25 USDC/);
   assert.doesNotMatch(fundedSection, /Payout not live/);
   assert.doesNotMatch(fundedSection, /Payouts are not configured yet/);
   assert.doesNotMatch(fundedSection, /not implemented/i);
@@ -815,6 +822,12 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   const pageHtml = bountiesPageHtml(liveFeed);
   assert.match(pageHtml, /<title>Bounties<\/title>/);
   assertBountiesChrome(pageHtml, 'worker-owned page helper');
+  assert.match(pageHtml, /Payouts are not configured yet\./);
+  assert.match(pageHtml, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts(pageHtml), false, 'worker-owned /bounties HTML must omit USDC / $ payout amounts while unconfigured');
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts('25 USDC'), true);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts('$25'), true);
+  assert.equal(unpaidBountiesHtmlHasPayoutAmounts('$DASHA · Buy $dasha'), false);
 }
 {
   const nativeFetch = globalThis.fetch;
@@ -1706,6 +1719,8 @@ ${laterIcons}
           assert.match(html, /This sends a request\. It is not a live listing\./, `${host} ${path} must not pretend a board write`);
           assert.match(html, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${host} ${path} must put Privacy next to contact`);
           assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
+          assert.match(html, /Payouts are not configured yet\./, `${host} ${path} must keep the unpaid note on an empty Work list`);
+          assert.equal(unpaidBountiesHtmlHasPayoutAmounts(html), false, `${host} ${path} must not print USDC or $ payout amounts while unconfigured`);
           assert.doesNotMatch(html, /Payout not live/);
           assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
           assert.doesNotMatch(html, /We'll add it to the board/);
@@ -1738,10 +1753,45 @@ ${laterIcons}
     assert.match(thrownHtml, /mailto:potter@trydemigod\.com/);
     assert.match(thrownHtml, /This sends a request\. It is not a live listing\./);
     assert.match(thrownHtml, /No open bounties/);
+    assert.match(thrownHtml, /Payouts are not configured yet\./);
+    assert.equal(unpaidBountiesHtmlHasPayoutAmounts(thrownHtml), false, 'offline /bounties must not print USDC or $ payout amounts');
     assert.doesNotMatch(thrownHtml, /Payout not live/);
     assert.doesNotMatch(thrownHtml, /not implemented/i);
     assert.doesNotMatch(thrownHtml, /<iframe/i);
     assert.doesNotMatch(thrownHtml, /w-mod-js|system-ui/);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
+  const liveUnpaid = {
+    schema: 'dasha-bounties-feed/v1',
+    listings: [
+      { kind: 'item', name: 'docs: add CONTRIBUTING screenshot of GitHub web edit flow', itemUrl: 'https://github.com/Uuriko/dasha-desk/issues/8', amount: 25, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
+      { kind: 'project', name: 'dasha desk', amount: 50, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
+    ],
+  };
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const u = String(input?.url || input);
+      if (u.includes('dasha-desk') && u.includes('bounties.json')) {
+        return new Response(JSON.stringify(liveUnpaid), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('nope', { status: 404 });
+    };
+    const page = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
+    const html = await page.text();
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get('x-dasha-edge'), 'bounties');
+    assert.match(html, /<title>Bounties<\/title>/);
+    assert.match(html, /id="dasha-bounties"/);
+    assert.match(html, /Payouts are not configured yet\./);
+    assert.match(html, /This sends a request\. It is not a live listing\./);
+    assert.match(html, /mailto:potter@trydemigod\.com/);
+    assert.match(html, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
+    assert.doesNotMatch(html, />dasha desk</);
+    assert.equal(unpaidBountiesHtmlHasPayoutAmounts(html), false, 'served /bounties HTML must not contain USDC or $ payout amounts while payouts are unconfigured');
   } finally {
     globalThis.fetch = nativeFetch;
   }
