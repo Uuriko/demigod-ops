@@ -505,6 +505,7 @@ const emptyChessMetrics = since => ({ since, pageOpens: 0, linkIntents: 0, enrol
 const CHESS_TOURNAMENT_REGISTRATION_MS = 24 * 60 * 60_000;
 const CHESS_CHALLENGE_MS = 30 * 60_000;
 const CHESS_CHALLENGE_RETAIN_MS = 24 * 60 * 60_000;
+const WWW_CHESS = 'https://www.getdasha.com/chess';
 
 /** Public observation without identities, content, source slices, or tiny cohorts. */
 export function publicFunnelSummary(studio = {}, quiz = {}, chess = {}, threshold = 5) {
@@ -776,7 +777,7 @@ function escapeHtml(value) {
 export function personalizeChessPage(html, { title, description, url, robots = 'index,follow' }) {
   const safeTitle = escapeHtml(String(title || 'Dasha Chess').slice(0, 100));
   const safeDescription = escapeHtml(String(description || 'Dasha versus Anna. Holder-only rated chess.').slice(0, 180));
-  const safeUrl = escapeHtml(String(url || 'https://lobby.getdasha.com/chess'));
+  const safeUrl = escapeHtml(String(url || WWW_CHESS));
   const safeRobots = robots === 'noindex,follow' ? robots : 'index,follow';
   return html
     .replace(/<title>[^<]*<\/title>/, `<title>${safeTitle}</title>`)
@@ -802,7 +803,17 @@ async function chessPageForRequest(request, env) {
   try {
     const room = env.LOBBY.idFromName('public');
     const response = await env.LOBBY.get(room).fetch(new Request(`https://lobby.getdasha.com${apiPath}`));
-    if (!response.ok) return CHESS_PAGE;
+    if (!response.ok) {
+      if (valid(challengeId)) {
+        return personalizeChessPage(CHESS_PAGE, {
+          title: 'Challenge not found — Dasha Chess',
+          description: 'This invite expired or was never created.',
+          url: `${WWW_CHESS}?challenge=${encodeURIComponent(challengeId)}`,
+          robots: 'noindex,follow',
+        });
+      }
+      return CHESS_PAGE;
+    }
     const data = await response.json();
     if (data.replay) {
       const replay = data.replay;
@@ -832,7 +843,7 @@ async function chessPageForRequest(request, env) {
       return personalizeChessPage(CHESS_PAGE, {
         title,
         description: state,
-        url: `https://lobby.getdasha.com/chess?challenge=${encodeURIComponent(challenge.id)}`,
+        url: `${WWW_CHESS}?challenge=${encodeURIComponent(challenge.id)}`,
         robots: 'noindex,follow',
       });
     }
@@ -882,6 +893,7 @@ export class DashaLobby {
     this.chessChallenges = {};
     this.chessTournaments = {};
     this.chessHidden = {};
+    this.chessLooking = {};
     this.chessMetrics = emptyChessMetrics(Date.now());
     this.stats = {
       joins: 0,
@@ -1023,9 +1035,16 @@ export class DashaLobby {
   }
 
   pruneChessQueue(now = Date.now()) {
-    const before = this.chessQueue.length;
-    this.chessQueue = this.chessQueue.filter(row => now - Number(row.at) < 15 * 60_000 && this.simpProfiles[row.xId] && Number(this.simpProfiles[row.xId].holderUntil) > now && !this.activeTournamentFor(row.xId) && !this.openChessChallengeFor(row.xId));
-    return this.chessQueue.length !== before;
+    const kept = new Set();
+    const next = this.chessQueue.filter(row => {
+      const ok = now - Number(row.at) < 15 * 60_000 && this.simpProfiles[row.xId] && Number(this.simpProfiles[row.xId].holderUntil) > now && !this.activeTournamentFor(row.xId) && !this.openChessChallengeFor(row.xId);
+      if (ok) kept.add(row.xId);
+      return ok;
+    });
+    const changed = next.length !== this.chessQueue.length;
+    for (const row of this.chessQueue) if (!kept.has(row.xId)) this.clearChessLooking('queue', row.xId);
+    this.chessQueue = next;
+    return changed;
   }
 
   expireChessRegistrations(now = Date.now()) {
@@ -1042,11 +1061,52 @@ export class DashaLobby {
     for (const [id, challenge] of Object.entries(this.chessChallenges)) {
       if (challenge.status === 'open' && Number(challenge.expiresAt) <= now) {
         challenge.status = 'expired'; challenge.updatedAt = now; changed = true;
+        this.clearChessLooking('challenge', id);
       } else if (challenge.status !== 'open' && now - Number(challenge.updatedAt || challenge.createdAt) >= CHESS_CHALLENGE_RETAIN_MS) {
+        this.clearChessLooking('challenge', id);
         delete this.chessChallenges[id]; changed = true;
       }
     }
     return changed;
+  }
+
+  chessLookingUrl(kind, id) {
+    return kind === 'challenge' ? `${WWW_CHESS}?challenge=${encodeURIComponent(id)}` : `${WWW_CHESS}?join=queue`;
+  }
+
+  broadcastChessLooking({ kind, id, xId }) {
+    const key = `${kind}:${id}`;
+    if (this.chessLooking[key]) return false;
+    const rate = simpRate(this.simpRates, `chess-looking:${xId}`, 3);
+    if (!rate.ok) return false;
+    const url = this.chessLookingUrl(kind, id);
+    this.chessLooking[key] = { kind, id, url, at: Date.now(), xId };
+    this.broadcast({
+      type: 'system',
+      text: `Looking for a chess game. Join: ${url}`,
+      ts: Date.now(),
+      lookingFor: { id: key, url, kind },
+    });
+    return true;
+  }
+
+  clearChessLooking(kind, id) {
+    const key = `${kind}:${id}`;
+    if (!this.chessLooking[key]) return false;
+    delete this.chessLooking[key];
+    this.broadcast({
+      type: 'system',
+      text: 'Chess looking-for expired.',
+      ts: Date.now(),
+      lookingFor: { id: key, expired: true },
+    });
+    return true;
+  }
+
+  removeFromChessQueue(xId) {
+    const before = this.chessQueue.some(row => row.xId === xId);
+    this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+    if (before) this.clearChessLooking('queue', xId);
   }
 
   publicChessChallenge(challenge, viewerXId = '', viewerHolder = false) {
@@ -1182,8 +1242,13 @@ export class DashaLobby {
 
   deleteChessIdentity(xId) {
     const key = String(xId || '');
-    this.chessQueue = this.chessQueue.filter(row => row.xId !== key);
-    for (const [id, challenge] of Object.entries(this.chessChallenges)) if (challenge.creatorXId === key || challenge.acceptedByXId === key) delete this.chessChallenges[id];
+    this.removeFromChessQueue(key);
+    for (const [id, challenge] of Object.entries(this.chessChallenges)) {
+      if (challenge.creatorXId === key || challenge.acceptedByXId === key) {
+        this.clearChessLooking('challenge', id);
+        delete this.chessChallenges[id];
+      }
+    }
     delete this.chessRatings[key];
     delete this.chessHidden[key];
     delete this.chessCurrent[key];
@@ -1558,12 +1623,12 @@ export class DashaLobby {
         const blocked = requireOrigin();
         if (blocked) return blocked;
         const subject = xId ? `x:${xId}` : request.headers.get('CF-Connecting-IP');
-        if (!subject) return json({ error: 'event subject required' }, 400, allowedOrigin);
+        if (!subject) return json({ error: 'event subject required' }, 400, allowedOrigin, cred);
         const rate = simpRate(this.simpRates, `chess-event:${subject}`, 60);
-        if (!rate.ok) return json({ error: 'event rate limited', waitMs: rate.waitMs }, 429, allowedOrigin);
+        if (!rate.ok) return json({ error: 'event rate limited', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
         countMetric(this.chessMetrics, publicKey);
         await this.persistChessMetrics();
-        return json({ ok: true }, 200, allowedOrigin);
+        return json({ ok: true }, 200, allowedOrigin, cred);
       }
       return json({ error: 'invalid event' }, 400, allowedOrigin, cred);
     }
@@ -1615,13 +1680,13 @@ export class DashaLobby {
         .sort((a, b) => Number(b.finishedAt || b.updatedAt) - Number(a.finishedAt || a.updatedAt))
         .slice(0, 5)
         .map(game => ({ id: game.id, white: `@${game.players.w.handle}`, black: `@${game.players.b.handle}`, result: game.state.result }));
-      return json({ ok: true, ratings, recent }, 200, allowedOrigin);
+      return json({ ok: true, ratings, recent }, 200, allowedOrigin, cred);
     }
 
     const replayMatch = path.match(/^\/chess\/replay\/([A-Za-z0-9_-]{6,24})$/);
     if (replayMatch && request.method === 'GET') {
       const replay = publicChessReplay(this.chessGames[replayMatch[1]]);
-      return replay ? json({ ok: true, replay }, 200, allowedOrigin) : json({ error: 'replay not found' }, 404, allowedOrigin);
+      return replay ? json({ ok: true, replay }, 200, allowedOrigin, cred) : json({ error: 'replay not found' }, 404, allowedOrigin, cred);
     }
 
     if (path === '/chess/challenges') {
@@ -1634,13 +1699,18 @@ export class DashaLobby {
       const current = this.chessGames[this.chessCurrent[xId]];
       if (current?.state?.status === 'active') return json({ error: 'finish your current game first' }, 409, allowedOrigin, cred);
       if (this.activeTournamentFor(xId)) return json({ error: 'leave or finish the tournament first' }, 409, allowedOrigin, cred);
+      const input = await requestJson(request);
       const existing = this.openChessChallengeFor(xId);
-      if (existing) return json({ ok: true, challenge: this.publicChessChallenge(existing, xId, holder) }, 200, allowedOrigin, cred);
+      if (existing) {
+        if (input?.askLobby) this.broadcastChessLooking({ kind: 'challenge', id: existing.id, xId });
+        return json({ ok: true, challenge: this.publicChessChallenge(existing, xId, holder) }, 200, allowedOrigin, cred);
+      }
       const id = randomUrlToken(9), createdAt = Date.now();
       const challenge = { id, creatorXId: xId, creatorHandle: String(session.handle).toLowerCase(), status: 'open', createdAt, expiresAt: createdAt + CHESS_CHALLENGE_MS, updatedAt: createdAt };
       this.chessChallenges[id] = challenge;
-      this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+      this.removeFromChessQueue(xId);
       this.chessMetrics.challengesCreated++;
+      if (input?.askLobby) this.broadcastChessLooking({ kind: 'challenge', id, xId });
       await this.persistChess();
       return json({ ok: true, challenge: this.publicChessChallenge(challenge, xId, holder) }, 201, allowedOrigin, cred);
     }
@@ -1648,7 +1718,7 @@ export class DashaLobby {
     const challengeMatch = path.match(/^\/chess\/challenge\/([A-Za-z0-9_-]{6,24})$/);
     if (challengeMatch) {
       const challenge = this.chessChallenges[challengeMatch[1]];
-      if (!challenge) return json({ error: 'challenge not found' }, 404, allowedOrigin, cred);
+      if (!challenge) return json({ error: 'This challenge was not found or has expired.' }, 404, allowedOrigin, cred);
       if (request.method === 'GET') return json({ ok: true, challenge: this.publicChessChallenge(challenge, xId, holder) }, 200, allowedOrigin, cred);
       if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
       const blocked = requireOrigin() || requireLinked();
@@ -1660,8 +1730,15 @@ export class DashaLobby {
         if (challenge.creatorXId !== xId) return json({ error: 'only the creator can cancel' }, 403, allowedOrigin, cred);
         if (challenge.status !== 'open') return json({ error: 'challenge is not open' }, 409, allowedOrigin, cred);
         challenge.status = 'cancelled'; challenge.updatedAt = Date.now();
+        this.clearChessLooking('challenge', challenge.id);
         await this.persistChess();
         return json({ ok: true, challenge: this.publicChessChallenge(challenge, xId, holder) }, 200, allowedOrigin, cred);
+      }
+      if (input?.action === 'ask') {
+        if (challenge.creatorXId !== xId) return json({ error: 'only the creator can ask the lobby' }, 403, allowedOrigin, cred);
+        if (challenge.status !== 'open') return json({ error: 'challenge is not open' }, 409, allowedOrigin, cred);
+        this.broadcastChessLooking({ kind: 'challenge', id: challenge.id, xId });
+        return json({ ok: true, challenge: this.publicChessChallenge(challenge, xId, holder), asked: Boolean(this.chessLooking[`challenge:${challenge.id}`]) }, 200, allowedOrigin, cred);
       }
       if (input?.action !== 'accept') return json({ error: 'invalid challenge action' }, 400, allowedOrigin, cred);
       if (challenge.status === 'accepted' && challenge.acceptedByXId === xId) {
@@ -1680,7 +1757,9 @@ export class DashaLobby {
       }
       const game = this.makeChessGame({ xId: challenge.creatorXId, handle: challenge.creatorHandle }, { xId, handle: String(session.handle).toLowerCase() }, { swap: true });
       challenge.status = 'accepted'; challenge.acceptedByXId = xId; challenge.gameId = game.id; challenge.updatedAt = Date.now();
-      this.chessQueue = this.chessQueue.filter(row => row.xId !== challenge.creatorXId && row.xId !== xId);
+      this.removeFromChessQueue(challenge.creatorXId);
+      this.removeFromChessQueue(xId);
+      this.clearChessLooking('challenge', challenge.id);
       this.chessMetrics.challengesAccepted++;
       await this.persistChess();
       return json({ ok: true, challenge: this.publicChessChallenge(challenge, xId, holder), game: publicChessGame(game, xId) }, 201, allowedOrigin, cred);
@@ -1713,7 +1792,7 @@ export class DashaLobby {
       const id = randomUrlToken(8), createdAt = Date.now();
       const tournament = { id, name, organizerXId: xId, organizerHandle: session.handle, status: 'registration', entrants: [{ xId, handle: session.handle }], rounds: [], champion: null, createdAt, startedAt: null, finishedAt: null };
       this.chessTournaments[id] = tournament;
-      this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+      this.removeFromChessQueue(xId);
       this.chessMetrics.tournamentsCreated++;
       await this.persistChess();
       return json({ ok: true, tournament: this.publicChessTournament(tournament, xId) }, 201, allowedOrigin, cred);
@@ -1745,7 +1824,7 @@ export class DashaLobby {
           tournament.entrants.push({ xId, handle: session.handle });
           this.chessMetrics.tournamentJoins++;
         }
-        this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+        this.removeFromChessQueue(xId);
       } else if (input?.action === 'leave') {
         if (tournament.status !== 'registration') return json({ error: 'registration is closed' }, 409, allowedOrigin, cred);
         if (tournament.organizerXId === xId) return json({ error: 'organizer can cancel the tournament' }, 409, allowedOrigin, cred);
@@ -1767,7 +1846,7 @@ export class DashaLobby {
         }
         tournament.status = 'active'; tournament.startedAt = Date.now();
         const entrantIds = new Set(tournament.entrants.map(row => row.xId));
-        this.chessQueue = this.chessQueue.filter(row => !entrantIds.has(row.xId));
+        for (const entrantId of entrantIds) this.removeFromChessQueue(entrantId);
         this.chessMetrics.tournamentsStarted++;
         this.startTournamentRound(tournament, tournament.entrants);
       } else return json({ error: 'invalid tournament action' }, 400, allowedOrigin, cred);
@@ -1786,20 +1865,23 @@ export class DashaLobby {
       const input = await requestJson(request);
       this.pruneChessQueue();
       if (input?.action === 'cancel') {
-        this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+        this.removeFromChessQueue(xId);
         await this.persistChess();
         return json({ ok: true, queued: false }, 200, allowedOrigin, cred);
       }
+      if (this.chessQueue.some(row => row.xId === xId)) return json({ ok: true, queued: true }, 200, allowedOrigin, cred);
       const currentId = this.chessCurrent[xId];
       const current = currentId && this.chessGames[currentId];
       if (current?.state?.status === 'active') return json({ ok: true, matched: true, game: publicChessGame(current, xId) }, 200, allowedOrigin, cred);
       if (currentId) delete this.chessCurrent[xId];
       if (this.activeTournamentFor(xId)) return json({ error: 'leave or finish the tournament before casual matchmaking' }, 409, allowedOrigin, cred);
       if (this.openChessChallengeFor(xId)) return json({ error: 'cancel your open challenge before matchmaking' }, 409, allowedOrigin, cred);
-      this.chessQueue = this.chessQueue.filter(row => row.xId !== xId);
+      this.removeFromChessQueue(xId);
       const opponent = this.chessQueue.shift();
+      if (opponent) this.clearChessLooking('queue', opponent.xId);
       if (!opponent) {
         this.chessQueue.push({ xId, handle: String(session.handle).toLowerCase(), at: Date.now() });
+        this.broadcastChessLooking({ kind: 'queue', id: xId, xId });
         await this.persistChess();
         return json({ ok: true, queued: true }, 200, allowedOrigin, cred);
       }
@@ -1860,7 +1942,8 @@ export class DashaLobby {
         if (game.rematchOfferBy === xId) return json({ ok: true, game: publicChessGame(game, xId) }, 200, allowedOrigin, cred);
         const opponentProfile = this.simpProfiles[opponentId];
         if (!opponentProfile || Number(opponentProfile.holderUntil) <= Date.now()) return json({ error: 'opponent must refresh holder proof' }, 409, allowedOrigin, cred);
-        this.chessQueue = this.chessQueue.filter(row => row.xId !== xId && row.xId !== opponentId);
+        this.removeFromChessQueue(xId);
+        this.removeFromChessQueue(opponentId);
         const rematch = this.makeChessGame(game.players.b, game.players.w, { swap: true });
         this.chessMetrics.rematchesAccepted++;
         game.rematchGameId = rematch.id;
@@ -2798,6 +2881,12 @@ async function productEdge(request, url, env) {
         'X-Dasha-Edge': 'chess',
       }),
     });
+  }
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const chessRead = url.pathname.replace(/\/$/, '');
+    if (chessRead === '/chess/me' || chessRead === '/chess/ratings' || chessRead === '/chess/tournaments' || /^\/chess\/replay\/[A-Za-z0-9_-]{6,24}$/.test(chessRead)) {
+      return Response.redirect(`https://lobby.getdasha.com${chessRead}${url.search}`, 308);
+    }
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&

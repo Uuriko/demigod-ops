@@ -248,6 +248,11 @@ if (args.has('--check')) {
     console.error('dasha-lobby-assets-build: lobby client SRI is stale');
     process.exit(1);
   }
+  const chessPageCheck = readFileSync(join(root, 'dasha-chess-page.html'), 'utf8');
+  if (!chessPageCheck.includes(`s.integrity='${built.lobbySri}'`) || !chessPageCheck.includes("s.crossOrigin='anonymous'")) {
+    console.error('dasha-lobby-assets-build: chess page lobby client SRI is stale');
+    process.exit(1);
+  }
   const studioEmbed = readFileSync(join(root, 'dasha-studio-embed.html'), 'utf8');
   if (!studioEmbed.includes(`integrity="${built.studioSri}"`) || !studioEmbed.includes('crossorigin="anonymous"')) {
     console.error('dasha-lobby-assets-build: Studio client SRI is stale');
@@ -272,6 +277,7 @@ if (args.has('--check')) {
 if (args.has('--write') || args.size === 0) {
   pinSri('dasha-landing.html', /const SIMP_SRI='sha384-[A-Za-z0-9+/=]+'/, `const SIMP_SRI='${built.simpSri}'`);
   pinSri('dasha-lobby-page.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.lobbySri}'`);
+  pinSri('dasha-chess-page.html', /s\.integrity='sha384-[A-Za-z0-9+/=]+'/, `s.integrity='${built.lobbySri}'`);
   pinSri('dasha-studio-embed.html', /integrity="sha384-[A-Za-z0-9+/=]+"/, `integrity="${built.studioSri}"`);
   const final = build();
   writeFileSync(outPath, final.source);

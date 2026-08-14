@@ -185,7 +185,8 @@
       emptyStyle.id = 'dasha-lobby-empty-style';
       emptyStyle.textContent =
         '.lobby-empty{display:grid;gap:10px;justify-items:center;margin:auto;padding:28px 14px;text-align:center;color:var(--muted,#e6dcc4)}' +
-        '.lobby-empty-title{margin:0;color:var(--paper,#f4eddb);font-size:18px;font-weight:950;letter-spacing:.02em}';
+        '.lobby-empty-title{margin:0;color:var(--paper,#f4eddb);font-size:18px;font-weight:950;letter-spacing:.02em}' +
+        '.lobby-join{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;margin-left:8px;border-radius:999px;background:var(--acid,#dfff00);color:var(--ink,#070608);font:900 11px Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}';
       document.head.appendChild(emptyStyle);
     }
     function makeEmptyState() {
@@ -479,8 +480,19 @@
       }
       row.appendChild(meta);
       var msg = el('span', 'lobby-body');
-      if (kind === 'chat') fillBody(msg, body);
+      if (kind === 'chat' || kind === 'sys') fillBody(msg, body);
       else msg.textContent = body || '';
+      if (extra && extra.join && linkOk(extra.join)) {
+        msg.appendChild(document.createTextNode(' '));
+        var join = document.createElement('a');
+        join.className = 'lobby-join';
+        join.href = extra.join;
+        join.textContent = 'Join';
+        join.target = '_blank';
+        join.rel = 'noopener noreferrer';
+        msg.appendChild(join);
+      }
+      if (extra && extra.lookingId) row.dataset.looking = extra.lookingId;
       row.appendChild(msg);
       log.appendChild(row);
       while (log.querySelectorAll('.lobby-line').length > 80) {
@@ -587,7 +599,16 @@
         return;
       }
       if (data.type === 'system') {
-        addLine('sys', '·', data.text, data.ts);
+        if (data.lookingFor && data.lookingFor.expired && data.lookingFor.id) {
+          var gone = log.querySelector('[data-looking="' + data.lookingFor.id + '"]');
+          if (gone) gone.remove();
+          ensureEmpty();
+          return;
+        }
+        addLine('sys', '·', data.text, data.ts, {
+          lookingId: data.lookingFor && data.lookingFor.id,
+          join: data.lookingFor && data.lookingFor.url,
+        });
         return;
       }
       if (data.type === 'presence') {

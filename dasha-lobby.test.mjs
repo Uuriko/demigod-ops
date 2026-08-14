@@ -14,6 +14,14 @@ const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
 
 assert(!landing.includes('id="dasha-lobby"'), 'landing must not mount lobby');
 assert(page.includes('id="dasha-lobby"'), 'dedicated lobby mount missing');
+assert(chessPage.includes('id="dasha-lobby"'), 'chess must embed the existing lobby chat');
+assert(chessPage.includes('Invite / 1v1'), 'chess 1v1 must be a first-class gate action');
+assert.match(chessPage, /id="gate-title">Link X</);
+assert.match(chessPage, /Needs JavaScript to play/);
+assert.doesNotMatch(chessPage, /Checking your seat/);
+assert.match(chessPage, /<a class="back" href="\/privacy">Privacy<\/a>/);
+assert.doesNotMatch(chessPage, /forum/i, 'chess page must not grow a Forum link');
+assert.doesNotMatch(chessPage, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
 assert(page.includes('wss://lobby.getdasha.com/ws'), 'dedicated lobby must use permanent WS host');
 assert(!landing.includes('spiny-helmet'), 'temporary workers host must not remain');
 assert(!landing.includes('On-site, not Discord'), 'removed Lobby framing returned');
@@ -145,7 +153,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
 const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
-const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
+const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
@@ -195,12 +203,12 @@ const openChallenge = await workerModule.default.fetch(new Request('https://lobb
 const openChallengeHtml = await openChallenge.text();
 assert.match(openChallengeHtml, /<title>@dasha_player challenges you — Dasha Chess<\/title>/);
 assert.match(openChallengeHtml, /Take Anna\. Dasha has white\./);
-assert.match(openChallengeHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?challenge=open123"/);
+assert.match(openChallengeHtml, /og:url" content="https:\/\/www\.getdasha\.com\/chess\?challenge=open123"/);
 assert.match(openChallengeHtml, /<meta name="robots" content="noindex,follow">/);
 const mixedChallenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?tournament=cup123&challenge=open123'), dynamicChessEnv);
 const mixedChallengeHtml = await mixedChallenge.text();
 assert.match(mixedChallengeHtml, /<title>@dasha_player challenges you — Dasha Chess<\/title>/, 'server metadata must choose the same mixed-link object as the browser');
-assert.match(mixedChallengeHtml, /og:url" content="https:\/\/lobby\.getdasha\.com\/chess\?challenge=open123"/);
+assert.match(mixedChallengeHtml, /og:url" content="https:\/\/www\.getdasha\.com\/chess\?challenge=open123"/);
 assert.doesNotMatch(mixedChallengeHtml, /First Dasha Cup/, 'mixed challenge links must not preview a different tournament');
 const claimedChallenge = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?challenge=claimed1'), dynamicChessEnv);
 const claimedChallengeHtml = await claimedChallenge.text();
@@ -212,6 +220,26 @@ const expiredChallengeCardHtml = await expiredChallengeCard.text();
 assert.match(expiredChallengeCardHtml, /<title>@dasha_player&#39;s table is closed — Dasha Chess<\/title>/);
 assert.match(expiredChallengeCardHtml, /This table is closed\./);
 assert.match(expiredChallengeCardHtml, /<meta name="robots" content="noindex,follow">/);
+const missingChallengeCard = await workerModule.default.fetch(new Request('https://www.getdasha.com/chess?challenge=missing1'), dynamicChessEnv);
+const missingChallengeCardHtml = await missingChallengeCard.text();
+assert.equal(missingChallengeCard.status, 200, 'unknown challenge must stay on the chess page');
+assert.match(missingChallengeCardHtml, /<title>Challenge not found — Dasha Chess<\/title>/);
+assert.match(missingChallengeCardHtml, /This invite expired or was never created\./);
+assert.match(missingChallengeCardHtml, /og:url" content="https:\/\/www\.getdasha\.com\/chess\?challenge=missing1"/);
+assert.match(missingChallengeCardHtml, /<meta name="robots" content="noindex,follow">/);
+assert.doesNotMatch(missingChallengeCardHtml, /x-dasha-edge.*html-404|Page not found/i);
+for (const [path, dest] of [
+  ['/chess/me', 'https://lobby.getdasha.com/chess/me'],
+  ['/chess/ratings', 'https://lobby.getdasha.com/chess/ratings'],
+  ['/chess/tournaments', 'https://lobby.getdasha.com/chess/tournaments'],
+  ['/chess/replay/game12345', 'https://lobby.getdasha.com/chess/replay/game12345'],
+]) {
+  for (const method of ['GET', 'HEAD']) {
+    const redirected = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`, { method }), {});
+    assert.equal(redirected.status, 308, `www ${method} ${path} must send chess reads to lobby`);
+    assert.equal(redirected.headers.get('location'), dest);
+  }
+}
 const missingChess = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/chess?game=missing1'), dynamicChessEnv);
 const missingChessHtml = await missingChess.text();
 assert.match(missingChessHtml, /<title>Dasha Chess — holders play<\/title>/);
@@ -896,6 +924,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   }
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/forum/, `${host} sitemap must not add Forum`);
+  assert.match(sitemapBody, /\n  <url>\n    <loc>https:\/\/lobby\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, `${host} sitemap chess URL must keep the same indent as other locs`);
 }
 
 // Adversarial OAuth error text stays text, never markup; private pages are hardened and noindexed.
@@ -1338,6 +1368,8 @@ ${liveHomeFooter}
     assert.match(chessHtml, />Privacy</);
     assert.match(chessHtml, /<a class="brand" href="https:\/\/www\.getdasha\.com\/" aria-label="Dasha home">/);
     assert.match(chessHtml, /<a class="back" href="https:\/\/www\.getdasha\.com\/">Home<\/a>/);
+    assert.match(chessHtml, /<a class="back" href="\/privacy">Privacy<\/a>/);
+    assert.doesNotMatch(chessHtml, /forum/i, `${host} /chess must not grow a Forum link`);
     assert.doesNotMatch(chessHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(chessHtml, /id="buy-dasha"/);
     assert.match(chessHtml, /Buy \$dasha ↗/);
@@ -1370,7 +1402,7 @@ ${liveHomeFooter}
     assert.match(lobbyHtml, /--paper:#f4eddb/);
     assert.match(lobbyHtml, /--acid:#dfff00/);
     assert.match(lobbyHtml, /--hot:#ff3b81/);
-    assert.ok(lobbyHtml.includes('sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb'), `lobby ${path} must keep lobby.js SRI`);
+    assert.ok(lobbyHtml.includes(LOBBY_CLIENT_SRI), `lobby ${path} must keep lobby.js SRI`);
     assert.match(lobbyHtml, /id="dasha-lobby"/, `lobby ${path} must keep chat`);
     assert.match(lobbyHtml, /class="dasha-quiz"/, `lobby ${path} must mount the playable quiz`);
     assert.match(lobbyHtml, /id="dasha-simp-board"/, `lobby ${path} must keep the existing client mount`);
