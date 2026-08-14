@@ -13,6 +13,10 @@ for (const url of photoUrls) {
   assert.equal(url.protocol, 'https:');
   assert.ok(['pbs.twimg.com', 'upload.wikimedia.org'].includes(url.hostname), `unreviewed Studio image origin: ${url.hostname}`);
 }
+assert.equal(studioSource.match(/const LOOKS = \[[\s\S]*?id: '(\w+)'/)?.[1], 'poster', 'LOOKS[0] must be type-first, not photo');
+assert.match(studioSource, /id: 'photo'/, 'photo remains an optional look');
+assert.match(studioSource, /<div hidden>\s*<label>Image<\/label>/, 'face gallery must not paint before Photo is chosen');
+assert.match(studioSource, /LOOKS\.find\(\(option\) => option\.id === 'photo'\)/, 'picking a photo must select the photo look, not LOOKS[0]');
 assert.equal((studioSource.match(/<button\b/g) || []).length, 7, 'the minimal Studio must keep seven static actions');
 assert.match(studioSource, /<summary>More options<\/summary>/);
 assert.match(studioSource, /type: 'file', accept: 'image\/\*'/);
@@ -46,6 +50,10 @@ try {
   page.on('pageerror', error => errors.push(String(error)));
   await page.goto(studioUrl.href);
 
+  assert.equal(await page.locator('#looks').inputValue(), 'poster');
+  assert.equal(await page.locator('#gallery img').count(), 0);
+  assert.equal(await page.locator('#gallery').isHidden(), true);
+  await page.locator('#looks').selectOption('photo');
   assert.equal(await page.locator('#gallery input[type=radio]').count(), 18);
   assert.equal(await page.locator('#gallery input[type=file]').count(), 1);
   assert.equal(await page.locator('#chips .chip').count(), 4);
@@ -127,6 +135,8 @@ try {
   const desktopErrors = [];
   desktopPage.on('pageerror', error => desktopErrors.push(String(error)));
   await desktopPage.goto(studioUrl.href);
+  assert.equal(await desktopPage.locator('#looks').inputValue(), 'poster');
+  assert.equal(await desktopPage.locator('#gallery img').count(), 0);
   assert.equal(await desktopPage.locator('.advanced').isVisible(), false);
   assert.equal(await desktopPage.locator('#edit').isVisible(), true);
   assert.equal(await desktopPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

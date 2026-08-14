@@ -80,7 +80,7 @@
         <div class="chips" id="chips" role="group" aria-label="Suggested lines"></div>
       </div>
 
-      <div>
+      <div hidden>
         <label>Image</label>
         <div class="gallery" id="gallery" role="radiogroup" aria-label="Choose a Dasha image"></div>
       </div>
@@ -142,13 +142,13 @@ const LOOKS = [
      had been replaced with invented slogans — "Stay weird. Verify the mint." and "Nobody is coming
      to save the timeline." — which read like any crypto account and are the one thing this tool
      cannot afford to sound like. The voice is borrowed, not written; that is the whole point. */
-  { id: 'photo', name: 'Photo',     line: 'How u crying at the casino and u can’t even get in' },
   { id: 'poster', name: 'Poster',   line: 'It’s time $dasha' },
   { id: 'ticket', name: 'Ticket',   line: 'You’re not gonna believe this' },
   { id: 'print',  name: 'Printout', line: 'Well Im still alive' },
   { id: 'marquee', name: 'Marquee', line: 'Go ahead and doubt me see what happens' },
   { id: 'signal',  name: 'Signal',  line: 'Cmon' },
   { id: 'face',    name: 'Cherry',  line: 'They are angels actually' },
+  { id: 'photo', name: 'Photo',     line: 'How u crying at the casino and u can’t even get in' },
 ];
 let look = LOOKS[0];
 const FORMATS = [
@@ -864,6 +864,7 @@ function restore(state) {
   $('looks').value = look.id;
   $('line').value = state.line;
   $('line').placeholder = look.line;
+  syncPhotoPick();
   if (photoId) {
     const radio = $('gallery').querySelector(`input[value="${CSS.escape(photoId)}"]`);
     if (radio) radio.checked = true;
@@ -916,7 +917,11 @@ function loadPhoto(id, src, local = false, opts = {}) {
   image.onload = () => {
     if (version !== photoLoadVersion) { if (local) URL.revokeObjectURL(src); return; }
     photo = image; photoId = local ? '' : id;
-    if (!opts.keepLook) { look = LOOKS[0]; $('looks').value = look.id; }
+    if (!opts.keepLook) {
+      look = LOOKS.find((option) => option.id === 'photo') || look;
+      $('looks').value = look.id;
+    }
+    syncPhotoPick();
     if (local) URL.revokeObjectURL(src);
     $('status').textContent = opts.note || '';
     syncURL(); render();
@@ -925,24 +930,33 @@ function loadPhoto(id, src, local = false, opts = {}) {
   image.src = src;
 }
 
-$('gallery').append(...PHOTOS.map(([id, src], index) => {
-  const label = document.createElement('label');
-  const input = Object.assign(document.createElement('input'), { type: 'radio', name: 'photo', value: id, checked: id === photoId });
-  const image = Object.assign(document.createElement('img'), { src, alt: `Dasha image ${index + 1}`, loading: 'lazy', crossOrigin: 'anonymous' });
-  input.addEventListener('change', () => { trackStudio('first_edit'); loadPhoto(id, src); });
-  label.append(input, image); return label;
-}));
-const uploadLabel = document.createElement('label'); uploadLabel.className = 'upload'; uploadLabel.textContent = 'ADD YOURS';
-const upload = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
-upload.addEventListener('change', () => {
-  const file = upload.files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { $('status').textContent = 'Choose an image file.'; return; }
-  if (file.size > 20_000_000) { $('status').textContent = 'Choose an image under 20 MB.'; return; }
-  trackStudio('first_edit'); const url = URL.createObjectURL(file); loadPhoto('local', url, true);
-});
-uploadLabel.append(upload); $('gallery').append(uploadLabel);
+function mountGallery() {
+  if ($('gallery').firstChild) return;
+  $('gallery').append(...PHOTOS.map(([id, src], index) => {
+    const label = document.createElement('label');
+    const input = Object.assign(document.createElement('input'), { type: 'radio', name: 'photo', value: id, checked: id === photoId });
+    const image = Object.assign(document.createElement('img'), { src, alt: `Dasha image ${index + 1}`, loading: 'lazy', crossOrigin: 'anonymous' });
+    input.addEventListener('change', () => { trackStudio('first_edit'); loadPhoto(id, src); });
+    label.append(input, image); return label;
+  }));
+  const uploadLabel = document.createElement('label'); uploadLabel.className = 'upload'; uploadLabel.textContent = 'ADD YOURS';
+  const upload = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
+  upload.addEventListener('change', () => {
+    const file = upload.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { $('status').textContent = 'Choose an image file.'; return; }
+    if (file.size > 20_000_000) { $('status').textContent = 'Choose an image under 20 MB.'; return; }
+    trackStudio('first_edit'); const url = URL.createObjectURL(file); loadPhoto('local', url, true);
+  });
+  uploadLabel.append(upload); $('gallery').append(uploadLabel);
+}
+function syncPhotoPick() {
+  const show = look.id === 'photo';
+  $('gallery').parentElement.hidden = !show;
+  if (show) mountGallery();
+}
 if (requestedPhoto) loadPhoto(...requestedPhoto);
+syncPhotoPick();
 
 $('effects').addEventListener('change', () => { trackStudio('first_edit'); remember(); effect = EFFECTS.find(([id]) => id === $('effects').value); render(); });
 $('stickers').addEventListener('change', () => { trackStudio('first_edit'); remember(); sticker = $('stickers').value; render(); });
@@ -983,6 +997,7 @@ $('looks').addEventListener('change', () => {
   look = LOOKS.find((option) => option.id === $('looks').value);
   $('line').placeholder = look.line;
   $('status').textContent = '';
+  syncPhotoPick();
   syncURL();
   render();
 });
