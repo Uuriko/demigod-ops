@@ -383,7 +383,7 @@ function setStatus(text,kind){$('status').textContent=text||'';$('status').datas
 function routeId(query,name){var value=query.get(name);return/^[A-Za-z0-9_-]{6,24}$/.test(value||'')?value:null}
 function post(path,body,options){return fetchJson(path,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})},options||{}))}
 function base58(bytes){var alphabet='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',digits=[0],i,j,carry,out='';for(i=0;i<bytes.length;i++){carry=bytes[i];for(j=0;j<digits.length;j++){carry+=digits[j]<<8;digits[j]=carry%58;carry=(carry/58)|0}while(carry){digits.push(carry%58);carry=(carry/58)|0}}for(i=0;i<bytes.length-1&&bytes[i]===0;i++)out+='1';for(i=digits.length-1;i>=0;i--)out+=alphabet[digits[i]];return out}
-function rating(){var r=me&&me.linked&&me.rating;$('rating').textContent=r?r.rating:'—';$('record').textContent=r?(r.wins+'W · '+r.losses+'L · '+r.draws+'D · '+r.games+' games'):'—';$('identity').textContent=me&&me.x?me.x.display:''}
+function rating(){var r=me&&me.linked&&me.rating;$('rating').textContent=r?r.rating:'—';$('record').textContent=r?(Number(r.games)>0?r.wins+'W · '+r.losses+'L · '+r.draws+'D · '+r.games+' games':'Provisional'):'—';$('identity').textContent=me&&me.x?me.x.display:''}
 function formatClock(ms){var seconds=Math.max(0,Math.ceil(ms/1000));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}
 function paintClocks(){var c=game&&game.clock,tick=performance.now(),elapsed=c?Math.max(0,tick-(c.clientNow==null?(c.clientNow=tick):c.clientNow)):0,expired=false;['w','b'].forEach(function(side){var node=$(side==='w'?'white-clock':'black-clock'),left=c?c[side]-(c.active===side?elapsed:0):null;node.textContent=left==null?'—':formatClock(left);node.classList.toggle('urgent',left!=null&&left<=30000);node.setAttribute('datetime',left==null?'':('PT'+Math.max(0,Math.ceil(left/1000))+'S'));if(c&&c.active===side&&left<=0)expired=true});if(expired&&!replay&&!clockExpiryPending&&navigator.onLine){clockExpiryPending=true;loadGame().finally(function(){setTimeout(function(){clockExpiryPending=false},1000)})}}
 function challengeShareUrl(id){return WWW+'/chess?challenge='+encodeURIComponent(id)}
@@ -494,4 +494,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "ee542a98aa8144b9";
+export const ASSET_HASH = "543812b7a43f6626";

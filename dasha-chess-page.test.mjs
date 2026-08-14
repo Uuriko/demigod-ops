@@ -36,6 +36,8 @@ assert.match(source, /id="rating">—</);
 assert.match(source, /id="record">—</);
 assert.match(source, /id="white-rating">—</);
 assert.match(source, /id="black-rating">—</);
+assert.match(source, /Provisional/, 'an unplayed linked rating must be labeled, not hidden');
+assert.match(source, /No rated games yet/, 'an empty table is empty Elo, not removed Elo');
 assert.doesNotMatch(source, /id="rating">1200</);
 assert.doesNotMatch(source, /id="white-rating">1200</);
 assert.doesNotMatch(source, /id="black-rating">1200</);
@@ -190,7 +192,8 @@ try {
     await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Join & enter');
     assert.ok(meRequests > beforeMessage, 'valid OAuth completion must refresh Chess identity');
     assert.equal(await page.locator('#rating-panel').isVisible(), true, 'linked identity must retain its personal rating');
-    assert.equal(await page.locator('#rating').textContent(), '1200');
+    assert.equal(await page.locator('#rating').textContent(), '1200', 'a linked identity starts at real provisional 1200 Elo');
+    assert.equal(await page.locator('#record').textContent(), 'Provisional');
     assert.equal(await page.locator('#tournament-form button').textContent(), 'Join & enter');
 
     state = { ok: true, linked: true, enrolled: true, holder: true, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 }, queued: false, game };
@@ -200,6 +203,8 @@ try {
     assert.equal(await page.locator('[data-square="e2"]').getAttribute('aria-disabled'), null);
     assert.equal(await page.locator('#game').isVisible(), true);
     assert.equal(await page.locator('#rating-panel').isVisible(), true);
+    assert.equal(await page.locator('#rating').textContent(), '1200', 'enrolled unrated players keep provisional 1200 Elo');
+    assert.equal(await page.locator('#record').textContent(), 'Provisional');
     assert.equal(await page.locator('#tournament-link').isHidden(), true, 'tournament link must not appear in a live casual game');
     assert.equal(await page.locator('#replay-controls').isHidden(), true, 'replay controls must not occupy live-game space');
     assert.equal(await page.locator('.sq').count(), 64);
@@ -453,6 +458,24 @@ try {
   assert.equal(await railPage.getByRole('heading', { name: 'Top table' }).isVisible(), true);
   assert.equal(await railPage.locator('#tournament-form button').isVisible(), true);
   await railContext.close();
+
+  const eloContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await eloContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: true, enrolled: true, holder: true, queued: false, game: null, x: { display: '@dasha_player' }, rating: { rating: 1212, games: 1, wins: 1, losses: 0, draws: 0 } }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [{ rank: 1, handle: 'dasha_player', display: '@dasha_player', href: 'https://x.com/dasha_player', rating: 1212, games: 1, wins: 1, losses: 0, draws: 0 }], recent: [{ id: game.id, white: '@dasha_player', black: '@anna_player', result: '1-0' }] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const eloPage = await eloContext.newPage();
+  await eloPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await eloPage.waitForFunction(() => document.querySelector('#rating')?.textContent === '1212');
+  assert.equal(await eloPage.locator('#rating').textContent(), '1212', 'after a rated game the sidebar must show the real Elo');
+  assert.equal(await eloPage.locator('#record').textContent(), '1W · 0L · 0D · 1 games');
+  assert.equal(await eloPage.locator('#leaders b').textContent(), '1212', 'top table must still show Elo for people who have played');
+  assert.equal(await eloPage.getByText('No rated games yet', { exact: true }).count(), 0);
+  assert.equal(await eloPage.getByText('Provisional', { exact: true }).count(), 0, 'a played rating is Elo, not provisional');
+  await eloContext.close();
 
   const blockedLinkContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await blockedLinkContext.addInitScript(() => { window.open = () => null; });
