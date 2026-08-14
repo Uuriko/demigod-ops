@@ -64,16 +64,18 @@ export function isCompaniesPath(pathname) {
 }
 
 export function isCompanyPath(pathname) {
-  return /^\/c\/[^/]+\/?$/.test(String(pathname || ''));
+  const path = String(pathname || '').replace(/\/+$/, '');
+  return path.startsWith('/c/') && path.length > 3;
 }
 
 function companyIdFromPath(pathname) {
-  const match = String(pathname || '').match(/^\/c\/([^/]+)\/?$/);
-  if (!match) return '';
+  const path = String(pathname || '').replace(/\/+$/, '');
+  if (!path.startsWith('/c/') || path.length <= 3) return '';
+  const raw = path.slice(3);
   try {
-    return decodeURIComponent(match[1]);
+    return decodeURIComponent(raw);
   } catch {
-    return match[1];
+    return raw;
   }
 }
 
@@ -475,6 +477,8 @@ export default {
       });
     }
     if (isProductHost(url.hostname)) {
+      // Worker-owned 200s. Do not fetch Webflow — /companies and /c/:id are 404 there,
+      // and foot JS cannot rescue an upstream 404.
       if (
         (request.method === 'GET' || request.method === 'HEAD') &&
         (isCompaniesPath(url.pathname) || isCompanyPath(url.pathname))

@@ -337,6 +337,7 @@ function urlOf(input) {
   assert.equal(isCompanyPath('/c/yc:abundant'), true);
   assert.equal(isCompanyPath('/c/yc:abundant/'), true);
   assert.equal(isCompanyPath('/c/wd:Q16153666'), true);
+  assert.equal(isCompanyPath('/c/hn:job-boards.greenhouse.io/verkada'), true);
   assert.equal(isCompanyPath('/c/unknown'), true);
   assert.equal(isCompanyPath('/c/'), false);
   assert.equal(isCompanyPath('/c'), false);
@@ -559,12 +560,15 @@ const TINY_MAP = {
       assert.doesNotMatch(html, /webflow miss/);
     }
 
-    const found = await workerModule.fetch(new Request('https://www.trydemigod.com/c/yc:abundant'), {});
-    const foundHtml = await found.text();
-    assert.equal(found.status, 200);
-    assert.equal(found.headers.get('x-demigod-edge'), 'company');
-    assert.match(foundHtml, /<h1>Abundant<\/h1>/);
-    assert.match(foundHtml, /Founding Engineer/);
+    for (const host of ['www.trydemigod.com', 'trydemigod.com']) {
+      const found = await workerModule.fetch(new Request(`https://${host}/c/yc:abundant`), {});
+      const foundHtml = await found.text();
+      assert.equal(found.status, 200, host);
+      assert.equal(found.headers.get('x-demigod-edge'), 'company');
+      assert.match(foundHtml, /<h1>Abundant<\/h1>/);
+      assert.match(foundHtml, /Founding Engineer/);
+      assert.doesNotMatch(foundHtml, /webflow miss/);
+    }
 
     const encoded = await workerModule.fetch(new Request('https://www.trydemigod.com/c/yc%3Aabundant'), {});
     assert.equal(encoded.status, 200);
@@ -576,6 +580,12 @@ const TINY_MAP = {
     assert.match(missingHtml, /Company not found/);
     assert.doesNotMatch(missingHtml, /abundant\.ai|ycombinator|ashbyhq/i);
     assert.doesNotMatch(missingHtml, /webflow miss/);
+
+    const slashId = await workerModule.fetch(new Request('https://www.trydemigod.com/c/hn:job-boards.greenhouse.io/verkada'), {});
+    assert.equal(slashId.headers.get('x-demigod-edge'), 'company');
+    assert.doesNotMatch(await slashId.text(), /webflow miss/);
+
+    assert.equal(fetched.every((u) => u.includes('cdn.jsdelivr.net') && !/trydemigod\.com/.test(u)), true);
   } finally {
     globalThis.fetch = nativeFetch;
   }
