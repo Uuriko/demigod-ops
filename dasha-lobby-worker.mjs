@@ -2643,7 +2643,7 @@ export default {
       if (oauthRes) return oauthRes;
     }
 
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/privacy') {
+    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/privacy' || url.pathname === '/privacy/')) {
       return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
         status: 200,
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }),
