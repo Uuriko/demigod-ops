@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import workerModule, {
   injectBountiesBoard,
   normalizeBountiesFeed,
+  rewriteCdnPin,
   stripGoldAccent,
 } from './demigod-html-worker.mjs';
 
@@ -10,6 +11,28 @@ const root = new URL('./', import.meta.url);
 const workerSrc = await readFile(new URL('./demigod-html-worker.mjs', root), 'utf8');
 const wrangler = await readFile(new URL('./demigod-html-wrangler.jsonc', root), 'utf8');
 const dashaWrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
+
+const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
+const CDN_PIN_TO = '94d25aa3d6351c58980c03103dd7b3276e0c40fa';
+const PIN_FIXTURE = (sha) => `<!doctype html><html><body>
+<link href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${sha}/head-latest.css">
+<script src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${sha}/foot-latest.js"></script>
+<img src="https://raw.githubusercontent.com/Uuriko/demigod-site-cdn/${sha}/art.png">
+</body></html>`;
+
+{
+  const fromOld = rewriteCdnPin(PIN_FIXTURE(CDN_PIN_FROM));
+  assert.equal(fromOld, PIN_FIXTURE(CDN_PIN_TO));
+  assert.doesNotMatch(fromOld, new RegExp(CDN_PIN_FROM));
+  assert.equal(fromOld.split(CDN_PIN_TO).length - 1, 3);
+
+  const noPin = '<!doctype html><html><body><p>no cdn pin</p></body></html>';
+  assert.equal(rewriteCdnPin(noPin), noPin);
+
+  const already = PIN_FIXTURE(CDN_PIN_TO);
+  assert.equal(rewriteCdnPin(already), already);
+  assert.equal(rewriteCdnPin(rewriteCdnPin(PIN_FIXTURE(CDN_PIN_FROM))), already);
+}
 
 const LIVE_GOLD_H1 =
   '<h1 class="hero-title"><span class="title-accent-gold">SF Startup Talent.</span> <span class="title-accent-red">Tech</span> <span class="title-accent-blue">Matched.</span></h1>';
@@ -107,6 +130,37 @@ assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
 
 function urlOf(input) {
   return String(input?.url || input);
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_FROM), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+    const pinned = await workerModule.fetch(new Request('https://www.trydemigod.com/'), {});
+    const pinnedHtml = await pinned.text();
+    assert.equal(pinned.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.doesNotMatch(pinnedHtml, new RegExp(CDN_PIN_FROM));
+    assert.equal(pinnedHtml.split(CDN_PIN_TO).length - 1, 3);
+
+    globalThis.fetch = async () => new Response(PIN_FIXTURE(CDN_PIN_TO), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+    const alreadyHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    assert.equal(alreadyHtml.split(CDN_PIN_TO).length - 1, 3);
+
+    const noPin = '<!doctype html><html lang="en"><body><p>no cdn pin</p></body></html>';
+    globalThis.fetch = async () => new Response(noPin, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+    const bareHtml = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_FROM));
+    assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_TO));
+    assert.match(bareHtml, /<p>no cdn pin<\/p>/);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
 }
 
 {
