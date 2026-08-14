@@ -57,7 +57,7 @@ assert.match(worker, /\['https:\/\/www\.getdasha\.com','https:\/\/getdasha\.com'
 assert(!worker.includes('return to the lobby'), 'shared OAuth completion must not force every product back to Lobby');
 assert(!worker.includes('Perks unlocked: longer messages'), 'shared OAuth completion must not claim Lobby-only perks');
 assert(worker.includes("url.pathname === '/privacy'") && worker.includes('PRIVACY_HTML'), 'worker serves privacy policy');
-assert(worker.includes('FORUM_HTML') && worker.includes("'X-Dasha-Edge': 'forum'"), 'lobby /forum serves branded HTML 404');
+assert(worker.includes("url.pathname === '/forum'") && worker.includes('LOBBY_CHAT'), 'product and lobby /forum permanently send visitors to lobby chat');
 assert(worker.includes('NOT_FOUND_HTML') && worker.includes("'X-Dasha-Edge': 'html-404'"), 'unknown paths serve branded HTML 404');
 assert(worker.includes("url.searchParams.get('continue') !== '1'") && worker.includes('Continue with X'), 'OAuth must show privacy notice before redirect');
 assert(!/offline\.access/.test(await readFile(new URL('./dasha-lobby-x.mjs', root), 'utf8')), 'OAuth must not request unused persistent X access');
@@ -95,6 +95,11 @@ assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'pro
 assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must gain a Privacy link in the rewrite pass');
 assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
+assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
+assert(worker.includes('id="dasha-lock"') && worker.includes('dasha-band'), 'home first viewport must be #dasha-lock with an acid band');
+assert(!worker.includes('>Take Simp.<') && !worker.includes("escapeHtml('Take Simp.')"), 'system-ui Take Simp decoy copy must be gone');
+assert(!worker.includes('<section id="dasha-home-cta"') && !worker.includes('function injectHomeSimpCta') && !worker.includes('function homeSimpCtaHtml'), 'worker must delete the 100vh decoy, not keep a quiz-in-fallback');
+assert(worker.includes('stripHomeCtaDecoy') && worker.includes("if (html.includes('id=\"dasha-home\"')) return html;") === false, 'live #dasha-home wrapper must not early-return the lock');
 assert(worker.includes('escapeHtml(err)') && worker.includes('escapeHtml(String(e.message || e)'), 'OAuth error HTML must escape upstream text');
 
 // Simp Board reuses Lobby DO + session; never auto-enrolls on OAuth
@@ -104,7 +109,7 @@ assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
-assert(worker.includes('href="#dasha-quiz"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz');
+assert(worker.includes('href="#simp"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz in the hero');
 assert(worker.includes('injectLobbySimpQuiz') && worker.includes('injectLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby mounts the playable quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
@@ -139,8 +144,8 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
-const { STUDIO_CLIENT_JS, SIMP_BOARD_SRI } = await import('./dasha-lobby-static-gen.mjs');
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
@@ -230,8 +235,8 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
   for (const method of ['GET', 'HEAD']) {
     for (const path of ['/forum', '/forum/']) {
       const forum = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
-      assert.equal(forum.status, 308, `${host}${path} ${method} must permanently send product-host Forum to lobby`);
-      assert.equal(forum.headers.get('location'), 'https://lobby.getdasha.com/forum');
+      assert.equal(forum.status, 308, `${host}${path} ${method} must permanently send product-host Forum to lobby chat`);
+      assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/lobby');
     }
     for (const path of ['/howtobuy', '/howtobuy/']) {
       const howtobuy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
@@ -271,18 +276,8 @@ for (const method of ['GET', 'HEAD']) {
 for (const path of ['/forum', '/forum/']) {
   for (const method of ['GET', 'HEAD']) {
     const forum = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-    assert.equal(forum.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
-    assert.match(forum.headers.get('content-type') || '', /text\/html/);
-    assert.equal(forum.headers.get('x-dasha-edge'), 'forum');
-    const body = await forum.text();
-    if (method === 'HEAD') {
-      assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
-    } else {
-      assert.match(body, /<title>Dasha forum<\/title>/);
-      assert.match(body, /Dasha|\$dasha/);
-      assert.match(body, /no forum yet/i);
-      assert.notEqual(body, '{"error":"not found"}');
-    }
+    assert.equal(forum.status, 308, `lobby ${path} ${method} must permanently send Forum to lobby chat`);
+    assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/lobby');
   }
 }
 {
@@ -1068,14 +1063,11 @@ try {
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
       const html = await home.text();
-      assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} / must mount the existing quiz client`);
-      assert.match(html, /id="dasha-simp-board"/, `${host} / must keep the quiz mount`);
-      assert.match(html, /id="dasha-quiz"/, `${host} / must expose the quiz jump target`);
-      assert.match(html, /class="dasha-quiz"/, `${host} / must use the dasha-quiz mount`);
-      assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} / must pin simp-board SRI`);
-      assert.match(html, /s\.crossOrigin='anonymous'/, `${host} / must load simp-board CORS`);
-      assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
-      assert.doesNotMatch(html, /id=["']simp["']/, `${host} / must not remount leftover #simp chrome`);
+      assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} / must remount the SRI'd Simp client in the hero`);
+      assert.ok(html.includes(`integrity="${SIMP_BOARD_SRI}"`), `${host} / simp-board.js must keep its SRI pin`);
+      assert.match(html, /id="dasha-simp-board"/, `${host} / must mount the quiz in the first viewport`);
+      assert.match(html, /class="dasha-quiz"/, `${host} / must keep one .dasha-quiz mount`);
+      assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the leftover Simp board heading`);
       assert.doesNotMatch(html, /\.simp-board/, `${host} / must drop leftover Simp CSS`);
       assert.doesNotMatch(html, leftoverSimpCss, `${host} / must drop the 16 leftover Simp selectors`);
       assert.doesNotMatch(html, /score=|"answer"\s*:/, `${host} / must not leak answers`);
@@ -1112,91 +1104,108 @@ try {
   }
 }
 {
-  const HOME_CTA_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  const HOME_HEXES = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
   const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  const buy = 'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  const styleHexes = html => [...String(html).matchAll(/(?:background|color|box-shadow|fill|stroke)\s*:[^;{}]*?(#[0-9a-fA-F]{3,8})\b/gi)].map(m => m[1].toLowerCase());
   const webflowHome = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
 <link href="https://cdn.prod.website-files.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon"/>
+<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+<script>WebFont.load({google:{families:["Exo:400","Bangers:regular","Raleway:400"]}});</script>
 <style>
 :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--hot-deep:#c21f5a}
 .simp-board{display:grid}.simp-row{display:grid}.simp-rank{font-size:42px}
+.dasha{min-height:100vh;background:radial-gradient(circle at 80% 5%,rgba(124,77,255,.35),transparent 32rem),var(--ink)}
+.body{background-color:#1f041c}
 .dasha-hero{min-height:640px}
+#dasha-home h1{color:var(--ink,#F2EDE7)}
 </style>
-<body>
+<body class="body"><div id="dasha-home" class="dasha-root"><div class="w-embed w-script">
 <a class="skip-link" href="#content">Skip to content</a>
+<section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{min-height:100vh;font:16px/1.45 system-ui,sans-serif}</style><h1>$dasha</h1><p>Take Simp.</p><p><a href="/simp">Simp</a></p></section>
 <main class="dasha" id="top">
-<header class="dasha-hero wrap" id="content"><h1>It's time $dasha</h1><a class="pill primary" href="/studio">Make something →</a></header>
-<section id="token"><code id="mint">${mint}</code></section>
-<footer><p><a href="/how-to-buy">How to buy</a></p></footer>
+<nav class="nav wrap"><a href="/studio">Studio</a><a href="#token">CA 53ux…pump</a><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a><a href="https://lobby.getdasha.com/forum">Forum</a></nav>
+<header class="dasha-hero wrap" id="content"><h1>It's time $dasha</h1><div class="poster"><a class="poster-tile">How u crying at the casino</a></div></header>
+<section id="token"><code id="mint">${mint}</code><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></section>
+<footer><p><a href="/how-to-buy">How to buy</a> · <a href="https://lobby.getdasha.com/forum">Forum</a> · <a href="/lobby">Lobby</a> · <a href="/dasha">Desk</a> · <a href="https://lobby.getdasha.com/chess">Chess</a></p></footer>
 </main>
-</body></html>`;
-  const homeCtaSection = html => {
-    const match = String(html).match(/<section\b[^>]*\bid=["']dasha-home-cta["'][^>]*>[\s\S]*?<\/section>/i);
-    assert.ok(match, 'home must inject #dasha-home-cta');
+</div></div></body></html>`;
+  const homeFirst = html => {
+    const match = String(html).match(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/i);
+    assert.ok(match, 'home must inject #dasha-lock');
     return match[0];
   };
   const firstSectionAt = html => String(html).search(/<section\b/i);
-  const injected = injectHomeSimpCta(webflowHome);
-  const section = homeCtaSection(injected);
-  assert.equal(firstSectionAt(injected), injected.search(/<section\b[^>]*\bid=["']dasha-home-cta["']/i), '#dasha-home-cta must be the first section');
-  assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a><section id="dasha-home-cta"/);
-  assert.match(section, /<h1>\$dasha<\/h1>/);
-  assert.match(section, /Take Simp\./);
-  assert.match(section, /<a href="#dasha-quiz">Simp<\/a>/);
-  assert.match(section, /<a href="\/how-to-buy">How to buy<\/a>/);
-  assert.match(section, /id="dasha-quiz"/);
-  assert.match(section, /class="dasha-quiz"/);
-  assert.match(section, /id="dasha-simp-board"/);
-  assert.match(section, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
-  assert.doesNotMatch(section, /<form\b/i);
-  assert.doesNotMatch(section, /wallet-connect/i);
-  assert.doesNotMatch(section, /payTo/);
-  assert.doesNotMatch(section, /\/oauth/);
-  assert.doesNotMatch(section, /<script\b/i);
-  assert.doesNotMatch(section, /jupiter|iframe|twitter\.com\/embed|class="simp-|score=/i);
-  assert.doesNotMatch(section, /--violet|--hot-deep|#c8b6ff|rgba\(124,77,255/);
-  for (const hex of section.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
-    assert.ok(HOME_CTA_TOKENS.includes(hex.toLowerCase()), `home CTA inject must stay tokens-only (saw ${hex})`);
-  }
-  assert.match(injected, /It's time \$dasha/);
-  assert.match(injected, /Make something →/);
-  assert.match(injected, /lobby\.getdasha\.com\/client\/simp-board\.js/);
-  assert.match(injected, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
-  assert.match(injected, /s\.crossOrigin='anonymous'/);
+  const assertHomeFirst = (html, label) => {
+    const section = homeFirst(html);
+    assert.equal(firstSectionAt(html), html.search(/<section\b[^>]*\bid=["']dasha-lock["']/i), `${label} first section must be #dasha-lock`);
+    assert.doesNotMatch(html, /id=["']dasha-home-cta["']/, `${label} must drop the 100vh decoy`);
+    assert.doesNotMatch(html, /Take Simp\./, `${label} must drop decoy copy`);
+    assert.doesNotMatch(section, /min-height:\s*100vh/, `${label} first viewport must not be a 100vh stub`);
+    assert.match(section, /html,body,body\.body,\.dasha-root,\.dasha\{background:#070608!important/, `${label} must force ink on the Webflow maroon body`);
+    assert.doesNotMatch(html, /#1[fF]041[cC]/, `${label} must replace maroon #1F041C`);
+    assert.match(section, /class="dasha-band"/, `${label} must have the acid band`);
+    assert.match(section, /IT(?:'|&\#39;)S TIME \$DASHA/, `${label} band must carry culture lines`);
+    assert.match(section, /animation:dasha-band 28s linear infinite/, `${label} band must animate`);
+    assert.doesNotMatch((section.match(/<style>([\s\S]*?)<\/style>/)?.[1] || '').split('@media')[0], /animation:\s*none/, `${label} band default must not be animation:none`);
+    assert.match(section, /prefers-reduced-motion:reduce[^}]*animation:\s*none/, `${label} reduced motion must freeze the ticker`);
+    assert.match(section, /\$DASHA/, `${label} must show $DASHA`);
+    assert.match(section, /src="\/favicon\.svg"/, `${label} must show cherries`);
+    assert.match(section, /href="\/studio">Studio</, `${label} nav must include Studio`);
+    assert.match(section, /href="#simp">Simp</, `${label} nav must include in-hero Simp`);
+    assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
+    assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
+    assert.doesNotMatch(section, /href=["']\/simp["']/, `${label} must not send the hero CTA to \/simp`);
+    assert.doesNotMatch(section, /Buy|53ux|buy-dasha|#token/, `${label} must keep CA and Buy out of the first-viewport nav`);
+    assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
+    assert.equal([...section.matchAll(/<h1\b/g)].length, 1, `${label} lock must have one h1`);
+    assert.doesNotMatch(html, /<header\b[^>]*dasha-hero[\s\S]*<h1/, `${label} must drop the second hero h1`);
+    assert.match(section, /<h1>IT(?:'|&\#39;)S TIME \$DASHA<\/h1>/, `${label} must have one culture display line`);
+    assert.match(section, /class="dasha-posters"/, `${label} must keep the poster stack in the first viewport`);
+    assert.match(section, /max-height:8\.5rem/, `${label} posters must fit inside 800px`);
+    assert.match(section, /id="dasha-simp-board"/, `${label} must mount the quiz`);
+    assert.equal([...section.matchAll(/class="dasha-quiz"/g)].length, 1, `${label} must keep one .dasha-quiz`);
+    assert.match(section, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${label} must load the existing quiz client`);
+    assert.ok(section.includes(`integrity="${SIMP_BOARD_SRI}"`), `${label} quiz client must be SRI-pinned`);
+    assert.match(section, /crossorigin="anonymous"/, `${label} quiz client must be CORS-anonymous`);
+    assert.match(section, /References describe internet culture\. Not endorsement\./, `${label} must keep the association line`);
+    assert.doesNotMatch(html, /WebFont\.load|webfont\.js/, `${label} must drop WebFont.load`);
+    assert.doesNotMatch(html, /Exo|Bangers|Raleway/, `${label} must drop Exo\/Bangers\/Raleway`);
+    assert.doesNotMatch(html, /\/forum/, `${label} must drop Forum hrefs`);
+    assert.doesNotMatch(html, /--hot-deep|rgba\(124,\s*77,\s*255/, `${label} must drop the violet wash and --hot-deep`);
+    assert.doesNotMatch(section, /radial-gradient|#7c4dff/, `${label} first viewport must not use violet`);
+    assert.doesNotMatch(section, /system-ui/, `${label} first viewport must not use system-ui`);
+    assert.doesNotMatch(section, /<form\b|wallet-connect|payTo|\/oauth|class="simp-|score=/i);
+    assert.match(html, /href="\/lobby"/, `${label} Lobby stays in the footer`);
+    assert.match(html, /href="\/dasha"/, `${label} Desk stays in the footer`);
+    assert.match(html, /lobby\.getdasha\.com\/chess/, `${label} Chess stays in the footer`);
+    for (const hex of styleHexes(section)) {
+      assert.ok(HOME_HEXES.includes(hex), `${label} first viewport must stay tokens-only (saw ${hex})`);
+    }
+    assert.doesNotMatch(html, /\.simp-/);
+    return section;
+  };
+  const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
+  assertHomeFirst(injected, 'rewrite');
+  assert.match(injected, /<a class="skip-link" href="#simp">Skip to content<\/a><section id="dasha-lock"/);
+  assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the lock');
   assert.match(injected, new RegExp(mint));
-  assert.doesNotMatch(injected, /#dasha-home-cta[\s\S]{0,200}display:\s*none|#content[\s\S]{0,80}display:\s*none|\.dasha-hero[\s\S]{0,80}display:\s*none/);
-  assert.equal(injectHomeSimpCta(injected), injected, 'second pass must not duplicate #dasha-home-cta');
-  assert.equal([...injected.matchAll(/id=["']dasha-home-cta["']/g)].length, 1);
+  assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate #dasha-lock');
+  assert.equal([...injected.matchAll(/id=["']dasha-lock["']/g)].length, 1);
   const nativeFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () => new Response(webflowHome, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
       const html = await home.text();
-      const cta = homeCtaSection(html);
-      assert.equal(firstSectionAt(html), html.search(/<section\b[^>]*\bid=["']dasha-home-cta["']/i), `${host} / first section must be #dasha-home-cta`);
-      assert.match(cta, /<a href="#dasha-quiz">Simp<\/a>/, `${host} / primary CTA must jump to the quiz`);
-      assert.match(cta, /id="dasha-quiz"/, `${host} / must mount the playable quiz`);
-      assert.match(cta, /id="dasha-simp-board"/, `${host} / must keep the existing client mount`);
-      assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} / must load the existing quiz client`);
-      assert.match(html, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} / must pin simp-board SRI`);
-      assert.match(html, /s\.crossOrigin='anonymous'/, `${host} / must load simp-board CORS`);
-      assert.match(cta, /<a href="\/how-to-buy">How to buy<\/a>/, `${host} / How to buy must be secondary`);
-      assert.doesNotMatch(cta, /<form\b|wallet-connect|payTo|\/oauth|<script\b/i);
-      assert.doesNotMatch(html, /id=["']simp["']/, `${host} / must not remount leftover #simp chrome`);
-      assert.doesNotMatch(html, /score=|"answer"\s*:/, `${host} / must not leak answers`);
-      assert.doesNotMatch(cta, /--violet|--hot-deep|#c8b6ff|rgba\(124,77,255/);
-      for (const hex of cta.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
-        assert.ok(HOME_CTA_TOKENS.includes(hex.toLowerCase()), `${host} / inject must stay tokens-only (saw ${hex})`);
-      }
-      assert.doesNotMatch(html, /\.simp-/);
+      assertHomeFirst(html, `${host} /`);
       assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} / must keep one Privacy link`);
       assert.match(html, /<link href="\/favicon\.ico" rel="shortcut icon"/);
       assert.match(html, new RegExp(mint), `${host} / must keep the mint string`);
-      assert.match(html, /It's time \$dasha/);
-      assert.equal([...html.matchAll(/id=["']dasha-home-cta["']/g)].length, 1);
+      assert.equal([...html.matchAll(/id=["']dasha-lock["']/g)].length, 1);
     }
     const studio = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio'), {});
-    assert.doesNotMatch(await studio.text(), /id=["']dasha-home-cta["']/, '/studio must not get the home Simp CTA');
+    assert.doesNotMatch(await studio.text(), /id=["']dasha-lock["']/, '/studio must not get the home first viewport');
   } finally {
     globalThis.fetch = nativeFetch;
   }

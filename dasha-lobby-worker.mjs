@@ -152,7 +152,7 @@ function stripLeftoverStyleRules(html, leftoverRe) {
     block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
 }
 
-/** Home-only: drop leftover Webflow .simp-* board chrome. Quiz remounts after this via injectHomeSimpCta. */
+/** Drop leftover Webflow board chrome. Home remounts one `.dasha-quiz` in the first viewport. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -163,28 +163,27 @@ export function stripHomeSimpBoard(html) {
   return stripLeftoverStyleRules(out, SIMP_LEFTOVER_STYLE_RE);
 }
 
-const HOME_CTA_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
-const HOME_CTA_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
+const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
+const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
+const LOBBY_CHAT = 'https://www.getdasha.com/lobby';
+const HOME_BAND = "IT'S TIME $DASHA · HOW U CRYING AT THE CASINO AND U CAN'T EVEN GET IN · GO AHEAD AND DOUBT ME SEE WHAT HAPPENS · YOU'RE NOT GONNA BELIEVE THIS · WELL IM STILL ALIVE · THEY ARE ANGELS ACTUALLY · ";
+const HOME_POSTERS = [
+  ['How u crying at the casino and u can’t even get in', '/studio#look=poster&format=square&line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in&src=home'],
+  ['It’s time $dasha', '/studio#look=ticket&format=story&line=It%E2%80%99s%20time%20%24dasha&src=home'],
+  ['Well im still alive', '/studio#look=signal&format=banner&line=Well%20im%20still%20alive&src=home'],
+];
 
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
 }
 
-function homeSimpCtaHtml() {
-  const title = escapeHtml('$dasha');
-  const line = escapeHtml('Take Simp.');
-  const primary = escapeHtml('Simp');
-  const buy = escapeHtml('How to buy');
-  return `<section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{box-sizing:border-box;min-height:100vh;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-home-cta h1{margin:0 0 .5rem;color:#f4eddb;font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}#dasha-home-cta a[href="#dasha-quiz"]{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-home-cta a[href="/how-to-buy"]{color:#ff3b81}#dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid #dfff00}</style><h1>${title}</h1><p>${line}</p><p><a href="#dasha-quiz">${primary}</a></p><p><a href="/how-to-buy">${buy}</a></p><div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div></section>${simpBoardClientScript()}`;
-}
-
-function homeCtaInsertAt(page) {
-  const heroAt = page.search(HOME_CTA_HERO_RE);
+function homeFirstInsertAt(page) {
+  const heroAt = page.search(HOME_HERO_RE);
   const head = heroAt >= 0 ? page.slice(0, heroAt) : page;
   let last = -1;
   let len = 0;
-  HOME_CTA_SKIP_RE.lastIndex = 0;
-  for (let m; (m = HOME_CTA_SKIP_RE.exec(head)); ) {
+  HOME_SKIP_RE.lastIndex = 0;
+  for (let m; (m = HOME_SKIP_RE.exec(head)); ) {
     last = m.index;
     len = m[0].length;
   }
@@ -196,13 +195,68 @@ function homeCtaInsertAt(page) {
   return close >= 0 ? close : page.length;
 }
 
-/** www/apex / only: first-paint Simp CTA + playable quiz. No leftover .simp-* chrome. Idempotent. */
-export function injectHomeSimpCta(html) {
-  const page = String(html || '');
-  if (/id=["']dasha-home-cta["']/i.test(page)) return page;
-  const at = homeCtaInsertAt(page);
-  const cta = homeSimpCtaHtml();
-  return page.slice(0, at) + cta + page.slice(at);
+/** Live decoy is a 100vh section inside `.w-embed.w-script`. Any tag, then leftover copy. */
+function stripHomeCtaDecoy(html) {
+  return String(html || '')
+    .replace(/<(section|div|header|article)\b[^>]*\bid=["']dasha-home-cta["'][^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/\s*Take Simp\.\s*/g, '');
+}
+
+function stripHomeWebFonts(html) {
+  return String(html || '')
+    .replace(/<script\b[^>]*\bsrc=["'][^"']*webfont[^"']*["'][^>]*>\s*<\/script>/gi, '')
+    .replace(/<script\b[^>]*>[\s\S]*?WebFont\.load[\s\S]*?<\/script>/gi, '')
+    .replace(/<link\b[^>]*href=["'][^"']*fonts\.(?:googleapis|gstatic)\.com[^"']*["'][^>]*>/gi, '')
+    .replace(/\b(?:Exo|Bangers|Raleway)\b/g, 'Arial')
+    .replace(/system-ui/gi, 'Arial');
+}
+
+function stripHomeForumHrefs(html) {
+  return String(html || '')
+    .replace(/\s*·\s*<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+}
+
+function stripHomeLegacyHero(html) {
+  return String(html || '')
+    .replace(/<header\b[^>]*\bid=["']content["'][^>]*>[\s\S]*?<\/header>/i, '')
+    .replace(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i, '');
+}
+
+function demoteHomeNavMint(html) {
+  return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => nav
+    .replace(/<a\b[^>]*href=["']#token["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*\bbuy-dasha\b[^>]*>[^<]*<\/a>/gi, ''));
+}
+
+function stripHomeAtmosphere(html) {
+  return String(html || '')
+    .replace(/--hot-deep\s*:[^;}\"']+;?/gi, '')
+    .replace(/#1[fF]041[cC]\b/g, '#070608')
+    .replace(/rgba\(\s*124\s*,\s*77\s*,\s*255[^)]*\)/gi, 'transparent')
+    .replace(/\.dasha\{[^}]*\}/g, (rule) =>
+      /background(?:-image)?\s*:\s*#070608/.test(rule)
+        ? rule
+        : rule.replace(/background(?:-image)?\s*:[^;}]+;?/, 'background:#070608;'));
+}
+
+function homeFirstViewportHtml(sri) {
+  const band = escapeHtml(HOME_BAND);
+  const line = escapeHtml("IT'S TIME $DASHA");
+  const assoc = escapeHtml('References describe internet culture. Not endorsement.');
+  const posters = HOME_POSTERS.map(([label, href]) =>
+    `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`).join('');
+  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Open an editable Dasha Studio starter">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
+}
+
+/** www/apex / only: first paint is the product lock. Live `#dasha-home` is a wrapper, not this rewrite. */
+export function rewriteHomeFirstViewport(html, sri = SIMP_BOARD_SRI) {
+  let page = demoteHomeNavMint(stripHomeLegacyHero(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || '')))))));
+  page = page.replace(/href=["']#content["']/gi, 'href="#simp"');
+  if (/id=["']dasha-lock["']/i.test(page)) return page;
+  const at = homeFirstInsertAt(page);
+  return page.slice(0, at) + homeFirstViewportHtml(sri) + page.slice(at);
 }
 
 function insertBeforeClose(page, chunk) {
@@ -349,7 +403,8 @@ export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
 export function rewriteStaleCdnFavicon(html) {
   return String(html || '').replace(/<link\b[^>]*>/gi, (tag) => {
     const href = tag.match(/\bhref\s*=\s*(["'])([^"']*)\1/i);
-    if (!href || href[2] !== 'https://cdn.prod.website-files.com/img/favicon.ico') return tag;
+    if (!href || !/favicon\.ico(?:\?|$)/i.test(href[2])) return tag;
+    if (!/website-files\.com|webflow\.com/i.test(href[2])) return tag;
     return tag.replace(href[0], `href=${href[1]}/favicon.ico${href[1]}`);
   });
 }
@@ -671,10 +726,6 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
 <p>For access or deletion requests, use the repository's <a href="https://github.com/Uuriko/dasha-desk/security/advisories/new">private report</a>. Do not include wallet keys or seed phrases.</p>
 <p><a href="https://www.getdasha.com/">Back to Dasha</a></p>`);
-
-const FORUM_HTML = htmlPage('Dasha forum', `<h1>Forum</h1>
-<p>The Dasha forum is not here. This path is linked from the site, but there is no forum yet.</p>
-<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/lobby">Lobby</a></p>`);
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
 <p>This path is not a Dasha page.</p>
@@ -2723,7 +2774,7 @@ async function productEdge(request, url, env) {
     (request.method === 'GET' || request.method === 'HEAD') &&
     (url.pathname === '/forum' || url.pathname === '/forum/')
   ) {
-    return Response.redirect('https://lobby.getdasha.com/forum', 308);
+    return Response.redirect(LOBBY_CHAT, 308);
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
@@ -2780,7 +2831,7 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   if (url.pathname === '/') {
-    html = injectHomeSimpCta(stripHomeSimpBoard(html));
+    html = rewriteHomeFirstViewport(stripHomeSimpBoard(html));
   } else {
     html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
     if (isExactPath(url.pathname, '/lobby')) html = injectLobbySimpQuiz(html);
@@ -2858,14 +2909,7 @@ export default {
       });
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
-      return new Response(request.method === 'HEAD' ? null : FORUM_HTML, {
-        status: 404,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-          'X-Dasha-Edge': 'forum',
-        }),
-      });
+      return Response.redirect(LOBBY_CHAT, 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);

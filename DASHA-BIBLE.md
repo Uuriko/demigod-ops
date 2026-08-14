@@ -1,7 +1,7 @@
 # Dasha bible — culture, design, product truth
 
-**Updated:** 2026-08-08  
-**Owner surfaces:** getdasha.com · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`  
+**Updated:** 2026-08-14  
+**Owner surfaces:** getdasha.com · worker home rewrite · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`  
 **Hard rule:** Attribute public posts and coin-source claims to their actual source. Do not invent affiliations or control.
 
 This doc is the shared design + culture spine for agents and humans shipping getdasha. Prefer primary sources linked below over vibes.
@@ -127,15 +127,26 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 
 ## 5. Visual system (getdasha)
 
+Visible four. Violet is technical only. No sixth hex.
+
 | Token | Value | Notes |
 |-------|-------|-------|
-| Ink | `#070608` | Near-black field |
+| Ink | `#070608` | Near-black field. LCP sits on ink. |
 | Paper | `#f4eddb` | Warm off-white type |
-| Acid | `#dfff00` | Primary CTA / sticker |
-| Hot | `#ff3b81` | Offset shadow / seed |
-| Violet | `#7c4dff` | Gradients |
-| Type | Arial / system, heavy uppercase display | “MAKE IT STRANGER” energy |
-| Motif | Offset hard shadows, tilted poster, acid sticker, ticker | Casino-adjacent without casino hero photo (tests ban old catbox casino hero) |
+| Acid | `#dfff00` | Band, CTA fill |
+| Hot | `#ff3b81` | 4px hard CTA offset |
+| Violet | `#7c4dff` | Technical only — one arc or nothing. Never a hero radial. Never `--hot-deep`. |
+| Type | Arial Black / Helvetica 900 display, Arial body | No system-ui. No Google Fonts. No Exo / Bangers / Raleway. |
+| CTA | Acid fill, ink type, 4px hard hot offset, min 48px | 0px radius or full pill |
+| Motif | Acid band, cherries mark, hard offset | No hero radial. No cheap-token wash. |
+
+**Home first viewport (and nothing else in that viewport):**
+1. Live acid band — repeating uppercase culture lines, ~28s CSS translate, pause on hover. Empty + `animation:none` fails. `prefers-reduced-motion`: ticker static.
+2. `$DASHA` + cherries.
+3. Nav: Studio · Simp · Bounties · @dash_eats · Buy. Forum is not a door. Lobby / Desk / Chess live in the footer.
+4. One display line (culture, not a pitch).
+5. Playable Simp quiz in this viewport — mount `https://lobby.getdasha.com/client/simp-board.js` with SRI. One `.dasha-quiz`. Not a 100vh stub above `#content`.
+6. Association one-liner: “References describe internet culture. Not endorsement.”
 
 **Image policy for product HTML:**
 1. Prefer **hotlinkable** `pbs.twimg.com` media with `referrerpolicy="no-referrer"` and honest alts.
@@ -192,7 +203,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | Remix studio entry + mint + buy | `@dash_eats` nav, text voice quotes, source post; **no remote image tape** (gate: brittle hotlinks) |
+| Home `/` | First viewport: acid band + `$DASHA` + cherries + nav + one culture line + playable Simp quiz + association line | Nav is Studio · Simp · Bounties · @dash_eats · Buy. Forum is not a door. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -202,12 +213,16 @@ Use these as **aesthetic references**, not product pledges:
 ## 8. Design checklist (ship gate)
 
 - [x] Direct link to `https://x.com/dash_eats` on home + studio + desk (disk prepared)  
+- [x] Home first viewport: acid band, `$DASHA` + cherries, nav (Studio · Simp · Bounties · @dash_eats · Buy), one culture line, SRI'd quiz mount, association line  
+- [x] No `#dasha-home-cta` 100vh decoy  
+- [x] No WebFont.load / Exo / Bangers / Raleway / system-ui on home first paint  
+- [x] No hero radial / `--hot-deep` / extra visible hexes  
+- [x] Forum is not a home door  
 - [x] Mint source post URL present  
-- [x] ≥4 culture images on home (twimg/dex), with honest caption  
 - [x] No catbox casino hero on home  
 - [x] No thesis/receipt language on home  
 - [x] No telegram community  
-- [x] Association ≠ endorsement in footer  
+- [x] Association ≠ endorsement on home  
 - [x] Buy CTAs = exact Jupiter + mint  
 - [ ] **Published** on live Webflow (blocked without current-request re-auth)  
 
