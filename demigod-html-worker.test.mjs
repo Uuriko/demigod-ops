@@ -491,11 +491,19 @@ const TINY_MAP = {
 }
 
 {
-  const noJoin = companyPageHtml(TINY_MAP, 'yc:peer-eng', {
-    roles: [{ company: 'Unrelated', title: 'Ghost Role', url: 'https://jobs.ashbyhq.com/unrelated/1' }],
+  const noJoin = companyPageHtml(TINY_MAP, 'yc:abundant', {
+    roles: [
+      { company: 'abundant', title: 'Case Mismatch', url: 'https://jobs.ashbyhq.com/abundant/1' },
+      { companyId: 'yc:abundant', company: 'Other', title: 'Id Only', url: 'https://jobs.ashbyhq.com/abundant/2' },
+      { company: 'Unrelated', title: 'Ghost Role', url: 'https://jobs.ashbyhq.com/abundant/3' },
+    ],
   });
-  assert.doesNotMatch(noJoin, /Ghost Role/);
-  assert.match(noJoin, /Roles are on|Open roles/);
+  assert.doesNotMatch(noJoin, /Case Mismatch|Id Only|Ghost Role/);
+  assert.match(noJoin, /Roles are on/);
+  assert.match(noJoin, /Open roles 4/);
+  assert.match(noJoin, /Role mix/);
+  assert.match(noJoin, /engineering/);
+  assert.match(noJoin, /https:\/\/jobs\.ashbyhq\.com\/abundant/);
 }
 
 {

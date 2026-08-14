@@ -256,10 +256,6 @@ function roleMixKeys(company) {
   return Object.keys(mix).filter(Boolean);
 }
 
-function nameKey(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
 function httpUrl(value) {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '';
@@ -304,48 +300,12 @@ function hiringCompanies(map) {
       String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
 }
 
-function uniqueCompanyName(map, name) {
-  const want = nameKey(name);
-  if (!want) return false;
-  let n = 0;
-  for (const row of mapRows(map)) {
-    if (nameKey(row.name) === want) {
-      n += 1;
-      if (n > 1) return false;
-    }
-  }
-  return n === 1;
-}
-
-function jobsUrlJoins(jobsUrl, roleUrl) {
-  const left = httpUrl(jobsUrl);
-  const right = httpUrl(roleUrl);
-  if (!left || !right) return false;
-  try {
-    const a = new URL(left);
-    const b = new URL(right);
-    if (a.hostname.replace(/^www\./i, '') !== b.hostname.replace(/^www\./i, '')) return false;
-    const base = a.pathname.replace(/\/$/, '');
-    if (!base) return false;
-    const path = b.pathname;
-    return path === base || path.startsWith(`${base}/`);
-  } catch {
-    return false;
-  }
-}
-
-function rolesForCompany(map, company, feed) {
-  const roles = Array.isArray(feed?.roles) ? feed.roles.filter((row) => row && typeof row === 'object') : [];
-  if (!roles.length || !company) return [];
-  const id = String(company.id || '');
-  const name = nameKey(company.name);
-  const nameOk = uniqueCompanyName(map, company.name);
-  return roles.filter((role) => {
-    const roleId = String(role.companyId || '');
-    return (id && roleId && roleId === id) ||
-      jobsUrlJoins(company.jobsUrl, role.url) ||
-      (name && nameOk && nameKey(role.company) === name);
-  });
+/** Public roles-feed join is exact `role.company === map.name`. No id or jobsUrl join. */
+function rolesForCompany(company, feed) {
+  const name = company?.name;
+  if (typeof name !== 'string' || !name) return [];
+  const roles = Array.isArray(feed?.roles) ? feed.roles : [];
+  return roles.filter((role) => role && typeof role === 'object' && role.company === name);
 }
 
 function companyPeers(map, company, cap = 8) {
@@ -419,7 +379,7 @@ export function companyPageHtml(map, id, rolesFeed) {
   const mix = roleMixKeys(company).sort((a, b) => a.localeCompare(b));
   const unknowns = companyUnknowns(company);
   const peers = companyPeers(map, company);
-  const roles = rolesForCompany(map, company, rolesFeed);
+  const roles = rolesForCompany(company, rolesFeed);
   const sourceLabel = String(company.source || '').trim() || company.sourceUrl || '';
   const identity = [
     domain ? `<p>Domain ${escapeHtml(domain)}</p>` : '',
