@@ -200,6 +200,48 @@ for (const method of ['GET', 'HEAD']) {
   assert.equal(rally.status, 308, `retired Rally ${method} must redirect permanently`);
   assert.equal(rally.headers.get('location'), 'https://www.getdasha.com/');
 }
+assert.doesNotMatch(worker, /pathname === ['"]\/desk['"]/, 'desk must stay a Webflow 301, not a worker second desk');
+const lobbyPrivacy = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/privacy'), {});
+const lobbyPrivacyHtml = await lobbyPrivacy.text();
+for (const host of ['www.getdasha.com', 'getdasha.com']) {
+  for (const method of ['GET', 'HEAD']) {
+    for (const path of ['/forum', '/forum/']) {
+      const forum = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+      assert.equal(forum.status, 308, `${host}${path} ${method} must permanently send product-host Forum to lobby`);
+      assert.equal(forum.headers.get('location'), 'https://lobby.getdasha.com/forum');
+    }
+    for (const path of ['/howtobuy', '/howtobuy/']) {
+      const howtobuy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+      assert.equal(howtobuy.status, 308, `${host}${path} ${method} must permanently send the unspaced alias to /how-to-buy`);
+      assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/how-to-buy');
+    }
+    for (const path of ['/privacy', '/privacy/']) {
+      const privacy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+      assert.equal(privacy.status, 200, `${host}${path} ${method} must serve the same privacy page as lobby`);
+      assert.equal(privacy.headers.get('x-dasha-edge'), 'privacy');
+      assert.equal(await privacy.text(), method === 'HEAD' ? '' : lobbyPrivacyHtml);
+    }
+  }
+}
+{
+  const nativeFetch = globalThis.fetch;
+  let deskPassedThrough = false;
+  try {
+    globalThis.fetch = async (request) => {
+      deskPassedThrough = new URL(request.url).pathname === '/desk';
+      return new Response('<!doctype html><html><title>Not Found</title>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    };
+    const desk = await workerModule.default.fetch(new Request('https://www.getdasha.com/desk'), {});
+    assert.equal(deskPassedThrough, true, 'www /desk must remain a Webflow pass-through');
+    assert.equal(desk.status, 404, 'www /desk must not become a worker-owned desk');
+    assert.notEqual(desk.headers.get('x-dasha-edge'), 'privacy');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
 const canonicalSchema = '<script type="application/ld+json">{"@type":"WebSite","@id":"https://www.getdasha.com/#website"}</script>';
 const staleSchemas = '<script type="application/ld+json">{"@type":"WebSite"}</script><script type="application/ld+json">{"@type":"SoftwareApplication","license":"https://creativecommons.org/publicdomain/zero/1.0/"}</script>';
 assert.equal(sanitizePublicJsonLd(staleSchemas + canonicalSchema), canonicalSchema);
