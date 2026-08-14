@@ -2184,6 +2184,77 @@ async function handleOAuth(request, env, allowedOrigin) {
   return null;
 }
 
+const BOUNTIES_FEED_SCHEMA = 'dasha-bounties-feed/v1';
+const BOUNTIES_FEED_NOTE = "USDC on Solana. We don't hold it.";
+const BOUNTIES_FEED_PAGE = 'https://www.getdasha.com/bounties';
+const BOUNTIES_FEED_SOURCES = [
+  'https://uuriko.github.io/dasha-desk/bounties.json',
+  'https://raw.githubusercontent.com/Uuriko/dasha-desk/main/bounties.json',
+];
+
+function isBountiesJsonPath(pathname) {
+  return pathname === '/bounties.json' || pathname === '/bounties.json/';
+}
+
+function honestPayTo(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** dasha-desk still emits payTo:""; www must never. Missing dest → null + not_implemented. */
+export function normalizeBountiesFeed(raw) {
+  const listings = Array.isArray(raw?.listings)
+    ? raw.listings.filter((row) => row && typeof row === 'object').map((row) => {
+        const dest = honestPayTo(row.payTo);
+        return dest ? { ...row, payTo: dest } : { ...row, payTo: null, payoutStatus: 'not_implemented' };
+      })
+    : [];
+  return {
+    name: typeof raw?.name === 'string' && raw.name.trim() ? raw.name.trim() : 'dasha bounties',
+    schema: BOUNTIES_FEED_SCHEMA,
+    note: BOUNTIES_FEED_NOTE,
+    url: typeof raw?.url === 'string' && raw.url.trim() ? raw.url.trim() : BOUNTIES_FEED_PAGE,
+    listings,
+  };
+}
+
+async function readBountiesSource(url) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) return null;
+  const raw = await res.json().catch(() => null);
+  if (!raw || typeof raw !== 'object') return null;
+  if (raw.schema !== BOUNTIES_FEED_SCHEMA && !Array.isArray(raw.listings)) return null;
+  return normalizeBountiesFeed(raw);
+}
+
+async function loadBountiesFeed() {
+  for (const src of BOUNTIES_FEED_SOURCES) {
+    try {
+      const feed = await readBountiesSource(src);
+      if (feed) return feed;
+    } catch {
+      /* next pin */
+    }
+  }
+  return normalizeBountiesFeed(null);
+}
+
+async function bountiesFeedResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : JSON.stringify(await loadBountiesFeed()), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Dasha-Edge': 'bounties-feed',
+    },
+  });
+}
+
 function isProductHost(host) {
   const h = String(host || '').toLowerCase();
   return h === 'www.getdasha.com' || h === 'getdasha.com';
@@ -2227,6 +2298,9 @@ async function productEdge(request, url, env) {
         'X-Dasha-Edge': 'sitemap',
       },
     });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
+    return bountiesFeedResponse(request);
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
@@ -2407,6 +2481,9 @@ export default {
           'Cache-Control': 'public, max-age=300',
         },
       });
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
+      return bountiesFeedResponse(request);
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
