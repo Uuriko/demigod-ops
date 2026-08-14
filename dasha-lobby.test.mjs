@@ -893,6 +893,35 @@ ${liveHomeFooter}
     assert.doesNotMatch(chessHtml, /<footer\b/i, `${host} /chess must not invent a footer`);
     assert.equal((chessHtml.match(/<nav\b/gi) || []).length, 1, `${host} /chess must keep its existing nav`);
   }
+  const liveLobbyNav = '<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="/">$<span>DASHA</span></a><a class="back" href="/">← Home</a></nav>';
+  const lobbyLinked = ensurePrivacyLink(liveLobbyNav);
+  assert.match(lobbyLinked, />Privacy</);
+  assert.match(lobbyLinked, /href="\/privacy"/);
+  assert.equal([...lobbyLinked.matchAll(/href=["']\/privacy["']/g)].length, 1);
+  assert.match(lobbyLinked, /<a class="brand" href="\/">\$<span>DASHA<\/span><\/a>/);
+  assert.match(lobbyLinked, /<a class="back" href="\/">← Home<\/a>/);
+  assert.doesNotMatch(lobbyLinked, /<footer/i, 'lobby nav inject must not invent a footer');
+  assert.equal(ensurePrivacyLink(lobbyLinked), lobbyLinked, 'lobby nav Privacy inject must be idempotent');
+  for (const path of ['/lobby', '/lobby/']) {
+    const lobby = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`), {});
+    assert.equal(lobby.status, 200, `lobby ${path} must stay 200`);
+    assert.match(lobby.headers.get('content-type') || '', /text\/html/);
+    const lobbyHtml = await lobby.text();
+    assert.equal([...lobbyHtml.matchAll(/href=["']\/privacy["']/g)].length, 1, `lobby ${path} must have one Privacy link`);
+    assert.equal((lobbyHtml.match(/>Privacy</g) || []).length, 1, `lobby ${path} must show Privacy once`);
+    assert.match(lobbyHtml, /aria-label="Lobby navigation"/);
+    assert.match(lobbyHtml, /<a class="brand" href="\/">\$<span>DASHA<\/span><\/a>/);
+    assert.match(lobbyHtml, /<a class="back" href="\/">← Home<\/a>/);
+    assert.doesNotMatch(lobbyHtml, /<footer\b/i, `lobby ${path} must not invent a footer`);
+    assert.match(lobbyHtml, /--ink:#070608/);
+    assert.match(lobbyHtml, /--paper:#f4eddb/);
+    assert.match(lobbyHtml, /--acid:#dfff00/);
+    assert.match(lobbyHtml, /--hot:#ff3b81/);
+    assert.ok(lobbyHtml.includes('sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb'), `lobby ${path} must keep lobby.js SRI`);
+  }
+  const lobbyHead = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/lobby', { method: 'HEAD' }), {});
+  assert.equal(lobbyHead.status, 200, 'lobby HEAD /lobby must stay 200');
+  assert.equal(await lobbyHead.text(), '', 'lobby HEAD /lobby must have an empty body');
   const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
   const jquerySri = 'sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=';
   const webflowCssSri = 'sha384-webflowCssMustStay';
