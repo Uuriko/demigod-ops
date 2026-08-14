@@ -35,6 +35,8 @@ import {
   questionForAttempt,
   answerQuizAttempt,
   quizTitle,
+  quizCopy,
+  quizShareLine,
   submitQuiz,
 } from './dasha-simp-score.mjs';
 
@@ -202,6 +204,53 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
   assert.equal(deepDefault.total, QUIZ_PATH_LENGTH);
 }
 
+function walkIds(mode, route) {
+  const ids = [];
+  const texts = [];
+  let step = answerQuizAttempt(startQuizAttempt({ now, mode }), route, { now });
+  while (!step.done) {
+    ids.push(step.question.id);
+    texts.push(step.question.prompt, ...step.question.choices);
+    const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === step.question.id);
+    step = answerQuizAttempt(step.attempt, privateQuestion.answer, { now });
+  }
+  return { ids, text: texts.join(' '), attempt: step.attempt };
+}
+
+const cutLive = ['dunkinprice', 'materialistsdays', 'chesstreak', 'episode400', 'eyebrows', 'mjvibe', 'wobbleweekend', 'softnessrole', 'wobblecharacter', 'materialistsrole', 'latehost', 'comfrylore', 'feed', 'headline', 'yaleclaim', 'yaleargument'];
+const bannedQuickCopy = /\$3\.40|avocado toast|700 games|two shooting days|Letterman|Letterman/i;
+for (let route = 0; route < QUIZ_LANES.length; route++) {
+  const quick = walkIds('quick', route);
+  assert.equal(quick.ids[0] === 'route', false);
+  assert.ok(quick.ids.includes('account'), `quick route ${route} must include @dash_eats`);
+  assert.ok(quick.ids.includes('klaasje'), `quick route ${route} must show Klaasje before the deep block`);
+  assert.ok(quick.ids.includes('comfrey'), `quick route ${route} must include Comfrey`);
+  for (const id of cutLive) {
+    assert.equal(quick.ids.includes(id), false, `quick route ${route} still routes ${id}`);
+  }
+  assert.doesNotMatch(quick.text, bannedQuickCopy);
+  assert.match(quick.text, /Comfrey/);
+  assert.doesNotMatch(quick.text, /\bComfry\b/);
+  const deep = walkIds('deep', route);
+  for (const id of cutLive) {
+    assert.equal(deep.ids.includes(id), false, `deep route ${route} still routes ${id}`);
+  }
+  assert.match(deep.text, /Comfrey/);
+  assert.doesNotMatch(deep.text, /\bComfry\b/);
+  assert.ok(deep.ids.includes('klaasjefinal') && deep.ids.includes('dimessquare'), `deep route ${route} needs scene extras`);
+}
+assert.equal(walkIds('quick', 0).ids[0], 'debut');
+assert.equal(walkIds('quick', 1).ids[0], 'cohost');
+assert.equal(walkIds('quick', 2).ids[0], 'sailoryear');
+assert.match(QUIZ_QUESTIONS.find(question => question.id === 'sailoryear').prompt, /remembered as/);
+assert.match(QUIZ_QUESTIONS.find(question => question.id === 'debut').prompt, /feature directorial debut/);
+assert.match(QUIZ_QUESTIONS.find(question => question.id === 'apartment').prompt, /film she/);
+assert.ok(quizDone.quiz.copy.split(/[.!?]+\s/).filter(Boolean).length >= 2, 'result copy must be 2–3 sentences');
+assert.equal(quizDone.quiz.share, `${quizDone.quiz.title} · ${quizDone.quiz.lane}`);
+assert.doesNotMatch(quizDone.quiz.share, /\d+\/\d+/);
+assert.equal(quizDone.quiz.disclaimer, 'Association is not endorsement.');
+assert.equal(meStatus(quizDone.store, quizSession).board.quiz.share, quizDone.quiz.share);
+
 assert.ok(QUIZ_QUESTIONS.length >= 50, `expanded bank expected, got ${QUIZ_QUESTIONS.length}`);
 assert.equal(new Set(QUIZ_QUESTIONS.map(question => question.prompt)).size, QUIZ_QUESTIONS.length, 'quiz prompts must be unique');
 for (const question of QUIZ_QUESTIONS) {
@@ -215,7 +264,11 @@ assert.equal(quizTitle(19, 19), 'Dasha scholar');
 assert.equal(quizTitle(16, 19), 'Confirmed simp');
 assert.equal(quizTitle(12, 19), 'Deep in the lore');
 assert.equal(quizTitle(8, 19), 'Watching respectfully');
-assert.equal(quizTitle(7, 19), 'Dasha curious');
+assert.equal(quizTitle(7, 19), 'Still loading');
+assert.notEqual(quizTitle(0, 19), 'Dasha curious');
+assert.match(quizCopy('Confirmed simp', 'Cinema obsessive'), /Cinema obsessive/);
+assert.equal(quizShareLine('Confirmed simp', 'Cinema obsessive'), 'Confirmed simp · Cinema obsessive');
+assert.doesNotMatch(quizShareLine('Confirmed simp', 'Cinema obsessive'), /\d+\/\d+/);
 
 // --- creative cap 100 / 28d ---
 const creativeAwards = [];

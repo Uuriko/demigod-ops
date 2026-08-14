@@ -81,6 +81,22 @@ if (disk) {
   }
   const first = questionForAttempt(startQuizAttempt({ now }));
   ok('default deep', first.progress.total === QUIZ_PATH_LENGTH);
+  for (let lane = 0; lane < QUIZ_LANES.length; lane++) {
+    const seen = [];
+    let step = answerQuizAttempt(startQuizAttempt({ now, mode: 'quick' }), lane, { now });
+    let attempt = step.attempt;
+    while (!step.done) {
+      seen.push(step.question.id);
+      const privateQ = QUIZ_QUESTIONS.find((q) => q.id === step.question.id);
+      step = answerQuizAttempt(attempt, privateQ.answer, { now });
+      attempt = step.attempt;
+    }
+    ok(`quick lane ${lane} has account`, seen.includes('account'));
+    ok(
+      `quick lane ${lane} no receipt trivia`,
+      !seen.some((id) => ['dunkinprice', 'chesstreak', 'materialistsdays', 'latehost'].includes(id)),
+    );
+  }
 }
 
 if (live) {
