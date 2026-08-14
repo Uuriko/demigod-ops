@@ -107,8 +107,8 @@ assert(
 );
 assert(!html.includes('lobby.getdasha.com/client/lobby.js'), 'homepage must not load the lobby client');
 assert(
-  html.includes('Quick 10Q to share') && html.includes('Deep 20Q') && html.includes('ranked by lore'),
-  'board intro must name quick/deep quiz modes',
+  html.includes('Take the quiz') && html.includes('ranked by lore') && !html.includes('10Q') && !html.includes('20Q'),
+  'board intro must name one quiz without Quick/Deep lengths',
 );
 assert(html.includes('id="oss"'), 'open-source section missing');
 assert(html.includes('github.com/Uuriko/dasha-desk/contribute'), 'OSS CTAs must use GitHub /contribute surface');

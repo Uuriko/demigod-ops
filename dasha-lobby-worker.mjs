@@ -730,12 +730,12 @@ function publicQuestionHtml(question) {
   return `<p>${prompt}</p><ul>${choices}</ul>`;
 }
 
-/** First-paint quiz chrome: Quick/Deep + first question, plus noscript bank (no answers). */
+/** First-paint quiz chrome: one start + first question, plus noscript bank (no answers). */
 export function simpQuizFirstPaintHtml() {
-  const first = questionForAttempt(startQuizAttempt({ mode: 'quick' }))?.question;
+  const first = questionForAttempt(startQuizAttempt())?.question;
   const firstBlock = first ? `<div id="dasha-quiz-q">${publicQuestionHtml(first)}</div>` : '';
   const bank = QUIZ_QUESTIONS.map((question) => `<li>${publicQuestionHtml(question)}</li>`).join('');
-  return `<p><a class="dasha-go" href="#dasha-quiz-q">Quick 10Q</a> <a class="dasha-go" href="#dasha-quiz-q">Deep 20Q</a></p>
+  return `<p><a class="dasha-go" href="#dasha-quiz-q">Take the quiz</a></p>
 ${firstBlock}
 <noscript><p>Scored attempts need JavaScript. Public questions (no answers):</p><ul>${bank}</ul></noscript>`;
 }
@@ -748,7 +748,7 @@ export function simpPageHtml() {
 <body>
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
-<p>Quick 10Q to share · Deep 20Q on the board.</p>
+<p>Take the quiz. Ranked by lore and contributions.</p>
 <p><a class="dasha-go" href="#dasha-quiz">Take Simp</a></p>
 <p>${SIMP_RULES_LINE}</p>
 <p>${perryDisplay} · editorial #1 · not measured</p>
@@ -1663,9 +1663,8 @@ export class DashaLobby {
         const cutoff = Date.now() - 60 * 60_000;
         for (const [key, attempt] of Object.entries(this.simpQuizAttempts)) if (key.startsWith('anon:') && Number(attempt?.updatedAt) < cutoff) delete this.simpQuizAttempts[key];
         // Scored retakes always allowed — wipe in-progress attempt and start a fresh scored run.
-        const mode = input?.mode === 'quick' ? 'quick' : 'deep';
         const attemptId = xId || `anon:${randomUrlToken(18)}`;
-        const attempt = startQuizAttempt({ practice: false, mode });
+        const attempt = startQuizAttempt({ practice: false });
         this.simpQuizAttempts[attemptId] = attempt;
         this.simpQuizMetrics[completed ? 'replays' : 'starts']++;
         countMetric(this.simpQuizMetrics.reached, attempt.current);
@@ -1673,7 +1672,6 @@ export class DashaLobby {
         return json({
           ok: true,
           ...quizPublic(),
-          mode,
           retake: Boolean(completed),
           ...(xId ? {} : { attemptId: attemptId.slice(5) }),
           ...questionForAttempt(attempt),

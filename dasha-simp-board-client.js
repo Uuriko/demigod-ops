@@ -148,14 +148,12 @@
     var quizClose = el('button', 'simp-quiz-close', 'Close'); quizClose.type = 'button';
     quiz.appendChild(quizClose);
     quiz.appendChild(el('h3', 'simp-quiz-title', 'How big of a Dasha simp are you?'));
-    var quizNote = el('p', 'simp-quiz-note', 'Quick 10Q to share · Deep 20Q on the board.');
-    var quizBtn = el('button', 'simp-action simp-quiz-start', 'Deep 20Q'); quizBtn.type = 'button';
-    var quickBtn = el('button', 'simp-action', 'Quick 10Q'); quickBtn.type = 'button';
-    quickBtn.setAttribute('aria-label', 'Start the quick 10-question simp quiz');
+    var quizNote = el('p', 'simp-quiz-note', 'Take the quiz. Finishing joins the Board.');
+    var quizBtn = el('button', 'simp-action simp-quiz-start', 'Take the quiz'); quizBtn.type = 'button';
+    quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
     var retakeBtn = el('button', 'simp-action', 'Retake quiz'); retakeBtn.type = 'button'; retakeBtn.hidden = true;
     retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your board score');
     var quizActions = el('div', 'simp-actions simp-quiz-invite-actions');
-    quizActions.appendChild(quickBtn);
     quizActions.appendChild(quizBtn);
     quizActions.appendChild(retakeBtn);
     var quizBox = el('div', 'simp-quiz-box'); quizBox.hidden = true;
@@ -200,8 +198,6 @@
     var meData = null;
     var quizState = null;
     var quizAttemptId = '';
-    /** Last start mode so share-UI retake matches invite vs board. */
-    var lastQuizMode = 'deep';
     /** Prevent double-taps while an answer is in flight. */
     var quizAnswerBusy = false;
     /** Last finished quiz (client memory) so Share works even if /me lags. */
@@ -440,16 +436,13 @@
       hideResultSticky();
       quizBox.hidden = true;
       quizBtn.hidden = false;
-      quickBtn.disabled = false;
       retakeBtn.disabled = false;
       quizBtn.disabled = false;
       setQuizOpen(false);
       paintMe();
       try {
-        (lastQuizMode === 'quick' ? quickBtn : quizBtn).focus();
-      } catch (e) {
         quizBtn.focus();
-      }
+      } catch (e) {}
     }
 
     function postJoin() {
@@ -551,52 +544,39 @@
       meLine.hidden = true;
       meLine.textContent = '';
       quizBtn.hidden = false;
-      quickBtn.hidden = false;
       retakeBtn.hidden = true;
       quizBtn.disabled = false;
-      quickBtn.disabled = false;
       retakeBtn.disabled = false;
       if (!meData || !meData.linked) {
         actionBtn.textContent = 'Link X to join';
       actionBtn.setAttribute('aria-label', 'Link X to join the simp board');
         actionBtn.dataset.mode = 'link';
-        quizBtn.textContent = 'Deep 20Q';
+        quizBtn.textContent = 'Take the quiz';
         quizBtn.dataset.mode = 'quiz';
-        quickBtn.textContent = 'Quick 10Q';
-        quizNote.textContent =
-          'Quick 10Q · Deep 20Q.';
+        quizNote.textContent = 'Take the quiz. Finishing joins the Board.';
         return;
       }
       var quizResult = (meData.board && meData.board.quiz) || lastQuizResult;
-      if (quizResult && quizResult.mode === 'quick') lastQuizMode = 'quick';
-      else if (quizResult && quizResult.mode === 'deep') lastQuizMode = 'deep';
-      quizBtn.textContent = quizResult ? 'Share result' : 'Deep 20Q';
+      quizBtn.textContent = quizResult ? 'Share result' : 'Take the quiz';
       quizBtn.dataset.mode = quizResult ? 'share' : 'quiz';
       quizBtn.setAttribute(
         'aria-label',
-        quizResult ? 'Share your quiz result' : 'Start the deep 20-question Dasha simp quiz',
+        quizResult ? 'Share your quiz result' : 'Start the Dasha simp quiz',
       );
-      quickBtn.hidden = Boolean(quizResult);
       retakeBtn.hidden = !quizResult;
-      retakeBtn.setAttribute(
-        'aria-label',
-        lastQuizMode === 'quick'
-          ? 'Retake the quick 10-question quiz and update your score'
-          : 'Retake the deep 20-question quiz and update your score',
-      );
+      retakeBtn.setAttribute('aria-label', 'Retake the simp quiz and update your score');
       quizNote.textContent = quizResult
         ? quizResult.correct +
           '/' +
           quizResult.total +
           ' · ' +
           quizResult.title +
-          (quizResult.mode === 'quick' ? ' · quick' : '') +
           ' · ' +
           (meData.board && meData.board.components ? meData.board.components.quiz || 0 : quizResult.points || 0) +
           ' pts' +
           (quizResult.vibeNote ? ' · ' + quizResult.vibeNote : '') +
           ' · Share anytime · Retake updates score'
-        : 'Quick 10Q to share · Deep 20Q for board score. Finishing joins the Board. Score = accuracy. Vibe is just for fun.';
+        : 'Take the quiz. Finishing joins the Board. Score = accuracy. Vibe is just for fun.';
       if (!meData.enrolled) {
         actionBtn.textContent = 'Join board';
         actionBtn.setAttribute('aria-label', 'Join the simp board with linked X account');
@@ -751,13 +731,13 @@
      */
     function runQuizInvite() {
       scrollToQuiz();
-      setStatus('Quiz invite — quick path (10Q)', 'ok');
+      setStatus('Quiz invite', 'ok');
       if (meData && meData.linked) {
         hideQuizConnectBar();
-        startQuiz('quick');
+        startQuiz();
         return;
       }
-      // Ask to connect X; Start quiz / bar → quick mode for virality.
+      // Ask to connect X; Start quiz / bar is optional.
       openQuizInviteGate();
       showQuizConnectBar();
     }
@@ -831,7 +811,7 @@
       startBtn.addEventListener('click', function () {
         dismiss();
         scrollToQuiz();
-        if (quizBox.hidden) startQuiz('quick');
+        if (quizBox.hidden) startQuiz();
         showQuizConnectBar();
       });
       gateEl.addEventListener('click', function (ev) {
@@ -873,7 +853,7 @@
           hideQuizConnectBar();
           if (fromQuizInvite && quizBox.hidden) {
             scrollToQuiz();
-            startQuiz('quick');
+            startQuiz();
           }
           if (autoJoin && !meData.enrolled) {
             setGateAutoJoin(false);
@@ -969,14 +949,12 @@
         result && result.correct != null
           ? result.correct + '/' + (result.total != null ? result.total : '?')
           : '';
-      var modeTag = result && result.mode === 'quick' ? ' · quick' : '';
       var who = handle ? handle + ' · ' : '';
       var challengeUrl = (result && result.resultUrl) || QUIZ_INVITE_URL;
       return (
         who +
         title +
         (score ? ' ' + score : '') +
-        modeTag +
         (includeUrl === false ? '\nBeat this' : '\nBeat this → ' + challengeUrl) +
         '\n$dasha'
       );
@@ -1055,7 +1033,6 @@
         quizBox.textContent = '';
         quizBox.hidden = false;
         quizBtn.hidden = true;
-        quickBtn.hidden = true;
         retakeBtn.hidden = true;
         setQuizOpen(false);
         if (blob) {
@@ -1106,7 +1083,7 @@
           if (previewUrl) URL.revokeObjectURL(previewUrl);
           hideResultSticky();
           quizBox.hidden = true;
-          startQuiz(retakeMode());
+          startQuiz();
         });
         var done = el('button', 'simp-action', 'Done');
         done.type = 'button';
@@ -1262,17 +1239,11 @@
 
     function renderQuestion(data) {
       quizAnswerBusy = false;
-      quizState = data; setQuizOpen(true); quizBox.textContent = ''; quizBox.hidden = false; quizBtn.hidden = true; quickBtn.hidden = true;
+      quizState = data; setQuizOpen(true); quizBox.textContent = ''; quizBox.hidden = false; quizBtn.hidden = true;
       var stage = el('div', 'simp-quiz-stage');
-      var modeTag = lastQuizMode === 'quick' ? 'QUICK · ' : '';
-      var count = el(
-        'div',
-        'simp-quiz-count',
-        modeTag + data.progress.current + ' OF ' + data.progress.total,
-      );
-      stage.appendChild(count);
-      var bar = el('div', 'simp-quiz-bar'); bar.setAttribute('role','progressbar'); bar.setAttribute('aria-valuemin','1'); bar.setAttribute('aria-valuemax',String(data.progress.total)); bar.setAttribute('aria-valuenow',String(data.progress.current));
-      var fill = el('span','simp-quiz-fill'); fill.style.width = (data.progress.current / data.progress.total * 100) + '%'; bar.appendChild(fill); stage.appendChild(bar);
+      var current = (data.progress && data.progress.current) || 1;
+      var bar = el('div', 'simp-quiz-bar'); bar.setAttribute('role','progressbar'); bar.setAttribute('aria-valuenow',String(current));
+      var fill = el('span','simp-quiz-fill'); fill.style.width = Math.min(90, 6 + current * 5) + '%'; bar.appendChild(fill); stage.appendChild(bar);
       var question = el('h4','simp-quiz-question',data.question.prompt); question.id = 'simp-quiz-question'; question.tabIndex = -1; stage.appendChild(question);
       if (data.question.image) { var qimg = document.createElement('img'); qimg.src = base + data.question.image; qimg.alt = ''; qimg.setAttribute('aria-hidden', 'true'); qimg.loading = 'eager'; qimg.style.cssText = 'display:block;width:100%;max-height:min(300px,32svh);object-fit:cover'; stage.appendChild(qimg); }
       var choices = el('div','simp-quiz-choices'); choices.setAttribute('role','group'); choices.setAttribute('aria-labelledby',question.id);
@@ -1331,9 +1302,6 @@
             }
             if (res.data.quiz) {
               lastQuizResult = res.data.quiz;
-              if (res.data.quiz.mode === 'quick' || res.data.quiz.mode === 'deep') {
-                lastQuizMode = res.data.quiz.mode;
-              }
             }
             setStatus(
               res.data.retake ? 'Score updated · share your result' : 'Quiz scored · Board joined · share your result',
@@ -1351,35 +1319,27 @@
       });
     }
 
-    function startQuiz(mode) {
-      // mode: 'quick' (invite default + board Quick 10Q) | 'deep' (board Deep 20Q)
-      var m = mode === 'quick' ? 'quick' : 'deep';
-      lastQuizMode = m;
+    function startQuiz() {
       quizAnswerBusy = false;
       hideResultSticky();
       quizBtn.disabled = true;
-      quickBtn.disabled = true;
       retakeBtn.disabled = true;
-      postQuiz({ action: 'start', mode: m })
+      postQuiz({ action: 'start' })
         .then(function (res) {
           if (!res.data || !res.data.question) throw new Error((res.data && res.data.error) || 'Quiz unavailable');
           quizAttemptId = res.data.attemptId || '';
-          setStatus(m === 'quick' ? 'Quick quiz · 10 questions' : 'Deep quiz · 20 questions', 'ok');
+          setStatus('Simp quiz', 'ok');
           renderQuestion(res.data);
         })
         .catch(function (error) {
           quizBtn.disabled = false;
-          quickBtn.disabled = false;
           retakeBtn.disabled = false;
           setStatus(String(error.message || error), 'bad');
         });
     }
 
-    function retakeMode() {
-      if (lastQuizMode === 'quick') return 'quick';
-      var qr = lastQuizResult || (meData && meData.board && meData.board.quiz);
-      if (qr && qr.mode === 'quick') return 'quick';
-      return 'deep';
+    function retakeQuiz() {
+      startQuiz();
     }
 
     root.addEventListener('keydown', function (event) {
@@ -1394,13 +1354,10 @@
       if (quizBtn.dataset.mode === 'share') {
         return shareQuiz(lastQuizResult || (meData && meData.board && meData.board.quiz));
       }
-      startQuiz('deep');
-    });
-    quickBtn.addEventListener('click', function () {
-      startQuiz('quick');
+      startQuiz();
     });
     retakeBtn.addEventListener('click', function () {
-      startQuiz(retakeMode());
+      retakeQuiz();
     });
     inviteToolBtn.addEventListener('click', function () {
       copyQuizInvite(inviteToolBtn);

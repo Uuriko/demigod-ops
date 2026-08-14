@@ -72,7 +72,8 @@ assert(
 );
 assert(client.includes('650') && client.includes('1100') && !client.includes("'Pause'"), 'feedback should advance briskly without an extra pause control');
 assert(client.includes('quizAnswerBusy'), 'double-tap answer guard missing');
-assert(client.includes('retakeMode') && client.includes('QUICK ·'), 'mode-aware retake + progress label missing');
+assert(client.includes('retakeQuiz') && client.includes("role','progressbar"), 'retake helper + quiet progress bar missing');
+assert(!client.includes('QUICK ·') && !client.includes('10Q') && !client.includes('20Q'), 'player chrome must not advertise quiz length or Quick/Deep');
 assert(worker.includes("path.startsWith('/simp/r/')") && worker.includes('twitter:card') && client.includes('Beat this'), 'permanent challenge results missing');
 assert(worker.includes('twitter:title') && worker.includes('twitter:description') && worker.includes('twitter:image') && worker.includes('twitter:image:alt'), 'result card X metadata incomplete');
 for (const tag of ['og:type', 'og:image:secure_url', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt']) assert(worker.includes(tag), `result card missing ${tag}`);
@@ -113,8 +114,8 @@ assert(client.includes('align-content:start'), 'active quiz must top-align on sh
 assert(client.includes("scrollIntoView({ behavior: 'smooth', block: 'start' })"), 'quiz start must scroll into view');
 assert(client.includes('is-correct') && client.includes('is-wrong'), 'correct and incorrect feedback states missing');
 assert(
-  landing.includes('Quick 10Q to share') && landing.includes('Deep 20Q'),
-  'landing board intro must name quick/deep quiz modes',
+  landing.includes('Take the quiz') && landing.includes('ranked by lore') && !landing.includes('10Q') && !landing.includes('20Q'),
+  'landing board intro must name one quiz without Quick/Deep lengths',
 );
 assert(landing.includes('simp-breakdown') && client.includes("el('details', 'simp-breakdown')"), 'compact native score breakdown missing');
 assert(client.includes("el('details', 'simp-tools')") && client.includes("el('summary', '', 'More')"), 'secondary board tools must stay under More');
@@ -123,7 +124,7 @@ assert(!client.includes('Copy invite link'), 'result screen regained a duplicate
 assert(client.includes("setStatus('', 'ok')"), 'successful board load should not leave persistent status chrome');
 assert(!client.includes('Open — link X and join'), 'empty ranking placeholder duplicates the join action');
 assert(client.includes('quiz=1') && client.includes('wantsQuizInvite') && client.includes('runQuizInvite'), 'shareable quiz deep link missing');
-assert.match(client, /q\.get\('challenge'\)[\s\S]{0,120}\^\[A-Za-z0-9_\-\]\{6,20\}\$[\s\S]{0,80}return true/, 'permanent score challenges must enter the same quick quiz flow');
+assert.match(client, /q\.get\('challenge'\)[\s\S]{0,120}\^\[A-Za-z0-9_\-\]\{6,20\}\$[\s\S]{0,80}return true/, 'permanent score challenges must enter the same quiz flow');
 assert(client.includes("QUIZ_INVITE_URL = 'https://www.getdasha.com/simp'"), 'canonical quiz invite URL missing');
 assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt missing');
 assert(!client.includes("var inviteCopyBtn") && !client.includes("var inviteShareBtn"), 'quiz start must not expose redundant invite controls');
@@ -131,24 +132,19 @@ assert(client.includes("var inviteToolBtn") && client.includes("'Invite on X'"),
 assert(client.includes('copyQuizInvite') && client.includes('shareQuizInviteOnX'), 'invite copy/share helpers missing');
 assert(landing.includes('?quiz=1#simp'), 'landing should surface quiz invite link');
 assert(client.includes('latest score counts') || client.includes('Retake updates score'), 'retake-for-score copy missing');
-// Dual-length quiz: invite + board Quick 10Q; board Take quiz → deep 20Q
-assert(score.includes('QUIZ_QUICK_LENGTH') && score.includes("mode === 'quick'"), 'score module missing quick path');
-assert(worker.includes("input?.mode === 'quick'") || worker.includes("mode === 'quick'"), 'worker must accept mode quick');
-assert(client.includes("startQuiz('quick')") && client.includes("startQuiz('deep')"), 'client must wire quick vs deep starts');
-assert(client.includes("action: 'start', mode: m") || client.includes('action:\'start\',mode:m') || client.includes("mode: m"), 'start payload must send mode');
-assert(client.includes('Quick quiz · 10') || client.includes('Quick quiz · 10 questions'), 'quick start status missing');
-assert(client.includes('Deep quiz · 20') || client.includes('Deep quiz · 20 questions'), 'deep start status missing');
-assert(client.includes('Quick 10Q') && client.includes('quickBtn'), 'board must expose Quick 10Q start (not only invite)');
+assert(score.includes("QUIZ_VERSION = 'dasha-simp-quiz/v9'"), 'score module must be v9');
+assert(!score.includes('QUIZ_QUICK_LENGTH'), 'quick length must be gone from product');
+assert(!worker.includes("input?.mode === 'quick'"), 'worker must not accept a quick mode');
+assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") && !client.includes("startQuiz('deep')"), 'client must start one quiz');
+assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
+assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
+assert(client.includes('Take the quiz') && !client.includes('quickBtn'), 'board must expose one start button');
 assert(client.includes('sendQuizCard') && client.includes('Share result'), 'result share must offer image-first Share result');
 assert(client.includes("navigator.canShare({ files: [file] })"), 'native image share path must stay wired');
 assert(client.includes('var challengeUrl = (result && result.resultUrl) || QUIZ_INVITE_URL'), 'fallback share must prefer the permanent result-card URL');
 assert(!client.includes('Invite first so paste/share targets always carry the play link'), 'generic invite must not outrank the result card in shared text');
-assert(client.includes('lastQuizMode'), 'retake should remember invite vs board mode');
-assert(
-  client.includes('retakeMode') && client.includes('startQuiz(retakeMode())'),
-  'retake must honor lastQuizMode via retakeMode()',
-);
-assert(!/\bstartQuiz\(\s*\)/.test(client), 'bare startQuiz() must pass quick|deep');
+assert(!client.includes('lastQuizMode'), 'retake must not remember a quick/deep mode');
+assert(client.includes('retakeQuiz') && client.includes('startQuiz()'), 'retake must start the same quiz');
 assert(worker.includes('simpQuizAttempts') && worker.includes('answerQuizAttempt'), 'quiz branch state must remain server-side');
 for (const path of ['/simp/seasons', '/simp/wallet/challenge', '/simp/wallet/verify']) {
   assert(client.includes(path), `client missing ${path}`);
@@ -252,7 +248,7 @@ try {
     }); }
     if (path === '/simp/quiz' && route.request().method() === 'POST') return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, attemptId: 'attempt123', progress: { current: 1, total: 10 }, question: { prompt: 'A real challenge starts where?', choices: ['At question one', 'On a blank homepage'] } }),
+      body: JSON.stringify({ ok: true, attemptId: 'attempt123', progress: { current: 1 }, question: { prompt: 'A real challenge starts where?', choices: ['At question one', 'On a blank homepage'] } }),
       headers: { 'Access-Control-Allow-Origin': 'https://www.getdasha.com', 'Access-Control-Allow-Credentials': 'true' },
     });
     const data = path === '/simp/board'
@@ -264,7 +260,7 @@ try {
             enrolled: true,
             x: { display: '@test', handle: 'test' },
             board: {
-              quiz: { correct: 8, total: 10, title: 'Confirmed simp', lane: 'Dasha archaeologist', mode: 'quick', resultUrl: 'https://lobby.getdasha.com/simp/r/test' },
+              quiz: { correct: 8, total: 10, title: 'Confirmed simp', lane: 'Dasha archaeologist', resultUrl: 'https://lobby.getdasha.com/simp/r/test' },
               components: { quiz: 8 }, total: 8, badges: [],
             },
           };
@@ -309,8 +305,8 @@ try {
   await page.goto('https://www.getdasha.com/__simp_share_test?challenge=result123#simp');
   await page.addScriptTag({ content: client });
   await page.getByRole('heading', { name: 'A real challenge starts where?' }).waitFor();
-  assert.match(await page.locator('.simp-quiz-count').textContent(), /QUICK · 1 OF 10/);
-  assert.equal(challengeLookups, 1, 'result challenge must be resolved once before the quick quiz');
+  assert.doesNotMatch(await page.locator('.simp-quiz').textContent(), /QUICK|10Q|20Q|\d+\s+OF\s+\d+/i);
+  assert.equal(challengeLookups, 1, 'result challenge must be resolved once before the quiz');
   await page.waitForFunction(() => document.querySelector('.simp-quiz-note')?.textContent.startsWith('Beat 8/10'));
   assert.match(await page.locator('.simp-quiz-note').textContent(), /Beat 8\/10 · Confirmed simp · Dasha archaeologist/);
   assert.equal(await page.evaluate(() => window.DashaSimpBoard.wantsQuizInvite()), true);

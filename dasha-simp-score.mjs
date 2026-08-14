@@ -14,17 +14,17 @@ export const OSS_CAP_SEASON = 300;
 export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
 export const PUBLIC_BOARD_LIMIT = 50;
 export const OSS_SCHEMA = 'dasha-simp-oss/v0';
-export const QUIZ_VERSION = 'dasha-simp-quiz/v8';
-/** Deep scored path: route + 9 lane + 10 shared = 20. */
-export const QUIZ_PATH_LENGTH = 20;
-/** Quick scored path for invite/viral traffic: route + 4 lane + 5 shared = 10. */
-export const QUIZ_QUICK_LENGTH = 10;
-/** Full bank practice length (unused in product; kept for branch tests). */
-export const QUIZ_PRACTICE_LENGTH = 24;
+export const QUIZ_VERSION = 'dasha-simp-quiz/v9';
+/** Hidden step count: 1 unscored route + 16 scored. Never shown to the player. */
+export const QUIZ_PATH_LENGTH = 17;
+export const QUIZ_SCORED_LENGTH = 16;
+/** Full-bank walk for tests only. Not a player-facing mode. */
+export const QUIZ_PRACTICE_LENGTH = 40;
 export const QUIZ_MAX_POINTS = 60;
 /** Soft ±vibe on quiz points so the formula is not a pure spreadsheet. */
 export const QUIZ_VIBE_RANGE = 8;
 export const QUIZ_LANES = ['Cinema obsessive', 'Podcast casualty', 'Dasha archaeologist'];
+const LANE_KEYS = ['cinema', 'podcast', 'lore'];
 const q = (id, prompt, choices, answer, next, note, source, extra = {}) => ({
   id,
   prompt,
@@ -35,92 +35,62 @@ const q = (id, prompt, choices, answer, next, note, source, extra = {}) => ({
   source,
   ...extra,
 });
-const SOURCE = {
-  kim: 'https://letterboxd.com/kimsvideo/story/dasha-nekrasova-visits-kims-video-collection/',
-  criterion: 'https://www.criterion.com/current/posts/7281-berlinale-2021-lineup',
-  lat: 'https://www.latimes.com/entertainment-arts/movies/story/2021-03-02/scary-of-sixty-first-jeffrey-epstein-conspiracy-dasha-nekrasova',
-  screen: 'https://www.screendaily.com/features/word-of-mouth-succession-actress-dasha-nekrasova-im-not-allowed-to-shitpost-anymore/5168430.article',
-  interview: 'https://www.interviewmagazine.com/film/dasha-nekrasova-softness-of-bodies-amazon',
-  pod: 'https://redscarepodcast.libsyn.com/summer-dress-sadness',
-  coming: 'https://www.comingsoon.net/movies/features/1205998-dasha-nekrasova-scary-of-sixty-first-interview',
+const SRC = {
   raskin: 'https://www.maxraskin.com/interviews/dasha-nekrasova',
-  x: 'https://x.com/dash_eats',
-  materialists: 'https://www.dazeddigital.com/life-culture/article/68407/1/materialists-zeitgeisty-drama-love-capitalism-celine-song-interview-film',
-  wobble: 'https://www.nytimes.com/2018/10/04/movies/wobble-palace-review.html',
-  podDunkin: 'https://podscripts.co/podcasts/red-scare/pick-me-princess',
-  podYale: 'https://podscripts.co/podcasts/red-scare/that-whole-yale-thing',
-  podChess: 'https://podscripts.co/podcasts/red-scare/nepo-baby-its-cold-outside',
-  podThings: 'https://podscripts.co/podcasts/red-scare/pod-things',
-  pod400: 'https://podscripts.co/podcasts/red-scare/mentally-challengeders',
-  podRecent: 'https://podscripts.co/podcasts/red-scare/slopsara',
-  saturday: 'https://www.thesaturdaypaper.com.au/culture/film/2021/08/07/gonzo-director-and-actor-dasha-nekrasova/162825840012205',
-  bio: 'https://en.wikipedia.org/wiki/Dasha_Nekrasova',
-  site: 'https://www.getdasha.com/',
+  cut: 'https://www.thecut.com/2018/10/profile-red-scare-podcast.html',
+  gq: 'https://www.gq.com/story/dasha-nekrasova-succession-season-3-kendall-publicist-comfry',
+  berlinale: 'https://www.berlinale.de/en/2021/programme/202105883.html',
+  vulture: 'https://www.vulture.com/article/dasha-nekrasova-profile.html',
+  libsyn: 'https://redscarepodcast.libsyn.com/war-room-red-scare-w-steve-bannon',
+  dazed: 'https://www.dazeddigital.com/life-culture/article/68407/1/materialists-zeitgeisty-drama-love-capitalism-celine-song-interview-film',
+  indiewire: 'https://www.indiewire.com/features/interviews/the-beast-bertrand-bonello-lea-seydoux-sci-fi-venice-interview-1234902297/',
+  interview: 'https://www.interviewmagazine.com/film/dasha-nekrasova-softness-of-bodies-amazon',
+  rafman: 'https://www.interviewmagazine.com/art/jon-rafman-and-dasha-nekrasova-on-the-horror-we-call-life',
+  nylon: 'https://www.nylon.com/beauty/red-scares-dasha-nekrasova-on-freckle-pens-surviving-quarantine-and-her-feature-film-the-scary-of-61st-street',
+  variety: 'https://variety.com/2021/film/news/dasha-nekrasova-scary-of-61st-street-jeffrey-epstein-1234918735/',
+  collider: 'https://collider.com/jennifer-connelly-bad-behaviour-sneak-peek/',
 };
-// Live paths: lane 0–8 + shared 0–9. Index 9+ stays in the bank for pinned ids only.
-const routes = {
-  cinema: [
-    ['debut','What is her feature directorial debut?',['The Scary of Sixty-First','Materialists','The Sweet East'],0,'The public record calls it her first feature.',SOURCE.criterion],
-    ['materialistscredit','Materialists is which kind of credit?',['her directorial debut','an acting role','a Red Scare special'],1,'An acting credit, not a feature she directed.',SOURCE.materialists],
-    ['festival','Her first feature took which Berlin honor?',['Golden Bear','Best Screenplay','Best First Feature'],2,'Berlin Best First Feature — a prize, not a vibe.',SOURCE.bio],
-    ['apartment','The Scary of Sixty-First is the film she…',['only EP','scored','directed'],2,'She directed it. That is the credit.',SOURCE.criterion],
-    ['videostore','A cinema simp recognizes her pilgrimage to…',["Kim’s Video",'Blockbuster Bend','The Criterion Closet'],0,"She visited Kim’s legendary collection in Sicily.",SOURCE.kim],
-    ['horrorpair','Pick the exact favorite-horror double answer.',['Scream + Saw',"The Exorcist + Rosemary’s Baby",'Alien + Jaws'],1,'Asked for one, she named two. Naturally.',SOURCE.raskin],
-    ['cowriter','Who co-wrote the film?',['Celine Song','Madeline Quinn','Anna Khachiyan'],1,'Madeline Quinn co-wrote and co-starred.',SOURCE.screen],
-    ['kubrick','She described the film as a kind of love letter to…',['Spielberg','Tarantino','Kubrick'],2,'The film’s visual worldview drew on Stanley Kubrick.',SOURCE.lat],
-    ['softness','She also directed…',['The Softness of Bodies','Barbie','Everything Everywhere'],0,'Another film credit in the public record.',SOURCE.interview],
-    ['materialistsdays','How many days did Dasha spend on the Materialists set?',['two','twelve','twenty'],0,'Celine Song said the role took two shooting days.',SOURCE.materialists],
-    ['wobbleweekend','Wobble Palace splits one unhappy couple across which weekend?',['New Year’s 2017','Halloween 2016','Valentine’s 2018'],1,'Jane and Eugene divide Halloween weekend 2016.',SOURCE.wobble],
-  ],
-  podcast: [
-    ['cohost','Her Red Scare co-host?',['Anna Khachiyan','Chloë Sevigny','Hari Nef'],0,'Anna and Dasha host together.',SOURCE.pod],
-    ['redscare','Red Scare with Anna Khachiyan dates to…',['2014','2018','2021'],1,'The show has been on since 2018.',SOURCE.bio],
-    ['tone','The show’s default register is…',['earnest TED talk','deadpan cultural roast','sports radio'],1,'Irony is the house style.',SOURCE.pod],
-    ['onlineyoung','Before podcasting, teenage Dasha was already…',['on message boards','running a film festival','hosting sports radio'],0,'She described herself as very online even then.',SOURCE.interview],
-    ['firstrole','Her first acting role was in…',['a Broadway musical','a music video','a USC student film'],2,'A student film at USC.',SOURCE.interview],
-    ['western','Her first acting role was a student film described as a…',['courtroom drama','silent musical','post-apocalyptic Western'],2,'A USC student film with an unusually memorable premise.',SOURCE.interview],
-    ['horror','Her earliest movie fixation?',['horror','westerns','sports films'],0,'She told Kim’s Video she loved horror very young.',SOURCE.kim],
-    ['artschool','Her Las Vegas high school specialized in…',['computer science','performing arts','competitive swimming'],1,'She attended a performing-arts academy downtown.',SOURCE.saturday],
-    ['college','She graduated from…',['Mills College','NYU Tisch','Yale'],0,'Mills College.',SOURCE.bio],
-    ['dunkinprice','Dasha’s on-air Dunkin avocado toast cost…',['$2.10','$3.40','$6.75'],1,'The Pick Me Princess receipt was $3.40.',SOURCE.podDunkin],
-    ['yaleclaim','After her Yale debate, Dasha’s immediate verdict?',['I won','Never again','It was a draw'],0,'She opened the recap with “I won.”',SOURCE.podYale],
-    ['chesstreak','On the Christmas episode, the chess fixation count was…',['70','over 700','about 7,000'],1,'More than 700 games in six-to-eight weeks.',SOURCE.podChess],
-    ['eyebrows','What had recently been bleached on Pod Things?',['eyebrows','a denim jacket','hair ends'],0,'The eyebrows were already returning to normal.',SOURCE.podThings],
-    ['episode400','Around episode 400, the hosts estimated they had recorded…',['60 hours','600 hours','6,000 hours'],1,'Their back-of-envelope total was about 600 hours.',SOURCE.pod400],
-    ['mjvibe','In a recent episode, Dasha said she vibed with Michael Jackson’s…',['persona more than the music','chess openings','film criticism'],0,'Recent lore: persona first, music “whatever.”',SOURCE.podRecent],
-    ['feed','Where does the show actually live as audio?',['Libsyn feed','Spotify exclusive only','Clubhouse rooms'],0,'Public Libsyn listing is a clean source.',SOURCE.pod],
-    ['headline','A Screen Daily headline says she is no longer allowed to…',['direct','shitpost','watch horror'],1,'The headline is part of the lore.',SOURCE.screen],
-  ],
-  lore: [
-    ['sailoryear','The 2018 viral clip is remembered as…',['Sailor Socialism','Sailor Capitalism','Red Scare TV'],0,'The InfoWars encounter, not a year-quiz.',SOURCE.interview],
-    ['sailorlook','The viral interview outfit was a…',['sailor fuku','power suit','cowboy costume'],0,'The sailor look supplied the nickname.',SOURCE.bio],
-    ['sailorline','Finish the line: “All I want is…”',['a film deal, honey','another podcast, honey','free healthcare, honey'],2,'Meme lore from the clip, not a CTA.',SOURCE.interview],
-    ['birthcity','Dasha was born in…',['Riga','Minsk','Kyiv'],1,'Minsk, in what was then the Byelorussian SSR.',SOURCE.bio],
-    ['parents','Her parents’ performance backgrounds?',['opera singer + pianist','actors + dancers','rhythmic gymnast + acrobat'],2,'Her mother trained in rhythmic gymnastics; her father was an acrobat.',SOURCE.saturday],
-    ['studies','At Mills, she studied…',['film production','economics and statistics','sociology and philosophy'],2,'Her degree work centered sociology and philosophy.',SOURCE.bio],
-    ['messageboards','Teenage Dasha spent serious time on…',['sports radio','message boards','cooking forums'],1,'She described herself as very online early.',SOURCE.interview],
-    ['mst3k','She tried to impress a crush by liking…',['Twin Peaks','Mystery Science Theater 3000','The Simpsons'],1,'Extremely specific lore, directly from her Kim’s Video visit.',SOURCE.kim],
-    ['dreams','She said filmmaking draws on instinct and…',['spreadsheets','focus groups','dreams and the subconscious'],2,'The opposite of committee-made cinema.',SOURCE.screen],
-    ['vegaslore','She grew up outside…',['Las Vegas','Boston','Miami'],0,'Her family settled around Las Vegas.',SOURCE.interview],
-  ],
-};
-const shared = [
-  ['account','The canonical source account?',['@dash_eats','@getdasha','@dashaofficial'],0,'Use the actual public account.',SOURCE.x],
-  ['klaasje','Her original Disco Elysium voice role?',['Kim Kitsuragi','Klaasje','Cuno'],1,'She voiced Klaasje in the original release.',SOURCE.bio],
-  ['vegas','She grew up in suburbs outside…',['Las Vegas','Boston','Miami'],0,'Raised around Las Vegas after emigrating young.',SOURCE.interview],
-  ['brat','A Charli XCX Brat track inspired by her?',['360','Von dutch','Mean Girls'],2,'Mean Girls. A nod, not a collab claim.',SOURCE.bio],
-  ['comfrey','Her Succession S3 role was…',['Shiv Roy','Tabitha','Comfrey — crisis PR'],2,'Comfrey, crisis PR. That is the credit.',SOURCE.screen],
-  ['klaasjefinal','Her Disco Elysium Klaasje credit covers…',['original release only','the Final Cut','both editions'],0,'Original release; the Final Cut recast the role.',SOURCE.bio],
-  ['dimessquare','Dimes Square names which public scene?',['downtown NYC culture','a Las Vegas address','a Berlin residency'],0,'A scene tag, not a lease.',SOURCE.bio],
-  ['tenant','The clearest storytelling reference for her first feature?',['The Shining','Suspiria','The Tenant'],2,'She called The Tenant the most overt reference.',SOURCE.coming],
-  ['sequels','Which sequel did she single out for playful irony?',['Jaws 2','Texas Chainsaw Massacre 2','Halloween II'],1,'She liked its humor and sense of play.',SOURCE.coming],
-  ['franchise','Which horror franchise did she call herself a big fan of?',['Final Destination','The Purge','Nightmare on Elm Street'],2,'Nightmare on Elm Street was one of several favorites she named.',SOURCE.coming],
-  ['latehost','As a kid, she wanted to appear on…',['Oprah','SNL','Letterman'],2,'She specifically named David Letterman.',SOURCE.interview],
-  ['softnessrole','In The Softness of Bodies she plays…',['Charlotte','Jane','Daisy'],0,'Charlotte is the film’s drifting poet.',SOURCE.interview],
-  ['wobblecharacter','Dasha’s Wobble Palace character is named…',['Daisy','Jane','Comfry'],1,'Jane gets her half of the Halloween weekend.',SOURCE.wobble],
-  ['materialistsrole','In Materialists, Dasha plays…',['Daisy','Lucy','Sophie'],0,'Daisy works with Lucy at the matchmaking agency.',SOURCE.materialists],
-  ['yaleargument','At Yale, she argued in favor of…',['mandatory consensus','abolishing debate','polarization'],2,'Her stated case: depolarization was boring.',SOURCE.podYale],
-  ['teen','As a teenager she spent a lot of time…',['playing varsity tennis','posting on message boards','making cooking videos'],1,'She described herself as very online even then.',SOURCE.interview],
+// [id, tier, lane, prompt, choices, answer, note, source]
+const ITEMS = [
+  ['sailor-fuku', 1, 'cinema', 'What sailor-adjacent look was she wearing in the 2018 SXSW Infowars ambush?', ['A full Sailor Moon cosplay with wig and wand', 'A navy-and-white sailor-style fuku top (not a full cosplay) plus iced coffee', "A Cirque du Soleil leotard from her dad's act", 'A Red Scare merch sailor hat'], 1, 'A fuku top, not full cosplay. Getty portraits while promoting Wobble Palace.', SRC.raskin],
+  ['tatu-theme', 1, 'podcast', "Which t.A.T.u. song is Red Scare's opening theme?", ['All the Things She Said', 'Not Gonna Get Us', 'Nas Ne Dogonyat', 'Show Me Love'], 0, "The Cut 2018: 'All the Things She Said' is the show's theme.", SRC.cut],
+  ['comfry-job', 1, 'cinema', "On Succession, what is Comfry's actual job on Kendall's team?", ["Kendall's personal attorney", "Assistant to Berry Schneider, Kendall's actual publicist / crisis PR", 'Waystar in-house comms VP', "Shiv's opposition researcher"], 1, "GQ: Comfry is Berry Schneider's assistant and Kendall's crisis PR.", SRC.gq],
+  ['berlinale', 1, 'cinema', 'What prize did The Scary of Sixty-First win at the 2021 Berlinale?', ['Golden Bear', 'Silver Bear for Best Director', 'GWFF Best First Feature Award', 'Encounters Best Film'], 2, 'Berlinale page: GWFF Best First Feature Award, Encounters.', SRC.berlinale],
+  ['healthcare-line', 1, 'podcast', 'In the Infowars clip, which of these lines did she actually say?', ['Eat the rich, honey', 'I just want people to have free health care, honey', 'Bernie or bust, sweetheart', 'You people are fascists, honestly'], 1, "The Cut quotes: 'I just want people to have free health care, honey.'", SRC.cut],
+  ['wobble-sxsw', 1, 'cinema', 'Which film was she promoting at SXSW when Infowars approached her?', ['The Scary of Sixty-First', 'Softness of Bodies', 'Wobble Palace', 'The Ghost Who Walks'], 2, 'Vulture/The Cut: Wobble Palace; she co-wrote and starred with Eugene Kotlyarenko.', SRC.vulture],
+  ['minsk-vegas', 1, 'lore', 'Where was she born, and where did she mostly grow up after emigrating?', ['Moscow; New Jersey', 'Minsk; Las Vegas (via Atlantic City and other circus towns)', 'Kyiv; Los Angeles', 'St. Petersburg; Brooklyn'], 1, 'Vulture: born 1991 in Minsk; Atlantic City then Vegas.', SRC.vulture],
+  ['the-girl', 1, 'cinema', "In The Scary of Sixty-First, what is her on-screen credit?", ['Addie', 'Noelle', 'The Girl', 'Ghislaine'], 2, 'Berlinale credits: Betsey Brown Addie, Madeline Quinn Noelle, Nekrasova The Girl.', SRC.berlinale],
+  ['ews-universe', 2, 'cinema', 'What did she tell Vulture The Scary of Sixty-First shares with Eyes Wide Shut?', ["She stole Kubrick's unused Epstein research notes", "It's in the 'same cinematic universe'", "She recut Kubrick's orgy scene into the climax", 'Nicole Kidman has a cameo as Maxwell'], 1, "Vulture: homage in the 'same cinematic universe.'", SRC.vulture],
+  ['bannon-healthcare', 2, 'podcast', 'What question did Red Scare put to Steve Bannon on War Room Red Scare?', ['Would he debate Zizek live', "How you can call yourself a populist if you don't believe in universal healthcare", 'Whether he had seen Sailor Socialism', 'If he would produce their next live show'], 1, 'Libsyn blurb: populist, then universal healthcare.', SRC.libsyn],
+  ['nietzsche-mills', 2, 'lore', 'What philosophy did she mainly focus on at Mills College?', ['Kant', 'Nietzsche', 'Hegel', 'Simone Weil'], 1, 'Max Raskin: Nietzsche.', SRC.raskin],
+  ['parents-circus', 2, 'lore', 'Before Cirque du Soleil, what Soviet-era path did both of her parents take?', ['Bolshoi dancers', 'Child gymnasts who then performed with the Moscow Circus', 'KGB translators', 'Film extras at Mosfilm'], 1, 'Raskin: gymnasts, then Moscow Circus, then Cirque.', SRC.raskin],
+  ['materialists-legs', 2, 'cinema', "In Celine Song's Materialists, what workplace tidbit does Daisy drop?", ['Clients demand a 20 BMI cap only', 'Some men break their legs in a height-lengthening operation', "Harry's bachelor pad is $12 million", 'Lucy makes $80,000 a year'], 1, 'Dazed: men break their legs to grow a few inches.', SRC.dazed],
+  ['bonello-coffee', 2, 'cinema', 'How did Bertrand Bonello cast her as Dakota in The Beast?', ['Through a formal L.A. casting call after hearing Red Scare', 'He met her for coffee in New York in 2019 while presenting Zombi Child, liked the rhythm of her voice, and did not know the podcast', 'Léa Seydoux recommended her', 'She submitted a self-tape as an Elliot Rodger type'], 1, 'IndieWire: coffee in New York, 2019. He did not know the podcast.', SRC.indiewire],
+  ['mao-chaos', 2, 'lore', 'Which Mao line did she quote to Vulture while describing cultural decline?', ['Political power grows out of the barrel of a gun', 'Serve the people', 'Everything under heaven is in utter chaos; the situation is excellent', 'Let a hundred flowers bloom'], 2, 'Vulture: chaos; the situation is excellent.', SRC.vulture],
+  ['freud-start', 2, 'lore', 'In the 2020 Interview Magazine Q&A, which three Freud texts did she start people with?', ['Totem and Taboo; Beyond the Pleasure Principle; Moses and Monotheism', 'Intro to Psychoanalysis; The Interpretation of Dreams; Civilization and Its Discontents', 'The Ego and the Id; Three Essays; Jokes and Their Relation to the Unconscious', 'Studies on Hysteria; The Psychopathology of Everyday Life; The Future of an Illusion'], 1, 'Interview Mag: those three, in that order.', SRC.interview],
+  ['equinox-script', 3, 'cinema', 'Where did she and Madeline Quinn actually write The Scary of Sixty-First?', ["A Williamsburg writers' room", 'The rooftop deck of the Equinox on 61st Street', "Epstein's townhouse stoop", 'The Red Scare Patreon Discord'], 1, 'Nylon: Equinox rooftop on 61st Street.', SRC.nylon],
+  ['sixteen-mm', 3, 'cinema', 'What stock did she shoot The Scary of Sixty-First on, and in what month?', ['35mm in March 2020', 'Digital Alexa in December 2019', '16mm in January', 'Super 8 during quarantine'], 2, 'Nylon: 16mm in January.', SRC.nylon],
+  ['byzantine', 3, 'lore', 'Which rite of Catholicism has she said she actually practices?', ['Latin Mass sedevacantist chapel only', 'Byzantine Catholic (in communion with Rome, Orthodox liturgy)', "Novus Ordo at St. Patrick's Cathedral", 'She only attends Orthodox liturgies with her husband'], 1, 'Raskin: Byzantine Catholic, Orthodox liturgy, in communion with Rome.', SRC.raskin],
+  ['klaasje-never', 3, 'lore', 'Which Disco Elysium character did she voice — and what did she admit about the game?', ['Kim Kitsuragi; she 100-percented it', 'Klaasje, in the first iteration; she has never played it', 'Cuno; she speedran it on stream', 'Joyce Messier; she wrote extra lines'], 1, 'Interview Mag / Rafman: Klaasje, first iteration. She has never played it.', SRC.rafman],
+  ['opn-tonight', 3, 'cinema', 'Which late-night performance did she direct in 2020?', ['Lana Del Rey on Colbert', "Oneohtrix Point Never's 'I Don't Love Me Anymore' on The Tonight Show", 'Aphex Twin on Fallon', 'Dave Blunts on Kimmel'], 1, "Nylon: OPN on The Tonight Show.", SRC.nylon],
+  ['softness-poet', 3, 'cinema', 'In Softness of Bodies, what does she play?', ['A camgirl in Queens', 'A poet living abroad in Berlin', 'A crisis publicist', 'An Epstein truther'], 1, 'Interview Mag 2020: a poet living abroad in Berlin. Acting credit.', SRC.interview],
+  ['cutrone-book', 3, 'cinema', "What book did she read to build Comfry's 'PR girl mentality'?", ['The Power Broker', "Kelly Cutrone's If You Have to Cry, Go Outside", 'The Devil Wears Prada', 'Crisis Communications for Dummies'], 1, "GQ: Kelly Cutrone's If You Have to Cry, Go Outside.", SRC.gq],
+  ['hanging-stunt', 4, 'cinema', "What physically happened when she filmed The Girl recreating Epstein's hanging?", ['She used only CGI and a dummy', 'A stunt harness was fashioned from sheets; she still burst blood vessels around her eyes', 'She refused to do the scene and hired a double', 'She filmed it as a dream sequence with no neck pressure'], 1, 'Variety: sheet harness. She still burst blood vessels around her eyes.', SRC.variety],
+  ['bota-tarot', 4, 'cinema', "Which occult group's tarot deck appears in The Scary of Sixty-First?", ['Ordo Templi Orientis', 'Builders of the Adytum', 'The Process Church', 'Thee Temple ov Psychick Youth'], 1, 'Variety: Builders of the Adytum.', SRC.variety],
+  ['evangelion', 4, 'lore', 'What did she call Neon Genesis Evangelion in the Raskin interview?', ['Overrated weeaboo bait', 'The best, not just anime, but the best work of art ever made', 'A good gateway before Akira', "Anna's favorite, not hers"], 1, "Direct quote: the best work of art ever made.", SRC.raskin],
+  ['vegan-kotleti', 4, 'lore', 'During quarantine, which extremely on-brand cooking project did she describe?', ['Sourdough only', 'Vegan kotleti from Smallhold mushrooms via SlavicVegan.com', 'Raw-milk cheese in Queens', 'Nothing; she only ordered from Bar Pitti'], 1, 'Nylon: vegan kotleti, Smallhold mushrooms, SlavicVegan.com.', SRC.nylon],
+  ['husband-carpenter', 4, 'lore', 'What has she said her husband actually does, and what is his faith?', ['Talent agent; Latin Catholic', 'Carpenter in historic restoration; Orthodox convert who prays the Psalter daily', 'Cirque rigger; atheist', 'Red Scare producer; Byzantine Catholic like her'], 1, 'Raskin: historic-restoration carpenter; Orthodox convert; Psalter daily.', SRC.raskin],
+  ['players-club', 4, 'lore', 'Where did she have her wedding reception?', ['The Wing', "The Players club (the Shakespearean actors' club)", 'Fanelli Cafe', 'Union Hall'], 1, "Raskin: The Players, the Shakespearean actors' club.", SRC.raskin],
+  ['isis-tees', 4, 'podcast', 'On the Succession set, what real-time PR crisis was she managing between takes?', ['A leaked Scary of Sixty-First cut', "British tabloids slamming Red Scare's ISIS-themed T-shirts; she drafted a statement to The New Arab", 'A Jezebel piece about Bar Pitti', 'Gersh dropping her mid-shoot'], 1, 'GQ: ISIS-themed tees; she drafted a statement to The New Arab.', SRC.gq],
+  ['chess-elo', 4, 'lore', 'What chess opinions did she volunteer to Max Raskin?', ['She is 2200 and loves Magnus', "Elo about 1000, opens e4 because 'Bobby Fischer says it's tested,' dislikes Magnus, likes Hans Niemann and the Botez sisters", 'She only plays bughouse with Anna', 'She refuses chess as a Russian stereotype'], 1, 'Raskin: ~1000, e4, not a Magnus fan, likes Niemann and the Botez sisters.', SRC.raskin],
+  ['exorcist-mexico', 5, 'lore', 'Where and when did she first see The Exorcist?', ['A Minsk bootleg at age 6', 'Fourth grade, in Mexico, a forbidden VHS in a house she was staying in with a school friend', 'Midnight screening at Mills', 'Cirque greenroom in Vegas'], 1, 'Raskin: fourth grade, Mexico, a forbidden VHS at a school friend’s house.', SRC.raskin],
+  ['cirque-o', 5, 'lore', 'Which Cirque du Soleil show is her favorite?', ['Mystère', 'O (the Vegas water show)', 'KÀ', 'Zumanity'], 1, 'Raskin: probably “O.”', SRC.raskin],
+  ['leuchtturm', 5, 'lore', 'What analog productivity kit did she specify?', ['Moleskine and a Montblanc', 'A German Leuchtturm planner and R.S.V.P. pens made for wedding invitations', 'Remarkable tablet only', "Anna's shared Google Doc"], 1, 'Raskin: Leuchtturm planner and R.S.V.P. pens.', SRC.raskin],
+  ['catholic-u-notes', 5, 'lore', 'Which two phrases did she jot for a Catholic University horror-movie talk?', ["'God is dead' and 'the medium is the message'", "'Fear of God is the beginning of wisdom' and 'Conspiracy is like a folk religion'", "'This is our 9/11' and 'Epstein didn't kill himself'", "'Hesychasm' and 'the Real'"], 1, "Raskin planner notes: fear of God; conspiracy as folk religion.", SRC.raskin],
+  ['usc-western', 5, 'cinema', 'What was the first thing she acted in, per Interview Magazine?', ['A Yumi Zouma music video', 'A USC student film: a lesbian postapocalyptic Western', 'Cotton the web series', 'Wobble Palace'], 1, 'Interview Mag: USC student film, lesbian postapocalyptic Western.', SRC.interview],
+  ['letterman', 5, 'lore', 'Why did teenage Dasha want to be a child actor?', ['To join Cirque like her parents', 'Basically only so she could be a guest on David Letterman', 'To escape Vegas for LA', 'To fund message-board hobbies'], 1, 'Interview Mag: basically only for Letterman.', SRC.interview],
+  ['rafman-painting', 5, 'lore', 'What is the Jon Rafman artwork she called her favorite piece she owns?', ['A Google Street View still from Nine Eyes', 'A chihuahua having sex with a pig, three pit bulls looking on judgmentally as a storm rolls in', 'An AI portrait of Anna', 'A Second Life screenshot of Dimes Square'], 1, 'Interview Mag 2023: that painting. Her favorite piece she owns.', SRC.rafman],
+  ['bad-behaviour', 5, 'cinema', 'In Bad Behaviour, what happens to her character Beverly at the retreat?', ['She leads the silent sit and never speaks', 'Lucy (Jennifer Connelly) throws water in her face, screams at her to shut up, and smashes a chair over her head', "She is revealed as Dylan's stunt double", "Ben Whishaw's guru expels her for podcasting"], 1, 'Collider sneak-peek: water, shut up, chair over the head.', SRC.collider],
 ];
 const bank = new Map();
 bank.set(
@@ -128,61 +98,81 @@ bank.set(
   q(
     'route',
     'Pick your strongest lane.',
-    ['Cinema', 'Podcast', 'Personal + internet lore'],
+    ['Cinema', 'Podcast', 'Personal lore'],
     null,
-    ['cinema-0', 'podcast-0', 'lore-0'],
-    'Route set. Surprises await.',
-    SOURCE.site,
-    { surprise: 'lane-pick', stinger: 'Pick a personality. The algorithm is watching respectfully.' },
+    'sailor-fuku',
+    'Lane set. The rest depends on how online you were.',
+    SRC.vulture,
+    { stinger: 'Pick a personality. The algorithm is watching respectfully.' },
   ),
 );
-for (const [route, rows] of Object.entries(routes)) {
-  rows.forEach(([id, prompt, choices, answer, note, source], i) => {
-    bank.set(
-      `${route}-${i}`,
-      q(id, prompt, choices, answer, i === rows.length - 1 ? 'shared-0' : `${route}-${i + 1}`, note, source),
-    );
-  });
+for (const [id, tier, lane, prompt, choices, answer, note, source] of ITEMS) {
+  bank.set(id, q(id, prompt, choices, answer, null, note, source, { tier, lane }));
 }
-shared.forEach(([id, prompt, choices, answer, note, source], i) => {
-  bank.set(
-    `shared-${i}`,
-    q(id, prompt, choices, answer, i === shared.length - 1 ? null : `shared-${i + 1}`, note, source),
-  );
-});
 export const QUIZ_QUESTIONS = [...bank.values()];
+const scoredItems = QUIZ_QUESTIONS.filter((question) => question.answer != null);
 /** Local photos under /simp/photo/* (worker assets). */
 const VISUALS = {
-  // Early-lane + shared-0 stills so Quick 10Q always shows photos.
-  debut: '/simp/photo/bull.jpg',
-  videostore: '/simp/photo/archive.jpg',
-  festival: '/simp/photo/sweet.jpg',
-  materialistscredit: '/simp/photo/sweet.jpg',
-  cohost: '/simp/photo/profile.jpg',
-  sailoryear: '/simp/photo/chart.jpg',
-  sailorlook: '/simp/photo/profile.jpg',
-  sailorline: '/simp/photo/weekend.jpg',
-  klaasje: '/simp/photo/archive.jpg',
-  account: '/simp/photo/archive.jpg',
-  brat: '/simp/photo/media.jpg',
-  comfrey: '/simp/photo/press.jpg',
-  dimessquare: '/simp/photo/public.jpg',
-  softness: '/simp/photo/hero.jpg',
+  'sailor-fuku': '/simp/photo/profile.jpg',
+  'tatu-theme': '/simp/photo/media.jpg',
+  'comfry-job': '/simp/photo/press.jpg',
+  berlinale: '/simp/photo/sweet.jpg',
+  'healthcare-line': '/simp/photo/weekend.jpg',
+  'wobble-sxsw': '/simp/photo/chart.jpg',
+  'minsk-vegas': '/simp/photo/public.jpg',
+  'the-girl': '/simp/photo/bull.jpg',
+  'ews-universe': '/simp/photo/sweet.jpg',
+  'bannon-healthcare': '/simp/photo/media.jpg',
+  'nietzsche-mills': '/simp/photo/archive.jpg',
+  'equinox-script': '/simp/photo/hero.jpg',
+  'byzantine': '/simp/photo/public.jpg',
+  'klaasje-never': '/simp/photo/archive.jpg',
+  'softness-poet': '/simp/photo/hero.jpg',
+  'hanging-stunt': '/simp/photo/bull.jpg',
+  'isis-tees': '/simp/photo/press.jpg',
+  'evangelion': '/simp/photo/chart.jpg',
+  'usc-western': '/simp/photo/weekend.jpg',
+  'exorcist-mexico': '/simp/photo/profile.jpg',
 };
 for (const question of QUIZ_QUESTIONS) {
   if (VISUALS[question.id]) question.image = VISUALS[question.id];
 }
 /** Fun mid-quiz stickers keyed by question id (client may show as overlay). */
 export const QUIZ_SURPRISES = {
-  debut: { kind: 'photo-drop', title: 'First feature', body: 'Scary of Sixty-First. Not the later acting credit.' },
-  sailorline: { kind: 'sticker', title: 'SAILOR SOCIALISM', body: 'The original viral line.' },
-  klaasje: { kind: 'sticker', title: 'MARTINAISE LORE', body: 'Original-release voice credit.' },
-  klaasjefinal: { kind: 'sticker', title: 'FINAL CUT ASTERISK', body: 'Recast later. The original still counts.' },
-  comfrey: { kind: 'photo-drop', title: 'Succession cameo', body: 'Comfrey era. Crisis PR.' },
-  brat: { kind: 'sticker', title: 'MEAN GIRLS', body: 'A Brat nod. Association, not a feature.' },
-  account: { kind: 'sticker', title: '@DASH_EATS', body: 'The public account. Use this one.' },
-  mst3k: { kind: 'photo-drop', title: 'Deep cut unlocked', body: 'Kim’s Video energy. Respect.' },
+  'sailor-fuku': { kind: 'sticker', title: 'SAILOR SOCIALISM', body: 'A fuku top. Not a full cosplay.' },
+  'klaasje-never': { kind: 'sticker', title: 'MARTINAISE LORE', body: 'She voiced Klaasje. She has never played it.' },
+  'comfry-job': { kind: 'photo-drop', title: 'Succession cameo', body: 'Comfry era. Crisis PR.' },
+  berlinale: { kind: 'photo-drop', title: 'First feature', body: 'GWFF Best First Feature. Encounters.' },
+  'tatu-theme': { kind: 'sticker', title: 'COLD OPEN', body: 'All the Things She Said.' },
 };
+export function pickNextQuestion(seen, targetTier, lane, preferUp = true) {
+  const used = seen instanceof Set ? seen : new Set(seen || []);
+  const pick = (tier) => {
+    const pool = scoredItems.filter((item) => item.tier === tier && !used.has(item.id));
+    if (!pool.length) return null;
+    const biased = lane ? pool.filter((item) => item.lane === lane) : pool;
+    return (biased.length ? biased : pool)[0];
+  };
+  const exact = pick(targetTier);
+  if (exact) return exact;
+  for (let d = 1; d <= 4; d++) {
+    const first = preferUp ? targetTier + d : targetTier - d;
+    const second = preferUp ? targetTier - d : targetTier + d;
+    if (first >= 1 && first <= 5) {
+      const hit = pick(first);
+      if (hit) return hit;
+    }
+    if (second >= 1 && second <= 5) {
+      const hit = pick(second);
+      if (hit) return hit;
+    }
+  }
+  return scoredItems.find((item) => !used.has(item.id)) || null;
+}
+function laneKeyOf(lane) {
+  const i = QUIZ_LANES.indexOf(lane);
+  return i >= 0 ? LANE_KEYS[i] : null;
+}
 export const BADGES = new Set(['linked', 'maker', 'remixer', 'helper', 'lobby_regular', 'maintainer', 'holder']);
 
 const EVIDENCE_HOSTS = new Set(['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com', 'getdasha.com', 'www.getdasha.com']);
@@ -238,15 +228,10 @@ function emptyComponents() {
 
 export const quizPublic = () => ({
   version: QUIZ_VERSION,
-  total: QUIZ_PATH_LENGTH,
-  quickTotal: QUIZ_QUICK_LENGTH,
   maxPoints: QUIZ_MAX_POINTS,
-  modes: ['quick', 'deep'],
 });
-const publicQuestion = ({ id, prompt, choices, image }) => ({ id, prompt, choices, ...(image ? { image } : {}) });
-export function startQuizAttempt({ now = Date.now(), practice = false, mode = 'deep' } = {}) {
-  const m = practice ? 'practice' : mode === 'quick' ? 'quick' : 'deep';
-  const total = practice ? QUIZ_PRACTICE_LENGTH : m === 'quick' ? QUIZ_QUICK_LENGTH : QUIZ_PATH_LENGTH;
+export const publicQuestion = ({ id, prompt, choices, image }) => ({ id, prompt, choices, ...(image ? { image } : {}) });
+export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
   return {
     version: QUIZ_VERSION,
     current: 'route',
@@ -254,38 +239,46 @@ export function startQuizAttempt({ now = Date.now(), practice = false, mode = 'd
     correct: 0,
     scorable: 0,
     practice: Boolean(practice),
-    mode: m,
-    total,
+    total: practice ? QUIZ_PRACTICE_LENGTH : QUIZ_PATH_LENGTH,
+    seen: [],
+    tier: 1,
+    streak: 0,
     startedAt: now,
     updatedAt: now,
   };
 }
 export function questionForAttempt(attempt) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
-  const total = attempt?.total || QUIZ_PATH_LENGTH;
-  return question ? { question: publicQuestion(question), progress: { current: attempt.position + 1, total } } : null;
+  return question ? { question: publicQuestion(question), progress: { current: attempt.position + 1 } } : null;
 }
 export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
   if (!question || !Number.isInteger(answer) || answer < 0 || answer >= question.choices.length) return { ok: false, status: 400, error: 'invalid quiz answer' };
   const scored = question.answer != null;
   const correct = scored && answer === question.answer;
-  let next = Array.isArray(question.next) ? question.next[answer] : question.next;
-  // Deep: route + lane 0–8 + shared… = 20. Quick: route + lane 0–3 + shared… = 10.
-  if (!attempt.practice) {
-    if (attempt.mode === 'quick' && /^(cinema|podcast|lore)-3$/.test(attempt.current)) next = 'shared-0';
-    else if (attempt.mode !== 'quick' && /^(cinema|podcast|lore)-8$/.test(attempt.current)) next = 'shared-0';
+  const seen = [...(attempt.seen || []), question.id];
+  const lane = question.id === 'route' ? QUIZ_LANES[answer] : attempt.lane;
+  const currentTier = Number(attempt.tier) || 1;
+  const scoredNext = attempt.scorable + (scored ? 1 : 0);
+  const scoredCap = attempt.practice ? scoredItems.length : QUIZ_SCORED_LENGTH;
+  let next = null;
+  if (scoredNext < scoredCap) {
+    const targetTier = scored ? (correct ? Math.min(currentTier + 1, 5) : Math.max(currentTier - 1, 1)) : 1;
+    const picked = pickNextQuestion(seen, targetTier, laneKeyOf(lane), correct || !scored);
+    next = picked?.id || question.next || null;
+    if (next && seen.includes(next)) next = pickNextQuestion(seen, targetTier, laneKeyOf(lane), correct || !scored)?.id || null;
   }
-  // End at advertised length (bank may be longer).
-  if (attempt.position + 1 >= (attempt.total || QUIZ_PATH_LENGTH)) next = null;
   const streak = correct ? (Number(attempt.streak) || 0) + 1 : 0;
+  const nextQuestion = next ? bank.get(next) : null;
   const updated = {
     ...attempt,
-    ...(question.id === 'route' ? { lane: QUIZ_LANES[answer] } : {}),
+    ...(question.id === 'route' ? { lane } : {}),
     current: next,
     position: attempt.position + 1,
     correct: attempt.correct + (correct ? 1 : 0),
     scorable: attempt.scorable + (scored ? 1 : 0),
+    seen,
+    tier: nextQuestion?.tier || currentTier,
     streak,
     bestStreak: Math.max(Number(attempt.bestStreak) || 0, streak),
     updatedAt: now,
@@ -315,7 +308,7 @@ export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
     ...(next ? questionForAttempt(updated) : {}),
   };
 }
-export function quizTitle(correct, total = 19) {
+export function quizTitle(correct, total = 16) {
   const ratio = total ? correct / total : 0;
   if (ratio === 1) return 'Dasha scholar';
   if (ratio >= .8) return 'Confirmed simp';
@@ -332,7 +325,7 @@ const QUIZ_COPY = {
   'Deep in the lore': lane =>
     `You were online for the right years. ${lane} is doing real work. A couple of scene facts still sit on the table.`,
   'Watching respectfully': lane =>
-    `You know enough to be dangerous. ${lane} is a solid start. The deep path is where it gets specific.`,
+    `You know enough to be dangerous. ${lane} is a solid start. A couple more credits and it gets specific.`,
   'Still loading': lane =>
     `New tab, honest score. ${lane} is a fine on-ramp. The facts are public; the bit is optional.`,
 };
@@ -415,7 +408,6 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
     copy: quizCopy(title, attempt.lane),
     share: quizShareLine(title, attempt.lane),
     disclaimer: 'Association is not endorsement.',
-    mode: attempt.mode === 'quick' ? 'quick' : attempt.practice ? 'practice' : 'deep',
     completedAt: now,
   };
 }
@@ -587,16 +579,10 @@ export function rulesPublic() {
     },
     quiz: {
       version: QUIZ_VERSION,
-      path_length: QUIZ_PATH_LENGTH,
-      quick_length: QUIZ_QUICK_LENGTH,
       max_points: QUIZ_MAX_POINTS,
       vibe_range: QUIZ_VIBE_RANGE,
       note:
-        'Modes: quick (' +
-        QUIZ_QUICK_LENGTH +
-        'Q, invite default) and deep (' +
-        QUIZ_PATH_LENGTH +
-        'Q, board default). Scored retakes allowed — latest finish updates Board quiz points. Points = accuracy; soft vibe is share copy only (±' +
+        'One adaptive quiz. Scored retakes allowed — latest finish updates Board quiz points. Points = accuracy; soft vibe is share copy only (±' +
         QUIZ_VIBE_RANGE +
         '). Finishing enrolls that X account. Share via X intent anytime.',
     },

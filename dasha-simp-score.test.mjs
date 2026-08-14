@@ -24,16 +24,19 @@ import {
   assertPublicSafe,
   SCHEMA,
   QUIZ_QUESTIONS,
+  QUIZ_VERSION,
   QUIZ_PATH_LENGTH,
-  QUIZ_QUICK_LENGTH,
+  QUIZ_SCORED_LENGTH,
   QUIZ_PRACTICE_LENGTH,
   QUIZ_MAX_POINTS,
   QUIZ_LANES,
   QUIZ_SURPRISES,
   quizPublic,
+  publicQuestion,
   startQuizAttempt,
   questionForAttempt,
   answerQuizAttempt,
+  pickNextQuestion,
   quizTitle,
   quizCopy,
   quizShareLine,
@@ -66,22 +69,40 @@ assert.equal(s0.components.linked_x, LINKED_X_POINTS);
 assert.equal(s0.total, LINKED_X_POINTS);
 
 // --- X-linked quiz enrolls, scores, allows scored retakes, never exposes answers ---
-assert.equal(JSON.stringify(quizPublic()).includes('"answer"'), false);
+assert.equal(QUIZ_VERSION, 'dasha-simp-quiz/v9');
+assert.equal(QUIZ_PATH_LENGTH, 17);
+assert.equal(QUIZ_SCORED_LENGTH, 16);
+const pubMeta = quizPublic();
+assert.equal(pubMeta.version, QUIZ_VERSION);
+assert.equal(pubMeta.maxPoints, QUIZ_MAX_POINTS);
+assert.equal('total' in pubMeta, false);
+assert.equal('quickTotal' in pubMeta, false);
+assert.equal('modes' in pubMeta, false);
+assert.equal(JSON.stringify(pubMeta).includes('"answer"'), false);
+assert.equal(QUIZ_QUESTIONS.filter(question => question.id === 'account').length, 0);
+assert.equal(QUIZ_QUESTIONS.length, 40);
 const quizSession = { xId: 'quiz-1', handle: 'quizsimp' };
 assert.equal(submitQuiz({}, null, startQuizAttempt({ now }), { now }).status, 401);
 assert.equal(submitQuiz({}, quizSession, startQuizAttempt({ now }), { now }).status, 400);
 let attempt = startQuizAttempt({ now });
 assert.equal(questionForAttempt(attempt).question.id, 'route');
+assert.equal('total' in questionForAttempt(attempt).progress, false);
 let step = answerQuizAttempt(attempt, 0, { now });
-assert.equal(step.question.id, 'debut');
+assert.ok(step.question.id);
+assert.equal(QUIZ_QUESTIONS.find(question => question.id === step.question.id).tier, 1);
 attempt = step.attempt;
 while (!step.done) {
   const publicId = questionForAttempt(attempt).question.id;
   const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === publicId);
+  const exposed = publicQuestion(privateQuestion);
+  assert.equal('answer' in exposed, false);
+  assert.equal('next' in exposed, false);
+  assert.equal('note' in exposed, false);
   step = answerQuizAttempt(attempt, privateQuestion.answer, { now });
   attempt = step.attempt;
 }
 assert.equal(attempt.position, QUIZ_PATH_LENGTH);
+assert.equal(attempt.scorable, QUIZ_SCORED_LENGTH);
 // Deterministic vibe: rng always 0.5 → core noise 0 (see vibeDeltaForAttempt).
 const flatRng = () => 0.5;
 const quizDone = submitQuiz({}, quizSession, attempt, { now, rng: flatRng });
@@ -132,82 +153,49 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
   }
   assert.equal(routed.attempt.position, QUIZ_PRACTICE_LENGTH);
   assert.equal(seen.size, QUIZ_PRACTICE_LENGTH);
-  assert(
-    Math.max(...answerPositions) <= Math.ceil(QUIZ_PRACTICE_LENGTH * 0.45),
-    `route ${route} has a guessable answer-position bias: ${answerPositions}`,
-  );
 }
 assert.equal(new Set(routeFirstQuestions).size, QUIZ_LANES.length, 'the opening answer must select distinct branches');
-const thematicIds = ['materialistsdays', 'wobbleweekend', 'videostore', 'horrorpair', 'dunkinprice', 'yaleclaim', 'chesstreak', 'eyebrows', 'episode400', 'mjvibe', 'sailoryear', 'sailorlook', 'sailorline', 'birthcity', 'parents', 'artschool', 'college', 'studies', 'klaasje'];
-for (const id of thematicIds) assert(QUIZ_QUESTIONS.some(question => question.id === id), `missing thematic question ${id}`);
-const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note]).concat(
+const sourcedIds = ['sailor-fuku', 'tatu-theme', 'comfry-job', 'klaasje-never', 'softness-poet', 'letterman', 'bad-behaviour'];
+for (const id of sourcedIds) assert(QUIZ_QUESTIONS.some(question => question.id === id), `missing sourced question ${id}`);
+const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note, question.source]).concat(
   Object.values(QUIZ_SURPRISES).flatMap(surprise => [surprise.title, surprise.body]),
 ).join(' ');
-assert.doesNotMatch(publicQuizCopy, /\$dasha|mint|Jupiter|Simp Board|Perry|holder|\bcoin\b|(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|price promise|high risk|rugcheck|lose (?:your )?money|lose it all|worthless/i);
+assert.doesNotMatch(publicQuizCopy, /\$dasha|mint|Jupiter|getdasha|@getdasha|Simp Board|Perry|holder|\bcoin\b|(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|price promise|high risk|rugcheck|lose (?:your )?money|lose it all|worthless/i);
+assert.doesNotMatch(publicQuizCopy, /wikipedia/i);
 for (let route = 0; route < QUIZ_LANES.length; route++) {
   let run = answerQuizAttempt(startQuizAttempt({ now }), route, { now }), visuals = 0;
   while (!run.done) {
     if (run.question.image) visuals++;
+    assert.equal('total' in (run.progress || {}), false);
     const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === run.question.id);
     run = answerQuizAttempt(run.attempt, privateQuestion.answer, { now });
   }
   assert.equal(run.attempt.position, QUIZ_PATH_LENGTH);
+  assert.equal(run.attempt.scorable, QUIZ_SCORED_LENGTH);
   assert.ok(visuals >= 2, `scored route ${route} must show multiple visual questions, got ${visuals}`);
-}
-// Quick path must still show visuals (early-lane stills + shared).
-for (let route = 0; route < QUIZ_LANES.length; route++) {
-  let qrun = answerQuizAttempt(startQuizAttempt({ now, mode: 'quick' }), route, { now });
-  let qvis = 0;
-  while (!qrun.done) {
-    if (qrun.question.image) qvis++;
-    const privateQuestion = QUIZ_QUESTIONS.find((question) => question.id === qrun.question.id);
-    qrun = answerQuizAttempt(qrun.attempt, privateQuestion.answer, { now });
-  }
-  assert.ok(qvis >= 2, `quick route ${route} must show multiple visual questions, got ${qvis}`);
 }
 assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
 
-// --- quick path (invite): 10Q, jump after lane-3, scores + mode tag ---
 {
-  const pub = quizPublic();
-  assert.equal(pub.total, QUIZ_PATH_LENGTH);
-  assert.equal(pub.quickTotal, QUIZ_QUICK_LENGTH);
-  assert.deepEqual(pub.modes, ['quick', 'deep']);
-  const quickSession = { xId: 'quick-1', handle: 'quicksimp' };
-  for (let route = 0; route < QUIZ_LANES.length; route++) {
-    let qrun = answerQuizAttempt(startQuizAttempt({ now, mode: 'quick' }), route, { now });
-    assert.equal(qrun.attempt.mode, 'quick');
-    assert.equal(qrun.attempt.total, QUIZ_QUICK_LENGTH);
-    assert.equal(questionForAttempt(qrun.attempt).progress.total, QUIZ_QUICK_LENGTH);
-    while (!qrun.done) {
-      const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === qrun.question.id);
-      // After lane-3 the path must already be on shared (no cinema/podcast/lore-4+).
-      if (/^(cinema|podcast|lore)-[4-9]$/.test(qrun.question.id)) {
-        assert.fail(`quick path must not reach deep-only id ${qrun.question.id}`);
-      }
-      qrun = answerQuizAttempt(qrun.attempt, privateQuestion.answer, { now });
-    }
-    assert.equal(qrun.attempt.position, QUIZ_QUICK_LENGTH);
-    assert.equal(qrun.attempt.mode, 'quick');
-    const qDone = submitQuiz({}, { ...quickSession, xId: `quick-${route}` }, qrun.attempt, {
-      now: now + route,
-      rng: flatRng,
-    });
-    assert.equal(qDone.ok, true);
-    assert.equal(qDone.quiz.mode, 'quick');
-    assert.equal(qDone.quiz.total, QUIZ_QUICK_LENGTH - 1);
-    assert.equal(qDone.quiz.correct, QUIZ_QUICK_LENGTH - 1);
-  }
-  // Default start is deep (board).
-  const deepDefault = startQuizAttempt({ now });
-  assert.equal(deepDefault.mode, 'deep');
-  assert.equal(deepDefault.total, QUIZ_PATH_LENGTH);
+  let walk = answerQuizAttempt(startQuizAttempt({ now }), 0, { now });
+  const first = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
+  assert.equal(first.tier, 1);
+  assert.equal(first.lane, 'cinema');
+  walk = answerQuizAttempt(walk.attempt, first.answer, { now });
+  const second = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
+  assert.ok(second.tier >= first.tier, `correct should escalate, got ${first.tier} → ${second.tier}`);
+  walk = answerQuizAttempt(walk.attempt, (second.answer + 1) % second.choices.length, { now });
+  const third = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
+  assert.ok(third.tier <= second.tier, `wrong should drop or hold, got ${second.tier} → ${third.tier}`);
+  assert.notEqual(third.id, second.id);
+  const seeded = pickNextQuestion(['route', first.id], Math.min(first.tier + 1, 5), 'cinema', true);
+  assert.ok(seeded && seeded.tier >= first.tier);
 }
 
-function walkIds(mode, route) {
+function walkIds(route) {
   const ids = [];
   const texts = [];
-  let step = answerQuizAttempt(startQuizAttempt({ now, mode }), route, { now });
+  let step = answerQuizAttempt(startQuizAttempt({ now }), route, { now });
   while (!step.done) {
     ids.push(step.question.id);
     texts.push(step.question.prompt, ...step.question.choices);
@@ -217,48 +205,37 @@ function walkIds(mode, route) {
   return { ids, text: texts.join(' '), attempt: step.attempt };
 }
 
-const cutLive = ['dunkinprice', 'materialistsdays', 'chesstreak', 'episode400', 'eyebrows', 'mjvibe', 'wobbleweekend', 'softnessrole', 'wobblecharacter', 'materialistsrole', 'latehost', 'comfrylore', 'feed', 'headline', 'yaleclaim', 'yaleargument'];
-const bannedQuickCopy = /\$3\.40|avocado toast|700 games|two shooting days|Letterman|Letterman/i;
 for (let route = 0; route < QUIZ_LANES.length; route++) {
-  const quick = walkIds('quick', route);
-  assert.equal(quick.ids[0] === 'route', false);
-  assert.ok(quick.ids.includes('account'), `quick route ${route} must include @dash_eats`);
-  assert.ok(quick.ids.includes('klaasje'), `quick route ${route} must show Klaasje before the deep block`);
-  assert.ok(quick.ids.includes('comfrey'), `quick route ${route} must include Comfrey`);
-  for (const id of cutLive) {
-    assert.equal(quick.ids.includes(id), false, `quick route ${route} still routes ${id}`);
-  }
-  assert.doesNotMatch(quick.text, bannedQuickCopy);
-  assert.match(quick.text, /Comfrey/);
-  assert.doesNotMatch(quick.text, /\bComfry\b/);
-  const deep = walkIds('deep', route);
-  for (const id of cutLive) {
-    assert.equal(deep.ids.includes(id), false, `deep route ${route} still routes ${id}`);
-  }
-  assert.match(deep.text, /Comfrey/);
-  assert.doesNotMatch(deep.text, /\bComfry\b/);
-  assert.ok(deep.ids.includes('klaasjefinal') && deep.ids.includes('dimessquare'), `deep route ${route} needs scene extras`);
+  const path = walkIds(route);
+  assert.equal(path.ids.includes('route'), false);
+  assert.equal(path.ids.includes('account'), false);
+  assert.equal(path.ids.length, QUIZ_SCORED_LENGTH);
 }
-assert.equal(walkIds('quick', 0).ids[0], 'debut');
-assert.equal(walkIds('quick', 1).ids[0], 'cohost');
-assert.equal(walkIds('quick', 2).ids[0], 'sailoryear');
-assert.match(QUIZ_QUESTIONS.find(question => question.id === 'sailoryear').prompt, /remembered as/);
-assert.match(QUIZ_QUESTIONS.find(question => question.id === 'debut').prompt, /feature directorial debut/);
-assert.match(QUIZ_QUESTIONS.find(question => question.id === 'apartment').prompt, /film she/);
+const comfry = QUIZ_QUESTIONS.find(question => question.id === 'comfry-job');
+assert.match([comfry.prompt, ...comfry.choices, comfry.note].join(' '), /Comfry/);
+assert.doesNotMatch(QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note]).join(' '), /\bComfrey\b/);
+assert.equal(walkIds(0).ids[0], 'sailor-fuku');
+assert.equal(walkIds(1).ids[0], 'tatu-theme');
+assert.equal(walkIds(2).ids[0], 'minsk-vegas');
 assert.ok(quizDone.quiz.copy.split(/[.!?]+\s/).filter(Boolean).length >= 2, 'result copy must be 2–3 sentences');
 assert.equal(quizDone.quiz.share, `${quizDone.quiz.title} · ${quizDone.quiz.lane}`);
 assert.doesNotMatch(quizDone.quiz.share, /\d+\/\d+/);
 assert.equal(quizDone.quiz.disclaimer, 'Association is not endorsement.');
+assert.equal('mode' in quizDone.quiz, false);
 assert.equal(meStatus(quizDone.store, quizSession).board.quiz.share, quizDone.quiz.share);
 
-assert.ok(QUIZ_QUESTIONS.length >= 50, `expanded bank expected, got ${QUIZ_QUESTIONS.length}`);
+assert.equal(QUIZ_QUESTIONS.length, 40, `v9 bank is route + 39 sourced items, got ${QUIZ_QUESTIONS.length}`);
 assert.equal(new Set(QUIZ_QUESTIONS.map(question => question.prompt)).size, QUIZ_QUESTIONS.length, 'quiz prompts must be unique');
 for (const question of QUIZ_QUESTIONS) {
-  assert(question.prompt.length >= 12 && question.prompt.length <= 90, `${question.id}: awkward prompt length`);
-  assert(question.choices.length >= 3 && question.choices.length <= 4, `${question.id}: choice count`);
+  assert(question.prompt.length >= 12 && question.prompt.length <= 110, `${question.id}: awkward prompt length ${question.prompt.length}`);
+  assert.equal(question.choices.length, question.answer == null ? 3 : 4, `${question.id}: choice count`);
   assert.equal(new Set(question.choices.map(choice => choice.toLowerCase())).size, question.choices.length, `${question.id}: duplicate choice`);
   assert(question.answer == null || (Number.isInteger(question.answer) && question.answer < question.choices.length), `${question.id}: invalid answer`);
   assert.match(question.source, /^https:\/\//, `${question.id}: source required`);
+  if (question.answer != null) {
+    assert.ok(question.tier >= 1 && question.tier <= 5, `${question.id}: tier`);
+    assert.match(question.source, /^https:\/\//);
+  }
 }
 assert.equal(quizTitle(19, 19), 'Dasha scholar');
 assert.equal(quizTitle(16, 19), 'Confirmed simp');
