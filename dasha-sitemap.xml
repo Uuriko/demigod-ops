@@ -23,6 +23,12 @@
   <url>
     <loc>https://www.getdasha.com/how-to-buy</loc>
   </url>
+  <url>
+    <loc>https://www.getdasha.com/privacy</loc>
+  </url>
+  <url>
+    <loc>https://www.getdasha.com/bounties</loc>
+  </url>
   <!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL
        listed: a sitemap entry that disagrees with the page's own canonical asks a crawler to pick,
        and it will not pick ours. The live sitemap has carried this route since chess shipped; this

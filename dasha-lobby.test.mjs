@@ -238,6 +238,18 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
   }
 }
 for (const method of ['GET', 'HEAD']) {
+  for (const path of ['/howtobuy', '/howtobuy/']) {
+    const howtobuy = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+    assert.equal(howtobuy.status, 308, `lobby${path} ${method} must permanently send the unspaced alias to /how-to-buy`);
+    assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/how-to-buy');
+  }
+}
+{
+  const lobbyHowto = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/how-to-buy'), {});
+  assert.equal(lobbyHowto.status, 200, 'lobby /how-to-buy must stay 200');
+  assert.equal(lobbyHowto.headers.get('x-dasha-edge'), 'howto');
+}
+for (const method of ['GET', 'HEAD']) {
   const privacy = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/privacy/', { method }), {});
   assert.equal(privacy.status, 200, `lobby /privacy/ ${method} must serve the same privacy page as /privacy`);
   assert.match(privacy.headers.get('content-type') || '', /text\/html/);
@@ -276,7 +288,7 @@ for (const path of ['/forum', '/forum/']) {
     assert.equal(lobbyRootBody.service, 'dasha-lobby');
   }
 }
-for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page-253', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
   for (const method of ['GET', 'HEAD']) {
     const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
     assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
@@ -629,6 +641,26 @@ for (const path of ['/robots.txt', '/sitemap.xml']) {
   const response = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`, { method: 'HEAD' }), {});
   assert.equal(response.status, 200, `${path} HEAD must match GET status`);
   assert.equal(await response.text(), '', `${path} HEAD must not return a body`);
+}
+for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
+  const sitemap = await workerModule.default.fetch(new Request(`https://${host}/sitemap.xml`), {});
+  assert.equal(sitemap.status, 200, `${host} /sitemap.xml must stay 200`);
+  assert.match(sitemap.headers.get('content-type') || '', /application\/xml/);
+  const sitemapBody = await sitemap.text();
+  for (const loc of [
+    'https://www.getdasha.com/',
+    'https://www.getdasha.com/studio',
+    'https://www.getdasha.com/lobby',
+    'https://www.getdasha.com/dasha',
+    'https://www.getdasha.com/how-to-buy',
+    'https://www.getdasha.com/privacy',
+    'https://www.getdasha.com/bounties',
+    'https://lobby.getdasha.com/chess',
+  ]) {
+    assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
+  }
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
+  assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
 }
 
 // Adversarial OAuth error text stays text, never markup; private pages are hardened and noindexed.
