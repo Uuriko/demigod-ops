@@ -219,6 +219,12 @@ export function resignChess(state, color) {
   return { ok: true, state: { ...clone(state), status: 'finished', result: drawn ? '1/2-1/2' : color === 'w' ? '0-1' : '1-0', reason: drawn ? 'resignation · no mating material' : 'resignation', version: (Number(state.version) || 0) + 1 } };
 }
 
+export function abortChess(state) {
+  if (!state || state.status !== 'active') return { ok: false, status: 409, error: 'game is over' };
+  if ((state.moves || []).length >= 2) return { ok: false, status: 409, error: 'too late to abort' };
+  return { ok: true, state: { ...clone(state), status: 'finished', result: '*', reason: 'aborted', version: (Number(state.version) || 0) + 1 } };
+}
+
 export function settleChessRatings(white = {}, black = {}, result) {
   const wr = Number(white.rating) || CHESS_START_RATING, br = Number(black.rating) || CHESS_START_RATING;
   const ws = result === '1-0' ? 1 : result === '0-1' ? 0 : 0.5, bs = 1 - ws;
