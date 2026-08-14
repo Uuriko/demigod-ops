@@ -1623,12 +1623,12 @@ export class DashaLobby {
         const blocked = requireOrigin();
         if (blocked) return blocked;
         const subject = xId ? `x:${xId}` : request.headers.get('CF-Connecting-IP');
-        if (!subject) return json({ error: 'event subject required' }, 400, allowedOrigin);
+        if (!subject) return json({ error: 'event subject required' }, 400, allowedOrigin, cred);
         const rate = simpRate(this.simpRates, `chess-event:${subject}`, 60);
-        if (!rate.ok) return json({ error: 'event rate limited', waitMs: rate.waitMs }, 429, allowedOrigin);
+        if (!rate.ok) return json({ error: 'event rate limited', waitMs: rate.waitMs }, 429, allowedOrigin, cred);
         countMetric(this.chessMetrics, publicKey);
         await this.persistChessMetrics();
-        return json({ ok: true }, 200, allowedOrigin);
+        return json({ ok: true }, 200, allowedOrigin, cred);
       }
       return json({ error: 'invalid event' }, 400, allowedOrigin, cred);
     }
@@ -1680,13 +1680,13 @@ export class DashaLobby {
         .sort((a, b) => Number(b.finishedAt || b.updatedAt) - Number(a.finishedAt || a.updatedAt))
         .slice(0, 5)
         .map(game => ({ id: game.id, white: `@${game.players.w.handle}`, black: `@${game.players.b.handle}`, result: game.state.result }));
-      return json({ ok: true, ratings, recent }, 200, allowedOrigin);
+      return json({ ok: true, ratings, recent }, 200, allowedOrigin, cred);
     }
 
     const replayMatch = path.match(/^\/chess\/replay\/([A-Za-z0-9_-]{6,24})$/);
     if (replayMatch && request.method === 'GET') {
       const replay = publicChessReplay(this.chessGames[replayMatch[1]]);
-      return replay ? json({ ok: true, replay }, 200, allowedOrigin) : json({ error: 'replay not found' }, 404, allowedOrigin);
+      return replay ? json({ ok: true, replay }, 200, allowedOrigin, cred) : json({ error: 'replay not found' }, 404, allowedOrigin, cred);
     }
 
     if (path === '/chess/challenges') {

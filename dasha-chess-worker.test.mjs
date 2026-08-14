@@ -66,6 +66,15 @@ function delayedRequest(xId, path, body, delay) {
 
 let payload, response = await room.handleChess(request('303', '/chess/queue', { action: 'join' }), 'https://www.getdasha.com');
 assert.equal(response.status, 403, 'non-holder cannot queue');
+response = await room.handleChess(request(null, '/chess/ratings', null), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-origin'), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-credentials'), 'true', 'www credentialed ratings must not fail CORS');
+payload = await response.json();
+assert.deepEqual(payload, { ok: true, ratings: [], recent: [] }, 'empty public table must stay an empty success');
+response = await room.handleChess(request(null, '/chess/me', null), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-credentials'), 'true');
+response = await room.handleChess(request(null, '/chess/tournaments', null), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-credentials'), 'true', 'www credentialed tournament reads must not fail CORS');
 response = await room.handleChess(request(null, '/chess/event', { event: 'page_open' }), 'https://www.getdasha.com');
 assert.equal(response.status, 200, 'anonymous aggregate page open must not require identity');
 assert.deepEqual(state.storage.writes.at(-1), ['chessMetrics'], 'high-frequency telemetry must not rewrite the retained game snapshot');
@@ -217,6 +226,7 @@ room.chessRatings = beforeDrawRatings;
 room.chessMetrics = beforeDrawMetrics;
 
 response = await room.handleChess(request(null, `/chess/replay/${gameId}`, null), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-credentials'), 'true', 'www credentialed replay reads must not fail CORS');
 payload = await response.json();
 assert.equal(payload.replay.frames.length, 4);
 assert.doesNotMatch(JSON.stringify(payload), /"xId"|"whiteXId"|"blackXId"/, 'public replay leaked identity keys');
@@ -226,6 +236,8 @@ room.chessGames[olderGame.id] = olderGame;
 for (let index = 0; index < 5; index++) room.chessGames[`archive${index}`] = { ...structuredClone(olderGame), id: `archive${index}`, finishedAt: olderGame.finishedAt - index - 1 };
 room.chessGames.unratednew = { ...structuredClone(olderGame), id: 'unratednew', rated: false, finishedAt: room.chessGames[gameId].finishedAt + 1 };
 response = await room.handleChess(request(null, '/chess/ratings', null), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-origin'), 'https://www.getdasha.com');
+assert.equal(response.headers.get('access-control-allow-credentials'), 'true', 'www credentialed ratings must not fail CORS');
 payload = await response.json();
 assert.equal(payload.recent[0].id, gameId, 'recent games must sort by immutable completion time, not later rematch activity');
 assert.equal(payload.recent.length, 5, 'public recent games must remain a bounded shelf');

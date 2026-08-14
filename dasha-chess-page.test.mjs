@@ -31,6 +31,13 @@ assert.match(source, /Needs JavaScript to play/);
 assert.doesNotMatch(source, /Checking your seat|disabled>Wait</);
 assert.match(source, /id="board"[^>]*>[\s\S]*data-square="e2"[\s\S]*<\/div>/, 'first HTML must ship a static opening board');
 assert.match(source, /id="board"[^>]*>[\s\S]*Anna rook[\s\S]*Dasha king/);
+assert.match(source, /id="rating-panel"[^>]*hidden/, 'first HTML must not flash a personal rating');
+assert.match(source, /id="rating">—</);
+assert.match(source, /id="record">—</);
+assert.doesNotMatch(source, /id="rating">1200</);
+assert.match(source, /id="tournament-form"[^>]*>[\s\S]*?>Link X</, 'first HTML Create must already be a next step');
+assert.match(source, /function linkX\(\).*else location\.href=href/, 'blocked X popup must continue in the same tab');
+assert.match(source, /max-width:1150px/, 'right rail must stack before TOP TABLE / CREATE clip');
 assert.match(source, /--ink:#070608/);
 assert.match(source, /--paper:#f4eddb/);
 assert.match(source, /--acid:#dfff00/);
@@ -131,7 +138,7 @@ try {
       const url = new URL(route.request().url());
       const headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
       if (url.pathname === '/chess/me') { meRequests++; return route.fulfill({ status: 200, headers, body: JSON.stringify(state) }); }
-      if (url.pathname === '/chess/ratings') return route.fulfill({ status: ratingsFail ? 503 : 200, headers, body: ratingsFail ? '{"error":"unavailable"}' : JSON.stringify({ ok: true, ratings: [] }) });
+      if (url.pathname === '/chess/ratings') return route.fulfill({ status: ratingsFail ? 503 : 200, headers, body: ratingsFail ? '{"error":"unavailable"}' : JSON.stringify({ ok: true, ratings: [], recent: [] }) });
       if (url.pathname === '/chess/tournaments') return route.fulfill({ status: tournamentsFail ? 503 : 200, headers, body: tournamentsFail ? '{"error":"unavailable"}' : JSON.stringify({ ok: true, tournaments: [] }) });
       if (url.pathname === `/chess/replay/${game.id}`) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, replay }) });
       if (url.pathname.startsWith('/chess/game/')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, game: gameReply }) });
@@ -148,8 +155,13 @@ try {
     assert.equal(await page.getByRole('link', { name: 'Home', exact: true }).getAttribute('href'), 'https://www.getdasha.com/');
     assert.equal(await page.getByRole('link', { name: 'Buy $dasha on Jupiter using the exact mint' }).getAttribute('target'), '_blank');
     assert.equal(await page.locator('#rating-panel').isHidden(), true, 'anonymous chess home must not invent a personal rating');
+    assert.equal(await page.locator('#rating').textContent(), '—', 'identity-less rating must stay a dash, not 1200');
     assert.equal(await page.locator('#recent-panel').isHidden(), true, 'an empty replay shelf must add no interface clutter');
     assert.equal(await page.locator('#tournament-name').isVisible(), true);
+    assert.equal(await page.locator('#tournament-form button').textContent(), 'Link X');
+    assert.equal(await page.locator('#tournament-form button').isEnabled(), true, 'anonymous Create must be a next step, not a dead control');
+    assert.equal(await page.getByText('No rated games yet', { exact: true }).count(), 1);
+    assert.equal(await page.getByText('Table unavailable', { exact: true }).count(), 0, 'an empty ratings payload must not look like an outage');
 
     state = { ok: true, linked: true, enrolled: false, holder: false, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 }, queued: false, game: null };
     const beforeMessage = meRequests;
@@ -161,6 +173,8 @@ try {
     await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Join & enter');
     assert.ok(meRequests > beforeMessage, 'valid OAuth completion must refresh Chess identity');
     assert.equal(await page.locator('#rating-panel').isVisible(), true, 'linked identity must retain its personal rating');
+    assert.equal(await page.locator('#rating').textContent(), '1200');
+    assert.equal(await page.locator('#tournament-form button').textContent(), 'Join & enter');
 
     state = { ok: true, linked: true, enrolled: true, holder: true, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 }, queued: false, game };
     await page.reload();
@@ -360,6 +374,42 @@ try {
     }
     await context.close();
   }
+
+  const railContext = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await railContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: false, enrolled: false, holder: false, rating: null, queued: false, game: null }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [], recent: [] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const railPage = await railContext.newPage();
+  await railPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await railPage.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
+  assert.ok((await railPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1, '1100px must wrap TOP TABLE / CREATE instead of clipping');
+  assert.equal(await railPage.getByRole('heading', { name: 'Top table' }).isVisible(), true);
+  assert.equal(await railPage.locator('#tournament-form button').isVisible(), true);
+  await railContext.close();
+
+  const blockedLinkContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await blockedLinkContext.addInitScript(() => { window.open = () => null; });
+  await blockedLinkContext.route('https://lobby.getdasha.com/**', async route => {
+    const url = new URL(route.request().url()), headers = { 'Access-Control-Allow-Origin': 'null', 'Access-Control-Allow-Credentials': 'true', 'Content-Type': 'application/json' };
+    if (url.pathname === '/oauth/x/start') return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/html' }, body: '<!doctype html><title>X start</title>' });
+    if (url.pathname === '/chess/me') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, linked: false, enrolled: false, holder: false, rating: null, queued: false, game: null }) });
+    if (url.pathname === '/chess/ratings') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, ratings: [], recent: [] }) });
+    if (url.pathname === '/chess/tournaments') return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, tournaments: [] }) });
+    return route.fulfill({ status: 200, headers, body: '{"ok":true}' });
+  });
+  const blockedLinkPage = await blockedLinkContext.newPage();
+  await blockedLinkPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
+  await blockedLinkPage.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
+  await Promise.all([
+    blockedLinkPage.waitForURL(/\/oauth\/x\/start/),
+    blockedLinkPage.locator('#gate-action').click(),
+  ]);
+  assert.match(blockedLinkPage.url(), /\/oauth\/x\/start/, 'blocked X popup must continue in the same tab');
+  await blockedLinkContext.close();
 
   const holderRetryContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let holder = false, holderChallenges = 0, holderVerifies = 0, holderSignatures = 0;
