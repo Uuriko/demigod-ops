@@ -485,4 +485,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "40817d40636b5312";
+export const ASSET_HASH = "4ab3e9b64cc5f4a2";
