@@ -19,7 +19,7 @@ export function rallyLoops() {
       id: 'quiz',
       kicker: '01 · Lore',
       title: 'Take the simp quiz',
-      body: 'Quick 10Q to share. Deep 20Q if you live here.',
+      body: 'Take the quiz. Share your result.',
       href: QUIZ_INVITE_URL,
       cta: 'Start quiz',
     },

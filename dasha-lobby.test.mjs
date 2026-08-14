@@ -378,15 +378,16 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   const assertSimpFirstHtml = (html, label) => {
     assert.match(html, /<h1>Simp<\/h1>/, `${label} must use h1 Simp`);
     assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
-    assert.match(html, /Quick 10Q to share · Deep 20Q on the board\./);
+    assert.match(html, /Take the quiz\. Ranked by lore and contributions\./);
+    assert.doesNotMatch(html, /Quick 10Q|Deep 20Q|\b10Q\b|\b20Q\b/);
     assert.match(html, /<a class="dasha-go" href="#dasha-quiz">Take Simp<\/a>/);
     assert.match(html, /<a href="\/verse">Verse<\/a>/);
     assert.match(html, /PerryALPHA founding #1 is editorial and non-measured/);
     assert.match(html, /editorial #1 · not measured/);
-    assert.match(html, /id="dasha-quiz"[\s\S]*Quick 10Q[\s\S]*Deep 20Q/);
+    assert.match(html, /id="dasha-quiz"[\s\S]*Take the quiz/);
     assert.match(html, /id="dasha-quiz"[\s\S]*Pick your strongest lane/);
     assert.match(html, /<noscript>[\s\S]*Pick your strongest lane[\s\S]*<\/noscript>/);
-    assert.match(html, /<noscript>[\s\S]*What is her feature directorial debut\?[\s\S]*<\/noscript>/);
+    assert.match(html, /<noscript>[\s\S]*Which t\.A\.T\.u\. song is Red Scare[\s\S]*<\/noscript>/);
     assert.doesNotMatch(html, /questions are not in this HTML/);
     assert.match(html, /class="dasha-quiz"/);
     assert.match(html, /id="dasha-quiz"/);
@@ -2102,11 +2103,12 @@ const quizPost = (body, path = '/simp/quiz') => studioDo.fetch(new Request(`http
   method: 'POST', headers: { Origin: 'https://www.getdasha.com', 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }));
 assert.equal((await quizPost({ event: 'start' }, '/simp/quiz/event')).status, 400);
-let quizResponse = await quizPost({ action: 'start', mode: 'quick' });
+let quizResponse = await quizPost({ action: 'start' });
 let quizData = await quizResponse.json();
 const quizAttemptId = quizData.attemptId;
 assert.equal(quizResponse.status, 200);
-for (let i = 0; i < 10; i++) {
+assert.equal('total' in (quizData.progress || {}), false);
+for (let i = 0; i < 17; i++) {
   quizResponse = await quizPost({ action: 'answer', answer: 0, attemptId: quizAttemptId });
   quizData = await quizResponse.json();
 }
@@ -2114,8 +2116,8 @@ assert.equal(quizData.done, true);
 assert.equal(quizData.linkRequired, true);
 assert.equal(studioDo.simpQuizMetrics.starts, 1);
 assert.equal(studioDo.simpQuizMetrics.completions, 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 10);
-assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 10);
+assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 17);
+assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 17);
 assert.equal((await quizPost({ event: 'share' }, '/simp/quiz/event')).status, 200);
 assert.equal(studioDo.simpQuizMetrics.shares, 1);
 const resetMetrics = (auth) => studioDo.fetch(new Request('https://lobby.getdasha.com/studio/metrics', {
