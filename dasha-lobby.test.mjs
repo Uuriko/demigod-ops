@@ -116,6 +116,8 @@ assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
 assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
+assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
+assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('href="#simp"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz in the hero');
 assert(worker.includes('injectLobbySimpQuiz') && worker.includes('injectLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby mounts the playable quiz');
@@ -152,7 +154,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -602,7 +604,6 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
       for (const [path, title, edge] of [
         ['/', '$dasha — make the timeline stranger', 'html-security'],
         ['/lobby', '$dasha lobby', 'html-security'],
-        ['/bounties', 'Bounties', 'html-security'],
         ['/dasha', 'Dasha', 'html-security'],
       ]) {
         const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
@@ -610,6 +611,10 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
         assert.equal(page.headers.get('x-dasha-edge'), edge);
         assert.ok((await page.text()).includes(`<title>${title}</title>`), `${host}${path} must keep its origin title`);
       }
+      const bounties = await workerModule.default.fetch(new Request(`https://${host}/bounties`), {});
+      assert.equal(bounties.status, 200, `${host}/bounties must stay worker-owned 200`);
+      assert.equal(bounties.headers.get('x-dasha-edge'), 'bounties');
+      assert.match(await bounties.text(), /<title>Bounties<\/title>/);
       const privacy = await workerModule.default.fetch(new Request(`https://${host}/privacy`), {});
       assert.equal(privacy.status, 200, `${host}/privacy must stay worker-served 200`);
       assert.equal(privacy.headers.get('x-dasha-edge'), 'privacy');
@@ -719,15 +724,41 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listed, /aria-label="Bounties"/);
   assert.match(listed, /w-embed[\s\S]*id="dasha-bounties"[\s\S]*(?:jquery|webflow\.js)/);
   assert.match(listed, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
-  assert.match(listedSection, /<h1>Bounties<\/h1>/);
+  const BOARD_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  const assertBountiesChrome = (section, label) => {
+    assert.match(section, /<h1>Bounties<\/h1>/, `${label} must name the product`);
+    assert.match(section, /font-family:"Arial Black",Arial,Helvetica,sans-serif/, `${label} must use the display face`);
+    assert.match(section, /font:16px\/1\.45 Arial,Helvetica,sans-serif/, `${label} must use Arial body`);
+    assert.doesNotMatch(section, /system-ui/, `${label} must not use system-ui`);
+    assert.match(section, /href="\/studio">Studio</, `${label} nav must include Studio`);
+    assert.match(section, /href="\/simp">Simp</, `${label} nav must include Simp`);
+    assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
+    assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
+    assert.doesNotMatch(section.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /53ux|Buy|jup\.ag|#token|\/forum/i, `${label} must keep CA and Buy out of the top nav`);
+    assert.match(section, /<footer\b[^>]*id="token"/, `${label} must keep CA + Buy in a token footer`);
+    assert.match(section, /53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must show the mint`);
+    assert.match(section, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, `${label} footer must keep Buy`);
+    assert.match(section, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${label} must put Privacy next to contact`);
+    assert.match(section, /This sends a request\. It is not a live listing\./, `${label} must not pretend a board write`);
+    assert.doesNotMatch(section, /We'll add it to the board/);
+    assert.doesNotMatch(section, /Payout not live/);
+    assert.doesNotMatch(section, /\/forum/);
+    assert.doesNotMatch(section, /#1[fF]041[cC]|#0000[eE]{2}|#7c4dff|--violet|--hot-deep/);
+    for (const hex of section.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+      assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `${label} must stay tokens-only (saw ${hex})`);
+    }
+  };
+  assert.match(listed, /id="dasha-bounties"/);
+  assert.match(listed, /aria-label="Bounties"/);
+  assert.match(listed, /w-embed[\s\S]*id="dasha-bounties"[\s\S]*(?:jquery|webflow\.js)/);
+  assert.match(listed, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
+  assertBountiesChrome(listedSection, 'injected board');
   assert.match(listedSection, /Post a project\. Other people run spare compute on it\./);
   assert.match(listedSection, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/);
   assert.match(listedSection, /<a class="go" href="mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute">I have excess compute<\/a>/);
   assert.match(listedSection, /<form\b[^>]*action="mailto:potter@trydemigod\.com"[^>]*method="get"/i);
   assert.match(listedSection, /name="name"/);
   assert.match(listedSection, /What to run/);
-  assert.match(listedSection, /name="contact"/);
-  assert.match(listedSection, /We'll add it to the board\./);
   assert.doesNotMatch(listedSection, /writes?\s+\/bounties\.json|saved to \/bounties/i);
   assert.doesNotMatch(listedSection, /uuriko\.github\.io\/dasha-desk\/bounties|issues\/new\?template=bounty-project/i);
   assert.match(listedSection, /docs/);
@@ -735,49 +766,55 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
   assert.match(listedSection, /25 USDC/);
   assert.match(listedSection, /50 USDC/);
+  assert.match(listedSection, /Payouts are not configured yet\./);
+  assert.ok(listedSection.indexOf('<h1>Bounties</h1>') < listedSection.indexOf('Payouts are not configured yet.'), 'payout note must not be first-paint copy');
   assert.doesNotMatch(listedSection, /not implemented/i);
-  assert.doesNotMatch(listedSection, /Payout not live/);
   const firstListing = listedSection.match(/<li\b[\s\S]*?<\/li>/i)?.[0] || '';
   assert.match(firstListing, /docs/);
   assert.doesNotMatch(firstListing, /not implemented/i);
+  assert.doesNotMatch(firstListing, /Payout not live|Payouts are not configured yet/);
   assert.doesNotMatch(listedSection, /<script\b/i);
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
   assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255|t\.me\//i);
   assert.doesNotMatch(listed, /payTo:""/);
-  const BOARD_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
-  for (const hex of listedSection.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
-    assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `bounties board must stay tokens-only (saw ${hex})`);
-  }
   const emptyListed = injectBountiesBoard(shell, { listings: [] });
   const emptyFallback = injectBountiesBoard(shell, normalizeBountiesFeed(null));
   for (const empty of [emptyListed, emptyFallback]) {
     const emptySection = empty.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
-    assert.match(emptySection, /<h1>Bounties<\/h1>/);
+    assertBountiesChrome(emptySection, 'empty board');
     assert.match(emptySection, /Post a project\. Other people run spare compute on it\./);
     assert.match(emptySection, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/);
     assert.match(emptySection, /I have excess compute/);
     assert.match(emptySection, /mailto:potter@trydemigod\.com/);
     assert.match(emptySection, /No open bounties/);
+    assert.doesNotMatch(emptySection, /Payouts are not configured yet/);
     assert.doesNotMatch(empty, /<li\b/);
     assert.doesNotMatch(empty, /25 USDC|50 USDC/);
     assert.doesNotMatch(empty, /payTo:""/);
   }
   const nullPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: null }] });
+  assert.match(nullPay, /Payouts are not configured yet\./);
   assert.doesNotMatch(nullPay, /Payout not live/);
   assert.doesNotMatch(nullPay, /not implemented/i);
   assert.doesNotMatch(nullPay, /payTo:""/);
   const blankPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: '' }, { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', payTo: '   ' }] });
+  assert.match(blankPay, /Payouts are not configured yet\./);
   assert.doesNotMatch(blankPay, /Payout not live/);
   assert.doesNotMatch(blankPay, /not implemented/i);
   assert.doesNotMatch(blankPay, /payTo:""/);
-  const dest = '11111111111111111111111111111111';
+  const dest = '22222222222222222222222222222222';
   const fundedHtml = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: dest }] });
   const fundedSection = fundedHtml.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
+  assertBountiesChrome(fundedSection, 'funded board');
   assert.doesNotMatch(fundedSection, /Payout not live/);
+  assert.doesNotMatch(fundedSection, /Payouts are not configured yet/);
   assert.doesNotMatch(fundedSection, /not implemented/i);
   assert.doesNotMatch(fundedSection, new RegExp(dest));
   assert.doesNotMatch(JSON.stringify(normalizeBountiesFeed({ listings: [{ payTo: '' }] })), /payTo:""/);
+  const pageHtml = bountiesPageHtml(liveFeed);
+  assert.match(pageHtml, /<title>Bounties<\/title>/);
+  assertBountiesChrome(pageHtml, 'worker-owned page helper');
 }
 {
   const nativeFetch = globalThis.fetch;
@@ -1636,26 +1673,50 @@ ${laterIcons}
   try {
     globalThis.fetch = async () => new Response(bountiesFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
-      for (const path of ['/bounties', '/bounties/']) {
-        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
-        const html = await page.text();
-        assert.doesNotMatch(html, /<iframe/i, `${host} ${path} must drop the Pages iframe`);
-        assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
-        assert.doesNotMatch(html, /dasha-bounties-frame/, `${host} ${path} must drop leftover frame CSS`);
-        assert.match(html, /html, body \{ margin: 0; padding: 0; height: 100%; \}/, `${host} ${path} must keep the rest of the embed CSS`);
-        assert.match(html, /id="dasha-bounties"/, `${host} ${path} must inject the no-JS board`);
-        assert.match(html, /<h1>Bounties<\/h1>/, `${host} ${path} must name the product`);
-        assert.match(html, /Post a project\. Other people run spare compute on it\./, `${host} ${path} must say what the board is`);
-        assert.match(html, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/, `${host} ${path} must keep the post path`);
-        assert.match(html, /I have excess compute/, `${host} ${path} must keep the spare-compute path`);
-        assert.match(html, /mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute/, `${host} ${path} must keep a no-JS compute mailto`);
-        assert.match(html, /mailto:potter@trydemigod\.com/, `${host} ${path} must keep a no-JS post path`);
-        assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
-        assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
-        assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/, `${host} ${path} must not remount the Pages iframe`);
-        assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} ${path} must add one Privacy link on the board`);
-        assert.match(html, /<a href="\/privacy">Privacy<\/a>/);
-        assert.match(html, /#dasha-bounties a\{color:#dfff00\}/, `${host} ${path} must keep the existing board link color`);
+      for (const method of ['GET', 'HEAD']) {
+        for (const path of ['/bounties', '/bounties/']) {
+          const page = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+          assert.equal(page.status, 200, `${host} ${path} ${method} must be worker-owned 200`);
+          assert.equal(page.headers.get('x-dasha-edge'), 'bounties');
+          const html = await page.text();
+          if (method === 'HEAD') {
+            assert.equal(html, '', `${host} ${path} HEAD must return an empty body`);
+            continue;
+          }
+          assert.match(html, /<title>Bounties<\/title>/);
+          assert.doesNotMatch(html, /<iframe/i, `${host} ${path} must not paint the Pages iframe`);
+          assert.doesNotMatch(html, /w-mod-js|w-embed|dasha-bounties-frame/);
+          assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
+          assert.match(html, /id="dasha-bounties"/, `${host} ${path} must be the no-JS board`);
+          assert.match(html, /<h1>Bounties<\/h1>/, `${host} ${path} must name the product`);
+          assert.match(html, /font-family:"Arial Black",Arial,Helvetica,sans-serif/, `${host} ${path} must use the display face`);
+          assert.match(html, /font:16px\/1\.45 Arial,Helvetica,sans-serif/, `${host} ${path} must use Arial body`);
+          assert.doesNotMatch(html, /system-ui/, `${host} ${path} must not use system-ui`);
+          assert.match(html, /href="\/studio">Studio</, `${host} ${path} nav must include Studio`);
+          assert.match(html, /href="\/simp">Simp</, `${host} ${path} nav must include Simp`);
+          assert.match(html, /href="\/bounties">Bounties</, `${host} ${path} nav must include Bounties`);
+          assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${host} ${path} nav must include @dash_eats`);
+          assert.doesNotMatch(html.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /53ux|Buy|jup\.ag|\/forum/i, `${host} ${path} must keep CA and Buy out of the top nav`);
+          assert.match(html, /<footer\b[^>]*id="token"/, `${host} ${path} must keep CA + Buy in a token footer`);
+          assert.match(html, /Post a project\. Other people run spare compute on it\./, `${host} ${path} must say what the board is`);
+          assert.match(html, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/, `${host} ${path} must keep the post path`);
+          assert.match(html, /I have excess compute/, `${host} ${path} must keep the spare-compute path`);
+          assert.match(html, /mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute/, `${host} ${path} must keep a no-JS compute mailto`);
+          assert.match(html, /mailto:potter@trydemigod\.com/, `${host} ${path} must keep a no-JS post path`);
+          assert.match(html, /This sends a request\. It is not a live listing\./, `${host} ${path} must not pretend a board write`);
+          assert.match(html, /<label>Contact <input name="contact"><\/label> <a href="\/privacy">Privacy<\/a>/, `${host} ${path} must put Privacy next to contact`);
+          assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
+          assert.doesNotMatch(html, /Payout not live/);
+          assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
+          assert.doesNotMatch(html, /We'll add it to the board/);
+          assert.doesNotMatch(html, /\/forum/);
+          assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} ${path} must keep one Privacy link next to contact`);
+          assert.match(html, /a\{color:var\(--acid\)\}/, `${host} ${path} must keep acid links`);
+          const BOARD_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+          for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+            assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `${host} ${path} must stay tokens-only (saw ${hex})`);
+          }
+        }
       }
     }
     const home = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});
@@ -1670,13 +1731,17 @@ ${laterIcons}
     };
     const thrown = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
     const thrownHtml = await thrown.text();
+    assert.equal(thrown.headers.get('x-dasha-edge'), 'bounties');
     assert.match(thrownHtml, /id="dasha-bounties"/);
     assert.match(thrownHtml, /<h1>Bounties<\/h1>/);
     assert.match(thrownHtml, /I have excess compute/);
     assert.match(thrownHtml, /mailto:potter@trydemigod\.com/);
+    assert.match(thrownHtml, /This sends a request\. It is not a live listing\./);
     assert.match(thrownHtml, /No open bounties/);
+    assert.doesNotMatch(thrownHtml, /Payout not live/);
     assert.doesNotMatch(thrownHtml, /not implemented/i);
     assert.doesNotMatch(thrownHtml, /<iframe/i);
+    assert.doesNotMatch(thrownHtml, /w-mod-js|system-ui/);
   } finally {
     globalThis.fetch = nativeFetch;
   }

@@ -4,6 +4,7 @@
  */
 import {
   MINT,
+  WSOL,
   PIN,
   MAX_HISTORY,
   MAX_SOCKETS,
@@ -325,7 +326,27 @@ function bountiesBoardHtml(feed) {
         return `<li><p>${title}</p>${label ? `<p class="amt">${label}</p>` : ''}</li>`;
       }).join('')}</ul>`
     : '<p>No open bounties</p>';
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 0 .5rem}#dasha-bounties h1{margin-top:0}#dasha-bounties a{color:#dfff00}#dasha-bounties a.go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties button{min-height:48px;padding:0 1.25rem;background:#dfff00;color:#070608;border:0;font:inherit;font-weight:950}</style><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label></p><p><button type="submit">Post a project</button></p></form><p>We'll add it to the board.</p><h2>Work</h2>${work}</section>`;
+  const unpaid = data.listings.length > 0 && data.listings.every((row) => !(typeof row.payTo === 'string' && row.payTo.trim()));
+  const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
+  const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer></section>`;
+}
+
+/** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
+export function bountiesPageHtml(feed) {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bounties</title>
+<body>${bountiesBoardHtml(feed)}</body></html>`;
+}
+
+async function bountiesPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : bountiesPageHtml(await loadBountiesFeed()), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'bounties',
+    }),
+  });
 }
 
 /** /bounties-only: no-JS post+work board after the leftover w-embed. Same feed as /bounties.json. */
@@ -2836,6 +2857,9 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
     return simpPageResponse(request);
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
+    return bountiesPageResponse(request);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
   }
@@ -2923,9 +2947,6 @@ async function productEdge(request, url, env) {
   } else {
     html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
     if (isExactPath(url.pathname, '/lobby')) html = injectLobbySimpQuiz(html);
-  }
-  if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
-    html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
