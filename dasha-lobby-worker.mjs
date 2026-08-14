@@ -505,6 +505,45 @@ const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found
 <p>This path is not a Dasha page.</p>
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="https://www.getdasha.com/lobby">Lobby</a></p>`);
 
+// Existing cherries mark (studio/assets/favicon.svg). Do not restyle.
+const DASHA_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dasha">
+  <title>Dasha</title>
+  <rect width="64" height="64" rx="14" fill="#070608"/>
+  <g transform="translate(32 33) scale(0.82) translate(-32 -32)">
+    <g fill="none" stroke="#dfff00" stroke-width="7" stroke-linecap="round">
+      <path d="M18 31 C19 19 26 10 36 6"/>
+      <path d="M46 37 C48 26 42 14 36 6"/>
+    </g>
+    <circle cx="17" cy="45" r="14" fill="#dfff00"/>
+    <circle cx="46" cy="47" r="12" fill="#dfff00"/>
+  </g>
+</svg>`;
+
+const ICON_PATHS = new Set([
+  '/favicon.ico',
+  '/favicon.svg',
+  '/favicon.png',
+  '/apple-touch-icon',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon-precomposed.png',
+]);
+
+function isIconPath(pathname) {
+  return ICON_PATHS.has(String(pathname || '').replace(/\/$/, '') || '/');
+}
+
+function faviconResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : DASHA_FAVICON_SVG, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'public, max-age=86400',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Dasha-Edge': 'favicon',
+    },
+  });
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
@@ -2406,6 +2445,9 @@ const RETIRED_COMMERCE_PATHS = new Set(['/checkout', '/paypal-checkout', '/order
 
 /** Product hosts (www/apex) serve SEO/howto plus a few footer aliases; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
+  if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {
+    return faviconResponse(request);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_COMMERCE_PATHS.has(url.pathname)) {
     return new Response(request.method === 'HEAD' ? null : 'Not found', {
       status: 404,
@@ -2749,6 +2791,10 @@ export default {
       const room = env.LOBBY.idFromName('public');
       const stub = env.LOBBY.get(room);
       return stub.fetch(request);
+    }
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {
+      return faviconResponse(request);
     }
 
     if (request.method === 'GET' || request.method === 'HEAD') {
