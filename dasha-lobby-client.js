@@ -129,7 +129,7 @@
     var pinStrong = el('strong', null, 'Lobby');
     pin.appendChild(pinStrong);
     pin.appendChild(document.createTextNode(' · public · not Discord · '));
-    var mintSpan = el('span', 'lobby-mint', MINT.slice(0, 6) + '…' + MINT.slice(-4));
+    var mintSpan = el('span', 'lobby-mint', MINT);
     mintSpan.title = MINT;
     pin.appendChild(mintSpan);
     pin.appendChild(document.createTextNode(' · '));
@@ -891,6 +891,12 @@
     } catch (e) {}
   }
 
+  function settleEmptyQuiz() {
+    var quiz = document.getElementById('dasha-quiz');
+    if (!quiz || quiz.querySelector('#dasha-simp-board') || quiz.querySelector('a[href="/simp"]')) return;
+    quiz.innerHTML = '<p><a href="/simp">Take Simp</a></p>';
+  }
+
   function auto() {
     stripPersonalBrand();
     var node = document.getElementById('dasha-lobby');
@@ -898,6 +904,7 @@
       node.dataset.mounted = '1';
       mount(node);
     }
+    settleEmptyQuiz();
   }
   if (typeof document !== 'undefined') {
     stripPersonalBrand();
