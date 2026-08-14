@@ -2191,7 +2191,7 @@ function isProductHost(host) {
 
 const RETIRED_COMMERCE_PATHS = new Set(['/checkout', '/paypal-checkout', '/order-confirmation']);
 
-/** Product hosts (www/apex) only serve SEO/howto; everything else goes to Webflow origin. */
+/** Product hosts (www/apex) serve SEO/howto plus a few footer aliases; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && RETIRED_COMMERCE_PATHS.has(url.pathname)) {
     return new Response(request.method === 'HEAD' ? null : 'Not found', {
@@ -2238,6 +2238,31 @@ async function productEdge(request, url, env) {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=120',
         'X-Dasha-Edge': 'howto',
+      }),
+    });
+  }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
+  ) {
+    return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+  }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/forum' || url.pathname === '/forum/')
+  ) {
+    return Response.redirect('https://lobby.getdasha.com/forum', 308);
+  }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (url.pathname === '/privacy' || url.pathname === '/privacy/')
+  ) {
+    return new Response(request.method === 'HEAD' ? null : PRIVACY_HTML, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+        'X-Dasha-Edge': 'privacy',
       }),
     });
   }
