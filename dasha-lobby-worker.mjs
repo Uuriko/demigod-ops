@@ -249,7 +249,7 @@ function homeFirstViewportHtml(sri) {
   const assoc = escapeHtml('References describe internet culture. Not endorsement.');
   const posters = HOME_POSTERS.map(([label, href]) =>
     `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`).join('');
-  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Open an editable Dasha Studio starter">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
+  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Open an editable Dasha Studio starter">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
 }
 
 /** www/apex / only: first paint is the product lock. Live `#dasha-home` is a wrapper, not this rewrite. */
@@ -374,7 +374,7 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer></section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="/verse">Verse</a> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer></section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
@@ -737,7 +737,7 @@ export function simpPageHtml() {
 <p>${perryDisplay} · editorial #1 · not measured</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
-<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/verse">Verse</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
 }
 
@@ -821,6 +821,126 @@ function simpHoldResponse(origin) {
   return json({ configured: false, error: 'not_configured' }, 501, origin);
 }
 
+const VERSE_WWW = 'https://www.getdasha.com/verse';
+const VERSE_SITES = [
+  {
+    title: 'Dasha Madness',
+    line: 'Photo March Madness of Dasha Nekrasova. Home of the Dashamaniacs.',
+    href: 'https://dashamadness.com/',
+    host: 'dashamadness.com',
+  },
+];
+const VERSE_SAVE_FAIL = "Couldn't save. Post the URL in the lobby.";
+const VERSE_SAVE_OK = "Got it. We'll look.";
+
+/** Curated public list only. Pending submissions never appear here. */
+export function parseVerseSubmit(input) {
+  const raw = String(input?.url || '').trim();
+  const note = String(input?.note || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!raw || raw.length > 2048) return { error: 'Need an http(s) link.' };
+  const lower = raw.toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:')) return { error: 'Need an http(s) link.' };
+  let parsed;
+  try { parsed = new URL(raw); } catch { return { error: 'Need an http(s) link.' }; }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { error: 'Need an http(s) link.' };
+  if (parsed.username || parsed.password) return { error: 'Need an http(s) link.' };
+  return { url: parsed.href, note };
+}
+
+export function versePageHtml({ status = '', kind = '' } = {}) {
+  const cards = VERSE_SITES.map((site) =>
+    `<article class="site"><h2>${escapeHtml(site.title)}</h2><p>${escapeHtml(site.line)}</p><p class="host">${escapeHtml(site.host)}</p><p><a class="btn" href="${escapeHtml(site.href)}" target="_blank" rel="noopener noreferrer">Go there ↗</a></p></article>`).join('');
+  const notice = status
+    ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
+    : '';
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
+<meta name="description" content="Other Dasha sites. Ours is the token.">
+<link rel="canonical" href="${VERSE_WWW}">
+<style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}nav a{color:var(--paper);text-decoration:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px;min-height:44px;display:inline-flex;align-items:center}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
+<body><main class="wrap">
+<nav aria-label="Dasha"><a href="/">$dasha</a><a href="/simp">Simp</a><a href="/bounties">Bounties</a></nav>
+<h1>Dashaverse</h1>
+<p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
+${cards}
+<p class="honest">We don't run dashamadness.com. One outbound link. Nothing else is listed until we put it here.</p>
+<section>
+<h2>Know another?</h2>
+<p>Paste a Dasha-related site. We'll look. Nothing goes live until we list it.</p>
+${notice}
+<form action="/verse" method="post">
+<p><label>URL <input name="url" type="url" required maxlength="2048" inputmode="url" autocomplete="off"></label></p>
+<p><label>Note <span class="honest">(optional)</span> <input name="note" type="text" maxlength="200" autocomplete="off"></label></p>
+<p><button type="submit">Send it</button></p>
+</form>
+</section>
+<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
+</main></body></html>`;
+}
+
+function verseWantsJson(request) {
+  return /application\/json/i.test(request.headers.get('Content-Type') || '')
+    || /application\/json/i.test(request.headers.get('Accept') || '');
+}
+
+function verseResult(request, { httpStatus, status, kind = '' }) {
+  if (verseWantsJson(request)) {
+    return json(httpStatus < 400 ? { ok: true, status } : { error: status }, httpStatus, request.headers.get('Origin'));
+  }
+  return new Response(request.method === 'HEAD' ? null : versePageHtml({ status, kind: kind || (httpStatus >= 400 ? 'bad' : '') }), {
+    status: httpStatus,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Dasha-Edge': 'verse',
+    }),
+  });
+}
+
+async function requestVerseInput(request) {
+  const ct = String(request.headers.get('Content-Type') || '');
+  if (ct.includes('application/json')) return requestJson(request);
+  if (Number(request.headers.get('Content-Length') || 0) > 4096) return {};
+  const text = await request.text().catch(() => '');
+  if (new TextEncoder().encode(text).length > 4096) return {};
+  const params = new URLSearchParams(text);
+  return { url: params.get('url') || '', note: params.get('note') || '' };
+}
+
+async function verseSubmitResponse(request, env) {
+  const parsed = parseVerseSubmit(await requestVerseInput(request));
+  if (parsed.error) return verseResult(request, { httpStatus: 400, status: parsed.error, kind: 'bad' });
+  try {
+    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
+    if (!stub) return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
+    const res = await stub.fetch(new Request(new URL('/verse', request.url), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'CF-Connecting-IP': request.headers.get('CF-Connecting-IP') || '',
+        'X-Forwarded-For': request.headers.get('X-Forwarded-For') || '',
+      },
+      body: JSON.stringify(parsed),
+    }));
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) return verseResult(request, { httpStatus: 200, status: VERSE_SAVE_OK });
+    if (res.status === 429) return verseResult(request, { httpStatus: 429, status: 'Slow down. Try again in a moment.', kind: 'bad' });
+    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
+  } catch {
+    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
+  }
+}
+
+function versePageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : versePageHtml(), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'verse',
+    }),
+  });
+}
+
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 10, 2026.</p>
 <h2>What Dasha uses</h2>
@@ -832,7 +952,8 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <h2>Control and deletion</h2>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
 <p>For access or deletion requests, use the repository's <a href="https://github.com/Uuriko/dasha-desk/security/advisories/new">private report</a>. Do not include wallet keys or seed phrases.</p>
-<p><a href="https://www.getdasha.com/">Back to Dasha</a></p>`);
+<p>If you send a Dashaverse site, Dasha stores the URL and optional note for review. Pending links stay off the public list.</p>
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/verse">Verse</a></p>`);
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
 <p>This path is not a Dasha page.</p>
@@ -976,6 +1097,8 @@ export class DashaLobby {
     this.history = [];
     this.rates = new Map();
     this.simpRates = new Map();
+    this.verseRates = new Map();
+    this.versePending = [];
     this.nicks = new Map();
     this.ipJoins = new Map(); // ip -> { times: number[] }
     this.mutes = new Map(); // nickKey -> untilMs
@@ -1049,6 +1172,8 @@ export class DashaLobby {
       if (claims && typeof claims === 'object' && !Array.isArray(claims)) this.simpClaims = claims;
       const seasons = await this.state.storage.get('simpSeasons');
       if (seasons && typeof seasons === 'object' && !Array.isArray(seasons)) this.simpSeasons = seasons;
+      const versePending = await this.state.storage.get('versePending');
+      if (Array.isArray(versePending)) this.versePending = versePending;
       const chess = await this.state.storage.get('chessState');
       if (chess && typeof chess === 'object' && !Array.isArray(chess)) {
         if (chess.games && typeof chess.games === 'object') this.chessGames = chess.games;
@@ -1081,6 +1206,20 @@ export class DashaLobby {
 
   async persistSimpState() {
     await this.state.storage.put({ simpProfiles: this.simpProfiles, simpQuizAttempts: this.simpQuizAttempts, simpQuizMetrics: this.simpQuizMetrics, simpQuizResults: this.simpQuizResults, simpClaims: this.simpClaims, simpSeasons: this.simpSeasons });
+  }
+
+  async handleVerse(request) {
+    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, null);
+    const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown';
+    const allowed = simpRate(this.verseRates, `verse:${ip}`, 5);
+    if (!allowed.ok) return json({ error: 'rate limit', waitMs: allowed.waitMs }, 429, null);
+    const parsed = parseVerseSubmit(await requestJson(request));
+    if (parsed.error) return json({ error: parsed.error }, 400, null);
+    this.versePending.push({ id: id(), url: parsed.url, note: parsed.note, at: Date.now() });
+    // ponytail: cap 200 pending rows; oldest drop. Review is manual, never public.
+    if (this.versePending.length > 200) this.versePending.splice(0, this.versePending.length - 200);
+    await this.state.storage.put('versePending', this.versePending);
+    return json({ ok: true }, 200, null);
   }
 
   chessSnapshot() {
@@ -2408,6 +2547,10 @@ export class DashaLobby {
       return json(this.roomStats(), 200, null);
     }
 
+    if (url.pathname.replace(/\/$/, '') === '/verse') {
+      return this.handleVerse(request);
+    }
+
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/')) {
       // Origin already checked by worker entry; pass through for CORS on stub responses.
       const origin = request.headers.get('Origin');
@@ -2955,6 +3098,13 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
     return bountiesPageResponse(request);
   }
+  if (isExactPath(url.pathname, '/verse')) {
+    if (request.method === 'POST') return verseSubmitResponse(request, env);
+    if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
+    return Response.redirect(VERSE_WWW, 308);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
   }
@@ -3131,6 +3281,13 @@ export default {
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
       return Response.redirect(BOUNTIES_FEED_PAGE, 308);
+    }
+    if (isExactPath(url.pathname, '/verse')) {
+      if (request.method === 'POST') return verseSubmitResponse(request, env);
+      if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
+      return Response.redirect(VERSE_WWW, 308);
     }
     if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
       return simpHoldResponse(allowedOrigin);

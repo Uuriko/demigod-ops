@@ -137,6 +137,10 @@
     verifyA.href = '/how-to-buy';
     verifyA.setAttribute('aria-label', 'How to buy $dasha');
     pin.appendChild(verifyA);
+    pin.appendChild(document.createTextNode(' · '));
+    var verseA = el('a', null, 'Verse');
+    verseA.href = '/verse';
+    pin.appendChild(verseA);
 
     var pinBody = el('p', 'lobby-pin-body', '');
     pinBody.hidden = true;
