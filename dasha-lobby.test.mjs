@@ -258,7 +258,7 @@ for (const path of ['/forum', '/forum/']) {
   assert.equal(lobbyRootBody.ok, true);
   assert.equal(lobbyRootBody.service, 'dasha-lobby');
 }
-for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
   for (const method of ['GET', 'HEAD']) {
     const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
     assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
@@ -269,12 +269,31 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
       assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
     } else {
       assert.match(body, /<title>Page not found — \$dasha<\/title>/);
+      assert.match(body, /This path is not a Dasha page\./);
       assert.match(body, /Dasha|\$dasha/);
       assert.notEqual(body, '{"error":"not found"}');
       assert.doesNotMatch(body, /no forum yet/i);
       assert.doesNotMatch(body, /<title>Dasha forum<\/title>/);
     }
   }
+}
+{
+  const metricsEnv = {
+    LOBBY: {
+      idFromName: () => 'room',
+      get: () => ({
+        fetch: async () => new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      }),
+    },
+  };
+  const publicMetrics = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/studio/metrics/public'), metricsEnv);
+  assert.equal(publicMetrics.status, 200, 'lobby /studio/metrics/public must stay a JSON API');
+  assert.match(publicMetrics.headers.get('content-type') || '', /application\/json/);
+  assert.notEqual(publicMetrics.headers.get('x-dasha-edge'), 'html-404');
+  assert.equal((await publicMetrics.json()).ok, true);
 }
 {
   const webflow404 = `<!doctype html><html><head><title>404 - Page not found</title>

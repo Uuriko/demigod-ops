@@ -2662,7 +2662,7 @@ export default {
       return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
     }
 
-    if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
+    if ((url.pathname.startsWith('/simp/') && url.pathname !== '/simp/') || (url.pathname.startsWith('/studio/') && url.pathname !== '/studio/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
       if (request.method !== 'GET' && origin && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
         return json({ error: 'origin not allowed' }, 403, null);
       }
