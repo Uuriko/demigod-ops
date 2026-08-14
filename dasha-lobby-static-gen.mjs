@@ -251,7 +251,11 @@ footer a{color:var(--muted)}
 
   <h1>How to buy $dasha</h1>
   <p class="lede">SOL → match mint → swap.</p>
-  <article class="step" data-n="01"><div class="n">01</div><h2>Get SOL</h2></article>
+  <article class="step" data-n="01">
+    <div class="n">01</div>
+    <h2>Get SOL</h2>
+    <p>Get SOL into a Solana wallet you control, then continue.</p>
+  </article>
 
   <article class="step" data-n="02">
     <div class="n">02</div>
@@ -485,4 +489,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "40817d40636b5312";
+export const ASSET_HASH = "e61894f5c8ea396a";

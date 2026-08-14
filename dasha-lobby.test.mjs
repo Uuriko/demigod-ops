@@ -289,9 +289,25 @@ for (const method of ['GET', 'HEAD']) {
   }
 }
 {
-  const lobbyHowto = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/how-to-buy'), {});
-  assert.equal(lobbyHowto.status, 200, 'lobby /how-to-buy must stay 200');
-  assert.equal(lobbyHowto.headers.get('x-dasha-edge'), 'howto');
+  for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
+    const howto = await workerModule.default.fetch(new Request(`https://${host}/how-to-buy`), {});
+    assert.equal(howto.status, 200, `${host} /how-to-buy must stay 200`);
+    assert.equal(howto.headers.get('x-dasha-edge'), 'howto');
+    const html = await howto.text();
+    const step01 = html.match(/<article[^>]*data-n="01"[^>]*>([\s\S]*?)<\/article>/);
+    assert.ok(step01, `${host} /how-to-buy must serve a Get SOL article`);
+    assert.match(step01[1], /<h2>Get SOL<\/h2>/);
+    const copy = step01[1]
+      .replace(/<div class="n">[\s\S]*?<\/div>/g, '')
+      .replace(/<h2>[\s\S]*?<\/h2>/g, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    assert.ok(copy, `${host} /how-to-buy Get SOL step must have real copy, not heading-only`);
+    assert.match(copy, /SOL/);
+    assert.match(copy, /wallet/i);
+    assert.doesNotMatch(html, /payTo/);
+  }
 }
 for (const method of ['GET', 'HEAD']) {
   const privacy = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/privacy/', { method }), {});
