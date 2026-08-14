@@ -259,6 +259,9 @@ export function ensurePrivacyLink(html) {
   return page;
 }
 
+const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
+const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
   return String(html || '').replace(/<script\b[^>]*>\s*<\/script>/gi, (tag) => {
@@ -524,22 +527,22 @@ export function personalizeChessPage(html, { title, description, url, robots = '
 }
 
 async function chessPageForRequest(request, env) {
-  if (request.method === 'HEAD' || !env?.LOBBY) return CHESS_PAGE_HTML;
+  if (request.method === 'HEAD' || !env?.LOBBY) return CHESS_PAGE;
   const url = new URL(request.url);
   const gameId = url.searchParams.get('game');
   const tournamentId = url.searchParams.get('tournament');
   const challengeId = url.searchParams.get('challenge');
   const valid = value => /^[A-Za-z0-9_-]{6,24}$/.test(value || '');
   const apiPath = valid(gameId) ? `/chess/replay/${gameId}` : valid(challengeId) ? `/chess/challenge/${challengeId}` : valid(tournamentId) ? `/chess/tournament/${tournamentId}` : '';
-  if (!apiPath) return CHESS_PAGE_HTML;
+  if (!apiPath) return CHESS_PAGE;
   try {
     const room = env.LOBBY.idFromName('public');
     const response = await env.LOBBY.get(room).fetch(new Request(`https://lobby.getdasha.com${apiPath}`));
-    if (!response.ok) return CHESS_PAGE_HTML;
+    if (!response.ok) return CHESS_PAGE;
     const data = await response.json();
     if (data.replay) {
       const replay = data.replay;
-      return personalizeChessPage(CHESS_PAGE_HTML, {
+      return personalizeChessPage(CHESS_PAGE, {
         title: `@${replay.white.handle} ${replay.result} @${replay.black.handle} — Dasha Chess`,
         description: `${replay.moves.length} moves · ${replay.reason} · Replay every move.`,
         url: `https://lobby.getdasha.com/chess?game=${encodeURIComponent(replay.id)}`,
@@ -548,7 +551,7 @@ async function chessPageForRequest(request, env) {
     if (data.tournament) {
       const tournament = data.tournament;
       const state = tournament.status === 'registration' ? 'Open tournament' : tournament.status === 'active' ? 'Tournament in progress' : `${tournament.champion || 'Champion'} wins`;
-      return personalizeChessPage(CHESS_PAGE_HTML, {
+      return personalizeChessPage(CHESS_PAGE, {
         title: `${tournament.name} — Dasha Chess`,
         description: `${state} · ${tournament.entrants.length}/${tournament.maxPlayers} players.`,
         url: `https://lobby.getdasha.com/chess?tournament=${encodeURIComponent(tournament.id)}`,
@@ -562,7 +565,7 @@ async function chessPageForRequest(request, env) {
         : challenge.status === 'accepted'
           ? `${challenge.creator}'s table is claimed — Dasha Chess`
           : `${challenge.creator}'s table is closed — Dasha Chess`;
-      return personalizeChessPage(CHESS_PAGE_HTML, {
+      return personalizeChessPage(CHESS_PAGE, {
         title,
         description: state,
         url: `https://lobby.getdasha.com/chess?challenge=${encodeURIComponent(challenge.id)}`,
@@ -572,7 +575,7 @@ async function chessPageForRequest(request, env) {
   } catch {
     /* generic card remains available */
   }
-  return CHESS_PAGE_HTML;
+  return CHESS_PAGE;
 }
 
 const oauthStateCookie = (token = '') => `${OAUTH_COOKIE}=${token}; Path=/; Max-Age=${token ? 900 : 0}; HttpOnly; Secure; SameSite=Lax`;
@@ -2445,7 +2448,7 @@ async function productEdge(request, url, env) {
     (request.method === 'GET' || request.method === 'HEAD') &&
     (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
   ) {
-    return new Response(request.method === 'HEAD' ? null : HOWTO_HTML, {
+    return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
       status: 200,
       headers: htmlHeaders({
         'Content-Type': 'text/html; charset=utf-8',
@@ -2671,11 +2674,12 @@ export default {
       (request.method === 'GET' || request.method === 'HEAD') &&
       (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
     ) {
-      return new Response(request.method === 'HEAD' ? null : HOWTO_HTML, {
+      return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
         status: 200,
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'howto',
         }),
       });
     }
@@ -2683,7 +2687,11 @@ export default {
       const html = await chessPageForRequest(request, env);
       return new Response(request.method === 'HEAD' ? null : html, {
         status: 200,
-        headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=120' }),
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'chess',
+        }),
       });
     }
     if (
