@@ -19,6 +19,7 @@
 <meta name="twitter:title" content="How to buy $dasha">
 <meta name="twitter:description" content="SOL → match mint → swap.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<script src="https://plugin.jup.ag/plugin-v1.js" data-preload defer></script>
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}
@@ -30,12 +31,19 @@ h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spac
 .step{border-top:1px solid var(--line);padding:18px 0;margin:0}
 .step .n{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--acid);font-weight:900}
 .step h2{margin:6px 0 8px;font-size:1.15rem;text-transform:uppercase;letter-spacing:-.02em}
-.step p{margin:0;color:var(--muted)}
+.step p{margin:0 0 10px;color:var(--muted)}
+.step p:last-child{margin-bottom:0}
+.step a{color:var(--acid);font-weight:800}
 .ca{display:block;margin:12px 0;padding:12px;border-radius:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-family:var(--mono);font-size:.85rem;word-break:break-all;user-select:all}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .btn{appearance:none;border:0;min-height:48px;padding:12px 18px;border-radius:999px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}
 .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
 .btn:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
+#dasha-jup{height:600px;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);overflow:hidden;scroll-margin-top:16px}
+#dasha-jup[hidden]{display:none}
+.doors{margin:14px 0 0;padding:0;list-style:none;color:var(--muted)}
+.doors li{margin:0 0 8px}
+.doors a{color:var(--paper);font-weight:800}
 footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}
 footer a{color:var(--muted)}
 .source{margin:10px 0 0;font-size:13px;color:var(--muted)}.source a{color:var(--acid);font-weight:800}
@@ -50,35 +58,57 @@ footer a{color:var(--muted)}
 
   <h1>How to buy $dasha</h1>
   <p class="lede">SOL → match mint → swap.</p>
-  <article class="step" data-n="01"><div class="n">01</div><h2>Get SOL</h2></article>
+  <article class="step" data-n="01">
+    <div class="n">01</div>
+    <h2>Get SOL</h2>
+    <p>We never take your card. You buy in your own wallet.</p>
+    <p>Install <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer">Phantom</a> or <a href="https://solflare.com/" target="_blank" rel="noopener noreferrer">Solflare</a>. Write the phrase on paper. Nobody from $dasha will ask for it.</p>
+    <p>In Phantom tap Buy, pick SOL. MoonPay / Coinbase Pay / Robinhood are Phantom’s checkout, not ours.</p>
+    <p>Or buy SOL on <a href="https://www.coinbase.com/price/solana" target="_blank" rel="noopener noreferrer">Coinbase</a> and send on network Solana to that wallet.</p>
+    <p>Or <a href="https://jup.ag/onboard" target="_blank" rel="noopener noreferrer">Jupiter onboard</a>.</p>
+    <p>Keep ~0.02 SOL unspent for fees.</p>
+  </article>
 
   <article class="step" data-n="02">
     <div class="n">02</div>
     <h2>Match full mint</h2>
+    <p>This is the only $dasha mint. Never search $dasha by name. If a site shows a different CA, it is not this token.</p>
     <code class="ca" id="ca">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
     <div class="actions">
       <button type="button" class="btn" id="copy">Copy CA</button>
     </div>
-    <p class="source">Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
+    <p class="source"><a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Solscan ↗</a> · Source: <a href="https://x.com/dash_eats/status/2085405228078432279" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p>
   </article>
 
   <article class="step" data-n="03">
     <div class="n">03</div>
     <h2>Swap</h2>
+    <p>In Phantom: Swap, top SOL, bottom paste the mint. Don’t spend all SOL.</p>
+    <p>Or tap Buy $dasha.</p>
     <div class="actions">
-      <a class="btn" id="buy2" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Jupiter</a>
+      <a class="btn" id="buy" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a>
+      <a class="btn ghost" id="buy-jup" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Jupiter</a>
     </div>
+    <div id="dasha-jup"></div>
+    <p>Also trades on</p>
+    <ul class="doors">
+      <li><a target="_blank" rel="noopener noreferrer" href="https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">pump.fun</a></li>
+      <li><a target="_blank" rel="noopener noreferrer" href="https://trade.phantom.com/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Phantom trade</a></li>
+    </ul>
   </article>
 
   <footer>
     <p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="https://www.getdasha.com/dasha">Desk</a></p>
   </footer>
 </main>
-<div class="buy-sticky" id="buy-sticky" hidden><a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
+<div class="buy-sticky" id="buy-sticky" hidden><a class="btn" id="buy-sticky-a" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
 <script>
 (function(){
   var CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
   var BUY='https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy='+CA;
+  var PHANTOM='https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  function mobile(){ return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent||''); }
+  function paintBuy(a){ if(a) a.href=mobile()?PHANTOM:BUY; }
   function copyText(text, btn){
     function ok(){ if(btn){btn.textContent='Copied'; setTimeout(function(){btn.textContent=btn.dataset.label||'Copy'},1200);} }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){ fallback(); }); }
@@ -87,7 +117,26 @@ footer a{color:var(--muted)}
   }
   var copyBtn=document.getElementById('copy');
   if(copyBtn){ copyBtn.dataset.label='Copy CA'; copyBtn.addEventListener('click', function(){ copyText(CA, copyBtn); }); }
+  paintBuy(document.getElementById('buy'));
+  paintBuy(document.getElementById('buy-sticky-a'));
   var sticky=document.getElementById('buy-sticky');if(sticky&&window.matchMedia&&window.matchMedia('(max-width:560px)').matches)sticky.hidden=false;
+  function hideJup(){ var box=document.getElementById('dasha-jup'); if(box) box.hidden=true; }
+  function bootJup(){
+    if(!window.Jupiter||!window.Jupiter.init){ hideJup(); return; }
+    try{
+      window.Jupiter.init({
+        displayMode:'integrated',
+        integratedTargetId:'dasha-jup',
+        formProps:{
+          initialInputMint:'So11111111111111111111111111111111111111112',
+          initialOutputMint:CA,
+          fixedMint:CA
+        }
+      });
+    }catch(e){ hideJup(); }
+  }
+  if(document.readyState==='complete') bootJup();
+  else if(window.addEventListener) window.addEventListener('load', bootJup);
   window.DashaHowToBuy={ CA:CA, BUY:BUY };
 })();
 </script>

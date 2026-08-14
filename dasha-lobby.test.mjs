@@ -76,9 +76,10 @@ assert(client.includes("document.createTextNode('X · ')") && client.includes('l
 // Header chrome must be mounted (was once stripped and left chat looking empty/broken).
 assert(client.includes('root.appendChild(pin)'), 'Lobby pin chrome must mount');
 assert(
-  client.includes('verify mint') && client.includes('getdasha.com/#token'),
-  'verify mint must deep-link Home CA when not already on Home',
+  client.includes('verify mint') && client.includes("verifyA.href = '/how-to-buy'"),
+  'verify mint must hand off to /how-to-buy',
 );
+assert(!client.includes('#token'), 'verify mint must not dump people under the home lock');
 assert(!client.includes('nfaStrip'), 'Lobby warning strip must stay removed');
 assert(client.includes('root.appendChild(xBar)'), 'Lobby X toolbar must mount');
 assert(client.includes('root.appendChild(presenceStrip)'), 'Lobby presence must mount');
@@ -104,6 +105,8 @@ assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must ga
 assert(worker.includes('rewriteStudioScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover studio.js SRI');
 assert(worker.includes('rewriteLobbyScriptIntegrity(html)'), 'proxied product HTML must rewrite leftover lobby.js SRI');
 assert(worker.includes('stripDeadLobbyForum(html)'), 'www /lobby must drop the dead Forum hop');
+assert(worker.includes('rewriteStudioBuyVerifyHref(html)'), 'proxied /studio must retarget Buy/verify off #token');
+assert(worker.includes('href="/how-to-buy">How to buy<'), 'home lock nav must include How to buy');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('id="dasha-lock"') && worker.includes('dasha-band'), 'home first viewport must be #dasha-lock with an acid band');
@@ -158,7 +161,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, unpaidBountiesHtmlHasPayoutAmounts } = workerModule;
+const { DashaLobby, bountiesPageHtml, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, unpaidBountiesHtmlHasPayoutAmounts } = workerModule;
 const { LOBBY_CLIENT_JS, SIMP_BOARD_JS, SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest('base64')}`;
@@ -1266,9 +1269,10 @@ try {
     assert.match(section, /href="\/studio">Studio</, `${label} nav must include Studio`);
     assert.match(section, /href="#simp">Simp</, `${label} nav must include in-hero Simp`);
     assert.match(section, /href="\/bounties">Bounties</, `${label} nav must include Bounties`);
+    assert.match(section, /href="\/how-to-buy">How to buy</, `${label} nav must include How to buy`);
     assert.match(section, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
     assert.doesNotMatch(section, /href=["']\/simp["']/, `${label} must not send the hero CTA to \/simp`);
-    assert.doesNotMatch(section, /Buy|53ux|buy-dasha|#token/, `${label} must keep CA and Buy out of the first-viewport nav`);
+    assert.doesNotMatch(section, /53ux|buy-dasha|#token|jup\.ag|Buy \$dasha|Buy \/ verify/, `${label} must keep CA and Jupiter Buy out of the first-viewport nav`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
     assert.equal([...section.matchAll(/<h1\b/g)].length, 1, `${label} lock must have one h1`);
     assert.doesNotMatch(html, /<header\b[^>]*dasha-hero[\s\S]*<h1/, `${label} must drop the second hero h1`);
@@ -1442,6 +1446,19 @@ ${liveHomeFooter}
     assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/dasha">Desk<\/a>/);
     assert.equal((howtoHtml.match(/<footer\b/gi) || []).length, 1, `${host} /how-to-buy must keep one footer`);
     assert.equal((howtoHtml.match(/<nav\b/gi) || []).length, 1, `${host} /how-to-buy must keep its existing nav`);
+    assert.match(howtoHtml, /data-n="01"[\s\S]*?wallet[\s\S]*?SOL/, `${host} /how-to-buy Get SOL must mention wallet and SOL`);
+    assert.ok(howtoHtml.includes('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy must keep the published mint`);
+    assert.doesNotMatch(howtoHtml, /payTo|referralAccount/i, `${host} /how-to-buy must not invent payTo or referralAccount`);
+    assert.ok(howtoHtml.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom deeplink`);
+    assert.ok(howtoHtml.includes('https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Jupiter URL`);
+    assert.ok(howtoHtml.includes('https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy pump.fun URL`);
+    assert.ok(howtoHtml.includes('https://trade.phantom.com/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom trade URL`);
+    assert.ok(howtoHtml.includes('https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Solscan URL`);
+    assert.doesNotMatch(howtoHtml, /trojan|axiom|moonshot|moonpay\.com/i, `${host} /how-to-buy featured a banned venue`);
+    assert.match(howtoHtml, /fixedMint:CA/, `${host} /how-to-buy plugin must lock the published mint`);
+    const howtoCsp = howto.headers.get('content-security-policy') || '';
+    assert.match(howtoCsp, /frame-ancestors 'none'/);
+    assert.doesNotMatch(howtoCsp, /script-src|default-src/, `${host} /how-to-buy CSP must still allow the Jupiter plugin`);
     const chess = await workerModule.default.fetch(new Request(`https://${host}/chess`), {});
     assert.equal(chess.status, 200, `${host} /chess must stay 200`);
     assert.equal(chess.headers.get('x-dasha-edge'), 'chess');
@@ -1547,6 +1564,16 @@ ${liveHomeFooter}
   assert.ok(studioFixed.includes(`integrity="${STUDIO_SRI}"`), 'studio.js integrity must match served bytes');
   assert.match(studioFixed, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"[^>]*crossorigin="anonymous"/);
   assert.equal(rewriteStudioScriptIntegrity(studioFixed), studioFixed, 'studio SRI rewrite must be idempotent');
+  const studioNav = '<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a class="dgcta" href="/#token">Buy / verify →</a><a href="/privacy">Privacy</a></div></nav><p><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha ↗</a></p>';
+  const studioNavFixed = rewriteStudioBuyVerifyHref(studioNav);
+  assert.match(studioNavFixed, /class="dgcta" href="\/how-to-buy">Buy \/ verify →</);
+  assert.match(studioNavFixed, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, 'Studio body Jupiter door must stay');
+  assert.doesNotMatch(studioNavFixed, /dgcta[^>]*#token|#token[^>]*Buy \/ verify/);
+  assert.equal(rewriteStudioBuyVerifyHref(studioNavFixed), studioNavFixed, 'studio Buy/verify rewrite must be idempotent');
+  assert.equal(
+    rewriteStudioBuyVerifyHref('<a class="dgcta" href="https://www.getdasha.com/#token">Buy / verify →</a>'),
+    '<a class="dgcta" href="/how-to-buy">Buy / verify →</a>',
+  );
   assert.ok(studioFixed.includes(`integrity="${jquerySri}"`), 'jquery SRI must stay');
   assert.ok(studioFixed.includes(`integrity="${webflowCssSri}"`), 'Webflow CSS SRI must stay');
   assert.ok(studioFixed.includes(`integrity="${webflowJsSri}"`), 'webflow.js SRI must stay');

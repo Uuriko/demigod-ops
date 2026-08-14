@@ -243,8 +243,9 @@ export function executionViolations(html) {
       /^https:\/\/d3e54v103j8qbb\.cloudfront\.net\/js\/jquery-3\.5\.1\.min\.dc5e7f18c8\.js(?:\?|$)/.test(src) ||
       /^https:\/\/cdn\.prod\.website-files\.com\/5f1458122ba25e70a3ff2bd0\/js\/webflow\.(?:schunk\.)?[a-z0-9.]+\.js$/.test(src);
     const dashaClient = /^https:\/\/lobby\.getdasha\.com\/client\/(?:lobby|simp-board|studio)\.js$/.test(src);
+    const jupiterPlugin = src === 'https://plugin.jup.ag/plugin-v1.js';
     const pinned = /^sha384-[A-Za-z0-9+/=]+$/.test(attrs.integrity || '') && (attrs.crossorigin || '').toLowerCase() === 'anonymous';
-    if (!platform && !(dashaClient && pinned)) violations.push(src || 'script-without-src');
+    if (!platform && !jupiterPlugin && !(dashaClient && pinned)) violations.push(src || 'script-without-src');
   }
   return violations;
 }
@@ -265,10 +266,16 @@ export function cryptoLinkViolations(html) {
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
     if (!['getdasha.com', 'lobby.getdasha.com'].includes(host) && url.protocol !== 'https:') violations.push(`non-https:${href}`);
     if (host === 'jup.ag') {
-      if (url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
-      if ([...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
+      if (url.pathname === '/onboard') {
+        if ([...url.searchParams.keys()].length) violations.push(`jupiter-params:${href}`);
+      } else {
+        if (url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
+        if ([...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
+      }
     }
     if (host === 'pump.fun' && url.pathname !== `/coin/${MINT}`) violations.push(`pump-mint:${href}`);
+    if (host === 'phantom.app' && url.pathname === '/ul/v1/swap' && url.searchParams.get('buy') !== `solana:101/address:${MINT}`) violations.push(`phantom-swap:${href}`);
+    if (host === 'trade.phantom.com' && url.pathname !== `/token/${MINT}`) violations.push(`phantom-trade:${href}`);
     if (host === 'phantom.com' && url.pathname !== `/tokens/solana/${MINT}`) violations.push(`phantom-mint:${href}`);
     if (host === 'raydium.io' && url.searchParams.get('outputMint') !== MINT) violations.push(`raydium-mint:${href}`);
     if (host === 'solscan.io' && url.pathname !== `/token/${MINT}`) violations.push(`solscan-mint:${href}`);
@@ -563,6 +570,7 @@ async function auditSite() {
     home.text.includes('jup.ag/swap') &&
       !/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(home.text),
   );
+  note('site', 'home-no-jup-plugin', !/plugin\.jup\.ag|window\.Jupiter/.test(home.text));
   note('site', 'home-lobby-link', home.text.includes('href="/lobby"'));
   note('site', 'home-no-lobby-mount', !home.text.includes('id="dasha-lobby"'));
   note('site', 'lobby-page-200', lobbyPage.status === 200, { status: lobbyPage.status });
@@ -669,8 +677,8 @@ async function auditSite() {
     note('site', 'howto-negative-coin-copy', !NEGATIVE_COIN_COPY.test(publicCopyFromHtml(howto.text)));
     note(
       'site',
-      'howto-one-buy-venue',
-      howto.text.includes('jup.ag') && !/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(howto.text),
+      'howto-buy-venues',
+      howto.text.includes('jup.ag') && !/phantom\.com\/tokens|raydium\.io\/swap/i.test(howto.text),
     );
     note(
       'site',
