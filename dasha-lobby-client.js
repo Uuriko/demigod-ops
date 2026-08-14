@@ -146,6 +146,10 @@
     }
     verifyA.setAttribute('aria-label', 'Verify $dasha mint on getdasha');
     pin.appendChild(verifyA);
+    pin.appendChild(document.createTextNode(' · '));
+    var verseA = el('a', null, 'Verse');
+    verseA.href = '/verse';
+    pin.appendChild(verseA);
 
     var pinBody = el('p', 'lobby-pin-body', '');
     pinBody.hidden = true;
