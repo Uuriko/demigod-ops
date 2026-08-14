@@ -68,6 +68,10 @@ export function isCompanyPath(pathname) {
   return path.startsWith('/c/') && path.length > 3;
 }
 
+export function isStartupsPath(pathname) {
+  return pathname === '/startups' || pathname === '/startups/';
+}
+
 function companyIdFromPath(pathname) {
   const path = String(pathname || '').replace(/\/+$/, '');
   if (!path.startsWith('/c/') || path.length <= 3) return '';
@@ -240,6 +244,53 @@ function findMapCompany(map, id) {
   return want ? mapRows(map).find((row) => row.id === want) || null : null;
 }
 
+/** Compact name slug: "OpenAI" and "open-ai" both become "openai". */
+export function companyNameSlug(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function hyphenNameSlug(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function nameOrSlugMatches(company, token) {
+  const want = String(token || '').trim();
+  if (!want) return false;
+  const name = String(company?.name || '');
+  if (!name) return false;
+  return name.toLowerCase() === want.toLowerCase()
+    || companyNameSlug(name) === companyNameSlug(want)
+    || hyphenNameSlug(name) === hyphenNameSlug(want);
+}
+
+/**
+ * Case-insensitive name/slug lookup. Unique match only — "Atlas" with two
+ * map rows stays unresolved so /c/atlas does not pick a winner.
+ */
+export function findMapCompanyByNameOrSlug(map, token) {
+  const want = String(token || '').trim();
+  if (!want) return null;
+  const hits = mapRows(map).filter((row) => nameOrSlugMatches(row, want));
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function findMapCompanyCiId(map, id) {
+  const want = String(id || '').toLowerCase();
+  if (!want) return null;
+  const hits = mapRows(map).filter((row) => String(row.id || '').toLowerCase() === want);
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Exact id, then case-insensitive id, then unique name/slug. */
+export function resolveMapCompany(map, token) {
+  return findMapCompany(map, token) || findMapCompanyCiId(map, token) || findMapCompanyByNameOrSlug(map, token);
+}
+
+export function canonicalCompanyPath(id) {
+  const raw = String(id || '');
+  return raw ? `/c/${encodeURIComponent(raw)}` : '';
+}
+
 function snapshotDay(map) {
   const raw = typeof map?.generatedAt === 'string' ? map.generatedAt.trim() : '';
   if (!raw) return '';
@@ -287,6 +338,88 @@ function websiteDomain(value) {
 function companyHref(id) {
   const raw = String(id || '');
   return `/c/${/^[A-Za-z0-9:._-]+$/.test(raw) ? raw : encodeURIComponent(raw)}`;
+}
+
+const ATS_COMPANY_HOME_HOST = new Set([
+  'jobs.ashbyhq.com',
+  'boards.greenhouse.io',
+  'job-boards.greenhouse.io',
+  'jobs.lever.co',
+]);
+
+function normalizeHttpsUrl(value) {
+  const href = httpsHref(value);
+  if (!href) return '';
+  try {
+    const parsed = new URL(href);
+    parsed.hash = '';
+    parsed.search = '';
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '';
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.pathname}`;
+  } catch {
+    return '';
+  }
+}
+
+/** Company-home ATS only. Role apply URLs have extra path segments and stay put. */
+export function atsCompanyHomeHref(value) {
+  const href = normalizeHttpsUrl(value);
+  if (!href) return '';
+  try {
+    const parsed = new URL(href);
+    if (!ATS_COMPANY_HOME_HOST.has(parsed.hostname.toLowerCase())) return '';
+    const segs = parsed.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+    if (segs.length !== 1 || !/^[A-Za-z0-9._-]+$/.test(segs[0])) return '';
+    return href;
+  } catch {
+    return '';
+  }
+}
+
+function linkCompanyName(text) {
+  const raw = String(text || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+  if (!raw) return '';
+  return raw.replace(/\s+[—–-]\s+\d+\s+open roles?\b.*/i, '').trim() || raw;
+}
+
+function jobsUrlIndex(map) {
+  const index = new Map();
+  for (const row of mapRows(map)) {
+    const home = atsCompanyHomeHref(row.jobsUrl);
+    if (!home) continue;
+    const list = index.get(home) || [];
+    list.push(row);
+    index.set(home, list);
+  }
+  return index;
+}
+
+/**
+ * Fail-closed: leftover /startups company-NAME anchors that point at an
+ * Ashby/Greenhouse/Lever company home become /c/:id when the id is known.
+ * Role apply links (extra path) are not rewritten.
+ */
+export function rewriteCompanyNameAtsLinks(html, map) {
+  const page = String(html || '');
+  if (!mapRows(map).length) return page;
+  const byJobs = jobsUrlIndex(map);
+  return page.replace(/<a\b([^>]*?)\bhref=(["'])([^"']+)\2([^>]*)>([\s\S]*?)<\/a>/gi, (full, pre, quote, href, post, text) => {
+    const home = atsCompanyHomeHref(href);
+    if (!home) return full;
+    const jobsHits = byJobs.get(home) || [];
+    const company = jobsHits.length === 1
+      ? jobsHits[0]
+      : findMapCompanyByNameOrSlug(map, linkCompanyName(text));
+    if (!company?.id) return full;
+    return `<a${pre}href=${quote}${canonicalCompanyPath(company.id)}${quote}${post}>${text}</a>`;
+  });
 }
 
 function linkedText(href, label) {
@@ -353,6 +486,7 @@ export function companiesIndexHtml(map) {
     ? shown.map((row) => {
         const mix = escapeHtml(roleMixKeys(row).sort((a, b) => a.localeCompare(b)).join(', '));
         const ats = escapeHtml(typeof row.atsSource === 'string' ? row.atsSource : '');
+        // Name → /c/:id only. ATS/website stay out of this cell.
         return `<tr><td>${linkedText(companyHref(row.id), row.name || row.id || 'Company')}</td><td>${escapeHtml(String(openRoleCount(row)))}</td><td>${ats}</td><td>${mix}</td></tr>`;
       }).join('')
     : '<tr><td colspan="4">No hiring companies in this snapshot.</td></tr>';
@@ -433,14 +567,31 @@ function htmlResponse(html, status, edge) {
   return { html, status, headers };
 }
 
+function companySlugRedirect(id) {
+  const dest = canonicalCompanyPath(id);
+  if (!dest) return null;
+  const headers = applyHtmlSecurity(new Headers());
+  headers.set('Location', dest);
+  headers.set('Cache-Control', `public, max-age=${CDN_JSON_TTL}`);
+  headers.set('X-Demigod-Edge', 'company');
+  return new Response(null, { status: 302, headers });
+}
+
 async function companiesEdge(request, url) {
   const map = await loadCdnJson('sf-startup-map.json').catch(() => null);
   if (isCompanyPath(url.pathname)) {
     const id = companyIdFromPath(url.pathname);
-    const company = findMapCompany(map, id);
+    let company = findMapCompany(map, id);
+    if (!company) {
+      const resolved = resolveMapCompany(map, id);
+      if (resolved?.id && resolved.id !== id) {
+        return companySlugRedirect(resolved.id);
+      }
+      company = resolved;
+    }
     const feed = company ? await loadCdnJson('roles-feed.json').catch(() => null) : null;
     const { html, status, headers } = htmlResponse(
-      companyPageHtml(map, id, feed),
+      companyPageHtml(map, company ? company.id : id, feed),
       company ? 200 : 404,
       'company',
     );
@@ -458,6 +609,10 @@ async function productEdge(request, url) {
   html = rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(html)));
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
+  }
+  if (isStartupsPath(url.pathname)) {
+    const map = await loadCdnJson('sf-startup-map.json').catch(() => null);
+    html = rewriteCompanyNameAtsLinks(html, map);
   }
   html = ensureHtmlLang(html);
   const headers = applyHtmlSecurity(new Headers(upstream.headers));
