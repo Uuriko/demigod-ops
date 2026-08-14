@@ -23,6 +23,21 @@ assert.match(source, /WWW\+'\/chess\?challenge='/, 'invite share must use the ww
 assert.match(source, /id="dasha-lobby"/, 'chess must embed the existing lobby chat');
 assert.match(source, /lobby\.getdasha\.com\/client\/lobby\.js/, 'chess chat must load the existing lobby client');
 assert.match(source, /Ask the lobby/, 'invite must be able to ask the public room');
+assert.match(source, /id="gate-kicker">Step 1</);
+assert.match(source, /id="gate-title">Link X</);
+assert.match(source, /id="gate-copy">Needs JavaScript to play\.</);
+assert.match(source, /<noscript>/);
+assert.match(source, /Needs JavaScript to play/);
+assert.doesNotMatch(source, /Checking your seat|disabled>Wait</);
+assert.match(source, /id="board"[^>]*>[\s\S]*data-square="e2"[\s\S]*<\/div>/, 'first HTML must ship a static opening board');
+assert.match(source, /id="board"[^>]*>[\s\S]*Anna rook[\s\S]*Dasha king/);
+assert.match(source, /--ink:#070608/);
+assert.match(source, /--paper:#f4eddb/);
+assert.match(source, /--acid:#dfff00/);
+assert.match(source, /--hot:#ff3b81/);
+assert.doesNotMatch(source, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
+assert.match(source, /<a class="back" href="\/privacy">Privacy<\/a>/);
+assert.doesNotMatch(source, /forum/i, 'chess must not grow a Forum link');
 assert.match(source, /Holder chess · 10\+5/);
 assert.match(source, /og:image:width" content="1200"/);
 assert.match(source, /og:image:height" content="630"/);
@@ -126,7 +141,8 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     await page.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-    await page.waitForFunction(() => document.querySelector('#gate-action')?.textContent === 'Link X');
+    await page.waitForFunction(() => document.querySelector('#gate-copy')?.textContent === 'Your X identity holds your rating.');
+    assert.equal(await page.locator('#gate-action').textContent(), 'Link X');
     assert.equal(await page.locator('#game').isHidden(), true);
     assert.equal(await page.getByRole('link', { name: 'Dasha home' }).getAttribute('href'), 'https://www.getdasha.com/');
     assert.equal(await page.getByRole('link', { name: 'Home', exact: true }).getAttribute('href'), 'https://www.getdasha.com/');
@@ -148,7 +164,7 @@ try {
 
     state = { ok: true, linked: true, enrolled: true, holder: true, x: { display: '@dasha_player' }, rating: { rating: 1200, games: 0, wins: 0, losses: 0, draws: 0 }, queued: false, game };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     assert.equal(await page.locator('#board').getAttribute('data-readonly'), 'false', 'moving side must retain an interactive board');
     assert.equal(await page.locator('[data-square="e2"]').getAttribute('aria-disabled'), null);
     assert.equal(await page.locator('#game').isVisible(), true);
@@ -177,7 +193,7 @@ try {
     assert.equal(expiryRefreshes, 1, 'expired active clock must request server adjudication once');
     state = { ...state, game };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     let resignRequests = 0;
     page.on('request', request => { if (request.url().includes('/chess/game/') && request.method() === 'POST' && request.postDataJSON()?.action === 'resign') resignRequests++; });
     page.once('dialog', dialog => dialog.dismiss());
@@ -209,14 +225,14 @@ try {
     gameReply = game;
     state = { ...state, game: captureGame };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     await page.locator('[data-square="e2"]').click();
     assert.equal(await page.locator('[data-square="e3"]').getAttribute('aria-label'), 'e3 Anna pawn legal capture', 'capture destination must be announced without relying on its ring');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.ok(overflow <= 1, `horizontal overflow at ${viewport.width}px: ${overflow}`);
     state = { ...state, game: { ...game, side: 'b' } };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     assert.deepEqual(await page.locator('.sq[data-file]').evaluateAll(nodes => nodes.map(node => node.dataset.file)), [...'hgfedcba'], 'Anna orientation must reverse file labels');
     assert.deepEqual(await page.locator('.sq[data-rank]').evaluateAll(nodes => nodes.map(node => node.dataset.rank)), [...'12345678'], 'Anna orientation must reverse rank labels');
     state = { ...state, game: { ...game, turn: 'b', moves: [{ from: 'e2', to: 'e4', san: 'e4' }] } };
@@ -231,7 +247,7 @@ try {
     assert.match(await page.locator('#game-status').textContent(), /offered a draw/);
     state = { ...state, game: { ...game, moves: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }], drawOffer: null } };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     assert.equal(await page.locator('#draw').isDisabled(), true, 'player to move cannot offer before moving');
     state = { ...state, game: { ...game, check: true } };
     await page.reload();
@@ -322,7 +338,7 @@ try {
     state = { ...state, holder: true };
     state = { ...state, game: promotionGame };
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+    await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
     await page.locator('[data-square="a7"]').click();
     await page.locator('[data-square="a8"]').click();
     assert.equal(await page.locator('#promotion').isVisible(), true);
@@ -399,7 +415,7 @@ try {
     HTMLAnchorElement.prototype.click = function () {};
   });
   await page.goto(`${new URL('./dasha-chess-page.html', import.meta.url).href}?challenge=stale123&tournament=stale456&utm_source=x&game=${game.id}`);
-  await page.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await page.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   assert.equal(new URL(page.url()).search, `?game=${game.id}`, 'loaded replay must collapse mixed inbound state to one canonical object');
   assert.equal(await page.locator('#replay-controls').isVisible(), true);
   assert.equal(await page.locator('#recent-panel').isVisible(), true, 'rated completed games must be discoverable without a preexisting exact link');
@@ -721,7 +737,7 @@ try {
   await challengePage.getByRole('button', { name: 'Share', exact: true }).click();
   assert.match(decodeURIComponent(await challengePage.evaluate(() => window.__shared)), /Dasha has white\. Take Anna\./);
   await challengePage.getByRole('button', { name: 'Accept', exact: true }).click();
-  await challengePage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await challengePage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   assert.doesNotMatch(await challengePage.locator('#tournament-body').textContent(), /Dasha's challenge/, 'accepted challenge card must leave the Play panel when its game starts');
   assert.match(await challengePage.locator('#tournament-body').textContent(), /Open a table for up to 16 holders\./, 'accepted challenge must restore the ordinary Play panel');
   assert.ok((await challengePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 1);
@@ -824,7 +840,7 @@ try {
   assert.equal(challengeNativeShare.title, 'Dasha Chess');
   assert.equal(challengeNativeShare.url, 'https://www.getdasha.com/chess?challenge=invite123');
   assert.match(challengeNativeShare.text, /Dasha has white\. Take Anna\./);
-  await creatorPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64, null, { timeout: 4500 });
+  await creatorPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64, null, { timeout: 4500 });
   assert.ok(challengeReads > 1, 'open challenge must poll for acceptance');
   assert.equal(await creatorPage.locator('#game').isVisible(), true, 'creator must enter the accepted game without refreshing');
   assert.doesNotMatch(await creatorPage.locator('#tournament-body').textContent(), /Dasha's challenge|Table claimed/, 'creator must not retain a claimed challenge card after its game appears');
@@ -849,7 +865,7 @@ try {
   });
   const lostMovePage = await lostMoveContext.newPage();
   await lostMovePage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await lostMovePage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await lostMovePage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   await lostMovePage.locator('[data-square="e2"]').click();
   await lostMovePage.locator('[data-square="e4"]').click();
   await lostMovePage.waitForFunction(() => document.querySelector('#game-status')?.textContent === 'Network unavailable');
@@ -873,7 +889,7 @@ try {
   });
   const lostResignPage = await lostResignContext.newPage();
   await lostResignPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await lostResignPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await lostResignPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   lostResignPage.once('dialog', dialog => dialog.accept());
   await lostResignPage.getByRole('button', { name: 'Resign' }).click();
   await lostResignPage.waitForFunction(() => document.querySelector('#turn')?.textContent.includes('checkmate'));
@@ -894,7 +910,7 @@ try {
   });
   const outageActionPage = await outageActionContext.newPage();
   await outageActionPage.goto(new URL('./dasha-chess-page.html', import.meta.url).href);
-  await outageActionPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await outageActionPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   const meReadsBeforeOutage = outageMeReads;
   outageActionPage.once('dialog', dialog => dialog.accept());
   await outageActionPage.getByRole('button', { name: 'Resign' }).click();
@@ -928,7 +944,7 @@ try {
   await recoveryPage.waitForFunction(() => document.querySelector('#gate-title')?.textContent === 'Replay unavailable');
   offline = false;
   await recoveryPage.evaluate(() => window.dispatchEvent(new Event('online')));
-  await recoveryPage.waitForFunction(() => document.querySelectorAll('.sq').length === 64);
+  await recoveryPage.waitForFunction(() => document.querySelector('#white-name')?.textContent?.startsWith('@') && document.querySelectorAll('.sq').length === 64);
   assert.equal(await recoveryPage.locator('#replay-controls').isVisible(), true, 'online recovery must restore the exact replay deep link');
   const identityPage = await recoveryContext.newPage();
   offline = true;

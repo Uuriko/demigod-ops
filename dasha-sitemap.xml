@@ -32,10 +32,10 @@
   <url>
     <loc>https://www.getdasha.com/simp</loc>
   </url>
-  <!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL
-       listed: a sitemap entry that disagrees with the page's own canonical asks a crawler to pick,
-       and it will not pick ours. The live sitemap has carried this route since chess shipped; this
-       file did not, which is the same two-copies problem the worker tree keeps producing. -->
+<!-- Chess answers on both hosts but declares lobby.getdasha.com canonical, so that is the URL
+     listed: a sitemap entry that disagrees with the page's own canonical asks a crawler to pick,
+     and it will not pick ours. The live sitemap has carried this route since chess shipped; this
+     file did not, which is the same two-copies problem the worker tree keeps producing. -->
   <url>
     <loc>https://lobby.getdasha.com/chess</loc>
   </url>

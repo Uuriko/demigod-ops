@@ -2882,6 +2882,12 @@ async function productEdge(request, url, env) {
       }),
     });
   }
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const chessRead = url.pathname.replace(/\/$/, '');
+    if (chessRead === '/chess/me' || chessRead === '/chess/ratings' || chessRead === '/chess/tournaments' || /^\/chess\/replay\/[A-Za-z0-9_-]{6,24}$/.test(chessRead)) {
+      return Response.redirect(`https://lobby.getdasha.com${chessRead}${url.search}`, 308);
+    }
+  }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
     (url.pathname === '/rally' || url.pathname === '/rally/')
