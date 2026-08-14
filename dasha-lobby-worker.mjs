@@ -139,7 +139,13 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
-/** Home-only: Simp/quiz lives on /lobby. Drop the leftover board mount and its client inject. */
+/** Drop leftover CSS rules whose selectors mention dead board/frame classes. */
+function stripLeftoverStyleRules(html, leftoverRe) {
+  return String(html || '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (block) =>
+    block.replace(/[^{}]+\{[^{}]*\}/g, (rule) => leftoverRe.test(rule.slice(0, rule.indexOf('{'))) ? '' : rule));
+}
+
+/** Home-only: Simp/quiz lives on /lobby. Drop the leftover board mount, client inject, and board CSS. */
 export function stripHomeSimpBoard(html) {
   let out = String(html || '');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
@@ -147,14 +153,17 @@ export function stripHomeSimpBoard(html) {
   out = out.replace(/<(section|div)\b[^>]*\bid=["']simp["'][^>]*>[\s\S]*?<\/\1>/i, '');
   out = out.replace(/<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>[\s\S]*?<\/div>/i, '');
   out = out.replace(/<h2\b[^>]*>\s*Simp board\.\s*<\/h2>/i, '');
-  return out;
+  return stripLeftoverStyleRules(out, /\.simp-(?:board|row|rank)\b/i);
 }
 
-/** /bounties-only: drop the Pages iframe. The listings feed is /bounties.json. */
+/** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
 export function stripBountiesIframe(html) {
-  return String(html || '').replace(
-    /<iframe\b[^>]*uuriko\.github\.io\/dasha-desk\/bounties[^>]*>\s*<\/iframe>/gi,
-    '',
+  return stripLeftoverStyleRules(
+    String(html || '').replace(
+      /<iframe\b[^>]*uuriko\.github\.io\/dasha-desk\/bounties[^>]*>\s*<\/iframe>/gi,
+      '',
+    ),
+    /\.dasha-bounties-frame\b/i,
   );
 }
 

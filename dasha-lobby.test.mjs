@@ -486,6 +486,13 @@ try {
 }
 {
   const homeFixture = `<!doctype html><html class="w-mod-js"><title>Dasha</title>
+<style>
+.contract{border:1px solid red}
+.simp-board{display:grid;gap:10px;max-width:920px}.simp-row{display:grid}.simp-rank{font-size:42px}
+.simp-board-root{max-width:920px}
+.price{margin:0}
+@media(max-width:600px){.simp-row{grid-template-columns:54px 1fr}.simp-rank{font-size:30px}.price{padding:0}}
+</style>
 <section id="token"><h2>$dasha.</h2></section>
 <section id="simp" aria-labelledby="simp-title"><div class="wrap">
 <h2 class="section-title" id="simp-title">Simp board.</h2>
@@ -497,7 +504,13 @@ try {
   assert.doesNotMatch(cleaned, /simp-board\.js/);
   assert.doesNotMatch(cleaned, /dasha-simp-board/);
   assert.doesNotMatch(cleaned, /Simp board\./);
+  assert.doesNotMatch(cleaned, /\.simp-board/);
+  assert.doesNotMatch(cleaned, /\.simp-row/);
+  assert.doesNotMatch(cleaned, /\.simp-rank/);
   assert.match(cleaned, /id="token"/);
+  assert.match(cleaned, /\.contract\{border:1px solid red\}/);
+  assert.match(cleaned, /\.price\{margin:0\}/);
+  assert.match(cleaned, /@media\(max-width:600px\)\{\.price\{padding:0\}\}/);
   assert.equal(stripHomeSimpBoard(homeFixture), cleaned);
   const nativeFetch = globalThis.fetch;
   try {
@@ -508,7 +521,9 @@ try {
       assert.doesNotMatch(html, /simp-board\.js/, `${host} / must drop the Simp client`);
       assert.doesNotMatch(html, /dasha-simp-board/, `${host} / must drop the Simp mount`);
       assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
+      assert.doesNotMatch(html, /\.simp-board/, `${host} / must drop leftover Simp CSS`);
       assert.match(html, /id="token"/);
+      assert.match(html, /\.contract\{border:1px solid red\}/, `${host} / must keep unrelated CSS`);
       assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
     }
     const lobby = await workerModule.default.fetch(new Request('https://www.getdasha.com/lobby'), {});
@@ -516,30 +531,39 @@ try {
     assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, 'www /lobby must not strip Simp');
     assert.match(lobbyHtml, /id="dasha-simp-board"/);
     assert.match(lobbyHtml, /Simp board\./);
+    assert.match(lobbyHtml, /\.simp-board\{/, 'www /lobby must keep Simp CSS');
   } finally {
     globalThis.fetch = nativeFetch;
   }
 }
 {
   const bountiesFixture = `<!doctype html><html class="w-mod-js"><title>Bounties</title>
-<div class="w-embed"><style>.dasha-bounties-frame{position:fixed;inset:0}</style>
+<div class="w-embed"><style>html, body { margin: 0; padding: 0; height: 100%; } .dasha-bounties-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }</style>
 <iframe class="dasha-bounties-frame" title="dasha bounties" src="https://uuriko.github.io/dasha-desk/bounties/"></iframe>
 </div></html>`;
   const cleaned = stripBountiesIframe(bountiesFixture);
   assert.doesNotMatch(cleaned, /<iframe/i);
   assert.doesNotMatch(cleaned, /uuriko\.github\.io\/dasha-desk\/bounties/);
+  assert.doesNotMatch(cleaned, /dasha-bounties-frame/);
   assert.match(cleaned, /w-embed/);
+  assert.match(cleaned, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
   const nativeFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () => new Response(bountiesFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
-      const page = await workerModule.default.fetch(new Request(`https://${host}/bounties`), {});
-      const html = await page.text();
-      assert.doesNotMatch(html, /<iframe/i, `${host} /bounties must drop the Pages iframe`);
-      assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
+      for (const path of ['/bounties', '/bounties/']) {
+        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        const html = await page.text();
+        assert.doesNotMatch(html, /<iframe/i, `${host} ${path} must drop the Pages iframe`);
+        assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
+        assert.doesNotMatch(html, /dasha-bounties-frame/, `${host} ${path} must drop leftover frame CSS`);
+        assert.match(html, /html, body \{ margin: 0; padding: 0; height: 100%; \}/, `${host} ${path} must keep the rest of the embed CSS`);
+      }
     }
     const home = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});
-    assert.match(await home.text(), /uuriko\.github\.io\/dasha-desk\/bounties/, 'home must not use the bounties iframe strip');
+    const homeHtml = await home.text();
+    assert.match(homeHtml, /uuriko\.github\.io\/dasha-desk\/bounties/, 'home must not use the bounties iframe strip');
+    assert.match(homeHtml, /dasha-bounties-frame/, 'home must not strip bounties-frame CSS');
   } finally {
     globalThis.fetch = nativeFetch;
   }
