@@ -103,6 +103,8 @@ assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
 assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
+assert(worker.includes('SIMP_QUIZ_JS') && worker.includes('https://lobby.getdasha.com/simp/quiz'), 'www /simp ships a worker-owned quiz script');
+assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
 assert(!/\/simp\/hold[\s\S]{0,180}verify/i.test(worker), 'hold must not be called a verify');
 assert(worker.includes('scrubSeasonSnapshots') && worker.includes('delete this.simpQuizAttempts') && worker.includes('storage.delete(`simpHolder:'), 'leave must delete linked Board state');
@@ -319,11 +321,19 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     assert.match(html, /editorial #1 · not measured/);
     assert.match(html, /<noscript>Answer in the browser — questions are not in this HTML\.<\/noscript>/);
     assert.match(html, /class="dasha-quiz"/);
+    assert.match(html, /data-mode="quick"/);
+    assert.match(html, /data-mode="deep"/);
+    assert.match(html, />Quick<\/button>/);
+    assert.match(html, /lobby\.getdasha\.com\/simp\/quiz/);
+    assert.match(html, /action:'start'/);
+    assert.match(html, /action:'answer'/);
     assert.match(html, /class="dasha-board"/);
     assert.doesNotMatch(html, /\.simp-/);
     assert.doesNotMatch(html, /class="simp-/);
     assert.doesNotMatch(html, /score=/);
     assert.doesNotMatch(html, /"answer"\s*:/);
+    assert.doesNotMatch(html, /oauth\/x\/start|Connect X/);
+    assert.doesNotMatch(html, /Pick your strongest lane|Her feature directorial debut|Sailor Socialism/);
     for (const token of SIMP_TOKENS) assert.match(html, new RegExp(token));
     for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
       assert.ok(SIMP_TOKENS.includes(hex.toLowerCase()), `${label} must stay tokens-only (saw ${hex})`);
@@ -395,10 +405,17 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   const lobbyQuiz = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/quiz'), {});
   assert.equal(lobbyQuiz.status, 404, 'lobby /quiz must not invent a quiz page');
   assert.equal(lobbyQuiz.headers.get('x-dasha-edge'), 'html-404');
-  for (const path of ['/dasha', '/desk', '/bounties']) {
+  for (const path of ['/dasha', '/desk']) {
     const invented = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`), {});
     assert.equal(invented.status, 404, `lobby ${path} must not invent a product page`);
     assert.equal(invented.headers.get('x-dasha-edge'), 'html-404');
+  }
+  for (const method of ['GET', 'HEAD']) {
+    for (const path of ['/bounties', '/bounties/']) {
+      const hop = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+      assert.equal(hop.status, 308, `lobby ${path} ${method} must permanently send bounties to www`);
+      assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/bounties');
+    }
   }
   const boardEnv = {
     LOBBY: {

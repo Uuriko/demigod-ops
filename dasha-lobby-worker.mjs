@@ -530,8 +530,11 @@ function htmlPage(title, body) {
 }
 
 const SIMP_WWW = 'https://www.getdasha.com/simp';
+const SIMP_QUIZ_API = 'https://lobby.getdasha.com/simp/quiz';
 const SIMP_RULES_LINE = 'PerryALPHA founding #1 is editorial and non-measured.';
 const SIMP_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
+/** Worker-owned /simp quiz. Talks to the existing lobby POST protocol. Never sends score. */
+const SIMP_QUIZ_JS = `(function(){var root=document.querySelector('.dasha-quiz');if(!root)return;var api=${JSON.stringify(SIMP_QUIZ_API)};var attemptId='';var busy=false;var pending=null;var startBox=root.querySelector('.dasha-quiz-start');var play=root.querySelector('.dasha-quiz-play');var progress=root.querySelector('.dasha-quiz-progress');var prompt=root.querySelector('.dasha-quiz-prompt');var choices=root.querySelector('.dasha-quiz-choices');var note=root.querySelector('.dasha-quiz-note');var nextBtn=root.querySelector('.dasha-quiz-next');var status=root.querySelector('.dasha-quiz-status');function say(t){status.textContent=t||'';}function post(body){var payload={action:body.action};if(body.mode)payload.mode=body.mode;if(body.action==='answer')payload.answer=body.answer;if(attemptId&&body.action!=='start')payload.attemptId=attemptId;return fetch(api,{method:'POST',credentials:'include',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});});}function showQuestion(data){pending=null;busy=false;startBox.hidden=true;play.hidden=false;nextBtn.hidden=true;note.hidden=true;note.textContent='';var q=data.question;var p=data.progress||{};progress.textContent=(p.current||0)+'/'+(p.total||0);prompt.textContent=q.prompt;choices.textContent='';(q.choices||[]).forEach(function(label,i){var b=document.createElement('button');b.type='button';b.className='dasha-quiz-choice';b.textContent=label;b.addEventListener('click',function(){pick(i);});choices.appendChild(b);});}function showFeedback(data){var fb=data.feedback||{};note.hidden=false;note.textContent=fb.note||(fb.correct===true?'Correct.':fb.correct===false?'Not quite.':'Lane chosen.');nextBtn.hidden=false;nextBtn.textContent=data.done?'Done':'Next';}function showOfficial(quiz){play.hidden=true;startBox.hidden=false;var line=quiz.title||'Result';if(quiz.correct!=null&&quiz.total!=null)line+=' · '+quiz.correct+'/'+quiz.total;if(quiz.vibeNote)line+=' · '+quiz.vibeNote;say(line);}function showAnonEnd(data){play.hidden=true;startBox.hidden=false;var vibe=(data.quiz&&data.quiz.vibeNote)||data.vibeNote;say((vibe?vibe+' · ':'')+'Link X to save and reveal the measured result.');}function pick(i){if(busy)return;busy=true;Array.prototype.forEach.call(choices.querySelectorAll('button'),function(b){b.disabled=true;});post({action:'answer',answer:i}).then(function(res){var data=res.data||{};if(!data.ok)throw new Error(data.error||'Quiz failed');pending=data;showFeedback(data);}).catch(function(err){busy=false;say(String(err.message||err));Array.prototype.forEach.call(choices.querySelectorAll('button'),function(b){b.disabled=false;});});}function goNext(){if(!pending)return;var data=pending;pending=null;if(data.done){if(data.quiz&&(data.quiz.title||data.quiz.correct!=null))showOfficial(data.quiz);else showAnonEnd(data);return;}if(data.question)showQuestion(data);}function start(mode){if(busy)return;busy=true;say('');post({action:'start',mode:mode}).then(function(res){var data=res.data||{};if(!data.question)throw new Error(data.error||'Quiz unavailable');attemptId=data.attemptId||'';showQuestion(data);}).catch(function(err){busy=false;say(String(err.message||err));});}root.addEventListener('click',function(ev){var btn=ev.target.closest('button');if(!btn||!root.contains(btn))return;if(btn===nextBtn){ev.preventDefault();goNext();return;}var mode=btn.getAttribute('data-mode');if(mode==='quick'||mode==='deep'){ev.preventDefault();start(mode);}});}());`;
 
 function isExactPath(pathname, base) {
   return pathname === base || pathname === `${base}/`;
@@ -560,13 +563,25 @@ export function simpPageHtml(board) {
     ? `<ol class="dasha-board">${items.join('')}</ol>`
     : '<p class="dasha-board">No measured simps yet.</p>';
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}.dasha-board{margin:1rem 0}.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}.dasha-board{margin:1rem 0}.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}.dasha-quiz button{background:var(--acid);color:var(--ink);border:0;padding:.45rem .9rem;margin:0 .4rem .4rem 0;font:inherit;font-weight:700;cursor:pointer}.dasha-quiz-choice,.dasha-quiz-next{display:block;width:100%;text-align:left;background:transparent;color:var(--paper);border:1px solid var(--paper)}.dasha-quiz-next{margin-top:.75rem;text-align:center}.dasha-quiz-status{color:var(--hot)}</style>
 <body>
 <h1>Simp</h1>
 <p>${SIMP_RULES_LINE}</p>
 <p>${perryDisplay} · editorial #1 · not measured</p>
 ${boardBody}
-<div class="dasha-quiz"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div>
+<div class="dasha-quiz">
+<noscript>Answer in the browser — questions are not in this HTML.</noscript>
+<p class="dasha-quiz-start"><button type="button" data-mode="quick">Quick</button><button type="button" data-mode="deep">Deep</button></p>
+<div class="dasha-quiz-play" hidden>
+<p class="dasha-quiz-progress"></p>
+<p class="dasha-quiz-prompt"></p>
+<div class="dasha-quiz-choices"></div>
+<p class="dasha-quiz-note" hidden></p>
+<button type="button" class="dasha-quiz-next" hidden>Next</button>
+</div>
+<p class="dasha-quiz-status" role="status" aria-live="polite"></p>
+</div>
+<script>${SIMP_QUIZ_JS}</script>
 <p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
 </body></html>`;
 }
@@ -2800,6 +2815,9 @@ export default {
 
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
       return Response.redirect(SIMP_WWW, 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
+      return Response.redirect(BOUNTIES_FEED_PAGE, 308);
     }
     if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
       return simpHoldResponse(allowedOrigin);
