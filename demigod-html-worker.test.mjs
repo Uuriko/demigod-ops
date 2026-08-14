@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import workerModule, {
   injectBountiesBoard,
+  injectHireTicket,
   normalizeBountiesFeed,
   stripGoldAccent,
 } from './demigod-html-worker.mjs';
@@ -23,6 +24,13 @@ const BOUNTIES_SHELL = `<!doctype html><html><head><title>Bounties</title></head
 <script id="demigod-public-roles-data">window.__dgPublicRoles={"schema":"demigod.public-roles/1","roles":[]}</script>
 <script src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@e0fe769c0dca9fc8804f6676e928f42092570d6c/foot-latest.js"></script>
 </body></html>`;
+const HIRE_SHELL = `<!doctype html><html><head><title>Hire</title></head>
+<body>
+<noscript id="dg-hire-noscript"><p>Enable JavaScript</p></noscript>
+<script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js"></script>
+<script src="https://cdn.prod.website-files.com/webflow.js"></script>
+<script id="demigod-public-roles-data">window.__dgPublicRoles={"schema":"demigod.public-roles/1","roles":[]}</script>
+</body></html>`;
 
 assert.match(wrangler, /"pattern": "www\.trydemigod\.com\/\*"/);
 assert.match(wrangler, /"zone_name": "trydemigod\.com"/);
@@ -35,6 +43,31 @@ assert.doesNotMatch(workerSrc, /trydemigod\.com\/bounties\.json/);
 assert.match(workerSrc, /demigod-bounties-feed\/v1/);
 assert.match(workerSrc, /bounties-feed\.json/);
 assert.match(workerSrc, /#03140d|#f3f0e7|#10c674/);
+assert.doesNotMatch(workerSrc, /__dgPublicRoles/);
+
+{
+  const out = injectHireTicket(HIRE_SHELL);
+  const section = out.match(/<section\b[^>]*id=["']demigod-hire["'][\s\S]*?<\/section>/i)?.[0] || '';
+  assert.ok(section, '/hire section must exist');
+  assert.match(section, /aria-label="Hiring tickets"/);
+  assert.match(section, /No hiring tickets listed/);
+  assert.match(section, /not a public job board/);
+  assert.doesNotMatch(section, /<li\b/);
+  assert.doesNotMatch(section, /<noscript/i);
+  assert.doesNotMatch(section, /payTo|listings|gold/i);
+  assert.match(section, /<form action="mailto:potter@trydemigod\.com" method="post" enctype="text\/plain">/);
+  assert.match(section, /<input type="email" name="email" required>/);
+  assert.match(section, /<input type="text" name="role" required>/);
+  assert.match(section, /<input type="text" name="stack" required>/);
+  assert.match(section, /<input type="text" name="salary">/);
+  assert.match(section, /href="mailto:potter@trydemigod\.com\?subject=Hiring%20ticket"/);
+  for (const hex of section.match(/#[0-9a-f]{6}\b/gi) || []) {
+    assert.ok(['#03140d', '#f3f0e7', '#10c674'].includes(hex.toLowerCase()), `palette: ${hex}`);
+  }
+  assert.match(out, /<noscript id="dg-hire-noscript"><p>Enable JavaScript<\/p><\/noscript>/);
+  assert.match(out, /id="demigod-public-roles-data"/);
+  assert.match(out, /id="demigod-hire"[\s\S]*(?:jquery|webflow\.js)/);
+}
 
 {
   const out = stripGoldAccent(HOME_FIXTURE);
@@ -217,6 +250,38 @@ function urlOf(input) {
     assert.match(section, /25 USDC/);
     assert.doesNotMatch(section, /payTo:""/);
     assert.doesNotMatch(section, /\bClaim\b|\bPay\b|log\s*in/i);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
+{
+  const nativeFetch = globalThis.fetch;
+  const fetched = [];
+  try {
+    globalThis.fetch = async (input) => {
+      fetched.push(urlOf(input));
+      return new Response(HIRE_SHELL, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    for (const path of ['/hire', '/hire/']) {
+      const page = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      const html = await page.text();
+      assert.equal(page.status, 200, `${path} must rewrite`);
+      assert.equal(page.headers.get('x-demigod-edge'), 'hire-ticket');
+      assert.match(html, /id="demigod-hire"/, `${path} must inject the visible ticket section`);
+      assert.match(html, /No hiring tickets listed/);
+      assert.match(html, /action="mailto:potter@trydemigod\.com"/);
+      for (const ns of html.match(/<noscript[\s\S]*?<\/noscript>/gi) || []) {
+        assert.doesNotMatch(ns, /demigod-hire/, 'section must be visible, not noscript');
+      }
+      assert.doesNotMatch(html, /id="demigod-bounties"/);
+      assert.match(html, /<noscript id="dg-hire-noscript">/);
+      assert.match(html, /id="demigod-public-roles-data"/);
+    }
+    const deep = await workerModule.fetch(new Request('https://www.trydemigod.com/hire/faq'), {});
+    assert.equal(deep.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.doesNotMatch(await deep.text(), /id="demigod-hire"/);
+    assert.equal(fetched.some((u) => u.includes('bounties-feed.json')), false, '/hire must not read the bounties feed');
   } finally {
     globalThis.fetch = nativeFetch;
   }
