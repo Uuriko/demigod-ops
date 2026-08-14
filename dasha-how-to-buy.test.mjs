@@ -18,7 +18,7 @@ assert.ok(html.includes(MINT), 'mint on how-to-buy');
 assert.ok(html.includes('jup.ag/swap'), 'jupiter deep link');
 assert.ok(!/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(html), 'extra transaction venues returned');
 assert.ok(html.includes('DashaHowToBuy'), 'export for tests');
-assert.ok(html.includes('/dasha') && html.includes('/studio'), 'nav loops to product surfaces');
+assert.ok(html.includes('/studio') && html.includes('/lobby') && html.includes('/verse'), 'footer loops to product surfaces');
 assert.ok(!html.includes('t.me/dashacommunity'), 'no disallowed telegram');
 assert.ok(!/can go to zero|not financial advice|\bNFA\b|rugcheck|warning|disclaimer|not an endorsement|never trust|wrong one|lookalike|fake token|token safe/i.test(html), 'negative coin copy returned');
 for (const step of ['01', '02', '03']) assert.ok(html.includes(`data-n="${step}"`), `howto missing step ${step}`);
