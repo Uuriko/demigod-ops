@@ -150,6 +150,14 @@ export function stripHomeSimpBoard(html) {
   return out;
 }
 
+/** /bounties-only: drop the Pages iframe. The listings feed is /bounties.json. */
+export function stripBountiesIframe(html) {
+  return String(html || '').replace(
+    /<iframe\b[^>]*uuriko\.github\.io\/dasha-desk\/bounties[^>]*>\s*<\/iframe>/gi,
+    '',
+  );
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -2379,6 +2387,7 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   if (url.pathname === '/') html = stripHomeSimpBoard(html);
+  if (url.pathname === '/bounties' || url.pathname === '/bounties/') html = stripBountiesIframe(html);
   html = ensureHtmlLang(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
@@ -2420,6 +2429,18 @@ export default {
         status: 204,
         headers: { ...SECURITY, ...corsHeaders(allowedOrigin || '*', { credentials: true }) },
       });
+    }
+
+    if (url.pathname.startsWith('/oauth/github')) {
+      const githubStatus = url.pathname === '/oauth/github/status';
+      return json(
+        githubStatus
+          ? { configured: false, linked: false, github: null, error: 'not_configured' }
+          : { configured: false, error: 'not_configured' },
+        githubStatus ? 200 : 501,
+        allowedOrigin,
+        { credentials: true },
+      );
     }
 
     if (url.pathname.startsWith('/oauth/x')) {
