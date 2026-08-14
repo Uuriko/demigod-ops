@@ -167,6 +167,54 @@ export function stripBountiesIframe(html) {
   );
 }
 
+function bountyItemHref(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function bountyDestLabel(row) {
+  const dest = honestPayTo(row?.payTo);
+  return !dest || row?.payoutStatus === 'not_implemented' ? 'not implemented' : dest;
+}
+
+function bountiesBoardHtml(feed) {
+  const data = normalizeBountiesFeed(feed);
+  const rows = data.listings.length
+    ? `<ul>${data.listings.map((row) => {
+        const name = escapeHtml(typeof row.name === 'string' ? row.name.trim() : '');
+        const href = bountyItemHref(row.itemUrl);
+        const title = href ? `<a href="${escapeHtml(href)}">${name}</a>` : name;
+        const amount = row.amount == null || row.amount === '' ? '' : String(row.amount);
+        const currency = typeof row.currency === 'string' ? row.currency.trim() : '';
+        const label = escapeHtml([amount, currency].filter(Boolean).join(' '));
+        const dest = bountyDestLabel(row);
+        return `<li><p>${title}</p><p class="amt">${label}</p><p>${dest === 'not implemented' ? dest : escapeHtml(dest)}</p></li>`;
+      }).join('')}</ul>`
+    : '<p>No bounties listed</p>';
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties a{color:#dfff00}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}</style>${rows}</section>`;
+}
+
+/** /bounties-only: no-JS listings after the leftover w-embed. Same feed as /bounties.json. */
+export function injectBountiesBoard(html, feed) {
+  const page = String(html || '');
+  const board = bountiesBoardHtml(feed);
+  const embed = page.match(/<div\b[^>]*\bclass=["'][^"']*\bw-embed\b[^"']*["'][^>]*>[\s\S]*?<\/div>/i);
+  if (embed) {
+    const at = page.indexOf(embed[0]) + embed[0].length;
+    return page.slice(0, at) + board + page.slice(at);
+  }
+  const scriptAt = page.search(/<script\b[^>]*(?:jquery|webflow\.js)/i);
+  if (scriptAt >= 0) return page.slice(0, scriptAt) + board + page.slice(scriptAt);
+  const close = page.search(/<\/(?:body|html)>/i);
+  return close >= 0 ? page.slice(0, close) + board + page.slice(close) : page + board;
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -2396,7 +2444,9 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   if (url.pathname === '/') html = stripHomeSimpBoard(html);
-  if (url.pathname === '/bounties' || url.pathname === '/bounties/') html = stripBountiesIframe(html);
+  if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
+    html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
+  }
   html = ensureHtmlLang(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
