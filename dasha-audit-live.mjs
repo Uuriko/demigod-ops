@@ -266,11 +266,16 @@ export function cryptoLinkViolations(html) {
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
     if (!['getdasha.com', 'lobby.getdasha.com'].includes(host) && url.protocol !== 'https:') violations.push(`non-https:${href}`);
     if (host === 'jup.ag') {
-      if (url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
-      if ([...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
+      if (url.pathname === '/onboard') {
+        if ([...url.searchParams.keys()].length) violations.push(`jupiter-params:${href}`);
+      } else {
+        if (url.pathname !== '/swap' || url.searchParams.get('buy') !== MINT || url.searchParams.get('sell') !== WSOL) violations.push(`jupiter-mint:${href}`);
+        if ([...url.searchParams.keys()].length !== 2 || url.searchParams.getAll('buy').length !== 1 || url.searchParams.getAll('sell').length !== 1) violations.push(`jupiter-params:${href}`);
+      }
     }
     if (host === 'pump.fun' && url.pathname !== `/coin/${MINT}`) violations.push(`pump-mint:${href}`);
     if (host === 'phantom.app' && url.pathname === '/ul/v1/swap' && url.searchParams.get('buy') !== `solana:101/address:${MINT}`) violations.push(`phantom-swap:${href}`);
+    if (host === 'trade.phantom.com' && url.pathname !== `/token/${MINT}`) violations.push(`phantom-trade:${href}`);
     if (host === 'phantom.com' && url.pathname !== `/tokens/solana/${MINT}`) violations.push(`phantom-mint:${href}`);
     if (host === 'raydium.io' && url.searchParams.get('outputMint') !== MINT) violations.push(`raydium-mint:${href}`);
     if (host === 'solscan.io' && url.pathname !== `/token/${MINT}`) violations.push(`solscan-mint:${href}`);

@@ -98,6 +98,11 @@ assert.deepEqual(cryptoLinkViolations(safeBuy.replace('noopener noreferrer', '')
 const phantomSwap = `<a target="_blank" rel="noopener noreferrer" href="https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A${mint}">Phantom</a>`;
 assert.deepEqual(cryptoLinkViolations(phantomSwap), []);
 assert.deepEqual(cryptoLinkViolations(phantomSwap.replace(mint, 'FakeMint11111111111111111111111111111111111')), [`phantom-swap:https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3AFakeMint11111111111111111111111111111111111`]);
+assert.deepEqual(cryptoLinkViolations('<a target="_blank" rel="noopener noreferrer" href="https://jup.ag/onboard">Onboard</a>'), []);
+assert.deepEqual(cryptoLinkViolations('<a target="_blank" rel="noopener noreferrer" href="https://jup.ag/onboard?ref=x">Onboard</a>'), ['jupiter-params:https://jup.ag/onboard?ref=x']);
+const phantomTrade = `<a target="_blank" rel="noopener noreferrer" href="https://trade.phantom.com/token/${mint}">Trade</a>`;
+assert.deepEqual(cryptoLinkViolations(phantomTrade), []);
+assert.deepEqual(cryptoLinkViolations(phantomTrade.replace(mint, 'FakeMint')), ['phantom-trade:https://trade.phantom.com/token/FakeMint']);
 assert.deepEqual(cryptoLinkViolations('<a href="https://dexscreener.com/solana/pool">Chart</a>'), ['dexscreener-profile:https://dexscreener.com/solana/pool']);
 assert.deepEqual(structuredDataViolations('<script type="application/ld+json">{"@type":"WebSite"}</script>'), []);
 assert.deepEqual(structuredDataViolations('<script type="application/ld+json">{bad}</script>'), ['invalid-json:1']);

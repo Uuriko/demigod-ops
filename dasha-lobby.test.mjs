@@ -1407,6 +1407,9 @@ ${liveHomeFooter}
     assert.ok(howtoHtml.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom deeplink`);
     assert.ok(howtoHtml.includes('https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Jupiter URL`);
     assert.ok(howtoHtml.includes('https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy pump.fun URL`);
+    assert.ok(howtoHtml.includes('https://trade.phantom.com/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom trade URL`);
+    assert.ok(howtoHtml.includes('https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Solscan URL`);
+    assert.doesNotMatch(howtoHtml, /trojan|axiom|moonshot|moonpay\.com/i, `${host} /how-to-buy featured a banned venue`);
     assert.match(howtoHtml, /fixedMint:CA/, `${host} /how-to-buy plugin must lock the published mint`);
     const howtoCsp = howto.headers.get('content-security-policy') || '';
     assert.match(howtoCsp, /frame-ancestors 'none'/);
