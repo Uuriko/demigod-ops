@@ -237,6 +237,16 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
     }
   }
 }
+for (const method of ['GET', 'HEAD']) {
+  const privacy = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/privacy/', { method }), {});
+  assert.equal(privacy.status, 200, `lobby /privacy/ ${method} must serve the same privacy page as /privacy`);
+  assert.match(privacy.headers.get('content-type') || '', /text\/html/);
+  assert.equal(privacy.headers.get('x-dasha-edge'), null, 'lobby /privacy/ must not set X-Dasha-Edge');
+  assert.equal(await privacy.text(), method === 'HEAD' ? '' : lobbyPrivacyHtml);
+  if (method === 'GET') {
+    assert.match(lobbyPrivacyHtml, /<title>Dasha privacy<\/title>/);
+  }
+}
 for (const path of ['/forum', '/forum/']) {
   for (const method of ['GET', 'HEAD']) {
     const forum = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
@@ -266,7 +276,7 @@ for (const path of ['/forum', '/forum/']) {
     assert.equal(lobbyRootBody.service, 'dasha-lobby');
   }
 }
-for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
   for (const method of ['GET', 'HEAD']) {
     const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
     assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
