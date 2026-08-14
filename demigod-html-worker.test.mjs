@@ -4,6 +4,7 @@ import workerModule, {
   injectBountiesBoard,
   normalizeBountiesFeed,
   rewriteCdnPin,
+  rewriteStaleSnapshotDates,
   stripGoldAccent,
 } from './demigod-html-worker.mjs';
 
@@ -32,6 +33,36 @@ const PIN_FIXTURE = (sha) => `<!doctype html><html><body>
   const already = PIN_FIXTURE(CDN_PIN_TO);
   assert.equal(rewriteCdnPin(already), already);
   assert.equal(rewriteCdnPin(rewriteCdnPin(PIN_FIXTURE(CDN_PIN_FROM))), already);
+}
+
+const LIVE_MAP_DATE = '2026-08-14';
+const LIVE_MAP_GENERATED_AT = '2026-08-14T15:20:31.483Z';
+const STALE_ROLES_GENERATED_AT = '2026-08-06T14:33:36.175Z';
+const STARTUPS_DATE_FIXTURE = `<!doctype html><html><head><title>Startups</title></head>
+<body>
+<script id="demigod-public-roles-data">window.__dgPublicRoles={"schema":"demigod.public-roles/1","generatedAt":"${STALE_ROLES_GENERATED_AT}","roles":[{"company":"Affirm","title":"Staff Analytics Analyst","firstObservedAt":"2026-08-06"}]}</script>
+<noscript>
+<details class="dg-static" data-generated-at="2026-08-02">
+<summary>Browse 501 companies with verified open roles in this 2026-08-02 snapshot</summary>
+<p>11442 open roles observed 2026-08-02. Counts are a dated snapshot.</p>
+<p>Affirm — Staff Analytics Analyst · first observed 2026-08-06</p>
+</details>
+</noscript>
+</body></html>`;
+
+{
+  const out = rewriteStaleSnapshotDates(STARTUPS_DATE_FIXTURE);
+  assert.doesNotMatch(out, /2026-08-02/);
+  assert.match(out, new RegExp(`data-generated-at="${LIVE_MAP_DATE}"`));
+  assert.match(out, new RegExp(`${LIVE_MAP_DATE} snapshot`));
+  assert.match(out, new RegExp(`observed ${LIVE_MAP_DATE}`));
+  assert.match(out, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
+  assert.doesNotMatch(out, new RegExp(STALE_ROLES_GENERATED_AT));
+  assert.match(out, /"firstObservedAt":"2026-08-06"/);
+  assert.match(out, /first observed 2026-08-06/);
+  assert.match(out, /Browse 501 companies/);
+  assert.equal(rewriteStaleSnapshotDates(out), out);
+  assert.equal(rewriteStaleSnapshotDates('<p>no dates</p>'), '<p>no dates</p>');
 }
 
 const LIVE_GOLD_H1 =
@@ -158,6 +189,20 @@ function urlOf(input) {
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_FROM));
     assert.doesNotMatch(bareHtml, new RegExp(CDN_PIN_TO));
     assert.match(bareHtml, /<p>no cdn pin<\/p>/);
+
+    globalThis.fetch = async () => new Response(STARTUPS_DATE_FIXTURE, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+    const startups = await workerModule.fetch(new Request('https://www.trydemigod.com/startups'), {});
+    const startupsHtml = await startups.text();
+    assert.equal(startups.headers.get('x-demigod-edge'), 'html-rewrite');
+    assert.doesNotMatch(startupsHtml, /2026-08-02/);
+    assert.match(startupsHtml, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
+    assert.match(startupsHtml, /"firstObservedAt":"2026-08-06"/);
+    const homeDated = await (await workerModule.fetch(new Request('https://www.trydemigod.com/'), {})).text();
+    assert.doesNotMatch(homeDated, /2026-08-02/);
+    assert.match(homeDated, new RegExp(`"generatedAt":"${LIVE_MAP_GENERATED_AT}"`));
+    assert.match(homeDated, /first observed 2026-08-06/);
   } finally {
     globalThis.fetch = nativeFetch;
   }

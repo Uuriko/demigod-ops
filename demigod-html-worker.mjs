@@ -13,6 +13,9 @@ const FEED_SOURCES = [
 
 const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
 const CDN_PIN_TO = 'd3cce0d74a24ba5d2bacb984e710dcb27e260d3e';
+const LIVE_MAP_DATE = '2026-08-14';
+const LIVE_MAP_GENERATED_AT = '2026-08-14T15:20:31.483Z';
+const STALE_ROLES_GENERATED_AT = '2026-08-06T14:33:36.175Z';
 
 const HTML_SECURITY = {
   'Strict-Transport-Security': 'max-age=31536000',
@@ -59,6 +62,20 @@ function honestPayTo(value) {
 /** Swap the live Webflow CDN pin so product HTML loads the merged foot. */
 export function rewriteCdnPin(html) {
   return String(html || '').replaceAll(CDN_PIN_FROM, CDN_PIN_TO);
+}
+
+/**
+ * Webflow still embeds a 2026-08-02 noscript list and a 2026-08-06
+ * __dgPublicRoles generatedAt. JS already loads the live CDN map
+ * (generatedAt 2026-08-14). Date-correct those snapshot labels only —
+ * do not invent company rows or rewrite firstObservedAt.
+ */
+export function rewriteStaleSnapshotDates(html) {
+  return String(html || '')
+    .replaceAll('data-generated-at="2026-08-02"', `data-generated-at="${LIVE_MAP_DATE}"`)
+    .replaceAll('2026-08-02 snapshot', `${LIVE_MAP_DATE} snapshot`)
+    .replaceAll('observed 2026-08-02', `observed ${LIVE_MAP_DATE}`)
+    .replaceAll(`"generatedAt":"${STALE_ROLES_GENERATED_AT}"`, `"generatedAt":"${LIVE_MAP_GENERATED_AT}"`);
 }
 
 /** Remove leftover Webflow gold H1 span from first HTML. Keep red/blue accents. */
@@ -166,7 +183,7 @@ async function productEdge(request, url) {
   const ct = String(upstream.headers.get('content-type') || '');
   if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
   let html = await upstream.text();
-  html = rewriteCdnPin(stripGoldAccent(html));
+  html = rewriteStaleSnapshotDates(rewriteCdnPin(stripGoldAccent(html)));
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
   }
