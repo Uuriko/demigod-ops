@@ -205,6 +205,38 @@ export function injectHomeSimpCta(html) {
   return page.slice(0, at) + cta + page.slice(at);
 }
 
+function insertBeforeClose(page, chunk) {
+  const close = String(page).search(/<\/(?:body|html)>/i);
+  return close >= 0 ? page.slice(0, close) + chunk + page.slice(close) : page + chunk;
+}
+
+/** First-party /lobby + www/apex /lobby: playable .dasha-quiz. Keeps chat. Does not invent Forum. Idempotent. */
+export function injectLobbySimpQuiz(html) {
+  let page = String(html || '');
+  if (!/id=["']dasha-simp-board["']/i.test(page)) {
+    const mount = '<div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div>';
+    const main = page.search(/<\/main>/i);
+    page = main >= 0 ? page.slice(0, main) + mount + page.slice(main) : insertBeforeClose(page, mount);
+  } else if (!/class=["'][^"']*\bdasha-quiz\b/i.test(page) && !/id=["']dasha-quiz["']/i.test(page)) {
+    page = page.replace(/<div\b([^>]*\bid=["']dasha-simp-board["'][^>]*)>/i, (full, attrs) => {
+      if (/\bclass=/i.test(attrs)) {
+        return `<div${attrs.replace(/\bclass=(["'])([^"']*)\1/, (_, q, c) => `class=${q}${c} dasha-quiz${q}`)}>`;
+      }
+      return `<div class="dasha-quiz"${attrs}>`;
+    });
+  }
+  if (!/id=["']dasha-quiz-style["']/i.test(page)) {
+    page = page.replace(/<div\b[^>]*(?:\bid=["']dasha-quiz["']|\bclass=["'][^"']*\bdasha-quiz\b)[^>]*>/i, (tag) =>
+      `<style id="dasha-quiz-style">#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid #dfff00}</style>${tag}`);
+  }
+  if (!page.includes(`s.integrity='${SIMP_BOARD_SRI}'`) || !/lobby\.getdasha\.com\/client\/simp-board\.js/.test(page)) {
+    page = page.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+      /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
+    page = insertBeforeClose(page, simpBoardClientScript());
+  }
+  return page;
+}
+
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
 export function stripBountiesIframe(html) {
   return stripLeftoverStyleRules(
@@ -301,7 +333,7 @@ export function ensurePrivacyLink(html) {
 
 const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
-const LOBBY_PAGE = ensurePrivacyLink(LOBBY_PAGE_HTML);
+const LOBBY_PAGE = ensurePrivacyLink(injectLobbySimpQuiz(LOBBY_PAGE_HTML));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
@@ -2781,7 +2813,10 @@ async function productEdge(request, url, env) {
   const stripped = html !== originalHtml;
   if (url.pathname === '/') {
     html = injectHomeSimpCta(stripHomeSimpBoard(html));
-  } else html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
+  } else {
+    html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
+    if (isExactPath(url.pathname, '/lobby')) html = injectLobbySimpQuiz(html);
+  }
   if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
     html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
   }

@@ -105,6 +105,7 @@ assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('href="#dasha-quiz"') && worker.includes('class="dasha-quiz"'), 'home first HTML mounts the playable quiz');
+assert(worker.includes('injectLobbySimpQuiz') && worker.includes('injectLobbySimpQuiz(LOBBY_PAGE_HTML)'), 'first-party /lobby mounts the playable quiz');
 assert(!worker.includes('SIMP_QUIZ_JS'), 'must not invent a second quiz client');
 assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 'www /simp/r is type-first share HTML');
 assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
@@ -138,7 +139,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, injectLobbySimpQuiz, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { STUDIO_CLIENT_JS, SIMP_BOARD_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -1099,9 +1100,13 @@ try {
         const lobbyHtml = await lobby.text();
         assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} ${path} must not strip the Simp client`);
         assert.match(lobbyHtml, /id="dasha-simp-board"/, `${host} ${path} must keep the Simp mount`);
+        assert.match(lobbyHtml, /dasha-quiz/, `${host} ${path} must expose the playable quiz mount`);
+        assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} ${path} must pin simp-board SRI`);
+        assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `${host} ${path} must load simp-board CORS`);
         assert.match(lobbyHtml, /Simp board\./, `${host} ${path} must keep the Simp board heading`);
         assert.doesNotMatch(lobbyHtml, leftoverSimpCss, `${host} ${path} must drop leftover Simp CSS`);
         assert.doesNotMatch(lobbyHtml, /\.simp-board\{/, `${host} ${path} must drop leftover .simp-board CSS`);
+        assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `${host} ${path} must not leak answers`);
         assert.match(lobbyHtml, /id="token"/, `${host} ${path} must keep #token`);
         assert.match(lobbyHtml, /:root\{--ink:#070608/, `${host} ${path} must keep :root tokens`);
         assert.match(lobbyHtml, /\.dasha\{min-height:100vh/, `${host} ${path} must keep .dasha`);
@@ -1367,10 +1372,33 @@ ${liveHomeFooter}
     assert.match(lobbyHtml, /--acid:#dfff00/);
     assert.match(lobbyHtml, /--hot:#ff3b81/);
     assert.ok(lobbyHtml.includes('sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb'), `lobby ${path} must keep lobby.js SRI`);
+    assert.match(lobbyHtml, /id="dasha-lobby"/, `lobby ${path} must keep chat`);
+    assert.match(lobbyHtml, /class="dasha-quiz"/, `lobby ${path} must mount the playable quiz`);
+    assert.match(lobbyHtml, /id="dasha-simp-board"/, `lobby ${path} must keep the existing client mount`);
+    assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `lobby ${path} must load the existing quiz client`);
+    assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `lobby ${path} must pin simp-board SRI`);
+    assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `lobby ${path} must load simp-board CORS`);
+    assert.doesNotMatch(lobbyHtml, /lobby\.getdasha\.com\/forum/, `lobby ${path} must not remount leftover Forum`);
+    assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `lobby ${path} must not leak answers`);
+    assert.equal([...lobbyHtml.matchAll(/id=["']dasha-simp-board["']/g)].length, 1, `lobby ${path} must mount the quiz once`);
   }
   const lobbyHead = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/lobby', { method: 'HEAD' }), {});
   assert.equal(lobbyHead.status, 200, 'lobby HEAD /lobby must stay 200');
   assert.equal(await lobbyHead.text(), '', 'lobby HEAD /lobby must have an empty body');
+  const chatOnly = '<!doctype html><html><body><main><div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div></main><script>(function(){var s=document.createElement(\'script\');s.src=\'https://lobby.getdasha.com/client/lobby.js\';s.integrity=\'sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb\';s.crossOrigin=\'anonymous\';s.defer=true;document.head.appendChild(s)})();</script></body></html>';
+  const lobbyQuiz = injectLobbySimpQuiz(chatOnly);
+  assert.match(lobbyQuiz, /id="dasha-lobby"/);
+  assert.match(lobbyQuiz, /class="dasha-quiz"/);
+  assert.match(lobbyQuiz, /id="dasha-simp-board"/);
+  assert.match(lobbyQuiz, /lobby\.getdasha\.com\/client\/simp-board\.js/);
+  assert.match(lobbyQuiz, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
+  assert.match(lobbyQuiz, /s\.crossOrigin='anonymous'/);
+  assert.match(lobbyQuiz, /client\/lobby\.js/);
+  assert.doesNotMatch(lobbyQuiz, /forum/i);
+  assert.doesNotMatch(lobbyQuiz, /score=|"answer"\s*:/);
+  assert.equal(injectLobbySimpQuiz(lobbyQuiz), lobbyQuiz, 'second lobby quiz pass must be idempotent');
+  assert.equal([...lobbyQuiz.matchAll(/id=["']dasha-simp-board["']/g)].length, 1);
+  assert.equal([...lobbyQuiz.matchAll(/client\/simp-board\.js/g)].length, 1);
   const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';
   const jquerySri = 'sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=';
   const webflowCssSri = 'sha384-webflowCssMustStay';
@@ -1441,6 +1469,13 @@ ${liveHomeFooter}
       assert.match(lobbyHtml, /<a class="lp-back" href="\/privacy">Privacy<\/a>/);
       assert.match(lobbyHtml, /href="\/"/);
       assert.match(lobbyHtml, /lobby\.getdasha\.com\/forum/);
+      assert.equal([...lobbyHtml.matchAll(/lobby\.getdasha\.com\/forum/g)].length, 1, `${host} /lobby must not remount leftover Forum`);
+      assert.match(lobbyHtml, /class="dasha-quiz"/, `${host} /lobby must inject the playable quiz`);
+      assert.match(lobbyHtml, /id="dasha-simp-board"/, `${host} /lobby must keep the existing client mount`);
+      assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} /lobby must load the existing quiz client`);
+      assert.match(lobbyHtml, new RegExp(`s\\.integrity='${SIMP_BOARD_SRI.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `${host} /lobby must pin simp-board SRI`);
+      assert.match(lobbyHtml, /s\.crossOrigin='anonymous'/, `${host} /lobby must load simp-board CORS`);
+      assert.doesNotMatch(lobbyHtml, /score=|"answer"\s*:/, `${host} /lobby must not leak answers`);
       assert.doesNotMatch(lobbyHtml, /\.dasha\{|\.pill\{|\.price\{|\.contract\{|\.spark\{|id="token"/);
     }
   } finally {
