@@ -14,7 +14,7 @@ export const OSS_CAP_SEASON = 300;
 export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
 export const PUBLIC_BOARD_LIMIT = 50;
 export const OSS_SCHEMA = 'dasha-simp-oss/v0';
-export const QUIZ_VERSION = 'dasha-simp-quiz/v7';
+export const QUIZ_VERSION = 'dasha-simp-quiz/v8';
 /** Deep scored path: route + 9 lane + 10 shared = 20. */
 export const QUIZ_PATH_LENGTH = 20;
 /** Quick scored path for invite/viral traffic: route + 4 lane + 5 shared = 10. */
@@ -57,65 +57,70 @@ const SOURCE = {
   bio: 'https://en.wikipedia.org/wiki/Dasha_Nekrasova',
   site: 'https://www.getdasha.com/',
 };
+// Live paths: lane 0–8 + shared 0–9. Index 9+ stays in the bank for pinned ids only.
 const routes = {
   cinema: [
-    ['debut','Her feature directorial debut?',['The Scary of Sixty-First','Materialists','The Sweet East'],0,'Criterion calls it her first feature.',SOURCE.criterion],
-    ['materialistsdays','How many days did Dasha spend on the Materialists set?',['two','twelve','twenty'],0,'Celine Song said the role took two shooting days.',SOURCE.materialists],
-    ['wobbleweekend','Wobble Palace splits one unhappy couple across which weekend?',['New Year’s 2017','Halloween 2016','Valentine’s 2018'],1,'Jane and Eugene divide Halloween weekend 2016.',SOURCE.wobble],
+    ['debut','What is her feature directorial debut?',['The Scary of Sixty-First','Materialists','The Sweet East'],0,'The public record calls it her first feature.',SOURCE.criterion],
+    ['materialistscredit','Materialists is which kind of credit?',['her directorial debut','an acting role','a Red Scare special'],1,'An acting credit, not a feature she directed.',SOURCE.materialists],
+    ['festival','Her first feature took which Berlin honor?',['Golden Bear','Best Screenplay','Best First Feature'],2,'Berlin Best First Feature — a prize, not a vibe.',SOURCE.bio],
+    ['apartment','The Scary of Sixty-First is the film she…',['only EP','scored','directed'],2,'She directed it. That is the credit.',SOURCE.criterion],
     ['videostore','A cinema simp recognizes her pilgrimage to…',["Kim’s Video",'Blockbuster Bend','The Criterion Closet'],0,"She visited Kim’s legendary collection in Sicily.",SOURCE.kim],
     ['horrorpair','Pick the exact favorite-horror double answer.',['Scream + Saw',"The Exorcist + Rosemary’s Baby",'Alien + Jaws'],1,'Asked for one, she named two. Naturally.',SOURCE.raskin],
-    ['comfry','Her Succession character?',['Comfry','Shiv','Tabitha'],0,'Dasha played Comfry in Succession.',SOURCE.screen],
-    ['apartment','Its central discovery hides in…',['a video store','an Upper East Side apartment','a podcast studio'],1,'Two roommates find their apartment has a dark secret.',SOURCE.criterion],
-    ['horror','Her earliest movie fixation?',['horror','westerns','sports films'],0,'She told Kim’s Video she loved horror very young.',SOURCE.kim],
-    ['mst3k','She tried to impress a crush by liking…',['Twin Peaks','Mystery Science Theater 3000','The Simpsons'],1,'Extremely specific lore, directly from her Kim’s Video visit.',SOURCE.kim],
-    ['kubrick','She described the film as a kind of love letter to…',['Kubrick','Spielberg','Tarantino'],0,'The film’s visual worldview drew on Stanley Kubrick.',SOURCE.lat],
     ['cowriter','Who co-wrote the film?',['Celine Song','Madeline Quinn','Anna Khachiyan'],1,'Madeline Quinn co-wrote and co-starred.',SOURCE.screen],
-    ['dreams','She said filmmaking draws on instinct and…',['spreadsheets','dreams and the subconscious','focus groups'],1,'The opposite of committee-made cinema.',SOURCE.screen],
+    ['kubrick','She described the film as a kind of love letter to…',['Spielberg','Tarantino','Kubrick'],2,'The film’s visual worldview drew on Stanley Kubrick.',SOURCE.lat],
     ['softness','She also directed…',['The Softness of Bodies','Barbie','Everything Everywhere'],0,'Another film credit in the public record.',SOURCE.interview],
-    ['festival','Scary of Sixty-First premiered in the orbit of…',['Berlinale','Cannes Un Certain Regard','Sundance midnight'],0,'It hit the Berlinale conversation in 2021.',SOURCE.criterion],
+    ['materialistsdays','How many days did Dasha spend on the Materialists set?',['two','twelve','twenty'],0,'Celine Song said the role took two shooting days.',SOURCE.materialists],
+    ['wobbleweekend','Wobble Palace splits one unhappy couple across which weekend?',['New Year’s 2017','Halloween 2016','Valentine’s 2018'],1,'Jane and Eugene divide Halloween weekend 2016.',SOURCE.wobble],
   ],
   podcast: [
     ['cohost','Her Red Scare co-host?',['Anna Khachiyan','Chloë Sevigny','Hari Nef'],0,'Anna and Dasha host together.',SOURCE.pod],
+    ['redscare','Red Scare with Anna Khachiyan dates to…',['2014','2018','2021'],1,'The show has been on since 2018.',SOURCE.bio],
+    ['tone','The show’s default register is…',['earnest TED talk','deadpan cultural roast','sports radio'],1,'Irony is the house style.',SOURCE.pod],
+    ['onlineyoung','Before podcasting, teenage Dasha was already…',['on message boards','running a film festival','hosting sports radio'],0,'She described herself as very online even then.',SOURCE.interview],
+    ['firstrole','Her first acting role was in…',['a Broadway musical','a music video','a USC student film'],2,'A student film at USC.',SOURCE.interview],
+    ['western','Her first acting role was a student film described as a…',['courtroom drama','silent musical','post-apocalyptic Western'],2,'A USC student film with an unusually memorable premise.',SOURCE.interview],
+    ['horror','Her earliest movie fixation?',['horror','westerns','sports films'],0,'She told Kim’s Video she loved horror very young.',SOURCE.kim],
+    ['artschool','Her Las Vegas high school specialized in…',['computer science','performing arts','competitive swimming'],1,'She attended a performing-arts academy downtown.',SOURCE.saturday],
+    ['college','She graduated from…',['Mills College','NYU Tisch','Yale'],0,'Mills College.',SOURCE.bio],
     ['dunkinprice','Dasha’s on-air Dunkin avocado toast cost…',['$2.10','$3.40','$6.75'],1,'The Pick Me Princess receipt was $3.40.',SOURCE.podDunkin],
     ['yaleclaim','After her Yale debate, Dasha’s immediate verdict?',['I won','Never again','It was a draw'],0,'She opened the recap with “I won.”',SOURCE.podYale],
     ['chesstreak','On the Christmas episode, the chess fixation count was…',['70','over 700','about 7,000'],1,'More than 700 games in six-to-eight weeks.',SOURCE.podChess],
     ['eyebrows','What had recently been bleached on Pod Things?',['eyebrows','a denim jacket','hair ends'],0,'The eyebrows were already returning to normal.',SOURCE.podThings],
     ['episode400','Around episode 400, the hosts estimated they had recorded…',['60 hours','600 hours','6,000 hours'],1,'Their back-of-envelope total was about 600 hours.',SOURCE.pod400],
     ['mjvibe','In a recent episode, Dasha said she vibed with Michael Jackson’s…',['persona more than the music','chess openings','film criticism'],0,'Recent lore: persona first, music “whatever.”',SOURCE.podRecent],
-    ['onlineyoung','Before podcasting, teenage Dasha was already…',['on message boards','running a film festival','hosting sports radio'],0,'She described herself as very online even then.',SOURCE.interview],
-    ['firstrole','Her first acting role was in…',['a Broadway musical','a music video','a USC student film'],2,'A student film at USC.',SOURCE.interview],
-    ['headline','A Screen Daily headline says she is no longer allowed to…',['direct','shitpost','watch horror'],1,'The headline is part of the lore.',SOURCE.screen],
     ['feed','Where does the show actually live as audio?',['Libsyn feed','Spotify exclusive only','Clubhouse rooms'],0,'Public Libsyn listing is a clean source.',SOURCE.pod],
-    ['tone','The show’s default register is…',['earnest TED talk','deadpan cultural roast','sports radio'],1,'Irony is the house style.',SOURCE.pod],
+    ['headline','A Screen Daily headline says she is no longer allowed to…',['direct','shitpost','watch horror'],1,'The headline is part of the lore.',SOURCE.screen],
   ],
   lore: [
-    ['sailoryear','“Sailor Socialism” went viral in…',['2016','2018','2020'],1,'The InfoWars encounter broke through in 2018.',SOURCE.interview],
+    ['sailoryear','The 2018 viral clip is remembered as…',['Sailor Socialism','Sailor Capitalism','Red Scare TV'],0,'The InfoWars encounter, not a year-quiz.',SOURCE.interview],
     ['sailorlook','The viral interview outfit was a…',['sailor fuku','power suit','cowboy costume'],0,'The sailor look supplied the nickname.',SOURCE.bio],
-    ['sailorline','Finish the line: “All I want is…”',['a film deal, honey','another podcast, honey','free healthcare, honey'],2,'The line became part of the original viral clip.',SOURCE.interview],
+    ['sailorline','Finish the line: “All I want is…”',['a film deal, honey','another podcast, honey','free healthcare, honey'],2,'Meme lore from the clip, not a CTA.',SOURCE.interview],
     ['birthcity','Dasha was born in…',['Riga','Minsk','Kyiv'],1,'Minsk, in what was then the Byelorussian SSR.',SOURCE.bio],
     ['parents','Her parents’ performance backgrounds?',['opera singer + pianist','actors + dancers','rhythmic gymnast + acrobat'],2,'Her mother trained in rhythmic gymnastics; her father was an acrobat.',SOURCE.saturday],
-    ['artschool','Her Las Vegas high school specialized in…',['computer science','performing arts','competitive swimming'],1,'She attended a performing-arts academy downtown.',SOURCE.saturday],
-    ['college','She graduated from…',['Mills College','NYU Tisch','Yale'],0,'Mills College.',SOURCE.bio],
     ['studies','At Mills, she studied…',['film production','economics and statistics','sociology and philosophy'],2,'Her degree work centered sociology and philosophy.',SOURCE.bio],
-    ['klaasje','Her original Disco Elysium voice role?',['Kim Kitsuragi','Klaasje','Cuno'],1,'She voiced Klaasje in the original release.',SOURCE.bio],
-    ['comfrylore','On Succession she played…',['Shiv','Naomi','Comfry'],2,'Kendall’s PR adviser Comfry.',SOURCE.screen],
-    ['vegaslore','She grew up outside…',['Las Vegas','Boston','Miami'],0,'Her family settled around Las Vegas.',SOURCE.interview],
     ['messageboards','Teenage Dasha spent serious time on…',['sports radio','message boards','cooking forums'],1,'She described herself as very online early.',SOURCE.interview],
+    ['mst3k','She tried to impress a crush by liking…',['Twin Peaks','Mystery Science Theater 3000','The Simpsons'],1,'Extremely specific lore, directly from her Kim’s Video visit.',SOURCE.kim],
+    ['dreams','She said filmmaking draws on instinct and…',['spreadsheets','focus groups','dreams and the subconscious'],2,'The opposite of committee-made cinema.',SOURCE.screen],
+    ['vegaslore','She grew up outside…',['Las Vegas','Boston','Miami'],0,'Her family settled around Las Vegas.',SOURCE.interview],
   ],
 };
 const shared = [
+  ['account','The canonical source account?',['@dash_eats','@getdasha','@dashaofficial'],0,'Use the actual public account.',SOURCE.x],
+  ['klaasje','Her original Disco Elysium voice role?',['Kim Kitsuragi','Klaasje','Cuno'],1,'She voiced Klaasje in the original release.',SOURCE.bio],
+  ['vegas','She grew up in suburbs outside…',['Las Vegas','Boston','Miami'],0,'Raised around Las Vegas after emigrating young.',SOURCE.interview],
+  ['brat','A Charli XCX Brat track inspired by her?',['360','Von dutch','Mean Girls'],2,'Mean Girls. A nod, not a collab claim.',SOURCE.bio],
+  ['comfrey','Her Succession S3 role was…',['Shiv Roy','Tabitha','Comfrey — crisis PR'],2,'Comfrey, crisis PR. That is the credit.',SOURCE.screen],
+  ['klaasjefinal','Her Disco Elysium Klaasje credit covers…',['original release only','the Final Cut','both editions'],0,'Original release; the Final Cut recast the role.',SOURCE.bio],
+  ['dimessquare','Dimes Square names which public scene?',['downtown NYC culture','a Las Vegas address','a Berlin residency'],0,'A scene tag, not a lease.',SOURCE.bio],
+  ['tenant','The clearest storytelling reference for her first feature?',['The Shining','Suspiria','The Tenant'],2,'She called The Tenant the most overt reference.',SOURCE.coming],
+  ['sequels','Which sequel did she single out for playful irony?',['Jaws 2','Texas Chainsaw Massacre 2','Halloween II'],1,'She liked its humor and sense of play.',SOURCE.coming],
+  ['franchise','Which horror franchise did she call herself a big fan of?',['Final Destination','The Purge','Nightmare on Elm Street'],2,'Nightmare on Elm Street was one of several favorites she named.',SOURCE.coming],
   ['latehost','As a kid, she wanted to appear on…',['Oprah','SNL','Letterman'],2,'She specifically named David Letterman.',SOURCE.interview],
   ['softnessrole','In The Softness of Bodies she plays…',['Charlotte','Jane','Daisy'],0,'Charlotte is the film’s drifting poet.',SOURCE.interview],
   ['wobblecharacter','Dasha’s Wobble Palace character is named…',['Daisy','Jane','Comfry'],1,'Jane gets her half of the Halloween weekend.',SOURCE.wobble],
   ['materialistsrole','In Materialists, Dasha plays…',['Daisy','Lucy','Sophie'],0,'Daisy works with Lucy at the matchmaking agency.',SOURCE.materialists],
   ['yaleargument','At Yale, she argued in favor of…',['mandatory consensus','abolishing debate','polarization'],2,'Her stated case: depolarization was boring.',SOURCE.podYale],
-  ['tenant','The clearest storytelling reference for her first feature?',['The Shining','Suspiria','The Tenant'],2,'She called The Tenant the most overt reference.',SOURCE.coming],
-  ['sequels','Which sequel did she single out for playful irony?',['Jaws 2','Texas Chainsaw Massacre 2','Halloween II'],1,'She liked its humor and sense of play.',SOURCE.coming],
-  ['franchise','Which horror franchise did she call herself a big fan of?',['Final Destination','The Purge','Nightmare on Elm Street'],2,'Nightmare on Elm Street was one of several favorites she named.',SOURCE.coming],
-  ['vegas','She grew up in suburbs outside…',['Las Vegas','Boston','Miami'],0,'A small biographical detail from her own interview.',SOURCE.interview],
   ['teen','As a teenager she spent a lot of time…',['playing varsity tennis','posting on message boards','making cooking videos'],1,'She described herself as very online even then.',SOURCE.interview],
-  ['western','Her first acting role was a student film described as a…',['courtroom drama','silent musical','post-apocalyptic Western'],2,'A USC student film with an unusually memorable premise.',SOURCE.interview],
-  ['account','The canonical source account?',['@dash_eats','@getdasha','@dashaofficial'],0,'Use the actual public account.',SOURCE.x],
 ];
 const bank = new Map();
 bank.set(
@@ -148,36 +153,35 @@ shared.forEach(([id, prompt, choices, answer, note, source], i) => {
 export const QUIZ_QUESTIONS = [...bank.values()];
 /** Local photos under /simp/photo/* (worker assets). */
 const VISUALS = {
-  // Early-lane stills so Quick 10Q always shows photos before the shared block.
+  // Early-lane + shared-0 stills so Quick 10Q always shows photos.
   debut: '/simp/photo/bull.jpg',
   videostore: '/simp/photo/archive.jpg',
-  materialistsdays: '/simp/photo/sweet.jpg',
-  dunkinprice: '/simp/photo/media.jpg',
-  sailoryear: '/simp/photo/chart.jpg',
-  mst3k: '/simp/photo/weekend.jpg',
+  festival: '/simp/photo/sweet.jpg',
+  materialistscredit: '/simp/photo/sweet.jpg',
   cohost: '/simp/photo/profile.jpg',
-  softness: '/simp/photo/hero.jpg',
+  sailoryear: '/simp/photo/chart.jpg',
   sailorlook: '/simp/photo/profile.jpg',
+  sailorline: '/simp/photo/weekend.jpg',
   klaasje: '/simp/photo/archive.jpg',
-  latehost: '/simp/photo/press.jpg',
-  softnessrole: '/simp/photo/hero.jpg',
-  wobblecharacter: '/simp/photo/public.jpg',
-  materialistsrole: '/simp/photo/sweet.jpg',
   account: '/simp/photo/archive.jpg',
+  brat: '/simp/photo/media.jpg',
+  comfrey: '/simp/photo/press.jpg',
+  dimessquare: '/simp/photo/public.jpg',
+  softness: '/simp/photo/hero.jpg',
 };
 for (const question of QUIZ_QUESTIONS) {
   if (VISUALS[question.id]) question.image = VISUALS[question.id];
 }
 /** Fun mid-quiz stickers keyed by question id (client may show as overlay). */
 export const QUIZ_SURPRISES = {
-  dunkinprice: { kind: 'receipt', title: '$3.40 RECEIPT', body: 'Adequate. Functional. Canonical.' },
-  yaleclaim: { kind: 'sticker', title: 'IVY LEAGUE ERA', body: 'Meeting adjourned.' },
-  chesstreak: { kind: 'streak', title: '700+ GAMES', body: 'Impulse control through total fixation.' },
-  materialistsdays: { kind: 'receipt', title: 'TWO-DAY ROLE', body: 'A real simp reads the production footnotes.' },
-  mst3k: { kind: 'photo-drop', title: 'Deep cut unlocked', body: 'Kim’s Video energy. Respect.' },
+  debut: { kind: 'photo-drop', title: 'First feature', body: 'Scary of Sixty-First. Not the later acting credit.' },
   sailorline: { kind: 'sticker', title: 'SAILOR SOCIALISM', body: 'The original viral line.' },
   klaasje: { kind: 'sticker', title: 'MARTINAISE LORE', body: 'Original-release voice credit.' },
-  comfry: { kind: 'photo-drop', title: 'Succession cameo', body: 'Comfry era activated.' },
+  klaasjefinal: { kind: 'sticker', title: 'FINAL CUT ASTERISK', body: 'Recast later. The original still counts.' },
+  comfrey: { kind: 'photo-drop', title: 'Succession cameo', body: 'Comfrey era. Crisis PR.' },
+  brat: { kind: 'sticker', title: 'MEAN GIRLS', body: 'A Brat nod. Association, not a feature.' },
+  account: { kind: 'sticker', title: '@DASH_EATS', body: 'The public account. Use this one.' },
+  mst3k: { kind: 'photo-drop', title: 'Deep cut unlocked', body: 'Kim’s Video energy. Respect.' },
 };
 export const BADGES = new Set(['linked', 'maker', 'remixer', 'helper', 'lobby_regular', 'maintainer', 'holder']);
 
@@ -317,7 +321,29 @@ export function quizTitle(correct, total = 19) {
   if (ratio >= .8) return 'Confirmed simp';
   if (ratio >= .6) return 'Deep in the lore';
   if (ratio >= .4) return 'Watching respectfully';
-  return 'Dasha curious';
+  return 'Still loading';
+}
+
+const QUIZ_COPY = {
+  'Dasha scholar': lane =>
+    `Perfect recall. ${lane} looks like a finished costume. Leave a little mystery; the rest of us are still buffering.`,
+  'Confirmed simp': lane =>
+    `You have the credits cold. ${lane} reads as a lifestyle, not a hobby. One more deep cut and it gets concerning.`,
+  'Deep in the lore': lane =>
+    `You were online for the right years. ${lane} is doing real work. A couple of scene facts still sit on the table.`,
+  'Watching respectfully': lane =>
+    `You know enough to be dangerous. ${lane} is a solid start. The deep path is where it gets specific.`,
+  'Still loading': lane =>
+    `New tab, honest score. ${lane} is a fine on-ramp. The facts are public; the bit is optional.`,
+};
+
+export function quizCopy(title, lane) {
+  const key = QUIZ_COPY[title] ? title : 'Still loading';
+  return QUIZ_COPY[key](lane || 'This lane');
+}
+
+export function quizShareLine(title, lane) {
+  return lane ? `${title} · ${lane}` : String(title || 'Still loading');
 }
 
 /**
@@ -375,6 +401,7 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
   const basePoints = Math.round((attempt.correct / attempt.scorable) * QUIZ_MAX_POINTS);
   const vibe = vibeDeltaForAttempt(attempt, { rng });
   const points = basePoints;
+  const title = quizTitle(attempt.correct, attempt.scorable);
   return {
     version: QUIZ_VERSION,
     correct: attempt.correct,
@@ -383,8 +410,11 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
     basePoints,
     vibe,
     vibeNote: vibeNote(vibe),
-    title: quizTitle(attempt.correct, attempt.scorable),
+    title,
     lane: attempt.lane,
+    copy: quizCopy(title, attempt.lane),
+    share: quizShareLine(title, attempt.lane),
+    disclaimer: 'Association is not endorsement.',
     mode: attempt.mode === 'quick' ? 'quick' : attempt.practice ? 'practice' : 'deep',
     completedAt: now,
   };
@@ -761,6 +791,9 @@ export function meStatus(store, session) {
                 total: profile.quiz.total,
                 title: profile.quiz.title,
                 lane: profile.quiz.lane,
+                copy: profile.quiz.copy,
+                share: profile.quiz.share,
+                disclaimer: profile.quiz.disclaimer,
                 resultUrl: profile.quiz.resultUrl,
                 points: profile.quiz.points,
                 vibe: profile.quiz.vibe,
