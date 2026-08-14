@@ -88,6 +88,7 @@ assert(client.includes('exactParams({ sell: WSOL, buy: MINT })') && client.inclu
 assert(worker.includes('setAlarm'), 'worker schedules history prune');
 assert(worker.includes("'Content-Security-Policy': \"frame-ancestors 'none'; base-uri 'none'; object-src 'none'\""), 'Worker HTML security policy missing');
 assert(worker.includes('applyHtmlSecurity(new Headers(upstream.headers))'), 'proxied Webflow HTML must receive Worker security headers');
+assert(worker.includes('ensurePrivacyLink(html)'), 'proxied product HTML must gain a Privacy link in the rewrite pass');
 assert(worker.includes('escapeHtml(err)') && worker.includes('escapeHtml(String(e.message || e)'), 'OAuth error HTML must escape upstream text');
 
 // Simp Board reuses Lobby DO + session; never auto-enrolls on OAuth
@@ -123,7 +124,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -765,6 +766,92 @@ try {
   }
 }
 {
+  const liveHomeFooter = '<footer><div class="wrap"><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="https://lobby.getdasha.com/forum">Forum</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p></div></footer>';
+  const homeKeep = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
+<style>
+:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00}
+.dasha{min-height:100vh;color:var(--paper)}
+.pill{display:inline-flex;min-height:48px}
+.price{margin:0}
+.contract{border:1px solid red}
+.spark{grid-area:spark;height:44px}
+</style>
+<section id="token"><h2>$dasha.</h2></section>
+${liveHomeFooter}
+</html>`;
+  const linked = ensurePrivacyLink(homeKeep);
+  assert.match(linked, /href="\/privacy"/);
+  assert.match(linked, />Privacy</);
+  assert.equal([...linked.matchAll(/href=["']\/privacy["']/g)].length, 1);
+  assert.equal(ensurePrivacyLink(linked), linked, 'Privacy inject must be idempotent');
+  for (const href of ['/studio', '/lobby', 'https://lobby.getdasha.com/forum', 'https://lobby.getdasha.com/chess', '/dasha', '/bounties', '/how-to-buy', 'https://github.com/Uuriko/dasha-desk']) {
+    assert.ok(linked.includes(`href="${href}"`), `home footer must keep ${href}`);
+  }
+  assert.match(linked, /How to buy<\/a> · <a href="\/privacy">Privacy<\/a> · /);
+  assert.match(linked, /:root\{/);
+  assert.match(linked, /\.dasha\{/);
+  assert.match(linked, /\.pill\{/);
+  assert.match(linked, /\.price\{/);
+  assert.match(linked, /\.contract\{/);
+  assert.match(linked, /\.spark\{/);
+  assert.match(linked, /id="token"/);
+  assert.doesNotMatch(linked, /\.simp-/);
+  const deskNav = '<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a class="dgcta" href="/studio">Make a meme →</a></div></nav>';
+  const deskLinked = ensurePrivacyLink(deskNav);
+  assert.match(deskLinked, /<a href="\/privacy">Privacy<\/a><\/div><\/nav>/);
+  assert.match(deskLinked, /href="\/studio"/);
+  assert.equal(ensurePrivacyLink(deskLinked), deskLinked);
+  assert.equal(ensurePrivacyLink('<html><title>x</title></html>'), '<html><title>x</title></html>', 'no footer/nav needle must not invent chrome');
+  const lobbyLeftover = `<!doctype html><html><title>$dasha lobby</title>
+<style>
+.lobby-lede{margin:0}
+.lobby-status{margin:0;font-size:14px}
+.simp-privacy{color:red}
+</style>
+<header class="lp-top">
+<a class="lp-back" href="/">← $dasha</a>
+<a class="lp-back" href="https://lobby.getdasha.com/forum" style="margin-left:auto">Forum</a>
+</header>
+</html>`;
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (input) => {
+      const path = new URL(typeof input === 'string' ? input : input.url).pathname;
+      const body = path === '/' || path === '' ? homeKeep : lobbyLeftover;
+      return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    };
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+      const html = await home.text();
+      assert.equal(home.status, 200);
+      assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
+      assert.match(html, /<a href="\/privacy">Privacy<\/a>/);
+      assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1);
+      assert.match(html, /:root\{/);
+      assert.match(html, /\.dasha\{/);
+      assert.match(html, /\.pill\{/);
+      assert.match(html, /\.price\{/);
+      assert.match(html, /\.contract\{/);
+      assert.match(html, /\.spark\{/);
+      assert.match(html, /id="token"/);
+      assert.doesNotMatch(html, /\.simp-/);
+      const lobby = await workerModule.default.fetch(new Request(`https://${host}/lobby`), {});
+      const lobbyHtml = await lobby.text();
+      assert.equal(lobby.status, 200);
+      assert.match(lobbyHtml, /\.lobby-lede\{/);
+      assert.match(lobbyHtml, /\.lobby-status\{/);
+      assert.doesNotMatch(lobbyHtml, /\.simp-privacy/);
+      assert.doesNotMatch(lobbyHtml, /\.simp-/);
+      assert.match(lobbyHtml, /<a class="lp-back" href="\/privacy">Privacy<\/a>/);
+      assert.match(lobbyHtml, /href="\/"/);
+      assert.match(lobbyHtml, /lobby\.getdasha\.com\/forum/);
+      assert.doesNotMatch(lobbyHtml, /\.dasha\{|\.pill\{|\.price\{|\.contract\{|\.spark\{|id="token"/);
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
   const bountiesFixture = `<!doctype html><html class="w-mod-js"><title>Bounties</title>
 <div class="w-embed"><style>html, body { margin: 0; padding: 0; height: 100%; } .dasha-bounties-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }</style>
 <iframe class="dasha-bounties-frame" title="dasha bounties" src="https://uuriko.github.io/dasha-desk/bounties/"></iframe>
@@ -788,6 +875,9 @@ try {
         assert.match(html, /html, body \{ margin: 0; padding: 0; height: 100%; \}/, `${host} ${path} must keep the rest of the embed CSS`);
         assert.match(html, /id="dasha-bounties"/, `${host} ${path} must inject the no-JS board`);
         assert.match(html, /No bounties listed/, `${host} ${path} must stay honest when the feed source is not JSON`);
+        assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} ${path} must add one Privacy link on the board`);
+        assert.match(html, /<a href="\/privacy">Privacy<\/a>/);
+        assert.match(html, /#dasha-bounties a\{color:#dfff00\}/, `${host} ${path} must keep the existing board link color`);
       }
     }
     const home = await workerModule.default.fetch(new Request('https://www.getdasha.com/'), {});

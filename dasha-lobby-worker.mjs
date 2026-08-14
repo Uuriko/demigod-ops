@@ -218,6 +218,46 @@ export function injectBountiesBoard(html, feed) {
   return close >= 0 ? page.slice(0, close) + board + page.slice(close) : page + board;
 }
 
+const PRIVACY_A = '<a href="/privacy">Privacy</a>';
+
+/** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
+export function ensurePrivacyLink(html) {
+  const page = String(html || '');
+  if (/href=["']\/privacy\/?["']/i.test(page)) return page;
+
+  const footer = page.match(/<footer\b[^>]*>[\s\S]*?<p\b[^>]*>[\s\S]*?<\/p>/i);
+  if (footer && /<a\b/i.test(footer[0])) {
+    let next = footer[0];
+    const howTo = next.match(/<a\b[^>]*href=["']\/how-to-buy\/?["'][^>]*>[\s\S]*?<\/a>/i);
+    if (howTo) next = next.replace(howTo[0], `${howTo[0]} · ${PRIVACY_A}`);
+    else {
+      const ext = next.match(/ · <a\b[^>]*>[^<]*↗/);
+      next = ext ? next.replace(ext[0], ` · ${PRIVACY_A}${ext[0]}`) : next.replace(/<\/p>/i, ` · ${PRIVACY_A}</p>`);
+    }
+    return page.replace(footer[0], next);
+  }
+
+  const header = page.match(/<header\b[^>]*>[\s\S]*?<\/header>/i);
+  if (header && /href=["']\/["']/.test(header[0]) && /lobby\.getdasha\.com\/forum/.test(header[0])) {
+    const last = [...header[0].matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)].at(-1);
+    if (last) {
+      const cls = /\blp-back\b/.test(header[0]) ? ' class="lp-back"' : '';
+      return page.replace(last[0], `${last[0]}<a${cls} href="/privacy">Privacy</a>`);
+    }
+  }
+
+  const nav = page.match(/<nav\b[^>]*>[\s\S]*?<\/nav>/i);
+  if (nav && /<a\b/i.test(nav[0])) {
+    const inner = nav[0].match(/<\/div>\s*<\/nav>/i);
+    if (inner) return page.replace(inner[0], `${PRIVACY_A}${inner[0]}`);
+    return page.replace(nav[0], nav[0].replace(/<\/nav>/i, `${PRIVACY_A}</nav>`));
+  }
+
+  const board = page.match(/<section\b[^>]*\bid=["']dasha-bounties["'][^>]*>[\s\S]*?<\/section>/i);
+  if (board) return page.replace(board[0], board[0].replace(/<\/section>/i, `<p>${PRIVACY_A}</p></section>`));
+  return page;
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -2474,6 +2514,7 @@ async function productEdge(request, url, env) {
     html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
   }
   html = ensureHtmlLang(html);
+  html = ensurePrivacyLink(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
