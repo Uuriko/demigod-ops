@@ -18,7 +18,7 @@ const wrangler = await readFile(new URL('./demigod-html-wrangler.jsonc', root), 
 const dashaWrangler = await readFile(new URL('./dasha-lobby-wrangler.jsonc', root), 'utf8');
 
 const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
-const CDN_PIN_TO = 'd3cce0d74a24ba5d2bacb984e710dcb27e260d3e';
+const CDN_PIN_TO = '85246d21f8e0794a45adbe5f9a9ac5b2add0b6d2';
 const PIN_FIXTURE = (sha) => `<!doctype html><html><body>
 <link href="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${sha}/head-latest.css">
 <script src="https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${sha}/foot-latest.js"></script>
