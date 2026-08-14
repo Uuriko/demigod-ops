@@ -222,14 +222,9 @@ function bountyItemHref(value) {
   }
 }
 
-function bountyDestLabel(row) {
-  const dest = honestPayTo(row?.payTo);
-  return !dest || row?.payoutStatus === 'not_implemented' ? 'not implemented' : dest;
-}
-
 function bountiesBoardHtml(feed) {
   const data = normalizeBountiesFeed(feed);
-  const rows = data.listings.length
+  const work = data.listings.length
     ? `<ul>${data.listings.map((row) => {
         const name = escapeHtml(typeof row.name === 'string' ? row.name.trim() : '');
         const href = bountyItemHref(row.itemUrl);
@@ -237,14 +232,14 @@ function bountiesBoardHtml(feed) {
         const amount = row.amount == null || row.amount === '' ? '' : String(row.amount);
         const currency = typeof row.currency === 'string' ? row.currency.trim() : '';
         const label = escapeHtml([amount, currency].filter(Boolean).join(' '));
-        const dest = bountyDestLabel(row);
-        return `<li><p>${title}</p><p class="amt">${label}</p><p>${dest === 'not implemented' ? dest : escapeHtml(dest)}</p></li>`;
+        const payout = honestPayTo(row.payTo) && row.payoutStatus !== 'not_implemented' ? '' : '<p class="quiet">Payout not live</p>';
+        return `<li><p>${title}</p>${label ? `<p class="amt">${label}</p>` : ''}${payout}</li>`;
       }).join('')}</ul>`
-    : '<p>No bounties listed</p>';
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties a{color:#dfff00}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}</style>${rows}</section>`;
+    : '<p>No open bounties</p>';
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>#dasha-bounties{box-sizing:border-box;min-height:100%;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 0 .5rem}#dasha-bounties h1{margin-top:0}#dasha-bounties a{color:#dfff00}#dasha-bounties .amt{color:#ff3b81}#dasha-bounties .quiet{font-size:.9em}#dasha-bounties ul{list-style:none;margin:0;padding:0}#dasha-bounties li{border-top:1px solid #dfff00;padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:#070608;color:#f4eddb;border:1px solid #dfff00;font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties button{min-height:48px;padding:0 1.25rem;background:#dfff00;color:#070608;border:0;font:inherit;font-weight:950}</style><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><h2>Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label></p><p><button type="submit">Post bounty</button></p></form><p>We'll add it to the board.</p><h2>Work</h2>${work}</section>`;
 }
 
-/** /bounties-only: no-JS listings after the leftover w-embed. Same feed as /bounties.json. */
+/** /bounties-only: no-JS post+work board after the leftover w-embed. Same feed as /bounties.json. */
 export function injectBountiesBoard(html, feed) {
   const page = String(html || '');
   const board = bountiesBoardHtml(feed);

@@ -603,31 +603,59 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listed, /aria-label="Bounties"/);
   assert.match(listed, /w-embed[\s\S]*id="dasha-bounties"[\s\S]*(?:jquery|webflow\.js)/);
   assert.match(listed, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
+  assert.match(listedSection, /<h1>Bounties<\/h1>/);
+  assert.match(listedSection, /Post a project\. Other people run spare compute on it\./);
+  assert.match(listedSection, /<form\b[^>]*action="mailto:potter@trydemigod\.com"[^>]*method="get"/i);
+  assert.match(listedSection, /name="name"/);
+  assert.match(listedSection, /What to run/);
+  assert.match(listedSection, /name="contact"/);
+  assert.match(listedSection, /We'll add it to the board\./);
+  assert.doesNotMatch(listedSection, /writes?\s+\/bounties\.json|saved to \/bounties/i);
   assert.match(listedSection, /docs/);
   assert.match(listedSection, /desk/);
   assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
   assert.match(listedSection, /25 USDC/);
   assert.match(listedSection, /50 USDC/);
-  assert.equal([...listedSection.matchAll(/not implemented/g)].length, 2);
+  assert.doesNotMatch(listedSection, /not implemented/i);
+  assert.match(listedSection, /Payout not live/);
+  const firstListing = listedSection.match(/<li\b[\s\S]*?<\/li>/i)?.[0] || '';
+  assert.match(firstListing, /docs/);
+  assert.doesNotMatch(firstListing, /not implemented/i);
   assert.doesNotMatch(listedSection, /<script\b/i);
   assert.doesNotMatch(listedSection, /\bClaim\b|\bPay\b/);
   assert.doesNotMatch(listed, /<iframe/i);
   assert.doesNotMatch(listed, /#c8b6ff|rgba\(\s*124\s*,\s*77\s*,\s*255|t\.me\//i);
   assert.doesNotMatch(listed, /payTo:""/);
+  const BOARD_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  for (const hex of listedSection.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+    assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `bounties board must stay tokens-only (saw ${hex})`);
+  }
   const emptyListed = injectBountiesBoard(shell, { listings: [] });
   const emptyFallback = injectBountiesBoard(shell, normalizeBountiesFeed(null));
   for (const empty of [emptyListed, emptyFallback]) {
-    assert.match(empty, /No bounties listed/);
+    const emptySection = empty.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
+    assert.match(emptySection, /<h1>Bounties<\/h1>/);
+    assert.match(emptySection, /Post a project\. Other people run spare compute on it\./);
+    assert.match(emptySection, /mailto:potter@trydemigod\.com/);
+    assert.match(emptySection, /No open bounties/);
     assert.doesNotMatch(empty, /<li\b/);
     assert.doesNotMatch(empty, /25 USDC|50 USDC/);
     assert.doesNotMatch(empty, /payTo:""/);
   }
   const nullPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: null }] });
-  assert.match(nullPay, /not implemented/);
+  assert.match(nullPay, /Payout not live/);
+  assert.doesNotMatch(nullPay, /not implemented/i);
   assert.doesNotMatch(nullPay, /payTo:""/);
   const blankPay = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: '' }, { kind: 'project', name: 'desk', amount: 50, currency: 'USDC', payTo: '   ' }] });
-  assert.match(blankPay, /not implemented/);
+  assert.match(blankPay, /Payout not live/);
+  assert.doesNotMatch(blankPay, /not implemented/i);
   assert.doesNotMatch(blankPay, /payTo:""/);
+  const dest = '11111111111111111111111111111111';
+  const fundedHtml = injectBountiesBoard(shell, { listings: [{ kind: 'item', name: 'docs', amount: 25, currency: 'USDC', payTo: dest }] });
+  const fundedSection = fundedHtml.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
+  assert.doesNotMatch(fundedSection, /Payout not live/);
+  assert.doesNotMatch(fundedSection, /not implemented/i);
+  assert.doesNotMatch(fundedSection, new RegExp(dest));
   assert.doesNotMatch(JSON.stringify(normalizeBountiesFeed({ listings: [{ payTo: '' }] })), /payTo:""/);
 }
 {
@@ -1422,7 +1450,11 @@ ${laterIcons}
         assert.doesNotMatch(html, /dasha-bounties-frame/, `${host} ${path} must drop leftover frame CSS`);
         assert.match(html, /html, body \{ margin: 0; padding: 0; height: 100%; \}/, `${host} ${path} must keep the rest of the embed CSS`);
         assert.match(html, /id="dasha-bounties"/, `${host} ${path} must inject the no-JS board`);
-        assert.match(html, /No bounties listed/, `${host} ${path} must stay honest when the feed source is not JSON`);
+        assert.match(html, /<h1>Bounties<\/h1>/, `${host} ${path} must name the product`);
+        assert.match(html, /Post a project\. Other people run spare compute on it\./, `${host} ${path} must say what the board is`);
+        assert.match(html, /mailto:potter@trydemigod\.com/, `${host} ${path} must keep a no-JS post path`);
+        assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
+        assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
         assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} ${path} must add one Privacy link on the board`);
         assert.match(html, /<a href="\/privacy">Privacy<\/a>/);
         assert.match(html, /#dasha-bounties a\{color:#dfff00\}/, `${host} ${path} must keep the existing board link color`);
@@ -1441,7 +1473,10 @@ ${laterIcons}
     const thrown = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
     const thrownHtml = await thrown.text();
     assert.match(thrownHtml, /id="dasha-bounties"/);
-    assert.match(thrownHtml, /No bounties listed/);
+    assert.match(thrownHtml, /<h1>Bounties<\/h1>/);
+    assert.match(thrownHtml, /mailto:potter@trydemigod\.com/);
+    assert.match(thrownHtml, /No open bounties/);
+    assert.doesNotMatch(thrownHtml, /not implemented/i);
     assert.doesNotMatch(thrownHtml, /<iframe/i);
   } finally {
     globalThis.fetch = nativeFetch;
