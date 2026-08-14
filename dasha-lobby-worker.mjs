@@ -75,6 +75,7 @@ import {
   LOBBY_CLIENT_JS,
   SIMP_BOARD_JS,
   STUDIO_CLIENT_JS,
+  STUDIO_CLIENT_SRI,
   ROBOTS_TXT,
   SITEMAP_XML,
   HOWTO_HTML,
@@ -256,6 +257,17 @@ export function ensurePrivacyLink(html) {
   const board = page.match(/<section\b[^>]*\bid=["']dasha-bounties["'][^>]*>[\s\S]*?<\/section>/i);
   if (board) return page.replace(board[0], board[0].replace(/<\/section>/i, `<p>${PRIVACY_A}</p></section>`));
   return page;
+}
+
+/** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
+export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
+  return String(html || '').replace(/<script\b[^>]*>\s*<\/script>/gi, (tag) => {
+    const src = tag.match(/\bsrc\s*=\s*(["'])([^"']*)\1/i);
+    if (!src || !/(?:lobby\.getdasha\.com)?\/client\/studio\.js/i.test(src[2])) return tag;
+    const pin = tag.match(/\bintegrity\s*=\s*(["'])([^"']*)\1/i);
+    if (!pin || pin[2] === sri) return tag;
+    return tag.replace(pin[0], `integrity=${pin[1]}${sri}${pin[1]}`);
+  });
 }
 
 function securityTxt(host) {
@@ -2515,6 +2527,7 @@ async function productEdge(request, url, env) {
   }
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
+  html = rewriteStudioScriptIntegrity(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
