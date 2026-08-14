@@ -121,7 +121,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints } = workerModule;
+const { DashaLobby, ensureHtmlLang, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, sanitizePublicJsonLd, solanaRpcEndpoints, stripHomeSimpBoard } = workerModule;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
 assert.match(personalized, /&lt;winner&gt; — Dasha Chess/);
 assert.match(personalized, /12 moves &amp; mate/);
@@ -483,6 +483,42 @@ try {
   assert.match(await proxiedHome.text(), /<html lang="en" class="w-mod-js">/);
 } finally {
   globalThis.fetch = nativeFetch;
+}
+{
+  const homeFixture = `<!doctype html><html class="w-mod-js"><title>Dasha</title>
+<section id="token"><h2>$dasha.</h2></section>
+<section id="simp" aria-labelledby="simp-title"><div class="wrap">
+<h2 class="section-title" id="simp-title">Simp board.</h2>
+<div id="dasha-simp-board" data-simp-api="https://lobby.getdasha.com"></div>
+</div></section>
+<script>(()=>{const root=document.getElementById('dasha-simp-board');const s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';document.head.appendChild(s)})()</script>
+</html>`;
+  const cleaned = stripHomeSimpBoard(homeFixture);
+  assert.doesNotMatch(cleaned, /simp-board\.js/);
+  assert.doesNotMatch(cleaned, /dasha-simp-board/);
+  assert.doesNotMatch(cleaned, /Simp board\./);
+  assert.match(cleaned, /id="token"/);
+  assert.equal(stripHomeSimpBoard(homeFixture), cleaned);
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(homeFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+      const html = await home.text();
+      assert.doesNotMatch(html, /simp-board\.js/, `${host} / must drop the Simp client`);
+      assert.doesNotMatch(html, /dasha-simp-board/, `${host} / must drop the Simp mount`);
+      assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
+      assert.match(html, /id="token"/);
+      assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
+    }
+    const lobby = await workerModule.default.fetch(new Request('https://www.getdasha.com/lobby'), {});
+    const lobbyHtml = await lobby.text();
+    assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, 'www /lobby must not strip Simp');
+    assert.match(lobbyHtml, /id="dasha-simp-board"/);
+    assert.match(lobbyHtml, /Simp board\./);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
 }
 const rows = new Map();
 const storage = {

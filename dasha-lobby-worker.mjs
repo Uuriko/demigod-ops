@@ -139,6 +139,17 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
+/** Home-only: Simp/quiz lives on /lobby. Drop the leftover board mount and its client inject. */
+export function stripHomeSimpBoard(html) {
+  let out = String(html || '');
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (block) =>
+    /lobby\.getdasha\.com\/client\/simp-board(?:-client)?\.js/i.test(block) ? '' : block);
+  out = out.replace(/<(section|div)\b[^>]*\bid=["']simp["'][^>]*>[\s\S]*?<\/\1>/i, '');
+  out = out.replace(/<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>[\s\S]*?<\/div>/i, '');
+  out = out.replace(/<h2\b[^>]*>\s*Simp board\.\s*<\/h2>/i, '');
+  return out;
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -2367,6 +2378,7 @@ async function productEdge(request, url, env) {
   const originalHtml = html;
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
+  if (url.pathname === '/') html = stripHomeSimpBoard(html);
   html = ensureHtmlLang(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
