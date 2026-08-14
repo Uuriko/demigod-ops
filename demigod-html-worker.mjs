@@ -11,6 +11,9 @@ const FEED_SOURCES = [
   'https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@main/bounties-feed.json',
 ];
 
+const CDN_PIN_FROM = 'e0fe769c0dca9fc8804f6676e928f42092570d6c';
+const CDN_PIN_TO = '94d25aa3d6351c58980c03103dd7b3276e0c40fa';
+
 const HTML_SECURITY = {
   'Strict-Transport-Security': 'max-age=31536000',
   'X-Content-Type-Options': 'nosniff',
@@ -51,6 +54,11 @@ function isBountiesPath(pathname) {
 
 function honestPayTo(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Swap the live Webflow CDN pin so product HTML loads the merged foot. */
+export function rewriteCdnPin(html) {
+  return String(html || '').replaceAll(CDN_PIN_FROM, CDN_PIN_TO);
 }
 
 /** Remove leftover Webflow gold H1 span from first HTML. Keep red/blue accents. */
@@ -158,7 +166,7 @@ async function productEdge(request, url) {
   const ct = String(upstream.headers.get('content-type') || '');
   if (request.method !== 'GET' || !ct.includes('text/html')) return upstream;
   let html = await upstream.text();
-  html = stripGoldAccent(html);
+  html = rewriteCdnPin(stripGoldAccent(html));
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
   }
