@@ -53,6 +53,7 @@ assert.match(worker, /\['https:\/\/www\.getdasha\.com','https:\/\/getdasha\.com'
 assert(!worker.includes('return to the lobby'), 'shared OAuth completion must not force every product back to Lobby');
 assert(!worker.includes('Perks unlocked: longer messages'), 'shared OAuth completion must not claim Lobby-only perks');
 assert(worker.includes("url.pathname === '/privacy'") && worker.includes('PRIVACY_HTML'), 'worker serves privacy policy');
+assert(worker.includes('FORUM_HTML') && worker.includes("'X-Dasha-Edge': 'forum'"), 'lobby /forum serves branded HTML 404');
 assert(worker.includes("url.searchParams.get('continue') !== '1'") && worker.includes('Continue with X'), 'OAuth must show privacy notice before redirect');
 assert(!/offline\.access/.test(await readFile(new URL('./dasha-lobby-x.mjs', root), 'utf8')), 'OAuth must not request unused persistent X access');
 assert(worker.includes('sessionFromRequest'), 'worker reads optional X session');
@@ -225,6 +226,28 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
       assert.equal(await privacy.text(), method === 'HEAD' ? '' : lobbyPrivacyHtml);
     }
   }
+}
+for (const path of ['/forum', '/forum/']) {
+  for (const method of ['GET', 'HEAD']) {
+    const forum = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+    assert.equal(forum.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
+    assert.match(forum.headers.get('content-type') || '', /text\/html/);
+    assert.equal(forum.headers.get('x-dasha-edge'), 'forum');
+    const body = await forum.text();
+    if (method === 'HEAD') {
+      assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
+    } else {
+      assert.match(body, /<title>/);
+      assert.match(body, /Dasha|\$dasha/);
+      assert.notEqual(body, '{"error":"not found"}');
+    }
+  }
+}
+{
+  const unknown = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/no-such-path'), {});
+  assert.equal(unknown.status, 404);
+  assert.equal(unknown.headers.get('content-type'), 'application/json; charset=utf-8');
+  assert.equal(await unknown.text(), '{"error":"not found"}');
 }
 {
   const nativeFetch = globalThis.fetch;
