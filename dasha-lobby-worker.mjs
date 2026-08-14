@@ -153,7 +153,7 @@ export function stripHomeSimpBoard(html) {
   out = out.replace(/<(section|div)\b[^>]*\bid=["']simp["'][^>]*>[\s\S]*?<\/\1>/i, '');
   out = out.replace(/<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>[\s\S]*?<\/div>/i, '');
   out = out.replace(/<h2\b[^>]*>\s*Simp board\.\s*<\/h2>/i, '');
-  return stripLeftoverStyleRules(out, /\.simp-(?:board|row|rank)\b/i);
+  return stripLeftoverStyleRules(out, /\.simp-(?:board|row|rank|handle|badges|badge|evidence|open|status|privacy|basis|pts|season|tool-actions|actions|action|tools|tool|me)\b/i);
 }
 
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */

@@ -527,13 +527,28 @@ try {
   globalThis.fetch = nativeFetch;
 }
 {
-  const homeFixture = `<!doctype html><html class="w-mod-js"><title>Dasha</title>
+  const leftoverSimpCss = /\.simp-(handle|badge|evidence|open|status|privacy|basis|pts|badges|season|actions|tool-actions|action|tool|me|tools)\b/;
+  const homeFixture = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
 <style>
+:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00}
+.dasha{min-height:100vh;color:var(--paper)}
+.pill{display:inline-flex;min-height:48px}
 .contract{border:1px solid red}
 .simp-board{display:grid;gap:10px;max-width:920px}.simp-row{display:grid}.simp-rank{font-size:42px}
 .simp-board-root{max-width:920px}
+.dasha .simp-handle{display:inline-flex;align-items:center;min-height:44px;color:var(--paper)!important;font-size:clamp(22px,4vw,38px);font-weight:950;text-decoration:none!important}
+.simp-badge{display:inline-block;margin-left:10px;padding:7px 9px;background:var(--hot);color:var(--ink);font-size:11px;font-weight:950;letter-spacing:.06em}
+.dasha .simp-evidence{display:inline-flex;align-items:center;min-height:44px;color:var(--paper)!important;font-size:14px;font-weight:900;text-underline-offset:4px}
+.simp-open{grid-template-columns:90px 1fr;background:rgba(255,255,255,.025)}
+.simp-status,.simp-privacy,.simp-basis,.simp-pts,.simp-badges,.simp-season{margin:0;color:rgba(244,237,219,.78);font-size:14px}
+.simp-handle+.simp-pts{margin-left:10px}
+.simp-actions,.simp-tool-actions{display:flex;flex-wrap:wrap;gap:10px}
+.simp-action,.simp-tool{min-height:44px;padding:0 16px;border:1px solid var(--acid);border-radius:999px;background:var(--acid);color:var(--ink);font:inherit;font-size:12px;font-weight:950;text-transform:uppercase;cursor:pointer}
+.simp-me,.simp-tools{padding:14px;border:1px solid var(--line);background:rgba(124,77,255,.09)}
 .price{margin:0}
-@media(max-width:600px){.simp-row{grid-template-columns:54px 1fr}.simp-rank{font-size:30px}.price{padding:0}}
+.spark{grid-area:spark;height:44px}
+@media(max-width:600px){.simp-row{grid-template-columns:54px 1fr}.simp-rank{font-size:30px}.simp-evidence{grid-column:2}.simp-badge{display:table;margin:8px 0 0}.price{padding:0}}
+@media(max-width:480px){.pill{padding:0 17px}.contract{padding:24px}}
 </style>
 <section id="token"><h2>$dasha.</h2></section>
 <section id="simp" aria-labelledby="simp-title"><div class="wrap">
@@ -549,10 +564,16 @@ try {
   assert.doesNotMatch(cleaned, /\.simp-board/);
   assert.doesNotMatch(cleaned, /\.simp-row/);
   assert.doesNotMatch(cleaned, /\.simp-rank/);
+  assert.doesNotMatch(cleaned, leftoverSimpCss);
   assert.match(cleaned, /id="token"/);
+  assert.match(cleaned, /:root\{--ink:#070608/);
+  assert.match(cleaned, /\.dasha\{min-height:100vh/);
+  assert.match(cleaned, /\.pill\{display:inline-flex/);
   assert.match(cleaned, /\.contract\{border:1px solid red\}/);
   assert.match(cleaned, /\.price\{margin:0\}/);
+  assert.match(cleaned, /\.spark\{grid-area:spark/);
   assert.match(cleaned, /@media\(max-width:600px\)\{\.price\{padding:0\}\}/);
+  assert.match(cleaned, /@media\(max-width:480px\)\{\.pill\{padding:0 17px\}\.contract\{padding:24px\}\}/);
   assert.equal(stripHomeSimpBoard(homeFixture), cleaned);
   const nativeFetch = globalThis.fetch;
   try {
@@ -564,7 +585,9 @@ try {
       assert.doesNotMatch(html, /dasha-simp-board/, `${host} / must drop the Simp mount`);
       assert.doesNotMatch(html, /Simp board\./, `${host} / must drop the Simp board heading`);
       assert.doesNotMatch(html, /\.simp-board/, `${host} / must drop leftover Simp CSS`);
+      assert.doesNotMatch(html, leftoverSimpCss, `${host} / must drop the 16 leftover Simp selectors`);
       assert.match(html, /id="token"/);
+      assert.match(html, /\.dasha\{min-height:100vh/, `${host} / must keep .dasha`);
       assert.match(html, /\.contract\{border:1px solid red\}/, `${host} / must keep unrelated CSS`);
       assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
     }
@@ -574,6 +597,7 @@ try {
     assert.match(lobbyHtml, /id="dasha-simp-board"/);
     assert.match(lobbyHtml, /Simp board\./);
     assert.match(lobbyHtml, /\.simp-board\{/, 'www /lobby must keep Simp CSS');
+    assert.match(lobbyHtml, leftoverSimpCss, 'www /lobby must keep leftover Simp CSS');
   } finally {
     globalThis.fetch = nativeFetch;
   }
