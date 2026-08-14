@@ -139,6 +139,9 @@ export function ensureHtmlLang(html) {
     /\blang\s*=/i.test(attrs) ? tag : `<html lang="en"${attrs}>`);
 }
 
+/** Dead .simp-* rules still shipped in proxied Webflow HTML. Home also drops the board mount. */
+const SIMP_LEFTOVER_STYLE_RE = /\.simp-(?:board|row|rank|handle|badges|badge|evidence|open|status|privacy|basis|pts|season|tool-actions|actions|action|tools|tool|me)\b/i;
+
 /** Drop leftover CSS rules whose selectors mention dead board/frame classes. */
 function stripLeftoverStyleRules(html, leftoverRe) {
   return String(html || '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (block) =>
@@ -153,7 +156,7 @@ export function stripHomeSimpBoard(html) {
   out = out.replace(/<(section|div)\b[^>]*\bid=["']simp["'][^>]*>[\s\S]*?<\/\1>/i, '');
   out = out.replace(/<div\b[^>]*\bid=["']dasha-simp-board["'][^>]*>[\s\S]*?<\/div>/i, '');
   out = out.replace(/<h2\b[^>]*>\s*Simp board\.\s*<\/h2>/i, '');
-  return stripLeftoverStyleRules(out, /\.simp-(?:board|row|rank|handle|badges|badge|evidence|open|status|privacy|basis|pts|season|tool-actions|actions|action|tools|tool|me)\b/i);
+  return stripLeftoverStyleRules(out, SIMP_LEFTOVER_STYLE_RE);
 }
 
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
@@ -2444,6 +2447,7 @@ async function productEdge(request, url, env) {
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
   if (url.pathname === '/') html = stripHomeSimpBoard(html);
+  else html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
   if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
     html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
   }

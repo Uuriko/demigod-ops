@@ -591,13 +591,67 @@ try {
       assert.match(html, /\.contract\{border:1px solid red\}/, `${host} / must keep unrelated CSS`);
       assert.equal(home.headers.get('x-dasha-edge'), 'html-security');
     }
-    const lobby = await workerModule.default.fetch(new Request('https://www.getdasha.com/lobby'), {});
-    const lobbyHtml = await lobby.text();
-    assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, 'www /lobby must not strip Simp');
-    assert.match(lobbyHtml, /id="dasha-simp-board"/);
-    assert.match(lobbyHtml, /Simp board\./);
-    assert.match(lobbyHtml, /\.simp-board\{/, 'www /lobby must keep Simp CSS');
-    assert.match(lobbyHtml, leftoverSimpCss, 'www /lobby must keep leftover Simp CSS');
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      for (const path of ['/lobby', '/lobby/']) {
+        const lobby = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        const lobbyHtml = await lobby.text();
+        assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/simp-board\.js/, `${host} ${path} must not strip the Simp client`);
+        assert.match(lobbyHtml, /id="dasha-simp-board"/, `${host} ${path} must keep the Simp mount`);
+        assert.match(lobbyHtml, /Simp board\./, `${host} ${path} must keep the Simp board heading`);
+        assert.doesNotMatch(lobbyHtml, leftoverSimpCss, `${host} ${path} must drop leftover Simp CSS`);
+        assert.doesNotMatch(lobbyHtml, /\.simp-board\{/, `${host} ${path} must drop leftover .simp-board CSS`);
+        assert.match(lobbyHtml, /id="token"/, `${host} ${path} must keep #token`);
+        assert.match(lobbyHtml, /:root\{--ink:#070608/, `${host} ${path} must keep :root tokens`);
+        assert.match(lobbyHtml, /\.dasha\{min-height:100vh/, `${host} ${path} must keep .dasha`);
+        assert.match(lobbyHtml, /\.pill\{display:inline-flex/, `${host} ${path} must keep .pill`);
+        assert.match(lobbyHtml, /\.price\{margin:0\}/, `${host} ${path} must keep .price`);
+        assert.match(lobbyHtml, /\.contract\{border:1px solid red\}/, `${host} ${path} must keep .contract`);
+        assert.match(lobbyHtml, /\.spark\{grid-area:spark/, `${host} ${path} must keep .spark`);
+        assert.match(lobbyHtml, /@media\(max-width:480px\)\{\.pill\{padding:0 17px\}\.contract\{padding:24px\}\}/, `${host} ${path} must keep unrelated media queries`);
+      }
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
+  const leftoverLiveSelectors = ['.simp-basis', '.simp-me', '.simp-privacy', '.simp-pts', '.simp-season', '.simp-status'];
+  const lobbyDeadCss = `<!doctype html><html class="w-mod-js"><title>$dasha lobby</title>
+<style>
+:root{--ink:#070608;--paper:#f4eddb}
+.dasha{min-height:100vh;color:var(--paper)}
+.pill{display:inline-flex;min-height:48px}
+.price{margin:0}
+.contract{border:1px solid red}
+.spark{grid-area:spark;height:44px}
+.simp-basis{margin:0}
+.simp-me{padding:14px}
+.simp-privacy{color:rgba(244,237,219,.78)}
+.simp-pts{margin-left:10px}
+.simp-season{font-size:14px}
+.simp-status{margin:0}
+@media(max-width:480px){.pill{padding:0 17px}.contract{padding:24px}}
+</style>
+<section id="token"><h2>$dasha.</h2></section>
+</html>`;
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(lobbyDeadCss, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const path of ['/lobby', '/lobby/']) {
+      const page = await workerModule.default.fetch(new Request(`https://www.getdasha.com${path}`), {});
+      const html = await page.text();
+      for (const sel of leftoverLiveSelectors) {
+        assert.doesNotMatch(html, new RegExp(`${sel.replace('.', '\\.')}\\b`), `www ${path} must drop ${sel}`);
+      }
+      assert.match(html, /:root\{--ink:#070608/, `www ${path} must keep :root tokens`);
+      assert.match(html, /\.dasha\{min-height:100vh/, `www ${path} must keep .dasha`);
+      assert.match(html, /\.pill\{display:inline-flex/, `www ${path} must keep .pill`);
+      assert.match(html, /\.price\{margin:0\}/, `www ${path} must keep .price`);
+      assert.match(html, /\.contract\{border:1px solid red\}/, `www ${path} must keep .contract`);
+      assert.match(html, /\.spark\{grid-area:spark/, `www ${path} must keep .spark`);
+      assert.match(html, /id="token"/, `www ${path} must keep #token`);
+      assert.match(html, /@media\(max-width:480px\)\{\.pill\{padding:0 17px\}\.contract\{padding:24px\}\}/, `www ${path} must keep unrelated media queries`);
+    }
   } finally {
     globalThis.fetch = nativeFetch;
   }
