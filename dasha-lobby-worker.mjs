@@ -2453,8 +2453,20 @@ function isProductHost(host) {
 
 const RETIRED_COMMERCE_PATHS = new Set(['/checkout', '/paypal-checkout', '/order-confirmation']);
 
+async function staticAssetResponse(request, env) {
+  const asset = await env.ASSETS.fetch(request);
+  const headers = new Headers(asset.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  if (asset.ok) headers.set('Cache-Control', 'public, max-age=86400');
+  return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
+}
+
 /** Product hosts (www/apex) serve SEO/howto plus a few footer aliases; everything else goes to Webflow origin. */
 async function productEdge(request, url, env) {
+  if (url.pathname.startsWith('/og/')) {
+    return staticAssetResponse(request, env);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isIconPath(url.pathname)) {
     return faviconResponse(request);
   }
@@ -2664,12 +2676,7 @@ export default {
     }
 
     if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/')) {
-      const asset = await env.ASSETS.fetch(request);
-      const headers = new Headers(asset.headers);
-      headers.set('Access-Control-Allow-Origin', '*');
-      headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
-      if (asset.ok) headers.set('Cache-Control', 'public, max-age=86400');
-      return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
+      return staticAssetResponse(request, env);
     }
 
     if ((url.pathname.startsWith('/simp/') && url.pathname !== '/simp/') || (url.pathname.startsWith('/studio/') && url.pathname !== '/studio/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
