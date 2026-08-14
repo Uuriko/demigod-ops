@@ -168,6 +168,7 @@ function checkExecutionBoundary(name, html, fail) {
   if (/<iframe\b/i.test(html)) fail(`${name} contains an iframe`);
   for (const match of html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
     const tag = match[0], src = match[1];
+    if (name === 'how-to-buy' && src === 'https://plugin.jup.ag/plugin-v1.js') continue;
     if (!src.startsWith('https://lobby.getdasha.com/client/')) fail(`${name} executes an unapproved script: ${src}`);
     if (!/\bintegrity=["']sha384-[A-Za-z0-9+/=]+["']/i.test(tag) || !/\bcrossorigin=["']anonymous["']/i.test(tag)) {
       fail(`${name} has an unpinned cross-origin script: ${src}`);

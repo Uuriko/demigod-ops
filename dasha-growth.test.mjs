@@ -51,7 +51,9 @@ assert.ok(!/thesis card|conviction receipt/i.test(landing), 'home stays culture 
 const howto = read('dasha-how-to-buy.html');
 assert.ok(howto.includes(MINT));
 assert.ok(howto.includes('jup.ag/swap'));
-assert.ok(!/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(howto), 'howto must keep one buy venue');
+assert.ok(!/phantom\.com\/tokens|raydium\.io\/swap/i.test(howto), 'howto regained retired buy venues');
+assert.ok(howto.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A' + MINT), 'howto Phantom deeplink');
+assert.ok(howto.includes('https://pump.fun/coin/' + MINT), 'howto pump.fun coin URL');
 const leanBuySteps = /data-n="01"[\s\S]*?SOL[\s\S]*?data-n="02"[\s\S]*?full mint[\s\S]*?data-n="03"[\s\S]*?Jupiter/i.test(howto);
 const guidedBuySteps = ['01 · Wallet', '02 · Mint', '03 · Quote', '04 · Confirm'].every((step) => howto.includes(step));
 assert.ok(leanBuySteps || guidedBuySteps, 'howto must contain one complete supported buy sequence');

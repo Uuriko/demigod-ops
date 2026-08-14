@@ -1397,6 +1397,16 @@ ${liveHomeFooter}
     assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/dasha">Desk<\/a>/);
     assert.equal((howtoHtml.match(/<footer\b/gi) || []).length, 1, `${host} /how-to-buy must keep one footer`);
     assert.equal((howtoHtml.match(/<nav\b/gi) || []).length, 1, `${host} /how-to-buy must keep its existing nav`);
+    assert.match(howtoHtml, /data-n="01"[\s\S]*?wallet[\s\S]*?SOL/, `${host} /how-to-buy Get SOL must mention wallet and SOL`);
+    assert.ok(howtoHtml.includes('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy must keep the published mint`);
+    assert.doesNotMatch(howtoHtml, /payTo|referralAccount/i, `${host} /how-to-buy must not invent payTo or referralAccount`);
+    assert.ok(howtoHtml.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom deeplink`);
+    assert.ok(howtoHtml.includes('https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Jupiter URL`);
+    assert.ok(howtoHtml.includes('https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy pump.fun URL`);
+    assert.match(howtoHtml, /fixedMint:CA/, `${host} /how-to-buy plugin must lock the published mint`);
+    const howtoCsp = howto.headers.get('content-security-policy') || '';
+    assert.match(howtoCsp, /frame-ancestors 'none'/);
+    assert.doesNotMatch(howtoCsp, /script-src|default-src/, `${host} /how-to-buy CSP must still allow the Jupiter plugin`);
     const chess = await workerModule.default.fetch(new Request(`https://${host}/chess`), {});
     assert.equal(chess.status, 200, `${host} /chess must stay 200`);
     assert.equal(chess.headers.get('x-dasha-edge'), 'chess');

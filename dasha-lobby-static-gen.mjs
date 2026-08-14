@@ -220,6 +220,7 @@ export const HOWTO_HTML = `<!doctype html>
 <meta name="twitter:title" content="How to buy $dasha">
 <meta name="twitter:description" content="SOL → match mint → swap.">
 <meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<script src="https://plugin.jup.ag/plugin-v1.js" data-preload defer></script>
 <style>
 :root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62);--panel:rgba(255,255,255,.04);--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}
@@ -231,12 +232,19 @@ h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spac
 .step{border-top:1px solid var(--line);padding:18px 0;margin:0}
 .step .n{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--acid);font-weight:900}
 .step h2{margin:6px 0 8px;font-size:1.15rem;text-transform:uppercase;letter-spacing:-.02em}
-.step p{margin:0;color:var(--muted)}
+.step p{margin:0 0 10px;color:var(--muted)}
+.step p:last-child{margin-bottom:0}
+.step a{color:var(--acid);font-weight:800}
 .ca{display:block;margin:12px 0;padding:12px;border-radius:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-family:var(--mono);font-size:.85rem;word-break:break-all;user-select:all}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .btn{appearance:none;border:0;min-height:48px;padding:12px 18px;border-radius:999px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}
 .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--paper);box-shadow:3px 3px 0 var(--paper)}
 .btn:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
+#dasha-jup{height:600px;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);overflow:hidden;scroll-margin-top:16px}
+#dasha-jup .btn{margin:16px}
+.doors{margin:14px 0 0;padding:0;list-style:none;color:var(--muted)}
+.doors li{margin:0 0 8px}
+.doors a{color:var(--paper);font-weight:800}
 footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}
 footer a{color:var(--muted)}
 .source{margin:10px 0 0;font-size:13px;color:var(--muted)}.source a{color:var(--acid);font-weight:800}
@@ -251,11 +259,16 @@ footer a{color:var(--muted)}
 
   <h1>How to buy $dasha</h1>
   <p class="lede">SOL → match mint → swap.</p>
-  <article class="step" data-n="01"><div class="n">01</div><h2>Get SOL</h2></article>
+  <article class="step" data-n="01">
+    <div class="n">01</div>
+    <h2>Get SOL</h2>
+    <p>Get a Solana wallet — <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer">Phantom</a> or <a href="https://solflare.com/" target="_blank" rel="noopener noreferrer">Solflare</a>. Buy SOL inside that wallet, or send SOL from an exchange to that wallet. You need SOL to swap.</p>
+  </article>
 
   <article class="step" data-n="02">
     <div class="n">02</div>
     <h2>Match full mint</h2>
+    <p>This is the only $dasha mint. If a site shows a different CA, it is not this token.</p>
     <code class="ca" id="ca">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
     <div class="actions">
       <button type="button" class="btn" id="copy">Copy CA</button>
@@ -266,16 +279,22 @@ footer a{color:var(--muted)}
   <article class="step" data-n="03">
     <div class="n">03</div>
     <h2>Swap</h2>
-    <div class="actions">
-      <a class="btn" id="buy2" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Jupiter</a>
+    <p>Swap SOL for $dasha on this page. Output is locked to the mint above.</p>
+    <div id="dasha-jup">
+      <a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Swap on Jupiter</a>
     </div>
+    <ul class="doors">
+      <li><a target="_blank" rel="noopener noreferrer" href="https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Phantom</a> — opens the in-app swapper</li>
+      <li><a target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Jupiter</a> — in the browser</li>
+      <li><a target="_blank" rel="noopener noreferrer" href="https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">pump.fun</a> — this mint is a pump token</li>
+    </ul>
   </article>
 
   <footer>
     <p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="https://www.getdasha.com/dasha">Desk</a></p>
   </footer>
 </main>
-<div class="buy-sticky" id="buy-sticky" hidden><a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
+<div class="buy-sticky" id="buy-sticky" hidden><a class="btn" href="#dasha-jup">Swap $dasha</a></div>
 <script>
 (function(){
   var CA='53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
@@ -289,6 +308,20 @@ footer a{color:var(--muted)}
   var copyBtn=document.getElementById('copy');
   if(copyBtn){ copyBtn.dataset.label='Copy CA'; copyBtn.addEventListener('click', function(){ copyText(CA, copyBtn); }); }
   var sticky=document.getElementById('buy-sticky');if(sticky&&window.matchMedia&&window.matchMedia('(max-width:560px)').matches)sticky.hidden=false;
+  function bootJup(){
+    if(!window.Jupiter||!window.Jupiter.init) return;
+    window.Jupiter.init({
+      displayMode:'integrated',
+      integratedTargetId:'dasha-jup',
+      formProps:{
+        initialInputMint:'So11111111111111111111111111111111111111112',
+        initialOutputMint:CA,
+        fixedMint:CA
+      }
+    });
+  }
+  if(document.readyState==='complete') bootJup();
+  else if(window.addEventListener) window.addEventListener('load', bootJup);
   window.DashaHowToBuy={ CA:CA, BUY:BUY };
 })();
 </script>
@@ -485,4 +518,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "40817d40636b5312";
+export const ASSET_HASH = "b7dd9111ac226b93";
