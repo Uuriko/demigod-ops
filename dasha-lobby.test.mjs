@@ -268,7 +268,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
     if (method === 'HEAD') {
       assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
     } else {
-      assert.match(body, /<title>/);
+      assert.match(body, /<title>Page not found — \$dasha<\/title>/);
       assert.match(body, /Dasha|\$dasha/);
       assert.notEqual(body, '{"error":"not found"}');
       assert.doesNotMatch(body, /no forum yet/i);
@@ -309,8 +309,9 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
         const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
         assert.equal(page.status, 404, `${host}${path} must stay 404`);
         assert.match(page.headers.get('content-type') || '', /text\/html/);
+        assert.equal(page.headers.get('x-dasha-edge'), 'html-404');
         const html = await page.text();
-        assert.match(html, /<title>/);
+        assert.match(html, /<title>Page not found — \$dasha<\/title>/);
         assert.match(html, /Dasha|\$dasha/);
         assert.doesNotMatch(html, /webflow-https-errors/);
         assert.doesNotMatch(html, /<title>404 - Page not found<\/title>/);
@@ -354,6 +355,54 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
     assert.equal(deskPassedThrough, true, 'www /desk must remain a Webflow pass-through');
     assert.equal(desk.status, 404, 'www /desk must not become a worker-owned desk');
     assert.notEqual(desk.headers.get('x-dasha-edge'), 'privacy');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+}
+{
+  const iconPaths = [
+    '/favicon.ico',
+    '/favicon.svg',
+    '/favicon.png',
+    '/apple-touch-icon',
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+  ];
+  const nativeFetch = globalThis.fetch;
+  let originHits = 0;
+  try {
+    globalThis.fetch = async () => {
+      originHits += 1;
+      return new Response('<!doctype html><html><title>Page not found — $dasha</title></html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    };
+    for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
+      for (const path of iconPaths) {
+        const res = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(res.status, 200, `${host}${path} must serve the existing mark`);
+        const ct = res.headers.get('content-type') || '';
+        assert.doesNotMatch(ct, /text\/html/, `${host}${path} must not be HTML`);
+        assert.notEqual(res.headers.get('x-dasha-edge'), 'html-404', `${host}${path} must not use html-404`);
+        const body = await res.text();
+        assert.notEqual(body, '', `${host}${path} 200 body must not be empty`);
+        assert.doesNotMatch(body, /<!doctype html>/i, `${host}${path} must not be branded HTML 404`);
+        assert.doesNotMatch(body, /Page not found — \$dasha/);
+        if (ct.includes('image/svg+xml')) {
+          assert.match(body, /viewBox="0 0 64 64"/);
+          assert.match(body, /fill="#070608"/);
+          assert.match(body, /#dfff00/);
+          assert.match(body, /r="14"/);
+          assert.match(body, /r="12"/);
+        }
+      }
+      const head = await workerModule.default.fetch(new Request(`https://${host}/favicon.ico`, { method: 'HEAD' }), {});
+      assert.equal(head.status, 200, `${host}/favicon.ico HEAD must match GET status`);
+      assert.doesNotMatch(head.headers.get('content-type') || '', /text\/html/);
+      assert.equal(await head.text(), '', `${host}/favicon.ico HEAD must return an empty body`);
+    }
+    assert.equal(originHits, 0, 'icon paths must not pass through to Webflow origin');
   } finally {
     globalThis.fetch = nativeFetch;
   }
