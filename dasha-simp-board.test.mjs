@@ -175,6 +175,8 @@ assert(actions.includes('{32,44}') && actions.includes('{64,88}'), 'wallet proof
 assert(/AbortSignal\.timeout\((?:[1-7]\d{3}|8000)\)/.test(worker), 'Solana RPC check must be time-bounded');
 assert(worker.includes("Solana holder check unavailable — try again") && worker.includes('503'), 'RPC failure must fail closed without becoming an internal error');
 assert(client.includes('Holder checked ') && score.includes('holderCheckedAt'), 'holder badge must disclose proof time');
+assert(client.includes('Holder verified. Access open for 24h.'), 'holder success must disclose the 24h session');
+assert(!/access is immediate/i.test(client), 'holder success must not claim immediate/no-expiry access');
 assert(!/<nav[^>]*>[\s\S]*?(?:Simp|Leaderboard)[\s\S]*?<\/nav>/i.test(landing), 'board expanded main nav');
 assert(!/href="\/simp/.test(landing), 'landing must not invent a public /simp page route');
 

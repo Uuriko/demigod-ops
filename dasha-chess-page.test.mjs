@@ -10,6 +10,9 @@ assert.match(source, /https:\/\/lobby\.getdasha\.com/);
 assert.doesNotMatch(source, /chess\.com|lichess|iframe|<script\s+src=/i, 'chess must be first-party');
 assert.match(source, /One signature\. No transaction\. 24h access\./);
 assert.match(source, /Holder verified\. Access open for 24h\./);
+const simpClient = await readFile(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');
+assert.match(simpClient, /Holder verified\. Access open for 24h\./, 'simp holderBtn must match chess 24h holder session');
+assert.doesNotMatch(source + simpClient, /access is immediate/i, 'chess and simp must not contradict the 24h holder session');
 assert.match(source, /id="tournament"/);
 assert.match(source, /id="tournament"><h2>Play<\/h2>/, 'challenge and tournament surface needs one truthful heading');
 /* Inviting one named person must be offered from "Ready to play", not only from inside matchmaking.

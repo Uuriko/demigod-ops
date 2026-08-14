@@ -1552,7 +1552,7 @@
             return fetchJson(base + '/simp/wallet/verify', { method: 'POST', credentials: 'include', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ challenge: challenge.challenge, publicKey: pair.publicKey, signature: base58(signature) }) });
           });
         })
-        .then(function (res) { holderBtn.disabled = false; if (!res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'holder proof failed'); setStatus('Holder verified — access is immediate', 'ok'); return refresh(); })
+        .then(function (res) { holderBtn.disabled = false; if (!res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'holder proof failed'); setStatus('Holder verified. Access open for 24h.', 'ok'); return refresh(); })
         .catch(function (err) { holderBtn.disabled = false; setStatus(String(err.message || err).slice(0, 100), 'bad'); });
     });
 
