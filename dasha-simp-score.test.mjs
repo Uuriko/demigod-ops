@@ -35,6 +35,11 @@ import {
   questionForAttempt,
   answerQuizAttempt,
   quizTitle,
+  quizResultCopy,
+  quizShareText,
+  QUIZ_VERSION,
+  QUIZ_TITLES,
+  QUIZ_DISCLAIMER,
   submitQuiz,
 } from './dasha-simp-score.mjs';
 
@@ -90,6 +95,11 @@ assert.equal(typeof quizDone.quiz.vibe, 'number');
 assert.ok(Math.abs(quizDone.quiz.vibe) <= 8, 'vibe must stay in ±8');
 assert.equal(quizDone.quiz.points, quizDone.quiz.basePoints);
 assert.equal(quizDone.quiz.lane, QUIZ_LANES[0]);
+assert.equal(quizDone.quiz.title, 'Dasha scholar');
+assert.match(quizDone.quiz.copy, /personality|tape/i);
+assert.doesNotMatch(quizDone.quiz.shareText, /\d+\/\d+/);
+assert.match(quizDone.quiz.shareText, /Dasha scholar · Cinema obsessive/);
+assert.match(quizDone.quiz.shareText, /Association is not endorsement/);
 assert.equal(scoreProfile(quizDone.profile, { now }).components.quiz, quizDone.quiz.points);
 // Same answers, different vibe → same rank points; vibe remains cosmetic.
 const swingA = submitQuiz({}, { xId: 'v1', handle: 'va' }, attempt, { now: now + 10, rng: () => 0.01 });
@@ -136,8 +146,15 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
   );
 }
 assert.equal(new Set(routeFirstQuestions).size, QUIZ_LANES.length, 'the opening answer must select distinct branches');
-const thematicIds = ['materialistsdays', 'wobbleweekend', 'videostore', 'horrorpair', 'dunkinprice', 'yaleclaim', 'chesstreak', 'eyebrows', 'episode400', 'mjvibe', 'sailoryear', 'sailorlook', 'sailorline', 'birthcity', 'parents', 'artschool', 'college', 'studies', 'klaasje'];
+assert.deepEqual(routeFirstQuestions, ['debut', 'cohost', 'sailoryear'], 'first scored item per lane must be warm culture');
+for (const id of routeFirstQuestions) {
+  const prompt = QUIZ_QUESTIONS.find(question => question.id === id).prompt;
+  assert.doesNotMatch(prompt, /\b(2016|2018|2020|\$\d)/, `${id} must not open on a year or price`);
+}
+const thematicIds = ['debut', 'videostore', 'comfrey', 'apartment', 'horrorpair', 'festival', 'cohost', 'meansong', 'dimesscene', 'tone', 'sailoryear', 'klaasje', 'sailorlook', 'sailorline', 'birthcity', 'vegas', 'boards', 'account'];
 for (const id of thematicIds) assert(QUIZ_QUESTIONS.some(question => question.id === id), `missing thematic question ${id}`);
+const cutIds = ['dunkinprice', 'materialistsdays', 'chesstreak', 'episode400', 'eyebrows', 'mjvibe', 'wobbleweekend', 'softnessrole', 'wobblecharacter', 'materialistsrole', 'latehost', 'comfrylore', 'feed', 'headline', 'yaleclaim', 'yaleargument', 'comfry'];
+for (const id of cutIds) assert(!QUIZ_QUESTIONS.some(question => question.id === id), `cut question ${id} must not remain in the bank`);
 const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note]).concat(
   Object.values(QUIZ_SURPRISES).flatMap(surprise => [surprise.title, surprise.body]),
 ).join(' ');
@@ -172,13 +189,19 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
   assert.equal(pub.quickTotal, QUIZ_QUICK_LENGTH);
   assert.deepEqual(pub.modes, ['quick', 'deep']);
   const quickSession = { xId: 'quick-1', handle: 'quicksimp' };
+  const bannedQuick = /dunkin|\$3\.40|700 games|Letterman|chess|shoot days|Wobble|eyebrows|Yale/i;
   for (let route = 0; route < QUIZ_LANES.length; route++) {
     let qrun = answerQuizAttempt(startQuizAttempt({ now, mode: 'quick' }), route, { now });
     assert.equal(qrun.attempt.mode, 'quick');
     assert.equal(qrun.attempt.total, QUIZ_QUICK_LENGTH);
     assert.equal(questionForAttempt(qrun.attempt).progress.total, QUIZ_QUICK_LENGTH);
+    const seen = new Set();
+    const firstScored = qrun.question.id;
     while (!qrun.done) {
       const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === qrun.question.id);
+      seen.add(privateQuestion.id);
+      const text = [privateQuestion.prompt, ...privateQuestion.choices, privateQuestion.note].join(' ');
+      assert.doesNotMatch(text, bannedQuick, `quick path asked banned lore: ${privateQuestion.id}`);
       // After lane-3 the path must already be on shared (no cinema/podcast/lore-4+).
       if (/^(cinema|podcast|lore)-[4-9]$/.test(qrun.question.id)) {
         assert.fail(`quick path must not reach deep-only id ${qrun.question.id}`);
@@ -187,6 +210,8 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
     }
     assert.equal(qrun.attempt.position, QUIZ_QUICK_LENGTH);
     assert.equal(qrun.attempt.mode, 'quick');
+    assert.ok(seen.has('account'), `quick route ${route} must include @dash_eats`);
+    assert.ok(!['debut', 'cohost', 'sailoryear'].includes(firstScored) || !/\b(2018|2016|2020|\$)\b/.test(QUIZ_QUESTIONS.find(q => q.id === firstScored).prompt), `first scored ${firstScored} should be warm culture`);
     const qDone = submitQuiz({}, { ...quickSession, xId: `quick-${route}` }, qrun.attempt, {
       now: now + route,
       rng: flatRng,
@@ -195,6 +220,9 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
     assert.equal(qDone.quiz.mode, 'quick');
     assert.equal(qDone.quiz.total, QUIZ_QUICK_LENGTH - 1);
     assert.equal(qDone.quiz.correct, QUIZ_QUICK_LENGTH - 1);
+    assert.doesNotMatch(qDone.quiz.shareText, /\d+\/\d+/);
+    assert.match(qDone.quiz.shareText, new RegExp(qDone.quiz.title));
+    assert.match(qDone.quiz.copy, /A type, not a score/);
   }
   // Default start is deep (board).
   const deepDefault = startQuizAttempt({ now });
@@ -215,7 +243,18 @@ assert.equal(quizTitle(19, 19), 'Dasha scholar');
 assert.equal(quizTitle(16, 19), 'Confirmed simp');
 assert.equal(quizTitle(12, 19), 'Deep in the lore');
 assert.equal(quizTitle(8, 19), 'Watching respectfully');
-assert.equal(quizTitle(7, 19), 'Dasha curious');
+assert.equal(quizTitle(7, 19), 'Still loading');
+assert.deepEqual(QUIZ_TITLES, ['Dasha scholar', 'Confirmed simp', 'Deep in the lore', 'Watching respectfully', 'Still loading']);
+assert.equal(QUIZ_VERSION, 'dasha-simp-quiz/v8');
+assert.doesNotMatch(QUIZ_TITLES.join(' '), /Dasha curious/);
+assert.match(publicQuizCopy, /Comfrey/);
+assert.doesNotMatch(publicQuizCopy, /Comfry|Dasha curious|Letterman|Dunkin|\$3\.40|Wobble Palace|eyebrows/i);
+assert.match(quizShareText({ title: 'Confirmed simp', lane: QUIZ_LANES[0] }), /Confirmed simp · Cinema obsessive/);
+assert.doesNotMatch(quizShareText({ title: 'Confirmed simp', lane: QUIZ_LANES[0] }), /\d+\/\d+/);
+assert.match(quizShareText({ title: 'Still loading', lane: QUIZ_LANES[2] }), new RegExp(QUIZ_DISCLAIMER));
+const stillCopy = quizResultCopy('Still loading', QUIZ_LANES[1]);
+assert.ok(stillCopy.split(/(?<=[.!])\s+/).filter(Boolean).length >= 2, 'result copy must be 2–3 sentences');
+assert.doesNotMatch(stillCopy, /\d+\/\d+|Dasha curious/);
 
 // --- creative cap 100 / 28d ---
 const creativeAwards = [];

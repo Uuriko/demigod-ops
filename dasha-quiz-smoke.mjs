@@ -19,6 +19,8 @@ import {
   questionForAttempt,
   quizResultForAttempt,
   quizPublic,
+  quizTitle,
+  quizShareText,
 } from './dasha-simp-score.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -68,16 +70,27 @@ if (disk) {
   ok('quizPublic version', pub.version === QUIZ_VERSION);
   ok('quizPublic no answers', !JSON.stringify(pub).includes('"answer"'));
   ok('modes', Array.isArray(pub.modes) && pub.modes.includes('quick') && pub.modes.includes('deep'));
+  ok('floor title', quizTitle(0, 9) === 'Still loading' && quizTitle(7, 19) === 'Still loading');
+  ok('no curious title', !QUIZ_QUESTIONS.some((q) => /Dasha curious/.test(q.prompt + q.note)) && quizTitle(1, 9) !== 'Dasha curious');
+  ok('share is identity', !/\d+\/\d+/.test(quizShareText({ title: 'Confirmed simp', lane: QUIZ_LANES[0] })));
   for (const mode of ['quick', 'deep']) walk(mode);
   for (let lane = 0; lane < QUIZ_LANES.length; lane++) {
     let step = answerQuizAttempt(startQuizAttempt({ now, mode: 'quick' }), lane, { now });
     let attempt = step.attempt;
+    const seen = new Set();
     while (!step.done) {
       const privateQ = QUIZ_QUESTIONS.find((q) => q.id === step.question.id);
+      seen.add(privateQ.id);
+      const blob = [privateQ.prompt, ...privateQ.choices, privateQ.note].join(' ');
+      if (/dunkin|Letterman|\$3\.40|700 games|Wobble|Comfry/i.test(blob)) {
+        ok(`quick lane ${lane} banned lore`, false, privateQ.id);
+      }
       step = answerQuizAttempt(attempt, privateQ.answer, { now });
       attempt = step.attempt;
     }
     ok(`quick lane ${lane}`, attempt.position === QUIZ_QUICK_LENGTH);
+    ok(`quick lane ${lane} account`, seen.has('account'));
+    ok(`quick lane ${lane} comfrey spelling`, ![...seen].some((id) => id === 'comfry'));
   }
   const first = questionForAttempt(startQuizAttempt({ now }));
   ok('default deep', first.progress.total === QUIZ_PATH_LENGTH);
