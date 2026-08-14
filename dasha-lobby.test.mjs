@@ -20,6 +20,9 @@ assert(!landing.includes('On-site, not Discord'), 'removed Lobby framing returne
 assert(!/(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|association is not endorsement|no price promises|old coin and Im not the dev|high risk|rugcheck|never trust|lose (?:your )?money|lose it all|worthless|dead coin/i.test(landing), 'negative coin disclaimer returned');
 assert(!landing.includes('Public lobby.</h2>'), 'removed Lobby title returned');
 assert(page.includes('lobby.getdasha.com/client/lobby.js'), 'dedicated page must load lobby client');
+assert.match(page, /<a class="brand" href="https:\/\/www\.getdasha\.com\/">\$<span>DASHA<\/span><\/a>/, 'lobby brand must leave the JSON health root');
+assert.match(page, /<a class="back" href="https:\/\/www\.getdasha\.com\/">← Home<\/a>/, 'lobby Home must leave the JSON health root');
+assert.doesNotMatch(page, /class="(?:brand|back)" href="\/"/, 'lobby navigation must not mislabel the lobby service root as Home');
 assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
 assert(landing.includes('href="/lobby"'), 'landing discovery link to lobby missing');
 assert(!/lobby-copy-(?:mint|line)|Copy mint|Copy line/.test(client), 'Lobby copy controls returned');
@@ -251,12 +254,16 @@ for (const path of ['/forum', '/forum/']) {
   }
 }
 {
-  const lobbyRoot = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/'), {});
-  assert.equal(lobbyRoot.status, 200);
-  assert.match(lobbyRoot.headers.get('content-type') || '', /application\/json/);
-  const lobbyRootBody = await lobbyRoot.json();
-  assert.equal(lobbyRootBody.ok, true);
-  assert.equal(lobbyRootBody.service, 'dasha-lobby');
+  for (const headers of [{}, { Accept: 'text/html' }]) {
+    const lobbyRoot = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/', { headers }), {});
+    assert.equal(lobbyRoot.status, 200, `lobby GET / must stay JSON health${headers.Accept ? ' even with Accept: text/html' : ''}`);
+    assert.match(lobbyRoot.headers.get('content-type') || '', /application\/json/);
+    assert.notEqual(lobbyRoot.status, 302);
+    assert.equal(lobbyRoot.headers.get('location'), null);
+    const lobbyRootBody = await lobbyRoot.json();
+    assert.equal(lobbyRootBody.ok, true);
+    assert.equal(lobbyRootBody.service, 'dasha-lobby');
+  }
 }
 for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/', '/studio/', '/simp/', '/studio', '/simp']) {
   for (const method of ['GET', 'HEAD']) {
@@ -270,6 +277,7 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/', '/st
     } else {
       assert.match(body, /<title>Page not found — \$dasha<\/title>/);
       assert.match(body, /This path is not a Dasha page\./);
+      assert.match(body, /<a href="https:\/\/www\.getdasha\.com\/">Back to Dasha<\/a>/);
       assert.match(body, /Dasha|\$dasha/);
       assert.notEqual(body, '{"error":"not found"}');
       assert.doesNotMatch(body, /no forum yet/i);
@@ -874,7 +882,7 @@ ${liveHomeFooter}
   assert.match(deskLinked, /href="\/studio"/);
   assert.equal(ensurePrivacyLink(deskLinked), deskLinked);
   assert.equal(ensurePrivacyLink('<html><title>x</title></html>'), '<html><title>x</title></html>', 'no footer/nav needle must not invent chrome');
-  const liveHowtoFooter = '<footer>\n    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>\n  </footer>';
+  const liveHowtoFooter = '<footer>\n    <p><a href="https://www.getdasha.com/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>\n  </footer>';
   const howtoLinked = ensurePrivacyLink(liveHowtoFooter);
   assert.match(howtoLinked, /Desk<\/a> · <a href="\/privacy">Privacy<\/a><\/p>/);
   assert.equal([...howtoLinked.matchAll(/href=["']\/privacy["']/g)].length, 1);
@@ -893,7 +901,9 @@ ${liveHomeFooter}
     const howtoHtml = await howto.text();
     assert.equal([...howtoHtml.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} /how-to-buy must have one Privacy link`);
     assert.match(howtoHtml, />Privacy</);
-    assert.match(howtoHtml, /<a href="\/">Home<\/a>/);
+    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
+    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">Home<\/a>/);
+    assert.doesNotMatch(howtoHtml, /href="\/">(?:\$dasha|Home)</);
     assert.match(howtoHtml, /<a href="\/studio">Studio<\/a>/);
     assert.match(howtoHtml, /<a href="https:\/\/lobby\.getdasha\.com\/chess">Chess<\/a>/);
     assert.match(howtoHtml, /<a href="\/dasha">Desk<\/a>/);
@@ -905,20 +915,22 @@ ${liveHomeFooter}
     const chessHtml = await chess.text();
     assert.equal([...chessHtml.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} /chess must have one Privacy link`);
     assert.match(chessHtml, />Privacy</);
+    assert.match(chessHtml, /<a class="brand" href="https:\/\/www\.getdasha\.com\/" aria-label="Dasha home">/);
     assert.match(chessHtml, /<a class="back" href="https:\/\/www\.getdasha\.com\/">Home<\/a>/);
+    assert.doesNotMatch(chessHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(chessHtml, /id="buy-dasha"/);
     assert.match(chessHtml, /Buy \$dasha ↗/);
     assert.match(chessHtml, /<p class="privacy">Wallet address and balance are checked for access, then discarded\. Ratings belong to linked X identities\.<\/p>/);
     assert.doesNotMatch(chessHtml, /<footer\b/i, `${host} /chess must not invent a footer`);
     assert.equal((chessHtml.match(/<nav\b/gi) || []).length, 1, `${host} /chess must keep its existing nav`);
   }
-  const liveLobbyNav = '<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="/">$<span>DASHA</span></a><a class="back" href="/">← Home</a></nav>';
+  const liveLobbyNav = '<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="https://www.getdasha.com/">$<span>DASHA</span></a><a class="back" href="https://www.getdasha.com/">← Home</a></nav>';
   const lobbyLinked = ensurePrivacyLink(liveLobbyNav);
   assert.match(lobbyLinked, />Privacy</);
   assert.match(lobbyLinked, /href="\/privacy"/);
   assert.equal([...lobbyLinked.matchAll(/href=["']\/privacy["']/g)].length, 1);
-  assert.match(lobbyLinked, /<a class="brand" href="\/">\$<span>DASHA<\/span><\/a>/);
-  assert.match(lobbyLinked, /<a class="back" href="\/">← Home<\/a>/);
+  assert.match(lobbyLinked, /<a class="brand" href="https:\/\/www\.getdasha\.com\/">\$<span>DASHA<\/span><\/a>/);
+  assert.match(lobbyLinked, /<a class="back" href="https:\/\/www\.getdasha\.com\/">← Home<\/a>/);
   assert.doesNotMatch(lobbyLinked, /<footer/i, 'lobby nav inject must not invent a footer');
   assert.equal(ensurePrivacyLink(lobbyLinked), lobbyLinked, 'lobby nav Privacy inject must be idempotent');
   for (const path of ['/lobby', '/lobby/']) {
@@ -929,8 +941,9 @@ ${liveHomeFooter}
     assert.equal([...lobbyHtml.matchAll(/href=["']\/privacy["']/g)].length, 1, `lobby ${path} must have one Privacy link`);
     assert.equal((lobbyHtml.match(/>Privacy</g) || []).length, 1, `lobby ${path} must show Privacy once`);
     assert.match(lobbyHtml, /aria-label="Lobby navigation"/);
-    assert.match(lobbyHtml, /<a class="brand" href="\/">\$<span>DASHA<\/span><\/a>/);
-    assert.match(lobbyHtml, /<a class="back" href="\/">← Home<\/a>/);
+    assert.match(lobbyHtml, /<a class="brand" href="https:\/\/www\.getdasha\.com\/">\$<span>DASHA<\/span><\/a>/);
+    assert.match(lobbyHtml, /<a class="back" href="https:\/\/www\.getdasha\.com\/">← Home<\/a>/);
+    assert.doesNotMatch(lobbyHtml, /class="(?:brand|back)" href="\/"/);
     assert.doesNotMatch(lobbyHtml, /<footer\b/i, `lobby ${path} must not invent a footer`);
     assert.match(lobbyHtml, /--ink:#070608/);
     assert.match(lobbyHtml, /--paper:#f4eddb/);
