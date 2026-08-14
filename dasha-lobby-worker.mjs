@@ -45,11 +45,13 @@ import {
   verifyPayload,
 } from './dasha-lobby-x.mjs';
 import {
+  SCHEMA,
   buildPublicBoard,
   joinBoard,
   leaveBoard,
   meStatus,
   PUBLIC_BOARD_LIMIT,
+  publicPerryRow,
   quizPublic,
   startQuizAttempt,
   questionForAttempt,
@@ -492,6 +494,76 @@ function htmlPage(title, body) {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
 <style>body{font:16px/1.45 system-ui;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
 <body>${body}</body></html>`;
+}
+
+const SIMP_WWW = 'https://www.getdasha.com/simp';
+const SIMP_RULES_LINE = 'PerryALPHA founding #1 is editorial and non-measured.';
+const SIMP_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
+
+function isExactPath(pathname, base) {
+  return pathname === base || pathname === `${base}/`;
+}
+
+function measuredBoardItems(measured) {
+  const items = [];
+  for (const row of Array.isArray(measured) ? measured : []) {
+    const handle = String(row?.handle || '').replace(/^@/, '');
+    if (!SIMP_HANDLE_RE.test(handle)) continue;
+    const display = escapeHtml(String(row.display || `@${handle}`).slice(0, 20));
+    const rank = Number(row.rank);
+    const label = Number.isFinite(rank) && rank > 0 ? `#${rank} ${display}` : display;
+    items.push(`<li><a href="https://x.com/${handle}">${label}</a></li>`);
+  }
+  return items;
+}
+
+/** Worker-owned first HTML for www /simp. Tokens only. No leftover .simp-* chrome. */
+export function simpPageHtml(board) {
+  const data = board?.schema === SCHEMA ? board : buildPublicBoard([]);
+  const perry = data.editorial?.[0] && data.editorial[0].measured === false ? data.editorial[0] : publicPerryRow();
+  const perryDisplay = escapeHtml(String(perry.display || '@PerryALPHA').slice(0, 20));
+  const items = measuredBoardItems(data.measured);
+  const boardBody = items.length
+    ? `<ol class="dasha-board">${items.join('')}</ol>`
+    : '<p class="dasha-board">No measured simps yet.</p>';
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}.dasha-board{margin:1rem 0}.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}</style>
+<body>
+<h1>Simp</h1>
+<p>${SIMP_RULES_LINE}</p>
+<p>${perryDisplay} · editorial #1 · not measured</p>
+${boardBody}
+<div class="dasha-quiz"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div>
+<p><a href="https://www.getdasha.com/">Back to Dasha</a> · <a href="/privacy">Privacy</a></p>
+</body></html>`;
+}
+
+async function loadPublicSimpBoard(env) {
+  try {
+    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
+    if (!stub) return buildPublicBoard([]);
+    const res = await stub.fetch(new Request('https://lobby.getdasha.com/simp/board'));
+    if (!res.ok) return buildPublicBoard([]);
+    const board = await res.json();
+    return board?.schema === SCHEMA && Array.isArray(board.measured) ? board : buildPublicBoard([]);
+  } catch {
+    return buildPublicBoard([]);
+  }
+}
+
+async function simpPageResponse(request, env) {
+  return new Response(request.method === 'HEAD' ? null : simpPageHtml(await loadPublicSimpBoard(env)), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'simp',
+    }),
+  });
+}
+
+function simpHoldResponse(origin) {
+  return json({ configured: false, error: 'not_configured' }, 501, origin);
 }
 
 const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
@@ -1062,6 +1134,10 @@ export class DashaLobby {
       const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
       const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
       return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
+    }
+
+    if (path === '/simp/hold') {
+      return simpHoldResponse(allowedOrigin);
     }
 
     if (path === '/simp/board' && request.method === 'GET') {
@@ -2521,6 +2597,15 @@ async function productEdge(request, url, env) {
       }),
     });
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
+    return simpPageResponse(request, env);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
+    return Response.redirect(SIMP_WWW, 308);
+  }
+  if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
+    return simpHoldResponse(request.headers.get('Origin'));
+  }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
     (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
@@ -2677,6 +2762,13 @@ export default {
 
     if (url.pathname.startsWith('/simp/photo/') || url.pathname.startsWith('/simp/card/') || url.pathname.startsWith('/og/')) {
       return staticAssetResponse(request, env);
+    }
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
+      return Response.redirect(SIMP_WWW, 308);
+    }
+    if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
+      return simpHoldResponse(allowedOrigin);
     }
 
     if ((url.pathname.startsWith('/simp/') && url.pathname !== '/simp/') || (url.pathname.startsWith('/studio/') && url.pathname !== '/studio/') || (url.pathname.startsWith('/chess/') && url.pathname !== '/chess/')) {
