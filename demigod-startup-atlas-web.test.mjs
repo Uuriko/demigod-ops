@@ -90,6 +90,21 @@ test('CC0 company layer dedupes Wikidata IDs and keeps only city-level factual f
   assert.doesNotMatch(JSON.stringify(companies), /address|owner|email|phone|coordinates/i);
 });
 
+test('broad sweep drops curated non-tech businesses; evidence-backed tags keep them', () => {
+  const binding = (qid, name) => ({
+    company: { value: `http://www.wikidata.org/entity/${qid}` },
+    companyLabel: { value: name },
+  });
+  const broadOnly = buildWikidataCompanies([
+    { body: { results: { bindings: [binding('Q4733679', 'Almanac Beer Company'), binding('Q123', 'Tech Co')] } }, tag: 'wikidata-sf-tech' },
+  ]);
+  assert.deepEqual(broadOnly.map((c) => c.id), ['wd:Q123'], 'brewery must not enter via the broad sweep');
+  const evidenced = buildWikidataCompanies([
+    { body: { results: { bindings: [binding('Q4733679', 'Almanac Beer Company')] } }, tag: 'wikidata-startup' },
+  ]);
+  assert.equal(evidenced.length, 1, 'exclusion is scoped to the broad tag only');
+});
+
 test('public map rejects named companies without CC0 evidence', () => {
   assert.throws(() => buildPublicStartupMap({
     counts: [],

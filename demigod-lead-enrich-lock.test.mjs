@@ -35,7 +35,9 @@ test('two live enrich CLIs spend through only one paid run', async () => {
       talent: [],
     })}\n`, { mode: 0o600 });
     const firecrawl = path.join(stubDir, 'firecrawl');
-    fs.writeFileSync(firecrawl, `#!/usr/bin/env node
+    // Pin the running node: `env node` may resolve a $HOME-dependent wrapper, and this
+    // child runs with HOME=tmp, where the fallback is system node v18 (no ESM detection).
+    fs.writeFileSync(firecrawl, `#!${process.execPath}
 import fs from 'node:fs';
 const out = process.argv[process.argv.indexOf('-o') + 1];
 fs.appendFileSync(process.env.FIRECRAWL_STUB_CALLS, process.pid + '\\n');

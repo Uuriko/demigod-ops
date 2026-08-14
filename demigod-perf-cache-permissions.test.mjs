@@ -10,9 +10,14 @@ test('writeJsonAuto makes private receipts owner-only', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-perf-perms-'));
   const file = path.join(root, 'receipt.json');
   const previousBusy = process.env.DG_BUSY;
+  const previousDemigodBusy = process.env.DEMIGOD_BUSY;
+  // Ambient DEMIGOD_BUSY (agent sessions export it) outranks the legacy DG_BUSY under test.
+  delete process.env.DEMIGOD_BUSY;
   t.after(() => {
     if (previousBusy === undefined) delete process.env.DG_BUSY;
     else process.env.DG_BUSY = previousBusy;
+    if (previousDemigodBusy === undefined) delete process.env.DEMIGOD_BUSY;
+    else process.env.DEMIGOD_BUSY = previousDemigodBusy;
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -38,9 +43,13 @@ test('writeJsonAuto makes private receipts owner-only', async (t) => {
 test('cache entries never outlive the caller freshness limit', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dg-perf-ttl-'));
   const previousBusy = process.env.DG_BUSY;
+  const previousDemigodBusy = process.env.DEMIGOD_BUSY;
+  delete process.env.DEMIGOD_BUSY;
   t.after(() => {
     if (previousBusy === undefined) delete process.env.DG_BUSY;
     else process.env.DG_BUSY = previousBusy;
+    if (previousDemigodBusy === undefined) delete process.env.DEMIGOD_BUSY;
+    else process.env.DEMIGOD_BUSY = previousDemigodBusy;
     fs.rmSync(root, { recursive: true, force: true });
   });
 

@@ -348,6 +348,11 @@ export function mergeNamedCompanies(primary = [], secondary = []) {
   return out.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
+// BROAD_QUERY matches generic SF company types, so a plainly non-tech business can arrive
+// tagged 'wikidata-sf-tech'. Curated fail-closed exclusions by exact QID, public facts only:
+// Q4733679 Almanac Beer Company — a brewery (almanacbeer.com), not a tech startup.
+const NON_TECH_BROAD_QIDS = new Set(['Q4733679']);
+
 export function buildWikidataCompanies(groups = [], retrievedAt = new Date().toISOString()) {
   const companies = new Map();
   for (const { body, tag } of groups) {
@@ -356,6 +361,7 @@ export function buildWikidataCompanies(groups = [], retrievedAt = new Date().toI
       const qid = /^http:\/\/www\.wikidata\.org\/entity\/(Q[1-9]\d*)$/.exec(String(row?.company?.value || ''))?.[1];
       const name = String(row?.companyLabel?.value || '').trim().slice(0, 160);
       if (!qid || !name || name === qid) continue;
+      if (tag === 'wikidata-sf-tech' && NON_TECH_BROAD_QIDS.has(qid)) continue;
       const current = companies.get(qid) || {
         id: `wd:${qid}`,
         name,

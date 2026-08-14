@@ -25,3 +25,27 @@ test('systemd accepts both units', () => {
   const run = spawnSync('systemd-analyze', ['--user', 'verify', fileURLToPath(serviceUrl), fileURLToPath(timerUrl)], { encoding: 'utf8' });
   assert.equal(run.status, 0, run.stderr || run.stdout);
 });
+
+// NOW-01: "built" is not "running" — the installed timers must be enabled, active,
+// and byte-identical to the repo units, or the daily observation silently stops.
+const INSTALLED = ['demigod-role-ledger', 'demigod-roles-pipeline'];
+
+test('NOW-01 timers are installed, enabled, and active', () => {
+  for (const name of INSTALLED) {
+    for (const [verb, want] of [['is-enabled', 'enabled'], ['is-active', 'active']]) {
+      const run = spawnSync('systemctl', ['--user', verb, `${name}.timer`], { encoding: 'utf8' });
+      assert.equal(run.stdout.trim(), want, `${name}.timer ${verb}: ${run.stdout.trim() || run.stderr.trim()}`);
+    }
+  }
+});
+
+test('installed unit copies match the repo units', () => {
+  const home = process.env.HOME;
+  for (const name of INSTALLED) {
+    for (const ext of ['service', 'timer']) {
+      const repo = fs.readFileSync(new URL(`./systemd-user/${name}.${ext}`, import.meta.url), 'utf8');
+      const installed = fs.readFileSync(`${home}/.config/systemd/user/${name}.${ext}`, 'utf8');
+      assert.equal(installed, repo, `${name}.${ext} installed copy drifted from repo`);
+    }
+  }
+});

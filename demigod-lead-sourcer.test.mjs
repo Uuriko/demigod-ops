@@ -9,9 +9,11 @@ import { assertExportValid, buildExport } from './demigod-recruitai-export.mjs';
 
 const childEnv = { ...process.env };
 delete childEnv.NODE_TEST_CONTEXT;
-// Strip leaked scopes (submissions-lib sets DEMIGOD_TEST_SCOPE ||= pid under node --test).
-delete childEnv.DEMIGOD_TEST_SCOPE;
-delete childEnv.DEMIGOD_RECRUITAI_EXPORT;
+// Strip every ambient DEMIGOD_*/DG_* override (agent sessions export e.g. DEMIGOD_ROLE_LEDGER,
+// DEMIGOD_BUSY) so fixture children read only the roots each test sets explicitly.
+for (const key of Object.keys(childEnv)) {
+  if (/^(?:DEMIGOD|DG)_/.test(key)) delete childEnv[key];
+}
 
 /** Partner/export override env: scope must equal basename(BUSY) or override is ignored. */
 function partnerChildEnv(dir, extra = {}) {
