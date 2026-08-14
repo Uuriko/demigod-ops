@@ -237,7 +237,7 @@ footer a{color:var(--muted)}
 <body>
 <main class="wrap">
   <nav aria-label="Dasha">
-    <a href="/">$dasha</a>
+    <a href="https://www.getdasha.com/">$dasha</a>
   </nav>
 
   <h1>How to buy $dasha</h1>
@@ -263,7 +263,7 @@ footer a{color:var(--muted)}
   </article>
 
   <footer>
-    <p><a href="/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>
+    <p><a href="https://www.getdasha.com/">Home</a> · <a href="/studio">Studio</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a></p>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
@@ -460,10 +460,10 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </style>
 </head>
 <body>
-<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="/">$<span>DASHA</span></a><a class="back" href="/">← Home</a></nav>
+<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="https://www.getdasha.com/">$<span>DASHA</span></a><a class="back" href="https://www.getdasha.com/">← Home</a></nav>
 <main class="shell"><div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div></main>
 <script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/lobby.js';s.integrity='sha384-fet8Bw+WiNBtGR2I4mj67Pk8Xv3WsVe4FvNEHBsjIoUvglQBomg5UPprS72dKEKb';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>
 </body>
 </html>
 `;
-export const ASSET_HASH = "e8494218a3447ada";
+export const ASSET_HASH = "f45df0fc0478e0bf";
