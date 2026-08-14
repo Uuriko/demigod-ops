@@ -2736,6 +2736,12 @@ export default {
         }),
       });
     }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
+    ) {
+      return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+    }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
       const html = await chessPageForRequest(request, env);
       return new Response(request.method === 'HEAD' ? null : html, {
