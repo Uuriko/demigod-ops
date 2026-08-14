@@ -1,7 +1,7 @@
 # Dasha bible — culture, design, product truth
 
-**Updated:** 2026-08-08  
-**Owner surfaces:** getdasha.com · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`  
+**Updated:** 2026-08-14  
+**Owner surfaces:** getdasha.com · worker home rewrite · `dasha-landing.html` · `dasha-desk` · `dasha-meme-studio.html` · `dasha-how-to-buy.html`  
 **Hard rule:** Attribute public posts and coin-source claims to their actual source. Do not invent affiliations or control.
 
 This doc is the shared design + culture spine for agents and humans shipping getdasha. Prefer primary sources linked below over vibes.
@@ -127,15 +127,29 @@ Deadpan, lowercase energy, social, slightly mean, anti-roadmap. Prefer **her pos
 
 ## 5. Visual system (getdasha)
 
+Visible four. Violet is technical only. No sixth hex.
+
 | Token | Value | Notes |
 |-------|-------|-------|
-| Ink | `#070608` | Near-black field |
+| Ink | `#070608` | Near-black field. LCP sits on ink. |
 | Paper | `#f4eddb` | Warm off-white type |
-| Acid | `#dfff00` | Primary CTA / sticker |
-| Hot | `#ff3b81` | Offset shadow / seed |
-| Violet | `#7c4dff` | Gradients |
-| Type | Arial / system, heavy uppercase display | “MAKE IT STRANGER” energy |
-| Motif | Offset hard shadows, tilted poster, acid sticker, ticker | Casino-adjacent without casino hero photo (tests ban old catbox casino hero) |
+| Acid | `#dfff00` | Band, CTA fill |
+| Hot | `#ff3b81` | 4px hard CTA offset |
+| Violet | `#7c4dff` | Technical only — one arc or nothing. Never a hero radial. Never `--hot-deep`. |
+| Type | Arial Black / Helvetica 900 display, Arial body | No system-ui. No Google Fonts. No Exo / Bangers / Raleway. |
+| CTA | Acid fill, ink type, 4px hard hot offset, min 48px | 0px radius or full pill |
+| Motif | Acid band, cherries mark, hard offset | No hero radial. No cheap-token wash. |
+
+**Home first viewport (2026-08-14 user-test lock — and nothing else in that viewport):**
+1. Delete `#dasha-home-cta` entirely. Live already wraps the page in `#dasha-home`; that id is not the rewrite. First paint is `#dasha-lock`, not a 100vh system-ui `$dasha` / “Take Simp.” decoy.
+2. Live acid band — repeating uppercase culture lines, ~28s CSS translate, pause on hover. Empty + `animation:none` fails. `prefers-reduced-motion`: ticker static.
+3. `$DASHA` + cherries.
+4. Nav: Studio · Simp · Bounties · @dash_eats. No CA chip. No Buy. Forum is not a door (`/forum` 308s to lobby chat). Lobby / Desk / Chess live in the footer. CA + Buy live in `#token`.
+5. One display line (culture, not a pitch). No second h1.
+6. Playable Simp quiz in this viewport — mount `https://lobby.getdasha.com/client/simp-board.js` with SRI. One `.dasha-quiz`. Home Simp hops to `#simp` in-hero. `/simp` is a playable page; it is not the home CTA. Do not keep a 100vh `#dasha-home-cta` fallback even if that fallback now contains a quiz mount.
+7. Poster stack fully inside the first 800px viewport.
+8. Association one-liner: “References describe internet culture. Not endorsement.”
+9. Body / `.body` / `.dasha-root` ink `#070608`. No maroon `#1F041C`. No violet. No WebFont.load.
 
 **Image policy for product HTML:**
 1. Prefer **hotlinkable** `pbs.twimg.com` media with `referrerpolicy="no-referrer"` and honest alts.
@@ -192,7 +206,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | Remix studio entry + mint + buy | `@dash_eats` nav, text voice quotes, source post; **no remote image tape** (gate: brittle hotlinks) |
+| Home `/` | First viewport: acid band + `$DASHA` + cherries + nav + one culture line + playable Simp quiz + posters + association line | Nav is Studio · Simp · Bounties · @dash_eats. CA + Buy are in `#token`. Forum is not a door. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -202,12 +216,17 @@ Use these as **aesthetic references**, not product pledges:
 ## 8. Design checklist (ship gate)
 
 - [x] Direct link to `https://x.com/dash_eats` on home + studio + desk (disk prepared)  
+- [x] Home first viewport: `#dasha-lock` acid band, `$DASHA` + cherries, nav (Studio · Simp · Bounties · @dash_eats), one culture line, SRI'd quiz mount, posters inside 800px, association line  
+- [x] `#dasha-home-cta` 100vh decoy deleted even when live wraps the page in `#dasha-home`  
+- [x] No WebFont.load / Exo / Bangers / Raleway / system-ui on home first paint  
+- [x] Body ink `#070608` (not maroon `#1F041C`); no violet / `--hot-deep` / extra visible hexes  
+- [x] Forum is not a home door; `/forum` 308s to lobby chat  
+- [x] CA chip + Buy demoted to `#token`  
 - [x] Mint source post URL present  
-- [x] ≥4 culture images on home (twimg/dex), with honest caption  
 - [x] No catbox casino hero on home  
 - [x] No thesis/receipt language on home  
 - [x] No telegram community  
-- [x] Association ≠ endorsement in footer  
+- [x] Association ≠ endorsement on home  
 - [x] Buy CTAs = exact Jupiter + mint  
 - [ ] **Published** on live Webflow (blocked without current-request re-auth)  
 
