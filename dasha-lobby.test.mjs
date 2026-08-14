@@ -605,12 +605,15 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
   assert.match(listed, /html, body \{ margin: 0; padding: 0; height: 100%; \}/);
   assert.match(listedSection, /<h1>Bounties<\/h1>/);
   assert.match(listedSection, /Post a project\. Other people run spare compute on it\./);
+  assert.match(listedSection, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/);
+  assert.match(listedSection, /<a class="go" href="mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute">I have excess compute<\/a>/);
   assert.match(listedSection, /<form\b[^>]*action="mailto:potter@trydemigod\.com"[^>]*method="get"/i);
   assert.match(listedSection, /name="name"/);
   assert.match(listedSection, /What to run/);
   assert.match(listedSection, /name="contact"/);
   assert.match(listedSection, /We'll add it to the board\./);
   assert.doesNotMatch(listedSection, /writes?\s+\/bounties\.json|saved to \/bounties/i);
+  assert.doesNotMatch(listedSection, /uuriko\.github\.io\/dasha-desk\/bounties|issues\/new\?template=bounty-project/i);
   assert.match(listedSection, /docs/);
   assert.match(listedSection, /desk/);
   assert.match(listedSection, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
@@ -636,6 +639,8 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
     const emptySection = empty.match(/<section\b[^>]*id=["']dasha-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
     assert.match(emptySection, /<h1>Bounties<\/h1>/);
     assert.match(emptySection, /Post a project\. Other people run spare compute on it\./);
+    assert.match(emptySection, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/);
+    assert.match(emptySection, /I have excess compute/);
     assert.match(emptySection, /mailto:potter@trydemigod\.com/);
     assert.match(emptySection, /No open bounties/);
     assert.doesNotMatch(empty, /<li\b/);
@@ -1452,9 +1457,13 @@ ${laterIcons}
         assert.match(html, /id="dasha-bounties"/, `${host} ${path} must inject the no-JS board`);
         assert.match(html, /<h1>Bounties<\/h1>/, `${host} ${path} must name the product`);
         assert.match(html, /Post a project\. Other people run spare compute on it\./, `${host} ${path} must say what the board is`);
+        assert.match(html, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/, `${host} ${path} must keep the post path`);
+        assert.match(html, /I have excess compute/, `${host} ${path} must keep the spare-compute path`);
+        assert.match(html, /mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute/, `${host} ${path} must keep a no-JS compute mailto`);
         assert.match(html, /mailto:potter@trydemigod\.com/, `${host} ${path} must keep a no-JS post path`);
         assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
         assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
+        assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/, `${host} ${path} must not remount the Pages iframe`);
         assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} ${path} must add one Privacy link on the board`);
         assert.match(html, /<a href="\/privacy">Privacy<\/a>/);
         assert.match(html, /#dasha-bounties a\{color:#dfff00\}/, `${host} ${path} must keep the existing board link color`);
@@ -1474,6 +1483,7 @@ ${laterIcons}
     const thrownHtml = await thrown.text();
     assert.match(thrownHtml, /id="dasha-bounties"/);
     assert.match(thrownHtml, /<h1>Bounties<\/h1>/);
+    assert.match(thrownHtml, /I have excess compute/);
     assert.match(thrownHtml, /mailto:potter@trydemigod\.com/);
     assert.match(thrownHtml, /No open bounties/);
     assert.doesNotMatch(thrownHtml, /not implemented/i);
