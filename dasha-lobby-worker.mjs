@@ -261,6 +261,7 @@ export function ensurePrivacyLink(html) {
 
 const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+const LOBBY_PAGE = ensurePrivacyLink(LOBBY_PAGE_HTML);
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
@@ -2743,7 +2744,7 @@ export default {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE_HTML, {
+      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE, {
         status: 200,
         headers: htmlHeaders({
           'Content-Type': 'text/html; charset=utf-8',
