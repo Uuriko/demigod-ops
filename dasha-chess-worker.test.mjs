@@ -240,6 +240,9 @@ response = await room.handleChess(request(whiteX, `/chess/game/${gameId}`, { fro
 assert.equal(response.status, 200);
 payload = await response.json();
 assert.equal(payload.game.turn, 'b');
+assert.equal(payload.game.clock.incrementMs, 5000, 'public clocks must advertise the live +5 increment');
+assert.ok(payload.game.clock.w > 600_000, 'a near-instant move must grow the mover clock by the +5 increment');
+assert.ok(payload.game.clock.w <= 605_000, 'increment must be exactly five seconds on top of remaining time');
 assert.equal(payload.game.legal.length, 0, 'white viewer must not receive black legal moves');
 response = await room.handleChess(request(blackX, `/chess/game/${gameId}`, { from: 'e7', to: 'e5', version: 1 }), 'https://www.getdasha.com');
 assert.equal(response.status, 200);

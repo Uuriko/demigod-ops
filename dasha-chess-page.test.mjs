@@ -52,6 +52,8 @@ assert.doesNotMatch(source, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
 assert.match(source, /<a class="back" href="\/privacy">Privacy<\/a>/);
 assert.doesNotMatch(source, /forum/i, 'chess must not grow a Forum link');
 assert.match(source, /Holder chess · 10\+5/);
+assert.match(source, /TimeControl/, 'PGN must document the live 10+5 increment');
+assert.match(source, /600\+5/);
 assert.match(source, /og:image:width" content="1200"/);
 assert.match(source, /og:image:height" content="630"/);
 assert.match(source, /og:image:alt" content="Dasha Chess"/);
@@ -391,6 +393,7 @@ try {
       assert.match(pgn, /\[White "@dasha_player \(Dasha\)"\]/);
       assert.match(pgn, /\[Black "@anna_player \(Anna\)"\]/);
       assert.match(pgn, /\[Result "1-0"\]/);
+      assert.match(pgn, /\[TimeControl "600\+5"\]/, 'PGN must name the same 10+5 control the kicker advertises');
       assert.match(pgn, /\[Site "https:\/\/www\.getdasha\.com\/chess\?game=game12345"\]/);
       assert.match(pgn, /\n\n1\. e4 e5 1-0\n$/, 'PGN movetext must be numbered and terminate with the result');
       await page.locator('#copy-pgn').click();
