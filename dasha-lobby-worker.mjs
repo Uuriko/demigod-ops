@@ -274,6 +274,15 @@ export function rewriteStudioScriptIntegrity(html, sri = STUDIO_CLIENT_SRI) {
   });
 }
 
+/** Point leftover Webflow shortcut icon at the first-party cherries path. Other icons stay. */
+export function rewriteStaleCdnFavicon(html) {
+  return String(html || '').replace(/<link\b[^>]*>/gi, (tag) => {
+    const href = tag.match(/\bhref\s*=\s*(["'])([^"']*)\1/i);
+    if (!href || href[2] !== 'https://cdn.prod.website-files.com/img/favicon.ico') return tag;
+    return tag.replace(href[0], `href=${href[1]}/favicon.ico${href[1]}`);
+  });
+}
+
 function securityTxt(host) {
   return `Contact: https://github.com/Uuriko/dasha-desk/security/advisories/new\nExpires: 2027-08-01T00:00:00Z\nPreferred-Languages: en\nCanonical: https://${host}/.well-known/security.txt\nPolicy: https://github.com/Uuriko/dasha-desk/security/policy\n`;
 }
@@ -2574,6 +2583,7 @@ async function productEdge(request, url, env) {
   html = ensureHtmlLang(html);
   html = ensurePrivacyLink(html);
   html = rewriteStudioScriptIntegrity(html);
+  html = rewriteStaleCdnFavicon(html);
   if (stripped) {
     // Also drop any leftover plain mentions in head comments (defensive).
     html = html.replace(/https?:\/\/x\.com\/potterlab/gi, 'https://www.getdasha.com/');
