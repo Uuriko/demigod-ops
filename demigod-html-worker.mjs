@@ -2,7 +2,13 @@
  * Demigod product HTML edge — Cloudflare Worker for www.trydemigod.com.
  * Fetch Webflow, then rewrite first HTML. Separate zone/brand from Dasha.
  */
+import VENDORED_X_WEEK_ROLES from './x-week-roles.json' with { type: 'json' };
+
 const FEED_SCHEMA = 'demigod-bounties-feed/v1';
+const X_WEEK_SCHEMA = 'demigod.x-week-roles/1';
+const X_WEEK_FILE = 'x-week-roles.json';
+const X_WEEK_SOURCE_URL = 'https://x.com/nazzari/status/2088312787915399337';
+export { VENDORED_X_WEEK_ROLES };
 const FEED_NOTE =
   "Declared USDC. We don't hold it. Unused bounty rail — not the 10% on-hire matching fee. Demigod listings only — not extraSeed/dasha-desk.";
 const FEED_PAGE = 'https://www.trydemigod.com/bounties';
@@ -57,6 +63,10 @@ function isProductHost(host) {
 
 function isBountiesPath(pathname) {
   return pathname === '/bounties' || pathname === '/bounties/';
+}
+
+export function isStartupsPath(pathname) {
+  return pathname === '/startups' || pathname === '/startups/';
 }
 
 export function isCompaniesPath(pathname) {
@@ -202,8 +212,16 @@ async function loadBountiesFeed() {
   return normalizeBountiesFeed(null);
 }
 
-function cdnJsonUrl(file) {
-  return `https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${CDN_PIN_TO}/${file}`;
+function cdnJsonUrl(file, ref = CDN_PIN_TO) {
+  return `https://cdn.jsdelivr.net/gh/Uuriko/demigod-site-cdn@${ref}/${file}`;
+}
+
+function xWeekSources() {
+  return [
+    cdnJsonUrl(X_WEEK_FILE),
+    cdnJsonUrl(X_WEEK_FILE, 'main'),
+    `https://raw.githubusercontent.com/Uuriko/demigod-site-cdn/main/${X_WEEK_FILE}`,
+  ];
 }
 
 async function loadCdnJson(file) {
@@ -216,6 +234,81 @@ async function loadCdnJson(file) {
   if (!res.ok) return null;
   const raw = await res.json().catch(() => null);
   return raw && typeof raw === 'object' ? raw : null;
+}
+
+function isXWeekOverlay(raw) {
+  return Boolean(raw && typeof raw === 'object' && raw.schema === X_WEEK_SCHEMA && Array.isArray(raw.roles));
+}
+
+/** Overlay facts only. Never firstObservedAt / payTo / invented counts. */
+export function normalizeXWeekRoles(raw) {
+  const source = raw?.source && typeof raw.source === 'object' ? raw.source : {};
+  const credit = typeof source.credit === 'string' && source.credit.trim()
+    ? source.credit.trim()
+    : 'Bella @nazzari';
+  const date = typeof source.date === 'string' && source.date.trim() ? source.date.trim() : '2026-08-14';
+  const sourceUrl = httpsHref(source.url) || X_WEEK_SOURCE_URL;
+  const roles = (isXWeekOverlay(raw) ? raw.roles : [])
+    .filter((row) => row && typeof row === 'object')
+    .map((row) => {
+      const company = typeof row.company === 'string' ? row.company.trim() : '';
+      const title = typeof row.title === 'string' ? row.title.trim() : '';
+      const location = typeof row.location === 'string' ? row.location.trim() : '';
+      const url = httpsHref(row.url);
+      if (!company || !title || !url) return null;
+      return location ? { company, title, location, url } : { company, title, url };
+    })
+    .filter(Boolean);
+  return { schema: X_WEEK_SCHEMA, source: { credit, date, url: sourceUrl }, roles };
+}
+
+function xWeekBandHtml(overlay) {
+  const data = normalizeXWeekRoles(overlay);
+  const creditHref = httpsHref(data.source.url) || X_WEEK_SOURCE_URL;
+  const credit = `${escapeHtml(data.source.credit)}, ${escapeHtml(data.source.date)}`;
+  const rows = data.roles.length
+    ? `<ul>${data.roles.map((row) => {
+        const loc = row.location ? ` · ${escapeHtml(row.location)}` : '';
+        return `<li>${linkedText(row.url, `${row.company} — ${row.title}`)}${loc}</li>`;
+      }).join('')}</ul>`
+    : '<p>No attributed X roles in this overlay.</p>';
+  return `<section id="demigod-x-week" aria-label="From X this week"><style>#demigod-x-week{box-sizing:border-box;margin:1.25rem auto;padding:1.25rem;max-width:76rem;background:#03140d;color:#f3f0e7;font:16px/1.45 system-ui,sans-serif}#demigod-x-week a{color:#10c674}#demigod-x-week .muted{color:#bdc9bf}#demigod-x-week ul{margin:.4rem 0 0;padding-left:1.15rem}#demigod-x-week li{margin:.35rem 0}#demigod-x-week h2{font-size:1.05rem;margin:0 0 .4rem}</style><h2>From X this week</h2><p class="muted">Attributed by <a href="${escapeHtml(creditHref)}" rel="nofollow noopener">${credit}</a>. Not first-observed ATS board sightings.</p>${rows}</section>`;
+}
+
+/** /startups-only extra band. Does not rewrite the ATS snapshot or __dgPublicRoles. */
+export function injectXWeekBand(html, overlay) {
+  const page = String(html || '');
+  const band = xWeekBandHtml(overlay);
+  const details = page.search(/<details\b[^>]*\bclass=["'][^"']*\bdg-static\b/i);
+  if (details >= 0) return page.slice(0, details) + band + page.slice(details);
+  const scriptAt = page.search(/<script\b[^>]*(?:jquery|webflow\.js)/i);
+  if (scriptAt >= 0) return page.slice(0, scriptAt) + band + page.slice(scriptAt);
+  const close = page.search(/<\/(?:body|html)>/i);
+  return close >= 0 ? page.slice(0, close) + band + page.slice(close) : page + band;
+}
+
+async function readXWeekSource(url) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    cf: { cacheTtl: CDN_JSON_TTL, cacheEverything: true },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) return null;
+  const raw = await res.json().catch(() => null);
+  return isXWeekOverlay(raw) ? normalizeXWeekRoles(raw) : null;
+}
+
+export async function loadXWeekRoles() {
+  for (const src of xWeekSources()) {
+    try {
+      const feed = await readXWeekSource(src);
+      if (feed) return feed;
+    } catch {
+      /* next pin / main / vendor */
+    }
+  }
+  return normalizeXWeekRoles(VENDORED_X_WEEK_ROLES);
 }
 
 function demigodPage(title, body) {
@@ -459,10 +552,15 @@ async function productEdge(request, url) {
   if (isBountiesPath(url.pathname)) {
     html = injectBountiesBoard(html, await loadBountiesFeed());
   }
+  if (isStartupsPath(url.pathname)) {
+    html = injectXWeekBand(html, await loadXWeekRoles());
+  }
   html = ensureHtmlLang(html);
   const headers = applyHtmlSecurity(new Headers(upstream.headers));
   headers.delete('content-length');
-  headers.set('X-Demigod-Edge', isBountiesPath(url.pathname) ? 'bounties-board' : 'html-rewrite');
+  headers.set('X-Demigod-Edge', isBountiesPath(url.pathname)
+    ? 'bounties-board'
+    : isStartupsPath(url.pathname) ? 'x-week-roles' : 'html-rewrite');
   return new Response(html, { status: upstream.status, statusText: upstream.statusText, headers });
 }
 

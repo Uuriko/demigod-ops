@@ -1,0 +1,89 @@
+{
+  "schema": "demigod.x-week-roles/1",
+  "generatedAt": "2026-08-14",
+  "source": {
+    "credit": "Bella @nazzari",
+    "date": "2026-08-14",
+    "url": "https://x.com/nazzari/status/2088312787915399337"
+  },
+  "basis": "Attributed roles from Bella @nazzari's 2026-08-14 X post. Not first-observed ATS board sightings. Not Demigod matching inventory.",
+  "roles": [
+    {
+      "company": "Rivet",
+      "title": "Engineer (Rust/actors/OSS)",
+      "location": "Remote",
+      "url": "https://x.com/NathanFlurry/status/2087625596797083966"
+    },
+    {
+      "company": "xAI",
+      "title": "Software Engineer, Search Infrastructure",
+      "location": "Palo Alto, US",
+      "url": "https://job-boards.greenhouse.io/xai/jobs/5205179007"
+    },
+    {
+      "company": "xAI",
+      "title": "Software Engineer, X Money",
+      "location": "UK",
+      "url": "https://job-boards.greenhouse.io/xai/jobs/5108231007"
+    },
+    {
+      "company": "xAI",
+      "title": "Software Engineer, X Web Engineer",
+      "location": "US",
+      "url": "https://job-boards.greenhouse.io/xai/jobs/5063930007"
+    },
+    {
+      "company": "Edge City",
+      "title": "Program Director, Inflection Fellowship and Grants",
+      "url": "https://x.com/JoinEdgeCity/status/2087905200161829290"
+    },
+    {
+      "company": "Mintlify",
+      "title": "Designer / Design Engineer",
+      "url": "https://x.com/mintlify/status/2087989891875709101"
+    },
+    {
+      "company": "Mintlify",
+      "title": "SDR / BDR",
+      "url": "https://x.com/coleywoleyyy/status/2087774617314451955"
+    },
+    {
+      "company": "Marble",
+      "title": "SWE intern",
+      "location": "SF or NYC",
+      "url": "https://x.com/arjunjchaliha/status/2086854908964479191"
+    },
+    {
+      "company": "ElevenLabs",
+      "title": "Chief of Staff, Canada",
+      "location": "Toronto",
+      "url": "https://x.com/maxlmns/status/2086942565765464524"
+    },
+    {
+      "company": "Corgi",
+      "title": "Open roles across functions",
+      "url": "https://x.com/Lin_DAO_/status/2086556934157529464"
+    },
+    {
+      "company": "SideShift",
+      "title": "Growth / GTM / Influencer",
+      "location": "New York City",
+      "url": "https://x.com/dierre/status/2086856273128260082"
+    },
+    {
+      "company": "Auth0 Lab (Okta)",
+      "title": "Principal Applied AI/ML Scientist",
+      "url": "https://www.okta.com/company/careers/engineering/principal-applied-aiml-scientist-auth0-lab-8031281/"
+    },
+    {
+      "company": "Google Labs",
+      "title": "Product Designer",
+      "url": "https://x.com/sambecker/status/2086888338284294226"
+    },
+    {
+      "company": "Brown University",
+      "title": "Economics / Watson faculty",
+      "url": "https://x.com/instrumenthull/status/2086851095544873142"
+    }
+  ]
+}
