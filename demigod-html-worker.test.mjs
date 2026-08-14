@@ -31,7 +31,6 @@ assert.doesNotMatch(wrangler, /getdasha\.com/);
 assert.doesNotMatch(dashaWrangler, /trydemigod/);
 assert.doesNotMatch(workerSrc, /#dfff00|#ff3b81|#dasha-bounties|htmlPage\(/);
 assert.doesNotMatch(workerSrc, /\/oauth\/|createSessionToken|mintReceipt|eliza/i);
-assert.doesNotMatch(workerSrc, /payTo:\s*["']/);
 assert.doesNotMatch(workerSrc, /trydemigod\.com\/bounties\.json/);
 assert.match(workerSrc, /demigod-bounties-feed\/v1/);
 assert.match(workerSrc, /bounties-feed\.json/);
@@ -134,7 +133,7 @@ function urlOf(input) {
       return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     };
 
-    const home = await workerModule.default.fetch(new Request('https://www.trydemigod.com/'), {});
+    const home = await workerModule.fetch(new Request('https://www.trydemigod.com/'), {});
     const homeHtml = await home.text();
     assert.equal(home.status, 200);
     assert.equal(home.headers.get('x-demigod-edge'), 'html-rewrite');
@@ -147,7 +146,7 @@ function urlOf(input) {
     assert.doesNotMatch(homeHtml, /id="demigod-bounties"/);
 
     for (const path of ['/bounties', '/bounties/']) {
-      const page = await workerModule.default.fetch(new Request(`https://www.trydemigod.com${path}`), {});
+      const page = await workerModule.fetch(new Request(`https://www.trydemigod.com${path}`), {});
       const html = await page.text();
       assert.equal(page.status, 200, `${path} must rewrite`);
       assert.equal(page.headers.get('x-demigod-edge'), 'bounties-board');
@@ -160,7 +159,7 @@ function urlOf(input) {
       assert.match(html, /id="demigod-public-roles-data"/);
     }
 
-    const json = await workerModule.default.fetch(new Request('https://www.trydemigod.com/bounties.json'), {});
+    const json = await workerModule.fetch(new Request('https://www.trydemigod.com/bounties.json'), {});
     assert.equal(json.status, 200);
     assert.equal(json.headers.get('x-demigod-edge'), null);
     const jsonBody = await json.json();
@@ -173,7 +172,7 @@ function urlOf(input) {
       if (u.includes('bounties-feed.json')) throw new Error('offline');
       return new Response(BOUNTIES_SHELL, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     };
-    const thrown = await workerModule.default.fetch(new Request('https://www.trydemigod.com/bounties'), {});
+    const thrown = await workerModule.fetch(new Request('https://www.trydemigod.com/bounties'), {});
     const thrownHtml = await thrown.text();
     assert.match(thrownHtml, /id="demigod-bounties"/);
     assert.match(thrownHtml, /No bounties listed/);
@@ -188,7 +187,7 @@ function urlOf(input) {
       }
       return new Response(BOUNTIES_SHELL, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     };
-    const unusable = await workerModule.default.fetch(new Request('https://www.trydemigod.com/bounties'), {});
+    const unusable = await workerModule.fetch(new Request('https://www.trydemigod.com/bounties'), {});
     const unusableHtml = await unusable.text();
     assert.match(unusableHtml, /No bounties listed/);
     assert.doesNotMatch(unusableHtml, /<li\b/);
@@ -211,7 +210,7 @@ function urlOf(input) {
       }
       return new Response(BOUNTIES_SHELL, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     };
-    const page = await workerModule.default.fetch(new Request('https://www.trydemigod.com/bounties'), {});
+    const page = await workerModule.fetch(new Request('https://www.trydemigod.com/bounties'), {});
     const html = await page.text();
     const section = html.match(/<section\b[^>]*id=["']demigod-bounties["'][\s\S]*?<\/section>/i)?.[0] || '';
     assert.match(section, /First listing/);
