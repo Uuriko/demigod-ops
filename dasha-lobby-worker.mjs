@@ -2689,6 +2689,16 @@ export default {
       return stub.fetch(request);
     }
 
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
+        status: 404,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'html-404',
+        }),
+      });
+    }
     return json({ error: 'not found' }, 404, allowedOrigin);
   },
 };

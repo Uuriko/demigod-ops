@@ -54,6 +54,7 @@ assert(!worker.includes('return to the lobby'), 'shared OAuth completion must no
 assert(!worker.includes('Perks unlocked: longer messages'), 'shared OAuth completion must not claim Lobby-only perks');
 assert(worker.includes("url.pathname === '/privacy'") && worker.includes('PRIVACY_HTML'), 'worker serves privacy policy');
 assert(worker.includes('FORUM_HTML') && worker.includes("'X-Dasha-Edge': 'forum'"), 'lobby /forum serves branded HTML 404');
+assert(worker.includes('NOT_FOUND_HTML') && worker.includes("'X-Dasha-Edge': 'html-404'"), 'unknown paths serve branded HTML 404');
 assert(worker.includes("url.searchParams.get('continue') !== '1'") && worker.includes('Continue with X'), 'OAuth must show privacy notice before redirect');
 assert(!/offline\.access/.test(await readFile(new URL('./dasha-lobby-x.mjs', root), 'utf8')), 'OAuth must not request unused persistent X access');
 assert(worker.includes('sessionFromRequest'), 'worker reads optional X session');
@@ -237,17 +238,38 @@ for (const path of ['/forum', '/forum/']) {
     if (method === 'HEAD') {
       assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
     } else {
-      assert.match(body, /<title>/);
+      assert.match(body, /<title>Dasha forum<\/title>/);
       assert.match(body, /Dasha|\$dasha/);
+      assert.match(body, /no forum yet/i);
       assert.notEqual(body, '{"error":"not found"}');
     }
   }
 }
 {
-  const unknown = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/no-such-path'), {});
-  assert.equal(unknown.status, 404);
-  assert.equal(unknown.headers.get('content-type'), 'application/json; charset=utf-8');
-  assert.equal(await unknown.text(), '{"error":"not found"}');
+  const lobbyRoot = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/'), {});
+  assert.equal(lobbyRoot.status, 200);
+  assert.match(lobbyRoot.headers.get('content-type') || '', /application\/json/);
+  const lobbyRootBody = await lobbyRoot.json();
+  assert.equal(lobbyRootBody.ok, true);
+  assert.equal(lobbyRootBody.service, 'dasha-lobby');
+}
+for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page/']) {
+  for (const method of ['GET', 'HEAD']) {
+    const page = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
+    assert.equal(page.status, 404, `lobby ${path} ${method} must be a branded HTML 404`);
+    assert.match(page.headers.get('content-type') || '', /text\/html/);
+    assert.equal(page.headers.get('x-dasha-edge'), 'html-404');
+    const body = await page.text();
+    if (method === 'HEAD') {
+      assert.equal(body, '', `lobby ${path} HEAD must return an empty body`);
+    } else {
+      assert.match(body, /<title>/);
+      assert.match(body, /Dasha|\$dasha/);
+      assert.notEqual(body, '{"error":"not found"}');
+      assert.doesNotMatch(body, /no forum yet/i);
+      assert.doesNotMatch(body, /<title>Dasha forum<\/title>/);
+    }
+  }
 }
 {
   const webflow404 = `<!doctype html><html><head><title>404 - Page not found</title>
