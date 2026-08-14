@@ -162,6 +162,44 @@ export function stripHomeSimpBoard(html) {
   return stripLeftoverStyleRules(out, SIMP_LEFTOVER_STYLE_RE);
 }
 
+const HOME_CTA_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
+const HOME_CTA_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
+
+function homeSimpCtaHtml() {
+  const title = escapeHtml('$dasha');
+  const line = escapeHtml('Take Simp.');
+  const primary = escapeHtml('Simp');
+  const buy = escapeHtml('How to buy');
+  return `<section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{box-sizing:border-box;min-height:100vh;margin:0;padding:1.25rem;background:#070608;color:#f4eddb;font:16px/1.45 system-ui,sans-serif}#dasha-home-cta h1{margin:0 0 .5rem;color:#f4eddb;font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}#dasha-home-cta a[href="/simp"]{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:#dfff00;color:#070608;font-weight:950;text-decoration:none}#dasha-home-cta a[href="/how-to-buy"]{color:#ff3b81}</style><h1>${title}</h1><p>${line}</p><p><a href="/simp">${primary}</a></p><p><a href="/how-to-buy">${buy}</a></p></section>`;
+}
+
+function homeCtaInsertAt(page) {
+  const heroAt = page.search(HOME_CTA_HERO_RE);
+  const head = heroAt >= 0 ? page.slice(0, heroAt) : page;
+  let last = -1;
+  let len = 0;
+  HOME_CTA_SKIP_RE.lastIndex = 0;
+  for (let m; (m = HOME_CTA_SKIP_RE.exec(head)); ) {
+    last = m.index;
+    len = m[0].length;
+  }
+  if (last >= 0) return last + len;
+  if (heroAt >= 0) return heroAt;
+  const body = page.match(/<body\b[^>]*>/i);
+  if (body) return page.indexOf(body[0]) + body[0].length;
+  const close = page.search(/<\/(?:body|html)>/i);
+  return close >= 0 ? close : page.length;
+}
+
+/** www/apex / only: first-paint Simp CTA before the Webflow hero. Idempotent. */
+export function injectHomeSimpCta(html) {
+  const page = String(html || '');
+  if (/id=["']dasha-home-cta["']/i.test(page)) return page;
+  const at = homeCtaInsertAt(page);
+  const cta = homeSimpCtaHtml();
+  return page.slice(0, at) + cta + page.slice(at);
+}
+
 /** /bounties-only: drop the Pages iframe and its leftover frame CSS. The listings feed is /bounties.json. */
 export function stripBountiesIframe(html) {
   return stripLeftoverStyleRules(
@@ -2672,8 +2710,9 @@ async function productEdge(request, url, env) {
   const originalHtml = html;
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
-  if (url.pathname === '/') html = stripHomeSimpBoard(html);
-  else html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
+  if (url.pathname === '/') {
+    html = injectHomeSimpCta(stripHomeSimpBoard(html));
+  } else html = stripLeftoverStyleRules(html, SIMP_LEFTOVER_STYLE_RE);
   if (url.pathname === '/bounties' || url.pathname === '/bounties/') {
     html = injectBountiesBoard(stripBountiesIframe(html), await loadBountiesFeed());
   }

@@ -133,7 +133,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
+const { DashaLobby, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectHomeSimpCta, normalizeBountiesFeed, personalizeChessPage, publicFunnelSummary, rewriteStaleCdnFavicon, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, solanaRpcEndpoints, stripBountiesIframe, stripHomeSimpBoard } = workerModule;
 const { STUDIO_CLIENT_JS } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const personalized = personalizeChessPage(chessPage, { title: '<winner> — Dasha Chess', description: '12 moves & mate', url: 'https://lobby.getdasha.com/chess?game=abc123' });
@@ -973,6 +973,96 @@ try {
   } finally {
     globalThis.fetch = nativeFetch;
   }
+}
+{
+  const HOME_CTA_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
+  const mint = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  const webflowHome = `<!doctype html><html class="w-mod-js"><title>$dasha — make the timeline stranger</title>
+<link href="https://cdn.prod.website-files.com/img/favicon.ico" rel="shortcut icon" type="image/x-icon"/>
+<style>
+:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--hot-deep:#c21f5a}
+.simp-board{display:grid}.simp-row{display:grid}.simp-rank{font-size:42px}
+.dasha-hero{min-height:640px}
+</style>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<main class="dasha" id="top">
+<header class="dasha-hero wrap" id="content"><h1>It's time $dasha</h1><a class="pill primary" href="/studio">Make something →</a></header>
+<section id="token"><code id="mint">${mint}</code></section>
+<footer><p><a href="/how-to-buy">How to buy</a></p></footer>
+</main>
+</body></html>`;
+  const homeCtaSection = html => {
+    const match = String(html).match(/<section\b[^>]*\bid=["']dasha-home-cta["'][^>]*>[\s\S]*?<\/section>/i);
+    assert.ok(match, 'home must inject #dasha-home-cta');
+    return match[0];
+  };
+  const firstSectionAt = html => String(html).search(/<section\b/i);
+  const injected = injectHomeSimpCta(webflowHome);
+  const section = homeCtaSection(injected);
+  assert.equal(firstSectionAt(injected), injected.search(/<section\b[^>]*\bid=["']dasha-home-cta["']/i), '#dasha-home-cta must be the first section');
+  assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a><section id="dasha-home-cta"/);
+  assert.match(section, /<h1>\$dasha<\/h1>/);
+  assert.match(section, /Take Simp\./);
+  assert.match(section, /<a href="\/simp">Simp<\/a>/);
+  assert.match(section, /<a href="\/how-to-buy">How to buy<\/a>/);
+  assert.doesNotMatch(section, /<form\b/i);
+  assert.doesNotMatch(section, /wallet-connect/i);
+  assert.doesNotMatch(section, /payTo/);
+  assert.doesNotMatch(section, /\/oauth/);
+  assert.doesNotMatch(section, /<script\b/i);
+  assert.doesNotMatch(section, /jupiter|iframe|twitter\.com\/embed|class="simp-|score=/i);
+  assert.doesNotMatch(section, /--violet|--hot-deep|#c8b6ff|rgba\(124,77,255/);
+  for (const hex of section.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+    assert.ok(HOME_CTA_TOKENS.includes(hex.toLowerCase()), `home CTA inject must stay tokens-only (saw ${hex})`);
+  }
+  assert.match(injected, /It's time \$dasha/);
+  assert.match(injected, /Make something →/);
+  assert.match(injected, new RegExp(mint));
+  assert.doesNotMatch(injected, /#dasha-home-cta[\s\S]{0,200}display:\s*none|#content[\s\S]{0,80}display:\s*none|\.dasha-hero[\s\S]{0,80}display:\s*none/);
+  assert.equal(injectHomeSimpCta(injected), injected, 'second pass must not duplicate #dasha-home-cta');
+  assert.equal([...injected.matchAll(/id=["']dasha-home-cta["']/g)].length, 1);
+  const nativeFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(webflowHome, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const host of ['www.getdasha.com', 'getdasha.com']) {
+      const home = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+      const html = await home.text();
+      const cta = homeCtaSection(html);
+      assert.equal(firstSectionAt(html), html.search(/<section\b[^>]*\bid=["']dasha-home-cta["']/i), `${host} / first section must be #dasha-home-cta`);
+      assert.match(cta, /<a href="\/simp">Simp<\/a>/, `${host} / primary CTA must be Simp`);
+      assert.match(cta, /<a href="\/how-to-buy">How to buy<\/a>/, `${host} / How to buy must be secondary`);
+      assert.doesNotMatch(cta, /<form\b|wallet-connect|payTo|\/oauth|<script\b/i);
+      assert.doesNotMatch(cta, /--violet|--hot-deep|#c8b6ff|rgba\(124,77,255/);
+      for (const hex of cta.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
+        assert.ok(HOME_CTA_TOKENS.includes(hex.toLowerCase()), `${host} / inject must stay tokens-only (saw ${hex})`);
+      }
+      assert.doesNotMatch(html, /\.simp-/);
+      assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 1, `${host} / must keep one Privacy link`);
+      assert.match(html, /<link href="\/favicon\.ico" rel="shortcut icon"/);
+      assert.match(html, new RegExp(mint), `${host} / must keep the mint string`);
+      assert.match(html, /It's time \$dasha/);
+      assert.equal([...html.matchAll(/id=["']dasha-home-cta["']/g)].length, 1);
+    }
+    const studio = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio'), {});
+    assert.doesNotMatch(await studio.text(), /id=["']dasha-home-cta["']/, '/studio must not get the home Simp CTA');
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+  const lobbyRoot = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/'), {});
+  assert.equal(lobbyRoot.status, 200, 'lobby GET / must stay JSON health');
+  assert.match(lobbyRoot.headers.get('content-type') || '', /application\/json/);
+  assert.equal((await lobbyRoot.json()).ok, true);
+  const simp = await workerModule.default.fetch(new Request('https://www.getdasha.com/simp'), {});
+  assert.equal(simp.status, 200);
+  assert.equal(simp.headers.get('x-dasha-edge'), 'simp');
+  assert.match(await simp.text(), /<h1>Simp<\/h1>/);
+  const quiz = await workerModule.default.fetch(new Request('https://www.getdasha.com/quiz'), {});
+  assert.equal(quiz.status, 308);
+  assert.equal(quiz.headers.get('location'), 'https://www.getdasha.com/simp');
+  const hold = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/hold'), {});
+  assert.equal(hold.status, 501);
+  assert.equal((await hold.json()).error, 'not_configured');
 }
 {
   const leftoverLiveSelectors = ['.simp-basis', '.simp-me', '.simp-privacy', '.simp-pts', '.simp-season', '.simp-status'];
