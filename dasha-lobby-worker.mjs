@@ -92,9 +92,11 @@ import {
 } from './dasha-lobby-static-gen.mjs';
 import {
   applyGraphHighlight,
+  dropGraphHighlight,
   fetchGraphExpand,
   fetchGraphSnapshot,
   GRAPH_CACHE_CONTROL,
+  pruneGraphHighlights,
   publicHighlights,
 } from './dasha-graph.mjs';
 import {
@@ -1027,7 +1029,7 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 15, 2026.</p>
 <h2>What Dasha uses</h2>
 <p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
-<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
+<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
 <p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check.</p>
@@ -1319,13 +1321,33 @@ export class DashaLobby {
     await this.state.storage.put('graphHighlights', this.graphHighlights);
   }
 
+  async dropOwnGraphHighlight(session) {
+    const xId = session?.xId ? String(session.xId) : '';
+    if (xId) await this.state.storage.delete(`graphHolder:${xId}`);
+    const result = dropGraphHighlight(this.graphHighlights, session);
+    if (result.dropped) {
+      this.graphHighlights = result.rows;
+      await this.persistGraphHighlights();
+    }
+    return result;
+  }
+
+  async publicGraphHighlights(now = Date.now()) {
+    const next = pruneGraphHighlights(this.graphHighlights, now);
+    if (Object.keys(next).length !== Object.keys(this.graphHighlights).length) {
+      this.graphHighlights = next;
+      await this.persistGraphHighlights();
+    }
+    return publicHighlights(this.graphHighlights, now);
+  }
+
   async handleGraph(request, allowedOrigin) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '');
     const cred = { credentials: true };
 
     if (path === '/api/graph/highlights' && request.method === 'GET') {
-      return json({ highlights: publicHighlights(this.graphHighlights) }, 200, allowedOrigin || '*');
+      return json({ highlights: await this.publicGraphHighlights() }, 200, allowedOrigin || '*');
     }
 
     if (path === '/api/graph/wallet/challenge') {
@@ -1362,6 +1384,14 @@ export class DashaLobby {
       });
       await this.state.storage.put(`graphHolder:${session.xId}`, { nonce, exp: expiresAt });
       return json({ ok: true, message, challenge, expiresAt }, 200, allowedOrigin, cred);
+    }
+
+    if (path === '/api/graph/highlight' && request.method === 'DELETE') {
+      if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+      const session = await sessionFromRequest(this.env, request);
+      if (!session?.xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
+      await this.dropOwnGraphHighlight(session);
+      return json({ ok: true, highlights: await this.publicGraphHighlights() }, 200, allowedOrigin, cred);
     }
 
     if (path === '/api/graph/highlight') {
@@ -1956,6 +1986,7 @@ export class DashaLobby {
       this.simpSeasons = scrubSeasonSnapshots(this.simpSeasons, session.xId, profile?.handle || session.handle);
       this.deleteChessIdentity(session.xId);
       await this.state.storage.delete(`simpHolder:${session.xId}`);
+      await this.dropOwnGraphHighlight(session);
       await this.persistSimpState();
       await this.persistChess();
       return json(
@@ -3058,6 +3089,17 @@ async function handleOAuth(request, env, allowedOrigin) {
   if (url.pathname === '/oauth/x/logout') {
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, { credentials: true });
     if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+    if (env.LOBBY) {
+      try {
+        await env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(new Request('https://lobby.getdasha.com/api/graph/highlight', {
+          method: 'DELETE',
+          headers: {
+            Origin: allowedOrigin,
+            Cookie: request.headers.get('Cookie') || '',
+          },
+        }));
+      } catch { /* cookie still clears */ }
+    }
     const headers = new Headers({
         ...SECURITY,
         ...corsHeaders(allowedOrigin, { credentials: true }),

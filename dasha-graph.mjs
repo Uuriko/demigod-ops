@@ -333,6 +333,22 @@ export function applyGraphHighlight(rows, session, { now = Date.now(), ttlMs = H
   };
 }
 
+export function dropGraphHighlight(rows, session) {
+  const xId = String(session?.xId || '');
+  if (!xId || !rows?.[xId]) return { ok: true, dropped: false, rows: { ...(rows || {}) } };
+  const next = { ...rows };
+  delete next[xId];
+  return { ok: true, dropped: true, rows: next };
+}
+
+export function pruneGraphHighlights(rows, now = Date.now()) {
+  const next = {};
+  for (const [xId, row] of Object.entries(rows || {})) {
+    if (Number(row?.until) > now) next[xId] = row;
+  }
+  return next;
+}
+
 export function buildExpand({ owner, holdings = [], symbols = {}, wsol = false } = {}) {
   if (!holdings.length && !wsol) {
     return { id: owner, empty: true, reason: 'no_other_holdings', nodes: [], links: [] };

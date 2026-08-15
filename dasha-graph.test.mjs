@@ -53,6 +53,8 @@ assert.match(client, /\/api\/graph\/highlight/);
 assert.match(client, /Connect X to be highlighted/);
 assert.match(client, /wallet does not currently hold \$dasha|res\.data\.error/);
 assert.match(client, /role === 'highlight'/);
+assert.match(client, /function highlightNodes/);
+assert.ok(client.indexOf('concat(marks.nodes)') < client.indexOf('holdersLoaded: body.holdersLoaded'), 'opt-in spheres must overlay even when ring 1 failed to load');
 assert.match(client, /IcosahedronGeometry/);
 assert.match(client, /TorusGeometry/);
 assert.match(client, /OctahedronGeometry/);
@@ -70,6 +72,8 @@ assert.ok(modSrc.includes('public, s-maxage=90, stale-while-revalidate=60'));
 
 const {
   applyGraphHighlight,
+  dropGraphHighlight,
+  pruneGraphHighlights,
   buildExpand,
   buildSnapshot,
   collapseOwners,
@@ -165,6 +169,14 @@ assert.deepEqual(withMark.highlights, [{ handle: 'ava', href: 'https://x.com/ava
 assert.ok(!withMark.nodes.some((node) => node.handle === 'ava'));
 assert.equal(JSON.stringify(withMark.highlights).includes('x1'), false);
 assert.equal(JSON.stringify(withMark).includes('11111111111111111111111111111111'), false);
+const emptyRingMark = buildSnapshot({ rpcError: 'rpc_unavailable', highlights: marked.rows, now: highlightNow });
+assert.equal(emptyRingMark.holdersLoaded, false);
+assert.equal(emptyRingMark.rings[1].empty, true);
+assert.equal(emptyRingMark.rings[1].reason, 'rpc_unavailable');
+assert.deepEqual(emptyRingMark.highlights, [{ handle: 'ava', href: 'https://x.com/ava', until: highlightNow + 60_000 }]);
+assert.ok(!emptyRingMark.nodes.some((node) => node.kind === 'wallet'));
+assert.deepEqual(dropGraphHighlight(marked.rows, { xId: 'x1' }).rows, {});
+assert.deepEqual(pruneGraphHighlights({ x1: { handle: 'ava', until: highlightNow } }, highlightNow), {});
 
 const none = buildSnapshot({ holders: [] });
 assert.equal(none.rings[1].empty, true);
@@ -460,19 +472,53 @@ try {
 }
 
 resetGraphCache();
-await fetchGraphSnapshot({}, { fetchImpl: rpc429, now: 2, endpoints: ['https://api.mainnet-beta.solana.com'] });
-const merged = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/api/graph'), {
-  LOBBY: { idFromName: () => 'public', get: () => room },
-});
-assert.equal(merged.status, 200);
-const mergedBody = await merged.json();
+globalThis.fetch = rpc429;
+let mergedBody;
+try {
+  const merged = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/api/graph'), {
+    LOBBY: { idFromName: () => 'public', get: () => room },
+  });
+  assert.equal(merged.status, 200);
+  mergedBody = await merged.json();
+} finally {
+  globalThis.fetch = nativeFetch;
+}
 assert.equal(mergedBody.mint, mint);
 assert.equal(mergedBody.pair, pair);
 assert.ok(mergedBody.nodes.some((node) => node.id === mint));
 assert.ok(mergedBody.nodes.some((node) => node.id === pair));
+assert.equal(mergedBody.holdersLoaded, false);
+assert.equal(mergedBody.rings[1].empty, true);
+assert.equal(mergedBody.rings[1].reason, 'rpc_unavailable');
+assert.ok(!mergedBody.nodes.some((node) => node.kind === 'wallet' || node.role === 'wallet'));
 assert.deepEqual(mergedBody.highlights.map((row) => row.handle), ['ava']);
 assert.equal(JSON.stringify(mergedBody.highlights).includes('x1'), false);
 assert.equal(JSON.stringify(mergedBody).includes(signedAddress), false);
+
+room.simpProfiles.x1 = { xId: 'x1', handle: 'ava', enrolledAt: Date.now(), awards: [] };
+const left = await graphPost('/simp/leave', {});
+assert.equal(left.status, 200);
+assert.deepEqual(publicHighlights(room.graphHighlights), []);
+assert.equal(rows.has('graphHighlights') ? Object.keys(rows.get('graphHighlights') || {}).length : 0, 0);
+
+room.graphHighlights = { x1: { handle: 'ava', href: 'https://x.com/ava', until: Date.now() + 60_000, checkedAt: Date.now() } };
+await room.persistGraphHighlights();
+const unlinked = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/logout', {
+  method: 'POST',
+  headers: { Origin: 'https://www.getdasha.com', Cookie: `__Host-dasha_x=${sessionToken}` },
+}), {
+  ...env,
+  X_CLIENT_ID: 'test',
+  X_CLIENT_SECRET: 'test',
+  LOBBY: { idFromName: () => 'public', get: () => room },
+});
+assert.equal(unlinked.status, 200);
+assert.deepEqual(publicHighlights(room.graphHighlights), []);
+
+room.graphHighlights = { x1: { handle: 'ava', href: 'https://x.com/ava', until: Date.now() - 1, checkedAt: Date.now() - 2 } };
+const expiredList = await room.fetch(new Request('https://lobby.getdasha.com/api/graph/highlights'));
+assert.deepEqual((await expiredList.json()).highlights, []);
+assert.deepEqual(room.graphHighlights, {});
 
 const stillHold = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/simp/hold'), {});
 assert.equal(stillHold.status, 501);

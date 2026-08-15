@@ -1193,7 +1193,7 @@ const privacy = await workerModule.default.fetch(new Request('https://lobby.getd
 assert.equal(privacy.status, 200);
 const privacyText = await privacy.text();
 assert.match(privacyText, /does not store the X access token[\s\S]*Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time/);
-assert.match(privacyText, /opt in to graph highlight[\s\S]*public X handle on \/graph until that proof expires/);
+assert.match(privacyText, /opt in to graph highlight[\s\S]*public X handle on \/graph until that proof expires, or until you leave the Board or unlink/);
 assert.match(privacyText, /Leave Board removes[\s\S]*chess rating, games and tournaments involving you[\s\S]*potter@trydemigod\.com/);
 assert.equal(privacy.headers.get('x-robots-tag'), null);
 for (const host of ['lobby.getdasha.com', 'www.getdasha.com']) {
