@@ -222,7 +222,7 @@ Use these as **aesthetic references**, not product pledges:
 
 | Surface | Job | Culture hooks |
 |---------|-----|----------------|
-| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` hop to `/simp` + `[03]` mint band. Native scroll. | Slim hamburger. Quiz + board live on `/simp`. Forum is not a door. `/rally` 308s home. |
+| Home `/` | First viewport: headline + Buy $dasha + the dancer. No modal. Then `[02]` hop to `/simp` + `[03]` mint band. Native scroll. | Slim hamburger. Quiz + board live on `/simp`. Forum is not a door. `/rally` and `/graph` 308 home. |
 | Studio `/studio` | Meme generator | Topbar + footer @dash_eats; **no remote photo strip** (canvas is palette-only by gate) |
 | Desk `/dasha` | Mint, chart, neutral share pack | **Primary photo surface**: pbs avatar→X, culture tape strip, CA post |
 | How-to-buy `/how-to-buy` | Buy ladder (prepared; may be 404 live) | Source post + @dash_eats footer/nav |
@@ -239,6 +239,7 @@ Use these as **aesthetic references**, not product pledges:
 - [x] No WebFont.load / Exo / Bangers / Raleway / system-ui / Google Fonts on home first paint  
 - [x] Body ink `#070608` (not maroon `#1F041C`); no violet / `--hot-deep` / extra visible hexes  
 - [x] Forum is not a home door; `/forum` 308s to lobby chat  
+- [x] `/graph` is shelved: no Graph door, 308 to `/`, no Three.js graph boot. Source stays on disk  
 - [x] No disclaimer / weak copy on home  
 - [x] No catbox casino hero on home  
 - [x] No thesis/receipt language on home  

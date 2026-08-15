@@ -54,7 +54,7 @@ assert.match(source, /--acid:#dfff00/);
 assert.match(source, /--hot:#ff3b81/);
 assert.doesNotMatch(source, /#08070a|#f5eedf|#72d6ff|#c8b6ff/);
 assert.match(source, /class="dasha-slim[\s"]/);
-assert.match(source, /href="\/graph">Graph</);
+assert.doesNotMatch(source, /href="\/graph"/);
 assert.match(source, /href="\/verse">Verse</);
 assert.match(source, /@media\(max-width:560px\)\{[\s\S]*?\.dasha-slim\{flex-wrap:wrap/, 'narrow chess header must wrap');
 assert.doesNotMatch(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /\/bounties|\/learn|\/faucet|\/forum|\/rally|\/privacy/, 'chess hamburger must stay bounded');

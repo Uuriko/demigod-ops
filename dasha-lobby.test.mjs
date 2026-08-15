@@ -35,9 +35,10 @@ assert.match(page, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$d
 assert.match(page, /class="dasha-slim[\s"]/, 'lobby must use the hamburger, not a door strip');
 assert.match(page, /class="dasha-rooms"/, 'lobby must number the real rooms');
 assert.match(page, /<b>\[01\]<\/b> Studio/, 'lobby rail starts at Studio');
-assert.match(page, /<b>\[05\]<\/b> Bounties/, 'lobby rail ends at Bounties');
+assert.match(page, /<b>\[04\]<\/b> Bounties/, 'lobby rail ends at Bounties');
 assert.doesNotMatch(page.match(/class="dasha-rooms"[\s\S]*?<\/nav>/)?.[0] || '', /\/airdrop|\/earn|\/claim|\/privacy/, 'lobby rail hides extra doors');
-assert.match(page, /class="dasha-next"[\s\S]*href="\/graph">Public chain</, 'lobby next-up points at a live room');
+assert.match(page, /class="dasha-next"[\s\S]*href="\/simp">Simp</, 'lobby next-up points at a live room');
+assert.doesNotMatch(page, /href="\/graph"/, 'lobby must not door to shelved /graph');
 assert.doesNotMatch(page, /class="(?:brand|back)" href="\/"/, 'lobby navigation must not mislabel the lobby service root as Home');
 assert(/s\.integrity='sha384-[A-Za-z0-9+/=]+'/.test(page) && page.includes("s.crossOrigin='anonymous'"), 'dedicated lobby client must be SRI-pinned after Webflow sanitization');
 assert(landing.includes('href="/lobby"'), 'landing discovery link to lobby missing');
@@ -147,7 +148,7 @@ assert(!worker.includes('font:16px/1.45 system-ui,sans-serif'), '/simp must use 
 assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
-assert(worker.includes("'X-Dasha-Edge': 'graph'") && worker.includes('GRAPH_PAGE'), 'www /graph is worker-owned first HTML');
+assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML') && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'www /graph is shelved; source stays, route 308s home');
 assert(worker.includes("'X-Dasha-Edge': 'learn'") && worker.includes('learnPageHtml'), 'www /learn is worker-owned first HTML');
 assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'www /learn mounts the learn client');
 assert(worker.includes("path === '/simp/learn'"), 'worker exposes /simp/learn awards');
@@ -421,7 +422,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(html, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$dasha</, `${label} wordmark must leave the JSON health root`);
     assert.match(html, /href="\/lobby">Lobby</, `${label} menu must include Lobby`);
     assert.match(html, /href="\/studio">Studio</, `${label} menu must include Studio`);
-    assert.match(html, /href="\/graph">Graph</, `${label} menu must include Graph`);
+    assert.doesNotMatch(html, /href="\/graph"/, `${label} menu must not door to shelved /graph`);
     assert.match(html, /href="\/verse">Verse</, `${label} menu sister is Verse`);
     assert.match(html, /class="buy-dasha"[^>]*>Buy \$dasha</, `${label} must keep one acid Buy pill`);
     assert.doesNotMatch(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /\/bounties|\/learn|\/faucet|\/forum|\/rally|\/privacy|\/airdrop|\/earn|\/claim/i, `${label} hamburger must stay four doors`);
@@ -858,7 +859,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /class="dasha-slim[\s"]/, `${label} must ship the hamburger`);
     assert.match(section, /href="\/studio">Studio</, `${label} menu must include Studio`);
     assert.match(section, /href="\/lobby">Lobby</, `${label} menu must include Lobby`);
-    assert.match(section, /href="\/graph">Graph</, `${label} menu must include Graph`);
+    assert.doesNotMatch(section, /href="\/graph"/, `${label} menu must not door to shelved /graph`);
     assert.match(section, /href="\/verse">Verse</, `${label} menu sister is Verse`);
     assert.doesNotMatch(section.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /\/simp|\/chess|\/bounties|\/privacy|\/airdrop|\/earn|\/claim|\/forum/i, `${label} hamburger must stay four doors`);
     assert.match(section, /<header class="dasha-slim"[\s\S]*class="buy-dasha"/, `${label} must keep one acid Buy pill`);
@@ -1097,7 +1098,6 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/simp',
     'https://www.getdasha.com/verse',
     'https://www.getdasha.com/chess',
-    'https://www.getdasha.com/graph',
     'https://www.getdasha.com/learn',
     'https://www.getdasha.com/faucet',
   ]) {
@@ -1111,7 +1111,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   const robots = await workerModule.default.fetch(new Request(`https://${host}/robots.txt`), {});
   const robotsBody = await robots.text();
   assert.match(robotsBody, /Allow: \/verse/, `${host} robots must allow /verse`);
-  assert.match(robotsBody, /Allow: \/graph/, `${host} robots must allow /graph`);
+  assert.doesNotMatch(robotsBody, /Allow: \/graph/, `${host} robots must not advertise shelved /graph`);
   assert.match(robotsBody, /Allow: \/learn/, `${host} robots must allow /learn`);
   assert.match(robotsBody, /Allow: \/faucet/, `${host} robots must allow /faucet`);
 }
@@ -1126,10 +1126,10 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.match(verseHtml, /target="_blank" rel="noopener noreferrer">Go there ↗<\/a>/);
   assert.match(verseHtml, /We don't run dashamadness\.com/);
   assert.match(verseHtml, /class="dasha-slim[\s"]/);
-  assert.match(verseHtml, /href="\/graph">Graph</);
+  assert.doesNotMatch(verseHtml, /href="\/graph"/);
   assert.match(verseHtml, /href="\/verse">Verse</);
-  assert.doesNotMatch(verseHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /\/bounties/, 'verse hamburger stays four doors');
-  assert.match(verseHtml, /class="dasha-next"[\s\S]*href="\/graph">Public chain</);
+  assert.doesNotMatch(verseHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /\/bounties/, 'verse hamburger stays bounded');
+  assert.match(verseHtml, /class="dasha-next"[\s\S]*href="\/simp">Simp</);
   assert.match(verseHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/);
   assert.doesNotMatch(verseHtml.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /\/learn|\/faucet|\/airdrop|\/earn|\/bounties|\/privacy|\/verse/, 'verse footer must not be a sitemap');
   assert.doesNotMatch(verseHtml.replace(/<a class="buy-dasha"[^>]*>[\s\S]*?<\/a>/g, ''), /featured|getdasha\.com<\/p>|payTo|\/hold|53ux/i);
@@ -1236,14 +1236,14 @@ assert.match(oauthContinue.headers.get('set-cookie') || '', /^__Host-dasha_x_oau
 assert.match(oauthContinue.headers.get('location') || '', /code_challenge_method=S256/);
 const oauthGraphStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?return=/graph'), oauthEnv);
 assert.equal(oauthGraphStart.status, 200);
-assert.match(await oauthGraphStart.text(), /continue=1&amp;return=https%3A%2F%2Fwww\.getdasha\.com%2Fgraph|continue=1&return=https%3A%2F%2Fwww\.getdasha\.com%2Fgraph/);
+assert.match(await oauthGraphStart.text(), /continue=1&amp;return=https%3A%2F%2Fwww\.getdasha\.com%2F(?!graph)|continue=1&return=https%3A%2F%2Fwww\.getdasha\.com%2F(?!graph)/);
 const oauthEvilStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?return=https://evil.example/phish'), oauthEnv);
 assert.doesNotMatch(await oauthEvilStart.text(), /evil\.example/);
 const oauthGraphContinue = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/x/start?continue=1&return=/graph'), oauthEnv);
 assert.equal(oauthGraphContinue.status, 302);
 const oauthCookie = (oauthGraphContinue.headers.get('set-cookie') || '').match(/__Host-dasha_x_oauth=([^;]+)/)?.[1];
 const oauthState = await verifyPayload(oauthEnv.LOBBY_SESSION_SECRET, oauthCookie);
-assert.equal(oauthState.cont, 'https://www.getdasha.com/graph');
+assert.equal(oauthState.cont, 'https://www.getdasha.com/');
 assert.match(worker, /<script nonce="\$\{scriptNonce\}">/);
 assert.match(worker, /privateHtmlHeaders\(\{[\s\S]*?'Content-Type': 'text\/html; charset=utf-8'[\s\S]*?\}, scriptNonce\)/);
 
@@ -1530,7 +1530,7 @@ try {
     const lowerNav = html.match(/<nav class="nav wrap">[\s\S]*?<\/nav>/i)?.[0] || '';
     assert.match(lowerNav, /href="\/studio">Studio</, `${label} lower nav must include Studio`);
     assert.match(lowerNav, /href="\/simp">Simp</, `${label} lower nav must include Simp`);
-    assert.match(lowerNav, /href="\/graph">Graph</, `${label} lower nav must include Graph`);
+    assert.doesNotMatch(lowerNav, /href="\/graph"/, `${label} lower nav must not door to shelved /graph`);
     assert.match(lowerNav, /href="\/verse">Verse</, `${label} lower nav must include Verse`);
     assert.match(lowerNav, /href="\/bounties">Bounties</, `${label} lower nav must include Bounties`);
     assert.match(lowerNav, /@dash_eats/, `${label} lower nav must include @dash_eats`);
@@ -1731,7 +1731,7 @@ ${liveHomeFooter}
     assert.match(chessHtml, /class="dasha-slim[\s"]/);
     assert.match(chessHtml, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/" aria-label="Dasha home">/);
     assert.match(chessHtml, /href="\/verse">Verse</);
-    assert.match(chessHtml, /href="\/graph">Graph</);
+    assert.doesNotMatch(chessHtml, /href="\/graph"/);
     assert.doesNotMatch(chessHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /\/privacy|\/airdrop|\/earn|\/claim/, `${host} /chess hamburger must stay four doors`);
     assert.doesNotMatch(chessHtml, /forum/i, `${host} /chess must not grow a Forum link`);
     assert.doesNotMatch(chessHtml, /class="(?:brand|back)" href="\/"/);
@@ -1762,7 +1762,8 @@ ${liveHomeFooter}
     assert.match(lobbyHtml, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/">\$dasha</);
     assert.match(lobbyHtml, /class="dasha-rooms"/);
     assert.match(lobbyHtml, /<b>\[01\]<\/b> Studio/);
-    assert.match(lobbyHtml, /class="dasha-next"[\s\S]*href="\/graph">Public chain</);
+    assert.match(lobbyHtml, /class="dasha-next"[\s\S]*href="\/simp">Simp</);
+    assert.doesNotMatch(lobbyHtml, /href="\/graph"/);
     assert.doesNotMatch(lobbyHtml, /class="(?:brand|back)" href="\/"/);
     assert.match(lobbyHtml, /<footer\b/, `lobby ${path} must keep the slim footer`);
     assert.doesNotMatch(lobbyHtml.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /\/airdrop|\/earn|\/claim|\/privacy/, `lobby ${path} footer must not be a sitemap`);
@@ -2075,7 +2076,7 @@ ${laterIcons}
           assert.match(html, /class="dasha-slim[\s"]/, `${host} ${path} must ship the hamburger`);
           assert.match(html, /href="\/studio">Studio</, `${host} ${path} menu must include Studio`);
           assert.match(html, /href="\/lobby">Lobby</, `${host} ${path} menu must include Lobby`);
-          assert.match(html, /href="\/graph">Graph</, `${host} ${path} menu must include Graph`);
+          assert.doesNotMatch(html, /href="\/graph"/, `${host} ${path} menu must not door to shelved /graph`);
           assert.match(html, /href="\/verse">Verse</, `${host} ${path} menu sister is Verse`);
           assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${host} ${path} footer must include @dash_eats`);
           assert.doesNotMatch(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /\/simp|\/chess|\/bounties|\/forum|\/privacy/i, `${host} ${path} hamburger must stay four doors`);

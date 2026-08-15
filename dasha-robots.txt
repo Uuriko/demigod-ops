@@ -15,7 +15,6 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /verse
-Allow: /graph
 Allow: /learn
 Allow: /faucet
 Allow: /airdrop

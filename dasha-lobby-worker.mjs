@@ -286,7 +286,7 @@ function stripHomeScrollToys(html) {
     .replace(/scroll-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '');
 }
 
-const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
+const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
 
 /** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
 function alignHomeLowerNav(html) {
@@ -366,6 +366,7 @@ function injectHomeReveal(html) {
 export function rewriteHomeFirstViewport(html) {
   let page = demoteHomeNavMint(stripHomeForumHrefs(stripHomeAtmosphere(stripHomeWebFonts(stripHomeCtaDecoy(String(html || ''))))));
   page = stripHomeScrollToys(page);
+  page = stripGraphHops(page);
   page = page.replace(/<section\b[^>]*\bid=["']dasha-lock["'][^>]*>[\s\S]*?<\/section>/gi, '');
   page = injectHomeCalmCss(page);
   page = ensureHomeBuyPill(page);
@@ -700,15 +701,16 @@ function json(body, status, origin, { credentials = false } = {}) {
   });
 }
 
-function graphPageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : GRAPH_PAGE, {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'graph',
-    }),
-  });
+function graphPageResponse() {
+  return Response.redirect('https://www.getdasha.com/', 308);
+}
+
+/** Drop leftover Graph doors. /graph is shelved; source stays on disk. */
+export function stripGraphHops(html) {
+  return String(html || '')
+    .replace(/\s*·\s*<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*\/graph\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
 function graphApiResponse(body, origin, cacheControl = GRAPH_CACHE_CONTROL) {
@@ -1450,8 +1452,6 @@ async function chessPageForRequest(request, env) {
 const oauthStateCookie = (token = '') => `${OAUTH_COOKIE}=${token}; Path=/; Max-Age=${token ? 900 : 0}; HttpOnly; Secure; SameSite=Lax`;
 
 const OAUTH_RETURN_OK = new Set([
-  'https://www.getdasha.com/graph',
-  'https://lobby.getdasha.com/graph',
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
   'https://lobby.getdasha.com/chess',
@@ -1465,7 +1465,7 @@ function parseOAuthReturn(raw) {
   const value = String(raw || '').trim();
   if (OAUTH_RETURN_OK.has(value)) return value;
   const path = (value.startsWith('/') ? value : `/${value}`).split('?')[0].split('#')[0];
-  if (path === '/graph') return 'https://www.getdasha.com/graph';
+  if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
   if (path === '/lobby') return 'https://www.getdasha.com/lobby';
@@ -3816,6 +3816,7 @@ async function productEdge(request, url, env) {
   html = ensurePrivacyLink(html);
   if (isExactPath(url.pathname, '/lobby')) html = stripDeadLobbyForum(html);
   html = rewriteLeftoverLobbyHrefs(html);
+  html = stripGraphHops(html);
   html = rewriteStudioScriptIntegrity(html);
   html = rewriteLobbyScriptIntegrity(html);
   html = rewriteStaleCdnFavicon(html);

@@ -154,7 +154,6 @@ Allow: /studio
 Allow: /dasha
 Allow: /chess
 Allow: /verse
-Allow: /graph
 Allow: /learn
 Allow: /faucet
 Allow: /airdrop
@@ -200,9 +199,6 @@ export const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </url>
   <url>
     <loc>https://www.getdasha.com/chess</loc>
-  </url>
-  <url>
-    <loc>https://www.getdasha.com/graph</loc>
   </url>
   <url>
     <loc>https://www.getdasha.com/learn</loc>
@@ -276,7 +272,7 @@ footer a{color:var(--muted)}
 </head>
 <body>
 <div class="dasha-crop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/graph">Graph</a><a href="/verse">Verse</a></nav></details></header>
+<header class="dasha-slim"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/verse">Verse</a></nav></details></header>
 <main class="wrap">
 
   <h1>How to buy $dasha</h1>
@@ -412,7 +408,7 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
 </head>
 <body>
 <div class="dasha-crop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-<header class="dasha-slim wrap"><a class="dasha-word" href="https://www.getdasha.com/" aria-label="Dasha home">$dasha</a><a class="buy-dasha" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/graph">Graph</a><a href="/verse">Verse</a></nav></details></header>
+<header class="dasha-slim wrap"><a class="dasha-word" href="https://www.getdasha.com/" aria-label="Dasha home">$dasha</a><a class="buy-dasha" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/verse">Verse</a></nav></details></header>
 <main class="wrap">
   <div class="hero"><div><div class="kicker">Holder chess · 10+5</div><h1>Dasha <span class="anna">vs Anna</span></h1></div><p class="rule">Dasha is white. Anna is black. Rated games are public.</p></div>
   <div class="app">
@@ -694,10 +690,10 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </head>
 <body>
 <div class="dasha-crop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-<header class="dasha-slim shell"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/graph">Graph</a><a href="/verse">Verse</a></nav></details></header>
+<header class="dasha-slim shell"><a class="dasha-word" href="https://www.getdasha.com/">$dasha</a><a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/verse">Verse</a></nav></details></header>
 <main class="shell">
-<p class="dasha-next"><a href="/graph">Public chain</a></p>
-<nav class="dasha-rooms" aria-label="Rooms"><a href="/studio"><b>[01]</b> Studio</a><a href="/simp"><b>[02]</b> Simp</a><a href="/graph"><b>[03]</b> Graph</a><a href="/verse"><b>[04]</b> Verse</a><a href="/bounties"><b>[05]</b> Bounties</a></nav>
+<p class="dasha-next"><a href="/simp">Simp</a></p>
+<nav class="dasha-rooms" aria-label="Rooms"><a href="/studio"><b>[01]</b> Studio</a><a href="/simp"><b>[02]</b> Simp</a><a href="/verse"><b>[03]</b> Verse</a><a href="/bounties"><b>[04]</b> Bounties</a></nav>
 <div id="dasha-lobby" data-lobby-url="wss://lobby.getdasha.com/ws"></div>
 <footer><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p></footer>
 </main>
@@ -705,4 +701,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "463e59a6743187f1";
+export const ASSET_HASH = "d749fbed0bcbc6fe";

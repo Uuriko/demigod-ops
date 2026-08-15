@@ -35,7 +35,7 @@ export function hamburgerHtml({ buy = true, buyId = '' } = {}) {
   const buyA = buy
     ? `<a class="buy-dasha"${id} href="${BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha</a>`
     : '';
-  return `<header class="dasha-slim"><a class="dasha-word" href="${WORDMARK_HREF}">$dasha</a>${buyA}<details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/graph">Graph</a><a href="/verse">Verse</a></nav></details></header>`;
+  return `<header class="dasha-slim"><a class="dasha-word" href="${WORDMARK_HREF}">$dasha</a>${buyA}<details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/studio">Studio</a><a href="/lobby">Lobby</a><a href="/verse">Verse</a></nav></details></header>`;
 }
 
 export function cropTicksHtml() {
@@ -44,11 +44,11 @@ export function cropTicksHtml() {
 
 /** One real live room. Never a fake date. */
 export function nextUpChipHtml() {
-  return '<p class="dasha-next"><a href="/graph">Public chain</a></p>';
+  return '<p class="dasha-next"><a href="/simp">Simp</a></p>';
 }
 
 export function roomRailHtml() {
-  return '<nav class="dasha-rooms" aria-label="Rooms"><a href="/studio"><b>[01]</b> Studio</a><a href="/simp"><b>[02]</b> Simp</a><a href="/graph"><b>[03]</b> Graph</a><a href="/verse"><b>[04]</b> Verse</a><a href="/bounties"><b>[05]</b> Bounties</a></nav>';
+  return '<nav class="dasha-rooms" aria-label="Rooms"><a href="/studio"><b>[01]</b> Studio</a><a href="/simp"><b>[02]</b> Simp</a><a href="/verse"><b>[03]</b> Verse</a><a href="/bounties"><b>[04]</b> Bounties</a></nav>';
 }
 
 export function slimFooterHtml() {

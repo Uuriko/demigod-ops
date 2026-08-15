@@ -51,7 +51,7 @@ assert.ok(!/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(landing), 'h
 assert.match(landing, /href=["']\/how-to-buy["']/, 'home must crawlably link the live buying guide');
 assert.ok(landing.includes('id="mint-check"'), 'home mint paste-check');
 assert.ok(landing.includes('DashaLanding') || landing.includes('checkMint'), 'home mint-check script');
-assert.ok(landing.includes('/dasha') && landing.includes('/studio') && landing.includes('/graph'), 'home loops desk + studio + graph');
+assert.ok(landing.includes('/dasha') && landing.includes('/studio') && !landing.includes('/graph'), 'home loops desk + studio; /graph is shelved');
 assert.ok(landing.includes('github.com/Uuriko/dasha-desk/contribute'), 'home OSS /contribute path');
 assert.ok(landing.includes('id="oss"') && landing.includes('Start with a good first issue'), 'home OSS section + GFI CTA');
 assert.ok(!landing.includes('t.me/dashacommunity'));

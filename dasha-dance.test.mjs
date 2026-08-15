@@ -155,10 +155,10 @@ const assets = {
 };
 
 const graph = await worker.fetch(new Request('https://www.getdasha.com/graph'), assets);
-assert.equal(graph.status, 200);
+assert.equal(graph.status, 308, 'shelved /graph 308s home');
+assert.equal(graph.headers.get('location'), 'https://www.getdasha.com/');
 const graphHtml = await graph.text();
-assert.doesNotMatch(graphHtml, /dasha-dance/, 'served /graph must not inject the dock');
-assert.match(graphHtml, /three@0\.170\.0/);
+assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not boot the dancer or graph Three');
 
 {
   const nativeFetch = globalThis.fetch;
