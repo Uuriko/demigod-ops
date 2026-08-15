@@ -6,6 +6,8 @@
   'use strict';
 
   var MINT = '53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump';
+  var WSOL = 'So11111111111111111111111111111111111111112';
+  var JUPITER = 'https://jup.ag/swap?sell=' + WSOL + '&buy=' + MINT;
   var MINT_SOURCE = 'https://x.com/dash_eats/status/2085405228078432279';
   var NOT_DEV = 'https://x.com/dash_eats/status/2085532923063853316';
   var DEFAULT_API = 'https://lobby.getdasha.com';
@@ -69,9 +71,14 @@
     var box = el('div', 'faucet-hops');
     var buy = el('a', 'faucet-go', 'How to buy');
     buy.href = '/how-to-buy';
+    var jup = el('a', 'faucet-go', 'Jupiter');
+    jup.href = JUPITER;
+    jup.target = '_blank';
+    jup.rel = 'noopener noreferrer';
     var learn = el('a', 'faucet-go', 'Learn');
     learn.href = '/learn';
     box.appendChild(buy);
+    box.appendChild(jup);
     box.appendChild(learn);
     box.appendChild(el('p', 'faucet-lede', 'Neither is required.'));
     root.appendChild(box);

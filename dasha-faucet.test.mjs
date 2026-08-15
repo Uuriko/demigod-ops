@@ -10,8 +10,10 @@ import {
   DECIMALS,
   DashaFaucet,
   FEE_LAMPORTS,
+  JUPITER,
   MINT,
   TOKEN_PROGRAM,
+  WSOL,
   amountUi,
   associatedTokenAddress,
   base58Encode,
@@ -42,6 +44,9 @@ const clientSrc = await readFile(new URL('./dasha-faucet-client.js', root), 'utf
 const sitemap = await readFile(new URL('./dasha-sitemap.xml', root), 'utf8');
 
 assert.equal(MINT, mint);
+assert.equal(WSOL, 'So11111111111111111111111111111111111111112');
+assert.equal(JUPITER, 'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump');
+assert.doesNotMatch(JUPITER, /sell=So11111111111111111111111111111111111112&/);
 assert.equal(DEFAULT_AMOUNT_RAW, 100000000);
 assert.equal(DECIMALS, 6);
 assert.equal(amountUi(DEFAULT_AMOUNT_RAW), 100);
@@ -69,6 +74,11 @@ assert.match(clientSrc, /\/faucet\/wallet\/challenge/);
 assert.match(clientSrc, /\/faucet\/claim/);
 assert.match(clientSrc, /\/how-to-buy/);
 assert.match(clientSrc, /\/learn/);
+assert.match(clientSrc, /jup\.ag\/swap\?sell=/);
+assert.ok(clientSrc.includes(WSOL));
+assert.match(clientSrc, /var JUPITER = 'https:\/\/jup\.ag\/swap\?sell=' \+ WSOL \+ '&buy=' \+ MINT/);
+assert.doesNotMatch(clientSrc, /sell=So11111111111111111111111111111111111112&/);
+assert.doesNotMatch(faucetSrc, /sell=So11111111111111111111111111111111111112&/);
 assert.doesNotMatch(clientSrc, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.doesNotMatch(clientSrc, /confetti|three\.js|lenis|barba|free money|guaranteed|this is official|airdrop campaign/i);
 assert.ok(clientSrc.includes(mint));

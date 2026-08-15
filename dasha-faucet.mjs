@@ -2,7 +2,7 @@
  * Dasha /faucet — tiny sample, not an airdrop, not earn.
  * Classic Token program. HTTP RPC only. No hold check. No board join.
  */
-import { MINT, originAllowed } from './dasha-lobby-mod.mjs';
+import { MINT, WSOL, originAllowed } from './dasha-lobby-mod.mjs';
 import {
   base58Decode,
   isValidSolanaAddress,
@@ -11,7 +11,8 @@ import {
 } from './dasha-simp-actions.mjs';
 import { sessionFromRequest, signPayload, verifyPayload } from './dasha-lobby-x.mjs';
 
-export { MINT };
+export { MINT, WSOL };
+export const JUPITER = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
 export const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 export const SYSTEM_PROGRAM = '11111111111111111111111111111111';
