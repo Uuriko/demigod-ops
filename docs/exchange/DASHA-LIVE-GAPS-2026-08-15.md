@@ -90,6 +90,42 @@ Tests: `dasha-forum-worker.test.mjs`, `dasha-forum-live.test.mjs`.
 This is the cheapest real community win available. It is finished work sitting behind a missing
 route, and the site currently has exactly two working community surfaces (Simp board, `/chess`).
 
+## 3b. The homepage ships one visible heading, and a hidden duplicate chess section
+
+Verified in Chromium at 390×844 on live. The page has an `h1` and three `h2`s, and **none of the
+`h2`s render**:
+
+| heading | why it is invisible |
+|---|---|
+| `h2 "Play"` | parent `<section>` computes `display: none` |
+| `h2 "Top table"` | parent `<section>` computes `display: none` |
+| `h2 "$dasha."` | the heading itself computes `display: none` |
+
+There is also **no "Simp board" heading on live at all** — the board mounts into a bare `<div>`. The
+Designer copy has `<h2 class="section-title" id="simp-title">Simp board.</h2>`; live does not.
+
+Two things follow, and they want different fixes:
+
+1. **A chess section is duplicated.** `Play` and `Top table` sit in a section computing
+   `display: none`, yet a 64-square board *is* visible further down the page (top at 5340px). So one
+   chess block is hidden and another renders — the same shape of defect as the doubled `<script>`
+   in §1, and plausibly the same bad merge. Worth fixing together.
+2. **The "first paint" CSS became permanent.** `dasha-landing.html` carries
+   `.dasha-hero .poster,.dasha-hero .price{display:none}` and
+   `.dasha-hero .actions a:not(.buy-dasha){display:none}` under the comment *"First paint: headline
+   + Buy. Everything else waits below."* Nothing ever reverses any of it. Live confirms the poster
+   collage is absent from the DOM entirely, the price strip computes `display: none`, and the hero
+   has exactly one CTA.
+
+Net effect for a visitor and for a crawler: an `h1`, a Buy button, a leaderboard with no heading, a
+contract address with no heading, and an inert chessboard. That is a thin document structure for a
+page about to receive Twitter traffic — one `h1` and no `h2` gives search and screen-reader
+navigation almost nothing to work with.
+
+**This is a judgement call, not an unambiguous bug.** If the minimal hero is a deliberate conversion
+choice, keep it — but the hidden section headings and the duplicated chess block are separate from
+that choice and should be fixed regardless.
+
 ## 4. Do not publish getdasha.com from the Webflow Designer or MCP
 
 The Designer holds unpublished changes that are **not** safe to ship:
