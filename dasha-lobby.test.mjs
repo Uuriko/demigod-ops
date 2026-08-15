@@ -172,7 +172,7 @@ assert(worker.includes('isLeftoverHowtoPath'), 'how-to-buy is a quiet leftover 3
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('ensureHomeChessMount') && worker.includes('chessHomeMountHtml'), 'home rewrite embeds the chess game above faucet');
-assert(worker.includes('alignHomeLowerNav') && worker.includes('HOME_CULTURE_NAV'), 'home rewrite aligns the hidden Webflow nav');
+assert(worker.includes('stripHomeLeftoverChrome'), 'home rewrite strips leftover Webflow chrome from the HTML');
 assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('main.dasha>nav.nav') && worker.includes('main.dasha>nav.nav.wrap') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)') && worker.includes('.dasha-hero .actions .pill:not(.buy-dasha)') && worker.includes('github.com/Uuriko/dasha-desk') && worker.includes('a[href^="/studio#"]') && worker.includes('footer:not(.dasha-foot)'), 'home html-security injects first-paint hide CSS');
 assert.doesNotMatch(worker, /References describe internet culture|dasha-assoc|Not endorsement|association is not endorsement|we will not ask for a phrase/i, 'homeFirstViewportHtml must delete disclaimer copy, not hide it');
 assert(worker.includes('ensureHomeBuyPill') && worker.includes('HOME_BUY_PILL'), 'home rewrite ensures a Jupiter Buy pill');
@@ -1404,7 +1404,14 @@ try {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 <script>WebFont.load({google:{families:["Exo:400","Bangers:regular","Raleway:400"]}});</script>
+<!-- earlier unrelated -->
+<!-- DashaNav stays on lobby/studio/desk -->
 <style>
+/* foo */
+.keep-prior{border:1px solid red}
+/* reduced-motion */
+@media(prefers-reduced-motion:reduce){.keep-prior{scroll-behavior:auto}}
+/* Home first paint is Buy $dasha. DashaNav stays on lobby/studio/desk. */
 :root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--hot-deep:#c21f5a}
 .simp-board{display:grid}.simp-row{display:grid}.simp-rank{font-size:42px}
 .dasha{min-height:100vh;background:radial-gradient(circle at 80% 5%,rgba(124,77,255,.35),transparent 32rem),var(--ink)}
@@ -1412,15 +1419,16 @@ try {
 .dasha-hero{min-height:640px}
 #dasha-home h1{color:var(--ink,#F2EDE7)}
 </style>
-<body class="body"><div id="dasha-home" class="dasha-root"><div class="w-embed w-script">
+<body class="body"><nav class="dasha-nav"><a href="/studio">Studio</a></nav><div id="dasha-home" class="dasha-root"><div class="w-embed w-script">
+<script>(function(){function patch(){try{document.querySelectorAll('a[href*="/studio"]').forEach(function(a){if(a.classList.contains('buy-dasha'))return;var p=new URLSearchParams();p.set('src','home');a.setAttribute('href','/studio#'+p.toString());});}catch(e){}}patch();})();</script>
 <a class="skip-link" href="#content">Skip to content</a>
 <section id="dasha-home-cta" aria-label="Simp"><style>#dasha-home-cta{min-height:100vh;font:16px/1.45 system-ui,sans-serif}</style><h1>$dasha</h1><p>Take Simp.</p><p><a href="/simp">Simp</a></p></section>
 <main class="dasha" id="top">
 <nav class="nav wrap"><a href="/studio">Studio</a><a href="#token">CA 53ux…pump</a><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a><a href="https://lobby.getdasha.com/forum">Forum</a></nav>
-<nav class="dasha-nav"><a href="/studio">Studio</a></nav>
-<header class="dasha-hero wrap" id="content"><h1>It's time $dasha.</h1><p class="price">$0.00</p><div class="poster"><a class="poster-tile">How u crying at the casino</a></div><p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p></header>
+<header class="dasha-hero wrap" id="content"><h1>It's time $dasha.</h1><p class="price">$0.00</p><div class="poster"><span class="sticker">CMON</span><div class="poster-grid" aria-label="Open an editable Dasha Studio starter"><a class="poster-tile" href="/studio#look=poster&amp;format=square&amp;line=How%20u%20crying">How u crying at the casino</a></div></div><p class="actions"><a href="/studio">Open Studio →</a><a href="/lobby">Open lobby →</a></p></header>
 <section id="token"><code id="mint">${mint}</code><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></section>
-<footer><p><a href="/how-to-buy">How to buy</a> · <a href="https://lobby.getdasha.com/forum">Forum</a> · <a href="/lobby">Lobby</a> · <a href="/dasha">Desk</a> · <a href="https://lobby.getdasha.com/chess">Chess</a></p></footer>
+<footer><div class="wrap"><p><a href="/studio">Studio</a> · <a href="/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="https://github.com/Uuriko/dasha-desk">Source ↗</a></p></div></footer>
+<script>(()=>{const href="/studio#look=ticket";document.querySelectorAll('a[href^="/studio"],a[href*="/studio#"]');})();</script>
 </main>
 </div></div></body></html>`;
   const homeHero = html => {
@@ -1476,10 +1484,18 @@ try {
     assert.doesNotMatch(html, /#1[fF]041[cC]/, `${label} must replace maroon #1F041C`);
     assert.match(hero, /<h1>It's time \$dasha\.<\/h1>/, `${label} must keep the headline`);
     assert.equal([...hero.matchAll(/<h1\b/g)].length, 1, `${label} hero must have one h1`);
-    assert.match(hero, /class="poster"/, `${label} must keep the poster in the DOM`);
+    assert.doesNotMatch(hero, /class="poster"|poster-grid|poster-tile/, `${label} must strip poster collage tiles`);
     assert.match(hero, /class="price"/, `${label} must keep the price in the DOM`);
-    assert.match(hero, /Open Studio →/, `${label} must keep other action links in the DOM`);
-    assert.match(html, /class="dasha-nav"/, `${label} must keep Designer nav in the DOM`);
+    assert.doesNotMatch(hero, /Open Studio →/, `${label} must strip leftover Studio actions`);
+    assert.doesNotMatch(html, /class="dasha-nav"|DashaNav stays/, `${label} must strip Designer DashaNav and its comments`);
+    assert.match(html, /\/\* foo \*\//, `${label} must keep earlier CSS comments`);
+    assert.match(html, /\.keep-prior\{border:1px solid red\}/, `${label} must keep CSS after an earlier comment`);
+    assert.match(html, /\/\* reduced-motion \*\//, `${label} must keep the reduced-motion comment`);
+    assert.match(html, /<!-- earlier unrelated -->/, `${label} must keep earlier HTML comments`);
+    assert.doesNotMatch(html, /href="\/studio"|How to buy/, `${label} rewritten home must not include href="/studio" or How to buy`);
+    assert.doesNotMatch(html, /href="\/dasha"|href="\/bounties"|href="\/how-to-buy"/, `${label} must strip leftover Desk/Bounties/How-to-buy hrefs`);
+    assert.doesNotMatch(html, /<footer(?![^>]*dasha-foot)\b/, `${label} must keep only .dasha-foot`);
+    assert.doesNotMatch(html, /a\[href\*="\/studio"\]|p\.set\(\s*['"]src['"]/, `${label} must strip studio patch scripts`);
     assert.match(html, new RegExp(`id="token"[\\s\\S]*${mint}[\\s\\S]*buy-dasha`), `${label} must keep CA + Buy in #token`);
     assert.match(html, /id="dasha-tape"/, `${label} must keep a live chart room`);
     assert.match(html, /id="dasha-tape-embed"/, `${label} chart uses the official pair embed`);
@@ -1538,6 +1554,22 @@ try {
   };
   const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
   assertHomeFirst(injected, 'rewrite');
+  assert.doesNotMatch(injected, /href="\/studio"/, 'rewritten home string must not include href="/studio"');
+  assert.doesNotMatch(injected, /How to buy/, 'rewritten home string must not include How to buy');
+  {
+    const commentOrder = `<!doctype html><html><head><style>
+/* foo */
+.keep-prior{border:1px solid red}
+/* Home first paint is Buy $dasha. DashaNav stays on lobby/studio/desk. */
+.dasha-hero{min-height:640px}
+</style></head><body><!-- earlier unrelated --><!-- DashaNav stays on lobby/studio/desk --><header class="dasha-hero"><h1>It's time $dasha.</h1><p class="actions"><a class="pill primary buy-dasha" href="${buy}">Buy $dasha ↗</a></p></header><section id="token"><code id="mint">${mint}</code></section></body></html>`;
+    const kept = rewriteHomeFirstViewport(stripHomeSimpBoard(commentOrder));
+    assert.match(kept, /\/\* foo \*\//, 'earlier /* foo */ must survive');
+    assert.match(kept, /\.keep-prior\{border:1px solid red\}/, 'CSS after an earlier comment must survive');
+    assert.match(kept, /<!-- earlier unrelated -->/, 'earlier HTML comment must survive');
+    assert.doesNotMatch(kept, /DashaNav stays/, 'only the DashaNav comment is stripped');
+    assert.doesNotMatch(kept, /href="\/studio"|How to buy/, 'comment-order fixture must not grow leftover rooms');
+  }
   assert.match(injected, /class="dasha-slim[\s"]/, 'home rewrite must add the slim bar');
   assert.match(injected, /class="dasha-crop"/, 'home rewrite must add crop marks');
   assert.doesNotMatch(injected, /dasha-menu|aria-label="Menu">Menu</, 'home rewrite must not render a Menu');
@@ -1840,8 +1872,10 @@ ${liveHomeFooter}
       assert.match(html, /\.spark\{/);
       assert.match(html, /id="token"/);
       assert.doesNotMatch(html, /\.simp-/);
-      assert.match(html, /href="\/chess">Chess</, `${host} / html-security must remap leftover lobby Chess`);
-      assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${host} / leftover Chess href must be same-origin`);
+      assert.doesNotMatch(html, /href="\/studio"|How to buy/, `${host} / rewritten home must not include href="/studio" or How to buy`);
+      assert.doesNotMatch(html, /<footer(?![^>]*dasha-foot)\b/, `${host} / must drop the leftover Webflow footer`);
+      assert.match(html, /<footer class="dasha-foot"/, `${host} / must keep .dasha-foot`);
+      assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${host} / leftover Chess href must be same-origin or gone`);
       assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, `${host} / leftover Forum href must become \/forum or drop`);
       const lobby = await workerModule.default.fetch(new Request(`https://${host}/lobby`), {});
       assert.equal(lobby.status, 308, `${host} /lobby must 308 home`);
