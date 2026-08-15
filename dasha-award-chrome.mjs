@@ -45,8 +45,8 @@ export function roomLinksHtml() {
   return DASHA_ROOMS.map(room => `<a href="${room.href}">${room.label}</a>`).join('');
 }
 
-/** Paper on ink. 48px taps. Extra bottom pad so the 156px dock does not cover links. */
-export const AWARD_FOOT_CSS = 'footer.dasha-foot,.dasha-foot{margin:0;padding:1.25rem 1.25rem calc(180px + env(safe-area-inset-bottom,0px));background:#070608;color:#f4eddb;font:900 1rem/1.3 Arial,Helvetica,sans-serif}footer.dasha-foot a,.dasha-foot a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .65rem;color:#f4eddb;text-decoration:none}footer.dasha-foot a:hover,.dasha-foot a:hover{color:#dfff00}footer.dasha-foot .buy-dasha,.dasha-foot .buy-dasha{background:#dfff00;color:#070608;padding:0 1rem}footer.dasha-foot nav,.dasha-foot nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}';
+/** Paper on ink. 48px taps. No dock reserve. */
+export const AWARD_FOOT_CSS = 'footer.dasha-foot,.dasha-foot{margin:0;padding:1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom,0px));background:#070608;color:#f4eddb;font:900 1rem/1.3 Arial,Helvetica,sans-serif}footer.dasha-foot a,.dasha-foot a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .65rem;color:#f4eddb;text-decoration:none}footer.dasha-foot a:hover,.dasha-foot a:hover{color:#dfff00}footer.dasha-foot .buy-dasha,.dasha-foot .buy-dasha{background:#dfff00;color:#070608;padding:0 1rem}footer.dasha-foot nav,.dasha-foot nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}';
 
 export const AWARD_HAM_CSS = AWARD_SLIM_CSS;
 export const AWARD_TICK_CSS = AWARD_CROP_CSS;

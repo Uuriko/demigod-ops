@@ -737,7 +737,7 @@
       gateEl.setAttribute('aria-label', 'Connect X');
       var st = document.createElement('style');
       st.textContent =
-        '.simp-x-ask{position:fixed;right:16px;bottom:calc(172px + env(safe-area-inset-bottom,0px));z-index:40;width:min(320px,calc(100vw - 32px));background:#f4eddb;color:#070608;border:3px solid #070608;box-shadow:6px 6px 0 #ff3b81;padding:16px 18px}' +
+        '.simp-x-ask{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;width:min(320px,calc(100vw - 32px));background:#f4eddb;color:#070608;border:3px solid #070608;box-shadow:6px 6px 0 #ff3b81;padding:16px 18px}' +
         '.simp-x-ask p{margin:0 0 12px;font:700 15px/1.3 Arial,Helvetica,sans-serif}' +
         '.simp-x-ask .x-go{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;background:#dfff00;color:#070608;font:900 15px/1 Arial Black,Helvetica,sans-serif;text-transform:uppercase;border:3px solid #070608;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}' +
         '.simp-x-ask .x-skip{display:block;margin-top:8px;background:none;border:0;color:#070608;opacity:.55;font:700 13px/1.2 Arial,Helvetica,sans-serif;text-decoration:underline;cursor:pointer;min-height:44px}';

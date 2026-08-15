@@ -41,7 +41,8 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.match(foot, /href="\/lobby">Lobby<\/a><a href="\/chess">Chess</, 'footer puts Chess after Lobby');
   assert.match(rail, /<b>\[02\]<\/b> Chess/, 'rooms rail numbers Chess near the top');
   assert.match(ham, /href="\/chess">Chess</);
-  assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
+  assert.match(foot, /padding:1\.25rem 1\.25rem calc\(1\.25rem/);
+  assert.doesNotMatch(foot, /180px|156px/, 'footer must not reserve the old dance dock');
   assert.match(foot, /min-height:48px/);
 }
 assert.doesNotMatch(chessPage, /forum/i, 'chess page must not grow a Forum link');

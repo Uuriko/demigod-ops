@@ -42,6 +42,7 @@ assert(!/FIRST VISIT|CONNECT X\?/.test(client), 'scroll ask must not use the old
   const askCssStart = client.indexOf("'.simp-x-ask{");
   const askCss = askCssStart >= 0 ? client.slice(askCssStart, askCssStart + 900) : '';
   assert(askCss.includes('position:fixed') && askCss.includes('width:min(320px'), 'scroll ask is a small fixed card');
+  assert(askCss.includes('bottom:calc(16px') && !askCss.includes('172px'), 'scroll ask sits on the real bottom, not above a dock');
   assert(!askCss.includes('backdrop-filter') && !askCss.includes('inset:0'), 'scroll ask must not be a full-viewport blur gate');
 }
 assert(client.includes('Connect X + take the quiz') || client.includes('Simp quiz invite'), 'quiz invite connect prompt stays on /simp');
