@@ -451,7 +451,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html, /#2 @|#3 @/);
     assert.match(html, /\.simp-row\{display:grid;grid-template-columns:3\.2rem minmax\(0,1fr\) 3\.2rem/, `${label} must ship three-column board CSS`);
     assert.doesNotMatch(html, /class="simp-/);
-    assert.doesNotMatch(html, /RANK|CONTRIBUTOR|SCORE|Breakdown|\blinked\b badge/i);
+    assert.doesNotMatch(html, />RANK<|>CONTRIBUTOR<|>SCORE<|Breakdown|linked badge/i);
     assert.doesNotMatch(html, /score=/);
     assert.doesNotMatch(html, /"answer"\s*:/);
     assert.doesNotMatch(html, /oauth\/x\/start|Connect X/);

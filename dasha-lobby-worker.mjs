@@ -281,9 +281,9 @@ function stripHomeScrollToys(html) {
   return String(html || '')
     .replace(/scroll-behavior\s*:\s*smooth/gi, 'scroll-behavior:auto')
     .replace(/\.dasha\{[^}]*\}/g, (rule) => rule.replace(/overflow-x\s*:\s*hidden/gi, 'overflow-x:visible'))
-    .replace(/view-timeline(?:-name|-axis)?\s*:[^;}\"']+;?/gi, '')
-    .replace(/animation-timeline\s*:[^;}\"']+;?/gi, '')
-    .replace(/scroll-timeline(?:-name|-axis)?\s*:[^;}\"']+;?/gi, '');
+    .replace(/view-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '')
+    .replace(/animation-timeline\s*:\s*(?!none\b)[^;}\"']+;?/gi, '')
+    .replace(/scroll-timeline(?:-name|-axis)?\s*:\s*(?!none\b)[^;}\"']+;?/gi, '');
 }
 
 const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
