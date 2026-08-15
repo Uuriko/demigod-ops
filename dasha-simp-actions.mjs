@@ -184,7 +184,7 @@ export function walletMessage({ handle, publicKey, nonce, issuedAt, expiresAt, d
   const why = requestId === 'graph-highlight'
     ? `Prove you hold mint ${MINT} to highlight @${handle} on /graph. No transaction. Wallet is not retained.`
     : requestId === 'faucet_dest'
-      ? `Dest-proof for the /faucet sample for @${handle}. Not a claim-airdrop signature. No transaction. We will not ask for a phrase.`
+      ? `Dest-proof for the /faucet sample for @${handle}. No transaction.`
       : `Prove the private holder badge for @${handle} and mint ${MINT}. No transaction or public balance.`;
   return `${domain} wants you to sign in with your Solana account:\n${publicKey}\n\n${why}\n\nURI: ${uri}\nVersion: 1\nChain ID: mainnet\nNonce: ${nonce}\nIssued At: ${new Date(issuedAt).toISOString()}\nExpiration Time: ${new Date(expiresAt).toISOString()}\nRequest ID: ${requestId}`;
 }

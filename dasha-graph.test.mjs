@@ -13,7 +13,8 @@ const wsol = 'So11111111111111111111111111111111111111112';
 const amm = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 
 assert.match(page, /<h1>\$DASHA <em>GRAPH<\/em><\/h1>/);
-assert.match(page, /Public chain\. Addresses, not people\. Not endorsement\./);
+assert.match(page, /Public chain\. Addresses, not people\./);
+assert.doesNotMatch(page, /endorsement|not advice|\bNFA\b|\bDYOR\b/i);
 assert.match(page, /class="ticker"/);
 assert.match(page, new RegExp(`<code id="mint">${mint}</code>`));
 assert.doesNotMatch(page, /MINT\.slice|ellipsis|…pump/);
@@ -372,7 +373,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     if (method === 'HEAD') assert.equal(html, '');
     else {
       assert.match(html, /\$DASHA <em>GRAPH<\/em>/);
-      assert.match(html, /Public chain\. Addresses, not people\. Not endorsement\./);
+      assert.match(html, /Public chain\. Addresses, not people\./);
+      assert.doesNotMatch(html, /endorsement|not advice|\bNFA\b|\bDYOR\b/i);
       assert.match(html, />Follow latest</);
       assert.match(html, new RegExp(mint));
       assert.doesNotMatch(html, /clamp\([^)]*10rem/);

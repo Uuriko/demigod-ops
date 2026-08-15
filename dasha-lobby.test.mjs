@@ -121,6 +121,7 @@ assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML mu
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('alignHomeLowerNav') && worker.includes('HOME_CULTURE_NAV'), 'home rewrite aligns the hidden Webflow nav');
 assert(worker.includes('id="dasha-home-calm"') && worker.includes('.dasha>nav.nav') && worker.includes('main.dasha>nav.nav') && worker.includes('main.dasha>nav.nav.wrap') && worker.includes('.dasha-hero .actions a:not(.buy-dasha)') && worker.includes('.dasha-hero .actions .pill:not(.buy-dasha)') && worker.includes('github.com/Uuriko/dasha-desk') && worker.includes('a[href^="/studio#"]'), 'home html-security injects first-paint hide CSS');
+assert.doesNotMatch(worker, /References describe internet culture|dasha-assoc|Not endorsement|association is not endorsement|we will not ask for a phrase/i, 'homeFirstViewportHtml must delete disclaimer copy, not hide it');
 assert(worker.includes('ensureHomeBuyPill') && worker.includes('HOME_BUY_PILL'), 'home rewrite ensures a Jupiter Buy pill');
 assert(worker.includes('max-width:640px') && worker.includes('dasha-posters{grid-template-columns:1fr}'), 'lock posters stack under 640px');
 assert(worker.includes('WORKER_SITE_FOOTER'), 'worker pages share one site footer');

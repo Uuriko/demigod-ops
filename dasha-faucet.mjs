@@ -172,7 +172,7 @@ export function faucetSiwsFields({ handle, publicKey, nonce, issuedAt, expiresAt
   return {
     domain,
     address: publicKey,
-    statement: `Dest-proof for the /faucet sample for @${handle}. Not a claim-airdrop signature. No transaction. We will not ask for a phrase.`,
+    statement: `Dest-proof for the /faucet sample for @${handle}. No transaction.`,
     uri: uri || `https://${domain}/`,
     version: '1',
     chainId: 'mainnet',

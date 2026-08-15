@@ -45,7 +45,7 @@ export const MODULES = [
   }),
   mod({
     id: 'C02', track: 'crypto', skill: 'wallet', difficulty: 0, points: 4,
-    goal: 'Write the phrase on paper. Nobody from $dasha asks for it.',
+    goal: 'Write the phrase on paper.',
     type: 'card+quiz',
     body: 'Paper. Drawer. Not a screenshot. Not a DM. Nobody asks.',
     prompt: 'Who from $dasha will ask for your phrase?',
