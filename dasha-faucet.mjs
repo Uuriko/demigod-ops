@@ -511,6 +511,7 @@ export function faucetPublicStatus(env = {}) {
     status: 200,
     body: {
       configured: true,
+      funded: false,
       amountRaw: raw,
       amountUi: amountUi(raw),
       mint: MINT,
@@ -519,6 +520,31 @@ export function faucetPublicStatus(env = {}) {
       treasury: keypair.address,
     },
   };
+}
+
+async function faucetTreasuryCanSend(endpoints, treasury, amountRaw) {
+  if (!treasury || !Array.isArray(endpoints) || !endpoints.length) return false;
+  try {
+    const treasuryAta = (await associatedTokenAddress(treasury.address)).address;
+    const rows = await rpcBatch(endpoints, [
+      { jsonrpc: '2.0', id: 1, method: 'getTokenAccountBalance', params: [treasuryAta] },
+    ]);
+    const tokenAmount = rows?.[0]?.result?.value?.amount;
+    if (rows?.[0]?.error || tokenAmount == null) return false;
+    return BigInt(tokenAmount) >= BigInt(amountRaw);
+  } catch {
+    return false;
+  }
+}
+
+export async function faucetPublicStatusLive(env = {}, endpoints = []) {
+  const out = faucetPublicStatus(env);
+  if (out.status !== 200) return out;
+  const keypair = parseFaucetKeypair(env.FAUCET_KEYPAIR);
+  const funded = await faucetTreasuryCanSend(endpoints, keypair, out.body.amountRaw);
+  out.body.funded = funded;
+  if (!funded) out.body.error = 'treasury_empty';
+  return out;
 }
 
 export function notConfigured() {
@@ -912,7 +938,7 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
   const failUnconfigured = () => json(notConfigured(), 501, allowedOrigin, cred);
 
   if (path === '/faucet/status' && (request.method === 'GET' || request.method === 'HEAD')) {
-    const out = faucetPublicStatus(env);
+    const out = await faucetPublicStatusLive(env, endpoints);
     return json(out.body, out.status, allowedOrigin, cred);
   }
 

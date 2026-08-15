@@ -193,6 +193,9 @@ assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties 
 assert(worker.includes('isLeftoverVersePath') && !worker.includes('versePageHtml'), 'leftover /verse 308s home; no Verse page');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML') && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'www /graph is shelved; source stays, route 308s home');
 assert(worker.includes('isLeftoverLearnPath') && !worker.includes('learnPageHtml'), 'leftover /learn 308s home; no Learn page');
+assert(worker.includes('isLeftoverStudioPath') && worker.includes('isLeftoverDeskPath'), 'leftover /studio and /dasha 308 home');
+assert(!worker.includes('Open Graph'), 'oauth dest must not mention Graph');
+assert(!worker.includes('lobby.getdasha.com/price'), 'home chart must not use the dead /price endpoint');
 assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'learn client bytes may still be served');
 assert(worker.includes("path === '/simp/learn'"), 'worker exposes /simp/learn awards');
 assert(worker.includes("'X-Dasha-Edge': 'faucet'") && worker.includes('faucetPageHtml'), 'www /faucet is worker-owned first HTML');
@@ -474,8 +477,8 @@ for (const path of ['/no-such-page', '/no-such-page-242', '/no-such-page-251', '
 for (const path of ['/studio', '/studio/']) {
   for (const method of ['GET', 'HEAD']) {
     const hop = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-    assert.equal(hop.status, 308, `lobby ${path} ${method} must send Studio to www`);
-    assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/studio');
+    assert.equal(hop.status, 308, `lobby ${path} ${method} must 308 home`);
+    assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/');
   }
 }
 {
@@ -589,8 +592,8 @@ for (const path of ['/studio', '/studio/']) {
   assert.equal(lobbyQuiz.headers.get('x-dasha-edge'), 'html-404');
   for (const path of ['/dasha', '/desk']) {
     const invented = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`), {});
-    assert.equal(invented.status, 404, `lobby ${path} must not invent a product page`);
-    assert.equal(invented.headers.get('x-dasha-edge'), 'html-404');
+    assert.equal(invented.status, 308, `lobby ${path} must 308 home`);
+    assert.equal(invented.headers.get('location'), 'https://www.getdasha.com/');
   }
   for (const method of ['GET', 'HEAD']) {
     for (const path of ['/bounties', '/bounties/']) {
@@ -790,14 +793,16 @@ for (const path of ['/studio', '/studio/']) {
         assert.equal(room.headers.get('x-dasha-edge'), edge, `${host}${path} must keep x-dasha-edge ${edge}`);
         assert.doesNotMatch(await room.text(), /not an airdrop|not earn/i);
       }
-      for (const [path, title, edge] of [
-        ['/', '$dasha — make the timeline stranger', 'html-security'],
-        ['/dasha', 'Dasha', 'html-security'],
-      ]) {
-        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
-        assert.equal(page.status, 200, `${host}${path} must stay 200`);
-        assert.equal(page.headers.get('x-dasha-edge'), edge);
-        assert.ok((await page.text()).includes(`<title>${title}</title>`), `${host}${path} must keep its origin title`);
+      {
+        const page = await workerModule.default.fetch(new Request(`https://${host}/`), {});
+        assert.equal(page.status, 200, `${host}/ must stay 200`);
+        assert.equal(page.headers.get('x-dasha-edge'), 'html-security');
+        assert.ok((await page.text()).includes('<title>$dasha — make the timeline stranger</title>'), `${host}/ must keep its origin title`);
+      }
+      for (const path of ['/studio', '/studio/', '/dasha', '/dasha/', '/desk']) {
+        const hop = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(hop.status, 308, `${host}${path} must 308 home`);
+        assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/');
       }
       for (const path of ['/lobby', '/lobby/']) {
         const hop = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
@@ -829,9 +834,9 @@ for (const path of ['/studio', '/studio/']) {
       });
     };
     const desk = await workerModule.default.fetch(new Request('https://www.getdasha.com/desk'), {});
-    assert.equal(deskPassedThrough, true, 'www /desk must remain a Webflow pass-through');
-    assert.equal(desk.status, 404, 'www /desk must not become a worker-owned desk');
-    assert.notEqual(desk.headers.get('x-dasha-edge'), 'privacy');
+    assert.equal(deskPassedThrough, false, 'www /desk must not pass through Webflow');
+    assert.equal(desk.status, 308, 'www /desk must 308 home');
+    assert.equal(desk.headers.get('location'), 'https://www.getdasha.com/');
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -1158,9 +1163,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   const sitemapBody = await sitemap.text();
   for (const loc of [
     'https://www.getdasha.com/',
-    'https://www.getdasha.com/studio',
     'https://www.getdasha.com/forum',
-    'https://www.getdasha.com/dasha',
     'https://www.getdasha.com/how-to-buy',
     'https://www.getdasha.com/bounties',
     'https://www.getdasha.com/simp',
@@ -1170,6 +1173,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     assert.match(sitemapBody, new RegExp(`<loc>${loc.replaceAll('.', '\\.')}</loc>`), `${host} sitemap must list ${loc}`);
   }
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/privacy/, `${host} sitemap must not feature /privacy`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/studio/, `${host} sitemap must not feature /studio`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/dasha</, `${host} sitemap must not feature /dasha`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/learn/, `${host} sitemap must not feature /learn`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/verse/, `${host} sitemap must not feature /verse`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
@@ -1590,9 +1595,8 @@ try {
       assert.equal([...html.matchAll(/id=["']dasha-lock["']/g)].length, 0);
     }
     const studio = await workerModule.default.fetch(new Request('https://www.getdasha.com/studio'), {});
-    const studioHtml = await studio.text();
-    assert.doesNotMatch(studioHtml, /id=["']dasha-lock["']/, '/studio must not get the home first viewport');
-    assert.doesNotMatch(studioHtml, /id=["']dasha-home-calm["']/, '/studio must not get home calm CSS');
+    assert.equal(studio.status, 308, '/studio must 308 home');
+    assert.equal(studio.headers.get('location'), 'https://www.getdasha.com/');
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -1933,15 +1937,8 @@ ${liveHomeFooter}
     globalThis.fetch = async () => new Response(studioOrigin, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     for (const host of ['www.getdasha.com', 'getdasha.com']) {
       const page = await workerModule.default.fetch(new Request(`https://${host}/studio`), {});
-      assert.equal(page.status, 200, `${host}/studio must stay 200`);
-      assert.equal(page.headers.get('x-dasha-edge'), 'html-strip-personal-brand');
-      const html = await page.text();
-      assert.match(html, /<title>[^<]*Dasha Studio/);
-      assert.doesNotMatch(html, /href="\/privacy"/);
-      assert.equal(html.includes(staleStudioSri), false, `${host}/studio must drop the leftover studio.js pin`);
-      assert.match(html, /src="https:\/\/lobby\.getdasha\.com\/client\/studio\.js"/);
-      assert.ok(html.includes(`integrity="${STUDIO_SRI}"`), `${host}/studio integrity must match served studio.js`);
-      assert.match(html, /Loading studio…/);
+      assert.equal(page.status, 308, `${host}/studio must 308 home`);
+      assert.equal(page.headers.get('location'), 'https://www.getdasha.com/');
     }
   } finally {
     globalThis.fetch = nativeFetch;
@@ -2012,17 +2009,8 @@ ${laterIcons}
       assert.doesNotMatch(homeHtml, /href="\/privacy"/);
       assert.doesNotMatch(homeHtml, /\.simp-/);
       const studio = await workerModule.default.fetch(new Request(`https://${host}/studio`), {});
-      assert.equal(studio.status, 200, `${host}/studio must stay 200`);
-      const studioHtml = await studio.text();
-      assert.match(studioHtml, /<title>[^<]*Dasha Studio/);
-      assert.equal(firstShortcutHref(studioHtml), '/favicon.ico', `${host}/studio first shortcut icon must be /favicon.ico`);
-      assert.equal(studioHtml.includes('cdn.prod.website-files.com/img/favicon.ico'), false, `${host}/studio must drop the stale CDN favicon`);
-      assert.ok(studioHtml.includes(`href="${cherriesDataUri}"`), `${host}/studio must keep the later cherries data-URI`);
-      assert.ok(studioHtml.includes(`href="${laterPng}"`), `${host}/studio must keep dasha-icon-512.png`);
-      assert.doesNotMatch(studioHtml, /href="\/privacy"/);
-      assert.doesNotMatch(studioHtml, /\.simp-/);
-      assert.equal(studioHtml.includes(staleStudioSri), false, `${host}/studio must drop the leftover studio.js pin`);
-      assert.ok(studioHtml.includes(`integrity="${STUDIO_SRI}"`), `${host}/studio integrity must match served studio.js`);
+      assert.equal(studio.status, 308, `${host}/studio must 308 home`);
+      assert.equal(studio.headers.get('location'), 'https://www.getdasha.com/');
     }
   } finally {
     globalThis.fetch = nativeFetch;

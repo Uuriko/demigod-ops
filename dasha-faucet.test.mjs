@@ -121,6 +121,8 @@ assert.match(clientSrc, /aria-label/);
 assert.match(clientSrc, /faucet-hero/);
 assert.match(clientSrc, /client\/faucet\.png/);
 assert.match(clientSrc, /state\.card = 5/);
+assert.match(clientSrc, /funded !== true/);
+assert.match(clientSrc, /treasury_empty/);
 assert.match(clientSrc, /\/faucet\/dest-check/);
 assert.doesNotMatch(clientSrc, /JSON\.stringify\(res\.data\)/);
 assert.doesNotMatch(clientSrc, /live\.textContent = raw/);
@@ -215,6 +217,7 @@ assert.equal(statusOk.body.amountRaw, 100000000);
 assert.equal(statusOk.body.mint, mint);
 assert.equal(statusOk.body.treasury, treasury.address);
 assert.equal(statusOk.body.treasury, parsed.address);
+assert.equal(statusOk.body.funded, false);
 assert.doesNotMatch(JSON.stringify(statusOk.body), /"seed"|"raw"|FAUCET_KEYPAIR/);
 
 const destAta = await associatedTokenAddress(destWallet.address);
@@ -404,6 +407,8 @@ const okStatus = await workerModule.default.fetch(new Request('https://lobby.get
 assert.equal(okStatus.status, 200);
 const okStatusBody = await okStatus.json();
 assert.equal(okStatusBody.configured, true);
+assert.equal(okStatusBody.funded, false);
+assert.equal(okStatusBody.error, 'treasury_empty');
 assert.equal(okStatusBody.amountRaw, 100000000);
 assert.equal(okStatusBody.mint, mint);
 assert.equal(okStatusBody.treasury, treasury.address);

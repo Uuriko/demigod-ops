@@ -651,6 +651,16 @@ function isLeftoverVersePath(pathname) {
   return path === '/verse' || path === '/bible' || path === '/dashaverse';
 }
 
+function isLeftoverStudioPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/studio';
+}
+
+function isLeftoverDeskPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/dasha' || path === '/desk';
+}
+
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
 export function danceDockPath(pathname) {
   return false;
@@ -3450,7 +3460,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
       const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
       const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
-      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/forum') ? 'Open Forum' : dest.endsWith('/lobby') ? 'Open Forum' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
+      const destLabel = dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/forum') || dest.endsWith('/lobby') ? 'Open Forum' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
@@ -3641,6 +3651,9 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
     return Response.redirect('https://www.getdasha.com/', 308);
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
+    return Response.redirect('https://www.getdasha.com/', 308);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
     return faucetPageResponse(request);
   }
@@ -3756,6 +3769,7 @@ async function productEdge(request, url, env) {
   const originalHtml = html;
   html = sanitizePublicJsonLd(html);
   const stripped = html !== originalHtml;
+  html = stripHomeWebFonts(html);
   if (url.pathname === '/') {
     html = rewriteHomeFirstViewport(stripHomeSimpBoard(html));
   } else {
@@ -3862,6 +3876,9 @@ export default {
       return simpPageResponse(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverLearnPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
@@ -4024,8 +4041,8 @@ export default {
     ) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/studio')) {
-      return Response.redirect('https://www.getdasha.com/studio', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
       return Response.redirect(forumCanonical(url), 308);

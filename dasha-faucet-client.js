@@ -195,9 +195,9 @@
         stage.appendChild(claimed);
         return;
       }
-      if (state.status && state.status.configured === false) {
+      if (!state.status || state.status.configured !== true || state.status.funded !== true) {
         stage.appendChild(hero(false));
-        live.textContent = 'not_configured';
+        live.textContent = state.status && state.status.configured === false ? 'not_configured' : 'treasury_empty';
         return;
       }
       if (state.card === 0) {

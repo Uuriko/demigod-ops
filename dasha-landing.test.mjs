@@ -160,9 +160,7 @@ if (desk) {
 }
 assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]).sort(), [
   'https://www.getdasha.com/',
-  'https://www.getdasha.com/studio',
   'https://www.getdasha.com/forum',
-  'https://www.getdasha.com/dasha',
   'https://www.getdasha.com/how-to-buy',
   'https://www.getdasha.com/bounties',
   'https://www.getdasha.com/simp',
@@ -171,7 +169,7 @@ assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => matc
   'https://www.getdasha.com/airdrop',
   'https://www.getdasha.com/earn',
   'https://www.getdasha.com/claim',
-].sort(), 'bounded sitemap must list home, studio, forum, desk, how-to-buy, bounties, simp, www chess, faucet, and honesty rooms exactly once');
+].sort(), 'bounded sitemap must list home, forum, how-to-buy, bounties, simp, www chess, faucet, and honesty rooms exactly once');
 assert.doesNotMatch(sitemap, /getdasha\.com\/privacy/, 'sitemap must not feature /privacy');
 assert.doesNotMatch(sitemap, /getdasha\.com\/learn/, 'sitemap must not feature /learn');
 assert.doesNotMatch(sitemap, /getdasha\.com\/verse/, 'sitemap must not feature /verse');
