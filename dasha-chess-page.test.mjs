@@ -29,6 +29,18 @@ assert.match(source, /function retryReconcile\(\)[\s\S]*\},800\)/,
   'visible reconcile retry is 800ms');
 assert.doesNotMatch(source, /draw\(\);loadLeaders\(\)/,
   'a move must not refetch the ratings table');
+assert.match(source, /function samePaint\(prev,next\)/,
+  'poll paint must be able to recognize an unchanged game');
+assert.match(source, /if\(same\)return true/,
+  'GET /chess/game/:id with the same version must skip draw()');
+assert.doesNotMatch(source, /11vw/,
+  'pieces size to the square, not 11vw');
+assert.doesNotMatch(source, /DejaVu/,
+  'do not name an unloaded DejaVu Sans');
+assert.match(source, /\.sq\[data-file\]:before,\.sq\[data-rank\]:after\{[^}]*font:900 12px\/1 monospace/,
+  'file and rank labels are at least 12px');
+assert.doesNotMatch(source, /font:700 11px|font:800 11px/,
+  'chess labels stay at least 12px');
 assert.doesNotMatch(source, /dasha-crop/,
   'chess page must not ship crop marks');
 assert.doesNotMatch(source, /box-shadow:10px 10px 0/,
