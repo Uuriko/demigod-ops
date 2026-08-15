@@ -91,9 +91,17 @@ import {
   GRAPH_CLIENT_JS,
   LEARN_CLIENT_JS,
   LEARN_CLIENT_SRI,
+  FAUCET_CLIENT_JS,
+  FAUCET_CLIENT_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
+import {
+  DashaFaucet,
+  handleFaucetApi,
+  isFaucetApiPath,
+  isFaucetPagePath,
+} from './dasha-faucet.mjs';
 import {
   applyGraphHighlight,
   dropGraphHighlight,
@@ -116,6 +124,8 @@ import {
   resignChess,
   settleChessRatings,
 } from './dasha-chess.mjs';
+
+export { DashaFaucet };
 
 const SECURITY = {
   'Cache-Control': 'no-store',
@@ -431,7 +441,7 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
+const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
 
 /** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
 export function ensurePrivacyLink(html) {
@@ -956,6 +966,47 @@ ${WORKER_SITE_FOOTER}
 </body></html>`;
 }
 
+function faucetClientScript() {
+  return `<script src="https://lobby.getdasha.com/client/faucet.js" integrity="${FAUCET_CLIENT_SRI}" crossorigin="anonymous" defer></script>`;
+}
+
+/** Worker-owned /faucet. Sample, not an airdrop, not earn. */
+export function faucetPageHtml() {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Faucet — getdasha.com</title>
+<link rel="canonical" href="https://www.getdasha.com/faucet">
+<meta name="description" content="a tiny sample for newbies. not an airdrop. not earn.">
+<meta name="theme-color" content="#070608">
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900;font-size:clamp(2.6rem,10vw,5rem);line-height:.9;text-transform:uppercase}a{color:var(--acid)}.faucet-ca{display:block;margin:12px 0;padding:12px;border:1px solid #7c4dff;font-family:Fragment Mono,ui-monospace,Menlo,Consolas,monospace;word-break:break-all;user-select:all}footer{margin-top:36px;color:rgba(244,237,219,.62)}footer a{color:var(--acid)}@media(prefers-reduced-motion:reduce)*{transition:none!important;animation:none!important}</style>
+<body>
+<h1>Faucet</h1>
+<p>a tiny sample for newbies. not an airdrop. not earn. Agents do not claim this faucet.</p>
+<code class="faucet-ca">${escapeHtml('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump')}</code>
+<div id="dasha-faucet"></div>
+<noscript><p>Needs JavaScript.</p></noscript>
+${faucetClientScript()}
+${WORKER_SITE_FOOTER}
+</body></html>`;
+}
+
+function faucetPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : faucetPageHtml(), {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'faucet',
+    }),
+  });
+}
+
+async function faucetApiResponse(request, env, allowedOrigin) {
+  return handleFaucetApi(request, env, {
+    json,
+    allowedOrigin,
+    endpoints: solanaRpcEndpoints(env),
+  });
+}
+
 function learnPageResponse(request, parsed) {
   if (parsed?.invalid) {
     return new Response(request.method === 'HEAD' ? null : NOT_FOUND_HTML, {
@@ -1101,10 +1152,10 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 15, 2026.</p>
 <h2>What Dasha uses</h2>
 <p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
-<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
+<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. If you use /faucet, Dasha stores the receive address, a real transaction signature, and a hash of your IP for a 30-day cooldown. Unlinking X does not reset that cooldown. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
-<p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address only during an optional holder check.</p>
+<p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address during an optional holder check, and during a /faucet send if the treasury is funded.</p>
 <h2>Control and deletion</h2>
 <p>Unlink clears the signed browser session. Leave Board removes your profile, claims, active quiz state, current linked result, holder challenge, chess rating, games and tournaments involving you, and your rows from retained season snapshots. Anonymous aggregate counts remain.</p>
 <p>For access or deletion requests, email <a href="mailto:potter@trydemigod.com">potter@trydemigod.com</a>. Do not include wallet keys or seed phrases.</p>
@@ -1247,6 +1298,8 @@ const OAUTH_RETURN_OK = new Set([
   'https://lobby.getdasha.com/chess',
   'https://www.getdasha.com/lobby',
   'https://lobby.getdasha.com/lobby',
+  'https://www.getdasha.com/faucet',
+  'https://lobby.getdasha.com/faucet',
 ]);
 
 function parseOAuthReturn(raw) {
@@ -1257,6 +1310,7 @@ function parseOAuthReturn(raw) {
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
   if (path === '/lobby') return 'https://www.getdasha.com/lobby';
+  if (path === '/faucet') return 'https://www.getdasha.com/faucet';
   return '';
 }
 
@@ -3288,7 +3342,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
       const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
       const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
-      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/lobby') ? 'Open Lobby' : 'Open Dasha';
+      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/lobby') ? 'Open Lobby' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
@@ -3472,6 +3526,15 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
     return learnPageResponse(request, parseLearnPath(url.pathname));
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
+    return faucetPageResponse(request);
+  }
+  if (isFaucetApiPath(url.pathname)) {
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
+    const faucetRes = await faucetApiResponse(request, env, allowedOrigin);
+    if (faucetRes) return faucetRes;
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
     return bountiesPageResponse(request);
@@ -3669,6 +3732,13 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && parseLearnPath(url.pathname)) {
       return learnPageResponse(request, parseLearnPath(url.pathname));
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isFaucetPagePath(url.pathname)) {
+      return faucetPageResponse(request);
+    }
+    if (isFaucetApiPath(url.pathname)) {
+      const faucetRes = await faucetApiResponse(request, env, allowedOrigin);
+      if (faucetRes) return faucetRes;
+    }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
       return Response.redirect(BOUNTIES_FEED_PAGE, 308);
     }
@@ -3734,6 +3804,12 @@ export default {
       url.pathname === '/client/learn.js'
     ) {
       return jsAsset(LEARN_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname === '/client/faucet.js'
+    ) {
+      return jsAsset(FAUCET_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
     }
 
     // SEO + howto: also routed on www/apex getdasha.com (see dasha-lobby-wrangler.jsonc).
