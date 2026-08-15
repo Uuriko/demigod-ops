@@ -616,7 +616,7 @@ function siteFooter(_current = '') {
 }
 const WORKER_SITE_FOOTER = siteFooter();
 
-const PRIVACY_HREF_RE = /href=["'](?:\/(?:privacy|legal|privacy-policy|learn)(?:\/[^"'#?]*)?\/?|https?:\/\/(?:www\.)?getdasha\.com\/(?:privacy|legal|privacy-policy|learn)(?:\/[^"'#?]*)?\/?)["']/i;
+const PRIVACY_HREF_RE = /href=["'](?:\/(?:privacy|legal|privacy-policy|learn|verse|bible|dashaverse)(?:\/[^"'#?]*)?\/?|https?:\/\/(?:www\.)?getdasha\.com\/(?:privacy|legal|privacy-policy|learn|verse|bible|dashaverse)(?:\/[^"'#?]*)?\/?)["']/i;
 
 /** Kill leftover Privacy / legal doors and lecture copy. Does not invent a replacement. */
 export function stripPrivacyHrefs(html) {
@@ -643,6 +643,11 @@ function isLeftoverPrivacyPath(pathname) {
 function isLeftoverLearnPath(pathname) {
   const path = String(pathname || '').replace(/\/+$/, '') || '/';
   return path === '/learn' || path.startsWith('/learn/');
+}
+
+function isLeftoverVersePath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/verse' || path === '/bible' || path === '/dashaverse';
 }
 
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
@@ -1171,18 +1176,6 @@ async function faucetApiResponse(request, env, allowedOrigin) {
 }
 
 
-const VERSE_WWW = 'https://www.getdasha.com/verse';
-const VERSE_SITES = [
-  {
-    title: 'Dasha Madness',
-    line: 'Photo March Madness of Dasha Nekrasova. Home of the Dashamaniacs.',
-    href: 'https://dashamadness.com/',
-    host: 'dashamadness.com',
-  },
-];
-const VERSE_SAVE_FAIL = "Couldn't save. Post the URL in chat.";
-const VERSE_SAVE_OK = "Got it. We'll look.";
-
 /** Curated public list only. Pending submissions never appear here. */
 export function parseVerseSubmit(input) {
   const raw = String(input?.url || '').trim();
@@ -1195,100 +1188,6 @@ export function parseVerseSubmit(input) {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { error: 'Need an http(s) link.' };
   if (parsed.username || parsed.password) return { error: 'Need an http(s) link.' };
   return { url: parsed.href, note };
-}
-
-export function versePageHtml({ status = '', kind = '' } = {}) {
-  const cards = VERSE_SITES.map((site) =>
-    `<article class="site"><h2>${escapeHtml(site.title)}</h2><p>${escapeHtml(site.line)}</p><p class="host">${escapeHtml(site.host)}</p><p><a class="btn" href="${escapeHtml(site.href)}" target="_blank" rel="noopener noreferrer">Go there ↗</a></p></article>`).join('');
-  const notice = status
-    ? `<p class="status" role="status"${kind ? ` data-kind="${escapeHtml(kind)}"` : ''}>${escapeHtml(status)}</p>`
-    : '';
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashaverse — getdasha.com</title>
-<meta name="description" content="Other Dasha sites. Ours is the token.">
-<link rel="canonical" href="${VERSE_WWW}">
-<style>:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--line:rgba(244,237,219,.18);--muted:rgba(244,237,219,.62)}*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:16px/1.55 Arial,Helvetica,sans-serif}${AWARD_CHROME_CSS}${AWARD_RAIL_CSS}.wrap{width:min(720px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}h1{margin:0 0 12px;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.9;letter-spacing:-.05em;text-transform:uppercase;font-weight:950;font-family:"Arial Black",Arial,Helvetica,sans-serif}.lede{color:var(--muted);margin:0 0 22px;max-width:48ch}h2{margin:0 0 8px;font-size:1.15rem;text-transform:uppercase}.site{border-top:1px solid var(--line);padding:18px 0}.host{margin:.4rem 0;color:var(--muted);font-size:.9rem}.btn,button{appearance:none;border:0;min-height:48px;padding:12px 18px;font:inherit;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;background:var(--acid);color:var(--ink);text-transform:uppercase;letter-spacing:.05em;box-shadow:3px 3px 0 var(--hot)}.honest{color:var(--muted);font-size:.9rem}form{margin:28px 0 0;padding-top:22px;border-top:1px solid var(--line)}label{display:block;font-weight:800}input{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}.status{font-weight:800}.status[data-kind=bad]{color:var(--hot)}footer{margin-top:36px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:18px}footer a,a{color:var(--acid)}:focus-visible{outline:3px solid var(--acid);outline-offset:3px}</style>
-<body>${cropTicksHtml()}${hamburgerHtml({ path: '/verse' })}<main class="wrap">
-${nextUpChipHtml()}
-<h1>Dashaverse</h1>
-<p class="lede">Other Dasha sites. Ours is the token. Send the next one.</p>
-${cards}
-<p class="honest">We don't run dashamadness.com. One outbound link. Nothing else is listed until we put it here.</p>
-<section>
-<h2>Know another?</h2>
-<p>Paste a Dasha-related site. We'll look. Nothing goes live until we list it.</p>
-${notice}
-<form action="/verse" method="post">
-<p><label>URL <input name="url" type="url" required maxlength="2048" inputmode="url" autocomplete="off"></label></p>
-<p><label>Note <span class="honest">(optional)</span> <input name="note" type="text" maxlength="200" autocomplete="off"></label></p>
-<p><button type="submit">Send it</button></p>
-</form>
-</section>
-${siteFooter('/verse')}
-</main></body></html>`;
-}
-
-function verseWantsJson(request) {
-  return /application\/json/i.test(request.headers.get('Content-Type') || '')
-    || /application\/json/i.test(request.headers.get('Accept') || '');
-}
-
-function verseResult(request, { httpStatus, status, kind = '' }) {
-  if (verseWantsJson(request)) {
-    return json(httpStatus < 400 ? { ok: true, status } : { error: status }, httpStatus, request.headers.get('Origin'));
-  }
-  return new Response(request.method === 'HEAD' ? null : versePageHtml({ status, kind: kind || (httpStatus >= 400 ? 'bad' : '') }), {
-    status: httpStatus,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Dasha-Edge': 'verse',
-    }),
-  });
-}
-
-async function requestVerseInput(request) {
-  const ct = String(request.headers.get('Content-Type') || '');
-  if (ct.includes('application/json')) return requestJson(request);
-  if (Number(request.headers.get('Content-Length') || 0) > 4096) return {};
-  const text = await request.text().catch(() => '');
-  if (new TextEncoder().encode(text).length > 4096) return {};
-  const params = new URLSearchParams(text);
-  return { url: params.get('url') || '', note: params.get('note') || '' };
-}
-
-async function verseSubmitResponse(request, env) {
-  const parsed = parseVerseSubmit(await requestVerseInput(request));
-  if (parsed.error) return verseResult(request, { httpStatus: 400, status: parsed.error, kind: 'bad' });
-  try {
-    const stub = env?.LOBBY?.get(env.LOBBY.idFromName('public'));
-    if (!stub) return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-    const res = await stub.fetch(new Request(new URL('/verse', request.url), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'CF-Connecting-IP': request.headers.get('CF-Connecting-IP') || '',
-        'X-Forwarded-For': request.headers.get('X-Forwarded-For') || '',
-      },
-      body: JSON.stringify(parsed),
-    }));
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) return verseResult(request, { httpStatus: 200, status: VERSE_SAVE_OK });
-    if (res.status === 429) return verseResult(request, { httpStatus: 429, status: 'Slow down. Try again in a moment.', kind: 'bad' });
-    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-  } catch {
-    return verseResult(request, { httpStatus: 503, status: VERSE_SAVE_FAIL, kind: 'bad' });
-  }
-}
-
-function versePageResponse(request) {
-  return new Response(request.method === 'HEAD' ? null : versePageHtml(), {
-    status: 200,
-    headers: htmlHeaders({
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=120',
-      'X-Dasha-Edge': 'verse',
-    }),
-  });
 }
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
@@ -3753,9 +3652,8 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
     return bountiesPageResponse(request);
   }
-  if (isExactPath(url.pathname, '/verse')) {
-    if (request.method === 'POST') return verseSubmitResponse(request, env);
-    if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+  if (isLeftoverVersePath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
     return graphPageResponse(request);
@@ -3765,9 +3663,6 @@ async function productEdge(request, url, env) {
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph/expand') {
     return graphExpandResponse(request, env);
-  }
-  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
-    return Response.redirect(VERSE_WWW, 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/quiz')) {
     return Response.redirect(SIMP_WWW, 308);
@@ -3978,9 +3873,8 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
       return Response.redirect(BOUNTIES_FEED_PAGE, 308);
     }
-    if (isExactPath(url.pathname, '/verse')) {
-      if (request.method === 'POST') return verseSubmitResponse(request, env);
-      if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
+    if (isLeftoverVersePath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
       return graphPageResponse(request);
@@ -3996,7 +3890,7 @@ export default {
       return env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(request);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
-      return Response.redirect(VERSE_WWW, 308);
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
       return simpHoldResponse(allowedOrigin);

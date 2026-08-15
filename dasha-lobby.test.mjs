@@ -22,7 +22,7 @@ assert.match(chessPage, /Needs JavaScript to play/);
 assert.doesNotMatch(chessPage, /Checking your seat/);
 assert.match(chessPage, /class="dasha-slim[\s"]/);
 assert.match(chessPage, /<nav aria-label="Dasha">/);
-assert.match(chessPage, /href="\/verse">Verse</);
+assert.doesNotMatch(chessPage, /href="\/verse">Verse</);
 assert.match(chessPage.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /href="\/chess">Chess</, 'chess hamburger must include Chess');
 assert.doesNotMatch(chessPage.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /href="\/privacy">Privacy</, 'chess hamburger must not include Privacy');
 assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome must not grow dead or shelved doors');
@@ -30,7 +30,7 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   const ham = hamburgerHtml();
   const rail = roomRailHtml();
   const foot = slimFooterHtml();
-  assert.equal(DASHA_ROOMS.length, 5, 'live room list is the five public rooms');
+  assert.equal(DASHA_ROOMS.length, 4, 'live room list is the four public rooms');
   for (const room of DASHA_ROOMS) {
     assert.match(ham, new RegExp(`href="${room.href}">${room.label}<`), `hamburgerHtml must include ${room.label}`);
     assert.match(rail, new RegExp(`href="${room.href}"[\\s\\S]*?${room.label}`), `roomRailHtml must include ${room.label}`);
@@ -43,6 +43,7 @@ assert.doesNotMatch(chessPage, /\/airdrop|\/earn|\/claim|\/graph/, 'chess chrome
   assert.doesNotMatch(ham + rail + foot, /\/bounties/, 'chrome list must hide Bounties');
   assert.doesNotMatch(ham + rail + foot, /\/privacy|>Privacy</, 'chrome list must hide Privacy');
   assert.doesNotMatch(ham + rail + foot, /\/learn|>Learn</, 'chrome list must hide Learn');
+  assert.doesNotMatch(ham + rail + foot, /\/verse|>Verse</, 'chrome list must hide Verse');
   assert.match(ham, /href="\/chess">Chess</);
   assert.match(foot, /padding:1\.25rem 1\.25rem calc\(180px/);
   assert.match(foot, /min-height:48px/);
@@ -60,7 +61,8 @@ assert.match(page, /class="dasha-slim[\s"]/, 'lobby must use the hamburger, not 
 assert.match(page, /class="dasha-rooms"/, 'lobby must number the real rooms');
 assert.match(page, /<b>\[01\]<\/b> Studio/, 'lobby rail starts at Studio');
 assert.match(page, /<b>\[03\]<\/b> Chess/, 'lobby rail includes Chess');
-assert.match(page, /<b>\[05\]<\/b> Verse/, 'lobby rail ends at Verse');
+assert.match(page, /<b>\[04\]<\/b> How to buy/, 'lobby rail ends at How to buy');
+assert.doesNotMatch(page, /href="\/verse"/, 'lobby chrome must not door to Verse');
 assert.doesNotMatch(page, /href="\/learn"/, 'lobby chrome must not door to Learn');
 assert.doesNotMatch(page, /href="\/privacy"/, 'lobby chrome must not door to Privacy');
 assert.doesNotMatch(page, /href="\/faucet"/, 'lobby chrome must not door to Faucet');
@@ -165,7 +167,7 @@ assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtm
 assert(!worker.includes('font:16px/1.45 system-ui,sans-serif'), '/simp must use Arial, not system-ui');
 assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
-assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
+assert(worker.includes('isLeftoverVersePath') && !worker.includes('versePageHtml'), 'leftover /verse 308s home; no Verse page');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML') && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'www /graph is shelved; source stays, route 308s home');
 assert(worker.includes('isLeftoverLearnPath') && !worker.includes('learnPageHtml'), 'leftover /learn 308s home; no Learn page');
 assert(worker.includes('client/learn.js') && worker.includes('LEARN_CLIENT_SRI'), 'learn client bytes may still be served');
@@ -179,7 +181,7 @@ assert(worker.includes("url.pathname === '/api/graph'") && worker.includes("url.
 assert(worker.includes('/api/graph/highlight') && worker.includes('/api/graph/wallet/challenge'), 'worker exposes graph highlight proof');
 assert(worker.includes("kind: 'graph_highlight'"), 'graph highlight must use its own SIWS kind');
 assert(!/getProgramAccounts/.test(worker), 'graph must not use getProgramAccounts');
-assert(worker.includes("isExactPath(url.pathname, '/dashaverse')") && worker.includes('VERSE_WWW'), ' /dashaverse aliases to /verse');
+assert(worker.includes('isLeftoverVersePath') && worker.includes('/dashaverse') && worker.includes('/bible'), 'leftover /dashaverse and /bible 308 home');
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
 assert(worker.includes('export function danceDockPath') && worker.includes('export function injectDanceDock'), 'dock helpers stay');
@@ -229,7 +231,7 @@ assert(worker.includes("USDC on Solana. We don't hold it."), 'worker pins the no
 // Aggregate Studio funnel: bounded events in, authenticated counters out.
 globalThis.WebSocketRequestResponsePair ||= class WebSocketRequestResponsePair {};
 const workerModule = await import('./dasha-lobby-worker.mjs');
-const { DashaLobby, bountiesPageHtml, danceDockPath, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectDanceDock, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLeftoverLobbyHrefs, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts, versePageHtml } = workerModule;
+const { DashaLobby, bountiesPageHtml, danceDockPath, ensureHtmlLang, ensurePrivacyLink, injectBountiesBoard, injectDanceDock, normalizeBountiesFeed, parseVerseSubmit, personalizeChessPage, publicFunnelSummary, rewriteHomeFirstViewport, rewriteLeftoverLobbyHrefs, rewriteLobbyScriptIntegrity, rewriteStaleCdnFavicon, rewriteStudioBuyVerifyHref, rewriteStudioScriptIntegrity, sanitizePublicJsonLd, simpPageHtml, simpSharePageHtml, solanaRpcEndpoints, stripBountiesIframe, stripDeadLobbyForum, stripHomeSimpBoard, stripLobbySimpQuiz, unpaidBountiesHtmlHasPayoutAmounts } = workerModule;
 const { LOBBY_CLIENT_JS, SIMP_BOARD_JS, SIMP_BOARD_SRI, STUDIO_CLIENT_JS, LOBBY_CLIENT_SRI } = await import('./dasha-lobby-static-gen.mjs');
 const STUDIO_SRI = `sha384-${createHash('sha384').update(STUDIO_CLIENT_JS).digest('base64')}`;
 const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest('base64')}`;
@@ -463,7 +465,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(html, /href="\/forum">Forum</, `${label} menu must include Forum`);
     assert.match(html, /href="\/studio">Studio</, `${label} menu must include Studio`);
     assert.doesNotMatch(html, /href="\/graph"/, `${label} menu must not door to shelved /graph`);
-    assert.match(html, /href="\/verse">Verse</, `${label} menu sister is Verse`);
+    assert.doesNotMatch(html, /href="\/verse">Verse</, `${label} menu must not include Verse`);
     assert.match(html, /class="buy-dasha"[^>]*>Buy \$dasha</, `${label} must keep one acid Buy pill`);
     assert.match(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /href="\/chess">Chess</, `${label} hamburger must include Chess`);
     assert.doesNotMatch(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /href="\/privacy">Privacy</, `${label} hamburger must not include Privacy`);
@@ -902,7 +904,7 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(section, /href="\/studio">Studio</, `${label} menu must include Studio`);
     assert.match(section, /href="\/forum">Forum</, `${label} menu must include Forum`);
     assert.doesNotMatch(section, /href="\/graph"/, `${label} menu must not door to shelved /graph`);
-    assert.match(section, /href="\/verse">Verse</, `${label} menu sister is Verse`);
+    assert.doesNotMatch(section, /href="\/verse">Verse</, `${label} menu must not include Verse`);
     assert.match(section.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /href="\/chess">Chess</, `${label} hamburger must include Chess`);
     assert.doesNotMatch(section, /\/airdrop|\/earn|\/claim|\/graph/i, `${label} chrome must not grow dead or shelved doors`);
     assert.match(section, /<header class="dasha-slim"[\s\S]*class="buy-dasha"/, `${label} must keep one acid Buy pill`);
@@ -1139,7 +1141,6 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     'https://www.getdasha.com/how-to-buy',
     'https://www.getdasha.com/bounties',
     'https://www.getdasha.com/simp',
-    'https://www.getdasha.com/verse',
     'https://www.getdasha.com/chess',
     'https://www.getdasha.com/faucet',
   ]) {
@@ -1147,6 +1148,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   }
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/privacy/, `${host} sitemap must not feature /privacy`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/learn/, `${host} sitemap must not feature /learn`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/verse/, `${host} sitemap must not feature /verse`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/lobby/, `${host} sitemap must list Forum instead of Lobby`);
@@ -1161,97 +1163,19 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
 }
 
 {
-  const VERSE_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
-  const verseHtml = versePageHtml();
-  assert.match(verseHtml, /<h1>Dashaverse<\/h1>/);
-  assert.match(verseHtml, /Other Dasha sites\. Ours is the token\. Send the next one\./);
-  assert.match(verseHtml, /Dasha Madness/);
-  assert.match(verseHtml, /https:\/\/dashamadness\.com\//);
-  assert.match(verseHtml, /target="_blank" rel="noopener noreferrer">Go there ↗<\/a>/);
-  assert.match(verseHtml, /We don't run dashamadness\.com/);
-  assert.match(verseHtml, /class="dasha-slim[\s"]/);
-  assert.doesNotMatch(verseHtml, /href="\/graph"/);
-  assert.match(verseHtml, /href="\/verse">Verse</);
-  assert.match(verseHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /href="\/chess">Chess</, 'verse hamburger must include Chess');
-  assert.match(verseHtml, /class="dasha-next"[\s\S]*href="\/chess">Chess</);
-  assert.match(verseHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/);
-  assert.match(verseHtml.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '', /href="\/chess">Chess</, 'verse footer must include Chess');
-  assert.doesNotMatch(verseHtml.replace(/<a class="buy-dasha"[^>]*>[\s\S]*?<\/a>/g, ''), /featured|getdasha\.com<\/p>|payTo|\/hold|53ux/i);
-  assert.doesNotMatch(verseHtml, /type="email"|name="email"|name="name"/i);
-  for (const hex of verseHtml.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
-    assert.ok(VERSE_TOKENS.includes(hex.toLowerCase()), `verse page must stay tokens-only (saw ${hex})`);
-  }
   assert.equal(parseVerseSubmit({ url: 'javascript:alert(1)' }).error, 'Need an http(s) link.');
   assert.equal(parseVerseSubmit({ url: 'data:text/html,x' }).error, 'Need an http(s) link.');
   assert.equal(parseVerseSubmit({ url: 'not-a-url' }).error, 'Need an http(s) link.');
   assert.equal(parseVerseSubmit({ url: 'https://dashamadness.com/more' }).url, 'https://dashamadness.com/more');
-  const verseRows = new Map();
-  const verseState = {
-    storage: {
-      get: async (key) => verseRows.get(key),
-      put: async (key, value) => { if (key && typeof key === 'object') { for (const [k, v] of Object.entries(key)) verseRows.set(k, v); return; } verseRows.set(key, value); },
-      delete: async (key) => verseRows.delete(key),
-      getAlarm: async () => 1,
-      setAlarm: async () => {},
-    },
-    setWebSocketAutoResponse() {},
-    blockConcurrencyWhile(fn) { this.ready = fn(); },
-  };
-  const verseDo = new DashaLobby(verseState, { ALLOWED_ORIGINS: 'https://www.getdasha.com,https://getdasha.com,https://lobby.getdasha.com' });
-  await verseState.ready;
-  const verseEnv = { LOBBY: { idFromName: () => 'room', get: () => verseDo } };
   for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
-    for (const method of ['GET', 'HEAD']) {
-      const page = await workerModule.default.fetch(new Request(`https://${host}/verse`, { method }), {});
-      assert.equal(page.status, 200, `${host} /verse ${method} must be 200`);
-      assert.equal(page.headers.get('x-dasha-edge'), 'verse');
-      const html = await page.text();
-      if (method === 'HEAD') {
-        assert.equal(html, '', `${host} /verse HEAD must return an empty body`);
-      } else {
-        assert.match(html, /Dasha Madness/);
-        assert.match(html, /https:\/\/dashamadness\.com\//);
-        assert.doesNotMatch(html, /Got it\. We'll look/);
+    for (const method of ['GET', 'HEAD', 'POST']) {
+      for (const path of ['/verse', '/verse/', '/bible', '/dashaverse']) {
+        const page = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
+        assert.equal(page.status, 308, `${host} ${path} ${method} must 308 home`);
+        assert.equal(page.headers.get('location'), 'https://www.getdasha.com/');
       }
-      const alias = await workerModule.default.fetch(new Request(`https://${host}/dashaverse`, { method }), {});
-      assert.equal(alias.status, 308, `${host} /dashaverse ${method} must alias to /verse`);
-      assert.equal(alias.headers.get('location'), 'https://www.getdasha.com/verse');
     }
-    const bad = await workerModule.default.fetch(new Request(`https://${host}/verse`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ url: 'javascript:alert(1)' }),
-    }), {});
-    assert.equal(bad.status, 400, `${host} verse must reject a javascript: URL`);
-    assert.match(JSON.stringify(await bad.json()), /Need an http\(s\) link/);
-    const missing = await workerModule.default.fetch(new Request(`https://${host}/verse`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ url: 'https://example.com/dasha' }),
-    }), {});
-    assert.equal(missing.status, 503, `${host} verse must not fake a save without the lobby room`);
-    assert.match((await missing.json()).error, /Couldn't save/);
-    const saved = await workerModule.default.fetch(new Request(`https://${host}/verse`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'CF-Connecting-IP': '203.0.113.9' },
-      body: JSON.stringify({ url: 'https://example.com/dasha', note: 'another board' }),
-    }), verseEnv);
-    assert.equal(saved.status, 200, `${host} verse must persist a valid URL`);
-    assert.equal((await saved.json()).status, "Got it. We'll look.");
-    const listed = await workerModule.default.fetch(new Request(`https://${host}/verse`), verseEnv);
-    const listedHtml = await listed.text();
-    assert.match(listedHtml, /Dasha Madness/);
-    assert.doesNotMatch(listedHtml, /example\.com\/dasha|another board/, `${host} must keep pending submissions off the public list`);
   }
-  assert.equal(verseDo.versePending.length, 3);
-  assert.equal(verseDo.versePending[0].url, 'https://example.com/dasha');
-  const formSaved = await workerModule.default.fetch(new Request('https://www.getdasha.com/verse', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'CF-Connecting-IP': '203.0.113.10' },
-    body: 'url=https%3A%2F%2Fexample.net%2Flore&note=',
-  }), verseEnv);
-  assert.equal(formSaved.status, 200);
-  assert.match(await formSaved.text(), /Got it\. We(?:'|&#39;)ll look/);
 }
 
 // Adversarial OAuth error text stays text, never markup; private pages are hardened and noindexed.
@@ -1583,7 +1507,7 @@ try {
     assert.doesNotMatch(lowerNav, /href="\/graph"/, `${label} lower nav must not door to shelved /graph`);
     assert.doesNotMatch(lowerNav, /href="\/faucet"/, `${label} lower nav must not door to Faucet`);
     assert.doesNotMatch(lowerNav, /href="\/dasha"/, `${label} lower nav must not door to Desk`);
-    assert.match(lowerNav, /href="\/verse">Verse</, `${label} lower nav must include Verse`);
+    assert.doesNotMatch(lowerNav, /href="\/verse">Verse</, `${label} lower nav must not include Verse`);
     assert.doesNotMatch(lowerNav, /href="\/bounties"/, `${label} lower nav must not door to Bounties`);
     assert.doesNotMatch(lowerNav, /#token|buy-dasha/i, `${label} lower nav must not grow a Buy pill`);
     assert.match(lowerNav, /href="\/forum">Forum</, `${label} lower nav includes Forum`);
@@ -1776,7 +1700,7 @@ ${liveHomeFooter}
     assert.equal([...chessHtml.matchAll(/href=["']\/privacy["']/g)].length, 0, `${host} /chess must not keep Privacy in chrome`);
     assert.match(chessHtml, /class="dasha-slim[\s"]/);
     assert.match(chessHtml, /class="dasha-word" href="https:\/\/www\.getdasha\.com\/" aria-label="Dasha home">/);
-    assert.match(chessHtml, /href="\/verse">Verse</);
+    assert.doesNotMatch(chessHtml, /href="\/verse">Verse</);
     assert.match(chessHtml, /href="\/chess">Chess</);
     assert.doesNotMatch(chessHtml, /href="\/graph"/);
     assert.doesNotMatch(chessHtml, /\/airdrop|\/earn|\/claim/, `${host} /chess chrome must not grow dead doors`);
@@ -2111,7 +2035,7 @@ ${laterIcons}
           assert.match(html, /href="\/studio">Studio</, `${host} ${path} menu must include Studio`);
           assert.match(html, /href="\/forum">Forum</, `${host} ${path} menu must include Forum`);
           assert.doesNotMatch(html, /href="\/graph"/, `${host} ${path} menu must not door to shelved /graph`);
-          assert.match(html, /href="\/verse">Verse</, `${host} ${path} menu sister is Verse`);
+          assert.doesNotMatch(html, /href="\/verse">Verse</, `${host} ${path} menu must not include Verse`);
           assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${host} ${path} footer must include @dash_eats`);
           assert.match(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /href="\/chess">Chess</, `${host} ${path} hamburger must include Chess`);
           assert.doesNotMatch(html, /\/airdrop|\/earn|\/claim|\/graph/i, `${host} ${path} chrome must not grow dead or shelved doors`);

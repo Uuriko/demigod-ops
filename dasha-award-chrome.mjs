@@ -26,13 +26,12 @@ export const AWARD_ROOM_CSS = 'header.dasha-hero,#dasha-tape,#simp,#faucet,#toke
 /** Three-column board. No RANK/CONTRIBUTOR/SCORE headers. */
 export const AWARD_BOARD_CSS = '.simp-board{display:grid}.simp-row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 3.2rem;gap:.8rem;align-items:baseline;padding:.8rem 0;border-bottom:1px solid rgba(244,237,219,.18);background:none}.simp-rank{color:#dfff00;font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}.simp-handle{color:#f4eddb;font-weight:900;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.simp-pts{color:rgba(244,237,219,.5);text-align:right;font-variant-numeric:tabular-nums}.simp-empty,.simp-status{margin:0;color:rgba(244,237,219,.42)}.simp-status:empty{display:none}.simp-lede{margin:0 0 1.25rem;font:900 clamp(1.35rem,3.4vw,2rem)/1.15 "Arial Black",Helvetica,Arial,sans-serif}.simp-home-actions,.simp-quiz-invite-actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 1.75rem;align-items:center}.simp-quiz-go,.simp-quiz-start{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:0;background:#dfff00;color:#070608;font:900 1rem/1 Arial,Helvetica,sans-serif;text-decoration:none;box-shadow:4px 4px 0 #ff3b81;cursor:pointer}.simp-connect{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.25rem;border:1px solid #f4eddb;background:none;color:#f4eddb;font:900 1rem/1 Arial,Helvetica,sans-serif;cursor:pointer}.simp-more{margin:1.25rem 0 0;padding:0;border:0;background:none;color:#dfff00;font:900 1rem/1.2 "Arial Black",Helvetica,Arial,sans-serif;cursor:pointer}';
 
-/** Live rooms. Menu, rail, and footer all render this. No Desk, Simp, Faucet, Graph, Dancer, Bounties, Privacy, Learn. */
+/** Live rooms. Menu, rail, and footer all render this. No Desk, Simp, Faucet, Graph, Dancer, Bounties, Privacy, Learn, Verse. */
 export const DASHA_ROOMS = [
   { href: '/studio', label: 'Studio' },
   { href: '/forum', label: 'Forum' },
   { href: '/chess', label: 'Chess' },
   { href: '/how-to-buy', label: 'How to buy' },
-  { href: '/verse', label: 'Verse' },
 ];
 
 export function roomLinksHtml() {

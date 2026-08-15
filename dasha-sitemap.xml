@@ -29,9 +29,6 @@
   <url>
     <loc>https://www.getdasha.com/simp</loc>
   </url>
-  <url>
-    <loc>https://www.getdasha.com/verse</loc>
-  </url>
 <!-- Chess answers on both hosts. Canonical and sitemap loc are www so crawlers are not asked to pick. -->
   <url>
     <loc>https://www.getdasha.com/chess</loc>
