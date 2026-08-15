@@ -176,7 +176,11 @@ assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") 
 assert(client.includes("action: 'start'") && !client.includes("action: 'start', mode"), 'start payload must not send a mode');
 assert(!client.includes('Quick quiz ·') && !client.includes('Deep quiz ·'), 'start status must not name Quick/Deep');
 assert(client.includes('Take Quiz') && !client.includes('quickBtn'), 'board must expose one start button');
-assert(client.includes('function startQuiz') && !/function startQuiz\(\) \{[\s\S]{0,240}linkX\(\)/.test(client), 'Take Quiz starts without an OAuth gate');
+assert(client.includes('function startQuiz') && !/function startQuiz\b[\s\S]{0,500}linkX\(\)/.test(client), 'Take Quiz starts without an OAuth gate');
+assert(!/quizBtn\.addEventListener\('click'[\s\S]{0,220}linkX\(\)/.test(client), 'Take Quiz click must not open OAuth');
+assert(!client.includes("location.replace('/simp'"), 'home Take Quiz must start in #simp, not hop to /simp');
+assert(/function runQuizInvite\(\) \{\s*hideQuizConnectBar\(\);\s*startQuiz\(\);/.test(client), 'quiz invite starts the quiz without an X gate');
+assert.doesNotMatch(client, /el\('a', 'simp-quiz-go'|href="\/simp">Take the quiz/);
 assert(!client.includes('You cannot play until you connect X') && !client.includes('X is required. No anonymous play.'), 'quiz must not lecture the X gate');
 assert(client.includes('function showSharePush') && client.includes('dasha-share-push'), 'finish must open a share popup');
 assert(client.includes('Copy link') && client.includes("Share on X"), 'share popup must show copy and tweet');

@@ -154,6 +154,9 @@
     var base = apiBase(opts, root);
     var homeBoard = isHomePath();
     var homeOpen = false;
+    var existingGo = root.querySelector('[data-dasha-take-quiz], a.simp-quiz-go, button.simp-quiz-go, button.simp-quiz-start');
+    if (existingGo && existingGo.parentNode) existingGo.parentNode.removeChild(existingGo);
+    if (existingGo && existingGo.tagName === 'A') existingGo = null;
     root.innerHTML = '';
     root.classList.add('simp-board-root');
     root.setAttribute('role', 'region');
@@ -168,7 +171,7 @@
     quiz.appendChild(el('h3', 'simp-quiz-title', 'How big of a Dasha simp are you?'));
     var quizNote = el('p', 'simp-quiz-note', '');
     quizNote.hidden = true;
-    var quizBtn = root.querySelector('[data-dasha-take-quiz]') || el('button', 'simp-quiz-go', 'Take Quiz');
+    var quizBtn = existingGo || el('button', 'simp-quiz-go', 'Take Quiz');
     quizBtn.type = 'button';
     quizBtn.className = 'simp-quiz-go';
     quizBtn.textContent = 'Take Quiz';
@@ -584,19 +587,10 @@
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
     }
 
-    /**
-     * Deep link: /?quiz=1#simp
-     * Linked visitors start. Unlinked visitors must connect X first.
-     */
+    /** Deep link: /?quiz=1#simp — start the quiz. X stays optional. */
     function runQuizInvite() {
-      scrollToQuiz();
-      if (meData && meData.linked) {
-        hideQuizConnectBar();
-        startQuiz();
-        return;
-      }
-      openQuizInviteGate();
-      showQuizConnectBar();
+      hideQuizConnectBar();
+      startQuiz();
     }
 
     function openQuizInviteGate() {
@@ -1587,10 +1581,6 @@
     // /simp?quiz=1 → quiz-invite gate. Home waits for scroll past the hero.
     refresh().then(function () {
       if (wantsQuizInvite()) {
-        if (homeBoard) {
-          try { location.replace('/simp' + location.search + location.hash); } catch (e) {}
-          return;
-        }
         runQuizInvite();
         return;
       }
