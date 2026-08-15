@@ -571,7 +571,7 @@ async function auditSite() {
       !/pump\.fun|phantom\.com\/tokens|raydium\.io\/swap/i.test(home.text),
   );
   note('site', 'home-no-jup-plugin', !/plugin\.jup\.ag|window\.Jupiter/.test(home.text));
-  note('site', 'home-lobby-link', home.text.includes('href="/lobby"'));
+    note('site', 'home-forum-link', home.text.includes('href="/forum"'));
   note('site', 'home-no-lobby-mount', !home.text.includes('id="dasha-lobby"'));
   note('site', 'lobby-page-200', lobbyPage.status === 200, { status: lobbyPage.status });
   note('site', 'lobby-page-mount', lobbyPage.text.includes('id="dasha-lobby"'));
@@ -653,7 +653,7 @@ async function auditSite() {
 
   if (disk) {
     const need = [
-      ['parity-lobby-link', 'href="/lobby"'],
+      ['parity-forum-link', 'href="/forum"'],
       ['parity-simp-client', 'lobby.getdasha.com/client/simp-board.js'],
     ];
     for (const [id, n] of need) {

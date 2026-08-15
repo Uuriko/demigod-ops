@@ -62,7 +62,7 @@ assert(client.includes('sendQuizCard') && client.includes('shareQuiz'), 'share h
 assert(client.includes('QUIZ_CARDS') && client.includes('quizCardBlob') && client.includes('1200') && client.includes('675'), 'quiz result-card suite missing');
 assert(client.includes('Another photo') && client.includes('Dasha simp quiz result card preview'), 'result card preview controls missing');
 assert(client.includes('Share on X') && client.includes('shareBoardOnX') && client.includes('boardShareText'), 'board row must share on X');
-assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open lobby'), 'post-join success CTAs missing');
+assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open forum'), 'post-join success CTAs missing');
 assert(client.includes('dasha-x-chip') && client.includes('paintLinkedChip'), 'nav linked-identity chip missing');
 assert.match(client, /chip\.href = document\.getElementById\('simp'\) \? '#simp' : '\/simp'/, 'chip must keep #simp only when that section exists');
 assert(!client.includes('Save score card') && !client.includes("a.download = 'dasha-simp-"), 'score download path must be gone');

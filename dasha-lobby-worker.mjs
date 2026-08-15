@@ -13,8 +13,14 @@ import {
   checkRate,
   checkRepeat,
   pruneHistory,
+  pruneForumThreads,
+  publicForumRow,
+  publicForumThread,
+  parseForumThreadPath,
   publicMessage,
   originAllowed,
+  validateNick,
+  validateMessage,
   nickTaken,
   nickKey,
   checkIpJoin,
@@ -211,7 +217,23 @@ export function stripHomeSimpBoard(html) {
 
 const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
-const LOBBY_CHAT = 'https://www.getdasha.com/lobby';
+const FORUM_WWW = 'https://www.getdasha.com/forum';
+
+function forumCanonical(url) {
+  return `${url.origin}/forum`;
+}
+
+function isForumApiPath(pathname) {
+  return Boolean(parseForumThreadPath(pathname));
+}
+
+async function forumApiResponse(request, env, allowedOrigin) {
+  if (request.method !== 'GET' && request.headers.get('Origin') && !allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+    return json({ error: 'origin not allowed' }, 403, null);
+  }
+  if (!env.LOBBY) return json({ error: 'not found' }, 404, allowedOrigin, { credentials: true });
+  return env.LOBBY.get(env.LOBBY.idFromName('public')).fetch(request);
+}
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
 }
@@ -255,9 +277,9 @@ function stripHomeWebFonts(html) {
 
 function stripHomeForumHrefs(html) {
   return String(html || '')
-    .replace(/\s*·\s*<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["'][^"']*\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
 function demoteHomeNavMint(html) {
@@ -293,7 +315,7 @@ const HOME_CULTURE_NAV = roomLinksHtml();
 function alignHomeLowerNav(html) {
   return String(html || '').replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, (nav) => {
     if (!/\bclass=["'][^"']*\b(?:nav|dasha-nav)\b/.test(nav)) return nav;
-    if (!/\/studio|\/lobby|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
+    if (!/\/studio|\/lobby|\/forum|\/bounties|#token|buy-dasha/i.test(nav)) return nav;
     return nav.replace(/>[\s\S]*<\/nav>/i, `>${HOME_CULTURE_NAV}</nav>`);
   });
 }
@@ -451,11 +473,11 @@ export function rewriteLobbyScriptIntegrity(html, sri = LOBBY_CLIENT_SRI) {
   );
 }
 
-/** Leftover lobby.getdasha.com chess/forum doors become same-origin. Does not invent a forum. */
+/** Leftover lobby.getdasha.com chess/forum doors become same-origin. */
 export function rewriteLeftoverLobbyHrefs(html) {
   return String(html || '')
     .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/chess/gi, 'href=$1/chess')
-    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/lobby');
+    .replace(/href=(["'])https:\/\/lobby\.getdasha\.com\/forum\/?/gi, 'href=$1/forum');
 }
 
 /** Drop the dead lobby.getdasha.com/forum hop, empty #dasha-forum, and 404 forum.js. Does not invent a forum. */
@@ -626,6 +648,7 @@ const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
+const FORUM_PAGE = LOBBY_PAGE;
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
 /** Live Studio nav CTA currently dumps people under the home lock at /#token. */
@@ -1219,7 +1242,7 @@ const VERSE_SITES = [
     host: 'dashamadness.com',
   },
 ];
-const VERSE_SAVE_FAIL = "Couldn't save. Post the URL in the lobby.";
+const VERSE_SAVE_FAIL = "Couldn't save. Post the URL in chat.";
 const VERSE_SAVE_OK = "Got it. We'll look.";
 
 /** Curated public list only. Pending submissions never appear here. */
@@ -1334,7 +1357,7 @@ const PRIVACY_HTML = htmlPage('Dasha privacy', `<h1>Privacy</h1>
 <p>Updated August 15, 2026.</p>
 <h2>What Dasha uses</h2>
 <p>Linking X reads your X account ID, handle, display name, avatar, and verification type. The browser session lasts up to 30 days. Dasha does not store the X access token.</p>
-<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. If you use /faucet, Dasha stores the receive address, a real transaction signature, and a hash of your IP for a 30-day cooldown. Unlinking X does not reset that cooldown. Lobby history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
+<p>If you join the Simp Board or finish its scored quiz, Dasha stores your linked identity, score, badges, contribution links, and dated holder-badge status. The wallet address and balance used for that optional badge are checked once and are not retained. If you opt in to graph highlight, Dasha shows your public X handle on /graph until that proof expires, or until you leave the Board or unlink. If you use /faucet, Dasha stores the receive address, a real transaction signature, and a hash of your IP for a 30-day cooldown. Unlinking X does not reset that cooldown. Chat history is limited to roughly 30 minutes and 40 messages. Completed chess games are public replays showing both X handles, ratings, moves, result, and completion time. Studio, quiz, and chess funnel counts are aggregate only.</p>
 <h2>How it is used</h2>
 <p>The data provides linked chat identity, Board ranking, quiz results, contribution review, moderation, and optional holder recognition. Public Board rows and season snapshots can show your handle, avatar, score, badges, and accepted evidence links. Dasha does not post to X or sell identity data.</p>
 <p>Webflow serves the site and Cloudflare hosts the service. X processes OAuth and serves some public images; other public images may load from Wikimedia. Those image hosts receive ordinary request metadata without a page referrer. A Solana RPC receives a wallet address during an optional holder check, and during a /faucet send if the treasury is funded.</p>
@@ -1488,7 +1511,7 @@ function parseOAuthReturn(raw) {
   if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
-  if (path === '/lobby') return 'https://www.getdasha.com/lobby';
+  if (path === '/lobby' || path === '/forum') return FORUM_WWW;
   if (path === '/faucet') return 'https://www.getdasha.com/faucet';
   return '';
 }
@@ -1505,6 +1528,7 @@ export class DashaLobby {
     this.state = state;
     this.env = env;
     this.history = [];
+    this.forumThreads = [];
     this.rates = new Map();
     this.simpRates = new Map();
     this.verseRates = new Map();
@@ -1550,6 +1574,8 @@ export class DashaLobby {
     this.state.blockConcurrencyWhile(async () => {
       const stored = await this.state.storage.get('history');
       if (Array.isArray(stored)) this.history = pruneHistory(stored);
+      const forumStored = await this.state.storage.get('forumThreads');
+      if (Array.isArray(forumStored)) this.forumThreads = pruneForumThreads(forumStored);
       const muteRows = await this.state.storage.get('mutes');
       if (Array.isArray(muteRows)) {
         const now = Date.now();
@@ -2812,6 +2838,8 @@ export class DashaLobby {
   async alarm() {
     this.history = pruneHistory(this.history);
     await this.state.storage.put('history', this.history.slice(-MAX_HISTORY));
+    this.forumThreads = pruneForumThreads(this.forumThreads);
+    await this.state.storage.put('forumThreads', this.forumThreads);
     // Drop expired mutes + idle sockets
     const now = Date.now();
     let chessChanged = this.pruneChessQueue(now);
@@ -2848,6 +2876,67 @@ export class DashaLobby {
   async persist() {
     this.history = pruneHistory(this.history);
     await this.state.storage.put('history', this.history.slice(-MAX_HISTORY));
+  }
+
+  async persistForum() {
+    this.forumThreads = pruneForumThreads(this.forumThreads);
+    await this.state.storage.put('forumThreads', this.forumThreads);
+  }
+
+  forumIdentity(session, body) {
+    if (session?.handle) {
+      const handle = String(session.handle).toLowerCase();
+      return { ok: true, nick: `@${handle}`, handle };
+    }
+    return validateNick(body?.nick);
+  }
+
+  async handleForum(request, allowedOrigin) {
+    const parsed = parseForumThreadPath(new URL(request.url).pathname);
+    const cred = { credentials: true };
+    if (!parsed) return json({ error: 'not found' }, 404, allowedOrigin);
+
+    if (request.method === 'GET') {
+      if (parsed.list) {
+        const threads = this.forumThreads.map(thread => publicForumRow(thread)).reverse();
+        return json({ threads }, 200, allowedOrigin || '*');
+      }
+      const thread = this.forumThreads.find(row => row.id === parsed.id);
+      if (!thread) return json({ error: 'not found' }, 404, allowedOrigin || '*');
+      return json(publicForumThread(thread), 200, allowedOrigin || '*');
+    }
+
+    if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
+    if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
+
+    const session = await sessionFromRequest(this.env, request);
+    const body = await requestJson(request);
+    const who = this.forumIdentity(session, body);
+    if (!who.ok) return json({ error: who.error }, 400, allowedOrigin, cred);
+    const limits = linkedLimits(Boolean(session?.handle));
+    const msg = validateMessage(body.text, { maxText: limits.maxText });
+    if (!msg.ok) return json({ error: msg.error }, 400, allowedOrigin, cred);
+
+    const rateKey = `forum:${session?.xId || request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown'}`;
+    const rateState = this.rates.get(rateKey) || { lastMs: 0, times: [] };
+    this.rates.set(rateKey, rateState);
+    const rate = checkRate(rateState, Date.now(), { rateMs: limits.rateMs, maxPerMin: limits.maxPerMin });
+    if (!rate.ok) return json({ error: rate.error, waitMs: rate.waitMs }, 429, allowedOrigin, cred);
+    const dup = checkRepeat(rateState, msg.text);
+    if (!dup.ok) return json({ error: dup.error, waitMs: dup.waitMs }, 429, allowedOrigin, cred);
+
+    if (parsed.list) {
+      const thread = { id: id(), text: msg.text, nick: who.nick, handle: who.handle || null, ts: Date.now(), replies: [] };
+      this.forumThreads.push(thread);
+      await this.persistForum();
+      return json(publicForumThread(thread), 200, allowedOrigin, cred);
+    }
+
+    const thread = this.forumThreads.find(row => row.id === parsed.id);
+    if (!thread) return json({ error: 'not found' }, 404, allowedOrigin, cred);
+    thread.replies.push({ id: id(), text: msg.text, nick: who.nick, handle: who.handle || null, ts: Date.now() });
+    await this.persistForum();
+    return json(publicForumThread(thread), 200, allowedOrigin, cred);
   }
 
   async persistMutes() {
@@ -3132,6 +3221,17 @@ export class DashaLobby {
             ? origin || '*'
             : null;
       return this.handleGraph(request, allowedOrigin);
+    }
+
+    if (parseForumThreadPath(url.pathname)) {
+      const origin = request.headers.get('Origin');
+      const allowedOrigin =
+        origin && originAllowed(origin, this.env.ALLOWED_ORIGINS || '')
+          ? origin
+          : this.env.ALLOW_ANY_ORIGIN
+            ? origin || '*'
+            : null;
+      return this.handleForum(request, allowedOrigin);
     }
 
     if (url.pathname.startsWith('/simp/') || url.pathname.startsWith('/studio/') || url.pathname.startsWith('/chess/')) {
@@ -3521,7 +3621,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
       const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
       const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
-      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/lobby') ? 'Open Lobby' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
+      const destLabel = dest.endsWith('/graph') ? 'Open Graph' : dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/forum') ? 'Open Forum' : dest.endsWith('/lobby') ? 'Open Forum' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
@@ -3760,11 +3860,26 @@ async function productEdge(request, url, env) {
   ) {
     return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/forum' || url.pathname === '/forum/')
-  ) {
-    return Response.redirect(LOBBY_CHAT, 308);
+  if (isForumApiPath(url.pathname)) {
+    const origin = request.headers.get('Origin');
+    const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
+    return forumApiResponse(request, env, allowedOrigin);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum/') {
+    return Response.redirect(forumCanonical(url), 308);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum') {
+    return new Response(request.method === 'HEAD' ? null : FORUM_PAGE, {
+      status: 200,
+      headers: htmlHeaders({
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Dasha-Edge': 'forum',
+      }),
+    });
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
+    return Response.redirect(forumCanonical(url), 308);
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
@@ -3907,8 +4022,21 @@ export default {
         headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }),
       });
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/forum' || url.pathname === '/forum/')) {
-      return Response.redirect(LOBBY_CHAT, 308);
+    if (isForumApiPath(url.pathname)) {
+      return forumApiResponse(request, env, allowedOrigin);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum/') {
+      return Response.redirect(forumCanonical(url), 308);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum') {
+      return new Response(request.method === 'HEAD' ? null : FORUM_PAGE, {
+        status: 200,
+        headers: htmlHeaders({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=120',
+          'X-Dasha-Edge': 'forum',
+        }),
+      });
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);
@@ -4089,13 +4217,7 @@ export default {
       return Response.redirect('https://www.getdasha.com/studio', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return new Response(request.method === 'HEAD' ? null : LOBBY_PAGE, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-        }),
-      });
+      return Response.redirect(forumCanonical(url), 308);
     }
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

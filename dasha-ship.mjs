@@ -242,8 +242,8 @@ function fastGate() {
       free: LANDING_CAP_BYTES - landingBytes,
     });
   }
-  if (!landing.includes('href="/lobby"') || landing.includes('id="dasha-lobby"')) {
-    fail('landing must link to dedicated /lobby without mounting chat');
+  if (!landing.includes('href="/forum"') || landing.includes('id="dasha-lobby"')) {
+    fail('landing must link to /forum without mounting chat');
   }
   if (landing.includes('id="simp"') && !landing.includes('lobby.getdasha.com/client/simp-board.js')) {
     fail('simp section present but client not loaded from lobby host');

@@ -294,6 +294,37 @@ export function pruneHistory(list, now = Date.now()) {
   return out;
 }
 
+export const MAX_FORUM_THREADS = 200;
+export const MAX_FORUM_REPLIES = 50;
+
+export function pruneForumThreads(list) {
+  let out = Array.isArray(list) ? list.filter(row => row && typeof row.id === 'string' && typeof row.text === 'string') : [];
+  if (out.length > MAX_FORUM_THREADS) out = out.slice(-MAX_FORUM_THREADS);
+  for (const thread of out) {
+    const replies = Array.isArray(thread.replies) ? thread.replies.filter(row => row && typeof row.id === 'string' && typeof row.text === 'string') : [];
+    thread.replies = replies.length > MAX_FORUM_REPLIES ? replies.slice(-MAX_FORUM_REPLIES) : replies;
+  }
+  return out;
+}
+
+export function publicForumRow(row) {
+  const out = { id: row.id, text: row.text, ts: row.ts };
+  if (row.handle) out.handle = row.handle;
+  else if (row.nick) out.nick = row.nick;
+  return out;
+}
+
+export function publicForumThread(thread) {
+  return { ...publicForumRow(thread), replies: (thread.replies || []).map(publicForumRow) };
+}
+
+export function parseForumThreadPath(pathname) {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  if (path === '/forum/threads') return { list: true, id: '' };
+  const match = path.match(/^\/forum\/threads\/([A-Za-z0-9_-]{6,24})$/);
+  return match ? { list: false, id: match[1] } : null;
+}
+
 /** Avatar URLs accepted in public chat (X CDN only). */
 export function avatarOk(url) {
   try {

@@ -7,7 +7,7 @@ export const RALLY_PATH = '/rally';
 export const RALLY_URL = 'https://www.getdasha.com/rally';
 export const QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
 export const STUDIO_URL = 'https://www.getdasha.com/studio';
-export const LOBBY_URL = 'https://www.getdasha.com/lobby';
+export const LOBBY_URL = 'https://www.getdasha.com/forum';
 export const DESK_URL = 'https://www.getdasha.com/dasha#dd-mint';
 export const JUPITER_BUY =
   'https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=' + MINT;
@@ -39,10 +39,10 @@ export function rallyLoops() {
     {
       id: 'lobby',
       kicker: '03 · Talk',
-      title: 'Join the lobby',
-      body: 'Public chat on-site. Not Discord HQ.',
+      title: 'Join the forum',
+      body: 'Public chat on-site.',
       href: LOBBY_URL,
-      cta: 'Open lobby',
+      cta: 'Open forum',
     },
     {
       id: 'buy',

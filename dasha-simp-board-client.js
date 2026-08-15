@@ -1264,8 +1264,8 @@
       inviteX.addEventListener('click', shareQuizInviteOnX);
       var lobby = document.createElement('a');
       lobby.className = 'ghost';
-      lobby.href = '/lobby';
-      lobby.textContent = 'Open lobby';
+      lobby.href = '/forum';
+      lobby.textContent = 'Open forum';
       var studio = document.createElement('a');
       studio.className = 'ghost';
       studio.href = '/studio';
