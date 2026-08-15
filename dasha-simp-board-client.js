@@ -8,7 +8,7 @@
   var DEFAULT_API = 'https://lobby.getdasha.com';
   /** Canonical shareable deep link — www /simp mounts this client. */
   var QUIZ_INVITE_URL = 'https://www.getdasha.com/simp';
-  /** First-visit optional Connect X (homepage only). Not mandatory. */
+  /** First-visit Connect X on homepage. Looking is free. Quiz needs X. */
   var GATE_LS = 'dasha_x_gate_v1';
   var GATE_AUTOJOIN = 'dasha_x_gate_autojoin';
   var QUIZ_INVITE_SS = 'dasha_quiz_invite_v1';
@@ -271,7 +271,7 @@
       }
     }
 
-    /** Optional first-visit Connect X on homepage only. Not mandatory. */
+    /** First-visit Connect X on homepage. Looking is free. Quiz needs X. */
     function openHomeGate() {
       if (!isHomePath() || gateDismissed() || gateEl) return;
       if (opts && opts.gate === false) return;
@@ -302,12 +302,12 @@
         '.simp-gate-primary:focus-visible,.simp-gate-skip:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
         '.simp-gate-status{margin:0;min-height:1.2em;font-size:13px;font-weight:700;color:#a99faf}' +
         '.simp-gate-status[data-kind=ok]{color:#dfff00}.simp-gate-status[data-kind=bad]{color:#ff3b81}.simp-gate-status[data-kind=warn]{color:#ffc857}' +
-        /* Optional gate: do not trap scroll — quiz/board stay reachable under/after dismiss. */
+        /* Home gate: do not trap scroll — looking stays free under/after dismiss. */
         'html.simp-gate-open .buy-sticky{display:none!important}' +
         '@media(prefers-reduced-motion:reduce){.simp-gate{backdrop-filter:none}}';
       gateEl.appendChild(style);
       var card = el('div', 'simp-gate-card');
-      card.appendChild(el('p', 'simp-gate-kicker', 'Optional · first visit'));
+      card.appendChild(el('p', 'simp-gate-kicker', 'First visit'));
       var h = el('h2', '', 'Connect X?');
       h.id = 'dasha-x-gate-title';
       card.appendChild(h);
@@ -315,11 +315,11 @@
         el(
           'p',
           '',
-          'Link your X for lobby perks and the Simp Board. Optional — everything still works if you skip.',
+          'Link X to play the quiz. Looking is free.',
         ),
       );
       card.appendChild(
-        el('p', 'simp-gate-note', 'Not required. Simp quiz is on this page under Simp board — skip anytime.'),
+        el('p', 'simp-gate-note', 'Skip to look around. Quiz waits for X.'),
       );
       var actions = el('div', 'simp-gate-actions');
       var primary = el('button', 'simp-gate-primary', 'Connect X');
@@ -1652,7 +1652,7 @@
     }
     window.addEventListener('message', onXLinkedMessage);
 
-    // Homepage optional first-visit Connect X (not mandatory).
+    // Homepage first-visit Connect X. Looking is free. Quiz needs X.
     // Wait for /simp/me so already-linked visitors never flash the dialog.
     // ?quiz=1#simp → auto-start quiz + ask to connect X.
     refresh().then(function () {

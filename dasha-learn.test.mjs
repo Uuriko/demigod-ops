@@ -19,11 +19,22 @@ assert.equal(MODULES.filter((row) => row.track === 'ai').length, 10);
 assert.ok(isLearnTrack('crypto') && isLearnTrack('crypto-ai') && isLearnTrack('ai'));
 const bank = publicBank();
 assert.equal(bank.mint, mint);
+assert.equal(Object.hasOwn(bank, 'disclaimer'), false, 'bank must not ship a disclaimer lecture');
 assert.match(JSON.stringify(bank), /how-to-buy/);
+const BANNED = /not an airdrop|not earn|not [“"]i earned \$dasha|she is not the dev|\bnot the dev\b|association is not endorsement|association ≠ endorsement|neither is required|we will not ask for a phrase|this is not advice|\bnot advice\b/i;
+const bankNotesChips = bank.modules.flatMap((row) => [
+  row.goal, row.body, row.note, row.prompt,
+  ...(row.chips || []).map((chip) => chip.text),
+]).join('\n');
+assert.doesNotMatch(bankNotesChips, BANNED, 'bank notes/chips must not lecture');
 assert.doesNotMatch(
   JSON.stringify(bank.modules.map((row) => [row.goal, row.body, row.note, row.prompt].join(' '))),
   /\b(this is official|safe mint|verified token|endorsed|guaranteed)\b/i,
 );
+const i10 = bank.modules.find((row) => row.id === 'I10');
+assert.deepEqual((i10?.chips || []).filter((chip) => chip.required).map((chip) => chip.id).sort(), ['howto', 'mint', 'source']);
+assert.ok((i10?.chips || []).some((chip) => chip.id === 'official' && chip.forbidden), 'stamp chip stays forbidden');
+assert.ok(!(i10?.chips || []).some((chip) => chip.id === 'not-dev' || chip.id === 'assoc'), 'lecture chips are out');
 
 assert.match(sitemap, /<loc>https:\/\/www\.getdasha\.com\/learn<\/loc>/);
 assert.doesNotMatch(sitemap, /\/hold|\/academy|\/university<\/loc>/);
@@ -39,8 +50,10 @@ assert.match(clientSrc, /credentials:\s*'include'/);
 assert.match(clientSrc, /\/simp\/wallet\/challenge/);
 assert.match(clientSrc, /\/simp\/learn/);
 assert.match(clientSrc, /signTx/);
-assert.match(clientSrc, /I earned \$dasha/, 'share copy must mention the forbidden line so it can refuse it');
-assert.match(clientSrc, /Not “I earned \$dasha\.”/);
+assert.doesNotMatch(clientSrc, BANNED, 'learn client must not paint banned lecture copy');
+assert.match(clientSrc, /Class\. Points on Simp\./);
+assert.doesNotMatch(clientSrc, /el\('h1', '', 'Learn'\)/, 'client must not paint a second Learn heading');
+assert.match(clientSrc, /learn-mint-copy/);
 assert.doesNotMatch(clientSrc, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.doesNotMatch(clientSrc, /confetti|three\.js|lenis|barba/i);
 assert.ok(clientSrc.includes(mint));
@@ -80,10 +93,15 @@ assert.equal(parseLearnPath('/learn/nope')?.invalid, true);
 assert.equal(parseLearnPath('/simp'), null);
 
 const hubHtml = learnPageHtml({});
+const hubVisible = hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/script>/, '').replace(/<noscript>[\s\S]*?<\/noscript>/, '');
 assert.match(hubHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/learn">/);
 assert.match(hubHtml, /id="dasha-learn"/);
-assert.match(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/);
-assert.doesNotMatch(hubHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Learn<\/h1>/);
+assert.match(hubHtml, /id="dasha-learn-static"/);
+assert.match(hubVisible, /<h1>Learn<\/h1>/);
+assert.equal((hubVisible.match(/<h1>Learn<\/h1>/g) || []).length, 1, 'hub HTML has one Learn heading');
+assert.equal((hubVisible.match(/id="learn-mint"/g) || []).length, 1, 'hub HTML has one mint');
+assert.match(hubVisible, /id="learn-mint-copy"/);
+assert.doesNotMatch(hubHtml, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/, 'hub noscript must not reprint Learn + mint');
 assert.match(hubHtml, /href="\/learn" aria-current="page"/);
 assert.match(hubHtml, /min-height:48px/);
 assert.doesNotMatch(hubHtml, /id="dasha-quiz"/);
@@ -97,6 +115,8 @@ assert.doesNotMatch(hubHtml.replace(/<script type="application\/json"[\s\S]*?<\/
 assert.match(hubHtml, /href="\/learn"/);
 
 const c08 = learnPageHtml({ track: 'crypto', mod: 'C08' });
+assert.doesNotMatch(c08, /id="dasha-learn-static"/, 'module pages hide hub chrome by omitting it');
+assert.match(c08, /<noscript>[\s\S]*<h1>Learn<\/h1>[\s\S]*<\/noscript>/);
 assert.match(c08, /\/how-to-buy/);
 assert.ok(c08.includes(mint));
 

@@ -8,7 +8,6 @@ export const NOT_DEV = 'https://x.com/dash_eats/status/2085532923063853316';
 export const JUPITER = `https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=${MINT}`;
 export const SOLSCAN = `https://solscan.io/token/${MINT}`;
 export const HOWTO = '/how-to-buy';
-export const LEARN_DISCLAIMER = 'Association is not endorsement. No advice. She is not the dev.';
 
 export const TRACKS = {
   crypto: { id: 'crypto', door: 'CRYPTO', first: 'C01' },
@@ -114,7 +113,7 @@ export const MODULES = [
     prompt: 'The quote moved a lot before you tap. What do you do?',
     choices: ['Tap faster', 'Abort. A moved quote is a fuse, not a dare.', 'Raise slippage to 50% so it goes through', 'Ask the lobby if it is still good'],
     answer: 1,
-    note: 'Abort-if-moved. This is not advice. It is how the button works.',
+    note: 'Abort if the quote moved.',
     source: SRC.jup,
     surprise: { title: 'FUSE', body: 'A bad quote is not a sale.' },
   }),
@@ -147,13 +146,13 @@ export const MODULES = [
   }),
   mod({
     id: 'C10', track: 'crypto', skill: 'hold', difficulty: 1, points: 4,
-    goal: 'Hold vs trade is a preference. No advice. Holder badge is 0 points.',
+    goal: 'Hold vs trade is a preference. Holder badge is 0 points.',
     type: 'card+quiz',
     body: 'Some people hold. Some people trade. We do not tell you which. The holder badge is a sticker. It is worth 0 Simp points.',
     prompt: 'How many Simp points is the holder badge worth?',
     choices: ['10, like linking X', '25, like a creative post', '0. Badge only.', 'It scales with bag size'],
     answer: 2,
-    note: 'No advice. Bag size does not score. Purchases do not score.',
+    note: 'Bag size does not score. Purchases do not score.',
     source: SRC.notDev,
   }),
   mod({
@@ -165,7 +164,7 @@ export const MODULES = [
     prompt: 'A row on the Solscan holders list is…',
     choices: ['A person who likes her', 'A token account. Not a person.', 'A verified simp', 'Someone we can DM for you'],
     answer: 1,
-    note: 'Address ≠ friend. Association is not endorsement.',
+    note: 'Address ≠ friend. Graph is addresses, not people.',
     source: SRC.solscan,
   }),
   mod({
@@ -180,7 +179,7 @@ export const MODULES = [
       { prompt: 'Do you need a tx to pass this class?', choices: ['Yes', 'No. you do not have to buy to pass.'], answer: 1 },
     ],
     pass: 'all',
-    note: 'Rehearsal. Not a purchase. Not advice.',
+    note: 'Rehearsal. No purchase required.',
     source: SRC.howto,
   }),
 
@@ -281,11 +280,11 @@ export const MODULES = [
     goal: 'Hop /graph. A node is an address, not a friend.',
     type: 'hop',
     hop: { href: '/graph', label: 'Open Graph' },
-    body: 'Public chain. Addresses, not people. Not endorsement.',
+    body: 'Public chain. Addresses, not people.',
     prompt: 'A glowing node on /graph is…',
-    choices: ['A friend who likes you', 'An address. Not a person. Not an endorsement.', 'A verified holder we introduced', 'Someone in the telegram'],
+    choices: ['A friend who likes you', 'An address. Not a person.', 'A verified holder we introduced', 'Someone in the telegram'],
     answer: 1,
-    note: 'Association is not endorsement.',
+    note: 'Graph is addresses, not people.',
     source: SRC.graph,
     fallback: { prompt: 'Graph nodes are friends. True?', choices: ['False', 'True'], answer: 0 },
   }),
@@ -301,7 +300,7 @@ export const MODULES = [
       { prompt: 'She is the dev.', choices: ['No', 'Yes'], answer: 0 },
     ],
     pass: '4-of-5',
-    note: 'She is not the dev. Source post is public.',
+    note: 'Source post is public.',
     source: SRC.notDev,
   }),
 
@@ -313,7 +312,7 @@ export const MODULES = [
     prompt: 'The model on a page is…',
     choices: ['Her, if the voice is close', 'A model. Not a person.', 'The dev', 'A holder'],
     answer: 1,
-    note: 'Voice ≠ person. Association is not endorsement.',
+    note: 'Voice ≠ person.',
     source: SRC.notDev,
   }),
   mod({
@@ -412,12 +411,10 @@ export const MODULES = [
     id: 'I10', track: 'ai', skill: 'halluc', difficulty: 2, points: 8, tool: 'chip',
     goal: 'Chip-assembler. A brief a model can use. No model API. Leave the stamp chip in the trash.',
     type: 'tool',
-    body: 'Stack the chips. Full mint. Source post. Not the dev. Association ≠ endorsement. How to buy. The stamp chip is out.',
+    body: 'Stack the chips. Full mint. Source post. How to buy. The stamp chip is out.',
     chips: [
       { id: 'mint', text: MINT, required: true },
       { id: 'source', text: MINT_SOURCE, required: true },
-      { id: 'not-dev', text: 'She is not the dev.', required: true },
-      { id: 'assoc', text: 'Association is not endorsement.', required: true },
       { id: 'howto', text: 'https://www.getdasha.com/how-to-buy', required: true },
       { id: 'official', text: 'official', required: false, forbidden: true },
     ],
@@ -466,7 +463,6 @@ export function publicBank() {
     notDev: NOT_DEV,
     jupiter: JUPITER,
     solscan: SOLSCAN,
-    disclaimer: LEARN_DISCLAIMER,
     tracks: TRACKS,
     modules: MODULES.map(publicModule),
   };

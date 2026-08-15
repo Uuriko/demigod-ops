@@ -30,7 +30,7 @@
     mcp: 'A plug for tools. Not a brain. Does not move money.',
     agent: 'A model that may call tools. Still needs a wallet to sign.',
     'holder-badge': 'Sticker. 0 Simp points. Not a score.',
-    association: 'Being next to a thing is not an endorsement.'
+    association: 'Graph is addresses, not people.'
   };
   var DRILL = [
     { text: MINT, match: true },
@@ -191,13 +191,13 @@
   function mount(root, opts) {
     opts = opts || {};
     if (!root) return null;
-    var leftover = document.getElementById('dasha-learn-static');
-    if (leftover) leftover.hidden = true;
     var base = apiBase(root);
     var pack = bankFrom(root) || opts.bank || {};
     var modules = pack.modules || [];
     var path = parsePath();
     var track = root.getAttribute('data-track') || path.track;
+    var leftover = document.getElementById('dasha-learn-static');
+    if (leftover && track) leftover.hidden = true;
     var modId = root.getAttribute('data-mod') || path.mod;
     root.innerHTML = '';
     root.classList.add('learn-root');
@@ -244,15 +244,15 @@
       '@media(prefers-reduced-motion:reduce){.learn-fill,.learn-door,.learn-choice{transition:none}}';
   }
 
-  function renderHub(root, live, modules, base, pack) {
-    root.appendChild(el('h1', '', 'Learn'));
-    var mint = el('code', 'learn-ca', MINT);
-    mint.setAttribute('id', 'learn-mint');
-    root.appendChild(mint);
-    var copy = el('button', 'learn-go', 'Copy mint');
-    copy.type = 'button';
+  function wireMintCopy() {
+    var copy = document.getElementById('learn-mint-copy');
+    if (!copy || copy.getAttribute('data-wired')) return;
+    copy.setAttribute('data-wired', '1');
     copy.addEventListener('click', function () { copyText(MINT, copy); });
-    root.appendChild(copy);
+  }
+
+  function renderHub(root, live, modules, base, pack) {
+    wireMintCopy();
     var studyBox = el('div', 'learn-study');
     studyBox.appendChild(el('span', '', 'Study'));
     ['chill', 'normal', 'mean'].forEach(function (name, i) {
@@ -301,10 +301,10 @@
     xBtn.addEventListener('click', function () { linkX(base, live); });
     root.appendChild(xBtn);
     root.appendChild(live);
-    root.appendChild(el('p', 'learn-lede', 'Play without X. Award with X. She is not the dev.'));
+    root.appendChild(el('p', 'learn-lede', 'Play without X. Award with X.'));
     var src = el('p', 'learn-source', '');
     var a1 = document.createElement('a'); a1.href = MINT_SOURCE; a1.target = '_blank'; a1.rel = 'noopener noreferrer'; a1.textContent = 'mint source';
-    var a2 = document.createElement('a'); a2.href = NOT_DEV; a2.target = '_blank'; a2.rel = 'noopener noreferrer'; a2.textContent = 'not the dev';
+    var a2 = document.createElement('a'); a2.href = NOT_DEV; a2.target = '_blank'; a2.rel = 'noopener noreferrer'; a2.textContent = 'source post';
     src.appendChild(a1); src.appendChild(document.createTextNode(' · ')); src.appendChild(a2);
     root.appendChild(src);
     paintStudy(studyBox);
@@ -552,7 +552,7 @@
     if (tool === 'siws' || mod.id === 'A03') siwsTool(box, live, base);
     if (tool === 'sandbox' || mod.id === 'A04') agentSandbox(box, live);
     if (tool === 'phish-siws' || mod.id === 'A08') phishSiws(box, live);
-    if (tool === 'chip' || mod.id === 'I10') chipAssembler(box, live);
+    if (tool === 'chip' || mod.id === 'I10') chipAssembler(box, live, mod);
     if (tool === 'glossary' || mod.id === 'A05' || mod.id === 'I04') glossaryBar(box);
     if (tool === 'halluc') box.appendChild(el('p', 'learn-lede', 'TRUE or INVENTED. Fake holders, telegram, she-is-dev, truncated CA = invented.'));
     if (mod.id === 'C08' || mod.id === 'C03') {
@@ -692,14 +692,12 @@
     });
   }
 
-  function chipAssembler(box, live) {
+  function chipAssembler(box, live, mod) {
     var picked = {};
     box.appendChild(el('p', '', 'Stack a brief. The stamp chip is out. No model API.'));
-    var chips = [
+    var chips = (mod && mod.chips && mod.chips.length) ? mod.chips : [
       { id: 'mint', text: MINT, required: true },
       { id: 'source', text: MINT_SOURCE, required: true },
-      { id: 'not-dev', text: 'She is not the dev.', required: true },
-      { id: 'assoc', text: 'Association is not endorsement.', required: true },
       { id: 'howto', text: 'https://www.getdasha.com/how-to-buy', required: true },
       { id: 'official', text: 'official', forbidden: true }
     ];
@@ -712,7 +710,7 @@
         b.classList.toggle('is-on', picked[c.id]);
         var lines = chips.filter(function (x) { return picked[x.id]; }).map(function (x) { return x.text; });
         out.textContent = lines.join('\n');
-        var bad = picked.official;
+        var bad = chips.some(function (x) { return x.forbidden && picked[x.id]; });
         var ok = !bad && chips.every(function (x) { return !x.required || picked[x.id]; });
         box.setAttribute('data-chip', ok ? 'ok' : 'no');
         box.setAttribute('data-ran', '1');
@@ -749,7 +747,7 @@
     img.src = 'https://lobby.getdasha.com' + card.image;
     wrap.appendChild(img);
     wrap.appendChild(el('p', '', '“' + card.quote + '”'));
-    wrap.appendChild(el('p', 'learn-lede', 'Optional class. Points on Simp. Not “I earned $dasha.”'));
+    wrap.appendChild(el('p', 'learn-lede', 'Class. Points on Simp.'));
     var b = el('button', 'learn-go', 'Share');
     b.type = 'button';
     b.addEventListener('click', function () {
