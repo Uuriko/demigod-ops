@@ -2146,11 +2146,12 @@ let quizResponse = await linkedQuizPost({ action: 'start' });
 let quizData = await quizResponse.json();
 assert.equal(quizResponse.status, 200);
 assert.equal(quizData.attemptId, undefined);
-assert.equal('total' in (quizData.progress || {}), false);
+assert.equal(quizData.progress.current, 0);
+assert.equal(quizData.progress.total, 28);
 assert.match(quizData.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
 assert.equal(quizData.question.media.kind, 'image');
 let prevMedia = quizData.question.media.src;
-for (let i = 0; i < 17; i++) {
+for (let i = 0; i < 29; i++) {
   quizResponse = await linkedQuizPost({ action: 'answer', answer: 0 });
   quizData = await quizResponse.json();
   if (!quizData.done) {
@@ -2165,8 +2166,8 @@ assert.match(quizData.resultUrl, /^https:\/\/www\.getdasha\.com\/simp\/r\/[A-Za-
 assert.equal(quizData.quiz.resultUrl, quizData.resultUrl);
 assert.equal(studioDo.simpQuizMetrics.starts, 1);
 assert.equal(studioDo.simpQuizMetrics.completions, 1);
-assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 17);
-assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 17);
+assert.equal(Object.values(studioDo.simpQuizMetrics.reached).reduce((a, b) => a + b, 0), 29);
+assert.equal(Object.values(studioDo.simpQuizMetrics.answers).reduce((a, b) => a + b, 0), 29);
 assert.equal(Object.values(studioDo.simpQuizMetrics.lanes).reduce((a, b) => a + b, 0), 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.tiers).reduce((a, b) => a + b, 0), 1);
 assert.equal(Object.values(studioDo.simpQuizMetrics.elapsed).reduce((a, b) => a + b, 0), 1);
