@@ -68,6 +68,12 @@
   }
   function paintHud(dex) {
     dex = dex || {};
+    var hud = document.querySelector('.hud');
+    var hasNum = (dex.priceUsd != null && dex.priceUsd !== '')
+      || Number.isFinite(Number(dex.liquidityUsd))
+      || Number.isFinite(Number(dex.volume24h))
+      || Number.isFinite(Number(dex.fdv));
+    if (hud) hud.hidden = !hasNum;
     var price = $('hud-price');
     var liq = $('hud-liq');
     var vol = $('hud-vol');
@@ -77,28 +83,58 @@
     if (vol) vol.textContent = Number.isFinite(Number(dex.volume24h)) ? fmtHud(dex.volume24h) : '—';
     if (fdv) fdv.textContent = Number.isFinite(Number(dex.fdv)) ? fmtHud(dex.fdv) : '—';
   }
+  function listGroup(node) {
+    if (node.role === 'highlight') return 0;
+    if (node.id === MINT) return 1;
+    if (node.id === PAIR || node.role === 'pair' || node.kind === 'pool' || node.role === 'program' || node.kind === 'program' || node.role === 'token') return 2;
+    if (node.role === 'wallet' || node.kind === 'wallet') return 3;
+    return 4;
+  }
   function paintList() {
     var list = $('list');
     if (!list) return;
     list.hidden = !(listOn || reduced);
     if (list.hidden) return;
     list.innerHTML = '';
-    data.nodes.forEach(function (node) {
+    var nodes = data.nodes || [];
+    var rows = [];
+    if (!data.holdersLoaded) {
+      nodes.forEach(function (node) {
+        if (node.role === 'highlight' || node.id === MINT || node.id === PAIR) rows.push(node);
+      });
+    } else {
+      rows = nodes.slice().sort(function (a, b) {
+        var ga = listGroup(a);
+        var gb = listGroup(b);
+        if (ga !== gb) return ga - gb;
+        if (ga === 3) return (Number(b.uiAmount) || 0) - (Number(a.uiAmount) || 0);
+        return 0;
+      });
+    }
+    rows.slice(0, 40).forEach(function (node) {
       var li = document.createElement('li');
       if (node.role === 'highlight' && node.handle) {
-        li.innerHTML = '<strong>highlight</strong> <a href="' + esc(node.href || ('https://x.com/' + node.handle)) + '" target="_blank" rel="noopener noreferrer">@' + esc(node.handle) + '</a>';
-        list.appendChild(li);
-        return;
+        li.innerHTML = '<strong>highlight</strong> @' + esc(node.handle);
+      } else {
+        var bits = [shortId(node.id)];
+        if (node.symbol && node.symbol !== bits[0]) bits.unshift(node.symbol);
+        if (node.uiAmountString) bits.push(node.uiAmountString);
+        li.innerHTML = '<strong>' + esc(node.role || node.kind || 'node') + '</strong> ' + esc(bits.join(' · '));
       }
-      var bits = [node.id];
-      if (node.symbol) bits.unshift(node.symbol);
-      if (node.uiAmountString) bits.push(node.uiAmountString);
-      li.innerHTML = '<strong>' + esc(node.role || node.kind || 'node') + '</strong> ' + esc(bits.join(' · '));
+      li.addEventListener('click', function () { nodePanel(node); });
       list.appendChild(li);
     });
-    data.links.forEach(function (link) {
+    if (!data.holdersLoaded) {
+      var note = document.createElement('li');
+      note.textContent = 'Holders: not loaded';
+      note.style.color = 'rgba(244,237,219,.62)';
+      list.appendChild(note);
+      return;
+    }
+    (data.pulses || []).forEach(function (pulse) {
+      if (list.children.length >= 40) return;
       var li = document.createElement('li');
-      li.textContent = (link.kind || 'link') + ' ' + link.source + ' → ' + link.target + (link.uiAmountString ? ' · ' + link.uiAmountString : '');
+      li.textContent = 'pulse ' + shortId(pulse.source) + ' → ' + shortId(pulse.target);
       list.appendChild(li);
     });
   }
@@ -176,19 +212,19 @@
     var marks = nodes.filter(function (n) { return n.role === 'highlight'; });
     nodes.forEach(function (node) {
       if (node.id === MINT) { node.x = 0; node.y = 0; node.z = 0; return; }
-      if (node.id === PAIR) { node.x = 6.2; node.y = 0.4; node.z = 0.2; return; }
+      if (node.id === PAIR) { node.x = 3.4; node.y = 0.25; node.z = 0.15; return; }
       if (node.role === 'highlight') return;
       var t = extras.length ? (i++ / extras.length) * Math.PI * 2 : 0;
-      var r = node.role === 'program' ? 14 : node.role === 'token' ? 10 : 11.5;
+      var r = node.role === 'program' ? 7.2 : node.role === 'token' ? 5.6 : 6.4;
       node.x = Math.cos(t) * r;
-      node.y = Math.sin(t * 1.7) * 2.4;
+      node.y = Math.sin(t * 1.7) * 1.1;
       node.z = Math.sin(t) * r;
     });
     marks.forEach(function (node, index) {
       var t = marks.length ? (index / marks.length) * Math.PI * 2 : 0;
-      node.x = Math.cos(t) * 5.2;
-      node.y = 1.2;
-      node.z = Math.sin(t) * 5.2;
+      node.x = Math.cos(t) * 3.6;
+      node.y = 0.9;
+      node.z = Math.sin(t) * 3.6;
     });
   }
   function startScene(THREE, OrbitControls) {
@@ -201,11 +237,13 @@
     el.innerHTML = '';
     el.appendChild(renderer.domElement);
     var scene = new THREE.Scene();
-    var camera = new THREE.PerspectiveCamera(50, (el.clientWidth || global.innerWidth) / (el.clientHeight || global.innerHeight), 0.1, 200);
-    camera.position.set(0, 8, 22);
+    var camera = new THREE.PerspectiveCamera(42, (el.clientWidth || global.innerWidth) / (el.clientHeight || global.innerHeight), 0.1, 200);
+    camera.position.set(0, 3.2, 11);
     var controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = !reduced;
     controls.enablePan = true;
+    controls.minDistance = 4.2;
+    controls.maxDistance = 22;
     controls.target.set(0, 0, 0);
     var amb = new THREE.AmbientLight(PAPER, 0.62);
     var key = new THREE.DirectionalLight(ACID, 0.55);
@@ -369,7 +407,7 @@
         followOn = false;
         var btn = $('follow');
         if (btn) btn.setAttribute('aria-pressed', 'false');
-        camera.position.set(0, 8, 22);
+        camera.position.set(0, 3.2, 11);
         controls.target.set(0, 0, 0);
         controls.update();
       },
@@ -411,7 +449,7 @@
       highlights: marks.nodes.map(function (node) { return { handle: node.handle, href: node.href, until: node.until }; }),
     };
     paintHud(data.dex);
-    if (!data.holdersLoaded) setStatus('Holders: not loaded', 'bad');
+    if (!data.holdersLoaded) setStatus('Holders: not loaded', '');
     else setStatus('', '');
     paintList();
     if (reduced) return;
