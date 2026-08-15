@@ -94,7 +94,6 @@ import {
   FAUCET_CLIENT_SRI,
   FAUCET_STILL_SRI,
   DANCE_CLIENT_JS,
-  DANCE_CLIENT_SRI,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
@@ -614,17 +613,13 @@ export function ensurePrivacyLink(html) {
   return page;
 }
 
-/** Bottom dancer after first paint. Bible rooms only. */
+/** Dock is off. Dance files stay on disk; nothing mounts them. */
 export function danceDockPath(pathname) {
-  const path = String(pathname || '').replace(/\/$/, '') || '/';
-  return path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha';
+  return false;
 }
 
 export function injectDanceDock(html) {
-  const page = String(html || '');
-  if (/dasha-dance\.js/i.test(page)) return page;
-  const boot = `<script>(function(){function go(){if(document.getElementById('dasha-dance-js'))return;var s=document.createElement('script');s.id='dasha-dance-js';s.src='https://lobby.getdasha.com/client/dasha-dance.js';s.integrity='${DANCE_CLIENT_SRI}';s.crossOrigin='anonymous';document.head.appendChild(s)}if(window.requestIdleCallback)requestIdleCallback(go,{timeout:400});else setTimeout(go,400)})();</script>`;
-  return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${boot}</body>`) : page + boot;
+  return html;
 }
 
 const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);

@@ -73,29 +73,13 @@ assert.match(DANCE_CLIENT_JS, /dasha-dance-speaker\{position:absolute;right:/);
 assert.equal(`sha384-${createHash('sha384').update(DANCE_CLIENT_JS).digest('base64')}`, DANCE_CLIENT_SRI);
 assert.match(ASSET_HASH, /^[0-9a-f]{16}$/);
 
-assert.equal(danceDockPath('/graph'), false);
-assert.equal(danceDockPath('/graph/'), false);
-assert.equal(danceDockPath('/'), true);
-assert.equal(danceDockPath('/lobby'), true);
-assert.equal(danceDockPath('/lobby/'), true);
-assert.equal(danceDockPath('/studio'), true);
-assert.equal(danceDockPath('/dasha'), true);
-assert.equal(danceDockPath('/simp'), false);
-assert.equal(danceDockPath('/chess'), false);
-assert.equal(danceDockPath('/verse'), false);
-assert.equal(danceDockPath('/how-to-buy'), false);
-assert.equal(danceDockPath('/bounties'), false);
-assert.equal(danceDockPath('/learn'), false);
-assert.equal(danceDockPath('/learn/crypto'), false);
-assert.equal(danceDockPath('/faucet'), false);
+for (const path of ['/', '/lobby', '/lobby/', '/studio', '/dasha', '/simp', '/chess', '/verse', '/how-to-buy', '/bounties', '/learn', '/learn/crypto', '/faucet', '/graph', '/graph/']) {
+  assert.equal(danceDockPath(path), false, `danceDockPath(${path}) must be false`);
+}
 
-const boot = injectDanceDock('<!doctype html><html><body><h1>IT\'S TIME $DASHA</h1><a class="buy-dasha">Buy $dasha ↗</a></body></html>');
-assert.match(boot, /lobby\.getdasha\.com\/client\/dasha-dance\.js/);
-assert.match(boot, new RegExp(`s\\.integrity='${DANCE_CLIENT_SRI.replace(/[+/]/g, '\\$&')}'`));
-assert.match(boot, /requestIdleCallback|timeout:400/);
-assert.doesNotMatch(boot, /tap to (?:play|hear)|Play music/i);
-assert.doesNotMatch(boot, /<nav|sitemap|\/bounties|\/learn|\/faucet|\/airdrop|\/earn/i, 'dock inject must not grow doors or a sitemap');
-assert.equal(injectDanceDock(boot), boot, 'dance inject must be idempotent');
+const boot = '<!doctype html><html><body><h1>IT\'S TIME $DASHA</h1><a class="buy-dasha">Buy $dasha ↗</a></body></html>';
+assert.equal(injectDanceDock(boot), boot, 'injectDanceDock must return html unchanged');
+assert.doesNotMatch(injectDanceDock(boot), /dasha-dance\.js/);
 const firstPaint = rewriteHomeFirstViewport('<!doctype html><html><body><header class="dasha-hero"><h1>IT\'S TIME $DASHA</h1><p class="actions"><a class="pill primary buy-dasha" href="https://jup.ag/swap">Buy $dasha ↗</a></p></header></body></html>');
 assert.doesNotMatch(firstPaint, /dasha-dance/, 'first paint is headline + Buy, not the dancer');
 assert.match(firstPaint, /IT'S TIME \$DASHA/);
@@ -172,8 +156,7 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
     const html = await home.text();
     assert.match(html, /IT'S TIME \$DASHA/);
     assert.match(html, /buy-dasha/);
-    assert.match(html, /dasha-dance\.js/, 'home feeling includes the dancer after first paint');
-    assert.match(html, /requestIdleCallback|timeout:400/);
+    assert.doesNotMatch(html, /dasha-dance\.js/, 'home must not inject the dock');
     assert.doesNotMatch(html, /Polygons|Umplix|Play music|tap to (?:play|hear)/i);
   } finally {
     globalThis.fetch = nativeFetch;
@@ -184,8 +167,7 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
   const lobby = await worker.fetch(new Request('https://lobby.getdasha.com/lobby'), assets);
   assert.equal(lobby.status, 200, 'lobby /lobby must stay 200');
   const lobbyHtml = await lobby.text();
-  assert.match(lobbyHtml, /lobby\.getdasha\.com\/client\/dasha-dance\.js/, 'lobby /lobby must idle-load the dock');
-  assert.match(lobbyHtml, new RegExp(DANCE_CLIENT_SRI.replace(/[+/]/g, '\\$&')), 'lobby /lobby must pin dance SRI');
+  assert.doesNotMatch(lobbyHtml, /dasha-dance\.js/, 'lobby /lobby must not inject the dock');
 }
 for (const [host, path] of [
   ['lobby.getdasha.com', '/chess'],

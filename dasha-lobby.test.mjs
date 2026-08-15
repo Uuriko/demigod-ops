@@ -183,9 +183,11 @@ assert(!/getProgramAccounts/.test(worker), 'graph must not use getProgramAccount
 assert(worker.includes("isExactPath(url.pathname, '/dashaverse')") && worker.includes('VERSE_WWW'), ' /dashaverse aliases to /verse');
 assert(!worker.includes('injectBountiesBoard(stripBountiesIframe'), 'www /bounties must not paint through Webflow');
 assert(worker.includes('SIMP_BOARD_SRI') && worker.includes('client/simp-board.js'), 'www /simp mounts the existing board client');
-assert(worker.includes('injectDanceDock') && worker.includes('client/dasha-dance.js') && worker.includes('DANCE_CLIENT_SRI'), 'worker injects the idle dance dock');
+assert(worker.includes('export function danceDockPath') && worker.includes('export function injectDanceDock'), 'dock helpers stay');
+assert.match(worker, /export function danceDockPath\([^)]*\) \{\s*return false;\s*\}/, 'danceDockPath is false for every path');
+assert.match(worker, /export function injectDanceDock\(html\) \{\s*return html;\s*\}/, 'injectDanceDock is a no-op');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML'), '/graph must not grow the dance dock');
-assert(worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock rooms are / /lobby /studio /dasha only');
+assert(!worker.includes("path === '/' || path === '/lobby' || path === '/studio' || path === '/dasha'"), 'dock is off every path');
 assert(worker.includes('ensureHomeSimpMount') && worker.includes('injectHomeReveal'), 'home rewrite remounts the pretty board below the hero');
 assert(worker.includes('ensureHomeFaucetMount') && worker.includes('faucetMountHtml'), 'home remounts the live faucet toy after the board');
 assert(!worker.includes('ensureHomeSimpHop') && !worker.includes('dasha-simp-hop'), 'home #simp is the board, not a hop-only paragraph');
