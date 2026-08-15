@@ -1519,9 +1519,10 @@ try {
     assert.match(css, /a\[href\^="\/studio#"\]/, `${label} must hide studio-hash CTAs`);
     assert.match(css, /content-visibility:\s*auto/, `${label} must skip paint on below-fold rooms`);
     assert.match(css, /content:"\[01\]"/, `${label} must number the hero room`);
-    assert.match(css, /#simp::before\{content:"\[02\]"/, `${label} must number the board room`);
-    assert.match(css, /#faucet::before\{content:"\[03\]"/, `${label} must number the faucet room`);
-    assert.match(css, /#token::before\{content:"\[04\]"/, `${label} must number the mint band`);
+    assert.match(css, /#dasha-tape::before\{content:"\[02\]"/, `${label} must number the live chart`);
+    assert.match(css, /#simp::before\{content:"\[03\]"/, `${label} must number the board room`);
+    assert.match(css, /#faucet::before\{content:"\[04\]"/, `${label} must number the faucet room`);
+    assert.match(css, /#token::before\{content:"\[05\]"/, `${label} must number the mint band`);
     assert.match(css, /#lobby,#remix,#stills,#oss,#voice/, `${label} must hide leftover carnival`);
     assert.match(css, /scroll-behavior:auto/, `${label} must kill smooth-scroll`);
     assert.match(css, /\.dasha\{overflow-x:visible/, `${label} must drop the overflow-x trap`);
