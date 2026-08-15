@@ -14,12 +14,12 @@ export const OSS_CAP_SEASON = 300;
 export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
 export const PUBLIC_BOARD_LIMIT = 50;
 export const OSS_SCHEMA = 'dasha-simp-oss/v0';
-export const QUIZ_VERSION = 'dasha-simp-quiz/v9';
-/** Hidden step count: 1 unscored route + 16 scored. Never shown to the player. */
-export const QUIZ_PATH_LENGTH = 17;
-export const QUIZ_SCORED_LENGTH = 16;
+export const QUIZ_VERSION = 'dasha-simp-quiz/v10';
+/** 1 unscored lane pick + 28 scored. Progress shows scored only (12 / 28). */
+export const QUIZ_PATH_LENGTH = 29;
+export const QUIZ_SCORED_LENGTH = 28;
 /** Full-bank walk for tests only. Not a player-facing mode. */
-export const QUIZ_PRACTICE_LENGTH = 40;
+export const QUIZ_PRACTICE_LENGTH = 52;
 export const QUIZ_MAX_POINTS = 60;
 /** Soft ±vibe on quiz points so the formula is not a pure spreadsheet. */
 export const QUIZ_VIBE_RANGE = 8;
@@ -55,6 +55,7 @@ const SRC = {
   nylon: 'https://www.nylon.com/beauty/red-scares-dasha-nekrasova-on-freckle-pens-surviving-quarantine-and-her-feature-film-the-scary-of-61st-street',
   variety: 'https://variety.com/2021/film/news/dasha-nekrasova-scary-of-61st-street-jeffrey-epstein-1234918735/',
   collider: 'https://collider.com/jennifer-connelly-bad-behaviour-sneak-peek/',
+  cutWalk: 'https://www.thecut.com/2019/02/red-scare-podcast-hosts-walk-first-fashion-show.html',
 };
 // [id, tier, lane, prompt, choices, answer, note, source]
 const ITEMS = [
@@ -97,6 +98,18 @@ const ITEMS = [
   ['letterman', 5, 'lore', 'Why did teenage Dasha want to be a child actor?', ['To join Cirque like her parents', 'Basically only so she could be a guest on David Letterman', 'To escape Vegas for LA', 'To fund message-board hobbies'], 1, 'Interview Mag: basically only for Letterman.', SRC.interview],
   ['rafman-painting', 5, 'lore', 'What is the Jon Rafman artwork she called her favorite piece she owns?', ['A Google Street View still from Nine Eyes', 'A chihuahua having sex with a pig, three pit bulls looking on judgmentally as a storm rolls in', 'An AI portrait of Anna', 'A Second Life screenshot of Dimes Square'], 1, 'Interview Mag 2023: that painting. Her favorite piece she owns.', SRC.rafman],
   ['bad-behaviour', 5, 'cinema', 'In Bad Behaviour, what happens to her character Beverly at the retreat?', ['She leads the silent sit and never speaks', 'Lucy (Jennifer Connelly) throws water in her face, screams at her to shut up, and smashes a chair over her head', "She is revealed as Dylan's stunt double", "Ben Whishaw's guru expels her for podcasting"], 1, 'Collider sneak-peek: water, shut up, chair over the head.', SRC.collider],
+  ['scary-cap', 1, 'cinema', 'This cap names which of her films?', ['The Scary of Sixty-First', 'The Beast', 'Wobble Palace', 'Softness of Bodies'], 0, 'SCARY is the movie. Sixty-First Street.', SRC.variety],
+  ['worms-brain', 1, 'podcast', 'Besides free health care, which Infowars line did Nylon quote?', ['You people have, like, worms in your brain, honestly', 'Eat the rich, honey', 'Bernie or bust, sweetheart', 'You people are fascists, honestly'], 0, "Nylon: 'worms in your brain, honestly.'", SRC.nylon],
+  ['anna-cohost', 1, 'podcast', 'Who co-hosts Red Scare with her?', ['Anna Khachiyan', 'Aimee Terese', 'Catherine Liu', 'Angela Nagle'], 0, 'The Cut 2018: Nekrasova and Khachiyan.', SRC.cut],
+  ['sailor-beret', 2, 'cinema', 'Besides the sailor fuku, what else was she wearing in that Infowars ambush?', ['A beret', 'A Cirque leotard', 'A Red Scare sailor hat', 'A full Sailor Moon wig'], 0, 'Nylon: Japanese schoolgirl uniform and a beret.', SRC.nylon],
+  ['freckle-pens', 2, 'lore', 'Which quarantine beauty tool did she rave about to Nylon?', ['A Freck freckle pen', 'A bleach kit', 'A gua-sha only', 'Nothing; she quit makeup'], 0, 'Nylon: Freck. Dot, then tap. Anime face, then wash it off.', SRC.nylon],
+  ['materialists-daisy', 2, 'cinema', "In Celine Song's Materialists, what is her character called?", ['Daisy', 'Lucy', 'Violet', 'Charlotte'], 0, "Dazed: Daisy, Lucy's coworker at the matchmaking shop.", SRC.dazed],
+  ['union-hall', 2, 'podcast', "Where was Red Scare's first sold-out live show?", ['Union Hall in Brooklyn', 'The Players club', 'Bar Pitti', 'The Equinox rooftop'], 0, 'The Cut 2018: Union Hall, Brooklyn. Sold out.', SRC.cut],
+  ['zizek-guest', 2, 'podcast', 'Which philosopher did Nylon list as a Red Scare guest?', ['Slavoj Zizek', 'Jordan Peterson', 'Mark Fisher', 'Camille Paglia'], 0, 'Nylon: Natasha Stagg, Slavoj Zizek, Glenn Greenwald.', SRC.nylon],
+  ['materialists-days', 3, 'cinema', 'How long did Celine Song say she was on the Materialists set?', ['Two days', 'A six-week shoot', 'She was recast after a week', 'She only voiced a line'], 0, 'Dazed: audition tape; two days on set. Song says the podcast was not why.', SRC.dazed],
+  ['rachel-comey', 3, 'lore', "Which designer's Spring 2019 show did she walk?", ['Rachel Comey', 'Eckhaus Latta only', 'The Row', 'Brandy Melville'], 0, 'The Cut: Rachel Comey at Marlborough Contemporary. People put lotion on her.', SRC.cutWalk],
+  ['la-apparel', 3, 'lore', 'What became her quarantine uniform, per Nylon?', ['LA Apparel tennis skirts', 'Only sweatpants', 'A Cirque leotard', 'Red Scare merch'], 0, 'Nylon: four LA Apparel tennis skirts. A uniform, not sweatpants.', SRC.nylon],
+  ['shizen-bangs', 4, 'lore', 'Where does she get her bangs cut?', ['Shizen in Brooklyn', 'A Vegas Cirque stylist', 'Sephora Upper East Side', 'She only trims them herself'], 0, 'Nylon: Shizen in Brooklyn. Japanese, wispy, a little parted.', SRC.nylon],
 ];
 const bank = new Map();
 bank.set(
@@ -118,14 +131,66 @@ for (const [id, tier, lane, prompt, choices, answer, note, source] of ITEMS) {
 export const QUIZ_QUESTIONS = [...bank.values()];
 const scoredItems = QUIZ_QUESTIONS.filter((question) => question.answer != null);
 /** First-party stills under /simp/photo/*. No pbs.twimg. No in-repo dance GIFs. */
-const QUIZ_PHOTO_MEDIA = ['archive', 'bull', 'chart', 'hero', 'media', 'press', 'profile', 'public', 'sweet', 'weekend'].map((name) => ({
-  src: `/simp/photo/${name}.jpg`,
-  kind: 'image',
-  alt: 'Dasha',
-}));
-let photoCursor = 0;
+const QUIZ_PHOTO_NAMES = ['archive', 'berlinale', 'bull', 'chart', 'cotton', 'hero', 'media', 'press', 'profile', 'public', 'scary', 'sweet', 'weekend'];
+const photoOf = (name) => ({ src: `/simp/photo/${name}.jpg`, kind: 'image', alt: 'Dasha' });
+const QUIZ_PHOTO_MEDIA = QUIZ_PHOTO_NAMES.map(photoOf);
+/** Match a still to the question. Fallback catalog is only for consecutive-avoid. */
+const PHOTO_BY_ID = {
+  route: 'hero',
+  'sailor-fuku': 'cotton',
+  'tatu-theme': 'media',
+  'comfry-job': 'hero',
+  berlinale: 'berlinale',
+  'healthcare-line': 'cotton',
+  'wobble-sxsw': 'press',
+  'minsk-vegas': 'weekend',
+  'the-girl': 'scary',
+  'ews-universe': 'archive',
+  'bannon-healthcare': 'media',
+  'nietzsche-mills': 'profile',
+  'parents-circus': 'bull',
+  'materialists-legs': 'hero',
+  'bonello-coffee': 'press',
+  'mao-chaos': 'sweet',
+  'freud-start': 'profile',
+  'equinox-script': 'public',
+  'sixteen-mm': 'archive',
+  byzantine: 'profile',
+  'klaasje-never': 'chart',
+  'opn-tonight': 'media',
+  'softness-poet': 'berlinale',
+  'cutrone-book': 'hero',
+  'hanging-stunt': 'archive',
+  'bota-tarot': 'scary',
+  evangelion: 'cotton',
+  'vegan-kotleti': 'weekend',
+  'husband-carpenter': 'bull',
+  'players-club': 'press',
+  'isis-tees': 'hero',
+  'chess-elo': 'chart',
+  'exorcist-mexico': 'archive',
+  'cirque-o': 'bull',
+  leuchtturm: 'sweet',
+  'catholic-u-notes': 'profile',
+  'usc-western': 'cotton',
+  letterman: 'weekend',
+  'rafman-painting': 'sweet',
+  'bad-behaviour': 'press',
+  'scary-cap': 'scary',
+  'worms-brain': 'cotton',
+  'anna-cohost': 'media',
+  'sailor-beret': 'cotton',
+  'freckle-pens': 'hero',
+  'materialists-daisy': 'hero',
+  'union-hall': 'public',
+  'zizek-guest': 'media',
+  'materialists-days': 'press',
+  'rachel-comey': 'bull',
+  'la-apparel': 'weekend',
+  'shizen-bangs': 'berlinale',
+};
 for (const question of QUIZ_QUESTIONS) {
-  question.media = QUIZ_PHOTO_MEDIA[photoCursor++ % QUIZ_PHOTO_MEDIA.length];
+  question.media = photoOf(PHOTO_BY_ID[question.id] || 'hero');
 }
 function publicMedia(question, avoidSrc) {
   const preferred = question?.media || QUIZ_PHOTO_MEDIA[0];
@@ -281,7 +346,11 @@ export function questionForAttempt(attempt) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
   if (!question) return null;
   const prev = attempt.seen?.length ? bank.get(attempt.seen[attempt.seen.length - 1]) : null;
-  return { question: publicQuestion(question, { avoidSrc: prev?.media?.src }), progress: { current: attempt.position + 1 } };
+  const scored = question.answer != null;
+  return {
+    question: publicQuestion(question, { avoidSrc: prev?.media?.src }),
+    progress: { current: (Number(attempt.scorable) || 0) + (scored ? 1 : 0), total: QUIZ_SCORED_LENGTH },
+  };
 }
 export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
@@ -340,7 +409,7 @@ export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
     ...(next ? questionForAttempt(updated) : {}),
   };
 }
-export function quizTitle(correct, total = 16) {
+export function quizTitle(correct, total = QUIZ_SCORED_LENGTH) {
   const ratio = total ? correct / total : 0;
   if (ratio === 1) return 'Dasha scholar';
   if (ratio >= .8) return 'Confirmed simp';

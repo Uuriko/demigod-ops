@@ -66,10 +66,10 @@ if (disk) {
   ok('quizPublic version', pub.version === QUIZ_VERSION);
   ok('quizPublic no answers', !JSON.stringify(pub).includes('"answer"'));
   ok('quizPublic no length', !('total' in pub) && !('quickTotal' in pub) && !('modes' in pub));
-  ok('v9', QUIZ_VERSION === 'dasha-simp-quiz/v9');
+  ok('v10', QUIZ_VERSION === 'dasha-simp-quiz/v10');
   for (let lane = 0; lane < QUIZ_LANES.length; lane++) walk(lane);
   const first = questionForAttempt(startQuizAttempt({ now }));
-  ok('progress hides total', first.progress.current === 1 && !('total' in first.progress));
+  ok('progress shows scored total', first.progress.current === 0 && first.progress.total === QUIZ_SCORED_LENGTH);
 }
 
 if (live) {

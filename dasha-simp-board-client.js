@@ -1240,9 +1240,12 @@
       quizAnswerBusy = false;
       quizState = data; setQuizOpen(true); quizBox.textContent = ''; quizBox.hidden = false; quizBtn.hidden = true;
       var stage = el('div', 'simp-quiz-stage');
-      var current = (data.progress && data.progress.current) || 1;
+      var current = (data.progress && data.progress.current) || 0;
+      var total = (data.progress && data.progress.total) || 0;
       var bar = el('div', 'simp-quiz-bar'); bar.setAttribute('role','progressbar'); bar.setAttribute('aria-valuenow',String(current));
-      var fill = el('span','simp-quiz-fill'); fill.style.width = Math.min(90, 6 + current * 5) + '%'; bar.appendChild(fill); stage.appendChild(bar);
+      if (total) bar.setAttribute('aria-valuemax', String(total));
+      var fill = el('span','simp-quiz-fill'); fill.style.width = (total ? Math.min(100, (current / total) * 100) : 6) + '%'; bar.appendChild(fill); stage.appendChild(bar);
+      if (current && total) stage.appendChild(el('p', 'simp-quiz-count', current + ' / ' + total));
       var media = data.question.media || (data.question.image && { src: data.question.image, kind: 'image', alt: 'Dasha' });
       if (media && media.src) {
         var qimg = document.createElement('img');

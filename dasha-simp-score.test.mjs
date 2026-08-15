@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   LINKED_X_POINTS,
   CREATIVE_POINTS,
@@ -73,9 +76,9 @@ assert.equal(s0.components.linked_x, LINKED_X_POINTS);
 assert.equal(s0.total, LINKED_X_POINTS);
 
 // --- X-linked quiz enrolls, scores, allows scored retakes, never exposes answers ---
-assert.equal(QUIZ_VERSION, 'dasha-simp-quiz/v9');
-assert.equal(QUIZ_PATH_LENGTH, 17);
-assert.equal(QUIZ_SCORED_LENGTH, 16);
+assert.equal(QUIZ_VERSION, 'dasha-simp-quiz/v10');
+assert.equal(QUIZ_PATH_LENGTH, 29);
+assert.equal(QUIZ_SCORED_LENGTH, 28);
 const pubMeta = quizPublic();
 assert.equal(pubMeta.version, QUIZ_VERSION);
 assert.equal(pubMeta.maxPoints, QUIZ_MAX_POINTS);
@@ -84,13 +87,14 @@ assert.equal('quickTotal' in pubMeta, false);
 assert.equal('modes' in pubMeta, false);
 assert.equal(JSON.stringify(pubMeta).includes('"answer"'), false);
 assert.equal(QUIZ_QUESTIONS.filter(question => question.id === 'account').length, 0);
-assert.equal(QUIZ_QUESTIONS.length, 40);
+assert.equal(QUIZ_QUESTIONS.length, 52);
 const quizSession = { xId: 'quiz-1', handle: 'quizsimp' };
 assert.equal(submitQuiz({}, null, startQuizAttempt({ now }), { now }).status, 401);
 assert.equal(submitQuiz({}, quizSession, startQuizAttempt({ now }), { now }).status, 400);
 let attempt = startQuizAttempt({ now });
 assert.equal(questionForAttempt(attempt).question.id, 'route');
-assert.equal('total' in questionForAttempt(attempt).progress, false);
+assert.equal(questionForAttempt(attempt).progress.current, 0);
+assert.equal(questionForAttempt(attempt).progress.total, QUIZ_SCORED_LENGTH);
 let step = answerQuizAttempt(attempt, 0, { now });
 assert.ok(step.question.id);
 assert.equal(QUIZ_QUESTIONS.find(question => question.id === step.question.id).tier, 1);
@@ -163,15 +167,20 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
   assert.equal(seen.size, QUIZ_PRACTICE_LENGTH);
 }
 assert.equal(new Set(routeFirstQuestions).size, QUIZ_LANES.length, 'the opening answer must select distinct branches');
-const sourcedIds = ['sailor-fuku', 'tatu-theme', 'comfry-job', 'klaasje-never', 'softness-poet', 'letterman', 'bad-behaviour'];
+const sourcedIds = ['sailor-fuku', 'tatu-theme', 'comfry-job', 'klaasje-never', 'softness-poet', 'letterman', 'bad-behaviour', 'scary-cap', 'worms-brain', 'anna-cohost', 'freckle-pens', 'materialists-daisy', 'rachel-comey'];
 for (const id of sourcedIds) assert(QUIZ_QUESTIONS.some(question => question.id === id), `missing sourced question ${id}`);
 const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices, question.note, question.source]).concat(
   Object.values(QUIZ_SURPRISES).flatMap(surprise => [surprise.title, surprise.body]),
 ).join(' ');
+const askedCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices]).join(' ');
+assert.doesNotMatch(askedCopy, /\$dasha|\bmint\b|getdasha|faucet|\bBuy\b|\/studio|\/forum/i);
 assert.doesNotMatch(publicQuizCopy, /\$dasha|mint|Jupiter|getdasha|@getdasha|Simp Board|Perry|holder|\bcoin\b|(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|price promise|high risk|rugcheck|lose (?:your )?money|lose it all|worthless/i);
 assert.doesNotMatch(publicQuizCopy, /wikipedia/i);
+const photoRoot = join(dirname(fileURLToPath(import.meta.url)), 'dasha-worker-assets/simp/photo');
 for (const question of QUIZ_QUESTIONS) {
   assert.match(question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
+  const file = question.media.src.replace('/simp/photo/', '');
+  assert.ok(existsSync(join(photoRoot, file)), `missing first-party still ${file}`);
   const exposed = publicQuestion(question);
   assert.equal(exposed.media.kind, 'image');
   assert.equal(exposed.media.alt, 'Dasha');
@@ -186,7 +195,8 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
     assert.match(run.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
     assert.notEqual(run.question.media.src, prev, `consecutive questions must not reuse ${prev}`);
     prev = run.question.media.src;
-    assert.equal('total' in (run.progress || {}), false);
+    assert.equal(run.progress.total, QUIZ_SCORED_LENGTH);
+    if (run.question.id !== 'route') assert.ok(run.progress.current >= 1 && run.progress.current <= QUIZ_SCORED_LENGTH);
     const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === run.question.id);
     run = answerQuizAttempt(run.attempt, privateQuestion.answer, { now });
   }
@@ -209,6 +219,15 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
   assert.notEqual(third.id, second.id);
   const seeded = pickNextQuestion(['route', first.id], Math.min(first.tier + 1, 5), 'cinema', true);
   assert.ok(seeded && seeded.tier >= first.tier);
+  let climb = answerQuizAttempt(startQuizAttempt({ now }), 0, { now });
+  const climbTiers = [];
+  while (!climb.done && climbTiers.length < 8) {
+    const item = QUIZ_QUESTIONS.find(question => question.id === climb.question.id);
+    climbTiers.push(item.tier);
+    climb = answerQuizAttempt(climb.attempt, item.answer, { now });
+  }
+  assert.ok(climbTiers.some(tier => tier >= 4), `perfect streak must reach deep cuts, got ${climbTiers.join(',')}`);
+  assert.ok(climbTiers[0] <= 2 && climbTiers[climbTiers.length - 1] >= climbTiers[0], '2+ correct in a row climbs');
 }
 
 function walkIds(route) {
@@ -244,7 +263,7 @@ assert.equal(meStatus(quizDone.store, quizSession).board.quiz.disclaimer, undefi
 assert.equal('mode' in quizDone.quiz, false);
 assert.equal(meStatus(quizDone.store, quizSession).board.quiz.share, quizDone.quiz.share);
 
-assert.equal(QUIZ_QUESTIONS.length, 40, `v9 bank is route + 39 sourced items, got ${QUIZ_QUESTIONS.length}`);
+assert.equal(QUIZ_QUESTIONS.length, 52, `v10 bank is route + 51 sourced items, got ${QUIZ_QUESTIONS.length}`);
 assert.equal(new Set(QUIZ_QUESTIONS.map(question => question.prompt)).size, QUIZ_QUESTIONS.length, 'quiz prompts must be unique');
 for (const question of QUIZ_QUESTIONS) {
   assert(question.prompt.length >= 12 && question.prompt.length <= 110, `${question.id}: awkward prompt length ${question.prompt.length}`);

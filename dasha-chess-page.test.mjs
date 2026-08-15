@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('./dasha-chess-page.html', import.meta.url), 'utf8');
+assert.match(source, /class="chess-stills"/, 'chess keeps a quiet still pair near the board');
+assert.match(source, /\/simp\/photo\/scary\.jpg/, 'chess stills are first-party');
 assert.doesNotMatch(source, /Dasha is white\. Anna is black\./);
 assert.doesNotMatch(source, /Rated games are public\./);
 assert.doesNotMatch(source, /Holder chess/);

@@ -160,7 +160,10 @@ assert(client.includes("var inviteToolBtn") && client.includes("'Invite on X'"),
 assert(client.includes('copyQuizInvite') && client.includes('shareQuizInviteOnX'), 'invite copy/share helpers missing');
 assert(landing.includes('?quiz=1#simp'), 'landing should surface quiz invite link');
 assert(client.includes('latest score counts') || client.includes('Retake updates score'), 'retake-for-score copy missing');
-assert(score.includes("QUIZ_VERSION = 'dasha-simp-quiz/v9'"), 'score module must be v9');
+assert(score.includes("QUIZ_VERSION = 'dasha-simp-quiz/v10'"), 'score module must be v10');
+assert(score.includes('QUIZ_SCORED_LENGTH = 28'), 'scored path must be 28');
+assert(client.includes("current + ' / ' + total"), 'quiz progress is quiet 12 / 28');
+assert(!client.includes('/studio') && !client.includes('/forum'), 'served quiz client source must not door leftover rooms');
 assert(!score.includes('QUIZ_QUICK_LENGTH'), 'quick length must be gone from product');
 assert(!worker.includes("input?.mode === 'quick'"), 'worker must not accept a quick mode');
 assert(client.includes('startQuiz()') && !client.includes("startQuiz('quick')") && !client.includes("startQuiz('deep')"), 'client must start one quiz');
