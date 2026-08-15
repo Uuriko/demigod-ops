@@ -85,7 +85,7 @@ assert(!/discord\.gg|discord\.com\/invite/i.test(html), 'lobby must not link out
 assert(html.includes('Skip to board') || html.includes('href="#simp"'), 'skip-to-board missing');
 assert(html.includes('Skip to mint') || /class="skip"[^>]*href="#token"/.test(html), 'skip-to-mint missing');
 assert(html.includes('scroll-margin-top') || html.includes('scroll-padding-top'), 'hash scroll padding missing');
-assert(html.includes('href="/forum"'), 'dedicated forum discovery links missing');
+assert(!html.includes('href="/forum"'), 'landing must not feature Forum');
 // Webflow custom-code hard limit — measure UTF-8 bytes (not JS string length).
 {
   const landingBytes = Buffer.byteLength(html, 'utf8');
@@ -99,8 +99,8 @@ assert(html.includes('href="/forum"'), 'dedicated forum discovery links missing'
     );
   }
 }
-assert(html.includes('class="pill lobby"'), 'forum must be a top-level pill control');
-assert(/class="pill lobby"[^>]*href="\/forum"[^>]*>Forum</.test(html), 'nav must link to Forum');
+assert(!html.includes('class="pill lobby"'), 'Forum pill stays out of nav');
+assert(!/class="pill lobby"[^>]*href="\/forum"[^>]*>Forum</.test(html), 'nav must not feature Forum');
 assert(!/Open lobby|Open forum →/i.test(html), 'hero must not put Forum on first paint');
 assert(/"description":"[^"]*Chess[^"]*"/.test(html), 'structured site description must include Chess');
 assert(!/discord\.gg|discord\.com\/invite/i.test(html), 'homepage must not advertise Discord invites');
@@ -160,20 +160,20 @@ if (desk) {
 }
 assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]).sort(), [
   'https://www.getdasha.com/',
-  'https://www.getdasha.com/forum',
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
   'https://www.getdasha.com/faucet',
   'https://www.getdasha.com/airdrop',
   'https://www.getdasha.com/earn',
   'https://www.getdasha.com/claim',
-].sort(), 'bounded sitemap must list home, forum, simp, www chess, faucet, and honesty rooms exactly once');
+].sort(), 'bounded sitemap must list home, simp, www chess, faucet, and honesty rooms exactly once');
 assert.doesNotMatch(sitemap, /getdasha\.com\/privacy/, 'sitemap must not feature /privacy');
 assert.doesNotMatch(sitemap, /getdasha\.com\/learn/, 'sitemap must not feature /learn');
 assert.doesNotMatch(sitemap, /getdasha\.com\/verse/, 'sitemap must not feature /verse');
 assert.doesNotMatch(sitemap, /getdasha\.com\/how-to-buy/, 'sitemap must not feature leftover /how-to-buy');
 assert.doesNotMatch(sitemap, /getdasha\.com\/bounties/, 'sitemap must not feature leftover /bounties');
-assert.doesNotMatch(sitemap, /getdasha\.com\/lobby/, 'sitemap lists Forum instead of Lobby');
+assert.doesNotMatch(sitemap, /getdasha\.com\/forum/, 'sitemap must not feature leftover /forum');
+assert.doesNotMatch(sitemap, /getdasha\.com\/lobby/, 'sitemap must not feature leftover /lobby');
 assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
 assert.equal([...html.matchAll(/class="seed"/g)].length, 5, 'homepage must expose one curated seed for every Studio look');
@@ -211,10 +211,10 @@ for (const width of [390, 1440]) {
   assert.equal(await page.$eval('.buy-guide', guide => { const outer=guide.getBoundingClientRect();return [...guide.querySelectorAll('li')].every(item => { const box=item.getBoundingClientRect();return box.left >= outer.left && box.right <= outer.right; }); }), true, `${width}px buy guidance escaped its panel`);
   assert.deepEqual(await page.$$eval('.poster-tile', links => links.map(link => { const url=new URL(link.getAttribute('href'),'https://www.getdasha.com'),state=new URLSearchParams(url.hash.slice(1));return [state.get('look'),state.get('format'),state.get('line')]; })), [['poster','square','How u crying at the casino and u can’t even get in'],['ticket','story','It’s time $dasha'],['print','square','All I want is free healthcare, honey']], 'hero collage does not open the exact editable artifacts it depicts');
   assert.equal(await page.$$eval('a[href],button', nodes => nodes.filter(node => !node.getAttribute('href') && node.tagName === 'A').length), 0, 'empty clickable link');
-  assert.deepEqual(await page.$eval('.navlinks', nav => [...nav.children].map(link => link.textContent.trim())), ['Studio', 'Chess', 'Forum', 'Buy $dasha ↗'], 'top navigation must stay limited to four durable destinations');
+  assert.deepEqual(await page.$eval('.navlinks', nav => [...nav.children].map(link => link.textContent.trim())), ['Studio', 'Chess', 'Buy $dasha ↗'], 'top navigation must stay limited to Studio, Chess, and Buy');
   if (width === 390) assert.deepEqual(await page.$eval('.navlinks', nav => [...nav.children].map(link => [link.textContent.trim(), getComputedStyle(link).display !== 'none'])), [
-    ['Studio', false], ['Chess', false], ['Forum', true], ['Buy $dasha ↗', true],
-  ], 'mobile nav must keep Forum + Buy pills visible');
+    ['Studio', false], ['Chess', false], ['Buy $dasha ↗', true],
+  ], 'mobile nav must keep Buy visible');
   if (width === 390) {
     await page.click('.micro a[href="#token"]');
     await page.waitForFunction(() => location.hash === '#token', { timeout: 5000 });

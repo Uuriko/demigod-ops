@@ -136,7 +136,7 @@ assert.doesNotMatch(source, /href="\/verse">Verse</);
 assert.match(source, /@media\(max-width:560px\)\{[\s\S]*?\.dasha-slim\{flex-wrap:wrap/, 'narrow chess header must wrap');
 assert.match(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/chess">Chess</, 'chess hamburger must include Chess');
 assert.doesNotMatch(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/privacy">Privacy</, 'chess hamburger must not include Privacy');
-assert.match(source, /href="\/forum">Forum</, 'chess chrome must include Forum');
+assert.doesNotMatch(source, /href="\/forum">Forum</, 'chess chrome must hide Forum');
 assert.doesNotMatch(source, /Holder chess · 10\+5/);
 assert.doesNotMatch(source.match(/<nav aria-label="Dasha"[\s\S]*?<\/nav>/)?.[0] || '', /href="\/studio"|How to buy/);
 assert.match(source, /TimeControl/, 'PGN must document the live 10+5 increment');

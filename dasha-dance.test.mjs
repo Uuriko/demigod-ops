@@ -165,9 +165,8 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
 
 {
   const forum = await worker.fetch(new Request('https://lobby.getdasha.com/forum'), assets);
-  assert.equal(forum.status, 200, 'lobby /forum must stay 200');
-  const forumHtml = await forum.text();
-  assert.doesNotMatch(forumHtml, /dasha-dance\.js/, 'lobby /forum must not inject the dock');
+  assert.equal(forum.status, 308, 'lobby /forum 308s home');
+  assert.equal(forum.headers.get('location'), 'https://www.getdasha.com/');
 }
 for (const [host, path] of [
   ['lobby.getdasha.com', '/how-to-buy'],

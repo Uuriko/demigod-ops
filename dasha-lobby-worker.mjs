@@ -218,10 +218,9 @@ export function stripHomeSimpBoard(html) {
 
 const HOME_SKIP_RE = /<a\b[^>]*(?:\bclass=["'][^"']*\bskip(?:-link)?\b[^"']*["']|>\s*Skip to )[^>]*>[\s\S]*?<\/a>/gi;
 const HOME_HERO_RE = /<main\b|<header\b[^>]*\bdasha-hero\b|<header\b|<section\b/i;
-const FORUM_WWW = 'https://www.getdasha.com/forum';
-
-function forumCanonical(url) {
-  return `${url.origin}/forum`;
+function isLeftoverForumPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/forum' || path === '/lobby';
 }
 
 function isForumApiPath(pathname) {
@@ -278,9 +277,12 @@ function stripHomeWebFonts(html) {
 
 function stripHomeForumHrefs(html) {
   return String(html || '')
-    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
-    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/forum\/?["'][^>]*>[^<]*<\/a>/gi, '');
+    .replace(/\s*·\s*<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["'](?:https:\/\/(?:www\.)?getdasha\.com)?\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/\s*·\s*<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>\s*·\s*/gi, '')
+    .replace(/<a\b[^>]*href=["']https:\/\/lobby\.getdasha\.com\/(?:forum|lobby)\/?["'][^>]*>[^<]*<\/a>/gi, '');
 }
 
 function demoteHomeNavMint(html) {
@@ -1354,7 +1356,7 @@ function parseOAuthReturn(raw) {
   if (path === '/graph') return 'https://www.getdasha.com/';
   if (path === '/simp') return 'https://www.getdasha.com/simp';
   if (path === '/chess') return 'https://www.getdasha.com/chess';
-  if (path === '/lobby' || path === '/forum') return FORUM_WWW;
+  if (path === '/lobby' || path === '/forum') return 'https://www.getdasha.com/';
   if (path === '/faucet') return 'https://www.getdasha.com/faucet';
   return '';
 }
@@ -3464,7 +3466,7 @@ async function handleOAuth(request, env, allowedOrigin) {
       const scriptHandle = JSON.stringify(user.handle).replace(/</g, '\\u003c');
       const dest = parseOAuthReturn(st.cont) || 'https://www.getdasha.com/';
       const destJson = JSON.stringify(dest).replace(/</g, '\\u003c');
-      const destLabel = dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/forum') || dest.endsWith('/lobby') ? 'Open Forum' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
+      const destLabel = dest.endsWith('/simp') ? 'Open Simp' : dest.endsWith('/chess') ? 'Open Chess' : dest.endsWith('/faucet') ? 'Open Faucet' : 'Open Dasha';
       const scriptNonce = randomUrlToken(18);
       const body = htmlPage(
         'Linked',
@@ -3691,21 +3693,8 @@ async function productEdge(request, url, env) {
     const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : env.ALLOW_ANY_ORIGIN ? origin || '*' : null;
     return forumApiResponse(request, env, allowedOrigin);
   }
-  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum/') {
-    return Response.redirect(forumCanonical(url), 308);
-  }
-  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum') {
-    return new Response(request.method === 'HEAD' ? null : FORUM_PAGE, {
-      status: 200,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'forum',
-      }),
-    });
-  }
-  if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-    return Response.redirect(forumCanonical(url), 308);
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverPrivacyPath(url.pathname)) {
     return Response.redirect('https://www.getdasha.com/', 308);
@@ -3839,18 +3828,8 @@ export default {
     if (isForumApiPath(url.pathname)) {
       return forumApiResponse(request, env, allowedOrigin);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum/') {
-      return Response.redirect(forumCanonical(url), 308);
-    }
-    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/forum') {
-      return new Response(request.method === 'HEAD' ? null : FORUM_PAGE, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-          'X-Dasha-Edge': 'forum',
-        }),
-      });
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/.well-known/security.txt') {
       return securityTxtResponse(request, url.hostname);
@@ -4016,8 +3995,8 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && (isLeftoverStudioPath(url.pathname) || isLeftoverDeskPath(url.pathname))) {
       return Response.redirect('https://www.getdasha.com/', 308);
     }
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/lobby' || url.pathname === '/lobby/')) {
-      return Response.redirect(forumCanonical(url), 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverForumPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

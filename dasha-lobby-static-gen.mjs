@@ -170,9 +170,6 @@ export const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <loc>https://www.getdasha.com/</loc>
   </url>
   <url>
-    <loc>https://www.getdasha.com/forum</loc>
-  </url>
-  <url>
     <loc>https://www.getdasha.com/simp</loc>
   </url>
   <url>
@@ -386,7 +383,7 @@ main{padding:12px 0 48px}.kicker{color:var(--acid);font:900 12px/1 monospace;let
 </style>
 </head>
 <body>
-<header class="dasha-slim wrap"><a class="dasha-word" href="https://www.getdasha.com/" aria-label="Dasha home">$dasha</a><a class="buy-dasha" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav></details></header>
+<header class="dasha-slim wrap"><a class="dasha-word" href="https://www.getdasha.com/" aria-label="Dasha home">$dasha</a><a class="buy-dasha" id="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer" aria-label="Buy $dasha on Jupiter using the exact mint">Buy $dasha ↗</a><details class="dasha-menu"><summary aria-label="Menu">Menu</summary><nav aria-label="Dasha"><a href="/chess">Chess</a></nav></details></header>
 <main class="wrap">
   <div class="app">
     <section>
@@ -409,7 +406,7 @@ main{padding:12px 0 48px}.kicker{color:var(--acid);font:900 12px/1 monospace;let
   </div>
 </main>
 <style>footer.dasha-foot{padding:1.25rem 0 calc(1.25rem + env(safe-area-inset-bottom,0px));background:#070608;color:#f4eddb;font:900 1rem/1.3 Arial,Helvetica,sans-serif}footer.dasha-foot a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .65rem;color:#f4eddb;text-decoration:none}footer.dasha-foot a:hover{color:#dfff00}footer.dasha-foot .buy-dasha,footer.dasha-foot .buy-dasha:hover{background:#dfff00;color:#070608;padding:0 1rem}footer.dasha-foot nav{display:flex;flex-wrap:wrap;gap:.15rem .25rem}</style>
-<footer class="dasha-foot wrap"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p><nav aria-label="Rooms"><a href="/forum">Forum</a><a href="/chess">Chess</a></nav></footer>
+<footer class="dasha-foot wrap"><p><a href="https://www.getdasha.com/">$dasha</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></p><nav aria-label="Rooms"><a href="/chess">Chess</a></nav></footer>
 <dialog class="promotion" id="promotion" aria-labelledby="promotion-title"><form method="dialog"><p id="promotion-title">Promote to</p><button value="q" aria-label="Queen">♕</button><button value="r" aria-label="Rook">♖</button><button value="b" aria-label="Bishop">♗</button><button value="n" aria-label="Knight">♘</button></form></dialog>
 <script>
 (function(){
@@ -705,4 +702,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "5ea1802484c38ca8";
+export const ASSET_HASH = "d93a7a915c498176";

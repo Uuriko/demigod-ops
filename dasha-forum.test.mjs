@@ -169,19 +169,11 @@ const workerEnv = {
 };
 
 for (const host of ['www.getdasha.com', 'getdasha.com', 'lobby.getdasha.com']) {
-  for (const path of ['/lobby', '/lobby/', '/forum/']) {
+  for (const path of ['/lobby', '/lobby/', '/forum', '/forum/']) {
     const res = await workerModule.default.fetch(new Request(`https://${host}${path}`), workerEnv);
-    assert.equal(res.status, 308, `${host}${path} must 308 to /forum`);
-    assert.equal(res.headers.get('location'), `https://${host}/forum`);
+    assert.equal(res.status, 308, `${host}${path} must 308 home`);
+    assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
   }
-  const forum = await workerModule.default.fetch(new Request(`https://${host}/forum`), workerEnv);
-  assert.equal(forum.status, 200, `${host}/forum must be 200`);
-  const html = await forum.text();
-  assert.doesNotMatch(html, /<h1>/);
-  assert.match(html, /id="dasha-forum"/);
-  assert.match(html, /id="dasha-lobby"/);
-  assert.match(html, /wss:\/\/lobby\.getdasha\.com\/ws/);
-  assert.doesNotMatch(html, />Lobby</);
 }
 
 const apiList = await workerModule.default.fetch(forumReq('/forum/threads'), workerEnv);
