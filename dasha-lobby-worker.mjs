@@ -819,7 +819,7 @@ function send(ws, obj) {
 
 function htmlPage(title, body) {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>body{font:16px/1.45 system-ui;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
+<style>body{font:16px/1.45 Arial,Helvetica,sans-serif;background:#070608;color:#f4eddb;max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:#dfff00}code{color:#c8b6ff}</style>
 <body>${body}</body></html>`;
 }
 
@@ -840,7 +840,7 @@ export function simpQuizFirstPaintHtml() {
 export function simpPageHtml() {
   const perryDisplay = escapeHtml(String(publicPerryRow().display || '@PerryALPHA').slice(0, 20));
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simp</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 system-ui,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-size:clamp(3rem,12vw,6rem);line-height:.9;font-weight:950}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:950;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}body{box-sizing:border-box;min-height:100vh;padding:1.25rem;font:16px/1.45 Arial,Helvetica,sans-serif}h1{margin:0 0 .5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3rem,12vw,6rem);line-height:.9}a{color:var(--acid)}.dasha-go{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font-weight:900;text-decoration:none}#dasha-quiz,.dasha-quiz{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-quiz .dasha-go{margin:0 .5rem .75rem 0}#dasha-quiz ul{margin:.25rem 0 1rem;padding-left:1.2rem}</style>
 <body>
 <h1>Simp</h1>
 <p>How big of a Dasha simp are you?</p>
@@ -898,7 +898,7 @@ export function simpSharePageHtml(result, id) {
 <meta property="og:title" content="${typeName}"><meta property="og:description" content="${description}">
 <meta property="og:image" content="${SIMP_SHARE_IMAGE}"><meta property="og:image:alt" content="${typeName}">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${typeName}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${SIMP_SHARE_IMAGE}"><meta name="twitter:image:alt" content="${typeName}">
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 Arial,Helvetica,sans-serif;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}h1{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,8vw,3.4rem);line-height:.95;margin:0 0 .75rem}.dasha-share{background:var(--acid);color:var(--ink);border:0;padding:.55rem 1rem;font:inherit;font-weight:700;cursor:pointer}</style>
 <body>
 <h1>${typeName}</h1>
 ${support ? `<p>${support}</p>` : ''}
@@ -911,7 +911,7 @@ ${support ? `<p>${support}</p>` : ''}
 /** Honest empty result page. No invented score. */
 export function simpResultMissingHtml() {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Result not found</title>
-<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 system-ui;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
+<style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}body{font:16px/1.45 Arial,Helvetica,sans-serif;background:var(--ink);color:var(--paper);max-width:28rem;margin:3rem auto;padding:0 1rem}a{color:var(--acid)}</style>
 <body>
 <h1>Result not found</h1>
 <p>No quiz result for this id.</p>
@@ -2013,7 +2013,7 @@ export class DashaLobby {
       const description = `${result.correct}/${result.total} on the Dasha simp quiz. Beat this score.`;
       const resultUrl = `https://lobby.getdasha.com/simp/r/${id}`;
       const imageUrl = 'https://lobby.getdasha.com/simp/card/quiz.png';
-      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 system-ui;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
+      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${identity}</title><link rel="canonical" href="${resultUrl}"><meta property="og:type" content="website"><meta property="og:site_name" content="getdasha"><meta property="og:url" content="${resultUrl}"><meta property="og:title" content="${identity}"><meta property="og:description" content="${description}"><meta property="og:image" content="${imageUrl}"><meta property="og:image:secure_url" content="${imageUrl}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="628"><meta property="og:image:alt" content="Dasha simp quiz"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${identity}"><meta name="twitter:description" content="${description}"><meta name="twitter:image" content="${imageUrl}"><meta name="twitter:image:alt" content="Dasha simp quiz"><style>body{margin:0;background:#070608;color:#f4eddb;font:20px/1.4 Arial,Helvetica,sans-serif;display:grid;place-items:center;min-height:100vh}.r{max-width:36rem;padding:32px}h1{font-size:clamp(42px,9vw,76px);line-height:.95}b{color:#dfff00}a{display:inline-block;background:#dfff00;color:#070608;padding:14px 20px;font-weight:900;text-decoration:none}</style></head><body><main class="r"><b>DASHA SIMP QUIZ</b><h1>${result.correct}/${result.total}<br>${identity}</h1><p>${description}</p><a href="https://www.getdasha.com/?challenge=${id}#simp">Beat this score</a></main></body></html>`;
       return new Response(headOnly ? null : html, { headers: htmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }) });
     }
 

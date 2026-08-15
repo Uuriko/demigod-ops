@@ -134,6 +134,7 @@ assert(worker.includes('/simp/me'), 'worker exposes /simp/me');
 assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
+assert(!worker.includes('font:16px/1.45 system-ui,sans-serif'), '/simp must use Arial, not system-ui');
 assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(worker.includes("'X-Dasha-Edge': 'verse'") && worker.includes('versePageHtml'), 'www /verse is worker-owned first HTML');
@@ -421,9 +422,10 @@ for (const path of ['/studio', '/studio/']) {
     assert.match(html, /lobby\.getdasha\.com\/client\/simp-board\.js/);
     assert.match(html, new RegExp(`s\\.integrity='${SIMP_SRI_FROM_BYTES.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
     assert.match(html, /s\.crossOrigin='anonymous'/);
-    assert.match(html, /system-ui,sans-serif/);
+    assert.match(html, /font:16px\/1\.45 Arial,Helvetica,sans-serif/);
+    assert.match(html, /font-family:"Arial Black",Arial,Helvetica,sans-serif/);
     assert.match(html, /a\{color:var\(--acid\)\}/);
-    assert.doesNotMatch(html, /Arial/);
+    assert.doesNotMatch(html, /system-ui|\bInter\b|Geist|fonts\.googleapis/);
     assert.doesNotMatch(html, /<script>[^<]*action:'start'/);
     assert.doesNotMatch(html, /class="dasha-board"|<ol\b|No measured simps yet/);
     assert.doesNotMatch(html, /x\.com\/|#2 @|#3 @/);
@@ -691,6 +693,12 @@ for (const path of ['/studio', '/studio/']) {
         assert.equal(head.status, 404, `${host}${path} HEAD must stay 404`);
         assert.match(head.headers.get('content-type') || '', /text\/html/);
         assert.equal(await head.text(), '', `${host}${path} HEAD must return an empty body`);
+      }
+      for (const [path, edge] of [['/airdrop', 'airdrop'], ['/earn', 'earn'], ['/claim', 'claim']]) {
+        const room = await workerModule.default.fetch(new Request(`https://${host}${path}`), {});
+        assert.equal(room.status, 200, `${host}${path} magnet must stay worker-owned when origin 404s`);
+        assert.equal(room.headers.get('x-dasha-edge'), edge, `${host}${path} must not become html-404`);
+        assert.doesNotMatch(await room.text(), /not an airdrop|not earn/i);
       }
       for (const [path, title, edge] of [
         ['/', '$dasha — make the timeline stranger', 'html-security'],
@@ -1094,6 +1102,7 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.match(verseHtml, /We don't run dashamadness\.com/);
   assert.match(verseHtml, /href="\/graph">Graph</);
   assert.match(verseHtml, /href="\/chess">Chess</);
+  assert.match(verseHtml, /<footer><p><a href="\/">Home<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/chess">Chess<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/privacy">Privacy<\/a><\/p><\/footer>/);
   assert.doesNotMatch(verseHtml, /featured|getdasha\.com<\/p>|payTo|\/hold|53ux/i);
   assert.doesNotMatch(verseHtml, /type="email"|name="email"|name="name"/i);
   for (const hex of verseHtml.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
@@ -1665,7 +1674,7 @@ ${liveHomeFooter}
     assert.match(chessHtml, /Buy \$dasha ↗/);
     assert.match(chessHtml, /<p class="privacy">Wallet address and balance are checked for access, then discarded\. Ratings belong to linked X identities\.<\/p>/);
     assert.match(chessHtml, /<link rel="canonical" href="https:\/\/www\.getdasha\.com\/chess">/);
-    assert.match(chessHtml, /<footer class="wrap"><p><a href="https:\/\/www\.getdasha\.com\/studio">Studio<\/a> · <a href="https:\/\/www\.getdasha\.com\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a><\/p><\/footer>/);
+    assert.match(chessHtml, /<footer class="wrap"><p><a href="https:\/\/www\.getdasha\.com\/studio">Studio<\/a> · <a href="https:\/\/www\.getdasha\.com\/lobby">Lobby<\/a> · <a href="\/simp">Simp<\/a> · <a href="\/graph">Graph<\/a> · <a href="\/verse">Verse<\/a> · <a href="\/bounties">Bounties<\/a> · <a href="\/how-to-buy">How to buy<\/a> · <a href="\/privacy">Privacy<\/a><\/p><\/footer>/);
     assert.equal((chessHtml.match(/<nav\b/gi) || []).length, 1, `${host} /chess must keep its existing nav`);
   }
   const liveLobbyNav = '<nav class="nav shell" aria-label="Lobby navigation"><a class="brand" href="https://www.getdasha.com/">$<span>DASHA</span></a><a class="back" href="https://www.getdasha.com/">← Home</a></nav>';
@@ -1733,6 +1742,11 @@ ${liveHomeFooter}
   assert.match(remappedRooms, /href="\/lobby">Forum</);
   assert.doesNotMatch(remappedRooms, /href=["']https:\/\/lobby\.getdasha\.com\/(?:chess|forum)/);
   assert.match(remappedRooms, /src="https:\/\/lobby\.getdasha\.com\/client\/lobby\.js"/);
+  const liveScanHomeFooter = '<footer><div class="wrap"><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="https://lobby.getdasha.com/chess">Chess</a> · <a href="/dasha">Desk</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a> · <a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a> · <a href="https://github.com/Uuriko/dasha-desk" target="_blank" rel="noopener noreferrer">Source ↗</a></p></div></footer>';
+  const remappedLiveHome = rewriteLeftoverLobbyHrefs(liveScanHomeFooter);
+  assert.match(remappedLiveHome, /href="\/chess">Chess</);
+  assert.doesNotMatch(remappedLiveHome, /lobby\.getdasha\.com\/chess/);
+  assert.match(remappedLiveHome, /href="\/lobby">Lobby</);
   const deadForum = stripDeadLobbyForum('<header><a href="https://lobby.getdasha.com/forum">Forum</a></header><div id="dasha-forum"></div><script src="https://lobby.getdasha.com/client/forum.js"></script>');
   assert.doesNotMatch(deadForum, /forum/i);
   assert.doesNotMatch(lobbyQuiz, /forum/i);
@@ -1813,6 +1827,9 @@ ${liveHomeFooter}
       assert.match(html, /\.spark\{/);
       assert.match(html, /id="token"/);
       assert.doesNotMatch(html, /\.simp-/);
+      assert.match(html, /href="\/chess">Chess</, `${host} / html-security must remap leftover lobby Chess`);
+      assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/chess/, `${host} / leftover Chess href must be same-origin`);
+      assert.doesNotMatch(html, /href=["']https:\/\/lobby\.getdasha\.com\/forum/, `${host} / leftover Forum href must become \/lobby or drop`);
       const lobby = await workerModule.default.fetch(new Request(`https://${host}/lobby`), {});
       const lobbyHtml = await lobby.text();
       assert.equal(lobby.status, 200);
