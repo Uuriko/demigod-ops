@@ -406,6 +406,15 @@ for (const path of ['/studio', '/studio/']) {
   const SIMP_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
   const assertSimpFirstHtml = (html, label) => {
     assert.match(html, /<h1>Simp<\/h1>/, `${label} must use h1 Simp`);
+    assert.match(html, /<nav aria-label="Dasha">/, `${label} must ship a slim same-origin nav`);
+    assert.match(html, /href="\/">\$dasha</, `${label} nav must include $dasha`);
+    assert.match(html, /href="\/lobby">Lobby</, `${label} nav must include Lobby`);
+    assert.match(html, /href="\/studio">Studio</, `${label} nav must include Studio`);
+    assert.match(html, /href="\/chess">Chess</, `${label} nav must include Chess`);
+    assert.match(html, /href="\/graph">Graph</, `${label} nav must include Graph`);
+    assert.match(html, /href="\/how-to-buy">Buy</, `${label} nav Buy must be \/how-to-buy`);
+    assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${label} nav must include @dash_eats`);
+    assert.doesNotMatch(html.match(/<nav\b[\s\S]*?<\/nav>/i)?.[0] || '', /\/bounties|\/learn|\/faucet|\/forum|\/rally/i, `${label} slim nav must stay bounded`);
     assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
     assert.match(html, /Take the quiz\. Ranked by lore and contributions\./);
     assert.doesNotMatch(html, /Quick 10Q|Deep 20Q|\b10Q\b|\b20Q\b/);
@@ -430,7 +439,8 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html, /system-ui|\bInter\b|Geist|fonts\.googleapis/);
     assert.doesNotMatch(html, /<script>[^<]*action:'start'/);
     assert.doesNotMatch(html, /class="dasha-board"|<ol\b|No measured simps yet/);
-    assert.doesNotMatch(html, /x\.com\/|#2 @|#3 @/);
+    assert.doesNotMatch(html.replace(/href="https:\/\/x\.com\/dash_eats"/g, ''), /x\.com\//, `${label} must not dump X profiles outside the @dash_eats nav hop`);
+    assert.doesNotMatch(html, /#2 @|#3 @/);
     assert.doesNotMatch(html, /\.simp-/);
     assert.doesNotMatch(html, /class="simp-/);
     assert.doesNotMatch(html, /score=/);
@@ -1498,7 +1508,7 @@ try {
   };
   const injected = rewriteHomeFirstViewport(stripHomeSimpBoard(webflowHome));
   assertHomeFirst(injected, 'rewrite');
-  assert.match(injected, /<a class="skip-link" href="#simp">Skip to content<\/a>/);
+  assert.match(injected, /<a class="skip-link" href="#content">Skip to content<\/a>/, 'Designer skip → #content must stay when the hero is #content');
   assert.match(injected, /id="dasha-home"/, 'live Webflow wrapper id=dasha-home must not block the hero');
   assert.match(injected, new RegExp(mint));
   assert.equal(rewriteHomeFirstViewport(injected), injected, 'second pass must not duplicate calm CSS, Buy pill, or quiz');
@@ -1676,6 +1686,7 @@ ${liveHomeFooter}
     assert.match(chessHtml, /<a class="brand" href="https:\/\/www\.getdasha\.com\/" aria-label="Dasha home">/);
     assert.match(chessHtml, /<a class="back" href="https:\/\/www\.getdasha\.com\/">Home<\/a>/);
     assert.match(chessHtml, /<a class="back" href="\/verse">Verse<\/a>/);
+    assert.match(chessHtml, /<a class="back" href="\/graph">Graph<\/a>/);
     assert.match(chessHtml, /<a class="back" href="\/privacy">Privacy<\/a>/);
     assert.doesNotMatch(chessHtml, /forum/i, `${host} /chess must not grow a Forum link`);
     assert.doesNotMatch(chessHtml, /class="(?:brand|back)" href="\/"/);

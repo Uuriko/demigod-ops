@@ -1238,7 +1238,7 @@
         chip = document.createElement('a');
         chip.id = 'dasha-x-chip';
         chip.className = 'dasha-x-chip';
-        chip.href = '#simp';
+        chip.href = document.getElementById('simp') ? '#simp' : '/simp';
         var st = document.getElementById('dasha-x-chip-style');
         if (!st) {
           st = document.createElement('style');

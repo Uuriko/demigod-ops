@@ -55,6 +55,7 @@ assert(client.includes('Another photo') && client.includes('Dasha simp quiz resu
 assert(client.includes('Share on X') && client.includes('shareBoardOnX') && client.includes('boardShareText'), 'board row must share on X');
 assert(client.includes('showJoinSuccess') && client.includes('Make a meme') && client.includes('Open lobby'), 'post-join success CTAs missing');
 assert(client.includes('dasha-x-chip') && client.includes('paintLinkedChip'), 'nav linked-identity chip missing');
+assert.match(client, /chip\.href = document\.getElementById\('simp'\) \? '#simp' : '\/simp'/, 'chip must keep #simp only when that section exists');
 assert(!client.includes('Save score card') && !client.includes("a.download = 'dasha-simp-"), 'score download path must be gone');
 assert(client.includes('simp-quiz-media') && client.includes('data.question.media'), 'every quiz step must render question media');
 assert(client.indexOf("qimg.className = 'simp-quiz-media'") < client.indexOf("el('h4','simp-quiz-question'"), 'media must sit above the prompt');
