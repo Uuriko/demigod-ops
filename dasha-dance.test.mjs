@@ -34,11 +34,21 @@ assert.match(danceSrc, /visibilitychange/, 'pause the loop when the tab is hidde
 assert.match(danceSrc, /document\.hidden/);
 assert.match(danceSrc, /OrthographicCamera/, 'feet on an implied floor, not a perspective hover');
 assert.match(danceSrc, /lookHold/, 'short look-at-camera beat after crossings');
-assert.match(danceSrc, /onBeforeCompile/, 'thin acid rim + killed spec, not a plastic doll');
+assert.match(danceSrc, /MeshToonMaterial/, 'toon-keyed, not a PBR doll');
+assert.match(danceSrc, /onBeforeCompile/, 'quantized acid rim');
+assert.match(danceSrc, /step\(0\.55, rim\)/, 'rim is on/off, not a soft fresnel');
 assert.match(danceSrc, /0\.874, 1\.0, 0\.0/, 'rim is #dfff00');
+assert.match(danceSrc, /failIfMajorPerformanceCaveat/, 'low GPU → still pose');
+assert.match(danceSrc, /clock\.start/, 'reset Clock on return so she does not lurch');
+assert.match(danceSrc, /lastTime = 0/);
+assert.match(danceSrc, /AudioContext|webkitAudioContext/, 'iOS resume on first pointer');
+assert.match(danceSrc, /generateMipmaps = true/);
+assert.match(danceSrc, /role', 'presentation'/, 'canvas is decorative');
+assert.match(danceSrc, /min-width:48px;min-height:48px/, 'speaker hit is 48×48');
 assert.match(danceSrc, /dasha-dance-speaker\{position:absolute;right:/, 'speaker stays on the right');
 assert.doesNotMatch(danceSrc, /dasha-dance-speaker\{[^}]*left:/);
 assert.doesNotMatch(danceSrc, /CapsuleGeometry|SphereGeometry|buildRig|CircleGeometry|PlaneGeometry/);
+assert.doesNotMatch(danceSrc + DANCE_CLIENT_JS, /EffectComposer|UnrealBloom|SSAO|PMREM|RoomEnvironment|HDRI|MeshStandardMaterial/);
 assert.match(danceSrc, /\/client\/dasha-loop\.mp3/);
 assert.match(danceSrc, /\/client\/dasha\.glb/);
 assert.match(danceSrc, /\/client\/dasha-face\.webp/);
@@ -60,6 +70,8 @@ assert.match(DANCE_CLIENT_JS, /three@0\.170\.0/);
 assert.match(DANCE_CLIENT_JS, /visibilitychange/);
 assert.match(DANCE_CLIENT_JS, /lookHold/);
 assert.match(DANCE_CLIENT_JS, /OrthographicCamera/);
+assert.match(DANCE_CLIENT_JS, /MeshToonMaterial/);
+assert.match(DANCE_CLIENT_JS, /failIfMajorPerformanceCaveat/);
 assert.match(DANCE_CLIENT_JS, /dasha-dance-speaker\{position:absolute;right:/);
 assert.equal(`sha384-${createHash('sha384').update(DANCE_CLIENT_JS).digest('base64')}`, DANCE_CLIENT_SRI);
 assert.match(ASSET_HASH, /^[0-9a-f]{16}$/);
@@ -107,6 +119,8 @@ const refsLicense = await readFile(new URL('./dasha-dance-refs/LICENSE', root), 
 assert.match(glbBuild, /wiki-2022/);
 assert.match(glbBuild, /cotton-2014/);
 assert.match(glbBuild, /berlinale-2021/);
+assert.match(glbBuild, /COTTON_HAIR/, 'cotton supplies hair albedo, not a generated blonde');
+assert.match(glbBuild, /KHR_materials_unlit/);
 assert.doesNotMatch(glbBuild, /public\.jpg|press\.jpg|chart\.jpg|bull\.jpg/);
 assert.doesNotMatch(glbBuild + danceSrc, /dailymail|pbs\.twimg|Mixamo|fuku|sailor/i);
 assert.match(sheetLicense, /Umplix|Polygons N' Light/);
@@ -120,7 +134,7 @@ const face = await stat(new URL('./dasha-worker-assets/client/dasha-face.webp', 
 const glb = await stat(new URL('./dasha-worker-assets/client/dasha.glb', root));
 const loop = await stat(new URL('./dasha-worker-assets/client/dasha-loop.mp3', root));
 assert.ok(face.size > 0 && face.size < 400 * 1024, 'face still must stay under ~400KB');
-assert.ok(glb.size > 8 * 1024 && glb.size < 400 * 1024, 'one compressed GLB');
+assert.ok(glb.size > 8 * 1024 && glb.size < 1.5 * 1024 * 1024, 'one compressed GLB under the 1.5MB 3D budget');
 assert.ok(loop.size > 200 * 1024 && loop.size < 2.2 * 1024 * 1024, 'loop should be ~128kbps');
 
 const glbBytes = await readFile(new URL('./dasha-worker-assets/client/dasha.glb', root));
@@ -130,6 +144,8 @@ const gltf = JSON.parse(glbBytes.subarray(20, 20 + jsonLen).toString());
 assert.ok(gltf.skins?.length && gltf.animations?.length, 'GLB must ship skin + clip');
 assert.equal(gltf.meshes?.length, 1, 'identity is one mesh');
 assert.ok(gltf.animations[0].channels.every((c) => c.target.path === 'rotation'), 'clip is in-place');
+assert.ok(gltf.extensionsUsed?.includes('KHR_materials_unlit'), 'unlit atlas, not a PBR doll');
+assert.equal(gltf.samplers?.[0]?.minFilter, 9987, 'LINEAR_MIPMAP_LINEAR on POT atlas');
 assert.doesNotMatch(JSON.stringify(gltf), /Mixamo|Stacy|ReadyPlayer/i);
 
 const assets = {

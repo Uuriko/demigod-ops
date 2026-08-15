@@ -22,8 +22,10 @@
   var hit = null;
   var speaker = null;
   var audio = null;
+  var audioCtx = null;
   var raf = 0;
   var reduced = false;
+  var stillOnly = false;
   var muted = false;
   var gesturing = false;
   var dead = false;
@@ -37,6 +39,7 @@
   var head = null;
   var mixer = null;
   var clock = null;
+  var lastTime = 0;
   var dir = 1;
   var yaw = -0.85;
   var crossings = 0;
@@ -47,6 +50,20 @@
 
   function prefersReduced() {
     return global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function weakDevice() {
+    try {
+      var c = document.createElement('canvas');
+      var opts = { failIfMajorPerformanceCaveat: true };
+      var gl = c.getContext('webgl', opts) || c.getContext('experimental-webgl', opts);
+      if (!gl) return true;
+      var lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return false;
+    } catch (e) {
+      return true;
+    }
   }
 
   function readMute() {
@@ -63,7 +80,7 @@
       '#dasha-dance button{pointer-events:auto;margin:0;padding:0;border:0;cursor:pointer;background:transparent}' +
       '#dasha-dance button:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
       '#dasha-dance .dasha-dance-hit{position:absolute;left:50%;width:88px;height:150px;bottom:0;margin-left:-44px}' +
-      '#dasha-dance .dasha-dance-speaker{position:absolute;right:max(8px,env(safe-area-inset-right,0px));top:8px;width:48px;height:48px;background:#070608;border:2px solid #dfff00}' +
+      '#dasha-dance .dasha-dance-speaker{position:absolute;right:max(8px,env(safe-area-inset-right,0px));top:8px;width:48px;height:48px;min-width:48px;min-height:48px;background:#070608;border:2px solid #dfff00}' +
       '#dasha-dance .dasha-dance-speaker svg{display:block;width:32px;height:32px;margin:6px auto}';
   }
 
@@ -87,20 +104,32 @@
     }
   }
 
+  function unlockAudio() {
+    try {
+      var AC = global.AudioContext || global.webkitAudioContext;
+      if (AC) {
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
+      }
+    } catch (e) { /* iOS / private */ }
+  }
+
   function playLoop() {
-    if (dead || reduced || muted || !audio || !live()) return;
+    if (dead || stillOnly || muted || !audio || !live()) return;
+    unlockAudio();
     var go = audio.play();
     if (go && go.catch) go.catch(function () { waitGesture(); });
   }
 
   function waitGesture() {
-    if (gesturing || reduced || dead) return;
+    if (gesturing || stillOnly || dead) return;
     gesturing = true;
     function once() {
       gesturing = false;
       global.removeEventListener('pointerdown', once, true);
       global.removeEventListener('keydown', once, true);
       global.removeEventListener('scroll', once, true);
+      unlockAudio();
       playLoop();
     }
     global.addEventListener('pointerdown', once, true);
@@ -117,7 +146,8 @@
 
   function onTap(ev) {
     if (ev) ev.preventDefault();
-    if (reduced) return;
+    if (stillOnly) return;
+    unlockAudio();
     setMuted(!muted);
     if (!muted) playLoop();
   }
@@ -137,13 +167,16 @@
   function goQuiet() {
     if (raf) global.cancelAnimationFrame(raf);
     raf = 0;
+    lastTime = 0;
     if (audio) {
       try { audio.pause(); } catch (e) { /* closed */ }
     }
   }
 
   function goLive() {
-    if (dead || reduced) return;
+    if (dead || stillOnly) return;
+    lastTime = 0;
+    if (clock) clock.start();
     if (!raf) tick();
     if (!muted) playLoop();
   }
@@ -183,21 +216,31 @@
     camera.top = HALF_H;
     camera.bottom = -HALF_H;
     camera.updateProjectionMatrix();
-    if (reduced && scene) renderer.render(scene, camera);
+    if (stillOnly && scene) renderer.render(scene, camera);
     placeHit();
   }
 
-  function tick() {
+  function tick(now) {
     if (dead || !renderer || !scene || !camera || !wrap) {
       raf = 0;
       return;
     }
     if (!live()) {
       raf = 0;
+      lastTime = 0;
       return;
     }
-    var dt = clock ? Math.min(0.05, clock.getDelta()) : 0.016;
-    if (!reduced) {
+    now = now || (global.performance && performance.now()) || 0;
+    var dt;
+    if (!lastTime) {
+      lastTime = now;
+      dt = 0;
+      if (clock) clock.start();
+    } else {
+      dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+      lastTime = now;
+    }
+    if (!stillOnly) {
       var span = travelWidth() / 2 - 0.45;
       var want = dir > 0 ? -0.85 : 0.85;
       if (lookHold > 0) {
@@ -225,7 +268,7 @@
     }
     placeHit();
     renderer.render(scene, camera);
-    if (!reduced) raf = global.requestAnimationFrame(tick);
+    if (!stillOnly) raf = global.requestAnimationFrame(tick);
   }
 
   function stillFallback() {
@@ -240,21 +283,45 @@
     hit.appendChild(img);
   }
 
-  function dressMat(mat) {
-    mat.metalness = 0;
-    mat.roughness = 0.9;
-    mat.envMap = null;
-    mat.envMapIntensity = 0;
+  function toonBands() {
+    var data = new Uint8Array([
+      48, 46, 50, 255,
+      98, 94, 96, 255,
+      168, 162, 156, 255,
+      255, 248, 236, 255,
+    ]);
+    var tex = new THREE.DataTexture(data, 4, 1, THREE.RGBAFormat);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function toonMat(old) {
+    var map = old && old.map;
+    if (map) {
+      map.generateMipmaps = true;
+      map.minFilter = THREE.LinearMipmapLinearFilter;
+      map.magFilter = THREE.LinearFilter;
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.needsUpdate = true;
+    }
+    var mat = new THREE.MeshToonMaterial({
+      map: map,
+      gradientMap: toonBands(),
+      color: 0xffffff,
+    });
     mat.onBeforeCompile = function (shader) {
       shader.fragmentShader = shader.fragmentShader.replace(
-        'vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;',
+        'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
         'float rim = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);' +
-        'vec3 outgoingLight = totalDiffuse + totalSpecular * 0.15 + totalEmissiveRadiance;' +
-        'outgoingLight += vec3(0.874, 1.0, 0.0) * pow(rim, 2.7) * 0.58;' +
-        'outgoingLight += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.028;'
+        'float rimQ = step(0.55, rim);' +
+        'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;' +
+        'outgoingLight += vec3(0.874, 1.0, 0.0) * rimQ;'
       );
     };
-    mat.needsUpdate = true;
+    return mat;
   }
 
   function startScene(gltf) {
@@ -276,27 +343,27 @@
     renderer.toneMapping = THREE.NoToneMapping;
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-1.6, 1.6, HALF_H, -HALF_H, 0.1, 40);
-    camera.position.set(0, 0.80, 4);
-    camera.lookAt(0, 0.80, 0);
-    scene.add(new THREE.AmbientLight(0xfff6ee, 0.78));
-    var key = new THREE.DirectionalLight(0xfff4e8, 0.52);
-    key.position.set(1.1, 2.2, 3.4);
+    camera.position.set(0.48, 0.86, 3.9);
+    camera.lookAt(0, 0.78, 0);
+    scene.add(new THREE.AmbientLight(0xfff6ee, 0.32));
+    var key = new THREE.DirectionalLight(0xfff4e8, 1.15);
+    key.position.set(0.9, 1.8, 2.6);
     scene.add(key);
-    var fill = new THREE.DirectionalLight(0xc8d4ff, 0.16);
-    fill.position.set(-2.2, 1.1, 1.4);
-    scene.add(fill);
     wrap = new THREE.Group();
     wrap.add(gltf.scene);
     gltf.scene.traverse(function (obj) {
       if (obj.name === 'head') head = obj;
-      if (obj.material) {
-        if (obj.material.isMaterial) dressMat(obj.material);
+      if (obj.isMesh && obj.material) {
+        var prev = obj.material;
+        obj.material = toonMat(prev);
+        if (prev && prev.dispose) prev.dispose();
       }
     });
     scene.add(wrap);
     tmp = new THREE.Vector3();
     clock = new THREE.Clock();
-    if (!reduced && gltf.animations && gltf.animations.length) {
+    lastTime = 0;
+    if (!stillOnly && gltf.animations && gltf.animations.length) {
       mixer = new THREE.AnimationMixer(gltf.scene);
       var clip = mixer.clipAction(gltf.animations[0]);
       clip.play();
@@ -317,7 +384,7 @@
       io.observe(dock);
     }
     document.addEventListener('visibilitychange', onVis);
-    if (reduced) {
+    if (stillOnly) {
       renderer.render(scene, camera);
       placeHit();
     } else {
@@ -329,6 +396,7 @@
     dead = true;
     if (raf) global.cancelAnimationFrame(raf);
     raf = 0;
+    lastTime = 0;
     document.removeEventListener('visibilitychange', onVis);
     if (ro) {
       try { ro.disconnect(); } catch (e) { /* closed */ }
@@ -353,6 +421,10 @@
     head = null;
     clock = null;
     tmp = null;
+    if (audioCtx && audioCtx.close) {
+      try { audioCtx.close(); } catch (e5) { /* closed */ }
+      audioCtx = null;
+    }
     if (audio) {
       try { audio.pause(); } catch (e3) { /* closed */ }
       audio.removeAttribute('src');
@@ -370,7 +442,8 @@
   function mount() {
     if (dead || document.getElementById('dasha-dance')) return;
     reduced = prefersReduced();
-    muted = reduced ? true : readMute();
+    stillOnly = reduced || weakDevice();
+    muted = stillOnly ? true : readMute();
     tabVisible = !document.hidden;
     var style = document.createElement('style');
     style.textContent = css();
@@ -378,6 +451,7 @@
     dock.id = 'dasha-dance';
     canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
+    canvas.setAttribute('role', 'presentation');
     hit = document.createElement('button');
     hit.type = 'button';
     hit.className = 'dasha-dance-hit';
@@ -390,7 +464,7 @@
     dock.appendChild(hit);
     dock.appendChild(speaker);
     document.body.appendChild(dock);
-    if (!reduced) {
+    if (!stillOnly) {
       audio = document.createElement('audio');
       audio.src = LOOP;
       audio.loop = true;
@@ -403,8 +477,10 @@
       hit.addEventListener('click', onTap);
       speaker.addEventListener('click', onTap);
     } else {
+      stillFallback();
       hit.disabled = true;
       speaker.disabled = true;
+      return;
     }
     global.addEventListener('pagehide', dispose);
     pinThree();

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""One skinned Dasha GLB: CC face albedo + A-pose humanoid + in-place step clip.
+"""One skinned Dasha GLB: CC face albedo + a few toon shapes + in-place step clip.
 
 Likeness refs (not flipbook frames):
-  wiki-2022.jpg      — frontal face albedo
-  cotton-2014.jpg    — hair / three-quarter check
+  wiki-2022.jpg      — frontal face albedo (moles stay)
+  cotton-2014.jpg    — hair / three-quarter face
   berlinale-2021.jpg — bangs / body check
 
 Playback is GLTFLoader + AnimationMixer. Clip has no root translation.
-Atlas is grainy and matte so she keys off ink, not a plastic doll.
+Unlit atlas, grainy, 3–5 big shapes. Face is the only detail — not a PBR doll.
 """
 from __future__ import annotations
 
@@ -26,6 +26,8 @@ OUT_DIR = ROOT / "dasha-worker-assets" / "client"
 OUT_GLB = OUT_DIR / "dasha.glb"
 OUT_FACE = OUT_DIR / "dasha-face.webp"
 FACE = ("wiki-2022.jpg", 320, 380, 580, 700)
+COTTON_HAIR = ("cotton-2014.jpg", 80, 0, 560, 240)
+WIKI_TEE = ("wiki-2022.jpg", 220, 1160, 780, 240)
 
 SKIN = (240, 210, 190)
 HAIR = (196, 163, 106)
@@ -162,23 +164,28 @@ def grain(dst: np.ndarray, lo: int, hi: int, seed: int, y0: int = 0, y1: int | N
     dst[y0:y1] = np.clip(band.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
 
+def crop(spec: tuple[str, int, int, int, int]) -> np.ndarray:
+    name, x, y, cw, ch = spec
+    _w, _h, raw = decode_rgb(REFS / name)
+    return raw[y : y + ch, x : x + cw]
+
+
 def build_atlas() -> tuple[np.ndarray, np.ndarray]:
-    name, x, y, cw, ch = FACE
-    w, h, raw = decode_rgb(REFS / name)
-    face = raw[y : y + ch, x : x + cw]
+    face = crop(FACE)
+    hair = crop(COTTON_HAIR)
+    tee = crop(WIKI_TEE)
     atlas = np.zeros((512, 512, 3), dtype=np.uint8)
     atlas[:] = INK
     blit(atlas, face, 8, 8, 240, 240)
-    fill(atlas, 266, 8, 504, 120, HAIR)
-    atlas[70:120, 266:504] = HAIR_DIM
+    blit(atlas, hair, 266, 8, 238, 112)
     fill(atlas, 266, 132, 504, 246, CAP)
     stamp_scary(atlas)
-    fill(atlas, 8, 266, 246, 378, TEE)
+    blit(atlas, tee, 8, 266, 238, 112)
     fill(atlas, 266, 266, 504, 378, SKIN)
     fill(atlas, 8, 388, 246, 504, JEAN)
     fill(atlas, 266, 388, 504, 504, SHOE)
     grain(atlas, -10, 10, 61, 248, 512)
-    grain(atlas, -7, 7, 67, 0, 248)
+    grain(atlas, -6, 6, 67, 0, 248)
     still = np.zeros((256, 256, 3), dtype=np.uint8)
     blit(still, face, 0, 0, 256, 256)
     return atlas, still
@@ -303,35 +310,29 @@ def build_mesh() -> Mesh:
     l_ul, l_ll = 11, 12
     r_ul, r_ll = 13, 14
 
+    # Five readable shapes at 120px: tee, face, hair, cap, lower. Face is the only detail.
     m.lathe(
-        [(0.19, 0.84), (0.18, 0.96), (0.20, 1.10), (0.18, 1.20), (0.15, 1.28), (0.08, 1.34)],
-        12, UV_TEE, hips, chest,
+        [(0.20, 0.84), (0.19, 0.96), (0.21, 1.10), (0.19, 1.20), (0.15, 1.28), (0.08, 1.34)],
+        10, UV_TEE, hips, chest,
     )
-    m.ellipsoid((0.0, 1.46, 0.02), 0.13, 0.155, 0.12, 14, 10, head_uv, head)
-    m.ellipsoid((0.0, 1.40, -0.05), 0.18, 0.19, 0.17, 12, 8, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
-    m.ellipsoid((0.12, 1.28, 0.02), 0.08, 0.12, 0.07, 8, 6, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
-    m.ellipsoid((-0.10, 1.26, 0.00), 0.07, 0.11, 0.07, 8, 6, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
-    m.ellipsoid((0.0, 1.55, 0.0), 0.15, 0.08, 0.14, 12, 6, lambda su, sv, x, y, z: uv_point(UV_CAP, su, sv), head)
-    brim_z = 0.20
+    m.tube((0.16, 1.22, 0.02), (0.28, 1.08, 0.02), 0.07, 0.055, 8, UV_TEE, l_sh, l_up)
+    m.tube((-0.16, 1.22, 0.02), (-0.28, 1.08, 0.02), 0.07, 0.055, 8, UV_TEE, r_sh, r_up)
+    m.ellipsoid((0.0, 1.46, 0.03), 0.13, 0.155, 0.12, 14, 10, head_uv, head)
+    m.ellipsoid((0.0, 1.36, -0.05), 0.21, 0.22, 0.19, 10, 8, lambda su, sv, x, y, z: uv_point(UV_HAIR, su, sv), head)
+    m.ellipsoid((0.0, 1.55, 0.0), 0.16, 0.08, 0.15, 10, 6, lambda su, sv, x, y, z: uv_point(UV_CAP, su, sv), head)
+    brim_z = 0.21
     for i in range(8):
         t0 = -0.5 + i / 7 * 1.0
         t1 = -0.5 + (i + 1) / 7 * 1.0
-        a = m.add((t0 * 0.14, 1.50, 0.10), uv_point(UV_CAP, i / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
-        b = m.add((t1 * 0.14, 1.50, 0.10), uv_point(UV_CAP, (i + 1) / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
-        c = m.add((t0 * 0.16, 1.492, brim_z), uv_point(UV_CAP, i / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
-        d = m.add((t1 * 0.16, 1.492, brim_z), uv_point(UV_CAP, (i + 1) / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
+        a = m.add((t0 * 0.15, 1.50, 0.10), uv_point(UV_CAP, i / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
+        b = m.add((t1 * 0.15, 1.50, 0.10), uv_point(UV_CAP, (i + 1) / 8, 0.2), (head, 0, 0, 0), (1, 0, 0, 0))
+        c = m.add((t0 * 0.17, 1.492, brim_z), uv_point(UV_CAP, i / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
+        d = m.add((t1 * 0.17, 1.492, brim_z), uv_point(UV_CAP, (i + 1) / 8, 0.9), (head, 0, 0, 0), (1, 0, 0, 0))
         m.tri(a, b, d)
         m.tri(a, d, c)
 
-    m.tube((0.16, 1.26, 0.02), (0.30, 1.14, 0.02), 0.042, 0.036, 8, UV_SKIN, l_sh, l_up)
-    m.tube((0.30, 1.14, 0.02), (0.46, 1.00, 0.02), 0.034, 0.028, 8, UV_SKIN, l_up, l_lo)
-    m.tube((-0.16, 1.26, 0.02), (-0.30, 1.14, 0.02), 0.042, 0.036, 8, UV_SKIN, r_sh, r_up)
-    m.tube((-0.30, 1.14, 0.02), (-0.46, 1.00, 0.02), 0.034, 0.028, 8, UV_SKIN, r_up, r_lo)
-
-    m.tube((0.08, 0.80, 0.0), (0.08, 0.44, 0.02), 0.055, 0.046, 8, UV_JEAN, l_ul, l_ll)
-    m.tube((0.08, 0.44, 0.02), (0.08, 0.10, 0.0), 0.044, 0.036, 8, UV_JEAN, l_ll, l_ll)
-    m.tube((-0.08, 0.80, 0.0), (-0.08, 0.44, 0.02), 0.055, 0.046, 8, UV_JEAN, r_ul, r_ll)
-    m.tube((-0.08, 0.44, 0.02), (-0.08, 0.10, 0.0), 0.044, 0.036, 8, UV_JEAN, r_ll, r_ll)
+    m.tube((0.08, 0.80, 0.0), (0.08, 0.10, 0.0), 0.06, 0.04, 8, UV_JEAN, l_ul, l_ll)
+    m.tube((-0.08, 0.80, 0.0), (-0.08, 0.10, 0.0), 0.06, 0.04, 8, UV_JEAN, r_ul, r_ll)
 
     for sx in (0.08, -0.08):
         shoe = [
@@ -564,9 +565,11 @@ def write_glb(mesh: Mesh, jpeg: bytes, dest: Path) -> None:
             "pbrMetallicRoughness": {
                 "baseColorTexture": {"index": 0},
                 "metallicFactor": 0.0,
-                "roughnessFactor": 0.92,
+                "roughnessFactor": 1.0,
             },
+            "extensions": {"KHR_materials_unlit": {}},
         }],
+        "extensionsUsed": ["KHR_materials_unlit"],
         "textures": [{"source": 0, "sampler": 0}],
         "images": [{"bufferView": v_img, "mimeType": "image/jpeg", "name": "dasha"}],
         "samplers": [{"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071}],
