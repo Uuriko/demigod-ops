@@ -85,9 +85,16 @@ import {
   SITEMAP_XML,
   HOWTO_HTML,
   CHESS_PAGE_HTML,
+  GRAPH_PAGE_HTML,
+  GRAPH_CLIENT_JS,
   LOBBY_PAGE_HTML,
   ASSET_HASH,
 } from './dasha-lobby-static-gen.mjs';
+import {
+  fetchGraphExpand,
+  fetchGraphSnapshot,
+  GRAPH_CACHE_CONTROL,
+} from './dasha-graph.mjs';
 import {
   CHESS_CLOCK_MS,
   CHESS_INCREMENT_MS,
@@ -174,6 +181,7 @@ const HOME_POSTERS = [
   ['How u crying at the casino and u can’t even get in', '/studio#look=poster&format=square&line=How%20u%20crying%20at%20the%20casino%20and%20u%20can%E2%80%99t%20even%20get%20in&src=home'],
   ['It’s time $dasha', '/studio#look=ticket&format=story&line=It%E2%80%99s%20time%20%24dasha&src=home'],
   ['Well im still alive', '/studio#look=signal&format=banner&line=Well%20im%20still%20alive&src=home'],
+  ['Graph', '/graph'],
 ];
 function simpBoardClientScript() {
   return `<script>(function(){var s=document.createElement('script');s.src='https://lobby.getdasha.com/client/simp-board.js';s.integrity='${SIMP_BOARD_SRI}';s.crossOrigin='anonymous';s.defer=true;document.head.appendChild(s)})();</script>`;
@@ -249,10 +257,10 @@ function homeFirstViewportHtml(sri) {
   const assoc = escapeHtml('References describe internet culture. Not endorsement.');
   const posters = HOME_POSTERS.map(([label, href]) =>
     `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`).join('');
-  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}#dasha-lock .dasha-x-wrap{margin:.15rem 1rem .85rem}#dasha-lock a.dasha-x{display:inline-flex;align-items:center;min-height:52px;padding:0 1.15rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.15rem,3vw,1.65rem);letter-spacing:.04em;text-transform:uppercase;text-decoration:none}#dasha-lock nav a[href*="dash_eats"]{color:#dfff00}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}@media(max-width:640px){#dasha-lock .dasha-posters{grid-template-columns:1fr}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><p class="dasha-x-wrap"><a class="dasha-x" href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Open an editable Dasha Studio starter">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
+  return `<section id="dasha-lock" aria-label="$DASHA"><style>html,body,body.body,.dasha-root,.dasha{background:#070608!important;background-image:none!important}#dasha-home-cta,.dasha-hero,main.dasha>.nav{display:none!important}#dasha-home h1,#dasha-lock h1{color:#f4eddb!important}#dasha-lock{box-sizing:border-box;margin:0;padding:0;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-lock .dasha-band{overflow:hidden;background:#dfff00;color:#070608}#dasha-lock .dasha-band-track{display:inline-block;white-space:nowrap;padding:.45rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-band 28s linear infinite}#dasha-lock .dasha-band:hover .dasha-band-track{animation-play-state:paused}@keyframes dasha-band{to{transform:translateX(-50%)}}#dasha-lock header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-lock .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:#f4eddb;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-lock .dasha-brand img{width:28px;height:28px}#dasha-lock nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-lock nav a{display:inline-flex;align-items:center;min-height:48px;color:#f4eddb;font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-lock h1{margin:0 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.25rem);line-height:.9;text-transform:uppercase}#dasha-lock .dasha-quiz{margin:0 1rem .5rem;max-height:18rem;overflow:auto}#dasha-lock .dasha-posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0 1rem .5rem}#dasha-lock .dasha-posters a{display:flex;align-items:flex-end;min-height:6.5rem;max-height:8.5rem;padding:.6rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase;text-decoration:none;font-size:.8rem;line-height:1.05}#dasha-lock .dasha-assoc{margin:0 1rem .75rem;font-size:.85rem}#dasha-lock .dasha-x-wrap{margin:.15rem 1rem .85rem}#dasha-lock a.dasha-x{display:inline-flex;align-items:center;min-height:52px;padding:0 1.15rem;background:#dfff00;color:#070608;box-shadow:4px 4px 0 #ff3b81;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.15rem,3vw,1.65rem);letter-spacing:.04em;text-transform:uppercase;text-decoration:none}#dasha-lock nav a[href*="dash_eats"]{color:#dfff00}@media(prefers-reduced-motion:reduce){#dasha-lock .dasha-band-track{animation:none}}@media(max-width:640px){#dasha-lock .dasha-posters{grid-template-columns:1fr}}</style><div class="dasha-band" aria-hidden="true"><div class="dasha-band-track">${band}${band}</div></div><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="#simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="/how-to-buy">How to buy</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>${line}</h1><p class="dasha-x-wrap"><a class="dasha-x" href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats ↗</a></p><div id="simp"><div id="dasha-simp-board" class="dasha-quiz" data-simp-api="https://lobby.getdasha.com"><noscript>Answer in the browser — questions are not in this HTML.</noscript></div></div><div class="dasha-posters" aria-label="Studio and Graph">${posters}</div><p class="dasha-assoc">${assoc}</p><script src="https://lobby.getdasha.com/client/simp-board.js" integrity="${sri}" crossorigin="anonymous" defer></script></section>`;
 }
 
-const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
+const HOME_CULTURE_NAV = '<a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/verse">Verse</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a>';
 
 /** Hidden Webflow `main.dasha > nav` — same labels as lock nav after #49. No Buy. */
 function alignHomeLowerNav(html) {
@@ -415,7 +423,7 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
+const WORKER_SITE_FOOTER = '<footer><p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>';
 
 /** Add one visible Privacy link to an existing footer, nav, lobby header, or bounties board. */
 export function ensurePrivacyLink(html) {
@@ -457,6 +465,7 @@ export function ensurePrivacyLink(html) {
 
 const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
+const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML));
 
 /** Replace leftover Webflow SRI on the worker-served studio.js tag. Other pins stay. */
@@ -550,6 +559,60 @@ function json(body, status, origin, { credentials = false } = {}) {
       'Content-Type': 'application/json; charset=utf-8',
     },
   });
+}
+
+function graphPageResponse(request) {
+  return new Response(request.method === 'HEAD' ? null : GRAPH_PAGE, {
+    status: 200,
+    headers: htmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Dasha-Edge': 'graph',
+    }),
+  });
+}
+
+function graphApiResponse(body, origin, cacheControl = GRAPH_CACHE_CONTROL) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      ...SECURITY,
+      ...corsHeaders(origin),
+      'Cache-Control': cacheControl,
+      'Content-Type': 'application/json; charset=utf-8',
+      'X-Dasha-Edge': 'graph-api',
+    },
+  });
+}
+
+async function graphSnapshotResponse(request, env) {
+  const origin = request.headers.get('Origin');
+  const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : origin || '*';
+  if (request.method === 'HEAD') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        ...SECURITY,
+        ...corsHeaders(allowedOrigin),
+        'Cache-Control': GRAPH_CACHE_CONTROL,
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Dasha-Edge': 'graph-api',
+      },
+    });
+  }
+  const body = await fetchGraphSnapshot(env, { endpoints: solanaRpcEndpoints(env) });
+  return graphApiResponse(body, allowedOrigin);
+}
+
+async function graphExpandResponse(request, env) {
+  const origin = request.headers.get('Origin');
+  const allowedOrigin = origin && originAllowed(origin, env.ALLOWED_ORIGINS || '') ? origin : origin || '*';
+  const id = new URL(request.url).searchParams.get('id') || '';
+  if (request.method === 'HEAD') {
+    return new Response(null, { status: 200, headers: { ...SECURITY, 'X-Dasha-Edge': 'graph-api' } });
+  }
+  const body = await fetchGraphExpand(env, id, { endpoints: solanaRpcEndpoints(env) });
+  return graphApiResponse(body, allowedOrigin);
 }
 
 function id() {
@@ -3111,6 +3174,15 @@ async function productEdge(request, url, env) {
     if (request.method === 'POST') return verseSubmitResponse(request, env);
     if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
+    return graphPageResponse(request);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph') {
+    return graphSnapshotResponse(request, env);
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph/expand') {
+    return graphExpandResponse(request, env);
+  }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
     return Response.redirect(VERSE_WWW, 308);
   }
@@ -3295,6 +3367,15 @@ export default {
       if (request.method === 'POST') return verseSubmitResponse(request, env);
       if (request.method === 'GET' || request.method === 'HEAD') return versePageResponse(request);
     }
+    if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/graph')) {
+      return graphPageResponse(request);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph') {
+      return graphSnapshotResponse(request, env);
+    }
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/api/graph/expand') {
+      return graphExpandResponse(request, env);
+    }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/dashaverse')) {
       return Response.redirect(VERSE_WWW, 308);
     }
@@ -3328,6 +3409,12 @@ export default {
       url.pathname === '/client/studio.js'
     ) {
       return jsAsset(STUDIO_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
+    }
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      url.pathname === '/client/graph.js'
+    ) {
+      return jsAsset(GRAPH_CLIENT_JS, allowedOrigin || '*', { headOnly: request.method === 'HEAD' });
     }
 
     // SEO + howto: also routed on www/apex getdasha.com (see dasha-lobby-wrangler.jsonc).

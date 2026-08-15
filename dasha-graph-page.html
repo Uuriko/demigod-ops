@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>$DASHA GRAPH — getdasha.com</title>
+<meta name="description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://www.getdasha.com/graph">
+<meta name="theme-color" content="#070608">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.getdasha.com/graph">
+<meta property="og:title" content="$DASHA GRAPH">
+<meta property="og:description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta property="og:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<meta property="og:image:alt" content="$DASHA GRAPH">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="$DASHA GRAPH">
+<meta name="twitter:description" content="Public chain. Addresses, not people. Not endorsement.">
+<meta name="twitter:image" content="https://lobby.getdasha.com/og/dasha-social-card.png">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<style>
+:root{color-scheme:dark;--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81;--violet:#7c4dff;--line:rgba(244,237,219,.22);--muted:rgba(244,237,219,.62)}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#070608;color:#f4eddb;font:16px/1.45 Arial,Helvetica,sans-serif;overflow:hidden}
+a{color:inherit}button{font:inherit}[hidden]{display:none!important}
+.chrome{position:fixed;inset:0 auto auto 0;z-index:3;width:100%;pointer-events:none}
+.chrome>*{pointer-events:auto}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem 1rem;padding:.45rem 1rem 0}
+.brand{font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-.04em;text-decoration:none;text-transform:uppercase}
+.brand span{color:#dfff00}
+nav{display:flex;flex-wrap:wrap;gap:.35rem .9rem}
+nav a{display:inline-flex;align-items:center;min-height:44px;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+nav a[aria-current=page]{color:#dfff00}
+.hero{padding:0 1rem;pointer-events:none}
+.hero h1{margin:.2rem 0 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(3.2rem,13vw,10rem);line-height:.78;letter-spacing:-.07em;text-transform:uppercase}
+.hero h1 em{font-style:normal;color:#dfff00}
+.ticker{overflow:hidden;margin:.45rem 0 0;background:#dfff00;color:#070608}
+.ticker-track{display:inline-block;white-space:nowrap;padding:.38rem 0;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.08em;text-transform:uppercase;animation:dasha-graph-ticker 28s linear infinite}
+.ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes dasha-graph-ticker{to{transform:translateX(-50%)}}
+.hud{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;margin:0;padding:.45rem 1rem 0;list-style:none}
+.hud div{min-width:4.5rem}
+.hud dt{margin:0;color:var(--muted);font:800 10px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+.hud dd{margin:.15rem 0 0;font:900 14px/1 Arial,Helvetica,sans-serif}
+.verbs{display:flex;flex-wrap:wrap;gap:.4rem;padding:.45rem 1rem 0}
+.verbs button,.verbs a,.panel button{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid var(--line);background:transparent;color:#f4eddb;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer}
+.verbs button[aria-pressed=true]{border-color:#dfff00;color:#dfff00}
+.verbs a.buy{border-color:#dfff00;color:#dfff00}
+.verbs button:focus-visible,.verbs a:focus-visible,nav a:focus-visible,.panel button:focus-visible,.panel a:focus-visible{outline:3px solid #dfff00;outline-offset:3px}
+#graph{position:fixed;inset:0;z-index:1;background:#070608}
+#graph canvas{display:block;width:100%;height:100%}
+#labels{position:fixed;inset:0;z-index:2;pointer-events:none}
+#labels span{position:absolute;transform:translate(-50%,-120%);color:#f4eddb;font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 1px 0 #070608}
+.status{position:fixed;left:1rem;bottom:3.1rem;z-index:3;margin:0;color:var(--muted);font:800 12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase}
+.status[data-kind=bad]{color:#ff3b81}
+.keys{position:fixed;right:1rem;bottom:3.1rem;z-index:3;margin:0;color:var(--muted);font:800 11px/1.4 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:.45rem .8rem;padding:.4rem 1rem .55rem;background:rgba(7,6,8,.88);border-top:1px solid var(--line);font:700 12px/1.4 ui-monospace,Menlo,Consolas,monospace}
+.foot code{color:#f4eddb;word-break:break-all;user-select:all}
+.foot a{color:#dfff00;font:900 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}
+.panel{position:fixed;top:0;right:0;z-index:4;width:min(28rem,100%);height:100%;padding:1rem 1.1rem 2rem;overflow:auto;background:#070608;border-left:1px solid var(--line);box-shadow:-16px 0 0 rgba(223,255,0,.08)}
+.panel h2{margin:2.6rem 0 .4rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:clamp(1.6rem,5vw,2.4rem);line-height:.9;text-transform:uppercase}
+.panel p,.panel a{margin:.35rem 0;word-break:break-all}
+.panel a{color:#dfff00}
+.panel .row{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.8rem}
+#list{position:fixed;inset:auto 0 2.6rem;z-index:2;max-height:42vh;overflow:auto;margin:0;padding:1rem;background:rgba(7,6,8,.92);border-top:1px solid var(--line)}
+#list li{margin:0 0 .7rem;word-break:break-all}
+#list strong{color:#dfff00}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}#graph,#labels{display:none}html,body{overflow:auto}}
+</style>
+</head>
+<body>
+<header class="chrome">
+  <div class="top">
+    <a class="brand" href="https://www.getdasha.com/" aria-label="Dasha home">$<span>DASHA</span></a>
+    <nav aria-label="Dasha">
+      <a href="https://www.getdasha.com/">Home</a>
+      <a href="/studio">Studio</a>
+      <a href="/simp">Simp</a>
+      <a href="/graph" aria-current="page">Graph</a>
+      <a href="/verse">Verse</a>
+      <a href="/how-to-buy">How to buy</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+  </div>
+  <div class="hero">
+    <h1>$DASHA <em>GRAPH</em></h1>
+    <div class="ticker" aria-label="Association">
+      <div class="ticker-track">Public chain. Addresses, not people. Not endorsement. · Public chain. Addresses, not people. Not endorsement. · </div>
+    </div>
+  </div>
+  <dl class="hud">
+    <div><dt>Price</dt><dd id="hud-price">—</dd></div>
+    <div><dt>Liq</dt><dd id="hud-liq">—</dd></div>
+    <div><dt>24h vol</dt><dd id="hud-vol">—</dd></div>
+    <div><dt>FDV</dt><dd id="hud-fdv">—</dd></div>
+  </dl>
+  <div class="verbs">
+    <button type="button" id="reset">Reset</button>
+    <button type="button" id="follow" aria-pressed="false">Follow latest</button>
+    <button type="button" id="list-toggle" aria-pressed="false">List</button>
+    <a class="buy" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy on Jupiter</a>
+  </div>
+</header>
+<div id="graph" aria-hidden="true"></div>
+<div id="labels" hidden></div>
+<p class="status" id="status" role="status" aria-live="polite"></p>
+<p class="keys">R reset · L labels · Esc close</p>
+<aside class="panel" id="panel" hidden></aside>
+<ol id="list" hidden></ol>
+<footer class="foot">
+  <code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
+  <a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Explorer</a>
+  <a href="https://dexscreener.com/solana/9KkDpvUQRqXjiuyMFcy1CwqrxLwDcGGUR2Cap2Qt7bU7" target="_blank" rel="noopener noreferrer">Dexscreener</a>
+</footer>
+<script src="https://lobby.getdasha.com/client/graph.js" integrity="sha384-a+7GY/OnmHyoPDb1zYHIrmNSQMSc71pF9ZvzroKKYTvb1EETYblffFyVYI4oJMGo" crossorigin="anonymous" defer></script>
+</body>
+</html>
