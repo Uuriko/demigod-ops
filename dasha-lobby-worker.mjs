@@ -91,7 +91,6 @@ import {
   STUDIO_CLIENT_SRI,
   ROBOTS_TXT,
   SITEMAP_XML,
-  HOWTO_HTML,
   CHESS_PAGE_HTML,
   GRAPH_PAGE_HTML,
   GRAPH_CLIENT_JS,
@@ -661,6 +660,11 @@ function isLeftoverDeskPath(pathname) {
   return path === '/dasha' || path === '/desk';
 }
 
+function isLeftoverHowtoPath(pathname) {
+  const path = String(pathname || '').replace(/\/+$/, '') || '/';
+  return path === '/how-to-buy' || path === '/howtobuy';
+}
+
 /** Dock is off. Dance files stay on disk; nothing mounts them. */
 export function danceDockPath(pathname) {
   return false;
@@ -670,7 +674,6 @@ export function injectDanceDock(html) {
   return html;
 }
 
-const HOWTO_PAGE_HTML = ensurePrivacyLink(HOWTO_HTML);
 const CHESS_PAGE = ensurePrivacyLink(CHESS_PAGE_HTML);
 const GRAPH_PAGE = GRAPH_PAGE_HTML;
 const LOBBY_PAGE = injectDanceDock(ensurePrivacyLink(stripLobbySimpQuiz(LOBBY_PAGE_HTML)));
@@ -684,7 +687,7 @@ export function rewriteStudioBuyVerifyHref(html) {
     (full, attrs, text) => {
       const next = attrs.replace(
         /(\bhref\s*=\s*["'])(?:https:\/\/(?:www\.)?getdasha\.com)?\/?#token\b/i,
-        '$1/how-to-buy',
+        `$1${BUY_HREF}`,
       );
       return `<a${next}>${text}</a>`;
     },
@@ -3633,18 +3636,8 @@ async function productEdge(request, url, env) {
   if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
     return bountiesFeedResponse(request);
   }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
-  ) {
-    return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
-      status: 200,
-      headers: htmlHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=120',
-        'X-Dasha-Edge': 'howto',
-      }),
-    });
+  if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/simp')) {
     return simpPageResponse(request);
@@ -3669,7 +3662,7 @@ async function productEdge(request, url, env) {
     if (faucetRes) return faucetRes;
   }
   if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
-    return bountiesPageResponse(request);
+    return Response.redirect('https://www.getdasha.com/', 308);
   }
   if (isLeftoverVersePath(url.pathname)) {
     return Response.redirect('https://www.getdasha.com/', 308);
@@ -3692,12 +3685,6 @@ async function productEdge(request, url, env) {
   }
   if (url.pathname.replace(/\/$/, '') === '/simp/hold') {
     return simpHoldResponse(request.headers.get('Origin'));
-  }
-  if (
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
-  ) {
-    return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
   }
   if (isForumApiPath(url.pathname)) {
     const origin = request.headers.get('Origin');
@@ -3894,7 +3881,7 @@ export default {
       if (faucetRes) return faucetRes;
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && isExactPath(url.pathname, '/bounties')) {
-      return Response.redirect(BOUNTIES_FEED_PAGE, 308);
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if (isLeftoverVersePath(url.pathname)) {
       return Response.redirect('https://www.getdasha.com/', 308);
@@ -4006,24 +3993,8 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && isBountiesJsonPath(url.pathname)) {
       return bountiesFeedResponse(request);
     }
-    if (
-      (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/how-to-buy' || url.pathname === '/how-to-buy/')
-    ) {
-      return new Response(request.method === 'HEAD' ? null : HOWTO_PAGE_HTML, {
-        status: 200,
-        headers: htmlHeaders({
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'public, max-age=120',
-          'X-Dasha-Edge': 'howto',
-        }),
-      });
-    }
-    if (
-      (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/howtobuy' || url.pathname === '/howtobuy/')
-    ) {
-      return Response.redirect('https://www.getdasha.com/how-to-buy', 308);
+    if ((request.method === 'GET' || request.method === 'HEAD') && isLeftoverHowtoPath(url.pathname)) {
+      return Response.redirect('https://www.getdasha.com/', 308);
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/chess' || url.pathname === '/chess/')) {
       const html = await chessPageForRequest(request, env);

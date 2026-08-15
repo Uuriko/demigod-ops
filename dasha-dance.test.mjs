@@ -170,13 +170,19 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
   assert.doesNotMatch(forumHtml, /dasha-dance\.js/, 'lobby /forum must not inject the dock');
 }
 for (const [host, path] of [
-  ['lobby.getdasha.com', '/chess'],
   ['lobby.getdasha.com', '/how-to-buy'],
-  ['www.getdasha.com', '/simp'],
   ['www.getdasha.com', '/bounties'],
+  ['www.getdasha.com', '/how-to-buy'],
+]) {
+  const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
+  assert.equal(res.status, 308, `${host}${path} 308s home`);
+  assert.equal(res.headers.get('location'), 'https://www.getdasha.com/');
+}
+for (const [host, path] of [
+  ['lobby.getdasha.com', '/chess'],
+  ['www.getdasha.com', '/simp'],
   ['www.getdasha.com', '/faucet'],
   ['www.getdasha.com', '/chess'],
-  ['www.getdasha.com', '/how-to-buy'],
 ]) {
   const res = await worker.fetch(new Request(`https://${host}${path}`), assets);
   assert.equal(res.status, 200, `${host}${path} must stay 200`);

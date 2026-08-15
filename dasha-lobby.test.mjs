@@ -167,7 +167,7 @@ assert(worker.includes('rewriteLobbyScriptIntegrity(html)'), 'proxied product HT
 assert(worker.includes('stripDeadLobbyForum(html)'), 'leftover Webflow forum.js hops still get stripped off non-forum pages');
 assert(worker.includes('rewriteLeftoverLobbyHrefs(html)'), 'proxied HTML must remap leftover lobby chess/forum hrefs');
 assert(worker.includes('rewriteStudioBuyVerifyHref(html)'), 'proxied /studio must retarget Buy/verify off #token');
-assert(worker.includes('/how-to-buy'), 'how-to-buy route stays live');
+assert(worker.includes('isLeftoverHowtoPath'), 'how-to-buy is a quiet leftover 308');
 assert(worker.includes('rewriteStaleCdnFavicon(html)'), 'proxied product HTML must rewrite leftover CDN favicon.ico');
 assert(worker.includes('rewriteHomeFirstViewport(stripHomeSimpBoard(html))'), 'www/apex / must rewrite the first viewport after stripping leftover board chrome');
 assert(worker.includes('alignHomeLowerNav') && worker.includes('HOME_CULTURE_NAV'), 'home rewrite aligns the hidden Webflow nav');
@@ -189,7 +189,7 @@ assert(worker.includes('/simp/join'), 'worker exposes /simp/join');
 assert(worker.includes('/simp/leave'), 'worker exposes /simp/leave');
 assert(worker.includes("'X-Dasha-Edge': 'simp'") && worker.includes('simpPageHtml'), 'www /simp is worker-owned first HTML');
 assert(!worker.includes('font:16px/1.45 system-ui,sans-serif'), '/simp must use Arial, not system-ui');
-assert(worker.includes("'X-Dasha-Edge': 'bounties'") && worker.includes('bountiesPageHtml'), 'www /bounties is worker-owned first HTML');
+assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'leftover /bounties 308s home');
 assert(worker.includes('unpaidBountiesHtmlHasPayoutAmounts'), 'unpaid /bounties HTML must have a payout-amount proof');
 assert(worker.includes('isLeftoverVersePath') && !worker.includes('versePageHtml'), 'leftover /verse 308s home; no Verse page');
 assert(worker.includes('GRAPH_PAGE = GRAPH_PAGE_HTML') && worker.includes("Response.redirect('https://www.getdasha.com/', 308)"), 'www /graph is shelved; source stays, route 308s home');
@@ -227,7 +227,7 @@ assert(worker.includes('simpSharePageHtml') && worker.includes('og:image:alt'), 
 assert(worker.includes('simpQuizFirstPaintHtml') && worker.includes('simpResultMissingHtml'), 'www /simp first-paints the quiz and has an honest result 404');
 assert(worker.includes("error: 'link X to take the quiz'"), 'quiz start must require a linked X session');
 assert(worker.includes('Needs JavaScript.'), 'www /simp noscript must not dump the bank');
-assert(worker.includes("isExactPath(url.pathname, '/bounties')") && worker.includes('BOUNTIES_FEED_PAGE'), 'lobby /bounties hops to www');
+assert(worker.includes('isBountiesJsonPath') && worker.includes('BOUNTIES_FEED_PAGE'), '/bounties.json stays the listings feed');
 assert(worker.includes("pathname.replace(/\\/$/, '') === '/simp/hold'") && worker.includes("error: 'not_configured'"), 'hold stays a not_configured stub');
 assert(!/\/simp\/hold[\s\S]{0,180}verify/i.test(worker), 'hold must not be called a verify');
 assert(worker.includes('scrubSeasonSnapshots') && worker.includes('delete this.simpQuizAttempts') && worker.includes('storage.delete(`simpHolder:'), 'leave must delete linked Board state');
@@ -395,10 +395,10 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
       assert.equal(lobby.status, 308, `${host}${path} ${method} must 308 to /forum`);
       assert.equal(lobby.headers.get('location'), `https://${host}/forum`);
     }
-    for (const path of ['/howtobuy', '/howtobuy/']) {
+    for (const path of ['/how-to-buy', '/how-to-buy/', '/howtobuy', '/howtobuy/']) {
       const howtobuy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
-      assert.equal(howtobuy.status, 308, `${host}${path} ${method} must permanently send the unspaced alias to /how-to-buy`);
-      assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/how-to-buy');
+      assert.equal(howtobuy.status, 308, `${host}${path} ${method} must 308 home`);
+      assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/');
     }
     for (const path of ['/privacy', '/privacy/', '/legal', '/privacy-policy']) {
       const privacy = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
@@ -408,16 +408,11 @@ for (const host of ['www.getdasha.com', 'getdasha.com']) {
   }
 }
 for (const method of ['GET', 'HEAD']) {
-  for (const path of ['/howtobuy', '/howtobuy/']) {
+  for (const path of ['/how-to-buy', '/how-to-buy/', '/howtobuy', '/howtobuy/']) {
     const howtobuy = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-    assert.equal(howtobuy.status, 308, `lobby${path} ${method} must permanently send the unspaced alias to /how-to-buy`);
-    assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/how-to-buy');
+    assert.equal(howtobuy.status, 308, `lobby${path} ${method} must 308 home`);
+    assert.equal(howtobuy.headers.get('location'), 'https://www.getdasha.com/');
   }
-}
-{
-  const lobbyHowto = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/how-to-buy'), {});
-  assert.equal(lobbyHowto.status, 200, 'lobby /how-to-buy must stay 200');
-  assert.equal(lobbyHowto.headers.get('x-dasha-edge'), 'howto');
 }
 for (const method of ['GET', 'HEAD']) {
   for (const path of ['/privacy', '/privacy/', '/legal', '/privacy-policy']) {
@@ -599,8 +594,8 @@ for (const path of ['/studio', '/studio/']) {
   for (const method of ['GET', 'HEAD']) {
     for (const path of ['/bounties', '/bounties/']) {
       const hop = await workerModule.default.fetch(new Request(`https://lobby.getdasha.com${path}`, { method }), {});
-      assert.equal(hop.status, 308, `lobby ${path} ${method} must permanently send bounties to www`);
-      assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/bounties');
+      assert.equal(hop.status, 308, `lobby ${path} ${method} must 308 home`);
+      assert.equal(hop.headers.get('location'), 'https://www.getdasha.com/');
     }
   }
   const boardEnv = {
@@ -811,9 +806,8 @@ for (const path of ['/studio', '/studio/']) {
         assert.equal(hop.headers.get('location'), `https://${host}/forum`);
       }
       const bounties = await workerModule.default.fetch(new Request(`https://${host}/bounties`), {});
-      assert.equal(bounties.status, 200, `${host}/bounties must stay worker-owned 200`);
-      assert.equal(bounties.headers.get('x-dasha-edge'), 'bounties');
-      assert.match(await bounties.text(), /<title>Bounties<\/title>/);
+      assert.equal(bounties.status, 308, `${host}/bounties must 308 home`);
+      assert.equal(bounties.headers.get('location'), 'https://www.getdasha.com/');
       const privacy = await workerModule.default.fetch(new Request(`https://${host}/privacy`), {});
       assert.equal(privacy.status, 308, `${host}/privacy must 308 home`);
       assert.equal(privacy.headers.get('location'), 'https://www.getdasha.com/');
@@ -1165,8 +1159,6 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   for (const loc of [
     'https://www.getdasha.com/',
     'https://www.getdasha.com/forum',
-    'https://www.getdasha.com/how-to-buy',
-    'https://www.getdasha.com/bounties',
     'https://www.getdasha.com/simp',
     'https://www.getdasha.com/chess',
     'https://www.getdasha.com/faucet',
@@ -1178,6 +1170,8 @@ for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/dasha</, `${host} sitemap must not feature /dasha`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/learn/, `${host} sitemap must not feature /learn`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/verse/, `${host} sitemap must not feature /verse`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/how-to-buy/, `${host} sitemap must not feature leftover /how-to-buy`);
+  assert.doesNotMatch(sitemapBody, /getdasha\.com\/bounties/, `${host} sitemap must not feature leftover /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/capsule/, `${host} sitemap must not invent /capsule`);
   assert.doesNotMatch(sitemapBody, /lobby\.getdasha\.com\/bounties/, `${host} sitemap must not list lobby /bounties`);
   assert.doesNotMatch(sitemapBody, /getdasha\.com\/lobby/, `${host} sitemap must list Forum instead of Lobby`);
@@ -1701,33 +1695,8 @@ ${liveHomeFooter}
   assert.equal(ensurePrivacyLink(chessLinked), chessLinked, 'chess nav Privacy strip must be idempotent');
   for (const host of ['www.getdasha.com', 'lobby.getdasha.com']) {
     const howto = await workerModule.default.fetch(new Request(`https://${host}/how-to-buy`), {});
-    assert.equal(howto.status, 200, `${host} /how-to-buy must stay 200`);
-    assert.equal(howto.headers.get('x-dasha-edge'), 'howto');
-    const howtoHtml = await howto.text();
-    assert.equal([...howtoHtml.matchAll(/href=["']\/privacy["']/g)].length, 0, `${host} /how-to-buy must not keep Privacy in chrome`);
-    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
-    assert.doesNotMatch(howtoHtml, /href="\/">(?:\$dasha|Home)</);
-    assert.match(howtoHtml, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"/);
-    assert.match(howtoHtml, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</);
-    assert.match(howtoHtml, /href="\/forum">Forum</);
-    assert.doesNotMatch(howtoHtml, /USDC/);
-    assert.equal((howtoHtml.match(/<footer\b/gi) || []).length, 1, `${host} /how-to-buy must keep one footer`);
-    assert.ok((howtoHtml.match(/<nav\b/gi) || []).length >= 1, `${host} /how-to-buy must keep the hamburger nav`);
-    assert.match(howtoHtml, /class="dasha-slim[\s"]/);
-    assert.match(howtoHtml, /class="dasha-crop"/);
-    assert.match(howtoHtml, /data-n="01"[\s\S]*?wallet[\s\S]*?SOL/, `${host} /how-to-buy Get SOL must mention wallet and SOL`);
-    assert.ok(howtoHtml.includes('53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy must keep the published mint`);
-    assert.doesNotMatch(howtoHtml, /payTo|referralAccount/i, `${host} /how-to-buy must not invent payTo or referralAccount`);
-    assert.ok(howtoHtml.includes('https://phantom.app/ul/v1/swap?buy=solana%3A101%2Faddress%3A53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom deeplink`);
-    assert.ok(howtoHtml.includes('https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Jupiter URL`);
-    assert.ok(howtoHtml.includes('https://pump.fun/coin/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy pump.fun URL`);
-    assert.ok(howtoHtml.includes('https://trade.phantom.com/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Phantom trade URL`);
-    assert.ok(howtoHtml.includes('https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump'), `${host} /how-to-buy Solscan URL`);
-    assert.doesNotMatch(howtoHtml, /trojan|axiom|moonshot|moonpay\.com/i, `${host} /how-to-buy featured a banned venue`);
-    assert.match(howtoHtml, /fixedMint:CA/, `${host} /how-to-buy plugin must lock the published mint`);
-    const howtoCsp = howto.headers.get('content-security-policy') || '';
-    assert.match(howtoCsp, /frame-ancestors 'none'/);
-    assert.doesNotMatch(howtoCsp, /script-src|default-src/, `${host} /how-to-buy CSP must still allow the Jupiter plugin`);
+    assert.equal(howto.status, 308, `${host} /how-to-buy 308s home`);
+    assert.equal(howto.headers.get('location'), 'https://www.getdasha.com/');
     const chess = await workerModule.default.fetch(new Request(`https://${host}/chess`), {});
     assert.equal(chess.status, 200, `${host} /chess must stay 200`);
     assert.equal(chess.headers.get('x-dasha-edge'), 'chess');
@@ -1851,7 +1820,7 @@ ${liveHomeFooter}
   assert.equal(rewriteStudioScriptIntegrity(studioFixed), studioFixed, 'studio SRI rewrite must be idempotent');
   const studioNav = '<nav class="dgnav" aria-label="Dasha"><div class="dgnav-in"><a class="dgbrand" href="/">$DASHA</a><a class="dgcta" href="/#token">Buy / verify →</a><a href="/privacy">Privacy</a></div></nav><p><a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha ↗</a></p>';
   const studioNavFixed = rewriteStudioBuyVerifyHref(studioNav);
-  assert.match(studioNavFixed, /class="dgcta" href="\/how-to-buy">Buy \/ verify →</);
+  assert.match(studioNavFixed, /class="dgcta" href="https:\/\/jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy \/ verify →</);
   assert.match(studioNavFixed, /jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump/, 'Studio body Jupiter door must stay');
   assert.doesNotMatch(studioNavFixed, /dgcta[^>]*#token|#token[^>]*Buy \/ verify/);
   assert.equal(rewriteStudioBuyVerifyHref(studioNavFixed), studioNavFixed, 'studio Buy/verify rewrite must be idempotent');
@@ -1861,7 +1830,7 @@ ${liveHomeFooter}
   assert.equal(rewriteStudioBuyVerifyHref(studioPage), studioPage, 'studio button lock inject must be idempotent');
   assert.equal(
     rewriteStudioBuyVerifyHref('<a class="dgcta" href="https://www.getdasha.com/#token">Buy / verify →</a>'),
-    '<a class="dgcta" href="/how-to-buy">Buy / verify →</a>',
+    '<a class="dgcta" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy / verify →</a>',
   );
   assert.ok(studioFixed.includes(`integrity="${jquerySri}"`), 'jquery SRI must stay');
   assert.ok(studioFixed.includes(`integrity="${webflowCssSri}"`), 'Webflow CSS SRI must stay');
@@ -2037,52 +2006,8 @@ ${laterIcons}
       for (const method of ['GET', 'HEAD']) {
         for (const path of ['/bounties', '/bounties/']) {
           const page = await workerModule.default.fetch(new Request(`https://${host}${path}`, { method }), {});
-          assert.equal(page.status, 200, `${host} ${path} ${method} must be worker-owned 200`);
-          assert.equal(page.headers.get('x-dasha-edge'), 'bounties');
-          const html = await page.text();
-          if (method === 'HEAD') {
-            assert.equal(html, '', `${host} ${path} HEAD must return an empty body`);
-            continue;
-          }
-          assert.match(html, /<title>Bounties<\/title>/);
-          assert.doesNotMatch(html, /<iframe/i, `${host} ${path} must not paint the Pages iframe`);
-          assert.doesNotMatch(html, /w-mod-js|w-embed|dasha-bounties-frame/);
-          assert.doesNotMatch(html, /uuriko\.github\.io\/dasha-desk\/bounties/);
-          assert.match(html, /id="dasha-bounties"/, `${host} ${path} must be the no-JS board`);
-          assert.match(html, /<h1>Bounties<\/h1>/, `${host} ${path} must name the product`);
-          assert.match(html, /font-family:"Arial Black",Arial,Helvetica,sans-serif/, `${host} ${path} must use the display face`);
-          assert.match(html, /font:16px\/1\.45 Arial,Helvetica,sans-serif/, `${host} ${path} must use Arial body`);
-          assert.doesNotMatch(html, /system-ui/, `${host} ${path} must not use system-ui`);
-          assert.match(html, /class="dasha-slim[\s"]/, `${host} ${path} must ship the hamburger`);
-          assert.doesNotMatch(html, /href="\/studio">Studio</, `${host} ${path} menu must not include Studio`);
-          assert.match(html, /href="\/forum">Forum</, `${host} ${path} menu must include Forum`);
-          assert.doesNotMatch(html, /href="\/graph"/, `${host} ${path} menu must not door to shelved /graph`);
-          assert.doesNotMatch(html, /href="\/verse">Verse</, `${host} ${path} menu must not include Verse`);
-          assert.match(html, /href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats</, `${host} ${path} footer must include @dash_eats`);
-          assert.match(html.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/i)?.[0] || '', /href="\/chess">Chess</, `${host} ${path} hamburger must include Chess`);
-          assert.doesNotMatch(html, /\/airdrop|\/earn|\/claim|\/graph/i, `${host} ${path} chrome must not grow dead or shelved doors`);
-          assert.match(html, /<footer\b[^>]*id="token"/, `${host} ${path} must keep CA + Buy in a token footer`);
-          assert.match(html, /Post a project\. Other people run spare compute on it\./, `${host} ${path} must say what the board is`);
-          assert.match(html, /<a class="go" href="#dasha-bounty-post">Post a project<\/a>/, `${host} ${path} must keep the post path`);
-          assert.match(html, /I have excess compute/, `${host} ${path} must keep the spare-compute path`);
-          assert.match(html, /mailto:potter@trydemigod\.com\?subject=I%20have%20excess%20compute/, `${host} ${path} must keep a no-JS compute mailto`);
-          assert.match(html, /mailto:potter@trydemigod\.com/, `${host} ${path} must keep a no-JS post path`);
-          assert.match(html, /This sends a request\. It is not a live listing\./, `${host} ${path} must not pretend a board write`);
-          assert.match(html, /<label>Contact <input name="contact"><\/label>/, `${host} ${path} must keep contact`);
-          assert.doesNotMatch(html, /href=["']\/privacy["']|>Privacy</, `${host} ${path} must not put Privacy next to contact`);
-          assert.match(html, /No open bounties/, `${host} ${path} must stay honest when the feed source is not JSON`);
-          assert.match(html, /Payouts are not configured yet\./, `${host} ${path} must keep the unpaid note on an empty Work list`);
-          assert.equal(unpaidBountiesHtmlHasPayoutAmounts(html), false, `${host} ${path} must not print USDC or $ payout amounts while unconfigured`);
-          assert.doesNotMatch(html, /Payout not live/);
-          assert.doesNotMatch(html, /not implemented/i, `${host} ${path} must not headline leftover payout status`);
-          assert.doesNotMatch(html, /We'll add it to the board/);
-          assert.match(html, /href="\/forum">Forum</);
-          assert.equal([...html.matchAll(/href=["']\/privacy["']/g)].length, 0, `${host} ${path} must not keep Privacy`);
-          assert.match(html, /a\{color:var\(--acid\)\}/, `${host} ${path} must keep acid links`);
-          const BOARD_TOKENS = ['#070608', '#f4eddb', '#dfff00', '#ff3b81'];
-          for (const hex of html.match(/#[0-9a-fA-F]{3,8}\b/g) || []) {
-            assert.ok(BOARD_TOKENS.includes(hex.toLowerCase()), `${host} ${path} must stay tokens-only (saw ${hex})`);
-          }
+          assert.equal(page.status, 308, `${host} ${path} ${method} 308s home`);
+          assert.equal(page.headers.get('location'), 'https://www.getdasha.com/');
         }
       }
     }
@@ -2091,63 +2016,14 @@ ${laterIcons}
     assert.match(homeHtml, /uuriko\.github\.io\/dasha-desk\/bounties/, 'home must not use the bounties iframe strip');
     assert.match(homeHtml, /dasha-bounties-frame/, 'home must not strip bounties-frame CSS');
     assert.doesNotMatch(homeHtml, /id="dasha-bounties"/, 'home must not inject the bounties board');
-    globalThis.fetch = async (input) => {
-      const u = String(input?.url || input);
-      if (u.includes('bounties.json')) throw new Error('offline');
-      return new Response(bountiesFixture, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-    };
-    const thrown = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
-    const thrownHtml = await thrown.text();
-    assert.equal(thrown.headers.get('x-dasha-edge'), 'bounties');
-    assert.match(thrownHtml, /id="dasha-bounties"/);
-    assert.match(thrownHtml, /<h1>Bounties<\/h1>/);
-    assert.match(thrownHtml, /I have excess compute/);
-    assert.match(thrownHtml, /mailto:potter@trydemigod\.com/);
-    assert.match(thrownHtml, /This sends a request\. It is not a live listing\./);
-    assert.match(thrownHtml, /No open bounties/);
-    assert.match(thrownHtml, /Payouts are not configured yet\./);
-    assert.equal(unpaidBountiesHtmlHasPayoutAmounts(thrownHtml), false, 'offline /bounties must not print USDC or $ payout amounts');
-    assert.doesNotMatch(thrownHtml, /Payout not live/);
-    assert.doesNotMatch(thrownHtml, /not implemented/i);
-    assert.doesNotMatch(thrownHtml, /<iframe/i);
-    assert.doesNotMatch(thrownHtml, /w-mod-js|system-ui/);
   } finally {
     globalThis.fetch = nativeFetch;
   }
 }
 {
-  const liveUnpaid = {
-    schema: 'dasha-bounties-feed/v1',
-    listings: [
-      { kind: 'item', name: 'docs: add CONTRIBUTING screenshot of GitHub web edit flow', itemUrl: 'https://github.com/Uuriko/dasha-desk/issues/8', amount: 25, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
-      { kind: 'project', name: 'dasha desk', amount: 50, currency: 'USDC', chain: 'solana', payTo: null, payoutStatus: 'not_implemented' },
-    ],
-  };
-  const nativeFetch = globalThis.fetch;
-  try {
-    globalThis.fetch = async (input) => {
-      const u = String(input?.url || input);
-      if (u.includes('dasha-desk') && u.includes('bounties.json')) {
-        return new Response(JSON.stringify(liveUnpaid), { headers: { 'Content-Type': 'application/json' } });
-      }
-      return new Response('nope', { status: 404 });
-    };
-    const page = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
-    const html = await page.text();
-    assert.equal(page.status, 200);
-    assert.equal(page.headers.get('x-dasha-edge'), 'bounties');
-    assert.match(html, /<title>Bounties<\/title>/);
-    assert.match(html, /id="dasha-bounties"/);
-    assert.match(html, /Payouts are not configured yet\./);
-    assert.match(html, /This sends a request\. It is not a live listing\./);
-    assert.match(html, /mailto:potter@trydemigod\.com/);
-    assert.doesNotMatch(html, /href="https:\/\/github\.com\/Uuriko\/dasha-desk\/issues\/8"/);
-    assert.match(html, /No open bounties/);
-    assert.doesNotMatch(html, />dasha desk</);
-    assert.equal(unpaidBountiesHtmlHasPayoutAmounts(html), false, 'served /bounties HTML must not contain USDC or $ payout amounts while payouts are unconfigured');
-  } finally {
-    globalThis.fetch = nativeFetch;
-  }
+  const page = await workerModule.default.fetch(new Request('https://www.getdasha.com/bounties'), {});
+  assert.equal(page.status, 308, '/bounties 308s home');
+  assert.equal(page.headers.get('location'), 'https://www.getdasha.com/');
 }
 {
   const githubStart = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/oauth/github/start'), {});

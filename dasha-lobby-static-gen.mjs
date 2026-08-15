@@ -173,12 +173,6 @@ export const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <loc>https://www.getdasha.com/forum</loc>
   </url>
   <url>
-    <loc>https://www.getdasha.com/how-to-buy</loc>
-  </url>
-  <url>
-    <loc>https://www.getdasha.com/bounties</loc>
-  </url>
-  <url>
     <loc>https://www.getdasha.com/simp</loc>
   </url>
   <url>
@@ -711,4 +705,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "985811aaa016a5d6";
+export const ASSET_HASH = "5ea1802484c38ca8";

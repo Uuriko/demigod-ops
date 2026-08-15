@@ -161,18 +161,18 @@ if (desk) {
 assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]).sort(), [
   'https://www.getdasha.com/',
   'https://www.getdasha.com/forum',
-  'https://www.getdasha.com/how-to-buy',
-  'https://www.getdasha.com/bounties',
   'https://www.getdasha.com/simp',
   'https://www.getdasha.com/chess',
   'https://www.getdasha.com/faucet',
   'https://www.getdasha.com/airdrop',
   'https://www.getdasha.com/earn',
   'https://www.getdasha.com/claim',
-].sort(), 'bounded sitemap must list home, forum, how-to-buy, bounties, simp, www chess, faucet, and honesty rooms exactly once');
+].sort(), 'bounded sitemap must list home, forum, simp, www chess, faucet, and honesty rooms exactly once');
 assert.doesNotMatch(sitemap, /getdasha\.com\/privacy/, 'sitemap must not feature /privacy');
 assert.doesNotMatch(sitemap, /getdasha\.com\/learn/, 'sitemap must not feature /learn');
 assert.doesNotMatch(sitemap, /getdasha\.com\/verse/, 'sitemap must not feature /verse');
+assert.doesNotMatch(sitemap, /getdasha\.com\/how-to-buy/, 'sitemap must not feature leftover /how-to-buy');
+assert.doesNotMatch(sitemap, /getdasha\.com\/bounties/, 'sitemap must not feature leftover /bounties');
 assert.doesNotMatch(sitemap, /getdasha\.com\/lobby/, 'sitemap lists Forum instead of Lobby');
 assert.match(sitemap, /\n  <url>\n    <loc>https:\/\/www\.getdasha\.com\/chess<\/loc>\n  <\/url>\n/, 'www chess loc must keep the same indent as other sitemap urls');
 assert(!/lastmod|thesis|receipt|forecast/i.test(sitemap), 'sitemap contains stale dates or retired routes');
