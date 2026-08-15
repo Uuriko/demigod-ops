@@ -1022,6 +1022,15 @@ function faucetPageResponse(request) {
 }
 
 async function faucetApiResponse(request, env, allowedOrigin) {
+  if (request.method === 'OPTIONS') {
+    if (!allowedOrigin && !env.ALLOW_ANY_ORIGIN) {
+      return new Response(null, { status: 403, headers: SECURITY });
+    }
+    return new Response(null, {
+      status: 204,
+      headers: { ...SECURITY, ...corsHeaders(allowedOrigin || '*', { credentials: true }) },
+    });
+  }
   return handleFaucetApi(request, env, {
     json,
     allowedOrigin,

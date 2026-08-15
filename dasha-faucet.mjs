@@ -23,6 +23,7 @@ export const DEFAULT_AMOUNT_RAW = 100_000_000;
 export const ATA_RENT_LAMPORTS = 2_039_280;
 export const ATA_ACCOUNT_BYTES = 165;
 export const DEFAULT_RENT_ATA_COUNT = 20;
+export const DEFAULT_TOKEN_CAP_COUNT = 20;
 export const FEE_LAMPORTS = 5_000;
 export const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 export const PENDING_MS = 15 * 60_000;
@@ -194,12 +195,13 @@ function accountDataLen(value) {
 export function classifyDest({ address, account, onCurve }) {
   if (!isValidSolanaAddress(address) || address === SYSTEM_PROGRAM) return { ok: false, kind: 'invalid', error: 'dest_not_wallet' };
   if (address === MINT) return { ok: false, kind: 'mint', error: 'dest_mint' };
-  if (!account) {
-    if (!onCurve) return { ok: false, kind: 'pda', error: 'dest_pda' };
-    return { ok: true, kind: 'IS_WALLET', unfunded: true };
-  }
+  if (!onCurve) return { ok: false, kind: 'pda', error: 'dest_pda' };
+  if (!account) return { ok: true, kind: 'IS_WALLET', unfunded: true };
   const owner = String(account.owner || '');
-  if (owner === SYSTEM_PROGRAM) return { ok: true, kind: 'IS_WALLET', unfunded: false };
+  if (owner === SYSTEM_PROGRAM) {
+    if (account.executable || accountDataLen(account) > 0) return { ok: false, kind: 'other', error: 'dest_not_wallet' };
+    return { ok: true, kind: 'IS_WALLET', unfunded: false };
+  }
   if (owner === TOKEN_PROGRAM || owner === TOKEN_2022_PROGRAM) {
     return { ok: false, kind: accountDataLen(account) === 82 ? 'mint' : 'token', error: accountDataLen(account) === 82 ? 'dest_mint' : 'dest_token' };
   }
@@ -265,6 +267,15 @@ export function faucetRentCapLamports(env = {}, rent = ATA_RENT_LAMPORTS) {
 
 export function faucetSolFloorLamports(env = {}, rent = ATA_RENT_LAMPORTS) {
   return envInt(env.FAUCET_SOL_FLOOR_LAMPORTS, rent + FEE_LAMPORTS);
+}
+
+export function faucetTokenCapRaw(env = {}) {
+  return envInt(env.FAUCET_TOKEN_CAP_RAW, DEFAULT_TOKEN_CAP_COUNT * faucetAmountRaw(env));
+}
+
+export function faucetPaused(env = {}) {
+  const v = String(env.FAUCET_PAUSED || '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
 }
 
 export function utcDay(now = Date.now()) {
@@ -554,6 +565,7 @@ async function rpcOne(endpoints, method, params) {
 }
 
 export async function preflightFaucet({ endpoints, treasury, dest, amountRaw, env = {} }) {
+  if (faucetPaused(env)) return { ok: false, status: 503, error: 'faucet_paused' };
   let destInfo;
   try {
     destInfo = await rpcOne(endpoints, 'getAccountInfo', [dest, { encoding: 'base64' }]);
@@ -713,6 +725,18 @@ async function rentOp(env, op, body) {
   return res.json().catch(() => ({ ok: false, error: 'faucet_paused' }));
 }
 
+async function tokenOp(env, op, body) {
+  const day = body.day;
+  const stub = faucetStub(env, 'token', day);
+  if (!stub) throw new Error('faucet store missing');
+  const res = await stub.fetch(new Request(`https://faucet.internal/${op}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
+  return res.json().catch(() => ({ ok: false, error: 'faucet_paused' }));
+}
+
 async function claimOp(env, kind, id, op, body) {
   const stub = faucetStub(env, kind, id);
   if (!stub) throw new Error('faucet store missing');
@@ -817,14 +841,14 @@ export class DashaFaucet {
       await this.state.storage.delete(storeKey);
       return Response.json({ ok: true, released: true });
     }
-    if (request.method === 'POST' && (key === 'rent-reserve' || key === 'rent-release')) {
+    if (request.method === 'POST' && (key === 'rent-reserve' || key === 'rent-release' || key === 'token-reserve' || key === 'token-release')) {
       const body = await request.json().catch(() => ({}));
       const day = String(body.day || '');
       const add = Number(body.add);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isInteger(add) || add < 0) {
         return Response.json({ ok: false, error: 'bad rent' }, { status: 400 });
       }
-      const storeKey = `faucetRent:${day}`;
+      const storeKey = key.startsWith('token') ? `faucetToken:${day}` : `faucetRent:${day}`;
       const row = (await this.state.storage.get(storeKey)) || { spent: 0, day };
       const spent = Number(row.spent) || 0;
       if (key === 'rent-release') {
@@ -909,6 +933,8 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     if (!session?.xId || !session.handle) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
     const publicKey = String((await requestJson(request)).publicKey || '');
     if (!faucetDestOk(publicKey)) return json({ error: 'valid Solana address required' }, 400, allowedOrigin, cred);
+    const challengeClass = await classifyDestLive(endpoints, publicKey);
+    if (!challengeClass.ok) return json({ error: challengeClass.error }, challengeClass.status, allowedOrigin, cred);
     const issuedAt = Date.now();
     const expiresAt = issuedAt + 5 * 60_000;
     const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -936,7 +962,6 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     });
     const challenge = await signPayload(env.LOBBY_SESSION_SECRET, {
       kind: 'faucet_dest',
-      xId: String(session.xId),
       publicKey,
       nonce,
       message,
@@ -985,7 +1010,6 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     if (
       !challenge
       || challenge.kind !== 'faucet_dest'
-      || challenge.xId !== xId
       || challenge.publicKey !== body.publicKey
       || challenge.origin !== allowedOrigin
     ) {
@@ -1015,12 +1039,15 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, allowedOrigin, cred);
     if (!allowedOrigin) return json({ error: 'origin required' }, 403, null);
     if (!configured) return failUnconfigured();
+    if (faucetPaused(env)) return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
     const session = await sessionFromRequest(env, request);
     if (!session?.xId) return json({ error: 'link X first' }, 401, allowedOrigin, cred);
     const xId = String(session.xId);
     const destRow = await faucetRead(env, 'x', xId, `faucetDest:${xId}`);
     const dest = destRow?.dest;
     if (!faucetDestOk(dest)) return json({ error: 'bind a destination first' }, 400, allowedOrigin, cred);
+    const destClass = await classifyDestLive(endpoints, dest);
+    if (!destClass.ok) return json({ error: destClass.error }, destClass.status, allowedOrigin, cred);
     const keypair = parseFaucetKeypair(env.FAUCET_KEYPAIR);
     const amountRaw = faucetAmountRaw(env);
     const ipHash = await hashIp(clientIp(request));
@@ -1099,6 +1126,17 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
         return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
       }
     }
+    const tokenReserved = await tokenOp(env, 'token-reserve', {
+      day,
+      add: amountRaw,
+      cap: faucetTokenCapRaw(env),
+    });
+    if (!tokenReserved?.ok) {
+      if (rentAdd > 0) await rentOp(env, 'rent-release', { day, add: rentAdd });
+      await claimOp(env, 'x', xId, 'claim-release', { key: xKey });
+      await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey });
+      return json({ error: 'faucet_paused' }, 503, allowedOrigin, cred);
+    }
     const sent = await sendFaucetTransfer({ endpoints, keypair, dest, amountRaw, preflight: ready });
     if (sent.signature) {
       await claimOp(env, 'x', xId, 'claim-bind-sig', {
@@ -1141,6 +1179,7 @@ export async function handleFaucetApi(request, env, { json, allowedOrigin, endpo
       await claimOp(env, 'ip', ipHash, 'claim-release', { key: ipKey });
     }
     if (rentAdd > 0) await rentOp(env, 'rent-release', { day, add: rentAdd });
+    await tokenOp(env, 'token-release', { day, add: amountRaw });
     return json({ error: sent.error }, sent.status || 503, allowedOrigin, cred);
   }
 
