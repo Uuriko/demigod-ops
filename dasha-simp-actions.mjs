@@ -183,7 +183,9 @@ export function isValidSolanaAddress(value) {
 export function walletMessage({ handle, publicKey, nonce, issuedAt, expiresAt, domain = 'www.getdasha.com', uri = 'https://www.getdasha.com/', requestId = 'simp-holder' }) {
   const why = requestId === 'graph-highlight'
     ? `Prove you hold mint ${MINT} to highlight @${handle} on /graph. No transaction. Wallet is not retained.`
-    : `Prove the private holder badge for @${handle} and mint ${MINT}. No transaction or public balance.`;
+    : requestId === 'faucet_dest'
+      ? `Bind this address as the /faucet destination for @${handle}. No transaction. We will not ask for a phrase.`
+      : `Prove the private holder badge for @${handle} and mint ${MINT}. No transaction or public balance.`;
   return `${domain} wants you to sign in with your Solana account:\n${publicKey}\n\n${why}\n\nURI: ${uri}\nVersion: 1\nChain ID: mainnet\nNonce: ${nonce}\nIssued At: ${new Date(issuedAt).toISOString()}\nExpiration Time: ${new Date(expiresAt).toISOString()}\nRequest ID: ${requestId}`;
 }
 

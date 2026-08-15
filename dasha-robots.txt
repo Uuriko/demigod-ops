@@ -17,6 +17,7 @@ Allow: /chess
 Allow: /verse
 Allow: /graph
 Allow: /learn
+Allow: /faucet
 Disallow: /desk-rc
 Disallow: /retired-dasha-draft
 Disallow: /checkout

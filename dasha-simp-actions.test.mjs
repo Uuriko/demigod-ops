@@ -69,6 +69,10 @@ const graphMessage = walletMessage({ handle: 'ava', publicKey: proofAddress, non
 assert.match(graphMessage, /Request ID: graph-highlight/);
 assert.match(graphMessage, /highlight @ava on \/graph/);
 assert.match(graphMessage, /Wallet is not retained/);
+const faucetMessage = walletMessage({ handle: 'ava', publicKey: proofAddress, nonce: 'abcdefgh', issuedAt: now, expiresAt: now + 1000, requestId: 'faucet_dest' });
+assert.match(faucetMessage, /Request ID: faucet_dest/);
+assert.match(faucetMessage, /\/faucet destination/);
+assert.match(faucetMessage, /We will not ask for a phrase/);
 assert.equal(isValidSolanaAddress(proofAddress), true);
 assert.equal(isValidSolanaAddress('not-a-wallet'), false);
 assert.equal(isValidSolanaAddress('1'.repeat(44)), false, 'Base58-looking input must still decode to exactly 32 bytes');

@@ -1,6 +1,8 @@
 {
   // Deploy: CLOUDFLARE_API_TOKEN=… npm run dasha:lobby:deploy
   // Live: https://lobby.getdasha.com  ·  wss://lobby.getdasha.com/ws
+  // Faucet secret: wrangler secret put FAUCET_KEYPAIR  (do not invent or commit a value)
+  // Optional var: FAUCET_AMOUNT_RAW (default 100000000)
   "name": "dasha-lobby",
   "account_id": "5a919d6c1785d47e15e10c24450a8ff7",
   "workers_dev": true,
@@ -16,6 +18,10 @@
       {
         "name": "LOBBY",
         "class_name": "DashaLobby"
+      },
+      {
+        "name": "FAUCET",
+        "class_name": "DashaFaucet"
       }
     ]
   },
@@ -23,6 +29,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["DashaLobby"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DashaFaucet"]
     }
   ],
   "vars": {

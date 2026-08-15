@@ -145,20 +145,24 @@ function build() {
   const studioSrc = loadClient('dasha-studio-embed.js');
   const graphSrc = loadClient('dasha-graph-client.js');
   const learnSrc = loadClient('dasha-learn-client.js');
+  const faucetSrc = loadClient('dasha-faucet-client.js');
   assertSingleClient(lobbySrc, 'dasha-lobby-client.js', 'global.DashaLobby');
   assertSingleClient(simpSrc, 'dasha-simp-board-client.js', 'global.DashaSimpBoard');
   assertSingleClient(graphSrc, 'dasha-graph-client.js', 'global.DashaGraph');
   assertSingleClient(learnSrc, 'dasha-learn-client.js', 'global.DashaLearn');
+  assertSingleClient(faucetSrc, 'dasha-faucet-client.js', 'global.DashaFaucet');
   const lobby = minifyJs(lobbySrc);
   const simp = minifyJs(simpSrc);
   const studio = minifyJs(studioSrc);
   const graph = minifyJs(graphSrc);
   const learn = minifyJs(learnSrc);
+  const faucet = minifyJs(faucetSrc);
   const lobbySri = sri(lobby);
   const simpSri = sri(simp);
   const studioSri = sri(studio);
   const graphSri = sri(graph);
   const learnSri = sri(learn);
+  const faucetSri = sri(faucet);
   const robots = readFileSync(join(root, 'dasha-robots.txt'), 'utf8').trim() + '\n';
   const sitemap = readFileSync(join(root, 'dasha-sitemap.xml'), 'utf8')
     .replace(/<!--[\s\S]*?-->\n?/g, '')
@@ -178,6 +182,7 @@ function build() {
     'dasha-graph.mjs',
     'dasha-learn-adapt.mjs',
     'dasha-learn-bank.mjs',
+    'dasha-faucet.mjs',
   ].map(file => readFileSync(join(root, file), 'utf8')).join('\n');
   const wrangler = readFileSync(join(root, 'dasha-lobby-wrangler.jsonc'), 'utf8');
   const hash = createHash('sha256')
@@ -208,6 +213,8 @@ function build() {
         '\n' +
         learn +
         '\n' +
+        faucet +
+        '\n' +
         lobbyPage +
         '\n' +
         socialCard.toString('base64'),
@@ -224,7 +231,9 @@ function build() {
     studioSri,
     graphSri,
     learnSri,
+    faucetSri,
     learnBytes: learn.length,
+    faucetBytes: faucet.length,
     robotsBytes: robots.length,
     sitemapBytes: sitemap.length,
     howtoBytes: howto.length,
@@ -247,6 +256,8 @@ export const GRAPH_CLIENT_JS = \`${escTemplate(graph)}\`;
 export const GRAPH_CLIENT_SRI = ${JSON.stringify(graphSri)};
 export const LEARN_CLIENT_JS = \`${escTemplate(learn)}\`;
 export const LEARN_CLIENT_SRI = ${JSON.stringify(learnSri)};
+export const FAUCET_CLIENT_JS = \`${escTemplate(faucet)}\`;
+export const FAUCET_CLIENT_SRI = ${JSON.stringify(faucetSri)};
 export const LOBBY_PAGE_HTML = \`${escTemplate(lobbyPage)}\`;
 export const ASSET_HASH = ${JSON.stringify(hash)};
 `,
