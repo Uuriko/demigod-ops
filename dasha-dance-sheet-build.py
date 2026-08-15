@@ -101,7 +101,7 @@ def near_bg(p: tuple[int, int, int], samples: list[tuple[int, int, int]], limit:
 
 def key(buf: bytearray, w: int, h: int) -> None:
     samples = edge_samples(buf, w, h)
-    keep = bytearray(w * h)
+    keep = bytearray(b"\x01" * (w * h))
     stack = []
     for x in range(w):
         stack.append((x, 0))
@@ -119,14 +119,12 @@ def key(buf: bytearray, w: int, h: int) -> None:
         p = px(buf, w, x, y)
         cx = x / max(1, w - 1)
         cy = y / max(1, h - 1)
-        interior = 0.22 < cx < 0.78 and cy < 0.92
-        limit = 38 if interior else 72
-        if skin(p) and interior:
-            keep[i] = 1
+        core = 0.18 < cx < 0.82 and cy < 0.88
+        if core or skin(p):
             continue
-        if not near_bg(p, samples, limit):
-            keep[i] = 1
+        if not near_bg(p, samples, 48):
             continue
+        keep[i] = 0
         for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
             if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx]:
                 stack.append((nx, ny))
@@ -179,7 +177,7 @@ def encode_webp(rgb: bytes, w: int, h: int, dest: Path) -> None:
         [
             "ffmpeg", "-y", "-v", "error",
             "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-i", "pipe:0",
-            "-frames:v", "1", "-c:v", "libwebp", "-quality", "72", "-preset", "photo",
+            "-frames:v", "1", "-c:v", "libwebp", "-quality", "82", "-preset", "picture",
             str(dest),
         ],
         input=rgb,
