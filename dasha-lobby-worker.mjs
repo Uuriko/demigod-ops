@@ -291,7 +291,7 @@ function alignHomeLowerNav(html) {
 
 const HOME_BUY_HREF = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
-const HOME_CALM_CSS = '.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),#dasha-lock .dasha-band,#dasha-lock header,#dasha-lock .dasha-posters,#dasha-lock .dasha-x-wrap,#dasha-lock .dasha-assoc{display:none!important}';
+const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock .dasha-band,#dasha-lock header,#dasha-lock .dasha-posters,#dasha-lock .dasha-x-wrap,#dasha-lock .dasha-assoc{display:none!important}';
 
 function injectHomeCalmCss(html) {
   const page = String(html || '');
@@ -466,7 +466,7 @@ function bountiesBoardHtml(feed) {
     : '<p>No open bounties</p>';
   const payoutNote = unpaid ? '<p>Payouts are not configured yet.</p>' : '';
   const buy = `https://jup.ag/swap?sell=${WSOL}&buy=${MINT}`;
-  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${WORKER_SITE_FOOTER}</section>`;
+  return `<section id="dasha-bounties" aria-label="Bounties"><style>:root{--ink:#070608;--paper:#f4eddb;--acid:#dfff00;--hot:#ff3b81}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}#dasha-bounties{box-sizing:border-box;min-height:100vh;margin:0;padding:0 0 2rem;background:var(--ink);color:var(--paper);font:16px/1.45 Arial,Helvetica,sans-serif}#dasha-bounties header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem}#dasha-bounties .dasha-brand{display:inline-flex;align-items:center;gap:.5rem;color:var(--paper);font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;font-size:1.25rem;text-decoration:none;text-transform:uppercase}#dasha-bounties .dasha-brand img{width:28px;height:28px}#dasha-bounties nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem}#dasha-bounties nav a{display:inline-flex;align-items:center;min-height:48px;color:var(--paper);font-weight:900;text-transform:uppercase;text-decoration:none}#dasha-bounties h1,#dasha-bounties h2{margin:1.25rem 1rem .5rem;font-family:"Arial Black",Arial,Helvetica,sans-serif;font-weight:900;text-transform:uppercase}#dasha-bounties h1{margin-top:.5rem;color:var(--paper);font-size:clamp(2rem,5vw,3.25rem);line-height:.9}#dasha-bounties p{margin:.5rem 1rem}#dasha-bounties a{color:var(--acid)}#dasha-bounties a.go,#dasha-bounties button{display:inline-flex;min-height:48px;align-items:center;padding:0 1.25rem;background:var(--acid);color:var(--ink);font:inherit;font-weight:900;text-decoration:none;border:0;box-shadow:4px 4px 0 var(--hot)}#dasha-bounties .amt{color:var(--hot)}#dasha-bounties ul{list-style:none;margin:0 1rem;padding:0}#dasha-bounties li{border-top:1px solid var(--acid);padding:.75rem 0}#dasha-bounties li:first-child{border-top:0}#dasha-bounties li p{margin:.25rem 0}#dasha-bounties form{margin:0 1rem}#dasha-bounties label{display:block}#dasha-bounties input,#dasha-bounties textarea{display:block;width:100%;max-width:36rem;margin:.25rem 0 .75rem;padding:.5rem;box-sizing:border-box;background:var(--ink);color:var(--paper);border:1px solid var(--acid);font:inherit}#dasha-bounties textarea{min-height:6rem}#dasha-bounties footer{margin:2rem 1rem 0;padding-top:1rem;border-top:1px solid var(--acid)}#dasha-bounties footer code{color:var(--paper);word-break:break-all}</style><header><a class="dasha-brand" href="/">$DASHA <img src="/favicon.svg" alt="" width="36" height="36"></a><nav aria-label="Main"><a href="/studio">Studio</a><a href="/simp">Simp</a><a href="/graph">Graph</a><a href="/chess">Chess</a><a href="/bounties">Bounties</a><a href="https://x.com/dash_eats" target="_blank" rel="noopener noreferrer">@dash_eats</a></nav></header><h1>Bounties</h1><p>Post a project. Other people run spare compute on it.</p><p><a class="go" href="#dasha-bounty-post">Post a project</a></p><p><a class="go" href="mailto:potter@trydemigod.com?subject=I%20have%20excess%20compute">I have excess compute</a></p><h2 id="dasha-bounty-post">Post</h2><form action="mailto:potter@trydemigod.com" method="get"><input type="hidden" name="subject" value="Dasha bounty"><p><label>Project name <input name="name" required></label></p><p><label>What to run <textarea name="body" required></textarea></label></p><p><label>Contact <input name="contact"></label> <a href="/privacy">Privacy</a></p><p><button type="submit">Post a project</button></p></form><p>This sends a request. It is not a live listing.</p><h2>Work</h2>${payoutNote}${work}<footer id="token"><p><code>${MINT}</code> · <a href="${buy}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>${siteFooter('/bounties')}</section>`;
 }
 
 /** Worker-owned first HTML for /bounties. Tokens + Arial only. No Webflow first paint. */
@@ -502,11 +502,28 @@ export function injectBountiesBoard(html, feed) {
 }
 
 const PRIVACY_A = '<a href="/privacy">Privacy</a>';
-const FOOTER_LINKS = '<a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/learn">Learn</a> · <a href="/faucet">Faucet</a> · <a href="/airdrop">Airdrop</a> · <a href="/earn">Earn</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a>';
+const FOOTER_SISTERS = {
+  '/learn': ['/learn', 'Learn'],
+  '/faucet': ['/faucet', 'Faucet'],
+  '/airdrop': ['/airdrop', 'Airdrop'],
+  '/earn': ['/earn', 'Earn'],
+  '/claim': ['/claim', 'Claim'],
+  '/bounties': ['/bounties', 'Bounties'],
+  '/simp': ['/simp', 'Simp'],
+  '/verse': ['/verse', 'Verse'],
+  '/chess': ['/chess', 'Chess'],
+  '/studio': ['/studio', 'Studio'],
+  '/lobby': ['/lobby', 'Lobby'],
+  '/graph': ['/graph', 'Graph'],
+};
 function siteFooter(current = '') {
-  let links = FOOTER_LINKS;
-  if (current) links = links.replace(`<a href="${current}">`, `<a href="${current}" aria-current="page">`);
-  return `<footer><style>footer a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}</style><p>${links}</p></footer>`;
+  const path = String(current || '').replace(/\/$/, '') || '';
+  const key = path.startsWith('/learn') ? '/learn' : path;
+  const [href, label] = FOOTER_SISTERS[key] || ['/studio', 'Studio'];
+  const on = href === key;
+  const sister = `<a href="${href}"${on ? ' aria-current="page"' : ''}>${label}</a>`;
+  const buy = `<a class="buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
+  return `<footer><style>footer a{display:inline-flex;align-items:center;min-height:48px;min-width:48px;padding:0 .4rem}</style><p><a href="https://www.getdasha.com/">$dasha</a> · ${sister} · ${buy}</p></footer>`;
 }
 const WORKER_SITE_FOOTER = siteFooter();
 
@@ -517,6 +534,8 @@ export function ensurePrivacyLink(html) {
 
   const footer = page.match(/<footer\b[^>]*>[\s\S]*?<p\b[^>]*>[\s\S]*?<\/p>/i);
   if (footer && /<a\b/i.test(footer[0])) {
+    const n = (footer[0].match(/<a\b/gi) || []).length;
+    if (n <= 3 && /\$dasha/i.test(footer[0]) && /buy-dasha|jup\.ag/i.test(footer[0])) return page;
     let next = footer[0];
     const howTo = next.match(/<a\b[^>]*href=["']\/how-to-buy\/?["'][^>]*>[\s\S]*?<\/a>/i);
     if (howTo) next = next.replace(howTo[0], `${howTo[0]} · ${PRIVACY_A}`);
@@ -920,7 +939,7 @@ export function simpPageHtml() {
 <p>${perryDisplay} · editorial #1 · not measured</p>
 <div id="dasha-quiz" class="dasha-quiz"><div id="dasha-simp-board">${simpQuizFirstPaintHtml()}</div></div>
 ${simpBoardClientScript()}
-${WORKER_SITE_FOOTER}
+${siteFooter('/simp')}
 </body></html>`);
 }
 
@@ -1202,7 +1221,7 @@ ${notice}
 <p><button type="submit">Send it</button></p>
 </form>
 </section>
-<footer><p><a href="/">Home</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/bounties">Bounties</a> · <a href="/privacy">Privacy</a></p></footer>
+${siteFooter('/verse')}
 </main></body></html>`);
 }
 
@@ -1285,7 +1304,6 @@ ${WORKER_SITE_FOOTER}`);
 
 const NOT_FOUND_HTML = htmlPage('Page not found — $dasha', `<h1>Page not found</h1>
 <p>This path is not a Dasha page.</p>
-<p><a href="https://www.getdasha.com/">Home</a> · <a href="https://www.getdasha.com/lobby">Lobby</a> · <a href="https://www.getdasha.com/simp">Simp</a> · <a href="https://www.getdasha.com/verse">Verse</a> · <a href="https://www.getdasha.com/how-to-buy">How to buy</a></p>
 ${WORKER_SITE_FOOTER}`);
 
 // Existing cherries mark (studio/assets/favicon.svg). Do not restyle.

@@ -32,12 +32,10 @@ assert.doesNotMatch(page, /dasha-dance/, '/graph must not mount the bottom dance
 assert.match(page, new RegExp(`jup\\.ag/swap\\?sell=${wsol}&amp;buy=${mint}`));
 assert.match(page, new RegExp(`dexscreener\\.com/solana/${pair}`));
 assert.match(page, /id="hud-price"/);
-assert.match(page, /href="\/studio">Studio</);
-assert.match(page, /href="\/simp">Simp</);
+assert.match(page, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a>/);
 assert.match(page, /href="\/graph" aria-current="page">Graph</);
-assert.match(page, /href="\/verse">Verse</);
-assert.match(page, /href="\/how-to-buy">How to buy</);
-assert.match(page, /href="\/privacy">Privacy</);
+assert.match(page, /<a class="buy-dasha" href="https:\/\/jup\.ag\/swap\?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump"/);
+assert.doesNotMatch(page.match(/<footer\b[\s\S]*?<\/footer>/i)?.[0] || '', /\/studio|\/simp|\/verse|\/how-to-buy|\/privacy|\/learn|\/faucet/, 'graph footer must not be a sitemap');
 assert.doesNotMatch(page, /fonts\.googleapis|Google Fonts|font-family:[^;]*Inter/i);
 assert.doesNotMatch(page + client, /\bInter\b|Geist|fonts\.googleapis|system-ui/);
 assert.doesNotMatch(page, /clamp\([^)]*10rem/);

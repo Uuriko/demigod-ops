@@ -324,7 +324,7 @@ footer a{color:var(--muted)}
   </article>
 
   <footer>
-    <p><a href="/studio">Studio</a> · <a href="/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/chess">Chess</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p>
+    <p><a href="https://www.getdasha.com/">$dasha</a> · <a href="/studio">Studio</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p>
   </footer>
 </main>
 <div class="buy-sticky" id="buy-sticky" hidden><a class="btn" id="buy-sticky-a" target="_blank" rel="noopener noreferrer" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump">Buy $dasha</a></div>
@@ -440,7 +440,7 @@ main{padding:clamp(34px,6vw,72px) 0 72px}.hero{display:flex;align-items:end;just
     </aside>
   </div>
 </main>
-<footer class="wrap"><p><a href="https://www.getdasha.com/studio">Studio</a> · <a href="https://www.getdasha.com/lobby">Lobby</a> · <a href="/simp">Simp</a> · <a href="/graph">Graph</a> · <a href="/verse">Verse</a> · <a href="/bounties">Bounties</a> · <a href="/how-to-buy">How to buy</a> · <a href="/privacy">Privacy</a></p></footer>
+<footer class="wrap"><p><a href="https://www.getdasha.com/">$dasha</a> · <a href="/chess">Chess</a> · <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a></p></footer>
 <dialog class="promotion" id="promotion" aria-labelledby="promotion-title"><form method="dialog"><p id="promotion-title">Promote to</p><button value="q" aria-label="Queen">♕</button><button value="r" aria-label="Rook">♖</button><button value="b" aria-label="Bishop">♗</button><button value="n" aria-label="Knight">♘</button></form></dialog>
 <script>
 (function(){
@@ -653,12 +653,9 @@ nav a[aria-current=page]{color:#dfff00}
 <ol id="list" hidden></ol>
 <footer class="foot">
   <nav aria-label="Dasha">
-    <a href="/studio">Studio</a>
-    <a href="/simp">Simp</a>
+    <a href="https://www.getdasha.com/">$dasha</a>
     <a href="/graph" aria-current="page">Graph</a>
-    <a href="/verse">Verse</a>
-    <a href="/how-to-buy">How to buy</a>
-    <a href="/privacy">Privacy</a>
+    <a class="buy-dasha" href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&amp;buy=53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>
   </nav>
   <code id="mint">53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump</code>
   <a href="https://solscan.io/token/53uxQtB9pcjWvCHguz3JTTndvuKqGxhrD37EetnCpump" target="_blank" rel="noopener noreferrer">Explorer</a>
@@ -707,4 +704,4 @@ export const LOBBY_PAGE_HTML = `<!doctype html>
 </body>
 </html>
 `;
-export const ASSET_HASH = "a1502b03343ae3dd";
+export const ASSET_HASH = "7ca14ff65b4452b4";
