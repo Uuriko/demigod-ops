@@ -73,7 +73,7 @@ assert.match(DANCE_CLIENT_JS, /dasha-dance-speaker\{position:absolute;right:/);
 assert.equal(`sha384-${createHash('sha384').update(DANCE_CLIENT_JS).digest('base64')}`, DANCE_CLIENT_SRI);
 assert.match(ASSET_HASH, /^[0-9a-f]{16}$/);
 
-for (const path of ['/', '/lobby', '/lobby/', '/studio', '/dasha', '/simp', '/chess', '/verse', '/how-to-buy', '/bounties', '/learn', '/learn/crypto', '/faucet', '/graph', '/graph/']) {
+for (const path of ['/', '/lobby', '/lobby/', '/forum', '/forum/', '/studio', '/dasha', '/simp', '/chess', '/verse', '/how-to-buy', '/bounties', '/learn', '/learn/crypto', '/faucet', '/graph', '/graph/']) {
   assert.equal(danceDockPath(path), false, `danceDockPath(${path}) must be false`);
 }
 
@@ -164,10 +164,10 @@ assert.doesNotMatch(graphHtml, /dasha-dance|three@0\.170/, '308 /graph must not 
 }
 
 {
-  const lobby = await worker.fetch(new Request('https://lobby.getdasha.com/lobby'), assets);
-  assert.equal(lobby.status, 200, 'lobby /lobby must stay 200');
-  const lobbyHtml = await lobby.text();
-  assert.doesNotMatch(lobbyHtml, /dasha-dance\.js/, 'lobby /lobby must not inject the dock');
+  const forum = await worker.fetch(new Request('https://lobby.getdasha.com/forum'), assets);
+  assert.equal(forum.status, 200, 'lobby /forum must stay 200');
+  const forumHtml = await forum.text();
+  assert.doesNotMatch(forumHtml, /dasha-dance\.js/, 'lobby /forum must not inject the dock');
 }
 for (const [host, path] of [
   ['lobby.getdasha.com', '/chess'],
