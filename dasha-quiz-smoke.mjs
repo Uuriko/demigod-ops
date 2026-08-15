@@ -69,7 +69,7 @@ if (disk) {
   ok('v10', QUIZ_VERSION === 'dasha-simp-quiz/v10');
   for (let lane = 0; lane < QUIZ_LANES.length; lane++) walk(lane);
   const first = questionForAttempt(startQuizAttempt({ now }));
-  ok('progress shows scored total', first.progress.current === 0 && first.progress.total === QUIZ_SCORED_LENGTH);
+  ok('progress shows Q n / 22', first.progress.current === 1 && first.progress.total === QUIZ_PATH_LENGTH && first.progress.total === 22);
 }
 
 if (live) {
@@ -102,7 +102,7 @@ if (live) {
     });
     const js = await client.text();
     ok('client 200', client.ok && js.length > 1000);
-    ok('client one start', js.includes('startQuiz()') || js.includes('Take the quiz'));
+    ok('client one start', js.includes('startQuiz()') || js.includes('Take Quiz'));
   } catch (e) {
     ok('live fetch', false, String(e.message || e));
   }
@@ -113,7 +113,7 @@ if (disk) {
   const { readFileSync } = await import('node:fs');
   const diskJs = readFileSync(new URL('./dasha-simp-board-client.js', import.meta.url), 'utf8');
   ok('disk answer guard', diskJs.includes('quizAnswerBusy'));
-  ok('disk snappy feedback', diskJs.includes('650') && diskJs.includes('1100'));
+  ok('disk lock/flash/Next', diskJs.includes('simp-quiz-next') && diskJs.includes('is-right') && diskJs.includes('lockChoices'));
   ok('disk retake', diskJs.includes('retakeQuiz'));
   ok('disk no Quick/Deep chrome', !diskJs.includes('QUICK ·') && !diskJs.includes('10Q') && !diskJs.includes('20Q'));
 }

@@ -334,7 +334,7 @@ function stripHomeLeftoverChrome(html) {
 const HOME_BUY_HREF = BUY_HREF;
 const HOME_BUY_PILL = `<a class="pill primary buy-dasha" href="${HOME_BUY_HREF}" target="_blank" rel="noopener noreferrer">Buy $dasha ↗</a>`;
 const HOME_CARNIVAL_HIDE = '#lobby,#remix,#oss,#voice,.poster-grid,#token h2,#token .section-title,#token .assoc,#token .disclaimer,#token .poster,#token .tape,.dasha-hero .micro{display:none!important}';
-const HOME_FOLD_CSS = '#dasha-tape,#stills,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
+const HOME_FOLD_CSS = '#grwm,#dasha-tape,#stills,#simp,#chess,#faucet,#token,main.dasha>section{content-visibility:auto;contain-intrinsic-size:auto 720px}';
 const HOME_SCROLL_CSS = 'html{scroll-behavior:auto!important}.dasha{overflow-x:visible!important}#token,#token *{view-timeline:none!important;animation-timeline:none!important;scroll-timeline:none!important}';
 const HOME_CALM_CSS = 'main.dasha>nav.nav,main.dasha>nav.nav.wrap,.dasha>nav.nav,.dasha-nav,.dasha-hero .poster,.dasha-hero .price,.dasha-hero .actions a:not(.buy-dasha),.dasha-hero .actions .pill:not(.buy-dasha),a[href*="github.com/Uuriko/dasha-desk"],a[href^="/studio#"],#dasha-lock,main.dasha>footer,footer:not(.dasha-foot){display:none!important}.dasha-hero h1,.dasha-word{font-family:"Arial Black",Helvetica,Arial,sans-serif;font-weight:900}html,body,.dasha,.dasha-hero{font-family:Arial,Helvetica,sans-serif}' + HOME_SCROLL_CSS + HOME_CARNIVAL_HIDE + HOME_FOLD_CSS + AWARD_SLIM_CSS + AWARD_CROP_CSS + AWARD_ROOM_CSS + AWARD_FOOT_CSS + AWARD_BTN_CSS;
 
@@ -385,6 +385,25 @@ function ensureHomeSimpMount(html) {
   return page.slice(0, at) + mount + page.slice(at);
 }
 
+function grwmMountHtml() {
+  return `<section id="grwm" aria-label="GRWM"><style>#grwm{margin:0}#grwm .grwm-play{display:block;width:100%;padding:0;border:0;background:#160f1d;cursor:pointer}#grwm .grwm-loop,#grwm .grwm-still{display:block;width:100%;height:min(72svh,640px);object-fit:cover;background:#160f1d}#grwm .grwm-full{width:min(100%,720px);padding:0;border:2px solid #dfff00;background:#070608}#grwm .grwm-full video{display:block;width:100%;height:auto;max-height:86svh;background:#070608}#grwm .grwm-close{min-height:48px;width:100%;border:0;background:#dfff00;color:#070608;font:900 1rem/1 "Arial Black",Helvetica,Arial,sans-serif}</style><button type="button" class="grwm-play" aria-label="Play GRWM"><video class="grwm-loop" src="/client/grwm-loop.mp4" poster="/client/grwm.jpg" muted loop playsinline autoplay></video></button><dialog class="grwm-full"><video src="/client/grwm.mp4" poster="/client/grwm.jpg" controls playsinline></video><button type="button" class="grwm-close">Close</button></dialog><script>(function(){var root=document.getElementById('grwm');if(!root)return;var play=root.querySelector('.grwm-play');var box=root.querySelector('.grwm-full');var full=box&&box.querySelector('video');var close=root.querySelector('.grwm-close');var loop=root.querySelector('.grwm-loop');if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches&&loop){loop.removeAttribute('autoplay');loop.pause();}if(play&&box)play.addEventListener('click',function(){if(box.showModal)box.showModal();else box.setAttribute('open','');if(full){full.currentTime=0;var go=full.play();if(go&&go.catch)go.catch(function(){})}});if(close)close.addEventListener('click',function(){if(full)full.pause();if(box.close)box.close();else box.removeAttribute('open')})})();</script></section>`;
+}
+
+function ensureHomeGrwmMount(html) {
+  const page = String(html || '');
+  if (/id=["']grwm["']/i.test(page)) return page;
+  const mount = grwmMountHtml();
+  const tape = page.match(/<(?:div|section)\b[^>]*\bid=["']dasha-tape["'][^>]*>/i);
+  if (tape) {
+    const at = page.indexOf(tape[0]);
+    return page.slice(0, at) + mount + page.slice(at);
+  }
+  const hero = page.match(/<header\b[^>]*\bdasha-hero\b[^>]*>[\s\S]*?<\/header>/i);
+  if (!hero) return page;
+  const at = page.indexOf(hero[0]) + hero[0].length;
+  return page.slice(0, at) + mount + page.slice(at);
+}
+
 /** Official Dexscreener embed for this pair. Below first paint, above the board. */
 function dashaTapeMountHtml() {
   return `<section id="dasha-tape" aria-label="$dasha live chart"><style>#dasha-tape-embed{position:relative;width:100%;padding-bottom:125%;background:#070608}@media(min-width:1400px){#dasha-tape-embed{padding-bottom:65%}}#dasha-tape-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#070608}</style><div id="dasha-tape-embed"><iframe class="dasha-tape-frame" title="$dasha live chart" src="${DASHA_TAPE_EMBED_SRC}" loading="lazy" referrerpolicy="no-referrer"></iframe></div></section>`;
@@ -410,9 +429,9 @@ const HOME_STILL_NAMES = ['scary', 'berlinale', 'cotton', 'hero', 'press', 'bull
 /** First-party stills below the tape. Almost no words. Not in the hero. */
 function stillsMountHtml() {
   const figs = HOME_STILL_NAMES.map((name) =>
-    `<figure><img src="/simp/photo/${name}.jpg" alt="Dasha" width="400" height="500" loading="lazy" decoding="async"></figure>`
+    `<figure class="still"><img src="/simp/photo/${name}.jpg" alt="Dasha" width="400" height="500" loading="lazy" decoding="async"></figure>`
   ).join('');
-  return `<section id="stills" aria-label="Stills"><style>#stills .stills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:0}#stills figure{margin:0}#stills img{display:block;width:100%;height:200px;object-fit:cover;background:#160f1d}</style><div class="stills-grid">${figs}</div></section>`;
+  return `<section id="stills" aria-label="Stills"><style>#stills .stills-grid{display:flex;gap:8px;margin:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}#stills figure{flex:0 0 min(68vw,220px);margin:0;scroll-snap-align:start}#stills img{display:block;width:100%;height:280px;object-fit:cover;background:#160f1d}</style><div class="stills-grid">${figs}</div></section>`;
 }
 
 function stripLeftoverStills(html) {
@@ -516,7 +535,7 @@ function ensureHomeChessMount(html) {
 function injectHomeReveal(html) {
   const page = String(html || '');
   if (/id=["']dasha-home-reveal["']/i.test(page)) return page;
-  const tag = `<noscript><style>#stills,#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#stills,#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
+  const tag = `<noscript><style>#grwm,#stills,#simp,#chess,#faucet,#token{opacity:1;transform:none}</style></noscript><script id="dasha-home-reveal">(function(){var nodes=document.querySelectorAll('#grwm,#stills,#simp,#chess,#faucet,#token');if(!nodes.length)return;if(!window.IntersectionObserver||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){for(var i=0;i<nodes.length;i++)nodes[i].classList.add('is-in');return}var io=new IntersectionObserver(function(ents){ents.forEach(function(e){if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -8% 0px'});for(var j=0;j<nodes.length;j++)io.observe(nodes[j])})();</script>`;
   return /<\/body>/i.test(page) ? page.replace(/<\/body>/i, `${tag}</body>`) : page + tag;
 }
 
@@ -531,6 +550,7 @@ export function rewriteHomeFirstViewport(html) {
   if (/<header\b[^>]*\bdasha-hero\b/i.test(page)) {
     page = ensureHomeSimpMount(page);
     page = ensureHomeTapeMount(page);
+    page = ensureHomeGrwmMount(page);
     page = ensureHomeStillsMount(page);
     page = ensureHomeFaucetMount(page);
     page = ensureHomeChessMount(page);
@@ -1115,6 +1135,7 @@ function isExactPath(pathname, base) {
 /** First-paint quiz chrome: one lede. Questions stay in JS. */
 export function simpQuizFirstPaintHtml() {
   return `<p>How big of a Dasha simp are you?</p>
+<button type="button" class="simp-quiz-go" data-dasha-take-quiz>Take Quiz</button>
 <noscript><p>Needs JavaScript.</p></noscript>`;
 }
 
@@ -2137,12 +2158,11 @@ export class DashaLobby {
       const input = await requestJson(request);
       if (!xId && !allowedOrigin) return json({ error: 'origin required' }, 403, null);
       if (input?.action === 'start') {
-        if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
         const cutoff = Date.now() - 60 * 60_000;
         for (const [key, attempt] of Object.entries(this.simpQuizAttempts)) if (key.startsWith('anon:') && Number(attempt?.updatedAt) < cutoff) delete this.simpQuizAttempts[key];
-        // Scored retakes always allowed — wipe in-progress attempt and start a fresh scored run.
         const attempt = startQuizAttempt({ practice: false });
-        this.simpQuizAttempts[xId] = attempt;
+        const key = xId || `anon:${randomUrlToken(9)}`;
+        this.simpQuizAttempts[key] = attempt;
         this.simpQuizMetrics[completed ? 'replays' : 'starts']++;
         countMetric(this.simpQuizMetrics.reached, attempt.current);
         await this.persistSimpState();
@@ -2150,6 +2170,7 @@ export class DashaLobby {
           ok: true,
           ...quizPublic(),
           retake: Boolean(completed),
+          ...(xId ? {} : { attemptId: key.slice(5) }),
           ...questionForAttempt(attempt),
         }, 200, allowedOrigin, cred);
       }
@@ -2173,9 +2194,8 @@ export class DashaLobby {
           ...meStatus(this.simpProfiles, session),
         }, 200, allowedOrigin, cred);
       }
-      if (!xId) return json({ error: 'link X to take the quiz' }, 401, allowedOrigin, cred);
-      const attemptKey = xId;
-      if (input?.action !== 'answer' || !this.simpQuizAttempts[attemptKey]) return json({ error: 'start quiz first' }, 400, allowedOrigin, cred);
+      const attemptKey = xId || (input.attemptId ? `anon:${String(input.attemptId)}` : '');
+      if (!attemptKey || input?.action !== 'answer' || !this.simpQuizAttempts[attemptKey]) return json({ error: 'start quiz first' }, 400, allowedOrigin, cred);
       const prior = this.simpQuizAttempts[attemptKey];
       const advanced = answerQuizAttempt(prior, input.answer);
       if (!advanced.ok) return json({ error: advanced.error }, advanced.status || 400, allowedOrigin, cred);
@@ -2187,10 +2207,15 @@ export class DashaLobby {
         return json({ ok: true, ...advanced }, 200, allowedOrigin, cred);
       }
       if (!xId) {
-        this.simpQuizAttempts[attemptKey] = advanced.attempt;
+        const quiz = quizResultForAttempt(advanced.attempt);
+        if (!quiz) return json({ error: 'quiz is incomplete' }, 400, allowedOrigin, cred);
+        const resultId = randomUrlToken(9);
+        quiz.resultUrl = simpShareWww(resultId);
+        this.simpQuizResults[resultId] = quiz;
+        delete this.simpQuizAttempts[attemptKey];
         this.simpQuizMetrics.completions++;
         await this.persistSimpState();
-        return json({ ok: true, done: true, linkRequired: true, attemptId: attemptKey.slice(5), feedback: advanced.feedback }, 200, allowedOrigin, cred);
+        return json({ ok: true, done: true, quiz, resultUrl: quiz.resultUrl, feedback: advanced.feedback }, 200, allowedOrigin, cred);
       }
       const result = submitQuiz(this.simpProfiles, session, advanced.attempt);
       if (!result.ok) return json({ error: result.error }, result.status || 400, allowedOrigin, cred);
@@ -3678,7 +3703,7 @@ async function productEdge(request, url, env) {
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&
-    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb')
+    (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
   ) {
     return staticAssetResponse(request, env);
   }
@@ -4032,7 +4057,7 @@ export default {
     }
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
-      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb')
+      (url.pathname === '/client/dasha-loop.mp3' || url.pathname === '/client/dasha-face.webp' || url.pathname === '/client/dasha.glb' || url.pathname === '/client/grwm-loop.mp4' || url.pathname === '/client/grwm.mp4' || url.pathname === '/client/grwm.jpg')
     ) {
       return staticAssetResponse(request, env);
     }

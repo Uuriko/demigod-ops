@@ -108,6 +108,8 @@ tmp/
 screenshots/
 *.mp4
 *.webm
+!dasha-worker-assets/client/grwm-loop.mp4
+!dasha-worker-assets/client/grwm.mp4
 playwright-report/
 test-results/
 

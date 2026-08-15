@@ -41,8 +41,11 @@ import {
   answerQuizAttempt,
   pickNextQuestion,
   quizTitle,
+  quizRank,
   quizCopy,
   quizShareLine,
+  quizResultForAttempt,
+  diffOfTier,
   submitQuiz,
   applyLearnAward,
   learnAwardPoints,
@@ -77,8 +80,10 @@ assert.equal(s0.total, LINKED_X_POINTS);
 
 // --- X-linked quiz enrolls, scores, allows scored retakes, never exposes answers ---
 assert.equal(QUIZ_VERSION, 'dasha-simp-quiz/v10');
-assert.equal(QUIZ_PATH_LENGTH, 29);
-assert.equal(QUIZ_SCORED_LENGTH, 28);
+assert.equal(QUIZ_PATH_LENGTH, 22);
+assert.equal(QUIZ_SCORED_LENGTH, 21);
+assert.notEqual(QUIZ_PATH_LENGTH, 28);
+assert.notEqual(QUIZ_SCORED_LENGTH, 10);
 const pubMeta = quizPublic();
 assert.equal(pubMeta.version, QUIZ_VERSION);
 assert.equal(pubMeta.maxPoints, QUIZ_MAX_POINTS);
@@ -87,14 +92,15 @@ assert.equal('quickTotal' in pubMeta, false);
 assert.equal('modes' in pubMeta, false);
 assert.equal(JSON.stringify(pubMeta).includes('"answer"'), false);
 assert.equal(QUIZ_QUESTIONS.filter(question => question.id === 'account').length, 0);
-assert.equal(QUIZ_QUESTIONS.length, 52);
+assert.ok(QUIZ_QUESTIONS.filter(question => question.answer != null).length >= 50, 'bank must have ≥50 scored items');
+assert.equal(QUIZ_QUESTIONS.length, QUIZ_PRACTICE_LENGTH);
 const quizSession = { xId: 'quiz-1', handle: 'quizsimp' };
 assert.equal(submitQuiz({}, null, startQuizAttempt({ now }), { now }).status, 401);
 assert.equal(submitQuiz({}, quizSession, startQuizAttempt({ now }), { now }).status, 400);
 let attempt = startQuizAttempt({ now });
 assert.equal(questionForAttempt(attempt).question.id, 'route');
-assert.equal(questionForAttempt(attempt).progress.current, 0);
-assert.equal(questionForAttempt(attempt).progress.total, QUIZ_SCORED_LENGTH);
+assert.equal(questionForAttempt(attempt).progress.current, 1);
+assert.equal(questionForAttempt(attempt).progress.total, QUIZ_PATH_LENGTH);
 let step = answerQuizAttempt(attempt, 0, { now });
 assert.ok(step.question.id);
 assert.equal(QUIZ_QUESTIONS.find(question => question.id === step.question.id).tier, 1);
@@ -173,7 +179,7 @@ const publicQuizCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...q
   Object.values(QUIZ_SURPRISES).flatMap(surprise => [surprise.title, surprise.body]),
 ).join(' ');
 const askedCopy = QUIZ_QUESTIONS.flatMap(question => [question.prompt, ...question.choices]).join(' ');
-assert.doesNotMatch(askedCopy, /\$dasha|\bmint\b|getdasha|faucet|\bBuy\b|\/studio|\/forum/i);
+assert.doesNotMatch(askedCopy, /\$dasha|\bmint\b|getdasha|faucet|\bBuy\b|\/studio|\/forum|\bchess\b|Jupiter/i);
 assert.doesNotMatch(publicQuizCopy, /\$dasha|mint|Jupiter|getdasha|@getdasha|Simp Board|Perry|holder|\bcoin\b|(?:can|might|could|will) go to zero|go(?:es|ing)? to zero|not financial advice|\bNFA\b|price promise|high risk|rugcheck|lose (?:your )?money|lose it all|worthless/i);
 assert.doesNotMatch(publicQuizCopy, /wikipedia/i);
 const photoRoot = join(dirname(fileURLToPath(import.meta.url)), 'dasha-worker-assets/simp/photo');
@@ -195,8 +201,8 @@ for (let route = 0; route < QUIZ_LANES.length; route++) {
     assert.match(run.question.media.src, /^\/simp\/photo\/[a-z0-9]+\.jpg$/);
     assert.notEqual(run.question.media.src, prev, `consecutive questions must not reuse ${prev}`);
     prev = run.question.media.src;
-    assert.equal(run.progress.total, QUIZ_SCORED_LENGTH);
-    if (run.question.id !== 'route') assert.ok(run.progress.current >= 1 && run.progress.current <= QUIZ_SCORED_LENGTH);
+    assert.equal(run.progress.total, QUIZ_PATH_LENGTH);
+    assert.ok(run.progress.current >= 1 && run.progress.current <= QUIZ_PATH_LENGTH);
     const privateQuestion = QUIZ_QUESTIONS.find(question => question.id === run.question.id);
     run = answerQuizAttempt(run.attempt, privateQuestion.answer, { now });
   }
@@ -208,26 +214,47 @@ assert.equal(answerQuizAttempt(startQuizAttempt({ now }), 99).status, 400);
 {
   let walk = answerQuizAttempt(startQuizAttempt({ now }), 0, { now });
   const first = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
-  assert.equal(first.tier, 1);
+  assert.equal(diffOfTier(first.tier), 'easy');
   assert.equal(first.lane, 'cinema');
   walk = answerQuizAttempt(walk.attempt, first.answer, { now });
   const second = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
-  assert.ok(second.tier >= first.tier, `correct should escalate, got ${first.tier} → ${second.tier}`);
-  walk = answerQuizAttempt(walk.attempt, (second.answer + 1) % second.choices.length, { now });
+  assert.equal(diffOfTier(second.tier), 'easy', 'Q1–Q2 stay easy');
+  walk = answerQuizAttempt(walk.attempt, second.answer, { now });
   const third = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
-  assert.ok(third.tier <= second.tier, `wrong should drop or hold, got ${second.tier} → ${third.tier}`);
-  assert.notEqual(third.id, second.id);
-  const seeded = pickNextQuestion(['route', first.id], Math.min(first.tier + 1, 5), 'cinema', true);
-  assert.ok(seeded && seeded.tier >= first.tier);
+  assert.equal(diffOfTier(third.tier), 'mid', `after two easy, lane is mid, got ${third.id} tier ${third.tier}`);
+  assert.notEqual(diffOfTier(third.tier), 'deep', 'never skip a lane');
+  walk = answerQuizAttempt(walk.attempt, third.answer, { now });
+  const fourth = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
+  assert.equal(diffOfTier(fourth.tier), 'mid', 'one correct does not promote');
+  walk = answerQuizAttempt(walk.attempt, fourth.answer, { now });
+  const fifth = QUIZ_QUESTIONS.find(question => question.id === walk.question.id);
+  assert.equal(diffOfTier(fifth.tier), 'deep', '2/2 correct streak promotes one lane');
+  const seeded = pickNextQuestion(['route', first.id], 'mid', 'cinema');
+  assert.ok(seeded && diffOfTier(seeded.tier) === 'mid');
+  let drop = answerQuizAttempt(startQuizAttempt({ now }), 0, { now });
+  for (let i = 0; i < 2; i++) {
+    const item = QUIZ_QUESTIONS.find(question => question.id === drop.question.id);
+    drop = answerQuizAttempt(drop.attempt, item.answer, { now });
+  }
+  assert.equal(diffOfTier(QUIZ_QUESTIONS.find(question => question.id === drop.question.id).tier), 'mid');
+  const missA = QUIZ_QUESTIONS.find(question => question.id === drop.question.id);
+  drop = answerQuizAttempt(drop.attempt, (missA.answer + 1) % missA.choices.length, { now });
+  const missB = QUIZ_QUESTIONS.find(question => question.id === drop.question.id);
+  assert.equal(diffOfTier(missB.tier), 'mid', 'one miss does not demote');
+  drop = answerQuizAttempt(drop.attempt, (missB.answer + 1) % missB.choices.length, { now });
+  const afterMisses = QUIZ_QUESTIONS.find(question => question.id === drop.question.id);
+  assert.equal(diffOfTier(afterMisses.tier), 'easy', '2/2 misses demote one lane');
   let climb = answerQuizAttempt(startQuizAttempt({ now }), 0, { now });
-  const climbTiers = [];
-  while (!climb.done && climbTiers.length < 8) {
+  const climbDiffs = [];
+  while (!climb.done) {
     const item = QUIZ_QUESTIONS.find(question => question.id === climb.question.id);
-    climbTiers.push(item.tier);
+    climbDiffs.push(diffOfTier(item.tier));
     climb = answerQuizAttempt(climb.attempt, item.answer, { now });
   }
-  assert.ok(climbTiers.some(tier => tier >= 4), `perfect streak must reach deep cuts, got ${climbTiers.join(',')}`);
-  assert.ok(climbTiers[0] <= 2 && climbTiers[climbTiers.length - 1] >= climbTiers[0], '2+ correct in a row climbs');
+  assert.ok(climbDiffs.slice(0, 2).every(d => d === 'easy'), `first two must be easy, got ${climbDiffs.slice(0, 2)}`);
+  assert.equal(climbDiffs[2], 'mid', 'third is mid, never a skip to deep');
+  assert.ok(climbDiffs.some(d => d === 'deep'), `perfect 2/2 streak must reach deep, got ${climbDiffs.join(',')}`);
+  assert.ok(climbDiffs.slice(-2).every(d => d === 'deep'), `last two on a deep streak are deep, got ${climbDiffs.slice(-2)}`);
 }
 
 function walkIds(route) {
@@ -263,25 +290,57 @@ assert.equal(meStatus(quizDone.store, quizSession).board.quiz.disclaimer, undefi
 assert.equal('mode' in quizDone.quiz, false);
 assert.equal(meStatus(quizDone.store, quizSession).board.quiz.share, quizDone.quiz.share);
 
-assert.equal(QUIZ_QUESTIONS.length, 52, `v10 bank is route + 51 sourced items, got ${QUIZ_QUESTIONS.length}`);
+assert.ok(QUIZ_QUESTIONS.length >= 51, `v10 bank is route + ≥50 sourced items, got ${QUIZ_QUESTIONS.length}`);
 assert.equal(new Set(QUIZ_QUESTIONS.map(question => question.prompt)).size, QUIZ_QUESTIONS.length, 'quiz prompts must be unique');
+const scoredBank = QUIZ_QUESTIONS.filter(question => question.answer != null);
+assert.ok(scoredBank.filter(question => question.pic).length >= Math.ceil(scoredBank.length / 3), '≥1/3 of the bank must be picture-ID');
 for (const question of QUIZ_QUESTIONS) {
+  const words = question.prompt.trim().split(/\s+/).length;
+  assert.ok(words <= 25, `${question.id}: stem is ${words} words`);
   assert(question.prompt.length >= 12 && question.prompt.length <= 110, `${question.id}: awkward prompt length ${question.prompt.length}`);
   assert.equal(question.choices.length, question.answer == null ? 3 : 4, `${question.id}: choice count`);
   assert.equal(new Set(question.choices.map(choice => choice.toLowerCase())).size, question.choices.length, `${question.id}: duplicate choice`);
   assert(question.answer == null || (Number.isInteger(question.answer) && question.answer < question.choices.length), `${question.id}: invalid answer`);
   assert.match(question.source, /^https:\/\//, `${question.id}: source required`);
+  assert.doesNotMatch(question.prompt, /\bNOT\b|all of the above|none of the above/i, `${question.id}: no trick stems`);
   if (question.answer != null) {
     assert.ok(question.tier >= 1 && question.tier <= 5, `${question.id}: tier`);
-    assert.match(question.source, /^https:\/\//);
+    assert.ok(['easy', 'mid', 'deep'].includes(diffOfTier(question.tier)), `${question.id}: diff`);
   }
 }
-assert.equal(quizTitle(19, 19), 'Dasha scholar');
-assert.equal(quizTitle(16, 19), 'Confirmed simp');
-assert.equal(quizTitle(12, 19), 'Deep in the lore');
-assert.equal(quizTitle(8, 19), 'Watching respectfully');
-assert.equal(quizTitle(7, 19), 'Still loading');
-assert.notEqual(quizTitle(0, 19), 'Dasha curious');
+for (const id of ['scary-year', 'infowars-year', 'scary-street', 'comfry-show', 'succession-s3', 'wobble-year', 'red-scare-year', 'epstein-townhouse', 'encounters-sec', 'berry-boss']) {
+  const item = QUIZ_QUESTIONS.find(question => question.id === id);
+  assert.ok(item, `missing 2-sourced item ${id}`);
+  assert.ok(Array.isArray(item.sources) && item.sources.length >= 2, `${id} needs two sources`);
+}
+assert.equal(quizTitle(74), 'Dasha scholar');
+assert.equal(quizTitle(66), 'Dasha scholar');
+assert.equal(quizTitle(45), 'Confirmed simp');
+assert.equal(quizTitle(28), 'Deep in the lore');
+assert.equal(quizTitle(14), 'Watching respectfully');
+assert.equal(quizTitle(0), 'Dasha curious');
+assert.doesNotMatch(['Dasha scholar', 'Confirmed simp', 'Deep in the lore', 'Watching respectfully', 'Dasha curious'].join(' '), /Lurker|Unwell/);
+{
+  const done = (weighted, deepCorrect) => ({
+    version: QUIZ_VERSION,
+    current: null,
+    position: QUIZ_PATH_LENGTH,
+    scorable: QUIZ_SCORED_LENGTH,
+    correct: 10,
+    total: QUIZ_PATH_LENGTH,
+    lane: QUIZ_LANES[0],
+    weighted,
+    deepCorrect,
+    startedAt: now,
+    updatedAt: now,
+  });
+  const deepish = quizResultForAttempt(done(28, 8), { now, rng: () => 0.5 });
+  const easyish = quizResultForAttempt(done(10, 0), { now, rng: () => 0.5 });
+  assert.equal(deepish.correct, easyish.correct);
+  assert.ok(deepish.points > easyish.points, 'rank uses weighted + deep-correct, not raw %');
+  assert.notEqual(deepish.title, easyish.title);
+  assert.equal(quizRank(done(28, 8)), 36);
+}
 assert.match(quizCopy('Confirmed simp', 'Cinema obsessive'), /Cinema obsessive/);
 assert.equal(quizShareLine('Confirmed simp', 'Cinema obsessive'), 'Confirmed simp · Cinema obsessive');
 assert.doesNotMatch(quizShareLine('Confirmed simp', 'Cinema obsessive'), /\d+\/\d+/);

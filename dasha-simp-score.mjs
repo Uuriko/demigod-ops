@@ -15,12 +15,12 @@ export const ROLLING_MS = 28 * 24 * 60 * 60 * 1000;
 export const PUBLIC_BOARD_LIMIT = 50;
 export const OSS_SCHEMA = 'dasha-simp-oss/v0';
 export const QUIZ_VERSION = 'dasha-simp-quiz/v10';
-/** 1 unscored lane pick + 28 scored. Progress shows scored only (12 / 28). */
-export const QUIZ_PATH_LENGTH = 29;
-export const QUIZ_SCORED_LENGTH = 28;
-/** Full-bank walk for tests only. Not a player-facing mode. */
-export const QUIZ_PRACTICE_LENGTH = 52;
-export const QUIZ_MAX_POINTS = 60;
+/** 1 unscored lane pick + 21 scored. Progress is Q n / 22. */
+export const QUIZ_PATH_LENGTH = 22;
+export const QUIZ_SCORED_LENGTH = 21;
+export const QUIZ_MAX_POINTS = 80;
+export const QUIZ_DIFFS = ['easy', 'mid', 'deep'];
+export const QUIZ_DIFF_WEIGHT = { easy: 1, mid: 2, deep: 3 };
 /** Soft ±vibe on quiz points so the formula is not a pure spreadsheet. */
 export const QUIZ_VIBE_RANGE = 8;
 export const QUIZ_LANES = ['Cinema obsessive', 'Podcast casualty', 'Dasha archaeologist'];
@@ -56,6 +56,7 @@ const SRC = {
   variety: 'https://variety.com/2021/film/news/dasha-nekrasova-scary-of-61st-street-jeffrey-epstein-1234918735/',
   collider: 'https://collider.com/jennifer-connelly-bad-behaviour-sneak-peek/',
   cutWalk: 'https://www.thecut.com/2019/02/red-scare-podcast-hosts-walk-first-fashion-show.html',
+  varietyGreg: 'https://variety.com/2021/tv/features/succession-nicholas-braun-greg-tom-comfry-1235118877/',
 };
 // [id, tier, lane, prompt, choices, answer, note, source]
 const ITEMS = [
@@ -89,7 +90,6 @@ const ITEMS = [
   ['husband-carpenter', 4, 'lore', 'What has she said her husband actually does, and what is his faith?', ['Talent agent; Latin Catholic', 'Carpenter in historic restoration; Orthodox convert who prays the Psalter daily', 'Cirque rigger; atheist', 'Red Scare producer; Byzantine Catholic like her'], 1, 'Raskin: historic-restoration carpenter; Orthodox convert; Psalter daily.', SRC.raskin],
   ['players-club', 4, 'lore', 'Where did she have her wedding reception?', ['The Wing', "The Players club (the Shakespearean actors' club)", 'Fanelli Cafe', 'Union Hall'], 1, "Raskin: The Players, the Shakespearean actors' club.", SRC.raskin],
   ['isis-tees', 4, 'podcast', 'On the Succession set, what real-time PR crisis was she managing between takes?', ['A leaked Scary of Sixty-First cut', "British tabloids slamming Red Scare's ISIS-themed T-shirts; she drafted a statement to The New Arab", 'A Jezebel piece about Bar Pitti', 'Gersh dropping her mid-shoot'], 1, 'GQ: ISIS-themed tees; she drafted a statement to The New Arab.', SRC.gq],
-  ['chess-elo', 4, 'lore', 'What chess opinions did she volunteer to Max Raskin?', ['She is 2200 and loves Magnus', "Elo about 1000, opens e4 because 'Bobby Fischer says it's tested,' dislikes Magnus, likes Hans Niemann and the Botez sisters", 'She only plays bughouse with Anna', 'She refuses chess as a Russian stereotype'], 1, 'Raskin: ~1000, e4, not a Magnus fan, likes Niemann and the Botez sisters.', SRC.raskin],
   ['exorcist-mexico', 5, 'lore', 'Where and when did she first see The Exorcist?', ['A Minsk bootleg at age 6', 'Fourth grade, in Mexico, a forbidden VHS in a house she was staying in with a school friend', 'Midnight screening at Mills', 'Cirque greenroom in Vegas'], 1, 'Raskin: fourth grade, Mexico, a forbidden VHS at a school friend’s house.', SRC.raskin],
   ['cirque-o', 5, 'lore', 'Which Cirque du Soleil show is her favorite?', ['Mystère', 'O (the Vegas water show)', 'KÀ', 'Zumanity'], 1, 'Raskin: probably “O.”', SRC.raskin],
   ['leuchtturm', 5, 'lore', 'What analog productivity kit did she specify?', ['Moleskine and a Montblanc', 'A German Leuchtturm planner and R.S.V.P. pens made for wedding invitations', 'Remarkable tablet only', "Anna's shared Google Doc"], 1, 'Raskin: Leuchtturm planner and R.S.V.P. pens.', SRC.raskin],
@@ -110,6 +110,16 @@ const ITEMS = [
   ['rachel-comey', 3, 'lore', "Which designer's Spring 2019 show did she walk?", ['Rachel Comey', 'Eckhaus Latta only', 'The Row', 'Brandy Melville'], 0, 'The Cut: Rachel Comey at Marlborough Contemporary. People put lotion on her.', SRC.cutWalk],
   ['la-apparel', 3, 'lore', 'What became her quarantine uniform, per Nylon?', ['LA Apparel tennis skirts', 'Only sweatpants', 'A Cirque leotard', 'Red Scare merch'], 0, 'Nylon: four LA Apparel tennis skirts. A uniform, not sweatpants.', SRC.nylon],
   ['shizen-bangs', 4, 'lore', 'Where does she get her bangs cut?', ['Shizen in Brooklyn', 'A Vegas Cirque stylist', 'Sephora Upper East Side', 'She only trims them herself'], 0, 'Nylon: Shizen in Brooklyn. Japanese, wispy, a little parted.', SRC.nylon],
+  ['scary-year', 1, 'cinema', 'What year did The Scary of Sixty-First play Berlinale?', ['2019', '2020', '2021', '2023'], 2, 'Berlinale 2021 Encounters. Variety covered the first-feature win.', SRC.berlinale, { sources: [SRC.berlinale, SRC.variety] }],
+  ['infowars-year', 1, 'cinema', 'What year was the Infowars sailor-fuku ambush?', ['2016', '2018', '2020', '2021'], 1, 'SXSW 2018, promoting Wobble Palace. The Cut and Vulture both tell it.', SRC.cut, { sources: [SRC.cut, SRC.vulture] }],
+  ['scary-street', 1, 'cinema', 'The title names which Manhattan street?', ['61st Street', '42nd Street', '14th Street', 'Houston Street'], 0, 'Sixty-First Street. Nylon: they wrote it on the Equinox rooftop there.', SRC.nylon, { sources: [SRC.nylon, SRC.variety] }],
+  ['comfry-show', 1, 'cinema', 'Comfry the crisis-PR assistant is on which show?', ['The White Lotus', 'Succession', 'Industry', 'The Menu'], 1, 'Succession. GQ interviewed her; Variety covered Greg asking her out.', SRC.gq, { sources: [SRC.gq, SRC.varietyGreg] }],
+  ['succession-s3', 1, 'cinema', 'Which Succession season is the Comfry run?', ['Season 1', 'Season 2', 'Season 3', 'Season 4'], 2, 'Season 3. GQ on the Kendall publicist bit; Variety on Too Much Birthday.', SRC.gq, { sources: [SRC.gq, SRC.varietyGreg] }],
+  ['wobble-year', 1, 'cinema', 'What year was she at SXSW with Wobble Palace?', ['2016', '2018', '2020', '2022'], 1, '2018. Vulture and The Cut both pin the Infowars clip to that festival.', SRC.vulture, { sources: [SRC.vulture, SRC.cut] }],
+  ['red-scare-year', 1, 'podcast', 'What year did Red Scare start, per The Cut profile?', ['2016', '2018', '2020', '2021'], 1, 'The Cut profile is 2018. Nylon treats that year as the show’s launch window.', SRC.cut, { sources: [SRC.cut, SRC.nylon] }],
+  ['epstein-townhouse', 4, 'cinema', 'The Scary of Sixty-First is set in which real house?', ["Jeffrey Epstein's townhouse", "Ghislaine's London flat", 'A fake Brooklyn loft', 'The Equinox locker room'], 0, "Variety and the Berlinale page: Epstein's Sixty-First Street townhouse.", SRC.variety, { sources: [SRC.variety, SRC.berlinale] }],
+  ['encounters-sec', 4, 'cinema', 'Which Berlinale section played The Scary of Sixty-First?', ['Competition', 'Encounters', 'Panorama', 'Forum'], 1, 'Berlinale Encounters. Variety covered the first-feature prize there.', SRC.berlinale, { sources: [SRC.berlinale, SRC.variety] }],
+  ['berry-boss', 4, 'cinema', "Who is Comfry's actual boss on Kendall's team?", ['Berry Schneider', 'Hugo Baker', 'Karolina Novotney', 'Jess Jordan'], 0, "GQ: assistant to Berry Schneider, Kendall's actual publicist. Variety kept the Comfry beat.", SRC.gq, { sources: [SRC.gq, SRC.varietyGreg] }],
 ];
 const bank = new Map();
 bank.set(
@@ -125,10 +135,55 @@ bank.set(
     { stinger: 'Pick a personality. The algorithm is watching respectfully.' },
   ),
 );
-for (const [id, tier, lane, prompt, choices, answer, note, source] of ITEMS) {
-  bank.set(id, q(id, prompt, choices, answer, null, note, source, { tier, lane }));
+const PIC_IDS = new Set([
+  'sailor-fuku',
+  'sailor-beret',
+  'scary-cap',
+  'the-girl',
+  'wobble-sxsw',
+  'materialists-daisy',
+  'rachel-comey',
+  'shizen-bangs',
+  'la-apparel',
+  'freckle-pens',
+  'softness-poet',
+  'usc-western',
+  'bad-behaviour',
+  'comfry-job',
+  'scary-year',
+  'infowars-year',
+  'scary-street',
+  'comfry-show',
+  'succession-s3',
+  'wobble-year',
+  'epstein-townhouse',
+]);
+export function diffOfTier(tier) {
+  const t = Number(tier) || 1;
+  if (t <= 1) return 'easy';
+  if (t <= 3) return 'mid';
+  return 'deep';
+}
+function shiftDiff(diff, dir) {
+  const i = QUIZ_DIFFS.indexOf(diff);
+  const next = Math.max(0, Math.min(2, (i < 0 ? 0 : i) + dir));
+  return QUIZ_DIFFS[next];
+}
+for (const row of ITEMS) {
+  const [id, tier, lane, prompt, choices, answer, note, source, extra] = row;
+  bank.set(
+    id,
+    q(id, prompt, choices, answer, null, note, source, {
+      tier,
+      lane,
+      diff: diffOfTier(tier),
+      pic: PIC_IDS.has(id),
+      ...(extra && typeof extra === 'object' ? extra : {}),
+    }),
+  );
 }
 export const QUIZ_QUESTIONS = [...bank.values()];
+export const QUIZ_PRACTICE_LENGTH = QUIZ_QUESTIONS.length;
 const scoredItems = QUIZ_QUESTIONS.filter((question) => question.answer != null);
 /** First-party stills under /simp/photo/*. No pbs.twimg. No in-repo dance GIFs. */
 const QUIZ_PHOTO_NAMES = ['archive', 'berlinale', 'bull', 'chart', 'cotton', 'hero', 'media', 'press', 'profile', 'public', 'scary', 'sweet', 'weekend'];
@@ -167,7 +222,6 @@ const PHOTO_BY_ID = {
   'husband-carpenter': 'bull',
   'players-club': 'press',
   'isis-tees': 'hero',
-  'chess-elo': 'chart',
   'exorcist-mexico': 'archive',
   'cirque-o': 'bull',
   leuchtturm: 'sweet',
@@ -188,6 +242,16 @@ const PHOTO_BY_ID = {
   'rachel-comey': 'bull',
   'la-apparel': 'weekend',
   'shizen-bangs': 'berlinale',
+  'scary-year': 'berlinale',
+  'infowars-year': 'cotton',
+  'scary-street': 'scary',
+  'comfry-show': 'hero',
+  'succession-s3': 'press',
+  'wobble-year': 'press',
+  'red-scare-year': 'media',
+  'epstein-townhouse': 'archive',
+  'encounters-sec': 'berlinale',
+  'berry-boss': 'hero',
 };
 for (const question of QUIZ_QUESTIONS) {
   question.media = photoOf(PHOTO_BY_ID[question.id] || 'hero');
@@ -207,27 +271,19 @@ export const QUIZ_SURPRISES = {
   berlinale: { kind: 'photo-drop', title: 'First feature', body: 'GWFF Best First Feature. Encounters.' },
   'tatu-theme': { kind: 'sticker', title: 'COLD OPEN', body: 'All the Things She Said.' },
 };
-export function pickNextQuestion(seen, targetTier, lane, preferUp = true) {
+export function pickNextQuestion(seen, diff, topicLane) {
   const used = seen instanceof Set ? seen : new Set(seen || []);
-  const pick = (tier) => {
-    const pool = scoredItems.filter((item) => item.tier === tier && !used.has(item.id));
+  const want = QUIZ_DIFFS.includes(diff) ? diff : 'mid';
+  const order = want === 'easy' ? ['easy', 'mid', 'deep'] : want === 'deep' ? ['deep', 'mid', 'easy'] : ['mid', 'easy', 'deep'];
+  const pick = (band) => {
+    const pool = scoredItems.filter((item) => (item.diff || diffOfTier(item.tier)) === band && !used.has(item.id));
     if (!pool.length) return null;
-    const biased = lane ? pool.filter((item) => item.lane === lane) : pool;
+    const biased = topicLane ? pool.filter((item) => item.lane === topicLane) : pool;
     return (biased.length ? biased : pool)[0];
   };
-  const exact = pick(targetTier);
-  if (exact) return exact;
-  for (let d = 1; d <= 4; d++) {
-    const first = preferUp ? targetTier + d : targetTier - d;
-    const second = preferUp ? targetTier - d : targetTier + d;
-    if (first >= 1 && first <= 5) {
-      const hit = pick(first);
-      if (hit) return hit;
-    }
-    if (second >= 1 && second <= 5) {
-      const hit = pick(second);
-      if (hit) return hit;
-    }
+  for (const band of order) {
+    const hit = pick(band);
+    if (hit) return hit;
   }
   return scoredItems.find((item) => !used.has(item.id)) || null;
 }
@@ -336,8 +392,11 @@ export function startQuizAttempt({ now = Date.now(), practice = false } = {}) {
     practice: Boolean(practice),
     total: practice ? QUIZ_PRACTICE_LENGTH : QUIZ_PATH_LENGTH,
     seen: [],
-    tier: 1,
+    band: 'easy',
     streak: 0,
+    misses: 0,
+    weighted: 0,
+    deepCorrect: 0,
     startedAt: now,
     updatedAt: now,
   };
@@ -346,10 +405,14 @@ export function questionForAttempt(attempt) {
   const question = attempt?.version === QUIZ_VERSION ? bank.get(attempt.current) : null;
   if (!question) return null;
   const prev = attempt.seen?.length ? bank.get(attempt.seen[attempt.seen.length - 1]) : null;
-  const scored = question.answer != null;
+  const pathTotal = attempt.practice ? QUIZ_PRACTICE_LENGTH : QUIZ_PATH_LENGTH;
   return {
     question: publicQuestion(question, { avoidSrc: prev?.media?.src }),
-    progress: { current: (Number(attempt.scorable) || 0) + (scored ? 1 : 0), total: QUIZ_SCORED_LENGTH },
+    progress: {
+      current: (Number(attempt.position) || 0) + 1,
+      total: pathTotal,
+      ...(attempt.band === 'deep' ? { whisper: 'going deeper' } : {}),
+    },
   };
 }
 export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
@@ -359,17 +422,41 @@ export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
   const correct = scored && answer === question.answer;
   const seen = [...(attempt.seen || []), question.id];
   const lane = question.id === 'route' ? QUIZ_LANES[answer] : attempt.lane;
-  const currentTier = Number(attempt.tier) || 1;
+  const served = question.diff || diffOfTier(question.tier);
   const scoredNext = attempt.scorable + (scored ? 1 : 0);
   const scoredCap = attempt.practice ? scoredItems.length : QUIZ_SCORED_LENGTH;
+  let band = attempt.band || 'easy';
+  let streak = Number(attempt.streak) || 0;
+  let misses = Number(attempt.misses) || 0;
+  let weighted = Number(attempt.weighted) || 0;
+  let deepCorrect = Number(attempt.deepCorrect) || 0;
+  if (scored) {
+    if (correct) {
+      weighted += QUIZ_DIFF_WEIGHT[served] || 1;
+      if (served === 'deep') deepCorrect += 1;
+      streak += 1;
+      if (streak >= 2) {
+        band = shiftDiff(band, 1);
+        streak = 0;
+      }
+    } else {
+      misses += 1;
+      if (misses >= 2) {
+        band = shiftDiff(band, -1);
+        misses = 0;
+      }
+    }
+  }
+  if (scoredNext === 2) band = 'mid';
   let next = null;
   if (scoredNext < scoredCap) {
-    const targetTier = scored ? (correct ? Math.min(currentTier + 1, 5) : Math.max(currentTier - 1, 1)) : 1;
-    const picked = pickNextQuestion(seen, targetTier, laneKeyOf(lane), correct || !scored);
+    let pickBand = band;
+    if (scoredNext < 2) pickBand = 'easy';
+    else if (scoredNext >= scoredCap - 2) pickBand = band === 'deep' || streak >= 2 ? 'deep' : 'mid';
+    const picked = pickNextQuestion(seen, pickBand, laneKeyOf(lane));
     next = picked?.id || question.next || null;
-    if (next && seen.includes(next)) next = pickNextQuestion(seen, targetTier, laneKeyOf(lane), correct || !scored)?.id || null;
+    if (next && seen.includes(next)) next = pickNextQuestion(seen, pickBand, laneKeyOf(lane))?.id || null;
   }
-  const streak = correct ? (Number(attempt.streak) || 0) + 1 : 0;
   const nextQuestion = next ? bank.get(next) : null;
   const updated = {
     ...attempt,
@@ -379,43 +466,41 @@ export function answerQuizAttempt(attempt, answer, { now = Date.now() } = {}) {
     correct: attempt.correct + (correct ? 1 : 0),
     scorable: attempt.scorable + (scored ? 1 : 0),
     seen,
-    tier: nextQuestion?.tier || currentTier,
+    band,
     streak,
+    misses,
+    weighted,
+    deepCorrect,
     bestStreak: Math.max(Number(attempt.bestStreak) || 0, streak),
     updatedAt: now,
   };
-  const lead = !scored
-    ? 'Lane chosen.'
-    : correct
-      ? ['Correct. Unfortunate level of recall.', 'Yes, obviously.', 'Correct. You were online.', 'Unhealthy recall. Respect.'][attempt.position % 4]
-      : ['Fake lore.', 'No. Too organized.', 'You were not online enough.', 'Timeline amnesia.'][attempt.position % 4];
   const pack = QUIZ_SURPRISES[question.id] || null;
-  const surprise =
-    pack ||
-    (streak >= 3 && correct
-      ? { kind: 'streak', title: `${streak} in a row`, body: 'Vibes compounding. Dangerous.' }
-      : null) ||
-    (question.stinger ? { kind: 'stinger', title: 'Note', body: question.stinger } : null);
+  const surprise = pack || (question.stinger ? { kind: 'stinger', title: 'Note', body: question.stinger } : null);
   return {
     ok: true,
     attempt: updated,
     done: !next,
     feedback: {
       correct: scored ? correct : null,
-      note: `${lead} ${question.note}`,
+      answer: scored ? question.answer : null,
+      right: scored ? question.choices[question.answer] : null,
+      note: question.note,
       source: question.source,
       ...(surprise ? { surprise } : {}),
     },
     ...(next ? questionForAttempt(updated) : {}),
   };
 }
-export function quizTitle(correct, total = QUIZ_SCORED_LENGTH) {
-  const ratio = total ? correct / total : 0;
-  if (ratio === 1) return 'Dasha scholar';
-  if (ratio >= .8) return 'Confirmed simp';
-  if (ratio >= .6) return 'Deep in the lore';
-  if (ratio >= .4) return 'Watching respectfully';
-  return 'Still loading';
+export function quizRank(attempt) {
+  return (Number(attempt?.weighted) || 0) + (Number(attempt?.deepCorrect) || 0);
+}
+export function quizTitle(rank) {
+  const n = Number(rank) || 0;
+  if (n >= 66) return 'Dasha scholar';
+  if (n >= 45) return 'Confirmed simp';
+  if (n >= 28) return 'Deep in the lore';
+  if (n >= 14) return 'Watching respectfully';
+  return 'Dasha curious';
 }
 
 const QUIZ_COPY = {
@@ -427,17 +512,17 @@ const QUIZ_COPY = {
     `You were online for the right years. ${lane} is doing real work. A couple of scene facts still sit on the table.`,
   'Watching respectfully': lane =>
     `You know enough to be dangerous. ${lane} is a solid start. A couple more credits and it gets specific.`,
-  'Still loading': lane =>
+  'Dasha curious': lane =>
     `New tab, honest score. ${lane} is a fine on-ramp. The facts are public; the bit is optional.`,
 };
 
 export function quizCopy(title, lane) {
-  const key = QUIZ_COPY[title] ? title : 'Still loading';
+  const key = QUIZ_COPY[title] ? title : 'Dasha curious';
   return QUIZ_COPY[key](lane || 'This lane');
 }
 
 export function quizShareLine(title, lane) {
-  return lane ? `${title} · ${lane}` : String(title || 'Still loading');
+  return lane ? `${title} · ${lane}` : String(title || 'Dasha curious');
 }
 
 /**
@@ -492,16 +577,21 @@ export function quizResultForAttempt(attempt, { now = Date.now(), rng = Math.ran
   ) {
     return null;
   }
-  const basePoints = Math.round((attempt.correct / attempt.scorable) * QUIZ_MAX_POINTS);
+  const weighted = Number(attempt.weighted) || 0;
+  const deepCorrect = Number(attempt.deepCorrect) || 0;
+  const rank = weighted + deepCorrect;
   const vibe = vibeDeltaForAttempt(attempt, { rng });
-  const points = basePoints;
-  const title = quizTitle(attempt.correct, attempt.scorable);
+  const points = Math.min(QUIZ_MAX_POINTS, Math.max(0, rank));
+  const title = quizTitle(rank);
   return {
     version: QUIZ_VERSION,
     correct: attempt.correct,
     total: attempt.scorable,
+    weighted,
+    deepCorrect,
+    rank,
     points,
-    basePoints,
+    basePoints: points,
     vibe,
     vibeNote: vibeNote(vibe),
     title,
