@@ -7,6 +7,49 @@ last_verified: 2026-08-15T21:47Z
 
 # Live gaps on getdasha.com, and exactly where the code already is
 
+## 0. HIGHEST PRIORITY — the social card advertises a retired feature
+
+Fix this before the first tweet, not after. It is the only item here that every single visitor sees
+*before* they reach the site, and it is currently a broken promise.
+
+`lobby.getdasha.com/og/dasha-social-card.png` (1200×630, 200, 141 KB — technically perfect) reads:
+
+- headline **"IT'S TIME $DASHA."**
+- tagline **"Make it. Save it. Pass it on."**
+- primary button **"MAKE SOMETHING →"**
+- three poster tiles each labelled **"EDIT THIS"**
+
+The text metadata says the same thing:
+
+```
+og:description   Make something. Pass it on.
+description      $dasha. Make something. Pass it on.
+```
+
+That is the Studio proposition end to end. **`/studio` 308s to the homepage.** There is no Studio,
+no editor, and nothing on the landing page that lets anyone make or edit anything — the poster
+collage that used to link into it was removed from the markup (§3c).
+
+So a link shared on Twitter promises a creative tool, and the click lands on a Buy button, a
+leaderboard, a contract address and an inert chessboard. Every share spends its first impression on
+a feature that no longer exists, and the mismatch is invisible from inside the site — you only see
+it by looking at the card.
+
+Two coherent ways out, and it is a product call which:
+
+1. **Match the card to the product.** New card image plus `og:description` / `description` built on
+   what live actually offers — the token, the Simp board, chess. Card image is served by the Worker
+   (`/og/…`), so it needs a deploy; the meta text lives in Webflow page settings, so it needs a
+   publish through `dasha-ship.mjs`.
+2. **Match the product to the card.** Un-retire `/studio`. Larger, and it contradicts the curation
+   in §3c, so only if the retirement was meant to be temporary.
+
+Doing neither is the expensive option, because it is paid once per share for the life of the
+campaign.
+
+---
+
+
 Everything below was verified against live on 2026-08-15. None of it is fixable from this machine:
 the Worker deployed at 17:54Z was built from a tree that has `DashaFaucet`, which exists nowhere
 here, and `driftedPins` correctly refuses a ship from here because `simp-board.js`, `studio.js` and
