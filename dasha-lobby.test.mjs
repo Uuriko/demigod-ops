@@ -267,6 +267,9 @@ const LOBBY_SRI = `sha384-${createHash('sha384').update(LOBBY_CLIENT_JS).digest(
 assert.equal(LOBBY_SRI, LOBBY_CLIENT_SRI, 'LOBBY_CLIENT_SRI must be the hash of served client/lobby.js');
 const SIMP_SRI_FROM_BYTES = `sha384-${createHash('sha384').update(SIMP_BOARD_JS).digest('base64')}`;
 assert.equal(SIMP_BOARD_SRI, SIMP_SRI_FROM_BYTES, 'SIMP_BOARD_SRI must be the hash of served client/simp-board.js bytes');
+assert.doesNotMatch(SIMP_BOARD_JS, /Open Studio|Open forum|Make a meme/);
+assert.doesNotMatch(SIMP_BOARD_JS, /\/studio|\/forum/);
+assert.doesNotMatch(SIMP_BOARD_JS, /You cannot play until you connect X|X is required\. No anonymous play\./);
 assert.match(STUDIO_CLIENT_JS, /const LOOKS=\[\{id:'poster'/, 'served studio.js LOOKS[0] must be type-first poster');
 assert.match(STUDIO_CLIENT_JS, /id:'photo'/, 'photo remains an optional look in served studio.js');
 assert.match(STUDIO_CLIENT_JS, /function syncPhotoPick/, 'served studio.js must keep face thumbs off first paint');
@@ -472,6 +475,9 @@ for (const path of ['/studio', '/studio/']) {
     assert.doesNotMatch(html, /href="\/chess">Chess</, `${label} chrome must not door to Chess`);
     assert.doesNotMatch(html, /\/rally|\/airdrop|\/earn|\/claim/i, `${label} chrome must not grow dead doors`);
     assert.match(html, /How big of a Dasha simp are you\?/, `${label} must lead with the quiz`);
+    assert.equal((html.match(/How big of a Dasha simp are you\?/g) || []).length, 1, `${label} must not stack the quiz lede`);
+    assert.doesNotMatch(html, /Open Studio|Open forum|Make a meme/);
+    assert.doesNotMatch(html, /href=["'][^"']*\/(?:studio|forum)/);
     assert.doesNotMatch(html, /Quick 10Q|Deep 20Q|\b10Q\b|\b20Q\b/);
     assert.doesNotMatch(html, /Take Simp|Ranked by lore|founding #1|not measured/);
     assert.match(html, /<a href="https:\/\/www\.getdasha\.com\/">\$dasha<\/a> · <a class="buy-dasha"[^>]*>Buy \$dasha ↗<\/a> · <a href="https:\/\/x\.com\/dash_eats"[^>]*>@dash_eats<\/a>/, `${label} footer must keep \$dasha + Buy + @dash_eats`);
@@ -1893,6 +1899,12 @@ ${liveHomeFooter}
     LOBBY_SRI,
     'served client/lobby.js hash must match the /lobby inject pin',
   );
+  const servedSimpJs = await workerModule.default.fetch(new Request('https://lobby.getdasha.com/client/simp-board.js'), {});
+  assert.equal(servedSimpJs.status, 200);
+  const servedSimpBytes = await servedSimpJs.text();
+  assert.equal(servedSimpBytes, SIMP_BOARD_JS, 'worker /client/simp-board.js must be the in-repo quiz client');
+  assert.doesNotMatch(servedSimpBytes, /Open Studio|Open forum|Make a meme/);
+  assert.doesNotMatch(servedSimpBytes, /\/studio|\/forum/);
 }
 {
   const staleStudioSri = 'sha384-rwyBrN9MFswysun8gGdKfRSOByQyA3zYhRxZvaBlcw6abIyHL9k5UVb4cfFaiuQL';

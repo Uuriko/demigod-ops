@@ -317,7 +317,7 @@
       if (on && root.scrollIntoView) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    /** Result share phase: hide buy sticky + mobile sticky Share/Make CTAs. */
+    /** Result share phase: hide buy sticky + mobile sticky Share CTA. */
     function hideResultSticky() {
       var bar = document.getElementById('dasha-quiz-result-bar');
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
@@ -326,7 +326,7 @@
       } catch (e) {}
     }
 
-    function showResultSticky(result, onShare) {
+    function showResultSticky(onShare) {
       hideResultSticky();
       try {
         document.documentElement.classList.add('simp-result-open');
@@ -341,13 +341,7 @@
       share.addEventListener('click', function () {
         if (typeof onShare === 'function') onShare();
       });
-      var make = document.createElement('a');
-      make.className = 'ghost';
-      make.href = studioSeedForResult(result);
-      make.textContent = 'Open Studio';
-      make.setAttribute('aria-label', 'Open a tailored starting point in Dasha Studio');
       bar.appendChild(share);
-      bar.appendChild(make);
       document.body.appendChild(bar);
     }
 
@@ -438,7 +432,7 @@
         quizBtn.textContent = 'Take the quiz';
         quizBtn.dataset.mode = 'quiz';
         quizBtn.setAttribute('aria-label', 'Start the Dasha simp quiz');
-        quizNote.textContent = 'Connect X to take the quiz. You cannot play until you connect X.';
+        quizNote.textContent = 'Take the quiz. Finishing joins the Board.';
         return;
       }
       var quizResult = (meData.board && meData.board.quiz) || lastQuizResult;
@@ -504,11 +498,7 @@
     }
 
     function inviteShareText() {
-      return (
-        'How big of a Dasha simp are you?\n\n' +
-        'Connect X to take the quiz:\n' +
-        QUIZ_INVITE_URL
-      );
+      return 'How big of a Dasha simp are you?\n\n' + QUIZ_INVITE_URL;
     }
 
     function copyQuizInvite(btn) {
@@ -567,7 +557,7 @@
       var bar = el('div', 'simp-quiz-connect-bar');
       bar.id = 'dasha-quiz-connect-bar';
       bar.setAttribute('role', 'region');
-      bar.setAttribute('aria-label', 'Connect X to take the quiz');
+      bar.setAttribute('aria-label', 'Connect X');
       var st = document.createElement('style');
       st.textContent =
         '.simp-quiz-connect-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border:2px solid #dfff00;border-radius:14px;background:#120c18;color:#f4eddb;box-shadow:8px 8px 0 #ff3b81}' +
@@ -580,11 +570,7 @@
         'html.simp-quiz-open .simp-quiz-connect-bar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}';
       bar.appendChild(st);
       var msg = el('p', '');
-      var bold = el('b', '', 'Simp quiz invite');
-      msg.appendChild(bold);
-      msg.appendChild(
-        document.createTextNode(' — connect X to take the quiz. You cannot play until you connect X.'),
-      );
+      msg.appendChild(el('b', '', 'Simp quiz invite'));
       bar.appendChild(msg);
       var acts = el('div', 'actions');
       var connect = el('button', 'primary', 'Connect X');
@@ -623,7 +609,6 @@
         startQuiz();
         return;
       }
-      setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
       openQuizInviteGate();
       showQuizConnectBar();
     }
@@ -657,17 +642,9 @@
       gateEl.appendChild(style);
       var card = el('div', 'simp-gate-card');
       card.appendChild(el('p', 'simp-gate-kicker', 'Quiz invite'));
-      var h = el('h2', '', 'Connect X + take the quiz');
+      var h = el('h2', '', 'Connect X');
       h.id = 'dasha-x-gate-title';
       card.appendChild(h);
-      card.appendChild(
-        el(
-          'p',
-          '',
-          'Someone sent you the Dasha simp quiz. Connect X to take it. You cannot play until you connect X.',
-        ),
-      );
-      card.appendChild(el('p', 'simp-gate-note', 'X is required. No anonymous play.'));
       var actions = el('div', 'simp-gate-actions');
       var primary = el('button', 'simp-gate-primary', 'Connect X');
       primary.type = 'button';
@@ -913,27 +890,6 @@
       );
     }
 
-    function studioSeedForResult(result) {
-      var seeds = {
-        'Dasha scholar': ['film', 'Nobody is coming to save the timeline.'],
-        'Confirmed simp': ['glam', 'How u crying at the casino and u can’t even get in'],
-        'Deep in the lore': ['commons', 'All I want is free healthcare, honey'],
-        'Watching respectfully': ['hero', 'It’s time $dasha'],
-        'Dasha curious': ['portrait', 'All I want is free healthcare, honey'],
-      };
-      var seed = seeds[(result && result.title) || ''] || seeds['Dasha curious'];
-      return (
-        '/studio#' +
-        new URLSearchParams({
-          look: 'photo',
-          format: 'square',
-          photo: seed[0],
-          line: seed[1],
-          src: 'quiz',
-        }).toString()
-      );
-    }
-
     /** Prefer system share with result PNG (mobile CT); fall back to X text intent. */
     function sendQuizCard(result, blob) {
       var text = quizShareText(result);
@@ -1121,10 +1077,6 @@
           sendQuizCard(result, cardBlob);
         });
         actions.appendChild(share);
-        var make = el('a', 'simp-action', 'Open Studio');
-        make.href = studioSeedForResult(result);
-        make.setAttribute('aria-label', 'Open a tailored starting point in Dasha Studio');
-        actions.appendChild(make);
         if (blob) {
           var another = el('button', 'simp-action', 'Another photo');
           another.type = 'button';
@@ -1154,8 +1106,8 @@
         actions.appendChild(retake);
         actions.appendChild(done);
         quizBox.appendChild(actions);
-        // Sticky Share/Make on mobile so buy chrome cannot bury the completion CTA.
-        showResultSticky(result, function () {
+        // Sticky Share on mobile so buy chrome cannot bury the completion CTA.
+        showResultSticky(function () {
           sendQuizCard(result, cardBlob);
         });
         // Image-first: wait for one tap (preserves mobile user-activation for navigator.share).
@@ -1262,19 +1214,9 @@
       var inviteX = el('button', 'ghost', 'Invite on X');
       inviteX.type = 'button';
       inviteX.addEventListener('click', shareQuizInviteOnX);
-      var lobby = document.createElement('a');
-      lobby.className = 'ghost';
-      lobby.href = '/forum';
-      lobby.textContent = 'Open forum';
-      var studio = document.createElement('a');
-      studio.className = 'ghost';
-      studio.href = '/studio';
-      studio.textContent = 'Make a meme';
       acts.appendChild(share);
       acts.appendChild(invite);
       acts.appendChild(inviteX);
-      acts.appendChild(lobby);
-      acts.appendChild(studio);
       panel.appendChild(acts);
       if (root.firstChild) root.insertBefore(panel, root.firstChild);
       else root.appendChild(panel);
@@ -1362,7 +1304,6 @@
             setQuizOpen(false);
             if (res.data.linkRequired) {
               quizAttemptId = res.data.attemptId;
-              setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
               return linkX();
             }
             if (res.data.quiz) {
@@ -1390,7 +1331,6 @@
       if (!meData || !meData.linked) {
         quizBtn.disabled = false;
         retakeBtn.disabled = false;
-        setStatus('Connect X to take the quiz. You cannot play until you connect X.', 'warn');
         linkX();
         return;
       }
