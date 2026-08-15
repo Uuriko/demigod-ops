@@ -284,6 +284,8 @@ assert.match(pageHtml, /<noscript>[\s\S]*client\/faucet\.png[\s\S]*<\/noscript>/
 assert.doesNotMatch(pageHtml.replace(/<noscript>[\s\S]*?<\/noscript>/, ''), /<h1>Faucet<\/h1>/);
 assert.match(pageHtml, /class="dasha-slim[\s"]/);
 assert.match(pageHtml, /href="\/verse">Verse</);
+assert.doesNotMatch(pageHtml.match(/<nav aria-label="Dasha">[\s\S]*?<\/nav>/)?.[0] || '', /href="\/faucet"/, '/faucet page menu is not a Faucet door');
+assert.doesNotMatch(pageHtml.match(/<footer class="dasha-foot">[\s\S]*?<\/footer>/)?.[0] || '', /href="\/faucet"/, '/faucet page footer is not a Faucet door');
 assert.match(pageHtml, /footer\.dasha-foot a,\.dasha-foot a\{display:inline-flex;align-items:center;min-height:48px/);
 assert.match(pageHtml, /data-faucet-still/);
 assert.match(pageHtml, /data-faucet-still-sri/);

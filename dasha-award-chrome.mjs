@@ -36,7 +36,6 @@ export const DASHA_ROOMS = [
   { href: '/bounties', label: 'Bounties' },
   { href: '/how-to-buy', label: 'How to buy' },
   { href: '/learn', label: 'Learn' },
-  { href: '/faucet', label: 'Faucet' },
   { href: '/verse', label: 'Verse' },
   { href: '/privacy', label: 'Privacy' },
 ];
