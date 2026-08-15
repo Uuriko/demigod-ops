@@ -110,8 +110,32 @@ first `<script>` at the first `</script>`, making its body the literal text `<sc
 every homepage load; the board renders at 5340px and is inert. `/chess` is a separate copy and is
 fine.
 
-Fix at whatever source generates the embed for homepage element `111587a0`: collapse each doubled
-pair to a single tag. This tree does not source that element — see §4.
+### Where the fix actually is — corrected 2026-08-15
+
+**It is not in Webflow.** An earlier revision of this document sent people to the homepage embed.
+That was wrong; do not look there. Proof, by fetching the Webflow staging domain, which bypasses the
+Cloudflare edge worker entirely:
+
+| | staging `johns-awesome-project-39b1b5.webflow.io` | production `www.getdasha.com` |
+|---|---|---|
+| bytes | 30,095 | 122,234 |
+| `<script><script>` | **0** | 1 |
+| chess markup (`promotion-title`, `id="board"`) | **none** | present |
+| `dasha-simp-board` | present | present |
+| `x-dasha-edge` header | absent | `html-security` |
+
+Webflow serves a 30 KB page with no chess in it. The **Cloudflare edge worker injects ~92 KB**,
+including the whole chess client, and the injection is what emits the doubled pair. Both Webflow
+embeds on the page were read directly and neither contains chess: `b1681188` is the landing content,
+and `111587a0` is a small script that rewrites `/studio` links (itself now dead code, since those
+links are gone).
+
+So the fix belongs in the edge worker that stamps `x-dasha-edge`, in the post-pivot tree — collapse
+`<script><script>` → `<script>` and `</script></script>` → `</script>` at the injection site. It
+cannot be fixed from Webflow, from the Designer, or from this machine.
+
+That the injected block also carries a `<section>` computing `display:none` around the `Play` and
+`Top table` headings (§3b) points at the same injection as the cause of both defects.
 
 ## 2. `/price` returns 404 — and fixing it alone changes nothing visible
 
