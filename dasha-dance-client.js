@@ -77,6 +77,7 @@
   function css() {
     return '#dasha-dance{position:fixed;left:0;right:0;bottom:0;z-index:12;height:' + DOCK_H + 'px;pointer-events:none}' +
       '#dasha-dance canvas{display:block;width:100%;height:' + DOCK_H + 'px;background:transparent}' +
+      '#dasha-dance:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;background:repeating-radial-gradient(circle at 1px 1px,rgba(223,255,0,.14) 0 0.6px,transparent 1px 3px)}' +
       '#dasha-dance button{pointer-events:auto;margin:0;padding:0;border:0;cursor:pointer;background:transparent}' +
       '#dasha-dance button:focus-visible{outline:3px solid #dfff00;outline-offset:3px}' +
       '#dasha-dance .dasha-dance-hit{position:absolute;left:50%;width:88px;height:150px;bottom:0;margin-left:-44px}' +
@@ -176,7 +177,10 @@
   function goLive() {
     if (dead || stillOnly) return;
     lastTime = 0;
-    if (clock) clock.start();
+    if (clock) {
+      clock.getDelta();
+      clock.start();
+    }
     if (!raf) tick();
     if (!muted) playLoop();
   }
@@ -243,12 +247,13 @@
     if (!stillOnly) {
       var span = travelWidth() / 2 - 0.45;
       var want = dir > 0 ? -0.85 : 0.85;
-      if (lookHold > 0) {
-        lookHold -= dt;
-        want = 0;
-      }
+      if (lookHold > 0) lookHold -= dt;
       yaw += (want - yaw) * Math.min(1, dt * 2.2);
       wrap.rotation.y = yaw;
+      if (head) {
+        var headWant = lookHold > 0 ? -yaw : 0;
+        head.rotation.y += (headWant - head.rotation.y) * Math.min(1, dt * 4);
+      }
       var turning = Math.abs(want - yaw) > 0.16;
       if (lookHold <= 0 && !turning) {
         wrap.position.x += dir * 0.95 * dt;
@@ -318,7 +323,8 @@
         'float rim = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);' +
         'float rimQ = step(0.55, rim);' +
         'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;' +
-        'outgoingLight += vec3(0.874, 1.0, 0.0) * rimQ;'
+        'outgoingLight += vec3(0.874, 1.0, 0.0) * rimQ;' +
+        'outgoingLight += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.03;'
       );
     };
     return mat;
@@ -505,11 +511,15 @@
   }
 
   function boot() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', mount);
-    } else {
-      mount();
+    function go() {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', mount);
+      } else {
+        mount();
+      }
     }
+    if (global.requestIdleCallback) global.requestIdleCallback(go, { timeout: 400 });
+    else global.setTimeout(go, 400);
   }
 
   global.DashaDance = { dispose: dispose, boot: boot };
